@@ -16,18 +16,19 @@
 // a `[[bin]]` target inside the library it drives
 // (`docs/specs/module-decomposition.md`, decision 1).
 //
-// What is left here that is not rendering is the **order** three verbs depend
+// What is left here that is not rendering is the **order** the verbs depend
 // on, and each is stated where it happens: read the operator's text with the
-// type that owns it *before* taking a lock, ask the just-in-time presence rule
-// *before* the mutation, and admit the session against the completion channel
-// *before* writing to it.
+// type that owns it *before* taking a lock, and admit the session against the
+// completion channel *before* writing to it. No verb asks whether a kind can be
+// launched: the owner's harness-dispatch policy answers that when a leaf of
+// that kind launches, and nowhere earlier.
 
 use anyhow::{bail, ensure, Context, Result};
 use clap::{Parser, Subcommand};
 use grove_loop::verbs::{self, Resolution, Signalled};
 use grove_loop::{
-    Handle, Kind, Outcome, Reading, Reference, SessionConfig, SessionEpochGuard, Slug, Sought,
-    Tree, TreeWrite, Writing,
+    Handle, Kind, Outcome, Reading, Reference, SessionEpochGuard, Slug, Sought, Tree, TreeWrite,
+    Writing,
 };
 use jj_workspace::Workspace;
 use std::io::Write;
@@ -336,11 +337,12 @@ pub struct RootInitArgs {
 /// methodology rather than in this binary
 /// (`docs/adr/a-kind-is-an-open-token.md`). What the help owes instead is the
 /// two facts a caller cannot guess — what the grammar accepts, and that a kind
-/// no template declares is refused before the tree moves.
+/// nothing can launch is found out when its leaf launches, not here.
 const KIND_HELP: &str = "Leaf kind, written into the filename: lowercase ASCII letters, \
 digits and single dashes, no `--`. Grove holds no list of kinds — the installed methodology \
-does — so any well-formed token is accepted here and refused later if no launch template \
-declares it. `finish` is driver-reserved and refused by this verb";
+does — so any well-formed token is written. Whether a kind can be launched is decided by \
+the owner's harness-dispatch policy when the leaf launches, and a refused launch leaves the \
+leaf live. `finish` is driver-reserved and refused by this verb";
 
 /// [`KIND_HELP`] for `leaf-decompose`, whose `--kind` overrides an inherited
 /// kind rather than supplying a default.
@@ -503,11 +505,9 @@ fn cmd_complete(args: &CompleteArgs, session_epoch: Option<&SessionEpochGuard>) 
 fn cmd_root_init(args: &RootInitArgs) -> Result<()> {
     let worktree = worktree()?;
     // Read before the lock: refusing a bad slug without taking an exclusive one
-    // is strictly kinder, and the kind's presence rule is asked before anything
-    // is written.
+    // is strictly kinder.
     let slug = slug(&args.slug)?;
     let kind = Kind::requirements();
-    require_declared(&worktree, std::slice::from_ref(&kind))?;
     // The refusal to clobber is the **shape** rather than a check: a live grove
     // opens as a tree, and `root-init` takes a vacancy.
     //
@@ -663,7 +663,6 @@ fn cmd_leaf_add(args: &LeafAddArgs) -> Result<()> {
         .collect::<Result<Vec<_>>>()?;
     let slug = slug(&args.slug)?;
     let parent = Reference::parse(&args.parent)?;
-    require_declared(&worktree, &kinds)?;
     let tree = writable(&worktree)?;
     print_paths(&verbs::leaf_add(&tree, &parent, &slug, &kinds)?);
     Ok(())
@@ -684,7 +683,6 @@ fn cmd_leaf_insert(args: &LeafInsertArgs) -> Result<()> {
     let kind = parse_kind(&args.kind)?;
     let slug = slug(&args.slug)?;
     let target = Reference::parse(&args.target)?;
-    require_declared(&worktree, std::slice::from_ref(&kind))?;
     let tree = writable(&worktree)?;
     let inserted = verbs::leaf_insert(&tree, &target, &slug, &kind)?;
     report_insert(&tree, &args.slug, &inserted)
@@ -742,47 +740,12 @@ fn cmd_leaf_decompose(args: &LeafDecomposeArgs) -> Result<()> {
     let kind_override = args.kind.as_deref().map(parse_kind).transpose()?;
     let leaf_path = normalize_leaf_path(&args.leaf_path);
     let first_child = slug(&args.first_child_slug)?;
-    // The first child's kind, resolved *before* the mutation so the presence
-    // rule can be asked about the kind this call will actually write. With no
-    // `--kind` that is the decomposed leaf's own, read off its filename — the
-    // same answer `leaf_decompose` will reach for itself, and the only one it
-    // ever reaches.
-    //
-    // A kind that cannot be read is left to the verb: `leaf-decompose` refuses a
-    // brief, a retired leaf and a malformed name with its own message, and a
-    // presence check that errored first would replace those refusals with a
-    // complaint about configuration.
-    //
-    // **This read happens before the tree is opened for writing, and the order
-    // is load-bearing.** Both take a lock on the same directory through their
-    // own file description, and two descriptions do not share an `flock` — so
-    // reading the inherited kind while holding the write opening would block
-    // this process against itself, forever. `writable` is therefore the last
-    // thing before the verb, here and at every other call site.
-    let child_kind = match &kind_override {
-        Some(kind) => Some(kind.clone()),
-        None => inherited_kind(&worktree, &leaf_path),
-    };
-    if let Some(kind) = &child_kind {
-        require_declared(&worktree, std::slice::from_ref(kind))?;
-    }
     let tree = writable(&worktree)?;
     let decomposed =
         verbs::leaf_decompose(&tree, &leaf_path, &first_child, kind_override.as_ref())?;
     println!("{}", decomposed.brief.display());
     println!("{}", decomposed.first_child.display());
     Ok(())
-}
-
-/// The kind a `leaf-decompose` with no `--kind` will write, or nothing readable.
-fn inherited_kind(worktree: &Path, leaf_path: &Path) -> Option<Kind> {
-    let Ok(Reading::Tree(tree)) = grove_loop::read(worktree) else {
-        return None;
-    };
-    match verbs::kind(&tree, Some(leaf_path)) {
-        Ok(Sought::Match(kind)) => Some(kind),
-        _ => None,
-    }
 }
 
 // The two steps that always follow a terminal mark: the commit that carries it,
@@ -839,35 +802,6 @@ fn cmd_leaf_prune(args: &LeafPruneArgs) -> Result<()> {
     // to close.
     if !result.marked.is_empty() {
         eprint_next_steps("leaf-prune", result.marked.len());
-    }
-    Ok(())
-}
-
-/// The **just-in-time presence rule**, asked at the moment grove writes a leaf.
-///
-/// Before writing a leaf of kind K, K must resolve to exactly one complete
-/// command composed from active personal policy and optional local overrides
-/// (`docs/adr/complete-session-configuration.md`). This replaces the
-/// all-nineteen completeness check, which grove can no longer make: nothing here
-/// enumerates the kinds a methodology declares — since `open-kind-k20` there is
-/// no enumeration to make it from — so the only honest question is about the
-/// kind in hand.
-///
-/// It runs **before** the tree is opened, so a refusal leaves the tree
-/// byte-identical and takes no exclusive lock on the way — and it loads the
-/// whole configuration to ask. Both documents receive structural validation,
-/// then effective bindings, routes, templates and values are checked after
-/// composition. Invalid active policy fails even for an unrelated kind;
-/// dormant definitions and unselected profiles need only be structurally valid.
-fn require_declared(worktree: &Path, kinds: &[Kind]) -> Result<()> {
-    let config = SessionConfig::load_for_worktree(worktree)?;
-    for kind in kinds {
-        config.require(kind.label()).with_context(|| {
-            format!(
-                "refusing to write a leaf of kind `{}`: no launch template resolves for it",
-                kind.label()
-            )
-        })?;
     }
     Ok(())
 }

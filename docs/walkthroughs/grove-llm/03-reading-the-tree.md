@@ -464,7 +464,7 @@ session's name, and a grove driven from `/work/app` is labelled `app`.
 working tree has only at the filesystem root, so the fallback is the type's
 rather than a case the verb meets.
 
-<!-- fragment «helper-label» owner="information-not-error" source="crates/grove-llm/src/cli.rs" lines="948-956" parent="path-and-label-helpers" -->
+<!-- fragment «helper-label» owner="information-not-error" source="crates/grove-llm/src/cli.rs" lines="882-890" parent="path-and-label-helpers" -->
 ````rust
 // The grove's display label for the pick/brief-chain "no live leaves" diagnostic
 // — the worktree directory's basename (it equals the grove name / branch).
@@ -489,7 +489,7 @@ and not a signal: no verb on this page acts on it, and the driver, which never
 runs this verb, reaches the same answer by its own walk and acts on `Nothing`
 rather than on any line of text.
 
-<!-- fragment «helper-no-live-leaves» owner="information-not-error" source="crates/grove-llm/src/cli.rs" lines="957-964" parent="path-and-label-helpers" -->
+<!-- fragment «helper-no-live-leaves» owner="information-not-error" source="crates/grove-llm/src/cli.rs" lines="891-898" parent="path-and-label-helpers" -->
 ````rust
 /// The one diagnostic every read verb shares, printed once here rather than
 /// spelled four times.
@@ -573,7 +573,7 @@ path, and every test that passes a `.grove/`-relative path from the
 working-tree root is the second row — and no test exercises the pass-through
 branch or the last row.
 
-<!-- fragment «helper-normalize-leaf-path» owner="information-not-error" source="crates/grove-llm/src/cli.rs" lines="924-947" parent="path-and-label-helpers" -->
+<!-- fragment «helper-normalize-leaf-path» owner="information-not-error" source="crates/grove-llm/src/cli.rs" lines="858-881" parent="path-and-label-helpers" -->
 ````rust
 // Normalize a user-supplied leaf path to what the verbs accept (absolute, or
 // relative to the grove root). The real driving flow passes back the **absolute**
@@ -605,7 +605,7 @@ fn normalize_leaf_path(p: &Path) -> PathBuf {
 The composite that reassembles the three helpers, the last block of the module,
 is stated here.
 
-<!-- fragment «path-and-label-helpers» owner="information-not-error" source="crates/grove-llm/src/cli.rs" lines="924-964" parent="source-command-surface" -->
+<!-- fragment «path-and-label-helpers» owner="information-not-error" source="crates/grove-llm/src/cli.rs" lines="858-898" parent="source-command-surface" -->
 <!-- insert «helper-normalize-leaf-path» -->
 <!-- insert «helper-label» -->
 <!-- insert «helper-no-live-leaves» -->
@@ -622,7 +622,7 @@ one thing only — which line of the handler keeps each promise, and which test
 would catch its breach. `Pick` is a unit variant: no argument, and `run` calls
 its handler with none.
 
-<!-- fragment «verbs-pick-help» owner="information-not-error" source="crates/grove-llm/src/cli.rs" lines="75-82" parent="verbs-reading" -->
+<!-- fragment «verbs-pick-help» owner="information-not-error" source="crates/grove-llm/src/cli.rs" lines="76-83" parent="verbs-reading" -->
 ````rust
     /// Print the absolute path of the next live leaf in this grove's tree — a
     /// recursive depth-first **pre-order** walk over the directory tree (a node
@@ -642,7 +642,7 @@ comment makes three promises and the table below places them; the one it does
 not make — what the no-argument form does on a finished grove — is the
 handler's, stated under *The absent answer*.
 
-<!-- fragment «verbs-brief-chain-help» owner="information-not-error" source="crates/grove-llm/src/cli.rs" lines="83-92" parent="verbs-reading" -->
+<!-- fragment «verbs-brief-chain-help» owner="information-not-error" source="crates/grove-llm/src/cli.rs" lines="84-93" parent="verbs-reading" -->
 ````rust
     /// Print the node-file chain for a leaf, root→leaf, one absolute path per
     /// line — `_BRIEF.md` at the root, then each ancestor's `_<slug>.md`,
@@ -668,7 +668,7 @@ true of the handler and not of the tests: the diagnostic is one function with
 three callers, and the test that pins it for `kind` is the only one that pins
 it for the no-argument form of either.
 
-<!-- fragment «verbs-kind-help» owner="information-not-error" source="crates/grove-llm/src/cli.rs" lines="93-107" parent="verbs-reading" -->
+<!-- fragment «verbs-kind-help» owner="information-not-error" source="crates/grove-llm/src/cli.rs" lines="94-108" parent="verbs-reading" -->
 ````rust
     /// Print a leaf's task **kind** — the token before the `--` — read from its
     /// current-format filename. Any well-formed token is a kind: grove holds no
@@ -696,7 +696,7 @@ keys, handles and paths. `.` resolves the root, while paths belong to the
 mutating verbs’ reference interface rather than `resolve`.
 
 
-<!-- fragment «verbs-resolve-help» owner="information-not-error" source="crates/grove-llm/src/cli.rs" lines="108-124" parent="verbs-reading" -->
+<!-- fragment «verbs-resolve-help» owner="information-not-error" source="crates/grove-llm/src/cli.rs" lines="109-125" parent="verbs-reading" -->
 ````rust
     /// Resolve a reference to its current file path, searching live, retired
     /// (`DONE`), **and** abandoned (`ABANDONED`) entries alike
@@ -742,7 +742,7 @@ implied.
 
 The composite that reassembles the four variants is stated here.
 
-<!-- fragment «verbs-reading» owner="information-not-error" source="crates/grove-llm/src/cli.rs" lines="75-124" parent="source-command-surface" -->
+<!-- fragment «verbs-reading» owner="information-not-error" source="crates/grove-llm/src/cli.rs" lines="76-125" parent="source-command-surface" -->
 <!-- insert «verbs-pick-help» -->
 <!-- insert «verbs-brief-chain-help» -->
 <!-- insert «verbs-kind-help» -->

@@ -400,7 +400,7 @@ adds the definition.
 | `handlers-reading-and-rendering` | `source-command-surface` | `information-not-error` | `514-636` | 123 | `deferred` |
 | `handlers-growing` | `source-command-surface` | `before-the-lock` | `637-767` | 131 | `deferred` |
 | `handlers-ending` | `source-command-surface` | `two-steps-remain` | `768-825` | 58 | `deferred` |
-| `presence-rule-and-slug` | `source-command-surface` | `before-the-lock` | `826-862` | 37 | `deferred` |
+| `slug-argument` | `source-command-surface` | `before-the-lock` | `826-862` | 37 | `deferred` |
 | `openings` | `source-command-surface` | `admitted-before-dispatch` | `863-903` | 41 | `deferred` |
 | `path-and-label-helpers` | `source-command-surface` | `information-not-error` | `904-944` | 41 | `deferred` |
 

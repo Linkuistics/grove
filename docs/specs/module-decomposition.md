@@ -723,7 +723,7 @@ pub struct Mandate<'a> {
 }
 pub fn compose(mandate: &Mandate<'_>) -> String;
 
-pub fn run(workspace: &Workspace, lease: DriverLease, templates: &TemplateSource)
+pub fn run(workspace: &Workspace, lease: DriverLease, dispatch: &Path)
     -> Result<LoopOutcome, Error>;
 
 /// The loop's terminal disposition, so a clean whole-grove finish, a

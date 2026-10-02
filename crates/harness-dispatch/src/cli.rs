@@ -41,11 +41,11 @@ use crate::refusal::{Invocation, Refusal, Stage, EXIT_MALFORMED};
         harness-dispatch run --kind impl --param repo=/work/parser --prompt 'Implement the parser'\n  \
         harness-dispatch record show --run \"$HARNESS_DISPATCH_RUN_ID\" --json\n  \
         harness-dispatch record observe --run \"$HARNESS_DISPATCH_RUN_ID\" --file observation.json\n\n\
-        From Grove: a personal command definition in ~/.config/grove/config.kdl runs \
-        harness-dispatch with slots Grove fills from the leaf it launches. Grove's configuration \
-        admits the kind and runs this command; your policy returns the harness command, and is \
-        evaluated only at launch:\n  \
-        command \"dispatch\" \"harness-dispatch run --kind ${kind} --task-file ${task_file} --task-id ${task_id} --prompt ${prompt}\"\n\n\
+        From Grove: Grove runs this command itself for every lifecycle session, in the \
+        working-tree root, with values from the leaf it launches. Grove has no launch \
+        configuration: your policy returns the harness command, and is evaluated only at \
+        launch:\n  \
+        harness-dispatch run --kind=KIND --task-file=TASK_FILE --task-id=HANDLE --prompt=MANDATE --param=session_name=NAME --param=worktree=WORKTREE --param=repo=REPO\n\n\
         Exit results before the harness runs: 2 malformed command line; 3 refused by the \
         policy, the selection or its inputs; 4 run record failure; 5 worker or protocol failure; \
         124 selection timeout; 126 program not executable; 127 program not found. Once the \
@@ -99,9 +99,9 @@ pub enum Command {
         harness-dispatch run --kind impl --param repo=/work/parser --prompt 'Implement the parser'\n  \
         harness-dispatch run --kind review --context ./review-context.json --context-bytes 1048576 --prompt-file ./mandate.md\n  \
         harness-dispatch run --kind impl --state-dir ./records --prompt 'Implement the parser'\n\n\
-        From Grove: a personal command definition in ~/.config/grove/config.kdl, with slots \
-        Grove fills from the leaf it launches:\n  \
-        command \"dispatch\" \"harness-dispatch run --kind ${kind} --task-file ${task_file} --task-id ${task_id} --prompt ${prompt}\"\n\n\
+        From Grove: what Grove runs for every lifecycle session, in the working-tree root, \
+        with values from the leaf it launches:\n  \
+        harness-dispatch run --kind=KIND --task-file=TASK_FILE --task-id=HANDLE --prompt=MANDATE --param=session_name=NAME --param=worktree=WORKTREE --param=repo=REPO\n\n\
         Recovering from a refusal:\n  \
         A refused run launches nothing, and names its code, stage, input or source, and remedy, \
         followed by the equivalent inspect invocation without the prompt, such as\n  \

@@ -28,7 +28,7 @@ order. The documentation separates ordinary errors from a signal that took the
 driver away; the body returns from standalone, display, sample and observation operations
 before lifecycle setup.
 
-<!-- fragment «surface-resolve-lease-run» owner="one-call" source="crates/grove/src/cli.rs" lines="120-168" parent="source-command-surface" -->
+<!-- fragment «surface-resolve-lease-run» owner="one-call" source="crates/grove/src/cli.rs" lines="121-169" parent="source-command-surface" -->
 <!-- insert «run-seam-doc» -->
 <!-- insert «run-signal-doc» -->
 <!-- insert «run-errors-doc» -->
@@ -112,7 +112,7 @@ therefore runs once and passes its result to both consumers. This contract is
 about the lifecycle; the viewer's absolute observation path is not a workspace
 resolution.
 
-<!-- fragment «run-seam-doc» owner="one-call" source="crates/grove/src/cli.rs" lines="120-128" parent="surface-resolve-lease-run" -->
+<!-- fragment «run-seam-doc» owner="one-call" source="crates/grove/src/cli.rs" lines="121-129" parent="surface-resolve-lease-run" -->
 ````rust
 
 /// Dispatch inspection, viewing or example delivery before the lifecycle.
@@ -140,17 +140,18 @@ resolution.
 | `Workspace::resolve` | Find the enclosing jj workspace for bare invocation |
 | `DriverLease::acquire` | Refuse a competing lifecycle driver, otherwise hold the lease |
 | `provision::ensure_codex_skills` | Install or repair bundled Codex skills, or skip when Codex is absent |
-| `TemplateSource::from_env` | Locate launch configuration for the loop to load |
+| `dispatch::locate` | Find `harness-dispatch` beside this executable, or refuse naming where it looked |
 
-An unset home directory can fail lifecycle configuration discovery. It is never
-consulted for a view request. A non-jj directory can be observed, even though
+A `harness-dispatch` missing from beside this executable fails the lifecycle
+here, before anything is scaffolded or launched. It is never looked for on a view
+request. A non-jj directory can be observed, even though
 bare invocation there is refused. Both outcomes follow from the early return.
 
 `config examples` follows the standalone and hidden log-viewer branches: it resolves only HOME and returns
 before current-directory lookup, workspace discovery or leasing. Missing or broken
 active policy and stale ambient epochs therefore cannot change sample delivery.
 
-<!-- fragment «run-three-steps» owner="one-call" source="crates/grove/src/cli.rs" lines="142-162" parent="surface-resolve-lease-run" -->
+<!-- fragment «run-three-steps» owner="one-call" source="crates/grove/src/cli.rs" lines="143-163" parent="surface-resolve-lease-run" -->
 ````rust
 fn execute(cli: Cli) -> anyhow::Result<()> {
     if let Some(Command::Run(args)) = cli.command {
@@ -172,7 +173,7 @@ fn execute(cli: Cli) -> anyhow::Result<()> {
     let workspace = Workspace::resolve(&cwd)?;
     let lease = DriverLease::acquire(&workspace)?;
     crate::provision::ensure_codex_skills()?;
-    let templates = TemplateSource::from_env()?;
+    let dispatch = crate::dispatch::locate()?;
 ````
 <!-- /fragment -->
 
@@ -725,7 +726,7 @@ observes termination by that signal. This is the lifecycle's contract; the
 viewer's current Ctrl-c handling is an ordinary quit through its own terminal
 lifetime, and full signal hardening is a later viewer increment.
 
-<!-- fragment «run-signal-doc» owner="one-call" source="crates/grove/src/cli.rs" lines="129-137" parent="surface-resolve-lease-run" -->
+<!-- fragment «run-signal-doc» owner="one-call" source="crates/grove/src/cli.rs" lines="130-138" parent="surface-resolve-lease-run" -->
 ````rust
 /// **A driver that was killed does not exit 0.** The loop returns *why* it
 /// stopped, and one of the reasons is that this process was sent SIGTERM or
@@ -743,9 +744,9 @@ The final match maps the returned lifecycle outcome to clean return or signal
 re-raising. The standalone runner, log viewer, observation commands and sample installer
 have already returned before this match can run.
 
-<!-- fragment «run-call-and-endings» owner="one-call" source="crates/grove/src/cli.rs" lines="163-168" parent="surface-resolve-lease-run" -->
+<!-- fragment «run-call-and-endings» owner="one-call" source="crates/grove/src/cli.rs" lines="164-169" parent="surface-resolve-lease-run" -->
 ````rust
-    match grove_loop::run(&workspace, lease, &templates)? {
+    match grove_loop::run(&workspace, lease, &dispatch)? {
         LoopOutcome::Finished | LoopOutcome::Stopped => Ok(()),
         LoopOutcome::Interrupted(signal) => grove_loop::reraise(signal),
     }
@@ -766,7 +767,7 @@ grove
   resolve: workspace /work/atlas
   lease: claim the lifecycle driver for /work/atlas
   provision: ensure bundled Codex-compatible skills are available
-  templates: locate personal launch policy
+  dispatch: find harness-dispatch beside this executable
   run: the loop launches each selected session and reads its completion signal
 ```
 
@@ -797,13 +798,15 @@ signal sent to the driver itself. The returned outcome preserves that distinctio
 <a id="what-run-refuses"></a>
 ## Errors return through main
 
-Workspace, lease and provisioning refusals stop the lifecycle before any session launch.
-Configuration or runtime failures can stop it later. A viewer can return a
+Workspace, lease, provisioning and missing-dispatch refusals stop the lifecycle
+before any session launch. Runtime failures can stop it later; a launch the
+owner's policy refuses is not one of them, since the loop stops on it and returns
+cleanly. A viewer can return a
 non-TTY refusal or a terminal setup/input/draw error; its terminal owner restores
 modes before that error reaches the reporting boundary. `execute` returns the error
 to `run`, which writes human or JSON diagnostics and returns exit 1 to main.
 
-<!-- fragment «run-errors-doc» owner="one-call" source="crates/grove/src/cli.rs" lines="138-141" parent="surface-resolve-lease-run" -->
+<!-- fragment «run-errors-doc» owner="one-call" source="crates/grove/src/cli.rs" lines="139-142" parent="surface-resolve-lease-run" -->
 ````rust
 /// # Errors
 ///
@@ -815,9 +818,9 @@ to `run`, which writes human or JSON diagnostics and returns exit 1 to main.
 <a id="one-iteration"></a>
 ## The lifecycle behind the call
 
-One lifecycle iteration reads the tree and launch configuration, performs any
-required lifecycle transition, selects a leaf, prepares its session epoch and
-completion channel, launches the configured command and waits for the result.
+One lifecycle iteration reads the tree, performs any required lifecycle
+transition, selects a leaf, prepares its session epoch and completion channel,
+runs `harness-dispatch` for that leaf and waits for the result.
 The completion signal decides whether to launch the next session or finish;
 an ending without that signal stops the loop. Those details belong to the
 loop walkthrough at `docs/walkthroughs/grove-loop/README.md`, whose public `run` is this

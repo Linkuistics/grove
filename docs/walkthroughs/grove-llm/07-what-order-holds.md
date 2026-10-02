@@ -6,7 +6,7 @@
 ## Twelve verbs, one table
 
 <!-- rollup «owned-lines-total» -->
-This chapter owns no production source. The four roots and 1,037 lines are
+This chapter owns no production source. The four roots and 971 lines are
 already reconstructed by the fragment graph the six chapters before it built,
 and the [source index](source-index.md) records that graph in full. The
 remaining work is what no single chapter could state, because each read one
@@ -301,7 +301,7 @@ about *this* crate, and no row is a claim about the loop.
 | The [session epoch](../../../CONTEXT.md#session-epoch), the [driver lease](../../../CONTEXT.md#driver-lease), and admission | [*Admitted before dispatch*](02-the-grammar.md#admitted-before-dispatch) | Why `run` can refuse at the epoch-admission call, before any handler is chosen |
 | The [loop control channel](../../../CONTEXT.md#loop-control-channel) and its framing | [*`cmd_complete`: resolve, ask, then write*](06-leaving-the-loop.md#the-order) | What `complete` writes, and what the driver reads back |
 | The deletion and the path-scoped commit behind the finish sentinel | [*`cmd_finish_commit`*](06-leaving-the-loop.md#the-teardown) | What the change id on stderr records |
-| The launch configuration and its templates | [*The presence rule*](04-growing-the-tree.md#presence-before-mutation) | What `SessionConfig::require` is asking, and where the answer lives |
+| Whether a kind can be launched at all | [*Text before lock*](04-growing-the-tree.md#before-the-lock) | Why no verb asks, and where the answer is given instead |
 
 Each row is a subject of `crates/grove-loop`, or of a crate the loop reaches on
 this crate's behalf — the path-scoped commit is the version-control seam's — and
@@ -361,10 +361,10 @@ owns the import block, and chapter 2 owns `run` — and each row turned
 
 <!-- rollup «owned-lines-sequence» -->
 <!-- rollup «source-owning-chapters» -->
-**Owned source.** 107 + 141 + 215 + 376 + 101 + 97 = 1,037 lines across 6
+**Owned source.** 108 + 141 + 215 + 309 + 101 + 97 = 971 lines across 6
 chapters, and 0 for this one. The seventh row of that table exists to be zero:
 a chapter that owns no source is the shape the structure brief chose for the
-assembly, and the total is the 1,037 lines in the current authoritative corpus.
+assembly, and the total is the 971 lines in the current authoritative corpus.
 
 **The corpus's own claims.** No chapter corrected a comment it found wanting:
 as these seven chapters were drafted, each was reproduced as written and
@@ -569,7 +569,7 @@ what the library target exists to make possible.
 <!-- rollup «source-roots» -->
 <!-- rollup «owned-lines-total» -->
 <!-- rollup «chapters» -->
-The book reconstructs 4 roots, 1,037 lines, 7 chapters, two lookup
+The book reconstructs 4 roots, 971 lines, 7 chapters, two lookup
 surfaces, zero deferred ranges. What it argued is that a thin command surface
 over a library has exactly one thing left to get right, and that the thing is
 order — three of them, each stated where it happens and each with a different

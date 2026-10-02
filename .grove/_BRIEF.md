@@ -143,6 +143,11 @@ leaves:
   methodology, writes the release notes, and sweeps for anything that still
   describes configuration as live.
 
+`lifecycle-launch-k12` decomposed at the `grove-llm` book. `dispatch-launch-k19`
+did the cutover, and `two-orders-k20` rewrites that book's thesis, which named
+the deleted presence rule as one of three orders. `fork-sensitive-pin-test-k18`
+is an unrelated test flake that surfaced during the cutover.
+
 The first four change only harness-dispatch and leave Grove working as released.
 The other five ship together: after `lifecycle-launch-k12` Grove still has
 configuration commands that nothing launches from, until the two deletion

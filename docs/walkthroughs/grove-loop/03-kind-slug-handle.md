@@ -100,7 +100,7 @@ that a string comparison would not already answer.
 <!-- fragment «name-kind» owner="the-handle-not-the-position" source="crates/grove-loop/src/task_name.rs" lines="157-180" parent="kind-slug-and-handle" -->
 ````rust
 /// A leaf's **session kind**: the word before the `--`, the skill a session is
-/// told to load, and the key its command template is configured under.
+/// told to load, and the `--kind` its launch is selected by.
 ///
 /// **It is an open token, and that is the whole of the type**
 /// (`docs/adr/a-kind-is-an-open-token.md`, `docs/specs/module-decomposition.md`
@@ -130,10 +130,10 @@ The first line's second clause compresses one step. A kind is not the skill a
 session loads; it is the stem the skill's name is built from. `crates/grove-loop/src/prompt.rs`
 line 63 renders `format!("{PLUGIN}-{}", kind.label())` with `PLUGIN` as `"grove"`,
 so the kind `impl` names the skill `grove-impl`, and chapter 19 reads that
-composition. The third clause is exact as written: the configuration is keyed by
-the label itself: `drive` in `crates/grove-loop/src/loop_driver.rs` uses
-`Kind::finish().label()` for the finish template and `selection.kind.label()`
-for the selected session configuration. Chapter 20 reads those calls.
+composition. The third clause is exact as written: the launch is selected by the
+label itself. `dispatch_run` in `crates/grove-loop/src/loop_driver.rs` passes
+`task.kind.label()` to `harness-dispatch` as `--kind`, and the owner's policy
+selects a command from it. Chapter 20 reads that call.
 
 The claim in the second bold sentence is checkable inside this corpus, and it
 holds. Extracting every string literal from the production source of
@@ -175,9 +175,8 @@ const FINISH: &str = "finish";
 `Kind::requirements` is spent once in the crate's production source, at
 `transition_to_current` in `crates/grove-loop/src/tree_lifecycle.rs`, which
 scaffolds a grove for a driver that has no operator to ask; `Kind::finish` is
-spent in `materialize_finish` and `new_finish_leaf` for the teardown sentinel,
-and in `drive` in `crates/grove-loop/src/loop_driver.rs` to name its template.
-Chapters 14 and 20 read those. The asymmetry in the implementation below follows
+spent in `materialize_finish` and `new_finish_leaf` for the teardown sentinel.
+Chapter 14 reads those. The asymmetry in the implementation below follows
 from that: there is an `is_finish` and no `is_requirements`,
 because grove never has to ask whether a leaf is the one `root-init` laid down —
 that leaf is ordinary work from the moment it exists — and does have to ask
@@ -227,8 +226,8 @@ impl Kind {
         self.0 == FINISH
     }
 
-    /// The token as it appears in a filename, in a skill name, and as a
-    /// configuration key.
+    /// The token as it appears in a filename, in a skill name, and as the kind
+    /// `harness-dispatch` is given.
     #[must_use]
     pub fn label(&self) -> &str {
         &self.0
@@ -272,7 +271,7 @@ impl fmt::Display for Kind {
 
 `Display` and `label` reach the same bytes by two routes because their callers
 want two things. `label` returns a `&str` for a caller that needs to index or
-concatenate — the skill name and the configuration key above. `Display` is what a
+concatenate — the skill name and the `--kind` argument above. `Display` is what a
 format string reaches, and the one that matters is chapter 4's rendering of a
 whole name, where `kind.label()` is written into the middle of a `write!` rather
 than the kind being formatted directly.

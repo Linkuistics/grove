@@ -455,10 +455,10 @@ fn a_refusal_is_evaluated_once_and_never_retried() {
     assert!(!sandbox.harness_ran());
 }
 
-/// The Grove command definition the help quotes. Grove's launch-boundary
-/// suite runs this command, and checks that the help and Grove's documentation
-/// quote it word for word; here it is only required to be present.
-const EXAMPLE_FOR_GROVE: &str = "  command \"dispatch\" \"harness-dispatch run --kind ${kind} --task-file ${task_file} --task-id ${task_id} --prompt ${prompt}\"\n";
+/// The Grove invocation the help quotes. Grove's launch-boundary suite holds
+/// its inputs to the ones the driver passes; here it is only required to be
+/// present.
+const EXAMPLE_FOR_GROVE: &str = "  harness-dispatch run --kind=KIND --task-file=TASK_FILE --task-id=HANDLE --prompt=MANDATE --param=session_name=NAME --param=worktree=WORKTREE --param=repo=REPO\n";
 
 #[test]
 fn help_carries_independent_use_grove_and_refusal_recovery_examples() {

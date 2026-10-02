@@ -226,42 +226,30 @@ fn add_accepts_every_non_reserved_kind() {
     }
 }
 
-/// **A kind grove has never heard of is written**, and the only thing that can
-/// refuse it is the launch configuration.
+/// **A kind grove has never heard of is written.**
 ///
-/// This test used to assert the opposite — that an unrecognised `--kind` was
-/// rejected with all nineteen labels listed. `open-kind-k20` deleted the set:
-/// the grammar validates a token's shape, and *which* kinds exist is the
-/// installed methodology's answer. So the refusal a typo now gets names the kind
-/// and the file that must declare it, which is strictly more actionable than a
-/// list of nineteen.
+/// This test first asserted that an unrecognised `--kind` was rejected with all
+/// nineteen labels listed, and then that a kind no launch template declared was
+/// refused naming the file that must declare it. `open-kind-k20` deleted the
+/// set, and Grove's launch configuration went after it: the grammar validates a
+/// token's shape, *which* kinds exist is the installed methodology's answer, and
+/// whether one can be launched is the owner's harness-dispatch policy's, asked
+/// when the leaf launches. So a typo is written, like any other token.
 #[test]
-fn add_refuses_an_undeclared_kind_by_naming_it_and_the_file_that_must_declare_it() {
+fn add_writes_a_kind_grove_has_never_heard_of() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
     touch(&grove.join("_BRIEF.md"), "# demo — brief\n");
     stage_all(tmp.path());
 
     let (_, stderr, ok) = run(tmp.path(), &["leaf-add", ".", "x", "--kind", "reserch"]);
-    assert!(
-        !ok,
-        "a kind no template declares must be rejected at write time"
-    );
-    assert!(stderr.contains("reserch"), "got {stderr:?}");
-    assert!(stderr.contains("config.kdl"), "got {stderr:?}");
-    assert!(
-        !stderr.contains("integrate-review-prototype"),
-        "the refusal must not list a set grove no longer holds: {stderr:?}"
-    );
-    assert!(
-        !exists(tmp.path(), ".grove/01-reserch--x-k1.md"),
-        "a refused --kind must not leave a leaf behind"
-    );
+    assert!(ok, "a well-formed kind must be written: {stderr:?}");
+    assert!(exists(tmp.path(), ".grove/01-reserch--x-k1.md"));
 }
 
 /// **An ill-formed kind is refused by shape, naming the character it refused.**
 ///
-/// This is what replaced the membership refusal above: the one thing the
+/// This is all that is left of the membership refusal: the one thing the
 /// grammar can still say about a kind is whether it can be written into a
 /// filename and read back.
 #[test]
@@ -287,20 +275,17 @@ fn add_rejects_a_kind_that_is_not_a_token_and_names_the_character() {
 /// so a human who typed it was told the replacement. That was grove holding an
 /// opinion about what a kind *means*, which is exactly what `open-kind-k20`
 /// removed: the token is well-formed, so the grammar writes it, and whether a
-/// skill or a template exists for it is the methodology's answer to give.
+/// skill exists for it, or a command to launch it, is not grove's to say.
 #[test]
-fn the_retired_work_kind_is_now_just_a_token_the_configuration_decides_on() {
+fn the_retired_work_kind_is_now_just_a_token_the_grammar_writes() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
     touch(&grove.join("_BRIEF.md"), "# demo — brief\n");
     stage_all(tmp.path());
 
     let (_, stderr, ok) = run(tmp.path(), &["leaf-add", ".", "x", "--kind", "work"]);
-    assert!(!ok, "no template declares `work` in this fixture");
-    assert!(
-        stderr.contains("`work`"),
-        "the refusal is about the template, and names the kind: {stderr:?}"
-    );
+    assert!(ok, "{stderr:?}");
+    assert!(exists(tmp.path(), ".grove/01-work--x-k1.md"));
     assert!(
         !stderr.contains("renamed"),
         "grove no longer knows `work` was ever a spelling of anything: {stderr:?}"
@@ -573,142 +558,4 @@ fn grove_binary_does_not_expose_leaf_verbs() {
         !s.contains("leaf-insert"),
         "grove --help leaked leaf-insert: {s}"
     );
-}
-
-#[test]
-fn named_routes_admit_mutation_and_invalid_bindings_refuse_before_writing() {
-    let repo = init_repo();
-    let home = TempDir::new().unwrap();
-    let config_dir = home.path().join(".config/grove");
-    fs::create_dir_all(&config_dir).unwrap();
-    let policy = "config { command \"runner\" \"runner ${prompt}\"; bind \"lead\" \"runner\"; route \"impl\" \"lead\"; }";
-    fs::write(config_dir.join("config.kdl"), policy).unwrap();
-    let invoke = |slug: &str| {
-        Command::cargo_bin("grove-llm")
-            .unwrap()
-            .env("HOME", home.path())
-            .current_dir(repo.path())
-            .args(["leaf-add", ".", slug, "--kind", "impl"])
-            .output()
-            .unwrap()
-    };
-    let result = invoke("accepted");
-    assert!(
-        result.status.success(),
-        "{}",
-        String::from_utf8_lossy(&result.stderr)
-    );
-    assert!(repo.path().join(".grove/01-impl--accepted-k1.md").exists());
-    fs::write(
-        config_dir.join("config.kdl"),
-        policy.replace("bind \"lead\" \"runner\"", "bind \"lead\" \"missing\""),
-    )
-    .unwrap();
-    let result = invoke("refused");
-    assert!(!result.status.success());
-    assert!(String::from_utf8_lossy(&result.stderr).contains("missing"));
-    let entries: Vec<_> = fs::read_dir(repo.path().join(".grove")).unwrap().collect();
-    assert_eq!(
-        entries.len(),
-        2,
-        "only the brief and accepted leaf may exist"
-    );
-}
-
-#[test]
-fn parameterized_policy_admits_mutation_and_missing_unused_defaults_refuse_it() {
-    let repo = init_repo();
-    let home = TempDir::new().unwrap();
-    let config_dir = home.path().join(".config/grove");
-    fs::create_dir_all(&config_dir).unwrap();
-    let policy = r#"config {
-        command "runner" "runner mode=${param.mode} ${prompt}" {
-            param "mode" "careful"
-            param "unused" "required by policy"
-        }
-        bind "lead" "runner"
-        route "impl" "lead"
-    }"#;
-    fs::write(config_dir.join("config.kdl"), policy).unwrap();
-    let invoke = |slug: &str| {
-        Command::cargo_bin("grove-llm")
-            .unwrap()
-            .env("HOME", home.path())
-            .current_dir(repo.path())
-            .args(["leaf-add", ".", slug, "--kind", "impl"])
-            .output()
-            .unwrap()
-    };
-    let result = invoke("accepted");
-    assert!(
-        result.status.success(),
-        "{}",
-        String::from_utf8_lossy(&result.stderr)
-    );
-    assert!(repo.path().join(".grove/01-impl--accepted-k1.md").exists());
-    fs::write(
-        config_dir.join("config.kdl"),
-        policy.replace(" \"required by policy\"", ""),
-    )
-    .unwrap();
-    let result = invoke("refused");
-    assert!(!result.status.success());
-    assert!(String::from_utf8_lossy(&result.stderr).contains("unused"));
-    assert_eq!(fs::read_dir(repo.path().join(".grove")).unwrap().count(), 2);
-}
-
-#[test]
-fn local_route_values_admit_mutation_but_local_targets_cannot_authorize_it() {
-    let repo = init_repo();
-    let home = TempDir::new().unwrap();
-    let config_dir = home.path().join(".config/grove");
-    fs::create_dir_all(&config_dir).unwrap();
-    fs::write(repo.path().join(".gitignore"), ".grove.kdl\n").unwrap();
-    let policy = r#"config {
-        command "runner" "runner ${prompt}" { param "unused"; }
-        bind "lead" "runner"
-        route "impl" "lead"
-    }"#;
-    let config = config_dir.join("config.kdl");
-    fs::write(&config, policy).unwrap();
-    fs::write(
-        repo.path().join(".grove.kdl"),
-        r#"config {
-        route "impl" { param "unused" "completed locally"; }
-        route "other" "lead"
-    }"#,
-    )
-    .unwrap();
-    let invoke = |slug: &str| {
-        Command::cargo_bin("grove-llm")
-            .unwrap()
-            .env("HOME", home.path())
-            .current_dir(repo.path())
-            .args(["leaf-add", ".", slug, "--kind", "impl"])
-            .output()
-            .unwrap()
-    };
-    let result = invoke("accepted");
-    assert!(
-        result.status.success(),
-        "{}",
-        String::from_utf8_lossy(&result.stderr)
-    );
-    assert!(repo.path().join(".grove/01-impl--accepted-k1.md").exists());
-    fs::write(
-        &config,
-        policy.replace(
-            "bind \"lead\"",
-            "route \"other\" { unset \"old\"; }; bind \"lead\"",
-        ),
-    )
-    .unwrap();
-    let result = invoke("refused");
-    assert!(!result.status.success());
-    let error = String::from_utf8_lossy(&result.stderr);
-    assert!(
-        error.contains("other") && error.contains("personal"),
-        "{error}"
-    );
-    assert_eq!(fs::read_dir(repo.path().join(".grove")).unwrap().count(), 2);
 }

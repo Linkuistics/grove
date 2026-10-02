@@ -38,8 +38,7 @@
 //! different paths through the lifecycle transition before they ever reach a
 //! launch. Both halves carry a positive control, because a sweep that cannot
 //! fail is worth nothing: the classifier is shown rejecting a reintroduced
-//! variable, and the launch fixture is shown observing a configuration-driven
-//! change.
+//! variable, and the launch fixture is shown observing a policy-driven change.
 //!
 //! Out of the sweep's roots by ownership, not by oversight: `content/` (the
 //! provisioned methodology) and `docs/` still describe routing variables in
@@ -513,38 +512,16 @@ fn the_agent_command_surface_exposes_no_removed_verb_or_harness_selector() {
         .collect();
     assert!(
         kind_flags.is_empty(),
-        "`kind` reads one filename and prints one token; a launch reads its \
-         route from configuration, not from a peek: {kind_flags:?}"
+        "`kind` reads one filename and prints one token; a launch is selected \
+         by the owner's policy, not from a peek: {kind_flags:?}"
     );
 }
 
 // ---------------------------------------------------------------------------
 // The behavioural half
 
-const SESSION_KINDS: &[&str] = &[
-    "requirements",
-    "review-requirements",
-    "integrate-review-requirements",
-    "design",
-    "review-design",
-    "integrate-review-design",
-    "planning",
-    "review-planning",
-    "integrate-review-planning",
-    "prototype",
-    "review-prototype",
-    "integrate-review-prototype",
-    "impl",
-    "review-impl",
-    "integrate-review-impl",
-    "research-a",
-    "research-b",
-    "combine-research",
-    "finish",
-];
-
 /// The legacy environment to launch under, with a value per name chosen so that
-/// *reading* it would be visible: a harness the configuration never names, a
+/// *reading* it would be visible: a harness the policy never names, a
 /// model that would appear in argv, binaries that cannot run, a skill dir that
 /// does not exist, graces that would change the watcher's timing.
 ///
@@ -609,22 +586,25 @@ fn shell_quote(path: &Path) -> String {
     format!("'{value}'")
 }
 
-fn write_complete_config(home: &Path, template: &str) {
-    let config_dir = home.join(".config/grove");
-    fs::create_dir_all(&config_dir).unwrap();
-    let routes = SESSION_KINDS
-        .iter()
-        .map(|kind| format!("    route {kind:?} \"lead\"\n"))
-        .collect::<String>();
-    let document = format!(
-        "config {{\n    command \"runner\" {template:?}\n    bind \"lead\" \"runner\"\n{routes}}}\n"
+/// A personal dispatch policy that runs `command` for every kind, with `flag`
+/// and then the prompt as its arguments.
+fn route_every_kind(home: &Path, command: &Path, flag: &str) {
+    support::write_policy(
+        home,
+        &format!(
+            "export const policy = {{ schemaVersion: 2, version: \"removed-surface-1\", \
+             select: (request) => ({{ status: \"selected\", program: {command:?}, \
+             args: [{flag:?}, request.prompt], provider: \"fixture\", model: \"none\", \
+             effort: \"none\", reason: \"every kind runs the fixture's command\" }}) }};\n",
+            command = command.to_str().unwrap()
+        ),
     );
-    fs::write(config_dir.join("config.kdl"), document).unwrap();
 }
 
 /// One fixture: a working tree of the given VCS holding a single live `impl`
-/// leaf, an isolated home carrying a complete config, and a fake command that
-/// records `$0` plus its whole argv and then exits so the loop ends.
+/// leaf, an isolated home carrying a dispatch policy, and a fake command the
+/// policy selects, which records `$0` plus its whole argv and then exits so the
+/// loop ends.
 struct Fixture {
     root: TempDir,
     home: PathBuf,
@@ -663,23 +643,17 @@ impl Fixture {
         fs::write(grove.join("01-impl--subject-k1.md"), "# subject-k1\n").unwrap();
 
         let argv_log = root.path().join("argv-log");
-        let configured = root.path().join("configured-command.sh");
+        let selected = root.path().join("selected-command.sh");
         // The mandate prompt is multi-line, so newlines are folded to spaces:
         // one launch must be one comparable line.
         write_executable(
-            &configured,
+            &selected,
             &format!(
                 "#!/bin/sh\n{{ printf '%s|%s' \"$0\" \"$*\" | tr '\\n' ' '; printf '\\n'; }} >> {}\nexit 0\n",
                 shell_quote(&argv_log)
             ),
         );
-        write_complete_config(
-            &home,
-            &format!(
-                "{} --configured-flag '${{prompt}}'",
-                shell_quote(&configured)
-            ),
-        );
+        route_every_kind(&home, &selected, "--selected-flag");
 
         Self {
             root,
@@ -690,6 +664,8 @@ impl Fixture {
     }
 
     fn run(&self, extra_env: &[(String, String)]) -> Output {
+        // The sibling `grove` launches every session through.
+        support::harness_dispatch();
         let mut command = Command::new(support::grove_bin());
         command.current_dir(&self.worktree).env("HOME", &self.home);
         // A subprocess inherits this process's *whole* ambient environment, and
@@ -764,16 +740,16 @@ fn assert_launch_is_unchanged_by_the_removed_environment(tree: Tree) {
     assert_eq!(
         lines.len(),
         2,
-        "both runs must reach the configured command in a {tree:?} tree"
+        "both runs must reach the selected command in a {tree:?} tree"
     );
     assert!(
-        lines[0].contains("--configured-flag"),
-        "the control run must reach the configured command: {:?}",
+        lines[0].contains("--selected-flag"),
+        "the control run must reach the selected command: {:?}",
         lines[0]
     );
     assert_eq!(
         lines[0], lines[1],
-        "the configured argv must be identical with and without the legacy \
+        "the selected argv must be identical with and without the legacy \
          routing environment"
     );
 
@@ -789,7 +765,7 @@ fn assert_launch_is_unchanged_by_the_removed_environment(tree: Tree) {
     ] {
         assert!(
             !lines[1].contains(token),
-            "{token:?} reached the configured argv: {:?}",
+            "{token:?} reached the selected argv: {:?}",
             lines[1]
         );
     }
@@ -801,33 +777,32 @@ fn assert_launch_is_unchanged_by_the_removed_environment(tree: Tree) {
 }
 
 #[test]
-fn a_configured_launch_in_a_native_jj_tree_ignores_the_removed_environment() {
+fn a_launch_in_a_native_jj_tree_ignores_the_removed_environment() {
     assert_launch_is_unchanged_by_the_removed_environment(Tree::Native);
 }
 
-/// The cross-tree half. "The configured argv is the whole of launch policy" is a
+/// The cross-tree half. "The owner's policy is the whole of launch policy" is a
 /// claim about every workspace shape or about none, and a colocated tree is the
 /// one carrying a second marker that a resolution could still be tempted by.
 #[test]
-fn a_configured_launch_in_a_colocated_jj_tree_ignores_the_removed_environment() {
+fn a_launch_in_a_colocated_jj_tree_ignores_the_removed_environment() {
     assert_launch_is_unchanged_by_the_removed_environment(Tree::Colocated);
 }
 
 /// The positive control for the behavioural half: the same fixture *does*
 /// observe a changed launch, so "identical argv" is a finding rather than an
 /// artefact of nothing being watched. The one input still allowed to steer a
-/// launch is the configuration, and changing it changes the recorded argv.
+/// launch is the owner's dispatch policy, and changing it changes the recorded
+/// argv.
 #[test]
-fn the_launch_fixture_still_observes_a_configuration_driven_change() {
+fn the_launch_fixture_still_observes_a_policy_driven_change() {
     let fixture = Fixture::new(Tree::Native);
     assert!(fixture.run(&[]).status.success());
 
-    write_complete_config(
+    route_every_kind(
         &fixture.home,
-        &format!(
-            "{} --a-different-flag '${{prompt}}'",
-            shell_quote(&fixture.root.path().join("configured-command.sh"))
-        ),
+        &fixture.root.path().join("selected-command.sh"),
+        "--a-different-flag",
     );
     assert!(fixture.run(&[]).status.success());
 
@@ -835,7 +810,7 @@ fn the_launch_fixture_still_observes_a_configuration_driven_change() {
     assert_eq!(lines.len(), 2);
     assert!(
         lines[1].contains("--a-different-flag"),
-        "the configuration must still steer the launch: {:?}",
+        "the policy must still steer the launch: {:?}",
         lines[1]
     );
     assert_ne!(

@@ -42,3 +42,9 @@ is deleted, and so is the last record of Grove configuration.
 - Nothing here moves the runner under dispatch or changes the `exec` handoff.
 - The book loses its template chapters. That is a restructure and not a patch,
   so decompose at the book if the code and the book do not fit one session.
+- `grove-loop`'s inline lease tests still build their argv with
+  `keyed_launch::Templates`, from a `launch.kdl` they write: in
+  `driver_lease.rs`, `driver_lease/observation.rs` and
+  `driver_lease/witnesses.rs`. They need `Argv::new` when the templates go, and
+  the `grove-loop` book reproduces all three files. `lifecycle-launch-k12` left
+  them: they launch no session and read no Grove configuration.

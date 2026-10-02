@@ -460,11 +460,9 @@ because the argument is about what the function does *not* do. Decision 5 of
 grove writes the leaf*, and this is the last place in the driver that had to be
 changed for that to be true.
 
-The claim generalises, and it holds under enumeration. `label()` is reached six
-times in `loop_driver.rs` — once to resolve which configuration file a template
-came from, once to expand the template, three times as a diagnostic's argument,
-and once on `Kind::finish()` rather than on a selection — and none of the six is
-a branch. Together with this module's zero conditionals, *the driver interprets a
+The claim generalises, and it holds under enumeration. `label()` is reached four
+times in `loop_driver.rs` — once to hand `harness-dispatch` its `--kind`, and
+three times as a diagnostic's argument — and none of the four is a branch. Together with this module's zero conditionals, *the driver interprets a
 kind nowhere* is a statement about code that can be checked rather than a
 statement of intent. The crate does still know that two kind tokens are reserved,
 but that is chapter 4's grammar refusing a name, not the driver reading one.
@@ -974,8 +972,8 @@ twelve Rust roots — counting the lines that match `Result`, `?`, `bail!`,
 the **only one with no fallible construct at all**, and it is a zero rather than
 a minimum: the next lowest root carries four, and the two heaviest carry 257
 apiece. The precondition work happened upstream — the lease admitted the driver,
-the walk chose the leaf, the configuration resolved a template — and composition
-is what happens once none of it can fail. The outcome's second cost, *the check
+the walk chose the leaf — and composition is what happens once none of it can
+fail. The outcome's second cost, *the check
 must run against the same snapshot the operation then plans from*, is discharged
 here by there being nothing left to check: `loop_driver.rs` reads the selection
 once and does not recompute it before the spawn, so the mandate the prompt states

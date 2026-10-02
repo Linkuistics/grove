@@ -26,27 +26,21 @@
 
 use std::path::Path;
 
-use crate::{session_config::SessionConfig, task_tree, tree_lifecycle, Error, Selection};
+use crate::{task_tree, tree_lifecycle, Error, Selection};
 
 pub use tree_lifecycle::CurrentTransition;
 
 /// Bring a worktree to a state the loop can drive: a grove, or a fresh one.
-/// The pre-transition configuration must admit the initial kind before a fresh
-/// root is written. Admission runs under the vacancy lock and is skipped for an
-/// existing tree; this function does not reload configuration.
+/// No kind is checked: whether the owner's policy routes the first leaf's kind
+/// is asked when that leaf launches.
 ///
 /// # Errors
 ///
 /// A tree that holds only its charter, or one whose entries are in no grammar
 /// grove reads — both of which grove names and refuses rather than repairs
-/// (principle 2), or an unconfigured initial kind when no tree exists.
-pub fn transition_to_current(
-    worktree: &Path,
-    config: &SessionConfig,
-) -> Result<CurrentTransition, Error> {
-    Ok(tree_lifecycle::transition_to_current(worktree, |kind| {
-        Ok(config.require(kind.label())?)
-    })?)
+/// (principle 2).
+pub fn transition_to_current(worktree: &Path) -> Result<CurrentTransition, Error> {
+    Ok(tree_lifecycle::transition_to_current(worktree)?)
 }
 
 /// The resumable `finish` leaf for an otherwise empty tree — or the live leaf

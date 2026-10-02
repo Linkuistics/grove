@@ -155,7 +155,7 @@ fn refuse_token(noun: &str, token: &str) -> Option<String> {
 }
 
 /// A leaf's **session kind**: the word before the `--`, the skill a session is
-/// told to load, and the key its command template is configured under.
+/// told to load, and the `--kind` its launch is selected by.
 ///
 /// **It is an open token, and that is the whole of the type**
 /// (`docs/adr/a-kind-is-an-open-token.md`, `docs/specs/module-decomposition.md`
@@ -226,8 +226,8 @@ impl Kind {
         self.0 == FINISH
     }
 
-    /// The token as it appears in a filename, in a skill name, and as a
-    /// configuration key.
+    /// The token as it appears in a filename, in a skill name, and as the kind
+    /// `harness-dispatch` is given.
     #[must_use]
     pub fn label(&self) -> &str {
         &self.0

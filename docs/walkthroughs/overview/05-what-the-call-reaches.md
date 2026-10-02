@@ -6,7 +6,7 @@
 ## Observation and lifecycle have separate lifetimes
 
 <!-- rollup «owned-lines-total» -->
-The book reconstructs 1,926 source lines. The preceding chapters explain parsing,
+The book reconstructs 1,927 source lines. The preceding chapters explain parsing,
 dispatch and their tests. This chapter
 connects the public library calls and owns the configuration report formatter,
 which turns validated records into human text or versioned JSON, plus the
@@ -54,12 +54,12 @@ and states its boundary.
 | `grove_loop::VERSION` | Shared release metadata |
 | `grove_loop::Workspace` | Resolve the bare lifecycle's jj working tree |
 | `grove_loop::DriverLease` | Hold the one-driver claim |
-| `grove_loop::TemplateSource` | Locate launch policy |
+| `dispatch::locate` | Find `harness-dispatch` beside this executable, for the loop to launch through |
 | `grove_loop::run` | Execute the lifecycle |
 | `grove_loop::LoopOutcome` | Distinguish clean stops and interruption |
 | `grove_loop::reraise` | Preserve an interrupted driver's signal exit |
 | `grove_tui::run` | Own the interactive observation session |
-| `grove_loop::SessionConfig` | Load, admit and inspect the same configuration used by launch |
+| `grove_loop::SessionConfig` | Load and inspect the configuration `grove config show` reports, which no launch reads |
 | `keyed_launch::Inspection` | Captured words and provenance formatted without re-resolution |
 
 All are public library items. The package boundary makes accidental access to
@@ -374,13 +374,13 @@ There are 12 ownership blocks over 10 source roots; 11 blocks belong to chapters
 after Orientation. Each is resolved in the source index.
 
 <!-- rollup «early-use-rows» -->
-The 6 early-use rows name loop and generated-inventory items before their full
+The 5 early-use rows name loop and generated-inventory items before their full
 explanation in Lifecycle startup. The grammar explains its own path and command
 types at first use.
 
 <!-- rollup «owned-lines-sequence» -->
 <!-- rollup «source-owning-chapters» -->
-Owned source is 61 + 119 + 470 + 100 + 637 + 539 = 1,926 lines across 6 source-owning chapters.
+Owned source is 61 + 120 + 470 + 100 + 637 + 539 = 1,927 lines across 6 source-owning chapters.
 Assembly owns configuration presentation and example delivery. The ledgers are maintained with source changes;
 production files remain authoritative.
 
@@ -400,7 +400,7 @@ terminal smoke. The task's verification record states their observed results.
 <!-- rollup «source-roots» -->
 <!-- rollup «owned-lines-total» -->
 <!-- rollup «chapters» -->
-The corpus contains 10 roots and 1,926 lines, explained across 6 chapters and two
+The corpus contains 10 roots and 1,927 lines, explained across 6 chapters and two
 lookup pages. No deferred source range belongs in the final book.
 
 

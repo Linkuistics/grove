@@ -59,7 +59,7 @@ fn standalone_context_refuses_tree_verbs_and_channel_redirection() {
 
 #[test]
 fn copied_completion_helper_runs_inside_native_confinement() {
-    use keyed_launch::{Confinement, Escalation, Launch, Templates, Vocabulary};
+    use keyed_launch::{Argv, Confinement, Escalation, Launch};
     use std::fs;
     use std::time::Duration;
 
@@ -67,11 +67,10 @@ fn copied_completion_helper_runs_inside_native_confinement() {
     let root = dir.path().canonicalize().unwrap();
     let helper = root.join("grove-llm");
     fs::copy(env!("CARGO_BIN_EXE_grove-llm"), &helper).unwrap();
-    let config = root.join("config.kdl");
-    let command = format!("'{}' complete --done", helper.display());
-    fs::write(&config, format!("config {{\ncommand \"helper\" {command:?}\nbind \"helper\" \"helper\"\nroute \"test\" \"helper\"\n}}\n")).unwrap();
-    let templates = Templates::load(&config, None, Vocabulary { slots: &[] }).unwrap();
-    let argv = templates.expand("test", &[]).unwrap();
+    let argv = Argv::new(
+        helper.clone().into_os_string(),
+        vec!["complete".into(), "--done".into()],
+    );
     let channel = keyed_launch::Channel::allocate(&root).unwrap();
     let log = root.join("transcript");
     let ended = keyed_launch::run_confined(

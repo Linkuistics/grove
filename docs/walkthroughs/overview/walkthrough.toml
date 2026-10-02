@@ -91,7 +91,7 @@ lines = 20
 [[root]]
 id    = "source-command-surface"
 path  = "crates/grove/src/cli.rs"
-lines = 268
+lines = 269
 
 [[root]]
 id    = "source-codex-provisioning"
@@ -114,19 +114,19 @@ lines = "1-20"
 id    = "surface-grammar"
 root  = "source-command-surface"
 owner = "no-arguments"
-lines = "1-119"
+lines = "1-120"
 
 [[block]]
 id    = "surface-resolve-lease-run"
 root  = "source-command-surface"
 owner = "one-call"
-lines = "120-168"
+lines = "121-169"
 
 [[block]]
 id    = "surface-closure-tests"
 root  = "source-command-surface"
 owner = "closure-proved"
-lines = "169-268"
+lines = "170-269"
 
 [[block]]
 id    = "codex-provisioning"
@@ -157,12 +157,6 @@ symbols   = "`LoopOutcome`"
 first-use = "02-the-surface.md#the-imports"
 owner     = "one-call"
 statement = "Why the loop stopped — the value that decides whether this process exits 0 or dies of a signal."
-
-[[early-use]]
-symbols   = "`TemplateSource`"
-first-use = "02-the-surface.md#the-imports"
-owner     = "one-call"
-statement = "Where launch policy is read from; the loop re-reads it every iteration — twice, before and after the tree transition — rather than holding a copy."
 
 [[early-use]]
 symbols   = "`Workspace`"

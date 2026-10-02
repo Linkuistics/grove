@@ -19,7 +19,17 @@ is allowed to have a say.
 > worktree, answered through grove's version-control seam, and it is the
 > boundary between an untrusted repository and arbitrary code execution.
 
-That boundary is why this chapter matters to every configured launch. A
+**This chapter reads a module nothing launches from any more.** Since
+`lifecycle-launch-k12` the loop runs `harness-dispatch` for every session and no
+tree verb asks about a kind, so nothing in this file is on the launch path. Its
+one remaining caller is `grove config show`, and the configuration commands are
+deleted next, this root with them. The doc comments reproduced below still name
+the loop as their caller. They are reproduced as the bytes stand, and wherever
+this chapter says the loop reads, searches or expands, it describes what
+`crates/grove-loop/src/loop_driver.rs` did until that leaf.
+[Chapter 20](20-the-loop.md#no-kind-is-asked) says what the loop does now.
+
+That boundary is why this chapter mattered to every configured launch. A
 delta names a program to execute. A repository that could ship one would choose
 what grove spawns in every checkout of it, and no amount of documentation makes
 that safe. So the one read-only question grove asks the version-control system

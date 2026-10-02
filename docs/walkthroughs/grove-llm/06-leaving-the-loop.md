@@ -220,7 +220,7 @@ the guard about that path before anything is written. Its comment states why the
 channel is resolved in the handler at all, and the page checks that reason
 against the seam it names.
 
-<!-- fragment «handler-complete-admit» owner="admit-before-signal" source="crates/grove-llm/src/cli.rs" lines="478-485" parent="handlers-leaving" -->
+<!-- fragment «handler-complete-admit» owner="admit-before-signal" source="crates/grove-llm/src/cli.rs" lines="480-487" parent="handlers-leaving" -->
 ````rust
 fn cmd_complete(args: &CompleteArgs, session_epoch: Option<&SessionEpochGuard>) -> Result<()> {
     // **Asked before the write, which is why the channel is resolved here.** The
@@ -271,7 +271,7 @@ finally matched on. `verbs::complete` takes the channel and the flag, writes
 the disposition if there is a channel, and answers which of the two happened;
 the handler turns each answer into one line of advice on stderr.
 
-<!-- fragment «handler-complete-endings» owner="admit-before-signal" source="crates/grove-llm/src/cli.rs" lines="486-502" parent="handlers-leaving" -->
+<!-- fragment «handler-complete-endings» owner="admit-before-signal" source="crates/grove-llm/src/cli.rs" lines="488-504" parent="handlers-leaving" -->
 ````rust
     match verbs::complete(channel.as_deref(), args.done)? {
         Signalled::Wrote(_) => {
@@ -328,7 +328,7 @@ because both of its fields have already been used: `done` chose the tail above,
 and `signal_file` was the first thing `signal_channel` looked at. It is the one
 argument struct in the module with no positional operand.
 
-<!-- fragment «args-complete» owner="admit-before-signal" source="crates/grove-llm/src/cli.rs" lines="311-322" parent="source-command-surface" -->
+<!-- fragment «args-complete» owner="admit-before-signal" source="crates/grove-llm/src/cli.rs" lines="312-323" parent="source-command-surface" -->
 ````rust
 #[derive(Parser)]
 pub struct CompleteArgs {
@@ -373,7 +373,7 @@ the call returned. Its comment argues for quoting the operator's own text here
 and nowhere deeper, and the page checks that against the refusal the worked
 example produced.
 
-<!-- fragment «handler-finish-commit» owner="admit-before-signal" source="crates/grove-llm/src/cli.rs" lines="460-477" parent="handlers-leaving" -->
+<!-- fragment «handler-finish-commit» owner="admit-before-signal" source="crates/grove-llm/src/cli.rs" lines="462-479" parent="handlers-leaving" -->
 ````rust
 fn cmd_finish_commit(finish_handle: &str) -> Result<()> {
     let worktree = worktree()?;
@@ -444,7 +444,7 @@ than from its own measurement.
 The composite that reassembles the two handlers, in source order, is stated
 here.
 
-<!-- fragment «handlers-leaving» owner="admit-before-signal" source="crates/grove-llm/src/cli.rs" lines="460-502" parent="source-command-surface" -->
+<!-- fragment «handlers-leaving» owner="admit-before-signal" source="crates/grove-llm/src/cli.rs" lines="462-504" parent="source-command-surface" -->
 <!-- insert «handler-finish-commit» -->
 <!-- insert «handler-complete-admit» -->
 <!-- insert «handler-complete-endings» -->
@@ -460,7 +460,7 @@ breach. `FinishCommit`'s comment is almost entirely one
 argument: that grove implements no transaction around the teardown and does not
 need one.
 
-<!-- fragment «verbs-finish-commit-help» owner="admit-before-signal" source="crates/grove-llm/src/cli.rs" lines="248-271" parent="verbs-leaving" -->
+<!-- fragment «verbs-finish-commit-help» owner="admit-before-signal" source="crates/grove-llm/src/cli.rs" lines="249-272" parent="verbs-leaving" -->
 ````rust
     /// Revalidate the live driver-owned finish leaf and the absence of ordinary
     /// work under the exclusive tree lock, then delete and commit only
@@ -521,7 +521,7 @@ requires that same key spelling, including positivity and no leading zeros.
 returns rather than ending the session itself, and it is the only place in the
 corpus that names the driver's escalation.
 
-<!-- fragment «verbs-complete-help» owner="admit-before-signal" source="crates/grove-llm/src/cli.rs" lines="272-289" parent="verbs-leaving" -->
+<!-- fragment «verbs-complete-help» owner="admit-before-signal" source="crates/grove-llm/src/cli.rs" lines="273-290" parent="verbs-leaving" -->
 ````rust
     /// Signal task completion to the self-driving loop. Run this as
     /// the **last step** of a task, after commit + retire — it is how the loop
@@ -609,7 +609,7 @@ status.
 
 The composite that reassembles the two variants is stated here.
 
-<!-- fragment «verbs-leaving» owner="admit-before-signal" source="crates/grove-llm/src/cli.rs" lines="248-289" parent="source-command-surface" -->
+<!-- fragment «verbs-leaving» owner="admit-before-signal" source="crates/grove-llm/src/cli.rs" lines="249-290" parent="source-command-surface" -->
 <!-- insert «verbs-finish-commit-help» -->
 <!-- insert «verbs-complete-help» -->
 <!-- /fragment -->

@@ -28,7 +28,7 @@ reader order below. The `Command` enum belongs here alongside `Cli`, because
 its job is parsing the requested operation. Standalone mode names a kind;
 the owner's harness-dispatch policy selects the command that implements it.
 
-<!-- fragment «surface-grammar» owner="no-arguments" source="crates/grove/src/cli.rs" lines="1-119" parent="source-command-surface" -->
+<!-- fragment «surface-grammar» owner="no-arguments" source="crates/grove/src/cli.rs" lines="1-120" parent="source-command-surface" -->
 <!-- insert «surface-imports» -->
 <!-- insert «surface-doc-comment» -->
 <!-- insert «surface-clap-attributes» -->
@@ -48,10 +48,9 @@ The loop imports are used by the next chapter's lifecycle path:
 |---|---|
 | `Workspace` | A resolved jj working tree, shared by the lease and loop |
 | `DriverLease` | The one-driver claim held while the loop runs |
-| `TemplateSource` | The location from which the loop reads launch policy |
 | `LoopOutcome` | Why the loop stopped, including interruption by a signal |
 
-The viewer and example installer return before any of those four is constructed or used.
+The viewer and example installer return before any of those three is constructed or used.
 
 <!-- fragment «surface-imports» owner="no-arguments" source="crates/grove/src/cli.rs" lines="1-5" parent="surface-grammar" -->
 ````rust
@@ -59,7 +58,7 @@ use std::path::PathBuf;
 use std::process::ExitCode;
 
 use clap::{Parser, Subcommand};
-use grove_loop::{DriverLease, LoopOutcome, TemplateSource, Workspace};
+use grove_loop::{DriverLease, LoopOutcome, Workspace};
 ````
 <!-- /fragment -->
 
@@ -67,15 +66,16 @@ use grove_loop::{DriverLease, LoopOutcome, TemplateSource, Workspace};
 ## Launch policy stays on disk
 
 The doc comment distinguishes an observation path from a lifecycle selector.
-The tree still decides which leaf runs, and `~/.config/grove/config.kdl` still
+The tree still decides which leaf runs, and the owner's `harness-dispatch` policy
 decides how to launch its kind. Bare `grove` takes neither as an argument.
 Adding the browser does not give the launcher a second source of policy.
 
-<!-- fragment «surface-doc-comment» owner="no-arguments" source="crates/grove/src/cli.rs" lines="6-8" parent="surface-grammar" -->
+<!-- fragment «surface-doc-comment» owner="no-arguments" source="crates/grove/src/cli.rs" lines="6-9" parent="surface-grammar" -->
 ````rust
 
 /// Bare `grove` drives the lifecycle; `run` launches a standalone invocation.
-/// Launch policy stays in configuration rather than command-line selectors.
+/// Launch policy stays in the owner's harness-dispatch policy rather than
+/// command-line selectors.
 ````
 <!-- /fragment -->
 
@@ -91,7 +91,7 @@ is an authoring tool with its own version and is outside that release set.
 `{run, run-log, config, view}`; `run-log` is hidden from ordinary help.
 The normal `--help` option still describes every command and argument.
 
-<!-- fragment «surface-clap-attributes» owner="no-arguments" source="crates/grove/src/cli.rs" lines="9-20" parent="surface-grammar" -->
+<!-- fragment «surface-clap-attributes» owner="no-arguments" source="crates/grove/src/cli.rs" lines="10-21" parent="surface-grammar" -->
 ````rust
 #[derive(Parser)]
 #[command(
@@ -119,7 +119,7 @@ when that directory is absent; absence is a visible state of the viewer.
 `Run` delegates its argument model to the standalone module. `RunLog` carries
 the exact log and status paths used by the separate display process.
 
-<!-- fragment «surface-empty-struct» owner="no-arguments" source="crates/grove/src/cli.rs" lines="21-58" parent="surface-grammar" -->
+<!-- fragment «surface-empty-struct» owner="no-arguments" source="crates/grove/src/cli.rs" lines="22-59" parent="surface-grammar" -->
 ````rust
 pub struct Cli {
     #[command(subcommand)]
@@ -171,7 +171,7 @@ Clap requires a child of `config`; its nested help provides examples and exit
 codes. SessionConfig owns validation; the parser cannot establish that a kind
 is admitted. The JSON flag selects the wire projection of that same validated result.
 
-<!-- fragment «surface-config-command» owner="no-arguments" source="crates/grove/src/cli.rs" lines="59-81" parent="surface-grammar" -->
+<!-- fragment «surface-config-command» owner="no-arguments" source="crates/grove/src/cli.rs" lines="60-82" parent="surface-grammar" -->
 ````rust
 
 #[derive(Subcommand)]
@@ -250,7 +250,7 @@ configuration errors preserve structured records; other failures get the same
 record shape. Human errors retain their context chain. Returning `ExitCode` lets
 `main` finish without Rust adding a second error message.
 
-<!-- fragment «surface-process-reporting» owner="no-arguments" source="crates/grove/src/cli.rs" lines="82-119" parent="surface-grammar" -->
+<!-- fragment «surface-process-reporting» owner="no-arguments" source="crates/grove/src/cli.rs" lines="83-120" parent="surface-grammar" -->
 ````rust
 
 /// Own process reporting, including usage failures before a command exists.

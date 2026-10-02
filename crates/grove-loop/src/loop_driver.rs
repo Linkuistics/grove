@@ -7,7 +7,7 @@
 // re-running `grove` from the same working tree (restart ≡ continuation, the
 // loop body holds zero state and re-derives position from the tree).
 //
-// The configured command is spawned directly — no shell, no PID-export trick —
+// `harness-dispatch run` is spawned directly — no shell, no PID-export trick —
 // and watched while it runs: poll it alongside the completion-signal file, and
 // once the file appears, apply grace → SIGTERM → kill-grace → SIGKILL to the
 // child itself (driver-side watcher — self-driving-loop). The driver is the
@@ -29,20 +29,23 @@
 //
 // The driver is deliberately tiny — a plain shell `while` loop could stand in
 // (constraint 6, walk-away-able). Nothing below infers anything about the
-// session: the selected leaf's filename kind indexes one complete-config entry,
-// and that entry's argv is the launch in full.
+// session, and nothing here decides what runs: the selected leaf's kind, task
+// file and handle go to `harness-dispatch run` with the prompt, and the owner's
+// policy returns the command.
 //
 //     # after owning the workspace lease, clean abandoned signal-<128-bit> paths
 //     while :; do
 //       grove_recover_or_migrate_tree                    # driver-only transition
 //       # One in-process selection: the leaf's stable handle *and* its kind.
 //       read -r handle kind <<<"$(grove_select_or_materialize_finish)"
-//       # The kind indexes the config; there is no default, family, or fallback.
-//       argv=$(kdl_lookup "$HOME/.config/grove/config.kdl" "$kind")
 //       # Draw a fresh OS-random 128-bit suffix in the workspace control dir;
 //       # retry occupied names without touching their contents.
 //       sig="$control_dir/signal-<fresh-128-bit-suffix>"
-//       GROVE_SIGNAL_FILE="$sig" $argv &                 # ${prompt} carries $handle
+//       # The owner's policy selects the command; Grove reads no configuration.
+//       GROVE_SIGNAL_FILE="$sig" harness-dispatch run --kind="$kind" \
+//         --task-file="$task_file" --task-id="$handle" --prompt="$prompt" \
+//         --param=session_name="$name" --param=worktree="$worktree" \
+//         --param=repo="$repo" &                         # $prompt carries $handle
 //       pid=$!
 //       # poll $pid (try_wait) and "$sig" every ~500ms; on signal appearing:
 //       # sleep 2, kill -TERM $pid, sleep 5, kill -KILL $pid
@@ -54,12 +57,11 @@
 //     done
 
 use crate::driver_lease::DriverLease;
-use crate::session_config::{DeltaRoots, ExpansionContext, TemplateSource};
 use crate::{interpret, Disposition, Handle, Kind, Reading, Selection, Sought, TreeLifetime};
 use anyhow::{ensure, Context, Result};
 use jj_workspace::Workspace;
 use keyed_launch::{Argv, Channel, End, Ended, Escalation, Launch};
-use std::ffi::OsStr;
+use std::ffi::{OsStr, OsString};
 use std::io::Write;
 use std::path::Path;
 use std::process::Command;
@@ -87,7 +89,7 @@ fn worktree_name(worktree: &Path) -> String {
 /// nested grove is the same class of mistake one notch quieter — the value is
 /// something a reader could still *act on*. That is the bar for membership.
 ///
-/// **Any spawn that is not the configured session itself must scrub this whole
+/// **Any spawn that is not the session itself must scrub this whole
 /// list** (guard-loop-signal-k37), and so must the session's own, which then
 /// receives the one path it owns. Scrubbing is the default and granting is the
 /// exception; `keyed_launch::run` takes the list precisely so the grant cannot
@@ -99,7 +101,7 @@ fn worktree_name(worktree: &Path) -> String {
 /// commands write `"$GROVE_SIGNAL_FILE"` unconditionally, and `cargo test`
 /// killed the terminal it was typed into.
 ///
-/// Grove's own spawns are exactly two — the configured session and `stty sane`
+/// Grove's own spawns are exactly two — the session and `stty sane`
 /// — and both scrub. (There were three: the build-pairing probe went with
 /// provisioning at `delete-provisioning-k19`, since a driver that writes no
 /// skill directory has no pairing to report.) The one
@@ -126,7 +128,7 @@ fn scrub_list() -> [&'static OsStr; LOOP_CONTROL_ENV.len()] {
 
 /// Deliberately one helper rather than an `env_remove` per site: the list is the
 /// interesting part, and a second site open-coding it is how the first one came
-/// to be missed. The configured session goes through
+/// to be missed. The session goes through
 /// [`keyed_launch::Launch::scrub`] instead, which is the same list by the same
 /// rule.
 pub(crate) fn scrub_loop_control_env(cmd: &mut Command) {
@@ -164,19 +166,21 @@ pub enum LoopOutcome {
     Interrupted(i32),
 }
 
-/// **The whole loop**: `exists? → create or find next → determine the command →
-/// run → finalise`, one configured foreground session per selected task, until
-/// a session stops signalling (`docs/specs/module-decomposition.md`, decision
-/// 9).
+/// **The whole loop**: `exists? → create or find next → run → finalise`, one
+/// foreground session per selected task, until a session stops signalling
+/// (`docs/specs/module-decomposition.md`, decision 9).
 ///
 /// The three arguments are the three things a loop cannot derive for itself and
 /// is therefore handed: the **workspace** it drives (resolved by its caller,
 /// which had to resolve one to take the lease), the **lease** proving it is the
-/// only driver in that working tree, and the **templates** naming where each
-/// launch is read from.
+/// only driver in that working tree, and the path of the **`harness-dispatch`**
+/// executable every session is launched through, which its caller found beside
+/// its own.
 ///
-/// Nothing here inspects the working tree for a harness, and nothing chooses a
-/// binary: the configured argv is the whole of launch policy. Nothing here
+/// Nothing here inspects the working tree for a harness, nothing chooses a
+/// binary and nothing reads a configuration: the owner's dispatch policy is the
+/// whole of launch policy (`docs/specs/harness-selection-and-execution.md`,
+/// *Grove integration*). Nothing here
 /// delivers the methodology either — since `delete-provisioning-k19` the
 /// methodology is a plugin a human installs, so the loop's first act is a
 /// transition rather than a sweep over three personal skill directories.
@@ -187,37 +191,31 @@ pub enum LoopOutcome {
 ///
 /// # Errors
 ///
-/// A configuration that does not load or does not cover the selected kind, a
-/// lease that stops naming the descriptors this process owns, a tree the store
-/// refuses, or a session that could not be spawned.
+/// A lease that stops naming the descriptors this process owns, a tree the
+/// store refuses, or a `harness-dispatch` that could not be spawned. A launch
+/// the owner's policy refuses is not an error: it is a session that ended
+/// without a completion signal, and the loop stops on it.
 pub fn run(
     workspace: &Workspace,
     mut lease: DriverLease,
-    templates: &TemplateSource,
+    dispatch: &Path,
 ) -> Result<LoopOutcome, crate::Error> {
     ignore_interrupts();
-    Ok(drive(workspace, &mut lease, templates)?)
+    Ok(drive(workspace, &mut lease, dispatch)?)
 }
 
 fn drive(
     workspace: &Workspace,
     driver_lease: &mut DriverLease,
-    templates: &TemplateSource,
+    dispatch: &Path,
 ) -> Result<LoopOutcome> {
     // Both taken from the resolution that already happened rather than
     // recomputed here: `main_repo` is the seam's one derivation of *the
-    // repository root* and the very value `${repo}` expands to, so the delta
-    // search order cannot drift from the template it selects
-    // (`docs/adr/untracked-configuration-delta.md`).
+    // repository root*, and the value the `repo` parameter carries.
     let worktree_path = driver_lease.worktree_root().to_path_buf();
     let worktree = worktree_path.as_path();
     let repo_path = workspace.main_repo();
     let name = worktree_name(worktree);
-    let config_path = templates.personal_path();
-    let delta_roots = DeltaRoots {
-        worktree,
-        repository: repo_path,
-    };
     let repo_name = repo_path
         .file_name()
         .map(|value| value.to_string_lossy().into_owned())
@@ -239,60 +237,32 @@ fn drive(
         driver_lease
             .revalidate()
             .context("revalidating driver lease before loop transition")?;
-        let pre_transition_config = templates.load(&delta_roots)?;
 
-        crate::driver::transition_to_current(worktree, &pre_transition_config)?;
+        // No kind is checked here, or anywhere before the launch: whether the
+        // owner's policy routes one is asked when its leaf launches.
+        crate::driver::transition_to_current(worktree)?;
         let selected = match picked(worktree)? {
             Sought::Match(selection) => selection,
-            Sought::Nothing => {
-                // The finish sentinel is a leaf grove writes itself, so the
-                // just-in-time presence rule binds it exactly as it binds
-                // `leaf-add` — before the write, not at the launch that follows
-                // (`docs/adr/complete-session-configuration.md`). Asked against
-                // the pre-transition load, which is the document as it stood
-                // before anything was mutated.
-                pre_transition_config
-                    .require(Kind::finish().label())
-                    .context("materializing the driver-owned finish leaf")?;
-                picked_after_finish(worktree)?
-            }
+            Sought::Nothing => picked_after_finish(worktree)?,
         };
         let selection = selected.selection.clone();
 
-        let config = templates.load(&delta_roots)?;
-        // The personal file holding this kind's command definition. Local
-        // routes, bindings and parameters may contribute to the resolved argv;
-        // their origins are available through inspection. An unresolved kind
-        // uses the personal policy path so the owner can add its route.
-        let resolved_source = config
-            .source(selection.kind.label())
-            .unwrap_or(config_path.as_path())
-            .to_path_buf();
         let prompt = session_prompt(&selection.handle, &selection.kind, workspace);
-        let argv = config.expand(
-            selection.kind.label(),
-            &ExpansionContext {
-                prompt: &prompt,
-                session_name: &session_name,
-                worktree,
-                repository: repo_path,
-                task: &selection,
-            },
-        )?;
+        let argv = dispatch_run(
+            dispatch,
+            &selection,
+            &prompt,
+            &session_name,
+            worktree,
+            repo_path,
+        );
 
         driver_lease
             .revalidate()
             .context("revalidating driver lease before foreground launch")?;
         let channel = Channel::allocate(driver_lease.control_dir())
             .context("allocating a fresh foreground-session signal channel")?;
-        let ended = launch_configured_session(
-            &argv,
-            selected,
-            &resolved_source,
-            worktree,
-            &channel,
-            driver_lease,
-        );
+        let ended = launch_session(&argv, selected, worktree, &channel, driver_lease);
         // Unconditionally, and before the invalidation gate below: the session
         // may have left the terminal in raw mode and on the alternate screen,
         // and an error path that returns without restoring it hands the human
@@ -333,10 +303,11 @@ fn drive(
                 );
                 if !ended.status.success() {
                     eprintln!(
-                        "       configured session kind `{}` failed via {:?} from {}.",
+                        "       session kind `{}` for `{}` failed; if harness-dispatch refused the \
+                         launch, its diagnostic and remedy are above. The leaf is still live: \
+                         rerun `grove` to continue.",
                         selection.kind.label(),
-                        argv.program(),
-                        resolved_source.display()
+                        selection.handle
                     );
                 }
                 return Ok(LoopOutcome::Stopped);
@@ -353,9 +324,10 @@ fn drive(
 /// leaf's stable handle, the resolved workspace the prompt states the version
 /// control from, and grove's own published release version.
 ///
-/// The kind is passed in rather than re-read: it is the same value that indexed
-/// the configuration entry, taken from the one guarded selection, so the prompt
-/// and the command a session receives cannot disagree about what kind it is.
+/// The kind is passed in rather than re-read: it is the same value
+/// `harness-dispatch` receives as `--kind`, taken from the one guarded
+/// selection, so the prompt and the policy that selects the command cannot
+/// disagree about what kind it is.
 ///
 /// **The version is `CARGO_PKG_VERSION`, read here rather than in `prompt`**, so
 /// composition takes a value like every other runtime fact and the module that
@@ -378,44 +350,79 @@ fn session_prompt(handle: &Handle, kind: &Kind, workspace: &Workspace) -> String
     })
 }
 
+/// The `harness-dispatch run` invocation for one selected leaf: everything the
+/// owner's policy may select from, and nothing about how it selects
+/// (`docs/specs/harness-selection-and-execution.md`, *A lifecycle session*).
+///
+/// The kind, the task file and the handle are read from the selection that
+/// composed `prompt`, so they cannot describe a different leaf from the mandate.
+/// The session name and the two roots travel as named parameters, which the
+/// policy places in its command or ignores. No policy entry, bound, grant or
+/// record directory is passed: those are the owner's settings.
+///
+/// Each value is joined to its flag in one word, so a prompt or a path that
+/// begins with a dash is still a value. A value dispatch cannot take, a path
+/// that is not UTF-8 for one, is dispatch's to refuse.
+fn dispatch_run(
+    dispatch: &Path,
+    task: &Selection,
+    prompt: &str,
+    session_name: &str,
+    worktree: &Path,
+    repository: &Path,
+) -> Argv {
+    let word = |flag: &str, value: &OsStr| {
+        let mut word = OsString::from(flag);
+        word.push(value);
+        word
+    };
+    Argv::new(
+        dispatch.into(),
+        vec![
+            "run".into(),
+            word("--kind=", task.kind.label().as_ref()),
+            word("--task-file=", task.path.as_os_str()),
+            word("--task-id=", task.handle.to_string().as_ref()),
+            word("--prompt=", prompt.as_ref()),
+            word("--param=session_name=", session_name.as_ref()),
+            word("--param=worktree=", worktree.as_os_str()),
+            word("--param=repo=", repository.as_os_str()),
+        ],
+    )
+}
+
 /// Launch one fresh foreground session owning the real TTY, and hand it to
 /// `keyed_launch::run_observed`, which spawns it directly — no shell — and supervises it
 /// until it ends.
 ///
-/// The argv is taken whole from the expanded configuration. Nothing is appended,
-/// injected, or reordered here: no session-name argument, no model flag, no
-/// sandbox grant. A target that needs any of those spells them out in its own
-/// command template, where the configuration owner can see them.
+/// The argv is taken whole from its caller. Nothing is appended, injected, or
+/// reordered here. In the loop it is [`dispatch_run`]'s: the front process
+/// leads the job and holds the terminal, its policy worker joins that job, and
+/// the harness the policy selects replaces the front in the same process, so
+/// the runner's contract holds for the harness as it held for the front.
 ///
-/// Prints one diagnostic line naming the kind, the executable and the selected
-/// handle. That line is the only durable record of what each session in a loop
-/// was working on, so it names the **stable handle** rather than a path, which
-/// moves under `leaf-insert`.
+/// Prints one diagnostic line naming the kind and the selected handle. That
+/// line is the only durable record of what each session in a loop was working
+/// on, so it names the **stable handle** rather than a path, which moves under
+/// `leaf-insert`.
 ///
-/// A spawn failure names `resolved_source`, the personal file holding the
-/// resolved command definition. Local contributions to the argv retain their
-/// separate origins in configuration inspection; this path alone does not
-/// explain every argument (`docs/adr/untracked-configuration-delta.md`).
-/// The runner's own message names the program and says to check that it is
-/// executable; grove adds the session kind and the command-definition path
-/// so the operator can locate the configured executable.
+/// A spawn failure names the program, which the runner's own message says to
+/// check is executable; grove adds the session kind.
 ///
 /// The epoch is activated **before** the spawn and never after: a child that is
 /// already running under an inactive epoch would have its own `grove-llm` verbs
 /// refused.
-fn launch_configured_session(
+fn launch_session(
     argv: &Argv,
     selected: SelectedTask,
-    resolved_source: &Path,
     worktree: &Path,
     channel: &Channel,
     driver_lease: &mut DriverLease,
 ) -> Result<Ended> {
     let selection = &selected.selection;
     eprintln!(
-        "grove: launching {} with configured {:?} — {}",
+        "grove: launching {} through harness-dispatch — {}",
         selection.kind.label(),
-        argv.program(),
         selection.handle
     );
 
@@ -439,10 +446,9 @@ fn launch_configured_session(
         })
         .with_context(|| {
             format!(
-                "launching configured session kind `{}` via {:?} from {}",
+                "launching session kind `{}` via {:?}",
                 selection.kind.label(),
-                argv.program(),
-                resolved_source.display()
+                argv.program()
             )
         })
 }
@@ -517,13 +523,13 @@ fn reset_terminal() {
 /// is running it is the terminal's foreground process group in its own right —
 /// the runner puts it there and hands it the terminal — so a typed Ctrl-C is
 /// delivered to the session and never reaches the driver at all. This ignore is
-/// what holds in the moments the driver is transitioning the tree, selecting a
-/// leaf and expanding a template with no child in front of it.
+/// what holds in the moments the driver is transitioning the tree and selecting
+/// a leaf with no child in front of it.
 ///
 /// **It does not leak into the session.** An ignored disposition is the one
 /// kind that survives `execve`, which is exactly why this used to reach the
-/// configured session, everything it spawned, and every wrapper a template
-/// named — a login shell that inherits an ignored SIGINT keeps ignoring it and
+/// session, everything it spawned, and every wrapper in front of it — a login
+/// shell that inherits an ignored SIGINT keeps ignoring it and
 /// passes it on, so Ctrl-C did nothing at all and nothing in the session could
 /// say why. The runner now resets the child's dispositions to their defaults
 /// across the spawn (`keyed_launch::run`), so this stays the driver's own
@@ -612,19 +618,10 @@ mod tests {
                 std::fs::write(work.join(".grove/_BRIEF.md"), "replacement").unwrap();
                 std::fs::write(work.join(".grove/01-impl--work-k1.md"), "reused key").unwrap();
             }
-            let config = work.join("launch.kdl");
-            std::fs::write(&config, "config { command \"run\" \"/bin/sh child.sh\"; bind \"run\" \"run\"; route \"impl\" \"run\"; }\n").unwrap();
             std::fs::write(work.join("child.sh"), "touch launched\n").unwrap();
-            let templates = keyed_launch::Templates::load(
-                &config,
-                None,
-                keyed_launch::Vocabulary { slots: &[] },
-            )
-            .unwrap();
-            let argv = templates.expand("impl", &[]).unwrap();
+            let argv = Argv::new("/bin/sh".into(), vec!["child.sh".into()]);
             let channel = Channel::allocate(lease.control_dir()).unwrap();
-            let result =
-                launch_configured_session(&argv, selection, &config, work, &channel, &mut lease);
+            let result = launch_session(&argv, selection, work, &channel, &mut lease);
             assert_eq!(result.is_ok(), state == "current", "{state}: {result:?}");
             assert_eq!(work.join("launched").exists(), state == "current");
             let epoch = std::fs::read_to_string(lease.control_dir().join("session.epoch")).unwrap();

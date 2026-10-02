@@ -24,28 +24,6 @@ const HOLDER_PANIC: &str = "GROVE_TEST_LEASE_HOLDER_PANIC";
 const EXEC_READY: &str = "GROVE_TEST_LEASE_EXEC_READY";
 const EXEC_RELEASED: &str = "GROVE_TEST_LEASE_EXEC_RELEASED";
 
-const SESSION_KINDS: &[&str] = &[
-    "requirements",
-    "review-requirements",
-    "integrate-review-requirements",
-    "design",
-    "review-design",
-    "integrate-review-design",
-    "planning",
-    "review-planning",
-    "integrate-review-planning",
-    "prototype",
-    "review-prototype",
-    "integrate-review-prototype",
-    "impl",
-    "review-impl",
-    "integrate-review-impl",
-    "research-a",
-    "research-b",
-    "combine-research",
-    "finish",
-];
-
 /// A bare `.jj` marker: everything the resolver needs, and nothing a jj command
 /// could act on. The lease is untracked coordination, so most cases here need
 /// the marker rather than a repository.
@@ -116,16 +94,10 @@ fn shell_quote(path: &Path) -> String {
 
 fn grove_driver(root: &Path, harness: &Path, home: &Path) -> Command {
     fs::create_dir_all(home.join(".codex")).unwrap();
-    let config_dir = home.join(".config/grove");
-    fs::create_dir_all(&config_dir).unwrap();
-    let template = format!("{} '${{prompt}}'", shell_quote(harness));
-    let routes = SESSION_KINDS
-        .iter()
-        .map(|kind| format!("route {kind:?} \"run\"\n"))
-        .collect::<String>();
-    let document =
-        format!("config {{\ncommand \"run\" {template:?}\nbind \"run\" \"run\"\n{routes}}}\n");
-    fs::write(config_dir.join("config.kdl"), document).unwrap();
+    // The real front, beside the `grove` it is launched by, and a policy that
+    // runs the fake harness for every kind.
+    support::harness_dispatch();
+    support::route_every_kind_to(home, harness);
 
     let mut command = Command::new(support::grove_bin());
     command.current_dir(root);
@@ -274,7 +246,7 @@ fn a_producer_that_ends_without_writing_is_reported_when_it_is_observed() {
     let never_written = tmp.path().join("ready");
     let diagnostics = tmp.path().join("diagnostics");
     let mut producer = spawn_producer(
-        "printf 'grove: config.kdl is missing\\n' >&2; exit 3",
+        "printf 'grove: the producer gave up\\n' >&2; exit 3",
         Some(&diagnostics),
     );
 
@@ -291,7 +263,7 @@ fn a_producer_that_ends_without_writing_is_reported_when_it_is_observed() {
         "the failure must say how the producer ended: {failure}"
     );
     assert!(
-        failure.contains("grove: config.kdl is missing"),
+        failure.contains("grove: the producer gave up"),
         "the failure must quote what the producer said: {failure}"
     );
 }

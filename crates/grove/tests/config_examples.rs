@@ -349,7 +349,7 @@ fn removing_the_effort_experiment_or_unset_restores_the_documented_values() {
 }
 
 #[test]
-fn selecting_the_unfinished_example_fails_before_driver_launch_or_tree_mutation() {
+fn selecting_the_unfinished_example_fails_inspection_and_changes_no_file() {
     let fixture = Fixture::new();
     // Establish the inactive case before changing only the workspace selection.
     fixture.load().require("impl").unwrap();
@@ -384,34 +384,6 @@ fn selecting_the_unfinished_example_fails_before_driver_launch_or_tree_mutation(
         .iter()
         .any(|o| o["profile"] == "unfinished"));
 
-    // Exercise the actual human driver, both before bootstrap and with work.
-    for existing_tree in [false, true] {
-        let tree = fixture.repo.join(".grove");
-        if existing_tree {
-            fs::create_dir(&tree).unwrap();
-            fs::write(tree.join("_BRIEF.md"), "# Example work\n").unwrap();
-            fs::write(tree.join("01-impl--example-k1.md"), "# example-k1\n").unwrap();
-        }
-        let output = fixture.command().output().unwrap();
-        assert_eq!(output.status.code(), Some(1));
-        let error = String::from_utf8(output.stderr).unwrap();
-        assert!(error.contains("not-written-yet"), "{error}");
-        assert!(error.contains("config.kdl"), "{error}");
-        assert!(!fixture.repo.join("captured.argv").exists());
-        if existing_tree {
-            assert_eq!(
-                fs::read_to_string(tree.join("_BRIEF.md")).unwrap(),
-                "# Example work\n"
-            );
-            assert_eq!(
-                fs::read_to_string(tree.join("01-impl--example-k1.md")).unwrap(),
-                "# example-k1\n"
-            );
-            assert_eq!(fs::read_dir(tree).unwrap().count(), 2);
-        } else {
-            assert!(!tree.exists());
-        }
-    }
     assert_eq!(
         fs::read(fixture.home.join(".config/grove/config.kdl")).unwrap(),
         personal_before

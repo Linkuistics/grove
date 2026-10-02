@@ -1,31 +1,16 @@
+// The driver's lifecycle around a launch: what it refuses before one, what it
+// scaffolds, and what it reports when a session ends. Every case that launches
+// goes through the real `harness-dispatch` front and its compiled worker, under
+// a personal policy in a temporary HOME; Grove reads no configuration.
+
+mod support;
+
 use std::fs;
 use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
 use std::process::{Command, Output};
 
 use tempfile::TempDir;
-
-const SESSION_KINDS: &[&str] = &[
-    "requirements",
-    "review-requirements",
-    "integrate-review-requirements",
-    "design",
-    "review-design",
-    "integrate-review-design",
-    "planning",
-    "review-planning",
-    "integrate-review-planning",
-    "prototype",
-    "review-prototype",
-    "integrate-review-prototype",
-    "impl",
-    "review-impl",
-    "integrate-review-impl",
-    "research-a",
-    "research-b",
-    "combine-research",
-    "finish",
-];
 
 /// The ordinary fixture: a native jj workspace, which is the only kind of
 /// working tree Grove drives (`docs/adr/jj-is-the-only-lane.md`).
@@ -98,29 +83,55 @@ fn shell_quote(path: &Path) -> String {
     format!("'{value}'")
 }
 
-fn write_complete_config(home: &Path, template: &str) {
-    let config_dir = home.join(".config/grove");
-    fs::create_dir_all(&config_dir).unwrap();
-    let routes = SESSION_KINDS
+/// Where a policy written by [`route_every_kind`] puts the mandate among the
+/// program's arguments.
+const PROMPT: &str = "${prompt}";
+
+/// A personal dispatch policy under `home` that runs `program` for every kind,
+/// with `args` as its arguments and the mandate in place of each [`PROMPT`].
+fn route_every_kind(home: &Path, program: &Path, args: &[&str]) {
+    let args: Vec<String> = args
         .iter()
-        .map(|kind| format!("    route {kind:?} \"lead\"\n"))
-        .collect::<String>();
-    let document = format!(
-        "config {{\n    command \"agent\" {template:?}\n    bind \"lead\" \"agent\"\n{routes}}}\n"
+        .map(|arg| match *arg {
+            PROMPT => "request.prompt".to_owned(),
+            literal => format!("{literal:?}"),
+        })
+        .collect();
+    support::write_policy(
+        home,
+        &format!(
+            r#"export const policy = {{
+  schemaVersion: 2,
+  version: "cutover-1",
+  select: (request) => ({{
+    status: "selected",
+    program: {program:?},
+    args: [{args}],
+    provider: "fixture",
+    model: "none",
+    effort: "none",
+    reason: "every kind runs the fixture's command",
+  }}),
+}};
+"#,
+            program = program.to_str().unwrap(),
+            args = args.join(", "),
+        ),
     );
-    fs::write(config_dir.join("config.kdl"), document).unwrap();
 }
 
 /// The driver-authored sentence naming the leaf selected for one session.
 ///
 /// It has **one home in this binary** for the same reason it has one home in the
-/// driver: it is the whole of what `${prompt}` says about the selected leaf — a
+/// driver: it is the whole of what the prompt says about the selected leaf — a
 /// value, with every normative consequence of it left to the skill.
 fn mandate_naming(handle: &str) -> String {
     format!("Grove mandate: the leaf selected for this session is `{handle}`")
 }
 
 fn run_grove(home: &Path, worktree: &Path) -> Output {
+    // The sibling this `grove` launches every session through.
+    support::harness_dispatch();
     Command::new(env!("CARGO_BIN_EXE_grove"))
         .current_dir(worktree)
         .env("HOME", home)
@@ -172,10 +183,7 @@ fn duplicate_keys_stop_the_driver_before_launch_or_finish_allocation() {
     let log = fixture.path().join("launched");
     let fake = fixture.path().join("session.sh");
     write_executable(&fake, "#!/bin/sh\nprintf launched > \"$1\"\n");
-    write_complete_config(
-        &home,
-        &format!("{} {} '${{prompt}}'", shell_quote(&fake), shell_quote(&log)),
-    );
+    route_every_kind(&home, &fake, &[log.to_str().unwrap(), PROMPT]);
     let before = tree_snapshot(&grove);
 
     let output = run_grove(&home, &worktree);
@@ -205,7 +213,7 @@ fn bare_grove_launches_the_selected_filename_kind_with_one_mandate_argument() {
     .unwrap();
 
     let argv_log = fixture.path().join("exact argv.log");
-    let fake_command = fixture.path().join("configured command.sh");
+    let fake_command = fixture.path().join("selected command.sh");
     write_executable(
         &fake_command,
         r#"#!/bin/sh
@@ -229,13 +237,13 @@ shift
 exit 0
 "#,
     );
-    let template = format!(
-        "{} {} --before '${{prompt}}' --after",
-        shell_quote(&fake_command),
-        shell_quote(&argv_log)
+    route_every_kind(
+        &home,
+        &fake_command,
+        &[argv_log.to_str().unwrap(), "--before", PROMPT, "--after"],
     );
-    write_complete_config(&home, &template);
 
+    support::harness_dispatch();
     let output = Command::new(env!("CARGO_BIN_EXE_grove"))
         .current_dir(&worktree)
         .env_clear()
@@ -273,7 +281,7 @@ exit 0
     let signal = log
         .lines()
         .find_map(|line| line.strip_prefix("signal=<")?.strip_suffix('>'))
-        .expect("configured command did not record its signal path");
+        .expect("the selected command did not record its signal path");
     assert_ne!(
         signal,
         fixture.path().join("stale-signal").to_str().unwrap()
@@ -292,72 +300,6 @@ exit 0
     // Bare startup provisions canonical `.agents/skills` for this Codex home.
     // A fresh legacy `.codex/skills` installation is deliberately not created.
     assert!(!home.join(".codex/skills/grove").exists());
-}
-
-#[test]
-fn a_secondary_workspace_expands_scalars_through_literal_env_word_zero() {
-    let fixture = TempDir::new().unwrap();
-    let home = fixture.path().join("home");
-    fs::create_dir_all(home.join(".codex")).unwrap();
-
-    let repository = fixture.path().join("main-repository");
-    init_worktree(&repository);
-    let worktree = fixture.path().join("secondary-workspace");
-    run_command(
-        "jj",
-        &repository,
-        &["workspace", "add", "--quiet", worktree.to_str().unwrap()],
-    );
-
-    let grove = worktree.join(".grove");
-    fs::create_dir_all(&grove).unwrap();
-    fs::write(grove.join("_BRIEF.md"), "# secondary — brief\n").unwrap();
-    fs::write(grove.join("01-impl--scalars-k7.md"), "# scalars-k7\n").unwrap();
-
-    let argv_log = fixture.path().join("scalar-argv.log");
-    let fake = fixture.path().join("record-scalars.sh");
-    write_executable(
-        &fake,
-        r#"#!/bin/sh
-printf 'mode=%s\nrepo=%s\nprompt=%s\nworktree=%s\nsession=%s\n' \
-    "$MODE" "$1" "$2" "$4" "$5" > "$3"
-"#,
-    );
-    let template = format!(
-        "env MODE='$$(printf shell-evaluated)' {} '${{repo}}' '${{prompt}}' {} '${{worktree}}' '${{session_name}}'",
-        shell_quote(&fake),
-        shell_quote(&argv_log)
-    );
-    write_complete_config(&home, &template);
-
-    let output = run_grove(&home, &worktree);
-
-    assert!(
-        output.status.success(),
-        "{}",
-        String::from_utf8_lossy(&output.stderr)
-    );
-    let argv = fs::read_to_string(argv_log).unwrap();
-    assert!(argv.contains("mode=$(printf shell-evaluated)\n"), "{argv}");
-    assert!(
-        argv.contains(&format!(
-            "repo={}\n",
-            repository.canonicalize().unwrap().display()
-        )),
-        "{argv}"
-    );
-    assert!(
-        argv.contains(&format!(
-            "worktree={}\n",
-            worktree.canonicalize().unwrap().display()
-        )),
-        "{argv}"
-    );
-    assert!(
-        argv.contains("session=main-repository: secondary-workspace grove\n"),
-        "{argv}"
-    );
-    assert!(argv.contains(&mandate_naming("scalars-k7")), "{argv}");
 }
 
 fn assert_bare_grove_launches_a_session_in_a_jj_worktree(colocate: bool) {
@@ -387,7 +329,7 @@ fn assert_bare_grove_launches_a_session_in_a_jj_worktree(colocate: bool) {
         &fake,
         &format!("#!/bin/sh\npwd -P > {}\n", shell_quote(&cwd_log)),
     );
-    write_complete_config(&home, &format!("{} '${{prompt}}'", shell_quote(&fake)));
+    route_every_kind(&home, &fake, &[PROMPT]);
 
     let output = run_grove(&home, &worktree);
 
@@ -412,92 +354,17 @@ fn bare_grove_launches_a_session_in_a_colocated_jj_worktree() {
     assert_bare_grove_launches_a_session_in_a_jj_worktree(true);
 }
 
-#[test]
-fn invalid_config_cannot_create_a_fresh_grove() {
-    let fixture = TempDir::new().unwrap();
-    let home = fixture.path().join("home");
-    fs::create_dir_all(home.join(".codex")).unwrap();
-    let config_dir = home.join(".config/grove");
-    fs::create_dir_all(&config_dir).unwrap();
-    // A template that violates a slot rule, not a document missing a kind.
-    // Presence is per-kind and just-in-time now
-    // (`docs/adr/complete-session-configuration.md`), so an absent key is no
-    // longer what makes a document invalid — but active templates are still
-    // validated across all routes before any tree mutation, and
-    // that is the property this test defends.
-    fs::write(config_dir.join("config.kdl"), "config { command \"agent\" \"runner\"; bind \"lead\" \"agent\"; route \"impl\" \"lead\"; }\n").unwrap();
-    let worktree = fixture.path().join("rootless");
-    init_worktree(&worktree);
-
-    let output = run_grove(&home, &worktree);
-
-    assert!(!output.status.success());
-    assert!(!worktree.join(".grove").exists());
-    let stderr = String::from_utf8_lossy(&output.stderr);
-    assert!(
-        stderr.contains("must contain `${prompt}` exactly once"),
-        "{stderr}"
-    );
-}
-
-#[test]
-fn invalid_config_leaves_current_empty_and_partial_trees_byte_identical() {
-    let fixture = TempDir::new().unwrap();
-    let home = fixture.path().join("home");
-    fs::create_dir_all(home.join(".codex")).unwrap();
-    let config_dir = home.join(".config/grove");
-    fs::create_dir_all(&config_dir).unwrap();
-    // As above: a malformed template rather than an absent key.
-    fs::write(config_dir.join("config.kdl"), "config { command \"agent\" \"runner\"; bind \"lead\" \"agent\"; route \"impl\" \"lead\"; }\n").unwrap();
-
-    for state in ["current", "empty", "partial"] {
-        let worktree = fixture.path().join(format!("{state}-worktree"));
-        init_worktree(&worktree);
-        let grove = worktree.join(".grove");
-        fs::create_dir_all(&grove).unwrap();
-        fs::write(grove.join("_BRIEF.md"), format!("# {state} — brief\n")).unwrap();
-        match state {
-            "current" => {
-                fs::write(grove.join("01-impl--task-k1.md"), "# task-k1\n").unwrap();
-            }
-            "empty" => {
-                fs::write(grove.join("01-DONE-impl--task-k1.md"), "# task-k1\n").unwrap();
-            }
-            // The charter alone: a taskless root, which the lifecycle
-            // transition refuses (`collapse-tree-access-k13`). Configuration is
-            // reached first either way, and that is the point — the tree is not
-            // touched, whichever answer it would have got.
-            "partial" => {}
-            _ => unreachable!(),
-        }
-        let before = tree_snapshot(&grove);
-
-        let output = run_grove(&home, &worktree);
-
-        assert!(
-            !output.status.success(),
-            "state {state} unexpectedly launched"
-        );
-        assert_eq!(tree_snapshot(&grove), before, "state {state} was mutated");
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        assert!(
-            stderr.contains("must contain `${prompt}` exactly once"),
-            "{state}: {stderr}"
-        );
-    }
-}
-
-// The bare path acquires the workspace lease *before* it reads configuration or
-// touches the tree, so a control directory it cannot create has to be reported
+// The bare path acquires the workspace lease *before* it touches the tree or
+// launches anything, so a control directory it cannot create has to be reported
 // as itself rather than surfacing as whatever the next step would have
-// complained about. Stated black-box and adversarially: the config is missing
-// **and** the tree is legacy, so both later steps have a loud failure ready —
-// the run must still name the control directory, and migrate nothing.
+// complained about. Stated black-box and adversarially: the tree is legacy
+// **and** no policy is installed, so both later steps have a loud failure ready
+// — the run must still name the control directory, and migrate nothing.
 #[test]
-fn an_unwritable_control_directory_fails_before_configuration_or_tree_access() {
+fn an_unwritable_control_directory_fails_before_tree_access_or_launch() {
     let fixture = TempDir::new().unwrap();
-    // No `~/.config/grove/config.kdl` at all: reaching configuration would
-    // report the missing file instead.
+    // No dispatch policy at all: reaching the launch would report the missing
+    // one instead.
     let home = fixture.path().join("home");
     fs::create_dir_all(home.join(".codex")).unwrap();
     let worktree = fixture.path().join("worktree");
@@ -520,8 +387,8 @@ fn an_unwritable_control_directory_fails_before_configuration_or_tree_access() {
         "the failure must name the control directory it could not create: {stderr}"
     );
     assert!(
-        !stderr.contains("config.kdl") && !stderr.contains("configuration is missing"),
-        "configuration must not have been reached: {stderr}"
+        !stderr.contains("malformed Grove") && !stderr.contains("harness-dispatch"),
+        "neither the tree nor the launch may have been reached: {stderr}"
     );
     assert_eq!(
         tree_snapshot(&grove),
@@ -546,8 +413,7 @@ printf '%s' "$2" > "$1"
 exit 0
 "#,
     );
-    let template = format!("{} {} '${{prompt}}'", shell_quote(&fake), shell_quote(&log));
-    write_complete_config(&home, &template);
+    route_every_kind(&home, &fake, &[log.to_str().unwrap(), PROMPT]);
 
     let output = run_grove(&home, &worktree);
 
@@ -592,14 +458,7 @@ printf '%s' "$2" > "$1"
 exit 0
 "#,
     );
-    write_complete_config(
-        &home,
-        &format!(
-            "{} {} '${{prompt}}'",
-            shell_quote(&fake),
-            shell_quote(&prompt_log)
-        ),
-    );
+    route_every_kind(&home, &fake, &[prompt_log.to_str().unwrap(), PROMPT]);
 
     let output = run_grove(&home, &worktree);
 
@@ -617,8 +476,12 @@ exit 0
     assert!(!prompt_log.exists(), "the driver launched a session");
 }
 
+// Each launch selects afresh. The first session retires its leaf, writes the
+// next one under another kind, and replaces the owner's policy before it
+// signals; the relaunch is selected from the policy as it then stands, for the
+// kind the new leaf's filename names.
 #[test]
-fn relaunch_reloads_config_and_uses_the_new_filename_kind() {
+fn relaunch_selects_afresh_from_the_policy_and_uses_the_new_filename_kind() {
     let fixture = TempDir::new().unwrap();
     let home = fixture.path().join("home");
     fs::create_dir_all(home.join(".codex")).unwrap();
@@ -630,48 +493,39 @@ fn relaunch_reloads_config_and_uses_the_new_filename_kind() {
     fs::write(grove.join("01-impl--first-k1.md"), "# first-k1\n").unwrap();
 
     let log = fixture.path().join("reload.log");
-    let next_config = fixture.path().join("next-config.kdl");
-    let active_config = home.join(".config/grove/config.kdl");
+    let next_policy = fixture.path().join("next-policy.ts");
+    let active_policy = home.join(".config/harness-dispatch/policy.ts");
     let fake = fixture.path().join("reload-command.sh");
     write_executable(
         &fake,
         r#"#!/bin/sh
 log=$1
 marker=$2
-next_config=$3
-active_config=$4
+next_policy=$3
+active_policy=$4
 prompt=$5
 printf '%s|%s\n' "$marker" "$prompt" >> "$log"
-if [ "$marker" = first-template ]; then
+if [ "$marker" = first-policy ]; then
   mv .grove/01-impl--first-k1.md .grove/01-DONE-impl--first-k1.md
   printf '# second-k2\n' > .grove/02-design--second-k2.md
-  cp "$next_config" "$active_config"
+  cp "$next_policy" "$active_policy"
   printf 'relaunch\n' > "$GROVE_SIGNAL_FILE"
 fi
 exit 0
 "#,
     );
-    let first_template = format!(
-        "{} {} first-template {} {} '${{prompt}}'",
-        shell_quote(&fake),
-        shell_quote(&log),
-        shell_quote(&next_config),
-        shell_quote(&active_config)
-    );
-    let second_template = format!(
-        "{} {} second-template {} {} '${{prompt}}'",
-        shell_quote(&fake),
-        shell_quote(&log),
-        shell_quote(&next_config),
-        shell_quote(&active_config)
-    );
-    write_complete_config(&home, &first_template);
-    let next_routes = SESSION_KINDS
-        .iter()
-        .map(|kind| format!("    route {kind:?} \"lead\"\n"))
-        .collect::<String>();
-    let next_document = format!("config {{\n    command \"agent\" {second_template:?}\n    bind \"lead\" \"agent\"\n{next_routes}}}\n");
-    fs::write(&next_config, next_document).unwrap();
+    let args = |marker: &'static str| {
+        [
+            log.to_str().unwrap(),
+            marker,
+            next_policy.to_str().unwrap(),
+            active_policy.to_str().unwrap(),
+            PROMPT,
+        ]
+    };
+    route_every_kind(&home, &fake, &args("second-policy"));
+    fs::rename(&active_policy, &next_policy).unwrap();
+    route_every_kind(&home, &fake, &args("first-policy"));
 
     let output = run_grove(&home, &worktree);
 
@@ -681,9 +535,9 @@ exit 0
         String::from_utf8_lossy(&output.stderr)
     );
     let rows = fs::read_to_string(log).unwrap();
-    assert!(rows.contains("first-template|"), "{rows}");
+    assert!(rows.contains("first-policy|"), "{rows}");
     assert!(rows.contains(&mandate_naming("first-k1")), "{rows}");
-    assert!(rows.contains("second-template|"), "{rows}");
+    assert!(rows.contains("second-policy|"), "{rows}");
     assert!(rows.contains(&mandate_naming("second-k2")), "{rows}");
 }
 
@@ -709,12 +563,7 @@ printf '# inserted-k8\n' > .grove/01-design--inserted-k8.md
 exit 0
 "#,
     );
-    let template = format!(
-        "{} {} '${{prompt}}'",
-        shell_quote(&fake),
-        shell_quote(&prompt_log)
-    );
-    write_complete_config(&home, &template);
+    route_every_kind(&home, &fake, &[prompt_log.to_str().unwrap(), PROMPT]);
 
     let output = run_grove(&home, &worktree);
 
@@ -729,8 +578,12 @@ exit 0
     assert!(grove.join("01-design--inserted-k8.md").is_file());
 }
 
+// A program the policy selects that is not there launches nothing: dispatch
+// refuses, naming it, and Grove reports the kind and the handle and stops with
+// the leaf live and its channel gone. Rerunning under a corrected policy
+// launches that leaf.
 #[test]
-fn spawn_failure_names_the_kind_executable_and_config_without_retiring_the_leaf() {
+fn an_unavailable_selected_program_stops_the_loop_with_the_leaf_live_and_no_channel_left() {
     let fixture = TempDir::new().unwrap();
     let home = fixture.path().join("home");
     fs::create_dir_all(home.join(".codex")).unwrap();
@@ -741,21 +594,20 @@ fn spawn_failure_names_the_kind_executable_and_config_without_retiring_the_leaf(
     fs::write(grove.join("_BRIEF.md"), "# failure — brief\n").unwrap();
     let leaf = grove.join("01-impl--still-live-k9.md");
     fs::write(&leaf, "# still-live-k9\n").unwrap();
-    let missing = fixture.path().join("missing configured executable");
-    let template = format!("{} '${{prompt}}'", shell_quote(&missing));
-    write_complete_config(&home, &template);
+    let missing = fixture.path().join("missing selected executable");
+    route_every_kind(&home, &missing, &[PROMPT]);
 
     let output = run_grove(&home, &worktree);
 
-    assert!(!output.status.success());
-    assert!(leaf.is_file());
     let stderr = String::from_utf8_lossy(&output.stderr);
-    assert!(stderr.contains("kind `impl`"), "{stderr}");
-    assert!(stderr.contains(missing.to_str().unwrap()), "{stderr}");
+    assert!(output.status.success(), "{stderr}");
+    assert!(leaf.is_file());
+    assert!(stderr.contains("status exit status: 127"), "{stderr}");
     assert!(
-        stderr.contains(home.join(".config/grove/config.kdl").to_str().unwrap()),
+        stderr.contains("session kind `impl` for `still-live-k9` failed"),
         "{stderr}"
     );
+    assert!(stderr.contains(missing.to_str().unwrap()), "{stderr}");
     let leaked_signal_channels = fs::read_dir(worktree.join(".jj/grove"))
         .unwrap()
         .filter_map(Result::ok)
@@ -764,7 +616,7 @@ fn spawn_failure_names_the_kind_executable_and_config_without_retiring_the_leaf(
         .collect::<Vec<_>>();
     assert!(
         leaked_signal_channels.is_empty(),
-        "spawn failure leaked signal channels: {leaked_signal_channels:?}"
+        "the refused launch leaked signal channels: {leaked_signal_channels:?}"
     );
 
     let restart_marker = fixture.path().join("restart-launched");
@@ -776,7 +628,7 @@ fn spawn_failure_names_the_kind_executable_and_config_without_retiring_the_leaf(
             shell_quote(&restart_marker)
         ),
     );
-    write_complete_config(&home, &format!("{} '${{prompt}}'", shell_quote(&restart)));
+    route_every_kind(&home, &restart, &[PROMPT]);
 
     let restarted = run_grove(&home, &worktree);
 
@@ -790,7 +642,7 @@ fn spawn_failure_names_the_kind_executable_and_config_without_retiring_the_leaf(
 }
 
 #[test]
-fn nonsignalled_nonzero_exit_reports_status_elapsed_and_launch_identity() {
+fn nonsignalled_nonzero_exit_reports_status_elapsed_kind_and_handle() {
     let fixture = TempDir::new().unwrap();
     let home = fixture.path().join("home");
     fs::create_dir_all(home.join(".codex")).unwrap();
@@ -802,8 +654,7 @@ fn nonsignalled_nonzero_exit_reports_status_elapsed_and_launch_identity() {
     fs::write(grove.join("01-design--crashing-k4.md"), "# crashing-k4\n").unwrap();
     let fake = fixture.path().join("exit-23.sh");
     write_executable(&fake, "#!/bin/sh\nexit 23\n");
-    let template = format!("{} '${{prompt}}'", shell_quote(&fake));
-    write_complete_config(&home, &template);
+    route_every_kind(&home, &fake, &[PROMPT]);
 
     let output = run_grove(&home, &worktree);
 
@@ -811,12 +662,11 @@ fn nonsignalled_nonzero_exit_reports_status_elapsed_and_launch_identity() {
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(stderr.contains("status exit status: 23"), "{stderr}");
     assert!(stderr.contains("elapsed "), "{stderr}");
-    assert!(stderr.contains("kind `design`"), "{stderr}");
-    assert!(stderr.contains(fake.to_str().unwrap()), "{stderr}");
     assert!(
-        stderr.contains(home.join(".config/grove/config.kdl").to_str().unwrap()),
+        stderr.contains("session kind `design` for `crashing-k4` failed"),
         "{stderr}"
     );
+    assert!(stderr.contains("loop stopped"), "{stderr}");
 }
 
 /// Commit subjects in `worktree`, newest first (`git log`'s own order).
@@ -926,10 +776,7 @@ fn a_withdrawn_layout_is_refused_without_touching_the_tree() {
                 shell_quote(&launched)
             ),
         );
-        write_complete_config(
-            &home,
-            &format!("{} '${{prompt}}'", shell_quote(&configured)),
-        );
+        route_every_kind(&home, &configured, &[PROMPT]);
 
         let output = run_grove(&home, &worktree);
         let stderr = String::from_utf8_lossy(&output.stderr).into_owned();
@@ -963,46 +810,55 @@ fn a_withdrawn_layout_is_refused_without_touching_the_tree() {
     }
 }
 
-/// The finish sentinel is a leaf grove writes itself, so the just-in-time
-/// presence rule binds it exactly as it binds `leaf-add`: a configuration with
-/// no `finish` template refuses **before** the leaf is written, not at the
-/// launch that would follow it
-/// (`docs/adr/complete-session-configuration.md`). A tree left holding a leaf
-/// whose kind cannot launch is the state the rule exists to prevent.
+/// The finish sentinel is a leaf grove writes itself, and no policy is asked
+/// about its kind before it is written. A policy that refuses `finish` is met at
+/// the launch that follows: the leaf is there, the refusal is dispatch's own,
+/// and the loop stops with the leaf live.
 #[test]
-fn a_finish_leaf_is_not_written_when_no_finish_template_resolves() {
+fn a_finish_leaf_is_written_though_the_policy_refuses_its_kind() {
     let fixture = TempDir::new().unwrap();
     let home = fixture.path().join("home");
     fs::create_dir_all(home.join(".codex")).unwrap();
-    let config_dir = home.join(".config/grove");
-    fs::create_dir_all(&config_dir).unwrap();
-    // Valid, and silent about `finish`.
-    fs::write(config_dir.join("config.kdl"), "config { command \"agent\" \"true ${prompt}\"; bind \"lead\" \"agent\"; route \"impl\" \"lead\"; }\n").unwrap();
-    let worktree = fixture.path().join("no-finish-template");
+    support::write_policy(
+        &home,
+        r#"export const policy = {
+  schemaVersion: 2,
+  version: "cutover-1",
+  select: (request) => ({
+    status: "refused",
+    code: "unrouted_kind",
+    message: `no command for ${request.kind}`,
+    remedy: "route the kind in the fixture policy",
+  }),
+};
+"#,
+    );
+    let worktree = fixture.path().join("no-finish-route");
     init_worktree(&worktree);
     let grove = worktree.join(".grove");
     fs::create_dir_all(&grove).unwrap();
-    fs::write(grove.join("_BRIEF.md"), "# no-finish-template — brief\n").unwrap();
+    fs::write(grove.join("_BRIEF.md"), "# no-finish-route — brief\n").unwrap();
     fs::write(
         grove.join("01-DONE-impl--finished-k1.md"),
         "# finished-k1\n",
     )
     .unwrap();
-    let before = tree_snapshot(&grove);
 
     let output = run_grove(&home, &worktree);
 
     let stderr = String::from_utf8_lossy(&output.stderr);
-    assert!(!output.status.success(), "unexpected success: {stderr}");
+    assert!(output.status.success(), "{stderr}");
     assert!(
-        stderr.contains("key `finish` does not resolve"),
-        "the refusal must name the kind and the file that should declare it: {stderr}"
+        grove.join("02-finish--finish-k2.md").is_file(),
+        "the finish leaf is written before any policy is asked: {stderr}"
     );
-    assert_eq!(
-        tree_snapshot(&grove),
-        before,
-        "no finish leaf may be written for a kind that cannot launch"
-    );
+    for said in [
+        "refused (policy_refused, stage selection)",
+        "  policy code: unrouted_kind",
+        "session kind `finish` for `finish-k2` failed",
+    ] {
+        assert!(stderr.contains(said), "no {said:?} in: {stderr}");
+    }
 }
 
 #[test]
@@ -1029,14 +885,7 @@ printf '%s\n' "$2" > "$1"
 exit 0
 "#,
     );
-    write_complete_config(
-        &home,
-        &format!(
-            "{} {} '${{prompt}}'",
-            shell_quote(&configured),
-            shell_quote(&launch_log)
-        ),
-    );
+    route_every_kind(&home, &configured, &[launch_log.to_str().unwrap(), PROMPT]);
 
     let finish_output = run_grove(&home, &worktree);
 
@@ -1164,556 +1013,4 @@ fn root_init(worktree: &Path, slug: &str) -> Vec<std::path::PathBuf> {
         grove_loop::verbs::root_init(vacancy, &slug, &grove_loop::Kind::requirements())
             .expect("scaffolding a grove");
     vec![initialized.brief, initialized.first_leaf]
-}
-
-#[test]
-fn modular_workspace_selections_isolate_bindings_and_preserve_parameter_words() {
-    let fixture = TempDir::new().unwrap();
-    let home = fixture.path().join("home");
-    let repository = fixture.path().join("repository");
-    init_worktree(&repository);
-    fs::write(repository.join(".gitignore"), ".grove.kdl\n").unwrap();
-    let left = fixture.path().join("left");
-    let right = fixture.path().join("right");
-    for worktree in [&left, &right] {
-        run_command(
-            "jj",
-            &repository,
-            &["workspace", "add", "--quiet", worktree.to_str().unwrap()],
-        );
-        // A new jj workspace starts at the parent revision, so it does not
-        // inherit the main workspace's still-open ignore-file edit.
-        fs::write(worktree.join(".gitignore"), ".grove.kdl\n").unwrap();
-        let grove = worktree.join(".grove");
-        fs::create_dir_all(&grove).unwrap();
-        fs::write(grove.join("_BRIEF.md"), "workspace acceptance").unwrap();
-        fs::write(grove.join("01-impl--work-k1.md"), "work").unwrap();
-    }
-    let fake = fixture.path().join("record arguments");
-    write_executable(&fake, "#!/bin/sh\nprintf '%s\\0' \"$@\" > argv\n");
-    let alpha = format!(
-        "{} alpha effort=${{param.effort}} ${{param.literal}} ${{param.empty}} ${{prompt}}",
-        shell_quote(&fake)
-    );
-    let beta = alpha.replace(" alpha ", " beta ");
-    let config_dir = home.join(".config/grove");
-    fs::create_dir_all(&config_dir).unwrap();
-    let policy = format!(
-        r#"config {{
-        command "alpha" {alpha:?} {{ param "effort" "medium"; param "literal" "space 'single' \"double\" $HOME ${{prompt}} ${{param.effort}} $(touch injected); & | > * #"; param "empty" ""; }}
-        command "beta" {beta:?} {{ param "effort" "medium"; param "literal" "space 'single' \"double\" $HOME ${{prompt}} ${{param.effort}} $(touch injected); & | > * #"; param "empty" ""; }}
-        bind "lead" "alpha"
-        bind "review" "beta"
-        route "impl" "lead"
-        route "review-impl" "review"
-        profile "opposite" {{ bind "lead" "beta"; bind "review" "alpha"; }}
-        profile "high" {{ values "alpha" {{ param "effort" "high"; }}; values "beta" {{ param "effort" "high"; }}; }}
-        select "high"
-    }}"#
-    );
-    fs::write(config_dir.join("config.kdl"), policy).unwrap();
-    let local = left.join(".grove.kdl");
-    let repo_local = repository.join(".grove.kdl");
-    fs::write(&repo_local, "config { select \"opposite\"; values \"alpha\" { param \"effort\" \"repository\"; }; values \"beta\" { param \"effort\" \"repository\"; }; }").unwrap();
-
-    // Catch candidate merging and selection leakage: each row launches both
-    // kinds in both workspaces, while only left's local selection changes.
-    for (patch, left_agents, left_effort) in [
-        ("config { select; }", ["alpha", "beta"], "medium"),
-        ("config { select \"opposite\" \"high\"; }", ["beta", "alpha"], "high"),
-        ("config { select \"opposite\"; }", ["beta", "alpha"], "medium"),
-        ("config { select \"high\"; values \"alpha\" { param \"effort\" \"local\"; }; values \"beta\" { param \"effort\" \"local\"; }; }", ["alpha", "beta"], "local"),
-        ("config {}", ["alpha", "beta"], "high"),
-    ] {
-        fs::write(&local, patch).unwrap();
-        for (worktree, agents, effort) in [(&left, left_agents, left_effort), (&right, ["beta", "alpha"], "repository")] {
-            for (kind, agent) in ["impl", "review-impl"].into_iter().zip(agents) {
-                let leaf = worktree.join(".grove/01-impl--work-k1.md");
-                let selected = worktree.join(format!(".grove/01-{kind}--work-k1.md"));
-                if leaf != selected { fs::rename(&leaf, &selected).unwrap(); }
-                let output = run_grove(&home, worktree);
-                assert!(output.status.success(), "{patch}: {}", String::from_utf8_lossy(&output.stderr));
-                let bytes = fs::read(worktree.join("argv")).unwrap();
-                let words: Vec<_> = bytes.split(|b| *b == 0).collect();
-                assert_eq!(words.len(), 6, "{bytes:?}");
-                assert_eq!(words[0], agent.as_bytes());
-                assert_eq!(words[1], format!("effort={effort}").as_bytes());
-                assert_eq!(words[2], b"space 'single' \"double\" $HOME ${prompt} ${param.effort} $(touch injected); & | > * #");
-                assert_eq!(words[3], b"");
-                assert!(String::from_utf8_lossy(words[4]).contains(&mandate_naming("work-k1")));
-                assert_eq!(words[5], b"");
-                assert!(!worktree.join("injected").exists());
-                fs::remove_file(worktree.join("argv")).unwrap();
-                if leaf != selected { fs::rename(selected, leaf).unwrap(); }
-            }
-        }
-    }
-}
-
-#[test]
-fn named_wrapper_commands_launch_with_local_target_overrides_and_refuse_before_use() {
-    let fixture = TempDir::new().unwrap();
-    let home = fixture.path().join("home");
-    let worktree = fixture.path().join("worktree");
-    init_worktree(&worktree);
-    fs::write(worktree.join(".gitignore"), ".grove.kdl\n").unwrap();
-    let grove = worktree.join(".grove");
-    fs::create_dir_all(&grove).unwrap();
-    fs::write(grove.join("_BRIEF.md"), "root").unwrap();
-    fs::write(grove.join("01-impl--work-k1.md"), "work").unwrap();
-    let log = fixture.path().join("argv");
-    let fake = fixture.path().join("fake command");
-    write_executable(
-        &fake,
-        "#!/bin/sh\nlog=$1\nshift\nprintf '%s\\0' \"$@\" > \"$log\"\n",
-    );
-    let command = format!(
-        "{} {} 'one argument' '' $${{literal}} ${{prompt}}",
-        shell_quote(&fake),
-        shell_quote(&log)
-    );
-    let config_dir = home.join(".config/grove");
-    fs::create_dir_all(&config_dir).unwrap();
-    fs::write(config_dir.join("config.kdl"), format!("config {{\n command \"unused\" \"not-a-real-program ${{prompt}}\"\n command \"chosen\" {command:?}\n bind \"lead\" \"unused\"\n route \"impl\" \"lead\"\n}}\n")).unwrap();
-    fs::write(
-        worktree.join(".grove.kdl"),
-        "config { bind \"local\" \"chosen\"; route \"impl\" \"local\"; }\n",
-    )
-    .unwrap();
-    let output = run_grove(&home, &worktree);
-    assert!(
-        output.status.success(),
-        "{}",
-        String::from_utf8_lossy(&output.stderr)
-    );
-    let bytes = fs::read(&log).unwrap();
-    let words: Vec<_> = bytes.split(|b| *b == 0).collect();
-    assert_eq!(
-        &words[..3],
-        [b"one argument".as_slice(), b"", b"${literal}"]
-    );
-    assert!(String::from_utf8_lossy(words[3]).contains(&mandate_naming("work-k1")));
-    assert_eq!(words.len(), 5);
-    fs::remove_file(&log).unwrap();
-    fs::write(
-        worktree.join(".grove.kdl"),
-        "config { bind \"local\" \"missing\"; route \"impl\" \"local\"; }\n",
-    )
-    .unwrap();
-    let before = tree_snapshot(&grove);
-    let output = run_grove(&home, &worktree);
-    assert!(!output.status.success());
-    assert!(String::from_utf8_lossy(&output.stderr).contains("missing"));
-    assert!(!log.exists());
-    assert_eq!(tree_snapshot(&grove), before);
-}
-
-#[test]
-fn selected_policy_launches_and_active_errors_refuse_before_root_creation() {
-    let fixture = TempDir::new().unwrap();
-    let home = fixture.path().join("home");
-    let worktree = fixture.path().join("worktree");
-    init_worktree(&worktree);
-    fs::write(worktree.join(".gitignore"), ".grove.kdl\n").unwrap();
-    let grove = worktree.join(".grove");
-    let log = fixture.path().join("launched");
-    let fake = fixture.path().join("fake");
-    write_executable(&fake, "#!/bin/sh\nprintf '%s' \"$2\" > \"$1\"\n");
-    let base_command = format!(
-        "{} {} base ${{prompt}}",
-        shell_quote(&fake),
-        shell_quote(&log)
-    );
-    let selected_command = format!(
-        "{} {} selected ${{prompt}}",
-        shell_quote(&fake),
-        shell_quote(&log)
-    );
-    let config_dir = home.join(".config/grove");
-    fs::create_dir_all(&config_dir).unwrap();
-    let primary = config_dir.join("config.kdl");
-    let local = worktree.join(".grove.kdl");
-    for existing_tree in [true, false] {
-        for (selection, local_text, expected) in [
-            ("select", "", Some("base")),
-            ("select \"daily\"", "", Some("selected")),
-            ("select \"unfinished\"", "config { select; }", Some("base")),
-            ("select", "config { select \"daily\"; }", Some("selected")),
-            ("select \"unfinished\"", "", None),
-            ("select", "config { select \"unfinished\"; }", None),
-            (
-                "select \"missing-target\"",
-                "config { route \"design\" \"lead\"; }",
-                None,
-            ),
-            ("select", "config { route \"impl\" \"lead\"; }", None),
-        ] {
-            if grove.exists() {
-                fs::remove_dir_all(&grove).unwrap();
-            }
-            if existing_tree {
-                fs::create_dir(&grove).unwrap();
-                fs::write(grove.join("_BRIEF.md"), "root").unwrap();
-                fs::write(grove.join("01-impl--work-k1.md"), "work").unwrap();
-            }
-            let local_only = local_text == "config { route \"impl\" \"lead\"; }";
-            let routes = if local_only {
-                ""
-            } else {
-                "route \"impl\" \"lead\"; route \"requirements\" \"lead\";"
-            };
-            fs::write(&primary, format!(r#"config {{
-                command "base" {base_command:?}
-                bind "lead" "base"
-                {routes}
-                command "agent" {selected_command:?}
-                profile "daily" {{ bind "lead" "agent"; route "impl" "lead"; route "requirements" "lead"; }}
-                profile "unfinished" {{ include "missing"; }}
-                profile "missing-target" {{ route "design" {{ param "effort" "high"; }}; }}
-                {selection}
-            }}"#)).unwrap();
-            let local_text = if !existing_tree && local_only {
-                "config { route \"requirements\" \"lead\"; }"
-            } else {
-                local_text
-            };
-            fs::write(&local, local_text).unwrap();
-            let before = existing_tree.then(|| tree_snapshot(&grove));
-            let output = run_grove(&home, &worktree);
-            let error = String::from_utf8_lossy(&output.stderr);
-            assert_eq!(
-                output.status.success(),
-                expected.is_some(),
-                "{selection}, {local_text}: {error}"
-            );
-            if let Some(expected) = expected {
-                assert_eq!(fs::read_to_string(&log).unwrap(), expected);
-                fs::remove_file(&log).unwrap();
-            } else {
-                assert!(
-                    error.contains("config.kdl") || error.contains(".grove.kdl"),
-                    "{error}"
-                );
-                assert!(!log.exists());
-                if let Some(before) = before {
-                    assert_eq!(tree_snapshot(&grove), before);
-                } else {
-                    assert!(!grove.exists());
-                }
-            }
-        }
-    }
-}
-
-#[test]
-fn bootstrap_requires_active_personal_authority_only_for_a_fresh_tree() {
-    for existing_tree in [false, true] {
-        for (selection, local_route, admitted) in [
-            ("", "", false),
-            ("", "config { route \"requirements\" \"lead\"; }", false),
-            ("select \"bootstrap\"", "", true),
-        ] {
-            let fixture = TempDir::new().unwrap();
-            let home = fixture.path().join("home");
-            let worktree = fixture.path().join("worktree");
-            init_worktree(&worktree);
-            fs::write(worktree.join(".gitignore"), ".grove.kdl\n").unwrap();
-            fs::write(worktree.join(".grove.kdl"), local_route).unwrap();
-            let grove = worktree.join(".grove");
-            if existing_tree {
-                fs::create_dir(&grove).unwrap();
-                fs::write(grove.join("_BRIEF.md"), "root").unwrap();
-                fs::write(grove.join("01-impl--work-k1.md"), "work").unwrap();
-            }
-            let before = existing_tree.then(|| tree_snapshot(&grove));
-            let log = fixture.path().join("launched");
-            let fake = fixture.path().join("fake");
-            write_executable(&fake, "#!/bin/sh\nprintf '%s' \"$2\" > \"$1\"\n");
-            let command = format!("{} {} ${{prompt}}", shell_quote(&fake), shell_quote(&log));
-            let config_dir = home.join(".config/grove");
-            fs::create_dir_all(&config_dir).unwrap();
-            let primary = config_dir.join("config.kdl");
-            fs::write(
-                &primary,
-                format!(
-                    r#"config {{
-                    command "agent" {command:?}
-                    bind "lead" "agent"
-                    route "impl" "lead"
-                    profile "bootstrap" {{ bind "lead" "agent"; route "requirements" "lead"; }}
-                    {selection}
-                }}"#
-                ),
-            )
-            .unwrap();
-
-            let output = run_grove(&home, &worktree);
-            let error = String::from_utf8_lossy(&output.stderr);
-            let launches = existing_tree || admitted;
-            assert_eq!(output.status.success(), launches, "{error}");
-            assert_eq!(log.exists(), launches, "{error}");
-            if launches {
-                let handle = if existing_tree { "work-k1" } else { "plan-k1" };
-                assert!(fs::read_to_string(&log)
-                    .unwrap()
-                    .contains(&mandate_naming(handle)));
-                if let Some(before) = before {
-                    assert_eq!(tree_snapshot(&grove), before);
-                } else {
-                    assert!(grove.join("01-requirements--plan-k1.md").is_file());
-                }
-            } else {
-                assert!(error.contains("requirements"), "{error}");
-                assert!(error.contains(primary.to_str().unwrap()), "{error}");
-                assert!(!grove.exists(), "refused bootstrap left a root");
-            }
-        }
-    }
-}
-
-#[test]
-fn parameter_defaults_reach_shared_launches_and_reload_without_changing_words() {
-    let fixture = TempDir::new().unwrap();
-    let home = fixture.path().join("home");
-    let worktree = fixture.path().join("worktree");
-    init_worktree(&worktree);
-    let grove = worktree.join(".grove");
-    fs::create_dir_all(&grove).unwrap();
-    fs::write(grove.join("_BRIEF.md"), "root").unwrap();
-    let leaf = grove.join("01-impl--work-k1.md");
-    fs::write(&leaf, "work").unwrap();
-    let log = fixture.path().join("argv");
-    let fake = fixture.path().join("fake command");
-    write_executable(
-        &fake,
-        "#!/bin/sh\nlog=$1\nshift\nprintf '%s\\0' \"$@\" > \"$log\"\n",
-    );
-    let command = format!(
-        "{} {} mode=${{param.mode}} ${{param.empty}} ${{prompt}}",
-        shell_quote(&fake),
-        shell_quote(&log)
-    );
-    let policy = format!(
-        r#"config {{
-        command "shared" {command:?} {{ param "mode" "careful"; param "empty" ""; }}
-        bind "lead" "shared"
-        route "impl" "lead"
-        route "design" "lead"
-    }}"#
-    );
-    let config_dir = home.join(".config/grove");
-    fs::create_dir_all(&config_dir).unwrap();
-    let config = config_dir.join("config.kdl");
-    for mode in ["careful", "space 'quotes' ${prompt}; #"] {
-        fs::write(&config, policy.replace("careful", mode)).unwrap();
-        let mut current_leaf = leaf.clone();
-        for kind in ["impl", "design"] {
-            let next_leaf = grove.join(format!("01-{kind}--work-k1.md"));
-            if current_leaf != next_leaf {
-                fs::rename(&current_leaf, &next_leaf).unwrap();
-                current_leaf = next_leaf;
-            }
-            let output = run_grove(&home, &worktree);
-            assert!(
-                output.status.success(),
-                "{}",
-                String::from_utf8_lossy(&output.stderr)
-            );
-            let bytes = fs::read(&log).unwrap();
-            let words: Vec<_> = bytes.split(|b| *b == 0).collect();
-            assert_eq!(words.len(), 4);
-            assert_eq!(words[0], format!("mode={mode}").as_bytes());
-            assert!(words[1].is_empty());
-            assert!(String::from_utf8_lossy(words[2]).contains(&mandate_naming("work-k1")));
-            fs::remove_file(&log).unwrap();
-        }
-        fs::rename(current_leaf, &leaf).unwrap();
-    }
-    for invalid in [
-        policy.replace("param \"empty\" \"\"", "param \"empty\""),
-        policy.replace("${param.mode}", "${param.unknown}"),
-        policy.replace("careful", "bad\\u{0}value"),
-    ] {
-        fs::write(&config, invalid).unwrap();
-        let before = tree_snapshot(&grove);
-        let output = run_grove(&home, &worktree);
-        assert!(!output.status.success());
-        assert!(!log.exists());
-        assert_eq!(tree_snapshot(&grove), before);
-    }
-}
-
-#[test]
-fn shared_local_values_reach_launch_and_invalid_values_refuse_tree_creation() {
-    let fixture = TempDir::new().unwrap();
-    let home = fixture.path().join("home");
-    let worktree = fixture.path().join("worktree");
-    init_worktree(&worktree);
-    fs::write(worktree.join(".gitignore"), ".grove.kdl\n").unwrap();
-    let grove = worktree.join(".grove");
-    fs::create_dir_all(&grove).unwrap();
-    fs::write(grove.join("_BRIEF.md"), "root").unwrap();
-    fs::write(grove.join("01-impl--work-k1.md"), "work").unwrap();
-    let log = fixture.path().join("argv");
-    let fake = fixture.path().join("fake command");
-    write_executable(
-        &fake,
-        "#!/bin/sh\nlog=$1\nshift\nprintf '%s\\0' \"$@\" > \"$log\"\n",
-    );
-    let command = format!(
-        "{} {} mode=${{param.mode}} ${{param.empty}} ${{prompt}}",
-        shell_quote(&fake),
-        shell_quote(&log)
-    );
-    let policy = format!(
-        r#"config {{
-        command "shared" {command:?} {{ param "mode" "default"; param "empty"; param "unused"; }}
-        values "shared" {{ param "mode" "primary"; }}
-        bind "lead" "shared"
-        route "impl" "lead"
-    }}"#
-    );
-    let config_dir = home.join(".config/grove");
-    fs::create_dir_all(&config_dir).unwrap();
-    fs::write(config_dir.join("config.kdl"), policy).unwrap();
-    let local = worktree.join(".grove.kdl");
-    for (patch, expected) in [
-        (
-            r#"param "mode" "space 'quotes' ${prompt}; #""#,
-            "mode=space 'quotes' ${prompt}; #",
-        ),
-        (r#"unset "mode""#, "mode=default"),
-    ] {
-        fs::write(&local, format!("config {{ values \"shared\" {{ {patch}; param \"empty\" \"\"; param \"unused\" \"complete\"; }}; }}")).unwrap();
-        let output = run_grove(&home, &worktree);
-        assert!(
-            output.status.success(),
-            "{}",
-            String::from_utf8_lossy(&output.stderr)
-        );
-        let bytes = fs::read(&log).unwrap();
-        let words: Vec<_> = bytes.split(|b| *b == 0).collect();
-        assert_eq!(words.len(), 4);
-        assert_eq!(words[0], expected.as_bytes());
-        assert_eq!(words[1], b"");
-        assert!(String::from_utf8_lossy(words[2]).contains(&mandate_naming("work-k1")));
-        fs::remove_file(&log).unwrap();
-    }
-    fs::remove_dir_all(&grove).unwrap();
-    for patch in [
-        r#"param "unknown" "bad""#,
-        r#"param "mode" "bad\u{0}value""#,
-    ] {
-        fs::write(
-            &local,
-            format!("config {{ values \"shared\" {{ {patch}; }}; }}"),
-        )
-        .unwrap();
-        let output = run_grove(&home, &worktree);
-        assert!(!output.status.success());
-        assert!(
-            !grove.exists(),
-            "invalid values must refuse before scaffolding"
-        );
-        assert!(!log.exists());
-        assert!(String::from_utf8_lossy(&output.stderr).contains("shared"));
-    }
-}
-
-#[test]
-fn route_overrides_reach_launch_and_missing_personal_targets_refuse_before_use() {
-    let fixture = TempDir::new().unwrap();
-    let home = fixture.path().join("home");
-    let worktree = fixture.path().join("worktree");
-    init_worktree(&worktree);
-    fs::write(worktree.join(".gitignore"), ".grove.kdl\n").unwrap();
-    let grove = worktree.join(".grove");
-    fs::create_dir_all(&grove).unwrap();
-    fs::write(grove.join("_BRIEF.md"), "root").unwrap();
-    fs::write(grove.join("01-impl--work-k1.md"), "work").unwrap();
-    let log = fixture.path().join("argv");
-    let fake = fixture.path().join("fake command");
-    write_executable(
-        &fake,
-        "#!/bin/sh\nlog=$1\nshift\nprintf '%s\\0' \"$@\" > \"$log\"\n",
-    );
-    let command = format!(
-        "{} {} mode=${{param.mode}} ${{param.empty}} ${{prompt}}",
-        shell_quote(&fake),
-        shell_quote(&log)
-    );
-    let policy = format!(
-        r#"config {{
-        command "shared" {command:?} {{ param "mode" "default"; param "empty"; param "unused"; }}
-        values "shared" {{ param "mode" "primary"; }}
-        bind "lead" "shared"
-        route "impl" "lead" {{ param "mode" "exception"; }}
-    }}"#
-    );
-    let config_dir = home.join(".config/grove");
-    fs::create_dir_all(&config_dir).unwrap();
-    let config = config_dir.join("config.kdl");
-    fs::write(&config, &policy).unwrap();
-    let local = worktree.join(".grove.kdl");
-    for (patch, expected) in [
-        ("", "mode=exception"),
-        (
-            r#"param "mode" "space 'quotes' ${prompt}; #";"#,
-            "mode=space 'quotes' ${prompt}; #",
-        ),
-        (r#"unset "mode";"#, "mode=later shared"),
-    ] {
-        fs::write(
-            &local,
-            format!(
-                r#"config {{
-            values "shared" {{ param "mode" "later shared"; }}
-            route "impl" {{ {patch} param "empty" ""; param "unused" "complete"; }}
-        }}"#
-            ),
-        )
-        .unwrap();
-        let output = run_grove(&home, &worktree);
-        assert!(
-            output.status.success(),
-            "{}",
-            String::from_utf8_lossy(&output.stderr)
-        );
-        let bytes = fs::read(&log).unwrap();
-        let words: Vec<_> = bytes.split(|b| *b == 0).collect();
-        assert_eq!(words.len(), 4);
-        assert_eq!(words[0], expected.as_bytes());
-        assert!(words[1].is_empty());
-        assert!(String::from_utf8_lossy(words[2]).contains(&mandate_naming("work-k1")));
-        fs::remove_file(&log).unwrap();
-    }
-    // A missing target for another kind invalidates the whole policy. Even a
-    // complete local route for that kind cannot supply personal authority.
-    fs::write(
-        &config,
-        policy.replace(
-            "bind \"lead\"",
-            "route \"missing\" { unset \"old\"; }; bind \"lead\"",
-        ),
-    )
-    .unwrap();
-    fs::write(&local, "config { route \"missing\" \"lead\" { param \"empty\" \"\"; param \"unused\" \"complete\"; }; route \"impl\" { param \"empty\" \"\"; param \"unused\" \"complete\"; }; }").unwrap();
-    let before = tree_snapshot(&grove);
-    let output = run_grove(&home, &worktree);
-    assert!(!output.status.success());
-    assert_eq!(tree_snapshot(&grove), before);
-    assert!(!log.exists());
-    let error = String::from_utf8_lossy(&output.stderr);
-    assert!(
-        error.contains("missing") && error.contains("personal"),
-        "{error}"
-    );
-    fs::remove_dir_all(&grove).unwrap();
-    let output = run_grove(&home, &worktree);
-    assert!(!output.status.success());
-    assert!(
-        !grove.exists(),
-        "missing targets must refuse before scaffolding"
-    );
-    assert!(!log.exists());
 }

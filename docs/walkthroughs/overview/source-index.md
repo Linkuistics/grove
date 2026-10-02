@@ -10,7 +10,7 @@
 |---|---|---|
 | `source-crate-manifest` | `crates/grove/Cargo.toml` | 61 |
 | `source-entry-point` | `crates/grove/src/main.rs` | 20 |
-| `source-command-surface` | `crates/grove/src/cli.rs` | 268 |
+| `source-command-surface` | `crates/grove/src/cli.rs` | 269 |
 | `source-codex-provisioning` | `crates/grove/src/provision.rs` | 401 |
 | `source-configuration-report` | `crates/grove/src/config.rs` | 160 |
 | `source-configuration-json` | `crates/grove/src/config_json.rs` | 163 |
@@ -27,7 +27,7 @@
 <!-- insert «entry-point-three-steps» -->
 <!-- /source-root -->
 
-<!-- source-root «source-command-surface» source="crates/grove/src/cli.rs" lines="1-268" -->
+<!-- source-root «source-command-surface» source="crates/grove/src/cli.rs" lines="1-269" -->
 <!-- insert «surface-grammar» -->
 <!-- insert «surface-resolve-lease-run» -->
 <!-- insert «surface-closure-tests» -->
@@ -68,9 +68,9 @@
 |---|---|---|---|---|---|
 | `manifest-thin-by-construction` | `source-crate-manifest` | `compiler-held` | `1-61` | 61 | `resolved` |
 | `entry-point-three-steps` | `source-entry-point` | `one-call` | `1-20` | 20 | `resolved` |
-| `surface-grammar` | `source-command-surface` | `no-arguments` | `1-119` | 119 | `resolved` |
-| `surface-resolve-lease-run` | `source-command-surface` | `one-call` | `120-168` | 49 | `resolved` |
-| `surface-closure-tests` | `source-command-surface` | `closure-proved` | `169-268` | 100 | `resolved` |
+| `surface-grammar` | `source-command-surface` | `no-arguments` | `1-120` | 120 | `resolved` |
+| `surface-resolve-lease-run` | `source-command-surface` | `one-call` | `121-169` | 49 | `resolved` |
+| `surface-closure-tests` | `source-command-surface` | `closure-proved` | `170-269` | 100 | `resolved` |
 | `codex-provisioning` | `source-codex-provisioning` | `one-call` | `1-401` | 401 | `resolved` |
 | `configuration-report` | `source-configuration-report` | `assembly` | `1-160` | 160 | `resolved` |
 | `configuration-json` | `source-configuration-json` | `assembly` | `1-163` | 163 | `resolved` |
@@ -98,32 +98,32 @@
 | `entry-point-module-doc` | `three-steps` | `source-entry-point` | `literal` | `one-call` | `1-7` | `entry-point-three-steps` | `—` |
 | `entry-point-three-steps` | `three-steps` | `source-entry-point` | `composite` | `one-call` | `1-20` | `source-entry-point` | `entry-point-module-doc`, `entry-point-module-and-main` |
 | `entry-point-module-and-main` | `three-steps` | `source-entry-point` | `literal` | `one-call` | `8-20` | `entry-point-three-steps` | `—` |
-| `source-command-surface` | `source-index` | `source-command-surface` | `root` | `—` | `1-268` | `—` | `surface-grammar`, `surface-resolve-lease-run`, `surface-closure-tests` |
+| `source-command-surface` | `source-index` | `source-command-surface` | `root` | `—` | `1-269` | `—` | `surface-grammar`, `surface-resolve-lease-run`, `surface-closure-tests` |
 | `surface-imports` | `the-surface` | `source-command-surface` | `literal` | `no-arguments` | `1-5` | `surface-grammar` | `—` |
-| `surface-grammar` | `the-surface` | `source-command-surface` | `composite` | `no-arguments` | `1-119` | `source-command-surface` | `surface-imports`, `surface-doc-comment`, `surface-clap-attributes`, `surface-empty-struct`, `surface-config-command`, `surface-process-reporting` |
-| `surface-doc-comment` | `the-surface` | `source-command-surface` | `literal` | `no-arguments` | `6-8` | `surface-grammar` | `—` |
-| `surface-clap-attributes` | `the-surface` | `source-command-surface` | `literal` | `no-arguments` | `9-20` | `surface-grammar` | `—` |
-| `surface-empty-struct` | `the-surface` | `source-command-surface` | `literal` | `no-arguments` | `21-58` | `surface-grammar` | `—` |
-| `surface-config-command` | `the-surface` | `source-command-surface` | `literal` | `no-arguments` | `59-81` | `surface-grammar` | `—` |
-| `surface-process-reporting` | `the-surface` | `source-command-surface` | `literal` | `no-arguments` | `82-119` | `surface-grammar` | `—` |
-| `run-seam-doc` | `three-steps` | `source-command-surface` | `literal` | `one-call` | `120-128` | `surface-resolve-lease-run` | `—` |
-| `surface-resolve-lease-run` | `three-steps` | `source-command-surface` | `composite` | `one-call` | `120-168` | `source-command-surface` | `run-seam-doc`, `run-signal-doc`, `run-errors-doc`, `run-three-steps`, `run-call-and-endings` |
-| `run-signal-doc` | `three-steps` | `source-command-surface` | `literal` | `one-call` | `129-137` | `surface-resolve-lease-run` | `—` |
-| `run-errors-doc` | `three-steps` | `source-command-surface` | `literal` | `one-call` | `138-141` | `surface-resolve-lease-run` | `—` |
-| `run-three-steps` | `three-steps` | `source-command-surface` | `literal` | `one-call` | `142-162` | `surface-resolve-lease-run` | `—` |
-| `run-call-and-endings` | `three-steps` | `source-command-surface` | `literal` | `one-call` | `163-168` | `surface-resolve-lease-run` | `—` |
-| `tests-module-opening` | `proving-a-negative` | `source-command-surface` | `literal` | `closure-proved` | `169-172` | `surface-closure-tests` | `—` |
-| `surface-closure-tests` | `proving-a-negative` | `source-command-surface` | `composite` | `closure-proved` | `169-268` | `source-command-surface` | `tests-module-opening`, `undescribed-doc-purpose`, `undescribed-doc-twice`, `undescribed-doc-empty`, `undescribed-arguments`, `undescribed-subcommands`, `describes-test-doc`, `describes-test`, `closure-test-doc`, `closure-test-subcommands`, `closure-test-arguments` |
-| `undescribed-doc-purpose` | `proving-a-negative` | `source-command-surface` | `literal` | `closure-proved` | `173-176` | `surface-closure-tests` | `—` |
-| `undescribed-doc-twice` | `proving-a-negative` | `source-command-surface` | `literal` | `closure-proved` | `177-186` | `surface-closure-tests` | `—` |
-| `undescribed-doc-empty` | `proving-a-negative` | `source-command-surface` | `literal` | `closure-proved` | `187-189` | `surface-closure-tests` | `—` |
-| `undescribed-arguments` | `proving-a-negative` | `source-command-surface` | `literal` | `closure-proved` | `190-199` | `surface-closure-tests` | `—` |
-| `undescribed-subcommands` | `proving-a-negative` | `source-command-surface` | `literal` | `closure-proved` | `200-210` | `surface-closure-tests` | `—` |
-| `describes-test-doc` | `proving-a-negative` | `source-command-surface` | `literal` | `closure-proved` | `211-216` | `surface-closure-tests` | `—` |
-| `describes-test` | `proving-a-negative` | `source-command-surface` | `literal` | `closure-proved` | `217-226` | `surface-closure-tests` | `—` |
-| `closure-test-doc` | `proving-a-negative` | `source-command-surface` | `literal` | `closure-proved` | `227-231` | `surface-closure-tests` | `—` |
-| `closure-test-subcommands` | `proving-a-negative` | `source-command-surface` | `literal` | `closure-proved` | `232-250` | `surface-closure-tests` | `—` |
-| `closure-test-arguments` | `proving-a-negative` | `source-command-surface` | `literal` | `closure-proved` | `251-268` | `surface-closure-tests` | `—` |
+| `surface-grammar` | `the-surface` | `source-command-surface` | `composite` | `no-arguments` | `1-120` | `source-command-surface` | `surface-imports`, `surface-doc-comment`, `surface-clap-attributes`, `surface-empty-struct`, `surface-config-command`, `surface-process-reporting` |
+| `surface-doc-comment` | `the-surface` | `source-command-surface` | `literal` | `no-arguments` | `6-9` | `surface-grammar` | `—` |
+| `surface-clap-attributes` | `the-surface` | `source-command-surface` | `literal` | `no-arguments` | `10-21` | `surface-grammar` | `—` |
+| `surface-empty-struct` | `the-surface` | `source-command-surface` | `literal` | `no-arguments` | `22-59` | `surface-grammar` | `—` |
+| `surface-config-command` | `the-surface` | `source-command-surface` | `literal` | `no-arguments` | `60-82` | `surface-grammar` | `—` |
+| `surface-process-reporting` | `the-surface` | `source-command-surface` | `literal` | `no-arguments` | `83-120` | `surface-grammar` | `—` |
+| `run-seam-doc` | `three-steps` | `source-command-surface` | `literal` | `one-call` | `121-129` | `surface-resolve-lease-run` | `—` |
+| `surface-resolve-lease-run` | `three-steps` | `source-command-surface` | `composite` | `one-call` | `121-169` | `source-command-surface` | `run-seam-doc`, `run-signal-doc`, `run-errors-doc`, `run-three-steps`, `run-call-and-endings` |
+| `run-signal-doc` | `three-steps` | `source-command-surface` | `literal` | `one-call` | `130-138` | `surface-resolve-lease-run` | `—` |
+| `run-errors-doc` | `three-steps` | `source-command-surface` | `literal` | `one-call` | `139-142` | `surface-resolve-lease-run` | `—` |
+| `run-three-steps` | `three-steps` | `source-command-surface` | `literal` | `one-call` | `143-163` | `surface-resolve-lease-run` | `—` |
+| `run-call-and-endings` | `three-steps` | `source-command-surface` | `literal` | `one-call` | `164-169` | `surface-resolve-lease-run` | `—` |
+| `tests-module-opening` | `proving-a-negative` | `source-command-surface` | `literal` | `closure-proved` | `170-173` | `surface-closure-tests` | `—` |
+| `surface-closure-tests` | `proving-a-negative` | `source-command-surface` | `composite` | `closure-proved` | `170-269` | `source-command-surface` | `tests-module-opening`, `undescribed-doc-purpose`, `undescribed-doc-twice`, `undescribed-doc-empty`, `undescribed-arguments`, `undescribed-subcommands`, `describes-test-doc`, `describes-test`, `closure-test-doc`, `closure-test-subcommands`, `closure-test-arguments` |
+| `undescribed-doc-purpose` | `proving-a-negative` | `source-command-surface` | `literal` | `closure-proved` | `174-177` | `surface-closure-tests` | `—` |
+| `undescribed-doc-twice` | `proving-a-negative` | `source-command-surface` | `literal` | `closure-proved` | `178-187` | `surface-closure-tests` | `—` |
+| `undescribed-doc-empty` | `proving-a-negative` | `source-command-surface` | `literal` | `closure-proved` | `188-190` | `surface-closure-tests` | `—` |
+| `undescribed-arguments` | `proving-a-negative` | `source-command-surface` | `literal` | `closure-proved` | `191-200` | `surface-closure-tests` | `—` |
+| `undescribed-subcommands` | `proving-a-negative` | `source-command-surface` | `literal` | `closure-proved` | `201-211` | `surface-closure-tests` | `—` |
+| `describes-test-doc` | `proving-a-negative` | `source-command-surface` | `literal` | `closure-proved` | `212-217` | `surface-closure-tests` | `—` |
+| `describes-test` | `proving-a-negative` | `source-command-surface` | `literal` | `closure-proved` | `218-227` | `surface-closure-tests` | `—` |
+| `closure-test-doc` | `proving-a-negative` | `source-command-surface` | `literal` | `closure-proved` | `228-232` | `surface-closure-tests` | `—` |
+| `closure-test-subcommands` | `proving-a-negative` | `source-command-surface` | `literal` | `closure-proved` | `233-251` | `surface-closure-tests` | `—` |
+| `closure-test-arguments` | `proving-a-negative` | `source-command-surface` | `literal` | `closure-proved` | `252-269` | `surface-closure-tests` | `—` |
 | `source-codex-provisioning` | `source-index` | `source-codex-provisioning` | `root` | `—` | `1-401` | `—` | `codex-provisioning` |
 | `provision-entry-and-detection` | `three-steps` | `source-codex-provisioning` | `literal` | `one-call` | `1-41` | `codex-provisioning` | `—` |
 | `codex-provisioning` | `three-steps` | `source-codex-provisioning` | `composite` | `one-call` | `1-401` | `source-codex-provisioning` | `provision-entry-and-detection`, `provision-filesystem-guards`, `provision-lock`, `provision-link-ownership`, `provision-snapshot-comparison`, `provision-link-publication`, `provision-install-flow`, `provision-unit-tests` |
@@ -186,7 +186,6 @@
 | `grove_loop::run` | `01-orientation.md#the-binary` | `one-call` | The loop's single entry point; bare lifecycle execution after its startup checks is behind this call. | `explained` |
 | `DriverLease` | `02-the-surface.md#the-imports` | `one-call` | The one-driver-per-working-tree claim, taken for the life of the process. | `explained` |
 | `LoopOutcome` | `02-the-surface.md#the-imports` | `one-call` | Why the loop stopped — the value that decides whether this process exits 0 or dies of a signal. | `explained` |
-| `TemplateSource` | `02-the-surface.md#the-imports` | `one-call` | Where launch policy is read from; the loop re-reads it every iteration — twice, before and after the tree transition — rather than holding a copy. | `explained` |
 | `Workspace` | `02-the-surface.md#the-imports` | `one-call` | A resolved jj working tree, produced once here and handed to both the lease and the loop. | `explained` |
 
 <a id="owned-source-totals"></a>
@@ -197,9 +196,9 @@ Every source line is credited once to its owning chapter.
 | Slice | Page | Owned lines |
 |---|---|---:|
 | `compiler-held` | `01-orientation.md` | 61 |
-| `no-arguments` | `02-the-surface.md` | 119 |
+| `no-arguments` | `02-the-surface.md` | 120 |
 | `one-call` | `03-three-steps.md` | 470 |
 | `closure-proved` | `04-proving-a-negative.md` | 100 |
 | `assembly` | `05-what-the-call-reaches.md` | 637 |
 | `isolated-invocation` | `06-standalone-invocations.md` | 539 |
-| **Total** | 10 source roots | **1,926** |
+| **Total** | 10 source roots | **1,927** |

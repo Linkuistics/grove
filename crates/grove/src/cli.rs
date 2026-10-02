@@ -2,10 +2,11 @@ use std::path::PathBuf;
 use std::process::ExitCode;
 
 use clap::{Parser, Subcommand};
-use grove_loop::{DriverLease, LoopOutcome, TemplateSource, Workspace};
+use grove_loop::{DriverLease, LoopOutcome, Workspace};
 
 /// Bare `grove` drives the lifecycle; `run` launches a standalone invocation.
-/// Launch policy stays in configuration rather than command-line selectors.
+/// Launch policy stays in the owner's harness-dispatch policy rather than
+/// command-line selectors.
 #[derive(Parser)]
 #[command(
     name = "grove",
@@ -159,8 +160,8 @@ fn execute(cli: Cli) -> anyhow::Result<()> {
     let workspace = Workspace::resolve(&cwd)?;
     let lease = DriverLease::acquire(&workspace)?;
     crate::provision::ensure_codex_skills()?;
-    let templates = TemplateSource::from_env()?;
-    match grove_loop::run(&workspace, lease, &templates)? {
+    let dispatch = crate::dispatch::locate()?;
+    match grove_loop::run(&workspace, lease, &dispatch)? {
         LoopOutcome::Finished | LoopOutcome::Stopped => Ok(()),
         LoopOutcome::Interrupted(signal) => grove_loop::reraise(signal),
     }

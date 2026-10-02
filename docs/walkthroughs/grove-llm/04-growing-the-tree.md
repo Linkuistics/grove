@@ -3,20 +3,27 @@
 [Previous: Reading the tree](03-reading-the-tree.md) | [Contents](README.md) | [Next: Ending work](05-ending-work.md)
 
 <a id="before-the-lock"></a>
-## Text before lock, presence before mutation
+## Text before lock
 
 The four verbs that change the tree are `root-init`, `leaf-add`, `leaf-insert`
-and `leaf-decompose`, and every one of them does the same three things in the
-same order: it reads the operator's text through the grammar's own types, it
-asks whether each kind it is about to write resolves to a launch template, and
+and `leaf-decompose`, and every one of them does the same two things in the
+same order: it reads the operator's text through the grammar's own types, and
 only then does it open the tree for writing. The rule this chapter opens on is
-that order — **text before lock, presence before mutation.** A refusal at either
-of the first two steps leaves the tree byte-identical and takes no exclusive
-lock on the way out, because the text is parsed and the presence rule is asked
-before `writable` is ever called. This is the same discipline *Reading the
+that order — **text before lock.** A refusal at the first step leaves the tree
+byte-identical and takes no exclusive lock on the way out, because the text is
+parsed before `writable` is ever called. This is the same discipline *Reading the
 tree*'s verbs kept when they read a `Reference` before taking the shared
 opening; here the opening is exclusive and the cost of getting the order wrong
 is a tree changed by a command that was refused.
+
+The order used to have a step between those two. Each grow verb asked whether
+the kind it was about to write resolved to a launch template in Grove's own
+configuration, and refused before the tree moved if it did not. Grove has no
+launch configuration now, and no verb asks whether a kind can be launched: the
+owner's harness-dispatch policy answers that when a leaf of the kind launches,
+and nowhere earlier (`docs/specs/harness-selection-and-execution.md`, *A
+refusal*). A well-formed kind is written, whatever it is, and what is left
+before the lock is text.
 
 The exclusive opening is the [tree access lock](../../../CONTEXT.md#tree-access-lock),
 and it is this chapter's premise. It is a process-scoped advisory lock every
@@ -31,10 +38,9 @@ call them. What this chapter needs of the lock is one fact about `flock(2)`,
 stated once: **two open file descriptions on one directory do not share an
 advisory lock.** A process that has the tree open for writing and then opens the
 same directory a second time contends with *itself*, and waits forever. That
-fact is behind the three passages this chapter argues hardest — `root-init`'s
-choice of `match`, `leaf-insert`'s `relinquish` before the lint takes its own
-reading opening, and `leaf-decompose`'s read of the inherited kind before it
-opens for writing — and it is the whole of what the self-deadlock argument needs.
+fact is behind the two passages this chapter argues hardest — `root-init`'s
+choice of `match`, and `leaf-insert`'s `relinquish` before the lint takes its own
+reading opening — and it is the whole of what the self-deadlock argument needs.
 
 The chapter owns eight blocks of `cli.rs`, more than any other, and reads them
 in the order a grow verb meets its work rather than the file's: the two openings
@@ -42,8 +48,8 @@ were read in *The grammar and the openings*, so this page starts at the handler.
 It walks the four verbs in the order each adds one argument to the lock's scope —
 `root-init`, then `leaf-add`, then `leaf-insert`, then `leaf-decompose` — reading
 each handler and its argument struct beside the rule it turns on, and it reads
-the shared machinery once: the presence rule `require_declared` and the `slug`
-grammar, and the two `--kind` help constants with `parse_kind`. The four verbs'
+the shared machinery once: the `slug` grammar, and the two `--kind` help
+constants with `parse_kind`. The four verbs'
 doc comments, which are their `--help`, are read last, as the catalogue of
 promises the handlers have just been seen to keep.
 
@@ -52,65 +58,65 @@ promises the handlers have just been seen to keep.
 
 The session is the one *Orientation* carries, and its writing verb is this
 chapter's example. The grove holds one live leaf, `rate-limit-k3`; the session
-has done its work and adds the review leaf its methodology asks for. The
-configuration the driver launched it under declares two kinds, `impl` and
-`review-impl`, and nothing else. Every line below is what the built binary
-printed at the frozen corpus on a scratch tree of the same shape, with the
-scratch paths and the scratch configuration path replaced by the carried
-session's.
+has done its work and adds the review leaf its methodology asks for. Every line
+below is what the built binary printed on a scratch tree of the same shape,
+under a HOME holding no policy and no configuration at all, with the scratch
+paths replaced by the carried session's.
 
 ```console
 $ cd /work/atlas && grove-llm leaf-add . rate-limit --kind review-impl
 /work/atlas/.grove/02-review-impl--rate-limit-k4.md
 
-$ grove-llm leaf-add . rate-limit --kind prototype
-Error: refusing to write a leaf of kind `prototype`: no launch template resolves for it
+$ grove-llm leaf-add . rate-limit --kind Prototype
+Error: --kind "Prototype": a session kind holds lowercase ASCII letters, digits and dashes only, and 'P' is none of those
 
-Caused by:
-    key `prototype` does not resolve: no template for it.
-      Declare `prototype` in ~/.config/grove/config.kdl.
+$ grove-llm leaf-add . rate-limit --kind prototype
+/work/atlas/.grove/03-prototype--rate-limit-k5.md
 ```
 
 The first invocation is the session's, and it lands. `cmd_leaf_add` reads the
 kind list — one kind, `review-impl` — through `parse_kind`, the slug
-`rate-limit` through `slug`, and the parent `.` through `Reference::parse`; it
-asks `require_declared` whether `review-impl` resolves, and the carried
-configuration declares it, so it does; and only then does it take the exclusive
-opening and make the call, which lands `02-review-impl--rate-limit-k4.md` and
-prints it. The position is `02` because the grove root held one child and the
-key is `k4` because a key is the maximum over the whole tree plus one; both are
-the call's rules, named in *Orientation* and not this binary's.
+`rate-limit` through `slug`, and the parent `.` through `Reference::parse`; and
+only then does it take the exclusive opening and make the call, which lands
+`02-review-impl--rate-limit-k4.md` and prints it. The position is `02` because
+the grove root held one child and the key is `k4` because a key is the maximum
+over the whole tree plus one; both are the call's rules, named in *Orientation*
+and not this binary's.
 
-The second invocation is the same argument vector with one word changed, and it
-makes the book's second order visible. `prototype` is a well-formed kind
-token, so `parse_kind` accepts it and the slug and parent parse exactly as
-before; the refusal comes from `require_declared`, which loads the
-configuration, finds no template for `prototype`, and returns the error above —
-naming the kind and the file that must declare it. No exclusive lock was taken,
-because `writable` is never reached, and the tree is byte-identical: had this
-been the session's real verb, nothing would have changed on disk.
-`leaf_add_refuses_a_kind_no_template_resolves_for_and_mutates_nothing` in
-`crates/grove-llm/tests/session_kind_presence.rs` drives the binary against a
-configuration declaring only `impl`, requires the refusal, requires that it
-names the configuration file, and snapshots `.grove/` before and after to prove
-the tree did not move.
+The second invocation is the same argument vector with one letter changed, and
+it makes the order visible. `Prototype` is not a well-formed kind token, so
+`parse_kind` refuses it, naming the flag and the character. No exclusive lock
+was taken, because `writable` is never reached, and the tree is byte-identical.
+`an_ill_formed_kind_is_refused_by_shape_and_names_the_character` in
+`crates/grove-llm/tests/composition_verbs.rs` requires the character in the
+refusal, and `add_rejects_a_kind_that_is_not_a_token_and_names_the_character`
+in `leaf.rs` requires the same of three malformed tokens.
 
-The table separates the two endings by what each step did, so the order reads as
-a relation rather than as two transcripts.
+The third is the invocation the presence rule used to refuse. `prototype` is a
+well-formed token, so it is written, although nothing here knows whether any
+policy routes it. If none does, the refusal comes when that leaf launches, from
+dispatch, and the leaf stays live.
+`every_leaf_writing_verb_writes_any_kind_with_no_policy_installed` in
+`crates/grove-llm/tests/no_kind_admission.rs` drives all four verbs with kinds
+no methodology declares under an empty HOME, and
+`old_configuration_files_refuse_no_tree_verb` drives them again beside a
+`config.kdl` and a tracked `.grove.kdl` that do not parse.
 
-| Step | `--kind review-impl` | `--kind prototype` |
-|---|---|---|
-| parse the kinds (`parse_kind`) | `review-impl` accepted | `prototype` accepted — it is a well-formed token |
-| parse the slug and parent | `rate-limit`, `.` | the same |
-| presence (`require_declared`) | resolves to a template | **no template — refused here** |
-| the exclusive opening (`writable`) | taken | never reached |
-| the call, then stdout | `02-review-impl--rate-limit-k4.md` | nothing |
-| exit, and the tree | `0`, one leaf added | `1`, byte-identical |
+The table separates the three endings by what each step did, so the order reads
+as a relation rather than as three transcripts.
+
+| Step | `--kind review-impl` | `--kind Prototype` | `--kind prototype` |
+|---|---|---|---|
+| parse the kinds (`parse_kind`) | accepted | **not a token — refused here** | accepted — it is a well-formed token |
+| parse the slug and parent | `rate-limit`, `.` | never reached | `rate-limit`, `.` |
+| the exclusive opening (`writable`) | taken | never reached | taken |
+| the call, then stdout | `02-review-impl--rate-limit-k4.md` | nothing | `03-prototype--rate-limit-k5.md` |
+| exit, and the tree | `0`, one leaf added | `1`, byte-identical | `0`, one leaf added |
 
 `root-init` is the driver's verb, not the session's — it scaffolds a grove
 before any session exists — and it gets its own short trace. On a working tree
-with no `.grove/`, under a configuration that declares `requirements`, it writes
-the charter and the first leaf and prints both paths:
+with no `.grove/` it writes the charter and the first leaf and prints both
+paths:
 
 ```console
 $ grove-llm root-init
@@ -118,32 +124,26 @@ $ grove-llm root-init
 /work/atlas/.grove/01-requirements--plan-k1.md
 ```
 
-The kind of that first leaf is fixed at `requirements`, and the presence rule
-applies to it exactly as it applied to `prototype` above: measured against a
-configuration that does not declare `requirements`, `root-init` prints
-*refusing to write a leaf of kind `requirements`* and leaves no `.grove/` behind
-at all. `root_init_asks_about_the_requirements_leaf_it_mints` in
-`session_kind_presence.rs` requires both — the refusal, and that the working
-tree holds no grove afterward.
+The kind of that first leaf is fixed at `requirements`, and it is written like
+any other: nothing asks whether a `requirements` session can be launched before
+the grove exists.
 
 <a id="the-vacancy"></a>
 ## `root-init`: the vacancy, and what `match` costs
 
 `cmd_root_init` is the rule in its simplest form: one kind, fixed, and a tree
 that must **not** already be there. It reads its text first — the slug, then the
-requirements kind — and asks the presence rule before it opens anything, so the
-first fragment is text-before-lock with nothing else in the way.
+requirements kind — before it opens anything, so the first fragment is
+text-before-lock with nothing else in the way.
 
-<!-- fragment «handler-root-init-text» owner="before-the-lock" source="crates/grove-llm/src/cli.rs" lines="503-510" parent="handler-root-init" -->
+<!-- fragment «handler-root-init-text» owner="before-the-lock" source="crates/grove-llm/src/cli.rs" lines="505-510" parent="handler-root-init" -->
 ````rust
 fn cmd_root_init(args: &RootInitArgs) -> Result<()> {
     let worktree = worktree()?;
     // Read before the lock: refusing a bad slug without taking an exclusive one
-    // is strictly kinder, and the kind's presence rule is asked before anything
-    // is written.
+    // is strictly kinder.
     let slug = slug(&args.slug)?;
     let kind = Kind::requirements();
-    require_declared(&worktree, std::slice::from_ref(&kind))?;
 ````
 <!-- /fragment -->
 
@@ -151,10 +151,8 @@ fn cmd_root_init(args: &RootInitArgs) -> Result<()> {
 slug is refused here, before any lock, with the shape refusal *Reading the
 tree*'s references also used; `Kind::requirements()` is the one kind literal
 grove spells for itself, because it authors this leaf before any session exists
-to delegate to. `require_declared` then asks the configuration about that one
-kind, and its refusal is the `requirements` one the worked example measured. All
-three run before the tree is touched, which is why a refused `root-init` leaves
-no `.grove/` behind:
+to delegate to. Both run before the tree is touched, which is why a `root-init`
+refused for its slug leaves no `.grove/` behind:
 `root_init_rejects_invalid_slug_without_creating_grove` in
 `crates/grove-llm/tests/root_init.rs` pins the slug case and the empty working
 tree after it.
@@ -245,21 +243,20 @@ every source file in the five packages grove ships — each file cut at its inli
 them non-blocking. A release is skipped rather than accepted, because an unlock
 cannot wait and a flag saying so on one would mean nothing. That test does not
 prove a verb never opens the tree twice; what does is structural, and it is the
-second fact. Two of this chapter's four verbs do open the tree twice, and each
-keeps its openings sequential by a different means. `leaf-decompose` takes its
-reading opening *before* it asks for the exclusive one, so there is no guard yet
-to hold across it. `leaf-insert` takes its second opening after the mutation,
-which has consumed its guard and released the lock on return; and
+second fact. One of this chapter's four verbs does open the tree twice, and it
+keeps its openings sequential. `leaf-insert` takes its second opening after the
+mutation, which has consumed its guard and released the lock on return; and
 `verbs::stale_cross_refs` calls `relinquish` before reading regardless, so a
-guard still held there would be given up rather than carried in.
-*`leaf-decompose`: two openings, in order* below reads the one handler in
-`cli.rs` that takes both openings itself — `leaf-insert`'s second is taken a
-layer down, inside `grove-loop` — and shows the two kept sequential.
+guard still held there would be given up rather than carried in. That second
+opening is taken a layer down, inside `grove-loop`: no handler in `cli.rs` opens
+the tree twice itself. `leaf-decompose` did, to read the kind its first child
+would inherit before asking the presence rule about it, and that read went with
+the rule.
 
 The composite that reassembles the handler is stated here, and the source index
 names it as one of the root's twenty-two children.
 
-<!-- fragment «handler-root-init» owner="before-the-lock" source="crates/grove-llm/src/cli.rs" lines="503-532" parent="source-command-surface" -->
+<!-- fragment «handler-root-init» owner="before-the-lock" source="crates/grove-llm/src/cli.rs" lines="505-532" parent="source-command-surface" -->
 <!-- insert «handler-root-init-text» -->
 <!-- insert «handler-root-init-vacancy» -->
 <!-- /fragment -->
@@ -267,7 +264,7 @@ names it as one of the root's twenty-two children.
 `RootInitArgs` is the one argument the verb takes, and it is where the `plan`
 default the help names is declared.
 
-<!-- fragment «args-root-init» owner="before-the-lock" source="crates/grove-llm/src/cli.rs" lines="323-330" parent="source-command-surface" -->
+<!-- fragment «args-root-init» owner="before-the-lock" source="crates/grove-llm/src/cli.rs" lines="324-331" parent="source-command-surface" -->
 ````rust
 #[derive(Parser)]
 pub struct RootInitArgs {
@@ -287,78 +284,15 @@ comment's *mirrors `leaf-add . <slug>`* is the through-line to the next verb: th
 slug argument a session gives `leaf-add` is read by the same `slug` grammar this
 default feeds, so the two verbs name a leaf the same way.
 
-<a id="presence-before-mutation"></a>
-## The presence rule, and the two names it reads
+<a id="the-two-names"></a>
+## The two names a grow verb reads
 
-Before any grow verb opens the tree, it asks one question of the configuration,
-and `require_declared` is that question. It is the second order — presence before
-mutation — in one function.
-
-<!-- fragment «require-declared» owner="before-the-lock" source="crates/grove-llm/src/cli.rs" lines="846-874" parent="presence-rule-and-slug" -->
-````rust
-/// The **just-in-time presence rule**, asked at the moment grove writes a leaf.
-///
-/// Before writing a leaf of kind K, K must resolve to exactly one complete
-/// command composed from active personal policy and optional local overrides
-/// (`docs/adr/complete-session-configuration.md`). This replaces the
-/// all-nineteen completeness check, which grove can no longer make: nothing here
-/// enumerates the kinds a methodology declares — since `open-kind-k20` there is
-/// no enumeration to make it from — so the only honest question is about the
-/// kind in hand.
-///
-/// It runs **before** the tree is opened, so a refusal leaves the tree
-/// byte-identical and takes no exclusive lock on the way — and it loads the
-/// whole configuration to ask. Both documents receive structural validation,
-/// then effective bindings, routes, templates and values are checked after
-/// composition. Invalid active policy fails even for an unrelated kind;
-/// dormant definitions and unselected profiles need only be structurally valid.
-fn require_declared(worktree: &Path, kinds: &[Kind]) -> Result<()> {
-    let config = SessionConfig::load_for_worktree(worktree)?;
-    for kind in kinds {
-        config.require(kind.label()).with_context(|| {
-            format!(
-                "refusing to write a leaf of kind `{}`: no launch template resolves for it",
-                kind.label()
-            )
-        })?;
-    }
-    Ok(())
-}
-
-````
-<!-- /fragment -->
-
-The rule it enforces is the just-in-time presence rule of
-`docs/adr/complete-session-configuration.md`: before grove writes a leaf of kind
-K, K must resolve to exactly one complete command composed from active personal
-policy and optional local overrides. It replaced an older check that enumerated every kind a methodology
-declared and confirmed the configuration was complete for all of them — a check
-grove can no longer make, because since `docs/adr/a-kind-is-an-open-token.md`
-grove holds no set of kinds to enumerate. The only honest question left is about
-the kind in hand, and `config.require` asks exactly it. The refusal is the
-worked example's, and its wording — the kind, and the file that must declare it —
-is what `leaf_add_refuses_a_kind_no_template_resolves_for_and_mutates_nothing`
-asserts.
-
-Two facts about the fragment are easy to miss and both load-bearing. It runs
-before the tree is opened — `require_declared` takes the worktree path, not a
-`TreeWrite`, and every caller calls it above its `writable` — so a presence
-refusal never waits on the exclusive lock and never mutates: measured under a
-lock held from outside the process, an undeclared `leaf-add` returns its refusal
-at once while a declared one blocks on the lock and prints *waiting for active
-Grove tree operation*. And it loads the **whole** configuration to ask about one
-kind. `SessionConfig::load_for_worktree` structurally validates both documents
-and semantically validates their active composition before checking presence.
-An invalid template reached by an effective binding fails even if the requested
-kind does not use it; a dormant command definition is not compiled. Duplicate
-routes in one patch fail structurally. These failures precede the requested
-kind's presence check, while unfinished inactive profiles can coexist with a
-working selection.
-
+A slug and a kind are the two names a grow verb reads, each where it was typed
+and each by its own type. `slug` is the first.
 `slug` is the other name a grow verb reads, and it is read the same way, by its
 own type.
 
-<!-- fragment «slug» owner="before-the-lock" source="crates/grove-llm/src/cli.rs" lines="875-882" parent="presence-rule-and-slug" -->
+<!-- fragment «slug» owner="before-the-lock" source="crates/grove-llm/src/cli.rs" lines="809-816" parent="slug-argument" -->
 ````rust
 /// A slug argument, as the grammar's own type.
 ///
@@ -379,10 +313,10 @@ the slug diagnostic, and the character and the order are held by the source.
 That is the first order, text before lock, in the smallest possible frame: a
 function that turns a `&str` into a `Slug` or an error and touches no tree.
 
-The composite that reassembles the two helpers is stated here.
+The composite that holds the helper is stated here. It held two until the
+presence rule's function was deleted from beside it.
 
-<!-- fragment «presence-rule-and-slug» owner="before-the-lock" source="crates/grove-llm/src/cli.rs" lines="846-882" parent="source-command-surface" -->
-<!-- insert «require-declared» -->
+<!-- fragment «slug-argument» owner="before-the-lock" source="crates/grove-llm/src/cli.rs" lines="809-816" parent="source-command-surface" -->
 <!-- insert «slug» -->
 <!-- /fragment -->
 
@@ -390,7 +324,7 @@ The `--kind` token is read by `parse_kind`, and its help is one constant shared
 by the two verbs that create a leaf, so the three are read together here. The
 help teaches the shape of a kind and lists none, because there is no list.
 
-<!-- fragment «kind-help» owner="before-the-lock" source="crates/grove-llm/src/cli.rs" lines="331-344" parent="kind-help-and-parse-kind" -->
+<!-- fragment «kind-help» owner="before-the-lock" source="crates/grove-llm/src/cli.rs" lines="332-346" parent="kind-help-and-parse-kind" -->
 ````rust
 /// `--kind` help for the two verbs that *create* a leaf. One const rather than
 /// two hand-copied copies.
@@ -400,18 +334,20 @@ help teaches the shape of a kind and lists none, because there is no list.
 /// methodology rather than in this binary
 /// (`docs/adr/a-kind-is-an-open-token.md`). What the help owes instead is the
 /// two facts a caller cannot guess — what the grammar accepts, and that a kind
-/// no template declares is refused before the tree moves.
+/// nothing can launch is found out when its leaf launches, not here.
 const KIND_HELP: &str = "Leaf kind, written into the filename: lowercase ASCII letters, \
 digits and single dashes, no `--`. Grove holds no list of kinds — the installed methodology \
-does — so any well-formed token is accepted here and refused later if no launch template \
-declares it. `finish` is driver-reserved and refused by this verb";
+does — so any well-formed token is written. Whether a kind can be launched is decided by \
+the owner's harness-dispatch policy when the leaf launches, and a refused launch leaves the \
+leaf live. `finish` is driver-reserved and refused by this verb";
 
 ````
 <!-- /fragment -->
 
 `KIND_HELP` is one constant rather than two hand-copied strings, and its job is
-the two facts a caller cannot guess: what the grammar accepts, and that a kind no
-template declares is refused before the tree moves. It lists nothing because a
+the two facts a caller cannot guess: what the grammar accepts, and that a kind
+nothing can launch is found out when its leaf launches rather than here. It lists
+nothing because a
 kind is any well-formed token and the set lives in the installed methodology, not
 in this binary — the point `docs/adr/a-kind-is-an-open-token.md` settles.
 `leaf_add_help_exposes_no_routing_flags` in
@@ -421,7 +357,7 @@ requires that it names `--kind` and lists no kind set.
 `KIND_OVERRIDE_HELP` is the same help written for the one verb whose `--kind`
 overrides rather than supplies.
 
-<!-- fragment «kind-override-help» owner="before-the-lock" source="crates/grove-llm/src/cli.rs" lines="345-349" parent="kind-help-and-parse-kind" -->
+<!-- fragment «kind-override-help» owner="before-the-lock" source="crates/grove-llm/src/cli.rs" lines="347-351" parent="kind-help-and-parse-kind" -->
 ````rust
 /// [`KIND_HELP`] for `leaf-decompose`, whose `--kind` overrides an inherited
 /// kind rather than supplying a default.
@@ -433,10 +369,10 @@ except driver-reserved finish. Default: inherit the kind of the leaf being decom
 
 `leaf-decompose`'s `--kind` overrides the kind its first child would otherwise
 inherit, so its help says *override* and names the default as inheritance rather
-than a literal; *`leaf-decompose`: two openings, in order* reads the handler that
-keeps that promise. `parse_kind` is what turns the token into a `Kind`.
+than a literal; *`leaf-decompose`: the kind is the verb's to inherit* reads the
+handler that keeps that promise. `parse_kind` is what turns the token into a `Kind`.
 
-<!-- fragment «parse-kind» owner="before-the-lock" source="crates/grove-llm/src/cli.rs" lines="350-358" parent="kind-help-and-parse-kind" -->
+<!-- fragment «parse-kind» owner="before-the-lock" source="crates/grove-llm/src/cli.rs" lines="352-360" parent="kind-help-and-parse-kind" -->
 ````rust
 /// A `--kind` argument, as the grammar's own type.
 ///
@@ -457,8 +393,8 @@ argument was rejected as well as why. Measured, `--kind Impl` is refused naming
 `an_ill_formed_kind_is_refused_by_shape_and_names_the_character` in
 `composition_verbs.rs` requires the character and requires that no kind set is
 listed. What the grammar cannot say is whether a well-formed token names a kind
-that *exists*: `frobnicate` parses here and is refused, if at all, only by
-`require_declared`. The `--kind` flag is required on `leaf-add` and
+that *exists*: `frobnicate` parses here and is written, and is refused, if at
+all, only when its leaf launches. The `--kind` flag is required on `leaf-add` and
 `leaf-insert` with no default, because a default is a kind literal under a
 friendlier name — and it is the one that produced a *wrong* leaf rather than an
 error, an `impl` leaf for a session that forgot the flag, before `open-kind-k20`
@@ -467,7 +403,7 @@ missing-argument error and an untouched tree.
 
 The composite that reassembles the block is stated here.
 
-<!-- fragment «kind-help-and-parse-kind» owner="before-the-lock" source="crates/grove-llm/src/cli.rs" lines="331-358" parent="source-command-surface" -->
+<!-- fragment «kind-help-and-parse-kind» owner="before-the-lock" source="crates/grove-llm/src/cli.rs" lines="332-360" parent="source-command-surface" -->
 <!-- insert «kind-help» -->
 <!-- insert «kind-override-help» -->
 <!-- insert «parse-kind» -->
@@ -477,11 +413,10 @@ The composite that reassembles the block is stated here.
 ## `leaf-add`: an atomic run, printed after it lands
 
 `cmd_leaf_add` is the worked example read as source. It parses the kind list, the
-slug and the parent, asks the presence rule, takes the exclusive opening, and
-prints — in that order, and the order is the whole of what the handler adds to
-the call.
+slug and the parent, takes the exclusive opening, and prints — in that order, and
+the order is the whole of what the handler adds to the call.
 
-<!-- fragment «handler-leaf-add» owner="before-the-lock" source="crates/grove-llm/src/cli.rs" lines="657-671" parent="handlers-growing" -->
+<!-- fragment «handler-leaf-add» owner="before-the-lock" source="crates/grove-llm/src/cli.rs" lines="657-670" parent="handlers-growing" -->
 ````rust
 fn cmd_leaf_add(args: &LeafAddArgs) -> Result<()> {
     let worktree = worktree()?;
@@ -492,7 +427,6 @@ fn cmd_leaf_add(args: &LeafAddArgs) -> Result<()> {
         .collect::<Result<Vec<_>>>()?;
     let slug = slug(&args.slug)?;
     let parent = Reference::parse(&args.parent)?;
-    require_declared(&worktree, &kinds)?;
     let tree = writable(&worktree)?;
     print_paths(&verbs::leaf_add(&tree, &parent, &slug, &kinds)?);
     Ok(())
@@ -503,23 +437,17 @@ fn cmd_leaf_add(args: &LeafAddArgs) -> Result<()> {
 
 The kinds are a `Vec`, because `leaf-add` writes one leaf per `--kind` in the
 order given, as one unit — the shape a research vendor pair is cut in. Every
-kind is parsed and then every one is passed to `require_declared`, so a list
-that names one undeclared kind lands none of its leaves;
-`a_kind_list_requires_every_one_of_its_kinds` in `session_kind_presence.rs`
-gives it `research-a research-b combine-research` with only two declared and
-requires the whole run refused. The parse-then-presence order also decides which
-refusal an operator sees when two things are wrong at once: the kinds parse
-first, so `leaf-add . "Bad Slug" --kind Impl` is refused for the kind, while
-`leaf-add . "Bad Slug" --kind prototype` — a well-formed but undeclared kind —
-is refused for the slug, which `slug` reaches before `require_declared` is
-called. Both were measured. The parent is parsed by `Reference::parse` here but
-resolved against the tree only inside `verbs::leaf_add`, under the lock, so
-*no entry matches* for a bad parent is the call's refusal and comes after the
-presence check.
+kind is parsed before the slug is, so the parse order decides which refusal an
+operator sees when two things are wrong at once: `leaf-add . "Bad Slug" --kind
+Impl` is refused for the kind, while `leaf-add . "Bad Slug" --kind prototype` —
+a well-formed kind — is refused for the slug. Both were measured. The parent is
+parsed by `Reference::parse` here but resolved against the tree only inside
+`verbs::leaf_add`, under the lock, so *no entry matches* for a bad parent is the
+call's refusal and comes after both.
 
 `print_paths` is the last line, and its placement is a promise the help makes.
 
-<!-- fragment «print-paths» owner="before-the-lock" source="crates/grove-llm/src/cli.rs" lines="672-681" parent="handlers-growing" -->
+<!-- fragment «print-paths» owner="before-the-lock" source="crates/grove-llm/src/cli.rs" lines="671-680" parent="handlers-growing" -->
 ````rust
 /// Print an add's paths — **after** the mutation succeeded, never as each leaf
 /// lands. A run that fails is rolled back, so stdout describing a shape the
@@ -546,7 +474,7 @@ line's position.
 `LeafAddArgs` is the argument struct, and it carries the `required` flag the help
 turns on.
 
-<!-- fragment «args-leaf-add» owner="before-the-lock" source="crates/grove-llm/src/cli.rs" lines="359-376" parent="args-growing" -->
+<!-- fragment «args-leaf-add» owner="before-the-lock" source="crates/grove-llm/src/cli.rs" lines="361-378" parent="args-growing" -->
 ````rust
 #[derive(Parser)]
 pub struct LeafAddArgs {
@@ -578,19 +506,18 @@ that made it required — a forgotten flag once produced a silent `impl` leaf �
 <a id="the-renumber-and-the-lint"></a>
 ## `leaf-insert`: the renumber, and the lint outside the lock
 
-`cmd_leaf_insert` reads its one kind, its slug and its target the same way, asks
-the presence rule, and takes the exclusive opening; what differs is the report,
+`cmd_leaf_insert` reads its one kind, its slug and its target the same way, and
+takes the exclusive opening; what differs is the report,
 because an insert shifts siblings and leaves stale position-prefixed references
 behind.
 
-<!-- fragment «handler-leaf-insert» owner="before-the-lock" source="crates/grove-llm/src/cli.rs" lines="682-692" parent="handlers-growing" -->
+<!-- fragment «handler-leaf-insert» owner="before-the-lock" source="crates/grove-llm/src/cli.rs" lines="681-690" parent="handlers-growing" -->
 ````rust
 fn cmd_leaf_insert(args: &LeafInsertArgs) -> Result<()> {
     let worktree = worktree()?;
     let kind = parse_kind(&args.kind)?;
     let slug = slug(&args.slug)?;
     let target = Reference::parse(&args.target)?;
-    require_declared(&worktree, std::slice::from_ref(&kind))?;
     let tree = writable(&worktree)?;
     let inserted = verbs::leaf_insert(&tree, &target, &slug, &kind)?;
     report_insert(&tree, &args.slug, &inserted)
@@ -600,14 +527,14 @@ fn cmd_leaf_insert(args: &LeafInsertArgs) -> Result<()> {
 <!-- /fragment -->
 
 The order is `leaf-add`'s exactly — `parse_kind`, `slug`, `Reference::parse`,
-`require_declared`, `writable` — so a bad kind or slug is refused before the
+`writable` — so a bad kind or slug is refused before the
 lock; the target is only parsed before it, since `Reference::parse` refuses a
 blank reference and nothing else, and the call resolves the target against the
 tree under the lock, where a `target` that names no entry fails with *no entry
 matches*. The one new thing is `report_insert`, which takes the `TreeWrite` and
 the insert's own report, because the report is more than a path.
 
-<!-- fragment «report-insert» owner="before-the-lock" source="crates/grove-llm/src/cli.rs" lines="693-737" parent="handlers-growing" -->
+<!-- fragment «report-insert» owner="before-the-lock" source="crates/grove-llm/src/cli.rs" lines="691-735" parent="handlers-growing" -->
 ````rust
 /// `leaf-insert`'s output: the new leaf's path on stdout, the renumber summary
 /// and the cross-reference lint on stderr.
@@ -689,7 +616,7 @@ property of the source: the hits are a returned value and the write is `.ok()`d.
 `LeafInsertArgs` carries the same required `--kind` as `leaf-add`, for the same
 reason.
 
-<!-- fragment «args-leaf-insert» owner="before-the-lock" source="crates/grove-llm/src/cli.rs" lines="377-388" parent="args-growing" -->
+<!-- fragment «args-leaf-insert» owner="before-the-lock" source="crates/grove-llm/src/cli.rs" lines="379-390" parent="args-growing" -->
 ````rust
 #[derive(Parser)]
 pub struct LeafInsertArgs {
@@ -711,16 +638,14 @@ later siblings shift up by one. `insert_requires_an_existing_target` in `leaf.rs
 holds that inserting past the last sibling is refused — that is `leaf-add`'s job
 — so the target must exist.
 
-<a id="two-openings"></a>
-## `leaf-decompose`: two openings, in order
+<a id="the-inherited-kind"></a>
+## `leaf-decompose`: the kind is the verb's to inherit
 
 `leaf-decompose` turns a leaf into a node, and its first child inherits the
-decomposed leaf's kind unless `--kind` overrides it. To ask the presence rule
-about the kind it will actually write, the handler has to read that inherited
-kind — and reading it means opening the tree, which is a second opening the
-first order has to keep clear of the exclusive one.
+decomposed leaf's kind unless `--kind` overrides it. The handler reads only what
+the operator typed.
 
-<!-- fragment «handler-leaf-decompose-head» owner="before-the-lock" source="crates/grove-llm/src/cli.rs" lines="738-744" parent="handlers-growing" -->
+<!-- fragment «handler-leaf-decompose-head» owner="before-the-lock" source="crates/grove-llm/src/cli.rs" lines="736-742" parent="handlers-growing" -->
 ````rust
 fn cmd_leaf_decompose(args: &LeafDecomposeArgs) -> Result<()> {
     let worktree = worktree()?;
@@ -732,37 +657,12 @@ fn cmd_leaf_decompose(args: &LeafDecomposeArgs) -> Result<()> {
 ````
 <!-- /fragment -->
 
-The head parses what the operator typed: the `--kind` override if present, the
-leaf path, and the first child's slug — text before lock, as everywhere. The
-next fragment is the one that has to read the tree before it writes, and its
-comment is the flock fact applied.
+The head parses the `--kind` override if present, the leaf path, and the first
+child's slug — text before lock, as everywhere. What follows is the opening and
+the call.
 
-<!-- fragment «handler-leaf-decompose-kind» owner="before-the-lock" source="crates/grove-llm/src/cli.rs" lines="745-776" parent="handlers-growing" -->
+<!-- fragment «handler-leaf-decompose-write» owner="before-the-lock" source="crates/grove-llm/src/cli.rs" lines="743-750" parent="handlers-growing" -->
 ````rust
-    // The first child's kind, resolved *before* the mutation so the presence
-    // rule can be asked about the kind this call will actually write. With no
-    // `--kind` that is the decomposed leaf's own, read off its filename — the
-    // same answer `leaf_decompose` will reach for itself, and the only one it
-    // ever reaches.
-    //
-    // A kind that cannot be read is left to the verb: `leaf-decompose` refuses a
-    // brief, a retired leaf and a malformed name with its own message, and a
-    // presence check that errored first would replace those refusals with a
-    // complaint about configuration.
-    //
-    // **This read happens before the tree is opened for writing, and the order
-    // is load-bearing.** Both take a lock on the same directory through their
-    // own file description, and two descriptions do not share an `flock` — so
-    // reading the inherited kind while holding the write opening would block
-    // this process against itself, forever. `writable` is therefore the last
-    // thing before the verb, here and at every other call site.
-    let child_kind = match &kind_override {
-        Some(kind) => Some(kind.clone()),
-        None => inherited_kind(&worktree, &leaf_path),
-    };
-    if let Some(kind) = &child_kind {
-        require_declared(&worktree, std::slice::from_ref(kind))?;
-    }
     let tree = writable(&worktree)?;
     let decomposed =
         verbs::leaf_decompose(&tree, &leaf_path, &first_child, kind_override.as_ref())?;
@@ -774,58 +674,26 @@ comment is the flock fact applied.
 ````
 <!-- /fragment -->
 
-With no `--kind`, the first child's kind is the decomposed leaf's own, read off
-its filename by `inherited_kind`, and that read is `require_declared`'s subject,
-so it has to happen before the presence check and therefore before the tree is
-opened for writing. The comment states the order and its reason: reading the
-inherited kind holds a shared lock through its own file description, and if the
-handler held the write opening at the same time the two descriptions would not
-share the `flock`, so the read would block this process against itself forever.
-`writable` is therefore the last thing before the call, here and at every other
-grow verb. Measured under an external lock, `leaf-decompose` inheriting its
-kind waits on the shared read and completes on release, while `leaf-decompose`
-with an undeclared `--kind` override is refused at once, before either opening —
-the two openings are sequential, never nested. A kind that cannot be read is left
-to the verb: `leaf-decompose` refuses a node file, a retired leaf and a malformed
-name with its own message, and a presence check that errored on an unreadable
-kind first would replace those refusals with a complaint about configuration.
-`a_verbs_own_refusal_is_not_replaced_by_a_configuration_complaint` in
-`session_kind_presence.rs` decomposes a brief and requires the brief refusal to
-survive, and `leaf_decompose_asks_about_the_kind_its_first_child_will_carry`
-requires the inherited kind to be the one the presence rule asks about.
+`writable` is the last thing before the call, here as at every other grow verb,
+and the override is handed on as an `Option`: with no `--kind`, the verb itself
+reads the decomposed leaf's kind off its filename, under the exclusive lock the
+handler has just taken, and gives it to the first child. The handler used to make
+that read too, through a shared opening of its own taken before the exclusive
+one, because the presence rule had to be asked about the kind the call would
+write. With no rule to ask, the read and the second opening are gone, and so is
+the ordering argument that kept the two openings from deadlocking this process
+against itself.
 
-`inherited_kind` is the read itself, and it takes the loop's `read` opening
-because *no tree* is an answer it can use.
-
-<!-- fragment «inherited-kind» owner="before-the-lock" source="crates/grove-llm/src/cli.rs" lines="777-787" parent="handlers-growing" -->
-````rust
-/// The kind a `leaf-decompose` with no `--kind` will write, or nothing readable.
-fn inherited_kind(worktree: &Path, leaf_path: &Path) -> Option<Kind> {
-    let Ok(Reading::Tree(tree)) = grove_loop::read(worktree) else {
-        return None;
-    };
-    match verbs::kind(&tree, Some(leaf_path)) {
-        Ok(Sought::Match(kind)) => Some(kind),
-        _ => None,
-    }
-}
-
-````
-<!-- /fragment -->
-
-It reads through `grove_loop::read`, matches only `Reading::Tree`, and turns
-every other answer — a vacant root, an unreadable name, a path that is not a leaf
-— into `None`, because a kind it cannot read is one it leaves the verb to refuse.
 `decompose_with_no_kind_flag_gives_the_first_child_the_parent_leafs_kind` in
 `crates/grove-llm/tests/leaf_ops.rs` measures the inherited case landing a child
 of the parent's kind, and `decompose_kind_flag_overrides_the_parent_leafs_kind`
 the override; `decompose_rejects_a_brief` and `decompose_rejects_a_retired_leaf`
-hold the two refusals the handler leaves to the verb.
+hold two of the refusals that are the verb's own.
 
 `LeafDecomposeArgs` carries the optional `--kind`, whose help is the override
 constant read above.
 
-<!-- fragment «args-leaf-decompose» owner="before-the-lock" source="crates/grove-llm/src/cli.rs" lines="389-399" parent="args-growing" -->
+<!-- fragment «args-leaf-decompose» owner="before-the-lock" source="crates/grove-llm/src/cli.rs" lines="391-401" parent="args-growing" -->
 ````rust
 #[derive(Parser)]
 pub struct LeafDecomposeArgs {
@@ -841,13 +709,13 @@ pub struct LeafDecomposeArgs {
 ````
 <!-- /fragment -->
 
-`kind` is an `Option`, and `None` — the default — is what inherits; the handler's
-`match` on `&kind_override` above is what turns that `None` into the
-`inherited_kind` read.
+`kind` is an `Option`, and `None` — the default — is what inherits; the handler
+passes it through, and the verb turns that `None` into the decomposed leaf's own
+kind.
 
 The composite that reassembles the three grow argument structs is stated here.
 
-<!-- fragment «args-growing» owner="before-the-lock" source="crates/grove-llm/src/cli.rs" lines="359-399" parent="source-command-surface" -->
+<!-- fragment «args-growing» owner="before-the-lock" source="crates/grove-llm/src/cli.rs" lines="361-401" parent="source-command-surface" -->
 <!-- insert «args-leaf-add» -->
 <!-- insert «args-leaf-insert» -->
 <!-- insert «args-leaf-decompose» -->
@@ -856,14 +724,13 @@ The composite that reassembles the three grow argument structs is stated here.
 The composite that reassembles the four handlers and their helpers, in source
 order, is stated here.
 
-<!-- fragment «handlers-growing» owner="before-the-lock" source="crates/grove-llm/src/cli.rs" lines="657-787" parent="source-command-surface" -->
+<!-- fragment «handlers-growing» owner="before-the-lock" source="crates/grove-llm/src/cli.rs" lines="657-750" parent="source-command-surface" -->
 <!-- insert «handler-leaf-add» -->
 <!-- insert «print-paths» -->
 <!-- insert «handler-leaf-insert» -->
 <!-- insert «report-insert» -->
 <!-- insert «handler-leaf-decompose-head» -->
-<!-- insert «handler-leaf-decompose-kind» -->
-<!-- insert «inherited-kind» -->
+<!-- insert «handler-leaf-decompose-write» -->
 <!-- /fragment -->
 
 <a id="the-four-contracts"></a>
@@ -884,7 +751,7 @@ It also spells `.grove` for display, the third of the module's three
 display spellings after *The grammar and the openings* and *Reading the tree*,
 and none of the three reaches a call.
 
-<!-- fragment «verb-root-init» owner="before-the-lock" source="crates/grove-llm/src/cli.rs" lines="66-74" parent="source-command-surface" -->
+<!-- fragment «verb-root-init» owner="before-the-lock" source="crates/grove-llm/src/cli.rs" lines="67-75" parent="source-command-surface" -->
 ````rust
     /// Scaffold a brand-new grove's tree: create `.grove/`, write the root
     /// `_BRIEF.md` charter, and lay down a first **requirements** leaf
@@ -908,7 +775,7 @@ atomic, so a list lands all its leaves or none; a run that could not be created
 prints nothing; and where an integration lands is the caller's to decide, which
 the verb enforces nothing of.
 
-<!-- fragment «verbs-leaf-add-help» owner="before-the-lock" source="crates/grove-llm/src/cli.rs" lines="125-176" parent="verbs-growing" -->
+<!-- fragment «verbs-leaf-add-help» owner="before-the-lock" source="crates/grove-llm/src/cli.rs" lines="126-177" parent="verbs-growing" -->
 ````rust
     /// Append **one leaf per `--kind`**, in the order given, under `<parent>` at
     /// the next gapless child positions with consecutive fresh permanent keys —
@@ -978,7 +845,7 @@ walk, and the book names the rule and points at the guide for it.
 the shift is one rename per sibling, position-free headers mean zero file
 contents change, and the stale cross-references go to stderr.
 
-<!-- fragment «verbs-leaf-insert-help» owner="before-the-lock" source="crates/grove-llm/src/cli.rs" lines="177-204" parent="verbs-growing" -->
+<!-- fragment «verbs-leaf-insert-help» owner="before-the-lock" source="crates/grove-llm/src/cli.rs" lines="178-205" parent="verbs-growing" -->
 ````rust
     /// Insert a new leaf at the slot held by `<target>`, shifting `<target>` and
     /// every later sibling up one position. `<target>` is an existing leaf or
@@ -1021,7 +888,7 @@ the page links the guide for it and explains only that placement is the caller's
 the handler's two openings exist to keep: the first child inherits the decomposed
 leaf's kind unless `--kind` overrides it.
 
-<!-- fragment «verbs-leaf-decompose-help» owner="before-the-lock" source="crates/grove-llm/src/cli.rs" lines="205-216" parent="verbs-growing" -->
+<!-- fragment «verbs-leaf-decompose-help» owner="before-the-lock" source="crates/grove-llm/src/cli.rs" lines="206-217" parent="verbs-growing" -->
 ````rust
     /// Convert a live leaf file `NN-<kind>--<slug>-k<key>.md` into a node **directory**
     /// `NN-k<key>/` (**key preserved** — the leaf that was `k<key>`
@@ -1041,29 +908,28 @@ leaf's kind unless `--kind` overrides it.
 *Key preserved* is what
 `decompose_converts_leaf_into_node_directory_with_first_child` pins — the leaf
 that was `k<key>` becomes the node `k<key>` — and *inherits the decomposed leaf's
-own kind unless `--kind` overrides it* is the promise `inherited_kind` reads the
-tree to keep. The table gathers the four verbs against the two orders and the
-line that keeps each promise, and the closing chapter's row for each is built
-from it.
+own kind unless `--kind` overrides it* is the promise the verb keeps under the
+lock, with the handler passing the override through. The table gathers the four
+verbs against the order and the line that keeps it, and the closing chapter's row
+for each is built from it.
 
-| Verb | Text it parses before the lock | Presence it asks | Kept at | Held by |
-|---|---|---|---|---|
-| `root-init` | slug (`slug`), kind fixed at `requirements` | `require_declared` on `requirements` | lines 486–488 before `write` | `root_init_asks_about_the_requirements_leaf_it_mints` |
-| `leaf-add` | kinds (`parse_kind`), slug, parent | every kind in the list | line 644 before `writable` | `leaf_add_refuses_a_kind_no_template_resolves_for_and_mutates_nothing`, `a_kind_list_requires_every_one_of_its_kinds` |
-| `leaf-insert` | kind, slug, target | the one kind | line 665 before `writable` | `leaf_insert_asks_the_same_question` |
-| `leaf-decompose` | override kind, leaf path, child slug | the inherited or overridden kind | line 745 before `writable` | `leaf_decompose_asks_about_the_kind_its_first_child_will_carry` |
+| Verb | Text it parses before the lock | Kept at | Held by |
+|---|---|---|---|
+| `root-init` | slug (`slug`), kind fixed at `requirements` | lines 509–510 before `write` | `root_init_rejects_invalid_slug_without_creating_grove` |
+| `leaf-add` | kinds (`parse_kind`), slug, parent | lines 659–665 before `writable` | `add_rejects_a_kind_that_is_not_a_token_and_names_the_character`, `add_rejects_invalid_slug` |
+| `leaf-insert` | kind, slug, target | lines 683–685 before `writable` | the source: the three parses stand above the opening, as in `leaf-add` |
+| `leaf-decompose` | override kind, leaf path, child slug | lines 740–742 before `writable` | `decompose_kind_flag_overrides_the_parent_leafs_kind` |
 
 The composite that reassembles the three grow variants is stated here.
 
-<!-- fragment «verbs-growing» owner="before-the-lock" source="crates/grove-llm/src/cli.rs" lines="125-216" parent="source-command-surface" -->
+<!-- fragment «verbs-growing» owner="before-the-lock" source="crates/grove-llm/src/cli.rs" lines="126-217" parent="source-command-surface" -->
 <!-- insert «verbs-leaf-add-help» -->
 <!-- insert «verbs-leaf-insert-help» -->
 <!-- insert «verbs-leaf-decompose-help» -->
 <!-- /fragment -->
 
-The four verbs that write have now been read, and each parses its text and asks
-the presence rule before it takes the exclusive lock, so a refusal at either step
-changes nothing on disk. What a session runs after the tree is grown is the two
+The four verbs that write have now been read, and each parses its text before it
+takes the exclusive lock, so a refusal there changes nothing on disk. What a session runs after the tree is grown is the two
 terminal marks, and the next chapter reads them — the last tree verbs a session
 runs, which say on stderr what remains.
 

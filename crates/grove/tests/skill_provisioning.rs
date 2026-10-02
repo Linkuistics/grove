@@ -21,19 +21,10 @@ impl Fixture {
         let script = home.path().join("child.sh");
         fs::write(&script, "#!/bin/sh\nif test -f \"$HOME/.agents/skills/grove/SKILL.md\"; then touch \"$HOME/skills-seen\"; fi\ntouch \"$HOME/child-ran\"\nexit 0\n").unwrap();
         fs::set_permissions(&script, fs::Permissions::from_mode(0o755)).unwrap();
-        fs::create_dir_all(home.path().join(".config/grove")).unwrap();
-        let routes: String = support::EVERY_SESSION_KIND
-            .iter()
-            .map(|kind| format!("route {kind:?} \"lead\"\n"))
-            .collect();
-        let template = format!("'{}' '${{prompt}}'", script.display());
-        fs::write(
-            home.path().join(".config/grove/config.kdl"),
-            format!(
-                "config {{\ncommand \"agent\" {template:?}\nbind \"lead\" \"agent\"\n{routes}}}\n"
-            ),
-        )
-        .unwrap();
+        // The sibling `grove` launches through, and a policy that runs the
+        // script for every kind.
+        support::harness_dispatch();
+        support::route_every_kind_to(home.path(), &script);
         Self { home, work }
     }
     fn command(&self) -> Command {
@@ -74,7 +65,7 @@ fn assert_installed(skills: &Path) {
     assert!(!skills.join("guardrail").exists());
 }
 #[test]
-fn startup_installs_bundled_skills_before_configured_child() {
+fn startup_installs_bundled_skills_before_the_first_session() {
     let f = Fixture::new(true);
     let output = f.run();
     assert_installed(&f.skills());
@@ -192,11 +183,7 @@ fn detection_and_non_launch_commands_do_not_provision() {
     f.run();
     assert!(!f.home.path().join(".agents").exists());
     fs::create_dir(f.home.path().join(".codex")).unwrap();
-    for args in [
-        vec!["--help"],
-        vec!["--version"],
-        vec!["config", "show", "--json"],
-    ] {
+    for args in [vec!["--help"], vec!["--version"]] {
         let output = f.command().args(args).output().unwrap();
         assert!(
             output.status.success(),

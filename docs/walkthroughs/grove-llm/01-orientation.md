@@ -421,7 +421,7 @@ verb that writes a leaf — and the third in one, `complete`. Each order is
 stated in the handler where it happens, each is pinned by a named test, and
 *What order holds* tabulates all twelve verbs against the three.
 
-<!-- fragment «surface-header-thin-and-order» owner="one-call-plus-rendering" source="crates/grove-llm/src/cli.rs" lines="10-23" parent="surface-thesis-and-imports" -->
+<!-- fragment «surface-header-thin-and-order» owner="one-call-plus-rendering" source="crates/grove-llm/src/cli.rs" lines="10-24" parent="surface-thesis-and-imports" -->
 ````rust
 // # This crate is thin, and the compiler is what holds it thin
 //
@@ -432,11 +432,12 @@ stated in the handler where it happens, each is pinned by a named test, and
 // a `[[bin]]` target inside the library it drives
 // (`docs/specs/module-decomposition.md`, decision 1).
 //
-// What is left here that is not rendering is the **order** three verbs depend
+// What is left here that is not rendering is the **order** the verbs depend
 // on, and each is stated where it happens: read the operator's text with the
-// type that owns it *before* taking a lock, ask the just-in-time presence rule
-// *before* the mutation, and admit the session against the completion channel
-// *before* writing to it.
+// type that owns it *before* taking a lock, and admit the session against the
+// completion channel *before* writing to it. No verb asks whether a kind can be
+// launched: the owner's harness-dispatch policy answers that when a leaf of
+// that kind launches, and nowhere earlier.
 ````
 <!-- /fragment -->
 
@@ -492,15 +493,15 @@ tree*, the site that decides which of the module's outputs may fail silently,
 and the two path types are what every verb's argument and answer is spelled
 in.
 
-<!-- fragment «surface-imports» owner="one-call-plus-rendering" source="crates/grove-llm/src/cli.rs" lines="24-34" parent="surface-thesis-and-imports" -->
+<!-- fragment «surface-imports» owner="one-call-plus-rendering" source="crates/grove-llm/src/cli.rs" lines="25-35" parent="surface-thesis-and-imports" -->
 ````rust
 
 use anyhow::{bail, ensure, Context, Result};
 use clap::{Parser, Subcommand};
 use grove_loop::verbs::{self, Resolution, Signalled};
 use grove_loop::{
-    Handle, Kind, Outcome, Reading, Reference, SessionConfig, SessionEpochGuard, Slug, Sought,
-    Tree, TreeWrite, Writing,
+    Handle, Kind, Outcome, Reading, Reference, SessionEpochGuard, Slug, Sought, Tree, TreeWrite,
+    Writing,
 };
 use jj_workspace::Workspace;
 use std::io::Write;
@@ -512,7 +513,7 @@ The composite that reassembles the chapter's share of the module — the header
 and the imports, lines 1 to 34 — is stated here; the source index defers the
 remaining source to the five chapters that own them.
 
-<!-- fragment «surface-thesis-and-imports» owner="one-call-plus-rendering" source="crates/grove-llm/src/cli.rs" lines="1-34" parent="source-command-surface" -->
+<!-- fragment «surface-thesis-and-imports» owner="one-call-plus-rendering" source="crates/grove-llm/src/cli.rs" lines="1-35" parent="source-command-surface" -->
 <!-- insert «surface-header-audience» -->
 <!-- insert «surface-header-thin-and-order» -->
 <!-- insert «surface-imports» -->

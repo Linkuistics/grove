@@ -7,7 +7,8 @@
 
 `grove` is the human's command. Bare invocation in a Jujutsu working tree
 resolves that tree, takes its driver lease and calls the loop. The loop chooses
-the next task and configured command. Viewing, configuration inspection and
+the next task and launches it through `harness-dispatch`, which selects the
+command. Viewing, configuration inspection and
 inactive sample delivery have separate early-return paths. `grove run` names
 one kind explicitly, asks the owner's harness-dispatch policy for its command,
 and orchestrates its confined temporary files,
@@ -119,9 +120,9 @@ ordinarily selects at least two things on its command line: what to run, and
 how to run it. Here both were moved out of the binary before the binary was
 written. What to run is read from the
 [task tree](../../../CONTEXT.md#task-tree-scheme) in the working tree, which the
-loop walks for its next live leaf; how to run it is read from the human's
-personal configuration, `~/.config/grove/config.kdl`, which maps each session
-kind to one complete command template. With both facts on disk, an argument
+loop walks for its next live leaf; how to run it is decided by the human's
+personal `harness-dispatch` policy, `~/.config/harness-dispatch/policy.ts`, whose
+`select` function returns the command for each launch. With both facts on disk, an argument
 that selected either would be a second source for a fact that already has one.
 *The surface* reads the grammar that results, and *Proving a negative* reads the
 test that keeps the bare lifecycle free of selectors and the subcommand set
@@ -333,11 +334,11 @@ workspace = true
 This is the invocation the book carries. It appears at low resolution here, as
 its argv in *The surface*, at full resolution in *Lifecycle startup* with every call
 and both endings, and in *Proving a negative* as the guard that keeps the argv
-from growing. The tree, the leaf and the template below are fixed here and
+from growing. The tree, the leaf and the policy below are fixed here and
 reused unchanged by all three.
 
 The starting tree is a Jujutsu workspace holding a grove with one live leaf,
-and the human's configuration maps the `impl` kind to a command:
+and the human's policy returns one command for every kind:
 
 ```text
 /work/atlas/
@@ -349,12 +350,18 @@ and the human's configuration maps the `impl` kind to a command:
     └── gateway/
         └── src/                            the directory grove is typed in
 
-~/.config/grove/config.kdl
-    config {
-        command "agent" "claude --add-dir ${repo} ${prompt}"
-        bind "lead" "agent"
-        route "impl" "lead"
-    }
+~/.config/harness-dispatch/policy.ts
+    export const policy = {
+      schemaVersion: 2,
+      version: "atlas-1",
+      select: (request) => ({
+        status: "selected",
+        program: "claude",
+        args: ["--add-dir", request.params.repo, request.prompt],
+        provider: "anthropic", model: "default", effort: "default",
+        reason: "every kind runs claude",
+      }),
+    };
 ```
 
 The human is somewhere inside the tree, not at its root, which is the ordinary
@@ -368,11 +375,11 @@ $ grove
   lease     /work/atlas/.jj/grove/driver.lease is locked; this process is the
             tree's one driver for as long as it runs
   provision install or repair bundled skills when Codex is present
-  templates locate personal launch policy
-  run       grove_loop::run(workspace, lease, templates) — once per iteration:
+  dispatch  harness-dispatch is found beside this executable
+  run       grove_loop::run(workspace, lease, dispatch) — once per iteration:
               read the task tree    the first live leaf is rate-limit-k3, kind impl
-              read config.kdl       impl's template, expanded into an argv
-              launch, then wait     grove: launching impl with configured "claude" — rate-limit-k3
+              launch, then wait     grove: launching impl through harness-dispatch — rate-limit-k3
+                                    the policy selects claude, which replaces dispatch
               read the signal       the session signalled completion: relaunch
             … later iterations retire every live leaf, and the teardown session
             signals that the grove itself is done:

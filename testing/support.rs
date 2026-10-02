@@ -406,66 +406,56 @@ pub fn jj(path: &Path, args: &[&str]) -> String {
     String::from_utf8(output.stdout).unwrap().trim().to_owned()
 }
 
-/// A `$HOME` holding a personal Grove configuration that declares every session
-/// kind, shared by every command one test binary spawns.
+/// An empty `$HOME`, shared by every command one test binary spawns.
 ///
-/// **Why a verb-driving test needs one at all.** Writing a leaf of kind K now
-/// asks whether K resolves to a launch template before it mutates the tree
-/// (`docs/adr/complete-session-configuration.md`). Without this the check would
-/// be answered by whatever is in the developer's own
-/// `~/.config/grove/config.kdl` — passing on a configured machine, failing on a
-/// fresh checkout, and testing the machine rather than the code either way.
-///
-/// The templates are `true ${prompt}`: word zero is a literal executable, which
-/// is all validation asks, and nothing here ever spawns one.
+/// **Why a verb-driving test needs one at all.** A tree verb consults nothing
+/// outside the working tree: no Grove configuration exists to read, and no
+/// harness-dispatch policy is asked about a kind before its leaf launches
+/// (`docs/specs/harness-selection-and-execution.md`, *A refusal*). Running
+/// every verb under a HOME that holds no policy is what shows that. Under the
+/// developer's own HOME a verb that did read a personal file would pass on a
+/// configured machine, and test the machine rather than the code.
 pub fn fixture_home() -> &'static Path {
     static HOME: std::sync::OnceLock<tempfile::TempDir> = std::sync::OnceLock::new();
-    let home = HOME.get_or_init(|| {
-        let home = tempfile::TempDir::new().expect("fixture $HOME");
-        let dir = home.path().join(".config/grove");
-        fs::create_dir_all(&dir).expect("fixture config dir");
-        let routes: String = EVERY_SESSION_KIND
-            .iter()
-            .map(|kind| format!("    route {kind:?} \"lead\"\n"))
-            .collect();
-        let document = format!(
-            "config {{\n    command \"runner\" \"true ${{prompt}}\"\n    bind \"lead\" \"runner\"\n{routes}}}\n"
-        );
-        fs::write(dir.join("config.kdl"), document).expect("fixture config");
-        home
-    });
-    home.path()
+    HOME.get_or_init(|| tempfile::TempDir::new().expect("fixture $HOME"))
+        .path()
 }
 
-/// The kinds this repository's own methodology ships, enumerated
-/// **here** rather than in the binary: grove no longer holds a set of kinds to
-/// validate a configuration against, so a fixture that wants a template for
-/// every kind a test might write has to say which those are.
-pub const EVERY_SESSION_KIND: &[&str] = &[
-    "requirements",
-    "review-requirements",
-    "integrate-review-requirements",
-    "design",
-    "review-design",
-    "integrate-review-design",
-    "planning",
-    "review-planning",
-    "integrate-review-planning",
-    "prototype",
-    "review-prototype",
-    "integrate-review-prototype",
-    "impl",
-    "review-impl",
-    "integrate-review-impl",
-    "research-a",
-    "research-b",
-    "combine-research",
-    "draft",
-    "copy-edit",
-    "art",
-    "proof",
-    "finish",
-];
+/// Write `source` as the personal `harness-dispatch` policy under `home`, at
+/// the default entry path. A test that launches a session puts its policy here:
+/// the real front and its compiled worker select from it, and Grove reads
+/// nothing.
+pub fn write_policy(home: &Path, source: &str) {
+    let entry = home.join(".config/harness-dispatch/policy.ts");
+    fs::create_dir_all(entry.parent().expect("a policy path has a parent"))
+        .expect("fixture policy dir");
+    fs::write(entry, source).expect("fixture policy");
+}
+
+/// A personal policy under `home` that runs `program` for every kind, with the
+/// prompt as its one argument.
+pub fn route_every_kind_to(home: &Path, program: &Path) {
+    write_policy(
+        home,
+        &format!(
+            r#"export const policy = {{
+  schemaVersion: 2,
+  version: "fixture-1",
+  select: (request) => ({{
+    status: "selected",
+    program: {program:?},
+    args: [request.prompt],
+    provider: "fixture",
+    model: "none",
+    effort: "none",
+    reason: "every kind runs the fixture's command",
+  }}),
+}};
+"#,
+            program = program.to_str().expect("a UTF-8 fixture path")
+        ),
+    );
+}
 
 /// The repository root, found by walking up from this file's own package.
 ///

@@ -6,7 +6,7 @@ use std::path::Path;
 use std::process::{Child, Command, Stdio};
 use std::time::{Duration, Instant};
 
-use grove_loop::{ActivityObservation, DriverLease, TemplateSource, Workspace};
+use grove_loop::{ActivityObservation, DriverLease, Workspace};
 use grove_tui::{Action, Viewer};
 use ratatui::{
     backend::TestBackend,
@@ -15,7 +15,26 @@ use ratatui::{
     Terminal,
 };
 
+// The repository's shared test helpers, for the real `harness-dispatch` front
+// and the personal policy a launching case selects from.
+#[path = "../../../testing/support.rs"]
+mod shared;
+
 const LIMIT: Duration = Duration::from_secs(10);
+
+/// A personal dispatch policy under `root/config`, the helper driver's HOME,
+/// that runs `program` with `args` and then the prompt, for every kind.
+fn route(root: &Path, program: &str, args: &[&str]) {
+    shared::write_policy(
+        &root.join("config"),
+        &format!(
+            "export const policy = {{ schemaVersion: 2, version: \"viewer-1\", \
+             select: (request) => ({{ status: \"selected\", program: {program:?}, \
+             args: [...{args:?}, request.prompt], provider: \"fixture\", model: \"none\", \
+             effort: \"none\", reason: \"every kind runs the fixture's command\" }}) }};\n"
+        ),
+    );
+}
 
 fn put(root: &Path, name: &str, text: &str) {
     let path = root.join(name);
@@ -33,12 +52,16 @@ fn driver_helper() {
     let root = std::env::current_dir().unwrap();
     let workspace = Workspace::resolve(&root).unwrap();
     let lease = DriverLease::acquire(&workspace).unwrap();
-    let outcome = grove_loop::run(
-        &workspace,
-        lease,
-        &TemplateSource::under(root.join("config")),
-    );
-    if root.join("expect-spawn-error").exists() {
+    // The real front, or no executable at all for the case whose launch must
+    // itself fail.
+    let failing = root.join("expect-spawn-error").exists();
+    let dispatch = if failing {
+        root.join("missing-harness-dispatch")
+    } else {
+        shared::harness_dispatch()
+    };
+    let outcome = grove_loop::run(&workspace, lease, &dispatch);
+    if failing {
         assert!(outcome.is_err());
     } else {
         assert_eq!(outcome.unwrap(), grove_loop::LoopOutcome::Stopped);
@@ -46,7 +69,7 @@ fn driver_helper() {
 }
 
 #[test]
-#[ignore = "real configured session"]
+#[ignore = "real launched session"]
 fn session_helper() {
     if std::env::var("GROVE_TEST_TUI_PROCESS").as_deref() != Ok("1") {
         return;
@@ -90,16 +113,13 @@ impl Launch {
             "harness",
             &format!("exec '{exe}' --exact session_helper --ignored --nocapture\n"),
         );
-        put(
-            root,
-            "config/.config/grove/config.kdl",
-            "config {\n    command \"runner\" \"/bin/sh harness '${prompt}'\"\n    bind \"lead\" \"runner\"\n    route \"impl\" \"lead\"\n    route \"finish\" \"lead\"\n}\n",
-        );
+        route(root, "/bin/sh", &["harness"]);
         let listener = UnixListener::bind(root.join("session.sock")).unwrap();
         listener.set_nonblocking(true).unwrap();
         let driver = Command::new(exe)
             .args(["--exact", "driver_helper", "--ignored", "--nocapture"])
             .current_dir(root)
+            .env("HOME", root.join("config"))
             .env("GROVE_TEST_TUI_PROCESS", "1")
             .env_remove("GROVE_SIGNAL_FILE")
             .env_remove("GROVE_HARNESS_PID")
@@ -661,7 +681,7 @@ fn killed_driver_clears_running_despite_started_bytes_and_live_session() {
     let before = snapshot(work.path());
     launch.driver.kill().unwrap();
     assert!(!launch.driver.wait().unwrap().success());
-    launch.exchange(b'p'); // The configured child demonstrably outlives its driver.
+    launch.exchange(b'p'); // The launched child demonstrably outlives its driver.
     viewer.tick(Instant::now() + Duration::from_secs(1));
     let (text, _) = screen(&mut viewer, 60, 10);
     assert!(
@@ -716,24 +736,15 @@ fn failed_and_immediate_launches_leave_no_running_attachment() {
         put(&root, "_BRIEF.md", "root");
         put(&root, "01-impl--work-k1.md", "work");
         fs::create_dir(work.path().join(".jj")).unwrap();
-        let command = if failed {
-            "/missing-grove-test-executable"
-        } else {
-            "/usr/bin/true"
-        };
-        put(
-            work.path(),
-            "config/.config/grove/config.kdl",
-            &format!(
-                "config {{\n    command \"runner\" \"{command} '${{prompt}}'\"\n    bind \"lead\" \"runner\"\n    route \"impl\" \"lead\"\n}}\n"
-            ),
-        );
+        // A launch that cannot start at all, and one whose session ends at once.
+        route(work.path(), "/usr/bin/true", &[]);
         if failed {
             put(work.path(), "expect-spawn-error", "");
         }
         let mut driver = Command::new(std::env::current_exe().unwrap())
             .args(["--exact", "driver_helper", "--ignored", "--nocapture"])
             .current_dir(work.path())
+            .env("HOME", work.path().join("config"))
             .env("GROVE_TEST_TUI_PROCESS", "1")
             .env_remove("GROVE_SIGNAL_FILE")
             .env_remove("GROVE_HARNESS_PID")

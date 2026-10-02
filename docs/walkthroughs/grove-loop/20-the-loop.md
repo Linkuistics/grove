@@ -187,7 +187,7 @@ loop, then the four chosen values are declared **before** anything uses them,
 then the outcome type, then the loop itself, then the five helpers it calls, and
 last the two tests that hold the one ordering the loop cannot get wrong.
 
-<!-- fragment «loop-driver» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="1-750" parent="source-loop-driver" -->
+<!-- fragment «loop-driver» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="1-787" parent="source-loop-driver" -->
 <!-- insert «loop-header» -->
 <!-- insert «loop-imports» -->
 <!-- insert «loop-worktree-name» -->
@@ -1014,8 +1014,8 @@ another iteration.
                 if !ended.status.success() {
                     eprintln!(
                         "       session kind `{}` for `{}` failed; if harness-dispatch refused the \
-                         launch, its diagnostic and remedy are above. The leaf is still live: \
-                         rerun `grove` to continue.",
+                         launch, its diagnostic and remedy are above and the leaf is still live. \
+                         Either way, rerun `grove` to continue.",
                         selection.kind.label(),
                         selection.handle
                     );
@@ -1034,8 +1034,14 @@ continues the loop with no message at all — the next iteration's launch line i
 the only trace, which is why that line names the stable handle. `Done` prints and
 returns `Finished`. `None` — a session that ended without signalling — prints the
 status and elapsed time, and then prints a *second* line only if the exit was
-non-zero, naming the kind and the handle, pointing at the diagnostic above it and
-saying that the leaf is still live.
+non-zero, naming the kind and the handle and saying that rerunning continues. It
+says the leaf is still live only of a refused launch, in the same clause that
+points at the diagnostic above it. The loop returns here without reading the
+tree, and a non-zero status is also what a harness leaves when it retires or
+decomposes its leaf and then fails, so the line cannot say which happened.
+`a_session_that_retires_its_leaf_and_then_fails_is_not_reported_as_leaving_it_live`
+holds that case: the retired leaf, the line without the claim, and a rerun that
+launches the next leaf.
 
 That second line is the whole of what grove adds to a refused launch. Dispatch's
 own diagnostic, with its code, its remedy and the `inspect` invocation that
@@ -1635,10 +1641,16 @@ work.
 <a id="the-test-block"></a>
 ## The inline tests: root identity and handoff ordering
 
-The root fixture uses a real temporary tree, `.jj` marker, lease, a shell
-command built with `Argv::new` and completion channel. The launch control compares a current
-root with a removed root and a replacement carrying the same handle and key.
-Only the current root may create the child's output file or activate the epoch.
+The root fixture uses a real temporary tree, `.jj` marker, lease and completion
+channel. Its launch is the loop's own: `dispatch_run`'s argv for the selected
+leaf, through the real front and its compiled worker, under a policy in a
+temporary HOME that runs a one-line harness for every kind. `env` sets that HOME
+on the front it becomes, because a test may not change its own process's
+environment. The shared helpers that find the front and write the policy are
+declared above the module, where their `#[path]` resolves. The launch control
+compares a current root with a removed root and a replacement carrying the same
+handle and key. Only the current root may create the harness's output file or
+activate the epoch.
 Removing the launch identity check makes this control fail; refusing every
 launch also fails its positive case.
 
@@ -1657,8 +1669,15 @@ The remaining tests hold the separate handoff invariant: completion
 interpretation stays behind successful epoch invalidation, and a failed handoff
 preserves the preceding launch failure.
 
-<!-- fragment «loop-tests-open» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="590-691" parent="loop-driver" -->
+<!-- fragment «loop-tests-open» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="590-728" parent="loop-driver" -->
 ````rust
+// The repository's shared test helpers. Declared out here because a `#[path]`
+// inside the inline module below would resolve against a directory that does
+// not exist.
+#[cfg(test)]
+#[path = "../../../testing/support.rs"]
+mod support;
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1672,9 +1691,35 @@ mod tests {
         temp
     }
 
+    /// The loop's own `harness-dispatch run` for `task`, under a HOME whose
+    /// policy runs `harness` for every kind. The real front and its compiled
+    /// worker select it. `env` sets that HOME on the front it becomes, because
+    /// a test may not change its own process's environment.
+    fn dispatched(home: &Path, harness: &Path, task: &Selection, work: &Path) -> Argv {
+        std::fs::write(harness, "#!/bin/sh\ntouch launched\n").unwrap();
+        let mut permissions = std::fs::metadata(harness).unwrap().permissions();
+        std::os::unix::fs::PermissionsExt::set_mode(&mut permissions, 0o755);
+        std::fs::set_permissions(harness, permissions).unwrap();
+        support::route_every_kind_to(home, harness);
+        let run = dispatch_run(
+            &support::harness_dispatch(),
+            task,
+            "prompt",
+            "session",
+            work,
+            work,
+        );
+        let mut home_word = OsString::from("HOME=");
+        home_word.push(home);
+        let mut words = vec![home_word];
+        words.extend(run.words());
+        Argv::new("/usr/bin/env".into(), words)
+    }
+
     #[test]
     fn selected_root_launches_only_while_its_directory_is_current() {
         for state in ["current", "removed", "replaced"] {
+            let fixture = tempfile::tempdir().unwrap();
             let temp = selected_root_fixture();
             let work = temp.path();
             let workspace = Workspace::resolve(work).unwrap();
@@ -1690,8 +1735,12 @@ mod tests {
                 std::fs::write(work.join(".grove/_BRIEF.md"), "replacement").unwrap();
                 std::fs::write(work.join(".grove/01-impl--work-k1.md"), "reused key").unwrap();
             }
-            std::fs::write(work.join("child.sh"), "touch launched\n").unwrap();
-            let argv = Argv::new("/bin/sh".into(), vec!["child.sh".into()]);
+            let argv = dispatched(
+                &fixture.path().join("home"),
+                &fixture.path().join("harness"),
+                &selection.selection,
+                work,
+            );
             let channel = Channel::allocate(lease.control_dir()).unwrap();
             let result = launch_session(&argv, selection, work, &channel, &mut lease);
             assert_eq!(result.is_ok(), state == "current", "{state}: {result:?}");
@@ -1774,7 +1823,7 @@ end-to-end behaviour is `crates/keyed-launch/tests/launch.rs`'s, against a fake
 child, and the comment says so rather than leaving the gap to be read as an
 omission.
 
-<!-- fragment «loop-test-handoff-preserves» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="692-727" parent="loop-driver" -->
+<!-- fragment «loop-test-handoff-preserves» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="729-764" parent="loop-driver" -->
 ````rust
     #[test]
     fn an_epoch_handoff_failure_preserves_the_launch_failure_that_preceded_it() {
@@ -1844,7 +1893,7 @@ things, and they are different in kind.
   so the pair of assertions together does reach this arm, though neither does
   alone.
 
-<!-- fragment «loop-test-ordering» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="728-750" parent="loop-driver" -->
+<!-- fragment «loop-test-ordering» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="765-787" parent="loop-driver" -->
 ````rust
     #[test]
     fn signal_interpretation_cannot_run_before_epoch_invalidation_succeeds() {

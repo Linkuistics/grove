@@ -669,6 +669,69 @@ fn nonsignalled_nonzero_exit_reports_status_elapsed_kind_and_handle() {
     assert!(stderr.contains("loop stopped"), "{stderr}");
 }
 
+// A session that fails for its own reasons may have moved the tree first. This
+// one retires its leaf with the real verb and then exits 23 without signalling.
+// The driver looks at no tree before it reports, so it says the leaf is live
+// only of a refused launch, and a rerun goes on from the tree as it stands: to
+// the next leaf.
+#[test]
+fn a_session_that_retires_its_leaf_and_then_fails_is_not_reported_as_leaving_it_live() {
+    let fixture = TempDir::new().unwrap();
+    let home = fixture.path().join("home");
+    fs::create_dir_all(home.join(".codex")).unwrap();
+    let worktree = fixture.path().join("retired-worktree");
+    init_worktree(&worktree);
+    let grove = worktree.join(".grove");
+    fs::create_dir_all(&grove).unwrap();
+    fs::write(grove.join("_BRIEF.md"), "# retired — brief\n").unwrap();
+    fs::write(grove.join("01-impl--retired-k1.md"), "# retired-k1\n").unwrap();
+    fs::write(grove.join("02-impl--next-k2.md"), "# next-k2\n").unwrap();
+    let prompts = fixture.path().join("prompts.log");
+    let fake = fixture.path().join("retire-then-fail.sh");
+    write_executable(
+        &fake,
+        &format!(
+            "#!/bin/sh\n\
+             printf '%s\\n' \"$2\" >> \"$1\"\n\
+             [ -e .grove/01-impl--retired-k1.md ] || exit 0\n\
+             {grove_llm} leaf-retire .grove/01-impl--retired-k1.md > /dev/null || exit 91\n\
+             exit 23\n",
+            grove_llm = shell_quote(&support::grove_llm()),
+        ),
+    );
+    route_every_kind(&home, &fake, &[prompts.to_str().unwrap(), PROMPT]);
+
+    let output = run_grove(&home, &worktree);
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(output.status.success(), "{stderr}");
+    assert!(grove.join("01-DONE-impl--retired-k1.md").is_file());
+    for said in [
+        "status exit status: 23",
+        "session kind `impl` for `retired-k1` failed",
+        "rerun `grove` to continue",
+    ] {
+        assert!(stderr.contains(said), "no {said:?} in: {stderr}");
+    }
+    assert!(
+        !stderr.contains("The leaf is still live"),
+        "the driver read no tree, and this leaf is retired: {stderr}"
+    );
+    let first = fs::read_to_string(&prompts).unwrap();
+    assert!(first.contains(&mandate_naming("retired-k1")), "{first}");
+    assert!(!first.contains("next-k2"), "{first}");
+
+    let rerun = run_grove(&home, &worktree);
+
+    assert!(
+        rerun.status.success(),
+        "{}",
+        String::from_utf8_lossy(&rerun.stderr)
+    );
+    let both = fs::read_to_string(&prompts).unwrap();
+    assert!(both.contains(&mandate_naming("next-k2")), "{both}");
+}
+
 /// Commit subjects in `worktree`, newest first (`git log`'s own order).
 fn git_subjects(worktree: &Path) -> Vec<String> {
     let output = Command::new("git")

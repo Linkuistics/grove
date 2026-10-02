@@ -304,8 +304,8 @@ fn drive(
                 if !ended.status.success() {
                     eprintln!(
                         "       session kind `{}` for `{}` failed; if harness-dispatch refused the \
-                         launch, its diagnostic and remedy are above. The leaf is still live: \
-                         rerun `grove` to continue.",
+                         launch, its diagnostic and remedy are above and the leaf is still live. \
+                         Either way, rerun `grove` to continue.",
                         selection.kind.label(),
                         selection.handle
                     );
@@ -587,6 +587,13 @@ fn picked_after_finish(worktree: &Path) -> Result<SelectedTask> {
     }
 }
 
+// The repository's shared test helpers. Declared out here because a `#[path]`
+// inside the inline module below would resolve against a directory that does
+// not exist.
+#[cfg(test)]
+#[path = "../../../testing/support.rs"]
+mod support;
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -600,9 +607,35 @@ mod tests {
         temp
     }
 
+    /// The loop's own `harness-dispatch run` for `task`, under a HOME whose
+    /// policy runs `harness` for every kind. The real front and its compiled
+    /// worker select it. `env` sets that HOME on the front it becomes, because
+    /// a test may not change its own process's environment.
+    fn dispatched(home: &Path, harness: &Path, task: &Selection, work: &Path) -> Argv {
+        std::fs::write(harness, "#!/bin/sh\ntouch launched\n").unwrap();
+        let mut permissions = std::fs::metadata(harness).unwrap().permissions();
+        std::os::unix::fs::PermissionsExt::set_mode(&mut permissions, 0o755);
+        std::fs::set_permissions(harness, permissions).unwrap();
+        support::route_every_kind_to(home, harness);
+        let run = dispatch_run(
+            &support::harness_dispatch(),
+            task,
+            "prompt",
+            "session",
+            work,
+            work,
+        );
+        let mut home_word = OsString::from("HOME=");
+        home_word.push(home);
+        let mut words = vec![home_word];
+        words.extend(run.words());
+        Argv::new("/usr/bin/env".into(), words)
+    }
+
     #[test]
     fn selected_root_launches_only_while_its_directory_is_current() {
         for state in ["current", "removed", "replaced"] {
+            let fixture = tempfile::tempdir().unwrap();
             let temp = selected_root_fixture();
             let work = temp.path();
             let workspace = Workspace::resolve(work).unwrap();
@@ -618,8 +651,12 @@ mod tests {
                 std::fs::write(work.join(".grove/_BRIEF.md"), "replacement").unwrap();
                 std::fs::write(work.join(".grove/01-impl--work-k1.md"), "reused key").unwrap();
             }
-            std::fs::write(work.join("child.sh"), "touch launched\n").unwrap();
-            let argv = Argv::new("/bin/sh".into(), vec!["child.sh".into()]);
+            let argv = dispatched(
+                &fixture.path().join("home"),
+                &fixture.path().join("harness"),
+                &selection.selection,
+                work,
+            );
             let channel = Channel::allocate(lease.control_dir()).unwrap();
             let result = launch_session(&argv, selection, work, &channel, &mut lease);
             assert_eq!(result.is_ok(), state == "current", "{state}: {result:?}");

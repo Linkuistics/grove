@@ -41,6 +41,7 @@ use crate::observation;
 use crate::program::ResolvedBy;
 use crate::refusal::{Refusal, Stage, EXIT_MALFORMED, EXIT_REFUSED};
 use crate::run_id::RunId;
+use crate::settings::Settings;
 use crate::store::{self, Lookup, Observations, StateDir, StoredObservation, StoredRun};
 
 /// The launch document's own version, separate from the store's schema.
@@ -136,7 +137,8 @@ pub struct Located {
 }
 
 /// Parse `--run` and place the state directory, as `record show` and
-/// `record observe` both do.
+/// `record observe` both do. They read the owner's settings as a selection
+/// does, so all of them find the same store.
 pub fn locate(run: &OsStr, state_dir: Option<&Path>) -> Result<Located, Refusal> {
     let given = run.to_str().ok_or_else(|| {
         Refusal::new(
@@ -160,7 +162,8 @@ pub fn locate(run: &OsStr, state_dir: Option<&Path>) -> Result<Located, Refusal>
         .input("cwd")
     })?;
     let home = std::env::var_os("HOME");
-    let dir = StateDir::resolve(state_dir, &cwd, home.as_deref())?;
+    let settings = Settings::read(home.as_deref())?;
+    let dir = StateDir::resolve(state_dir, &settings, &cwd, home.as_deref())?;
     Ok(Located { run_id, cwd, dir })
 }
 
@@ -639,7 +642,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let state = StateDir {
             path: dir.path().join("state"),
-            flag: Some("--state-dir"),
+            set_by: Some("--state-dir"),
         };
         let run_id = RunId::allocate().unwrap();
         store::commit(&state, &run_id, launch).unwrap();

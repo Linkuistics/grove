@@ -543,7 +543,7 @@ mod tests {
     }
 
     fn limits() -> Limits {
-        Limits::read(None, None).unwrap()
+        Limits::read(None, None, &crate::settings::Settings::default()).unwrap()
     }
 
     fn command() -> Value {

@@ -2,10 +2,10 @@
 //! *Policy authority and runtime discovery*).
 //!
 //! The worker starts from nothing but HOME, a PATH snapshot, TMPDIR, LANG and
-//! `LC_*` from the caller, plus each name the owner grants with
-//! `--policy-env`, exactly as named. Some names are never granted, because
-//! through them the environment could run code in the worker or tell it what
-//! it must not know:
+//! `LC_*` from the caller, plus each name the owner grants, in the owner
+//! settings or with `--policy-env`, exactly as named. Some names are never
+//! granted, because through them the environment could run code in the worker
+//! or tell it what it must not know:
 //!
 //! - `BUN_*`, Bun's own: `BUN_OPTIONS` can preload a module before any of the
 //!   worker's code runs, and `BUN_BE_BUN` turns the worker into Bun itself;
@@ -56,11 +56,13 @@ struct Grant {
 }
 
 impl Grants {
-    /// Check each `--policy-env` name, refusing an excluded or malformed one.
-    pub fn read(names: &[OsString]) -> Result<Grants, Refusal> {
+    /// The owner settings' names, already checked, then each `--policy-env`
+    /// name, refusing an excluded or malformed one.
+    pub fn read(settings: &[String], flags: &[OsString]) -> Result<Grants, Refusal> {
         let mut grants: Vec<Grant> = Vec::new();
-        for name in names {
-            let name = checked(name)?;
+        let flags = flags.iter().map(|name| checked(name));
+        for name in settings.iter().cloned().map(Ok).chain(flags) {
+            let name = name?;
             if grants.iter().all(|grant| grant.name != name) {
                 grants.push(Grant {
                     set: std::env::var_os(&name).is_some(),
@@ -158,41 +160,79 @@ fn excluded(name: &str) -> Option<&'static str> {
     }
 }
 
-fn checked(name: &OsStr) -> Result<String, Refusal> {
+/// What named a grant: a `--policy-env` flag, or `policyEnv` in the owner
+/// settings file. One rule holds both, and a refusal says which it was.
+pub enum Named<'a> {
+    Flag,
+    Setting { file: &'a str },
+}
+
+impl Named<'_> {
+    /// How a message begins: the flag, or the key and its file.
+    fn label(&self) -> String {
+        match self {
+            Named::Flag => "--policy-env".to_owned(),
+            Named::Setting { file } => format!("policyEnv in the owner settings file {file}"),
+        }
+    }
+
+    fn name(&self, refusal: Refusal) -> Refusal {
+        match self {
+            Named::Flag => refusal.input("--policy-env"),
+            Named::Setting { file } => refusal.source(*file).location("policyEnv"),
+        }
+    }
+}
+
+/// Refuse a grant that is empty, holds `=` or is excluded.
+pub fn grantable(name: &str, named: &Named) -> Result<(), Refusal> {
+    let label = named.label();
     let malformed = |message: String| {
-        Refusal::new(
+        named.name(Refusal::new(
             "malformed_input",
             Stage::Cli,
             EXIT_MALFORMED,
             message,
-            "name one environment variable per --policy-env, such as --policy-env ANTHROPIC_API_KEY; \
+            "name one environment variable per grant, such as --policy-env ANTHROPIC_API_KEY; \
              its value comes from harness-dispatch's own environment and is never shown",
-        )
-        .input("--policy-env")
+        ))
     };
-    let name = name
-        .to_str()
-        .ok_or_else(|| malformed("a --policy-env name is not valid UTF-8".to_owned()))?;
     if name.is_empty() {
-        return Err(malformed("--policy-env must not be empty".to_owned()));
+        return Err(malformed(format!("{label} must not be empty")));
     }
     if name.contains('=') {
         return Err(malformed(format!(
-            "--policy-env {name} contains `=`: it takes a variable's name, never a value"
+            "{label} {name} contains `=`: it takes a variable's name, never a value"
         )));
     }
     if let Some(why) = excluded(name) {
-        return Err(Refusal::new(
+        return Err(named.name(Refusal::new(
             "excluded_grant",
             Stage::Cli,
             EXIT_MALFORMED,
-            format!("--policy-env {name} is never granted to the policy worker: {why}"),
+            format!("{label} {name} is never granted to the policy worker: {why}"),
             "remove it; the worker's environment is HOME, PATH, TMPDIR, LANG and LC_* plus the \
              names you grant, and BUN_*, NODE_OPTIONS, NODE_PATH, NODE_PRESERVE_SYMLINKS, \
              NODE_CHANNEL_*, LD_*, DYLD_* and HARNESS_DISPATCH_* are excluded from grants",
-        )
-        .input("--policy-env"));
+        )));
     }
+    Ok(())
+}
+
+/// A `--policy-env` name, which must also be UTF-8.
+fn checked(name: &OsStr) -> Result<String, Refusal> {
+    let name = name.to_str().ok_or_else(|| {
+        Refusal::new(
+            "malformed_input",
+            Stage::Cli,
+            EXIT_MALFORMED,
+            "a --policy-env name is not valid UTF-8",
+            "name one environment variable per --policy-env, such as --policy-env \
+             ANTHROPIC_API_KEY",
+        )
+        .input("--policy-env")
+    })?;
+    grantable(name, &Named::Flag)?;
     Ok(name.to_owned())
 }
 
@@ -239,7 +279,8 @@ mod tests {
 
     #[test]
     fn a_grant_is_one_name_and_duplicates_are_one_grant() {
-        let grants = Grants::read(&["A_TOKEN".into(), "OTHER".into(), "A_TOKEN".into()]).unwrap();
+        let flags = ["A_TOKEN".into(), "OTHER".into(), "A_TOKEN".into()];
+        let grants = Grants::read(&[], &flags).unwrap();
         let names: Vec<&str> = grants.0.iter().map(|grant| grant.name.as_str()).collect();
         assert_eq!(names, ["A_TOKEN", "OTHER"]);
         for (name, code) in [
@@ -247,8 +288,17 @@ mod tests {
             ("A=B", "malformed_input"),
             ("NODE_OPTIONS", "excluded_grant"),
         ] {
-            let refusal = Grants::read(&[name.into()]).unwrap_err();
+            let refusal = Grants::read(&[], &[name.into()]).unwrap_err();
             assert_eq!(refusal.code, code, "{name}");
+            assert_eq!(refusal.input.as_deref(), Some("--policy-env"), "{name}");
         }
+    }
+
+    #[test]
+    fn a_flag_adds_to_the_names_the_owner_settings_grant() {
+        let settings = ["SETTING".to_owned(), "BOTH".to_owned()];
+        let grants = Grants::read(&settings, &["BOTH".into(), "FLAG".into()]).unwrap();
+        let names: Vec<&str> = grants.0.iter().map(|grant| grant.name.as_str()).collect();
+        assert_eq!(names, ["SETTING", "BOTH", "FLAG"]);
     }
 }

@@ -815,6 +815,13 @@ task identity. A `run` without the parameter, which the policy refuses, must
 exit 3 with the policy's code and start nothing. The `run` with it must reach
 the fake harness with that argument and the prompt, and `record show` must
 report the parameter.
+The child-answer case's policy starts a child with `Bun.spawn`, in the caller's
+directory and under the host's signal, as a policy that hands the prompt to a
+deciding agent does. The child is a script that records its cwd and the prompt
+it was given, and answers one word. The policy reaps it and looks the answer up
+among commands it wrote itself. The `run` must reach the fake harness with the
+arguments that answer chose, and the child must have run in the caller's
+directory with the prompt byte for byte.
 The declared-package case, added with
 [package.json autoloading](#package-json-autoloading), imports two packages
 from a `node_modules` beside its policy. One names its entry with `main` and

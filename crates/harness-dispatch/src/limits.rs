@@ -1,8 +1,9 @@
 //! The resource bounds a selection runs within
 //! (`docs/specs/harness-selection-and-execution.md`, *Bounded context*).
 //!
-//! Two bounds are the caller's to adjust within a hard range: the whole-selection
-//! time, with `--timeout-ms`, and the context budget, with `--context-bytes`. The
+//! Two bounds are adjustable within a hard range: the whole-selection time and
+//! the context budget. The owner sets each in the owner settings (`settings`),
+//! and a caller's `--timeout-ms` or `--context-bytes` replaces that. The
 //! per-read bound follows the context budget, and a policy's read may set its own
 //! up to that budget. The source count, the protocol message and the diagnostics
 //! are fixed. The worker receives each effective value in its evaluate message
@@ -17,15 +18,18 @@ use std::time::Duration;
 use serde_json::{json, Value};
 
 use crate::refusal::{Refusal, Stage, EXIT_MALFORMED};
+use crate::settings::{self, Settings};
 
-/// The whole-selection bound, in milliseconds: its default and the range a
-/// caller may choose with `--timeout-ms`.
+/// The whole-selection bound, in milliseconds: its default and the range an
+/// owner or caller may choose. The default is short so that a policy which
+/// only consults a table fails fast, and the ceiling admits one that waits
+/// minutes for a deciding agent.
 pub const SELECTION_DEFAULT_MS: u64 = 30_000;
 pub const SELECTION_MIN_MS: u64 = 1_000;
-pub const SELECTION_MAX_MS: u64 = 120_000;
+pub const SELECTION_MAX_MS: u64 = 600_000;
 
 /// The context delivered to selection, in encoded UTF-8 JSON bytes: its default
-/// and the range a caller may choose with `--context-bytes`.
+/// and the range an owner or caller may choose.
 pub const CONTEXT_DEFAULT_BYTES: u64 = 256 * 1024;
 pub const CONTEXT_MIN_BYTES: u64 = 1;
 pub const CONTEXT_MAX_BYTES: u64 = 8 * 1024 * 1024;
@@ -48,7 +52,8 @@ pub const DIAGNOSTICS_BYTES: u64 = 256 * 1024;
 pub enum Origin {
     /// Its default, which a caller could have changed.
     Default,
-    /// Set by the named input: a flag, or a read's `maxBytes` argument.
+    /// Set by the named input: a flag, the owner settings file, or a read's
+    /// `maxBytes` argument.
     Set(&'static str),
     /// Fixed: nothing changes it.
     Fixed,
@@ -71,7 +76,7 @@ impl Bound {
     }
 
     /// The input that set it, if one did.
-    pub fn flag(self) -> Option<&'static str> {
+    pub fn set_by(self) -> Option<&'static str> {
         match self.origin {
             Origin::Set(input) => Some(input),
             Origin::Default | Origin::Fixed => None,
@@ -94,7 +99,8 @@ impl Bound {
         value
     }
 
-    /// `30000 ms (the default)`, `2500 ms (--timeout-ms)` or `256 sources (fixed)`.
+    /// `30000 ms (the default)`, `2500 ms (--timeout-ms)`,
+    /// `240000 ms (settings.json)` or `256 sources (fixed)`.
     pub fn to_text(self) -> String {
         let from = match self.origin {
             Origin::Default => "the default",
@@ -119,19 +125,20 @@ pub struct Limits {
 }
 
 impl Limits {
-    /// The caller's `--timeout-ms` and `--context-bytes`, checked, with every
-    /// other bound at its fixed or derived value.
+    /// The caller's `--timeout-ms` and `--context-bytes`, checked, over the
+    /// owner's settings, with every other bound at its fixed or derived value.
     pub fn read(
         timeout_ms: Option<&OsStr>,
         context_bytes: Option<&OsStr>,
+        settings: &Settings,
     ) -> Result<Limits, Refusal> {
         let selection = digits(
             timeout_ms,
             "--timeout-ms",
             "milliseconds",
             SELECTION_MIN_MS..=SELECTION_MAX_MS,
-            "give the whole-selection bound in milliseconds, from 1000 (1 second) to 120000 \
-             (120 seconds), or omit --timeout-ms for the 30-second default",
+            "give the whole-selection bound in milliseconds, from 1000 (1 second) to 600000 \
+             (10 minutes), or omit --timeout-ms for the owner setting or the 30-second default",
         )?;
         let context = digits(
             context_bytes,
@@ -139,19 +146,31 @@ impl Limits {
             "bytes",
             CONTEXT_MIN_BYTES..=CONTEXT_MAX_BYTES,
             "give the context budget in bytes, from 1 to 8388608 (8 MiB), or omit \
-             --context-bytes for the 262144-byte (256 KiB) default",
+             --context-bytes for the owner setting or the 262144-byte (256 KiB) default",
         )?;
+        let (value, origin) = settled(
+            selection,
+            "--timeout-ms",
+            settings.timeout_ms,
+            SELECTION_DEFAULT_MS,
+        );
         let selection = Bound {
             name: "selection",
             unit: "ms",
-            value: selection.unwrap_or(SELECTION_DEFAULT_MS),
-            origin: origin(selection, "--timeout-ms"),
+            value,
+            origin,
         };
+        let (value, origin) = settled(
+            context,
+            "--context-bytes",
+            settings.context_bytes,
+            CONTEXT_DEFAULT_BYTES,
+        );
         let context = Bound {
             name: "context",
             unit: "bytes",
-            value: context.unwrap_or(CONTEXT_DEFAULT_BYTES),
-            origin: origin(context, "--context-bytes"),
+            value,
+            origin,
         };
         // A read's default never exceeds the budget the read must fit in, and
         // when the budget is what lowers it, the budget's input is its origin.
@@ -236,10 +255,17 @@ impl Limits {
     }
 }
 
-fn origin(given: Option<u64>, flag: &'static str) -> Origin {
-    match given {
-        Some(_) => Origin::Set(flag),
-        None => Origin::Default,
+/// A flag replaces the owner's setting, which replaces the default.
+fn settled(
+    given: Option<u64>,
+    flag: &'static str,
+    setting: Option<u64>,
+    default: u64,
+) -> (u64, Origin) {
+    match (given, setting) {
+        (Some(value), _) => (value, Origin::Set(flag)),
+        (None, Some(value)) => (value, Origin::Set(settings::ORIGIN)),
+        (None, None) => (default, Origin::Default),
     }
 }
 
@@ -283,9 +309,54 @@ fn digits(
 mod tests {
     use super::*;
 
+    fn read(timeout_ms: Option<&str>, context_bytes: Option<&str>) -> Result<Limits, Refusal> {
+        Limits::read(
+            timeout_ms.map(OsStr::new),
+            context_bytes.map(OsStr::new),
+            &Settings::default(),
+        )
+    }
+
+    #[test]
+    fn a_flag_replaces_a_setting_which_replaces_the_default() {
+        let settings = Settings {
+            timeout_ms: Some(240_000),
+            context_bytes: Some(1024),
+            ..Settings::default()
+        };
+        let limits = Limits::read(None, Some(OsStr::new("2048")), &settings).unwrap();
+        assert_eq!(
+            limits.selection.to_json(),
+            json!({ "ms": 240_000, "from": "settings.json" })
+        );
+        assert_eq!(limits.selection.to_text(), "240000 ms (settings.json)");
+        assert_eq!(
+            limits.context.to_json(),
+            json!({ "bytes": 2048, "from": "--context-bytes" })
+        );
+        // A budget the settings lowered caps each read, and is its origin.
+        let limits = Limits::read(None, None, &settings).unwrap();
+        assert_eq!(
+            limits.source.to_json(),
+            json!({ "bytes": 1024, "from": "settings.json" })
+        );
+    }
+
+    #[test]
+    fn the_selection_bound_is_one_second_to_ten_minutes() {
+        for accepted in ["1000", "600000"] {
+            let limits = read(Some(accepted), None).unwrap();
+            assert_eq!(limits.selection.value.to_string(), accepted);
+        }
+        for refused in ["999", "600001"] {
+            let refusal = read(Some(refused), None).unwrap_err();
+            assert_eq!(refusal.input.as_deref(), Some("--timeout-ms"), "{refused}");
+        }
+    }
+
     #[test]
     fn the_defaults_and_their_origins() {
-        let limits = Limits::read(None, None).unwrap();
+        let limits = read(None, None).unwrap();
         assert_eq!(
             limits.to_json(),
             json!({
@@ -301,12 +372,12 @@ mod tests {
 
     #[test]
     fn a_context_budget_below_the_read_default_caps_each_read() {
-        let limits = Limits::read(None, Some(OsStr::new("1024"))).unwrap();
+        let limits = read(None, Some("1024")).unwrap();
         assert_eq!(
             limits.source.to_json(),
             json!({ "bytes": 1024, "from": "--context-bytes" })
         );
-        let limits = Limits::read(None, Some(OsStr::new("8388608"))).unwrap();
+        let limits = read(None, Some("8388608")).unwrap();
         assert_eq!(
             limits.source.to_json(),
             json!({ "bytes": 65_536, "from": "default" })
@@ -316,7 +387,7 @@ mod tests {
     #[test]
     fn a_bound_outside_its_range_or_not_plain_digits_is_malformed() {
         for bad in ["0", "8388609", "1e3", "+5", " 5", "", "5.0"] {
-            let refusal = Limits::read(None, Some(OsStr::new(bad))).unwrap_err();
+            let refusal = read(None, Some(bad)).unwrap_err();
             assert_eq!(refusal.code, "malformed_input", "{bad:?}");
             assert_eq!(refusal.input.as_deref(), Some("--context-bytes"), "{bad:?}");
         }

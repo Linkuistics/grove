@@ -1,6 +1,7 @@
-//! The selection both commands share: read the caller's inputs, evaluate the
-//! selected policy, assemble and measure its context, call its `select`, then
-//! validate the command it returned and resolve that command's program
+//! The selection both commands share: read the owner's settings and the
+//! caller's inputs, evaluate the selected policy, assemble and measure its
+//! context, call its `select`, then validate the command it returned and
+//! resolve that command's program
 //! (`docs/specs/harness-selection-and-execution.md`, *Command interface*,
 //! *Policy and the selected command*, *Bounded context*).
 //!
@@ -36,6 +37,7 @@ use crate::program::{self, Executable};
 use crate::record;
 use crate::refusal::{Diagnostics, Failure, Refusal, Stage, EXIT_REFUSED, EXIT_WORKER};
 use crate::run_id::RunId;
+use crate::settings::Settings;
 use crate::store::{self, StateDir};
 use crate::worker::{self, Adapter, Assembled, Breach, Halt, Loaded, Outcome, WorkerIdentity};
 
@@ -60,10 +62,16 @@ pub struct Choice {
 }
 
 pub fn choose(args: &SelectionArgs, requirement: PromptRequirement) -> Result<Selected, Failure> {
-    let inputs = Inputs::read(args, requirement)?;
     let home = std::env::var_os("HOME");
+    let settings = Settings::read(home.as_deref())?;
+    let inputs = Inputs::read(args, requirement, &settings)?;
     let entry = authority::resolve(args.config.as_deref(), &inputs.cwd, home.as_deref())?;
-    let state_dir = StateDir::resolve(args.state_dir.as_deref(), &inputs.cwd, home.as_deref())?;
+    let state_dir = StateDir::resolve(
+        args.state_dir.as_deref(),
+        &settings,
+        &inputs.cwd,
+        home.as_deref(),
+    )?;
     let source = entry.display();
     let worker_path = worker::locate()?;
 
@@ -462,7 +470,7 @@ mod tests {
                     sha256: "0".repeat(64),
                 },
             }),
-            limits: Limits::read(None, None).unwrap(),
+            limits: Limits::read(None, None, &crate::settings::Settings::default()).unwrap(),
             grants: crate::environment::Grants::default(),
         };
         let request = request(&inputs);

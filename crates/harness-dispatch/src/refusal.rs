@@ -30,7 +30,7 @@ pub const EXIT_NOT_FOUND: u8 = 127;
 /// contract, so they are stable strings rather than `Debug` output.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Stage {
-    /// The command line itself.
+    /// The command line itself, and the owner settings its flags replace.
     Cli,
     /// Choosing and opening the policy entry.
     Authority,

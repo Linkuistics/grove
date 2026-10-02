@@ -6,14 +6,16 @@
 //! from a file name, and a parameter's name and value mean nothing here. The
 //! prompt is read once and kept byte for byte, and the policy's `select`
 //! receives it as it is. Terminal stdin is never read. The caller's bounds,
-//! `--context` document and `--policy-env` grants are read here too, so a
-//! malformed or excluded one refuses before any policy runs.
+//! `--context` document and `--policy-env` grants are read here too, over the
+//! owner's settings, so a malformed or excluded one refuses before any policy
+//! runs.
 
 use crate::cli::SelectionArgs;
 use crate::context::{self, CallerContext};
 use crate::environment::Grants;
 use crate::limits::Limits;
 use crate::refusal::{Refusal, Stage, EXIT_MALFORMED, EXIT_REFUSED};
+use crate::settings::Settings;
 use std::collections::BTreeMap;
 use std::ffi::OsString;
 use std::fs;
@@ -51,10 +53,11 @@ pub struct Inputs {
     pub prompt: Option<Prompt>,
     /// The caller's `--context` document, read, measured and validated.
     pub context: Option<CallerContext>,
-    /// Every bound in effect, the caller's `--timeout-ms` and
-    /// `--context-bytes` included.
+    /// Every bound in effect: the owner's settings, and the caller's
+    /// `--timeout-ms` and `--context-bytes` over them.
     pub limits: Limits,
-    /// The names `--policy-env` grants the worker beyond its base set.
+    /// The names the owner settings and `--policy-env` grant the worker
+    /// beyond its base set.
     pub grants: Grants,
 }
 
@@ -80,7 +83,11 @@ pub enum PromptRequirement {
 }
 
 impl Inputs {
-    pub fn read(args: &SelectionArgs, requirement: PromptRequirement) -> Result<Inputs, Refusal> {
+    pub fn read(
+        args: &SelectionArgs,
+        requirement: PromptRequirement,
+        settings: &Settings,
+    ) -> Result<Inputs, Refusal> {
         args.refuse_empty()?;
         let cwd = std::env::current_dir().map_err(|error| {
             Refusal::new(
@@ -118,8 +125,12 @@ impl Inputs {
             }
             (None, None) => None,
         };
-        let grants = Grants::read(&args.policy_env)?;
-        let limits = Limits::read(args.timeout_ms.as_deref(), args.context_bytes.as_deref())?;
+        let grants = Grants::read(&settings.policy_env, &args.policy_env)?;
+        let limits = Limits::read(
+            args.timeout_ms.as_deref(),
+            args.context_bytes.as_deref(),
+            settings,
+        )?;
         let context = args
             .context
             .as_deref()

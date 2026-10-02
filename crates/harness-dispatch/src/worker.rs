@@ -1016,7 +1016,10 @@ fn output_limit(entry: &str, limits: &Limits) -> Refusal {
 /// policy held evaluation; before, the worker never became ready for it.
 fn expired(worker: &Path, entry: &str, bound: Bound, handed_over: bool) -> Refusal {
     let limit = bound.to_text();
-    let raise = format!("or allow more time with --timeout-ms, up to {SELECTION_MAX_MS}");
+    let raise = format!(
+        "or allow more time with timeoutMs in the owner settings or --timeout-ms, up to \
+         {SELECTION_MAX_MS}"
+    );
     let refusal = if handed_over {
         Refusal::new(
             "selection_timeout",
@@ -1047,7 +1050,7 @@ fn expired(worker: &Path, entry: &str, bound: Bound, handed_over: bool) -> Refus
         .source(worker.to_string_lossy())
     };
     let refusal = refusal.bound(bound);
-    match bound.flag() {
+    match bound.set_by() {
         Some(flag) => refusal.input(flag),
         None => refusal,
     }

@@ -397,7 +397,7 @@ fn a_worker_that_will_not_exit_after_its_result_is_killed_after_the_grace() {
 }
 
 #[test]
-fn the_bound_is_one_to_one_hundred_and_twenty_seconds_in_milliseconds() {
+fn the_bound_is_one_second_to_ten_minutes_in_milliseconds() {
     let sandbox = Sandbox::new();
     let sentinel = sandbox.root.join("policy-ran");
     sandbox.personal_policy(&format!(
@@ -406,7 +406,7 @@ fn the_bound_is_one_to_one_hundred_and_twenty_seconds_in_milliseconds() {
     ));
     for malformed in [
         "999",
-        "120001",
+        "600001",
         "0",
         "abc",
         "1.5",
@@ -429,7 +429,7 @@ fn the_bound_is_one_to_one_hundred_and_twenty_seconds_in_milliseconds() {
     // The boundary values are accepted, and each is the effective bound. One
     // second can run out on a loaded machine before the worker returns; the
     // refusal then names the bound, which is just as much the effective one.
-    for accepted in [1000, 120_000] {
+    for accepted in [1000, 600_000] {
         let run = sandbox.inspect(&[
             "--kind",
             "impl",

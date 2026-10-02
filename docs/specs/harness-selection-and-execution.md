@@ -298,7 +298,8 @@ flag's own rules, so a bound outside its range or an excluded grant refuses as
 the flag would. A file that is not a JSON object, or that holds an unknown key,
 refuses with exit 2, naming the file and the key. The file has the personal
 policy's authority and its rules: it is found from HOME alone, and no variable,
-cwd or repository file supplies or replaces it. Every command reads it, the
+cwd or repository file supplies or replaces it. Without an absolute HOME it has
+no location and sets nothing. Every command reads it, the
 record commands included, so they find the same store. Inspection reports each
 bound and the record directory with where its value came from. The policy entry
 has no setting. An owner who keeps policy elsewhere re-exports it from the

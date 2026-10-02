@@ -37,8 +37,11 @@ reproduces it. Nothing is run in place of a command that was refused. An
 interrupt before the harness starts cancels the run, and nothing runs. The
 harness inherits the caller's signal mask and ignored signals, SIGPIPE's
 included. The policy runs with a scrubbed environment, plus exactly the
-variables you grant it with `--policy-env`, and nothing in the current
-directory or the environment can run code in it or change which worker runs.
+variables you grant it, and nothing in the current directory or the
+environment can run code in it or change which worker runs. What you set about
+every invocation, the time bound and the grants among it, lives in one
+[settings file](#owner-settings) beside your policy, so a caller passes none of
+it.
 
 ## Install
 
@@ -160,6 +163,63 @@ reaches the SDK built into the worker. With no such package the import
 refuses, and beside a `node_modules/harness-dispatch` it loads that package.
 Import `harness-dispatch/sdk` by its name.
 
+## Owner settings
+
+What you set about every invocation, without a caller passing anything, lives
+in one optional JSON file beside your policy,
+`~/.config/harness-dispatch/settings.json`:
+
+```json
+{
+  "timeoutMs": 240000,
+  "contextBytes": 1048576,
+  "stateDir": "/home/me/.local/state/dispatch-records",
+  "policyEnv": ["ROUTER_TOKEN"]
+}
+```
+
+| Key | Sets | Flag that replaces it |
+|---|---|---|
+| `timeoutMs` | [The selection bound](#the-selection-bound), in milliseconds, from 1000 to 600000 | `--timeout-ms` |
+| `contextBytes` | The [context budget](#bounds), in bytes, from 1 to 8388608 | `--context-bytes` |
+| `stateDir` | The directory holding [run records](#run-records), an absolute path | `--state-dir` |
+| `policyEnv` | The names [granted to the policy](#the-policys-environment), an array | `--policy-env` adds to it |
+
+Every key is optional, and a missing file sets nothing. Every command reads
+the file before any policy runs, `record show` and `record observe` included,
+so they all find the same records. A flag replaces its setting for one
+invocation, and `--policy-env` adds names to the ones the file grants.
+[Inspection](#inspect) reports each bound and the record directory with where
+its value came from: `default`, `settings.json` or the flag.
+
+A value is held to its flag's own rules. A bound outside its range refuses as
+`malformed_input`, and a name that is never granted as `excluded_grant`, as the
+flag would. A file that cannot be read, is not a JSON object, holds a key
+other than these four, or holds a `stateDir` that is not an absolute path or a
+`policyEnv` that is not an array of strings refuses as `settings_invalid`. Each
+is exit 2, before any policy runs, and names the file as `source` and the key
+as `location`.
+
+The file has your personal policy's authority and its rules. It is found from
+HOME alone: no variable, `XDG_CONFIG_HOME` included, and no file in the
+current directory or a repository supplies or replaces it. Without an absolute
+HOME it has no location and sets nothing. There is no setting for the policy
+entry: if you keep your policy elsewhere, re-export it from the personal
+entry, or name it with `--config`.
+
+The settings are the same for every kind. Each bound is a ceiling, so one that
+admits your slowest selection serves the rest. If you raise `timeoutMs` for a
+[deciding agent](#handing-the-prompt-to-a-deciding-agent), you raise it for a
+kind that only consults a table too, and that kind gives up its shorter
+failure bound. A policy that wants a tighter limit on part of its own work
+applies it in its own code. One record directory is what lets a
+[run lookup](#looking-up-a-run) under one kind find a run recorded under
+another.
+
+A setting cannot live in the policy file. The grants shape the worker's
+environment before any policy code loads, and the time bound runs from the
+worker's start, imports included.
+
 ## A policy
 
 ```ts
@@ -273,6 +333,68 @@ tools it has and whether it can write are all set by the policy that starts it.
 And a policy that turns outside text into a command, such an agent's answer or
 a file's content included, should choose among commands its own code wrote, and
 never place that text in `program` or `args`.
+
+### Handing the prompt to a deciding agent
+
+harness-dispatch ships no agent policy and calls no model. The SDK has no
+subprocess API either: a policy that wants an agent's judgment starts the agent
+itself, with the runtime's own process API, and that is all dynamic dispatch
+needs.
+
+```ts
+const COMMANDS = {
+  deep: { model: "your-large-model", effort: "high" },
+  quick: { model: "your-small-model", effort: "low" },
+} as const;
+
+async select(request, context, host) {
+  // Bun.spawn: https://bun.com/docs/runtime/child-process
+  const agent = Bun.spawn(["your-deciding-agent", request.prompt], {
+    cwd: request.cwd,     // the worker itself runs in /
+    stdin: "ignore",      // no interactive stdin
+    stdout: "pipe",
+    stderr: "ignore",
+    signal: host.signal,  // stopped when the selection is
+  });
+  const answer = (await new Response(agent.stdout).text()).trim();
+  await agent.exited;     // reaped before select returns
+  const chosen = COMMANDS[answer as keyof typeof COMMANDS];
+  if (chosen === undefined) {
+    return { status: "refused", code: "answer_unknown", message: `the agent answered ${JSON.stringify(answer)}`, remedy: "have it answer deep or quick" };
+  }
+  return {
+    status: "selected",
+    program: "your-harness",
+    args: ["--model", chosen.model, "--effort", chosen.effort, request.prompt],
+    provider: "your-provider", model: chosen.model, effort: chosen.effort,
+    reason: `the deciding agent answered ${answer}`,
+  };
+}
+```
+
+Four things in it are yours to keep:
+
+- **Start it in `request.cwd`.** The worker runs in `/`, and a child inherits
+  that unless you place it. An agent that resolves what the prompt refers to
+  needs the caller's directory.
+- **Pass `host.signal`.** The front stops only the worker when the selection
+  bound runs out or the selection is interrupted. A child started without the
+  signal outlives a timed-out selection, and keeps doing whatever it was doing.
+- **Reap it before you return**, keep it in the foreground job and give it no
+  interactive stdin. A detached or background service is outside the contract.
+- **Choose among your own commands.** The answer picks an entry. It never
+  becomes a program or an argument.
+
+The agent inherits the worker's environment, so its credentials are names you
+grant in [`policyEnv`](#owner-settings), and its time is the selection bound.
+The 30-second default suits a policy that consults a table. For an agent, set
+`timeoutMs`, up to 600000 (10 minutes).
+
+**Keeping the agent from executing the task is your job**, as
+[above](#a-policy): it holds the mandate, in the directory you started it in,
+and nothing in harness-dispatch or Grove stops it from carrying the task out.
+Tell it to evaluate and not to act, and give it no tools that write where its
+harness lets you choose.
 
 The types for all of this, `Policy`, `SelectionRequest`, `Selected`, `Refused`,
 `DeliveredContext` and `SelectHost`, are in `harness-dispatch/sdk`, and
@@ -908,10 +1030,10 @@ loadContext(request, host) {
 | `--config PATH` | Optional. The policy entry to use instead of the personal default. |
 | `--param NAME=VALUE` | Optional and repeatable. Caller data for `select`, by name. See [parameters](#parameters). |
 | `--context PATH` | Optional. A version-1 JSON context document, read as data, relative to the current directory. See [context](#context). |
-| `--timeout-ms MS` | Optional. The whole-selection bound in milliseconds, from 1000 to 120000. The default is 30000. See [the selection bound](#the-selection-bound). |
-| `--context-bytes BYTES` | Optional. The context budget in bytes, from 1 to 8388608 (8 MiB). The default is 262144 (256 KiB). See [bounds](#bounds). |
-| `--state-dir PATH` | Optional. The directory holding run records, instead of `~/.local/state/harness-dispatch`, resolved against the current directory. See [run records](#run-records). |
-| `--policy-env NAME` | Optional and repeatable. Give the policy this environment variable, by exact name, from harness-dispatch's own environment. See [the policy's environment](#the-policys-environment). |
+| `--timeout-ms MS` | Optional. The whole-selection bound in milliseconds, from 1000 to 600000, replacing the `timeoutMs` [owner setting](#owner-settings). The default is 30000. See [the selection bound](#the-selection-bound). |
+| `--context-bytes BYTES` | Optional. The context budget in bytes, from 1 to 8388608 (8 MiB), replacing the `contextBytes` owner setting. The default is 262144 (256 KiB). See [bounds](#bounds). |
+| `--state-dir PATH` | Optional. The directory holding run records, resolved against the current directory, replacing the `stateDir` owner setting. The default is `~/.local/state/harness-dispatch`. See [run records](#run-records). |
+| `--policy-env NAME` | Optional and repeatable. Give the policy this environment variable, by exact name, from harness-dispatch's own environment, beside the names the `policyEnv` owner setting grants. See [the policy's environment](#the-policys-environment). |
 | `--json` | Optional. Report as JSON. `inspect` prints one version-2 object on stdout, `run` writes its handoff notice as one JSON line on stderr, and each writes a refusal as JSON on stderr. See [inspect](#inspect), [run](#run) and [refusals](#refusals). |
 
 The prompt is read once and kept byte for byte, trailing newlines included. It
@@ -972,8 +1094,8 @@ and a policy that catches the error a bound throws is refused all the same.
 
 | Bound | Default | Limit, and what exceeding it does |
 |---|---|---|
-| The whole selection, from the worker's start to its result | 30 seconds | `--timeout-ms` sets 1 to 120 seconds; `selection_timeout`, exit 124 |
-| The delivered context's encoded JSON, `measured` included | 256 KiB | `--context-bytes` sets 1 byte to 8 MiB; `context_too_large` |
+| The whole selection, from the worker's start to its result, any child the policy starts included | 30 seconds | `timeoutMs` or `--timeout-ms` sets 1 to 600 seconds; `selection_timeout`, exit 124 |
+| The delivered context's encoded JSON, `measured` included | 256 KiB | `contextBytes` or `--context-bytes` sets 1 byte to 8 MiB; `context_too_large` |
 | One host read | 64 KiB, or the context budget if that is smaller | A read's `maxBytes` sets up to the context budget; `source_too_large` |
 | Measured sources, the `--context` document included, and records in a context's `sources` | 256 | Fixed; `too_many_sources` |
 | The exported policy object, or `select`'s result, as a protocol message | 1 MiB | Fixed; `message_too_large` |
@@ -987,9 +1109,9 @@ can put the result over the message bound: have the harness read such a prompt
 from a file an argument names. Output past its bound is read and discarded, so that the policy never
 blocks writing it, and the worker is stopped at once. The first 256 KiB are
 kept in `diagnostics`. Inspection reports every bound, with `from` saying
-whether it is the `default`, `fixed`, or set by `--timeout-ms`,
-`--context-bytes` or a read's `maxBytes`. A refusal a bound caused names it as
-`bound`.
+whether it is the `default`, `fixed`, or set by `settings.json` (the
+[owner settings](#owner-settings)), `--timeout-ms`, `--context-bytes` or a
+read's `maxBytes`. A refusal a bound caused names it as `bound`.
 
 ### The selection bound
 
@@ -997,11 +1119,14 @@ Your policy is trusted TypeScript, and it can hang: a loop at import, or an
 `await` on work that never settles. So the whole selection has a wall-clock
 bound. It runs from the worker's start to its result, and it covers the
 policy's import, everything the policy does while it loads, its
-`loadContext` and its `select`.
-The default is
-30 seconds. `--timeout-ms` sets it for one invocation, anywhere from 1000
-(1 second) to 120000 (2 minutes). A value outside that range, or anything but
-plain digits, refuses with exit 2 before any policy runs.
+`loadContext` and its `select`, and the time of any child the policy starts
+and waits for. The default is 30 seconds, short so that a policy which only
+consults a table fails fast. The `timeoutMs` [owner setting](#owner-settings)
+sets it for every invocation and `--timeout-ms` for one, anywhere from 1000
+(1 second) to 600000 (10 minutes), a ceiling that admits a policy which waits
+minutes for a [deciding agent](#handing-the-prompt-to-a-deciding-agent). A
+value outside that range, or anything but a whole number, refuses with exit 2
+before any policy runs.
 
 The front process keeps the time itself, so the bound holds whatever the policy
 does, including a synchronous loop that no timer inside the worker could
@@ -1017,14 +1142,15 @@ is launched, and the command exits **124**:
  "remedy":"…","exit":124},"diagnostics":{"stdout":"","stderr":""}}
 ```
 
-`bound.from` is `--timeout-ms` or `default`, and whatever the policy printed
-before it was stopped is kept in `diagnostics`. `host.signal` aborts when the
+`bound.from` is `--timeout-ms`, `settings.json` or `default`, and whatever the
+policy printed before it was stopped is kept in `diagnostics`. `host.signal` aborts when the
 worker is sent TERM, and a policy with no TERM listener of its own then ends
 once its abort listeners have run. A worker that returns its result
 in time but then does not exit, because an exit handler holds it, also gets one
 second before it is killed. Its selection stands. A policy that starts
 processes of its own must end them before it returns; the front stops only the
-worker.
+worker. Starting a child under `host.signal` is what stops it with the
+selection.
 
 ### Interrupting a selection
 
@@ -1211,7 +1337,7 @@ when it is given the same prompt.
 An explicit entry adds `"argument"` to `policy`, the `--config` value as
 given. A prompt read from a file reports `"from": "--prompt-file"` and its
 `"path"`. `params` is `{}` when no parameter was passed. `stateDir.from` is
-`default` or `--state-dir`. With a context, `context` is
+`default`, `settings.json` or `--state-dir`. With a context, `context` is
 `{ "loader", "sources", "sourceBytes", "encodedBytes", "sha256", "value" }`,
 as [context](#what-select-receives-and-what-inspection-shows) describes, and
 `reviewedArtifact` is the context's, when it names one, with its `creator`.
@@ -1219,9 +1345,9 @@ Text shows the context's size, digest and each measured source, and leaves the
 value to `--json`. It also says how the program was found: as an absolute
 path, relative to the current directory, or on `PATH` and in which entry.
 
-`policyEnv` lists each name granted with `--policy-env`, and whether it was
-set, as `{ "name", "set" }`; text shows a `policy env` row. Neither ever shows
-a value.
+`policyEnv` lists each name granted, by the owner settings and then by
+`--policy-env`, and whether it was set, as `{ "name", "set" }`; text shows a
+`policy env` row. Neither ever shows a value.
 
 `adapter` is `{ "specifier": "harness-dispatch/grove", "version": "1" }` once
 the policy has imported the [Grove adapter](#the-grove-review-policy), whether
@@ -1255,8 +1381,10 @@ harness-dispatch inspect --kind impl --policy-env ROUTER_TOKEN
 ```
 
 Each `--policy-env NAME` passes that one variable, exactly as named, with its
-value, to the policy and to any process it starts. A name that is not set is
-simply absent. Some names are never granted, and naming one refuses with
+value, to the policy and to any process it starts. The `policyEnv`
+[owner setting](#owner-settings) grants names the same way for every
+invocation, and the flag adds to them. A name that is not set is simply
+absent. Some names are never granted, and naming one refuses with
 `excluded_grant`, exit 2, before any policy runs: Bun's `BUN_*` (`BUN_OPTIONS`
 can preload code, and `BUN_BE_BUN` turns the worker into Bun itself);
 `NODE_OPTIONS`, `NODE_PATH` and `NODE_PRESERVE_SYMLINKS`, which change what
@@ -1379,7 +1507,8 @@ review's creator from its task file.
 
 The harness receives Grove's completion channel, `GROVE_SIGNAL_FILE`, in the
 environment it inherits. The policy does not, and must not be granted it with
-`--policy-env` ([the policy's environment](#the-policys-environment)).
+`policyEnv` or `--policy-env`
+([the policy's environment](#the-policys-environment)).
 [Routing sessions through harness-dispatch](../../docs/CONFIGURATION.md#harness-dispatch),
 in Grove's configuration reference, covers activation, both inspection
 surfaces and the remedy when a launch refuses.
@@ -1392,8 +1521,9 @@ one that is killed at once leave the same record. harness-dispatch records
 nothing after exec, because nothing of it is left to observe the harness.
 
 The records live in one SQLite file, `records.sqlite3`, in the state
-directory. That is `~/.local/state/harness-dispatch` unless `--state-dir`
-names another directory. `XDG_STATE_HOME` is not consulted. Both the directory
+directory. That is `~/.local/state/harness-dispatch` unless the `stateDir`
+[owner setting](#owner-settings) or `--state-dir` names another directory.
+`XDG_STATE_HOME` is not consulted. Both the directory
 and the file are created on first use, readable by you alone. SQLite is built
 into harness-dispatch, so nothing else needs installing. The commit is one
 short transaction, synced as SQLite's `synchronous = EXTRA` setting does (with
@@ -1633,7 +1763,7 @@ inspection reads the store as `run` does.
 
 | Exit | Stage | Codes |
 |---|---|---|
-| 2 | `cli` | `malformed_input` (including a command line that cannot be parsed, a `--param` that is repeated, has no `=` or has no name, parameters over 64 KiB together, and a `--policy-env` name that is empty or holds `=`), `excluded_grant` (a `--policy-env` name that is never granted), `prompt_invalid`, `prompt_unreadable` |
+| 2 | `cli` | `malformed_input` (including a command line that cannot be parsed, a `--param` that is repeated, has no `=` or has no name, parameters over 64 KiB together, and a `--policy-env` name that is empty or holds `=`), `excluded_grant` (a `--policy-env` name that is never granted), `prompt_invalid`, `prompt_unreadable`; `settings_invalid` (the [owner settings](#owner-settings) file cannot be read or has the wrong shape), and `malformed_input` or `excluded_grant` for a setting its flag would refuse, each naming the file as `source` and the key as `location` |
 | 3 | `authority` | `policy_missing`, `policy_unreadable`, `home_unset`, `cwd_unavailable` |
 | 3 | `load` | `policy_import_failed` (a missing import, the entry threw while loading, or an await in it never settled) |
 | 3 | `load` | `message_too_large` (the exported policy object is over 1 MiB) |

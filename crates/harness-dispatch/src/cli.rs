@@ -4,7 +4,8 @@
 //! `inspect` and `run` accept the same selection inputs: the kind, the policy
 //! entry, the prompt, the optional task file and identity, the caller's
 //! parameters and context document, the selection and context bounds, the
-//! record directory and the worker's environment grants.
+//! record directory and the worker's environment grants. The last four are
+//! also owner settings (`settings`), which a flag replaces or adds to.
 //! `record show` exports a recorded run, and `record observe` appends a later
 //! observation to one.
 
@@ -26,7 +27,11 @@ use crate::refusal::{Invocation, Refusal, Stage, EXIT_MALFORMED};
         provider, model and effort labels for what they run, or a refusal.\n\n\
         The policy is the personal default ~/.config/harness-dispatch/policy.ts, or the entry \
         named by --config. No policy in the current directory runs unless --config names it. \
-        Nothing else is needed: no task tree, Grove installation or other caller.",
+        Nothing else is needed: no task tree, Grove installation or other caller.\n\n\
+        Owner settings in ~/.config/harness-dispatch/settings.json apply to every invocation \
+        with no flag passed: timeoutMs, contextBytes, stateDir (an absolute path) and policyEnv \
+        (an array of names). A flag replaces its setting, and --policy-env adds to policyEnv. \
+        inspect reports where each value came from.",
     after_help = "Examples:\n  \
         harness-dispatch inspect --kind impl\n  \
         harness-dispatch run --kind impl --prompt 'Implement the parser'\n  \
@@ -168,7 +173,7 @@ pub struct ShowArgs {
     /// The run's ID, as run reported it and the harness received it in HARNESS_DISPATCH_RUN_ID
     #[arg(long, value_name = "RUN_ID")]
     pub run: OsString,
-    /// Read records from this directory instead of ~/.local/state/harness-dispatch; relative to the current directory
+    /// Read records from this directory instead of the stateDir owner setting or ~/.local/state/harness-dispatch; relative to the current directory
     #[arg(long, value_name = "PATH")]
     pub state_dir: Option<PathBuf>,
     /// Print one version-1 JSON object on stdout, or one JSON error on stderr
@@ -184,7 +189,7 @@ pub struct ObserveArgs {
     /// The version-1 observation document, a JSON file relative to the current directory
     #[arg(long, value_name = "PATH")]
     pub file: PathBuf,
-    /// Read and append records in this directory instead of ~/.local/state/harness-dispatch; relative to the current directory
+    /// Read and append records in this directory instead of the stateDir owner setting or ~/.local/state/harness-dispatch; relative to the current directory
     #[arg(long, value_name = "PATH")]
     pub state_dir: Option<PathBuf>,
     /// Print one version-1 JSON object on stdout, or one JSON error on stderr
@@ -242,18 +247,18 @@ pub struct SelectionArgs {
     /// A version-1 JSON context document for the policy, read as data; relative to the current directory
     #[arg(long, value_name = "PATH")]
     pub context: Option<PathBuf>,
-    /// Stop the policy and launch nothing (exit 124) if selection takes longer; 1000 to 120000 [default: 30000]
+    /// Stop the policy and launch nothing (exit 124) if selection takes longer; 1000 to 600000, replacing the timeoutMs owner setting [default: 30000]
     #[arg(long, value_name = "MS")]
     pub timeout_ms: Option<OsString>,
-    /// Refuse a context delivered to selection that encodes to more bytes; 1 to 8388608 [default: 262144]
+    /// Refuse a context delivered to selection that encodes to more bytes; 1 to 8388608, replacing the contextBytes owner setting [default: 262144]
     #[arg(long, value_name = "BYTES")]
     pub context_bytes: Option<OsString>,
 
-    /// Keep run records in this directory instead of ~/.local/state/harness-dispatch; relative to the current directory
+    /// Keep run records in this directory instead of the stateDir owner setting or ~/.local/state/harness-dispatch; relative to the current directory
     #[arg(long, value_name = "PATH")]
     pub state_dir: Option<PathBuf>,
 
-    /// Give the policy worker this environment variable, by exact name, beyond HOME, PATH, TMPDIR, LANG and LC_*; repeatable. BUN_*, NODE_OPTIONS, NODE_PATH, NODE_PRESERVE_SYMLINKS, NODE_CHANNEL_*, LD_*, DYLD_* and HARNESS_DISPATCH_* are never granted, and values are never shown. Do not grant GROVE_SIGNAL_FILE: it would give the policy the power to end a Grove session
+    /// Give the policy worker this environment variable, by exact name, beyond HOME, PATH, TMPDIR, LANG, LC_* and the policyEnv owner setting; repeatable. BUN_*, NODE_OPTIONS, NODE_PATH, NODE_PRESERVE_SYMLINKS, NODE_CHANNEL_*, LD_*, DYLD_* and HARNESS_DISPATCH_* are never granted, and values are never shown. Do not grant GROVE_SIGNAL_FILE: it would give the policy the power to end a Grove session
     #[arg(long, value_name = "NAME")]
     pub policy_env: Vec<OsString>,
 }

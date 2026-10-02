@@ -858,10 +858,10 @@ fn a_task_file_that_cannot_be_read_refuses_naming_it() {
     // The read already takes the whole budget, so the budget's flag is the
     // remedy, never a larger read the owner cannot make.
     assert!(
-        refusal["error"]["remedy"]
-            .as_str()
-            .unwrap()
-            .starts_with("raise the context budget with --context-bytes"),
+        refusal["error"]["remedy"].as_str().unwrap().starts_with(
+            "raise the context budget with contextBytes in the owner settings or \
+                 --context-bytes"
+        ),
         "{refusal}"
     );
 }

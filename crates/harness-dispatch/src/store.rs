@@ -68,9 +68,10 @@ use serde_json::{json, Value};
 
 use crate::refusal::{Refusal, Stage, EXIT_RECORD};
 use crate::run_id::RunId;
+use crate::settings::{self, Settings};
 
 /// The default state directory, relative to HOME. `XDG_STATE_HOME` is not
-/// consulted: an environment-selected location is what `--state-dir` is for.
+/// consulted: the owner settings and `--state-dir` are what name another.
 pub const DEFAULT_STATE_DIR: &str = ".local/state/harness-dispatch";
 pub const STORE_FILE: &str = "records.sqlite3";
 
@@ -132,23 +133,32 @@ const NOW: &str = "strftime('%Y-%m-%dT%H:%M:%fZ', 'now')";
 /// Where this invocation's records live.
 #[derive(Clone, Debug)]
 pub struct StateDir {
-    /// Absolute: `--state-dir` joined to the original cwd, or the default
-    /// under HOME. Kept as spelled; symlinks are not resolved.
+    /// Absolute: `--state-dir` joined to the original cwd, the owner
+    /// settings' directory, or the default under HOME. Kept as spelled;
+    /// symlinks are not resolved.
     pub path: PathBuf,
-    /// The flag that chose it, or `None` for the default.
-    pub flag: Option<&'static str>,
+    /// The input that chose it, or `None` for the default.
+    pub set_by: Option<&'static str>,
 }
 
 impl StateDir {
+    /// `--state-dir` replaces the owner's setting, which replaces the default.
     pub fn resolve(
         given: Option<&Path>,
+        settings: &Settings,
         cwd: &Path,
         home: Option<&OsStr>,
     ) -> Result<StateDir, Refusal> {
         if let Some(given) = given {
             return Ok(StateDir {
                 path: cwd.join(given),
-                flag: Some("--state-dir"),
+                set_by: Some("--state-dir"),
+            });
+        }
+        if let Some(setting) = &settings.state_dir {
+            return Ok(StateDir {
+                path: setting.clone(),
+                set_by: Some(settings::ORIGIN),
             });
         }
         let remedy = "set HOME to your absolute home directory, or name the record directory \
@@ -172,7 +182,7 @@ impl StateDir {
         }
         Ok(StateDir {
             path: home.join(DEFAULT_STATE_DIR),
-            flag: None,
+            set_by: None,
         })
     }
 
@@ -181,7 +191,7 @@ impl StateDir {
     }
 
     pub fn from(&self) -> &'static str {
-        self.flag.unwrap_or("default")
+        self.set_by.unwrap_or("default")
     }
 
     pub fn to_json(&self) -> Value {
@@ -189,7 +199,7 @@ impl StateDir {
     }
 
     pub fn to_text(&self) -> String {
-        let from = self.flag.unwrap_or("the default");
+        let from = self.set_by.unwrap_or("the default");
         format!("{} ({from})", self.path.display())
     }
 }
@@ -714,7 +724,7 @@ impl StoreFailure {
     /// `wait` is the lock wait the attempt had, which a lock refusal reports.
     fn refusal(self, dir: &StateDir, file: &Path, attempt: &str, wait: Duration) -> Refusal {
         let store = file.display();
-        let elsewhere = match dir.flag {
+        let elsewhere = match dir.set_by {
             Some(_) => "or name another record directory with --state-dir",
             None => "or name a record directory with --state-dir",
         };

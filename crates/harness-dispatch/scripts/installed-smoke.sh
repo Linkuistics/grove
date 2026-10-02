@@ -31,7 +31,7 @@
 set -euo pipefail
 IFS=$'\n\t'
 
-CASES=(table_typescript parameters_typescript declared_package signal_state)
+CASES=(table_typescript parameters_typescript child_answer declared_package signal_state)
 
 fail() {
   echo "installed-smoke: FAIL: $*" >&2
@@ -299,6 +299,75 @@ case_parameters_typescript() {
     fail "record show of run $run_id exited $?"
   expect_json "$dir/record.json" '"params":{"session":"smoke one"}'
   expect_json "$dir/record.json" "\"reason\":\"prompted $reason"
+}
+
+# A policy that starts a child and uses its answer, as one that hands the
+# prompt to a deciding agent does. A script stands in for the agent: it records
+# its cwd and the prompt it was given beside itself, and answers `quick`. The
+# policy starts it with the runtime's own process API in the caller's
+# directory, under the host's signal, reaps it, and looks the answer up among
+# the commands it wrote itself. So the answer is seen to choose the command,
+# and the child to have run where the caller is, which the worker never is.
+case_child_answer() {
+  local front="$1" dir="$2"
+  local harness="$dir/harness/fake-harness" state="$dir/state" agent="$dir/agent/decide"
+  local prompt=$'child smoke; $HOME stays literal\n'
+  mkdir -p "$dir/policy" "$dir/cwd" "$dir/agent"
+  write_fake_harness "$harness"
+  # shellcheck disable=SC2016 # the stand-in's own code, expanded when it runs
+  write_lines "$agent" \
+    '#!/bin/sh' \
+    'here="$(dirname "$0")"' \
+    'pwd -P >"$here/cwd"' \
+    'printf "%s" "$1" >"$here/prompt"' \
+    'echo quick'
+  chmod +x "$agent"
+  # shellcheck disable=SC2016 # TypeScript template literals, not shell expansions
+  write_lines "$dir/policy/policy.ts" \
+    'import { definePolicy, type SelectHost, type SelectionRequest, type SelectionResult } from "harness-dispatch/sdk";' \
+    '' \
+    'const efforts: Readonly<Record<string, string>> = { deep: "high", quick: "low" };' \
+    '' \
+    'async function select(request: SelectionRequest, _context: unknown, host: SelectHost): Promise<SelectionResult> {' \
+    "  const agent = Bun.spawn([\"$agent\", request.prompt], {" \
+    '    cwd: request.cwd, stdin: "ignore", stdout: "pipe", stderr: "ignore", signal: host.signal,' \
+    '  });' \
+    '  const answer = (await new Response(agent.stdout).text()).trim();' \
+    '  await agent.exited;' \
+    '  const effort = efforts[answer];' \
+    '  if (effort === undefined) {' \
+    '    return { status: "refused", code: "smoke_answer_unknown", message: `the child answered ${JSON.stringify(answer)}`, remedy: "answer deep or quick" };' \
+    '  }' \
+    '  return {' \
+    '    status: "selected",' \
+    "    program: \"$harness\"," \
+    '    args: ["--effort", effort, request.prompt],' \
+    '    provider: "smoke-provider",' \
+    '    model: "smoke-model",' \
+    '    effort,' \
+    '    reason: `the child answered ${answer}`,' \
+    '  };' \
+    '}' \
+    '' \
+    'export const policy = definePolicy({' \
+    '  schemaVersion: 2,' \
+    '  version: "installed-smoke-child",' \
+    '  select,' \
+    '});'
+
+  local status=0 received="$dir/harness/received"
+  (cd "$dir/cwd" && "$front" run --kind smoke --config "$dir/policy/policy.ts" \
+    --state-dir "$state" --prompt "$prompt" --json) \
+    >"$dir/run.stdout" 2>"$dir/run.stderr" || status=$?
+  [[ "$status" == 42 ]] ||
+    fail "run exited $status, not the fake harness's 42; its stderr: $(cat "$dir/run.stderr")"
+  expect_json "$dir/run.stderr" '"reason":"the child answered quick"'
+  expect_json "$dir/run.stderr" '"effort":"low"'
+  expect_received "$received" "$harness" --effort low "$prompt"
+  [[ "$(cat "$dir/agent/cwd")" == "$dir/cwd" ]] ||
+    fail "the policy's child ran in $(cat "$dir/agent/cwd"), not the caller's $dir/cwd"
+  printf '%s' "$prompt" | cmp -s - "$dir/agent/prompt" ||
+    fail "the policy's child was given [$(cat "$dir/agent/prompt")], not the prompt"
 }
 
 # Two packages in a node_modules beside the policy, each found only through

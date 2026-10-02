@@ -197,6 +197,17 @@ impl Sandbox {
         path
     }
 
+    pub fn settings_path(&self) -> PathBuf {
+        self.home.join(".config/harness-dispatch/settings.json")
+    }
+
+    /// Write the owner settings file under the sandbox's HOME.
+    pub fn settings(&self, document: &Value) -> PathBuf {
+        let path = self.settings_path();
+        write(&path, &document.to_string());
+        path
+    }
+
     /// Write a file relative to the sandbox's working directory.
     pub fn file(&self, relative: &str, contents: &str) -> PathBuf {
         let path = self.cwd.join(relative);

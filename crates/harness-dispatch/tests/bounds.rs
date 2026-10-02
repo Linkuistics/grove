@@ -350,7 +350,8 @@ fn a_read_that_already_takes_the_whole_budget_is_remedied_by_the_budget() {
             ", request.limits.contextBytes",
             &[][..],
             json!({ "bytes": 262_144, "from": "maxBytes" }),
-            "raise the context budget with --context-bytes, up to 8388608: a read whose \
+            "raise the context budget with contextBytes in the owner \
+             settings or --context-bytes, up to 8388608: a read whose \
              maxBytes is request.limits.contextBytes takes the new budget",
         ),
         (
@@ -358,7 +359,8 @@ fn a_read_that_already_takes_the_whole_budget_is_remedied_by_the_budget() {
             "",
             &["--context-bytes", "1024"][..],
             json!({ "bytes": 1024, "from": "--context-bytes" }),
-            "raise the context budget with --context-bytes, up to 8388608: a read without \
+            "raise the context budget with contextBytes in the owner \
+             settings or --context-bytes, up to 8388608: a read without \
              maxBytes takes the budget, up to 65536 bytes",
         ),
     ] {

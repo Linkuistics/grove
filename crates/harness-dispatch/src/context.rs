@@ -167,8 +167,9 @@ pub fn read_caller(given: &Path, cwd: &Path, limits: &Limits) -> Result<CallerCo
                  {budget} bytes"
             ),
             format!(
-                "shorten the document, or raise the bound with --context-bytes, up to \
-                 {CONTEXT_MAX_BYTES}; harness-dispatch never truncates a context to fit"
+                "shorten the document, or raise the bound with contextBytes in the owner \
+                 settings or --context-bytes, up to {CONTEXT_MAX_BYTES}; harness-dispatch never \
+                 truncates a context to fit"
             ),
         )
         .input("--context")
@@ -375,13 +376,14 @@ pub fn context_too_large(limits: &Limits, actual: u64, source: &str, loader: boo
              included, over the context bound of {budget} bytes"
         ),
         format!(
-            "{deliver_less}, or raise the bound with --context-bytes, up to {CONTEXT_MAX_BYTES}; \
+            "{deliver_less}, or raise the bound with contextBytes in the owner \
+             settings or --context-bytes, up to {CONTEXT_MAX_BYTES}; \
              harness-dispatch never truncates a context to fit"
         ),
     )
     .source(source)
     .bound(limits.context);
-    match limits.context.flag() {
+    match limits.context.set_by() {
         Some(flag) => refusal.input(flag),
         None => refusal,
     }
@@ -426,8 +428,8 @@ pub fn source_too_large(limits: &Limits, breach: &SourceBreach, entry: &str) -> 
                  context budget of {budget} bytes, which no read may exceed"
             ),
             format!(
-                "pass a maxBytes of at most {budget}, or raise the budget with --context-bytes, \
-                 up to {CONTEXT_MAX_BYTES}"
+                "pass a maxBytes of at most {budget}, or raise the budget with contextBytes in \
+                 the owner settings or --context-bytes, up to {CONTEXT_MAX_BYTES}"
             ),
             Bound {
                 name: "source",
@@ -462,14 +464,16 @@ pub fn source_too_large(limits: &Limits, breach: &SourceBreach, entry: &str) -> 
                 )
             } else if breach.from == Origin::Set("maxBytes") {
                 format!(
-                    "raise the context budget with --context-bytes, up to {CONTEXT_MAX_BYTES}: a \
+                    "raise the context budget with contextBytes in the owner \
+                     settings or --context-bytes, up to {CONTEXT_MAX_BYTES}: a \
                      read whose maxBytes is request.limits.contextBytes takes the new budget, and \
                      one with a fixed maxBytes needs it raised too; or read a smaller source, \
                      since a read is never truncated"
                 )
             } else {
                 format!(
-                    "raise the context budget with --context-bytes, up to {CONTEXT_MAX_BYTES}: a \
+                    "raise the context budget with contextBytes in the owner \
+                     settings or --context-bytes, up to {CONTEXT_MAX_BYTES}: a \
                      read without maxBytes takes the budget, up to {SOURCE_DEFAULT_BYTES} bytes; \
                      or read a smaller source, since a read is never truncated"
                 )
@@ -910,7 +914,14 @@ mod tests {
     use super::*;
 
     fn limits() -> Limits {
-        Limits::read(None, None).unwrap()
+        Limits::read(None, None, &crate::settings::Settings::default()).unwrap()
+    }
+
+    /// The limits under a `--context-bytes` of `bytes`.
+    fn budget(bytes: usize) -> Limits {
+        let bytes = bytes.to_string();
+        let settings = crate::settings::Settings::default();
+        Limits::read(None, Some(std::ffi::OsStr::new(&bytes)), &settings).unwrap()
     }
 
     fn refused(author: Author, value: Value) -> Refusal {
@@ -1154,23 +1165,18 @@ mod tests {
         assert_eq!(delivered.sha256, hex(&Sha256::digest(encoded.as_bytes())));
         assert_eq!(delivered.source_bytes, 30);
 
-        let budget =
-            Limits::read(None, Some(std::ffi::OsStr::new(&encoded.len().to_string()))).unwrap();
+        let exact = budget(encoded.len());
         let context = json!({ "summary": "s", "schemaVersion": 1 });
         let at_bound = deliver(
             context.clone(),
             delivered.sources.clone(),
             Vec::new(),
             false,
-            &budget,
+            &exact,
             "c",
         );
         assert!(at_bound.is_ok());
-        let over = Limits::read(
-            None,
-            Some(std::ffi::OsStr::new(&(encoded.len() - 1).to_string())),
-        )
-        .unwrap();
+        let over = budget(encoded.len() - 1);
         let refusal =
             deliver(context, delivered.sources, Vec::new(), false, &over, "c").unwrap_err();
         assert_eq!(refusal.code, "context_too_large");
@@ -1220,8 +1226,7 @@ mod tests {
         );
         assert!(without.unwrap().value.get("runs").is_none());
 
-        let short = (bytes.len() - 1).to_string();
-        let over = Limits::read(None, Some(std::ffi::OsStr::new(&short))).unwrap();
+        let over = budget(bytes.len() - 1);
         let refusal = deliver(context, vec![source], vec![answer], true, &over, "p").unwrap_err();
         assert_eq!(refusal.code, "context_too_large");
     }

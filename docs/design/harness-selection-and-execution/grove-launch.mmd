@@ -1,0 +1,26 @@
+sequenceDiagram
+  participant G as Grove
+  participant N as Runner (job, terminal, channel)
+  participant X as harness-dispatch beside Grove
+  participant P as Owner policy
+  participant H as Harness
+  Note over G,H: Lifecycle session: bare grove
+  G->>N: run --kind --task-file --task-id --prompt + session_name, worktree, repo
+  N->>X: Spawn as the foreground job, completion channel in its environment
+  X->>P: select(request)
+  alt Policy refuses, or no policy
+    X-->>N: Diagnostic + remedy + inspect line on the terminal, nonzero exit
+    N-->>G: Ended without a completion signal
+    Note over G: Leaf stays live, loop stops, rerunning grove continues
+  else Command selected
+    X->>H: Record the run, then exec: same process, same job
+    H-->>N: Completion signal, then the runner's escalation
+  end
+  Note over G,H: Standalone invocation: grove run KIND
+  G->>G: Stage the private working directory
+  G->>X: inspect --json --kind --prompt + parameters, in Grove's own environment
+  X->>P: select(request), outside the sandbox
+  X-->>G: The command, as data. No run is recorded
+  G->>N: The reported command + confinement
+  N->>H: Spawn inside the sandbox, no terminal, small environment
+  H-->>N: Completion signal, then outputs are published

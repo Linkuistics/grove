@@ -1011,6 +1011,51 @@ _Avoid_: expecting Grove or harness-dispatch to supply one, or to keep it from
 executing the task it evaluates. Neither ships an agent policy, and what a
 deciding agent is told and permitted is its owner's to state.
 
+<a id="selected-command"></a>
+### Selected command
+
+What a harness-dispatch `select` returns when it does not refuse: a program, its
+arguments, and the owner's provider, model and effort labels for what they run.
+The command validates its shape and runs it; it comes from no catalog.
+_Avoid_: *candidate* and *candidate ID* for it. A [[Joint candidate]] was a
+catalog entry a function named, and there is no catalog.
+
+<a id="selection-parameter"></a>
+### Selection parameter
+
+A named string a caller passes to harness-dispatch with `--param`, which reaches
+`select` as data and means nothing to the command. Grove passes three:
+`session_name`, `worktree` and `repo`.
+_Avoid_: *slot*. A slot was a place in a template the tool filled; a parameter
+is a value the owner's function reads.
+
+<a id="owner-settings"></a>
+### Owner settings (`~/.config/harness-dispatch/settings.json`)
+
+What an owner sets about every harness-dispatch invocation without the caller
+passing it: the selection time bound, the context budget, the record directory
+and the environment names granted to the policy. It has the personal policy's
+authority and is read before the policy loads.
+_Avoid_: calling it configuration of Grove. Grove reads no personal file.
+
+<a id="choice-file"></a>
+### Choice file (`.harness-dispatch-choice`)
+
+A file in one checkout that names which of the options an owner's policy offers
+apply there, read by an SDK helper the policy calls. It can choose among those
+options and can introduce nothing.
+_Avoid_: reading it as a [[Configuration delta]]. It names no program, argument
+or kind, so a repository that ships one gains no authority.
+
+<a id="sample-policy"></a>
+### Sample policy
+
+The policy `harness-dispatch init` installs as the owner's own: a conversion of
+one owner's Grove configuration, with real `codex` and `claude` command lines,
+several arrangements and a [[Choice file]] to pick among them.
+_Avoid_: *example* for it. An example is inert until a policy imports it; the
+sample is a file an owner runs and edits.
+
 <a id="spec"></a>
 ### Spec (`docs/specs/<slug>.md`)
 

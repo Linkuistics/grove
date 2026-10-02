@@ -1,10 +1,23 @@
 # Standalone invocations
 
-`grove run` runs one configured task kind without creating or discovering a
-grove, project, jj workspace, driver lease, or local configuration delta. It may
-be called by a task inside a running grove. It uses the existing named commands,
-bindings, routes, parameters and personal profile selection in
-`~/.config/grove/config.kdl`. It does not integrate AgentAnyware.
+`grove run` runs one task kind without creating or discovering a grove,
+project, jj workspace or driver lease. It may be called by a task inside a
+running grove. The owner's harness-dispatch policy selects the command for the
+kind, as it does for a lifecycle session, and Grove reads no configuration of
+its own. It does not integrate AgentAnyware.
+
+## Selection
+
+The policy, the owner's settings and the record store are personal files that a
+confined process must not read, so the command is selected before confinement
+and outside it. Grove asks harness-dispatch to inspect the kind, with the
+invocation's prompt and parameters, and launches the command the inspection
+reports. [Harness selection and execution](harness-selection-and-execution.md#grove-integration)
+owns what is passed and what comes back. Selection runs in Grove's own
+environment, so a grant or bound the owner set for the policy applies. The
+confined harness receives the invocation's small environment, as before, and no
+harness-dispatch run identity: a standalone invocation has no run record. A
+refused selection launches nothing and publishes nothing.
 
 ## Isolation contract
 
@@ -16,11 +29,11 @@ must not overwrite a destination created while the task was running; any partial
 publication is reported explicitly.
 
 Filesystem confinement is mandatory. Installed system runtime resources and the
-configured executable are readable; additional runtime files such as harness
+selected executable are readable; additional runtime files such as harness
 credentials require explicit read-only grants. The parent project is not a
 runtime resource. Writes are confined to the invocation directory and its
 dedicated completion channel. Failure to establish confinement prevents launch.
-The configured harness's permission flags cannot disable this outer boundary.
+The selected harness's permission flags cannot disable this outer boundary.
 
 The invocation receives neither its parent's Grove completion authority nor
 repository selectors or terminal/multiplexer capabilities. Its own completion
@@ -48,8 +61,8 @@ API and is outside this command's initial interface.
 ## Release notes
 
 Release preparation supplies the previous release's changelog, commit
-descriptions and source diff as explicit input artifacts. A configured
-`release-notes` kind produces one Markdown body. The deterministic release task
+descriptions and source diff as explicit input artifacts. A `release-notes`
+kind the owner's policy routes produces one Markdown body. The deterministic release task
 validates and inserts it, commits the notes through jj, and continues its existing
 checks, version cut, builds, publication and installation verification.
 
@@ -59,8 +72,10 @@ must never depend on paid LLM calls.
 
 ## Verification obligations
 
-- No jj invocation or local config read, including from a directory containing
-  hostile `.grove.kdl` and repository selector variables.
+- No jj invocation, including from a directory holding repository selector
+  variables, and a `.grove.kdl` or `config.kdl` there or in HOME changes nothing.
+- The policy selects outside the sandbox; the harness inside it cannot read the
+  personal policy, the owner settings or the record store.
 - Nested completion and cancellation leave the outer completion channel intact.
 - The harness cannot consume caller stdin or obtain its terminal/mux handles.
 - Real sandbox probes deny reads and writes to an unrelated project while

@@ -2,12 +2,12 @@ flowchart TB
   Start["Start here: review policy\nreads the task file"]:::start
   Kind{"Configured\nreview kind?"}
   Decl{"Declares\nReviews?"}
-  Plain["Owner's static\nroute"]
+  Plain["Owner's own\ntable"]
   Line{"One Reviews and\none Creator line?"}
   Form{"Creator\nform?"}
   Run{"R found, not\nmarked failed?"}
-  Member{"Provider in current\ncatalog?"}
-  Choice{"Candidate has a\ndifferent provider?"}
+  Member{"Provider listed in\nthe review entry?"}
+  Choice{"Its reviewer has a\ndifferent provider?"}
   Dispatch["Record provenance\nused, then dispatch"]
   Refuse["Refuse, exit 3:\nno launch, no substitute,\nremedy named"]
   Start -->|"1"| Kind

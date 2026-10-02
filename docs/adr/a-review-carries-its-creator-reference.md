@@ -6,8 +6,9 @@ task handle. The session that finishes a producer launched through
 `harness-dispatch` takes the run ID from its own environment and writes
 `**Creator:** run <run-id>` directly under `**Reviews:**` on its review leaf; a
 finishing session with no run removes any such line instead. The
-policy reads that run's immutable catalog snapshot. An artifact with no run,
-finished before adoption or by a direct harness, carries the owner's
+policy reads the provider label that run recorded at launch, which nothing
+changes afterwards. An artifact with no run, finished by a session that ran
+without dispatch, carries the owner's
 `**Creator:** declared <provider>` instead, and a review with neither refuses.
 The [area specification](../specs/harness-selection-and-execution.md#identity-and-creator)
 owns the reference forms, the checks and the refusals.
@@ -58,8 +59,8 @@ The costs are visible. The reference depends on a session copying its run ID,
 and is that session's attestation: the provider is execution-recorded, the
 association is not. A missing line or an unknown run refuses. A line naming some
 other existing run lends that run's provider, and a session can reach such IDs
-in other review bodies, in version history, or inherited by a direct harness
-launched inside a dispatched session. An attempt whose execution is unknown
+in other review bodies, in version history, or inherited by a harness started
+by hand inside a dispatched session. An attempt whose execution is unknown
 passes on the line's word too. Inspection shows the named run's task identity
 beside the reviewed handle; launch does not compare them. The run that closes a
 decomposed producer's node stands for the whole producer, whatever kind that
@@ -81,13 +82,13 @@ and review must use the same record store.
   lookup and a declaration command. Reopen if handles must become comparable
   across groves for another reason.
 - **Look up by workspace path and handle, storing nothing.** Rejected as unsafe.
-  Take a direct-harness artifact beside a stale same-handle run from an earlier
+  Take an artifact finished without a run beside a stale same-handle run from an earlier
   grove in the same workspace. The lookup would read the stale provider and
   could admit a reviewer from the real creator's provider.
-- **Have the Grove runner supply the provider.** Grove launches an opaque
-  command. It could learn the provider only by persisting launch receipts,
-  which its configuration contract and its review-target-diversity rule exclude.
-  Reopen only if Grove stops treating commands as opaque.
+- **Have the Grove runner supply the provider.** Grove runs the dispatcher and
+  reads nothing back from it. It could learn the provider only by persisting
+  launch receipts, which its review-target-diversity rule excludes.
+  Reopen only if Grove starts keeping a record of what it launched.
 - **Register creators explicitly with `creator bind` and `creator declare`.**
   Nothing produces the execution evidence that binding requires, so every
   unattended review stops for a human declaration (review

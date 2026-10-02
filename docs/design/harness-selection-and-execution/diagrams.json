@@ -1,16 +1,31 @@
 {
   "title": "Harness selection and execution",
-  "intro": "Views of the delivered harness-dispatch command, matching the area specification's package, execution and original-creator topics. These are source-package and process views, not deployment containers. Graphs begin at a dark Start here node; sequence views begin at the first message.",
+  "intro": "Views of the harness-dispatch command and of Grove's use of it, matching the area specification's package, execution and original-creator topics. These are source-package and process views, not deployment containers. Graphs begin at a dark Start here node; sequence views begin at the first message.",
   "groups": [
-    {"id": "boundary", "title": "Package boundary", "description": "One public command, an installed private worker, optional caller adapters."},
-    {"id": "execution", "title": "Execution and authority", "description": "Selection ends before the foreground process becomes the harness."},
+    {"id": "boundary", "title": "Package boundary", "description": "One public command, an installed private worker, one owner policy, optional caller adapters."},
+    {"id": "execution", "title": "Execution and authority", "description": "Selection ends before the foreground process becomes the harness. Grove runs the command for every session."},
     {"id": "provenance", "title": "Original creator and review", "description": "A review carries a reference to its creator's run; run records outlive the task tree."}
   ],
+  "discussion": {
+    "title": "Grove launches through harness-dispatch; a policy returns the command",
+    "status": "Designed in direct-dispatch-k3; awaiting its design review",
+    "summary": "Grove has no launch configuration. A policy is one select function that receives the caller's parameters and the prompt and returns the command or a refusal. A confined grove run selects with inspect and launches the reported command itself.",
+    "diagramIds": ["packages", "handoff", "grove-launch", "creator", "creator-flow", "creator-options"],
+    "updatedDiagrams": [
+      {"id": "packages", "summary": "The policy returns a command instead of a catalog ID; owner settings and the optional choice file are new."},
+      {"id": "handoff", "summary": "The request now carries the prompt, settings are read before the worker starts, and a policy may start a deciding agent."},
+      {"id": "grove-launch", "summary": "New: Grove's lifecycle launch through run, and its confined standalone launch through inspect."},
+      {"id": "creator", "summary": "The provider is checked against the review entry's origins, not a catalog."},
+      {"id": "creator-flow", "summary": "The run records the selected command's provider label; no candidate remains."},
+      {"id": "creator-options", "summary": "Option C's cost reworded: Grove reads nothing back from the dispatcher."}
+    ]
+  },
   "diagrams": [
-    {"id": "packages", "group": "boundary", "title": "Caller, dispatcher and policy packages", "source": "packages.mmd", "caption": "Source packages and runtime participants. Grove-specific relationship parsing belongs to the optional adapter; the generic command has no review-kind list."},
-    {"id": "handoff", "group": "execution", "title": "Prepare, record and replace the foreground process", "source": "handoff.mmd", "caption": "The worker shares the enclosing job and has null stdin. Cancellation or timeout before the handoff launches nothing. Measurements after exec need an external observer."},
+    {"id": "packages", "group": "boundary", "title": "Caller, dispatcher and policy packages", "source": "packages.mmd", "caption": "Source packages and runtime participants. The command holds no catalog: the owner's function returns the command. Grove-specific relationship parsing belongs to the optional adapter; the generic command has no review-kind list."},
+    {"id": "handoff", "group": "execution", "title": "Prepare, record and replace the foreground process", "source": "handoff.mmd", "caption": "The worker shares the enclosing job and has null stdin. Cancellation or timeout before the handoff launches nothing. Keeping a deciding agent from executing the task it evaluates is its policy owner's job. Measurements after exec need an external observer."},
+    {"id": "grove-launch", "group": "execution", "title": "Grove's two launches: lifecycle and confined standalone", "source": "grove-launch.mmd", "caption": "Grove passes the same data either way and reads no configuration. A lifecycle session is launched by run, which records and execs. A standalone invocation is selected by inspect, outside the sandbox, and launched by Grove's runner inside it, with no run record."},
     {"id": "creator-options", "group": "provenance", "title": "Where each option keeps the creator's provider", "source": "creator-options.mmd", "caption": "The decision is A. A lookup keyed by handle must tell this grove's handle from an earlier grove's in the same workspace, which needs durable state Grove deliberately lacks (B). A globally unique run reference carried by the review needs none (A)."},
     {"id": "creator-flow", "group": "provenance", "title": "Producer names its run; the review resolves it", "source": "creator-flow.mmd", "caption": "The run reference is written by the session that ran under it, so the provider comes from dispatch's immutable record rather than a transcription. The association itself is that session's attestation, not verified. A session that finishes without a run removes any earlier line, and the owner declares the finished artifact's provider."},
-    {"id": "creator", "group": "provenance", "title": "Resolve the Creator line before selecting a reviewer", "source": "creator.mmd", "caption": "The supplied example policy. Every invocation, retry and explicit choice takes the same path; a retry reads the same line and the same immutable run, so it cannot change the creator."}
+    {"id": "creator", "group": "provenance", "title": "Resolve the Creator line before selecting a reviewer", "source": "creator.mmd", "caption": "The supplied example policy. Every invocation and retry takes the same path; a retry reads the same line and the same immutable run, so it cannot change the creator."}
   ]
 }

@@ -6,8 +6,8 @@ reserved markers. Grove validates that shape and nothing else. It holds no list
 of kinds, no enum of them, and no count of them.
 
 The set of kinds that *exist* is the set of `grove-<kind>` skills the installed
-methodology ships. Tree parsing and launch selection never read that set: they
-render a kind's token into a skill name and configuration key. Codex provisioning
+methodology ships. Tree parsing and launch never read that set: they render a
+kind's token into a skill name and pass it to the launch policy. Codex provisioning
 discovers bundled skills for delivery, without using them to restrict kinds.
 
 **Grove spells exactly two kind tokens**, and only where it writes the leaf
@@ -25,8 +25,9 @@ teardown — and all three go through one predicate rather than carrying a token
 An independently authored kind for which no skill is installed **parses, and
 launches**. The failure is
 reported by the session that could not load the skill, where a human is present
-to read it. A kind for which no launch template resolves is refused before the
-tree is mutated, naming the kind and the file that must declare it.
+to read it. A kind the owner's launch policy does not route is written like any
+other, and refused when its leaf launches
+([harness selection is owned by policy](harness-selection-is-owned-by-policy.md)).
 
 ## The trade-off
 
@@ -43,11 +44,12 @@ change to the methodology — authoring one more skill — the most expensive ki
 change there is.
 
 **What it costs is the compile-time error.** A typo'd kind used to fail at
-`cargo build`; now it fails at `leaf-add`, when the launch configuration declines
-to resolve a template for it. That is a worse moment in one respect — the failure
-is at authoring time rather than at build time — and a better one in another: a
-human is present at `leaf-add`, and the refusal can name the file that must
-declare the kind, which a compiler error could not.
+`cargo build`; now it fails when its leaf launches, when the owner's policy
+refuses a kind it does not route. That is a later moment — the leaf has been
+written and committed, and an unattended loop stops on it — and the refusal is a
+better one than a compiler error: it names the kind, the policy that must route
+it and the command that reproduces the selection. The leaf stays live, so
+correcting the name or the policy and rerunning continues.
 
 Two mitigations make that cost bearable, and both are load-bearing rather than
 consolation:
@@ -99,7 +101,7 @@ consolation:
 
 Closing the set again is not a matter of restoring an enum. The filename grammar
 now depends on the separator rather than on set membership; the store, the
-prompt, the configuration key and the CLI all carry a token rather than a
+prompt, the launch policy's input and the CLI all carry a token rather than a
 variant; and the methodology's kinds have become authorable content, so the
 skills that exist on any live machine are no longer a set the binary was built
 knowing. A reinstated roster would have to be a *second* source beside the

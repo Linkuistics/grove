@@ -5,7 +5,7 @@ sequenceDiagram
   participant P as Producer session
   participant V as Review session
   G->>D: Producer launch: kind, task file, handle H
-  D->>S: Commit run R: task H, provider of the chosen candidate
+  D->>S: Commit run R: task H, provider label of the selected command
   D->>P: exec, environment carries HARNESS_DISPATCH_RUN_ID=R
   P->>P: Finish work, then cut review leaf with Reviews H and Creator run R
   Note over P: Same line on live reviews of H and of each node<br/>its close cascade closes. Without a run, remove the line
@@ -18,7 +18,7 @@ sequenceDiagram
     D->>D: Example policy requires a reviewer provider not equal to the creator's
     D->>S: Commit review run with the provenance it used
     D->>V: exec the different-provider reviewer
-  else No Creator line, unknown run, or no eligible candidate
+  else No Creator line, unknown run, or no reviewer of another provider
     D-->>G: Refuse (exit 3) naming the remedy, nothing launches
   end
   Note over G,V: No lookup by handle, so a later grove reusing H cannot collide with R

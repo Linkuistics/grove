@@ -4,12 +4,16 @@ sequenceDiagram
   participant W as Policy worker
   participant D as Record store
   participant H as Final harness
-  G->>R: Authoritative request + inherited terminal/control env
-  R->>W: Fresh env, private start directory, bounded request, null stdin
-  W-->>R: Validated catalog, choice, evidence and reason
-  R->>R: Reap worker, validate explicit choice and executable
+  G->>R: Kind, prompt, parameters + inherited terminal/control env
+  R->>R: Read owner settings: bounds, grants, record directory
+  R->>W: Fresh env, private start directory, bounded request with the prompt, null stdin
+  opt Dynamic dispatch, the owner's own code
+    W->>W: Start a deciding agent in the caller's cwd, wait, reap
+  end
+  W-->>R: select's result: command + labels + reason, or a refusal
+  R->>R: Reap worker, validate the result's shape, resolve the program
   alt Inspect
-    R-->>G: Proposal + limits + argv, no harness or run receipt
+    R-->>G: Proposal + bounds + command, no harness or run receipt
   else Run
     R->>D: Durable handoff-attempt record
     alt Write fails or cancellation observed

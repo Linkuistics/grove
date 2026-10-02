@@ -10,7 +10,7 @@ signals `-pgid` as well as the pid.
 Three things follow, and each closes a defect that a per-process launch cannot.
 A terminal signal the human types is delivered to *the child's* group, so a
 launcher survives a Ctrl-C it never has to catch, and the child receives one
-whatever wrapper the command template names. **Only an ignored disposition
+whatever wrapper stands in front of it. **Only an ignored disposition
 survives `execve`**, so a launcher that ignores SIGINT for its own reasons would
 otherwise hand that ignore to the child, to everything the child spawns, and to
 every login shell or `ssh` hop in between — each of which keeps ignoring it and

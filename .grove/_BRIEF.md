@@ -118,28 +118,30 @@ log and does not re-ask. Cite one as *root brief, requirement N*.
 
 Position order is the order of work. `plan-k1` settled the requirements above.
 `plan-k2` reads them adversarially before anything is built on them.
-`direct-dispatch-k3`, the design leaf, then reworks the dispatch specification
-and the ADR set to say how each requirement is met, and `direct-dispatch-k4`,
-the planning leaf, cuts that design into increments. Implementation leaves are
-the planning session's to cut.
+`direct-dispatch-k3`, the design leaf, reworked the dispatch specification and
+the ADR set to say how each requirement is met. `direct-dispatch-k5` reads that
+design adversarially, and `direct-dispatch-k4`, the planning leaf, cuts it into
+increments. Implementation leaves are the planning session's to cut.
 
 ## Pointers
 
 - ADRs a session here must read:
-  `docs/adr/harness-selection-is-owned-by-policy.md` (independence is kept; its
-  sentence that Grove's command configuration is the integration point is
-  reversed),
+  `docs/adr/harness-selection-is-owned-by-policy.md` (reworked by
+  `direct-dispatch-k3`: what this grove decides, what each half costs and what
+  was rejected),
   `docs/adr/policy-evaluation-precedes-process-replacement.md` (the `exec`
   handoff this grove keeps, and the supervisor it rejected),
   `docs/adr/the-launched-child-is-a-job.md` (the runner contract that stays),
   `docs/adr/complete-session-configuration.md` and
-  `docs/adr/untracked-configuration-delta.md` (both describe what is deleted),
+  `docs/adr/untracked-configuration-delta.md` (both describe what is deleted,
+  and are themselves deleted with it),
   `docs/adr/a-review-carries-its-creator-reference.md` (why the provider label
   must reach the run record).
-- Specs covering this area: `docs/specs/harness-selection-and-execution.md`,
+- Specs covering this area: `docs/specs/harness-selection-and-execution.md`
+  (the design: the contract, Grove's two launches, the test seams' cases),
   `docs/specs/standalone-invocations.md`, `docs/specs/modular-configuration.md`
   (describes what is deleted), `docs/specs/module-decomposition.md` (decision 7,
-  the runner's interface).
+  the runner's interface, which follows the code).
 - Research: `docs/research/grove-model-effort-routing.md`, which anticipated a
   selector that reads the task.
 - Glossary terms in play (see `CONTEXT.md`): **Static dispatch / dynamic
@@ -184,15 +186,10 @@ promotes this note to somewhere that outlives `.grove/`.
   `grove run release-notes`, which will then need the owner's policy. The owner
   installs the sample with the new subcommand before that release runs, unless
   the Unreleased notes are already written.
-- **Consequences recorded for the design session, not decided.** Inspection
-  reproduces a prompt-dependent selection only when given the same prompt, and a
-  refused launch's `inspect:` line omits the prompt today. The catalog's two
-  guarantees (every candidate validated at load; no function result can
-  introduce a program or an argument) become the owner's function's, the type
-  checker's and SDK helpers' to give. Environment grants must be known before
-  the policy worker starts.
-- **Not discussed with the human, so not requirements.** Context loading and
-  measured reads, run lookup, run records and observations, the bounds other
-  than the selection time, inspection, the policy schema version, and records
-  written by 21.13.0. The design keeps, reshapes or drops each on its merits and
-  says which.
+- **The design settled what the requirements left open.** How parameters reach
+  `select`, where an owner's settings live, the selection ceiling, how a
+  confined invocation selects, how Grove finds dispatch, the sample's
+  installation and its choice file, and what became of each part of dispatch
+  the human did not discuss are in the specification. `direct-dispatch-k3`'s
+  log holds what each was chosen over. Every part the human did not discuss was
+  left alone, apart from the reshapes the missing catalog forces.

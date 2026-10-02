@@ -1,9 +1,9 @@
 # Harness selection and execution — visual design
 
 The [area specification](../../specs/harness-selection-and-execution.md) is the
-behavioral contract of the delivered `harness-dispatch` command. This
-presentation shows the same package, execution and original-creator topics as
-views. Where a view and the specification differ, the specification binds.
+behavioral contract of the `harness-dispatch` command and of Grove's use of it.
+This presentation shows the same package, execution and original-creator topics
+as views. Where a view and the specification differ, the specification binds.
 
 Run `task design:harness-selection` from the repository root, then open
 [the viewer](http://127.0.0.1:8769/). The server exposes this presentation
@@ -19,8 +19,9 @@ or a formally checked state machine.
 
 | View | What it shows |
 |---|---|
-| [Caller, dispatcher and policy packages](http://127.0.0.1:8769/#diagram-packages) | Which package owns what, and that the Grove adapter is an explicit policy import |
+| [Caller, dispatcher and policy packages](http://127.0.0.1:8769/#diagram-packages) | Which package owns what, that the policy returns the command, and that the Grove adapter is an explicit policy import |
 | [Prepare, record and replace the foreground process](http://127.0.0.1:8769/#diagram-handoff) | Selection, the handoff record and the exec, for `inspect` and for `run` |
+| [Grove's two launches: lifecycle and confined standalone](http://127.0.0.1:8769/#diagram-grove-launch) | What Grove passes, where a refusal lands, and why a confined invocation selects through `inspect` |
 | [Where each option keeps the creator's provider](http://127.0.0.1:8769/#diagram-creator-options) | The options the [creator-reference decision](../../adr/a-review-carries-its-creator-reference.md) weighed, and the one chosen |
 | [Producer names its run; the review resolves it](http://127.0.0.1:8769/#diagram-creator-flow) | The creator reference from a producer's launch to its review's provider check |
 | [Resolve the Creator line before selecting a reviewer](http://127.0.0.1:8769/#diagram-creator) | The supplied review policy's path to a selection or a refusal |

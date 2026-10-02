@@ -12,12 +12,14 @@ The policy, the owner's settings and the record store are personal files that a
 confined process must not read, so the command is selected before confinement
 and outside it. Grove asks harness-dispatch to inspect the kind, with the
 invocation's prompt and parameters, and launches the command the inspection
-reports. [Harness selection and execution](harness-selection-and-execution.md#grove-integration)
+reports: the file it resolved, which Grove does not look up again.
+[Harness selection and execution](harness-selection-and-execution.md#grove-integration)
 owns what is passed and what comes back. Selection runs in Grove's own
 environment, so a grant or bound the owner set for the policy applies. The
 confined harness receives the invocation's small environment, as before, and no
 harness-dispatch run identity: a standalone invocation has no run record. A
-refused selection launches nothing and publishes nothing.
+refused, cancelled or timed-out selection launches nothing and publishes
+nothing.
 
 ## Isolation contract
 
@@ -76,6 +78,8 @@ must never depend on paid LLM calls.
   variables, and a `.grove.kdl` or `config.kdl` there or in HOME changes nothing.
 - The policy selects outside the sandbox; the harness inside it cannot read the
   personal policy, the owner settings or the record store.
+- The file that runs is the one inspection reported, whatever else of that name
+  PATH or Grove's own directory holds.
 - Nested completion and cancellation leave the outer completion channel intact.
 - The harness cannot consume caller stdin or obtain its terminal/mux handles.
 - Real sandbox probes deny reads and writes to an unrelated project while

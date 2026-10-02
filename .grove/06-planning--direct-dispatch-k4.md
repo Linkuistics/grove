@@ -28,8 +28,9 @@ that each land green and are useful on their own.
   `docs/specs/standalone-invocations.md` (*Selection*), and
   `docs/adr/harness-selection-is-owned-by-policy.md` (the trade-offs and what was
   rejected). `direct-dispatch-k3`'s log says what each call was made against.
-  Its review leaf runs before this one; read its findings, and any integration's
-  changes, before cutting.
+  `direct-dispatch-k5` reviewed it and `direct-dispatch-k6` integrated that
+  review. Cut the design as it is now committed. `direct-dispatch-k6`'s notes
+  say which findings were taken, and a finding it declined is not work.
 
 ## Done when
 
@@ -56,7 +57,9 @@ and not about how the area behaves.
   the prompt marker and the choice-file helper; `src/main.ts` and `host.ts` lose
   the catalog snapshot; `examples/dynamic.ts` is deleted; the other four
   examples, `grove/index.ts` and every `typecheck/` fixture are rewritten.
-- *Runner* (`crates/keyed-launch`): `Argv` gets a public constructor;
+- *Runner* (`crates/keyed-launch`): `Argv` gets a public constructor; a
+  confined launch takes an absolute program path, refuses any other, and loses
+  its own PATH lookup (`confinement.rs`'s `executable`);
   `templates.rs`, `vocabulary.rs`, `inspection.rs`, `conformance.rs` and the
   configuration half of `error.rs` are deleted. The crate keeps its name; a
   rename is not asked for.
@@ -65,7 +68,8 @@ and not about how the area behaves.
   invocation and `grove_loop::run` loses its `TemplateSource` argument;
   `driver.rs`'s kind admission and the `require` calls behind `leaf-add`,
   `leaf-insert`, `leaf-decompose`, root scaffolding and the finish sentinel go;
-  `standalone.rs` calls `inspect --json`; `config.rs`, `config_json.rs`,
+  `standalone.rs` runs `inspect --json` in Grove's own process group and hands
+  the runner the reported `executable` and `args`; `config.rs`, `config_json.rs`,
   `examples.rs` and the `grove config` commands are deleted.
 
 **The parity capture comes first.** While the resolver still exists, record what
@@ -115,5 +119,6 @@ in a file that describes that mechanism as live, so they go together and
   `TASK-FORMAT.md`) are rewritten, in the release that changes the behaviour.
 
 **Not to build.** No fake `harness-dispatch` for Grove's tests, no table helper
-in the SDK, no run record for a standalone invocation, no rename of
+in the SDK, no run record for a standalone invocation, no launcher on `run` for
+a confined launch, no owner settings that differ by kind, no rename of
 `keyed-launch`, and no agent policy.

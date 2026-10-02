@@ -1034,8 +1034,9 @@ is a value the owner's function reads.
 
 What an owner sets about every harness-dispatch invocation without the caller
 passing it: the selection time bound, the context budget, the record directory
-and the environment names granted to the policy. It has the personal policy's
-authority and is read before the policy loads.
+and the environment names granted to the policy. One set of values applies to
+every kind. It has the personal policy's authority and is read before the
+policy loads.
 _Avoid_: calling it configuration of Grove. Grove reads no personal file.
 
 <a id="choice-file"></a>

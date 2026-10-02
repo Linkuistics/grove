@@ -119,9 +119,10 @@ log and does not re-ask. Cite one as *root brief, requirement N*.
 Position order is the order of work. `plan-k1` settled the requirements above.
 `plan-k2` reads them adversarially before anything is built on them.
 `direct-dispatch-k3`, the design leaf, reworked the dispatch specification and
-the ADR set to say how each requirement is met. `direct-dispatch-k5` reads that
-design adversarially, and `direct-dispatch-k4`, the planning leaf, cuts it into
-increments. Implementation leaves are the planning session's to cut.
+the ADR set to say how each requirement is met. `direct-dispatch-k5` read that
+design adversarially, `direct-dispatch-k6` integrated its findings, and
+`direct-dispatch-k4`, the planning leaf, cuts it into increments. Implementation
+leaves are the planning session's to cut.
 
 ## Pointers
 
@@ -193,3 +194,10 @@ promotes this note to somewhere that outlives `.grove/`.
   the human did not discuss are in the specification. `direct-dispatch-k3`'s
   log holds what each was chosen over. Every part the human did not discuss was
   left alone, apart from the reshapes the missing catalog forces.
+- **Two requirements the design reads narrowly.** Requirement 1: dispatch
+  selects every launch's command, `run` launches a lifecycle session, and
+  Grove's runner launches a confined `grove run` from what `inspect` reports.
+  Requirement 8: an owner's settings are one file, the same for every kind. The
+  design review disputed both, and `direct-dispatch-k6` kept them for the
+  smaller mechanism. The policy-ownership record says what each was chosen over
+  and what would reopen it. Either is the human's to overrule.

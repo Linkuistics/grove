@@ -5,7 +5,7 @@
 the command, or reports the refusal. `inspect` reports a selection without
 launching anything, and `run` launches it. `init` installs the sample policy.
 `record observe` and `record show` carry later evidence against a recorded run.
-The command needs no Grove, and Grove launches every session through it.
+The command needs no Grove, and Grove runs it for every session it launches.
 
 This specification is the contract of that command and of Grove's use of it. The
 [visual document](../design/harness-selection-and-execution/README.md) has
@@ -95,9 +95,12 @@ selected command, its provider/model/effort labels and reason, context sources
 and hashes, measured UTF-8 byte totals, effective bounds and where each came
 from, timing and the creator provenance used. The selected command is reported
 as `command`, an object holding the `program` and `args` the policy returned and
-the `executable` that program resolved to. That object is part of this contract:
-a caller that must launch the command itself, such as one that confines it,
-takes it from there. Such a launch has no run record. Human output contains the
+the `executable` that program resolved to, an absolute path. That object is part
+of this contract: a caller that must launch the command itself, such as one that
+confines it, takes it from there. Such a caller executes `executable` with
+`args` and does not resolve `program` again: the lookup depends on the cwd and
+PATH inspection ran with, and another resolver need not agree with it. Such a
+launch has no run record. Human output contains the
 same facts without requiring a parser. `run` reserves stdout and stdin for the
 final harness; its short selection/run-ID diagnostics go to stderr, each as one
 JSON line under `--json`.
@@ -161,8 +164,9 @@ lookup, attached as `runs`; a loader can supply neither. No
 executable fields are admitted in a caller context document: an unknown field
 refuses with its location, and one named like an executable field (`program`,
 `args`, `select`, `loadContext` and the like) says why. `facts` and
-assessment values are data, never checked for such names, because nothing in a
-context can become an argument.
+assessment values are data, never checked for such names: the command takes no
+part of a command from a context, and what a policy builds from one is the
+policy's.
 
 `select` returns one of two variants, told apart by `status`:
 
@@ -295,6 +299,14 @@ record commands included, so they find the same store. Inspection reports each
 bound and the record directory with where its value came from. The policy entry
 has no setting. An owner who keeps policy elsewhere re-exports it from the
 personal entry, or names it with `--config`.
+
+The settings are the same for every kind. Each bound is a ceiling, so one that
+admits the owner's slowest selection serves the rest: an owner who raises the
+time bound for a deciding agent raises it for a kind that only consults a
+table, and gives up that kind's shorter failure bound. A policy that wants a
+tighter limit on part of its own work, its deciding agent's time for one,
+applies it in its own code. One record directory is what lets a run lookup
+under one kind find a run recorded under another.
 
 A setting cannot live in the policy module. The grants shape the worker's
 environment before any policy code loads, and the time bound runs from the
@@ -977,8 +989,10 @@ fixed 1 MiB bound.
 <a id="grove-integration"></a>
 ## Grove integration
 
-Grove launches every session by running harness-dispatch itself, and has no
-launch configuration of its own. It reads no personal file, and a `config.kdl`
+Grove runs harness-dispatch itself for every session it launches, and has no
+launch configuration of its own. `run` launches a lifecycle session. `inspect`
+selects the command of a confined standalone invocation, and Grove's runner
+launches it. Grove reads no personal file, and a `config.kdl`
 or `.grove.kdl` left on disk is never read and refuses nothing. There is no
 `grove config` command, no task-body launch metadata, no Grove invocation
 override, and no scraping of the prompt or a filename. Grove allocates and
@@ -1020,12 +1034,19 @@ environment with its loop-control variables removed, passing the kind, the
 invocation's whole prompt and the same three parameters. A standalone
 invocation has no task, so it passes no task file and no task identity; its
 `session_name` is `standalone:` and the kind, and both roots are the staged
-working directory. Grove then gives the reported `command` to the runner, which
-confines and supervises it as
-[standalone invocations](standalone-invocations.md) specify. Selection runs
-outside the sandbox, with the owner's grants and bounds, and only the harness
-runs inside it. Such an invocation has no run record and its harness receives
-no run ID. Its transcript is Grove's own log.
+working directory. Grove then gives the reported `executable` and `args` to the
+runner, which confines and supervises them as
+[standalone invocations](standalone-invocations.md) specify. The runner grants
+and runs exactly that file and resolves no name, so the file inspection
+reported is the file that runs. The harness's `argv[0]` is that path and not
+the program as returned, because the sandbox launcher runs the path it is
+given. Selection runs outside the sandbox, with the owner's grants and bounds,
+and only the harness runs inside it. Grove keeps the inspection in Grove's own
+process group and waits for it, so a signal to the group cancels the selection
+as [execution and authority](#execution-contract) states. A cancelled or
+timed-out selection launches nothing and publishes nothing. Such an invocation
+has no run record and its harness receives no run ID. Its transcript is Grove's
+own log.
 
 **A refusal.** A kind the policy does not route is caught when its leaf
 launches, and nowhere earlier. Tree verbs and root scaffolding consult no
@@ -1041,7 +1062,9 @@ publishes nothing.
 **The runner** stays a unit with no Grove or dispatch knowledge. It takes a
 program and its arguments from its caller, and what it does with them is
 unchanged: the job, the terminal, the completion channel, the escalation and
-the confinement. Nothing in it reads a configuration.
+the confinement. One thing goes. A confined launch takes an absolute program
+path and refuses any other, where it used to look a name up on PATH by a rule
+of its own that differed from dispatch's. Nothing in it reads a configuration.
 
 The `**Creator:**` line is a methodology convention, like `**Reviews:**`. The
 finishing session writes or removes it; Grove's own code neither writes nor
@@ -1192,8 +1215,8 @@ no test calls a model.
 | Same command, records and observations | Required commit failure prevents exec; attempted handoff and exec failure stay distinct; cancellation after the commit launches nothing and marks the attempt not executed; pre-commit refusals create no run; unknown outcomes; round-trip run lookup and observation import, idempotency/conflicts/correction; policy run lookup returns immutable launch fields, reads no observation history, and an unreadable store refuses; a run recorded under the catalog contract is shown, observed and looked up, and a review resolves its provider; a stored launch record or observation this release cannot read refuses every read of it; the review's run records the creator provenance used; later observations after tree teardown |
 | Grove launch boundary: the real driver, front and worker, a fake harness, and the policy in a temporary HOME | The mandate, kind, task file, handle and the three parameters reach `select` as native data, with no Grove configuration file anywhere; a `config.kdl` and a `.grove.kdl` left on disk, valid, invalid or tracked, change nothing about a launch; tree verbs and root scaffolding succeed with no policy installed; a kind the policy refuses leaves its leaf live and the loop stopped, and once the policy is corrected `grove` launches that leaf; a missing `harness-dispatch` beside Grove is reported with its path; the final harness receives `HARNESS_DISPATCH_RUN_ID`; retiring and reordering the producer between its launch and its review's leaves the review's creator unchanged; a pre-cut review of a decomposed producer carries the run whose retirement closed it through a multi-level close, and selects although that run's task identity is the child's; a close cascade names its run on every live review of each node it closes, one nested in another node and one the closing session cut included, and on no terminal review and no review of another producer; a finish by a session with no run removes a stale `Creator` line from the pre-existing review, planted by a dispatched attempt that named its run without finishing, and that review refuses with the declaration remedy, which then admits a different-origin reviewer; a review attaches an observation to the run its line names after `.grove/` is removed |
 | Grove launch boundary, controlling PTY | Final harness retains PID/group, cwd, terminal and native exits; the entry signal mask and dispositions, including SIGPIPE, reach it unchanged; helper receives null stdin and scrubbed control environment; final harness receives fresh channel; a refusal's diagnostic reaches the terminal; signal cancellation during selection and execution, plus descendant escalation |
-| `grove run` under real confinement, a deterministic harness | The policy selects the standalone kind outside the sandbox, and a variable the owner granted is visible to it; the harness runs inside the sandbox with the invocation's prompt and parameters, cannot read the personal policy, the owner settings or the record store, and receives no run ID; no run is recorded; a refused selection publishes nothing |
-| The runner's own interface, fake programs | A program and argument list its caller built is spawned whole and directly; the job, terminal, channel, escalation and confinement cases hold as before |
+| `grove run` under real confinement, a deterministic harness | The policy selects the standalone kind outside the sandbox, and a variable the owner granted is visible to it; the harness runs inside the sandbox with the invocation's prompt and parameters, cannot read the personal policy, the owner settings or the record store, and receives no run ID; no run is recorded; a program that an unexecutable file shadows earlier on PATH, and one that a relative PATH entry would find under Grove's own directory, each run the file inspection reported; a refused selection publishes nothing, and a signal during selection launches nothing and publishes nothing |
+| The runner's own interface, fake programs | A program and argument list its caller built is spawned whole and directly; a confined launch of a program that is not an absolute path refuses; the job, terminal, channel, escalation and confinement cases hold as before |
 
 Per-target release delivery adds the archive/install tests above. Documentation
 review verifies installing the sample, the owner settings, the choice file,
@@ -1271,6 +1294,9 @@ Deliberately absent, each considered and declined:
   by a helper the owner's policy calls.
 - **A run record for a standalone invocation.** Recording one would have the
   caller set dispatch's run variables for a harness dispatch did not launch.
+- **`run` launching a confined invocation, and owner settings that differ by
+  kind.** The [policy ownership decision](../adr/harness-selection-is-owned-by-policy.md)
+  records why each was declined and what would reopen it.
 - **Supervising the harness and handling its completion.** This design keeps the
   `exec` handoff. The
   [worker and handoff decision](../adr/policy-evaluation-precedes-process-replacement.md)

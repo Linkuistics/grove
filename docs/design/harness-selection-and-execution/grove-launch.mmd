@@ -21,6 +21,6 @@ sequenceDiagram
   G->>X: inspect --json --kind --prompt + parameters, in Grove's own environment
   X->>P: select(request), outside the sandbox
   X-->>G: The command, as data. No run is recorded
-  G->>N: The reported command + confinement
+  G->>N: The reported executable and arguments + confinement, nothing looked up again
   N->>H: Spawn inside the sandbox, no terminal, small environment
   H-->>N: Completion signal, then outputs are published

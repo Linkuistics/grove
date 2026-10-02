@@ -6,8 +6,8 @@ executable passes that `select` function what its caller passed, the prompt
 included, and acts on what it returns: the command to run, with its provider,
 model and effort labels, or a refusal. The executable holds no catalog of
 harnesses, no table of kinds and no rule about which choice is allowed. Grove
-launches every session through it, lifecycle and standalone alike, and carries
-no launch configuration of its own. The
+runs it for every session it launches, lifecycle and standalone alike, and
+carries no launch configuration of its own. The
 [area specification](../specs/harness-selection-and-execution.md) owns the
 protocol, identity, records and delivery contracts. The
 [worker and handoff decision](policy-evaluation-precedes-process-replacement.md)
@@ -94,7 +94,8 @@ personal policy or a `--config` argument. Merely cloning or entering a
 repository grants no authority to run its policy, and the host discovers no
 ambient repository configuration on its behalf. What an owner sets about every
 invocation, the selection bound and the environment granted to the policy among
-them, lives in a settings file with the same personal authority. A missing
+them, lives in a settings file with the same personal authority, and is the
+same for every kind. A missing
 policy stops with a diagnostic: the executable invents no default, and a policy
 arrives only by the owner writing one or running the subcommand that installs
 the shipped sample.
@@ -111,7 +112,9 @@ harness retains the driver's foreground-job contract
 specification owns the bounds, cancellation and authority contracts that
 preserve this. Trusted TypeScript is executable configuration, not a sandbox
 against a hostile local owner. A confined standalone invocation selects outside
-its sandbox, through inspection, and runs only the harness inside it.
+its sandbox, through inspection, and runs only the harness inside it. Grove's
+runner launches the file inspection reports, so `harness-dispatch` launches
+nothing there and records no run.
 
 ## Considered options
 
@@ -142,6 +145,24 @@ its sandbox, through inspection, and runs only the harness inside it.
 - **Let the executable discover a per-checkout override file.** Rejected because
   it reverses the rule that a repository grants nothing. The helper is taken up
   only where the owner's policy calls it.
+- **Have the executable launch a confined invocation too**, by running a
+  launcher the caller names ahead of the selected command. That would give a
+  standalone invocation one launch path and a run record. The sandbox has to
+  name the resolved program, so the launcher would be a Grove helper, and the
+  runner's environment scrub would have to move behind selection so that the
+  policy keeps the owner's grants. Rejected because that is a launcher option,
+  a helper and a moved scrub where inspection needs none of them, and what
+  inspection gives up is the record. Reopen when the executable supervises
+  the harness itself, as the
+  [worker and handoff decision](policy-evaluation-precedes-process-replacement.md)
+  leaves open, or when a standalone invocation needs a run record.
+- **Let owner settings differ by kind.** An owner's separate Grove command
+  definitions could carry different flags for different kinds. Rejected because
+  it puts a table of kinds back in the tool. Each bound is a ceiling, so one
+  value that admits the slowest selection serves the rest, at the cost of a
+  shorter failure bound for the others, and a record directory per kind would
+  split the store a run lookup reads. Reopen if an owner needs a grant or a
+  bound that one kind must not share.
 - **Hard-code review diversity in the executable.** The rule is an owner's
   policy and belongs with the rest of selection computation. Provenance is data
   the executable makes available, not a reason to give the core review

@@ -147,6 +147,8 @@ leaves:
 did the cutover, and `two-orders-k20` rewrote that book's thesis, which named
 the deleted presence rule as one of three orders. `lifecycle-launch-k21` reads
 the cutover adversarially before the deletion leaves build on it.
+`lifecycle-launch-k22` integrates its failure-diagnostic and remaining
+loop-test launch-boundary findings before those deletions.
 `fork-sensitive-pin-test-k18` is an unrelated test flake that surfaced during
 the cutover.
 

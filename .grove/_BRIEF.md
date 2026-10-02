@@ -127,7 +127,8 @@ leaves:
 - `parity-fixture-k7` records what the resolver produces, while it exists.
 - `select-contract-k8` gives harness-dispatch its new contract. Grove still
   reaches it through an owner's command definition. `select-contract-k16`
-  reviews it before the next leaf builds on it.
+  reviews it, and `select-contract-k17` integrates that review before the next
+  leaf builds on it.
 - `owner-settings-k9` adds the settings file, the raised ceiling and the
   deciding-agent cases.
 - `sample-policy-k10` adds the sample, `init` and the choice-file helper, and

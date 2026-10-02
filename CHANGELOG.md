@@ -52,6 +52,8 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+## v22.0.0
+
 **This is a major release, and every owner has something to do before the next
 launch.** Grove's launch configuration is gone: Grove now launches every
 session by running `harness-dispatch` itself, and one personal policy file

@@ -11,6 +11,7 @@ Its commands:
 
 | Command | What it does |
 |---|---|
+| [`init`](#the-sample-policy) | Installs the sample policy as your personal default, when nothing is there. |
 | [`inspect`](#inspect) | Reports the command `select` returns, its labels and the file its program resolves to. It launches nothing. |
 | [`run`](#run) | Makes the same selection, commits a durable record of the handoff under a fresh run ID, and then replaces itself with the command. |
 | [`record show`](#run-records) | Exports what a run recorded. |
@@ -27,7 +28,9 @@ fields, so a review can learn which provider its creator ran under from the
 record, never from what the policy returns today. Four example policies ship
 inside the worker: two starters that consult a table by kind, and two that hold
 reviews to a provider rule, one of them for Grove's review leaves. None is
-active until your own policy imports it.
+active until your own policy imports it. `init` installs a fifth file, the
+[sample policy](#the-sample-policy), as your own: it is a working policy with
+real `codex` and `claude` command lines, not an example to import.
 
 Every invocation holds to the same limits. Selection is bounded in time, and
 its context, reads, messages and output in size, so a policy that never
@@ -57,7 +60,8 @@ A release archive unpacks to an installation prefix holding `bin/` and
 `libexec/`; keep the two together and put `bin/` on `PATH`. Under Homebrew the
 prefix is `$(brew --prefix grove)`. `libexec/harness-dispatch/` there holds the
 policy worker, and beside it the declarations and readable sources of the SDK
-(`sdk/`), the Grove adapter (`grove/`) and the examples (`examples/`). The
+(`sdk/`), the Grove adapter (`grove/`) and the examples (`examples/`), with the
+sample policy as `examples/sample.ts`. The
 notices for the Bun runtime inside the worker and the SQLite inside the front
 are in `libexec/harness-dispatch/notices/`.
 
@@ -106,7 +110,8 @@ front refuses a worker built from other source rather than using it.
 
 `scripts/installed-smoke.sh PREFIX VERSION` checks an installation from itself.
 It runs each of its cases through `PREFIX/bin/harness-dispatch` and through a
-symlink to it. A policy that consults a table and one that builds its command
+symlink to it. The sample policy is installed with `init` into an empty HOME
+and inspected. A policy that consults a table and one that builds its command
 from the caller's parameters are each inspected, run against a fake harness
 and read back from the run's record. A policy that
 imports one package declared by `main` and one by `exports` is inspected. And
@@ -127,7 +132,10 @@ so entering a repository runs none of its code. Naming a file there with
 authority. Your personal policy may itself import a repository entry. That
 import is also your choice, and the imported code runs with the same trust.
 
-A missing, unreadable or invalid entry refuses and names the path. So does an
+A missing, unreadable or invalid entry refuses and names the path. With no
+personal policy the refusal is `policy_missing`, and its remedy names
+[`harness-dispatch init`](#the-sample-policy), the one command that writes a
+policy. So does an
 entry whose resolved path is not UTF-8 or contains `?`. The worker imports the
 path as a string, which would then name another file: its runtime reads
 `policy.ts?x` as `policy.ts` with a query. Nothing is
@@ -162,6 +170,138 @@ Do not alias a `harness-dispatch/…` name. An `imports` entry such as `"#sdk":
 reaches the SDK built into the worker. With no such package the import
 refuses, and beside a `node_modules/harness-dispatch` it loads that package.
 Import `harness-dispatch/sdk` by its name.
+
+## The sample policy
+
+`harness-dispatch init` installs a sample policy as your personal default:
+
+```sh
+harness-dispatch init
+```
+
+```text
+Installed the sample policy as /home/me/.config/harness-dispatch/policy.ts.
+It launches codex with approvals off and full access (--ask-for-approval never, default_permissions=:danger-full-access). Read it, and edit it, before the first launch: it is yours.
+See what it selects with
+  harness-dispatch inspect --kind impl --param session_name=NAME --param repo=PATH
+```
+
+`init` takes no input. It writes `~/.config/harness-dispatch/policy.ts` and
+nothing else. When anything is already at that path it refuses as
+`policy_exists`, and it has no option to replace a policy: move yours away
+first. Nothing but `init` ever writes a policy. The front carries the sample's
+text, so `init` needs no worker, and the same file ships readable beside the
+worker as `examples/sample.ts`. Once installed it is your own file, and an
+upgrade never touches it.
+
+**Read it before the first launch.** The sample is one owner's launch policy
+for Grove, with the real `codex` and `claude` command lines. Its `codex`
+command passes `--ask-for-approval never` and
+`default_permissions=:danger-full-access`, so a session it launches can change
+anything your account can. Remove those arguments if that is not what you want.
+
+The file is a `select` over tables of its own, which you edit in place:
+
+- **Routes.** Each of Grove's 23 session kinds, and the standalone
+  `release-notes` kind that `grove run release-notes` launches, maps to a role
+  and usually an effort. A kind it does not list refuses, with the policy's own
+  code `incomplete_mapping`.
+- **Arrangements.** Four of them say which harness takes which role.
+
+  | Arrangement | Requirements, design and writing | Planning, prototypes and implementation |
+  |---|---|---|
+  | `codex-led` | `codex` leads, `claude` reviews | `codex` leads, `claude` reviews |
+  | `claude-led` | `claude` leads, `codex` reviews | `claude` leads, `codex` reviews |
+  | `codex-design-claude-impl` | `codex` leads, `claude` reviews | `claude` leads, `codex` reviews |
+  | `claude-design-codex-impl` | `claude` leads, `codex` reviews | `codex` leads, `claude` reviews |
+
+  The two mixed arrangements also route a few kinds their own way, `copy-edit`,
+  `art` and `proof` among them, and name a model for some.
+- **Modifiers.** `codex-sol` pins `codex` to its Sol model and runs the
+  requirements, design and planning reviews at `high` rather than `xhigh`.
+  `high-effort` raises to `high` every session kind whose route sets no
+  effort; `release-notes` stays as it is.
+- **The default.** With no [choice file](#the-choice-file) the sample selects
+  `claude-led` with `codex-sol`.
+
+It labels a `codex` command `openai` and a `claude` command `anthropic`. Each
+review goes to the other provider by the arrangement, and the sample consults
+no creator: [the review policy](#the-review-policy) is the one that does. Its
+`reason` names the arrangement and modifiers it applied, and whether they were
+the default or came from a choice file.
+
+The commands place two [parameters](#parameters) Grove passes: `claude` is
+named for `session_name`, and both harnesses receive `repo` as `--add-dir`. A
+caller that did not pass one the selected command needs is refused, with the
+policy's own code `parameter_missing` and the `--param` to add:
+
+```sh
+harness-dispatch inspect --kind impl --param session_name=parser --param repo=/work/parser
+```
+
+### The choice file
+
+One checkout selects differently from another with a **choice file**:
+`.harness-dispatch-choice` in the caller's directory, holding names separated
+by whitespace. For the sample, in the directory Grove runs in:
+
+```sh
+echo 'codex-design-claude-impl high-effort' > .harness-dispatch-choice
+```
+
+A choice file there replaces the sample's default whole, so a modifier the
+default applies is named again to keep it. It names exactly one arrangement
+and any modifiers; none, or two, refuses as `choice_arrangement`. Without the
+file the default applies.
+
+The file can only name what your policy offers. It introduces no program,
+argument or label, so a repository that ships one gains no authority: it picks
+among your own options, and only where your policy reads it. harness-dispatch
+itself never looks for the file. The SDK's `readChoice` does, when your
+`select` calls it:
+
+```ts
+import { CHOICE_FILE, definePolicy, readChoice } from "harness-dispatch/sdk";
+
+const efforts: Readonly<Record<string, string>> = { fast: "low", careful: "high" };
+
+export const policy = definePolicy({
+  schemaVersion: 2,
+  version: "mine-1",
+  select(request) {
+    const choice = readChoice(request.cwd, Object.keys(efforts));
+    if (choice !== undefined && "status" in choice) return choice;
+    const name = choice?.[0] ?? "careful";
+    const effort = efforts[name] ?? "high";
+    return {
+      status: "selected",
+      program: "claude",
+      args: ["--effort", effort, request.prompt],
+      provider: "anthropic",
+      model: "claude-opus-5-5",
+      effort,
+      reason: `${name}, ${choice === undefined ? "the default" : `chosen by ${CHOICE_FILE}`}`,
+    };
+  },
+});
+```
+
+`readChoice(directory, offered)` reads `.harness-dispatch-choice` in
+`directory` and returns one of three things:
+
+- The names the file holds, in order, each one of `offered`. What a name means
+  and how many a selection takes are your policy's to decide.
+- `undefined` when there is no such file.
+- A refusal to return from `select`, which launches nothing. A name outside
+  `offered` refuses with the policy code `choice_unoffered`, naming the file,
+  the name and the names offered. A file that is not a regular UTF-8 file of
+  at most 4 KiB refuses as `choice_unreadable`.
+
+Pass `request.cwd` as the directory. Policy code runs in `/`, so a relative
+directory names a place there and not in the caller's checkout. The read is an
+ordinary one, not a [measured source](#loading-context), so it needs no
+`loadContext`, and inspection shows no digest for it. Name the choice you
+applied in your `reason`, which inspection and the run record carry.
 
 ## Owner settings
 
@@ -1764,7 +1904,7 @@ inspection reads the store as `run` does.
 | Exit | Stage | Codes |
 |---|---|---|
 | 2 | `cli` | `malformed_input` (including a command line that cannot be parsed, a `--param` that is repeated, has no `=` or has no name, parameters over 64 KiB together, and a `--policy-env` name that is empty or holds `=`), `excluded_grant` (a `--policy-env` name that is never granted), `prompt_invalid`, `prompt_unreadable`; `settings_invalid` (the [owner settings](#owner-settings) file cannot be read or has the wrong shape), and `malformed_input` or `excluded_grant` for a setting its flag would refuse, each naming the file as `source` and the key as `location` |
-| 3 | `authority` | `policy_missing`, `policy_unreadable`, `home_unset`, `cwd_unavailable` |
+| 3 | `authority` | `policy_missing`, `policy_unreadable`, `home_unset`, `cwd_unavailable`; for `init`, `policy_exists` (something is already at the personal default path) and `policy_unwritable` |
 | 3 | `load` | `policy_import_failed` (a missing import, the entry threw while loading, or an await in it never settled) |
 | 3 | `load` | `message_too_large` (the exported policy object is over 1 MiB) |
 | 3 | `validation` | `policy_invalid`, and `unsupported_version` (a version-1 policy included), each with its `location` |

@@ -21,7 +21,8 @@
 # Every archive holds one directory, grove-v<ver>-<target>/, laid out as an
 # installation prefix: bin/ holds grove, grove-llm and harness-dispatch, and
 # libexec/harness-dispatch/ holds harness-dispatch's compiled policy worker, the
-# declarations and readable sources of its SDK and examples, and its notices.
+# declarations and readable sources of its SDK and examples, the sample policy,
+# and its notices.
 # `archive_manifest` in release-common.sh lists every file, and each archive is
 # checked against it as soon as it is packed.
 

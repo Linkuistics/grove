@@ -8,8 +8,8 @@
 #   dispatch.sh build [--target T] [OUT_DIR]
 #                                   compile the worker, and the declarations and
 #                                   readable sources of its SDK, Grove adapter
-#                                   and examples,
-#                                   with the notices, into OUT_DIR (default: the
+#                                   and examples, with the sample policy and
+#                                   the notices, into OUT_DIR (default: the
 #                                   checkout's target/libexec/harness-dispatch).
 #                                   --target cross-compiles for the Bun target
 #                                   T (bun-darwin-arm64, bun-linux-arm64 or
@@ -301,11 +301,14 @@ build() {
   # grove/ and examples/ beside the worker; the worker carries its own
   # embedded copy. The adapter and the examples import `harness-dispatch/sdk`
   # and one another by specifier, as an owner's policy does, and their
-  # declarations keep those specifiers.
+  # declarations keep those specifiers. The sample policy sits beside the
+  # examples as a readable source alone: the front carries its text for
+  # `init`, the worker does not embed it, and it has nothing to import.
   tsc -p "$WORKER_DIR/tsconfig.declarations.json" --outDir "$out_dir"
   cp "$WORKER_DIR/sdk/index.ts" "$out_dir/sdk/index.ts"
   cp "$WORKER_DIR/grove/index.ts" "$out_dir/grove/index.ts"
   cp "$WORKER_DIR"/examples/*.ts "$out_dir/examples/"
+  cp "$WORKER_DIR/sample/policy.ts" "$out_dir/examples/sample.ts"
   cp "$CRATE_DIR"/notices/*.md "$out_dir/notices/"
   echo "dispatch: worker $version ($id)${target:+ for $target} in $out_dir"
 }

@@ -5,9 +5,9 @@
 //! entry, the prompt, the optional task file and identity, the caller's
 //! parameters and context document, the selection and context bounds, the
 //! record directory and the worker's environment grants. The last four are
-//! also owner settings (`settings`), which a flag replaces or adds to.
-//! `record show` exports a recorded run, and `record observe` appends a later
-//! observation to one.
+//! also owner settings (`settings`), which a flag replaces or adds to. `init`
+//! takes no input. `record show` exports a recorded run, and `record observe`
+//! appends a later observation to one.
 
 use std::ffi::{OsStr, OsString};
 use std::path::PathBuf;
@@ -27,12 +27,15 @@ use crate::refusal::{Invocation, Refusal, Stage, EXIT_MALFORMED};
         provider, model and effort labels for what they run, or a refusal.\n\n\
         The policy is the personal default ~/.config/harness-dispatch/policy.ts, or the entry \
         named by --config. No policy in the current directory runs unless --config names it. \
-        Nothing else is needed: no task tree, Grove installation or other caller.\n\n\
+        Nothing else is needed: no task tree, Grove installation or other caller. With no \
+        policy, inspect and run refuse; init installs a sample policy as the personal default, \
+        and nothing else ever writes one.\n\n\
         Owner settings in ~/.config/harness-dispatch/settings.json apply to every invocation \
         with no flag passed: timeoutMs, contextBytes, stateDir (an absolute path) and policyEnv \
         (an array of names). A flag replaces its setting, and --policy-env adds to policyEnv. \
         inspect reports where each value came from.",
     after_help = "Examples:\n  \
+        harness-dispatch init\n  \
         harness-dispatch inspect --kind impl\n  \
         harness-dispatch run --kind impl --prompt 'Implement the parser'\n  \
         harness-dispatch run --kind impl --param repo=/work/parser --prompt 'Implement the parser'\n  \
@@ -107,6 +110,24 @@ pub enum Command {
         Nothing is retried for you."
     )]
     Run(RunArgs),
+    /// Install the sample policy as your personal default, if nothing is there
+    #[command(
+        after_help = "init writes the sample policy to ~/.config/harness-dispatch/policy.ts and \
+        reports that path. It takes no input, refuses when anything already exists there, and \
+        has no option to replace it. The file is then yours to edit.\n\n\
+        The sample is one owner's launch policy for Grove, with the real codex and claude \
+        command lines. It launches codex with approvals off and full access, so read it before \
+        the first launch. It routes each of Grove's session kinds and the standalone \
+        release-notes kind, and places the session_name and repo parameters Grove passes. It \
+        offers four arrangements of which harness leads and which reviews, and two modifiers; \
+        a .harness-dispatch-choice file in the directory you run from names one arrangement and \
+        any modifiers, in place of the sample's default.\n\n\
+        Examples:\n  \
+        harness-dispatch init\n  \
+        harness-dispatch inspect --kind impl --param session_name=parser --param repo=/work/parser\n  \
+        echo 'codex-led high-effort' > .harness-dispatch-choice"
+    )]
+    Init,
     /// Export the run records that run commits, and add later observations to them
     Record(RecordArgs),
 }

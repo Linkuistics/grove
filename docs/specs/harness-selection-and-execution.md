@@ -113,8 +113,9 @@ selects from the marker, so inspection reproduces such a selection only when it
 is given the same prompt.
 
 `init` writes the [sample policy](#sample) to the personal default path and
-reports that path. It takes no input. It refuses when anything already exists at
-that path, and has no option to replace it.
+reports that path. It takes no input, and reads no owner setting. It refuses
+when anything already exists at that path, as `policy_exists`, and has no
+option to replace it.
 
 Data commands support `--json`. The policy, the request and inspection are
 schema version 2; context documents, record exports and observations are
@@ -253,7 +254,9 @@ which a supported SDK helper reads. The policy names a directory and the names
 it offers. The helper reads `.harness-dispatch-choice` there: a regular file of
 at most 4 KiB holding names separated by whitespace. It returns those names, or
 nothing when the file is absent. A name the policy did not offer refuses, naming
-the file, the name and the names offered. The file therefore chooses among what
+the file, the name and the names offered, and so does a file of any other kind.
+The refusal is a value the helper returns in `select`'s own shape, for the
+policy to return. The file therefore chooses among what
 the owner's policy already holds and can introduce no program, argument or
 label. Because of that it needs no version-control check: a repository that
 ships one picks among the owner's own options, and only for an owner whose
@@ -299,7 +302,7 @@ the flag would. A file that is not a JSON object, or that holds an unknown key,
 refuses with exit 2, naming the file and the key. The file has the personal
 policy's authority and its rules: it is found from HOME alone, and no variable,
 cwd or repository file supplies or replaces it. Without an absolute HOME it has
-no location and sets nothing. Every command reads it, the
+no location and sets nothing. Every command but `init` reads it, the
 record commands included, so they find the same store. Inspection reports each
 bound and the record directory with where its value came from. The policy entry
 has no setting. An owner who keeps policy elsewhere re-exports it from the

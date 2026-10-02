@@ -17,5 +17,5 @@
       "harness-dispatch/examples/*": ["./examples/*.ts"]
     }
   },
-  "include": ["src", "sdk", "grove", "examples"]
+  "include": ["src", "sdk", "grove", "examples", "sample"]
 }

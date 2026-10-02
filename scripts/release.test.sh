@@ -82,6 +82,7 @@ refused_archive() {
 for required in bin/grove bin/grove-llm bin/harness-dispatch \
   libexec/harness-dispatch/harness-dispatch-policy \
   libexec/harness-dispatch/sdk/index.d.ts libexec/harness-dispatch/sdk/index.ts \
+  libexec/harness-dispatch/examples/sample.ts \
   libexec/harness-dispatch/notices/NOTICES.md libexec/harness-dispatch/notices/bun-LICENSE.md \
   libexec/harness-dispatch/notices/sqlite.md; do
   archive_manifest | grep -Fxq -- "$required" || fail "the archive manifest omits $required"

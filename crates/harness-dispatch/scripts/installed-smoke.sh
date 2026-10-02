@@ -31,7 +31,7 @@
 set -euo pipefail
 IFS=$'\n\t'
 
-CASES=(table_typescript parameters_typescript child_answer declared_package signal_state)
+CASES=(sample_init table_typescript parameters_typescript child_answer declared_package signal_state)
 
 fail() {
   echo "installed-smoke: FAIL: $*" >&2
@@ -115,6 +115,44 @@ expect_received() {
       fail "the fake harness's argument $i is [$(cat "$received/arg.$i")], not [$arg]"
     i=$((i + 1))
   done
+}
+
+# The sample policy, installed as an owner would: `init` writes it into an
+# empty HOME as the personal default, byte for byte the readable copy beside
+# the worker, and says what it does with codex. A second `init` refuses and
+# leaves the file alone. The installed file then selects, with nothing named
+# by `--config`: under its default, `impl` is claude's, named for the session
+# and given the repository the caller passed.
+case_sample_init() {
+  local front="$1" dir="$2"
+  local home="$dir/home" policy="$dir/home/.config/harness-dispatch/policy.ts"
+  mkdir -p "$home" "$dir/bin" "$dir/cwd"
+  write_lines "$dir/bin/claude" '#!/bin/sh' 'exit 0'
+  chmod +x "$dir/bin/claude"
+
+  HOME="$home" "$front" init >"$dir/init.out" || fail "init into an empty HOME exited $?"
+  grep -Fq -- "$policy" "$dir/init.out" || fail "init did not report $policy: $(cat "$dir/init.out")"
+  grep -Fq -- 'codex with approvals off and full access' "$dir/init.out" ||
+    fail "init did not say what the sample does with codex: $(cat "$dir/init.out")"
+  cmp -s "$policy" "$PREFIX/libexec/harness-dispatch/examples/sample.ts" ||
+    fail "$policy is not the sample beside the worker"
+
+  local status=0
+  HOME="$home" "$front" init >"$dir/again.out" 2>"$dir/again.err" || status=$?
+  [[ "$status" == 3 ]] || fail "init beside an installed policy exited $status, not 3"
+  grep -Fq -- 'policy_exists' "$dir/again.err" ||
+    fail "init beside an installed policy did not refuse as policy_exists: $(cat "$dir/again.err")"
+  cmp -s "$policy" "$PREFIX/libexec/harness-dispatch/examples/sample.ts" ||
+    fail "a refused init changed $policy"
+
+  (cd "$dir/cwd" && HOME="$home" PATH="$dir/bin:$PATH" "$front" inspect --kind impl \
+    --param session_name=smoke --param "repo=$dir/cwd" --json) >"$dir/inspect.json" ||
+    fail "inspect of the installed sample exited $?"
+  expect_json "$dir/inspect.json" '"authority":"personal"'
+  expect_json "$dir/inspect.json" '"version":"harness-dispatch sample 1"'
+  expect_json "$dir/inspect.json" '"selection":{"effort":"high","model":"claude-opus-5-5","provider":"anthropic"'
+  expect_json "$dir/inspect.json" \
+    "\"command\":{\"args\":[\"-n\",\"smoke\",\"--add-dir\",\"$dir/cwd\",\"--model\",\"claude-opus-5-5\",\"--effort\",\"high\",\"<harness-dispatch inspect: no prompt was supplied>\"],\"executable\":\"$dir/bin/claude\",\"program\":\"claude\"}"
 }
 
 # A policy in TypeScript whose `select` consults a table by kind: an interface,

@@ -13,6 +13,12 @@
 // catalog and no table of kinds here: a table from kind to command is something
 // your `select` consults. Grove's task conventions are not here either: the
 // explicit `harness-dispatch/grove` adapter reads them.
+//
+// One helper reads a file: `readChoice`, for a policy that lets one checkout
+// choose among the selections it offers.
+
+import { readFileSync, statSync } from "node:fs";
+import { join } from "node:path";
 
 /**
  * What `select` receives as `request.prompt` when `harness-dispatch inspect`
@@ -377,6 +383,65 @@ export interface Refused {
 
 /** What `select` returns, or resolves to. */
 export type SelectionResult = Selected | Refused;
+
+/** The choice file's name, in the directory {@link readChoice} is given. */
+export const CHOICE_FILE = ".harness-dispatch-choice";
+
+/** The most a choice file may hold, in bytes. */
+const CHOICE_BYTES = 4096;
+
+/**
+ * Read the choice file in `directory`, so that one checkout can select
+ * differently from another: the names it holds, separated by whitespace, or
+ * `undefined` when there is no such file. Pass the caller's directory,
+ * `request.cwd`; a relative one resolves against `/`, where policy code runs.
+ *
+ * `offered` is every name your policy accepts. A name outside it is refused,
+ * naming the file, the name and the names offered, and so is a file that is
+ * not a regular UTF-8 file of at most 4 KiB. Return that refusal from
+ * `select`:
+ *
+ *     const choice = readChoice(request.cwd, ["fast", "careful"]);
+ *     if (choice !== undefined && "status" in choice) return choice;
+ *     const names = choice ?? ["careful"];
+ *
+ * The file can therefore choose among what your policy already holds, and can
+ * introduce no program, argument or label. What each name means, and how many
+ * may be given, is your policy's to decide. This is an ordinary read, not a
+ * measured source: name the choice you applied in your `reason`.
+ */
+export function readChoice(directory: string, offered: readonly string[]): readonly string[] | undefined | Refused {
+  const file = join(directory, CHOICE_FILE);
+  const refused = (code: string, message: string): Refused => ({
+    status: "refused",
+    code,
+    message: `the choice file ${file} ${message}`,
+    remedy: `write names from ${offered.join(", ")} in ${file}, separated by whitespace, or delete it`,
+  });
+  let text: string;
+  try {
+    // `throwIfNoEntry: false` answers a missing entry, a dangling link
+    // included, with `undefined` in place of ENOENT:
+    // https://nodejs.org/api/fs.html#fsstatsyncpath-options
+    // tests/choice_file.rs holds the worker's pinned Bun to that.
+    const stat = statSync(file, { throwIfNoEntry: false });
+    if (stat === undefined) return undefined;
+    if (!stat.isFile()) return refused("choice_unreadable", "is not a regular file");
+    if (stat.size > CHOICE_BYTES) return refused("choice_unreadable", `holds more than ${CHOICE_BYTES} bytes`);
+    text = new TextDecoder("utf-8", { fatal: true }).decode(readFileSync(file));
+  } catch (error) {
+    return refused("choice_unreadable", `cannot be read: ${error instanceof Error ? error.message : String(error)}`);
+  }
+  const names = text.split(/\s+/).filter((name) => name !== "");
+  const unoffered = names.find((name) => !offered.includes(name));
+  if (unoffered !== undefined) {
+    return refused(
+      "choice_unoffered",
+      `names ${JSON.stringify(unoffered)}, which this policy does not offer; it offers ${offered.join(", ")}`,
+    );
+  }
+  return names;
+}
 
 /**
  * Returns its argument unchanged. It exists so that

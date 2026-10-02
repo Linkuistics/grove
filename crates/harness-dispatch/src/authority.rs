@@ -67,9 +67,10 @@ pub fn resolve(
     };
     let shown = candidate.to_string_lossy().into_owned();
     let remedy = match &authority {
-        Authority::Personal => {
-            format!("create {shown} exporting a `policy`, or name another entry with --config PATH")
-        }
+        Authority::Personal => format!(
+            "run `harness-dispatch init` to install the sample policy there, write {shown} \
+             yourself exporting a `policy`, or name another entry with --config PATH"
+        ),
         Authority::Explicit { .. } => format!(
             "check the --config path; a relative path resolves against the current directory {}",
             cwd.display()
@@ -167,7 +168,9 @@ fn import_specifier(path: &Path) -> Result<&str, &'static str> {
     Ok(path)
 }
 
-fn personal_default(home: Option<&OsStr>) -> Result<PathBuf, Refusal> {
+/// The personal default's path under `home`, which `init` writes and
+/// [`resolve`] reads.
+pub fn personal_default(home: Option<&OsStr>) -> Result<PathBuf, Refusal> {
     let remedy = "set HOME to your absolute home directory, or name an entry with --config PATH";
     let home = home.filter(|home| !home.is_empty()).ok_or_else(|| {
         Refusal::new(

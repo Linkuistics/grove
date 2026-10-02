@@ -12,6 +12,7 @@ mod cli;
 mod context;
 mod environment;
 mod frame;
+mod init;
 mod inputs;
 mod inspect;
 mod limits;
@@ -55,12 +56,16 @@ fn main() -> ExitCode {
     let json = match &cli.command {
         Command::Inspect(args) => args.json,
         Command::Run(args) => args.json,
+        Command::Init => false,
         Command::Record(record) => match &record.command {
             RecordCommand::Show(args) => args.json,
             RecordCommand::Observe(args) => args.json,
         },
     };
     let result = match &cli.command {
+        Command::Init => init::init()
+            .map(|installed| print!("{}", installed.to_text()))
+            .map_err(Failure::from),
         Command::Inspect(args) => inspect::inspect(args).map(|report| {
             if args.json {
                 println!("{}", report.to_json());
@@ -211,7 +216,9 @@ fn command_path(arguments: &[OsString]) -> String {
         ["record", command @ ("show" | "observe"), ..] => {
             format!("harness-dispatch record {command}")
         }
-        [command @ ("inspect" | "run" | "record"), ..] => format!("harness-dispatch {command}"),
+        [command @ ("inspect" | "run" | "init" | "record"), ..] => {
+            format!("harness-dispatch {command}")
+        }
         _ => "harness-dispatch".to_owned(),
     }
 }

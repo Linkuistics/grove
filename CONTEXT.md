@@ -984,6 +984,33 @@ _Avoid_: *loaded context* for it, which is the loader's result before the
 measured sources are attached; *sources* for the measured list, which is the
 name of the evidence records a context attributes itself.
 
+<a id="static-dispatch"></a>
+### Static dispatch / dynamic dispatch
+
+Two descriptions of what an owner's harness-dispatch `select` function consults,
+a distinction that exists only inside the policy file. **Static** is driven by
+the kind, without reference to the prompt or any content. **Dynamic** is
+everything else: it consults the session's prompt (the [[Guaranteed core]]) or
+the task's content, up to handing that prompt to a [[Deciding agent]] that
+evaluates the task.
+_Avoid_: reading either as something harness-dispatch knows, reports or
+validates. The command sees a `select` function and what it returns.
+_Avoid_: mapping the pair onto a table versus a function. A table keyed by kind
+is one thing a `select` may consult, and a function that computes from the kind
+alone is as static as the table.
+
+<a id="deciding-agent"></a>
+### Deciding agent
+
+The agent a [[Dynamic dispatch]] policy hands the session's prompt to, whose
+evaluation of the task the policy turns into its choice of harness, model and
+reasoning effort. It is its policy owner's: assumed to have the skills installed
+and to run in the grove's working tree, so that it resolves what the prompt
+refers to the way a session does.
+_Avoid_: expecting Grove or harness-dispatch to supply one, or to keep it from
+executing the task it evaluates. Neither ships an agent policy, and what a
+deciding agent is told and permitted is its owner's to state.
+
 <a id="spec"></a>
 ### Spec (`docs/specs/<slug>.md`)
 

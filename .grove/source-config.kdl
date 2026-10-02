@@ -1,0 +1,129 @@
+// Personal Grove launch policy: reusable commands, routes and arrangements.
+// Default: Codex on Sol 6.1 (cost), Opus planning, Sonnet bounded execution.
+// Reviews use the other provider; preserve that pairing when overriding producers.
+// Runtime slots remain whole arguments; Grove executes argv without a shell.
+// --add-dir ${repo} also grants secondary jj workspaces access to their store.
+config {
+    command "codex" "codex --model ${param.model} -c model_reasoning_effort=${param.effort} -c default_permissions=:danger-full-access --ask-for-approval never --add-dir ${repo} ${prompt}" {
+        param "model" "gpt-6.1-sol"
+        param "effort" "medium"
+    }
+    command "claude" "claude -n ${session_name} --add-dir ${repo} --model ${param.model} --effort ${param.effort} ${prompt}" {
+        param "model" "claude-opus-5-5"
+        param "effort" "medium"
+    }
+    // Headless one-shot writer for `grove run release-notes`. The release task
+    // stages codex-headless.sh beside its inputs; state stays in the scratch dir.
+    command "release-notes-codex" "/bin/bash codex-headless.sh ${param.model} ${param.effort} ${prompt}" {
+        param "model" "gpt-6.1-sol"
+        param "effort" "medium"
+    }
+    bind "notes-writer" "release-notes-codex"
+
+    profile "routes" {
+        // Producers and integrations use lead; adversarial reads use review.
+        route "requirements" "design-lead" { param "effort" "max"; }
+        route "review-requirements" "design-review" { param "effort" "xhigh"; }
+        route "integrate-review-requirements" "design-lead" { param "effort" "xhigh"; }
+
+        route "design" "design-lead" { param "effort" "xhigh"; }
+        route "review-design" "design-review" { param "effort" "xhigh"; }
+        route "integrate-review-design" "design-lead" { param "effort" "xhigh"; }
+
+        route "planning" "lead" { param "effort" "xhigh"; }
+        route "review-planning" "review" { param "effort" "xhigh"; }
+        route "integrate-review-planning" "lead" { param "effort" "xhigh"; }
+
+        route "prototype" "lead"
+        route "review-prototype" "review"
+        route "integrate-review-prototype" "lead"
+
+        route "impl" "lead" { param "effort" "high"; }
+        route "review-impl" "review" { param "effort" "high"; }
+        route "integrate-review-impl" "lead"
+
+        // The research pair spans both vendors.
+        route "research-a" "lead" { param "effort" "high"; }
+        route "research-b" "review" { param "effort" "high"; }
+        route "combine-research" "lead" { param "effort" "xhigh"; }
+
+        // Writing/drawing use lead; the whole-document reads use review.
+        route "draft" "design-lead" { param "effort" "high"; }
+        route "copy-edit" "review"
+        route "art" "design-lead" { param "effort" "high"; }
+        route "proof" "review"
+        route "finish" "design-lead" { param "effort" "medium"; }
+
+        // Standalone: grove run release-notes (task release:notes).
+        route "release-notes" "notes-writer" { param "model" "gpt-6.1-sol"; }
+    }
+
+    profile "codex-led" {
+        bind "design-lead" "codex"
+        bind "design-review" "claude"
+        bind "lead" "codex"
+        bind "review" "claude"
+    }
+    
+    profile "claude-led" {
+        bind "design-lead" "claude"
+        bind "design-review" "codex"
+        bind "lead" "claude"
+        bind "review" "codex"
+    }
+
+    profile "codex-design-claude-impl" {
+        include "routes"
+        bind "design-lead" "codex"
+        bind "design-review" "claude"
+        bind "lead" "claude"
+        bind "review" "codex"
+
+        // Model exceptions belong to this arrangement, not shared command defaults.
+        route "prototype" { param "model" "claude-sonnet-5-5"; }
+        route "review-prototype" { param "model" "gpt-6.1-sol"; }
+        route "impl" { param "model" "claude-sonnet-5-5"; }
+        route "copy-edit" "design-review" { param "model" "claude-sonnet-5-5"; param "effort" "medium"; }
+        route "art" "design-review" { param "model" "claude-sonnet-5-5"; param "effort" "medium"; }
+        route "proof" "design-review" { param "effort" "high"; }
+    }
+
+    // Mirror of codex-design-claude-impl: Claude leads requirements/design/writing,
+    // Codex leads planning/prototype/impl. Reviews stay on the other provider.
+    profile "claude-design-codex-impl" {
+        include "routes"
+        bind "design-lead" "claude"
+        bind "design-review" "codex"
+        bind "lead" "codex"
+        bind "review" "claude"
+
+        // Cheaper-model exceptions mirror codex-design-claude-impl across providers.
+        route "prototype" { param "model" "gpt-6.1-sol"; }
+        route "review-prototype" { param "model" "claude-sonnet-5-5"; }
+        route "impl" { param "model" "gpt-6.1-sol"; }
+        route "copy-edit" "design-review" { param "model" "gpt-6.1-sol"; param "effort" "medium"; }
+        route "art" "design-review" { param "model" "gpt-6.1-sol"; param "effort" "medium"; }
+        route "proof" "design-review" { param "effort" "high"; }
+    }
+
+    // Codex conservation: pins Sol 6.1 (now also the command default) and lowers Sol review effort.
+    // Compose after an arrangement, e.g. select "routes" "claude-led" "codex-sol".
+    profile "codex-sol" {
+        values "codex" { param "model" "gpt-6.1-sol"; }
+        // Sol reviews run at high rather than xhigh. These route patches assume the
+        // reviews are bound to Codex (as under claude-led).
+        route "review-requirements" { param "effort" "high"; }
+        route "review-design" { param "effort" "high"; }
+        route "review-planning" { param "effort" "high"; }
+    }
+
+    // Optional: select "codex-design-claude-impl" "high-effort" to raise shared effort.
+    // Alternate arrangements need routes selected too: select "routes" "codex-led".
+    // Explicit per-kind effort overrides still take precedence.
+    profile "high-effort" {
+        values "codex" { param "effort" "high"; }
+        values "claude" { param "effort" "high"; }
+    }
+
+    select "routes" "claude-led" "codex-sol"
+}

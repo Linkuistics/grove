@@ -255,7 +255,8 @@ fn a_signal_between_the_commit_and_exec_launches_nothing_and_marks_the_attempt_n
 #[test]
 fn the_same_stall_unsignalled_reaches_the_harness() {
     // The control for every stalled case: the same fixture, drained without a
-    // signal, launches the harness, and its attempt stays unknown.
+    // signal, launches the harness, and dispatch's end observation confirms
+    // its execution.
     let sandbox = Sandbox::new();
     sandbox.personal_policy(ROUTED);
     first_run(&sandbox);
@@ -268,8 +269,8 @@ fn the_same_stall_unsignalled_reaches_the_harness() {
     assert_eq!(end["end"]["runId"], run_id);
     assert_eq!(sandbox.harness_run_id(), run_id);
     let export = show(&sandbox, run_id, true).report();
-    assert_eq!(export["evidence"], "handoff_attempt");
-    assert_eq!(export["execution"], "unknown");
+    assert_eq!(export["evidence"], "execution_confirmed");
+    assert_eq!(export["execution"], "confirmed");
 }
 
 #[test]
@@ -301,8 +302,8 @@ fn a_cancelled_handoff_whose_detail_cannot_be_appended_stays_unknown() {
     let run_id = notice["handoff"]["runId"].as_str().unwrap();
     assert_eq!(sandbox.harness_run_id(), run_id);
     let export = show(&sandbox, run_id, true).report();
-    assert_eq!(export["evidence"], "handoff_attempt");
-    assert_eq!(export["execution"], "unknown");
+    assert_eq!(export["evidence"], "execution_confirmed");
+    assert_eq!(export["execution"], "confirmed");
     assert_eq!(export["launchFailure"], Value::Null);
 
     let sandbox = refusing_the_append();

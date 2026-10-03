@@ -121,6 +121,25 @@ stood at the graft — a closed record, not part of the versioned sequence above
   names a child's `argv[0]` apart from the program spawned, and
   `LaunchError::raw_os_error` keeps a failed spawn's error number
   ([decision 7](docs/specs/module-decomposition.md#7--the-runner)).
+- `harness-dispatch`: **`run` records how each run ended.** Once the harness is
+  reaped, dispatch appends its own observation to the run in a short
+  transaction of its own, under the commit's lock wait: `source`
+  `harness-dispatch`, an ID naming the run, and the `executionConfirmation`,
+  `ending`, `exit` and `duration` it measured, the last from the harness's start
+  to its reap. `record show` then reads the run as execution confirmed, and an
+  outside import can still append to it or correct it. **A version-1 store is
+  migrated by that first append**, with no import between, and a failed append
+  leaves it at version 1. `ending` (`exit_signal`, `harness_exit` or
+  `cancelled`) is a new measurement, so imports, corrections and `record show`
+  handle it like any other. **`--ending-file PATH` is new**: the path must not
+  exist and its directory must, both checked before selection, and dispatch
+  creates it exclusively and owner-only, holding the same observation, once the
+  harness is reaped and its group confirmed gone. A failed append or file is
+  reported on stderr, and the end notice says whether the observation was
+  recorded, without changing the ending or the exit; a supervision failure
+  appends the observation and writes no file, and a run that started no harness
+  has no ending. A dispatch killed while its harness runs records nothing
+  ([supervision](docs/specs/harness-selection-and-execution.md#supervision)).
 
 ## v22.0.0
 

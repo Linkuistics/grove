@@ -2843,9 +2843,18 @@ fn a_review_s_findings_attach_to_the_producer_s_run_after_the_tree_is_removed() 
     let run_id = named.trim_end();
 
     fs::remove_dir_all(dispatch.worktree.join(".grove")).unwrap();
-    // The control: nothing has observed the producer's run yet.
+    // The control: nothing but dispatch's own end observation has observed the
+    // producer's run yet, and it measured no findings.
     let before = dispatch.recorded(run_id);
-    assert_eq!(before["observations"], serde_json::json!([]), "{before}");
+    assert_eq!(
+        before["observations"].as_array().map(Vec::len),
+        Some(1),
+        "{before}"
+    );
+    assert_eq!(
+        before["observations"][0]["source"], "harness-dispatch",
+        "{before}"
+    );
     assert_eq!(
         before["measurements"]["missedDefects"]["state"], "unobserved",
         "{before}"
@@ -2880,7 +2889,7 @@ fn a_review_s_findings_attach_to_the_producer_s_run_after_the_tree_is_removed() 
     let export = dispatch.recorded(run_id);
     assert_eq!(export["launch"]["taskId"], "parser-k1", "{export}");
     assert_eq!(
-        export["observations"][0]["observationId"], "parser-k2-findings",
+        export["observations"][1]["observationId"], "parser-k2-findings",
         "{export}"
     );
     assert_eq!(

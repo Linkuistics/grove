@@ -1824,6 +1824,7 @@ zero, false or accepted.
 | Measurement | Observed `value` | `unit` |
 |---|---|---|
 | `executionConfirmation` | `true`: the harness ran | none |
+| `ending` | how a supervised run ended: `exit_signal`, `harness_exit` or `cancelled` | none |
 | `exit` | `{ "code": 0 }` from 0 to 255, or `{ "signal": "SIGTERM" }` | none |
 | `duration`, `humanTime` | a number of at least 0 | `ms`, `s`, `min` or `h` |
 | `inputUsage`, `outputUsage`, `totalUsage` | a number of at least 0 | any nonblank unit, such as `tokens` or `USD` |

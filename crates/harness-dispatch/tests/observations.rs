@@ -42,13 +42,34 @@ const CATALOG_STORE: &[u8] = include_bytes!("fixtures/catalog-contract/records.s
 const ROUTED_RUN: &str = "45308255-7446-42b2-bbd7-e5f7861e46ef";
 const CHOSEN_RUN: &str = "b2aec552-b5eb-4de0-b5e9-5db0d70a6d55";
 
-/// A successful run's ID, taken from the harness it reached.
+/// A successful run's ID, taken from the harness it reached. The run has none
+/// of dispatch's own observation of its end: these cases are about what an
+/// outside observer imports, and count and order what they import, so they
+/// start from a run no observation has reached. Dispatch's own end observation
+/// has its cases in `tests/supervision.rs`, and `without_dispatchs_end` says
+/// how it is taken away.
 fn launched(sandbox: &Sandbox, args: &[&str]) -> String {
     let result = sandbox.run(args);
     assert_eq!(result.code, Some(0), "{}", result.stderr);
     let run_id = sandbox.harness_run_id();
     fs::remove_dir_all(&sandbox.record).unwrap();
+    without_dispatchs_end(&sandbox.default_store());
     run_id
+}
+
+/// Take dispatch's end observations out of the store at `store`, by the one
+/// route the store's own triggers leave: dropping the trigger that keeps an
+/// observation for good, and putting it back. Only a test makes such a store.
+fn without_dispatchs_end(store: &Path) {
+    let connection = Connection::open(store).unwrap();
+    connection
+        .execute_batch(
+            "DROP TRIGGER observations_are_never_removed;
+             DELETE FROM observations WHERE json_extract(document, '$.source') = 'harness-dispatch';
+             CREATE TRIGGER observations_are_never_removed BEFORE DELETE ON observations
+             BEGIN SELECT RAISE(ABORT, 'a recorded observation is never removed'); END;",
+        )
+        .unwrap();
 }
 
 fn impl_run(sandbox: &Sandbox) -> String {
@@ -118,6 +139,7 @@ fn user_version(store: &Path) -> i64 {
 fn every_measurement(run_id: &str) -> Value {
     json!({
         "executionConfirmation": { "state": "observed", "value": true },
+        "ending": { "state": "observed", "value": "harness_exit" },
         "exit": { "state": "observed", "value": { "code": 0 } },
         "duration": { "state": "observed", "value": 12.5, "unit": "s" },
         "inputUsage": { "state": "observed", "value": 1200, "unit": "tokens" },
@@ -270,7 +292,7 @@ fn unsupplied_measurements_stay_unobserved_and_an_attempt_stays_unconfirmed() {
     assert_eq!(export["evidence"], "handoff_attempt");
     assert_eq!(export["execution"], "unknown");
     let exported = &export["observations"][0]["measurements"];
-    assert_eq!(exported.as_object().unwrap().len(), 15);
+    assert_eq!(exported.as_object().unwrap().len(), 16);
     assert_eq!(exported["acceptance"]["value"], "accepted");
     assert_eq!(
         exported["executionConfirmation"],
@@ -290,7 +312,7 @@ fn unsupplied_measurements_stay_unobserved_and_an_attempt_stays_unconfirmed() {
         .map(String::as_str)
         .filter(|name| !["acceptance", "executionConfirmation"].contains(name))
         .collect();
-    assert_eq!(absent.len(), 13, "{absent:?}");
+    assert_eq!(absent.len(), 14, "{absent:?}");
     for absent in absent {
         assert_eq!(
             exported[absent],
@@ -929,8 +951,7 @@ fn a_version_1_store_is_migrated_by_its_first_observation_and_read_as_it_is_othe
     let export = show(&sandbox, old_run);
     assert_eq!(export["launch"]["kind"], "impl");
     assert_eq!(export["observations"], json!([]));
-    let new_run = impl_run(&sandbox);
-    assert_eq!(user_version(&store), 1, "only record observe migrates");
+    assert_eq!(user_version(&store), 1, "reading migrates nothing");
 
     // A refused import rolls its migration back with it.
     let mut refused = observation(old_run, "o-1", json!({}));
@@ -957,6 +978,18 @@ fn a_version_1_store_is_migrated_by_its_first_observation_and_read_as_it_is_othe
     );
     assert_eq!(user_version(&store), 1);
 
+    // A run's own end observation is an observation too: the first one
+    // appended migrates the store, with no import between. The run is the
+    // ordinary kind, so dispatch's end observation stays on it.
+    let result = sandbox.run(&["--kind", "impl", "--prompt", "p"]);
+    assert_eq!(result.code, Some(0), "{}", result.stderr);
+    let new_run = sandbox.harness_run_id();
+    assert_eq!(user_version(&store), 2, "dispatch's end migrated the store");
+    assert_eq!(observation_count(&store), 1);
+    let own = show(&sandbox, &new_run);
+    assert_eq!(own["evidence"], "execution_confirmed");
+    assert_eq!(own["observations"][0]["source"], "harness-dispatch");
+
     let document = observation(
         old_run,
         "o-1",
@@ -964,12 +997,16 @@ fn a_version_1_store_is_migrated_by_its_first_observation_and_read_as_it_is_othe
     );
     recorded(&observe(&sandbox, old_run, "o-1.json", &document));
     assert_eq!(user_version(&store), 2);
-    assert_eq!(observation_count(&store), 1);
+    assert_eq!(observation_count(&store), 2);
     assert_eq!(
         show(&sandbox, old_run)["observations"][0]["observationId"],
         "o-1"
     );
-    assert_eq!(show(&sandbox, &new_run)["observations"], json!([]));
+    assert_eq!(
+        show(&sandbox, &new_run),
+        own,
+        "an import touched another run"
+    );
 
     // A later version still refuses, and is left as it was.
     Connection::open(&store)

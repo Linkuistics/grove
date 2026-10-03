@@ -295,7 +295,7 @@ fn inspect_reports_no_run_id_and_writes_nothing() {
 }
 
 #[test]
-fn record_show_exports_the_launch_fields_with_the_attempt_unknown_and_every_measurement_unobserved()
+fn record_show_exports_the_launch_fields_with_dispatchs_end_and_every_other_measurement_unobserved()
 {
     let sandbox = Sandbox::new();
     let entry = sandbox.personal_policy(PARAMETERISED);
@@ -331,19 +331,36 @@ fn record_show_exports_the_launch_fields_with_the_attempt_unknown_and_every_meas
     assert_eq!(export["schemaVersion"], 1);
     assert_eq!(export["runId"], run_id.as_str());
     assert!(export["recordedAt"].as_str().unwrap().ends_with('Z'));
-    // The harness exited 0, and that proves nothing: the run is an attempt.
-    assert_eq!(export["evidence"], "handoff_attempt");
-    assert_eq!(export["execution"], "unknown");
+    // The harness was supervised to its end, and dispatch's own observation of
+    // that end is the only evidence: it confirms execution and measures how
+    // the run ended, and nothing else was observed.
+    assert_eq!(export["evidence"], "execution_confirmed");
+    assert_eq!(export["execution"], "confirmed");
     assert_eq!(export["launchFailure"], Value::Null);
-    assert_eq!(export["observations"], serde_json::json!([]));
+    let observations = export["observations"].as_array().unwrap();
+    assert_eq!(observations.len(), 1, "{export}");
+    assert_eq!(observations[0]["source"], "harness-dispatch");
+    assert_eq!(
+        observations[0]["observationId"],
+        format!("harness-dispatch-end-{run_id}")
+    );
     let measurements = export["measurements"].as_object().unwrap();
     assert!(measurements.len() >= 10, "{export}");
+    let ends = ["executionConfirmation", "ending", "exit", "duration"];
     for (name, measurement) in measurements {
-        assert_eq!(
-            measurement,
-            &serde_json::json!({ "state": "unobserved", "current": [] }),
-            "{name}"
-        );
+        if ends.contains(&name.as_str()) {
+            assert_eq!(measurement["state"], "observed", "{name}");
+            assert_eq!(
+                measurement["current"][0]["observationId"], observations[0]["observationId"],
+                "{name}"
+            );
+        } else {
+            assert_eq!(
+                measurement,
+                &serde_json::json!({ "state": "unobserved", "current": [] }),
+                "{name}"
+            );
+        }
     }
 
     // The whole launch document: every field is present, `null` where the run
@@ -422,8 +439,8 @@ fn record_show_exports_the_launch_fields_with_the_attempt_unknown_and_every_meas
     assert_eq!(text_export.code, Some(0), "{}", text_export.stderr);
     for expected in [
         run_id.as_str(),
-        "handoff attempt",
-        "unobserved every measurement",
+        "execution confirmed",
+        "ending harness_exit (observation harness-dispatch-end-",
         "\"Implement the parser\"",
     ] {
         assert!(
@@ -1191,7 +1208,7 @@ fn a_run_commits_beside_the_runs_of_the_catalog_contract_and_both_export() {
 
     // The run this release recorded has no value for what the others carry.
     let export = show(&sandbox, &run_id, &["--json"]).report();
-    assert_eq!(export["evidence"], "handoff_attempt");
+    assert_eq!(export["evidence"], "execution_confirmed");
     let launch = &export["launch"];
     assert_eq!(launch["schemaVersion"], routed["launch"]["schemaVersion"]);
     assert_eq!(launch["taskId"], "parser-k14");

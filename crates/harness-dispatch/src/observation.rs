@@ -63,11 +63,17 @@ const EXIT_FIELDS: [&str; 2] = ["code", "signal"];
 const ESTIMATE_FIELDS: [&str; 3] = ["probability", "calibration", "uncalibrated"];
 const TIME_UNITS: [&str; 4] = ["ms", "s", "min", "h"];
 
+/// How a run that started a harness ended, as `ending` reports it
+/// (`docs/specs/harness-selection-and-execution.md`, *The run ending*).
+pub const ENDINGS: [&str; 3] = ["exit_signal", "harness_exit", "cancelled"];
+
 /// The value type of one measurement.
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Type {
     /// The literal `true`: the observation is the confirmation.
     Confirmation,
+    /// `exit_signal`, `harness_exit` or `cancelled`.
+    Ending,
     /// `{ code }` or `{ signal }`.
     Exit,
     /// A non-negative number with a time unit.
@@ -97,8 +103,9 @@ impl Type {
 }
 
 /// Every supported measurement, in the order the export lists them.
-const MEASUREMENTS: [(&str, Type); 15] = [
+const MEASUREMENTS: [(&str, Type); 16] = [
     ("executionConfirmation", Type::Confirmation),
+    ("ending", Type::Ending),
     ("exit", Type::Exit),
     ("duration", Type::Time),
     ("inputUsage", Type::Usage),
@@ -351,6 +358,89 @@ pub fn read(given: &Path, cwd: &Path, run_id: &RunId) -> Result<Observation, Ref
         check.invalid("observation", format!("the document is not JSON: {error}"))
     })?;
     check.envelope(value, run_id)
+}
+
+/// What dispatch observed of a run it supervised to its end.
+pub struct RunEnd<'a> {
+    pub run_id: &'a RunId,
+    /// One of [`ENDINGS`].
+    pub ending: &'a str,
+    /// The harness's own exit code, when it exited.
+    pub code: Option<i32>,
+    /// The harness's death signal, when it has a conventional `SIG` name; a
+    /// signal without one is reported as an exit nobody could name, unknown.
+    pub signal: Option<&'a str>,
+    /// From the harness's start to its reap.
+    pub duration: std::time::Duration,
+}
+
+/// The ID of the observation `harness-dispatch` makes of `run_id`'s end, which
+/// names the run so that it is one per run.
+pub fn end_observation_id(run_id: &RunId) -> String {
+    format!("harness-dispatch-end-{run_id}")
+}
+
+/// Dispatch's own **end observation** of a run it supervised to its end: an
+/// ordinary version-1 observation, validated as an import of it would be, whose
+/// `source` says who made it. The same document is what `--ending-file` holds.
+pub fn end_observation(end: &RunEnd<'_>) -> Result<Observation, Refusal> {
+    let exit = match (end.code, end.signal) {
+        (Some(code), _) => json!({ "state": "observed", "value": { "code": code & 0xff } }),
+        (None, Some(signal)) => json!({ "state": "observed", "value": { "signal": signal } }),
+        (None, None) => json!({ "state": "unknown" }),
+    };
+    let millis = u64::try_from(end.duration.as_millis()).unwrap_or(u64::MAX);
+    let document = json!({
+        "schemaVersion": OBSERVATION_VERSION,
+        "observationId": end_observation_id(end.run_id),
+        "runId": end.run_id.as_str(),
+        "source": "harness-dispatch",
+        "observedAt": now(),
+        "evidence": "harness-dispatch supervised the harness to its end: it spawned it as its own \
+                     child, reaped it, and measured the run from the harness's start to its reap",
+        "measurements": {
+            "executionConfirmation": { "state": "observed", "value": true },
+            "ending": { "state": "observed", "value": end.ending },
+            "exit": exit,
+            "duration": { "state": "observed", "value": millis, "unit": "ms" },
+        },
+    });
+    Check {
+        source: "harness-dispatch's end observation",
+        expected: "harness-dispatch supervised",
+    }
+    .envelope(document, end.run_id)
+}
+
+/// The current UTC time as an RFC 3339 date-time with millisecond precision.
+fn now() -> String {
+    let since = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default();
+    let (days, rest) = (since.as_secs() / 86_400, since.as_secs() % 86_400);
+    // Civil date from a day count (Howard Hinnant's days_from_civil, inverted),
+    // https://howardhinnant.github.io/date_algorithms.html#civil_from_days
+    let z = i64::try_from(days).unwrap_or(0) + 719_468;
+    let era = z.div_euclid(146_097);
+    let day_of_era = z.rem_euclid(146_097);
+    let year_of_era =
+        (day_of_era - day_of_era / 1460 + day_of_era / 36_524 - day_of_era / 146_096) / 365;
+    let day_of_year = day_of_era - (365 * year_of_era + year_of_era / 4 - year_of_era / 100);
+    let month_index = (5 * day_of_year + 2) / 153;
+    let day = day_of_year - (153 * month_index + 2) / 5 + 1;
+    let month = if month_index < 10 {
+        month_index + 3
+    } else {
+        month_index - 9
+    };
+    let year = year_of_era + era * 400 + i64::from(month <= 2);
+    format!(
+        "{year:04}-{month:02}-{day:02}T{:02}:{:02}:{:02}.{:03}Z",
+        rest / 3600,
+        rest % 3600 / 60,
+        rest % 60,
+        since.subsec_millis()
+    )
 }
 
 /// Check a document the store holds as observation `id` of `run_id`, which
@@ -636,6 +726,17 @@ impl Check<'_> {
                         .to_owned(),
                 )),
                 other => Err(self.invalid(at, format!("expected true, found {}", describe(other)))),
+            },
+            Type::Ending => match self.string(value, at, false)? {
+                ending if ENDINGS.contains(&ending) => Ok(()),
+                other => Err(self.invalid(
+                    at,
+                    format!(
+                        "`ending` is one of {}, found {other:?}; report it as unknown when the \
+                         observer could not tell",
+                        ENDINGS.join(", ")
+                    ),
+                )),
             },
             Type::Exit => self.exit(value, at),
             Type::Time | Type::Usage => self.amount(value, at).map(|_| ()),
@@ -1141,6 +1242,7 @@ mod tests {
     fn every_supported_measurement_in_every_state_is_accepted() {
         let observed = json!({
             "executionConfirmation": { "state": "observed", "value": true },
+            "ending": { "state": "observed", "value": "harness_exit" },
             "exit": { "state": "observed", "value": { "code": 0 } },
             "duration": { "state": "observed", "value": 12.5, "unit": "s" },
             "inputUsage": { "state": "observed", "value": 1200, "unit": "tokens" },
@@ -1270,6 +1372,17 @@ mod tests {
             (
                 measured("humanWork", json!({ "state": "unknown" })),
                 "observation.measurements.humanWork",
+            ),
+            (
+                measured(
+                    "ending",
+                    json!({ "state": "observed", "value": "finished" }),
+                ),
+                "observation.measurements.ending.value",
+            ),
+            (
+                measured("ending", json!({ "state": "observed", "value": 1 })),
+                "observation.measurements.ending.value",
             ),
             (
                 measured("duration", json!("12s")),
@@ -1551,5 +1664,62 @@ mod tests {
         assert_eq!(expanded.len(), MEASUREMENTS.len());
         assert_eq!(expanded["exit"], json!({ "state": "unobserved" }));
         assert_eq!(expanded["duration"]["value"], 3);
+    }
+
+    fn ended<'a>(ending: &'a str, code: Option<i32>, signal: Option<&'a str>) -> Observation {
+        end_observation(&RunEnd {
+            run_id: &run(),
+            ending,
+            code,
+            signal,
+            duration: std::time::Duration::from_millis(1500),
+        })
+        .unwrap()
+    }
+
+    #[test]
+    fn the_end_observation_is_an_ordinary_validated_observation() {
+        let observation = ended("exit_signal", Some(0), None);
+        assert!(observation.confirms_execution);
+        assert_eq!(observation.id, format!("harness-dispatch-end-{RUN}"));
+        let document = &observation.document;
+        assert_eq!(document["source"], "harness-dispatch");
+        let measured = &document["measurements"];
+        assert_eq!(measured.as_object().unwrap().len(), 4);
+        assert_eq!(measured["ending"]["value"], "exit_signal");
+        assert_eq!(measured["exit"]["value"], json!({ "code": 0 }));
+        assert_eq!(
+            measured["duration"],
+            json!({ "state": "observed", "value": 1500, "unit": "ms" })
+        );
+        // What the store holds must read back as the observation it is.
+        stored(document, &observation.id, &run(), None).unwrap();
+    }
+
+    #[test]
+    fn the_end_observation_reports_a_signal_and_what_it_could_not_name() {
+        let died = ended("harness_exit", None, Some("SIGKILL"));
+        assert_eq!(
+            died.document["measurements"]["exit"]["value"],
+            json!({ "signal": "SIGKILL" })
+        );
+        let neither = ended("cancelled", None, None);
+        assert_eq!(
+            neither.document["measurements"]["exit"],
+            json!({ "state": "unknown" })
+        );
+        for ending in ENDINGS {
+            assert_eq!(
+                ended(ending, Some(3), None).document["measurements"]["ending"]["value"],
+                ending
+            );
+        }
+    }
+
+    #[test]
+    fn now_is_an_rfc_3339_date_time() {
+        let stamp = now();
+        assert!(is_date_time(&stamp), "{stamp}");
+        assert_eq!(stamp.len(), "2026-10-01T09:30:00.000Z".len(), "{stamp}");
     }
 }

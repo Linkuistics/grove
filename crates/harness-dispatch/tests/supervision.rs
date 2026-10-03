@@ -24,7 +24,8 @@ use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use std::time::{Duration, Instant};
 
-use serde_json::Value;
+use rusqlite::Connection;
+use serde_json::{json, Value};
 use support::pty::in_pty;
 use support::{executable, run, selecting, text, Sandbox, FRONT};
 
@@ -589,4 +590,416 @@ fn a_missing_exit_directory_refuses_before_selection() {
         ])
         .refusal(3);
     assert_eq!(refusal["error"]["code"], "policy_missing", "{refusal}");
+}
+
+// ---------------------------------------------------------------------------
+// The end observation and the ending file
+
+/// `record show --run R --json` against the sandbox's own store.
+fn show(sandbox: &Sandbox, run_id: &str) -> Value {
+    let mut command = sandbox.command();
+    command.args(["record", "show", "--run", run_id, "--json"]);
+    run(&mut command).report()
+}
+
+/// The ID of the run an end notice names.
+fn run_of(end: &Value) -> String {
+    end["runId"].as_str().unwrap().to_owned()
+}
+
+fn user_version(store: &Path) -> i64 {
+    Connection::open(store)
+        .unwrap()
+        .query_row("PRAGMA user_version", [], |row| row.get(0))
+        .unwrap()
+}
+
+/// The ending file's one JSON document.
+fn ending_document(path: &Path) -> Value {
+    let text =
+        fs::read_to_string(path).unwrap_or_else(|error| panic!("{}: {error}", path.display()));
+    assert_eq!(text.lines().count(), 1, "{text}");
+    serde_json::from_str(&text).unwrap()
+}
+
+/// Each of the three endings is reported in the ending file with the harness's
+/// exit and duration, and gives the exit status its row states: the harness's
+/// own code for `harness_exit`, 0 for an `exit_signal` the escalation ended,
+/// and death by the cancelling signal for `cancelled`. The same document is
+/// the run's end observation in the store, so `record show` carries it and
+/// reads the run as execution confirmed.
+#[test]
+fn each_ending_is_reported_in_the_ending_file_and_recorded() {
+    let sandbox = sandbox();
+    let file = sandbox.root.join("ending.json");
+
+    // harness_exit: the harness's own code.
+    fake(&sandbox, "quits", "sleep 0.3\nexit 3\n");
+    let ran = run(&mut front(
+        &sandbox,
+        "quits",
+        &["--ending-file", &text(&file)],
+    ));
+    assert_eq!(ran.code, Some(3), "{}", ran.stderr);
+    let end = end_notice(&ran.stderr);
+    assert_eq!(end["ending"], "harness_exit", "{end}");
+    assert_eq!(end["recorded"], true, "{end}");
+    let document = ending_document(&file);
+    let measured = &document["measurements"];
+    assert_eq!(document["source"], "harness-dispatch");
+    assert_eq!(document["runId"], end["runId"]);
+    assert_eq!(measured["executionConfirmation"]["value"], true);
+    assert_eq!(measured["ending"]["value"], "harness_exit");
+    assert_eq!(measured["exit"]["value"], json!({ "code": 3 }));
+    assert_eq!(measured["duration"]["unit"], "ms");
+    let duration = measured["duration"]["value"].as_f64().unwrap();
+    assert!((300.0..20_000.0).contains(&duration), "{duration}");
+    assert_eq!(
+        fs::metadata(&file).unwrap().permissions().mode() & 0o777,
+        0o600,
+        "owner-only"
+    );
+
+    // The store holds the very document the file does.
+    let export = show(&sandbox, &run_of(&end));
+    assert_eq!(export["evidence"], "execution_confirmed", "{export}");
+    assert_eq!(export["execution"], "confirmed", "{export}");
+    let stored = &export["observations"][0];
+    assert_eq!(stored["observationId"], document["observationId"]);
+    assert_eq!(stored["source"], "harness-dispatch");
+    assert_eq!(stored["measurements"]["ending"]["value"], "harness_exit");
+    assert_eq!(
+        stored["measurements"]["exit"]["value"],
+        json!({ "code": 3 })
+    );
+    assert_eq!(
+        stored["measurements"]["duration"]["value"],
+        measured["duration"]["value"]
+    );
+    assert_eq!(export["measurements"]["ending"]["state"], "observed");
+
+    // exit_signal: the escalation ends a harness that will not exit.
+    let file = sandbox.root.join("exit-signal.json");
+    fake(
+        &sandbox,
+        "lingers",
+        "trap '' TERM\n\"$FRONT\" exit\nwhile : ; do sleep 0.05 ; done\n",
+    );
+    let ran = run(&mut front(
+        &sandbox,
+        "lingers",
+        &["--ending-file", &text(&file)],
+    ));
+    assert_eq!(ran.code, Some(0), "{}", ran.stderr);
+    let measured = ending_document(&file)["measurements"].clone();
+    assert_eq!(measured["ending"]["value"], "exit_signal");
+    assert_eq!(measured["exit"]["value"], json!({ "signal": "SIGKILL" }));
+
+    // exit_signal again, from a harness that exits 0 on its own after it.
+    let file = sandbox.root.join("exit-signal-zero.json");
+    fake(&sandbox, "signals", "\"$FRONT\" exit\nexit 0\n");
+    let ran = run(&mut front(
+        &sandbox,
+        "signals",
+        &["--ending-file", &text(&file)],
+    ));
+    assert_eq!(ran.code, Some(0), "{}", ran.stderr);
+    let measured = ending_document(&file)["measurements"].clone();
+    assert_eq!(measured["ending"]["value"], "exit_signal");
+    assert_eq!(measured["exit"]["value"], json!({ "code": 0 }));
+
+    // cancelled: a handled signal while the harness runs.
+    let file = sandbox.root.join("cancelled.json");
+    fake(
+        &sandbox,
+        "busy",
+        ": > \"$ROOT/ready\"\nwhile : ; do sleep 0.05 ; done\n",
+    );
+    let mut command = front(&sandbox, "busy", &["--ending-file", &text(&file)]);
+    let child = command
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    wait_for(&sandbox.root.join("ready"), Duration::from_secs(20));
+    // SAFETY: the front this test started, still running its harness.
+    unsafe { libc::kill(child.id() as libc::pid_t, libc::SIGTERM) };
+    let output = child.wait_with_output().unwrap();
+    assert_eq!(output.status.signal(), Some(libc::SIGTERM));
+    let measured = ending_document(&file)["measurements"].clone();
+    assert_eq!(measured["ending"]["value"], "cancelled");
+    assert_eq!(measured["exit"]["value"], json!({ "signal": "SIGTERM" }));
+    assert!(measured["duration"]["value"].as_f64().unwrap() > 0.0);
+}
+
+/// An ending file that exists refuses before selection, with no policy needed
+/// to see it, and so does one in a directory that does not. The control is the
+/// same run with a usable path, which reaches the policy and refuses that it
+/// is missing. Nothing replaces the file that was there.
+#[test]
+fn an_unusable_ending_file_refuses_before_selection() {
+    let sandbox = Sandbox::new();
+    let existing = sandbox.file("existing.json", "keep me");
+    let refusal = sandbox
+        .run(&[
+            "--kind",
+            "impl",
+            "--prompt",
+            "p",
+            "--ending-file",
+            &text(&existing),
+            "--json",
+        ])
+        .refusal(2);
+    assert_eq!(
+        refusal["error"]["code"], "ending_file_unusable",
+        "{refusal}"
+    );
+    assert_eq!(refusal["error"]["input"], "--ending-file", "{refusal}");
+    assert_eq!(fs::read_to_string(&existing).unwrap(), "keep me");
+
+    let refusal = sandbox
+        .run(&[
+            "--kind",
+            "impl",
+            "--prompt",
+            "p",
+            "--ending-file",
+            "absent/ending.json",
+            "--json",
+        ])
+        .refusal(2);
+    assert_eq!(
+        refusal["error"]["code"], "ending_file_unusable",
+        "{refusal}"
+    );
+
+    let refusal = sandbox
+        .run(&[
+            "--kind",
+            "impl",
+            "--prompt",
+            "p",
+            "--ending-file",
+            "ending.json",
+            "--json",
+        ])
+        .refusal(3);
+    assert_eq!(refusal["error"]["code"], "policy_missing", "{refusal}");
+}
+
+/// A run records its end observation in a version-1 store with no import
+/// between, and the end observation migrates it. A failed append leaves the
+/// store at version 1, is reported on stderr, and changes neither the ending
+/// nor the exit, nor the ending file.
+#[test]
+fn the_end_observation_migrates_a_version_1_store_and_a_failed_append_does_not() {
+    const VERSION_1_STORE: &str = "
+CREATE TABLE runs (run_id TEXT PRIMARY KEY NOT NULL, recorded_at TEXT NOT NULL, launch TEXT NOT NULL);
+CREATE TABLE launch_failures (run_id TEXT PRIMARY KEY NOT NULL REFERENCES runs (run_id), recorded_at TEXT NOT NULL, detail TEXT NOT NULL);
+CREATE TRIGGER runs_never_change BEFORE UPDATE ON runs BEGIN SELECT RAISE(ABORT, 'a committed run''s launch fields never change'); END;
+CREATE TRIGGER runs_are_never_removed BEFORE DELETE ON runs BEGIN SELECT RAISE(ABORT, 'a committed run is never removed'); END;
+CREATE TRIGGER launch_failures_never_change BEFORE UPDATE ON launch_failures BEGIN SELECT RAISE(ABORT, 'a recorded launch failure never changes'); END;
+CREATE TRIGGER launch_failures_are_never_removed BEFORE DELETE ON launch_failures BEGIN SELECT RAISE(ABORT, 'a recorded launch failure is never removed'); END;
+PRAGMA application_id = 1212437075;
+PRAGMA user_version = 1;
+";
+    let sandbox = sandbox();
+    let store = sandbox.default_store();
+    let directory = store.parent().unwrap().to_owned();
+    fs::create_dir_all(&directory).unwrap();
+    Connection::open(&store)
+        .unwrap()
+        .execute_batch(VERSION_1_STORE)
+        .unwrap();
+    assert_eq!(user_version(&store), 1);
+
+    // The harness takes away the store directory's write permission, so its
+    // journal cannot be created and the append fails after the commit.
+    let file = sandbox.root.join("failed.json");
+    fake(
+        &sandbox,
+        "locks",
+        &format!("chmod 500 '{}'\nexit 5\n", directory.display()),
+    );
+    let failed = run(&mut front(
+        &sandbox,
+        "locks",
+        &["--ending-file", &text(&file)],
+    ));
+    fs::set_permissions(&directory, fs::Permissions::from_mode(0o700)).unwrap();
+    assert_eq!(failed.code, Some(5), "{}", failed.stderr);
+    let end = end_notice(&failed.stderr);
+    assert_eq!(end["ending"], "harness_exit", "{end}");
+    assert_eq!(end["exitCode"], 5, "{end}");
+    assert_eq!(end["recorded"], false, "{end}");
+    assert!(
+        failed
+            .stderr
+            .contains("its end observation was not recorded"),
+        "{}",
+        failed.stderr
+    );
+    assert_eq!(
+        user_version(&store),
+        1,
+        "a failed append migrated the store"
+    );
+    assert!(file.exists(), "the ending file waited on the store");
+    assert_eq!(
+        show(&sandbox, &run_of(&end))["evidence"],
+        "handoff_attempt",
+        "an end observation that was not recorded still confirmed the run"
+    );
+
+    // The same run, with the store writable, records its end and migrates.
+    fake(&sandbox, "quits", "exit 0\n");
+    let ran = run(&mut front(&sandbox, "quits", &[]));
+    assert_eq!(ran.code, Some(0), "{}", ran.stderr);
+    let end = end_notice(&ran.stderr);
+    assert_eq!(end["recorded"], true, "{end}");
+    assert_eq!(user_version(&store), 2);
+    let export = show(&sandbox, &run_of(&end));
+    assert_eq!(export["evidence"], "execution_confirmed", "{export}");
+}
+
+/// A dispatch killed while its harness runs leaves the attempt as it stood:
+/// execution unknown, no end observation and no ending file. Outside imports
+/// still append to and correct a supervised run, its end observation included.
+#[test]
+fn a_killed_dispatch_records_no_end_and_imports_still_append_and_correct() {
+    let sandbox = sandbox();
+    let file = sandbox.root.join("killed.json");
+    fake(
+        &sandbox,
+        "busy",
+        "echo $$ > \"$ROOT/harness\"\n: > \"$ROOT/ready\"\nwhile : ; do sleep 0.05 ; done\n",
+    );
+    let mut command = front(&sandbox, "busy", &["--ending-file", &text(&file)]);
+    // No pipes: the orphaned harness would hold their write ends open, and
+    // there would be nothing to read them to the end.
+    let mut child = command
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+        .unwrap();
+    wait_for(&sandbox.root.join("ready"), Duration::from_secs(20));
+    child.kill().unwrap();
+    let status = child.wait().unwrap();
+    assert_eq!(status.signal(), Some(libc::SIGKILL));
+    // The orphaned harness is nothing's to escalate; end it here.
+    let harness: libc::pid_t = read(&sandbox.root.join("harness")).parse().unwrap();
+    // SAFETY: the test's own orphaned fake.
+    unsafe { libc::kill(harness, libc::SIGKILL) };
+    assert!(!file.exists(), "a killed dispatch wrote an ending file");
+    let store = sandbox.default_store();
+    let observations: i64 = Connection::open(&store)
+        .unwrap()
+        .query_row("SELECT count(*) FROM observations", [], |row| row.get(0))
+        .unwrap();
+    assert_eq!(observations, 0, "a killed dispatch recorded an end");
+    let run_id: String = Connection::open(&store)
+        .unwrap()
+        .query_row("SELECT run_id FROM runs", [], |row| row.get(0))
+        .unwrap();
+    let export = show(&sandbox, &run_id);
+    assert_eq!(export["evidence"], "handoff_attempt", "{export}");
+    assert_eq!(export["execution"], "unknown", "{export}");
+
+    // A run that ended, then outside observations: one appended, one
+    // correcting dispatch's own end observation.
+    fake(&sandbox, "quits", "exit 2\n");
+    let ran = run(&mut front(&sandbox, "quits", &[]));
+    assert_eq!(ran.code, Some(2), "{}", ran.stderr);
+    let run_id = run_of(&end_notice(&ran.stderr));
+    let end_id = format!("harness-dispatch-end-{run_id}");
+    let import = |name: &str, document: Value| {
+        let path = sandbox.file(name, &serde_json::to_string(&document).unwrap());
+        let mut command = sandbox.command();
+        command.args([
+            "record",
+            "observe",
+            "--run",
+            &run_id,
+            "--file",
+            &text(&path),
+            "--json",
+        ]);
+        run(&mut command)
+    };
+    let observation = |id: &str, measurements: Value| {
+        json!({
+            "schemaVersion": 1,
+            "observationId": id,
+            "runId": run_id,
+            "source": "an outside observer",
+            "observedAt": "2026-10-01T09:30:00Z",
+            "evidence": "what the observer saw",
+            "measurements": measurements,
+        })
+    };
+    let appended = import(
+        "accepted.json",
+        observation(
+            "accepted",
+            json!({ "acceptance": { "state": "observed", "value": "accepted" } }),
+        ),
+    );
+    assert_eq!(appended.code, Some(0), "{}", appended.stderr);
+    let mut correction = observation(
+        "corrected-end",
+        json!({ "exit": { "state": "observed", "value": { "code": 0 } } }),
+    );
+    correction["supersedes"] = json!(end_id);
+    let corrected = import("corrected.json", correction);
+    assert_eq!(corrected.code, Some(0), "{}", corrected.stderr);
+    let export = show(&sandbox, &run_id);
+    let listed: Vec<&Value> = export["observations"].as_array().unwrap().iter().collect();
+    assert_eq!(listed.len(), 3, "{export}");
+    assert_eq!(listed[0]["observationId"], json!(end_id));
+    assert_eq!(listed[0]["supersededBy"], "corrected-end", "{export}");
+    assert_eq!(export["measurements"]["acceptance"]["state"], "observed");
+    assert_eq!(
+        export["measurements"]["exit"]["current"],
+        json!([{
+            "observationId": "corrected-end",
+            "state": "observed",
+            "value": { "code": 0 },
+        }])
+    );
+}
+
+/// A run that started no harness has no ending: a refusal before the handoff
+/// and a harness that could not be started write no ending file, record no
+/// end observation, and exit as the diagnostics say.
+#[test]
+fn a_run_that_started_no_harness_has_no_ending() {
+    let sandbox = sandbox();
+    let file = sandbox.root.join("never.json");
+    let ran = run(&mut front(
+        &sandbox,
+        "no-such-harness",
+        &["--ending-file", &text(&file)],
+    ));
+    assert_eq!(ran.code, Some(127), "{}", ran.stderr);
+    assert!(!file.exists(), "a refused run wrote an ending file");
+    assert!(
+        !sandbox.default_store().exists(),
+        "a refused run recorded something"
+    );
+
+    // Committed, then not started: its `#!` interpreter does not exist.
+    executable(&sandbox.bin.join("broken"), "#!/nonexistent/interpreter\n");
+    let ran = run(&mut front(
+        &sandbox,
+        "broken",
+        &["--ending-file", &text(&file)],
+    ));
+    assert_eq!(ran.code, Some(127), "{}", ran.stderr);
+    assert!(!file.exists(), "an unstarted harness wrote an ending file");
+    let observations: i64 = Connection::open(sandbox.default_store())
+        .unwrap()
+        .query_row("SELECT count(*) FROM observations", [], |row| row.get(0))
+        .unwrap();
+    assert_eq!(observations, 0, "{}", ran.stderr);
 }

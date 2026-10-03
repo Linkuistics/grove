@@ -6,7 +6,8 @@
 //! parameters and context document, the selection and context bounds, the
 //! record directory and the worker's environment grants. The last four are
 //! also owner settings (`settings`), which a flag replaces or adds to. `run`
-//! alone takes `--exit-dir`, which is about the run rather than the selection.
+//! alone takes `--exit-dir` and `--ending-file`, which are about the run rather than the
+//! selection.
 //! `init` and `exit` take no input. `record show` exports a recorded run, and
 //! `record observe` appends a later observation to one.
 
@@ -107,13 +108,20 @@ pub enum Command {
         without the exit signal; 0 when the exit signal ended it or it exited 0 after \
         sending it; death by the cancelling signal; and 5 when members of its group may \
         have survived it.\n\n\
+        Once the harness is reaped, run appends dispatch's own observation of the run's end to \
+        the record store (source harness-dispatch: execution confirmed, the ending, the exit and \
+        the duration), migrating a version-1 store, and, with --ending-file, writes the same \
+        observation to that file once the harness's group is gone. The path must not exist and \
+        its directory must, checked before selection. A failed append or file is reported on \
+        stderr and changes neither the ending nor the exit status.\n\n\
         Examples:\n  \
         harness-dispatch run --kind impl --prompt 'Implement the parser'\n  \
         harness-dispatch run --kind impl --task-file ./tasks/parser.md --task-id T-12 --prompt-file ./mandate.md\n  \
         harness-dispatch run --kind impl --param profile=careful --prompt 'Implement the parser'\n  \
         harness-dispatch run --kind review --context ./review-context.json --context-bytes 1048576 --prompt-file ./mandate.md\n  \
         harness-dispatch run --kind impl --state-dir ./records --prompt 'Implement the parser'\n  \
-        harness-dispatch run --kind impl --exit-dir ./control --prompt 'Implement the parser'\n\n\
+        harness-dispatch run --kind impl --exit-dir ./control --prompt 'Implement the parser'\n  \
+        harness-dispatch run --kind impl --ending-file ./control/ending.json --prompt 'Implement the parser'\n\n\
         From Grove: what Grove runs for every lifecycle session, in the working-tree root, \
         with values from the leaf it launches:\n  \
         harness-dispatch run --kind=KIND --task-file=TASK_FILE --task-id=HANDLE --prompt=MANDATE\n\n\
@@ -265,6 +273,9 @@ pub struct RunArgs {
     /// Allocate the run's exit channel in this existing directory, which is neither created nor removed; relative to the current directory. Without it, a private per-run directory under TMPDIR, removed after the run
     #[arg(long, value_name = "DIR")]
     pub exit_dir: Option<PathBuf>,
+    /// Write dispatch's end observation of the run to this path once the harness is reaped and its group gone; the path must not exist and its directory must, relative to the current directory
+    #[arg(long, value_name = "PATH")]
+    pub ending_file: Option<PathBuf>,
     /// Write the handoff and end notices, and any refusal, as JSON lines on stderr
     #[arg(long)]
     pub json: bool,

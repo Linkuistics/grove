@@ -34,10 +34,14 @@
 //! it, or when a handled signal cancels it. Whatever ends it, the runner kills
 //! what remains of its group, reaps it, takes the terminal back and confirms
 //! the group gone. The ending is chosen only then, and decides the exit status.
+//! Dispatch then appends its own observation of the end to the run, and, once
+//! the group is confirmed gone, writes the same document to `--ending-file`.
+//! Neither a failed append nor a failed file changes the ending or the exit.
 
 use std::ffi::OsString;
 use std::io;
-use std::os::unix::fs::PermissionsExt as _;
+use std::io::Write as _;
+use std::os::unix::fs::{OpenOptionsExt as _, PermissionsExt as _};
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 use std::time::Duration;
@@ -49,6 +53,7 @@ use crate::cancellation::{self, Signal};
 use crate::choice::{self, Choice, Selected};
 use crate::cli::RunArgs;
 use crate::inputs::PromptRequirement;
+use crate::observation::{self, Observation, RunEnd};
 use crate::record;
 use crate::refusal::{
     Failure, Refusal, RunNote, Stage, EXIT_MALFORMED, EXIT_NOT_FOUND, EXIT_UNEXECUTABLE,
@@ -56,7 +61,7 @@ use crate::refusal::{
 };
 use crate::run_id::RunId;
 use crate::signal_state;
-use crate::store::{self, Committed};
+use crate::store::{self, Appended, Committed, NewObservation};
 
 /// The harness's copy of the run's identity and record directory.
 pub const RUN_ID_VARIABLE: &str = "HARNESS_DISPATCH_RUN_ID";
@@ -127,6 +132,7 @@ pub fn run(args: &RunArgs) -> Result<ExitCode, Failure> {
 fn attempt(args: &RunArgs) -> Result<ExitCode, Failure> {
     signal_state::recorded()?;
     let exit_dir = args.exit_dir.as_deref().map(exit_dir).transpose()?;
+    let ending_file = args.ending_file.as_deref().map(ending_path).transpose()?;
     let run_id = RunId::allocate()?;
     let Selected {
         choice,
@@ -219,7 +225,8 @@ fn attempt(args: &RunArgs) -> Result<ExitCode, Failure> {
     report_cleanup(cleanup);
 
     let ending = Ending::of(&ended);
-    announce_end(&run_id, ending, &ended, args.json);
+    let recorded = record_end(&choice, &run_id, ending, &ended, ending_file.as_deref());
+    announce_end(&run_id, ending, &ended, recorded, args.json);
     if let Group::Present { pgid } = ended.group {
         eprintln!(
             "harness-dispatch: run {run_id}: members of the harness's process group {pgid} may \
@@ -267,6 +274,42 @@ fn die_of(signal: i32) -> ! {
         libc::setrlimit(libc::RLIMIT_CORE, &none);
     }
     keyed_launch::reraise(signal)
+}
+
+/// `--ending-file`, checked before selection: a path that does not exist, in a
+/// directory that does, named absolutely. The check is repeated by the
+/// exclusive creation that writes the file, which is what refuses a path that
+/// appeared in the meantime.
+fn ending_path(path: &Path) -> Result<PathBuf, Refusal> {
+    let unusable = |problem: String| {
+        Refusal::new(
+            "ending_file_unusable",
+            Stage::Cli,
+            EXIT_MALFORMED,
+            format!("--ending-file {}: {problem}", path.display()),
+            "name a path that does not exist, in a directory that does; harness-dispatch \
+             creates the file once the harness is reaped and never replaces one",
+        )
+        .input("--ending-file")
+    };
+    let name = path
+        .file_name()
+        .ok_or_else(|| unusable("it names no file".to_owned()))?;
+    let dir = match path.parent() {
+        Some(dir) if !dir.as_os_str().is_empty() => dir,
+        _ => Path::new("."),
+    };
+    let dir = std::fs::canonicalize(dir)
+        .map_err(|error| unusable(format!("its directory cannot be used: {error}")))?;
+    if !dir.is_dir() {
+        return Err(unusable("its directory is not a directory".to_owned()));
+    }
+    let file = dir.join(name);
+    match std::fs::symlink_metadata(&file) {
+        Ok(_) => Err(unusable("it already exists".to_owned())),
+        Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(file),
+        Err(error) => Err(unusable(error.to_string())),
+    }
 }
 
 /// `--exit-dir`, checked before selection: an existing directory, named
@@ -402,9 +445,92 @@ fn launch_failed(choice: &Choice, run_id: &RunId, error: &keyed_launch::LaunchEr
         .into()
 }
 
+/// Append dispatch's end observation to the run, and write the same document
+/// to the ending file once the harness's group is gone. A failure of either is
+/// reported on stderr and changes neither the ending nor the exit; the file is
+/// the caller's, so it does not wait on the store. Whether the observation was
+/// recorded is the answer.
+fn record_end(
+    choice: &Choice,
+    run_id: &RunId,
+    ending: Ending,
+    ended: &Ended,
+    ending_file: Option<&Path>,
+) -> bool {
+    use std::os::unix::process::ExitStatusExt as _;
+    let end = RunEnd {
+        run_id,
+        ending: ending.as_str(),
+        code: ended.status.code(),
+        signal: ended.status.signal().and_then(known_signal_name),
+        duration: ended.elapsed,
+    };
+    let observation = match observation::end_observation(&end) {
+        Ok(observation) => observation,
+        Err(refusal) => {
+            eprintln!(
+                "harness-dispatch: run {run_id}: cannot build its end observation: {}",
+                refusal.message
+            );
+            return false;
+        }
+    };
+    let recorded = append_end(choice, run_id, &observation);
+    if let Some(file) = ending_file.filter(|_| ended.group == Group::Gone) {
+        if let Err(error) = write_ending_file(file, &observation) {
+            eprintln!(
+                "harness-dispatch: run {run_id}: cannot write the ending file {}: {error}",
+                file.display()
+            );
+        }
+    }
+    recorded
+}
+
+/// The append, in its own short transaction under the commit's lock wait,
+/// which migrates a version-1 store as an import would.
+fn append_end(choice: &Choice, run_id: &RunId, observation: &Observation) -> bool {
+    let document = observation.document.to_string();
+    let append = NewObservation {
+        observation_id: &observation.id,
+        run_id,
+        supersedes: None,
+        confirms_execution: observation.confirms_execution,
+        document: &document,
+    };
+    let why = match store::append_observation(&choice.state_dir, &append) {
+        Ok(Appended::Recorded { .. } | Appended::AlreadyRecorded { .. }) => return true,
+        Ok(Appended::RunMissing { .. }) => "the store no longer holds the run".to_owned(),
+        Ok(Appended::ContradictsLaunchFailure { .. }) => {
+            "the run holds a launch failure".to_owned()
+        }
+        Ok(
+            Appended::Conflict { .. }
+            | Appended::SupersedesUnknown { .. }
+            | Appended::AlreadySuperseded { .. },
+        ) => "the store holds a conflicting observation".to_owned(),
+        Err(refusal) => refusal.message.clone(),
+    };
+    eprintln!("harness-dispatch: run {run_id}: its end observation was not recorded: {why}");
+    false
+}
+
+/// The observation, one JSON line, in a file created exclusively and
+/// owner-only.
+fn write_ending_file(file: &Path, observation: &Observation) -> io::Result<()> {
+    let mut created = std::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .mode(0o600)
+        .open(file)?;
+    writeln!(created, "{}", observation.document)?;
+    created.sync_all()
+}
+
 /// The end, on stderr: one line naming the run, its ending, the harness's exit
-/// or signal and the run's duration. With `--json`, one JSON object instead.
-fn announce_end(run_id: &RunId, ending: Ending, ended: &Ended, json: bool) {
+/// or signal, the run's duration and whether the end observation was recorded.
+/// With `--json`, one JSON object instead.
+fn announce_end(run_id: &RunId, ending: Ending, ended: &Ended, recorded: bool, json: bool) {
     use std::os::unix::process::ExitStatusExt as _;
     let (code, signal) = (ended.status.code(), ended.status.signal());
     let millis = u64::try_from(ended.elapsed.as_millis()).unwrap_or(u64::MAX);
@@ -422,6 +548,7 @@ fn announce_end(run_id: &RunId, ending: Ending, ended: &Ended, json: bool) {
                 "signal": signal.map(signal_name),
                 "durationMs": millis,
                 "group": group,
+                "recorded": recorded,
             },
         });
         eprintln!("{notice}");
@@ -432,16 +559,24 @@ fn announce_end(run_id: &RunId, ending: Ending, ended: &Ended, json: bool) {
             (None, None) => "ended".to_owned(),
         };
         eprintln!(
-            "harness-dispatch: run {run_id} ended by {}: the harness {how} after {:.1} s",
+            "harness-dispatch: run {run_id} ended by {}: the harness {how} after {:.1} s; end \
+             observation {}",
             ending.as_str(),
-            ended.elapsed.as_secs_f64()
+            ended.elapsed.as_secs_f64(),
+            if recorded { "recorded" } else { "not recorded" }
         );
     }
 }
 
 /// A signal's conventional name, or its number where it has none here.
 fn signal_name(signal: i32) -> String {
-    let name = match signal {
+    known_signal_name(signal).map_or_else(|| format!("signal {signal}"), str::to_owned)
+}
+
+/// A signal's conventional `SIG` name, which is what an observation's `exit`
+/// names a death by.
+fn known_signal_name(signal: i32) -> Option<&'static str> {
+    Some(match signal {
         libc::SIGHUP => "SIGHUP",
         libc::SIGINT => "SIGINT",
         libc::SIGQUIT => "SIGQUIT",
@@ -462,9 +597,8 @@ fn signal_name(signal: i32) -> String {
         libc::SIGVTALRM => "SIGVTALRM",
         libc::SIGPROF => "SIGPROF",
         libc::SIGSYS => "SIGSYS",
-        _ => return format!("signal {signal}"),
-    };
-    name.to_owned()
+        _ => return None,
+    })
 }
 
 /// The handoff, on stderr: whatever the policy printed, then one line naming

@@ -108,7 +108,7 @@ fn run_launches_the_returned_command_and_records_its_labels_and_reason() {
     let run = sandbox.run(&["--kind", "impl", "--prompt", "the prompt", "--json"]);
     assert_eq!(run.code, Some(0), "{}", run.stderr);
     assert_eq!(sandbox.harness_args(), ["the prompt"]);
-    let notice: Value = serde_json::from_str(&run.stderr).unwrap();
+    let notice = run.handoff();
     let handoff = &notice["handoff"];
     assert_eq!(handoff["provider"], "origin-b");
     assert_eq!(handoff["model"], "model-small");
@@ -662,7 +662,7 @@ export const policy = {{
             "--json",
         ]);
         assert_eq!(run.code, Some(0), "{}", run.stderr);
-        let notice: Value = serde_json::from_str(&run.stderr).unwrap();
+        let notice = run.handoff();
         let handoff = without(
             notice["handoff"].clone(),
             &["runId", "recordedAt", "stateDir", "executable"],

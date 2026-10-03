@@ -11,6 +11,7 @@ mod choice;
 mod cli;
 mod context;
 mod environment;
+mod exit;
 mod frame;
 mod init;
 mod inputs;
@@ -56,7 +57,7 @@ fn main() -> ExitCode {
     let json = match &cli.command {
         Command::Inspect(args) => args.json,
         Command::Run(args) => args.json,
-        Command::Init => false,
+        Command::Init | Command::Exit => false,
         Command::Record(record) => match &record.command {
             RecordCommand::Show(args) => args.json,
             RecordCommand::Observe(args) => args.json,
@@ -74,7 +75,11 @@ fn main() -> ExitCode {
                 print!("{}", report.to_text());
             }
         }),
-        Command::Run(args) => Err(run::run(args)),
+        Command::Exit => return exit::exit(),
+        Command::Run(args) => match run::run(args) {
+            Ok(code) => return code,
+            Err(failure) => Err(failure),
+        },
         Command::Record(record) => match &record.command {
             RecordCommand::Show(args) => record::show(args)
                 .map(|export| {
@@ -216,7 +221,7 @@ fn command_path(arguments: &[OsString]) -> String {
         ["record", command @ ("show" | "observe"), ..] => {
             format!("harness-dispatch record {command}")
         }
-        [command @ ("inspect" | "run" | "init" | "record"), ..] => {
+        [command @ ("inspect" | "run" | "init" | "exit" | "record"), ..] => {
             format!("harness-dispatch {command}")
         }
         _ => "harness-dispatch".to_owned(),

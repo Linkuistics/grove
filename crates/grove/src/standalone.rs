@@ -175,6 +175,8 @@ fn execute(args: Args, dispatch: &Path, helper: &Path, logs: &Path) -> Result<()
                 channel: &channel,
                 channel_var: "GROVE_RUN_SIGNAL_FILE",
                 scrub: &scrub,
+                grant: &[],
+                transparent: None,
                 cwd: Some(&work),
                 escalation: Escalation {
                     grace: Duration::from_secs(2),
@@ -219,7 +221,7 @@ fn execute(args: Args, dispatch: &Path, helper: &Path, logs: &Path) -> Result<()
             log_path.display()
         );
         ensure!(
-            ended.end == End::Signalled || ended.status.success(),
+            ended.end == End::Escalated || ended.status.success(),
             "harness failed after signalling completion ({}); outputs were not published",
             ended.status
         );

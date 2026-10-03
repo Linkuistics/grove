@@ -265,7 +265,7 @@ fn assert_reaches_the_harness(place: Place, hold: Hold, prelude: &str) {
         timed.run.stdout,
         timed.run.stderr
     );
-    let notice: Value = serde_json::from_str(&timed.run.stderr).unwrap();
+    let notice = timed.run.handoff();
     // The reason is the held policy's own, so it is the one that selected.
     let reason = match place {
         Place::Import => "impl runs the deep harness",

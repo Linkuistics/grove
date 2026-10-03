@@ -363,7 +363,7 @@ pub use confinement::{regular_file_at, Confinement};
 pub use error::LaunchError;
 pub use run::{
     reraise, run, run_confined, run_noninteractive, run_observed, take_interrupt, End, Ended,
-    Escalation, Group, Launch, LaunchEvent,
+    EntrySignals, Escalation, Group, Launch, LaunchEvent,
 };
 ````
 <!-- /fragment -->
@@ -384,7 +384,7 @@ The last row is this chapter's own and is not one.
 | Names | Minimum statement | Chapter |
 |---|---|---:|
 | `Channel`, `Token`, `signal` | A fresh path per launch that allocation picks and writes nothing to; `signal` is what the child calls to make it appear, and `Token` is what the caller reads back. | 2 |
-| `run`, `run_observed`, `LaunchEvent`, `Launch`, `Ended`, `End`, `Group`, `Escalation` | `run_observed` reports successful spawn and confirmed reap synchronously; `run` uses a no-op observer. Each spawns one `Launch` — argv, channel, scrub list, working directory and the two graces of an `Escalation` — and returns an `Ended` saying which of `End`'s three cases happened and whether the child's `Group` was confirmed gone. | 3 |
+| `run`, `run_observed`, `LaunchEvent`, `Launch`, `EntrySignals`, `Ended`, `End`, `Group`, `Escalation` | `run_observed` reports successful spawn and confirmed reap synchronously; `run` uses a no-op observer. Each spawns one `Launch` — argv, channel, scrub list, granted values, a transparent caller's `EntrySignals` when there is one, working directory and the two graces of an `Escalation` — and returns an `Ended` saying which of `End`'s three cases happened, whether the channel appeared, and whether the child's `Group` was confirmed gone. | 3 |
 | `reraise`, `take_interrupt` | The launcher's own two obligations for a termination signal: `take_interrupt` collects one that arrived between launches, and `reraise` is how a launcher dies of the same signal rather than reporting an exit code. | 4 |
 | `run_noninteractive`, `run_confined`, `Confinement`, `regular_file_at` | A launch with no terminal whose output goes to a file, the same launch under a mandatory filesystem policy, that policy's two fields, and the one read of a result that policy leaves safe. | 7 |
 | `LaunchError`, `Argv` | the one error type and the type a command arrives in, read next | 1 |
@@ -396,7 +396,7 @@ The last row is this chapter's own and is not one.
 and supervising one, and it implements `Display`, `Debug` and `Error` without an
 error-library dependency.
 
-<!-- fragment «one-opaque-error» owner="understands-neither" source="crates/keyed-launch/src/error.rs" lines="1-38" parent="source-error-type" -->
+<!-- fragment «one-opaque-error» owner="understands-neither" source="crates/keyed-launch/src/error.rs" lines="1-56" parent="source-error-type" -->
 <!-- insert «error-import» -->
 <!-- insert «error-launch-type» -->
 <!-- insert «error-launch-traits» -->
@@ -418,7 +418,16 @@ wrong, names where, and names what would fix it. The constructor is
 `pub(crate)`, so only this crate writes one, and every message in chapters 2 to
 4 and 7 can be read against that obligation.
 
-<!-- fragment «error-launch-type» owner="understands-neither" source="crates/keyed-launch/src/error.rs" lines="2-22" parent="one-opaque-error" -->
+One fact rides beside the message, and only one. When the child could not be
+spawned, the error keeps the system's error number, and `raw_os_error` answers
+it; every other failure answers `None`. A caller that reports a failed start by
+its cause needs the number rather than the words: `harness-dispatch` exits 127
+for `ENOENT`, as a shell does for a missing program, and 126 for any other
+cause. `Some` therefore also says that nothing was started. `with_errno` is how
+the spawn in chapter 3 attaches it, and it is `pub(crate)` like the
+constructor.
+
+<!-- fragment «error-launch-type» owner="understands-neither" source="crates/keyed-launch/src/error.rs" lines="2-40" parent="one-opaque-error" -->
 ````rust
 
 /// Everything that can go wrong allocating a channel, spawning a child, or
@@ -432,13 +441,31 @@ wrong, names where, and names what would fix it. The constructor is
 /// fix it.
 pub struct LaunchError {
     message: String,
+    errno: Option<i32>,
 }
 
 impl LaunchError {
     pub(crate) fn new(message: impl Into<String>) -> Self {
         Self {
             message: message.into(),
+            errno: None,
         }
+    }
+
+    pub(crate) fn with_errno(mut self, errno: Option<i32>) -> Self {
+        self.errno = errno;
+        self
+    }
+
+    /// The system's error number when the child could not be spawned, and
+    /// `None` for every other failure.
+    ///
+    /// A caller that reports a failed start by its cause, as a shell's 127 for
+    /// a missing program and 126 for any other, needs the number and not the
+    /// message. Nothing was started when this is `Some`.
+    #[must_use]
+    pub fn raw_os_error(&self) -> Option<i32> {
+        self.errno
     }
 }
 ````
@@ -448,7 +475,7 @@ impl LaunchError {
 struct dump, because a `{:?}` of this error is read by a human in a panic or an
 error chain.
 
-<!-- fragment «error-launch-traits» owner="understands-neither" source="crates/keyed-launch/src/error.rs" lines="23-38" parent="one-opaque-error" -->
+<!-- fragment «error-launch-traits» owner="understands-neither" source="crates/keyed-launch/src/error.rs" lines="41-56" parent="one-opaque-error" -->
 ````rust
 
 impl fmt::Display for LaunchError {
@@ -472,20 +499,20 @@ impl std::error::Error for LaunchError {}
 <a id="the-argv"></a>
 ## The type a command arrives in
 
-`src/argv.rs` is thirty-nine lines and one type. It is the only way a program
+`src/argv.rs` is fifty-three lines and one type. It is the only way a program
 reaches `run`.
 
-<!-- fragment «argv» owner="understands-neither" source="crates/keyed-launch/src/argv.rs" lines="1-39" parent="source-argv" -->
+<!-- fragment «argv» owner="understands-neither" source="crates/keyed-launch/src/argv.rs" lines="1-64" parent="source-argv" -->
 <!-- insert «argv-type» -->
 <!-- insert «argv-public-constructor» -->
 <!-- insert «argv-program-and-args» -->
 <!-- insert «argv-words» -->
 <!-- /fragment -->
 
-`Argv` has two private fields, and its doc comment says what holds for every
-value of the type.
+`Argv` has three private fields, and its doc comment says what holds for every
+value of the type. The third, `arg0`, is unset unless a caller asks for it.
 
-<!-- fragment «argv-type» owner="understands-neither" source="crates/keyed-launch/src/argv.rs" lines="1-11" parent="argv" -->
+<!-- fragment «argv-type» owner="understands-neither" source="crates/keyed-launch/src/argv.rs" lines="1-12" parent="argv" -->
 ````rust
 use std::ffi::{OsStr, OsString};
 
@@ -497,6 +524,7 @@ use std::ffi::{OsStr, OsString};
 pub struct Argv {
     program: OsString,
     args: Vec<OsString>,
+    arg0: Option<OsString>,
 }
 ````
 <!-- /fragment -->
@@ -508,14 +536,31 @@ that needs a reason. An argument to a process is a byte string on Unix and need
 not be UTF-8; a path very often is not. A crate that took `String` here would
 refuse to launch on a filename it had no business having an opinion about.
 
-<!-- fragment «argv-public-constructor» owner="understands-neither" source="crates/keyed-launch/src/argv.rs" lines="12-18" parent="argv" -->
+<!-- fragment «argv-public-constructor» owner="understands-neither" source="crates/keyed-launch/src/argv.rs" lines="13-36" parent="argv" -->
 ````rust
 
 impl Argv {
     /// A program and arguments the caller built, each string one whole word.
     #[must_use]
     pub fn new(program: OsString, args: Vec<OsString>) -> Self {
-        Self { program, args }
+        Self {
+            program,
+            args,
+            arg0: None,
+        }
+    }
+
+    /// The same launch with `arg0` as the child's `argv[0]` in place of the
+    /// program. The program is still what is spawned.
+    ///
+    /// For a caller that resolved a name to a path itself: it spawns the path,
+    /// so that nothing is looked up a second time, and the child still sees
+    /// the name it was chosen by. A confined launch runs the path it is given,
+    /// and its child's `argv[0]` is that path whatever this says.
+    #[must_use]
+    pub fn with_arg0(mut self, arg0: OsString) -> Self {
+        self.arg0 = Some(arg0);
+        self
     }
 ````
 <!-- /fragment -->
@@ -525,7 +570,17 @@ go in, and the same program and arguments are what the value holds. Grove calls
 it in two places. `crates/grove-loop/src/loop_driver.rs` builds the
 `harness-dispatch run` invocation for a lifecycle session, and
 `crates/grove/src/standalone.rs` builds a standalone invocation from the file
-path and the strings `harness-dispatch inspect` reported.
+path and the strings `harness-dispatch inspect` reported. The third caller is
+`harness-dispatch run` itself, which builds the harness's command from what its
+owner's policy selected.
+
+That third caller is why `with_arg0` exists. Dispatch has already resolved the
+program the policy named to an absolute path, and spawns that path, so that
+nothing is looked up a second time under another directory or `PATH`. The
+harness is still to see, as its `argv[0]`, the program as the policy wrote it.
+`with_arg0` sets that word and leaves the program alone. A confined launch runs
+the path through the sandbox's own launcher, which gives its child the path as
+`argv[0]`, so the doc comment says the word has no effect there.
 
 So the type does not say who authored the words. What it carries is narrower.
 The fields are private and no method changes one, and `run` in chapter 3 takes
@@ -536,14 +591,21 @@ words. `a_caller_built_argv_is_spawned_whole_and_directly` in
 re-read: a value with spaces, text shaped like a variable, quotes, a newline
 and an empty string each reach the child as one argument.
 
-The two accessors are `run`'s whole view of the value.
+The three accessors are `run`'s whole view of the value.
 
-<!-- fragment «argv-program-and-args» owner="understands-neither" source="crates/keyed-launch/src/argv.rs" lines="19-28" parent="argv" -->
+<!-- fragment «argv-program-and-args» owner="understands-neither" source="crates/keyed-launch/src/argv.rs" lines="37-53" parent="argv" -->
 ````rust
 
     #[must_use]
     pub fn program(&self) -> &OsStr {
         &self.program
+    }
+
+    /// The child's `argv[0]`: the program, unless [`Argv::with_arg0`] named
+    /// another.
+    #[must_use]
+    pub fn arg0(&self) -> &OsStr {
+        self.arg0.as_deref().unwrap_or(&self.program)
     }
 
     #[must_use]
@@ -555,15 +617,16 @@ The two accessors are `run`'s whole view of the value.
 
 `program` and `args` are separated because that is the shape a spawn wants:
 `Command::new` takes the program and `args` takes the rest, and word zero is
-special to the operating system rather than to this crate. Both return borrows
-and both are `#[must_use]`. Nine functions in the crate carry the attribute.
-Eight are queries whose returned value is the only reason to call them; the
-ninth, `take_interrupt` in `src/run.rs`, is not — it *clears* a latch as it
+special to the operating system rather than to this crate. `arg0` is that word
+zero: the one `with_arg0` named, or the program. All three return borrows and
+all three are `#[must_use]`. Fourteen functions in the crate carry the
+attribute. Thirteen return a value that is the only reason to call them; the
+fourteenth, `take_interrupt` in `src/run.rs`, is not — it *clears* a latch as it
 reads it, and chapter 4 is where that difference matters.
 
 The last method is the same value in the other shape.
 
-<!-- fragment «argv-words» owner="understands-neither" source="crates/keyed-launch/src/argv.rs" lines="29-39" parent="argv" -->
+<!-- fragment «argv-words» owner="understands-neither" source="crates/keyed-launch/src/argv.rs" lines="54-64" parent="argv" -->
 ````rust
 
     /// The whole launch as one word list, program first — the shape a

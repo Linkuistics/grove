@@ -88,3 +88,63 @@ harness.
 - `HARNESS_DISPATCH_*` names are already excluded from worker grants. Check
   that the new variable is excluded too, and that the worker never sees the
   channel. The channel carries the authority to end the run.
+
+## Decisions (running log)
+
+**S1 — the runner's three options.** `Launch` gains `grant` (set after the
+scrub and before the channel, so no grant replaces the channel's variable) and
+`transparent: Option<&EntrySignals>`. `Ended` gains `signalled`, the channel's
+appearance after the reap whatever it holds (`Channel::appeared`, an
+`fstatat` beside the held directory that follows nothing); the watch loop uses
+the same test, so an empty file or a link now starts the escalation too. The
+token stays beside it until `launch-cutover`. `End::Signalled` is renamed
+`End::Escalated`, as decision 7 names it, so that it no longer reads as the
+new field.
+
+**S2 — what "transparent" carries.** `EntrySignals` is a caller-recorded
+ignored set and mask (bits for 1–64); the runner only hands it on, since only
+the caller can record it before the Rust runtime changes SIGPIPE. In the
+child every changeable signal goes to its entry ignore or default, then the
+mask, allocation-free. A transparent launcher is also cancelled by SIGINT
+when it has a terminal: a typed Ctrl-C goes to the child's group, so an INT
+that reaches dispatch was sent to dispatch, and the spec's *handled signals*
+are INT, TERM and HUP. Folding it into the same option keeps it one option.
+
+**S3 — two small additions the spec's surface implies.** `Argv::with_arg0`,
+because dispatch spawns the resolved path and the harness's `argv[0]` is the
+program as `select` returned it. `LaunchError::raw_os_error`, set only for a
+failed spawn, because a launch failure exits 127 for `ENOENT` and 126
+otherwise.
+
+**S4 — where the exit channel is made.** `--exit-dir` is checked (canonical,
+an existing directory) before selection and refuses as `exit_dir_unusable`,
+exit 2. The channel itself, and the private directory, are allocated after
+selection and before the commit: the worker has been reaped by then, so it
+can never have been told the path, and a failure records nothing. Both are
+removed before dispatch ends, which matters because a death by signal runs
+no destructor. The private directory's mode is set to 0700 explicitly:
+`tempfile` was measured creating it 0755 on macOS, which the new seam case
+caught.
+
+**S5 — the linearization point, now with a spawn.** The selection's handlers
+stay installed until the runner's own replace them inside `run_observed`;
+dispatch restores the caller's mask in the `Started` callback, so a handled
+signal that arrived after the final check is delivered to the runner's
+handler and cancels the run. The selection's handlers are dropped after the
+run, which reinstates the entry dispositions a death by signal reproduces
+under. No `Started` and an error is a launch failure (126/127 from the spawn's
+errno, appended as before); an error after `Started` is a supervision
+failure, exit 5.
+
+**S6 — the end notice is provisional on its fields.** One stderr line,
+`{"schemaVersion":1,"end":{runId, ending, exitCode, signal, durationMs,
+group}}` under `--json`. `run-ending` owns the end observation and the ending
+file and may align this with the observation's shape; nothing parses it yet
+except the seam suite.
+
+**S7 — the seam's terminal cases use a `sh` session leader on a PTY.** A
+plain leader keeps the front in its own group, so what it measures afterwards
+(`stty -g`, `ps -o tpgid=`) is what the front restored; `set -m` makes the
+front a job of its own for the Ctrl-C-during-selection case, so the leader
+survives to report. Modes are compared less PENDIN, which BSD sets after a
+canonical restore with input queued.

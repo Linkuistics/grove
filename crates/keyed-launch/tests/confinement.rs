@@ -29,6 +29,8 @@ fn confined_child_and_descendants_cannot_read_or_write_outside_the_invocation() 
             channel: &channel,
             channel_var: "TEST_CHANNEL",
             scrub: &[],
+            grant: &[],
+            transparent: None,
             cwd: Some(&work),
             escalation: Escalation {
                 grace: Duration::ZERO,
@@ -87,6 +89,8 @@ fn explicit_runtime_file_grant_allows_reads_but_denies_writes() {
             channel: &channel,
             channel_var: "TEST_CHANNEL",
             scrub: &[],
+            grant: &[],
+            transparent: None,
             cwd: Some(&work),
             escalation: Escalation {
                 grace: Duration::ZERO,
@@ -137,6 +141,8 @@ fn a_confined_program_that_is_not_an_absolute_path_refuses() {
                 channel: &channel,
                 channel_var: "TEST_CHANNEL",
                 scrub: &[],
+                grant: &[],
+                transparent: None,
                 cwd: Some(&work),
                 escalation: Escalation {
                     grace: Duration::ZERO,

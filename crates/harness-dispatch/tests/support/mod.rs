@@ -14,6 +14,7 @@
 pub mod direct;
 pub mod hold;
 pub mod probe;
+pub mod pty;
 pub mod stall;
 
 use std::ffi::CString;
@@ -61,8 +62,8 @@ pub fn selecting(fields: &str, body: &str) -> String {
 }
 
 /// The fake harness every sandbox puts on PATH. It records how it was started
-/// under `$FAKE_HARNESS_RECORD` (its arguments NUL-separated, its physical cwd
-/// and its PID), copies stdin to stdout, and then behaves as the environment
+/// under `$FAKE_HARNESS_RECORD` (its arguments NUL-separated, its physical cwd,
+/// its PID and its parent's), copies stdin to stdout, and then behaves as the environment
 /// tells it: it writes to descriptor 7, kills itself with a signal, or exits
 /// with a code. The record directory is created exclusively, so its presence
 /// is the marker that the harness ran, and a second start fails loudly.
@@ -77,6 +78,7 @@ mkdir "$record" || exit 90
 for argument in "$@"; do printf '%s\0' "$argument"; done > "$record/args"
 pwd -P > "$record/cwd"
 echo $$ > "$record/pid"
+echo $PPID > "$record/ppid"
 printf '%s' "${HARNESS_DISPATCH_RUN_ID-<unset>}" > "$record/run-id"
 printf '%s' "${HARNESS_DISPATCH_STATE_DIR-<unset>}" > "$record/state-dir"
 if [ -f "$HARNESS_DISPATCH_STATE_DIR/records.sqlite3" ]; then
@@ -184,6 +186,13 @@ impl Sandbox {
 
     pub fn harness_pid(&self) -> u32 {
         let pid = fs::read_to_string(self.record.join("pid")).expect("the fake harness ran");
+        pid.trim().parse().expect("a PID")
+    }
+
+    /// The PID of the fake harness's parent, which is the front that
+    /// supervises it.
+    pub fn harness_ppid(&self) -> u32 {
+        let pid = fs::read_to_string(self.record.join("ppid")).expect("the fake harness ran");
         pid.trim().parse().expect("a PID")
     }
 
@@ -341,6 +350,35 @@ impl From<Output> for Run {
 }
 
 impl Run {
+    /// The JSON lines a `run --json` wrote on stderr, in order.
+    pub fn notices(&self) -> Vec<Value> {
+        self.stderr
+            .lines()
+            .filter(|line| !line.is_empty())
+            .map(|line| {
+                serde_json::from_str(line).unwrap_or_else(|error| panic!("{error}: {line}"))
+            })
+            .collect()
+    }
+
+    /// The handoff notice of a `run --json` that started its harness, after
+    /// asserting that stderr is exactly two JSON lines: the handoff notice,
+    /// then the end notice of the same run.
+    pub fn handoff(&self) -> Value {
+        let notices = self.notices();
+        let [handoff, end]: [Value; 2] =
+            notices.try_into().unwrap_or_else(|notices: Vec<Value>| {
+                panic!(
+                    "expected the handoff and end notices, got {} lines: {}",
+                    notices.len(),
+                    self.stderr
+                )
+            });
+        assert!(handoff["handoff"].is_object(), "{handoff}");
+        assert_eq!(end["end"]["runId"], handoff["handoff"]["runId"], "{end}");
+        handoff
+    }
+
     /// The whole of stdout as one JSON document, after asserting success.
     pub fn report(&self) -> Value {
         assert_eq!(

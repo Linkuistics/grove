@@ -138,6 +138,8 @@ fn supervisor() {
             channel: &channel,
             channel_var: "RUNNER_CHANNEL",
             scrub: &[],
+            grant: &[],
+            transparent: None,
             cwd: Some(dir.path()),
             escalation: Escalation {
                 grace: Duration::ZERO,
@@ -219,6 +221,8 @@ fn confined_supervisor(kill_grace: Duration, expected_signal: i32) {
             channel: &channel,
             channel_var: "RUNNER_CHANNEL",
             scrub: &[],
+            grant: &[],
+            transparent: None,
             cwd: Some(&work),
             escalation: Escalation {
                 grace: Duration::ZERO,

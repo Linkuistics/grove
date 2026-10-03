@@ -41,6 +41,8 @@ fn launch<'a>(argv: &'a Argv, channel: &'a Channel) -> Launch<'a> {
         channel,
         channel_var: "TEST_CHANNEL",
         scrub: &[] as &[&OsStr],
+        grant: &[],
+        transparent: None,
         cwd: None,
         escalation: FAST,
     }

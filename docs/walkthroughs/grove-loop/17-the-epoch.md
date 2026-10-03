@@ -159,7 +159,7 @@ launch-owner controls, scaffolding, the admission tests, and the closing brace. 
 reads them in that same order, because a test module has no conceptual order to
 prefer to the file's.
 
-<!-- fragment «lease-tests» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="975-2069" parent="source-driver-lease" -->
+<!-- fragment «lease-tests» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="975-2073" parent="source-driver-lease" -->
 <!-- insert «epoch-tests-module-open» -->
 <!-- insert «epoch-tests-launch-owner» -->
 <!-- insert «epoch-tests-workspace-fixture» -->
@@ -239,7 +239,7 @@ extension serializer to prove mandatory activation survives. The real-run event
 control writes a completion signal at Started and checks that both locks remain
 held until Reaped; successful spawn leaves exactly eight bytes, failed spawn none.
 
-<!-- fragment «epoch-tests-launch-owner» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="977-1507" parent="lease-tests" -->
+<!-- fragment «epoch-tests-launch-owner» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="977-1511" parent="lease-tests" -->
 ````rust
     pub(super) fn witness_selection() -> crate::Selection {
         crate::Selection {
@@ -405,6 +405,8 @@ held until Reaped; successful spawn leaves exactly eight bytes, failed spawn non
                         channel: &channel,
                         channel_var: "GROVE_SIGNAL_FILE",
                         scrub: &[],
+                        grant: &[],
+                        transparent: None,
                         cwd: Some(temp.path()),
                         escalation: keyed_launch::Escalation {
                             grace: Duration::ZERO,
@@ -564,6 +566,8 @@ held until Reaped; successful spawn leaves exactly eight bytes, failed spawn non
                         channel: &channel,
                         channel_var: "GROVE_SIGNAL_FILE",
                         scrub: &[],
+                        grant: &[],
+                        transparent: None,
                         cwd: Some(temp.path()),
                         escalation: keyed_launch::Escalation {
                             grace: Duration::ZERO,
@@ -778,7 +782,7 @@ held until Reaped; successful spawn leaves exactly eight bytes, failed spawn non
 `workspace_at` resolves the fixture marker into the same Workspace value the
 real lease acquisition accepts.
 
-<!-- fragment «epoch-tests-workspace-fixture» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1508-1514" parent="lease-tests" -->
+<!-- fragment «epoch-tests-workspace-fixture» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1512-1518" parent="lease-tests" -->
 ````rust
     /// The fixtures below build a `.jj` marker directly and then acquire against
     /// it. Resolving here rather than inside `acquire` is the shape of the
@@ -803,7 +807,7 @@ fixture and the two that drive the epoch helper against a bare temporary file.
 
 Then the imports, and one constant.
 
-<!-- fragment «epoch-tests-imports» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1515-1524" parent="lease-tests" -->
+<!-- fragment «epoch-tests-imports» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1519-1528" parent="lease-tests" -->
 ````rust
     use super::*;
     use std::cell::{Cell, RefCell};
@@ -827,7 +831,7 @@ not `GROVE_SIGNAL_FILE`.
 
 That distinction is the next item's whole subject.
 
-<!-- fragment «epoch-tests-ambient-fixture» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1525-1534" parent="lease-tests" -->
+<!-- fragment «epoch-tests-ambient-fixture» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1529-1538" parent="lease-tests" -->
 ````rust
     /// The ambient context an admission test would once have installed by
     /// writing `GROVE_SIGNAL_FILE`. Nothing here mutates the environment: these
@@ -865,7 +869,7 @@ the same file the structure brief mistook for part of this block.
 The next item is the reason three of the original admission tests are not really run by
 the test harness at all.
 
-<!-- fragment «epoch-tests-fork-guard» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1535-1570" parent="lease-tests" -->
+<!-- fragment «epoch-tests-fork-guard» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1539-1574" parent="lease-tests" -->
 ````rust
     pub(super) fn fork_sensitive_driver_lease_test_body_runs_here() -> bool {
         let current_thread = thread::current();
@@ -930,7 +934,7 @@ underneath. Both frames are present; neither is where a reader would first look.
 
 The last item before the tests is a two-line hook shared by the first two.
 
-<!-- fragment «epoch-tests-replace-locked» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1571-1576" parent="lease-tests" -->
+<!-- fragment «epoch-tests-replace-locked» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1575-1580" parent="lease-tests" -->
 ````rust
     fn replace_locked_path(attempt: usize, path: &Path) -> Result<()> {
         fs::rename(path, path.with_extension(format!("attempt-{attempt}")))?;
@@ -952,7 +956,7 @@ The first pair drives chapter 16's lease-file acquisition through its identity
 retry loop, once to success and once to exhaustion. The hook fires after the lock
 is taken and before the identity comparison.
 
-<!-- fragment «epoch-tests-retry-until-current» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1577-1601" parent="lease-tests" -->
+<!-- fragment «epoch-tests-retry-until-current» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1581-1605" parent="lease-tests" -->
 ````rust
     #[test]
     fn lease_path_replacement_retries_until_the_locked_descriptor_is_current() {
@@ -999,7 +1003,7 @@ the agreement means what the function's name says it means.
 
 The second reaches the bound.
 
-<!-- fragment «epoch-tests-fails-closed» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1602-1625" parent="lease-tests" -->
+<!-- fragment «epoch-tests-fails-closed» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1606-1629" parent="lease-tests" -->
 ````rust
     #[test]
     fn lease_path_replacement_fails_closed_after_eight_attempts() {
@@ -1050,7 +1054,7 @@ That pattern recurs below, in a test where it comes out the other way.
 One test, and it is the only one in the block that reads a descriptor flag
 rather than a file's contents.
 
-<!-- fragment «epoch-tests-close-on-exec» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1626-1647" parent="lease-tests" -->
+<!-- fragment «epoch-tests-close-on-exec» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1630-1651" parent="lease-tests" -->
 ````rust
     #[test]
     fn acquired_driver_descriptors_are_close_on_exec() {
@@ -1101,7 +1105,7 @@ and two are asserted nowhere in the corpus.
 The epoch record is the one file both sides of the handoff hold open at once,
 and this test is about the file rather than about what it says.
 
-<!-- fragment «epoch-tests-stable-record» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1648-1686" parent="lease-tests" -->
+<!-- fragment «epoch-tests-stable-record» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1652-1690" parent="lease-tests" -->
 ````rust
     #[test]
     fn activation_and_invalidation_replace_one_stable_epoch_record() {
@@ -1170,7 +1174,7 @@ Three tests drive `acquire_epoch_file_with`, which is the seam chapter 16
 described as the one the decision record reserves: a clock, a wait, two barriers
 and a contention reporter, all injected. This chapter says what each is used for.
 
-<!-- fragment «epoch-tests-event-order» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1687-1727" parent="lease-tests" -->
+<!-- fragment «epoch-tests-event-order» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1691-1731" parent="lease-tests" -->
 ````rust
     #[test]
     fn epoch_acquisition_retries_open_lock_path_replacement_in_event_order() {
@@ -1230,7 +1234,7 @@ does not contain it — so the test also pins, quietly, that an uncontended
 acquisition reports nothing, and that is the only assertion in the block about
 the reporter's *call site* rather than its text.
 
-<!-- fragment «epoch-tests-orphaned-timeout» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1728-1766" parent="lease-tests" -->
+<!-- fragment «epoch-tests-orphaned-timeout» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1732-1770" parent="lease-tests" -->
 ````rust
     #[test]
     fn an_orphaned_epoch_guard_times_out_post_reap_once_at_the_fixed_bound() {
@@ -1292,7 +1296,7 @@ pinned by nothing in this corpus.** Even the `elapsed` assertion is weaker than 
 looks: with a ten-second step, any bound in the range 21 to 30 seconds produces
 the same final reading of thirty.
 
-<!-- fragment «epoch-tests-contention-text» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1767-1777" parent="lease-tests" -->
+<!-- fragment «epoch-tests-contention-text» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1771-1781" parent="lease-tests" -->
 ````rust
     #[test]
     fn the_epoch_contention_diagnostic_names_the_lock_mode_and_operation() {
@@ -1326,7 +1330,7 @@ Two tests split the absent case between the two halves the production code
 separated: the decision an absent context leads to, and the reading that decides
 a context is absent.
 
-<!-- fragment «epoch-tests-manual-operations» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1778-1785" parent="lease-tests" -->
+<!-- fragment «epoch-tests-manual-operations» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1782-1789" parent="lease-tests" -->
 ````rust
     #[test]
     fn manual_agent_operations_need_no_driver_epoch() {
@@ -1350,7 +1354,7 @@ statement and returns before `Workspace::resolve` is ever reached, so the path i
 never examined. The test would pass with a real worktree, a temporary directory,
 or an empty string. Its expressive fixture describes a branch it does not take.
 
-<!-- fragment «epoch-tests-nonempty-ambient» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1786-1803" parent="lease-tests" -->
+<!-- fragment «epoch-tests-nonempty-ambient» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1790-1807" parent="lease-tests" -->
 ````rust
     /// The reading half, pinned without touching the environment. The empty case
     /// is not a curiosity: `.cargo/config.toml` force-clears `GROVE_SIGNAL_FILE`
@@ -1397,7 +1401,7 @@ has a direct test because the value arrives as an argument.
 These two are the carried example, and they are the reason the fork guard
 exists. Both drive a real replacement against a real lease.
 
-<!-- fragment «epoch-tests-old-finishes» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1804-1863" parent="lease-tests" -->
+<!-- fragment «epoch-tests-old-finishes» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1808-1867" parent="lease-tests" -->
 ````rust
     #[test]
     fn an_admitted_old_operation_finishes_before_replacement_invalidates_new_calls() {
@@ -1478,7 +1482,7 @@ the lock* from *not yet started*, and the `started_tx` handshake it takes first
 only proves the thread began, not that it reached the lock. The final refusal is
 matched on `"session epoch is inactive"`.
 
-<!-- fragment «epoch-tests-record-until-handoff» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1864-1906" parent="lease-tests" -->
+<!-- fragment «epoch-tests-record-until-handoff» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1868-1910" parent="lease-tests" -->
 ````rust
     #[test]
     fn replacement_keeps_the_old_lease_record_until_it_owns_epoch_handoff() {
@@ -1687,7 +1691,7 @@ panic that keeps the format string from the refusal it replaced.
 
 With the ladder in view, the seven read quickly.
 
-<!-- fragment «epoch-tests-foreign-worktree» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1907-1931" parent="lease-tests" -->
+<!-- fragment «epoch-tests-foreign-worktree» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1911-1935" parent="lease-tests" -->
 ````rust
     #[test]
     fn ambient_context_from_another_worktree_names_both_roots() {
@@ -1729,7 +1733,7 @@ constraint on order or framing. It also does not establish that the *identity*
 comparison one rung below would have caught the same case, which is the arm the
 mutation found unheld.
 
-<!-- fragment «epoch-tests-inactive-reported» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1932-1946" parent="lease-tests" -->
+<!-- fragment «epoch-tests-inactive-reported» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1936-1950" parent="lease-tests" -->
 ````rust
     #[test]
     fn an_inactive_epoch_is_reported_without_claiming_a_session_is_active() {
@@ -1759,7 +1763,7 @@ pinned negatively because there is no other way to pin it.
 substring, so any rewording that avoided those two words while still implying a
 live session would satisfy it.
 
-<!-- fragment «epoch-tests-rotated-signal» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1947-1970" parent="lease-tests" -->
+<!-- fragment «epoch-tests-rotated-signal» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1951-1974" parent="lease-tests" -->
 ````rust
     #[test]
     fn a_rotated_epoch_refuses_the_old_signal_path() {
@@ -1800,7 +1804,7 @@ path does not match the active epoch"`, and the mutation confirms this rung. Wha
 is not asserted is that the *new* path would now be admitted; the test rotates
 and checks only the losing side.
 
-<!-- fragment «epoch-tests-separator-bytes» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1971-1990" parent="lease-tests" -->
+<!-- fragment «epoch-tests-separator-bytes» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1975-1994" parent="lease-tests" -->
 ````rust
     #[test]
     fn an_epoch_signal_path_round_trips_record_separator_bytes() {
@@ -1839,7 +1843,7 @@ the encode-decode pair must have been faithful for that call to be admitted. The
 weight is on the `expect`, and the assertion that follows it is close to
 decorative.
 
-<!-- fragment «epoch-tests-probe-releases» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1991-2032" parent="lease-tests" -->
+<!-- fragment «epoch-tests-probe-releases» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1995-2036" parent="lease-tests" -->
 ````rust
     #[test]
     fn a_successful_liveness_probe_releases_the_lease_before_validation() {
@@ -1900,7 +1904,7 @@ that much is guarded. But the test drives
 `admit_session`, so it says nothing about the probe being reached in admission —
 which is the previous section's ladder claim, held by the next test instead.
 
-<!-- fragment «epoch-tests-active-no-lease» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="2033-2052" parent="lease-tests" -->
+<!-- fragment «epoch-tests-active-no-lease» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="2037-2056" parent="lease-tests" -->
 ````rust
     #[test]
     fn an_active_epoch_without_a_live_lease_is_stale() {
@@ -1939,7 +1943,7 @@ assertion in the block, and it is one line.
 tell which layer produced the phrase. It is nonetheless attributed: the mutation
 puts this test and the probe test on that arm and no other.
 
-<!-- fragment «epoch-tests-malformed» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="2053-2069" parent="lease-tests" -->
+<!-- fragment «epoch-tests-malformed» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="2057-2073" parent="lease-tests" -->
 ````rust
     #[test]
     fn a_malformed_epoch_is_stale() {
@@ -2030,7 +2034,7 @@ private witness establishes Idle even with an active epoch. A held exact Started
 marker establishes Running only after checking the captured directory relation;
 old active records cannot identify a mandate.
 
-<!-- fragment «runtime-observer» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="1-2143" parent="source-runtime-observation" -->
+<!-- fragment «runtime-observer» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="1-2149" parent="source-runtime-observation" -->
 <!-- insert «runtime-entry» -->
 <!-- insert «runtime-read» -->
 <!-- insert «runtime-extension» -->
@@ -3024,7 +3028,7 @@ Readiness and release channels suspend the same typed operation after capture an
 
 Replacing the epoch once forces a second attempt; replacing it on every guarded read exhausts exactly eight. Recursive snapshots compare file bytes and directory entries, including the administration area, across idle and legacy-active samples. The final control checks unreadable epochs where permissions apply and rejects a namespace replaced by a regular file. These controls exercise the observer’s own acquisition path rather than a parallel test implementation.
 
-<!-- fragment «runtime-test-races» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="835-2143" parent="runtime-observer" -->
+<!-- fragment «runtime-test-races» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="835-2149" parent="runtime-observer" -->
 <!-- insert «runtime-test-epoch-replacements» -->
 <!-- insert «runtime-test-started-fixture» -->
 <!-- insert «runtime-test-real-launch» -->
@@ -3119,7 +3123,7 @@ The shared fixture prepares a real lease-owned pair and publishes Started. The a
 
 The generic runner actually spawns and reaps a shell. Its parent callbacks first notify the lease and then sample the public observer: Started must report the prepared handle and SameTree, while Reaped must report Idle. Filesystem snapshots around each sample show that observing changes no bytes. This host control is not the cross-platform killed-holder and exec-survivor evidence owned by the later native-process leaf.
 
-<!-- fragment «runtime-test-real-launch» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="890-951" parent="runtime-test-races" -->
+<!-- fragment «runtime-test-real-launch» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="890-953" parent="runtime-test-races" -->
 ````rust
     #[test]
     fn witness_real_launch_started_and_reaped_reach_public_observation() {
@@ -3147,6 +3151,8 @@ The generic runner actually spawns and reaps a shell. Its parent callbacks first
                         channel: &channel,
                         channel_var: "GROVE_SIGNAL_FILE",
                         scrub: &[],
+                        grant: &[],
+                        transparent: None,
                         cwd: Some(work.path()),
                         escalation: keyed_launch::Escalation {
                             grace: Duration::ZERO,
@@ -3188,7 +3194,7 @@ The generic runner actually spawns and reaps a shell. Its parent callbacks first
 
 Injected errors at private open and each path-identity read must return through the production runtime error path and release the epoch guard. A subsequent native positive sample must still identify the live launch. The injection changes filesystem operations, not the returned activity provider.
 
-<!-- fragment «runtime-test-io-errors» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="952-1002" parent="runtime-test-races" -->
+<!-- fragment «runtime-test-io-errors» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="954-1004" parent="runtime-test-races" -->
 ````rust
     #[test]
     fn witness_private_open_and_identity_io_errors_release_the_epoch_guard() {
@@ -3246,7 +3252,7 @@ Injected errors at private open and each path-identity read must return through 
 
 Replacing the path after tree capture must preserve SameTree for the already-captured old directory; reopening the path here would return the wrong relation. A new observer instead reports PreviousTree with the original runtime identity. Separate busy, duplicate-key and removed-tree cases require NoReadableTree while preserving the launch identity for a summary.
 
-<!-- fragment «runtime-test-tree-binding» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="1003-1059" parent="runtime-test-races" -->
+<!-- fragment «runtime-test-tree-binding» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="1005-1061" parent="runtime-test-races" -->
 ````rust
     #[test]
     fn witness_capture_uses_accepted_pin_after_root_path_replacement() {
@@ -3310,7 +3316,7 @@ Replacing the path after tree capture must preserve SameTree for the already-cap
 
 Every proper prefix of the eight-byte marker is Busy under the real private lock. Invalid bytes, a trailing byte and an oversized file are Unavailable; the bounded read consumes only nine bytes. Releasing the owner makes the same oversized leftovers Idle. The isolated test process prevents unrelated forks from extending its descriptors.
 
-<!-- fragment «runtime-test-markers» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="1060-1107" parent="runtime-test-races" -->
+<!-- fragment «runtime-test-markers» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="1062-1109" parent="runtime-test-races" -->
 ````rust
     #[test]
     fn witness_marker_prefixes_invalid_bytes_and_release_have_exact_precedence() {
@@ -3370,7 +3376,7 @@ epoch probes must not be inherited by a concurrently forking test. Otherwise a
 brief inherited lock can make runtime observation return Busy before the matrix
 reaches any witness probe. Isolation retains every precedence assertion.
 
-<!-- fragment «runtime-test-probe-precedence» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="1108-1189" parent="runtime-test-races" -->
+<!-- fragment «runtime-test-probe-precedence» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="1110-1191" parent="runtime-test-races" -->
 ````rust
     #[derive(Clone, Copy, Debug)]
     enum ProbeResult {
@@ -3459,7 +3465,7 @@ reaches any witness probe. Isolation retains every precedence assertion.
 
 A real matching directory is explicitly unlocked while its private witness remains held. The public capture must be Busy. Independent exclusive probes succeed while returned captures remain alive, proving that successful directory, private and epoch probes did not escape as advisory guards. The captures still retain their directory pins.
 
-<!-- fragment «runtime-test-directory-release» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="1190-1225" parent="runtime-test-races" -->
+<!-- fragment «runtime-test-directory-release» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="1192-1227" parent="runtime-test-races" -->
 ````rust
     #[test]
     fn witness_unlocked_matching_directory_is_busy_and_probes_escape_no_locks() {
@@ -3502,7 +3508,7 @@ A real matching directory is explicitly unlocked while its private witness remai
 
 The replacement backend moves actual private-file paths after open or after the native shared probe. A stable wrong object is rejected; restoring the published object allows recovery; continued replacement stops after eight attempts. Both objects remain alive throughout, so the control depends on descriptor identity rather than inode reuse. It also checks that observation did not rewrite the epoch.
 
-<!-- fragment «runtime-test-private-replacements» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="1226-1325" parent="runtime-test-races" -->
+<!-- fragment «runtime-test-private-replacements» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="1228-1327" parent="runtime-test-races" -->
 ````rust
     #[derive(Clone, Copy, Debug)]
     enum ReplacementPoint {
@@ -3629,7 +3635,7 @@ snapshots show that these observations write nothing. Replacement epoch ordering
 and concurrent observers have their own controls; these release cases do not
 establish those properties.
 
-<!-- fragment «runtime-test-release-orders» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="1326-1486" parent="runtime-test-races" -->
+<!-- fragment «runtime-test-release-orders» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="1328-1488" parent="runtime-test-races" -->
 ````rust
     /// Reproduce independent descriptor teardown with real native locks. The
     /// epoch/marker come from DriverLease; only the holders are test-controlled.
@@ -3797,7 +3803,7 @@ establish those properties.
 
 Continuous workers exercise the public observer between requested checkpoints. Each request receives a fresh observation, and channel disconnection stops the cohort even when an assertion unwinds. Bounded receives detect missing progress without using elapsed time to infer ordering.
 
-<!-- fragment «runtime-test-viewer-workers» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="1487-1525" parent="runtime-test-races" -->
+<!-- fragment «runtime-test-viewer-workers» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="1489-1527" parent="runtime-test-races" -->
 ````rust
     // Workers observe continuously, including between requested checkpoints.
     // A request is acknowledged only by a fresh public observation after it.
@@ -3843,7 +3849,7 @@ Continuous workers exercise the public observer between requested checkpoints. E
 
 Independent shared descriptors hold both released witness probe windows open while three public observers read leftover Started bytes. Native exclusive probes first confirm the holders are effective. Every observation must be Idle; after the cohort and holders stop, independent exclusive probes check that returned captures retain no advisory guards.
 
-<!-- fragment «runtime-test-shared-overlap» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="1526-1567" parent="runtime-test-races" -->
+<!-- fragment «runtime-test-shared-overlap» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="1528-1569" parent="runtime-test-races" -->
 ````rust
     #[test]
     fn witness_concurrent_shared_probes_of_released_started_bytes_stay_idle() {
@@ -3892,7 +3898,7 @@ Independent shared descriptors hold both released witness probe windows open whi
 
 Three continuous observers span four real launches. Each preparation must retain both exclusive witnesses; at the synchronous Started callback every viewer identifies the exact signal and SameTree mandate, and at Reaped every viewer reports Idle. Compatible probes check release while viewers continue; invalidation and the next preparation must still succeed.
 
-<!-- fragment «runtime-test-repeated-launches» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="1568-1645" parent="runtime-test-races" -->
+<!-- fragment «runtime-test-repeated-launches» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="1570-1649" parent="runtime-test-races" -->
 ````rust
     #[test]
     fn witness_continuous_viewers_allow_repeated_real_launch_preparation() {
@@ -3926,6 +3932,8 @@ Three continuous observers span four real launches. Each preparation must retain
                                 channel: &channel,
                                 channel_var: "GROVE_SIGNAL_FILE",
                                 scrub: &[],
+                                grant: &[],
+                                transparent: None,
                                 cwd: Some(work.path()),
                                 escalation: keyed_launch::Escalation {
                                     grace: Duration::ZERO,
@@ -3977,7 +3985,7 @@ Three continuous observers span four real launches. Each preparation must retain
 
 Concurrent readers use both the exact worktree path and a symlink alias through absent-tree, non-jj-tree, missing-namespace and jj-without-tree cases. Recursive before/after snapshots and the unchanged alias target show that observation creates neither tree nor administration entries.
 
-<!-- fragment «runtime-test-concurrent-snapshots» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="1646-1675" parent="runtime-test-races" -->
+<!-- fragment «runtime-test-concurrent-snapshots» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="1650-1679" parent="runtime-test-races" -->
 ````rust
     #[test]
     fn witness_concurrent_read_only_captures_cover_aliases_and_absent_controls() {
@@ -4017,7 +4025,7 @@ Concurrent readers use both the exact worktree path and a symlink alias through 
 
 A replacement may own the lease while an old reader still holds the shared epoch guard. The first control pauses real `DriverLease::acquire_with` at its handoff boundary. Independent nonblocking probes establish lease ownership and epoch exclusion; three continuous public observers read released Started bytes as Idle. Both witness locations remain exclusively acquirable, and the filesystem snapshot retains the old lease and epoch bytes. Releasing the reader permits invalidation and cleanup; no elapsed delay is used to infer ordering.
 
-<!-- fragment «runtime-test-delayed-replacement» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="1676-1745" parent="runtime-test-races" -->
+<!-- fragment «runtime-test-delayed-replacement» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="1680-1749" parent="runtime-test-races" -->
 ````rust
     #[test]
     fn witness_epoch_replacement_waits_with_old_bytes_and_idle_viewers() {
@@ -4096,7 +4104,7 @@ The preparation control supplies the separate old-record hazard. It releases the
 
 At the acquisition callback, a shared epoch reader still excludes invalidation. Concurrent public observers must report Busy, the new directory must be unlocked, and no private witness may have been created. Moving the production `launch.prepare` block before acquisition makes those observers attach the old mandate as SameTree Running to the new tree. The independent real-launch positive still passes under that mutation. With production restored, the callback releases the reader, preparation acquires both witnesses, and returned observations retain no locks or filesystem changes.
 
-<!-- fragment «runtime-test-preparation-order» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="1746-1830" parent="runtime-test-races" -->
+<!-- fragment «runtime-test-preparation-order» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="1750-1834" parent="runtime-test-races" -->
 ````rust
     #[test]
     fn witness_epoch_preparation_cannot_attach_old_mandate_to_reused_tree() {
@@ -4188,7 +4196,7 @@ At the acquisition callback, a shared epoch reader still excludes invalidation. 
 
 Recursive snapshots include tree and administration bytes for idle and legacy-active samples, absent controls and non-jj locations. Permission and namespace-type failures remain Unavailable. These existing controls complement the started-launch snapshots without granting observation cleanup or repair authority.
 
-<!-- fragment «runtime-test-filesystem-preservation» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="1831-1897" parent="runtime-test-races" -->
+<!-- fragment «runtime-test-filesystem-preservation» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="1835-1901" parent="runtime-test-races" -->
 ````rust
     fn contents(path: &Path) -> Vec<(PathBuf, Vec<u8>)> {
         let mut files = Vec::new();
@@ -4274,7 +4282,7 @@ shared probes still find both locks held at Started and released at Reaped;
 exclusive epoch and containing-directory probes succeed inside both callbacks.
 Admission remains usable and the successful runner result survives the warning.
 
-<!-- fragment «witness-tests» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/witnesses.rs" lines="176-715" parent="source-witnesses" -->
+<!-- fragment «witness-tests» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/witnesses.rs" lines="176-719" parent="source-witnesses" -->
 <!-- insert «witness-process-holder» -->
 <!-- insert «witness-foreign-launch» -->
 <!-- insert «witness-local-controls» -->
@@ -4398,7 +4406,7 @@ probes succeed, invalidation removes the abandoned private file, and a fresh
 preparation succeeds. The internal preparation callback defaults to the normal
 `LaunchWitnesses::prepare`; tests replace only its synchronization hook.
 
-<!-- fragment «witness-foreign-launch» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/witnesses.rs" lines="261-439" parent="witness-tests" -->
+<!-- fragment «witness-foreign-launch» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/witnesses.rs" lines="261-441" parent="witness-tests" -->
 ````rust
 
     #[test]
@@ -4523,6 +4531,8 @@ preparation succeeds. The internal preparation callback defaults to the normal
                         channel: &channel,
                         channel_var: "GROVE_SIGNAL_FILE",
                         scrub: &[],
+                        grant: &[],
+                        transparent: None,
                         cwd: Some(temp.path()),
                         escalation: keyed_launch::Escalation {
                             grace: Duration::ZERO,
@@ -4589,7 +4599,7 @@ retries, injected lock errors and cleanup grammar. They complement the foreign
 process scenarios by naming each local failure boundary and checking which
 locks remain held. The real-launch marker failure keeps both locks until Reaped.
 
-<!-- fragment «witness-local-controls» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/witnesses.rs" lines="440-715" parent="witness-tests" -->
+<!-- fragment «witness-local-controls» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/witnesses.rs" lines="442-719" parent="witness-tests" -->
 ````rust
 
     #[test]
@@ -4646,6 +4656,8 @@ locks remain held. The real-launch marker failure keeps both locks until Reaped.
                     channel: &channel,
                     channel_var: "GROVE_SIGNAL_FILE",
                     scrub: &[],
+                    grant: &[],
+                    transparent: None,
                     cwd: Some(temp.path()),
                     escalation: keyed_launch::Escalation {
                         grace: std::time::Duration::ZERO,
@@ -4878,7 +4890,7 @@ locks remain held. The real-launch marker failure keeps both locks until Reaped.
 
 The exec child acknowledges startup over a Unix socket and echoes a later ping. That response proves the launched executable remains alive after the supervising holder is killed; leftover process identifiers alone cannot establish this.
 
-<!-- fragment «runtime-native-exec» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="1898-1917" parent="runtime-test-races" -->
+<!-- fragment «runtime-native-exec» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="1902-1921" parent="runtime-test-races" -->
 ````rust
 
     // These helpers only act when explicitly launched by the native scenarios.
@@ -4905,7 +4917,7 @@ The exec child acknowledges startup over a Unix socket and echoes a later ping. 
 
 The separate holder uses the real lease, preparation and runner callbacks. Started publishes the witness marker before the holder acknowledges readiness. The configured executable then waits for the observer to finish, so holder death and child exit can be controlled independently.
 
-<!-- fragment «runtime-native-holder» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="1918-1967" parent="runtime-test-races" -->
+<!-- fragment «runtime-native-holder» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="1922-1973" parent="runtime-test-races" -->
 ````rust
     #[test]
     fn witness_native_holder_process() {
@@ -4940,6 +4952,8 @@ The separate holder uses the real lease, preparation and runner callbacks. Start
                         channel: &channel,
                         channel_var: "GROVE_SIGNAL_FILE",
                         scrub: &[],
+                        grant: &[],
+                        transparent: None,
                         cwd: Some(work),
                         escalation: keyed_launch::Escalation {
                             grace: Duration::ZERO,
@@ -4962,7 +4976,7 @@ The separate holder uses the real lease, preparation and runner callbacks. Start
 
 The scenario owns the holder as a child process. SIGKILL is followed by a bounded try_wait loop and a checked signal status. Drop also kills and reaps on assertion failure, so the test never treats signal delivery as completed teardown.
 
-<!-- fragment «runtime-native-reap» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="1968-1992" parent="runtime-test-races" -->
+<!-- fragment «runtime-native-reap» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="1974-1998" parent="runtime-test-races" -->
 ````rust
 
     struct NativeHolder(std::process::Child);
@@ -4994,7 +5008,7 @@ The scenario owns the holder as a child process. SIGKILL is followed by a bounde
 
 The native scenarios open independent descriptors and prove both shared probes contend after readiness. After actual holder reap, both succeed while the exec child still answers and Started bytes remain; the production observer must report Idle. The replacement scenario first removes the root path, then creates a new tree with reused key k1 and unlinks the old root. A fresh observation must report PreviousTree. This tests real open-object binding, not forced numeric identity reuse. Socket and reap waits use failure deadlines; no elapsed sleep supplies evidence.
 
-<!-- fragment «runtime-native-scenarios» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="1993-2143" parent="runtime-test-races" -->
+<!-- fragment «runtime-native-scenarios» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="1999-2149" parent="runtime-test-races" -->
 ````rust
 
     fn native_process_evidence(replace: bool) {

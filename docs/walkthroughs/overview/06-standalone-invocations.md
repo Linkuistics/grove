@@ -52,7 +52,7 @@ The following table separates the authorities used by this operation.
 The source below follows those boundaries. The temporary directory owns staged
 work, while destination writes and terminal display remain parent operations.
 
-<!-- fragment «standalone-invocation» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="1-398" parent="source-standalone" -->
+<!-- fragment «standalone-invocation» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="1-400" parent="source-standalone" -->
 <!-- insert «standalone-interface» -->
 <!-- insert «standalone-staging» -->
 <!-- insert «standalone-launch-context» -->
@@ -327,7 +327,7 @@ whatever the harness said: the runner reports a group that outlived its kills as
 writing what would be published. Only then does publication run. The final status records publication success as well as child
 completion, so an export failure cannot be displayed as completed.
 
-<!-- fragment «standalone-supervision» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="161-242" parent="standalone-invocation" -->
+<!-- fragment «standalone-supervision» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="161-244" parent="standalone-invocation" -->
 ````rust
     // Build a small inherited environment. In particular no GROVE_*, GIT_*,
     // JJ_*, terminal/mux sockets, loader injection, or parent harness identifiers.
@@ -346,6 +346,8 @@ completion, so an export failure cannot be displayed as completed.
                 channel: &channel,
                 channel_var: "GROVE_RUN_SIGNAL_FILE",
                 scrub: &scrub,
+                grant: &[],
+                transparent: None,
                 cwd: Some(&work),
                 escalation: Escalation {
                     grace: Duration::from_secs(2),
@@ -390,7 +392,7 @@ completion, so an export failure cannot be displayed as completed.
             log_path.display()
         );
         ensure!(
-            ended.end == End::Signalled || ended.status.success(),
+            ended.end == End::Escalated || ended.status.success(),
             "harness failed after signalling completion ({}); outputs were not published",
             ended.status
         );
@@ -442,7 +444,7 @@ writes one JSON error on stderr, and this function reports its code, message and
 remedy, with the policy's own code beside a refusal the policy made. Output it
 cannot read that way is quoted beside the exit status.
 
-<!-- fragment «standalone-selection» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="243-316" parent="standalone-invocation" -->
+<!-- fragment «standalone-selection» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="245-318" parent="standalone-invocation" -->
 ````rust
 /// Ask the owner's policy which command runs this kind, before confinement
 /// and outside it: the policy, the owner's settings and the record store are
@@ -531,7 +533,7 @@ a FIFO from hanging the staging reader, and `O_NOFOLLOW` refuses the final
 symlink. These checks turn the example's caller paths into bounded file inputs,
 not access grants to the caller's project.
 
-<!-- fragment «standalone-artifact-checks» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="317-362" parent="standalone-invocation" -->
+<!-- fragment «standalone-artifact-checks» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="319-364" parent="standalone-invocation" -->
 ````rust
 fn inherited(name: &OsStr) -> bool {
     let Some(name) = name.to_str() else {
@@ -596,7 +598,7 @@ are in `crates/grove/tests/standalone.rs`, which drives the built binary under
 real confinement. They are external evidence, outside this book's reconstructed
 corpus.
 
-<!-- fragment «standalone-publication» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="363-398" parent="standalone-invocation" -->
+<!-- fragment «standalone-publication» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="365-400" parent="standalone-invocation" -->
 ````rust
 fn publish_outputs(work: &File, destinations: &[PathBuf]) -> Result<()> {
     let mut staged = Vec::new();

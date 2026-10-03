@@ -5,9 +5,10 @@
 //! entry, the prompt, the optional task file and identity, the caller's
 //! parameters and context document, the selection and context bounds, the
 //! record directory and the worker's environment grants. The last four are
-//! also owner settings (`settings`), which a flag replaces or adds to. `init`
-//! takes no input. `record show` exports a recorded run, and `record observe`
-//! appends a later observation to one.
+//! also owner settings (`settings`), which a flag replaces or adds to. `run`
+//! alone takes `--exit-dir`, which is about the run rather than the selection.
+//! `init` and `exit` take no input. `record show` exports a recorded run, and
+//! `record observe` appends a later observation to one.
 
 use std::ffi::{OsStr, OsString};
 use std::path::PathBuf;
@@ -22,9 +23,10 @@ use crate::refusal::{Invocation, Refusal, Stage, EXIT_MALFORMED};
     version,
     about = "Pass a caller's inputs to an owner's select function, then report or run the command it returns",
     long_about = "Pass a caller's kind, prompt and parameters to the select function of an owner's \
-        TypeScript policy, then report the command it returns (inspect) or replace this process \
-        with that command (run). A select returns a program, its arguments and the owner's \
-        provider, model and effort labels for what they run, or a refusal.\n\n\
+        TypeScript policy, then report the command it returns (inspect) or run that command as \
+        a job this process supervises to its end (run). A select returns a program, its \
+        arguments and the owner's provider, model and effort labels for what they run, or a \
+        refusal. A harness run that way ends its run with harness-dispatch exit.\n\n\
         The policy is the personal default ~/.config/harness-dispatch/policy.ts, or the entry \
         named by --config. No policy in the current directory runs unless --config names it. \
         Nothing else is needed: no task tree, Grove installation or other caller. With no \
@@ -39,6 +41,7 @@ use crate::refusal::{Invocation, Refusal, Stage, EXIT_MALFORMED};
         harness-dispatch inspect --kind impl\n  \
         harness-dispatch run --kind impl --prompt 'Implement the parser'\n  \
         harness-dispatch run --kind impl --param profile=careful --prompt 'Implement the parser'\n  \
+        harness-dispatch exit\n  \
         harness-dispatch record show --run \"$HARNESS_DISPATCH_RUN_ID\" --json\n  \
         harness-dispatch record observe --run \"$HARNESS_DISPATCH_RUN_ID\" --file observation.json\n\n\
         From Grove: Grove runs this command itself for every lifecycle session, in the \
@@ -49,7 +52,9 @@ use crate::refusal::{Invocation, Refusal, Stage, EXIT_MALFORMED};
         Exit results before the harness runs: 2 malformed command line; 3 refused by the \
         policy, the selection or its inputs; 4 run record failure; 5 worker or protocol failure; \
         124 selection timeout; 126 program not executable; 127 program not found. Once the \
-        harness runs, its own exit status or signal is the command's.\n\n\
+        harness runs, run reports how it ended: its own exit status or signal when it ended \
+        without the exit signal, 0 when the exit signal ended it, death by the signal that \
+        cancelled it, and 5 when members of its process group survived it.\n\n\
         A refusal launches nothing and nothing is run in its place. Nothing is retried, \
         paged or confirmed interactively. A refused run prints the equivalent inspect \
         invocation, without the prompt: run it to see the same selection without launching. A \
@@ -85,20 +90,30 @@ pub enum Command {
         harness-dispatch inspect --kind design --prompt-file ./mandate.md"
     )]
     Inspect(InspectArgs),
-    /// Select a command, record the handoff, and replace this process with it
+    /// Select a command, record the handoff, and run the command as a job this process supervises
     #[command(
-        after_help = "Before it execs, run commits one handoff record with a fresh run ID to \
-        the record store (exit 4, and nothing launched, if it cannot). The harness inherits \
-        this process's cwd, descriptors, environment and PID, plus HARNESS_DISPATCH_RUN_ID \
-        and HARNESS_DISPATCH_STATE_DIR, and its own exit code or signal is the command's. \
+        after_help = "Before it launches, run commits one handoff record with a fresh run ID to \
+        the record store (exit 4, and nothing launched, if it cannot). The harness runs as this \
+        process's child, in a process group of its own that holds the terminal, with this \
+        process's cwd, descriptors, environment and entry signal state, plus \
+        HARNESS_DISPATCH_RUN_ID, HARNESS_DISPATCH_STATE_DIR and HARNESS_DISPATCH_EXIT_FILE. \
         Stdout and stdin are the harness's; the labels and run ID are reported in one line on \
-        stderr.\n\n\
+        stderr, and how the run ended in one more.\n\n\
+        The run ends when the harness exits, or when it sends the exit signal with \
+        harness-dispatch exit: 2 seconds later its process group is sent SIGTERM, and 5 \
+        seconds after that SIGKILL. INT, TERM or HUP sent to this process cancel the run the \
+        same way, with that signal. Whatever ends the harness, what remains of its group is \
+        killed. The exit status is the harness's own exit code or signal when it ended \
+        without the exit signal; 0 when the exit signal ended it or it exited 0 after \
+        sending it; death by the cancelling signal; and 5 when members of its group may \
+        have survived it.\n\n\
         Examples:\n  \
         harness-dispatch run --kind impl --prompt 'Implement the parser'\n  \
         harness-dispatch run --kind impl --task-file ./tasks/parser.md --task-id T-12 --prompt-file ./mandate.md\n  \
         harness-dispatch run --kind impl --param profile=careful --prompt 'Implement the parser'\n  \
         harness-dispatch run --kind review --context ./review-context.json --context-bytes 1048576 --prompt-file ./mandate.md\n  \
-        harness-dispatch run --kind impl --state-dir ./records --prompt 'Implement the parser'\n\n\
+        harness-dispatch run --kind impl --state-dir ./records --prompt 'Implement the parser'\n  \
+        harness-dispatch run --kind impl --exit-dir ./control --prompt 'Implement the parser'\n\n\
         From Grove: what Grove runs for every lifecycle session, in the working-tree root, \
         with values from the leaf it launches:\n  \
         harness-dispatch run --kind=KIND --task-file=TASK_FILE --task-id=HANDLE --prompt=MANDATE\n\n\
@@ -129,6 +144,21 @@ pub enum Command {
         echo 'codex-led high-effort' > .harness-dispatch-choice"
     )]
     Init,
+    /// Send the exit signal: end the supervised run this process runs under
+    #[command(
+        after_help = "exit creates the file HARNESS_DISPATCH_EXIT_FILE names, which run \
+        published to its harness, and carries nothing. A file already there is success. Its \
+        appearance is the exit signal: the run that published it ends its harness, 2 seconds \
+        later with SIGTERM and 5 seconds after that with SIGKILL. A nested run publishes its own \
+        channel, so exit ends only the run whose harness it runs under.\n\n\
+        exit takes no input, and reads no owner setting, policy or record. With \
+        HARNESS_DISPATCH_EXIT_FILE unset or empty it signals nothing, says that it is not \
+        running under a supervised run, and exits 0. It exits 1, naming the path and the \
+        error, when it cannot create the file.\n\n\
+        Example, as a session's last action:\n  \
+        harness-dispatch exit"
+    )]
+    Exit,
     /// Export the run records that run commits, and add later observations to them
     Record(RecordArgs),
 }
@@ -232,7 +262,10 @@ pub struct InspectArgs {
 pub struct RunArgs {
     #[command(flatten)]
     pub selection: SelectionArgs,
-    /// Write the handoff notice, and any refusal, as JSON lines on stderr
+    /// Allocate the run's exit channel in this existing directory, which is neither created nor removed; relative to the current directory. Without it, a private per-run directory under TMPDIR, removed after the run
+    #[arg(long, value_name = "DIR")]
+    pub exit_dir: Option<PathBuf>,
+    /// Write the handoff and end notices, and any refusal, as JSON lines on stderr
     #[arg(long)]
     pub json: bool,
 }

@@ -6,10 +6,10 @@ title   = "keyed-launch"
 subject = "crates/keyed-launch"
 
 # The bare rule, with no exceptions at all: the crate's own manifest and every
-# Rust file under `src/`. `src/channel.rs` lines 289-453 are an inline
+# Rust file under `src/`. `src/channel.rs` lines 320-505 are an inline
 # `#[cfg(test)] mod tests`, and they are **not** excluded — a root is
 # `src/**/*.rs`, the exception class `inline-test-module` is checked against a
-# file named `tests.rs`, and those 165 lines are owned, reconstructed and
+# file named `tests.rs`, and those 186 lines are owned, reconstructed and
 # explained by chapter 5 like any other. `crates/keyed-launch/tests/`
 # is evidence rather than corpus, so this book carries no
 # `[[corpus.add]]` and no `[[corpus.exclude]]`, and the normative inventory in
@@ -104,22 +104,22 @@ lines = 50
 [[root]]
 id    = "source-error-type"
 path  = "crates/keyed-launch/src/error.rs"
-lines = 38
+lines = 56
 
 [[root]]
 id    = "source-argv"
 path  = "crates/keyed-launch/src/argv.rs"
-lines = 39
+lines = 64
 
 [[root]]
 id    = "source-channel"
 path  = "crates/keyed-launch/src/channel.rs"
-lines = 453
+lines = 505
 
 [[root]]
 id    = "source-run"
 path  = "crates/keyed-launch/src/run.rs"
-lines = 1171
+lines = 1292
 
 [[root]]
 id    = "source-confinement"
@@ -142,49 +142,49 @@ lines = "1-50"
 id    = "one-opaque-error"
 root  = "source-error-type"
 owner = "understands-neither"
-lines = "1-38"
+lines = "1-56"
 
 [[block]]
 id    = "argv"
 root  = "source-argv"
 owner = "understands-neither"
-lines = "1-39"
+lines = "1-64"
 
 [[block]]
 id    = "channel-production"
 root  = "source-channel"
 owner = "appearance-is-the-event"
-lines = "1-288"
+lines = "1-319"
 
 [[block]]
 id    = "channel-inline-tests"
 root  = "source-channel"
 owner = "checked-without-meaning"
-lines = "289-453"
+lines = "320-505"
 
 [[block]]
 id    = "launch-shape"
 root  = "source-run"
 owner = "nothing-else-added"
-lines = "1-146"
+lines = "1-168"
 
 [[block]]
 id    = "watch-and-launcher-signals"
 root  = "source-run"
 owner = "the-launchers-job"
-lines = "147-332"
+lines = "169-357"
 
 [[block]]
 id    = "terminal-and-spawn"
 root  = "source-run"
 owner = "nothing-else-added"
-lines = "333-837"
+lines = "358-957"
 
 [[block]]
 id    = "supervise-and-escalate"
 root  = "source-run"
 owner = "the-launchers-job"
-lines = "838-1171"
+lines = "958-1292"
 
 [[block]]
 id    = "confinement-policy"
@@ -199,10 +199,10 @@ owner     = "appearance-is-the-event"
 statement = "A fresh path per launch that allocation picks and writes nothing to; `signal` is what the child calls to make it appear, and `Token` is what the caller reads back."
 
 [[early-use]]
-symbols   = "`run`, `run_observed`, `LaunchEvent`, `Launch`, `Ended`, `End`, `Group`, `Escalation`"
+symbols   = "`run`, `run_observed`, `LaunchEvent`, `Launch`, `EntrySignals`, `Ended`, `End`, `Group`, `Escalation`"
 first-use = "01-orientation.md#the-cast"
 owner     = "nothing-else-added"
-statement = "`run_observed` reports successful spawn and confirmed reap synchronously; `run` uses a no-op observer. Each spawns one `Launch` — argv, channel, scrub list, working directory and the two graces of an `Escalation` — and returns an `Ended` saying which of `End`'s three cases happened and whether the child's `Group` was confirmed gone."
+statement = "`run_observed` reports successful spawn and confirmed reap synchronously; `run` uses a no-op observer. Each spawns one `Launch` — argv, channel, scrub list, granted values, a transparent caller's `EntrySignals` when there is one, working directory and the two graces of an `Escalation` — and returns an `Ended` saying which of `End`'s three cases happened, whether the channel appeared, and whether the child's `Group` was confirmed gone."
 
 [[early-use]]
 symbols   = "`reraise`, `take_interrupt`"

@@ -34,7 +34,7 @@ of every chapter before it:
   Channel::allocate(control_dir)        -> choice 1: whose directory
   channel_var: "GROVE_SIGNAL_FILE"      -> choice 2: which variable publishes it
   scrub: LOOP_CONTROL_ENV               -> choice 3: what a child may not inherit
-  escalation: 2s grace, 5s kill-grace   -> choice 4: how long the two graces are
+  escalation: 2s grace, 10s kill-grace  -> choice 4: how long the two graces are
 
   lease.supervise_launch(run_observed) -> spawn, events and supervision
 
@@ -187,7 +187,7 @@ loop, then the four chosen values are declared **before** anything uses them,
 then the outcome type, then the loop itself, then the five helpers it calls, and
 last the two tests that hold the one ordering the loop cannot get wrong.
 
-<!-- fragment «loop-driver» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="1-768" parent="source-loop-driver" -->
+<!-- fragment «loop-driver» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="1-781" parent="source-loop-driver" -->
 <!-- insert «loop-header» -->
 <!-- insert «loop-imports» -->
 <!-- insert «loop-control-env» -->
@@ -1193,7 +1193,7 @@ the example in dispatch's own help in step with it.
 
 Twenty-one lines of contract, then a signature and a single diagnostic line.
 
-<!-- fragment «loop-launch-contract» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="376-410" parent="loop-driver" -->
+<!-- fragment «loop-launch-contract» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="376-413" parent="loop-driver" -->
 ````rust
 /// Launch one fresh foreground session owning the real TTY, and hand it to
 /// `keyed_launch::run_observed`, which spawns it directly — no shell — and supervises it
@@ -1202,8 +1202,11 @@ Twenty-one lines of contract, then a signature and a single diagnostic line.
 /// The argv is taken whole from its caller. Nothing is appended, injected, or
 /// reordered here. In the loop it is [`dispatch_run`]'s: the front process
 /// leads the job and holds the terminal, its policy worker joins that job, and
-/// the harness the policy selects replaces the front in the same process, so
-/// the runner's contract holds for the harness as it held for the front.
+/// the front then supervises the harness the policy selects as a job of its
+/// own, through the same runner contract, handing the terminal on. Until the
+/// lifecycle launch moves onto dispatch's run ending, this channel still ends
+/// the session: its escalation cancels dispatch's run, and dispatch ends its
+/// harness before it dies of the same signal.
 ///
 /// Prints one diagnostic line naming the kind and the selected handle. That
 /// line is the only durable record of what each session in a loop was working
@@ -1237,9 +1240,12 @@ fn launch_session(
 *Nothing is appended, injected, or reordered here.* The argv is its caller's,
 whole. In the loop it is `dispatch_run`'s, and the comment says what that makes
 of the runner's contract: the front process leads the job and holds the terminal,
-its policy worker joins that job, and the harness the policy selects replaces the
-front in the same process, *so the runner's contract holds for the harness as it
-held for the front*. Grove chooses four things and refuses to choose a fifth, and
+its policy worker joins that job, and *the front then supervises the harness the
+policy selects as a job of its own, through the same runner contract, handing
+the terminal on*. So the contract holds twice, one job inside the other. The
+comment's last sentence is the transitional state it names: this channel still
+ends the session, by cancelling dispatch's run, until the lifecycle launch moves
+onto the ending dispatch reports. Grove chooses four things and refuses to choose a fifth, and
 `bare_grove_launches_the_selected_filename_kind_with_one_mandate_argument` is what
 holds the refusal from the harness's side: the mandate arrives as one argument,
 where the policy put it.
@@ -1250,7 +1256,7 @@ under `leaf-insert`, while the handle does not. This is chapter 3's
 handle-not-position rule arriving at the one place where a human reads it back,
 and it is why the loop's log is legible after a tree has been reordered under it.
 
-<!-- fragment «loop-launch-spawn» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="411-437" parent="loop-driver" -->
+<!-- fragment «loop-launch-spawn» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="414-442" parent="loop-driver" -->
 ````rust
     driver_lease
         .prepare_launch(selected.lifetime, selection, channel.path())
@@ -1264,6 +1270,8 @@ and it is why the loop's log is legible after a tree has been reordered under it
                     channel,
                     channel_var: CHANNEL_VAR,
                     scrub: &scrub_list(),
+                    grant: &[],
+                    transparent: None,
                     cwd: Some(worktree),
                     escalation: ESCALATION,
                 },
@@ -1311,7 +1319,7 @@ the record behind the process-group half of it, named here and cited nowhere.
 
 The only function in the file with no doc comment at all.
 
-<!-- fragment «loop-handoff» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="438-455" parent="loop-driver" -->
+<!-- fragment «loop-handoff» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="443-460" parent="loop-driver" -->
 ````rust
 fn complete_post_reap_epoch_handoff<E, T>(
     ended: Result<E>,
@@ -1368,19 +1376,27 @@ still on disk with a token in it, which the next driver will find.
 
 Two durations, and eight lines saying where each number came from.
 
-<!-- fragment «loop-escalation» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="456-468" parent="loop-driver" -->
+<!-- fragment «loop-escalation» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="461-481" parent="loop-driver" -->
 ````rust
 /// The kill escalation the runner applies once the completion channel appears.
 ///
 /// Built-in constants, not knobs. Two seconds lets the agent's `complete` tool
-/// call return and its turn end before its session dies; five more is time for
-/// an orderly SIGTERM shutdown before SIGKILL. Why an escalation is needed at
-/// all — an interactive session is never reaped on its own, and cannot be
-/// trusted to end itself under every sandbox — is `keyed_launch::Escalation`'s
-/// to state, and it states it.
+/// call return and its turn end before its session dies. Why an escalation is
+/// needed at all — an interactive session is never reaped on its own, and
+/// cannot be trusted to end itself under every sandbox — is
+/// `keyed_launch::Escalation`'s to state, and it states it.
+///
+/// **The kill-grace must outlast dispatch's own end.** The child is
+/// `harness-dispatch run`, which supervises the harness: the SIGTERM sent here
+/// cancels its run, and it then sends its harness's group the same signal,
+/// waits its own kill-grace of 5 seconds, kills what remains of the group,
+/// confirms it gone within 1 second and waits on its record store's lock. Ten
+/// seconds covers that, so this SIGKILL never races dispatch's escalation and
+/// orphans a harness it was still ending
+/// (`docs/specs/module-decomposition.md`, decision 7).
 const ESCALATION: Escalation = Escalation {
     grace: Duration::from_secs(2),
-    kill_grace: Duration::from_secs(5),
+    kill_grace: Duration::from_secs(10),
 };
 
 ````
@@ -1388,8 +1404,14 @@ const ESCALATION: Escalation = Escalation {
 
 **Built-in constants, not knobs** — and the comment gives a reason per value
 rather than a policy for both. Two seconds lets the agent's `complete` tool call
-return and its turn end before its session dies; five more is time for an orderly
-SIGTERM shutdown before SIGKILL. The first number is about an *agent's* turn
+return and its turn end before its session dies. Ten more is not a shutdown
+allowance for a harness but a bound on another supervisor: Grove's child is
+`harness-dispatch run`, which on Grove's SIGTERM cancels its run, waits its own
+five-second kill-grace, kills what remains of its harness's group and confirms
+it gone within a second, then records. A SIGKILL from Grove before that ends
+would kill dispatch mid-escalation and orphan the harness it was still ending,
+so the number is chosen to outlast dispatch's, as decision 7 states. The first
+number is about an *agent's* turn
 structure, which is the kind of thing only the layer that knows what a session is
 could pick — and it is the clearest single illustration of the chapter's rule.
 `keyed-launch` could not have defaulted two seconds, because two seconds is a fact
@@ -1407,7 +1429,7 @@ restate* instruction appearing inside the source it applies to.
 Thirteen lines of comment over eighteen of code, and the comment is entirely
 about the second of the function's two early returns.
 
-<!-- fragment «loop-reset-terminal» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="469-500" parent="loop-driver" -->
+<!-- fragment «loop-reset-terminal» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="482-513" parent="loop-driver" -->
 ````rust
 /// Reset the terminal after a (possibly SIGTERM'd) TUI: restore cooked mode,
 /// leave the alternate screen, show the cursor. No-op when stdin isn't a TTY
@@ -1479,7 +1501,7 @@ succeeded.
 
 The other half of what `run` does before it delegates.
 
-<!-- fragment «loop-ignore-interrupts» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="501-531" parent="loop-driver" -->
+<!-- fragment «loop-ignore-interrupts» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="514-544" parent="loop-driver" -->
 ````rust
 /// Ignore SIGINT in the driver so a terminal Ctrl-C does not kill the loop. The
 /// driver must survive the interrupt to reach the relaunch-vs-stop decision.
@@ -1560,7 +1582,7 @@ returning it releases the tree guard. `picked_after_finish` discards the value
 returned by materialization and selects again under a fresh guard, so concurrent
 changes supply a new selection rather than an identity attached to old names.
 
-<!-- fragment «loop-picked» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="532-571" parent="loop-driver" -->
+<!-- fragment «loop-picked» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="545-584" parent="loop-driver" -->
 ````rust
 /// The driver's own `pick`, over the worktree it is driving.
 ///
@@ -1655,7 +1677,7 @@ The remaining tests hold the separate handoff invariant: completion
 interpretation stays behind successful epoch invalidation, and a failed handoff
 preserves the preceding launch failure.
 
-<!-- fragment «loop-tests-open» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="572-709" parent="loop-driver" -->
+<!-- fragment «loop-tests-open» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="585-722" parent="loop-driver" -->
 ````rust
 // The repository's shared test helpers. Declared out here because a `#[path]`
 // inside the inline module below would resolve against a directory that does
@@ -1808,7 +1830,7 @@ end-to-end behaviour is `crates/keyed-launch/tests/launch.rs`'s, against a fake
 child, and the comment says so rather than leaving the gap to be read as an
 omission.
 
-<!-- fragment «loop-test-handoff-preserves» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="710-745" parent="loop-driver" -->
+<!-- fragment «loop-test-handoff-preserves» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="723-758" parent="loop-driver" -->
 ````rust
     #[test]
     fn an_epoch_handoff_failure_preserves_the_launch_failure_that_preceded_it() {
@@ -1878,7 +1900,7 @@ things, and they are different in kind.
   so the pair of assertions together does reach this arm, though neither does
   alone.
 
-<!-- fragment «loop-test-ordering» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="746-768" parent="loop-driver" -->
+<!-- fragment «loop-test-ordering» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="759-781" parent="loop-driver" -->
 ````rust
     #[test]
     fn signal_interpretation_cannot_run_before_epoch_invalidation_succeeds() {

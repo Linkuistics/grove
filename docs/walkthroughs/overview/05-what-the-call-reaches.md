@@ -6,7 +6,7 @@
 ## Observation and lifecycle have separate lifetimes
 
 <!-- rollup «owned-lines-total» -->
-The book reconstructs 1,210 source lines. The preceding chapters explain parsing,
+The book reconstructs 1,212 source lines. The preceding chapters explain parsing,
 dispatch and their tests. This chapter
 connects the public library calls and owns no source of its own.
 
@@ -121,7 +121,7 @@ types at first use.
 
 <!-- rollup «owned-lines-sequence» -->
 <!-- rollup «source-owning-chapters» -->
-Owned source is 61 + 62 + 461 + 83 + 543 = 1,210 lines across 5 source-owning chapters.
+Owned source is 61 + 62 + 461 + 83 + 545 = 1,212 lines across 5 source-owning chapters.
 Assembly owns none. The ledgers are maintained with source changes;
 production files remain authoritative.
 
@@ -141,7 +141,7 @@ terminal smoke. The task's verification record states their observed results.
 <!-- rollup «source-roots» -->
 <!-- rollup «owned-lines-total» -->
 <!-- rollup «chapters» -->
-The corpus contains 7 roots and 1,210 lines, explained across 6 chapters and two
+The corpus contains 7 roots and 1,212 lines, explained across 6 chapters and two
 lookup pages. No deferred source range belongs in the final book.
 
 [Previous: Proving a negative](04-proving-a-negative.md) | [Contents](README.md) | [Next: One isolated invocation](06-standalone-invocations.md)

@@ -25,14 +25,14 @@ const POLL_INTERVAL: Duration = Duration::from_millis(500);
 ///
 /// **The escalation exists because an interactive child is never reaped on its
 /// own.** A child that returns to a prompt after finishing its work has not
-/// exited and will not: it sits waiting for input that is not coming. The token
+/// exited and will not: it sits waiting for input that is not coming. The channel
 /// is the only evidence it is done, and ending it is therefore the launcher's
 /// job — which is a job only the launcher can do, since it is the child's own
 /// parent process, outside whatever sandbox the child runs under. A child asked
 /// to end itself may simply be denied (macOS Seatbelt refuses a same-sandbox
 /// process signalling its own session), and denied silently.
 ///
-/// `grace` runs from the token's appearance to SIGTERM, so a child that
+/// `grace` runs from the channel's appearance to SIGTERM, so a child that
 /// signalled mid-operation gets to finish that operation and let its own call
 /// return. `kill_grace` runs from SIGTERM to SIGKILL, for a child that installs
 /// a handler and declines to die.
@@ -48,7 +48,7 @@ pub struct Escalation {
 /// default environment, and no default variable name. What it supplies is that
 /// the `argv` is spawned **whole and directly** — no shell, no appended
 /// argument, no reordering — and that the child's environment is the caller's
-/// own minus `scrub` plus the one channel path.
+/// own minus `scrub`, plus `grant`, plus the one channel path.
 pub struct Launch<'a> {
     /// The program and arguments, built by the caller with
     /// [`Argv::new`](crate::Argv::new).
@@ -69,6 +69,21 @@ pub struct Launch<'a> {
     /// launcher, a live channel path belonging to somebody else's launch, which
     /// is authority to end a session nobody meant to grant.
     pub scrub: &'a [&'a OsStr],
+    /// Values set after the scrub, each replacing an inherited one: the
+    /// caller's own control variables, which only it and the child agree on.
+    pub grant: &'a [(&'a OsStr, &'a OsStr)],
+    /// `Some` for a **transparent** caller: a wrapper whose own caller should
+    /// see the child as though it had been started directly. The child then
+    /// receives the signal mask and every disposition that survives exec as
+    /// [`EntrySignals`] records them, in place of this crate's defaults, and
+    /// none of the launcher's own handlers. Its pending signals stay the
+    /// launcher's, as for any spawned child.
+    ///
+    /// A transparent launcher is also cancelled by SIGINT when it has a
+    /// terminal. A typed Ctrl-C reaches the child's group and never the
+    /// launcher, so an interrupt that does reach a transparent launcher was
+    /// sent to it, and means what TERM or HUP would.
+    pub transparent: Option<&'a EntrySignals>,
     /// The child's working directory. `None` inherits the launcher's, which is
     /// rarely what a launcher wants: it is wherever a human happened to be
     /// standing.
@@ -78,16 +93,22 @@ pub struct Launch<'a> {
 
 /// How a launch ended.
 ///
-/// `Signalled` and `Exited` both describe a child that is gone; they differ in
+/// `Escalated` and `Exited` both describe a child that is gone; they differ in
 /// *who ended it*, which is what a caller needs to distinguish a launch that
-/// completed its work from one that fell over. `token` is orthogonal to all
-/// three: a child that signals and then exits before the grace elapses ends
-/// `Exited` with a token, and is a perfectly ordinary completion.
+/// completed its work from one that fell over. `signalled` and `token` are
+/// orthogonal to all three: a child that signals and then exits before the
+/// grace elapses ends `Exited`, signalled, and is a perfectly ordinary
+/// completion.
 #[derive(Debug)]
 pub struct Ended {
     pub end: End,
     pub status: ExitStatus,
     pub elapsed: Duration,
+    /// Whether the channel existed once the child was reaped, whatever it
+    /// held: its appearance is the whole signal. Looked for after the reap, so
+    /// a child that signals and exits at once has still signalled.
+    pub signalled: bool,
+    /// What the channel held, for a caller whose channel carries a token.
     pub token: Option<Token>,
     /// Whether the child's process group was confirmed gone after the reap.
     ///
@@ -115,16 +136,17 @@ pub enum Group {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum End {
-    /// The child exited of its own accord — whether or not it left a token on
-    /// the way out.
+    /// The child exited of its own accord — whether or not it signalled on the
+    /// way out.
     Exited,
-    /// The escalation ended the child: its token appeared, the grace elapsed
-    /// with the child still running, and it was signalled.
+    /// The escalation ended the child: its channel appeared, the grace elapsed
+    /// with the child still running, and it was sent SIGTERM.
     ///
-    /// This is deliberately *narrower* than "a token appeared", which `token`
-    /// already reports. A child that signals and then exits inside its own
-    /// grace was never touched, and comes back `Exited` with a token.
-    Signalled,
+    /// This is deliberately *narrower* than "the channel appeared", which
+    /// [`Ended::signalled`] already reports. A child that signals and then
+    /// exits inside its own grace was never touched, and comes back `Exited`
+    /// and signalled.
+    Escalated,
     /// The *launcher's* process was sent SIGTERM or SIGHUP — or SIGINT, for a
     /// launch with no terminal — **during this launch**. An interactive or
     /// noninteractive child's group was sent the same signal and, after the
@@ -144,7 +166,7 @@ pub enum End {
     Interrupted { signal: i32 },
 }
 
-/// The supervisor's state machine: idle until the token appears, then timed
+/// The supervisor's state machine: idle until the channel appears, then timed
 /// toward SIGTERM and finally SIGKILL, after which only the exit is awaited.
 enum Watch {
     Running,
@@ -245,11 +267,14 @@ extern "C" fn on_terminate(signal: libc::c_int) {
 /// Catch the signals that cancel this launch, so a launcher can forward
 /// termination to its child and reap it rather than orphan it.
 ///
-/// SIGTERM and SIGHUP always; SIGINT only for a launch with **no terminal**. A
-/// launch with a terminal has handed it to the child, so a typed Ctrl-C reaches
-/// the child's group and not the launcher's. What a launcher does about a
-/// SIGINT it receives anyway is its own policy, not this crate's. A launch with
-/// no terminal has no other route by which an interrupt could reach its child.
+/// SIGTERM and SIGHUP always; SIGINT for a launch with **no terminal** or a
+/// [transparent](Launch::transparent) launcher. A launch with a terminal has
+/// handed it to the child, so a typed Ctrl-C reaches the child's group and not
+/// the launcher's. What any other launcher does about a SIGINT it receives
+/// anyway is its own policy, not this crate's. A launch with no terminal has no
+/// other route by which an interrupt could reach its child, and a transparent
+/// launcher stands in for its child, so an interrupt sent to it is one sent to
+/// the child.
 ///
 /// **A disposition the launcher ignores is left ignored.** Ignoring a signal is
 /// a statement the launcher made, the Grove driver's ignored SIGINT for one,
@@ -261,16 +286,16 @@ extern "C" fn on_terminate(signal: libc::c_int) {
 /// Installed by [`run`] rather than exported, because [`End::Interrupted`] is a
 /// promise this crate makes and a caller cannot be relied on to have enabled
 /// it.
-fn install_termination_handler(terminal: bool) {
+fn install_termination_handler(catch_interrupt: bool) {
     // Through the function *pointer* rather than casting the function item
     // straight to an integer, which rustc warns about: a function item is
     // zero-sized and the cast reads as a value conversion rather than the
     // address-taking it is.
     let handler = on_terminate as extern "C" fn(libc::c_int) as usize;
-    let cancelling: &[libc::c_int] = if terminal {
-        &[libc::SIGTERM, libc::SIGHUP]
-    } else {
+    let cancelling: &[libc::c_int] = if catch_interrupt {
         &[libc::SIGTERM, libc::SIGHUP, libc::SIGINT]
+    } else {
+        &[libc::SIGTERM, libc::SIGHUP]
     };
     for &signal in cancelling {
         if disposition(signal) != libc::SIG_IGN {
@@ -357,6 +382,87 @@ const DEFAULT_DISPOSITION_IN_CHILD: [libc::c_int; 7] = [
     libc::SIGTTIN,
     libc::SIGTTOU,
 ];
+
+/// The signal state a transparent launcher inherited, to hand its child in
+/// place of [`DEFAULT_DISPOSITION_IN_CHILD`]: which signals were ignored and
+/// which were blocked when the launcher started.
+///
+/// **Recording it is the caller's**, because only the caller can do it early
+/// enough: a Rust runtime changes SIGPIPE's disposition before `main`, so the
+/// launcher has to have read its state before that. This crate only hands on
+/// what it is given.
+///
+/// In the child every signal is set to the ignore or the default this records,
+/// and then the mask is set to this one. The mask comes last, so a signal the
+/// launcher had blocked across the spawn is delivered to the child, if at all,
+/// only under its entry disposition. SIGKILL and SIGSTOP cannot be changed, and
+/// a number the system does not have is left alone.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct EntrySignals {
+    /// Bit `N - 1` for signal `N`, for every signal number 1 to 64.
+    ignored: u64,
+    blocked: u64,
+}
+
+/// The signal numbers [`EntrySignals`] can hold: 1 to 31 on macOS, to 64 on
+/// Linux.
+const SIGNAL_NUMBERS: std::ops::RangeInclusive<libc::c_int> = 1..=64;
+
+impl EntrySignals {
+    /// The entry state from the signals that were ignored and those that were
+    /// blocked. A number outside 1 to 64 is no signal, and is left out.
+    #[must_use]
+    pub fn new(
+        ignored: impl IntoIterator<Item = libc::c_int>,
+        blocked: impl IntoIterator<Item = libc::c_int>,
+    ) -> Self {
+        let bits = |signals: &mut dyn Iterator<Item = libc::c_int>| {
+            signals
+                .filter(|signal| SIGNAL_NUMBERS.contains(signal))
+                .fold(0_u64, |bits, signal| bits | 1 << (signal - 1))
+        };
+        Self {
+            ignored: bits(&mut ignored.into_iter()),
+            blocked: bits(&mut blocked.into_iter()),
+        }
+    }
+
+    /// Set every changeable signal's disposition, then the mask. **Runs
+    /// between `fork` and `exec`**, so it makes only `sigaction`,
+    /// `sigemptyset`, `sigaddset` and `pthread_sigmask` calls, all
+    /// async-signal-safe, and allocates nothing. A disposition the system
+    /// refuses to change belongs to a number it does not have, or reserves for
+    /// itself, and is left as it is.
+    fn reinstate(&self) -> std::io::Result<()> {
+        // SAFETY: each action and the set are initialised before use, and the
+        // handler is SIG_IGN or SIG_DFL.
+        unsafe {
+            let mut mask: libc::sigset_t = std::mem::zeroed();
+            libc::sigemptyset(&mut mask);
+            for signal in SIGNAL_NUMBERS {
+                let bit = 1_u64 << (signal - 1);
+                if self.blocked & bit != 0 {
+                    libc::sigaddset(&mut mask, signal);
+                }
+                if signal == libc::SIGKILL || signal == libc::SIGSTOP {
+                    continue;
+                }
+                let mut action: libc::sigaction = std::mem::zeroed();
+                action.sa_sigaction = if self.ignored & bit != 0 {
+                    libc::SIG_IGN
+                } else {
+                    libc::SIG_DFL
+                };
+                libc::sigemptyset(&mut action.sa_mask);
+                libc::sigaction(signal, &action, std::ptr::null_mut());
+            }
+            match libc::pthread_sigmask(libc::SIG_SETMASK, &mask, std::ptr::null_mut()) {
+                0 => Ok(()),
+                error => Err(std::io::Error::from_raw_os_error(error)),
+            }
+        }
+    }
+}
 
 /// The launcher's controlling terminal, open for as long as a launch needs to
 /// hand it back and forth.
@@ -538,10 +644,10 @@ impl Lease {
 
 /// Spawn `launch`'s argv directly and supervise the child until it ends.
 ///
-/// The child's environment is the launcher's, minus [`Launch::scrub`], plus the
-/// channel path under [`Launch::channel_var`]. Nothing else is added: no
-/// argument, no flag, no variable. A child that needs one is given it by the
-/// caller, in the argv the caller built.
+/// The child's environment is the launcher's, minus [`Launch::scrub`], plus
+/// [`Launch::grant`], plus the channel path under [`Launch::channel_var`].
+/// Nothing else is added: no argument, no flag, no variable. A child that needs
+/// one is given it by the caller, in the argv or the grant the caller built.
 ///
 /// **The child is a job, not just a process.** It is put in a process group of
 /// its own and — when this launcher owns a controlling terminal and is the
@@ -556,7 +662,9 @@ impl Lease {
 /// interactive child reads on unstopped while the launcher keeps the Ctrl-C.
 ///
 /// The child's signal dispositions are the defaults, whatever the launcher's
-/// are — see [`DEFAULT_DISPOSITION_IN_CHILD`]. The launcher's own are respected:
+/// are — see [`DEFAULT_DISPOSITION_IN_CHILD`] — unless the launcher is
+/// [transparent](Launch::transparent), when they and the mask are its entry
+/// state. The launcher's own are respected:
 /// no handler goes over a signal it ignores, and an ignored SIGCHLD is repaired
 /// for the launcher alone, so that its child is not reaped unwatched.
 ///
@@ -567,7 +675,7 @@ impl Lease {
 /// confirmed gone. A group that is still present is [`Ended::group`].
 ///
 /// Supervision polls three things, and they are the only three ways a launch
-/// ends: the child exits, the token appears, or the launcher itself is
+/// ends: the child exits, the channel appears, or the launcher itself is
 /// signalled. **A child that finishes its work and never signals reaches none
 /// of them** — an interactive one returns to its prompt instead of exiting, so
 /// the launch *stalls* rather than ending. That is a real failure mode with no
@@ -661,13 +769,14 @@ fn run_with_output(
     // A detached child is in a session of its own and could never be handed
     // the terminal, so only an interactive launch opens it.
     let terminal = if detached { None } else { Terminal::open() };
-    install_termination_handler(terminal.is_some());
+    install_termination_handler(terminal.is_none() || launch.transparent.is_some());
+    let transparent = launch.transparent.copied();
     let sigchld_ignored = restore_child_watching();
     let descriptor_limit = if detached { descriptor_limit()? } else { 3 };
 
     let mut command = confined_command.unwrap_or_else(|| {
         let mut command = Command::new(launch.argv.program());
-        command.args(launch.argv.args());
+        command.arg0(launch.argv.arg0()).args(launch.argv.args());
         command
     });
     if let Some(output) = output {
@@ -685,9 +794,13 @@ fn run_with_output(
     // variables a nested launcher must not inherit, and the channel variable is
     // the first of them. Granting before scrubbing would remove the path this
     // launch just published and leave the child unable to signal, which reads
-    // as a session that hung. `tests/launch.rs` pins it.
+    // as a session that hung. `tests/launch.rs` pins it. The channel is set
+    // last, so no grant can name another path under its variable.
     for name in launch.scrub {
         command.env_remove(name);
+    }
+    for (name, value) in launch.grant {
+        command.env(name, value);
     }
     command.env(launch.channel_var, launch.channel.path());
 
@@ -716,7 +829,8 @@ fn run_with_output(
 
     // SAFETY: the closure runs between `fork` and `exec`, so it may call only
     // async-signal-safe functions. `signal`, `getpid` and `tcsetpgrp` (an
-    // `ioctl`) are all on POSIX's list; nothing here allocates, locks, or
+    // `ioctl`) are all on POSIX's list, as is everything
+    // `EntrySignals::reinstate` calls; nothing here allocates, locks, or
     // touches Rust runtime state. `std` itself resets only SIGPIPE across a
     // spawn and inherits the signal mask, so everything below is work nothing
     // else is doing.
@@ -747,6 +861,11 @@ fn run_with_output(
             if let Some(fd) = handover_fd {
                 libc::tcsetpgrp(fd, libc::getpid());
             }
+            // A transparent launcher's child gets its launcher's entry state
+            // whole, SIGTTOU's and SIGCHLD's included, and the mask last.
+            if let Some(entry) = &transparent {
+                return entry.reinstate();
+            }
             for signal in DEFAULT_DISPOSITION_IN_CHILD {
                 libc::signal(signal, libc::SIG_DFL);
             }
@@ -769,6 +888,7 @@ fn run_with_output(
             "cannot spawn {:?}: {error}; check that the program exists and is executable",
             launch.argv.program()
         ))
+        .with_errno(error.raw_os_error())
     })?;
 
     observer(LaunchEvent::Started);
@@ -973,7 +1093,7 @@ fn confirm_gone(pgid: libc::pid_t) -> Group {
 struct Watched {
     status: ExitStatus,
     interrupted: Option<i32>,
-    signalled: bool,
+    escalated: bool,
 }
 
 /// A supervision that failed, with the child's status if it was reaped anyway.
@@ -1009,18 +1129,19 @@ fn supervise(
         Ok(Watched {
             status,
             interrupted,
-            signalled,
+            escalated,
         }) => {
             reclaim(Some(status));
             let group = child.confirm_gone();
             Ok(Ended {
-                end: match (interrupted.or_else(take_interrupt), signalled) {
+                end: match (interrupted.or_else(take_interrupt), escalated) {
                     (Some(signal), _) => End::Interrupted { signal },
-                    (None, true) => End::Signalled,
+                    (None, true) => End::Escalated,
                     (None, false) => End::Exited,
                 },
                 status,
                 elapsed: started.elapsed(),
+                signalled: channel.appeared(),
                 // Read after the child is gone, so a child still mid-write
                 // cannot be observed half-signalled.
                 token: channel.read(),
@@ -1044,7 +1165,7 @@ fn watch(
 ) -> Result<Watched, Failed> {
     let mut watch = Watch::Running;
     let mut interrupted: Option<i32> = None;
-    let mut signalled = false;
+    let mut escalated = false;
 
     loop {
         lend();
@@ -1095,15 +1216,15 @@ fn watch(
         }
 
         watch = match watch {
-            Watch::Running if channel.path().exists() => Watch::Signalled(Instant::now()),
+            Watch::Running if channel.appeared() => Watch::Signalled(Instant::now()),
             Watch::Signalled(at) if at.elapsed() >= escalation.grace => {
-                // `signalled` is latched *here*, where the escalation actually
-                // runs, and not where the token appeared. `End` would otherwise
-                // be telling the caller only what `token` already tells it,
-                // while claiming something stronger: that this launch had to be
-                // ended. A child that signals and then exits inside its own
-                // grace was never touched, and says so.
-                signalled = true;
+                // `escalated` is latched *here*, where the escalation actually
+                // runs, and not where the channel appeared. `End` would
+                // otherwise be telling the caller only what `signalled` already
+                // tells it, while claiming something stronger: that this launch
+                // had to be ended. A child that signals and then exits inside
+                // its own grace was never touched, and says so.
+                escalated = true;
                 child.signal(libc::SIGTERM);
                 Watch::Terminated(Instant::now())
             }
@@ -1133,7 +1254,7 @@ fn watch(
     Ok(Watched {
         status,
         interrupted,
-        signalled,
+        escalated,
     })
 }
 

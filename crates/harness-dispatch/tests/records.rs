@@ -172,7 +172,7 @@ fn a_run_commits_its_handoff_record_before_the_harness_starts() {
         .unwrap();
     assert_eq!(recorded, run_id);
 
-    let notice: Value = serde_json::from_str(result.stderr.trim_end()).unwrap();
+    let notice = result.handoff();
     assert_eq!(notice["handoff"]["runId"], run_id.as_str());
     assert_eq!(notice["handoff"]["stateDir"], text(&state_dir));
     assert!(notice["handoff"]["recordedAt"]

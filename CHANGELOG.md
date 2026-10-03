@@ -90,6 +90,37 @@ stood at the graft — a closed record, not part of the versioned sequence above
   no longer mistaken for an exited one. `Ended` gains `group`, which reports a
   surviving group beside the child's status
   ([decision 7](docs/specs/module-decomposition.md#7--the-runner)).
+- `harness-dispatch`: **`run` supervises its harness instead of replacing
+  itself with it.** The harness is dispatch's own child, in a process group of
+  its own that holds the terminal, with the caller's cwd, descriptors,
+  environment, signal mask and every disposition that survives exec, and
+  dispatch stays its parent until it has reaped it. Each run publishes a fresh
+  exit channel as `HARNESS_DISPATCH_EXIT_FILE`, in `--exit-dir` when given and
+  otherwise in a private per-run directory under TMPDIR. **`harness-dispatch
+  exit` is new**: it sends the exit signal by creating that file, and outside a
+  supervised run it signals nothing and exits 0. Two seconds after the exit
+  signal the harness's group is sent SIGTERM, and five seconds after that
+  SIGKILL. INT, TERM or HUP sent to dispatch while the harness runs cancels the
+  run the same way. Once the harness is reaped the run has one ending,
+  `cancelled`, `exit_signal` or `harness_exit`, reported in a second stderr
+  line, and dispatch exits by it: the harness's own exit or signal, 0 when the
+  exit signal ended it, death by the cancelling signal, and 5 when members of
+  its group survived. A signal the caller blocked now stays pending in
+  dispatch, rather than reaching the harness pending
+  ([dispatch supervises the harness](docs/adr/dispatch-supervises-the-harness.md)).
+- **Grove's launch escalation waits 10 seconds before SIGKILL**, up from 5, so
+  that it outlasts dispatch's own escalation of the harness it now supervises.
+  Until the lifecycle launch moves onto dispatch's run ending, a Grove session
+  still ends through `GROVE_SIGNAL_FILE`, which cancels dispatch's run.
+- `keyed-launch`: **a launch can grant values and be transparent.** `Launch`
+  gains `grant`, set after the scrub and before the channel, and `transparent`,
+  which hands the child an `EntrySignals` its launcher recorded in place of the
+  default dispositions, and lets SIGINT cancel a launch with a terminal.
+  `Ended` gains `signalled`, the channel's appearance after the reap whatever it
+  holds, and `End::Signalled` is renamed `End::Escalated`. `Argv::with_arg0`
+  names a child's `argv[0]` apart from the program spawned, and
+  `LaunchError::raw_os_error` keeps a failed spawn's error number
+  ([decision 7](docs/specs/module-decomposition.md#7--the-runner)).
 
 ## v22.0.0
 

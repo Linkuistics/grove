@@ -46,5 +46,5 @@ pub use confinement::{regular_file_at, Confinement};
 pub use error::LaunchError;
 pub use run::{
     reraise, run, run_confined, run_noninteractive, run_observed, take_interrupt, End, Ended,
-    Escalation, Group, Launch, LaunchEvent,
+    EntrySignals, Escalation, Group, Launch, LaunchEvent,
 };

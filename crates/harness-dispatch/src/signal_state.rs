@@ -1,5 +1,5 @@
 //! The signal state this process inherited, recorded before the Rust runtime
-//! changes it, and reinstated for the harness
+//! changes it, and handed to the harness
 //! (`docs/specs/harness-selection-and-execution.md`, *Execution and authority*).
 //!
 //! The harness is to receive the signal mask, and every disposition that
@@ -11,20 +11,21 @@
 //!   SIGPIPE to ignored unless the unstable `-Zon-broken-pipe` is used
 //!   (`library/std/src/sys/pal/unix/mod.rs`). Nothing in `main` can see the
 //!   caller's SIGPIPE.
-//! - `Command::exec` runs `do_exec` in this process. It keeps the calling
-//!   thread's mask, sets SIGPIPE to default, and only then runs the `pre_exec`
-//!   closures before `execvp` (1.85.0:
+//! - A spawn with a `pre_exec` closure forks and runs `do_exec` in the child.
+//!   It keeps the calling thread's mask, sets SIGPIPE to default, and only
+//!   then runs the `pre_exec` closures before `execvp` (1.85.0:
 //!   `library/std/src/sys/pal/unix/process/process_unix.rs`; 1.98.1:
 //!   `library/std/src/sys/process/unix/unix.rs`). Nothing before those
 //!   closures can restore SIGPIPE.
 //!
 //! So [`record`] runs from the executable's initializer section, which the
-//! loader runs before the C `main` that calls `lang_start`, and [`reinstate`]
-//! is the handoff's pre-exec hook. Exec keeps an ignored disposition and resets
-//! every other one to default, so the ignored set and the mask are the whole
-//! of what survives it. Every signal is reinstated, not only SIGPIPE and the
-//! three that cancel selection, so the harness receives its caller's state
-//! whatever else in this process changed a disposition.
+//! loader runs before the C `main` that calls `lang_start`, and [`entry`] hands
+//! what it found to the runner as a transparent launch's entry state, which the
+//! runner sets in its `pre_exec` closure. Exec keeps an ignored disposition and
+//! resets every other one to default, so the ignored set and the mask are the
+//! whole of what survives it. Every signal is handed on, not only SIGPIPE and
+//! the three that cancel, so the harness receives its caller's state whatever
+//! else in this process changed a disposition.
 
 use std::io;
 use std::ptr;
@@ -38,11 +39,9 @@ use crate::refusal::{Refusal, Stage, EXIT_WORKER};
 const SIGNALS: std::ops::RangeInclusive<libc::c_int> = 1..=64;
 
 /// Whether the initializer ran, and what it found, one bit per signal (bit
-/// `N - 1` for signal `N`): which signals could be queried, which were
-/// ignored, and which were blocked. Written once before `main`, while this
+/// `N - 1` for signal `N`): which were ignored, and which were blocked. Written once before `main`, while this
 /// process has one thread, and only read afterwards.
 static RECORDED: AtomicBool = AtomicBool::new(false);
-static KNOWN: AtomicU64 = AtomicU64::new(0);
 static IGNORED: AtomicU64 = AtomicU64::new(0);
 static BLOCKED: AtomicU64 = AtomicU64::new(0);
 
@@ -72,20 +71,18 @@ extern "C" fn record() {
         if libc::pthread_sigmask(libc::SIG_BLOCK, ptr::null(), &mut mask) != 0 {
             return;
         }
-        let (mut known, mut ignored, mut blocked) = (0, 0, 0);
+        let (mut ignored, mut blocked) = (0, 0);
         for signal in SIGNALS {
             let mut action: libc::sigaction = std::mem::zeroed();
-            if libc::sigaction(signal, ptr::null(), &mut action) == 0 {
-                known |= bit(signal);
-                if action.sa_sigaction == libc::SIG_IGN {
-                    ignored |= bit(signal);
-                }
+            if libc::sigaction(signal, ptr::null(), &mut action) == 0
+                && action.sa_sigaction == libc::SIG_IGN
+            {
+                ignored |= bit(signal);
             }
             if libc::sigismember(&mask, signal) == 1 {
                 blocked |= bit(signal);
             }
         }
-        KNOWN.store(known, Ordering::Relaxed);
         IGNORED.store(ignored, Ordering::Relaxed);
         BLOCKED.store(blocked, Ordering::Relaxed);
         RECORDED.store(true, Ordering::Release);
@@ -144,43 +141,15 @@ pub fn restore_mask() -> io::Result<()> {
     }
 }
 
-/// The handoff's pre-exec hook: set every recorded signal's disposition to the
-/// caller's, ignored or default, then the caller's mask. The mask comes last,
-/// so a handled signal pending from the final check onwards is delivered only
-/// once its entry disposition is back. Nothing here allocates on success.
-pub fn reinstate() -> io::Result<()> {
-    let (known, ignored) = (
-        KNOWN.load(Ordering::Relaxed),
+/// The entry state as the runner takes it: the ignored set and the mask, for
+/// the harness to receive in place of anything this process has since set.
+pub fn entry() -> keyed_launch::EntrySignals {
+    let (ignored, blocked) = (
         IGNORED.load(Ordering::Relaxed),
+        BLOCKED.load(Ordering::Relaxed),
     );
-    let settable = SIGNALS
-        .filter(|&signal| known & bit(signal) != 0)
-        .filter(|&signal| signal != libc::SIGKILL && signal != libc::SIGSTOP);
-    for signal in settable {
-        // SAFETY: the action's mask is emptied before use, and its handler is
-        // SIG_IGN or SIG_DFL.
-        let set = unsafe {
-            let mut action: libc::sigaction = std::mem::zeroed();
-            action.sa_sigaction = if ignored & bit(signal) != 0 {
-                libc::SIG_IGN
-            } else {
-                libc::SIG_DFL
-            };
-            libc::sigemptyset(&mut action.sa_mask);
-            libc::sigaction(signal, &action, ptr::null_mut())
-        };
-        if set == -1 {
-            let error = io::Error::last_os_error();
-            return Err(io::Error::new(
-                error.kind(),
-                format!("cannot reinstate the caller's disposition of signal {signal}: {error}"),
-            ));
-        }
-    }
-    restore_mask().map_err(|error| {
-        io::Error::new(
-            error.kind(),
-            format!("cannot reinstate the caller's signal mask: {error}"),
-        )
-    })
+    keyed_launch::EntrySignals::new(
+        SIGNALS.filter(|&signal| ignored & bit(signal) != 0),
+        SIGNALS.filter(|&signal| blocked & bit(signal) != 0),
+    )
 }

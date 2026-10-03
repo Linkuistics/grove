@@ -1138,6 +1138,8 @@ mod tests {
                         channel: &channel,
                         channel_var: "GROVE_SIGNAL_FILE",
                         scrub: &[],
+                        grant: &[],
+                        transparent: None,
                         cwd: Some(temp.path()),
                         escalation: keyed_launch::Escalation {
                             grace: Duration::ZERO,
@@ -1297,6 +1299,8 @@ mod tests {
                         channel: &channel,
                         channel_var: "GROVE_SIGNAL_FILE",
                         scrub: &[],
+                        grant: &[],
+                        transparent: None,
                         cwd: Some(temp.path()),
                         escalation: keyed_launch::Escalation {
                             grace: Duration::ZERO,

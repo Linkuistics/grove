@@ -2,9 +2,9 @@
 //! builds from them, program resolution, and the plain exec that hands the
 //! caller's process to the fake harness.
 //!
-//! The fake harness records its arguments, physical cwd and PID, so a test can
-//! show that it received the exact words, ran where the caller ran, and is the
-//! caller's own process rather than a child of a supervisor.
+//! The fake harness records its arguments, physical cwd, PID and parent's PID,
+//! so a test can show that it received the exact words, ran where the caller
+//! ran, and is the front's own child, which the front supervises.
 
 mod support;
 
@@ -63,7 +63,7 @@ const AWKWARD_PROMPT: &str =
     "Fix the \"parser\"; don't `rm -rf` $HOME && echo 'done' | tee *\n\nsecond line\t$(date)\n\n";
 
 #[test]
-fn run_hands_the_exact_argv_to_the_harness_in_the_callers_own_process_and_cwd() {
+fn run_hands_the_exact_argv_to_the_harness_as_its_own_child_in_the_callers_cwd() {
     let sandbox = Sandbox::new();
     sandbox.personal_policy(&policy(&[("impl", r#""fake-harness""#, EVERY_INPUT)]));
     let cwd = sandbox
@@ -123,10 +123,11 @@ fn run_hands_the_exact_argv_to_the_harness_in_the_callers_own_process_and_cwd() 
     );
     assert_eq!(sandbox.harness_cwd(), cwd);
     assert_eq!(
-        sandbox.harness_pid(),
+        sandbox.harness_ppid(),
         pid,
-        "the harness replaced the front rather than running as its child"
+        "the harness is not the front's child"
     );
+    assert_ne!(sandbox.harness_pid(), pid, "the harness replaced the front");
     assert_eq!(
         output.stdout, b"",
         "the front wrote to the harness's stdout"
@@ -136,8 +137,11 @@ fn run_hands_the_exact_argv_to_the_harness_in_the_callers_own_process_and_cwd() 
         stderr.starts_with(
             "harness-dispatch: running provider origin-impl, model model-impl, effort \
              effort-impl for kind \"impl\" as run "
-        ) && stderr.matches('\n').count() == 1,
-        "one short handoff line on stderr: {stderr}"
+        ) && stderr.matches('\n').count() == 2
+            && stderr.lines().nth(1).is_some_and(
+                |end| end.contains(" ended by harness_exit: the harness exited 0 after ")
+            ),
+        "one short handoff line and one end line on stderr: {stderr}"
     );
 }
 
@@ -984,7 +988,7 @@ fn an_exec_error_reports_errno_with_a_remedy() {
 }
 
 #[test]
-fn run_json_writes_one_handoff_line_on_stderr_and_leaves_stdout_to_the_harness() {
+fn run_json_writes_a_handoff_and_an_end_line_on_stderr_and_leaves_stdout_to_the_harness() {
     let sandbox = Sandbox::new();
     sandbox.personal_policy(&format!(
         "console.log(\"policy chatter\");\n{}",
@@ -995,8 +999,7 @@ fn run_json_writes_one_handoff_line_on_stderr_and_leaves_stdout_to_the_harness()
 
     assert_eq!(run.code, Some(0), "{}", run.stderr);
     assert_eq!(run.stdout, "");
-    assert!(run.stderr.ends_with("}\n") && run.stderr.matches('\n').count() == 1);
-    let notice: Value = serde_json::from_str(&run.stderr).unwrap();
+    let notice = run.handoff();
     assert_eq!(notice["schemaVersion"], 1);
     let handoff = &notice["handoff"];
     assert_eq!(

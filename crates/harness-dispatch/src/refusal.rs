@@ -56,7 +56,7 @@ pub enum Stage {
     Record,
     /// Reading and validating an observation document.
     Observation,
-    /// Replacing this process with the harness.
+    /// Starting the harness, from the linearization point on.
     Exec,
 }
 

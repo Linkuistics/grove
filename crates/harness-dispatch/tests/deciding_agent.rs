@@ -15,7 +15,7 @@ mod support;
 use std::fs;
 use std::time::{Duration, Instant};
 
-use serde_json::{json, Value};
+use serde_json::json;
 use support::hold::{exists, guarded, recorded_pid};
 use support::{executable, text, Sandbox};
 
@@ -117,7 +117,7 @@ fn a_deciding_agents_answer_decides_which_command_launches() {
         assert_eq!(recorded(&sandbox, "prompt"), PROMPT);
         // Its answer chose the command, and the labels the run records.
         assert_eq!(sandbox.harness_args(), ["--effort", effort, PROMPT]);
-        let notice: Value = serde_json::from_str(&launched.stderr).unwrap();
+        let notice = launched.handoff();
         assert_eq!(notice["handoff"]["model"], model, "{answer}");
         assert_eq!(notice["handoff"]["effort"], effort, "{answer}");
         assert_eq!(

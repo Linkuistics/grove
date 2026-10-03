@@ -169,8 +169,8 @@ int main(int argc, char **argv) {
     if (out == NULL) {
         fail("session-probe: opening the report", 93);
     }
-    fprintf(out, "pid %d\npgid %d\nforeground %d\nstdin %s\ncwd %s\n", (int)getpid(),
-            (int)getpgrp(), (int)foreground, input == NULL ? "-" : input, cwd);
+    fprintf(out, "pid %d\nppid %d\npgid %d\nforeground %d\nstdin %s\ncwd %s\n", (int)getpid(),
+            (int)getppid(), (int)getpgrp(), (int)foreground, input == NULL ? "-" : input, cwd);
     handlers(out, "ignored", 1);
     members(out, "blocked", &blocked);
     members(out, "pending", &pending);

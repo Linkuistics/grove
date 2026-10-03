@@ -5,7 +5,7 @@
 <a id="checked-without-meaning"></a>
 ## Checked without meaning
 
-This chapter owns the last 165 lines of `src/channel.rs`: an inline test module
+This chapter owns the last 186 lines of `src/channel.rs`: an inline test module
 that holds a filename to a grammar and never asks what the name refers to. It
 is the only source this chapter owns.
 
@@ -43,7 +43,7 @@ modes, none of which a real child can be made to produce on demand. It is
 evidence, not corpus: the module declaration is corpus, and the file it names is
 not.
 
-<!-- fragment «channel-inline-tests» owner="checked-without-meaning" source="crates/keyed-launch/src/channel.rs" lines="289-453" parent="source-channel" -->
+<!-- fragment «channel-inline-tests» owner="checked-without-meaning" source="crates/keyed-launch/src/channel.rs" lines="320-505" parent="source-channel" -->
 <!-- insert «channel-tests-module» -->
 <!-- insert «channel-tests-allocate» -->
 <!-- insert «channel-tests-read» -->
@@ -54,12 +54,12 @@ not.
 <a id="inside-the-root"></a>
 ## What a module inside the root reaches
 
-The rest of this chapter is 165 lines that are neither production code nor
+The rest of this chapter is 186 lines that are neither production code nor
 outside the corpus. They are the end of `src/channel.rs`, compiled only under
 `cfg(test)`, and they are the only tests in the crate that can see a private
 item.
 
-<!-- fragment «channel-tests-module» owner="checked-without-meaning" source="crates/keyed-launch/src/channel.rs" lines="289-291" parent="channel-inline-tests" -->
+<!-- fragment «channel-tests-module» owner="checked-without-meaning" source="crates/keyed-launch/src/channel.rs" lines="320-322" parent="channel-inline-tests" -->
 ````rust
 #[cfg(test)]
 mod tests {
@@ -89,7 +89,7 @@ chapter 2's fragments behind the reader, costs that chapter one forward referenc
 and puts the evidence for one claim beside the evidence for every other claim
 about the same crate.
 
-The eleven tests divide by the method each exercises, which is how the four
+The twelve tests divide by the method each exercises, which is how the four
 sections below take them. The table is the map: what each test holds, and where
 in chapter 2 the rule it holds was argued.
 
@@ -100,6 +100,7 @@ in chapter 2 the rule it holds was argued.
 | `allocation_names_a_missing_directory_and_says_what_to_do` | the directory is checked before anything is spawned, and the refusal names the fix | [Drawing a name](02-the-channel.md#drawing-a-name) |
 | `a_signalled_channel_reads_back_the_token_without_its_framing` | `signal` frames the token with a newline and `read` trims the framing back off | [The other end of the channel](02-the-channel.md#the-other-end), [Three ways to have no token](02-the-channel.md#three-ways-to-have-no-token) |
 | `an_empty_channel_file_is_not_an_empty_token` | an empty or whitespace-only file reads as `None`, never as `Some("")` | [Three ways to have no token](02-the-channel.md#three-ways-to-have-no-token) |
+| `anything_at_the_channel_name_has_appeared_and_nothing_else_has` | anything at the channel's name has appeared, an empty file and a dangling link included, while a neighbouring file has not, and appearing is not a token | [Appearance, with nothing read](02-the-channel.md#appearance-without-content) |
 | `an_unsignalled_channel_reads_back_nothing` | a path nothing ever wrote to reads as `None` | [Three ways to have no token](02-the-channel.md#three-ways-to-have-no-token) |
 | `completion_rejects_links_and_oversized_tokens` | symlinks, FIFO and content beyond 4,096 bytes yield no token | [Bounded channel read](02-the-channel.md#three-ways-to-have-no-token) |
 | `completion_stays_in_its_original_directory` | replacing the parent pathname cannot redirect the token read | [Held channel directory](02-the-channel.md#writes-nothing) |
@@ -108,7 +109,7 @@ in chapter 2 the rule it holds was argued.
 | `abandoned_cleanup_names_the_directory_when_it_cannot_be_listed` | a cleanup that cannot list its directory refuses and names it | [The cleanup that must not overreach](02-the-channel.md#the-cleanup-that-must-not-overreach) |
 
 Nothing in the module spawns a process, and that is the other half of the
-boundary. All eleven build a `tempfile::tempdir()` and work on the filesystem, so
+boundary. All twelve build a `tempfile::tempdir()` and work on the filesystem, so
 the module's whole reach is the channel's file-facing side. The process-facing
 side — that the path is published to a child under the caller's chosen variable
 name, and that a child writing to it ends the launch — needs a real child and
@@ -123,7 +124,7 @@ The first three tests are `Channel::allocate` and nothing else. Each hands it a
 directory and reads one thing back: the path it drew, the second path it drew,
 and the refusal when the directory is not there.
 
-<!-- fragment «channel-tests-allocate» owner="checked-without-meaning" source="crates/keyed-launch/src/channel.rs" lines="292-329" parent="channel-inline-tests" -->
+<!-- fragment «channel-tests-allocate» owner="checked-without-meaning" source="crates/keyed-launch/src/channel.rs" lines="323-360" parent="channel-inline-tests" -->
 ````rust
 
     #[test]
@@ -201,13 +202,13 @@ two need a filesystem state a test would have to manufacture, and the third need
 `/dev/urandom` to repeat itself.
 
 <a id="not-a-token"></a>
-## Three tests on what is not a token
+## Four tests on what is not a token
 
-The next three are `Channel::read`, and between them they are chapter 2's
-distinction between a file and a token: one write that produces a token, and two
-files that do not.
+The next four are `Channel::read` and `Channel::appeared`, and between them they
+are chapter 2's distinction between a file and a token: one write that produces
+a token, two files that do not, and two that have appeared without one.
 
-<!-- fragment «channel-tests-read» owner="checked-without-meaning" source="crates/keyed-launch/src/channel.rs" lines="330-368" parent="channel-inline-tests" -->
+<!-- fragment «channel-tests-read» owner="checked-without-meaning" source="crates/keyed-launch/src/channel.rs" lines="361-420" parent="channel-inline-tests" -->
 ````rust
 
     #[test]
@@ -241,6 +242,27 @@ files that do not.
         }
     }
 
+    /// What [`Channel::read`] refuses as a token has still appeared: the
+    /// appearance, not the content, is the signal.
+    #[test]
+    fn anything_at_the_channel_name_has_appeared_and_nothing_else_has() {
+        let dir = tempfile::tempdir().unwrap();
+        let channel = Channel::allocate(dir.path()).unwrap();
+        assert!(!channel.appeared(), "control: nothing is there yet");
+        fs::write(dir.path().join("neighbour"), "").unwrap();
+        assert!(
+            !channel.appeared(),
+            "a neighbouring file is not the channel"
+        );
+
+        fs::write(channel.path(), "").unwrap();
+        assert!(channel.appeared(), "an empty file has appeared");
+        fs::remove_file(channel.path()).unwrap();
+        std::os::unix::fs::symlink(dir.path().join("absent"), channel.path()).unwrap();
+        assert!(channel.appeared(), "a dangling link has appeared");
+        assert_eq!(channel.read(), None, "and is still no token");
+    }
+
     #[test]
     fn an_unsignalled_channel_reads_back_nothing() {
         let dir = tempfile::tempdir().unwrap();
@@ -269,7 +291,14 @@ and the third is the one that matters: it exercises `trim_end` past whitespace
 that is not a newline, and a `read` that stripped only a trailing `\n` would
 return `Some("  ")` and fail there.
 
-The third test completes a set. Chapter 2 named
+The third is the other half of that comment. Everything the second test refuses
+as a token has still *appeared*, and appearance is what the supervisor watches
+for: an empty file and a dangling link both answer `appeared`, while a
+neighbouring file in the same directory does not, and `read` still finds no
+token in either. Its first assertion, before anything is created, is the
+control that shows the method can answer `false`.
+
+The fourth test completes a set. Chapter 2 named
 three ways to have no token — nothing was written, the file cannot be read, and
 the file is there but empty — and this module reaches the first and the third.
 The unsignalled test exercises the `.ok()?` arm through `NotFound`, collapsing
@@ -284,7 +313,7 @@ establish that a channel cannot turn a symlink, oversized file, FIFO or
 replaced parent pathname into an accepted completion. The discard test then
 checks its post-condition with both a signalled and an untouched channel.
 
-<!-- fragment «channel-tests-discard» owner="checked-without-meaning" source="crates/keyed-launch/src/channel.rs" lines="369-414" parent="channel-inline-tests" -->
+<!-- fragment «channel-tests-discard» owner="checked-without-meaning" source="crates/keyed-launch/src/channel.rs" lines="421-466" parent="channel-inline-tests" -->
 <!-- insert «channel-untrusted-entry-test» -->
 <!-- insert «channel-parent-identity-test» -->
 <!-- insert «channel-discard-postcondition-test» -->
@@ -298,7 +327,7 @@ one channel name. Each read must return no token; the FIFO assertion also
 exercises the nonblocking open. These fixtures hold the supervisor's bounded
 read contract without running a harness.
 
-<!-- fragment «channel-untrusted-entry-test» owner="checked-without-meaning" source="crates/keyed-launch/src/channel.rs" lines="369-387" parent="channel-tests-discard" -->
+<!-- fragment «channel-untrusted-entry-test» owner="checked-without-meaning" source="crates/keyed-launch/src/channel.rs" lines="421-439" parent="channel-tests-discard" -->
 ````rust
 
     #[test]
@@ -331,7 +360,7 @@ the original channel directory, and installs a symlink under its old pathname.
 original directory. This distinguishes stable directory identity from merely
 checking the final filename for symlinks.
 
-<!-- fragment «channel-parent-identity-test» owner="checked-without-meaning" source="crates/keyed-launch/src/channel.rs" lines="388-401" parent="channel-tests-discard" -->
+<!-- fragment «channel-parent-identity-test» owner="checked-without-meaning" source="crates/keyed-launch/src/channel.rs" lines="440-453" parent="channel-tests-discard" -->
 ````rust
     #[test]
     fn completion_stays_in_its_original_directory() {
@@ -358,7 +387,7 @@ consumes both. Both paths must be absent afterwards. The two inputs establish
 that discard promises the same final state whether or not completion ever
 created a file.
 
-<!-- fragment «channel-discard-postcondition-test» owner="checked-without-meaning" source="crates/keyed-launch/src/channel.rs" lines="402-414" parent="channel-tests-discard" -->
+<!-- fragment «channel-discard-postcondition-test» owner="checked-without-meaning" source="crates/keyed-launch/src/channel.rs" lines="454-466" parent="channel-tests-discard" -->
 ````rust
     #[test]
     fn discarding_removes_the_file_and_succeeds_when_there_was_none() {
@@ -405,7 +434,7 @@ The last two tests are `Channel::discard_abandoned`, which is the only caller of
 `is_channel_name` in production code. The first builds a directory the grammar
 has to sort correctly; the second takes away the directory.
 
-<!-- fragment «channel-tests-cleanup» owner="checked-without-meaning" source="crates/keyed-launch/src/channel.rs" lines="415-453" parent="channel-inline-tests" -->
+<!-- fragment «channel-tests-cleanup» owner="checked-without-meaning" source="crates/keyed-launch/src/channel.rs" lines="467-505" parent="channel-inline-tests" -->
 ````rust
 
     #[test]
@@ -486,7 +515,7 @@ The second test covers the one refusal `discard_abandoned` reaches before it
 removes anything: `read_dir` fails on a directory that is not there, and the
 error names it. The aggregate refusal at the other end — *could not remove N
 abandoned completion channel(s) … remove them by hand* — needs a directory that
-lists and an entry that will not delete, and is named by no test. Line 453 is the
+lists and an entry that will not delete, and is named by no test. Line 505 is the
 module's closing brace and the last byte of `src/channel.rs`.
 
 The module holds a filename to a grammar of prefix, length and alphabet, and to

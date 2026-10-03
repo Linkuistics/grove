@@ -1592,8 +1592,7 @@ fn a_policy_flooding_both_streams_leaves_json_output_and_the_protocol_intact() {
         ran.stdout, "",
         "the policy's output reached the harness's stdout"
     );
-    assert_eq!(ran.stderr.matches('\n').count(), 1, "{:.400}", ran.stderr);
-    let notice: Value = serde_json::from_str(ran.stderr.trim_end()).unwrap();
+    let notice = ran.handoff();
     assert_eq!(notice["handoff"]["reason"], "the policy's own selection");
     assert_eq!(sandbox.harness_args(), ["real", "p"]);
 }

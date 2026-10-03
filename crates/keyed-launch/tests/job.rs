@@ -21,7 +21,7 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, ExitStatus, Stdio};
 use std::time::{Duration, Instant};
 
-use keyed_launch::{run, Argv, Channel, End, Escalation, Group, Launch};
+use keyed_launch::{run, Argv, Channel, End, EntrySignals, Escalation, Group, Launch};
 use tempfile::TempDir;
 
 // ---------------------------------------------------------------------------
@@ -84,6 +84,17 @@ fn disposition(signal: libc::c_int) -> &'static str {
     }
 }
 
+/// Whether this thread has `signal` blocked.
+fn blocked(signal: libc::c_int) -> bool {
+    // SAFETY: a null new set only reads the current mask into an initialised
+    // set.
+    unsafe {
+        let mut mask: libc::sigset_t = std::mem::zeroed();
+        libc::pthread_sigmask(libc::SIG_BLOCK, std::ptr::null(), &mut mask);
+        libc::sigismember(&mask, signal) == 1
+    }
+}
+
 /// Write `lines` to `path` whole, so a reader polling for it never sees half.
 fn publish(path: &Path, lines: &[String]) {
     let partial = path.with_extension("partial");
@@ -95,7 +106,10 @@ fn publish(path: &Path, lines: &[String]) {
 /// report of what it saw before and after.
 ///
 /// - `JOB_IGNORE`: comma-separated signals to ignore before the launch, from
-///   `hup` and `chld` — the launcher's entry state.
+///   `hup`, `chld` and `usr2` — the launcher's entry state.
+/// - `JOB_TRANSPARENT`: when set, the launch is transparent, handing the child
+///   an entry state with SIGHUP ignored and SIGUSR1 blocked, which is not the
+///   launcher's own.
 /// - `JOB_CHILD`: `reporter` for the reporter role, otherwise a path to a
 ///   shell script.
 /// - `JOB_REPORT`: where the report goes.
@@ -110,6 +124,7 @@ fn launcher() {
             "" => continue,
             "hup" => libc::SIGHUP,
             "chld" => libc::SIGCHLD,
+            "usr2" => libc::SIGUSR2,
             other => panic!("unknown signal {other:?}"),
         };
         // SAFETY: setting this fixture process's own entry state.
@@ -141,11 +156,14 @@ fn launcher() {
     };
     let control = TempDir::new().unwrap();
     let channel = Channel::allocate(control.path()).unwrap();
+    let entry = EntrySignals::new([libc::SIGHUP], [libc::SIGUSR1]);
     let ended = run(Launch {
         argv: &argv,
         channel: &channel,
         channel_var: "TEST_CHANNEL",
         scrub: &[],
+        grant: &[],
+        transparent: std::env::var_os("JOB_TRANSPARENT").map(|_| &entry),
         cwd: None,
         escalation: Escalation {
             grace: Duration::from_millis(600),
@@ -158,7 +176,7 @@ fn launcher() {
         "end={}",
         match ended.end {
             End::Exited => "exited".to_owned(),
-            End::Signalled => "signalled".to_owned(),
+            End::Escalated => "escalated".to_owned(),
             End::Interrupted { signal } => format!("interrupted:{signal}"),
         }
     ));
@@ -197,6 +215,9 @@ fn reporter() {
         format!("group={}", own_group()),
         format!("chld={}", disposition(libc::SIGCHLD)),
         format!("hup={}", disposition(libc::SIGHUP)),
+        format!("usr2={}", disposition(libc::SIGUSR2)),
+        format!("int={}", disposition(libc::SIGINT)),
+        format!("usr1_blocked={}", blocked(libc::SIGUSR1)),
     ];
     if let Some(tty) = tty() {
         report.push(format!("foreground={}", foreground(&tty)));
@@ -503,7 +524,7 @@ fn a_raw_mode_child_killed_by_the_escalation_leaves_the_terminal_restored() {
         report["signal"], "9",
         "the escalation's SIGKILL ended it: {report:?}"
     );
-    assert_eq!(report["end"], "signalled");
+    assert_eq!(report["end"], "escalated");
     assert_eq!(
         report["after_foreground"], report["group"],
         "the launcher did not take the terminal back: {report:?}"
@@ -800,4 +821,98 @@ fn int_cancels_a_launch_with_no_terminal() {
         "control: a launcher with a terminal must not catch SIGINT: {status:?}\n{output}"
     );
     assert!(!scratch.path("report").exists());
+}
+
+// ---------------------------------------------------------------------------
+// A transparent launcher hands on its entry state
+
+/// A transparent launcher's child receives the entry state its caller
+/// recorded, in place of the crate's defaults and in place of whatever the
+/// launcher's own state has become: SIGHUP ignored and SIGUSR1 blocked, as the
+/// entry state says, and SIGUSR2 at its default although the launcher itself
+/// ignores it.
+///
+/// The control is the same launcher, not transparent. Its child gets the
+/// defaults for the terminal-generated signals and inherits the launcher's own
+/// ignored SIGUSR2 and its mask, so each difference the transparent case shows
+/// is the option's doing.
+#[test]
+fn a_transparent_launcher_hands_its_child_the_entry_state_it_was_given() {
+    let child_of = |transparent: bool| {
+        let scratch = Scratch::new();
+        let log = scratch.path("log");
+        let mut envs = vec![
+            ("JOB_IGNORE", OsString::from("usr2")),
+            ("JOB_CHILD", OsString::from("reporter")),
+            ("JOB_REPORT", scratch.os("launcher")),
+            ("REPORTER_OUT", scratch.os("child")),
+        ];
+        if transparent {
+            envs.push(("JOB_TRANSPARENT", OsString::from("1")));
+        }
+        let envs: Vec<(&str, &OsString)> =
+            envs.iter().map(|(name, value)| (*name, value)).collect();
+        let status = detached(role_command("launcher", &envs), &log)
+            .status()
+            .unwrap();
+        assert!(
+            status.success(),
+            "{status:?}\n{}",
+            fs::read_to_string(&log).unwrap()
+        );
+        report(&scratch.path("child"))
+    };
+
+    let control = child_of(false);
+    assert_eq!(control["hup"], "default", "control: {control:?}");
+    assert_eq!(control["usr2"], "ignored", "control: {control:?}");
+    assert_eq!(control["usr1_blocked"], "false", "control: {control:?}");
+
+    let child = child_of(true);
+    assert_eq!(child["hup"], "ignored", "{child:?}");
+    assert_eq!(
+        child["usr2"], "default",
+        "the launcher's own ignore reached the child: {child:?}"
+    );
+    assert_eq!(child["usr1_blocked"], "true", "{child:?}");
+    assert_eq!(child["int"], "default", "{child:?}");
+}
+
+/// A transparent launcher with a terminal is cancelled by SIGINT. A typed
+/// Ctrl-C reaches its child's group, so an interrupt the launcher receives was
+/// sent to it, and it forwards that like TERM. The control is
+/// `int_cancels_a_launch_with_no_terminal`'s second half: the same launcher,
+/// not transparent, dies of the INT.
+#[test]
+fn a_transparent_launcher_with_a_terminal_is_cancelled_by_int() {
+    let scratch = Scratch::new();
+    let child = scratch.script(&format!(
+        ": > '{ready}'\nwhile : ; do sleep 0.05 ; done\n",
+        ready = scratch.path("ready").display()
+    ));
+    let ready = scratch.path("ready");
+    let (status, output) = in_pty(
+        role_command(
+            "launcher",
+            &[
+                ("JOB_CHILD", &child),
+                ("JOB_REPORT", &scratch.os("report")),
+                ("JOB_TRANSPARENT", &OsString::from("1")),
+            ],
+        ),
+        Duration::from_secs(20),
+        |launcher| {
+            wait_for(&ready, Duration::from_secs(10));
+            // SAFETY: the session leader this test just started.
+            unsafe { libc::kill(launcher, libc::SIGINT) };
+        },
+    );
+    assert!(status.success(), "{status:?}\n{output}");
+    let report = report(&scratch.path("report"));
+    assert_eq!(report["end"], "interrupted:2", "{report:?}");
+    assert_eq!(report["child_group"], "gone");
+    assert_eq!(
+        report["after_foreground"], report["group"],
+        "the terminal came back: {report:?}"
+    );
 }

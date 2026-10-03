@@ -1,17 +1,18 @@
 //! `run`: make the same choice `inspect` reports, commit the required handoff
-//! record, then replace this process with the selected command
+//! record, then spawn the selected command as a job and supervise it to its end
 //! (`docs/specs/harness-selection-and-execution.md`, *Execution and authority*,
-//! *Records and later observations*;
-//! `docs/adr/policy-evaluation-precedes-the-launch.md`).
+//! *Supervision*, *Records and later observations*;
+//! `docs/adr/dispatch-supervises-the-harness.md`).
 //!
 //! The record comes first: a run is launched only once its handoff attempt is
 //! durable, and a failure to commit it launches nothing (exit 4). The harness
-//! then inherits the caller's cwd, descriptors, environment and process
-//! identity, plus the run's identity in `HARNESS_DISPATCH_RUN_ID` and the
-//! record directory in `HARNESS_DISPATCH_STATE_DIR`, which replace any values
-//! it would otherwise inherit. Its own exit code or signal is the command's and
-//! there is no supervisor left to report on it. Stdout and stdin stay the
-//! harness's; the handoff is announced in one line on stderr.
+//! is then this process's child, spawned through the runner (`keyed-launch`)
+//! into a process group of its own that holds the terminal. It has the caller's
+//! cwd, descriptors and environment, plus the run's identity in
+//! [`RUN_ID_VARIABLE`], the record directory in [`STATE_DIR_VARIABLE`] and the
+//! run's exit channel in [`EXIT_FILE_VARIABLE`], each replacing any value it
+//! would otherwise inherit. Stdout and stdin stay the harness's; the handoff
+//! and the run's end are each announced in one line on stderr.
 //!
 //! Every failure `run` reports once its command line has parsed also names the
 //! equivalent `inspect` invocation, so that an unattended refusal can be
@@ -23,16 +24,25 @@
 //! commit, and the linearization point follows it: the handled signals are
 //! blocked and looked for once more. A signal seen there launches nothing,
 //! marks the committed attempt not executed, and is re-raised. Otherwise the
-//! harness is exec'd with the caller's signal mask and every disposition that
+//! harness is spawned with the caller's signal mask and every disposition that
 //! survives exec, SIGPIPE's included, as this process inherited them
-//! (`signal_state`). A signal delivered once the caller's mask is back and
-//! before exec completes can still end this process with the attempt recorded
-//! and its execution unknown; no userspace exec closes that window.
+//! (`signal_state`), while the runner's handlers stand in for the selection's.
+//! The caller's mask comes back once the spawn has returned, so a signal that
+//! arrived after the final check is delivered then, and cancels the run.
+//!
+//! The run ends when the harness exits, when the exit signal's escalation ends
+//! it, or when a handled signal cancels it. Whatever ends it, the runner kills
+//! what remains of its group, reaps it, takes the terminal back and confirms
+//! the group gone. The ending is chosen only then, and decides the exit status.
 
+use std::ffi::OsString;
 use std::io;
-use std::os::unix::process::CommandExt as _;
-use std::process::Command;
+use std::os::unix::fs::PermissionsExt as _;
+use std::path::{Path, PathBuf};
+use std::process::ExitCode;
+use std::time::Duration;
 
+use keyed_launch::{Argv, Channel, End, Ended, Escalation, Group, Launch, LaunchEvent};
 use serde_json::json;
 
 use crate::cancellation::{self, Signal};
@@ -40,7 +50,10 @@ use crate::choice::{self, Choice, Selected};
 use crate::cli::RunArgs;
 use crate::inputs::PromptRequirement;
 use crate::record;
-use crate::refusal::{Failure, Refusal, RunNote, Stage, EXIT_NOT_FOUND, EXIT_UNEXECUTABLE};
+use crate::refusal::{
+    Failure, Refusal, RunNote, Stage, EXIT_MALFORMED, EXIT_NOT_FOUND, EXIT_UNEXECUTABLE,
+    EXIT_WORKER,
+};
 use crate::run_id::RunId;
 use crate::signal_state;
 use crate::store::{self, Committed};
@@ -48,94 +61,302 @@ use crate::store::{self, Committed};
 /// The harness's copy of the run's identity and record directory.
 pub const RUN_ID_VARIABLE: &str = "HARNESS_DISPATCH_RUN_ID";
 pub const STATE_DIR_VARIABLE: &str = "HARNESS_DISPATCH_STATE_DIR";
+/// The harness's copy of the run's exit channel, which `exit` creates.
+pub const EXIT_FILE_VARIABLE: &str = "HARNESS_DISPATCH_EXIT_FILE";
 
-/// Select, record and exec. It returns only when there is nothing to exec, or
-/// exec itself failed, and the failure it returns names the equivalent
-/// `inspect` invocation.
-pub fn run(args: &RunArgs) -> Failure {
-    attempt(args).with_inspect(args.selection.inspect_invocation(args.json))
+/// The escalation once the exit channel appears: the **grace**, so the exit
+/// verb's own call can return and the session's turn end, then SIGTERM to the
+/// harness's group; the **kill-grace**, time for an orderly shutdown, then
+/// SIGKILL. The kill-grace is also how long a cancelled interactive run waits
+/// between the cancelling signal and SIGKILL. Fixed constants: no setting, flag
+/// or policy field changes them, and a caller supervising this process waits
+/// longer than they add up to.
+const ESCALATION: Escalation = Escalation {
+    grace: Duration::from_secs(2),
+    kill_grace: Duration::from_secs(5),
+};
+
+/// How a run that started a harness ended, chosen once the harness is reaped.
+/// Cancellation takes precedence, since the run was taken away whatever the
+/// session said.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Ending {
+    /// A handled signal reached this process before the harness was reaped.
+    Cancelled(i32),
+    /// Otherwise, the exit channel existed once the harness was reaped.
+    ExitSignal,
+    /// Otherwise: the harness ended without the exit signal.
+    HarnessExit,
 }
 
-fn attempt(args: &RunArgs) -> Failure {
-    if let Err(refusal) = signal_state::recorded() {
-        return refusal.into();
+impl Ending {
+    fn of(ended: &Ended) -> Self {
+        match ended.end {
+            End::Interrupted { signal } => Ending::Cancelled(signal),
+            _ if ended.signalled => Ending::ExitSignal,
+            _ => Ending::HarnessExit,
+        }
     }
-    let run_id = match RunId::allocate() {
-        Ok(run_id) => run_id,
-        Err(refusal) => return refusal.into(),
-    };
+
+    fn as_str(self) -> &'static str {
+        match self {
+            Ending::Cancelled(_) => "cancelled",
+            Ending::ExitSignal => "exit_signal",
+            Ending::HarnessExit => "harness_exit",
+        }
+    }
+}
+
+/// How this process ends once its run has: with a code, or by dying of a
+/// signal so its own caller's wait status says what the harness's said.
+enum Exit {
+    Code(u8),
+    Signal(i32),
+}
+
+/// Select, record, launch and supervise. A refusal, a cancellation at the
+/// linearization point and a harness that could not be started return the
+/// failure, which names the equivalent `inspect` invocation. A run that
+/// started a harness answers the exit code its ending gives, or dies of the
+/// signal it gives.
+pub fn run(args: &RunArgs) -> Result<ExitCode, Failure> {
+    attempt(args)
+        .map_err(|failure| failure.with_inspect(args.selection.inspect_invocation(args.json)))
+}
+
+fn attempt(args: &RunArgs) -> Result<ExitCode, Failure> {
+    signal_state::recorded()?;
+    let exit_dir = args.exit_dir.as_deref().map(exit_dir).transpose()?;
+    let run_id = RunId::allocate()?;
     let Selected {
         choice,
         handlers,
         source,
-    } = match choice::choose(&args.selection, PromptRequirement::Required) {
-        Ok(selected) => selected,
-        Err(failure) => return failure,
+    } = choice::choose(&args.selection, PromptRequirement::Required)?;
+    // Allocated after selection, so the worker could not have been told it,
+    // and before the commit, so a failure here records nothing. A signal in
+    // the meantime is noted and seen at the linearization point.
+    let exit_channel = match ExitChannel::allocate(exit_dir.as_deref()) {
+        Ok(exit_channel) => exit_channel,
+        Err(refusal) => {
+            drop(handlers);
+            return Err(Failure::with_diagnostics(
+                refusal,
+                choice.diagnostics.clone(),
+            ));
+        }
     };
     // The worker has been reaped and the program resolved; only now is the
-    // store opened, so no lock is ever held across evaluation. A signal during
-    // the commit is noted, and seen at the linearization point.
+    // store opened, so no lock is ever held across evaluation.
     let committed = match store::commit(&choice.state_dir, &run_id, &record::launch(&choice)) {
         Ok(committed) => committed,
         Err(refusal) => {
             drop(handlers);
             let failure = Failure::with_diagnostics(refusal, choice.diagnostics.clone());
-            return choice::overruled(failure, &source);
+            return Err(choice::overruled(failure, &source));
         }
     };
     // Before the linearization point, so that a stderr slow to take the line
     // delays the final check rather than widening the window after it.
     announce(&choice, &run_id, &committed, args.json);
     if let Some(signal) = handlers.block_and_check() {
-        return not_executed(&choice, &run_id, signal, &source);
+        return Err(not_executed(&choice, &run_id, signal, &source));
     }
-    // The handled signals take their entry dispositions again while they are
-    // blocked. Whatever arrives from now on waits for the caller's mask.
+
+    // argv[0] is the program as `select` returned it, and the resolved path,
+    // which is absolute, is what is spawned, so nothing is searched for twice.
+    // Each argument is one whole word, exactly as returned.
+    let argv = Argv::new(
+        OsString::from(&choice.executable.path),
+        choice.command.args.iter().map(OsString::from).collect(),
+    )
+    .with_arg0(OsString::from(&choice.executable.program));
+    let state_dir = choice.state_dir.path.as_os_str();
+    let grant = [
+        (RUN_ID_VARIABLE.as_ref(), run_id.as_str().as_ref()),
+        (STATE_DIR_VARIABLE.as_ref(), state_dir),
+    ];
+    let entry = signal_state::entry();
+    let mut started = false;
+    let supervised = keyed_launch::run_observed(
+        Launch {
+            argv: &argv,
+            channel: &exit_channel.channel,
+            channel_var: EXIT_FILE_VARIABLE,
+            scrub: &[],
+            grant: &grant,
+            transparent: Some(&entry),
+            cwd: None,
+            escalation: ESCALATION,
+        },
+        &mut |event| {
+            if event == LaunchEvent::Started {
+                started = true;
+                // The handled signals have been blocked since the final check.
+                // The runner's handlers are installed by now, so one that
+                // arrived in the meantime cancels the run.
+                let _ = signal_state::restore_mask();
+            }
+        },
+    );
+    // The selection's handlers restore each signal's entry disposition, which
+    // is what a death by signal below is reproduced under.
     drop(handlers);
-    // `Command::exec` is `execvp` of the resolved path, which is absolute, so
-    // nothing is searched for twice. argv[0] is the program as `select`
-    // returned it, and each argument is one whole word, exactly as returned.
-    // It sets SIGPIPE to default before running the hook, which then
-    // reinstates the caller's dispositions and, last, the caller's mask.
-    let mut command = Command::new(&choice.executable.path);
-    command
-        .arg0(&choice.executable.program)
-        .args(&choice.command.args)
-        .env(RUN_ID_VARIABLE, run_id.as_str())
-        .env(STATE_DIR_VARIABLE, &choice.state_dir.path);
-    // SAFETY: the hook makes only sigaction and pthread_sigmask calls, and
-    // runs in this process, since exec does not fork.
-    unsafe { command.pre_exec(signal_state::reinstate) };
-    let error = command.exec();
-    // Exec may have failed before the hook ran. Either way the caller's state
-    // is back from here on, and a signal takes its entry course.
-    let _ = signal_state::reinstate();
-    let refusal = exec_failed(&choice, &error);
-    let detail = json!({
-        "cause": "exec_error",
-        "stage": Stage::Exec.as_str(),
-        "code": refusal.code,
-        "errno": error.raw_os_error(),
-        "message": refusal.message,
-        "exit": refusal.exit,
-    });
-    let unrecorded = store::append_launch_failure(&choice.state_dir, &run_id, &detail)
-        .err()
-        .map(|failure| (failure.code, failure.message.clone()));
-    refusal
-        .run(RunNote {
-            id: run_id.to_string(),
-            unrecorded,
-        })
-        .into()
+    let _ = signal_state::restore_mask();
+    let cleanup = exit_channel.remove();
+    let ended = match supervised {
+        Ok(ended) => ended,
+        Err(error) if !started => return Err(launch_failed(&choice, &run_id, &error)),
+        Err(error) => {
+            report_cleanup(cleanup);
+            eprintln!(
+                "harness-dispatch: run {run_id}: supervision failed: {error}; members of the \
+                 harness's process group may survive it"
+            );
+            return Ok(ExitCode::from(EXIT_WORKER));
+        }
+    };
+    report_cleanup(cleanup);
+
+    let ending = Ending::of(&ended);
+    announce_end(&run_id, ending, &ended, args.json);
+    if let Group::Present { pgid } = ended.group {
+        eprintln!(
+            "harness-dispatch: run {run_id}: members of the harness's process group {pgid} may \
+             survive it: they were sent SIGKILL twice and still answered a second later"
+        );
+        return Ok(ExitCode::from(EXIT_WORKER));
+    }
+    match exit(ending, &ended) {
+        Exit::Code(code) => Ok(ExitCode::from(code)),
+        Exit::Signal(signal) => die_of(signal),
+    }
+}
+
+/// The exit status a run's ending gives: the harness's own exit when it ended
+/// without the exit signal, 0 when the exit signal's escalation ended it or it
+/// exited 0 after sending it, and death by the signal that cancelled it.
+fn exit(ending: Ending, ended: &Ended) -> Exit {
+    use std::os::unix::process::ExitStatusExt as _;
+    let harness = || match (ended.status.code(), ended.status.signal()) {
+        (Some(code), _) => Exit::Code(u8::try_from(code & 0xff).unwrap_or(u8::MAX)),
+        (None, Some(signal)) => Exit::Signal(signal),
+        (None, None) => Exit::Code(EXIT_WORKER),
+    };
+    match ending {
+        Ending::Cancelled(signal) => Exit::Signal(signal),
+        Ending::ExitSignal if ended.end == End::Escalated || ended.status.success() => {
+            Exit::Code(0)
+        }
+        Ending::ExitSignal | Ending::HarnessExit => harness(),
+    }
+}
+
+/// Die of `signal`, as the harness did or as the run was cancelled, so this
+/// process's caller sees the same wait status. **Without a core dump of this
+/// process's own**: the harness's dump, if any, is the harness's, and a dump of
+/// a supervisor that merely reported it would be a second, misleading one.
+fn die_of(signal: i32) -> ! {
+    // SAFETY: setrlimit with an initialised structure; a failure leaves the
+    // limit as it was, and the death is reproduced anyway.
+    unsafe {
+        let none = libc::rlimit {
+            rlim_cur: 0,
+            rlim_max: 0,
+        };
+        libc::setrlimit(libc::RLIMIT_CORE, &none);
+    }
+    keyed_launch::reraise(signal)
+}
+
+/// `--exit-dir`, checked before selection: an existing directory, named
+/// absolutely so the harness can reach it from any cwd. Dispatch neither
+/// creates nor removes it.
+fn exit_dir(dir: &Path) -> Result<PathBuf, Refusal> {
+    let unusable = |problem: String| {
+        Refusal::new(
+            "exit_dir_unusable",
+            Stage::Cli,
+            EXIT_MALFORMED,
+            format!("--exit-dir {}: {problem}", dir.display()),
+            "name an existing directory the harness can write to, or omit --exit-dir for a \
+             private per-run directory; harness-dispatch neither creates nor removes it",
+        )
+        .input("--exit-dir")
+    };
+    let canonical = std::fs::canonicalize(dir).map_err(|error| unusable(error.to_string()))?;
+    if !canonical.is_dir() {
+        return Err(unusable("it is not a directory".to_owned()));
+    }
+    Ok(canonical)
+}
+
+/// The run's exit channel and, unless the caller named one, the private
+/// owner-only directory that holds it.
+struct ExitChannel {
+    channel: Channel,
+    private: Option<tempfile::TempDir>,
+}
+
+impl ExitChannel {
+    fn allocate(dir: Option<&Path>) -> Result<Self, Refusal> {
+        let failed = |error: String| {
+            Refusal::new(
+                "exit_channel_unavailable",
+                Stage::Exec,
+                EXIT_WORKER,
+                format!("cannot allocate the run's exit channel: {error}; nothing was recorded"),
+                "make TMPDIR, or the directory --exit-dir names, writable, and run again",
+            )
+            .source("harness-dispatch")
+        };
+        let private = match dir {
+            Some(_) => None,
+            // Owner-only, stated rather than left to tempfile, which creates
+            // a directory as the umask allows (measured 0755 on macOS).
+            None => Some(
+                tempfile::Builder::new()
+                    .prefix("harness-dispatch-run-")
+                    .permissions(std::fs::Permissions::from_mode(0o700))
+                    .tempdir()
+                    .map_err(|error| failed(error.to_string()))?,
+            ),
+        };
+        let dir = dir.or(private.as_ref().map(tempfile::TempDir::path));
+        let channel = Channel::allocate(dir.expect("a directory either way"))
+            .map_err(|error| failed(error.to_string()))?;
+        Ok(Self { channel, private })
+    }
+
+    /// Remove the channel and any private directory, before this process ends
+    /// by a signal that would run no destructor.
+    fn remove(self) -> Result<(), String> {
+        let channel = self.channel.discard().map_err(|error| error.to_string());
+        let private = match self.private {
+            Some(dir) => {
+                let path = dir.path().display().to_string();
+                dir.close()
+                    .map_err(|error| format!("cannot remove {path}: {error}"))
+            }
+            None => Ok(()),
+        };
+        channel.and(private)
+    }
+}
+
+/// A cleanup failure is reported, and changes neither the ending nor the exit.
+fn report_cleanup(cleanup: Result<(), String>) {
+    if let Err(error) = cleanup {
+        eprintln!("harness-dispatch: {error}");
+    }
 }
 
 /// A signal seen at the linearization point: nothing is launched, and the
 /// committed attempt is marked not executed where the store allows. A failed
 /// append leaves it a handoff attempt whose execution is unknown, never a
 /// success. The signal is re-raised once the refusal is reported. The handoff
-/// notice already carried what the policy printed, so, as after an exec
-/// error, the refusal does not repeat it.
+/// notice already carried what the policy printed, so, as after a launch
+/// failure, the refusal does not repeat it.
 fn not_executed(choice: &Choice, run_id: &RunId, signal: Signal, source: &str) -> Failure {
     let refusal = cancellation::handoff_refusal(signal, source, run_id.as_str());
     let detail = json!({
@@ -157,8 +378,97 @@ fn not_executed(choice: &Choice, run_id: &RunId, signal: Signal, source: &str) -
         .into()
 }
 
+/// The harness could not be started: the failure is appended to the attempt
+/// where the store allows, and a failed append leaves the attempt as it was,
+/// never a success.
+fn launch_failed(choice: &Choice, run_id: &RunId, error: &keyed_launch::LaunchError) -> Failure {
+    let refusal = start_failed(choice, error);
+    let detail = json!({
+        "cause": "exec_error",
+        "stage": Stage::Exec.as_str(),
+        "code": refusal.code,
+        "errno": error.raw_os_error(),
+        "message": refusal.message,
+        "exit": refusal.exit,
+    });
+    let unrecorded = store::append_launch_failure(&choice.state_dir, run_id, &detail)
+        .err()
+        .map(|failure| (failure.code, failure.message.clone()));
+    refusal
+        .run(RunNote {
+            id: run_id.to_string(),
+            unrecorded,
+        })
+        .into()
+}
+
+/// The end, on stderr: one line naming the run, its ending, the harness's exit
+/// or signal and the run's duration. With `--json`, one JSON object instead.
+fn announce_end(run_id: &RunId, ending: Ending, ended: &Ended, json: bool) {
+    use std::os::unix::process::ExitStatusExt as _;
+    let (code, signal) = (ended.status.code(), ended.status.signal());
+    let millis = u64::try_from(ended.elapsed.as_millis()).unwrap_or(u64::MAX);
+    let group = match ended.group {
+        Group::Gone => "gone",
+        Group::Present { .. } => "present",
+    };
+    if json {
+        let notice = json!({
+            "schemaVersion": 1,
+            "end": {
+                "runId": run_id.as_str(),
+                "ending": ending.as_str(),
+                "exitCode": code,
+                "signal": signal.map(signal_name),
+                "durationMs": millis,
+                "group": group,
+            },
+        });
+        eprintln!("{notice}");
+    } else {
+        let how = match (code, signal) {
+            (Some(code), _) => format!("exited {code}"),
+            (None, Some(signal)) => format!("died of {}", signal_name(signal)),
+            (None, None) => "ended".to_owned(),
+        };
+        eprintln!(
+            "harness-dispatch: run {run_id} ended by {}: the harness {how} after {:.1} s",
+            ending.as_str(),
+            ended.elapsed.as_secs_f64()
+        );
+    }
+}
+
+/// A signal's conventional name, or its number where it has none here.
+fn signal_name(signal: i32) -> String {
+    let name = match signal {
+        libc::SIGHUP => "SIGHUP",
+        libc::SIGINT => "SIGINT",
+        libc::SIGQUIT => "SIGQUIT",
+        libc::SIGILL => "SIGILL",
+        libc::SIGTRAP => "SIGTRAP",
+        libc::SIGABRT => "SIGABRT",
+        libc::SIGBUS => "SIGBUS",
+        libc::SIGFPE => "SIGFPE",
+        libc::SIGKILL => "SIGKILL",
+        libc::SIGUSR1 => "SIGUSR1",
+        libc::SIGSEGV => "SIGSEGV",
+        libc::SIGUSR2 => "SIGUSR2",
+        libc::SIGPIPE => "SIGPIPE",
+        libc::SIGALRM => "SIGALRM",
+        libc::SIGTERM => "SIGTERM",
+        libc::SIGXCPU => "SIGXCPU",
+        libc::SIGXFSZ => "SIGXFSZ",
+        libc::SIGVTALRM => "SIGVTALRM",
+        libc::SIGPROF => "SIGPROF",
+        libc::SIGSYS => "SIGSYS",
+        _ => return format!("signal {signal}"),
+    };
+    name.to_owned()
+}
+
 /// The handoff, on stderr: whatever the policy printed, then one line naming
-/// the command's labels and the file about to replace this process. With
+/// the command's labels and the file about to be started as its harness. With
 /// `--json`, one JSON object instead.
 fn announce(choice: &Choice, run_id: &RunId, committed: &Committed, json: bool) {
     let command = &choice.command;
@@ -190,10 +500,9 @@ fn announce(choice: &Choice, run_id: &RunId, committed: &Committed, json: bool) 
     }
 }
 
-/// Exec returned, so the harness never started. `ENOENT` (the file, or its
-/// `#!` interpreter, is gone) exits 127 like an unresolved program; anything
-/// else exits 126.
-fn exec_failed(choice: &Choice, error: &io::Error) -> Refusal {
+/// The harness never started. `ENOENT` (the file, or its `#!` interpreter, is
+/// gone) exits 127 like an unresolved program; anything else exits 126.
+fn start_failed(choice: &Choice, error: &keyed_launch::LaunchError) -> Refusal {
     let (exit, remedy) = match error.raw_os_error() {
         Some(libc::ENOENT) => (
             EXIT_NOT_FOUND,
@@ -224,13 +533,17 @@ fn exec_failed(choice: &Choice, error: &io::Error) -> Refusal {
             "correct the program select returns, or whatever in the environment prevents its exec",
         ),
     };
+    let cause = error.raw_os_error().map_or_else(
+        || error.to_string(),
+        |errno| io::Error::from_raw_os_error(errno).to_string(),
+    );
     let source = choice.entry.display();
     Refusal::new(
         "exec_failed",
         Stage::Exec,
         exit,
         format!(
-            "exec of {} for the program {:?} failed: {error}",
+            "exec of {} for the program {:?} failed: {cause}",
             choice.executable.path, choice.command.program
         ),
         format!("{remedy}; harness-dispatch never runs another command instead"),

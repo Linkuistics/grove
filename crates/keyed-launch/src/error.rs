@@ -11,13 +11,31 @@ use std::fmt;
 /// fix it.
 pub struct LaunchError {
     message: String,
+    errno: Option<i32>,
 }
 
 impl LaunchError {
     pub(crate) fn new(message: impl Into<String>) -> Self {
         Self {
             message: message.into(),
+            errno: None,
         }
+    }
+
+    pub(crate) fn with_errno(mut self, errno: Option<i32>) -> Self {
+        self.errno = errno;
+        self
+    }
+
+    /// The system's error number when the child could not be spawned, and
+    /// `None` for every other failure.
+    ///
+    /// A caller that reports a failed start by its cause, as a shell's 127 for
+    /// a missing program and 126 for any other, needs the number and not the
+    /// message. Nothing was started when this is `Some`.
+    #[must_use]
+    pub fn raw_os_error(&self) -> Option<i32> {
+        self.errno
     }
 }
 

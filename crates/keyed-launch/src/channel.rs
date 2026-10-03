@@ -105,6 +105,37 @@ impl Channel {
         &self.path
     }
 
+    /// Whether anything now exists at the channel's name, in the directory it
+    /// was allocated in.
+    ///
+    /// **Appearance is the whole signal**, for a caller whose channel carries
+    /// nothing: an empty file, a link or a FIFO has appeared as surely as a
+    /// token has. So nothing is opened or followed: the name is only looked
+    /// up, beside the directory held since allocation.
+    #[must_use]
+    pub fn appeared(&self) -> bool {
+        use std::os::fd::AsRawFd as _;
+        use std::os::unix::ffi::OsStrExt as _;
+        let Some(name) = self
+            .path
+            .file_name()
+            .and_then(|name| std::ffi::CString::new(name.as_bytes()).ok())
+        else {
+            return false;
+        };
+        // SAFETY: `fstatat(2)` on a directory descriptor this channel holds,
+        // a NUL-terminated name, and an initialised struct it writes into.
+        unsafe {
+            let mut status: libc::stat = std::mem::zeroed();
+            libc::fstatat(
+                self.directory.as_raw_fd(),
+                name.as_ptr(),
+                &mut status,
+                libc::AT_SYMLINK_NOFOLLOW,
+            ) == 0
+        }
+    }
+
     /// The token a launch left here, if any.
     ///
     /// `None` covers *nothing was written*, *the file is unreadable*, and *the
@@ -357,6 +388,27 @@ mod tests {
             std::fs::write(channel.path(), content).unwrap();
             assert_eq!(channel.read(), None, "{content:?} is not a token");
         }
+    }
+
+    /// What [`Channel::read`] refuses as a token has still appeared: the
+    /// appearance, not the content, is the signal.
+    #[test]
+    fn anything_at_the_channel_name_has_appeared_and_nothing_else_has() {
+        let dir = tempfile::tempdir().unwrap();
+        let channel = Channel::allocate(dir.path()).unwrap();
+        assert!(!channel.appeared(), "control: nothing is there yet");
+        fs::write(dir.path().join("neighbour"), "").unwrap();
+        assert!(
+            !channel.appeared(),
+            "a neighbouring file is not the channel"
+        );
+
+        fs::write(channel.path(), "").unwrap();
+        assert!(channel.appeared(), "an empty file has appeared");
+        fs::remove_file(channel.path()).unwrap();
+        std::os::unix::fs::symlink(dir.path().join("absent"), channel.path()).unwrap();
+        assert!(channel.appeared(), "a dangling link has appeared");
+        assert_eq!(channel.read(), None, "and is still no token");
     }
 
     #[test]

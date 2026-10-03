@@ -7,7 +7,7 @@
 
 <!-- rollup «owned-lines-total» -->
 This chapter owns no production source. The book reconstructs 7 roots and
-2,010 lines, including the confinement chapter that follows this assembly,
+2,226 lines, including the confinement chapter that follows this assembly,
 and the [source index](source-index.md) records that graph in full. What is left
 is the thing no single chapter could state, because each one opened on its own
 refusal and stopped at the boundary of the lines it owned.
@@ -65,9 +65,9 @@ an absent file, fails there.
 
 ### The file appears
 
-**The observable.** `channel.path().exists()`. Appearance starts the grace. If
+**The observable.** `channel.appeared()`. Appearance starts the grace. If
 the child is still running when the grace runs out, the launcher ends it and
-the launch comes back `End::Signalled`.
+the launch comes back `End::Escalated`.
 
 **Without it.**
 [An interactive child returns to its prompt when it finishes](02-the-channel.md#appearance-is-the-event)
@@ -163,7 +163,7 @@ of their own.
 | The ending | Where it is observed | Without it | Held by |
 |---|---|---|---|
 | the child exits | `child.exited` | a child that dies without speaking is waited on for ever | `a_child_that_never_signals_ends_with_no_token`, `an_unsignalled_child_runs_to_its_own_exit_untouched` |
-| the file appears | `channel.path().exists()` | an interactive child never ends, or the launcher guesses that it has | `a_signalled_child_that_keeps_waiting_is_terminated_after_the_grace`, `a_child_that_signals_and_exits_inside_the_grace_is_never_touched` |
+| the file appears | `channel.appeared()` | an interactive child never ends, or the launcher guesses that it has | `a_signalled_child_that_keeps_waiting_is_terminated_after_the_grace`, `a_child_that_signals_and_exits_inside_the_grace_is_never_touched` |
 | the launcher is signalled | `take_interrupt()` | the launcher dies and leaves its child on the terminal, or exits 0 and reports work that was cut short | `an_interrupt_is_reported_against_the_launch_it_arrives_in_and_no_other`, `a_reraised_signal_reaches_the_parent_as_a_wait_status` |
 
 <a id="the-one-that-stays-open"></a>
@@ -271,22 +271,22 @@ two split, and each split is the concept order disagreeing with the file's. In
 `src/run.rs`, one chapter's block sits *inside* another chapter's pair.
 
 ```text
-src/run.rs       1,171 lines, 4 blocks, chapters 3 4
-      1–146   ch 3   ┐  the launch’s shape
-    147–332   ch 4   │  the watch, the latch and the entry signal state,
+src/run.rs       1,292 lines, 4 blocks, chapters 3 4
+      1–168   ch 3   ┐  the launch’s shape
+    169–357   ch 4   │  the watch, the latch and the entry signal state,
                      │  inside chapter 3’s pair
-    333–837   ch 3   ┘  terminal, its lease, detached mode and spawn
-   838–1171   ch 4      the end of the group, supervise and escalate
+    358–957   ch 3   ┘  terminal, its lease, detached mode and spawn
+   958–1292   ch 4      the end of the group, supervise and escalate
 
-src/channel.rs     453 lines, 2 blocks, chapters 2 5
-      1–288   ch 2      the production code
-    289–453   ch 5      the inline #[cfg(test)] module
+src/channel.rs     505 lines, 2 blocks, chapters 2 5
+      1–319   ch 2      the production code
+    320–505   ch 5      the inline #[cfg(test)] module
 ```
 
 `src/run.rs` divides
 by whose signal a line is about — which is why chapter 4's watch and latch sit
 between chapter 3's launch shape and its spawn. `src/channel.rs`'s single
-boundary is the `#[cfg(test)]` attribute on line 289, the only ownership boundary
+boundary is the `#[cfg(test)]` attribute on line 320, the only ownership boundary
 in the book cut at a compilation condition rather than a conceptual one.
 
 <!-- rollup «early-use-rows» -->
@@ -303,10 +303,10 @@ Each row turned `explained` in its owner's slice and in no other.
 
 <!-- rollup «owned-lines-sequence» -->
 <!-- rollup «source-owning-chapters» -->
-**Owned source.** 169 + 288 + 651 + 520 + 165 + 217 = 2,010
+**Owned source.** 212 + 319 + 768 + 524 + 186 + 217 = 2,226
 lines across 6 source-owning chapters, and 0 for this one. A chapter that owns
 no source is the shape the structure brief chose for the assembly, and the total
-is the 2,010 lines in the current declared corpus.
+is the 2,226 lines in the current declared corpus.
 
 <!-- rollup «source-roots» -->
 The [concept index](concept-index.md) and the [source index](source-index.md) are
@@ -324,15 +324,15 @@ only one that reads the corpus byte for byte.
 ```console
 $ cargo run --quiet -p book-validation --bin book-check -- \
     --repo . --book docs/walkthroughs/keyed-launch --final --check all
-valid: 7 files, 2010 resolved lines, 0 deferred lines, final=true
+valid: 7 files, 2226 resolved lines, 0 deferred lines, final=true
 ```
 
 `--final` is what makes this different from every scoped run the drafting
 sessions made. In scoped mode a later chapter's range may be reserved by a defer
 and counted as deferred rather than resolved; in final mode a defer is an error,
 every source root must expand to its complete file, and the page inventory must
-match the manifest exactly. 2,010 resolved and 0 deferred is the whole corpus
-reconstructed — including `src/channel.rs` lines 289 to 453, the inline
+match the manifest exactly. 2,226 resolved and 0 deferred is the whole corpus
+reconstructed — including `src/channel.rs` lines 320 to 505, the inline
 `#[cfg(test)] mod tests` that is corpus because a root is `src/**/*.rs` and the
 specification's exception inventory carries no row for this book.
 
@@ -361,15 +361,15 @@ added it with the rest of the scaffolding.
 ```console
 $ cargo test --locked -p keyed-launch
      Running unittests src/lib.rs
-test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
      Running tests/confinement.rs
 test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
      Running tests/interrupt.rs
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
      Running tests/job.rs
-test result: ok. 7 passed; 0 failed; 4 ignored; 0 measured; 0 filtered out
+test result: ok. 9 passed; 0 failed; 4 ignored; 0 measured; 0 filtered out
      Running tests/launch.rs
-test result: ok. 19 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
+test result: ok. 22 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
      Running tests/noninteractive.rs
 test result: ok. 7 passed; 0 failed; 7 ignored; 0 measured; 0 filtered out
      Running tests/reraise.rs
@@ -378,15 +378,15 @@ test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
 test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
 ```
 
-Fifty-two tests, and the split across the two surfaces is itself a fact this
-book explained. Eleven of the fourteen unit tests are the inline
+Fifty-eight tests, and the split across the two surfaces is itself a fact this
+book explained. Twelve of the fifteen unit tests are the inline
 `#[cfg(test)] mod tests` inside `src/channel.rs`, which are corpus and are on
 [chapter 5's page](05-how-checked.md#inside-the-root) like any other lines. The
 *module* exists because `use super::*;` reaches seven items no integration test
-can see, and one of the eleven tests takes that up: only a module inside the file
+can see, and one of the twelve tests takes that up: only a module inside the file
 can call `is_channel_name`, whose exactness chapter 2 argued. The other three
 are in `tests/internal/wait_events.rs`, which `src/run.rs` includes by path so
-that they can reach the supervisor's private seam. The other thirty-eight live
+that they can reach the supervisor's private seam. The other forty-three live
 in six files under `crates/keyed-launch/tests/` and are evidence rather than
 corpus: named wherever a chapter adjudicates a claim, reproduced nowhere. The
 eleven ignored tests, seven in `tests/noninteractive.rs` and four in
@@ -395,7 +395,7 @@ eleven ignored tests, seven in `tests/noninteractive.rs` and four in
 <!-- rollup «source-roots» -->
 <!-- rollup «owned-lines-total» -->
 <!-- rollup «chapters» -->
-The book reconstructs 7 roots, 2,010 lines, 7 chapters, two lookup surfaces,
+The book reconstructs 7 roots, 2,226 lines, 7 chapters, two lookup surfaces,
 zero deferred ranges. What it leaves the reader with is the question — *what ends
 a launch, and who decides?* — together with the one ending no observable
 reaches, and the reason that ending belongs to whoever knows what the child was

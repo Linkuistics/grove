@@ -881,7 +881,7 @@ fn diagnostics_the_host_writes_stay_out_of_the_json_report() {
 
     let run = sandbox.run(&["--kind", "impl", "--prompt", "p", "--json"]);
     assert_eq!(run.code, Some(0), "{}", run.stderr);
-    let notice: Value = serde_json::from_str(run.stderr.trim_end()).unwrap();
+    let notice = run.handoff();
     assert_eq!(
         notice["diagnostics"]["stderr"],
         "loading {\"forged\": true}\nselecting\n"

@@ -104,11 +104,12 @@ fn a_state_altered_between_the_front_and_the_harness_is_seen() {
 }
 
 #[test]
-fn a_signal_the_caller_blocked_reaches_the_harness_pending_and_cancels_nothing() {
+fn a_signal_the_caller_blocked_stays_pending_in_the_front_and_cancels_nothing() {
     // The caller blocks TERM, and TERM is sent while the policy holds. It
     // stays pending, selection goes on, and the harness starts with TERM
-    // blocked and pending: the caller deferred it, and the harness receives
-    // it deferred. The control is the same fixture and timing with TERM not
+    // blocked and not pending: pending signals do not pass to a spawned
+    // child, so the signal stays the front's, deferred, and the front's exit
+    // discards it. The control is the same fixture and timing with TERM not
     // blocked, which cancels.
     for blocked in [true, false] {
         let sandbox = Sandbox::new();
@@ -145,7 +146,7 @@ fn a_signal_the_caller_blocked_reaches_the_harness_pending_and_cancels_nothing()
             assert_eq!(timed.run.code, Some(0), "{}", timed.run.stderr);
             let observed = State::observed(&sandbox);
             assert_eq!(observed.blocked, caller.blocked);
-            assert_eq!(observed.pending, [libc::SIGTERM].into());
+            assert!(observed.pending.is_empty(), "{:?}", observed.pending);
         } else {
             timed.run.cancelled(libc::SIGTERM, "SIGTERM");
             assert!(!sandbox.harness_ran());
@@ -262,8 +263,9 @@ fn the_same_stall_unsignalled_reaches_the_harness() {
     let stalled = stalled(&sandbox, None, true, None, 1);
     assert_eq!(stalled.code, Some(0), "{}", stalled.stderr);
     assert!(sandbox.harness_ran());
-    let [notice] = documents(&stalled.stderr).try_into().unwrap();
+    let [notice, end] = documents(&stalled.stderr).try_into().unwrap();
     let run_id = notice["handoff"]["runId"].as_str().unwrap();
+    assert_eq!(end["end"]["runId"], run_id);
     assert_eq!(sandbox.harness_run_id(), run_id);
     let export = show(&sandbox, run_id, true).report();
     assert_eq!(export["evidence"], "handoff_attempt");
@@ -295,7 +297,7 @@ fn a_cancelled_handoff_whose_detail_cannot_be_appended_stays_unknown() {
     let unsignalled = stalled(&sandbox, None, true, None, 1);
     assert_eq!(unsignalled.code, Some(0), "{}", unsignalled.stderr);
     assert!(sandbox.harness_ran());
-    let [notice] = documents(&unsignalled.stderr).try_into().unwrap();
+    let [notice, _end] = documents(&unsignalled.stderr).try_into().unwrap();
     let run_id = notice["handoff"]["runId"].as_str().unwrap();
     assert_eq!(sandbox.harness_run_id(), run_id);
     let export = show(&sandbox, run_id, true).report();

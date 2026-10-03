@@ -24,13 +24,13 @@ The chapter sequence and ownership mapping below are what
 `[[block]]` groups. Where the two disagree, that is a defect in one of them, not
 a licence to prefer either.
 
-**What distinguishes this corpus.** Seven roots and 2,010 lines, of which
-`src/run.rs` is 1,171: more than half the corpus is one file, and two chapters
+**What distinguishes this corpus.** Seven roots and 2,226 lines, of which
+`src/run.rs` is 1,292: more than half the corpus is one file, and two chapters
 divide it.
 `src/channel.rs` contains an inline `#[cfg(test)]` module inside a root, at
-lines 289–453. The corpus exception inventory in
+lines 320–505. The corpus exception inventory in
 [`walkthrough-books.md`](walkthrough-books.md) carries no `keyed-launch` row, so
-those 165 lines are owned, reconstructed and explained like any other. And
+those 186 lines are owned, reconstructed and explained like any other. And
 `src/confinement.rs` arrived after the interview, with a chapter of its own
 that follows the assembly.
 
@@ -204,7 +204,7 @@ with the chapter that owns each.
 
 ### 2 · Appearance is the event — the channel
 
-Owns `src/channel.rs` lines 1–288. Responsible for: what the channel is and why a
+Owns `src/channel.rs` lines 1–319. Responsible for: what the channel is and why a
 launch needs one at all — an interactive child returns to its prompt when it
 finishes rather than exiting, so its own exit is not the event anyone is waiting
 for; **allocation picks a name and writes nothing**, which is what makes
@@ -224,19 +224,22 @@ glossary already names.
 
 ### 3 · The child is a job — nothing else added
 
-Owns `src/run.rs` lines 1–146 and 333–837. Responsible for: `Escalation`'s two
+Owns `src/run.rs` lines 1–168 and 358–957. Responsible for: `Escalation`'s two
 waits and what each is for; `Launch` as *everything one launch is*, every field
 the caller's, and `run`'s promise that nothing else is added — no argument, no
 flag, no variable; the scrub list as the caller's obligation discharged here, and
 why an environment is inherited rather than addressed, so a nested launcher would
 otherwise hand a child a live channel path belonging to somebody else's launch;
-`cwd` and why `None` is rarely what a launcher wants; `Ended`, `Group` as the
+the grant, set after the scrub and before the channel;
+`cwd` and why `None` is rarely what a launcher wants; `Ended`, its `signalled`
+field beside the token, `Group` as the
 survivor report that sits beside the child's status rather than replacing it,
-and `End`'s three cases, and the distinction the chapter must make carefully — `Signalled` is
-narrower than *a token appeared*, because a child that signals and exits inside
-its own grace was never touched and comes back `Exited` with a token;
+and `End`'s three cases, and the distinction the chapter must make carefully — `Escalated` is
+narrower than *the channel appeared*, because a child that signals and exits inside
+its own grace was never touched and comes back `Exited`, signalled;
 `DEFAULT_DISPOSITION_IN_CHILD` and its argument that **only an ignored disposition
-survives `execve`**; `Terminal::open` and why `/dev/tty` rather than stdin is the
+survives `execve`**; `EntrySignals` and the transparent launcher that hands its
+child its own caller's mask and dispositions instead, recorded before `main`; `Terminal::open` and why `/dev/tty` rather than stdin is the
 gate that needs no flag; the terminal's attributes saved and restored, and the
 lease that decides whether a launch held the foreground and from which group it
 takes the terminal back — the child's own after an exit, any but the launcher's
@@ -252,7 +255,7 @@ names it and defers.
 
 ### 4 · The watch and the escalation — the launcher's job
 
-Owns `src/run.rs` lines 147–332 and 838–1171. Responsible for: `Watch` as the
+Owns `src/run.rs` lines 169–357 and 958–1292. Responsible for: `Watch` as the
 supervisor's state machine; `watch`'s three observables and the honest statement
 that they are the only three ways a launch ends — **a child that finishes its work
 and never signals reaches none of them**, and the launch stalls rather than ends,
@@ -280,7 +283,7 @@ handler.
 
 ### 5 · How this is checked — checked without meaning
 
-Owns `src/channel.rs` lines 289–453. Responsible for: the eleven inline channel
+Owns `src/channel.rs` lines 320–505. Responsible for: the twelve inline channel
 tests, read as what a `#[cfg(test)]` module inside a root buys that an
 integration test cannot — reaching `is_channel_name`, a private function whose
 exactness chapter 2 argued and only this module can pin; and what each test
@@ -322,14 +325,14 @@ spawning, cancellation and reaping.
 |---|---:|---|---:|
 | `Cargo.toml` | 1–42 | manifest | 1 |
 | `src/lib.rs` | 1–50 | the crate's account of itself, and its exports | 1 |
-| `src/error.rs` | 1–38 | the one opaque error | 1 |
-| `src/argv.rs` | 1–39 | the type a command arrives in | 1 |
-| `src/channel.rs` | 1–288 | completion channel | 2 |
-| `src/channel.rs` | 289–453 | inline test module | 5 |
-| `src/run.rs` | 1–146 | the launch's shape | 3 |
-| `src/run.rs` | 147–332 | the watch state, the launcher's signals and its entry state | 4 |
-| `src/run.rs` | 333–837 | terminal, its lease, detached mode and spawn | 3 |
-| `src/run.rs` | 838–1171 | the end of the group, supervise and escalate | 4 |
+| `src/error.rs` | 1–56 | the one opaque error | 1 |
+| `src/argv.rs` | 1–64 | the type a command arrives in | 1 |
+| `src/channel.rs` | 1–319 | completion channel | 2 |
+| `src/channel.rs` | 320–505 | inline test module | 5 |
+| `src/run.rs` | 1–168 | the launch's shape | 3 |
+| `src/run.rs` | 169–357 | the watch state, the launcher's signals and its entry state | 4 |
+| `src/run.rs` | 358–957 | a transparent launcher's entry state, terminal, its lease, detached mode and spawn | 3 |
+| `src/run.rs` | 958–1292 | the end of the group, supervise and escalate | 4 |
 | `src/confinement.rs` | 1–217 | confinement policy | 7 |
 
 ### Where a file's concerns split across chapters
@@ -337,7 +340,7 @@ spawning, cancellation and reaping.
 Two roots split. `src/run.rs` supplies the launch to chapter 3 and supervision
 to chapter 4, and chapter 4's first block sits between chapter 3's two.
 
-**`src/channel.rs` splits at line 289**, the `#[cfg(test)]` attribute, with
+**`src/channel.rs` splits at line 320**, the `#[cfg(test)]` attribute, with
 production in chapter 2 and the inline module in chapter 5. This is the only
 split in the book made at a `cfg` boundary rather than a conceptual one, and the
 reason is that the module's subject is *assurance*, which is chapter 5's, while
@@ -348,25 +351,25 @@ chapter 2's fragments, which are behind it.
 
 | Chapter | Lines | Share |
 |---:|---:|---:|
-| 1 · Orientation | 169 | 8% |
-| 2 · The channel | 288 | 14% |
-| 3 · The job | 651 | 32% |
-| 4 · The escalation | 520 | 26% |
-| 5 · How this is checked | 165 | 8% |
+| 1 · Orientation | 212 | 10% |
+| 2 · The channel | 319 | 14% |
+| 3 · The job | 768 | 35% |
+| 4 · The escalation | 524 | 24% |
+| 5 · How this is checked | 186 | 8% |
 | 6 · What ends a launch | 0 | — |
-| 7 · Confined jobs | 217 | 11% |
-| **total** | **2,010** | **100%** |
+| 7 · Confined jobs | 217 | 10% |
+| **total** | **2,226** | **100%** |
 
 Shares are rounded, so they need not sum to 100. Per root: `Cargo.toml` 42,
-`src/lib.rs` 50, `src/error.rs` 38, `src/argv.rs` 39, `src/channel.rs` 453,
-`src/run.rs` 1,171, `src/confinement.rs` 217.
+`src/lib.rs` 50, `src/error.rs` 56, `src/argv.rs` 64, `src/channel.rs` 505,
+`src/run.rs` 1,292, `src/confinement.rs` 217.
 
 ## What each chapter's prose owes
 
-Measured: **35% of the corpus is comment prose**, 705 of 2,010 lines, counting
+Measured: **35% of the corpus is comment prose**, 786 of 2,226 lines, counting
 every line whose first non-blank characters open a comment, and it is not spread
-evenly. `src/lib.rs` is 70% and `Cargo.toml` 52%. `src/run.rs` is 44% (510 of
-1,171 lines), and there the prose is *argument*: the escalation, the child
+evenly. `src/lib.rs` is 70% and `Cargo.toml` 52%. `src/run.rs` is 44% (565 of
+1,292 lines), and there the prose is *argument*: the escalation, the child
 dispositions, the interrupt latch, the terminal and the end of the group each
 carry a full case in situ. `src/confinement.rs` is 10%. Three things are what each chapter's prose
 owes, and a technical review checks for them:
@@ -374,7 +377,7 @@ owes, and a technical review checks for them:
 1. **Adjudicate the claim.** For every argued claim, name the behaviour it rests
    on, the test that proves it, and the alternative rejected with what it would
    have cost. A doc comment rarely names the test that holds it, and this
-   crate's evidence is 2,799 lines in seven files against a 2,010-line corpus.
+   crate's evidence is 3,005 lines in seven files against a 2,226-line corpus.
 2. **Carry the through-line.** Show where a decision in one place rests on a
    decision in another: `Channel::allocate` writing nothing is *why* `watch` can
    treat appearance as an event at all; the scrub list is *why* a nested child
@@ -518,7 +521,7 @@ that account lives, and the `README.md` points there once.
 `crates/keyed-launch/tests/` is 2,799 lines across seven files, one of them a
 module `src/run.rs` includes by path, and every one of them is evidence rather
 than a root. The book names a test whenever it
-adjudicates a claim, and reproduces none of them. The eleven tests it *does*
+adjudicates a claim, and reproduces none of them. The twelve tests it *does*
 reproduce are the inline module inside `src/channel.rs`, which are corpus
 because a root is `src/**/*.rs`.
 

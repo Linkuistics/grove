@@ -79,6 +79,8 @@ fn copied_completion_helper_runs_inside_native_confinement() {
             channel: &channel,
             channel_var: "GROVE_RUN_SIGNAL_FILE",
             scrub: &[std::ffi::OsStr::new("GROVE_SIGNAL_FILE")],
+            grant: &[],
+            transparent: None,
             cwd: Some(&root),
             escalation: Escalation {
                 grace: Duration::ZERO,

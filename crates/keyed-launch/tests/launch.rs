@@ -67,6 +67,8 @@ fn launch<'a>(
         channel,
         channel_var: "TEST_CHANNEL",
         scrub,
+        grant: &[],
+        transparent: None,
         cwd,
         escalation: FAST,
     }
@@ -172,7 +174,7 @@ fn a_signalled_child_that_keeps_waiting_is_terminated_after_the_grace() {
     let ended = run_observed(launch(&argv, &channel, &[], None), &mut |e| events.push(e)).unwrap();
     assert_eq!(events, [LaunchEvent::Started, LaunchEvent::Reaped]);
 
-    assert_eq!(ended.end, End::Signalled);
+    assert_eq!(ended.end, End::Escalated);
     assert_eq!(ended.token.as_ref().map(|t| t.as_str()), Some("relaunch"));
     assert!(
         !ended.status.success(),
@@ -210,7 +212,7 @@ fn a_child_that_ignores_sigterm_is_killed_after_the_kill_grace() {
     let ended = run_observed(launch(&argv, &channel, &[], None), &mut |e| events.push(e)).unwrap();
     assert_eq!(events, [LaunchEvent::Started, LaunchEvent::Reaped]);
 
-    assert_eq!(ended.end, End::Signalled);
+    assert_eq!(ended.end, End::Escalated);
     assert_eq!(
         ended.status.signal(),
         Some(SIGKILL),
@@ -304,6 +306,83 @@ fn granting_the_channel_survives_a_scrub_list_that_names_it() {
         Some("done"),
         "the child could not reach its channel, so the grant was scrubbed away"
     );
+}
+
+/// A grant is set after the scrub, so it replaces a value the scrub removed,
+/// and before the channel, so no grant can publish another path under the
+/// channel's variable.
+#[test]
+fn a_grant_replaces_a_scrubbed_value_and_cannot_replace_the_channel() {
+    let harness = Harness::new();
+    let script =
+        harness.script("printf '%s|%s\\n' \"${HOME-<unset>}\" \"$GRANTED\" > \"$TEST_CHANNEL\"\n");
+    let argv = harness.argv(&script);
+    let channel = Channel::allocate(&harness.control()).unwrap();
+    let scrub: [&OsStr; 1] = [OsStr::new("HOME")];
+    let grant: [(&OsStr, &OsStr); 3] = [
+        (OsStr::new("HOME"), OsStr::new("/granted/home")),
+        (OsStr::new("GRANTED"), OsStr::new("yes")),
+        (OsStr::new("TEST_CHANNEL"), OsStr::new("/nowhere")),
+    ];
+
+    let ended = run(Launch {
+        grant: &grant,
+        ..launch(&argv, &channel, &scrub, None)
+    })
+    .unwrap();
+
+    assert_eq!(
+        ended.token.as_ref().map(|t| t.as_str()),
+        Some("/granted/home|yes"),
+        "the child wrote through the channel, so the grant did not replace it"
+    );
+}
+
+/// The program is what is spawned, and `argv[0]` is what the child is told
+/// it is. `ps` reads the child's own argument vector back.
+#[test]
+fn the_child_sees_its_arg0_while_its_program_is_what_runs() {
+    let harness = Harness::new();
+    let argv = Argv::new(
+        OsString::from("/bin/sh"),
+        vec![
+            OsString::from("-c"),
+            OsString::from("ps -o args= -p $$ > \"$TEST_CHANNEL\""),
+        ],
+    )
+    .with_arg0(OsString::from("chosen-name"));
+    let channel = Channel::allocate(&harness.control()).unwrap();
+
+    let ended = run(launch(&argv, &channel, &[], None)).unwrap();
+
+    let args = ended.token.expect("the child reported its arguments");
+    assert!(
+        args.as_str().starts_with("chosen-name -c "),
+        "{:?}",
+        args.as_str()
+    );
+}
+
+/// The channel's appearance is the whole signal: an empty file is a signal
+/// with no token. A child that never touches the channel has not signalled.
+#[test]
+fn an_empty_channel_signals_without_a_token() {
+    let harness = Harness::new();
+    let channel = Channel::allocate(&harness.control()).unwrap();
+    let script = harness.script(": > \"$TEST_CHANNEL\"\n");
+    let argv = harness.argv(&script);
+
+    let ended = run(launch(&argv, &channel, &[], None)).unwrap();
+
+    assert!(ended.signalled);
+    assert_eq!(ended.token, None);
+    assert_eq!(ended.end, End::Exited);
+
+    let channel = Channel::allocate(&harness.control()).unwrap();
+    let script = harness.script("exit 0\n");
+    let argv = harness.argv(&script);
+    let ended = run(launch(&argv, &channel, &[], None)).unwrap();
+    assert!(!ended.signalled, "control: nothing appeared");
 }
 
 #[test]
@@ -553,7 +632,7 @@ fn the_escalation_reaps_the_childs_descendants() {
         .unwrap();
 
     let ended = run(launch(&argv, &channel, &[], None)).unwrap();
-    assert_eq!(ended.end, End::Signalled);
+    assert_eq!(ended.end, End::Escalated);
 
     let grandchild: i32 = fs::read_to_string(&grandchild_pid)
         .expect("the fixture never reported its grandchild")
@@ -639,7 +718,7 @@ fn a_term_ignoring_descendant_is_gone_before_the_launch_returns() {
         );
         assert_eq!(ended.group, Group::Gone, "{leaves:?}");
         let (code, end) = match leaves {
-            Leaves::OnTheTerm => (7, End::Signalled),
+            Leaves::OnTheTerm => (7, End::Escalated),
             Leaves::WithinTheGrace => (5, End::Exited),
             Leaves::OnItsOwn => (3, End::Exited),
         };

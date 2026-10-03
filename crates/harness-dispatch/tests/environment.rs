@@ -190,6 +190,7 @@ fn excluded_names_are_refused_before_any_policy_runs() {
         "DYLD_LIBRARY_PATH",
         "HARNESS_DISPATCH_STATE_DIR",
         "HARNESS_DISPATCH_RUN_ID",
+        "HARNESS_DISPATCH_EXIT_FILE",
     ] {
         // The refusal is the name's, set or not. A loader variable is left
         // unset, because the loader would act on it in the front itself,
@@ -325,7 +326,7 @@ fn inspection_and_records_name_each_grant_and_never_show_its_value() {
         "run", "--kind", "impl", "--prompt", "p", "--json",
     ]));
     assert_eq!(ran.code, Some(0), "{}", ran.stderr);
-    let notice: Value = serde_json::from_str(ran.stderr.trim_end()).unwrap();
+    let notice = ran.handoff();
     let run_id = notice["handoff"]["runId"].as_str().unwrap().to_owned();
     let mut record = sandbox.command();
     record.args([

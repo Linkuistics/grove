@@ -2912,7 +2912,8 @@ fn a_review_s_findings_attach_to_the_producer_s_run_after_the_tree_is_removed() 
 // the rest and does the case's action. What the harness is handed is what
 // Grove hands the process it spawns: std keeps the mask and resets SIGPIPE at
 // the spawn, and keyed-launch resets seven terminal signals. Dispatch, which
-// is that process until it becomes the harness, must add nothing to it.
+// is that process and spawns the harness as its own child, hands it that entry
+// state and must add nothing to it.
 
 /// The longest a case's loop may run before the case fails rather than hangs.
 const SESSION_LIMIT: Duration = Duration::from_secs(60);
@@ -3132,6 +3133,7 @@ fn session_probe() -> &'static Path {
 #[derive(Debug)]
 struct Probed {
     pid: libc::pid_t,
+    parent: libc::pid_t,
     group: libc::pid_t,
     /// The controlling terminal's foreground group, or -1 without one.
     foreground: libc::pid_t,
@@ -3172,6 +3174,7 @@ impl Probed {
         };
         Probed {
             pid: number("pid"),
+            parent: number("ppid"),
             group: number("pgid"),
             foreground: number("foreground"),
             stdin: field("stdin").to_owned(),
@@ -3409,20 +3412,21 @@ fn gone_within(pid: libc::pid_t, limit: Duration) -> bool {
     true
 }
 
-// The harness is the job Grove launched. Grove spawned one process into a
-// group of its own and handed it the terminal; the front and its worker ran as
-// that process and its group, and the harness is what the front became. So the
-// harness reports the PID and group the process table gave Grove's only child,
-// the terminal as its stdin with its own group in the foreground, and the
-// working tree as its cwd. Its signal state is the one Grove's spawn gives its
+// The harness is the job dispatch launched beneath the one Grove launched.
+// Grove spawned one process into a group of its own and handed it the
+// terminal; the front and its worker ran as that process and its group, and
+// the front spawned the harness as its own child, into a group of its own, and
+// handed the terminal on. So the harness reports the PID the process table
+// gave Grove's only child as its parent, a group it leads holding the
+// terminal, the terminal as its stdin, and the working tree as its cwd. Its signal state is the one Grove's spawn gives its
 // child, SIGPIPE's included: the driver starts with SIGUSR1 ignored and SIGUSR2
 // blocked, neither of which Grove resets, and the harness holds exactly those
 // two and nothing dispatch added. The policy worker has `/dev/null` for stdin
 // and no Grove or dispatch control variable, and the harness has the fresh
 // channel the live epoch names, which it completes through.
 //
-// The controls are one altered run. The probe forks, and its child leaves the
-// group, swaps its stdin for `/dev/null`, moves to `/`, flips SIGPIPE and
+// The controls are one altered run. The probe forks, and its child, whose
+// parent is the probe, leaves the group, swaps its stdin for `/dev/null`, moves to `/`, flips SIGPIPE and
 // blocks SIGALRM before it reports; the driver starts plain; and the worker is
 // granted the channel. Every observation then changes, and each change has
 // one cause, since the entry and the alteration touch different signals. The
@@ -3441,9 +3445,12 @@ fn the_harness_is_the_foreground_job_grove_launched() {
     let probed = dispatch.probed(0);
     assert_eq!(held.pid, held.group, "Grove's child leads its own group");
     assert_eq!(
-        (probed.pid, probed.group),
-        (held.pid, held.group),
-        "the harness is the process Grove launched: {probed:?}"
+        probed.parent, held.pid,
+        "the harness is the child of the process Grove launched: {probed:?}"
+    );
+    assert_eq!(
+        probed.group, probed.pid,
+        "the harness leads a job of its own: {probed:?}"
     );
     assert_eq!(
         probed.foreground, probed.group,
@@ -3505,7 +3512,7 @@ fn the_harness_is_the_foreground_job_grove_launched() {
     dispatch.settings(r#"{ "policyEnv": ["GROVE_SIGNAL_FILE"] }"#);
     let held = dispatch.drive_held(PLAIN, 1);
     let altered = dispatch.probed(1);
-    assert_ne!(altered.pid, held.pid, "{altered:?}");
+    assert_ne!(altered.parent, held.pid, "{altered:?}");
     assert_ne!(altered.group, held.group, "{altered:?}");
     assert_ne!(altered.foreground, altered.group, "{altered:?}");
     assert_eq!(altered.stdin, "-", "{altered:?}");

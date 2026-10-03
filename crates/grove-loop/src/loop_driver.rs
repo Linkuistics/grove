@@ -380,8 +380,11 @@ fn dispatch_run(dispatch: &Path, task: &Selection, prompt: &str) -> Argv {
 /// The argv is taken whole from its caller. Nothing is appended, injected, or
 /// reordered here. In the loop it is [`dispatch_run`]'s: the front process
 /// leads the job and holds the terminal, its policy worker joins that job, and
-/// the harness the policy selects replaces the front in the same process, so
-/// the runner's contract holds for the harness as it held for the front.
+/// the front then supervises the harness the policy selects as a job of its
+/// own, through the same runner contract, handing the terminal on. Until the
+/// lifecycle launch moves onto dispatch's run ending, this channel still ends
+/// the session: its escalation cancels dispatch's run, and dispatch ends its
+/// harness before it dies of the same signal.
 ///
 /// Prints one diagnostic line naming the kind and the selected handle. That
 /// line is the only durable record of what each session in a loop was working
@@ -420,6 +423,8 @@ fn launch_session(
                     channel,
                     channel_var: CHANNEL_VAR,
                     scrub: &scrub_list(),
+                    grant: &[],
+                    transparent: None,
                     cwd: Some(worktree),
                     escalation: ESCALATION,
                 },
@@ -456,14 +461,22 @@ fn complete_post_reap_epoch_handoff<E, T>(
 /// The kill escalation the runner applies once the completion channel appears.
 ///
 /// Built-in constants, not knobs. Two seconds lets the agent's `complete` tool
-/// call return and its turn end before its session dies; five more is time for
-/// an orderly SIGTERM shutdown before SIGKILL. Why an escalation is needed at
-/// all — an interactive session is never reaped on its own, and cannot be
-/// trusted to end itself under every sandbox — is `keyed_launch::Escalation`'s
-/// to state, and it states it.
+/// call return and its turn end before its session dies. Why an escalation is
+/// needed at all — an interactive session is never reaped on its own, and
+/// cannot be trusted to end itself under every sandbox — is
+/// `keyed_launch::Escalation`'s to state, and it states it.
+///
+/// **The kill-grace must outlast dispatch's own end.** The child is
+/// `harness-dispatch run`, which supervises the harness: the SIGTERM sent here
+/// cancels its run, and it then sends its harness's group the same signal,
+/// waits its own kill-grace of 5 seconds, kills what remains of the group,
+/// confirms it gone within 1 second and waits on its record store's lock. Ten
+/// seconds covers that, so this SIGKILL never races dispatch's escalation and
+/// orphans a harness it was still ending
+/// (`docs/specs/module-decomposition.md`, decision 7).
 const ESCALATION: Escalation = Escalation {
     grace: Duration::from_secs(2),
-    kill_grace: Duration::from_secs(5),
+    kill_grace: Duration::from_secs(10),
 };
 
 /// Reset the terminal after a (possibly SIGTERM'd) TUI: restore cooked mode,

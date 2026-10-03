@@ -28,8 +28,14 @@ rust-version.workspace = true
 # Linux cross-build (zigbuild at glibc 2.17) compile C, which
 # `dispatch-delivery-k16` builds and smokes on every target. `sha2` digests the
 # policy entry the record names; it was already a build dependency.
+#
+# `keyed-launch` is the runner that spawns and supervises the harness
+# (*Supervision*; decision 7 of `docs/specs/module-decomposition.md`). It has no
+# Grove, task-tree or jj dependency of its own, and an extraction takes it along
+# (*Package boundary*).
 [dependencies]
 clap = { version = "4", features = ["derive"] }
+keyed-launch = { path = "../keyed-launch" }
 libc = "0.2"
 rusqlite = { version = "0.40", default-features = false, features = ["bundled"] }
 serde_json = "1.0"

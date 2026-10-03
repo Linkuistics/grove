@@ -91,6 +91,40 @@ pub struct Launch<'a> {
     pub escalation: Escalation,
 }
 
+/// A noninteractive supervisor launch. It carries no completion channel:
+/// only the child's exit or the caller's cancellation can end it.
+/// Both output streams go to the regular file passed to `run_noninteractive`.
+pub struct NoninteractiveLaunch<'a> {
+    pub argv: &'a crate::Argv,
+    pub scrub: &'a [&'a OsStr],
+    pub cwd: Option<&'a Path>,
+    pub escalation: Escalation,
+}
+
+struct Job<'a> {
+    argv: &'a crate::Argv,
+    completion: Option<(&'a Channel, &'a str)>,
+    scrub: &'a [&'a OsStr],
+    grant: &'a [(&'a OsStr, &'a OsStr)],
+    transparent: Option<&'a EntrySignals>,
+    cwd: Option<&'a Path>,
+    escalation: Escalation,
+}
+
+impl<'a> From<Launch<'a>> for Job<'a> {
+    fn from(launch: Launch<'a>) -> Self {
+        Self {
+            argv: launch.argv,
+            completion: Some((launch.channel, launch.channel_var)),
+            scrub: launch.scrub,
+            grant: launch.grant,
+            transparent: launch.transparent,
+            cwd: launch.cwd,
+            escalation: launch.escalation,
+        }
+    }
+}
+
 /// How a launch ended.
 ///
 /// `Escalated` and `Exited` both describe a child that is gone; they differ in
@@ -708,7 +742,7 @@ pub fn run_observed(
     launch: Launch<'_>,
     observer: &mut dyn FnMut(LaunchEvent),
 ) -> Result<Ended, LaunchError> {
-    run_with_output(launch, observer, None, None)
+    run_with_output(launch.into(), observer, None, None)
 }
 
 /// Run a noninteractive child in a new POSIX session, without a controlling
@@ -718,7 +752,10 @@ pub fn run_observed(
 /// long to end its own child. Remaining members of the child's process group
 /// are killed when it exits, as in every launch. This isolates process control, not filesystem access or processes that
 /// deliberately leave the child's process group.
-pub fn run_noninteractive(launch: Launch<'_>, output: File) -> Result<Ended, LaunchError> {
+pub fn run_noninteractive(
+    launch: NoninteractiveLaunch<'_>,
+    output: File,
+) -> Result<Ended, LaunchError> {
     let regular = output
         .metadata()
         .map_err(|error| LaunchError::new(format!("cannot inspect the launch log: {error}")))?;
@@ -727,38 +764,28 @@ pub fn run_noninteractive(launch: Launch<'_>, output: File) -> Result<Ended, Lau
             "the noninteractive launch log must be a regular file",
         ));
     }
-    run_with_output(launch, &mut |_| {}, Some(output), None)
-}
-
-/// As [`run_noninteractive`], under mandatory filesystem confinement, with no
-/// unconfined fallback. The program is an absolute path: no name is looked up.
-///
-/// **Cancellation kills a confined job at once**, with no kill-grace. Its
-/// launcher may itself be a nested supervisor in its own caller's grace, and
-/// must finish its cancellation inside that grace.
-pub fn run_confined(
-    launch: Launch<'_>,
-    output: File,
-    policy: &crate::Confinement<'_>,
-) -> Result<Ended, LaunchError> {
-    if !output
-        .metadata()
-        .map_err(|error| LaunchError::new(error.to_string()))?
-        .is_file()
-    {
-        return Err(LaunchError::new(
-            "the confined launch log must be a regular file",
-        ));
-    }
-    let command = crate::confinement::command(launch.argv, policy)?;
-    run_with_output(launch, &mut |_| {}, Some(output), Some(command))
+    run_with_output(
+        Job {
+            argv: launch.argv,
+            completion: None,
+            scrub: launch.scrub,
+            grant: &[],
+            transparent: None,
+            cwd: launch.cwd,
+            escalation: launch.escalation,
+        },
+        &mut |_| {},
+        Some(output),
+        None,
+    )
 }
 
 /// Confine a noninteractive job with EOF stdin and inherited stdout/stderr.
 /// Start a new POSIX session, close inherited descriptors above stderr on
 /// exec, and clear the environment before applying Launch's explicit grants.
 /// The channel is granted last. Observations have `run_observed`'s ordering;
-/// cancellation kills the group immediately, as in `run_confined`.
+/// cancellation kills the group immediately, so a nested supervisor finishes
+/// within its enclosing supervisor's grace.
 pub fn run_confined_observed(
     launch: Launch<'_>,
     policy: &crate::FilesystemGrants<'_>,
@@ -766,11 +793,11 @@ pub fn run_confined_observed(
 ) -> Result<Ended, LaunchError> {
     let mut command = crate::confinement::command_with_grants(launch.argv, policy)?;
     command.env_clear();
-    run_with_output(launch, observer, None, Some(command))
+    run_with_output(launch.into(), observer, None, Some(command))
 }
 
 fn run_with_output(
-    launch: Launch<'_>,
+    launch: Job<'_>,
     observer: &mut dyn FnMut(LaunchEvent),
     output: Option<File>,
     confined_command: Option<Command>,
@@ -820,7 +847,9 @@ fn run_with_output(
     for (name, value) in launch.grant {
         command.env(name, value);
     }
-    command.env(launch.channel_var, launch.channel.path());
+    if let Some((channel, name)) = launch.completion {
+        command.env(name, channel.path());
+    }
 
     // Hand the terminal over from *inside* the child as well as from the parent
     // below, which cannot be early enough on its own: the parent's handover
@@ -926,7 +955,7 @@ fn run_with_output(
 
     supervise(
         child,
-        launch.channel,
+        launch.completion.map(|(channel, _)| channel),
         launch.escalation,
         mode,
         observer,
@@ -1136,7 +1165,7 @@ struct Failed {
 /// survived it.
 fn supervise(
     mut child: impl Process,
-    channel: &Channel,
+    channel: Option<&Channel>,
     escalation: Escalation,
     mode: Mode,
     observer: &mut dyn FnMut(LaunchEvent),
@@ -1160,10 +1189,10 @@ fn supervise(
                 },
                 status,
                 elapsed,
-                signalled: channel.appeared(),
+                signalled: channel.is_some_and(Channel::appeared),
                 // Read after the child is gone, so a child still mid-write
                 // cannot be observed half-signalled.
-                token: channel.read(),
+                token: channel.and_then(Channel::read),
                 group,
             })
         }
@@ -1176,7 +1205,7 @@ fn supervise(
 
 fn watch(
     child: &mut impl Process,
-    channel: &Channel,
+    channel: Option<&Channel>,
     escalation: Escalation,
     mode: Mode,
     observer: &mut dyn FnMut(LaunchEvent),
@@ -1236,7 +1265,9 @@ fn watch(
         }
 
         watch = match watch {
-            Watch::Running if channel.appeared() => Watch::Signalled(Instant::now()),
+            Watch::Running if channel.is_some_and(Channel::appeared) => {
+                Watch::Signalled(Instant::now())
+            }
             Watch::Signalled(at) if at.elapsed() >= escalation.grace => {
                 // `escalated` is latched *here*, where the escalation actually
                 // runs, and not where the channel appeared. `End` would

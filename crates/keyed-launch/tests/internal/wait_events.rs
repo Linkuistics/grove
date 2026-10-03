@@ -94,7 +94,7 @@ fn confirmed_reap_precedes_token_read_and_recovery_on_every_wait_path() {
             let recovered = RefCell::new(None);
             let outcome = supervise(
                 child,
-                &channel,
+                Some(&channel),
                 NO_WAIT,
                 Mode::Interactive,
                 &mut |event| {
@@ -179,7 +179,7 @@ fn a_surviving_group_is_reported_beside_the_childs_status() {
     };
     let ended = supervise(
         child,
-        &channel,
+        Some(&channel),
         NO_WAIT,
         Mode::Interactive,
         &mut |_| {},
@@ -243,7 +243,16 @@ fn cancellation_forwards_or_kills_by_mode() {
         // tick. Set directly rather than raised: a real signal would reach
         // whatever else this test process is running.
         INTERRUPTED_BY.store(libc::SIGHUP, Ordering::Relaxed);
-        let ended = supervise(child, &channel, NO_WAIT, mode, &mut |_| {}, || {}, |_| {}).unwrap();
+        let ended = supervise(
+            child,
+            Some(&channel),
+            NO_WAIT,
+            mode,
+            &mut |_| {},
+            || {},
+            |_| {},
+        )
+        .unwrap();
         assert_eq!(&*trace.borrow(), expected, "{mode:?}");
         assert_eq!(
             ended.end,
@@ -274,7 +283,7 @@ fn a_signal_after_the_reap_does_not_cancel_the_reaped_launch() {
         };
         let ended = supervise(
             child,
-            &channel,
+            Some(&channel),
             NO_WAIT,
             Mode::Interactive,
             &mut |_| {},
@@ -309,7 +318,7 @@ fn duration_stops_at_the_reap_before_observation_and_recovery() {
     let wall = Instant::now();
     let ended = supervise(
         child,
-        &channel,
+        Some(&channel),
         NO_WAIT,
         Mode::Interactive,
         &mut |_| std::thread::sleep(delay),
@@ -342,7 +351,7 @@ fn the_reap_sample_drains_a_second_cancellation() {
     INTERRUPTED_BY.store(libc::SIGHUP, Ordering::Relaxed);
     let ended = supervise(
         child,
-        &channel,
+        Some(&channel),
         NO_WAIT,
         Mode::Interactive,
         &mut |_| {},

@@ -33,7 +33,7 @@ clap = { version = "4", features = ["derive"] }
 # behind grove-tui.
 grove-loop = { path = "../grove-loop" }
 grove-tui = { path = "../grove-tui" }
-# The runner a standalone invocation is launched and confined through.
+# The runner Grove uses to supervise noninteractive dispatch invocations.
 keyed-launch = { path = "../keyed-launch" }
 serde_json = "1.0"
 tempfile = "3.10"

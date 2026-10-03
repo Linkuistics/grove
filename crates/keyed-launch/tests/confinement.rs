@@ -22,8 +22,7 @@ fn confined_child_and_descendants_cannot_read_or_write_outside_the_invocation() 
     )).unwrap();
     let argv = Argv::new(OsString::from("/bin/sh"), vec![script.into_os_string()]);
     let channel = Channel::allocate(&work).unwrap();
-    let log = root.join("log");
-    let ended = keyed_launch::run_confined(
+    let ended = keyed_launch::run_confined_observed(
         Launch {
             argv: &argv,
             channel: &channel,
@@ -37,19 +36,14 @@ fn confined_child_and_descendants_cannot_read_or_write_outside_the_invocation() 
                 kill_grace: Duration::from_millis(100),
             },
         },
-        fs::File::create(&log).unwrap(),
-        &keyed_launch::Confinement {
-            writable: &work,
+        &keyed_launch::FilesystemGrants {
+            writable: std::slice::from_ref(&work),
             runtime_read: &[],
         },
+        &mut |_| {},
     )
     .unwrap();
-    assert!(
-        ended.status.success(),
-        "sandbox failed: {:?}\n{}",
-        ended.status,
-        fs::read_to_string(log).unwrap()
-    );
+    assert!(ended.status.success(), "sandbox failed: {:?}", ended.status);
     assert_eq!(ended.token.unwrap().as_str(), "done");
     assert_eq!(fs::read_to_string(secret).unwrap(), "parent contents");
     assert_eq!(fs::read_to_string(work.join("result")).unwrap(), "allowed");
@@ -82,8 +76,7 @@ fn explicit_runtime_file_grant_allows_reads_but_denies_writes() {
         ],
     );
     let channel = Channel::allocate(&work).unwrap();
-    let log = root.join("log");
-    let ended = keyed_launch::run_confined(
+    let ended = keyed_launch::run_confined_observed(
         Launch {
             argv: &argv,
             channel: &channel,
@@ -97,19 +90,14 @@ fn explicit_runtime_file_grant_allows_reads_but_denies_writes() {
                 kill_grace: Duration::from_millis(100),
             },
         },
-        fs::File::create(&log).unwrap(),
-        &keyed_launch::Confinement {
-            writable: &work,
+        &keyed_launch::FilesystemGrants {
+            writable: std::slice::from_ref(&work),
             runtime_read: std::slice::from_ref(&runtime_file),
         },
+        &mut |_| {},
     )
     .unwrap();
-    assert!(
-        ended.status.success(),
-        "sandbox failed: {:?}\n{}",
-        ended.status,
-        fs::read_to_string(log).unwrap()
-    );
+    assert!(ended.status.success(), "sandbox failed: {:?}", ended.status);
     assert_eq!(ended.token.unwrap().as_str(), "done");
     assert_eq!(
         fs::read_to_string(runtime_file).unwrap(),
@@ -135,7 +123,7 @@ fn a_confined_program_that_is_not_an_absolute_path_refuses() {
     for program in ["sh", "./probe.sh", "work/probe.sh"] {
         let argv = Argv::new(OsString::from(program), vec![]);
         let channel = Channel::allocate(&work).unwrap();
-        let error = keyed_launch::run_confined(
+        let error = keyed_launch::run_confined_observed(
             Launch {
                 argv: &argv,
                 channel: &channel,
@@ -149,11 +137,11 @@ fn a_confined_program_that_is_not_an_absolute_path_refuses() {
                     kill_grace: Duration::from_millis(100),
                 },
             },
-            fs::File::create(root.join("log")).unwrap(),
-            &keyed_launch::Confinement {
-                writable: &work,
+            &keyed_launch::FilesystemGrants {
+                writable: std::slice::from_ref(&work),
                 runtime_read: &[],
             },
+            &mut |_| {},
         )
         .unwrap_err()
         .to_string();

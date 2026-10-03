@@ -43,10 +43,10 @@ mod run;
 pub use argv::Argv;
 pub use channel::{signal, Channel, Token};
 pub use confinement::{
-    confinement_available, confinement_system_reads, regular_file_at, Confinement, FilesystemGrants,
+    confinement_available, confinement_system_reads, regular_file_at, FilesystemGrants,
 };
 pub use error::LaunchError;
 pub use run::{
-    reraise, run, run_confined, run_confined_observed, run_noninteractive, run_observed,
-    take_interrupt, End, Ended, EntrySignals, Escalation, Group, Launch, LaunchEvent,
+    reraise, run, run_confined_observed, run_noninteractive, run_observed, take_interrupt, End,
+    Ended, EntrySignals, Escalation, Group, Launch, LaunchEvent, NoninteractiveLaunch,
 };

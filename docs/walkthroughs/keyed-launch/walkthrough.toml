@@ -119,12 +119,12 @@ lines = 505
 [[root]]
 id    = "source-run"
 path  = "crates/keyed-launch/src/run.rs"
-lines = 1318
+lines = 1349
 
 [[root]]
 id    = "source-confinement"
 path  = "crates/keyed-launch/src/confinement.rs"
-lines = 328
+lines = 301
 
 [[block]]
 id    = "manifest-one-dependency"
@@ -166,31 +166,31 @@ lines = "320-505"
 id    = "launch-shape"
 root  = "source-run"
 owner = "nothing-else-added"
-lines = "1-168"
+lines = "1-202"
 
 [[block]]
 id    = "watch-and-launcher-signals"
 root  = "source-run"
 owner = "the-launchers-job"
-lines = "169-357"
+lines = "203-391"
 
 [[block]]
 id    = "terminal-and-spawn"
 root  = "source-run"
 owner = "nothing-else-added"
-lines = "358-975"
+lines = "392-1004"
 
 [[block]]
 id    = "supervise-and-escalate"
 root  = "source-run"
 owner = "the-launchers-job"
-lines = "976-1318"
+lines = "1005-1349"
 
 [[block]]
 id    = "confinement-policy"
 root  = "source-confinement"
 owner = "confined-jobs"
-lines = "1-328"
+lines = "1-301"
 
 [[early-use]]
 symbols   = "`Channel`, `Token`, `signal`"
@@ -211,7 +211,7 @@ owner     = "the-launchers-job"
 statement = "The launcher's own two obligations for a termination signal: `take_interrupt` collects one that arrived between launches, and `reraise` is how a launcher dies of the same signal rather than reporting an exit code."
 
 [[early-use]]
-symbols   = "`run_noninteractive`, `run_confined`, `run_confined_observed`, `Confinement`, `FilesystemGrants`, `confinement_available`, `confinement_system_reads`, `regular_file_at`"
+symbols   = "`run_noninteractive`, `run_confined_observed`, `NoninteractiveLaunch`, `FilesystemGrants`, `confinement_available`, `confinement_system_reads`, `regular_file_at`"
 first-use = "01-orientation.md#the-cast"
 owner     = "confined-jobs"
 statement = "Detached launches with file or inherited output, mandatory filesystem grants, backend availability and system-read inventory, and stable reads of artifacts through held directories."

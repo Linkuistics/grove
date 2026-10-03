@@ -6,7 +6,7 @@
 ## Observation and lifecycle have separate lifetimes
 
 <!-- rollup «owned-lines-total» -->
-The book reconstructs 1,212 source lines. The preceding chapters explain parsing,
+The book reconstructs 1,129 source lines. The preceding chapters explain parsing,
 dispatch and their tests. This chapter
 connects the public library calls and owns no source of its own.
 
@@ -56,7 +56,7 @@ and states its boundary.
 | `grove_loop::LoopOutcome` | Distinguish clean stops and interruption |
 | `grove_loop::reraise` | Preserve an interrupted driver's signal exit |
 | `grove_tui::run` | Own the interactive observation session |
-| `keyed_launch::run_confined` | Launch, confine and reap a standalone invocation's command |
+| `keyed_launch::run_noninteractive` | Launch and reap dispatch; dispatch confines its selected harness |
 
 All are public library items. The package boundary makes accidental access to
 private items a compiler error; a source inclusion from outside the package
@@ -121,7 +121,7 @@ types at first use.
 
 <!-- rollup «owned-lines-sequence» -->
 <!-- rollup «source-owning-chapters» -->
-Owned source is 61 + 62 + 461 + 83 + 545 = 1,212 lines across 5 source-owning chapters.
+Owned source is 61 + 62 + 461 + 83 + 462 = 1,129 lines across 5 source-owning chapters.
 Assembly owns none. The ledgers are maintained with source changes;
 production files remain authoritative.
 
@@ -141,7 +141,7 @@ terminal smoke. The task's verification record states their observed results.
 <!-- rollup «source-roots» -->
 <!-- rollup «owned-lines-total» -->
 <!-- rollup «chapters» -->
-The corpus contains 7 roots and 1,212 lines, explained across 6 chapters and two
+The corpus contains 7 roots and 1,129 lines, explained across 6 chapters and two
 lookup pages. No deferred source range belongs in the final book.
 
 [Previous: Proving a negative](04-proving-a-negative.md) | [Contents](README.md) | [Next: One isolated invocation](06-standalone-invocations.md)

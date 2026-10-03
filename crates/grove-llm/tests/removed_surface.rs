@@ -72,8 +72,6 @@ enum Role {
     /// The one capability the driver grants its foreground child: the path it
     /// watches to end the session. Production reads and writes it by design.
     LoopControlChannel,
-    /// A standalone invocation's own acknowledgement, separate from tree epochs.
-    StandaloneControlChannel,
     /// Deterministic failure/pause seams and fixture handshakes. Internal test
     /// controls, never supported process configuration — which is why
     /// production names them only to scrub them from a configured session.
@@ -95,7 +93,7 @@ enum Role {
 /// on its own as the surfaces it names disappear.
 const ROLES: &[(&str, Role)] = &[
     ("GROVE_SIGNAL_FILE", Role::LoopControlChannel),
-    ("GROVE_RUN_SIGNAL_FILE", Role::StandaloneControlChannel),
+    ("GROVE_LAUNCH_DIR", Role::LoopControlChannel),
     ("GROVE_RELEASE_RUNTIME_READ", Role::ReleaseTooling),
     (
         "GROVE_DRIVER_LEASE_FORK_SENSITIVE_TEST",

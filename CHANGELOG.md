@@ -52,6 +52,11 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+- `grove run` launches through `harness-dispatch run --confine`, with a recorded
+  run and isolated exit signal. Outputs publish only after an acknowledged,
+  successful dispatch ending; selection and run cancellation stop the nested
+  job before publication. Standalone `grove-llm complete --done` is removed.
+
 - `harness-dispatch`: `run --confine` selects outside mandatory Seatbelt or
   bubblewrap confinement, then supervises a noninteractive harness with a
   minimal environment and private scratch storage. Repeatable `--runtime-read

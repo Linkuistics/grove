@@ -116,6 +116,7 @@ fi
 echo dispatch >>"$RELEASE_TEST_SCRATCH/calls"
 EOF
 chmod +x "$scratch/bin/cargo" "$scratch/bin/task"
+original_path="$PATH"
 export PATH="$scratch/bin:$PATH"
 printf '{}\n' >"$scratch/auth one.json"
 printf '{}\n' >"$scratch/auth-two.json"
@@ -262,4 +263,39 @@ if (cd "$scratch/repo" && bash scripts/release-prepare.sh) >"$scratch/output" 2>
   exit 1
 fi
 grep -Fq 'No changes since v1.2.3' "$scratch/output"
-echo 'release preparation tests: all passed'
+# Exercise the staged release inputs through the real confined boundary too.
+# This deterministic harness follows the prompt's canonical dispatch exit command.
+PATH="$original_path" "$RELEASE_TEST_TASK" --dir "$repo_root" dispatch:build
+PATH="$original_path" "$RELEASE_TEST_CARGO" build --manifest-path "$repo_root/Cargo.toml" --locked -p grove
+mkdir -p "$scratch/real-home/.config/harness-dispatch"
+cat >"$scratch/real-harness.sh" <<'EOF_HARNESS'
+#!/bin/sh
+set -eu
+for input in changes.txt changes.diff current-unreleased.md previous-changelog.md SKILL.md codex-headless.sh; do
+  test -r "$input"
+done
+test -n "$HARNESS_DISPATCH_RUN_ID"
+printf '%s\n' '- Deterministic notes from staged release evidence.' > release-notes.md
+completion=$(printf '%s\n' "$1" | sed -n '/exact command as your final action:/{n;p;}')
+case "$completion" in *"harness-dispatch' exit") ;; *) exit 41 ;; esac
+eval "$completion"
+EOF_HARNESS
+cat >"$scratch/real-home/.config/harness-dispatch/policy.ts" <<EOF_POLICY
+export const policy = {
+  schemaVersion: 2,
+  version: "release-test",
+  select: request => ({ status: "selected", program: "/bin/sh",
+    args: ["$scratch/real-harness.sh", request.prompt], provider: "fixture",
+    model: "none", effort: "none", reason: "deterministic release notes" }),
+};
+EOF_POLICY
+mkdir -p "$scratch/real-notes"
+real_inputs=()
+for input in changes.txt changes.diff current-unreleased.md previous-changelog.md SKILL.md codex-headless.sh; do
+  real_inputs+=(--input "$scratch/observed/$input")
+done
+HOME="$scratch/real-home" PATH="$original_path" "$repo_root/target/debug/grove" run release-notes \
+  --prompt-file "$scratch/observed/prompt" "${real_inputs[@]}" \
+  --runtime-read "$scratch/real-harness.sh" --output "$scratch/real-notes/release-notes.md" --ui inline
+grep -Fxq -- '- Deterministic notes from staged release evidence.' "$scratch/real-notes/release-notes.md"
+echo 'release preparation tests: all passed' 

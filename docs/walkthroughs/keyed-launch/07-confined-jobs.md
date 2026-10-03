@@ -5,32 +5,30 @@
 <a id="confined-job"></a>
 ## A separate process mode and filesystem policy
 
-`run_confined` combines the noninteractive process mode with mandatory filesystem
-confinement. `run_noninteractive` supplies only the process mode. Both keep stdin
-at EOF, direct stdout and stderr to a caller-owned regular file, create a new
-POSIX session, and mark inherited descriptors above stderr close-on-exec. They
-do not hand over a controlling terminal. The interactive `run` and `run_observed`
-path described earlier retains its foreground-job behavior.
+`run_noninteractive` accepts a `NoninteractiveLaunch` without a completion
+channel, captures stdout and stderr in a caller-owned regular file, creates a
+new POSIX session and keeps stdin at EOF. Grove uses it to supervise dispatch.
+It adds no filesystem confinement. The interactive `run` and `run_observed`
+path retains its foreground-job behavior.
 
-`run_confined_observed` uses the same detached process mode with inherited
-stdout and stderr. Its `FilesystemGrants` names several writable directories
-and literal runtime files. It clears the environment before applying the
-launch's explicit grants, and sets the channel last. Dispatch uses this form
-for cwd, scratch and exit storage; the existing file-output form still serves
-Grove's standalone caller. Both report cancellation only after group cleanup.
+`run_confined_observed` uses the detached process mode with inherited stdout
+and stderr. `FilesystemGrants` names writable directories and literal runtime
+files. It clears the environment before applying explicit grants and setting
+the channel last. Dispatch uses it to confine cwd, scratch and exit storage.
+Both detached forms close inherited descriptors above stderr on exec and
+report cancellation only after group cleanup.
 
 <a id="worked-confined-job"></a>
 ## Worked example: run a confined job and read its result
 
 A caller creates `/tmp/invocation/work`, `/tmp/invocation/tmp` and
-`/tmp/invocation/control`, opens the work directory and a regular
-`/tmp/invocation/transcript.log`, and stages `input.txt` containing `alpha` plus a
+`/tmp/invocation/control`, opens the work directory and stages `input.txt` containing `alpha` plus a
 newline. Suppose channel allocation chooses
 `/tmp/invocation/control/signal-0123456789abcdef0123456789abcdef`.
 `Launch.cwd` is `/tmp/invocation/work`, `channel_var` is `TASK_DONE`, and the
-scrub list removes inherited `GROVE_SIGNAL_FILE` and `GROVE_RUN_SIGNAL_FILE`.
+explicit grants contain only what the confined harness needs.
 The escalation uses a two-second completion grace and five-second kill grace.
-`Confinement.writable` is `/tmp/invocation`; its runtime-read list contains the
+`FilesystemGrants.writable` contains `/tmp/invocation`; its runtime-read list contains the
 existing file `/home/reader/.config/harness/token`.
 
 The caller's `Argv` holds the program `/bin/sh` and two arguments: `-c`
@@ -42,8 +40,8 @@ cat input.txt > result.md
 printf 'done\n' > "$TASK_DONE"
 ```
 
-The caller passes that `Launch`, the log and the confinement policy to
-`run_confined`. On macOS the runner invokes `sandbox-exec` with a default-deny
+The caller passes that `Launch`, the confinement grants and a spawn/reap observer to
+`run_confined_observed`. On macOS the runner invokes `sandbox-exec` with a default-deny
 profile; on Linux it invokes bubblewrap with a restricted filesystem view.
 Neither path retries through ordinary execution if confinement fails. The child
 can read `input.txt` and write `result.md`; the parent's unrelated project is
@@ -77,13 +75,12 @@ The following comparison states which boundary each entry point supplies.
 |---|---|---|
 | `run`, `run_observed` | Interactive process group and terminal handover | Caller environment |
 | `run_noninteractive` | New session, EOF stdin, captured output | No added filesystem confinement |
-| `run_confined` | Same noninteractive mode | Required native backend and explicit runtime grants |
 | `run_confined_observed` | New session, EOF stdin, inherited output, explicit environment, spawn/reap callbacks | Required native backend and multiple writable grants |
 
 The policy implementation below supplies command construction and stable artifact
 reads; the job and watch chapters own spawning, cancellation and reaping.
 
-<!-- fragment «confinement-policy» owner="confined-jobs" source="crates/keyed-launch/src/confinement.rs" lines="1-328" parent="source-confinement" -->
+<!-- fragment «confinement-policy» owner="confined-jobs" source="crates/keyed-launch/src/confinement.rs" lines="1-301" parent="source-confinement" -->
 <!-- insert «held-directory-read» -->
 <!-- insert «confinement-contract» -->
 <!-- insert «confinement-resource-resolution» -->
@@ -101,7 +98,7 @@ result is a regular file. The held descriptor fixes the parent directory's
 identity; the final-component check prevents a substituted symlink or FIFO from
 redirecting or blocking the example's result read.
 
-<!-- fragment «held-directory-read» owner="confined-jobs" source="crates/keyed-launch/src/confinement.rs" lines="1-44" parent="confinement-policy" -->
+<!-- fragment «held-directory-read» owner="confined-jobs" source="crates/keyed-launch/src/confinement.rs" lines="1-42" parent="confinement-policy" -->
 ````rust
 //! Mandatory outer filesystem policy for standalone invocations.
 use std::ffi::{CString, OsStr};
@@ -145,20 +142,18 @@ pub fn regular_file_at(directory: &File, name: &OsStr) -> std::io::Result<File> 
         ));
     }
     Ok(file)
-}
-
 ````
 <!-- /fragment -->
 
 <a id="confinement-contract"></a>
 ## Construct a mandatory boundary
 
-`Confinement` names one writable invocation directory and explicit runtime files.
-`command` canonicalizes that root, rejects a filesystem root as the invocation,
-resolves the executable the argv names and validates each runtime grant as a file.
-It gives the native backend those resolved paths, redirects temporary-directory
-variables into scratch state, and appends the executable with its exact
-arguments. Policy preparation or spawn failure returns `LaunchError`. If the
+`FilesystemGrants` names multiple writable directories and explicit runtime files.
+`command_with_grants` canonicalizes every writable directory, rejects the
+filesystem root, resolves the executable the argv names and validates runtime
+reads as regular files. It gives the native backend those paths and appends
+the executable with its exact arguments. Dispatch supplies scratch-directory
+environment values through the launch's explicit grants. Policy preparation or spawn failure returns `LaunchError`. If the
 backend starts and then refuses its setup, supervision instead returns an
 `Ended` carrying its unsuccessful status and usually no token. The caller must
 inspect that result before accepting outputs. Neither failure path retries
@@ -171,13 +166,8 @@ or state checks those implicit reads too. This runner knows no owner paths and
 performs no policy selection. Dispatch checks canonical overlap before its
 worker evaluates anything and refuses an owner resource beneath a system tree.
 
-<!-- fragment «confinement-contract» owner="confined-jobs" source="crates/keyed-launch/src/confinement.rs" lines="45-181" parent="confinement-policy" -->
+<!-- fragment «confinement-contract» owner="confined-jobs" source="crates/keyed-launch/src/confinement.rs" lines="43-154" parent="confinement-policy" -->
 ````rust
-/// Writable invocation root and explicitly granted, read-only runtime files.
-/// User data belongs in staged inputs. Runtime grants never confer writes.
-pub struct Confinement<'a> {
-    pub writable: &'a Path,
-    pub runtime_read: &'a [PathBuf],
 }
 
 /// Multiple writable directories and literal read-only runtime files. The
@@ -256,26 +246,6 @@ pub fn confinement_available() -> Result<(), LaunchError> {
     platform_command(&[], &[]).map(|_| ())
 }
 
-pub(crate) fn command(argv: &Argv, policy: &Confinement<'_>) -> Result<Command, LaunchError> {
-    let root = canonical(policy.writable)?;
-    if !root.is_dir() || root.parent().is_none() {
-        return Err(LaunchError::new(
-            "confinement requires a private invocation directory",
-        ));
-    }
-    let mut command = command_with_grants(
-        argv,
-        &FilesystemGrants {
-            writable: std::slice::from_ref(&root),
-            runtime_read: policy.runtime_read,
-        },
-    )?;
-    for name in ["TMPDIR", "TMP", "TEMP"] {
-        command.env(name, root.join("tmp"));
-    }
-    Ok(command)
-}
-
 pub(crate) fn command_with_grants(
     argv: &Argv,
     policy: &FilesystemGrants<'_>,
@@ -324,7 +294,7 @@ by whatever rule it trusts. The resolved executable becomes an explicit read
 grant; the caller still owns its argument vector. For the example, the
 credential and executable must resolve before any child is spawned.
 
-<!-- fragment «confinement-resource-resolution» owner="confined-jobs" source="crates/keyed-launch/src/confinement.rs" lines="182-204" parent="confinement-policy" -->
+<!-- fragment «confinement-resource-resolution» owner="confined-jobs" source="crates/keyed-launch/src/confinement.rs" lines="155-177" parent="confinement-policy" -->
 ````rust
 fn canonical(path: &Path) -> Result<PathBuf, LaunchError> {
     path.canonicalize().map_err(|error| {
@@ -370,7 +340,7 @@ outbound IP networking. The public CA certificate and trust services support
 TLS. These grants let a harness contact its service while preserving the
 example's filesystem boundary; network destinations are not restricted.
 
-<!-- fragment «confinement-macos» owner="confined-jobs" source="crates/keyed-launch/src/confinement.rs" lines="205-280" parent="confinement-policy" -->
+<!-- fragment «confinement-macos» owner="confined-jobs" source="crates/keyed-launch/src/confinement.rs" lines="178-253" parent="confinement-policy" -->
 ````rust
 #[cfg(target_os = "macos")]
 fn platform_command(roots: &[PathBuf], reads: &[PathBuf]) -> Result<Command, LaunchError> {
@@ -464,7 +434,7 @@ invocation bind remains writable. User, PID, IPC and UTS namespaces and
 die-with-parent behavior accompany the filesystem view;
 the outer runner already creates the POSIX session used by supervision.
 
-<!-- fragment «confinement-linux» owner="confined-jobs" source="crates/keyed-launch/src/confinement.rs" lines="281-322" parent="confinement-policy" -->
+<!-- fragment «confinement-linux» owner="confined-jobs" source="crates/keyed-launch/src/confinement.rs" lines="254-295" parent="confinement-policy" -->
 ````rust
 #[cfg(target_os = "linux")]
 fn platform_command(roots: &[PathBuf], reads: &[PathBuf]) -> Result<Command, LaunchError> {
@@ -473,7 +443,7 @@ fn platform_command(roots: &[PathBuf], reads: &[PathBuf]) -> Result<Command, Lau
     let backend = ["/usr/bin/bwrap", "/bin/bwrap"].into_iter().find(|path| Path::new(path).is_file())
         .ok_or_else(|| LaunchError::new("filesystem confinement requires bubblewrap at /usr/bin/bwrap; install the system bubblewrap package"))?;
     let mut command = Command::new(backend);
-    // run_confined already creates the session. Keeping the payload in the
+    // The confined runner already creates the session. Keeping the payload in the
     // monitor's group lets its cleanup wait observe every ordinary descendant.
     command.args([
         "--die-with-parent",
@@ -515,11 +485,11 @@ fn platform_command(roots: &[PathBuf], reads: &[PathBuf]) -> Result<Command, Lau
 ## Refuse an unsupported platform
 
 The fallback implementation returns a launch error on platforms with neither
-native backend. This preserves the meaning of `run_confined`: the caller cannot
+native backend. This preserves the meaning of `run_confined_observed`: the caller cannot
 mistake an unsupported environment for the confined result required before
 reading and exporting the example's output.
 
-<!-- fragment «confinement-unavailable» owner="confined-jobs" source="crates/keyed-launch/src/confinement.rs" lines="323-328" parent="confinement-policy" -->
+<!-- fragment «confinement-unavailable» owner="confined-jobs" source="crates/keyed-launch/src/confinement.rs" lines="296-301" parent="confinement-policy" -->
 ````rust
 #[cfg(not(any(target_os = "linux", target_os = "macos")))]
 fn platform_command(_: &[PathBuf], _: &[PathBuf]) -> Result<Command, LaunchError> {

@@ -6,7 +6,7 @@
 ## Twelve verbs, one table
 
 <!-- rollup «owned-lines-total» -->
-This chapter owns no production source. The four roots and 971 lines are
+This chapter owns no production source. The four roots and 949 lines are
 already reconstructed by the fragment graph the six chapters before it built,
 and the [source index](source-index.md) records that graph in full. The
 remaining work is what no single chapter could state, because each read one
@@ -366,10 +366,10 @@ owns the import block, and chapter 2 owns `run` — and each row turned
 
 <!-- rollup «owned-lines-sequence» -->
 <!-- rollup «source-owning-chapters» -->
-**Owned source.** 108 + 141 + 215 + 309 + 101 + 97 = 971 lines across 6
+**Owned source.** 108 + 119 + 215 + 309 + 101 + 97 = 949 lines across 6
 chapters, and 0 for this one. The seventh row of that table exists to be zero:
 a chapter that owns no source is the shape the structure brief chose for the
-assembly, and the total is the 971 lines in the current authoritative corpus.
+assembly, and the total is the 949 lines in the current authoritative corpus.
 
 **The corpus's own claims.** No chapter corrected a comment it found wanting:
 as these seven chapters were drafted, each was reproduced as written and
@@ -439,14 +439,14 @@ only one that reads the corpus byte for byte.
 ```console
 $ cargo run --quiet -p book-validation --bin book-check -- \
     --repo . --book docs/walkthroughs/grove-llm --final --check all
-valid: 4 files, 971 resolved lines, 0 deferred lines, final=true
+valid: 4 files, 949 resolved lines, 0 deferred lines, final=true
 ```
 
 `--final` is what makes this different from every scoped run the six drafting
 sessions made. In scoped mode a later chapter's range may be reserved by a defer
 and counted as deferred rather than resolved; in final mode a defer is an error,
 every source root must expand to its complete file, and the page inventory must
-match the manifest exactly. 971 resolved and 0 deferred is the whole corpus
+match the manifest exactly. 949 resolved and 0 deferred is the whole corpus
 reconstructed.
 
 ```console
@@ -454,7 +454,7 @@ $ bash scripts/check.sh
 ...
 === book-check
   book-check docs/walkthroughs/grove-llm
-valid: 4 files, 971 resolved lines, 0 deferred lines, final=true
+valid: 4 files, 949 resolved lines, 0 deferred lines, final=true
 ...
   6 book(s) checked, 0 failing
   ✓ book-check
@@ -553,9 +553,6 @@ test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
      Running tests/session_kind_tree.rs (target/debug/deps/session_kind_tree-ef3ca8fbc0b13a96)
 running 17 tests
 test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
-     Running tests/standalone_completion.rs (target/debug/deps/standalone_completion-64075e5d3c9d6e37)
-running 3 tests
-test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
      Running tests/tree_lock.rs (target/debug/deps/tree_lock-7afdfb47b5dce6d8)
 running 6 tests
 test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
@@ -579,7 +576,7 @@ what the library target exists to make possible.
 <!-- rollup «source-roots» -->
 <!-- rollup «owned-lines-total» -->
 <!-- rollup «chapters» -->
-The book reconstructs 4 roots, 971 lines, 7 chapters, two lookup
+The book reconstructs 4 roots, 949 lines, 7 chapters, two lookup
 surfaces, zero deferred ranges. What it argued is that a thin command surface
 over a library has exactly one thing left to get right, and that the thing is
 order — two of them, each stated where it happens and each with a different

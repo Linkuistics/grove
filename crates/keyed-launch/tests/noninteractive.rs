@@ -131,15 +131,10 @@ fn supervisor() {
             "--nocapture".into(),
         ],
     );
-    let channel = Channel::allocate(dir.path()).unwrap();
     let result = keyed_launch::run_noninteractive(
-        Launch {
+        keyed_launch::NoninteractiveLaunch {
             argv: &argv,
-            channel: &channel,
-            channel_var: "RUNNER_CHANNEL",
             scrub: &[],
-            grant: &[],
-            transparent: None,
             cwd: Some(dir.path()),
             escalation: Escalation {
                 grace: Duration::ZERO,
@@ -215,7 +210,7 @@ fn confined_supervisor(kill_grace: Duration, expected_signal: i32) {
     .unwrap();
     let argv = Argv::new("/bin/sh".into(), vec![script.into_os_string()]);
     let channel = Channel::allocate(&work).unwrap();
-    let result = keyed_launch::run_confined(
+    let result = keyed_launch::run_confined_observed(
         Launch {
             argv: &argv,
             channel: &channel,
@@ -229,11 +224,11 @@ fn confined_supervisor(kill_grace: Duration, expected_signal: i32) {
                 kill_grace,
             },
         },
-        fs::File::create(work.join("harness.log")).unwrap(),
-        &keyed_launch::Confinement {
-            writable: &work,
+        &keyed_launch::FilesystemGrants {
+            writable: std::slice::from_ref(&work),
             runtime_read: &[],
         },
+        &mut |_| {},
     )
     .unwrap();
     assert_eq!(

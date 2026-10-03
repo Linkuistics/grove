@@ -39,8 +39,8 @@ from the run's ending whether the loop goes on.
    spawns and supervises its harness for every caller, and records and
    reports the run ending (D3, D4's dispatch half, D7).
 7. `confined-run-k12` (node) — dispatch confines what it supervises, and
-   `grove run` launches through it (D6). It precedes the cutover, which removes
-   the `done` token `grove run` still reads.
+   `grove run` launches through it (D6). It removes standalone's `done` token
+   before the lifecycle cutover.
 8. `launch-cutover-k15` (node), then its review `launch-cutover-k19` — Grove's
    lifecycle launch moves onto the supervised run, by expand → migrate →
    contract (D4, D5).
@@ -175,6 +175,12 @@ support them and never replace them, and no automated test calls a model.
   that stall stays as it is today.
 
 ## Notes
+
+- `confined-run-k23` reviews the complete confinement node before
+  `launch-cutover`. The node's work introduces a channel-free
+  `keyed_launch::NoninteractiveLaunch` for Grove's dispatch supervisor; the
+  runner's shared job core now distinguishes that launch from a harness launch
+  that carries completion authority. Keep that distinction in the cutover.
 
 - Terms resolved here, for design to pin to a surface and write into
   `CONTEXT.md` as it does: the **exit signal** (dispatch's; a session's

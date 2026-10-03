@@ -506,7 +506,7 @@ in.
 <!-- fragment «surface-imports» owner="one-call-plus-rendering" source="crates/grove-llm/src/cli.rs" lines="25-35" parent="surface-thesis-and-imports" -->
 ````rust
 
-use anyhow::{bail, ensure, Context, Result};
+use anyhow::{bail, Context, Result};
 use clap::{Parser, Subcommand};
 use grove_loop::verbs::{self, Resolution, Signalled};
 use grove_loop::{

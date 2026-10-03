@@ -360,12 +360,12 @@ mod run;
 pub use argv::Argv;
 pub use channel::{signal, Channel, Token};
 pub use confinement::{
-    confinement_available, confinement_system_reads, regular_file_at, Confinement, FilesystemGrants,
+    confinement_available, confinement_system_reads, regular_file_at, FilesystemGrants,
 };
 pub use error::LaunchError;
 pub use run::{
-    reraise, run, run_confined, run_confined_observed, run_noninteractive, run_observed,
-    take_interrupt, End, Ended, EntrySignals, Escalation, Group, Launch, LaunchEvent,
+    reraise, run, run_confined_observed, run_noninteractive, run_observed, take_interrupt, End,
+    Ended, EntrySignals, Escalation, Group, Launch, LaunchEvent, NoninteractiveLaunch,
 };
 ````
 <!-- /fragment -->
@@ -388,7 +388,7 @@ The last row is this chapter's own and is not one.
 | `Channel`, `Token`, `signal` | A fresh path per launch that allocation picks and writes nothing to; `signal` is what the child calls to make it appear, and `Token` is what the caller reads back. | 2 |
 | `run`, `run_observed`, `LaunchEvent`, `Launch`, `EntrySignals`, `Ended`, `End`, `Group`, `Escalation` | `run_observed` reports successful spawn and confirmed reap synchronously; `run` uses a no-op observer. Each spawns one `Launch` — argv, channel, scrub list, granted values, a transparent caller's `EntrySignals` when there is one, working directory and the two graces of an `Escalation` — and returns an `Ended` saying which of `End`'s three cases happened, whether the channel appeared, and whether the child's `Group` was confirmed gone. | 3 |
 | `reraise`, `take_interrupt` | The launcher's own two obligations for a termination signal: `take_interrupt` collects one that arrived between launches, and `reraise` is how a launcher dies of the same signal rather than reporting an exit code. | 4 |
-| `run_noninteractive`, `run_confined`, `run_confined_observed`, `Confinement`, `FilesystemGrants`, `confinement_available`, `confinement_system_reads`, `regular_file_at` | Detached launches with file or inherited output, mandatory filesystem grants, backend availability and system-read inventory, and stable reads of artifacts through held directories. | 7 |
+| `run_noninteractive`, `run_confined_observed`, `NoninteractiveLaunch`, `FilesystemGrants`, `confinement_available`, `confinement_system_reads`, `regular_file_at` | Detached launches with file or inherited output, mandatory filesystem grants, backend availability and system-read inventory, and stable reads of artifacts through held directories. | 7 |
 | `LaunchError`, `Argv` | the one error type and the type a command arrives in, read next | 1 |
 
 <a id="one-opaque-error"></a>
@@ -571,8 +571,8 @@ impl Argv {
 go in, and the same program and arguments are what the value holds. Grove calls
 it in two places. `crates/grove-loop/src/loop_driver.rs` builds the
 `harness-dispatch run` invocation for a lifecycle session, and
-`crates/grove/src/standalone.rs` builds a standalone invocation from the file
-path and the strings `harness-dispatch inspect` reported. The third caller is
+`crates/grove/src/standalone.rs` builds a noninteractive `harness-dispatch run --confine` invocation from its canonical
+sibling path, kind, prompt, runtime reads and ending-file path. The third caller is
 `harness-dispatch run` itself, which builds the harness's command from what its
 owner's policy selected.
 

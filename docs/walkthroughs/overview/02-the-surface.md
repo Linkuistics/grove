@@ -175,9 +175,9 @@ an actionable error before changing terminal modes. The integration tests in
 <a id="the-agent-surface"></a>
 ## The agent surface remains flat
 
-The twelve tree/session verbs belong to `grove-llm`. In a standalone invocation
-that binary admits only `complete --done` on the dedicated invocation channel;
-ordinary session verbs retain their task-tree epoch checks. The human binary delegates observation to
+The twelve tree/session verbs belong to `grove-llm` and retain their task-tree
+epoch checks. A standalone harness acknowledges through `harness-dispatch exit`;
+Grove grants it no tree authority. The human binary delegates observation to
 `grove-tui` and lifecycle execution to `grove-loop`. [Lifecycle startup](03-three-steps.md)
 shows the branch that separates these paths.
 

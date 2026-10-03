@@ -42,13 +42,6 @@ pub fn regular_file_at(directory: &File, name: &OsStr) -> std::io::Result<File> 
     Ok(file)
 }
 
-/// Writable invocation root and explicitly granted, read-only runtime files.
-/// User data belongs in staged inputs. Runtime grants never confer writes.
-pub struct Confinement<'a> {
-    pub writable: &'a Path,
-    pub runtime_read: &'a [PathBuf],
-}
-
 /// Multiple writable directories and literal read-only runtime files. The
 /// caller decides which owner resources must remain outside these grants.
 pub struct FilesystemGrants<'a> {
@@ -123,26 +116,6 @@ pub fn confinement_system_reads() -> &'static [&'static str] {
 /// exists when the required system backend is missing.
 pub fn confinement_available() -> Result<(), LaunchError> {
     platform_command(&[], &[]).map(|_| ())
-}
-
-pub(crate) fn command(argv: &Argv, policy: &Confinement<'_>) -> Result<Command, LaunchError> {
-    let root = canonical(policy.writable)?;
-    if !root.is_dir() || root.parent().is_none() {
-        return Err(LaunchError::new(
-            "confinement requires a private invocation directory",
-        ));
-    }
-    let mut command = command_with_grants(
-        argv,
-        &FilesystemGrants {
-            writable: std::slice::from_ref(&root),
-            runtime_read: policy.runtime_read,
-        },
-    )?;
-    for name in ["TMPDIR", "TMP", "TEMP"] {
-        command.env(name, root.join("tmp"));
-    }
-    Ok(command)
 }
 
 pub(crate) fn command_with_grants(
@@ -285,7 +258,7 @@ fn platform_command(roots: &[PathBuf], reads: &[PathBuf]) -> Result<Command, Lau
     let backend = ["/usr/bin/bwrap", "/bin/bwrap"].into_iter().find(|path| Path::new(path).is_file())
         .ok_or_else(|| LaunchError::new("filesystem confinement requires bubblewrap at /usr/bin/bwrap; install the system bubblewrap package"))?;
     let mut command = Command::new(backend);
-    // run_confined already creates the session. Keeping the payload in the
+    // The confined runner already creates the session. Keeping the payload in the
     // monitor's group lets its cleanup wait observe every ordinary descendant.
     command.args([
         "--die-with-parent",

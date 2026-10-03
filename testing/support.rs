@@ -305,7 +305,12 @@ pub fn kind_labels() -> Vec<String> {
 /// cargo runs. The two guards are independent on purpose: that one covers tests
 /// which never touch these helpers, this one covers a test binary executed
 /// directly rather than through cargo. Neither subsumes the other.
-const LOOP_CONTROL_ENV: [&str; 2] = ["GROVE_SIGNAL_FILE", "GROVE_RUN_SIGNAL_FILE"];
+const LOOP_CONTROL_ENV: [&str; 4] = [
+    "GROVE_SIGNAL_FILE",
+    "GROVE_LAUNCH_DIR",
+    "HARNESS_DISPATCH_EXIT_FILE",
+    "HARNESS_DISPATCH_RUN_ID",
+];
 
 /// The launch-policy environment Grove no longer reads. It is scrubbed rather
 /// than ignored because these fixtures assert on what a launch *does*, and this

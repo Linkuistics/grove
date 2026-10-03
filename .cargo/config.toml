@@ -19,9 +19,9 @@
 # deliberately independent, because a test binary executed directly rather than
 # through cargo gets only the latter.
 #
-# Both task-tree sessions and standalone invocations carry completion authority
-# as a signal path. Clear each channel independently so a nested test cannot
-# acknowledge either its immediate invocation or the outer Grove session.
+# Dispatch runs carry exit authority as a signal path, while Grove lifecycle
+# sessions also carry a launch directory for epoch admission. Clear these beside
+# the installed v22 channel so nested tests cannot end or impersonate a session.
 #
 # Scope note: this also applies to `cargo run -- …` in this repo, so a
 # cargo-launched `grove-llm complete` behaves like a manual command instead of
@@ -29,5 +29,6 @@
 # an installed or `./target/debug/` binary directly, never through cargo.
 [env]
 GROVE_SIGNAL_FILE = { value = "", force = true }
-# Standalone invocations carry a separate channel with the same ambient hazard.
-GROVE_RUN_SIGNAL_FILE = { value = "", force = true }
+# Dispatch exit authority must also stop at the cargo boundary.
+HARNESS_DISPATCH_EXIT_FILE = { value = "", force = true }
+GROVE_LAUNCH_DIR = { value = "", force = true }

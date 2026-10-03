@@ -58,8 +58,7 @@ impl Fixture {
     if (request.kind !== "release-notes") {{
       return {{ status: "refused", code: "unrouted_kind", message: `no command for ${{request.kind}}`, remedy: "route the kind in the fixture policy" }};
     }}
-    const {{ session_name, worktree, repo }} = request.params;
-    return {{ status: "selected", program: "/bin/sh", args: [{script:?}, request.prompt, session_name, worktree, repo], provider: "fixture", model: "none", effort: "none", reason: "the deterministic harness" }};
+    return {{ status: "selected", program: "/bin/sh", args: [{script:?}, request.prompt, JSON.stringify(request.params), request.cwd], provider: "fixture", model: "none", effort: "none", reason: "the deterministic harness" }};
   }},
 }};
 "#,
@@ -151,9 +150,9 @@ const NAMED: &str = r#"export const policy = {
 };
 "#;
 
-// The policy selects outside the sandbox, with what the owner granted it. The
-// harness runs inside, with the invocation's prompt and parameters and none of
-// the owner's personal files. Old Grove configuration files change nothing.
+// The policy selects outside the sandbox, with what the owner granted it, in
+// the staged directory and with no parameter. The harness runs inside, with the
+// invocation's prompt and none of the owner's personal files. Old Grove configuration files change nothing.
 #[test]
 fn the_policy_selects_outside_the_sandbox_and_the_harness_runs_inside_it() {
     let fixture = Fixture::new(
@@ -167,7 +166,7 @@ fn the_policy_selects_outside_the_sandbox_and_the_harness_runs_inside_it() {
          test -z \"${TMUX-}\"\n\
          case \"$1\" in 'Produce notes.'*) ;; *) exit 9 ;; esac\n\
          printf '%s\\n' \"${HARNESS_DISPATCH_RUN_ID-<unset>}\" \"${OWNER_GRANT-<unset>}\" \
-         \"$2\" \"$3\" \"$4\" \"$5\" \"$6\" \"$(pwd -P)\" > notes.md\n\
+         \"$2\" \"$3\" \"$4\" \"$5\" \"$(pwd -P)\" > notes.md\n\
          cat message.txt >> notes.md\n\
          printf done > \"$GROVE_RUN_SIGNAL_FILE\"\n",
     );
@@ -219,7 +218,7 @@ fn the_policy_selects_outside_the_sandbox_and_the_harness_runs_inside_it() {
     assert!(output.status.success(), "{}", stderr(&output));
     let notes = fs::read_to_string(fixture.notes()).unwrap();
     let lines: Vec<&str> = notes.lines().collect();
-    assert_eq!(lines.len(), 9, "{notes}");
+    assert_eq!(lines.len(), 8, "{notes}");
     assert_eq!(lines[0], "<unset>", "the harness has no run identity");
     assert_eq!(lines[1], "<unset>", "the grant is the policy's alone");
     assert_eq!(lines[2], "granted", "the policy saw what its owner granted");
@@ -227,10 +226,9 @@ fn the_policy_selects_outside_the_sandbox_and_the_harness_runs_inside_it() {
         lines[3], "<unset>",
         "selection never holds the outer channel"
     );
-    assert_eq!(lines[4], "standalone:release-notes");
-    assert_eq!(lines[5], lines[7], "worktree is the staged directory");
-    assert_eq!(lines[6], lines[7], "repo is the staged directory");
-    assert_eq!(lines[8], "Verified release notes.");
+    assert_eq!(lines[4], "{}", "selection is passed no parameter");
+    assert_eq!(lines[5], lines[6], "selection runs in the staged directory");
+    assert_eq!(lines[7], "Verified release notes.");
     assert_eq!(
         fs::read_to_string(&store).unwrap(),
         "a store no run is added to"

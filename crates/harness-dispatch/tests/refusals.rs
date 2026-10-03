@@ -458,7 +458,8 @@ fn a_refusal_is_evaluated_once_and_never_retried() {
 /// The Grove invocation the help quotes. Grove's launch-boundary suite holds
 /// its inputs to the ones the driver passes; here it is only required to be
 /// present.
-const EXAMPLE_FOR_GROVE: &str = "  harness-dispatch run --kind=KIND --task-file=TASK_FILE --task-id=HANDLE --prompt=MANDATE --param=session_name=NAME --param=worktree=WORKTREE --param=repo=REPO\n";
+const EXAMPLE_FOR_GROVE: &str =
+    "  harness-dispatch run --kind=KIND --task-file=TASK_FILE --task-id=HANDLE --prompt=MANDATE\n";
 
 #[test]
 fn help_carries_independent_use_grove_and_refusal_recovery_examples() {
@@ -481,7 +482,7 @@ fn help_carries_independent_use_grove_and_refusal_recovery_examples() {
         "Nothing is retried, paged or confirmed interactively",
         "A refused run prints the equivalent inspect invocation",
         "A policy that reads the prompt selects as it did only when the same prompt is added",
-        "harness-dispatch run --kind impl --param repo=/work/parser --prompt",
+        "harness-dispatch run --kind impl --param profile=careful --prompt",
         EXAMPLE_FOR_GROVE,
         "evaluated only at launch",
     ] {
@@ -493,7 +494,7 @@ fn help_carries_independent_use_grove_and_refusal_recovery_examples() {
         "Inspection is a proposal, not a launch reservation",
         "not promised to be free of side effects",
         "harness-dispatch/sdk names PROMPT_NOT_SUPPLIED",
-        "harness-dispatch inspect --kind impl --param repo=/work/parser --param session_name=parser",
+        "harness-dispatch inspect --kind impl --param profile=careful --param label=parser",
         "Recovering from a refusal:",
         "harness-dispatch inspect --kind design --prompt-file ./mandate.md",
     ] {
@@ -505,7 +506,7 @@ fn help_carries_independent_use_grove_and_refusal_recovery_examples() {
     let run = help(&["run", "--help"]);
     for fact in [
         "--param <NAME=VALUE>",
-        "harness-dispatch run --kind impl --param repo=/work/parser --prompt",
+        "harness-dispatch run --kind impl --param profile=careful --prompt",
         "Recovering from a refusal:",
         "(cd /work && harness-dispatch inspect --kind design)",
         "Nothing is retried for you.",

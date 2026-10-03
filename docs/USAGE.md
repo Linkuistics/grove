@@ -47,8 +47,8 @@ nothing is at that path, and nothing else ever writes one:
 $ harness-dispatch init
 Installed the sample policy as /home/you/.config/harness-dispatch/policy.ts.
 It launches codex with approvals off and full access (--ask-for-approval never, default_permissions=:danger-full-access). Read it, and edit it, before the first launch: it is yours.
-See what it selects with
-  harness-dispatch inspect --kind impl --param session_name=NAME --param repo=PATH
+See what it selects, from the directory Grove runs in, with
+  harness-dispatch inspect --kind impl
 ```
 
 The sample is one owner's policy for Grove, with real `codex` and `claude`
@@ -100,20 +100,21 @@ launch, with its provider, model and effort labels and the file its program
 resolves to. It launches nothing:
 
 ```sh
-harness-dispatch inspect --kind impl --param session_name=parser --param repo=/work/parser
+cd /work/parser && harness-dispatch inspect --kind impl
 ```
 
-Pass what Grove passes, because a policy may read any of it. For a lifecycle
-session Grove runs this, in the working-tree root:
+Run it where Grove runs it, because a policy may read its directory. For a
+lifecycle session Grove runs this, in the working-tree root:
 
 ```text
-harness-dispatch run --kind=KIND --task-file=TASK_FILE --task-id=HANDLE --prompt=MANDATE --param=session_name=NAME --param=worktree=WORKTREE --param=repo=REPO
+harness-dispatch run --kind=KIND --task-file=TASK_FILE --task-id=HANDLE --prompt=MANDATE
 ```
 
 `KIND` is the leaf's kind, `TASK_FILE` its absolute path and `HANDLE` its
-stable handle. `MANDATE` is the prompt Grove composed. `NAME` is the session
-name Grove gives the working tree, `<repo-basename>: <grove-name> grove`.
-`WORKTREE` and `REPO` are the working-tree root and the main repository's root.
+stable handle. `MANDATE` is the prompt Grove composed. Grove passes no
+parameter: the policy reads the session's location as its `cwd`. The sample
+names no session, and from a secondary jj workspace grants both harnesses the
+main repository that the workspace's `.jj/repo` file names.
 
 **The policy is consulted only at launch.** Scaffolding a grove and the
 `grove-llm` tree verbs consult no policy, so a leaf of any well-formed kind can
@@ -486,7 +487,7 @@ harness-dispatch: refused (policy_refused, stage selection): the policy /home/yo
   source: /home/you/.config/harness-dispatch/policy.ts
   policy code: incomplete_mapping
   remedy: add a route for this kind to ROUTES in your policy
-  inspect: (cd /home/you/app && /opt/grove/bin/harness-dispatch inspect --kind spike --param 'session_name=app: app grove' --param worktree=/home/you/app --param repo=/home/you/app --task-file /home/you/app/.grove/01-spike--api-k1.md --task-id api-k1)
+  inspect: (cd /home/you/app && /opt/grove/bin/harness-dispatch inspect --kind spike --task-file /home/you/app/.grove/01-spike--api-k1.md --task-id api-k1)
   prompt: omitted: a policy that reads the prompt selects as it did only when the same --prompt or --prompt-file is added
 grove: session ended without a completion signal — status exit status: 3, elapsed 0.510s; loop stopped.
        session kind `spike` for `api-k1` failed; if harness-dispatch refused the launch, its diagnostic and remedy are above and the leaf is still live. Either way, rerun `grove` to continue.

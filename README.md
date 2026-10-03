@@ -39,12 +39,12 @@ session kind. Install the sample policy once, read it, and edit it:
 
 ```sh
 harness-dispatch init
-harness-dispatch inspect --kind impl --param session_name=parser --param repo=/work/parser
+cd /work/parser && harness-dispatch inspect --kind impl
 ```
 
 The sample launches `codex` with approvals off and full access, so read it
 before the first launch. `inspect` reports what a kind would launch, and
-launches nothing. A kind your policy does not route is refused when its leaf
+launches nothing; run it in the working-tree root, where Grove runs it. A kind your policy does not route is refused when its leaf
 launches, with a remedy, and rerunning `grove` continues. A `config.kdl` or
 `.grove.kdl` from an earlier release is never read.
 

@@ -23,7 +23,7 @@ prompt as an argument, `/work/release/changes.txt` is a regular file, and
 `grove run release-notes 'Draft release notes from changes.txt' --input /work/release/changes.txt --output /work/release/notes.md --ui inline`.
 The command copies the input to a fresh `grove-run-…/work/changes.txt`. From
 that directory it asks `harness-dispatch inspect` which command runs the kind,
-passing the directory as both the `repo` and `worktree` parameters, and it
+passing no parameter, since the policy reads the directory as its `cwd`, and it
 launches the command that comes back. The child writes `notes.md` there and
 invokes the copied `grove-llm complete --done` helper. Its dedicated channel
 appears under `grove-run-…/control`.
@@ -52,7 +52,7 @@ The following table separates the authorities used by this operation.
 The source below follows those boundaries. The temporary directory owns staged
 work, while destination writes and terminal display remain parent operations.
 
-<!-- fragment «standalone-invocation» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="1-394" parent="source-standalone" -->
+<!-- fragment «standalone-invocation» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="1-390" parent="source-standalone" -->
 <!-- insert «standalone-interface» -->
 <!-- insert «standalone-staging» -->
 <!-- insert «standalone-launch-context» -->
@@ -409,10 +409,10 @@ completion, so an export failure cannot be displayed as completed.
 The policy, the owner's settings and the record store are personal files, and
 the confined harness must not read them. So the command is chosen before
 confinement and outside it. `select` runs `harness-dispatch inspect --json` in
-the staged directory with the kind, the whole composed prompt and three
-parameters: `session_name` is `standalone:` and the kind, and `worktree` and
-`repo` are both the staged directory. A standalone invocation has no task, so it
-passes no task file and no task identity. The inspection inherits Grove's
+the staged directory with the kind and the whole composed prompt, and nothing
+else. It passes no parameter: the staged directory is the `cwd` the policy
+reads, so a path that is not UTF-8 needs no parameter to carry it. A standalone
+invocation has no task, so it passes no task file and no task identity. The inspection inherits Grove's
 environment without the two completion channels in `CONTROL_ENV`. An owner's
 grants and bounds therefore apply, and no authority to end a surrounding session
 travels with them. The inspection stays in Grove's process group and Grove waits
@@ -431,7 +431,7 @@ writes one JSON error on stderr, and this function reports its code, message and
 remedy, with the policy's own code beside a refusal the policy made. Output it
 cannot read that way is quoted beside the exit status.
 
-<!-- fragment «standalone-selection» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="235-312" parent="standalone-invocation" -->
+<!-- fragment «standalone-selection» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="235-308" parent="standalone-invocation" -->
 ````rust
 /// Ask the owner's policy which command runs this kind, before confinement
 /// and outside it: the policy, the owner's settings and the record store are
@@ -441,19 +441,15 @@ cannot read that way is quoted beside the exit status.
 /// process group and environment, and launches nothing. What comes back is the
 /// file the program resolved to and the arguments the policy returned, which the
 /// runner launches as they are: nothing looks the program up a second time.
+///
+/// No parameter is passed: the staged directory is the `cwd` the policy reads.
 fn select(dispatch: &Path, kind: &str, prompt: &str, work: &Path) -> Result<Argv> {
-    let staged = work
-        .to_str()
-        .context("the staged directory's path is not UTF-8, so no parameter can carry it")?;
     let mut inspect = Command::new(dispatch);
     inspect
         .arg("inspect")
         .arg("--json")
         .arg(format!("--kind={kind}"))
         .arg(format!("--prompt={prompt}"))
-        .arg(format!("--param=session_name=standalone:{kind}"))
-        .arg(format!("--param=worktree={staged}"))
-        .arg(format!("--param=repo={staged}"))
         .current_dir(work)
         .stdin(Stdio::null());
     for name in CONTROL_ENV {
@@ -524,7 +520,7 @@ a FIFO from hanging the staging reader, and `O_NOFOLLOW` refuses the final
 symlink. These checks turn the example's caller paths into bounded file inputs,
 not access grants to the caller's project.
 
-<!-- fragment «standalone-artifact-checks» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="313-358" parent="standalone-invocation" -->
+<!-- fragment «standalone-artifact-checks» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="309-354" parent="standalone-invocation" -->
 ````rust
 fn inherited(name: &OsStr) -> bool {
     let Some(name) = name.to_str() else {
@@ -589,7 +585,7 @@ are in `crates/grove/tests/standalone.rs`, which drives the built binary under
 real confinement. They are external evidence, outside this book's reconstructed
 corpus.
 
-<!-- fragment «standalone-publication» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="359-394" parent="standalone-invocation" -->
+<!-- fragment «standalone-publication» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="355-390" parent="standalone-invocation" -->
 ````rust
 fn publish_outputs(work: &File, destinations: &[PathBuf]) -> Result<()> {
     let mut staged = Vec::new();

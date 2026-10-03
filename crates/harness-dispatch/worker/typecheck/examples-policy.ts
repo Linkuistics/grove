@@ -11,7 +11,7 @@ export const whole: Policy = generic;
 
 const mine: Route = (request) => ({
   program: "fake-harness",
-  args: ["--session", request.params["session_name"] ?? "unnamed", request.prompt],
+  args: ["--label", request.params["label"] ?? "unlabelled", request.prompt],
   provider: "origin-a",
   model: "model-for-impl",
   effort: "high",

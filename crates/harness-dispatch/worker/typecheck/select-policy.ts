@@ -10,13 +10,13 @@ export const policy = definePolicy({
   schemaVersion: 2,
   version: "typecheck-select-1",
   async select(request) {
-    const repo = request.params["repo"];
-    if (repo === undefined) {
+    const profile = request.params["profile"];
+    if (profile === undefined) {
       return {
         status: "refused",
-        code: "repo_missing",
-        message: "this policy runs its harness in the caller's repository, and was given none",
-        remedy: "pass --param repo=PATH",
+        code: "profile_missing",
+        message: "this policy runs its harness under a profile the caller names, and was given none",
+        remedy: "pass --param profile=NAME",
       };
     }
     const deep = request.kind === "design";
@@ -24,7 +24,7 @@ export const policy = definePolicy({
     return {
       status: "selected",
       program: "fake-harness",
-      args: ["-C", repo, `--kind=${request.kind}`, request.prompt],
+      args: ["--profile", profile, `--kind=${request.kind}`, request.prompt],
       provider: deep ? "origin-a" : "origin-b",
       model: deep ? "model-large" : "model-small",
       effort: deep ? "high" : "low",

@@ -586,7 +586,7 @@
 - [A live member unobserved and its retired siblings pinned](19-the-loop.md#what-holds-the-four-choices)
 - [A test whose name names the right subject in the wrong file](19-the-loop.md#what-holds-the-four-choices)
 - [A hang reported as never-ran rather than counted as a failure](19-the-loop.md#what-holds-the-four-choices)
-- [Five zeros, and telling unreachable from untested](19-the-loop.md#the-zeros)
+- [Four zeros, and telling unreachable from untested](19-the-loop.md#the-zeros)
 - [A guard named by bracketing it with two panics](19-the-loop.md#the-zeros)
 - [A negative control as the weakest row in a coverage table](19-the-loop.md#the-zeros)
 - [The one arm no end-to-end fixture produces: two failures at once](19-the-loop.md#what-holds-the-four-choices)

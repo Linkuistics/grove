@@ -182,8 +182,8 @@ harness-dispatch init
 ```text
 Installed the sample policy as /home/me/.config/harness-dispatch/policy.ts.
 It launches codex with approvals off and full access (--ask-for-approval never, default_permissions=:danger-full-access). Read it, and edit it, before the first launch: it is yours.
-See what it selects with
-  harness-dispatch inspect --kind impl --param session_name=NAME --param repo=PATH
+See what it selects, from the directory Grove runs in, with
+  harness-dispatch inspect --kind impl
 ```
 
 `init` takes no input. It writes `~/.config/harness-dispatch/policy.ts` and
@@ -230,13 +230,20 @@ no creator: [the review policy](#the-review-policy) is the one that does. Its
 `reason` names the arrangement and modifiers it applied, and whether they were
 the default or came from a choice file.
 
-The commands place two [parameters](#parameters) Grove passes: `claude` is
-named for `session_name`, and both harnesses receive `repo` as `--add-dir`. A
-caller that did not pass one the selected command needs is refused, with the
-policy's own code `parameter_missing` and the `--param` to add:
+The sample reads no [parameter](#parameters) and names no session. It reads
+the session's location from the caller's directory, `request.cwd`, where Grove
+runs it. A secondary jj workspace there has a `.jj/repo` file naming the store
+it shares, which lives in the main repository at `<main>/.jj/repo`, and the
+sample gives both harnesses `--add-dir <main>`: the main repository rather than
+the store alone, because a colocated repository's git objects sit beside the
+store. A primary workspace holds its store, and any other directory is no
+workspace, so neither gets a grant. A `.jj/repo` file that names no store
+refuses, with the policy's own code `jj_store_unreadable`. That is the whole
+of the sample's jj knowledge, and none of it is harness-dispatch's. Inspect
+from the directory Grove would run in:
 
 ```sh
-harness-dispatch inspect --kind impl --param session_name=parser --param repo=/work/parser
+cd /work/parser && harness-dispatch inspect --kind impl
 ```
 
 ### The choice file
@@ -1627,7 +1634,7 @@ session Grove runs this, in the working-tree root, with values from the leaf it
 selected:
 
 ```text
-harness-dispatch run --kind=KIND --task-file=TASK_FILE --task-id=HANDLE --prompt=MANDATE --param=session_name=NAME --param=worktree=WORKTREE --param=repo=REPO
+harness-dispatch run --kind=KIND --task-file=TASK_FILE --task-id=HANDLE --prompt=MANDATE
 ```
 
 | Passed as | Value |
@@ -1636,21 +1643,22 @@ harness-dispatch run --kind=KIND --task-file=TASK_FILE --task-id=HANDLE --prompt
 | `--task-file` | The absolute path of its task file |
 | `--task-id` | Its stable handle |
 | `--prompt` | The prompt Grove composed, unchanged. Your `select` receives it as `request.prompt` |
-| `--param session_name=` | The session name Grove gives the working tree |
-| `--param worktree=` | The working-tree root |
-| `--param repo=` | The main repository's root |
 
 To harness-dispatch these are ordinary inputs, and it reads no Grove file or
-filename. Grove passes nothing else: no policy entry, bound, grant or record
-directory. Those are your [owner settings](#owner-settings).
+filename. Grove passes nothing else: no [parameter](#parameters), so
+`request.params` is empty, and no policy entry, bound, grant or record
+directory, which are your [owner settings](#owner-settings). The working-tree
+root is the location the prompt assumes, and `select` reads it as
+`request.cwd`. A policy that names the session, or grants a secondary jj
+workspace's harness its main repository, derives that from `request.cwd`, as
+the [sample](#the-sample-policy) does.
 
 `grove run KIND` selects through the same policy with `inspect`. The policy
 and the record store are outside what a confined harness may read, so Grove
-runs `harness-dispatch inspect --json` outside the sandbox, with the
-invocation's whole prompt and the same three parameters, and then launches the
-reported `executable` with the reported `args` inside it. Such an invocation
-has no task file and no task identity. Its `session_name` is `standalone:` and
-the kind, and both roots are its staged working directory. It records no run,
+runs `harness-dispatch inspect --json` outside the sandbox, in its staged
+working directory, with the invocation's whole prompt and no parameter, and
+then launches the reported `executable` with the reported `args` inside it.
+Such an invocation has no task file and no task identity. It records no run,
 and its harness receives no run ID.
 
 **Your policy is evaluated only at launch.** Grove consults it for no tree

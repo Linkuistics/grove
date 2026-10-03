@@ -188,12 +188,9 @@ fn an_owners_route_can_join_an_examples_table() {
 
     // The rerouted kind takes the owner's, which reads a parameter the caller
     // passed and says so when it passed none.
-    for (params, session) in [
-        (
-            &["--param", "session_name=parser grove"][..],
-            "parser grove",
-        ),
-        (&[][..], "unnamed"),
+    for (params, label) in [
+        (&["--param", "label=parser grove"][..], "parser grove"),
+        (&[][..], "unlabelled"),
     ] {
         let mut args = vec!["--kind", "impl", "--prompt", "the mandate", "--json"];
         args.extend(params);
@@ -210,7 +207,7 @@ fn an_owners_route_can_join_an_examples_table() {
         );
         assert_eq!(
             report["command"]["args"],
-            json!(["--session", session, "the mandate"])
+            json!(["--label", label, "the mandate"])
         );
     }
 

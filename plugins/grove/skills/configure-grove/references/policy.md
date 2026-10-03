@@ -11,12 +11,16 @@ runs it for every session. For a lifecycle session it runs this, in the
 working-tree root, with values from the leaf it selected:
 
 ```text
-harness-dispatch run --kind=KIND --task-file=TASK_FILE --task-id=HANDLE --prompt=MANDATE --param=session_name=NAME --param=worktree=WORKTREE --param=repo=REPO
+harness-dispatch run --kind=KIND --task-file=TASK_FILE --task-id=HANDLE --prompt=MANDATE
 ```
 
 The policy's `select` receives the kind, the task file, the handle and the
-prompt, and the session name and the two roots as `request.params`. Grove
-passes no policy entry, bound, grant or record directory. `grove run KIND`
+prompt, and reads the session's location as `request.cwd`. Grove passes no
+parameter, so `request.params` is empty, and no policy entry, bound, grant or
+record directory. A policy that names a session or grants a secondary jj
+workspace's harness its main repository derives either from `request.cwd`: the
+sample reads the main repository from the `.jj/repo` file there, and names no
+session. `grove run KIND`
 selects through the same policy, with `inspect`, outside its sandbox. It has no
 task, so it passes no task file and no task identity, and its harness must be
 a noninteractive command.
@@ -101,7 +105,7 @@ refusal from its report. The leaf stays live. The refusal's `inspect:` line
 reproduces the selection without the prompt:
 
 ```text
-inspect: (cd /home/you/app && /opt/grove/bin/harness-dispatch inspect --kind spike --param 'session_name=app: app grove' --param worktree=/home/you/app --param repo=/home/you/app --task-file /home/you/app/.grove/01-spike--api-k1.md --task-id api-k1)
+inspect: (cd /home/you/app && /opt/grove/bin/harness-dispatch inspect --kind spike --task-file /home/you/app/.grove/01-spike--api-k1.md --task-id api-k1)
 ```
 
 1. Run that line. It refuses the same way and launches nothing. It names the

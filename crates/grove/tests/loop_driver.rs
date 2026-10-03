@@ -1598,16 +1598,8 @@ fn complete_done() -> String {
 }
 
 /// What Grove passes `harness-dispatch run` for a lifecycle session, each a
-/// flag joined to its value: the selection inputs, then the three parameters.
-const PASSED: [&str; 7] = [
-    "--kind=",
-    "--task-file=",
-    "--task-id=",
-    "--prompt=",
-    "--param=session_name=",
-    "--param=worktree=",
-    "--param=repo=",
-];
+/// flag joined to its value: the selection inputs, and no parameter.
+const PASSED: [&str; 4] = ["--kind=", "--task-file=", "--task-id=", "--prompt="];
 
 /// A dispatch policy whose `select` returns the fake harness for each of
 /// `kinds`, and refuses any other kind as `incomplete_mapping`, its own code.
@@ -1675,12 +1667,12 @@ fn epoch_names(epoch: &str, channel: &str) -> bool {
 
 // A lifecycle session's policy receives the driver's own selection as native
 // data, from the working-tree root: the kind, the absolute task path, the
-// handle, the mandate byte for byte, and the session name and the two roots as
-// its only parameters. The policy places each in the harness's arguments
-// whole, and the run record holds them. No Grove configuration file exists
-// anywhere. The working tree is a secondary workspace, so the two roots
-// differ, and its name puts spaces, quotes and shell punctuation into the task
-// path and into the prompt, which states the root and runs over many lines.
+// handle and the mandate byte for byte, and no parameter at all. The policy
+// places each in the harness's arguments whole, and the run record holds them.
+// No Grove configuration file exists anywhere. The working tree is a secondary
+// workspace, so its root is not the main repository's, and its name puts
+// spaces, quotes and shell punctuation into the task path and into the prompt,
+// which states the root and runs over many lines.
 //
 // Only the final harness holds the authority to end the session. It receives
 // the channel the driver's live epoch names, and completes through it. The
@@ -1735,11 +1727,7 @@ fn a_session_s_task_reaches_select_as_native_data_and_only_its_harness_holds_the
             && mandate.lines().count() > 1,
         "the mandate carries the awkward root over many lines: {mandate}"
     );
-    let params = serde_json::json!({
-        "session_name": format!("main repository: {name} grove"),
-        "worktree": root.to_str().unwrap(),
-        "repo": repository.to_str().unwrap(),
-    });
+    let params = serde_json::json!({});
     let [kind, file, id, prompt, received, cwd] = launch.args.as_slice() else {
         panic!("the harness's arguments: {:?}", launch.args);
     };
@@ -1757,21 +1745,11 @@ fn a_session_s_task_reaches_select_as_native_data_and_only_its_harness_holds_the
         "the prompt must be the mandate, unchanged"
     );
     let received: serde_json::Value = serde_json::from_str(received.to_str().unwrap()).unwrap();
-    assert_eq!(received, params, "every parameter, and nothing else");
-    assert_eq!(
-        received
-            .as_object()
-            .unwrap()
-            .keys()
-            .map(|name| format!("--param={name}="))
-            .collect::<BTreeSet<_>>(),
-        PASSED[4..].iter().map(|word| word.to_string()).collect(),
-        "the parameters are the ones the documented invocation names"
-    );
+    assert_eq!(received, params, "no parameter reaches select");
     assert_eq!(
         cwd,
         root.as_os_str(),
-        "dispatch runs in the working-tree root"
+        "dispatch runs in the working-tree root, not the main repository's"
     );
 
     let recorded = dispatch.recorded(&launch.run_id);
@@ -1889,9 +1867,13 @@ fn a_kind_the_policy_refuses_leaves_its_leaf_live_and_launches_once_the_policy_r
         .lines()
         .find_map(|line| line.strip_prefix("  inspect: "))
         .unwrap_or_else(|| panic!("no inspect line: {stderr}"));
-    for word in ["inspect", "design", "follow-up-k2", "session_name="] {
+    for word in ["inspect", "design", "follow-up-k2"] {
         assert!(line.contains(word), "{line}");
     }
+    assert!(
+        !line.contains("--param"),
+        "no parameter to reproduce: {line}"
+    );
     assert!(line.contains(leaf.to_str().unwrap()), "{line}");
     let reproduced = Command::new("/bin/sh")
         .args(["-c", line])

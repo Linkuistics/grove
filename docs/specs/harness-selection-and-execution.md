@@ -263,8 +263,10 @@ two modifiers that change model and effort across an arrangement. With no local
 choice it selects its default arrangement and modifier. It labels `codex`
 commands `openai` and `claude` commands `anthropic`. Run in a secondary jj
 workspace, whose `.jj/repo` is a file naming the shared store, it grants the
-harness that store, derived from the file in the request's `cwd`; in a primary
-workspace the store is inside the cwd, and it grants nothing more. That is the
+harness the main repository holding that store, derived from the file in the
+request's `cwd`: the store is `<main>/.jj/repo`, and a colocated repository's
+git directory sits beside it rather than inside it. In a primary workspace the
+store is inside the cwd, and it grants nothing more. That is the
 whole of its jj knowledge, and none of it is the command's. It reads no
 parameter and names no session.
 

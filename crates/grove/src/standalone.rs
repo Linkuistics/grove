@@ -240,19 +240,15 @@ fn execute(args: Args, dispatch: &Path, helper: &Path, logs: &Path) -> Result<()
 /// process group and environment, and launches nothing. What comes back is the
 /// file the program resolved to and the arguments the policy returned, which the
 /// runner launches as they are: nothing looks the program up a second time.
+///
+/// No parameter is passed: the staged directory is the `cwd` the policy reads.
 fn select(dispatch: &Path, kind: &str, prompt: &str, work: &Path) -> Result<Argv> {
-    let staged = work
-        .to_str()
-        .context("the staged directory's path is not UTF-8, so no parameter can carry it")?;
     let mut inspect = Command::new(dispatch);
     inspect
         .arg("inspect")
         .arg("--json")
         .arg(format!("--kind={kind}"))
         .arg(format!("--prompt={prompt}"))
-        .arg(format!("--param=session_name=standalone:{kind}"))
-        .arg(format!("--param=worktree={staged}"))
-        .arg(format!("--param=repo={staged}"))
         .current_dir(work)
         .stdin(Stdio::null());
     for name in CONTROL_ENV {

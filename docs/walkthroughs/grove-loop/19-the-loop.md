@@ -187,10 +187,9 @@ loop, then the four chosen values are declared **before** anything uses them,
 then the outcome type, then the loop itself, then the five helpers it calls, and
 last the two tests that hold the one ordering the loop cannot get wrong.
 
-<!-- fragment «loop-driver» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="1-794" parent="source-loop-driver" -->
+<!-- fragment «loop-driver» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="1-752" parent="source-loop-driver" -->
 <!-- insert «loop-header» -->
 <!-- insert «loop-imports» -->
-<!-- insert «loop-worktree-name» -->
 <!-- insert «loop-control-env» -->
 <!-- insert «loop-channel-var» -->
 <!-- insert «loop-scrub-list» -->
@@ -222,11 +221,11 @@ last the two tests that hold the one ordering the loop cannot get wrong.
 <a id="the-header"></a>
 ## The header, and the loop it draws in shell
 
-Fifty-seven lines, and they are the chapter. The module states what it is, states
+Fifty-six lines, and they are the chapter. The module states what it is, states
 what it is not, sketches the whole of itself in a language that needs none of
 this crate, and then explains why the sketch is still true.
 
-<!-- fragment «loop-header» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="1-58" parent="loop-driver" -->
+<!-- fragment «loop-header» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="1-57" parent="loop-driver" -->
 ````rust
 // The self-driving loop — grove's runtime (self-driving-loop).
 //
@@ -273,9 +272,8 @@ this crate, and then explains why the sketch is still true.
 //       sig="$control_dir/signal-<fresh-128-bit-suffix>"
 //       # The owner's policy selects the command; Grove reads no configuration.
 //       GROVE_SIGNAL_FILE="$sig" harness-dispatch run --kind="$kind" \
-//         --task-file="$task_file" --task-id="$handle" --prompt="$prompt" \
-//         --param=session_name="$name" --param=worktree="$worktree" \
-//         --param=repo="$repo" &                         # $prompt carries $handle
+//         --task-file="$task_file" --task-id="$handle" \
+//         --prompt="$prompt" &                           # $prompt carries $handle
 //       pid=$!
 //       # poll $pid (try_wait) and "$sig" every ~500ms; on signal appearing:
 //       # sleep 2, kill -TERM $pid, sleep 5, kill -KILL $pid
@@ -318,7 +316,7 @@ inside the prompt, and its trailing comment says the second in five words. The
 composition itself is `session_prompt`, below.
 
 **The header's own three citations all resolve, and the file's fourth does not.**
-Within these 57 lines: line 1's `(self-driving-loop)` and line 13's
+Within these 56 lines: line 1's `(self-driving-loop)` and line 13's
 `(driver-side watcher — self-driving-loop)` both name
 `docs/ARCHITECTURE.md`'s *Lifecycle and resumption* section, which argues the
 driver-side kill and the sandbox ground the header leans on; line 31's
@@ -332,7 +330,7 @@ nothing at all.
 Ten `use` lines: two from this crate, one from `anyhow`, two from the workspace's
 other crates, and five from `std`.
 
-<!-- fragment «loop-imports» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="59-69" parent="loop-driver" -->
+<!-- fragment «loop-imports» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="58-68" parent="loop-driver" -->
 ````rust
 use crate::driver_lease::DriverLease;
 use crate::{interpret, Disposition, Handle, Kind, Reading, Selection, Sought, TreeLifetime};
@@ -361,38 +359,6 @@ runtime dependency beyond `anyhow`, and `the_library_imposes_only_libc` is the
 test that holds the manifest's statement of that boundary — the same test the
 book's spine is pinned by.
 
-<a id="the-grove-name"></a>
-## The name a human sees, and the fallback nothing produces
-
-The file's first function, and the smallest thing in it that is a choice.
-
-<!-- fragment «loop-worktree-name» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="70-77" parent="loop-driver" -->
-````rust
-/// The grove name is the worktree directory's basename (user-owned-worktrees).
-fn worktree_name(worktree: &Path) -> String {
-    worktree
-        .file_name()
-        .map(|s| s.to_string_lossy().into_owned())
-        .unwrap_or_else(|| "grove".to_string())
-}
-
-````
-<!-- /fragment -->
-
-Six lines, one citation, and a fallback. The citation `(user-owned-worktrees)`
-resolves — it is one of `docs/ARCHITECTURE.md`'s twenty-four anchors — and the
-claim it supports is that the grove's name is the worktree directory's basename
-rather than anything grove records, which is what makes a worktree the operator
-renamed simply be a differently-named grove.
-
-The `unwrap_or_else` arm is reached when `file_name()` returns `None`, which for
-an absolute path means the path is a root or ends in `..`. The lease has already
-proved a `.jj/` beside this directory by the time `drive` calls this, so the arm
-is defensive rather than live. It is worth naming as **defensive** rather than
-as *untested*: the distinction chapters 16 and 17 kept drawing between an arm no
-test distinguishes and an arm no fixture could reach is the same one here, and
-the value it would produce — `"grove"` — reaches nothing but a diagnostic string.
-
 <a id="the-third-choice"></a>
 ## The third choice: what a child may not inherit
 
@@ -400,7 +366,7 @@ The longest doc comment in the file, on the shortest declaration in it. Thirty-e
 lines of argument above a three-element array, and the argument is the reason the
 array has three elements rather than one.
 
-<!-- fragment «loop-control-env» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="78-117" parent="loop-driver" -->
+<!-- fragment «loop-control-env» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="69-108" parent="loop-driver" -->
 ````rust
 /// The loop driver's **launch-scoped environment** (self-driving-loop) — the
 /// variables a descendant could act on, and the exact set every spawn below
@@ -528,7 +494,7 @@ that `cargo doc` reads and says nothing about.
 
 The second `const`, and the one the runner is handed by name.
 
-<!-- fragment «loop-channel-var» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="118-123" parent="loop-driver" -->
+<!-- fragment «loop-channel-var» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="109-114" parent="loop-driver" -->
 ````rust
 /// The variable the completion channel's path is published under — the name
 /// this build and `grove-llm complete` have agreed on. It is the runner's
@@ -551,7 +517,7 @@ The name is *the name this build and `grove-llm complete` have agreed on*, which
 is a coupling between two binaries with no shared constant — and the comment says
 so rather than implying a mechanism that is not there.
 
-<!-- fragment «loop-scrub-list» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="124-128" parent="loop-driver" -->
+<!-- fragment «loop-scrub-list» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="115-119" parent="loop-driver" -->
 ````rust
 /// [`LOOP_CONTROL_ENV`] as the runner takes it.
 fn scrub_list() -> [&'static OsStr; LOOP_CONTROL_ENV.len()] {
@@ -563,7 +529,7 @@ fn scrub_list() -> [&'static OsStr; LOOP_CONTROL_ENV.len()] {
 
 And the same list again, in the shape a `Command` takes it.
 
-<!-- fragment «loop-scrub-helper» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="129-139" parent="loop-driver" -->
+<!-- fragment «loop-scrub-helper» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="120-130" parent="loop-driver" -->
 ````rust
 /// Deliberately one helper rather than an `env_remove` per site: the list is the
 /// interesting part, and a second site open-coding it is how the first one came
@@ -599,7 +565,7 @@ the crate, not about this file.
 The crate's one public enum outside the task-name types, and the only value `run`
 returns on success.
 
-<!-- fragment «loop-outcome» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="140-168" parent="loop-driver" -->
+<!-- fragment «loop-outcome» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="131-159" parent="loop-driver" -->
 ````rust
 /// Why the loop stopped — the loop's terminal disposition, made first-class so
 /// a clean whole-grove finish is distinguishable from an abnormal stop (rather
@@ -660,7 +626,7 @@ variables are the residue of, and the third mention of that leaf in fifty lines.
 The entry point, under twenty-nine lines of doc comment that are mostly about its
 signature.
 
-<!-- fragment «loop-run» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="169-206" parent="loop-driver" -->
+<!-- fragment «loop-run» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="160-197" parent="loop-driver" -->
 ````rust
 /// **The whole loop**: `exists? → create or find next → run → finalise`, one
 /// foreground session per selected task, until a session stops signalling
@@ -742,46 +708,36 @@ listing that absorbed the field would falsify the sentence explaining it.
 <a id="the-loop-body"></a>
 ## The loop body, in eight pieces
 
-`drive` is 112 lines and is the only loop in the crate. It is read here in the
+`drive` is 97 lines and is the only loop in the crate. It is read here in the
 order it runs.
 
-<!-- fragment «loop-drive-open» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="207-224" parent="loop-driver" -->
+<!-- fragment «loop-drive-open» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="198-207" parent="loop-driver" -->
 ````rust
 fn drive(
     workspace: &Workspace,
     driver_lease: &mut DriverLease,
     dispatch: &Path,
 ) -> Result<LoopOutcome> {
-    // Both taken from the resolution that already happened rather than
-    // recomputed here: `main_repo` is the seam's one derivation of *the
-    // repository root*, and the value the `repo` parameter carries.
+    // Taken from the lease rather than recomputed: dispatch runs here, which is
+    // the location the prompt assumes and the one a policy reads as its `cwd`.
     let worktree_path = driver_lease.worktree_root().to_path_buf();
     let worktree = worktree_path.as_path();
-    let repo_path = workspace.main_repo();
-    let name = worktree_name(worktree);
-    let repo_name = repo_path
-        .file_name()
-        .map(|value| value.to_string_lossy().into_owned())
-        .unwrap_or_else(|| "repo".to_string());
-    let session_name = format!("{repo_name}: {name} grove");
 
 ````
 <!-- /fragment -->
 
-**Everything before the loop is derived once, and the comment says why.**
-`main_repo` is *the seam's one derivation of the repository root, and the value
-the `repo` parameter carries* — one value, one derivation, and the policy that
-places it in a command receives what the driver itself uses. `worktree` comes off
-the lease
-rather than off the workspace, which is the first of the six calls this file
-makes into chapter 16's block.
+**One value is derived before the loop, and it is a location.** `worktree`
+comes off the lease rather than off the workspace, which is the first of the six
+calls this file makes into chapter 16's block. It is where every pass transitions,
+selects and launches, and the comment says what else it is: the directory
+dispatch runs in, the one the prompt assumes, and the one a policy reads as its
+`cwd`. Nothing else is derived for the launch. The driver used to compute a
+session name and the main repository's root here and pass both to the policy as
+parameters; a policy that wants either now derives it from that `cwd`, and the
+sample policy's grant of a secondary workspace's main repository is that
+derivation.
 
-`repo_name` repeats `worktree_name`'s shape inline rather than calling it, with a
-different fallback (`"repo"` against `"grove"`). The two are not factored
-together, and the reason is visible in the values: one names a grove, the other
-names a repository, and `session_name` puts them on either side of a colon.
-
-<!-- fragment «loop-drive-interrupt» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="225-239" parent="loop-driver" -->
+<!-- fragment «loop-drive-interrupt» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="208-222" parent="loop-driver" -->
 ````rust
     loop {
         // A SIGTERM or SIGHUP that arrived while no session was running has no
@@ -811,7 +767,7 @@ lease revalidation, immediately before `transition_to_current` writes.
 
 **Then the tree, and no question about any kind.**
 
-<!-- fragment «loop-drive-selection» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="240-248" parent="loop-driver" -->
+<!-- fragment «loop-drive-selection» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="223-231" parent="loop-driver" -->
 ````rust
 
         // No kind is checked here, or anywhere before the launch: whether the
@@ -886,25 +842,17 @@ read as though the operations had many callers. Chapter 15 recorded the
 `transition_to_current` half of this; the pair is enumerated here because this is
 the page where both are reached.
 
-<!-- fragment «loop-drive-invocation» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="249-259" parent="loop-driver" -->
+<!-- fragment «loop-drive-invocation» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="232-235" parent="loop-driver" -->
 ````rust
 
         let prompt = session_prompt(&selection.handle, &selection.kind, workspace);
-        let argv = dispatch_run(
-            dispatch,
-            &selection,
-            &prompt,
-            &session_name,
-            worktree,
-            repo_path,
-        );
+        let argv = dispatch_run(dispatch, &selection, &prompt);
 
 ````
 <!-- /fragment -->
 
 **The invocation is built, not looked up.** `dispatch_run` takes the path `run`
-was handed, the selection, the prompt and the values derived before the loop, and
-returns an `Argv`. Nothing here can fail: there is no file to read and no
+was handed, the selection and the prompt, and returns an `Argv`. Nothing here can fail: there is no file to read and no
 template to resolve, so the statement carries no `?`.
 
 **The kind is passed, never re-read**, and the chain is visible in this block:
@@ -915,7 +863,7 @@ One guarded selection reaches every consumer, so the prompt and the `--kind`,
 leaf it is, or what kind. That is `session_prompt`'s doc comment's claim, and
 this block is where it is true.
 
-<!-- fragment «loop-drive-launch» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="260-280" parent="loop-driver" -->
+<!-- fragment «loop-drive-launch» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="236-256" parent="loop-driver" -->
 ````rust
         driver_lease
             .revalidate()
@@ -964,7 +912,7 @@ what the two inline tests can then assert without a session, a channel or a
 child. That is the whole reason this block is shaped the way it is, and the tests
 at the end of the file are its proof.
 
-<!-- fragment «loop-drive-discard» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="281-286" parent="loop-driver" -->
+<!-- fragment «loop-drive-discard» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="257-262" parent="loop-driver" -->
 ````rust
         if let Err(error) = channel.discard() {
             eprintln!(
@@ -983,7 +931,7 @@ a completed grove's `Finished` because a file could not be unlinked would be a
 worse failure than the leftover. `a_signal_removal_failure_does_not_override_a_done_disposition`
 is the test that holds it.
 
-<!-- fragment «loop-drive-interrupted» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="287-291" parent="loop-driver" -->
+<!-- fragment «loop-drive-interrupted» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="263-267" parent="loop-driver" -->
 ````rust
         if let End::Interrupted { signal } = ended.end {
             eprintln!("grove: interrupted by signal {signal} — stopping the loop.");
@@ -996,7 +944,7 @@ is the test that holds it.
 And the last statement in the loop body is the one that decides whether there is
 another iteration.
 
-<!-- fragment «loop-drive-endings» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="292-318" parent="loop-driver" -->
+<!-- fragment «loop-drive-endings» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="268-294" parent="loop-driver" -->
 ````rust
         match signal {
             Some(Disposition::Relaunch) => continue,
@@ -1062,7 +1010,7 @@ session that happened to signal turn a `timeout(1)` into a clean finish.
 
 The first of the five helpers `drive` calls, and the one that reaches chapter 18.
 
-<!-- fragment «loop-session-prompt» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="319-352" parent="loop-driver" -->
+<!-- fragment «loop-session-prompt» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="295-328" parent="loop-driver" -->
 ````rust
 /// The whole `${prompt}`: the guaranteed core, composed for the launched kind.
 ///
@@ -1139,7 +1087,7 @@ side.
 The second helper, and the only place in grove's lifecycle that spells a
 `harness-dispatch` flag.
 
-<!-- fragment «loop-dispatch-run» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="353-393" parent="loop-driver" -->
+<!-- fragment «loop-dispatch-run» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="329-359" parent="loop-driver" -->
 ````rust
 /// The `harness-dispatch run` invocation for one selected leaf: everything the
 /// owner's policy may select from, and nothing about how it selects
@@ -1147,21 +1095,14 @@ The second helper, and the only place in grove's lifecycle that spells a
 ///
 /// The kind, the task file and the handle are read from the selection that
 /// composed `prompt`, so they cannot describe a different leaf from the mandate.
-/// The session name and the two roots travel as named parameters, which the
-/// policy places in its command or ignores. No policy entry, bound, grant or
-/// record directory is passed: those are the owner's settings.
+/// No parameter is passed. The session's location is the `cwd` dispatch runs
+/// in, and naming the session is the methodology's. No policy entry, bound,
+/// grant or record directory is passed either: those are the owner's settings.
 ///
 /// Each value is joined to its flag in one word, so a prompt or a path that
 /// begins with a dash is still a value. A value dispatch cannot take, a path
 /// that is not UTF-8 for one, is dispatch's to refuse.
-fn dispatch_run(
-    dispatch: &Path,
-    task: &Selection,
-    prompt: &str,
-    session_name: &str,
-    worktree: &Path,
-    repository: &Path,
-) -> Argv {
+fn dispatch_run(dispatch: &Path, task: &Selection, prompt: &str) -> Argv {
     let word = |flag: &str, value: &OsStr| {
         let mut word = OsString::from(flag);
         word.push(value);
@@ -1175,9 +1116,6 @@ fn dispatch_run(
             word("--task-file=", task.path.as_os_str()),
             word("--task-id=", task.handle.to_string().as_ref()),
             word("--prompt=", prompt.as_ref()),
-            word("--param=session_name=", session_name.as_ref()),
-            word("--param=worktree=", worktree.as_os_str()),
-            word("--param=repo=", repository.as_os_str()),
         ],
     )
 }
@@ -1185,16 +1123,17 @@ fn dispatch_run(
 ````
 <!-- /fragment -->
 
-**Seven values and one verb, and the list is closed.** The kind, the task file,
-the handle and the prompt are dispatch's own selection inputs; the session name
-and the two roots travel as named parameters, which dispatch gives no meaning and
-only the policy reads. *No policy entry, bound, grant or record directory is
-passed: those are the owner's settings* — so nothing an owner would tune is in
-this function, and another `--param` here would be a change to what every
-owner's `select` receives.
+**Four values and one verb, and the list is closed.** The kind, the task file,
+the handle and the prompt are dispatch's own selection inputs, and nothing else
+is passed. *No parameter is passed*: the session's location is the directory
+dispatch runs in, and naming the session is the methodology's. *No policy entry,
+bound, grant or record directory is passed either: those are the owner's
+settings* — so nothing an owner would tune is in this function, and a `--param`
+here would be a change to what every owner's `select` receives.
 `a_session_s_task_reaches_select_as_native_data_and_only_its_harness_holds_the_channel`
-holds the list from the receiving side: the parameters that reach `select` are
-these three and no others, and the prompt is `compose`'s output byte for byte.
+holds the list from the receiving side: no parameter reaches `select`, its `cwd`
+is the working-tree root of a secondary workspace rather than the main
+repository's, and the prompt is `compose`'s output byte for byte.
 
 **Each value is joined to its flag, so no value can be read as a flag.** A
 worktree's name may begin with a dash, and so may a prompt; `--prompt=` followed
@@ -1216,7 +1155,7 @@ the example in dispatch's own help in step with it.
 
 Twenty-one lines of contract, then a signature and a single diagnostic line.
 
-<!-- fragment «loop-launch-contract» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="394-428" parent="loop-driver" -->
+<!-- fragment «loop-launch-contract» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="360-394" parent="loop-driver" -->
 ````rust
 /// Launch one fresh foreground session owning the real TTY, and hand it to
 /// `keyed_launch::run_observed`, which spawns it directly — no shell — and supervises it
@@ -1273,7 +1212,7 @@ under `leaf-insert`, while the handle does not. This is chapter 3's
 handle-not-position rule arriving at the one place where a human reads it back,
 and it is why the loop's log is legible after a tree has been reordered under it.
 
-<!-- fragment «loop-launch-spawn» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="429-455" parent="loop-driver" -->
+<!-- fragment «loop-launch-spawn» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="395-421" parent="loop-driver" -->
 ````rust
     driver_lease
         .prepare_launch(selected.lifetime, selection, channel.path())
@@ -1334,7 +1273,7 @@ the record behind the process-group half of it, named here and cited nowhere.
 
 The only function in the file with no doc comment at all.
 
-<!-- fragment «loop-handoff» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="456-473" parent="loop-driver" -->
+<!-- fragment «loop-handoff» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="422-439" parent="loop-driver" -->
 ````rust
 fn complete_post_reap_epoch_handoff<E, T>(
     ended: Result<E>,
@@ -1391,7 +1330,7 @@ still on disk with a token in it, which the next driver will find.
 
 Two durations, and eight lines saying where each number came from.
 
-<!-- fragment «loop-escalation» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="474-486" parent="loop-driver" -->
+<!-- fragment «loop-escalation» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="440-452" parent="loop-driver" -->
 ````rust
 /// The kill escalation the runner applies once the completion channel appears.
 ///
@@ -1430,7 +1369,7 @@ restate* instruction appearing inside the source it applies to.
 Thirteen lines of comment over eighteen of code, and the comment is entirely
 about the second of the function's two early returns.
 
-<!-- fragment «loop-reset-terminal» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="487-518" parent="loop-driver" -->
+<!-- fragment «loop-reset-terminal» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="453-484" parent="loop-driver" -->
 ````rust
 /// Reset the terminal after a (possibly SIGTERM'd) TUI: restore cooked mode,
 /// leave the alternate screen, show the cursor. No-op when stdin isn't a TTY
@@ -1502,7 +1441,7 @@ succeeded.
 
 The other half of what `run` does before it delegates.
 
-<!-- fragment «loop-ignore-interrupts» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="519-549" parent="loop-driver" -->
+<!-- fragment «loop-ignore-interrupts» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="485-515" parent="loop-driver" -->
 ````rust
 /// Ignore SIGINT in the driver so a terminal Ctrl-C does not kill the loop. The
 /// driver must survive the interrupt to reach the relaunch-vs-stop decision.
@@ -1583,7 +1522,7 @@ returning it releases the tree guard. `picked_after_finish` discards the value
 returned by materialization and selects again under a fresh guard, so concurrent
 changes supply a new selection rather than an identity attached to old names.
 
-<!-- fragment «loop-picked» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="550-589" parent="loop-driver" -->
+<!-- fragment «loop-picked» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="516-555" parent="loop-driver" -->
 ````rust
 /// The driver's own `pick`, over the worktree it is driving.
 ///
@@ -1678,7 +1617,7 @@ The remaining tests hold the separate handoff invariant: completion
 interpretation stays behind successful epoch invalidation, and a failed handoff
 preserves the preceding launch failure.
 
-<!-- fragment «loop-tests-open» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="590-735" parent="loop-driver" -->
+<!-- fragment «loop-tests-open» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="556-693" parent="loop-driver" -->
 ````rust
 // The repository's shared test helpers. Declared out here because a `#[path]`
 // inside the inline module below would resolve against a directory that does
@@ -1705,20 +1644,13 @@ mod tests {
     /// policy runs `harness` for every kind. The real front and its compiled
     /// worker select it. `env` sets that HOME on the front it becomes, because
     /// a test may not change its own process's environment.
-    fn dispatched(home: &Path, harness: &Path, task: &Selection, work: &Path) -> Argv {
+    fn dispatched(home: &Path, harness: &Path, task: &Selection) -> Argv {
         std::fs::write(harness, "#!/bin/sh\ntouch launched\n").unwrap();
         let mut permissions = std::fs::metadata(harness).unwrap().permissions();
         std::os::unix::fs::PermissionsExt::set_mode(&mut permissions, 0o755);
         std::fs::set_permissions(harness, permissions).unwrap();
         support::route_every_kind_to(home, harness);
-        let run = dispatch_run(
-            &support::harness_dispatch(),
-            task,
-            "prompt",
-            "session",
-            work,
-            work,
-        );
+        let run = dispatch_run(&support::harness_dispatch(), task, "prompt");
         let mut home_word = OsString::from("HOME=");
         home_word.push(home);
         let mut words = vec![home_word];
@@ -1749,7 +1681,6 @@ mod tests {
                 &fixture.path().join("home"),
                 &fixture.path().join("harness"),
                 &selection.selection,
-                work,
             );
             let channel = Channel::allocate(lease.control_dir()).unwrap();
             let result = launch_session(&argv, selection, work, &channel, &mut lease);
@@ -1839,7 +1770,7 @@ end-to-end behaviour is `crates/keyed-launch/tests/launch.rs`'s, against a fake
 child, and the comment says so rather than leaving the gap to be read as an
 omission.
 
-<!-- fragment «loop-test-handoff-preserves» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="736-771" parent="loop-driver" -->
+<!-- fragment «loop-test-handoff-preserves» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="694-729" parent="loop-driver" -->
 ````rust
     #[test]
     fn an_epoch_handoff_failure_preserves_the_launch_failure_that_preceded_it() {
@@ -1909,7 +1840,7 @@ things, and they are different in kind.
   so the pair of assertions together does reach this arm, though neither does
   alone.
 
-<!-- fragment «loop-test-ordering» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="772-794" parent="loop-driver" -->
+<!-- fragment «loop-test-ordering» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="730-752" parent="loop-driver" -->
 ````rust
     #[test]
     fn signal_interpretation_cannot_run_before_epoch_invalidation_succeeds() {
@@ -2027,7 +1958,6 @@ there.
 | the `stty` spawn's scrub deleted | 0 |
 | `ignore_interrupts` deleted | 0 |
 | `picked`'s `Vacant` arm replaced by a silent panic | 0 |
-| `worktree_name`'s fallback replaced by a silent panic | 0 |
 | a `revalidate` context string reworded — negative control | 0 |
 
 **The instrument detects the mutations, as established by the rows that fire
@@ -2095,7 +2025,7 @@ four red, both inline tests among them. The block therefore covers the one
 combination no end-to-end fixture produces — two failures at once.
 
 <a id="the-zeros"></a>
-## Five zeros, and which kind of zero each one is
+## Four zeros, and which kind of zero each one is
 
 A zero means *no test distinguishes this* and never *no test could*, and the two
 need separating on the page rather than being reported as one absence. The
@@ -2124,11 +2054,6 @@ above has already brought the worktree to a grove* predicts: by the time `picked
 runs, `transition_to_current` has guaranteed a tree. The comment declined to call
 the arm dead and gave the answer it would produce anyway; the measurement agrees
 with the hedge rather than with the stronger claim it avoided making.
-
-**`worktree_name`'s fallback is the same shape.** A silent panic in the
-`unwrap_or_else` turns nothing red: the lease has proved a `.jj/` beside a named
-directory before `drive` ever asks for its basename, so `file_name()` returning
-`None` is not a state the loop can reach.
 
 **And the negative control is the row that should be zero.** Rewording a
 `revalidate` context string changes no behaviour and turns nothing red, which is
@@ -2178,7 +2103,7 @@ something left to be.
 **And the thing this chapter is really for.** The loop is the one place where the
 preceding chapters are used at once: the transition from chapter 14, the
 walk from chapter 7, the lease and epoch from chapters 16 and 17, the prompt from
-chapter 18 — four subsystems, called in order, in the 112 lines of `drive`. It could have been the place where
+chapter 18 — four subsystems, called in order, in the 97 lines of `drive`. It could have been the place where
 the crate's thesis broke down, because a loop is the natural home for a cursor,
 a cache and a retry count. It holds none of them. Position is re-derived from the
 tree on every pass, the command is selected afresh by a process outside this

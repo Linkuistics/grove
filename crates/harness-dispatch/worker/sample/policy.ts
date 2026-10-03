@@ -25,28 +25,28 @@
 // That file replaces the default whole, so a modifier the default applies
 // must be named again to keep it. It can name only what this file offers.
 //
-// WHAT IT NEEDS FROM THE CALLER. Grove passes `session_name` and `repo` as
-// parameters, and the commands place them: `claude` is named for the session,
-// and `--add-dir` gives both harnesses the main repository, which a secondary
-// jj workspace needs to reach its store. A caller that passes neither is
-// refused for the commands that need them:
+// WHERE IT RUNS. Nothing but the kind and the prompt: it reads no parameter
+// and names no session. Grove runs it in the working-tree root, which the
+// prompt assumes too. A secondary jj workspace keeps its store in the main
+// repository, and its `.jj/repo` is a file naming that store; there the sample
+// gives both harnesses the main repository with `--add-dir`. In a primary
+// workspace, or anywhere else, it grants nothing more. Inspect from the
+// directory Grove would run in:
 //
-//     harness-dispatch inspect --kind impl --param session_name=parser --param repo=/work/parser
+//     cd /work/parser && harness-dispatch inspect --kind impl
 
+import { readFileSync, statSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
 import { CHOICE_FILE, definePolicy, readChoice, type Refused, type SelectionResult } from "harness-dispatch/sdk";
-
-/** The parameters a command places in its arguments. */
-type Params = Readonly<Record<"session_name" | "repo", string>>;
 
 /** A command line, and the model and effort it runs at unless a route says otherwise. */
 interface Harness {
   readonly provider: string;
   readonly model: string;
   readonly effort: string;
-  /** The parameters `args` places, which the caller must have passed. */
-  readonly needs: readonly (keyof Params)[];
   readonly program: string;
-  args(model: string, effort: string, prompt: string, params: Params): string[];
+  /** `grants` are the directories beyond the cwd the harness may write. */
+  args(model: string, effort: string, prompt: string, grants: readonly string[]): string[];
 }
 
 const HARNESSES = {
@@ -54,9 +54,8 @@ const HARNESSES = {
     provider: "openai",
     model: "gpt-6.1-sol",
     effort: "medium",
-    needs: ["repo"],
     program: "codex",
-    args: (model, effort, prompt, params) => [
+    args: (model, effort, prompt, grants) => [
       "--model",
       model,
       "-c",
@@ -65,8 +64,7 @@ const HARNESSES = {
       "default_permissions=:danger-full-access",
       "--ask-for-approval",
       "never",
-      "--add-dir",
-      params.repo,
+      ...grants.flatMap((grant) => ["--add-dir", grant]),
       prompt,
     ],
   },
@@ -74,13 +72,9 @@ const HARNESSES = {
     provider: "anthropic",
     model: "claude-opus-5-5",
     effort: "medium",
-    needs: ["session_name", "repo"],
     program: "claude",
-    args: (model, effort, prompt, params) => [
-      "-n",
-      params.session_name,
-      "--add-dir",
-      params.repo,
+    args: (model, effort, prompt, grants) => [
+      ...grants.flatMap((grant) => ["--add-dir", grant]),
       "--model",
       model,
       "--effort",
@@ -89,12 +83,12 @@ const HARNESSES = {
     ],
   },
   // The headless one-shot writer for `grove run release-notes`. The release
-  // task stages codex-headless.sh beside its inputs, in the directory it runs.
+  // task stages codex-headless.sh beside its inputs, in the directory it runs,
+  // and the writer needs no grant beyond it.
   notes: {
     provider: "openai",
     model: "gpt-6.1-sol",
     effort: "medium",
-    needs: [],
     program: "/bin/bash",
     args: (model, effort, prompt) => ["codex-headless.sh", model, effort, prompt],
   },
@@ -226,9 +220,34 @@ function refused(code: string, message: string, remedy: string): Refused {
   return { status: "refused", code, message, remedy };
 }
 
+/**
+ * The main repository a secondary jj workspace at `cwd` keeps its store in, or
+ * nothing. A secondary workspace's `.jj/repo` is a file holding the store's
+ * path, relative to `.jj/`, and the store is `<main>/.jj/repo`. The grant is
+ * `<main>` rather than the store alone because a colocated repository's git
+ * objects sit beside the store, in `<main>/.git`. A primary workspace's
+ * `.jj/repo` is the store itself, a directory inside the cwd, and a directory
+ * with no `.jj` is no workspace: neither needs a grant.
+ */
+function mainRepository(cwd: string): string[] | Refused {
+  const file = join(cwd, ".jj", "repo");
+  try {
+    if (statSync(file, { throwIfNoEntry: false })?.isFile() !== true) return [];
+    const store = readFileSync(file, "utf8").trim();
+    if (store === "") throw new Error("it is empty");
+    return [dirname(dirname(resolve(join(cwd, ".jj"), store)))];
+  } catch (error) {
+    return refused(
+      "jj_store_unreadable",
+      `${file} names no jj store: ${error instanceof Error ? error.message : String(error)}`,
+      `run from a jj workspace whose ${file} names its store, or from a directory with no .jj`,
+    );
+  }
+}
+
 export const policy = definePolicy({
   schemaVersion: 2,
-  version: "harness-dispatch sample 1",
+  version: "harness-dispatch sample 2",
   select(request): SelectionResult {
     const kind = JSON.stringify(request.kind);
     const base = Object.hasOwn(ROUTES, request.kind) ? ROUTES[request.kind] : undefined;
@@ -274,19 +293,12 @@ export const policy = definePolicy({
     const model = route.model ?? harness.model;
     const effort = route.effort ?? harness.effort;
 
-    const missing = harness.needs.find((param) => request.params[param] === undefined);
-    if (missing !== undefined) {
-      return refused(
-        "parameter_missing",
-        `kind ${kind} runs ${harness.program}, which needs the parameter ${missing}, and the caller passed none`,
-        `pass --param ${missing}=VALUE; Grove passes session_name and repo for every session it launches`,
-      );
-    }
+    const grants = mainRepository(request.cwd);
+    if ("status" in grants) return grants;
     return {
       status: "selected",
       program: harness.program,
-      // Checked just above: every parameter this harness places was passed.
-      args: harness.args(model, effort, request.prompt, request.params as Params),
+      args: harness.args(model, effort, request.prompt, grants),
       provider: harness.provider,
       model,
       effort,

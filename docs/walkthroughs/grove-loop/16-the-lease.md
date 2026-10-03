@@ -213,8 +213,8 @@ let lease     = DriverLease::acquire(&workspace)?;
 grove_loop::run(&workspace, lease, &dispatch)?
 ```
 
-One resolution behind the lease, behind the two roots a launch is told
-about and behind the prompt's stated version control. The lease is then
+One resolution behind the lease, behind the working-tree root a launch runs
+in and behind the prompt's stated version control. The lease is then
 *moved* into `run`, which is why the guard's lifetime is the loop's: it is
 released exactly when the loop that justified holding it returns. The decision
 record states both halves — one resolution, and the move into the loop — and this

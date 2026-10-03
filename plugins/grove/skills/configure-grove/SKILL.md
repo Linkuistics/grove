@@ -33,10 +33,11 @@ its tables are the source of what each kind runs.
 
 `harness-dispatch inspect` reports what a kind would launch and launches
 nothing. Inspect each kind under consideration from the root of the working
-tree in question, so that its choice file applies, passing what Grove passes:
+tree in question, as Grove runs it: there its choice file applies, and Grove
+passes no parameter.
 
 ```sh
-harness-dispatch inspect --kind impl --param session_name=parser --param repo=/work/parser
+cd /work/parser && harness-dispatch inspect --kind impl
 ```
 
 The report gives the provider, model and effort labels, the `reason`, the

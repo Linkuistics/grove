@@ -71,8 +71,8 @@ impl Installed {
              It launches codex with approvals off and full access (--ask-for-approval never, \
              default_permissions=:danger-full-access). Read it, and edit it, before the first \
              launch: it is yours.\n\
-             See what it selects with\n  \
-             harness-dispatch inspect --kind impl --param session_name=NAME --param repo=PATH\n",
+             See what it selects, from the directory Grove runs in, with\n  \
+             harness-dispatch inspect --kind impl\n",
             self.0.display()
         )
     }

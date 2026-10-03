@@ -75,7 +75,7 @@ export const noRemedy: Policy = {
 export const noChoice = (request: SelectionRequest) => request.explicitChoice;
 
 // @ts-expect-error a parameter the caller did not pass is undefined, never a string
-export const absentParam = (request: SelectionRequest): string => request.params["repo"];
+export const absentParam = (request: SelectionRequest): string => request.params["profile"];
 
 export const selectReadsNothing: Policy = {
   schemaVersion: 2,

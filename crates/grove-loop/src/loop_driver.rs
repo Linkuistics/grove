@@ -43,9 +43,8 @@
 //       sig="$control_dir/signal-<fresh-128-bit-suffix>"
 //       # The owner's policy selects the command; Grove reads no configuration.
 //       GROVE_SIGNAL_FILE="$sig" harness-dispatch run --kind="$kind" \
-//         --task-file="$task_file" --task-id="$handle" --prompt="$prompt" \
-//         --param=session_name="$name" --param=worktree="$worktree" \
-//         --param=repo="$repo" &                         # $prompt carries $handle
+//         --task-file="$task_file" --task-id="$handle" \
+//         --prompt="$prompt" &                           # $prompt carries $handle
 //       pid=$!
 //       # poll $pid (try_wait) and "$sig" every ~500ms; on signal appearing:
 //       # sleep 2, kill -TERM $pid, sleep 5, kill -KILL $pid
@@ -66,14 +65,6 @@ use std::io::Write;
 use std::path::Path;
 use std::process::Command;
 use std::time::Duration;
-
-/// The grove name is the worktree directory's basename (user-owned-worktrees).
-fn worktree_name(worktree: &Path) -> String {
-    worktree
-        .file_name()
-        .map(|s| s.to_string_lossy().into_owned())
-        .unwrap_or_else(|| "grove".to_string())
-}
 
 /// The loop driver's **launch-scoped environment** (self-driving-loop) — the
 /// variables a descendant could act on, and the exact set every spawn below
@@ -209,18 +200,10 @@ fn drive(
     driver_lease: &mut DriverLease,
     dispatch: &Path,
 ) -> Result<LoopOutcome> {
-    // Both taken from the resolution that already happened rather than
-    // recomputed here: `main_repo` is the seam's one derivation of *the
-    // repository root*, and the value the `repo` parameter carries.
+    // Taken from the lease rather than recomputed: dispatch runs here, which is
+    // the location the prompt assumes and the one a policy reads as its `cwd`.
     let worktree_path = driver_lease.worktree_root().to_path_buf();
     let worktree = worktree_path.as_path();
-    let repo_path = workspace.main_repo();
-    let name = worktree_name(worktree);
-    let repo_name = repo_path
-        .file_name()
-        .map(|value| value.to_string_lossy().into_owned())
-        .unwrap_or_else(|| "repo".to_string());
-    let session_name = format!("{repo_name}: {name} grove");
 
     loop {
         // A SIGTERM or SIGHUP that arrived while no session was running has no
@@ -248,14 +231,7 @@ fn drive(
         let selection = selected.selection.clone();
 
         let prompt = session_prompt(&selection.handle, &selection.kind, workspace);
-        let argv = dispatch_run(
-            dispatch,
-            &selection,
-            &prompt,
-            &session_name,
-            worktree,
-            repo_path,
-        );
+        let argv = dispatch_run(dispatch, &selection, &prompt);
 
         driver_lease
             .revalidate()
@@ -356,21 +332,14 @@ fn session_prompt(handle: &Handle, kind: &Kind, workspace: &Workspace) -> String
 ///
 /// The kind, the task file and the handle are read from the selection that
 /// composed `prompt`, so they cannot describe a different leaf from the mandate.
-/// The session name and the two roots travel as named parameters, which the
-/// policy places in its command or ignores. No policy entry, bound, grant or
-/// record directory is passed: those are the owner's settings.
+/// No parameter is passed. The session's location is the `cwd` dispatch runs
+/// in, and naming the session is the methodology's. No policy entry, bound,
+/// grant or record directory is passed either: those are the owner's settings.
 ///
 /// Each value is joined to its flag in one word, so a prompt or a path that
 /// begins with a dash is still a value. A value dispatch cannot take, a path
 /// that is not UTF-8 for one, is dispatch's to refuse.
-fn dispatch_run(
-    dispatch: &Path,
-    task: &Selection,
-    prompt: &str,
-    session_name: &str,
-    worktree: &Path,
-    repository: &Path,
-) -> Argv {
+fn dispatch_run(dispatch: &Path, task: &Selection, prompt: &str) -> Argv {
     let word = |flag: &str, value: &OsStr| {
         let mut word = OsString::from(flag);
         word.push(value);
@@ -384,9 +353,6 @@ fn dispatch_run(
             word("--task-file=", task.path.as_os_str()),
             word("--task-id=", task.handle.to_string().as_ref()),
             word("--prompt=", prompt.as_ref()),
-            word("--param=session_name=", session_name.as_ref()),
-            word("--param=worktree=", worktree.as_os_str()),
-            word("--param=repo=", repository.as_os_str()),
         ],
     )
 }
@@ -612,20 +578,13 @@ mod tests {
     /// policy runs `harness` for every kind. The real front and its compiled
     /// worker select it. `env` sets that HOME on the front it becomes, because
     /// a test may not change its own process's environment.
-    fn dispatched(home: &Path, harness: &Path, task: &Selection, work: &Path) -> Argv {
+    fn dispatched(home: &Path, harness: &Path, task: &Selection) -> Argv {
         std::fs::write(harness, "#!/bin/sh\ntouch launched\n").unwrap();
         let mut permissions = std::fs::metadata(harness).unwrap().permissions();
         std::os::unix::fs::PermissionsExt::set_mode(&mut permissions, 0o755);
         std::fs::set_permissions(harness, permissions).unwrap();
         support::route_every_kind_to(home, harness);
-        let run = dispatch_run(
-            &support::harness_dispatch(),
-            task,
-            "prompt",
-            "session",
-            work,
-            work,
-        );
+        let run = dispatch_run(&support::harness_dispatch(), task, "prompt");
         let mut home_word = OsString::from("HOME=");
         home_word.push(home);
         let mut words = vec![home_word];
@@ -656,7 +615,6 @@ mod tests {
                 &fixture.path().join("home"),
                 &fixture.path().join("harness"),
                 &selection.selection,
-                work,
             );
             let channel = Channel::allocate(lease.control_dir()).unwrap();
             let result = launch_session(&argv, selection, work, &channel, &mut lease);

@@ -145,14 +145,14 @@ case_sample_init() {
   cmp -s "$policy" "$PREFIX/libexec/harness-dispatch/examples/sample.ts" ||
     fail "a refused init changed $policy"
 
-  (cd "$dir/cwd" && HOME="$home" PATH="$dir/bin:$PATH" "$front" inspect --kind impl \
-    --param session_name=smoke --param "repo=$dir/cwd" --json) >"$dir/inspect.json" ||
+  (cd "$dir/cwd" && HOME="$home" PATH="$dir/bin:$PATH" "$front" inspect --kind impl --json) \
+    >"$dir/inspect.json" ||
     fail "inspect of the installed sample exited $?"
   expect_json "$dir/inspect.json" '"authority":"personal"'
-  expect_json "$dir/inspect.json" '"version":"harness-dispatch sample 1"'
+  expect_json "$dir/inspect.json" '"version":"harness-dispatch sample 2"'
   expect_json "$dir/inspect.json" '"selection":{"effort":"high","model":"claude-opus-5-5","provider":"anthropic"'
   expect_json "$dir/inspect.json" \
-    "\"command\":{\"args\":[\"-n\",\"smoke\",\"--add-dir\",\"$dir/cwd\",\"--model\",\"claude-opus-5-5\",\"--effort\",\"high\",\"<harness-dispatch inspect: no prompt was supplied>\"],\"executable\":\"$dir/bin/claude\",\"program\":\"claude\"}"
+    "\"command\":{\"args\":[\"--model\",\"claude-opus-5-5\",\"--effort\",\"high\",\"<harness-dispatch inspect: no prompt was supplied>\"],\"executable\":\"$dir/bin/claude\",\"program\":\"claude\"}"
 }
 
 # A policy in TypeScript whose `select` consults a table by kind: an interface,

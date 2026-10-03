@@ -5,7 +5,10 @@
 //!
 //! `fixtures/parity/commands.json` is what Grove's configuration resolver
 //! produced from the configuration the sample converts. The sample is held to
-//! it argument for argument, for every kind under every selection it offers.
+//! it argument for argument, for every kind under every selection it offers,
+//! less the session name it no longer places: it reads no parameter. Its one
+//! grant, the main repository, it derives from a secondary jj workspace's
+//! `.jj/repo` in the caller's directory.
 
 mod support;
 
@@ -19,11 +22,12 @@ use support::{executable, text, Run, Sandbox};
 const SAMPLE: &str = include_str!("../worker/sample/policy.ts");
 const PARITY: &str = include_str!("fixtures/parity/commands.json");
 
-/// What a caller passes for the fixture's runtime slots, with the punctuation
-/// a shell or a second reading would disturb.
-const SESSION: &str = "parser grove";
-const REPO: &str = "/work/main repo";
+/// The prompt, with the punctuation a shell or a second reading would disturb.
 const PROMPT: &str = "Load the skill.\n$HOME stays literal; so does ${repo}\n";
+
+/// The main repository of the secondary workspace [`secondary`] makes, beside
+/// the sandbox's cwd, with a space in its name.
+const MAIN: &str = "main repo";
 
 fn init(sandbox: &Sandbox) -> Run {
     let mut command = sandbox.command();
@@ -43,12 +47,62 @@ fn installed() -> Sandbox {
     sandbox
 }
 
-/// Inspect `kind` as Grove would launch it.
+/// Inspect `kind` as Grove would launch it: no parameter, in the cwd.
 fn inspect(sandbox: &Sandbox, kind: &str) -> Run {
-    let (session, repo) = (format!("session_name={SESSION}"), format!("repo={REPO}"));
-    sandbox.inspect(&[
-        "--kind", kind, "--param", &session, "--param", &repo, "--prompt", PROMPT, "--json",
-    ])
+    sandbox.inspect(&["--kind", kind, "--prompt", PROMPT, "--json"])
+}
+
+/// Make the sandbox's cwd a secondary jj workspace, whose `.jj/repo` is a file
+/// naming the store in jj's own form — relative to `.jj/`, as this grove's own
+/// workspace holds `../../grove/.jj/repo` — and return the main repository.
+fn secondary(sandbox: &Sandbox) -> PathBuf {
+    let main = sandbox.root.join(MAIN);
+    fs::create_dir_all(main.join(".jj/repo")).unwrap();
+    fs::create_dir_all(sandbox.cwd.join(".jj")).unwrap();
+    fs::write(
+        sandbox.cwd.join(".jj/repo"),
+        format!("../../{MAIN}/.jj/repo"),
+    )
+    .unwrap();
+    main
+}
+
+/// Make the sandbox's cwd a primary jj workspace, whose `.jj/repo` is the store.
+fn primary(sandbox: &Sandbox) {
+    let _ = fs::remove_file(sandbox.cwd.join(".jj/repo"));
+    fs::create_dir_all(sandbox.cwd.join(".jj/repo/store")).unwrap();
+}
+
+/// The arguments the sample places for a fixture command: the fixture's, less
+/// the session name, with the main repository granted only when there is one.
+fn expected(recorded: &Value, main: Option<&Path>) -> Vec<String> {
+    let mut words = recorded
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|word| word.as_str().unwrap());
+    let mut args = Vec::new();
+    while let Some(word) = words.next() {
+        match word {
+            "-n" => assert_eq!(words.next(), Some("${session_name}"), "{recorded}"),
+            "--add-dir" => {
+                assert_eq!(words.next(), Some("${repo}"), "{recorded}");
+                if let Some(main) = main {
+                    args.extend(["--add-dir".to_owned(), text(main)]);
+                }
+            }
+            "${prompt}" => args.push(PROMPT.to_owned()),
+            slot if slot.starts_with("${") => panic!("the fixture has an unknown slot {slot}"),
+            literal => args.push(literal.to_owned()),
+        }
+    }
+    args
+}
+
+/// The word after `flag` in `args`.
+fn after<'a>(args: &'a [String], flag: &str) -> &'a str {
+    let at = args.iter().position(|word| word == flag).unwrap();
+    &args[at + 1]
 }
 
 /// The policy's own refusal, under `code`.
@@ -114,7 +168,7 @@ fn init_writes_the_sample_into_an_empty_home_and_reports_it() {
     let report = inspect(&sandbox, "impl").report();
     assert_eq!(report["policy"]["authority"], "personal");
     assert_eq!(report["policy"]["path"], text(&sandbox.personal_path()));
-    assert_eq!(report["policy"]["version"], "harness-dispatch sample 1");
+    assert_eq!(report["policy"]["version"], "harness-dispatch sample 2");
 }
 
 #[test]
@@ -164,13 +218,7 @@ fn the_sample_selects_the_recorded_command_for_every_kind_under_every_selection(
     assert_eq!(entries.len(), 16, "four arrangements, each four ways");
 
     let sandbox = installed();
-    let filled = |word: &Value| match word.as_str().unwrap() {
-        "${prompt}" => PROMPT.to_owned(),
-        "${session_name}" => SESSION.to_owned(),
-        "${repo}" => REPO.to_owned(),
-        slot if slot.starts_with("${") => panic!("the fixture has an unknown slot {slot}"),
-        literal => literal.to_owned(),
-    };
+    let main = secondary(&sandbox);
     let mut compared = 0;
     for entry in entries {
         let names: Vec<&str> = std::iter::once(&entry["arrangement"])
@@ -196,12 +244,7 @@ fn the_sample_selects_the_recorded_command_for_every_kind_under_every_selection(
         );
         for (kind, recorded) in commands {
             let report = inspect(&sandbox, kind).report();
-            let args: Vec<String> = recorded["args"]
-                .as_array()
-                .unwrap()
-                .iter()
-                .map(filled)
-                .collect();
+            let args = expected(&recorded["args"], Some(&main));
             assert_eq!(
                 report["command"]["program"], recorded["program"],
                 "{selection}, {kind}"
@@ -218,10 +261,17 @@ fn the_sample_selects_the_recorded_command_for_every_kind_under_every_selection(
             let (provider, model, effort) = match recorded["program"].as_str().unwrap() {
                 "codex" => (
                     "openai",
-                    args[1].clone(),
-                    args[3].replace("model_reasoning_effort=", ""),
+                    after(&args, "--model").to_owned(),
+                    args.iter()
+                        .find_map(|word| word.strip_prefix("model_reasoning_effort="))
+                        .unwrap()
+                        .to_owned(),
                 ),
-                "claude" => ("anthropic", args[5].clone(), args[7].clone()),
+                "claude" => (
+                    "anthropic",
+                    after(&args, "--model").to_owned(),
+                    after(&args, "--effort").to_owned(),
+                ),
                 "/bin/bash" => ("openai", args[1].clone(), args[2].clone()),
                 other => panic!("the fixture has an unknown program {other}"),
             };
@@ -248,7 +298,50 @@ fn the_sample_selects_the_recorded_command_for_every_kind_under_every_selection(
 }
 
 #[test]
-fn the_sample_refuses_a_kind_it_does_not_route_and_a_caller_without_a_needed_parameter() {
+fn the_sample_grants_the_main_repository_only_from_a_secondary_workspace() {
+    let fixture: Value = serde_json::from_str(PARITY).unwrap();
+    let sandbox = installed();
+    // The default selection, whose kinds run all three programs.
+    let default = fixture
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|entry| {
+            entry["arrangement"] == "claude-led" && entry["modifiers"] == json!(["codex-sol"])
+        })
+        .unwrap();
+    let main = sandbox.root.join(MAIN);
+    let programs = |grant: Option<&Path>| {
+        let mut seen = std::collections::BTreeSet::new();
+        for (kind, recorded) in default["commands"].as_object().unwrap() {
+            let report = inspect(&sandbox, kind).report();
+            assert_eq!(
+                report["command"]["args"],
+                json!(expected(&recorded["args"], grant)),
+                "{kind}, granting {grant:?}"
+            );
+            seen.insert(recorded["program"].as_str().unwrap().to_owned());
+        }
+        assert_eq!(
+            seen.len(),
+            3,
+            "codex, claude and the notes writer: {seen:?}"
+        );
+    };
+
+    // No `.jj` at all, as in `grove run`'s staged directory: nothing more.
+    programs(None);
+    // A primary workspace holds its store: nothing more.
+    primary(&sandbox);
+    programs(None);
+    // A secondary workspace names the main repository's store.
+    fs::remove_dir_all(sandbox.cwd.join(".jj")).unwrap();
+    assert_eq!(secondary(&sandbox), main);
+    programs(Some(&main));
+}
+
+#[test]
+fn the_sample_refuses_a_kind_it_does_not_route_and_reads_no_parameter() {
     let sandbox = installed();
 
     for kind in ["review", "Impl", "constructor"] {
@@ -259,40 +352,42 @@ fn the_sample_refuses_a_kind_it_does_not_route_and_a_caller_without_a_needed_par
         );
     }
 
-    // Under the default, impl is claude's, which is named for the session and
-    // given the repository; review-impl is codex's, which is given the
-    // repository alone.
-    let (session, repo) = (format!("session_name={SESSION}"), format!("repo={REPO}"));
-    for (kind, params, missing) in [
-        ("impl", &[][..], "session_name"),
-        ("impl", &[repo.as_str()][..], "session_name"),
-        ("impl", &[session.as_str()][..], "repo"),
-        ("review-impl", &[session.as_str()][..], "repo"),
-    ] {
-        let mut args = vec!["--kind", kind, "--json"];
-        for param in params {
-            args.extend(["--param", param]);
-        }
-        let refusal = refused(&sandbox.inspect(&args), "parameter_missing");
+    // A parameter a caller still passes, the two Grove used to among them,
+    // changes nothing: the sample names no session and grants by the cwd.
+    secondary(&sandbox);
+    for kind in ["impl", "review-impl", "release-notes"] {
+        let bare = inspect(&sandbox, kind).report()["command"].clone();
+        let given = sandbox
+            .inspect(&[
+                "--kind",
+                kind,
+                "--param",
+                "session_name=parser grove",
+                "--param",
+                "repo=/elsewhere",
+                "--prompt",
+                PROMPT,
+                "--json",
+            ])
+            .report();
+        assert_eq!(given["command"], bare, "{kind}");
+        let args = bare["args"].as_array().unwrap();
         assert!(
-            message(&refusal).contains(&format!("needs the parameter {missing}")),
-            "{kind} {params:?}: {refusal}"
-        );
-        assert!(
-            refusal["error"]["remedy"]
-                .as_str()
-                .unwrap()
-                .contains(&format!("--param {missing}=VALUE")),
-            "{refusal}"
+            !args.contains(&json!("-n")) && !args.contains(&json!("/elsewhere")),
+            "{kind}: {bare}"
         );
     }
-    // A command that places only what it was given selects.
-    sandbox
-        .inspect(&["--kind", "review-impl", "--param", &repo, "--json"])
-        .report();
-    sandbox
-        .inspect(&["--kind", "release-notes", "--json"])
-        .report();
+
+    // A `.jj/repo` file that names no store refuses, naming the file.
+    for (contents, why) in [("", "it is empty"), ("\n  \n", "it is empty")] {
+        fs::write(sandbox.cwd.join(".jj/repo"), contents).unwrap();
+        let refusal = refused(&inspect(&sandbox, "impl"), "jj_store_unreadable");
+        assert!(
+            message(&refusal).contains(&text(&sandbox.cwd.join(".jj/repo")))
+                && message(&refusal).contains(why),
+            "{contents:?}: {refusal}"
+        );
+    }
 }
 
 #[test]

@@ -52,6 +52,24 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+- **Grove passes `harness-dispatch` no parameter.** A lifecycle launch carries
+  the kind, the task file, the handle and the prompt, in the working-tree root,
+  and `grove run`'s selection carries the kind and the prompt, in its staged
+  directory. `session_name`, `worktree` and `repo` are gone. **An owner policy
+  that reads `repo` or `session_name` refuses until it is edited**: the v22
+  sample refuses every `claude` and `codex` launch as `parameter_missing`. Derive what you need from `request.cwd`, which is the
+  session's location, or start again from the new sample. Naming the session is
+  the methodology's, through its `/rename` suggestion
+  ([Grove integration](docs/specs/harness-selection-and-execution.md#lifecycle-launch)).
+- `harness-dispatch`: **the sample policy reads no parameter and names no
+  session** (`harness-dispatch sample 2`). Run from a secondary jj workspace, it
+  gives both harnesses `--add-dir` for the main repository that the
+  workspace's `.jj/repo` file names, and from a primary workspace, or any
+  other directory, nothing more. A `.jj/repo` file that names no store refuses
+  as `jj_store_unreadable`. `init`'s report, the help's Grove invocation and
+  the typecheck fixtures follow
+  ([the sample policy](crates/harness-dispatch/README.md#the-sample-policy)).
+
 ## v22.0.0
 
 **This is a major release, and every owner has something to do before the next

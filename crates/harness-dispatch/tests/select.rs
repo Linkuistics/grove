@@ -818,7 +818,7 @@ fn the_type_checked_select_fixture_evaluates_as_its_types_describe() {
                 "--kind",
                 kind,
                 "--param",
-                "repo=/work/parser",
+                "profile=parser work",
                 "--timeout-ms",
                 "25000",
                 "--json",
@@ -841,7 +841,7 @@ fn the_type_checked_select_fixture_evaluates_as_its_types_describe() {
         );
         assert_eq!(
             report["command"]["args"],
-            json!(["-C", "/work/parser", format!("--kind={kind}"), MARKER])
+            json!(["--profile", "parser work", format!("--kind={kind}"), MARKER])
         );
     }
 
@@ -851,7 +851,7 @@ fn the_type_checked_select_fixture_evaluates_as_its_types_describe() {
             "--kind",
             "impl",
             "--param",
-            "repo=/work/parser",
+            "profile=parser work",
             "--prompt",
             "héllo",
             "--json",
@@ -863,12 +863,12 @@ fn the_type_checked_select_fixture_evaluates_as_its_types_describe() {
     );
     assert_eq!(
         report["command"]["args"],
-        json!(["-C", "/work/parser", "--kind=impl", "héllo"])
+        json!(["--profile", "parser work", "--kind=impl", "héllo"])
     );
 
     // A parameter the caller did not pass is absent, and the policy says so.
     let refusal = sandbox.inspect(&["--kind", "impl", "--json"]).refusal(3);
     assert_eq!(refusal["error"]["code"], "policy_refused");
-    assert_eq!(refusal["error"]["policyCode"], "repo_missing");
-    assert_eq!(refusal["error"]["remedy"], "pass --param repo=PATH");
+    assert_eq!(refusal["error"]["policyCode"], "profile_missing");
+    assert_eq!(refusal["error"]["remedy"], "pass --param profile=NAME");
 }

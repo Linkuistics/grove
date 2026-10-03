@@ -462,9 +462,9 @@ The dependency runs one way:
 What crosses the boundary is data, in four places:
 
 - **Arguments.** Grove passes the kind, the task file's path, the handle and the
-  unchanged prompt, and `session_name`, `worktree` and `repo` as parameters,
-  each as one argument. The front parses no prompt and no filename, and gives a
-  parameter no meaning.
+  unchanged prompt, each as one argument, and no parameter. The session's
+  location is the directory the front runs in, which the policy reads as its
+  `cwd`. The front parses no prompt and no filename.
 - **Environment.** The harness inherits the environment Grove gave the front,
   this launch's `GROVE_SIGNAL_FILE` included, plus `HARNESS_DISPATCH_RUN_ID`
   and `HARNESS_DISPATCH_STATE_DIR`. The policy worker is given a fresh
@@ -1476,7 +1476,7 @@ unrelated working-copy changes in the successor commit.
 The user owns topology. Grove reads no branch or bookmark, creates no working
 tree, and performs no integration or teardown. The working-tree basename is
 the grove name, and `<repo-basename>: <grove-name> grove` is the session name
-Grove passes to the policy as the `session_name` parameter.
+the methodology derives from the working tree. Grove passes it to no one.
 
 <a id="self-extension-core-and-methodology"></a>
 ## How the methodology reaches a session

@@ -53,3 +53,37 @@ names no session.
 - Launch-time naming becomes a policy's own derivation from its cwd, if an
   owner wants one. Otherwise the skill's `/rename` suggestion is the mechanism
   (D2).
+
+## Decisions (running log)
+
+**I1 — the sample grants the repository that holds the named store, not the
+store directory alone.** A secondary workspace's `.jj/repo` names the store at
+`<main>/.jj/repo`; the sample grants `<main>`. In a colocated repository the
+store's git backend lives outside the store (`.jj/repo/store/git_target` is
+`../../../.git` in this grove), so a grant of the store alone would leave a
+confined harness unable to write the commits it makes. `<main>` is also exactly
+the value the `repo` parameter carried (the default workspace's root), so the
+parity fixture's `${repo}` slot keeps its recorded meaning and the sample stays
+argument-for-argument equal to it in a secondary workspace. The spec's
+*The sample policy and the choice file* says so. The derivation is lexical
+(`path.resolve`), from the file alone: no jj, nothing in dispatch.
+
+**I2 — the parity fixture stays the record it is.** Its README says it is not
+edited, so the sample test maps it: `-n ${session_name}` is dropped (the sample
+names no session), and `--add-dir ${repo}` is filled with the main repository
+from a secondary workspace and dropped from a primary one.
+
+**I3 — dispatch's generic `--param` feature is untouched.** Its own tests that
+use `repo` and `session_name` as arbitrary parameter names test the feature, not
+Grove's launch, and stay. What changes is every surface that states what Grove
+passes: dispatch's help, `init`'s report, the README, USAGE, configure-grove and
+the books.
+
+**I4 — every surface that states Grove's invocation moved with it, not only
+the ones a test ties.** Besides the help, `init`'s report, the dispatch README,
+USAGE, configure-grove and the two books, the root README's inspect example and
+two `docs/ARCHITECTURE.md` sentences named the three parameters and were false
+the moment the driver stopped passing them, so they changed here.
+`current-state-docs-k20` keeps the rest of the current-state work. Dispatch's
+generic help examples now pass `profile`/`label`, so no example a reader copies
+suggests Grove's old `repo`.

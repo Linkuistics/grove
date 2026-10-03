@@ -51,9 +51,16 @@ lives as long as the harness and of nested job control.
   process group. Dispatch survives every catchable signal, so only an uncatchable
   end — SIGKILL, an abort — leaves the harness running, its run as it stood.
   The caller sees no ending, and Grove stops rather than relaunching onto a tree
-  a surviving harness may still be changing.
-- **The harness no longer has the caller's child's PID.** No current caller
-  needs it.
+  a surviving harness may still be changing. Grove's runner takes the terminal
+  back from the orphan's group, which can then no longer read it
+  ([the launched child is a job](the-launched-child-is-a-job.md)).
+- **The harness no longer has the caller's child's PID, nor its pending
+  signals.** A spawned child starts with none pending, so a signal the caller
+  blocked and sent to dispatch stays pending in dispatch, where the `exec`'d
+  harness kept it; the entry mask and dispositions still pass on. No current
+  caller needs either. Forwarding pending signals was declined: it needs a relay
+  polling a mask the harness may change, and loses the signal's information and
+  real-time queueing.
 - **The caller names where a sandboxed harness can write.** The exit channel
   must be writable from inside the harness's own sandbox, which dispatch cannot
   know. A caller that knows names the directory with `--exit-dir`, and Grove

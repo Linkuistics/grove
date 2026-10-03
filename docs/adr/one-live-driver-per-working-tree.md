@@ -88,11 +88,14 @@ performs no tree access or epoch rewrite. In particular, if an orphaned
 `grove-llm` process retains a shared guard, post-reap invalidation times out and
 the driver stops `blocked` without reading the launch's ending or teardown
 record, or launching another session. *Orphaned* is narrower than it once was: the
-escalation signals the session's whole process group, so a command the session
-itself launched is reaped with it (*[the launched child is a
+session's whole process group ends with its run, whatever the ending, so a
+command the session itself launched is reaped with it (*[the launched child is a
 job](./the-launched-child-is-a-job.md)*). What can still hold the guard is a
 process that was never in that group — one started from another session, another
-terminal, or by hand. A restart may
+terminal, or by hand, a harness's own command among them where the harness
+starts its commands in sessions of their own, as Claude Code does — or one in
+the group of a harness orphaned by its dispatch's death, which nothing
+escalates. A restart may
 continue once that already-admitted operation releases its guard. The bound,
 clock, control-path resolver, and randomness source are internal test seams, not
 user configuration. A test lock/filesystem backend with post-open/post-lock

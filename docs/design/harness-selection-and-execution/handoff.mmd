@@ -19,11 +19,12 @@ sequenceDiagram
     alt Write fails or cancellation observed
       R-->>G: Nonzero refusal, no harness
     else Admission succeeds
-      R->>H: Spawn as its own job: entry signal state, terminal, exit channel, run ID
+      R->>H: Spawn as its own job: entry signal mask and dispositions, terminal, exit channel, run ID
       Note over R,H: The front stays the parent, its handlers still installed
       H->>R: Exit signal: harness-dispatch exit creates the channel
       R->>H: Grace, then TERM, kill-grace, KILL on the harness's group
-      H-->>R: Reaped: exit code or signal
+      H-->>R: Exits: exit code or signal, observed unreaped
+      R->>H: KILL what remains of the harness's group, reap, confirm the group gone
       R->>R: Take the terminal back, restore its modes
       R->>D: End observation: execution confirmed, ending, exit, duration
       R-->>G: Ending file, end notice, exit per the ending

@@ -1,12 +1,15 @@
 # The launched child is a job
 
-`keyed-launch` spawns its child into a **process group of its own** and, when the
-launcher owns a controlling terminal and is the foreground group of it, hands
-that terminal to the child's group with `tcsetpgrp` — reclaiming it once the
-child is reaped, with the terminal attributes it saved at the handover put back.
-Across the same spawn the child's dispositions for the terminal-generated
+`keyed-launch` spawns its child into a **process group of its own** and, when
+the launcher owns a controlling terminal and is the foreground group of it,
+hands that terminal to the child's group with `tcsetpgrp` — reclaiming it once
+the child is reaped, from the child's group or, when the child died of a signal,
+from whichever group then holds it unless that is the launcher's own or the
+session leader's, with the terminal attributes it saved at the handover put
+back. Across the same spawn the child's dispositions for the terminal-generated
 signals are reset to their defaults. The kill escalation then signals `-pgid` as
-well as the pid.
+well as the pid, and whenever the child exits, whatever ended it, the launcher
+kills what remains of its group before reaping it.
 
 A lifecycle session is two such jobs, one inside the other, as a shell would
 make them. Grove's driver makes `harness-dispatch run` a job, and dispatch, which
@@ -14,21 +17,28 @@ make them. Grove's driver makes `harness-dispatch run` a job, and dispatch, whic
 one. While the policy is selecting, the terminal is dispatch's group's, which its
 policy worker joins; while the harness runs it is the harness's group's alone.
 Each launcher takes it back from its own child, so a raw-mode harness that the
-escalation killed leaves dispatch a terminal to restore, and dispatch leaves
-Grove one.
+escalation killed leaves dispatch a terminal to restore and dispatch leaves
+Grove one, and a launcher whose child died of a signal takes it from whichever
+group its launch left holding it, so a dispatch killed while its orphaned
+harness held the terminal leaves Grove one too.
 
 Three things follow, and each closes a defect that a per-process launch cannot.
 A terminal signal the human types is delivered to *the child's* group, so a
 launcher survives a Ctrl-C it never has to catch, and the child receives one
-whatever wrapper stands in front of it. **Only an ignored disposition
-survives `execve`**, so a launcher that ignores SIGINT for its own reasons would
+whatever wrapper stands in front of it. **Only an ignored disposition survives
+`execve`**, so a launcher that ignores SIGINT for its own reasons would
 otherwise hand that ignore to the child, to everything the child spawns, and to
 every login shell or `ssh` hop in between — each of which keeps ignoring it and
 forces it onward, leaving an interactive session that cannot be interrupted at
-all and cannot say why. And the escalation reaps descendants: a tool subprocess,
-a language server, or an agent's own in-flight command dies with the session
-rather than surviving the SIGKILL, holding the terminal, and holding whatever
-locks it had taken.
+all and cannot say why. And the end of a launch reaps descendants: a tool
+subprocess, a language server, or an agent's own in-flight command dies with the
+session rather than surviving the SIGKILL, or the child's own exit, holding the
+terminal, and holding whatever locks it had taken — so long as it stays in the
+group. A harness that starts its commands in sessions of their own, as Claude
+Code does its shell commands, puts them beyond any group signal. The group is
+killed while the exited child is still unreaped, so the group's ID cannot have
+been reused when the signal arrives, and the launch reports its end only once
+the group is gone.
 
 The trade-off settled is **which** of the child's identities changes. Signalling
 a group at all requires the child to lead one, and the cost of getting that wrong
@@ -66,6 +76,27 @@ with the launcher that was supposed to hand it over.
   its ending unread (*[one live driver owns each working
   tree](./one-live-driver-per-working-tree.md)*). That bound still binds, but for
   a process that was never in the group.
+- **Leave the rest of the group when the child exits, as a shell does.**
+  Rejected: a TERM-ignoring tool outlives a child that exits on the TERM, and a
+  running one outlives a child that exits within the grace or on its own, so a
+  caller that relaunches or publishes on the ending would act beside it, and a
+  surviving `grove-llm` would hold shared epoch admission. A second grace for
+  the survivors after the child exits was declined too: the child's own
+  shutdown is where a descendant gets its time, and a child that wants one
+  finished waits for it. Reaping first and signalling the group afterwards was
+  declined because an emptied group's ID can be reused before the signal.
+- **Reclaim the terminal only from the direct child's group, always.**
+  Rejected: a supervisor that dies, as dispatch can under SIGKILL, leaves its
+  own child's group holding the terminal, so its launcher would never take it
+  back and a raw-mode orphan would go on reading the human's input. Taking it
+  from any group but the launcher's own and the session leader's, after every
+  launch, was declined too: a job-controlling shell nested inside another in one
+  session leads no session, and one that took the terminal after the driver died
+  would lose it when dispatch reaped a harness that had simply exited. The broad
+  take-back is therefore kept for a child that died of a signal, the one way a
+  supervisor between can leave a delegated terminal unreclaimed. Its residue,
+  accepted: such a nested shell can still lose the terminal when a launch ends
+  in a death by signal.
 - **Fix the inherited SIGINT in the driver instead, by installing an empty
   handler rather than `SIG_IGN`.** Rejected: it works — `execve` resets caught
   handlers — but it buys the driver EINTR on every call it makes while a signal

@@ -25,7 +25,7 @@
   ],
   "discussion": {
     "title": "harness-dispatch supervises the harness; Grove keeps the leaf, the prompt and the teardown record",
-    "status": "Proposed in harness-wrapper-k2; a design review is scheduled before planning",
+    "status": "Proposed in harness-wrapper-k2; reviewed in harness-wrapper-k3, whose findings harness-wrapper-k5 integrated before planning",
     "summary": "run spawns the harness as its own job and stays its parent: it catches the exit signal (harness-dispatch exit, carrying nothing), escalates, restores the terminal, confines when asked, appends its end observation and writes the run ending to the caller's ending file. Grove passes no parameter, names its launch directory as the exit directory, records a teardown with grove-llm record-teardown, and reads teardown, exit signal or anything else as finished, relaunch or stopped.",
     "diagramIds": [
       "chain",
@@ -39,11 +39,11 @@
     "updatedDiagrams": [
       {
         "id": "chain",
-        "summary": "New: the two nested jobs from the shell to the harness, who holds the terminal while selecting and while running, and where the exit signal goes."
+        "summary": "New: the two nested jobs from the shell to the harness, who holds the terminal while selecting and while running, and where the exit signal goes, and how a launcher takes the terminal back, a dead dispatch's included."
       },
       {
         "id": "ending",
-        "summary": "New: a supervised run's states from selection to its run ending, with the escalation and cancellation paths."
+        "summary": "New: a supervised run's states from selection to its run ending, with the escalation and cancellation paths and the group cleanup before the ending is reported."
       },
       {
         "id": "loop-decision",
@@ -87,14 +87,14 @@
       "group": "execution",
       "title": "Two nested jobs: driver, dispatch, harness",
       "source": "chain.mmd",
-      "caption": "Each supervisor makes its own child a foreground job, as a shell would. While the policy selects the terminal is dispatch's group's; while the harness runs it is the harness's group's alone, so a typed Ctrl-C reaches only the harness. The driver sets GROVE_LAUNCH_DIR for dispatch; dispatch sets HARNESS_DISPATCH_EXIT_FILE for the harness, and the exit verb creates that file. The escalation is grace, TERM, kill-grace, KILL on group H, ending its descendants with it. Each launcher takes the terminal back from its child with the attributes it saved restored."
+      "caption": "Each supervisor makes its own child a foreground job, as a shell would. While the policy selects the terminal is dispatch's group's; while the harness runs it is the harness's group's alone, so a typed Ctrl-C reaches only the harness. The driver sets GROVE_LAUNCH_DIR for dispatch; dispatch sets HARNESS_DISPATCH_EXIT_FILE for the harness, and the exit verb creates that file. The escalation is grace, TERM, kill-grace, KILL on group H, ending its descendants with it, and whatever ends the harness, what remains of group H is killed before the harness is reaped. Each launcher takes the terminal back from its child's group with the attributes it saved restored, and, when its child died of a signal, from whichever group holds it but its own or the session leader's, so a dispatch that died still leaves the driver a terminal to restore."
     },
     {
       "id": "ending",
       "group": "execution",
       "title": "A supervised run from selection to its ending",
       "source": "ending.mmd",
-      "caption": "Grace 2 s and kill-grace 5 s are dispatch's constants. A confined run is killed at once on cancellation. A run that started no harness has no ending. A dispatch killed by SIGKILL leaves the harness orphaned and its attempt as it stood; that path has no state here because nothing in dispatch runs it."
+      "caption": "Grace 2 s and kill-grace 5 s are dispatch's constants. A confined run is killed at once on cancellation. When the harness exits, what remains of its group is killed before the reap, and the ending is reported only once the group is gone; a group still present is a supervision failure, with no ending file. A run that started no harness has no ending. A dispatch killed by SIGKILL leaves the harness orphaned and its attempt as it stood; that path has no state here because nothing in dispatch runs it."
     },
     {
       "id": "grove-launch",

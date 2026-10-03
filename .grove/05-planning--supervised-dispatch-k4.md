@@ -17,15 +17,20 @@ result as current state before the major release.
   `dispatch-supervises-the-harness`, `policy-evaluation-precedes-the-launch`,
   `the-launched-child-is-a-job` and `one-live-driver-per-working-tree`.
   `harness-wrapper-k2`'s running log (`W1`–`W13`) gives each decision's reason;
-  any integrated review of it sits between that leaf and this one.
+  `harness-wrapper-k5`'s (`I1`–`I5`) gives the reasons for the corrections its
+  review integrated.
 - Code the design moves: `crates/keyed-launch` (token removed, optional
-  channel, grants, terminal attributes restored on reclaim, entry signal state
-  for a transparent caller, no handler over an ignored disposition, cancellation
+  channel, grants, terminal attributes restored on reclaim, the terminal taken
+  back from whichever group a launch left holding it, the child's group killed
+  on every exit before its reap and confirmed gone, entry signal state for a
+  transparent caller, no handler over an ignored disposition, cancellation
   modes, `run_confined` writing to the launcher's own output);
   `crates/harness-dispatch/src/run.rs` and `cancellation.rs` (spawn and
   supervise instead of exec, the `exit` verb, `--exit-dir`, `--ending-file`,
-  `--confine`, `--runtime-read`, the end observation and the `ending`
-  measurement, the confinement record, `exit` exempt from owner settings);
+  `--confine`, `--runtime-read`, the refusal of a confinement grant that reaches
+  owner data, the end observation and the `ending` measurement, the end
+  observation migrating a version-1 store, the supervision failure, the
+  confinement record, `exit` exempt from owner settings);
   `crates/grove-loop/src/loop_driver.rs`, `driver_lease.rs` and `complete.rs`
   (the launch directory, `GROVE_LAUNCH_DIR`, admission on its path, the loop's
   reading of a launch, `record_teardown`, cleanup of abandoned launch

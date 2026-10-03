@@ -53,7 +53,10 @@ inherited input or terminal streams, and its output, the harness's included,
 goes to the invocation's transcript. Dispatch owns the harness's cancellation
 and kills its process group at once, and Grove forwards its own cancellation to
 dispatch and waits for it, so nested cancellation finishes inside an outer
-supervisor's grace. Both have ended before outputs are considered. Processes
+supervisor's grace. Both have ended before outputs are considered, and so has
+the harness's process group: dispatch kills what remains of it when the harness
+exits and reports the ending only once it is gone, so a writer the harness left
+in its group cannot change an output after it is validated. Processes
 intentionally escaping their process group require stronger backend
 containment; no process-tree guarantee may be claimed merely from a
 process-group kill.
@@ -95,4 +98,6 @@ must never depend on paid LLM calls.
   permitting staged artifacts and explicitly granted runtime reads.
 - Harness exit without the exit signal, a failure after it, cancellation,
   output symlinks, missing outputs and destination races fail visibly.
+- A writer left in the harness's group after a clean acknowledgement is stopped
+  before any output publishes.
 - Existing interactive Grove job control and session-epoch checks remain green.

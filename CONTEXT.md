@@ -439,7 +439,9 @@ loop control channel.
 How harness-dispatch saw one supervised run end: through the [[Exit signal]],
 by the harness exiting on its own, or by cancellation, recorded as the
 `ending` of dispatch's own end observation and reported to its caller. A run
-that never launched a harness has none.
+that never launched a harness has none. It reaches the caller only once the
+harness's process group is gone; a group that outlives its harness is a
+**supervision failure**, which records the ending but reports none.
 _Avoid_: reading it as the loop's outcome (finished, stopped, interrupted),
 which Grove decides from the run ending, its [[Teardown record]] and its own
 signals; or as a session's ending in the methodology's sense, which is the kind

@@ -5,22 +5,29 @@ stateDiagram-v2
   Committed --> NotExecuted: signal at the linearization point
   Committed --> LaunchFailed: harness cannot be started
   Committed --> Running: harness spawned as a job
-  Running --> Reaped: harness exits on its own
+  Running --> Exited: harness exits on its own
   Running --> Grace: exit channel appears
-  Grace --> Reaped: harness exits within 2 s
+  Grace --> Exited: harness exits within 2 s
   Grace --> Terminating: SIGTERM to group H
-  Terminating --> Reaped: harness exits
+  Terminating --> Exited: harness exits
   Terminating --> Killed: SIGKILL after 5 s
-  Killed --> Reaped
+  Killed --> Exited
   Running --> Cancelling: INT, TERM or HUP to dispatch
   Grace --> Cancelling: INT, TERM or HUP to dispatch
   Terminating --> Cancelling: INT, TERM or HUP to dispatch
-  Cancelling --> Reaped: same signal, then KILL after 5 s (confined, KILL at once)
-  Reaped --> Recorded: restore terminal, append end observation, write ending file
+  Cancelling --> Exited: same signal, then KILL after 5 s (confined, KILL at once)
+  Exited --> Reaped: SIGKILL to what remains of group H, then reap the harness
+  Reaped --> Recorded: group H gone within 1 s, then restore terminal, append end observation, write ending file
+  Reaped --> SupervisionFailure: group H still present after 1 s
   Recorded --> [*]: exit per the ending
+  SupervisionFailure --> [*]: restore terminal, append end observation, no ending file, exit 5
   Refused --> [*]: no run, no ending
   NotExecuted --> [*]: attempt marked not executed, no ending
   LaunchFailed --> [*]: launch failure recorded, no ending
+  note right of Exited
+    Observed without reaping, so the
+    harness still reserves group H's ID
+  end note
   note right of Reaped
     Ending: cancelled if dispatch was signalled,
     else exit_signal if the channel exists,

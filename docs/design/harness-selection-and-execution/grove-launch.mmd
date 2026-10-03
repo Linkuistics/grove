@@ -18,7 +18,7 @@ sequenceDiagram
       H->>G: grove-llm record-teardown writes the teardown record
     end
     H->>X: harness-dispatch exit, the exit signal
-    X->>H: Escalate, reap, restore the terminal
+    X->>H: Escalate, end its group, reap, restore the terminal
     X-->>N: End observation recorded, ending file written, exit
     N-->>G: Reaped: read the teardown record and the ending
   end

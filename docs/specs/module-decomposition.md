@@ -417,21 +417,33 @@ state, below, is the implementation's to shape.
 The runner spawns the argv directly, with no shell. The child's environment is
 the caller's, minus the scrubbed names, plus the granted values and, with a
 channel, its path under the caller's chosen variable name. The child is a job
-in a process group of its own; an interactive launch hands it the terminal and
-takes the terminal back with the attributes it saved restored
-([`the-launched-child-is-a-job`](../adr/the-launched-child-is-a-job.md)). Its
-terminal-generated signal dispositions are the defaults, unless its caller is a
-transparent wrapper that passes on its own entry signal state instead, as
-dispatch does; and the runner installs no handler over a disposition its
-launcher ignores. With a channel, the channel's appearance starts grace →
-SIGTERM → kill-grace → SIGKILL, because a child that returns to an interactive
-prompt is never reaped on its own; it is addressed to the child's **process
-group**, so a command the child itself launched is reaped with it. The
-launcher's own TERM or HUP cancels the launch, as does INT for a launch with no
-terminal: an interactive or noninteractive child's group is sent the same
-signal and, after the kill-grace, SIGKILL; a confined child's group is killed at
-once, so that a cancellation nested inside another supervisor's grace finishes
-inside it.
+in a process group of its own; an interactive launch hands it the terminal and,
+once the child is reaped, takes the terminal back from the child's group, or,
+when the child died of a signal, from whichever group then holds it unless that
+is the launcher's own or the session leader's, with SIGTTOU ignored for the call
+and the attributes it saved restored; a launch that never held the foreground
+takes nothing
+([`the-launched-child-is-a-job`](../adr/the-launched-child-is-a-job.md)).
+Its terminal-generated signal dispositions are the defaults, unless its caller
+is a transparent wrapper that passes on its own entry signal mask and
+dispositions instead, as dispatch does, its pending signals staying its own; and
+the runner installs no handler over a disposition its launcher ignores. A
+launcher that inherited SIGCHLD ignored has its default restored, never a
+handler, so that its child is not reaped unwatched, while the child still
+receives the entry disposition. With a channel, the channel's appearance starts
+grace → SIGTERM → kill-grace → SIGKILL, because a child that returns to an
+interactive prompt is never reaped on its own; it is addressed to the child's **process group**, so a command the child
+itself launched is reaped with it. Whatever ends the child, the runner observes
+its exit, never a stop, without reaping it; kills what remains of its group,
+twice with a short pause, while the unreaped child still reserves the group's
+ID; reaps it; and then, querying only, confirms within a bound that the group is
+gone, which only an answer of no such group confirms. A group still present is
+reported to the caller beside the child's status, so that nothing acts on the
+ending beside a survivor in the group. The launcher's own TERM or HUP cancels
+the launch, as does INT for a launch with no terminal: an interactive or
+noninteractive child's group is sent the same signal and, after the kill-grace,
+SIGKILL; a confined child's group is killed at once, so that a cancellation
+nested inside another supervisor's grace finishes inside it.
 
 Dispatch launches its harness interactively or confined, with a channel and its
 own constant graces. Grove launches dispatch interactively for a lifecycle

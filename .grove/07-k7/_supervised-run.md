@@ -13,7 +13,9 @@ Grove's current launch keeps working above it, unchanged in shape until
 ## Done when
 
 - Seam 1's supervision cases and seam 2's end-observation cases pass through
-  dispatch's command. The spec's *Agreed test seams* row lists them.
+  dispatch's command, except the stopped-child and two other-foreground-group
+  cases explicitly assigned to runner-level tests in the spec's *Agreed test
+  seams* row.
 - `keyed-launch`'s own suite covers the runner contract that decision 7 states,
   apart from what later subtrees own: removing the token (`launch-cutover`) and
   the confined launch writing to the launcher's own output (`confined-run`).
@@ -65,8 +67,9 @@ contract (1), and the ending is computed by the supervision it reports (2).
   window ends `cancelled`. Nothing in that window is released (P1), and the
   launch-boundary suite only needs to stay green through it.
 - **From the moment dispatch supervises, Grove's kill-grace must outlast
-  dispatch's end.** That end is dispatch's kill-grace, the group confirmation
-  and the record-store lock wait: 10 s (W7, I1). Otherwise Grove's SIGKILL
+  dispatch's end.** That end includes its next 500 ms poll, 5 s kill-grace, 10 ms
+  killed-child poll, 20 ms second group kill, 1 s group confirmation and single
+  2 s record-store lock wait: about 8.53 s within 10 s (W7, I1). Otherwise Grove's SIGKILL
   races dispatch's escalation and orphans the harness. `dispatch-supervises`
   raises the driver's kill-grace with it.
 - `supervised-run` (`review-impl`), cut beside this node, reviews the whole

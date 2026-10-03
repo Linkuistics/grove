@@ -7,7 +7,7 @@
 
 <!-- rollup «owned-lines-total» -->
 This chapter owns no production source. The book reconstructs 7 roots and
-2,226 lines, including the confinement chapter that follows this assembly,
+2,234 lines, including the confinement chapter that follows this assembly,
 and the [source index](source-index.md) records that graph in full. What is left
 is the thing no single chapter could state, because each one opened on its own
 refusal and stopped at the boundary of the lines it owned.
@@ -271,12 +271,12 @@ two split, and each split is the concept order disagreeing with the file's. In
 `src/run.rs`, one chapter's block sits *inside* another chapter's pair.
 
 ```text
-src/run.rs       1,292 lines, 4 blocks, chapters 3 4
+src/run.rs       1,300 lines, 4 blocks, chapters 3 4
       1–168   ch 3   ┐  the launch’s shape
     169–357   ch 4   │  the watch, the latch and the entry signal state,
                      │  inside chapter 3’s pair
     358–957   ch 3   ┘  terminal, its lease, detached mode and spawn
-   958–1292   ch 4      the end of the group, supervise and escalate
+   958–1300   ch 4      the end of the group, supervise and escalate
 
 src/channel.rs     505 lines, 2 blocks, chapters 2 5
       1–319   ch 2      the production code
@@ -303,10 +303,10 @@ Each row turned `explained` in its owner's slice and in no other.
 
 <!-- rollup «owned-lines-sequence» -->
 <!-- rollup «source-owning-chapters» -->
-**Owned source.** 212 + 319 + 768 + 524 + 186 + 217 = 2,226
+**Owned source.** 212 + 319 + 768 + 532 + 186 + 217 = 2,234
 lines across 6 source-owning chapters, and 0 for this one. A chapter that owns
 no source is the shape the structure brief chose for the assembly, and the total
-is the 2,226 lines in the current declared corpus.
+is the 2,234 lines in the current declared corpus.
 
 <!-- rollup «source-roots» -->
 The [concept index](concept-index.md) and the [source index](source-index.md) are
@@ -324,14 +324,14 @@ only one that reads the corpus byte for byte.
 ```console
 $ cargo run --quiet -p book-validation --bin book-check -- \
     --repo . --book docs/walkthroughs/keyed-launch --final --check all
-valid: 7 files, 2226 resolved lines, 0 deferred lines, final=true
+valid: 7 files, 2234 resolved lines, 0 deferred lines, final=true
 ```
 
 `--final` is what makes this different from every scoped run the drafting
 sessions made. In scoped mode a later chapter's range may be reserved by a defer
 and counted as deferred rather than resolved; in final mode a defer is an error,
 every source root must expand to its complete file, and the page inventory must
-match the manifest exactly. 2,226 resolved and 0 deferred is the whole corpus
+match the manifest exactly. 2,234 resolved and 0 deferred is the whole corpus
 reconstructed — including `src/channel.rs` lines 320 to 505, the inline
 `#[cfg(test)] mod tests` that is corpus because a root is `src/**/*.rs` and the
 specification's exception inventory carries no row for this book.
@@ -395,7 +395,7 @@ eleven ignored tests, seven in `tests/noninteractive.rs` and four in
 <!-- rollup «source-roots» -->
 <!-- rollup «owned-lines-total» -->
 <!-- rollup «chapters» -->
-The book reconstructs 7 roots, 2,226 lines, 7 chapters, two lookup surfaces,
+The book reconstructs 7 roots, 2,234 lines, 7 chapters, two lookup surfaces,
 zero deferred ranges. What it leaves the reader with is the question — *what ends
 a launch, and who decides?* — together with the one ending no observable
 reaches, and the reason that ending belongs to whoever knows what the child was

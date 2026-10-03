@@ -122,8 +122,10 @@ worth building for no current caller.
 Agreed with the owner in requirements, all four pre-existing; internal tests
 support them and never replace them, and no automated test calls a model.
 
-1. **Dispatch's command, fake harnesses, a controlling PTY** — absorbing the
-   runner's own interface cases: the harness in its own process group holding
+1. **Dispatch's command, fake harnesses, a controlling PTY** — with the
+   stopped-child and two other-foreground-group cases exercised at the runner's
+   process/PTY seam, as the spec's row 1 states; the remaining cases through
+   dispatch's command: the harness in its own process group holding
    the terminal, reclaimed with its modes restored even after a raw-mode fake
    is killed; the entry signal state reaching it; a typed Ctrl-C reaching only
    it; the exit signal driving grace → TERM → kill-grace → KILL on its group,

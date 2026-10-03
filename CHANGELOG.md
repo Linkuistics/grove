@@ -52,6 +52,11 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+- Keep dispatch's signal handlers through end recording, publish the ending
+  file before waiting on the record store, and freeze cancellation and duration
+  at the harness's reap. Cover ignored SIGCHLD through dispatch and state which
+  job-control acceptance cases run at the runner seam.
+
 - **Grove passes `harness-dispatch` no parameter.** A lifecycle launch carries
   the kind, the task file, the handle and the prompt, in the working-tree root,
   and `grove run`'s selection carries the kind and the prompt, in its staged

@@ -1094,6 +1094,7 @@ struct Watched {
     status: ExitStatus,
     interrupted: Option<i32>,
     escalated: bool,
+    elapsed: Duration,
 }
 
 /// A supervision that failed, with the child's status if it was reaped anyway.
@@ -1124,23 +1125,23 @@ fn supervise(
     mut lend: impl FnMut(),
     reclaim: impl FnOnce(Option<ExitStatus>),
 ) -> Result<Ended, LaunchError> {
-    let started = Instant::now();
     match watch(&mut child, channel, escalation, mode, observer, &mut lend) {
         Ok(Watched {
             status,
             interrupted,
             escalated,
+            elapsed,
         }) => {
             reclaim(Some(status));
             let group = child.confirm_gone();
             Ok(Ended {
-                end: match (interrupted.or_else(take_interrupt), escalated) {
+                end: match (interrupted, escalated) {
                     (Some(signal), _) => End::Interrupted { signal },
                     (None, true) => End::Escalated,
                     (None, false) => End::Exited,
                 },
                 status,
-                elapsed: started.elapsed(),
+                elapsed,
                 signalled: channel.appeared(),
                 // Read after the child is gone, so a child still mid-write
                 // cannot be observed half-signalled.
@@ -1163,6 +1164,7 @@ fn watch(
     observer: &mut dyn FnMut(LaunchEvent),
     lend: &mut dyn FnMut(),
 ) -> Result<Watched, Failed> {
+    let started = Instant::now();
     let mut watch = Watch::Running;
     let mut interrupted: Option<i32> = None;
     let mut escalated = false;
@@ -1250,11 +1252,17 @@ fn watch(
         error: LaunchError::new(format!("cannot reap the exited child: {error}")),
         status: None,
     })?;
+    // Freeze the launch at the reap, before an observer, terminal recovery or
+    // group confirmation can delay it. Later signals belong to the caller.
+    let at_reap = take_interrupt();
+    let elapsed = started.elapsed();
+    let interrupted = interrupted.or(at_reap);
     observer(LaunchEvent::Reaped);
     Ok(Watched {
         status,
         interrupted,
         escalated,
+        elapsed,
     })
 }
 

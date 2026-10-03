@@ -11,6 +11,7 @@ struct FakeProcess {
     reaps: VecDeque<std::io::Result<ExitStatus>>,
     group: Group,
     trace: Trace,
+    signal_at_reap: Option<i32>,
 }
 impl Process for FakeProcess {
     fn exited(&mut self) -> std::io::Result<bool> {
@@ -19,7 +20,11 @@ impl Process for FakeProcess {
     }
     fn reap(&mut self) -> std::io::Result<ExitStatus> {
         self.trace.borrow_mut().push("wait");
-        self.reaps.pop_front().expect("unexpected wait")
+        let status = self.reaps.pop_front().expect("unexpected wait");
+        if let Some(signal) = self.signal_at_reap {
+            INTERRUPTED_BY.store(signal, Ordering::Relaxed);
+        }
+        status
     }
     fn signal(&mut self, signal: i32) {
         self.trace.borrow_mut().push(match signal {
@@ -84,6 +89,7 @@ fn confirmed_reap_precedes_token_read_and_recovery_on_every_wait_path() {
                 reaps: vec![if confirmed { Ok(status) } else { failed() }].into(),
                 group: Group::Gone,
                 trace: trace.clone(),
+                signal_at_reap: None,
             };
             let recovered = RefCell::new(None);
             let outcome = supervise(
@@ -169,6 +175,7 @@ fn a_surviving_group_is_reported_beside_the_childs_status() {
         reaps: vec![Ok(status)].into(),
         group: Group::Present { pgid: 4242 },
         trace: Trace::default(),
+        signal_at_reap: None,
     };
     let ended = supervise(
         child,
@@ -229,6 +236,7 @@ fn cancellation_forwards_or_kills_by_mode() {
             reaps: vec![Ok(ExitStatus::from_raw(libc::SIGKILL))].into(),
             group: Group::Gone,
             trace: trace.clone(),
+            signal_at_reap: None,
         };
         // SIGHUP, so the forwarded signal is told apart from the escalation's
         // TERM in the trace. The latch the handler would set; supervision reads it on its first
@@ -244,4 +252,110 @@ fn cancellation_forwards_or_kills_by_mode() {
             }
         );
     }
+}
+
+/// A signal once the terminal is reclaimed belongs to the caller, not to the
+/// reaped launch. Moving the last latch read past reclaim breaks this boundary.
+#[test]
+fn a_signal_after_the_reap_does_not_cancel_the_reaped_launch() {
+    let _serial = serial();
+    for signalled in [false, true] {
+        let dir = tempfile::TempDir::new().unwrap();
+        let channel = Channel::allocate(dir.path()).unwrap();
+        if signalled {
+            std::fs::write(channel.path(), "").unwrap();
+        }
+        let child = FakeProcess {
+            polls: vec![Ok(true)].into(),
+            reaps: vec![Ok(ExitStatus::from_raw(0))].into(),
+            group: Group::Gone,
+            trace: Trace::default(),
+            signal_at_reap: None,
+        };
+        let ended = supervise(
+            child,
+            &channel,
+            NO_WAIT,
+            Mode::Interactive,
+            &mut |_| {},
+            || {},
+            |_| {
+                INTERRUPTED_BY.store(libc::SIGTERM, Ordering::Relaxed);
+            },
+        )
+        .unwrap();
+        let late = take_interrupt();
+        assert_eq!(ended.end, End::Exited);
+        assert_eq!(ended.signalled, signalled);
+        assert_eq!(late, Some(libc::SIGTERM));
+    }
+}
+
+/// An observer and terminal recovery can be slow without lengthening the
+/// measured lifetime of a child already reaped.
+#[test]
+fn duration_stops_at_the_reap_before_observation_and_recovery() {
+    let _serial = serial();
+    let dir = tempfile::TempDir::new().unwrap();
+    let channel = Channel::allocate(dir.path()).unwrap();
+    let child = FakeProcess {
+        polls: vec![Ok(true)].into(),
+        reaps: vec![Ok(ExitStatus::from_raw(0))].into(),
+        group: Group::Gone,
+        trace: Trace::default(),
+        signal_at_reap: None,
+    };
+    let delay = Duration::from_millis(150);
+    let wall = Instant::now();
+    let ended = supervise(
+        child,
+        &channel,
+        NO_WAIT,
+        Mode::Interactive,
+        &mut |_| std::thread::sleep(delay),
+        || {},
+        |_| std::thread::sleep(delay),
+    )
+    .unwrap();
+    assert!(wall.elapsed() >= delay * 2);
+    assert!(
+        ended.elapsed < delay,
+        "duration included post-reap work: {:?}",
+        ended.elapsed
+    );
+}
+
+/// The first cancellation remains the run's; another one at the final reap
+/// sample is consumed rather than leaking into the caller's late-signal path.
+#[test]
+fn the_reap_sample_drains_a_second_cancellation() {
+    let _serial = serial();
+    let dir = tempfile::TempDir::new().unwrap();
+    let channel = Channel::allocate(dir.path()).unwrap();
+    let child = FakeProcess {
+        polls: vec![Ok(true)].into(),
+        reaps: vec![Ok(ExitStatus::from_raw(0))].into(),
+        group: Group::Gone,
+        trace: Trace::default(),
+        signal_at_reap: Some(libc::SIGTERM),
+    };
+    INTERRUPTED_BY.store(libc::SIGHUP, Ordering::Relaxed);
+    let ended = supervise(
+        child,
+        &channel,
+        NO_WAIT,
+        Mode::Interactive,
+        &mut |_| {},
+        || {},
+        |_| {},
+    )
+    .unwrap();
+    let late = take_interrupt();
+    assert_eq!(
+        ended.end,
+        End::Interrupted {
+            signal: libc::SIGHUP
+        }
+    );
+    assert_eq!(late, None);
 }

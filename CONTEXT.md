@@ -437,7 +437,8 @@ loop control channel.
 ### Run ending
 
 How harness-dispatch saw one supervised run end: through the [[Exit signal]],
-by the harness exiting on its own, or by cancellation, recorded as the
+by the harness exiting on its own, or by cancellation latched at the **reap
+sample** (the latch read immediately after waiting for the harness), recorded as the
 `ending` of dispatch's own end observation and reported to its caller. A run
 that never launched a harness has none. It reaches the caller only once the
 harness's process group is gone; a group that outlives its harness is a

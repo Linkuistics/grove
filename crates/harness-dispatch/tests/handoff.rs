@@ -36,10 +36,23 @@ const SIGNALS: [(i32, &str); 3] = [
 /// Far past anything a case waits for, so a stuck front fails the test.
 const WATCHDOG: Duration = Duration::from_secs(30);
 
+/// Selection must reap its worker even when the caller ignored SIGCHLD.
+#[test]
+fn inspect_under_a_caller_that_ignores_sigchld_still_selects() {
+    let sandbox = Sandbox::new();
+    probe::install(&sandbox, "");
+    let mut command = sandbox.command();
+    command.args(["inspect", "--kind", "impl", "--prompt", "p", "--json"]);
+    State::caller(&[libc::SIGCHLD], &[]).apply_to(&mut command);
+    let result = run(&mut command);
+    assert_eq!(result.code, Some(0), "{}", result.stderr);
+}
+
 #[test]
 fn the_harness_inherits_the_callers_mask_and_ignored_signals() {
-    let cases: [(&str, &[i32], &[i32]); 7] = [
+    let cases: [(&str, &[i32], &[i32]); 8] = [
         ("nothing ignored or blocked", &[], &[]),
+        ("SIGCHLD ignored", &[libc::SIGCHLD], &[]),
         ("SIGPIPE ignored", &[libc::SIGPIPE], &[]),
         ("HUP ignored, as nohup leaves it", &[libc::SIGHUP], &[]),
         (

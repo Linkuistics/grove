@@ -21,14 +21,14 @@ launcher deciding what the child is for.
 `a_caller_built_argv_is_spawned_whole_and_directly` are where the crate is held
 to the claim from the two directions it could fail in.
 
-The file is `src/run.rs`, 1,292 lines, and it splits between
+The file is `src/run.rs`, 1,300 lines, and it splits between
 this chapter and the next **by whose signal it is**. Everything done *to* the
 child is here: the shape of a launch, the dispositions it is handed, the terminal
 it is lent and how that terminal comes back, and the spawn that puts it in a
 process group of its own. Everything about *endings* is chapter 4's: the
 supervisor's state machine, the launcher's own signals, the escalation, and the
 end of the child's group. This chapter owns lines 1–168 and 358–957; chapter 4
-owns the 169–357 between them and the 958–1292 after. The 768 lines here include
+owns the 169–357 between them and the 958–1300 after. The 768 lines here include
 detached-mode setup and descriptor isolation, because those establish the
 process the watch owns.
 

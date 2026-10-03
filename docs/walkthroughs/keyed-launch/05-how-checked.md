@@ -39,7 +39,9 @@ compiled into the crate itself, by a `#[path]` module at the end of
 `src/run.rs`, so that it can drive the supervisor through its private `Process`
 seam with a fake child. It traces the order of the end on every wait path, a
 surviving group reported beside the child's status, and the three cancellation
-modes, none of which a real child can be made to produce on demand. It is
+modes, plus the cancellation sample and duration boundary at reap. A fake
+child, observer and reclaim closure place signals and delays exactly where a
+real child cannot be made to produce them on demand. It is
 evidence, not corpus: the module declaration is corpus, and the file it names is
 not.
 

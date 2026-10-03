@@ -34,8 +34,8 @@
 //! it, or when a handled signal cancels it. Whatever ends it, the runner kills
 //! what remains of its group, reaps it, takes the terminal back and confirms
 //! the group gone. The ending is chosen only then, and decides the exit status.
-//! Dispatch then appends its own observation of the end to the run, and, once
-//! the group is confirmed gone, writes the same document to `--ending-file`.
+//! Once the group is confirmed gone, dispatch writes its end observation to
+//! `--ending-file`, then appends the same document to the run.
 //! Neither a failed append nor a failed file changes the ending or the exit.
 
 use std::ffi::OsString;
@@ -86,7 +86,7 @@ const ESCALATION: Escalation = Escalation {
 /// session said.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Ending {
-    /// A handled signal reached this process before the harness was reaped.
+    /// A handled signal was latched at the harness's reap sample.
     Cancelled(i32),
     /// Otherwise, the exit channel existed once the harness was reaped.
     ExitSignal,
@@ -205,9 +205,6 @@ fn attempt(args: &RunArgs) -> Result<ExitCode, Failure> {
             }
         },
     );
-    // The selection's handlers restore each signal's entry disposition, which
-    // is what a death by signal below is reproduced under.
-    drop(handlers);
     let _ = signal_state::restore_mask();
     let cleanup = exit_channel.remove();
     let ended = match supervised {
@@ -227,12 +224,22 @@ fn attempt(args: &RunArgs) -> Result<ExitCode, Failure> {
     let ending = Ending::of(&ended);
     let recorded = record_end(&choice, &run_id, ending, &ended, ending_file.as_deref());
     announce_end(&run_id, ending, &ended, recorded, args.json);
+    // Keep the runner's handlers through recording and the notice. A signal
+    // after the reap sample ends this invocation, but cannot change the run's
+    // ending.
+    // Restoring dispositions before the final read closes the handler window;
+    // reraise installs SIG_DFL itself when reproducing a signal below.
+    drop(handlers);
+    let late_signal = keyed_launch::take_interrupt();
     if let Group::Present { pgid } = ended.group {
         eprintln!(
             "harness-dispatch: run {run_id}: members of the harness's process group {pgid} may \
              survive it: they were sent SIGKILL twice and still answered a second later"
         );
         return Ok(ExitCode::from(EXIT_WORKER));
+    }
+    if let Some(signal) = late_signal.filter(|_| !matches!(ending, Ending::Cancelled(_))) {
+        die_of(signal);
     }
     match exit(ending, &ended) {
         Exit::Code(code) => Ok(ExitCode::from(code)),
@@ -475,7 +482,6 @@ fn record_end(
             return false;
         }
     };
-    let recorded = append_end(choice, run_id, &observation);
     if let Some(file) = ending_file.filter(|_| ended.group == Group::Gone) {
         if let Err(error) = write_ending_file(file, &observation) {
             eprintln!(
@@ -484,7 +490,7 @@ fn record_end(
             );
         }
     }
-    recorded
+    append_end(choice, run_id, &observation)
 }
 
 /// The append, in its own short transaction under the commit's lock wait,

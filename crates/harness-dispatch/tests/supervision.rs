@@ -732,6 +732,123 @@ fn each_ending_is_reported_in_the_ending_file_and_recorded() {
     assert!(measured["duration"]["value"].as_f64().unwrap() > 0.0);
 }
 
+/// The store lock places a signal after supervision and before recording.
+/// Dropping the handlers there loses the end of an already reaped harness.
+#[test]
+fn a_signal_while_recording_preserves_the_reaped_harnesses_ending() {
+    for cancelled in [false, true] {
+        let sandbox = sandbox();
+        let file = sandbox.root.join("ending.json");
+        fake(
+            &sandbox,
+            "quits-after-lock",
+            ": > \"$ROOT/ready\"\nwhile test ! -e \"$ROOT/go\"; do sleep 0.01; done\nexit 3\n",
+        );
+        let child = front(
+            &sandbox,
+            "quits-after-lock",
+            &["--ending-file", &text(&file)],
+        )
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+        wait_for(&sandbox.root.join("ready"), Duration::from_secs(20));
+        let connection = Connection::open(sandbox.default_store()).unwrap();
+        connection.execute_batch("BEGIN EXCLUSIVE").unwrap();
+        if cancelled {
+            // SAFETY: the live front this test started; its harness is waiting.
+            unsafe { libc::kill(child.id() as libc::pid_t, libc::SIGHUP) };
+        } else {
+            fs::write(sandbox.root.join("go"), "").unwrap();
+        }
+        // Publication proves the harness is reaped and its group gone. The
+        // append cannot finish while this exclusive lock remains held.
+        wait_for(&file, Duration::from_secs(10));
+        // SAFETY: the front is blocked on the store, with its harness reaped.
+        unsafe { libc::kill(child.id() as libc::pid_t, libc::SIGTERM) };
+        connection.execute_batch("COMMIT").unwrap();
+        let output = child.wait_with_output().unwrap();
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert_eq!(
+            output.status.signal(),
+            Some(if cancelled {
+                libc::SIGHUP
+            } else {
+                libc::SIGTERM
+            }),
+            "{stderr}"
+        );
+        let end = end_notice(&stderr);
+        assert_eq!(
+            end["ending"],
+            if cancelled {
+                "cancelled"
+            } else {
+                "harness_exit"
+            },
+            "{end}"
+        );
+        assert_eq!(end["recorded"], true, "{end}");
+        assert_eq!(
+            ending_document(&file)["measurements"]["exit"]["value"],
+            if cancelled {
+                json!({"signal": "SIGHUP"})
+            } else {
+                json!({"code": 3})
+            }
+        );
+        assert_eq!(
+            show(&sandbox, &run_of(&end))["evidence"],
+            "execution_confirmed"
+        );
+    }
+}
+
+/// The caller can read the ending while an unrelated writer holds the store.
+#[test]
+fn the_ending_file_is_published_before_waiting_for_the_store() {
+    let sandbox = sandbox();
+    let file = sandbox.root.join("ending.json");
+    fake(
+        &sandbox,
+        "quits-after-lock",
+        ": > \"$ROOT/ready\"\nwhile test ! -e \"$ROOT/go\"; do sleep 0.01; done\nexit 3\n",
+    );
+    let child = front(
+        &sandbox,
+        "quits-after-lock",
+        &["--ending-file", &text(&file)],
+    )
+    .stdout(Stdio::piped())
+    .stderr(Stdio::piped())
+    .spawn()
+    .unwrap();
+    wait_for(&sandbox.root.join("ready"), Duration::from_secs(20));
+    let connection = Connection::open(sandbox.default_store()).unwrap();
+    connection.execute_batch("BEGIN EXCLUSIVE").unwrap();
+    fs::write(sandbox.root.join("go"), "").unwrap();
+    wait_for(&file, Duration::from_secs(10));
+    let published_while_locked = file.exists();
+    connection.execute_batch("COMMIT").unwrap();
+    let output = child.wait_with_output().unwrap();
+    assert_eq!(output.status.code(), Some(3));
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert_eq!(
+        end_notice(&stderr)["recorded"],
+        true,
+        "a lock timeout preceded publication: {stderr}"
+    );
+    assert!(
+        published_while_locked,
+        "the ending file waited on the store"
+    );
+    assert_eq!(
+        ending_document(&file)["measurements"]["ending"]["value"],
+        "harness_exit"
+    );
+}
+
 /// An ending file that exists refuses before selection, with no policy needed
 /// to see it, and so does one in a directory that does not. The control is the
 /// same run with a usable path, which reaches the policy and refuses that it

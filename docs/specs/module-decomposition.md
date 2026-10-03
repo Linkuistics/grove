@@ -452,6 +452,14 @@ longer than dispatch's, because dispatch is itself a supervisor that needs that
 long to end its harness. A confined launch is specified in
 [harness selection and execution](harness-selection-and-execution.md#confinement).
 
+Grove's 10-second kill-grace covers dispatch noticing cancellation at its
+next poll (up to 500 ms), its 5-second kill-grace, the 10 ms killed-child poll,
+the 20 ms second group kill, the 1-second group confirmation and the store
+append's single 2-second lock wait: about 8.53 seconds, leaving about 1.47
+seconds for scheduling and file I/O. Migration runs inside the append's same
+exclusive transaction, adding no second lock wait. This is a budget under
+ordinary scheduling, not a wall-clock guarantee against suspension or slow I/O.
+
 ### 8 — The VCS seam
 
 ```rust

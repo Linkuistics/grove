@@ -119,7 +119,7 @@ lines = 505
 [[root]]
 id    = "source-run"
 path  = "crates/keyed-launch/src/run.rs"
-lines = 1292
+lines = 1300
 
 [[root]]
 id    = "source-confinement"
@@ -184,7 +184,7 @@ lines = "358-957"
 id    = "supervise-and-escalate"
 root  = "source-run"
 owner = "the-launchers-job"
-lines = "958-1292"
+lines = "958-1300"
 
 [[block]]
 id    = "confinement-policy"

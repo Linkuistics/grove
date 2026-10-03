@@ -52,6 +52,14 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+- `harness-dispatch`: `run --confine` selects outside mandatory Seatbelt or
+  bubblewrap confinement, then supervises a noninteractive harness with a
+  minimal environment and private scratch storage. Repeatable `--runtime-read
+  FILE` grants regular files read-only. Canonical grants that reach policy,
+  settings or state paths refuse before selection, including aliases and
+  implicit system reads. Run records note confinement and runtime grants;
+  older records remain readable as unconfined.
+
 - Keep dispatch's signal handlers through end recording, publish the ending
   file before waiting on the record store, and freeze cancellation and duration
   at the harness's reap. Cover ignored SIGCHLD through dispatch and state which

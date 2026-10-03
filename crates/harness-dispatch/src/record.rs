@@ -193,6 +193,15 @@ pub fn readable(launch: &Value, failure: Option<&Value>) -> Result<(), String> {
             launch["schemaVersion"]
         ));
     }
+    if let Some(confinement) = launch.get("confinement").filter(|value| !value.is_null()) {
+        if !confinement.is_object()
+            || !confinement["runtimeRead"]
+                .as_array()
+                .is_some_and(|paths| paths.iter().all(Value::is_string))
+        {
+            return Err("launch record has invalid confinement grants".to_owned());
+        }
+    }
     if failure.is_some_and(|detail| !detail["cause"].is_string()) {
         return Err("launch failure has no cause".to_owned());
     }
@@ -448,6 +457,17 @@ impl Export {
                 },
             ),
             ("cwd", field(&launch["cwd"])),
+            (
+                "confinement",
+                if launch["confinement"].is_null() {
+                    "unconfined".to_owned()
+                } else {
+                    format!(
+                        "confined; runtime reads {}",
+                        launch["confinement"]["runtimeRead"]
+                    )
+                },
+            ),
             (
                 "policy",
                 format!(

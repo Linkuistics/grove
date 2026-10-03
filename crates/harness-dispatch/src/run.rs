@@ -14,6 +14,12 @@
 //! would otherwise inherit. Stdout and stdin stay the harness's; the handoff
 //! and the run's end are each announced in one line on stderr.
 //!
+//! With `--confine`, owner paths and grants are checked canonically before
+//! evaluation. Only the harness is sandboxed: it runs in a new POSIX session,
+//! with null stdin, inherited output, closed extra descriptors and an explicitly
+//! granted environment. The backend grants cwd, private scratch and exit storage
+//! for writes, with literal read-only runtime files and both executables.
+//!
 //! Every failure `run` reports once its command line has parsed also names the
 //! equivalent `inspect` invocation, so that an unattended refusal can be
 //! reproduced without reconstructing its inputs. A command line that does not
@@ -134,15 +140,30 @@ fn attempt(args: &RunArgs) -> Result<ExitCode, Failure> {
     let exit_dir = args.exit_dir.as_deref().map(exit_dir).transpose()?;
     let ending_file = args.ending_file.as_deref().map(ending_path).transpose()?;
     let run_id = RunId::allocate()?;
+    let prepared = choice::prepare(&args.selection, PromptRequirement::Required)?;
+    let confined = args
+        .confine
+        .then(|| {
+            crate::confinement::Confined::prepare(
+                &prepared,
+                exit_dir.as_deref(),
+                &args.runtime_read,
+            )
+        })
+        .transpose()?;
     let Selected {
         choice,
         handlers,
         source,
-    } = choice::choose(&args.selection, PromptRequirement::Required)?;
+    } = choice::choose_prepared(prepared)?;
     // Allocated after selection, so the worker could not have been told it,
     // and before the commit, so a failure here records nothing. A signal in
     // the meantime is noted and seen at the linearization point.
-    let exit_channel = match ExitChannel::allocate(exit_dir.as_deref()) {
+    let exit_channel = match ExitChannel::allocate(exit_dir.as_deref().or_else(|| {
+        confined
+            .as_ref()
+            .map(crate::confinement::Confined::exit_dir)
+    })) {
         Ok(exit_channel) => exit_channel,
         Err(refusal) => {
             drop(handlers);
@@ -154,7 +175,12 @@ fn attempt(args: &RunArgs) -> Result<ExitCode, Failure> {
     };
     // The worker has been reaped and the program resolved; only now is the
     // store opened, so no lock is ever held across evaluation.
-    let committed = match store::commit(&choice.state_dir, &run_id, &record::launch(&choice)) {
+    let mut document = record::launch(&choice);
+    document["confinement"] = confined.as_ref().map_or(
+        serde_json::Value::Null,
+        |confined| json!({ "runtimeRead": confined.runtime_read }),
+    );
+    let committed = match store::commit(&choice.state_dir, &run_id, &document) {
         Ok(committed) => committed,
         Err(refusal) => {
             drop(handlers);
@@ -169,7 +195,8 @@ fn attempt(args: &RunArgs) -> Result<ExitCode, Failure> {
         return Err(not_executed(&choice, &run_id, signal, &source));
     }
 
-    // argv[0] is the program as `select` returned it, and the resolved path,
+    // Unconfined argv[0] is the program as `select` returned it; a confined
+    // launcher's child receives the resolved path instead. The resolved path,
     // which is absolute, is what is spawned, so nothing is searched for twice.
     // Each argument is one whole word, exactly as returned.
     let argv = Argv::new(
@@ -178,35 +205,63 @@ fn attempt(args: &RunArgs) -> Result<ExitCode, Failure> {
     )
     .with_arg0(OsString::from(&choice.executable.program));
     let state_dir = choice.state_dir.path.as_os_str();
-    let grant = [
-        (RUN_ID_VARIABLE.as_ref(), run_id.as_str().as_ref()),
-        (STATE_DIR_VARIABLE.as_ref(), state_dir),
-    ];
+    let mut environment = confined
+        .as_ref()
+        .map_or_else(Vec::new, crate::confinement::Confined::environment);
+    environment.extend([
+        (
+            OsString::from(RUN_ID_VARIABLE),
+            OsString::from(run_id.as_str()),
+        ),
+        (OsString::from(STATE_DIR_VARIABLE), state_dir.to_owned()),
+    ]);
+    let grant: Vec<_> = environment
+        .iter()
+        .map(|(name, value)| (name.as_os_str(), value.as_os_str()))
+        .collect();
     let entry = signal_state::entry();
     let mut started = false;
-    let supervised = keyed_launch::run_observed(
-        Launch {
-            argv: &argv,
-            channel: &exit_channel.channel,
-            channel_var: EXIT_FILE_VARIABLE,
-            scrub: &[],
-            grant: &grant,
-            transparent: Some(&entry),
-            cwd: None,
-            escalation: ESCALATION,
-        },
-        &mut |event| {
-            if event == LaunchEvent::Started {
-                started = true;
-                // The handled signals have been blocked since the final check.
-                // The runner's handlers are installed by now, so one that
-                // arrived in the meantime cancels the run.
-                let _ = signal_state::restore_mask();
-            }
-        },
-    );
+    let launch = Launch {
+        argv: &argv,
+        channel: &exit_channel.channel,
+        channel_var: EXIT_FILE_VARIABLE,
+        scrub: &[],
+        grant: &grant,
+        transparent: Some(&entry),
+        cwd: confined
+            .as_ref()
+            .map(|confined| confined.writable[0].as_path()),
+        escalation: ESCALATION,
+    };
+    let mut observe = |event| {
+        if event == LaunchEvent::Started {
+            started = true;
+            // The handled signals have been blocked since the final check.
+            // The runner's handlers are installed by now, so one that
+            // arrived in the meantime cancels the run.
+            let _ = signal_state::restore_mask();
+        }
+    };
+    let supervised = match &confined {
+        Some(confined) => keyed_launch::run_confined_observed(
+            launch,
+            &keyed_launch::FilesystemGrants {
+                writable: &confined.writable,
+                runtime_read: &confined.reads(),
+            },
+            &mut observe,
+        ),
+        None => keyed_launch::run_observed(launch, &mut observe),
+    };
     let _ = signal_state::restore_mask();
     let cleanup = exit_channel.remove();
+    let cleanup = match confined {
+        Some(confined) => {
+            let private = confined.remove();
+            cleanup.and(private)
+        }
+        None => cleanup,
+    };
     let ended = match supervised {
         Ok(ended) => ended,
         Err(error) if !started => return Err(launch_failed(&choice, &run_id, &error)),

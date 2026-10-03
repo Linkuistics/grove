@@ -103,7 +103,7 @@ pub enum Command {
         The run ends when the harness exits, or when it sends the exit signal with \
         harness-dispatch exit: 2 seconds later its process group is sent SIGTERM, and 5 \
         seconds after that SIGKILL. INT, TERM or HUP sent to this process cancel the run the \
-        same way, with that signal. Whatever ends the harness, what remains of its group is \
+        same way, with that signal; a confined run's group is killed immediately. Whatever ends the harness, what remains of its group is \
         killed. The exit status is the harness's own exit code or signal when it ended \
         without the exit signal; 0 when the exit signal ended it or it exited 0 after \
         sending it; death by the cancelling signal; and 5 when members of its group may \
@@ -114,6 +114,13 @@ pub enum Command {
         observation to that file once the harness's group is gone. The path must not exist and \
         its directory must, checked before selection. A failed append or file is reported on \
         stderr and changes neither the ending nor the exit status.\n\n\
+        With --confine, selection still runs outside the sandbox. The harness runs in a new \
+        POSIX session with null stdin, inherited stdout/stderr, closed extra descriptors, and \
+        only HOME, USER, LOGNAME, PATH, LANG, LC_*, private TMPDIR/TMP/TEMP and the three \
+        HARNESS_DISPATCH values. Its cwd, private scratch and exit directory are writable; \
+        system runtime resources, both executables and --runtime-read files are readable. \
+        Canonical overlap with policy, settings or state paths refuses before selection, \
+        including implicit system reads. Confinement never falls back to an ordinary launch.\n\n\
         Examples:\n  \
         harness-dispatch run --kind impl --prompt 'Implement the parser'\n  \
         harness-dispatch run --kind impl --task-file ./tasks/parser.md --task-id T-12 --prompt-file ./mandate.md\n  \
@@ -121,7 +128,8 @@ pub enum Command {
         harness-dispatch run --kind review --context ./review-context.json --context-bytes 1048576 --prompt-file ./mandate.md\n  \
         harness-dispatch run --kind impl --state-dir ./records --prompt 'Implement the parser'\n  \
         harness-dispatch run --kind impl --exit-dir ./control --prompt 'Implement the parser'\n  \
-        harness-dispatch run --kind impl --ending-file ./control/ending.json --prompt 'Implement the parser'\n\n\
+        harness-dispatch run --kind impl --ending-file ./control/ending.json --prompt 'Implement the parser'\n  \
+        harness-dispatch run --kind audit --confine --runtime-read ~/.config/agent/token --prompt-file ./mandate.md\n\n\
         From Grove: what Grove runs for every lifecycle session, in the working-tree root, \
         with values from the leaf it launches:\n  \
         harness-dispatch run --kind=KIND --task-file=TASK_FILE --task-id=HANDLE --prompt=MANDATE\n\n\
@@ -270,6 +278,12 @@ pub struct InspectArgs {
 pub struct RunArgs {
     #[command(flatten)]
     pub selection: SelectionArgs,
+    /// Confine the harness with Seatbelt (macOS) or bubblewrap (Linux), with no unconfined fallback; selection runs outside it. The harness has null stdin and inherited output
+    #[arg(long)]
+    pub confine: bool,
+    /// Grant this regular runtime file read-only to the confined harness; repeatable, relative to the current directory. Grants overlapping policy, settings or state paths refuse before selection
+    #[arg(long, value_name = "FILE", requires = "confine")]
+    pub runtime_read: Vec<PathBuf>,
     /// Allocate the run's exit channel in this existing directory, which is neither created nor removed; relative to the current directory. Without it, a private per-run directory under TMPDIR, removed after the run
     #[arg(long, value_name = "DIR")]
     pub exit_dir: Option<PathBuf>,

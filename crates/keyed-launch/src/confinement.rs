@@ -49,6 +49,82 @@ pub struct Confinement<'a> {
     pub runtime_read: &'a [PathBuf],
 }
 
+/// Multiple writable directories and literal read-only runtime files. The
+/// caller decides which owner resources must remain outside these grants.
+pub struct FilesystemGrants<'a> {
+    pub writable: &'a [PathBuf],
+    pub runtime_read: &'a [PathBuf],
+}
+
+/// System filesystem resources exposed by the native backend. A caller that
+/// protects owner resources must check these implicit grants too.
+#[cfg(target_os = "macos")]
+pub fn confinement_system_reads() -> &'static [&'static str] {
+    &[
+        "/private/etc/ssl/cert.pem",
+        "/private/preboot/Cryptexes/OS",
+        "/System",
+        "/usr/bin",
+        "/usr/sbin",
+        "/usr/lib",
+        "/usr/libexec",
+        "/usr/share",
+        "/bin",
+        "/sbin",
+        "/Library/Apple",
+        "/opt/homebrew/Cellar",
+        "/usr/local/lib",
+        "/private/var/db/timezone",
+        "/dev/random",
+        "/dev/urandom",
+        "/private/etc/passwd",
+        "/private/etc/group",
+        "/private/etc/hosts",
+        "/private/etc/resolv.conf",
+        "/private/etc/services",
+        "/private/etc/protocols",
+        "/private/etc/localtime",
+        "/dev/null",
+        "/dev/zero",
+    ]
+}
+
+#[cfg(target_os = "linux")]
+pub fn confinement_system_reads() -> &'static [&'static str] {
+    &[
+        "/usr/bin",
+        "/usr/sbin",
+        "/usr/lib",
+        "/usr/lib64",
+        "/usr/libexec",
+        "/usr/share",
+        "/bin",
+        "/sbin",
+        "/lib",
+        "/lib64",
+        "/etc/ld.so.cache",
+        "/etc/passwd",
+        "/etc/group",
+        "/etc/nsswitch.conf",
+        "/etc/resolv.conf",
+        "/etc/hosts",
+        "/etc/ssl/certs",
+        "/proc",
+        "/dev",
+    ]
+}
+
+#[cfg(not(any(target_os = "linux", target_os = "macos")))]
+pub fn confinement_system_reads() -> &'static [&'static str] {
+    &[]
+}
+
+/// Check native backend availability without starting a process. No fallback
+/// exists when the required system backend is missing.
+pub fn confinement_available() -> Result<(), LaunchError> {
+    platform_command(&[], &[]).map(|_| ())
+}
+
 pub(crate) fn command(argv: &Argv, policy: &Confinement<'_>) -> Result<Command, LaunchError> {
     let root = canonical(policy.writable)?;
     if !root.is_dir() || root.parent().is_none() {
@@ -56,6 +132,36 @@ pub(crate) fn command(argv: &Argv, policy: &Confinement<'_>) -> Result<Command, 
             "confinement requires a private invocation directory",
         ));
     }
+    let mut command = command_with_grants(
+        argv,
+        &FilesystemGrants {
+            writable: std::slice::from_ref(&root),
+            runtime_read: policy.runtime_read,
+        },
+    )?;
+    for name in ["TMPDIR", "TMP", "TEMP"] {
+        command.env(name, root.join("tmp"));
+    }
+    Ok(command)
+}
+
+pub(crate) fn command_with_grants(
+    argv: &Argv,
+    policy: &FilesystemGrants<'_>,
+) -> Result<Command, LaunchError> {
+    let roots: Vec<PathBuf> = policy
+        .writable
+        .iter()
+        .map(|path| {
+            let path = canonical(path)?;
+            if !path.is_dir() || path.parent().is_none() {
+                return Err(LaunchError::new(
+                    "confinement requires writable directories other than /",
+                ));
+            }
+            Ok(path)
+        })
+        .collect::<Result<_, _>>()?;
     let program = executable(argv.program())?;
     let mut reads = vec![program.clone()];
     for path in policy.runtime_read {
@@ -68,10 +174,7 @@ pub(crate) fn command(argv: &Argv, policy: &Confinement<'_>) -> Result<Command, 
         }
         reads.push(path);
     }
-    let mut command = platform_command(&root, &reads)?;
-    for name in ["TMPDIR", "TMP", "TEMP"] {
-        command.env(name, root.join("tmp"));
-    }
+    let mut command = platform_command(&roots, &reads)?;
     command.arg(program).args(argv.args());
     Ok(command)
 }
@@ -100,7 +203,7 @@ fn executable(program: &OsStr) -> Result<PathBuf, LaunchError> {
 }
 
 #[cfg(target_os = "macos")]
-fn platform_command(root: &Path, reads: &[PathBuf]) -> Result<Command, LaunchError> {
+fn platform_command(roots: &[PathBuf], reads: &[PathBuf]) -> Result<Command, LaunchError> {
     // Seatbelt is inherited by descendants. Parameters keep path text out of
     // the policy language, including quotes and newlines in native filenames.
     // Reference: OpenAI's upstream seatbelt_base_policy.sbpl (Apache-2.0),
@@ -124,21 +227,45 @@ fn platform_command(root: &Path, reads: &[PathBuf]) -> Result<Command, LaunchErr
 (allow sysctl-read (sysctl-name "kern.hostname") (sysctl-name "kern.version") (sysctl-name-prefix "net.routetable."))
 (allow file-read-metadata)
 (allow file-read* (literal "/"))
-(allow file-read* (literal "/private/etc/ssl/cert.pem"))
-(allow file-read* file-map-executable (subpath "/private/preboot/Cryptexes/OS") (subpath "/System") (subpath "/usr/bin") (subpath "/usr/sbin") (subpath "/usr/lib") (subpath "/usr/libexec") (subpath "/usr/share") (subpath "/bin") (subpath "/sbin") (subpath "/Library/Apple") (subpath "/opt/homebrew/Cellar") (subpath "/usr/local/lib"))
-(allow file-read* (subpath "/private/var/db/timezone") (literal "/dev/random") (literal "/dev/urandom") (literal "/private/etc/passwd") (literal "/private/etc/group") (literal "/private/etc/hosts") (literal "/private/etc/resolv.conf") (literal "/private/etc/services") (literal "/private/etc/protocols") (literal "/private/etc/localtime"))
 (allow file-read* file-write-data (literal "/dev/null") (literal "/dev/zero"))
-(allow file-read* file-write* file-map-executable (subpath (param "INVOCATION")))
 "#,
     );
-    let mut command = Command::new("/usr/bin/sandbox-exec");
-    command.arg("-D").arg(parameter("INVOCATION", root));
+    let backend = "/usr/bin/sandbox-exec";
+    if !Path::new(backend).is_file() {
+        return Err(LaunchError::new("filesystem confinement requires /usr/bin/sandbox-exec; restore the system Seatbelt launcher"));
+    }
+    let mut command = Command::new(backend);
+    for path in confinement_system_reads() {
+        profile.push_str(&format!(
+            "(allow file-read* file-map-executable (subpath \"{path}\"))\n"
+        ));
+    }
+    for (index, root) in roots.iter().enumerate() {
+        let name = format!("WRITABLE_{index}");
+        profile.push_str(&format!(
+            "(allow file-read* file-write* file-map-executable (subpath (param \"{name}\")))\n"
+        ));
+        command.arg("-D").arg(parameter(&name, root));
+    }
+    // Explicit denies preserve read-only files beneath broader writable roots.
+    // Ancestor unlink denies prevent moving a directory to bypass the literal.
+    // https://github.com/openai/codex/blob/main/codex-rs/sandboxing/src/seatbelt.rs
     for (index, path) in reads.iter().enumerate() {
         let name = format!("RUNTIME_{index}");
         profile.push_str(&format!(
             "(allow file-read* file-map-executable (literal (param \"{name}\")))\n"
         ));
+        profile.push_str(&format!(
+            "(deny file-write* (literal (param \"{name}\")))\n"
+        ));
         command.arg("-D").arg(parameter(&name, path));
+        for (ancestor_index, ancestor) in path.ancestors().skip(1).enumerate() {
+            let anchor = format!("{name}_ANCESTOR_{ancestor_index}");
+            profile.push_str(&format!(
+                "(deny file-write-unlink (literal (param \"{anchor}\")))\n"
+            ));
+            command.arg("-D").arg(parameter(&anchor, ancestor));
+        }
     }
     command.args(["-p", &profile, "--"]);
     Ok(command)
@@ -152,7 +279,7 @@ fn parameter(name: &str, path: &Path) -> std::ffi::OsString {
 }
 
 #[cfg(target_os = "linux")]
-fn platform_command(root: &Path, reads: &[PathBuf]) -> Result<Command, LaunchError> {
+fn platform_command(roots: &[PathBuf], reads: &[PathBuf]) -> Result<Command, LaunchError> {
     // Start with an empty mount namespace, never a read-only bind of `/`.
     // https://github.com/containers/bubblewrap/blob/main/README.md
     let backend = ["/usr/bin/bwrap", "/bin/bwrap"].into_iter().find(|path| Path::new(path).is_file())
@@ -167,31 +294,15 @@ fn platform_command(root: &Path, reads: &[PathBuf]) -> Result<Command, LaunchErr
         "--unshare-ipc",
         "--unshare-uts",
     ]);
-    for path in [
-        "/usr/bin",
-        "/usr/sbin",
-        "/usr/lib",
-        "/usr/lib64",
-        "/usr/libexec",
-        "/usr/share",
-        "/bin",
-        "/sbin",
-        "/lib",
-        "/lib64",
-        "/etc/ld.so.cache",
-        "/etc/passwd",
-        "/etc/group",
-        "/etc/nsswitch.conf",
-        "/etc/resolv.conf",
-        "/etc/hosts",
-        "/etc/ssl/certs",
-    ] {
-        if Path::new(path).exists() {
+    for &path in confinement_system_reads() {
+        if !matches!(path, "/proc" | "/dev") && Path::new(path).exists() {
             command.args(["--ro-bind", path, path]);
         }
     }
     command.args(["--proc", "/proc", "--dev", "/dev"]);
-    command.arg("--bind").arg(root).arg(root);
+    for root in roots {
+        command.arg("--bind").arg(root).arg(root);
+    }
     for path in reads {
         command.arg("--ro-bind").arg(path).arg(path);
     }
@@ -210,7 +321,7 @@ fn platform_command(root: &Path, reads: &[PathBuf]) -> Result<Command, LaunchErr
 }
 
 #[cfg(not(any(target_os = "linux", target_os = "macos")))]
-fn platform_command(_: &Path, _: &[PathBuf]) -> Result<Command, LaunchError> {
+fn platform_command(_: &[PathBuf], _: &[PathBuf]) -> Result<Command, LaunchError> {
     Err(LaunchError::new(
         "standalone confinement is unavailable on this platform; the task was not launched",
     ))

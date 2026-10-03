@@ -7,7 +7,7 @@ rather than re-taught, and the entry point to the system is the
 [user guide's account of running a grove](../../USAGE.md#usage-running-grove).
 This reader has watched a session end without ever seeing what ended it.
 
-`crates/keyed-launch` is 7 files and 2,226 lines, and it is the layer between a
+`crates/keyed-launch` is 7 files and 2,365 lines, and it is the layer between a
 command its caller built and a running process. The crate keeps the name it took
 when it also resolved a key to a command template; that half is deleted, and it
 reads no configuration. **Nothing in the crate understands what it launches.**
@@ -49,7 +49,7 @@ The production source is authoritative. Literal fragments in the numbered pages
 are copied from it exactly, and the source index records how those fragments
 reconstruct each in-scope file. During authoring a scoped check proves the
 completed prefix and reports later-owned ranges as deferred; only the final check
-proves complete reconstruction of all 7 files and 2,226 lines.
+proves complete reconstruction of all 7 files and 2,365 lines.
 
 <a id="reading-fragments"></a>
 ## Reading fragments

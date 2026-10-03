@@ -24,8 +24,8 @@ The chapter sequence and ownership mapping below are what
 `[[block]]` groups. Where the two disagree, that is a defect in one of them, not
 a licence to prefer either.
 
-**What distinguishes this corpus.** Seven roots and 2,226 lines, of which
-`src/run.rs` is 1,292: more than half the corpus is one file, and two chapters
+**What distinguishes this corpus.** Seven roots and 2,365 lines, of which
+`src/run.rs` is 1,318: more than half the corpus is one file, and two chapters
 divide it.
 `src/channel.rs` contains an inline `#[cfg(test)]` module inside a root, at
 lines 320–505. The corpus exception inventory in
@@ -308,7 +308,7 @@ ledgers and records the final verification.
 
 Owns `src/confinement.rs` whole. Responsible for: the noninteractive process
 mode and what it changes — no terminal, stdin at EOF, output to a caller-owned
-file, a new session; `Confinement` as a mandatory boundary with one writable
+file or inherited output, a new session; `Confinement` as a mandatory boundary with one writable
 directory and explicit read grants; the executable resolved from an absolute
 path and never looked up; the macOS and Linux backends and the refusal on any
 other platform; that neither failure path retries without confinement; and
@@ -351,33 +351,33 @@ chapter 2's fragments, which are behind it.
 
 | Chapter | Lines | Share |
 |---:|---:|---:|
-| 1 · Orientation | 212 | 10% |
-| 2 · The channel | 319 | 14% |
-| 3 · The job | 768 | 35% |
-| 4 · The escalation | 524 | 24% |
+| 1 · Orientation | 214 | 9% |
+| 2 · The channel | 319 | 13% |
+| 3 · The job | 786 | 33% |
+| 4 · The escalation | 532 | 22% |
 | 5 · How this is checked | 186 | 8% |
 | 6 · What ends a launch | 0 | — |
-| 7 · Confined jobs | 217 | 10% |
-| **total** | **2,226** | **100%** |
+| 7 · Confined jobs | 328 | 14% |
+| **total** | **2,365** | **100%** |
 
 Shares are rounded, so they need not sum to 100. Per root: `Cargo.toml` 42,
-`src/lib.rs` 50, `src/error.rs` 56, `src/argv.rs` 64, `src/channel.rs` 505,
-`src/run.rs` 1,292, `src/confinement.rs` 217.
+`src/lib.rs` 52, `src/error.rs` 56, `src/argv.rs` 64, `src/channel.rs` 505,
+`src/run.rs` 1,318, `src/confinement.rs` 328.
 
 ## What each chapter's prose owes
 
-Measured: **35% of the corpus is comment prose**, 786 of 2,226 lines, counting
+Measured: **34% of the corpus is comment prose**, 802 of 2,365 lines, counting
 every line whose first non-blank characters open a comment, and it is not spread
-evenly. `src/lib.rs` is 70% and `Cargo.toml` 52%. `src/run.rs` is 44% (565 of
-1,292 lines), and there the prose is *argument*: the escalation, the child
+evenly. `src/lib.rs` is 67% and `Cargo.toml` 52%. `src/run.rs` is 43% (572 of
+1,318 lines), and there the prose is *argument*: the escalation, the child
 dispositions, the interrupt latch, the terminal and the end of the group each
-carry a full case in situ. `src/confinement.rs` is 10%. Three things are what each chapter's prose
+carry a full case in situ. `src/confinement.rs` is 9%. Three things are what each chapter's prose
 owes, and a technical review checks for them:
 
 1. **Adjudicate the claim.** For every argued claim, name the behaviour it rests
    on, the test that proves it, and the alternative rejected with what it would
    have cost. A doc comment rarely names the test that holds it, and this
-   crate's evidence is 3,005 lines in seven files against a 2,226-line corpus.
+   crate's evidence is 3,119 lines in seven files against a 2,365-line corpus.
 2. **Carry the through-line.** Show where a decision in one place rests on a
    decision in another: `Channel::allocate` writing nothing is *why* `watch` can
    treat appearance as an event at all; the scrub list is *why* a nested child
@@ -439,7 +439,7 @@ early-use ledger.
 | `Channel`, `Token`, `signal` | 1 | 2 | chapter 1's cast names the public surface |
 | `run`, `run_observed`, `LaunchEvent`, `Launch`, `Ended`, `End`, `Escalation` | 1 | 3 | the same |
 | `reraise`, `take_interrupt` | 1 | 4 | the same |
-| `run_noninteractive`, `run_confined`, `Confinement`, `regular_file_at` | 1 | 7 | the same |
+| `run_noninteractive`, `run_confined`, `run_confined_observed`, `Confinement`, `FilesystemGrants`, `confinement_available`, `confinement_system_reads`, `regular_file_at` | 1 | 7 | the same |
 | `install_termination_handler`, `INTERRUPTED_BY`, `supervise` | 3 | 4 | the spawn installs the handler, clears the latch and calls the supervisor |
 
 Chapter 1 names every public type before its owner explains it because

@@ -178,7 +178,7 @@ interval, and the five public types this file defines.
 The second is the block after chapter 4's, and it is the machinery of a spawn:
 the dispositions, the terminal, and `run` itself.
 
-<!-- fragment «terminal-and-spawn» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="358-957" parent="source-run" -->
+<!-- fragment «terminal-and-spawn» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="358-975" parent="source-run" -->
 <!-- insert «run-default-dispositions» -->
 <!-- insert «run-entry-signals» -->
 <!-- insert «run-terminal-type» -->
@@ -1305,7 +1305,7 @@ POSIX session. The confined entry point adds a native filesystem wrapper.
 Those choices are explicit APIs; the ordinary interactive path retains the
 command, environment and terminal contract explained here.
 
-<!-- fragment «run-command-and-environment» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="686-805" parent="terminal-and-spawn" -->
+<!-- fragment «run-command-and-environment» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="686-823" parent="terminal-and-spawn" -->
 <!-- insert «run-output-modes» -->
 <!-- insert «run-output-setup» -->
 <!-- /fragment -->
@@ -1316,7 +1316,7 @@ command, environment and terminal contract explained here.
 `run` and `run_observed` preserve interactive job control. The observed entry
 point reports Started after successful spawn and Reaped after confirmed reap.
 `run_noninteractive` instead requires a regular log file; `run_confined` also
-constructs a mandatory native filesystem policy before spawning. All four return
+constructs a mandatory native filesystem policy before spawning. These return
 the same `Ended` shape. A no-op observer keeps the simpler APIs free of callback
 requirements, while the caller still interprets the returned token.
 
@@ -1407,6 +1407,11 @@ pub fn run_confined(
 <a id="run-output-setup"></a>
 ### Set streams and scrub authority
 
+`run_confined_observed` prepares the same filesystem wrapper with multiple
+writable directories and clears its environment before the common launch path
+applies the explicit grants. Its observer follows `run_observed`'s spawn and
+reap ordering. It supplies no output file, so stdout and stderr remain inherited.
+
 `run_with_output` derives the launch's `Mode` from its two optional arguments:
 a wrapper command means confined, an output file alone means noninteractive, and
 neither means interactive. Only an interactive launch opens the terminal,
@@ -1414,14 +1419,30 @@ because a detached child is in a session of its own and could never be handed
 it. Whether a terminal opened is what `install_termination_handler` needs, to
 decide whether SIGINT cancels. `restore_child_watching` runs next, and its answer
 travels into `pre_exec`. Then the descriptor bound is checked, stdin is directed
-to EOF and both output streams to the log for a detached mode. A confined call
+to EOF for either detached mode. An output file redirects both streams to the
+log; without one the confined observed call inherits them. A confined call
 supplies the wrapper command; otherwise the original executable and arguments
 are used directly. The scrub list is applied before the fresh
 channel grant, preserving the current invocation's authority while removing
 any inherited channel named by the caller.
 
-<!-- fragment «run-output-setup» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="757-805" parent="run-command-and-environment" -->
+<!-- fragment «run-output-setup» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="757-823" parent="run-command-and-environment" -->
 ````rust
+/// Confine a noninteractive job with EOF stdin and inherited stdout/stderr.
+/// Start a new POSIX session, close inherited descriptors above stderr on
+/// exec, and clear the environment before applying Launch's explicit grants.
+/// The channel is granted last. Observations have `run_observed`'s ordering;
+/// cancellation kills the group immediately, as in `run_confined`.
+pub fn run_confined_observed(
+    launch: Launch<'_>,
+    policy: &crate::FilesystemGrants<'_>,
+    observer: &mut dyn FnMut(LaunchEvent),
+) -> Result<Ended, LaunchError> {
+    let mut command = crate::confinement::command_with_grants(launch.argv, policy)?;
+    command.env_clear();
+    run_with_output(launch, observer, None, Some(command))
+}
+
 fn run_with_output(
     launch: Launch<'_>,
     observer: &mut dyn FnMut(LaunchEvent),
@@ -1447,6 +1468,9 @@ fn run_with_output(
         command.arg0(launch.argv.arg0()).args(launch.argv.args());
         command
     });
+    if detached {
+        command.stdin(Stdio::null());
+    }
     if let Some(output) = output {
         let stderr = output.try_clone().map_err(|error| {
             LaunchError::new(format!("cannot duplicate the launch log: {error}"))
@@ -1512,7 +1536,7 @@ child's own argument vector back.
 With the environment settled, the interactive path turns to the terminal and asks two
 separate questions of it before handing anything over.
 
-<!-- fragment «run-terminal-handover» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="806-820" parent="terminal-and-spawn" -->
+<!-- fragment «run-terminal-handover» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="824-838" parent="terminal-and-spawn" -->
 ````rust
 
     // Hand the terminal over from *inside* the child as well as from the parent
@@ -1554,7 +1578,7 @@ is not in this function at all but in the lease's `lend`, which chapter 4's
 earns its place for a reason of its own, which the lease's section gave: it is
 re-asked every tick.
 
-<!-- fragment «run-process-group» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="821-828" parent="terminal-and-spawn" -->
+<!-- fragment «run-process-group» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="839-846" parent="terminal-and-spawn" -->
 ````rust
 
     // The group, through `std`'s own checked path rather than a `setpgid` of our
@@ -1576,7 +1600,7 @@ an ordinary `Err` the caller already handles. This is the same reasoning chapter
 gave for checking the channel directory before the launch rather than letting the
 child's write fail: move the failure to where somebody is reading.
 
-<!-- fragment «run-pre-exec» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="829-879" parent="terminal-and-spawn" -->
+<!-- fragment «run-pre-exec» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="847-897" parent="terminal-and-spawn" -->
 ````rust
 
     // SAFETY: the closure runs between `fork` and `exec`, so it may call only
@@ -1670,7 +1694,7 @@ Everything is now built and nothing has been started. Two acts stand between the
 assembled `Command` and a running child, and the first of them is a single
 store.
 
-<!-- fragment «run-clear-and-spawn» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="880-892" parent="terminal-and-spawn" -->
+<!-- fragment «run-clear-and-spawn» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="898-910" parent="terminal-and-spawn" -->
 ````rust
 
     // Clear the latch *before* the spawn, never after: see `INTERRUPTED_BY`. A
@@ -1710,7 +1734,7 @@ wait can report the child gone. The handoff below fills in the lease's child and
 passes supervision two closures over it, one that lends the terminal each tick
 and one that reclaims it once.
 
-<!-- fragment «run-parent-group-and-supervise» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="893-957" parent="terminal-and-spawn" -->
+<!-- fragment «run-parent-group-and-supervise» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="911-975" parent="terminal-and-spawn" -->
 <!-- insert «run-spawn-handoff» -->
 <!-- insert «run-descriptor-bound» -->
 <!-- /fragment -->
@@ -1726,7 +1750,7 @@ closures `supervise` receives both reach it: `lend` mutably on every tick, and
 `reclaim` once at the end. `supervise` receives the launch's `Mode` instead of a
 group ID, because the child it supervises already knows its own.
 
-<!-- fragment «run-spawn-handoff» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="893-919" parent="run-parent-group-and-supervise" -->
+<!-- fragment «run-spawn-handoff» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="911-937" parent="run-parent-group-and-supervise" -->
 ````rust
 
     observer(LaunchEvent::Started);
@@ -1768,7 +1792,7 @@ pre-exec loop uses the resulting bound to mark inherited descriptors
 close-on-exec. Inspection failure refuses launch; callers must not concurrently
 change descriptor limits or signal dispositions during a noninteractive launch.
 
-<!-- fragment «run-descriptor-bound» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="920-957" parent="run-parent-group-and-supervise" -->
+<!-- fragment «run-descriptor-bound» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="938-975" parent="run-parent-group-and-supervise" -->
 ````rust
 /// Include existing descriptors even if the caller lowered its soft limit
 /// after opening them. The remaining range covers descriptors std opens while

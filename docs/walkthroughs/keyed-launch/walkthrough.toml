@@ -99,7 +99,7 @@ lines = 42
 [[root]]
 id    = "source-library-root"
 path  = "crates/keyed-launch/src/lib.rs"
-lines = 50
+lines = 52
 
 [[root]]
 id    = "source-error-type"
@@ -119,12 +119,12 @@ lines = 505
 [[root]]
 id    = "source-run"
 path  = "crates/keyed-launch/src/run.rs"
-lines = 1300
+lines = 1318
 
 [[root]]
 id    = "source-confinement"
 path  = "crates/keyed-launch/src/confinement.rs"
-lines = 217
+lines = 328
 
 [[block]]
 id    = "manifest-one-dependency"
@@ -136,7 +136,7 @@ lines = "1-42"
 id    = "library-root"
 root  = "source-library-root"
 owner = "understands-neither"
-lines = "1-50"
+lines = "1-52"
 
 [[block]]
 id    = "one-opaque-error"
@@ -178,19 +178,19 @@ lines = "169-357"
 id    = "terminal-and-spawn"
 root  = "source-run"
 owner = "nothing-else-added"
-lines = "358-957"
+lines = "358-975"
 
 [[block]]
 id    = "supervise-and-escalate"
 root  = "source-run"
 owner = "the-launchers-job"
-lines = "958-1300"
+lines = "976-1318"
 
 [[block]]
 id    = "confinement-policy"
 root  = "source-confinement"
 owner = "confined-jobs"
-lines = "1-217"
+lines = "1-328"
 
 [[early-use]]
 symbols   = "`Channel`, `Token`, `signal`"
@@ -211,10 +211,10 @@ owner     = "the-launchers-job"
 statement = "The launcher's own two obligations for a termination signal: `take_interrupt` collects one that arrived between launches, and `reraise` is how a launcher dies of the same signal rather than reporting an exit code."
 
 [[early-use]]
-symbols   = "`run_noninteractive`, `run_confined`, `Confinement`, `regular_file_at`"
+symbols   = "`run_noninteractive`, `run_confined`, `run_confined_observed`, `Confinement`, `FilesystemGrants`, `confinement_available`, `confinement_system_reads`, `regular_file_at`"
 first-use = "01-orientation.md#the-cast"
 owner     = "confined-jobs"
-statement = "A launch with no terminal whose output goes to a file, the same launch under a mandatory filesystem policy, that policy's two fields, and the one read of a result that policy leaves safe."
+statement = "Detached launches with file or inherited output, mandatory filesystem grants, backend availability and system-read inventory, and stable reads of artifacts through held directories."
 
 [[early-use]]
 symbols   = "`install_termination_handler`, `restore_child_watching`, `INTERRUPTED_BY`, `Mode`, `supervise`"

@@ -754,6 +754,21 @@ pub fn run_confined(
     run_with_output(launch, &mut |_| {}, Some(output), Some(command))
 }
 
+/// Confine a noninteractive job with EOF stdin and inherited stdout/stderr.
+/// Start a new POSIX session, close inherited descriptors above stderr on
+/// exec, and clear the environment before applying Launch's explicit grants.
+/// The channel is granted last. Observations have `run_observed`'s ordering;
+/// cancellation kills the group immediately, as in `run_confined`.
+pub fn run_confined_observed(
+    launch: Launch<'_>,
+    policy: &crate::FilesystemGrants<'_>,
+    observer: &mut dyn FnMut(LaunchEvent),
+) -> Result<Ended, LaunchError> {
+    let mut command = crate::confinement::command_with_grants(launch.argv, policy)?;
+    command.env_clear();
+    run_with_output(launch, observer, None, Some(command))
+}
+
 fn run_with_output(
     launch: Launch<'_>,
     observer: &mut dyn FnMut(LaunchEvent),
@@ -779,6 +794,9 @@ fn run_with_output(
         command.arg0(launch.argv.arg0()).args(launch.argv.args());
         command
     });
+    if detached {
+        command.stdin(Stdio::null());
+    }
     if let Some(output) = output {
         let stderr = output.try_clone().map_err(|error| {
             LaunchError::new(format!("cannot duplicate the launch log: {error}"))

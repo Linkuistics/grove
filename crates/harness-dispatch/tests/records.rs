@@ -385,6 +385,7 @@ fn record_show_exports_the_launch_fields_with_dispatchs_end_and_every_other_meas
         &serde_json::json!({
             "schemaVersion": 1,
             "kind": "impl",
+            "confinement": null,
             "taskId": "T-7",
             "taskFile": text(&sandbox.cwd.join("tasks/t7.md")),
             "params": { "repo": "/work/parser", "session_name": "parser: a b" },
@@ -1097,6 +1098,10 @@ fn a_run_recorded_under_the_catalog_contract_is_exported_as_it_was_stored() {
     // selection form and the explicit choice.
     let launch = &routed["launch"];
     assert_eq!(launch, &stored_launch(&store, ROUTED_RUN));
+    assert!(launch.get("confinement").is_none());
+    assert!(show(&sandbox, ROUTED_RUN, &[])
+        .stdout
+        .contains("confinement unconfined"));
     assert_eq!(launch["schemaVersion"], 1);
     assert_eq!(launch["kind"], "build");
     assert_eq!(launch["taskId"], "parser-k12");

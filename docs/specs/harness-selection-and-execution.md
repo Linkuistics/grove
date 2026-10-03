@@ -899,7 +899,11 @@ the cwd, the exit directory, the private run directory or a runtime read — tha
 is a protected path, contains one or lies inside one refuses with exit 2, naming
 both. The protected paths are the directory holding the selected policy entry,
 the owner settings file and the state directory. The two executables are exempt,
-since the harness must run them; a module the policy imports from elsewhere is
+since the harness must run them. Dispatch also checks the backend's implicit
+system-read grants against protected paths: owner data placed under a system
+runtime tree refuses rather than becoming readable through that tree. Runtime
+file names must be UTF-8 so the record preserves each grant exactly, and their
+read-only permission holds even beneath a writable directory. A module the policy imports from elsewhere is
 the owner's choice, as its authority is. The harness's environment is HOME,
 USER, LOGNAME, PATH, LANG and the LC_* values, TMPDIR, TMP and TEMP set to its
 private temporary directory, and the three reserved values; nothing else of the

@@ -72,3 +72,59 @@ launches nothing.
   it admitted, the settings file it read or would read from HOME, and the state
   directory it would record in. A runtime read is a literal grant, so a
   symlink to the settings file must be caught by its canonical path.
+
+## Implementation plan
+
+- Add command-seam tests for pre-selection refusals, canonical aliases, real
+  sandbox grants, the scrubbed environment, and record compatibility; watch
+  the new cases fail before implementing.
+- Separate selection preparation from evaluation so confinement validates the
+  exact admitted policy, settings location and state directory once.
+- Extend keyed-launch's existing backend construction to multiple writable
+  directories and add an observed confined launch with inherited output. Keep
+  the file-output form for Grove's existing caller.
+- Connect dispatch's flags, private scratch directory, minimal environment and
+  immutable confinement record; run the focused suites.
+- Update the keyed-launch book and Unreleased notes, run `task check`, retire
+  this leaf and seal its jj change, then signal with installed v22 grove-llm.
+
+## Decisions (running log)
+
+- K1: Follow the already approved area specification and confined-run plan;
+  no design or authorization is reopened. Grove's standalone caller stays
+  unchanged in this increment.
+- K2: Prepare selection once, then validate confinement before worker startup.
+  This avoids resolving a different policy or settings directory for the
+  refusal and the selection. Missing protected paths are resolved through
+  existing ancestors, so first-run settings/store locations remain protected.
+- K3: Reuse the runner's native sandbox backends for both output forms. The
+  new form accepts multiple writable directories, inherits stdout/stderr,
+  clears the environment before explicit grants, and retains observed spawn
+  for dispatch's signal-mask handoff.
+- K4: The fresh reviewer found three actionable boundary cases: implicit
+  system runtime grants exposing owner paths, a runtime file beneath a writable
+  root remaining writable on Seatbelt, and non-UTF-8 runtime paths panicking
+  during record serialization. The command seam reproduced the first two;
+  APFS does not admit the third filename, so that regression also runs on
+  filesystems that admit native byte names. Refuse overlap with the backend's
+  shared system-read inventory, enforce literal read-only grants and protect
+  their ancestors from renaming, and refuse unrecordable paths before selection.
+  These fixes have executable seams; no second reviewer is needed.
+- K5: Preserve older launch JSON exactly as stored. A missing confinement field
+  means unconfined in the text export and passes the same readable check used
+  by show, observe and policy lookup; only new runs write the field.
+
+## Validation
+
+- `task check` passed all 12 principal checks, including the complete workspace
+  tests and all six final book validations. The keyed-launch book resolves all
+  2,365 source lines with none deferred. All 1,923 tracked input files and their
+  hashes remained unchanged throughout the run.
+- All eight dispatch confinement tests passed on macOS, exercising Seatbelt
+  through the real command. Linux's bubblewrap backend was not exercised on this
+  host; APFS cannot express the non-UTF-8 filename regression's subject.
+- The graph CLI refused access because another pre-coordination or unverified
+  generation was active. Source inspection supplied the evidence instead;
+  graph coverage could not be established.
+- The confined-run node remains open for `standalone-through-dispatch-k14`.
+  This leaf has no pending review leaf and closes no ancestor.

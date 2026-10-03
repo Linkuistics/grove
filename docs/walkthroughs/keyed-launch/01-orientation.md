@@ -185,7 +185,7 @@ order is that account's order. The book reads it whole here, in five fragments:
 four that follow the doc comment's own paragraph breaks, and one for the module
 declarations and exports, which this chapter reads after the worked example.
 
-<!-- fragment «library-root» owner="understands-neither" source="crates/keyed-launch/src/lib.rs" lines="1-50" parent="source-library-root" -->
+<!-- fragment «library-root» owner="understands-neither" source="crates/keyed-launch/src/lib.rs" lines="1-52" parent="source-library-root" -->
 <!-- insert «library-root-thesis» -->
 <!-- insert «library-root-to-a-child» -->
 <!-- insert «library-root-job-and-out-of-band» -->
@@ -348,7 +348,7 @@ This book reads them here rather than deferring each name to its own chapter,
 because the list is short and the map above has already said which chapter owns
 what.
 
-<!-- fragment «library-root-modules-and-exports» owner="understands-neither" source="crates/keyed-launch/src/lib.rs" lines="36-50" parent="library-root" -->
+<!-- fragment «library-root-modules-and-exports» owner="understands-neither" source="crates/keyed-launch/src/lib.rs" lines="36-52" parent="library-root" -->
 ````rust
 
 mod argv;
@@ -359,11 +359,13 @@ mod run;
 
 pub use argv::Argv;
 pub use channel::{signal, Channel, Token};
-pub use confinement::{regular_file_at, Confinement};
+pub use confinement::{
+    confinement_available, confinement_system_reads, regular_file_at, Confinement, FilesystemGrants,
+};
 pub use error::LaunchError;
 pub use run::{
-    reraise, run, run_confined, run_noninteractive, run_observed, take_interrupt, End, Ended,
-    EntrySignals, Escalation, Group, Launch, LaunchEvent,
+    reraise, run, run_confined, run_confined_observed, run_noninteractive, run_observed,
+    take_interrupt, End, Ended, EntrySignals, Escalation, Group, Launch, LaunchEvent,
 };
 ````
 <!-- /fragment -->
@@ -386,7 +388,7 @@ The last row is this chapter's own and is not one.
 | `Channel`, `Token`, `signal` | A fresh path per launch that allocation picks and writes nothing to; `signal` is what the child calls to make it appear, and `Token` is what the caller reads back. | 2 |
 | `run`, `run_observed`, `LaunchEvent`, `Launch`, `EntrySignals`, `Ended`, `End`, `Group`, `Escalation` | `run_observed` reports successful spawn and confirmed reap synchronously; `run` uses a no-op observer. Each spawns one `Launch` — argv, channel, scrub list, granted values, a transparent caller's `EntrySignals` when there is one, working directory and the two graces of an `Escalation` — and returns an `Ended` saying which of `End`'s three cases happened, whether the channel appeared, and whether the child's `Group` was confirmed gone. | 3 |
 | `reraise`, `take_interrupt` | The launcher's own two obligations for a termination signal: `take_interrupt` collects one that arrived between launches, and `reraise` is how a launcher dies of the same signal rather than reporting an exit code. | 4 |
-| `run_noninteractive`, `run_confined`, `Confinement`, `regular_file_at` | A launch with no terminal whose output goes to a file, the same launch under a mandatory filesystem policy, that policy's two fields, and the one read of a result that policy leaves safe. | 7 |
+| `run_noninteractive`, `run_confined`, `run_confined_observed`, `Confinement`, `FilesystemGrants`, `confinement_available`, `confinement_system_reads`, `regular_file_at` | Detached launches with file or inherited output, mandatory filesystem grants, backend availability and system-read inventory, and stable reads of artifacts through held directories. | 7 |
 | `LaunchError`, `Argv` | the one error type and the type a command arrives in, read next | 1 |
 
 <a id="one-opaque-error"></a>

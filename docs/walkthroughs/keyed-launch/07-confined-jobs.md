@@ -12,6 +12,13 @@ POSIX session, and mark inherited descriptors above stderr close-on-exec. They
 do not hand over a controlling terminal. The interactive `run` and `run_observed`
 path described earlier retains its foreground-job behavior.
 
+`run_confined_observed` uses the same detached process mode with inherited
+stdout and stderr. Its `FilesystemGrants` names several writable directories
+and literal runtime files. It clears the environment before applying the
+launch's explicit grants, and sets the channel last. Dispatch uses this form
+for cwd, scratch and exit storage; the existing file-output form still serves
+Grove's standalone caller. Both report cancellation only after group cleanup.
+
 <a id="worked-confined-job"></a>
 ## Worked example: run a confined job and read its result
 
@@ -71,11 +78,12 @@ The following comparison states which boundary each entry point supplies.
 | `run`, `run_observed` | Interactive process group and terminal handover | Caller environment |
 | `run_noninteractive` | New session, EOF stdin, captured output | No added filesystem confinement |
 | `run_confined` | Same noninteractive mode | Required native backend and explicit runtime grants |
+| `run_confined_observed` | New session, EOF stdin, inherited output, explicit environment, spawn/reap callbacks | Required native backend and multiple writable grants |
 
 The policy implementation below supplies command construction and stable artifact
 reads; the job and watch chapters own spawning, cancellation and reaping.
 
-<!-- fragment «confinement-policy» owner="confined-jobs" source="crates/keyed-launch/src/confinement.rs" lines="1-217" parent="source-confinement" -->
+<!-- fragment «confinement-policy» owner="confined-jobs" source="crates/keyed-launch/src/confinement.rs" lines="1-328" parent="source-confinement" -->
 <!-- insert «held-directory-read» -->
 <!-- insert «confinement-contract» -->
 <!-- insert «confinement-resource-resolution» -->
@@ -156,13 +164,96 @@ backend starts and then refuses its setup, supervision instead returns an
 inspect that result before accepting outputs. Neither failure path retries
 without confinement.
 
-<!-- fragment «confinement-contract» owner="confined-jobs" source="crates/keyed-launch/src/confinement.rs" lines="45-78" parent="confinement-policy" -->
+`FilesystemGrants` is the shared backend input. `confinement_available` checks
+the required system launcher without spawning it. `confinement_system_reads`
+is the same inventory the backends grant: a caller protecting policy, settings
+or state checks those implicit reads too. This runner knows no owner paths and
+performs no policy selection. Dispatch checks canonical overlap before its
+worker evaluates anything and refuses an owner resource beneath a system tree.
+
+<!-- fragment «confinement-contract» owner="confined-jobs" source="crates/keyed-launch/src/confinement.rs" lines="45-181" parent="confinement-policy" -->
 ````rust
 /// Writable invocation root and explicitly granted, read-only runtime files.
 /// User data belongs in staged inputs. Runtime grants never confer writes.
 pub struct Confinement<'a> {
     pub writable: &'a Path,
     pub runtime_read: &'a [PathBuf],
+}
+
+/// Multiple writable directories and literal read-only runtime files. The
+/// caller decides which owner resources must remain outside these grants.
+pub struct FilesystemGrants<'a> {
+    pub writable: &'a [PathBuf],
+    pub runtime_read: &'a [PathBuf],
+}
+
+/// System filesystem resources exposed by the native backend. A caller that
+/// protects owner resources must check these implicit grants too.
+#[cfg(target_os = "macos")]
+pub fn confinement_system_reads() -> &'static [&'static str] {
+    &[
+        "/private/etc/ssl/cert.pem",
+        "/private/preboot/Cryptexes/OS",
+        "/System",
+        "/usr/bin",
+        "/usr/sbin",
+        "/usr/lib",
+        "/usr/libexec",
+        "/usr/share",
+        "/bin",
+        "/sbin",
+        "/Library/Apple",
+        "/opt/homebrew/Cellar",
+        "/usr/local/lib",
+        "/private/var/db/timezone",
+        "/dev/random",
+        "/dev/urandom",
+        "/private/etc/passwd",
+        "/private/etc/group",
+        "/private/etc/hosts",
+        "/private/etc/resolv.conf",
+        "/private/etc/services",
+        "/private/etc/protocols",
+        "/private/etc/localtime",
+        "/dev/null",
+        "/dev/zero",
+    ]
+}
+
+#[cfg(target_os = "linux")]
+pub fn confinement_system_reads() -> &'static [&'static str] {
+    &[
+        "/usr/bin",
+        "/usr/sbin",
+        "/usr/lib",
+        "/usr/lib64",
+        "/usr/libexec",
+        "/usr/share",
+        "/bin",
+        "/sbin",
+        "/lib",
+        "/lib64",
+        "/etc/ld.so.cache",
+        "/etc/passwd",
+        "/etc/group",
+        "/etc/nsswitch.conf",
+        "/etc/resolv.conf",
+        "/etc/hosts",
+        "/etc/ssl/certs",
+        "/proc",
+        "/dev",
+    ]
+}
+
+#[cfg(not(any(target_os = "linux", target_os = "macos")))]
+pub fn confinement_system_reads() -> &'static [&'static str] {
+    &[]
+}
+
+/// Check native backend availability without starting a process. No fallback
+/// exists when the required system backend is missing.
+pub fn confinement_available() -> Result<(), LaunchError> {
+    platform_command(&[], &[]).map(|_| ())
 }
 
 pub(crate) fn command(argv: &Argv, policy: &Confinement<'_>) -> Result<Command, LaunchError> {
@@ -172,6 +263,36 @@ pub(crate) fn command(argv: &Argv, policy: &Confinement<'_>) -> Result<Command, 
             "confinement requires a private invocation directory",
         ));
     }
+    let mut command = command_with_grants(
+        argv,
+        &FilesystemGrants {
+            writable: std::slice::from_ref(&root),
+            runtime_read: policy.runtime_read,
+        },
+    )?;
+    for name in ["TMPDIR", "TMP", "TEMP"] {
+        command.env(name, root.join("tmp"));
+    }
+    Ok(command)
+}
+
+pub(crate) fn command_with_grants(
+    argv: &Argv,
+    policy: &FilesystemGrants<'_>,
+) -> Result<Command, LaunchError> {
+    let roots: Vec<PathBuf> = policy
+        .writable
+        .iter()
+        .map(|path| {
+            let path = canonical(path)?;
+            if !path.is_dir() || path.parent().is_none() {
+                return Err(LaunchError::new(
+                    "confinement requires writable directories other than /",
+                ));
+            }
+            Ok(path)
+        })
+        .collect::<Result<_, _>>()?;
     let program = executable(argv.program())?;
     let mut reads = vec![program.clone()];
     for path in policy.runtime_read {
@@ -184,10 +305,7 @@ pub(crate) fn command(argv: &Argv, policy: &Confinement<'_>) -> Result<Command, 
         }
         reads.push(path);
     }
-    let mut command = platform_command(&root, &reads)?;
-    for name in ["TMPDIR", "TMP", "TEMP"] {
-        command.env(name, root.join("tmp"));
-    }
+    let mut command = platform_command(&roots, &reads)?;
     command.arg(program).args(argv.args());
     Ok(command)
 }
@@ -206,7 +324,7 @@ by whatever rule it trusts. The resolved executable becomes an explicit read
 grant; the caller still owns its argument vector. For the example, the
 credential and executable must resolve before any child is spawned.
 
-<!-- fragment «confinement-resource-resolution» owner="confined-jobs" source="crates/keyed-launch/src/confinement.rs" lines="79-101" parent="confinement-policy" -->
+<!-- fragment «confinement-resource-resolution» owner="confined-jobs" source="crates/keyed-launch/src/confinement.rs" lines="182-204" parent="confinement-policy" -->
 ````rust
 fn canonical(path: &Path) -> Result<PathBuf, LaunchError> {
     path.canonicalize().map_err(|error| {
@@ -252,10 +370,10 @@ outbound IP networking. The public CA certificate and trust services support
 TLS. These grants let a harness contact its service while preserving the
 example's filesystem boundary; network destinations are not restricted.
 
-<!-- fragment «confinement-macos» owner="confined-jobs" source="crates/keyed-launch/src/confinement.rs" lines="102-153" parent="confinement-policy" -->
+<!-- fragment «confinement-macos» owner="confined-jobs" source="crates/keyed-launch/src/confinement.rs" lines="205-280" parent="confinement-policy" -->
 ````rust
 #[cfg(target_os = "macos")]
-fn platform_command(root: &Path, reads: &[PathBuf]) -> Result<Command, LaunchError> {
+fn platform_command(roots: &[PathBuf], reads: &[PathBuf]) -> Result<Command, LaunchError> {
     // Seatbelt is inherited by descendants. Parameters keep path text out of
     // the policy language, including quotes and newlines in native filenames.
     // Reference: OpenAI's upstream seatbelt_base_policy.sbpl (Apache-2.0),
@@ -279,21 +397,45 @@ fn platform_command(root: &Path, reads: &[PathBuf]) -> Result<Command, LaunchErr
 (allow sysctl-read (sysctl-name "kern.hostname") (sysctl-name "kern.version") (sysctl-name-prefix "net.routetable."))
 (allow file-read-metadata)
 (allow file-read* (literal "/"))
-(allow file-read* (literal "/private/etc/ssl/cert.pem"))
-(allow file-read* file-map-executable (subpath "/private/preboot/Cryptexes/OS") (subpath "/System") (subpath "/usr/bin") (subpath "/usr/sbin") (subpath "/usr/lib") (subpath "/usr/libexec") (subpath "/usr/share") (subpath "/bin") (subpath "/sbin") (subpath "/Library/Apple") (subpath "/opt/homebrew/Cellar") (subpath "/usr/local/lib"))
-(allow file-read* (subpath "/private/var/db/timezone") (literal "/dev/random") (literal "/dev/urandom") (literal "/private/etc/passwd") (literal "/private/etc/group") (literal "/private/etc/hosts") (literal "/private/etc/resolv.conf") (literal "/private/etc/services") (literal "/private/etc/protocols") (literal "/private/etc/localtime"))
 (allow file-read* file-write-data (literal "/dev/null") (literal "/dev/zero"))
-(allow file-read* file-write* file-map-executable (subpath (param "INVOCATION")))
 "#,
     );
-    let mut command = Command::new("/usr/bin/sandbox-exec");
-    command.arg("-D").arg(parameter("INVOCATION", root));
+    let backend = "/usr/bin/sandbox-exec";
+    if !Path::new(backend).is_file() {
+        return Err(LaunchError::new("filesystem confinement requires /usr/bin/sandbox-exec; restore the system Seatbelt launcher"));
+    }
+    let mut command = Command::new(backend);
+    for path in confinement_system_reads() {
+        profile.push_str(&format!(
+            "(allow file-read* file-map-executable (subpath \"{path}\"))\n"
+        ));
+    }
+    for (index, root) in roots.iter().enumerate() {
+        let name = format!("WRITABLE_{index}");
+        profile.push_str(&format!(
+            "(allow file-read* file-write* file-map-executable (subpath (param \"{name}\")))\n"
+        ));
+        command.arg("-D").arg(parameter(&name, root));
+    }
+    // Explicit denies preserve read-only files beneath broader writable roots.
+    // Ancestor unlink denies prevent moving a directory to bypass the literal.
+    // https://github.com/openai/codex/blob/main/codex-rs/sandboxing/src/seatbelt.rs
     for (index, path) in reads.iter().enumerate() {
         let name = format!("RUNTIME_{index}");
         profile.push_str(&format!(
             "(allow file-read* file-map-executable (literal (param \"{name}\")))\n"
         ));
+        profile.push_str(&format!(
+            "(deny file-write* (literal (param \"{name}\")))\n"
+        ));
         command.arg("-D").arg(parameter(&name, path));
+        for (ancestor_index, ancestor) in path.ancestors().skip(1).enumerate() {
+            let anchor = format!("{name}_ANCESTOR_{ancestor_index}");
+            profile.push_str(&format!(
+                "(deny file-write-unlink (literal (param \"{anchor}\")))\n"
+            ));
+            command.arg("-D").arg(parameter(&anchor, ancestor));
+        }
     }
     command.args(["-p", &profile, "--"]);
     Ok(command)
@@ -322,10 +464,10 @@ invocation bind remains writable. User, PID, IPC and UTS namespaces and
 die-with-parent behavior accompany the filesystem view;
 the outer runner already creates the POSIX session used by supervision.
 
-<!-- fragment «confinement-linux» owner="confined-jobs" source="crates/keyed-launch/src/confinement.rs" lines="154-211" parent="confinement-policy" -->
+<!-- fragment «confinement-linux» owner="confined-jobs" source="crates/keyed-launch/src/confinement.rs" lines="281-322" parent="confinement-policy" -->
 ````rust
 #[cfg(target_os = "linux")]
-fn platform_command(root: &Path, reads: &[PathBuf]) -> Result<Command, LaunchError> {
+fn platform_command(roots: &[PathBuf], reads: &[PathBuf]) -> Result<Command, LaunchError> {
     // Start with an empty mount namespace, never a read-only bind of `/`.
     // https://github.com/containers/bubblewrap/blob/main/README.md
     let backend = ["/usr/bin/bwrap", "/bin/bwrap"].into_iter().find(|path| Path::new(path).is_file())
@@ -340,31 +482,15 @@ fn platform_command(root: &Path, reads: &[PathBuf]) -> Result<Command, LaunchErr
         "--unshare-ipc",
         "--unshare-uts",
     ]);
-    for path in [
-        "/usr/bin",
-        "/usr/sbin",
-        "/usr/lib",
-        "/usr/lib64",
-        "/usr/libexec",
-        "/usr/share",
-        "/bin",
-        "/sbin",
-        "/lib",
-        "/lib64",
-        "/etc/ld.so.cache",
-        "/etc/passwd",
-        "/etc/group",
-        "/etc/nsswitch.conf",
-        "/etc/resolv.conf",
-        "/etc/hosts",
-        "/etc/ssl/certs",
-    ] {
-        if Path::new(path).exists() {
+    for &path in confinement_system_reads() {
+        if !matches!(path, "/proc" | "/dev") && Path::new(path).exists() {
             command.args(["--ro-bind", path, path]);
         }
     }
     command.args(["--proc", "/proc", "--dev", "/dev"]);
-    command.arg("--bind").arg(root).arg(root);
+    for root in roots {
+        command.arg("--bind").arg(root).arg(root);
+    }
     for path in reads {
         command.arg("--ro-bind").arg(path).arg(path);
     }
@@ -393,10 +519,10 @@ native backend. This preserves the meaning of `run_confined`: the caller cannot
 mistake an unsupported environment for the confined result required before
 reading and exporting the example's output.
 
-<!-- fragment «confinement-unavailable» owner="confined-jobs" source="crates/keyed-launch/src/confinement.rs" lines="212-217" parent="confinement-policy" -->
+<!-- fragment «confinement-unavailable» owner="confined-jobs" source="crates/keyed-launch/src/confinement.rs" lines="323-328" parent="confinement-policy" -->
 ````rust
 #[cfg(not(any(target_os = "linux", target_os = "macos")))]
-fn platform_command(_: &Path, _: &[PathBuf]) -> Result<Command, LaunchError> {
+fn platform_command(_: &[PathBuf], _: &[PathBuf]) -> Result<Command, LaunchError> {
     Err(LaunchError::new(
         "standalone confinement is unavailable on this platform; the task was not launched",
     ))

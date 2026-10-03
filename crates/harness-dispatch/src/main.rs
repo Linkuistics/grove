@@ -9,6 +9,7 @@ mod authority;
 mod cancellation;
 mod choice;
 mod cli;
+mod confinement;
 mod context;
 mod environment;
 mod exit;

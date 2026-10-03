@@ -5,7 +5,7 @@
 //! (`docs/specs/harness-selection-and-execution.md`, *Command interface*,
 //! *Policy and the selected command*, *Bounded context*).
 //!
-//! `inspect` reports the resulting choice and `run` execs it, so the two cannot
+//! `inspect` reports the resulting choice and `run` supervises it, so the two cannot
 //! disagree about what a selection means. Every step refuses rather than
 //! substitutes: nothing here ever runs a command the policy did not return.
 //!
@@ -62,6 +62,18 @@ pub struct Choice {
 }
 
 pub fn choose(args: &SelectionArgs, requirement: PromptRequirement) -> Result<Selected, Failure> {
+    choose_prepared(prepare(args, requirement)?)
+}
+
+/// Resolve owner authority and inputs without evaluating any policy code.
+pub struct Prepared {
+    pub inputs: Inputs,
+    pub entry: PolicyEntry,
+    pub state_dir: StateDir,
+    pub settings_path: Option<std::path::PathBuf>,
+}
+
+pub fn prepare(args: &SelectionArgs, requirement: PromptRequirement) -> Result<Prepared, Failure> {
     let home = std::env::var_os("HOME");
     let settings = Settings::read(home.as_deref())?;
     let inputs = Inputs::read(args, requirement, &settings)?;
@@ -72,6 +84,26 @@ pub fn choose(args: &SelectionArgs, requirement: PromptRequirement) -> Result<Se
         &inputs.cwd,
         home.as_deref(),
     )?;
+    let settings_path = home
+        .as_deref()
+        .map(Path::new)
+        .filter(|path| path.is_absolute())
+        .map(|path| path.join(crate::settings::SETTINGS_FILE));
+    Ok(Prepared {
+        inputs,
+        entry,
+        state_dir,
+        settings_path,
+    })
+}
+
+pub fn choose_prepared(prepared: Prepared) -> Result<Selected, Failure> {
+    let Prepared {
+        inputs,
+        entry,
+        state_dir,
+        ..
+    } = prepared;
     let source = entry.display();
     let worker_path = worker::locate()?;
 

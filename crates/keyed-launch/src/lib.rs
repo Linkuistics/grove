@@ -17,7 +17,10 @@
 //! handed the launcher's controlling terminal, so a terminal signal reaches the
 //! child rather than the launcher, the escalation can reap a grandchild the
 //! child spawned, and a launcher's own ignored dispositions are not inherited
-//! across the `exec` by every wrapper the command names. See [`run`].
+//! across the `exec` by every wrapper the command names. Whatever ends the
+//! child, its whole group ends with the launch, and the terminal comes back
+//! with the modes it was handed over in. A group that survives is reported as
+//! [`Group::Present`] beside the child's status. See [`run`].
 //!
 //! **A launch ends out of band.** An interactive child returns to its prompt
 //! when it finishes rather than exiting, so its own exit is not the event
@@ -43,5 +46,5 @@ pub use confinement::{regular_file_at, Confinement};
 pub use error::LaunchError;
 pub use run::{
     reraise, run, run_confined, run_noninteractive, run_observed, take_interrupt, End, Ended,
-    Escalation, Launch, LaunchEvent,
+    Escalation, Group, Launch, LaunchEvent,
 };

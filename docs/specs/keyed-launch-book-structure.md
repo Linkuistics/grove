@@ -24,8 +24,9 @@ The chapter sequence and ownership mapping below are what
 `[[block]]` groups. Where the two disagree, that is a defect in one of them, not
 a licence to prefer either.
 
-**What distinguishes this corpus.** Seven roots and 1,688 lines, of which
-`src/run.rs` is 852: half the corpus is one file, and two chapters divide it.
+**What distinguishes this corpus.** Seven roots and 2,010 lines, of which
+`src/run.rs` is 1,171: more than half the corpus is one file, and two chapters
+divide it.
 `src/channel.rs` contains an inline `#[cfg(test)]` module inside a root, at
 lines 289–453. The corpus exception inventory in
 [`walkthrough-books.md`](walkthrough-books.md) carries no `keyed-launch` row, so
@@ -223,31 +224,35 @@ glossary already names.
 
 ### 3 · The child is a job — nothing else added
 
-Owns `src/run.rs` lines 1–123 and 244–678. Responsible for: `Escalation`'s two
+Owns `src/run.rs` lines 1–146 and 333–837. Responsible for: `Escalation`'s two
 waits and what each is for; `Launch` as *everything one launch is*, every field
 the caller's, and `run`'s promise that nothing else is added — no argument, no
 flag, no variable; the scrub list as the caller's obligation discharged here, and
 why an environment is inherited rather than addressed, so a nested launcher would
 otherwise hand a child a live channel path belonging to somebody else's launch;
-`cwd` and why `None` is rarely what a launcher wants; `Ended` and `End`'s three
-cases, and the distinction the chapter must make carefully — `Signalled` is
+`cwd` and why `None` is rarely what a launcher wants; `Ended`, `Group` as the
+survivor report that sits beside the child's status rather than replacing it,
+and `End`'s three cases, and the distinction the chapter must make carefully — `Signalled` is
 narrower than *a token appeared*, because a child that signals and exits inside
 its own grace was never touched and comes back `Exited` with a token;
 `DEFAULT_DISPOSITION_IN_CHILD` and its argument that **only an ignored disposition
 survives `execve`**; `Terminal::open` and why `/dev/tty` rather than stdin is the
-gate that needs no flag; the spawn itself — the child's own process group, the
+gate that needs no flag; the terminal's attributes saved and restored, and the
+lease that decides whether a launch held the foreground and from which group it
+takes the terminal back — the child's own after an exit, any but the launcher's
+and the session leader's after a death by signal; the spawn itself — the child's own process group, the
 terminal handed over, and why a new *session* was rejected for the interactive
 launch; the observed entry point and its two events; and `POLL_INTERVAL` as not
 a knob.
 
-The block also holds the detached mode's setup, its descriptor bound and its
-identity-preserving waits, because they establish the process the watch owns.
+The block also holds the detached mode's setup and its descriptor bound,
+because they establish the process the watch owns.
 `End::Interrupted` is defined here and produced only in chapter 4; the chapter
 names it and defers.
 
 ### 4 · The watch and the escalation — the launcher's job
 
-Owns `src/run.rs` lines 124–243 and 679–852. Responsible for: `Watch` as the
+Owns `src/run.rs` lines 147–332 and 838–1171. Responsible for: `Watch` as the
 supervisor's state machine; `watch`'s three observables and the honest statement
 that they are the only three ways a launch ends — **a child that finishes its work
 and never signals reaches none of them**, and the launch stalls rather than ends,
@@ -255,16 +260,23 @@ which the source names as a real failure mode with no cheap fix and the book mus
 not soften; why ending an interactive child is the *launcher's* job — it is the
 child's parent, outside whatever sandbox the child runs under, and a child asked
 to end itself may be denied silently; the escalation addressed to `-pgid` as well
-as the pid, and what that reaps; `supervise` taking the terminal back only from
-the job this launch owned; `kill`'s deliberately ignored failure as *the shell's
+as the pid, and what that reaps; the end of every launch in its contracted
+order — the exit observed without reaping, never a stop, the group killed twice
+while the zombie child still reserves its ID, the reap, the terminal returned,
+and the group confirmed gone on ESRCH alone or reported as `Group::Present` —
+with the measured platform facts behind each step; the launch `Mode` and the
+cancellation it selects, forwarding with a kill-grace or killing a confined
+child at once; `kill`'s deliberately ignored failure as *the shell's
 `kill … 2>/dev/null`, written down*; and then the launcher's own signals —
 `INTERRUPTED_BY` as process-global because a disposition is, latched because the
 launch on which the child finally exits still has to report it, carrying the
 *number* because a launcher that re-raises SIGTERM for a SIGHUP has told its
 parent the wrong thing, and cleared immediately before each spawn;
 `take_interrupt` for the signal that arrives between launches; `reraise` and why
-an exit code cannot express *was signalled* at all; and SIGINT's deliberate
-absence from the handler.
+an exit code cannot express *was signalled* at all; SIGINT caught only for a
+launch with no terminal; no handler over a disposition the launcher ignores; and
+the repair for an inherited ignored SIGCHLD, latched once per process, never a
+handler.
 
 ### 5 · How this is checked — checked without meaning
 
@@ -309,15 +321,15 @@ spawning, cancellation and reaping.
 | Root | Lines | What the block is | Chapter |
 |---|---:|---|---:|
 | `Cargo.toml` | 1–42 | manifest | 1 |
-| `src/lib.rs` | 1–47 | the crate's account of itself, and its exports | 1 |
+| `src/lib.rs` | 1–50 | the crate's account of itself, and its exports | 1 |
 | `src/error.rs` | 1–38 | the one opaque error | 1 |
 | `src/argv.rs` | 1–39 | the type a command arrives in | 1 |
 | `src/channel.rs` | 1–288 | completion channel | 2 |
 | `src/channel.rs` | 289–453 | inline test module | 5 |
-| `src/run.rs` | 1–123 | the launch's shape | 3 |
-| `src/run.rs` | 124–243 | the watch state and the launcher's signals | 4 |
-| `src/run.rs` | 244–678 | terminal, detached mode and spawn | 3 |
-| `src/run.rs` | 679–852 | supervise and escalate | 4 |
+| `src/run.rs` | 1–146 | the launch's shape | 3 |
+| `src/run.rs` | 147–332 | the watch state, the launcher's signals and its entry state | 4 |
+| `src/run.rs` | 333–837 | terminal, its lease, detached mode and spawn | 3 |
+| `src/run.rs` | 838–1171 | the end of the group, supervise and escalate | 4 |
 | `src/confinement.rs` | 1–217 | confinement policy | 7 |
 
 ### Where a file's concerns split across chapters
@@ -336,31 +348,33 @@ chapter 2's fragments, which are behind it.
 
 | Chapter | Lines | Share |
 |---:|---:|---:|
-| 1 · Orientation | 166 | 10% |
-| 2 · The channel | 288 | 17% |
-| 3 · The job | 558 | 33% |
-| 4 · The escalation | 294 | 17% |
-| 5 · How this is checked | 165 | 10% |
+| 1 · Orientation | 169 | 8% |
+| 2 · The channel | 288 | 14% |
+| 3 · The job | 651 | 32% |
+| 4 · The escalation | 520 | 26% |
+| 5 · How this is checked | 165 | 8% |
 | 6 · What ends a launch | 0 | — |
-| 7 · Confined jobs | 217 | 13% |
-| **total** | **1,688** | **100%** |
+| 7 · Confined jobs | 217 | 11% |
+| **total** | **2,010** | **100%** |
 
-Per root: `Cargo.toml` 42, `src/lib.rs` 47, `src/error.rs` 38, `src/argv.rs` 39,
-`src/channel.rs` 453, `src/run.rs` 852, `src/confinement.rs` 217.
+Shares are rounded, so they need not sum to 100. Per root: `Cargo.toml` 42,
+`src/lib.rs` 50, `src/error.rs` 38, `src/argv.rs` 39, `src/channel.rs` 453,
+`src/run.rs` 1,171, `src/confinement.rs` 217.
 
 ## What each chapter's prose owes
 
-Measured: **32% of the corpus is comment prose**, 537 of 1,688 lines, and it is
-not spread evenly. `src/lib.rs` is 68% and `Cargo.toml` 52%. `src/run.rs` is 40%
-(345 of 852 lines), and there the prose is *argument*: the escalation, the child
-dispositions, the interrupt latch and the terminal each carry a full case in
-situ. `src/confinement.rs` is 10%. Three things are what each chapter's prose
+Measured: **35% of the corpus is comment prose**, 705 of 2,010 lines, counting
+every line whose first non-blank characters open a comment, and it is not spread
+evenly. `src/lib.rs` is 70% and `Cargo.toml` 52%. `src/run.rs` is 44% (510 of
+1,171 lines), and there the prose is *argument*: the escalation, the child
+dispositions, the interrupt latch, the terminal and the end of the group each
+carry a full case in situ. `src/confinement.rs` is 10%. Three things are what each chapter's prose
 owes, and a technical review checks for them:
 
 1. **Adjudicate the claim.** For every argued claim, name the behaviour it rests
    on, the test that proves it, and the alternative rejected with what it would
    have cost. A doc comment rarely names the test that holds it, and this
-   crate's evidence is 1,519 lines in six files against a 1,688-line corpus.
+   crate's evidence is 2,799 lines in seven files against a 2,010-line corpus.
 2. **Carry the through-line.** Show where a decision in one place rests on a
    decision in another: `Channel::allocate` writing nothing is *why* `watch` can
    treat appearance as an event at all; the scrub list is *why* a nested child
@@ -501,7 +515,7 @@ that account lives, and the `README.md` points there once.
 
 ### The `tests/` directory
 
-`crates/keyed-launch/tests/` is 1,519 lines across six files, one of them a
+`crates/keyed-launch/tests/` is 2,799 lines across seven files, one of them a
 module `src/run.rs` includes by path, and every one of them is evidence rather
 than a root. The book names a test whenever it
 adjudicates a claim, and reproduces none of them. The eleven tests it *does*

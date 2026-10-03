@@ -7,7 +7,7 @@ use std::os::fd::{AsRawFd, FromRawFd, OwnedFd, RawFd};
 use std::os::unix::process::CommandExt as _;
 use std::path::Path;
 use std::process::{Child, Command, ExitStatus, Stdio};
-use std::sync::atomic::{AtomicI32, Ordering};
+use std::sync::atomic::{AtomicI32, AtomicU8, Ordering};
 use std::time::{Duration, Instant};
 
 use crate::channel::{Channel, Token};
@@ -89,6 +89,28 @@ pub struct Ended {
     pub status: ExitStatus,
     pub elapsed: Duration,
     pub token: Option<Token>,
+    /// Whether the child's process group was confirmed gone after the reap.
+    ///
+    /// **A caller acts on the ending only beside [`Group::Gone`].** The child
+    /// is reaped and `status` is its own whatever this says. But a member of its
+    /// group that survived two SIGKILLs is still running: it can hold a lock,
+    /// still write an output, or still hold shared epoch admission. A caller
+    /// that relaunched, published or reported success beside it would be
+    /// acting beside it.
+    pub group: Group,
+}
+
+/// What remained of the child's process group once the launch ended.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Group {
+    /// The system answered that no such process group exists — the only answer
+    /// that confirms it.
+    Gone,
+    /// The group still answered a second after it was killed, or the query
+    /// failed in some other way. `pgid` names it for a diagnostic. It was the
+    /// child's pid, so once the child is reaped it may be reused: name it, but
+    /// never signal it.
+    Present { pgid: i32 },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -103,11 +125,12 @@ pub enum End {
     /// already reports. A child that signals and then exits inside its own
     /// grace was never touched, and comes back `Exited` with a token.
     Signalled,
-    /// The *launcher's* process was sent SIGTERM or SIGHUP **during this
-    /// launch**. The child's process group was sent the same signal and reaped
-    /// through the ordinary escalation, so it is never left orphaned onto the
-    /// terminal. The channel cannot express this case — an interrupt normally
-    /// leaves no token at all.
+    /// The *launcher's* process was sent SIGTERM or SIGHUP — or SIGINT, for a
+    /// launch with no terminal — **during this launch**. An interactive or
+    /// noninteractive child's group was sent the same signal and, after the
+    /// kill-grace, SIGKILL; a confined child's group was killed at once. Either
+    /// way it was reaped, never left orphaned onto the terminal. The channel
+    /// cannot express this case — an interrupt normally leaves no token at all.
     ///
     /// **The signal is carried rather than merely noted** so a launcher can
     /// report it onward. A process that catches a termination signal, tidies up
@@ -122,11 +145,13 @@ pub enum End {
 }
 
 /// The supervisor's state machine: idle until the token appears, then timed
-/// toward SIGTERM and finally SIGKILL.
+/// toward SIGTERM and finally SIGKILL, after which only the exit is awaited.
 enum Watch {
     Running,
     Signalled(Instant),
     Terminated(Instant),
+    /// SIGKILL has been sent; only the exit is awaited.
+    Killed,
 }
 
 /// The signal [`on_terminate`] last received, or `0`, read by [`run`]'s poll
@@ -217,29 +242,93 @@ extern "C" fn on_terminate(signal: libc::c_int) {
     INTERRUPTED_BY.store(signal, Ordering::Relaxed);
 }
 
-/// Catch SIGTERM and SIGHUP so a launcher can forward termination to its child
-/// and reap it rather than orphan it.
+/// Catch the signals that cancel this launch, so a launcher can forward
+/// termination to its child and reap it rather than orphan it.
+///
+/// SIGTERM and SIGHUP always; SIGINT only for a launch with **no terminal**. A
+/// launch with a terminal has handed it to the child, so a typed Ctrl-C reaches
+/// the child's group and not the launcher's. What a launcher does about a
+/// SIGINT it receives anyway is its own policy, not this crate's. A launch with
+/// no terminal has no other route by which an interrupt could reach its child.
+///
+/// **A disposition the launcher ignores is left ignored.** Ignoring a signal is
+/// a statement the launcher made, the Grove driver's ignored SIGINT for one,
+/// and a handler installed over it would turn a signal the launcher chose to
+/// survive into a cancellation. Checked on every launch: once this crate
+/// installs its handler the disposition is no longer an ignore, so a repeat
+/// call finds its own handler and re-installs it, which is idempotent.
 ///
 /// Installed by [`run`] rather than exported, because [`End::Interrupted`] is a
 /// promise this crate makes and a caller cannot be relied on to have enabled
-/// it. Re-installing the same handler is idempotent, so calling it once per
-/// launch costs nothing.
-///
-/// SIGINT is deliberately absent: Ctrl-C is delivered to the terminal's
-/// foreground process group, which — once [`run`] has handed the terminal over
-/// — is the child's and not the launcher's. What a launcher does about a SIGINT
-/// it does receive is its policy, not this crate's.
-fn install_termination_handler() {
+/// it.
+fn install_termination_handler(terminal: bool) {
     // Through the function *pointer* rather than casting the function item
     // straight to an integer, which rustc warns about: a function item is
     // zero-sized and the cast reads as a value conversion rather than the
     // address-taking it is.
     let handler = on_terminate as extern "C" fn(libc::c_int) as usize;
-    // SAFETY: `signal(2)` with a handler that performs one relaxed atomic store.
-    unsafe {
-        libc::signal(libc::SIGTERM, handler as libc::sighandler_t);
-        libc::signal(libc::SIGHUP, handler as libc::sighandler_t);
+    let cancelling: &[libc::c_int] = if terminal {
+        &[libc::SIGTERM, libc::SIGHUP]
+    } else {
+        &[libc::SIGTERM, libc::SIGHUP, libc::SIGINT]
+    };
+    for &signal in cancelling {
+        if disposition(signal) != libc::SIG_IGN {
+            // SAFETY: `signal(2)` with a handler that performs one relaxed
+            // atomic store.
+            unsafe { libc::signal(signal, handler as libc::sighandler_t) };
+        }
     }
+}
+
+/// The current disposition of `signal`, read without changing it.
+fn disposition(signal: libc::c_int) -> libc::sighandler_t {
+    // SAFETY: `sigaction(2)` with a null new action only reads the current one
+    // into an initialised struct.
+    unsafe {
+        let mut current: libc::sigaction = std::mem::zeroed();
+        libc::sigaction(signal, std::ptr::null(), &mut current);
+        current.sa_sigaction
+    }
+}
+
+/// Whether this process inherited SIGCHLD ignored: `0` not yet read, `1` yes,
+/// `2` no.
+///
+/// Latched on the first launch, because that launch changes the disposition
+/// and every later launch would otherwise read back its own repair.
+static SIGCHLD_IGNORED_AT_ENTRY: AtomicU8 = AtomicU8::new(0);
+
+/// **An ignored SIGCHLD makes the kernel reap children unwatched.** The child's
+/// exit then leaves no zombie. So there is nothing for `waitid` to observe, and
+/// nothing reserves the group's ID while the rest of the group is killed. A
+/// launcher that inherited the ignore therefore gets the default back for
+/// itself, with no flags, and **never a handler**: a handler would turn every
+/// child's exit into EINTR on whatever the launcher is doing.
+///
+/// Answers whether the entry disposition was the ignore, so the spawn can hand
+/// the child the disposition it would have inherited. The repair is the
+/// launcher's, not the child's.
+fn restore_child_watching() -> bool {
+    let ignored = match SIGCHLD_IGNORED_AT_ENTRY.load(Ordering::Relaxed) {
+        0 => {
+            let ignored = disposition(libc::SIGCHLD) == libc::SIG_IGN;
+            SIGCHLD_IGNORED_AT_ENTRY.store(if ignored { 1 } else { 2 }, Ordering::Relaxed);
+            ignored
+        }
+        latched => latched == 1,
+    };
+    if ignored {
+        // SAFETY: `sigaction(2)` installing the default disposition with an
+        // empty mask and no flags, which clears SA_NOCLDWAIT with it.
+        unsafe {
+            let mut default: libc::sigaction = std::mem::zeroed();
+            default.sa_sigaction = libc::SIG_DFL;
+            libc::sigemptyset(&mut default.sa_mask);
+            libc::sigaction(libc::SIGCHLD, &default, std::ptr::null_mut());
+        }
+    }
+    ignored
 }
 
 /// The signals the child is handed back at their **default** disposition.
@@ -325,12 +414,126 @@ impl Terminal {
             libc::signal(libc::SIGTTOU, previous);
         }
     }
+
+    /// The terminal's current attributes, or `None` if they cannot be read.
+    fn attributes(&self) -> Option<libc::termios> {
+        // SAFETY: `tcgetattr(3)` filling an initialised struct from a
+        // descriptor this struct owns.
+        unsafe {
+            let mut attributes: libc::termios = std::mem::zeroed();
+            (libc::tcgetattr(self.fd(), &mut attributes) == 0).then_some(attributes)
+        }
+    }
+
+    /// Put back attributes saved earlier: cooked mode and echo, for a child
+    /// that set the terminal raw and was killed before it could undo that.
+    ///
+    /// Made with SIGTTOU ignored for the same reason as [`Terminal::hand_to`].
+    /// It is called only from the foreground, but the guard costs nothing.
+    fn restore(&self, attributes: &libc::termios) {
+        // SAFETY: `signal(2)` and `tcsetattr(3)` on a descriptor this struct
+        // owns, with attributes `tcgetattr` produced; the previous disposition
+        // is restored before returning.
+        unsafe {
+            let previous = libc::signal(libc::SIGTTOU, libc::SIG_IGN);
+            libc::tcsetattr(self.fd(), libc::TCSANOW, attributes);
+            libc::signal(libc::SIGTTOU, previous);
+        }
+    }
 }
 
 /// This process's own process group.
 fn own_group() -> libc::pid_t {
     // SAFETY: `getpgrp(2)` takes no argument and cannot fail.
     unsafe { libc::getpgrp() }
+}
+
+/// One launch's share of the terminal: when it was held, what it looked like
+/// then, and how it is given back.
+///
+/// **"Held the foreground" is the gate for everything on the way back.** A
+/// launcher in the foreground lends the terminal to its child and owes the
+/// human a terminal back. One that never held it during the launch lent
+/// nothing, so it takes nothing and restores nothing: anything else would
+/// steal from whichever job does hold it.
+struct Lease {
+    terminal: Option<Terminal>,
+    child: libc::pid_t,
+    /// Whether the launch has held the foreground at any moment so far.
+    held: bool,
+    /// The attributes at the moment the launch first held it, when they
+    /// could be read.
+    saved: Option<libc::termios>,
+}
+
+impl Lease {
+    /// Before the spawn: whether this launcher holds the foreground now, and
+    /// if so the descriptor the child hands itself the terminal through.
+    fn hold_before_spawn(&mut self) -> Option<RawFd> {
+        let terminal = self.terminal.as_ref()?;
+        if terminal.foreground() != own_group() {
+            return None;
+        }
+        self.held = true;
+        self.saved = terminal.attributes();
+        Some(terminal.fd())
+    }
+
+    /// Called on every poll tick, and once before the spawn. Re-checked each
+    /// time, so a launcher started in the background and later brought
+    /// forward (`grove &`, then `fg`) hands the terminal on to the job that is
+    /// actually running under it, and only then saves what it will restore.
+    fn lend(&mut self) {
+        let Some(terminal) = &self.terminal else {
+            return;
+        };
+        if terminal.foreground() != own_group() {
+            return;
+        }
+        if !self.held {
+            self.held = true;
+            self.saved = terminal.attributes();
+        }
+        terminal.hand_to(self.child);
+    }
+
+    /// Take the terminal back once the child is reaped, and restore it.
+    ///
+    /// From the child's group after an ordinary exit. That group is gone by
+    /// now, but the terminal still names it until it is given to another.
+    /// **After a death by signal, from whichever group then holds it**,
+    /// unless that is the launcher's own or the session leader's. A child
+    /// that is itself a supervisor and was killed can leave its own child's
+    /// group holding the terminal, an orphan in the foreground reading the
+    /// human's input, and only this rule takes it back. After an ordinary
+    /// exit the rule stays narrow, because a group other than the child's that
+    /// holds the terminal then took it on purpose. A job-control shell nested
+    /// in this session is one example.
+    ///
+    /// The attributes go back whenever the launcher ends in the foreground,
+    /// so a raw-mode child killed by the escalation still leaves cooked mode
+    /// behind.
+    fn reclaim(&self, status: Option<ExitStatus>) {
+        use std::os::unix::process::ExitStatusExt as _;
+        let Some(terminal) = self.terminal.as_ref().filter(|_| self.held) else {
+            return;
+        };
+        let holder = terminal.foreground();
+        let own = own_group();
+        let take = if status.and_then(|status| status.signal()).is_some() {
+            // SAFETY: `getsid(2)` on this process, which cannot fail.
+            let leader = unsafe { libc::getsid(0) };
+            holder > 0 && holder != own && holder != leader
+        } else {
+            holder == self.child
+        };
+        if take {
+            terminal.hand_to(own);
+        }
+        if let Some(saved) = self.saved.as_ref().filter(|_| terminal.foreground() == own) {
+            terminal.restore(saved);
+        }
+    }
 }
 
 /// Spawn `launch`'s argv directly and supervise the child until it ends.
@@ -353,7 +556,15 @@ fn own_group() -> libc::pid_t {
 /// interactive child reads on unstopped while the launcher keeps the Ctrl-C.
 ///
 /// The child's signal dispositions are the defaults, whatever the launcher's
-/// are — see [`DEFAULT_DISPOSITION_IN_CHILD`].
+/// are — see [`DEFAULT_DISPOSITION_IN_CHILD`]. The launcher's own are respected:
+/// no handler goes over a signal it ignores, and an ignored SIGCHLD is repaired
+/// for the launcher alone, so that its child is not reaped unwatched.
+///
+/// **The group ends with the launch, whatever ended the child.** Once the child
+/// has exited (a stop is not an exit), its group is killed while the unreaped
+/// child still reserves the group's ID. Then the child is reaped, the terminal
+/// is taken back with the attributes saved at the handover, and the group is
+/// confirmed gone. A group that is still present is [`Ended::group`].
 ///
 /// Supervision polls three things, and they are the only three ways a launch
 /// ends: the child exits, the token appears, or the launcher itself is
@@ -394,10 +605,10 @@ pub fn run_observed(
 
 /// Run a noninteractive child in a new POSIX session, without a controlling
 /// terminal or inherited input. Both output streams go to a caller-owned regular
-/// file. Cancellation immediately kills the job: a nested supervisor cannot
-/// spend its parent's entire termination grace waiting for its own child.
-/// Remaining members of the child's process group are killed on leader exit.
-/// This isolates process control, not filesystem access or processes that
+/// file. Cancellation forwards the launcher's signal to the job and, after the
+/// kill-grace, kills it: the child may itself be a supervisor, and needs that
+/// long to end its own child. Remaining members of the child's process group
+/// are killed when it exits, as in every launch. This isolates process control, not filesystem access or processes that
 /// deliberately leave the child's process group.
 pub fn run_noninteractive(launch: Launch<'_>, output: File) -> Result<Ended, LaunchError> {
     let regular = output
@@ -413,6 +624,10 @@ pub fn run_noninteractive(launch: Launch<'_>, output: File) -> Result<Ended, Lau
 
 /// As [`run_noninteractive`], under mandatory filesystem confinement, with no
 /// unconfined fallback. The program is an absolute path: no name is looked up.
+///
+/// **Cancellation kills a confined job at once**, with no kill-grace. Its
+/// launcher may itself be a nested supervisor in its own caller's grace, and
+/// must finish its cancellation inside that grace.
 pub fn run_confined(
     launch: Launch<'_>,
     output: File,
@@ -437,13 +652,18 @@ fn run_with_output(
     output: Option<File>,
     confined_command: Option<Command>,
 ) -> Result<Ended, LaunchError> {
-    install_termination_handler();
-    let detached = output.is_some();
+    let mode = match (&output, &confined_command) {
+        (_, Some(_)) => Mode::Confined,
+        (Some(_), None) => Mode::Noninteractive,
+        (None, None) => Mode::Interactive,
+    };
+    let detached = mode != Mode::Interactive;
+    // A detached child is in a session of its own and could never be handed
+    // the terminal, so only an interactive launch opens it.
+    let terminal = if detached { None } else { Terminal::open() };
+    install_termination_handler(terminal.is_some());
+    let sigchld_ignored = restore_child_watching();
     let descriptor_limit = if detached { descriptor_limit()? } else { 3 };
-    if detached {
-        // SAFETY: same async-signal-safe latch as the TERM/HUP handlers.
-        unsafe { libc::signal(libc::SIGINT, on_terminate as *const () as usize) };
-    }
 
     let mut command = confined_command.unwrap_or_else(|| {
         let mut command = Command::new(launch.argv.program());
@@ -471,17 +691,20 @@ fn run_with_output(
     }
     command.env(launch.channel_var, launch.channel.path());
 
-    let terminal = if detached { None } else { Terminal::open() };
     // Hand the terminal over from *inside* the child as well as from the parent
     // below, which cannot be early enough on its own: the parent's handover
     // waits on `spawn` returning, nothing orders the child's first read after
     // that, and a read from a background group is what SIGTTIN stops. Only when
     // this launcher is the terminal's current owner — handing over a terminal
-    // owned by somebody else's job is theft, not job control.
-    let handover_fd = terminal
-        .as_ref()
-        .filter(|terminal| terminal.foreground() == own_group())
-        .map(Terminal::fd);
+    // owned by somebody else's job is theft, not job control. Holding it now is
+    // also when its attributes are saved, before a child can set it raw.
+    let mut lease = Lease {
+        terminal,
+        child: 0,
+        held: false,
+        saved: None,
+    };
+    let handover_fd = lease.hold_before_spawn();
 
     // The group, through `std`'s own checked path rather than a `setpgid` of our
     // own: it runs it before the `pre_exec` callbacks below and reports a
@@ -527,6 +750,11 @@ fn run_with_output(
             for signal in DEFAULT_DISPOSITION_IN_CHILD {
                 libc::signal(signal, libc::SIG_DFL);
             }
+            // The launcher repaired an inherited ignored SIGCHLD for itself
+            // alone; the child gets the disposition it would have inherited.
+            if sigchld_ignored {
+                libc::signal(libc::SIGCHLD, libc::SIG_IGN);
+            }
             Ok(())
         });
     }
@@ -555,21 +783,17 @@ fn run_with_output(
         unsafe { libc::setpgid(pgid, pgid) };
     }
 
+    lease.child = pgid;
+    let lease = std::cell::RefCell::new(lease);
+
     supervise(
         child,
         launch.channel,
         launch.escalation,
-        terminal.as_ref(),
-        Job { pgid, detached },
+        mode,
         observer,
-        || {
-            // Recover only the terminal still owned by this launch's job.
-            if let Some(terminal) = &terminal {
-                if terminal.foreground() == pgid {
-                    terminal.hand_to(own_group());
-                }
-            }
-        },
+        || lease.borrow_mut().lend(),
+        |status| lease.borrow().reclaim(status),
     )
 }
 
@@ -611,182 +835,263 @@ fn descriptor_limit() -> Result<RawFd, LaunchError> {
     Ok(maximum)
 }
 
-fn drain_group(pgid: libc::pid_t) -> Result<(), LaunchError> {
-    // Destructive signalling happened while the unreaped child still reserved
-    // this identity. After reaping, only query: the PID could have been reused.
-    let deadline = Instant::now() + Duration::from_secs(1);
-    loop {
-        if unsafe { libc::kill(-pgid, 0) } == -1 {
-            let error = std::io::Error::last_os_error();
-            if error.raw_os_error() == Some(libc::ESRCH) {
-                return Ok(());
-            }
-            return Err(LaunchError::new(format!(
-                "cannot confirm stopped child group {pgid}: {error}; outputs must not be published"
-            )));
-        }
-        if Instant::now() >= deadline {
-            return Err(LaunchError::new(format!(
-                "child group {pgid} did not disappear after SIGKILL; outputs must not be published"
-            )));
-        }
-        std::thread::sleep(Duration::from_millis(10));
-    }
+/// How long the runner waits between the two SIGKILLs it sends what remains of
+/// the child's group.
+///
+/// **Two kills, because one is measured to miss.** On macOS a member that is
+/// forking while the group's SIGKILL lands can leave a new process that the
+/// kill never reached. In a tight fork loop that happened in about two runs in
+/// three; Linux restarts the fork instead. The second kill, sent while the
+/// unreaped child still reserves the group's ID, reaches that process. The
+/// pause only has to outlast one fork.
+const SECOND_KILL_PAUSE: Duration = Duration::from_millis(20);
+
+/// How long, after the reap, the runner waits for the system to answer that
+/// the child's group is gone.
+///
+/// Every member has been sent SIGKILL twice by then, so the wait only covers
+/// what follows a kill: members dying, and their parent or `init` reaping
+/// them. A group of zombies still answers. A member still present after this
+/// bound is reported, not waited for.
+const GROUP_CONFIRMATION: Duration = Duration::from_secs(1);
+
+/// How often the supervisor checks for the child's exit after the
+/// escalation's SIGKILL. The child is dying, not deciding, so this is much
+/// shorter than [`POLL_INTERVAL`].
+const KILLED_POLL_INTERVAL: Duration = Duration::from_millis(10);
+
+/// Which of the three launch functions this is, as far as supervision cares:
+/// how a cancellation reaches the child.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Mode {
+    Interactive,
+    Noninteractive,
+    Confined,
 }
 
-// The private seam lets tests force wait errors without faking launch events.
+/// The launched child as supervision sees it: a process that can be watched,
+/// signalled and reaped, and the group it leads.
+///
+/// A private seam, so tests can force wait errors and trace the order of the
+/// end without faking launch events.
 trait Process {
-    fn try_wait(&mut self, detached: bool) -> std::io::Result<Option<ExitStatus>>;
-    fn wait(&mut self) -> std::io::Result<ExitStatus>;
+    /// Whether the child has exited, **leaving it unreaped**. A stop is not an
+    /// exit.
+    fn exited(&mut self) -> std::io::Result<bool>;
+    /// Reap the child, blocking, and answer its status.
+    fn reap(&mut self) -> std::io::Result<ExitStatus>;
+    /// Signal the whole group, then the child itself.
     fn signal(&mut self, signal: i32);
+    /// SIGKILL what remains of the group, twice with a pause, while the
+    /// unreaped child still reserves its ID.
+    fn kill_group(&mut self);
+    /// After the reap, and only querying: whether the group is gone.
+    fn confirm_gone(&mut self) -> Group;
 }
 
 impl Process for Child {
-    fn try_wait(&mut self, detached: bool) -> std::io::Result<Option<ExitStatus>> {
-        if detached {
-            // WNOWAIT observes exit without releasing the leader's PID. Kill
-            // its remaining group before reaping, so PID reuse cannot redirect
-            // a destructive signal to an unrelated process group.
-            // SAFETY: initialized siginfo, this process's own child, no reap.
-            let mut info: libc::siginfo_t = unsafe { std::mem::zeroed() };
-            let result = unsafe {
-                libc::waitid(
-                    libc::P_PID,
-                    self.id(),
-                    &mut info,
-                    libc::WEXITED | libc::WNOHANG | libc::WNOWAIT,
-                )
-            };
-            if result != 0 {
-                return Err(std::io::Error::last_os_error());
-            }
-            if unsafe { info.si_pid() } == 0 {
-                return Ok(None);
-            }
-            kill(self.id() as libc::pid_t, libc::SIGKILL);
+    fn exited(&mut self) -> std::io::Result<bool> {
+        // WNOWAIT observes the exit without releasing the child's PID, which
+        // is also its group's ID. The rest of the group is killed before the
+        // reap, so the ID cannot have been reused by the time the signal lands.
+        // SAFETY: initialized siginfo, this process's own child, no reap.
+        let mut info: libc::siginfo_t = unsafe { std::mem::zeroed() };
+        let result = unsafe {
+            libc::waitid(
+                libc::P_PID,
+                self.id(),
+                &mut info,
+                libc::WEXITED | libc::WNOHANG | libc::WNOWAIT,
+            )
+        };
+        if result != 0 {
+            return Err(std::io::Error::last_os_error());
         }
-        Child::try_wait(self)
+        // SAFETY: `waitid` filled `info`; `si_pid` is zero when nothing was
+        // reported.
+        if unsafe { info.si_pid() } == 0 {
+            return Ok(false);
+        }
+        // macOS reports a stopped child here despite WEXITED alone, and goes on
+        // reporting it on every poll until it is continued. A stopped child is
+        // not an exit: it must be neither reaped nor have its group killed.
+        Ok(matches!(
+            info.si_code,
+            libc::CLD_EXITED | libc::CLD_KILLED | libc::CLD_DUMPED
+        ))
     }
 
-    fn wait(&mut self) -> std::io::Result<ExitStatus> {
+    fn reap(&mut self) -> std::io::Result<ExitStatus> {
         Child::wait(self)
     }
 
     fn signal(&mut self, signal: i32) {
         kill(self.id() as libc::pid_t, signal);
     }
+
+    fn kill_group(&mut self) {
+        let pgid = self.id() as libc::pid_t;
+        // SAFETY: `kill(2)` on the group the unreaped child still leads. A
+        // failure is ignored: ESRCH means nothing is left, and EPERM a group
+        // holding only zombies.
+        unsafe { libc::kill(-pgid, libc::SIGKILL) };
+        std::thread::sleep(SECOND_KILL_PAUSE);
+        // SAFETY: as above; the child is still unreaped.
+        unsafe { libc::kill(-pgid, libc::SIGKILL) };
+    }
+
+    fn confirm_gone(&mut self) -> Group {
+        confirm_gone(self.id() as libc::pid_t)
+    }
 }
 
-struct Job {
-    pgid: libc::pid_t,
-    detached: bool,
+/// Query, without signalling, until the system answers that `pgid` names no
+/// process group, for at most [`GROUP_CONFIRMATION`].
+///
+/// **Only ESRCH confirms.** EPERM answers for a member the launcher cannot
+/// signal, and macOS also gives it for a group of zombies, so it is "present"
+/// like a success is. A query that hits a reused ID after the reap reads as
+/// present too, which fails safe.
+fn confirm_gone(pgid: libc::pid_t) -> Group {
+    let deadline = Instant::now() + GROUP_CONFIRMATION;
+    loop {
+        // SAFETY: `kill(2)` with signal 0, the existence probe, which sends
+        // nothing.
+        if unsafe { libc::kill(-pgid, 0) } == -1
+            && std::io::Error::last_os_error().raw_os_error() == Some(libc::ESRCH)
+        {
+            return Group::Gone;
+        }
+        if Instant::now() >= deadline {
+            return Group::Present { pgid };
+        }
+        std::thread::sleep(Duration::from_millis(10));
+    }
 }
 
+/// What watching produced: a reaped child, and why it ended.
+struct Watched {
+    status: ExitStatus,
+    interrupted: Option<i32>,
+    signalled: bool,
+}
+
+/// A supervision that failed, with the child's status if it was reaped anyway.
+struct Failed {
+    error: LaunchError,
+    status: Option<ExitStatus>,
+}
+
+/// Watch the child to its end, then end its group, take back the terminal,
+/// and confirm the group gone. The order is the contract:
+///
+/// 1. observe the exit, never a stop, without reaping;
+/// 2. kill what remains of the group, twice, while the zombie child still
+///    reserves its ID;
+/// 3. reap, which is when [`LaunchEvent::Reaped`] is emitted;
+/// 4. take the terminal back and restore it;
+/// 5. confirm, querying only, that the group is gone.
+///
+/// The child's status is fixed at step 1, so nothing after it can change what
+/// the launch reports about the child. Step 5 can only add whether anything
+/// survived it.
 fn supervise(
-    child: impl Process,
-    channel: &Channel,
-    escalation: Escalation,
-    terminal: Option<&Terminal>,
-    job: Job,
-    observer: &mut dyn FnMut(LaunchEvent),
-    recover_terminal: impl FnOnce(),
-) -> Result<Ended, LaunchError> {
-    let outcome = watch(
-        child,
-        channel,
-        escalation,
-        terminal,
-        job.pgid,
-        job.detached,
-        observer,
-    );
-    recover_terminal();
-    outcome
-}
-
-fn watch(
     mut child: impl Process,
     channel: &Channel,
     escalation: Escalation,
-    terminal: Option<&Terminal>,
-    pgid: libc::pid_t,
-    detached: bool,
+    mode: Mode,
     observer: &mut dyn FnMut(LaunchEvent),
+    mut lend: impl FnMut(),
+    reclaim: impl FnOnce(Option<ExitStatus>),
 ) -> Result<Ended, LaunchError> {
     let started = Instant::now();
+    match watch(&mut child, channel, escalation, mode, observer, &mut lend) {
+        Ok(Watched {
+            status,
+            interrupted,
+            signalled,
+        }) => {
+            reclaim(Some(status));
+            let group = child.confirm_gone();
+            Ok(Ended {
+                end: match (interrupted.or_else(take_interrupt), signalled) {
+                    (Some(signal), _) => End::Interrupted { signal },
+                    (None, true) => End::Signalled,
+                    (None, false) => End::Exited,
+                },
+                status,
+                elapsed: started.elapsed(),
+                // Read after the child is gone, so a child still mid-write
+                // cannot be observed half-signalled.
+                token: channel.read(),
+                group,
+            })
+        }
+        Err(Failed { error, status }) => {
+            reclaim(status);
+            Err(error)
+        }
+    }
+}
+
+fn watch(
+    child: &mut impl Process,
+    channel: &Channel,
+    escalation: Escalation,
+    mode: Mode,
+    observer: &mut dyn FnMut(LaunchEvent),
+    lend: &mut dyn FnMut(),
+) -> Result<Watched, Failed> {
     let mut watch = Watch::Running;
     let mut interrupted: Option<i32> = None;
     let mut signalled = false;
 
-    let ended = |status: ExitStatus, interrupted: Option<i32>, signalled: bool| Ended {
-        end: match (interrupted.or_else(take_interrupt), signalled) {
-            (Some(signal), _) => End::Interrupted { signal },
-            (None, true) => End::Signalled,
-            (None, false) => End::Exited,
-        },
-        status,
-        elapsed: started.elapsed(),
-        // Read after the child is gone, so a child still mid-write cannot be
-        // observed half-signalled.
-        token: channel.read(),
-    };
-
     loop {
-        // Re-checked every tick rather than only at the spawn, so a launcher
-        // started in the background and later brought forward (`grove &`, then
-        // `fg`) hands the terminal on to the job that is actually running under
-        // it. The guard is the same one the spawn used: hand over only what
-        // this launcher currently owns.
-        if let Some(terminal) = terminal {
-            if terminal.foreground() == own_group() {
-                terminal.hand_to(pgid);
-            }
-        }
+        lend();
 
         // Check cancellation before accepting even an already-exited child.
-        // In nested noninteractive launches the outer supervisor may have only
-        // a short grace left, so do not start another full grace here.
+        // In nested launches the outer supervisor may have only a short grace
+        // left, which is why a confined child is killed at once.
         if interrupted.is_none() {
             if let Some(signal) = take_interrupt() {
                 interrupted = Some(signal);
-                child.signal(if detached { libc::SIGKILL } else { signal });
-                if !matches!(watch, Watch::Terminated(_)) {
-                    watch = Watch::Terminated(Instant::now());
+                if mode == Mode::Confined {
+                    child.signal(libc::SIGKILL);
+                    watch = Watch::Killed;
+                } else {
+                    child.signal(signal);
+                    if matches!(watch, Watch::Running | Watch::Signalled(_)) {
+                        watch = Watch::Terminated(Instant::now());
+                    }
                 }
             }
         }
 
-        let waited = match child.try_wait(detached) {
-            Ok(waited) => waited,
+        match child.exited() {
+            Ok(true) => break,
+            Ok(false) => {}
             Err(error) => {
                 // The child's state is now unknown, and returning here would
                 // leave an interactive one holding the terminal with nothing
                 // left to reap it. Ending it is the last thing this launch can
                 // still do correctly, so it does that before reporting.
                 child.signal(libc::SIGKILL);
-                let reaped = child.wait().is_ok();
-                if reaped {
+                let status = child.reap().ok();
+                if status.is_some() {
                     observer(LaunchEvent::Reaped);
                 }
-                return Err(LaunchError::new(format!(
-                    "cannot wait on the launched child: {error}; it has been sent SIGKILL and {}",
-                    if reaped {
-                        "reaped"
-                    } else {
-                        "could not be reaped — check for an orphaned process"
-                    }
-                )));
+                return Err(Failed {
+                    error: LaunchError::new(format!(
+                        "cannot wait on the launched child: {error}; it has been sent SIGKILL and {}",
+                        if status.is_some() {
+                            "reaped"
+                        } else {
+                            "could not be reaped — check for an orphaned process"
+                        }
+                    )),
+                    status,
+                });
             }
-        };
-        if let Some(status) = waited {
-            observer(LaunchEvent::Reaped);
-            if detached {
-                drain_group(pgid)?;
-            }
-            // A child ended by the escalation exits non-zero, or by signal.
-            // That is the normal completion path, not a failure: the token,
-            // never the exit status, says what the launch meant.
-            return Ok(ended(status, interrupted, signalled));
         }
 
         watch = match watch {
@@ -804,20 +1109,32 @@ fn watch(
             }
             Watch::Terminated(at) if at.elapsed() >= escalation.kill_grace => {
                 child.signal(libc::SIGKILL);
-                let status = child.wait().map_err(|error| {
-                    LaunchError::new(format!("cannot reap the killed child: {error}"))
-                })?;
-                observer(LaunchEvent::Reaped);
-                if detached {
-                    drain_group(pgid)?;
-                }
-                return Ok(ended(status, interrupted, signalled));
+                Watch::Killed
             }
             other => other,
         };
 
-        std::thread::sleep(POLL_INTERVAL);
+        std::thread::sleep(if matches!(watch, Watch::Killed) {
+            KILLED_POLL_INTERVAL
+        } else {
+            POLL_INTERVAL
+        });
     }
+
+    // A child ended by the escalation exits non-zero, or by signal. That is
+    // the normal completion path, not a failure: the token, never the exit
+    // status, says what the launch meant.
+    child.kill_group();
+    let status = child.reap().map_err(|error| Failed {
+        error: LaunchError::new(format!("cannot reap the exited child: {error}")),
+        status: None,
+    })?;
+    observer(LaunchEvent::Reaped);
+    Ok(Watched {
+        status,
+        interrupted,
+        signalled,
+    })
 }
 
 /// Signal the job this process launched — **the whole process group, then the
@@ -830,14 +1147,16 @@ fn watch(
 /// then the escalation's SIGKILL buys a stall rather than a teardown.
 ///
 /// `pgid` is the child's pid, made a group leader by the `process_group(0)`
-/// [`run`] sets before the spawn — a failure there is a failed spawn, and no
-/// child. A group with that id can only have been created by that process, so
-/// `-pgid` cannot name an unrelated job even in the impossible case where the
-/// group was never created; the direct `kill` behind it covers that case.
+/// [`run`] sets before the spawn, or by the `setsid` a detached launch makes —
+/// a failure there is a failed spawn, and no child. A group with that id can
+/// only have been created by that process, so `-pgid` cannot name an unrelated
+/// job even in the impossible case where the group was never created; the
+/// direct `kill` behind it covers that case. Every call is made before the
+/// child is reaped, while its pid still reserves the id.
 ///
 /// A failure is ignored on purpose — ESRCH means the process exited between the
-/// poll and the signal, which the next `try_wait` reports anyway. This is the
-/// shell's `kill … 2>/dev/null`, written down.
+/// poll and the signal, which the next poll reports anyway. This is the shell's
+/// `kill … 2>/dev/null`, written down.
 fn kill(pgid: libc::pid_t, signal: libc::c_int) {
     // SAFETY: `kill(2)` on the process group of, and then the pid of, a child
     // of this process.

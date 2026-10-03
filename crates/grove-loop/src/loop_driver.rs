@@ -59,7 +59,7 @@ use crate::driver_lease::DriverLease;
 use crate::{interpret, Disposition, Handle, Kind, Reading, Selection, Sought, TreeLifetime};
 use anyhow::{ensure, Context, Result};
 use jj_workspace::Workspace;
-use keyed_launch::{Argv, Channel, End, Ended, Escalation, Launch};
+use keyed_launch::{Argv, Channel, End, Ended, Escalation, Group, Launch};
 use std::ffi::{OsStr, OsString};
 use std::io::Write;
 use std::path::Path;
@@ -258,6 +258,22 @@ fn drive(
             eprintln!(
                 "grove: warning: could not remove the interpreted foreground-session signal channel; preserving the session outcome: {error}"
             );
+        }
+
+        // Before the ending is acted on, and whatever it says: a member of the
+        // session's group that survived the runner's kills may still hold the
+        // tree, so neither a relaunch nor a finish may happen beside it.
+        if let Group::Present { pgid } = ended.group {
+            eprintln!(
+                "grove: members of the session's process group {pgid} may have survived it — \
+                 status {}; loop stopped with `{}` still live. Check for a leftover process \
+                 before rerunning `grove`.",
+                ended.status, selection.handle
+            );
+            return Ok(match ended.end {
+                End::Interrupted { signal } => LoopOutcome::Interrupted(signal),
+                _ => LoopOutcome::Stopped,
+            });
         }
 
         if let End::Interrupted { signal } = ended.end {

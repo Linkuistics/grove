@@ -52,7 +52,7 @@ The following table separates the authorities used by this operation.
 The source below follows those boundaries. The temporary directory owns staged
 work, while destination writes and terminal display remain parent operations.
 
-<!-- fragment «standalone-invocation» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="1-390" parent="source-standalone" -->
+<!-- fragment «standalone-invocation» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="1-398" parent="source-standalone" -->
 <!-- insert «standalone-interface» -->
 <!-- insert «standalone-staging» -->
 <!-- insert «standalone-launch-context» -->
@@ -88,7 +88,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
 use anyhow::{bail, ensure, Context, Result};
-use keyed_launch::{Argv, Channel, Confinement, End, Escalation, Launch};
+use keyed_launch::{Argv, Channel, Confinement, End, Escalation, Group, Launch};
 use serde_json::Value;
 
 /// What selection must not inherit: the completion channel of a session this
@@ -319,12 +319,15 @@ from redirecting later output reads by replacing `work` with a symlink.
 The parent removes all inherited environment names except the small allowlist,
 then runs the mandatory confined launcher while a scoped thread relays the log.
 The child receives `GROVE_RUN_SIGNAL_FILE`, independent of a surrounding
-`GROVE_SIGNAL_FILE`. Completion requires no interruption, token `done`, and either
-supervisor-driven termination or a successful natural exit. Only then does
-publication run. The final status records publication success as well as child
+`GROVE_SIGNAL_FILE`. Completion requires that no member of the harness's process
+group survived it, no interruption, token `done`, and either supervisor-driven
+termination or a successful natural exit. The survivor check comes first and
+whatever the harness said: the runner reports a group that outlived its kills as
+`Group::Present` beside the harness's status, and a survivor could still be
+writing what would be published. Only then does publication run. The final status records publication success as well as child
 completion, so an export failure cannot be displayed as completed.
 
-<!-- fragment «standalone-supervision» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="161-234" parent="standalone-invocation" -->
+<!-- fragment «standalone-supervision» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="161-242" parent="standalone-invocation" -->
 ````rust
     // Build a small inherited environment. In particular no GROVE_*, GIT_*,
     // JJ_*, terminal/mux sockets, loader injection, or parent harness identifiers.
@@ -364,6 +367,14 @@ completion, so an export failure cannot be displayed as completed.
     });
     let result = (|| {
         let ended = outcome?;
+        // First, whatever the harness said: a survivor in its group could
+        // still be writing what would be published.
+        if let Group::Present { pgid } = ended.group {
+            bail!(
+                "members of the harness's process group {pgid} may have survived it; \
+                 outputs were not published"
+            );
+        }
         ensure!(
             !matches!(ended.end, End::Interrupted { .. }),
             "standalone invocation was cancelled"
@@ -431,7 +442,7 @@ writes one JSON error on stderr, and this function reports its code, message and
 remedy, with the policy's own code beside a refusal the policy made. Output it
 cannot read that way is quoted beside the exit status.
 
-<!-- fragment «standalone-selection» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="235-308" parent="standalone-invocation" -->
+<!-- fragment «standalone-selection» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="243-316" parent="standalone-invocation" -->
 ````rust
 /// Ask the owner's policy which command runs this kind, before confinement
 /// and outside it: the policy, the owner's settings and the record store are
@@ -520,7 +531,7 @@ a FIFO from hanging the staging reader, and `O_NOFOLLOW` refuses the final
 symlink. These checks turn the example's caller paths into bounded file inputs,
 not access grants to the caller's project.
 
-<!-- fragment «standalone-artifact-checks» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="309-354" parent="standalone-invocation" -->
+<!-- fragment «standalone-artifact-checks» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="317-362" parent="standalone-invocation" -->
 ````rust
 fn inherited(name: &OsStr) -> bool {
     let Some(name) = name.to_str() else {
@@ -585,7 +596,7 @@ are in `crates/grove/tests/standalone.rs`, which drives the built binary under
 real confinement. They are external evidence, outside this book's reconstructed
 corpus.
 
-<!-- fragment «standalone-publication» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="355-390" parent="standalone-invocation" -->
+<!-- fragment «standalone-publication» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="363-398" parent="standalone-invocation" -->
 ````rust
 fn publish_outputs(work: &File, destinations: &[PathBuf]) -> Result<()> {
     let mut staged = Vec::new();

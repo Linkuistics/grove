@@ -185,7 +185,7 @@ order is that account's order. The book reads it whole here, in five fragments:
 four that follow the doc comment's own paragraph breaks, and one for the module
 declarations and exports, which this chapter reads after the worked example.
 
-<!-- fragment «library-root» owner="understands-neither" source="crates/keyed-launch/src/lib.rs" lines="1-47" parent="source-library-root" -->
+<!-- fragment «library-root» owner="understands-neither" source="crates/keyed-launch/src/lib.rs" lines="1-50" parent="source-library-root" -->
 <!-- insert «library-root-thesis» -->
 <!-- insert «library-root-to-a-child» -->
 <!-- insert «library-root-job-and-out-of-band» -->
@@ -232,20 +232,26 @@ directly, with no shell. This chapter's last section reads that type.
 The third fragment carries the two bold paragraphs that are chapters 3 and 4's
 theses and chapter 2's. **The child is a job**: it is spawned into a process
 group of its own and handed the launcher's controlling terminal, and the
-paragraph gives three consequences of that rather than describing the mechanism.
+paragraph gives three consequences of that rather than describing the mechanism,
+then the promise that closes every launch: the whole group ends with it, the
+terminal comes back in the modes it was lent in, and a group that survives is
+reported as `Group::Present` beside the child's status.
 **A launch ends out of band**: an interactive child returns to its prompt when it
 finishes rather than exiting, so its own exit is not the event anyone is waiting
 for, and the channel's *appearance* is. Those two sentences are the reason the
 crate has a `Channel` at all, and chapter 2 is where the appearance rule is built.
 
-<!-- fragment «library-root-job-and-out-of-band» owner="understands-neither" source="crates/keyed-launch/src/lib.rs" lines="15-27" parent="library-root" -->
+<!-- fragment «library-root-job-and-out-of-band» owner="understands-neither" source="crates/keyed-launch/src/lib.rs" lines="15-30" parent="library-root" -->
 ````rust
 //!
 //! **The child is a job.** It is spawned into a process group of its own and
 //! handed the launcher's controlling terminal, so a terminal signal reaches the
 //! child rather than the launcher, the escalation can reap a grandchild the
 //! child spawned, and a launcher's own ignored dispositions are not inherited
-//! across the `exec` by every wrapper the command names. See [`run`].
+//! across the `exec` by every wrapper the command names. Whatever ends the
+//! child, its whole group ends with the launch, and the terminal comes back
+//! with the modes it was handed over in. A group that survives is reported as
+//! [`Group::Present`] beside the child's status. See [`run`].
 //!
 //! **A launch ends out of band.** An interactive child returns to its prompt
 //! when it finishes rather than exiting, so its own exit is not the event
@@ -261,7 +267,7 @@ successful spawn and confirmed reap to its caller as they happen, and `run` is
 the same launch without an observer. Chapter 3 owns the interface and chapter 4
 shows why a token appearing is not a reap.
 
-<!-- fragment «library-root-observed» owner="understands-neither" source="crates/keyed-launch/src/lib.rs" lines="28-32" parent="library-root" -->
+<!-- fragment «library-root-observed» owner="understands-neither" source="crates/keyed-launch/src/lib.rs" lines="31-35" parent="library-root" -->
 ````rust
 //!
 //! [`run_observed`] adds synchronous parent-side [`LaunchEvent`] notifications
@@ -280,9 +286,9 @@ launcher's job, which is chapter 4.
 |---|---:|---:|
 | the opening thesis | 1–8 | 1 |
 | *From an argv to a running child* | 10–14 | 1 |
-| **The child is a job** | 16–20 | 3 |
-| **A launch ends out of band** | 22–27 | 2, and the escalation in 4 |
-| `run_observed` | 29–32 | 3 |
+| **The child is a job** | 16–23 | 3, and the end of the group in 4 |
+| **A launch ends out of band** | 25–30 | 2, and the escalation in 4 |
+| `run_observed` | 32–35 | 3 |
 
 The library root says nothing about a child with no terminal or about
 confinement. Chapter 7 reads both.
@@ -342,7 +348,7 @@ This book reads them here rather than deferring each name to its own chapter,
 because the list is short and the map above has already said which chapter owns
 what.
 
-<!-- fragment «library-root-modules-and-exports» owner="understands-neither" source="crates/keyed-launch/src/lib.rs" lines="33-47" parent="library-root" -->
+<!-- fragment «library-root-modules-and-exports» owner="understands-neither" source="crates/keyed-launch/src/lib.rs" lines="36-50" parent="library-root" -->
 ````rust
 
 mod argv;
@@ -357,7 +363,7 @@ pub use confinement::{regular_file_at, Confinement};
 pub use error::LaunchError;
 pub use run::{
     reraise, run, run_confined, run_noninteractive, run_observed, take_interrupt, End, Ended,
-    Escalation, Launch, LaunchEvent,
+    Escalation, Group, Launch, LaunchEvent,
 };
 ````
 <!-- /fragment -->
@@ -378,7 +384,7 @@ The last row is this chapter's own and is not one.
 | Names | Minimum statement | Chapter |
 |---|---|---:|
 | `Channel`, `Token`, `signal` | A fresh path per launch that allocation picks and writes nothing to; `signal` is what the child calls to make it appear, and `Token` is what the caller reads back. | 2 |
-| `run`, `run_observed`, `LaunchEvent`, `Launch`, `Ended`, `End`, `Escalation` | `run_observed` reports successful spawn and confirmed reap synchronously; `run` uses a no-op observer. Each spawns one `Launch` — argv, channel, scrub list, working directory and the two graces of an `Escalation` — and returns an `Ended` saying which of `End`'s three cases happened. | 3 |
+| `run`, `run_observed`, `LaunchEvent`, `Launch`, `Ended`, `End`, `Group`, `Escalation` | `run_observed` reports successful spawn and confirmed reap synchronously; `run` uses a no-op observer. Each spawns one `Launch` — argv, channel, scrub list, working directory and the two graces of an `Escalation` — and returns an `Ended` saying which of `End`'s three cases happened and whether the child's `Group` was confirmed gone. | 3 |
 | `reraise`, `take_interrupt` | The launcher's own two obligations for a termination signal: `take_interrupt` collects one that arrived between launches, and `reraise` is how a launcher dies of the same signal rather than reporting an exit code. | 4 |
 | `run_noninteractive`, `run_confined`, `Confinement`, `regular_file_at` | A launch with no terminal whose output goes to a file, the same launch under a mandatory filesystem policy, that policy's two fields, and the one read of a result that policy leaves safe. | 7 |
 | `LaunchError`, `Argv` | the one error type and the type a command arrives in, read next | 1 |

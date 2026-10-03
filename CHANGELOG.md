@@ -69,6 +69,27 @@ stood at the graft — a closed record, not part of the versioned sequence above
   as `jj_store_unreadable`. `init`'s report, the help's Grove invocation and
   the typecheck fixtures follow
   ([the sample policy](crates/harness-dispatch/README.md#the-sample-policy)).
+- **A Grove launch now ends with its whole process group.** Whatever ends the
+  session, an exit on the escalation's TERM, within the grace or on its own, the
+  runner kills what remains of the session's process group before it reaps the
+  session, and confirms within a second that the group is gone. A
+  TERM-ignoring tool no longer outlives the session that started it. A group
+  that survives stops the loop with the leaf still live, rather than relaunching
+  or finishing beside it, and `grove run` publishes nothing. The terminal comes
+  back in the modes it was lent in, so a raw-mode harness killed by the
+  escalation no longer leaves the shell without echo. After a death by signal it
+  is also taken back from an orphaned group left holding it. A launcher started
+  in the background takes no foreground
+  ([the launched child is a job](docs/adr/the-launched-child-is-a-job.md)).
+- `keyed-launch`: **the runner respects its launcher's entry signal state.** No
+  handler goes over a signal the launcher ignores, and an inherited ignored
+  SIGCHLD is restored to its default for the launcher alone, so a child is no
+  longer reaped unwatched. SIGINT now cancels a launch with no terminal. A
+  noninteractive child is forwarded the cancelling signal and given the
+  kill-grace, and only a confined child is killed at once. A stopped child is
+  no longer mistaken for an exited one. `Ended` gains `group`, which reports a
+  surviving group beside the child's status
+  ([decision 7](docs/specs/module-decomposition.md#7--the-runner)).
 
 ## v22.0.0
 

@@ -45,20 +45,24 @@ outside the granted filesystem set.
 Assume the shell writes `done` plus a newline to the channel and exits with
 status 0 before the completion grace expires. The supervisor observes leader
 exit with `waitid` and `WNOWAIT`, retaining the leader's identity while killing
-remaining members of its process group. It reaps the leader, then polls for the
-group's disappearance using signal zero only. A reused PID therefore cannot
-redirect a later destructive cleanup signal at an unrelated process group.
-The returned `Ended` has `end: End::Exited`, a successful exit status and a
-present token whose `as_str()` is `"done"`.
+remaining members of its process group twice. It reaps the leader, then polls
+for the group's disappearance using signal zero only. A reused PID therefore
+cannot redirect a later destructive cleanup signal at an unrelated process
+group. This is the same end every launch has, interactive or not, and chapter 4
+reads it. The returned `Ended` has `end: End::Exited`, a successful exit status,
+a present token whose `as_str()` is `"done"` and `group: Group::Gone`.
 
 The caller then opens `result.md` with `regular_file_at` through the held work
 directory and reads `alpha` plus a newline, even if the child renamed that
 directory's pathname. A symlink, FIFO or non-regular result is refused. This is
 the example's observable end: a supervised outcome and bytes available through
 a stable file handle. Deciding whether to export those bytes remains the
-caller's responsibility. Cancellation kills the detached job immediately and
-returns an interrupted outcome; a cleanup failure returns an error. Processes
-that deliberately leave their process group are outside this cleanup guarantee.
+caller's responsibility. Cancellation kills the confined job immediately and
+returns an interrupted outcome, while a noninteractive job is forwarded the
+signal and given the kill-grace first. A group that survives is reported as
+`Group::Present`, which `grove run` treats as a reason to publish nothing.
+Processes that deliberately leave their process group are outside this cleanup
+guarantee.
 
 The following comparison states which boundary each entry point supplies.
 

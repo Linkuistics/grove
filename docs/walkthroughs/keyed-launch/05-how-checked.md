@@ -11,11 +11,37 @@ is the only source this chapter owns.
 
 The rest of the crate's evidence is outside the corpus. The integration tests
 under `crates/keyed-launch/tests/` link the crate as an external library and
-launch real children: `launch.rs` for the job, the channel, the environment and
-the escalation, `interrupt.rs` and `reraise.rs` for the launcher's own signals,
-`noninteractive.rs` for a child with no terminal, and `confinement.rs` for the
-filesystem policy. Every one of them builds its command with `Argv::new`. The
-book cites them where they adjudicate a claim and reproduces none of them.
+launch real children: `launch.rs` for the job, the channel, the environment,
+the escalation and the end of the group, `interrupt.rs` and `reraise.rs` for the
+launcher's own signals, `job.rs` for the terminal and the entry signal state,
+`noninteractive.rs` for a child with no terminal and its cancellation, and
+`confinement.rs` for the filesystem policy. Every one of them builds its command
+with `Argv::new`. The book cites them where they adjudicate a claim and
+reproduces none of them.
+
+Two of those files run part of themselves as another process, because what they
+test is process-global. `noninteractive.rs` and `job.rs` re-execute their own
+test binary in an ignored fixture role, chosen by an environment variable.
+`job.rs` goes further: it starts its launcher as the leader of a new session on
+a fresh pseudo-terminal, which becomes that launcher's controlling terminal. A
+foreground group and a terminal's modes can then be read before and after a
+launch on a terminal nobody else is using. The runner's own terminal, if it has
+one, is never touched. A launcher whose dispositions are under test, with
+SIGHUP or SIGCHLD ignored, runs the same way, so its entry state cannot leak into
+another test. Each of those tests was also run against a deliberate mutation of
+the clause it pins, and failed: a terminal test against a runner that skipped
+the restore or the gate, a signal test against one that installed a handler over
+an ignore. That is the evidence that each reads the property and not merely a
+pass.
+
+A third surface sits between the two. `tests/internal/wait_events.rs` is
+compiled into the crate itself, by a `#[path]` module at the end of
+`src/run.rs`, so that it can drive the supervisor through its private `Process`
+seam with a fake child. It traces the order of the end on every wait path, a
+surviving group reported beside the child's status, and the three cancellation
+modes, none of which a real child can be made to produce on demand. It is
+evidence, not corpus: the module declaration is corpus, and the file it names is
+not.
 
 <!-- fragment «channel-inline-tests» owner="checked-without-meaning" source="crates/keyed-launch/src/channel.rs" lines="289-453" parent="source-channel" -->
 <!-- insert «channel-tests-module» -->

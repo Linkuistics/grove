@@ -331,7 +331,11 @@ remedy on the terminal ([usage](USAGE.md#usage-refused-launch)).
 **`crates/keyed-launch` runs the command it is handed, and has never heard of a
 session.** It reads no configuration and resolves no name to a command. The
 crate allocates the launch's completion channel, spawns an argv directly with no
-shell, supervises the child and applies the kill escalation. `Argv` is the only
+shell, supervises the child and applies the kill escalation. Whatever ends the
+child, the crate kills what remains of its process group before reaping it,
+gives the terminal back in the modes it was lent in, and reports a group that
+survived beside the child's status, where the loop stops rather than relaunch
+and `grove run` publishes nothing. `Argv` is the only
 thing a spawn accepts, and a caller builds one with `Argv::new`: the loop hands
 it the `harness-dispatch run` invocation, and `grove run` hands it the command
 `harness-dispatch inspect` reported. Whatever was put into an `Argv` is what is
@@ -575,9 +579,10 @@ returns. Each of the four epoch acquisitions — driver, pre-spawn, post-reap, a
 ambient — tries without blocking, prints one diagnostic on contention, then
 waits a fixed internal 30-second handoff bound; a timeout does no tree access
 and no epoch rewrite, so an orphan that outlives its parent makes the driver
-stop `blocked` rather than silently park. The escalation signals the session's
-process group, so an ambient command the session itself launched is reaped with
-it and only a process outside that group can still hold the guard
+stop `blocked` rather than silently park. The runner kills the session's
+process group at every ending, not only on the escalation, so an ambient command
+the session itself launched is reaped with it and only a process outside that
+group can still hold the guard
 ([the launched child is a job](./adr/the-launched-child-is-a-job.md)). Manual `grove-llm` commands with no
 loop-control context keep their ordinary behavior.
 

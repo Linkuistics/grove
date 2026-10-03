@@ -99,7 +99,7 @@ lines = 42
 [[root]]
 id    = "source-library-root"
 path  = "crates/keyed-launch/src/lib.rs"
-lines = 47
+lines = 50
 
 [[root]]
 id    = "source-error-type"
@@ -119,7 +119,7 @@ lines = 453
 [[root]]
 id    = "source-run"
 path  = "crates/keyed-launch/src/run.rs"
-lines = 852
+lines = 1171
 
 [[root]]
 id    = "source-confinement"
@@ -136,7 +136,7 @@ lines = "1-42"
 id    = "library-root"
 root  = "source-library-root"
 owner = "understands-neither"
-lines = "1-47"
+lines = "1-50"
 
 [[block]]
 id    = "one-opaque-error"
@@ -166,25 +166,25 @@ lines = "289-453"
 id    = "launch-shape"
 root  = "source-run"
 owner = "nothing-else-added"
-lines = "1-123"
+lines = "1-146"
 
 [[block]]
 id    = "watch-and-launcher-signals"
 root  = "source-run"
 owner = "the-launchers-job"
-lines = "124-243"
+lines = "147-332"
 
 [[block]]
 id    = "terminal-and-spawn"
 root  = "source-run"
 owner = "nothing-else-added"
-lines = "244-678"
+lines = "333-837"
 
 [[block]]
 id    = "supervise-and-escalate"
 root  = "source-run"
 owner = "the-launchers-job"
-lines = "679-852"
+lines = "838-1171"
 
 [[block]]
 id    = "confinement-policy"
@@ -199,10 +199,10 @@ owner     = "appearance-is-the-event"
 statement = "A fresh path per launch that allocation picks and writes nothing to; `signal` is what the child calls to make it appear, and `Token` is what the caller reads back."
 
 [[early-use]]
-symbols   = "`run`, `run_observed`, `LaunchEvent`, `Launch`, `Ended`, `End`, `Escalation`"
+symbols   = "`run`, `run_observed`, `LaunchEvent`, `Launch`, `Ended`, `End`, `Group`, `Escalation`"
 first-use = "01-orientation.md#the-cast"
 owner     = "nothing-else-added"
-statement = "`run_observed` reports successful spawn and confirmed reap synchronously; `run` uses a no-op observer. Each spawns one `Launch` — argv, channel, scrub list, working directory and the two graces of an `Escalation` — and returns an `Ended` saying which of `End`'s three cases happened."
+statement = "`run_observed` reports successful spawn and confirmed reap synchronously; `run` uses a no-op observer. Each spawns one `Launch` — argv, channel, scrub list, working directory and the two graces of an `Escalation` — and returns an `Ended` saying which of `End`'s three cases happened and whether the child's `Group` was confirmed gone."
 
 [[early-use]]
 symbols   = "`reraise`, `take_interrupt`"
@@ -217,10 +217,10 @@ owner     = "confined-jobs"
 statement = "A launch with no terminal whose output goes to a file, the same launch under a mandatory filesystem policy, that policy's two fields, and the one read of a result that policy leaves safe."
 
 [[early-use]]
-symbols   = "`install_termination_handler`, `INTERRUPTED_BY`, `supervise`"
+symbols   = "`install_termination_handler`, `restore_child_watching`, `INTERRUPTED_BY`, `Mode`, `supervise`"
 first-use = "03-the-job.md#the-spawn"
 owner     = "the-launchers-job"
-statement = "`run`'s first and last acts: the handler that latches the launcher's own SIGTERM or SIGHUP into the process-global `INTERRUPTED_BY`, cleared immediately before each spawn, and the supervisor that watches the child and takes the terminal back."
+statement = "`run`'s first and last acts: the handler that latches a cancelling signal the launcher does not ignore into the process-global `INTERRUPTED_BY`, cleared immediately before each spawn; the repair for an inherited ignored SIGCHLD; and the supervisor that, told the launch's `Mode`, watches the child, ends its group and gives the terminal back."
 
 [guide]
 path    = "docs/USAGE.md"

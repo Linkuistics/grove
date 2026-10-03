@@ -10,7 +10,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
 use anyhow::{bail, ensure, Context, Result};
-use keyed_launch::{Argv, Channel, Confinement, End, Escalation, Launch};
+use keyed_launch::{Argv, Channel, Confinement, End, Escalation, Group, Launch};
 use serde_json::Value;
 
 /// What selection must not inherit: the completion channel of a session this
@@ -196,6 +196,14 @@ fn execute(args: Args, dispatch: &Path, helper: &Path, logs: &Path) -> Result<()
     });
     let result = (|| {
         let ended = outcome?;
+        // First, whatever the harness said: a survivor in its group could
+        // still be writing what would be published.
+        if let Group::Present { pgid } = ended.group {
+            bail!(
+                "members of the harness's process group {pgid} may have survived it; \
+                 outputs were not published"
+            );
+        }
         ensure!(
             !matches!(ended.end, End::Interrupted { .. }),
             "standalone invocation was cancelled"

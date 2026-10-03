@@ -13,7 +13,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::Duration;
 
-use keyed_launch::{run, run_observed, Argv, Channel, End, Escalation, Launch, LaunchEvent};
+use keyed_launch::{run, run_observed, Argv, Channel, End, Escalation, Group, Launch, LaunchEvent};
 use tempfile::TempDir;
 
 /// The escalation on test timescales. Long enough that a poll tick lands inside
@@ -571,6 +571,172 @@ fn the_escalation_reaps_the_childs_descendants() {
 
     bystander.kill().unwrap();
     bystander.wait().unwrap();
+}
+
+// ---------------------------------------------------------------------------
+// The group ends with every launch
+
+/// How the child under test ends, each leaving a TERM-ignoring descendant in
+/// its group behind it.
+#[derive(Clone, Copy, Debug)]
+enum Leaves {
+    /// It signals, and exits 7 on the escalation's TERM.
+    OnTheTerm,
+    /// It signals, and exits 5 well inside the grace.
+    WithinTheGrace,
+    /// It never signals, and exits 3 on its own.
+    OnItsOwn,
+}
+
+/// **The group ends with the launch, whatever ended the child.** A descendant
+/// that ignores the TERM outlives a child that exits on it. One still running
+/// outlives a child that exits within the grace, or on its own without any
+/// escalation. A caller that relaunched or published on that ending would act
+/// beside it, so the runner kills what remains of the group before it reaps
+/// the child. The check comes at the return boundary and allows no grace: the
+/// runner has itself confirmed the group gone, so the descendant is not even a
+/// zombie by then.
+///
+/// The child's own status stays the launch's in every case: the group's kill
+/// comes after its exit and cannot rewrite it.
+#[test]
+fn a_term_ignoring_descendant_is_gone_before_the_launch_returns() {
+    for leaves in [Leaves::OnTheTerm, Leaves::WithinTheGrace, Leaves::OnItsOwn] {
+        let harness = Harness::new();
+        let descendant_pid = harness.dir.path().join("descendant-pid");
+        let ending = match leaves {
+            Leaves::OnTheTerm => {
+                "exec 2>/dev/null\ntrap 'exit 7' TERM\n: > \"$TEST_CHANNEL\"\nwhile : ; do sleep 0.05 ; done\n"
+            }
+            Leaves::WithinTheGrace => ": > \"$TEST_CHANNEL\"\nsleep 0.1\nexit 5\n",
+            Leaves::OnItsOwn => "exit 3\n",
+        };
+        let script = harness.script(&format!(
+            "sh -c 'trap \"\" TERM ; while : ; do sleep 0.05 ; done' &\n\
+             printf '%s\\n' \"$!\" > {pid}\n\
+             {ending}",
+            pid = quoted(&descendant_pid)
+        ));
+        let argv = harness.argv(&script);
+        let channel = Channel::allocate(&harness.control()).unwrap();
+
+        let ended = run(launch(&argv, &channel, &[], None)).unwrap();
+
+        let descendant: i32 = fs::read_to_string(&descendant_pid)
+            .expect("the fixture never reported its descendant")
+            .trim()
+            .parse()
+            .unwrap();
+        let survived = !gone_now(descendant);
+        if survived {
+            // SAFETY: the fixture's own descendant, which must not outlive the
+            // test that failed because of it.
+            unsafe { libc::kill(descendant, libc::SIGKILL) };
+        }
+        assert!(
+            !survived,
+            "{leaves:?}: the TERM-ignoring descendant outlived the launch"
+        );
+        assert_eq!(ended.group, Group::Gone, "{leaves:?}");
+        let (code, end) = match leaves {
+            Leaves::OnTheTerm => (7, End::Signalled),
+            Leaves::WithinTheGrace => (5, End::Exited),
+            Leaves::OnItsOwn => (3, End::Exited),
+        };
+        assert_eq!(
+            ended.status.code(),
+            Some(code),
+            "{leaves:?}: the child's own status is the launch's: {:?}",
+            ended.status
+        );
+        assert_eq!(ended.end, end, "{leaves:?}");
+    }
+}
+
+/// Whether `pid` is gone **now**: no wait for anything to reap it.
+fn gone_now(pid: i32) -> bool {
+    // SAFETY: `kill(2)` with signal 0 — the existence probe, which sends
+    // nothing.
+    let probed = unsafe { libc::kill(pid, 0) };
+    probed == -1 && std::io::Error::last_os_error().raw_os_error() == Some(libc::ESRCH)
+}
+
+/// **A stop is not an exit.** macOS's `waitid(WEXITED | WNOWAIT)` reports a
+/// stopped child anyway, and keeps reporting it on every poll. A runner that
+/// believed it would kill the group and reap a child that was only paused. So
+/// the child here stops itself, stays stopped across several poll ticks, and
+/// is then continued. It must finish its own script, and the launch must not
+/// return until it has.
+#[test]
+fn a_stopped_child_is_neither_reaped_nor_killed() {
+    use std::time::Instant;
+    let harness = Harness::new();
+    let pid_file = harness.dir.path().join("child-pid");
+    let continued = harness.dir.path().join("continued");
+    let script = harness.script(&format!(
+        "printf '%s\\n' \"$$\" > {pid}\nkill -STOP $$\n: > {continued}\nexit 4\n",
+        pid = quoted(&pid_file),
+        continued = quoted(&continued)
+    ));
+    let argv = harness.argv(&script);
+    let channel = Channel::allocate(&harness.control()).unwrap();
+
+    std::thread::scope(|scope| {
+        let runner = scope.spawn(|| run(launch(&argv, &channel, &[], None)).unwrap());
+
+        let deadline = Instant::now() + Duration::from_secs(5);
+        let pid: i32 = loop {
+            if let Some(pid) = fs::read_to_string(&pid_file)
+                .ok()
+                .and_then(|text| text.trim().parse().ok())
+            {
+                break pid;
+            }
+            assert!(
+                Instant::now() < deadline,
+                "the child never reported its pid"
+            );
+            std::thread::sleep(Duration::from_millis(10));
+        };
+        while !stopped(pid) {
+            assert!(Instant::now() < deadline, "the child never stopped");
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        // Several of the runner's half-second poll ticks, each of which sees
+        // the stop on macOS.
+        std::thread::sleep(Duration::from_millis(1600));
+        assert!(
+            !runner.is_finished(),
+            "the launch returned while its child was only stopped"
+        );
+        assert!(stopped(pid), "the stopped child was killed or reaped");
+
+        // SAFETY: continuing the fixture's own stopped child.
+        unsafe { libc::kill(pid, libc::SIGCONT) };
+        let ended = runner.join().unwrap();
+        assert_eq!(
+            ended.status.code(),
+            Some(4),
+            "the continued child must finish its own script: {:?}",
+            ended.status
+        );
+        assert!(continued.exists());
+        assert_eq!(ended.end, End::Exited);
+        assert_eq!(ended.group, Group::Gone);
+    });
+}
+
+/// Whether `pid` is a stopped process, read from `ps`, which is the same
+/// observation on macOS and Linux.
+fn stopped(pid: i32) -> bool {
+    Command::new("ps")
+        .args(["-o", "stat=", "-p", &pid.to_string()])
+        .output()
+        .is_ok_and(|out| {
+            String::from_utf8_lossy(&out.stdout)
+                .trim_start()
+                .starts_with('T')
+        })
 }
 
 /// Whether `pid` is gone, waiting out the moment between its parent's death and

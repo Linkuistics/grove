@@ -28,10 +28,29 @@ from the run's ending whether the loop goes on.
 2. `design` (`harness-wrapper-k2`, done) — how: the specs and ADRs below,
    reworked in place; its running log (`W1`–`W13`) answers the questions left to
    design.
-3. `review-design` (`harness-wrapper-k3`) — an adversarial read of that design;
-   it inserts any integration ahead of planning.
-4. `planning` (`supervised-dispatch-k4`) — grow the implementation and
-   documentation leaves from the agreed design.
+3. `review-design` (`harness-wrapper-k3`, done) — an adversarial read of that
+   design; `integrate-review-design` (`harness-wrapper-k5`, done) applied its
+   five findings.
+4. `planning` (`supervised-dispatch-k4`) — grew the increments below from the
+   agreed design; its running log (`P1`–`P5`) gives the reasons.
+5. `no-selection-parameter-k6` — a launch carries no selection parameter, and
+   the sample selects without one (D1, D2).
+6. `supervised-run-k7` (node), then its review `supervised-run-k11` — dispatch
+   spawns and supervises its harness for every caller, and records and
+   reports the run ending (D3, D4's dispatch half, D7).
+7. `confined-run-k12` (node) — dispatch confines what it supervises, and
+   `grove run` launches through it (D6). It precedes the cutover, which removes
+   the `done` token `grove run` still reads.
+8. `launch-cutover-k15` (node), then its review `launch-cutover-k19` — Grove's
+   lifecycle launch moves onto the supervised run, by expand → migrate →
+   contract (D4, D5).
+9. `current-state-docs-k20` — the documents no test ties to a source change.
+10. `major-release-k21` — the release notes, the live-grove cutover, and how
+    this grove's own finish ends.
+
+Every boundary between them leaves `bash scripts/check.sh` green. They are one
+grove, not several, because no boundary before the last could ship alone
+(`P1`).
 
 ## Requirements settled with the owner
 
@@ -165,3 +184,17 @@ support them and never replace them, and no automated test calls a model.
   this grove builds reaches its own later sessions until rebuilt and
   installed. The owner's installed policy reads both `repo` and
   `session_name`, so it needs the D1 and D2 edits when the release lands.
+- **Every session of this grove ends, and runs its tree verbs, with the
+  installed v22 `grove-llm`** (`grove-llm complete`, as its v22 prompt says).
+  Never use `./target/debug/grove-llm` once its surface changes. No leaf
+  installs the built pair, whether through Homebrew or into a directory on
+  PATH, before the finish. Any install changes the binaries these sessions
+  depend on.
+- **The cargo guard keeps clearing `GROVE_SIGNAL_FILE`** beside the new
+  names for as long as this grove runs, because its sessions carry a live
+  v22 channel under that name.
+- **A leaf that changes a crate's source updates that crate's walkthrough book
+  in the same commit**: `keyed-launch`, `grove-loop`, `grove-llm`, and
+  `overview` for `crates/grove`. `scripts/check.sh` runs final validation of
+  every book. Each leaf also logs its own change under `## Unreleased` in
+  `CHANGELOG.md`.

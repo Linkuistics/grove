@@ -1,0 +1,28 @@
+flowchart TB
+  Start["Start here: Grove's runner\nhas reaped dispatch"]:::start
+  Witness["Release the session witness;\ntake back and reset the terminal"]
+  Epoch{"Epoch invalidated\nwithin 30 s?"}
+  Blocked["Stop blocked:\nread nothing, launch nothing"]
+  Interrupted{"Did the driver itself\nreceive TERM or HUP?"}
+  Raise["Interrupted:\nre-raise that signal"]
+  Teardown{"Teardown record\nin the launch directory?"}
+  Finished["Finished:\nthe grove is torn down"]
+  Exit{"Ending file reports\nexit_signal?"}
+  Relaunch["Relaunch:\npick the next leaf"]
+  Stopped["Stopped, leaf live:\nharness exit, cancellation,\nrefusal, dispatch's death,\nno ending file"]
+  Remove["Remove the launch directory"]
+  Start -->|"1"| Witness
+  Witness -->|"2"| Epoch
+  Epoch -->|"No"| Blocked
+  Epoch -->|"3. Yes"| Interrupted
+  Interrupted -->|"Yes"| Raise
+  Interrupted -->|"4. No"| Teardown
+  Teardown -->|"Yes, whatever the ending"| Finished
+  Teardown -->|"5. No"| Exit
+  Exit -->|"Yes, whatever the harness's status"| Relaunch
+  Exit -->|"No"| Stopped
+  Raise --> Remove
+  Finished --> Remove
+  Relaunch --> Remove
+  Stopped --> Remove
+  classDef start fill:#163a57,color:#fff,stroke:#163a57,font-weight:bold

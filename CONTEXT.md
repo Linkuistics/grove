@@ -119,9 +119,10 @@ or short. Importance is unbounded and is what builds a wall; frequency is not
 timing; size is a consequence of the rule and never a criterion.
 _Avoid_: reading the core as an abridged methodology a session may work from. It
 is three facts and one instruction, and it teaches nothing.
-_Avoid_: reading the third part as an instruction. It is a **mechanism** — the
-driver is watching a named file, writing it ends the session, not writing it
-stops the loop — and one text serves every kind because of that. Which
+_Avoid_: reading the third part as an instruction. It is a **mechanism** —
+harness-dispatch is watching for the [[Exit signal]], sending it ends the
+session, not sending it stops the loop — and one text serves every kind because
+of that. Which
 of the three endings a kind takes is a rule about that kind, and the shipped
 spine assigns it to that kind's own skill. Two embedded files used to carry the
 split, and `finish` needed the second: a fixed instruction would relaunch the
@@ -336,8 +337,9 @@ a ceiling on a session that needed a procedure.
 
 The terminal, whole-grove sequence performed by a generated `finish` [[Leaf]]:
 (1) promote durable artifacts from the briefs; (2) delete `.grove/` in a focused
-commit whose message names the finish leaf's [[Work-item handle]]; (3) signal
-the loop with `grove-llm complete --done`. Only the driver creates that leaf, a
+commit whose message names the finish leaf's [[Work-item handle]]; (3) record the
+[[Teardown record]] with `grove-llm record-teardown`, then send the [[Exit
+signal]]. Only the driver creates that leaf, a
 live one is reused rather than duplicated, and it is never retired — its
 addition and deletion cancel from the final tree. Teardown requires explicit
 human confirmation and is the loop's only routine human gate. Its mechanism is a
@@ -348,18 +350,18 @@ working-tree removal remain outside Grove.
 _Avoid_: describing the finish as merging or deleting anything git-topological — that was the pre-v11 cycle.
 _Avoid_: reading task-root absence as proof that a finish succeeded — at a
 driver lifecycle transition it is always a fresh-tree fact, so a deletion that
-committed before the driver observed `done` starts a *new* grove.
+committed before the driver read a [[Teardown record]] starts a *new* grove.
 _Avoid_: "an interrupted finish always leaves that leaf live" — a decline leaves
 it selectable, and an interruption leaves whatever the operation log holds, which
 is the operator's to read with `jj op log` and restore with `jj undo`. Grove runs
 no recovery of its own and classifies no interrupted attempt.
-_Avoid_: reading `--done` as the cycle's only ending. A `finish` session is told,
+_Avoid_: reading teardown as the cycle's only ending. A `finish` session is told,
 like every session, to externalize surfaced work rather than absorb it, and one
 that does so cannot tear down — ordinary work is live, so [[Pick]] passes the
 sentinel over. Its ending is then a plain **relaunch**: the loop continues into
 the new leaf and the sentinel waits. Three endings, distinguished by what the
-session *did* — teardown (`--done`, stop), reopening (`complete`, relaunch), or
-declining (no signal, stop, leaf still live).
+session *did* — teardown (a [[Teardown record]], stop), reopening (the [[Exit
+signal]] alone, relaunch), or declining (no exit signal, stop, leaf still live).
 
 <a id="grove-name"></a>
 ### Grove name
@@ -367,7 +369,8 @@ declining (no signal, stop, leaf still live).
 The working-tree directory's basename — never a branch, a bookmark, or a
 canonical layout — resolved from the closest `.jj/` marker walking up. The name
 supplies the root brief (`# <name> — brief`) and the harness session name
-(`<repo-basename>: <name> grove`).
+(`<repo-basename>: <name> grove`), which the methodology has a session derive
+for itself; Grove passes no name to the launch.
 _Avoid_: "the grove name equals the branch name" — grove reads no branch anywhere.
 _Avoid_: describing resolution as consulting `.git` at all. Grove drives jj only
 (`docs/adr/jj-is-the-only-lane.md`); a tree with no `.jj/` is refused before any
@@ -395,23 +398,62 @@ _Avoid_: treating a meta-grove as self-hosting in the strong sense — it develo
 the next build's methodology while being driven by the last one's.
 
 <a id="loop-control-channel"></a>
-### Loop control channel (`GROVE_SIGNAL_FILE`)
+### Launch directory (`GROVE_LAUNCH_DIR`)
 
-The collision-resistant per-launch path the loop driver watches while its
-harness child runs; its **appearance alone** ends the session, with content read
-only to tell `Relaunch` from `Done` (self-driving-loop). The exact path also
+The collision-resistant per-launch directory the loop driver allocates in its
+workspace control area and publishes to the session it launches. Its exact path
 names the active [[Session epoch]], so a descendant of a previous launch cannot
-act on the next one. It is therefore **ambient authority**: the foreground
-launch is the only site that sets it, and every other harness spawn must scrub
-it.
-_Avoid_: reading a **missing** signal as "the loop stops". That holds only for a
-harness that exits on its own. An interactive one returns to its prompt when its
-turn ends, so the child is never reaped, the driver's no-signal branch is never
-reached, and the loop **stalls** instead — indefinitely, the watcher having no
-timeout. Which of the two a forgotten `grove-llm complete` produces is a
-property of the launched harness, not of grove.
+act on the next one; it holds that launch's [[Teardown record]] and
+harness-dispatch's ending file, and dispatch allocates the session's [[Exit
+signal]] channel in it. The driver reads it only after reaping the launch, and
+removes it. It is **ambient authority**: the foreground launch is the only site
+that sets it, and every other spawn must scrub it.
+_Avoid_: the retired **loop control channel** (`GROVE_SIGNAL_FILE`), the file
+the driver used to watch, whose appearance ended the session and whose content
+told a relaunch from a teardown. Nothing Grove owns is watched now: dispatch
+watches for the exit signal, and a teardown is a record of its own.
+_Avoid_: reading a **missing** exit signal as "the loop stops". That holds only
+for a harness that exits on its own. An interactive one returns to its prompt
+when its turn ends, so it is never reaped, and the loop **stalls** instead —
+indefinitely, dispatch's watch having no timeout. Which of the two a forgotten
+`harness-dispatch exit` produces is a property of the launched harness.
 _Avoid_: calling the path a credential or security token — any descendant can read or deliberately discard its environment. The session epoch prevents ordinary stale-loop behavior; it does not defend against a hostile local process.
 _Avoid_: treating a redirected `cargo test` as evidence the guard works — a redirected run is safe by construction and passes with the guard removed. The acceptance test is a full run from a live pane with the real path in ambient env, verified absent afterwards.
+
+<a id="exit-signal"></a>
+### Exit signal (`harness-dispatch exit`)
+
+A session's statement to harness-dispatch that its harness run is over. It
+carries nothing: the verb creates the per-run file `HARNESS_DISPATCH_EXIT_FILE`
+names, and its appearance starts dispatch's kill escalation. It is dispatch's
+and not Grove's, and it is the ending every session's prompt names.
+_Avoid_: reading it as a disposition. Whether the loop relaunches or finishes is
+not in it: a finish records a [[Teardown record]] first, and the exit signal
+then ends the run as it ends any other.
+_Avoid_: `grove-llm complete`, the retired verb that wrote a disposition into the
+loop control channel.
+
+<a id="run-ending"></a>
+### Run ending
+
+How harness-dispatch saw one supervised run end: through the [[Exit signal]],
+by the harness exiting on its own, or by cancellation, recorded as the
+`ending` of dispatch's own end observation and reported to its caller. A run
+that never launched a harness has none.
+_Avoid_: reading it as the loop's outcome (finished, stopped, interrupted),
+which Grove decides from the run ending, its [[Teardown record]] and its own
+signals; or as a session's ending in the methodology's sense, which is the kind
+skill's choice of what to send.
+
+<a id="teardown-record"></a>
+### Teardown record
+
+Grove's record, in the [[Launch directory]], that the finish session tore the
+grove down, written by `grove-llm record-teardown` once `.grove/` is gone and
+before the session's final [[Exit signal]]. The driver reads it after reaping
+the launch, and with it the loop finishes whatever the [[Run ending]].
+_Avoid_: a tombstone. It is read only by the driver that launched the session,
+and a replacement driver removes an abandoned one unread.
 
 <a id="root-init"></a>
 ### root-init / fresh-grove start
@@ -467,12 +509,12 @@ _Avoid_: waiting for a contended driver lease — a second driver would issue du
 ### Session epoch
 
 The ephemeral launch-generation binding between one live [[Driver lease]], one
-working-tree identity, and one collision-resistant [[Loop control channel]]
+working-tree identity, and one collision-resistant [[Launch directory]]
 path, rewritten by the driver around every spawn. An ambient `grove-llm` tree
 command must match the live record before it may touch the tree, so a stale
 session cannot act on the current launch; it is workflow consistency among
 cooperating processes, not authentication, and it does not prevent direct file
-edits, commits, or forged signal writes. See ADR
+edits, commits, or forged writes to a launch directory. See ADR
 *one-live-driver-per-working-tree*.
 _Avoid_: a durable **grove generation** in `.grove/` or in a [[Work-item handle]]. Epoch rotation is stronger and catches stale sessions between every launch as well as after finish plus root recreation; stable handles remain identities within one task tree.
 _Avoid_: inferring authority from the existence or bytes of a control file. The live kernel locks bind the record; unlocked leftovers mean nothing.
@@ -701,7 +743,7 @@ the declarations and what each may say.
 is the shape and the rejected marker.
 _Avoid_: calling it a **loop**. In this repository *loop* is the driver's own
 cycle — one fresh session per task, driven by bare `grove`, with its
-[[Loop control channel]] and its [[Driver lease]] — and a second reading of one
+[[Launch directory]] and its [[Driver lease]] — and a second reading of one
 word inside the ubiquitous language is a defect.
 _Avoid_: a marker token in a name — an infix, a `-loop` slug suffix, a second
 distinguished child. All three re-open a grammar that has one reading to add a
@@ -804,9 +846,9 @@ driver-side [[Pick]]. The driver reads the session kind from that leaf's
 filename, composes the [[Guaranteed core]] as the prompt — which names that
 kind's [[Kind skill]] and no file by path — and embeds the selected stable
 handle there as the launched session's mandate, alongside the [[Stated VCS]].
-It then runs `harness-dispatch run` with the kind, the task file, the handle,
-the prompt and three [[Selection parameter]]s, and the owner's policy returns
-the [[Selected command]]. Grove holds no table from a kind to a command and is
+It then runs `harness-dispatch run` in the working-tree root with the kind,
+the task file, the handle and the prompt, and no [[Selection parameter]], and
+the owner's policy returns the [[Selected command]]. Grove holds no table from a kind to a command and is
 not a model router or proxy. The session first validates its [[Session epoch]],
 then resolves that handle to its current path, rejects an unavailable or
 non-live result, Bootstraps the resolved leaf, and does not pick again. A
@@ -916,10 +958,12 @@ since.
 <a id="handoff-attempt"></a>
 ### Handoff attempt
 
-The durable execution intent recorded immediately before harness-dispatch tries
-to replace its process with the selected harness. It proves neither that exec
-succeeded nor that the task was accepted; later observations retain their own
-source and evidence.
+The durable execution intent recorded immediately before harness-dispatch
+starts the selected harness. It proves neither that the harness started nor
+that the task was accepted; dispatch's own end observation confirms execution
+when the harness ends, and later observations retain their own source and
+evidence. A dispatch killed while its harness runs leaves the attempt as it
+stood.
 
 <a id="delivered-context"></a>
 ### Delivered context
@@ -976,8 +1020,9 @@ catalog entry a function named, and there is no catalog.
 ### Selection parameter
 
 A named string a caller passes to harness-dispatch with `--param`, which reaches
-`select` as data and means nothing to the command. Grove passes three:
-`session_name`, `worktree` and `repo`.
+`select` as data and means nothing to the command. Grove passes none: a
+policy takes the session's location from the request's `cwd`, which is the
+location the prompt assumes.
 _Avoid_: *slot*. A slot was a place in a template the tool filled; a parameter
 is a value the owner's function reads.
 
@@ -1255,7 +1300,8 @@ _Avoid_: reading a **refused** attempt as one. Nothing transitioned, and the
 iteration is still free to take its one.
 _Avoid_: counting a step of the finish **teardown** as one. Those belong to the
 finish leaf's own session, which deletes the tree and takes one commit; the
-iteration's part is allocating the sentinel and reading the signal that follows.
+iteration's part is allocating the sentinel and reading the [[Teardown record]]
+that follows.
 
 <a id="admitted-action"></a>
 #### Admitted action

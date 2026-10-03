@@ -593,7 +593,7 @@ so read it before choosing a path.
   Fix the defect on `main`, then run the release task again; it cuts the same
   version. If the failure shows that the compiled worker cannot meet a floor,
   that is the reopen condition of the
-  [worker decision](adr/policy-evaluation-precedes-process-replacement.md):
+  [worker decision](adr/policy-evaluation-precedes-the-launch.md):
   stop and escalate with the evidence. Do not weaken the floor or the test.
 
 Inspect `target/dist/`, which should contain three `.tar.xz` archives and

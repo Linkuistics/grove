@@ -3,9 +3,19 @@
 `keyed-launch` spawns its child into a **process group of its own** and, when the
 launcher owns a controlling terminal and is the foreground group of it, hands
 that terminal to the child's group with `tcsetpgrp` — reclaiming it once the
-child is reaped. Across the same spawn the child's dispositions for the
-terminal-generated signals are reset to their defaults. The kill escalation then
-signals `-pgid` as well as the pid.
+child is reaped, with the terminal attributes it saved at the handover put back.
+Across the same spawn the child's dispositions for the terminal-generated
+signals are reset to their defaults. The kill escalation then signals `-pgid` as
+well as the pid.
+
+A lifecycle session is two such jobs, one inside the other, as a shell would
+make them. Grove's driver makes `harness-dispatch run` a job, and dispatch, which
+[supervises the harness](dispatch-supervises-the-harness.md), makes the harness
+one. While the policy is selecting, the terminal is dispatch's group's, which its
+policy worker joins; while the harness runs it is the harness's group's alone.
+Each launcher takes it back from its own child, so a raw-mode harness that the
+escalation killed leaves dispatch a terminal to restore, and dispatch leaves
+Grove one.
 
 Three things follow, and each closes a defect that a per-process launch cannot.
 A terminal signal the human types is delivered to *the child's* group, so a
@@ -53,7 +63,7 @@ with the launcher that was supposed to hand it over.
   expensive rather than untidy — a surviving `grove-llm` grandchild holds shared
   epoch admission, so the driver's post-reap invalidation waits out its full 30s
   bound and then turns a session that finished correctly into a fatal error with
-  its token discarded (*[one live driver owns each working
+  its ending unread (*[one live driver owns each working
   tree](./one-live-driver-per-working-tree.md)*). That bound still binds, but for
   a process that was never in the group.
 - **Fix the inherited SIGINT in the driver instead, by installing an empty
@@ -63,6 +73,13 @@ with the launcher that was supposed to hand it over.
   keep the disposition under which a syscall never sees one. The guarantee also
   belongs to the thing that spawns: a runner handing an interactive child a
   terminal cannot know what its caller did to its own dispositions.
+- **Keep the harness in dispatch's group, or dispatch in the driver's.** The
+  first would deliver a typed Ctrl-C to the wrapper as well as the harness, so
+  the wrapper would have to catch what the harness alone should receive. The
+  second would put the driver in the terminal's foreground group while the
+  policy selects, and leave it no group to address if dispatch died. Each
+  supervisor makes its own child a job instead, which is also what any shell in
+  front of dispatch does.
 - **Take a caller flag for job control.** Rejected: the gate is already exact and
   needs no configuration — a launcher with no controlling terminal cannot open
   `/dev/tty`, and one that is not the terminal's current foreground group has no

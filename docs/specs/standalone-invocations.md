@@ -6,20 +6,20 @@ running grove. The owner's harness-dispatch policy selects the command for the
 kind, as it does for a lifecycle session, and Grove reads no configuration of
 its own. It does not integrate AgentAnyware.
 
-## Selection
+## Selection and launch
 
 The policy, the owner's settings and the record store are personal files that a
 confined process must not read, so the command is selected before confinement
-and outside it. Grove asks harness-dispatch to inspect the kind, with the
-invocation's prompt and parameters, and launches the command the inspection
-reports: the file it resolved, which Grove does not look up again.
+and outside it. Grove runs `harness-dispatch run --confine` in the staged
+working directory, with the kind and the invocation's prompt, and dispatch
+selects, records the run, and confines and supervises the harness it spawns.
 [Harness selection and execution](harness-selection-and-execution.md#grove-integration)
-owns what is passed and what comes back. Selection runs in Grove's own
-environment, so a grant or bound the owner set for the policy applies. The
-confined harness receives the invocation's small environment, as before, and no
-harness-dispatch run identity: a standalone invocation has no run record. A
-refused, cancelled or timed-out selection launches nothing and publishes
-nothing.
+owns what is passed and what comes back, and its
+[confinement](harness-selection-and-execution.md#confinement) owns the sandbox.
+Selection runs in Grove's own environment, so a grant or bound the owner set
+for the policy applies. The confined harness receives a small environment and
+the run's identity: a standalone invocation has a run record. A refused,
+cancelled or timed-out selection launches nothing and publishes nothing.
 
 ## Isolation contract
 
@@ -30,26 +30,33 @@ are refused. All outputs are validated before any are published. Publication
 must not overwrite a destination created while the task was running; any partial
 publication is reported explicitly.
 
-Filesystem confinement is mandatory. Installed system runtime resources and the
-selected executable are readable; additional runtime files such as harness
-credentials require explicit read-only grants. The parent project is not a
-runtime resource. Writes are confined to the invocation directory and its
-dedicated completion channel. Failure to establish confinement prevents launch.
-The selected harness's permission flags cannot disable this outer boundary.
+Filesystem confinement is mandatory and is dispatch's. Installed system runtime
+resources, the selected executable and dispatch's own executable are readable;
+additional runtime files such as harness credentials require explicit
+read-only grants, which Grove passes on as `--runtime-read`. The parent project
+is not a runtime resource. Writes are confined to the working directory and the
+private run directory dispatch keeps for the harness's temporary files and its
+exit channel. Failure to establish confinement prevents launch. The selected
+harness's permission flags cannot disable this outer boundary.
 
-The invocation receives neither its parent's Grove completion authority nor
-repository selectors or terminal/multiplexer capabilities. Its own completion
-channel is distinct from a task-tree session's epoch channel. `grove-llm complete
---done` acknowledges only that invocation; other tree verbs are unavailable in
-this context. A malformed token, missing acknowledgement, abnormal exit or
+The invocation receives neither its parent's launch directory nor repository
+selectors or terminal/multiplexer capabilities. Its exit channel is its own run's
+and distinct from any enclosing session's. The harness acknowledges its work with
+`harness-dispatch exit`, named by its canonical path in the prompt, which ends
+only that invocation; tree verbs are unavailable in this context. Grove publishes
+only on the exit-signal ending with dispatch's exit 0: a missing
+acknowledgement, a harness that fails after acknowledging, an abnormal exit or a
 cancellation cannot publish outputs as success.
 
-The child has its own POSIX session and no inherited input or terminal streams.
-The supervisor captures output, owns cancellation, and cleans up its process
-group before considering outputs. Nested cancellation must finish child cleanup
-within the outer supervisor's grace. Processes intentionally escaping their
-process group require stronger backend containment; no process-tree guarantee
-may be claimed merely from a process-group kill.
+Grove runs dispatch noninteractively, in its own POSIX session with no
+inherited input or terminal streams, and its output, the harness's included,
+goes to the invocation's transcript. Dispatch owns the harness's cancellation
+and kills its process group at once, and Grove forwards its own cancellation to
+dispatch and waits for it, so nested cancellation finishes inside an outer
+supervisor's grace. Both have ended before outputs are considered. Processes
+intentionally escaping their process group require stronger backend
+containment; no process-tree guarantee may be claimed merely from a
+process-group kill.
 
 ## Visibility
 
@@ -76,14 +83,16 @@ must never depend on paid LLM calls.
 
 - No jj invocation, including from a directory holding repository selector
   variables, and a `.grove.kdl` or `config.kdl` there or in HOME changes nothing.
-- The policy selects outside the sandbox; the harness inside it cannot read the
-  personal policy, the owner settings or the record store.
-- The file that runs is the one inspection reported, whatever else of that name
+- The policy selects outside the sandbox; the harness inside it receives a
+  recorded run ID and cannot read the personal policy, the owner settings or
+  the record store.
+- The file that runs is the one dispatch resolved, whatever else of that name
   PATH or Grove's own directory holds.
-- Nested completion and cancellation leave the outer completion channel intact.
+- A nested exit signal and nested cancellation leave the enclosing session's run
+  intact.
 - The harness cannot consume caller stdin or obtain its terminal/mux handles.
 - Real sandbox probes deny reads and writes to an unrelated project while
   permitting staged artifacts and explicitly granted runtime reads.
-- Child exit without completion, bad tokens, nonzero exits, cancellation,
+- Harness exit without the exit signal, a failure after it, cancellation,
   output symlinks, missing outputs and destination races fail visibly.
 - Existing interactive Grove job control and session-epoch checks remain green.

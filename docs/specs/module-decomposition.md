@@ -314,11 +314,12 @@ literal that would silently produce a *wrong* leaf rather than an error.
 
 ### 7 — The runner
 
-The runner takes a program and its arguments from its caller and launches them.
-It reads no configuration and resolves no name to a command, and it understands
-none of Grove's paths, kinds or VCS. Its two callers build the argv themselves:
-the loop builds the `harness-dispatch run` invocation, and `grove run` passes
-the `executable` and `args` that `harness-dispatch inspect` reported
+The runner takes a program and its arguments from its caller and launches them
+as a job it supervises to the end. It reads no configuration and resolves no
+name to a command, and it understands none of Grove's or dispatch's paths,
+kinds or records. Its two callers build the argv themselves: harness-dispatch
+launches the command its owner's policy selected, and Grove launches
+`harness-dispatch run`, for a lifecycle session and for `grove run` alike
 ([harness selection and execution](harness-selection-and-execution.md#grove-integration)).
 
 ```rust
@@ -334,36 +335,29 @@ impl Argv {
     pub fn words(&self) -> Vec<OsString>;
 }
 
-/// The out-of-band completion signal: a fresh, collision-resistant path per
-/// launch, naming that launch alone.
+/// The out-of-band exit channel: a fresh, collision-resistant path per
+/// launch, naming that launch alone. **Its appearance is the whole signal**:
+/// it carries nothing, and nothing reads its content.
 pub struct Channel;
 impl Channel {
     pub fn allocate(dir: &Path) -> Result<Self, LaunchError>;
     pub fn path(&self) -> &Path;
-    pub fn read(&self) -> Option<Token>;
     pub fn discard(self) -> Result<(), LaunchError>;
-    /// Remove every channel file in `dir` — the ones a previous launcher
-    /// allocated and did not live to discard. **The name grammar is this
-    /// crate's, so recognising an abandoned channel has to be too**: the
-    /// alternative is a consumer open-coding the name in its own cleanup.
-    pub fn discard_abandoned(dir: &Path) -> Result<(), LaunchError>;
 }
-/// Opaque to the runner. Its appearance ends the launch; its content is the
-/// caller's to interpret, which is why the content is readable.
-pub struct Token(String);
-impl Token {
-    pub fn as_str(&self) -> &str;
-    pub fn into_string(self) -> String;
-}
-pub fn signal(path: &Path, token: &str) -> Result<(), LaunchError>;
+/// Send the exit signal: create the file at `path`. One that exists already
+/// is success.
+pub fn signal(path: &Path) -> Result<(), LaunchError>;
 
 pub struct Escalation { pub grace: Duration, pub kill_grace: Duration }
 
 pub struct Launch<'a> {
     pub argv: &'a Argv,
-    pub channel: &'a Channel,
-    pub channel_var: &'a str,
+    /// The exit channel and the variable its path is published under. A launch
+    /// with none ends only when its child exits or its launcher is cancelled.
+    pub channel: Option<(&'a Channel, &'a str)>,
     pub scrub: &'a [&'a OsStr],
+    /// Values set after the scrub: the caller's own control variables.
+    pub grant: &'a [(&'a OsStr, &'a OsStr)],
     /// The child's working directory. `None` inherits the launcher's, which is
     /// rarely what a launcher wants: it is wherever a human happened to be
     /// standing.
@@ -379,22 +373,25 @@ pub fn run_observed(launch: Launch<'_>, observer: &mut dyn FnMut(LaunchEvent))
 /// A child in a new session, with no terminal or inherited input, whose output
 /// goes to a caller-owned regular file.
 pub fn run_noninteractive(launch: Launch<'_>, output: File) -> Result<Ended, LaunchError>;
-/// As `run_noninteractive`, under mandatory filesystem confinement. The
-/// program is an absolute path, and any other is refused.
-pub struct Confinement<'a> { pub writable: &'a Path, pub runtime_read: &'a [PathBuf] }
-pub fn run_confined(launch: Launch<'_>, output: File, policy: &Confinement<'_>)
+/// A child in a new session with no terminal and null stdin, writing to the
+/// launcher's own output, under mandatory filesystem confinement. The program
+/// is an absolute path, and any other is refused.
+pub struct Confinement<'a> { pub writable: &'a [PathBuf], pub runtime_read: &'a [PathBuf] }
+pub fn run_confined(launch: Launch<'_>, policy: &Confinement<'_>)
     -> Result<Ended, LaunchError>;
 /// Open one regular file in a directory held before untrusted work ran.
 pub fn regular_file_at(directory: &File, name: &OsStr) -> std::io::Result<File>;
 
-pub struct Ended { pub end: End, pub status: ExitStatus, pub elapsed: Duration, pub token: Option<Token> }
+/// `signalled` is whether the exit channel existed once the child was reaped,
+/// so a child that signals and exits at once has still signalled.
+pub struct Ended { pub end: End, pub status: ExitStatus, pub elapsed: Duration, pub signalled: bool }
 /// `Interrupted` is the *launcher's* own process signalled during this launch.
 /// **The signal is carried rather than merely noted**, because a process that
 /// catches a termination signal, tidies up and exits 0 has told its parent it
 /// finished its work; the only way to say what actually happened is to die of
 /// the same signal, and that needs its number. `reraise` is that ending, and
-/// this field is its argument.
-pub enum End { Exited, Signalled, Interrupted { signal: i32 } }
+/// this field is its argument. `Escalated` is a child the escalation ended.
+pub enum End { Exited, Escalated, Interrupted { signal: i32 } }
 
 /// Which signal, if any, was sent to this process *outside* a launch — clearing
 /// the latch. A signal arriving between two launches has no launch to be
@@ -413,16 +410,35 @@ pub fn reraise(signal: i32) -> !;
 pub struct LaunchError;
 ```
 
-The runner spawns the argv directly, with no shell. The child's
-environment is the caller's, minus the scrubbed control values, plus the fresh
-channel path under the caller's chosen variable name. Escalation runs grace →
+The block states the surface this decision settles and is not an inventory of
+it: how a caller asks for its child to receive the caller's own entry signal
+state, below, is the implementation's to shape.
+
+The runner spawns the argv directly, with no shell. The child's environment is
+the caller's, minus the scrubbed names, plus the granted values and, with a
+channel, its path under the caller's chosen variable name. The child is a job
+in a process group of its own; an interactive launch hands it the terminal and
+takes the terminal back with the attributes it saved restored
+([`the-launched-child-is-a-job`](../adr/the-launched-child-is-a-job.md)). Its
+terminal-generated signal dispositions are the defaults, unless its caller is a
+transparent wrapper that passes on its own entry signal state instead, as
+dispatch does; and the runner installs no handler over a disposition its
+launcher ignores. With a channel, the channel's appearance starts grace →
 SIGTERM → kill-grace → SIGKILL, because a child that returns to an interactive
 prompt is never reaped on its own; it is addressed to the child's **process
-group**, so a command the session itself launched is reaped with it, and the
-runner hands the terminal to the child and takes it back
-([`the-launched-child-is-a-job`](../adr/the-launched-child-is-a-job.md)).
-A confined launch is specified in
-[standalone invocations](standalone-invocations.md).
+group**, so a command the child itself launched is reaped with it. The
+launcher's own TERM or HUP cancels the launch, as does INT for a launch with no
+terminal: an interactive or noninteractive child's group is sent the same
+signal and, after the kill-grace, SIGKILL; a confined child's group is killed at
+once, so that a cancellation nested inside another supervisor's grace finishes
+inside it.
+
+Dispatch launches its harness interactively or confined, with a channel and its
+own constant graces. Grove launches dispatch interactively for a lifecycle
+session and noninteractively for `grove run`, with no channel and a kill-grace
+longer than dispatch's, because dispatch is itself a supervisor that needs that
+long to end its harness. A confined launch is specified in
+[harness selection and execution](harness-selection-and-execution.md#confinement).
 
 ### 8 — The VCS seam
 
@@ -590,11 +606,11 @@ pub mod verbs {
     pub fn finish_commit(workspace: &Workspace, finish: &Handle)
         -> Result<Commit, Error>;
 
-    /// Write the relaunch flag to the signal file and return. Reaches the
-    /// runner's channel. Outside a loop it is a no-op that says so.
-    pub fn complete(signal_file: Option<&Path>, done: bool)
-        -> Result<Signalled, Error>;
-    pub enum Signalled { Wrote(PathBuf), NoLoop }
+    /// Record in this launch's directory that the grove was torn down, once
+    /// `.grove/` is gone, and return. Outside a loop it is a no-op that says so.
+    pub fn record_teardown(worktree: &Path, launch_dir: Option<&Path>)
+        -> Result<Recorded, Error>;
+    pub enum Recorded { Wrote(PathBuf), NoLoop }
 }
 ```
 
@@ -611,18 +627,18 @@ decision did not ask, and it is recorded here rather than reconciled away.
 **The block is a statement of the surface, not an inventory of it.** Items it
 declares are held to the shipped signature; items it omits are not thereby
 denied. `Reference` ships `root`, `is_root` and `as_str` beside `parse`, and
-`verbs` ships two public functions beside the twelve — `stale_cross_refs`,
-which its own header calls *not a thirteenth verb* because it is the second half
-of `leaf-insert`'s contract, and `signal_channel`, which is public only because
-a caller has to ask which channel it is about to signal *before* `complete`
-writes to it. Neither is a verb, which is why neither is declared here.
+`verbs` ships a public function beside the twelve — `stale_cross_refs`, which
+its own header calls *not a thirteenth verb* because it is the second half of
+`leaf-insert`'s contract. It is not a verb, which is why it is not declared
+here.
 
 The verbs live here rather than with the store because ten of the twelve touch the
 tree and every one is stated in grove's vocabulary — brief chains, kinds,
 outcomes, handles, finishing — none of which the store has a word for.
 Co-locating them gives the handle grammar one owner and puts the driver and the
-verbs on one definition of a kind. The two that reach outward reach the runner
-(`complete`) and the VCS seam (`finish-commit`).
+verbs on one definition of a kind. One reaches outward, to the VCS seam
+(`finish-commit`); `record-teardown` writes only into the launch directory the
+driver allocated.
 
 Three shapes recur across the surface and are deliberate. A verb that reads takes
 a `Tree` and one that writes takes a `TreeWrite`, so the lock a verb needs is
@@ -652,16 +668,21 @@ affordance, and independently authored kinds need separately installed skills.
 
 **The signalling contract's own gap.** One contract for every kind replaces two
 per-kind signal files whose split existed so that a `finish` prompt never carried
-*run `grove-llm complete`* — the ending that, taken by the one session that may
-have just deleted the task tree, relaunches the loop onto a torn-down grove, and
-whose stated precondition a completed teardown satisfies exactly. The contract
-answers that by making the kind's own ending the sentence's object and the
-ordinary verb subordinate to it, so no prompt ends on a bare imperative for the
-wrong action. What is not answered is the compound with decision 10's accepted
-residue: a `finish` session whose `grove-finish` skill is missing or unread meets
-the ordinary default and nothing contradicting it, where the old prompt alone was
-fail-safe for that kind whatever was installed. The reopen condition is a `finish`
-session observed signalling `complete` after a teardown.
+a bare *send the exit signal* — the ending that, taken alone by the one session
+that may have just deleted the task tree, relaunches the loop onto a torn-down
+grove, and whose stated precondition a completed teardown satisfies exactly.
+The contract answers that by making the kind's own ending the sentence's object
+and the ordinary verb, `harness-dispatch exit`, subordinate to it, so no prompt
+ends on a bare imperative for the wrong action. A teardown is a record of its
+own, written by `grove-llm record-teardown` before that verb, and the loop
+finishes on the record rather than on what the exit signal carries, which is
+nothing ([dispatch supervises the harness](../adr/dispatch-supervises-the-harness.md)).
+What is not answered is the compound with decision 10's accepted residue: a
+`finish` session whose `grove-finish` skill is missing or unread meets the
+ordinary default and nothing contradicting it, where the old prompt alone was
+fail-safe for that kind whatever was installed. The reopen condition is a
+`finish` session observed sending the exit signal after a teardown it did not
+record.
 
 ### 10 — Grove publishes its version in the prompt
 
@@ -696,7 +717,7 @@ The fatness rule:
 
 - **Inline in `grove-<kind>`**: every rule owned by that kind or its family — its
   goal, its deliverable, its human-in-the-loop mark, its review allowance, and
-  whether it passes the done flag when it signals.
+  whether it records a teardown before its exit signal.
 - **In the shared spine**: every rule shared across families — the seven
   constraints, the bootstrap, execution, decomposition, retirement and commit
   procedures, and the format documents.
@@ -792,7 +813,7 @@ Four.
    suites, and the three domain-free ones compile and run with none of the rest of
    the workspace on their dependency list.
 2. **One composed-loop seam** — the loop driving a fake harness binary end to end.
-   The driver, completion and lease suites.
+   The driver, teardown and lease suites.
 3. **A conformance kit as the cross-crate seam.** The store ships one that holds a
    consumer to the round-trip law. This is what keeps *reusable outside grove* true without a
    second repository, and it is why extraction can stay deferred without weakening

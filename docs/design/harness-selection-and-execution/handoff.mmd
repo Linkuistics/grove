@@ -3,8 +3,8 @@ sequenceDiagram
   participant R as Rust front process
   participant W as Policy worker
   participant D as Record store
-  participant H as Final harness
-  G->>R: Kind, prompt, parameters + inherited terminal/control env
+  participant H as Harness
+  G->>R: Kind, prompt, parameters + terminal, cwd, environment
   R->>R: Read owner settings: bounds, grants, record directory
   R->>W: Fresh env, private start directory, bounded request with the prompt, null stdin
   opt Dynamic dispatch, the owner's own code
@@ -19,9 +19,14 @@ sequenceDiagram
     alt Write fails or cancellation observed
       R-->>G: Nonzero refusal, no harness
     else Admission succeeds
-      R->>H: exec with original cwd, terminal and final env
-      Note over R,H: Same PID and process group, Rust no longer exists
-      H-->>G: Native exit / signal / completion channel
+      R->>H: Spawn as its own job: entry signal state, terminal, exit channel, run ID
+      Note over R,H: The front stays the parent, its handlers still installed
+      H->>R: Exit signal: harness-dispatch exit creates the channel
+      R->>H: Grace, then TERM, kill-grace, KILL on the harness's group
+      H-->>R: Reaped: exit code or signal
+      R->>R: Take the terminal back, restore its modes
+      R->>D: End observation: execution confirmed, ending, exit, duration
+      R-->>G: Ending file, end notice, exit per the ending
     end
   end
-  Note over D: Handoff attempt is not confirmed execution or acceptance
+  Note over D: A dispatch killed mid-run leaves its attempt as it stood

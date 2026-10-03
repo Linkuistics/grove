@@ -1,6 +1,6 @@
 # Runtime and source evidence
 
-This evidence supports the [worker decision](../../adr/policy-evaluation-precedes-process-replacement.md).
+This evidence supports the [worker decision](../../adr/policy-evaluation-precedes-the-launch.md).
 It is deliberately narrower than the full acceptance contract.
 
 <a id="native-probe"></a>

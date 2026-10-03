@@ -2,7 +2,7 @@
 //! record, then replace this process with the selected command
 //! (`docs/specs/harness-selection-and-execution.md`, *Execution and authority*,
 //! *Records and later observations*;
-//! `docs/adr/policy-evaluation-precedes-process-replacement.md`).
+//! `docs/adr/policy-evaluation-precedes-the-launch.md`).
 //!
 //! The record comes first: a run is launched only once its handoff attempt is
 //! durable, and a failure to commit it launches nothing (exit 4). The harness

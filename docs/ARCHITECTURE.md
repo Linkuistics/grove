@@ -478,7 +478,7 @@ What crosses the boundary is data, in four places:
   ones [process ownership](#process-ownership) supervises
   ([the launched child is a job](adr/the-launched-child-is-a-job.md)). Selection
   runs first, in a worker the front starts and reaps
-  ([policy evaluation precedes process replacement](adr/policy-evaluation-precedes-process-replacement.md)).
+  ([policy evaluation precedes the launch](adr/policy-evaluation-precedes-the-launch.md)).
   A confined standalone invocation is the exception: Grove's runner spawns the
   file inspection reported, and dispatch launches nothing there.
 - **The task file.** A review leaf's `**Reviews:**` and `**Creator:**` lines are

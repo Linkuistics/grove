@@ -1,6 +1,7 @@
 flowchart TB
   Caller["Start here: caller\nGrove or another tool"]:::start
-  Native["harness-dispatch\nRust command and record store"]
+  Native["harness-dispatch\nRust command, supervisor and record store"]
+  Runner["keyed-launch\nDomain-free runner: job, terminal,\nexit channel, escalation, confinement"]
   Settings["Owner settings\nBounds, grants, record directory"]
   Worker["Private policy worker\nCompiled Bun + TypeScript SDK"]
   Policy["Owner policy: one select function\nEvery command it can return"]
@@ -14,5 +15,9 @@ flowchart TB
   Policy -.->|"Explicit import"| Adapter
   Policy -.->|"SDK helper it calls"| Choice
   Policy -->|"4. Command + labels + reason, or a refusal"| Native
-  Native -->|"5. Record, then exec"| Harness
+  Native -->|"5. Record, then spawn and supervise"| Harness
+  Harness -.->|"6. Exit signal"| Native
+  Native -->|"7. Run ending"| Caller
+  Caller -.->|"Runs dispatch as a job"| Runner
+  Native -.->|"Runs the harness"| Runner
   classDef start fill:#163a57,color:#fff,stroke:#163a57,font-weight:bold

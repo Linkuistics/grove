@@ -1,6 +1,6 @@
 //! Find, start, verify and converse with the compiled policy worker
 //! (`docs/specs/harness-selection-and-execution.md`, *Policy authority and
-//! runtime discovery*; `docs/adr/policy-evaluation-precedes-process-replacement.md`).
+//! runtime discovery*; `docs/adr/policy-evaluation-precedes-the-launch.md`).
 //!
 //! The worker is found only relative to the real front executable. It starts in
 //! a private empty directory with null stdin, a fresh environment

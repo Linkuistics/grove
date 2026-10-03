@@ -50,7 +50,7 @@ remain Grove's responsibilities; discovery grants no ownership or admission.
 
 **`crates/keyed-launch` is another crate and, for the same reason, not another
 context — but only because it was named to avoid being one.** Its vocabulary is
-*argv*, *launch*, *channel*, *token*, *escalation*. None of those
+*argv*, *launch*, *channel*, *escalation*. None of those
 words appears in grove's glossary meaning something else. The word it would have
 reached for is **session**, and using it would have put a third meaning beside
 grove's **Session** and the methodology's, adding a row to the collision table
@@ -87,7 +87,7 @@ for. Its decisions are the grove context's, as ever:
 context, which is a deliberate exception to this map's own test.** It is a
 separate command with a vocabulary of its own: *policy*, *selected command*,
 *provider origin*, *parameter*, *owner settings*, *run*, *handoff attempt*,
-*observation*. Unlike the runner's, several of its words do mean something else
+*observation*, *exit signal*, *run ending*. Unlike the runner's, several of its words do mean something else
 in grove's language. So the boundary exists, and the
 [relationship below](#grove-and-harness-dispatch) is what holds it, word by
 word. What is withheld is the declaration, which would give the package a
@@ -113,11 +113,11 @@ them. `harness-dispatch` has the last row:
 | module | owns | glossary |
 |---|---|---|
 | `ordinal-fs-tree` | *entry*, *leaf*, *node*, *ordinal*, *key*, *distinguished child*, *snapshot*, *guard*, *refusal*, *sought*, *promote* | [`docs/ordinal-fs-tree/CONTEXT.md`](./docs/ordinal-fs-tree/CONTEXT.md) |
-| `keyed-launch` | *argv*, *launch*, *channel*, *token*, *escalation* | none — its words are its own interface's, and none of them collides |
+| `keyed-launch` | *argv*, *launch*, *channel*, *escalation* | none — its words are its own interface's, and none of them collides |
 | `jj-workspace` | *workspace*, *main repo*, *control directory*, *namespace*, *tracked*, *commit*, *change id* | none — the words are Jujutsu's, with Jujutsu's meanings |
-| `grove-loop`, with `grove`, `grove-llm` and the `grove-tui` reader over it | **Session kind**, **Work-item handle**, **Position**, **Permanent key**, **Leaf**, **Node directory**, **Node file**, **Brief chain**, **Selection**, **Driver lease**, **Session epoch**, **Guaranteed core**, **Stated VCS** | [`CONTEXT.md`](./CONTEXT.md) |
+| `grove-loop`, with `grove`, `grove-llm` and the `grove-tui` reader over it | **Session kind**, **Work-item handle**, **Position**, **Permanent key**, **Leaf**, **Node directory**, **Node file**, **Brief chain**, **Selection**, **Driver lease**, **Session epoch**, **Launch directory**, **Teardown record**, **Guaranteed core**, **Stated VCS** | [`CONTEXT.md`](./CONTEXT.md) |
 | the `grove` plugin | **Spine skill**, **Kind skill**, **Composed loaded path**, **Condition** / **procedure**, **Loop-step reference file** | [`CONTEXT.md`](./CONTEXT.md) for the terms, [`plugins/CONTEXT.md`](./plugins/CONTEXT.md) for packaging and delivery |
-| `harness-dispatch` | *policy*, *selected command*, *provider origin*, *parameter*, *owner settings*, *choice file*, *context*, *run*, *handoff attempt*, *observation*; with the seam, **Original creator**, **Creator reference** and **Grove adapter** | none of its own — its specification and README define its words, and [`CONTEXT.md`](./CONTEXT.md) holds those a Grove owner meets |
+| `harness-dispatch` | *policy*, *selected command*, *provider origin*, *parameter*, *owner settings*, *choice file*, *context*, *run*, *handoff attempt*, *observation*, *exit signal*, *run ending*; with the seam, **Original creator**, **Creator reference** and **Grove adapter** | none of its own — its specification and README define its words, and [`CONTEXT.md`](./CONTEXT.md) holds those a Grove owner meets |
 
 The `keyed-launch` and `jj-workspace` rows are the ones that had to be *bought*:
 the first avoids **session** and the second refuses to name its consumer, and
@@ -202,7 +202,8 @@ each is a naming decision argued above rather than an accident of scope.
 - <a id="grove-and-harness-dispatch"></a>**grove → harness-dispatch, a command
   boundary whose shared words are held by hand.** Grove runs the command
   itself and depends on it nowhere in code, and the package
-  depends on no Grove crate
+  depends on no Grove domain crate — only on the domain-free runner,
+  `keyed-launch`, whose words are its own
   ([`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md#harness-dispatch) states the
   boundary). So no compiler keeps the two vocabularies apart, and an owner
   reads both in one sitting: Grove's report of a stopped loop, then the
@@ -215,6 +216,7 @@ each is a naming decision argued above rather than an accident of scope.
   | *selection* — a policy choosing a command | the driver's selection of one leaf | the words collide |
   | *run* — one recorded handoff with its run ID, and the subcommand that makes one | `grove run` — a standalone invocation | the words collide |
   | *context* — the data a policy selects from | a session's fresh context; a bounded context, in this file | the words collide |
+  | *run ending* — how one supervised run ended: exit signal, harness exit or cancellation | the loop's outcome — finished, stopped or interrupted | the words differ; Grove decides its outcome from the run ending and its own **Teardown record** |
 
   A document that speaks of both sides says which *selection* it means.
 
@@ -228,7 +230,8 @@ each is a naming decision argued above rather than an accident of scope.
   context, never both. The **grove** context owns
   [`harness-selection-is-owned-by-policy`](docs/adr/harness-selection-is-owned-by-policy.md),
   [`a-review-carries-its-creator-reference`](docs/adr/a-review-carries-its-creator-reference.md),
-  [`policy-evaluation-precedes-process-replacement`](docs/adr/policy-evaluation-precedes-process-replacement.md),
+  [`policy-evaluation-precedes-the-launch`](docs/adr/policy-evaluation-precedes-the-launch.md),
+  [`dispatch-supervises-the-harness`](docs/adr/dispatch-supervises-the-harness.md),
   [`grove-owns-escalated-review`](docs/adr/grove-owns-escalated-review.md),
   [`one-live-driver-per-working-tree`](docs/adr/one-live-driver-per-working-tree.md),
   [`corpus-rules-have-one-owner`](docs/adr/corpus-rules-have-one-owner.md),

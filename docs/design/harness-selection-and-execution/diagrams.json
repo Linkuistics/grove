@@ -1,31 +1,135 @@
 {
   "title": "Harness selection and execution",
-  "intro": "Views of the harness-dispatch command and of Grove's use of it, matching the area specification's package, execution and original-creator topics. These are source-package and process views, not deployment containers. Graphs begin at a dark Start here node; sequence views begin at the first message.",
+  "intro": "Views of the harness-dispatch command and of Grove's use of it, matching the area specification's package, execution, supervision, Grove-integration and original-creator topics. These are source-package and process views, not deployment containers; the state view is a reading aid, not a checked model. Graphs begin at a dark Start here node with numbered steps; sequence views begin at the first message, the state view at its initial state.",
   "groups": [
-    {"id": "boundary", "title": "Package boundary", "description": "One public command, an installed private worker, one owner policy, optional caller adapters."},
-    {"id": "execution", "title": "Execution and authority", "description": "Selection ends before the foreground process becomes the harness. Grove runs the command for every session."},
-    {"id": "provenance", "title": "Original creator and review", "description": "A review carries a reference to its creator's run; run records outlive the task tree."}
+    {
+      "id": "boundary",
+      "title": "Package boundary",
+      "description": "One public command, an installed private worker, one owner policy, optional caller adapters, and the domain-free runner both sides use."
+    },
+    {
+      "id": "execution",
+      "title": "Execution and supervision",
+      "description": "Selection ends before the harness starts; dispatch then stays its parent to the end, catches its exit signal and reports how the run ended."
+    },
+    {
+      "id": "grove",
+      "title": "Grove integration",
+      "description": "Grove launches through run with no parameter, gives the session a launch directory, records a teardown itself and reads the loop's next step from the run ending."
+    },
+    {
+      "id": "provenance",
+      "title": "Original creator and review",
+      "description": "A review carries a reference to its creator's run; run records outlive the task tree."
+    }
   ],
   "discussion": {
-    "title": "Grove launches through harness-dispatch; a policy returns the command",
-    "status": "Designed in direct-dispatch-k3; its design review is integrated",
-    "summary": "Grove has no launch configuration. A policy is one select function that receives the caller's parameters and the prompt and returns the command or a refusal. A confined grove run selects with inspect and launches the file it reports, looking nothing up again.",
-    "diagramIds": ["packages", "handoff", "grove-launch", "creator", "creator-flow", "creator-options"],
+    "title": "harness-dispatch supervises the harness; Grove keeps the leaf, the prompt and the teardown record",
+    "status": "Proposed in harness-wrapper-k2; a design review is scheduled before planning",
+    "summary": "run spawns the harness as its own job and stays its parent: it catches the exit signal (harness-dispatch exit, carrying nothing), escalates, restores the terminal, confines when asked, appends its end observation and writes the run ending to the caller's ending file. Grove passes no parameter, names its launch directory as the exit directory, records a teardown with grove-llm record-teardown, and reads teardown, exit signal or anything else as finished, relaunch or stopped.",
+    "diagramIds": [
+      "chain",
+      "ending",
+      "loop-decision",
+      "grove-launch",
+      "handoff",
+      "packages",
+      "creator-flow"
+    ],
     "updatedDiagrams": [
-      {"id": "packages", "summary": "The policy returns a command instead of a catalog ID; owner settings and the optional choice file are new."},
-      {"id": "handoff", "summary": "The request now carries the prompt, settings are read before the worker starts, and a policy may start a deciding agent."},
-      {"id": "grove-launch", "summary": "New: Grove's lifecycle launch through run, and its confined standalone launch through inspect."},
-      {"id": "creator", "summary": "The provider is checked against the review entry's origins, not a catalog."},
-      {"id": "creator-flow", "summary": "The run records the selected command's provider label; no candidate remains."},
-      {"id": "creator-options", "summary": "Option C's cost reworded: Grove reads nothing back from the dispatcher."}
+      {
+        "id": "chain",
+        "summary": "New: the two nested jobs from the shell to the harness, who holds the terminal while selecting and while running, and where the exit signal goes."
+      },
+      {
+        "id": "ending",
+        "summary": "New: a supervised run's states from selection to its run ending, with the escalation and cancellation paths."
+      },
+      {
+        "id": "loop-decision",
+        "summary": "New: how the driver reads a reaped launch as interrupted, finished, relaunched or stopped."
+      },
+      {
+        "id": "grove-launch",
+        "summary": "Both launches go through run: the lifecycle launch passes no parameter and names its launch directory; grove run passes --confine and publishes on the exit-signal ending."
+      },
+      {
+        "id": "handoff",
+        "summary": "The front spawns and supervises the harness instead of replacing itself, and records the end."
+      },
+      {
+        "id": "packages",
+        "summary": "Added the shared runner, the exit signal back to dispatch and the run ending back to the caller."
+      },
+      {
+        "id": "creator-flow",
+        "summary": "Dispatch spawns the producer and the reviewer rather than exec'ing them."
+      }
     ]
   },
   "diagrams": [
-    {"id": "packages", "group": "boundary", "title": "Caller, dispatcher and policy packages", "source": "packages.mmd", "caption": "Source packages and runtime participants. The command holds no catalog: the owner's function returns the command. Grove-specific relationship parsing belongs to the optional adapter; the generic command has no review-kind list."},
-    {"id": "handoff", "group": "execution", "title": "Prepare, record and replace the foreground process", "source": "handoff.mmd", "caption": "The worker shares the enclosing job and has null stdin. Cancellation or timeout before the handoff launches nothing. Keeping a deciding agent from executing the task it evaluates is its policy owner's job. Measurements after exec need an external observer."},
-    {"id": "grove-launch", "group": "execution", "title": "Grove's two launches: lifecycle and confined standalone", "source": "grove-launch.mmd", "caption": "Grove passes the same data either way and reads no configuration. A lifecycle session is launched by run, which records and execs. A standalone invocation is selected by inspect, outside the sandbox, and launched by Grove's runner inside it, with no run record. The runner runs the file inspect resolved."},
-    {"id": "creator-options", "group": "provenance", "title": "Where each option keeps the creator's provider", "source": "creator-options.mmd", "caption": "The decision is A. A lookup keyed by handle must tell this grove's handle from an earlier grove's in the same workspace, which needs durable state Grove deliberately lacks (B). A globally unique run reference carried by the review needs none (A)."},
-    {"id": "creator-flow", "group": "provenance", "title": "Producer names its run; the review resolves it", "source": "creator-flow.mmd", "caption": "The run reference is written by the session that ran under it, so the provider comes from dispatch's immutable record rather than a transcription. The association itself is that session's attestation, not verified. A session that finishes without a run removes any earlier line, and the owner declares the finished artifact's provider."},
-    {"id": "creator", "group": "provenance", "title": "Resolve the Creator line before selecting a reviewer", "source": "creator.mmd", "caption": "The supplied example policy. Every invocation and retry takes the same path; a retry reads the same line and the same immutable run, so it cannot change the creator."}
+    {
+      "id": "packages",
+      "group": "boundary",
+      "title": "Caller, dispatcher and policy packages",
+      "source": "packages.mmd",
+      "caption": "Source packages and runtime participants. The command holds no catalog: the owner's function returns the command. Grove-specific relationship parsing belongs to the optional adapter. keyed-launch has no Grove, task-tree or jj dependency; dispatch runs the harness through it and Grove runs dispatch through it."
+    },
+    {
+      "id": "handoff",
+      "group": "execution",
+      "title": "Prepare, record and supervise the harness",
+      "source": "handoff.mmd",
+      "caption": "The worker shares the front's job and has null stdin, and is reaped before the harness starts. Cancellation or timeout before the handoff launches nothing; a signal after it cancels the run, which dispatch ends and records. Keeping a deciding agent from executing the task it evaluates is its policy owner's job."
+    },
+    {
+      "id": "chain",
+      "group": "execution",
+      "title": "Two nested jobs: driver, dispatch, harness",
+      "source": "chain.mmd",
+      "caption": "Each supervisor makes its own child a foreground job, as a shell would. While the policy selects the terminal is dispatch's group's; while the harness runs it is the harness's group's alone, so a typed Ctrl-C reaches only the harness. The driver sets GROVE_LAUNCH_DIR for dispatch; dispatch sets HARNESS_DISPATCH_EXIT_FILE for the harness, and the exit verb creates that file. The escalation is grace, TERM, kill-grace, KILL on group H, ending its descendants with it. Each launcher takes the terminal back from its child with the attributes it saved restored."
+    },
+    {
+      "id": "ending",
+      "group": "execution",
+      "title": "A supervised run from selection to its ending",
+      "source": "ending.mmd",
+      "caption": "Grace 2 s and kill-grace 5 s are dispatch's constants. A confined run is killed at once on cancellation. A run that started no harness has no ending. A dispatch killed by SIGKILL leaves the harness orphaned and its attempt as it stood; that path has no state here because nothing in dispatch runs it."
+    },
+    {
+      "id": "grove-launch",
+      "group": "grove",
+      "title": "Grove's two launches: lifecycle and confined standalone",
+      "source": "grove-launch.mmd",
+      "caption": "Grove passes no parameter and reads no configuration. The two run-mechanics flags reach no policy. A lifecycle session ends with harness-dispatch exit, after grove-llm record-teardown when it tore the grove down. A standalone invocation is selected outside the sandbox and confined by dispatch, gets a run record, and publishes only on the exit-signal ending with exit 0."
+    },
+    {
+      "id": "loop-decision",
+      "group": "grove",
+      "title": "How the driver reads a reaped launch",
+      "source": "loop-decision.mmd",
+      "caption": "A teardown record finishes whatever the run ending, so a finish session whose harness exits on its own after recording still finishes. Only the exit signal relaunches, so a harness orphaned by dispatch's death is never joined by a second session on the same tree."
+    },
+    {
+      "id": "creator-options",
+      "group": "provenance",
+      "title": "Where each option keeps the creator's provider",
+      "source": "creator-options.mmd",
+      "caption": "The decision is A. A lookup keyed by handle must tell this grove's handle from an earlier grove's in the same workspace, which needs durable state Grove deliberately lacks (B). A globally unique run reference carried by the review needs none (A)."
+    },
+    {
+      "id": "creator-flow",
+      "group": "provenance",
+      "title": "Producer names its run; the review resolves it",
+      "source": "creator-flow.mmd",
+      "caption": "The run reference is written by the session that ran under it, so the provider comes from dispatch's immutable record rather than a transcription. The association itself is that session's attestation, not verified. A session that finishes without a run removes any earlier line, and the owner declares the finished artifact's provider."
+    },
+    {
+      "id": "creator",
+      "group": "provenance",
+      "title": "Resolve the Creator line before selecting a reviewer",
+      "source": "creator.mmd",
+      "caption": "The supplied example policy. Every invocation and retry takes the same path; a retry reads the same line and the same immutable run, so it cannot change the creator."
+    }
   ]
 }

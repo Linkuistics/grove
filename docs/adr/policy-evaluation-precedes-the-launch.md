@@ -1,19 +1,21 @@
-# Policy evaluation precedes process replacement
+# Policy evaluation precedes the launch
 
 `harness-dispatch` uses a Rust front process and an installed, matching Bun-compiled
 policy worker. Rust retains the original launch environment and terminal, gives
-the worker a bounded request without completion authority, reaps it, durably
-records the selected handoff, then replaces itself with the harness. The
-[area specification](../specs/harness-selection-and-execution.md) owns the
+the worker a bounded request without the authority to end a run, reaps it,
+durably records the selected handoff, and only then starts the harness, which it
+supervises to its end ([dispatch supervises the harness](dispatch-supervises-the-harness.md)).
+The [area specification](../specs/harness-selection-and-execution.md) owns the
 protocol, trust controls, cancellation and evidence contracts.
 
-The [foreground-job contract](the-launched-child-is-a-job.md) makes keeping the
-wrapper as a post-launch supervisor the wrong boundary. Replacing it preserves
-Grove's ownership of the real child, but sacrifices automatic exit/usage
-observation. A handoff receipt therefore remains an attempt until external
-evidence says otherwise. The handoff does export the run's identity, so the
-launched session can name its own run later. That is how a review finds its
-creator without the tool reconstructing one from attempts
+The split matters more under supervision than it did under process replacement.
+The front holds the run's exit channel, and the harness's run ID, for as long as
+the harness runs. No policy code, and nothing a policy starts, runs in that
+process or ever learns either: the worker is reaped before the harness starts,
+and its environment carries no `HARNESS_DISPATCH_*` value. The handoff exports
+the run's identity to the harness, so the launched session can name its own run
+later. That is how a review finds its creator without the tool reconstructing
+one from attempts
 ([a review carries its creator reference](a-review-carries-its-creator-reference.md)).
 
 Bun supplies TypeScript and ordinary filesystem/network computation without
@@ -73,25 +75,16 @@ documentation.
 Considered alternatives:
 
 - **One Bun executable owns everything.** Rejected because executable
-  configuration would start in the same process holding completion authority,
-  and runtime startup hooks would run before application-level environment
-  scrubbing. A native boundary is needed before evaluation. Reopen if a runtime
-  offers a verified equivalent startup and process-replacement contract.
+  configuration would start in the same process that holds the run's exit
+  channel for the harness's whole life, and runtime startup hooks would run
+  before application-level environment scrubbing. A native boundary is needed
+  before evaluation. Reopen if a runtime offers a verified equivalent startup,
+  supervision and signal-state contract.
 - **Embed a small JavaScript engine into Rust.** This makes distribution smaller
   but makes the package own TypeScript transformation, module loading and the
   host APIs needed for filesystem and network policy. Reopen if the compiled
   worker cannot meet the supported-target floor or its delivery cost outweighs
   those obligations. Do not silently fall back to a system runtime.
-- **Keep a supervisor after launching the harness.** It could collect exits,
-  but would replace the direct-child contract to obtain measurements that are
-  explicitly permitted to remain unknown. Reopen only with an
-  independently agreed supervisor/terminal design. The owner wants that design
-  eventually: dispatch would handle the launched harness's completion signal
-  and so become the process wrapper for one run of an interactive harness.
-  That moves the runner's completion channel, supervision, kill escalation,
-  terminal handover and confinement under dispatch. Until then the runner
-  stays a domain-free unit separable from Grove's loop, and a confined launch
-  selects through a capability that does not assume the `exec` handoff.
 
 The [policy ownership decision](harness-selection-is-owned-by-policy.md) remains
 separate: changing the TypeScript host need not move selection rules into Grove.

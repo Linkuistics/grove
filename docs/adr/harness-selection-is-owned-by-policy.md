@@ -10,13 +10,18 @@ runs it for every session it launches, lifecycle and standalone alike, and
 carries no launch configuration of its own. The
 [area specification](../specs/harness-selection-and-execution.md) owns the
 protocol, identity, records and delivery contracts. The
-[worker and handoff decision](policy-evaluation-precedes-process-replacement.md)
-chooses the Rust front process and bundled TypeScript runtime separately from
-this boundary.
+[worker decision](policy-evaluation-precedes-the-launch.md) chooses the Rust
+front process and bundled TypeScript runtime separately from this boundary, and
+[dispatch supervises the harness](dispatch-supervises-the-harness.md) records
+why the command stays the harness's parent.
 
 Grove supplies its already selected session kind, task file, stable task handle
-and unchanged prompt, and the session name and the two roots as named
-parameters. Callers supply stable task identities as data, so an association
+and unchanged prompt, and no parameter. It runs the command where the prompt
+assumes the session is — the working-tree root — so a policy reads the session's
+location from the request's `cwd`. A policy that must grant a secondary jj
+workspace's harness its store derives the store from `<cwd>/.jj/repo` itself,
+as the sample does; nothing jj-specific enters the command, and naming the
+session is the methodology's. Callers supply stable task identities as data, so an association
 survives a Grove task's retirement and reordering without any filename being
 parsed. The discovery guarantee spans sessions in the same live grove and
 workspace. Provenance travels as globally unique run identities, so handles need
@@ -106,15 +111,19 @@ the owner's policy already offers. It can introduce no program and no argument,
 which is why it needs no version-control check where the configuration delta
 needed one.
 
-Selection helpers are not granted Grove completion authority, and the final
-harness retains the driver's foreground-job contract
+Selection helpers are granted no authority to end a run, and the harness is
+dispatch's own foreground job
 ([the launched child is a job](the-launched-child-is-a-job.md)); the
 specification owns the bounds, cancellation and authority contracts that
 preserve this. Trusted TypeScript is executable configuration, not a sandbox
-against a hostile local owner. A confined standalone invocation selects outside
-its sandbox, through inspection, and runs only the harness inside it. Grove's
-runner launches the file inspection reports, so `harness-dispatch` launches
-nothing there and records no run.
+against a hostile local owner. A confined standalone invocation launches through
+`run --confine`: dispatch selects outside the sandbox, with the owner's grants
+and bounds, and confines only the harness it spawns, which receives a run ID and
+has a run record. A confined launch through the command was once declined
+because the launch was Grove's runner's, and the command would have needed a
+launcher option, a Grove helper and the runner's environment scrub moved behind
+selection. With dispatch the harness's supervisor, the scrub is dispatch's own
+and the other two are not needed.
 
 ## Considered options
 
@@ -145,17 +154,6 @@ nothing there and records no run.
 - **Let the executable discover a per-checkout override file.** Rejected because
   it reverses the rule that a repository grants nothing. The helper is taken up
   only where the owner's policy calls it.
-- **Have the executable launch a confined invocation too**, by running a
-  launcher the caller names ahead of the selected command. That would give a
-  standalone invocation one launch path and a run record. The sandbox has to
-  name the resolved program, so the launcher would be a Grove helper, and the
-  runner's environment scrub would have to move behind selection so that the
-  policy keeps the owner's grants. Rejected because that is a launcher option,
-  a helper and a moved scrub where inspection needs none of them, and what
-  inspection gives up is the record. Reopen when the executable supervises
-  the harness itself, as the
-  [worker and handoff decision](policy-evaluation-precedes-process-replacement.md)
-  leaves open, or when a standalone invocation needs a run record.
 - **Let owner settings differ by kind.** An owner's separate Grove command
   definitions could carry different flags for different kinds. Rejected because
   it puts a table of kinds back in the tool. Each bound is a ceiling, so one

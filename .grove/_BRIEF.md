@@ -25,10 +25,13 @@ from the run's ending whether the loop goes on.
 ## Decomposition
 
 1. `requirements` (`plan-k1`, done) — what to build, settled with the owner.
-2. `design` (`harness-wrapper-k2`) — how: rework the specs and ADRs below in
-   place to these requirements. It externalizes the `planning` leaf, after any
-   review chain it judges the reworked spec needs, so that planning reads an
-   agreed design.
+2. `design` (`harness-wrapper-k2`, done) — how: the specs and ADRs below,
+   reworked in place; its running log (`W1`–`W13`) answers the questions left to
+   design.
+3. `review-design` (`harness-wrapper-k3`) — an adversarial read of that design;
+   it inserts any integration ahead of planning.
+4. `planning` (`supervised-dispatch-k4`) — grow the implementation and
+   documentation leaves from the agreed design.
 
 ## Requirements settled with the owner
 
@@ -120,7 +123,9 @@ support them and never replace them, and no automated test calls a model.
 
 ## Pointers
 
-- ADRs to rework in place: `docs/adr/policy-evaluation-precedes-process-replacement.md`
+- ADRs to rework in place: `docs/adr/policy-evaluation-precedes-the-launch.md`
+  (was `policy-evaluation-precedes-process-replacement`; supervision split out
+  into `docs/adr/dispatch-supervises-the-harness.md`)
   (its *Keep a supervisor after launching the harness* names this reopening),
   `docs/adr/the-launched-child-is-a-job.md`,
   `docs/adr/harness-selection-is-owned-by-policy.md` (its *Have the executable

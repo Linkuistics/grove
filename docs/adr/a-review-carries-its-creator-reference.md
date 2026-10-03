@@ -86,16 +86,17 @@ and review must use the same record store.
   grove in the same workspace. The lookup would read the stale provider and
   could admit a reviewer from the real creator's provider.
 - **Have the Grove runner supply the provider.** Grove runs the dispatcher and
-  reads nothing back from it. It could learn the provider only by persisting
-  launch receipts, which its review-target-diversity rule excludes.
+  reads nothing back from it but the run's ending. It could learn the provider
+  only by persisting launch receipts, which its review-target-diversity rule
+  excludes.
   Reopen only if Grove starts keeping a record of what it launched.
 - **Register creators explicitly with `creator bind` and `creator declare`.**
   Nothing produces the execution evidence that binding requires, so every
   unattended review stops for a human declaration (review
   `harness-selection-and-execution-k5`, finding F1).
 - **Write a `**Produced-by:**` line into the producer at retirement.**
-  Retirement would stop being a filename-only transition. `complete` runs after
-  the task's commit, which is too late to write.
+  Retirement would stop being a filename-only transition. The session's final
+  exit signal comes after the task's commit, which is too late to write.
 - **Write the provider name instead of the run ID**, or have a finishing session
   without a run declare its own provider. A transcribed name cannot be told
   apart from a declaration, so recorded provenance would lose its meaning, and

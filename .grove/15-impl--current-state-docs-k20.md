@@ -29,6 +29,11 @@ did not have to move them (P2):
 
 ## Context
 
+- `confined-run-k23`'s committed review, F6, points to decision 7 of
+  `docs/specs/module-decomposition.md`. Reconcile its runner API listing with
+  the shipped code as part of this document sweep; the integration leaf fixes
+  the book-structure ledger, leaving the full module contract to this leaf.
+
 - The spec's *Grove integration* closing paragraphs list what Grove's usage
   guide, the configure-grove skill and the dispatch README must explain, and
   each invocation they quote must be one `--help` carries or a suite makes.

@@ -52,6 +52,12 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+- Confined dispatch runs refuse ending reports reachable through writable
+  grants and probe native sandbox capability before selection. Pin report
+  integrity, hard-link denial, cancellation during publication and partial
+  publication through deterministic command tests; preserve the installed
+  v22 standalone signal guards during the cutover.
+
 - `grove run` launches through `harness-dispatch run --confine`, with a recorded
   run and isolated exit signal. Outputs publish only after an acknowledged,
   successful dispatch ending; selection and run cancellation stop the nested

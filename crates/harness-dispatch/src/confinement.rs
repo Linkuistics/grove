@@ -28,6 +28,7 @@ impl Confined {
     pub fn prepare(
         selection: &Prepared,
         exit_dir: Option<&Path>,
+        ending_file: Option<&Path>,
         runtime_read: &[PathBuf],
     ) -> Result<Self, Refusal> {
         let cwd = selection
@@ -77,6 +78,11 @@ impl Confined {
         if let Some(settings) = &selection.settings_path {
             protected.push(prospective(settings)?);
         }
+        // The caller consumes this supervisor-owned report as evidence. Its
+        // absent basename is already resolved beneath a canonical directory.
+        if let Some(ending_file) = ending_file {
+            protected.push(ending_file.to_owned());
+        }
         let system_reads = keyed_launch::confinement_system_reads()
             .iter()
             .map(|path| prospective(Path::new(path)))
@@ -87,7 +93,7 @@ impl Confined {
                     return Err(Refusal::new(
                         "confinement_overlap", Stage::Cli, EXIT_MALFORMED,
                         format!("confinement grant {} overlaps protected path {}; nothing was selected", grant.display(), protected.display()),
-                        "use a working directory and grants separate from the policy directory, owner settings and record state directory",
+                        "use a working directory and grants separate from the policy directory, owner settings, record state directory and ending file",
                     ).input("--confine"));
                 }
             }

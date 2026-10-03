@@ -124,7 +124,7 @@ lines = 1349
 [[root]]
 id    = "source-confinement"
 path  = "crates/keyed-launch/src/confinement.rs"
-lines = 301
+lines = 326
 
 [[block]]
 id    = "manifest-one-dependency"
@@ -190,7 +190,7 @@ lines = "1005-1349"
 id    = "confinement-policy"
 root  = "source-confinement"
 owner = "confined-jobs"
-lines = "1-301"
+lines = "1-326"
 
 [[early-use]]
 symbols   = "`Channel`, `Token`, `signal`"

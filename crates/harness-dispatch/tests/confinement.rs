@@ -31,7 +31,7 @@ fn protected_overlap_refuses_before_policy_evaluation_including_canonical_aliase
     ] {
         let sandbox = Sandbox::new();
         sandbox.settings(&json!({}));
-        policy(&sandbox, "'/bin/true'", "[]");
+        policy(&sandbox, "'/usr/bin/true'", "[]");
         let mut command = sandbox.command();
         command.args([
             "run",
@@ -93,7 +93,7 @@ fn protected_overlap_refuses_before_policy_evaluation_including_canonical_aliase
 #[test]
 fn unusable_runtime_grants_and_root_cwd_refuse_before_selection() {
     let sandbox = Sandbox::new();
-    policy(&sandbox, "'/bin/true'", "[]");
+    policy(&sandbox, "'/usr/bin/true'", "[]");
     for grant in [sandbox.cwd.clone(), sandbox.root.join("missing")] {
         let mut command = sandbox.command();
         command
@@ -151,10 +151,22 @@ fn runtime_reads_require_confinement() {
 }
 
 #[test]
+fn confinement_preflight_can_reap_under_an_ignored_sigchld() {
+    let sandbox = Sandbox::new();
+    policy(&sandbox, "'/usr/bin/true'", "[]");
+    let mut command = sandbox.command();
+    command.args(["run", "--kind", "impl", "--prompt", "p", "--confine"]);
+    support::probe::State::caller(&[libc::SIGCHLD], &[libc::SIGUSR1]).apply_to(&mut command);
+    let ended = run(&mut command);
+    assert_eq!(ended.code, Some(0), "{}", ended.stderr);
+    assert!(sandbox.root.join("selected").exists());
+}
+
+#[test]
 fn a_runtime_read_inside_a_writable_directory_still_denies_writes() {
     let sandbox = Sandbox::new();
     let credential = sandbox.file("credential", "original");
-    let body = "if (printf changed > credential) 2>/dev/null; then exit 41; fi; test \"$(cat credential)\" = original";
+    let body = "if (printf changed > credential) 2>/dev/null; then exit 41; fi; if ln credential alias 2>/dev/null; then if (printf changed > alias) 2>/dev/null; then exit 42; fi; fi; test \"$(cat credential)\" = original";
     policy(&sandbox, "'/bin/sh'", &json!(["-c", body]).to_string());
     let mut command = sandbox.command();
     command
@@ -174,9 +186,81 @@ fn a_runtime_read_inside_a_writable_directory_still_denies_writes() {
 }
 
 #[test]
+fn a_writable_ending_file_refuses_before_selection_including_aliases() {
+    for alias in [false, true] {
+        let sandbox = Sandbox::new();
+        policy(&sandbox, "'/usr/bin/true'", "[]");
+        let directory = if alias {
+            let path = sandbox.root.join("alias");
+            symlink(&sandbox.cwd, &path).unwrap();
+            path
+        } else {
+            sandbox.cwd.clone()
+        };
+        let mut command = sandbox.command();
+        command
+            .args([
+                "run",
+                "--kind",
+                "impl",
+                "--prompt",
+                "p",
+                "--confine",
+                "--json",
+                "--ending-file",
+            ])
+            .arg(directory.join("ending.json"));
+        let refusal = run(&mut command).refusal(2);
+        assert_eq!(refusal["error"]["code"], "confinement_overlap");
+        assert!(!sandbox.root.join("selected").exists());
+        assert!(!sandbox.default_store().exists());
+    }
+}
+
+#[cfg(target_os = "macos")]
+#[test]
+fn an_unusable_backend_refuses_before_selection_and_records_nothing() {
+    let sandbox = Sandbox::new();
+    policy(&sandbox, "'/usr/bin/true'", "[]");
+    let mut command = sandbox.command();
+    command.args([
+        "run",
+        "--kind",
+        "impl",
+        "--prompt",
+        "p",
+        "--confine",
+        "--json",
+    ]);
+    let mut outer = std::process::Command::new("/usr/bin/sandbox-exec");
+    outer
+        .args([
+            "-p",
+            "(version 1)(allow default)(deny system-mac-syscall (mac-policy-name \"Sandbox\"))",
+        ])
+        .arg(command.get_program())
+        .args(command.get_args())
+        .current_dir(command.get_current_dir().unwrap());
+    for (name, value) in command.get_envs() {
+        match value {
+            Some(value) => {
+                outer.env(name, value);
+            }
+            None => {
+                outer.env_remove(name);
+            }
+        }
+    }
+    let refusal = run(&mut outer).refusal(2);
+    assert_eq!(refusal["error"]["code"], "confinement_unusable");
+    assert!(!sandbox.root.join("selected").exists());
+    assert!(!sandbox.default_store().exists());
+}
+
+#[test]
 fn protected_owner_paths_cannot_live_under_implicit_system_runtime_grants() {
     let sandbox = Sandbox::new();
-    policy(&sandbox, "'/bin/true'", "[]");
+    policy(&sandbox, "'/usr/bin/true'", "[]");
     let mut command = sandbox.command();
     command.args([
         "run",
@@ -198,7 +282,7 @@ fn protected_owner_paths_cannot_live_under_implicit_system_runtime_grants() {
 fn a_native_runtime_filename_refuses_before_selection_rather_than_panicking_in_the_record() {
     use std::os::unix::ffi::OsStrExt as _;
     let sandbox = Sandbox::new();
-    policy(&sandbox, "'/bin/true'", "[]");
+    policy(&sandbox, "'/usr/bin/true'", "[]");
     let file = sandbox
         .root
         .join(std::ffi::OsStr::from_bytes(b"native-\xff"));

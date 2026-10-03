@@ -678,7 +678,7 @@ a boolean would have to fold into one of the other two.
 /// Answers whether the entry disposition was the ignore, so the spawn can hand
 /// the child the disposition it would have inherited. The repair is the
 /// launcher's, not the child's.
-fn restore_child_watching() -> bool {
+pub(crate) fn restore_child_watching() -> bool {
     let ignored = match SIGCHLD_IGNORED_AT_ENTRY.load(Ordering::Relaxed) {
         0 => {
             let ignored = disposition(libc::SIGCHLD) == libc::SIG_IGN;

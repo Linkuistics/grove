@@ -24,6 +24,22 @@ fn repo_root() -> PathBuf {
     support::repo_root()
 }
 
+#[test]
+fn installed_v22_standalone_authority_stops_at_cargo_and_helper_boundaries() {
+    assert_eq!(std::env::var("GROVE_RUN_SIGNAL_FILE").unwrap(), "");
+    let mut command = std::process::Command::new("/bin/sh");
+    command.env("GROVE_RUN_SIGNAL_FILE", "/inert-test-channel");
+    for name in support::grove_env_names() {
+        command.env_remove(name);
+    }
+    let output = command
+        .args(["-c", "printf '%s' \"${GROVE_RUN_SIGNAL_FILE-unset}\""])
+        .output()
+        .unwrap();
+    assert!(output.status.success());
+    assert_eq!(output.stdout, b"unset");
+}
+
 /// `.cargo/config.toml` force-clears `GROVE_SIGNAL_FILE` to an empty value for
 /// everything cargo runs — deliberately stronger than redirecting it to an inert
 /// path, since every nonempty value now carries session-epoch authority. If that

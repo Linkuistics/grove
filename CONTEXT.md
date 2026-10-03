@@ -394,6 +394,9 @@ boundary is softer since [[Skill delivery]] made the skills files rather than an
 embed — a symlinked install resolves to the checkout — but the binary's half is
 unchanged.
 _Avoid_: "nested grove" — that is `grove` launched from inside another grove's session (two drivers, two trees). A meta-grove is one grove whose *code under test* happens to be grove.
+During a live v22 cutover, cargo and test-helper guards retain both
+`GROVE_SIGNAL_FILE` and standalone's `GROVE_RUN_SIGNAL_FILE` beside the new
+dispatch exit and launch-directory names.
 _Avoid_: treating a meta-grove as self-hosting in the strong sense — it develops
 the next build's methodology while being driven by the last one's.
 

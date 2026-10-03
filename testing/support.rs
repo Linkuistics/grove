@@ -305,8 +305,9 @@ pub fn kind_labels() -> Vec<String> {
 /// cargo runs. The two guards are independent on purpose: that one covers tests
 /// which never touch these helpers, this one covers a test binary executed
 /// directly rather than through cargo. Neither subsumes the other.
-const LOOP_CONTROL_ENV: [&str; 4] = [
+const LOOP_CONTROL_ENV: [&str; 5] = [
     "GROVE_SIGNAL_FILE",
+    "GROVE_RUN_SIGNAL_FILE",
     "GROVE_LAUNCH_DIR",
     "HARNESS_DISPATCH_EXIT_FILE",
     "HARNESS_DISPATCH_RUN_ID",

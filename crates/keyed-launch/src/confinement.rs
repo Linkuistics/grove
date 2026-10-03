@@ -112,10 +112,35 @@ pub fn confinement_system_reads() -> &'static [&'static str] {
     &[]
 }
 
-/// Check native backend availability without starting a process. No fallback
-/// exists when the required system backend is missing.
+/// Establish an empty native sandbox around a system no-op before selection.
+/// Presence alone does not prove that the backend can apply its policy.
 pub fn confinement_available() -> Result<(), LaunchError> {
-    platform_command(&[], &[]).map(|_| ())
+    let mut command = platform_command(&[], &[])?;
+    command
+        .arg("/usr/bin/true")
+        .env_clear()
+        .current_dir("/")
+        .stdin(std::process::Stdio::null());
+    // An inherited ignored SIGCHLD would auto-reap the probe. Repair it only
+    // for this wait, then restore the caller's disposition, including on error.
+    let ignored = crate::run::restore_child_watching();
+    let output = command.output();
+    if ignored {
+        // SAFETY: restoring the disposition inspected before the probe.
+        unsafe {
+            libc::signal(libc::SIGCHLD, libc::SIG_IGN);
+        }
+    }
+    let output =
+        output.map_err(|error| LaunchError::new(format!("cannot probe confinement: {error}")))?;
+    if !output.status.success() {
+        return Err(LaunchError::new(format!(
+            "confinement backend could not establish the probe sandbox ({}): {}",
+            output.status,
+            String::from_utf8_lossy(&output.stderr).trim()
+        )));
+    }
+    Ok(())
 }
 
 pub(crate) fn command_with_grants(

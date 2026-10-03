@@ -898,7 +898,9 @@ them out of it. Before selection it compares canonical paths: a granted path —
 the cwd, the exit directory, the private run directory or a runtime read — that
 is a protected path, contains one or lies inside one refuses with exit 2, naming
 both. The protected paths are the directory holding the selected policy entry,
-the owner settings file and the state directory. The two executables are exempt,
+the owner settings file, the state directory and the canonical `--ending-file`
+path when supplied. The ending file must remain outside writable grants so
+the harness cannot supply the report its caller trusts. The two executables are exempt,
 since the harness must run them. Dispatch also checks the backend's implicit
 system-read grants against protected paths: owner data placed under a system
 runtime tree refuses rather than becoming readable through that tree. Runtime
@@ -912,9 +914,12 @@ terminal, and it starts in a POSIX session of its own with null stdin, writing
 to the front's stdout and stderr. Its `argv[0]` is the resolved path, because
 the sandbox launcher runs the path it is given.
 
-A missing confinement backend, an unusable grant, a cwd of `/` or a grant that
+A missing or unusable confinement backend, an unusable grant, a cwd of `/` or a grant that
 reaches a protected path refuses before selection, and failing to establish
-confinement launches nothing. The selected
+confinement launches nothing. Dispatch probes the backend by establishing an
+empty sandbox around `/usr/bin/true`, capturing diagnostics; a failed probe
+refuses as `confinement_unusable` without a run record. Preflight does not
+guarantee subsequent grant setup or exclude intervening resource changes. The selected
 harness's own permission flags cannot disable the outer boundary. The run
 record notes the confinement and its grants.
 [Standalone invocations](standalone-invocations.md) state what Grove builds on

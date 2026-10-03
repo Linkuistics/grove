@@ -14,7 +14,7 @@
 | `source-argv` | `crates/keyed-launch/src/argv.rs` | 64 |
 | `source-channel` | `crates/keyed-launch/src/channel.rs` | 505 |
 | `source-run` | `crates/keyed-launch/src/run.rs` | 1,349 |
-| `source-confinement` | `crates/keyed-launch/src/confinement.rs` | 301 |
+| `source-confinement` | `crates/keyed-launch/src/confinement.rs` | 326 |
 
 <!-- source-root «source-crate-manifest» source="crates/keyed-launch/Cargo.toml" lines="1-42" -->
 <!-- insert «manifest-one-dependency» -->
@@ -38,7 +38,7 @@
 <!-- insert «terminal-and-spawn» -->
 <!-- insert «supervise-and-escalate» -->
 <!-- /source-root -->
-<!-- source-root «source-confinement» source="crates/keyed-launch/src/confinement.rs" lines="1-301" -->
+<!-- source-root «source-confinement» source="crates/keyed-launch/src/confinement.rs" lines="1-326" -->
 <!-- insert «confinement-policy» -->
 <!-- /source-root -->
 
@@ -57,7 +57,7 @@
 | `watch-and-launcher-signals` | `source-run` | `the-launchers-job` | `203-391` | 189 | `resolved` |
 | `terminal-and-spawn` | `source-run` | `nothing-else-added` | `392-1004` | 613 | `resolved` |
 | `supervise-and-escalate` | `source-run` | `the-launchers-job` | `1005-1349` | 345 | `resolved` |
-| `confinement-policy` | `source-confinement` | `confined-jobs` | `1-301` | 301 | `resolved` |
+| `confinement-policy` | `source-confinement` | `confined-jobs` | `1-326` | 326 | `resolved` |
 
 <a id="fragment-index"></a>
 ## Fragment index
@@ -177,14 +177,14 @@
 | `run-watch-escalation` | `the-escalation` | `source-run` | `literal` | `the-launchers-job` | `1266-1294` | `supervise-and-escalate` | `—` |
 | `run-watch-end-the-group` | `the-escalation` | `source-run` | `literal` | `the-launchers-job` | `1295-1316` | `supervise-and-escalate` | `—` |
 | `run-kill` | `the-escalation` | `source-run` | `literal` | `the-launchers-job` | `1317-1349` | `supervise-and-escalate` | `—` |
-| `source-confinement` | `source-index` | `source-confinement` | `root` | `—` | `1-301` | `—` | `confinement-policy` |
+| `source-confinement` | `source-index` | `source-confinement` | `root` | `—` | `1-326` | `—` | `confinement-policy` |
 | `held-directory-read` | `confined-jobs` | `source-confinement` | `literal` | `confined-jobs` | `1-42` | `confinement-policy` | `—` |
-| `confinement-policy` | `confined-jobs` | `source-confinement` | `composite` | `confined-jobs` | `1-301` | `source-confinement` | `held-directory-read`, `confinement-contract`, `confinement-resource-resolution`, `confinement-macos`, `confinement-linux`, `confinement-unavailable` |
-| `confinement-contract` | `confined-jobs` | `source-confinement` | `literal` | `confined-jobs` | `43-154` | `confinement-policy` | `—` |
-| `confinement-resource-resolution` | `confined-jobs` | `source-confinement` | `literal` | `confined-jobs` | `155-177` | `confinement-policy` | `—` |
-| `confinement-macos` | `confined-jobs` | `source-confinement` | `literal` | `confined-jobs` | `178-253` | `confinement-policy` | `—` |
-| `confinement-linux` | `confined-jobs` | `source-confinement` | `literal` | `confined-jobs` | `254-295` | `confinement-policy` | `—` |
-| `confinement-unavailable` | `confined-jobs` | `source-confinement` | `literal` | `confined-jobs` | `296-301` | `confinement-policy` | `—` |
+| `confinement-policy` | `confined-jobs` | `source-confinement` | `composite` | `confined-jobs` | `1-326` | `source-confinement` | `held-directory-read`, `confinement-contract`, `confinement-resource-resolution`, `confinement-macos`, `confinement-linux`, `confinement-unavailable` |
+| `confinement-contract` | `confined-jobs` | `source-confinement` | `literal` | `confined-jobs` | `43-179` | `confinement-policy` | `—` |
+| `confinement-resource-resolution` | `confined-jobs` | `source-confinement` | `literal` | `confined-jobs` | `180-202` | `confinement-policy` | `—` |
+| `confinement-macos` | `confined-jobs` | `source-confinement` | `literal` | `confined-jobs` | `203-278` | `confinement-policy` | `—` |
+| `confinement-linux` | `confined-jobs` | `source-confinement` | `literal` | `confined-jobs` | `279-320` | `confinement-policy` | `—` |
+| `confinement-unavailable` | `confined-jobs` | `source-confinement` | `literal` | `confined-jobs` | `321-326` | `confinement-policy` | `—` |
 
 <a id="early-uses"></a>
 ## Early uses
@@ -201,7 +201,7 @@
 ## Owned source totals
 
 Every source line is credited once to its owning chapter. The 7 roots
-contain 2,365 lines, divided below by the manifest's ownership
+contain 2,394 lines, divided below by the manifest's ownership
 blocks. `channel.rs` and `run.rs` split across chapters; the remaining roots
 are owned whole.
 
@@ -213,5 +213,5 @@ are owned whole.
 | `the-launchers-job` | `04-the-escalation.md` | 534 |
 | `checked-without-meaning` | `05-how-checked.md` | 186 |
 | `assembly` | `06-what-ends-a-launch.md` | 0 |
-| `confined-jobs` | `07-confined-jobs.md` | 301 |
-| **Total** | 7 source roots | **2,369** |
+| `confined-jobs` | `07-confined-jobs.md` | 326 |
+| **Total** | 7 source roots | **2,394** |

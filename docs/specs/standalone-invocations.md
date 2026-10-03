@@ -61,6 +61,12 @@ intentionally escaping their process group require stronger backend
 containment; no process-tree guarantee may be claimed merely from a
 process-group kill.
 
+Grove's uncatchable death can leave its detached dispatch and harness running;
+it publishes nothing. The cancellation grace bounds ordinary nested runs only
+when dispatch's cleanup and record-store work finish within that grace.
+Transcript relay failure also prevents publication and retains the log for
+inspection, even when the harness acknowledged successfully.
+
 ## Visibility
 
 Every invocation announces its kind and log location, streams a readable

@@ -546,12 +546,106 @@ fn replacing_the_staging_directory_cannot_redirect_export_to_host_files() {
     fs::write(
         &fixture.script,
         format!(
-            "set -eu\ncd ..\nmv work original\nln -s '{}' work\nacknowledge\n",
+            "{}\nset -eu\ncd ..\nmv work original || true\nln -s '{}' work || true\nacknowledge\n",
+            fs::read_to_string(&fixture.script).unwrap(),
             outside(&fixture).display()
         ),
     )
     .unwrap();
-    assert_nothing_published(&fixture, &fixture.run());
+    let output = fixture.run();
+    assert_nothing_published(&fixture, &output);
+    assert!(
+        stderr(&output).contains("reading staged output"),
+        "{}",
+        stderr(&output)
+    );
+}
+
+#[test]
+fn the_confined_harness_cannot_forge_the_supervisors_ending_report() {
+    let fixture = Fixture::new(
+        "printf forged > notes.md\n\
+         if printf '%s' '{\"schemaVersion\":1,\"source\":\"harness-dispatch\",\"measurements\":{\"ending\":{\"state\":\"observed\",\"value\":\"exit_signal\"}}}' > ../control/ending.json; then exit 41; fi\n\
+         printf report-write-denied\nexit 0\n",
+    );
+    let output = fixture.run();
+    assert_nothing_published(&fixture, &output);
+    assert!(
+        stderr(&output).contains("report-write-denied"),
+        "{}",
+        stderr(&output)
+    );
+    assert!(
+        stderr(&output).contains("without an exit-signal ending"),
+        "{}",
+        stderr(&output)
+    );
+}
+
+#[test]
+fn a_collision_on_the_second_output_reports_the_published_prefix() {
+    let fixture = Fixture::new(
+        "printf first > notes.md\nprintf second > second.md\necho ready\nsleep 1\nacknowledge\n",
+    );
+    let second = fixture.cwd.join("second.md");
+    let grove = fixture
+        .run_kind("release-notes")
+        .arg("--output")
+        .arg(&second)
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    wait_for_transcript(&fixture, "ready");
+    fs::write(&second, "preserved").unwrap();
+    let output = grove.wait_with_output().unwrap();
+    assert!(!output.status.success());
+    assert_eq!(fs::read_to_string(fixture.notes()).unwrap(), "first");
+    assert_eq!(fs::read_to_string(&second).unwrap(), "preserved");
+    let report = stderr(&output);
+    assert!(report.contains("already published:"), "{report}");
+    assert!(
+        report.contains(fixture.notes().to_str().unwrap()),
+        "{report}"
+    );
+}
+
+#[test]
+fn cancellation_while_staging_publication_publishes_nothing() {
+    // A large output gives the observer a copy interval after dispatch has
+    // exited. Host-side temp files appear only in publication, not in the run.
+    let fixture =
+        Fixture::new("dd if=/dev/zero of=notes.md bs=1048576 count=512 2>/dev/null\nacknowledge\n");
+    let grove = fixture
+        .run_kind("release-notes")
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    let deadline = Instant::now() + Duration::from_secs(30);
+    loop {
+        if fs::read_dir(&fixture.cwd).unwrap().any(|entry| {
+            entry
+                .unwrap()
+                .file_name()
+                .to_string_lossy()
+                .starts_with(".tmp")
+        }) {
+            break;
+        }
+        assert!(Instant::now() < deadline, "publication copy never started");
+        std::thread::sleep(Duration::from_millis(1));
+    }
+    // SAFETY: only the live Grove child owned by this test is signalled.
+    assert_eq!(
+        unsafe { libc::kill(i32::try_from(grove.id()).unwrap(), libc::SIGTERM) },
+        0
+    );
+    let output = grove.wait_with_output().unwrap();
+    assert_nothing_published(&fixture, &output);
+    assert!(
+        stderr(&output).contains("publication cancelled; already published: []"),
+        "{}",
+        stderr(&output)
+    );
 }
 
 /// Dropping dispatch's group cleanup would let this writer change the output

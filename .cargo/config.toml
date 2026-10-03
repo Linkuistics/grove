@@ -29,6 +29,7 @@
 # an installed or `./target/debug/` binary directly, never through cargo.
 [env]
 GROVE_SIGNAL_FILE = { value = "", force = true }
+GROVE_RUN_SIGNAL_FILE = { value = "", force = true }
 # Dispatch exit authority must also stop at the cargo boundary.
 HARNESS_DISPATCH_EXIT_FILE = { value = "", force = true }
 GROVE_LAUNCH_DIR = { value = "", force = true }

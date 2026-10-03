@@ -76,6 +76,9 @@ enum Role {
     /// controls, never supported process configuration — which is why
     /// production names them only to scrub them from a configured session.
     InternalTestSeam,
+    /// Retired runtime authority retained only in cargo/helper guards while
+    /// this meta-grove is driven by installed v22 binaries.
+    RetiredControlGuard,
     /// Release scripting's own variables. Not Grove runtime configuration at
     /// all: these steer a shell script a human runs, not a session.
     ReleaseTooling,
@@ -94,6 +97,7 @@ enum Role {
 const ROLES: &[(&str, Role)] = &[
     ("GROVE_SIGNAL_FILE", Role::LoopControlChannel),
     ("GROVE_LAUNCH_DIR", Role::LoopControlChannel),
+    ("GROVE_RUN_SIGNAL_FILE", Role::RetiredControlGuard),
     ("GROVE_RELEASE_RUNTIME_READ", Role::ReleaseTooling),
     (
         "GROVE_DRIVER_LEASE_FORK_SENSITIVE_TEST",

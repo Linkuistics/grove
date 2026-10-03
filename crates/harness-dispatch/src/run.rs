@@ -147,6 +147,7 @@ fn attempt(args: &RunArgs) -> Result<ExitCode, Failure> {
             crate::confinement::Confined::prepare(
                 &prepared,
                 exit_dir.as_deref(),
+                ending_file.as_deref(),
                 &args.runtime_read,
             )
         })

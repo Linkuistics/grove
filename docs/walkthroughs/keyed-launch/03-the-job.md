@@ -1826,6 +1826,10 @@ high descriptor remains covered even after a caller lowers its limit. The
 pre-exec loop uses the resulting bound to mark inherited descriptors
 close-on-exec. Inspection failure refuses launch; callers must not concurrently
 change descriptor limits or signal dispositions during a noninteractive launch.
+The sweep's cost grows with the finite soft limit, even when most slots are
+empty; an unbounded limit refuses. Keeping the full range also covers
+descriptors opened while std prepares the child. This is an accepted launch
+cost, to reopen if supported Linux deployments show material latency.
 
 <!-- fragment «run-descriptor-bound» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="967-1004" parent="run-parent-group-and-supervise" -->
 ````rust

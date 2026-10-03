@@ -80,7 +80,7 @@ The following comparison states which boundary each entry point supplies.
 The policy implementation below supplies command construction and stable artifact
 reads; the job and watch chapters own spawning, cancellation and reaping.
 
-<!-- fragment «confinement-policy» owner="confined-jobs" source="crates/keyed-launch/src/confinement.rs" lines="1-301" parent="source-confinement" -->
+<!-- fragment «confinement-policy» owner="confined-jobs" source="crates/keyed-launch/src/confinement.rs" lines="1-326" parent="source-confinement" -->
 <!-- insert «held-directory-read» -->
 <!-- insert «confinement-contract» -->
 <!-- insert «confinement-resource-resolution» -->
@@ -159,14 +159,20 @@ backend starts and then refuses its setup, supervision instead returns an
 inspect that result before accepting outputs. Neither failure path retries
 without confinement.
 
-`FilesystemGrants` is the shared backend input. `confinement_available` checks
-the required system launcher without spawning it. `confinement_system_reads`
+`FilesystemGrants` is the shared backend input. `confinement_available` runs
+the required system launcher around `/usr/bin/true` with empty explicit grants,
+capturing its diagnostics. It temporarily repairs an ignored SIGCHLD for the
+wait and restores it afterwards; it leaves the caller's signal mask unchanged.
+Dispatch uses this probe before selection, so a backend denied permission to
+apply its sandbox refuses without evaluating policy or recording a run. The
+probe cannot guarantee subsequent grant setup or exclude intervening resource
+changes. `confinement_system_reads`
 is the same inventory the backends grant: a caller protecting policy, settings
 or state checks those implicit reads too. This runner knows no owner paths and
 performs no policy selection. Dispatch checks canonical overlap before its
 worker evaluates anything and refuses an owner resource beneath a system tree.
 
-<!-- fragment «confinement-contract» owner="confined-jobs" source="crates/keyed-launch/src/confinement.rs" lines="43-154" parent="confinement-policy" -->
+<!-- fragment «confinement-contract» owner="confined-jobs" source="crates/keyed-launch/src/confinement.rs" lines="43-179" parent="confinement-policy" -->
 ````rust
 }
 
@@ -240,10 +246,35 @@ pub fn confinement_system_reads() -> &'static [&'static str] {
     &[]
 }
 
-/// Check native backend availability without starting a process. No fallback
-/// exists when the required system backend is missing.
+/// Establish an empty native sandbox around a system no-op before selection.
+/// Presence alone does not prove that the backend can apply its policy.
 pub fn confinement_available() -> Result<(), LaunchError> {
-    platform_command(&[], &[]).map(|_| ())
+    let mut command = platform_command(&[], &[])?;
+    command
+        .arg("/usr/bin/true")
+        .env_clear()
+        .current_dir("/")
+        .stdin(std::process::Stdio::null());
+    // An inherited ignored SIGCHLD would auto-reap the probe. Repair it only
+    // for this wait, then restore the caller's disposition, including on error.
+    let ignored = crate::run::restore_child_watching();
+    let output = command.output();
+    if ignored {
+        // SAFETY: restoring the disposition inspected before the probe.
+        unsafe {
+            libc::signal(libc::SIGCHLD, libc::SIG_IGN);
+        }
+    }
+    let output =
+        output.map_err(|error| LaunchError::new(format!("cannot probe confinement: {error}")))?;
+    if !output.status.success() {
+        return Err(LaunchError::new(format!(
+            "confinement backend could not establish the probe sandbox ({}): {}",
+            output.status,
+            String::from_utf8_lossy(&output.stderr).trim()
+        )));
+    }
+    Ok(())
 }
 
 pub(crate) fn command_with_grants(
@@ -294,7 +325,7 @@ by whatever rule it trusts. The resolved executable becomes an explicit read
 grant; the caller still owns its argument vector. For the example, the
 credential and executable must resolve before any child is spawned.
 
-<!-- fragment «confinement-resource-resolution» owner="confined-jobs" source="crates/keyed-launch/src/confinement.rs" lines="155-177" parent="confinement-policy" -->
+<!-- fragment «confinement-resource-resolution» owner="confined-jobs" source="crates/keyed-launch/src/confinement.rs" lines="180-202" parent="confinement-policy" -->
 ````rust
 fn canonical(path: &Path) -> Result<PathBuf, LaunchError> {
     path.canonicalize().map_err(|error| {
@@ -340,7 +371,7 @@ outbound IP networking. The public CA certificate and trust services support
 TLS. These grants let a harness contact its service while preserving the
 example's filesystem boundary; network destinations are not restricted.
 
-<!-- fragment «confinement-macos» owner="confined-jobs" source="crates/keyed-launch/src/confinement.rs" lines="178-253" parent="confinement-policy" -->
+<!-- fragment «confinement-macos» owner="confined-jobs" source="crates/keyed-launch/src/confinement.rs" lines="203-278" parent="confinement-policy" -->
 ````rust
 #[cfg(target_os = "macos")]
 fn platform_command(roots: &[PathBuf], reads: &[PathBuf]) -> Result<Command, LaunchError> {
@@ -434,7 +465,7 @@ invocation bind remains writable. User, PID, IPC and UTS namespaces and
 die-with-parent behavior accompany the filesystem view;
 the outer runner already creates the POSIX session used by supervision.
 
-<!-- fragment «confinement-linux» owner="confined-jobs" source="crates/keyed-launch/src/confinement.rs" lines="254-295" parent="confinement-policy" -->
+<!-- fragment «confinement-linux» owner="confined-jobs" source="crates/keyed-launch/src/confinement.rs" lines="279-320" parent="confinement-policy" -->
 ````rust
 #[cfg(target_os = "linux")]
 fn platform_command(roots: &[PathBuf], reads: &[PathBuf]) -> Result<Command, LaunchError> {
@@ -489,7 +520,7 @@ native backend. This preserves the meaning of `run_confined_observed`: the calle
 mistake an unsupported environment for the confined result required before
 reading and exporting the example's output.
 
-<!-- fragment «confinement-unavailable» owner="confined-jobs" source="crates/keyed-launch/src/confinement.rs" lines="296-301" parent="confinement-policy" -->
+<!-- fragment «confinement-unavailable» owner="confined-jobs" source="crates/keyed-launch/src/confinement.rs" lines="321-326" parent="confinement-policy" -->
 ````rust
 #[cfg(not(any(target_os = "linux", target_os = "macos")))]
 fn platform_command(_: &[PathBuf], _: &[PathBuf]) -> Result<Command, LaunchError> {

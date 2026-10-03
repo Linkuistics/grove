@@ -267,6 +267,9 @@ display. After reap, Grove refuses a surviving dispatch group, cancellation,
 failed status, missing ending file or any ending other than observed
 `exit_signal`. Dispatch writes an ending only after its harness group is gone.
 The status file records either completed or failed, including selection refusal.
+Relay failure prevents publication too, retaining the log even for an
+acknowledged run. An uncatchable Grove death can orphan its detached dispatch
+and harness; that dead publisher exports nothing.
 
 <!-- fragment «standalone-supervision» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="170-245" parent="standalone-invocation" -->
 ````rust
@@ -298,7 +301,7 @@ The status file records either completed or failed, including selection refusal.
         // still be writing what would be published.
         if let Group::Present { pgid } = ended.group {
             bail!(
-                "members of the harness's process group {pgid} may have survived it; \
+                "members of the dispatch process group {pgid} may have survived it; \
                  outputs were not published"
             );
         }

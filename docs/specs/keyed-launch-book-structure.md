@@ -439,7 +439,7 @@ early-use ledger.
 | `Channel`, `Token`, `signal` | 1 | 2 | chapter 1's cast names the public surface |
 | `run`, `run_observed`, `LaunchEvent`, `Launch`, `Ended`, `End`, `Escalation` | 1 | 3 | the same |
 | `reraise`, `take_interrupt` | 1 | 4 | the same |
-| `run_noninteractive`, `run_confined`, `run_confined_observed`, `Confinement`, `FilesystemGrants`, `confinement_available`, `confinement_system_reads`, `regular_file_at` | 1 | 7 | the same |
+| `run_noninteractive`, `run_confined_observed`, `NoninteractiveLaunch`, `FilesystemGrants`, `confinement_available`, `confinement_system_reads`, `regular_file_at` | 1 | 7 | the same |
 | `install_termination_handler`, `INTERRUPTED_BY`, `supervise` | 3 | 4 | the spawn installs the handler, clears the latch and calls the supervisor |
 
 Chapter 1 names every public type before its owner explains it because

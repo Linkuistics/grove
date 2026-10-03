@@ -195,7 +195,7 @@ fn execute(args: Args, dispatch: &Path, logs: &Path) -> Result<()> {
         // still be writing what would be published.
         if let Group::Present { pgid } = ended.group {
             bail!(
-                "members of the harness's process group {pgid} may have survived it; \
+                "members of the dispatch process group {pgid} may have survived it; \
                  outputs were not published"
             );
         }

@@ -459,7 +459,7 @@ fn a_refusal_is_evaluated_once_and_never_retried() {
 /// its inputs to the ones the driver passes; here it is only required to be
 /// present.
 const EXAMPLE_FOR_GROVE: &str =
-    "  harness-dispatch run --kind=KIND --task-file=TASK_FILE --task-id=HANDLE --prompt=MANDATE\n";
+    "  harness-dispatch run --kind=KIND --task-file=TASK_FILE --task-id=HANDLE --prompt=MANDATE --exit-dir=LAUNCH_DIR --ending-file=ENDING_FILE\n";
 
 #[test]
 fn help_carries_independent_use_grove_and_refusal_recovery_examples() {

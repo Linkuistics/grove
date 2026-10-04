@@ -52,6 +52,12 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+- Reconcile the architecture, usage and dispatch guides, release probes, runner
+  contract and walkthrough structure briefs with supervised dispatch. Document
+  isolated standalone runs, exit signalling and recorded teardown; require
+  both run-mechanics flags in every quoted lifecycle launch. Keep the repository
+  finish instruction compatible with the installed v22 driver during cutover.
+
 - Check Grove command instructions across every shipped plugin, correct the doubt
   skill's retired completion command, and clarify when an unsignalled harness
   stops the loop. Pin teardown/interruption/survivor precedence, correct the
@@ -70,7 +76,8 @@ stood at the graft — a closed record, not part of the versioned sequence above
   abandoned launch directories without interpreting them.
 - `grove-llm record-teardown` records a completed teardown after `finish-commit`;
   the loop finishes on that record even when the harness exits on its own.
-  The legacy `complete` and `complete --done` remain available during the cutover.
+  The temporary legacy `complete` compatibility was removed by the later
+  signal-contract cutover before release.
 
 - Confined dispatch runs refuse ending reports reachable through writable
   grants and probe native sandbox capability before selection. Pin report

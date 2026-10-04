@@ -28,8 +28,12 @@ do not ask again for its individual steps.
    Use jj for commits and bookmark pushes wherever enabled; the documented
    cargo-release and release-tag operations are exceptions.
 5. Return to the original session workspace and run
-   `grove-llm complete --done` as the last action, only after the requested
-   integration and release have completed.
+   the ending commands specified by this session's launch prompt and kind
+   skill, as the last action, only after the requested integration and release
+   have completed. A launch under v22 ends with `grove-llm complete --done`;
+   a supervised-dispatch launch first runs `grove-llm record-teardown`, then
+   `harness-dispatch exit`. The installed driver and launch prompt decide which
+   contract this session must use, even if the release has installed new binaries.
 
 This project extends the finish skill's normal teardown-only scope: when the
 whole sequence is authorized, integration and release happen before its final
@@ -47,23 +51,21 @@ version is not bumped again.
 Use the installed binary — `grove-llm <verb> …` — or `./target/debug/grove-llm
 <verb> …`. Not `cargo run -p grove-llm --bin grove-llm -- <verb> …`.
 
-`.cargo/config.toml` force-clears `GROVE_SIGNAL_FILE` to an empty value for
-everything cargo runs. This repository is a **meta-grove**: its own test suite
-*is* the loop machinery, that suite is normally run from inside a live `grove do`
-session, and its fake harnesses write to `"$GROVE_SIGNAL_FILE"`. Authority to end
-a session is ambient — every descendant inherits the variable — so without the
-guard a `cargo test` kills the session it was typed into.
+`.cargo/config.toml` force-clears `GROVE_LAUNCH_DIR` and
+`HARNESS_DISPATCH_EXIT_FILE` for everything cargo runs. This repository is a
+**meta-grove**: its test suite runs inside a live session and inherits its
+authority. Without the guard a test could impersonate that session through
+Grove's epoch admission or end it through dispatch's exit channel. The guard
+also retains the retired `GROVE_SIGNAL_FILE` and `GROVE_RUN_SIGNAL_FILE` names
+while installed v22 binaries drive this cutover.
 
-The guard cannot tell a test from a verb, so it covers `cargo run` too, and the
-two failures it produces both look like success:
-
-- A cargo-launched `grove-llm complete` finds no channel, reports that there is
-  no `GROVE_SIGNAL_FILE` and that it is not running under the loop driver, and
-  signals nothing — while the driver that launched the session goes on waiting
-  for a file that will never appear. Exit code `0`.
-- A cargo-launched tree verb runs without the session-epoch admission that a
-  nonempty signal path carries, because there is no path left to admit against.
-  The verb still does its work.
+The guard covers `cargo run` too, so verbs launched through cargo lack that
+authority: a tree verb runs without session admission, `record-teardown`
+reports no launch directory and records nothing, and `harness-dispatch exit`
+reports no supervised run and signals nothing. Those last two no-ops exit 0.
+Under an installed v22 launch, a cargo-launched `grove-llm complete` likewise
+reports no channel and signals nothing. Invoke the binary directly, and use
+the version and ending contract named by the session's launch prompt.
 
 `.cargo/config.toml` carries the full reasoning, including why an empty value is
 deliberately stronger than an inert path.

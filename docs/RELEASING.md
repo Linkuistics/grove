@@ -126,8 +126,9 @@ The skill asks for a concise Markdown section body grounded in the supplied
 changes. `grove run` copies the input files (`SKILL.md`,
 `previous-changelog.md`, `current-unreleased.md`, `changes.txt`,
 `changes.diff` and the optional headless helper `codex-headless.sh`) into a
-private working directory and confines the harness with
-an OS sandbox. The harness follows the invocation's completion instructions and
+private working directory and launches `harness-dispatch run --confine`.
+Dispatch selects outside the OS sandbox, then confines and supervises the
+harness. The harness follows the invocation's completion instructions and
 produces `release-notes.md`; empty bodies and `##` headings fail before any
 changelog or `main` update.
 The task uses `--ui auto` to make the invocation visible. Its host build runs
@@ -489,12 +490,15 @@ work to budget for in the release window rather than discover after the fact.
 
 ```sh
 for t in ~/Development/*/.grove; do
-  ( cd "$(dirname "$t")" && env -u GROVE_SIGNAL_FILE ./path/to/new/grove-llm pick )
+  ( cd "$(dirname "$t")" && env -u GROVE_LAUNCH_DIR -u HARNESS_DISPATCH_EXIT_FILE -u GROVE_SIGNAL_FILE ./path/to/new/grove-llm pick )
 done
 ```
 
-`env -u GROVE_SIGNAL_FILE` matters: without it the probe inherits the calling
-session's signal channel. A session's own working-tree guard answers before the
+`env -u GROVE_LAUNCH_DIR -u HARNESS_DISPATCH_EXIT_FILE -u GROVE_SIGNAL_FILE`
+matters: without it the probe inherits the calling
+session's launch authority. The dispatch exit channel and the legacy v22
+channel are scrubbed too, so the same probe is safe during a live cutover.
+A session's own working-tree guard answers before the
 tree is ever looked at, which is the other way to keep the probe honest.
 
 This is not hypothetical. `v19.4.0` moved the filename grammar and refused four

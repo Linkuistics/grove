@@ -225,4 +225,4 @@ anchors = ["usage-running-grove", "usage-session-lifecycle"]
 
 [[glossary]]
 path    = "CONTEXT.md"
-anchors = ["loop-control-channel"]
+anchors = ["exit-signal", "loop-control-channel"]

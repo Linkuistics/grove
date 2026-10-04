@@ -13,7 +13,8 @@ Its commands:
 |---|---|
 | [`init`](#the-sample-policy) | Installs the sample policy as your personal default, when nothing is there. |
 | [`inspect`](#inspect) | Reports the command `select` returns, its labels and the file its program resolves to. It launches nothing. |
-| [`run`](#run) | Makes the same selection, commits a durable record of the handoff under a fresh run ID, and then replaces itself with the command. |
+| [`run`](#run) | Makes the same selection, commits a durable record of the handoff under a fresh run ID, then supervises the command as its child and records its ending. |
+| [`exit`](#ending-a-run) | Sends the exit signal for the supervised run this session runs under. |
 | [`record show`](#run-records) | Exports what a run recorded. |
 | [`record observe`](#observations) | Attaches later evidence to a run: whether the harness ran, how it went, and how its work was judged. |
 
@@ -333,7 +334,7 @@ in one optional JSON file beside your policy,
 | `policyEnv` | The names [granted to the policy](#the-policys-environment), an array | `--policy-env` adds to it |
 
 Every key is optional, and a missing file sets nothing. Every command but
-`init` reads the file before any policy runs, `record show` and
+`init` and `exit` reads the file before any policy runs, `record show` and
 `record observe` included,
 so they all find the same records. A flag replaces its setting for one
 invocation, and `--policy-env` adds names to the ones the file grants.
@@ -1331,7 +1332,7 @@ HUP, stays ignored and cannot cancel a selection. A signal the caller blocked
 stays blocked, and cannot cancel one either.
 
 `run` goes on handling INT, TERM and HUP after selection, while it records the
-run and announces it. Before it execs, it blocks them and looks once more. A
+run and announces it. Before it spawns, it blocks them and looks once more. A
 signal seen there launches nothing. The run is already recorded, so it is
 marked as never executed, and the refusal names it:
 
@@ -1352,11 +1353,10 @@ and the signal. If that mark cannot be appended, the refusal says
 `"launchFailure":"unrecorded"` and why, and the run stays a handoff attempt
 whose execution is unknown. It never becomes a success.
 
-One window remains. After that last look, harness-dispatch restores your
-signal mask and execs the harness. A signal delivered between the two ends
-harness-dispatch by its usual course, and the run stays recorded with its
-execution unknown. No program can exec atomically with respect to a signal
-that arrives later. A signal after the exec is the harness's.
+After that last look, the front keeps its handlers across spawn and
+supervision. A later signal cancels the supervised run; the spawned harness
+receives the caller's entry mask and ignored dispositions, but pending signals
+stay in the front. A typed Ctrl-C reaches the foreground harness group alone.
 
 ## The command
 
@@ -1552,13 +1552,13 @@ of the file itself. The worker neither reads nor writes that cache, so what
 runs is always the file inspection names. No value of yours replaces the
 setting, since `BUN_*` names are never granted.
 
-**Do not grant `GROVE_SIGNAL_FILE`.** Grove ends a session when a file appears
-at that path, so a policy holding it could end the session it is selecting for.
-harness-dispatch cannot tell a caller's completion variables from any other, so
-it does not refuse them. Without a grant, the policy and everything it starts
-lack them, and the harness alone receives them, in the caller's unchanged
-environment. The same holds for any credential: grant only what the policy
-itself uses.
+**Never grant `GROVE_LAUNCH_DIR`**, in `policyEnv` or with `--policy-env`. It
+is Grove's session-epoch authority: a policy holding it could mutate the task
+tree or record a teardown for the session it is selecting for. Dispatch cannot
+recognize a caller's authority variable among arbitrary names, so this name is
+not automatically refused. Without a grant, only the harness inherits it.
+Dispatch's own `HARNESS_DISPATCH_*` names, including its exit authority, are
+never granted to policy. Grant other credentials only when the policy uses them.
 
 Nothing ambient takes part otherwise. A `.env` file, a `bunfig.toml` preload,
 a `tsconfig.json` path alias, or a `node_modules/harness-dispatch` package
@@ -1587,32 +1587,68 @@ harness-dispatch run --kind impl --prompt 'Implement the parser'
 harness-dispatch run --kind impl --task-file ./tasks/parser.md --task-id T-12 --prompt-file ./mandate.md
 ```
 
-`run` makes the selection `inspect` reports. It then commits the run's handoff
-record, described [below](#run-records), and replaces its own process with the
-selected command. If the record cannot be committed, nothing is launched and `run`
-exits 4. The harness keeps the caller's current directory, descriptors,
-environment and process ID, so its exit code or signal is the command's own,
-even where the code coincides with one of harness-dispatch's refusal exits.
-It also keeps the caller's signal mask and every ignored signal, exactly as
-harness-dispatch inherited them: a `nohup` caller's HUP stays ignored, and a
-caller that ignored SIGPIPE, or left it at its default, hands the harness the
-same. A signal the caller blocked reaches the harness blocked, and still
-pending if it arrived meanwhile. Nothing supervises it afterwards. Its environment gains two variables, which
-replace any values the caller had:
+`run` makes the selection `inspect` reports. It commits the run's handoff
+record, described [below](#run-records), then spawns the selected command as
+its child and supervises it until it is reaped. If the record cannot be
+committed, nothing launches and `run` exits 4. The harness has a process group
+of its own and holds the terminal; dispatch takes it back with its modes
+restored. The harness inherits the caller's cwd, descriptors, environment,
+entry signal mask and ignored dispositions, including SIGPIPE. Blocked signals
+remain blocked; pending signals stay in dispatch rather than moving to a
+new child. No separate `exec` handoff verb is provided.
 
-- `HARNESS_DISPATCH_RUN_ID`, the run's ID. The policy never sees it, so a
-  harness that needs it reads it here.
-- `HARNESS_DISPATCH_STATE_DIR`, the absolute directory the run was recorded
-  in. `record show --state-dir "$HARNESS_DISPATCH_STATE_DIR"` finds the run
-  from inside the harness.
+Its environment gains three variables, replacing inherited values:
 
-Stdout and stdin are the harness's. On stderr, `run` prints whatever the policy
-printed, prefixed as in inspection, and then one line naming the command's
-labels, the run ID and the file it executes. With `--json`, that line is one
-JSON object instead, `{"schemaVersion":1,"handoff":{…},"diagnostics":{…}}`. Its
-`handoff` carries `runId`, `recordedAt`, `stateDir` and `kind` beside the
-`provider`, `model`, `effort` and `reason` as inspection reports them, and
-`executable`.
+- `HARNESS_DISPATCH_RUN_ID`, the fresh run ID. Policy never sees it.
+- `HARNESS_DISPATCH_STATE_DIR`, the absolute record directory, for
+  `record show --state-dir "$HARNESS_DISPATCH_STATE_DIR"`.
+- `HARNESS_DISPATCH_EXIT_FILE`, the fresh file whose appearance ends this
+  run. Policy never sees it and cannot be granted it.
+
+Stdout and stdin are the harness's. Stderr carries prefixed policy diagnostics,
+a line naming the labels, run ID and executable, and a line reporting the
+ending. With `--json`, the handoff notice is one object,
+`{"schemaVersion":1,"handoff":{…},"diagnostics":{…}}`; `handoff` carries
+`runId`, `recordedAt`, `stateDir`, `kind`, `provider`, `model`, `effort`,
+`reason` and `executable`. The ending is a separate JSON line.
+
+The run ends through the exit signal, the harness's own exit, or cancellation
+of dispatch. An exit signal starts a two-second grace, then SIGTERM to the
+harness's process group, then SIGKILL five seconds later if needed. INT, TERM
+or HUP sent to dispatch cancel with that signal; confined cancellation kills
+the harness group immediately. Whatever ends the harness, remaining members
+of its group are killed and its disappearance is checked. Dispatch reproduces
+the harness's own exit code or signal without an exit signal. An exit-signal
+ending returns 0 when escalation ended the harness or it exited successfully;
+a harness that signals then fails preserves its exit code or signal.
+Cancellation dies of the cancelling signal. A
+group that may have survived is a supervision failure, exit 5. If dispatch
+dies uncatchably, the harness may survive and its run stays as it stood.
+
+Run-only flags control those mechanics; they never reach `select`:
+
+| Flag | Effect |
+|---|---|
+| `--exit-dir DIR` | Allocate the exit file in this existing writable directory; otherwise use a private temporary directory. Name one the harness's own sandbox can write. |
+| `--ending-file FILE` | Write the end observation after the harness group is gone. The path must be absent and its parent must exist, checked before selection. |
+| `--confine` | Select outside confinement, then run a noninteractive harness inside mandatory native confinement. |
+| `--runtime-read FILE` | Repeatable read-only regular-file grant for a confined harness; requires `--confine`. |
+
+```sh
+harness-dispatch run --kind impl --exit-dir ./control --prompt 'Implement the parser'
+harness-dispatch run --kind impl --ending-file ./control/ending.json --prompt 'Implement the parser'
+harness-dispatch run --kind audit --confine --runtime-read ~/.config/agent/token --prompt-file ./mandate.md
+```
+
+With `--confine`, the harness starts in a new POSIX session with null stdin,
+inherited stdout/stderr and closed extra descriptors. Its environment contains
+only HOME, USER, LOGNAME, PATH, LANG, `LC_*`, private TMPDIR/TMP/TEMP and the
+three dispatch variables. Its cwd, private scratch and exit directory are
+writable; system runtime resources, both executables and explicit runtime
+files are readable. Canonical overlap with policy, settings or state paths
+refuses before selection, including implicit reads and aliases. macOS uses
+Seatbelt and Linux uses bubblewrap; unavailable confinement never falls back
+to an ordinary launch.
 
 If the operating system refuses to execute the resolved file, `run` reports
 `exec_failed` with the error and a remedy. That exits 127 when the file, or the
@@ -1625,68 +1661,92 @@ the append itself failed. An unrecorded failure leaves the run a handoff
 attempt whose execution is unknown, never a success. With `--json`, the error
 is a second JSON line after the handoff notice.
 
+<a id="ending-a-run"></a>
+## Ending a run
+
+A session ends its supervised run with this command as its last action:
+
+```sh
+harness-dispatch exit
+```
+
+`exit` takes no input and reads no policy, owner settings or record. It creates
+the file `HARNESS_DISPATCH_EXIT_FILE` names; an existing file is success. Its
+appearance is the whole signal, and dispatch applies the escalation above.
+A nested `run` publishes its own channel, so this ends only the run whose
+harness it runs under. Without that variable, or with it empty, it signals
+nothing, reports that it is outside a supervised run and exits 0. Failure to
+create the file exits 1 with the path and error.
+
 ## Called from Grove
 
-Grove has no launch configuration. It runs harness-dispatch itself for every
-session it launches, from the `harness-dispatch` installed beside its own
-executable, and your policy returns the harness command. For a lifecycle
-session Grove runs this, in the working-tree root, with values from the leaf it
-selected:
+Grove runs the dispatch installed beside it for every lifecycle session, in
+the working-tree root, with values from its selected leaf:
 
 ```text
-harness-dispatch run --kind=KIND --task-file=TASK_FILE --task-id=HANDLE --prompt=MANDATE
+harness-dispatch run --kind=KIND --task-file=TASK_FILE --task-id=HANDLE --prompt=MANDATE --exit-dir=LAUNCH_DIR --ending-file=ENDING_FILE
 ```
 
 | Passed as | Value |
 |---|---|
 | `--kind` | The leaf's kind |
-| `--task-file` | The absolute path of its task file |
+| `--task-file` | Its absolute task path |
 | `--task-id` | Its stable handle |
-| `--prompt` | The prompt Grove composed, unchanged. Your `select` receives it as `request.prompt` |
+| `--prompt` | Grove's unchanged mandate, received as `request.prompt` |
+| `--exit-dir` | This launch's private directory under `.jj/grove/` |
+| `--ending-file` | Its ending report |
 
-To harness-dispatch these are ordinary inputs, and it reads no Grove file or
-filename. Grove passes nothing else: no [parameter](#parameters), so
+The last two reach no policy. Grove passes no [parameter](#parameters), so
 `request.params` is empty, and no policy entry, bound, grant or record
-directory, which are your [owner settings](#owner-settings). The working-tree
-root is the location the prompt assumes, and `select` reads it as
-`request.cwd`. A policy that names the session, or grants a secondary jj
-workspace's harness its main repository, derives that from `request.cwd`, as
-the [sample](#the-sample-policy) does.
+directory: those are your [owner settings](#owner-settings). `request.cwd` is
+the session's location. A policy that grants a secondary jj workspace's
+harness its store derives that from the cwd's `.jj/repo`, as the
+[sample](#the-sample-policy) does. Session naming belongs to the methodology.
 
-`grove run KIND` selects through the same policy with `inspect`. The policy
-and the record store are outside what a confined harness may read, so Grove
-runs `harness-dispatch inspect --json` outside the sandbox, in its staged
-working directory, with the invocation's whole prompt and no parameter, and
-then launches the reported `executable` with the reported `args` inside it.
-Such an invocation has no task file and no task identity. It records no run,
-and its harness receives no run ID.
+Grove publishes `GROVE_LAUNCH_DIR` to dispatch, and the harness inherits it.
+It binds Grove's epoch admission and holds the teardown record; it is never
+granted to policy. Grove makes dispatch a foreground job, and dispatch makes
+the harness a separate foreground job, reclaiming the terminal in reverse
+order. Grove watches no exit channel and escalates no harness.
 
-**Your policy is evaluated only at launch.** Grove consults it for no tree
-verb and not when it scaffolds a grove, so a leaf of a kind your `select`
-refuses can be written, and refuses when it launches. Grove then reports the
-exit status, stops its loop and leaves the leaf live. Correct what the
-refusal's remedy names, and run `grove` again. A refused `grove run` reports
-the refusal's code, message and remedy and publishes nothing.
+An ordinary session retires and commits its task, then runs `harness-dispatch
+exit`. A finish that has torn the tree down first runs `grove-llm
+record-teardown`, then `harness-dispatch exit`. After reaping dispatch, Grove
+invalidates its epoch and reads the launch: its own TERM/HUP wins; otherwise
+teardown finishes, a surviving dispatch group stops the loop, an `exit_signal`
+ending relaunches, and any other ending or absent report stops. A teardown
+record finishes even after the harness's own exit. An interactive harness
+that returns to its prompt without the exit signal leaves the loop waiting.
 
-[The sample policy](#the-sample-policy) routes every kind Grove ships and the
-standalone `release-notes` kind.
-[`harness-dispatch/examples/grove-static`](#starter-examples) routes Grove's
-kinds over placeholder commands, and
-[`harness-dispatch/examples/grove-review`](#the-grove-review-policy) routes them
-the same way and applies the provider rule to Grove's reviews, reading each
-review's creator from its task file.
+`grove run KIND` stages its private directory and launches `harness-dispatch
+run --confine` there, with the whole prompt, runtime read grants and an ending
+file outside the sandbox. It passes no task file, task identity or parameter.
+Dispatch selects outside confinement, commits a run record, and gives the
+confined harness its own run ID and exit channel. Grove publishes outputs only
+on an `exit_signal` ending with dispatch exit 0 and no cancellation of its own.
 
-The harness receives Grove's completion channel, `GROVE_SIGNAL_FILE`, in the
-environment it inherits. The policy does not, and must not be granted it with
-`policyEnv` or `--policy-env`
-([the policy's environment](#the-policys-environment)).
+Policy is evaluated only at launch, never by tree verbs or scaffolding. A
+refused lifecycle launch stops the loop with its leaf live; correct the
+diagnostic's remedy and rerun `grove`. A refused standalone launch publishes
+nothing and retains dispatch's diagnostic in its transcript.
+
+The [sample](#the-sample-policy) routes the shipped Grove kinds and standalone
+`release-notes`. The [static example](#starter-examples) uses placeholder
+commands; the [review example](#the-grove-review-policy) also enforces its
+provider rule from the review's creator reference.
 
 ## Run records
 
-Every `run` records one **handoff attempt** before it execs. The record is
-durable intent, not evidence that the harness ran: a harness that exits 0 and
-one that is killed at once leave the same record. harness-dispatch records
-nothing after exec, because nothing of it is left to observe the harness.
+Every `run` records one **handoff attempt** before spawn. That initial record
+is durable intent rather than execution evidence. Once the harness is reaped,
+dispatch appends its own version-1 end observation with source
+`harness-dispatch`: execution confirmed, `ending` (`exit_signal`,
+`harness_exit` or `cancelled`), the harness's exit code or signal, and elapsed
+duration. With `--ending-file`, it writes the same observation there only
+after the harness's group is gone, before waiting on the record store. Failure
+to write either is reported without changing the ending or exit status.
+An uncatchable dispatch death leaves the attempt as it stood. A surviving
+harness group records the ending but supplies no ending file and exits 5.
 
 The records live in one SQLite file, `records.sqlite3`, in the state
 directory. That is `~/.local/state/harness-dispatch` unless the `stateDir`
@@ -1702,7 +1762,8 @@ commit. It is taken only after the policy has finished, so no
 policy ever runs with the store locked. A policy's run lookups only read it,
 each in a short transaction of its own. If another process holds the store,
 the commit waits at most 2 seconds, apart from the selection bound, and then
-refuses. The store names itself with a version. A store that another
+refuses. The store names itself with a version. Schema 2 adds run-ending measurements;
+a version-1 store is migrated transactionally without rewriting old records. A store that another
 application wrote, that a newer harness-dispatch wrote, or that SQLite finds
 corrupt refuses with exit 4. It is left exactly as it was: harness-dispatch
 never resets or replaces a store. A launch record or launch-failure detail
@@ -1732,7 +1793,8 @@ harness-dispatch record show --run "$HARNESS_DISPATCH_RUN_ID" --json
 harness-dispatch record show --run 5f0e2c41-9b7d-4a3e-8c15-2d6f7a9b0e34 --state-dir ./records
 ```
 
-`record show` exports one run, in text or as one version-1 JSON object:
+`record show` exports one run, in text or as one version-1 JSON object. This
+example is the initial attempt, before any end observation:
 
 ```json
 {
@@ -1752,15 +1814,15 @@ harness-dispatch record show --run 5f0e2c41-9b7d-4a3e-8c15-2d6f7a9b0e34 --state-
 ```
 
 `evidence` is `handoff_attempt`, with `execution` `unknown`, until something
-more is known. An exec failure appended to the run makes it `launch_failure`,
+more is known. A spawn failure appended to the run makes it `launch_failure`,
 with `execution` `not_executed`, and `launchFailure` holds the error, with the
-cause `exec_error`. A signal seen just before exec does the same, with the
+cause `exec_error`. A signal seen just before spawn does the same, with the
 cause `cancelled` and the signal
 ([interrupting a selection](#interrupting-a-selection)). An
 [observation](#observations) that confirms the harness ran makes it
-`execution_confirmed`, with `execution` `confirmed`. Every measurement, from
-exit and duration to acceptance and findings, is `unobserved` until an
-observation supplies it, and an absent measurement is never zero. The run ID
+`execution_confirmed`, with `execution` `confirmed`. Dispatch supplies execution, ending, exit and duration after reap. Other
+measurements, such as acceptance and findings, remain `unobserved` until an
+observation supplies them, and an absent measurement is never zero. The run ID
 must be exactly as reported, in lowercase. An unknown run refuses with exit 3,
 saying whether a store exists at the directory it looked in.
 
@@ -1779,9 +1841,9 @@ provider.
 
 ## Observations
 
-harness-dispatch cannot see what happens after it execs, so it never records
-an outcome. An observer can: a wrapper that saw the harness exit, a review that
-judged its work, a person who repaired it. It writes what it saw as one
+Dispatch observes the harness's execution and end, but cannot judge its work
+or infer usage. Outside observers supply that evidence: a review that judged
+the artifact, a person who repaired it, or a tool that read the harness's logs. It writes what it saw as one
 version-1 observation document, and imports it against the run:
 
 ```sh
@@ -1948,9 +2010,13 @@ inspection reads the store as `run` does.
 | 5 | `exec` | `signal_state_unavailable` (this build did not record its caller's signal state before the Rust runtime changed it, so `run` cannot hand that state on; nothing was evaluated) |
 | 124 | `evaluation` | `selection_timeout` (the selection bound ran out, a run lookup's lock wait included) |
 | 128 + N | `evaluation` | `selection_cancelled` (INT, TERM or HUP while selecting; the process then dies of that signal, which a shell reports as 130, 143 or 129: see [interrupting a selection](#interrupting-a-selection)) |
-| 128 + N | `exec` | `handoff_cancelled` (INT, TERM or HUP after the run was recorded and before exec; the run is marked not executed, and the process then dies of that signal) |
+| 128 + N | `exec` | `handoff_cancelled` (INT, TERM or HUP after the run was recorded and before spawn; the run is marked not executed, and the process then dies of that signal) |
 | 126 | `resolution`, `exec` | `program_unexecutable`; `exec_failed` for any exec error but `ENOENT` |
 | 127 | `resolution`, `exec` | `program_not_found`; `exec_failed` for `ENOENT` |
 
-Once the harness runs, its own exit status or signal is the command's, even
-where the code coincides with one of these.
+These are prelaunch refusals. After launch, an exit-signal ending returns 0
+when escalation ended the harness or it exited successfully; a natural failure
+after signalling preserves that failure. An unsignalled harness exit
+reproduces its status or signal, cancellation dies of the cancelling signal,
+and failed supervision returns 5. A harness exit code
+can coincide with a refusal code; the run's ending distinguishes them.

@@ -804,10 +804,11 @@ to `run`, which writes the error and returns exit 1 to main.
 ## The lifecycle behind the call
 
 One lifecycle iteration reads the tree, performs any required lifecycle
-transition, selects a leaf, prepares its session epoch and completion channel,
-runs `harness-dispatch` for that leaf and waits for the result.
-The completion signal decides whether to launch the next session or finish;
-an ending without that signal stops the loop. Those details belong to the
+transition, selects a leaf, prepares its session epoch and launch directory,
+runs `harness-dispatch` for that leaf and waits for its ending report.
+Grove's interruption wins; otherwise recorded teardown finishes, a surviving
+dispatch group stops, an exit-signal ending relaunches, and anything else stops.
+Dispatch owns the harness's exit channel and escalation. Those details belong to the
 loop walkthrough at `docs/walkthroughs/grove-loop/README.md`, whose public `run` is this
 chapter's boundary. No viewer action enters that loop.
 

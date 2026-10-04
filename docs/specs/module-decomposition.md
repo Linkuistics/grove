@@ -362,6 +362,8 @@ pub struct Launch<'a> {
     /// rarely what a launcher wants: it is wherever a human happened to be
     /// standing.
     pub cwd: Option<&'a Path>,
+    /// Pass the wrapper's captured entry signal mask and dispositions.
+    pub transparent: Option<&'a EntrySignals>,
     pub escalation: Escalation,
 }
 
@@ -372,19 +374,40 @@ pub fn run_observed(launch: Launch<'_>, observer: &mut dyn FnMut(LaunchEvent))
     -> Result<Ended, LaunchError>;
 /// A child in a new session, with no terminal or inherited input, whose output
 /// goes to a caller-owned regular file.
-pub fn run_noninteractive(launch: Launch<'_>, output: File) -> Result<Ended, LaunchError>;
+pub struct NoninteractiveLaunch<'a> {
+    pub argv: &'a Argv,
+    pub scrub: &'a [&'a OsStr],
+    pub cwd: Option<&'a Path>,
+    pub escalation: Escalation,
+}
+pub fn run_noninteractive(launch: NoninteractiveLaunch<'_>, output: File)
+    -> Result<Ended, LaunchError>;
 /// A child in a new session with no terminal and null stdin, writing to the
 /// launcher's own output, under mandatory filesystem confinement. The program
 /// is an absolute path, and any other is refused.
-pub struct Confinement<'a> { pub writable: &'a [PathBuf], pub runtime_read: &'a [PathBuf] }
-pub fn run_confined(launch: Launch<'_>, policy: &Confinement<'_>)
+pub struct FilesystemGrants<'a> { pub writable: &'a [PathBuf], pub runtime_read: &'a [PathBuf] }
+pub fn run_confined_observed(
+    launch: Launch<'_>, policy: &FilesystemGrants<'_>,
+    observer: &mut dyn FnMut(LaunchEvent),
+)
     -> Result<Ended, LaunchError>;
 /// Open one regular file in a directory held before untrusted work ran.
 pub fn regular_file_at(directory: &File, name: &OsStr) -> std::io::Result<File>;
 
 /// `signalled` is whether the exit channel existed once the child was reaped,
 /// so a child that signals and exits at once has still signalled.
-pub struct Ended { pub end: End, pub status: ExitStatus, pub elapsed: Duration, pub signalled: bool }
+pub struct Ended {
+    pub end: End, pub status: ExitStatus, pub elapsed: Duration,
+    pub signalled: bool, pub group: Group,
+}
+pub enum Group { Gone, Present { pgid: i32 } }
+/// A transparent wrapper captures ignored and blocked signals at entry.
+pub struct EntrySignals;
+impl EntrySignals {
+    pub fn new(ignored: impl IntoIterator<Item = i32>, blocked: impl IntoIterator<Item = i32>) -> Self;
+}
+pub fn confinement_available() -> Result<(), LaunchError>;
+pub fn confinement_system_reads() -> &'static [&'static str];
 /// `Interrupted` is the *launcher's* own process signalled during this launch.
 /// **The signal is carried rather than merely noted**, because a process that
 /// catches a termination signal, tidies up and exits 0 has told its parent it
@@ -411,8 +434,10 @@ pub struct LaunchError;
 ```
 
 The block states the surface this decision settles and is not an inventory of
-it: how a caller asks for its child to receive the caller's own entry signal
-state, below, is the implementation's to shape.
+it. The listing follows the shipped runner names: `NoninteractiveLaunch`
+carries no exit authority, `Launch::transparent` supplies entry signals,
+`FilesystemGrants` names confinement grants, and `Ended::group` reports
+confirmed cleanup. Callers inspect that group before acting on an ending.
 
 The runner spawns the argv directly, with no shell. The child's environment is
 the caller's, minus the scrubbed names, plus the granted values and, with a
@@ -440,16 +465,19 @@ ID; reaps it; and then, querying only, confirms within a bound that the group is
 gone, which only an answer of no such group confirms. A group still present is
 reported to the caller beside the child's status, so that nothing acts on the
 ending beside a survivor in the group. The launcher's own TERM or HUP cancels
-the launch, as does INT for a launch with no terminal: an interactive or
+the launch, as does INT for a launch with no terminal or a transparent wrapper
+that receives it directly: an interactive or
 noninteractive child's group is sent the same signal and, after the kill-grace,
 SIGKILL; a confined child's group is killed at once, so that a cancellation
 nested inside another supervisor's grace finishes inside it.
 
 Dispatch launches its harness interactively or confined, with a channel and its
 own constant graces. Grove launches dispatch interactively for a lifecycle
-session and noninteractively for `grove run`, with no channel and a kill-grace
-longer than dispatch's, because dispatch is itself a supervisor that needs that
-long to end its harness. A confined launch is specified in
+session and noninteractively for `grove run`, both with no channel. Lifecycle
+uses a 10-second kill-grace, longer than dispatch's because dispatch must end
+its interactive harness. Standalone uses five seconds: confined cancellation
+kills the harness group immediately, leaving time to reap and record its end.
+A confined launch is specified in
 [harness selection and execution](harness-selection-and-execution.md#confinement).
 
 Grove's 10-second kill-grace covers dispatch noticing cancellation at its

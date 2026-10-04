@@ -32,14 +32,14 @@ authoring tool.
 | `ordinal-fs-tree` | Domain-free ordered tree store | none |
 | `jj-workspace` | Domain-free workspace and commit seam | none |
 | `keyed-launch` | Domain-free command runner | none |
-| `harness-dispatch` | A separate command: harness selection by an owner's TypeScript policy, run records and the final exec | none |
+| `harness-dispatch` | A separate command: harness selection by an owner's TypeScript policy, run records and harness supervision | `keyed-launch` |
 | `book-validation` | Source-fragment and Markdown checks | none |
 
 Ratatui and Crossterm belong to the viewer. Neither the loop library nor the
 session binary depends on the terminal UI. Release archives contain `grove`,
 `grove-llm` and `harness-dispatch` with its compiled policy worker: the viewer
 is linked into the human executable. No Grove package depends on
-`harness-dispatch`, and it depends on none of them. Grove reaches it only as a
+`harness-dispatch`; dispatch shares only the domain-free `keyed-launch` runner. Grove reaches it only as a
 command it runs; `docs/ARCHITECTURE.md` places the package
 and states its boundary.
 

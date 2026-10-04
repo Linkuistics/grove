@@ -8,8 +8,8 @@ Grove adds only enough coordination to own one working tree, select one task,
 launch one agent session, and continue until the tree is complete.
 
 Grove does not know what it launches. It runs `harness-dispatch` for every
-session, the owner's policy there returns the command, and the harness replaces
-that process. Everything below is what remains once launch policy leaves the binary
+session; the owner's policy returns the command, and dispatch spawns and
+supervises the harness to its end. Everything below is what remains once launch policy leaves the binary
 — process ownership, a task-tree data model, and the loop that composes them —
 recorded as the decisions, the constraints and the measurements behind each.
 The description of what the system does at its entry point, how its two command
@@ -330,16 +330,16 @@ remedy on the terminal ([usage](USAGE.md#usage-refused-launch)).
 
 **`crates/keyed-launch` runs the command it is handed, and has never heard of a
 session.** It reads no configuration and resolves no name to a command. The
-crate allocates the launch's completion channel, spawns an argv directly with no
-shell, supervises the child and applies the kill escalation. Whatever ends the
-child, the crate kills what remains of its process group before reaping it,
-gives the terminal back in the modes it was lent in, and reports a group that
-survived beside the child's status, where the loop stops rather than relaunch
-and `grove run` publishes nothing. `Argv` is the only
-thing a spawn accepts, and a caller builds one with `Argv::new`: the loop hands
-it the `harness-dispatch run` invocation, and `grove run` hands it the command
-`harness-dispatch inspect` reported. Whatever was put into an `Argv` is what is
-spawned, each string one argument.
+crate spawns an argv directly with no shell and supervises the child as a job.
+Dispatch allocates a channel through it for the harness; Grove launches dispatch
+with no channel. A channel's appearance drives the harness escalation. Whatever
+ends a child, the crate kills what remains of its process group before reaping
+it, restores the terminal modes, and reports a surviving group beside the status.
+`Argv::new` preserves each string as one argument. Grove's lifecycle uses
+`run_observed(Launch, callback)` for dispatch's job and witness events; standalone
+uses channel-free `run_noninteractive(NoninteractiveLaunch, output)` for its
+transcript. Dispatch uses `run_observed` or `run_confined_observed` to supervise
+the selected harness. The runner selects no command and understands no session.
 
 The driver retains the selected task-root directory in a separate `TreeLifetime`
 pin, checked under the selection's tree guard. Finish materialization is followed
@@ -358,7 +358,7 @@ Drop releases both before driver ownership, including on unwind. Witness cleanup
 follows epoch invalidation and skips a still-owned launch; replacement cleanup
 also follows initial epoch handoff. Cleanup errors are diagnostic only. The
 optional version-1 mandate extension binds the selected key, handle and kind to
-the open tree/private identities and witness basename in that same nonce/signal
+the open tree/private identities and witness basename in that same nonce/launch-directory
 epoch. Text is hex encoded and all extension fields use the `observation-`
 namespace; mandatory admission ignores malformed or unsupported extensions,
 including invalid UTF-8 there. A mandatory epoch-write failure prevents spawn;
@@ -404,7 +404,7 @@ cases, frozen-source digests, commands and accepted review limitations.
 
 The runner also exposes `run_observed(Launch, callback)`. Its synchronous
 `LaunchEvent::Started` follows successful spawn; `Reaped` follows confirmed
-reap, including recovery from a wait error, before token reading and terminal
+reap, including recovery from a wait error, before exit-channel inspection and terminal
 recovery. Failed spawn emits neither event and unconfirmed reap emits no
 `Reaped`. Callbacks return unit and must return promptly without panicking;
 consumers handle observational failures internally. Ordinary `run(Launch)`
@@ -420,7 +420,7 @@ the binary altogether. Those choices are visible in the owner's policy instead.
 
 Two environment rules follow from that. Immediately before spawning the
 child, Grove clears its own loop-control variables and grants only
-this launch's `GROVE_SIGNAL_FILE`; everything else the caller had, including Git
+this launch's `GROVE_LAUNCH_DIR`; everything else the caller had, including Git
 repository selectors, is preserved for the harness. The policy worker is given
 a fresh environment instead ([below](#harness-dispatch)).
 Driver-internal VCS children follow the opposite rule — they scrub both the loop
@@ -431,66 +431,54 @@ teardown commit.
 <a id="harness-dispatch"></a>
 ## The harness-dispatch package
 
-`crates/harness-dispatch` is a second product of this workspace and no part of
-Grove. It passes what its caller gave it to the `select` function of an owner's
-TypeScript policy, records the handoff, and replaces itself with the command
-that function returns. A caller needs no Grove to use it. Its
-contract is the [area specification](specs/harness-selection-and-execution.md),
-and what an owner writes and runs is
-[its README](../crates/harness-dispatch/README.md)'s. This section places the
-package and states its boundary, which
-[harness selection is owned by policy](adr/harness-selection-is-owned-by-policy.md)
-decides.
+`crates/harness-dispatch` is a second product of this workspace, independent
+of Grove. It passes the caller's inputs to an owner's TypeScript `select`,
+records the handoff, spawns the selected harness, supervises it to reap, and
+records and reports its ending. The [area specification](specs/harness-selection-and-execution.md)
+owns the contract and [its README](../crates/harness-dispatch/README.md) owns
+what an owner writes and runs. [Policy ownership](adr/harness-selection-is-owned-by-policy.md)
+and [supervision](adr/dispatch-supervises-the-harness.md) state the boundaries.
 
-**Grove runs it for every session, and still does not know what it launches.**
-The loop builds one `harness-dispatch run` invocation for the leaf it selected:
-the kind, the task file's path, the handle and the unchanged mandate, and the
-session name and the two roots as named parameters. `grove run` builds one
-`harness-dispatch inspect --json` invocation instead and hands the reported
-file and arguments to the runner, because the policy and the record store are
-outside what a confined process may read. Grove passes no policy entry, bound,
-grant or record directory: those are the owner's settings. Nothing is checked
-before a launch. A kind the policy does not route is refused when its leaf
-launches, which can stop an unattended run on a leaf already written, and is
-the accepted cost of one place to decide.
+**Grove runs it for every session and still does not know the selected command.**
+A lifecycle invocation carries the kind, absolute task path, handle, unchanged
+mandate, launch directory as `--exit-dir`, and ending report as `--ending-file`.
+It runs in the working-tree root. `grove run` stages its own directory, then
+launches `harness-dispatch run --confine` there with the prompt, runtime reads
+and an ending file outside the sandbox. Grove passes no selection parameter,
+policy entry, bound, environment grant or record directory: those are owner
+settings. Selection is evaluated only at launch; a refused kind leaves its
+leaf live or its standalone outputs unpublished.
 
 The dependency runs one way:
 
 | Side | Rule | Why |
 |---|---|---|
-| What the package depends on | Third-party crates, SQLite compiled into the front, and its compiled policy worker, which the front finds relative to its own real path | An installation needs no system Bun, Node, SQLite or database service, and nothing ambient can substitute another worker |
-| What the package must not depend on | Any other crate of this workspace; the task-tree grammar, a Grove filename or jj; in its core, a list of review kinds or the `**Reviews:**` and `**Creator:**` grammar | Grove is one caller among many, and supplies its kind, task and prompt as data. A review rule is an owner's policy, not the command's |
-| What Grove depends on | The installed executable, by its command line and the `command` object of its inspection report. No crate of Grove's links the package | Whatever Grove needs is a capability any caller can use |
-| What Grove must not hold | Launch configuration of its own; any record of how a producer ran | One place decides what runs, and Grove allocates and stores nothing for dispatch |
+| What dispatch depends on | Third-party crates, built-in SQLite, the matching compiled policy worker, and domain-free `keyed-launch` | No system Bun, Node, SQLite service or Grove package is required |
+| What dispatch must not depend on | Grove crates, task-tree grammar or jj; in its core, review-kind or creator-reference grammar | Grove supplies kind, task and prompt as data; a review rule is owner policy |
+| What Grove depends on | The installed command line and the run-ending observation file; no Grove crate links dispatch | Grove reads no selected command, labels or run record |
+| What Grove must not hold | Launch configuration or producer execution records | Policy owns selection and dispatch owns run records |
 
-What crosses the boundary is data, in four places:
+What crosses the boundary:
 
-- **Arguments.** Grove passes the kind, the task file's path, the handle and the
-  unchanged prompt, each as one argument, and no parameter. The session's
-  location is the directory the front runs in, which the policy reads as its
-  `cwd`. The front parses no prompt and no filename.
-- **Environment.** The harness inherits the environment Grove gave the front,
-  this launch's `GROVE_SIGNAL_FILE` included, plus `HARNESS_DISPATCH_RUN_ID`
-  and `HARNESS_DISPATCH_STATE_DIR`. The policy worker is given a fresh
-  environment instead. It never holds the two dispatch variables, and it holds
-  the completion channel only if the owner grants that name in the owner
-  settings or with `--policy-env`, which Grove never passes and the documents
-  warn against. So selection has no authority to end a session unless its
-  owner hands it over.
-- **The process.** The front `exec`s the harness, so the harness is the process
-  Grove spawned: its PID, process group, terminal and working directory are the
-  ones [process ownership](#process-ownership) supervises
-  ([the launched child is a job](adr/the-launched-child-is-a-job.md)). Selection
-  runs first, in a worker the front starts and reaps
-  ([policy evaluation precedes the launch](adr/policy-evaluation-precedes-the-launch.md)).
-  A confined standalone invocation is the exception: Grove's runner spawns the
-  file inspection reported, and dispatch launches nothing there.
-- **The task file.** A review leaf's `**Reviews:**` and `**Creator:**` lines are
-  written by sessions, as the methodology directs, and read by a policy import.
-  Grove's code writes and reads neither
-  ([a review carries its creator reference](adr/a-review-carries-its-creator-reference.md)).
-  The methodology names one thing of dispatch's, the `HARNESS_DISPATCH_RUN_ID`
-  variable a finishing session reads, which is why the two ship in one release.
+- **Arguments.** The policy receives kind, task path, handle and unchanged
+  prompt, with the session location as `cwd` and empty `params`. Exit-directory
+  and ending-file flags are mechanics and reach no policy.
+- **Environment.** A lifecycle harness inherits `GROVE_LAUNCH_DIR` through
+  dispatch. Dispatch replaces inherited run ID, state directory and exit
+  channel with its own `HARNESS_DISPATCH_*` values. Policy has a fresh,
+  explicitly granted environment, never dispatch authority; owners must never
+  grant Grove's launch directory. A confined harness has the documented
+  minimal environment and no enclosing Grove authority.
+- **Process ownership.** Grove makes dispatch a foreground job; dispatch
+  makes the harness another foreground job. Each supervisor reaps its own
+  child and restores the terminal in reverse order. Dispatch alone watches
+  the exit channel, escalates the harness and applies confinement. Grove
+  forwards cancellation to dispatch and reads the ending after reap.
+- **The task file.** Sessions write review `**Reviews:**` and `**Creator:**`
+  lines and policy imports read them. Grove code reads and writes neither
+  ([creator references](adr/a-review-carries-its-creator-reference.md)).
+  Methodology uses only the harness's own `HARNESS_DISPATCH_RUN_ID` to name
+  its creator, which is why skills and binaries ship together.
 
 **The Grove adapter is the one piece of the package that knows a Grove
 convention.** `harness-dispatch/grove` reads those two lines from the task file
@@ -503,9 +491,10 @@ so that it always matches the SDK embedded there. An extraction can move it to
 Grove's side instead, which also takes it, and the Grove review example that
 composes it, out of the host's embedded set.
 
-**An extraction moves one directory of code.** `crates/harness-dispatch` holds the Rust
+**An extraction moves dispatch and its domain-free runner.** `crates/harness-dispatch` holds the Rust
 front, and under `worker/` the policy host, the SDK, the adapter, the examples
-and their type-check fixtures. It holds `scripts/dispatch.sh`, which owns the
+and their type-check fixtures. `crates/keyed-launch` moves with it, while
+Grove continues to depend on that runner from its new home. Dispatch holds `scripts/dispatch.sh`, which owns the
 worker's build, type check, probe builds and installation, and
 `scripts/installed-smoke.sh`, the installed-layout cases. It holds the notices
 an archive carries, and a test suite whose support code is its own. The rest
@@ -517,7 +506,7 @@ is what refers to that directory from outside it:
   the archive manifest and the formula, and run the installed smoke test;
 - Grove's launch code and its launch-boundary tests, which run the front
   beside Grove's own executable and would need an installed one;
-- the specification, the three decisions and the design directory, which live
+- the specification, the decisions and the design directory, which live
   under `docs/` while the package lives here and would move with it.
 
 The package takes the workspace version and ships inside Grove's cut, and its
@@ -560,31 +549,28 @@ second driver fails immediately rather than queueing, because two drivers would
 issue two mandates for one task. Every descriptor is close-on-exec, so the
 launched command cannot pass ownership to a descendant.
 
-The same control directory holds one **session epoch** file binding the driver's
-fresh 128-bit OS-random nonce, the working-tree identity, and the current signal
-path. The driver rewrites it under a separately scoped exclusive guard at three
-points: inactive right after acquiring the lease, active right before each
-spawn, and inactive right after reaping the child and before interpreting its
-signal. Each launch draws an independent 128-bit random `signal-*` name in the
-same directory; allocation picks an absent name but creates no file, so a failed
-spawn leaves nothing to clean up.
+The same control directory holds a **session epoch** binding the driver's
+fresh 128-bit OS-random nonce, working-tree identity and current launch
+directory. Each launch creates an owner-only `launch-*` directory with an
+independent random suffix. Dispatch allocates its exit file there, writes the
+ending report there, and a finish session records teardown there. The driver
+rewrites the epoch under a scoped exclusive guard: inactive after lease
+acquisition, active before spawn, inactive after reap and before reading the
+ending or teardown. Active epochs require `launch-dir-hex`; legacy signal-path
+records grant no admission. The driver removes the interpreted launch directory;
+a replacement invalidates the predecessor epoch and removes abandoned ones unread.
 
-An ambient agent-side `grove-llm` operation — one running with
-`GROVE_SIGNAL_FILE` set — takes a *shared* epoch guard, verifies the exact
-signal path, nonce, and worktree, and probes lease liveness with a separate
-nonblocking exclusive attempt on its own descriptor. Holding that shared guard
-through the whole operation is what closes the probe's race: a replacement
-driver cannot install the next epoch until an already-admitted operation
-returns. Each of the four epoch acquisitions — driver, pre-spawn, post-reap, and
-ambient — tries without blocking, prints one diagnostic on contention, then
-waits a fixed internal 30-second handoff bound; a timeout does no tree access
-and no epoch rewrite, so an orphan that outlives its parent makes the driver
-stop `blocked` rather than silently park. The runner kills the session's
-process group at every ending, not only on the escalation, so an ambient command
-the session itself launched is reaped with it and only a process outside that
-group can still hold the guard
-([the launched child is a job](./adr/the-launched-child-is-a-job.md)). Manual `grove-llm` commands with no
-loop-control context keep their ordinary behavior.
+An ambient `grove-llm` operation with `GROVE_LAUNCH_DIR` takes a shared
+epoch guard, checks the exact launch path, nonce and worktree, and probes lease
+liveness through a separate nonblocking exclusive attempt. It retains the shared
+guard throughout the operation, so a replacement cannot install the next epoch
+until admitted work returns. Each epoch acquisition first tries without blocking,
+emits one diagnostic on contention, and waits a fixed internal 30-second bound.
+Timeout performs no tree access or epoch rewrite and stops the driver `blocked`.
+Dispatch kills the harness group at every ending; Grove cleans up dispatch's
+group. Commands outside those groups, or a harness orphaned by dispatch's death,
+can still retain a guard. Manual commands without launch context keep ordinary
+behavior ([job ownership](adr/the-launched-child-is-a-job.md)).
 
 The lock order is fixed: lease, then a scoped exclusive epoch guard, released
 before any task-tree operation; an ambient `grove-llm` command takes its shared
@@ -792,7 +778,7 @@ they reach need a tree at the edge of the keyspace or the ordinal space.
 | `root-init` | `Vacancy::initialize` — the root, its charter and the first leaf as one operation under the lock that found the vacancy | **none** — the root is not an entry and the level is empty. `lifecycle-k35` transcribed this row against `append` and it was **right**; `root-lifecycle-belongs-to-the-store` moved the creation without moving the answer |
 | `materialize-finish` (the driver's, not an operator verb) | `append` at the root level | `KeysExhausted`, `OrdinalsExhausted` — the same two `leaf-add` reaches, and from no argument at all, because the verb takes none |
 | `finish-commit` | `WriteGuard::delete` — it selects off the guard's snapshot, then consumes that guard to remove the root | **none**. `delete` refuses a root spelled through a link, which this verb has already refused unfollowed for its own reason (below), and reports the paths that went |
-| `complete` | none — it touches no tree | **none** |
+| `record-teardown` | none — it checks tree absence and writes only in the launch directory | **none** |
 
 #### Which refusals Grove's verbs can reach
 
@@ -1342,15 +1328,20 @@ missing tree used to be a finished one: a teardown commit proves that Grove
 deleted an earlier tree but not whether the present invocation means "recover
 that" or "start another".
 
-**Ending a session is the launcher's job**, because the launcher is the session's
-parent, outside whatever sandbox the session runs under; an in-agent self-kill is
-silently denied by sandboxes such as Codex's Seatbelt.
+**Dispatch ends the harness run**, outside the session's own sandbox. A
+session retires and commits its task, then sends `harness-dispatch exit`; the
+file's appearance starts dispatch's grace → TERM → kill-grace → KILL. Grove
+watches no channel. It waits for dispatch, invalidates the epoch, and reads the
+ending and Grove's separate teardown record.
 
-The session commits its artifact and terminal task-tree mutation before
-signalling. **A session that exits without signalling stops the loop**, and the
-driver does not infer `done` even if that child successfully committed teardown:
-the filesystem and VCS already say what completed, and a later `grove` continues
-from there.
+The outcome uses first-match precedence: Grove's own TERM/HUP interrupts; a
+teardown record finishes; a surviving dispatch group stops; an `exit_signal`
+ending relaunches; anything else stops. A teardown record finishes even if the
+harness exited on its own, so task-root absence is never used as a substitute
+for that record. Dispatch reports a surviving harness group as a supervision
+failure without an ending file. An interactive harness that returns to its
+prompt without signalling leaves dispatch watching and Grove waiting until
+the harness ends.
 
 <a id="legacy-migration"></a>
 <a id="no-migration"></a>
@@ -1385,8 +1376,9 @@ the CLI has two explicit authority boundaries:
   confirmation before the agent marks it `ABANDONED`.
 - Deleting the completed `.grove/` tree is the one routine finish confirmation.
 
-**Finishing happens inside a real, resumable session**: declining or exiting
-writes no signal and leaves the finish leaf for a later `grove`. No commit is
+**Finishing happens inside a real, resumable session**: declining before
+teardown leaves the finish leaf for a later `grove`. A completed teardown is
+recorded with `grove-llm record-teardown` before the final `harness-dispatch exit`. No commit is
 made *for* that leaf and it is never retired — its addition and deletion cancel
 in the focused finish commit. `finish-commit` cannot attest that a human spoke
 through an opaque command; it is the deterministic last-moment tree and VCS
@@ -1454,7 +1446,8 @@ speaks to the version control system is spawned inside the crate and no call sit
 can be written without the `GIT_*` scrub it applies. Grove's own session-ending
 authority is the complementary half and stays grove's: it names what `GROVE_*`
 carries, which `jj` does not read, and the one spawn allowed to *grant* that
-channel cannot be written without first removing whatever it inherited.
+launch directory cannot be granted without first removing inherited control
+authority.
 
 **Moves are not commits.** Every entry a flipped verb moves is renamed by
 `ordinal-fs-tree`, which does `rename(2)`, detects no repository and requires no
@@ -1773,8 +1766,8 @@ every `grove-loop` module — is the overview's
 [*What the call reaches*](walkthroughs/overview/05-what-the-call-reaches.md#the-package-map),
 from its package map onward.
 
-That map lists `harness-dispatch` with no workspace dependency, and no
-walkthrough book covers its source. The package's place and boundary are
+That map lists `harness-dispatch` with its domain-free `keyed-launch`
+dependency; no walkthrough book covers dispatch's own source. The package's place and boundary are
 [its own section](#harness-dispatch) above, and its internals are described by
 its module comments, [its README](../crates/harness-dispatch/README.md) and the
 [area specification](specs/harness-selection-and-execution.md).

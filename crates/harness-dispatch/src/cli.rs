@@ -6,8 +6,8 @@
 //! parameters and context document, the selection and context bounds, the
 //! record directory and the worker's environment grants. The last four are
 //! also owner settings (`settings`), which a flag replaces or adds to. `run`
-//! alone takes `--exit-dir` and `--ending-file`, which are about the run rather than the
-//! selection.
+//! alone takes `--exit-dir`, `--ending-file`, `--confine` and `--runtime-read`,
+//! which are about the run rather than selection.
 //! `init` and `exit` take no input. `record show` exports a recorded run, and
 //! `record observe` appends a later observation to one.
 
@@ -33,8 +33,8 @@ use crate::refusal::{Invocation, Refusal, Stage, EXIT_MALFORMED};
         Nothing else is needed: no task tree, Grove installation or other caller. With no \
         policy, inspect and run refuse; init installs a sample policy as the personal default, \
         and nothing else ever writes one.\n\n\
-        Owner settings in ~/.config/harness-dispatch/settings.json apply to every invocation \
-        with no flag passed: timeoutMs, contextBytes, stateDir (an absolute path) and policyEnv \
+        Owner settings in ~/.config/harness-dispatch/settings.json apply to inspect, run and \
+        record with no flag passed: timeoutMs, contextBytes, stateDir (an absolute path) and policyEnv \
         (an array of names). A flag replaces its setting, and --policy-env adds to policyEnv. \
         inspect reports where each value came from.",
     after_help = "Examples:\n  \
@@ -49,13 +49,14 @@ use crate::refusal::{Invocation, Refusal, Stage, EXIT_MALFORMED};
         working-tree root, with values from the leaf it launches. Grove has no launch \
         configuration: your policy returns the harness command, and is evaluated only at \
         launch:\n  \
-        harness-dispatch run --kind=KIND --task-file=TASK_FILE --task-id=HANDLE --prompt=MANDATE\n\n\
+        harness-dispatch run --kind=KIND --task-file=TASK_FILE --task-id=HANDLE --prompt=MANDATE --exit-dir=LAUNCH_DIR --ending-file=ENDING_FILE\n\n\
         Exit results before the harness runs: 2 malformed command line; 3 refused by the \
         policy, the selection or its inputs; 4 run record failure; 5 worker or protocol failure; \
         124 selection timeout; 126 program not executable; 127 program not found. Once the \
         harness runs, run reports how it ended: its own exit status or signal when it ended \
-        without the exit signal, 0 when the exit signal ended it, death by the signal that \
-        cancelled it, and 5 when members of its process group survived it.\n\n\
+        without the exit signal, 0 when the exit signal's escalation ended it or it exited \
+        0 after signalling (a natural failure after signalling stays a failure), death by the \
+        signal that cancelled it, and 5 when members of its process group survived it.\n\n\
         A refusal launches nothing and nothing is run in its place. Nothing is retried, \
         paged or confirmed interactively. A refused run prints the equivalent inspect \
         invocation, without the prompt: run it to see the same selection without launching. A \
@@ -105,13 +106,14 @@ pub enum Command {
         seconds after that SIGKILL. INT, TERM or HUP sent to this process cancel the run the \
         same way, with that signal; a confined run's group is killed immediately. Whatever ends the harness, what remains of its group is \
         killed. The exit status is the harness's own exit code or signal when it ended \
-        without the exit signal; 0 when the exit signal ended it or it exited 0 after \
-        sending it; death by the cancelling signal; and 5 when members of its group may \
+        without the exit signal; 0 when escalation ended it or it exited 0 after \
+        sending the exit signal; a natural failure after signalling preserves its status; \
+        death by the cancelling signal; and 5 when members of its group may \
         have survived it.\n\n\
-        Once the harness is reaped, run appends dispatch's own observation of the run's end to \
-        the record store (source harness-dispatch: execution confirmed, the ending, the exit and \
-        the duration), migrating a version-1 store, and, with --ending-file, writes the same \
-        observation to that file once the harness's group is gone. The path must not exist and \
+        Once the harness is reaped, run creates dispatch's own end observation (source \
+        harness-dispatch: execution confirmed, the ending, the exit and the duration). With \
+        --ending-file, it writes that observation once the harness's group is gone, before \
+        appending it to the record store and migrating a version-1 store. The path must not exist and \
         its directory must, checked before selection. A failed append or file is reported on \
         stderr and changes neither the ending nor the exit status.\n\n\
         With --confine, selection still runs outside the sandbox. The harness runs in a new \
@@ -132,7 +134,7 @@ pub enum Command {
         harness-dispatch run --kind audit --confine --runtime-read ~/.config/agent/token --prompt-file ./mandate.md\n\n\
         From Grove: what Grove runs for every lifecycle session, in the working-tree root, \
         with values from the leaf it launches:\n  \
-        harness-dispatch run --kind=KIND --task-file=TASK_FILE --task-id=HANDLE --prompt=MANDATE\n\n\
+        harness-dispatch run --kind=KIND --task-file=TASK_FILE --task-id=HANDLE --prompt=MANDATE --exit-dir=LAUNCH_DIR --ending-file=ENDING_FILE\n\n\
         Recovering from a refusal:\n  \
         A refused run launches nothing, and names its code, stage, input or source, and remedy, \
         followed by the equivalent inspect invocation without the prompt, such as\n  \
@@ -189,10 +191,11 @@ pub struct RecordArgs {
 pub enum RecordCommand {
     /// Export one recorded run: its launch fields, its evidence, its observations and its measurements
     #[command(
-        after_help = "A run is a handoff attempt: it was recorded just before exec, and \
-        whether the harness then ran, and how it went, stays unknown until observed. An exec \
-        that failed is recorded as a launch failure. A current observation that confirms \
-        execution makes the run execution_confirmed. Every measurement no current observation \
+        after_help = "A run starts as a handoff attempt, recorded just before spawn. A failed \
+        spawn is recorded as a launch failure. Once the harness is reaped, dispatch appends \
+        its own end observation: execution confirmed, the ending, the exit and the duration. \
+        If dispatch dies before observing the end, the attempt stays as it stood. A current \
+        observation that confirms execution makes the run execution_confirmed. Every measurement no current observation \
         supplies is unobserved; nothing is inferred, and values from several observations are \
         listed side by side, never combined.\n\n\
         Examples:\n  \

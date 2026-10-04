@@ -222,15 +222,12 @@ needs to set itself up, and non-UTF-8 stdout is not something a jj command can b
 asked to produce. Both are stated here as unasserted rather than left for a reader
 to assume covered.
 
-> **The consumer's half.** grove runs its sessions under a harness that sets
-> variables of its own — `GROVE_SIGNAL_FILE`, `GROVE_HARNESS`, `GROVE_SKILL_DIR`
-> and a dozen more — and a grove session's working directory is wherever that
-> harness started it, which is routinely a subdirectory rather than the workspace
-> root. Both halves of this chapter are answers to that: the root is passed
-> explicitly as `current_dir` because the caller's own directory is not
-> trustworthy for the purpose, and grove's variables survive into the child
-> untouched because this crate has no way to tell which of them carry authority.
-> None of those names appears anywhere in the crate.
+> **The consumer's half.** Grove's lifecycle launch gives the harness
+> `GROVE_LAUNCH_DIR`, and dispatch gives it `HARNESS_DISPATCH_EXIT_FILE`.
+> Neither authority belongs to the VCS seam. The explicit `current_dir` pins
+> each jj command to the resolved root; Grove's callers separately scrub their
+> control variables before spawning jj. This crate itself removes repository
+> selectors and otherwise preserves its caller's environment.
 
 <a id="the-file-and-its-claims"></a>
 ## The file, and the two claims it heads

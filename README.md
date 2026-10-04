@@ -50,9 +50,9 @@ launches, with a remedy, and rerunning `grove` continues. A `config.kdl` or
 
 Two more files are yours. `~/.config/harness-dispatch/settings.json` sets what
 applies to every launch: the selection time bound and the environment variables
-granted to the policy among it. Never grant `GROVE_SIGNAL_FILE` there, because
-a policy holding it could end the session it is selecting for. A
-`.harness-dispatch-choice` file in a working-tree root picks, for that checkout,
+granted to the policy among it. Never grant `GROVE_LAUNCH_DIR` there, because
+a policy holding it could act on the Grove tree or record a teardown for
+the session it is selecting for. A `.harness-dispatch-choice` file in a working-tree root picks, for that checkout,
 among the options your policy offers.
 [Launch policy](docs/USAGE.md#usage-launch-policy) in the usage guide has the
 rest.

@@ -1089,13 +1089,14 @@ The `libc` clause named one user where there are three: the probe in `task_tree`
 calls) and `loop_driver` (`isatty`, `tcgetpgrp` and `signal`). The one it named
 is not the largest — outside the test modules `driver_lease` reaches `libc` on
 thirteen lines, more than the other two together. The `keyed-launch` clause was **true of the verbs and false
-of the crate**: `complete` is still the only one of the twelve verbs that
-reaches the runner, but `driver_lease`, `loop_driver` and
-`src/lib.rs`'s `reraise` re-export reach it too.
+of the crate** at that correction: `complete` was then the only verb reaching
+the runner, while `driver_lease`, `loop_driver` and `src/lib.rs` reached it too.
+The supervised-dispatch cutover has since removed `complete`; the loop still
+uses the runner to launch dispatch and re-export signal propagation.
 
 `manifest-dependency-clauses-k133` landed both fixes, and the distinction is what
-the correction turns on: the clause now says the **verb surface** reaches the
-runner once *and* that the crate reaches it in three more places, rather than
+the correction turns on: the corrected clause then said the **verb surface** reached the
+runner once *and* that the crate reached it in three more places, rather than
 letting the first stand for the second. Deleting the clauses was ruled out —
 the dependency argument is chapter 1's evidence for what the crate imposes, so
 what was wrong was their scope, not their existence.

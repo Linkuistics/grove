@@ -24,13 +24,13 @@ The chapter sequence and ownership mapping below are what
 `[[block]]` groups. Where the two disagree, that is a defect in one of them, not
 a licence to prefer either.
 
-**What distinguishes this corpus.** Seven roots and 2,365 lines, of which
-`src/run.rs` is 1,318: more than half the corpus is one file, and two chapters
+**What distinguishes this corpus.** Seven roots and 2,309 lines, of which
+`src/run.rs` is 1,340: more than half the corpus is one file, and two chapters
 divide it.
 `src/channel.rs` contains an inline `#[cfg(test)]` module inside a root, at
-lines 320–505. The corpus exception inventory in
+lines 269–429. The corpus exception inventory in
 [`walkthrough-books.md`](walkthrough-books.md) carries no `keyed-launch` row, so
-those 186 lines are owned, reconstructed and explained like any other. And
+those 161 lines are owned, reconstructed and explained like any other. And
 `src/confinement.rs` arrived after the interview, with a chapter of its own
 that follows the assembly.
 
@@ -51,7 +51,7 @@ without each, and the test that holds it:
 
 - **The child exits.** Without it, a child that dies without speaking is waited
   on for ever. The crate does not read the status as meaning. Held by
-  `a_child_that_never_signals_ends_with_no_token` in
+  `a_child_that_never_signals_ends_unsignalled` in
   `crates/keyed-launch/tests/launch.rs`.
 - **The file appears.** Without it, an interactive child that returns to its
   prompt never ends, or the launcher guesses that it has. Held by
@@ -99,8 +99,8 @@ context of its own.
 
 | The stage | What it must not add or interpret | Chapter |
 |---|---|---:|
-| the manifest, the library root, the error type and the argv | what the program does and what the token says: one dependency, no domain, and a command held exactly as its caller built it | 1 |
-| the completion channel | appearance is the event; the token's content is the caller's to read | 2 |
+| the manifest, the library root, the error type and the argv | what the program does or what the exit means: one dependency, no domain, and a command held exactly as its caller built it | 1 |
+| the exit channel | appearance is the event; the signal carries no content | 2 |
 | the environment, the terminal, the spawn | no argument, no flag, no variable the caller did not write | 3 |
 | the watch, the escalation and the launcher's own signals | it cannot know the child is done — only that the child said so | 4 |
 | the channel's inline tests | a filename is held to a grammar without anyone asking what it names | 5 |
@@ -150,7 +150,7 @@ for it.
 **Slice IDs are named for the rule each chapter carries**, so the slice list
 reads as the book's spine. `understands-neither` is chapter 1's rule as that
 chapter now states it: the crate understands neither what the program does nor
-what the token says. The one slice token that equals its page ID is
+what an exit means. The one slice token that equals its page ID is
 `confined-jobs`. Slice IDs carry no Grove task key, for the reason recorded in
 `jj-workspace-structure-k17`'s decision 8, applied here rather than re-elicited.
 
@@ -204,27 +204,23 @@ with the chapter that owns each.
 
 ### 2 · Appearance is the event — the channel
 
-Owns `src/channel.rs` lines 1–319. Responsible for: what the channel is and why a
+Owns `src/channel.rs` lines 1–268. Responsible for: what the channel is and why a
 launch needs one at all — an interactive child returns to its prompt when it
 finishes rather than exiting, so its own exit is not the event anyone is waiting
 for; **allocation picks a name and writes nothing**, which is what makes
 *appearance* the event; the name grammar — a recognisable prefix plus 128 bits of
-randomness — and why the prefix is named for `signal` and matches what grove's
-driver already leaves behind; `DRAW_RETRY_LIMIT` as a bound rather than an
+randomness — and why the prefix is named for `signal`, while dispatch chooses the directory; `DRAW_RETRY_LIMIT` as a bound rather than an
 unbounded retry; why `allocate` checks the directory rather than leaving it to the
-child's first write; `Token` as opaque to this crate and readable to its caller,
-and the line framing as framing rather than interpretation; `signal` as a free
-function because the two ends are different processes; and `discard_abandoned`,
-whose exactness is the point — a looser rule would let this crate's cleanup delete
-a neighbouring file in a directory whose other contents belong to the consumer.
+child's first write; `signal` creates the file without content and is a free
+function because the two ends are different processes; and `discard` removes
+the allocated path, leaving directory ownership to the consumer.
 
 This is the chapter that cites [`CONTEXT.md`](../../CONTEXT.md) at
-`loop-control-channel`, at its first use of *channel* for the thing grove's
-glossary already names.
+`exit-signal`, at its first use of the exit channel dispatch publishes.
 
 ### 3 · The child is a job — nothing else added
 
-Owns `src/run.rs` lines 1–168 and 358–957. Responsible for: `Escalation`'s two
+Owns `src/run.rs` lines 1–196 and 386–998. Responsible for: `Escalation`'s two
 waits and what each is for; `Launch` as *everything one launch is*, every field
 the caller's, and `run`'s promise that nothing else is added — no argument, no
 flag, no variable; the scrub list as the caller's obligation discharged here, and
@@ -232,7 +228,7 @@ why an environment is inherited rather than addressed, so a nested launcher woul
 otherwise hand a child a live channel path belonging to somebody else's launch;
 the grant, set after the scrub and before the channel;
 `cwd` and why `None` is rarely what a launcher wants; `Ended`, its `signalled`
-field beside the token, `Group` as the
+field reporting channel appearance, `Group` as the
 survivor report that sits beside the child's status rather than replacing it,
 and `End`'s three cases, and the distinction the chapter must make carefully — `Escalated` is
 narrower than *the channel appeared*, because a child that signals and exits inside
@@ -255,7 +251,7 @@ names it and defers.
 
 ### 4 · The watch and the escalation — the launcher's job
 
-Owns `src/run.rs` lines 169–357 and 958–1292. Responsible for: `Watch` as the
+Owns `src/run.rs` lines 197–385 and 999–1340. Responsible for: `Watch` as the
 supervisor's state machine; `watch`'s three observables and the honest statement
 that they are the only three ways a launch ends — **a child that finishes its work
 and never signals reaches none of them**, and the launch stalls rather than ends,
@@ -283,7 +279,7 @@ handler.
 
 ### 5 · How this is checked — checked without meaning
 
-Owns `src/channel.rs` lines 320–505. Responsible for: the twelve inline channel
+Owns `src/channel.rs` lines 269–429. Responsible for: the twelve inline channel
 tests, read as what a `#[cfg(test)]` module inside a root buys that an
 integration test cannot — reaching `is_channel_name`, a private function whose
 exactness chapter 2 argued and only this module can pin; and what each test
@@ -308,8 +304,9 @@ ledgers and records the final verification.
 
 Owns `src/confinement.rs` whole. Responsible for: the noninteractive process
 mode and what it changes — no terminal, stdin at EOF, output to a caller-owned
-file or inherited output, a new session; `Confinement` as a mandatory boundary with one writable
-directory and explicit read grants; the executable resolved from an absolute
+file or inherited output, a new session; channel-free `NoninteractiveLaunch`
+for a supervisor and `FilesystemGrants` as a mandatory boundary with multiple
+writable directories and explicit read grants for a confined harness; the executable resolved from an absolute
 path and never looked up; the macOS and Linux backends and the refusal on any
 other platform; that neither failure path retries without confinement; and
 `regular_file_at`, the one read of a result that the policy leaves safe.
@@ -324,23 +321,23 @@ spawning, cancellation and reaping.
 | Root | Lines | What the block is | Chapter |
 |---|---:|---|---:|
 | `Cargo.toml` | 1–42 | manifest | 1 |
-| `src/lib.rs` | 1–50 | the crate's account of itself, and its exports | 1 |
+| `src/lib.rs` | 1–52 | the crate's account of itself, and its exports | 1 |
 | `src/error.rs` | 1–56 | the one opaque error | 1 |
 | `src/argv.rs` | 1–64 | the type a command arrives in | 1 |
-| `src/channel.rs` | 1–319 | completion channel | 2 |
-| `src/channel.rs` | 320–505 | inline test module | 5 |
-| `src/run.rs` | 1–168 | the launch's shape | 3 |
-| `src/run.rs` | 169–357 | the watch state, the launcher's signals and its entry state | 4 |
-| `src/run.rs` | 358–957 | a transparent launcher's entry state, terminal, its lease, detached mode and spawn | 3 |
-| `src/run.rs` | 958–1292 | the end of the group, supervise and escalate | 4 |
-| `src/confinement.rs` | 1–217 | confinement policy | 7 |
+| `src/channel.rs` | 1–268 | completion channel | 2 |
+| `src/channel.rs` | 269–429 | inline test module | 5 |
+| `src/run.rs` | 1–196 | the launch's shape | 3 |
+| `src/run.rs` | 197–385 | the watch state, the launcher's signals and its entry state | 4 |
+| `src/run.rs` | 386–998 | a transparent launcher's entry state, terminal, its lease, detached mode and spawn | 3 |
+| `src/run.rs` | 999–1340 | the end of the group, supervise and escalate | 4 |
+| `src/confinement.rs` | 1–326 | confinement policy | 7 |
 
 ### Where a file's concerns split across chapters
 
 Two roots split. `src/run.rs` supplies the launch to chapter 3 and supervision
 to chapter 4, and chapter 4's first block sits between chapter 3's two.
 
-**`src/channel.rs` splits at line 320**, the `#[cfg(test)]` attribute, with
+**`src/channel.rs` splits at line 269**, the `#[cfg(test)]` attribute, with
 production in chapter 2 and the inline module in chapter 5. This is the only
 split in the book made at a `cfg` boundary rather than a conceptual one, and the
 reason is that the module's subject is *assurance*, which is chapter 5's, while
@@ -352,32 +349,33 @@ chapter 2's fragments, which are behind it.
 | Chapter | Lines | Share |
 |---:|---:|---:|
 | 1 · Orientation | 214 | 9% |
-| 2 · The channel | 319 | 13% |
-| 3 · The job | 786 | 33% |
-| 4 · The escalation | 532 | 22% |
-| 5 · How this is checked | 186 | 8% |
+| 2 · The channel | 268 | 12% |
+| 3 · The job | 809 | 35% |
+| 4 · The escalation | 531 | 23% |
+| 5 · How this is checked | 161 | 7% |
 | 6 · What ends a launch | 0 | — |
-| 7 · Confined jobs | 328 | 14% |
-| **total** | **2,365** | **100%** |
+| 7 · Confined jobs | 326 | 14% |
+| **total** | **2,309** | **100%** |
 
 Shares are rounded, so they need not sum to 100. Per root: `Cargo.toml` 42,
-`src/lib.rs` 52, `src/error.rs` 56, `src/argv.rs` 64, `src/channel.rs` 505,
-`src/run.rs` 1,318, `src/confinement.rs` 328.
+`src/lib.rs` 52, `src/error.rs` 56, `src/argv.rs` 64, `src/channel.rs` 429,
+`src/run.rs` 1,340, `src/confinement.rs` 326.
 
 ## What each chapter's prose owes
 
-Measured: **34% of the corpus is comment prose**, 802 of 2,365 lines, counting
+At the pre-cutover 2,365-line measurement, **34% of the corpus was comment
+prose**, 802 lines, counting
 every line whose first non-blank characters open a comment, and it is not spread
-evenly. `src/lib.rs` is 67% and `Cargo.toml` 52%. `src/run.rs` is 43% (572 of
+evenly. `src/lib.rs` was 67% and `Cargo.toml` 52%. `src/run.rs` was 43% (572 of
 1,318 lines), and there the prose is *argument*: the escalation, the child
 dispositions, the interrupt latch, the terminal and the end of the group each
-carry a full case in situ. `src/confinement.rs` is 9%. Three things are what each chapter's prose
+carry a full case in situ. `src/confinement.rs` was 9%. Three things are what each chapter's prose
 owes, and a technical review checks for them:
 
 1. **Adjudicate the claim.** For every argued claim, name the behaviour it rests
    on, the test that proves it, and the alternative rejected with what it would
    have cost. A doc comment rarely names the test that holds it, and this
-   crate's evidence is 3,119 lines in seven files against a 2,365-line corpus.
+   crate's evidence is 3,119 lines in seven files against a 2,309-line corpus.
 2. **Carry the through-line.** Show where a decision in one place rests on a
    decision in another: `Channel::allocate` writing nothing is *why* `watch` can
    treat appearance as an event at all; the scrub list is *why* a nested child
@@ -394,23 +392,23 @@ owes, and a technical review checks for them:
 
 ## Worked examples
 
-**The carried example is one of grove's launches, told strictly from the crate's
-side.** The reader knows exactly what the words mean and watches the crate not
+**The carried example is dispatch launching a Grove harness, told strictly
+from the runner's side.** The reader knows exactly what the words mean and watches the crate not
 care, which is the spine made visible. It starts from an argv the caller built:
 
 - `Argv::new("claude", ["--model", "opus", "<the mandate>"])`, the last argument
   a long prompt with spaces and newlines in it;
 - the control directory `/work/atlas/.jj/grove`;
-- the channel variable `GROVE_SIGNAL_FILE`, and a scrub list that names it;
+- the channel variable `HARNESS_DISPATCH_EXIT_FILE`, and a scrub list that names it;
 - the working directory `/work/atlas`, and an escalation of two seconds and
   five.
 
 | Chapter | Anchor | Starts at | Observable end |
 |---:|---|---|---|
-| 1 | `#the-launch-in-outline` | an argv the caller built | a running child and a token, named but not traced |
-| 2 | `#a-path-and-nothing-else` | `Channel::allocate` in the control directory | a path that does not exist, and a token read back after `signal` |
-| 3 | `#the-spawn` | `run` with that argv and channel | the child in its own group, holding the terminal, with `GROVE_SIGNAL_FILE` set and the scrub applied |
-| 4 | `#the-two-graces` | the token appearing | grace → SIGTERM → kill-grace → SIGKILL; and the launcher's own SIGTERM as `End::Interrupted` |
+| 1 | `#the-launch-in-outline` | an argv the caller built | a running child and its exit signal, named but not traced |
+| 2 | `#a-path-and-nothing-else` | `Channel::allocate` in the control directory | a path that does not exist, and its appearance after `signal` |
+| 3 | `#the-spawn` | `run` with that argv and channel | the child in its own group, holding the terminal, with `HARNESS_DISPATCH_EXIT_FILE` set and the scrub applied |
+| 4 | `#the-two-graces` | the exit file appearing | grace → SIGTERM → kill-grace → SIGKILL; and the launcher's own SIGTERM as `End::Interrupted` |
 
 Chapters 5 and 6 carry no step of it. Chapter 5's tests work on a temporary
 directory and spawn nothing, and chapter 6 argues from the crate's own tests.
@@ -436,7 +434,7 @@ early-use ledger.
 
 | Term | First used | Owned by | Why the order forces it |
 |---|---:|---:|---|
-| `Channel`, `Token`, `signal` | 1 | 2 | chapter 1's cast names the public surface |
+| `Channel`, `signal` | 1 | 2 | chapter 1's cast names the public surface |
 | `run`, `run_observed`, `LaunchEvent`, `Launch`, `Ended`, `End`, `Escalation` | 1 | 3 | the same |
 | `reraise`, `take_interrupt` | 1 | 4 | the same |
 | `run_noninteractive`, `run_confined_observed`, `NoninteractiveLaunch`, `FilesystemGrants`, `confinement_available`, `confinement_system_reads`, `regular_file_at` | 1 | 7 | the same |
@@ -456,17 +454,17 @@ anchors = ["usage-running-grove", "usage-session-lifecycle"]
 
 [[glossary]]
 path    = "CONTEXT.md"
-anchors = ["loop-control-channel"]
+anchors = ["exit-signal", "loop-control-channel"]
 ```
 
-Three anchors, all of which exist as explicit `<a id="…"></a>` lines preceding
+Four anchors, all of which exist as explicit `<a id="…"></a>` lines preceding
 their headings.
 
 `usage-running-grove` is the `README.md`'s required guide citation and the
 reader's entry point. `usage-session-lifecycle` says what a launch is *for*,
 so no chapter has to, and it is where chapter 6 sends the obligation the
-crate cannot hold. `loop-control-channel` is cited at chapter 2's first use of
-*channel*.
+crate cannot hold. `exit-signal` is cited at chapter 2's first use of the
+dispatch channel; `loop-control-channel` names Grove's separate launch directory.
 
 Rejected: `usage-review-composition`, a false friend whose *escalation* is the
 methodology's review escalation and not the kill escalation; `usage-driver-lease`

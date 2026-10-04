@@ -90,10 +90,11 @@ budget, record directory or environment grant. Set them once, in
 }
 ```
 
-**Do not grant `GROVE_SIGNAL_FILE`**, in `policyEnv` or with `--policy-env`.
-Grove ends a session when a file appears at that path, so a policy holding it
-could end the session it is selecting for. Without a grant only the harness
-receives it.
+**Do not grant `GROVE_LAUNCH_DIR`**, in `policyEnv` or with `--policy-env`.
+It is Grove's session-epoch authority: a policy holding it could mutate the
+tree or record a teardown for the session it is selecting for. Without a grant
+only the harness receives it. Dispatch's own exit authority is never granted
+to the policy.
 
 **Inspect before you launch.** `inspect` reports the command a kind would
 launch, with its provider, model and effort labels and the file its program
@@ -107,11 +108,13 @@ Run it where Grove runs it, because a policy may read its directory. For a
 lifecycle session Grove runs this, in the working-tree root:
 
 ```text
-harness-dispatch run --kind=KIND --task-file=TASK_FILE --task-id=HANDLE --prompt=MANDATE
+harness-dispatch run --kind=KIND --task-file=TASK_FILE --task-id=HANDLE --prompt=MANDATE --exit-dir=LAUNCH_DIR --ending-file=ENDING_FILE
 ```
 
 `KIND` is the leaf's kind, `TASK_FILE` its absolute path and `HANDLE` its
-stable handle. `MANDATE` is the prompt Grove composed. Grove passes no
+stable handle. `MANDATE` is the prompt Grove composed. `LAUNCH_DIR` is this
+launch's private directory under `.jj/grove/`; `ENDING_FILE` is its ending
+report. Those last two flags reach no policy. Grove passes no
 parameter: the policy reads the session's location as its `cwd`. The sample
 names no session, and from a secondary jj workspace grants both harnesses the
 main repository that the workspace's `.jj/repo` file names.
@@ -137,20 +140,13 @@ First route the kind to a noninteractive command in your
 installs routes `release-notes` to a headless helper that the release task
 stages as an input ([Releasing](RELEASING.md#release-notes)), so that route
 serves `task release:notes` and a kind of your own needs a route of its own.
-Grove selects the command with
-`harness-dispatch inspect`, outside the sandbox, and then runs the reported
+Grove runs `harness-dispatch run --confine` in the staged directory. Dispatch
+selects outside the sandbox, records the run, and supervises the selected
 program inside it, so the policy, your owner settings and the run records stay
-out of the harness's reach. A standalone invocation has no task and records no
-run. A kind your policy refuses launches nothing and publishes nothing, and
-Grove reports the refusal's code, message and remedy:
-
-```console
-$ grove run summarise 'Summarise input.txt' --ui inline
-Error: grove run cannot launch kind `summarise`: harness-dispatch refused the selection (policy_refused: incomplete_mapping).
-  the policy /home/you/.config/harness-dispatch/policy.ts refused the selection: ROUTES names no route for kind "summarise"
-  add a route for this kind to ROUTES in your policy
-Nothing was launched or published.
-```
+out of the harness's reach. A standalone invocation has no task identity; its
+harness receives a fresh run ID and exit channel. A refused selection launches
+nothing and publishes nothing; dispatch's code, message and remedy are retained
+in the announced transcript.
 
 This invocation can run
 from anywhere, including a release task launched inside a running grove. It
@@ -178,11 +174,12 @@ your policy selects. The child receives no parent terminal or mux handles. Logs 
 available after the pane or temporary directory closes.
 
 After producing the requested files, the harness invokes the exact
-`grove-llm complete --done` command supplied in its prompt. This acknowledges its
-own invocation and cannot end the surrounding grove. Tree verbs are refused in
-this context. Only valid completion followed by successful supervision allows
-export; cancellation, absent/malformed completion, abnormal exit, missing outputs
-and symlink outputs all fail. Grove validates the whole output set before
+`harness-dispatch exit` command supplied in its prompt, using the canonical
+path of the dispatch installed beside Grove. This acknowledges its own run
+and cannot end the surrounding grove. Its environment carries no Grove
+launch authority. Only an `exit_signal` ending, dispatch exit 0, and no
+cancellation of Grove allow export; missing acknowledgement, unsuccessful
+supervision, missing outputs and symlink outputs all fail. Grove validates the whole output set before
 publishing any file, and never overwrites an existing destination. An I/O error
 or cancellation during publication reports any already-published paths.
 
@@ -250,7 +247,7 @@ row attachment or NEXT. Replacing the root shows `previous tree`: the old mandat
 attaches to no new row and excludes no reused key from NEXT. Replacement clears
 old selection, folds and file positions; edits to the same root's brief preserve
 them. Summary qualifiers and permanent keys survive shortened slugs at 60 × 10.
-The completion signal alone does not clear RUNNING; it remains until the driver
+The exit signal alone does not clear RUNNING; it remains until the driver
 reaps the session. Driver death releases the evidence even if a child survives.
 An incomplete Started publication shows activity waiting.
 
@@ -410,10 +407,10 @@ ending it was:
 ```console
 grove: launching impl through harness-dispatch — api-k7
 harness-dispatch: running provider anthropic, model claude-opus-5-5, effort high for kind "impl" as run bc969024-d275-4a44-97ea-6e31217bb145: /usr/local/bin/claude
-grove: session ended without a completion signal — status exit status: 0, elapsed 0.508s; loop stopped.
+grove: session ended without an exit-signal ending — status exit status: 0, elapsed 0.508s; loop stopped.
 ```
 
-A session that signalled the grove's *end* rather than one task's prints
+A session that recorded teardown in its launch directory prints
 `grove: grove finished — loop complete.` instead.
 
 For bare `grove`, **the working directory is the only thing
@@ -489,7 +486,7 @@ harness-dispatch: refused (policy_refused, stage selection): the policy /home/yo
   remedy: add a route for this kind to ROUTES in your policy
   inspect: (cd /home/you/app && /opt/grove/bin/harness-dispatch inspect --kind spike --task-file /home/you/app/.grove/01-spike--api-k1.md --task-id api-k1)
   prompt: omitted: a policy that reads the prompt selects as it did only when the same --prompt or --prompt-file is added
-grove: session ended without a completion signal — status exit status: 3, elapsed 0.510s; loop stopped.
+grove: session ended without an exit-signal ending — status exit status: 3, elapsed 0.510s; loop stopped.
        session kind `spike` for `api-k1` failed; if harness-dispatch refused the launch, its diagnostic and remedy are above and the leaf is still live. Either way, rerun `grove` to continue.
 ```
 
@@ -548,7 +545,8 @@ $ echo $?
 sent; only the wait status of the `grove` process itself carries `128 + N`. A
 wrapper script that backgrounds Grove reads it with `wait "$grove_pid"`.
 
-It forwards the signal to the session's whole process group, waits for it,
+Grove forwards the signal to dispatch's process group; dispatch cancels and
+reaps the harness group. Grove waits for dispatch,
 restores your terminal, and then **dies of the same signal** — so a wrapper
 script, a `timeout`, or a systemd unit reads `128 + N` and can tell an
 interrupted grove from a finished one. A grove that ran to a clean finish, or
@@ -668,7 +666,8 @@ hands it that leaf's stable handle as an explicit mandate. The session:
 3. Does and verifies the work.
 4. Marks the leaf `DONE`, closes any completed parent nodes, and commits all of
    that as one focused commit naming the stable handle.
-5. Signals Grove, which relaunches for the next leaf.
+5. Sends dispatch's exit signal; dispatch ends the harness run and reports it,
+   and Grove relaunches for the next leaf.
 
 Watching one leaf through, from the outside, is a launch line for it and a
 launch line for the next, each followed by harness-dispatch's own:
@@ -681,8 +680,9 @@ harness-dispatch: running provider openai, model gpt-6.1-sol, effort high for ki
 ```
 
 The second `grove:` line is the whole of step 5 as you see it: the session ran
-`grove-llm complete`, which wrote the relaunch flag; Grove ended that session and
-launched the next leaf with fresh context. Between the two lines the session made
+`harness-dispatch exit`, which created its per-run exit file; dispatch ended
+that harness run and reported an `exit_signal` ending, and Grove launched the
+next leaf with fresh context. Between the two lines the session made
 its own commit, so `jj log` shows `api-k7: …` before the relaunch.
 
 The session does not pick its own leaf. If a new leaf is inserted ahead of the
@@ -751,7 +751,7 @@ prose. The exceptions:
 |---|---|---|
 | `kind` | No | A kind **token**, not a path — the one answer that is not a location. |
 | `finish-commit` | **Yes** — deletes `.grove/` and commits that deletion | Nothing; the change id goes to stderr. |
-| `complete` | No | Nothing, ever; it reports what it signalled on stderr. |
+| `record-teardown` | No | Nothing; it reports whether it recorded the teardown on stderr. |
 
 One thing to expect if you run these inside a running session's own terminal:
 `grove-llm` binds itself to the working tree that session was launched for, and
@@ -925,7 +925,7 @@ $ grove-llm leaf-retire .grove/01-requirements--auth-k1.md
 /home/you/app/.grove/01-DONE-requirements--auth-k1.md
 leaf-retire: two steps remain:
   1. commit this session's work, including this rename
-  2. run `grove-llm complete` as your last action
+  2. run `harness-dispatch exit` as your last action
 ```
 
 It refuses a brief, an already-`DONE` leaf, and an `ABANDONED` one — there is no
@@ -941,7 +941,7 @@ $ grove-llm leaf-prune 04-k3
 /home/you/app/.grove/04-k3/01-ABANDONED-impl--api-k7.md
 leaf-prune: two steps remain:
   1. commit this session's work, including this rename
-  2. run `grove-llm complete` as your last action
+  2. run `harness-dispatch exit` as your last action
 ```
 
 It refuses the grove root, because abandoning a whole workstream is a
@@ -985,26 +985,44 @@ owns them rather than held in the binary.
 
 ### Ending the session, and ending the grove
 
-`complete` is a session's last action, after it has committed and retired. It
-writes the relaunch flag to the signal file the driver watches and returns;
-ending the session is the driver's job. `--signal-file` defaults to
-`$GROVE_SIGNAL_FILE`, which the driver sets, and `--done` ends the whole grove
-instead of relaunching:
+`harness-dispatch exit` is a session's last action, after it has retired and
+committed its task. It creates the file `HARNESS_DISPATCH_EXIT_FILE` names and
+returns. Dispatch watches its appearance, waits two seconds, sends SIGTERM
+to the harness's process group, then SIGKILL five seconds later if needed. The
+signal carries no content and is separate from Grove's epoch admission.
 
-```console
-$ grove-llm complete            # this task is done; relaunch for the next leaf
-grove complete: signalled; the loop will start the next task.
-
-$ grove-llm complete --done     # the last action of the Finish cycle
-grove complete: signalled; the grove is finished — the loop will stop.
+```sh
+harness-dispatch exit
 ```
 
-Run outside a loop it is a safe no-op that tells you so, and still exits `0`:
+An ordinary session sends only that signal, and Grove relaunches. A finish
+that has torn down the tree first records that fact with Grove's own verb:
+
+```sh
+grove-llm record-teardown
+harness-dispatch exit
+```
+
+`record-teardown` takes no arguments or flags. It checks the active epoch
+using `GROVE_LAUNCH_DIR`, refuses while `.grove/` exists, and creates the
+teardown record in that launch directory; an existing record is success.
+Without a launch directory it records nothing and exits 0:
 
 ```console
-$ grove-llm complete
-grove complete: no GROVE_SIGNAL_FILE — not running under the loop driver; exit this session manually.
+$ grove-llm record-teardown
+record-teardown: no GROVE_LAUNCH_DIR — not running under the loop driver; recorded nothing.
 ```
+
+Likewise, `harness-dispatch exit` outside a supervised run signals nothing
+and exits 0. `grove-llm complete` and its flags have been removed.
+
+After dispatch is reaped, Grove invalidates the epoch and reads the launch.
+Its own TERM/HUP wins; otherwise a teardown record finishes the loop, even
+if the harness exited on its own. Without teardown a surviving dispatch
+process group stops the loop; otherwise an `exit_signal` ending relaunches.
+Any other ending or a missing/unreadable report stops the loop. An interactive
+harness that returns to its prompt without signalling leaves the loop waiting
+until the harness ends.
 
 `finish-commit` is the teardown, covered in [Finish](#usage-finish) below. It
 takes the launched finish leaf's stable handle, revalidates under the tree lock
@@ -1202,7 +1220,7 @@ all release it. Restarting after a crash is ordinary continuation.
 
 Grove resolves the working tree by walking up from your current directory to the
 first `.jj/` directory, and keeps its own coordination files — the driver lease,
-the session epoch, the signal file — in that workspace's `.jj/grove/`. Three
+the session epoch and per-session launch directories — in that workspace's `.jj/grove/`. Three
 consequences are worth knowing.
 
 **Every jj workspace layout works.** Native (`jj git init`), colocated
@@ -1248,8 +1266,9 @@ launches a session that proposes one complete finish cycle:
    decision records, specs, or context files where it still belongs.
 2. Tear `.grove/` down with `grove-llm finish-commit <finish-handle>`, which
    deletes the tree and records the deletion in one focused commit.
-3. Signal that the grove is done — `grove-llm complete --done` — stopping the
-   loop cleanly.
+3. Record the teardown with `grove-llm record-teardown`, then end the run
+   with `harness-dispatch exit` as the last action. The driver reads the
+   teardown record and stops the loop cleanly.
 
 ```console
 grove: launching finish through harness-dispatch — finish-k42

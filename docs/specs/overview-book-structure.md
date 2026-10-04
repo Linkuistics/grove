@@ -496,7 +496,7 @@ All four already exist in `docs/USAGE.md` in the explicit `<a id="…"></a>` for
 |---|---|---|
 | `driver-lease` | exists | ch. 3 |
 | `stated-vcs` | exists | ch. 3, beside `Workspace::resolve` |
-| `loop-control-channel` | exists | ch. 3, beside the completion signal |
+| `loop-control-channel` | exists | ch. 3, beside the launch directory and reported ending |
 | `guaranteed-core` | **must be created** | ch. 5, beside the `prompt` module's row |
 | `task-tree-scheme` | **must be created** | ch. 1 and ch. 5 |
 

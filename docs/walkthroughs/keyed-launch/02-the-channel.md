@@ -28,15 +28,14 @@ which is forever. So the ending has to be carried out of band — over a path th
 launcher chose before the child started, on which the child says one thing and
 then stops mattering.
 
-The word *channel* is grove's before it is this crate's. grove's glossary already
-names the mechanism, as the
-[loop control channel](../../../CONTEXT.md#loop-control-channel): the per-launch path
-the driver watches while its harness child runs, whose **appearance alone** ends
-the session. Everything else that entry says — the session epoch, the driver, the
-reading of `Relaunch` against `Done`, the scrubbing of the variable from every
-other spawn — is on grove's side of the line, and this crate has never heard of
-any of it. What follows is the same mechanism at this crate's filesystem
-boundary: a directory, a name, and a file that may or may not appear.
+The glossary names dispatch's [exit signal](../../../CONTEXT.md#exit-signal):
+the per-run path dispatch watches while its harness child runs. Its appearance
+starts escalation; content carries no result. Grove separately allocates a
+[launch directory](../../../CONTEXT.md#loop-control-channel) for epoch admission,
+ending reports and teardown. Dispatch may allocate its exit channel there,
+but neither that location nor Grove's relaunch/finish decision belongs to this
+crate. What follows is the mechanism at the runner's filesystem boundary: a
+directory, a name, and a file that may or may not appear.
 
 One property makes the whole arrangement work, and it is the first thing the file
 says about itself: **allocation picks a name and writes nothing**. The channel
@@ -189,8 +188,8 @@ It makes the file legible to a person who has just listed the directory; it give
 `discard_abandoned` something to recognise; and — the third clause, which is the
 one a reader coming from grove will care about — it is the spelling grove's
 driver already leaves behind. That last is a compatibility fact with an address:
-grove's control directory holds files named `signal-…` written by driver versions
-that predate this crate, and a launcher moving onto `keyed-launch` still
+grove's control directory can retain legacy `signal-…` files written by driver
+versions that predate this crate, and a launcher moving onto `keyed-launch` still
 recognises them as abandoned channels rather than orphaning them permanently. It
 is the only line in the file that knows any consumer exists, and it knows only
 the consumer's *spelling*, not its meaning.
@@ -740,7 +739,8 @@ fn is_channel_name(name: &str) -> bool {
 clause: a looser rule would let this crate's cleanup delete a neighbouring file
 that merely starts the same way, in a directory whose other contents belong to
 the consumer. That is not hypothetical — grove's control directory holds
-`driver.lease` and `session.epoch` beside the channels, and both are files whose
+`driver.lease` and `session.epoch` beside legacy channels (current exit
+channels live inside per-launch directories), and both are files whose
 loss would end the loop. A `starts_with("signal-")` test would be four
 characters shorter and could delete a neighbour because of a naming
 coincidence.

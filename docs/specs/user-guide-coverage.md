@@ -56,9 +56,11 @@ each; it may not restate any.
 
 ## The command inventory
 
-Every row below is traceable to `--help` output at grove 20.1.0 (`grove --help`,
-`grove-llm --help`, and each verb's own `--help`). *Worked* means the guide must
-show a real invocation, not merely name the command.
+The inventory originated from `--help` output at grove 20.1.0 (`grove --help`,
+`grove-llm --help`, and each verb's own `--help`), and follows the current
+source surface. The supervised-dispatch cutover replaces L12's retired
+`complete` with `record-teardown` and updates G9's run contract. *Worked* means
+the guide must show a real invocation, not merely name the command.
 
 ### `grove` — the human binary
 
@@ -67,7 +69,7 @@ show a real invocation, not merely name the command.
 | Row | Surface | Obligation |
 |---|---|---|
 | G1 | `grove` (no arguments) | Worked. All three dispatch outcomes: no `.grove/` ⇒ `root-init` plus a first `requirements` leaf; live leaves ⇒ launch the first in tree order; no live leaves ⇒ materialize the `finish` leaf. |
-| G9 | `grove run KIND [PROMPT]` | Prompt/file choice; repeatable inputs, outputs and runtime grants; personal named command and no project/jj; mandatory confinement; separate completion channel; artifact validation and no overwrite; inline/mux visibility, persistent logs, cancellation and exit codes. |
+| G9 | `grove run KIND [PROMPT]` | Prompt/file choice; repeatable inputs, outputs and runtime grants; personal named command and no project/jj; mandatory confinement; dispatch supervision and a recorded run; isolated exit signal; artifact validation and no overwrite; inline/mux visibility, persistent logs, cancellation and exit codes. |
 | G2 | `-h`, `--help` | Named, with the fact that it stops before touching a repository. |
 | G3 | `-V`, `--version` | Named, same stop-before-touching guarantee. |
 | G4 | Bare lifecycle has no launch-policy selectors | Stated: bare `grove` takes no tree argument and no confirmation step; its enclosing working tree selects the workstream. The viewer path only selects an observation location. |
@@ -99,7 +101,7 @@ binary itself. Twelve verbs; `help` is clap's own and is covered by the row for
 | L9 | `leaf-retire` | `<LEAF_PATH>` | Worked. Adds the `DONE` infix in place; refuses a brief, a `DONE` leaf and an `ABANDONED` leaf; no commit. |
 | L10 | `leaf-prune` | `<PATH>` — a live leaf **or** a node directory | Worked. HITL: only after explicit human confirmation. On a node it marks every live leaf in the subtree and leaves `DONE` ones alone; refuses the grove root; no commit. |
 | L11 | `finish-commit` | `<FINISH_HANDLE>` | Worked. Revalidates the finish leaf and the absence of ordinary work, then deletes and commits only `.grove/`; does not stand in for the human confirmation. |
-| L12 | `complete` | `--done`, `--signal-file <SIGNAL_FILE>` (default `$GROVE_SIGNAL_FILE`) | Worked. The last step of a task, after commit and retire; `--done` ends the whole grove instead of relaunching. |
+| L12 | `record-teardown` | none | Worked. Records a completed teardown in `$GROVE_LAUNCH_DIR` after `finish-commit`; refuses while the tree exists; outside a loop records nothing. Sessions end with `harness-dispatch exit`, ordinary tasks relaunch, recorded teardown finishes, other endings stop. |
 | L13 | `-h`/`--help`, `-V`/`--version`, `help [COMMAND]` | — | Named once, with the note that every verb carries its own `--help` and that the help text is the authority on what exists. |
 
 **Two rows were corrected by `usage-guide-k23`, against the binary.** The

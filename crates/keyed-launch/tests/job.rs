@@ -159,8 +159,7 @@ fn launcher() {
     let entry = EntrySignals::new([libc::SIGHUP], [libc::SIGUSR1]);
     let ended = run(Launch {
         argv: &argv,
-        channel: &channel,
-        channel_var: "TEST_CHANNEL",
+        channel: Some((&channel, "TEST_CHANNEL")),
         scrub: &[],
         grant: &[],
         transparent: std::env::var_os("JOB_TRANSPARENT").map(|_| &entry),

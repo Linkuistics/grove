@@ -38,8 +38,7 @@ fn argv_for(dir: &Path, body: &str) -> Argv {
 fn launch<'a>(argv: &'a Argv, channel: &'a Channel) -> Launch<'a> {
     Launch {
         argv,
-        channel,
-        channel_var: "TEST_CHANNEL",
+        channel: Some((channel, "TEST_CHANNEL")),
         scrub: &[] as &[&OsStr],
         grant: &[],
         transparent: None,

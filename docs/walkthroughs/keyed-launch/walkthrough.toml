@@ -119,7 +119,7 @@ lines = 505
 [[root]]
 id    = "source-run"
 path  = "crates/keyed-launch/src/run.rs"
-lines = 1349
+lines = 1345
 
 [[root]]
 id    = "source-confinement"
@@ -166,25 +166,25 @@ lines = "320-505"
 id    = "launch-shape"
 root  = "source-run"
 owner = "nothing-else-added"
-lines = "1-202"
+lines = "1-198"
 
 [[block]]
 id    = "watch-and-launcher-signals"
 root  = "source-run"
 owner = "the-launchers-job"
-lines = "203-391"
+lines = "199-387"
 
 [[block]]
 id    = "terminal-and-spawn"
 root  = "source-run"
 owner = "nothing-else-added"
-lines = "392-1004"
+lines = "388-1000"
 
 [[block]]
 id    = "supervise-and-escalate"
 root  = "source-run"
 owner = "the-launchers-job"
-lines = "1005-1349"
+lines = "1001-1345"
 
 [[block]]
 id    = "confinement-policy"

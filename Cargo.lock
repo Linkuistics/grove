@@ -434,6 +434,7 @@ dependencies = [
  "keyed-launch",
  "libc",
  "ordinal-fs-tree",
+ "serde_json",
  "tempfile",
 ]
 

@@ -224,8 +224,7 @@ fn attempt(args: &RunArgs) -> Result<ExitCode, Failure> {
     let mut started = false;
     let launch = Launch {
         argv: &argv,
-        channel: &exit_channel.channel,
-        channel_var: EXIT_FILE_VARIABLE,
+        channel: Some((&exit_channel.channel, EXIT_FILE_VARIABLE)),
         scrub: &[],
         grant: &grant,
         transparent: Some(&entry),

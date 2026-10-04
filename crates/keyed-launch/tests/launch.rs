@@ -64,8 +64,7 @@ fn launch<'a>(
 ) -> Launch<'a> {
     Launch {
         argv,
-        channel,
-        channel_var: "TEST_CHANNEL",
+        channel: Some((channel, "TEST_CHANNEL")),
         scrub,
         grant: &[],
         transparent: None,

@@ -126,51 +126,26 @@ Grove version: {version}.
 /// **Part 3 — grove's own signalling contract.** Last, because it describes the
 /// last action.
 ///
-/// **One text for every kind**, where two embedded files used to serve
-/// them, and the trade is deliberate rather than an oversight. What the driver
-/// holds — that it is watching a named file, that writing it ends the session,
-/// that not writing it stops the loop — is a fact about the process tree no
-/// skill can discover and none can repair once the moment has passed, so it
-/// rides the one channel a session cannot skip. Which ending a kind takes is a
-/// rule about that kind, and the shipped spine already assigns it: *whether it
-/// passes the done flag when it signals … is inline in that kind's own
-/// `grove-<kind>` skill* (`plugins/grove/skills/grove/SKILL.md`).
-///
-/// **The skill's ending is the sentence's object, and the default is
-/// subordinate to it.** That is load-bearing rather than stylistic. The
-/// eighteen-and-one split this replaces meant a `finish` prompt never carried
-/// *run `grove-llm complete`* as an imperative — the instruction that, taken by
-/// the one session that may have just deleted the task tree, relaunches the loop
-/// onto a torn-down grove, and whose stated precondition (*the task is retired
-/// and committed*) a completed teardown satisfies exactly. A default stated as
-/// the main verb would put that imperative back in every prompt and rest
-/// its repair on the skill being read, which is the argument this module's
-/// too-late test rejects. Stated as *ordinarily*, subordinate to the kind's own
-/// ending, no prompt ends on a bare imperative for the wrong action.
-///
-/// **The residue that remains, stated rather than argued away.** A `finish`
-/// session whose skill is missing or unread still meets *ordinarily it is
-/// `grove-llm complete`* and nothing contradicting it, where the old prompt
-/// alone was fail-safe for that kind whatever was installed. Decision 10 already
-/// accepts that a session can be launched pointing at a skill that is not
-/// installed, so the two residues compound. What is bought is that grove
-/// interprets no kind; what is paid is that `finish`'s safety now depends on
-/// `grove-finish` being present, like every other rule. The reopen condition is a
-/// `finish` session observed signalling `complete` after a teardown.
+/// One text for every kind: dispatch owns the harness's exit channel and kill
+/// escalation, while Grove reads the reported ending after reap. The kind's
+/// ending remains the sentence's object; the ordinary exit verb is subordinate.
+/// A finish records teardown separately before sending the same pure signal.
+/// A finish whose skill is unread can still send only that signal after deleting
+/// the tree, causing a relaunch. Decision 9 records that residue and its reopen
+/// condition: an exit signal after an unrecorded teardown.
 const SIGNALLING_CONTRACT: &str = "\
 **Signal.** Your kind's skill states how this session ends, and that ending is
-your **last action — then do nothing else**. Ordinarily it is **`grove-llm
-complete`**, once the task is retired and committed (and any parent-chain
-cascade is settled and included). That is how the self-driving loop ends this
-session and starts the next task with fresh context: the verb only writes the
-relaunch flag to a signal file (`GROVE_SIGNAL_FILE`) and returns. Ending the
-session is the **loop driver's** job, not the verb's — the driver launched this
-session and is watching for the signal file while it runs, so it applies grace →
-SIGTERM → kill-grace → SIGKILL to its own child once the file appears
-(driver-side watcher: the driver can always signal its child, unlike an in-agent
-self-kill, which some harness sandboxes silently deny). Run outside a `grove`
-loop (no `GROVE_SIGNAL_FILE`) the verb is a safe no-op that just tells you to
-exit manually. A session that ends *without* signalling stops the loop instead —
+your **last action — then do nothing else**. Ordinarily it is **`harness-dispatch exit`**,
+once the task is retired and committed (and any parent-chain cascade is settled
+and included). A finish session first records its teardown with
+`grove-llm record-teardown`, then sends the exit signal. Dispatch watches its
+run's exit channel (`HARNESS_DISPATCH_EXIT_FILE`); the exit verb only creates
+the signal file and returns, carrying nothing. Ending the harness is
+**dispatch's** job: it applies grace → SIGTERM → kill-grace → SIGKILL to its
+child's group, reaps it, and reports the run ending to Grove. Grove then reads
+its own teardown record to finish, or an exit-signal ending to relaunch with
+fresh context. Run outside dispatch (no `HARNESS_DISPATCH_EXIT_FILE`), the exit
+verb is a safe no-op that tells you to exit manually. A session that ends *without* signalling stops the loop instead —
 a crash or a Ctrl-C is one such ending, and for at least one kind it is a stated
 one — so the signal is what separates a task you finished from a session that
 died.

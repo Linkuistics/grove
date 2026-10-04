@@ -225,7 +225,7 @@ shift
   for argument do
     printf 'arg=<%s>\n' "$argument"
   done
-  printf 'signal=<%s>\n' "$GROVE_SIGNAL_FILE"
+  printf 'signal=<%s>\n' "${GROVE_SIGNAL_FILE-unset}"
   printf 'launch=<%s>\n' "$GROVE_LAUNCH_DIR"
   printf 'dispatch_exit=<%s>\n' "$HARNESS_DISPATCH_EXIT_FILE"
   printf 'legacy_harness_pid=<%s>\n' "${GROVE_HARNESS_PID-unset}"
@@ -289,10 +289,7 @@ exit 0
         .lines()
         .find_map(|line| line.strip_prefix("signal=<")?.strip_suffix('>'))
         .expect("the selected command did not record its signal path");
-    assert_ne!(
-        signal,
-        fixture.path().join("stale-signal").to_str().unwrap()
-    );
+    assert_eq!(signal, "unset");
     let launch = log
         .lines()
         .find_map(|line| line.strip_prefix("launch=<")?.strip_suffix('>'))
@@ -301,7 +298,6 @@ exit 0
         launch,
         fixture.path().join("stale-launch").to_str().unwrap()
     );
-    assert_eq!(Path::new(signal).parent(), Some(Path::new(launch)));
     assert_eq!(
         Path::new(launch).parent().unwrap(),
         canonical_worktree.join(".jj/grove")
@@ -315,6 +311,7 @@ exit 0
         .find_map(|line| line.strip_prefix("dispatch_exit=<")?.strip_suffix('>'))
         .unwrap();
     assert_ne!(exit, fixture.path().join("stale-exit").to_str().unwrap());
+    assert_eq!(Path::new(exit).parent(), Some(Path::new(launch)));
     assert!(!fixture.path().join("stale-exit").exists());
     assert!(log.contains("legacy_harness_pid=<unset>\n"), "{log:?}");
     assert!(log.contains("legacy_claude_pid=<unset>\n"), "{log:?}");
@@ -535,11 +532,12 @@ if [ "$marker" = first-policy ]; then
   mv .grove/01-impl--first-k1.md .grove/01-DONE-impl--first-k1.md
   printf '# second-k2\n' > .grove/02-design--second-k2.md
   cp "$next_policy" "$active_policy"
-  printf 'relaunch\n' > "$GROVE_SIGNAL_FILE"
+  "$6" exit
 fi
 exit 0
 "#,
     );
+    let dispatch = support::harness_dispatch();
     let args = |marker: &'static str| {
         [
             log.to_str().unwrap(),
@@ -547,6 +545,7 @@ exit 0
             next_policy.to_str().unwrap(),
             active_policy.to_str().unwrap(),
             PROMPT,
+            dispatch.to_str().unwrap(),
         ]
     };
     route_every_kind(&home, &fake, &args("second-policy"));

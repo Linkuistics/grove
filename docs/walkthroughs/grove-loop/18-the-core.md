@@ -218,7 +218,7 @@ names it needs, then the three parts **in the order they appear in the prompt**,
 then the values one launch varies, then the composition that joins them, and last
 the one derived value the module computes for itself.
 
-<!-- fragment «the-prompt-core» owner="too-late-to-say-later" source="crates/grove-loop/src/prompt.rs" lines="1-245" parent="source-prompt" -->
+<!-- fragment «the-prompt-core» owner="too-late-to-say-later" source="crates/grove-loop/src/prompt.rs" lines="1-220" parent="source-prompt" -->
 <!-- insert «core-header» -->
 <!-- insert «core-imports» -->
 <!-- insert «core-plugin» -->
@@ -600,56 +600,31 @@ Part 3 is thirty-four lines of argument over an eighteen-line constant, and
 every paragraph of the argument is about something the text deliberately does
 not say.
 
-<!-- fragment «core-signalling-contract» owner="too-late-to-say-later" source="crates/grove-loop/src/prompt.rs" lines="126-178" parent="the-prompt-core" -->
+<!-- fragment «core-signalling-contract» owner="too-late-to-say-later" source="crates/grove-loop/src/prompt.rs" lines="126-153" parent="the-prompt-core" -->
 ````rust
 /// **Part 3 — grove's own signalling contract.** Last, because it describes the
 /// last action.
 ///
-/// **One text for every kind**, where two embedded files used to serve
-/// them, and the trade is deliberate rather than an oversight. What the driver
-/// holds — that it is watching a named file, that writing it ends the session,
-/// that not writing it stops the loop — is a fact about the process tree no
-/// skill can discover and none can repair once the moment has passed, so it
-/// rides the one channel a session cannot skip. Which ending a kind takes is a
-/// rule about that kind, and the shipped spine already assigns it: *whether it
-/// passes the done flag when it signals … is inline in that kind's own
-/// `grove-<kind>` skill* (`plugins/grove/skills/grove/SKILL.md`).
-///
-/// **The skill's ending is the sentence's object, and the default is
-/// subordinate to it.** That is load-bearing rather than stylistic. The
-/// eighteen-and-one split this replaces meant a `finish` prompt never carried
-/// *run `grove-llm complete`* as an imperative — the instruction that, taken by
-/// the one session that may have just deleted the task tree, relaunches the loop
-/// onto a torn-down grove, and whose stated precondition (*the task is retired
-/// and committed*) a completed teardown satisfies exactly. A default stated as
-/// the main verb would put that imperative back in every prompt and rest
-/// its repair on the skill being read, which is the argument this module's
-/// too-late test rejects. Stated as *ordinarily*, subordinate to the kind's own
-/// ending, no prompt ends on a bare imperative for the wrong action.
-///
-/// **The residue that remains, stated rather than argued away.** A `finish`
-/// session whose skill is missing or unread still meets *ordinarily it is
-/// `grove-llm complete`* and nothing contradicting it, where the old prompt
-/// alone was fail-safe for that kind whatever was installed. Decision 10 already
-/// accepts that a session can be launched pointing at a skill that is not
-/// installed, so the two residues compound. What is bought is that grove
-/// interprets no kind; what is paid is that `finish`'s safety now depends on
-/// `grove-finish` being present, like every other rule. The reopen condition is a
-/// `finish` session observed signalling `complete` after a teardown.
+/// One text for every kind: dispatch owns the harness's exit channel and kill
+/// escalation, while Grove reads the reported ending after reap. The kind's
+/// ending remains the sentence's object; the ordinary exit verb is subordinate.
+/// A finish records teardown separately before sending the same pure signal.
+/// A finish whose skill is unread can still send only that signal after deleting
+/// the tree, causing a relaunch. Decision 9 records that residue and its reopen
+/// condition: an exit signal after an unrecorded teardown.
 const SIGNALLING_CONTRACT: &str = "\
 **Signal.** Your kind's skill states how this session ends, and that ending is
-your **last action — then do nothing else**. Ordinarily it is **`grove-llm
-complete`**, once the task is retired and committed (and any parent-chain
-cascade is settled and included). That is how the self-driving loop ends this
-session and starts the next task with fresh context: the verb only writes the
-relaunch flag to a signal file (`GROVE_SIGNAL_FILE`) and returns. Ending the
-session is the **loop driver's** job, not the verb's — the driver launched this
-session and is watching for the signal file while it runs, so it applies grace →
-SIGTERM → kill-grace → SIGKILL to its own child once the file appears
-(driver-side watcher: the driver can always signal its child, unlike an in-agent
-self-kill, which some harness sandboxes silently deny). Run outside a `grove`
-loop (no `GROVE_SIGNAL_FILE`) the verb is a safe no-op that just tells you to
-exit manually. A session that ends *without* signalling stops the loop instead —
+your **last action — then do nothing else**. Ordinarily it is **`harness-dispatch exit`**,
+once the task is retired and committed (and any parent-chain cascade is settled
+and included). A finish session first records its teardown with
+`grove-llm record-teardown`, then sends the exit signal. Dispatch watches its
+run's exit channel (`HARNESS_DISPATCH_EXIT_FILE`); the exit verb only creates
+the signal file and returns, carrying nothing. Ending the harness is
+**dispatch's** job: it applies grace → SIGTERM → kill-grace → SIGKILL to its
+child's group, reaps it, and reports the run ending to Grove. Grove then reads
+its own teardown record to finish, or an exit-signal ending to relaunch with
+fresh context. Run outside dispatch (no `HARNESS_DISPATCH_EXIT_FILE`), the exit
+verb is a safe no-op that tells you to exit manually. A session that ends *without* signalling stops the loop instead —
 a crash or a Ctrl-C is one such ending, and for at least one kind it is a stated
 one — so the signal is what separates a task you finished from a session that
 died.
@@ -660,59 +635,22 @@ died.
 
 At 1,175 bytes this is the largest of the three parts — roughly 62% of a composed
 prompt — and it is also the only one that does not vary at all. That inversion is
-the design: what the driver holds is a fact about the **process tree**, and no
-skill can discover it or repair it once the moment has passed, so it rides the one
-channel a session cannot skip. Which ending a kind takes is a rule about that
-kind, and the spine already assigns it.
+the design: what Grove holds is a fact about the process tree that no skill
+can repair after a forgotten signal has stopped the loop. Dispatch owns the
+harness channel and its escalation; Grove owns the reading of the ending.
 
-**The grammar of the last sentence is load-bearing, and the comment says why.**
-The kind's own ending is the object; *ordinarily it is `grove-llm complete`* is
-subordinate to it. Stated the other way round, every prompt would end on a bare
-imperative to run `complete` — including a `finish` session's, whose skill may
-have just deleted the task tree, and for which that imperative relaunches the loop
-onto a grove that no longer exists. `no_prompt_states_the_stop_flag` guards the
-adjacent case: `--done` is an ending only `finish` takes, and no prompt names it.
+The kind's own ending remains the object, with the ordinary `harness-dispatch
+exit` subordinate to it. The exit signal carries nothing. A finish that has torn
+down the grove first records that disposition through `grove-llm record-teardown`,
+then sends the same signal. The driver finishes on the record regardless of the
+harness's own ending, and relaunches only on an exit-signal report otherwise.
 
-**The residue is stated, not argued away, and it compounds with decision 10's.**
-A `finish` session whose skill is missing or unread meets the ordinary default and
-nothing contradicting it, where the eighteen-and-one split this replaces was
-fail-safe for that kind whatever was installed. What is bought is that grove
-interprets no kind; what is paid is that `finish`'s safety now depends on
-`grove-finish` being present, like every other rule. The reopen condition is
-written down: a `finish` session observed signalling `complete` after a teardown.
-`the_finish_skill_carries_the_three_endings_the_prompt_no_longer_routes` is the
-test that the skill really does carry what the prompt stopped carrying — and it is
-one of the six that need no jj tree, because it reads the shipped skill and
-composes nothing.
-
-**What the contract's own test establishes, and what it would still pass under.**
-`the_signalling_contract_states_the_mechanism_and_defers_the_ending` slices part 3
-out of a composed `impl` prompt and requires three clauses in it: that the kind's
-skill states the ending, that the signal is the last action, and that a session
-ending without signalling stops the loop. Its failure message claims that nothing
-else in the corpus states these, so this is the only check there is — and that
-uniqueness claim holds under enumeration: each of the three clauses occurs in
-`src/prompt.rs` and in this test and nowhere else in `crates/`. What it would
-still pass under is a fourth sentence: three `contains` calls cannot see an
-addition, and `every_kind_gets_the_same_signalling_contract` cannot either,
-because it compares kinds against each other rather than against a fixed text. The
-test that closes that hole is at the composition below.
-
-**One count in the evidence went stale, and the campaign that outran it is this
-one.** `no_prompt_states_the_stop_flag`'s doc comment said a prompt naming `--done`
-would hand the flag to *the eighteen kinds it is not an ending for*. Nineteen is the
-count this module's own header records twice — the nineteen-to-ten reference map and
-the nineteen-to-two ending map that `prompt-names-the-kind-k18` deleted — so the
-comment was right when it was written, and the four kinds between then and now are
-the size of the editorial pipeline this book is being authored through: enumerated at
-`stop-flag-kind-count-k173`, `plugins/grove/skills/` holds twenty-four directories,
-twenty-three of them `grove-<kind>`, so the flag would have reached **twenty-two**.
-The test was never affected: it iterates `shipped_kinds()`, which reads the
-directory, so the assertion had been covering twenty-three kinds while its prose said
-eighteen. **The repair deletes the number rather than retyping it** — the comment now
-reads *the kinds it is not an ending for*, which is everything the sentence needed
-and cannot be outrun the next time the plugin grows. The file is `tests/` — evidence,
-not a root — so no ledger and no page moved with it.
+The accepted residue remains a finish whose skill is unread and whose teardown
+is not recorded before the exit signal. The loop cannot infer confirmation from
+`.grove/` being absent. The contract test pins dispatch's exit verb, its channel
+and escalation, and Grove's teardown verb. The following contract leaf updates
+the shipped skills and removes the legacy CLI; this migration keeps that CLI
+available while no new driver reads its channel.
 
 <a id="what-one-launch-varies"></a>
 ## Everything one launch varies
@@ -720,7 +658,7 @@ not a root — so no ledger and no page moved with it.
 Four fields, and the doc comment on each names the owner of the thing rather
 than explaining it.
 
-<!-- fragment «core-mandate» owner="too-late-to-say-later" source="crates/grove-loop/src/prompt.rs" lines="179-201" parent="the-prompt-core" -->
+<!-- fragment «core-mandate» owner="too-late-to-say-later" source="crates/grove-loop/src/prompt.rs" lines="154-176" parent="the-prompt-core" -->
 ````rust
 /// Everything one launch varies, and the whole of what composition reads.
 ///
@@ -770,7 +708,7 @@ dropped.
 The function the whole module exists for, and the only place its three parts
 meet.
 
-<!-- fragment «core-compose» owner="too-late-to-say-later" source="crates/grove-loop/src/prompt.rs" lines="202-222" parent="the-prompt-core" -->
+<!-- fragment «core-compose» owner="too-late-to-say-later" source="crates/grove-loop/src/prompt.rs" lines="177-197" parent="the-prompt-core" -->
 ````rust
 /// Compose the whole of `${prompt}` for one launch.
 ///
@@ -843,7 +781,7 @@ build on that is a gate this design declines to erect.
 
 The last item, and the only value this module computes rather than receives.
 
-<!-- fragment «core-stated-vcs» owner="too-late-to-say-later" source="crates/grove-loop/src/prompt.rs" lines="223-245" parent="the-prompt-core" -->
+<!-- fragment «core-stated-vcs» owner="too-late-to-say-later" source="crates/grove-loop/src/prompt.rs" lines="198-220" parent="the-prompt-core" -->
 ````rust
 /// The **value** that states this working tree's VCS to the session.
 ///

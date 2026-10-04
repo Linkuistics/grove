@@ -614,3 +614,20 @@ fn the_size_alarm_fires_on_an_oversized_prompt() {
         "the alarm's comparison must be able to say no about a composed prompt"
     );
 }
+
+#[test]
+fn the_contract_names_dispatch_as_supervisor_and_groves_teardown_record() {
+    let contract = signalling_contract();
+    for phrase in [
+        "harness-dispatch exit",
+        "grove-llm record-teardown",
+        "HARNESS_DISPATCH_EXIT_FILE",
+        "grace",
+        "SIGTERM",
+        "SIGKILL",
+    ] {
+        assert!(contract.contains(phrase), "missing {phrase}: {contract}");
+    }
+    assert!(!contract.contains("GROVE_SIGNAL_FILE"), "{contract}");
+    assert!(!contract.contains("grove-llm complete"), "{contract}");
+}

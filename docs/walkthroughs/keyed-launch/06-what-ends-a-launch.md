@@ -7,7 +7,7 @@
 
 <!-- rollup «owned-lines-total» -->
 This chapter owns no production source. The book reconstructs 7 roots and
-2,394 lines, including the confinement chapter that follows this assembly,
+2,390 lines, including the confinement chapter that follows this assembly,
 and the [source index](source-index.md) records that graph in full. What is left
 is the thing no single chapter could state, because each one opened on its own
 refusal and stopped at the boundary of the lines it owned.
@@ -303,10 +303,10 @@ Each row turned `explained` in its owner's slice and in no other.
 
 <!-- rollup «owned-lines-sequence» -->
 <!-- rollup «source-owning-chapters» -->
-**Owned source.** 214 + 319 + 815 + 534 + 186 + 326 = 2,394
+**Owned source.** 214 + 319 + 811 + 534 + 186 + 326 = 2,390
 lines across 6 source-owning chapters, and 0 for this one. A chapter that owns
 no source is the shape the structure brief chose for the assembly, and the total
-is the 2,394 lines in the current declared corpus.
+is the 2,390 lines in the current declared corpus.
 
 <!-- rollup «source-roots» -->
 The [concept index](concept-index.md) and the [source index](source-index.md) are
@@ -331,7 +331,7 @@ valid: 7 files, 2234 resolved lines, 0 deferred lines, final=true
 sessions made. In scoped mode a later chapter's range may be reserved by a defer
 and counted as deferred rather than resolved; in final mode a defer is an error,
 every source root must expand to its complete file, and the page inventory must
-match the manifest exactly. 2,394 resolved and 0 deferred is the whole corpus
+match the manifest exactly. 2,390 resolved and 0 deferred is the whole corpus
 reconstructed — including `src/channel.rs` lines 320 to 505, the inline
 `#[cfg(test)] mod tests` that is corpus because a root is `src/**/*.rs` and the
 specification's exception inventory carries no row for this book.
@@ -395,7 +395,7 @@ eleven ignored tests, seven in `tests/noninteractive.rs` and four in
 <!-- rollup «source-roots» -->
 <!-- rollup «owned-lines-total» -->
 <!-- rollup «chapters» -->
-The book reconstructs 7 roots, 2,394 lines, 7 chapters, two lookup surfaces,
+The book reconstructs 7 roots, 2,390 lines, 7 chapters, two lookup surfaces,
 zero deferred ranges. What it leaves the reader with is the question — *what ends
 a launch, and who decides?* — together with the one ending no observable
 reaches, and the reason that ending belongs to whoever knows what the child was

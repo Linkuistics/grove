@@ -25,8 +25,7 @@ fn confined_child_and_descendants_cannot_read_or_write_outside_the_invocation() 
     let ended = keyed_launch::run_confined_observed(
         Launch {
             argv: &argv,
-            channel: &channel,
-            channel_var: "TEST_CHANNEL",
+            channel: Some((&channel, "TEST_CHANNEL")),
             scrub: &[],
             grant: &[],
             transparent: None,
@@ -79,8 +78,7 @@ fn explicit_runtime_file_grant_allows_reads_but_denies_writes() {
     let ended = keyed_launch::run_confined_observed(
         Launch {
             argv: &argv,
-            channel: &channel,
-            channel_var: "TEST_CHANNEL",
+            channel: Some((&channel, "TEST_CHANNEL")),
             scrub: &[],
             grant: &[],
             transparent: None,
@@ -126,8 +124,7 @@ fn a_confined_program_that_is_not_an_absolute_path_refuses() {
         let error = keyed_launch::run_confined_observed(
             Launch {
                 argv: &argv,
-                channel: &channel,
-                channel_var: "TEST_CHANNEL",
+                channel: Some((&channel, "TEST_CHANNEL")),
                 scrub: &[],
                 grant: &[],
                 transparent: None,

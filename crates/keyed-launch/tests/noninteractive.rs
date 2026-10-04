@@ -213,8 +213,7 @@ fn confined_supervisor(kill_grace: Duration, expected_signal: i32) {
     let result = keyed_launch::run_confined_observed(
         Launch {
             argv: &argv,
-            channel: &channel,
-            channel_var: "RUNNER_CHANNEL",
+            channel: Some((&channel, "RUNNER_CHANNEL")),
             scrub: &[],
             grant: &[],
             transparent: None,

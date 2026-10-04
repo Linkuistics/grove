@@ -1,65 +1,20 @@
-// The self-driving loop — grove's runtime (self-driving-loop).
+// The self-driving loop: select a leaf, compose its prompt, run dispatch,
+// invalidate the reaped session's epoch, then interpret the launch.
 //
-// Bare `grove` drives the *whole loop*, not one task: it launches a fresh
-// foreground session per grove task and relaunches with fresh context each time
-// the agent fires the completion signal (`grove-llm complete`). Any other exit —
-// human `/exit`/Ctrl-C, or a crash — stops the loop, resumable later by
-// re-running `grove` from the same working tree (restart ≡ continuation, the
-// loop body holds zero state and re-derives position from the tree).
+// Dispatch alone watches the harness's exit channel and ends its group. Grove
+// launches dispatch as a channel-free job; its runner forwards cancellation,
+// reaps dispatch and restores the terminal, including after dispatch's death
+// left an orphaned harness holding the foreground. The driver then resets it.
 //
-// `harness-dispatch run` is spawned directly — no shell, no PID-export trick —
-// and watched while it runs: poll it alongside the completion-signal file, and
-// once the file appears, apply grace → SIGTERM → kill-grace → SIGKILL to the
-// child itself (driver-side watcher — self-driving-loop). The driver is the
-// session's own parent process, outside whatever sandbox the session runs
-// under, so it can always signal its child — unlike the in-agent self-kill this
-// replaces, which codex's Seatbelt sandbox silently denied.
-//
-// **All of that is `crates/keyed-launch`'s, not this module's.** What stays here
-// is the four things a loop has to choose and a runner cannot: which directory
-// the channel is allocated in, which variable publishes it, which variables are
-// scrubbed, and how long the two graces are. The shell sketch below is still the
-// whole loop, because a boundary is not a step.
-//
-// **The entry point is [`run`], and it is handed everything it cannot derive.**
-// `loop-crate-driver-k22` moved this module into `grove-loop` and left
-// `crates/grove` a binary that parses an empty command line, resolves the
-// workspace, takes the lease and calls in. So the sketch's first line — owning
-// the workspace lease — happens in the caller, and the loop is what follows it.
-//
-// The driver is deliberately tiny — a plain shell `while` loop could stand in
-// (constraint 6, walk-away-able). Nothing below infers anything about the
-// session, and nothing here decides what runs: the selected leaf's kind, task
-// file and handle go to `harness-dispatch run` with the prompt, and the owner's
-// policy returns the command.
-//
-//     # after owning the workspace lease, clean abandoned signal-<128-bit> paths
-//     while :; do
-//       grove_recover_or_migrate_tree                    # driver-only transition
-//       # One in-process selection: the leaf's stable handle *and* its kind.
-//       read -r handle kind <<<"$(grove_select_or_materialize_finish)"
-//       # Draw a fresh OS-random 128-bit suffix in the workspace control dir;
-//       # retry occupied names without touching their contents.
-//       sig="$control_dir/signal-<fresh-128-bit-suffix>"
-//       # The owner's policy selects the command; Grove reads no configuration.
-//       GROVE_SIGNAL_FILE="$sig" harness-dispatch run --kind="$kind" \
-//         --task-file="$task_file" --task-id="$handle" \
-//         --prompt="$prompt" &                           # $prompt carries $handle
-//       pid=$!
-//       # poll $pid (try_wait) and "$sig" every ~500ms; on signal appearing:
-//       # sleep 2, kill -TERM $pid, sleep 5, kill -KILL $pid
-//       wait "$pid"
-//       stty sane 2>/dev/null
-//       disposition=$(read_signal "$sig")
-//       rm -f "$sig"                  # only this launch's accepted channel
-//       [ -n "$disposition" ] || break # no completion signal → stop
-//     done
+// Restart is continuation: each iteration derives its position from the tree.
+// The caller owns the workspace lease; this module owns the launch directory,
+// prompt, argv and ordered reading of the ending and teardown record.
 
 use crate::driver_lease::DriverLease;
-use crate::{Disposition, Handle, Kind, Reading, Selection, Sought, TreeLifetime};
+use crate::{Handle, Kind, Reading, Selection, Sought, TreeLifetime};
 use anyhow::{ensure, Context, Result};
 use jj_workspace::Workspace;
-use keyed_launch::{Argv, Channel, End, Ended, Escalation, Group, Launch};
+use keyed_launch::{Argv, End, Ended, Escalation, Group, Launch};
 use std::ffi::{OsStr, OsString};
 use std::io::Write;
 use std::path::Path;
@@ -70,11 +25,8 @@ use std::time::Duration;
 /// variables a descendant could act on, and the exact set every spawn below
 /// hands to `keyed_launch` as its scrub list.
 ///
-/// `GROVE_SIGNAL_FILE` is the completion channel: the runner watches that path
-/// while its child runs and applies grace → SIGTERM → kill-grace → SIGKILL the
-/// moment the file *appears*. Whoever holds the variable can therefore end the
-/// session, and the environment is inherited by every descendant — so the
-/// authority is ambient unless each spawn scopes it deliberately.
+/// `GROVE_SIGNAL_FILE` is legacy completion authority, scrubbed while this
+/// meta-grove still runs under installed v22. No current launch grants it.
 /// `GROVE_LAUNCH_DIR` identifies the admitted session; `HARNESS_DISPATCH_EXIT_FILE`
 /// ends a dispatch run. Both are scrubbed before the current launch is granted.
 /// `GROVE_HARNESS_PID` / `GROVE_CLAUDE_PID` are the retired pre-watcher handles
@@ -114,12 +66,6 @@ const LOOP_CONTROL_ENV: [&str; 5] = [
     "GROVE_CLAUDE_PID",
 ];
 
-/// The variable the completion channel's path is published under — the name
-/// this build and `grove-llm complete` have agreed on. It is the runner's
-/// `channel_var`, and it is the first entry of [`LOOP_CONTROL_ENV`] because
-/// granting it is exactly the exception scrubbing exists to carve out.
-const CHANNEL_VAR: &str = "GROVE_SIGNAL_FILE";
-
 /// [`LOOP_CONTROL_ENV`] as the runner takes it.
 fn scrub_list() -> [&'static OsStr; LOOP_CONTROL_ENV.len()] {
     LOOP_CONTROL_ENV.map(OsStr::new)
@@ -141,7 +87,7 @@ pub(crate) fn scrub_loop_control_env(cmd: &mut Command) {
 /// than both looking like "the loop just ended").
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LoopOutcome {
-    /// The grove finished cleanly: a session signalled `complete --done`.
+    /// The grove finished cleanly: this launch recorded its teardown.
     Finished,
     /// A non-signalled exit stopped the loop (human `/exit`/Ctrl-C, or a
     /// crash); resumable by re-running `grove` from the same working tree.
@@ -193,7 +139,7 @@ pub enum LoopOutcome {
 /// A lease that stops naming the descriptors this process owns, a tree the
 /// store refuses, or a `harness-dispatch` that could not be spawned. A launch
 /// the owner's policy refuses is not an error: it is a session that ended
-/// without a completion signal, and the loop stops on it.
+/// without an exit-signal ending, and the loop stops on it.
 pub fn run(
     workspace: &Workspace,
     mut lease: DriverLease,
@@ -239,23 +185,14 @@ fn drive(
         let selection = selected.selection.clone();
 
         let prompt = session_prompt(&selection.handle, &selection.kind, workspace);
-        let argv = dispatch_run(dispatch, &selection, &prompt);
 
         driver_lease
             .revalidate()
             .context("revalidating driver lease before foreground launch")?;
         let launch_dir =
             crate::launch_directory::LaunchDirectory::allocate(driver_lease.control_dir())?;
-        let channel = Channel::allocate(launch_dir.path())
-            .context("allocating a fresh foreground-session signal channel")?;
-        let ended = launch_session(
-            &argv,
-            selected,
-            worktree,
-            &channel,
-            launch_dir.path(),
-            driver_lease,
-        );
+        let argv = dispatch_run(dispatch, &selection, &prompt, launch_dir.path());
+        let ended = launch_session(&argv, selected, worktree, launch_dir.path(), driver_lease);
         // Unconditionally, and before the invalidation gate below: the session
         // may have left the terminal in raw mode and on the alternate screen,
         // and an error path that returns without restoring it hands the human
@@ -266,7 +203,7 @@ fn drive(
             ended,
             || driver_lease.invalidate_session_epoch(),
             |ended: Ended| {
-                let reading = launch_dir.read(ended.token.as_ref());
+                let reading = launch_dir.read();
                 (ended, reading)
             },
         )?;
@@ -289,9 +226,9 @@ fn drive(
             return Ok(LoopOutcome::Finished);
         }
 
-        // Before the ending is acted on, and whatever it says: a member of the
-        // session's group that survived the runner's kills may still hold the
-        // tree, so neither a relaunch nor a legacy completion may happen beside it.
+        // Before the ending is acted on, and whatever it says: a member of
+        // dispatch's group that survived the runner's kills may still hold the
+        // tree, so no relaunch may happen beside it.
         if let Group::Present { pgid } = ended.group {
             eprintln!(
                 "grove: members of the session's process group {pgid} may have survived it — \
@@ -299,36 +236,30 @@ fn drive(
                  before rerunning `grove`.",
                 ended.status, selection.handle
             );
-            return Ok(match ended.end {
-                End::Interrupted { signal } => LoopOutcome::Interrupted(signal),
-                _ => LoopOutcome::Stopped,
-            });
+            return Ok(LoopOutcome::Stopped);
         }
 
-        match reading.completion {
-            Some(Disposition::Relaunch) => continue,
-            Some(Disposition::Done) => {
-                eprintln!("grove: grove finished — loop complete.");
-                return Ok(LoopOutcome::Finished);
-            }
-            None => {
-                eprintln!(
-                    "grove: session ended without a completion signal — status {}, elapsed {:.3}s; loop stopped.",
-                    ended.status,
-                    ended.elapsed.as_secs_f64()
-                );
-                if !ended.status.success() {
-                    eprintln!(
-                        "       session kind `{}` for `{}` failed; if harness-dispatch refused the \
-                         launch, its diagnostic and remedy are above and the leaf is still live. \
-                         Either way, rerun `grove` to continue.",
-                        selection.kind.label(),
-                        selection.handle
-                    );
-                }
-                return Ok(LoopOutcome::Stopped);
-            }
+        if reading.exit_signal {
+            continue;
         }
+        eprintln!(
+            "grove: session ended without an exit-signal ending — status {}, elapsed {:.3}s; loop stopped.",
+            ended.status, ended.elapsed.as_secs_f64()
+        );
+        use std::os::unix::process::ExitStatusExt as _;
+        if ended.status.signal().is_some() {
+            eprintln!("       dispatch died of a signal; its harness may have survived. Check for a leftover process before rerunning `grove`.");
+        }
+        if !ended.status.success() {
+            eprintln!(
+                "       session kind `{}` for `{}` failed; if harness-dispatch refused the \
+                 launch, its diagnostic and remedy are above and the leaf is still live. \
+                 Either way, rerun `grove` to continue.",
+                selection.kind.label(),
+                selection.handle
+            );
+        }
+        return Ok(LoopOutcome::Stopped);
     }
 }
 
@@ -379,7 +310,7 @@ fn session_prompt(handle: &Handle, kind: &Kind, workspace: &Workspace) -> String
 /// Each value is joined to its flag in one word, so a prompt or a path that
 /// begins with a dash is still a value. A value dispatch cannot take, a path
 /// that is not UTF-8 for one, is dispatch's to refuse.
-fn dispatch_run(dispatch: &Path, task: &Selection, prompt: &str) -> Argv {
+fn dispatch_run(dispatch: &Path, task: &Selection, prompt: &str, launch_dir: &Path) -> Argv {
     let word = |flag: &str, value: &OsStr| {
         let mut word = OsString::from(flag);
         word.push(value);
@@ -393,22 +324,15 @@ fn dispatch_run(dispatch: &Path, task: &Selection, prompt: &str) -> Argv {
             word("--task-file=", task.path.as_os_str()),
             word("--task-id=", task.handle.to_string().as_ref()),
             word("--prompt=", prompt.as_ref()),
+            word("--exit-dir=", launch_dir.as_os_str()),
+            word("--ending-file=", launch_dir.join("ending.json").as_os_str()),
         ],
     )
 }
 
-/// Launch one fresh foreground session owning the real TTY, and hand it to
-/// `keyed_launch::run_observed`, which spawns it directly — no shell — and supervises it
-/// until it ends.
-///
-/// The argv is taken whole from its caller. Nothing is appended, injected, or
-/// reordered here. In the loop it is [`dispatch_run`]'s: the front process
-/// leads the job and holds the terminal, its policy worker joins that job, and
-/// the front then supervises the harness the policy selects as a job of its
-/// own, through the same runner contract, handing the terminal on. Until the
-/// lifecycle launch moves onto dispatch's run ending, this channel still ends
-/// the session: its escalation cancels dispatch's run, and dispatch ends its
-/// harness before it dies of the same signal.
+/// Launch dispatch as a foreground, channel-free job. Dispatch selects and
+/// supervises the harness as a separate job and owns its exit signal. The runner
+/// reports dispatch's start/reap and restores the handed-over terminal modes.
 ///
 /// Prints one diagnostic line naming the kind and the selected handle. That
 /// line is the only durable record of what each session in a loop was working
@@ -425,7 +349,6 @@ fn launch_session(
     argv: &Argv,
     selected: SelectedTask,
     worktree: &Path,
-    channel: &Channel,
     launch_dir: &Path,
     driver_lease: &mut DriverLease,
 ) -> Result<Ended> {
@@ -445,8 +368,7 @@ fn launch_session(
             keyed_launch::run_observed(
                 Launch {
                     argv,
-                    channel,
-                    channel_var: CHANNEL_VAR,
+                    channel: None,
                     scrub: &scrub_list(),
                     grant: &[(OsStr::new("GROVE_LAUNCH_DIR"), launch_dir.as_os_str())],
                     transparent: None,
@@ -471,7 +393,7 @@ fn complete_post_reap_epoch_handoff<E, T>(
     continue_after_invalidation: impl FnOnce(E) -> T,
 ) -> Result<T> {
     const INVALIDATION_CONTEXT: &str =
-        "post-reap session epoch invalidation blocked; completion signal left unconsumed";
+        "post-reap session epoch invalidation blocked; launch ending left unconsumed";
 
     match (ended, invalidate()) {
         (Ok(ended), Ok(())) => Ok(continue_after_invalidation(ended)),
@@ -483,24 +405,12 @@ fn complete_post_reap_epoch_handoff<E, T>(
     }
 }
 
-/// The kill escalation the runner applies once the completion channel appears.
-///
-/// Built-in constants, not knobs. Two seconds lets the agent's `complete` tool
-/// call return and its turn end before its session dies. Why an escalation is
-/// needed at all — an interactive session is never reaped on its own, and
-/// cannot be trusted to end itself under every sandbox — is
-/// `keyed_launch::Escalation`'s to state, and it states it.
-///
-/// **The kill-grace must outlast dispatch's own end.** The child is
-/// `harness-dispatch run`, which supervises the harness: the SIGTERM sent here
-/// cancels its run, and it then sends its harness's group the same signal,
-/// waits its own kill-grace of 5 seconds, kills what remains of the group,
-/// confirms it gone within 1 second and waits on its record store's lock. Ten
-/// seconds covers that, so this SIGKILL never races dispatch's escalation and
-/// orphans a harness it was still ending
-/// (`docs/specs/module-decomposition.md`, decision 7).
+/// No channel grace: Grove ends no harness. Its own TERM/HUP is forwarded
+/// to dispatch, whose cancellation must finish before this 10-second kill-grace.
+/// Dispatch budgets 5 seconds for the harness, 1 for group confirmation and
+/// 2 for its record-store lock (decision 7).
 const ESCALATION: Escalation = Escalation {
-    grace: Duration::from_secs(2),
+    grace: Duration::ZERO,
     kill_grace: Duration::from_secs(10),
 };
 
@@ -638,7 +548,13 @@ mod tests {
         std::os::unix::fs::PermissionsExt::set_mode(&mut permissions, 0o755);
         std::fs::set_permissions(harness, permissions).unwrap();
         support::route_every_kind_to(home, harness);
-        let run = dispatch_run(&support::harness_dispatch(), task, "prompt");
+        std::fs::create_dir_all(home.join("exit")).unwrap();
+        let run = dispatch_run(
+            &support::harness_dispatch(),
+            task,
+            "prompt",
+            &home.join("exit"),
+        );
         let mut home_word = OsString::from("HOME=");
         home_word.push(home);
         let mut words = vec![home_word];
@@ -672,15 +588,7 @@ mod tests {
             );
             let launch_dir =
                 crate::launch_directory::LaunchDirectory::allocate(lease.control_dir()).unwrap();
-            let channel = Channel::allocate(launch_dir.path()).unwrap();
-            let result = launch_session(
-                &argv,
-                selection,
-                work,
-                &channel,
-                launch_dir.path(),
-                &mut lease,
-            );
+            let result = launch_session(&argv, selection, work, launch_dir.path(), &mut lease);
             assert_eq!(result.is_ok(), state == "current", "{state}: {result:?}");
             assert_eq!(work.join("launched").exists(), state == "current");
             let epoch = std::fs::read_to_string(lease.control_dir().join("session.epoch")).unwrap();
@@ -775,7 +683,7 @@ mod tests {
         let message = format!("{error:#}");
         assert!(
             message.contains(
-                "post-reap session epoch invalidation blocked; completion signal left unconsumed"
+                "post-reap session epoch invalidation blocked; launch ending left unconsumed"
             ),
             "{message}"
         );
@@ -803,7 +711,7 @@ mod tests {
 
         assert!(
             error.to_string().contains(
-                "post-reap session epoch invalidation blocked; completion signal left unconsumed"
+                "post-reap session epoch invalidation blocked; launch ending left unconsumed"
             ),
             "{error:#}"
         );

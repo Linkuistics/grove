@@ -83,11 +83,11 @@ fn session_helper() {
         match command[0] {
             b'x' => return,
             b's' => {
-                fs::write(
-                    std::env::var_os("GROVE_SIGNAL_FILE").unwrap(),
-                    b"relaunch\n",
-                )
-                .unwrap();
+                assert!(Command::new(shared::harness_dispatch())
+                    .arg("exit")
+                    .status()
+                    .unwrap()
+                    .success());
                 stream.write_all(b"s").unwrap();
             }
             b'p' => stream.write_all(b"p").unwrap(),

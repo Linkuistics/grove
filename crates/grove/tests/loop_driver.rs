@@ -11,12 +11,8 @@
 // about — the driver's own stderr, its session-epoch bookkeeping, its response
 // to being signalled, and its ownership of one foreground child.
 //
-// The watcher's grace → SIGTERM → kill-grace → SIGKILL escalation is *not*
-// tested here. Its two durations are built-in constants passed into
-// `wait_with_watcher_result`, so the escalation is driven on test timescales
-// through that module-local parameter, in `src/loop_driver.rs`'s own unit tests.
-// Reaching it from out here would need a process-configuration knob, which is
-// the thing this leaf removed.
+// Dispatch owns the harness's escalation; these cases exercise Grove's
+// interpretation, cancellation forwarding and terminal recovery through it.
 
 mod support;
 
@@ -366,7 +362,12 @@ impl DriverProcess {
     /// are reparented to pid 1 immediately, and that erases the only link back
     /// to them — which is how the orphans this type exists to stop got loose.
     fn kill(&mut self) {
-        let sessions = children_of(self.id());
+        let mut sessions = children_of(self.id());
+        let mut next = 0;
+        while next < sessions.len() {
+            sessions.extend(children_of(sessions[next].0));
+            next += 1;
+        }
         let _ = self.child.kill();
         let _ = self.child.wait();
         for (pid, group) in sessions {
@@ -470,7 +471,7 @@ fn the_driver_activates_immediately_before_spawn_and_invalidates_after_reap() {
     write_exec(
         &configured,
         &format!(
-            "#!/bin/sh\ncp \"$PWD/.jj/grove/session.epoch\" {epoch}\nprintf '%s\\n' \"$GROVE_SIGNAL_FILE\" > {signal}\nexit 0\n",
+            "#!/bin/sh\ncp \"$PWD/.jj/grove/session.epoch\" {epoch}\nprintf '%s\\n' \"$HARNESS_DISPATCH_EXIT_FILE\" > {signal}\nexit 0\n",
             epoch = shell_quote(&observed_epoch),
             signal = shell_quote(&observed_signal),
         ),
@@ -543,7 +544,7 @@ fn a_session_mutates_the_tree_through_grove_llm_without_deadlocking_the_driver()
              : > {first_run}\n\
              {grove_llm} leaf-add . follow-up --kind design >> {verbs} 2>&1 || exit 91\n\
              {grove_llm} leaf-retire .grove/01-impl--subject-k1.md >> {verbs} 2>&1 || exit 92\n\
-             printf 'relaunch\\n' > \"$GROVE_SIGNAL_FILE\"\n\
+             : > \"$HARNESS_DISPATCH_EXIT_FILE\"\n\
              exit 0\n",
             mandates = shell_quote(&mandates),
             verbs = shell_quote(&verbs),
@@ -757,7 +758,7 @@ fn a_done_signal_finishes_the_loop_once_and_housekeeping_stays_advisory() {
     write_exec(
         &configured,
         &format!(
-            "#!/bin/sh\nprintf 'ran\\n' >> {log}\nprintf 'done\\n' > \"$GROVE_SIGNAL_FILE\"\nexit 0\n",
+            "#!/bin/sh\nprintf 'ran\\n' >> {log}\n: > \"$GROVE_LAUNCH_DIR/teardown\"; : > \"$HARNESS_DISPATCH_EXIT_FILE\"\nexit 0\n",
             log = shell_quote(&log),
         ),
     );
@@ -818,7 +819,7 @@ fn a_signal_removal_failure_does_not_override_a_done_disposition() {
     write_exec(
         &configured,
         &format!(
-            "#!/bin/sh\nprintf 'done\\n' > \"$GROVE_SIGNAL_FILE\"\nprintf '%s\\n' \"$GROVE_SIGNAL_FILE\" > {log}\nchmod 0500 \"$(dirname \"$GROVE_SIGNAL_FILE\")\"\nexit 0\n",
+            "#!/bin/sh\n: > \"$GROVE_LAUNCH_DIR/teardown\"; : > \"$HARNESS_DISPATCH_EXIT_FILE\"\nprintf '%s\\n' \"$HARNESS_DISPATCH_EXIT_FILE\" > {log}\nchmod 0500 \"$(dirname \"$HARNESS_DISPATCH_EXIT_FILE\")\"\nexit 0\n",
             log = shell_quote(&signal_log),
         ),
     );
@@ -886,7 +887,7 @@ fn concurrent_loops_with_the_same_grove_name_in_different_worktrees_do_not_inter
 
     let (attacker_home, attacker_tree) = setup(
         "attacker",
-        "#!/bin/sh\nprintf 'done\\n' > \"$GROVE_SIGNAL_FILE\"\nexec sleep 30\n",
+        "#!/bin/sh\n: > \"$GROVE_LAUNCH_DIR/teardown\"; : > \"$HARNESS_DISPATCH_EXIT_FILE\"\nexec sleep 30\n",
     );
     let (victim_home, victim_tree) = setup("victim", "#!/bin/sh\nsleep 1.5\nexit 0\n");
 
@@ -905,7 +906,7 @@ fn concurrent_loops_with_the_same_grove_name_in_different_worktrees_do_not_inter
         "sanity check: the attacker's own `done` signal still ends its own loop: {attacker_stderr}"
     );
     assert!(
-        victim_stderr.contains("without a completion signal"),
+        victim_stderr.contains("without an exit-signal ending"),
         "the victim's session ended without ever signalling anything of its own — a \
          foreign `done` from the other worktree's loop must not be mistaken for its \
          own completion signal: {victim_stderr}"
@@ -1032,7 +1033,7 @@ fn the_escalation_reaps_the_sessions_descendants() {
             "#!/bin/sh\n\
              sh -c 'while : ; do sleep 0.05 ; done' &\n\
              printf '%s\\n' \"$!\" > {pid}\n\
-             printf 'done\\n' > \"$GROVE_SIGNAL_FILE\"\n\
+             : > \"$GROVE_LAUNCH_DIR/teardown\"; : > \"$HARNESS_DISPATCH_EXIT_FILE\"\n\
              while : ; do sleep 0.05 ; done\n",
             pid = shell_quote(&descendant_pid),
         ),
@@ -1189,11 +1190,11 @@ fn an_orphaned_epoch_guard_stops_before_consuming_the_relaunch_signal() {
 n=$(cat {count} 2>/dev/null || echo 0)
 n=$((n + 1))
 printf '%s\n' "$n" > {count}
-printf '%s\n' "$GROVE_SIGNAL_FILE" > {observed}
+printf '%s\n' "$HARNESS_DISPATCH_EXIT_FILE" > {observed}
 printf '%s\n' "$$" > {pid}
 : > {ready}
 while [ ! -e {held} ]; do sleep 0.01; done
-: > "$GROVE_SIGNAL_FILE"
+: > "$HARNESS_DISPATCH_EXIT_FILE"
 trap ': > {term}' TERM
 while :; do sleep 0.1; done
 "#,
@@ -1253,7 +1254,10 @@ while :; do sleep 0.1; done
         let mut orphan = Command::new(support::grove_llm())
             .arg("pick")
             .current_dir(&lock_worktree)
-            .env("GROVE_SIGNAL_FILE", &signal_path)
+            .env(
+                "GROVE_LAUNCH_DIR",
+                Path::new(&signal_path).parent().unwrap(),
+            )
             .stdout(Stdio::null())
             .stderr(Stdio::from(fs::File::create(&lock_orphan_stderr).unwrap()))
             .spawn()
@@ -1341,7 +1345,9 @@ while :; do sleep 0.1; done
     let signal_path = fs::read_to_string(&observed_signal)
         .ok()
         .map(|path| PathBuf::from(path.trim()));
-    let signal_was_left_unconsumed = signal_path.as_ref().is_some_and(|path| path.exists());
+    let signal_was_left_unconsumed = signal_path
+        .as_ref()
+        .is_some_and(|path| path.parent().unwrap().join("ending.json").exists());
 
     let _ = release_tx.send(());
     lock_thread.join().unwrap();
@@ -1366,7 +1372,7 @@ while :; do sleep 0.1; done
     );
     assert!(
         stderr.contains(
-            "post-reap session epoch invalidation blocked; completion signal left unconsumed"
+            "post-reap session epoch invalidation blocked; launch ending left unconsumed"
         ),
         "unexpected error: {stderr}"
     );
@@ -1456,7 +1462,7 @@ struct Launch {
     args: Vec<OsString>,
     /// `HARNESS_DISPATCH_RUN_ID`, or `<unset>`.
     run_id: String,
-    /// `GROVE_SIGNAL_FILE`, or `<unset>`.
+    /// `HARNESS_DISPATCH_EXIT_FILE`, or `<unset>`.
     channel: String,
     /// The driver's session epoch, as it stood while the harness ran.
     epoch: String,
@@ -1594,14 +1600,17 @@ impl Dispatch {
 const RECORD_START: &str = "\
     for argument in \"$@\"; do printf '%s\\0' \"$argument\"; done > \"$record/args\"\n\
     printf '%s' \"${HARNESS_DISPATCH_RUN_ID-<unset>}\" > \"$record/run-id\"\n\
-    printf '%s' \"${GROVE_SIGNAL_FILE-<unset>}\" > \"$record/channel\"\n\
+    printf '%s' \"${HARNESS_DISPATCH_EXIT_FILE-<unset>}\" > \"$record/channel\"\n\
     cp .jj/grove/session.epoch \"$record/epoch\"\n";
 
-/// `grove-llm complete --done`, the fake harness's usual last act. It passes
-/// the session-epoch admission against the channel it was handed before it
-/// writes, so a loop that ends on it shows the harness held the live channel.
+/// Mark teardown directly in this fixture so cases can inspect the retained
+/// task tree, then send the real dispatch exit signal. The teardown-verb case
+/// below exercises the real finish-commit/record-teardown precondition.
 fn complete_done() -> String {
-    format!("exec {} complete --done", shell_quote(&own_grove_llm()))
+    format!(
+        "touch \"$GROVE_LAUNCH_DIR/teardown\"; exec {} exit",
+        shell_quote(&harness_dispatch())
+    )
 }
 
 /// What Grove passes `harness-dispatch run` for a lifecycle session, each a
@@ -1616,7 +1625,7 @@ const PASSED: [&str; 4] = ["--kind=", "--task-file=", "--task-id=", "--prompt="]
 ///
 /// At import it writes `view` with the names in the worker's environment and
 /// in the environment of a child it spawns, and the worker's value of
-/// `GROVE_SIGNAL_FILE`, so that what selection code can reach is observed
+/// `HARNESS_DISPATCH_EXIT_FILE`, so that what selection code can reach is observed
 /// where it runs.
 fn probing_policy(view: &Path, harness: &Path, kinds: &[&str]) -> String {
     let kinds = kinds
@@ -1631,7 +1640,7 @@ const names = (lines: string) => lines.split("\n").filter(Boolean).map((line) =>
 writeFileSync({view:?}, JSON.stringify({{
   worker: Object.keys(process.env).sort(),
   child: names(execFileSync("/usr/bin/env", [], {{ encoding: "utf8" }})),
-  channel: process.env.GROVE_SIGNAL_FILE ?? null,
+  channel: process.env.GROVE_LAUNCH_DIR ?? null,
   launchDir: process.env.GROVE_LAUNCH_DIR ?? null,
 }}));
 export const policy = {{
@@ -1808,10 +1817,17 @@ fn a_session_s_task_reaches_select_as_native_data_and_only_its_harness_holds_the
 
     // The control: granted, the channel reaches the same probe, and it is the
     // harness's own, fresh for that launch.
-    dispatch.settings(r#"{ "policyEnv": ["GROVE_SIGNAL_FILE"] }"#);
+    dispatch.settings(r#"{ "policyEnv": ["GROVE_LAUNCH_DIR"] }"#);
     dispatch.drive_to_completion();
     let granted = dispatch.launch(1);
-    assert_eq!(dispatch.view()["channel"], granted.channel.as_str());
+    assert_eq!(
+        dispatch.view()["channel"],
+        Path::new(&granted.channel)
+            .parent()
+            .unwrap()
+            .to_str()
+            .unwrap()
+    );
     assert_ne!(
         granted.channel, launch.channel,
         "each launch gets a fresh channel"
@@ -1836,10 +1852,11 @@ fn a_kind_the_policy_refuses_leaves_its_leaf_live_and_launches_once_the_policy_r
         "if [ $n = 0 ]; then\n\
          {grove_llm} leaf-add . follow-up --kind design > {authored} 2>&1 || exit 91\n\
          {grove_llm} leaf-retire .grove/01-impl--subject-k1.md > /dev/null 2>&1 || exit 92\n\
-         exec {grove_llm} complete\n\
+         exec {exit_dispatch} exit\n\
          fi\n\
          {complete}",
         authored = shell_quote(&authored),
+        exit_dispatch = shell_quote(&harness_dispatch()),
         complete = complete_done(),
     ));
     dispatch.policy(&probing_policy(
@@ -1867,7 +1884,7 @@ fn a_kind_the_policy_refuses_leaves_its_leaf_live_and_launches_once_the_policy_r
         "refused (policy_refused, stage selection)",
         "  policy code: incomplete_mapping",
         "  remedy: add the kind to the policy",
-        "session ended without a completion signal — status exit status: 3",
+        "session ended without an exit-signal ending — status exit status: 3",
         "session kind `design` for `follow-up-k2` failed",
         "rerun `grove` to continue",
     ] {
@@ -2006,7 +2023,7 @@ fn a_fresh_tree_is_scaffolded_with_no_policy_and_its_first_launch_refuses_naming
     for said in [
         "refused (policy_missing",
         "harness-dispatch init",
-        "session ended without a completion signal",
+        "session ended without an exit-signal ending",
         "session kind `requirements` for `plan-k1` failed",
     ] {
         assert!(stderr.contains(said), "no {said:?} in: {stderr}");
@@ -2178,8 +2195,7 @@ fn the_grove_invocation_dispatch_s_help_shows_is_the_one_the_driver_makes() {
 /// it, the line under that one becomes this session's run, or goes. `finish`
 /// retires the session's leaf and walks the close cascade: each ancestor node
 /// the retirement left with no live leaf is a producer this session finished
-/// too, innermost first. `signal` ends the session through `grove-llm
-/// complete`, first leaving every creator line in the tree where a case can
+/// too, innermost first. `signal` ends the session through `harness-dispatch exit`, first leaving every creator line in the tree where a case can
 /// read what stood when the session ended.
 const SESSION: &str = r#"for prompt; do :; done
 handle=${prompt#*"$marker"}
@@ -2211,7 +2227,8 @@ finish() {
 }
 signal() {
   grep -rh '^\*\*Creator:\*\*' .grove > "$record/creators"
-  exec "$grove_llm" complete "$@"
+  if [ "${1-}" = --done ]; then : > "$GROVE_LAUNCH_DIR/teardown"; fi
+  exec "$dispatch_exit" exit
 }
 "#;
 
@@ -2310,6 +2327,7 @@ impl Lifecycle {
         dispatch.policy(REVIEW_EXAMPLE);
         dispatch.harness_then(&format!(
             "grove_llm={grove_llm}\n\
+             dispatch_exit={dispatch_exit}\n\
              marker='{MANDATED_LEAF}'\n\
              {SESSION}\
              case $handle in\n\
@@ -2317,6 +2335,7 @@ impl Lifecycle {
              *) exit 94 ;;\n\
              esac",
             grove_llm = shell_quote(&own_grove_llm()),
+            dispatch_exit = shell_quote(&harness_dispatch()),
         ));
         Lifecycle { dispatch, path }
     }
@@ -2748,7 +2767,7 @@ fn a_finish_by_a_session_with_no_run_removes_an_attempt_s_run_and_the_review_ref
 
     let stderr = lifecycle.drive();
     assert!(
-        stderr.contains("session ended without a completion signal"),
+        stderr.contains("session ended without an exit-signal ending"),
         "{stderr}"
     );
     let attempt = dispatch.launch(0);
@@ -3083,8 +3102,24 @@ impl DriverProcess {
 /// controlling terminal are `terminal`, and its other streams are the caller's
 /// to place.
 fn command_on(worktree: &Path, home: &Path, terminal: &Pty, entry: Entry) -> Command {
+    command_on_at(
+        Path::new(env!("CARGO_BIN_EXE_grove")),
+        worktree,
+        home,
+        terminal,
+        entry,
+    )
+}
+
+fn command_on_at(
+    program: &Path,
+    worktree: &Path,
+    home: &Path,
+    terminal: &Pty,
+    entry: Entry,
+) -> Command {
     {
-        let mut command = driver_command(worktree, home);
+        let mut command = driver_command_at(program, worktree, home);
         command.stdin(Stdio::from(terminal.slave.try_clone().unwrap()));
         let Entry { ignored, blocked } = entry;
         // SAFETY: between fork and exec the closure makes only setsid, ioctl,
@@ -3283,7 +3318,7 @@ writeFileSync({view:?}, JSON.stringify({{
   controlling: device(controlling),
   null: statSync("/dev/null").rdev,
   env: Object.keys(process.env).sort(),
-  channel: process.env.GROVE_SIGNAL_FILE ?? null,
+  channel: process.env.GROVE_LAUNCH_DIR ?? null,
 }}));
 closeSync(controlling);
 {prelude}
@@ -3332,7 +3367,7 @@ export const policy = {{
     }
 
     /// Run the loop on a terminal of its own until it stops on a session that
-    /// ended without a completion signal, doing `meanwhile` to the running
+    /// ended without an exit-signal ending, doing `meanwhile` to the running
     /// driver and its terminal first. Returns the status Grove reported for
     /// that session, and all it said.
     fn drive_to_stop(&self, meanwhile: impl FnOnce(&mut DriverProcess, &Pty)) -> (String, String) {
@@ -3347,7 +3382,7 @@ export const policy = {{
             "the driver itself was interrupted: {stderr}"
         );
         let status = stderr
-            .split_once("session ended without a completion signal — status ")
+            .split_once("session ended without an exit-signal ending — status ")
             .and_then(|(_, rest)| rest.split_once(", elapsed "))
             .unwrap_or_else(|| panic!("no ended session reported: {stderr}"))
             .0
@@ -3531,7 +3566,7 @@ fn the_harness_is_the_foreground_job_grove_launched() {
 
     // The controls.
     dispatch.policy(&dispatch.terminal_policy(true, ""));
-    dispatch.settings(r#"{ "policyEnv": ["GROVE_SIGNAL_FILE"] }"#);
+    dispatch.settings(r#"{ "policyEnv": ["GROVE_LAUNCH_DIR"] }"#);
     let held = dispatch.drive_held(PLAIN, 1);
     let altered = dispatch.probed(1);
     assert_ne!(altered.parent, held.pid, "{altered:?}");
@@ -3545,7 +3580,14 @@ fn the_harness_is_the_foreground_job_grove_launched() {
     assert!(signals.ignored.contains(&libc::SIGPIPE), "{altered:?}");
     assert!(signals.blocked.contains(&libc::SIGALRM), "{altered:?}");
     let granted = dispatch.launch(1);
-    assert_eq!(dispatch.view()["channel"], granted.channel.as_str());
+    assert_eq!(
+        dispatch.view()["channel"],
+        Path::new(&granted.channel)
+            .parent()
+            .unwrap()
+            .to_str()
+            .unwrap()
+    );
     assert_ne!(
         granted.channel, launch.channel,
         "each launch gets a fresh channel"
@@ -3689,9 +3731,8 @@ fn an_interrupt_typed_at_the_terminal_ends_the_job_during_selection_and_during_e
     assert_ne!(dispatch.launch(0).run_id, "<unset>");
 }
 
-// Grove's escalation reaps a session's descendants on a terminal as it does
-// detached: the harness leads the group Grove signals, because the front
-// became it, so a command it spawned dies with it. The harness spawns a
+// Dispatch's escalation reaps the harness's descendants under a terminal
+// as it does detached: the harness leads the group dispatch signals. The harness spawns a
 // descendant, completes through the channel, and declines to end, so the
 // escalation runs. The bystander, the same shape of process in this test's
 // own group, is the control: a probe that read every process gone would read
@@ -3703,9 +3744,9 @@ fn the_escalation_reaps_the_session_s_descendants_under_a_terminal() {
     dispatch.probe_then(&format!(
         "sh -c 'while : ; do sleep 0.05 ; done' &\n\
          printf '%s\\n' \"$!\" > \"$record/descendant\"\n\
-         {grove_llm} complete --done || exit 91\n\
+         touch \"$GROVE_LAUNCH_DIR/teardown\"; {dispatch_exit} exit || exit 91\n\
          while : ; do sleep 0.05 ; done",
-        grove_llm = shell_quote(&own_grove_llm()),
+        dispatch_exit = shell_quote(&harness_dispatch()),
     ));
     dispatch.policy(&dispatch.terminal_policy(false, ""));
     let mut bystander = Reaped(
@@ -3744,8 +3785,8 @@ fn the_escalation_reaps_the_session_s_descendants_under_a_terminal() {
 }
 
 #[test]
-fn launch_directory_teardown_finishes_after_legacy_signal_or_own_exit() {
-    for ending in ["complete", "exit"] {
+fn launch_directory_teardown_finishes_after_dispatch_signal_or_own_exit() {
+    for ending in ["exit_signal", "harness_exit"] {
         let dispatch = Dispatch::new("worktree");
         plant_tree(&dispatch.worktree, "01-impl--subject-k1.md");
         let llm = shell_quote(&own_grove_llm());
@@ -3766,8 +3807,8 @@ fn launch_directory_teardown_finishes_after_legacy_signal_or_own_exit() {
              test -f \"$GROVE_LAUNCH_DIR/teardown\"\n\
              {llm} record-teardown\n\
              {}",
-            if ending == "complete" {
-                format!("exec {llm} complete")
+            if ending == "exit_signal" {
+                format!("exec {} exit", shell_quote(&harness_dispatch()))
             } else {
                 "exit 7".into()
             }
@@ -3818,14 +3859,15 @@ fn launch_directory_rotates_and_rejects_stale_tree_and_teardown_verbs() {
         "set -e\n\
          printf '%s' \"$GROVE_LAUNCH_DIR\" > \"$record/launch-dir\"\n\
          ls -ld \"$GROVE_LAUNCH_DIR\" > \"$record/mode\"\n\
-         if [ \"$n\" = 0 ]; then exec {llm} complete; fi\n\
+         if [ \"$n\" = 0 ]; then exec {exit_dispatch} exit; fi\n\
          old=$(cat {launches}/0/launch-dir)\n\
          test ! -e \"$old\"\n\
          for verb in 'pick' 'leaf-add . stale --kind impl' 'record-teardown'; do\n\
              if env GROVE_LAUNCH_DIR=\"$old\" {llm} $verb > \"$record/stale-$verb\" 2>&1; then exit 92; fi\n\
          done\n\
-         exec {llm} complete --done",
-        launches = shell_quote(&dispatch.launches)
+         touch \"$GROVE_LAUNCH_DIR/teardown\"; exec {exit_dispatch} exit",
+        launches = shell_quote(&dispatch.launches),
+        exit_dispatch = shell_quote(&harness_dispatch())
     ));
     support::route_every_kind_to(&dispatch.home, &dispatch.harness);
     let terminal = Pty::open();
@@ -3903,4 +3945,266 @@ fn replacement_driver_removes_abandoned_launches_without_interpreting_contents()
     assert!(!link.exists());
     assert!(outside.join("keep").is_file());
     assert!(retained.is_dir());
+}
+
+// The driver must act on dispatch's ending, independent of the harness status.
+#[test]
+fn dispatch_exit_signal_relaunches_and_own_exit_stops_under_a_terminal() {
+    let dispatch = Dispatch::new("worktree");
+    plant_tree(&dispatch.worktree, "01-impl--subject-k1.md");
+    let exit = shell_quote(&harness_dispatch());
+    dispatch.harness_then(&format!(
+        "test -z \"${{GROVE_SIGNAL_FILE-}}\" || exit 91\n\
+         if [ $n = 0 ]; then {exit} exit || exit 92; exit 7; fi\n\
+         exit 3"
+    ));
+    support::route_every_kind_to(&dispatch.home, &dispatch.harness);
+    let terminal = Pty::open();
+    let mut driver = DriverProcess::spawn_on(&dispatch.worktree, &dispatch.home, &terminal, PLAIN);
+    let output = driver.finish_within(SESSION_LIMIT);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(output.status.success(), "{stderr}");
+    assert_eq!(dispatch.launch_count(), 2, "{stderr}");
+    assert!(dispatch.task_file("01-impl--subject-k1.md").is_file());
+    assert!(stderr.contains("loop stopped"), "{stderr}");
+    assert!(!stderr.contains("grove finished"), "{stderr}");
+}
+// Hold the driver's reset at stty, after runner recovery and before any reset
+// changes the handed-over modes. The helper joins the driver's group.
+fn hold_terminal_reset(dispatch: &Dispatch) -> (OsString, PathBuf, PathBuf) {
+    let bin = dispatch.root.join("reset-bin");
+    let reports = dispatch.root.join("reset-reports");
+    let ready = dispatch.root.join("reset-ready");
+    let go = dispatch.root.join("reset-go");
+    fs::create_dir(&bin).unwrap();
+    fs::create_dir(&reports).unwrap();
+    let after = dispatch.root.join("after-reset-probe");
+    write_exec(
+        &after,
+        &format!(
+        "#!/bin/sh\ntouch {ready}\nwhile [ ! -e {go} ]; do sleep 0.01; done\nexec /bin/stty sane\n",
+        ready = shell_quote(&ready), go = shell_quote(&go)),
+    );
+    write_exec(
+        &bin.join("stty"),
+        &format!(
+            "#!/bin/sh\n/bin/stty -g > {modes}\nexec {probe} {reports} {after}\n",
+            modes = shell_quote(&dispatch.root.join("restored-modes")),
+            probe = shell_quote(session_probe()),
+            reports = shell_quote(&reports),
+            after = shell_quote(&after)
+        ),
+    );
+    let path = std::env::join_paths(
+        std::iter::once(bin).chain(std::env::split_paths(&std::env::var_os("PATH").unwrap())),
+    )
+    .unwrap();
+    (path, ready, go)
+}
+
+fn terminal_modes(terminal: &Pty) -> Vec<u8> {
+    let output = Command::new("/bin/stty")
+        .arg("-g")
+        .stdin(Stdio::from(terminal.slave.try_clone().unwrap()))
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    saved_modes(output.stdout)
+}
+
+fn saved_modes(bytes: Vec<u8>) -> Vec<u8> {
+    #[cfg(target_os = "macos")]
+    {
+        // XNU sets PENDIN when tcsetattr returns from raw to canonical mode.
+        // This is queued-input state, not a saved mode; compare every other bit.
+        // https://github.com/apple-oss-distributions/xnu/blob/main/bsd/kern/tty.c
+        let text = String::from_utf8(bytes).unwrap();
+        text.split(':')
+            .map(|field| {
+                if let Some(flags) = field.strip_prefix("lflag=") {
+                    format!(
+                        "lflag={:x}",
+                        u64::from_str_radix(flags, 16).unwrap() & !libc::PENDIN
+                    )
+                } else {
+                    field.to_string()
+                }
+            })
+            .collect::<Vec<_>>()
+            .join(":")
+            .into_bytes()
+    }
+    #[cfg(not(target_os = "macos"))]
+    bytes
+}
+
+#[test]
+fn dispatch_death_recovers_the_terminal_while_its_raw_harness_survives() {
+    let dispatch = Dispatch::new("worktree");
+    plant_tree(&dispatch.worktree, "01-impl--subject-k1.md");
+    dispatch.policy(&dispatch.terminal_policy(false, ""));
+    dispatch.probe_then("trap '' HUP\n/bin/stty raw -echo\ntouch \"$record/raw\"\nexec sleep 60");
+    let terminal = Pty::open();
+    let modes = terminal_modes(&terminal);
+    let (path, ready, go) = hold_terminal_reset(&dispatch);
+    let mut command = command_on(&dispatch.worktree, &dispatch.home, &terminal, PLAIN);
+    command.env("PATH", path);
+    let mut driver = DriverProcess::capture(command);
+    driver.wait_for_ready(&dispatch.record(0).join("raw"));
+    let harness = dispatch.probed(0);
+    assert_eq!(harness.foreground, harness.group);
+    assert_ne!(
+        terminal_modes(&terminal),
+        modes,
+        "control: the harness must set raw mode"
+    );
+    let children = children_of(driver.id());
+    let &[(front, _)] = children.as_slice() else {
+        panic!("no dispatch child");
+    };
+    // Reap cleanup on failure too; this group survives dispatch's death.
+    struct Orphan(i32);
+    impl Drop for Orphan {
+        fn drop(&mut self) {
+            unsafe {
+                libc::kill(-self.0, libc::SIGKILL);
+            }
+        }
+    }
+    let orphan = Orphan(harness.group);
+    assert_eq!(unsafe { libc::kill(front, libc::SIGKILL) }, 0);
+    driver.wait_for_ready(&ready);
+    let restored = Probed::read(&dispatch.root.join("reset-reports/0/process"));
+    assert_eq!(restored.group, driver.id());
+    assert_eq!(restored.foreground, driver.id());
+    assert_eq!(
+        saved_modes(fs::read(dispatch.root.join("restored-modes")).unwrap()),
+        modes
+    );
+    assert!(
+        exists(harness.pid),
+        "the foreground must be reclaimed while the orphan lives"
+    );
+    fs::write(go, "").unwrap();
+    let output = driver.finish_within(SESSION_LIMIT);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(output.status.success(), "{stderr}");
+    assert!(stderr.contains("harness may have survived"), "{stderr}");
+    assert_eq!(dispatch.launch_count(), 1);
+    assert!(dispatch.task_file("01-impl--subject-k1.md").is_file());
+    drop(orphan);
+}
+
+#[test]
+fn a_driver_term_cancels_dispatch_and_restores_the_terminal_after_reaping_the_harness() {
+    let dispatch = Dispatch::new("worktree");
+    plant_tree(&dispatch.worktree, "01-impl--subject-k1.md");
+    dispatch.policy(&dispatch.terminal_policy(false, ""));
+    dispatch.probe_then("trap '' TERM\n/bin/stty raw -echo\nsleep 60 &\nprintf '%s' \"$!\" > \"$record/descendant\"\ntouch \"$record/raw\"\nwhile :; do sleep 1; done");
+    let terminal = Pty::open();
+    let modes = terminal_modes(&terminal);
+    let (path, ready, go) = hold_terminal_reset(&dispatch);
+    let mut command = command_on(&dispatch.worktree, &dispatch.home, &terminal, PLAIN);
+    command.env("PATH", path);
+    let mut driver = DriverProcess::capture(command);
+    driver.wait_for_ready(&dispatch.record(0).join("raw"));
+    let harness = dispatch.probed(0);
+    let descendant = fs::read_to_string(dispatch.record(0).join("descendant"))
+        .unwrap()
+        .parse()
+        .unwrap();
+    assert_eq!(unsafe { libc::kill(driver.id(), libc::SIGTERM) }, 0);
+    driver.wait_for_ready(&ready);
+    let restored = Probed::read(&dispatch.root.join("reset-reports/0/process"));
+    assert_eq!(restored.foreground, driver.id());
+    assert_eq!(
+        saved_modes(fs::read(dispatch.root.join("restored-modes")).unwrap()),
+        modes
+    );
+    assert!(gone_within(harness.pid, Duration::from_secs(2)));
+    assert!(gone_within(descendant, Duration::from_secs(2)));
+    fs::write(go, "").unwrap();
+    let output = driver.finish_within(SESSION_LIMIT);
+    use std::os::unix::process::ExitStatusExt as _;
+    assert_eq!(output.status.signal(), Some(libc::SIGTERM));
+    assert!(String::from_utf8_lossy(&output.stderr).contains("interrupted by signal 15"));
+    assert!(dispatch.task_file("01-impl--subject-k1.md").is_file());
+}
+
+#[test]
+fn a_driver_started_in_the_background_takes_no_foreground() {
+    let dispatch = Dispatch::new("worktree");
+    plant_tree(&dispatch.worktree, "01-impl--subject-k1.md");
+    dispatch.policy(&dispatch.terminal_policy(false, ""));
+    dispatch.probe_then("exit 0");
+    let terminal = Pty::open();
+    let modes = terminal_modes(&terminal);
+    let reports = dispatch.root.join("owner-reports");
+    fs::create_dir(&reports).unwrap();
+    let mut command = command_on_at(
+        Path::new("/bin/sh"),
+        &dispatch.worktree,
+        &dispatch.home,
+        &terminal,
+        PLAIN,
+    );
+    command.args([
+        "-c",
+        &format!(
+            "set -m\n{grove} &\nwait $! || exit 91\n/bin/stty -g > {modes_file}\nexec {probe} {reports} /usr/bin/true",
+            grove = shell_quote(Path::new(env!("CARGO_BIN_EXE_grove"))),
+            probe = shell_quote(session_probe()),
+            reports = shell_quote(&reports),
+            modes_file = shell_quote(&dispatch.root.join("owner-modes"))
+        ),
+    ]);
+    let mut owner = DriverProcess::capture(command);
+    let output = owner.finish_within(SESSION_LIMIT);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(output.status.success(), "{stderr}");
+    let restored = Probed::read(&reports.join("0/process"));
+    assert_eq!(
+        restored.foreground, restored.group,
+        "the owner lost the foreground"
+    );
+    let harness = dispatch.probed(0);
+    assert_eq!(harness.foreground, restored.group);
+    assert_ne!(harness.foreground, harness.group);
+    assert_eq!(
+        saved_modes(fs::read(dispatch.root.join("owner-modes")).unwrap()),
+        modes
+    );
+    assert!(dispatch.task_file("01-impl--subject-k1.md").is_file());
+}
+
+#[test]
+fn a_stale_exit_signal_cannot_end_the_next_dispatch_launch() {
+    let dispatch = Dispatch::new("worktree");
+    plant_tree(&dispatch.worktree, "01-impl--subject-k1.md");
+    let exit = shell_quote(&harness_dispatch());
+    dispatch.harness_then(&format!(
+        "if [ $n = 0 ]; then exec {exit} exit; fi\n\
+         old=$(cat {launches}/0/channel)\n\
+         if env HARNESS_DISPATCH_EXIT_FILE=\"$old\" {exit} exit > \"$record/stale\" 2>&1; then exit 91; fi\n\
+         sleep 3\nexit 0", launches = shell_quote(&dispatch.launches)));
+    support::route_every_kind_to(&dispatch.home, &dispatch.harness);
+    let terminal = Pty::open();
+    let mut driver = DriverProcess::spawn_on(&dispatch.worktree, &dispatch.home, &terminal, PLAIN);
+    let output = driver.finish_within(SESSION_LIMIT);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(output.status.success(), "{stderr}");
+    assert_eq!(dispatch.launch_count(), 2, "{stderr}");
+    assert_ne!(dispatch.launch(0).channel, dispatch.launch(1).channel);
+    assert!(
+        dispatch.recorded(&dispatch.launch(1).run_id)["measurements"]["duration"]["current"][0]
+            ["value"]
+            .as_f64()
+            .is_some_and(|n| n >= 3.0)
+    );
+    assert!(dispatch.task_file("01-impl--subject-k1.md").is_file());
+    assert!(stderr.contains("loop stopped"), "{stderr}");
 }

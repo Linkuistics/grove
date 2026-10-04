@@ -69,3 +69,38 @@ reports:
 - Grove still allocates no exit channel. Dispatch allocates it in the launch
   directory, which W3 chose because a session's own sandbox already writes
   under `.jj/grove/`.
+
+## Decisions (running log)
+
+- E1 — Follow the approved reading table: interrupt, teardown, then dispatch's
+  observed exit-signal ending. Keep the legacy CLI and skills for the contract
+  leaf; this live meta-grove still uses installed v22 to end its own sessions.
+- E2 — Make the runner's interactive completion channel optional, as decision 7
+  specifies, so Grove can keep launch events and terminal ownership without
+  allocating a channel. Existing harness launches retain their channels.
+- E3 — Verify through the real front/worker and controlling PTY, migrate the
+  creator and viewer fakes, and maintain the affected books in this commit.
+  The scheduled launch-cutover review owns adversarial review; no in-session
+  reviewer is added. Graph access failed before project discovery because an
+  incompatible active generation blocks the CLI; exact source is the fallback.
+- E4 — Ending reports are bounded to 1 MiB and read without following symlinks
+  or blocking on special files. Missing, unsupported and malformed reports
+  leave the leaf live. Terminal tests inspect recovery before `stty sane`;
+  macOS's kernel-generated PENDIN input state is excluded from mode comparison,
+  with the source cited at the test.
+- E5 — The real PTY and creator suite passes all 36 cases; the runner, loop and
+  viewer suites pass. The two changed books reconstruct their current source
+  exactly. Run the full repository check before retirement; keep the legacy
+  CLI/skills removal with signal-contract-k18 as the brief requires.
+- E6 — The first full check exposed two remaining lifecycle fixtures using the
+  retired driver channel and two Clippy findings in the macOS test helper.
+  Migrate the fixtures to dispatch's exit verb and channel, retain the assertion
+  that legacy authority is absent, and simplify the helper expressions. All
+  16 lifecycle cases now pass; rerun the full check on the corrected artifact.
+- E7 — Final `task check` passes all 12 principal checks: formatting, shellcheck,
+  Clippy, plugin installation, conformance and its suite, release preparation,
+  release helper, dispatch worker/probes/types, release tasks, the locked Rust
+  workspace suite, and final validation of all six books. SHA-256 comparisons
+  of all 1,926 tracked project files before and after the run show no changes.
+  Signal-contract-k18 remains live, so launch-cutover-k15 stays open and its
+  review's creator is for the session that finishes that node.

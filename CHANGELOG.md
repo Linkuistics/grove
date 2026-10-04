@@ -52,6 +52,11 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+- Lifecycle sessions now end with `harness-dispatch exit`. Dispatch owns the
+  exit channel and harness escalation; Grove relaunches only on its reported
+  exit-signal ending, and finishes on a separately recorded teardown. Grove
+  forwards cancellation and restores the terminal after dispatch's death.
+
 - Lifecycle sessions receive a fresh owner-only launch directory, bound by the
   session epoch and removed after the launch. Replacement drivers discard
   abandoned launch directories without interpreting them.

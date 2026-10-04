@@ -193,7 +193,7 @@ role  = "lookup"
 [[root]]
 id    = "source-crate-manifest"
 path  = "crates/grove-loop/Cargo.toml"
-lines = 67
+lines = 69
 
 [[root]]
 id    = "source-library-root"
@@ -238,17 +238,17 @@ lines = 96
 [[root]]
 id    = "source-driver-lease"
 path  = "crates/grove-loop/src/driver_lease.rs"
-lines = 2118
+lines = 2116
 
 [[root]]
 id    = "source-prompt"
 path  = "crates/grove-loop/src/prompt.rs"
-lines = 245
+lines = 220
 
 [[root]]
 id    = "source-loop-driver"
 path  = "crates/grove-loop/src/loop_driver.rs"
-lines = 815
+lines = 723
 
 [[root]]
 id = "source-observation"
@@ -259,7 +259,7 @@ lines = 218
 id    = "manifest-domain-bound"
 root  = "source-crate-manifest"
 owner = "allowed-to-mean"
-lines = "1-67"
+lines = "1-69"
 
 [[block]]
 id    = "library-root"
@@ -469,19 +469,19 @@ lines = "1-1019"
 id    = "lease-tests"
 root  = "source-driver-lease"
 owner = "which-calls-are-admitted"
-lines = "1020-2118"
+lines = "1020-2116"
 
 [[block]]
 id    = "the-prompt-core"
 root  = "source-prompt"
 owner = "too-late-to-say-later"
-lines = "1-245"
+lines = "1-220"
 
 [[block]]
 id    = "loop-driver"
 root  = "source-loop-driver"
 owner = "four-things-a-runner-cannot-choose"
-lines = "1-815"
+lines = "1-723"
 
 [[block]]
 id = "observation-tree"
@@ -533,18 +533,18 @@ anchors = [
 [[root]]
 id = "source-runtime-observation"
 path = "crates/grove-loop/src/driver_lease/observation.rs"
-lines = 2149
+lines = 2146
 
 [[block]]
 id = "runtime-observer"
 root = "source-runtime-observation"
 owner = "which-calls-are-admitted"
-lines = "1-2149"
+lines = "1-2146"
 
 [[root]]
 id = "source-witnesses"
 path = "crates/grove-loop/src/driver_lease/witnesses.rs"
-lines = 719
+lines = 717
 
 [[block]]
 id = "launch-witnesses-production"
@@ -556,15 +556,15 @@ lines = "1-175"
 id = "witness-tests"
 root = "source-witnesses"
 owner = "which-calls-are-admitted"
-lines = "176-719"
+lines = "176-717"
 
 [[root]]
 id = "source-launch-directory"
 path = "crates/grove-loop/src/launch_directory.rs"
-lines = 113
+lines = 193
 
 [[block]]
 id = "launch-control-directory"
 root = "source-launch-directory"
 owner = "four-things-a-runner-cannot-choose"
-lines = "1-113"
+lines = "1-193"

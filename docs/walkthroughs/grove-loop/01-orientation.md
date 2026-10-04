@@ -43,7 +43,7 @@ read: a crate that is allowed to be domain-bound says so in the one file that
 holds no code, and the dependency declarations expose the cost of that
 permission.
 
-<!-- fragment «manifest-domain-bound» owner="allowed-to-mean" source="crates/grove-loop/Cargo.toml" lines="1-67" parent="source-crate-manifest" -->
+<!-- fragment «manifest-domain-bound» owner="allowed-to-mean" source="crates/grove-loop/Cargo.toml" lines="1-69" parent="source-crate-manifest" -->
 <!-- insert «manifest-package-identity» -->
 <!-- insert «manifest-dependencies» -->
 <!-- insert «manifest-extracted-tree» -->
@@ -91,7 +91,7 @@ dependencies and this fragment carries four of them. Those last two attributions
 are the longest in the file, and the paragraph after the fragment says what made
 them so.
 
-<!-- fragment «manifest-dependencies» owner="allowed-to-mean" source="crates/grove-loop/Cargo.toml" lines="11-38" parent="manifest-domain-bound" -->
+<!-- fragment «manifest-dependencies» owner="allowed-to-mean" source="crates/grove-loop/Cargo.toml" lines="11-40" parent="manifest-domain-bound" -->
 ````toml
 
 # **This crate and grove-tui are domain-bound.** The three reusable
@@ -100,6 +100,7 @@ them so.
 # 1, marks it *not domain-free* for exactly that reason.
 #
 # Its dependencies are the three modules it composes plus `anyhow` and `libc`.
+# `serde_json` reads dispatch's ending report; it is internal too.
 # `anyhow` is **internal only**: every public entry point answers this crate's
 # own opaque [`Error`], so a consumer takes on no error library of ours — the
 # same rule `crates/jj-workspace`, `crates/keyed-launch` and
@@ -121,6 +122,7 @@ anyhow = "1.0"
 jj-workspace = { path = "../jj-workspace" }
 keyed-launch = { path = "../keyed-launch" }
 libc = "0.2"
+serde_json = "1.0"
 ````
 <!-- /fragment -->
 
@@ -185,7 +187,7 @@ in `the_library_imposes_only_libc` and
 evidence rather than corpus, and chapter 20 returns to them as the third
 question's proof.
 
-<!-- fragment «manifest-extracted-tree» owner="allowed-to-mean" source="crates/grove-loop/Cargo.toml" lines="39-46" parent="manifest-domain-bound" -->
+<!-- fragment «manifest-extracted-tree» owner="allowed-to-mean" source="crates/grove-loop/Cargo.toml" lines="41-48" parent="manifest-domain-bound" -->
 ````toml
 # The extracted tree library (gh issue #13). `default-features = false` turns off
 # its `cli` feature, which exists for its own `syllabus` binary and pulls in
@@ -205,7 +207,7 @@ tree whose shape is its state cannot be tested against a mock of the filesystem
 without testing the mock instead, so the 3,984 lines of inline tests this book
 reproduces run against directories on disk.
 
-<!-- fragment «manifest-dev-dependencies» owner="allowed-to-mean" source="crates/grove-loop/Cargo.toml" lines="47-49" parent="manifest-domain-bound" -->
+<!-- fragment «manifest-dev-dependencies» owner="allowed-to-mean" source="crates/grove-loop/Cargo.toml" lines="49-51" parent="manifest-domain-bound" -->
 ````toml
 
 [dev-dependencies]
@@ -217,7 +219,7 @@ The lints table inherits the workspace's lint configuration rather than declarin
 its own, which is the mechanism by which this crate is held to the same clippy
 and rustc settings as every other member.
 
-<!-- fragment «manifest-lints» owner="allowed-to-mean" source="crates/grove-loop/Cargo.toml" lines="50-52" parent="manifest-domain-bound" -->
+<!-- fragment «manifest-lints» owner="allowed-to-mean" source="crates/grove-loop/Cargo.toml" lines="52-54" parent="manifest-domain-bound" -->
 ````toml
 
 [lints]
@@ -236,7 +238,7 @@ does **not** freeze the version, because the package block above takes
 release ships. The second paragraph records that publication is an answered
 question rather than an open one, and names where the answer lives.
 
-<!-- fragment «manifest-release» owner="allowed-to-mean" source="crates/grove-loop/Cargo.toml" lines="53-67" parent="manifest-domain-bound" -->
+<!-- fragment «manifest-release» owner="allowed-to-mean" source="crates/grove-loop/Cargo.toml" lines="55-69" parent="manifest-domain-bound" -->
 ````toml
 
 # `cargo release` cuts *grove* (`crates/grove`), and `release.toml` configures

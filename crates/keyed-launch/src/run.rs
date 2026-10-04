@@ -53,13 +53,9 @@ pub struct Launch<'a> {
     /// The program and arguments, built by the caller with
     /// [`Argv::new`](crate::Argv::new).
     pub argv: &'a crate::Argv,
-    /// This launch's completion channel. Its path is published to the child;
-    /// its appearance ends the launch.
-    pub channel: &'a Channel,
-    /// The environment variable the channel path is published under. The name
-    /// is the caller's because the child is the caller's: only the two of them
-    /// have agreed on it.
-    pub channel_var: &'a str,
+    /// Optional exit channel and the variable publishing its path. A supervisor
+    /// launch with none ends only on its child's exit or its own cancellation.
+    pub channel: Option<(&'a Channel, &'a str)>,
     /// Variable names removed from the child's inherited environment.
     ///
     /// **Scrubbing is the caller's obligation and this is where it is
@@ -115,7 +111,7 @@ impl<'a> From<Launch<'a>> for Job<'a> {
     fn from(launch: Launch<'a>) -> Self {
         Self {
             argv: launch.argv,
-            completion: Some((launch.channel, launch.channel_var)),
+            completion: launch.channel,
             scrub: launch.scrub,
             grant: launch.grant,
             transparent: launch.transparent,
@@ -679,7 +675,7 @@ impl Lease {
 /// Spawn `launch`'s argv directly and supervise the child until it ends.
 ///
 /// The child's environment is the launcher's, minus [`Launch::scrub`], plus
-/// [`Launch::grant`], plus the channel path under [`Launch::channel_var`].
+/// [`Launch::grant`], plus the optional channel path under its chosen variable.
 /// Nothing else is added: no argument, no flag, no variable. A child that needs
 /// one is given it by the caller, in the argv or the grant the caller built.
 ///

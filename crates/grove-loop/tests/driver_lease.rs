@@ -977,7 +977,7 @@ fn a_lease_replaced_under_a_running_driver_refuses_the_next_transition() {
     write_executable(
         &configured,
         &format!(
-            "#!/bin/sh\nprintf x >> {log}\nmv {held} {held}.old\n: > {held}\nprintf relaunch > \"$GROVE_SIGNAL_FILE\"\n",
+            "#!/bin/sh\nprintf x >> {log}\nmv {held} {held}.old\n: > {held}\n: > \"$HARNESS_DISPATCH_EXIT_FILE\"\n",
             log = shell_quote(&launch_log),
             held = shell_quote(&lease_path(&root)),
         ),
@@ -1014,7 +1014,7 @@ fn grove_llm_admits_only_the_live_epoch_while_version_remains_exempt() {
     write_executable(
         &fake_harness,
         &format!(
-            "#!/bin/sh\nprintf '%s' \"$GROVE_SIGNAL_FILE\" > '{}'\ntouch '{}'\ntrap 'exit 0' TERM\nwhile :; do sleep 1; done\n",
+            "#!/bin/sh\nprintf '%s' \"$GROVE_LAUNCH_DIR\" > '{}'\ntouch '{}'\ntrap 'exit 0' TERM\nwhile :; do sleep 1; done\n",
             signal_log.display(),
             ready.display()
         ),
@@ -1028,7 +1028,7 @@ fn grove_llm_admits_only_the_live_epoch_while_version_remains_exempt() {
     let live = Command::new(support::grove_llm())
         .arg("pick")
         .current_dir(&root)
-        .env("GROVE_SIGNAL_FILE", &live_signal)
+        .env("GROVE_LAUNCH_DIR", &live_signal)
         .output()
         .unwrap();
     assert!(
@@ -1037,16 +1037,13 @@ fn grove_llm_admits_only_the_live_epoch_while_version_remains_exempt() {
         String::from_utf8_lossy(&live.stderr)
     );
 
-    let wrong_launch = live_signal
-        .parent()
-        .unwrap()
-        .with_file_name("launch-22222222222222222222222222222222");
+    let wrong_launch = live_signal.with_file_name("launch-22222222222222222222222222222222");
     let wrong_signal = live_signal.with_file_name("signal-22222222222222222222222222222222");
     let misdirected_complete = Command::new(support::grove_llm())
         .args(["complete", "--signal-file"])
         .arg(&wrong_signal)
         .current_dir(&root)
-        .env("GROVE_SIGNAL_FILE", &live_signal)
+        .env("GROVE_LAUNCH_DIR", &live_signal)
         .output()
         .unwrap();
     assert!(
@@ -1130,7 +1127,7 @@ fn a_reinitialized_tree_reuses_plan_k1_without_reusing_the_old_session() {
     write_executable(
         &first_harness,
         &format!(
-            "#!/bin/sh\nprintf '%s' \"$GROVE_SIGNAL_FILE\" > '{}'\ntouch '{}'\ntrap 'exit 0' TERM\nwhile :; do sleep 1; done\n",
+            "#!/bin/sh\nprintf '%s' \"$GROVE_LAUNCH_DIR\" > '{}'\ntouch '{}'\ntrap 'exit 0' TERM\nwhile :; do sleep 1; done\n",
             first_signal_log.display(),
             first_ready.display()
         ),
@@ -1145,7 +1142,7 @@ fn a_reinitialized_tree_reuses_plan_k1_without_reusing_the_old_session() {
     let old_pick = Command::new(&grove_llm)
         .arg("pick")
         .current_dir(&root)
-        .env("GROVE_SIGNAL_FILE", &old_signal)
+        .env("GROVE_LAUNCH_DIR", &old_signal)
         .output()
         .unwrap();
     assert!(
@@ -1165,7 +1162,7 @@ fn a_reinitialized_tree_reuses_plan_k1_without_reusing_the_old_session() {
                 .unwrap(),
         ])
         .current_dir(&root)
-        .env("GROVE_SIGNAL_FILE", &old_signal)
+        .env("GROVE_LAUNCH_DIR", &old_signal)
         .output()
         .unwrap();
     assert!(
@@ -1181,7 +1178,7 @@ fn a_reinitialized_tree_reuses_plan_k1_without_reusing_the_old_session() {
     let finish = Command::new(&grove_llm)
         .args(["finish-commit", "finish-k2"])
         .current_dir(&root)
-        .env("GROVE_SIGNAL_FILE", &old_signal)
+        .env("GROVE_LAUNCH_DIR", &old_signal)
         .output()
         .unwrap();
     assert!(
@@ -1200,7 +1197,7 @@ fn a_reinitialized_tree_reuses_plan_k1_without_reusing_the_old_session() {
     write_executable(
         &second_harness,
         &format!(
-            "#!/bin/sh\nprintf '%s' \"$GROVE_SIGNAL_FILE\" > '{}'\ntouch '{}'\ntrap 'exit 0' TERM\nwhile :; do sleep 1; done\n",
+            "#!/bin/sh\nprintf '%s' \"$GROVE_LAUNCH_DIR\" > '{}'\ntouch '{}'\ntrap 'exit 0' TERM\nwhile :; do sleep 1; done\n",
             second_signal_log.display(),
             second_ready.display()
         ),
@@ -1218,7 +1215,7 @@ fn a_reinitialized_tree_reuses_plan_k1_without_reusing_the_old_session() {
     let stale_pick = Command::new(&grove_llm)
         .arg("pick")
         .current_dir(&root)
-        .env("GROVE_SIGNAL_FILE", &old_signal)
+        .env("GROVE_LAUNCH_DIR", &old_signal)
         .output()
         .unwrap();
     assert!(
@@ -1234,7 +1231,7 @@ fn a_reinitialized_tree_reuses_plan_k1_without_reusing_the_old_session() {
     let stale_mutation = Command::new(&grove_llm)
         .args(["leaf-add", ".", "stale-mutation"])
         .current_dir(&root)
-        .env("GROVE_SIGNAL_FILE", &old_signal)
+        .env("GROVE_LAUNCH_DIR", &old_signal)
         .output()
         .unwrap();
     assert!(
@@ -1249,7 +1246,7 @@ fn a_reinitialized_tree_reuses_plan_k1_without_reusing_the_old_session() {
     let stale_complete = Command::new(&grove_llm)
         .arg("complete")
         .current_dir(&root)
-        .env("GROVE_SIGNAL_FILE", &old_signal)
+        .env("GROVE_LAUNCH_DIR", &old_signal)
         .output()
         .unwrap();
     assert!(
@@ -1264,7 +1261,7 @@ fn a_reinitialized_tree_reuses_plan_k1_without_reusing_the_old_session() {
     let new_pick = Command::new(&grove_llm)
         .arg("pick")
         .current_dir(&root)
-        .env("GROVE_SIGNAL_FILE", &new_signal)
+        .env("GROVE_LAUNCH_DIR", &new_signal)
         .output()
         .unwrap();
     assert!(

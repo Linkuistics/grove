@@ -7,13 +7,13 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{bail, Context, Result};
 
-use crate::{interpret, Disposition};
+use std::io::Read;
 
 pub(crate) struct LaunchDirectory(PathBuf);
 
 pub(crate) struct LaunchReading {
     pub(crate) teardown: bool,
-    pub(crate) completion: Option<Disposition>,
+    pub(crate) exit_signal: bool,
 }
 
 pub(crate) fn is_launch_name(name: Option<&OsStr>) -> bool {
@@ -48,13 +48,36 @@ impl LaunchDirectory {
         &self.0
     }
 
-    /// Read only after reap and epoch invalidation. The migrate step adds the
-    /// dispatch ending here, keeping the loop's interpretation in one place.
-    pub(crate) fn read(&self, token: Option<&keyed_launch::Token>) -> LaunchReading {
+    /// Interpretation happens only after dispatch's reap and epoch invalidation.
+    /// Missing, unreadable, malformed or unsupported reports never relaunch.
+    pub(crate) fn read(&self) -> LaunchReading {
+        let exit_signal = (|| {
+            let mut bytes = Vec::new();
+            let file = OpenOptions::new()
+                .read(true)
+                .custom_flags(libc::O_NOFOLLOW | libc::O_NONBLOCK)
+                .open(self.0.join("ending.json"))
+                .ok()?;
+            if !file.metadata().ok()?.is_file() {
+                return None;
+            }
+            file.take(1024 * 1024 + 1).read_to_end(&mut bytes).ok()?;
+            if bytes.len() > 1024 * 1024 {
+                return None;
+            }
+            let report: serde_json::Value = serde_json::from_slice(&bytes).ok()?;
+            Some(
+                report["schemaVersion"] == 1
+                    && report["source"] == "harness-dispatch"
+                    && report["measurements"]["ending"]["state"] == "observed"
+                    && report["measurements"]["ending"]["value"] == "exit_signal",
+            )
+        })()
+        .unwrap_or(false);
         LaunchReading {
             teardown: fs::symlink_metadata(self.0.join("teardown"))
                 .is_ok_and(|metadata| metadata.file_type().is_file()),
-            completion: interpret(token),
+            exit_signal,
         }
     }
 
@@ -110,4 +133,61 @@ pub(crate) fn record_teardown(
         Err(error) => return Err(error).context("recording launch teardown"),
     }
     Ok(crate::verbs::Recorded::Wrote(path))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn only_a_supported_observed_exit_signal_relaunches() {
+        let control = tempfile::tempdir().unwrap();
+        let launch = LaunchDirectory::allocate(control.path()).unwrap();
+        let report = launch.path().join("ending.json");
+        assert!(!launch.read().exit_signal);
+        for (document, want) in [
+            (
+                r#"{"schemaVersion":1,"source":"harness-dispatch","measurements":{"ending":{"state":"observed","value":"exit_signal"}}}"#,
+                true,
+            ),
+            (
+                r#"{"schemaVersion":1,"source":"harness-dispatch","measurements":{"ending":{"state":"observed","value":"harness_exit"}}}"#,
+                false,
+            ),
+            (
+                r#"{"schemaVersion":1,"source":"harness-dispatch","measurements":{"ending":{"state":"observed","value":"cancelled"}}}"#,
+                false,
+            ),
+            (
+                r#"{"schemaVersion":2,"source":"harness-dispatch","measurements":{"ending":{"state":"observed","value":"exit_signal"}}}"#,
+                false,
+            ),
+            (
+                r#"{"schemaVersion":1,"source":"other","measurements":{"ending":{"state":"observed","value":"exit_signal"}}}"#,
+                false,
+            ),
+            (
+                r#"{"schemaVersion":1,"source":"harness-dispatch","measurements":{"ending":{"state":"unknown","value":"exit_signal"}}}"#,
+                false,
+            ),
+            ("{}", false),
+            ("broken", false),
+        ] {
+            fs::write(&report, document).unwrap();
+            assert_eq!(launch.read().exit_signal, want, "{document}");
+        }
+        fs::remove_file(&report).unwrap();
+        fs::create_dir(&report).unwrap();
+        assert!(!launch.read().exit_signal);
+    }
+
+    #[test]
+    fn an_ending_symlink_does_not_relaunch() {
+        let control = tempfile::tempdir().unwrap();
+        let launch = LaunchDirectory::allocate(control.path()).unwrap();
+        let other = control.path().join("other-ending");
+        fs::write(&other, r#"{"schemaVersion":1,"source":"harness-dispatch","measurements":{"ending":{"state":"observed","value":"exit_signal"}}}"#).unwrap();
+        std::os::unix::fs::symlink(other, launch.path().join("ending.json")).unwrap();
+        assert!(!launch.read().exit_signal);
+    }
 }

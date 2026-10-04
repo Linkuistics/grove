@@ -289,3 +289,27 @@ fn no_first_party_source_mutates_its_own_process_environment() {
         offenders.join("\n  ")
     );
 }
+
+#[test]
+fn launch_and_dispatch_exit_authority_stop_at_cargo_and_helper_boundaries() {
+    let config = std::fs::read_to_string(repo_root().join(".cargo/config.toml")).unwrap();
+    for name in ["GROVE_LAUNCH_DIR", "HARNESS_DISPATCH_EXIT_FILE"] {
+        assert!(std::env::var_os(name).unwrap().is_empty());
+        let declaration = config
+            .lines()
+            .find(|line| line.starts_with(&format!("{name} =")))
+            .unwrap();
+        assert!(declaration.contains("value = \"\"") && declaration.contains("force = true"));
+        let mut command = std::process::Command::new("/bin/sh");
+        command.env(name, "/live-authority-sentinel");
+        for name in support::grove_env_names() {
+            command.env_remove(name);
+        }
+        let output = command
+            .args(["-c", &format!("printf '%s' \"${{{name}-unset}}\"")])
+            .output()
+            .unwrap();
+        assert!(output.status.success());
+        assert_eq!(output.stdout, b"unset");
+    }
+}

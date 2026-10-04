@@ -359,3 +359,21 @@ fn sought<T>(found: Option<T>) -> Sought<T> {
         None => Sought::Nothing,
     }
 }
+
+/// Record the completed teardown in the current launch directory.
+/// Outside a loop this is a no-op. The CLI holds epoch admission across the write.
+///
+/// # Errors
+/// `.grove/` still exists, or the record cannot be created.
+pub fn record_teardown(worktree: &Path, launch_dir: Option<&Path>) -> Result<Recorded, Error> {
+    Ok(crate::launch_directory::record_teardown(
+        worktree, launch_dir,
+    )?)
+}
+
+/// The effect of recording a teardown, independent of ending the harness run.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Recorded {
+    Wrote(PathBuf),
+    NoLoop,
+}

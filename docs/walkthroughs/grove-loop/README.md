@@ -11,7 +11,7 @@ and whose shape is the only state grove keeps. This reader has run a grove, has
 watched `pick` choose a leaf, and has seen a session's commit name a work item by
 its handle.
 
-`crates/grove-loop` is fifteen source roots and 14,115 lines, and it is the layer that
+`crates/grove-loop` is sixteen source roots and 14,326 lines, and it is the layer that
 stayed. Three domain-free crates sit underneath it — an ordered filesystem tree,
 a keyed launcher, a version-control workspace — and none of them has a word for a
 *kind*, a *brief chain*, an *outcome*, a *handle* or *finishing*. **This is the
@@ -90,7 +90,7 @@ planned work, not an unresolved reference, and not reconstructed source.
 12. [A leaf becomes a node](12-leaf-to-node.md)
 13. [Outcomes are marked in place](13-outcomes.md)
 14. [Finishing](14-finishing.md)
-15. [The twelve verbs, and the two that are not](15-the-verbs.md)
+15. [The session verbs, and the two that are not](15-the-verbs.md)
 16. [One live driver per working tree](16-the-lease.md)
 17. [Which calls the lease admits](17-the-epoch.md)
 18. [The guaranteed core](18-the-core.md)

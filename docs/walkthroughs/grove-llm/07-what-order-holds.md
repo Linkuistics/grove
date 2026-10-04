@@ -6,7 +6,7 @@
 ## Twelve verbs, one table
 
 <!-- rollup «owned-lines-total» -->
-This chapter owns no production source. The four roots and 949 lines are
+This chapter owns no production source. The four roots and 975 lines are
 already reconstructed by the fragment graph the six chapters before it built,
 and the [source index](source-index.md) records that graph in full. The
 remaining work is what no single chapter could state, because each read one
@@ -366,10 +366,10 @@ owns the import block, and chapter 2 owns `run` — and each row turned
 
 <!-- rollup «owned-lines-sequence» -->
 <!-- rollup «source-owning-chapters» -->
-**Owned source.** 108 + 119 + 215 + 309 + 101 + 97 = 949 lines across 6
+**Owned source.** 108 + 121 + 215 + 309 + 101 + 121 = 975 lines across 6
 chapters, and 0 for this one. The seventh row of that table exists to be zero:
 a chapter that owns no source is the shape the structure brief chose for the
-assembly, and the total is the 949 lines in the current authoritative corpus.
+assembly, and the total is the 975 lines in the current authoritative corpus.
 
 **The corpus's own claims.** No chapter corrected a comment it found wanting:
 as these seven chapters were drafted, each was reproduced as written and
@@ -576,7 +576,7 @@ what the library target exists to make possible.
 <!-- rollup «source-roots» -->
 <!-- rollup «owned-lines-total» -->
 <!-- rollup «chapters» -->
-The book reconstructs 4 roots, 949 lines, 7 chapters, two lookup
+The book reconstructs 4 roots, 975 lines, 7 chapters, two lookup
 surfaces, zero deferred ranges. What it argued is that a thin command surface
 over a library has exactly one thing left to get right, and that the thing is
 order — two of them, each stated where it happens and each with a different

@@ -134,7 +134,7 @@ slice = "the-tree-deletes-itself"
 [[page]]
 file  = "15-the-verbs.md"
 id    = "the-verbs"
-title = "The twelve verbs, and the two that are not"
+title = "The session verbs, and the two that are not"
 role  = "chapter"
 slice = "twelve-not-fourteen"
 
@@ -198,7 +198,7 @@ lines = 67
 [[root]]
 id    = "source-library-root"
 path  = "crates/grove-loop/src/lib.rs"
-lines = 419
+lines = 420
 
 [[root]]
 id    = "source-task-name"
@@ -223,7 +223,7 @@ lines = 2734
 [[root]]
 id    = "source-verbs"
 path  = "crates/grove-loop/src/verbs.rs"
-lines = 361
+lines = 379
 
 [[root]]
 id    = "source-driver"
@@ -238,7 +238,7 @@ lines = 96
 [[root]]
 id    = "source-driver-lease"
 path  = "crates/grove-loop/src/driver_lease.rs"
-lines = 2073
+lines = 2118
 
 [[root]]
 id    = "source-prompt"
@@ -248,7 +248,7 @@ lines = 245
 [[root]]
 id    = "source-loop-driver"
 path  = "crates/grove-loop/src/loop_driver.rs"
-lines = 781
+lines = 815
 
 [[root]]
 id = "source-observation"
@@ -265,7 +265,7 @@ lines = "1-67"
 id    = "library-root"
 root  = "source-library-root"
 owner = "allowed-to-mean"
-lines = "1-419"
+lines = "1-420"
 
 [[block]]
 id    = "tokens-and-verdicts"
@@ -445,7 +445,7 @@ lines = "2244-2734"
 id    = "the-twelve-verbs"
 root  = "source-verbs"
 owner = "twelve-not-fourteen"
-lines = "1-361"
+lines = "1-379"
 
 [[block]]
 id    = "driver-operations"
@@ -463,13 +463,13 @@ lines = "1-96"
 id    = "lease-and-epoch"
 root  = "source-driver-lease"
 owner = "one-per-working-tree"
-lines = "1-974"
+lines = "1-1019"
 
 [[block]]
 id    = "lease-tests"
 root  = "source-driver-lease"
 owner = "which-calls-are-admitted"
-lines = "975-2073"
+lines = "1020-2118"
 
 [[block]]
 id    = "the-prompt-core"
@@ -481,7 +481,7 @@ lines = "1-245"
 id    = "loop-driver"
 root  = "source-loop-driver"
 owner = "four-things-a-runner-cannot-choose"
-lines = "1-781"
+lines = "1-815"
 
 [[block]]
 id = "observation-tree"
@@ -557,3 +557,14 @@ id = "witness-tests"
 root = "source-witnesses"
 owner = "which-calls-are-admitted"
 lines = "176-719"
+
+[[root]]
+id = "source-launch-directory"
+path = "crates/grove-loop/src/launch_directory.rs"
+lines = 113
+
+[[block]]
+id = "launch-control-directory"
+root = "source-launch-directory"
+owner = "four-things-a-runner-cannot-choose"
+lines = "1-113"

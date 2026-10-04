@@ -34,9 +34,9 @@ under a running one.
 
 ```text
 a driver holds <worktree>, and has spawned a session on
-  <worktree>/.jj/grove/signal-1111…
+  <worktree>/.jj/grove/launch-1111…
 
-  grove-llm pick, ambient GROVE_SIGNAL_FILE=…/signal-1111…
+  grove-llm pick, ambient GROVE_LAUNCH_DIR=…/launch-1111…
                                        -> admitted: shared lock on session.epoch,
                                           held for the whole operation
 
@@ -78,8 +78,8 @@ remaining eighteen admission tests are, in file order:
 `replacement_keeps_the_old_lease_record_until_it_owns_epoch_handoff`,
 `ambient_context_from_another_worktree_names_both_roots`,
 `an_inactive_epoch_is_reported_without_claiming_a_session_is_active`,
-`a_rotated_epoch_refuses_the_old_signal_path`,
-`an_epoch_signal_path_round_trips_record_separator_bytes`,
+`a_rotated_epoch_refuses_the_old_launch_dir`,
+`an_epoch_launch_dir_round_trips_record_separator_bytes`,
 `a_successful_liveness_probe_releases_the_lease_before_validation`,
 `an_active_epoch_without_a_live_lease_is_stale` and
 `a_malformed_epoch_is_stale`.
@@ -159,7 +159,7 @@ launch-owner controls, scaffolding, the admission tests, and the closing brace. 
 reads them in that same order, because a test module has no conceptual order to
 prefer to the file's.
 
-<!-- fragment «lease-tests» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="975-2073" parent="source-driver-lease" -->
+<!-- fragment «lease-tests» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1020-2118" parent="source-driver-lease" -->
 <!-- insert «epoch-tests-module-open» -->
 <!-- insert «epoch-tests-launch-owner» -->
 <!-- insert «epoch-tests-workspace-fixture» -->
@@ -193,7 +193,7 @@ prefer to the file's.
 The module opens on its attribute and its name, and nothing else is on these
 two lines.
 
-<!-- fragment «epoch-tests-module-open» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="975-976" parent="lease-tests" -->
+<!-- fragment «epoch-tests-module-open» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1020-1021" parent="lease-tests" -->
 ````rust
 #[cfg(test)]
 mod tests {
@@ -239,7 +239,7 @@ extension serializer to prove mandatory activation survives. The real-run event
 control writes a completion signal at Started and checks that both locks remain
 held until Reaped; successful spawn leaves exactly eight bytes, failed spawn none.
 
-<!-- fragment «epoch-tests-launch-owner» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="977-1511" parent="lease-tests" -->
+<!-- fragment «epoch-tests-launch-owner» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1022-1556" parent="lease-tests" -->
 ````rust
     pub(super) fn witness_selection() -> crate::Selection {
         crate::Selection {
@@ -286,7 +286,7 @@ held until Reaped; successful spawn leaves exactly eight bytes, failed spawn non
         assert_eq!(lease.control_dir.join(basename), path);
         let mandatory = parse_epoch_record(&record).unwrap();
         assert_eq!(mandatory.process.nonce, lease.nonce);
-        assert_eq!(mandatory.signal_path.as_deref(), Some(signal.as_path()));
+        assert_eq!(mandatory.launch_dir.as_deref(), Some(signal.as_path()));
         lease.supervise_launch(|event| event(keyed_launch::LaunchEvent::Started));
         assert!(matches!(
             crate::try_observe(temp.path(), &[None]).activity,
@@ -302,7 +302,7 @@ held until Reaped; successful spawn leaves exactly eight bytes, failed spawn non
         bytes.extend_from_slice(b"observation-kind-hex=\xff\n");
         fs::write(&epoch_path, bytes).unwrap();
         assert!(admit_session(temp.path(), "test", ambient(&signal)).is_ok());
-        for field in ["worktree-path-hex", "signal-path-hex"] {
+        for field in ["worktree-path-hex", "launch-dir-hex"] {
             let valid = record_field(prefix, field).unwrap();
             let corrupt =
                 prefix.replace(&format!("{field}={valid}"), &format!("{field}=\u{fffd}0"));
@@ -782,7 +782,7 @@ held until Reaped; successful spawn leaves exactly eight bytes, failed spawn non
 `workspace_at` resolves the fixture marker into the same Workspace value the
 real lease acquisition accepts.
 
-<!-- fragment «epoch-tests-workspace-fixture» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1512-1518" parent="lease-tests" -->
+<!-- fragment «epoch-tests-workspace-fixture» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1557-1563" parent="lease-tests" -->
 ````rust
     /// The fixtures below build a `.jj` marker directly and then acquire against
     /// it. Resolving here rather than inside `acquire` is the shape of the
@@ -807,7 +807,7 @@ fixture and the two that drive the epoch helper against a bare temporary file.
 
 Then the imports, and one constant.
 
-<!-- fragment «epoch-tests-imports» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1519-1528" parent="lease-tests" -->
+<!-- fragment «epoch-tests-imports» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1564-1573" parent="lease-tests" -->
 ````rust
     use super::*;
     use std::cell::{Cell, RefCell};
@@ -831,7 +831,7 @@ not `GROVE_SIGNAL_FILE`.
 
 That distinction is the next item's whole subject.
 
-<!-- fragment «epoch-tests-ambient-fixture» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1529-1538" parent="lease-tests" -->
+<!-- fragment «epoch-tests-ambient-fixture» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1574-1583" parent="lease-tests" -->
 ````rust
     /// The ambient context an admission test would once have installed by
     /// writing `GROVE_SIGNAL_FILE`. Nothing here mutates the environment: these
@@ -869,7 +869,7 @@ the same file the structure brief mistook for part of this block.
 The next item is the reason three of the original admission tests are not really run by
 the test harness at all.
 
-<!-- fragment «epoch-tests-fork-guard» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1539-1574" parent="lease-tests" -->
+<!-- fragment «epoch-tests-fork-guard» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1584-1619" parent="lease-tests" -->
 ````rust
     pub(super) fn fork_sensitive_driver_lease_test_body_runs_here() -> bool {
         let current_thread = thread::current();
@@ -934,7 +934,7 @@ underneath. Both frames are present; neither is where a reader would first look.
 
 The last item before the tests is a two-line hook shared by the first two.
 
-<!-- fragment «epoch-tests-replace-locked» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1575-1580" parent="lease-tests" -->
+<!-- fragment «epoch-tests-replace-locked» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1620-1625" parent="lease-tests" -->
 ````rust
     fn replace_locked_path(attempt: usize, path: &Path) -> Result<()> {
         fs::rename(path, path.with_extension(format!("attempt-{attempt}")))?;
@@ -956,7 +956,7 @@ The first pair drives chapter 16's lease-file acquisition through its identity
 retry loop, once to success and once to exhaustion. The hook fires after the lock
 is taken and before the identity comparison.
 
-<!-- fragment «epoch-tests-retry-until-current» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1581-1605" parent="lease-tests" -->
+<!-- fragment «epoch-tests-retry-until-current» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1626-1650" parent="lease-tests" -->
 ````rust
     #[test]
     fn lease_path_replacement_retries_until_the_locked_descriptor_is_current() {
@@ -1003,7 +1003,7 @@ the agreement means what the function's name says it means.
 
 The second reaches the bound.
 
-<!-- fragment «epoch-tests-fails-closed» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1606-1629" parent="lease-tests" -->
+<!-- fragment «epoch-tests-fails-closed» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1651-1674" parent="lease-tests" -->
 ````rust
     #[test]
     fn lease_path_replacement_fails_closed_after_eight_attempts() {
@@ -1054,7 +1054,7 @@ That pattern recurs below, in a test where it comes out the other way.
 One test, and it is the only one in the block that reads a descriptor flag
 rather than a file's contents.
 
-<!-- fragment «epoch-tests-close-on-exec» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1630-1651" parent="lease-tests" -->
+<!-- fragment «epoch-tests-close-on-exec» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1675-1696" parent="lease-tests" -->
 ````rust
     #[test]
     fn acquired_driver_descriptors_are_close_on_exec() {
@@ -1105,7 +1105,7 @@ and two are asserted nowhere in the corpus.
 The epoch record is the one file both sides of the handoff hold open at once,
 and this test is about the file rather than about what it says.
 
-<!-- fragment «epoch-tests-stable-record» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1652-1690" parent="lease-tests" -->
+<!-- fragment «epoch-tests-stable-record» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1697-1735" parent="lease-tests" -->
 ````rust
     #[test]
     fn activation_and_invalidation_replace_one_stable_epoch_record() {
@@ -1115,16 +1115,16 @@ and this test is about the file rather than about what it says.
         let lease = DriverLease::acquire(&workspace_at(&root)).unwrap();
         let epoch_path = root.join(".jj/grove").join(EPOCH_FILE_NAME);
         let epoch_identity = FileIdentity::from_metadata(&fs::metadata(&epoch_path).unwrap());
-        let signal_path = root.join(".jj/grove/signal-11111111111111111111111111111111");
+        let launch_dir = root.join(".jj/grove/signal-11111111111111111111111111111111");
 
-        lease.activate_session_epoch(&signal_path).unwrap();
+        lease.activate_session_epoch(&launch_dir).unwrap();
 
         let active = fs::read_to_string(&epoch_path).unwrap();
         assert!(active.starts_with("state=active\n"), "{active:?}");
         assert!(
             active.contains(&format!(
-                "signal-path-hex={}\n",
-                encode_path(&signal_path).unwrap()
+                "launch-dir-hex={}\n",
+                encode_path(&launch_dir).unwrap()
             )),
             "{active:?}"
         );
@@ -1138,7 +1138,7 @@ and this test is about the file rather than about what it says.
 
         let inactive = fs::read_to_string(&epoch_path).unwrap();
         assert!(inactive.starts_with("state=inactive\n"), "{inactive:?}");
-        assert!(!inactive.contains("signal-path-hex="), "{inactive:?}");
+        assert!(!inactive.contains("launch-dir-hex="), "{inactive:?}");
         assert_eq!(
             FileIdentity::from_metadata(&fs::metadata(&epoch_path).unwrap()),
             epoch_identity,
@@ -1150,7 +1150,7 @@ and this test is about the file rather than about what it says.
 <!-- /fragment -->
 
 **What it establishes.** Activation writes `state=active` and a
-`signal-path-hex=` line; invalidation writes `state=inactive` and no such line;
+`launch-dir-hex=` line; invalidation writes `state=inactive` and no such line;
 and across both the epoch file's device and inode are unchanged. That last
 assertion is the point, and it is made twice: the record is *rewritten in place*,
 never replaced, so a reader holding the file open by descriptor is looking at the
@@ -1161,9 +1161,9 @@ it — a replaced file would leave a lock held on an orphan.
 `state` and the signal path — device, inode, path-hex, nonce — are never read
 back, so a rewrite that dropped or corrupted any of them satisfies this test.
 Truncation is pinned, but only in one direction and only by an accident of field
-order: the active record is the inactive one plus a trailing `signal-path-hex=`
+order: the active record is the inactive one plus a trailing `launch-dir-hex=`
 line, so invalidating without `set_len(0)` would leave that line behind, and
-`assert!(!inactive.contains("signal-path-hex="))` catches it. Going the other way
+`assert!(!inactive.contains("launch-dir-hex="))` catches it. Going the other way
 the new record is longer, so nothing would be left over, and a missing truncation
 on activation would pass unnoticed.
 
@@ -1174,7 +1174,7 @@ Three tests drive `acquire_epoch_file_with`, which is the seam chapter 16
 described as the one the decision record reserves: a clock, a wait, two barriers
 and a contention reporter, all injected. This chapter says what each is used for.
 
-<!-- fragment «epoch-tests-event-order» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1691-1731" parent="lease-tests" -->
+<!-- fragment «epoch-tests-event-order» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1736-1776" parent="lease-tests" -->
 ````rust
     #[test]
     fn epoch_acquisition_retries_open_lock_path_replacement_in_event_order() {
@@ -1234,7 +1234,7 @@ does not contain it — so the test also pins, quietly, that an uncontended
 acquisition reports nothing, and that is the only assertion in the block about
 the reporter's *call site* rather than its text.
 
-<!-- fragment «epoch-tests-orphaned-timeout» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1732-1770" parent="lease-tests" -->
+<!-- fragment «epoch-tests-orphaned-timeout» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1777-1815" parent="lease-tests" -->
 ````rust
     #[test]
     fn an_orphaned_epoch_guard_times_out_post_reap_once_at_the_fixed_bound() {
@@ -1296,7 +1296,7 @@ pinned by nothing in this corpus.** Even the `elapsed` assertion is weaker than 
 looks: with a ten-second step, any bound in the range 21 to 30 seconds produces
 the same final reading of thirty.
 
-<!-- fragment «epoch-tests-contention-text» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1771-1781" parent="lease-tests" -->
+<!-- fragment «epoch-tests-contention-text» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1816-1826" parent="lease-tests" -->
 ````rust
     #[test]
     fn the_epoch_contention_diagnostic_names_the_lock_mode_and_operation() {
@@ -1330,7 +1330,7 @@ Two tests split the absent case between the two halves the production code
 separated: the decision an absent context leads to, and the reading that decides
 a context is absent.
 
-<!-- fragment «epoch-tests-manual-operations» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1782-1789" parent="lease-tests" -->
+<!-- fragment «epoch-tests-manual-operations» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1827-1834" parent="lease-tests" -->
 ````rust
     #[test]
     fn manual_agent_operations_need_no_driver_epoch() {
@@ -1354,7 +1354,7 @@ statement and returns before `Workspace::resolve` is ever reached, so the path i
 never examined. The test would pass with a real worktree, a temporary directory,
 or an empty string. Its expressive fixture describes a branch it does not take.
 
-<!-- fragment «epoch-tests-nonempty-ambient» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1790-1807" parent="lease-tests" -->
+<!-- fragment «epoch-tests-nonempty-ambient» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1835-1852" parent="lease-tests" -->
 ````rust
     /// The reading half, pinned without touching the environment. The empty case
     /// is not a curiosity: `.cargo/config.toml` force-clears `GROVE_SIGNAL_FILE`
@@ -1401,7 +1401,7 @@ has a direct test because the value arrives as an argument.
 These two are the carried example, and they are the reason the fork guard
 exists. Both drive a real replacement against a real lease.
 
-<!-- fragment «epoch-tests-old-finishes» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1808-1867" parent="lease-tests" -->
+<!-- fragment «epoch-tests-old-finishes» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1853-1912" parent="lease-tests" -->
 ````rust
     #[test]
     fn an_admitted_old_operation_finishes_before_replacement_invalidates_new_calls() {
@@ -1412,10 +1412,10 @@ exists. Both drive a real replacement against a real lease.
         let root = tmp.path().join("worktree");
         fs::create_dir_all(root.join(".jj")).unwrap();
         let lease = DriverLease::acquire(&workspace_at(&root)).unwrap();
-        let signal_path = root.join(".jj/grove/signal-11111111111111111111111111111111");
-        lease.activate_session_epoch(&signal_path).unwrap();
+        let launch_dir = root.join(".jj/grove/signal-11111111111111111111111111111111");
+        lease.activate_session_epoch(&launch_dir).unwrap();
 
-        let admission = admit_session(&root, "test pick", ambient(&signal_path))
+        let admission = admit_session(&root, "test pick", ambient(&launch_dir))
             .unwrap()
             .expect("ambient loop context must return a held admission guard");
 
@@ -1455,7 +1455,7 @@ exists. Both drive a real replacement against a real lease.
             .unwrap();
         replacement.join().unwrap();
 
-        let error = admit_session(&root, "test pick", ambient(&signal_path)).unwrap_err();
+        let error = admit_session(&root, "test pick", ambient(&launch_dir)).unwrap_err();
         assert!(
             format!("{error:#}").contains("session epoch is inactive"),
             "a new call from the old session was not refused: {error:#}"
@@ -1482,7 +1482,7 @@ the lock* from *not yet started*, and the `started_tx` handshake it takes first
 only proves the thread began, not that it reached the lock. The final refusal is
 matched on `"session epoch is inactive"`.
 
-<!-- fragment «epoch-tests-record-until-handoff» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1868-1910" parent="lease-tests" -->
+<!-- fragment «epoch-tests-record-until-handoff» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1913-1955" parent="lease-tests" -->
 ````rust
     #[test]
     fn replacement_keeps_the_old_lease_record_until_it_owns_epoch_handoff() {
@@ -1493,8 +1493,8 @@ matched on `"session epoch is inactive"`.
         let root = tmp.path().join("worktree");
         fs::create_dir_all(root.join(".jj")).unwrap();
         let old_lease = DriverLease::acquire(&workspace_at(&root)).unwrap();
-        let signal_path = root.join(".jj/grove/signal-11111111111111111111111111111111");
-        old_lease.activate_session_epoch(&signal_path).unwrap();
+        let launch_dir = root.join(".jj/grove/signal-11111111111111111111111111111111");
+        old_lease.activate_session_epoch(&launch_dir).unwrap();
         let lease_path = root.join(".jj/grove").join(LEASE_FILE_NAME);
         let old_record = fs::read_to_string(&lease_path).unwrap();
         let epoch_guard = File::open(root.join(".jj/grove").join(EPOCH_FILE_NAME)).unwrap();
@@ -1613,7 +1613,7 @@ signalling one. All eight rows below were read that way.
 | working tree differs | `wrong working tree for {op}` | `ambient_context_from_another_worktree_names_both_roots` |
 | identity changed | `working-tree identity changed` | **nothing** |
 | epoch inactive | `session epoch is inactive` | `an_inactive_epoch_is_reported_without_claiming_a_session_is_active`, `an_admitted_old_operation_finishes_before_replacement_invalidates_new_calls` |
-| channel differs | `loop-control path does not match the active epoch` | `a_rotated_epoch_refuses_the_old_signal_path`, and two out-of-process tests in `crates/grove-loop/tests/driver_lease.rs`: `a_reinitialized_tree_reuses_plan_k1_without_reusing_the_old_session` and `grove_llm_admits_only_the_live_epoch_while_version_remains_exempt` |
+| channel differs | `loop-control path does not match the active epoch` | `a_rotated_epoch_refuses_the_old_launch_dir`, and two out-of-process tests in `crates/grove-loop/tests/driver_lease.rs`: `a_reinitialized_tree_reuses_plan_k1_without_reusing_the_old_session` and `grove_llm_admits_only_the_live_epoch_while_version_remains_exempt` |
 | lease record differs | `driver lease record does not match…` | **nothing** |
 | lease unlocked | `driver lease is unlocked` | `a_successful_liveness_probe_releases_the_lease_before_validation`, `an_active_epoch_without_a_live_lease_is_stale` |
 | probe replaced 8× | `replaced during liveness probe 8 times` | **nothing**, and reachable |
@@ -1691,7 +1691,7 @@ panic that keeps the format string from the refusal it replaced.
 
 With the ladder in view, the seven read quickly.
 
-<!-- fragment «epoch-tests-foreign-worktree» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1911-1935" parent="lease-tests" -->
+<!-- fragment «epoch-tests-foreign-worktree» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1956-1980" parent="lease-tests" -->
 ````rust
     #[test]
     fn ambient_context_from_another_worktree_names_both_roots() {
@@ -1701,10 +1701,10 @@ With the ladder in view, the seven read quickly.
         fs::create_dir_all(owner_root.join(".jj")).unwrap();
         fs::create_dir_all(foreign_root.join(".jj")).unwrap();
         let lease = DriverLease::acquire(&workspace_at(&owner_root)).unwrap();
-        let signal_path = owner_root.join(".jj/grove/signal-11111111111111111111111111111111");
-        lease.activate_session_epoch(&signal_path).unwrap();
+        let launch_dir = owner_root.join(".jj/grove/signal-11111111111111111111111111111111");
+        lease.activate_session_epoch(&launch_dir).unwrap();
 
-        let error = admit_session(&foreign_root, "test pick", ambient(&signal_path)).unwrap_err();
+        let error = admit_session(&foreign_root, "test pick", ambient(&launch_dir)).unwrap_err();
 
         let message = format!("{error:#}");
         assert!(message.contains("wrong working tree"), "{message}");
@@ -1733,7 +1733,7 @@ constraint on order or framing. It also does not establish that the *identity*
 comparison one rung below would have caught the same case, which is the arm the
 mutation found unheld.
 
-<!-- fragment «epoch-tests-inactive-reported» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1936-1950" parent="lease-tests" -->
+<!-- fragment «epoch-tests-inactive-reported» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1981-1995" parent="lease-tests" -->
 ````rust
     #[test]
     fn an_inactive_epoch_is_reported_without_claiming_a_session_is_active() {
@@ -1763,10 +1763,10 @@ pinned negatively because there is no other way to pin it.
 substring, so any rewording that avoided those two words while still implying a
 live session would satisfy it.
 
-<!-- fragment «epoch-tests-rotated-signal» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1951-1974" parent="lease-tests" -->
+<!-- fragment «epoch-tests-rotated-signal» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1996-2019" parent="lease-tests" -->
 ````rust
     #[test]
-    fn a_rotated_epoch_refuses_the_old_signal_path() {
+    fn a_rotated_epoch_refuses_the_old_launch_dir() {
         let tmp = TempDir::new().unwrap();
         let root = tmp.path().join("worktree");
         fs::create_dir_all(root.join(".jj")).unwrap();
@@ -1804,26 +1804,26 @@ path does not match the active epoch"`, and the mutation confirms this rung. Wha
 is not asserted is that the *new* path would now be admitted; the test rotates
 and checks only the losing side.
 
-<!-- fragment «epoch-tests-separator-bytes» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1975-1994" parent="lease-tests" -->
+<!-- fragment «epoch-tests-separator-bytes» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="2020-2039" parent="lease-tests" -->
 ````rust
     #[test]
-    fn an_epoch_signal_path_round_trips_record_separator_bytes() {
+    fn an_epoch_launch_dir_round_trips_record_separator_bytes() {
         let tmp = TempDir::new().unwrap();
         let root = tmp
             .path()
             .join(OsString::from_vec(b"worktree-\n-name".to_vec()));
         fs::create_dir_all(root.join(".jj")).unwrap();
         let lease = DriverLease::acquire(&workspace_at(&root)).unwrap();
-        let signal_path = root.join(".jj/grove/signal-11111111111111111111111111111111");
-        lease.activate_session_epoch(&signal_path).unwrap();
+        let launch_dir = root.join(".jj/grove/signal-11111111111111111111111111111111");
+        lease.activate_session_epoch(&launch_dir).unwrap();
 
         drop(
-            admit_session(&root, "test pick", ambient(&signal_path))
+            admit_session(&root, "test pick", ambient(&launch_dir))
                 .unwrap()
                 .expect("the exact signal path must survive epoch serialization"),
         );
         let record = fs::read_to_string(root.join(".jj/grove/session.epoch")).unwrap();
-        assert!(record.contains("signal-path-hex="), "{record:?}");
+        assert!(record.contains("launch-dir-hex="), "{record:?}");
     }
 
 ````
@@ -1835,7 +1835,7 @@ rather than written raw. The fixture builds the directory name from raw bytes
 through `OsString::from_vec` to get a newline into a path at all.
 
 **What it would still pass under.** Very nearly anything, if you read only the
-assertion. `assert!(record.contains("signal-path-hex="))` holds for any record
+assertion. `assert!(record.contains("launch-dir-hex="))` holds for any record
 with that field, whatever it encodes. The actual round-trip is pinned by the
 `.expect` on the line above: admission succeeded, and admission compares the
 *decoded* path from the record against the ambient one at the channel rung, so
@@ -1843,7 +1843,7 @@ the encode-decode pair must have been faithful for that call to be admitted. The
 weight is on the `expect`, and the assertion that follows it is close to
 decorative.
 
-<!-- fragment «epoch-tests-probe-releases» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1995-2036" parent="lease-tests" -->
+<!-- fragment «epoch-tests-probe-releases» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="2040-2081" parent="lease-tests" -->
 ````rust
     #[test]
     fn a_successful_liveness_probe_releases_the_lease_before_validation() {
@@ -1854,8 +1854,8 @@ decorative.
         let root = tmp.path().join("worktree");
         fs::create_dir_all(root.join(".jj")).unwrap();
         let lease = DriverLease::acquire(&workspace_at(&root)).unwrap();
-        let signal_path = root.join(".jj/grove/signal-11111111111111111111111111111111");
-        lease.activate_session_epoch(&signal_path).unwrap();
+        let launch_dir = root.join(".jj/grove/signal-11111111111111111111111111111111");
+        lease.activate_session_epoch(&launch_dir).unwrap();
         let control_dir = root.join(".jj/grove");
         let mut epoch_file = File::open(control_dir.join(EPOCH_FILE_NAME)).unwrap();
         let epoch = read_epoch_record(&mut epoch_file).unwrap();
@@ -1904,7 +1904,7 @@ that much is guarded. But the test drives
 `admit_session`, so it says nothing about the probe being reached in admission —
 which is the previous section's ladder claim, held by the next test instead.
 
-<!-- fragment «epoch-tests-active-no-lease» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="2037-2056" parent="lease-tests" -->
+<!-- fragment «epoch-tests-active-no-lease» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="2082-2101" parent="lease-tests" -->
 ````rust
     #[test]
     fn an_active_epoch_without_a_live_lease_is_stale() {
@@ -1915,11 +1915,11 @@ which is the previous section's ladder claim, held by the next test instead.
         let root = tmp.path().join("worktree");
         fs::create_dir_all(root.join(".jj")).unwrap();
         let lease = DriverLease::acquire(&workspace_at(&root)).unwrap();
-        let signal_path = root.join(".jj/grove/signal-11111111111111111111111111111111");
-        lease.activate_session_epoch(&signal_path).unwrap();
+        let launch_dir = root.join(".jj/grove/signal-11111111111111111111111111111111");
+        lease.activate_session_epoch(&launch_dir).unwrap();
         drop(lease);
 
-        let error = admit_session(&root, "test pick", ambient(&signal_path)).unwrap_err();
+        let error = admit_session(&root, "test pick", ambient(&launch_dir)).unwrap_err();
         assert!(
             format!("{error:#}").contains("driver lease is unlocked"),
             "unexpected error: {error:#}"
@@ -1943,7 +1943,7 @@ assertion in the block, and it is one line.
 tell which layer produced the phrase. It is nonetheless attributed: the mutation
 puts this test and the probe test on that arm and no other.
 
-<!-- fragment «epoch-tests-malformed» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="2057-2073" parent="lease-tests" -->
+<!-- fragment «epoch-tests-malformed» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="2102-2118" parent="lease-tests" -->
 ````rust
     #[test]
     fn a_malformed_epoch_is_stale() {
@@ -1951,11 +1951,11 @@ puts this test and the probe test on that arm and no other.
         let root = tmp.path().join("worktree");
         fs::create_dir_all(root.join(".jj")).unwrap();
         let lease = DriverLease::acquire(&workspace_at(&root)).unwrap();
-        let signal_path = root.join(".jj/grove/signal-11111111111111111111111111111111");
-        lease.activate_session_epoch(&signal_path).unwrap();
+        let launch_dir = root.join(".jj/grove/signal-11111111111111111111111111111111");
+        lease.activate_session_epoch(&launch_dir).unwrap();
         fs::write(root.join(".jj/grove/session.epoch"), "state=active\n").unwrap();
 
-        let error = admit_session(&root, "test pick", ambient(&signal_path)).unwrap_err();
+        let error = admit_session(&root, "test pick", ambient(&launch_dir)).unwrap_err();
         assert!(
             format!("{error:#}").contains("stale Grove session"),
             "unexpected error: {error:#}"
@@ -2161,7 +2161,7 @@ fn read_runtime(
                 lease_record.worktree_identity == FileIdentity::from_metadata(&root.metadata()?),
                 "runtime records belong to a different working tree"
             );
-            Ok(if epoch_record.signal_path.is_none() {
+            Ok(if epoch_record.launch_dir.is_none() {
                 ActivityObservation::Idle
             } else {
                 observe_private(&namespace, &epoch_bytes, &epoch_record, tree, io)?
@@ -2236,8 +2236,8 @@ fn observation_witness(record: &str, epoch: &EpochRecord) -> Result<RunningManda
                 epoch.process.worktree_identity.inode,
             ),
             nonce: epoch.process.nonce.clone(),
-            signal: epoch
-                .signal_path
+            launch_dir: epoch
+                .launch_dir
                 .clone()
                 .context("observation epoch is inactive")?,
             witness_name: PathBuf::from(name),
@@ -2814,7 +2814,7 @@ These retained controls reject malformed, oversized, invalid UTF-8, missing, dir
                 .into_bytes(),
             String::from_utf8(original.clone())
                 .unwrap()
-                .replace("state=inactive", "state=inactive\nsignal-path-hex=61")
+                .replace("state=inactive", "state=inactive\nlaunch-dir-hex=61")
                 .into_bytes(),
         ] {
             fs::write(&epoch, bytes).unwrap();
@@ -3170,7 +3170,7 @@ The generic runner actually spawns and reaps a shell. Its parent callbacks first
                                 let mandate = running(activity);
                                 assert_eq!(mandate.handle.to_string(), "work-k1");
                                 assert_eq!(mandate.relation, TreeRelation::SameTree);
-                                assert_eq!(mandate.runtime.signal, channel.path());
+                                assert_eq!(mandate.runtime.launch_dir, channel.path());
                             }
                             keyed_launch::LaunchEvent::Reaped => {
                                 assert_eq!(activity, ActivityObservation::Idle)
@@ -3950,7 +3950,7 @@ Three continuous observers span four real launches. Each preparation must retain
                                             let mandate = running(activity);
                                             assert_eq!(mandate.handle.to_string(), "work-k1");
                                             assert_eq!(mandate.relation, TreeRelation::SameTree);
-                                            assert_eq!(mandate.runtime.signal, channel.path());
+                                            assert_eq!(mandate.runtime.launch_dir, channel.path());
                                         }
                                         keyed_launch::LaunchEvent::Reaped => {
                                             assert_eq!(activity, ActivityObservation::Idle);

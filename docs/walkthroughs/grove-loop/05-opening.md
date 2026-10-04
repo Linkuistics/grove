@@ -1110,7 +1110,7 @@ pub struct RunningMandate {
 pub(crate) struct RuntimeIdentity {
     pub worktree: (u64, u64),
     pub nonce: String,
-    pub signal: PathBuf,
+    pub launch_dir: PathBuf,
     pub witness_name: PathBuf,
     pub witness: (u64, u64),
 }

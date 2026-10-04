@@ -288,6 +288,9 @@ pub enum Command {
     /// that is absent (a session bare `grove` did not launch) it is a safe
     /// near-no-op that just tells you to exit manually.
     Complete(CompleteArgs),
+    /// Record that this grove was torn down in the current launch directory.
+    /// Run finish-commit first. Does not end the session; outside a loop it is a no-op.
+    RecordTeardown,
 }
 
 impl Command {
@@ -305,6 +308,7 @@ impl Command {
             Self::LeafPrune(_) => "grove-llm leaf-prune",
             Self::FinishCommit { .. } => "grove-llm finish-commit",
             Self::Complete(_) => "grove-llm complete",
+            Self::RecordTeardown => "grove-llm record-teardown",
         }
     }
 }
@@ -434,6 +438,7 @@ pub fn run() -> Result<()> {
         Command::LeafPrune(args) => cmd_leaf_prune(&args),
         Command::FinishCommit { finish_handle } => cmd_finish_commit(&finish_handle),
         Command::Complete(args) => cmd_complete(&args, session_epoch.as_ref()),
+        Command::RecordTeardown => cmd_record_teardown(session_epoch.as_ref()),
     }
 }
 
@@ -452,6 +457,27 @@ fn cmd_finish_commit(finish_handle: &str) -> Result<()> {
     let commit = verbs::finish_commit(&workspace, &finish)
         .with_context(|| format!("`grove-llm finish-commit {finish_handle}`"))?;
     eprintln!("finish-commit {finish}: committed as {}", commit.change_id);
+    Ok(())
+}
+
+fn cmd_record_teardown(session_epoch: Option<&SessionEpochGuard>) -> Result<()> {
+    let launch_dir = std::env::var_os("GROVE_LAUNCH_DIR")
+        .filter(|value| !value.is_empty())
+        .map(PathBuf::from);
+    if let Some(launch_dir) = &launch_dir {
+        session_epoch
+            .context("record-teardown requires session epoch admission")?
+            .require_launch_dir(launch_dir)?;
+    }
+    let worktree = if launch_dir.is_some() {
+        worktree()?
+    } else {
+        PathBuf::new()
+    };
+    match verbs::record_teardown(&worktree, launch_dir.as_deref())? {
+        verbs::Recorded::Wrote(path) => eprintln!("record-teardown: recorded {}", path.display()),
+        verbs::Recorded::NoLoop => eprintln!("record-teardown: no GROVE_LAUNCH_DIR — not running under the loop driver; recorded nothing."),
+    }
     Ok(())
 }
 

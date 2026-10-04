@@ -23,7 +23,7 @@ mod support;
 use std::collections::{BTreeMap, BTreeSet};
 use std::ffi::OsString;
 use std::fs;
-use std::os::unix::ffi::OsStringExt;
+use std::os::unix::ffi::{OsStrExt, OsStringExt};
 use std::os::unix::fs::PermissionsExt;
 use std::os::unix::process::CommandExt;
 use std::path::{Path, PathBuf};
@@ -490,20 +490,22 @@ fn the_driver_activates_immediately_before_spawn_and_invalidates_after_reap() {
         during_launch.starts_with("state=active\n"),
         "{during_launch:?}"
     );
-    let signal_hex = signal_path
-        .trim_end()
+    let signal_hex = Path::new(signal_path.trim_end())
+        .parent()
+        .unwrap()
+        .as_os_str()
         .as_bytes()
         .iter()
         .map(|byte| format!("{byte:02x}"))
         .collect::<Vec<_>>()
         .join("");
     assert!(
-        during_launch.contains(&format!("signal-path-hex={signal_hex}\n")),
+        during_launch.contains(&format!("launch-dir-hex={signal_hex}\n")),
         "the live epoch must name this launch's own channel: {during_launch:?}"
     );
     let after_reap = fs::read_to_string(worktree.join(".jj/grove/session.epoch")).unwrap();
     assert!(after_reap.starts_with("state=inactive\n"), "{after_reap:?}");
-    assert!(!after_reap.contains("signal-path-hex="), "{after_reap:?}");
+    assert!(!after_reap.contains("launch-dir-hex="), "{after_reap:?}");
 }
 
 // Every `grove-llm` mutator takes the **exclusive** tree-access lock on the
@@ -830,6 +832,11 @@ fn a_signal_removal_failure_does_not_override_a_done_disposition() {
     permissions.set_mode(0o700);
     fs::set_permissions(&control_dir, permissions).unwrap();
     let signal_path = PathBuf::from(fs::read_to_string(signal_log).unwrap().trim());
+    fs::set_permissions(
+        signal_path.parent().unwrap(),
+        fs::Permissions::from_mode(0o700),
+    )
+    .unwrap();
     let stderr = String::from_utf8_lossy(&output.stderr);
 
     assert!(
@@ -837,7 +844,7 @@ fn a_signal_removal_failure_does_not_override_a_done_disposition() {
         "channel housekeeping must not make a clean finish fail: {stderr}"
     );
     assert!(
-        stderr.contains("could not remove the interpreted foreground-session signal channel"),
+        stderr.contains("could not remove the interpreted foreground-session launch directory"),
         "the removal failure must remain visible: {stderr}"
     );
     assert!(
@@ -1625,6 +1632,7 @@ writeFileSync({view:?}, JSON.stringify({{
   worker: Object.keys(process.env).sort(),
   child: names(execFileSync("/usr/bin/env", [], {{ encoding: "utf8" }})),
   channel: process.env.GROVE_SIGNAL_FILE ?? null,
+  launchDir: process.env.GROVE_LAUNCH_DIR ?? null,
 }}));
 export const policy = {{
   schemaVersion: 2,
@@ -1657,12 +1665,13 @@ export const policy = {{
 
 /// Whether a session epoch names `channel` as its live signal path.
 fn epoch_names(epoch: &str, channel: &str) -> bool {
+    let channel = Path::new(channel).parent().unwrap().to_str().unwrap();
     let hex: String = channel
         .as_bytes()
         .iter()
         .map(|byte| format!("{byte:02x}"))
         .collect();
-    epoch.starts_with("state=active\n") && epoch.contains(&format!("signal-path-hex={hex}\n"))
+    epoch.starts_with("state=active\n") && epoch.contains(&format!("launch-dir-hex={hex}\n"))
 }
 
 // A lifecycle session's policy receives the driver's own selection as native
@@ -1778,6 +1787,10 @@ fn a_session_s_task_reaches_select_as_native_data_and_only_its_harness_holds_the
     );
 
     let view = dispatch.view();
+    assert!(
+        view["launchDir"].is_null(),
+        "worker received launch authority: {view}"
+    );
     for place in ["worker", "child"] {
         let names: Vec<&str> = view[place]
             .as_array()
@@ -3728,4 +3741,166 @@ fn the_escalation_reaps_the_session_s_descendants_under_a_terminal() {
         bystander.0.try_wait().unwrap().is_none(),
         "the escalation reached a process outside the session's own group"
     );
+}
+
+#[test]
+fn launch_directory_teardown_finishes_after_legacy_signal_or_own_exit() {
+    for ending in ["complete", "exit"] {
+        let dispatch = Dispatch::new("worktree");
+        plant_tree(&dispatch.worktree, "01-impl--subject-k1.md");
+        let llm = shell_quote(&own_grove_llm());
+        dispatch.harness_then(&format!(
+            "set -e\n\
+             printf '%s' \"$GROVE_LAUNCH_DIR\" > \"$record/launch-dir\"\n\
+             test -d \"$GROVE_LAUNCH_DIR\"\n\
+             if {llm} record-teardown > \"$record/refusal\" 2>&1; then exit 91; fi\n\
+             test ! -e \"$GROVE_LAUNCH_DIR/teardown\"\n\
+             {llm} leaf-retire .grove/01-impl--subject-k1.md\n\
+             jj describe -m fixture\n\
+             jj new\n\
+             printf '# finish-k2\\n' > .grove/02-finish--finish-k2.md\n\
+             jj describe -m finish-fixture\n\
+             jj new\n\
+             {llm} finish-commit finish-k2\n\
+             {llm} record-teardown\n\
+             test -f \"$GROVE_LAUNCH_DIR/teardown\"\n\
+             {llm} record-teardown\n\
+             {}",
+            if ending == "complete" {
+                format!("exec {llm} complete")
+            } else {
+                "exit 7".into()
+            }
+        ));
+        support::route_every_kind_to(&dispatch.home, &dispatch.harness);
+        let terminal = Pty::open();
+        let mut driver =
+            DriverProcess::spawn_on(&dispatch.worktree, &dispatch.home, &terminal, PLAIN);
+        let output = driver.finish_within(SESSION_LIMIT);
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert!(
+            output.status.success() && stderr.contains("grove finished — loop complete"),
+            "{ending}: {stderr}"
+        );
+        assert_eq!(dispatch.launch_count(), 1);
+        let record = dispatch.launches.join("0");
+        assert!(fs::read_to_string(record.join("refusal"))
+            .unwrap()
+            .contains("finish-commit"));
+        let launch = PathBuf::from(fs::read_to_string(record.join("launch-dir")).unwrap());
+        let name = launch.file_name().unwrap().to_str().unwrap();
+        let suffix = name.strip_prefix("launch-").unwrap();
+        assert_eq!(suffix.len(), 32);
+        assert!(suffix
+            .bytes()
+            .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b)));
+        assert_eq!(
+            launch.parent().unwrap(),
+            dispatch.worktree.canonicalize().unwrap().join(".jj/grove")
+        );
+        assert_eq!(
+            Path::new(&dispatch.launch(0).channel).parent(),
+            Some(launch.as_path())
+        );
+        assert!(
+            !launch.exists(),
+            "interpreted launch directory was retained"
+        );
+    }
+}
+
+#[test]
+fn launch_directory_rotates_and_rejects_stale_tree_and_teardown_verbs() {
+    let dispatch = Dispatch::new("worktree");
+    plant_tree(&dispatch.worktree, "01-impl--subject-k1.md");
+    let llm = shell_quote(&own_grove_llm());
+    dispatch.harness_then(&format!(
+        "set -e\n\
+         printf '%s' \"$GROVE_LAUNCH_DIR\" > \"$record/launch-dir\"\n\
+         ls -ld \"$GROVE_LAUNCH_DIR\" > \"$record/mode\"\n\
+         if [ \"$n\" = 0 ]; then exec {llm} complete; fi\n\
+         old=$(cat {launches}/0/launch-dir)\n\
+         test ! -e \"$old\"\n\
+         for verb in 'pick' 'leaf-add . stale --kind impl' 'record-teardown'; do\n\
+             if env GROVE_LAUNCH_DIR=\"$old\" {llm} $verb > \"$record/stale-$verb\" 2>&1; then exit 92; fi\n\
+         done\n\
+         exec {llm} complete --done",
+        launches = shell_quote(&dispatch.launches)
+    ));
+    support::route_every_kind_to(&dispatch.home, &dispatch.harness);
+    let terminal = Pty::open();
+    let mut driver = DriverProcess::spawn_on(&dispatch.worktree, &dispatch.home, &terminal, PLAIN);
+    let output = driver.finish_within(SESSION_LIMIT);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        output.status.success() && stderr.contains("grove finished — loop complete"),
+        "{stderr}"
+    );
+    assert_eq!(dispatch.launch_count(), 2);
+    let directory = |n| {
+        PathBuf::from(
+            fs::read_to_string(dispatch.launches.join(format!("{n}/launch-dir"))).unwrap(),
+        )
+    };
+    assert_ne!(directory(0), directory(1));
+    for n in 0..2 {
+        assert!(!directory(n).exists());
+        assert!(
+            fs::read_to_string(dispatch.launches.join(format!("{n}/mode")))
+                .unwrap()
+                .starts_with("drwx------")
+        );
+    }
+    for verb in ["pick", "leaf-add . stale --kind impl", "record-teardown"] {
+        let refusal =
+            fs::read_to_string(dispatch.launches.join(format!("1/stale-{verb}"))).unwrap();
+        assert!(refusal.contains("stale Grove session"), "{refusal}");
+    }
+    assert!(!dispatch
+        .worktree
+        .join(".grove/02-impl--stale-k2.md")
+        .exists());
+}
+
+#[test]
+fn replacement_driver_removes_abandoned_launches_without_interpreting_contents() {
+    let dispatch = Dispatch::new("worktree");
+    plant_tree(&dispatch.worktree, "01-impl--subject-k1.md");
+    let control = dispatch.worktree.join(".jj/grove");
+    fs::create_dir_all(&control).unwrap();
+    let abandoned = control.join(format!("launch-{}", "a".repeat(32)));
+    fs::create_dir(&abandoned).unwrap();
+    fs::write(
+        abandoned.join("teardown"),
+        "abandoned teardown must not finish this driver",
+    )
+    .unwrap();
+    let fifo = std::ffi::CString::new(abandoned.join("ending").to_str().unwrap()).unwrap();
+    // Reading this abandoned ending would block; cleanup must only unlink it.
+    assert_eq!(unsafe { libc::mkfifo(fifo.as_ptr(), 0o600) }, 0);
+    let retained = control.join("launch-not-a-128-bit-suffix");
+    fs::create_dir(&retained).unwrap();
+    let outside = dispatch.root.join("outside");
+    fs::create_dir(&outside).unwrap();
+    fs::write(outside.join("keep"), "keep").unwrap();
+    let link = control.join(format!("launch-{}", "b".repeat(32)));
+    std::os::unix::fs::symlink(&outside, &link).unwrap();
+    dispatch.harness_then("exit 0");
+    support::route_every_kind_to(&dispatch.home, &dispatch.harness);
+    let terminal = Pty::open();
+    let mut driver = DriverProcess::spawn_on(&dispatch.worktree, &dispatch.home, &terminal, PLAIN);
+    let output = driver.finish_within(SESSION_LIMIT);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        output.status.success() && stderr.contains("loop stopped"),
+        "{stderr}"
+    );
+    assert!(
+        !stderr.contains("grove finished"),
+        "an abandoned teardown was interpreted: {stderr}"
+    );
+    assert!(!abandoned.exists());
+    assert!(!link.exists());
+    assert!(outside.join("keep").is_file());
+    assert!(retained.is_dir());
 }

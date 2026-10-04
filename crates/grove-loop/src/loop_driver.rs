@@ -56,7 +56,7 @@
 //     done
 
 use crate::driver_lease::DriverLease;
-use crate::{interpret, Disposition, Handle, Kind, Reading, Selection, Sought, TreeLifetime};
+use crate::{Disposition, Handle, Kind, Reading, Selection, Sought, TreeLifetime};
 use anyhow::{ensure, Context, Result};
 use jj_workspace::Workspace;
 use keyed_launch::{Argv, Channel, End, Ended, Escalation, Group, Launch};
@@ -75,6 +75,8 @@ use std::time::Duration;
 /// moment the file *appears*. Whoever holds the variable can therefore end the
 /// session, and the environment is inherited by every descendant — so the
 /// authority is ambient unless each spawn scopes it deliberately.
+/// `GROVE_LAUNCH_DIR` identifies the admitted session; `HARNESS_DISPATCH_EXIT_FILE`
+/// ends a dispatch run. Both are scrubbed before the current launch is granted.
 /// `GROVE_HARNESS_PID` / `GROVE_CLAUDE_PID` are the retired pre-watcher handles
 /// (self-driving-loop), kept here because a stale, unrelated PID leaking into a
 /// nested grove is the same class of mistake one notch quieter — the value is
@@ -104,7 +106,13 @@ use std::time::Duration;
 /// on one* — `jj` execs a user-configured pager, editor and fsmonitor, which
 /// inherit whatever `jj` inherited — and the seam's own record is where that
 /// belongs rather than here.
-const LOOP_CONTROL_ENV: [&str; 3] = ["GROVE_SIGNAL_FILE", "GROVE_HARNESS_PID", "GROVE_CLAUDE_PID"];
+const LOOP_CONTROL_ENV: [&str; 5] = [
+    "GROVE_SIGNAL_FILE",
+    "GROVE_LAUNCH_DIR",
+    "HARNESS_DISPATCH_EXIT_FILE",
+    "GROVE_HARNESS_PID",
+    "GROVE_CLAUDE_PID",
+];
 
 /// The variable the completion channel's path is published under — the name
 /// this build and `grove-llm complete` have agreed on. It is the runner's
@@ -236,33 +244,54 @@ fn drive(
         driver_lease
             .revalidate()
             .context("revalidating driver lease before foreground launch")?;
-        let channel = Channel::allocate(driver_lease.control_dir())
+        let launch_dir =
+            crate::launch_directory::LaunchDirectory::allocate(driver_lease.control_dir())?;
+        let channel = Channel::allocate(launch_dir.path())
             .context("allocating a fresh foreground-session signal channel")?;
-        let ended = launch_session(&argv, selected, worktree, &channel, driver_lease);
+        let ended = launch_session(
+            &argv,
+            selected,
+            worktree,
+            &channel,
+            launch_dir.path(),
+            driver_lease,
+        );
         // Unconditionally, and before the invalidation gate below: the session
         // may have left the terminal in raw mode and on the alternate screen,
         // and an error path that returns without restoring it hands the human
         // an unusable shell to read the error in. Restoring is not
         // interpretation, so it is not what the gate is protecting.
         reset_terminal();
-        let (ended, signal) = complete_post_reap_epoch_handoff(
+        let (ended, reading) = complete_post_reap_epoch_handoff(
             ended,
             || driver_lease.invalidate_session_epoch(),
             |ended: Ended| {
-                let signal = interpret(ended.token.as_ref());
-                (ended, signal)
+                let reading = launch_dir.read(ended.token.as_ref());
+                (ended, reading)
             },
         )?;
 
-        if let Err(error) = channel.discard() {
+        if let Err(error) = launch_dir.discard() {
             eprintln!(
-                "grove: warning: could not remove the interpreted foreground-session signal channel; preserving the session outcome: {error}"
+                "grove: warning: could not remove the interpreted foreground-session launch directory; preserving the session outcome: {error}"
             );
+        }
+
+        if let End::Interrupted { signal } = ended.end {
+            eprintln!("grove: interrupted by signal {signal} — stopping the loop.");
+            return Ok(LoopOutcome::Interrupted(signal));
+        }
+
+        // Teardown is this launch's explicit disposition, irrespective of the
+        // harness's ending. The driver interrupt above remains authoritative.
+        if reading.teardown {
+            eprintln!("grove: grove finished — loop complete.");
+            return Ok(LoopOutcome::Finished);
         }
 
         // Before the ending is acted on, and whatever it says: a member of the
         // session's group that survived the runner's kills may still hold the
-        // tree, so neither a relaunch nor a finish may happen beside it.
+        // tree, so neither a relaunch nor a legacy completion may happen beside it.
         if let Group::Present { pgid } = ended.group {
             eprintln!(
                 "grove: members of the session's process group {pgid} may have survived it — \
@@ -276,12 +305,7 @@ fn drive(
             });
         }
 
-        if let End::Interrupted { signal } = ended.end {
-            eprintln!("grove: interrupted by signal {signal} — stopping the loop.");
-            return Ok(LoopOutcome::Interrupted(signal));
-        }
-
-        match signal {
+        match reading.completion {
             Some(Disposition::Relaunch) => continue,
             Some(Disposition::Done) => {
                 eprintln!("grove: grove finished — loop complete.");
@@ -402,6 +426,7 @@ fn launch_session(
     selected: SelectedTask,
     worktree: &Path,
     channel: &Channel,
+    launch_dir: &Path,
     driver_lease: &mut DriverLease,
 ) -> Result<Ended> {
     let selection = &selected.selection;
@@ -412,7 +437,7 @@ fn launch_session(
     );
 
     driver_lease
-        .prepare_launch(selected.lifetime, selection, channel.path())
+        .prepare_launch(selected.lifetime, selection, launch_dir)
         .context("activating the foreground session epoch before spawn")?;
 
     driver_lease
@@ -423,7 +448,7 @@ fn launch_session(
                     channel,
                     channel_var: CHANNEL_VAR,
                     scrub: &scrub_list(),
-                    grant: &[],
+                    grant: &[(OsStr::new("GROVE_LAUNCH_DIR"), launch_dir.as_os_str())],
                     transparent: None,
                     cwd: Some(worktree),
                     escalation: ESCALATION,
@@ -645,8 +670,17 @@ mod tests {
                 &fixture.path().join("harness"),
                 &selection.selection,
             );
-            let channel = Channel::allocate(lease.control_dir()).unwrap();
-            let result = launch_session(&argv, selection, work, &channel, &mut lease);
+            let launch_dir =
+                crate::launch_directory::LaunchDirectory::allocate(lease.control_dir()).unwrap();
+            let channel = Channel::allocate(launch_dir.path()).unwrap();
+            let result = launch_session(
+                &argv,
+                selection,
+                work,
+                &channel,
+                launch_dir.path(),
+                &mut lease,
+            );
             assert_eq!(result.is_ok(), state == "current", "{state}: {result:?}");
             assert_eq!(work.join("launched").exists(), state == "current");
             let epoch = std::fs::read_to_string(lease.control_dir().join("session.epoch")).unwrap();

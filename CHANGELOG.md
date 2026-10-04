@@ -52,6 +52,13 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+- Lifecycle sessions receive a fresh owner-only launch directory, bound by the
+  session epoch and removed after the launch. Replacement drivers discard
+  abandoned launch directories without interpreting them.
+- `grove-llm record-teardown` records a completed teardown after `finish-commit`;
+  the loop finishes on that record even when the harness exits on its own.
+  The legacy `complete` and `complete --done` remain available during the cutover.
+
 - Confined dispatch runs refuse ending reports reachable through writable
   grants and probe native sandbox capability before selection. Pin report
   integrity, hard-link denial, cancellation during publication and partial

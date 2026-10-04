@@ -87,7 +87,7 @@ fn read_runtime(
                 lease_record.worktree_identity == FileIdentity::from_metadata(&root.metadata()?),
                 "runtime records belong to a different working tree"
             );
-            Ok(if epoch_record.signal_path.is_none() {
+            Ok(if epoch_record.launch_dir.is_none() {
                 ActivityObservation::Idle
             } else {
                 observe_private(&namespace, &epoch_bytes, &epoch_record, tree, io)?
@@ -153,8 +153,8 @@ fn observation_witness(record: &str, epoch: &EpochRecord) -> Result<RunningManda
                 epoch.process.worktree_identity.inode,
             ),
             nonce: epoch.process.nonce.clone(),
-            signal: epoch
-                .signal_path
+            launch_dir: epoch
+                .launch_dir
                 .clone()
                 .context("observation epoch is inactive")?,
             witness_name: PathBuf::from(name),
@@ -636,7 +636,7 @@ mod tests {
                 .into_bytes(),
             String::from_utf8(original.clone())
                 .unwrap()
-                .replace("state=inactive", "state=inactive\nsignal-path-hex=61")
+                .replace("state=inactive", "state=inactive\nlaunch-dir-hex=61")
                 .into_bytes(),
         ] {
             fs::write(&epoch, bytes).unwrap();
@@ -932,7 +932,7 @@ mod tests {
                                 let mandate = running(activity);
                                 assert_eq!(mandate.handle.to_string(), "work-k1");
                                 assert_eq!(mandate.relation, TreeRelation::SameTree);
-                                assert_eq!(mandate.runtime.signal, channel.path());
+                                assert_eq!(mandate.runtime.launch_dir, channel.path());
                             }
                             keyed_launch::LaunchEvent::Reaped => {
                                 assert_eq!(activity, ActivityObservation::Idle)
@@ -1617,7 +1617,7 @@ mod tests {
                                             let mandate = running(activity);
                                             assert_eq!(mandate.handle.to_string(), "work-k1");
                                             assert_eq!(mandate.relation, TreeRelation::SameTree);
-                                            assert_eq!(mandate.runtime.signal, channel.path());
+                                            assert_eq!(mandate.runtime.launch_dir, channel.path());
                                         }
                                         keyed_launch::LaunchEvent::Reaped => {
                                             assert_eq!(activity, ActivityObservation::Idle);

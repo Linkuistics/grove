@@ -11,7 +11,7 @@
 | `source-crate-manifest` | `crates/grove-llm/Cargo.toml` | 54 |
 | `source-library-root` | `crates/grove-llm/src/lib.rs` | 16 |
 | `source-entry-point` | `crates/grove-llm/src/main.rs` | 3 |
-| `source-command-surface` | `crates/grove-llm/src/cli.rs` | 876 |
+| `source-command-surface` | `crates/grove-llm/src/cli.rs` | 902 |
 
 <!-- source-root «source-crate-manifest» source="crates/grove-llm/Cargo.toml" lines="1-54" -->
 <!-- insert «manifest-thin-by-crate» -->
@@ -22,7 +22,7 @@
 <!-- source-root «source-entry-point» source="crates/grove-llm/src/main.rs" lines="1-3" -->
 <!-- insert «entry-point» -->
 <!-- /source-root -->
-<!-- source-root «source-command-surface» source="crates/grove-llm/src/cli.rs" lines="1-876" -->
+<!-- source-root «source-command-surface» source="crates/grove-llm/src/cli.rs" lines="1-902" -->
 <!-- insert «surface-thesis-and-imports» -->
 <!-- insert «grammar-cli-and-enum-head» -->
 <!-- insert «verb-root-init» -->
@@ -61,22 +61,22 @@
 | `verbs-reading` | `source-command-surface` | `information-not-error` | `76-125` | 50 | `resolved` |
 | `verbs-growing` | `source-command-surface` | `before-the-lock` | `126-217` | 92 | `resolved` |
 | `verbs-ending` | `source-command-surface` | `two-steps-remain` | `218-248` | 31 | `resolved` |
-| `verbs-leaving` | `source-command-surface` | `admit-before-signal` | `249-290` | 42 | `resolved` |
-| `enum-close-and-operation-label` | `source-command-surface` | `admitted-before-dispatch` | `291-311` | 21 | `resolved` |
-| `args-complete` | `source-command-surface` | `admit-before-signal` | `312-323` | 12 | `resolved` |
-| `args-root-init` | `source-command-surface` | `before-the-lock` | `324-331` | 8 | `resolved` |
-| `kind-help-and-parse-kind` | `source-command-surface` | `before-the-lock` | `332-360` | 29 | `resolved` |
-| `args-growing` | `source-command-surface` | `before-the-lock` | `361-401` | 41 | `resolved` |
-| `args-ending` | `source-command-surface` | `two-steps-remain` | `402-413` | 12 | `resolved` |
-| `run-admission-and-dispatch` | `source-command-surface` | `admitted-before-dispatch` | `414-439` | 26 | `resolved` |
-| `handlers-leaving` | `source-command-surface` | `admit-before-signal` | `440-482` | 43 | `resolved` |
-| `handler-root-init` | `source-command-surface` | `before-the-lock` | `483-510` | 28 | `resolved` |
-| `handlers-reading-and-rendering` | `source-command-surface` | `information-not-error` | `511-634` | 124 | `resolved` |
-| `handlers-growing` | `source-command-surface` | `before-the-lock` | `635-728` | 94 | `resolved` |
-| `handlers-ending` | `source-command-surface` | `two-steps-remain` | `729-786` | 58 | `resolved` |
-| `slug-argument` | `source-command-surface` | `before-the-lock` | `787-794` | 8 | `resolved` |
-| `openings` | `source-command-surface` | `admitted-before-dispatch` | `795-835` | 41 | `resolved` |
-| `path-and-label-helpers` | `source-command-surface` | `information-not-error` | `836-876` | 41 | `resolved` |
+| `verbs-leaving` | `source-command-surface` | `admit-before-signal` | `249-293` | 45 | `resolved` |
+| `enum-close-and-operation-label` | `source-command-surface` | `admitted-before-dispatch` | `294-315` | 22 | `resolved` |
+| `args-complete` | `source-command-surface` | `admit-before-signal` | `316-327` | 12 | `resolved` |
+| `args-root-init` | `source-command-surface` | `before-the-lock` | `328-335` | 8 | `resolved` |
+| `kind-help-and-parse-kind` | `source-command-surface` | `before-the-lock` | `336-364` | 29 | `resolved` |
+| `args-growing` | `source-command-surface` | `before-the-lock` | `365-405` | 41 | `resolved` |
+| `args-ending` | `source-command-surface` | `two-steps-remain` | `406-417` | 12 | `resolved` |
+| `run-admission-and-dispatch` | `source-command-surface` | `admitted-before-dispatch` | `418-444` | 27 | `resolved` |
+| `handlers-leaving` | `source-command-surface` | `admit-before-signal` | `445-508` | 64 | `resolved` |
+| `handler-root-init` | `source-command-surface` | `before-the-lock` | `509-536` | 28 | `resolved` |
+| `handlers-reading-and-rendering` | `source-command-surface` | `information-not-error` | `537-660` | 124 | `resolved` |
+| `handlers-growing` | `source-command-surface` | `before-the-lock` | `661-754` | 94 | `resolved` |
+| `handlers-ending` | `source-command-surface` | `two-steps-remain` | `755-812` | 58 | `resolved` |
+| `slug-argument` | `source-command-surface` | `before-the-lock` | `813-820` | 8 | `resolved` |
+| `openings` | `source-command-surface` | `admitted-before-dispatch` | `821-861` | 41 | `resolved` |
+| `path-and-label-helpers` | `source-command-surface` | `information-not-error` | `862-902` | 41 | `resolved` |
 
 <a id="fragment-index"></a>
 ## Fragment index
@@ -99,7 +99,7 @@
 | `library-root-target-and-module` | `orientation` | `source-library-root` | `literal` | `one-call-plus-rendering` | `9-16` | `library-root` | `—` |
 | `source-entry-point` | `source-index` | `source-entry-point` | `root` | `—` | `1-3` | `—` | `entry-point` |
 | `entry-point` | `orientation` | `source-entry-point` | `literal` | `one-call-plus-rendering` | `1-3` | `source-entry-point` | `—` |
-| `source-command-surface` | `source-index` | `source-command-surface` | `root` | `—` | `1-876` | `—` | `surface-thesis-and-imports`, `grammar-cli-and-enum-head`, `verb-root-init`, `verbs-reading`, `verbs-growing`, `verbs-ending`, `verbs-leaving`, `enum-close-and-operation-label`, `args-complete`, `args-root-init`, `kind-help-and-parse-kind`, `args-growing`, `args-ending`, `run-admission-and-dispatch`, `handlers-leaving`, `handler-root-init`, `handlers-reading-and-rendering`, `handlers-growing`, `handlers-ending`, `slug-argument`, `openings`, `path-and-label-helpers` |
+| `source-command-surface` | `source-index` | `source-command-surface` | `root` | `—` | `1-902` | `—` | `surface-thesis-and-imports`, `grammar-cli-and-enum-head`, `verb-root-init`, `verbs-reading`, `verbs-growing`, `verbs-ending`, `verbs-leaving`, `enum-close-and-operation-label`, `args-complete`, `args-root-init`, `kind-help-and-parse-kind`, `args-growing`, `args-ending`, `run-admission-and-dispatch`, `handlers-leaving`, `handler-root-init`, `handlers-reading-and-rendering`, `handlers-growing`, `handlers-ending`, `slug-argument`, `openings`, `path-and-label-helpers` |
 | `surface-header-audience` | `orientation` | `source-command-surface` | `literal` | `one-call-plus-rendering` | `1-9` | `surface-thesis-and-imports` | `—` |
 | `surface-thesis-and-imports` | `orientation` | `source-command-surface` | `composite` | `one-call-plus-rendering` | `1-35` | `source-command-surface` | `surface-header-audience`, `surface-header-thin-and-order`, `surface-imports` |
 | `surface-header-thin-and-order` | `orientation` | `source-command-surface` | `literal` | `one-call-plus-rendering` | `10-24` | `surface-thesis-and-imports` | `—` |
@@ -122,68 +122,68 @@
 | `verbs-ending` | `ending-work` | `source-command-surface` | `composite` | `two-steps-remain` | `218-248` | `source-command-surface` | `verbs-leaf-retire-help`, `verbs-leaf-prune-help` |
 | `verbs-leaf-prune-help` | `ending-work` | `source-command-surface` | `literal` | `two-steps-remain` | `228-248` | `verbs-ending` | `—` |
 | `verbs-finish-commit-help` | `leaving-the-loop` | `source-command-surface` | `literal` | `admit-before-signal` | `249-272` | `verbs-leaving` | `—` |
-| `verbs-leaving` | `leaving-the-loop` | `source-command-surface` | `composite` | `admit-before-signal` | `249-290` | `source-command-surface` | `verbs-finish-commit-help`, `verbs-complete-help` |
-| `verbs-complete-help` | `leaving-the-loop` | `source-command-surface` | `literal` | `admit-before-signal` | `273-290` | `verbs-leaving` | `—` |
-| `grammar-command-enum-close` | `the-grammar` | `source-command-surface` | `literal` | `admitted-before-dispatch` | `291-292` | `enum-close-and-operation-label` | `—` |
-| `enum-close-and-operation-label` | `the-grammar` | `source-command-surface` | `composite` | `admitted-before-dispatch` | `291-311` | `source-command-surface` | `grammar-command-enum-close`, `grammar-operation-label` |
-| `grammar-operation-label` | `the-grammar` | `source-command-surface` | `literal` | `admitted-before-dispatch` | `293-311` | `enum-close-and-operation-label` | `—` |
-| `args-complete` | `leaving-the-loop` | `source-command-surface` | `literal` | `admit-before-signal` | `312-323` | `source-command-surface` | `—` |
-| `args-root-init` | `growing-the-tree` | `source-command-surface` | `literal` | `before-the-lock` | `324-331` | `source-command-surface` | `—` |
-| `kind-help` | `growing-the-tree` | `source-command-surface` | `literal` | `before-the-lock` | `332-346` | `kind-help-and-parse-kind` | `—` |
-| `kind-help-and-parse-kind` | `growing-the-tree` | `source-command-surface` | `composite` | `before-the-lock` | `332-360` | `source-command-surface` | `kind-help`, `kind-override-help`, `parse-kind` |
-| `kind-override-help` | `growing-the-tree` | `source-command-surface` | `literal` | `before-the-lock` | `347-351` | `kind-help-and-parse-kind` | `—` |
-| `parse-kind` | `growing-the-tree` | `source-command-surface` | `literal` | `before-the-lock` | `352-360` | `kind-help-and-parse-kind` | `—` |
-| `args-leaf-add` | `growing-the-tree` | `source-command-surface` | `literal` | `before-the-lock` | `361-378` | `args-growing` | `—` |
-| `args-growing` | `growing-the-tree` | `source-command-surface` | `composite` | `before-the-lock` | `361-401` | `source-command-surface` | `args-leaf-add`, `args-leaf-insert`, `args-leaf-decompose` |
-| `args-leaf-insert` | `growing-the-tree` | `source-command-surface` | `literal` | `before-the-lock` | `379-390` | `args-growing` | `—` |
-| `args-leaf-decompose` | `growing-the-tree` | `source-command-surface` | `literal` | `before-the-lock` | `391-401` | `args-growing` | `—` |
-| `args-leaf-retire` | `ending-work` | `source-command-surface` | `literal` | `two-steps-remain` | `402-407` | `args-ending` | `—` |
-| `args-ending` | `ending-work` | `source-command-surface` | `composite` | `two-steps-remain` | `402-413` | `source-command-surface` | `args-leaf-retire`, `args-leaf-prune` |
-| `args-leaf-prune` | `ending-work` | `source-command-surface` | `literal` | `two-steps-remain` | `408-413` | `args-ending` | `—` |
-| `run-parse-and-bare-branch` | `the-grammar` | `source-command-surface` | `composite` | `admitted-before-dispatch` | `414-421` | `run-admission-and-dispatch` | `run-parse-cli` |
-| `run-parse-cli` | `the-grammar` | `source-command-surface` | `literal` | `admitted-before-dispatch` | `414-421` | `run-parse-and-bare-branch` | `—` |
-| `run-admission-and-dispatch` | `the-grammar` | `source-command-surface` | `composite` | `admitted-before-dispatch` | `414-439` | `source-command-surface` | `run-parse-and-bare-branch`, `run-cwd-and-admission`, `run-dispatch` |
-| `run-cwd-and-admission` | `the-grammar` | `source-command-surface` | `literal` | `admitted-before-dispatch` | `422-423` | `run-admission-and-dispatch` | `—` |
-| `run-dispatch` | `the-grammar` | `source-command-surface` | `literal` | `admitted-before-dispatch` | `424-439` | `run-admission-and-dispatch` | `—` |
-| `handler-finish-commit` | `leaving-the-loop` | `source-command-surface` | `literal` | `admit-before-signal` | `440-457` | `handlers-leaving` | `—` |
-| `handlers-leaving` | `leaving-the-loop` | `source-command-surface` | `composite` | `admit-before-signal` | `440-482` | `source-command-surface` | `handler-finish-commit`, `handler-complete-admit`, `handler-complete-endings` |
-| `handler-complete-admit` | `leaving-the-loop` | `source-command-surface` | `literal` | `admit-before-signal` | `458-465` | `handlers-leaving` | `—` |
-| `handler-complete-endings` | `leaving-the-loop` | `source-command-surface` | `literal` | `admit-before-signal` | `466-482` | `handlers-leaving` | `—` |
-| `handler-root-init-text` | `growing-the-tree` | `source-command-surface` | `literal` | `before-the-lock` | `483-488` | `handler-root-init` | `—` |
-| `handler-root-init` | `growing-the-tree` | `source-command-surface` | `composite` | `before-the-lock` | `483-510` | `source-command-surface` | `handler-root-init-text`, `handler-root-init-vacancy` |
-| `handler-root-init-vacancy` | `growing-the-tree` | `source-command-surface` | `literal` | `before-the-lock` | `489-510` | `handler-root-init` | `—` |
-| `handler-pick` | `reading-the-tree` | `source-command-surface` | `literal` | `information-not-error` | `511-520` | `handlers-reading-and-rendering` | `—` |
-| `handlers-reading-and-rendering` | `reading-the-tree` | `source-command-surface` | `composite` | `information-not-error` | `511-634` | `source-command-surface` | `handler-pick`, `handler-brief-chain`, `handler-kind`, `handler-leaf-in`, `handler-resolve`, `render-resolution-head`, `render-resolution-entry`, `render-resolution-absent` |
-| `handler-brief-chain` | `reading-the-tree` | `source-command-surface` | `literal` | `information-not-error` | `521-533` | `handlers-reading-and-rendering` | `—` |
-| `handler-kind` | `reading-the-tree` | `source-command-surface` | `literal` | `information-not-error` | `534-547` | `handlers-reading-and-rendering` | `—` |
-| `handler-leaf-in` | `reading-the-tree` | `source-command-surface` | `literal` | `information-not-error` | `548-558` | `handlers-reading-and-rendering` | `—` |
-| `handler-resolve` | `reading-the-tree` | `source-command-surface` | `literal` | `information-not-error` | `559-577` | `handlers-reading-and-rendering` | `—` |
-| `render-resolution-head` | `reading-the-tree` | `source-command-surface` | `literal` | `information-not-error` | `578-591` | `handlers-reading-and-rendering` | `—` |
-| `render-resolution-entry` | `reading-the-tree` | `source-command-surface` | `literal` | `information-not-error` | `592-608` | `handlers-reading-and-rendering` | `—` |
-| `render-resolution-absent` | `reading-the-tree` | `source-command-surface` | `literal` | `information-not-error` | `609-634` | `handlers-reading-and-rendering` | `—` |
-| `handler-leaf-add` | `growing-the-tree` | `source-command-surface` | `literal` | `before-the-lock` | `635-648` | `handlers-growing` | `—` |
-| `handlers-growing` | `growing-the-tree` | `source-command-surface` | `composite` | `before-the-lock` | `635-728` | `source-command-surface` | `handler-leaf-add`, `print-paths`, `handler-leaf-insert`, `report-insert`, `handler-leaf-decompose-head`, `handler-leaf-decompose-write` |
-| `print-paths` | `growing-the-tree` | `source-command-surface` | `literal` | `before-the-lock` | `649-658` | `handlers-growing` | `—` |
-| `handler-leaf-insert` | `growing-the-tree` | `source-command-surface` | `literal` | `before-the-lock` | `659-668` | `handlers-growing` | `—` |
-| `report-insert` | `growing-the-tree` | `source-command-surface` | `literal` | `before-the-lock` | `669-713` | `handlers-growing` | `—` |
-| `handler-leaf-decompose-head` | `growing-the-tree` | `source-command-surface` | `literal` | `before-the-lock` | `714-720` | `handlers-growing` | `—` |
-| `handler-leaf-decompose-write` | `growing-the-tree` | `source-command-surface` | `literal` | `before-the-lock` | `721-728` | `handlers-growing` | `—` |
-| `eprint-next-steps` | `ending-work` | `source-command-surface` | `literal` | `two-steps-remain` | `729-746` | `handlers-ending` | `—` |
-| `handlers-ending` | `ending-work` | `source-command-surface` | `composite` | `two-steps-remain` | `729-786` | `source-command-surface` | `eprint-next-steps`, `handler-leaf-retire`, `handler-leaf-prune-marks`, `handler-leaf-prune-reminder` |
-| `handler-leaf-retire` | `ending-work` | `source-command-surface` | `literal` | `two-steps-remain` | `747-756` | `handlers-ending` | `—` |
-| `handler-leaf-prune-marks` | `ending-work` | `source-command-surface` | `literal` | `two-steps-remain` | `757-777` | `handlers-ending` | `—` |
-| `handler-leaf-prune-reminder` | `ending-work` | `source-command-surface` | `literal` | `two-steps-remain` | `778-786` | `handlers-ending` | `—` |
-| `slug` | `growing-the-tree` | `source-command-surface` | `literal` | `before-the-lock` | `787-794` | `slug-argument` | `—` |
-| `slug-argument` | `growing-the-tree` | `source-command-surface` | `composite` | `before-the-lock` | `787-794` | `source-command-surface` | `slug` |
-| `openings-worktree` | `the-grammar` | `source-command-surface` | `literal` | `admitted-before-dispatch` | `795-802` | `openings` | `—` |
-| `openings` | `the-grammar` | `source-command-surface` | `composite` | `admitted-before-dispatch` | `795-835` | `source-command-surface` | `openings-worktree`, `openings-readable`, `openings-writable`, `openings-absent` |
-| `openings-readable` | `the-grammar` | `source-command-surface` | `literal` | `admitted-before-dispatch` | `803-816` | `openings` | `—` |
-| `openings-writable` | `the-grammar` | `source-command-surface` | `literal` | `admitted-before-dispatch` | `817-825` | `openings` | `—` |
-| `openings-absent` | `the-grammar` | `source-command-surface` | `literal` | `admitted-before-dispatch` | `826-835` | `openings` | `—` |
-| `helper-normalize-leaf-path` | `reading-the-tree` | `source-command-surface` | `literal` | `information-not-error` | `836-859` | `path-and-label-helpers` | `—` |
-| `path-and-label-helpers` | `reading-the-tree` | `source-command-surface` | `composite` | `information-not-error` | `836-876` | `source-command-surface` | `helper-normalize-leaf-path`, `helper-label`, `helper-no-live-leaves` |
-| `helper-label` | `reading-the-tree` | `source-command-surface` | `literal` | `information-not-error` | `860-868` | `path-and-label-helpers` | `—` |
-| `helper-no-live-leaves` | `reading-the-tree` | `source-command-surface` | `literal` | `information-not-error` | `869-876` | `path-and-label-helpers` | `—` |
+| `verbs-leaving` | `leaving-the-loop` | `source-command-surface` | `composite` | `admit-before-signal` | `249-293` | `source-command-surface` | `verbs-finish-commit-help`, `verbs-complete-help` |
+| `verbs-complete-help` | `leaving-the-loop` | `source-command-surface` | `literal` | `admit-before-signal` | `273-293` | `verbs-leaving` | `—` |
+| `grammar-command-enum-close` | `the-grammar` | `source-command-surface` | `literal` | `admitted-before-dispatch` | `294-295` | `enum-close-and-operation-label` | `—` |
+| `enum-close-and-operation-label` | `the-grammar` | `source-command-surface` | `composite` | `admitted-before-dispatch` | `294-315` | `source-command-surface` | `grammar-command-enum-close`, `grammar-operation-label` |
+| `grammar-operation-label` | `the-grammar` | `source-command-surface` | `literal` | `admitted-before-dispatch` | `296-315` | `enum-close-and-operation-label` | `—` |
+| `args-complete` | `leaving-the-loop` | `source-command-surface` | `literal` | `admit-before-signal` | `316-327` | `source-command-surface` | `—` |
+| `args-root-init` | `growing-the-tree` | `source-command-surface` | `literal` | `before-the-lock` | `328-335` | `source-command-surface` | `—` |
+| `kind-help` | `growing-the-tree` | `source-command-surface` | `literal` | `before-the-lock` | `336-350` | `kind-help-and-parse-kind` | `—` |
+| `kind-help-and-parse-kind` | `growing-the-tree` | `source-command-surface` | `composite` | `before-the-lock` | `336-364` | `source-command-surface` | `kind-help`, `kind-override-help`, `parse-kind` |
+| `kind-override-help` | `growing-the-tree` | `source-command-surface` | `literal` | `before-the-lock` | `351-355` | `kind-help-and-parse-kind` | `—` |
+| `parse-kind` | `growing-the-tree` | `source-command-surface` | `literal` | `before-the-lock` | `356-364` | `kind-help-and-parse-kind` | `—` |
+| `args-leaf-add` | `growing-the-tree` | `source-command-surface` | `literal` | `before-the-lock` | `365-382` | `args-growing` | `—` |
+| `args-growing` | `growing-the-tree` | `source-command-surface` | `composite` | `before-the-lock` | `365-405` | `source-command-surface` | `args-leaf-add`, `args-leaf-insert`, `args-leaf-decompose` |
+| `args-leaf-insert` | `growing-the-tree` | `source-command-surface` | `literal` | `before-the-lock` | `383-394` | `args-growing` | `—` |
+| `args-leaf-decompose` | `growing-the-tree` | `source-command-surface` | `literal` | `before-the-lock` | `395-405` | `args-growing` | `—` |
+| `args-leaf-retire` | `ending-work` | `source-command-surface` | `literal` | `two-steps-remain` | `406-411` | `args-ending` | `—` |
+| `args-ending` | `ending-work` | `source-command-surface` | `composite` | `two-steps-remain` | `406-417` | `source-command-surface` | `args-leaf-retire`, `args-leaf-prune` |
+| `args-leaf-prune` | `ending-work` | `source-command-surface` | `literal` | `two-steps-remain` | `412-417` | `args-ending` | `—` |
+| `run-parse-and-bare-branch` | `the-grammar` | `source-command-surface` | `composite` | `admitted-before-dispatch` | `418-425` | `run-admission-and-dispatch` | `run-parse-cli` |
+| `run-parse-cli` | `the-grammar` | `source-command-surface` | `literal` | `admitted-before-dispatch` | `418-425` | `run-parse-and-bare-branch` | `—` |
+| `run-admission-and-dispatch` | `the-grammar` | `source-command-surface` | `composite` | `admitted-before-dispatch` | `418-444` | `source-command-surface` | `run-parse-and-bare-branch`, `run-cwd-and-admission`, `run-dispatch` |
+| `run-cwd-and-admission` | `the-grammar` | `source-command-surface` | `literal` | `admitted-before-dispatch` | `426-427` | `run-admission-and-dispatch` | `—` |
+| `run-dispatch` | `the-grammar` | `source-command-surface` | `literal` | `admitted-before-dispatch` | `428-444` | `run-admission-and-dispatch` | `—` |
+| `handler-finish-commit` | `leaving-the-loop` | `source-command-surface` | `literal` | `admit-before-signal` | `445-483` | `handlers-leaving` | `—` |
+| `handlers-leaving` | `leaving-the-loop` | `source-command-surface` | `composite` | `admit-before-signal` | `445-508` | `source-command-surface` | `handler-finish-commit`, `handler-complete-admit`, `handler-complete-endings` |
+| `handler-complete-admit` | `leaving-the-loop` | `source-command-surface` | `literal` | `admit-before-signal` | `484-491` | `handlers-leaving` | `—` |
+| `handler-complete-endings` | `leaving-the-loop` | `source-command-surface` | `literal` | `admit-before-signal` | `492-508` | `handlers-leaving` | `—` |
+| `handler-root-init-text` | `growing-the-tree` | `source-command-surface` | `literal` | `before-the-lock` | `509-514` | `handler-root-init` | `—` |
+| `handler-root-init` | `growing-the-tree` | `source-command-surface` | `composite` | `before-the-lock` | `509-536` | `source-command-surface` | `handler-root-init-text`, `handler-root-init-vacancy` |
+| `handler-root-init-vacancy` | `growing-the-tree` | `source-command-surface` | `literal` | `before-the-lock` | `515-536` | `handler-root-init` | `—` |
+| `handler-pick` | `reading-the-tree` | `source-command-surface` | `literal` | `information-not-error` | `537-546` | `handlers-reading-and-rendering` | `—` |
+| `handlers-reading-and-rendering` | `reading-the-tree` | `source-command-surface` | `composite` | `information-not-error` | `537-660` | `source-command-surface` | `handler-pick`, `handler-brief-chain`, `handler-kind`, `handler-leaf-in`, `handler-resolve`, `render-resolution-head`, `render-resolution-entry`, `render-resolution-absent` |
+| `handler-brief-chain` | `reading-the-tree` | `source-command-surface` | `literal` | `information-not-error` | `547-559` | `handlers-reading-and-rendering` | `—` |
+| `handler-kind` | `reading-the-tree` | `source-command-surface` | `literal` | `information-not-error` | `560-573` | `handlers-reading-and-rendering` | `—` |
+| `handler-leaf-in` | `reading-the-tree` | `source-command-surface` | `literal` | `information-not-error` | `574-584` | `handlers-reading-and-rendering` | `—` |
+| `handler-resolve` | `reading-the-tree` | `source-command-surface` | `literal` | `information-not-error` | `585-603` | `handlers-reading-and-rendering` | `—` |
+| `render-resolution-head` | `reading-the-tree` | `source-command-surface` | `literal` | `information-not-error` | `604-617` | `handlers-reading-and-rendering` | `—` |
+| `render-resolution-entry` | `reading-the-tree` | `source-command-surface` | `literal` | `information-not-error` | `618-634` | `handlers-reading-and-rendering` | `—` |
+| `render-resolution-absent` | `reading-the-tree` | `source-command-surface` | `literal` | `information-not-error` | `635-660` | `handlers-reading-and-rendering` | `—` |
+| `handler-leaf-add` | `growing-the-tree` | `source-command-surface` | `literal` | `before-the-lock` | `661-674` | `handlers-growing` | `—` |
+| `handlers-growing` | `growing-the-tree` | `source-command-surface` | `composite` | `before-the-lock` | `661-754` | `source-command-surface` | `handler-leaf-add`, `print-paths`, `handler-leaf-insert`, `report-insert`, `handler-leaf-decompose-head`, `handler-leaf-decompose-write` |
+| `print-paths` | `growing-the-tree` | `source-command-surface` | `literal` | `before-the-lock` | `675-684` | `handlers-growing` | `—` |
+| `handler-leaf-insert` | `growing-the-tree` | `source-command-surface` | `literal` | `before-the-lock` | `685-694` | `handlers-growing` | `—` |
+| `report-insert` | `growing-the-tree` | `source-command-surface` | `literal` | `before-the-lock` | `695-739` | `handlers-growing` | `—` |
+| `handler-leaf-decompose-head` | `growing-the-tree` | `source-command-surface` | `literal` | `before-the-lock` | `740-746` | `handlers-growing` | `—` |
+| `handler-leaf-decompose-write` | `growing-the-tree` | `source-command-surface` | `literal` | `before-the-lock` | `747-754` | `handlers-growing` | `—` |
+| `eprint-next-steps` | `ending-work` | `source-command-surface` | `literal` | `two-steps-remain` | `755-772` | `handlers-ending` | `—` |
+| `handlers-ending` | `ending-work` | `source-command-surface` | `composite` | `two-steps-remain` | `755-812` | `source-command-surface` | `eprint-next-steps`, `handler-leaf-retire`, `handler-leaf-prune-marks`, `handler-leaf-prune-reminder` |
+| `handler-leaf-retire` | `ending-work` | `source-command-surface` | `literal` | `two-steps-remain` | `773-782` | `handlers-ending` | `—` |
+| `handler-leaf-prune-marks` | `ending-work` | `source-command-surface` | `literal` | `two-steps-remain` | `783-803` | `handlers-ending` | `—` |
+| `handler-leaf-prune-reminder` | `ending-work` | `source-command-surface` | `literal` | `two-steps-remain` | `804-812` | `handlers-ending` | `—` |
+| `slug` | `growing-the-tree` | `source-command-surface` | `literal` | `before-the-lock` | `813-820` | `slug-argument` | `—` |
+| `slug-argument` | `growing-the-tree` | `source-command-surface` | `composite` | `before-the-lock` | `813-820` | `source-command-surface` | `slug` |
+| `openings-worktree` | `the-grammar` | `source-command-surface` | `literal` | `admitted-before-dispatch` | `821-828` | `openings` | `—` |
+| `openings` | `the-grammar` | `source-command-surface` | `composite` | `admitted-before-dispatch` | `821-861` | `source-command-surface` | `openings-worktree`, `openings-readable`, `openings-writable`, `openings-absent` |
+| `openings-readable` | `the-grammar` | `source-command-surface` | `literal` | `admitted-before-dispatch` | `829-842` | `openings` | `—` |
+| `openings-writable` | `the-grammar` | `source-command-surface` | `literal` | `admitted-before-dispatch` | `843-851` | `openings` | `—` |
+| `openings-absent` | `the-grammar` | `source-command-surface` | `literal` | `admitted-before-dispatch` | `852-861` | `openings` | `—` |
+| `helper-normalize-leaf-path` | `reading-the-tree` | `source-command-surface` | `literal` | `information-not-error` | `862-885` | `path-and-label-helpers` | `—` |
+| `path-and-label-helpers` | `reading-the-tree` | `source-command-surface` | `composite` | `information-not-error` | `862-902` | `source-command-surface` | `helper-normalize-leaf-path`, `helper-label`, `helper-no-live-leaves` |
+| `helper-label` | `reading-the-tree` | `source-command-surface` | `literal` | `information-not-error` | `886-894` | `path-and-label-helpers` | `—` |
+| `helper-no-live-leaves` | `reading-the-tree` | `source-command-surface` | `literal` | `information-not-error` | `895-902` | `path-and-label-helpers` | `—` |
 
 <a id="early-uses"></a>
 ## Early uses
@@ -214,10 +214,10 @@ and its total is what a completed book must account for.
 | Slice | Page | Owned lines |
 |---|---|---:|
 | `one-call-plus-rendering` | `01-orientation.md` | 108 |
-| `admitted-before-dispatch` | `02-the-grammar.md` | 119 |
+| `admitted-before-dispatch` | `02-the-grammar.md` | 121 |
 | `information-not-error` | `03-reading-the-tree.md` | 215 |
 | `before-the-lock` | `04-growing-the-tree.md` | 309 |
 | `two-steps-remain` | `05-ending-work.md` | 101 |
-| `admit-before-signal` | `06-leaving-the-loop.md` | 97 |
+| `admit-before-signal` | `06-leaving-the-loop.md` | 121 |
 | `assembly` | `07-what-order-holds.md` | 0 |
-| **Total** | 4 source roots | **949** |
+| **Total** | 4 source roots | **975** |

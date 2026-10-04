@@ -32,7 +32,7 @@ touches the tree calls and whose refusal the worked example ends on; `run`
 itself, lines 412 to 459 read inside the worked example because the example
 is `run` with concrete values; and the enum's close with `operation_label`,
 lines 290 to 310 which is the label admission quotes and the chapter's catalogue of the
-twelve labels — after the example, where a catalogue belongs.
+thirteen labels during cutover — after the example, where a catalogue belongs.
 
 <a id="the-grammar-head"></a>
 ## One version, help on nothing, and an `Option` that is never `None`
@@ -40,7 +40,7 @@ twelve labels — after the example, where a catalogue belongs.
 Lines 35 to 65 are the `Cli` struct with its attributes and the first line of
 the `Command` enum, in three fragments: the attribute block, the struct, and
 the enum's head. The block ends at line 65 because line 66 is the doc comment
-of the first variant, which *Growing the tree* owns; the enum's twelve
+of the first variant, which *Growing the tree* owns; the enum's thirteen
 variants are four later chapters' blocks, and its closing brace is read at the
 end of this page.
 
@@ -72,7 +72,7 @@ was first split into a package of its own.
 
 `arg_required_else_help = true` is the attribute the struct's `Option` exists
 for, and its effect is measured rather than described: a bare `grove-llm`
-prints the short help — the `about` line, the usage line, the twelve verbs
+prints the short help — the `about` line, the usage line, the thirteen verbs
 with clap's own `help` beside them, and the options — on **stderr** and exits `2`, clap's status for a usage error, where
 `grove-llm --help` prints the long form on stdout and exits `0`. `about` is the
 one-line description, printed by `-h` and by the bare invocation; `long_about`
@@ -198,7 +198,7 @@ inside the loop and once here; the two resolutions start from the same
 directory and cannot disagree, and the *command resolved* clause of
 admission's refusal is the first of them being reported.
 
-<!-- fragment «openings-worktree» owner="admitted-before-dispatch" source="crates/grove-llm/src/cli.rs" lines="795-802" parent="openings" -->
+<!-- fragment «openings-worktree» owner="admitted-before-dispatch" source="crates/grove-llm/src/cli.rs" lines="821-828" parent="openings" -->
 ````rust
 // Resolve the worktree from the cwd. The task-tree verbs run from the worktree
 // root (not from inside `.grove/`), and `grove-loop` joins `.grove` itself, so
@@ -230,7 +230,7 @@ other refusals unchanged: a root that is there but unreadable, or a name in it
 grove refuses, are a different category from vacancy and carry the loop's own
 wording.
 
-<!-- fragment «openings-readable» owner="admitted-before-dispatch" source="crates/grove-llm/src/cli.rs" lines="803-816" parent="openings" -->
+<!-- fragment «openings-readable» owner="admitted-before-dispatch" source="crates/grove-llm/src/cli.rs" lines="829-842" parent="openings" -->
 ````rust
 /// The shared opening a read verb needs, refusing a worktree with no grove.
 ///
@@ -268,7 +268,7 @@ workstream, and the shape of the
 return type is what makes that impossible — there is no path from `writable`
 to a `TreeWrite` over a root that had no tree.
 
-<!-- fragment «openings-writable» owner="admitted-before-dispatch" source="crates/grove-llm/src/cli.rs" lines="817-825" parent="openings" -->
+<!-- fragment «openings-writable» owner="admitted-before-dispatch" source="crates/grove-llm/src/cli.rs" lines="843-851" parent="openings" -->
 ````rust
 /// The exclusive opening a mutating verb needs, refusing a worktree with no
 /// grove.
@@ -297,7 +297,7 @@ wanted. One test pins the first line — `errors_when_grove_root_absent` in
 and that its stderr contains *grove root not found* — and no test asserts the
 second line, so the remedy is held by this function alone.
 
-<!-- fragment «openings-absent» owner="admitted-before-dispatch" source="crates/grove-llm/src/cli.rs" lines="826-835" parent="openings" -->
+<!-- fragment «openings-absent» owner="admitted-before-dispatch" source="crates/grove-llm/src/cli.rs" lines="852-861" parent="openings" -->
 ````rust
 /// The refusal for a worktree that holds no grove — one wording, and it carries
 /// the remedy, because an error that only reports detection is unfinished
@@ -314,7 +314,7 @@ fn absent(grove_root: &Path) -> anyhow::Error {
 
 The composite that reassembles the four helpers is stated here.
 
-<!-- fragment «openings» owner="admitted-before-dispatch" source="crates/grove-llm/src/cli.rs" lines="795-835" parent="source-command-surface" -->
+<!-- fragment «openings» owner="admitted-before-dispatch" source="crates/grove-llm/src/cli.rs" lines="821-861" parent="source-command-surface" -->
 <!-- insert «openings-worktree» -->
 <!-- insert «openings-readable» -->
 <!-- insert «openings-writable» -->
@@ -404,7 +404,7 @@ are refusals this chapter owns, and one is a handler's. `run` itself is three
 fragments, and the first is the parse and the branch the struct's `Option`
 makes necessary.
 
-<!-- fragment «run-parse-and-bare-branch» owner="admitted-before-dispatch" source="crates/grove-llm/src/cli.rs" lines="414-421" parent="run-admission-and-dispatch" -->
+<!-- fragment «run-parse-and-bare-branch» owner="admitted-before-dispatch" source="crates/grove-llm/src/cli.rs" lines="418-425" parent="run-admission-and-dispatch" -->
 <!-- insert «run-parse-cli» -->
 <!-- /fragment -->
 
@@ -415,7 +415,7 @@ makes necessary.
 case before inspecting any completion authority. Parsing alone can finish help
 and version requests. An actual command then reaches the ordinary session-epoch path.
 
-<!-- fragment «run-parse-cli» owner="admitted-before-dispatch" source="crates/grove-llm/src/cli.rs" lines="414-421" parent="run-parse-and-bare-branch" -->
+<!-- fragment «run-parse-cli» owner="admitted-before-dispatch" source="crates/grove-llm/src/cli.rs" lines="418-425" parent="run-parse-and-bare-branch" -->
 ````rust
 pub fn run() -> Result<()> {
     let cli = Cli::parse();
@@ -442,31 +442,30 @@ The second fragment is the two lines the chapter is named for. The current
 directory is read once, with a context naming what it is for, and admission is
 asked once with it and the verb's label. The call returns `Option<SessionEpochGuard>`:
 `Some` under a driver, `None` for a manual command, and an error for a stale
-session — an inactive epoch, another working tree, a channel that is not the
-ambient one, or a driver no longer alive — each refusal quoting the label so
+session — an inactive epoch, another working tree, a launch directory that is not the
+active one, or a driver no longer alive — each refusal quoting the label so
 the operator reads the command they typed. The guard holds the epoch's shared
 lock, and because the binding lives until `run` returns it is alive through
 whichever handler the `match` selects; the loop's contract is that it must
 remain so through the handler's separately acquired tree lock, and this binding
 is what keeps it.
 
-<!-- fragment «run-cwd-and-admission» owner="admitted-before-dispatch" source="crates/grove-llm/src/cli.rs" lines="422-423" parent="run-admission-and-dispatch" -->
+<!-- fragment «run-cwd-and-admission» owner="admitted-before-dispatch" source="crates/grove-llm/src/cli.rs" lines="426-427" parent="run-admission-and-dispatch" -->
 ````rust
     let cwd = std::env::current_dir().context("getting cwd for session epoch admission")?;
     let session_epoch = grove_loop::admit_ambient_session(&cwd, command.operation_label())?;
 ````
 <!-- /fragment -->
 
-The third fragment is the dispatch, and it is exhaustive: twelve arms for
-twelve variants, one handler each, and a variant added without an arm fails to
+The third fragment is the dispatch, and it is exhaustive: thirteen arms for
+thirteen variants, one handler each, and a variant added without an arm fails to
 compile. The handlers are four later chapters', and the table below states the
 minimum this page owes for each family; the early-use ledger carries the same
-rows. One arm is different from the rest. `Complete` alone receives the guard —
-`session_epoch.as_ref()` — because `complete` is the one verb that writes to
-the channel the epoch admitted, and *Leaving the loop* reads it checking the
-channel it is about to write against the one it was admitted under. Every other
-handler is called with its arguments and nothing else: admission is a fact
-`run` established before the `match`, and no handler has to carry it.
+rows. Two arms also receive the guard. `Complete` checks its inherited completion
+channel before writing; `RecordTeardown` checks that the directory it writes is
+the one admission accepted. Both hold the same shared epoch lock through their
+operation. The other handlers rely on the admission `run` already established.
+
 
 | Handler family | What it is, for this page | Owning chapter |
 |---|---|---|
@@ -482,10 +481,10 @@ openings above rather than from the handlers. Every arm but `Complete`
 resolves the working tree through `worktree`, and every arm but `RootInit`,
 `FinishCommit` and `Complete` then takes one of the two openings — the first
 four the shared one, the other five the exclusive one — so the refusal the
-example ended on is reachable from nine of the twelve verbs, and the wrong-working-tree
-refusal from all twelve.
+example ended on is reachable from nine of the thirteen verbs, and the wrong-working-tree
+refusal from all thirteen.
 
-<!-- fragment «run-dispatch» owner="admitted-before-dispatch" source="crates/grove-llm/src/cli.rs" lines="424-439" parent="run-admission-and-dispatch" -->
+<!-- fragment «run-dispatch» owner="admitted-before-dispatch" source="crates/grove-llm/src/cli.rs" lines="428-444" parent="run-admission-and-dispatch" -->
 ````rust
     match command {
         Command::RootInit(args) => cmd_root_init(&args),
@@ -500,6 +499,7 @@ refusal from all twelve.
         Command::LeafPrune(args) => cmd_leaf_prune(&args),
         Command::FinishCommit { finish_handle } => cmd_finish_commit(&finish_handle),
         Command::Complete(args) => cmd_complete(&args, session_epoch.as_ref()),
+        Command::RecordTeardown => cmd_record_teardown(session_epoch.as_ref()),
     }
 }
 
@@ -519,7 +519,7 @@ fail the day `parse` stopped being the first statement.
 
 The composite that reassembles `run` is stated here.
 
-<!-- fragment «run-admission-and-dispatch» owner="admitted-before-dispatch" source="crates/grove-llm/src/cli.rs" lines="414-439" parent="source-command-surface" -->
+<!-- fragment «run-admission-and-dispatch» owner="admitted-before-dispatch" source="crates/grove-llm/src/cli.rs" lines="418-444" parent="source-command-surface" -->
 <!-- insert «run-parse-and-bare-branch» -->
 <!-- insert «run-cwd-and-admission» -->
 <!-- insert «run-dispatch» -->
@@ -532,7 +532,7 @@ The last block this chapter owns is lines 290 to 310: the enum's closing brace,
 and the one method on `Command`. The brace closes a type whose body four later
 chapters reproduce, and the blank line after it is the block's.
 
-<!-- fragment «grammar-command-enum-close» owner="admitted-before-dispatch" source="crates/grove-llm/src/cli.rs" lines="291-292" parent="enum-close-and-operation-label" -->
+<!-- fragment «grammar-command-enum-close» owner="admitted-before-dispatch" source="crates/grove-llm/src/cli.rs" lines="294-295" parent="enum-close-and-operation-label" -->
 ````rust
 }
 
@@ -541,21 +541,21 @@ chapters reproduce, and the blank line after it is the block's.
 
 `operation_label` is the label each verb is admitted under, and now that the
 example has shown one — `grove-llm resolve`, quoted in the wrong-working-tree
-refusal — the catalogue of all twelve can follow it. The method is private with
+refusal — the catalogue of all thirteen can follow it. The method is private with
 one caller, `run`, and it returns a `&'static str` because every label is a
 literal: the binary's name, a space, and the verb as the operator typed it.
 That spelling is the point. Admission's refusals are the loop's wording, and
 the loop does not know which verb asked; the label is the one thing this module
 passes in, and it is what turns *stale Grove session* into *stale Grove session
-for grove-llm resolve*. The `match` is exhaustive, so the twelve arms are the
-twelve verbs, and a thirteenth variant without a label would not compile — the
+for grove-llm resolve*. The `match` is exhaustive, so the thirteen arms are the
+thirteen verbs, and another variant without a label would not compile — the
 same guarantee the dispatch in `run` gives, held in a second place for a
 different string. The patterns also show the three shapes a variant takes,
 which the four owning chapters read one family at a time: a unit variant with
 no arguments, a variant with named fields the handler receives directly, and a
 variant wrapping an argument struct that `derive(Parser)` fills.
 
-<!-- fragment «grammar-operation-label» owner="admitted-before-dispatch" source="crates/grove-llm/src/cli.rs" lines="293-311" parent="enum-close-and-operation-label" -->
+<!-- fragment «grammar-operation-label» owner="admitted-before-dispatch" source="crates/grove-llm/src/cli.rs" lines="296-315" parent="enum-close-and-operation-label" -->
 ````rust
 impl Command {
     fn operation_label(&self) -> &'static str {
@@ -572,6 +572,7 @@ impl Command {
             Self::LeafPrune(_) => "grove-llm leaf-prune",
             Self::FinishCommit { .. } => "grove-llm finish-commit",
             Self::Complete(_) => "grove-llm complete",
+            Self::RecordTeardown => "grove-llm record-teardown",
         }
     }
 }
@@ -581,7 +582,7 @@ impl Command {
 
 The composite that reassembles the block is stated here.
 
-<!-- fragment «enum-close-and-operation-label» owner="admitted-before-dispatch" source="crates/grove-llm/src/cli.rs" lines="291-311" parent="source-command-surface" -->
+<!-- fragment «enum-close-and-operation-label» owner="admitted-before-dispatch" source="crates/grove-llm/src/cli.rs" lines="294-315" parent="source-command-surface" -->
 <!-- insert «grammar-command-enum-close» -->
 <!-- insert «grammar-operation-label» -->
 <!-- /fragment -->

@@ -136,7 +136,7 @@ that must **not** already be there. It reads its text first — the slug, then t
 requirements kind — before it opens anything, so the first fragment is
 text-before-lock with nothing else in the way.
 
-<!-- fragment «handler-root-init-text» owner="before-the-lock" source="crates/grove-llm/src/cli.rs" lines="483-488" parent="handler-root-init" -->
+<!-- fragment «handler-root-init-text» owner="before-the-lock" source="crates/grove-llm/src/cli.rs" lines="509-514" parent="handler-root-init" -->
 ````rust
 fn cmd_root_init(args: &RootInitArgs) -> Result<()> {
     let worktree = worktree()?;
@@ -160,7 +160,7 @@ tree after it.
 The second fragment is where the tree is opened, and its comment makes a claim
 about Rust's drop order that this page checks against the compiler.
 
-<!-- fragment «handler-root-init-vacancy» owner="before-the-lock" source="crates/grove-llm/src/cli.rs" lines="489-510" parent="handler-root-init" -->
+<!-- fragment «handler-root-init-vacancy» owner="before-the-lock" source="crates/grove-llm/src/cli.rs" lines="515-536" parent="handler-root-init" -->
 ````rust
     // The refusal to clobber is the **shape** rather than a check: a live grove
     // opens as a tree, and `root-init` takes a vacancy.
@@ -256,7 +256,7 @@ the rule.
 The composite that reassembles the handler is stated here, and the source index
 names it as one of the root's twenty-two children.
 
-<!-- fragment «handler-root-init» owner="before-the-lock" source="crates/grove-llm/src/cli.rs" lines="483-510" parent="source-command-surface" -->
+<!-- fragment «handler-root-init» owner="before-the-lock" source="crates/grove-llm/src/cli.rs" lines="509-536" parent="source-command-surface" -->
 <!-- insert «handler-root-init-text» -->
 <!-- insert «handler-root-init-vacancy» -->
 <!-- /fragment -->
@@ -264,7 +264,7 @@ names it as one of the root's twenty-two children.
 `RootInitArgs` is the one argument the verb takes, and it is where the `plan`
 default the help names is declared.
 
-<!-- fragment «args-root-init» owner="before-the-lock" source="crates/grove-llm/src/cli.rs" lines="324-331" parent="source-command-surface" -->
+<!-- fragment «args-root-init» owner="before-the-lock" source="crates/grove-llm/src/cli.rs" lines="328-335" parent="source-command-surface" -->
 ````rust
 #[derive(Parser)]
 pub struct RootInitArgs {
@@ -292,7 +292,7 @@ and each by its own type. `slug` is the first.
 `slug` is the other name a grow verb reads, and it is read the same way, by its
 own type.
 
-<!-- fragment «slug» owner="before-the-lock" source="crates/grove-llm/src/cli.rs" lines="787-794" parent="slug-argument" -->
+<!-- fragment «slug» owner="before-the-lock" source="crates/grove-llm/src/cli.rs" lines="813-820" parent="slug-argument" -->
 ````rust
 /// A slug argument, as the grammar's own type.
 ///
@@ -316,7 +316,7 @@ function that turns a `&str` into a `Slug` or an error and touches no tree.
 The composite that holds the helper is stated here. It held two until the
 presence rule's function was deleted from beside it.
 
-<!-- fragment «slug-argument» owner="before-the-lock" source="crates/grove-llm/src/cli.rs" lines="787-794" parent="source-command-surface" -->
+<!-- fragment «slug-argument» owner="before-the-lock" source="crates/grove-llm/src/cli.rs" lines="813-820" parent="source-command-surface" -->
 <!-- insert «slug» -->
 <!-- /fragment -->
 
@@ -324,7 +324,7 @@ The `--kind` token is read by `parse_kind`, and its help is one constant shared
 by the two verbs that create a leaf, so the three are read together here. The
 help teaches the shape of a kind and lists none, because there is no list.
 
-<!-- fragment «kind-help» owner="before-the-lock" source="crates/grove-llm/src/cli.rs" lines="332-346" parent="kind-help-and-parse-kind" -->
+<!-- fragment «kind-help» owner="before-the-lock" source="crates/grove-llm/src/cli.rs" lines="336-350" parent="kind-help-and-parse-kind" -->
 ````rust
 /// `--kind` help for the two verbs that *create* a leaf. One const rather than
 /// two hand-copied copies.
@@ -357,7 +357,7 @@ requires that it names `--kind` and lists no kind set.
 `KIND_OVERRIDE_HELP` is the same help written for the one verb whose `--kind`
 overrides rather than supplies.
 
-<!-- fragment «kind-override-help» owner="before-the-lock" source="crates/grove-llm/src/cli.rs" lines="347-351" parent="kind-help-and-parse-kind" -->
+<!-- fragment «kind-override-help» owner="before-the-lock" source="crates/grove-llm/src/cli.rs" lines="351-355" parent="kind-help-and-parse-kind" -->
 ````rust
 /// [`KIND_HELP`] for `leaf-decompose`, whose `--kind` overrides an inherited
 /// kind rather than supplying a default.
@@ -372,7 +372,7 @@ inherit, so its help says *override* and names the default as inheritance rather
 than a literal; *`leaf-decompose`: the kind is the verb's to inherit* reads the
 handler that keeps that promise. `parse_kind` is what turns the token into a `Kind`.
 
-<!-- fragment «parse-kind» owner="before-the-lock" source="crates/grove-llm/src/cli.rs" lines="352-360" parent="kind-help-and-parse-kind" -->
+<!-- fragment «parse-kind» owner="before-the-lock" source="crates/grove-llm/src/cli.rs" lines="356-364" parent="kind-help-and-parse-kind" -->
 ````rust
 /// A `--kind` argument, as the grammar's own type.
 ///
@@ -403,7 +403,7 @@ missing-argument error and an untouched tree.
 
 The composite that reassembles the block is stated here.
 
-<!-- fragment «kind-help-and-parse-kind» owner="before-the-lock" source="crates/grove-llm/src/cli.rs" lines="332-360" parent="source-command-surface" -->
+<!-- fragment «kind-help-and-parse-kind» owner="before-the-lock" source="crates/grove-llm/src/cli.rs" lines="336-364" parent="source-command-surface" -->
 <!-- insert «kind-help» -->
 <!-- insert «kind-override-help» -->
 <!-- insert «parse-kind» -->
@@ -416,7 +416,7 @@ The composite that reassembles the block is stated here.
 slug and the parent, takes the exclusive opening, and prints — in that order, and
 the order is the whole of what the handler adds to the call.
 
-<!-- fragment «handler-leaf-add» owner="before-the-lock" source="crates/grove-llm/src/cli.rs" lines="635-648" parent="handlers-growing" -->
+<!-- fragment «handler-leaf-add» owner="before-the-lock" source="crates/grove-llm/src/cli.rs" lines="661-674" parent="handlers-growing" -->
 ````rust
 fn cmd_leaf_add(args: &LeafAddArgs) -> Result<()> {
     let worktree = worktree()?;
@@ -447,7 +447,7 @@ call's refusal and comes after both.
 
 `print_paths` is the last line, and its placement is a promise the help makes.
 
-<!-- fragment «print-paths» owner="before-the-lock" source="crates/grove-llm/src/cli.rs" lines="649-658" parent="handlers-growing" -->
+<!-- fragment «print-paths» owner="before-the-lock" source="crates/grove-llm/src/cli.rs" lines="675-684" parent="handlers-growing" -->
 ````rust
 /// Print an add's paths — **after** the mutation succeeded, never as each leaf
 /// lands. A run that fails is rolled back, so stdout describing a shape the
@@ -474,7 +474,7 @@ line's position.
 `LeafAddArgs` is the argument struct, and it carries the `required` flag the help
 turns on.
 
-<!-- fragment «args-leaf-add» owner="before-the-lock" source="crates/grove-llm/src/cli.rs" lines="361-378" parent="args-growing" -->
+<!-- fragment «args-leaf-add» owner="before-the-lock" source="crates/grove-llm/src/cli.rs" lines="365-382" parent="args-growing" -->
 ````rust
 #[derive(Parser)]
 pub struct LeafAddArgs {
@@ -511,7 +511,7 @@ takes the exclusive opening; what differs is the report,
 because an insert shifts siblings and leaves stale position-prefixed references
 behind.
 
-<!-- fragment «handler-leaf-insert» owner="before-the-lock" source="crates/grove-llm/src/cli.rs" lines="659-668" parent="handlers-growing" -->
+<!-- fragment «handler-leaf-insert» owner="before-the-lock" source="crates/grove-llm/src/cli.rs" lines="685-694" parent="handlers-growing" -->
 ````rust
 fn cmd_leaf_insert(args: &LeafInsertArgs) -> Result<()> {
     let worktree = worktree()?;
@@ -534,7 +534,7 @@ tree under the lock, where a `target` that names no entry fails with *no entry
 matches*. The one new thing is `report_insert`, which takes the `TreeWrite` and
 the insert's own report, because the report is more than a path.
 
-<!-- fragment «report-insert» owner="before-the-lock" source="crates/grove-llm/src/cli.rs" lines="669-713" parent="handlers-growing" -->
+<!-- fragment «report-insert» owner="before-the-lock" source="crates/grove-llm/src/cli.rs" lines="695-739" parent="handlers-growing" -->
 ````rust
 /// `leaf-insert`'s output: the new leaf's path on stdout, the renumber summary
 /// and the cross-reference lint on stderr.
@@ -616,7 +616,7 @@ property of the source: the hits are a returned value and the write is `.ok()`d.
 `LeafInsertArgs` carries the same required `--kind` as `leaf-add`, for the same
 reason.
 
-<!-- fragment «args-leaf-insert» owner="before-the-lock" source="crates/grove-llm/src/cli.rs" lines="379-390" parent="args-growing" -->
+<!-- fragment «args-leaf-insert» owner="before-the-lock" source="crates/grove-llm/src/cli.rs" lines="383-394" parent="args-growing" -->
 ````rust
 #[derive(Parser)]
 pub struct LeafInsertArgs {
@@ -645,7 +645,7 @@ holds that inserting past the last sibling is refused — that is `leaf-add`'s j
 decomposed leaf's kind unless `--kind` overrides it. The handler reads only what
 the operator typed.
 
-<!-- fragment «handler-leaf-decompose-head» owner="before-the-lock" source="crates/grove-llm/src/cli.rs" lines="714-720" parent="handlers-growing" -->
+<!-- fragment «handler-leaf-decompose-head» owner="before-the-lock" source="crates/grove-llm/src/cli.rs" lines="740-746" parent="handlers-growing" -->
 ````rust
 fn cmd_leaf_decompose(args: &LeafDecomposeArgs) -> Result<()> {
     let worktree = worktree()?;
@@ -661,7 +661,7 @@ The head parses the `--kind` override if present, the leaf path, and the first
 child's slug — text before lock, as everywhere. What follows is the opening and
 the call.
 
-<!-- fragment «handler-leaf-decompose-write» owner="before-the-lock" source="crates/grove-llm/src/cli.rs" lines="721-728" parent="handlers-growing" -->
+<!-- fragment «handler-leaf-decompose-write» owner="before-the-lock" source="crates/grove-llm/src/cli.rs" lines="747-754" parent="handlers-growing" -->
 ````rust
     let tree = writable(&worktree)?;
     let decomposed =
@@ -693,7 +693,7 @@ hold two of the refusals that are the verb's own.
 `LeafDecomposeArgs` carries the optional `--kind`, whose help is the override
 constant read above.
 
-<!-- fragment «args-leaf-decompose» owner="before-the-lock" source="crates/grove-llm/src/cli.rs" lines="391-401" parent="args-growing" -->
+<!-- fragment «args-leaf-decompose» owner="before-the-lock" source="crates/grove-llm/src/cli.rs" lines="395-405" parent="args-growing" -->
 ````rust
 #[derive(Parser)]
 pub struct LeafDecomposeArgs {
@@ -715,7 +715,7 @@ kind.
 
 The composite that reassembles the three grow argument structs is stated here.
 
-<!-- fragment «args-growing» owner="before-the-lock" source="crates/grove-llm/src/cli.rs" lines="361-401" parent="source-command-surface" -->
+<!-- fragment «args-growing» owner="before-the-lock" source="crates/grove-llm/src/cli.rs" lines="365-405" parent="source-command-surface" -->
 <!-- insert «args-leaf-add» -->
 <!-- insert «args-leaf-insert» -->
 <!-- insert «args-leaf-decompose» -->
@@ -724,7 +724,7 @@ The composite that reassembles the three grow argument structs is stated here.
 The composite that reassembles the four handlers and their helpers, in source
 order, is stated here.
 
-<!-- fragment «handlers-growing» owner="before-the-lock" source="crates/grove-llm/src/cli.rs" lines="635-728" parent="source-command-surface" -->
+<!-- fragment «handlers-growing» owner="before-the-lock" source="crates/grove-llm/src/cli.rs" lines="661-754" parent="source-command-surface" -->
 <!-- insert «handler-leaf-add» -->
 <!-- insert «print-paths» -->
 <!-- insert «handler-leaf-insert» -->

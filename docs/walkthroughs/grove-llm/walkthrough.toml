@@ -103,7 +103,7 @@ lines = 3
 [[root]]
 id    = "source-command-surface"
 path  = "crates/grove-llm/src/cli.rs"
-lines = 876
+lines = 902
 
 [[block]]
 id    = "manifest-thin-by-crate"
@@ -163,97 +163,97 @@ lines = "218-248"
 id    = "verbs-leaving"
 root  = "source-command-surface"
 owner = "admit-before-signal"
-lines = "249-290"
+lines = "249-293"
 
 [[block]]
 id    = "enum-close-and-operation-label"
 root  = "source-command-surface"
 owner = "admitted-before-dispatch"
-lines = "291-311"
+lines = "294-315"
 
 [[block]]
 id    = "args-complete"
 root  = "source-command-surface"
 owner = "admit-before-signal"
-lines = "312-323"
+lines = "316-327"
 
 [[block]]
 id    = "args-root-init"
 root  = "source-command-surface"
 owner = "before-the-lock"
-lines = "324-331"
+lines = "328-335"
 
 [[block]]
 id    = "kind-help-and-parse-kind"
 root  = "source-command-surface"
 owner = "before-the-lock"
-lines = "332-360"
+lines = "336-364"
 
 [[block]]
 id    = "args-growing"
 root  = "source-command-surface"
 owner = "before-the-lock"
-lines = "361-401"
+lines = "365-405"
 
 [[block]]
 id    = "args-ending"
 root  = "source-command-surface"
 owner = "two-steps-remain"
-lines = "402-413"
+lines = "406-417"
 
 [[block]]
 id    = "run-admission-and-dispatch"
 root  = "source-command-surface"
 owner = "admitted-before-dispatch"
-lines = "414-439"
+lines = "418-444"
 
 [[block]]
 id    = "handlers-leaving"
 root  = "source-command-surface"
 owner = "admit-before-signal"
-lines = "440-482"
+lines = "445-508"
 
 [[block]]
 id    = "handler-root-init"
 root  = "source-command-surface"
 owner = "before-the-lock"
-lines = "483-510"
+lines = "509-536"
 
 [[block]]
 id    = "handlers-reading-and-rendering"
 root  = "source-command-surface"
 owner = "information-not-error"
-lines = "511-634"
+lines = "537-660"
 
 [[block]]
 id    = "handlers-growing"
 root  = "source-command-surface"
 owner = "before-the-lock"
-lines = "635-728"
+lines = "661-754"
 
 [[block]]
 id    = "handlers-ending"
 root  = "source-command-surface"
 owner = "two-steps-remain"
-lines = "729-786"
+lines = "755-812"
 
 [[block]]
 id    = "slug-argument"
 root  = "source-command-surface"
 owner = "before-the-lock"
-lines = "787-794"
+lines = "813-820"
 
 [[block]]
 id    = "openings"
 root  = "source-command-surface"
 owner = "admitted-before-dispatch"
-lines = "795-835"
+lines = "821-861"
 
 [[block]]
 id    = "path-and-label-helpers"
 root  = "source-command-surface"
 owner = "information-not-error"
-lines = "836-876"
+lines = "862-902"
 
 [[early-use]]
 symbols   = "`Reading`, `Tree`, `Writing`, `TreeWrite`"

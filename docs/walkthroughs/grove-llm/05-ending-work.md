@@ -141,7 +141,7 @@ The reminder is one function both handlers call, and its comment carries the
 chapter's thesis. It is read first because it is the last thing either verb
 does.
 
-<!-- fragment «eprint-next-steps» owner="two-steps-remain" source="crates/grove-llm/src/cli.rs" lines="729-746" parent="handlers-ending" -->
+<!-- fragment «eprint-next-steps» owner="two-steps-remain" source="crates/grove-llm/src/cli.rs" lines="755-772" parent="handlers-ending" -->
 ````rust
 // The two steps that always follow a terminal mark: the commit that carries it,
 // then the completion signal. `leaf-retire` and `leaf-prune` are the
@@ -219,7 +219,7 @@ those phrases is held by the source and no test.
 resolve the working tree, normalize the path, open for writing, make the call,
 print what it returned, then the reminder.
 
-<!-- fragment «handler-leaf-retire» owner="two-steps-remain" source="crates/grove-llm/src/cli.rs" lines="747-756" parent="handlers-ending" -->
+<!-- fragment «handler-leaf-retire» owner="two-steps-remain" source="crates/grove-llm/src/cli.rs" lines="773-782" parent="handlers-ending" -->
 ````rust
 fn cmd_leaf_retire(args: &LeafRetireArgs) -> Result<()> {
     let worktree = worktree()?;
@@ -309,7 +309,7 @@ the operator's text, `normalize_leaf_path` takes it, and the call resolves the
 result against the tree. Its help is the only place the verb states which
 spellings it accepts, and the worked example passed the first of them.
 
-<!-- fragment «args-leaf-retire» owner="two-steps-remain" source="crates/grove-llm/src/cli.rs" lines="402-407" parent="args-ending" -->
+<!-- fragment «args-leaf-retire» owner="two-steps-remain" source="crates/grove-llm/src/cli.rs" lines="406-411" parent="args-ending" -->
 ````rust
 #[derive(Parser)]
 pub struct LeafRetireArgs {
@@ -336,7 +336,7 @@ path but a `Pruned` with two lists, the leaves newly marked and the retired
 leaves found and left alone. The first fragment is the opening, the call, and
 the rendering of both lists.
 
-<!-- fragment «handler-leaf-prune-marks» owner="two-steps-remain" source="crates/grove-llm/src/cli.rs" lines="757-777" parent="handlers-ending" -->
+<!-- fragment «handler-leaf-prune-marks» owner="two-steps-remain" source="crates/grove-llm/src/cli.rs" lines="783-803" parent="handlers-ending" -->
 ````rust
 fn cmd_leaf_prune(args: &LeafPruneArgs) -> Result<()> {
     let worktree = worktree()?;
@@ -428,7 +428,7 @@ with the root's path; no test in this crate holds it either.
 The second fragment is the reminder, and its comment states the two conditions
 the worked example showed.
 
-<!-- fragment «handler-leaf-prune-reminder» owner="two-steps-remain" source="crates/grove-llm/src/cli.rs" lines="778-786" parent="handlers-ending" -->
+<!-- fragment «handler-leaf-prune-reminder» owner="two-steps-remain" source="crates/grove-llm/src/cli.rs" lines="804-812" parent="handlers-ending" -->
 ````rust
     // Last, so the reminder is the final thing in the agent's context — and only
     // when this call actually ended some work; a no-op prune leaves no session
@@ -457,7 +457,7 @@ and keeps the singular for a single-leaf prune, which
 the field renamed to match; it is read here because the operand it carries is
 what makes the node case reachable at all.
 
-<!-- fragment «args-leaf-prune» owner="two-steps-remain" source="crates/grove-llm/src/cli.rs" lines="408-413" parent="args-ending" -->
+<!-- fragment «args-leaf-prune» owner="two-steps-remain" source="crates/grove-llm/src/cli.rs" lines="412-417" parent="args-ending" -->
 ````rust
 #[derive(Parser)]
 pub struct LeafPruneArgs {
@@ -477,7 +477,7 @@ spelling works too: `leaf-prune 02-review-impl--rate-limit-k4.md` typed at
 when measured. The composite that reassembles the two argument structs is
 stated here.
 
-<!-- fragment «args-ending» owner="two-steps-remain" source="crates/grove-llm/src/cli.rs" lines="402-413" parent="source-command-surface" -->
+<!-- fragment «args-ending» owner="two-steps-remain" source="crates/grove-llm/src/cli.rs" lines="406-417" parent="source-command-surface" -->
 <!-- insert «args-leaf-retire» -->
 <!-- insert «args-leaf-prune» -->
 <!-- /fragment -->
@@ -485,7 +485,7 @@ stated here.
 The composite that reassembles the reminder and the two handlers, in source
 order, is stated here.
 
-<!-- fragment «handlers-ending» owner="two-steps-remain" source="crates/grove-llm/src/cli.rs" lines="729-786" parent="source-command-surface" -->
+<!-- fragment «handlers-ending» owner="two-steps-remain" source="crates/grove-llm/src/cli.rs" lines="755-812" parent="source-command-surface" -->
 <!-- insert «eprint-next-steps» -->
 <!-- insert «handler-leaf-retire» -->
 <!-- insert «handler-leaf-prune-marks» -->

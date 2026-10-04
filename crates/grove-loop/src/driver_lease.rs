@@ -54,7 +54,7 @@ struct ProcessRecord {
 #[derive(Debug, PartialEq, Eq)]
 struct EpochRecord {
     process: ProcessRecord,
-    signal_path: Option<PathBuf>,
+    launch_dir: Option<PathBuf>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -109,10 +109,22 @@ pub struct DriverLease {
 #[derive(Debug)]
 pub struct SessionEpochGuard {
     _epoch_file: File,
-    signal_path: PathBuf,
+    launch_dir: PathBuf,
+    signal_path: Option<PathBuf>,
 }
 
 impl SessionEpochGuard {
+    /// Require the directory this operation was admitted against.
+    pub fn require_launch_dir(&self, launch_dir: &Path) -> Result<(), crate::Error> {
+        if launch_dir != self.launch_dir {
+            return Err(anyhow::anyhow!(
+                "launch directory does not match the admitted session epoch"
+            )
+            .into());
+        }
+        Ok(())
+    }
+
     /// Refuse an operation whose completion channel is not the one this epoch
     /// admitted.
     ///
@@ -124,10 +136,13 @@ impl SessionEpochGuard {
     }
 
     fn require_signal_path_inner(&self, signal_path: Option<&Path>) -> Result<()> {
-        if signal_path != Some(self.signal_path.as_path()) {
+        if signal_path != self.signal_path.as_deref()
+            || (crate::launch_directory::is_launch_name(self.launch_dir.file_name())
+                && signal_path.and_then(Path::parent) != Some(self.launch_dir.as_path()))
+        {
             bail!(
                 "completion signal path does not match the admitted session epoch: expected {}, got {}",
-                self.signal_path.display(),
+                self.signal_path.as_deref().map(|p| p.display().to_string()).unwrap_or_else(|| "<none>".into()),
                 signal_path
                     .map(|path| path.display().to_string())
                     .unwrap_or_else(|| "<none>".to_string())
@@ -191,6 +206,11 @@ impl DriverLease {
         before_initial_epoch_handoff();
         lease.initialize_epoch_record()?;
         lease.clean_witnesses();
+        if let Err(error) =
+            crate::launch_directory::LaunchDirectory::discard_abandoned(&lease.control_dir)
+        {
+            eprintln!("grove: warning: could not clean abandoned launch directories; continuing: {error:#}");
+        }
         // Only after this lease owns the workspace, and after the replacement
         // driver's inactive epoch record is installed: cleaning first would
         // remove a live predecessor's channel. The grammar of an abandoned
@@ -213,18 +233,18 @@ impl DriverLease {
     }
 
     /// Grove's control directory inside the workspace's administration area —
-    /// where the runner allocates each launch's completion channel.
+    /// where Grove allocates each launch directory.
     ///
-    /// Handed out rather than used here: the channel's name grammar, allocation
-    /// and cleanup are `keyed-launch`'s, and the lease's contribution is the one
-    /// thing that is genuinely grove's — *which* directory is ours.
+    /// The launch directory's allocation and reading are Grove's; the lease
+    /// supplies the namespace and cleans abandoned directories only after epoch
+    /// invalidation. The compatibility channel inside it remains keyed-launch's.
     pub(crate) fn control_dir(&self) -> &Path {
         &self.control_dir
     }
 
     #[cfg(test)]
-    pub(crate) fn activate_session_epoch(&self, signal_path: &Path) -> Result<()> {
-        self.write_epoch_record(Some(signal_path), "pre-spawn activation")
+    pub(crate) fn activate_session_epoch(&self, launch_dir: &Path) -> Result<()> {
+        self.write_epoch_record(Some(launch_dir), "pre-spawn activation")
     }
 
     pub(crate) fn invalidate_session_epoch(&self) -> Result<()> {
@@ -246,9 +266,9 @@ impl DriverLease {
         &mut self,
         root: crate::TreeLifetime,
         selected: &crate::Selection,
-        signal_path: &Path,
+        launch_dir: &Path,
     ) -> Result<()> {
-        self.prepare_launch_with(root, selected, signal_path, |path| {
+        self.prepare_launch_with(root, selected, launch_dir, |path| {
             acquire_epoch_file(path, LockMode::Exclusive, "pre-spawn activation")
         })
     }
@@ -257,12 +277,12 @@ impl DriverLease {
         &mut self,
         root: crate::TreeLifetime,
         selected: &crate::Selection,
-        signal_path: &Path,
+        launch_dir: &Path,
         acquire: impl FnOnce(&Path) -> Result<File>,
     ) -> Result<()> {
         self.prepare_launch_using(
             root,
-            signal_path,
+            launch_dir,
             acquire,
             witnesses::LaunchWitnesses::prepare,
             |launch, epoch| launch.publish(epoch, selected),
@@ -272,7 +292,7 @@ impl DriverLease {
     fn prepare_launch_using(
         &mut self,
         root: crate::TreeLifetime,
-        signal_path: &Path,
+        launch_dir: &Path,
         acquire: impl FnOnce(&Path) -> Result<File>,
         prepare: impl FnOnce(&mut witnesses::LaunchWitnesses, &Path) -> Result<()>,
         publish: impl FnOnce(&witnesses::LaunchWitnesses, &mut File) -> Result<()>,
@@ -318,7 +338,7 @@ impl DriverLease {
                 self.worktree_identity,
                 &self.worktree_root,
                 &self.nonce,
-                Some(signal_path),
+                Some(launch_dir),
             )?;
             if let Some(launch) = &self.launch {
                 if let Err(error) = publish(launch, &mut epoch) {
@@ -401,7 +421,7 @@ impl DriverLease {
         Ok(())
     }
 
-    fn write_epoch_record(&self, signal_path: Option<&Path>, operation: &str) -> Result<()> {
+    fn write_epoch_record(&self, launch_dir: Option<&Path>, operation: &str) -> Result<()> {
         let path = self.control_dir.join(EPOCH_FILE_NAME);
         let mut file = acquire_epoch_file(&path, LockMode::Exclusive, operation)?;
         write_epoch_contents(
@@ -409,7 +429,7 @@ impl DriverLease {
             self.worktree_identity,
             &self.worktree_root,
             &self.nonce,
-            signal_path,
+            launch_dir,
         )
     }
 
@@ -447,7 +467,7 @@ fn write_epoch_contents(
     worktree_identity: FileIdentity,
     worktree_root: &Path,
     nonce: &str,
-    signal_path: Option<&Path>,
+    launch_dir: Option<&Path>,
 ) -> Result<()> {
     file.set_len(0)
         .context("truncating previous session epoch record")?;
@@ -456,7 +476,7 @@ fn write_epoch_contents(
     writeln!(
         file,
         "state={}",
-        if signal_path.is_some() {
+        if launch_dir.is_some() {
             "active"
         } else {
             "inactive"
@@ -466,8 +486,8 @@ fn write_epoch_contents(
     writeln!(file, "worktree-inode={}", worktree_identity.inode)?;
     writeln!(file, "worktree-path-hex={}", encode_path(worktree_root)?)?;
     writeln!(file, "nonce={nonce}")?;
-    if let Some(signal_path) = signal_path {
-        writeln!(file, "signal-path-hex={}", encode_path(signal_path)?)?;
+    if let Some(launch_dir) = launch_dir {
+        writeln!(file, "launch-dir-hex={}", encode_path(launch_dir)?)?;
     }
     file.flush().context("flushing session epoch record")
 }
@@ -770,22 +790,31 @@ fn read_epoch_record(file: &mut File) -> Result<EpochRecord> {
 
 fn parse_epoch_record(record: &str) -> Result<EpochRecord> {
     let process = parse_process_record(record)?;
-    let signal_path = match record_field(record, "state")? {
+    let launch_dir = match record_field(record, "state")? {
         "inactive" => {
-            if record
-                .lines()
-                .any(|line| line.starts_with("signal-path-hex="))
-            {
-                bail!("inactive session epoch unexpectedly carries a signal path");
+            if record.lines().any(|line| {
+                line.starts_with("launch-dir-hex=") || line.starts_with("signal-path-hex=")
+            }) {
+                bail!("inactive session epoch unexpectedly carries a launch directory");
             }
             None
         }
-        "active" => Some(decode_path(record_field(record, "signal-path-hex")?)?),
+        "active" => Some(decode_path(
+            if record
+                .lines()
+                .any(|line| line.starts_with("launch-dir-hex="))
+            {
+                record_field(record, "launch-dir-hex")?
+            } else {
+                // The expand step still understands an installed v22 epoch record.
+                record_field(record, "signal-path-hex")?
+            },
+        )?),
         state => bail!("unknown session epoch state {state:?}"),
     };
     Ok(EpochRecord {
         process,
-        signal_path,
+        launch_dir,
     })
 }
 
@@ -861,7 +890,7 @@ fn probe_live_lease_with_post_unlock_hook(
 ///
 /// The returned guard owns the shared epoch lock and must remain alive through
 /// the operation's separately acquired Tree access guard. With no ambient
-/// signal path this is a manual command and no driver epoch is required.
+/// launch directory or compatibility signal path this is a manual command and no driver epoch is required.
 ///
 /// # Errors
 ///
@@ -872,7 +901,11 @@ pub fn admit_ambient_session(
     path: &Path,
     operation: &str,
 ) -> Result<Option<SessionEpochGuard>, crate::Error> {
-    Ok(admit_session(path, operation, ambient_signal_path())?)
+    let mut guard = admit_session(path, operation, ambient_launch_dir())?;
+    if let Some(guard) = &mut guard {
+        guard.signal_path = signal_path_from(std::env::var_os("GROVE_SIGNAL_FILE"));
+    }
+    Ok(guard)
 }
 
 /// The loop-control context this process was launched into, if any.
@@ -882,8 +915,19 @@ pub fn admit_ambient_session(
 /// path as an argument instead. That split is what lets admission be tested
 /// without a unit test writing a process-global that production code in a
 /// parallel sibling test is reading at the same moment.
-fn ambient_signal_path() -> Option<PathBuf> {
-    signal_path_from(std::env::var_os("GROVE_SIGNAL_FILE"))
+fn ambient_launch_dir() -> Option<PathBuf> {
+    signal_path_from(std::env::var_os("GROVE_LAUNCH_DIR")).or_else(|| {
+        // Compatibility for callers carrying only the old channel. New drivers
+        // allocate that channel inside the directory the epoch actually binds.
+        signal_path_from(std::env::var_os("GROVE_SIGNAL_FILE")).map(|signal| {
+            match signal.parent() {
+                Some(parent) if crate::launch_directory::is_launch_name(parent.file_name()) => {
+                    parent.to_path_buf()
+                }
+                _ => signal,
+            }
+        })
+    })
 }
 
 /// Classify a loop-control value as ambient context or none. Empty is *none*
@@ -898,16 +942,16 @@ fn signal_path_from(value: Option<OsString>) -> Option<PathBuf> {
 fn admit_session(
     path: &Path,
     operation: &str,
-    signal_path: Option<PathBuf>,
+    launch_dir: Option<PathBuf>,
 ) -> Result<Option<SessionEpochGuard>> {
-    let Some(signal_path) = signal_path else {
+    let Some(launch_dir) = launch_dir else {
         return Ok(None);
     };
     let current_workspace = Workspace::resolve(path)?;
-    let control_dir = signal_path.parent().with_context(|| {
+    let control_dir = launch_dir.parent().with_context(|| {
         format!(
-            "stale Grove session for {operation}: signal path has no control-directory parent: {}",
-            signal_path.display()
+            "stale Grove session for {operation}: launch directory has no control-directory parent: {}",
+            launch_dir.display()
         )
     })?;
     let epoch_path = control_dir.join(EPOCH_FILE_NAME);
@@ -934,10 +978,10 @@ fn admit_session(
     if epoch.process.worktree_identity != current_identity {
         bail!("stale Grove session for {operation}: working-tree identity changed");
     }
-    let Some(epoch_signal_path) = epoch.signal_path.as_deref() else {
+    let Some(epoch_launch_dir) = epoch.launch_dir.as_deref() else {
         bail!("stale Grove session for {operation}: session epoch is inactive");
     };
-    if epoch_signal_path != signal_path {
+    if epoch_launch_dir != launch_dir {
         bail!(
             "stale Grove session for {operation}: loop-control path does not match the active epoch"
         );
@@ -946,7 +990,8 @@ fn admit_session(
         .with_context(|| format!("stale Grove session for {operation}"))?;
     Ok(Some(SessionEpochGuard {
         _epoch_file: epoch_file,
-        signal_path,
+        signal_path: Some(launch_dir.clone()),
+        launch_dir,
     }))
 }
 
@@ -1019,7 +1064,7 @@ mod tests {
         assert_eq!(lease.control_dir.join(basename), path);
         let mandatory = parse_epoch_record(&record).unwrap();
         assert_eq!(mandatory.process.nonce, lease.nonce);
-        assert_eq!(mandatory.signal_path.as_deref(), Some(signal.as_path()));
+        assert_eq!(mandatory.launch_dir.as_deref(), Some(signal.as_path()));
         lease.supervise_launch(|event| event(keyed_launch::LaunchEvent::Started));
         assert!(matches!(
             crate::try_observe(temp.path(), &[None]).activity,
@@ -1035,7 +1080,7 @@ mod tests {
         bytes.extend_from_slice(b"observation-kind-hex=\xff\n");
         fs::write(&epoch_path, bytes).unwrap();
         assert!(admit_session(temp.path(), "test", ambient(&signal)).is_ok());
-        for field in ["worktree-path-hex", "signal-path-hex"] {
+        for field in ["worktree-path-hex", "launch-dir-hex"] {
             let valid = record_field(prefix, field).unwrap();
             let corrupt =
                 prefix.replace(&format!("{field}={valid}"), &format!("{field}=\u{fffd}0"));
@@ -1657,16 +1702,16 @@ mod tests {
         let lease = DriverLease::acquire(&workspace_at(&root)).unwrap();
         let epoch_path = root.join(".jj/grove").join(EPOCH_FILE_NAME);
         let epoch_identity = FileIdentity::from_metadata(&fs::metadata(&epoch_path).unwrap());
-        let signal_path = root.join(".jj/grove/signal-11111111111111111111111111111111");
+        let launch_dir = root.join(".jj/grove/signal-11111111111111111111111111111111");
 
-        lease.activate_session_epoch(&signal_path).unwrap();
+        lease.activate_session_epoch(&launch_dir).unwrap();
 
         let active = fs::read_to_string(&epoch_path).unwrap();
         assert!(active.starts_with("state=active\n"), "{active:?}");
         assert!(
             active.contains(&format!(
-                "signal-path-hex={}\n",
-                encode_path(&signal_path).unwrap()
+                "launch-dir-hex={}\n",
+                encode_path(&launch_dir).unwrap()
             )),
             "{active:?}"
         );
@@ -1680,7 +1725,7 @@ mod tests {
 
         let inactive = fs::read_to_string(&epoch_path).unwrap();
         assert!(inactive.starts_with("state=inactive\n"), "{inactive:?}");
-        assert!(!inactive.contains("signal-path-hex="), "{inactive:?}");
+        assert!(!inactive.contains("launch-dir-hex="), "{inactive:?}");
         assert_eq!(
             FileIdentity::from_metadata(&fs::metadata(&epoch_path).unwrap()),
             epoch_identity,
@@ -1814,10 +1859,10 @@ mod tests {
         let root = tmp.path().join("worktree");
         fs::create_dir_all(root.join(".jj")).unwrap();
         let lease = DriverLease::acquire(&workspace_at(&root)).unwrap();
-        let signal_path = root.join(".jj/grove/signal-11111111111111111111111111111111");
-        lease.activate_session_epoch(&signal_path).unwrap();
+        let launch_dir = root.join(".jj/grove/signal-11111111111111111111111111111111");
+        lease.activate_session_epoch(&launch_dir).unwrap();
 
-        let admission = admit_session(&root, "test pick", ambient(&signal_path))
+        let admission = admit_session(&root, "test pick", ambient(&launch_dir))
             .unwrap()
             .expect("ambient loop context must return a held admission guard");
 
@@ -1857,7 +1902,7 @@ mod tests {
             .unwrap();
         replacement.join().unwrap();
 
-        let error = admit_session(&root, "test pick", ambient(&signal_path)).unwrap_err();
+        let error = admit_session(&root, "test pick", ambient(&launch_dir)).unwrap_err();
         assert!(
             format!("{error:#}").contains("session epoch is inactive"),
             "a new call from the old session was not refused: {error:#}"
@@ -1874,8 +1919,8 @@ mod tests {
         let root = tmp.path().join("worktree");
         fs::create_dir_all(root.join(".jj")).unwrap();
         let old_lease = DriverLease::acquire(&workspace_at(&root)).unwrap();
-        let signal_path = root.join(".jj/grove/signal-11111111111111111111111111111111");
-        old_lease.activate_session_epoch(&signal_path).unwrap();
+        let launch_dir = root.join(".jj/grove/signal-11111111111111111111111111111111");
+        old_lease.activate_session_epoch(&launch_dir).unwrap();
         let lease_path = root.join(".jj/grove").join(LEASE_FILE_NAME);
         let old_record = fs::read_to_string(&lease_path).unwrap();
         let epoch_guard = File::open(root.join(".jj/grove").join(EPOCH_FILE_NAME)).unwrap();
@@ -1916,10 +1961,10 @@ mod tests {
         fs::create_dir_all(owner_root.join(".jj")).unwrap();
         fs::create_dir_all(foreign_root.join(".jj")).unwrap();
         let lease = DriverLease::acquire(&workspace_at(&owner_root)).unwrap();
-        let signal_path = owner_root.join(".jj/grove/signal-11111111111111111111111111111111");
-        lease.activate_session_epoch(&signal_path).unwrap();
+        let launch_dir = owner_root.join(".jj/grove/signal-11111111111111111111111111111111");
+        lease.activate_session_epoch(&launch_dir).unwrap();
 
-        let error = admit_session(&foreign_root, "test pick", ambient(&signal_path)).unwrap_err();
+        let error = admit_session(&foreign_root, "test pick", ambient(&launch_dir)).unwrap_err();
 
         let message = format!("{error:#}");
         assert!(message.contains("wrong working tree"), "{message}");
@@ -1949,7 +1994,7 @@ mod tests {
     }
 
     #[test]
-    fn a_rotated_epoch_refuses_the_old_signal_path() {
+    fn a_rotated_epoch_refuses_the_old_launch_dir() {
         let tmp = TempDir::new().unwrap();
         let root = tmp.path().join("worktree");
         fs::create_dir_all(root.join(".jj")).unwrap();
@@ -1973,23 +2018,23 @@ mod tests {
     }
 
     #[test]
-    fn an_epoch_signal_path_round_trips_record_separator_bytes() {
+    fn an_epoch_launch_dir_round_trips_record_separator_bytes() {
         let tmp = TempDir::new().unwrap();
         let root = tmp
             .path()
             .join(OsString::from_vec(b"worktree-\n-name".to_vec()));
         fs::create_dir_all(root.join(".jj")).unwrap();
         let lease = DriverLease::acquire(&workspace_at(&root)).unwrap();
-        let signal_path = root.join(".jj/grove/signal-11111111111111111111111111111111");
-        lease.activate_session_epoch(&signal_path).unwrap();
+        let launch_dir = root.join(".jj/grove/signal-11111111111111111111111111111111");
+        lease.activate_session_epoch(&launch_dir).unwrap();
 
         drop(
-            admit_session(&root, "test pick", ambient(&signal_path))
+            admit_session(&root, "test pick", ambient(&launch_dir))
                 .unwrap()
                 .expect("the exact signal path must survive epoch serialization"),
         );
         let record = fs::read_to_string(root.join(".jj/grove/session.epoch")).unwrap();
-        assert!(record.contains("signal-path-hex="), "{record:?}");
+        assert!(record.contains("launch-dir-hex="), "{record:?}");
     }
 
     #[test]
@@ -2001,8 +2046,8 @@ mod tests {
         let root = tmp.path().join("worktree");
         fs::create_dir_all(root.join(".jj")).unwrap();
         let lease = DriverLease::acquire(&workspace_at(&root)).unwrap();
-        let signal_path = root.join(".jj/grove/signal-11111111111111111111111111111111");
-        lease.activate_session_epoch(&signal_path).unwrap();
+        let launch_dir = root.join(".jj/grove/signal-11111111111111111111111111111111");
+        lease.activate_session_epoch(&launch_dir).unwrap();
         let control_dir = root.join(".jj/grove");
         let mut epoch_file = File::open(control_dir.join(EPOCH_FILE_NAME)).unwrap();
         let epoch = read_epoch_record(&mut epoch_file).unwrap();
@@ -2043,11 +2088,11 @@ mod tests {
         let root = tmp.path().join("worktree");
         fs::create_dir_all(root.join(".jj")).unwrap();
         let lease = DriverLease::acquire(&workspace_at(&root)).unwrap();
-        let signal_path = root.join(".jj/grove/signal-11111111111111111111111111111111");
-        lease.activate_session_epoch(&signal_path).unwrap();
+        let launch_dir = root.join(".jj/grove/signal-11111111111111111111111111111111");
+        lease.activate_session_epoch(&launch_dir).unwrap();
         drop(lease);
 
-        let error = admit_session(&root, "test pick", ambient(&signal_path)).unwrap_err();
+        let error = admit_session(&root, "test pick", ambient(&launch_dir)).unwrap_err();
         assert!(
             format!("{error:#}").contains("driver lease is unlocked"),
             "unexpected error: {error:#}"
@@ -2060,11 +2105,11 @@ mod tests {
         let root = tmp.path().join("worktree");
         fs::create_dir_all(root.join(".jj")).unwrap();
         let lease = DriverLease::acquire(&workspace_at(&root)).unwrap();
-        let signal_path = root.join(".jj/grove/signal-11111111111111111111111111111111");
-        lease.activate_session_epoch(&signal_path).unwrap();
+        let launch_dir = root.join(".jj/grove/signal-11111111111111111111111111111111");
+        lease.activate_session_epoch(&launch_dir).unwrap();
         fs::write(root.join(".jj/grove/session.epoch"), "state=active\n").unwrap();
 
-        let error = admit_session(&root, "test pick", ambient(&signal_path)).unwrap_err();
+        let error = admit_session(&root, "test pick", ambient(&launch_dir)).unwrap_err();
         assert!(
             format!("{error:#}").contains("stale Grove session"),
             "unexpected error: {error:#}"

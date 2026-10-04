@@ -1,19 +1,19 @@
-# The twelve verbs, and the two that are not
+# The session verbs, and the two that are not
 <!-- book-page id="the-verbs" slice="twelve-not-fourteen" order="15" -->
 [Previous: Finishing](14-finishing.md) | [Contents](README.md) | [Next: One live driver per working tree](16-the-lease.md)
 
 <a id="twelve-not-fourteen"></a>
-## The rule: twelve verbs, and everything else says why it is not one
+## The rule: the surface states which operations are verbs
 
 Chapter 14 deleted the grove. The fourteen chapters before this one reached that
 ending through a surface they never stopped to read, and this chapter is that
-surface: three small files, 516 lines, holding every function a session is
+surface: three small files, 534 lines, holding every function a session is
 allowed to call and the reason each of them is allowed to be called.
 
-> **The surface is twelve verbs, and everything else that touches the tree has to
+> **The surface is thirteen verbs during the compatibility cutover, and everything else that touches the tree has to
 > say why it is not one.** A count is only kept if the things standing beside it
-> say why they are out of it. `verbs.rs` declares fourteen public functions and
-> twelve verbs. `driver.rs` holds two more operations over the same tree and
+> say why they are out of it. `verbs.rs` declares fifteen public functions and
+> thirteen verbs. `driver.rs` holds two more operations over the same tree and
 > refuses to sit beside them. Each of the four exceptions states its own case, in
 > its own doc comment, at the point of declaration — which is the only place a
 > reader counting the surface will be standing.
@@ -58,17 +58,16 @@ shape is what makes the sections below a reading of a *surface* rather than of
 fourteen unrelated functions.
 
 <a id="fourteen-declarations-twelve-verbs"></a>
-## Fourteen declarations, twelve verbs
+## Fifteen declarations, thirteen verbs during cutover
 
 The count is the chapter, so it is worth taking from the declarations rather
-than from any sentence about them. `verbs.rs` declares fourteen `pub fn` — at
-lines 37, 70, 83, 95, 108, 122, 141, 196, 222, 247, 263, 300, 314 and 335 — and
-one private one, `sought`, at line 358. Two of the fourteen are not verbs, and
+than from any sentence about them. `verbs.rs` declares fifteen public functions during expansion, including
+`record_teardown`, and one private helper, `sought`. Two public functions are not verbs, and
 neither leaves that to be inferred: `stale_cross_refs` opens its doc comment with
 **Not a thirteenth verb**, and `signal_channel` with **Public because the order
-matters**. Twelve remain.
+matters**. Thirteen remain, including `record_teardown` beside the compatibility `complete`.
 
-Those twelve fall into five groups, and the groups are what the sections below
+Those thirteen fall into five groups, and the groups are what the sections below
 are:
 
 | | Group | Verbs | |
@@ -77,13 +76,14 @@ are:
 | 2 | reads under a shared lock | 4 | `pick`, `kind`, `brief_chain`, `resolve` |
 | 3 | grows the tree | 2 | `leaf_add`, `leaf_insert` |
 | 4 | changes a leaf's standing | 3 | `leaf_decompose`, `leaf_retire`, `leaf_prune` |
-| 5 | reaches outward | 2 | `finish_commit`, `complete` |
+| 5 | reaches outward | 3 | `finish_commit`, `complete`, `record_teardown` |
 
-**The header's own split is by signature, and it is exact.** Ten of the twelve
+**The signature split separates tree access from control effects.** Ten of the thirteen
 are *handed* their tree: `root_init` takes a `Vacancy`, the four readers take a
-`&Tree`, and the five that mutate take a `&TreeWrite`. The remaining two take
+`&Tree`, and the five that mutate take a `&TreeWrite`. The remaining three take
 neither — `finish_commit` takes a `&Workspace` and opens the tree itself, and
-`complete` takes no tree at all. That is the ten the header counts. It is worth
+`complete` takes no tree at all. `record_teardown` checks that the root is absent
+and records the teardown in the admitted launch directory. That is the ten the header counts. It is worth
 saying plainly, because `finish_commit` unmistakably *touches* the tree — it
 deletes it — and is counted among the two for where else it reaches rather than
 for leaving the tree alone. Its own doc comment fixes the distinction at line
@@ -95,7 +95,7 @@ for leaving the tree alone. Its own doc comment fixes the distinction at line
 The three roots this chapter owns are declared whole here, each as one
 composite whose children are the items below in file order.
 
-<!-- fragment «the-twelve-verbs» owner="twelve-not-fourteen" source="crates/grove-loop/src/verbs.rs" lines="1-361" parent="source-verbs" -->
+<!-- fragment «the-twelve-verbs» owner="twelve-not-fourteen" source="crates/grove-loop/src/verbs.rs" lines="1-379" parent="source-verbs" -->
 <!-- insert «verbs-surface-header» -->
 <!-- insert «verbs-imports» -->
 <!-- insert «verbs-root-init» -->
@@ -660,7 +660,7 @@ the type enforces, that finished work is never re-marked as abandoned.
 <a id="the-two-that-reach-outward"></a>
 ## The two that reach outward
 
-The last two verbs are the ones that do not take a tree from their caller,
+The last three verbs are the ones that do not take a tree from their caller,
 because what each of them reaches is not the tree. The first reaches the version
 control system.
 
@@ -842,7 +842,15 @@ says who ends the session instead.
 The file ends on its only private function, and on the boundary the whole module
 exists to keep.
 
-<!-- fragment «verbs-sought» owner="twelve-not-fourteen" source="crates/grove-loop/src/verbs.rs" lines="350-361" parent="the-twelve-verbs" -->
+`record_teardown` delegates the absent-root check and record creation to the
+launch-directory module. It takes the worktree and optional directory and returns
+`Recorded::Wrote(path)` or `Recorded::NoLoop`; the CLI holds the admitted epoch
+through the call. This thirteenth verb separates teardown disposition from the
+compatibility completion signal, so a harness that exits on its own after recording
+still finishes. The directory module and the driver that reads it are explained
+in [The launch directory carries identity and teardown](19-the-loop.md#launch-control-area).
+
+<!-- fragment «verbs-sought» owner="twelve-not-fourteen" source="crates/grove-loop/src/verbs.rs" lines="350-379" parent="the-twelve-verbs" -->
 ````rust
 
 /// `Option` in, [`Sought`] out — the one place the crate crosses that boundary.
@@ -855,6 +863,24 @@ fn sought<T>(found: Option<T>) -> Sought<T> {
         Some(value) => Sought::Match(value),
         None => Sought::Nothing,
     }
+}
+
+/// Record the completed teardown in the current launch directory.
+/// Outside a loop this is a no-op. The CLI holds epoch admission across the write.
+///
+/// # Errors
+/// `.grove/` still exists, or the record cannot be created.
+pub fn record_teardown(worktree: &Path, launch_dir: Option<&Path>) -> Result<Recorded, Error> {
+    Ok(crate::launch_directory::record_teardown(
+        worktree, launch_dir,
+    )?)
+}
+
+/// The effect of recording a teardown, independent of ending the harness run.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Recorded {
+    Wrote(PathBuf),
+    NoLoop,
 }
 ````
 <!-- /fragment -->
@@ -1272,7 +1298,7 @@ ending a session is the *driver's* job and not the agent's is the other, and its
 cost is a whole file — `complete.rs` — whose 96 lines write a single token, plus
 the split that puts the kill in a process the sandbox cannot deny.
 
-The surface is twelve verbs. Two functions beside them and two files apart from
+The surface is thirteen verbs during the compatibility cutover. Two functions beside them and two files apart from
 them say why they are not, and the count survives because they do.
 
 [Previous: Finishing](14-finishing.md) | [Contents](README.md) | [Next: One live driver per working tree](16-the-lease.md)

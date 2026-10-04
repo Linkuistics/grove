@@ -5,7 +5,7 @@
 <a id="admit-before-signal"></a>
 ## The channel is checked before it is written
 
-Two verbs leave the loop, and they are the two that open no tree. `complete`
+Three lifecycle verbs are read here during the compatibility cutover. `complete`
 writes one word into the file the loop driver is watching for, and returns.
 `finish-commit` revalidates a finished tree, deletes it, and commits the
 deletion. Neither takes the shared or the exclusive opening the last four
@@ -30,11 +30,11 @@ The premise is the [loop control channel](../../../CONTEXT.md#loop-control-chann
 the per-launch path the driver allocates, hands to the session in
 `GROVE_SIGNAL_FILE`, and watches while its harness child runs. Its appearance
 ends the session; its content is read only to tell a relaunch from a clean
-finish. That path also names the active session epoch, which is what makes it
-checkable at all — *The grammar and the openings* admitted this process against
+finish. The containing `GROVE_LAUNCH_DIR` names the active session epoch; admission
+retains the inherited channel separately for the compatibility write — *The grammar and the openings* admitted this process against
 that epoch before dispatch, and this is the chapter where the guard admission
-returned is finally consulted. It is consulted by one verb, which is why `run`
-passes it to one arm and to no other.
+returned is finally consulted. Both `Complete` and `RecordTeardown` receive the guard, because each checks
+the control path it is about to write.
 
 
 `finish-commit` parses a canonical handle before opening the tree. Leading
@@ -91,7 +91,7 @@ never reaches this handler, since admission compares it with the epoch record
 first and refuses there.
 
 ```console
-$ env -u GROVE_SIGNAL_FILE grove-llm complete
+$ env -u GROVE_SIGNAL_FILE -u GROVE_LAUNCH_DIR grove-llm complete
 grove complete: no GROVE_SIGNAL_FILE — not running under the loop driver; exit this session manually.
 
 $ grove-llm complete --signal-file /work/atlas/.jj/grove/signal-22222222222222222222222222222222
@@ -218,7 +218,7 @@ the guard about that path before anything is written. Its comment states why the
 channel is resolved in the handler at all, and the page checks that reason
 against the seam it names.
 
-<!-- fragment «handler-complete-admit» owner="admit-before-signal" source="crates/grove-llm/src/cli.rs" lines="458-465" parent="handlers-leaving" -->
+<!-- fragment «handler-complete-admit» owner="admit-before-signal" source="crates/grove-llm/src/cli.rs" lines="484-491" parent="handlers-leaving" -->
 ````rust
 fn cmd_complete(args: &CompleteArgs, session_epoch: Option<&SessionEpochGuard>) -> Result<()> {
     // **Asked before the write, which is why the channel is resolved here.** The
@@ -269,7 +269,7 @@ finally matched on. `verbs::complete` takes the channel and the flag, writes
 the disposition if there is a channel, and answers which of the two happened;
 the handler turns each answer into one line of advice on stderr.
 
-<!-- fragment «handler-complete-endings» owner="admit-before-signal" source="crates/grove-llm/src/cli.rs" lines="466-482" parent="handlers-leaving" -->
+<!-- fragment «handler-complete-endings» owner="admit-before-signal" source="crates/grove-llm/src/cli.rs" lines="492-508" parent="handlers-leaving" -->
 ````rust
     match verbs::complete(channel.as_deref(), args.done)? {
         Signalled::Wrote(_) => {
@@ -326,7 +326,7 @@ because both of its fields have already been used: `done` chose the tail above,
 and `signal_file` was the first thing `signal_channel` looked at. It is the one
 argument struct in the module with no positional operand.
 
-<!-- fragment «args-complete» owner="admit-before-signal" source="crates/grove-llm/src/cli.rs" lines="312-323" parent="source-command-surface" -->
+<!-- fragment «args-complete» owner="admit-before-signal" source="crates/grove-llm/src/cli.rs" lines="316-327" parent="source-command-surface" -->
 ````rust
 #[derive(Parser)]
 pub struct CompleteArgs {
@@ -371,7 +371,16 @@ the call returned. Its comment argues for quoting the operator's own text here
 and nowhere deeper, and the page checks that against the refusal the worked
 example produced.
 
-<!-- fragment «handler-finish-commit» owner="admit-before-signal" source="crates/grove-llm/src/cli.rs" lines="440-457" parent="handlers-leaving" -->
+`cmd_record_teardown` resolves `GROVE_LAUNCH_DIR`, treating empty as no loop.
+With a directory it requires the admission guard to name that exact path,
+resolves the worktree, and calls `verbs::record_teardown` while the shared epoch
+lock is still held. Without one it records nothing, even outside a jj workspace.
+The returned `Recorded` distinguishes those cases for stderr. This verb does not
+end the session: a finish records the teardown after `finish-commit`, then uses
+the compatibility `complete` signal while this expansion is in force. The driver
+also finishes when the harness exits on its own after recording.
+
+<!-- fragment «handler-finish-commit» owner="admit-before-signal" source="crates/grove-llm/src/cli.rs" lines="445-483" parent="handlers-leaving" -->
 ````rust
 fn cmd_finish_commit(finish_handle: &str) -> Result<()> {
     let worktree = worktree()?;
@@ -388,6 +397,27 @@ fn cmd_finish_commit(finish_handle: &str) -> Result<()> {
     let commit = verbs::finish_commit(&workspace, &finish)
         .with_context(|| format!("`grove-llm finish-commit {finish_handle}`"))?;
     eprintln!("finish-commit {finish}: committed as {}", commit.change_id);
+    Ok(())
+}
+
+fn cmd_record_teardown(session_epoch: Option<&SessionEpochGuard>) -> Result<()> {
+    let launch_dir = std::env::var_os("GROVE_LAUNCH_DIR")
+        .filter(|value| !value.is_empty())
+        .map(PathBuf::from);
+    if let Some(launch_dir) = &launch_dir {
+        session_epoch
+            .context("record-teardown requires session epoch admission")?
+            .require_launch_dir(launch_dir)?;
+    }
+    let worktree = if launch_dir.is_some() {
+        worktree()?
+    } else {
+        PathBuf::new()
+    };
+    match verbs::record_teardown(&worktree, launch_dir.as_deref())? {
+        verbs::Recorded::Wrote(path) => eprintln!("record-teardown: recorded {}", path.display()),
+        verbs::Recorded::NoLoop => eprintln!("record-teardown: no GROVE_LAUNCH_DIR — not running under the loop driver; recorded nothing."),
+    }
     Ok(())
 }
 
@@ -442,7 +472,7 @@ than from its own measurement.
 The composite that reassembles the two handlers, in source order, is stated
 here.
 
-<!-- fragment «handlers-leaving» owner="admit-before-signal" source="crates/grove-llm/src/cli.rs" lines="440-482" parent="source-command-surface" -->
+<!-- fragment «handlers-leaving» owner="admit-before-signal" source="crates/grove-llm/src/cli.rs" lines="445-508" parent="source-command-surface" -->
 <!-- insert «handler-finish-commit» -->
 <!-- insert «handler-complete-admit» -->
 <!-- insert «handler-complete-endings» -->
@@ -519,7 +549,7 @@ requires that same key spelling, including positivity and no leading zeros.
 returns rather than ending the session itself, and it is the only place in the
 corpus that names the driver's escalation.
 
-<!-- fragment «verbs-complete-help» owner="admit-before-signal" source="crates/grove-llm/src/cli.rs" lines="273-290" parent="verbs-leaving" -->
+<!-- fragment «verbs-complete-help» owner="admit-before-signal" source="crates/grove-llm/src/cli.rs" lines="273-293" parent="verbs-leaving" -->
 ````rust
     /// Signal task completion to the self-driving loop. Run this as
     /// the **last step** of a task, after commit + retire — it is how the loop
@@ -539,6 +569,9 @@ corpus that names the driver's escalation.
     /// that is absent (a session bare `grove` did not launch) it is a safe
     /// near-no-op that just tells you to exit manually.
     Complete(CompleteArgs),
+    /// Record that this grove was torn down in the current launch directory.
+    /// Run finish-commit first. Does not end the session; outside a loop it is a no-op.
+    RecordTeardown,
 ````
 <!-- /fragment -->
 
@@ -607,19 +640,19 @@ status.
 
 The composite that reassembles the two variants is stated here.
 
-<!-- fragment «verbs-leaving» owner="admit-before-signal" source="crates/grove-llm/src/cli.rs" lines="249-290" parent="source-command-surface" -->
+<!-- fragment «verbs-leaving» owner="admit-before-signal" source="crates/grove-llm/src/cli.rs" lines="249-293" parent="source-command-surface" -->
 <!-- insert «verbs-finish-commit-help» -->
 <!-- insert «verbs-complete-help» -->
 <!-- /fragment -->
 
-The two verbs that leave the loop have now been read, and neither handler opens
+The lifecycle verbs have now been read, and neither handler opens
 a grove: `cmd_complete` touches no tree, and `cmd_finish_commit` leaves the
 exclusive opening to the call, which takes it and holds it through the
 deletion. `complete` resolves a channel, asks the guard `run` obtained whether it
 is the admitted one, writes a word, and names what the loop will do next.
 `finish-commit` reads a handle by its type, hands the workspace to a call that
 opens the tree it is about to delete, and prints the change id that records the
-deletion. With them the twelve verbs are all read, each as one call into
+deletion. With them the thirteen verbs during the cutover are all read, each as one call into
 `grove_loop::verbs` plus rendering, and the two orders the header names have
 both been shown where they happen. The next chapter puts them in one table
 and asks what the compiler holds, what order holds, and what tests hold.

@@ -51,6 +51,7 @@
 mod complete;
 pub mod driver;
 mod driver_lease;
+mod launch_directory;
 mod loop_driver;
 mod observation;
 mod task_grow;

@@ -784,7 +784,7 @@ fn a_new_owner_installs_an_inactive_epoch_for_its_exact_lease() {
     assert!(
         !epoch_record
             .lines()
-            .any(|line| line.starts_with("signal-path-hex=")),
+            .any(|line| line.starts_with("launch-dir-hex=")),
         "inactive epochs must not retain a launch signal path: {epoch_record:?}"
     );
 }
@@ -1037,6 +1037,10 @@ fn grove_llm_admits_only_the_live_epoch_while_version_remains_exempt() {
         String::from_utf8_lossy(&live.stderr)
     );
 
+    let wrong_launch = live_signal
+        .parent()
+        .unwrap()
+        .with_file_name("launch-22222222222222222222222222222222");
     let wrong_signal = live_signal.with_file_name("signal-22222222222222222222222222222222");
     let misdirected_complete = Command::new(support::grove_llm())
         .args(["complete", "--signal-file"])
@@ -1064,6 +1068,7 @@ fn grove_llm_admits_only_the_live_epoch_while_version_remains_exempt() {
         .arg("pick")
         .current_dir(&root)
         .env("GROVE_SIGNAL_FILE", &wrong_signal)
+        .env("GROVE_LAUNCH_DIR", &wrong_launch)
         .output()
         .unwrap();
     assert!(
@@ -1080,6 +1085,7 @@ fn grove_llm_admits_only_the_live_epoch_while_version_remains_exempt() {
         .arg("--version")
         .current_dir(&root)
         .env("GROVE_SIGNAL_FILE", &wrong_signal)
+        .env("GROVE_LAUNCH_DIR", &wrong_launch)
         .output()
         .unwrap();
     assert!(
@@ -1271,6 +1277,7 @@ fn a_reinitialized_tree_reuses_plan_k1_without_reusing_the_old_session() {
         "the new session did not resolve the reused plan-k1 handle"
     );
 
+    fs::create_dir_all(old_signal.parent().unwrap()).unwrap();
     fs::write(&old_signal, "done\n").unwrap();
     thread::sleep(Duration::from_millis(150));
     assert!(

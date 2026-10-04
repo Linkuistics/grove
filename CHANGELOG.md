@@ -52,6 +52,12 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+- Check Grove command instructions across every shipped plugin, correct the doubt
+  skill's retired completion command, and clarify when an unsignalled harness
+  stops the loop. Pin teardown/interruption/survivor precedence, correct the
+  abandoned-launch fixtures, and refuse legacy active epochs without a launch
+  directory.
+
 - Remove `grove-llm complete` without a compatibility stub. Sessions now end with `harness-dispatch exit`; a completed finish first records its teardown with `grove-llm record-teardown`. Runner endings report only whether the exit channel appeared, and epoch admission uses `GROVE_LAUNCH_DIR`.
 
 - Lifecycle sessions now end with `harness-dispatch exit`. Dispatch owns the

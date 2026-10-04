@@ -61,7 +61,10 @@ the harness. It waits for dispatch and reads the ending file dispatch wrote.
 
 The driver's own TERM or HUP interrupts the loop first. Otherwise a teardown
 record finishes it; `grove-finish` owns when to write that record. Without one,
-an `exit_signal` ending relaunches on the next leaf, whatever the harness's exit
+a survivor in dispatch's own process group stops the loop before any ending
+can relaunch it. That group contains the policy worker, not the harness; a
+harness supervision failure reaches Grove as dispatch exit 5. Otherwise an
+`exit_signal` ending relaunches on the next leaf, whatever the harness's exit
 status. Every other ending stops: the harness's own exit, cancellation, a
 refusal, dispatch's death, a supervision failure, or a missing or unreadable
 ending file. The live leaf remains resumable. Dispatch can die leaving its

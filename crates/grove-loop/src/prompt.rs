@@ -145,10 +145,12 @@ the signal file and returns, carrying nothing. Ending the harness is
 child's group, reaps it, and reports the run ending to Grove. Grove then reads
 its own teardown record to finish, or an exit-signal ending to relaunch with
 fresh context. Run outside dispatch (no `HARNESS_DISPATCH_EXIT_FILE`), the exit
-verb is a safe no-op that tells you to exit manually. A session that ends *without* signalling stops the loop instead —
-a crash or a Ctrl-C is one such ending, and for at least one kind it is a stated
-one — so the signal is what separates a task you finished from a session that
-died.
+verb is a safe no-op that tells you to exit manually. Without signalling, the
+loop waits for the harness to end, then stops with the leaf live; ending a turn
+in an interactive harness can leave it waiting at its prompt. A crash or a
+Ctrl-C can end the harness without signalling, and for at least one kind that
+is a stated ending. A recorded teardown instead finishes the loop after reap,
+unless the driver itself was interrupted.
 ";
 
 /// Everything one launch varies, and the whole of what composition reads.

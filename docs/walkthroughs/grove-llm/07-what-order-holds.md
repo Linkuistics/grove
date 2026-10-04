@@ -241,7 +241,11 @@ compiler can state.
 | the shipped methodology instructs no verb the CLI lacks | `the_shipped_methodology_instructs_no_verb_the_cli_lacks` | a verb removed from the CLI while the methodology still names it, or a new instruction for a verb that does not exist | the test, listing the offending mentions with their files and line numbers |
 
 The third is the one worth reading closely, because of how its authors bounded
-it. A universal claim — *nothing instructed is missing* — is satisfied forever by
+it. Its corpus is every Markdown file under every shipped
+`plugins/*/skills` tree, including Linkuistics: narrowing it to Grove alone
+misses instructions a sibling skill gives a Grove session. Widening the reader
+caught the wrapped retired completion command in the doubt skill before that
+instruction was repaired. A universal claim — *nothing instructed is missing* — is satisfied forever by
 a scanner that has quietly stopped matching anything, so the test pins the
 instructed set as an **equality** against a written list of ten rather than as a
 floor: losing any instructed verb fails here, and so does gaining one nobody has

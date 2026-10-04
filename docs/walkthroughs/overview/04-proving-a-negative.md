@@ -254,4 +254,13 @@ the declared CLI surface. The description test enforces help presence. None
 establishes all runtime behavior: the viewer fixtures and terminal smoke
 exercise navigation, refresh and cleanup through the actual application.
 
+The lifecycle precedence is also checked at the real launch boundary in
+`a_driver_interrupt_overrides_a_recorded_teardown_under_a_terminal`: its fake
+harness records teardown, holds, and is reaped after the driver receives TERM.
+The driver must report interruption. The abandoned-directory case supplies both
+an `ending.json` FIFO and a supported exit-signal report in separate abandoned
+directories; neither changes the new launch's stopped outcome or launch count.
+The surviving dispatch-group combinations are deterministic runner-result
+cases in Grove Loop, where the returned group state is the contract input.
+
 [Previous: Lifecycle startup](03-three-steps.md) | [Contents](README.md) | [Next: What the call reaches](05-what-the-call-reaches.md)

@@ -176,6 +176,14 @@ support them and never replace them, and no automated test calls a model.
 
 ## Notes
 
+- `launch-cutover-k25` integrated the k19 review: command instructions are
+  checked across all shipped plugin skill trees; active epochs require
+  `launch-dir-hex` with no v22-reader fallback; interruption wins over teardown,
+  teardown wins over a surviving dispatch group, and that group stops a
+  relaunch without teardown. An unsignalled interactive harness leaves the
+  loop waiting until the harness ends. k20 and k21 carry these settled facts
+  into their remaining documents and release cutover.
+
 - `launch-cutover-k15` delivered the launch-directory, supervised-ending and
   appearance-only signal contract. Its k19 review reads all three commits;
   `current-state-docs-k20` still owns the remaining durable prose and the

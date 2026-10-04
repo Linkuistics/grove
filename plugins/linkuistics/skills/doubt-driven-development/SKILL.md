@@ -142,8 +142,7 @@ sample ([*Independent means unaimed*](#independent-means-unaimed)).
 
 After cutting that leaf, finish only to a coherent reviewable boundary, **retire
 the producer, then** commit the artifact, the new leaf and that retirement
-together under the producer's own handle, and hand back with `grove-llm
-complete`. The order matters: the `DONE` rename is part of this task, so a
+together under the producer's own handle, and end the session as the prompt directs. The order matters: the `DONE` rename is part of this task, so a
 commit taken before it either leaves the rename uncommitted or seals it into the
 next task's change. Do not spawn another doubt reviewer. Nothing about the
 producer's leaf moves, so its handle and bytes are preserved by construction;

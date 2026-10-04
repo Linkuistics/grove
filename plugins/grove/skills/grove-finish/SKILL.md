@@ -37,7 +37,7 @@ the harness after a short grace.
 |---|---|
 | teardown completed | `grove-llm record-teardown`, then `harness-dispatch exit` — the loop finishes |
 | externalised work instead | `harness-dispatch exit` — the loop relaunches and picks the new leaf; the sentinel waits |
-| declined, or no human present | no signal — the loop stops, the leaf stays live and resumable |
+| declined, or no human present | no signal — the loop waits for you to end the harness, then stops with the leaf live and resumable |
 
 **Record the teardown before sending the exit signal.** Every prompt names
 `harness-dispatch exit` as the final action. After teardown, the record tells
@@ -103,7 +103,7 @@ is bound to this launch, so it is available only to the still-confirmed session
 that ran the command — a later bare `grove` into a rootless tree is an ordinary
 fresh grove, not a resumed finish.
 
-**Ending after step 2 but before recording the teardown stops the loop.** Grove
+**Ending the harness after step 2 but before recording the teardown stops the loop.** Grove
 never treats a deleted `.grove/` as the record you did not write. The teardown
 commit is already in history; there is no half-finished grove to resume, only a
 working tree without one. Once the teardown is recorded, the driver finishes

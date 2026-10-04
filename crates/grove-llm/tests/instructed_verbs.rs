@@ -5,7 +5,7 @@
 //! which was a file of claims about the *embed* and went with it. This claim is
 //! not one of those: its subject is the methodology's **prose** and the CLI's
 //! **grammar**, and both survive the delivery move. What changed is where the
-//! prose is read from — `plugins/grove/skills/`, on disk, rather than
+//! prose is read from — every `plugins/*/skills/` tree, on disk, rather than
 //! `include_dir!`'s linked copy — and what the agreement is worth, which the
 //! test's own doc comment states rather than assumes.
 //!
@@ -20,16 +20,24 @@ use clap::CommandFactory;
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
-/// Every Markdown file in the shipped skill set, as `(skills/-relative path,
+/// Every Markdown file in the shipped skill set, as `(plugins/-relative path,
 /// text)`, sorted by path.
 ///
-/// The whole plugin rather than the spine alone: a kind skill instructs verbs
+/// Every plugin rather than Grove alone: a sibling plugin instructs verbs
 /// too, and the claim is about what *any* session can be told. Sorted so a
 /// failure names the same file on every machine.
 fn shipped_markdown() -> Vec<(String, String)> {
-    let root = support::repo_root().join("plugins/grove/skills");
+    let root = support::repo_root().join("plugins");
     let mut files = Vec::new();
-    collect_markdown(&root, &root, &mut files);
+    for entry in std::fs::read_dir(&root).expect("the shipped plugins must be readable") {
+        let skills = entry
+            .expect("a readable plugin entry")
+            .path()
+            .join("skills");
+        if skills.is_dir() {
+            collect_markdown(&root, &skills, &mut files);
+        }
+    }
     assert!(
         !files.is_empty(),
         "no markdown found under {} — a mis-scoped walk asserts nothing",

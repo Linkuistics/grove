@@ -235,7 +235,7 @@ After cutting the review leaf, the producer session:
 2. retires the producer;
 3. commits the artifact, the new review leaf, and that retirement together under
    the producer's handle; and
-4. runs `grove-llm complete` last.
+4. ends the session as the prompt directs, as its last action.
 
 Steps 2 and 3 are in that order because the task boundary is, and both rules are
 the corpus's: `content/references/retire.md` for retire-before-commit and for

@@ -772,17 +772,7 @@ fn parse_epoch_record(record: &str) -> Result<EpochRecord> {
             }
             None
         }
-        "active" => Some(decode_path(
-            if record
-                .lines()
-                .any(|line| line.starts_with("launch-dir-hex="))
-            {
-                record_field(record, "launch-dir-hex")?
-            } else {
-                // The expand step still understands an installed v22 epoch record.
-                record_field(record, "signal-path-hex")?
-            },
-        )?),
+        "active" => Some(decode_path(record_field(record, "launch-dir-hex")?)?),
         state => bail!("unknown session epoch state {state:?}"),
     };
     Ok(EpochRecord {
@@ -1647,6 +1637,26 @@ mod tests {
                 "{label} descriptor can leak across exec"
             );
         }
+    }
+
+    #[test]
+    fn a_legacy_active_epoch_cannot_admit_a_launch_directory_session() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path().join("worktree");
+        fs::create_dir_all(root.join(".jj")).unwrap();
+        let lease = DriverLease::acquire(&workspace_at(&root)).unwrap();
+        let launch = lease.control_dir.join("launch-test");
+        lease.activate_session_epoch(&launch).unwrap();
+        let epoch = lease.control_dir.join(EPOCH_FILE_NAME);
+        let record = fs::read_to_string(&epoch).unwrap();
+        fs::write(
+            &epoch,
+            record.replace("launch-dir-hex=", "signal-path-hex="),
+        )
+        .unwrap();
+
+        let refusal = admit_session(&root, "test", ambient(&launch)).unwrap_err();
+        assert!(format!("{refusal:#}").contains("missing launch-dir-hex field"));
     }
 
     #[test]

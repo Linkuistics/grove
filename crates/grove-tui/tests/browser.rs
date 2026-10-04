@@ -163,7 +163,7 @@ fn runtime_records(work: &Path, active: bool) {
     let process = format!("worktree-device={}\nworktree-inode={}\nworktree-path-hex={encoded}\nnonce=0123456789abcdef0123456789abcdef\n", metadata.dev(), metadata.ino());
     put(work, ".jj/grove/driver.lease", &process);
     let state = if active {
-        "state=active\nsignal-path-hex=2f746d702f7369676e616c\n"
+        "state=active\nlaunch-dir-hex=2f746d702f6c61756e6368\n"
     } else {
         "state=inactive\n"
     };

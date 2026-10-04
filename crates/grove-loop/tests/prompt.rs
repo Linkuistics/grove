@@ -230,9 +230,9 @@ fn the_signalling_contract_states_the_mechanism_and_defers_the_ending() {
              so anything after it may not run",
         ),
         (
-            "A session that ends *without* signalling stops the loop instead",
-            "that a session which never signals stops the loop — the fact that separates a \
-             task you finished from a session that died",
+            "loop waits for the harness to end, then stops with the leaf live",
+            "that an unsignalled interactive harness can leave the loop waiting until \
+             the harness ends, when it stops with the leaf live",
         ),
     ] {
         assert!(

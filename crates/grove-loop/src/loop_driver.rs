@@ -214,53 +214,66 @@ fn drive(
             );
         }
 
-        if let End::Interrupted { signal } = ended.end {
-            eprintln!("grove: interrupted by signal {signal} — stopping the loop.");
-            return Ok(LoopOutcome::Interrupted(signal));
+        if let Some(outcome) = interpret_launch(&ended, &reading, &selection) {
+            return Ok(outcome);
         }
-
-        // Teardown is this launch's explicit disposition, irrespective of the
-        // harness's ending. The driver interrupt above remains authoritative.
-        if reading.teardown {
-            eprintln!("grove: grove finished — loop complete.");
-            return Ok(LoopOutcome::Finished);
-        }
-
-        // Before the ending is acted on, and whatever it says: a member of
-        // dispatch's group that survived the runner's kills may still hold the
-        // tree, so no relaunch may happen beside it.
-        if let Group::Present { pgid } = ended.group {
-            eprintln!(
-                "grove: members of the session's process group {pgid} may have survived it — \
-                 status {}; loop stopped with `{}` still live. Check for a leftover process \
-                 before rerunning `grove`.",
-                ended.status, selection.handle
-            );
-            return Ok(LoopOutcome::Stopped);
-        }
-
-        if reading.exit_signal {
-            continue;
-        }
-        eprintln!(
-            "grove: session ended without an exit-signal ending — status {}, elapsed {:.3}s; loop stopped.",
-            ended.status, ended.elapsed.as_secs_f64()
-        );
-        use std::os::unix::process::ExitStatusExt as _;
-        if ended.status.signal().is_some() {
-            eprintln!("       dispatch died of a signal; its harness may have survived. Check for a leftover process before rerunning `grove`.");
-        }
-        if !ended.status.success() {
-            eprintln!(
-                "       session kind `{}` for `{}` failed; if harness-dispatch refused the \
-                 launch, its diagnostic and remedy are above and the leaf is still live. \
-                 Either way, rerun `grove` to continue.",
-                selection.kind.label(),
-                selection.handle
-            );
-        }
-        return Ok(LoopOutcome::Stopped);
     }
+}
+
+/// First-match interpretation after reap and epoch invalidation. Kept at the
+/// runner-result seam so precedence over a surviving group is deterministic
+/// to exercise without manufacturing an unkillable OS process.
+fn interpret_launch(
+    ended: &Ended,
+    reading: &crate::launch_directory::LaunchReading,
+    selection: &Selection,
+) -> Option<LoopOutcome> {
+    if let End::Interrupted { signal } = ended.end {
+        eprintln!("grove: interrupted by signal {signal} — stopping the loop.");
+        return Some(LoopOutcome::Interrupted(signal));
+    }
+
+    // Teardown is this launch's explicit disposition, irrespective of the
+    // harness's ending. The driver interrupt above remains authoritative.
+    if reading.teardown {
+        eprintln!("grove: grove finished — loop complete.");
+        return Some(LoopOutcome::Finished);
+    }
+
+    // Before the ending is acted on, and whatever it says: a member of
+    // dispatch's group that survived the runner's kills may still hold the
+    // tree, so no relaunch may happen beside it.
+    if let Group::Present { pgid } = ended.group {
+        eprintln!(
+            "grove: members of the session's process group {pgid} may have survived it — \
+             status {}; loop stopped with `{}` still live. Check for a leftover process \
+             before rerunning `grove`.",
+            ended.status, selection.handle
+        );
+        return Some(LoopOutcome::Stopped);
+    }
+
+    if reading.exit_signal {
+        return None;
+    }
+    eprintln!(
+        "grove: session ended without an exit-signal ending — status {}, elapsed {:.3}s; loop stopped.",
+        ended.status, ended.elapsed.as_secs_f64()
+    );
+    use std::os::unix::process::ExitStatusExt as _;
+    if ended.status.signal().is_some() {
+        eprintln!("       dispatch died of a signal; its harness may have survived. Check for a leftover process before rerunning `grove`.");
+    }
+    if !ended.status.success() {
+        eprintln!(
+            "       session kind `{}` for `{}` failed; if harness-dispatch refused the \
+             launch, its diagnostic and remedy are above and the leaf is still live. \
+             Either way, rerun `grove` to continue.",
+            selection.kind.label(),
+            selection.handle
+        );
+    }
+    Some(LoopOutcome::Stopped)
 }
 
 /// The whole `${prompt}`: the guaranteed core, composed for the launched kind.
@@ -560,6 +573,82 @@ mod tests {
         let mut words = vec![home_word];
         words.extend(run.words());
         Argv::new("/usr/bin/env".into(), words)
+    }
+
+    #[test]
+    fn launch_reading_precedence_over_interrupts_and_surviving_groups() {
+        use std::os::unix::process::ExitStatusExt;
+        let selection = Selection {
+            path: "01-impl--work-k1.md".into(),
+            handle: Handle::parse("work-k1").unwrap(),
+            kind: Kind::new("impl").unwrap(),
+        };
+        for (end, group, teardown, exit_signal, want) in [
+            (
+                End::Interrupted {
+                    signal: libc::SIGTERM,
+                },
+                Group::Present { pgid: 123 },
+                true,
+                true,
+                Some(LoopOutcome::Interrupted(libc::SIGTERM)),
+            ),
+            (
+                End::Interrupted {
+                    signal: libc::SIGHUP,
+                },
+                Group::Gone,
+                true,
+                true,
+                Some(LoopOutcome::Interrupted(libc::SIGHUP)),
+            ),
+            (
+                End::Exited,
+                Group::Present { pgid: 123 },
+                true,
+                true,
+                Some(LoopOutcome::Finished),
+            ),
+            (
+                End::Exited,
+                Group::Present { pgid: 123 },
+                true,
+                false,
+                Some(LoopOutcome::Finished),
+            ),
+            (
+                End::Exited,
+                Group::Present { pgid: 123 },
+                false,
+                true,
+                Some(LoopOutcome::Stopped),
+            ),
+            (End::Exited, Group::Gone, false, true, None),
+            (
+                End::Exited,
+                Group::Gone,
+                false,
+                false,
+                Some(LoopOutcome::Stopped),
+            ),
+        ] {
+            let ended = Ended {
+                end,
+                group,
+                status: std::process::ExitStatus::from_raw(7 << 8),
+                elapsed: Duration::ZERO,
+                signalled: false,
+            };
+            let reading = crate::launch_directory::LaunchReading {
+                teardown,
+                exit_signal,
+            };
+            assert_eq!(
+                interpret_launch(&ended, &reading, &selection),
+                want,
+                "{end:?}, {group:?}, teardown={teardown}, exit_signal={exit_signal}"
+            );
+        }
     }
 
     #[test]

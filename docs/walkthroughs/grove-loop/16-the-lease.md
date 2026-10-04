@@ -120,7 +120,7 @@ own items, in file order. Everything below reads them in a different order —
 by mechanism rather than by declaration — so the composite is where the file's
 own shape stays visible.
 
-<!-- fragment «lease-and-epoch» owner="one-per-working-tree" source="crates/grove-loop/src/driver_lease.rs" lines="1-976" parent="source-driver-lease" -->
+<!-- fragment «lease-and-epoch» owner="one-per-working-tree" source="crates/grove-loop/src/driver_lease.rs" lines="1-966" parent="source-driver-lease" -->
 <!-- insert «lease-module-header» -->
 <!-- insert «lease-imports» -->
 <!-- insert «lease-namespace» -->
@@ -1836,14 +1836,15 @@ diagnostic for a lease this driver holds correctly.
 
 `read_epoch_record` delegates the grammar to `parse_epoch_record`. Admission
 keeps its original unbounded reader; the runtime observer passes separately
-bounded bytes to that same parser. An inactive record still rejects a signal
-path, and mandatory fields keep identical validation in both paths. Admission
+bounded bytes to that same parser. An active record requires `launch-dir-hex`; the retired `signal-path-hex`
+field cannot stand in for it. An inactive record rejects either authority-field
+spelling, and mandatory fields keep identical validation in both paths. Admission
 tolerates invalid UTF-8 in unknown fields rather than letting optional bytes
 veto authority. Mandatory state, numbers, nonce and encoded paths remain ASCII;
 the path decoder rejects non-ASCII input before slicing hex pairs. The bounded
 observer may conservatively reject the whole malformed record.
 
-<!-- fragment «lease-read-epoch-record» owner="one-per-working-tree" source="crates/grove-loop/src/driver_lease.rs" lines="751-792" parent="lease-and-epoch" -->
+<!-- fragment «lease-read-epoch-record» owner="one-per-working-tree" source="crates/grove-loop/src/driver_lease.rs" lines="751-782" parent="lease-and-epoch" -->
 ````rust
 
 fn read_epoch_record(file: &mut File) -> Result<EpochRecord> {
@@ -1869,17 +1870,7 @@ fn parse_epoch_record(record: &str) -> Result<EpochRecord> {
             }
             None
         }
-        "active" => Some(decode_path(
-            if record
-                .lines()
-                .any(|line| line.starts_with("launch-dir-hex="))
-            {
-                record_field(record, "launch-dir-hex")?
-            } else {
-                // The expand step still understands an installed v22 epoch record.
-                record_field(record, "signal-path-hex")?
-            },
-        )?),
+        "active" => Some(decode_path(record_field(record, "launch-dir-hex")?)?),
         state => bail!("unknown session epoch state {state:?}"),
     };
     Ok(EpochRecord {
@@ -1911,7 +1902,7 @@ in the safe direction: the operation stops, and a human reads why.
 Liveness is asked by trying to take a lock this process does not want. The
 production entry passes an inert hook; the work is in the form below it.
 
-<!-- fragment «lease-probe-live-lease» owner="one-per-working-tree" source="crates/grove-loop/src/driver_lease.rs" lines="793-796" parent="lease-and-epoch" -->
+<!-- fragment «lease-probe-live-lease» owner="one-per-working-tree" source="crates/grove-loop/src/driver_lease.rs" lines="783-786" parent="lease-and-epoch" -->
 ````rust
 
 fn probe_live_lease(control_dir: &Path, epoch: &EpochRecord, operation: &str) -> Result<()> {
@@ -1923,7 +1914,7 @@ fn probe_live_lease(control_dir: &Path, epoch: &EpochRecord, operation: &str) ->
 The hooked form is sixty-four lines and one attempt loop, and every line of it is
 ordered against a race.
 
-<!-- fragment «lease-probe-with-hook» owner="one-per-working-tree" source="crates/grove-loop/src/driver_lease.rs" lines="797-860" parent="lease-and-epoch" -->
+<!-- fragment «lease-probe-with-hook» owner="one-per-working-tree" source="crates/grove-loop/src/driver_lease.rs" lines="787-850" parent="lease-and-epoch" -->
 ````rust
 
 fn probe_live_lease_with_post_unlock_hook(
@@ -2036,7 +2027,7 @@ Admission is four functions, and the split between the first three is a
 testability argument rather than a decomposition. The public entry resolves the
 ambient context and hands it on.
 
-<!-- fragment «lease-admit-ambient-session» owner="one-per-working-tree" source="crates/grove-loop/src/driver_lease.rs" lines="861-878" parent="lease-and-epoch" -->
+<!-- fragment «lease-admit-ambient-session» owner="one-per-working-tree" source="crates/grove-loop/src/driver_lease.rs" lines="851-868" parent="lease-and-epoch" -->
 ````rust
 
 /// Admit one agent-side operation when it carries a live loop-control context.
@@ -2062,7 +2053,7 @@ pub fn admit_ambient_session(
 The resolution itself is one line, and its doc comment explains why it is a
 function at all.
 
-<!-- fragment «lease-ambient-launch-dir» owner="one-per-working-tree" source="crates/grove-loop/src/driver_lease.rs" lines="879-889" parent="lease-and-epoch" -->
+<!-- fragment «lease-ambient-launch-dir» owner="one-per-working-tree" source="crates/grove-loop/src/driver_lease.rs" lines="869-879" parent="lease-and-epoch" -->
 ````rust
 
 /// The loop-control context this process was launched into, if any.
@@ -2081,7 +2072,7 @@ fn ambient_launch_dir() -> Option<PathBuf> {
 Classification is separated again, because the value it classifies is one this
 repository deliberately sets to something surprising.
 
-<!-- fragment «lease-launch-dir-from» owner="one-per-working-tree" source="crates/grove-loop/src/driver_lease.rs" lines="890-897" parent="lease-and-epoch" -->
+<!-- fragment «lease-launch-dir-from» owner="one-per-working-tree" source="crates/grove-loop/src/driver_lease.rs" lines="880-887" parent="lease-and-epoch" -->
 ````rust
 
 /// Classify a loop-control value as ambient context or none. Empty is *none*
@@ -2100,7 +2091,7 @@ environment. `launch_dir_from` filters empty values, which cargo deliberately
 supplies to remove ambient Grove admission from test subprocesses. A nonempty
 `GROVE_LAUNCH_DIR` must name the active epoch's launch directory; the old completion channel carries no Grove admission authority.
 
-<!-- fragment «lease-admit-session» owner="one-per-working-tree" source="crates/grove-loop/src/driver_lease.rs" lines="898-953" parent="lease-and-epoch" -->
+<!-- fragment «lease-admit-session» owner="one-per-working-tree" source="crates/grove-loop/src/driver_lease.rs" lines="888-943" parent="lease-and-epoch" -->
 ````rust
 
 /// Admission proper, with the ambient context already resolved.
@@ -2210,7 +2201,7 @@ return value.
 The lease's own serialiser closes the file, and its position there is not
 alphabetical.
 
-<!-- fragment «lease-write-record» owner="one-per-working-tree" source="crates/grove-loop/src/driver_lease.rs" lines="954-976" parent="lease-and-epoch" -->
+<!-- fragment «lease-write-record» owner="one-per-working-tree" source="crates/grove-loop/src/driver_lease.rs" lines="944-966" parent="lease-and-epoch" -->
 ````rust
 
 fn write_record(

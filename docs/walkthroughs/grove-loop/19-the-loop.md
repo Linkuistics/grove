@@ -50,7 +50,7 @@ The composite below connects the loop's source fragments in production order.
 The definitions follow the reader's path from caller data through launch to
 interpretation. The root still includes the inline tests.
 
-<!-- fragment «loop-driver» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="1-723" parent="source-loop-driver" -->
+<!-- fragment «loop-driver» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="1-812" parent="source-loop-driver" -->
 <!-- insert «loop-header» -->
 <!-- insert «loop-imports» -->
 <!-- insert «loop-control-env» -->
@@ -436,9 +436,15 @@ The launch directory is allocated after lease validation. Its path becomes both 
 ````
 <!-- /fragment -->
 
-After runner recovery, reset happens unconditionally. Epoch invalidation gates the reading closure, and directory removal preserves the interpreted outcome even if cleanup fails.
+After runner recovery, reset happens unconditionally. Epoch invalidation gates the reading closure, and directory removal preserves
+the interpreted outcome even if cleanup fails. The driver then calls
+`interpret_launch`, whose first matching branch either returns a terminal
+outcome or returns `None` to relaunch. Interruption wins over a teardown record;
+teardown wins over a surviving dispatch group. The branch body is kept at the
+runner-result seam so the survivor precedence can be exercised without an
+unkillable process fixture.
 
-<!-- fragment «loop-drive-discard» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="211-228" parent="loop-driver" -->
+<!-- fragment «loop-drive-discard» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="211-242" parent="loop-driver" -->
 ````rust
         if let Err(error) = launch_dir.discard() {
             eprintln!(
@@ -446,67 +452,80 @@ After runner recovery, reset happens unconditionally. Epoch invalidation gates t
             );
         }
 
-        if let End::Interrupted { signal } = ended.end {
-            eprintln!("grove: interrupted by signal {signal} — stopping the loop.");
-            return Ok(LoopOutcome::Interrupted(signal));
+        if let Some(outcome) = interpret_launch(&ended, &reading, &selection) {
+            return Ok(outcome);
         }
+    }
+}
 
-        // Teardown is this launch's explicit disposition, irrespective of the
-        // harness's ending. The driver interrupt above remains authoritative.
-        if reading.teardown {
-            eprintln!("grove: grove finished — loop complete.");
-            return Ok(LoopOutcome::Finished);
-        }
+/// First-match interpretation after reap and epoch invalidation. Kept at the
+/// runner-result seam so precedence over a surviving group is deterministic
+/// to exercise without manufacturing an unkillable OS process.
+fn interpret_launch(
+    ended: &Ended,
+    reading: &crate::launch_directory::LaunchReading,
+    selection: &Selection,
+) -> Option<LoopOutcome> {
+    if let End::Interrupted { signal } = ended.end {
+        eprintln!("grove: interrupted by signal {signal} — stopping the loop.");
+        return Some(LoopOutcome::Interrupted(signal));
+    }
+
+    // Teardown is this launch's explicit disposition, irrespective of the
+    // harness's ending. The driver interrupt above remains authoritative.
+    if reading.teardown {
+        eprintln!("grove: grove finished — loop complete.");
+        return Some(LoopOutcome::Finished);
+    }
 
 ````
 <!-- /fragment -->
 
 A remaining dispatch group is reported with the selected handle. A relaunch beside a survivor would let two processes keep changing the tree.
 
-<!-- fragment «loop-drive-survivor» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="229-241" parent="loop-driver" -->
+<!-- fragment «loop-drive-survivor» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="243-255" parent="loop-driver" -->
 ````rust
-        // Before the ending is acted on, and whatever it says: a member of
-        // dispatch's group that survived the runner's kills may still hold the
-        // tree, so no relaunch may happen beside it.
-        if let Group::Present { pgid } = ended.group {
-            eprintln!(
-                "grove: members of the session's process group {pgid} may have survived it — \
-                 status {}; loop stopped with `{}` still live. Check for a leftover process \
-                 before rerunning `grove`.",
-                ended.status, selection.handle
-            );
-            return Ok(LoopOutcome::Stopped);
-        }
+    // Before the ending is acted on, and whatever it says: a member of
+    // dispatch's group that survived the runner's kills may still hold the
+    // tree, so no relaunch may happen beside it.
+    if let Group::Present { pgid } = ended.group {
+        eprintln!(
+            "grove: members of the session's process group {pgid} may have survived it — \
+             status {}; loop stopped with `{}` still live. Check for a leftover process \
+             before rerunning `grove`.",
+            ended.status, selection.handle
+        );
+        return Some(LoopOutcome::Stopped);
+    }
 
 ````
 <!-- /fragment -->
 
 The final branch relaunches only on the supported exit-signal ending. Other reports or missing reports stop, with dispatch death identified as a possible surviving harness.
 
-<!-- fragment «loop-drive-endings» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="242-265" parent="loop-driver" -->
+<!-- fragment «loop-drive-endings» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="256-278" parent="loop-driver" -->
 ````rust
-        if reading.exit_signal {
-            continue;
-        }
-        eprintln!(
-            "grove: session ended without an exit-signal ending — status {}, elapsed {:.3}s; loop stopped.",
-            ended.status, ended.elapsed.as_secs_f64()
-        );
-        use std::os::unix::process::ExitStatusExt as _;
-        if ended.status.signal().is_some() {
-            eprintln!("       dispatch died of a signal; its harness may have survived. Check for a leftover process before rerunning `grove`.");
-        }
-        if !ended.status.success() {
-            eprintln!(
-                "       session kind `{}` for `{}` failed; if harness-dispatch refused the \
-                 launch, its diagnostic and remedy are above and the leaf is still live. \
-                 Either way, rerun `grove` to continue.",
-                selection.kind.label(),
-                selection.handle
-            );
-        }
-        return Ok(LoopOutcome::Stopped);
+    if reading.exit_signal {
+        return None;
     }
+    eprintln!(
+        "grove: session ended without an exit-signal ending — status {}, elapsed {:.3}s; loop stopped.",
+        ended.status, ended.elapsed.as_secs_f64()
+    );
+    use std::os::unix::process::ExitStatusExt as _;
+    if ended.status.signal().is_some() {
+        eprintln!("       dispatch died of a signal; its harness may have survived. Check for a leftover process before rerunning `grove`.");
+    }
+    if !ended.status.success() {
+        eprintln!(
+            "       session kind `{}` for `{}` failed; if harness-dispatch refused the \
+             launch, its diagnostic and remedy are above and the leaf is still live. \
+             Either way, rerun `grove` to continue.",
+            selection.kind.label(),
+            selection.handle
+        );
+    }
+    Some(LoopOutcome::Stopped)
 }
 
 ````
@@ -521,7 +540,7 @@ task path and handle, so the mandate and policy inputs cannot name different
 leaves. The signalling contract now names dispatch's exit verb and Grove's
 separate teardown record.
 
-<!-- fragment «loop-session-prompt» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="266-299" parent="loop-driver" -->
+<!-- fragment «loop-session-prompt» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="279-312" parent="loop-driver" -->
 ````rust
 /// The whole `${prompt}`: the guaranteed core, composed for the launched kind.
 ///
@@ -568,7 +587,7 @@ task ID, prompt, exit directory and ending file. Joined flag values preserve
 paths and prompts beginning with dashes. The first four are selection data; the
 last two are run mechanics. The working-tree root is supplied as cwd at launch.
 
-<!-- fragment «loop-dispatch-run» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="300-332" parent="loop-driver" -->
+<!-- fragment «loop-dispatch-run» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="313-345" parent="loop-driver" -->
 ````rust
 /// The `harness-dispatch run` invocation for one selected leaf: everything the
 /// owner's policy may select from, and nothing about how it selects
@@ -614,7 +633,7 @@ spawn. `supervise_launch` carries the witness across runner start and reap event
 The runner receives `channel: None`, the scrub list and only the launch-directory
 grant. Dispatch then makes the harness its own foreground job.
 
-<!-- fragment «loop-launch-contract» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="333-361" parent="loop-driver" -->
+<!-- fragment «loop-launch-contract» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="346-374" parent="loop-driver" -->
 ````rust
 /// Launch dispatch as a foreground, channel-free job. Dispatch selects and
 /// supervises the harness as a separate job and owns its exit signal. The runner
@@ -650,7 +669,7 @@ fn launch_session(
 
 The epoch already names this launch when the runner spawns dispatch. Witness events surround the job, and a channel-free launch forwards only caller cancellation.
 
-<!-- fragment «loop-launch-spawn» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="362-389" parent="loop-driver" -->
+<!-- fragment «loop-launch-spawn» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="375-402" parent="loop-driver" -->
 ````rust
     driver_lease
         .prepare_launch(selected.lifetime, selection, launch_dir)
@@ -691,7 +710,7 @@ successful invalidation invokes the reading closure. If both fail, the error
 retains the launch failure beside the invalidation failure; nothing consumes the
 ending beside an admitted orphan still holding the old epoch.
 
-<!-- fragment «loop-handoff» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="390-407" parent="loop-driver" -->
+<!-- fragment «loop-handoff» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="403-420" parent="loop-driver" -->
 ````rust
 fn complete_post_reap_epoch_handoff<E, T>(
     ended: Result<E>,
@@ -722,7 +741,7 @@ no channel. The ten-second kill-grace bounds forwarded cancellation of dispatch,
 covering its harness shutdown, group confirmation and record-store lock wait.
 Grove does not choose the harness's exit-signal graces.
 
-<!-- fragment «loop-escalation» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="408-416" parent="loop-driver" -->
+<!-- fragment «loop-escalation» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="421-429" parent="loop-driver" -->
 ````rust
 /// No channel grace: Grove ends no harness. Its own TERM/HUP is forwarded
 /// to dispatch, whose cancellation must finish before this 10-second kill-grace.
@@ -745,7 +764,7 @@ not just dispatch's. `reset_terminal` then runs `stty sane`, leaves the alternat
 screen and shows the cursor. It runs only on tty stdin while the driver owns the
 foreground; otherwise an `stty` child could stop on SIGTTOU and hang the driver.
 
-<!-- fragment «loop-reset-terminal» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="417-448" parent="loop-driver" -->
+<!-- fragment «loop-reset-terminal» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="430-461" parent="loop-driver" -->
 ````rust
 /// Reset the terminal after a (possibly SIGTERM'd) TUI: restore cooked mode,
 /// leave the alternate screen, show the cursor. No-op when stdin isn't a TTY
@@ -789,7 +808,7 @@ The driver's SIGINT ignore covers gaps between launches. The runner resets the
 child's terminal-signal dispositions so dispatch and the harness receive typed
 Ctrl-C. TERM/HUP belong to runner cancellation and are forwarded to the job.
 
-<!-- fragment «loop-ignore-interrupts» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="449-479" parent="loop-driver" -->
+<!-- fragment «loop-ignore-interrupts» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="462-492" parent="loop-driver" -->
 ````rust
 /// Ignore SIGINT in the driver so a terminal Ctrl-C does not kill the loop. The
 /// driver must survive the interrupt to reach the relaunch-vs-stop decision.
@@ -833,7 +852,7 @@ it while the guard is held. `picked_after_finish` selects afresh after
 materialization. A concurrent root replacement cannot lend an old selection
 the new root's identity.
 
-<!-- fragment «loop-picked» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="480-519" parent="loop-driver" -->
+<!-- fragment «loop-picked» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="493-532" parent="loop-driver" -->
 ````rust
 /// The driver's own `pick`, over the worktree it is driving.
 ///
@@ -882,11 +901,15 @@ fn picked_after_finish(worktree: &Path) -> Result<SelectedTask> {
 ## The inline tests: root identity and handoff ordering
 
 The inline tests cover root pinning, finish materialization, admission before
-spawn and the invalidation gate's error precedence. They exercise the real
+spawn, the launch reading table and the invalidation gate's error precedence.
+The reading-table cases combine teardown with TERM/HUP, and with a surviving
+dispatch group. Swapping interruption and teardown makes both that test and
+the real PTY interruption case fail; moving the group guard above teardown
+makes the runner-result test fail. They exercise the real
 dispatch front for the launch case. The process suite supplies the PTY ending,
 terminal, refusal, stale-session and cancellation cases.
 
-<!-- fragment «loop-tests-open» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="520-664" parent="loop-driver" -->
+<!-- fragment «loop-tests-open» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="533-753" parent="loop-driver" -->
 ````rust
 // The repository's shared test helpers. Declared out here because a `#[path]`
 // inside the inline module below would resolve against a directory that does
@@ -931,6 +954,82 @@ mod tests {
         let mut words = vec![home_word];
         words.extend(run.words());
         Argv::new("/usr/bin/env".into(), words)
+    }
+
+    #[test]
+    fn launch_reading_precedence_over_interrupts_and_surviving_groups() {
+        use std::os::unix::process::ExitStatusExt;
+        let selection = Selection {
+            path: "01-impl--work-k1.md".into(),
+            handle: Handle::parse("work-k1").unwrap(),
+            kind: Kind::new("impl").unwrap(),
+        };
+        for (end, group, teardown, exit_signal, want) in [
+            (
+                End::Interrupted {
+                    signal: libc::SIGTERM,
+                },
+                Group::Present { pgid: 123 },
+                true,
+                true,
+                Some(LoopOutcome::Interrupted(libc::SIGTERM)),
+            ),
+            (
+                End::Interrupted {
+                    signal: libc::SIGHUP,
+                },
+                Group::Gone,
+                true,
+                true,
+                Some(LoopOutcome::Interrupted(libc::SIGHUP)),
+            ),
+            (
+                End::Exited,
+                Group::Present { pgid: 123 },
+                true,
+                true,
+                Some(LoopOutcome::Finished),
+            ),
+            (
+                End::Exited,
+                Group::Present { pgid: 123 },
+                true,
+                false,
+                Some(LoopOutcome::Finished),
+            ),
+            (
+                End::Exited,
+                Group::Present { pgid: 123 },
+                false,
+                true,
+                Some(LoopOutcome::Stopped),
+            ),
+            (End::Exited, Group::Gone, false, true, None),
+            (
+                End::Exited,
+                Group::Gone,
+                false,
+                false,
+                Some(LoopOutcome::Stopped),
+            ),
+        ] {
+            let ended = Ended {
+                end,
+                group,
+                status: std::process::ExitStatus::from_raw(7 << 8),
+                elapsed: Duration::ZERO,
+                signalled: false,
+            };
+            let reading = crate::launch_directory::LaunchReading {
+                teardown,
+                exit_signal,
+            };
+            assert_eq!(
+                interpret_launch(&ended, &reading, &selection),
+                want,
+                "{end:?}, {group:?}, teardown={teardown}, exit_signal={exit_signal}"
+            );
+        }
     }
 
     #[test]
@@ -1038,7 +1137,7 @@ mod tests {
 
 This case supplies simultaneous launch and invalidation failures. It checks that both causes remain visible and interpretation never runs.
 
-<!-- fragment «loop-test-handoff-preserves» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="665-700" parent="loop-driver" -->
+<!-- fragment «loop-test-handoff-preserves» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="754-789" parent="loop-driver" -->
 ````rust
     #[test]
     fn an_epoch_handoff_failure_preserves_the_launch_failure_that_preceded_it() {
@@ -1081,7 +1180,7 @@ This case supplies simultaneous launch and invalidation failures. It checks that
 
 This case isolates the invalidation gate. Even a successful reap cannot cause the reading closure to run before exclusive epoch admission is obtained.
 
-<!-- fragment «loop-test-ordering» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="701-723" parent="loop-driver" -->
+<!-- fragment «loop-test-ordering» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="790-812" parent="loop-driver" -->
 ````rust
     #[test]
     fn signal_interpretation_cannot_run_before_epoch_invalidation_succeeds() {

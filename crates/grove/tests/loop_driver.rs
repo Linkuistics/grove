@@ -3861,6 +3861,41 @@ fn launch_directory_teardown_finishes_after_dispatch_signal_or_own_exit() {
     }
 }
 
+// Moving teardown above Interrupted must fail this real launch boundary.
+#[test]
+fn a_driver_interrupt_overrides_a_recorded_teardown_under_a_terminal() {
+    use std::os::unix::process::ExitStatusExt;
+    let dispatch = Dispatch::new("worktree");
+    plant_tree(&dispatch.worktree, "01-impl--subject-k1.md");
+    let llm = shell_quote(&own_grove_llm());
+    let ready = dispatch.root.join("teardown-ready");
+    dispatch.harness_then(&format!(
+        "set -e\n\
+         {llm} leaf-retire .grove/01-impl--subject-k1.md\n\
+         jj describe -m fixture\n\
+         jj new\n\
+         printf '# finish-k2\\n' > .grove/02-finish--finish-k2.md\n\
+         jj describe -m finish-fixture\n\
+         jj new\n\
+         {llm} finish-commit finish-k2\n\
+         {llm} record-teardown\n\
+         touch {ready}\n\
+         exec sleep 60",
+        ready = shell_quote(&ready),
+    ));
+    support::route_every_kind_to(&dispatch.home, &dispatch.harness);
+    let terminal = Pty::open();
+    let mut driver = DriverProcess::spawn_on(&dispatch.worktree, &dispatch.home, &terminal, PLAIN);
+    driver.wait_for_ready(&ready);
+    assert_eq!(unsafe { libc::kill(driver.id(), libc::SIGTERM) }, 0);
+    let output = driver.finish_within(SESSION_LIMIT);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert_eq!(output.status.signal(), Some(libc::SIGTERM), "{stderr}");
+    assert!(stderr.contains("interrupted by signal"), "{stderr}");
+    assert!(!stderr.contains("grove finished"), "{stderr}");
+    assert_eq!(dispatch.launch_count(), 1, "{stderr}");
+}
+
 #[test]
 fn launch_directory_rotates_and_rejects_stale_tree_and_teardown_verbs() {
     let dispatch = Dispatch::new("worktree");
@@ -3928,9 +3963,15 @@ fn replacement_driver_removes_abandoned_launches_without_interpreting_contents()
         "abandoned teardown must not finish this driver",
     )
     .unwrap();
-    let fifo = std::ffi::CString::new(abandoned.join("ending").to_str().unwrap()).unwrap();
-    // Reading this abandoned ending would block; cleanup must only unlink it.
+    let fifo = std::ffi::CString::new(abandoned.join("ending.json").to_str().unwrap()).unwrap();
+    // The normal reader rejects this FIFO without blocking; cleanup unlinks it.
     assert_eq!(unsafe { libc::mkfifo(fifo.as_ptr(), 0o600) }, 0);
+    let stale_exit = control.join(format!("launch-{}", "c".repeat(32)));
+    fs::create_dir(&stale_exit).unwrap();
+    fs::write(
+        stale_exit.join("ending.json"),
+        r#"{"schemaVersion":1,"source":"harness-dispatch","measurements":{"ending":{"state":"observed","value":"exit_signal"}}}"#,
+    ).unwrap();
     let retained = control.join("launch-not-a-128-bit-suffix");
     fs::create_dir(&retained).unwrap();
     let outside = dispatch.root.join("outside");
@@ -3952,6 +3993,12 @@ fn replacement_driver_removes_abandoned_launches_without_interpreting_contents()
         !stderr.contains("grove finished"),
         "an abandoned teardown was interpreted: {stderr}"
     );
+    assert_eq!(
+        dispatch.launch_count(),
+        1,
+        "an abandoned exit signal relaunched: {stderr}"
+    );
+    assert!(!stale_exit.exists());
     assert!(!abandoned.exists());
     assert!(!link.exists());
     assert!(outside.join("keep").is_file());

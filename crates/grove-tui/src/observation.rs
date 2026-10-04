@@ -244,7 +244,7 @@ mod tests {
         // A real locked control fixture feeds the production reader. No status
         // provider is substituted; the writer's protocol is independently tested.
         fs::write(work.path().join(".jj/grove/session.epoch"), format!(
-            "state=active\n{process}signal-path-hex=2f7369676e616c2d61\nobservation-version=1\nobservation-key=1\nobservation-handle-hex=776f726b2d6b31\nobservation-kind-hex=696d706c\nobservation-tree-device={}\nobservation-tree-inode={}\nobservation-witness-name-hex=7769746e6573732d74657374\nobservation-witness-device={}\nobservation-witness-inode={}\n",
+            "state=active\n{process}launch-dir-hex=2f6c61756e63682d61\nobservation-version=1\nobservation-key=1\nobservation-handle-hex=776f726b2d6b31\nobservation-kind-hex=696d706c\nobservation-tree-device={}\nobservation-tree-inode={}\nobservation-witness-name-hex=7769746e6573732d74657374\nobservation-witness-device={}\nobservation-witness-inode={}\n",
             root.dev(), root.ino(), private.dev(), private.ino(),
         )).unwrap();
         assert!(matches!(
@@ -296,8 +296,8 @@ mod tests {
                     fs::write(
                         epoch,
                         record.replace(
-                            "signal-path-hex=2f7369676e616c2d61",
-                            "signal-path-hex=2f7369676e616c2d62",
+                            "launch-dir-hex=2f6c61756e63682d61",
+                            "launch-dir-hex=2f6c61756e63682d62",
                         ),
                     )
                     .unwrap();

@@ -218,7 +218,7 @@ names it needs, then the three parts **in the order they appear in the prompt**,
 then the values one launch varies, then the composition that joins them, and last
 the one derived value the module computes for itself.
 
-<!-- fragment «the-prompt-core» owner="too-late-to-say-later" source="crates/grove-loop/src/prompt.rs" lines="1-220" parent="source-prompt" -->
+<!-- fragment «the-prompt-core» owner="too-late-to-say-later" source="crates/grove-loop/src/prompt.rs" lines="1-222" parent="source-prompt" -->
 <!-- insert «core-header» -->
 <!-- insert «core-imports» -->
 <!-- insert «core-plugin» -->
@@ -600,7 +600,7 @@ Part 3 is thirty-four lines of argument over an eighteen-line constant, and
 every paragraph of the argument is about something the text deliberately does
 not say.
 
-<!-- fragment «core-signalling-contract» owner="too-late-to-say-later" source="crates/grove-loop/src/prompt.rs" lines="126-153" parent="the-prompt-core" -->
+<!-- fragment «core-signalling-contract» owner="too-late-to-say-later" source="crates/grove-loop/src/prompt.rs" lines="126-155" parent="the-prompt-core" -->
 ````rust
 /// **Part 3 — grove's own signalling contract.** Last, because it describes the
 /// last action.
@@ -624,19 +624,21 @@ the signal file and returns, carrying nothing. Ending the harness is
 child's group, reaps it, and reports the run ending to Grove. Grove then reads
 its own teardown record to finish, or an exit-signal ending to relaunch with
 fresh context. Run outside dispatch (no `HARNESS_DISPATCH_EXIT_FILE`), the exit
-verb is a safe no-op that tells you to exit manually. A session that ends *without* signalling stops the loop instead —
-a crash or a Ctrl-C is one such ending, and for at least one kind it is a stated
-one — so the signal is what separates a task you finished from a session that
-died.
+verb is a safe no-op that tells you to exit manually. Without signalling, the
+loop waits for the harness to end, then stops with the leaf live; ending a turn
+in an interactive harness can leave it waiting at its prompt. A crash or a
+Ctrl-C can end the harness without signalling, and for at least one kind that
+is a stated ending. A recorded teardown instead finishes the loop after reap,
+unless the driver itself was interrupted.
 ";
 
 ````
 <!-- /fragment -->
 
-At 1,175 bytes this is the largest of the three parts — roughly 62% of a composed
-prompt — and it is also the only one that does not vary at all. That inversion is
-the design: what Grove holds is a fact about the process tree that no skill
-can repair after a forgotten signal has stopped the loop. Dispatch owns the
+This is the largest of the three parts, and the only one that does not vary.
+Grove states a fact about the process tree: after a forgotten signal an
+interactive harness can remain at its prompt, leaving the loop waiting until
+the harness ends. Dispatch owns the
 harness channel and its escalation; Grove owns the reading of the ending.
 
 The kind's own ending remains the object, with the ordinary `harness-dispatch
@@ -657,7 +659,7 @@ teardown record operation.
 Four fields, and the doc comment on each names the owner of the thing rather
 than explaining it.
 
-<!-- fragment «core-mandate» owner="too-late-to-say-later" source="crates/grove-loop/src/prompt.rs" lines="154-176" parent="the-prompt-core" -->
+<!-- fragment «core-mandate» owner="too-late-to-say-later" source="crates/grove-loop/src/prompt.rs" lines="156-178" parent="the-prompt-core" -->
 ````rust
 /// Everything one launch varies, and the whole of what composition reads.
 ///
@@ -707,7 +709,7 @@ dropped.
 The function the whole module exists for, and the only place its three parts
 meet.
 
-<!-- fragment «core-compose» owner="too-late-to-say-later" source="crates/grove-loop/src/prompt.rs" lines="177-197" parent="the-prompt-core" -->
+<!-- fragment «core-compose» owner="too-late-to-say-later" source="crates/grove-loop/src/prompt.rs" lines="179-199" parent="the-prompt-core" -->
 ````rust
 /// Compose the whole of `${prompt}` for one launch.
 ///
@@ -780,7 +782,7 @@ build on that is a gate this design declines to erect.
 
 The last item, and the only value this module computes rather than receives.
 
-<!-- fragment «core-stated-vcs» owner="too-late-to-say-later" source="crates/grove-loop/src/prompt.rs" lines="198-220" parent="the-prompt-core" -->
+<!-- fragment «core-stated-vcs» owner="too-late-to-say-later" source="crates/grove-loop/src/prompt.rs" lines="200-222" parent="the-prompt-core" -->
 ````rust
 /// The **value** that states this working tree's VCS to the session.
 ///

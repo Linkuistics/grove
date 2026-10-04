@@ -234,17 +234,17 @@ lines = 59
 [[root]]
 id    = "source-driver-lease"
 path  = "crates/grove-loop/src/driver_lease.rs"
-lines = 2073
+lines = 2083
 
 [[root]]
 id    = "source-prompt"
 path  = "crates/grove-loop/src/prompt.rs"
-lines = 220
+lines = 222
 
 [[root]]
 id    = "source-loop-driver"
 path  = "crates/grove-loop/src/loop_driver.rs"
-lines = 723
+lines = 812
 
 [[root]]
 id = "source-observation"
@@ -454,25 +454,25 @@ lines = "1-59"
 id    = "lease-and-epoch"
 root  = "source-driver-lease"
 owner = "one-per-working-tree"
-lines = "1-976"
+lines = "1-966"
 
 [[block]]
 id    = "lease-tests"
 root  = "source-driver-lease"
 owner = "which-calls-are-admitted"
-lines = "977-2073"
+lines = "967-2083"
 
 [[block]]
 id    = "the-prompt-core"
 root  = "source-prompt"
 owner = "too-late-to-say-later"
-lines = "1-220"
+lines = "1-222"
 
 [[block]]
 id    = "loop-driver"
 root  = "source-loop-driver"
 owner = "four-things-a-runner-cannot-choose"
-lines = "1-723"
+lines = "1-812"
 
 [[block]]
 id = "observation-tree"

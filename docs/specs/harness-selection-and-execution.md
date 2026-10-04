@@ -1317,10 +1317,13 @@ reaped and the epoch invalidated, the driver reads the launch:
 |---|---|
 | The driver itself received TERM or HUP during the launch | Interrupted, ending by that signal |
 | A teardown record | Finished |
+| A member of dispatch's own process group survived Grove's runner cleanup | Stopped, the leaf live; no relaunch beside a survivor |
 | An `exit_signal` ending in the ending file | Relaunched on the next leaf |
 | Anything else: the harness's own exit, a cancellation of dispatch, a refusal, dispatch's death, a supervision failure, a missing or unreadable ending file | Stopped, the leaf live |
 
-A teardown record finishes whatever the run ending, so a finish session whose
+The surviving-group row concerns dispatch and its policy worker, not the
+harness's separate group; dispatch reports a harness supervision failure as
+exit 5. A teardown record finishes whatever the run ending, so a finish session whose
 harness exits on its own after recording still finishes. A run that ended
 through the exit signal relaunches whatever the harness's status. Nothing else
 relaunches, so the loop never relaunches onto a tree that a harness orphaned by

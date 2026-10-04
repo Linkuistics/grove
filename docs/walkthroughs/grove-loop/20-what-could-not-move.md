@@ -7,9 +7,9 @@
 
 <!-- rollup «owned-lines-total» -->
 <!-- rollup «ownership-blocks» -->
-This chapter owns none of the crate's 14,284 lines. The fragment graph spans
+This chapter owns none of the crate's 14,093 lines. The fragment graph spans
 [chapter 1](01-orientation.md) through [chapter 19](19-the-loop.md),
-including the captured observer in chapter 5. Its 43 ownership blocks are
+including the captured observer in chapter 5. Its 42 ownership blocks are
 `resolved`; the [source index](source-index.md) records that graph in full and
 gives this page a row whose owned-line count is zero. The row exists to be zero.
 
@@ -47,7 +47,7 @@ under their own headings, and the ten before them do not.
 
 | Ch | On the way in — the names | On the way through — the preconditions | On the way out — the policy |
 |---:|---|---|---|
-| [1](01-orientation.md) | The vocabulary itself — *kind*, *brief chain*, *outcome*, *handle*, *finishing* — named as the words no crate beneath has; and `VERSION`, one constant rather than several manifests kept in step | The lock is in the signature: `root_init` consumes a `Vacancy`, so it **cannot** run over a live grove. Compiler-enforced rather than checked | The permission itself: the manifest marks the crate *not domain-free* and buys five dependencies against it |
+| [1](01-orientation.md) | The vocabulary itself — *kind*, *brief chain*, *outcome*, *handle*, *finishing* — named as the words no crate beneath has; and `VERSION`, one constant rather than several manifests kept in step | The lock is in the signature: `root_init` consumes a `Vacancy`, so it **cannot** run over a live grove. Compiler-enforced rather than checked | The permission itself: the manifest marks the crate *not domain-free* and buys six dependencies against it |
 | [2](02-the-tokens.md) | The whole of it. A task-shaped name that is wrong is `Malformed`, never `Foreign` — the store sees a species, never a spelling | None. `parse` takes a string and a `Found`, and there is no tree yet | Three of the store's four verdicts, and which of the three halts a walk rather than skipping a subtree |
 | [3](03-kind-slug-handle.md) | The handle is the identity and the position is not in it — a second grammar beside the filename's | None | A kind is an open token: open as to vocabulary, closed as to shape |
 | [4](04-the-name.md) | `format(parse(f)) == f`, or one entity occupies two files. The cost is a conformance kit | The species the stem declares, checked against what the listing found | Refuse rather than normalise — and hand back the spelling the name should have had, or say why there is none |
@@ -61,7 +61,7 @@ under their own headings, and the ten before them do not.
 | [12](12-leaf-to-node.md) | Almost nothing new; one writing, the node's name composed from the promoted leaf's own triple | `decomposable`'s five arms over four conditions the store cannot see, run against the snapshot the promotion then plans from | The key survives, because the entity does |
 | [13](13-outcomes.md) | The narrowest possible edit: one field of a `Parts` value, put back through a grammar proved canonical | Both verbs classify before they call; a bulk mark is planned and validated against the **first** guard's snapshot | Two terminal marks rather than one, and the arity asymmetry between `leaf-retire` and `leaf-prune` |
 | [14](14-finishing.md) | A name the store would have written without complaint; the rule that only the driver may write it lives on grove's side | One opening yielding four answers; a teardown that revalidates three facts and hands its guard to the deletion unreleased | `DEFAULT_ROOT_SLUG`, the fixed first kind, and eleven lines telling an operator to do three things in an order |
-| [15](15-the-verbs.md) | Every verb that names an entry takes a `Slug`, a `Kind`, a `Reference` or a `Handle`, and the store has a word for none of them | Structural rather than procedural: `root_init` takes a `Vacancy`, so the refusal to clobber is the shape and not a check | Twelve verbs and not fourteen; and that ending a session is the driver's job rather than the agent's |
+| [15](15-the-verbs.md) | Every verb that names an entry takes a `Slug`, a `Kind`, a `Reference` or a `Handle`, and the store has a word for none of them | Structural rather than procedural: `root_init` takes a `Vacancy`, so the refusal to clobber is the shape and not a check | Twelve verbs and not fourteen; and that dispatch owns ending a harness run, while Grove records teardown |
 | [16](16-the-lease.md) | Not a grammar but a **word**: the namespace `grove`, one string handed to a seam that could not have guessed it | The whole of the block — that the descriptor still names the path it opened, that the record belongs to the epoch it was admitted under | Six values nothing beneath could default: the namespace, two file names, a retry count, a handoff bound, a poll interval |
 | [17](17-the-epoch.md) | No grammar and no parsing; one naming *decision* — the ambient context is a path, and the empty string is not a degenerate one | The admitted guard holds its shared lock for the operation's whole life rather than checking and releasing | Where its own evidence stops: four of the ladder's seven refusal arms held, and the rest named |
 | [18](18-the-core.md) | Almost nothing. One name, `PLUGIN`, because one token appears twice in one sentence and both spellings must land on the same target | None — and it is earned: this is the only one of the crate's Rust roots with no fallible construct at all | A **test** rather than a value: a sentence rides `${prompt}` only if its failure mode is one the skill cannot repair |
@@ -408,8 +408,8 @@ rather than by this page's say-so.
 <!-- rollup «source-roots» -->
 <!-- rollup «ownership-blocks-owned-by» of="allowed-to-mean" -->
 <!-- rollup «ownership-blocks-not-owned-by» of="allowed-to-mean" -->
-**Ownership.** 43 top-level blocks over 16 source roots, every one
-`resolved`. [Chapter 1](01-orientation.md) owns 2 blocks; the other 41 belong to
+**Ownership.** 42 top-level blocks over 15 source roots, every one
+`resolved`. [Chapter 1](01-orientation.md) owns 2 blocks; the other 40 belong to
 later chapters. The captured observer joins chapter 5 as a resolved block. No `defer` remains anywhere in the book, and none may — `F003`
 reports any defer at all in final mode, so *every reservation has become an
 insertion* is something the validator refuses to let be false rather than
@@ -429,7 +429,7 @@ this book established in its own chapter 2 and applied in every chapter after it
 
 <!-- rollup «owned-lines-sequence» -->
 <!-- rollup «source-owning-chapters» -->
-**Owned source.** 489 + 373 + 529 + 773 + 521 + 320 + 336 + 438 + 604 + 518 + 641 + 764 + 808 + 521 + 534 + 1,194 + 3,785 + 220 + 916 = 14,284 lines across
+**Owned source.** 484 + 373 + 529 + 773 + 521 + 320 + 336 + 438 + 604 + 518 + 641 + 764 + 808 + 522 + 390 + 1,151 + 3,785 + 220 + 916 = 14,093 lines across
 19 source-owning chapters. This closing chapter owns zero lines. The source
 index records the root sizes, block ranges and chapter totals.
 
@@ -501,19 +501,20 @@ on their own pages and are not in it, wherever they fall.
 The [concept index](concept-index.md) and the [source index](source-index.md) are
 the two lookup surfaces and neither is part of the reading order. The source index
 is the authoritative record of how the fragment graph reconstructs each of the
-16 files; the concept index is curated navigation into the arguments and
+15 files; the concept index is curated navigation into the arguments and
 makes no completeness claim.
 
 <a id="final-verification"></a>
 ## Final verification
 
-Two commands prove the book, and they prove different things. The first is the
-only one that reads the corpus byte for byte.
+The current final check reads the corpus byte for byte and proves equality
+at signal-contract-k18. The historical repository gate below records the original
+authoring checks; the parent session owns the current repository-wide run.
 
 ```console
 $ cargo run --quiet -p book-validation --bin book-check -- \
     --repo . --book docs/walkthroughs/grove-loop --final --check all
-valid: 16 files, 10685 resolved lines, 0 deferred lines, final=true
+valid: 15 files, 14093 resolved lines, 0 deferred lines, final=true
 ```
 
 `--final` is what separates this from every scoped run the twenty drafting
@@ -524,6 +525,9 @@ defer is an error, every source root must expand to its complete file, and the
 page inventory must match the manifest exactly. Every file resolved
 and 0 deferred is the whole frozen corpus reconstructed from explained fragments.
 
+The following repository gate transcript is historical evidence from the original
+book, rather than a result claimed for the current cutover.
+
 ```console
 $ bash scripts/check.sh
 ...
@@ -531,7 +535,7 @@ $ bash scripts/check.sh
   book-check docs/walkthroughs/grove-llm
 valid: 4 files, 1017 resolved lines, 0 deferred lines, final=true
   book-check docs/walkthroughs/grove-loop
-valid: 16 files, 10685 resolved lines, 0 deferred lines, final=true
+valid: 15 files, 10685 resolved lines, 0 deferred lines, final=true
   book-check docs/walkthroughs/jj-workspace
 valid: 4 files, 752 resolved lines, 0 deferred lines, final=true
   book-check docs/walkthroughs/keyed-launch
@@ -566,7 +570,7 @@ tests, not this crate's.
 <!-- rollup «source-roots» -->
 <!-- rollup «owned-lines-total» -->
 <!-- rollup «chapters» -->
-The book is complete: 16 roots, 14,284 lines, 20 chapters, two
+The book is complete: 15 roots, 14,093 lines, 20 chapters, two
 lookup surfaces, zero deferred ranges. What it argued is that a layer which
 extracts a domain-free library from underneath itself keeps exactly what carries
 meaning, and that meaning is expensive in three measurable places. What it leaves

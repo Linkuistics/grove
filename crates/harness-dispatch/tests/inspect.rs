@@ -821,8 +821,8 @@ fn help_lists_every_selection_input() {
         run.stdout
     );
     assert!(
-        run.stdout.contains("Do not grant GROVE_SIGNAL_FILE"),
-        "help does not warn against granting GROVE_SIGNAL_FILE:\n{}",
+        run.stdout.contains("Do not grant GROVE_LAUNCH_DIR"),
+        "help does not warn against granting GROVE_LAUNCH_DIR:\n{}",
         run.stdout
     );
     let mut version = sandbox.command();

@@ -19,13 +19,13 @@
 // What is left here that is not rendering is the **order** the verbs depend
 // on, and each is stated where it happens: read the operator's text with the
 // type that owns it *before* taking a lock, and admit the session against the
-// completion channel *before* writing to it. No verb asks whether a kind can be
-// launched: the owner's harness-dispatch policy answers that when a leaf of
+// launch directory *before* writing the teardown record. No verb asks whether
+// a kind can be launched: the owner's harness-dispatch policy answers that when a leaf of
 // that kind launches, and nowhere earlier.
 
 use anyhow::{bail, Context, Result};
 use clap::{Parser, Subcommand};
-use grove_loop::verbs::{self, Resolution, Signalled};
+use grove_loop::verbs::{self, Resolution};
 use grove_loop::{
     Handle, Kind, Outcome, Reading, Reference, SessionEpochGuard, Slug, Sought, Tree, TreeWrite,
     Writing,
@@ -270,24 +270,6 @@ pub enum Command {
         /// Stable handle of the launched finish leaf, for example `finish-k42`.
         finish_handle: String,
     },
-    /// Signal task completion to the self-driving loop. Run this as
-    /// the **last step** of a task, after commit + retire — it is how the loop
-    /// ends this harness session and starts the next task with fresh context.
-    ///
-    /// Writes the disposition flag (relaunch by default, or finish with
-    /// `--done`) to the signal file and returns immediately. Ending the
-    /// session is the loop driver's job, not this verb's: the driver launched
-    /// this session and is watching for the signal file while it runs, so it
-    /// applies grace → SIGTERM → kill-grace → SIGKILL to its own child once
-    /// the file appears (driver-side watcher) — the driver can always signal
-    /// its child, unlike an in-agent self-kill, which some harness sandboxes
-    /// (e.g. codex's Seatbelt) silently deny. Do nothing else after running
-    /// it. The default relaunches the loop for the next task; `--done` — the
-    /// Finish cycle's last action — stops it cleanly. The signal-file default
-    /// comes from the loop driver's environment (`GROVE_SIGNAL_FILE`); when
-    /// that is absent (a session bare `grove` did not launch) it is a safe
-    /// near-no-op that just tells you to exit manually.
-    Complete(CompleteArgs),
     /// Record that this grove was torn down in the current launch directory.
     /// Run finish-commit first. Does not end the session; outside a loop it is a no-op.
     RecordTeardown,
@@ -307,22 +289,9 @@ impl Command {
             Self::LeafRetire(_) => "grove-llm leaf-retire",
             Self::LeafPrune(_) => "grove-llm leaf-prune",
             Self::FinishCommit { .. } => "grove-llm finish-commit",
-            Self::Complete(_) => "grove-llm complete",
             Self::RecordTeardown => "grove-llm record-teardown",
         }
     }
-}
-
-#[derive(Parser)]
-pub struct CompleteArgs {
-    /// Finish the whole grove instead of relaunching: signal the loop to stop
-    /// cleanly. Use as the **last** action of the Finish cycle. Without it
-    /// (the per-task default) the loop relaunches with fresh context.
-    #[arg(long)]
-    pub done: bool,
-    /// Relaunch-signal file the loop driver watches for. Default: `$GROVE_SIGNAL_FILE`.
-    #[arg(long = "signal-file")]
-    pub signal_file: Option<PathBuf>,
 }
 
 #[derive(Parser)]
@@ -437,7 +406,6 @@ pub fn run() -> Result<()> {
         Command::LeafRetire(args) => cmd_leaf_retire(&args),
         Command::LeafPrune(args) => cmd_leaf_prune(&args),
         Command::FinishCommit { finish_handle } => cmd_finish_commit(&finish_handle),
-        Command::Complete(args) => cmd_complete(&args, session_epoch.as_ref()),
         Command::RecordTeardown => cmd_record_teardown(session_epoch.as_ref()),
     }
 }
@@ -477,31 +445,6 @@ fn cmd_record_teardown(session_epoch: Option<&SessionEpochGuard>) -> Result<()> 
     match verbs::record_teardown(&worktree, launch_dir.as_deref())? {
         verbs::Recorded::Wrote(path) => eprintln!("record-teardown: recorded {}", path.display()),
         verbs::Recorded::NoLoop => eprintln!("record-teardown: no GROVE_LAUNCH_DIR — not running under the loop driver; recorded nothing."),
-    }
-    Ok(())
-}
-
-fn cmd_complete(args: &CompleteArgs, session_epoch: Option<&SessionEpochGuard>) -> Result<()> {
-    // **Asked before the write, which is why the channel is resolved here.** The
-    // lease admits this session against the channel it is about to signal, and
-    // an answer that came back with the signal would come back too late.
-    let channel = verbs::signal_channel(args.signal_file.as_deref());
-    if let Some(session_epoch) = session_epoch {
-        session_epoch.require_signal_path(channel.as_deref())?;
-    }
-    match verbs::complete(channel.as_deref(), args.done)? {
-        Signalled::Wrote(_) => {
-            let tail = if args.done {
-                "the grove is finished — the loop will stop"
-            } else {
-                "the loop will start the next task"
-            };
-            eprintln!("grove complete: signalled; {tail}.");
-        }
-        Signalled::NoLoop => eprintln!(
-            "grove complete: no GROVE_SIGNAL_FILE — not running under the loop driver; \
-             exit this session manually."
-        ),
     }
     Ok(())
 }
@@ -767,7 +710,7 @@ fn eprint_next_steps(verb: &str, marked: usize) {
     };
     eprintln!("{verb}: two steps remain:");
     eprintln!("  1. commit this session's work, including {renames}");
-    eprintln!("  2. run `grove-llm complete` as your last action");
+    eprintln!("  2. run `harness-dispatch exit` as your last action");
 }
 
 fn cmd_leaf_retire(args: &LeafRetireArgs) -> Result<()> {

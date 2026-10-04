@@ -60,7 +60,7 @@ test beside it rather than as a principle. The pin is
 **171 of the 245 lines are comment prose**, counting lines whose first non-space
 characters are `//`. That is 69.8%, and counting all thirteen roots whole under
 the same rule it is the **second densest in the crate**, behind `driver.rs` at
-73.7% and ahead of `complete.rs` at 64.6% — an enumeration rather than a reading
+73.7% in the original corpus — an enumeration rather than a reading
 of the brief's table, which splits the five roots that carry inline tests and so
 ranks a different set of things. The structure brief's table says 69% here; the
 count is given here rather than the percentage, because the rule behind the
@@ -648,9 +648,8 @@ harness's own ending, and relaunches only on an exit-signal report otherwise.
 The accepted residue remains a finish whose skill is unread and whose teardown
 is not recorded before the exit signal. The loop cannot infer confirmation from
 `.grove/` being absent. The contract test pins dispatch's exit verb, its channel
-and escalation, and Grove's teardown verb. The following contract leaf updates
-the shipped skills and removes the legacy CLI; this migration keeps that CLI
-available while no new driver reads its channel.
+and escalation, and Grove's teardown verb. The shipped skills use dispatch exit, and Grove's CLI exposes only the separate
+teardown record operation.
 
 <a id="what-one-launch-varies"></a>
 ## Everything one launch varies

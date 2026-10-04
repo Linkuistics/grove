@@ -25,13 +25,13 @@
 //! **A launch ends out of band.** An interactive child returns to its prompt
 //! when it finishes rather than exiting, so its own exit is not the event
 //! anyone is waiting for. [`Channel`] is: a fresh path per launch that the
-//! child writes a [`Token`] to (through [`signal`]) when it is done, and whose
+//! child creates an empty file at (through [`signal`]) when it is done, and whose
 //! *appearance* starts the kill [`Escalation`] the child cannot perform on
 //! itself. See [`Escalation`] for why that is the launcher's job.
 //!
 //! [`run_observed`] adds synchronous parent-side [`LaunchEvent`] notifications
 //! at successful spawn and confirmed reap, including reap during wait-error
-//! recovery. Notifications precede token reading and terminal recovery; failed
+//! recovery. Notifications precede terminal recovery; failed
 //! spawn emits none. [`run`] keeps the same interface without an observer.
 
 mod argv;
@@ -41,7 +41,7 @@ mod error;
 mod run;
 
 pub use argv::Argv;
-pub use channel::{signal, Channel, Token};
+pub use channel::{signal, Channel};
 pub use confinement::{
     confinement_available, confinement_system_reads, regular_file_at, FilesystemGrants,
 };

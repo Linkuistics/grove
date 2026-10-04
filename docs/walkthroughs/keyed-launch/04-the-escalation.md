@@ -56,12 +56,12 @@ machinery; the second is the supervisor itself, with the end of the group. After
 
 This section takes the second half of step 3 of the four-step trace chapter 1
 wrote — the half chapter 3 stopped at — and runs it to a value. It starts where
-chapter 3 finished, with the child running and its token not yet written, and it
+chapter 3 finished, with the child running and its channel not yet created, and it
 ends with an `Ended`. It runs twice, because two different things can end the
 same launch, and the second is the one the completion channel cannot express.
 
 The launch is the one chapter 3 spawned: `claude --model opus <the mandate>`,
-pid 4137 and pgid 4137, with `GROVE_SIGNAL_FILE` set to
+pid 4137 and pgid 4137, with `HARNESS_DISPATCH_EXIT_FILE` set to
 `/work/atlas/.jj/grove/signal-3f9c1d4a7b2e5086c1a4f70d93b6e281`, under grove's
 own escalation of two seconds and five. The supervisor polls every 500ms.
 
@@ -88,11 +88,11 @@ column on the right is the value of the private `Watch` the supervisor carries.
           reap → signal 15; the terminal back, its modes restored
           kill(-4137, 0) → ESRCH: the group is gone
           → Ended { end: Escalated, status: signal 15, elapsed: 4.02s,
-                    signalled: true, token: Some("relaunch"), group: Gone }
+                    signalled: true, group: Gone }
 ```
 
 Two things in that column are worth reading before the source explains them. The
-token was written at `t=1.30` and observed at `t=1.50`: the grace runs from the
+signal was created at `t=1.30` and observed at `t=1.50`: the grace runs from the
 **observation**, not from the appearance, so the child's real reprieve is the
 grace plus up to one poll interval. That is exactly what chapter 3's
 `POLL_INTERVAL` meant by *bounding how late an escalation starts*, and it is why
@@ -109,7 +109,7 @@ A child that does decline takes the same trace to its second step. With
 `kill_grace` runs from there, and at `t=8.50` the supervisor sends
 `kill(-4137, SIGKILL)`, observes the exit ten milliseconds later, ends the group
 and reaps the child as above, and returns
-`Ended { end: Escalated, status: signal 9, elapsed: 8.53s, signalled: true, token: Some("relaunch"), group: Gone }`.
+`Ended { end: Escalated, status: signal 9, elapsed: 8.53s, signalled: true, group: Gone }`.
 That is the whole escalation: grace, SIGTERM, kill grace, SIGKILL.
 
 The second run is the ending the channel has no way to express. Nothing about the
@@ -126,16 +126,16 @@ written anything.
           the group killed twice, the child reaped, the terminal back,
           the group confirmed gone
           → Ended { end: Interrupted { signal: 15 }, status: signal 15,
-                    elapsed: 2.02s, signalled: false, token: None, group: Gone }
+                    elapsed: 2.02s, signalled: false, group: Gone }
 ```
 
 The child was signalled and reaped rather than orphaned onto the terminal, and
 the value that comes back names the number the *launcher* was sent. `signalled`
-is false and `token` is `None` because nothing wrote the file, which is the
+is false because nothing wrote the file, which is the
 ordinary shape of an interrupt. Four fields differ between the two runs, and
 only one of them is the distinction: `end` says who acted — `Escalated` is the
 escalation, `Interrupted` is the launcher's own death arriving mid-launch —
-while `elapsed`, `signalled` and `token` differ only because the second launch
+while `elapsed` and `signalled` differ only because the second launch
 was cut short before its child spoke.
 `a_signalled_child_that_keeps_waiting_is_terminated_after_the_grace` and
 `a_child_that_ignores_sigterm_is_killed_after_the_kill_grace` in
@@ -165,8 +165,8 @@ collects what each answers and what pins it. Tests named without a path are in
 | `SECOND_KILL_PAUSE`, `GROUP_CONFIRMATION`, `KILLED_POLL_INTERVAL` | how the end of the group is timed | — |
 | `Mode` | how a cancellation reaches the child | `cancellation_forwards_or_kills_by_mode` (private), the cancellation cases of `tests/noninteractive.rs` |
 | `Process`, `confirm_gone` | what ends the group, and what confirms it gone | `a_term_ignoring_descendant_is_gone_before_the_launch_returns`, `a_stopped_child_is_neither_reaped_nor_killed` |
-| `supervise` | the order of the end: group, reap, terminal, confirmation | `confirmed_reap_precedes_token_read_and_recovery_on_every_wait_path` (private) |
-| `watch` | which of the three observables happened first | `a_child_that_never_signals_ends_with_no_token`, `an_unsignalled_child_runs_to_its_own_exit_untouched`, `a_child_that_signals_and_exits_inside_the_grace_is_never_touched`, `a_signalled_child_that_keeps_waiting_is_terminated_after_the_grace`, `a_child_that_ignores_sigterm_is_killed_after_the_kill_grace` |
+| `supervise` | the order of the end: group, reap, terminal, confirmation | `confirmed_reap_precedes_recovery_on_every_wait_path` (private) |
+| `watch` | which of the three observables happened first | `a_child_that_never_signals_ends_unsignalled`, `an_unsignalled_child_runs_to_its_own_exit_untouched`, `a_child_that_signals_and_exits_inside_the_grace_is_never_touched`, `a_signalled_child_that_keeps_waiting_is_terminated_after_the_grace`, `a_child_that_ignores_sigterm_is_killed_after_the_kill_grace` |
 | `kill` | what the escalation reaches | `the_escalation_reaps_the_childs_descendants` |
 
 Three rows have no test of their own, and the reasons differ. `Watch` is private
@@ -186,7 +186,7 @@ The first composite is the block between chapter 3's two: the supervisor's state
 type, the interrupt latch, the functions that stand behind it, and the repair for
 an inherited ignored SIGCHLD.
 
-<!-- fragment «watch-and-launcher-signals» owner="the-launchers-job" source="crates/keyed-launch/src/run.rs" lines="199-387" parent="source-run" -->
+<!-- fragment «watch-and-launcher-signals» owner="the-launchers-job" source="crates/keyed-launch/src/run.rs" lines="197-385" parent="source-run" -->
 <!-- insert «run-watch-states» -->
 <!-- insert «run-interrupted-by» -->
 <!-- insert «run-take-interrupt» -->
@@ -203,7 +203,7 @@ the seam the end of the group is made of, the supervisor that orders that end,
 the poll loop that decides which of the three observables happened, and the
 two-call helper that signals a job.
 
-<!-- fragment «supervise-and-escalate» owner="the-launchers-job" source="crates/keyed-launch/src/run.rs" lines="1001-1345" parent="source-run" -->
+<!-- fragment «supervise-and-escalate» owner="the-launchers-job" source="crates/keyed-launch/src/run.rs" lines="999-1340" parent="source-run" -->
 <!-- insert «run-second-kill-pause» -->
 <!-- insert «run-group-confirmation» -->
 <!-- insert «run-killed-poll-interval» -->
@@ -228,7 +228,7 @@ two-call helper that signals a job.
 The type the supervisor carries is private, has no derives, and never leaves the
 file. Its two lines of comment say what it tracks.
 
-<!-- fragment «run-watch-states» owner="the-launchers-job" source="crates/keyed-launch/src/run.rs" lines="199-207" parent="watch-and-launcher-signals" -->
+<!-- fragment «run-watch-states» owner="the-launchers-job" source="crates/keyed-launch/src/run.rs" lines="197-205" parent="watch-and-launcher-signals" -->
 ````rust
 /// The supervisor's state machine: idle until the channel appears, then timed
 /// toward SIGTERM and finally SIGKILL, after which only the exit is awaited.
@@ -281,7 +281,7 @@ The launcher's own signals need somewhere to be written down, and there is
 exactly one place. Its comment carries four arguments, and every one of them is
 a decision this file makes about scope.
 
-<!-- fragment «run-interrupted-by» owner="the-launchers-job" source="crates/keyed-launch/src/run.rs" lines="208-226" parent="watch-and-launcher-signals" -->
+<!-- fragment «run-interrupted-by» owner="the-launchers-job" source="crates/keyed-launch/src/run.rs" lines="206-224" parent="watch-and-launcher-signals" -->
 ````rust
 
 /// The signal [`on_terminate`] last received, or `0`, read by [`run`]'s poll
@@ -335,7 +335,7 @@ A launcher that runs one launch and exits has no use for the next function. A
 launcher that runs launches in a loop cannot do without it, and the comment says
 why in its second paragraph.
 
-<!-- fragment «run-take-interrupt» owner="the-launchers-job" source="crates/keyed-launch/src/run.rs" lines="227-245" parent="watch-and-launcher-signals" -->
+<!-- fragment «run-take-interrupt» owner="the-launchers-job" source="crates/keyed-launch/src/run.rs" lines="225-243" parent="watch-and-launcher-signals" -->
 ````rust
 
 /// Which signal, if any, was sent to this process outside a launch — clearing
@@ -391,7 +391,7 @@ The other half of a looping launcher's obligation is what it does with the numbe
 once it has it, and this is the crate's answer. It diverges, and its comment
 gives the argument for doing so.
 
-<!-- fragment «run-reraise» owner="the-launchers-job" source="crates/keyed-launch/src/run.rs" lines="246-288" parent="watch-and-launcher-signals" -->
+<!-- fragment «run-reraise» owner="the-launchers-job" source="crates/keyed-launch/src/run.rs" lines="244-286" parent="watch-and-launcher-signals" -->
 ````rust
 
 /// Die of the signal that ended this launcher, so **its** parent sees the
@@ -487,7 +487,7 @@ did.
 The handler behind the latch is a single statement, and its comment explains the
 size rather than apologising for it.
 
-<!-- fragment «run-on-terminate» owner="the-launchers-job" source="crates/keyed-launch/src/run.rs" lines="289-295" parent="watch-and-launcher-signals" -->
+<!-- fragment «run-on-terminate» owner="the-launchers-job" source="crates/keyed-launch/src/run.rs" lines="287-293" parent="watch-and-launcher-signals" -->
 ````rust
 
 /// A single store is the *only* work done here, because it is the only work
@@ -513,7 +513,7 @@ The handler is installed rather than exported, and the function that installs it
 is the last of this block. Its comment carries an argument about a signal that is
 *not* in it.
 
-<!-- fragment «run-install-termination-handler» owner="the-launchers-job" source="crates/keyed-launch/src/run.rs" lines="296-337" parent="watch-and-launcher-signals" -->
+<!-- fragment «run-install-termination-handler» owner="the-launchers-job" source="crates/keyed-launch/src/run.rs" lines="294-335" parent="watch-and-launcher-signals" -->
 ````rust
 
 /// Catch the signals that cancel this launch, so a launcher can forward
@@ -617,7 +617,7 @@ what the handler does — one relaxed atomic store — which is the same sentenc
 The check itself is a three-line query, separated out because the SIGCHLD repair
 below asks it too.
 
-<!-- fragment «run-disposition» owner="the-launchers-job" source="crates/keyed-launch/src/run.rs" lines="338-348" parent="watch-and-launcher-signals" -->
+<!-- fragment «run-disposition» owner="the-launchers-job" source="crates/keyed-launch/src/run.rs" lines="336-346" parent="watch-and-launcher-signals" -->
 ````rust
 
 /// The current disposition of `signal`, read without changing it.
@@ -646,7 +646,7 @@ exit leaves no zombie, so there is nothing for the supervisor's wait to observe,
 and nothing reserving the child's group ID while the rest of the group is killed.
 So the launcher repairs it, and has to remember that it did.
 
-<!-- fragment «run-sigchld-ignored-at-entry» owner="the-launchers-job" source="crates/keyed-launch/src/run.rs" lines="349-355" parent="watch-and-launcher-signals" -->
+<!-- fragment «run-sigchld-ignored-at-entry» owner="the-launchers-job" source="crates/keyed-launch/src/run.rs" lines="347-353" parent="watch-and-launcher-signals" -->
 ````rust
 
 /// Whether this process inherited SIGCHLD ignored: `0` not yet read, `1` yes,
@@ -665,7 +665,7 @@ ignored SIGCHLD at all. So the entry state is read once per process and kept.
 Three values rather than a boolean, because *not yet read* is a third state that
 a boolean would have to fold into one of the other two.
 
-<!-- fragment «run-restore-child-watching» owner="the-launchers-job" source="crates/keyed-launch/src/run.rs" lines="356-387" parent="watch-and-launcher-signals" -->
+<!-- fragment «run-restore-child-watching» owner="the-launchers-job" source="crates/keyed-launch/src/run.rs" lines="354-385" parent="watch-and-launcher-signals" -->
 ````rust
 
 /// **An ignored SIGCHLD makes the kernel reap children unwatched.** The child's
@@ -721,7 +721,7 @@ The rest of the file is the supervisor. It is easiest to read from its result
 inward: two private types say what watching can produce, and `supervise` turns
 either into what `run` returns.
 
-<!-- fragment «run-watched-and-failed» owner="the-launchers-job" source="crates/keyed-launch/src/run.rs" lines="1134-1147" parent="supervise-and-escalate" -->
+<!-- fragment «run-watched-and-failed» owner="the-launchers-job" source="crates/keyed-launch/src/run.rs" lines="1132-1145" parent="supervise-and-escalate" -->
 ````rust
 
 /// What watching produced: a reaped child, and why it ended.
@@ -745,7 +745,7 @@ ended and its duration frozen at the reap. `Failed` is a supervision that went w
 status whenever the child was reaped anyway, because the terminal's return
 depends on how the child ended even when the launch reports an error.
 
-<!-- fragment «run-supervise» owner="the-launchers-job" source="crates/keyed-launch/src/run.rs" lines="1148-1200" parent="supervise-and-escalate" -->
+<!-- fragment «run-supervise» owner="the-launchers-job" source="crates/keyed-launch/src/run.rs" lines="1146-1195" parent="supervise-and-escalate" -->
 ````rust
 
 /// Watch the child to its end, then end its group, take back the terminal,
@@ -788,9 +788,6 @@ fn supervise(
                 status,
                 elapsed,
                 signalled: channel.is_some_and(Channel::appeared),
-                // Read after the child is gone, so a child still mid-write
-                // cannot be observed half-signalled.
-                token: channel.and_then(Channel::read),
                 group,
             })
         }
@@ -812,7 +809,7 @@ emitted. Step 4 gives the terminal back through chapter 3's lease. Step 5 asks,
 without signalling, whether the group is gone. The child's status was fixed at
 step 1, so nothing after it can change what the launch reports about the child;
 step 5 can only add whether anything survived. The private test
-`confirmed_reap_precedes_token_read_and_recovery_on_every_wait_path` traces that
+`confirmed_reap_precedes_recovery_on_every_wait_path` traces that
 order with a fake child on every wait path, and
 `a_surviving_group_is_reported_beside_the_childs_status` pins step 5's other
 answer: a group still present comes back as `Group::Present`, with the child's
@@ -830,28 +827,15 @@ reap observer runs. Terminal recovery and group confirmation cannot relabel a
 reaped launch: a signal they receive stays in the latch for the caller's next
 `take_interrupt`. The third arm is where an
 ordinary completion lands, and three tests reach it:
-`a_child_that_never_signals_ends_with_no_token` and
-`an_unsignalled_child_runs_to_its_own_exit_untouched` with no token, and
-`a_child_that_signals_and_exits_inside_the_grace_is_never_touched` with one.
+`a_child_that_never_signals_ends_unsignalled` and
+`an_unsignalled_child_runs_to_its_own_exit_untouched` without signalling, and
+`a_child_that_signals_and_exits_inside_the_grace_is_never_touched` signalled.
 
-`signalled` and `token` are both asked here, after the child is gone.
-`signalled` is chapter 2's `appeared`, so a child that signals and exits at once
-has still signalled, whatever ended it. `token` is read once, and the comment
-says the important part of when: after the child is gone. That is the second half of chapter 2's argument about
-the empty file. Chapter 2 established that an empty channel file reads back as
-`None` rather than as an empty token, because a child killed between creating the
-file and writing to it leaves a real, empty file behind. The loop's other use of
-the channel — `appeared()` — can see a file mid-write, because appearance is the
-whole of what that test asks. Reading the *content* is different: nowhere in
-this file is `read` called but here, and this runs only once the child is
-reaped, so there is no moment at which the supervisor reads a file the child is
-still in the middle of writing. The two together are why *appearance is the
-event* survives contact with a child being killed for taking too long: the
-appearance may be early, and the content is never partial.
-
-The failure arm reaches the same reclaim. Both a successful watch and a failed
-one give the terminal back, so a supervision error never leaves a raw-mode child's
-terminal with the human.
+`signalled` is asked after the child is gone. It uses chapter 2's `appeared`,
+so a child that creates its channel and exits immediately has still signalled,
+whatever ended it. The runner never opens the entry; channel content contributes
+nothing to the result. This observation is separate from confirmed reap and
+from whether the process group was confirmed gone.
 
 <a id="three-observables"></a>
 ## The three ways a launch ends
@@ -859,7 +843,7 @@ terminal with the human.
 The poll loop is one function, and it opens by declaring everything the loop
 will decide with: the state machine and two latches.
 
-<!-- fragment «run-watch-signature» owner="the-launchers-job" source="crates/keyed-launch/src/run.rs" lines="1201-1213" parent="supervise-and-escalate" -->
+<!-- fragment «run-watch-signature» owner="the-launchers-job" source="crates/keyed-launch/src/run.rs" lines="1196-1208" parent="supervise-and-escalate" -->
 ````rust
 
 fn watch(
@@ -893,7 +877,7 @@ is the one with no mechanism behind it.
 
 | What the loop observes | Where it is polled | The ending it produces | Held by |
 |---|---|---|---|
-| the child has exited | `child.exited()` | `End::Exited`, signalled or not | `a_child_that_never_signals_ends_with_no_token`, `an_unsignalled_child_runs_to_its_own_exit_untouched`, `a_child_that_signals_and_exits_inside_the_grace_is_never_touched` |
+| the child has exited | `child.exited()` | `End::Exited`, signalled or not | `a_child_that_never_signals_ends_unsignalled`, `an_unsignalled_child_runs_to_its_own_exit_untouched`, `a_child_that_signals_and_exits_inside_the_grace_is_never_touched` |
 | the channel has appeared | `channel.appeared()` | `End::Escalated`, once the grace has run out | `a_signalled_child_that_keeps_waiting_is_terminated_after_the_grace` |
 | the launcher was signalled | `take_interrupt()` | `End::Interrupted { signal }` | `an_interrupt_is_reported_against_the_launch_it_arrives_in_and_no_other` (`tests/interrupt.rs`) |
 | **the interactive child finished its turn and never said so** | nowhere | **none — the launch stalls** | nothing, because there is nothing to hold |
@@ -904,7 +888,7 @@ is the one with no mechanism behind it.
 The loop's first act is not about the child at all. It lends the terminal,
 through the closure chapter 3's lease supplied.
 
-<!-- fragment «run-watch-lend» owner="the-launchers-job" source="crates/keyed-launch/src/run.rs" lines="1214-1216" parent="supervise-and-escalate" -->
+<!-- fragment «run-watch-lend» owner="the-launchers-job" source="crates/keyed-launch/src/run.rs" lines="1209-1211" parent="supervise-and-escalate" -->
 ````rust
 
     loop {
@@ -929,7 +913,7 @@ Cancellation is checked next, before the wait, so an already-exited child cannot
 hide a pending interrupt. How a cancellation reaches the child depends on which
 launch function is running, so supervision is told.
 
-<!-- fragment «run-mode» owner="the-launchers-job" source="crates/keyed-launch/src/run.rs" lines="1025-1033" parent="supervise-and-escalate" -->
+<!-- fragment «run-mode» owner="the-launchers-job" source="crates/keyed-launch/src/run.rs" lines="1023-1031" parent="supervise-and-escalate" -->
 ````rust
 
 /// Which of the three launch functions this is, as far as supervision cares:
@@ -946,7 +930,7 @@ enum Mode {
 Three values, one per launch function, and nothing else reads them: the block
 that checks the latch is their only consumer.
 
-<!-- fragment «run-watch-forward-interrupt» owner="the-launchers-job" source="crates/keyed-launch/src/run.rs" lines="1217-1235" parent="supervise-and-escalate" -->
+<!-- fragment «run-watch-forward-interrupt» owner="the-launchers-job" source="crates/keyed-launch/src/run.rs" lines="1212-1230" parent="supervise-and-escalate" -->
 ````rust
 
         // Check cancellation before accepting even an already-exited child.
@@ -1012,7 +996,7 @@ interrupt already reported.
 
 The wait comes next, and it is a question, not a reap.
 
-<!-- fragment «run-watch-exited» owner="the-launchers-job" source="crates/keyed-launch/src/run.rs" lines="1236-1261" parent="supervise-and-escalate" -->
+<!-- fragment «run-watch-exited» owner="the-launchers-job" source="crates/keyed-launch/src/run.rs" lines="1231-1256" parent="supervise-and-escalate" -->
 ````rust
         match child.exited() {
             Ok(true) => break,
@@ -1063,7 +1047,7 @@ legible.
 The state machine is the last thing each tick does, and it is where the
 channel's appearance becomes a deadline and the deadline becomes a signal.
 
-<!-- fragment «run-watch-escalation» owner="the-launchers-job" source="crates/keyed-launch/src/run.rs" lines="1262-1290" parent="supervise-and-escalate" -->
+<!-- fragment «run-watch-escalation» owner="the-launchers-job" source="crates/keyed-launch/src/run.rs" lines="1257-1285" parent="supervise-and-escalate" -->
 ````rust
 
         watch = match watch {
@@ -1106,7 +1090,7 @@ been set in the first arm, `end` would have told the caller only what
 had to be ended. `a_child_that_signals_and_exits_inside_the_grace_is_never_touched`
 is the case that separates them, running under a thirty-second grace so the
 child's own exit lands well inside it; it comes back `End::Exited` *with* a
-token, and asserts
+signal, and asserts
 `elapsed < grace` so that a passing run cannot be one that waited the grace out.
 
 The three arms are guarded by conditions rather than by state alone, which is why
@@ -1126,7 +1110,7 @@ have reaped before the group was killed, so it went. In its place the watch
 enters `Killed` and polls on a much shorter interval, because the child is dying,
 not deciding.
 
-<!-- fragment «run-killed-poll-interval» owner="the-launchers-job" source="crates/keyed-launch/src/run.rs" lines="1020-1024" parent="supervise-and-escalate" -->
+<!-- fragment «run-killed-poll-interval» owner="the-launchers-job" source="crates/keyed-launch/src/run.rs" lines="1018-1022" parent="supervise-and-escalate" -->
 ````rust
 
 /// How often the supervisor checks for the child's exit after the
@@ -1143,7 +1127,7 @@ walks both arms, with `trap '' TERM` in the child, and it asserts on
 The sleep closes the tick, and `POLL_INTERVAL` is the constant chapter 3 read as
 *not a knob*. Its consequence is visible in the tests rather than in the code,
 and it is arithmetic over the constant. Every observation the loop makes is
-quantised to a tick: the token is seen up to half a second after it appears, each
+quantised to a tick: the appearance is seen up to half a second after it appears, each
 deadline is noticed up to half a second after it passes, and the child's death is
 noticed up to half a second after it happens. So `elapsed` carries slack the two
 steps of the escalation do not separate.
@@ -1158,12 +1142,12 @@ to tell the two apart by timing would be measuring the poll interval.
 The loop has broken out on an exit, and the child is a zombie. What remains is
 steps 2 and 3 of the end, and they are the reason the wait was a question.
 
-<!-- fragment «run-watch-end-the-group» owner="the-launchers-job" source="crates/keyed-launch/src/run.rs" lines="1291-1312" parent="supervise-and-escalate" -->
+<!-- fragment «run-watch-end-the-group» owner="the-launchers-job" source="crates/keyed-launch/src/run.rs" lines="1286-1307" parent="supervise-and-escalate" -->
 ````rust
 
     // A child ended by the escalation exits non-zero, or by signal. That is
-    // the normal completion path, not a failure: the token, never the exit
-    // status, says what the launch meant.
+    // the normal completion path, not a failure: the caller judges the work;
+    // the runner reports channel appearance and process status separately.
     child.kill_group();
     let status = child.reap().map_err(|error| Failed {
         error: LaunchError::new(format!("cannot reap the exited child: {error}")),
@@ -1185,13 +1169,11 @@ steps 2 and 3 of the end, and they are the reason the wait was a question.
 ````
 <!-- /fragment -->
 
-The comment above the calls carries the distinction chapter 3 opened between
-`end` and `token`. A child that the escalation ended exits non-zero or by signal,
-and none of that is a failure of the launch: `run` returns `Ok`, and the *token*
-— never the exit status — is what says whether the child finished its work.
-`a_child_that_never_signals_ends_with_no_token` is the pure form of it, running a
-child that exits 3 and asserting all three of `token: None`, `End::Exited` and
-`status.code() == Some(3)`.
+The comment above the calls separates the caller's outcome policy from the
+runner's process report. A child ended by escalation exits non-zero or by signal;
+that alone is no failure of supervision. `run` returns `Ok` with separate
+`end`, `status` and `signalled` fields. A child that exits 3 without signalling
+returns `End::Exited`, `status.code() == Some(3)` and `signalled: false`.
 
 **Why the group is killed at every ending, not only after an escalation.** A
 member that ignored the TERM outlives a child that exits on it. A member still
@@ -1222,7 +1204,7 @@ boundaries by injecting signals or delays at the process/observer/reclaim seams.
 
 The calls go through the private seam that lets tests stand in for a real child.
 
-<!-- fragment «run-process-seam» owner="the-launchers-job" source="crates/keyed-launch/src/run.rs" lines="1034-1053" parent="supervise-and-escalate" -->
+<!-- fragment «run-process-seam» owner="the-launchers-job" source="crates/keyed-launch/src/run.rs" lines="1032-1051" parent="supervise-and-escalate" -->
 ````rust
 
 /// The launched child as supervision sees it: a process that can be watched,
@@ -1251,7 +1233,7 @@ Five methods, and the two that matter are the split of what a plain wait does
 in one call: `exited` observes the exit, and `reap` collects it. The real child
 implements them with the system calls below.
 
-<!-- fragment «run-process-for-child» owner="the-launchers-job" source="crates/keyed-launch/src/run.rs" lines="1054-1109" parent="supervise-and-escalate" -->
+<!-- fragment «run-process-for-child» owner="the-launchers-job" source="crates/keyed-launch/src/run.rs" lines="1052-1107" parent="supervise-and-escalate" -->
 ````rust
 
 impl Process for Child {
@@ -1326,7 +1308,7 @@ exit 4. Treating every report as an exit turns that test red.
 `kill_group` sends SIGKILL to the group twice, and the pause between the two is
 the second measured fact.
 
-<!-- fragment «run-second-kill-pause» owner="the-launchers-job" source="crates/keyed-launch/src/run.rs" lines="1001-1010" parent="supervise-and-escalate" -->
+<!-- fragment «run-second-kill-pause» owner="the-launchers-job" source="crates/keyed-launch/src/run.rs" lines="999-1008" parent="supervise-and-escalate" -->
 ````rust
 /// How long the runner waits between the two SIGKILLs it sends what remains of
 /// the child's group.
@@ -1349,7 +1331,7 @@ address, ESRCH means nothing is left, and EPERM means a group of zombies.
 
 The fifth step is a query with a bound.
 
-<!-- fragment «run-group-confirmation» owner="the-launchers-job" source="crates/keyed-launch/src/run.rs" lines="1011-1019" parent="supervise-and-escalate" -->
+<!-- fragment «run-group-confirmation» owner="the-launchers-job" source="crates/keyed-launch/src/run.rs" lines="1009-1017" parent="supervise-and-escalate" -->
 ````rust
 
 /// How long, after the reap, the runner waits for the system to answer that
@@ -1366,7 +1348,7 @@ const GROUP_CONFIRMATION: Duration = Duration::from_secs(1);
 The query itself is a free function, so a test of the seam can stand in for it
 and the real child's method is one line.
 
-<!-- fragment «run-confirm-gone» owner="the-launchers-job" source="crates/keyed-launch/src/run.rs" lines="1110-1133" parent="supervise-and-escalate" -->
+<!-- fragment «run-confirm-gone» owner="the-launchers-job" source="crates/keyed-launch/src/run.rs" lines="1108-1131" parent="supervise-and-escalate" -->
 ````rust
 
 /// Query, without signalling, until the system answers that `pgid` names no
@@ -1414,11 +1396,11 @@ The final test-module declaration loads the private supervision tests from
 `tests/internal/wait_events.rs`, outside the production-source corpus. They drive
 `supervise` through the `Process` seam with a fake child and trace the order of
 the end on every wait path, the survivor report, and the three cancellation
-modes. Real launch tests cover immediate exit, failed spawn, token-before-exit,
+modes. Real launch tests cover immediate exit, failed spawn, appearance-before-exit,
 both escalation stages, the end of the group, and interrupts through the same
 observed entry point.
 
-<!-- fragment «run-kill» owner="the-launchers-job" source="crates/keyed-launch/src/run.rs" lines="1313-1345" parent="supervise-and-escalate" -->
+<!-- fragment «run-kill» owner="the-launchers-job" source="crates/keyed-launch/src/run.rs" lines="1308-1340" parent="supervise-and-escalate" -->
 ````rust
 
 /// Signal the job this process launched — **the whole process group, then the
@@ -1522,11 +1504,10 @@ child was spawned into a job with nothing added, and a launcher waited for one o
 three things and acted on whichever came first. Then it ended the child's whole
 group, took the terminal back as it was lent, and asked whether anything
 survived. At no point did the crate decide that the child was finished. The
-result is an `Ended` naming who acted, what remained of the group and, if the
-child spoke, the string it wrote — which this crate carried across two processes
-and never interpreted.
+result is an `Ended` naming who acted, what remained of the group and, whether the
+child created its completion channel.
 
-Chapter 5 reads how this is checked: the twelve tests inside `src/channel.rs`
+Chapter 5 reads how this is checked: the ten tests inside `src/channel.rs`
 that reach a function no integration test can, and the suites under `tests/`
 that the book cites and does not reproduce.
 

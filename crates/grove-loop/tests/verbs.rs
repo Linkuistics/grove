@@ -18,7 +18,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use grove_loop::verbs::{self, Resolution, Signalled};
+use grove_loop::verbs::{self, Resolution};
 use grove_loop::{Handle, Kind, Reading, Reference, Slug, Sought, TreeWrite, Writing};
 use tempfile::TempDir;
 
@@ -523,41 +523,6 @@ fn finish_commit_refuses_a_handle_that_is_not_the_live_finish_leaf() {
 
     assert!(error.contains("does not match"), "got {error}");
     assert!(root.join(".grove").exists(), "nothing was torn down");
-}
-
-/// `complete` reaches the runner's channel — and outside a loop it is a no-op
-/// that says so.
-#[test]
-fn complete_writes_the_flag_it_was_given_a_channel_for() {
-    let tmp = TempDir::new().unwrap();
-    let channel = tmp.path().join("signal");
-
-    assert_eq!(
-        verbs::complete(Some(&channel), false).unwrap(),
-        Signalled::Wrote(channel.clone())
-    );
-    assert!(channel.exists());
-
-    let done = tmp.path().join("done");
-    assert_eq!(
-        verbs::complete(Some(&done), true).unwrap(),
-        Signalled::Wrote(done.clone())
-    );
-    assert!(
-        fs::read_to_string(&done).unwrap().contains("done"),
-        "`--done` must reach the channel as a finish disposition"
-    );
-}
-
-/// **The channel is answerable before the write**, because the caller admits its
-/// session against the channel it is about to signal.
-#[test]
-fn the_channel_can_be_asked_for_before_it_is_written() {
-    let path = PathBuf::from("/tmp/explicit.signal");
-    assert_eq!(verbs::signal_channel(Some(&path)), Some(path));
-    // The meta-grove's own guard force-clears the variable to the empty string,
-    // which is *no* loop context rather than a degenerate path.
-    assert_eq!(verbs::signal_channel(None), None);
 }
 
 /// **A prune that stops partway says what it already marked, and that rerunning

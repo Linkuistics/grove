@@ -4,8 +4,9 @@
 //! tree and every one is stated in grove's vocabulary — brief chains, kinds,
 //! outcomes, handles, finishing — none of which the store has a word for.
 //! Co-locating them gives the handle grammar one owner and puts the driver and
-//! the verbs on one definition of a kind. The two that reach outward reach the
-//! VCS seam ([`finish_commit`]) and the runner ([`complete`]).
+//! the verbs on one definition of a kind. One reaches the VCS seam
+//! ([`finish_commit`]); [`record_teardown`] writes into the current launch
+//! directory without ending the harness run.
 //!
 //! The three shapes that recur across the surface — the lock in the signature,
 //! [`Sought`] instead of an option, and the paths every verb returns — are the
@@ -16,8 +17,8 @@ use std::path::{Path, PathBuf};
 use ordinal_fs_tree::Sought;
 
 use crate::{
-    complete, task_grow, task_tree, tree_lifecycle, Commit, Error, Handle, Kind, Reference,
-    Selection, Slug, Tree, TreeWrite, Vacancy, Workspace,
+    task_grow, task_tree, tree_lifecycle, Commit, Error, Handle, Kind, Reference, Selection, Slug,
+    Tree, TreeWrite, Vacancy, Workspace,
 };
 
 pub use task_tree::{Located, Resolution};
@@ -297,55 +298,6 @@ pub struct Pruned {
 /// which no `jj undo` could restore; or a commit that failed.
 pub fn finish_commit(workspace: &Workspace, finish: &Handle) -> Result<Commit, Error> {
     Ok(tree_lifecycle::finish_commit(workspace, finish)?)
-}
-
-/// Write the relaunch flag to the signal file and return. **Reaches the
-/// runner's channel.**
-///
-/// Ending the session is the loop driver's job — it is watching for this very
-/// channel — so there is nothing else to do here. Outside a loop it is a no-op
-/// that says so.
-///
-/// # Errors
-///
-/// A signal file that could not be written.
-pub fn complete(signal_file: Option<&Path>, done: bool) -> Result<Signalled, Error> {
-    let disposition = if done {
-        complete::Disposition::Done
-    } else {
-        complete::Disposition::Relaunch
-    };
-    match signal_channel(signal_file) {
-        Some(path) => {
-            complete::signal(&path, disposition)?;
-            Ok(Signalled::Wrote(path))
-        }
-        None => Ok(Signalled::NoLoop),
-    }
-}
-
-/// Whether [`complete`] would signal, and where.
-///
-/// **Public because the order matters.** The caller admits this session against
-/// the channel it is about to signal, and it has to ask *before* the write — so
-/// the answer cannot be something [`complete`] returns.
-#[must_use]
-pub fn signal_channel(signal_file: Option<&Path>) -> Option<PathBuf> {
-    signal_file.map(Path::to_path_buf).or_else(|| {
-        std::env::var_os("GROVE_SIGNAL_FILE")
-            .filter(|value| !value.is_empty())
-            .map(PathBuf::from)
-    })
-}
-
-/// What [`complete`] did.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub enum Signalled {
-    /// The flag was written to this channel; the loop driver will act on it.
-    Wrote(PathBuf),
-    /// There is no channel — this session is not running under the loop driver,
-    /// and whoever started it ends it.
-    NoLoop,
 }
 
 /// `Option` in, [`Sought`] out — the one place the crate crosses that boundary.

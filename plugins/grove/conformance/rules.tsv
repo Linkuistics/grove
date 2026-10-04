@@ -24,8 +24,9 @@
 #           the launch prompt rather than carried by any skill. One row has it,
 #           `signal-is-the-last-action`, and it binds every kind:
 #           `prompt-names-the-kind-k18` replaced the two inlined signal files
-#           with one driver-authored signalling contract, so the mechanism is
-#           stated once for every kind and `finish-three-endings` — the ending
+#           with one driver-authored exit contract, now `harness-dispatch exit`
+#           as the final action. The mechanism is stated once for every kind
+#           and `finish-three-endings` — the ending
 #           that differs — moved to `grove-finish/SKILL.md`, where the spine
 #           already says a kind's own ending belongs. Neither assertion below can
 #           reach a prompt, so that row is reported as prompt-delivered and
@@ -186,7 +187,8 @@ declined-finish-stays-live	grove-finish/SKILL.md	B	static({finish})
 finish-confirmation-gate	grove-finish/SKILL.md	B	static({finish})	
 finish-promotes-before-teardown	grove-finish/SKILL.md	B	static({finish})	
 finish-resume-reruns-the-same-command	grove-finish/SKILL.md	B	static({finish})	
-finish-three-endings	grove-finish/SKILL.md	B*	static({finish})	
+finish-three-endings	grove-finish/SKILL.md	B*	static({finish})	**How this session ends is decided by what it did**
+finish-records-teardown-before-exit	grove-finish/SKILL.md	B	static({finish})	**Record the teardown before sending the exit signal.**
 nothing-after-finish	grove-finish/SKILL.md	B+S	static({finish})	
 recovery-pending-stops	grove-finish/SKILL.md	B	static({finish})	
 teardown-via-finish-commit	grove-finish/SKILL.md	B	static({finish})	

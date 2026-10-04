@@ -299,3 +299,31 @@ fn provisioned_spine_carries_the_creator_reference_amendment() {
         assert!(flat.contains(amended), "installed {file} lacks {amended:?}");
     }
 }
+
+/// Both delivery paths carry the same ending procedure, including resources.
+#[test]
+fn provisioned_skills_carry_the_dispatch_ending_contract() {
+    let f = Fixture::new(true);
+    let output = f.run();
+    assert!(output.status.success(), "{:?}", output);
+    for (relative, source) in [
+        (
+            "grove/references/driver.md",
+            include_str!("../../../plugins/grove/skills/grove/references/driver.md"),
+        ),
+        (
+            "grove-finish/SKILL.md",
+            include_str!("../../../plugins/grove/skills/grove-finish/SKILL.md"),
+        ),
+        (
+            "configure-grove/references/policy.md",
+            include_str!("../../../plugins/grove/skills/configure-grove/references/policy.md"),
+        ),
+    ] {
+        assert_eq!(
+            fs::read_to_string(f.skills().join(relative)).unwrap(),
+            source,
+            "installed {relative} differs from the shipped contract"
+        );
+    }
+}

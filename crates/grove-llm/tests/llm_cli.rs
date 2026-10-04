@@ -13,7 +13,7 @@ fn help_lists_only_llm_verbs() {
         .unwrap();
     let s = String::from_utf8_lossy(&out.stdout);
     // A representative sample of the surviving task-tree verbs.
-    for verb in ["pick", "root-init", "leaf-add", "complete"] {
+    for verb in ["pick", "root-init", "leaf-add", "record-teardown"] {
         assert!(s.contains(verb), "missing grove-llm verb `{verb}`: {s}");
     }
     // Launcher and admin verbs must not bleed into grove-llm's surface.
@@ -24,6 +24,7 @@ fn help_lists_only_llm_verbs() {
         "install",
         "update",
         "report-turn",
+        "complete",
     ] {
         assert!(
             !s.contains(&format!(" {} ", forbidden)),

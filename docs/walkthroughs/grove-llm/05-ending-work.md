@@ -10,12 +10,12 @@ marks a live leaf, or every live leaf under a node, `ABANDONED`. Both are one
 rename per leaf — an infix added after the position in the filename, no byte
 inside the file touched — and both are the last verbs a session runs against
 the tree: after the mark comes the commit, which is jj's and not this binary's,
-and after the commit comes `complete`, which opens no tree. The rule this
+and after the commit comes `harness-dispatch exit`, which is outside this binary. The rule this
 chapter opens on is what a thin binary does at that point in a session, and it
 is not about the mark. The mark is one call into `grove_loop::verbs` like every
 other verb's. It is about what the handler prints after the call returns: each
 handler names, on stderr, **the two steps that remain** — commit this session's
-work, including the rename; then run `grove-llm complete` as the last action —
+work, including the rename; then run `harness-dispatch exit` as the last action —
 at the moment of decision, in the output of the verb that ended the work,
 rather than leaving them in a mandate the session read a whole context earlier.
 stdout stays data: the marked paths, one per line, which callers parse.
@@ -55,7 +55,7 @@ $ cd /work/atlas && grove-llm leaf-retire /work/atlas/.grove/01-impl--rate-limit
 /work/atlas/.grove/01-DONE-impl--rate-limit-k3.md
 leaf-retire: two steps remain:
   1. commit this session's work, including this rename
-  2. run `grove-llm complete` as your last action
+  2. run `harness-dispatch exit` as your last action
 ```
 
 `cmd_leaf_retire` resolves the working tree, normalizes the path — absolute
@@ -105,7 +105,7 @@ leaf-prune: left 1 already-DONE leaf untouched:
   /work/atlas/.grove/03-k5/01-DONE-impl--warm-k6.md
 leaf-prune: two steps remain:
   1. commit this session's work, including these renames
-  2. run `grove-llm complete` as your last action
+  2. run `harness-dispatch exit` as your last action
 ```
 
 The call marks the two live leaves and leaves the retired one alone, and the
@@ -141,7 +141,7 @@ The reminder is one function both handlers call, and its comment carries the
 chapter's thesis. It is read first because it is the last thing either verb
 does.
 
-<!-- fragment «eprint-next-steps» owner="two-steps-remain" source="crates/grove-llm/src/cli.rs" lines="755-772" parent="handlers-ending" -->
+<!-- fragment «eprint-next-steps» owner="two-steps-remain" source="crates/grove-llm/src/cli.rs" lines="698-715" parent="handlers-ending" -->
 ````rust
 // The two steps that always follow a terminal mark: the commit that carries it,
 // then the completion signal. `leaf-retire` and `leaf-prune` are the
@@ -158,7 +158,7 @@ fn eprint_next_steps(verb: &str, marked: usize) {
     };
     eprintln!("{verb}: two steps remain:");
     eprintln!("  1. commit this session's work, including {renames}");
-    eprintln!("  2. run `grove-llm complete` as your last action");
+    eprintln!("  2. run `harness-dispatch exit` as your last action");
 }
 
 ````
@@ -166,7 +166,7 @@ fn eprint_next_steps(verb: &str, marked: usize) {
 
 The function takes the verb's name and the number of leaves marked, and prints
 three lines on stderr: the verb and *two steps remain*, then the commit, then
-`complete`. The count decides two words — *this rename* for one leaf, *these
+`harness-dispatch exit`. The count decides two words — *this rename* for one leaf, *these
 renames* for more — and nothing else; the two steps are the same for both verbs
 and for any count, because what follows a terminal mark does not depend on how
 many marks there were. `leaf-retire` always passes `1`, so the singular is the
@@ -178,7 +178,7 @@ these are the last tree verbs a session runs, Retire precedes Commit, and the
 commit is not this binary's, so the two steps are printed where the session
 will read them at the moment it has to take them. Both qualifiers in *the last
 tree verbs a session runs* are load-bearing, and dropping either makes the
-sentence false. **Tree verbs**, because `grove-llm complete` runs after both
+sentence false. **Tree verbs**, because `harness-dispatch exit` runs after both
 and the reminder's own second line says so — it is a verb of this binary that
 opens no tree, so it ends the session without ending the work on the tree.
 **A session runs**, because `finish-commit` does open the tree — not in its
@@ -201,9 +201,9 @@ The second reason is the stream, and it is the one a test holds. stdout is
 data — the marked paths, which callers parse — so the reminder goes to stderr,
 where `leaf-prune`'s two advisories already were. `assert_next_steps` in
 `crates/grove-llm/tests/leaf_ops.rs` is the shared assertion: it requires the
-commit step and the `complete` step on stderr in that order, requires *last
+commit step and the dispatch exit step on stderr in that order, requires *last
 action*, requires the expected singular or plural, and requires that the word
-*complete* does not reach stdout. `retire_names_the_remaining_steps_on_stderr`
+the exit reminder does not reach stdout. `retire_names_the_remaining_steps_on_stderr`
 applies it to `leaf-retire` and additionally requires stdout to be exactly one
 line; `prune_of_one_leaf_names_the_remaining_steps_on_stderr` applies it to a
 single-leaf prune with *this rename*; and
@@ -219,7 +219,7 @@ those phrases is held by the source and no test.
 resolve the working tree, normalize the path, open for writing, make the call,
 print what it returned, then the reminder.
 
-<!-- fragment «handler-leaf-retire» owner="two-steps-remain" source="crates/grove-llm/src/cli.rs" lines="773-782" parent="handlers-ending" -->
+<!-- fragment «handler-leaf-retire» owner="two-steps-remain" source="crates/grove-llm/src/cli.rs" lines="716-725" parent="handlers-ending" -->
 ````rust
 fn cmd_leaf_retire(args: &LeafRetireArgs) -> Result<()> {
     let worktree = worktree()?;
@@ -309,7 +309,7 @@ the operator's text, `normalize_leaf_path` takes it, and the call resolves the
 result against the tree. Its help is the only place the verb states which
 spellings it accepts, and the worked example passed the first of them.
 
-<!-- fragment «args-leaf-retire» owner="two-steps-remain" source="crates/grove-llm/src/cli.rs" lines="406-411" parent="args-ending" -->
+<!-- fragment «args-leaf-retire» owner="two-steps-remain" source="crates/grove-llm/src/cli.rs" lines="375-380" parent="args-ending" -->
 ````rust
 #[derive(Parser)]
 pub struct LeafRetireArgs {
@@ -336,7 +336,7 @@ path but a `Pruned` with two lists, the leaves newly marked and the retired
 leaves found and left alone. The first fragment is the opening, the call, and
 the rendering of both lists.
 
-<!-- fragment «handler-leaf-prune-marks» owner="two-steps-remain" source="crates/grove-llm/src/cli.rs" lines="783-803" parent="handlers-ending" -->
+<!-- fragment «handler-leaf-prune-marks» owner="two-steps-remain" source="crates/grove-llm/src/cli.rs" lines="726-746" parent="handlers-ending" -->
 ````rust
 fn cmd_leaf_prune(args: &LeafPruneArgs) -> Result<()> {
     let worktree = worktree()?;
@@ -428,7 +428,7 @@ with the root's path; no test in this crate holds it either.
 The second fragment is the reminder, and its comment states the two conditions
 the worked example showed.
 
-<!-- fragment «handler-leaf-prune-reminder» owner="two-steps-remain" source="crates/grove-llm/src/cli.rs" lines="804-812" parent="handlers-ending" -->
+<!-- fragment «handler-leaf-prune-reminder» owner="two-steps-remain" source="crates/grove-llm/src/cli.rs" lines="747-755" parent="handlers-ending" -->
 ````rust
     // Last, so the reminder is the final thing in the agent's context — and only
     // when this call actually ended some work; a no-op prune leaves no session
@@ -448,7 +448,7 @@ leaves left alone; the source holds that order and no test asserts it. Only
 when the marked list is not empty, because a prune that ended no work leaves no
 session to close — the no-op case printed its advisory and nothing more — and
 `prune_that_marks_nothing_stays_quiet` holds it by requiring the string
-`grove-llm complete` absent from stderr. The count passed is the marked list's
+`harness-dispatch exit` absent from stderr. The count passed is the marked list's
 length, which is what turns *this rename* into *these renames* for the node case
 and keeps the singular for a single-leaf prune, which
 `prune_of_one_leaf_names_the_remaining_steps_on_stderr` requires.
@@ -457,7 +457,7 @@ and keeps the singular for a single-leaf prune, which
 the field renamed to match; it is read here because the operand it carries is
 what makes the node case reachable at all.
 
-<!-- fragment «args-leaf-prune» owner="two-steps-remain" source="crates/grove-llm/src/cli.rs" lines="412-417" parent="args-ending" -->
+<!-- fragment «args-leaf-prune» owner="two-steps-remain" source="crates/grove-llm/src/cli.rs" lines="381-386" parent="args-ending" -->
 ````rust
 #[derive(Parser)]
 pub struct LeafPruneArgs {
@@ -477,7 +477,7 @@ spelling works too: `leaf-prune 02-review-impl--rate-limit-k4.md` typed at
 when measured. The composite that reassembles the two argument structs is
 stated here.
 
-<!-- fragment «args-ending» owner="two-steps-remain" source="crates/grove-llm/src/cli.rs" lines="406-417" parent="source-command-surface" -->
+<!-- fragment «args-ending» owner="two-steps-remain" source="crates/grove-llm/src/cli.rs" lines="375-386" parent="source-command-surface" -->
 <!-- insert «args-leaf-retire» -->
 <!-- insert «args-leaf-prune» -->
 <!-- /fragment -->
@@ -485,7 +485,7 @@ stated here.
 The composite that reassembles the reminder and the two handlers, in source
 order, is stated here.
 
-<!-- fragment «handlers-ending» owner="two-steps-remain" source="crates/grove-llm/src/cli.rs" lines="755-812" parent="source-command-surface" -->
+<!-- fragment «handlers-ending» owner="two-steps-remain" source="crates/grove-llm/src/cli.rs" lines="698-755" parent="source-command-surface" -->
 <!-- insert «eprint-next-steps» -->
 <!-- insert «handler-leaf-retire» -->
 <!-- insert «handler-leaf-prune-marks» -->
@@ -594,8 +594,8 @@ The composite that reassembles the two variants is stated here.
 
 The two verbs that end work have now been read, and each is one call and two
 streams: the marked paths on stdout, and on stderr — last, and only when a mark
-was made — the commit and the completion signal that remain. The commit is
-jj's. The signal is this binary's, and it is the one verb that has to be sure
+was made — the commit and dispatch exit that remain. The commit is
+jj's. The exit is dispatch's; Grove separately records teardown when finishing. This separation is what
 it is talking to the loop that launched it before it writes anything; the next
 chapter reads it, and the other verb that opens no tree.
 

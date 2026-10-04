@@ -201,7 +201,6 @@ fn the_shipped_methodology_instructs_no_verb_the_cli_lacks() {
 /// embedded; it is more so now that the two ship separately.
 const INSTRUCTED_VERBS: [&str; 10] = [
     "brief-chain",
-    "complete",
     "finish-commit",
     "leaf-add",
     "leaf-decompose",
@@ -209,6 +208,7 @@ const INSTRUCTED_VERBS: [&str; 10] = [
     "leaf-prune",
     "leaf-retire",
     "pick",
+    "record-teardown",
     "resolve",
 ];
 

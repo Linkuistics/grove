@@ -17,7 +17,7 @@ fn confined_child_and_descendants_cannot_read_or_write_outside_the_invocation() 
     std::os::unix::fs::symlink(&secret, work.join("link")).unwrap();
     let script = work.join("probe.sh");
     fs::write(&script, format!(
-        "set -eu\nif cat '{}' ; then exit 41; fi\nif cat link; then exit 42; fi\nif sh -c 'echo changed > \"$1\"' probe '{}'; then exit 43; fi\nprintf allowed > result\nprintf done > \"$TEST_CHANNEL\"\n",
+        "set -eu\nif cat '{}' ; then exit 41; fi\nif cat link; then exit 42; fi\nif sh -c 'echo changed > \"$1\"' probe '{}'; then exit 43; fi\nprintf allowed > result\n: > \"$TEST_CHANNEL\"\n",
         secret.display(), secret.display()
     )).unwrap();
     let argv = Argv::new(OsString::from("/bin/sh"), vec![script.into_os_string()]);
@@ -43,7 +43,7 @@ fn confined_child_and_descendants_cannot_read_or_write_outside_the_invocation() 
     )
     .unwrap();
     assert!(ended.status.success(), "sandbox failed: {:?}", ended.status);
-    assert_eq!(ended.token.unwrap().as_str(), "done");
+    assert!(ended.signalled);
     assert_eq!(fs::read_to_string(secret).unwrap(), "parent contents");
     assert_eq!(fs::read_to_string(work.join("result")).unwrap(), "allowed");
 }
@@ -64,7 +64,7 @@ fn explicit_runtime_file_grant_allows_reads_but_denies_writes() {
          if sh -c 'printf changed > \"$1\"' probe \"$1\"; then exit 41; fi\n\
          if sh -c 'rm \"$1\"' probe \"$1\"; then exit 42; fi\n\
          printf read-only > result\n\
-         printf done > \"$TEST_CHANNEL\"\n",
+         : > \"$TEST_CHANNEL\"\n",
     )
     .unwrap();
     let argv = Argv::new(
@@ -96,7 +96,7 @@ fn explicit_runtime_file_grant_allows_reads_but_denies_writes() {
     )
     .unwrap();
     assert!(ended.status.success(), "sandbox failed: {:?}", ended.status);
-    assert_eq!(ended.token.unwrap().as_str(), "done");
+    assert!(ended.signalled);
     assert_eq!(
         fs::read_to_string(runtime_file).unwrap(),
         "runtime contents"

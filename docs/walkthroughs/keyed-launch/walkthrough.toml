@@ -6,11 +6,8 @@ title   = "keyed-launch"
 subject = "crates/keyed-launch"
 
 # The bare rule, with no exceptions at all: the crate's own manifest and every
-# Rust file under `src/`. `src/channel.rs` lines 320-505 are an inline
-# `#[cfg(test)] mod tests`, and they are **not** excluded — a root is
-# `src/**/*.rs`, the exception class `inline-test-module` is checked against a
-# file named `tests.rs`, and those 186 lines are owned, reconstructed and
-# explained by chapter 5 like any other. `crates/keyed-launch/tests/`
+# Rust file under `src/`. The inline test module in `src/channel.rs`
+# is included and reconstructed by chapter 5. `crates/keyed-launch/tests/`
 # is evidence rather than corpus, so this book carries no
 # `[[corpus.add]]` and no `[[corpus.exclude]]`, and the normative inventory in
 # `docs/specs/walkthrough-books.md` records that emptiness by giving the book no
@@ -114,12 +111,12 @@ lines = 64
 [[root]]
 id    = "source-channel"
 path  = "crates/keyed-launch/src/channel.rs"
-lines = 505
+lines = 429
 
 [[root]]
 id    = "source-run"
 path  = "crates/keyed-launch/src/run.rs"
-lines = 1345
+lines = 1340
 
 [[root]]
 id    = "source-confinement"
@@ -154,37 +151,37 @@ lines = "1-64"
 id    = "channel-production"
 root  = "source-channel"
 owner = "appearance-is-the-event"
-lines = "1-319"
+lines = "1-268"
 
 [[block]]
 id    = "channel-inline-tests"
 root  = "source-channel"
 owner = "checked-without-meaning"
-lines = "320-505"
+lines = "269-429"
 
 [[block]]
 id    = "launch-shape"
 root  = "source-run"
 owner = "nothing-else-added"
-lines = "1-198"
+lines = "1-196"
 
 [[block]]
 id    = "watch-and-launcher-signals"
 root  = "source-run"
 owner = "the-launchers-job"
-lines = "199-387"
+lines = "197-385"
 
 [[block]]
 id    = "terminal-and-spawn"
 root  = "source-run"
 owner = "nothing-else-added"
-lines = "388-1000"
+lines = "386-998"
 
 [[block]]
 id    = "supervise-and-escalate"
 root  = "source-run"
 owner = "the-launchers-job"
-lines = "1001-1345"
+lines = "999-1340"
 
 [[block]]
 id    = "confinement-policy"
@@ -193,10 +190,10 @@ owner = "confined-jobs"
 lines = "1-326"
 
 [[early-use]]
-symbols   = "`Channel`, `Token`, `signal`"
+symbols   = "`Channel`, `signal`"
 first-use = "01-orientation.md#the-cast"
 owner     = "appearance-is-the-event"
-statement = "A fresh path per launch that allocation picks and writes nothing to; `signal` is what the child calls to make it appear, and `Token` is what the caller reads back."
+statement = "A fresh path per launch that allocation picks and writes nothing to; `signal` is what the child calls to make it appear, and the runner reports appearance through `Ended.signalled`."
 
 [[early-use]]
 symbols   = "`run`, `run_observed`, `LaunchEvent`, `Launch`, `EntrySignals`, `Ended`, `End`, `Group`, `Escalation`"

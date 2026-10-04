@@ -7,16 +7,15 @@
 
 Chapter 1 ended with an `Argv` and nowhere to send it: a program and its
 arguments the caller built, none of which the crate has an opinion about. This
-chapter begins the launch, and it owns one file. `src/channel.rs` is 505 lines; lines
-1 to 319 are all of it except the inline `#[cfg(test)] mod tests` at the end,
+chapter begins the launch, and it owns one file. `src/channel.rs` is 429 lines; lines
+1 to 268 are all of it except the inline `#[cfg(test)] mod tests` at the end,
 which is corpus like everything else and is chapter 5's.
 
 What this stage must not add and must not interpret is **the ending**. The crate
 does not decide that a child is finished. It allocates a path, hands that path to
-the child, and waits for the path to exist; whether the work was done, whether it
-succeeded, and what should happen next are all encoded in a string this crate
-reads only to return to its caller and never interprets. A launcher can infer
-an ending from what came back, and this is where the crate declines to.
+the child, and waits for the path to exist; the runner reports that appearance through `Ended.signalled`. The caller
+judges whether the work succeeded and what should happen next from its own
+artifacts and policy. Channel content supplies no result to this crate.
 
 The reason a launch needs a channel at all is that the obvious signal is wrong
 for the child this crate exists to launch. A batch program ends by exiting, and
@@ -37,8 +36,7 @@ the session. Everything else that entry says — the session epoch, the driver, 
 reading of `Relaunch` against `Done`, the scrubbing of the variable from every
 other spawn — is on grove's side of the line, and this crate has never heard of
 any of it. What follows is the same mechanism at this crate's filesystem
-boundary: a directory, a name, a file that may or may not appear, and a string
-nobody here interprets.
+boundary: a directory, a name, and a file that may or may not appear.
 
 One property makes the whole arrangement work, and it is the first thing the file
 says about itself: **allocation picks a name and writes nothing**. The channel
@@ -55,74 +53,30 @@ decision on this page rests on it.
 <a id="a-path-and-nothing-else"></a>
 ## A path, and nothing else
 
-This section takes step 2 of the four-step trace chapter 1 wrote and runs it to
-full resolution, then runs the far end of it — the token coming back — which
-chapter 1 wrote as step 4. Nothing between the two is this chapter's; the spawn
-is chapter 3's and the watch is chapter 4's.
-
-grove's control directory for the worked example is the one chapter 1 fixed, and
-it already exists — the driver made it long before any launch.
-
-```text
-/work/atlas/.jj/grove/
-  driver.lease
-```
-
-The call is `Channel::allocate` on that directory, and its observable end is a
-path that does not exist:
+This section follows the channel from allocation to appearance. The caller
+provides an existing control directory; allocation returns a fresh path and
+holds the directory open without creating a channel file.
 
 ```text
 Channel::allocate(Path::new("/work/atlas/.jj/grove"))
   -> Ok(Channel { path: "/work/atlas/.jj/grove/signal-3f9c1d4a7b2e5086c1a4f70d93b6e281" })
 
-/work/atlas/.jj/grove/
-  driver.lease                                        (unchanged)
+channel.appeared() -> false
+signal(channel.path()) -> Ok(())
+channel.appeared() -> true
 ```
 
-The directory is byte-for-byte what it was. `allocate` read its metadata, drew
-sixteen bytes from `/dev/urandom`, rendered them as thirty-two lowercase hex
-characters, joined that to the prefix `signal-`, asked the filesystem whether
-anything already stood at the result, and — told nothing did — returned the name.
-The one observable effect of a successful allocation is that a `Channel` value
-exists in the launcher's memory holding a `PathBuf`. `channel.path()` is that
-`PathBuf`, and chapter 3 is where it becomes the value of `GROVE_SIGNAL_FILE` in
-the child's environment.
-
-The child now runs, and grove's harness ends its turn by writing one word and
-returning to its prompt. That write is the other end of this file:
-
-```text
-signal(Path::new("/work/atlas/.jj/grove/signal-3f9c1d4a7b2e5086c1a4f70d93b6e281"), "relaunch")
-
-/work/atlas/.jj/grove/
-  driver.lease
-  signal-3f9c1d4a7b2e5086c1a4f70d93b6e281            "relaunch\n"
-```
-
-And the launcher, holding the same `Channel`, reads it back:
-
-```text
-channel.read()
-  -> Some(Token("relaunch"))
-```
-
-Three things in that round trip are worth naming before the source is read,
-because the rest of the chapter is each of them read closely. The **file appeared
-between the two figures above**, and that appearance is the whole event: a
-launcher polling the directory learns everything it is going to learn from
-`exists()`. The **newline is gone** from the value and still present in the file;
-`signal` added it and `read` took it off, and neither call looked at what sat in
-front of it. And the word is **`relaunch`**, which is grove's word and means
-something specific to grove's driver — a fact established nowhere in these 319
-lines. `crates/grove-loop/src/complete.rs` is where it acquires meaning, in a
-function called `interpret` whose whole body is a comparison against grove's own
-constant. The crate that carried the word from one process to another never
-compared it with anything.
+The child receives only the path, published under the caller's variable name.
+It creates an empty file there with `signal`, or an equivalent shell redirect.
+The held directory makes `appeared` a lookup of that launch's basename in the
+original directory. `run` uses that appearance to start its grace, and reports
+`signalled: true` after the child has been reaped. Neither the lookup nor the
+report opens the channel file.
 
 <a id="what-the-block-answers"></a>
 ## What the block answers
 
-The 319 lines are a module thesis, three constants, one type with six methods, a
+The 268 production lines are a module thesis, three constants, one type with five methods, a
 second type with two accessors, one free function and four private helpers. The
 table collects what each answers and how each refuses, so the sections that
 follow can be read one at a time; every refusal text is exact. The tests named
@@ -134,22 +88,20 @@ reproduces and explains them, against the fragments below — and the rest are i
 |---|---|---|---|
 | `Channel::allocate` | which fresh path names this launch alone | `` cannot allocate a completion channel in `dir`: … `` ; `` …: it is not a directory `` ; `` cannot establish whether the drawn completion-channel path `p` is free: … `` ; `` could not allocate a fresh completion channel after 8 occupied random draws `` | `an_allocated_channel_names_a_path_that_does_not_yet_exist`, `successive_allocations_in_one_directory_never_collide`, `allocation_names_a_missing_directory_and_says_what_to_do` |
 | `Channel::path` | the path to publish to the child | cannot fail | `the_channel_path_is_published_under_the_callers_chosen_variable_name` |
-| `Channel::read` | the token this launch left, if any | `None` is an answer, not a refusal | `a_signalled_channel_reads_back_the_token_without_its_framing`, `an_empty_channel_file_is_not_an_empty_token`, `an_unsignalled_channel_reads_back_nothing` |
 | `Channel::discard` | is this launch's path empty now | `` cannot remove the completion channel `p`: …; remove it by hand `` | `discarding_removes_the_file_and_succeeds_when_there_was_none` |
 | `Channel::discard_abandoned` | are a previous launcher's channels gone | `` cannot list abandoned completion channels in `dir`: … `` ; `` could not remove N abandoned completion channel(s) …; remove them by hand `` | `abandoned_cleanup_removes_channels_and_leaves_every_other_entry_alone`, `abandoned_cleanup_names_the_directory_when_it_cannot_be_listed` |
-| `Token` | what the launch said, as the caller's to read | — | `a_child_signals_through_the_published_path_and_the_token_comes_back` |
-| `signal` | write this token to this path | `` cannot write the completion token to `p`: …; check that the channel was not removed early `` | `a_child_signals_through_the_published_path_and_the_token_comes_back` |
+| `signal` | create an empty completion file at this path | `` cannot create the completion signal at `p`: …; check that the channel was not removed early `` | `a_child_signals_through_the_published_path` |
 | `is_channel_name` | is this name exactly one of ours | — | `abandoned_cleanup_removes_channels_and_leaves_every_other_entry_alone` |
 | `remove_if_present` | is this path empty now | it owns both removal wordings above | `discarding_removes_the_file_and_succeeds_when_there_was_none` |
 | `draw_nonce` | sixteen bytes of OS randomness | `` cannot open the OS randomness source: … `` ; `` cannot read 16 bytes of OS randomness … `` | — |
 | `hex` | those bytes as thirty-two lowercase characters | cannot fail | `an_allocated_channel_names_a_path_that_does_not_yet_exist` |
 
 The composite below is the block as a whole. It is the file up to the
-`#[cfg(test)]` attribute on line 289, and that boundary is the only one in this
+`#[cfg(test)]` attribute, and that boundary is the only one in this
 book cut at a compilation condition rather than at a concept — the reason belongs
 on chapter 5's page, where the module it separates is explained.
 
-<!-- fragment «channel-production» owner="appearance-is-the-event" source="crates/keyed-launch/src/channel.rs" lines="1-319" parent="source-channel" -->
+<!-- fragment «channel-production» owner="appearance-is-the-event" source="crates/keyed-launch/src/channel.rs" lines="1-268" parent="source-channel" -->
 <!-- insert «channel-thesis» -->
 <!-- insert «channel-prefix» -->
 <!-- insert «channel-nonce-bytes» -->
@@ -158,10 +110,8 @@ on chapter 5's page, where the module it separates is explained.
 <!-- insert «channel-allocate» -->
 <!-- insert «channel-published-path» -->
 <!-- insert «channel-appeared» -->
-<!-- insert «channel-read» -->
 <!-- insert «channel-discard» -->
 <!-- insert «channel-discard-abandoned» -->
-<!-- insert «channel-token» -->
 <!-- insert «channel-signal» -->
 <!-- insert «channel-name-grammar» -->
 <!-- insert «channel-remove-if-present» -->
@@ -197,7 +147,7 @@ this crate waits for travels beside it rather than through it.
 are the three numbers that make it one. *A fresh path per launch, naming that
 launch alone* is what `successive_launches_get_independent_channels` pins from
 the outside: two launches in one control directory, two different paths, and each
-launch's channel holding only its own token.
+launch's channel recording only its own appearance.
 
 The imports are worth one sentence because of what is missing from them. `fs`,
 `File`, `Read`, `Path`, `PathBuf`, a `Write` trait for formatting, and this
@@ -247,7 +197,7 @@ the consumer's *spelling*, not its meaning.
 
 Note which way the naming runs. The constant is named for [`signal`], the free
 function at the bottom of this file that writes one — not for the launcher that
-allocates it, and not for what the token will say. The file is named after the
+allocates it, and not for what the work means. The file is named after the
 act that brings it into existence, which is the same choice as making appearance
 the event.
 
@@ -298,7 +248,7 @@ than searching, and that is the outcome the comment argues for.
 ## The type that writes nothing
 
 `Channel` owns a private path and an open descriptor for its parent directory.
-Allocation creates no channel file; the descriptor keeps later token reads tied
+Allocation creates no channel file; the descriptor keeps later appearance checks tied
 to the directory originally allocated, even if its pathname is replaced.
 
 <!-- fragment «channel-type» owner="appearance-is-the-event" source="crates/keyed-launch/src/channel.rs" lines="33-44" parent="channel-production" -->
@@ -433,10 +383,10 @@ whatever the link points at, and that difference reaches this loop in two ways.
 A **dangling** symlink — one whose target does not exist — is `Ok` to
 `symlink_metadata` and `NotFound` to `metadata`. Written the second way, the loop
 would call such a name free and return it; the launcher would publish it to the
-child, and whatever the child uses to write the token — `signal`'s `fs::write`,
+child, and whatever the child uses to create the signal — `signal`'s `fs::write`,
 or a shell redirection, which is what this crate's own launch tests use — would
 follow the link and create the file at the target instead. A *relative* link can
-target another entry in the same directory, so the token can land on a neighbour
+target another entry in the same directory, so the signal can land on a neighbour
 the caller does keep there. Because the link is
 dangling, the effect is creation rather than overwrite, and it fails outright if
 the target's own parent is missing.
@@ -451,12 +401,12 @@ right for what it is meant to catch, a directory whose entries cannot be
 inspected at all; it is the wrong answer for one unusable name among 2^128.
 
 Allocation's no-follow occupancy check concerns name selection. It does not
-reserve the name or protect the child's later write. The supervisor looks for
-the appearance with `appeared`, below, which follows nothing, and token reading
-has a separate bound: `read` opens relative to the held original directory,
-refuses a final symlink or non-regular file, and limits content size. A
-substituted path is an appearance without delivering an accepted token. Inline tests now exercise
-symlink, FIFO, oversize and replaced-parent cases at that read boundary.
+reserve the name or protect the child's later write. The supervisor checks
+appearance without following the entry or opening its content. A symlink,
+large file or FIFO at the allocated basename therefore counts as a signal
+without blocking the runner. Holding the original directory prevents a
+replacement of its parent pathname from redirecting that lookup. Chapter 5
+exercises those hostile entries and the replaced-parent case.
 
 `Ok(_) => continue` is the collision arm, and note what it does not do: it does
 not read, stat, remove, or report whatever occupies the name. *Retrying an
@@ -473,15 +423,15 @@ publishes to the child under the caller's chosen variable name*. Two facts are
 deferred by that sentence rather than
 asserted. The publishing is chapter 3's — `run` sets the variable immediately
 before the spawn — and **the variable's name is the caller's**, so this crate
-does not know that grove calls it `GROVE_SIGNAL_FILE`. The book's worked example
+does not know that harness-dispatch calls it `HARNESS_DISPATCH_EXIT_FILE`. The book's worked example
 uses that name because grove chose it; `crates/keyed-launch/tests/launch.rs`
-publishes the same path under `TEST_CHANNEL` throughout, and nothing in these 319
+publishes the same path under `TEST_CHANNEL` throughout, and nothing in these production
 lines can tell the difference.
 
 <!-- fragment «channel-published-path» owner="appearance-is-the-event" source="crates/keyed-launch/src/channel.rs" lines="100-106" parent="channel-production" -->
 ````rust
 
-    /// The path a child writes its token to. This is the value a launch
+    /// The path a child creates its completion signal at. This is the value a launch
     /// publishes to the child under the caller's chosen variable name.
     #[must_use]
     pub fn path(&self) -> &Path {
@@ -491,13 +441,10 @@ lines can tell the difference.
 <!-- /fragment -->
 
 `the_channel_path_is_published_under_the_callers_chosen_variable_name` checks
-both ends of the file at once: the child script
-writes the value of its own channel variable *into* the channel, and the launcher
-asserts that the token it reads back equals `channel.path()`. The two agree only
-if the path this accessor returned is the path the child was handed. It is also
-the plainest demonstration on this page that the token is not interpreted — the
-token in that test is a filesystem path, and the crate treats it exactly as it
-treats `relaunch`.
+both ends: the child records the channel variable in a separate fixture report
+and creates an empty channel file. The test compares the report with
+`channel.path()` and asserts `Ended.signalled`. A report belongs to the fixture;
+the runner returns only the appearance of the channel.
 
 The borrow is a `&Path` rather than a clone because the caller wants to read it,
 not own it, and `#[must_use]` is here for the same reason it is on `Argv`'s
@@ -510,15 +457,14 @@ The escalation in chapter 4 starts when the channel appears, and `Ended`
 reports, once the child is reaped, whether it had. Both ask the same question,
 and `appeared` is the one place it is answered.
 
-<!-- fragment «channel-appeared» owner="appearance-is-the-event" source="crates/keyed-launch/src/channel.rs" lines="107-137" parent="channel-production" -->
+<!-- fragment «channel-appeared» owner="appearance-is-the-event" source="crates/keyed-launch/src/channel.rs" lines="107-136" parent="channel-production" -->
 ````rust
 
     /// Whether anything now exists at the channel's name, in the directory it
     /// was allocated in.
     ///
-    /// **Appearance is the whole signal**, for a caller whose channel carries
-    /// nothing: an empty file, a link or a FIFO has appeared as surely as a
-    /// token has. So nothing is opened or followed: the name is only looked
+    /// **Appearance is the whole signal**: an empty file, a link or a FIFO
+    /// counts equally. Nothing is opened or followed: the name is only looked
     /// up, beside the directory held since allocation.
     #[must_use]
     pub fn appeared(&self) -> bool {
@@ -550,94 +496,18 @@ The question is about a **name**, not a file. `fstatat` with
 `AT_SYMLINK_NOFOLLOW` looks the name up beside the directory this channel has
 held since allocation, so a link answers for itself rather than for what it
 points at, and a FIFO is never opened. Anything there has appeared: an empty
-file, a dangling link, a token. That is the whole signal for a caller whose
-channel carries nothing, as `harness-dispatch exit` creates an empty file, and
-it is no weaker for a caller that still reads a token, because a token cannot
-be written without the name appearing first.
+file, a dangling link, or a FIFO. The lookup follows no link and reads no
+content. A neighbouring entry answers false, and an entry at this launch's
+basename answers true.
 
-A name that cannot be turned into a C string cannot have been allocated here,
-and answers `false`; a failed lookup does too, which is the same answer as a
-name nothing has created yet. The inline test
-`anything_at_the_channel_name_has_appeared_and_nothing_else_has`, which chapter
-5 reads, is the case: a neighbouring file is not the channel, and an empty file
-and a dangling link are, while `read` still finds no token in either.
+<a id="appearance-without-reading"></a>
+## A signal without reading content
 
-<a id="three-ways-to-have-no-token"></a>
-## Three ways to have no token, and one answer for all of them
-
-`read` opens the channel basename relative to the held directory. It accepts
-only regular files, refuses symlinks, and reads at most 4,097 bytes so it can
-reject tokens larger than 4,096 bytes. Invalid UTF-8, empty content and failed
-reads all return no token. The bound and nonblocking open prevent a
-child-controlled channel from exhausting or hanging its supervisor.
-
-<!-- fragment «channel-read» owner="appearance-is-the-event" source="crates/keyed-launch/src/channel.rs" lines="138-166" parent="channel-production" -->
-````rust
-
-    /// The token a launch left here, if any.
-    ///
-    /// `None` covers *nothing was written*, *the file is unreadable*, and *the
-    /// file is there but empty*: none of the three is a token, and the
-    /// difference is not one a caller could act on differently — a launch that
-    /// could not deliver its token did not deliver one.
-    ///
-    /// **An empty file is deliberately not an empty token.** The escalation
-    /// fires on the channel's *appearance*, so a child killed between creating
-    /// the file and writing to it leaves one behind; handing that back as
-    /// `Some("")` would make a caller's own "anything unrecognised means keep
-    /// going" rule fire on a launch that never said anything at all.
-    /// Symlinks, non-regular files and tokens larger than 4096 bytes are refused:
-    /// a child-controlled channel must not block or exhaust its supervisor.
-    #[must_use]
-    pub fn read(&self) -> Option<Token> {
-        let file = crate::regular_file_at(&self.directory, self.path.file_name()?).ok()?;
-        if !file.metadata().ok()?.is_file() {
-            return None;
-        }
-        let mut content = String::new();
-        file.take(4097).read_to_string(&mut content).ok()?;
-        if content.len() > 4096 {
-            return None;
-        }
-        let token = content.trim_end();
-        (!token.is_empty()).then(|| Token(token.to_string()))
-    }
-````
-<!-- /fragment -->
-
-The signature is `Option<Token>`, and the first comment paragraph is an argument
-for why that is not a lossy return type. Nothing was written, the file could not
-be read, and the file is there but empty are three different situations in the
-filesystem and one situation for a caller: **no token came back**. Collapsing
-them is defensible only because no caller could act on the difference — a launch
-that could not deliver its token did not deliver one — and the `.ok()?` on the
-read is where the second of the three is collapsed into the first.
-
-The second paragraph states the rule that the inline module tests most directly.
-An empty file is **not** an empty token. The reason is a
-consequence of this chapter's own thesis reaching into chapter 4: because the
-escalation fires on *appearance*, a child killed in the window between creating
-the file and writing to it leaves a real, empty file behind. Handing that back as
-`Some("")` would be a token according to the type, and a caller whose rule
-is *anything I do not recognise means keep going* would then act on a launch that
-said nothing at all. grove is exactly such a caller:
-`crates/grove-loop/src/complete.rs`'s `interpret` compares the token against one
-constant and treats every other present value as `Relaunch`. So `Some("")` would
-relaunch a session that had been killed mid-write, which is the one outcome a
-completion channel exists to prevent. `an_empty_channel_file_is_not_an_empty_token`
-runs `""`, `"\n"` and `"  \n"` through it and expects `None` for all three.
-
-The trimming is `trim_end`, and the exact choice matters twice. It removes
-trailing whitespace generally rather than exactly the one newline `signal` added,
-so a child that writes with a trailing blank line still reads back the same
-token — the framing is undone even when the child added a little more of it than
-it needed. And it leaves the **front** of the content alone: a token with leading
-spaces comes back with them. That choice makes *framing, not interpretation*
-concrete: trimming both ends would have been one character shorter to write and
-would have meant this crate normalising a value it does not understand.
-`a_signalled_channel_reads_back_the_token_without_its_framing` asserts both sides
-of it at once: the token reads back as `done`, and the file on disk still holds
-`done\n`.
+The supervisor never opens a channel entry. That boundary removes any need to
+accept a particular encoding, trim whitespace, or bound a payload. A FIFO cannot
+block a lookup and a large file cannot make the supervisor allocate its size.
+The child creates an empty file for ordinary completion; hostile entries still
+count as appearance and carry no outcome into `Ended`.
 
 <a id="discarding"></a>
 ## Removing this launch's file
@@ -646,11 +516,11 @@ The launcher's own cleanup is three lines of body under six of comment, and the
 comment carries two decisions: what the method does to the value it is called
 on, and what it promises about the path.
 
-<!-- fragment «channel-discard» owner="appearance-is-the-event" source="crates/keyed-launch/src/channel.rs" lines="167-176" parent="channel-production" -->
+<!-- fragment «channel-discard» owner="appearance-is-the-event" source="crates/keyed-launch/src/channel.rs" lines="137-146" parent="channel-production" -->
 ````rust
 
     /// Remove this launch's channel file, consuming the channel so nothing can
-    /// read a path whose file is gone.
+    /// observe a path whose file is gone.
     ///
     /// A channel that was never signalled has no file, and discarding it is
     /// still success: the post-condition is *this path holds nothing*, not
@@ -683,7 +553,7 @@ discarded, and a control directory with zero entries afterwards.
 channels it removes belong to launchers that are gone; there is no `Channel`
 value left to call it on.
 
-<!-- fragment «channel-discard-abandoned» owner="appearance-is-the-event" source="crates/keyed-launch/src/channel.rs" lines="177-232" parent="channel-production" -->
+<!-- fragment «channel-discard-abandoned» owner="appearance-is-the-event" source="crates/keyed-launch/src/channel.rs" lines="147-202" parent="channel-production" -->
 ````rust
 
     /// Remove every channel file in `dir` — the ones a previous launcher
@@ -783,67 +653,13 @@ only the exact name is removed.
 `abandoned_cleanup_names_the_directory_when_it_cannot_be_listed` pins the other
 refusal.
 
-<a id="opaque-here-readable-there"></a>
-## Opaque here, readable there
+<a id="appearance-and-outcome"></a>
+## Appearance and outcome have different owners
 
-`Token` is a newtype over `String` with two accessors, and its comment states the
-one property that makes this crate's launch possible.
-
-<!-- fragment «channel-token» owner="appearance-is-the-event" source="crates/keyed-launch/src/channel.rs" lines="233-250" parent="channel-production" -->
-````rust
-
-/// What a launch left in its channel. **Opaque to this crate**: its appearance
-/// ends the launch, and its content is the caller's to interpret, which is why
-/// the content is readable.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Token(String);
-
-impl Token {
-    #[must_use]
-    pub fn as_str(&self) -> &str {
-        &self.0
-    }
-
-    #[must_use]
-    pub fn into_string(self) -> String {
-        self.0
-    }
-}
-````
-<!-- /fragment -->
-
-**Opaque to this crate; readable to its caller** is a single sentence holding two
-decisions that pull in opposite directions, and the comment states the second as
-a consequence of the first: the content is readable *because* the appearance,
-not the content, is what ends the launch. Had the crate needed to know what the
-token said, the type would have been an enum and the crate would have owned a
-vocabulary of endings — which is the crate learning what a value means on the way
-out. Had the crate instead refused to
-expose the content at all, the launch would have ended with no information
-crossing back, and every consumer would have needed a second channel of its own.
-The newtype preserves both requirements: the crate carries the string and does
-not interpret it.
-
-grove is the caller that reads it, and the division is legible in one file.
-`crates/grove-loop/src/complete.rs` imports `keyed_launch::Token`, and
-`interpret(token: Option<&Token>)` is eight lines: `None` stays `None`, a token
-equal to grove's `DONE_TOKEN` becomes `Done`, and anything else becomes
-`Relaunch`. Every word of that policy — including the deliberate reading of an
-unrecognised value as `Relaunch`, which is what keeps an older binary's legacy
-token working — is grove's, written in grove's crate, over a string this crate
-handed across without comparison. The same file's `signal` wrapper is the other
-end: it calls `keyed_launch::signal` with grove's own word.
-
-The two accessors are the borrow and the move, and both are `#[must_use]` for the
-same reason as `path`. `as_str` is what a comparison wants; `into_string` is what
-a caller wants when the launch is over and the token is the only thing worth
-keeping — `the_channel_path_is_published_under_the_callers_chosen_variable_name`
-uses it, and so does any consumer storing the token past the `Ended` that carried
-it. The derives are `Clone, Debug, PartialEq, Eq`: equality is here because
-`Ended` holds an `Option<Token>` and callers and tests compare them —
-`successive_launches_get_independent_channels` asserts two launches' tokens
-differ — and there is no `Display`, because printing a token as though it were a
-message would be the first step toward reading it.
+`Channel` names one launch and `Ended.signalled` reports whether its entry
+appeared. The caller owns the work's meaning and any result artifacts. Keeping
+that meaning outside the runner lets the same supervisor launch an interactive
+harness or a standalone command without adopting either one's outcome policy.
 
 <a id="the-other-end"></a>
 ## The other end of the channel
@@ -851,22 +667,19 @@ message would be the first step toward reading it.
 `signal` is the only item in the file that runs in the child rather than the
 launcher, and its shape is decided by that fact.
 
-<!-- fragment «channel-signal» owner="appearance-is-the-event" source="crates/keyed-launch/src/channel.rs" lines="251-269" parent="channel-production" -->
+<!-- fragment «channel-signal» owner="appearance-is-the-event" source="crates/keyed-launch/src/channel.rs" lines="203-218" parent="channel-production" -->
 ````rust
 
-/// Write `token` to `path` — the one thing a launched child does to end itself.
+/// Create an empty file at `path` to signal that the launched child is done.
 ///
 /// A free function rather than a [`Channel`] method because the two ends are
 /// different processes: the launcher holds the `Channel`, and the child holds
 /// only the path it was handed under the launch's chosen variable name.
-///
-/// The file is line-framed — the token followed by a newline — so `cat` on it
-/// reads as a line and [`Channel::read`] trims the framing back off. That is
-/// framing, not interpretation: nothing here looks at what the token says.
-pub fn signal(path: &Path, token: &str) -> Result<(), LaunchError> {
-    fs::write(path, format!("{token}\n")).map_err(|error| {
+/// Appearance carries the signal; the runner never reads channel content.
+pub fn signal(path: &Path) -> Result<(), LaunchError> {
+    fs::write(path, []).map_err(|error| {
         LaunchError::new(format!(
-            "cannot write the completion token to {}: {error}; the launcher allocated this path \
+            "cannot create the completion signal at {}: {error}; the launcher allocated this path \
              and its directory should exist — check that the channel was not removed early",
             path.display()
         ))
@@ -883,16 +696,11 @@ would have required the child to construct a `Channel` from a path — a
 constructor whose only purpose is to let a process pretend it allocated something
 it did not, and one that would have made `Channel` a type two unrelated processes
 both claim to own. As a free function the child's half of the protocol is exactly
-what it should be: a path in, a string in, a file out.
+what it should be: a path in, an empty file out.
 
-The framing paragraph is the one to read against `read`, four sections above.
-`signal` writes `{token}\n` and `read` trims the trailing whitespace back off, so
-the file is a line and the value is not. *That is framing, not interpretation:
-nothing here looks at what the token says* — and the `format!` is the proof, since
-the only thing done to the token is concatenation. A launch whose token contains
-a newline would produce a two-line file and read back only through `trim_end`;
-nothing in the crate refuses it, because refusing it would be a rule about
-content.
+`fs::write(path, [])` creates or truncates the channel file to zero bytes.
+There is no framing to undo and no value to return. The empty file itself is
+the event the supervisor observes.
 
 The refusal is the file write failing, and its second half is unusually specific
 about whose fault it is: *the launcher allocated this path and its directory
@@ -908,7 +716,7 @@ directory is discovered.
 
 `is_channel_name` is the grammar `discard_abandoned` recognises, in nine lines.
 
-<!-- fragment «channel-name-grammar» owner="appearance-is-the-event" source="crates/keyed-launch/src/channel.rs" lines="270-284" parent="channel-production" -->
+<!-- fragment «channel-name-grammar» owner="appearance-is-the-event" source="crates/keyed-launch/src/channel.rs" lines="219-233" parent="channel-production" -->
 ````rust
 
 /// Exactly [`CHANNEL_PREFIX`] followed by 32 lowercase hex characters.
@@ -959,7 +767,7 @@ The last three functions are private, small, and each closes a question raised
 earlier on the page. The first is the post-condition `discard` and
 `discard_abandoned` both promise.
 
-<!-- fragment «channel-remove-if-present» owner="appearance-is-the-event" source="crates/keyed-launch/src/channel.rs" lines="285-295" parent="channel-production" -->
+<!-- fragment «channel-remove-if-present» owner="appearance-is-the-event" source="crates/keyed-launch/src/channel.rs" lines="234-244" parent="channel-production" -->
 ````rust
 
 fn remove_if_present(path: &Path) -> Result<(), LaunchError> {
@@ -986,7 +794,7 @@ actionable sentences.
 The second is where the crate's dependency rule meets its one requirement for
 randomness.
 
-<!-- fragment «channel-draw-nonce» owner="appearance-is-the-event" source="crates/keyed-launch/src/channel.rs" lines="296-309" parent="channel-production" -->
+<!-- fragment «channel-draw-nonce» owner="appearance-is-the-event" source="crates/keyed-launch/src/channel.rs" lines="245-258" parent="channel-production" -->
 ````rust
 
 fn draw_nonce() -> Result<[u8; NONCE_BYTES], LaunchError> {
@@ -1021,7 +829,7 @@ diagnostic on this page these two are pinned by nothing, and are here because
 
 The third is the rendering half of the grammar.
 
-<!-- fragment «channel-hex» owner="appearance-is-the-event" source="crates/keyed-launch/src/channel.rs" lines="310-319" parent="channel-production" -->
+<!-- fragment «channel-hex» owner="appearance-is-the-event" source="crates/keyed-launch/src/channel.rs" lines="259-268" parent="channel-production" -->
 ````rust
 
 fn hex(nonce: [u8; NONCE_BYTES]) -> String {
@@ -1052,8 +860,8 @@ decision rather than a suppressed warning, and it is why this file needs the
 `use std::fmt::Write as _` import that the thesis fragment opened with.
 
 That is the whole channel. A directory the caller owns, a name drawn once and
-written by nobody, a file that appears only if a child put it there, and a string
-that crosses two processes without either end of this crate reading it. The
+written by nobody, a file that appears only if a child put it there, and a runner
+that reports appearance without reading content. The
 launch has a path to end on and an `Argv` to run, and neither has yet met the
 other. Chapter 3 is where they do: `run` takes both, publishes the path under
 the caller's chosen variable, and spawns the child with nothing added that the

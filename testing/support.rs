@@ -293,8 +293,9 @@ pub fn kind_labels() -> Vec<String> {
 /// duration of tests so a nested launch cannot signal the developer's live
 /// session.
 ///
-/// `GROVE_SIGNAL_FILE` is the path the driver watches while its foreground child
-/// runs; its mere *appearance* triggers grace → SIGTERM → kill-grace → SIGKILL.
+/// `GROVE_SIGNAL_FILE` is retired authority kept only to protect this meta-grove
+/// while installed v22 binaries still drive it. New sessions carry a launch
+/// directory and dispatch exit channel, scrubbed beside that legacy name.
 /// These tests normally run inside a live loop session, so the variable is
 /// present in this process's ambient environment, and the fake commands below
 /// write `"$GROVE_SIGNAL_FILE"` unconditionally — a spawn that does not scope

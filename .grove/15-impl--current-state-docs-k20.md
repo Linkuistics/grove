@@ -29,6 +29,14 @@ did not have to move them (P2):
 
 ## Context
 
+- `signal-contract-k18` updated the quoted-launch test to distinguish policy
+  inputs from `--exit-dir` and `--ending-file`. Until this documentation leaf
+  updates every quoted lifecycle example, it accepts the selection-only form
+  or the full mechanics suffix. Update the root/run help examples, dispatch
+  README and usage guide together, then require the full suffix in
+  `the_grove_invocation_dispatch_s_help_shows_is_the_one_the_driver_makes`; do
+  not keep the migration allowance after all quoted lifecycle examples move.
+
 - `confined-run-k23`'s committed review, F6, points to decision 7 of
   `docs/specs/module-decomposition.md`. Reconcile its runner API listing with
   the shipped code as part of this document sweep; the integration leaf fixes

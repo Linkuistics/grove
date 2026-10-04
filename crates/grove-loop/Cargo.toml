@@ -25,13 +25,10 @@ rust-version.workspace = true
 # largest user, for the lease's own `flock(2)` and for the `fcntl(2)`
 # close-on-exec descriptors it carries across a spawn; and `loop_driver`, for
 # `isatty`, `tcgetpgrp` and `signal`. `keyed-launch` is the runner, and the
-# **verb surface** reaches it exactly once: `complete` writes the relaunch flag
-# into the channel the driver allocated, through the runner's own child-side
-# half of it. The crate reaches it in three more places, all of which arrived
-# with the driver at `loop-crate-driver-k22`: `driver_lease` discards an
-# abandoned channel, `loop_driver` spawns and reaps through it, and `lib.rs`
-# re-exports `reraise` so grove's binary can die of a signal without depending
-# on the runner itself.
+# loop uses it to spawn and reap dispatch, and `lib.rs` re-exports `reraise`
+# so Grove's binary can die of a signal without depending on the runner itself.
+# The verb surface writes no runner channel: `record-teardown` writes only
+# Grove's separate record in the current launch directory.
 [dependencies]
 anyhow = "1.0"
 jj-workspace = { path = "../jj-workspace" }

@@ -419,7 +419,6 @@ dependencies = [
  "clap",
  "grove-loop",
  "jj-workspace",
- "keyed-launch",
  "libc",
  "ordinal-fs-tree",
  "tempfile",

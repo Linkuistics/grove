@@ -208,6 +208,20 @@ printf '\nCite at the decision site, beside the non-obvious call.\n' \
 expect_dirty "${root}" "cite-framework-decisions-to-source" \
   "one kind-owned rule stated by a second kind is caught"
 
+# -- The finish ending: the record precedes the signal -----------------------
+
+root="$(new_skill_set finish-ending)"
+add_kind "${root}" finish
+expect_clean "${root}" "the finish ending reads clean"
+
+root="$(new_skill_set finish-record-missing)"
+add_kind "${root}" finish
+command grep -v 'Record the teardown before sending the exit signal' \
+  "${root}/grove-finish/SKILL.md" >"${root}/finish.tmp"
+mv "${root}/finish.tmp" "${root}/grove-finish/SKILL.md"
+expect_dirty "${root}" "finish-records-teardown-before-exit" \
+  "removing the teardown-before-exit instruction is caught"
+
 # -- The creator step: present, and stated once -------------------------------
 #
 # `finishing-session-names-its-run` and the node-close step that carries it are

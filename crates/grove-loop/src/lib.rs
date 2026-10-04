@@ -48,7 +48,6 @@
 //! — and it stops at this boundary, so a consumer takes on no error library of
 //! ours.
 
-mod complete;
 pub mod driver;
 mod driver_lease;
 mod launch_directory;
@@ -76,7 +75,6 @@ use std::cell::RefCell;
 use std::fmt;
 use std::path::{Path, PathBuf};
 
-pub use complete::{interpret, Disposition};
 pub use driver_lease::{admit_ambient_session, DriverLease, SessionEpochGuard};
 pub use jj_workspace::{Commit, Workspace};
 /// Re-exported so the binary that owns this process's exit status can end on it

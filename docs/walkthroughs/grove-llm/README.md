@@ -9,13 +9,13 @@ which says what each of the twelve verbs does to the tree, what it prints and
 whether it commits. This reader has run most of those verbs; what they have not
 read is the code.
 
-`crates/grove-llm` is four files and 971 lines: a manifest, a sixteen-line
-library root, a three-line entry point, and one module of 898 lines that is
+`crates/grove-llm` is four files and the source inventory: a manifest, a sixteen-line
+library root, a three-line entry point, and one command-surface module that is
 the whole command surface. Every verb in that module is one call into
 `grove_loop::verbs` plus rendering, and the file's own header says what is left
 that is not rendering: **order**. Two orders, each stated where it happens —
 the operator's text read by the type that owns it before a lock is taken, and
-the session admitted against the completion channel before it is written to.
+the session admitted against the launch directory before teardown is recorded.
 The header also says what no verb does: none asks whether a kind can be
 launched, which the owner's harness-dispatch policy answers when a leaf of that
 kind launches. Each chapter opens on
@@ -27,9 +27,9 @@ body.
 end you should be able to take a thin command surface over a library in your
 own code, ask what is left there that is not rendering, and answer the way
 this book does for its two: which text is parsed before which lock, and which
-admission precedes which signal — and for each, say what reversing the order
+admission precedes the teardown write — and for each, say what reversing the order
 costs and name what would catch it, a test or something weaker. Both are
-readable inside these 971 lines. The stream contract — data on stdout,
+readable inside these the source inventory. The stream contract — data on stdout,
 advice on stderr, exit zero for information, every refusal carrying its
 remedy — is the rendering half of the same thesis, and the last chapter
 tabulates it.
@@ -55,7 +55,7 @@ The production source is authoritative. Literal fragments in the numbered pages
 are copied from it exactly, and the source index records how those fragments
 reconstruct each in-scope file. During authoring a scoped check proves the
 completed prefix and reports later-owned ranges as deferred; only the final
-check proves complete reconstruction of all four files and 971 lines.
+check proves reconstruction of all four files listed in the source index.
 
 <a id="reading-fragments"></a>
 ## Reading fragments

@@ -987,7 +987,8 @@ exit 0
     let finish_body = fs::read_to_string(&finish).unwrap();
     assert!(finish_body.starts_with("# finish-k2\n"));
     assert!(finish_body.contains("grove-llm finish-commit finish-k2"));
-    assert!(finish_body.contains("grove-llm complete --done"));
+    assert!(finish_body.contains("grove-llm record-teardown"));
+    assert!(finish_body.contains("harness-dispatch exit"));
     assert!(!finish_body.contains("**Kind:**"));
     assert!(fs::read_to_string(&launch_log)
         .unwrap()

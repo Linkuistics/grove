@@ -148,7 +148,7 @@ this line exactly as a match does, so the process exits `0` for all three, and
 the comment names the verb this is modelled on — `pick`, whose own absent
 answer is read in the next section.
 
-<!-- fragment «handler-resolve» owner="information-not-error" source="crates/grove-llm/src/cli.rs" lines="585-603" parent="handlers-reading-and-rendering" -->
+<!-- fragment «handler-resolve» owner="information-not-error" source="crates/grove-llm/src/cli.rs" lines="528-546" parent="handlers-reading-and-rendering" -->
 ````rust
 fn cmd_resolve(reference: &str) -> Result<()> {
     let worktree = worktree()?;
@@ -196,7 +196,7 @@ gives — the handler answered the root before calling — so it returns two emp
 strings, which would be the not-found shape with no diagnostic; the arm exists
 because the `match` is exhaustive over the type, and no test constructs it.
 
-<!-- fragment «render-resolution-head» owner="information-not-error" source="crates/grove-llm/src/cli.rs" lines="604-617" parent="handlers-reading-and-rendering" -->
+<!-- fragment «render-resolution-head» owner="information-not-error" source="crates/grove-llm/src/cli.rs" lines="547-560" parent="handlers-reading-and-rendering" -->
 ````rust
 /// Render a resolution to the `(stdout, stderr)` the `resolve` verb emits.
 ///
@@ -235,7 +235,7 @@ pinned only through the library, by
 `render_found_abandoned_notes_on_stderr_but_still_prints_path`, which also
 requires that it does not say *retired*.
 
-<!-- fragment «render-resolution-entry» owner="information-not-error" source="crates/grove-llm/src/cli.rs" lines="618-634" parent="handlers-reading-and-rendering" -->
+<!-- fragment «render-resolution-entry» owner="information-not-error" source="crates/grove-llm/src/cli.rs" lines="561-577" parent="handlers-reading-and-rendering" -->
 ````rust
         Sought::Match(Resolution::Entry(entry)) => {
             let stdout = format!("{}\n", entry.path.display());
@@ -275,7 +275,7 @@ entries, several of them, and the loop's doc comment says why that is an answer
 rather than a refusal — the caller is a session that can re-ask with a narrower
 reference, and listing the matches is what lets it.
 
-<!-- fragment «render-resolution-absent» owner="information-not-error" source="crates/grove-llm/src/cli.rs" lines="635-660" parent="handlers-reading-and-rendering" -->
+<!-- fragment «render-resolution-absent» owner="information-not-error" source="crates/grove-llm/src/cli.rs" lines="578-603" parent="handlers-reading-and-rendering" -->
 ````rust
         Sought::Nothing => (
             String::new(),
@@ -316,7 +316,7 @@ require failure at open, before a partial chain can be printed. A valid tree
 with no live leaf still uses the shared no-live-leaves diagnostic.
 
 
-<!-- fragment «handler-brief-chain» owner="information-not-error" source="crates/grove-llm/src/cli.rs" lines="547-559" parent="handlers-reading-and-rendering" -->
+<!-- fragment «handler-brief-chain» owner="information-not-error" source="crates/grove-llm/src/cli.rs" lines="490-502" parent="handlers-reading-and-rendering" -->
 ````rust
 fn cmd_brief_chain(leaf_path: Option<&Path>) -> Result<()> {
     let worktree = worktree()?;
@@ -343,7 +343,7 @@ The named branch goes through `normalize_leaf_path`, read under its own heading
 below; the unnamed branch calls `verbs::pick`, keeps the selection's path,
 discards the rest of the selection, and turns `Nothing` into `None`.
 
-<!-- fragment «handler-leaf-in» owner="information-not-error" source="crates/grove-llm/src/cli.rs" lines="574-584" parent="handlers-reading-and-rendering" -->
+<!-- fragment «handler-leaf-in» owner="information-not-error" source="crates/grove-llm/src/cli.rs" lines="517-527" parent="handlers-reading-and-rendering" -->
 ````rust
 /// The leaf a read verb acts on: the one named, or `pick`'s next.
 fn leaf_in(tree: &Tree, leaf_path: Option<&Path>) -> Result<Option<PathBuf>> {
@@ -400,7 +400,7 @@ crate's tests pin is the rendering of it. `picks_first_live_leaf_in_numeric_orde
 `ABANDONED` leaf; the help promises it, and it holds, measured — an abandoned
 leaf at position one is passed over for the live leaf at position two.
 
-<!-- fragment «handler-pick» owner="information-not-error" source="crates/grove-llm/src/cli.rs" lines="537-546" parent="handlers-reading-and-rendering" -->
+<!-- fragment «handler-pick» owner="information-not-error" source="crates/grove-llm/src/cli.rs" lines="480-489" parent="handlers-reading-and-rendering" -->
 ````rust
 fn cmd_pick() -> Result<()> {
     let worktree = worktree()?;
@@ -435,7 +435,7 @@ pins is that the body of the leaf is never read — a `**Kind:**` or
 `**Harness:**` line, however garbled, changes nothing — and that the two
 routing flags the verb once carried are rejected as unknown arguments.
 
-<!-- fragment «handler-kind» owner="information-not-error" source="crates/grove-llm/src/cli.rs" lines="560-573" parent="handlers-reading-and-rendering" -->
+<!-- fragment «handler-kind» owner="information-not-error" source="crates/grove-llm/src/cli.rs" lines="503-516" parent="handlers-reading-and-rendering" -->
 ````rust
 fn cmd_kind(leaf_path: Option<&Path>) -> Result<()> {
     let worktree = worktree()?;
@@ -464,7 +464,7 @@ session's name, and a grove driven from `/work/app` is labelled `app`.
 working tree has only at the filesystem root, so the fallback is the type's
 rather than a case the verb meets.
 
-<!-- fragment «helper-label» owner="information-not-error" source="crates/grove-llm/src/cli.rs" lines="886-894" parent="path-and-label-helpers" -->
+<!-- fragment «helper-label» owner="information-not-error" source="crates/grove-llm/src/cli.rs" lines="829-837" parent="path-and-label-helpers" -->
 ````rust
 // The grove's display label for the pick/brief-chain "no live leaves" diagnostic
 // — the worktree directory's basename (it equals the grove name / branch).
@@ -489,7 +489,7 @@ and not a signal: no verb on this page acts on it, and the driver, which never
 runs this verb, reaches the same answer by its own walk and acts on `Nothing`
 rather than on any line of text.
 
-<!-- fragment «helper-no-live-leaves» owner="information-not-error" source="crates/grove-llm/src/cli.rs" lines="895-902" parent="path-and-label-helpers" -->
+<!-- fragment «helper-no-live-leaves» owner="information-not-error" source="crates/grove-llm/src/cli.rs" lines="838-845" parent="path-and-label-helpers" -->
 ````rust
 /// The one diagnostic every read verb shares, printed once here rather than
 /// spelled four times.
@@ -523,7 +523,7 @@ set is a refusal and exits 1 before the requested read runs.
 The composite that reassembles the handlers is stated here, in source order,
 and the source index names it as one of the root's twenty-two children.
 
-<!-- fragment «handlers-reading-and-rendering» owner="information-not-error" source="crates/grove-llm/src/cli.rs" lines="537-660" parent="source-command-surface" -->
+<!-- fragment «handlers-reading-and-rendering» owner="information-not-error" source="crates/grove-llm/src/cli.rs" lines="480-603" parent="source-command-surface" -->
 <!-- insert «handler-pick» -->
 <!-- insert «handler-brief-chain» -->
 <!-- insert «handler-kind» -->
@@ -573,7 +573,7 @@ path, and every test that passes a `.grove/`-relative path from the
 working-tree root is the second row — and no test exercises the pass-through
 branch or the last row.
 
-<!-- fragment «helper-normalize-leaf-path» owner="information-not-error" source="crates/grove-llm/src/cli.rs" lines="862-885" parent="path-and-label-helpers" -->
+<!-- fragment «helper-normalize-leaf-path» owner="information-not-error" source="crates/grove-llm/src/cli.rs" lines="805-828" parent="path-and-label-helpers" -->
 ````rust
 // Normalize a user-supplied leaf path to what the verbs accept (absolute, or
 // relative to the grove root). The real driving flow passes back the **absolute**
@@ -605,7 +605,7 @@ fn normalize_leaf_path(p: &Path) -> PathBuf {
 The composite that reassembles the three helpers, the last block of the module,
 is stated here.
 
-<!-- fragment «path-and-label-helpers» owner="information-not-error" source="crates/grove-llm/src/cli.rs" lines="862-902" parent="source-command-surface" -->
+<!-- fragment «path-and-label-helpers» owner="information-not-error" source="crates/grove-llm/src/cli.rs" lines="805-845" parent="source-command-surface" -->
 <!-- insert «helper-normalize-leaf-path» -->
 <!-- insert «helper-label» -->
 <!-- insert «helper-no-live-leaves» -->

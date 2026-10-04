@@ -98,7 +98,7 @@ impl Channel {
         )))
     }
 
-    /// The path a child writes its token to. This is the value a launch
+    /// The path a child creates its completion signal at. This is the value a launch
     /// publishes to the child under the caller's chosen variable name.
     #[must_use]
     pub fn path(&self) -> &Path {
@@ -108,9 +108,8 @@ impl Channel {
     /// Whether anything now exists at the channel's name, in the directory it
     /// was allocated in.
     ///
-    /// **Appearance is the whole signal**, for a caller whose channel carries
-    /// nothing: an empty file, a link or a FIFO has appeared as surely as a
-    /// token has. So nothing is opened or followed: the name is only looked
+    /// **Appearance is the whole signal**: an empty file, a link or a FIFO
+    /// counts equally. Nothing is opened or followed: the name is only looked
     /// up, beside the directory held since allocation.
     #[must_use]
     pub fn appeared(&self) -> bool {
@@ -136,37 +135,8 @@ impl Channel {
         }
     }
 
-    /// The token a launch left here, if any.
-    ///
-    /// `None` covers *nothing was written*, *the file is unreadable*, and *the
-    /// file is there but empty*: none of the three is a token, and the
-    /// difference is not one a caller could act on differently — a launch that
-    /// could not deliver its token did not deliver one.
-    ///
-    /// **An empty file is deliberately not an empty token.** The escalation
-    /// fires on the channel's *appearance*, so a child killed between creating
-    /// the file and writing to it leaves one behind; handing that back as
-    /// `Some("")` would make a caller's own "anything unrecognised means keep
-    /// going" rule fire on a launch that never said anything at all.
-    /// Symlinks, non-regular files and tokens larger than 4096 bytes are refused:
-    /// a child-controlled channel must not block or exhaust its supervisor.
-    #[must_use]
-    pub fn read(&self) -> Option<Token> {
-        let file = crate::regular_file_at(&self.directory, self.path.file_name()?).ok()?;
-        if !file.metadata().ok()?.is_file() {
-            return None;
-        }
-        let mut content = String::new();
-        file.take(4097).read_to_string(&mut content).ok()?;
-        if content.len() > 4096 {
-            return None;
-        }
-        let token = content.trim_end();
-        (!token.is_empty()).then(|| Token(token.to_string()))
-    }
-
     /// Remove this launch's channel file, consuming the channel so nothing can
-    /// read a path whose file is gone.
+    /// observe a path whose file is gone.
     ///
     /// A channel that was never signalled has no file, and discarding it is
     /// still success: the post-condition is *this path holds nothing*, not
@@ -231,37 +201,16 @@ impl Channel {
     }
 }
 
-/// What a launch left in its channel. **Opaque to this crate**: its appearance
-/// ends the launch, and its content is the caller's to interpret, which is why
-/// the content is readable.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Token(String);
-
-impl Token {
-    #[must_use]
-    pub fn as_str(&self) -> &str {
-        &self.0
-    }
-
-    #[must_use]
-    pub fn into_string(self) -> String {
-        self.0
-    }
-}
-
-/// Write `token` to `path` — the one thing a launched child does to end itself.
+/// Create an empty file at `path` to signal that the launched child is done.
 ///
 /// A free function rather than a [`Channel`] method because the two ends are
 /// different processes: the launcher holds the `Channel`, and the child holds
 /// only the path it was handed under the launch's chosen variable name.
-///
-/// The file is line-framed — the token followed by a newline — so `cat` on it
-/// reads as a line and [`Channel::read`] trims the framing back off. That is
-/// framing, not interpretation: nothing here looks at what the token says.
-pub fn signal(path: &Path, token: &str) -> Result<(), LaunchError> {
-    fs::write(path, format!("{token}\n")).map_err(|error| {
+/// Appearance carries the signal; the runner never reads channel content.
+pub fn signal(path: &Path) -> Result<(), LaunchError> {
+    fs::write(path, []).map_err(|error| {
         LaunchError::new(format!(
-            "cannot write the completion token to {}: {error}; the launcher allocated this path \
+            "cannot create the completion signal at {}: {error}; the launcher allocated this path \
              and its directory should exist — check that the channel was not removed early",
             path.display()
         ))
@@ -360,38 +309,18 @@ mod tests {
     }
 
     #[test]
-    fn a_signalled_channel_reads_back_the_token_without_its_framing() {
+    fn signalling_creates_an_empty_file() {
         let dir = tempfile::tempdir().unwrap();
         let channel = Channel::allocate(dir.path()).unwrap();
 
-        signal(channel.path(), "done").unwrap();
+        signal(channel.path()).unwrap();
 
-        assert_eq!(channel.read().unwrap().as_str(), "done");
-        assert_eq!(
-            std::fs::read_to_string(channel.path()).unwrap(),
-            "done\n",
-            "the file itself stays line-framed"
-        );
+        assert!(channel.appeared());
+        assert_eq!(fs::read(channel.path()).unwrap(), b"");
     }
 
-    /// The channel's *appearance* is what starts an escalation, so a child
-    /// killed between creating the file and writing to it leaves an empty one.
-    /// That is not a token, and reporting it as `Some("")` would let a caller's
-    /// "anything unrecognised means keep going" rule fire on a launch that said
-    /// nothing at all.
-    #[test]
-    fn an_empty_channel_file_is_not_an_empty_token() {
-        let dir = tempfile::tempdir().unwrap();
-        let channel = Channel::allocate(dir.path()).unwrap();
-
-        for content in ["", "\n", "  \n"] {
-            std::fs::write(channel.path(), content).unwrap();
-            assert_eq!(channel.read(), None, "{content:?} is not a token");
-        }
-    }
-
-    /// What [`Channel::read`] refuses as a token has still appeared: the
-    /// appearance, not the content, is the signal.
+    /// Appearance, without opening or interpreting the child-controlled entry,
+    /// is the whole completion signal.
     #[test]
     fn anything_at_the_channel_name_has_appeared_and_nothing_else_has() {
         let dir = tempfile::tempdir().unwrap();
@@ -408,33 +337,25 @@ mod tests {
         fs::remove_file(channel.path()).unwrap();
         std::os::unix::fs::symlink(dir.path().join("absent"), channel.path()).unwrap();
         assert!(channel.appeared(), "a dangling link has appeared");
-        assert_eq!(channel.read(), None, "and is still no token");
     }
 
     #[test]
-    fn an_unsignalled_channel_reads_back_nothing() {
-        let dir = tempfile::tempdir().unwrap();
-        let channel = Channel::allocate(dir.path()).unwrap();
-
-        assert_eq!(channel.read(), None);
-    }
-
-    #[test]
-    fn completion_rejects_links_and_oversized_tokens() {
+    fn appearance_does_not_follow_links_or_read_large_files_or_fifos() {
         let dir = tempfile::tempdir().unwrap();
         let channel = Channel::allocate(dir.path()).unwrap();
         let outside = dir.path().join("outside");
         fs::write(&outside, "done").unwrap();
         std::os::unix::fs::symlink(&outside, channel.path()).unwrap();
-        assert_eq!(channel.read(), None, "completion must not follow a link");
+        assert!(channel.appeared(), "a link appears without being followed");
+        assert_eq!(fs::read_to_string(&outside).unwrap(), "done");
         fs::remove_file(channel.path()).unwrap();
         fs::write(channel.path(), vec![b'x'; 4097]).unwrap();
-        assert_eq!(channel.read(), None, "completion must have a bounded size");
+        assert!(channel.appeared(), "content size cannot affect appearance");
         fs::remove_file(channel.path()).unwrap();
         let path = std::ffi::CString::new(channel.path().as_os_str().as_encoded_bytes()).unwrap();
         // SAFETY: valid NUL-terminated path in a private test directory.
         assert_eq!(unsafe { libc::mkfifo(path.as_ptr(), 0o600) }, 0);
-        assert_eq!(channel.read(), None, "completion must not block on a FIFO");
+        assert!(channel.appeared(), "appearance must not block on a FIFO");
     }
 
     #[test]
@@ -448,14 +369,17 @@ mod tests {
         fs::write(outside.join(channel.path().file_name().unwrap()), "done").unwrap();
         fs::rename(&control, dir.path().join("original")).unwrap();
         std::os::unix::fs::symlink(outside, &control).unwrap();
-        assert_eq!(channel.read(), None);
+        assert!(
+            !channel.appeared(),
+            "the substituted directory is not the held one"
+        );
     }
 
     #[test]
     fn discarding_removes_the_file_and_succeeds_when_there_was_none() {
         let dir = tempfile::tempdir().unwrap();
         let signalled = Channel::allocate(dir.path()).unwrap();
-        signal(signalled.path(), "relaunch").unwrap();
+        signal(signalled.path()).unwrap();
         let signalled_path = signalled.path().to_path_buf();
         let untouched = Channel::allocate(dir.path()).unwrap();
 

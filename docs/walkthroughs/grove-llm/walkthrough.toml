@@ -88,7 +88,7 @@ role  = "lookup"
 [[root]]
 id    = "source-crate-manifest"
 path  = "crates/grove-llm/Cargo.toml"
-lines = 54
+lines = 51
 
 [[root]]
 id    = "source-library-root"
@@ -103,13 +103,13 @@ lines = 3
 [[root]]
 id    = "source-command-surface"
 path  = "crates/grove-llm/src/cli.rs"
-lines = 902
+lines = 845
 
 [[block]]
 id    = "manifest-thin-by-crate"
 root  = "source-crate-manifest"
 owner = "one-call-plus-rendering"
-lines = "1-54"
+lines = "1-51"
 
 [[block]]
 id    = "library-root"
@@ -163,97 +163,92 @@ lines = "218-248"
 id    = "verbs-leaving"
 root  = "source-command-surface"
 owner = "admit-before-signal"
-lines = "249-293"
+lines = "249-275"
 
 [[block]]
 id    = "enum-close-and-operation-label"
 root  = "source-command-surface"
 owner = "admitted-before-dispatch"
-lines = "294-315"
+lines = "276-296"
 
-[[block]]
-id    = "args-complete"
-root  = "source-command-surface"
-owner = "admit-before-signal"
-lines = "316-327"
 
 [[block]]
 id    = "args-root-init"
 root  = "source-command-surface"
 owner = "before-the-lock"
-lines = "328-335"
+lines = "297-304"
 
 [[block]]
 id    = "kind-help-and-parse-kind"
 root  = "source-command-surface"
 owner = "before-the-lock"
-lines = "336-364"
+lines = "305-333"
 
 [[block]]
 id    = "args-growing"
 root  = "source-command-surface"
 owner = "before-the-lock"
-lines = "365-405"
+lines = "334-374"
 
 [[block]]
 id    = "args-ending"
 root  = "source-command-surface"
 owner = "two-steps-remain"
-lines = "406-417"
+lines = "375-386"
 
 [[block]]
 id    = "run-admission-and-dispatch"
 root  = "source-command-surface"
 owner = "admitted-before-dispatch"
-lines = "418-444"
+lines = "387-412"
 
 [[block]]
 id    = "handlers-leaving"
 root  = "source-command-surface"
 owner = "admit-before-signal"
-lines = "445-508"
+lines = "413-451"
 
 [[block]]
 id    = "handler-root-init"
 root  = "source-command-surface"
 owner = "before-the-lock"
-lines = "509-536"
+lines = "452-479"
 
 [[block]]
 id    = "handlers-reading-and-rendering"
 root  = "source-command-surface"
 owner = "information-not-error"
-lines = "537-660"
+lines = "480-603"
 
 [[block]]
 id    = "handlers-growing"
 root  = "source-command-surface"
 owner = "before-the-lock"
-lines = "661-754"
+lines = "604-697"
 
 [[block]]
 id    = "handlers-ending"
 root  = "source-command-surface"
 owner = "two-steps-remain"
-lines = "755-812"
+lines = "698-755"
 
 [[block]]
 id    = "slug-argument"
 root  = "source-command-surface"
 owner = "before-the-lock"
-lines = "813-820"
+lines = "756-763"
 
 [[block]]
 id    = "openings"
 root  = "source-command-surface"
 owner = "admitted-before-dispatch"
-lines = "821-861"
+lines = "764-804"
 
 [[block]]
 id    = "path-and-label-helpers"
 root  = "source-command-surface"
 owner = "information-not-error"
-lines = "862-902"
+lines = "805-845"
 
 [[early-use]]
 symbols   = "`Reading`, `Tree`, `Writing`, `TreeWrite`"
@@ -265,13 +260,13 @@ statement = "The two openings of a grove — a shared read and an exclusive writ
 symbols   = "`SessionEpochGuard`"
 first-use = "01-orientation.md#the-imports"
 owner     = "admitted-before-dispatch"
-statement = "The guard `run` obtains when it admits this process against a live session epoch — present under a driver, absent for a manual command — alive through the verb, and consulted only by `complete`."
+statement = "The guard `run` obtains when it admits this process against a live session epoch — present under a driver, absent for a manual command — alive through the verb, and consulted by `record-teardown`."
 
 [[early-use]]
 symbols   = "`Workspace`"
 first-use = "01-orientation.md#the-imports"
 owner     = "admitted-before-dispatch"
-statement = "A resolved jj working tree; every verb but `complete` resolves it from the current directory, and the grove root is spelled from it in one place."
+statement = "A resolved jj working tree; tree verbs resolve it from the current directory; `record-teardown` does so only under a loop, and the grove root is spelled from it in one place."
 
 [[early-use]]
 symbols   = "`Outcome`"
@@ -304,10 +299,10 @@ owner     = "admit-before-signal"
 statement = "A `<slug>-k<key>` handle, parsed with a canonical positive key."
 
 [[early-use]]
-symbols   = "`Signalled`"
+symbols   = "`Recorded`"
 first-use = "01-orientation.md#the-imports"
 owner     = "admit-before-signal"
-statement = "Whether `complete` wrote the disposition to a channel or found no loop to signal."
+statement = "Whether `record-teardown` recorded teardown or found no loop context."
 
 [[early-use]]
 symbols   = "`cmd_pick`, `cmd_brief_chain`, `cmd_kind`, `cmd_resolve`"
@@ -328,10 +323,10 @@ owner     = "two-steps-remain"
 statement = "One handler per terminal mark: the exclusive opening, one call, the marked paths, and the two remaining steps on stderr."
 
 [[early-use]]
-symbols   = "`cmd_finish_commit`, `cmd_complete`"
+symbols   = "`cmd_finish_commit`, `cmd_record_teardown`"
 first-use = "02-the-grammar.md#worked-dispatch"
 owner     = "admit-before-signal"
-statement = "The two handlers that open no tree: one commits through the workspace, one writes the completion channel."
+statement = "The two handlers that open no tree: one commits through the workspace, one records teardown in the launch directory."
 
 [guide]
 path    = "docs/USAGE.md"

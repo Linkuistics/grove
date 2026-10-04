@@ -2094,8 +2094,11 @@ fn quoted_grove_invocations(text: &str) -> Vec<&str> {
 
 // The invocation an owner is shown is the one Grove makes. `harness-dispatch
 // --help` and `run --help` each carry a Grove example, on one line, and each
-// word of it after `run` is one of the flags the native-data case above shows
-// reaching `select`, joined to a placeholder, in the driver's order. Any Grove
+// policy input is one of the flags the native-data case above shows reaching
+// `select`, joined to a placeholder, in the driver's order. A lifecycle example
+// may also show the exit directory and ending file: these run mechanics reach
+// no policy. Examples that show only selection inputs remain valid while the
+// human guides are migrated by `current-state-docs-k20`. Any Grove
 // invocation that dispatch's README, the usage guide or the configure-grove
 // skill quotes is held to the same form. So a surface that drops the example,
 // wraps it, or quotes another form fails here instead of drifting from what
@@ -2152,9 +2155,17 @@ fn the_grove_invocation_dispatch_s_help_shows_is_the_one_the_driver_makes() {
                 .iter()
                 .map(|word| &word[..word.rfind('=').map_or(0, |at| at + 1)])
                 .collect();
+            let valid_flags = flags == PASSED
+                || flags
+                    == PASSED
+                        .iter()
+                        .copied()
+                        .chain(["--exit-dir=", "--ending-file="])
+                        .collect::<Vec<_>>();
             assert!(
-                words[..2] == ["harness-dispatch", "run"] && flags == PASSED,
-                "{surface} quotes {command:?}, whose inputs are not {PASSED:?}"
+                words[..2] == ["harness-dispatch", "run"] && valid_flags,
+                "{surface} quotes {command:?}, whose policy inputs are not {PASSED:?} \
+                 followed by no mechanics or by --exit-dir= and --ending-file="
             );
         }
     }

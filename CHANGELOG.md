@@ -52,6 +52,8 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+- Remove `grove-llm complete` without a compatibility stub. Sessions now end with `harness-dispatch exit`; a completed finish first records its teardown with `grove-llm record-teardown`. Runner endings report only whether the exit channel appeared, and epoch admission uses `GROVE_LAUNCH_DIR`.
+
 - Lifecycle sessions now end with `harness-dispatch exit`. Dispatch owns the
   exit channel and harness escalation; Grove relaunches only on its reported
   exit-signal ending, and finishes on a separately recorded teardown. Grove

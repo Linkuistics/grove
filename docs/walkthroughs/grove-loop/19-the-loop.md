@@ -133,7 +133,7 @@ use std::time::Duration;
 `LOOP_CONTROL_ENV` names inherited authority that must be removed from every
 spawn. The current dispatch launch receives only its own `GROVE_LAUNCH_DIR`
 after scrubbing. Dispatch grants its fresh exit channel to the harness. The
-legacy `GROVE_SIGNAL_FILE` remains scrubbed during this meta-grove's v22 sessions;
+dispatch job authority and `GROVE_LAUNCH_DIR` are scrubbed in nested launches;
 the new driver neither grants nor watches it. The helper gives `stty` the same
 scrub list so resetting the terminal carries no completion authority.
 

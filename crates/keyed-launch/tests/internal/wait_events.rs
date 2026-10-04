@@ -61,11 +61,10 @@ const NO_WAIT: Escalation = Escalation {
 
 /// Every path to a reaped child runs the end in one order: the exit is observed
 /// unreaped, the group is killed, the child is reaped and reported, the
-/// terminal is taken back, the token is read, and only then is the group
-/// confirmed gone. A wait failure skips the group steps, which need a child
+/// terminal is taken back, and only then is the group confirmed gone. A wait failure skips the group steps, which need a child
 /// known to be a zombie, and still recovers the terminal.
 #[test]
-fn confirmed_reap_precedes_token_read_and_recovery_on_every_wait_path() {
+fn confirmed_reap_precedes_recovery_on_every_wait_path() {
     let _serial = serial();
     for path in ["poll", "recovery", "escalation"] {
         for confirmed in [false, true] {
@@ -155,7 +154,7 @@ fn confirmed_reap_precedes_token_read_and_recovery_on_every_wait_path() {
                 }
             } else {
                 let ended = outcome.unwrap();
-                assert_eq!(ended.token.unwrap().as_str(), "after");
+                assert!(ended.signalled);
                 assert_eq!(ended.group, Group::Gone);
             }
         }

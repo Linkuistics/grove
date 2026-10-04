@@ -174,7 +174,8 @@ fn finish_body(handle: &Handle) -> String {
          ## Done when\n\n\
          - Promote durable material from the grove briefs.\n\
          - Run `grove-llm finish-commit {handle}`.\n\
-         - Run `grove-llm complete --done` as the last action.\n"
+         - Run `grove-llm record-teardown`.\n\
+         - Run `harness-dispatch exit` as the last action.\n"
     )
 }
 

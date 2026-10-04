@@ -7,10 +7,8 @@
 
 `grove-llm` is the binary the LLM inside a grove session drives. The driver
 launches a session for one leaf, the session runs these verbs to find its leaf,
-read its brief chain, grow the tree, mark its own leaf done and signal the
-driver, and each of those verbs is a call into `grove_loop::verbs` plus the
-rendering of what came back. Its whole source is four files and 971 lines,
-and 898 of them are one module; more than two fifths of that module is comment,
+read its brief chain, grow the tree, mark its own leaf done and commit its work, and each of those verbs is a call into `grove_loop::verbs` plus the
+rendering of what came back. Its whole source is the four files listed in the source index; most of it is one module,
 and the comment at its head states the book's organizing claim.
 
 This book explains that module to a reader who has already run most of the
@@ -20,7 +18,7 @@ get right at that point in a session — the package it is, which is this
 chapter; the admission every verb asks for before it is dispatched; the reading
 verbs, whose absent answer is information; the growing verbs, which read their
 text before any lock; the two terminal marks, which say on stderr what remains;
-and the two verbs that leave the loop. What the
+and the two lifecycle verbs that delete and record teardown. What the
 loop does behind each call is named on those pages and explained on none of
 them, and *What order holds* states that boundary in one place.
 
@@ -33,10 +31,10 @@ review. That half is the overview's organizing claim and is stated here once,
 as a premise the rest of the book reuses. The second half is this book's:
 **what is left that is not rendering is order.** The header names two
 orders — the operator's text read by the type that owns it *before* a lock is
-taken, and the session admitted against the completion channel *before* it is
-written to. Each is stated in the source where it happens, and each has a cost
+taken, and the session admitted against the launch directory *before* the teardown
+record is written. Each is stated in the source where it happens, and each has a cost
 if reversed: a lock over the whole grove taken, and waited for, to refuse a
-typo; and a signal sent to a loop that did not launch this session. The header
+typo; and a teardown record written for a launch that did not admit this session. The header
 also says what is not there. No verb asks whether a kind can be launched. That
 was a third order until Grove lost its launch configuration — a presence rule,
 asked before the mutation — and the owner's harness-dispatch policy now answers
@@ -49,12 +47,12 @@ which order would it be wrong to reverse.
 ## The package: a crate, not a target
 
 The manifest is production source and this chapter reconstructs all
-fifty-four lines of it, in eight fragments that follow the file's own blocks.
+fifty-one lines of it, in eight fragments that follow the file's own blocks.
 It is read first because the first half of the thesis is declared there rather
 than argued anywhere else: the package is a crate, the crate has one binary
 target, and what the binary can reach is what its dependencies publish.
 
-<!-- fragment «manifest-thin-by-crate» owner="one-call-plus-rendering" source="crates/grove-llm/Cargo.toml" lines="1-54" parent="source-crate-manifest" -->
+<!-- fragment «manifest-thin-by-crate» owner="one-call-plus-rendering" source="crates/grove-llm/Cargo.toml" lines="1-51" parent="source-crate-manifest" -->
 <!-- insert «manifest-package-identity» -->
 <!-- insert «manifest-crate-not-a-target» -->
 <!-- insert «manifest-grove-dependency-removed» -->
@@ -219,7 +217,6 @@ rows are read from the test directory at this checkout.
 | Crate | Why the manifest says it is here | Where it is used |
 |---|---|---|
 | `assert_cmd` | no comment: the ordinary way to spawn a built binary and assert on its streams and status | most of the directory's files, which drive `grove-llm` as a process |
-| `keyed-launch` | the completion channel's own type, so `complete`'s round trip uses the framing the driver reads back | `complete.rs`, which imports `keyed_launch::Channel` |
 | `libc` | `flock(2)` directly, so a fixture can hold the tree lock from outside the binary — the one thing no verb can be asked to do | `tree_lock.rs`, which locks the working-tree root itself and then runs a verb against it |
 | `ordinal-fs-tree` | the store's `EntryName` trait, which the loop's task-name type implements, so a filename is read back through the seam production uses | `session_kind_guidance.rs`, the one file that imports the crate |
 | `tempfile` | no comment: temporary working trees | most of the directory's files |
@@ -235,23 +232,16 @@ of its own — is checked by
 every lock call and needs no `libc` to do it. It does not prove a verb never
 opens the store twice; *Growing the tree* establishes that structurally: no
 handler in this module opens the tree twice, and the one call that does keeps
-its two openings sequential. The `keyed-launch` row is
-*Leaving the loop*'s: the driver
-reads the channel back through that crate's framing, so a test of `complete`
-that invented its own framing would prove nothing about the driver.
-`ordinal-fs-tree` is taken with `default-features = false`, which drops that
+its two openings sequential. `ordinal-fs-tree` is taken with `default-features = false`, which drops that
 crate's one default feature, `cli`, and with it the `clap` dependency behind
 its demonstration binary: the tests want one trait, not a second command-line
 tool.
 
-<!-- fragment «manifest-dev-dependencies» owner="one-call-plus-rendering" source="crates/grove-llm/Cargo.toml" lines="32-44" parent="manifest-thin-by-crate" -->
+<!-- fragment «manifest-dev-dependencies» owner="one-call-plus-rendering" source="crates/grove-llm/Cargo.toml" lines="32-41" parent="manifest-thin-by-crate" -->
 ````toml
 
 [dev-dependencies]
 assert_cmd = "2.0"
-# The completion channel's own type, so the round trip through `complete` goes
-# through the framing the driver reads back rather than one the test invented.
-keyed-launch = { path = "../keyed-launch" }
 # `flock(2)` directly, so the lock-contention fixtures hold the tree lock from
 # outside the binary they are driving — the one thing no verb can be asked to do.
 libc = "0.2"
@@ -268,7 +258,7 @@ tempfile = "3.10"
 The lint configuration is inherited for the same reason `version` is: one
 workspace, one standard, and nothing crate-specific to add.
 
-<!-- fragment «manifest-lints» owner="one-call-plus-rendering" source="crates/grove-llm/Cargo.toml" lines="45-47" parent="manifest-thin-by-crate" -->
+<!-- fragment «manifest-lints» owner="one-call-plus-rendering" source="crates/grove-llm/Cargo.toml" lines="42-44" parent="manifest-thin-by-crate" -->
 ````toml
 
 [lints]
@@ -285,7 +275,7 @@ version, because there is no version here to freeze. The document the comment
 cites, `docs/RELEASING.md`, is the author's evidence for that and is named
 rather than linked.
 
-<!-- fragment «manifest-release» owner="one-call-plus-rendering" source="crates/grove-llm/Cargo.toml" lines="48-54" parent="manifest-thin-by-crate" -->
+<!-- fragment «manifest-release» owner="one-call-plus-rendering" source="crates/grove-llm/Cargo.toml" lines="45-51" parent="manifest-thin-by-crate" -->
 ````toml
 
 # `cargo release` cuts *grove* (`crates/grove`) and nothing else. This binary
@@ -420,10 +410,9 @@ holding the whole module can look for a tree walk, a filename rule or a kind
 definition and find none, because they live in a different crate since the
 leaf the comment names. The second paragraph is where this book parts from the
 overview. A thin surface still has to get one thing right, and it is order:
-which text is read before which lock, and which admission precedes which
-signal. The first holds wherever a handler reads text with a grammar type —
+which text is read before which lock, and which admission precedes a teardown write. The first holds wherever a handler reads text with a grammar type —
 the four verbs that write a leaf, and `resolve` and `finish-commit` — and the
-second in one verb, `complete`. Each is stated in the handler where it happens,
+second in one verb, `record-teardown`. Each is stated in the handler where it happens,
 and *What order holds* tabulates all twelve verbs against the two.
 
 The fragment's last sentence is a negative, and it is there because it used to
@@ -447,8 +436,8 @@ leaf launches. *Growing the tree* shows the write.
 // What is left here that is not rendering is the **order** the verbs depend
 // on, and each is stated where it happens: read the operator's text with the
 // type that owns it *before* taking a lock, and admit the session against the
-// completion channel *before* writing to it. No verb asks whether a kind can be
-// launched: the owner's harness-dispatch policy answers that when a leaf of
+// launch directory *before* writing the teardown record. No verb asks whether
+// a kind can be launched: the owner's harness-dispatch policy answers that when a leaf of
 // that kind launches, and nowhere earlier.
 ````
 <!-- /fragment -->
@@ -463,9 +452,9 @@ all. Two `use` lines are the standard library's and two are the error and
 grammar crates'. The three that matter name one module and thirteen items from
 `grove_loop`, and one type from `jj_workspace`. The module is `verbs`, and it
 is what the thesis means by *one call per verb*. Read as a count, the slogan
-is the header's and not quite the file's: nine handlers make one `verbs` call,
-and three make a second — `brief-chain` picks before it chains, `leaf-insert`
-lints after it inserts, `complete` resolves its channel before it writes — and
+is the header's and not quite the file's: ten handlers make one `verbs` call,
+and two make a second — `brief-chain` picks before it chains and `leaf-insert`
+lints after it inserts — and
 the owning chapters name each. What holds without exception is the claim's
 substance: no handler does anything a `verbs` call does not do for it, and the
 book names those calls and explains none of them. The thirteen items are types
@@ -479,14 +468,14 @@ read in full.
 | Symbol family | What it is, for this page | Owning chapter |
 |---|---|---|
 | `Reading`, `Tree`, `Writing`, `TreeWrite` | The two openings of a grove — a shared read and an exclusive write — each answering *vacant* as a value rather than an error. | The grammar and the openings |
-| `SessionEpochGuard` | The guard `run` obtains when it admits this process against a live session epoch — present under a driver, absent for a manual command — alive through the verb, and consulted only by `complete`. | The grammar and the openings |
-| `Workspace` | A resolved jj working tree; every verb but `complete` resolves it from the current directory, and the grove root is spelled from it in one place. | The grammar and the openings |
+| `SessionEpochGuard` | The guard `run` obtains when it admits this process against a live session epoch — present under a driver, absent for a manual command — alive through the verb, and consulted by `record-teardown`. | The grammar and the openings |
+| `Workspace` | A resolved jj working tree; tree verbs resolve it from the current directory; `record-teardown` does so only under a loop, and the grove root is spelled from it in one place. | The grammar and the openings |
 | `Outcome` | Live, retired or abandoned — the infix a filename carries, rendered as a stderr note so a dead end never looks live. | Reading the tree |
 | `Reference` | A parsed spelling of a tree entry — key, handle or slug — read by its own type before any tree is opened. | Reading the tree |
 | `Sought`, `Resolution` | `Sought` is a found-or-nothing answer; `Resolution` is what `resolve` found — the root, one entry, or an ambiguity. | Reading the tree |
 | `Kind`, `Slug` | The grammar's own types for a `--kind` token and a slug; malformed text is refused by them, before any lock. | Growing the tree |
 | `Handle` | A `<slug>-k<key>` handle, parsed with a canonical positive key. | Leaving the loop |
-| `Signalled` | Whether `complete` wrote the disposition to a channel or found no loop to signal. | Leaving the loop |
+| `Recorded` | Whether `record-teardown` recorded teardown or found no loop context. | Leaving the loop |
 
 What the block is not evidence of is the five `grove_loop` items the module
 reaches by path and never imports: the `VERSION` constant that the grammar's
@@ -508,7 +497,7 @@ in.
 
 use anyhow::{bail, Context, Result};
 use clap::{Parser, Subcommand};
-use grove_loop::verbs::{self, Resolution, Signalled};
+use grove_loop::verbs::{self, Resolution};
 use grove_loop::{
     Handle, Kind, Outcome, Reading, Reference, SessionEpochGuard, Slug, Sought, Tree, TreeWrite,
     Writing,
@@ -558,8 +547,8 @@ session for that leaf and is watching for one file to appear.
     └── gateway/
 
 the session's environment, set by the driver
-    GROVE_SIGNAL_FILE=/work/atlas/.jj/grove/signal-3f9c2a7e5b1d4c8890aa61e0f27b4d13
-    the file does not exist yet; its appearance is the signal
+    GROVE_LAUNCH_DIR=/work/atlas/.jj/grove/launch-3f9c2a7e5b1d4c8890aa61e0f27b4d13
+    admission names this launch directory; dispatch owns harness exit
 ```
 
 The session's mandate names the handle `rate-limit-k3`, and its shell is at
@@ -567,7 +556,7 @@ The session's mandate names the handle `rate-limit-k3`, and its shell is at
 produces. Every verb begins the same way — because the driver's channel is in
 the environment, admitted against the live
 [session epoch](../../../CONTEXT.md#session-epoch), which binds this working
-tree, the [driver lease](../../../CONTEXT.md#driver-lease) and that signal path
+tree, the [driver lease](../../../CONTEXT.md#driver-lease) and that launch directory
 together — and then makes its call; the line under each verb is what comes
 back, on the stream the binary chose for it.
 
@@ -592,16 +581,13 @@ $ grove-llm leaf-retire /work/atlas/.grove/01-impl--rate-limit-k3.md
   stdout   /work/atlas/.grove/01-DONE-impl--rate-limit-k3.md
   stderr   leaf-retire: two steps remain:
              1. commit this session's work, including this rename
-             2. run `grove-llm complete` as your last action
+             2. run `harness-dispatch exit` as your last action
 
 $ jj commit -m 'rate-limit-k3: …'
   jj's, not grove-llm's: the work, the new leaf and the rename, in one change
 
-$ grove-llm complete
-  admitted; the channel resolved from GROVE_SIGNAL_FILE and checked against
-  the admitted epoch; then verbs::complete writes the relaunch flag to it
-  stderr   grove complete: signalled; the loop will start the next task.
-  -> the file exists; the driver sees it and ends this session
+$ harness-dispatch exit
+  dispatch ends its harness job; Grove reads its receipt and checks the tree
 ```
 
 Five of those commands are grove's and one is jj's, and each grove line is the
@@ -612,10 +598,8 @@ first order made visible; that chapter's second ending is this same argv with
 a kind that is not a well-formed token, refused before any lock, and its third
 is a kind no methodology names, written all the same. The
 retirement is *Ending work*'s, and its stderr is why that chapter is named for
-two steps. `complete` is *Leaving the loop*'s: the channel is the
-[loop control channel](../../../CONTEXT.md#loop-control-channel), and the
-check *against the admitted epoch* before the write is the second order. What
-*admitted* means at every step is *The grammar and the openings*' premise.
+two steps. `harness-dispatch exit` is the final dispatch operation, outside this
+binary's corpus; *Leaving the loop* explains the separate Grove teardown record.
 
 The fresh key is `k4` because a key is the maximum over the whole tree plus
 one, and `k3` was the maximum; the new leaf's position is `02` because
@@ -651,7 +635,7 @@ its transcript jumps.
 └── 02-review-impl--rate-limit-k4.md
 ```
 
-`complete`, the session's last verb, writes outside `.grove/` and leaves the
+`record-teardown` records the absent tree in the launch directory and leaves the
 third state standing; it is the state the session commits. Two later chapters
 draw a tree of their own and both go past this one: *Ending work* adds a node
 the session never made, so that a prune has something to act on, and *Leaving
@@ -675,7 +659,7 @@ the structure the pages follow.
 | `pick`, `brief-chain`, `kind`, `resolve` | an absent answer is information, not an error | — | Reading the tree |
 | `root-init`, `leaf-add`, `leaf-insert`, `leaf-decompose` | text before lock | the first | Growing the tree |
 | `leaf-retire`, `leaf-prune` | the last tree verbs a session runs say on stderr what remains | — | Ending work |
-| `finish-commit`, `complete` | admit against the channel before writing to it | the second | Leaving the loop |
+| `finish-commit`, `record-teardown` | admit against the launch directory before recording teardown | the second | Leaving the loop |
 | all twelve, in one table | what the compiler holds, what order holds, what tests hold | both, applied back | What order holds |
 
 The first half of the thesis is this chapter's, and it is now fully read: a

@@ -37,7 +37,7 @@ completion through the exact channel granted by this launch.
 
 ```sh
 cat input.txt > result.md
-printf 'done\n' > "$TASK_DONE"
+: > "$TASK_DONE"
 ```
 
 The caller passes that `Launch`, the confinement grants and a spawn/reap observer to
@@ -55,7 +55,7 @@ for the group's disappearance using signal zero only. A reused PID therefore
 cannot redirect a later destructive cleanup signal at an unrelated process
 group. This is the same end every launch has, interactive or not, and chapter 4
 reads it. The returned `Ended` has `end: End::Exited`, a successful exit status,
-a present token whose `as_str()` is `"done"` and `group: Group::Gone`.
+`signalled: true` and `group: Group::Gone`.
 
 The caller then opens `result.md` with `regular_file_at` through the held work
 directory and reads `alpha` plus a newline, even if the child renamed that
@@ -155,7 +155,7 @@ reads as regular files. It gives the native backend those paths and appends
 the executable with its exact arguments. Dispatch supplies scratch-directory
 environment values through the launch's explicit grants. Policy preparation or spawn failure returns `LaunchError`. If the
 backend starts and then refuses its setup, supervision instead returns an
-`Ended` carrying its unsuccessful status and usually no token. The caller must
+`Ended` carrying its unsuccessful status and usually no completion signal. The caller must
 inspect that result before accepting outputs. Neither failure path retries
 without confinement.
 

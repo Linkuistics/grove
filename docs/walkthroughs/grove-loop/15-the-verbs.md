@@ -1,28 +1,17 @@
-# The session verbs, and the two that are not
+# The session verbs, and the driver operations
 <!-- book-page id="the-verbs" slice="twelve-not-fourteen" order="15" -->
 [Previous: Finishing](14-finishing.md) | [Contents](README.md) | [Next: One live driver per working tree](16-the-lease.md)
 
 <a id="twelve-not-fourteen"></a>
 ## The rule: the surface states which operations are verbs
 
-Chapter 14 deleted the grove. The fourteen chapters before this one reached that
-ending through a surface they never stopped to read, and this chapter is that
-surface: three small files, 534 lines, holding every function a session is
-allowed to call and the reason each of them is allowed to be called.
+Chapter 14 deleted the grove. This chapter reads the public surface that names
+each session operation and the separate driver operations.
 
-> **The surface is thirteen verbs during the compatibility cutover, and everything else that touches the tree has to
-> say why it is not one.** A count is only kept if the things standing beside it
-> say why they are out of it. `verbs.rs` declares fifteen public functions and
-> thirteen verbs. `driver.rs` holds two more operations over the same tree and
-> refuses to sit beside them. Each of the four exceptions states its own case, in
-> its own doc comment, at the point of declaration — which is the only place a
-> reader counting the surface will be standing.
-
-This is the crate's most argued-in-situ material: 202 of `verbs.rs`'s 363 lines
-begin with a comment marker, 42 of `driver.rs`'s 57, and 62 of `complete.rs`'s
-96. The comments make the argument, and the fragments below quote them in full. What the prose adds is the connection
-between them, the count checked against the declarations, and the measurements
-no comment can state about itself.
+`verbs.rs` declares thirteen public functions: twelve verbs and the
+`stale_cross_refs` helper that completes `leaf-insert`'s contract. `driver.rs`
+holds two operations that prepare the tree before a session owns it. The surface
+has twelve verbs after completion moves to harness-dispatch.
 
 **Say which tree.** The store's vocabulary reaches this chapter in exactly one
 word: `Sought`, which `ordinal-fs-tree` uses for *a search that matched, or
@@ -43,11 +32,9 @@ a session mid-task, holding one opening
   leaf_add(&tree, root, later, [impl])    -> Vec<PathBuf>
   leaf_retire(&tree, leaf)                -> PathBuf
   finish_commit(&workspace, finish-k5)    -> Commit
-  complete(signal_file, done)             -> Signalled
+  record_teardown(worktree, launch_dir) -> Recorded
 
-                                             every one of them a path,
-                                             a report of paths, or the
-                                             fact that there was nothing
+                                             paths or a report of paths
 ```
 
 Read the right-hand column rather than the left. The six calls are the surface in
@@ -58,44 +45,28 @@ shape is what makes the sections below a reading of a *surface* rather than of
 fourteen unrelated functions.
 
 <a id="fourteen-declarations-twelve-verbs"></a>
-## Fifteen declarations, thirteen verbs during cutover
+## Thirteen declarations, twelve verbs
 
-The count is the chapter, so it is worth taking from the declarations rather
-than from any sentence about them. `verbs.rs` declares fifteen public functions during expansion, including
-`record_teardown`, and one private helper, `sought`. Two public functions are not verbs, and
-neither leaves that to be inferred: `stale_cross_refs` opens its doc comment with
-**Not a thirteenth verb**, and `signal_channel` with **Public because the order
-matters**. Thirteen remain, including `record_teardown` beside the compatibility `complete`.
+Ten verbs receive a tree opening: one vacancy, four shared readers, and five
+writers. `finish_commit` receives a workspace and opens the tree itself;
+`record_teardown` receives the worktree and an optional launch directory. These
+two reach beyond the tree opening: one to the VCS seam, one to the launch record.
 
-Those thirteen fall into five groups, and the groups are what the sections below
-are:
-
-| | Group | Verbs | |
-|---:|---|---:|---|
-| 1 | consumes a vacancy | 1 | `root_init` |
-| 2 | reads under a shared lock | 4 | `pick`, `kind`, `brief_chain`, `resolve` |
-| 3 | grows the tree | 2 | `leaf_add`, `leaf_insert` |
-| 4 | changes a leaf's standing | 3 | `leaf_decompose`, `leaf_retire`, `leaf_prune` |
-| 5 | reaches outward | 3 | `finish_commit`, `complete`, `record_teardown` |
-
-**The signature split separates tree access from control effects.** Ten of the thirteen
-are *handed* their tree: `root_init` takes a `Vacancy`, the four readers take a
-`&Tree`, and the five that mutate take a `&TreeWrite`. The remaining three take
-neither — `finish_commit` takes a `&Workspace` and opens the tree itself, and
-`complete` takes no tree at all. `record_teardown` checks that the root is absent
-and records the teardown in the admitted launch directory. That is the ten the header counts. It is worth
-saying plainly, because `finish_commit` unmistakably *touches* the tree — it
-deletes it — and is counted among the two for where else it reaches rather than
-for leaving the tree alone. Its own doc comment fixes the distinction at line
-289: **It opens the tree itself**, unlike every other verb here.
+| Group | Verbs |
+|---|---|
+| consumes a vacancy | `root_init` |
+| reads under a shared lock | `pick`, `kind`, `brief_chain`, `resolve` |
+| grows the tree | `leaf_add`, `leaf_insert` |
+| changes a leaf's standing | `leaf_decompose`, `leaf_retire`, `leaf_prune` |
+| reaches outward | `finish_commit`, `record_teardown` |
 
 <a id="what-the-surface-says-about-itself"></a>
 ## What the surface says about itself
 
-The three roots this chapter owns are declared whole here, each as one
+The two roots this chapter owns are declared whole here, each as one
 composite whose children are the items below in file order.
 
-<!-- fragment «the-twelve-verbs» owner="twelve-not-fourteen" source="crates/grove-loop/src/verbs.rs" lines="1-379" parent="source-verbs" -->
+<!-- fragment «the-twelve-verbs» owner="twelve-not-fourteen" source="crates/grove-loop/src/verbs.rs" lines="1-331" parent="source-verbs" -->
 <!-- insert «verbs-surface-header» -->
 <!-- insert «verbs-imports» -->
 <!-- insert «verbs-root-init» -->
@@ -113,10 +84,9 @@ composite whose children are the items below in file order.
 <!-- insert «verbs-leaf-prune» -->
 <!-- insert «verbs-pruned» -->
 <!-- insert «verbs-finish-commit» -->
-<!-- insert «verbs-complete» -->
-<!-- insert «verbs-signal-channel» -->
-<!-- insert «verbs-signalled» -->
 <!-- insert «verbs-sought» -->
+<!-- insert «verbs-record-teardown» -->
+<!-- insert «verbs-recorded» -->
 <!-- /fragment -->
 <!-- fragment «driver-operations» owner="twelve-not-fourteen" source="crates/grove-loop/src/driver.rs" lines="1-59" parent="source-driver" -->
 <!-- insert «driver-not-fourteen-header» -->
@@ -124,21 +94,14 @@ composite whose children are the items below in file order.
 <!-- insert «driver-transition-to-current» -->
 <!-- insert «driver-materialize-finish» -->
 <!-- /fragment -->
-<!-- fragment «complete-verb» owner="twelve-not-fourteen" source="crates/grove-loop/src/complete.rs" lines="1-96" parent="source-complete" -->
-<!-- insert «complete-header-in-plain-comments» -->
-<!-- insert «complete-imports» -->
-<!-- insert «complete-disposition» -->
-<!-- insert «complete-disposition-token» -->
-<!-- insert «complete-interpret» -->
-<!-- insert «complete-signal» -->
-<!-- /fragment -->
+
 
 The file opens by saying what it is for, which is unusual only because the
 answer is not a behaviour. Twelve of its functions forward almost immediately
 to `task_tree`, `task_grow` or `tree_lifecycle`; what the module contributes is
 that they are gathered, named in one vocabulary, and counted.
 
-<!-- fragment «verbs-surface-header» owner="twelve-not-fourteen" source="crates/grove-loop/src/verbs.rs" lines="1-12" parent="the-twelve-verbs" -->
+<!-- fragment «verbs-surface-header» owner="twelve-not-fourteen" source="crates/grove-loop/src/verbs.rs" lines="1-13" parent="the-twelve-verbs" -->
 ````rust
 //! **The twelve verbs a session invokes over its grove.**
 //!
@@ -146,8 +109,9 @@ that they are gathered, named in one vocabulary, and counted.
 //! tree and every one is stated in grove's vocabulary — brief chains, kinds,
 //! outcomes, handles, finishing — none of which the store has a word for.
 //! Co-locating them gives the handle grammar one owner and puts the driver and
-//! the verbs on one definition of a kind. The two that reach outward reach the
-//! VCS seam ([`finish_commit`]) and the runner ([`complete`]).
+//! the verbs on one definition of a kind. One reaches the VCS seam
+//! ([`finish_commit`]); [`record_teardown`] writes into the current launch
+//! directory without ending the harness run.
 //!
 //! The three shapes that recur across the surface — the lock in the signature,
 //! [`Sought`] instead of an option, and the paths every verb returns — are the
@@ -162,7 +126,7 @@ read them there. The lock in the signature, `Sought` instead of an option, and
 the paths every verb returns are not restated here, and this chapter does not
 restate them either.
 
-<!-- fragment «verbs-imports» owner="twelve-not-fourteen" source="crates/grove-loop/src/verbs.rs" lines="13-23" parent="the-twelve-verbs" -->
+<!-- fragment «verbs-imports» owner="twelve-not-fourteen" source="crates/grove-loop/src/verbs.rs" lines="14-24" parent="the-twelve-verbs" -->
 ````rust
 
 use std::path::{Path, PathBuf};
@@ -170,8 +134,8 @@ use std::path::{Path, PathBuf};
 use ordinal_fs_tree::Sought;
 
 use crate::{
-    complete, task_grow, task_tree, tree_lifecycle, Commit, Error, Handle, Kind, Reference,
-    Selection, Slug, Tree, TreeWrite, Vacancy, Workspace,
+    task_grow, task_tree, tree_lifecycle, Commit, Error, Handle, Kind, Reference, Selection, Slug,
+    Tree, TreeWrite, Vacancy, Workspace,
 };
 
 pub use task_tree::{Located, Resolution};
@@ -191,7 +155,7 @@ The first verb, and the only one that creates the thing every other verb needs.
 It takes the proof that no grove was there, hands the store a slug and a kind,
 and turns the store's positional report into two named paths.
 
-<!-- fragment «verbs-root-init» owner="twelve-not-fourteen" source="crates/grove-loop/src/verbs.rs" lines="24-49" parent="the-twelve-verbs" -->
+<!-- fragment «verbs-root-init» owner="twelve-not-fourteen" source="crates/grove-loop/src/verbs.rs" lines="25-50" parent="the-twelve-verbs" -->
 ````rust
 
 /// Scaffold a fresh grove: the charter brief and the first leaf, as **one**
@@ -231,7 +195,7 @@ this module's job: the store reports a shape, and grove names its parts. The two
 applied to its own dependency — a store that reported something else is named and
 refused, not repaired.
 
-<!-- fragment «verbs-initialized» owner="twelve-not-fourteen" source="crates/grove-loop/src/verbs.rs" lines="50-58" parent="the-twelve-verbs" -->
+<!-- fragment «verbs-initialized» owner="twelve-not-fourteen" source="crates/grove-loop/src/verbs.rs" lines="51-59" parent="the-twelve-verbs" -->
 ````rust
 
 /// What [`root_init`] wrote.
@@ -257,7 +221,7 @@ scaffold and the walk are tied together in a type.
 Four verbs read, and all four take a `&Tree` — the shared-lock opening chapter 5
 read. The first of them answers the only question the loop asks between tasks.
 
-<!-- fragment «verbs-pick» owner="twelve-not-fourteen" source="crates/grove-loop/src/verbs.rs" lines="59-72" parent="the-twelve-verbs" -->
+<!-- fragment «verbs-pick» owner="twelve-not-fourteen" source="crates/grove-loop/src/verbs.rs" lines="60-73" parent="the-twelve-verbs" -->
 ````rust
 
 /// The next leaf to work, or the fact that there is none.
@@ -283,7 +247,7 @@ consumed that trigger; chapter 7 read the walk that produces it. What this
 chapter owns is the decision to spell *there is no more work* in a word the layer
 below already had.
 
-<!-- fragment «verbs-kind» owner="twelve-not-fourteen" source="crates/grove-loop/src/verbs.rs" lines="73-85" parent="the-twelve-verbs" -->
+<!-- fragment «verbs-kind» owner="twelve-not-fourteen" source="crates/grove-loop/src/verbs.rs" lines="74-86" parent="the-twelve-verbs" -->
 ````rust
 
 /// The kind of a named leaf, or of the picked one when none is named.
@@ -305,7 +269,7 @@ The second reads a leaf's session kind; the third reads its ancestors' charters,
 root to leaf. Both take the leaf a caller names and both hand the work straight
 to `task_tree` under the opening they were given.
 
-<!-- fragment «verbs-brief-chain» owner="twelve-not-fourteen" source="crates/grove-loop/src/verbs.rs" lines="86-95" parent="the-twelve-verbs" -->
+<!-- fragment «verbs-brief-chain» owner="twelve-not-fourteen" source="crates/grove-loop/src/verbs.rs" lines="87-96" parent="the-twelve-verbs" -->
 ````rust
 
 /// Every ancestor node file, root-first: `_BRIEF.md`, then `_<slug>.md`.
@@ -328,7 +292,7 @@ file followed by each positioned ancestor's titled file. Missing files refuse
 at open, before either function can return a partial answer.
 
 
-<!-- fragment «verbs-resolve» owner="twelve-not-fourteen" source="crates/grove-loop/src/verbs.rs" lines="96-108" parent="the-twelve-verbs" -->
+<!-- fragment «verbs-resolve» owner="twelve-not-fourteen" source="crates/grove-loop/src/verbs.rs" lines="97-109" parent="the-twelve-verbs" -->
 ````rust
 
 /// What a session's reference names.
@@ -358,7 +322,7 @@ belongs in the success channel.
 Two verbs grow the tree, and both take a `&TreeWrite` — the write opening whose
 guard a mutation consumes. The first appends; the second makes room.
 
-<!-- fragment «verbs-leaf-add» owner="twelve-not-fourteen" source="crates/grove-loop/src/verbs.rs" lines="109-132" parent="the-twelve-verbs" -->
+<!-- fragment «verbs-leaf-add» owner="twelve-not-fourteen" source="crates/grove-loop/src/verbs.rs" lines="110-133" parent="the-twelve-verbs" -->
 ````rust
 
 /// Append one or more leaves under `parent`, all carrying `slug`, as **one**
@@ -393,7 +357,7 @@ tokens are the methodology's, not grove's* is the crate declining a decision it
 could easily have made: a research pair is a three-kind list because a skill said
 so, and `leaf_add` neither knows nor validates that.
 
-<!-- fragment «verbs-leaf-insert» owner="twelve-not-fourteen" source="crates/grove-loop/src/verbs.rs" lines="133-153" parent="the-twelve-verbs" -->
+<!-- fragment «verbs-leaf-insert» owner="twelve-not-fourteen" source="crates/grove-loop/src/verbs.rs" lines="134-154" parent="the-twelve-verbs" -->
 ````rust
 
 /// Take `target`'s slot, shifting it and every later sibling up by one.
@@ -430,7 +394,7 @@ What follows `leaf_insert` in the file is not the next verb. It is the lint that
 finishes `leaf-insert`'s job, and it opens by disqualifying itself from the count
 before it says anything about what it does.
 
-<!-- fragment «verbs-not-a-thirteenth-verb» owner="twelve-not-fourteen" source="crates/grove-loop/src/verbs.rs" lines="154-208" parent="the-twelve-verbs" -->
+<!-- fragment «verbs-not-a-thirteenth-verb» owner="twelve-not-fourteen" source="crates/grove-loop/src/verbs.rs" lines="155-209" parent="the-twelve-verbs" -->
 ````rust
 
 /// The stale position-prefixed references a [`leaf_insert`] left behind, one
@@ -541,7 +505,7 @@ book, and this is the chapter that says so rather than following it.
 Three verbs change what a live leaf is without moving its bytes anywhere a
 reader has to follow. The first promotes it to a node; the other two mark it.
 
-<!-- fragment «verbs-leaf-decompose» owner="twelve-not-fourteen" source="crates/grove-loop/src/verbs.rs" lines="209-229" parent="the-twelve-verbs" -->
+<!-- fragment «verbs-leaf-decompose» owner="twelve-not-fourteen" source="crates/grove-loop/src/verbs.rs" lines="210-230" parent="the-twelve-verbs" -->
 ````rust
 
 /// Turn a leaf into a node, its bytes becoming the node's charter, with one
@@ -570,7 +534,7 @@ pub fn leaf_decompose(
 Its report is the second of the four declared beside their verb, and it names
 the two paths a promotion produces.
 
-<!-- fragment «verbs-decomposed» owner="twelve-not-fourteen" source="crates/grove-loop/src/verbs.rs" lines="230-238" parent="the-twelve-verbs" -->
+<!-- fragment «verbs-decomposed» owner="twelve-not-fourteen" source="crates/grove-loop/src/verbs.rs" lines="231-239" parent="the-twelve-verbs" -->
 ````rust
 
 /// What [`leaf_decompose`] wrote.
@@ -589,7 +553,7 @@ of what this verb adds to chapter 12's promotion, and `Decomposed`'s second fiel
 comment — *so a node is never childless* — is an invariant stated in a struct
 rather than asserted in code.
 
-<!-- fragment «verbs-leaf-retire» owner="twelve-not-fourteen" source="crates/grove-loop/src/verbs.rs" lines="239-247" parent="the-twelve-verbs" -->
+<!-- fragment «verbs-leaf-retire» owner="twelve-not-fourteen" source="crates/grove-loop/src/verbs.rs" lines="240-248" parent="the-twelve-verbs" -->
 ````rust
 
 /// Mark one leaf `DONE` in place. Filename only — the file's bytes do not move.
@@ -606,7 +570,7 @@ pub fn leaf_retire(tree: &TreeWrite, leaf: &Path) -> Result<PathBuf, Error> {
 `leaf_retire` marks one leaf and returns one path. The bulk mark cannot promise
 either, and its comment says so before its signature does.
 
-<!-- fragment «verbs-leaf-prune» owner="twelve-not-fourteen" source="crates/grove-loop/src/verbs.rs" lines="248-267" parent="the-twelve-verbs" -->
+<!-- fragment «verbs-leaf-prune» owner="twelve-not-fourteen" source="crates/grove-loop/src/verbs.rs" lines="249-268" parent="the-twelve-verbs" -->
 ````rust
 
 /// Mark abandoned work `ABANDONED` in place: one leaf, or every *live* leaf
@@ -635,7 +599,7 @@ The report is where the non-atomicity becomes usable rather than merely
 admitted: two vectors, one of what was marked and one of what was deliberately
 not.
 
-<!-- fragment «verbs-pruned» owner="twelve-not-fourteen" source="crates/grove-loop/src/verbs.rs" lines="268-277" parent="the-twelve-verbs" -->
+<!-- fragment «verbs-pruned» owner="twelve-not-fourteen" source="crates/grove-loop/src/verbs.rs" lines="269-278" parent="the-twelve-verbs" -->
 ````rust
 
 /// What [`leaf_prune`] marked, and what it deliberately left alone.
@@ -664,7 +628,7 @@ The last three verbs are the ones that do not take a tree from their caller,
 because what each of them reaches is not the tree. The first reaches the version
 control system.
 
-<!-- fragment «verbs-finish-commit» owner="twelve-not-fourteen" source="crates/grove-loop/src/verbs.rs" lines="278-300" parent="the-twelve-verbs" -->
+<!-- fragment «verbs-finish-commit» owner="twelve-not-fourteen" source="crates/grove-loop/src/verbs.rs" lines="279-301" parent="the-twelve-verbs" -->
 ````rust
 
 /// Commit the teardown the finish session performed. **Reaches the VCS seam.**
@@ -705,152 +669,24 @@ that this is the one verb a caller must **not** invoke while holding a
 is gone and the commit is named, or the tree is untouched and the handle is
 refused.
 
-<!-- fragment «verbs-complete» owner="twelve-not-fourteen" source="crates/grove-loop/src/verbs.rs" lines="301-325" parent="the-twelve-verbs" -->
-````rust
-
-/// Write the relaunch flag to the signal file and return. **Reaches the
-/// runner's channel.**
-///
-/// Ending the session is the loop driver's job — it is watching for this very
-/// channel — so there is nothing else to do here. Outside a loop it is a no-op
-/// that says so.
-///
-/// # Errors
-///
-/// A signal file that could not be written.
-pub fn complete(signal_file: Option<&Path>, done: bool) -> Result<Signalled, Error> {
-    let disposition = if done {
-        complete::Disposition::Done
-    } else {
-        complete::Disposition::Relaunch
-    };
-    match signal_channel(signal_file) {
-        Some(path) => {
-            complete::signal(&path, disposition)?;
-            Ok(Signalled::Wrote(path))
-        }
-        None => Ok(Signalled::NoLoop),
-    }
-}
-````
-<!-- /fragment -->
-
-The twelfth verb, and the only one of the twelve that touches no tree. It maps a
-`bool` onto a two-variant enum, asks where the channel is, and either writes or
-reports that there was nowhere to write. *Ending the session is the loop driver's
-job — it is watching for this very channel — so there is nothing else to do here*
-is the sentence the whole of `complete.rs` exists to justify, and the last section
-of this chapter reads that justification.
-
-The question it asks first is the second thing on this file that is not a verb.
-
-<a id="the-second-that-is-not-a-verb"></a>
-## The second that is not a verb
-
-`complete` asks one question before it writes, and the question is public.
-
-<!-- fragment «verbs-signal-channel» owner="twelve-not-fourteen" source="crates/grove-loop/src/verbs.rs" lines="326-339" parent="the-twelve-verbs" -->
-````rust
-
-/// Whether [`complete`] would signal, and where.
-///
-/// **Public because the order matters.** The caller admits this session against
-/// the channel it is about to signal, and it has to ask *before* the write — so
-/// the answer cannot be something [`complete`] returns.
-#[must_use]
-pub fn signal_channel(signal_file: Option<&Path>) -> Option<PathBuf> {
-    signal_file.map(Path::to_path_buf).or_else(|| {
-        std::env::var_os("GROVE_SIGNAL_FILE")
-            .filter(|value| !value.is_empty())
-            .map(PathBuf::from)
-    })
-}
-````
-<!-- /fragment -->
-
-*Public because the order matters.* A verb is invoked to change or read the
-tree; this is invoked to decide whether an invocation is admissible at all. The
-caller admits its session against the channel it is about to signal, which it can
-only do *before* the write — so the answer cannot be something `complete`
-returns, and a private helper would put it out of reach of the only caller that
-needs it.
-
-Seven lines, and two of them are load-bearing in ways nothing local reveals. The
-[loop control channel](../../../CONTEXT.md#loop-control-channel) is the
-collision-resistant per-launch path the driver watches, and the glossary adds the
-fact that makes the `or_else` necessary: *the foreground launch is the only site
-that sets it, and every other harness spawn must scrub it.* A session is handed
-the path in its environment, not in its arguments.
-
-**The `.filter(|value| !value.is_empty())` is not defensive.** This repository is
-a meta-grove — its test suite *is* the loop machinery, and it is normally run
-from inside a live session whose environment carries a real
-`GROVE_SIGNAL_FILE`. `.cargo/config.toml` force-clears that variable to the
-**empty string** for everything cargo runs, and the file says why empty is
-stronger than an inert path: a nonempty signal path is session-epoch authority.
-The filter is what makes that empty string read as *no loop* rather than as a
-path named `""`. `an_empty_signal_environment_is_no_loop_context`, in
-`crates/grove-llm/tests/complete.rs`, asserts the variable is `Some("")` **first**
-and then that `signal_channel(None)` is `None`, which is what makes it a test of
-the filter rather than of the environment.
-
-**And the `or_else` itself is observed by nothing, for a reason worth stating.**
-Replacing the whole body with `signal_file.map(Path::to_path_buf)` — deleting the
-environment fallback outright — leaves the suite exactly as an unmutated control
-run of the same workspace copy found it: 560 tests, 549 passed, 11 failed, the
-eleven all in `crates/grove-loop/tests/prompt.rs` and failing for two causes
-rather than one — ten because the copy is not a jj repository, and
-`the_namespace_is_the_shipped_plugin_entrys_declared_name` because it carries no
-`.claude-plugin/marketplace.json`. Not one test newly fails. That zero is not a gap in the suite but a
-consequence of the guard above it: cargo force-clears the variable, so under
-`cargo test` the `or_else` branch can only ever yield `None`, and no in-process
-test can reach the arm without mutating an environment the crate is careful never
-to mutate. The arm is live in production — every session this loop launches
-receives its channel exactly this way — and unreachable under the harness by
-construction.
-
-The measurement is only worth the reading if the harness could have seen a
-difference, so it was checked against a mutation that should be observed:
-deleting the emptiness filter instead turns exactly three tests red —
-`an_empty_signal_environment_is_no_loop_context`,
-`no_channel_at_all_is_answered_rather_than_refused` and
-`the_channel_can_be_asked_for_before_it_is_written` — at the same 560-test total,
-so nothing failed to compile.
-
-<!-- fragment «verbs-signalled» owner="twelve-not-fourteen" source="crates/grove-loop/src/verbs.rs" lines="340-349" parent="the-twelve-verbs" -->
-````rust
-
-/// What [`complete`] did.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub enum Signalled {
-    /// The flag was written to this channel; the loop driver will act on it.
-    Wrote(PathBuf),
-    /// There is no channel — this session is not running under the loop driver,
-    /// and whoever started it ends it.
-    NoLoop,
-}
-````
-<!-- /fragment -->
-
-`NoLoop` is the shape of the *outside a loop it is a no-op that says so*
-promise: not an error, not a silent success, but a named variant whose comment
-says who ends the session instead.
+The other outward-reaching verb, `record_teardown`, records an absent tree in
+the current launch directory. It does not end a harness run. Dispatch owns that
+last effect through `harness-dispatch exit`, so Grove's twelve-verb surface has
+one teardown-record operation and no completion-token operation.
 
 <a id="one-place-the-crate-crosses-that-boundary"></a>
 ## One place the crate crosses that boundary
 
-The file ends on its only private function, and on the boundary the whole module
+The helper crosses the module's vocabulary boundary, and on the boundary the whole module
 exists to keep.
 
 `record_teardown` delegates the absent-root check and record creation to the
 launch-directory module. It takes the worktree and optional directory and returns
 `Recorded::Wrote(path)` or `Recorded::NoLoop`; the CLI holds the admitted epoch
-through the call. This thirteenth verb separates teardown disposition from the
-compatibility completion signal, so a harness that exits on its own after recording
-still finishes. The directory module and the driver that reads it are explained
+through the call. This twelfth verb separates teardown disposition from dispatch exit. The directory module and the driver that reads it are explained
 in [The launch directory carries identity and teardown](19-the-loop.md#launch-control-area).
 
-<!-- fragment «verbs-sought» owner="twelve-not-fourteen" source="crates/grove-loop/src/verbs.rs" lines="350-379" parent="the-twelve-verbs" -->
+<!-- fragment «verbs-sought» owner="twelve-not-fourteen" source="crates/grove-loop/src/verbs.rs" lines="302-313" parent="the-twelve-verbs" -->
 ````rust
 
 /// `Option` in, [`Sought`] out — the one place the crate crosses that boundary.
@@ -864,6 +700,17 @@ fn sought<T>(found: Option<T>) -> Sought<T> {
         None => Sought::Nothing,
     }
 }
+````
+<!-- /fragment -->
+
+The teardown operation takes the worktree and optional launch directory, checks
+that `.grove/` is absent through the launch-directory module, and returns the
+recorded path. It runs while the CLI retains the shared epoch guard. Dispatch
+exit can therefore end the harness without conflating its receipt with this
+Grove filesystem fact.
+
+<!-- fragment «verbs-record-teardown» owner="twelve-not-fourteen" source="crates/grove-loop/src/verbs.rs" lines="314-324" parent="the-twelve-verbs" -->
+````rust
 
 /// Record the completed teardown in the current launch directory.
 /// Outside a loop this is a no-op. The CLI holds epoch admission across the write.
@@ -875,6 +722,14 @@ pub fn record_teardown(worktree: &Path, launch_dir: Option<&Path>) -> Result<Rec
         worktree, launch_dir,
     )?)
 }
+````
+<!-- /fragment -->
+
+`Recorded` names the two successful effects: a record was written, or no loop
+context was supplied. Neither variant requests that a harness exit.
+
+<!-- fragment «verbs-recorded» owner="twelve-not-fourteen" source="crates/grove-loop/src/verbs.rs" lines="325-331" parent="the-twelve-verbs" -->
+````rust
 
 /// The effect of recording a teardown, independent of ending the harness run.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -884,6 +739,7 @@ pub enum Recorded {
 }
 ````
 <!-- /fragment -->
+
 
 Six lines, private, and the reason `pick`, `kind` and `resolve` are one line
 each. The comment states the rule as a division of ownership rather than a
@@ -939,7 +795,7 @@ chapter's title: putting them beside the twelve *would say the surface has
 fourteen verbs, which it does not*.
 
 **Fourteen is the wrong answer twice over, by two different routes.** `verbs.rs`
-declares fourteen public functions and twelve verbs, so a reader counting
+declares thirteen public functions and twelve verbs, so a reader counting
 declarations overcounts by two. `driver.rs` holds two more operations over the
 same tree, so a reader counting tree operations reaches fourteen from the other
 side. The two exceptions in `verbs.rs` and the two files' separation are the same
@@ -1042,263 +898,14 @@ that may return early and the append that happens when it does not read the
 the stated outcome, asked of an operation that has no session to ask on its
 behalf.
 
-<a id="the-child-side-of-the-loop"></a>
-## The child side of the loop
-
-The third file is the loop's child-side half: 96 lines whose entire output is one
-word in one file. Its header explains why that is the correct amount of work.
-
-<!-- fragment «complete-header-in-plain-comments» owner="twelve-not-fourteen" source="crates/grove-loop/src/complete.rs" lines="1-18" parent="complete-verb" -->
-````rust
-// The `grove-llm complete` verb — the in-loop completion signal (self-driving-loop).
-//
-// The agent runs this as its **last step** of a task (after commit + retire).
-// It is the "external exit" an interactive `claude` cannot perform on itself:
-// finishing a turn does not make `claude` quit, so the loop needs an
-// out-of-band kill triggered on the agent's command.
-//
-// Realisation: this verb only writes the disposition into the signal file.
-// The out-of-band kill itself is the loop driver's job (src/loop_driver.rs),
-// which watches for this file and applies grace → SIGTERM → kill-grace →
-// SIGKILL to the harness session it spawned (driver-side watcher). That split
-// exists because an in-agent self-kill cannot be trusted under every harness
-// sandbox: codex's Seatbelt denies a same-sandbox process signalling its own
-// session (`(allow signal (target same-sandbox))`), so the previous
-// self-spawned delayed killer silently failed under codex. The driver is the
-// harness's own parent process, outside any sandbox the harness runs under,
-// so it can always signal its child.
-
-````
-<!-- /fragment -->
-
-**These seventeen lines are invisible to every instrument this book uses.**
-`cargo doc --no-deps --document-private-items` reports twenty-six warnings across
-`grove-loop` and **none** for `complete.rs` — but it sees only `///` and `//!`,
-and this header is written in `//`. The clean result is evidence about the file's
-four doc comments and about nothing at all above line 19. A module header in
-plain comments is checked by reading it, and by nothing else.
-
-Read, it argues one thing: the split. The agent writes a disposition; the driver
-performs the kill. The ground is that *an in-agent self-kill cannot be trusted
-under every harness sandbox*, with codex's Seatbelt named as the case that broke
-the previous self-spawned killer.
-
-`docs/ARCHITECTURE.md`'s `self-driving-loop` record argues the same split and
-adds the escalation the comment reproduces — grace, SIGTERM, kill-grace, SIGKILL
-— together with the reason it is the launcher's: it is the session's parent,
-outside whatever sandbox the session runs under. Two things about that citation
-are worth stating rather than assuming. The anchor is shared: `self-driving-loop`,
-`do-is-sole-lifecycle-verb` and `fresh-grove-start-contract` all sit on one
-section, so a bare parenthesised reference lands a reader on ground that argues
-three records. And the record attributes *the launch, the watch and the kill* to
-`crates/keyed-launch`, where this comment attributes them to `src/loop_driver.rs`.
-Both hold, at different altitudes: `loop_driver.rs` chooses the control
-directory, the variable name, the scrub list and the two graces, then hands the
-supervision to `keyed_launch::run`. Chapter 19 owns that file. `keyed-launch` is
-another crate with its own book, and this book names it and stops.
-
-**One clause is in the wrong order.** *The agent runs this as its **last step** of
-a task (after commit + retire)* names both prerequisites correctly, and the verb
-does run after both. Read as a sequence it reverses the one the
-[task commit boundary](../../../CONTEXT.md#task-commit-boundary) fixes: everything
-the commit must cover — the artifact, whatever the grow verbs wrote, and the
-`DONE` rename — is written by retire, so **retire precedes commit**, not the
-other way round. The order is load-bearing rather than stylistic, because a
-commit taken first cannot contain the rename that has not happened yet. The
-parenthetical reads as a list of two prerequisites; it is only as a sequence that
-it is wrong, and the corpus is frozen here, so the page says so and the file keeps
-its bytes.
-
-<!-- fragment «complete-imports» owner="twelve-not-fourteen" source="crates/grove-loop/src/complete.rs" lines="19-21" parent="complete-verb" -->
-````rust
-use anyhow::Result;
-use keyed_launch::Token;
-
-````
-<!-- /fragment -->
-
-Two things a finished session can mean, and the enum is deliberately not three.
-
-<!-- fragment «complete-disposition» owner="twelve-not-fourteen" source="crates/grove-loop/src/complete.rs" lines="22-38" parent="complete-verb" -->
-````rust
-/// What a finished session tells the self-driving loop to do next. The agent
-/// picks this when it signals; the loop driver reads it back from the signal
-/// file (self-driving-loop). The third case — *no* signal at all — is the
-/// *absence* of a [`Disposition`], represented by [`interpret`] returning
-/// `None`, so the loop can tell a clean finish from an abnormal exit. That case
-/// is only ever **reached** when the session process itself ends (a crash, or a
-/// human `/exit`/Ctrl-C): an agent that simply forgets to signal does not get
-/// there at all — see [`interpret`].
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Disposition {
-    /// Relaunch with fresh context for the next task (the default — today's
-    /// behaviour, fired after every per-task commit + retire).
-    Relaunch,
-    /// The whole grove is finished — stop the loop cleanly (the Finish cycle's
-    /// last teardown action, `grove-llm complete --done`).
-    Done,
-}
-````
-<!-- /fragment -->
-
-Two variants and a third case that is deliberately not a variant. The absence of
-a signal is `None` from `interpret` rather than a `Disposition::Crashed`, and the
-comment states the discrimination that buys: the loop can tell a clean finish
-from an abnormal exit. The clause *an agent that simply forgets to signal does
-not get there at all* is the trap the next fragment's comment spends twenty lines
-on.
-
-<!-- fragment «complete-disposition-token» owner="twelve-not-fourteen" source="crates/grove-loop/src/complete.rs" lines="39-52" parent="complete-verb" -->
-````rust
-
-impl Disposition {
-    /// The sentinel written to / read from the signal file. Only `Done` needs a
-    /// distinguished token; any other (or unrecognised, e.g. a stale binary's
-    /// legacy `"complete"`) content reads back as `Relaunch`, the safe default.
-    const DONE_TOKEN: &'static str = "done";
-
-    fn token(self) -> &'static str {
-        match self {
-            Disposition::Relaunch => "relaunch",
-            Disposition::Done => Self::DONE_TOKEN,
-        }
-    }
-}
-````
-<!-- /fragment -->
-
-Only `Done` needs a distinguished token. `Relaunch` is what any other content
-reads back as, which makes the wire format asymmetric on purpose: an unrecognised
-token is safe, and a corrupted `done` degrades to *keep going* rather than to
-*stop the grove*.
-
-<!-- fragment «complete-interpret» owner="twelve-not-fourteen" source="crates/grove-loop/src/complete.rs" lines="53-86" parent="complete-verb" -->
-````rust
-
-/// Interpret the token a finished session left in its completion channel.
-///
-/// **This is the whole of grove's stake in the channel's content.** The runner
-/// carries the token opaquely — allocating the path, watching for it, reading
-/// the bytes back — and hands it here without ever having decided what it
-/// means; the meaning is one match, in one place, on grove's side of the seam.
-///
-/// `None` = no token at all, and the driver only ever observes that when the
-/// session *process* ended without signalling: a human `/exit`/Ctrl-C, or a
-/// crash → the loop stops.
-///
-/// An agent that finishes its work and forgets the verb is **not** that case,
-/// and reading it as one is what made this failure mode hard to see. A
-/// lifecycle session is an *interactive* harness (no `-p`, no `exec`), so
-/// finishing a turn returns the session to its prompt and it never exits: the
-/// runner's supervision sits on a channel that will never appear and a child
-/// that will never exit, and the loop **stalls** rather than stopping. Nothing
-/// downstream of here can distinguish that from a session still working — which
-/// is why the reminder to signal is delivered at the moment of decision, on
-/// `leaf-retire`/`leaf-prune`'s stderr.
-///
-/// `Some(Done)` = a clean whole-grove finish;
-/// `Some(Relaunch)` = relaunch the next task (also the backward-compatible
-/// reading of any present-but-unrecognised content, e.g. a stale binary's
-/// legacy `"complete"`).
-pub fn interpret(token: Option<&Token>) -> Option<Disposition> {
-    let token = token?;
-    if token.as_str().trim() == Disposition::DONE_TOKEN {
-        Some(Disposition::Done)
-    } else {
-        Some(Disposition::Relaunch)
-    }
-}
-````
-<!-- /fragment -->
-
-Thirty-four lines, of which eight are code. *This is the whole of grove's stake in
-the channel's content* — the runner allocates the path, watches it and reads the
-bytes without deciding what they mean, and the meaning is one `match` on grove's
-side of the seam. That is the same division the glossary states from the
-operator's side: the channel's **appearance alone** ends the session, with content
-read only to tell `Relaunch` from `Done`.
-
-The twenty lines in the middle are not about this function. They record a failure
-mode — an agent that finishes and forgets the verb — and the reason it was hard to
-see: a lifecycle session is an *interactive* harness, so finishing a turn
-returns the session to its prompt, the child never exits, and the loop **stalls**
-rather than stopping. The glossary's own `_Avoid_` for the
-[loop control channel](../../../CONTEXT.md#loop-control-channel) states the same
-trap and adds what settles it — which of the two a forgotten `complete` produces
-is a property of the launched harness, not of grove. Nothing downstream of
-`interpret` can distinguish a stalled session from a working one, which is why
-the fix named here is a reminder delivered somewhere else entirely, on
-`leaf-retire`'s stderr.
-
-Seven tests in `crates/grove-llm/tests/complete.rs` pin this file, and they round-trip
-through a real `keyed_launch::Channel` rather than a file the test invents —
-because, as that file's own header says, a test that wrote and parsed its own
-framing would agree with itself while disagreeing with the driver.
-`an_absent_token_is_none` and `unrecognised_signal_content_is_treated_as_relaunch`
-take the two arms above; `relaunch_signal_is_read_back_as_relaunch` and
-`done_signal_is_read_back_as_done` take the round trip.
-
-**The `.trim()` is observed by nothing.** `Channel::read` already returns
-`content.trim_end()`, so by the time a token reaches line 81 its trailing
-whitespace is gone; the only thing the trim still does is tolerate *leading*
-whitespace, and nothing in this workspace writes a token with any — `signal`
-writes a bare literal. Removing it and re-running the same suite gives the
-control's numbers unchanged: 560 tests, 549 passed, the same 11 `prompt.rs`
-failures, nothing newly red. It is defence against a producer that does not exist,
-which is a fair thing for a wire format to carry and not a fair thing to call
-tested.
-
-<!-- fragment «complete-signal» owner="twelve-not-fourteen" source="crates/grove-loop/src/complete.rs" lines="87-96" parent="complete-verb" -->
-````rust
-
-/// Write the disposition into the channel the driver allocated.
-///
-/// Written through `keyed_launch::signal`, the child-side half of that channel:
-/// this process holds only the path it was handed, and the file's framing
-/// belongs to whoever reads it back.
-pub(crate) fn signal(path: &std::path::Path, disposition: Disposition) -> Result<()> {
-    keyed_launch::signal(path, disposition.token())?;
-    Ok(())
-}
-````
-<!-- /fragment -->
-
-The last four lines of the surface, and the only `pub(crate)` item in this
-chapter. *This process holds only the path it was handed, and the file's framing
-belongs to whoever reads it back* is the seam in one sentence: grove chooses the
-word, `keyed-launch` chooses the bytes around it.
-
 <a id="what-could-not-move-here"></a>
 ## What could not move
 
-**On the way in — the names.** This surface is stated entirely in a grammar the
-store cannot check. Every verb that names an entry takes a `Slug`, a `Kind`, a
-`Reference` or a `Handle`, and `ordinal-fs-tree` has a word for none of them — it
-has entries, ordinals and keys. The price is visible in the module header's first
-sentence and paid in `sought`: twelve functions that mostly forward, existing so
-that the vocabulary has one owner and the driver and the verbs run on one
-definition of a kind.
-
-**On the way through — the preconditions.** The surface's contribution to
-question 2 is structural rather than procedural, and `root_init` is the clearest
-case in the crate: it takes a `Vacancy` instead of a path, so *the refusal to
-clobber is the shape and not a check*. Where a precondition could not be made
-into a type it is made into a warning at the point of declaration —
-`finish_commit` may not be called under a `TreeWrite`, `stale_cross_refs` gives
-one up, `driver`'s two take a worktree path because there is no opening yet —
-which is the same `flock` fact told four times because four items must act on
-different halves of it.
-
-**On the way out — the policy.** Two choices here could not have been defaulted
-by anything underneath. That the surface is twelve rather than fourteen is one:
-nothing in a store, a runner or a version control system could have decided that
-a lint following an insert and a question asked before a write are not verbs, and
-the cost of the decision is four doc comments that exist only to argue it. That
-ending a session is the *driver's* job and not the agent's is the other, and its
-cost is a whole file — `complete.rs` — whose 96 lines write a single token, plus
-the split that puts the kill in a process the sandbox cannot deny.
-
-The surface is thirteen verbs during the compatibility cutover. Two functions beside them and two files apart from
-them say why they are not, and the count survives because they do.
+Grove owns twelve verbs because only it names brief chains, kinds, outcomes,
+handles and finishing. `stale_cross_refs` is the second half of `leaf-insert`,
+not an additional verb. The two driver operations sit separately because they
+prepare the tree a session is about to receive. Harness completion belongs to
+dispatch; recording Grove teardown belongs here because only Grove can check
+that `.grove/` is gone.
 
 [Previous: Finishing](14-finishing.md) | [Contents](README.md) | [Next: One live driver per working tree](16-the-lease.md)

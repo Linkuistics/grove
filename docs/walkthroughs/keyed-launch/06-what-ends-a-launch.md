@@ -7,7 +7,7 @@
 
 <!-- rollup «owned-lines-total» -->
 This chapter owns no production source. The book reconstructs 7 roots and
-2,390 lines, including the confinement chapter that follows this assembly,
+2,309 lines, including the confinement chapter that follows this assembly,
 and the [source index](source-index.md) records that graph in full. What is left
 is the thing no single chapter could state, because each one opened on its own
 refusal and stopped at the boundary of the lines it owned.
@@ -21,7 +21,7 @@ the question this chapter applies:
 > **What ends a launch, and who decides?**
 
 The crate decides nothing. It does not know what the program does or what the
-token says, so it has nothing to judge the work by, and a layer in that position
+completion means, so it has nothing to judge the work by, and a layer in that position
 can only observe. It observes three things, and they are the only three ways a
 launch ends: the child exits, the file the child was handed a path to appears,
 or the launcher itself is signalled. The table is what each chapter's refusal
@@ -29,8 +29,8 @@ left for that answer.
 
 | Ch | What the stage carries | What it must not add or interpret | What that leaves the ending |
 |---:|---|---|---|
-| 1 | the manifest, the library root, the error type and the argv | what the program does, and what the token says | nothing here can judge whether the work is done |
-| 2 | the completion channel | the ending, and what the token says | a file the launcher never wrote, so its appearance is evidence that the child spoke |
+| 1 | the manifest, the library root, the error type and the argv | what the program does, and what the completion means | nothing here can judge whether the work is done |
+| 2 | the completion channel | the ending, and what the completion means | a file the launcher never wrote, so its appearance is evidence that the child spoke |
 | 3 | the environment, the terminal, the spawn | anything the caller did not write | a job that can be ended whole, handed this launch's path |
 | 4 | the watch, the escalation, the launcher's signals and the end of the group | the ending: whether the child is done | three observables, an ending the launcher performs, and a group confirmed gone |
 | 5 | the channel's inline tests | what a name refers to | the properties appearance rests on, held by tests that spawn nothing |
@@ -49,19 +49,15 @@ launcher sends, and not the three things it observes.
 
 **The observable.** `exited` reports the child's exit, never a stop, before
 anything else has ended the child, and leaves it unreaped until its group is
-killed. The launch comes back `End::Exited`, with a token if the child wrote one and without if it did not.
+killed. The launch comes back `End::Exited`, with `signalled` recording whether the child created its channel.
 
 **Without it.** A launcher that waited only to be told would wait for ever on a
 child that crashed, or one that exited before it spoke.
 
 **What the crate does not do with it** is read the status. An exit says the
 child is gone and says nothing about its work:
-[the token, never the exit status, says what the launch meant](04-the-escalation.md#the-poll).
-`a_child_that_never_signals_ends_with_no_token` pins it in four assertions. A
-child that exits 3 without writing anything comes back with `token` of `None`,
-`end` of `End::Exited`, status code 3, and no file on the channel path. A
-launcher that inferred completion from an exit, or made an empty token out of
-an absent file, fails there.
+[process status and channel appearance are separate reports](04-the-escalation.md#the-poll).
+`a_child_that_never_signals_ends_unsignalled` pins that separation: exit code 3 returns `End::Exited`, `signalled: false` and no channel file.
 
 ### The file appears
 
@@ -91,17 +87,10 @@ path is authority to end that launch.
 `a_scrubbed_variable_is_removed_from_an_inherited_environment` holds that a
 scrub removes what was inherited.
 
-What the child wrote is read back once, after the child is gone, and handed to
-the caller as an opaque `Token`. The crate never compares the bytes with
-anything. `read`
-[refuses what is not a token](02-the-channel.md#three-ways-to-have-no-token) —
-an empty file, one that is too large, a path that is not a regular file — and
-trims trailing framing from the rest, which is a test of shape and not an
-interpretation. `relaunch` is grove's word, and this book has carried it since
-chapter 1 without the crate ever having read it *as* a word. The string does
-occur inside the corpus, where the inline module in `src/channel.rs` writes it
-to a channel it then discards. Even the crate's own test uses the word as a
-value to move, and would pass just as well with any other.
+The runner reports only channel appearance after the child is reaped. It
+neither opens the entry nor compares a payload with a completion word. The
+caller owns outcome artifacts and decides what the work means; the runner owns
+the process ending and reports what it observed.
 
 ### The launcher is signalled
 
@@ -120,7 +109,7 @@ the number is carried and `reraise` lets the launcher die of the signal it was
 sent.
 
 The channel cannot express this ending, because an interrupt normally leaves no
-token. `an_interrupt_is_reported_against_the_launch_it_arrives_in_and_no_other`
+signal. `an_interrupt_is_reported_against_the_launch_it_arrives_in_and_no_other`
 in `tests/interrupt.rs` holds the report, and
 `a_reraised_signal_reaches_the_parent_as_a_wait_status` in `tests/reraise.rs`
 holds the death.
@@ -151,10 +140,10 @@ holds it across all three ways a child can leave a TERM-ignoring descendant
 behind.
 
 What comes back keeps the two facts apart.
-[`End` says who acted and `token` says whether the child spoke](03-the-job.md#which-of-three-happened),
+[`End` says who acted and `signalled` says whether the child spoke](03-the-job.md#which-of-three-happened),
 and neither is inferred from the other.
 `a_child_that_signals_and_exits_inside_the_grace_is_never_touched` is the case
-that separates them: a token came back, and the launch still ended `Exited`,
+that separates them: the channel appeared, and the launch still ended `Exited`,
 because nothing had to end it.
 
 The three, collected. The third column is what the reader looks for in a layer
@@ -162,7 +151,7 @@ of their own.
 
 | The ending | Where it is observed | Without it | Held by |
 |---|---|---|---|
-| the child exits | `child.exited` | a child that dies without speaking is waited on for ever | `a_child_that_never_signals_ends_with_no_token`, `an_unsignalled_child_runs_to_its_own_exit_untouched` |
+| the child exits | `child.exited` | a child that dies without speaking is waited on for ever | `a_child_that_never_signals_ends_unsignalled`, `an_unsignalled_child_runs_to_its_own_exit_untouched` |
 | the file appears | `channel.appeared()` | an interactive child never ends, or the launcher guesses that it has | `a_signalled_child_that_keeps_waiting_is_terminated_after_the_grace`, `a_child_that_signals_and_exits_inside_the_grace_is_never_touched` |
 | the launcher is signalled | `take_interrupt()` | the launcher dies and leaves its child on the terminal, or exits 0 and reports work that was cut short | `an_interrupt_is_reported_against_the_launch_it_arrives_in_and_no_other`, `a_reraised_signal_reaches_the_parent_as_a_wait_status` |
 
@@ -271,22 +260,22 @@ two split, and each split is the concept order disagreeing with the file's. In
 `src/run.rs`, one chapter's block sits *inside* another chapter's pair.
 
 ```text
-src/run.rs       1,300 lines, 4 blocks, chapters 3 4
-      1–168   ch 3   ┐  the launch’s shape
-    169–357   ch 4   │  the watch, the latch and the entry signal state,
+src/run.rs       1,340 lines, 4 blocks, chapters 3 4
+      1–196   ch 3   ┐  the launch’s shape
+    197–385   ch 4   │  the watch, the latch and the entry signal state,
                      │  inside chapter 3’s pair
-    358–957   ch 3   ┘  terminal, its lease, detached mode and spawn
-   958–1300   ch 4      the end of the group, supervise and escalate
+    386–998   ch 3   ┘  terminal, its lease, detached mode and spawn
+   999–1340   ch 4      the end of the group, supervise and escalate
 
-src/channel.rs     505 lines, 2 blocks, chapters 2 5
-      1–319   ch 2      the production code
-    320–505   ch 5      the inline #[cfg(test)] module
+src/channel.rs     429 lines, 2 blocks, chapters 2 5
+      1–268   ch 2      the production code
+    269–429   ch 5      the inline #[cfg(test)] module
 ```
 
 `src/run.rs` divides
 by whose signal a line is about — which is why chapter 4's watch and latch sit
 between chapter 3's launch shape and its spawn. `src/channel.rs`'s single
-boundary is the `#[cfg(test)]` attribute on line 320, the only ownership boundary
+boundary is the `#[cfg(test)]` attribute on line 269, the only ownership boundary
 in the book cut at a compilation condition rather than a conceptual one.
 
 <!-- rollup «early-use-rows» -->
@@ -303,10 +292,10 @@ Each row turned `explained` in its owner's slice and in no other.
 
 <!-- rollup «owned-lines-sequence» -->
 <!-- rollup «source-owning-chapters» -->
-**Owned source.** 214 + 319 + 811 + 534 + 186 + 326 = 2,390
+**Owned source.** 214 + 268 + 809 + 531 + 161 + 326 = 2,309
 lines across 6 source-owning chapters, and 0 for this one. A chapter that owns
 no source is the shape the structure brief chose for the assembly, and the total
-is the 2,390 lines in the current declared corpus.
+is the 2,309 lines in the current declared corpus.
 
 <!-- rollup «source-roots» -->
 The [concept index](concept-index.md) and the [source index](source-index.md) are
@@ -324,15 +313,15 @@ only one that reads the corpus byte for byte.
 ```console
 $ cargo run --quiet -p book-validation --bin book-check -- \
     --repo . --book docs/walkthroughs/keyed-launch --final --check all
-valid: 7 files, 2234 resolved lines, 0 deferred lines, final=true
+valid: 7 files, 2309 resolved lines, 0 deferred lines, final=true
 ```
 
 `--final` is what makes this different from every scoped run the drafting
 sessions made. In scoped mode a later chapter's range may be reserved by a defer
 and counted as deferred rather than resolved; in final mode a defer is an error,
 every source root must expand to its complete file, and the page inventory must
-match the manifest exactly. 2,390 resolved and 0 deferred is the whole corpus
-reconstructed — including `src/channel.rs` lines 320 to 505, the inline
+match the manifest exactly. 2,309 resolved and 0 deferred is the whole corpus
+reconstructed — including `src/channel.rs` lines 269 to 429, the inline
 `#[cfg(test)] mod tests` that is corpus because a root is `src/**/*.rs` and the
 specification's exception inventory carries no row for this book.
 
@@ -361,7 +350,7 @@ added it with the rest of the scaffolding.
 ```console
 $ cargo test --locked -p keyed-launch
      Running unittests src/lib.rs
-test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
      Running tests/confinement.rs
 test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
      Running tests/interrupt.rs
@@ -378,13 +367,13 @@ test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
 test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
 ```
 
-Fifty-eight tests, and the split across the two surfaces is itself a fact this
-book explained. Twelve of the fifteen unit tests are the inline
+Fifty-nine tests, and the split across the two surfaces is itself a fact this
+book explained. Ten of the sixteen unit tests are the inline
 `#[cfg(test)] mod tests` inside `src/channel.rs`, which are corpus and are on
 [chapter 5's page](05-how-checked.md#inside-the-root) like any other lines. The
 *module* exists because `use super::*;` reaches seven items no integration test
-can see, and one of the twelve tests takes that up: only a module inside the file
-can call `is_channel_name`, whose exactness chapter 2 argued. The other three
+can see, and one of the ten tests takes that up: only a module inside the file
+can call `is_channel_name`, whose exactness chapter 2 argued. The other six
 are in `tests/internal/wait_events.rs`, which `src/run.rs` includes by path so
 that they can reach the supervisor's private seam. The other forty-three live
 in six files under `crates/keyed-launch/tests/` and are evidence rather than
@@ -395,7 +384,7 @@ eleven ignored tests, seven in `tests/noninteractive.rs` and four in
 <!-- rollup «source-roots» -->
 <!-- rollup «owned-lines-total» -->
 <!-- rollup «chapters» -->
-The book reconstructs 7 roots, 2,390 lines, 7 chapters, two lookup surfaces,
+The book reconstructs 7 roots, 2,309 lines, 7 chapters, two lookup surfaces,
 zero deferred ranges. What it leaves the reader with is the question — *what ends
 a launch, and who decides?* — together with the one ending no observable
 reaches, and the reason that ending belongs to whoever knows what the child was

@@ -14,7 +14,7 @@ proves too big for that decomposes rather than running long.
 
 This file is the **shared spine**: every rule that holds across families. What
 one kind owns — its goal, its deliverable, its human-in-the-loop mark, its review
-allowance, whether it passes the done flag when it signals — is inline in that
+allowance, whether it records a teardown before ending — is inline in that
 kind's own `grove-<kind>` skill and is stated **nowhere twice**.
 
 The rest of this file is a register of **conditions** — that a situation exists

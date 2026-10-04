@@ -145,14 +145,9 @@ partition of what the extraction returns: `"plan"` at
 `"finish"` in that file's `finish_slug` are the two slug literals it names.
 The second is the clearest case in the crate: a literal `"finish"` that is a slug rather than a kind and
 reaches `Slug::new` rather than `Kind::new`. Beyond those the extraction also
-returns tokens that are neither — `"done"` and `"relaunch"` in
-`crates/grove-loop/src/complete.rs`, `"shared"` and `"exclusive"` in
-`crates/grove-loop/src/driver_lease.rs` — which is why the method the comment
-prescribes is classification rather than a two-way sort. Chapter 14 reads the two
-slug literals, chapter 15 reads `complete.rs`, and chapter 16 reads the lease.
-The clause *and no enumeration at all* holds in the strongest form available:
-the type is one `String`, and there is no `ALL`, no roster and no match on a kind
-label anywhere in the crate.
+returns other tokens: `"shared"` and `"exclusive"` name lock modes in
+`driver_lease.rs`. They fit the grammar but are not session kinds. Chapter 16
+reads the lease that owns their meaning.
 
 <a id="the-two-grove-spells"></a>
 ## The two labels grove spells, and the one question it asks about them

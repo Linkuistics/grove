@@ -32,9 +32,6 @@ jj-workspace = { path = "../jj-workspace" }
 
 [dev-dependencies]
 assert_cmd = "2.0"
-# The completion channel's own type, so the round trip through `complete` goes
-# through the framing the driver reads back rather than one the test invented.
-keyed-launch = { path = "../keyed-launch" }
 # `flock(2)` directly, so the lock-contention fixtures hold the tree lock from
 # outside the binary they are driving — the one thing no verb can be asked to do.
 libc = "0.2"

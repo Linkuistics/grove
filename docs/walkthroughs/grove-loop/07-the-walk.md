@@ -194,7 +194,7 @@ pub(crate) fn select_in(tree: &Tree) -> Result<Option<Selection>> {
 <!-- /fragment -->
 
 **The same repair, and this one is what settles which reading was right.**
-There is no `verbs::select`: `verbs.rs` declares fourteen public functions and
+There is no `verbs::select`: `verbs.rs` declares thirteen public functions and
 `select` is not among them, `grove-llm` has no such subcommand, and a sweep of
 every commit in this repository's history for the declaration finds none — with
 `pub fn pick`, which the same sweep finds in 236 of them, as the control that

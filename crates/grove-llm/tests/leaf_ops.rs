@@ -13,7 +13,7 @@
 //     `rename(2)` consulting no repository — so the repo below is what makes the
 //     working-copy consequence assertable, not what the verb needs to work.
 //   - both terminal-marking verbs name the session's remaining steps — commit,
-//     then `grove-llm complete` — on stderr, leaving stdout as the parsed path
+//     then `harness-dispatch exit` — on stderr, leaving stdout as the parsed path
 //     data it already was.
 //
 // Each test stands up a real jj repo — the only kind of working tree Grove
@@ -480,7 +480,7 @@ fn pruning_a_node_marks_every_leaf_the_same_way() {
 //
 // `leaf-retire` and `leaf-prune` are the terminal-marking pair and the last
 // grove verbs a session runs, so each names the two steps that follow — commit,
-// then `grove-llm complete` — on **stderr**, at the moment of decision. stdout
+// then `harness-dispatch exit` — on **stderr**, at the moment of decision. stdout
 // stays data: callers parse the printed paths.
 
 /// Both halves of the reminder, in order, and nothing on stdout but paths.
@@ -489,22 +489,22 @@ fn assert_next_steps(verb: &str, stdout: &str, stderr: &str, renames: &str) {
         .find("commit this session's work")
         .unwrap_or_else(|| panic!("{verb}: no commit step on stderr: {stderr:?}"));
     let signal = stderr
-        .find("`grove-llm complete`")
-        .unwrap_or_else(|| panic!("{verb}: no completion step on stderr: {stderr:?}"));
+        .find("`harness-dispatch exit`")
+        .unwrap_or_else(|| panic!("{verb}: no exit step on stderr: {stderr:?}"));
     assert!(
         commit < signal,
         "{verb}: the two steps must be named in order: {stderr:?}"
     );
     assert!(
         stderr.contains("last action"),
-        "{verb}: `complete` must be named as the last action: {stderr:?}"
+        "{verb}: `harness-dispatch exit` must be named as the last action: {stderr:?}"
     );
     assert!(
         stderr.contains(renames),
         "{verb}: expected {renames:?} in the reminder: {stderr:?}"
     );
     assert!(
-        !stdout.contains("complete"),
+        !stdout.contains("harness-dispatch exit"),
         "{verb}: the reminder must not reach stdout (it is parsed): {stdout:?}"
     );
 }
@@ -573,7 +573,7 @@ fn prune_that_marks_nothing_stays_quiet() {
         "expected the no-op advisory: {stderr:?}"
     );
     assert!(
-        !stderr.contains("grove-llm complete"),
+        !stderr.contains("harness-dispatch exit"),
         "a prune that ended no work must not tell the session to close: {stderr:?}"
     );
 }

@@ -29,7 +29,7 @@
 //! Nothing ambient reaches the worker without a grant, installation control
 //! included: the worker's location comes from the front's own path alone
 //! (`worker::locate`). The command cannot know a caller's completion
-//! variables, such as Grove's `GROVE_SIGNAL_FILE`, so it cannot refuse to
+//! variables, such as Grove's `GROVE_LAUNCH_DIR`, so it cannot refuse to
 //! grant them. They are absent unless granted, and granting one is the owner
 //! explicitly handing the worker that authority. The final harness is not
 //! affected: it inherits the caller's whole environment, as before.

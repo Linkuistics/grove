@@ -110,7 +110,6 @@ pub struct DriverLease {
 pub struct SessionEpochGuard {
     _epoch_file: File,
     launch_dir: PathBuf,
-    signal_path: Option<PathBuf>,
 }
 
 impl SessionEpochGuard {
@@ -121,32 +120,6 @@ impl SessionEpochGuard {
                 "launch directory does not match the admitted session epoch"
             )
             .into());
-        }
-        Ok(())
-    }
-
-    /// Refuse an operation whose completion channel is not the one this epoch
-    /// admitted.
-    ///
-    /// # Errors
-    ///
-    /// Any other path, including none.
-    pub fn require_signal_path(&self, signal_path: Option<&Path>) -> Result<(), crate::Error> {
-        Ok(self.require_signal_path_inner(signal_path)?)
-    }
-
-    fn require_signal_path_inner(&self, signal_path: Option<&Path>) -> Result<()> {
-        if signal_path != self.signal_path.as_deref()
-            || (crate::launch_directory::is_launch_name(self.launch_dir.file_name())
-                && signal_path.and_then(Path::parent) != Some(self.launch_dir.as_path()))
-        {
-            bail!(
-                "completion signal path does not match the admitted session epoch: expected {}, got {}",
-                self.signal_path.as_deref().map(|p| p.display().to_string()).unwrap_or_else(|| "<none>".into()),
-                signal_path
-                    .map(|path| path.display().to_string())
-                    .unwrap_or_else(|| "<none>".to_string())
-            );
         }
         Ok(())
     }
@@ -890,22 +863,18 @@ fn probe_live_lease_with_post_unlock_hook(
 ///
 /// The returned guard owns the shared epoch lock and must remain alive through
 /// the operation's separately acquired Tree access guard. With no ambient
-/// launch directory or compatibility signal path this is a manual command and no driver epoch is required.
+/// launch directory this is a manual command and no driver epoch is required.
 ///
 /// # Errors
 ///
 /// A stale session: an epoch that is inactive, one belonging to another working
-/// tree, one whose channel is not the ambient one, or one whose driver is no
+/// tree, one whose launch directory is not the ambient one, or one whose driver is no
 /// longer alive.
 pub fn admit_ambient_session(
     path: &Path,
     operation: &str,
 ) -> Result<Option<SessionEpochGuard>, crate::Error> {
-    let mut guard = admit_session(path, operation, ambient_launch_dir())?;
-    if let Some(guard) = &mut guard {
-        guard.signal_path = signal_path_from(std::env::var_os("GROVE_SIGNAL_FILE"));
-    }
-    Ok(guard)
+    Ok(admit_session(path, operation, ambient_launch_dir())?)
 }
 
 /// The loop-control context this process was launched into, if any.
@@ -916,25 +885,14 @@ pub fn admit_ambient_session(
 /// without a unit test writing a process-global that production code in a
 /// parallel sibling test is reading at the same moment.
 fn ambient_launch_dir() -> Option<PathBuf> {
-    signal_path_from(std::env::var_os("GROVE_LAUNCH_DIR")).or_else(|| {
-        // Compatibility for callers carrying only the old channel. New drivers
-        // allocate that channel inside the directory the epoch actually binds.
-        signal_path_from(std::env::var_os("GROVE_SIGNAL_FILE")).map(|signal| {
-            match signal.parent() {
-                Some(parent) if crate::launch_directory::is_launch_name(parent.file_name()) => {
-                    parent.to_path_buf()
-                }
-                _ => signal,
-            }
-        })
-    })
+    launch_dir_from(std::env::var_os("GROVE_LAUNCH_DIR"))
 }
 
 /// Classify a loop-control value as ambient context or none. Empty is *none*
 /// rather than a degenerate path: `.cargo/config.toml` force-clears the variable
 /// to the empty string rather than unsetting it (`tests/env_hygiene.rs` owns
 /// that claim), so empty is the value every cargo-launched `grove-llm` sees.
-fn signal_path_from(value: Option<OsString>) -> Option<PathBuf> {
+fn launch_dir_from(value: Option<OsString>) -> Option<PathBuf> {
     value.filter(|value| !value.is_empty()).map(PathBuf::from)
 }
 
@@ -990,7 +948,6 @@ fn admit_session(
         .with_context(|| format!("stale Grove session for {operation}"))?;
     Ok(Some(SessionEpochGuard {
         _epoch_file: epoch_file,
-        signal_path: Some(launch_dir.clone()),
         launch_dir,
     }))
 }
@@ -1180,7 +1137,7 @@ mod tests {
                 keyed_launch::run_observed(
                     keyed_launch::Launch {
                         argv: &argv,
-                        channel: Some((&channel, "GROVE_SIGNAL_FILE")),
+                        channel: Some((&channel, "TEST_EXIT_FILE")),
                         scrub: &[],
                         grant: &[],
                         transparent: None,
@@ -1340,7 +1297,7 @@ mod tests {
                 keyed_launch::run_observed(
                     keyed_launch::Launch {
                         argv: &argv,
-                        channel: Some((&channel, "GROVE_SIGNAL_FILE")),
+                        channel: Some((&channel, "TEST_EXIT_FILE")),
                         scrub: &[],
                         grant: &[],
                         transparent: None,
@@ -1354,7 +1311,7 @@ mod tests {
                         observer(event);
                         assert_eq!(fs::read(&private_path).unwrap(), b"started\n");
                         if event == keyed_launch::LaunchEvent::Started {
-                            keyed_launch::signal(channel.path(), "relaunch").unwrap();
+                            keyed_launch::signal(channel.path()).unwrap();
                             assert!(channel.path().exists());
                         }
                         for file in [&directory, &private] {
@@ -1570,10 +1527,10 @@ mod tests {
     const FORK_SENSITIVE_TEST: &str = "GROVE_DRIVER_LEASE_FORK_SENSITIVE_TEST";
 
     /// The ambient context an admission test would once have installed by
-    /// writing `GROVE_SIGNAL_FILE`. Nothing here mutates the environment: these
+    /// writing `GROVE_LAUNCH_DIR`. Nothing here mutates the environment: these
     /// tests exercise [`admit_session`], whose ambient path is an argument, and
     /// the reading half above is covered separately — purely by
-    /// [`signal_path_from`], and end to end by `tests/driver_lease.rs`, which
+    /// [`launch_dir_from`], and end to end by `tests/driver_lease.rs`, which
     /// sets the real variable on a real `grove-llm` subprocess.
     fn ambient(path: &Path) -> Option<PathBuf> {
         Some(path.to_path_buf())
@@ -1831,19 +1788,19 @@ mod tests {
     }
 
     /// The reading half, pinned without touching the environment. The empty case
-    /// is not a curiosity: `.cargo/config.toml` force-clears `GROVE_SIGNAL_FILE`
+    /// is not a curiosity: `.cargo/config.toml` force-clears `GROVE_LAUNCH_DIR`
     /// to the empty string, so treating empty as a *path* would make every
     /// cargo-launched `grove-llm` stale-fail before reaching its test seam.
     #[test]
     fn only_a_nonempty_loop_control_value_is_ambient_context() {
-        assert_eq!(signal_path_from(None), None, "unset is no ambient context");
+        assert_eq!(launch_dir_from(None), None, "unset is no ambient context");
         assert_eq!(
-            signal_path_from(Some(OsString::new())),
+            launch_dir_from(Some(OsString::new())),
             None,
             "the cargo-cleared empty value is no ambient context either"
         );
         assert_eq!(
-            signal_path_from(Some(OsString::from("/w/.jj/grove/signal-0"))),
+            launch_dir_from(Some(OsString::from("/w/.jj/grove/signal-0"))),
             Some(PathBuf::from("/w/.jj/grove/signal-0"))
         );
     }

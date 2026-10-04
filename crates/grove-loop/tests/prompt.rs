@@ -294,7 +294,7 @@ fn no_prompt_states_the_stop_flag() {
         assert!(
             !compose(&kind).contains("--done"),
             "`{}`'s prompt names `--done`. The prompt states the mechanism; which ending a \
-             kind takes is that kind's skill's, and only `grove-finish` passes the flag.",
+             kind takes is that kind's skill's, and `grove-finish` records teardown separately.",
             kind.label()
         );
     }
@@ -312,8 +312,8 @@ fn the_finish_skill_carries_the_three_endings_the_prompt_no_longer_routes() {
     let skill = std::fs::read_to_string(plugin_dir().join("skills/grove-finish/SKILL.md"))
         .expect("the plugin must ship the `finish` kind's skill");
     for outcome in [
-        "`grove-llm complete --done`",
-        "`grove-llm complete`",
+        "`grove-llm record-teardown`",
+        "`harness-dispatch exit`",
         "no signal",
     ] {
         assert!(
@@ -323,10 +323,10 @@ fn the_finish_skill_carries_the_three_endings_the_prompt_no_longer_routes() {
         );
     }
     assert!(
-        skill.contains("override the default ending your prompt states"),
-        "and it must say that these override the prompt's default — a session reads the \
-         prompt's contract first, so the skill has to claim the override rather than \
-         silently disagree"
+        skill.contains("Record the teardown before sending the exit signal"),
+        "and it must state the finish compound ending — a session reads the \
+         prompt's exit mechanism first, so the skill must place the teardown record \
+         before that exit"
     );
 }
 

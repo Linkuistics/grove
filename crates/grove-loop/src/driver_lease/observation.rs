@@ -910,7 +910,7 @@ mod tests {
                 keyed_launch::run_observed(
                     keyed_launch::Launch {
                         argv: &argv,
-                        channel: Some((&channel, "GROVE_SIGNAL_FILE")),
+                        channel: Some((&channel, "TEST_EXIT_FILE")),
                         scrub: &[],
                         grant: &[],
                         transparent: None,
@@ -1595,7 +1595,7 @@ mod tests {
                         keyed_launch::run_observed(
                             keyed_launch::Launch {
                                 argv: &argv,
-                                channel: Some((&channel, "GROVE_SIGNAL_FILE")),
+                                channel: Some((&channel, "TEST_EXIT_FILE")),
                                 scrub: &[],
                                 grant: &[],
                                 transparent: None,
@@ -1947,7 +1947,7 @@ mod tests {
                 keyed_launch::run_observed(
                     keyed_launch::Launch {
                         argv: &argv,
-                        channel: Some((&channel, "GROVE_SIGNAL_FILE")),
+                        channel: Some((&channel, "TEST_EXIT_FILE")),
                         scrub: &[],
                         grant: &[],
                         transparent: None,

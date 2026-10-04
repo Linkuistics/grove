@@ -96,7 +96,7 @@ Keep dated model rankings in the recommendation, not in this reusable skill.
   first, which is a change for every checkout: obtain authorization for that
   wider scope if the request covered only the project.
 - **Every launch:** edit the settings file for a bound, the record directory
-  or a grant. **Never grant `GROVE_SIGNAL_FILE`.**
+  or a grant. **Never grant `GROVE_LAUNCH_DIR`.**
 
 A request to apply or create a policy change authorizes that scoped edit; do
 not ask again for each step. Report the affected scope and how to undo it.

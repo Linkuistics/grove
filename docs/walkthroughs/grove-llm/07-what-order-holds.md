@@ -6,7 +6,7 @@
 ## Twelve verbs, one table
 
 <!-- rollup «owned-lines-total» -->
-This chapter owns no production source. The four roots and 975 lines are
+This chapter owns no production source. The four roots and 915 lines are
 already reconstructed by the fragment graph the six chapters before it built,
 and the [source index](source-index.md) records that graph in full. The
 remaining work is what no single chapter could state, because each read one
@@ -45,7 +45,7 @@ the corpus in a test directory ten times its size.
 | `leaf-retire` | none; the path is normalised | exclusive | the renamed path | the two steps that remain | `retire_adds_done_infix_in_place`, `retire_names_the_remaining_steps_on_stderr`, `retiring_a_reviewed_producer_changes_only_its_own_filename` |
 | `leaf-prune` | none; the path is normalised | exclusive | every marked path, one per line | *nothing live to mark* when it marked none, the untouched `DONE` leaves when there were any — the two are independent — and the two steps last when something was marked | `pruning_a_node_marks_every_leaf_the_same_way`, `prune_of_a_node_reminds_once_for_the_whole_bulk_mark`, `prune_that_marks_nothing_stays_quiet` |
 | `finish-commit` | `Handle`, with a canonical positive key | none in the handler; the call takes the exclusive opening and holds it through the deletion | nothing | `finish-commit <handle>: committed as <change id>` | `a_noncanonical_key_spelling_refuses_without_mutation`, `finish_commit_refuses_a_handle_that_is_not_the_live_finish_leaf`, `native_jj_finish_commit_records_only_the_teardown`; the stderr line is established by source alone, with no test in this crate |
-| `complete` | none; a path and a flag, taken as clap gives them | none — the one verb that opens no tree and resolves no working tree of its own. What it checks before it writes is the channel, against the epoch `run` admitted | nothing | *signalled*, and which of the two things the loop will do; or the no-channel line | `relaunch_signal_is_read_back_as_relaunch`, `done_signal_is_read_back_as_done`, `no_channel_at_all_is_answered_rather_than_refused`, and `grove_llm_admits_only_the_live_epoch_while_version_remains_exempt` (`crates/grove-loop/tests/driver_lease.rs`) for the order |
+| `record-teardown` | none; ambient launch directory | none; checks the exact admitted directory before recording an absent tree | nothing | recorded path, or explicit no-loop message | `teardown_refuses_every_existing_grove_shape_and_is_idempotent_after_removal`, `no_launch_records_nothing_even_outside_a_workspace`, `a_record_cannot_follow_a_link_or_replace_a_directory` |
 
 Four things the table says that no chapter could, because each is a statement
 about the twelve rather than about a family. They are read down the columns.
@@ -69,19 +69,14 @@ the answer rather than a check the handler makes. No handler takes both.
 `leaf-decompose` did, while it had a kind to ask about before it wrote, and
 *Growing the tree* records what went with that read.
 `finish-commit` takes neither and leaves the opening to the call, which needs it
-for a deletion the handler never sees. `complete` opens nothing at all, and is
-the only verb in the file that resolves no working tree of its own — the fact the
-import ledger recorded about `Workspace` six chapters ago. Under a driver its
-working tree is still resolved once, by the admission `run` performs before any
-handler is chosen; what `complete` does not do is resolve it a second time for
-itself.
+for a deletion the handler never sees. `record-teardown` also takes no tree
+opening: it resolves the workspace only when the ambient launch directory is
+present, checks that directory against the admitted guard, and delegates the
+absent-root check and record creation.
 
 **Ten verbs put something on stdout and two put nothing there.**
-`finish-commit` and `complete` are the two, and they are the two that end a
-session rather than tell it something: nothing they produce is data a caller
-parses, so the whole of their output is advice. Every other verb's stdout is a
-path or a token, which is what makes *stdout is data* a rule a caller can rely on
-rather than a preference.
+`finish-commit` and `record-teardown` print only advice on stderr. Dispatch exit
+is a separate command and does not contribute a Grove verb to this count.
 
 **Three of the six verbs that write to the tree are silent on stderr when they
 succeed** — `root-init`, `leaf-add` and `leaf-decompose`. The paths each wrote
@@ -106,7 +101,7 @@ with no stated cost is a test nobody can grade.
 | # | The order | Where it happens | What reversing it would cost | What would catch it |
 |---:|---|---|---|---|
 | 1 | the operator's text is read by the type that owns it, before a lock is taken | the six handlers that read text with a type: `cmd_root_init`, `cmd_resolve`, `cmd_leaf_add`, `cmd_leaf_insert`, `cmd_leaf_decompose`, `cmd_finish_commit` | a lock over the whole grove taken, and waited for, in order to refuse a typo — the exclusive one for five of the six, the shared one for `resolve`. Nothing is corrupted, because the refusal still comes before the call. But a refusal that needs no tree queues behind whatever holds it, and a stalled process on the working tree turns a malformed command into a hang | **no test does.** The refusal tests — `root_init_rejects_invalid_slug_without_creating_grove`, `add_rejects_a_kind_that_is_not_a_token_and_names_the_character`, `a_noncanonical_key_spelling_refuses_without_mutation` — require the tree untouched after a refusal, and that holds in either order. What holds this one is the source, where every parse stands above the opening, and the measurement below |
-| 2 | the session is admitted against the completion channel before it is written to | `cmd_complete`, lines 484–487 | a relaunch flag written to a channel this session was never admitted for — a driver told to start the next task by a session that does not belong to it, which is the failure the epoch record exists to make impossible | `grove_llm_admits_only_the_live_epoch_while_version_remains_exempt`, in `crates/grove-loop/tests/driver_lease.rs`, whose middle assertion is that **no file appeared** at the channel the flag named |
+| 2 | the session is admitted against the launch directory before recording teardown | `cmd_record_teardown` | a teardown record written outside the launch this session was admitted for | source order and the shared guard held through the write; filesystem effects covered in `record_teardown.rs` |
 
 The measurement is one run of the built binary on a scratch grove, while
 another process held the exclusive lock on the working-tree root. A malformed
@@ -118,23 +113,11 @@ message. The same `leaf-add` and `resolve` with well-formed arguments waited for
 the lock until they were killed. So the refusals reached no opening, and the
 run could tell a command that waits from one that does not.
 
-The two costs are not the same kind of thing, and the table is worth reading
-across rather than down. The first order's cost is contention: nothing is
-corrupted, but an answer that could have been immediate waits. The second's is
-not contention at all: the write succeeds, the tree is untouched, and what
-breaks is a claim about *which session* acted. The first surfaces while the
-command is still running and the second a launch later, and that is the order
-the file states them in.
-
-The checks are not the same strength either. The second has one test, which
-drives this binary as a process under a real driver. What makes it a test
-of the order rather than of the outcome is that it asserts the **absence of a
-file** — which is what would fail on the day the write moved ahead of the check,
-rather than merely an exit status that a dozen other faults also produce.
-The first has none. A test of it would hold the tree lock from outside, which
-`tree_lock.rs` already does to show a well-formed verb waiting, and require a
-refusal that does not wait. Until one is written the order is held by review,
-and the third step below says what that is worth.
+The first order avoids waiting for a tree lock to refuse malformed text. The
+second binds the teardown write to this admitted launch. Epoch invalidation
+requires the exclusive lock, so the shared guard held across the handler orders
+the record write before replacement. The lifecycle verb checks absent `.grove/`
+independently of admission; either check alone would leave the other fact unknown.
 
 **There were three orders until `dispatch-launch-k19`.** Between these two stood
 a just-in-time presence rule: each of the four verbs that write a kind asked,
@@ -301,7 +284,7 @@ about *this* crate, and no row is a claim about the loop.
 | The renumber, and the cross-reference scan that follows it | [*`leaf-insert`: the renumber, and the lint*](04-growing-the-tree.md#the-renumber-and-the-lint) | Why the hits come back as a value, and where the second opening would have deadlocked |
 | The terminal marks, and what a node's prune leaves alone | [*`leaf-prune`: the HITL rule, the node case*](05-ending-work.md#the-node-case) | What the marked paths on stdout are, and which leaves the advisory reports |
 | The [session epoch](../../../CONTEXT.md#session-epoch), the [driver lease](../../../CONTEXT.md#driver-lease), and admission | [*Admitted before dispatch*](02-the-grammar.md#admitted-before-dispatch) | Why `run` can refuse at the epoch-admission call, before any handler is chosen |
-| The [loop control channel](../../../CONTEXT.md#loop-control-channel) and its framing | [*`cmd_complete`: resolve, ask, then write*](06-leaving-the-loop.md#the-order) | What `complete` writes, and what the driver reads back |
+| The launch directory and dispatch job context | [*Two separate effects*](06-leaving-the-loop.md#admit-before-signal) | Grove admission and teardown recording; dispatch owns harness exit |
 | The deletion and the path-scoped commit behind the finish sentinel | [*`cmd_finish_commit`*](06-leaving-the-loop.md#the-teardown) | What the change id on stderr records |
 | Whether a kind can be launched at all | [*Text before lock*](04-growing-the-tree.md#before-the-lock) | Why no verb asks, and where the answer is given instead |
 
@@ -339,9 +322,9 @@ mechanical rather than a claim this page makes.
 <!-- rollup «source-roots» -->
 <!-- rollup «ownership-blocks-owned-by» of="one-call-plus-rendering" -->
 <!-- rollup «ownership-blocks-not-owned-by» of="one-call-plus-rendering" -->
-**Ownership.** 25 top-level blocks over 4 source roots, every one of
+**Ownership.** 24 top-level blocks over 4 source roots, every one of
 them `resolved`. *Orientation* created the whole ownership table at the start,
-with its own 4 blocks resolved and the other 21 reserved by `defer`
+with its own 4 blocks resolved and the other 20 reserved by `defer`
 directives; each later chapter replaced its own defers with inserts and turned
 its own rows. No `defer` directive remains anywhere in the book, and none may:
 `F003` reports any defer at all in final mode, so *every reservation has become
@@ -366,10 +349,10 @@ owns the import block, and chapter 2 owns `run` — and each row turned
 
 <!-- rollup «owned-lines-sequence» -->
 <!-- rollup «source-owning-chapters» -->
-**Owned source.** 108 + 121 + 215 + 309 + 101 + 121 = 975 lines across 6
+**Owned source.** 105 + 119 + 215 + 309 + 101 + 66 = 915 lines across 6
 chapters, and 0 for this one. The seventh row of that table exists to be zero:
 a chapter that owns no source is the shape the structure brief chose for the
-assembly, and the total is the 975 lines in the current authoritative corpus.
+assembly, and the total is the 915 lines in the current authoritative corpus.
 
 **The corpus's own claims.** No chapter corrected a comment it found wanting:
 as these seven chapters were drafted, each was reproduced as written and
@@ -385,43 +368,10 @@ dependency the manifest's own comment records as removed;
 clause it rewrote in the same seven lines — the manifest's *a binary target
 can reach its own library's private items*, which *Orientation* had read
 against the one shape it holds for and which `bin-target-privacy-claim-k87`
-had corrected everywhere else. Three were found while drafting:
-`cmd_root_init`'s drop-order argument for `match` over `let … else`, which was
-the reverse of what the compiler does;
-`eprint_next_steps` naming a *jj/git* lane this build cannot reach; and the
-`Complete` variant's *a session not under `grove do`*, naming a verb neither
-binary has. **All three found while drafting have since landed.**
-`root-init-drop-order-comment-k99` rewrote the drop-order comment to state the
-order the compiler actually produces; `next-steps-comment-lane-k100` rewrote
-`eprint_next_steps`'s to name jj alone and to narrow *the last grove verbs a
-session runs* to *the last tree verbs a session runs* — `complete` is a grove
-verb that runs after both and opens no tree, so only the narrower word is true
-of the pair; and `complete-help-grove-do-k101` replaced the `Complete`
-variant's parenthesis with *a session bare `grove` did not launch*, the
-spelling `removed_surface.rs` itself uses for the driver. Each rewrote its own
-chapter's passage in the same commit, so *Growing the tree*, *Ending work* and
-*Leaving the loop* now read comments that hold instead of adjudicating ones
-that do not. **The two known before drafting began have landed too.**
-`grove-llm-dependency-comments-k102` narrowed the manifest's reachability
-sentence to `grove-loop` — the scope the compiler holds outright, rather than
-the wider one the direct `jj-workspace` dependency falsifies — dropped
-`lib.rs`'s second publisher, and named the shape the privacy clause holds for,
-rewriting *Orientation*'s three passages in the same commit. All five have
-landed, so no page of this book still reads a comment it judged worth a source
-change. One more went out with the presence rule: the manifest's account of the
-removed `grove` dependency said the leaf-writing verbs *make* a launch-template
-check, and `two-orders-k20` put that verb in the past tense in the commit that
-rewrote *Orientation*'s paragraph beside it. A further set were found narrower or looser than stated and left
-exactly where they are,
-no page judging a rewrite worth a leaf of its own: `no_live_leaves` saying
-*four times* where it has three callers, `kind`'s help offering a *missing or
-unknown* refusal only half of which is still reachable, `label`'s parenthesis
-about the grove name, `resolve`'s help omitting `.`, and `Reference::parse`'s
-refusal offering a path form `resolve` does not accept. The line between the
-two sets is a judgement each chapter made about its own fragment, not a
-property of the comments. Every page reproduces the bytes as written either
-way; correcting one is a source change, and a source change belongs to a leaf
-that can carry the affected ledgers and pages in one commit.
+had corrected everywhere else. The later source cutover moves completion out of this binary: the final
+reminder names `harness-dispatch exit`, while `record-teardown` records Grove's
+absent-root fact. Historical measurements below describe the earlier corpus;
+the final checks at the end of this chapter verify the current four roots.
 
 <!-- rollup «source-roots» -->
 The [concept index](concept-index.md) and the [source index](source-index.md)
@@ -439,15 +389,19 @@ only one that reads the corpus byte for byte.
 ```console
 $ cargo run --quiet -p book-validation --bin book-check -- \
     --repo . --book docs/walkthroughs/grove-llm --final --check all
-valid: 4 files, 949 resolved lines, 0 deferred lines, final=true
+valid: 4 files, 915 resolved lines, 0 deferred lines, final=true
 ```
 
 `--final` is what makes this different from every scoped run the six drafting
 sessions made. In scoped mode a later chapter's range may be reserved by a defer
 and counted as deferred rather than resolved; in final mode a defer is an error,
 every source root must expand to its complete file, and the page inventory must
-match the manifest exactly. 949 resolved and 0 deferred is the whole corpus
+match the manifest exactly. 915 resolved and 0 deferred is the whole corpus
 reconstructed.
+
+The following gate and crate-suite transcripts are historical authoring evidence;
+they precede the dispatch cutover. The current equality result above was rerun
+at signal-contract-k18. Repository-wide verification is owned by its parent session.
 
 ```console
 $ bash scripts/check.sh
@@ -490,7 +444,7 @@ test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
      Running tests/brief_chain.rs (target/debug/deps/brief_chain-776efa9c74d5f807)
 running 7 tests
 test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
-     Running tests/complete.rs (target/debug/deps/complete-f0f32f90df8632e0)
+     Historical completion tests (removed at signal-contract-k18)
 running 7 tests
 test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
      Running tests/composition_guidance.rs (target/debug/deps/composition_guidance-fad4f6a14b20751f)
@@ -576,7 +530,7 @@ what the library target exists to make possible.
 <!-- rollup «source-roots» -->
 <!-- rollup «owned-lines-total» -->
 <!-- rollup «chapters» -->
-The book reconstructs 4 roots, 975 lines, 7 chapters, two lookup
+The book reconstructs 4 roots, 915 lines, 7 chapters, two lookup
 surfaces, zero deferred ranges. What it argued is that a thin command surface
 over a library has exactly one thing left to get right, and that the thing is
 order — two of them, each stated where it happens and each with a different

@@ -1038,33 +1038,9 @@ fn grove_llm_admits_only_the_live_epoch_while_version_remains_exempt() {
     );
 
     let wrong_launch = live_signal.with_file_name("launch-22222222222222222222222222222222");
-    let wrong_signal = live_signal.with_file_name("signal-22222222222222222222222222222222");
-    let misdirected_complete = Command::new(support::grove_llm())
-        .args(["complete", "--signal-file"])
-        .arg(&wrong_signal)
-        .current_dir(&root)
-        .env("GROVE_LAUNCH_DIR", &live_signal)
-        .output()
-        .unwrap();
-    assert!(
-        !misdirected_complete.status.success(),
-        "complete wrote outside the admitted epoch"
-    );
-    assert!(
-        !wrong_signal.exists(),
-        "complete created a signal path other than the active epoch's channel"
-    );
-    assert!(
-        String::from_utf8_lossy(&misdirected_complete.stderr)
-            .contains("does not match the admitted session epoch"),
-        "unexpected stderr: {}",
-        String::from_utf8_lossy(&misdirected_complete.stderr)
-    );
-
     let stale = Command::new(support::grove_llm())
         .arg("pick")
         .current_dir(&root)
-        .env("GROVE_SIGNAL_FILE", &wrong_signal)
         .env("GROVE_LAUNCH_DIR", &wrong_launch)
         .output()
         .unwrap();
@@ -1081,7 +1057,6 @@ fn grove_llm_admits_only_the_live_epoch_while_version_remains_exempt() {
     let version = Command::new(support::grove_llm())
         .arg("--version")
         .current_dir(&root)
-        .env("GROVE_SIGNAL_FILE", &wrong_signal)
         .env("GROVE_LAUNCH_DIR", &wrong_launch)
         .output()
         .unwrap();
@@ -1241,21 +1216,6 @@ fn a_reinitialized_tree_reuses_plan_k1_without_reusing_the_old_session() {
     assert!(
         !root.join(".grove/02-impl--stale-mutation-k2.md").exists(),
         "stale mutation allocated a leaf in the new tree"
-    );
-
-    let stale_complete = Command::new(&grove_llm)
-        .arg("complete")
-        .current_dir(&root)
-        .env("GROVE_LAUNCH_DIR", &old_signal)
-        .output()
-        .unwrap();
-    assert!(
-        !stale_complete.status.success(),
-        "the old session completed the reinitialized tree"
-    );
-    assert!(
-        !old_signal.exists(),
-        "stale complete recreated its old signal"
     );
 
     let new_pick = Command::new(&grove_llm)

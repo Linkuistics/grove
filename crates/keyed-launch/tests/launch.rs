@@ -56,6 +56,13 @@ impl Harness {
     }
 }
 
+/// A fixture report is separate from the appearance-only completion channel.
+fn report_path(channel: &Channel) -> PathBuf {
+    let mut path = channel.path().as_os_str().to_os_string();
+    path.push(".report");
+    path.into()
+}
+
 fn launch<'a>(
     argv: &'a Argv,
     channel: &'a Channel,
@@ -74,21 +81,21 @@ fn launch<'a>(
 }
 
 // ---------------------------------------------------------------------------
-// The channel reaches the child, and the child's token comes back
+// The channel reaches the child, and the child's signal is reported
 
 /// The whole loop in one case: the launcher publishes a path, the child writes
-/// a token to it, and the launcher reads that token back. Nothing in between
+/// an empty file there, and the launcher reports its appearance. Nothing in between
 /// knows what "done" means.
 #[test]
-fn a_child_signals_through_the_published_path_and_the_token_comes_back() {
+fn a_child_signals_through_the_published_path() {
     let harness = Harness::new();
-    let script = harness.script("printf 'done\\n' > \"$TEST_CHANNEL\"\nexit 0\n");
+    let script = harness.script(": > \"$TEST_CHANNEL\"\nexit 0\n");
     let argv = harness.argv(&script);
     let channel = Channel::allocate(&harness.control()).unwrap();
 
     let ended = run(launch(&argv, &channel, &[], None)).unwrap();
 
-    assert_eq!(ended.token.as_ref().map(|t| t.as_str()), Some("done"));
+    assert!(ended.signalled);
     assert!(ended.status.success());
     assert_eq!(
         ended.end,
@@ -98,7 +105,7 @@ fn a_child_signals_through_the_published_path_and_the_token_comes_back() {
 }
 
 #[test]
-fn a_child_that_never_signals_ends_with_no_token() {
+fn a_child_that_never_signals_ends_unsignalled() {
     let harness = Harness::new();
     let script = harness.script("exit 3\n");
     let argv = harness.argv(&script);
@@ -106,7 +113,7 @@ fn a_child_that_never_signals_ends_with_no_token() {
 
     let ended = run(launch(&argv, &channel, &[], None)).unwrap();
 
-    assert_eq!(ended.token, None);
+    assert!(!ended.signalled);
     assert_eq!(ended.end, End::Exited);
     assert_eq!(ended.status.code(), Some(3));
     assert!(
@@ -116,14 +123,14 @@ fn a_child_that_never_signals_ends_with_no_token() {
 }
 
 /// A child that signals and then takes its time still exits on its own terms,
-/// so nothing escalates and `End` says so — even though a token came back.
+/// so nothing escalates and `End` says so — even though a signal came back.
 ///
 /// The grace is long here on purpose: the child's own exit has to land well
 /// inside it, or the case under test is not the case being run.
 #[test]
 fn a_child_that_signals_and_exits_inside_the_grace_is_never_touched() {
     let harness = Harness::new();
-    let script = harness.script("printf 'done\\n' > \"$TEST_CHANNEL\"\nsleep 1\nexit 0\n");
+    let script = harness.script(": > \"$TEST_CHANNEL\"\nsleep 1\nexit 0\n");
     let argv = harness.argv(&script);
     let channel = Channel::allocate(&harness.control()).unwrap();
     let patient = Escalation {
@@ -137,11 +144,11 @@ fn a_child_that_signals_and_exits_inside_the_grace_is_never_touched() {
     })
     .unwrap();
 
-    assert_eq!(ended.token.as_ref().map(|t| t.as_str()), Some("done"));
+    assert!(ended.signalled);
     assert_eq!(
         ended.end,
         End::Exited,
-        "a token is not an escalation — nothing was sent to this child"
+        "a signal is not an escalation — nothing was sent to this child"
     );
     assert!(ended.status.success());
     assert!(
@@ -164,8 +171,7 @@ fn a_signalled_child_that_keeps_waiting_is_terminated_after_the_grace() {
     // mid-wait, and a long-lived grandchild would go on holding the inherited
     // stdout pipe after its parent is reaped — which hangs the test *runner*,
     // not the test.
-    let script = harness
-        .script("printf 'relaunch\\n' > \"$TEST_CHANNEL\"\nwhile : ; do sleep 0.05 ; done\n");
+    let script = harness.script(": > \"$TEST_CHANNEL\"\nwhile : ; do sleep 0.05 ; done\n");
     let argv = harness.argv(&script);
     let channel = Channel::allocate(&harness.control()).unwrap();
 
@@ -174,7 +180,7 @@ fn a_signalled_child_that_keeps_waiting_is_terminated_after_the_grace() {
     assert_eq!(events, [LaunchEvent::Started, LaunchEvent::Reaped]);
 
     assert_eq!(ended.end, End::Escalated);
-    assert_eq!(ended.token.as_ref().map(|t| t.as_str()), Some("relaunch"));
+    assert!(ended.signalled);
     assert!(
         !ended.status.success(),
         "a terminated child does not exit successfully: {:?}",
@@ -201,9 +207,8 @@ fn a_signalled_child_that_keeps_waiting_is_terminated_after_the_grace() {
 #[test]
 fn a_child_that_ignores_sigterm_is_killed_after_the_kill_grace() {
     let harness = Harness::new();
-    let script = harness.script(
-        "trap '' TERM\nprintf 'done\\n' > \"$TEST_CHANNEL\"\nwhile : ; do sleep 0.05 ; done\n",
-    );
+    let script =
+        harness.script("trap '' TERM\n: > \"$TEST_CHANNEL\"\nwhile : ; do sleep 0.05 ; done\n");
     let argv = harness.argv(&script);
     let channel = Channel::allocate(&harness.control()).unwrap();
 
@@ -224,7 +229,7 @@ fn a_child_that_ignores_sigterm_is_killed_after_the_kill_grace() {
     );
 }
 
-/// An unsignalled child is never touched: the token, not a timeout, is what
+/// An unsignalled child is never touched: channel appearance, not a timeout, is what
 /// authorises the escalation.
 #[test]
 fn an_unsignalled_child_runs_to_its_own_exit_untouched() {
@@ -263,15 +268,16 @@ fn a_scrubbed_variable_is_removed_from_an_inherited_environment() {
     );
     let harness = Harness::new();
     let script = harness
-        .script("printf '%s|%s\\n' \"${PATH-<unset>}\" \"${HOME-<unset>}\" > \"$TEST_CHANNEL\"\n");
+        .script("printf '%s|%s\\n' \"${PATH-<unset>}\" \"${HOME-<unset>}\" > \"$TEST_CHANNEL.report\"\n: > \"$TEST_CHANNEL\"\n");
     let argv = harness.argv(&script);
     let channel = Channel::allocate(&harness.control()).unwrap();
     let scrub: [&OsStr; 1] = [OsStr::new("HOME")];
 
     let ended = run(launch(&argv, &channel, &scrub, None)).unwrap();
 
-    let reported = ended.token.expect("the child reported its environment");
-    let (path, home) = reported.as_str().split_once('|').unwrap();
+    assert!(ended.signalled);
+    let reported = fs::read_to_string(report_path(&channel)).unwrap();
+    let (path, home) = reported.trim_end().split_once('|').unwrap();
     assert_eq!(
         home, "<unset>",
         "a scrubbed variable must be removed, not merely left unset"
@@ -293,16 +299,15 @@ fn a_scrubbed_variable_is_removed_from_an_inherited_environment() {
 #[test]
 fn granting_the_channel_survives_a_scrub_list_that_names_it() {
     let harness = Harness::new();
-    let script = harness.script("printf 'done\\n' > \"${TEST_CHANNEL?unset}\"\n");
+    let script = harness.script(": > \"${TEST_CHANNEL?unset}\"\n");
     let argv = harness.argv(&script);
     let channel = Channel::allocate(&harness.control()).unwrap();
     let scrub: [&OsStr; 2] = [OsStr::new("TEST_CHANNEL"), OsStr::new("HOME")];
 
     let ended = run(launch(&argv, &channel, &scrub, None)).unwrap();
 
-    assert_eq!(
-        ended.token.as_ref().map(|t| t.as_str()),
-        Some("done"),
+    assert!(
+        ended.signalled,
         "the child could not reach its channel, so the grant was scrubbed away"
     );
 }
@@ -314,7 +319,7 @@ fn granting_the_channel_survives_a_scrub_list_that_names_it() {
 fn a_grant_replaces_a_scrubbed_value_and_cannot_replace_the_channel() {
     let harness = Harness::new();
     let script =
-        harness.script("printf '%s|%s\\n' \"${HOME-<unset>}\" \"$GRANTED\" > \"$TEST_CHANNEL\"\n");
+        harness.script("printf '%s|%s\\n' \"${HOME-<unset>}\" \"$GRANTED\" > \"$TEST_CHANNEL.report\"\n: > \"$TEST_CHANNEL\"\n");
     let argv = harness.argv(&script);
     let channel = Channel::allocate(&harness.control()).unwrap();
     let scrub: [&OsStr; 1] = [OsStr::new("HOME")];
@@ -330,10 +335,10 @@ fn a_grant_replaces_a_scrubbed_value_and_cannot_replace_the_channel() {
     })
     .unwrap();
 
+    assert!(ended.signalled, "the grant did not replace the channel");
     assert_eq!(
-        ended.token.as_ref().map(|t| t.as_str()),
-        Some("/granted/home|yes"),
-        "the child wrote through the channel, so the grant did not replace it"
+        fs::read_to_string(report_path(&channel)).unwrap(),
+        "/granted/home|yes\n"
     );
 }
 
@@ -346,7 +351,7 @@ fn the_child_sees_its_arg0_while_its_program_is_what_runs() {
         OsString::from("/bin/sh"),
         vec![
             OsString::from("-c"),
-            OsString::from("ps -o args= -p $$ > \"$TEST_CHANNEL\""),
+            OsString::from("ps -o args= -p $$ > \"$TEST_CHANNEL.report\"\n: > \"$TEST_CHANNEL\""),
         ],
     )
     .with_arg0(OsString::from("chosen-name"));
@@ -354,18 +359,15 @@ fn the_child_sees_its_arg0_while_its_program_is_what_runs() {
 
     let ended = run(launch(&argv, &channel, &[], None)).unwrap();
 
-    let args = ended.token.expect("the child reported its arguments");
-    assert!(
-        args.as_str().starts_with("chosen-name -c "),
-        "{:?}",
-        args.as_str()
-    );
+    assert!(ended.signalled);
+    let args = fs::read_to_string(report_path(&channel)).unwrap();
+    assert!(args.starts_with("chosen-name -c "), "{:?}", args);
 }
 
 /// The channel's appearance is the whole signal: an empty file is a signal
-/// with no token. A child that never touches the channel has not signalled.
+/// without content. A child that never touches the channel has not signalled.
 #[test]
-fn an_empty_channel_signals_without_a_token() {
+fn an_empty_channel_signals() {
     let harness = Harness::new();
     let channel = Channel::allocate(&harness.control()).unwrap();
     let script = harness.script(": > \"$TEST_CHANNEL\"\n");
@@ -374,7 +376,6 @@ fn an_empty_channel_signals_without_a_token() {
     let ended = run(launch(&argv, &channel, &[], None)).unwrap();
 
     assert!(ended.signalled);
-    assert_eq!(ended.token, None);
     assert_eq!(ended.end, End::Exited);
 
     let channel = Channel::allocate(&harness.control()).unwrap();
@@ -387,17 +388,22 @@ fn an_empty_channel_signals_without_a_token() {
 #[test]
 fn the_channel_path_is_published_under_the_callers_chosen_variable_name() {
     let harness = Harness::new();
-    // Written through the *caller's* name and read back from the channel the
-    // launcher holds: the two agree only because `channel_var` carried it.
-    let script = harness.script("printf '%s\\n' \"$TEST_CHANNEL\" > \"$TEST_CHANNEL\"\n");
+    // Written through the *caller's* name, recorded in a separate fixture output:
+    // the two agree only because `channel_var` carried it.
+    let script = harness.script(
+        "printf '%s\\n' \"$TEST_CHANNEL\" > \"$TEST_CHANNEL.report\"\n: > \"$TEST_CHANNEL\"\n",
+    );
     let argv = harness.argv(&script);
     let channel = Channel::allocate(&harness.control()).unwrap();
 
     let ended = run(launch(&argv, &channel, &[], None)).unwrap();
 
+    assert!(ended.signalled);
     assert_eq!(
-        ended.token.map(|t| t.into_string()),
-        Some(channel.path().display().to_string())
+        fs::read_to_string(report_path(&channel))
+            .unwrap()
+            .trim_end(),
+        channel.path().display().to_string()
     );
 }
 
@@ -406,13 +412,18 @@ fn the_child_starts_in_the_given_directory() {
     let harness = Harness::new();
     let elsewhere = harness.dir.path().join("elsewhere");
     fs::create_dir(&elsewhere).unwrap();
-    let script = harness.script("pwd -P > \"$TEST_CHANNEL\"\n");
+    let script = harness.script("pwd -P > \"$TEST_CHANNEL.report\"\n: > \"$TEST_CHANNEL\"\n");
     let argv = harness.argv(&script);
     let channel = Channel::allocate(&harness.control()).unwrap();
 
     let ended = run(launch(&argv, &channel, &[], Some(&elsewhere))).unwrap();
 
-    let reported = PathBuf::from(ended.token.unwrap().into_string());
+    assert!(ended.signalled);
+    let reported = PathBuf::from(
+        fs::read_to_string(report_path(&channel))
+            .unwrap()
+            .trim_end(),
+    );
     assert_eq!(
         reported.canonicalize().unwrap(),
         elsewhere.canonicalize().unwrap()
@@ -443,7 +454,7 @@ fn a_program_that_does_not_exist_names_itself_and_says_what_to_check() {
 }
 
 /// Successive launches in one directory get channels that name them alone, so
-/// one launch can never read the token another left.
+/// one launch can never observe the signal another left.
 #[test]
 fn successive_launches_get_independent_channels() {
     let harness = Harness::new();
@@ -453,15 +464,15 @@ fn successive_launches_get_independent_channels() {
     let first = Channel::allocate(&harness.control()).unwrap();
     let first_ended = run(launch(&argv, &first, &[], None)).unwrap();
     let second = Channel::allocate(&harness.control()).unwrap();
+    assert!(
+        !second.appeared(),
+        "the first channel cannot signal the second launch"
+    );
     let second_ended = run(launch(&argv, &second, &[], None)).unwrap();
 
     assert_ne!(first.path(), second.path());
-    assert_ne!(first_ended.token, second_ended.token);
-    assert_eq!(
-        second.read(),
-        second_ended.token,
-        "the second launch's channel holds the second launch's token"
-    );
+    assert!(first_ended.signalled);
+    assert!(second_ended.signalled);
 
     first.discard().unwrap();
     second.discard().unwrap();
@@ -481,7 +492,7 @@ fn a_caller_built_argv_is_spawned_whole_and_directly() {
     let record = harness.dir.path().join("args");
     let script = harness.script(&format!(
         "for argument in \"$@\"; do printf '%s\\0' \"$argument\"; done > {}\n\
-         printf done > \"$TEST_CHANNEL\"\n",
+         : > \"$TEST_CHANNEL\"\n",
         quoted(&record)
     ));
     let words = [
@@ -498,7 +509,7 @@ fn a_caller_built_argv_is_spawned_whole_and_directly() {
 
     let ended = run(launch(&argv, &channel, &[], None)).unwrap();
 
-    assert_eq!(ended.token.as_ref().map(|t| t.as_str()), Some("done"));
+    assert!(ended.signalled);
     let received = fs::read_to_string(&record).unwrap();
     let received: Vec<&str> = received.split_terminator('\0').collect();
     assert_eq!(received, words);
@@ -853,7 +864,7 @@ fn observed_immediate_exit_and_failed_spawn_have_exact_events() {
     assert_eq!(events, [LaunchEvent::Started, LaunchEvent::Reaped]);
     assert_eq!(ended.status.code(), Some(3));
     assert_eq!(ended.end, End::Exited);
-    assert_eq!(ended.token, None);
+    assert!(!ended.signalled);
 
     events.clear();
     let missing = harness.dir.path().join("missing-directory");
@@ -867,12 +878,13 @@ fn observed_immediate_exit_and_failed_spawn_have_exact_events() {
 }
 
 #[test]
-fn a_token_does_not_emit_reaped_before_the_child_exits() {
+fn a_channel_appearance_does_not_emit_reaped_before_the_child_exits() {
     use std::sync::mpsc;
     use std::time::Instant;
     let harness = Harness::new();
     let release = harness.dir.path().join("release");
-    let script = harness.script("printf 'done\\n' > \"$TEST_CHANNEL\"\nwhile [ ! -f release ]; do sleep 0.01; done\nexit 0\n");
+    let script = harness
+        .script(": > \"$TEST_CHANNEL\"\nwhile [ ! -f release ]; do sleep 0.01; done\nexit 0\n");
     let argv = harness.argv(&script);
     let channel = Channel::allocate(&harness.control()).unwrap();
     let (send, receive) = mpsc::channel();
@@ -896,7 +908,10 @@ fn a_token_does_not_emit_reaped_before_the_child_exits() {
         );
         let deadline = Instant::now() + Duration::from_secs(5);
         while !channel.path().exists() {
-            assert!(Instant::now() < deadline, "child never published its token");
+            assert!(
+                Instant::now() < deadline,
+                "child never published its signal"
+            );
             std::thread::sleep(Duration::from_millis(5));
         }
         assert_eq!(receive.try_recv(), Err(mpsc::TryRecvError::Empty));
@@ -908,7 +923,7 @@ fn a_token_does_not_emit_reaped_before_the_child_exits() {
         let ended = runner.join().unwrap();
         assert!(ended.status.success());
         assert_eq!(ended.end, End::Exited);
-        assert_eq!(ended.token.unwrap().as_str(), "done");
+        assert!(ended.signalled);
         assert_eq!(receive.try_recv(), Err(mpsc::TryRecvError::Empty));
     });
 }

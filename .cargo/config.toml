@@ -2,7 +2,7 @@
 # typed into.
 #
 # This repo is a **meta-grove**: its own test suite *is* the loop machinery, and
-# the suite is normally run from inside a live `grove do` session. That session's
+# this grove is still driven by installed v22 binaries and skills. Its live session's
 # environment carries `GROVE_SIGNAL_FILE` — the path the loop driver watches, and
 # whose mere appearance makes it SIGTERM the harness child (self-driving-loop).
 # Authority to end a session is therefore ambient: every descendant of the
@@ -11,7 +11,7 @@
 # variable writes the *live* path and kills the developer's terminal.
 #
 # Force-clear it for everything cargo runs. Empty is deliberately stronger than
-# redirecting to an inert path: `grove-llm` now treats every nonempty signal path
+# redirecting to an inert path: the installed v22 `grove-llm` treats every nonempty signal path
 # as session-epoch authority and validates it before tree access. This is the
 # half that cannot be forgotten — it applies whether or not a test remembers to
 # scrub, and to tests that do not use the shared helpers at all. `testing/support.rs`
@@ -23,10 +23,10 @@
 # sessions also carry a launch directory for epoch admission. Clear these beside
 # the installed v22 channel so nested tests cannot end or impersonate a session.
 #
-# Scope note: this also applies to `cargo run -- …` in this repo, so a
-# cargo-launched `grove-llm complete` behaves like a manual command instead of
-# firing a live loop. The agent's own end-of-task signal is unaffected: it runs
-# an installed or `./target/debug/` binary directly, never through cargo.
+# Scope note: this also applies to `cargo run -- …` in this repo. The current
+# CLI has no `complete` verb. This grove's own sessions still end through the
+# installed v22 `grove-llm complete`, directly and never through cargo; no leaf
+# installs the new binaries or skills before the release.
 [env]
 GROVE_SIGNAL_FILE = { value = "", force = true }
 GROVE_RUN_SIGNAL_FILE = { value = "", force = true }

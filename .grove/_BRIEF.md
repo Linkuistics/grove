@@ -176,6 +176,12 @@ support them and never replace them, and no automated test calls a model.
 
 ## Notes
 
+- `launch-cutover-k15` delivered the launch-directory, supervised-ending and
+  appearance-only signal contract. Its k19 review reads all three commits;
+  `current-state-docs-k20` still owns the remaining durable prose and the
+  quoted-launch test's temporary allowance for examples showing only policy
+  inputs. The live sessions continue to use installed v22 until the finish.
+
 - `confined-run-k23` reviews the complete confinement node before
   `launch-cutover`. The node's work introduces a channel-free
   `keyed_launch::NoninteractiveLaunch` for Grove's dispatch supervisor; the

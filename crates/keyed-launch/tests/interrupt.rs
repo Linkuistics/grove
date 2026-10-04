@@ -116,7 +116,7 @@ fn an_interrupt_is_reported_against_the_launch_it_arrives_in_and_no_other() {
         End::Interrupted { signal: SIGTERM },
         "a signal arriving during a launch is that launch's ending, and names itself"
     );
-    assert_eq!(ended.token, None, "an interrupt leaves no token");
+    assert!(!ended.signalled, "the interrupted child did not signal");
     assert_eq!(
         exit_signal(&ended),
         Some(SIGTERM),

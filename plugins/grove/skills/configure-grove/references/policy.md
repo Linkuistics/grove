@@ -11,17 +11,18 @@ runs it for every session. For a lifecycle session it runs this, in the
 working-tree root, with values from the leaf it selected:
 
 ```text
-harness-dispatch run --kind=KIND --task-file=TASK_FILE --task-id=HANDLE --prompt=MANDATE
+harness-dispatch run --kind=KIND --task-file=TASK_FILE --task-id=HANDLE --prompt=MANDATE --exit-dir=LAUNCH_DIR --ending-file=ENDING_FILE
 ```
 
 The policy's `select` receives the kind, the task file, the handle and the
-prompt, and reads the session's location as `request.cwd`. Grove passes no
+prompt, and reads the session's location as `request.cwd`. The exit directory
+and ending file are run mechanics and reach no policy. Grove passes no
 parameter, so `request.params` is empty, and no policy entry, bound, grant or
 record directory. A policy that names a session or grants a secondary jj
 workspace's harness its main repository derives either from `request.cwd`: the
 sample reads the main repository from the `.jj/repo` file there, and names no
 session. `grove run KIND`
-selects through the same policy, with `inspect`, outside its sandbox. It has no
+selects through the same policy, with `run --confine`, outside its sandbox. It has no
 task, so it passes no task file and no task identity, and its harness must be
 a noninteractive command.
 
@@ -86,20 +87,20 @@ itself never looks for it. A policy the user wrote reads one only if its
 keys: `timeoutMs` (1000 to 600000), `contextBytes`, `stateDir` (an absolute
 path) and `policyEnv` (an array of names). They are the same for every kind. A
 flag replaces its setting for one invocation, `--policy-env` adds to the
-grants, and Grove passes no flag. Raise
+grants, and Grove passes no settings override. Raise
 `timeoutMs` only when a policy legitimately takes longer than 30 seconds, since
 the bound is also how long a stuck policy holds a launch.
 
-**Never grant `GROVE_SIGNAL_FILE`**, in `policyEnv` or with `--policy-env`.
-That variable is the authority to end the Grove session, and a policy holding
-it could end the session it is selecting for. harness-dispatch cannot tell
-completion variables from other names, so it does not refuse the grant. Grant
-only names the policy itself reads.
+**Never grant `GROVE_LAUNCH_DIR`**, in `policyEnv` or with `--policy-env`.
+That directory carries the session's authority: a policy holding its path
+could record a teardown or end the run it is selecting for. Dispatch keeps it
+out of the worker unless the owner grants it, and does not refuse such a grant.
+Grant only names the policy itself reads.
 
 ## Remedy a refused launch
 
 A refused launch launches nothing, and nothing is substituted. Grove reports
-that the session ended without a completion signal, with harness-dispatch's
+that the session ended without an exit signal, with harness-dispatch's
 exit status, and stops the loop. Grove's own exit status is 0, so read the
 refusal from its report. The leaf stays live. The refusal's `inspect:` line
 reproduces the selection without the prompt:

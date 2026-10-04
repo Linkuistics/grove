@@ -95,7 +95,7 @@ enum Role {
 /// (see [`the_classification_table_carries_no_stale_entry`]), so this shrinks
 /// on its own as the surfaces it names disappear.
 const ROLES: &[(&str, Role)] = &[
-    ("GROVE_SIGNAL_FILE", Role::LoopControlChannel),
+    ("GROVE_SIGNAL_FILE", Role::RetiredControlGuard),
     ("GROVE_LAUNCH_DIR", Role::LoopControlChannel),
     ("GROVE_RUN_SIGNAL_FILE", Role::RetiredControlGuard),
     ("GROVE_RELEASE_RUNTIME_READ", Role::ReleaseTooling),
@@ -391,7 +391,7 @@ fn the_classifier_rejects_a_reintroduced_variable_and_accepts_live_names() {
     );
 
     // ...and the same classifier, over the same shapes production really uses.
-    assert_eq!(role_of("GROVE_SIGNAL_FILE"), Some(Role::LoopControlChannel));
+    assert_eq!(role_of("GROVE_LAUNCH_DIR"), Some(Role::LoopControlChannel));
     assert_eq!(
         role_of("GROVE_TEST_FINISH_CLEANUP_FAIL_AT"),
         Some(Role::InternalTestSeam)
@@ -463,6 +463,10 @@ fn the_agent_command_surface_exposes_no_removed_verb_or_harness_selector() {
     );
 
     const REMOVED_VERBS: &[(&str, &str)] = &[
+        (
+            "complete",
+            "completion: dispatch owns the exit signal; Grove records teardown separately",
+        ),
         (
             "do",
             "lifecycle: bare `grove`'s business, removed from both binaries",

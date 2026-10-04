@@ -24,9 +24,10 @@ session, and the owner's policy there returns the command: the executable or
 wrapper and every argument — harness, model, reasoning effort, approval,
 permission and sandbox policy. Grove neither knows nor infers which harness it
 eventually reaches. It reads the selected leaf's kind from the filename and
-passes that kind, the task file, the handle and the prompt, with the session
-name and the two roots as named parameters. The prompt carries what grove has
-to say to the session.
+passes that kind, the task file, the handle and the prompt. The request's `cwd`
+is the working-tree root, and Grove passes no named parameter. The launch's
+exit directory and ending file are run mechanics and reach no policy. The
+prompt carries what grove has to say to the session.
 **Nothing else routes a session** — Grove reads no environment variable, no
 command-line flag and no field in a task file to choose one, and has no implicit
 kind default or family. What the policy itself consults is its owner's.
@@ -51,6 +52,30 @@ redone, and a loop that has stopped is continued by re-running `grove` from the
 same working tree. There is no PTY wrapper and no daemon — a plain shell `while`
 loop could stand in (constraint 6).
 
+## What ends the run and what continues the loop
+
+Dispatch watches its own exit channel. The prompt names `harness-dispatch exit`
+as the session's final action; dispatch lets the harness end during a short
+grace, then ends it if necessary. Grove does not watch that channel or escalate
+the harness. It waits for dispatch and reads the ending file dispatch wrote.
+
+The driver's own TERM or HUP interrupts the loop first. Otherwise a teardown
+record finishes it; `grove-finish` owns when to write that record. Without one,
+an `exit_signal` ending relaunches on the next leaf, whatever the harness's exit
+status. Every other ending stops: the harness's own exit, cancellation, a
+refusal, dispatch's death, a supervision failure, or a missing or unreadable
+ending file. The live leaf remains resumable. Dispatch can die leaving its
+harness alive, which is why that ending stops instead of selecting more work.
+
+Each launch has a fresh directory in the workspace's VCS-administration control
+area. Grove publishes it to the harness as `GROVE_LAUNCH_DIR`, after scrubbing
+inherited loop controls; the policy worker never receives it unless the owner
+grants it. The directory holds dispatch's exit channel and ending file, and
+the session's teardown record. Its session epoch admits tree verbs only while
+that launch is current. After dispatch is reaped, Grove invalidates the epoch,
+reads the launch and removes its directory. A replacement driver removes
+abandoned directories after invalidating the old epoch, without reading them.
+
 ## What the scaffold creates, and why it is not yours to create
 
 A brand-new grove has a working tree but no `.grove/` yet, and every loop step
@@ -68,9 +93,8 @@ change.
 
 ## Deriving the session name yourself
 
-The driver computes this grove's session name — `<repo-basename>: <name> grove`
-— and passes it to the owner's policy as the `session_name` parameter; it never
-renames a session itself. If the policy does not place it and the session name
+Naming the session is the methodology's. Grove passes no session-name
+parameter and never renames a session itself. If the session name
 doesn't already match, suggest `/rename <repo-basename>: <name> grove` once per session
 and move on. The skill can derive both names: `<name>` from the working tree's
 own basename (`jj workspace root`), `<repo-basename>` from the **main repo**'s

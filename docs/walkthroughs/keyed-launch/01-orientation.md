@@ -13,7 +13,7 @@ ended.
 
 Between those two points it learns nothing about what it is serving. It does not
 know what the program does, and it does not know what the child's completion
-token says. So it cannot decide that the child's work is done. It can only
+means. So it cannot decide that the child's work is done. It can only
 observe, and this book is for one question a reader can take to a layer of
 their own: *what ends a launch, and who decides?* The crate observes three
 things. Chapters 2 to 4 build them, and chapter 6 says what breaks without each
@@ -256,7 +256,7 @@ crate has a `Channel` at all, and chapter 2 is where the appearance rule is buil
 //! **A launch ends out of band.** An interactive child returns to its prompt
 //! when it finishes rather than exiting, so its own exit is not the event
 //! anyone is waiting for. [`Channel`] is: a fresh path per launch that the
-//! child writes a [`Token`] to (through [`signal`]) when it is done, and whose
+//! child creates an empty file at (through [`signal`]) when it is done, and whose
 //! *appearance* starts the kill [`Escalation`] the child cannot perform on
 //! itself. See [`Escalation`] for why that is the launcher's job.
 ````
@@ -265,14 +265,14 @@ crate has a `Channel` at all, and chapter 2 is where the appearance rule is buil
 The fourth fragment names the observed entry point. `run_observed` reports
 successful spawn and confirmed reap to its caller as they happen, and `run` is
 the same launch without an observer. Chapter 3 owns the interface and chapter 4
-shows why a token appearing is not a reap.
+shows why channel appearance is not a reap.
 
 <!-- fragment «library-root-observed» owner="understands-neither" source="crates/keyed-launch/src/lib.rs" lines="31-35" parent="library-root" -->
 ````rust
 //!
 //! [`run_observed`] adds synchronous parent-side [`LaunchEvent`] notifications
 //! at successful spawn and confirmed reap, including reap during wait-error
-//! recovery. Notifications precede token reading and terminal recovery; failed
+//! recovery. Notifications precede terminal recovery; failed
 //! spawn emits none. [`run`] keeps the same interface without an observer.
 ````
 <!-- /fragment -->
@@ -317,14 +317,14 @@ it.
      -> /work/atlas/.jj/grove/signal-3f9c1d4a7b2e5086c1a4f70d93b6e281
      the path is drawn; nothing is written
 
-3  run(Launch { argv, channel, channel_var: "GROVE_SIGNAL_FILE",
-                scrub, cwd: Some("/work/atlas"), escalation })  chapters 3, 4
+3  run(Launch { argv, channel: Some((channel, "HARNESS_DISPATCH_EXIT_FILE")),
+                scrub, grant, transparent, cwd: Some("/work/atlas"), escalation })  chapters 3, 4
      child spawned in its own process group, holding the terminal,
-     with GROVE_SIGNAL_FILE set to the path from step 2
+     with HARNESS_DISPATCH_EXIT_FILE set to the path from step 2
 
-4  the child writes "relaunch\n" to that path and returns to its prompt
+4  the child creates an empty file at that path and returns to its prompt
      the file appears; the grace elapses; the child is signalled
-     -> Ended { end: Signalled, status, elapsed, token: Some("relaunch") }
+     -> Ended { end: Escalated, status, elapsed, signalled: true, group: Gone }
 ```
 
 Three properties of that trace are worth naming now, because they are what the
@@ -358,7 +358,7 @@ mod error;
 mod run;
 
 pub use argv::Argv;
-pub use channel::{signal, Channel, Token};
+pub use channel::{signal, Channel};
 pub use confinement::{
     confinement_available, confinement_system_reads, regular_file_at, FilesystemGrants,
 };
@@ -385,7 +385,7 @@ The last row is this chapter's own and is not one.
 
 | Names | Minimum statement | Chapter |
 |---|---|---:|
-| `Channel`, `Token`, `signal` | A fresh path per launch that allocation picks and writes nothing to; `signal` is what the child calls to make it appear, and `Token` is what the caller reads back. | 2 |
+| `Channel`, `signal` | A fresh path per launch that allocation picks and writes nothing to; `signal` is what the child calls to make it appear, and the runner reports appearance through `Ended.signalled`. | 2 |
 | `run`, `run_observed`, `LaunchEvent`, `Launch`, `EntrySignals`, `Ended`, `End`, `Group`, `Escalation` | `run_observed` reports successful spawn and confirmed reap synchronously; `run` uses a no-op observer. Each spawns one `Launch` — argv, channel, scrub list, granted values, a transparent caller's `EntrySignals` when there is one, working directory and the two graces of an `Escalation` — and returns an `Ended` saying which of `End`'s three cases happened, whether the channel appeared, and whether the child's `Group` was confirmed gone. | 3 |
 | `reraise`, `take_interrupt` | The launcher's own two obligations for a termination signal: `take_interrupt` collects one that arrived between launches, and `reraise` is how a launcher dies of the same signal rather than reporting an exit code. | 4 |
 | `run_noninteractive`, `run_confined_observed`, `NoninteractiveLaunch`, `FilesystemGrants`, `confinement_available`, `confinement_system_reads`, `regular_file_at` | Detached launches with file or inherited output, mandatory filesystem grants, backend availability and system-read inventory, and stable reads of artifacts through held directories. | 7 |

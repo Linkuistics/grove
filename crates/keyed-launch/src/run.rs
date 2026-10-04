@@ -10,7 +10,7 @@ use std::process::{Child, Command, ExitStatus, Stdio};
 use std::sync::atomic::{AtomicI32, AtomicU8, Ordering};
 use std::time::{Duration, Instant};
 
-use crate::channel::{Channel, Token};
+use crate::channel::Channel;
 use crate::error::LaunchError;
 
 /// How long the supervisor waits between checks of the child's liveness and the
@@ -125,7 +125,7 @@ impl<'a> From<Launch<'a>> for Job<'a> {
 ///
 /// `Escalated` and `Exited` both describe a child that is gone; they differ in
 /// *who ended it*, which is what a caller needs to distinguish a launch that
-/// completed its work from one that fell over. `signalled` and `token` are
+/// completed its work from one that fell over. `signalled` is
 /// orthogonal to all three: a child that signals and then exits before the
 /// grace elapses ends `Exited`, signalled, and is a perfectly ordinary
 /// completion.
@@ -138,8 +138,6 @@ pub struct Ended {
     /// held: its appearance is the whole signal. Looked for after the reap, so
     /// a child that signals and exits at once has still signalled.
     pub signalled: bool,
-    /// What the channel held, for a caller whose channel carries a token.
-    pub token: Option<Token>,
     /// Whether the child's process group was confirmed gone after the reap.
     ///
     /// **A caller acts on the ending only beside [`Group::Gone`].** The child
@@ -182,7 +180,7 @@ pub enum End {
     /// noninteractive child's group was sent the same signal and, after the
     /// kill-grace, SIGKILL; a confined child's group was killed at once. Either
     /// way it was reaped, never left orphaned onto the terminal. The channel
-    /// cannot express this case — an interrupt normally leaves no token at all.
+    /// cannot express this case — an interrupt normally leaves no channel file.
     ///
     /// **The signal is carried rather than merely noted** so a launcher can
     /// report it onward. A process that catches a termination signal, tidies up
@@ -717,7 +715,7 @@ pub fn run(launch: Launch<'_>) -> Result<Ended, LaunchError> {
     run_observed(launch, &mut |_| {})
 }
 
-/// Parent-side evidence about one launched child, independent of its token.
+/// Parent-side evidence about one launched child, independent of its completion signal.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum LaunchEvent {
     /// Spawn succeeded. The child may already have exited.
@@ -729,8 +727,8 @@ pub enum LaunchEvent {
 /// Run a launch with synchronous, infallible parent-side notifications.
 ///
 /// Started occurs exactly once after successful spawn; failed spawn emits no
-/// events. Reaped occurs exactly once on confirmed reap, before token reading
-/// and terminal recovery. A token alone or an unsuccessful wait is not reap.
+/// events. Reaped occurs exactly once on confirmed reap, before terminal recovery.
+/// Channel appearance alone or an unsuccessful wait is not reap.
 /// The callback must return promptly and must not panic; observation failures
 /// must be handled within it. No child acknowledgement or outcome override is
 /// involved. All other behavior is the same as [`run`].
@@ -1186,9 +1184,6 @@ fn supervise(
                 status,
                 elapsed,
                 signalled: channel.is_some_and(Channel::appeared),
-                // Read after the child is gone, so a child still mid-write
-                // cannot be observed half-signalled.
-                token: channel.and_then(Channel::read),
                 group,
             })
         }
@@ -1290,8 +1285,8 @@ fn watch(
     }
 
     // A child ended by the escalation exits non-zero, or by signal. That is
-    // the normal completion path, not a failure: the token, never the exit
-    // status, says what the launch meant.
+    // the normal completion path, not a failure: the caller judges the work;
+    // the runner reports channel appearance and process status separately.
     child.kill_group();
     let status = child.reap().map_err(|error| Failed {
         error: LaunchError::new(format!("cannot reap the exited child: {error}")),

@@ -134,7 +134,7 @@ slice = "the-tree-deletes-itself"
 [[page]]
 file  = "15-the-verbs.md"
 id    = "the-verbs"
-title = "The session verbs, and the two that are not"
+title = "The session verbs, and the driver operations"
 role  = "chapter"
 slice = "twelve-not-fourteen"
 
@@ -193,12 +193,12 @@ role  = "lookup"
 [[root]]
 id    = "source-crate-manifest"
 path  = "crates/grove-loop/Cargo.toml"
-lines = 69
+lines = 66
 
 [[root]]
 id    = "source-library-root"
 path  = "crates/grove-loop/src/lib.rs"
-lines = 420
+lines = 418
 
 [[root]]
 id    = "source-task-name"
@@ -218,27 +218,23 @@ lines = 518
 [[root]]
 id    = "source-tree-lifecycle"
 path  = "crates/grove-loop/src/tree_lifecycle.rs"
-lines = 2734
+lines = 2735
 
 [[root]]
 id    = "source-verbs"
 path  = "crates/grove-loop/src/verbs.rs"
-lines = 379
+lines = 331
 
 [[root]]
 id    = "source-driver"
 path  = "crates/grove-loop/src/driver.rs"
 lines = 59
 
-[[root]]
-id    = "source-complete"
-path  = "crates/grove-loop/src/complete.rs"
-lines = 96
 
 [[root]]
 id    = "source-driver-lease"
 path  = "crates/grove-loop/src/driver_lease.rs"
-lines = 2116
+lines = 2073
 
 [[root]]
 id    = "source-prompt"
@@ -259,13 +255,13 @@ lines = 218
 id    = "manifest-domain-bound"
 root  = "source-crate-manifest"
 owner = "allowed-to-mean"
-lines = "1-69"
+lines = "1-66"
 
 [[block]]
 id    = "library-root"
 root  = "source-library-root"
 owner = "allowed-to-mean"
-lines = "1-420"
+lines = "1-418"
 
 [[block]]
 id    = "tokens-and-verdicts"
@@ -391,61 +387,61 @@ lines = "1-518"
 id    = "finish-transition"
 root  = "source-tree-lifecycle"
 owner = "the-tree-deletes-itself"
-lines = "1-326"
+lines = "1-327"
 
 [[block]]
 id    = "grove-beginning"
 root  = "source-tree-lifecycle"
 owner = "never-mistaken-for-finished"
-lines = "327-487"
+lines = "328-488"
 
 [[block]]
 id    = "decompose-production"
 root  = "source-tree-lifecycle"
 owner = "the-key-survives"
-lines = "488-705"
+lines = "489-706"
 
 [[block]]
 id    = "outcomes-in-place"
 root  = "source-tree-lifecycle"
 owner = "marked-in-place"
-lines = "706-1022"
+lines = "707-1023"
 
 [[block]]
 id    = "body-helpers"
 root  = "source-tree-lifecycle"
 owner = "never-mistaken-for-finished"
-lines = "1023-1086"
+lines = "1024-1087"
 
 [[block]]
 id    = "root-init-tests"
 root  = "source-tree-lifecycle"
 owner = "never-mistaken-for-finished"
-lines = "1087-1502"
+lines = "1088-1503"
 
 [[block]]
 id    = "finish-tests"
 root  = "source-tree-lifecycle"
 owner = "the-tree-deletes-itself"
-lines = "1503-1697"
+lines = "1504-1698"
 
 [[block]]
 id    = "decompose-tests"
 root  = "source-tree-lifecycle"
 owner = "the-key-survives"
-lines = "1698-2243"
+lines = "1699-2244"
 
 [[block]]
 id    = "retire-and-prune-tests"
 root  = "source-tree-lifecycle"
 owner = "marked-in-place"
-lines = "2244-2734"
+lines = "2245-2735"
 
 [[block]]
 id    = "the-twelve-verbs"
 root  = "source-verbs"
 owner = "twelve-not-fourteen"
-lines = "1-379"
+lines = "1-331"
 
 [[block]]
 id    = "driver-operations"
@@ -453,23 +449,18 @@ root  = "source-driver"
 owner = "twelve-not-fourteen"
 lines = "1-59"
 
-[[block]]
-id    = "complete-verb"
-root  = "source-complete"
-owner = "twelve-not-fourteen"
-lines = "1-96"
 
 [[block]]
 id    = "lease-and-epoch"
 root  = "source-driver-lease"
 owner = "one-per-working-tree"
-lines = "1-1019"
+lines = "1-976"
 
 [[block]]
 id    = "lease-tests"
 root  = "source-driver-lease"
 owner = "which-calls-are-admitted"
-lines = "1020-2116"
+lines = "977-2073"
 
 [[block]]
 id    = "the-prompt-core"

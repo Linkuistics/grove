@@ -50,14 +50,16 @@ one ends with a process, not with an `Ended`.
 
 Everything the call needs already exists. The `Argv` is chapter 1's, built by
 its caller with `Argv::new`; the `Channel` is chapter 2's, drawn in grove's
-control directory and written to by nobody. grove supplies the four remaining
-fields, and every one of them is grove's rather than this crate's.
+control directory and written to by nobody. The caller supplies every remaining
+field; this crate supplies only the spawn and supervision mechanics.
 
 ```text
 run(Launch {
     argv:        ["claude", "--model", "opus", "<the mandate>"],
-    channel:     Some((Channel { path: "/work/atlas/.jj/grove/signal-3f9c1d4a7b2e5086c1a4f70d93b6e281" }, "GROVE_SIGNAL_FILE")),
-    scrub:       ["GROVE_SIGNAL_FILE", "GROVE_HARNESS_PID", "GROVE_CLAUDE_PID"],
+    channel:     Some((Channel { path: "/work/atlas/.jj/grove/signal-3f9c1d4a7b2e5086c1a4f70d93b6e281" }, "HARNESS_DISPATCH_EXIT_FILE")),
+    scrub:       ["HARNESS_DISPATCH_EXIT_FILE"],
+    grant:       [],
+    transparent: None,
     cwd:         Some("/work/atlas"),
     escalation:  Escalation { grace: 2s, kill_grace: 5s },
 })
@@ -73,8 +75,8 @@ launcher  pid 4100  pgid 4100
 
   argv     claude --model opus <the mandate>
   cwd      /work/atlas
-  env      the launcher's own, minus GROVE_HARNESS_PID and GROVE_CLAUDE_PID,
-           plus GROVE_SIGNAL_FILE = /work/atlas/.jj/grove/signal-3f9c…e281
+  env      the launcher's own, minus the inherited HARNESS_DISPATCH_EXIT_FILE,
+           plus HARNESS_DISPATCH_EXIT_FILE = /work/atlas/.jj/grove/signal-3f9c…e281
   signals  SIGINT SIGQUIT SIGTERM SIGHUP SIGTSTP SIGTTIN SIGTTOU
            at their default dispositions, whatever the launcher's were
 ```
@@ -88,7 +90,7 @@ launcher's happened to be. And its `argv` is the four words the caller built,
 with nothing appended.
 
 Two things about that environment are worth reading before the source, because
-both look wrong at first glance. `GROVE_SIGNAL_FILE` is in the scrub list and is
+both look wrong at first glance. `HARNESS_DISPATCH_EXIT_FILE` is in the scrub list and is
 nonetheless set: the list names the launch-control variables a nested launcher
 must not inherit, the channel variable is the first of them, and the grant is
 exactly the exception that this ordering preserves.
@@ -135,7 +137,7 @@ the exceptions name their own files.
 | `Launch::grant` | which values the caller sets for the child, after the scrub and before the channel | `a_grant_replaces_a_scrubbed_value_and_cannot_replace_the_channel` |
 | `Launch::transparent`, `EntrySignals` | whether the child gets the launcher's caller's signal state instead of the defaults, and whether SIGINT cancels a launch with a terminal | `a_transparent_launcher_hands_its_child_the_entry_state_it_was_given`, `a_transparent_launcher_with_a_terminal_is_cancelled_by_int` (`tests/job.rs`) |
 | `Launch::cwd` | where the child starts | `the_child_starts_in_the_given_directory` |
-| `Ended` | which ending, with what status, after how long, whether the child signalled and what it said, and what remained of its group | `a_child_that_never_signals_ends_with_no_token`, `an_empty_channel_signals_without_a_token` |
+| `Ended` | which ending, with what status, after how long, whether the child signalled, and what remained of its group | `a_child_that_never_signals_ends_unsignalled`, `an_empty_channel_signals` |
 | `Group` | whether the child's group was confirmed gone, or is reported beside the status | `a_term_ignoring_descendant_is_gone_before_the_launch_returns` |
 | `End::Exited` | the child ended itself, signalled or not | `an_unsignalled_child_runs_to_its_own_exit_untouched`, `a_child_that_signals_and_exits_inside_the_grace_is_never_touched` |
 | `End::Escalated` | the escalation ended the child | `a_signalled_child_that_keeps_waiting_is_terminated_after_the_grace` |
@@ -164,7 +166,7 @@ and after a launch. Chapter 5 reads how that suite is built.
 The first composite is the file's opening 146 lines — the thesis, the poll
 interval, and the five public types this file defines.
 
-<!-- fragment «launch-shape» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="1-198" parent="source-run" -->
+<!-- fragment «launch-shape» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="1-196" parent="source-run" -->
 <!-- insert «run-thesis» -->
 <!-- insert «run-poll-interval» -->
 <!-- insert «run-escalation» -->
@@ -177,7 +179,7 @@ interval, and the five public types this file defines.
 The second is the block after chapter 4's, and it is the machinery of a spawn:
 the dispositions, the terminal, and `run` itself.
 
-<!-- fragment «terminal-and-spawn» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="388-1000" parent="source-run" -->
+<!-- fragment «terminal-and-spawn» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="386-998" parent="source-run" -->
 <!-- insert «run-default-dispositions» -->
 <!-- insert «run-entry-signals» -->
 <!-- insert «run-terminal-type» -->
@@ -220,7 +222,7 @@ use std::process::{Child, Command, ExitStatus, Stdio};
 use std::sync::atomic::{AtomicI32, AtomicU8, Ordering};
 use std::time::{Duration, Instant};
 
-use crate::channel::{Channel, Token};
+use crate::channel::Channel;
 use crate::error::LaunchError;
 ````
 <!-- /fragment -->
@@ -231,7 +233,7 @@ is written out as `libc::…`, so a reader scanning the file can see each place 
 crate leaves `std` without following an import to find out. And `Argv` is absent
 too, although this file names it — it appears exactly once, fully qualified
 as `crate::Argv`, in the field the next-but-one fragment declares. The command
-enters this file at that one field and nowhere else, and `Channel`, `Token` and
+enters this file at that one field and nowhere else, and `Channel` and
 `LaunchError` are the whole of what it imports from its own crate.
 
 <!-- fragment «run-poll-interval» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="15-22" parent="launch-shape" -->
@@ -405,7 +407,7 @@ impl<'a> From<Launch<'a>> for Job<'a> {
 it to supervise dispatch without supplying another exit channel. The private
 `Job` shares the spawn path: converting a `Launch` retains its completion
 capability, while a noninteractive launch supplies none. Supervision observes
-channel appearance and reads a token only when that capability exists.
+channel appearance only when that capability exists.
 
 Seven fields in `Launch`, every one borrowed, and the lifetime is what says this is a call's
 arguments given a name rather than a value anyone keeps. There is no builder and
@@ -474,14 +476,14 @@ What comes back from a launch is one struct of six fields, and its comment is
 doing the same work `Escalation`'s did — naming, in advance, the distinction a
 caller would otherwise collapse.
 
-<!-- fragment «run-ended» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="123-152" parent="launch-shape" -->
+<!-- fragment «run-ended» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="123-150" parent="launch-shape" -->
 ````rust
 
 /// How a launch ended.
 ///
 /// `Escalated` and `Exited` both describe a child that is gone; they differ in
 /// *who ended it*, which is what a caller needs to distinguish a launch that
-/// completed its work from one that fell over. `signalled` and `token` are
+/// completed its work from one that fell over. `signalled` is
 /// orthogonal to all three: a child that signals and then exits before the
 /// grace elapses ends `Exited`, signalled, and is a perfectly ordinary
 /// completion.
@@ -494,8 +496,6 @@ pub struct Ended {
     /// held: its appearance is the whole signal. Looked for after the reap, so
     /// a child that signals and exits at once has still signalled.
     pub signalled: bool,
-    /// What the channel held, for a caller whose channel carries a token.
-    pub token: Option<Token>,
     /// Whether the child's process group was confirmed gone after the reap.
     ///
     /// **A caller acts on the ending only beside [`Group::Gone`].** The child
@@ -509,7 +509,7 @@ pub struct Ended {
 ````
 <!-- /fragment -->
 
-Six fields, and the one to read first is the relationship between `end` and
+Five fields, and the one to read first is the relationship between `end` and
 `signalled`. `signalled` is chapter 2's `appeared`, asked once the child is
 reaped, and it is *orthogonal* to `end` rather than a refinement of it. The
 reason is that they answer different questions: `signalled` says whether the
@@ -517,24 +517,19 @@ child said its launch was over, and `end` says who ended the child. Both are
 needed because either one alone is ambiguous. It is asked after the reap, so a
 child that signals and exits in the same breath has still signalled.
 
-`token` is the same question for a caller whose channel carries content:
-`Option<Token>`, chapter 2's value, read back off the path. Appearance is the
-whole signal for a caller that reads no content — `harness-dispatch` reads
-none — and `an_empty_channel_signals_without_a_token` is the difference between
-the two fields: an empty file has signalled and holds no token.
-`a_child_that_never_signals_ends_with_no_token` is the case where the child
-exits of its own accord having said nothing, and it also checks that the channel
-file does not exist — which is chapter 2's writes-nothing property observed from
-the far end of a real launch.
+`an_empty_channel_signals` proves that an empty file is the whole signal.
+`a_child_that_never_signals_ends_unsignalled` exercises a child that exits having
+created no channel file. Its absent path also checks chapter 2's writes-nothing
+property through a real launch.
 
-The sixth field, `group`, answers a question the other five cannot: whether
+The fifth field, `group`, answers a question the other four cannot: whether
 anything of the child's job is still running. The child is reaped by the time
 `Ended` exists, so `status` is final. But the child led a process group, and a
 member of that group is not reaped with it. Chapter 4 reads the end of a launch
 that kills what remains of the group and then asks the system whether the group
 is gone. This type is how the answer comes back.
 
-<!-- fragment «run-group» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="153-165" parent="launch-shape" -->
+<!-- fragment «run-group» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="151-163" parent="launch-shape" -->
 ````rust
 
 /// What remained of the child's process group once the launch ended.
@@ -569,7 +564,7 @@ pins `Gone` from a real launch. `a_surviving_group_is_reported_beside_the_childs
 a private test of the supervisor, pins that `Present` leaves the child's status
 and ending intact.
 
-<!-- fragment «run-end» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="166-198" parent="launch-shape" -->
+<!-- fragment «run-end» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="164-196" parent="launch-shape" -->
 ````rust
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -590,7 +585,7 @@ pub enum End {
     /// noninteractive child's group was sent the same signal and, after the
     /// kill-grace, SIGKILL; a confined child's group was killed at once. Either
     /// way it was reaped, never left orphaned onto the terminal. The channel
-    /// cannot express this case — an interrupt normally leaves no token at all.
+    /// cannot express this case — an interrupt normally leaves no channel file.
     ///
     /// **The signal is carried rather than merely noted** so a launcher can
     /// report it onward. A process that catches a termination signal, tidies up
@@ -616,17 +611,17 @@ inside the grace. The variant was once named `Signalled`; it was renamed when
 `Ended` gained the `signalled` field, so that the name of who acted could not be
 read as the name of what the child said.
 `a_child_that_signals_and_exits_inside_the_grace_is_never_touched` builds
-precisely that child — it writes its token, sleeps, and exits — and
+precisely that child — it creates its signal, sleeps, and exits — and
 runs it under a thirty-second grace so that its own exit lands well inside;
-`End::Exited` is what comes back, with a token, and the test also asserts that
+`End::Exited` is what comes back, signalled, and the test also asserts that
 `elapsed` is less than the grace, so a passing run cannot be one that waited the
 grace out and got lucky. The complementary case,
 `an_unsignalled_child_runs_to_its_own_exit_untouched`, is the same ending reached
-with no token at all.
+without signalling.
 
 The two tests establish the rule: `End` reports **who acted**, and
 nothing else. A caller that wants *did the child say it was done* reads
-`signalled`, or `token` when its channel carries one;
+`signalled`;
 a caller that wants *did this launch complete or fall over* reads `end`; and a
 caller that conflated them would be inferring one from the other, which is
 exactly the failure this crate is designed to prevent.
@@ -643,7 +638,7 @@ that `run` can return it, because a reader meeting `Ended` needs all three arms
 to know what they are matching on.
 
 The derives split the types along the same line. `Ended` is `Debug` and
-nothing else — it holds an `ExitStatus` and a `Token`, and it is a report
+nothing else — it holds process status and channel appearance, and it is a report
 rather than a value to compare. `End` and `Group` add `Clone`, `Copy`,
 `PartialEq` and `Eq`, because comparing them is the whole of what a caller does
 with them, and every test above is an `assert_eq!` against one of their arms.
@@ -654,7 +649,7 @@ with them, and every test above is an `assert_eq!` against one of their arms.
 The block resumes after chapter 4's supervisor, handler and latch, and it opens
 on a list of seven signals.
 
-<!-- fragment «run-default-dispositions» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="388-414" parent="terminal-and-spawn" -->
+<!-- fragment «run-default-dispositions» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="386-412" parent="terminal-and-spawn" -->
 ````rust
 
 /// The signals the child is handed back at their **default** disposition.
@@ -728,7 +723,7 @@ every disposition that survives exec, as dispatch inherited them, a `nohup`
 caller's ignored SIGHUP included. That launcher sets `Launch::transparent`, and
 the state it passes is this type.
 
-<!-- fragment «run-entry-signals» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="415-495" parent="terminal-and-spawn" -->
+<!-- fragment «run-entry-signals» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="413-493" parent="terminal-and-spawn" -->
 ````rust
 
 /// The signal state a transparent launcher inherited, to hand its child in
@@ -847,7 +842,7 @@ option's doing.
 The controlling terminal is wrapped in a private newtype rather than carried
 around as a descriptor, and the wrapper itself is four lines.
 
-<!-- fragment «run-terminal-type» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="496-499" parent="terminal-and-spawn" -->
+<!-- fragment «run-terminal-type» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="494-497" parent="terminal-and-spawn" -->
 ````rust
 
 /// The launcher's controlling terminal, open for as long as a launch needs to
@@ -859,7 +854,7 @@ struct Terminal(OwnedFd);
 One owned descriptor, private, and the type exists so that the close is the
 compiler's problem rather than a launch's. Every method below is on it.
 
-<!-- fragment «run-terminal-open» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="500-524" parent="terminal-and-spawn" -->
+<!-- fragment «run-terminal-open» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="498-522" parent="terminal-and-spawn" -->
 ````rust
 
 impl Terminal {
@@ -918,7 +913,7 @@ The flag is descriptor hygiene. The child's ownership of the terminal comes from
 the process group and the `tcsetpgrp` below, not from which descriptors survive
 the exec.
 
-<!-- fragment «run-terminal-accessors» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="525-534" parent="terminal-and-spawn" -->
+<!-- fragment «run-terminal-accessors» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="523-532" parent="terminal-and-spawn" -->
 ````rust
 
     fn fd(&self) -> RawFd {
@@ -941,7 +936,7 @@ lease below asks it before the spawn and on every poll tick, to decide whether
 this launcher has a terminal it is entitled to lend, and again once the child is
 reaped, to decide whether it has one it is entitled to take back and restore.
 
-<!-- fragment «run-terminal-hand-to» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="535-552" parent="terminal-and-spawn" -->
+<!-- fragment «run-terminal-hand-to» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="533-550" parent="terminal-and-spawn" -->
 ````rust
 
     /// Make `pgid` the terminal's foreground process group.
@@ -979,7 +974,7 @@ the terminal raw and is then killed by the escalation cannot undo that, and the
 human is left with a shell that neither echoes nor waits for a line. So the same
 impl carries the two halves of a save and a restore.
 
-<!-- fragment «run-terminal-attributes» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="553-579" parent="terminal-and-spawn" -->
+<!-- fragment «run-terminal-attributes» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="551-577" parent="terminal-and-spawn" -->
 ````rust
 
     /// The terminal's current attributes, or `None` if they cannot be read.
@@ -1024,7 +1019,7 @@ pair. Its child runs `stty raw -echo` and records `stty -a`, which is the positi
 control showing the terminal really was raw, and the launcher's local modes after
 the launch must equal the ones before it.
 
-<!-- fragment «run-own-group» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="580-585" parent="terminal-and-spawn" -->
+<!-- fragment «run-own-group» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="578-583" parent="terminal-and-spawn" -->
 ````rust
 
 /// This process's own process group.
@@ -1050,7 +1045,7 @@ was lent in, and from the right group. That is three facts carried across the
 whole launch, so they live in one value rather than in locals the spawn and the
 supervisor would each have to thread through.
 
-<!-- fragment «run-lease-type» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="586-603" parent="terminal-and-spawn" -->
+<!-- fragment «run-lease-type» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="584-601" parent="terminal-and-spawn" -->
 ````rust
 
 /// One launch's share of the terminal: when it was held, what it looked like
@@ -1081,7 +1076,7 @@ read the attributes still owes the terminal back, and owes no modes. `child` is
 the child's process group, which is also its pid: it is zero until the spawn
 returns and the launch fills it in.
 
-<!-- fragment «run-lease-hold» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="604-616" parent="terminal-and-spawn" -->
+<!-- fragment «run-lease-hold» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="602-614" parent="terminal-and-spawn" -->
 ````rust
 
 impl Lease {
@@ -1107,7 +1102,7 @@ attributes are saved here, before the spawn**, and the ordering is the point: a
 child that sets raw mode on its first instruction would otherwise have its raw
 modes saved as the ones to restore.
 
-<!-- fragment «run-lease-lend» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="617-634" parent="terminal-and-spawn" -->
+<!-- fragment «run-lease-lend» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="615-632" parent="terminal-and-spawn" -->
 ````rust
 
     /// Called on every poll tick, and once before the spawn. Re-checked each
@@ -1140,7 +1135,7 @@ pins the other side: a launcher the session leader keeps in the background never
 lends, its child never holds the terminal, and the foreground is still the
 session leader's afterwards.
 
-<!-- fragment «run-lease-reclaim» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="635-673" parent="terminal-and-spawn" -->
+<!-- fragment «run-lease-reclaim» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="633-671" parent="terminal-and-spawn" -->
 ````rust
 
     /// Take the terminal back once the child is reaped, and restore it.
@@ -1222,7 +1217,7 @@ the narrow rule, which takes nothing it has no claim to.
 `run`'s own documentation is the chapter's title and its argument, and it is
 thirty-nine lines because five separate cases live in it.
 
-<!-- fragment «run-the-child-is-a-job» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="674-715" parent="terminal-and-spawn" -->
+<!-- fragment «run-the-child-is-a-job» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="672-713" parent="terminal-and-spawn" -->
 ````rust
 
 /// Spawn `launch`'s argv directly and supervise the child until it ends.
@@ -1341,7 +1336,7 @@ POSIX session. The confined entry point adds a native filesystem wrapper.
 Those choices are explicit APIs; the ordinary interactive path retains the
 command, environment and terminal contract explained here.
 
-<!-- fragment «run-command-and-environment» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="716-848" parent="terminal-and-spawn" -->
+<!-- fragment «run-command-and-environment» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="714-846" parent="terminal-and-spawn" -->
 <!-- insert «run-output-modes» -->
 <!-- insert «run-output-setup» -->
 <!-- /fragment -->
@@ -1364,13 +1359,13 @@ because its launcher may be a nested supervisor already inside its own caller's
 grace. Chapter 4's `Mode` is how supervision tells the three apart, and chapter 7
 reads the confined case.
 
-<!-- fragment «run-output-modes» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="716-778" parent="run-command-and-environment" -->
+<!-- fragment «run-output-modes» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="714-776" parent="run-command-and-environment" -->
 ````rust
 pub fn run(launch: Launch<'_>) -> Result<Ended, LaunchError> {
     run_observed(launch, &mut |_| {})
 }
 
-/// Parent-side evidence about one launched child, independent of its token.
+/// Parent-side evidence about one launched child, independent of its completion signal.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum LaunchEvent {
     /// Spawn succeeded. The child may already have exited.
@@ -1382,8 +1377,8 @@ pub enum LaunchEvent {
 /// Run a launch with synchronous, infallible parent-side notifications.
 ///
 /// Started occurs exactly once after successful spawn; failed spawn emits no
-/// events. Reaped occurs exactly once on confirmed reap, before token reading
-/// and terminal recovery. A token alone or an unsuccessful wait is not reap.
+/// events. Reaped occurs exactly once on confirmed reap, before terminal recovery.
+/// Channel appearance alone or an unsuccessful wait is not reap.
 /// The callback must return promptly and must not panic; observation failures
 /// must be handled within it. No child acknowledgement or outcome override is
 /// involved. All other behavior is the same as [`run`].
@@ -1454,7 +1449,7 @@ are used directly. The scrub list is applied before the fresh
 channel grant, preserving the current invocation's authority while removing
 any inherited channel named by the caller.
 
-<!-- fragment «run-output-setup» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="779-848" parent="run-command-and-environment" -->
+<!-- fragment «run-output-setup» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="777-846" parent="run-command-and-environment" -->
 ````rust
 /// Confine a noninteractive job with EOF stdin and inherited stdout/stderr.
 /// Start a new POSIX session, close inherited descriptors above stderr on
@@ -1541,7 +1536,7 @@ that as a session that hung.
 
 `granting_the_channel_survives_a_scrub_list_that_names_it` is the test, and it
 writes through `${TEST_CHANNEL?unset}` so that a scrubbed-away grant fails
-loudly in the child rather than silently producing no token.
+loudly in the child rather than silently creating no signal.
 
 The caller's own grants sit between the two, for the same reason in each
 direction. After the scrub, so that a value the scrub removed can be given back
@@ -1567,7 +1562,7 @@ child's own argument vector back.
 With the environment settled, the interactive path turns to the terminal and asks two
 separate questions of it before handing anything over.
 
-<!-- fragment «run-terminal-handover» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="849-863" parent="terminal-and-spawn" -->
+<!-- fragment «run-terminal-handover» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="847-861" parent="terminal-and-spawn" -->
 ````rust
 
     // Hand the terminal over from *inside* the child as well as from the parent
@@ -1609,7 +1604,7 @@ is not in this function at all but in the lease's `lend`, which chapter 4's
 earns its place for a reason of its own, which the lease's section gave: it is
 re-asked every tick.
 
-<!-- fragment «run-process-group» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="864-871" parent="terminal-and-spawn" -->
+<!-- fragment «run-process-group» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="862-869" parent="terminal-and-spawn" -->
 ````rust
 
     // The group, through `std`'s own checked path rather than a `setpgid` of our
@@ -1631,7 +1626,7 @@ an ordinary `Err` the caller already handles. This is the same reasoning chapter
 gave for checking the channel directory before the launch rather than letting the
 child's write fail: move the failure to where somebody is reading.
 
-<!-- fragment «run-pre-exec» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="872-922" parent="terminal-and-spawn" -->
+<!-- fragment «run-pre-exec» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="870-920" parent="terminal-and-spawn" -->
 ````rust
 
     // SAFETY: the closure runs between `fork` and `exec`, so it may call only
@@ -1725,7 +1720,7 @@ Everything is now built and nothing has been started. Two acts stand between the
 assembled `Command` and a running child, and the first of them is a single
 store.
 
-<!-- fragment «run-clear-and-spawn» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="923-935" parent="terminal-and-spawn" -->
+<!-- fragment «run-clear-and-spawn» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="921-933" parent="terminal-and-spawn" -->
 ````rust
 
     // Clear the latch *before* the spawn, never after: see `INTERRUPTED_BY`. A
@@ -1765,7 +1760,7 @@ wait can report the child gone. The handoff below fills in the lease's child and
 passes supervision two closures over it, one that lends the terminal each tick
 and one that reclaims it once.
 
-<!-- fragment «run-parent-group-and-supervise» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="936-1000" parent="terminal-and-spawn" -->
+<!-- fragment «run-parent-group-and-supervise» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="934-998" parent="terminal-and-spawn" -->
 <!-- insert «run-spawn-handoff» -->
 <!-- insert «run-descriptor-bound» -->
 <!-- /fragment -->
@@ -1781,7 +1776,7 @@ closures `supervise` receives both reach it: `lend` mutably on every tick, and
 `reclaim` once at the end. `supervise` receives the launch's `Mode` instead of a
 group ID, because the child it supervises already knows its own.
 
-<!-- fragment «run-spawn-handoff» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="936-962" parent="run-parent-group-and-supervise" -->
+<!-- fragment «run-spawn-handoff» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="934-960" parent="run-parent-group-and-supervise" -->
 ````rust
 
     observer(LaunchEvent::Started);
@@ -1827,7 +1822,7 @@ empty; an unbounded limit refuses. Keeping the full range also covers
 descriptors opened while std prepares the child. This is an accepted launch
 cost, to reopen if supported Linux deployments show material latency.
 
-<!-- fragment «run-descriptor-bound» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="963-1000" parent="run-parent-group-and-supervise" -->
+<!-- fragment «run-descriptor-bound» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="961-998" parent="run-parent-group-and-supervise" -->
 ````rust
 /// Include existing descriptors even if the caller lowered its soft limit
 /// after opening them. The remaining range covers descriptors std opens while

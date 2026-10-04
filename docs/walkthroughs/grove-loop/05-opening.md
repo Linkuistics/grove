@@ -1070,7 +1070,7 @@ activity withholds the pair without discarding a consistent tree.
 <!-- insert «observation-operation» -->
 <!-- /fragment -->
 
-The loop owns the meaning of runtime evidence. `RunningMandate` carries the launch handle (and therefore permanent key), kind, opaque tree identity and a verified `TreeRelation`. Its private runtime identity retains the worktree, nonce, signal and witness binding for equality across captures. A consumer can compare observations without deriving SameTree from numeric identities. These are copied values and hold no locks.
+The loop owns the meaning of runtime evidence. `RunningMandate` carries the launch handle (and therefore permanent key), kind, opaque tree identity and a verified `TreeRelation`. Its private runtime identity retains the worktree, nonce, launch directory and witness binding for equality across captures. A consumer can compare observations without deriving SameTree from numeric identities. These are copied values and hold no locks.
 
 <!-- fragment «observation-activity» owner="one-spelling-of-grove" source="crates/grove-loop/src/observation.rs" lines="98-138" parent="observation-capture" -->
 ````rust

@@ -94,8 +94,14 @@ reference files — where the spine's `SKILL.md` is a *condition register*: it
 states that the driver already named your `grove-<kind>` skill, and names only
 files the spine carries. And `content/SIGNAL.md` and `content/SIGNAL-FINISH.md`
 became driver prose at `prompt-names-the-kind-k18`: `${prompt}` states grove's
-signalling contract once for every kind, and `finish`'s three endings are inline
-in `grove-finish/SKILL.md`.
+exit contract once for every kind, and `finish`'s three endings are inline in
+`grove-finish/SKILL.md`: record a completed teardown with
+`grove-llm record-teardown`, then make `harness-dispatch exit` the final action; signal
+externalised work with `harness-dispatch exit`; decline or find no human and
+stop without a signal. Dispatch watches the channel and ends the harness.
+Grove reads dispatch's ending file and the launch's teardown record to decide
+whether to relaunch, finish or stop. Grove passes no session-name or root
+parameter to policy; naming the session belongs to the methodology.
 
 ## Installing
 
@@ -214,8 +220,8 @@ into a single site and read clean over the duplicate it exists to find. The cont
   three known ones are pinned in
   [`conformance/removed-paraphrases.tsv`](conformance/removed-paraphrases.tsv);
   nothing claims a fourth does not exist.
-- **One** row is delivered by the **driver**, not by any skill: the signal step,
-  which `${prompt}` states as a mechanism for every kind. Its owner cell is
+- **One** row is delivered by the **driver**, not by any skill: the final
+  `harness-dispatch exit` step, which `${prompt}` states for every kind. Its owner cell is
   `${prompt}` and neither assertion touches it — a runner over an installed skill
   set cannot read a prompt. It is reported as prompt-delivered rather than
   *pending*, because pending promises a later leaf that ships the file and no
@@ -224,7 +230,9 @@ into a single site and read clean over the duplicate it exists to find. The cont
   It was two until `prompt-names-the-kind-k18`. A `finish` session's three
   endings rode the prompt because the driver inlined a per-kind signal file; they
   are now inline in `grove-finish/SKILL.md`, so that row came back inside this
-  runner's reach. The corpus copy that briefly restated it alongside,
+  runner's reach. Its completed-teardown ending now records the teardown before
+  sending dispatch's exit signal; the record and the signal have different
+  owners and purposes. The corpus copy that briefly restated it alongside,
   `content/SIGNAL-FINISH.md`, went with `content/` at
   `delete-provisioning-k19`, so the pair is one statement again.
 - A row whose owner file is not shipped is **pending**, not asserted. The count

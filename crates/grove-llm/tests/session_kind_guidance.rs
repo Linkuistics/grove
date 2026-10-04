@@ -69,8 +69,8 @@
 //! ending guard's per-kind claims moved to `tests/prompt.rs`, the seam that still
 //! makes a per-kind selection; the family-scope guard had no such seam to move
 //! to and is simply gone, because a scope a human had to widen by hand is no
-//! longer a thing `content/` contains. What is left of either here is the **drift
-//! pin** on the two ending files' own prose — not a claim about delivery at all.
+//! longer a thing `content/` contains. The finish ending's prose is covered by
+//! the plugin's conformance inventory, and instructed verbs by its CLI sweep.
 
 mod support;
 
@@ -716,18 +716,12 @@ fn the_filename_classifier_separates_the_current_grammar_from_its_predecessor() 
 // ---------------------------------------------------------------------------
 // Launch policy has one home, and the methodology may not name another
 
-/// The one `GROVE_*` name the methodology may legitimately mention: the loop's
-/// completion channel, which the driver grants its child and `complete` writes.
-/// It is a capability, not a setting — every removed routing variable is
+/// The one `GROVE_*` name the methodology may legitimately mention: the launch
+/// directory, which the driver grants its harness and the session epoch admits.
+/// It is session authority, not a setting — every removed routing variable is
 /// classified by `tests/removed_surface.rs`, which deliberately leaves the
 /// shipped methodology to this file.
-///
-/// **It no longer occurs in the corpus, and that is not a failure.**
-/// `prompt-names-the-kind-k18` made the signalling contract driver prose, so the
-/// one legitimate mention moved into `${prompt}` and the skill set names no
-/// `GROVE_*` variable at all. The permission stays, because a kind's skill may
-/// legitimately name the channel again.
-const LIVE_CONTROL_CHANNEL: &str = "GROVE_SIGNAL_FILE";
+const SESSION_AUTHORITY: &str = "GROVE_LAUNCH_DIR";
 
 fn grove_names_in(line: &str) -> Vec<String> {
     const PREFIX: &str = "GROVE_";
@@ -760,7 +754,7 @@ fn the_methodology_names_no_launch_policy_environment_variable() {
     for (path, text) in shipped_markdown() {
         for (offset, line) in text.lines().enumerate() {
             for name in grove_names_in(line) {
-                if name == LIVE_CONTROL_CHANNEL {
+                if name == SESSION_AUTHORITY {
                     continue;
                 }
                 findings.push(format!("{}:{}: {name}", path.display(), offset + 1));
@@ -774,15 +768,11 @@ fn the_methodology_names_no_launch_policy_environment_variable() {
         findings.join("\n  ")
     );
 
-    // **The control is synthetic, and has to be.** It used to be that the sweep
-    // found the live channel somewhere in the corpus, which proved the scan was
-    // not reading a clean surface for the wrong reason. The corpus names no
-    // `GROVE_*` variable at all since the signalling contract became driver
-    // prose, so the classifier is pinned directly instead: it must see both a
-    // retired routing variable and the one permitted capability.
+    // Pin both a retired routing variable and the admitted session authority:
+    // a classifier that misses either cannot justify the sweep's distinction.
     assert_eq!(
-        grove_names_in("set `GROVE_HARNESS` and read `GROVE_SIGNAL_FILE`"),
-        ["GROVE_HARNESS", LIVE_CONTROL_CHANNEL],
+        grove_names_in("set `GROVE_HARNESS` and read `GROVE_LAUNCH_DIR`"),
+        ["GROVE_HARNESS", SESSION_AUTHORITY],
         "the scan must find a launch-policy variable when one is present"
     );
     assert!(
@@ -797,14 +787,12 @@ fn the_environment_sweep_finds_a_reintroduced_routing_variable() {
         grove_names_in("routed by one `GROVE_REVIEW_HARNESS` line, not a leaf"),
         ["GROVE_REVIEW_HARNESS"]
     );
-    assert_ne!(
-        grove_names_in("GROVE_REVIEW_HARNESS")[0],
-        LIVE_CONTROL_CHANNEL
-    );
+    assert_ne!(grove_names_in("GROVE_REVIEW_HARNESS")[0], SESSION_AUTHORITY);
     assert_eq!(
-        grove_names_in("writes to `GROVE_SIGNAL_FILE`"),
-        [LIVE_CONTROL_CHANNEL]
+        grove_names_in("admitted under `GROVE_LAUNCH_DIR`"),
+        [SESSION_AUTHORITY]
     );
+    assert_ne!(grove_names_in("GROVE_SIGNAL_FILE")[0], SESSION_AUTHORITY);
 }
 
 // ---------------------------------------------------------------------------
@@ -951,7 +939,7 @@ fn real_long_flags_by_verb() -> BTreeMap<String, BTreeSet<String>> {
 
 /// The verb names that mark a line as being *about* `grove-llm`: the hyphenated
 /// ones. Derived from the command model, and hyphenated because the rest
-/// (`kind`, `pick`, `resolve`, `complete`) are ordinary English words that appear
+/// (`kind`, `pick`, `resolve`) are ordinary English words that appear
 /// throughout the prose.
 fn hyphenated_verbs() -> Vec<String> {
     let verbs: Vec<String> = grove_llm::cli::Cli::command()
@@ -1078,7 +1066,8 @@ fn the_flag_sweep_rejects_an_invented_selector_and_skips_an_anchor() {
     );
     let real = real_long_flags_by_verb();
     assert!(!real["leaf-retire"].contains("harness-a") && !real["leaf-add"].contains("harness"));
-    assert!(real["leaf-add"].contains("kind") && real["complete"].contains("done"));
+    assert!(real["leaf-add"].contains("kind"));
+    assert!(!real.contains_key("complete"));
 
     // A markdown anchor's double hyphen is not a flag.
     assert!(

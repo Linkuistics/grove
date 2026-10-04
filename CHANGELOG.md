@@ -52,6 +52,31 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+### Breaking upgrade: update the policy, binaries and skills together
+
+This is a major release. Before upgrading, stop other live Grove drivers and
+their sessions; restart them under the new binaries and matching skills after
+the cutover described in [Releasing Grove](docs/RELEASING.md#signal-contract-cutover).
+An already running v22 driver keeps its old completion contract.
+
+- Edit owner policies that read `repo` or `session_name`: Grove now passes no
+  parameters, and those policies refuse until changed. Use `request.cwd` for
+  the session location; the new sample derives a secondary jj workspace's
+  main-repository grant from its `.jj/repo` file. A policy that ignores the old
+  parameters also works before the upgrade.
+- `harness-dispatch run` now supervises its child instead of replacing itself
+  with it. Sessions end with `harness-dispatch exit`; `grove-llm complete` is
+  removed. A finish records teardown with `grove-llm record-teardown` before
+  signalling its exit.
+- `grove run` launches through confined dispatch and receives a run record.
+  Output publication still requires explicit acknowledgement and a successful
+  ending.
+- Upgrade the skills and binaries together. Keep a preserved v22 completion
+  helper outside Homebrew's keg if the releasing finish is itself running
+  under v22; it must finish that driver with `complete --done` after installation.
+
+### Changed
+
 - Reconcile the architecture, usage and dispatch guides, release probes, runner
   contract and walkthrough structure briefs with supervised dispatch. Document
   isolated standalone runs, exit signalling and recorded teardown; require

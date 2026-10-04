@@ -51,8 +51,8 @@ release has stopped before removing the lock.
 
 The tasks stop on the first failure. After a version has been cut, **resume at
 the unfinished step below rather than restarting the version cut**. An unchanged
-tagged `main` is refused on a rerun. Tree-format changes still require the concrete cutover
-preparation described below before running a task.
+tagged `main` is refused on a rerun. Tree-format and session-signal changes still
+require the concrete cutover preparation described below before running a task.
 
 ### Release notes
 
@@ -387,6 +387,10 @@ reader before restarting its driver. A driver already in memory keeps its
 parser; do not relaunch it after converting its tree. Include both the source
 workspace and any release-created copy of its tracked `.grove/` in verification.
 
+For a session-signal release, carry out the [signal-contract cutover](#signal-contract-cutover)
+before starting the release task. The releasing finish must preserve the helper
+its current driver understands before installation replaces it.
+
 Then run the normal checks as one command:
 
 ```sh
@@ -507,6 +511,95 @@ other live groves — `Writegood`, `grove.gh-issue-12`,
 all of which `v19.3.0` drove. They were renamed onto the new grammar inside that
 release window and pinned to `v19.4.0` or later. A release that does **not** move
 how a tree is read owes no such check.
+
+<a id="signal-contract-cutover"></a>
+### A release that changes the session signal meets every live grove
+
+The v22 → supervised-dispatch release removes `grove-llm complete`. A v22
+session sends its disposition through `GROVE_SIGNAL_FILE`; the candidate's
+session sends `harness-dispatch exit` and a finish separately records teardown.
+The binaries and skills must cross that boundary together. A driver already
+running in memory does not acquire the new contract when PATH changes.
+
+1. Inventory every live grove, including secondary jj workspaces and locations
+   outside `~/Development`. Identify its running driver, current session and
+   launch contract. Review the concrete cutover with the owner before publishing.
+   Stop the other drivers and their sessions deliberately, let their supervision
+   cleanup finish, and retain their trees and workspaces for restart. Do not
+   retire their current leaves merely to stop them. The releasing finish is the
+   sole exception: it stays under its original driver until its final signal.
+2. Prepare the owner policy before replacing binaries. Remove reliance on
+   `request.params.repo` and `request.params.session_name`, keep the owner's
+   harness/model choices, and derive any secondary-workspace grant from
+   `request.cwd/.jj/repo`, as the [sample policy](../crates/harness-dispatch/worker/sample/policy.ts)
+   shows. Ignore old parameters rather than rejecting their presence: v22 still
+   supplies them. Draft and inspect the edit under both versions, then obtain
+   the owner's confirmation before applying a personal policy change. If the
+   policy is already migrated, inspect and record that fact; no rewrite is needed.
+3. Rehearse with the candidate binaries and matching skills in a scratch prefix,
+   a scratch grove and a **temporary HOME and CODEX_HOME**. Copy only the owner
+   policy and the harness configuration/credentials the trial needs, with private
+   permissions. Bare Grove provisions its bundled Codex skills: a scratch binary
+   prefix alone does not isolate that write from live v22 sessions. Scrub
+   `GROVE_SIGNAL_FILE`, `GROVE_RUN_SIGNAL_FILE`, `GROVE_LAUNCH_DIR` and
+   `HARNESS_DISPATCH_EXIT_FILE` before launching the scratch driver, and place the
+   scratch `bin` first on its PATH. Offer an attended real-harness trial and
+   record whether it ran or was declined, its observed endings and any limits.
+   Keep trial credentials out of artifacts and remove their scratch copies once
+   all trial processes have stopped.
+4. If the releasing finish was launched by v22, preserve its **v22** helper
+   outside the Homebrew keg, from the original session workspace, before the
+   release task. Verify the version and byte identity:
+
+   ```sh
+   mkdir -p .jj/v22-cutover
+   cp -p /opt/homebrew/Cellar/grove/22.0.0/bin/grove-llm .jj/v22-cutover/grove-llm
+   .jj/v22-cutover/grove-llm --version
+   shasum -a 256 /opt/homebrew/Cellar/grove/22.0.0/bin/grove-llm .jj/v22-cutover/grove-llm
+   ```
+
+   Adapt the source to the actual installed v22 keg. Keep the preserved helper's
+   absolute path available when moving to the default workspace for release.
+   [Homebrew removes old versions during upgrade](https://docs.brew.sh/FAQ),
+   unless cleanup is disabled; do not assume the v22 keg will remain. A symlink
+   into that keg is not preservation. The checked macOS v22 helper links only
+   system libraries and still writes `done\n` after relocation.
+5. Integrate and verify the intended change, then run `task release:major` from
+   the default colocated workspace under the authorized finish sequence.
+   Complete publication, installation and the release's verification before
+   signalling success. Grove's installed Codex bundle is provisioned on bare
+   launch; update other installed plugin copies to the same release. Keep other
+   groves stopped until their binaries, skills and policy agree. After a partial
+   release, resume the unfinished step rather than cutting another version.
+6. Return to the original finish workspace. A finish launched under v22 ends
+   with its preserved helper, **as its last action**, retaining its original
+   `GROVE_SIGNAL_FILE` environment:
+
+   ```sh
+   /absolute/original/workspace/.jj/v22-cutover/grove-llm complete --done
+   ```
+
+   Invoke it directly, never through cargo, whose environment guard clears the
+   authority. Do not scrub the live channel here, redirect it to the trial
+   channel, or substitute the newly installed `record-teardown` / dispatch exit.
+   This v22 driver knows neither of those new ending operations. It has already
+   resolved dispatch beside its canonical executable in the old keg, so a
+   relaunch after cleanup would try the removed path. `complete --done` finishes
+   the existing driver without another launch. A finish launched under the new
+   driver instead runs `grove-llm record-teardown`, then `harness-dispatch exit`.
+7. After the releasing driver has ended, restart each retained live grove from
+   its own working-tree root under the new installed pair and matching skills.
+   Its live leaf is selected again with a fresh launch directory. Verify that
+   the owner policy selects without parameters, its prompt names dispatch exit,
+   and its next successful task ends and relaunches through that signal. Do not
+   restart a torn-down releasing grove, which would scaffold a new workstream.
+
+The v22 lookup is recorded in `v22.0.0:crates/grove/src/dispatch.rs`: it
+canonicalizes `current_exe` once and passes its sibling dispatch path into the
+loop. Its `grove-llm` admits the active session before `complete` and requires
+the original signal path; relocation changes neither check. The release
+preparation must verify this with the installed binaries rather than infer it
+from the candidate's source.
 
 ## 3. Build and publish
 

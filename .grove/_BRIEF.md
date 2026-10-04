@@ -176,6 +176,36 @@ support them and never replace them, and no automated test calls a model.
 
 ## Notes
 
+- **This grove's finish crosses the v22 install boundary.** Other live drivers
+  and sessions must stop before publication and restart under the new pair;
+  follow `docs/RELEASING.md`'s signal-contract cutover. This finish itself stays
+  under its installed v22 driver. Before teardown/integration, verify the
+  preserved helper at
+  `/Users/antony/Development/grove.use-harness-dispatch-as-the-harness-execution-wrapper/.jj/v22-cutover/grove-llm`
+  reports `grove-llm 22.0.0`. Its SHA-256 is
+  `4e752bda6c091be019d39169cfa1f099f9704ff03ba75faa7581a84359851b25`;
+  preserve it again from the v22 keg if it is missing before upgrading.
+  Use installed v22 `grove-llm finish-commit <finish-handle>` in this workspace,
+  then integrate, check and release with `task release:major` from the default
+  workspace by `CLAUDE.md`'s authorized sequence. Finish all publication and
+  installed verification, return here, and invoke the absolute preserved helper
+  with `complete --done` as the **last action**, keeping this finish's original
+  `GROVE_SIGNAL_FILE`. Do not use the new helper, cargo, `record-teardown`, or
+  dispatch exit to end this v22 launch. Homebrew normally deletes the old keg;
+  its v22 driver resolved dispatch beside its canonical executable at startup
+  and must finish, never relaunch onto that removed path. k21 verified the
+  relocated helper against a scratch channel, and a running copied v22 driver
+  finished through it after its copied keg was deleted. No live channel was
+  written by either probe. A failed release leaves the remaining steps explicit
+  and receives no success signal.
+- **The owner's D1/D2 policy migration is already installed.** k21 inspected
+  the unchanged policy under v22 with parameters and the candidate without
+  them; both selected the owner's Codex impl route and main-repository grant.
+  No policy mutation is needed. Recheck against the current bytes before release
+  if the owner changes it. An attended scratch trial was accepted; k21 records
+  its outcomes and limits in its running log. Trials need temporary HOME and
+  CODEX_HOME too, because bare Grove provisions its bundled Codex skills.
+
 - `launch-cutover-k25` integrated the k19 review: command instructions are
   checked across all shipped plugin skill trees; active epochs require
   `launch-dir-hex` with no v22-reader fallback; interruption wins over teardown,

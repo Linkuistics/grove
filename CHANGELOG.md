@@ -52,6 +52,8 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+## v22.1.0
+
 ### Breaking upgrade: update the policy, binaries and skills together
 
 This is a major release. Before upgrading, stop other live Grove drivers and

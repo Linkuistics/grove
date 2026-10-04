@@ -252,8 +252,8 @@ case_table_typescript() {
   "$front" record show --run "$run_id" --state-dir "$state" --json >"$dir/record.json" ||
     fail "record show of run $run_id exited $?"
   expect_json "$dir/record.json" "\"runId\":\"$run_id\""
-  expect_json "$dir/record.json" '"evidence":"handoff_attempt"'
-  expect_json "$dir/record.json" '"execution":"unknown"'
+  expect_json "$dir/record.json" '"evidence":"execution_confirmed"'
+  expect_json "$dir/record.json" '"execution":"confirmed"'
   expect_json "$dir/record.json" '"provider":"smoke-provider"'
   expect_json "$dir/record.json" '"taskId":"smoke-task"'
   expect_json "$dir/record.json" "\"argv\":[\"$harness\",$args]"

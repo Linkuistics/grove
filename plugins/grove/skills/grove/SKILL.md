@@ -22,6 +22,26 @@ calling for something other than what you are doing — each naming the file who
 procedure answers it. Nothing here summarises those files; a procedure you need
 is one read away.
 
+## Human-facing communication
+
+Use a guided, conversational explanatory style for **all communication with the
+human**: progress updates, reports, recommendations, questions and final replies.
+Write connected prose that lets the reader follow the work without reconstructing
+compressed technical shorthand.
+
+Start with the concrete outcome or question. Explain what you tried, why that
+step mattered, what you observed and what it means for the human's goal. Build
+one idea on the previous one; introduce technical terms in plain language when
+they become necessary. Give enough context for the reader to form an opinion,
+and explain the practical consequence of each material limitation or trade-off.
+
+Keep the main explanation readable on its own. Put detailed logs, identifiers,
+checks and provenance in a linked technical section or separate evidence document.
+When asking for a decision, explain what accepting the recommendation would mean
+and which questions would remain open. Scale the length to what needs explaining;
+clarity and understanding determine the length, rather than terseness or a fixed
+word budget.
+
 ## Your kind's skill was named for you
 
 **The driver resolved your leaf and its kind before this session existed, so you

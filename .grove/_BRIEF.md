@@ -174,6 +174,36 @@ Tap main is e7416e57, clean, ravel-lite.rb retained and ravel.rb absent. The
 original driver's `harness-dispatch exit` contract remains in force. The root
 stays live for k11 and Grove integration/release; this is no finish/teardown.
 
+## Public Ravel handoff — ravel-publication-k11 closed
+
+Ravel **0.1.0** is publicly downloadable and installed through
+`linkuistics/taps/ravel`. Release source/peeled tag is
+`bbab823803bd2f2796f8bd9570f732dce900efa2`; sealed/pushed Ravel main
+`3916a4a1d17fef925db7e9c730bd4c23d6df3ac8` adds
+`docs/publication-evidence.md` and has a clean empty successor. Tap main is
+clean and synchronized at `bd5aa37b721aaff4a72b01fb966785392812b6a8`, with
+only Formula/ravel.rb added and ravel-lite retained. The owner explicitly
+approved making Ravel's repository/history public.
+
+k11's terminal handoff and Ravel's durable evidence supply **all three exact
+version URLs and SHA-256 pins** for k6's independent Linux/QEMU inputs.
+Authenticated and anonymous downloads equal the tested archives; the remote
+formula, source tag and notes are verified. GitHub does not enforce a release
+lock, so consumers must verify the supplied SHA-256 pins. All tagged
+manifest/formula/native/QEMU/glibc/CPU-floor routes passed before publication.
+
+`/opt/homebrew/bin/ravel` finds its matching worker under
+`/opt/homebrew/Cellar/ravel/0.1.0`. Homebrew's public forced fetch and brew test
+pass, as do 81 copied-owner-policy shell fake-agent sessions and three
+refusals on a child PATH without Grove/Bun/Node. All installed files match
+the archive; 134 runtime tests passed. Configuration, existing tap formulas
+and the complete original 22.1.0 Grove/dispatch keg retain their bytes.
+
+The partial main push and private-repository download refusal were recovered
+at their documented boundaries, with no second bump or tag replacement.
+No Ravel publication/install step remains. Grove integration/release and
+the driver's original harness-dispatch exit channel remain live.
+
 ## Testing runner
 
 The human selected cargo nextest. Rust test tasks use nextest and preserve its

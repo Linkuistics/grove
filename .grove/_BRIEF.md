@@ -40,13 +40,27 @@ continue endings.
 
 ## Decomposition
 
-Work in minimal, independently useful increments. The next planning session
-is `ravel-extraction-k2`; it should cut the smallest verified extraction increment
-and sequence its real dependencies, preserving a working Grove throughout the
-transition. Establish the independently usable Ravel tool and delivery before
-switching Grove's consumer boundary. Controlled-session framing and explicit endings follow as a
-separate small increment. Cut later work only when its input is concrete; do not
-turn the future agent-server into a speculative subtree.
+Work in minimal, independently useful increments. A planning review checks
+`ravel-extraction-k2`'s tree before implementation. The working handoffs are ordered
+below; each leaf includes its tests and current-state documentation rather than
+leaving those as a later horizontal phase.
+
+| Leaf | Independently verifiable handoff | Requires |
+|---|---|---|
+| ravel-cli-k3 | Ravel builds, checks and installs a generic front/worker pair; old Ravel and owner config are preserved | Settled requirements |
+| ravel-delivery-k4 | Independent supported archives, release tasks and installed Homebrew formula | Runnable Ravel |
+| grove-ravel-caller-k5 | Both Grove callers use installed Ravel across independent paths/versions; caller assets belong to Grove | Installed Ravel delivery |
+| grove-ravel-delivery-k6 | Grove's archives and formula use a Ravel dependency and ship no dispatch pair | Migrated callers/assets |
+| ravel-session-control-k7 | Generic notice and continue/force-stop work through Ravel's CLI, results and records | Independent Ravel delivery |
+| grove-session-control-k8 | Grove consumes both endings with its own continuation/teardown decision | Migrated Grove and updated installed Ravel |
+
+The positional order is deliberate even where two source changes could run
+independently: it avoids concurrent installation changes beneath the live driver.
+The runnable copy is an expand step. Grove remains usable with the old delivery
+until the independent Ravel installation is verified; only after caller migration
+does the contract step remove the old package. Session-control behavior follows
+as an additive Ravel increment and its Grove integration. Do not add speculative
+agent-server leaves.
 
 ## Pointers
 
@@ -127,3 +141,17 @@ sessions with hierarchical names, let agents communicate, present all work in a
 dashboard, and selectively interact with agents through a terminal-like system.
 Preserve that direction without designing its protocol or session model as part
 of this extraction.
+
+## Cross-project handoffs
+
+The live driver and this coordination tree stay in the original session
+workspace. Ravel implementation and release leaves work in the reused Ravel
+checkout, commit their project changes there and name those commits/installed
+versions in their task handoff here, then return here to retire and commit their
+leaf. Do not start another Grove driver from inside the current session. Recheck
+checkout/config/tap state at each handoff; the planning inspection is not a lock.
+
+Each working increment is a releasable boundary, not permission to combine
+every source move into one release. Final Grove integration/release remains the
+existing driver-owned finish sequence. Preserve the installed launch prompt's
+ending command and authority until its final signal, even after Ravel is installed.

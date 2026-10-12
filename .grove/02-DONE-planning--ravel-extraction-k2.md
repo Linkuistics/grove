@@ -54,3 +54,38 @@ ownership changes required by the caller-independent boundary. The root brief
 already records the default continue ending, explicit force-stop and the
 separate controlled-session increment; the exact implementation mechanics
 belong to that increment's focused work.
+
+## Decisions (running log)
+
+**First runnable boundary.** Preserve the old Ravel revision and README edit,
+then copy the generic front, matching worker, SDK, examples, notices and a local
+runner into Ravel. Build/check/install recipes and the actual owner-config copy
+belong to that same leaf: source without its matching worker or usable policy is
+not a working increment. Grove keeps its current dispatch installation until
+the independent Ravel delivery has been verified.
+
+**Ownership during expansion.** The existing worker embeds the Grove adapter,
+Grove examples and Grove-specific sample, and reports adapter identity through
+its private protocol. Ravel's initial copy must exclude these conventions,
+including their reporting fields. Preserve caller assets on Grove's side before
+removing the old package. Each project keeps its own internal runner; no path,
+Git or published Rust-library dependency joins them.
+
+**Concrete dependency order.** Runnable Ravel precedes independent archives,
+release tasks and Homebrew installation. Grove's runtime caller migration then
+precedes removal of its bundled dispatch delivery. Session-control support is
+additive on Ravel first, with a documented caller result and records, then Grove
+consumes it. Each handoff must run its own observable checks and leave both
+products usable; new behavior and its only reader are never split into dead
+schema-only work.
+
+**Inspection evidence.** Tier 2 graph generation 2026-10-12T08:55:10Z located the
+Grove executable locator, its lifecycle/standalone callers, the Grove adapter
+and Ravel's current supervision/exit seam. Exact source confirmed sibling-only
+discovery, embedded caller modules and the boolean exit channel. Graph coverage
+reported no recorded gap for the examined tracked files; `.cargo/config.toml`
+is excluded and was read directly. This is bounded planning evidence, not a
+claim that the graph enumerates every migration edit. Ravel's checkout still
+has only README.md modified at uwlrknks/93f202ba above main at 2f452e51; the
+owner's source config exists, imports harness-dispatch/sdk, and the destination
+config is absent. Recheck all of those at execution.

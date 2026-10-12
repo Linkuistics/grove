@@ -1,4 +1,4 @@
-# ravel-cli-k3
+# ravel-cli-k3 — brief
 
 ## Goal
 
@@ -116,3 +116,29 @@ never become the current output spelling.
 Test the legacy exit input only on an isolated old 22.1.0 supervisor and temporary
 channels. This compatibility path does not replace the old launch prompt's
 mandated `harness-dispatch exit`; k6 preserves that command through installation.
+
+## Decomposition
+
+The runnable extraction remains one aggregate expand boundary before k4, with
+three separately verifiable child handoffs in order:
+
+1. `ravel-retired-project-k14`: remotely verified old revision and ordinary
+   retrieval documentation, before any source replacement.
+2. `ravel-runtime-k15`: generic runnable pair, current-state executable docs,
+   temporary-store isolation and fresh-prefix installation checks.
+3. `ravel-history-migration-k16`: actual preserved personal configuration and
+   consistent separate history snapshot, old-front/late-reap verification and
+   final catch-up instructions.
+
+The original Done when above is retained in full. Closing this node requires
+all its conditions, not merely completion of one child. k4 still requires the
+whole runnable/configured handoff.
+
+## Decisions (running log)
+
+**Bounded execution.** Source discovery showed that the worker's embedded
+modules/build/typecheck/sample surface and the isolated live-store migration
+are separate acceptance surfaces. Applying Grove's decomposition rule, the
+mandated leaf is now node k3. This session completes only the independently
+verifiable historical preservation child; later sessions own runtime extraction
+and actual config/history migration. No settled design choice is reopened.

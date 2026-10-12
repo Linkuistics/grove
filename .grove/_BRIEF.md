@@ -47,7 +47,7 @@ leaving those as a later horizontal phase.
 
 | Leaf | Independently verifiable handoff | Requires |
 |---|---|---|
-| ravel-cli-k3 | Generic runnable front/worker, rename/report contract, isolated history snapshot and executable docs; retired revision pushed | Settled requirements |
+| ravel-cli-k3 (node: k14 → k15 → k16) | Generic runnable front/worker, rename/report contract, isolated history snapshot and executable docs; retired revision pushed | Settled requirements |
 | ravel-delivery-k4 | Release instruments, formula template and all supported unreleased archive checks pass | Runnable Ravel |
 | ravel-publication-k11 | Independent release, pinned per-target archives and installed Homebrew formula verified | Prepared delivery |
 | grove-ravel-caller-k5 | Both callers use PATH-resolved Ravel and its supported CLI/report; names, guards, caller assets and source-pinned docs migrate together | Installed Ravel delivery |

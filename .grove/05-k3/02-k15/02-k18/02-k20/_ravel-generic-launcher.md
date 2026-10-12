@@ -1,4 +1,4 @@
-# ravel-generic-launcher-k20
+# ravel-generic-launcher-k20 — brief
 
 ## Goal
 
@@ -46,6 +46,24 @@ personal config copying or old-store access. Preserve the original live driver's
 harness-dispatch exit command and admission contract. Historical continuity is
 explicitly outside the product scope; the old tool retains its records.
 
+## Decomposition
+
+The source front/worker has about 13,700 lines before its command-seam tests.
+Removing storage, transferring routing, introducing opaque results and proving
+the installed layout exceeds one focused session. Deliver three independently
+verifiable increments in order:
+
+- ravel-session-channel-k21: ephemeral result publication and reading through
+  the existing supervised runner, with real-process nested/stale/round-trip tests.
+- ravel-routed-session-k22: generic SDK/compiled worker and two-verb front;
+  exercise routing and result delivery through the actual command boundary.
+- ravel-installed-pair-k23: fresh-prefix installation, matching identity,
+  hostile probes, executable documentation/notices and the complete handoff.
+
+The first increment is a private Rust library in the future `ravel` package,
+not an incomplete public CLI. k22 adds that package's binary. No caller should
+install a `ravel` command until its two verbs work through policy routing.
+
 ## Testing runner
 
 The human selected cargo nextest. Rust test tasks use nextest and preserve its
@@ -54,10 +72,19 @@ Use focused filters during edits and the full relevant suite at handoff. The
 nextest runner replaces cargo test for runtime suites; retain doctest checks
 when the source contains executable documentation examples.
 
-## Handoff
+## Starting baseline
 
-Start from Ravel main at a6b9bab17ce2e7c261b4d063d237e8989db4c1d2,
+This node began from Ravel main at a6b9bab17ce2e7c261b4d063d237e8989db4c1d2,
 with an empty working copy. The CLI remains unimplemented; this session landed
 only the agreed boundary, old-tree cleanup and nextest workflow. The parent
 k18 brief contains exact validation. No importer or persistent-store design
 needs preserving. Use the root brief's current contract over old planning notes.
+
+## Current handoff
+
+k21 delivered the private session-result transport in Ravel commit
+`fe99094029f4e00c9ec6f57312f0925c8702157b`, now local main with an empty
+following working copy. Its task carries complete validation: task build and
+task check passed, with 74 tests and saved lint/test logs. The public CLI and
+worker remain absent. k22 delivers those; k23 finishes installation/probes/docs.
+This node and k18/k15 stay open; actual configuration copying remains k16.

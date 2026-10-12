@@ -88,3 +88,10 @@ following working copy. Its task carries complete validation: task build and
 task check passed, with 74 tests and saved lint/test logs. The public CLI and
 worker remain absent. k22 delivers those; k23 finishes installation/probes/docs.
 This node and k18/k15 stay open; actual configuration copying remains k16.
+
+k22 delivered the policy-routed public front and generic compiled worker in Ravel
+commit `e3dcd9c5e8522ad05eedee193a8cf49bdb2e08b9`, now local main with an empty
+following working copy. Its handoff records `task build` and `task check` passing,
+119 runtime tests, pinned Bun 1.4.2 and exact result/cancellation behavior. k23
+remains live for installation, comprehensive probes/evidence and executable docs;
+this node and k18/k15 remain open. No publication or configuration copying occurred.

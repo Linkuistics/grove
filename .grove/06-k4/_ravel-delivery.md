@@ -74,3 +74,32 @@ cut/notes/preflight/publish recipes and their prerequisite/tap/order/dry-cut/
 recovery checks. This parent's full Done when is not met yet; k11 publication
 requires k25 and all parent criteria. Rechecked remote tags still contain no
 version releases; 0.0.0 to 0.1.0 remains the planned first minor cut.
+
+
+## Complete delivery handoff — k25 closes ravel-delivery-k4
+
+Ravel main is sealed at `64b1e6e7b92ebd3eac28c9765e6c705d40c3e95d`, followed by a clean
+empty change. It contains independent sequential cut/notes/doctor/publish tasks,
+1.1.2 cargo-release config and partial-boundary recovery, built on k24's archives.
+The final source remains 0.0.0; no production cut/tag/push/publication or permanent
+installation occurred. Remote version tags remain absent; first minor is 0.1.0.
+
+| Acceptance criterion | Delivered evidence |
+|---|---|
+| Independent root release/check/build/install/notes/archive tasks and recovery | Taskfile.yml, release.toml, docs/RELEASING.md and passing isolated lifecycle task |
+| Exact independent three-target archives, pins and floors | k24 manifest/build instruments plus k25 all-target rebuild and every native/QEMU/floor installed seam |
+| Prerequisite/tap refusal and smoke before every publication step | Actual Task dry/order/failure runs, real local jj/remotes and doctor controls in release-lifecycle.aBzyix |
+| No caller/host runtime in target layouts | Exact-manifest/omission/extra/type/mode/probe controls, direct/symlink installed seam and pinned worker build |
+| Actual ravel.rb layout/fake-agent test; ravel-lite retained | Real Homebrew methods in temporary prefixes, all four worker-identity controls, isolated tap/recovery fixtures |
+| Exact committed source, digests, individual routes, logs and commands | docs/release-lifecycle-evidence.md and k25 terminal handoff |
+
+All criteria are met; no preparation check/prerequisite remains unrun or missing.
+All 134 runtime tests passed; 14 ignored entries are invoked subprocess fixture
+roles. All 14,183 subject digests matched individually. Config and the original
+installed 22.1.0 pair are intact. Tap remains clean at e7416e57, ravel-lite intact,
+ravel.rb absent. k25's latest three local archive/formula digests supersede k24's.
+
+Promote this exact source/evidence to k11/root; this node closes with k25's
+retirement and needs no additional child. The actual 0.1.0 cut, tagged rebuild/
+smoke/formula, GitHub/tap publication and Homebrew installation remain k11's
+separate contract. Original live-driver authority and ending remain unchanged.

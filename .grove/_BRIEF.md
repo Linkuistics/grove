@@ -147,25 +147,32 @@ for archive/target/release preparation; k11 publishes/installs it. The root stay
 live for those steps and Grove integration. Keep the original driver and
 `harness-dispatch exit` channel through final finish.
 
-## Independent archive delivery handoff — k24 closed, k4 live
+## Independent Ravel delivery handoff — ravel-delivery-k4 closed
 
-Ravel local main has advanced to sealed
-`454ecc817342860b645af06a3c42212fe72baeb9`, followed by an empty change. It
-contains the independent exact archive pipeline, all three unreleased 0.0.0
-archives' validated build/smoke instruments and a tested ravel.rb template.
-All target installed seams and Linux glibc/CPU-floor controls passed, as did
-formula/probe/manifest controls and 134 runtime tests. Complete individual
-evidence, artifact paths/digests and logs are in Ravel's
-`docs/archive-evidence.md` and ravel-archives-k24's terminal handoff.
+Ravel local main is sealed at `64b1e6e7b92ebd3eac28c9765e6c705d40c3e95d`, followed by a
+clean empty change. It combines k24's independent three-target archive/floor/
+manifest and real formula instruments with k25's cut/notes/doctor/publish tasks,
+cargo-release 1.1.2 config, refusal/order/lock/state tests and complete recovery.
+All k4 preparation criteria are reconciled and met; k24/k25 are terminal.
 
-ravel-delivery-k4 decomposed into ravel-archives-k24 and the still-live
-ravel-release-lifecycle-k25. k25 must finish the independent version-cut/notes/
-doctor/preflight/publish tasks, refusal/order/dry-cut tests and partial-release
-recovery before k4 can close or k11 publish. No release was cut/published or
-permanently installed. Original installed Grove/dispatch, owner config and tap
-were individually digest-verified unchanged; ravel-lite.rb is intact and
-ravel.rb is absent from the clean tap. The original driver's exit contract
-still applies.
+Durable final evidence is Ravel's `docs/release-lifecycle-evidence.md`, with the
+exact latest 0.0.0 local archive/formula digests, all target/native/QEMU/floor
+outcomes and complete logs. The root tasks passed lifecycle, archive, formula
+and every installed-layout route; all 134 runtime tests passed. No preparation
+prerequisite/check is missing. All 14,183 individually frozen subjects matched.
+
+No production version cut/tag/push/publication or permanent installation ran.
+Remote rechecks still show no version tags; first minor remains 0.1.0. k11 now
+consumes this exact source, rechecks partial state/tags/tap/config and runs the
+actual independent release task. It must rebuild and rerun every tagged 0.1.0
+target/floor/formula check before publication and provide immutable URLs/digests
+and actual installed Homebrew evidence. Never publish the local 0.0.0 files or
+repeat a partially completed bump; Ravel's release guide owns recovery.
+
+Owner config and the original installed 22.1.0 Grove/dispatch bytes remain intact.
+Tap main is e7416e57, clean, ravel-lite.rb retained and ravel.rb absent. The
+original driver's `harness-dispatch exit` contract remains in force. The root
+stays live for k11 and Grove integration/release; this is no finish/teardown.
 
 ## Testing runner
 

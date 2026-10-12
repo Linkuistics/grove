@@ -47,11 +47,14 @@ leaving those as a later horizontal phase.
 
 | Leaf | Independently verifiable handoff | Requires |
 |---|---|---|
-| ravel-cli-k3 | Ravel builds, checks and installs a generic front/worker pair; old Ravel and owner config are preserved | Settled requirements |
-| ravel-delivery-k4 | Independent supported archives, release tasks and installed Homebrew formula | Runnable Ravel |
-| grove-ravel-caller-k5 | Both Grove callers use installed Ravel across independent paths/versions; caller assets belong to Grove | Installed Ravel delivery |
-| grove-ravel-delivery-k6 | Grove's archives and formula use a Ravel dependency and ship no dispatch pair | Migrated callers/assets |
-| ravel-session-control-k7 | Generic notice and continue/force-stop work through Ravel's CLI, results and records | Independent Ravel delivery |
+| ravel-cli-k3 | Generic runnable front/worker, rename/report contract, isolated history snapshot and executable docs; retired revision pushed | Settled requirements |
+| ravel-delivery-k4 | Release instruments, formula template and all supported unreleased archive checks pass | Runnable Ravel |
+| ravel-publication-k11 | Independent release, pinned per-target archives and installed Homebrew formula verified | Prepared delivery |
+| grove-ravel-caller-k5 | Both callers use PATH-resolved Ravel and its supported CLI/report; names, guards, caller assets and source-pinned docs migrate together | Installed Ravel delivery |
+| grove-ravel-delivery-k6 | Archives/formula ship Grove/caller assets; separate Ravel dependency and live-driver preservation are tested | Migrated callers/assets |
+| grove-ravel-docs-k12 | Remaining Grove prose/decisions are reconciled with executable docs now owned by Ravel | Green artifact cutover |
+| grove-extraction-release-k13 | Extraction integrated/released independently while this grove and original driver remain live | Release-ready extraction |
+| ravel-session-control-k7 | Generic notice and distinct continue/force-stop reports work and are released; extraction-era readers remain safe | Extraction release checkpoint |
 | grove-session-control-k8 | Grove consumes both endings with its own continuation/teardown decision | Migrated Grove and updated installed Ravel |
 
 The positional order is deliberate even where two source changes could run
@@ -59,8 +62,10 @@ independently: it avoids concurrent installation changes beneath the live driver
 The runnable copy is an expand step. Grove remains usable with the old delivery
 until the independent Ravel installation is verified; only after caller migration
 does the contract step remove the old package. Session-control behavior follows
-as an additive Ravel increment and its Grove integration. Do not add speculative
-agent-server leaves.
+as an additive Ravel increment and its Grove integration after the extraction
+release checkpoint. The human chose to keep one grove and release part way
+through it; this replaces the suggested separate-grove boundary. Do not add
+speculative agent-server leaves.
 
 ## Pointers
 
@@ -93,7 +98,11 @@ adapter, sample policy, examples and related tests to Grove's side; Ravel's
 worker, SDK, defaults and injected instructions remain generic. Grove depends
 only on documented CLI arguments and parameters, not an embedded adapter or
 Ravel's private worker protocol. Keep existing policies, settings and run history
-usable through the smallest explicit rename migration.
+usable through the smallest explicit rename migration. k3 owns the public names
+table and isolated store snapshot; Ravel never upgrades the live legacy store.
+Late old-supervisor records stay readable through the retained legacy front and
+are imported after that driver ends, rather than treating the initial snapshot
+as continuous replication.
 
 The configuration format stays as it is. Copy the actual contents of the owner's
 current `~/.config/harness-dispatch` directory into `~/.config/ravel` as part of
@@ -113,8 +122,16 @@ separate work. Validate each moved recipe before using it.
 This grove is driven by installed Grove 22.1.0 and its original dispatch tool.
 Preserve the launch prompt's ending command and channel through the live cutover;
 source and installation changes must not strand a session before its final
-signal. Carry the existing cargo/test guards into the moved project so its tests
-cannot use the live session's completion authority.
+signal or the next launch. The driver resolves its canonical dispatch executable
+once and continues using it after a mid-grove upgrade. k6 tests retaining the
+original complete keg with cleanup disabled and preserving the bare old ending
+command through a non-overwriting compatibility link on the inherited PATH;
+k13 applies that procedure. Preserve the original grove-llm admission/teardown
+contract as well. Keep this transition installation until the original driver
+has ended, including final finish's last signal. Ravel's documented legacy
+exit-channel fallback is additional compatibility, not a change to the mandate.
+Carry the existing cargo/test guards into the moved project, including both old
+and Ravel control names, so tests cannot use live completion authority.
 
 ## Agreed test seams
 
@@ -151,7 +168,20 @@ versions in their task handoff here, then return here to retire and commit their
 leaf. Do not start another Grove driver from inside the current session. Recheck
 checkout/config/tap state at each handoff; the planning inspection is not a lock.
 
-Each working increment is a releasable boundary, not permission to combine
-every source move into one release. Final Grove integration/release remains the
-existing driver-owned finish sequence. Preserve the installed launch prompt's
-ending command and authority until its final signal, even after Ravel is installed.
+Each working increment is a releasable boundary. k11 publishes Ravel's extracted
+tool; k13 integrates/releases the extraction's Grove changes before k7 starts;
+k7 independently releases Ravel's controlled-session increment. k13 performs
+source-only jj integration with no live `.grove/` on main, preserves the session
+tree/workspace/lease and leaves the remaining leaves live. It records neither
+teardown nor a finish commit. Final Grove integration/release still belongs to
+the existing driver-owned finish sequence after k8. Resume partial releases;
+never repeat a version bump. Preserve the original launch/ending contract through
+both Grove releases; installing new Grove does not replace the running driver.
+
+Ravel's executable spec, generic ADRs and Bun runtime evidence move with k3 and
+remain cited by k4's recipes. k5/k6 update source-pinned walkthroughs and gating
+assertions with their source changes; k12 reconciles Grove's broader prose to its
+caller contract. Per-target Grove installed-layout checks consume Ravel's
+immutable published archives/digests, including QEMU targets without Homebrew.
+Grove resolves Ravel once from PATH and checks the supported public CLI version
+at runtime; formula dependency presence alone cannot establish that contract.

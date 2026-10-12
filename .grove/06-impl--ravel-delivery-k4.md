@@ -2,8 +2,8 @@
 
 ## Goal
 
-Deliver Ravel independently through its release tasks, three supported archives
-and `linkuistics/taps/ravel`, ready for Grove to consume as an installed command.
+Prepare Ravel's independent release tasks, three supported unreleased archives
+and tested formula template, ready for ravel-publication-k11 to publish/install.
 
 ## Context
 
@@ -18,8 +18,9 @@ and `linkuistics/taps/ravel`, ready for Grove to consume as an installed command
 
 - Ravel owns version cuts, release notes, check/build/install and archive/smoke
   tasks in its root Taskfile, documented prerequisites and partial-release
-  recovery. Use its existing repository/version history when choosing the first
-  cut; its version lifecycle is independent of Grove's.
+  recovery. Use k3's 0.0.0 development version and prepare a first minor cut to
+  0.1.0 after rechecking remote version tags; its lifecycle is independent of
+  Grove's. No tag or public cut here.
 - Archives contain `ravel`, its matching private worker, generic SDK/examples
   and notices. They contain no Grove binary, adapter or policy. Exact manifest
   checks and their omission/extra/probe controls pass.
@@ -27,18 +28,16 @@ and `linkuistics/taps/ravel`, ready for Grove to consume as an installed command
   dirty taps refuse before publication, and smoke runs before pushes/releases.
   Every supported target executes the installed-layout seam without Grove or a
   host TypeScript runtime; report missing prerequisites as unfinished work.
-- Publish the verified Ravel release and formula, then install and `brew test`
-  Ravel. The Homebrew-linked front finds its own matching worker from its real
-  path. Generic fake-agent selection/run/record checks succeed from the installed
-  command, using the preserved personal config where applicable.
-- Record the published version and installation evidence in Ravel's normal
-  release documentation and this leaf's handoff; Grove's existing installation
-  still works. If a cut/publication partly succeeds, resume it rather than
-  rerunning a task that would bump again.
+- The `ravel.rb` template installs the independent layout and passes its
+  fake-agent checks from a symlinked temporary prefix. The tap's `ravel-lite.rb`
+  is a different command and remains intact. Formula publication is k11.
+- Record source commit, unreleased artifact paths/digests, per-target smoke
+  evidence and validated publication/recovery commands in the handoff. The
+  pinned Bun runtime evidence moved by k3 remains cited by build/release scripts.
+  Missing prerequisites or unrun target checks are unfinished work, never skips.
 
 ## Notes
 
-This is delivery work in `/Users/antony/Development/Ravel` and the existing tap.
-Commit intended changes through each repository's VCS interface. Do not publish
-or install a new Grove here. Preserve the original live session ending command
-until the session has signalled from its original workspace.
+This is preparation in `/Users/antony/Development/Ravel`. Commit the working
+recipes and instruments through jj; publication/installation is k11's separate
+verified boundary. Do not publish/install Grove or replace the running tool.

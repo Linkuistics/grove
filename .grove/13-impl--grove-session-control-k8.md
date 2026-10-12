@@ -27,9 +27,15 @@ completion and the original lifecycle authority guarantees intact.
 - Grove's prompt and methodology no longer duplicate Ravel's generic notice and
   ending instructions. Finish still records caller teardown before its final
   Ravel ending command; other kinds retain their caller-owned retirement rules.
-- Update Grove's formula minimum dependency only if the new public contract
-  requires it; verify independent versions/installation paths through archive
-  and formula checks. Reconcile active docs, glossary and ADR/spec descriptions.
+  Verify the runtime version/contract requirement before removing Grove's
+  generic instructions. A decoy extraction-era Ravel must refuse with an upgrade
+  remedy before any agent launch; it cannot launch with both owners' instructions
+  absent. Source-pinned pages and command assertions change with their source.
+- Homebrew continues to depend on Ravel by formula name. Advance Grove's runtime
+  minimum supported Ravel version to k7's notice/two-ending release, rather than
+  claiming an unexpressed depends_on version floor. Verify independent versions
+  and paths through archive/formula checks using immutable per-target Ravel
+  archives/digests from k7's release. Reconcile active docs and ADR/spec clauses.
 - Run `task check` and the relevant installed-layout checks. Keep the source
   migration separate from the live session's original launch/ending contract.
 
@@ -38,3 +44,5 @@ completion and the original lifecycle authority guarantees intact.
 The agent-server stays on the root brief's horizon. The driver-owned finish
 session performs the authorized final Grove integration/release; this leaf
 does not signal teardown or install replacement Grove while developing it.
+Final finish preserves k6's legacy installation/ending command until its last
+signal; the running driver's launch contract still wins over installed updates.

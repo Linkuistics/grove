@@ -1,4 +1,4 @@
-# ravel-runtime-k15
+# ravel-runtime-k15 — brief
 
 
 ## Goal
@@ -56,3 +56,23 @@ launch a model, or copy/import the owner's actual config/history in this child.
 Use temporary configuration/state for checks. Release preparation/publication
 remain k4/k11; controlled-session behavior remains k7. A safe installed pair is
 this child's independently demonstrable handoff.
+
+## Decomposition
+
+The source inspection exposed separate executable boundaries: the local runner
+and the generic front/compiled worker. Transfer the already complete runner first,
+with its own Rust workspace, build/check tasks, guarded subprocess fixtures and
+current documentation. It is independently verified by the process, terminal,
+confinement and wait-recovery suite and introduces no policy or record-store code.
+The next child delivers the entire generic pair, including store isolation,
+rename compatibility, executable-owned documentation and installed checks. No
+runtime or documentation acceptance condition above is dropped; k16 still owns
+the owner's actual config/history migration.
+
+## Decisions (running log)
+
+**Bounded extraction.** Graph/source inspection showed the worker's embedded
+caller modules and reporting fields, coupled build/declaration/sample fixtures,
+store identity and runtime-evidence surface exceed one low-context session. The
+existing runner crate is the first independently testable handoff. This session
+completes that child only; the remaining generic-pair extraction stays live.

@@ -80,18 +80,15 @@ only the agreed boundary, old-tree cleanup and nextest workflow. The parent
 k18 brief contains exact validation. No importer or persistent-store design
 needs preserving. Use the root brief's current contract over old planning notes.
 
-## Current handoff
+## Complete runtime handoff
 
-k21 delivered the private session-result transport in Ravel commit
-`fe99094029f4e00c9ec6f57312f0925c8702157b`, now local main with an empty
-following working copy. Its task carries complete validation: task build and
-task check passed, with 74 tests and saved lint/test logs. The public CLI and
-worker remain absent. k22 delivers those; k23 finishes installation/probes/docs.
-This node and k18/k15 stay open; actual configuration copying remains k16.
-
-k22 delivered the policy-routed public front and generic compiled worker in Ravel
-commit `e3dcd9c5e8522ad05eedee193a8cf49bdb2e08b9`, now local main with an empty
-following working copy. Its handoff records `task build` and `task check` passing,
-119 runtime tests, pinned Bun 1.4.2 and exact result/cancellation behavior. k23
-remains live for installation, comprehensive probes/evidence and executable docs;
-this node and k18/k15 remain open. No publication or configuration copying occurred.
+The runtime subtree closes with ravel-installed-pair-k23. Ravel local main is
+`b1060a176d5fa7c6c5bc96f41cacc18480e0fb65`, with an empty following working copy.
+k21/k22/k23 and the owned runner meet this node's full runtime contract; k23's
+terminal task records exact checks, controls, coverage caveats and logs.
+`task build`, `task check` (134 runtime tests passed; 14 subprocess roles) and
+fresh-prefix direct/symlink `task smoke` passed. The pair and worker/SDK/notices
+are 0.0.0, without a host runtime or source-project binary. Runtime docs and Bun
+instruments accompany source. No publication or actual configuration copying
+occurred; no old store was opened. k16 remains live for the absent destination
+owner configuration, and k4 owns target/archive/release preparation.

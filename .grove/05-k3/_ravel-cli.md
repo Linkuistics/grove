@@ -94,3 +94,21 @@ reporting UI; formatting/lint diagnostics may be saved with short summaries.
 Use focused filters during edits and the full relevant suite at handoff. The
 nextest runner replaces cargo test for runtime suites; retain doctest checks
 when the source contains executable documentation examples.
+
+## Complete runtime handoff
+
+The runtime subtree closes with ravel-installed-pair-k23. Ravel local main is
+`b1060a176d5fa7c6c5bc96f41cacc18480e0fb65`, with an empty following working copy.
+k21/k22/k23 and the owned runner meet this node's full runtime contract; k23's
+terminal task records exact checks, controls, coverage caveats and logs.
+`task build`, `task check` (134 runtime tests passed; 14 subprocess roles) and
+fresh-prefix direct/symlink `task smoke` passed. The pair and worker/SDK/notices
+are 0.0.0, without a host runtime or source-project binary. Runtime docs and Bun
+instruments accompany source. No publication or actual configuration copying
+occurred; no old store was opened. k16 remains live for the absent destination
+owner configuration, and k4 owns target/archive/release preparation.
+
+Runtime nodes k20/k18/k15 have no live leaves after k23 retires. This k3 node
+remains open for k16; its configuration condition is not claimed complete.
+Preserve the original driver and `harness-dispatch exit` ending through later
+installation/release work. The existing retired-project retrieval record remains.

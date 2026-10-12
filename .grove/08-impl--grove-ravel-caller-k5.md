@@ -3,7 +3,8 @@
 ## Goal
 
 Make Grove's lifecycle and standalone invocations consume installed Ravel only
-through its documented CLI, and make Grove own its policy adapter and examples.
+through start-session/end-session, with caller-owned prompts, result meanings,
+policy adapter and provenance.
 
 ## Context
 
@@ -11,8 +12,8 @@ through its documented CLI, and make Grove own its policy adapter and examples.
   documented rename/report/layout contract.
 - `crates/grove/src/dispatch.rs::locate` currently canonicalizes Grove's path
   and selects its sibling `harness-dispatch`; lifecycle and standalone callers
-  both use it. `crates/grove-loop/src/launch_directory.rs` validates the ending
-  report's schema/source/observed value. Prompt and confinement/runtime-read
+  both use it. The existing launch-directory reader consumes a structured ending
+  report; migrate it to the opaque result returned by start-session. Prompt and confinement/runtime-read
   construction must follow the resolved Ravel executable.
   Resolve `ravel` from the launching process's PATH, canonicalize the selected
   executable once, and use that same path throughout launch/confinement. Do not
@@ -28,31 +29,36 @@ through its documented CLI, and make Grove own its policy adapter and examples.
 - Lifecycle and standalone paths resolve the installed `ravel` independently
   of Grove's real executable directory/version, with an actionable missing-tool
   remedy. Resolve once and confine that executable and its documented runtime
-  layout. Grove reads only the public ending report, not worker protocol/records.
+  layout. Grove consumes the public result, never private worker protocol. It
+  supplies instructions to call ravel end-session with its continue value.
   Check the documented Ravel CLI version against the minimum delivered contract
   before launching; unknown/older versions refuse with an upgrade remedy.
   Homebrew depends_on ensures presence, not this runtime contract check.
 - Caller-owned adapter/sample/examples and their typecheck/runtime fixtures work
-  with Ravel's public SDK. Review Creator/Reviews handling and provider lookup
-  retain their existing behavior. Ravel contains no Grove module registration.
+  with Ravel's generic routing/context SDK. Grove owns any Creator/Reviews and
+  provider provenance it still needs; remove reliance on Ravel's retired host.run,
+  record commands or persistent store. Supply needed data as caller context.
+  Ravel contains no Grove module registration or prompt injection.
 - Extend existing lifecycle/standalone fixtures to execute the real installed
   Ravel and worker, with fake agents and temporary policies. Put Grove and Ravel
   in separate prefixes with different versions; a decoy old sibling must not
   win. Missing Ravel reports its install remedy. No host Bun/Node is required.
   Replace test support's old sibling symlink seam with isolated PATH/prefix
   fixtures; exercise a decoy older Ravel, malformed version output and a cwd
-  decoy. Freeze the k5 public continue report fixture and verify both actual
-  Grove readers accept schema 1/source ravel/observed exit_signal and reject
-  unrelated sources and malformed reports. k7 reuses this contract fixture.
+  decoy. Freeze Grove's continue result fixture and verify both actual readers accept
+  that value and reject unsupported/missing results. Confirm session output
+  does not contaminate the returned result. k8 extends caller-owned meanings.
 - Existing continuation, completion, refusal/resume, cancellation, process-group
   cleanup, PTY recovery, confinement, epoch admission and stale-session checks
-  pass. This leaf retains bare exit's existing continue semantics.
+  pass. This leaf retains ordinary continuation using Grove's explicit result value;
+  its prompts now instruct the session to invoke ravel end-session with it.
   Flip every current Grove command, environment, SDK/import and report-source
   spelling together: prompt/signalling text, tree-lifecycle/standalone prose,
   grove-llm CLI, finish skill and Creator instructions, assertions, and the
   loop/standalone/testing-support/cargo scrub lists. Scrub both old and new
-  control sets. Creator instructions use RAVEL_RUN_ID with the explicit legacy
-  HARNESS_DISPATCH_RUN_ID fallback for sessions still launched by the old driver.
+  control sets. New provenance instructions use caller-owned data, with explicit
+  legacy handling for sessions still launched by the original driver. End-session
+  discovers process context; a session ID is not an ending-command argument.
   Enumerate/classify the complete Grove surfaces, including dotfiles, with the
   spine's observed positive/cross-tree controls; keep only named compatibility
   and historical exceptions. Source changes do not change the live prompt.

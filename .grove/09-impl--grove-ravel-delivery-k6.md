@@ -46,10 +46,11 @@ Ravel as an independently versioned runtime dependency.
   original grove-llm for its admission/teardown contract as well.
   Test an isolated upgrade/unlink with the actual old 22.1.0 front/worker: it can
   launch the next fake session, reap/write the old store, and the bare command
-  signals only its temporary legacy channel. Test Ravel's legacy-channel exit
-  fallback separately; it is not permission to change the original prompt.
+  signals only its temporary legacy channel. Ravel's end-session uses its own
+  process context; the new CLI is not a replacement ending command for a live
+  session launched by the old driver.
   Record paths/digests, cleanup suppression, link ownership and a post-driver
-  cleanup/catch-up procedure. Keep the legacy installation until the driver has
+  cleanup procedure. There is no historical catch-up/import work. Keep the legacy installation until the driver has
   ended; neither k13 nor final finish removes it before its final signal.
 
 ## Notes

@@ -1,78 +1,53 @@
 # ravel-runtime-k15 — brief
 
-
 ## Goal
 
-Deliver the independent, generic Ravel front/worker pair, its executable-owned
-documentation and a verified fresh-prefix installation.
-
-
+Deliver Ravel's independent two-verb process/router pair, its executable-owned
+documentation and verified fresh-prefix installation.
 
 ## Context
 
-- Requires `ravel-retired-project-k14`. Read Ravel's `docs/retired-project.md`
-  and verify its retired bookmark still resolves locally and at origin before
-  replacing any old sources. Preserve that document in the new active tree.
-- The parent `ravel-cli-k3` is the complete acceptance contract. This child owns
-  every runtime, rename, genericity, documentation, build, install and test
-  requirement there. k16 owns copying personal configuration and importing the
-  selected legacy history, including the old installed front's late-reap check.
-- Source remains in this Grove checkout under `crates/harness-dispatch` and
-  `crates/keyed-launch`. Copy it; keep the installed old front and worker usable.
+Requires ravel-retired-project-k14. Ravel's runner is committed at ee5e64b1.
+Read Ravel's README, docs/local-runner.md, docs/retired-project.md and
+docs/session-cli.md. Source front/worker remain under crates/harness-dispatch.
+The root and ravel-cli-k3 briefs carry the full current acceptance contract.
+k16 owns actual configuration copying only; no historical migration remains.
 
 ## Done when
 
-- Replace active Ravel sources with an ordinary descendant of the preserved
-  revision. Development version is 0.0.0; front/worker identities match.
-- Ravel's root Taskfile builds, checks and installs both components. Transfer
-  dependencies, lockfile, toolchain, lint gates, pinned Bun, hostile probe
-  controls, SQLite/runtime notices and local runner coverage. The new install
-  runs through a bin/ravel symlink without host Bun, Node or Grove.
-- Implement and test the parent's public rename table, including schema-1
-  source ravel reports and isolated legacy exit input. Public CLI, SDK, defaults,
-  useful rewritten policy sample and embedded modules are caller-independent.
-  Preserve old record documents' opaque fields; remove active caller adapters.
-- Enumerate/classify caller-specific references across the whole active tree;
-  exercise the parent's positive and cross-tree controls before crediting the
-  clean sweep. Record explicit historical exceptions in ordinary Ravel docs.
-- Transfer the executable-owned specification, generic parts of the four ADRs
-  and runtime evidence with its instruments/assets. Chase source/test/script
-  citations and keep the pinned-runtime upgrade rule with its real evidence.
-- Default state uses Ravel's separate store. Runtime code refuses to upgrade or
-  write a legacy store even through an explicit state-dir. Document relocation;
-  any snapshot/import instrument needed for k16 must refuse conflicting imports
-  and preserve an existing destination. Verify with isolated temporary stores.
-- Run the package checks, local runner suite, real-worker/fake-agent command
-  seam cases and fresh-prefix installed smoke checks named in the parent.
-  Guard old/new live authority controls in cargo and directly executed helpers;
-  verify the session's actual exit channel remains absent.
-- Commit through jj in Ravel; record its exact commit and validation here,
-  retire this child and seal the coordination-tree commit. k16 remains live.
+- Generic runnable 0.0.0 front/worker with matching identity; only start-session
+  and end-session RESULT. Caller prompt unchanged; opaque result returned after
+  supervised process termination/reaping. End addresses inherited process context.
+- Root Taskfile builds/checks/installs the pair and local runner. Preserve pinned
+  Bun, relevant dependency/toolchain/lint gates, notices and hostile probes. Tests
+  save full logs and expose short summaries. No cross-repository Rust dependency.
+- No persistent store, SQL/record/observation/lookup subsystem, old history
+  migration, embedded Grove module, caller policy fixture or injected instruction.
+  Generic SDK/sample/examples and docs expose the agreed process boundary only.
+- Applicable executable spec/ADRs/Bun evidence and instruments move with their
+  source citations. Enumerate/classify active caller references with controls.
+- Package/runner checks and real-worker/fake-agent seams pass; temporary-prefix
+  direct/symlink smoke works without host Bun/Node or Grove. Scrub old/new live
+  authority from cargo/direct helpers and verify the live channel remains absent.
+- Commit Ravel through jj, name exact commit/validation here, retire children,
+  check/promote this node only when all runtime conditions hold. k16 stays live.
 
 ## Notes
 
-Do not publish, perform release preparation, install over the live old command,
-launch a model, or copy/import the owner's actual config/history in this child.
-Use temporary configuration/state for checks. Release preparation/publication
-remain k4/k11; controlled-session behavior remains k7. A safe installed pair is
-this child's independently demonstrable handoff.
+No publication, release preparation, replacement of the old installed command,
+model launch, actual personal config copying or store access in this node.
+Preserve the original driver's canonical executable and ending contract.
 
 ## Decomposition
 
-The source inspection exposed separate executable boundaries: the local runner
-and the generic front/compiled worker. Transfer the already complete runner first,
-with its own Rust workspace, build/check tasks, guarded subprocess fixtures and
-current documentation. It is independently verified by the process, terminal,
-confinement and wait-recovery suite and introduces no policy or record-store code.
-The next child delivers the entire generic pair, including store isolation,
-rename compatibility, executable-owned documentation and installed checks. No
-runtime or documentation acceptance condition above is dropped; k16 still owns
-the owner's actual config/history migration.
+k17 delivered the standalone runner. k18 owns the remaining generic pair.
+The current human scope removes store migration and all extra CLI verbs rather
+than treating them as a mechanical requirement to carry into Ravel.
 
-## Decisions (running log)
+## Testing runner
 
-**Bounded extraction.** Graph/source inspection showed the worker's embedded
-caller modules and reporting fields, coupled build/declaration/sample fixtures,
-store identity and runtime-evidence surface exceed one low-context session. The
-existing runner crate is the first independently testable handoff. This session
-completes that child only; the remaining generic-pair extraction stays live.
+The human selected cargo nextest. Rust test tasks use nextest and preserve its
+reporting UI; formatting/lint diagnostics may be saved with short summaries.
+Use focused filters during edits and the full relevant suite at handoff. The
+nextest runner replaces cargo test for runtime suites; retain doctest checks
+when the source contains executable documentation examples.

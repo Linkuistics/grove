@@ -2,143 +2,95 @@
 
 ## Goal
 
-Deliver a runnable, caller-independent `ravel` CLI and matching private worker
-from the existing Ravel checkout, with the owner's copied configuration.
+Deliver the independent Ravel process manager/router, its two-verb CLI and
+matching private worker, using the owner's copied configuration.
 
 ## Context
 
-- Reuse `/Users/antony/Development/Ravel` and Linkuistics/Ravel. Recheck its jj
-  state; requirements found README.md modified in uwlrknks/93f202ba over
-  main/2f452e51. Preserve the complete old revision, including later local edits,
-  under a named retired bookmark before replacing active sources. Do not discard
-  unrelated work or rewrite the old daemon design into the new requirements.
-- Source: `crates/harness-dispatch` and `crates/keyed-launch`; source recipes:
-  `Taskfile.yml`, `scripts/check.sh`, and dispatch's build/install/smoke scripts.
-  Transfer workspace dependency, toolchain, lockfile and lint requirements needed
-  to build these packages independently. Ravel owns its local runner copy.
-- The worker embeds caller modules in `worker/src/main.ts`; build identity,
-  declaration generation, typecheck fixtures, sample installation and record
-  reporting also refer to them. This is more than a directory rename.
+Reuse `/Users/antony/Development/Ravel` and Linkuistics/Ravel. The old project is
+preserved under `retired/actor-daemon-2026-10-12`; read `docs/retired-project.md`.
+Source front/worker and build/install instruments remain in this Grove checkout
+under `crates/harness-dispatch`; Ravel already owns its local runner copy.
+The root brief and Ravel's `docs/session-cli.md` carry the human's current scope.
+They replace the original history/store and broader CLI requirements.
 
 ## Done when
 
-- Before source replacement, a named retired revision resolves to the old
-  Ravel project and includes the owner's README edit. Record its name and commit
-  in Ravel's ordinary project documentation and push the retired bookmark to
-  origin before replacing active sources. Advance main by ordinary descendant
-  commits; do not rewrite or force-push away the old history. Commit through jj.
-  Recheck version tags: inspection found only `structured-plan-migration`, no
-  released version. Use 0.0.0 for the extracted development pair and make the
-  first minor cut 0.1.0, independently of Grove's inherited 22.1.0. Keep
-  front/worker identity paired at the actual Ravel build version.
-- Ravel's own root Taskfile builds, checks and installs the front/worker pair.
-  Preserve pinned Bun/dependencies, matching build identity, hostile probe
-  controls, SQLite/runtime notices and the local runner tests. An installed
-  prefix works through a symlink to `bin/ravel` with no host Bun/Node or Grove.
-- The public CLI, SDK, defaults, generic examples and active README describe
-  Ravel. Grove adapter, Grove routing samples and Grove task conventions are
-  excluded from the embedded set, declarations, default sample and active
-  inspection/run output. Preserve historical record readability with the
-  smallest compatible treatment of old fields; do not lose existing records.
-  Enumerate and classify every Grove-specific reference across Ravel's whole
-  active tree (including dotfiles, help, SDK, build inputs, scripts, fixtures,
-  samples and docs), with positive and cross-tree controls seen to fail before
-  crediting a clean sweep. Rewrite a useful generic policy sample; trimming the
-  Grove sample is insufficient. No active adapter field or embedded registration
-  survives. Historical records may retain opaque old fields without interpreting
-  them as caller semantics; retired source history is the other explicit exception.
-- Recheck and copy the actual contents of `~/.config/harness-dispatch` into
-  `~/.config/ravel`, preserving both source and any destination edits. Preserve
-  policy/settings format, routes, environment grants, bounds, local selections
-  and access to existing history. Change only necessary SDK/import locations.
-  Inspect the copied personal policy from this Grove workspace and another
-  ordinary directory; do not activate a replacement sample or launch a model.
-  Use a separate Ravel store at `~/.local/state/ravel/records.sqlite3`. Seed it
-  once from a consistent SQLite backup of the selected legacy store, never a
-  live file copy; preserve IDs, launches and observations. Preserve an existing
-  destination and refuse conflicting imports rather than replacing it. Neither
-  Ravel nor k7 upgrades/writes the legacy store, including one selected by an
-  explicit state-dir setting. Document the explicit relocation for that case.
-  This is a snapshot, not continuous replication: later old-supervisor records
-  remain accessible through the retained old front/store. Record the snapshot
-  boundary and a final catch-up import procedure before retiring that front.
-  Test the old 22.1.0 front can still open, append and reap into its original
-  store after Ravel writes its own; its application ID/version and existing
-  immutable documents stay unchanged. Include a legacy late-reap fixture.
-- Transfer executable-owned current-state documentation to Ravel alongside its
-  runnable implementation: `docs/specs/harness-selection-and-execution.md`,
-  the generic parts of the four decisions `harness-selection-is-owned-by-policy`,
-  `policy-evaluation-precedes-the-launch`, `dispatch-supervises-the-harness` and
-  `the-launched-child-is-a-job`, and
-  `docs/design/harness-selection-and-execution/runtime-evidence.md` with its
-  instruments/assets. Separate Grove caller clauses without importing Grove
-  conventions into Ravel. Chase every moved source/test/script citation; keep
-  the pinned-Bun upgrade/probe rule attached to its actual evidence. Grove's
-  copies remain during expansion; k12 reconciles them to caller-only material.
-- Existing command-seam cases run against the real Ravel worker and fake agents:
-  generic selection, execution, bare exit/ending file, records and old-record
-  lookup; cancellation, nested/stale channels, confinement and terminal cleanup.
-  Run the transferred package check and local runner suite, then the installed
-  smoke cases from a fresh prefix with host runtimes removed from PATH.
-- Cargo and directly executed test helpers clear all live authority variables,
-  including original and renamed Ravel controls and Grove's launch directory.
-  Verify the live session's channel was not created by the checks.
-
-## Notes
-
-This is an expand step: the current Grove source, installed dispatch and its
-configuration remain usable. Caller assets stay preserved there for
-grove-ravel-caller-k5. Release preparation is ravel-delivery-k4 and independent
-publication is ravel-publication-k11;
-controlled-session behavior is ravel-session-control-k7. Do not add either here.
-Return to the session workspace to retire/commit this leaf, naming the Ravel
-commit in the handoff. Keep the launch prompt's original ending binary usable.
+- Retired revision and owner README edit remain remotely retrievable. The active
+  tree contains only replacement sources/documentation. Advance ordinary jj
+  descendant commits; development version is 0.0.0, first minor cut is 0.1.0.
+- Ravel's root Taskfile builds/checks/installs a matching front/compiled worker.
+  Preserve pinned Bun/dependencies, source identity pairing, hostile probes,
+  applicable notices and local runner coverage. Direct and symlinked bin/ravel
+  work from a temporary prefix with no host runtime or Grove.
+- Public verbs are only start-session and end-session RESULT. Routing passes the
+  caller's prompt unchanged. Ending uses the enclosing process context; after
+  termination/reaping start-session returns the opaque supplied value. Caller
+  result semantics, end-session instructions and durable state stay caller-owned.
+- Remove the SQLite store/dependency, record/observation/export/lookup features,
+  historical migration fixtures and store-related SDK/worker requests. Ravel
+  creates no persistent run history, including through explicit old storage
+  settings. Preserve generic policy/context/routing features needed for launches.
+- Generic SDK/examples/sample and CLI/inspection-free output contain no embedded
+  Grove adapter, task conventions or caller-specific fields. Rewrite a useful
+  generic routing sample. Enumerate/classify caller references across the active
+  tree including dotfiles; use the spine's positive/cross-tree controls. Retired
+  source documentation and authority-scrub names are explicit exceptions.
+- k16 copies the actual ~/.config/harness-dispatch configuration into
+  ~/.config/ravel, preserving source/destination edits and owner choices. Change
+  necessary imports and remove obsolete destination storage settings. Typecheck
+  against the shipped SDK and validate without launching models. No store copy,
+  snapshot, importer or catch-up is part of this work.
+- Transfer and reconcile executable spec, generic process/runtime ADR content
+  and Bun evidence/instruments. Keep source citations and pinned-runtime upgrade
+  controls attached to their real implementation. Grove copies remain until k12.
+- Existing real-worker/fake-agent seams cover routing, opaque result round trips,
+  empty/multiline values, nested/stale context, cancellation/reaping, terminal
+  cleanup and confinement. Remove cases solely for discarded features. Tests
+  use temporary configuration/channels and scrub all live authority variables.
+  Verify the session's real channel stays absent before the final signal.
+- Deterministic Taskfile checks save full logs and return concise summaries;
+  run focused checks while editing and the full relevant suite at handoff.
 
 ## Public rename contract
 
-Document and test this table in Ravel's ordinary CLI/SDK documentation before
-caller migration. Old names are compatibility inputs or history only; they
-never become the current output spelling.
-
-| Surface | Current spelling / contract |
+| Surface | Contract |
 |---|---|
-| Front and SDK import | `ravel`; `ravel/sdk` |
-| Private worker/layout | `libexec/ravel/ravel-policy`, resolved from the front's real path |
-| Config and local choice | `~/.config/ravel/{policy.ts,settings.json}`; `.ravel-choice` |
-| Default state | `~/.local/state/ravel/records.sqlite3` |
-| Harness authority/identity | `RAVEL_EXIT_FILE`, `RAVEL_RUN_ID`, `RAVEL_STATE_DIR` |
-| Continue command | `ravel exit` |
-| Caller ending report | `schemaVersion: 1`, `source: "ravel"`, observed ending `exit_signal` |
-| Public arguments | Preserve existing documented arguments and config format, including `--exit-dir`, `--ending-file`, `--state-dir`, selection/context/confinement parameters |
-| Legacy exit input | If `RAVEL_EXIT_FILE` is unset, `ravel exit` may use `HARNESS_DISPATCH_EXIT_FILE`; a present empty new variable disables fallback. Never signal both. Preserve the old empty-file/idempotent/no-supervisor behavior. |
-| Guarding inherited controls | Scrub both old and new exit/run/state variables and Grove launch/retired signal controls from workers/tests as appropriate; no caller-specific grant advice belongs in generic CLI help |
+| Front / verbs | ravel start-session; ravel end-session RESULT |
+| SDK import | ravel/sdk; generic routing/context only |
+| Private layout | libexec/ravel/ravel-policy, resolved from the front's real path |
+| Configuration | ~/.config/ravel/{policy.ts,settings.json}; .ravel-choice |
+| Session completion | One opaque result argument, returned to the start-session caller after reaping |
+| Process context | end-session discovers its enclosing session; no explicit target argument |
+| Prompt | Caller text is unchanged; caller supplies ending instructions |
+| Persistence | None; no state directory, record verbs or historical lookup |
 
-Test the legacy exit input only on an isolated old 22.1.0 supervisor and temporary
-channels. This compatibility path does not replace the old launch prompt's
-mandated `harness-dispatch exit`; k6 preserves that command through installation.
+Preserve applicable selection/context/confinement parameters, with no obsolete
+storage or third-verb compatibility surface. The original installed dispatch
+remains usable for the live driver; keep its old ending command and guards.
 
 ## Decomposition
 
-The runnable extraction remains one aggregate expand boundary before k4, with
-three separately verifiable child handoffs in order:
+1. ravel-retired-project-k14 preserves the old revision and retrieval docs.
+2. ravel-runtime-k15 delivers the smaller generic pair, docs and installed checks.
+3. ravel-history-migration-k16 now copies configuration only; its handle is
+   retained, but the human explicitly removed historical continuity.
 
-1. `ravel-retired-project-k14`: remotely verified old revision and ordinary
-   retrieval documentation, before any source replacement.
-2. `ravel-runtime-k15`: generic runnable pair, current-state executable docs,
-   temporary-store isolation and fresh-prefix installation checks.
-3. `ravel-history-migration-k16`: actual preserved personal configuration and
-   consistent separate history snapshot, old-front/late-reap verification and
-   final catch-up instructions.
-
-The original Done when above is retained in full. Closing this node requires
-all its conditions, not merely completion of one child. k4 still requires the
-whole runnable/configured handoff.
+k4 requires the complete runnable/configured handoff. No package release here.
 
 ## Decisions (running log)
 
-**Bounded execution.** Source discovery showed that the worker's embedded
-modules/build/typecheck/sample surface and the isolated live-store migration
-are separate acceptance surfaces. Applying Grove's decomposition rule, the
-mandated leaf is now node k3. This session completes only the independently
-verifiable historical preservation child; later sessions own runtime extraction
-and actual config/history migration. No settled design choice is reopened.
+**Human scope correction during k18.** Historical continuity is not useful.
+Ravel is a process manager/router with exactly start-session and end-session;
+the latter's opaque argument becomes the former's result. The caller supplies
+ending instructions and owns result semantics/provenance. Removed the general
+importer prototype, Python toolchain, history migration and Ravel prompt-injection
+work. Retain process/runtime mechanisms and efficient existing test seams.
+
+## Testing runner
+
+The human selected cargo nextest. Rust test tasks use nextest and preserve its
+reporting UI; formatting/lint diagnostics may be saved with short summaries.
+Use focused filters during edits and the full relevant suite at handoff. The
+nextest runner replaces cargo test for runtime suites; retain doctest checks
+when the source contains executable documentation examples.

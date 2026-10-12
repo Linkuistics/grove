@@ -25,8 +25,8 @@ and artifact cutovers, with the executable-owned documentation preserved in Rave
   legacy-live-driver exceptions. Use observed positive/cross-tree controls,
   chase links and reconcile decisions in place; no duplicate extraction spec.
 - Book/reference/conformance validation and `task check` pass. Record the
-  independently tested source and release-ready handoff for k13. No new generic
-  notice or force-stop semantics are promised before k7/k8 deliver them.
+  independently tested source and release-ready handoff for k13. Ravel injects no instructions and owns no result meanings; Grove supplies
+  end-session instructions and k8 extends its caller-owned force-stop handling.
 
 ## Notes
 

@@ -3,7 +3,7 @@
 ## Goal
 
 Release the working Ravel extraction and Grove packaging increment part way
-through this grove, preserving its live tree and original supervisor for k7/k8.
+through this grove, preserving its live tree and original supervisor for k8.
 
 ## Context
 
@@ -11,7 +11,7 @@ through this grove, preserving its live tree and original supervisor for k7/k8.
   installation preservation and k11's independent installed Ravel release.
 - The human chose a mid-grove release instead of two groves. This is an ordinary
   implementation checkpoint, not the driver-owned finish cycle. The eventual
-  finish integrates/releases the later controlled-session increment.
+  finish integrates/releases the later Grove-owned result-control increment.
 - Follow `docs/RELEASING.md` and the project release tasks. Recheck main, default
   workspace and tap state; preserve unrelated work through jj.
 
@@ -41,7 +41,7 @@ through this grove, preserving its live tree and original supervisor for k7/k8.
   on the inherited PATH for all remaining old-driver sessions.
 - Record source/version/artifact and transition evidence, return to the original
   workspace, retire/commit this ordinary leaf, then use its original ending
-  command as the last action. The remaining k7/k8 leaves remain live and the
+  command as the last action. The remaining k8 leaf remain live and the
   driver's normal continuation proceeds; no successful teardown is recorded.
 
 ## Notes

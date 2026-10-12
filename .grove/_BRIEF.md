@@ -147,6 +147,26 @@ for archive/target/release preparation; k11 publishes/installs it. The root stay
 live for those steps and Grove integration. Keep the original driver and
 `harness-dispatch exit` channel through final finish.
 
+## Independent archive delivery handoff — k24 closed, k4 live
+
+Ravel local main has advanced to sealed
+`454ecc817342860b645af06a3c42212fe72baeb9`, followed by an empty change. It
+contains the independent exact archive pipeline, all three unreleased 0.0.0
+archives' validated build/smoke instruments and a tested ravel.rb template.
+All target installed seams and Linux glibc/CPU-floor controls passed, as did
+formula/probe/manifest controls and 134 runtime tests. Complete individual
+evidence, artifact paths/digests and logs are in Ravel's
+`docs/archive-evidence.md` and ravel-archives-k24's terminal handoff.
+
+ravel-delivery-k4 decomposed into ravel-archives-k24 and the still-live
+ravel-release-lifecycle-k25. k25 must finish the independent version-cut/notes/
+doctor/preflight/publish tasks, refusal/order/dry-cut tests and partial-release
+recovery before k4 can close or k11 publish. No release was cut/published or
+permanently installed. Original installed Grove/dispatch, owner config and tap
+were individually digest-verified unchanged; ravel-lite.rb is intact and
+ravel.rb is absent from the clean tap. The original driver's exit contract
+still applies.
+
 ## Testing runner
 
 The human selected cargo nextest. Rust test tasks use nextest and preserve its

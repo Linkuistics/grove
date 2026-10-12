@@ -97,18 +97,42 @@ when the source contains executable documentation examples.
 
 ## Complete runtime handoff
 
-The runtime subtree closes with ravel-installed-pair-k23. Ravel local main is
-`b1060a176d5fa7c6c5bc96f41cacc18480e0fb65`, with an empty following working copy.
+The runtime subtree closes with ravel-installed-pair-k23. At that handoff, local
+main named runtime baseline `b1060a176d5fa7c6c5bc96f41cacc18480e0fb65`, with an
+empty following working copy.
 k21/k22/k23 and the owned runner meet this node's full runtime contract; k23's
 terminal task records exact checks, controls, coverage caveats and logs.
 `task build`, `task check` (134 runtime tests passed; 14 subprocess roles) and
 fresh-prefix direct/symlink `task smoke` passed. The pair and worker/SDK/notices
 are 0.0.0, without a host runtime or source-project binary. Runtime docs and Bun
-instruments accompany source. No publication or actual configuration copying
-occurred; no old store was opened. k16 remains live for the absent destination
-owner configuration, and k4 owns target/archive/release preparation.
+instruments accompany source. k23 performed no publication or configuration
+copying and opened no old store. k16 completes that configuration boundary below;
+k4 owns target/archive/release preparation.
 
-Runtime nodes k20/k18/k15 have no live leaves after k23 retires. This k3 node
-remains open for k16; its configuration condition is not claimed complete.
+Runtime nodes k20/k18/k15 have no live leaves after k23 retires.
 Preserve the original driver and `harness-dispatch exit` ending through later
 installation/release work. The existing retired-project retrieval record remains.
+
+## Complete k3 handoff
+
+ravel-history-migration-k16 completes the last configuration condition. Ravel
+local main is `51b73cbffaa46882d7f9ebad15058e17dbd7bec4`, a sealed docs-only
+descendant of the unchanged runtime baseline above, followed by an empty change.
+`~/.config/ravel/policy.ts` preserves the owner's 24 routes, command arguments,
+workspace grants and version label, with the SDK import relocated and obsolete
+inspection comments corrected. No settings/helpers existed; matching default
+bounds and empty extra policy grants remain. Source/destination edits were
+preserved by an exclusive copy into an absent destination. No history was opened
+or copied, and no installed front was replaced.
+
+Strict copied-policy/public-declaration typechecking, `task typecheck`, all 11
+CLI tests, and 81 real-pair fake-agent selections/3 refusals passed. Negative
+controls failed as intended; 1,145 individual subject digests/inventories retained
+their values through the final measurements. k16 names every evidence file and
+the exact copy digests; Ravel's owner-configuration guide records the selected
+choices and validation boundary. The narrow reviewer found no actionable issue.
+
+Together k14's remotely verified retired revision, the runtime subtree's full
+checks/install smoke and k16's configuration handoff satisfy this node's complete
+Done when. k3 closes with k16's retirement; release/archive/target checks remain
+k4, publication/installation remains k11. Promote this exact handoff to the root.

@@ -118,6 +118,35 @@ existing driver-owned finish sequence.
 - The source executable spec and ADRs describe the pre-extraction implementation;
   retain applicable process/runtime decisions and reconcile ownership in k3/k12.
 
+## Configured Ravel handoff — ravel-cli-k3 closed
+
+Ravel local main is `51b73cbffaa46882d7f9ebad15058e17dbd7bec4`, a sealed
+docs-only descendant of runtime baseline
+`b1060a176d5fa7c6c5bc96f41cacc18480e0fb65`, followed by an empty change.
+k14 preserved the remotely retrievable retired project/owner README; k17/k21/
+k22/k23 delivered the generic 0.0.0 pair, independent installation, local runner,
+SDK/examples, executable docs and complete runtime/hostile/installed checks.
+
+k16 copied the owner's sole policy.ts exclusively into the previously absent
+`~/.config/ravel`. Its 24 routes, arguments, workspace grants and owner version
+label are retained; only the SDK import and obsolete inspection comments changed.
+No settings/helpers/choice imports required migration. Default bounds and empty
+extra environment grants match; no history/store access or installed-front
+replacement occurred. Source/destination SHA-256 and exact selected choices are
+recorded in Ravel's `docs/owner-configuration.md` and k16's terminal handoff.
+
+The strict public-SDK policy check, `task typecheck`, all 11 CLI tests and 81
+fake-agent selections/3 refusals passed. Negative controls fired, and all 1,145
+measured subjects retained matching individual digests, including the original
+22.1.0 installed commands. k16 lists complete logs/instruments in Ravel's target/;
+k23 retains the unchanged full runtime/installation evidence. No publication
+occurred. The tap is clean, ravel-lite.rb remains intact and ravel.rb is absent.
+
+k3's complete contract is met. k4 consumes this exact configured source handoff
+for archive/target/release preparation; k11 publishes/installs it. The root stays
+live for those steps and Grove integration. Keep the original driver and
+`harness-dispatch exit` channel through final finish.
+
 ## Testing runner
 
 The human selected cargo nextest. Rust test tasks use nextest and preserve its

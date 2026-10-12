@@ -19,8 +19,8 @@ formula without combining release-instrument development with a public cut.
   tag, all three archives/digests, formula and `brew test ravel`; do not change
   unrelated tap formulas or the installed Grove/legacy dispatch pair.
 - The Homebrew-linked `ravel` finds its own matching worker from its real path.
-  Generic fake-agent selection, run and record cases work without Grove or host
-  Bun/Node, with the copied personal config where applicable.
+  Generic fake-agent selection and opaque-result round trips work without Grove
+  or host Bun/Node, with the copied personal config where applicable.
 - Record the published source/version, immutable archive URLs and digests for
   every target, installation prefix and test evidence in the cross-project
   handoff. These are k6's Linux/QEMU dependency inputs where Homebrew is absent.

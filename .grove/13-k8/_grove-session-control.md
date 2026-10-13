@@ -1,4 +1,4 @@
-# grove-session-control-k8
+# grove-session-control-k8 — brief
 
 ## Goal
 
@@ -38,6 +38,23 @@ completion and the original lifecycle authority guarantees intact.
   migration separate from the live session's original launch/ending contract.
 
 ## Notes
+
+### Lifecycle handoff — k59
+
+k59 delivers lifecycle `grove-force-stop` through unchanged installed Ravel
+0.1.0. Driver interruption wins, including pending post-reap signals; an exact
+successful force-stop then overrides teardown and exits 1 without completion.
+Teardown otherwise retains its original authority. Continue requires successful
+status and a gone group. Real fake-agent tests cover continuation, remaining
+work/resume, genuine teardown coexistence and descendant cleanup. Literal
+template text in executable paths is preserved in both prompt commands.
+
+All 18 `task check` checks passed (1,383 runtime cases, nine doctests, six books),
+as did explicit installed command/result and authority tasks and original-driver
+preservation verification. The child's verification section records exact logs,
+frozen inputs and limits. k60 owns standalone's explicit stopping/publication
+path; k61 owns full parent acceptance and remaining active-surface reconciliation.
+No parent close, installation, release or teardown occurred in k59.
 
 The agent-server stays on the root brief's horizon. The driver-owned finish
 session performs the authorized final Grove integration/release; this leaf

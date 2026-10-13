@@ -19,13 +19,16 @@ shared Rust dependency crosses the independently released package boundary.
 
 Grove selects the leaf, composes the unchanged prompt, gives the session its
 launch directory and holds epoch admission. After Ravel returns and is reaped,
-Grove invalidates the epoch and interprets only `grove-continue`. Its own
-teardown record finishes the loop; absent that record the supported result
-continues. Missing/unsupported results stop. Driver interruption takes precedence.
-Standalone work checks that same result before publishing validated outputs.
+Grove invalidates the epoch and interprets exactly `grove-continue` and
+`grove-force-stop`. Driver interruption wins first. A successful Ravel
+force-stop wins over teardown and exits 1 without completion; it leaves
+remaining live work resumable. Teardown otherwise retains its authority over
+status, results and surviving groups. Continuation requires successful status
+and a gone group. Missing/unsupported results stop without continuation.
+Standalone work currently requires continuation before publishing validated outputs.
 Session output does not contaminate stdout's held result.
 
-The prompt gives the exact canonical ending command. A finish records teardown
+The prompt gives exact canonical continue and force-stop commands. A finish records teardown
 with `grove-llm record-teardown` before that command. Ravel discovers enclosing
 context; no session identifier is an ending argument. Existing sessions launched
 by the original installed-v22 driver keep their own `harness-dispatch exit`
@@ -73,6 +76,10 @@ provider receipts remain separate
   process and returns the argument without interpreting it.
 - **Infer teardown from missing `.grove/`.** Rejected because absence attests
   no confirmation or disposition. Only this driver's teardown record does.
+- **Let teardown override an explicit force-stop.** Rejected because a caller
+  requesting a stop would receive false completion. Only an exact result from
+  a successful Ravel invocation can override teardown; unsupported bytes and
+  failed supervisors retain no such authority. Force-stop does not undo teardown.
 - **Use exit status alone as completion.** Rejected because a natural child
   exit, even 0, supplies no caller acknowledgement. A supported result after
   cleanup is required.

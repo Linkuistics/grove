@@ -2,7 +2,29 @@
 use std::io::{Seek, Write};
 use std::os::unix::fs::MetadataExt;
 
-use grove_loop::session_result::SessionResult;
+use grove_loop::session_result::{SessionDisposition, SessionResult};
+
+#[test]
+fn reads_both_exact_dispositions_without_granting_force_stop_completion() {
+    for (bytes, want) in [
+        (b"grove-continue".as_slice(), SessionDisposition::Continue),
+        (
+            b"grove-force-stop".as_slice(),
+            SessionDisposition::ForceStop,
+        ),
+    ] {
+        let result = SessionResult::allocate().unwrap();
+        result.stdout().unwrap().write_all(bytes).unwrap();
+        assert_eq!(result.read().unwrap(), want);
+    }
+    let result = SessionResult::allocate().unwrap();
+    result
+        .stdout()
+        .unwrap()
+        .write_all(b"grove-force-stop")
+        .unwrap();
+    assert!(result.read_continue().is_err());
+}
 
 #[test]
 fn reads_the_exact_result_after_the_writer_advanced_the_shared_offset() {
@@ -22,13 +44,18 @@ fn missing_and_unsupported_bytes_never_mean_continue() {
         b"grove-continue\n",
         b" grove-continue",
         b"grove-continue\0",
+        b"grove-force-stop\n",
+        b"grove-force-stop\0",
+        b" grove-force-stop",
+        b"grove-force-sto",
+        b"grove-force-stopgrove-continue",
         b"session-noisegrove-continue",
         b"\xff",
         br#"{"result":"grove-continue"}"#,
     ] {
         let result = SessionResult::allocate().unwrap();
         result.stdout().unwrap().write_all(bytes).unwrap();
-        assert!(result.read_continue().is_err(), "accepted {bytes:?}");
+        assert!(result.read().is_err(), "accepted {bytes:?}");
     }
 }
 
@@ -41,7 +68,7 @@ fn oversized_result_reads_only_the_literal_and_one_rejecting_byte() {
     stdout.set_len(1024 * 1024).unwrap();
     assert!(result.read_continue().is_err());
     // Clones share the offset: this sees how far the actual reader consumed.
-    assert_eq!(stdout.stream_position().unwrap(), 15);
+    assert_eq!(stdout.stream_position().unwrap(), 17);
 }
 
 #[test]

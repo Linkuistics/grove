@@ -461,8 +461,8 @@ Grove removes inherited completion/admission/provider authority before probes
 and launches. It grants only this lifecycle launch's `GROVE_LAUNCH_DIR`;
 standalone helpers inherit no tree authority. Ravel gives its managed process
 fresh enclosing ending context and isolates policy from completion controls.
-The prompt names the resolved executable's exact `end-session grove-continue`
-command. Ravel terminates and reaps the managed group before returning that
+The prompt names the resolved executable's exact continue and force-stop
+commands. Ravel terminates and reaps the managed group before returning the
 argument; Grove reads the captured result after reaping its own Ravel job.
 
 Grove's readable `grove.ts` adapter reads the supplied task's `**Reviews:**` and
@@ -1303,12 +1303,15 @@ for its Ravel job, invalidates the epoch, then interprets the captured stdout
 result and Grove's separate teardown record.
 
 After successful epoch invalidation the first-match precedence is driver
-interruption, this launch's teardown record, surviving Ravel group, then
+interruption (including pending post-reap signals), successful exact
+`grove-force-stop`, this launch's teardown record, surviving Ravel group, then
 successful Ravel status with exactly `grove-continue`; anything else stops.
-Teardown finishes irrespective of result/status/group, so task-root absence
+Force-stop exits 1 without completion and leaves live work resumable. Teardown
+otherwise finishes irrespective of result/status/group, so task-root absence
 never substitutes for the record. An interactive harness returning to its prompt
-without publishing a result may leave Ravel and Grove waiting. Current Grove
-supports only `grove-continue`; force-stop is later caller work.
+without publishing a result may leave Ravel and Grove waiting. Grove's lifecycle
+supports both exact opaque tokens; Ravel interprets neither. Force-stop does not
+restore a removed tree. Standalone currently requires continuation to publish.
 
 Original live-v22 sessions use the original `harness-dispatch exit`, ending-file
 and admission contract until that driver ends. New Ravel commands are never

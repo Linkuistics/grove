@@ -11,6 +11,7 @@
 // prompt, argv and ordered reading of the ending and teardown record.
 
 use crate::driver_lease::DriverLease;
+use crate::session_result::SessionDisposition;
 use crate::{Handle, Kind, Reading, Selection, Sought, TreeLifetime};
 use anyhow::{ensure, Context, Result};
 use jj_workspace::Workspace;
@@ -96,6 +97,9 @@ pub(crate) fn scrub_loop_control_env(cmd: &mut Command) {
 pub enum LoopOutcome {
     /// The grove finished cleanly: this launch recorded its teardown.
     Finished,
+    /// An explicit `grove-force-stop` stopped the loop without completion.
+    /// The CLI reports failure; remaining work is resumable by rerunning Grove.
+    ForceStopped,
     /// A non-signalled exit stopped the loop (human `/exit`/Ctrl-C, or a
     /// crash); resumable by re-running `grove` from the same working tree.
     ///
@@ -192,7 +196,14 @@ fn drive(
         let selection = selected.selection.clone();
 
         let ending = crate::session_command::end_session(ravel)?;
-        let prompt = session_prompt(&selection.handle, &selection.kind, workspace, &ending);
+        let force_stop = crate::session_command::force_stop(ravel)?;
+        let prompt = session_prompt(
+            &selection.handle,
+            &selection.kind,
+            workspace,
+            &ending,
+            &force_stop,
+        );
 
         driver_lease
             .revalidate()
@@ -230,9 +241,14 @@ fn drive(
             );
         }
 
-        if let Some(outcome) =
-            interpret_launch(&ended, &reading, &selection, || capture.read_continue())
-        {
+        // TERM/HUP during terminal reset or invalidation arrived after the
+        // runner froze Ended. Honour that latch before accepting a disposition.
+        if let Some(signal) = keyed_launch::take_interrupt() {
+            eprintln!("grove: interrupted by signal {signal} after reap — stopping the loop.");
+            return Ok(LoopOutcome::Interrupted(signal));
+        }
+
+        if let Some(outcome) = interpret_launch(&ended, &reading, &selection, || capture.read()) {
             return Ok(outcome);
         }
     }
@@ -245,15 +261,23 @@ fn interpret_launch(
     ended: &Ended,
     reading: &crate::launch_directory::LaunchReading,
     selection: &Selection,
-    read_continue: impl FnOnce() -> std::result::Result<(), crate::Error>,
+    read_result: impl FnOnce() -> std::result::Result<SessionDisposition, crate::Error>,
 ) -> Option<LoopOutcome> {
     if let End::Interrupted { signal } = ended.end {
         eprintln!("grove: interrupted by signal {signal} — stopping the loop.");
         return Some(LoopOutcome::Interrupted(signal));
     }
 
-    // Teardown is this launch's explicit disposition, irrespective of the
-    // harness's ending. The driver interrupt above remains authoritative.
+    // Only a successful supervisor's exact result can override teardown. Read
+    // once, after reap and invalidation; failed supervisors grant no authority.
+    let result = ended.status.success().then(read_result);
+    if matches!(result, Some(Ok(SessionDisposition::ForceStop))) {
+        eprintln!("grove: force-stop requested — loop stopped without completion; rerun `grove` to resume remaining work.");
+        return Some(LoopOutcome::ForceStopped);
+    }
+
+    // Teardown otherwise retains its original authority over status, results
+    // and surviving groups. Driver interruption and explicit force-stop win.
     if reading.teardown {
         eprintln!("grove: grove finished — loop complete.");
         return Some(LoopOutcome::Finished);
@@ -272,9 +296,10 @@ fn interpret_launch(
         return Some(LoopOutcome::Stopped);
     }
 
-    if ended.status.success() {
-        match read_continue() {
-            Ok(()) => return None,
+    if let Some(result) = result {
+        match result {
+            Ok(SessionDisposition::Continue) => return None,
+            Ok(SessionDisposition::ForceStop) => return Some(LoopOutcome::ForceStopped),
             Err(error) => eprintln!("grove: unsupported or missing session result: {error}"),
         }
     }
@@ -328,6 +353,7 @@ fn session_prompt(
     kind: &Kind,
     workspace: &Workspace,
     ending_command: &str,
+    force_stop_command: &str,
 ) -> String {
     crate::prompt::compose(&crate::prompt::Mandate {
         handle,
@@ -335,6 +361,7 @@ fn session_prompt(
         workspace,
         version: crate::VERSION,
         ending_command,
+        force_stop_command,
     })
 }
 
@@ -639,7 +666,7 @@ mod tests {
             assert_eq!(
                 interpret_launch(&ended, &reading, &selection, || {
                     if supported_result {
-                        Ok(())
+                        Ok(SessionDisposition::Continue)
                     } else {
                         Err(anyhow::anyhow!("missing result").into())
                     }
@@ -647,6 +674,69 @@ mod tests {
                 want,
                 "{end:?}, {group:?}, teardown={teardown}, supported_result={supported_result}"
             );
+        }
+    }
+
+    #[test]
+    fn force_stop_precedence_requires_a_successful_uninterrupted_supervisor() {
+        use std::cell::Cell;
+        use std::os::unix::process::ExitStatusExt;
+        let selection = Selection {
+            path: "01-impl--work-k1.md".into(),
+            handle: Handle::parse("work-k1").unwrap(),
+            kind: Kind::new("impl").unwrap(),
+        };
+        for group in [Group::Gone, Group::Present { pgid: 123 }] {
+            for teardown in [false, true] {
+                for (end, status, want, reads) in [
+                    (End::Exited, 0, Some(LoopOutcome::ForceStopped), 1),
+                    (
+                        End::Exited,
+                        256,
+                        Some(if teardown {
+                            LoopOutcome::Finished
+                        } else {
+                            LoopOutcome::Stopped
+                        }),
+                        0,
+                    ),
+                    (
+                        End::Interrupted {
+                            signal: libc::SIGTERM,
+                        },
+                        0,
+                        Some(LoopOutcome::Interrupted(libc::SIGTERM)),
+                        0,
+                    ),
+                    (
+                        End::Interrupted {
+                            signal: libc::SIGHUP,
+                        },
+                        256,
+                        Some(LoopOutcome::Interrupted(libc::SIGHUP)),
+                        0,
+                    ),
+                ] {
+                    let ended = Ended {
+                        end,
+                        group,
+                        status: std::process::ExitStatus::from_raw(status),
+                        elapsed: Duration::ZERO,
+                        signalled: false,
+                    };
+                    let reading = crate::launch_directory::LaunchReading { teardown };
+                    let read_count = Cell::new(0);
+                    let got = interpret_launch(&ended, &reading, &selection, || {
+                        read_count.set(read_count.get() + 1);
+                        Ok(SessionDisposition::ForceStop)
+                    });
+                    assert_eq!(
+                        got, want,
+                        "{end:?}, {status}, {group:?}, teardown={teardown}"
+                    );
+                    assert_eq!(read_count.get(), reads);
+                }
+            }
         }
     }
 

@@ -26,22 +26,35 @@ fn ending_command_executes_the_supplied_path_as_one_literal_word() {
     )
     .unwrap();
     fs::set_permissions(&executable, fs::Permissions::from_mode(0o755)).unwrap();
-    let output = Command::new("/bin/sh")
-        .args(["-c", &session_command::end_session(&executable).unwrap()])
-        .env_clear()
-        .env("PATH", "/does-not-exist")
-        .current_dir(temp.path())
-        .output()
-        .unwrap();
-    assert!(output.status.success(), "{output:?}");
-    assert_eq!(output.stdout, b"2\nend-session\ngrove-continue\n");
-    assert!(!temp.path().join("INJECTED").exists());
+    for (ending, expected) in [
+        (
+            session_command::end_session(&executable).unwrap(),
+            b"2\nend-session\ngrove-continue\n".as_slice(),
+        ),
+        (
+            session_command::force_stop(&executable).unwrap(),
+            b"2\nend-session\ngrove-force-stop\n".as_slice(),
+        ),
+    ] {
+        let output = Command::new("/bin/sh")
+            .args(["-c", &ending])
+            .env_clear()
+            .env("PATH", "/does-not-exist")
+            .current_dir(temp.path())
+            .output()
+            .unwrap();
+        assert!(output.status.success(), "{output:?}");
+        assert_eq!(output.stdout, expected);
+        assert!(!temp.path().join("INJECTED").exists());
+    }
 }
 
 #[test]
 fn a_non_utf8_ending_path_refuses_before_a_prompt_can_be_published() {
     let path = Path::new(OsStr::from_bytes(b"/selected/\xff/ravel"));
     let error = session_command::end_session(path).unwrap_err();
+    assert!(error.to_string().contains("UTF-8"), "{error}");
+    let error = session_command::force_stop(path).unwrap_err();
     assert!(error.to_string().contains("UTF-8"), "{error}");
 }
 
@@ -73,13 +86,14 @@ const ESCALATION: Escalation = Escalation {
 #[test]
 #[ignore = "requires installed Ravel: task ravel:commands RAVEL=/absolute/path/to/ravel"]
 fn lifecycle_request_preserves_public_inputs_and_uses_the_selected_ending_path() {
-    let temp = tempfile::tempdir().unwrap();
-    let pair = installed(temp.path());
-    let home = temp.path().join("home");
-    let policy = home.join(".config/ravel/policy.ts");
-    fs::create_dir_all(policy.parent().unwrap()).unwrap();
-    let observed = temp.path().join("observed.json");
-    fs::write(&policy, format!(
+    for force_stop in [false, true] {
+        let temp = tempfile::tempdir().unwrap();
+        let pair = installed(temp.path());
+        let home = temp.path().join("home");
+        let policy = home.join(".config/ravel/policy.ts");
+        fs::create_dir_all(policy.parent().unwrap()).unwrap();
+        let observed = temp.path().join("observed.json");
+        fs::write(&policy, format!(
         "import {{writeFileSync}} from 'node:fs';\n\
          export const policy = {{schemaVersion: 2, version: 'caller-commands', select(request) {{\n\
          writeFileSync({observed:?}, JSON.stringify(request));\n\
@@ -87,55 +101,68 @@ fn lifecycle_request_preserves_public_inputs_and_uses_the_selected_ending_path()
          args: ['-c', 'printf managed-stdout; printf managed-stderr >&2; eval \"$1\"', 'fixture', request.prompt],\n\
          provider: 'fixture', model: 'none', effort: 'none', reason: 'public inputs'}}; }} }};\n"
     )).unwrap();
-    let task = Selection {
-        path: temp
-            .path()
-            .canonicalize()
-            .unwrap()
-            .join("-task path\nwith 'quotes'.md"),
-        handle: Handle::parse("subject-k12").unwrap(),
-        kind: Kind::new("impl").unwrap(),
-    };
-    let prompt = format!(
-        "\n  {}\n\n",
-        session_command::end_session(pair.executable()).unwrap()
-    );
-    let exit_dir = temp.path().join("exit ' parent");
-    fs::create_dir(&exit_dir).unwrap();
-    // Once selected, both launch and ending must ignore a changed lookup path.
-    let decoy_bin = temp.path().join("decoy-bin");
-    fs::create_dir(&decoy_bin).unwrap();
-    let decoy = decoy_bin.join("ravel");
-    fs::write(&decoy, "#!/bin/sh\nprintf decoy-ran >&2\nexit 99\n").unwrap();
-    fs::set_permissions(&decoy, fs::Permissions::from_mode(0o755)).unwrap();
-    let request = session_command::lifecycle(pair.executable(), &task, &prompt, &exit_dir);
-    let argv = invocation(&home, &decoy_bin, request);
-    let capture = SessionResult::allocate().unwrap();
-    let names = support::grove_env_names();
-    let scrub: Vec<&OsStr> = names.iter().map(OsStr::new).collect();
-    let ended = keyed_launch::run_observed_with_stdout(
-        Launch {
-            argv: &argv,
-            channel: None,
-            scrub: &scrub,
-            grant: &[],
-            transparent: None,
-            cwd: Some(temp.path()),
-            escalation: ESCALATION,
-        },
-        capture.stdout().unwrap(),
-        &mut |_| {},
-    )
-    .unwrap();
-    assert!(ended.status.success(), "{ended:?}");
-    assert_eq!(ended.group, Group::Gone);
-    capture.read_continue().unwrap();
-    let request: serde_json::Value = serde_json::from_slice(&fs::read(observed).unwrap()).unwrap();
-    assert_eq!(request["kind"], "impl");
-    assert_eq!(request["taskFile"], task.path.to_str().unwrap());
-    assert_eq!(request["taskId"], "subject-k12");
-    assert_eq!(request["prompt"], prompt);
-    assert_eq!(request["params"], serde_json::json!({}));
+        let task = Selection {
+            path: temp
+                .path()
+                .canonicalize()
+                .unwrap()
+                .join("-task path\nwith 'quotes'.md"),
+            handle: Handle::parse("subject-k12").unwrap(),
+            kind: Kind::new("impl").unwrap(),
+        };
+        let prompt = format!(
+            "\n  {}\n\n",
+            if force_stop {
+                session_command::force_stop(pair.executable()).unwrap()
+            } else {
+                session_command::end_session(pair.executable()).unwrap()
+            }
+        );
+        let exit_dir = temp.path().join("exit ' parent");
+        fs::create_dir(&exit_dir).unwrap();
+        // Once selected, both launch and ending must ignore a changed lookup path.
+        let decoy_bin = temp.path().join("decoy-bin");
+        fs::create_dir(&decoy_bin).unwrap();
+        let decoy = decoy_bin.join("ravel");
+        fs::write(&decoy, "#!/bin/sh\nprintf decoy-ran >&2\nexit 99\n").unwrap();
+        fs::set_permissions(&decoy, fs::Permissions::from_mode(0o755)).unwrap();
+        let request = session_command::lifecycle(pair.executable(), &task, &prompt, &exit_dir);
+        let argv = invocation(&home, &decoy_bin, request);
+        let capture = SessionResult::allocate().unwrap();
+        let names = support::grove_env_names();
+        let scrub: Vec<&OsStr> = names.iter().map(OsStr::new).collect();
+        let ended = keyed_launch::run_observed_with_stdout(
+            Launch {
+                argv: &argv,
+                channel: None,
+                scrub: &scrub,
+                grant: &[],
+                transparent: None,
+                cwd: Some(temp.path()),
+                escalation: ESCALATION,
+            },
+            capture.stdout().unwrap(),
+            &mut |_| {},
+        )
+        .unwrap();
+        assert!(ended.status.success(), "{ended:?}");
+        assert_eq!(ended.group, Group::Gone);
+        assert_eq!(
+            capture.read().unwrap(),
+            if force_stop {
+                grove_loop::session_result::SessionDisposition::ForceStop
+            } else {
+                grove_loop::session_result::SessionDisposition::Continue
+            }
+        );
+        let request: serde_json::Value =
+            serde_json::from_slice(&fs::read(observed).unwrap()).unwrap();
+        assert_eq!(request["kind"], "impl");
+        assert_eq!(request["taskFile"], task.path.to_str().unwrap());
+        assert_eq!(request["taskId"], "subject-k12");
+        assert_eq!(request["prompt"], prompt);
+        assert_eq!(request["params"], serde_json::json!({}));
+    }
 }
 
 // Omitting --confine lets the denied control read the credential; omitting the

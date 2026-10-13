@@ -562,6 +562,7 @@ pub struct Mandate<'a> {
     pub workspace: &'a Workspace,
     pub version: &'a str,
     pub ending_command: &'a str,
+    pub force_stop_command: &'a str,
 }
 pub fn compose(mandate: &Mandate<'_>) -> String;
 
@@ -569,11 +570,11 @@ pub fn run(workspace: &Workspace, lease: DriverLease, ravel: &Path)
     -> Result<LoopOutcome, Error>;
 
 /// The loop's terminal disposition, so a clean whole-grove finish, a
-/// non-signalled stop, and the driver itself being signalled away are three
+/// ordinary stop, explicit force-stop, and the driver being signalled away are distinct
 /// answers rather than one. `Interrupted` carries the signal number, because a
 /// caller that mapped it to a clean exit would tell its own parent that a grove
 /// finished.
-pub enum LoopOutcome { Finished, Stopped, Interrupted(i32) }
+pub enum LoopOutcome { Finished, ForceStopped, Stopped, Interrupted(i32) }
 
 /// One error for the whole crate. Opaque, `Error + Display`, and under the same
 /// obligation as the runner's: every one names what is wrong and what fixes it.
@@ -717,7 +718,10 @@ and the exact canonical `ravel end-session grove-continue` command subordinate
 to it, so no prompt ends on a bare imperative for the wrong action. Grove
 supplies those instructions and the result meaning; Ravel injects neither. A
 teardown is Grove's record, written by `grove-llm record-teardown` before the
-ending command; that record takes precedence over the returned opaque result ([dispatch supervises the harness](../adr/dispatch-supervises-the-harness.md)).
+ending command. Driver interruption wins first, then successful exact
+`grove-force-stop` overrides teardown without restoring a removed tree. The
+record otherwise takes precedence over the returned result
+([dispatch supervises the harness](../adr/dispatch-supervises-the-harness.md)).
 What is not answered is the compound with decision 10's accepted residue: a
 `finish` session whose `grove-finish` skill is missing or unread meets the
 ordinary default and nothing contradicting it, where the old prompt alone was

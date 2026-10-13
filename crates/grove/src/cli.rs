@@ -71,8 +71,8 @@ pub fn run() -> ExitCode {
 ///
 /// **A driver that was killed does not exit 0.** The loop returns *why* it
 /// stopped, and one of the reasons is that this process was sent SIGTERM or
-/// SIGHUP mid-grove. Every other reason is an outcome the loop was designed to
-/// reach and exits cleanly; that one is the loop being taken away, and the only
+/// SIGHUP mid-grove. An explicit force-stop returns failure; ordinary stops and
+/// completion exit cleanly. Interruption is the loop being taken away, and the only
 /// way to say so through a wait status is to die of the same signal after the
 /// cleanup — the lease is dropped by the `run` above, and the session was
 /// already reaped by the runner. Whoever started `grove` — a systemd unit, a
@@ -99,6 +99,9 @@ fn execute(cli: Cli) -> anyhow::Result<()> {
     let ravel = crate::dispatch::locate()?;
     match grove_loop::run(&workspace, lease, &ravel)? {
         LoopOutcome::Finished | LoopOutcome::Stopped => Ok(()),
+        LoopOutcome::ForceStopped => {
+            anyhow::bail!("Grove force-stop requested; work did not complete")
+        }
         LoopOutcome::Interrupted(signal) => grove_loop::reraise(signal),
     }
 }

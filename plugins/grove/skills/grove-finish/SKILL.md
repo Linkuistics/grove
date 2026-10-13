@@ -36,13 +36,18 @@ action — then do nothing else**; Ravel returns Grove's result after ending and
 |---|---|
 | teardown completed | `grove-llm record-teardown`, then the exact ending command supplied by your launch prompt — the loop finishes |
 | externalised work instead | the exact ending command supplied by your launch prompt — the loop relaunches and picks the new leaf; the sentinel waits |
-| declined, or no human present | no signal — the loop waits for you to end the harness, then stops with the leaf live and resumable |
+| declined, or no human present | the launch prompt's exact force-stop command, when supplied — stops without completion with live work resumable; original dispatch launches use no signal and end the harness manually |
 
 **Record the teardown before sending the exit signal.** Every prompt supplies
 its exact final command; current Ravel launches use `end-session grove-continue`. After teardown, the record tells
 Grove that the loop has finished; an exit signal alone would relaunch onto a
 grove that is no longer there. This table is the `finish` ending, and it is
 stated here because the ending a kind takes is that kind's own rule.
+
+**Force-stop acknowledges no completion.** It overrides a teardown record but
+does not restore the deleted tree. Use the normal ending after completed,
+authorized finish work; use force-stop to stop the sequence. The launch prompt
+owns both exact commands and their result meanings; Ravel interprets neither.
 
 The middle outcome is the one worth holding on to. You are told, like every
 session, to externalize surfaced work rather than absorb it, and a session that

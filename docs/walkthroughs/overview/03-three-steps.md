@@ -27,7 +27,7 @@ order. The documentation separates ordinary errors from a signal that took the
 driver away; the body returns from standalone, display and observation operations
 before lifecycle setup.
 
-<!-- fragment «surface-resolve-lease-run» owner="one-call" source="crates/grove/src/cli.rs" lines="63-105" parent="source-command-surface" -->
+<!-- fragment «surface-resolve-lease-run» owner="one-call" source="crates/grove/src/cli.rs" lines="63-108" parent="source-command-surface" -->
 <!-- insert «run-seam-doc» -->
 <!-- insert «run-signal-doc» -->
 <!-- insert «run-errors-doc» -->
@@ -714,8 +714,8 @@ lifetime, and full signal hardening is a later viewer increment.
 ````rust
 /// **A driver that was killed does not exit 0.** The loop returns *why* it
 /// stopped, and one of the reasons is that this process was sent SIGTERM or
-/// SIGHUP mid-grove. Every other reason is an outcome the loop was designed to
-/// reach and exits cleanly; that one is the loop being taken away, and the only
+/// SIGHUP mid-grove. An explicit force-stop returns failure; ordinary stops and
+/// completion exit cleanly. Interruption is the loop being taken away, and the only
 /// way to say so through a wait status is to die of the same signal after the
 /// cleanup — the lease is dropped by the `run` above, and the session was
 /// already reaped by the runner. Whoever started `grove` — a systemd unit, a
@@ -724,14 +724,18 @@ lifetime, and full signal hardening is a later viewer increment.
 ````
 <!-- /fragment -->
 
-The final match maps the returned lifecycle outcome to clean return or signal
-re-raising. The standalone runner, log viewer and tree viewer
+The final match maps lifecycle completion and ordinary stops to clean return,
+explicit force-stop to failure, and interruption to signal re-raising.
+The standalone runner, log viewer and tree viewer
 have already returned before this match can run.
 
-<!-- fragment «run-call-and-endings» owner="one-call" source="crates/grove/src/cli.rs" lines="100-105" parent="surface-resolve-lease-run" -->
+<!-- fragment «run-call-and-endings» owner="one-call" source="crates/grove/src/cli.rs" lines="100-108" parent="surface-resolve-lease-run" -->
 ````rust
     match grove_loop::run(&workspace, lease, &ravel)? {
         LoopOutcome::Finished | LoopOutcome::Stopped => Ok(()),
+        LoopOutcome::ForceStopped => {
+            anyhow::bail!("Grove force-stop requested; work did not complete")
+        }
         LoopOutcome::Interrupted(signal) => grove_loop::reraise(signal),
     }
 }
@@ -805,8 +809,9 @@ to `run`, which writes the error and returns exit 1 to main.
 One lifecycle iteration reads the tree, performs any required lifecycle
 transition, selects a leaf, prepares its session epoch and launch directory,
 runs `ravel start-session` for that leaf and holds its public stdout result.
-Grove's interruption wins; otherwise recorded teardown finishes, a surviving
-Ravel group or unsuccessful status stops, and exactly `grove-continue` on
+Grove's interruption wins, including signals received after reap; successful
+exact `grove-force-stop` then stops without completion. Otherwise recorded
+teardown finishes, a surviving Ravel group or unsuccessful status stops, and exactly `grove-continue` on
 success advances; anything else stops. Ravel owns managed-process completion
 and escalation, while Grove supplies the instruction and result meaning. Those details belong to the
 loop walkthrough at `docs/walkthroughs/grove-loop/README.md`, whose public `run` is this

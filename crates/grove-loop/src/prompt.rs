@@ -139,11 +139,17 @@ commit (including any settled parent cascade), run this exact command as your
 **last action — then do nothing else**:
 `{ending_command}`
 A finish session first runs `grove-llm record-teardown`, then the same command.
+To force-stop the sequence without acknowledging completion, run this exact
+command as your last action instead: `{force_stop_command}`. Remaining live
+work is resumable by rerunning Grove; force-stop does not retire a leaf.
 Ravel finds the enclosing session from inherited process context, terminates and
-reaps its managed group, and returns Grove's opaque `grove-continue` result.
-Grove interprets the result only after reap and epoch invalidation. A recorded
-teardown finishes the loop; otherwise that exact result continues with fresh
-context. Driver interruption takes precedence. Without a supported result the
+reaps its managed group, and returns Grove's opaque result unchanged.
+Grove interprets it only after reap and epoch invalidation. Driver interruption
+takes precedence, then successful Ravel status with exactly `grove-force-stop`
+stops without completion even if teardown was recorded. Otherwise a recorded
+teardown finishes; absent teardown, successful status and exactly
+`grove-continue` continue with fresh context only after the group is gone.
+Without a supported result the
 loop stops with the leaf live; ending a turn in an interactive harness may leave
 it waiting at its prompt. A crash or Ctrl-C can end the harness without a result.
 Outside a Ravel session, `end-session` refuses; it needs no session ID argument.
@@ -175,6 +181,8 @@ pub struct Mandate<'a> {
     pub version: &'a str,
     /// Exact shell command built from this launch's once-resolved Ravel path.
     pub ending_command: &'a str,
+    /// Exact force-stop command built from the same resolved executable.
+    pub force_stop_command: &'a str,
 }
 
 /// Compose the whole of `${prompt}` for one launch.
@@ -198,7 +206,12 @@ pub fn compose(mandate: &Mandate<'_>) -> String {
     [
         load,
         facts,
-        SIGNALLING_CONTRACT.replace("{ending_command}", mandate.ending_command),
+        // Substitute only template text; literal paths may contain either token.
+        SIGNALLING_CONTRACT
+            .split("{ending_command}")
+            .map(|part| part.replace("{force_stop_command}", mandate.force_stop_command))
+            .collect::<Vec<_>>()
+            .join(mandate.ending_command),
     ]
     .join("\n")
 }

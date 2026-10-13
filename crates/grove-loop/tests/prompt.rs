@@ -84,11 +84,29 @@ fn compose_with(kind: &Kind, handle: &str) -> String {
         workspace: &workspace(),
         version: FIXTURE_VERSION,
         ending_command: "'/fixture/ravel' end-session grove-continue",
+        force_stop_command: "'/fixture/ravel' end-session grove-force-stop",
     })
 }
 
 fn compose(kind: &Kind) -> String {
     compose_with(kind, FIXTURE_HANDLE)
+}
+
+#[test]
+fn ending_commands_preserve_template_tokens_in_the_selected_path() {
+    let path = std::path::Path::new("/selected/{ending_command}/{force_stop_command}/ravel");
+    let ending = grove_loop::session_command::end_session(path).unwrap();
+    let force_stop = grove_loop::session_command::force_stop(path).unwrap();
+    let mandate = prompt::compose(&Mandate {
+        handle: &Handle::parse(FIXTURE_HANDLE).unwrap(),
+        kind: &a_kind("impl"),
+        workspace: &workspace(),
+        version: FIXTURE_VERSION,
+        ending_command: &ending,
+        force_stop_command: &force_stop,
+    });
+    assert!(mandate.contains(&format!("`{ending}`")), "{mandate}");
+    assert!(mandate.contains(&format!("`{force_stop}`")), "{mandate}");
 }
 
 // -- The shape ---------------------------------------------------------------
@@ -423,6 +441,7 @@ fn the_prompt_publishes_the_release_version_the_version_flag_renders() {
         workspace: &workspace(),
         version: env!("CARGO_PKG_VERSION"),
         ending_command: "'/fixture/ravel' end-session grove-continue",
+        force_stop_command: "'/fixture/ravel' end-session grove-force-stop",
     });
     assert!(
         prompt.contains(&format!("Grove version: {}.", env!("CARGO_PKG_VERSION"))),
@@ -624,6 +643,9 @@ fn the_contract_names_ravel_and_groves_teardown_record() {
         "harness-dispatch exit",
         "grove-llm record-teardown",
         "end-session grove-continue",
+        "end-session grove-force-stop",
+        "force-stop does not retire a leaf",
+        "even if teardown was recorded",
         "Ravel",
         "reaps",
         "epoch invalidation",

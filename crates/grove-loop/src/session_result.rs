@@ -1,4 +1,4 @@
-//! Caller-owned stdout transport for Ravel's Grove continue result.
+//! Caller-owned stdout transport for Ravel's opaque Grove results.
 
 use std::fs::File;
 use std::io::{Read, Seek};
@@ -11,10 +11,20 @@ use crate::Error;
 /// The opaque result Grove accepts for ordinary continuation.
 pub const CONTINUE_RESULT: &str = "grove-continue";
 
+/// The opaque result Grove accepts for an explicit stop without completion.
+pub const FORCE_STOP_RESULT: &str = "grove-force-stop";
+
+/// Grove's interpretation of a supported opaque result; Ravel assigns none.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SessionDisposition {
+    Continue,
+    ForceStop,
+}
+
 /// A held, unlinked regular file for Ravel's public stdout result.
 ///
 /// Pass [`Self::stdout`] to keyed-launch's stdout-capturing entry point. Call
-/// [`Self::read_continue`] only after the supervisor has been reaped and all
+/// [`Self::read`] only after the supervisor has been reaped and all
 /// writers have closed. Lifecycle callers must also invalidate the session
 /// epoch first. Teardown precedence, cancellation, exit status and survivor
 /// checks belong to the caller; accepted bytes alone attest none of them.
@@ -60,20 +70,21 @@ impl SessionResult {
             .context("duplicating session result stdout")?)
     }
 
-    /// Consume the capture and accept exactly `grove-continue`, without trimming.
+    /// Consume the capture and accept either exact Grove result, without trimming.
     ///
-    /// Reads at most the literal's length plus one byte; a matching prefix with
+    /// Reads at most the longest literal's length plus one byte; a prefix with
     /// any tail refuses. Never reopens a path or parses a private ending report.
     ///
     /// # Errors
     /// Missing, unsupported or unreadable results.
-    pub fn read_continue(mut self) -> Result<(), Error> {
+    pub fn read(mut self) -> Result<SessionDisposition, Error> {
         self.0
             .rewind()
             .context("rewinding session result capture")?;
-        let mut bytes = Vec::with_capacity(CONTINUE_RESULT.len() + 1);
+        let bound = CONTINUE_RESULT.len().max(FORCE_STOP_RESULT.len()) + 1;
+        let mut bytes = Vec::with_capacity(bound);
         self.0
-            .take((CONTINUE_RESULT.len() + 1) as u64)
+            .take(bound as u64)
             .read_to_end(&mut bytes)
             .context("reading session result capture")?;
         // Ravel's public CLI returns the exact opaque argument without a newline.
@@ -83,11 +94,25 @@ impl SessionResult {
                 "Ravel returned no session result; complete with `ravel end-session {CONTINUE_RESULT}`"
             )));
         }
-        if bytes != CONTINUE_RESULT.as_bytes() {
-            return Err(Error::msg(format!(
-                "Ravel returned an unsupported session result; expected exactly {CONTINUE_RESULT}"
-            )));
+        match bytes.as_slice() {
+            bytes if bytes == CONTINUE_RESULT.as_bytes() => Ok(SessionDisposition::Continue),
+            bytes if bytes == FORCE_STOP_RESULT.as_bytes() => Ok(SessionDisposition::ForceStop),
+            _ => Err(Error::msg(format!(
+                "Ravel returned an unsupported session result; expected exactly {CONTINUE_RESULT} or {FORCE_STOP_RESULT}"
+            ))),
         }
-        Ok(())
+    }
+
+    /// Accept continuation only, for a caller whose success requires it.
+    ///
+    /// # Errors
+    /// A force-stop, missing, unsupported or unreadable result.
+    pub fn read_continue(self) -> Result<(), Error> {
+        match self.read()? {
+            SessionDisposition::Continue => Ok(()),
+            SessionDisposition::ForceStop => Err(Error::msg(
+                "Grove force-stop requested; completion was not acknowledged",
+            )),
+        }
     }
 }

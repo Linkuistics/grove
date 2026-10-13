@@ -55,16 +55,19 @@ loop could stand in (constraint 6).
 ## What ends the run and what continues the loop
 
 The prompt supplies the exact canonical executable's
-`end-session grove-continue` command. Ravel ends and reaps the managed group,
+`end-session grove-continue` and `end-session grove-force-stop` commands. Ravel ends and reaps the managed group,
 then returns that opaque result on stdout. Managed output stays on stderr.
 Grove holds a separate unlinked regular file for stdout and never parses a
 private report or transcript.
 
 After reap, Grove restores the terminal and invalidates the session epoch.
-The driver's interruption takes precedence, then a recorded teardown finishes.
-Without teardown, a surviving supervisor group or unsuccessful Ravel status
-stops the loop before result interpretation. Only the exact supported
-`grove-continue` bytes relaunch. Missing, unsupported or unreadable results,
+The driver's interruption takes precedence. A successful Ravel invocation's
+exact `grove-force-stop` result then stops without completion, even if teardown
+was recorded, and the CLI exits 1. It does not retire work or restore a removed
+tree. Teardown otherwise finishes regardless of status/result/group. Without
+teardown, a surviving supervisor group or unsuccessful Ravel status stops the
+loop. Only successful status and exact `grove-continue` bytes relaunch with a
+gone group. Missing, unsupported or unreadable results,
 refusal, cancellation and supervisor death stop with the live leaf resumable.
 A replacement driver invalidates the old epoch before removing abandoned launch
 directories without interpreting their contents.

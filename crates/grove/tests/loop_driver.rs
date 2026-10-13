@@ -1765,6 +1765,7 @@ fn a_session_s_task_reaches_select_as_native_data_and_only_its_harness_holds_the
         workspace: &grove_loop::Workspace::resolve(&root).unwrap(),
         version: grove_loop::VERSION,
         ending_command: &grove_loop::session_command::end_session(&ravel()).unwrap(),
+        force_stop_command: &grove_loop::session_command::force_stop(&ravel()).unwrap(),
     });
     assert!(
         mandate.contains(&format!("{MANDATED_LEAF}subject-k1`"))
@@ -2890,8 +2891,61 @@ fn the_escalation_reaps_the_session_s_descendants_under_a_terminal() {
 }
 
 #[test]
+fn force_stop_leaves_remaining_work_resumable_after_continuation() {
+    let dispatch = Dispatch::new("worktree");
+    plant_tree(&dispatch.worktree, "01-impl--subject-k1.md");
+    fs::write(
+        dispatch.worktree.join(".grove/02-impl--remaining-k2.md"),
+        "# remaining-k2\n",
+    )
+    .unwrap();
+    let llm = shell_quote(&own_grove_llm());
+    dispatch.harness_then(&format!(
+        "set -e\n\
+         case $n in\n\
+         0) {llm} leaf-retire .grove/01-impl--subject-k1.md; jj describe -m fixture; jj new; \
+            exec {ravel} end-session grove-continue ;;\n\
+         1) sh -c 'while :; do sleep 0.05; done' &\n\
+            printf '%s' \"$!\" > \"$record/descendant\"\n\
+            {ravel} end-session grove-force-stop\n\
+            while :; do sleep 0.05; done ;;\n\
+         2) {} ;;\n\
+         *) exit 91 ;;\n\
+         esac",
+        complete_done(),
+        ravel = shell_quote(&ravel()),
+    ));
+    support::route_every_kind_to(&dispatch.home, &dispatch.harness);
+    let terminal = Pty::open();
+    let mut driver = DriverProcess::spawn_on(&dispatch.worktree, &dispatch.home, &terminal, PLAIN);
+    let output = driver.finish_within(SESSION_LIMIT);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert_eq!(output.status.code(), Some(1), "{stderr}");
+    assert!(stderr.contains("force-stop requested"), "{stderr}");
+    assert!(!stderr.contains("grove finished"), "{stderr}");
+    assert_eq!(dispatch.launch_count(), 2, "{stderr}");
+    assert!(dispatch.task_file("01-DONE-impl--subject-k1.md").exists());
+    assert!(dispatch.task_file("02-impl--remaining-k2.md").exists());
+    let descendant = fs::read_to_string(dispatch.record(1).join("descendant"))
+        .unwrap()
+        .parse()
+        .unwrap();
+    assert!(gone_within(descendant, Duration::from_secs(5)));
+
+    let terminal = Pty::open();
+    let mut driver = DriverProcess::spawn_on(&dispatch.worktree, &dispatch.home, &terminal, PLAIN);
+    let output = driver.finish_within(SESSION_LIMIT);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        output.status.success() && stderr.contains("grove finished"),
+        "{stderr}"
+    );
+    assert_eq!(dispatch.launch_count(), 3, "{stderr}");
+}
+
+#[test]
 fn launch_directory_teardown_finishes_after_the_ravel_result() {
-    for ending in ["exit_signal", "harness_exit"] {
+    for ending in ["exit_signal", "harness_exit", "force_stop"] {
         let dispatch = Dispatch::new("worktree");
         plant_tree(&dispatch.worktree, "01-impl--subject-k1.md");
         let llm = shell_quote(&own_grove_llm());
@@ -2914,6 +2968,11 @@ fn launch_directory_teardown_finishes_after_the_ravel_result() {
              {}",
             if ending == "exit_signal" {
                 format!("exec {} end-session grove-continue", shell_quote(&ravel()))
+            } else if ending == "force_stop" {
+                format!(
+                    "exec {} end-session grove-force-stop",
+                    shell_quote(&ravel())
+                )
             } else {
                 "exit 7".into()
             }
@@ -2924,10 +2983,16 @@ fn launch_directory_teardown_finishes_after_the_ravel_result() {
             DriverProcess::spawn_on(&dispatch.worktree, &dispatch.home, &terminal, PLAIN);
         let output = driver.finish_within(SESSION_LIMIT);
         let stderr = String::from_utf8_lossy(&output.stderr);
-        assert!(
-            output.status.success() && stderr.contains("grove finished — loop complete"),
-            "{ending}: {stderr}"
-        );
+        if ending == "force_stop" {
+            assert_eq!(output.status.code(), Some(1), "{ending}: {stderr}");
+            assert!(stderr.contains("force-stop requested"), "{stderr}");
+            assert!(!stderr.contains("grove finished"), "{stderr}");
+        } else {
+            assert!(
+                output.status.success() && stderr.contains("grove finished — loop complete"),
+                "{ending}: {stderr}"
+            );
+        }
         assert_eq!(dispatch.launch_count(), 1);
         let record = dispatch.launches.join("0");
         assert!(fs::read_to_string(record.join("refusal"))
@@ -2990,6 +3055,52 @@ fn a_driver_interrupt_overrides_a_recorded_teardown_under_a_terminal() {
     assert!(stderr.contains("interrupted by signal"), "{stderr}");
     assert!(!stderr.contains("grove finished"), "{stderr}");
     assert_eq!(dispatch.launch_count(), 1, "{stderr}");
+}
+
+#[test]
+fn a_post_reap_interrupt_overrides_teardown_and_force_stop() {
+    use std::os::unix::process::ExitStatusExt;
+    for result in ["grove-continue", "grove-force-stop"] {
+        let dispatch = Dispatch::new("worktree");
+        plant_tree(&dispatch.worktree, "01-impl--subject-k1.md");
+        dispatch.harness_then(&format!(
+            "touch \"$GROVE_LAUNCH_DIR/teardown\"; exec {} end-session {result}",
+            shell_quote(&ravel()),
+        ));
+        support::route_every_kind_to(&dispatch.home, &dispatch.harness);
+        let bin = dispatch.root.join("terminal-reset-bin");
+        fs::create_dir(&bin).unwrap();
+        let ready = dispatch.root.join("reset-ready");
+        let release = dispatch.root.join("reset-release");
+        write_exec(&bin.join("stty"), &format!(
+            "#!/bin/sh\nprintf '' > {ready}\nuntil test -f {release}; do /bin/sleep 0.01; done\nexec /bin/stty \"$@\"\n",
+            ready = shell_quote(&ready), release = shell_quote(&release),
+        ));
+        let terminal = Pty::open();
+        let mut command = command_on(&dispatch.worktree, &dispatch.home, &terminal, PLAIN);
+        command.env(
+            "PATH",
+            std::env::join_paths(
+                std::iter::once(bin).chain(std::env::split_paths(&support::ravel_path())),
+            )
+            .unwrap(),
+        );
+        let mut driver = DriverProcess::capture(command);
+        driver.wait_for_ready(&ready);
+        assert_eq!(unsafe { libc::kill(driver.id(), libc::SIGTERM) }, 0);
+        fs::write(&release, "").unwrap();
+        let output = driver.finish_within(SESSION_LIMIT);
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert_eq!(
+            output.status.signal(),
+            Some(libc::SIGTERM),
+            "{result}: {stderr}"
+        );
+        assert!(stderr.contains("interrupted by signal"), "{stderr}");
+        assert!(!stderr.contains("grove finished"), "{stderr}");
+        assert!(!stderr.contains("force-stop requested"), "{stderr}");
+        assert_eq!(dispatch.launch_count(), 1);
+    }
 }
 
 #[test]

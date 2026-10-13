@@ -354,7 +354,8 @@ grove: session ended without a supported Grove result — status exit status: 0,
 ```
 
 A session that recorded teardown in its launch directory prints
-`grove: grove finished — loop complete.` instead.
+`grove: grove finished — loop complete.` instead, unless driver interruption or
+a successful explicit force-stop takes precedence.
 
 For bare `grove`, **the working directory is the only thing
 that selects a workstream**. There is no tree to name and no confirmation step:
@@ -939,11 +940,19 @@ tree to be gone; without `GROVE_LAUNCH_DIR` it records nothing and exits 0.
 Outside a Ravel session, end-session refuses instead of signalling another run.
 
 Grove restores the terminal and invalidates the epoch after reap. Driver
-interruption wins, then a teardown record finishes. Otherwise a surviving
-supervisor group or unsuccessful Ravel status stops before reading the result.
+interruption wins, including signals received after reap. Successful Ravel status
+with exactly `grove-force-stop` then stops without completion, exits 1 and leaves
+remaining live work resumable. It overrides teardown but does not restore a
+removed tree or retire a leaf. A teardown record otherwise finishes. Without
+teardown, a surviving supervisor group or unsuccessful Ravel status stops.
 Only exact `grove-continue` continues; missing/unsupported/unreadable results
 stop with the leaf live. Returning to an interactive prompt can leave the
 supervisor waiting until the harness ends.
+
+Use the launch prompt's exact canonical `end-session grove-force-stop` command
+to stop the sequence explicitly. Use its continue command after ordinary
+retirement and commit, or after recording a completed finish teardown. Ravel
+returns either value unchanged; Grove owns these instructions and meanings.
 
 **Legacy live-driver compatibility:** sessions launched by Grove 22.1.0 through
 dispatch keep their original `harness-dispatch exit` command and inherited

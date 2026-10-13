@@ -424,18 +424,20 @@ Ravel command. Current Ravel has only start-session/end-session.
 ### Run ending / returned result
 
 The public completion argument Ravel returns after managed-process cleanup,
-opaque to Ravel and interpreted by its caller. Current Grove accepts exactly
-`grove-continue`, after its Ravel job is reaped and epoch admission invalidated.
-Its own interruption and [[Teardown record]] precede group/status/result checks;
-missing or unsupported results stop. Natural process exit supplies no completion
-acknowledgement. Standalone accepts the same value before validating outputs.
+opaque to Ravel and interpreted by its caller. Grove's lifecycle accepts exactly
+`grove-continue` and `grove-force-stop`, after its Ravel job is reaped and epoch
+admission invalidated. Driver interruption precedes all dispositions; a
+successful force-stop overrides [[Teardown record]] and exits 1 without
+completion. Teardown otherwise precedes group/status/continuation checks.
+Missing or unsupported results stop. Natural process exit supplies no completion
+acknowledgement. Standalone currently requires continuation before validating outputs.
 Contract: `docs/specs/harness-selection-and-execution.md`.
 
 Original live-v22 dispatch instead reports an exit-signal, harness-exit or
 cancellation ending through its old report protocol. That historical observation
 is neither a Ravel result nor a persistent Ravel record.
 _Avoid_: assigning continue/finish/force-stop meaning inside Ravel. Grove owns
-those conventions and currently supports only ordinary continuation.
+those conventions.
 
 <a id="teardown-record"></a>
 ### Teardown record
@@ -443,7 +445,8 @@ those conventions and currently supports only ordinary continuation.
 Grove's record, in the [[Launch directory]], that the finish session tore the
 grove down, written by `grove-llm record-teardown` once `.grove/` is gone and
 before the session's final [[Exit signal]]. The driver reads it after reaping
-the launch, and with it the loop finishes whatever the [[Run ending]].
+the launch. It finishes the loop unless driver interruption or a successful
+explicit force-stop takes precedence; force-stop does not restore the removed tree.
 _Avoid_: a tombstone. It is read only by the driver that launched the session,
 and a replacement driver removes an abandoned one unread.
 

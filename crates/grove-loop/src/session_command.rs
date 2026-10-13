@@ -10,7 +10,10 @@ use std::path::{Path, PathBuf};
 use anyhow::Context;
 use keyed_launch::Argv;
 
-use crate::{session_result::CONTINUE_RESULT, Error, Selection};
+use crate::{
+    session_result::{CONTINUE_RESULT, FORCE_STOP_RESULT},
+    Error, Selection,
+};
 
 /// The lifecycle request for the same selection that composed the prompt.
 ///
@@ -63,11 +66,23 @@ pub fn confined(
 /// A path that cannot be represented in a UTF-8 prompt. Select a UTF-8 Ravel
 /// installation path before launching a session.
 pub fn end_session(ravel: &Path) -> Result<String, Error> {
+    end_with_result(ravel, CONTINUE_RESULT)
+}
+
+/// The exact command to stop without acknowledging completion.
+///
+/// # Errors
+/// A non-UTF-8 executable path, as for [`end_session`].
+pub fn force_stop(ravel: &Path) -> Result<String, Error> {
+    end_with_result(ravel, FORCE_STOP_RESULT)
+}
+
+fn end_with_result(ravel: &Path, result: &str) -> Result<String, Error> {
     let path = ravel.to_str().context(
         "the ending command requires a UTF-8 Ravel path; select a UTF-8 installation on PATH",
     )?;
     Ok(format!(
-        "'{}' end-session {CONTINUE_RESULT}",
+        "'{}' end-session {result}",
         path.replace('\'', "'\\''")
     ))
 }

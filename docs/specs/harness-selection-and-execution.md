@@ -55,7 +55,7 @@ launch, confinement and the prompt's quoted ending command.
 |---|---|
 | Lifecycle | `start-session --kind=KIND --prompt=MANDATE --exit-dir=LAUNCH_DIR --task-file=TASK_FILE --task-id=HANDLE` in the working-tree root. |
 | Standalone | `start-session --kind=KIND --prompt=PROMPT --exit-dir=WORK_DIR --confine`, plus explicit repeated `--runtime-read=FILE`, in a private staged directory. |
-| Managed session | The launch prompt's exact canonical command, equivalent to `ravel end-session grove-continue`; no session ID or target path. |
+| Managed session | The launch prompt's exact canonical command, equivalent to `ravel end-session grove-continue` or `ravel end-session grove-force-stop`; no session ID or target path. |
 
 `--exit-dir` is channel allocation/confinement mechanics and reaches no policy.
 Task identity is caller data. Grove supplies no `--param`, policy/config path,
@@ -123,7 +123,7 @@ Neither inherited context nor same-user receipts authenticate hostile local code
 <a id="run-ending"></a>
 ## Ending and returned result
 
-Current Grove's supported opaque result is exactly `grove-continue`. Ravel's
+Grove's lifecycle results are exactly `grove-continue` and `grove-force-stop`. Ravel's
 first publication wins and is returned without a newline after managed-process
 cleanup; managed output and diagnostics are separate from result stdout. A
 published argument may succeed even when the managed process later exits
@@ -132,8 +132,10 @@ Ravel cancellation or supervision/cleanup failure yields no successful result.
 
 Grove captures stdout in a held unlinked file and reads the supported value after
 its own Ravel job is reaped. It neither reads an ending file nor looks up a run.
-Result meanings belong to Grove; the later force-stop extension is separate
-caller work, not an additional Ravel verb or result interpretation rule.
+Result meanings belong to Grove. Continue advances ordinary work; force-stop
+stops without completion and leaves remaining live work resumable. Ravel adds
+no verb or interpretation rule. Standalone currently requires continuation to
+publish outputs; force-stop cannot acknowledge standalone completion.
 
 <a id="grove-integration"></a>
 <a id="lifecycle-launch"></a>
@@ -144,11 +146,20 @@ before interpreting the launch. Failed invalidation reads no disposition and
 launches no next session. Once that gate passes, the driver interprets in order:
 
 1. Driver interruption stops the loop with its signal.
-2. This launch's explicit teardown record finishes the loop, irrespective of
-   result, supervisor status or surviving group.
-3. A surviving Ravel group stops the loop before accepting a result.
-4. Successful Ravel status and exactly `grove-continue` advance to the next pick.
-5. Anything else stops; rerunning Grove resumes the remaining tree.
+2. Successful Ravel status with exactly `grove-force-stop` stops without
+   completion, even when teardown is recorded or a supervisor group survives.
+   The CLI exits 1 and reports force-stop. It does not retire the live leaf.
+3. This launch's explicit teardown record otherwise finishes the loop,
+   irrespective of result, supervisor status or surviving group.
+4. A surviving Ravel group stops the loop before continuation.
+5. Successful Ravel status and exactly `grove-continue` advance to the next pick.
+6. Anything else stops; rerunning Grove resumes the remaining tree.
+
+Only successful supervisor status permits reading the result; a failed or
+interrupted supervisor cannot override teardown with bytes on stdout. A valid
+force-stop overrides the completion disposition but does not restore a tree
+already torn down. Ordinary stops retain their existing CLI exit 0 behavior;
+driver interruption is re-raised as its original signal.
 
 A finish session records teardown with `grove-llm record-teardown` after the
 confirmed finish cycle, before executing its prompt's ending command as its

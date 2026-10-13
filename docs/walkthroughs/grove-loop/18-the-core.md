@@ -33,7 +33,7 @@ The carried example reaches the point where a selected leaf becomes a session.
   the walk has chosen a leaf              kind `impl`, handle `plan-k1`
   the lease has admitted the driver       chapters 16, 17
 
-  compose(Mandate { handle, kind, workspace, version, ending_command })
+  compose(Mandate { handle, kind, workspace, version, ending_command, force_stop_command })
 
     part 1  load `grove-impl`, bare and namespaced   -> the first action
     part 2  handle, stated VCS, version              -> three launch-varying values
@@ -218,7 +218,7 @@ names it needs, then the three parts **in the order they appear in the prompt**,
 then the values one launch varies, then the composition that joins them, and last
 the one derived value the module computes for itself.
 
-<!-- fragment «the-prompt-core» owner="too-late-to-say-later" source="crates/grove-loop/src/prompt.rs" lines="1-228" parent="source-prompt" -->
+<!-- fragment «the-prompt-core» owner="too-late-to-say-later" source="crates/grove-loop/src/prompt.rs" lines="1-241" parent="source-prompt" -->
 <!-- insert «core-header» -->
 <!-- insert «core-imports» -->
 <!-- insert «core-plugin» -->
@@ -596,11 +596,10 @@ explicitly not as the mechanism.
 <a id="part-three"></a>
 ## Part 3 — one text for every kind
 
-Part 3 is thirty-four lines of argument over an eighteen-line constant, and
-every paragraph of the argument is about something the text deliberately does
-not say.
+Part 3 supplies the ending mechanism and caller-owned result meanings for
+every kind. The kind's skill decides which ending its work calls for.
 
-<!-- fragment «core-signalling-contract» owner="too-late-to-say-later" source="crates/grove-loop/src/prompt.rs" lines="126-154" parent="the-prompt-core" -->
+<!-- fragment «core-signalling-contract» owner="too-late-to-say-later" source="crates/grove-loop/src/prompt.rs" lines="126-160" parent="the-prompt-core" -->
 ````rust
 /// **Part 3 — grove's own signalling contract.** Last, because it describes the
 /// last action.
@@ -618,11 +617,17 @@ commit (including any settled parent cascade), run this exact command as your
 **last action — then do nothing else**:
 `{ending_command}`
 A finish session first runs `grove-llm record-teardown`, then the same command.
+To force-stop the sequence without acknowledging completion, run this exact
+command as your last action instead: `{force_stop_command}`. Remaining live
+work is resumable by rerunning Grove; force-stop does not retire a leaf.
 Ravel finds the enclosing session from inherited process context, terminates and
-reaps its managed group, and returns Grove's opaque `grove-continue` result.
-Grove interprets the result only after reap and epoch invalidation. A recorded
-teardown finishes the loop; otherwise that exact result continues with fresh
-context. Driver interruption takes precedence. Without a supported result the
+reaps its managed group, and returns Grove's opaque result unchanged.
+Grove interprets it only after reap and epoch invalidation. Driver interruption
+takes precedence, then successful Ravel status with exactly `grove-force-stop`
+stops without completion even if teardown was recorded. Otherwise a recorded
+teardown finishes; absent teardown, successful status and exactly
+`grove-continue` continue with fresh context only after the group is gone.
+Without a supported result the
 loop stops with the leaf live; ending a turn in an interactive harness may leave
 it waiting at its prompt. A crash or Ctrl-C can end the harness without a result.
 Outside a Ravel session, `end-session` refuses; it needs no session ID argument.
@@ -640,11 +645,13 @@ process tree: an interactive harness can remain at its prompt without publishing
 completion, leaving Ravel and Grove waiting. Ravel owns the managed process's
 channel and escalation; Grove owns returned-result interpretation.
 
-The kind's ending remains the object, with the exact `end-session grove-continue`
-command subordinate to it. Grove supplies that instruction and meaning; Ravel
+The kind's ending remains the object, with exact continue and force-stop
+commands subordinate to it. Grove supplies those instructions and meanings; Ravel
 returns the argument unchanged after cleanup. A finish first records teardown
-with `grove-llm record-teardown`. The driver finishes on its own record regardless
-of supervisor result/status; otherwise successful supported completion advances.
+with `grove-llm record-teardown`. Driver interruption takes precedence, then
+successful exact force-stop overrides teardown without restoring a removed tree.
+Teardown otherwise finishes regardless of supervisor result/status/group;
+successful exact continuation advances only with a gone group and no teardown.
 Original live-v22 sessions retain the ending named in their original prompt.
 
 The accepted residue remains a finish whose skill is unread and whose teardown
@@ -660,7 +667,7 @@ Grove's CLI exposes the separate teardown record operation.
 The mandate fields, and the doc comment on each names the owner of the thing rather
 than explaining it.
 
-<!-- fragment «core-mandate» owner="too-late-to-say-later" source="crates/grove-loop/src/prompt.rs" lines="155-179" parent="the-prompt-core" -->
+<!-- fragment «core-mandate» owner="too-late-to-say-later" source="crates/grove-loop/src/prompt.rs" lines="161-187" parent="the-prompt-core" -->
 ````rust
 /// Everything one launch varies, and the whole of what composition reads.
 ///
@@ -685,6 +692,8 @@ pub struct Mandate<'a> {
     pub version: &'a str,
     /// Exact shell command built from this launch's once-resolved Ravel path.
     pub ending_command: &'a str,
+    /// Exact force-stop command built from the same resolved executable.
+    pub force_stop_command: &'a str,
 }
 
 ````
@@ -712,7 +721,7 @@ dropped.
 The function the whole module exists for, and the only place its three parts
 meet.
 
-<!-- fragment «core-compose» owner="too-late-to-say-later" source="crates/grove-loop/src/prompt.rs" lines="180-205" parent="the-prompt-core" -->
+<!-- fragment «core-compose» owner="too-late-to-say-later" source="crates/grove-loop/src/prompt.rs" lines="188-218" parent="the-prompt-core" -->
 ````rust
 /// Compose the whole of `${prompt}` for one launch.
 ///
@@ -735,7 +744,12 @@ pub fn compose(mandate: &Mandate<'_>) -> String {
     [
         load,
         facts,
-        SIGNALLING_CONTRACT.replace("{ending_command}", mandate.ending_command),
+        // Substitute only template text; literal paths may contain either token.
+        SIGNALLING_CONTRACT
+            .split("{ending_command}")
+            .map(|part| part.replace("{force_stop_command}", mandate.force_stop_command))
+            .collect::<Vec<_>>()
+            .join(mandate.ending_command),
     ]
     .join("\n")
 }
@@ -790,7 +804,7 @@ build on that is a gate this design declines to erect.
 
 The last item, and the only value this module computes rather than receives.
 
-<!-- fragment «core-stated-vcs» owner="too-late-to-say-later" source="crates/grove-loop/src/prompt.rs" lines="206-228" parent="the-prompt-core" -->
+<!-- fragment «core-stated-vcs» owner="too-late-to-say-later" source="crates/grove-loop/src/prompt.rs" lines="219-241" parent="the-prompt-core" -->
 ````rust
 /// The **value** that states this working tree's VCS to the session.
 ///

@@ -91,7 +91,7 @@ lines = 17
 [[root]]
 id    = "source-command-surface"
 path  = "crates/grove/src/cli.rs"
-lines = 188
+lines = 191
 
 [[root]]
 id    = "source-codex-provisioning"
@@ -120,13 +120,13 @@ lines = "1-62"
 id    = "surface-resolve-lease-run"
 root  = "source-command-surface"
 owner = "one-call"
-lines = "63-105"
+lines = "63-108"
 
 [[block]]
 id    = "surface-closure-tests"
 root  = "source-command-surface"
 owner = "closure-proved"
-lines = "106-188"
+lines = "109-191"
 
 [[block]]
 id    = "codex-provisioning"

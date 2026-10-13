@@ -4,7 +4,7 @@ sequenceDiagram
   participant R as Independently resolved Ravel
   participant H as Managed session
   Note over G,H: Lifecycle: bare grove
-  G->>G: Pick leaf, compose prompt and exact ending command
+  G->>G: Pick leaf, compose unchanged prompt and both exact ending commands
   G->>G: Allocate launch directory, epoch admission and stdout capture
   G->>L: Public lifecycle arguments, no named parameter
   L->>R: Spawn in working-tree root as a job
@@ -12,17 +12,21 @@ sequenceDiagram
   opt Finish after confirmed teardown
     H->>G: grove-llm record-teardown in this launch directory
   end
-  H->>R: Exact canonical end-session grove-continue
+  H->>R: Exact canonical end-session grove-continue or grove-force-stop
   R-->>L: Public stdout result and status after cleanup
   L-->>G: Reaped Ravel job, terminal restored
-  G->>G: Invalidate epoch, then interpret teardown/status/group/result
+  G->>G: Invalidate epoch then apply interruption, successful force-stop, teardown, group, continuation
   Note over G,H: Standalone: grove run KIND
   G->>G: Stage private cwd, inputs and output instructions, scrub tree authority
   G->>L: start-session with --confine and explicit --runtime-read grants
   L->>R: Spawn without parent terminal or mux handles
   R->>H: Select outside confinement, supervise inside it
   H->>H: Write declared outputs
-  H->>R: Exact canonical end-session grove-continue
+  H->>R: Exact canonical end-session grove-continue or grove-force-stop
   R-->>L: Result and status after cleanup
   L-->>G: Reaped, cancellation and survivor checks
-  G->>G: Accept exact result, validate and publish outputs
+  alt Successful status and exact grove-continue
+    G->>G: Validate and publish outputs
+  else Force-stop or any other unsuccessful ending
+    G->>G: Report failure, publish no outputs
+  end

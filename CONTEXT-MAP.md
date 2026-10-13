@@ -197,7 +197,7 @@ each is a naming decision argued above rather than an accident of scope.
   | *selection* — policy chooses argv | driver selects one leaf | the words collide |
   | *session* — supervised process lifetime | one mandated task attempt | Grove supplies the task discipline |
   | *context* — optional measured policy data | agent context or bounded context | the words collide |
-  | opaque *result* | `grove-continue`, or explicit **Teardown record** precedence | Grove supplies meaning; Ravel returns the argument after cleanup |
+  | opaque *result* | Interruption, successful `grove-force-stop`, **Teardown record**, then successful `grove-continue` with no surviving group | Grove supplies meaning; Ravel returns the argument after cleanup |
 
   Grove supplies prompt and exact end-session instructions unchanged. Ravel
   injects nothing and interprets no continue/force-stop convention. Grove's

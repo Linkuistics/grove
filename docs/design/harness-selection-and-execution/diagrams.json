@@ -15,7 +15,7 @@
     {
       "id": "grove",
       "title": "Grove interpretation",
-      "description": "Grove owns launch admission, instructions, teardown and the meaning of grove-continue."
+      "description": "Grove owns launch admission, instructions, teardown and the meanings of grove-continue and grove-force-stop."
     },
     {
       "id": "provenance",
@@ -57,14 +57,14 @@
       "group": "grove",
       "title": "Lifecycle and confined standalone callers",
       "source": "grove-launch.mmd",
-      "caption": "Both use the canonical installed Ravel path and public flags. The lifecycle caller owns epoch/teardown; the standalone caller validates outputs before publication."
+      "caption": "Both supply canonical continue and force-stop commands through unchanged prompts. Lifecycle force-stop stops without completion; standalone force-stop fails without publishing outputs."
     },
     {
       "id": "loop-decision",
       "group": "grove",
       "title": "Grove post-reap decision order",
       "source": "loop-decision.mmd",
-      "caption": "Epoch invalidation gates interpretation. Driver interruption precedes teardown; teardown precedes surviving group, Ravel status and result checks."
+      "caption": "Epoch invalidation gates interpretation. Driver interruption precedes successful exact force-stop, then teardown, surviving group and successful exact continuation. Force-stop exits 1 without undoing teardown."
     },
     {
       "id": "creator-options",

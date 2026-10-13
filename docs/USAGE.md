@@ -129,8 +129,10 @@ returning the result. Grove checks its cancellation, survivor group and Ravel
 status before accepting exactly those bytes from a held unlinked stdout file.
 It publishes outputs through the original held work-directory descriptor,
 without overwriting a destination. Missing or unsupported results publish
-nothing; managed output cannot contaminate the result. A valid result succeeds
-after cleanup even when the managed process later exits nonzero.
+nothing; managed output cannot contaminate the result. The prompt also supplies
+the exact `ravel end-session grove-force-stop` command: it fails this invocation
+and publishes no outputs, even when every declared output is valid. A continue
+result succeeds after cleanup even when the managed process later exits nonzero.
 
 <a id="usage-viewing-tree"></a>
 ## Viewing a tree

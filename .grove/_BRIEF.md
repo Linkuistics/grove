@@ -256,6 +256,36 @@ later cutover/result extensions. The root remains live; no runtime change,
 installation, integration/release, new driver or teardown occurred. This
 session's original harness-dispatch exit/admission contract remains intact.
 
+## Session-control acceptance handoff — grove-session-control-k8 closed
+
+k59/k60 and final k61 acceptance meet every k8 criterion. Grove supplies both
+canonical commands and interprets successful exact force-stop after interruption
+but before teardown; it exits 1 without completion and leaves remaining live work
+resumable. Standalone force-stop fails before publishing even a valid whole output
+set. Ravel 0.1.0 continues to preserve the prompt and return either argument
+unchanged. docs/grove-session-control-evidence.md owns the complete criterion
+table, measured boundaries, named controls and final finish handoff.
+
+The final gate passes all 18 checks, 1,385 regular runtime cases, nine doctests
+and six final/all books; all regular identities/outcomes match k60 individually.
+Explicit installed tasks and all three published Ravel target routes pass,
+including independent native Grove 22.2.0/Ravel 0.1.0 direct/symlink layouts.
+Formula name and all archive pins agree; all 16,583 frozen files and native
+payload digests match. Active diagrams, summary prose, policy guidance and
+source-pinned pages agree with result precedence and ownership. Complete logs
+and per-item evidence are in target/k61; final source is the sealed k61/k8
+handle-named change above k60 d9d9ff1d.
+
+The root's earlier independent-project/publication, caller, delivery, prose and
+integrated-release criteria retain their accepted handoffs above. No substantive
+k8 work remains. Final Grove integration/release belongs to driver-owned finish,
+which rebuilds tagged archives and preserves the applied original-driver plan.
+No Ravel release, permanent installation, new driver or teardown ran in k61.
+The original 22.1.0 launch/admission/ending contract remains live through final
+finish's last original harness-dispatch exit. Re-source release-env.sh in every
+release/recovery shell and retain the canonical keg, backup, owned links and
+cleanup exclusions.
+
 ## Testing runner
 
 The human selected cargo nextest. Rust test tasks use nextest and preserve its

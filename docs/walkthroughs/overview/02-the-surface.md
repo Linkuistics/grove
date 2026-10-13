@@ -176,8 +176,10 @@ an actionable error before changing terminal modes. The integration tests in
 ## The agent surface remains flat
 
 The twelve tree/session verbs belong to `grove-llm` and retain their task-tree
-epoch checks. A standalone harness acknowledges through the launch prompt's exact `ravel end-session grove-continue` command;
-Grove grants it no tree authority. The human binary delegates observation to
+epoch checks. A standalone harness acknowledges through the launch prompt's exact
+`ravel end-session grove-continue` command, or stops with failure and no published
+outputs through its `ravel end-session grove-force-stop` command. Grove grants it
+no tree authority. The human binary delegates observation to
 `grove-tui` and lifecycle execution to `grove-loop`. [Lifecycle startup](03-three-steps.md)
 shows the branch that separates these paths.
 

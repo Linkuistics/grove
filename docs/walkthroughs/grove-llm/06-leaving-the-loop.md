@@ -12,6 +12,12 @@ belongs to Ravel rather than to this binary. An ordinary leaf retires and
 commits its work before exiting; a finish commits the deletion, records teardown,
 and exits after any requested integration and release.
 
+The prompt also supplies `ravel end-session grove-force-stop` to stop without
+completion. Grove gives this result meaning after reap and epoch invalidation:
+driver interruption wins, then successful exact force-stop, then teardown.
+Force-stop exits 1 without restoring a tree already torn down. Ravel returns
+either argument unchanged; its managed-process ending is outside this binary.
+
 The order this chapter owns is admission before the teardown write. `run`
 obtains a shared epoch guard for the ambient `GROVE_LAUNCH_DIR` and retains it
 through CLI dispatch to the handler. `cmd_record_teardown` requires that same
@@ -165,6 +171,7 @@ Both successful cases return without ending the session and print no stdout.
 | `finish-commit` | canonical live finish handle | delete and commit only `.grove/` | absent/untracked/symlinked root, ordinary work, wrong handle, deletion or commit failure |
 | `record-teardown` | admitted ambient launch directory | absent-root check and teardown record | admission mismatch, tree still present, record creation failure |
 | the launch prompt's exact `ravel end-session grove-continue` command | Ravel's enclosing process context | publish grove-continue and end the managed group | owned by Ravel, outside this binary's corpus |
+| the launch prompt's exact `ravel end-session grove-force-stop` command | Ravel's enclosing process context | publish grove-force-stop and end the managed group; Grove stops without completion | managed-process ending owned by Ravel, result meaning owned by Grove |
 
 The source-order composites below reassemble both variants and both handlers.
 They contribute no bytes beyond their explicitly inserted children.

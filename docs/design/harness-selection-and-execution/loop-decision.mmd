@@ -7,6 +7,10 @@ release session witness"]
 launch no next session"]
   Interrupt{"Driver interrupted?"}
   Interrupted["Interrupted with signal"]
+  ForceStop{"Successful Ravel status and
+exactly grove-force-stop?"}
+  ForceStopped["Force-stopped: exit 1, no completion;
+remaining live work resumable"]
   Teardown{"This launch's teardown record?"}
   Finished["Finished regardless of
 result, status or surviving group"]
@@ -21,13 +25,15 @@ remaining tree"]
   Epoch -->|"No"| Fatal
   Epoch -->|"3. Yes"| Interrupt
   Interrupt -->|"Yes"| Interrupted
-  Interrupt -->|"4. No"| Teardown
+  Interrupt -->|"4. No"| ForceStop
+  ForceStop -->|"Yes"| ForceStopped
+  ForceStop -->|"5. No"| Teardown
   Teardown -->|"Yes"| Finished
-  Teardown -->|"5. No"| Group
+  Teardown -->|"6. No"| Group
   Group -->|"Yes"| Stop
-  Group -->|"6. No"| Status
+  Group -->|"7. No"| Status
   Status -->|"No"| Stop
-  Status -->|"7. Yes"| Result
+  Status -->|"8. Yes"| Result
   Result -->|"Yes"| Continue
   Result -->|"No"| Stop
   classDef start fill:#163a57,color:#fff,stroke:#163a57,font-weight:bold

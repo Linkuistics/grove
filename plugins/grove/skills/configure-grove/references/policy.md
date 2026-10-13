@@ -25,8 +25,10 @@ The exit directory is supervision machinery and reaches no policy.
 it has no task file/identity. Its selected command must be noninteractive.
 Grove grants documented runtime reads, not a private worker protocol.
 
-The caller prompt supplies the canonical `ravel end-session grove-continue`
-command. It takes no session ID. Ravel returns the opaque result on stdout
+The caller prompt supplies canonical `ravel end-session grove-continue` and
+`ravel end-session grove-force-stop` commands. Neither takes a session ID.
+Grove interprets continue as completion and force-stop as stopping without
+completion; standalone force-stop publishes no outputs. Ravel returns the opaque result on stdout
 only after cleanup; session output and diagnostics remain separate. Grove
 interprets that result after its own authority checks. A finish first records
 Grove's teardown. Original installed-v22 sessions keep their original ending

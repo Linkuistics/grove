@@ -104,7 +104,8 @@ retained name of the former template slot, not an expansion mechanism.
 The **too-late test** admits only a sentence whose failure the skill cannot
 repair after it loads: a driver-only fact, the instruction to open the skill, or
 the mechanism the last action drives. Current prompts name the canonical Ravel
-path's `end-session grove-continue`, with [[Teardown record]] first for finish.
+path's `end-session grove-continue` and `end-session grove-force-stop`, with
+[[Teardown record]] before continuing a completed finish.
 Original live-v22 prompts keep `harness-dispatch exit` and their original
 [[Exit signal]] contract. The kind skill decides the ending appropriate to
 what happened; the driver states the mechanism before the skill can speak.
@@ -408,11 +409,11 @@ acceptance must exercise removal of actual ambient controls.
 ### Exit signal / session completion
 
 The historical name for the session's completion publication. Current sessions
-execute the exact canonical `ravel end-session grove-continue` command in their
-launch prompt. Ravel finds the enclosing session through inherited context,
+execute their launch prompt's exact canonical `ravel end-session grove-continue`
+or `ravel end-session grove-force-stop` command. Ravel finds the enclosing session through inherited context,
 ends/reaps the managed group and returns the opaque argument. Grove supplies
-both the instruction and the meaning of `grove-continue`; a finish writes its
-[[Teardown record]] first. Ravel takes no session identifier or target path.
+both instructions and result meanings; a completed finish writes its
+[[Teardown record]] before continuing. Ravel takes no session identifier or target path.
 
 Only original live-v22 launches use the empty-file signal created by
 `harness-dispatch exit` at `HARNESS_DISPATCH_EXIT_FILE`. Their installed driver,

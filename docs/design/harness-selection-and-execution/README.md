@@ -26,14 +26,16 @@ transport or escalation details.
 | [Nested jobs](http://127.0.0.1:8769/#diagram-chain) | Grove's Ravel job, Ravel's managed job and terminal recovery. |
 | [Result lifecycle](http://127.0.0.1:8769/#diagram-ending) | Successful publication versus absent result, cancellation or cleanup failure. |
 | [Two Grove callers](http://127.0.0.1:8769/#diagram-grove-launch) | Lifecycle admission/teardown and confined standalone output publication. |
-| [Post-reap decision](http://127.0.0.1:8769/#diagram-loop-decision) | Epoch gate, interruption, teardown, surviving group, status and exact result. |
+| [Post-reap decision](http://127.0.0.1:8769/#diagram-loop-decision) | Epoch gate, interruption, successful force-stop, teardown, surviving group and successful continuation. |
 | [Creator alternatives](http://127.0.0.1:8769/#diagram-creator-options) | The [Creator decision](../../adr/a-review-carries-its-creator-reference.md)'s inline receipt/declaration and rejected store/today's-route alternatives. |
 | [Creator handoff](http://127.0.0.1:8769/#diagram-creator-flow) | Caller wrapper, finishing producer and review's committed provider evidence. |
 | [Configured review](http://127.0.0.1:8769/#diagram-creator) | Validation and different-provider routing by opt-in Grove policy assets. |
 
 Ravel injects no ending instruction and gives result tokens no meaning. Current
-Grove prompts name its canonical `end-session grove-continue` command. Finish
-records Grove's teardown first. **Already running original-v22 sessions** keep
+Grove prompts name canonical `end-session grove-continue` and
+`end-session grove-force-stop` commands. Successful force-stop overrides teardown
+without undoing it and exits 1; standalone force-stop publishes no outputs.
+Finish records Grove's teardown before continuing. **Already running original-v22 sessions** keep
 `harness-dispatch exit` and their original Creator/admission/teardown contract;
 no view changes their live channel.
 

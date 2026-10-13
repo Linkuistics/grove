@@ -233,3 +233,37 @@ reporting UI; formatting/lint diagnostics may be saved with short summaries.
 Use focused filters during edits and the full relevant suite at handoff. The
 nextest runner replaces cargo test for runtime suites; retain doctest checks
 when the source contains executable documentation examples.
+
+## Complete Grove delivery handoff — grove-ravel-delivery-k6 closed
+
+k47-k55 and final k51 acceptance meet every k6 preparation criterion.
+docs/grove-delivery-contraction.md carries the complete criterion table,
+retained fixture ownership, final three-target unreleased archive digests and
+current old-name reconciliation. Fresh Grove 22.1.0/Ravel 0.1.0 separate-prefix
+native/QEMU lifecycle/standalone/import/confinement checks, actual private
+Homebrew install/test, release pipeline and fail-closed archive/ELF controls
+pass. The full gate passes 18 checks, 1,378 workspace cases, nine doctests and
+six source books; all 15 ignored installed cases pass. All 1,393 expected unique
+runtime identities and 42 target/route/control outcomes match individually.
+All 35,359 stable frozen subjects and adjacent checkout states match. The one
+shared legacy database difference has a read-only record of another
+BookScanBuilder session's ending/relaunch during measurement; it was not
+restored or mutated here. Complete evidence is in target/k51.
+
+Ravel/tap/default Grove remain clean at their existing handoffs; owner configs
+and the complete original 22.1.0 installation retain their bytes. Fresh original
+inventory equals docs/legacy-driver-inventory.json, and the actual old-pair
+scratch upgrade/unlink rehearsal passes. k12 owns remaining broader ownership
+prose; k13 applies the live preservation and performs extraction integration/
+release, with rebuilt tagged acceptance. No delivery preparation work remains.
+
+k13 must prepare a fresh `.jj/legacy-driver-22.1.0` plan using
+docs/legacy-driver-transition.md, compare its complete inventory, source its
+release-env.sh, apply/verify the absent owned stable-PATH dispatch/helper links
+and record that plan's absolute path here. The target/k51 plan is scratch
+evidence, not the applied plan. Preserve the original canonical keg, complete
+backup, plan/links and cleanup exclusions through final finish's last signal.
+Every later release/recovery shell and final finish re-sources release-env.sh.
+Never repeat a partial version cut. The existing driver stays live and this
+session still ends with original `harness-dispatch exit`; no publication,
+permanent installation changes, new driver or teardown occurred in k6.

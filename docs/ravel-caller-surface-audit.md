@@ -1,10 +1,12 @@
 # Grove's Ravel caller surface audit
 
-This is the caller migration's bounded surface audit, refreshed by k46. Active lifecycle and standalone calls use
+This is the caller migration's bounded surface audit, established by k46 with
+its delivery inventory refreshed by k51. Active lifecycle and standalone calls use
 independent Ravel's public two-verb CLI, canonical ending instructions and held
 stdout result. Grove owns result meanings, task conventions, teardown and inline
-provider receipts. The complete repository still retains delivery work for k6,
-broader ownership prose for k12 and the original live-driver contract for k13.
+provider receipts. The complete repository retains broader ownership prose for
+k12 and the original live-driver contract/application for k13; k6's independent
+delivery preparation is accepted in [the delivery evidence](grove-delivery-contraction.md#complete-independent-delivery-acceptance).
 Those are named work boundaries, not a claim that old vocabulary has disappeared.
 
 ## Inventory and evidence
@@ -19,7 +21,7 @@ self-enumeration; frozen verification includes their bytes.
 The refreshed instrument first extracts every lexical token from every tracked text file,
 then selects process/router namespaces, Grove controls, CLI flags and review
 markers for classification. It retains a complete lexicon plus exact line/token
-records in `target/k46/lexicon-final.json` and `inventory-final.json`.
+records in `target/k51/lexicon-final.json` and `inventory-final.json`.
 Other CLI/library/plugin vocabulary is classified separately, rather than
 silently dropped by a preselected directory or file list. This is a source-text
 audit, not a claim about identifiers inside binary fixture payloads.

@@ -52,11 +52,12 @@ caller imports and executes Grove's standalone public boundary.
 ## Live installation boundary
 
 The original installed 22.1.0 Grove/dispatch keg, personal policy and current
-ending channel remain untouched. Cargo and direct helpers keep all old/new
-authority scrubs. legacy-driver-transition-k50 owns the isolated upgrade/unlink
-instrument; linux-standalone-floor-k52 supplies the missing real bubblewrap backend in the
-existing CentOS floor userlands; grove-delivery-acceptance-k51 owns final rebuilt
-all-target/formula acceptance. This contraction performs no release, installation or teardown.
+ending channel remain preserved. Cargo and direct helpers keep all old/new
+authority scrubs. The [legacy transition](legacy-driver-transition.md) supplies
+the tested complete-keg upgrade/unlink procedure; the [Linux floor
+environment](linux-floor-qemu.md) supplies real confinement in the CentOS
+userlands. Final independent-delivery acceptance below meets the preparation
+contract. Live application and publication remain k13's work.
 
 Historical release notes, declared compatibility/authority fixtures, the original
 live-driver contract and broader ownership prose assigned to k12 may retain old
@@ -75,10 +76,10 @@ controls passed for both Linux targets. Ravel-only target smoke passed every
 route with CPU/glibc controls. Missing/tampered independent inputs were refused
 before the Grove consumer invoked any archive executable.
 
-Grove's Linux standalone run currently fails closed: the existing CentOS floor
-image lacks `/usr/bin/bwrap`. k52 prepares the real confinement environment before
-k51's final rebuilt all-target acceptance. No Linux standalone pass is claimed
-by k49. All 15,780 frozen subjects matched individually, and 2,076 protected
+At k49, Grove's Linux standalone run failed closed because the CentOS floor
+image lacked `/usr/bin/bwrap`. k52 subsequently supplied the real confinement
+environment, accepted below. k49 itself established no Linux standalone pass.
+All 15,780 frozen subjects matched individually, and 2,076 protected
 installation/config/adjacent-checkout subjects matched k48. Complete measurement,
 case comparison, negative controls and coverage limitations are in `target/k49/`.
 This evidence precedes its documentation/coordination promotion.
@@ -91,6 +92,122 @@ The three tested unreleased 22.1.0 Grove archives have SHA-256:
 | aarch64-unknown-linux-gnu | `1b32a89fd83ce63c2681b5d8767cc6f519cc9d237c6e2c5e322b7a10821ee549` |
 | x86_64-unknown-linux-gnu | `01129e94afb5e70a1dac01ebfb0c680a04a1fb6006249b3121a86c59ba8808be` |
 
-These are local rehearsal inputs, not publication artifacts. k51 rebuilds after
-transition/environment work. The original installed driver/keg/authority, owner
+These are k49's local rehearsal inputs, not publication artifacts. The final
+rebuilt inputs appear below. The original installed driver/keg/authority, owner
 policy and independent Ravel/tap checkouts remain preserved.
+
+## Complete independent delivery acceptance
+
+Fresh working-copy builds and frozen acceptance on 2026-10-14 meet every
+grove-ravel-delivery-k6 preparation criterion. Grove 22.1.0 and public Ravel
+0.1.0 run from separate prefixes on macOS arm64, native Linux arm64 and both
+pinned QEMU CPU floors. The actual Homebrew install/test passes in a private
+prefix. The tested archives remain unreleased; k13 must rebuild the version it
+cuts and repeat tagged acceptance before publication.
+
+| Preparation criterion | Evidence and disposition |
+|---|---|
+| Independent archives and formula | Each exact archive contains the two Grove fronts, LICENSE/README and complete readable caller tree. The real formula installs those assets and depends on linkuistics/taps/ravel. Grove checks Ravel's public 0.1.x CLI independently of its own version. No Ravel front/worker, shared Rust library or equal-version/Cellar assumption is shipped. |
+| Package removal and retained callers | Locked Cargo metadata contains the eight intended workspace packages and no dispatch package or external Ravel source dependency. The fixture ownership table above accounts for the removed suites; tools/ravel-policy owns the pinned caller compiler. The normal gate resolves independent installed Ravel and checks its SDK, real worker, readable assets and provenance. |
+| Target, manifest and formula acceptance | Fresh three-target manifests, real formula, release-pipeline/order tests, archive admission/refusals and combined four-ELF registration controls pass. Missing and modified Ravel inputs refuse before caller invocation. Native/QEMU lifecycle, standalone publication, imports and direct/symlink fronts pass without host Bun/Node. Both CPU/glibc controls and real filesystem/backend denials pass. |
+| Source books and release/install instructions | All six discovered books validate final/all with zero deferred lines. Workspace/package and archive/formula prose agrees with the contracted delivery. RELEASING.md links the current native/QEMU environments and separate dependency contract. Broader glossary/design/ownership reconciliation remains k12's explicitly assigned scope. |
+| Remaining names and authority | The whole tracked-text inventory is refreshed; every delivery old-name location is classified below. Observed current, positive, cross-tree and mutation controls support recipe/source-removal claims. Cargo and direct helper scrubs retain both original and new authority exclusions. |
+| Original live-driver transition | Fresh complete-keg inventory equals the recorded original. The actual old-front/worker scratch upgrade/unlink rehearsal passes canonical launch, bare legacy exit, old store/reaping, original helper checks and independent nested Ravel isolation. Cleanup protections, collision/ownership refusals, recovery and post-driver cleanup remain specified in legacy-driver-transition.md. Live links and installation are unchanged; k13 applies a fresh plan and preserves it through final finish. |
+
+The full `task check` passes all 18 principal checks, 1,378 workspace nextest
+cases, nine doctests and six books. Explicit `task ravel:fixtures
+ravel:commands RAVEL=/opt/homebrew/bin/ravel` passes 19 executions. Together with
+the gate's nine ignored caller-asset cases, all 15 installed ignored cases pass.
+The other 16 ignored identities are self-spawned subprocess roles, exercised
+through their nonignored drivers rather than launched without fixture context.
+All 1,393 expected unique runtime identities pass and match the preceding
+handoffs individually across 1,438 executions. The 42 named installed
+target/route/control outcomes likewise match individually.
+
+The complete logs and per-item evidence are under `target/k51/`: build-all.log,
+check.log, installed-commands.log, test-list.json, ignored-classification.json,
+runtime-outcomes.json, runtime-comparison.json, all-target-smoke.log,
+target-outcomes.json, independent-ravel.log, formula.log, target-controls.log,
+registration.log, consumer-refusals.json and consumer-missing/changed.log.
+archive-records.json retains every archive member's type, mode, size and link
+target, with these SHA-256 pins:
+
+| Target | Unreleased Grove archive SHA-256 |
+|---|---|
+| aarch64-apple-darwin | `0f3a31da5e39bd339f647ce4a073017c354b9a6d29f7c77992ffe0dde144dee2` |
+| aarch64-unknown-linux-gnu | `b75e5555b4ad656261407f7d98f0b993a328db55537b6e287d620a72526314b7` |
+| x86_64-unknown-linux-gnu | `a978ef6838473f891b68458229eff1cd6739fbd5126f65fc08d2cc8539a4cd31` |
+
+### Preservation and release handoff
+
+`measure.py`, before.json, after.json and digest-comparison.json compare 35,360
+named subjects: tracked project/adjacent sources, Taskfile/book inputs, locked
+compiler/Cargo dependencies, tools and Zig, all Grove/Ravel archives, floor
+sources/backends/QEMU inputs, owner configuration, complete original Grove and
+installed Ravel kegs, and shared legacy history. All 35,359 stable subjects
+match, with no added/removed subject. The sole changed file is the shared legacy
+SQLite database. A read-only immutable audit records a BookScanBuilder session
+ending/relaunching at 2026-10-13 14:22:02 UTC during measurement; this session
+has no ending observation. Its measured post-run digest remained stable during
+that audit. The database was neither written nor restored here.
+adjacent-before/after.json also match each checkout state individually.
+
+This evidence and coordination promotion follows the frozen run; it is not
+represented as part of that run's unchanged input. The gate uses preserved
+Bun 1.4.2 through a temporary child PATH; the host runtime and dependencies
+retain their versions. No permanent installation, policy change, publication,
+new driver or teardown ran.
+
+Ravel main remains `3916a4a1d17fef925db7e9c730bd4c23d6df3ac8`, tap main
+`bd5aa37b721aaff4a72b01fb966785392812b6a8`, and default Grove main
+`89f947d5`, each followed by its clean empty change. The original canonical keg
+is `/opt/homebrew/Cellar/grove/22.1.0`; recorded inventory and fresh
+`target/k51/original-plan/manifest.json` agree entry by entry. The scratch
+preparation is evidence, not the live preservation plan. k13 must prepare a
+fresh `.jj/legacy-driver-22.1.0` plan, compare it to the recorded inventory,
+source its release-env.sh, apply/verify the non-overwriting original dispatch
+and helper links, and record its absolute path in the root brief. Re-source
+cleanup protections for every release/recovery shell and final finish. Keep
+the complete canonical keg, backup, plan and links through the original
+driver's last signal. Resume partial releases without a second version cut.
+
+### Source surface reconciliation
+
+The inventory extracts every lexical token from the entire jj tracked tree,
+including root files and dotfiles, then classifies process/router/control/CLI
+candidates per file and exact line. Its full lexicon and location records are
+`target/k51/lexicon-final.json` and inventory-final.json. The tracked inventory
+is refreshed again after evidence promotion/retirement so its source pins name
+the final tree. Binary fixtures are identified separately.
+
+All retained old-name locations in the delivery surfaces have these meanings:
+
+| Surface | Meaning |
+|---|---|
+| Taskfile and overview caller examples | Grove's local dispatch::ravel module/test selector or generic dispatch vocabulary. |
+| Cargo guard and exact source-book ending fragments | Original live-v22 ending guidance and cleared authority. |
+| Original-keg transition/rehearsal/tests | Explicit preservation, scratch original-protocol probes, ownership and refusal controls. |
+| Installed/floor smoke helpers | Assert that old fronts/host runtimes are absent from child layouts/PATH. |
+| release.test.sh and ravel-target-inputs.test.sh | Reject bundled old/new private payloads and mutated ELF registrations. |
+| Overview resolver fragments | Reject an old-tool version string and invoke the isolated resolver fixture. |
+| Other book dispatch wording | Local runner, jj or concept vocabulary, without a process-router dependency. |
+
+`delivery-old-names.txt` records every matching delivery location, not merely a
+count. removal-controls.json observes the same `rg --hidden -n` instrument
+clean on the current manifests/Taskfile/scripts, dirty against legitimate
+historical CHANGELOG references and a deliberately wrong recipe, then clean
+after correcting that recipe. The positive current-task search succeeds; its
+impossible mutation fails. The whole-tree inventory retains broader k12 prose
+and historical/coordination material with named ownership instead of claiming
+all old vocabulary is gone.
+
+Graph evidence is Tier 2 at generation `2026-10-13T14:14:53Z`, best effort.
+Checked delivery and book scopes report only excluded generated/dependency
+state and the QEMU arithmetic line, read directly. The excluded Cargo guard,
+untracked graph metadata for Cargo.lock/inventory, generated evidence and
+compiler dependency tree were inspected or measured directly. Graph call
+edges around Python read/open include heuristic cross-language matches; exact
+source and executable admission/refusal tests establish the archive contract.
+No exhaustive conclusion relies on graph absence. CPU evidence measures
+trusted automatic kernel exec under the pinned models; raw explicit QEMU
+invocation and a kernel floor remain outside that claim.

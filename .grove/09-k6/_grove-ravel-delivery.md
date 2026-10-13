@@ -188,3 +188,27 @@ The CPU measurement covers trusted automatic exec, not arbitrary explicit raw
 QEMU invocation; no kernel floor is measured. Keep the custom-profile/private-
 procfs and original 22.1.0 driver/ending contracts. No production archive backend,
 owner-policy change, release or teardown occurs here.
+
+## Complete delivery handoff — grove-delivery-acceptance-k51; k6 closed
+
+Every k6 preparation clause holds. docs/grove-delivery-contraction.md reconciles
+each criterion with fresh three-target archive, actual Homebrew formula,
+native/QEMU/glibc/CPU-floor installed lifecycle/standalone/import/security
+acceptance, release-pipeline and independent-input refusal controls. The full
+18-check gate, 1,378 workspace cases, nine doctests, six final/all books and all
+15 ignored installed cases pass. All 1,393 expected runtime identities and 42
+target/route/control outcomes match individually. All 35,359 stable input
+subjects and adjacent VCS states match; one shared legacy database change is
+recorded as another BookScanBuilder session's ending/relaunch activity, with
+read-only audit and no restoration. Full target/k51 logs retain the boundaries.
+
+The whole-tree inventory and controlled delivery-name reconciliation are current.
+No source-book/runtime change or new ADR decision is needed at acceptance. k12
+still owns broader glossary/design prose. k13 must rebuild/tag-test its actual
+release and apply a fresh .jj/legacy-driver-22.1.0 preservation plan following
+docs/legacy-driver-transition.md, not reuse the scratch target/k51/original-plan.
+Keep the complete original canonical keg, backup, cleanup protections and owned
+dispatch/helper links through final finish; re-source release-env.sh for every
+release/recovery shell and promote the plan's absolute path into the root brief.
+Preparation performs no publication, live application/install, new driver or
+teardown. The root remains live; original harness-dispatch exit is unchanged.

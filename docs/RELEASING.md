@@ -229,6 +229,12 @@ pinned digests/targets/exact layouts, and never builds a bundled worker. See
 
 ### Installed smoke test
 
+For the real native Linux standalone confinement backend/environment, use the
+[native floor preparation and acceptance tasks](linux-floor-native.md).
+The general all-target runner still needs the Linux namespace/QEMU environment
+handoff before final release acceptance; a backend diagnostic refusal is not
+a passing standalone smoke test.
+
 A matching archive is not evidence until it has executed on its target. The
 release task runs `scripts/release-smoke.sh --archives target/dist` after the
 build and before anything is pushed or published. `task release:smoke` runs the

@@ -75,6 +75,32 @@ classified with read-only evidence of another BookScanBuilder session's ending/
 new launch; the store was not restored or mutated here. Original installed
 22.1.0 bytes/config and adjacent checkout bytes/state remain preserved.
 
-k53's preparation contract is met; k54/k55 remain live for native support,
-real confinement/publication/refusal and the supported QEMU boundary. Keep
+k53's preparation contract is met; native support and the supported QEMU boundary
+are addressed by the following handoffs. Keep
 every parent criterion and original driver/ending contract before k51 acceptance.
+
+## Native handoff — linux-floor-native-k54
+
+docs/linux-floor-native.md records the supported native environment and complete
+target/k54 evidence. Native arm64 now passes actual separate-prefix Grove
+standalone publication, lifecycle/result and installed imports with real Ravel
+0.1.0/bubblewrap 0.11.0. Missing backend, built-in seccomp and masked-proc
+controls refuse before policy evaluation and publish nothing. Real read/write,
+descendant/symlink, root/system/runtime/proc/dev and mount-flag controls pass.
+The filtered pinned allowlist plus explicit systempaths adaptation keeps uid
+1000, no outer capabilities, no-new-privileges, no network and read-only inputs.
+Exact glibc controls hold; CPU/QEMU controls are unchanged.
+
+The rebuilt native task and final 17-principal-check suite pass; 35,325 stable
+per-file subjects match. One mutable shared legacy database change is classified
+with read-only evidence of another BookScanBuilder driver ending/relaunching;
+installed commands/configs and adjacent checkout bytes/state are preserved.
+One reviewer issue is discharged by read-only mount assertions and an actual
+writable-proc mutation. No installation/release/policy change or teardown ran.
+
+k55 consumes release:floor:native:run and the exact native contract. It must
+resolve both actual QEMU confinement routes, repeat independent Ravel-only smoke
+and adopt the supported backend/environment in the general all-target release
+runner. The existing release:archives rebuild replaces its entire output, so
+rebuild all required targets before that acceptance. k52 remains live; no parent
+criterion or k51 final rebuilt acceptance has been waived.

@@ -85,6 +85,8 @@ requires. Target execution and CPU-floor emulation do not imply namespace
 support. The real empty sandbox must also retain read-only emulator resources;
 the current `/qemu` path lies outside Ravel's implicit system reads.
 
+The [native floor instrument](linux-floor-native.md) supplies a supported
+test-only filtered namespace/procfs environment and actual native acceptance.
 `linux-floor-native-k54` owns native support and real separately installed Grove/
 Ravel standalone output/lifecycle/result and backend-unavailable refusals.
 `linux-floor-qemu-k55` owns the supported QEMU boundary, both CPU floors,

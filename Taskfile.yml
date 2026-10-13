@@ -3,6 +3,28 @@ version: '3'
 set: [errexit, nounset, pipefail]
 
 tasks:
+  release:floor:native:
+    desc: Rebuild and prove real native arm64 confinement, publication and backend refusals at glibc 2.17
+    requires:
+      vars: [BACKENDS]
+    cmds:
+      - task: release:archives
+        vars: {TARGETS: aarch64-unknown-linux-gnu}
+      - task: release:floor:native:run
+        vars: {BACKENDS: '{{.BACKENDS}}', ARCHIVES: target/archives, RAVEL_ARCHIVES: '{{.RAVEL_ARCHIVES}}'}
+
+  release:floor:native:run:
+    desc: Run native floor acceptance over explicit already-built archives (no QEMU or rebuild)
+    requires:
+      vars: [BACKENDS, ARCHIVES]
+    cmds:
+      - bash scripts/release-floor-native.sh "{{.BACKENDS}}" "{{.ARCHIVES}}" {{if .RAVEL_ARCHIVES}}"{{.RAVEL_ARCHIVES}}"{{end}}
+
+  release:floor:seccomp:controls:
+    desc: Check pinned native seccomp derivation and changed/missing source refusals
+    cmds:
+      - bash scripts/floor-seccomp.test.sh
+
   release:floor:prepare:
     desc: Build pinned test-only bubblewrap 0.11.0 for the exact Linux glibc floor
     requires:

@@ -1,4 +1,4 @@
-# grove-ravel-caller-k5
+# grove-ravel-caller-k5 — brief
 
 ## Goal
 
@@ -77,3 +77,23 @@ Keep the old bundled package/build recipe temporarily where needed to leave
 current archive checks green; grove-ravel-delivery-k6 removes that delivery.
 Do not make new source prompts or SDK names alter this session's original
 installed driver/exit contract. Record the Ravel version used for integration.
+
+## Execution slices
+
+This migration exceeds a focused session. Sequence expand → migrate → contract:
+
+- grove-ravel-resolution-k26 adds the independently testable PATH/version resolver
+  beside the old locator and documents its trust decision. Existing launches stay
+  green while the new contract is tested against installed Ravel 0.1.0.
+- grove-ravel-runtime-k27 switches both actual launch/read paths, confinement,
+  prompts and end-session commands as one atomic consumer migration; extends the
+  installed-pair and lifecycle fixtures and updates every changed source corpus.
+- grove-ravel-policy-k28 transfers Grove-owned adapter/sample/examples and
+  caller-context provenance to the generic SDK, with typecheck/runtime fixtures.
+- grove-ravel-contract-k29 removes temporary migration scaffolding and audits
+  every current spelling/control surface, including dotfiles, source-pinned
+  books and release helper assumptions; runs the final repository task check.
+
+Each child must leave its deliverable independently verifiable. The parent
+Done when remains binding; k6 owns removal of bundled package delivery and k12
+owns the broader prose reconciliation. Do not change the live v22 ending channel.

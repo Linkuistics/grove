@@ -43,6 +43,23 @@ lives as long as the harness and of nested job control.
 
 ## What it costs
 
+- **Independent Ravel resolution trusts PATH.** Grove's staged Ravel resolver
+  selects the first executable regular file named `ravel` in an absolute PATH
+  directory, canonicalizes it once, and probes that same path with `--version`.
+  Empty and relative entries are skipped, so resolution never adds the working
+  directory, repository or Grove sibling as a fallback. This permits independent
+  prefixes and package versions, at the cost of executing the owner's selected
+  PATH program even for the probe. Version output is a compatibility check, not
+  authentication; a dishonest executable can claim any version. Canonicalization
+  fixes symlink selection for launch and confinement but does not pin an inode
+  against subsequent replacement by its owner.
+  The supported CLI line is stable `ravel 0.1.x`, with 0.1.0 as the minimum
+  two-verb contract; other minors/majors, prereleases and malformed or unsuccessful
+  probes refuse with an upgrade remedy. Refusal does not fall through to a later
+  PATH installation. Homebrew presence alone does not establish compatibility.
+  The old bundled locator remains the active caller entry point during this
+  expansion; both callers switch together in the migration stage.
+
 - **A process for the harness's lifetime, and two layers of job control.**
   Grove's runner makes dispatch a job, and dispatch makes the harness one, as a
   shell does; each hands the terminal down and takes it back with its modes
@@ -87,6 +104,14 @@ long the exit verb's call takes to return and how long a harness takes to shut
 down, which dispatch, the owner of both, knows better than any caller.
 
 ## Considered options
+
+- **Find Ravel beside Grove or bind their versions/Cellar paths.** Rejected for
+  the independent boundary: separately released packages need not share either
+  a prefix or a version. Reopen only if Ravel becomes part of Grove's package.
+- **Search relative PATH entries or fall through incompatible executables.**
+  Rejected: the first adds cwd-dependent trust and the second silently substitutes
+  a different installation for the owner's selected program. Reopen with an
+  explicit owner requirement for those resolution semantics.
 
 - **Keep the `exec` handoff and Grove's runner.** Rejected by the owner's
   direction: dispatch alone catches the harness's exit, so that the end of a run

@@ -6,7 +6,7 @@
 ## Observation and lifecycle have separate lifetimes
 
 <!-- rollup «owned-lines-total» -->
-The book reconstructs 1,129 source lines. The preceding chapters explain parsing,
+The book reconstructs 1,415 source lines. The preceding chapters explain parsing,
 dispatch and their tests. This chapter
 connects the public library calls and owns no source of its own.
 
@@ -111,7 +111,7 @@ proves reproduction and ownership, not the truth of explanatory claims.
 <!-- rollup «ownership-blocks» -->
 <!-- rollup «source-roots» -->
 <!-- rollup «ownership-blocks-not-owned-by» of="compiler-held" -->
-There are 9 ownership blocks over 7 source roots; 8 blocks belong to chapters
+There are 10 ownership blocks over 8 source roots; 9 blocks belong to chapters
 after Orientation. Each is resolved in the source index.
 
 <!-- rollup «early-use-rows» -->
@@ -121,7 +121,7 @@ types at first use.
 
 <!-- rollup «owned-lines-sequence» -->
 <!-- rollup «source-owning-chapters» -->
-Owned source is 61 + 62 + 461 + 83 + 462 = 1,129 lines across 5 source-owning chapters.
+Owned source is 61 + 62 + 461 + 83 + 748 = 1,415 lines across 5 source-owning chapters.
 Assembly owns none. The ledgers are maintained with source changes;
 production files remain authoritative.
 
@@ -141,7 +141,7 @@ terminal smoke. The task's verification record states their observed results.
 <!-- rollup «source-roots» -->
 <!-- rollup «owned-lines-total» -->
 <!-- rollup «chapters» -->
-The corpus contains 7 roots and 1,129 lines, explained across 6 chapters and two
+The corpus contains 8 roots and 1,415 lines, explained across 6 chapters and two
 lookup pages. No deferred source range belongs in the final book.
 
 [Previous: Proving a negative](04-proving-a-negative.md) | [Contents](README.md) | [Next: One isolated invocation](06-standalone-invocations.md)

@@ -14,7 +14,8 @@
 | `source-codex-provisioning` | `crates/grove/src/provision.rs` | 401 |
 | `source-standalone` | `crates/grove/src/standalone.rs` | 317 |
 | `source-run-display` | `crates/grove/src/run_display.rs` | 119 |
-| `source-dispatch-lookup` | `crates/grove/src/dispatch.rs` | 26 |
+| `source-dispatch-lookup` | `crates/grove/src/dispatch.rs` | 36 |
+| `source-ravel-resolution` | `crates/grove/src/dispatch/ravel.rs` | 276 |
 
 <!-- source-root «source-crate-manifest» source="crates/grove/Cargo.toml" lines="1-61" -->
 <!-- insert «manifest-thin-by-construction» -->
@@ -45,8 +46,12 @@
 <!-- insert «standalone-display» -->
 <!-- /source-root -->
 
-<!-- source-root «source-dispatch-lookup» source="crates/grove/src/dispatch.rs" lines="1-26" -->
+<!-- source-root «source-dispatch-lookup» source="crates/grove/src/dispatch.rs" lines="1-36" -->
 <!-- insert «dispatch-lookup» -->
+<!-- /source-root -->
+
+<!-- source-root «source-ravel-resolution» source="crates/grove/src/dispatch/ravel.rs" lines="1-276" -->
+<!-- insert «ravel-resolution» -->
 <!-- /source-root -->
 
 <a id="ownership-blocks"></a>
@@ -62,7 +67,8 @@
 | `codex-provisioning` | `source-codex-provisioning` | `one-call` | `1-401` | 401 | `resolved` |
 | `standalone-invocation` | `source-standalone` | `isolated-invocation` | `1-317` | 317 | `resolved` |
 | `standalone-display` | `source-run-display` | `isolated-invocation` | `1-119` | 119 | `resolved` |
-| `dispatch-lookup` | `source-dispatch-lookup` | `isolated-invocation` | `1-26` | 26 | `resolved` |
+| `dispatch-lookup` | `source-dispatch-lookup` | `isolated-invocation` | `1-36` | 36 | `resolved` |
+| `ravel-resolution` | `source-ravel-resolution` | `isolated-invocation` | `1-276` | 276 | `resolved` |
 
 <a id="fragment-index"></a>
 ## Fragment index
@@ -131,8 +137,10 @@
 | `standalone-display` | `standalone-invocations` | `source-run-display` | `composite` | `isolated-invocation` | `1-119` | `source-run-display` | `display-relay`, `display-pane`, `display-control-test` |
 | `display-pane` | `standalone-invocations` | `source-run-display` | `literal` | `isolated-invocation` | `44-116` | `standalone-display` | `—` |
 | `display-control-test` | `standalone-invocations` | `source-run-display` | `literal` | `isolated-invocation` | `117-119` | `standalone-display` | `—` |
-| `source-dispatch-lookup` | `source-index` | `source-dispatch-lookup` | `root` | `—` | `1-26` | `—` | `dispatch-lookup` |
-| `dispatch-lookup` | `standalone-invocations` | `source-dispatch-lookup` | `literal` | `isolated-invocation` | `1-26` | `source-dispatch-lookup` | `—` |
+| `source-dispatch-lookup` | `source-index` | `source-dispatch-lookup` | `root` | `—` | `1-36` | `—` | `dispatch-lookup` |
+| `dispatch-lookup` | `standalone-invocations` | `source-dispatch-lookup` | `literal` | `isolated-invocation` | `1-36` | `source-dispatch-lookup` | `—` |
+| `source-ravel-resolution` | `source-index` | `source-ravel-resolution` | `root` | `—` | `1-276` | `—` | `ravel-resolution` |
+| `ravel-resolution` | `standalone-invocations` | `source-ravel-resolution` | `literal` | `isolated-invocation` | `1-276` | `source-ravel-resolution` | `—` |
 
 <a id="early-uses"></a>
 ## Early uses
@@ -157,5 +165,5 @@ Every source line is credited once to its owning chapter.
 | `one-call` | `03-three-steps.md` | 461 |
 | `closure-proved` | `04-proving-a-negative.md` | 83 |
 | `assembly` | `05-what-the-call-reaches.md` | 0 |
-| `isolated-invocation` | `06-standalone-invocations.md` | 462 |
-| **Total** | 7 source roots | **1,129** |
+| `isolated-invocation` | `06-standalone-invocations.md` | 748 |
+| **Total** | 8 source roots | **1,415** |

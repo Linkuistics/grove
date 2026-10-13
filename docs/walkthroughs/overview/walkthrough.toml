@@ -197,10 +197,22 @@ lines = "1-119"
 [[root]]
 id = "source-dispatch-lookup"
 path = "crates/grove/src/dispatch.rs"
-lines = 26
+lines = 36
 
 [[block]]
 id = "dispatch-lookup"
 root = "source-dispatch-lookup"
 owner = "isolated-invocation"
-lines = "1-26"
+lines = "1-36"
+
+[[root]]
+id = "source-ravel-resolution"
+path = "crates/grove/src/dispatch/ravel.rs"
+lines = 276
+
+[[block]]
+id = "ravel-resolution"
+root = "source-ravel-resolution"
+owner = "isolated-invocation"
+lines = "1-276"
+

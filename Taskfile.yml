@@ -8,6 +8,22 @@ tasks:
     cmds:
       - bash scripts/check.sh
 
+  ravel:resolution:
+    desc: Check staged PATH/version resolution and a real independently installed Ravel pair
+    requires:
+      vars: [RAVEL]
+    env:
+      GROVE_TEST_RAVEL: '{{.RAVEL}}'
+    cmds:
+      - cargo nextest run --locked -p grove -E 'test(dispatch::ravel::tests::)'
+      - cargo nextest run --locked -p grove -E 'test(installed_front_and_worker_return_only_the_session_result)' --run-ignored only
+
+  test:grove:
+    desc: Run Grove's caller and repository-surface regression suite with nextest
+    cmds:
+      - task: dispatch:worker
+      - cargo nextest run --locked -p grove {{.CLI_ARGS}}
+
   # harness-dispatch: the Rust front and its Bun-compiled policy worker. The
   # worker builds only here, never from cargo; `crates/harness-dispatch/scripts/
   # dispatch.sh` owns the mechanics, and the front refuses a worker built from

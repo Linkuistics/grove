@@ -9,6 +9,16 @@ use std::path::PathBuf;
 
 use anyhow::{ensure, Context, Result};
 
+// Expanded beside the bundled locator until both caller paths migrate.
+#[cfg_attr(
+    not(test),
+    expect(
+        dead_code,
+        reason = "Ravel resolution is staged for the caller migration"
+    )
+)]
+mod ravel;
+
 pub(crate) fn locate() -> Result<PathBuf> {
     let grove = std::env::current_exe()
         .and_then(std::fs::canonicalize)

@@ -16,7 +16,7 @@ provably complete against a set nobody wanted: `grove` itself exposes only `-h`
 and `-V`, so a guide covering "every subcommand and flag the `grove` binary
 exposes" is three rows long and omits every command a human actually meets. Too
 wide and the guide takes the
-[Ravel CLI contract](https://github.com/Linkuistics/Ravel/blob/v0.1.0/docs/session-cli.md)'s subject,
+[Ravel CLI contract](https://github.com/Linkuistics/Ravel/blob/v1.0.0/docs/session-cli.md)'s subject,
 which the ownership table forbids.
 
 ## Solution

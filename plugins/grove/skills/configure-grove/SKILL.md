@@ -29,7 +29,7 @@ edit one, and do not expect a converter.
 
 Check `ravel --version` and `ravel start-session --help` for the installed
 contract, then read `~/.config/ravel/policy.ts` and its imports. Grove accepts
-stable Ravel 0.1.x starting at 0.1.0; an incompatible first executable on PATH
+stable Ravel 1.x starting at 1.0.0; an incompatible first executable on PATH
 refuses with an upgrade remedy rather than falling through to another copy.
 
 Ravel has no inspection or installation verb. Establish effective routing by

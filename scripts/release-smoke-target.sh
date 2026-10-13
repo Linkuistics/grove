@@ -63,12 +63,12 @@ main() {
     reported="$("$scratch/prefix/$top/bin/$command" --version)" || fail "bin/$command --version exited $?"
     [[ "$reported" == "$command $version" ]] || fail "bin/$command reports '$reported', not '$command $version'"
   done
-  local dependency="${RAVEL_TARGET_ARCHIVE:-/smoke/ravel-v0.1.0-$TARGET.tar.xz}"
+  local dependency="${RAVEL_TARGET_ARCHIVE:-/smoke/ravel-v1.0.0-$TARGET.tar.xz}"
   [[ -f "$dependency" ]] || fail "missing admitted separate Ravel archive: $dependency"
   tar -xJf "$dependency" -C "$scratch/ravel" || fail 'cannot extract admitted Ravel archive'
-  [[ "$(ls -A "$scratch/ravel")" == "ravel-v0.1.0-$TARGET" ]] || fail 'wrong Ravel target prefix'
-  note "extracted Grove $version and independent Ravel 0.1.0 into separate prefixes"
-  "$BASH" "$cases" "$scratch/prefix/$top" "$version" "$scratch/ravel/ravel-v0.1.0-$TARGET"
+  [[ "$(ls -A "$scratch/ravel")" == "ravel-v1.0.0-$TARGET" ]] || fail 'wrong Ravel target prefix'
+  note "extracted Grove $version and independent Ravel 1.0.0 into separate prefixes"
+  "$BASH" "$cases" "$scratch/prefix/$top" "$version" "$scratch/ravel/ravel-v1.0.0-$TARGET"
 
 }
 

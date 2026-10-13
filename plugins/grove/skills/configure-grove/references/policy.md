@@ -1,6 +1,6 @@
 # Policy mechanics
 
-Sources: [Ravel 0.1.0 session CLI](https://github.com/Linkuistics/Ravel/blob/v0.1.0/docs/session-cli.md)
+Sources: [Ravel 1.0.0 session CLI](https://github.com/Linkuistics/Ravel/blob/v1.0.0/docs/session-cli.md)
 and [Grove's readable policy assets](../../../../../assets/ravel-policy/README.md).
 Check `ravel --version` and `ravel start-session --help` before relying on flags.
 
@@ -10,7 +10,7 @@ Grove resolves the first executable regular `ravel` in an absolute PATH entry,
 canonicalizes and version-checks it once, then uses that exact path for launch,
 confinement and prompt ending instructions. It need not share Grove's prefix or
 version. Missing Ravel names `brew install linkuistics/taps/ravel`; unsupported
-versions refuse with an upgrade remedy. Grove currently accepts stable 0.1.x.
+versions refuse with an upgrade remedy. Grove currently accepts stable 1.x.
 
 For lifecycle work, in the working-tree root, the public request is:
 

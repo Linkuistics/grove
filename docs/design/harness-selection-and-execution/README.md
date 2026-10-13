@@ -3,7 +3,7 @@
 The [caller specification](../../specs/harness-selection-and-execution.md) owns
 Grove's use of independently installed Ravel. These views show public process
 behavior, Grove's lifecycle/standalone interpretation and caller-owned creator
-evidence. [Ravel's executable specification](https://github.com/Linkuistics/Ravel/blob/v0.1.0/docs/specs/session-execution.md)
+evidence. [Ravel's executable specification](https://github.com/Linkuistics/Ravel/blob/v1.0.0/docs/specs/session-execution.md)
 owns routing, private runtime/transport and supervision mechanics. Each project
 keeps its own runner, version and complete installation prefix.
 

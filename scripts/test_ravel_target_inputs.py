@@ -15,7 +15,7 @@ from pathlib import Path
 import ravel_target_inputs as inputs
 
 TARGET = "aarch64-unknown-linux-gnu"
-TOP = f"ravel-v0.1.0-{TARGET}"
+TOP = f"ravel-v1.0.0-{TARGET}"
 # Independent published manifest: omitting validation of any member must fail.
 FILES = [
     "LICENSE",
@@ -60,7 +60,7 @@ def archive_bytes(change: str = "", subject: str = "") -> bytes:
             "traversal": f"{TOP}/../escaped",
             "absolute": "/escaped",
             "appledouble": f"{TOP}/._LICENSE",
-            "wrong-top": "ravel-v0.1.0-x86_64-unknown-linux-gnu/",
+            "wrong-top": "ravel-v1.0.0-x86_64-unknown-linux-gnu/",
         }[change]
         members[path] = (b"bad", tarfile.REGTYPE, 0o644, "")
     elif change in {"symlink", "hardlink", "fifo", "directory", "mode", "architecture"}:

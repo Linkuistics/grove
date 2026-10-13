@@ -9,7 +9,7 @@ fn both_actual_callers_use_installed_ravel_and_separate_its_result() {
     let source = std::env::var_os("GROVE_TEST_RAVEL").expect("set GROVE_TEST_RAVEL");
     let pair = support::ravel::InstalledRavel::copy_from(
         Path::new(&source),
-        &root.path().join("ravel-0.1.0"),
+        &root.path().join("ravel-1.0.0"),
     );
     let home = root.path().join("home");
     fs::create_dir(&home).unwrap();
@@ -74,7 +74,7 @@ fn both_actual_readers_reject_missing_and_unsupported_results() {
     let source = std::env::var_os("GROVE_TEST_RAVEL").expect("set GROVE_TEST_RAVEL");
     let pair = support::ravel::InstalledRavel::copy_from(
         Path::new(&source),
-        &temp.path().join("ravel-0.1.0"),
+        &temp.path().join("ravel-1.0.0"),
     );
     let home = temp.path().join("home");
     let work = temp.path().join("work");
@@ -142,7 +142,7 @@ fn both_actual_callers_refuse_missing_old_and_malformed_path_selections() {
     let source = std::env::var_os("GROVE_TEST_RAVEL").expect("set GROVE_TEST_RAVEL");
     let pair = support::ravel::InstalledRavel::copy_from(
         Path::new(&source),
-        &temp.path().join("ravel-0.1.0"),
+        &temp.path().join("ravel-1.0.0"),
     );
     let home = temp.path().join("home");
     let work = temp.path().join("work");

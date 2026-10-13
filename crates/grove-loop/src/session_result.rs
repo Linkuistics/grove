@@ -88,7 +88,7 @@ impl SessionResult {
             .read_to_end(&mut bytes)
             .context("reading session result capture")?;
         // Ravel's public CLI returns the exact opaque argument without a newline.
-        // https://github.com/Linkuistics/Ravel/blob/v0.1.0/docs/session-cli.md
+        // https://github.com/Linkuistics/Ravel/blob/v1.0.0/docs/session-cli.md
         if bytes.is_empty() {
             return Err(Error::msg(format!(
                 "Ravel returned no session result; complete with `ravel end-session {CONTINUE_RESULT}`"

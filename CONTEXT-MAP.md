@@ -86,8 +86,8 @@ for. Its decisions are the grove context's, as ever:
 [decision 9](./docs/specs/module-decomposition.md) for the loop's own surface.
 
 **Ravel is an independent external language and command boundary.** Its
-[CLI](https://github.com/Linkuistics/Ravel/blob/v0.1.0/docs/session-cli.md) and
-[executable specification](https://github.com/Linkuistics/Ravel/blob/v0.1.0/docs/specs/session-execution.md)
+[CLI](https://github.com/Linkuistics/Ravel/blob/v1.0.0/docs/session-cli.md) and
+[executable specification](https://github.com/Linkuistics/Ravel/blob/v1.0.0/docs/specs/session-execution.md)
 define policy requests, selected commands, parameters, context, settings and
 opaque session results. The earlier in-repository dispatch exception has ended:
 executable/runtime obligations are maintained in Ravel, while Grove keeps its
@@ -107,7 +107,7 @@ them. The external Ravel boundary has the last row:
 | `jj-workspace` | *workspace*, *main repo*, *control directory*, *namespace*, *tracked*, *commit*, *change id* | none — the words are Jujutsu's, with Jujutsu's meanings |
 | `grove-loop`, with `grove`, `grove-llm` and the `grove-tui` reader over it | **Session kind**, **Work-item handle**, **Position**, **Permanent key**, **Leaf**, **Node directory**, **Node file**, **Brief chain**, **Selection**, **Driver lease**, **Session epoch**, **Launch directory**, **Teardown record**, **Guaranteed core**, **Stated VCS** | [`CONTEXT.md`](./CONTEXT.md) |
 | the `grove` plugin | **Spine skill**, **Kind skill**, **Composed loaded path**, **Condition** / **procedure**, **Loop-step reference file** | [`CONTEXT.md`](./CONTEXT.md) for the terms, [`plugins/CONTEXT.md`](./plugins/CONTEXT.md) for packaging and delivery |
-| Ravel (external) | *policy*, *selected command*, *parameter*, *owner settings*, *choice file*, *context*, opaque *result* | [Ravel specification](https://github.com/Linkuistics/Ravel/blob/v0.1.0/docs/specs/session-execution.md); Grove's **Original creator**, **Creator reference** and **Grove adapter** remain in [`CONTEXT.md`](./CONTEXT.md) |
+| Ravel (external) | *policy*, *selected command*, *parameter*, *owner settings*, *choice file*, *context*, opaque *result* | [Ravel specification](https://github.com/Linkuistics/Ravel/blob/v1.0.0/docs/specs/session-execution.md); Grove's **Original creator**, **Creator reference** and **Grove adapter** remain in [`CONTEXT.md`](./CONTEXT.md) |
 
 The `keyed-launch` and `jj-workspace` rows are the ones that had to be *bought*:
 the first avoids **session** and the second refuses to name its consumer, and
@@ -183,7 +183,7 @@ each is a naming decision argued above rather than an accident of scope.
 
 - <a id="grove-and-harness-dispatch"></a>**grove → Ravel, a public CLI
   boundary.** Grove resolves the first executable regular Ravel on absolute
-  PATH once and requires stable 0.1.x. Launch and ending instructions reuse
+  PATH once and requires stable 1.x. Launch and ending instructions reuse
   that canonical path; there is no incompatible-install fallback. Separate
   prefixes and versions are supported. Ravel links no Grove crate; Grove links
   no Ravel crate. Each retains its own runner. Grove's Homebrew dependency and
@@ -337,8 +337,8 @@ answer is stated in, not which files it touches.
 
 A topic about generic policy selection, the selected process, settings,
 measured context or ephemeral completion is **Ravel**, outside this repo. Use
-its [CLI](https://github.com/Linkuistics/Ravel/blob/v0.1.0/docs/session-cli.md) and
-[specification](https://github.com/Linkuistics/Ravel/blob/v0.1.0/docs/specs/session-execution.md),
+its [CLI](https://github.com/Linkuistics/Ravel/blob/v1.0.0/docs/session-cli.md) and
+[specification](https://github.com/Linkuistics/Ravel/blob/v1.0.0/docs/specs/session-execution.md),
 and qualify [shared words](#grove-and-harness-dispatch). A topic about Grove's
 prompt/result conventions, provider receipts, task/Creator adapter or installed
 caller assets is **grove**. Historical dispatch stores are neither current

@@ -31,7 +31,7 @@ them.
 | Human workflow and commands | [`USAGE.md`](USAGE.md) |
 | Cutting and publishing a release | [`RELEASING.md`](RELEASING.md) |
 | Launch policy, a refused launch, and a review's creator line as a Grove owner meets them | [`USAGE.md`](USAGE.md#usage-launch-policy) |
-| Ravel's process/router CLI and executable behavior | [Ravel CLI](https://github.com/Linkuistics/Ravel/blob/v0.1.0/docs/session-cli.md), [executable specification](https://github.com/Linkuistics/Ravel/blob/v0.1.0/docs/specs/session-execution.md) and [runtime evidence](https://github.com/Linkuistics/Ravel/blob/v0.1.0/docs/runtime-evidence.md), maintained in its independent project |
+| Ravel's process/router CLI and executable behavior | [Ravel CLI](https://github.com/Linkuistics/Ravel/blob/v1.0.0/docs/session-cli.md), [executable specification](https://github.com/Linkuistics/Ravel/blob/v1.0.0/docs/specs/session-execution.md) and [runtime evidence](https://github.com/Linkuistics/Ravel/blob/v1.0.0/docs/runtime-evidence.md), maintained in its independent project |
 | Grove's Ravel caller contract | [`specs/harness-selection-and-execution.md`](specs/harness-selection-and-execution.md), with its [visual views and evidence locators](design/harness-selection-and-execution/README.md) |
 | Runtime and repository design — the decisions, the constraints, and the measurement records | this document |
 | Grove vocabulary | [`CONTEXT.md`](../CONTEXT.md) |
@@ -316,7 +316,7 @@ The renderer performs no I/O.
 Grove reads no launch configuration file. Every selected harness comes from
 owner policy through independently installed Ravel ([below](#harness-dispatch)).
 Grove chooses the first executable regular `ravel` in an absolute PATH directory,
-canonicalizes it once and checks that path's stable 0.1.x CLI version. Relative
+canonicalizes it once and checks that path's stable 1.x CLI version. Relative
 and empty PATH entries supply no cwd fallback; an incompatible or failed probe
 refuses without trying another installation. Launch and the quoted ending
 command reuse that canonical path. This trusts the owner's PATH executable;
@@ -434,9 +434,9 @@ teardown commit.
 ## Independent Ravel and Grove's caller boundary
 
 The retained `harness-dispatch` anchor names the boundary now served by
-independently installed Ravel. Its [CLI contract](https://github.com/Linkuistics/Ravel/blob/v0.1.0/docs/session-cli.md),
-[executable specification](https://github.com/Linkuistics/Ravel/blob/v0.1.0/docs/specs/session-execution.md)
-and [runtime evidence](https://github.com/Linkuistics/Ravel/blob/v0.1.0/docs/runtime-evidence.md)
+independently installed Ravel. Its [CLI contract](https://github.com/Linkuistics/Ravel/blob/v1.0.0/docs/session-cli.md),
+[executable specification](https://github.com/Linkuistics/Ravel/blob/v1.0.0/docs/specs/session-execution.md)
+and [runtime evidence](https://github.com/Linkuistics/Ravel/blob/v1.0.0/docs/runtime-evidence.md)
 remain in Ravel. Grove's [caller specification](specs/harness-selection-and-execution.md)
 and [supervision decision](adr/dispatch-supervises-the-harness.md) describe its use.
 Ravel injects no instructions, interprets no result token and keeps no persistent
@@ -1745,7 +1745,7 @@ from its package map onward.
 That map lists Grove's local `keyed-launch` runner and its caller modules.
 Ravel is outside the workspace, reached only through the public CLI boundary
 [above](#harness-dispatch). Its executable internals and runtime decisions live
-in its independent [specification](https://github.com/Linkuistics/Ravel/blob/v0.1.0/docs/specs/session-execution.md).
+in its independent [specification](https://github.com/Linkuistics/Ravel/blob/v1.0.0/docs/specs/session-execution.md).
 
 **The workspace root is not a package**, so a module's package is part of its
 identity (`docs/specs/module-decomposition.md`, decision 1).

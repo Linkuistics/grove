@@ -5,7 +5,7 @@ Ravel selects the command through the owner's policy, supervises its process
 group, restores the terminal and reaps it before returning the opaque argument
 published by `ravel end-session RESULT`. The caller supplies the prompt and
 ending instructions; Ravel injects none and assigns no meaning to the result.
-[Ravel's executable contract](https://github.com/Linkuistics/Ravel/blob/v0.1.0/docs/specs/session-execution.md)
+[Ravel's executable contract](https://github.com/Linkuistics/Ravel/blob/v1.0.0/docs/specs/session-execution.md)
 owns selection, ephemeral transport, cleanup and confinement. Grove consumes
 only the public CLI and stdout result, never a private worker/report protocol,
 run record or persistent store.
@@ -39,7 +39,7 @@ command and admission/teardown authority until that driver ends.
 
 Grove chooses the first executable regular `ravel` in an absolute PATH directory,
 canonicalizes it once and probes that path with `--version`. Empty/relative PATH
-entries add no cwd fallback. Stable `ravel 0.1.x`, starting at 0.1.0, is the
+entries add no cwd fallback. Stable `ravel 1.x`, starting at 1.0.0, is the
 supported CLI line; other minors/majors, prereleases, malformed/unsuccessful
 probes refuse with an upgrade remedy. Refusal never falls through to another
 installation. Homebrew presence alone proves no runtime compatibility.

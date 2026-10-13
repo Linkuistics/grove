@@ -243,7 +243,7 @@ regression check. `TARGETS=aarch64-unknown-linux-gnu` limits it to one target,
 as for `task release:archives`.
 
 Each Grove archive must match the exact manifest. Before any executable is
-invoked, independent Ravel 0.1.0 inputs pass the public archive admission checks.
+invoked, independent Ravel 1.0.0 inputs pass the public archive admission checks.
 The two projects unpack into separate prefixes with different versions. With
 only selected system utilities and Ravel on child PATH, the cases exercise
 Grove lifecycle and standalone output publication, public result consumption,

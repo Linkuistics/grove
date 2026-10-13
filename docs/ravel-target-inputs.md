@@ -1,6 +1,6 @@
 # Independent Ravel inputs for Grove delivery tests
 
-Grove's target tests consume released **Ravel 0.1.0**, independently of Grove's
+Grove's target tests consume released **Ravel 1.0.0**, independently of Grove's
 version, archive manifest and source tree. No adjacent Ravel checkout, Homebrew,
 host Bun/Node, installed-front replacement or release operation is required.
 Grove's release smoke now admits these independent inputs before running its
@@ -10,16 +10,16 @@ installed callers. No Ravel executable or worker is bundled in a Grove archive.
 
 The source/peeled tag is `bbab823803bd2f2796f8bd9570f732dce900efa2`.
 Each URL is under
-`https://github.com/Linkuistics/Ravel/releases/download/v0.1.0/`.
+`https://github.com/Linkuistics/Ravel/releases/download/v1.0.0/`.
 GitHub permits asset replacement; the SHA-256 pins enforce the tested identity.
-The public [release](https://github.com/Linkuistics/Ravel/releases/tag/v0.1.0)
+The public [release](https://github.com/Linkuistics/Ravel/releases/tag/v1.0.0)
 and Ravel's `docs/publication-evidence.md` record publication provenance.
 
 | Archive | SHA-256 |
 |---|---|
-| ravel-v0.1.0-aarch64-apple-darwin.tar.xz | `7e33ae0c56a93e6a5cff256c5a8a981dec4eb4d114c1f636ce8ee23d1f5d1059` |
-| ravel-v0.1.0-aarch64-unknown-linux-gnu.tar.xz | `19a20dc895a09440cbe3d8da1ce80b96311fbc1c3e6be5e2bf1eb18bb6cc0f7e` |
-| ravel-v0.1.0-x86_64-unknown-linux-gnu.tar.xz | `b9e3443dc428923d6ab45dff7d3837def16bd36985ddd5900f75489a7a4b96e8` |
+| ravel-v1.0.0-aarch64-apple-darwin.tar.xz | `d1f253db86cde3c625950cda2d8fa929ca4d1e4529ca6c3f223e138f9be9a922` |
+| ravel-v1.0.0-aarch64-unknown-linux-gnu.tar.xz | `288158c1259667dbd11d9f71aa5d643b4da4e08ffc4402524f4852afb314f732` |
+| ravel-v1.0.0-x86_64-unknown-linux-gnu.tar.xz | `1264ea0f3dd113f5dbb0914992ee9a7734285c0ddcc161e9acaffd83c037f9a9` |
 
 ## Consumer interface
 
@@ -44,9 +44,9 @@ per target on stdout, and returns nonzero on any failure. The output is exposed
 only after all requested archives pass. Within `OUT`:
 
 ```text
-archives/ravel-v0.1.0-TARGET.tar.xz
-TARGET/ravel-v0.1.0-TARGET/bin/ravel
-TARGET/ravel-v0.1.0-TARGET/libexec/ravel/...
+archives/ravel-v1.0.0-TARGET.tar.xz
+TARGET/ravel-v1.0.0-TARGET/bin/ravel
+TARGET/ravel-v1.0.0-TARGET/libexec/ravel/...
 ```
 
 The release smoke places Grove in a different installation prefix and supplies the matching
@@ -133,7 +133,7 @@ Complete local records are under Grove's `target/k48/`:
   SHA-256 subjects and comparisons. All 18,172 named subjects match within both
   runs: tracked Grove/adjacent sources, dependency trees, measured tools,
   retained archives/layouts, owner configuration and complete installed original
-  Grove 22.1.0 and Ravel 0.1.0 trees. The only between-run file changes were the
+  Grove 22.1.0 and Ravel 1.0.0 trees. The only between-run file changes were the
   registration control fixture and its task note; platform/production inputs did
   not move. Generated run outputs are excluded from this static subject set.
 - `ravel-state-final.txt`, `tap-state-final.txt`, `grove-state-final.txt`: clean

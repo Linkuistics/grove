@@ -517,7 +517,7 @@ pub fn installed_ravel() -> PathBuf {
             .expect("consumer tests require GROVE_TEST_RAVEL=/absolute/installed/ravel");
         let temp = tempfile::tempdir().expect("Ravel fixture prefix");
         let pair =
-            ravel::InstalledRavel::copy_from(Path::new(&source), &temp.path().join("ravel-0.1.0"));
+            ravel::InstalledRavel::copy_from(Path::new(&source), &temp.path().join("ravel-1.0.0"));
         (temp, pair)
     })
     .1

@@ -148,13 +148,13 @@ fn copied_pair_scrubs_inherited_authority_before_the_front() {
 #[ignore = "requires installed Ravel: task ravel:result RAVEL=/absolute/path/to/ravel"]
 fn both_stdout_runner_apis_read_only_the_installed_session_result() {
     let temp = tempfile::tempdir().unwrap();
-    let prefix = temp.path().join("independent-ravel-0.1.0");
+    let prefix = temp.path().join("independent-ravel-1.0.0");
     let source = std::env::var_os("GROVE_TEST_RAVEL").expect("GROVE_TEST_RAVEL is required");
     let pair = support::ravel::InstalledRavel::copy_from(std::path::Path::new(&source), &prefix);
     let ravel = pair.executable();
     let version = pair.command().arg("--version").output().unwrap();
     assert!(version.status.success());
-    assert_eq!(version.stdout, b"ravel 0.1.0\n");
+    assert_eq!(version.stdout, b"ravel 1.0.0\n");
 
     // Both runners scrub inherited live authority independently of Cargo's
     // guard. PATH contains only the copied pair: no host Bun/Node or old sibling.

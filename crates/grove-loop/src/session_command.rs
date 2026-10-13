@@ -42,7 +42,7 @@ pub fn confined(
     exit_dir: &Path,
     runtime_read: &[PathBuf],
 ) -> Result<Argv, Error> {
-    // https://github.com/Linkuistics/Ravel/blob/v0.1.0/docs/specs/session-execution.md
+    // https://github.com/Linkuistics/Ravel/blob/v1.0.0/docs/specs/session-execution.md
     let mut args = start(kind, prompt, exit_dir);
     args.push("--confine".into());
     for path in runtime_read {
@@ -88,8 +88,8 @@ fn end_with_result(ravel: &Path, result: &str) -> Result<String, Error> {
 }
 
 fn start(kind: &str, prompt: &str, exit_dir: &Path) -> Vec<OsString> {
-    // Ravel 0.1.0's documented flags return only the opaque result on stdout.
-    // https://github.com/Linkuistics/Ravel/blob/v0.1.0/docs/session-cli.md
+    // Ravel 1.0.0's documented flags return only the opaque result on stdout.
+    // https://github.com/Linkuistics/Ravel/blob/v1.0.0/docs/session-cli.md
     vec![
         "start-session".into(),
         value("--kind=", kind.as_ref()),

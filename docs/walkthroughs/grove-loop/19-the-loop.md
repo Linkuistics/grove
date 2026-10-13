@@ -1614,7 +1614,7 @@ impl SessionResult {
             .read_to_end(&mut bytes)
             .context("reading session result capture")?;
         // Ravel's public CLI returns the exact opaque argument without a newline.
-        // https://github.com/Linkuistics/Ravel/blob/v0.1.0/docs/session-cli.md
+        // https://github.com/Linkuistics/Ravel/blob/v1.0.0/docs/session-cli.md
         if bytes.is_empty() {
             return Err(Error::msg(format!(
                 "Ravel returned no session result; complete with `ravel end-session {CONTINUE_RESULT}`"
@@ -1635,7 +1635,7 @@ impl SessionResult {
 The evidence lives outside this book's source corpus.
 `tests/session_result.rs` exercises the exact value, missing rewind, rejected
 tails and the bounded sparse-file read. `tests/session_result_installed.rs`
-uses installed Ravel 0.1.0 and its compiled worker from an independent prefix,
+uses installed Ravel 1.0.0 and its compiled worker from an independent prefix,
 with both keyed-launch stdout APIs and fake shell agents. Session stdout and
 stderr noise remain separate from the exact result; empty and unsupported
 values refuse, and a natural exit without a result fails. The fixture isolates
@@ -1712,7 +1712,7 @@ pub fn confined(
     exit_dir: &Path,
     runtime_read: &[PathBuf],
 ) -> Result<Argv, Error> {
-    // https://github.com/Linkuistics/Ravel/blob/v0.1.0/docs/specs/session-execution.md
+    // https://github.com/Linkuistics/Ravel/blob/v1.0.0/docs/specs/session-execution.md
     let mut args = start(kind, prompt, exit_dir);
     args.push("--confine".into());
     for path in runtime_read {
@@ -1758,8 +1758,8 @@ fn end_with_result(ravel: &Path, result: &str) -> Result<String, Error> {
 }
 
 fn start(kind: &str, prompt: &str, exit_dir: &Path) -> Vec<OsString> {
-    // Ravel 0.1.0's documented flags return only the opaque result on stdout.
-    // https://github.com/Linkuistics/Ravel/blob/v0.1.0/docs/session-cli.md
+    // Ravel 1.0.0's documented flags return only the opaque result on stdout.
+    // https://github.com/Linkuistics/Ravel/blob/v1.0.0/docs/session-cli.md
     vec![
         "start-session".into(),
         value("--kind=", kind.as_ref()),

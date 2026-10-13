@@ -16,7 +16,7 @@ This guide covers the whole installed command surface — the `grove` binary you
 run, and the `grove-llm` verbs a session runs over the tree — plus every journey
 from scaffolding a grove to tearing one down. It says what a Grove owner does
 about launch policy and leaves the policy contract to
-[Ravel](https://github.com/Linkuistics/Ravel/blob/v0.1.0/docs/session-cli.md). It does **not** carry
+[Ravel](https://github.com/Linkuistics/Ravel/blob/v1.0.0/docs/session-cli.md). It does **not** carry
 installation ([README](../README.md)), grove's vocabulary
 ([CONTEXT.md](../CONTEXT.md)), or the methodology a session executes (the
 `grove` plugin's own skills). Each is linked where it is reached. The set this
@@ -34,7 +34,7 @@ policy.
 ## Launch policy
 
 Grove resolves the first executable `ravel` in an absolute PATH directory,
-canonicalizes it once and checks its stable 0.1.x CLI version. Install Ravel
+canonicalizes it once and checks its stable 1.x CLI version. Install Ravel
 independently with `brew install linkuistics/taps/ravel`; different Grove/Ravel
 prefixes and versions are supported. Missing tools name that install remedy;
 unsupported or malformed versions name `brew upgrade ravel`. Empty/relative PATH
@@ -62,7 +62,7 @@ export const policy = {
 ```
 
 Your real routes choose your harness, model, effort and approvals. The generic
-[Ravel CLI contract](https://github.com/Linkuistics/Ravel/blob/v0.1.0/docs/session-cli.md)
+[Ravel CLI contract](https://github.com/Linkuistics/Ravel/blob/v1.0.0/docs/session-cli.md)
 describes the SDK, bounds, environment grants and `.ravel-choice` helper.
 Grove-owned adapter/examples and provenance conventions are caller assets,
 loaded through ordinary policy imports, rather than Ravel embedded modules.

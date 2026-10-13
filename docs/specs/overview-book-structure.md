@@ -578,7 +578,7 @@ is another book's corpus and no byte of it appears here.
 
 The owner's Ravel policy is named in chapters 1 and 2 as the reason
 the command line has nothing to select.
-[Ravel's own CLI documentation](https://github.com/Linkuistics/Ravel/blob/v0.1.0/docs/session-cli.md)
+[Ravel's own CLI documentation](https://github.com/Linkuistics/Ravel/blob/v1.0.0/docs/session-cli.md)
 owns it, and the ownership table's one-canonical-source rule is what keeps this
 book from re-describing it.
 

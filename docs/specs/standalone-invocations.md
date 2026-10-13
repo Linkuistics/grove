@@ -16,7 +16,7 @@ exact canonical `end-session grove-continue` and `end-session grove-force-stop`
 commands and explains their meanings. Grove sends kind, prompt,
 exit directory and canonical `--runtime-read` grants, with no task identity or
 settings override. Ravel's
-[public execution contract](https://github.com/Linkuistics/Ravel/blob/v0.1.0/docs/specs/session-execution.md)
+[public execution contract](https://github.com/Linkuistics/Ravel/blob/v1.0.0/docs/specs/session-execution.md)
 owns confinement and cleanup. It returns only an opaque stdout result after
 reap; it supplies no private ending report, persistent store or run identity.
 Selection retains owner bounds/grants. Refused, cancelled or timed-out selection

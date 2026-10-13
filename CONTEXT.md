@@ -960,7 +960,7 @@ Generic data Ravel supplies to the owner's selection function: optional loaded
 context and measured file sources through its public SDK. Grove's adapter uses
 those reads for task relationships and inline creator evidence. Context is
 bounded by owner settings; there is no run lookup, inspection or stored context
-history. Ravel's [specification](https://github.com/Linkuistics/Ravel/blob/v0.1.0/docs/specs/session-execution.md)
+history. Ravel's [specification](https://github.com/Linkuistics/Ravel/blob/v1.0.0/docs/specs/session-execution.md)
 owns its shape; `docs/grove-provider-evidence.md` owns Grove's receipt facts.
 _Avoid_: treating measured bytes as authenticated provider identity.
 

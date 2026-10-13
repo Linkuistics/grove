@@ -32,7 +32,7 @@ ravel_smoke_main() {
     break
   done
   for target in "${targets[@]}"; do
-    archive="$SCRATCH/inputs/archives/ravel-v0.1.0-$target.tar.xz"
+    archive="$SCRATCH/inputs/archives/ravel-v1.0.0-$target.tar.xz"
     case "$target" in
       *-apple-darwin) smoke_native "$target" "$archive" ;;
       *-linux-gnu) smoke_linux "$target" "$archive" ;;

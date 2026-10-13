@@ -5,10 +5,10 @@ Grove owns its task tree, prompts, ending instructions, result meanings, teardow
 and provider receipts. Ravel routes and supervises the selected process, then
 returns the opaque argument published by `ravel end-session RESULT`.
 
-The [Ravel CLI](https://github.com/Linkuistics/Ravel/blob/v0.1.0/docs/session-cli.md),
-[executable specification](https://github.com/Linkuistics/Ravel/blob/v0.1.0/docs/specs/session-execution.md),
-[result transport](https://github.com/Linkuistics/Ravel/blob/v0.1.0/docs/session-channel.md)
-and [authority boundaries](https://github.com/Linkuistics/Ravel/blob/v0.1.0/docs/authority.md)
+The [Ravel CLI](https://github.com/Linkuistics/Ravel/blob/v1.0.0/docs/session-cli.md),
+[executable specification](https://github.com/Linkuistics/Ravel/blob/v1.0.0/docs/specs/session-execution.md),
+[result transport](https://github.com/Linkuistics/Ravel/blob/v1.0.0/docs/session-channel.md)
+and [authority boundaries](https://github.com/Linkuistics/Ravel/blob/v1.0.0/docs/authority.md)
 own executable behavior. This document owns Grove's use of that interface;
 [visual views](../design/harness-selection-and-execution/README.md) show the same
 caller boundary. Ravel injects no instructions and interprets no result token.
@@ -33,7 +33,7 @@ releases ([policy ownership](../adr/harness-selection-is-owned-by-policy.md)).
 
 Grove resolves the first executable regular `ravel` in an **absolute PATH
 directory**, canonicalizes it once and probes that path with `--version`.
-Stable `ravel 0.1.x`, beginning with 0.1.0, is supported. Relative/empty PATH
+Stable `ravel 1.x`, beginning with 1.0.0, is supported. Relative/empty PATH
 entries introduce no cwd fallback. An incompatible, malformed or unsuccessful
 probe refuses with an upgrade remedy; Grove never falls through to another
 installation. Probing trusts the owner's PATH program; a version string is not
@@ -108,7 +108,7 @@ inspection reservation or fallback selection participates.
 Grove makes Ravel a foreground job through its local runner; Ravel makes the
 selected process its own job. Each supervisor owns its direct child's terminal
 handoff, restoration and group cleanup. Ravel's
-[process decision](https://github.com/Linkuistics/Ravel/blob/v0.1.0/docs/adr/the-launched-child-is-a-job.md)
+[process decision](https://github.com/Linkuistics/Ravel/blob/v1.0.0/docs/adr/the-launched-child-is-a-job.md)
 owns its side; Grove's [local runner decision](../adr/the-launched-child-is-a-job.md)
 owns the caller's side. Processes that leave a managed group are outside that
 group-cleanup guarantee; an uncatchable supervisor death can orphan a process.
@@ -228,7 +228,7 @@ assets; archive users install Ravel separately. Preserve each project's complete
 prefix. No matching Cellar version, neighboring executable or bundled worker is
 assumed. [Release instructions](../RELEASING.md) and the
 [delivery boundary](../grove-delivery-contraction.md) own Grove's packaging.
-Ravel owns its [runtime evidence](https://github.com/Linkuistics/Ravel/blob/v0.1.0/docs/runtime-evidence.md)
+Ravel owns its [runtime evidence](https://github.com/Linkuistics/Ravel/blob/v1.0.0/docs/runtime-evidence.md)
 and [published installation evidence](https://github.com/Linkuistics/Ravel/blob/3916a4a1d17fef925db7e9c730bd4c23d6df3ac8/docs/publication-evidence.md).
 
 <a id="test-seams"></a>

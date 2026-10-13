@@ -1,5 +1,5 @@
-// Grove-owned launch evidence using only Ravel 0.1.0's public selection API.
-// https://github.com/Linkuistics/Ravel/blob/v0.1.0/crates/ravel/worker/sdk/index.ts
+// Grove-owned launch evidence using only Ravel 1.0.0's public selection API.
+// https://github.com/Linkuistics/Ravel/blob/v1.0.0/crates/ravel/worker/sdk/index.ts
 import { randomUUID } from "node:crypto";
 import { definePolicy, type Policy } from "ravel/sdk";
 

@@ -19,7 +19,7 @@ argument published by end-session. Grove supplies ending instructions, result
 meaning and optional provider receipts. Ravel has no catalog, persistent store,
 record/inspection API or prompt injection. No local selector ships, so the pilot
 below remains a proposal. The [Grove caller specification](../specs/harness-selection-and-execution.md)
-owns caller conventions; [Ravel's specification](https://github.com/Linkuistics/Ravel/blob/v0.1.0/docs/specs/session-execution.md)
+owns caller conventions; [Ravel's specification](https://github.com/Linkuistics/Ravel/blob/v1.0.0/docs/specs/session-execution.md)
 owns executable behavior. Each has its own release and installed prefix.
 
 ## Policy inspected during research

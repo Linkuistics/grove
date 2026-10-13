@@ -476,7 +476,7 @@ standalone work, with no local completion channel. Lifecycle keeps a 10-second
 kill-grace; standalone keeps five seconds. Its stdout-capturing runner entry
 points keep Ravel's public result separate from managed output and transcripts.
 Ravel owns its selected process's confinement, completion channel, bounds and
-cleanup ([Ravel process decision](https://github.com/Linkuistics/Ravel/blob/v0.1.0/docs/adr/the-launched-child-is-a-job.md)).
+cleanup ([Ravel process decision](https://github.com/Linkuistics/Ravel/blob/v1.0.0/docs/adr/the-launched-child-is-a-job.md)).
 There is no store append or migration wait in that boundary. The nested grace
 is a scheduling budget, not a wall-clock guarantee under suspension or slow I/O.
 

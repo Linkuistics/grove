@@ -1,5 +1,5 @@
-// Caller-owned review routing through Ravel 0.1.0's generic context API.
-// https://github.com/Linkuistics/Ravel/blob/v0.1.0/crates/ravel/worker/sdk/index.ts
+// Caller-owned review routing through Ravel 1.0.0's generic context API.
+// https://github.com/Linkuistics/Ravel/blob/v1.0.0/crates/ravel/worker/sdk/index.ts
 import { definePolicy, type Context, type DeliveredContext, type Json, type Refused, type SelectionRequest, type SelectionResult } from "ravel/sdk";
 import { agent, routes as staticRoutes, selectRoute, type Route } from "ravel/examples/static";
 import { parseEvidence, type ProviderEvidence } from "../provenance.ts";

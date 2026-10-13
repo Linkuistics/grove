@@ -10,7 +10,7 @@ runs it for every session it launches, lifecycle and standalone alike, and
 carries no launch configuration of its own. The
 [supervision decision](dispatch-supervises-the-harness.md) owns the
 Grove caller boundary. The independent
-[Ravel specification](https://github.com/Linkuistics/Ravel/blob/v0.1.0/docs/specs/session-execution.md)
+[Ravel specification](https://github.com/Linkuistics/Ravel/blob/v1.0.0/docs/specs/session-execution.md)
 owns executable/runtime behavior. The
 [worker decision](policy-evaluation-precedes-the-launch.md) records the native
 selection boundary and [supervision](dispatch-supervises-the-harness.md) records

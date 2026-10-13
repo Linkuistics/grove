@@ -1,6 +1,6 @@
 # Grove policy assets for Ravel
 
-These readable TypeScript files belong to Grove. Ravel 0.1.0 supplies the
+These readable TypeScript files belong to Grove. Ravel 1.0.0 supplies the
 generic `ravel/sdk` and `ravel/examples/static` modules; it embeds no Grove
 adapter or example. Grove ships this complete tree at `libexec/ravel-policy` in its own installation.
 The same files can be used directly from this checkout.

@@ -1,5 +1,5 @@
-// Grove task conventions, read through Ravel 0.1.0's measured public host.
-// https://github.com/Linkuistics/Ravel/blob/v0.1.0/crates/ravel/worker/sdk/index.ts
+// Grove task conventions, read through Ravel 1.0.0's measured public host.
+// https://github.com/Linkuistics/Ravel/blob/v1.0.0/crates/ravel/worker/sdk/index.ts
 import type { Context, ContextHost, Refused, SelectionRequest } from "ravel/sdk";
 import { parseEvidence } from "./provenance.ts";
 import type { Creator } from "./examples/review.ts";

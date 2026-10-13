@@ -15,14 +15,14 @@ use ratatui::{
     Terminal,
 };
 
-// The repository's shared test helpers, for the real `harness-dispatch` front
+// The repository's shared test helpers, for the real installed Ravel pair
 // and the personal policy a launching case selects from.
 #[path = "../../../testing/support.rs"]
 mod shared;
 
 const LIMIT: Duration = Duration::from_secs(10);
 
-/// A personal dispatch policy under `root/config`, the helper driver's HOME,
+/// A personal Ravel policy under `root/config`, the helper driver's HOME,
 /// that runs `program` with `args` and then the prompt, for every kind.
 fn route(root: &Path, program: &str, args: &[&str]) {
     shared::write_policy(
@@ -55,12 +55,12 @@ fn driver_helper() {
     // The real front, or no executable at all for the case whose launch must
     // itself fail.
     let failing = root.join("expect-spawn-error").exists();
-    let dispatch = if failing {
-        root.join("missing-harness-dispatch")
+    let ravel = if failing {
+        root.join("missing-ravel")
     } else {
-        shared::harness_dispatch()
+        shared::installed_ravel()
     };
-    let outcome = grove_loop::run(&workspace, lease, &dispatch);
+    let outcome = grove_loop::run(&workspace, lease, &ravel);
     if failing {
         assert!(outcome.is_err());
     } else {
@@ -77,14 +77,18 @@ fn session_helper() {
     let mut stream = UnixStream::connect("session.sock").unwrap();
     stream.set_read_timeout(Some(LIMIT)).unwrap();
     stream.write_all(b"ready").unwrap();
+    // /bin/sh execs this helper, so its parent is the public Ravel supervisor.
+    stream
+        .write_all(&unsafe { libc::getppid() }.to_ne_bytes())
+        .unwrap();
     let mut command = [0];
     loop {
         stream.read_exact(&mut command).unwrap();
         match command[0] {
             b'x' => return,
             b's' => {
-                assert!(Command::new(shared::harness_dispatch())
-                    .arg("exit")
+                assert!(Command::new(shared::installed_ravel())
+                    .args(["end-session", "grove-continue"])
                     .status()
                     .unwrap()
                     .success());
@@ -98,6 +102,7 @@ fn session_helper() {
 
 struct Launch {
     driver: Child,
+    supervisor: Option<libc::pid_t>,
     session: Option<UnixStream>,
     listener: UnixListener,
 }
@@ -116,20 +121,22 @@ impl Launch {
         route(root, "/bin/sh", &["harness"]);
         let listener = UnixListener::bind(root.join("session.sock")).unwrap();
         listener.set_nonblocking(true).unwrap();
-        let driver = Command::new(exe)
+        let mut command = Command::new(exe);
+        for name in shared::grove_env_names() {
+            command.env_remove(name);
+        }
+        let driver = command
             .args(["--exact", "driver_helper", "--ignored", "--nocapture"])
             .current_dir(root)
             .env("HOME", root.join("config"))
             .env("GROVE_TEST_TUI_PROCESS", "1")
-            .env_remove("GROVE_SIGNAL_FILE")
-            .env_remove("GROVE_HARNESS_PID")
-            .env_remove("GROVE_CLAUDE_PID")
             .stdin(Stdio::null())
             .stdout(Stdio::null())
             .spawn()
             .unwrap();
         let mut launch = Self {
             driver,
+            supervisor: None,
             session: None,
             listener,
         };
@@ -157,6 +164,9 @@ impl Launch {
         let mut ready = [0; 5];
         stream.read_exact(&mut ready).unwrap();
         assert_eq!(&ready, b"ready");
+        let mut parent = [0; size_of::<libc::pid_t>()];
+        stream.read_exact(&mut parent).unwrap();
+        self.supervisor = Some(libc::pid_t::from_ne_bytes(parent));
         self.session = Some(stream);
         // Child readiness can precede the parent's Started callback. Wait for
         // production witness evidence, never infer publication from elapsed time.
@@ -201,7 +211,14 @@ impl Drop for Launch {
         }
         let deadline = Instant::now() + LIMIT;
         loop {
-            if self.driver.try_wait().ok().flatten().is_some() {
+            // A killed Grove driver leaves Ravel supervising the live session.
+            // After requesting child exit, wait for that supervisor too so the
+            // fixture cannot return with its stderr pipe still held by an orphan.
+            let supervisor_gone = self.supervisor.is_none_or(|pid| {
+                (unsafe { libc::kill(pid, 0) }) == -1
+                    && std::io::Error::last_os_error().raw_os_error() == Some(libc::ESRCH)
+            });
+            if self.driver.try_wait().ok().flatten().is_some() && supervisor_gone {
                 return;
             }
             if Instant::now() >= deadline {
@@ -741,14 +758,15 @@ fn failed_and_immediate_launches_leave_no_running_attachment() {
         if failed {
             put(work.path(), "expect-spawn-error", "");
         }
-        let mut driver = Command::new(std::env::current_exe().unwrap())
+        let mut command = Command::new(std::env::current_exe().unwrap());
+        for name in shared::grove_env_names() {
+            command.env_remove(name);
+        }
+        let mut driver = command
             .args(["--exact", "driver_helper", "--ignored", "--nocapture"])
             .current_dir(work.path())
             .env("HOME", work.path().join("config"))
             .env("GROVE_TEST_TUI_PROCESS", "1")
-            .env_remove("GROVE_SIGNAL_FILE")
-            .env_remove("GROVE_HARNESS_PID")
-            .env_remove("GROVE_CLAUDE_PID")
             .stdin(Stdio::null())
             .stdout(Stdio::null())
             .spawn()

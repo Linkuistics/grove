@@ -42,13 +42,14 @@ readonly REPO_ROOT
 cd "$REPO_ROOT"
 
 failed=()
+checks=0
 
-# `--workspace` on both cargo lines because this root is *also* a package: a
-# bare invocation tests and lints `grove` alone and leaves the other five crates
-# unread.
+# Select the whole workspace explicitly for both runtime and documentation
+# tests; a default-member change must not silently reduce the gate's scope.
 run_check() {
   local label="$1"
   shift
+  checks=$((checks + 1))
   echo
   echo "=== $label"
   if "$@"; then
@@ -116,7 +117,7 @@ run_check "conformance" bash plugins/grove/conformance.sh
 run_check "conformance suite" bash plugins/grove/conformance.test.sh
 run_check "release preparation" bash scripts/release-prepare.test.sh
 run_check "release Codex helper" bash scripts/release-notes/codex-headless.test.sh
-# Before `cargo test`, which needs the worker: harness-dispatch's command-seam
+# Before nextest, which needs the worker: harness-dispatch's command-seam
 # tests refuse a missing or stale one with exit 5 rather than skip. This builds
 # it from the current source with the pinned Bun, then type-checks the worker,
 # the SDK and its fixtures against the declarations that build emitted. The
@@ -124,16 +125,24 @@ run_check "release Codex helper" bash scripts/release-notes/codex-headless.test.
 # come from the same source here, and those tests fail rather than skip
 # without them.
 run_check "dispatch worker, probes and types" task dispatch:typecheck dispatch:probes
+# The public caller assets include ignored installed-pair fixtures, which the
+# workspace runtime run alone does not execute. Keep the retained compatibility
+# task until k6 removes the bundled dispatch package.
+run_check "Ravel caller assets and provenance" task ravel:review \
+  "RAVEL=${GROVE_TEST_RAVEL:?Set GROVE_TEST_RAVEL to an installed Ravel front}"
 # After the worker task, which installs its pinned type checker: the release
 # tests compare the archive manifest with what the worker build emits.
 run_check "release tasks" bash scripts/release.test.sh
-run_check "cargo test" cargo test --locked --workspace
+# nextest runs runtime tests; doctests remain Cargo's responsibility.
+# https://nexte.st/docs/running/#options-and-arguments
+run_check "cargo nextest" cargo nextest run --locked --workspace --no-fail-fast
+run_check "cargo doctests" cargo test --locked --workspace --doc
 run_check "book-check" book_check
 
 echo
 if ((${#failed[@]} > 0)); then
-  echo "check: FAILED — ${#failed[@]} of 12"
+  echo "check: FAILED — ${#failed[@]} of $checks"
   printf 'check:   ✗ %s\n' "${failed[@]}"
   exit 1
 fi
-echo "check: all 12 principal checks pass"
+echo "check: all $checks principal checks pass"

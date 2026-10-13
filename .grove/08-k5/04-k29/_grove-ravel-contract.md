@@ -1,4 +1,4 @@
-# grove-ravel-contract-k29
+# grove-ravel-contract-k29 — brief
 
 
 ## Goal
@@ -31,6 +31,32 @@ k12 owns broader prose. The original installed 22.1.0 driver remains live.
 ## Notes
 This is caller contract closure, not integration/release or teardown. k13 and
 the original driver-owned finish sequence retain those responsibilities.
+
+## Decomposition
+
+The inherited handoffs already removed the sibling locator/staged allowances
+and release-notes' dispatch build. The remaining complete surface audit and
+whole-repository acceptance exceed one focused session. Execute in this order:
+
+- ravel-check-gate-k43 brings the reusable repository gate onto nextest,
+  retains doctests/archive checks and includes the shipped Ravel review assets.
+- ravel-surface-closure-k44 enumerates/classifies the complete current surfaces
+  and reconciles the caller ADR/prose/skills/assertions and source-pinned books.
+- ravel-caller-acceptance-k45 runs the final complete checks against frozen
+  subjects and closes this node/k5 only after checking every acceptance item.
+
+## Check gate handoff — ravel-check-gate-k43
+
+The repository gate now uses workspace nextest, preserves Cargo doctests and
+integrates public Ravel review/provenance checks. Its first full run exposed
+unmigrated TUI witness helpers; k43 migrates their launch/end calls and authority
+scrubs and fixes their orphan-supervisor cleanup without changing assertions.
+The final real `task check` passes all 14 checks: 1,723 workspace runtime cases,
+88 review cases, nine doctests, six final/all source books and retained archive
+checks. Exact source pins, complete logs, per-case red/green comparison and
+3,092 matching individual before/after hashes are in k43's terminal handoff.
+The original v22 keg, installed Ravel 0.1.0, owner config and tap are preserved.
+This is check-gate delivery only; k44/k45 still own whole-surface/k5 acceptance.
 
 ## k28 acceptance input
 

@@ -35,6 +35,8 @@ jj-workspace = { path = "../jj-workspace" }
 keyed-launch = { path = "../keyed-launch" }
 libc = "0.2"
 serde_json = "1.0"
+# Shared caller-owned stdout capture for the independent Ravel boundary.
+tempfile = "3.10"
 # The extracted tree library (gh issue #13). `default-features = false` turns off
 # its `cli` feature, which exists for its own `syllabus` binary and pulls in
 # `clap`: with it off, the dependency set this crate *imposes* is exactly `libc`,
@@ -43,9 +45,6 @@ serde_json = "1.0"
 # metadata` — the crate's own manifest says the set is `libc`, and nothing but a
 # test says the consumer asked for that set.
 ordinal-fs-tree = { path = "../ordinal-fs-tree", default-features = false }
-
-[dev-dependencies]
-tempfile = "3.10"
 
 [lints]
 workspace = true

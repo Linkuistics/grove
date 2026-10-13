@@ -24,11 +24,27 @@ tasks:
       - task: dispatch:worker
       - cargo nextest run --locked -p grove {{.CLI_ARGS}}
 
+  ravel:result:
+    desc: Check Grove's shared result reader through both runner APIs with installed Ravel
+    requires:
+      vars: [RAVEL]
+    env:
+      GROVE_TEST_RAVEL: '{{.RAVEL}}'
+    cmds:
+      - cargo nextest run --locked -p grove-loop --test session_result
+      - cargo nextest run --locked -p grove-loop --test session_result_installed --run-ignored only
+
   test:keyed-launch:
     desc: Check job supervision, stream capture, cancellation and terminal recovery with nextest
     cmds:
       - cargo nextest run --locked -p keyed-launch {{.CLI_ARGS}}
       - cargo test --locked -p keyed-launch --doc
+
+  test:grove-loop:
+    desc: Check Grove's task tree, driver, authority and result transport with nextest
+    cmds:
+      - cargo nextest run --locked -p grove-loop {{.CLI_ARGS}}
+      - cargo test --locked -p grove-loop --doc
 
   # harness-dispatch: the Rust front and its Bun-compiled policy worker. The
   # worker builds only here, never from cargo; `crates/harness-dispatch/scripts/

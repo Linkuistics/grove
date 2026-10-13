@@ -17,7 +17,7 @@
 - [How this book's spine differs from the `jj-workspace` and `keyed-launch` books'](01-orientation.md#allowed-to-mean)
 - [The `Key` / `Entry` collision between the two vocabularies](01-orientation.md#allowed-to-mean)
 - [Allowed to be domain-bound, and the record that says so](01-orientation.md#the-package)
-- [Five dependencies, and the four that carry a reason in situ](01-orientation.md#the-package)
+- [Dependency ownership and staged result capture](01-orientation.md#the-package)
 - [A clause true of the verbs and false of the crate, and the distinction that fixed it](01-orientation.md#the-package)
 - [`default-features = false`, and the set the crate imposes](01-orientation.md#the-package)
 - [Why the tests need a real directory](01-orientation.md#the-package)
@@ -625,3 +625,5 @@ in [the guarded selection](19-the-loop.md#picked) and exercised through the
 
 - [Native process death, exec survivors and replaced roots](17-the-epoch.md#native-witness-processes)
 
+
+- [Held stdout capture and bounded continue interpretation](19-the-loop.md#held-session-result)

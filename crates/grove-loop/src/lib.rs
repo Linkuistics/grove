@@ -59,6 +59,7 @@ mod task_tree;
 mod tree_lifecycle;
 
 pub mod prompt;
+pub mod session_result;
 pub mod verbs;
 
 /// The version this repository ships, and the only one.

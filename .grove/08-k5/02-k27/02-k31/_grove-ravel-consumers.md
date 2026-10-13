@@ -1,4 +1,4 @@
-# grove-ravel-consumers-k31
+# grove-ravel-consumers-k31 — brief
 
 
 ## Goal
@@ -38,3 +38,23 @@ those are caller responsibilities. Existing capture-free APIs remain available.
 If the remaining fan-out exceeds a focused session, decompose at another green
 expand/migrate seam. Do not split lifecycle and standalone into inconsistent
 current prompt/result contracts. Parent k27 stays live until both migrate.
+
+## Execution slices
+
+- session-result-capture-k32 expands Grove's caller-owned result transport: an
+  unlinked regular file held across supervision, a fresh stdout descriptor, and
+  bounded interpretation accepting exactly `grove-continue`. Exercise both
+  k30 runner entry points against installed Ravel 0.1.0 and update the source
+  book. Existing launch paths and prompts remain active during this expansion.
+- grove-ravel-switch-k33 performs the remaining atomic migration of both
+  callers, prompts, confinement, scrubs and fixtures using that shared reader.
+  It owns all remaining Done when above; do not close k31 or k27 early.
+
+## Decisions (running log)
+
+- The stdout runner seam does not bound or interpret bytes. Add one shared
+  capture/reader in grove-loop before the atomic caller switch, so lifecycle
+  and standalone cannot independently trim, reopen or reinterpret a result.
+  The capture holds an unlinked file; only a cloned descriptor is passed to
+  Ravel. Interpretation follows reap and (for lifecycle) epoch invalidation;
+  teardown, cancellation and survivor checks remain caller-owned.

@@ -1453,4 +1453,137 @@ mod tests {
 ````
 <!-- /fragment -->
 
+<a id="held-session-result"></a>
+## The shared result capture for the Ravel migration
+
+`SessionResult` is the staged caller transport for both Ravel consumers. The
+active lifecycle and standalone paths still use dispatch's report until their
+atomic migration. This module already owns the new file's allocation, stdout
+descriptor and bounded interpretation, so those operations will share one
+contract when the callers switch.
+
+The supervisor writes its public stdout result into an unlinked regular file.
+The reader keeps the original descriptor rather than opening a pathname after
+a managed process could replace it. Allocation sets mode 0600 and checks that
+the file has no links because tempfile's Unix fallback can ignore an unlink
+failure. Ravel and policy retain the stdout authority granted to the supervisor;
+unlinking does not authenticate their bytes.
+
+The writer's cloned descriptor shares an offset with the reader. Once the
+supervisor is reaped and writers are closed, the reader rewinds and reads at
+most fifteen bytes: the fourteen-byte `grove-continue` literal and one byte
+that rejects any tail. Empty, padded, binary, transcript-contaminated and
+unsupported values refuse. Caller checks for teardown, cancellation, successful
+cleanup and epoch invalidation must precede interpretation; the result's bytes
+cannot establish those facts.
+
+<!-- fragment «held-session-result» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/session_result.rs" lines="1-93" parent="source-session-result" -->
+````rust
+//! Caller-owned stdout transport for Ravel's Grove continue result.
+
+use std::fs::File;
+use std::io::{Read, Seek};
+use std::os::unix::fs::{MetadataExt, PermissionsExt};
+
+use anyhow::Context;
+
+use crate::Error;
+
+/// The opaque result Grove accepts for ordinary continuation.
+pub const CONTINUE_RESULT: &str = "grove-continue";
+
+/// A held, unlinked regular file for Ravel's public stdout result.
+///
+/// Pass [`Self::stdout`] to keyed-launch's stdout-capturing entry point. Call
+/// [`Self::read_continue`] only after the supervisor has been reaped and all
+/// writers have closed. Lifecycle callers must also invalidate the session
+/// epoch first. Teardown precedence, cancellation, exit status and survivor
+/// checks belong to the caller; accepted bytes alone attest none of them.
+///
+/// The result has no pathname for a managed process to substitute. Policy and
+/// Ravel still have the stdout authority deliberately given to the supervisor.
+pub struct SessionResult(File);
+
+impl SessionResult {
+    /// Allocate a fresh result capture.
+    ///
+    /// # Errors
+    /// Failure to allocate or verify an unlinked regular file. No launch should
+    /// start if capture allocation fails.
+    pub fn allocate() -> Result<Self, Error> {
+        // tempfile 3.27's Unix fallback ignores unlink failures; verify the held
+        // file before granting stdout rather than assuming it has no pathname.
+        // https://github.com/Stebalien/tempfile/blob/v3.27.0/src/file/imp/unix.rs
+        let file = tempfile::tempfile().context("allocating session result capture")?;
+        file.set_permissions(std::fs::Permissions::from_mode(0o600))
+            .context("restricting session result capture permissions")?;
+        let metadata = file.metadata().context("checking session result capture")?;
+        if !metadata.is_file() || metadata.nlink() != 0 {
+            return Err(Error::msg(
+                "session result capture must be an unlinked regular file; no session was launched",
+            ));
+        }
+        Ok(Self(file))
+    }
+
+    /// An owned descriptor to pass to the stdout-capturing runner.
+    ///
+    /// It shares this capture's file offset. The file starts empty; the reader
+    /// rewinds after supervision. This descriptor must carry only Ravel stdout,
+    /// never managed output, stderr or a transcript.
+    ///
+    /// # Errors
+    /// Failure to duplicate the file descriptor.
+    pub fn stdout(&self) -> Result<File, Error> {
+        Ok(self
+            .0
+            .try_clone()
+            .context("duplicating session result stdout")?)
+    }
+
+    /// Consume the capture and accept exactly `grove-continue`, without trimming.
+    ///
+    /// Reads at most the literal's length plus one byte; a matching prefix with
+    /// any tail refuses. Never reopens a path or parses a private ending report.
+    ///
+    /// # Errors
+    /// Missing, unsupported or unreadable results.
+    pub fn read_continue(mut self) -> Result<(), Error> {
+        self.0
+            .rewind()
+            .context("rewinding session result capture")?;
+        let mut bytes = Vec::with_capacity(CONTINUE_RESULT.len() + 1);
+        self.0
+            .take((CONTINUE_RESULT.len() + 1) as u64)
+            .read_to_end(&mut bytes)
+            .context("reading session result capture")?;
+        // Ravel's public CLI returns the exact opaque argument without a newline.
+        // https://github.com/Linkuistics/Ravel/blob/v0.1.0/docs/session-cli.md
+        if bytes.is_empty() {
+            return Err(Error::msg(format!(
+                "Ravel returned no session result; complete with `ravel end-session {CONTINUE_RESULT}`"
+            )));
+        }
+        if bytes != CONTINUE_RESULT.as_bytes() {
+            return Err(Error::msg(format!(
+                "Ravel returned an unsupported session result; expected exactly {CONTINUE_RESULT}"
+            )));
+        }
+        Ok(())
+    }
+}
+````
+<!-- /fragment -->
+
+The evidence lives outside this book's source corpus.
+`tests/session_result.rs` exercises the exact value, missing rewind, rejected
+tails and the bounded sparse-file read. `tests/session_result_installed.rs`
+uses installed Ravel 0.1.0 and its compiled worker from an independent prefix,
+with both keyed-launch stdout APIs and fake shell agents. Session stdout and
+stderr noise remain separate from the exact result; empty and unsupported
+values refuse, and a natural exit without a result fails. The fixture isolates
+PATH to the copied pair and scrubs old and new enclosing-session authority.
+`task ravel:result RAVEL=/absolute/path/to/ravel` runs these checks without a
+model launch or host runtime on the managed PATH.
+
 [Previous: The guaranteed core](18-the-core.md) | [Contents](README.md) | [Next: What could not move](20-what-could-not-move.md)

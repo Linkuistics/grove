@@ -7,9 +7,9 @@
 
 <!-- rollup «owned-lines-total» -->
 <!-- rollup «ownership-blocks» -->
-This chapter owns none of the crate's 14,194 lines. The fragment graph spans
+This chapter owns none of the crate's 14,287 lines. The fragment graph spans
 [chapter 1](01-orientation.md) through [chapter 19](19-the-loop.md),
-including the captured observer in chapter 5. Its 42 ownership blocks are
+including the captured observer in chapter 5. Its 43 ownership blocks are
 `resolved`; the [source index](source-index.md) records that graph in full and
 gives this page a row whose owned-line count is zero. The row exists to be zero.
 
@@ -47,7 +47,7 @@ under their own headings, and the ten before them do not.
 
 | Ch | On the way in — the names | On the way through — the preconditions | On the way out — the policy |
 |---:|---|---|---|
-| [1](01-orientation.md) | The vocabulary itself — *kind*, *brief chain*, *outcome*, *handle*, *finishing* — named as the words no crate beneath has; and `VERSION`, one constant rather than several manifests kept in step | The lock is in the signature: `root_init` consumes a `Vacancy`, so it **cannot** run over a live grove. Compiler-enforced rather than checked | The permission itself: the manifest marks the crate *not domain-free* and buys six dependencies against it |
+| [1](01-orientation.md) | The vocabulary itself — *kind*, *brief chain*, *outcome*, *handle*, *finishing* — named as the words no crate beneath has; and `VERSION`, one constant rather than several manifests kept in step | The lock is in the signature: `root_init` consumes a `Vacancy`, so it **cannot** run over a live grove. Compiler-enforced rather than checked | The permission itself: the manifest marks the crate *not domain-free* and uses seven dependencies |
 | [2](02-the-tokens.md) | The whole of it. A task-shaped name that is wrong is `Malformed`, never `Foreign` — the store sees a species, never a spelling | None. `parse` takes a string and a `Found`, and there is no tree yet | Three of the store's four verdicts, and which of the three halts a walk rather than skipping a subtree |
 | [3](03-kind-slug-handle.md) | The handle is the identity and the position is not in it — a second grammar beside the filename's | None | A kind is an open token: open as to vocabulary, closed as to shape |
 | [4](04-the-name.md) | `format(parse(f)) == f`, or one entity occupies two files. The cost is a conformance kit | The species the stem declares, checked against what the listing found | Refuse rather than normalise — and hand back the spelling the name should have had, or say why there is none |
@@ -408,8 +408,8 @@ rather than by this page's say-so.
 <!-- rollup «source-roots» -->
 <!-- rollup «ownership-blocks-owned-by» of="allowed-to-mean" -->
 <!-- rollup «ownership-blocks-not-owned-by» of="allowed-to-mean" -->
-**Ownership.** 42 top-level blocks over 15 source roots, every one
-`resolved`. [Chapter 1](01-orientation.md) owns 2 blocks; the other 40 belong to
+**Ownership.** 43 top-level blocks over 16 source roots, every one
+`resolved`. [Chapter 1](01-orientation.md) owns 2 blocks; the other 41 belong to
 later chapters. The captured observer joins chapter 5 as a resolved block. No `defer` remains anywhere in the book, and none may — `F003`
 reports any defer at all in final mode, so *every reservation has become an
 insertion* is something the validator refuses to let be false rather than
@@ -429,7 +429,7 @@ this book established in its own chapter 2 and applied in every chapter after it
 
 <!-- rollup «owned-lines-sequence» -->
 <!-- rollup «source-owning-chapters» -->
-**Owned source.** 484 + 373 + 529 + 773 + 521 + 320 + 336 + 438 + 604 + 518 + 641 + 764 + 808 + 522 + 390 + 1,141 + 3,805 + 222 + 1,005 = 14,194 lines across
+**Owned source.** 484 + 373 + 529 + 773 + 521 + 320 + 336 + 438 + 604 + 518 + 641 + 764 + 808 + 522 + 390 + 1,141 + 3,805 + 222 + 1,098 = 14,287 lines across
 19 source-owning chapters. This closing chapter owns zero lines. The source
 index records the root sizes, block ranges and chapter totals.
 
@@ -501,7 +501,7 @@ on their own pages and are not in it, wherever they fall.
 The [concept index](concept-index.md) and the [source index](source-index.md) are
 the two lookup surfaces and neither is part of the reading order. The source index
 is the authoritative record of how the fragment graph reconstructs each of the
-15 files; the concept index is curated navigation into the arguments and
+16 files; the concept index is curated navigation into the arguments and
 makes no completeness claim.
 
 <a id="final-verification"></a>
@@ -570,7 +570,7 @@ tests, not this crate's.
 <!-- rollup «source-roots» -->
 <!-- rollup «owned-lines-total» -->
 <!-- rollup «chapters» -->
-The book is complete: 15 roots, 14,194 lines, 20 chapters, two
+The book is complete: 16 roots, 14,287 lines, 20 chapters, two
 lookup surfaces, zero deferred ranges. What it argued is that a layer which
 extracts a domain-free library from underneath itself keeps exactly what carries
 meaning, and that meaning is expensive in three measurable places. What it leaves

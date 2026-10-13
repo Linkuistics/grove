@@ -193,12 +193,12 @@ role  = "lookup"
 [[root]]
 id    = "source-crate-manifest"
 path  = "crates/grove-loop/Cargo.toml"
-lines = 66
+lines = 65
 
 [[root]]
 id    = "source-library-root"
 path  = "crates/grove-loop/src/lib.rs"
-lines = 418
+lines = 419
 
 [[root]]
 id    = "source-task-name"
@@ -255,13 +255,13 @@ lines = 218
 id    = "manifest-domain-bound"
 root  = "source-crate-manifest"
 owner = "allowed-to-mean"
-lines = "1-66"
+lines = "1-65"
 
 [[block]]
 id    = "library-root"
 root  = "source-library-root"
 owner = "allowed-to-mean"
-lines = "1-418"
+lines = "1-419"
 
 [[block]]
 id    = "tokens-and-verdicts"
@@ -559,3 +559,14 @@ id = "launch-control-directory"
 root = "source-launch-directory"
 owner = "four-things-a-runner-cannot-choose"
 lines = "1-193"
+
+[[root]]
+id = "source-session-result"
+path = "crates/grove-loop/src/session_result.rs"
+lines = 93
+
+[[block]]
+id = "held-session-result"
+root = "source-session-result"
+owner = "four-things-a-runner-cannot-choose"
+lines = "1-93"

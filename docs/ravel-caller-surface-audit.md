@@ -118,3 +118,73 @@ Complete k44 test logs, red/green outcomes, source classifications, measurement
 subjects and before/after comparisons live in `target/k44/`; the terminal task
 handoff names the exact runs. The original 22.1.0 Grove keg, independent Ravel
 0.1.0 keg, personal Ravel policy and tap formula are included in frozen digests.
+
+## Final caller acceptance — k45
+
+Executable acceptance passes against independent installed Ravel 0.1.0 and
+checkout-local Bun 1.4.2. The parent contract remains open: two current
+documentation passages contradict the tested boundary. This matrix checks each
+k5/k29 Done when item, including its inherited clauses. A passing suite and
+unchanged source hashes do not establish correct prose.
+
+| Contract item | Evidence and disposition |
+|---|---|
+| k5: independent resolver, version, confinement and ending | `dispatch/ravel.rs` selects/canonicalizes the first executable in absolute PATH and checks stable 0.1.x once. Both callers reuse it through `session_command`; runtime-read grants resolve before staging. Resolver and installed command tests pass with install/upgrade remedies. Only public CLI/stdout is consumed. |
+| k5: caller assets, SDK, examples and provenance | Readable `assets/ravel-policy/` passes installed-SDK types and real-worker fake-agent cases. Creator lifecycle tests cover retirement, closing-child attribution, retries/remapping, refusal/declaration resume and invalid receipts. Ravel embeds no Grove adapter/store. k6 owns readable-asset packaging and compiler-seam relocation. |
+| k5: independent fixtures and exact result readers | `ravel_activation` exercises both actual callers with different prefixes/versions, sibling/cwd/older/malformed decoys, remedies and missing/unsupported results. Copied installed reader/command fixtures use isolated PATH without host Bun/Node. Both runners accept exactly `grove-continue` after reap, separated from managed noise. All pass. |
+| k5: lifecycle invariants and complete surface cutover | Continuation, completion, refusal/resume, cancellation/group cleanup, PTY recovery, confinement, epochs and stale sessions pass in workspace nextest. Four authority lists agree on ten old/new controls; actual boundary probes pass. Prompt/finish/Creator guidance retains the explicit v22 exception. **Incomplete:** policy ADR and usage recovery still describe retired behavior. |
+| k5: runtime/caller docs, local runner, books, gate and release helpers | Public supervision/creator/worker ADRs and standalone spec describe the CLI boundary; Cargo metadata has no external local dependency path into Ravel. The local runner/guards remain. Grove-only release-note build argv, real confined fake-agent preparation and retained archive checks pass. All six books validate final/all. **Incomplete:** current policy ADR and refusal recovery require repair. |
+| k29: complete classification and named exceptions | All 446 inventory rows were checked; non-coordination source hashes match. Only k44/k45 task notes changed after that snapshot. Six observed positive/cross-tree/mutation controls pass. **Incomplete:** file classification missed contradictory active paragraphs; they are not accepted historical/compatibility exceptions. |
+| k29: remove staged allowances/locator and reconcile ADR/prose/skills | Both actual consumers use the independent resolver/builders/reader; version probes scrub authority. Finish/Creator and legacy instructions are tested. **Incomplete:** policy ADR and usage recovery remain unreconciled. |
+| k29: release-note/prepare assumptions and retained archives | `release-notes.sh` builds Grove binaries without `dispatch:build`. `release-prepare.test.sh` asserts the exact argv/ending and actual confined Ravel invocation. The gate's release tests retain pre-k6 archive coverage. All pass. |
+| k29: source corpora and repository gate | `task check` passes all 14 principal checks, 1,723 workspace nextest cases, nine doctests, strict types, release/archive checks, 21 conformance mutations and all six final/all books with zero deferred lines. Explicit installed acceptance also passes. |
+| k29: complete parent delivery and closure | Runtime acceptance passes; current prose prevents closure. `ravel-caller-prose-repair-k46` owns the exact repair and fresh final acceptance before k29/k5 can close. k6/k12 retain their existing delivery/broader-prose work. |
+
+The policy ADR's confinement paragraph (108–116 at this measurement) still
+names `run --confine`, a run ID and a run record. Its considered options
+(141–162) retain an installation subcommand, record-directory/store costs,
+executable-supplied provenance and a shared repository/release route, conflicting
+with its opening and the settled extraction. `docs/USAGE.md` 435–440 directs
+the operator to run an `inspect:` line until it reports a command. The adjacent
+example contains no such line; Ravel has no inspection verb. Exact passages and
+source hashes are saved in `target/k45/acceptance-gaps.json`. These are active
+caller instructions/decisions, not broader ownership prose excused until k12.
+k46 reconciles them in place and refreshes the audit/inventory.
+
+Complete logs are `target/k45/check.log` and `installed-acceptance.log`. The
+latter runs `task ravel:fixtures ravel:commands ravel:review test:authority
+RAVEL=/opt/homebrew/bin/ravel` with explicit `GROVE_TEST_RAVEL` and the pinned
+Bun directory first on PATH. It passes 116 case executions, including all six
+ignored installed resolver/reader/command cases and nine public-policy cases.
+Across both logs, 1,738 unique nextest identities pass; the 101 shared identities
+have individually equal outcomes in `per-case-comparison.json`. The workspace
+run reports its 31 skipped cases; the named installed fixtures are explicitly
+executed by the additional tasks.
+
+`before.json`, `after.json` and `digest-comparison.json` compare all **17,062**
+individually named subjects without additions, removals or changed hashes:
+tracked source/config/task notes and complete book sources/indexes/manifests,
+ignored worker dependencies, locked Cargo dependency source trees, measured
+compiler/runner tools, retained generated worker/SDK files, complete original
+22.1.0 Grove and independent 0.1.0 Ravel kegs, old/new owner configuration and
+tracked adjacent Grove/Ravel/tap checkouts. Symlink targets also match. Four
+generated hostile-probe subjects were frozen after build and before workspace
+runtime, then compared unchanged. Adjacent checkout state records match too:
+Ravel/tap remain clean successors of `3916a4a1`/`bd5aa37b`, and default Grove
+remains unchanged at `89f947d5`. Evidence/handoff notes and the repair leaf
+follow this measurement.
+
+The inventory comparison, observed controls, authority-list comparison,
+acceptance-gap pins, Cargo metadata and measurement instrument are saved under
+`target/k45/`. Graph coverage was checked for all 1,970 tracked paths in 20
+complete batches at generation `2026-10-13T09:21:18Z`; `coverage-summary.json`
+retains limitations. Graph traces corroborate both resolver callers and result
+reader consumers. `.cargo` is excluded, shell/Mermaid files have parse ranges,
+and some non-code/binary artifacts have unavailable graph freshness. Material
+source, including `.cargo` and reported shell/Mermaid ranges, was read directly.
+No conclusion relies on an empty graph result or binary semantics.
+
+No runtime change, personal-policy edit, installation, integration, publication,
+new driver or teardown occurred. The original-v22 admission/ending contract
+remains intact. This is executable acceptance with a named remaining repair;
+it does not close the caller contract.

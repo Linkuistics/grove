@@ -119,6 +119,16 @@ GROVE_TEST_RAVEL=/opt/homebrew/bin/ravel and the pinned Bun directory for retain
 package checks); k6 owns bundled delivery removal and k12 broader prose. This
 node remains live for k28/k29. No installation or new driver was launched.
 
+## Caller acceptance handoff — k45
+
+Runtime, installed-pair, provenance, authority, release-helper and source-book
+checks pass against Ravel 0.1.0. The final acceptance matrix and measurement
+evidence are in `docs/ravel-caller-surface-audit.md`. k45 found contradictory
+active policy ADR/usage recovery paragraphs and added ravel-caller-prose-repair-k46
+under k29. This node remains live for that repair and fresh acceptance, despite
+the green gate. k6/k12's delivery/broader-prose work and the original driver
+ending contract are preserved.
+
 ## Policy/provenance handoff — grove-ravel-policy-k28 closed
 
 k40/k41/k42 deliver the complete readable `assets/ravel-policy/` set: static

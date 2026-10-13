@@ -204,6 +204,15 @@ at their documented boundaries, with no second bump or tag replacement.
 No Ravel publication/install step remains. Grove integration/release and
 the driver's original harness-dispatch exit channel remain live.
 
+## Caller acceptance boundary — k45
+
+The complete caller gate and explicit installed checks pass with unchanged
+frozen subjects; `docs/ravel-caller-surface-audit.md` carries the actual acceptance
+matrix. k5 remains live: k46 repairs contradictory active policy ADR/usage
+recovery paragraphs and reruns final acceptance before k29/k5 close. This is
+precisely named remaining caller work, separate from k6 delivery and k12's
+broader prose. Original installed-v22 admission/ending remains intact.
+
 ## Testing runner
 
 The human selected cargo nextest. Rust test tasks use nextest and preserve its

@@ -58,6 +58,15 @@ checks. Exact source pins, complete logs, per-case red/green comparison and
 The original v22 keg, installed Ravel 0.1.0, owner config and tap are preserved.
 This is check-gate delivery only; k44/k45 still own whole-surface/k5 acceptance.
 
+## Acceptance handoff — ravel-caller-acceptance-k45
+
+All 14 principal checks and explicit installed fixtures/commands/review/authority
+tasks pass; 17,062 frozen subjects and four generated probes remain unchanged.
+The durable acceptance matrix is `docs/ravel-caller-surface-audit.md`.
+Current policy ADR clauses and usage refusal recovery still prescribe retired
+behavior. ravel-caller-prose-repair-k46 names that exact repair and fresh final
+acceptance. k29/k5 remain live until it holds; k6/k12 keep their existing scope.
+
 ## k28 acceptance input
 
 k42's terminal handoff and k5's promoted policy/provenance section carry exact

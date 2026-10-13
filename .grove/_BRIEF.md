@@ -69,6 +69,28 @@ those in completed planning/review notes.
 | grove-extraction-release-k13 | Extraction integrated/released while the original driver remains live |
 | grove-session-control-k8 | Caller-owned continue/force-stop results and instructions |
 
+## Extraction release handoff — k13
+
+Grove **22.2.0** is published and installed with independent Ravel **0.1.0**.
+Release tag/source is `a79cd5aa41834b7425106dc9b9896e1fd17e03d9`; corrected,
+pushed source main is `96a7d855e8c8b1e616cea0ddaefa69c5c8da571b` (verification
+repair plus a pinned source citation). Tap main is synchronized at
+`20ee956baca0b9f97daf3eccd2d2413ece2a88b7`. All three tagged
+target/native/QEMU checks passed before publication; public downloads and the
+installed native payload match their pins. Real Homebrew test and separate
+installed confinement/lifecycle/import checks pass after recovering the
+non-nestable outer-test sandbox. No second cut, tag replacement or archive
+change occurred. `docs/grove-extraction-release-evidence.md` owns exact pins,
+criteria, source boundaries, logs and verification limitations.
+
+This session retains both accepted extraction ancestry and released main;
+its project content matched main and its complete coordination tree survived
+reconciliation. k8 remains live and can build on this release. The root, lease
+and original driver continue; no finish-commit, tree deletion or teardown ran.
+The applied preservation plan and mandatory re-source/retention instructions
+are in **Live-driver boundary** below. Final finish must preserve them through
+its original last signal. k13 still ends with bare `harness-dispatch exit`.
+
 The former Ravel-specific session-control leaf k7 is abandoned: Ravel injects
 nothing and interprets no result token. k8 remains Grove work and requires k13,
 not another Ravel feature/release. The agent-server remains a future direction;
@@ -91,6 +113,14 @@ store. Ravel's public names include `ravel/sdk`, `.ravel-choice`, and
 `libexec/ravel/ravel-policy`; `--help` and `--version` are ordinary flags.
 
 ## Live-driver boundary
+
+k13 applied the complete original-driver preservation plan at
+`/Users/antony/Development/grove.extract-harness-dispatch-to-top-level/.jj/legacy-driver-22.1.0`.
+Its inventory equals `docs/legacy-driver-inventory.json`; its owned stable-PATH
+`harness-dispatch` and `grove-llm` links target the original canonical keg.
+Every release/recovery shell, including final finish, must source that plan's
+`release-env.sh`. Preserve the canonical keg, backup, plan, links and cleanup
+exclusions through final finish's last original signal; no cleanup runs here.
 
 This grove is driven by installed Grove 22.1.0 and its original dispatch tool.
 Every current session keeps its launch prompt's original ending binary/channel;

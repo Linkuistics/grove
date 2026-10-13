@@ -80,22 +80,37 @@ class Grove < Formula
        typecheck/static.ts typecheck/review.ts].each do |asset|
       assert_path_exists assets/asset
     end
-    # The real Grove standalone path consumes a public result from a separate
-    # Ravel keg and imports the installed caller helpers without host Bun/Node.
+    # Homebrew's test sandbox cannot nest Ravel's macOS confinement sandbox.
+    # https://raw.githubusercontent.com/Homebrew/brew/eb56e2b1f7/Library/Homebrew/dev-cmd/test.rb
+    # Exercise lifecycle here; release verification separately runs confined
+    # standalone publication through scripts/grove-installed-smoke.sh.
     (testpath/"home/.config/ravel").mkpath
+    (testpath/".jj/repo").mkpath
+    (testpath/".grove").mkpath
+    (testpath/".grove/_BRIEF.md").write "# fixture\n"
+    leaf = testpath/".grove/01-impl--work-k1.md"
+    leaf.write "# work\n"
+    agent = testpath/"agent.sh"
+    agent.write <<~SH
+      #!/bin/sh
+      printf launched > launched.txt
+      touch "$GROVE_LAUNCH_DIR/teardown"
+      exec "$1" end-session grove-continue
+    SH
     (testpath/"home/.config/ravel/policy.ts").write <<~TS
       import { definePolicy } from "ravel/sdk";
       import { withProvenance } from "#{assets}/provenance.ts";
       import { groveReviewSelector } from "#{assets}/examples/grove-review.ts";
-      const route = request => ({ program: "/bin/sh", args: ["-c",
-        'printf published > published.txt; "$1" end-session grove-continue',
-        "fixture", #{ravel.to_s.to_json}], provider: "fixture", model: "none", effort: "none" });
+      const route = request => ({ program: "/bin/sh", args: [#{agent.to_s.to_json},
+        #{ravel.to_s.to_json}], provider: "fixture", model: "none", effort: "none" });
       export const policy = withProvenance(definePolicy({ schemaVersion: 2,
-        version: "brew-test", ...groveReviewSelector({ routes: { check: route }, reviews: {} }) }));
+        version: "brew-test", ...groveReviewSelector({ routes: { impl: route }, reviews: {} }) }));
     TS
     ENV["HOME"] = (testpath/"home").to_s
+    ENV.delete("CODEX_HOME")
     ENV["PATH"] = "#{Formula["ravel"].opt_bin}:/usr/bin:/bin"
-    shell_output("#{bin}/grove run check Write --ui=inline --output #{testpath}/published.txt")
-    assert_equal "published", (testpath/"published.txt").read
+    assert_match "loop complete", shell_output("#{bin}/grove 2>&1")
+    assert_equal "launched", (testpath/"launched.txt").read
+    assert_path_exists leaf
   end
 end

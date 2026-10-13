@@ -52,6 +52,40 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+- Exercise the Homebrew formula's real lifecycle test within Homebrew's outer
+  sandbox, then verify actual confined standalone publication separately from
+  the installed Grove/Ravel pair. This avoids non-nestable macOS sandboxes.
+
+## v22.2.0
+
+### Changed
+
+- Extract harness supervision and policy routing into independently released
+  Ravel. Grove now requires the supported Ravel 0.1.x CLI on PATH; Homebrew
+  installs it as a separate dependency. Grove archives contain only Grove's
+  commands and caller-owned policy assets, with no bundled dispatch worker.
+- Grove launches `ravel start-session` and supplies its own prompt and exact
+  `ravel end-session grove-continue` instructions. Ravel returns an opaque
+  result after reaping the harness; Grove owns continuation, teardown and
+  standalone output publication. Existing sessions retain their original
+  launch and ending contracts through the documented preservation procedure.
+- Publish Grove's readable policy samples against Ravel's public SDK, with
+  creator-aware review routing and Grove-owned provider evidence. Installation
+  preserves existing owner policies; copy and adapt samples explicitly under
+  `~/.config/ravel`.
+- Reconcile guides, specs, decision records, walkthroughs and plugin guidance
+  with the independent executable boundary. Replace Rust runtime test tasks
+  with cargo nextest while retaining doctest checks.
+
+### Fixed
+
+- Scrub inherited original and Ravel session authority from test helpers and
+  child launches. Exercise result transport, stale/nested context isolation,
+  confinement and installed caller behavior through independent Ravel layouts.
+- Validate release archives on all three supported targets, including native
+  and QEMU Linux glibc/CPU floors, actual sandbox output publication, pinned
+  independent Ravel inputs and the Homebrew installation contract.
+
 ## v22.1.0
 
 ### Breaking upgrade: update the policy, binaries and skills together

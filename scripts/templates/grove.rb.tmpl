@@ -81,7 +81,7 @@ class Grove < Formula
       assert_path_exists assets/asset
     end
     # Homebrew's test sandbox cannot nest Ravel's macOS confinement sandbox.
-    # https://github.com/Homebrew/brew/blob/master/Library/Homebrew/dev-cmd/test.rb
+    # https://raw.githubusercontent.com/Homebrew/brew/eb56e2b1f7/Library/Homebrew/dev-cmd/test.rb
     # Exercise lifecycle here; release verification separately runs confined
     # standalone publication through scripts/grove-installed-smoke.sh.
     (testpath/"home/.config/ravel").mkpath

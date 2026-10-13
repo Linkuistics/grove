@@ -250,7 +250,7 @@ fragments, and the five passages are read in the file's own order — which is n
 this book's chapter order, because the header opens on the crate and the book
 opens on the grammar underneath it.
 
-<!-- fragment «library-root» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="1-419" parent="source-library-root" -->
+<!-- fragment «library-root» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="1-420" parent="source-library-root" -->
 <!-- insert «library-root-thesis» -->
 <!-- insert «library-root-and-the-driver» -->
 <!-- insert «library-root-opening-mirrors» -->
@@ -465,18 +465,17 @@ The rest of the file is the crate's public surface. This section reads the modul
 declarations, the version constant and the export list; the four sections after
 it read the types those exports name that this chapter owns.
 
-Twelve modules, four of them public. The eight private ones are where the tree
-and driver work happens, and everything a consumer touches from them arrives through the
-export list below rather than through a module path — which is what makes the
-three shapes of the previous fragment a property of the surface rather than a
-convention inside it. The four public modules are `driver`, `prompt`,
-`session_result` and `verbs`. The staged `session_result` transport serves both
-eventual Ravel consumers; [chapter 19](19-the-loop.md#held-session-result) owns
-its descriptor and interpretation contract. `driver` needs a separate reason: it
+Thirteen modules, five of them public. The eight private ones hold tree
+and driver work; their consumer surface arrives through the export list below.
+The public modules are `driver`, `prompt`, `session_command`, `session_result`
+and `verbs`. The staged Ravel boundary shares [command construction and ending
+instructions](19-the-loop.md#public-session-commands) and [result capture and
+interpretation](19-the-loop.md#held-session-result) across its eventual callers.
+`driver` needs a separate reason: it
 holds two tree operations the loop calls directly, and chapter 15 reads why
 putting them beside the twelve would misstate the size of the surface.
 
-<!-- fragment «library-root-modules» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="50-63" parent="library-root" -->
+<!-- fragment «library-root-modules» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="50-64" parent="library-root" -->
 ````rust
 
 pub mod driver;
@@ -490,6 +489,7 @@ mod task_tree;
 mod tree_lifecycle;
 
 pub mod prompt;
+pub mod session_command;
 pub mod session_result;
 pub mod verbs;
 ````
@@ -500,7 +500,7 @@ pub mod verbs;
 argues that reading one constant makes their agreement a fact about a single
 definition rather than about several manifests staying in step.
 
-<!-- fragment «library-root-version» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="64-73" parent="library-root" -->
+<!-- fragment «library-root-version» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="65-74" parent="library-root" -->
 ````rust
 
 /// The version this repository ships, and the only one.
@@ -547,7 +547,7 @@ owns that capture, the opaque directory lifetime and typed runtime results.
 `RunningMandate` and `TreeRelation` let a caller consume witnessed launch evidence
 without inferring a binding from numeric filesystem identities.
 
-<!-- fragment «library-root-imports-and-exports» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="74-95" parent="library-root" -->
+<!-- fragment «library-root-imports-and-exports» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="75-96" parent="library-root" -->
 ````rust
 
 use std::cell::RefCell;
@@ -619,7 +619,7 @@ its comment states the consequence this crate relies on everywhere else — beca
 `verbs::root_init` consumes one, there is no check against clobbering an existing
 grove, since there is no way to call the verb.
 
-<!-- fragment «library-root-tree-and-vacancy» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="96-110" parent="library-root" -->
+<!-- fragment «library-root-tree-and-vacancy» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="97-111" parent="library-root" -->
 ````rust
 
 /// The task tree, read once under the store's **shared** lock.
@@ -652,7 +652,7 @@ Busy contains no guard or snapshot. Public `try_read` below delegates to the
 same `task_tree` acquisition owner and prints nothing, leaving a viewer free to
 render waiting state and retry without blocking terminal input.
 
-<!-- fragment «library-root-reading-and-writing» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="111-135" parent="library-root" -->
+<!-- fragment «library-root-reading-and-writing» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="112-136" parent="library-root" -->
 ````rust
 
 /// What [`read`] found.
@@ -696,7 +696,7 @@ call would block against this process forever. The gap between one guard closing
 and the next opening is the gap `docs/adr/bulk-marks-are-not-atomic.md` records,
 and chapter 13 is where a subtree prune spends *N* guards for *N* marks.
 
-<!-- fragment «library-root-tree-write» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="136-191" parent="library-root" -->
+<!-- fragment «library-root-tree-write» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="137-192" parent="library-root" -->
 ````rust
 
 /// **The right to be the writer** — the surface every mutating verb is on.
@@ -772,7 +772,7 @@ than fail to compile. The process-level property this care is spent on is held b
 `one_process_creating_and_reading_a_grove_never_waits_on_itself`, an inline test
 inside `src/tree_lifecycle.rs` that chapter 11 owns and reproduces.
 
-<!-- fragment «library-root-tree-write-impl» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="192-244" parent="library-root" -->
+<!-- fragment «library-root-tree-write-impl» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="193-245" parent="library-root" -->
 ````rust
 
 impl TreeWrite {
@@ -837,7 +837,7 @@ each is four lines over a `task_tree` call. Both take a worktree and join
 lock is taken either way, so a refusal from `write` has already waited for
 whatever else held it.
 
-<!-- fragment «library-root-read-and-write» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="245-288" parent="library-root" -->
+<!-- fragment «library-root-read-and-write» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="246-289" parent="library-root" -->
 ````rust
 
 /// Open the grove at `worktree` for reading, or find that there is none.
@@ -955,7 +955,7 @@ counts, so no ownership range moved, no ledger row changed and no other book was
 touched — which is the cheapest shape a source fix can take while the corpus is
 frozen.
 
-<!-- fragment «library-root-grove-root» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="289-293" parent="library-root" -->
+<!-- fragment «library-root-grove-root» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="290-294" parent="library-root" -->
 ````rust
 
 /// `<worktree>/.grove`, for [`read`] and [`write`]. Not the crate's only join.
@@ -984,7 +984,7 @@ there is something to look for, and the one thing it refuses is an empty or blan
 reference — a refusal whose message names all five spellings, which is the
 crate-wide obligation that every error say what fixes it.
 
-<!-- fragment «library-root-reference» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="294-344" parent="library-root" -->
+<!-- fragment «library-root-reference» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="295-345" parent="library-root" -->
 ````rust
 
 /// How a session names an existing entry.
@@ -1043,7 +1043,7 @@ impl Reference {
 `Display` writes the text back unchanged, which is what lets a diagnostic quote a
 session's own spelling rather than a normalised form of it.
 
-<!-- fragment «library-root-reference-display» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="345-350" parent="library-root" -->
+<!-- fragment «library-root-reference-display» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="346-351" parent="library-root" -->
 ````rust
 
 impl fmt::Display for Reference {
@@ -1068,7 +1068,7 @@ this operation to validate before copying rows and selected file content.
 [Chapter 7](07-the-walk.md#the-cost-of-the-finish-rule) explains why validation
 must precede exclusion and how the remaining candidates are ordered.
 
-<!-- fragment «library-root-selection» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="351-374" parent="library-root" -->
+<!-- fragment «library-root-selection» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="352-375" parent="library-root" -->
 ````rust
 
 /// The leaf a session was launched to work: its path, its identity, and its
@@ -1112,7 +1112,7 @@ rule to `keyed-launch`'s and `jj-workspace`'s errors, which is the workspace-wid
 form of it. `Error::msg` is `pub(crate)`, so the only messages this type can
 carry are ones a module of this crate wrote.
 
-<!-- fragment «library-root-error» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="375-393" parent="library-root" -->
+<!-- fragment «library-root-error» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="376-394" parent="library-root" -->
 ````rust
 
 /// **One error for the whole crate**, opaque by construction.
@@ -1146,7 +1146,7 @@ takes on no dependency of grove's to do it. The `From<anyhow::Error>` is what
 lets every module inside the crate keep stacking context with `?` and have it
 arrive here as one type.
 
-<!-- fragment «library-root-error-traits» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="394-419" parent="library-root" -->
+<!-- fragment «library-root-error-traits» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="395-420" parent="library-root" -->
 ````rust
 
 impl fmt::Display for Error {

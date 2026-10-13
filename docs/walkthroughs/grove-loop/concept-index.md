@@ -627,3 +627,4 @@ in [the guarded selection](19-the-loop.md#picked) and exercised through the
 
 
 - [Held stdout capture and bounded continue interpretation](19-the-loop.md#held-session-result)
+- [Public lifecycle and confined commands, with a quoted ending path](19-the-loop.md#public-session-commands)

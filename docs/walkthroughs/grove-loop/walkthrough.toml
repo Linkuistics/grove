@@ -198,7 +198,7 @@ lines = 65
 [[root]]
 id    = "source-library-root"
 path  = "crates/grove-loop/src/lib.rs"
-lines = 419
+lines = 420
 
 [[root]]
 id    = "source-task-name"
@@ -261,7 +261,7 @@ lines = "1-65"
 id    = "library-root"
 root  = "source-library-root"
 owner = "allowed-to-mean"
-lines = "1-419"
+lines = "1-420"
 
 [[block]]
 id    = "tokens-and-verdicts"
@@ -570,3 +570,14 @@ id = "held-session-result"
 root = "source-session-result"
 owner = "four-things-a-runner-cannot-choose"
 lines = "1-93"
+
+[[root]]
+id = "source-session-command"
+path = "crates/grove-loop/src/session_command.rs"
+lines = 91
+
+[[block]]
+id = "public-session-commands"
+root = "source-session-command"
+owner = "four-things-a-runner-cannot-choose"
+lines = "1-91"

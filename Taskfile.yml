@@ -3,6 +3,16 @@ version: '3'
 set: [errexit, nounset, pipefail]
 
 tasks:
+  ravel:commands:
+    desc: Check shared public lifecycle and confined commands against installed Ravel
+    requires:
+      vars: [RAVEL]
+    env:
+      GROVE_TEST_RAVEL: '{{.RAVEL}}'
+    cmds:
+      - cargo nextest run --locked -p grove-loop --test session_command
+      - cargo nextest run --locked -p grove-loop --test session_command --run-ignored only
+
   ravel:fixtures:
     desc: Check shared installed-Ravel fixtures through the resolver and both stdout runners
     requires:

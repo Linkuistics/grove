@@ -59,6 +59,7 @@ mod task_tree;
 mod tree_lifecycle;
 
 pub mod prompt;
+pub mod session_command;
 pub mod session_result;
 pub mod verbs;
 

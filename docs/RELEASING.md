@@ -711,8 +711,21 @@ of `brew upgrade grove`.
 Confirm that the reported version matches the tag and that the GitHub Release
 contains all three archives. `grove-llm --version` must match Grove's tag;
 `ravel --version` is independently versioned. `brew test grove` checks the two
-Grove commands, the installed caller asset tree and actual standalone output
-publication through the dependency's public CLI, without host Bun/Node.
+Grove commands, installed caller assets and a fake lifecycle through Ravel's
+public CLI, without host Bun/Node. Homebrew wraps that test in its own sandbox;
+Ravel's macOS confinement cannot nest inside it. The release task additionally
+checks actual confined standalone output publication outside Homebrew's sandbox:
+
+```sh
+bash scripts/grove-installed-smoke.sh "$(brew --prefix grove)" \
+  "<released-version>" "$(brew --prefix ravel)"
+```
+
+Both checks are required during recovery too. If a published formula's test
+fails at Ravel's nested sandbox probe, correct the formula's test to exercise
+lifecycle, commit/push the same-version tap correction through jj, refresh the
+tap, then run `brew test grove` and the installed-smoke command above. Preserve
+the existing tag and tested archives; resume verification without another cut.
 
 The formula's caveats show explicit sample copying from its installed caller
 assets to `~/.config/ravel/policy.ts`. Preserve an existing policy, read/edit a

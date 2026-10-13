@@ -428,5 +428,8 @@ tasks:
         test "$("$brew_bin/grove-llm" --version)" = "grove-llm $version"
         "$brew_bin/ravel" --version
         "$brew_bin/grove" view --help
+        # Homebrew tests lifecycle inside its own sandbox; exercise Ravel's
+        # actual confinement outside that non-nestable outer sandbox too.
+        bash scripts/grove-installed-smoke.sh "$(brew --prefix grove)" "$version" "$(brew --prefix ravel)"
         gh release view "$tag" --repo Linkuistics/grove --json url,assets
         test "$(gh release view "$tag" --repo Linkuistics/grove --json assets --jq '.assets | length')" = 3

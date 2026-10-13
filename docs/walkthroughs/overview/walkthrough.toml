@@ -208,11 +208,11 @@ lines = "1-36"
 [[root]]
 id = "source-ravel-resolution"
 path = "crates/grove/src/dispatch/ravel.rs"
-lines = 276
+lines = 260
 
 [[block]]
 id = "ravel-resolution"
 root = "source-ravel-resolution"
 owner = "isolated-invocation"
-lines = "1-276"
+lines = "1-260"
 

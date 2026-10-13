@@ -68,6 +68,9 @@ use std::process::Child;
 use std::thread;
 use std::time::{Duration, Instant};
 
+#[path = "ravel.rs"]
+pub mod ravel;
+
 /// The upper bound on a readiness wait. It exists so a *wedged* producer fails
 /// the suite instead of parking it, and it is deliberately two orders of
 /// magnitude above the cost of a healthy driver start-up.

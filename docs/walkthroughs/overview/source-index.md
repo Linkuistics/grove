@@ -15,7 +15,7 @@
 | `source-standalone` | `crates/grove/src/standalone.rs` | 321 |
 | `source-run-display` | `crates/grove/src/run_display.rs` | 119 |
 | `source-dispatch-lookup` | `crates/grove/src/dispatch.rs` | 36 |
-| `source-ravel-resolution` | `crates/grove/src/dispatch/ravel.rs` | 276 |
+| `source-ravel-resolution` | `crates/grove/src/dispatch/ravel.rs` | 260 |
 
 <!-- source-root «source-crate-manifest» source="crates/grove/Cargo.toml" lines="1-61" -->
 <!-- insert «manifest-thin-by-construction» -->
@@ -50,7 +50,7 @@
 <!-- insert «dispatch-lookup» -->
 <!-- /source-root -->
 
-<!-- source-root «source-ravel-resolution» source="crates/grove/src/dispatch/ravel.rs" lines="1-276" -->
+<!-- source-root «source-ravel-resolution» source="crates/grove/src/dispatch/ravel.rs" lines="1-260" -->
 <!-- insert «ravel-resolution» -->
 <!-- /source-root -->
 
@@ -68,7 +68,7 @@
 | `standalone-invocation` | `source-standalone` | `isolated-invocation` | `1-321` | 321 | `resolved` |
 | `standalone-display` | `source-run-display` | `isolated-invocation` | `1-119` | 119 | `resolved` |
 | `dispatch-lookup` | `source-dispatch-lookup` | `isolated-invocation` | `1-36` | 36 | `resolved` |
-| `ravel-resolution` | `source-ravel-resolution` | `isolated-invocation` | `1-276` | 276 | `resolved` |
+| `ravel-resolution` | `source-ravel-resolution` | `isolated-invocation` | `1-260` | 260 | `resolved` |
 
 <a id="fragment-index"></a>
 ## Fragment index
@@ -139,8 +139,8 @@
 | `display-control-test` | `standalone-invocations` | `source-run-display` | `literal` | `isolated-invocation` | `117-119` | `standalone-display` | `—` |
 | `source-dispatch-lookup` | `source-index` | `source-dispatch-lookup` | `root` | `—` | `1-36` | `—` | `dispatch-lookup` |
 | `dispatch-lookup` | `standalone-invocations` | `source-dispatch-lookup` | `literal` | `isolated-invocation` | `1-36` | `source-dispatch-lookup` | `—` |
-| `source-ravel-resolution` | `source-index` | `source-ravel-resolution` | `root` | `—` | `1-276` | `—` | `ravel-resolution` |
-| `ravel-resolution` | `standalone-invocations` | `source-ravel-resolution` | `literal` | `isolated-invocation` | `1-276` | `source-ravel-resolution` | `—` |
+| `source-ravel-resolution` | `source-index` | `source-ravel-resolution` | `root` | `—` | `1-260` | `—` | `ravel-resolution` |
+| `ravel-resolution` | `standalone-invocations` | `source-ravel-resolution` | `literal` | `isolated-invocation` | `1-260` | `source-ravel-resolution` | `—` |
 
 <a id="early-uses"></a>
 ## Early uses
@@ -165,5 +165,5 @@ Every source line is credited once to its owning chapter.
 | `one-call` | `03-three-steps.md` | 461 |
 | `closure-proved` | `04-proving-a-negative.md` | 83 |
 | `assembly` | `05-what-the-call-reaches.md` | 0 |
-| `isolated-invocation` | `06-standalone-invocations.md` | 752 |
-| **Total** | 8 source roots | **1,419** |
+| `isolated-invocation` | `06-standalone-invocations.md` | 736 |
+| **Total** | 8 source roots | **1,403** |

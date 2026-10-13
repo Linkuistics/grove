@@ -537,14 +537,18 @@ the active bundled locator above while testing the independent boundary.
 
 The inline tests drive executable decoys and a subprocess with its own cwd/PATH;
 they do not mutate the test runner's environment. The installed-pair test copies
-an actual front and worker into a temporary independent prefix and routes a fake
+an actual front and worker through the shared `testing/ravel.rs` fixture into a
+temporary independent prefix and routes a fake
 shell agent through `ravel/sdk`. With only that prefix on the child's PATH, the
 session's noise stays on stderr and stdout contains exactly its supplied result.
 `task ravel:resolution RAVEL=/absolute/path/to/ravel` runs this installed case as
 well as the ordinary resolver tests; the ignored subprocess role runs only as a
-child of its cwd-decoy test.
+child of its cwd-decoy test. `task ravel:fixtures` combines this check with the
+shared-result runner checks. Its real-worker controls remove the copied worker
+and inject inherited authority into a re-executed entry probe; clean runs use
+the isolated pair without host Bun/Node or a Grove sibling installation.
 
-<!-- fragment «ravel-resolution» owner="isolated-invocation" source="crates/grove/src/dispatch/ravel.rs" lines="1-276" parent="source-ravel-resolution" -->
+<!-- fragment «ravel-resolution» owner="isolated-invocation" source="crates/grove/src/dispatch/ravel.rs" lines="1-260" parent="source-ravel-resolution" -->
 ````rust
 //! PATH and CLI compatibility at Grove's independent Ravel boundary.
 use std::ffi::OsStr;
@@ -610,6 +614,10 @@ fn check_version(executable: &std::path::Path) -> Result<()> {
     );
     Ok(())
 }
+
+#[cfg(test)]
+#[path = "../../../../testing/support.rs"]
+mod support;
 
 #[cfg(test)]
 mod tests {
@@ -763,22 +771,12 @@ mod tests {
     #[test]
     #[ignore = "requires installed Ravel: task ravel:resolution RAVEL=/absolute/path/to/ravel"]
     fn installed_front_and_worker_return_only_the_session_result() {
-        let source = fs::canonicalize(
-            std::env::var_os("GROVE_TEST_RAVEL").expect("GROVE_TEST_RAVEL is required"),
-        )
-        .unwrap();
-        let source_prefix = source.parent().unwrap().parent().unwrap();
         let temp = TempDir::new().unwrap();
         let prefix = temp.path().join("independent-ravel-0.1.0");
-        fs::create_dir_all(prefix.join("bin")).unwrap();
-        fs::create_dir_all(prefix.join("libexec/ravel")).unwrap();
-        fs::copy(&source, prefix.join("bin/ravel")).unwrap();
-        fs::copy(
-            source_prefix.join("libexec/ravel/ravel-policy"),
-            prefix.join("libexec/ravel/ravel-policy"),
-        )
-        .unwrap();
-        let selected = locate_on_path(Some(prefix.join("bin").as_os_str())).unwrap();
+        let source = std::env::var_os("GROVE_TEST_RAVEL").expect("GROVE_TEST_RAVEL is required");
+        let pair = super::support::ravel::InstalledRavel::copy_from(Path::new(&source), &prefix);
+        let selected = locate_on_path(Some(pair.bin().as_os_str())).unwrap();
+        assert_eq!(selected, pair.executable());
         let policy = temp.path().join("policy.ts");
         let selected_json = serde_json::to_string(&selected).unwrap();
         fs::write(&policy, format!(r#"import {{ definePolicy }} from 'ravel/sdk';
@@ -789,7 +787,7 @@ export const policy = definePolicy({{
     provider: 'fixture', model: 'fixture', effort: 'low', reason: 'installed pair' }})
 }});
 "#)).unwrap();
-        let mut command = std::process::Command::new(&selected);
+        let mut command = pair.command();
         command
             .args([
                 "start-session",
@@ -800,18 +798,8 @@ export const policy = definePolicy({{
                 "--config",
             ])
             .arg(&policy)
-            .current_dir(temp.path())
-            .env("PATH", prefix.join("bin"));
-        for name in [
-            "GROVE_SIGNAL_FILE",
-            "GROVE_RUN_SIGNAL_FILE",
-            "GROVE_LAUNCH_DIR",
-            "HARNESS_DISPATCH_EXIT_FILE",
-            "HARNESS_DISPATCH_RUN_ID",
-            "RAVEL_EXIT_FILE",
-        ] {
-            command.env_remove(name);
-        }
+            .env("HOME", temp.path())
+            .current_dir(temp.path());
         let output = command.output().unwrap();
         assert!(
             output.status.success(),

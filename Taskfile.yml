@@ -3,6 +3,16 @@ version: '3'
 set: [errexit, nounset, pipefail]
 
 tasks:
+  ravel:fixtures:
+    desc: Check shared installed-Ravel fixtures through the resolver and both stdout runners
+    requires:
+      vars: [RAVEL]
+    cmds:
+      - task: ravel:resolution
+        vars: {RAVEL: '{{.RAVEL}}'}
+      - task: ravel:result
+        vars: {RAVEL: '{{.RAVEL}}'}
+
   check:
     desc: Run the repository's reusable checks
     cmds:

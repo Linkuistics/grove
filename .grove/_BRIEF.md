@@ -204,14 +204,27 @@ at their documented boundaries, with no second bump or tag replacement.
 No Ravel publication/install step remains. Grove integration/release and
 the driver's original harness-dispatch exit channel remain live.
 
-## Caller acceptance boundary — k45
+## Caller acceptance handoff — k46; grove-ravel-caller-k5 closed
 
-The complete caller gate and explicit installed checks pass with unchanged
-frozen subjects; `docs/ravel-caller-surface-audit.md` carries the actual acceptance
-matrix. k5 remains live: k46 repairs contradictory active policy ADR/usage
-recovery paragraphs and reruns final acceptance before k29/k5 close. This is
-precisely named remaining caller work, separate from k6 delivery and k12's
-broader prose. Original installed-v22 admission/ending remains intact.
+k46 closes grove-ravel-contract-k29 and grove-ravel-caller-k5 after reconciling
+current ADR/usage/standalone prose and repeating complete frozen acceptance.
+`docs/ravel-caller-surface-audit.md` carries every k5/k29 clause and the current
+per-file inventory's named exceptions. No caller acceptance gap remains.
+
+Final task check passes all 14 checks, 1,723 workspace nextest cases, nine
+doctests and six final/all books. Explicit installed fixtures/commands/review/
+authority acceptance passes 116 executions, including all named ignored cases.
+All 1,738 unique identities and 101 shared outcomes match individually across
+final/k45/prelinked runs; all 17,069 frozen subjects and adjacent checkout state
+pairs match. Complete logs/instruments are in target/k46; the audit and terminal
+leaf record exact boundaries and coverage limitations.
+
+Independent Ravel 0.1.0, pinned Bun 1.4.2, the complete original 22.1.0 keg,
+owner configuration and adjacent Ravel/tap/default Grove remain preserved.
+k6 retains delivery/asset/compiler work, k12 broader prose, and k13/k8 the
+later cutover/result extensions. The root remains live; no runtime change,
+installation, integration/release, new driver or teardown occurred. This
+session's original harness-dispatch exit/admission contract remains intact.
 
 ## Testing runner
 

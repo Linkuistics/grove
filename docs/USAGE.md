@@ -427,17 +427,15 @@ ravel: refused (policy_refused, stage selection): the policy /home/you/.config/r
   source: /home/you/.config/ravel/policy.ts
   policy code: incomplete_mapping
   remedy: add a route for this kind to ROUTES in your policy
-  prompt: omitted: a policy that reads the prompt selects as it did only when the same --prompt or --prompt-file is added
 grove: session ended without a supported Grove result — status exit status: 3, elapsed 0.510s; loop stopped.
        session kind `spike` for `api-k1` failed; if Ravel refused the launch, its diagnostic and remedy are above and the leaf is still live. Either way, rerun `grove` to continue.
 ```
 
-Run the `inspect:` line: it reproduces the refusal and launches nothing. It
-names the selected policy and remedy, by its full path, so the reproduction
-uses the same installation. Do
-what the remedy says, here adding `spike` to the policy's `ROUTES` table, and
-run the line again until it reports a command. Then rerun `grove`, and the same
-leaf launches:
+Read the diagnostic's policy path and remedy. Edit that personal policy, here
+adding `spike` to its `ROUTES` table, then rerun `grove`. Grove selects the same
+live leaf and Ravel evaluates the repaired policy with its actual task and
+prompt. If selection still refuses, follow the new diagnostic and rerun after
+repairing it. A successful selection launches the command:
 
 ```console
 $ grove
@@ -448,14 +446,19 @@ ravel: starting provider anthropic, model claude-opus-5-5, effort high for kind 
 The same recovery serves every refusal. Three an owner meets:
 
 - **No policy.** The refusal is `policy_missing`, and its remedy is
-  writing the named policy entry. A fresh grove is scaffolded first, so its
+  writing the named policy entry, or explicitly reading and copying the
+  [Grove policy assets](../assets/ravel-policy/README.md) and importing them
+  from that entry. A fresh grove is scaffolded first, so its
   `requirements` leaf is waiting when you rerun.
-- **A choice file that names something the policy does not offer**, or no
-  arrangement, or two. The remedy lists the names on offer.
+- **A choice file that names something the policy does not offer**, or violates
+  that policy's required number of arrangements. Correct `.ravel-choice` using
+  the diagnostic's offered names and the owner's policy requirements.
 - **A review whose task file names no creator**, under a policy that imports
-  the Grove review example. That is what a producer finished without a
-  execution left no caller provenance. The remedy is your declaration,
-  `**Creator:** declared <provider>`, and your caller-owned review adapter states its requirements.
+  the Grove review example. A producer finished without recorded execution
+  evidence leaves no caller provenance. Add your explicit
+  `**Creator:** declared <provider>` beneath `**Reviews:**` in the review task,
+  following the [caller provenance contract](grove-provider-evidence.md), and
+  rerun `grove`.
 
 ### Stopping the loop
 

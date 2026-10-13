@@ -8,9 +8,10 @@ process. Grove relies on that public behavior; it never calls the private worker
 owns the detailed runtime/authority controls.
 
 The separation keeps executable policy out of the process holding the enclosing
-session channel. Worker environment carries no Grove, Ravel or legacy session
-controls unless explicitly granted by the owner. Ravel exports its enclosing
-process context only to the managed process. Grove's optional provenance wrapper
+session channel. Grove scrubs its enclosing launch and provider-evidence
+authority before invoking Ravel. Ravel forbids grants of its own and legacy
+dispatch controls to the policy worker and supplies fresh ending context only
+to the managed process. Grove's optional provenance wrapper
 supplies selected-provider evidence as caller data; there is no Ravel run ID or
 store ([creator reference](a-review-carries-its-creator-reference.md)).
 

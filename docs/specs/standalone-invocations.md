@@ -52,12 +52,12 @@ result. Grove adds no contradictory private child-exit interpretation.
 
 Grove runs Ravel noninteractively in its own POSIX session with no inherited
 input or terminal streams. It holds public stdout separately; managed output
-and diagnostics on stderr go to the invocation's transcript. Dispatch owns the harness's cancellation
+and diagnostics on stderr go to the invocation's transcript. Ravel owns the harness's cancellation
 and kills its process group at once, and Grove forwards its own cancellation to
 Ravel and waits for it, so nested cancellation finishes inside an outer
 supervisor's grace. Both have ended before outputs are considered, and so has
 the harness's process group: Ravel kills what remains of it when the harness
-exits and reports the ending only once it is gone, so a writer the harness left
+exits and returns the public result only once it is gone, so a writer the harness left
 in its group cannot change an output after it is validated. Processes
 intentionally escaping their process group require stronger backend
 containment; no process-tree guarantee may be claimed merely from a

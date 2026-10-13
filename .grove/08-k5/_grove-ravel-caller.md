@@ -159,6 +159,30 @@ The scoped reviewer found no issues; same-origin and receipt/provider-agreement
 mutation controls fired. No changed source belongs to any source-book corpus.
 Ravel/tap remain clean successors of the published `3916a4a1`/`bd5aa37b` states.
 
+## Final caller handoff — k46; grove-ravel-caller-k5 closed
+
+k46 retires the final caller leaf and closes grove-ravel-contract-k29 and this
+node. Every k5 clause is checked against source/fixtures/delivery in
+`docs/ravel-caller-surface-audit.md`; no caller acceptance gap remains. Both
+actual callers use independently resolved/version-checked Ravel's public CLI,
+exact canonical ending and held stdout result. Grove owns its readable assets,
+receipts, task/result conventions and original/new authority guards.
+
+Current policy/worker/supervision/creator ADRs, standalone specification, usage,
+finish/Creator instructions and all affected books agree with that boundary.
+Final task check passes all 14 checks, 1,723 workspace nextest cases, nine
+doctests and six complete books; explicit installed acceptance adds 116 case
+executions, including all named ignored fixtures. All 1,738 unique identities,
+101 shared outcomes and 17,069 frozen subject hashes match individually.
+The full logs/instruments live under `target/k46/`; final evidence and complete
+inventory exceptions are promoted to the audit and root brief.
+
+Ravel 0.1.0, pinned Bun 1.4.2, original 22.1.0 Grove/dispatch, owner config and
+adjacent checkout states remain preserved. k6 owns package/asset/compiler
+delivery; k12 owns broader prose; k13/k8 retain cutover/result extensions. This
+is caller closure only, with no integration/release, installation, new driver
+or teardown. The original launch prompt's ending command remains in force.
+
 This closes k28 only. k29 must consume the complete new asset tests in its
 repository acceptance and classify remaining whole-repository spellings.
 k6 must ship the readable directory structure and relocate the policy

@@ -73,3 +73,24 @@ k42's terminal handoff and k5's promoted policy/provenance section carry exact
 asset hashes, logs and the parsed-JSON/inline-receipt distinction. Include
 `task ravel:review RAVEL=/opt/homebrew/bin/ravel` in the complete caller acceptance;
 it exercises production/consumption and retains pre-k6 compatibility fixtures.
+
+## Final caller acceptance — k46; grove-ravel-contract-k29 closed
+
+k46 reconciles the complete policy ADR, usage refusal recovery, linked worker
+authority paragraph and standalone public-result wording. Every k29 and parent
+k5 Done when clause holds; the complete current matrix is
+`docs/ravel-caller-surface-audit.md`. All children are terminal and no caller gap
+remains. This closes k29 and promotes its final evidence to k5/root.
+
+Final task check passes all 14 checks, 1,723 workspace nextest cases, nine
+doctests and six final/all books. Explicit installed fixtures/commands/review/
+authority acceptance passes 116 executions. All 1,738 unique case identities
+and 101 shared outcomes match individually across final/k45/prelinked logs.
+All 17,069 frozen subjects, including four generated probes, both complete
+installed kegs and owner/adjacent source, retain matching individual hashes;
+adjacent state pairs also match. Complete logs and instruments are in
+`target/k46/`; the terminal leaf names them and the audit records limitations.
+
+k6 still owns bundled delivery removal and asset/compiler packaging; k12 owns
+broader prose. No runtime, owner-policy, installation, integration/release,
+driver or teardown change occurred. The original v22 ending contract remains.

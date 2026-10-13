@@ -74,9 +74,10 @@ IFS=$'\n\t'
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 readonly REPO_ROOT
-readonly TARGET_SCRIPT="$REPO_ROOT/scripts/release-smoke-target.sh"
-readonly QEMU_SCRIPT="$REPO_ROOT/scripts/release-smoke-qemu.sh"
-readonly CASES="$REPO_ROOT/crates/harness-dispatch/scripts/installed-smoke.sh"
+# Sourcing this runner reuses platform/floor mechanics with caller-owned cases.
+TARGET_SCRIPT="$REPO_ROOT/scripts/release-smoke-target.sh"
+QEMU_SCRIPT="$REPO_ROOT/scripts/release-smoke-qemu.sh"
+CASES="$REPO_ROOT/crates/harness-dispatch/scripts/installed-smoke.sh"
 
 # TARGETS, the release target list, and assert_archive, the manifest check.
 # shellcheck source=scripts/release-common.sh
@@ -335,7 +336,10 @@ stage_linux_inputs() {
   mkdir -p "$mount/probes" || return 1
   build_glibc_probes "$arch" "$mount/probes"
   build_cpu_probe "$arch" "$mount/probes"
-  cp "$archive" "$TARGET_SCRIPT" "$CASES" "$mount/"
+  cp "$archive" "$mount/" || return 1
+  cp "$TARGET_SCRIPT" "$mount/release-smoke-target.sh" || return 1
+  cp "$REPO_ROOT/scripts/release-smoke-environment.sh" "$mount/" || return 1
+  cp "$CASES" "$mount/installed-smoke.sh"
 }
 
 smoke_in_floor_container() {
@@ -451,4 +455,6 @@ main() {
   echo "release-smoke: passed: $(IFS=' ' && echo "${targets[*]}")"
 }
 
-main "$@"
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+  main "$@"
+fi

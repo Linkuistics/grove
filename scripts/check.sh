@@ -110,12 +110,15 @@ run_check "shellcheck" shellcheck \
   scripts/release-notes/codex-headless.sh scripts/release-notes/codex-headless.test.sh \
   scripts/release-doctor.sh scripts/release-common.sh scripts/release-build.sh \
   scripts/release-smoke.sh scripts/release-smoke-target.sh scripts/release-smoke-qemu.sh \
+  scripts/release-smoke-environment.sh scripts/ravel-target-smoke.sh \
+  scripts/ravel-target-smoke-target.sh scripts/ravel-installed-smoke.sh scripts/ravel-target-inputs.test.sh \
   crates/harness-dispatch/scripts/dispatch.sh crates/harness-dispatch/scripts/installed-smoke.sh
 run_check "cargo clippy" cargo clippy --workspace --all-targets
 run_check "plugin install" bash plugins/install.test.sh
 run_check "conformance" bash plugins/grove/conformance.sh
 run_check "conformance suite" bash plugins/grove/conformance.test.sh
 run_check "release preparation" bash scripts/release-prepare.test.sh
+run_check "Ravel archive admission" python3 scripts/test_ravel_target_inputs.py
 run_check "release Codex helper" bash scripts/release-notes/codex-headless.test.sh
 # Before nextest, which needs the worker: harness-dispatch's command-seam
 # tests refuse a missing or stale one with exit 5 rather than skip. This builds

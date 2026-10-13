@@ -1,5 +1,8 @@
 /target
 
+# Host-side archive validation imports; generated Python bytecode never ships.
+__pycache__/
+
 # macOS finder noise
 .DS_Store
 

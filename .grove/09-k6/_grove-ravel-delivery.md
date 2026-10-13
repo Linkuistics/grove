@@ -99,3 +99,13 @@ contraction, independent of the new caller compiler. k48 supplies pinned target
 layouts next; k50 prepares the actual-old-keg transition; k51 owns final delivery
 acceptance. No k6 archive/formula/removal/transition criterion is declared done
 by this compiler increment. Original 22.1.0 exit/admission bytes remain preserved.
+
+## Target-input handoff — ravel-target-inputs-k48
+
+`docs/ravel-target-inputs.md` documents k49's reusable prepare/controls/smoke
+interface and exact independent Ravel 0.1.0 pins. Public three-target downloads,
+full admission/refusal controls, native and Linux/QEMU routes all pass. Separate
+prefixes and frozen full logs/layouts are retained in target/k48; all 18,172
+named subjects match, and task check passes all 15 principal checks. Original
+driver/config/installation and adjacent checkouts remain intact. k49 still owns
+the atomic consumer/archive/formula contraction; k50 and k51 remain live.

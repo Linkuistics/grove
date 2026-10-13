@@ -3,6 +3,26 @@ version: '3'
 set: [errexit, nounset, pipefail]
 
 tasks:
+  ravel:targets:prepare:
+    desc: Fetch/validate pinned Ravel 0.1.0 archives and expose separate fresh target prefixes
+    requires:
+      vars: [OUT]
+    cmds:
+      - python3 scripts/ravel_target_inputs.py {{if .ARCHIVES}}--archives "{{.ARCHIVES}}"{{end}} --output "{{.OUT}}" {{.TARGETS}}
+
+  ravel:targets:controls:
+    desc: Check archive admission and real pinned-layout refusals without a host runtime
+    requires:
+      vars: [ARCHIVES]
+    cmds:
+      - python3 scripts/test_ravel_target_inputs.py
+      - bash scripts/ravel-target-inputs.test.sh "{{.ARCHIVES}}"
+
+  ravel:targets:smoke:
+    desc: Run pinned separate Ravel layouts natively and at Linux glibc/CPU floors with fake agents
+    cmds:
+      - bash scripts/ravel-target-smoke.sh {{if .ARCHIVES}}--archives "{{.ARCHIVES}}"{{end}} {{.TARGETS}}
+
   ravel:review:
     desc: Check creator-aware Grove review assets, launch/retirement provenance and retained pre-k6 fixtures
     requires:

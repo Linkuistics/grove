@@ -133,3 +133,27 @@ k47-k50 plus k52 and owns final rebuilt all-target caller/formula acceptance.
 k50's original-keg transition preparation and k51 remain unfinished. Original
 22.1.0 installation/config/driver ending are unchanged; no publication/install
 or parent close is implied by this contraction.
+
+## Legacy transition handoff — legacy-driver-transition-k50
+
+`docs/legacy-driver-transition.md` supplies k13's tested preparation/application/
+verification/recovery/post-driver cleanup; `docs/legacy-driver-inventory.json`
+pins the complete original 22.1.0 keg and original fronts/worker/helper digests.
+Taskfile legacy:* entry points pass 31 ownership/refusal/cleanup controls and
+an actual-original copied-keg upgrade/unlink rehearsal, including canonical old
+launch, bare exit, old store/export, reaping, original helper refusal and nested
+independent Ravel context isolation. The tool never removes a keg; link cleanup
+requires original-driver ending and retains replacements by filesystem identity.
+
+Final task check passes all 15 checks, 1,378 workspace tests, nine doctests and
+six final/all books under pinned Bun 1.4.2 on a child-only PATH. All 15,788 frozen
+subjects match individually; complete evidence/logs/instruments are in target/k50.
+The live installation, config/history/authority and stable PATH entries remain
+unchanged. k13 must prepare/apply a fresh plan and keep its complete backup,
+canonical original keg, original dispatch/helper links and cleanup protection
+through final finish's last signal. Record that plan's absolute path in the
+root brief; every later release/recovery shell must source its release-env.sh.
+
+k50's preparation contract is met. k52 supplies the Linux standalone floor;
+k51 owns final all-target delivery acceptance and reconciliation. No k6 close,
+release/publication, live transition application or teardown is implied.

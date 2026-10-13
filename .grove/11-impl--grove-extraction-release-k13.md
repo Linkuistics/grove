@@ -46,6 +46,17 @@ through this grove, preserving its live tree and original supervisor for k8.
 
 ## Notes
 
+k50's tested instrument and exact application/verification/recovery procedure
+are in `docs/legacy-driver-transition.md`, with every original keg entry pinned
+in `docs/legacy-driver-inventory.json`. Run the Taskfile `legacy:*` entry points;
+prepare a fresh .jj/legacy-driver-22.1.0 plan and source its release-env.sh in
+every release/recovery shell. Apply only absent stable-PATH harness-dispatch and
+grove-llm links. Preserve them and the entire original canonical keg through final
+finish's last signal; new-binary verification uses explicit new-keg paths.
+Record the plan's absolute path in the root brief for final finish. k50 did not
+apply compatibility links or alter the live installation. Its retained
+target/k50/original-plan is preparation evidence, not an applied transition.
+
 The human's mid-grove release request authorizes this checkpoint. It does not
 authorize teardown or removing the original driver installation while live.
 After the extraction release, public users get new Grove/Ravel, while this

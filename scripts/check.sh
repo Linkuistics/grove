@@ -122,6 +122,7 @@ run_check "conformance" bash plugins/grove/conformance.sh
 run_check "conformance suite" bash plugins/grove/conformance.test.sh
 run_check "release preparation" bash scripts/release-prepare.test.sh
 run_check "Ravel archive admission" python3 scripts/test_ravel_target_inputs.py
+run_check "legacy driver preservation controls" task legacy:controls
 run_check "release Codex helper" bash scripts/release-notes/codex-headless.test.sh
 # The ignored public caller fixtures exercise the independently installed SDK
 # and worker explicitly; the workspace runtime run does not include them.

@@ -1,0 +1,288 @@
+{
+  "version": "22.1.0",
+  "keg": "/opt/homebrew/Cellar/grove/22.1.0",
+  "stable_bin": "/Users/antony/.local/bin",
+  "inherited_path": "/opt/homebrew/Caskroom/codex/0.162.1/codex-path:/Users/antony/.hunk/bin:/Users/antony/.local/bin:/Users/antony/.bun/bin:/opt/homebrew/Cellar/zplug/2.4.2/bin:/opt/homebrew/opt/zplug/bin:/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:/System/Cryptexes/App/usr/bin:/usr/bin:/bin:/usr/sbin:/sbin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/local/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/appleinternal/bin:/pkg/env/global/bin:/Library/Apple/usr/bin:/usr/local/share/dotnet:~/.dotnet/tools:/Users/antony/.codex/tmp/arg0/codex-arg0znEqHb:/Users/antony/.cargo/bin:/Applications/iTerm.app/Contents/Resources/utilities:/Applications/Obsidian.app/Contents/MacOS",
+  "inventory": {
+    ".": {
+      "kind": "directory",
+      "mode": 493,
+      "value": ""
+    },
+    ".brew": {
+      "kind": "directory",
+      "mode": 493,
+      "value": ""
+    },
+    ".brew/grove.rb": {
+      "kind": "file",
+      "mode": 420,
+      "value": "455ecda4e274617f5f65a2caaceb3b5e4f2a26b7b548694c1027e3d48470cb05"
+    },
+    "INSTALL_RECEIPT.json": {
+      "kind": "file",
+      "mode": 420,
+      "value": "672bf76205574b2f3b91dc9ba966a417fba3b53ff7c5b13fcda8d0fe11a940be"
+    },
+    "LICENSE": {
+      "kind": "file",
+      "mode": 420,
+      "value": "8451383cdb4dbaf9e54ea5f28dee50f068fb7194461f36748e67ea0d1a62f18a"
+    },
+    "README.md": {
+      "kind": "file",
+      "mode": 420,
+      "value": "22f362060b584e8b084630cd51736525ac168bdd48abac58bc6ee6e7f4bc5133"
+    },
+    "bin": {
+      "kind": "directory",
+      "mode": 493,
+      "value": ""
+    },
+    "bin/grove": {
+      "kind": "file",
+      "mode": 365,
+      "value": "5a4a00736ede4343fded982563d7d41c744672b0c20d162d2818aa902bc13b57"
+    },
+    "bin/grove-llm": {
+      "kind": "file",
+      "mode": 365,
+      "value": "7139dece1bfd4c480e85faa1d1963bab970a91e8725178e14a1e8bf4c4524a43"
+    },
+    "bin/harness-dispatch": {
+      "kind": "file",
+      "mode": 365,
+      "value": "a4746baa2f644da805e40efa482a6bb8311c08c59002a85fdd774a021ea58a45"
+    },
+    "libexec": {
+      "kind": "directory",
+      "mode": 493,
+      "value": ""
+    },
+    "libexec/harness-dispatch": {
+      "kind": "directory",
+      "mode": 493,
+      "value": ""
+    },
+    "libexec/harness-dispatch/examples": {
+      "kind": "directory",
+      "mode": 493,
+      "value": ""
+    },
+    "libexec/harness-dispatch/examples/grove-review.d.ts": {
+      "kind": "file",
+      "mode": 420,
+      "value": "10faa16da268a32ebeb3676e6d7d76415f4073e490c719dfa61b6ca297270a50"
+    },
+    "libexec/harness-dispatch/examples/grove-review.ts": {
+      "kind": "file",
+      "mode": 420,
+      "value": "7e3fd612995520a06899ff1b32a404cad6d510c9d19cc8e27ecb6aaece405b4c"
+    },
+    "libexec/harness-dispatch/examples/grove-static.d.ts": {
+      "kind": "file",
+      "mode": 420,
+      "value": "e9c2bfdd78b875b69e70bb53ae5157857214582f71605c9f3b45b837c7c2748c"
+    },
+    "libexec/harness-dispatch/examples/grove-static.ts": {
+      "kind": "file",
+      "mode": 420,
+      "value": "848961d67037d39f538c50a1c80319265e424299f76ab3fbbdacda906787f7ef"
+    },
+    "libexec/harness-dispatch/examples/review.d.ts": {
+      "kind": "file",
+      "mode": 420,
+      "value": "cfc5520118bf62c895790911b086d7d709aa647df5b37d4478aef0ba8eec2ca9"
+    },
+    "libexec/harness-dispatch/examples/review.ts": {
+      "kind": "file",
+      "mode": 420,
+      "value": "68e57e047f0d50d28f34b1dd33bd2792980be4f36d45be21af2c87c134db96d1"
+    },
+    "libexec/harness-dispatch/examples/sample.ts": {
+      "kind": "file",
+      "mode": 420,
+      "value": "0f7170131f3d12f8054c34f00e2ad0efd4e06cc96abaedcc82674b2bbbc500a1"
+    },
+    "libexec/harness-dispatch/examples/static.d.ts": {
+      "kind": "file",
+      "mode": 420,
+      "value": "b366d264298eeee7137cdca638cf22c1c1658d25551946a6f0f199f83208c5e4"
+    },
+    "libexec/harness-dispatch/examples/static.ts": {
+      "kind": "file",
+      "mode": 420,
+      "value": "8477ef1b275e09548635786bbe169ee021cb6607b811c344db64258190783017"
+    },
+    "libexec/harness-dispatch/grove": {
+      "kind": "directory",
+      "mode": 493,
+      "value": ""
+    },
+    "libexec/harness-dispatch/grove/index.d.ts": {
+      "kind": "file",
+      "mode": 420,
+      "value": "c14587af5c02cddedbe6a4a36b45657c8aba63a5769acfc85211a32cc7eb1a92"
+    },
+    "libexec/harness-dispatch/grove/index.ts": {
+      "kind": "file",
+      "mode": 420,
+      "value": "2db07a9d8a35d921746b144f24c3f7bbd6152b66e1b8568898ec9cec362aca48"
+    },
+    "libexec/harness-dispatch/harness-dispatch": {
+      "kind": "directory",
+      "mode": 493,
+      "value": ""
+    },
+    "libexec/harness-dispatch/harness-dispatch/examples": {
+      "kind": "directory",
+      "mode": 493,
+      "value": ""
+    },
+    "libexec/harness-dispatch/harness-dispatch/examples/grove-review.d.ts": {
+      "kind": "file",
+      "mode": 420,
+      "value": "10faa16da268a32ebeb3676e6d7d76415f4073e490c719dfa61b6ca297270a50"
+    },
+    "libexec/harness-dispatch/harness-dispatch/examples/grove-review.ts": {
+      "kind": "file",
+      "mode": 420,
+      "value": "7e3fd612995520a06899ff1b32a404cad6d510c9d19cc8e27ecb6aaece405b4c"
+    },
+    "libexec/harness-dispatch/harness-dispatch/examples/grove-static.d.ts": {
+      "kind": "file",
+      "mode": 420,
+      "value": "e9c2bfdd78b875b69e70bb53ae5157857214582f71605c9f3b45b837c7c2748c"
+    },
+    "libexec/harness-dispatch/harness-dispatch/examples/grove-static.ts": {
+      "kind": "file",
+      "mode": 420,
+      "value": "848961d67037d39f538c50a1c80319265e424299f76ab3fbbdacda906787f7ef"
+    },
+    "libexec/harness-dispatch/harness-dispatch/examples/review.d.ts": {
+      "kind": "file",
+      "mode": 420,
+      "value": "cfc5520118bf62c895790911b086d7d709aa647df5b37d4478aef0ba8eec2ca9"
+    },
+    "libexec/harness-dispatch/harness-dispatch/examples/review.ts": {
+      "kind": "file",
+      "mode": 420,
+      "value": "68e57e047f0d50d28f34b1dd33bd2792980be4f36d45be21af2c87c134db96d1"
+    },
+    "libexec/harness-dispatch/harness-dispatch/examples/sample.ts": {
+      "kind": "file",
+      "mode": 420,
+      "value": "0f7170131f3d12f8054c34f00e2ad0efd4e06cc96abaedcc82674b2bbbc500a1"
+    },
+    "libexec/harness-dispatch/harness-dispatch/examples/static.d.ts": {
+      "kind": "file",
+      "mode": 420,
+      "value": "b366d264298eeee7137cdca638cf22c1c1658d25551946a6f0f199f83208c5e4"
+    },
+    "libexec/harness-dispatch/harness-dispatch/examples/static.ts": {
+      "kind": "file",
+      "mode": 420,
+      "value": "8477ef1b275e09548635786bbe169ee021cb6607b811c344db64258190783017"
+    },
+    "libexec/harness-dispatch/harness-dispatch/grove": {
+      "kind": "directory",
+      "mode": 493,
+      "value": ""
+    },
+    "libexec/harness-dispatch/harness-dispatch/grove/index.d.ts": {
+      "kind": "file",
+      "mode": 420,
+      "value": "c14587af5c02cddedbe6a4a36b45657c8aba63a5769acfc85211a32cc7eb1a92"
+    },
+    "libexec/harness-dispatch/harness-dispatch/grove/index.ts": {
+      "kind": "file",
+      "mode": 420,
+      "value": "2db07a9d8a35d921746b144f24c3f7bbd6152b66e1b8568898ec9cec362aca48"
+    },
+    "libexec/harness-dispatch/harness-dispatch/harness-dispatch-policy": {
+      "kind": "file",
+      "mode": 493,
+      "value": "a1303798a0159505340d0ed5ccd57e92917935f2222b54b07cab728276c7dbb8"
+    },
+    "libexec/harness-dispatch/harness-dispatch/notices": {
+      "kind": "directory",
+      "mode": 493,
+      "value": ""
+    },
+    "libexec/harness-dispatch/harness-dispatch/notices/NOTICES.md": {
+      "kind": "file",
+      "mode": 420,
+      "value": "65f372a624b51609c1af6ae02b70f472654b3e7c57fdf3cd1a4dab495ff96760"
+    },
+    "libexec/harness-dispatch/harness-dispatch/notices/bun-LICENSE.md": {
+      "kind": "file",
+      "mode": 420,
+      "value": "b9caf52728691b4057e371232c221a132883198be2f3d2ddf92c90404c984b1a"
+    },
+    "libexec/harness-dispatch/harness-dispatch/notices/sqlite.md": {
+      "kind": "file",
+      "mode": 420,
+      "value": "e1c1b296209e7a10db69efdaece6f9ccbd3124bcac111a3a901abab367a15ee6"
+    },
+    "libexec/harness-dispatch/harness-dispatch/sdk": {
+      "kind": "directory",
+      "mode": 493,
+      "value": ""
+    },
+    "libexec/harness-dispatch/harness-dispatch/sdk/index.d.ts": {
+      "kind": "file",
+      "mode": 420,
+      "value": "98525b58fa6e716ec6c687f9aceb3238b24b433b738cfceb61d7b1fc51468822"
+    },
+    "libexec/harness-dispatch/harness-dispatch/sdk/index.ts": {
+      "kind": "file",
+      "mode": 420,
+      "value": "d19b0ddfb525ef40518d33518ca556452c783594aa3aaa6950fdd3b6b5a263f8"
+    },
+    "libexec/harness-dispatch/harness-dispatch-policy": {
+      "kind": "file",
+      "mode": 493,
+      "value": "a1303798a0159505340d0ed5ccd57e92917935f2222b54b07cab728276c7dbb8"
+    },
+    "libexec/harness-dispatch/notices": {
+      "kind": "directory",
+      "mode": 493,
+      "value": ""
+    },
+    "libexec/harness-dispatch/notices/NOTICES.md": {
+      "kind": "file",
+      "mode": 420,
+      "value": "65f372a624b51609c1af6ae02b70f472654b3e7c57fdf3cd1a4dab495ff96760"
+    },
+    "libexec/harness-dispatch/notices/bun-LICENSE.md": {
+      "kind": "file",
+      "mode": 420,
+      "value": "b9caf52728691b4057e371232c221a132883198be2f3d2ddf92c90404c984b1a"
+    },
+    "libexec/harness-dispatch/notices/sqlite.md": {
+      "kind": "file",
+      "mode": 420,
+      "value": "e1c1b296209e7a10db69efdaece6f9ccbd3124bcac111a3a901abab367a15ee6"
+    },
+    "libexec/harness-dispatch/sdk": {
+      "kind": "directory",
+      "mode": 493,
+      "value": ""
+    },
+    "libexec/harness-dispatch/sdk/index.d.ts": {
+      "kind": "file",
+      "mode": 420,
+      "value": "98525b58fa6e716ec6c687f9aceb3238b24b433b738cfceb61d7b1fc51468822"
+    },
+    "libexec/harness-dispatch/sdk/index.ts": {
+      "kind": "file",
+      "mode": 420,
+      "value": "d19b0ddfb525ef40518d33518ca556452c783594aa3aaa6950fdd3b6b5a263f8"
+    },
+    "sbom.spdx.json": {
+      "kind": "file",
+      "mode": 420,
+      "value": "64926c53174d57a95b60128c3ba71662cfd76c332b27ac88249a5fd008876753"
+    }
+  }
+}

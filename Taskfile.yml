@@ -3,6 +3,49 @@ version: '3'
 set: [errexit, nounset, pipefail]
 
 tasks:
+  legacy:prepare:
+    desc: Read and back up the complete original 22.1.0 keg without modifying installation or PATH
+    requires:
+      vars: [KEG, STABLE_BIN, OUT]
+    cmds:
+      - python3 scripts/legacy_driver_transition.py prepare --keg "{{.KEG}}" --stable-bin "{{.STABLE_BIN}}" --output "{{.OUT}}"
+
+  legacy:apply:
+    desc: Require cleanup suppression and create absent owned original-command PATH links
+    requires:
+      vars: [PLAN]
+    cmds:
+      - python3 scripts/legacy_driver_transition.py apply --plan "{{.PLAN}}"
+
+  legacy:verify:
+    desc: Verify complete original keg/backup bytes, cleanup suppression and inherited PATH resolution
+    requires:
+      vars: [PLAN]
+    cmds:
+      - python3 scripts/legacy_driver_transition.py verify --plan "{{.PLAN}}"
+
+  legacy:cleanup:
+    desc: Remove owned compatibility links only after the original driver is confirmed reaped
+    requires:
+      vars: [PLAN, DRIVER_ENDED]
+    preconditions:
+      - sh: test "{{.DRIVER_ENDED}}" = yes
+        msg: Confirm the original driver and its sessions are reaped; never run before its last signal.
+    cmds:
+      - python3 scripts/legacy_driver_transition.py cleanup --plan "{{.PLAN}}" --driver-ended
+
+  legacy:controls:
+    desc: Run isolated complete-keg, link ownership, cleanup and refusal controls
+    cmds:
+      - python3 scripts/test_legacy_driver_transition.py
+
+  legacy:rehearsal:
+    desc: Rehearse scratch upgrade/unlink with the actual old front/worker and independent Ravel
+    requires:
+      vars: [KEG, RAVEL, OUT]
+    cmds:
+      - python3 scripts/legacy_driver_rehearsal.py --keg "{{.KEG}}" --ravel "{{.RAVEL}}" --output "{{.OUT}}"
+
   ravel:targets:prepare:
     desc: Fetch/validate pinned Ravel 0.1.0 archives and expose separate fresh target prefixes
     requires:

@@ -477,6 +477,11 @@ release window and pinned to `v19.4.0` or later. A release that does **not** mov
 how a tree is read owes no such check.
 
 <a id="signal-contract-cutover"></a>
+For the mid-grove **22.1.0 → independent Ravel** extraction checkpoint, use
+[the complete-keg legacy-driver transition](legacy-driver-transition.md).
+That live driver's ending remains `harness-dispatch exit`, and its original
+`grove-llm` admission/teardown remains available through final finish.
+
 ### A release that changes the session signal meets every live grove
 
 The v22 → supervised-dispatch release removes `grove-llm complete`. A v22

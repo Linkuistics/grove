@@ -19,17 +19,23 @@
 # deliberately independent, because a test binary executed directly rather than
 # through cargo gets only the latter.
 #
-# Dispatch runs carry exit authority as a signal path, while Grove lifecycle
-# sessions also carry a launch directory for epoch admission. Clear these beside
-# the installed v22 channel so nested tests cannot end or impersonate a session.
+# Dispatch and Ravel sessions carry inherited exit authority, while Grove
+# lifecycle sessions also carry a launch directory for epoch admission. Clear
+# both contexts, retired channels/PID handles and dispatch's old run/store
+# identity so nested tests cannot end, impersonate or borrow an enclosing session.
 #
 # Scope note: this also applies to `cargo run -- …` in this repo. The current
-# CLI has no `complete` verb. This grove's own sessions still end through the
-# installed v22 `grove-llm complete`, directly and never through cargo; no leaf
-# installs the new binaries or skills before the release.
+# CLI has no `complete` verb. Follow the live session's original launch prompt:
+# this grove uses `harness-dispatch exit`, directly and never through cargo.
+# A retired installed-v22 complete channel remains cleared for compatibility.
 [env]
 GROVE_SIGNAL_FILE = { value = "", force = true }
 GROVE_RUN_SIGNAL_FILE = { value = "", force = true }
-# Dispatch exit authority must also stop at the cargo boundary.
+# Old/new exit authority and session identity stop at the cargo boundary.
 HARNESS_DISPATCH_EXIT_FILE = { value = "", force = true }
 GROVE_LAUNCH_DIR = { value = "", force = true }
+HARNESS_DISPATCH_RUN_ID = { value = "", force = true }
+HARNESS_DISPATCH_STATE_DIR = { value = "", force = true }
+RAVEL_EXIT_FILE = { value = "", force = true }
+GROVE_HARNESS_PID = { value = "", force = true }
+GROVE_CLAUDE_PID = { value = "", force = true }

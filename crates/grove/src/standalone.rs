@@ -15,12 +15,16 @@ use serde_json::Value;
 /// What selection must not inherit: the completion channel of a session this
 /// invocation runs inside, lifecycle or standalone. The policy decides what
 /// launches, and ends nothing.
-const CONTROL_ENV: [&str; 5] = [
+const CONTROL_ENV: [&str; 9] = [
     "GROVE_SIGNAL_FILE",
+    "GROVE_RUN_SIGNAL_FILE",
     "GROVE_LAUNCH_DIR",
     "HARNESS_DISPATCH_EXIT_FILE",
     "HARNESS_DISPATCH_RUN_ID",
     "HARNESS_DISPATCH_STATE_DIR",
+    "RAVEL_EXIT_FILE",
+    "GROVE_HARNESS_PID",
+    "GROVE_CLAUDE_PID",
 ];
 
 #[derive(clap::Args)]

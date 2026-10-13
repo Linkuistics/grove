@@ -25,10 +25,10 @@ use std::time::Duration;
 /// variables a descendant could act on, and the exact set every spawn below
 /// hands to `keyed_launch` as its scrub list.
 ///
-/// `GROVE_SIGNAL_FILE` is legacy completion authority, scrubbed while this
-/// meta-grove still runs under installed v22. No current launch grants it.
-/// `GROVE_LAUNCH_DIR` identifies the admitted session; `HARNESS_DISPATCH_EXIT_FILE`
-/// ends a dispatch run. Both are scrubbed before the current launch is granted.
+/// `GROVE_SIGNAL_FILE` and `GROVE_RUN_SIGNAL_FILE` are retired completion
+/// authority, retained for installed v22 sessions. `GROVE_LAUNCH_DIR` identifies
+/// the admitted session. Dispatch and Ravel exit contexts, and dispatch's old
+/// run/store context, are removed before the current launch is granted.
 /// `GROVE_HARNESS_PID` / `GROVE_CLAUDE_PID` are the retired pre-watcher handles
 /// (self-driving-loop), kept here because a stale, unrelated PID leaking into a
 /// nested grove is the same class of mistake one notch quieter — the value is
@@ -58,10 +58,14 @@ use std::time::Duration;
 /// on one* — `jj` execs a user-configured pager, editor and fsmonitor, which
 /// inherit whatever `jj` inherited — and the seam's own record is where that
 /// belongs rather than here.
-const LOOP_CONTROL_ENV: [&str; 5] = [
+const LOOP_CONTROL_ENV: [&str; 9] = [
     "GROVE_SIGNAL_FILE",
+    "GROVE_RUN_SIGNAL_FILE",
     "GROVE_LAUNCH_DIR",
     "HARNESS_DISPATCH_EXIT_FILE",
+    "HARNESS_DISPATCH_RUN_ID",
+    "HARNESS_DISPATCH_STATE_DIR",
+    "RAVEL_EXIT_FILE",
     "GROVE_HARNESS_PID",
     "GROVE_CLAUDE_PID",
 ];

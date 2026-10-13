@@ -97,6 +97,64 @@ fn plant_tree(worktree: &Path, leaf: &str) {
     fs::write(grove.join(leaf), "# planted\n").unwrap();
 }
 
+/// A missing production scrub leaks the enclosing ending context to a policy
+/// that the owner explicitly granted it, before any fresh session is launched.
+#[test]
+fn lifecycle_scrubs_enclosing_ravel_and_retired_controls_before_selection() {
+    let dispatch = Dispatch::new("worktree");
+    plant_tree(&dispatch.worktree, "01-impl--subject-k1.md");
+    let controls = [
+        "RAVEL_EXIT_FILE",
+        "GROVE_RUN_SIGNAL_FILE",
+        "GROVE_HARNESS_PID",
+        "GROVE_CLAUDE_PID",
+    ];
+    dispatch.policy(&format!(
+        "export const policy = {{ schemaVersion: 2, version: 'authority-probe', \
+         select: () => {{\n\
+         if (process.env.OWNER_GRANT !== 'granted' || \
+         {}.some(name => process.env[name] !== undefined)) \
+         return {{ status: 'refused', code: 'enclosing_authority', \
+         message: 'enclosing authority reached selection', remedy: 'scrub before selection' }};\n\
+         return {{ status: 'selected', program: {:?}, args: [], provider: 'fixture', \
+         model: 'none', effort: 'none', reason: 'scrubbed controls' }}; }} }};\n",
+        serde_json::to_string(&controls).unwrap(),
+        dispatch.harness.to_str().unwrap(),
+    ));
+    dispatch.settings(&serde_json::json!({"policyEnv": ["OWNER_GRANT", "RAVEL_EXIT_FILE", "GROVE_RUN_SIGNAL_FILE", "GROVE_HARNESS_PID", "GROVE_CLAUDE_PID"]}).to_string());
+
+    let mut direct = Command::new(support::harness_dispatch());
+    for name in support::grove_env_names() {
+        direct.env_remove(name);
+    }
+    direct
+        .current_dir(&dispatch.worktree)
+        .env("HOME", &dispatch.home)
+        .env("OWNER_GRANT", "granted")
+        .args(["run", "--kind=impl", "--prompt=control"]);
+    for name in controls {
+        direct.env(name, "/inert-enclosing-control");
+    }
+    let dirty = direct.output().unwrap();
+    assert_eq!(dirty.status.code(), Some(3), "{dirty:?}");
+    assert!(
+        String::from_utf8_lossy(&dirty.stderr).contains("enclosing authority reached selection")
+    );
+
+    let mut grove = grove_driver(&dispatch.worktree, &dispatch.home);
+    grove.env("OWNER_GRANT", "granted");
+    for name in controls {
+        grove.env(name, "/inert-enclosing-control");
+    }
+    let output = grove.output().unwrap();
+    assert!(output.status.success(), "{output:?}");
+    assert!(
+        String::from_utf8_lossy(&output.stderr).contains("grove finished — loop complete"),
+        "{output:?}"
+    );
+    assert_eq!(dispatch.launch_count(), 1);
+}
+
 /// The bare driver, with the whole legacy launch-policy environment scrubbed
 /// out of the child. A `Command` inherits this process's ambient environment,
 /// and this repo dogfoods Grove, so scrubbing is what makes the fixture the

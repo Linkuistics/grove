@@ -20,6 +20,56 @@ use tempfile::TempDir;
 /// A harness that publishes one line and acknowledges.
 const WRITES_NOTES: &str = "printf ok > notes.md\nacknowledge\n";
 
+/// Removing a control from the production scrub list must make the policy
+/// refuse, even when the owner explicitly grants that variable to selection.
+#[test]
+fn standalone_scrubs_enclosing_ravel_and_retired_controls_before_selection() {
+    let fixture = Fixture::new(WRITES_NOTES);
+    let controls = [
+        "RAVEL_EXIT_FILE",
+        "GROVE_RUN_SIGNAL_FILE",
+        "GROVE_HARNESS_PID",
+        "GROVE_CLAUDE_PID",
+    ];
+    let source = fs::read_to_string(fixture.dispatch_file("policy.ts")).unwrap();
+    fixture.policy(&source.replace(
+        "select(request) {",
+        &format!(
+            "select(request) {{\n\
+             if (process.env.OWNER_GRANT !== 'granted' || \
+             {}.some(name => process.env[name] !== undefined)) \
+             return {{ status: 'refused', code: 'enclosing_authority', \
+             message: 'enclosing authority reached selection', remedy: 'scrub before selection' }};",
+            serde_json::to_string(&controls).unwrap(),
+        ),
+    ));
+    fs::write(
+        fixture.dispatch_file("settings.json"),
+        serde_json::json!({"policyEnv": ["OWNER_GRANT", "RAVEL_EXIT_FILE", "GROVE_RUN_SIGNAL_FILE", "GROVE_HARNESS_PID", "GROVE_CLAUDE_PID"]}).to_string(),
+    ).unwrap();
+
+    // Dirty control: the same policy sees the granted controls when Grove is
+    // bypassed, so a clean Grove run cannot come from a probe that reads nothing.
+    let mut direct = fixture.grove(&support::harness_dispatch());
+    direct.args(["run", "--kind=release-notes", "--prompt=control"]);
+    direct.env("OWNER_GRANT", "granted");
+    for name in controls {
+        direct.env(name, "/inert-enclosing-control");
+    }
+    let dirty = direct.output().unwrap();
+    assert_eq!(dirty.status.code(), Some(3), "{}", stderr(&dirty));
+    assert!(stderr(&dirty).contains("enclosing authority reached selection"));
+
+    let mut grove = fixture.run_kind("release-notes");
+    grove.env("OWNER_GRANT", "granted");
+    for name in controls {
+        grove.env(name, "/inert-enclosing-control");
+    }
+    let output = grove.output().unwrap();
+    assert!(output.status.success(), "{}", stderr(&output));
+    assert_eq!(fs::read_to_string(fixture.notes()).unwrap(), "ok");
+}
+
 struct Fixture {
     _dir: TempDir,
     root: PathBuf,

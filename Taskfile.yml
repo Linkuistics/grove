@@ -24,6 +24,22 @@ tasks:
       - task: dispatch:worker
       - cargo nextest run --locked -p grove {{.CLI_ARGS}}
 
+  test:authority:
+    desc: Prove Cargo and both callers remove inherited old/new session controls
+    env:
+      GROVE_SIGNAL_FILE: /inert-authority-control
+      GROVE_RUN_SIGNAL_FILE: /inert-authority-control
+      GROVE_LAUNCH_DIR: /inert-authority-control
+      HARNESS_DISPATCH_EXIT_FILE: /inert-authority-control
+      HARNESS_DISPATCH_RUN_ID: /inert-authority-control
+      HARNESS_DISPATCH_STATE_DIR: /inert-authority-control
+      RAVEL_EXIT_FILE: /inert-authority-control
+      GROVE_HARNESS_PID: /inert-authority-control
+      GROVE_CLAUDE_PID: /inert-authority-control
+    cmds:
+      - task: dispatch:worker
+      - cargo nextest run --locked -p grove -E 'binary(env_hygiene) | test(enclosing_ravel_and_retired_controls)'
+
   ravel:result:
     desc: Check Grove's shared result reader through both runner APIs with installed Ravel
     requires:

@@ -295,7 +295,8 @@ pub fn kind_labels() -> Vec<String> {
 ///
 /// `GROVE_SIGNAL_FILE` is retired authority kept only to protect this meta-grove
 /// while installed v22 binaries still drive it. New sessions carry a launch
-/// directory and dispatch exit channel, scrubbed beside that legacy name.
+/// directory and an executable-owned exit context. Dispatch and Ravel contexts
+/// are both scrubbed beside the retired completion channels and PID handles.
 /// These tests normally run inside a live loop session, so the variable is
 /// present in this process's ambient environment, and the fake commands below
 /// write `"$GROVE_SIGNAL_FILE"` unconditionally — a spawn that does not scope
@@ -306,12 +307,16 @@ pub fn kind_labels() -> Vec<String> {
 /// cargo runs. The two guards are independent on purpose: that one covers tests
 /// which never touch these helpers, this one covers a test binary executed
 /// directly rather than through cargo. Neither subsumes the other.
-const LOOP_CONTROL_ENV: [&str; 5] = [
+const LOOP_CONTROL_ENV: [&str; 9] = [
     "GROVE_SIGNAL_FILE",
     "GROVE_RUN_SIGNAL_FILE",
     "GROVE_LAUNCH_DIR",
     "HARNESS_DISPATCH_EXIT_FILE",
     "HARNESS_DISPATCH_RUN_ID",
+    "HARNESS_DISPATCH_STATE_DIR",
+    "RAVEL_EXIT_FILE",
+    "GROVE_HARNESS_PID",
+    "GROVE_CLAUDE_PID",
 ];
 
 /// The launch-policy environment Grove no longer reads. It is scrubbed rather

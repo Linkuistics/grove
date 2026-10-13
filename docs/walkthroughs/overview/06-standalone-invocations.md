@@ -39,7 +39,7 @@ race or cancellation during publication reports any already published prefix.
 | Confined harness | Staged cwd and its private run directory | Outputs and exit signal |
 | Grove | Held work directory, transcript and destination paths | Validated publication |
 
-<!-- fragment «standalone-invocation» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="1-317" parent="source-standalone" -->
+<!-- fragment «standalone-invocation» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="1-321" parent="source-standalone" -->
 <!-- insert «standalone-interface» -->
 <!-- insert «standalone-staging» -->
 <!-- insert «standalone-launch-context» -->
@@ -53,10 +53,15 @@ race or cancellation during publication reports any already published prefix.
 
 `Args` carries the kind, one prompt source, transfer paths, runtime reads and
 display choice. `run` locates the canonical sibling dispatch and names the
-persistent logs. `CONTROL_ENV` removes enclosing Grove and dispatch controls
-before selection, preserving the owner's other environment grants.
+persistent logs. `CONTROL_ENV` removes enclosing Grove, dispatch and Ravel
+controls before selection, preserving the owner's other environment grants.
+It also removes retired completion channels and PID handles. The real-process
+fixture `standalone_scrubs_enclosing_ravel_and_retired_controls_before_selection`
+grants these controls to policy explicitly: direct dispatch refuses on the leak,
+while `grove run` removes them and publishes the output. Both callers retain
+their current dispatch contract during this guard expansion.
 
-<!-- fragment «standalone-interface» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="1-67" parent="standalone-invocation" -->
+<!-- fragment «standalone-interface» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="1-71" parent="standalone-invocation" -->
 ````rust
 //! One invocation of a kind, with no workspace or task-tree authority.
 use std::collections::HashSet;
@@ -75,12 +80,16 @@ use serde_json::Value;
 /// What selection must not inherit: the completion channel of a session this
 /// invocation runs inside, lifecycle or standalone. The policy decides what
 /// launches, and ends nothing.
-const CONTROL_ENV: [&str; 5] = [
+const CONTROL_ENV: [&str; 9] = [
     "GROVE_SIGNAL_FILE",
+    "GROVE_RUN_SIGNAL_FILE",
     "GROVE_LAUNCH_DIR",
     "HARNESS_DISPATCH_EXIT_FILE",
     "HARNESS_DISPATCH_RUN_ID",
     "HARNESS_DISPATCH_STATE_DIR",
+    "RAVEL_EXIT_FILE",
+    "GROVE_HARNESS_PID",
+    "GROVE_CLAUDE_PID",
 ];
 
 #[derive(clap::Args)]
@@ -136,7 +145,7 @@ directories. Inputs are copied as regular files, names cannot collide, and every
 output destination must be absent. The control directory remains outside the
 harness's writable grants.
 
-<!-- fragment «standalone-staging» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="68-118" parent="standalone-invocation" -->
+<!-- fragment «standalone-staging» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="72-122" parent="standalone-invocation" -->
 ````rust
 fn execute(args: Args, dispatch: &Path, logs: &Path) -> Result<()> {
     let prompt = match (&args.prompt, &args.prompt_file) {
@@ -201,7 +210,7 @@ prompt, ending file and canonical runtime reads; it carries no task identity,
 task file or selection parameter. Grove holds the work directory before launch,
 opens the persistent transcript and retains display control.
 
-<!-- fragment «standalone-launch-context» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="119-169" parent="standalone-invocation" -->
+<!-- fragment «standalone-launch-context» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="123-173" parent="standalone-invocation" -->
 ````rust
     let instructions = format!(
         "{prompt}\n\nStandalone invocation: work only on the staged files in the current directory. \
@@ -271,7 +280,7 @@ Relay failure prevents publication too, retaining the log even for an
 acknowledged run. An uncatchable Grove death can orphan its detached dispatch
 and harness; that dead publisher exports nothing.
 
-<!-- fragment «standalone-supervision» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="170-245" parent="standalone-invocation" -->
+<!-- fragment «standalone-supervision» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="174-249" parent="standalone-invocation" -->
 ````rust
     let finished = AtomicBool::new(false);
     let outcome = std::thread::scope(|scope| {
@@ -360,7 +369,7 @@ opens use `O_NOFOLLOW` and `O_NONBLOCK`, rejecting symlinks and non-regular file
 without hanging on a FIFO. These checks protect the transfer before dispatch
 selects anything.
 
-<!-- fragment «standalone-artifact-checks» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="246-281" parent="standalone-invocation" -->
+<!-- fragment «standalone-artifact-checks» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="250-285" parent="standalone-invocation" -->
 ````rust
 fn basename(path: &Path) -> Result<&OsStr> {
     path.file_name()
@@ -410,7 +419,7 @@ without replacing a destination. Cancellation is checked before each publish;
 an error names the prefix already exported. `shell_word` quotes the canonical
 exit command and the parent's display commands for literal shell use.
 
-<!-- fragment «standalone-publication» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="282-317" parent="standalone-invocation" -->
+<!-- fragment «standalone-publication» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="286-321" parent="standalone-invocation" -->
 ````rust
 fn publish_outputs(work: &File, destinations: &[PathBuf]) -> Result<()> {
     let mut staged = Vec::new();

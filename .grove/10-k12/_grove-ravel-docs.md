@@ -86,3 +86,26 @@ host Bun 1.4.3 is deliberately refused. Complete logs are in target/k57.
 k58 remains live and owns whole-surface acceptance, named exceptions and k12
 closure/release-ready promotion. No installation, publication or driver/channel
 change occurred; the original 22.1.0 launch contract remains in force.
+
+## Complete prose handoff — k58; k12 closed
+
+k58 checked every k12 criterion against the delivered current documents and
+reconciled the complete tracked prose/source/config surface, with each old-name
+exception named. Four stale tooling passages, one inherited fixture comment and
+one unpublished citation were repaired. The existing inventory is refreshed;
+docs/grove-ravel-docs-evidence.md#complete-prose-acceptance holds the criterion
+table, exact source boundary, destination/control/semantic evidence and k13 handoff.
+
+All 18 checks, 1,378 workspace cases, nine doctests and six final/all books pass.
+All 46,980 frozen inputs and 1,387 unique runtime identities agree individually
+with the prior handoffs; doctests agree individually with k57. The 31 workspace
+skips remain outside this default gate; k5/k6 retain ignored/all-target evidence.
+Complete terminal logs and per-item records are target/k58. Verification uses
+existing Ravel/target/tools Bun 1.4.2 first on child PATH. Reporting and normal
+retirement follow the freeze. No prose acceptance gap remains in k12.
+
+k13 consumes the sealed handle-named change and root promotion for integration/
+release with rebuilt tagged acceptance. It applies a fresh original-keg plan and
+keeps original ending/admission/teardown through final finish. k8 remains the
+later caller-owned force-stop extension. No installation, publication, policy or
+live-channel change occurred here; this session retains harness-dispatch exit.

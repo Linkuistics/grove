@@ -65,7 +65,7 @@ those in completed planning/review notes.
 | ravel-publication-k11 | Published/installed independent Ravel release |
 | grove-ravel-caller-k5 | Both callers use start-session/end-session and own their prompt/result/provenance conventions |
 | grove-ravel-delivery-k6 | Grove archives/formula ship caller assets and depend on separate Ravel |
-| grove-ravel-docs-k12 | Remaining prose/decisions describe the CLI boundary |
+| grove-ravel-docs-k12 | Current ownership prose accepted by k58; release-ready source/evidence promoted below |
 | grove-extraction-release-k13 | Extraction integrated/released while the original driver remains live |
 | grove-session-control-k8 | Caller-owned continue/force-stop results and instructions |
 
@@ -267,3 +267,35 @@ Every later release/recovery shell and final finish re-sources release-env.sh.
 Never repeat a partial version cut. The existing driver stays live and this
 session still ends with original `harness-dispatch exit`; no publication,
 permanent installation changes, new driver or teardown occurred in k6.
+
+## Release-ready prose handoff — grove-ravel-docs-k12 closed
+
+k56/k57/k58 meet every k12 criterion. Current README/usage/release/architecture,
+vocabulary, caller ADR/spec, walkthrough/diagram summaries and plugin guidance
+agree with independent Ravel and Grove-owned prompts/results/provenance/tasks.
+docs/grove-ravel-docs-evidence.md#complete-prose-acceptance is the durable criterion
+table, verified-destination/control/semantic evidence, named exception inventory
+and exact tested-source boundary. The final source is k58's sealed handle-named
+change on k57 9f9bc710; the existing per-file inventory is refreshed after close.
+
+All 18 checks, 1,378 workspace nextest cases, nine doctests and six final/all books
+pass. All 46,980 frozen inputs agree; all 1,387 unique runtime identities match
+k56/k57 individually and doctests match k57 individually. Complete terminal logs
+and exact occurrence/comparison records are target/k58. Use existing
+/Users/antony/Development/Ravel/target/tools Bun 1.4.2 first on child PATH; the
+host 1.4.3 is deliberately refused. The default gate skips 31 workspace cases;
+k5/k6 retain complete named ignored/all-target evidence and their limits.
+
+k13 now integrates/releases this exact source, rechecks adjacent/config/tap and
+partial-release state, and rebuilds tagged acceptance. No k12 documentation work
+remains. Ravel injects no instructions and gives results no meanings; k8 later
+extends Grove-owned force-stop after k13. No installation/publication/new driver
+or live authority change occurred during this prose node. The root stays live.
+
+Keep the complete original Grove 22.1.0/dispatch installation and launch-prompt
+ending/admission/teardown contract through final finish. k13 prepares/applies a
+fresh .jj/legacy-driver-22.1.0 plan, compares its inventory, sources release-env.sh
+for every release/recovery shell, and records its absolute path here. Preserve
+the canonical keg, backup, owned stable-PATH links and cleanup exclusions; never
+repeat a partial version cut or substitute a current Ravel ending into this
+original driver. This session ends with its original harness-dispatch exit.

@@ -24,5 +24,6 @@ rejects an invalid policy type and refuses a prefix without installed SDK
 declarations. The normal policy/review checks include that test plus real
 installed-worker fixtures with fake agents.
 
-Until delivery contraction, the retained dispatch package has its own compiler
-and compatibility checks. Its tooling is not a dependency of these policy tasks.
+Delivery contraction removed the bundled dispatch package and its compiler/
+compatibility checks. This directory is Grove's policy compiler; executable
+runtime tooling belongs to independently maintained Ravel.

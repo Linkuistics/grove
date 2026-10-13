@@ -24,8 +24,10 @@
 #           the launch prompt rather than carried by any skill. One row has it,
 #           `signal-is-the-last-action`, and it binds every kind:
 #           `prompt-names-the-kind-k18` replaced the two inlined signal files
-#           with one driver-authored exit contract, now `harness-dispatch exit`
-#           as the final action. The mechanism is stated once for every kind
+#           with one driver-authored ending contract. Current prompts name the
+#           canonical `ravel end-session grove-continue` command; original
+#           live-v22 prompts retain `harness-dispatch exit` as their final action.
+#           The mechanism is stated once for every kind
 #           and `finish-three-endings` — the ending
 #           that differs — moved to `grove-finish/SKILL.md`, where the spine
 #           already says a kind's own ending belongs. Neither assertion below can

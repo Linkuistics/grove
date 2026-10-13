@@ -136,5 +136,6 @@ JSON keys are checked on raw Grove task lines, not already-parsed generic object
 types, real installed-worker production/parser fixtures, actual Grove lifecycle
 sessions with fake agents, and inherited-evidence isolation. Save complete logs
 with `set -o pipefail; task ... 2>&1 | tee target/k42/review.log`.
-The broader `task ravel:policy:compatibility` retains old bundled fixtures until
-k6 removes that delivery. No test launches a model or edits the owner policy.
+The old bundled dispatch package and its compatibility task were removed at
+Grove's delivery contraction. Current checks consume the independent installed
+Ravel pair. No test launches a model or edits the owner policy.

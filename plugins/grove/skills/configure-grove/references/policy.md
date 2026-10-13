@@ -1,7 +1,7 @@
 # Policy mechanics
 
 Sources: [Ravel 0.1.0 session CLI](https://github.com/Linkuistics/Ravel/blob/v0.1.0/docs/session-cli.md)
-and [Grove's readable policy assets](https://github.com/Linkuistics/grove/tree/main/assets/ravel-policy).
+and [Grove's readable policy assets](../../../../../assets/ravel-policy/README.md).
 Check `ravel --version` and `ravel start-session --help` before relying on flags.
 
 ## What Grove passes

@@ -1,11 +1,11 @@
 # Grove's Ravel caller surface audit
 
 This is the caller migration's bounded surface audit, established by k46 with
-its delivery inventory refreshed by k51. Active lifecycle and standalone calls use
+its inventory refreshed by k58's [complete prose acceptance](grove-ravel-docs-evidence.md#complete-prose-acceptance). Active lifecycle and standalone calls use
 independent Ravel's public two-verb CLI, canonical ending instructions and held
 stdout result. Grove owns result meanings, task conventions, teardown and inline
-provider receipts. The complete repository retains broader ownership prose for
-k12 and the original live-driver contract/application for k13; k6's independent
+provider receipts. k12's current ownership prose is accepted in that handoff; the original
+live-driver preservation/application remains k13 work. k6's independent
 delivery preparation is accepted in [the delivery evidence](grove-delivery-contraction.md#complete-independent-delivery-acceptance).
 Those are named work boundaries, not a claim that old vocabulary has disappeared.
 

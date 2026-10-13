@@ -93,4 +93,5 @@ use a Grove task receipt when canonical input bytes are required.
 
 Run `task ravel:review RAVEL=/absolute/installed/ravel` for public-SDK typechecks,
 installed-worker adapter/selection cases, actual Grove retirement/retry/refusal
-sessions and the retained pre-k6 compatibility suite. No model is launched.
+sessions. Grove owns these caller checks; executable/runtime controls run in
+Ravel. No model is launched.

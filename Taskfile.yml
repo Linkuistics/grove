@@ -3,6 +3,39 @@ version: '3'
 set: [errexit, nounset, pipefail]
 
 tasks:
+  ravel:policy:
+    desc: Check Grove-readable static assets through the independent installed Ravel SDK and worker
+    requires:
+      vars: [RAVEL]
+    cmds:
+      - task: ravel:policy:typecheck
+        vars: {RAVEL: '{{.RAVEL}}'}
+      - task: ravel:policy:runtime
+        vars: {RAVEL: '{{.RAVEL}}'}
+
+  ravel:policy:typecheck:
+    desc: Typecheck Grove policy assets and ordinary imports against installed Ravel declarations
+    requires:
+      vars: [RAVEL]
+    cmds:
+      - task: dispatch:deps
+      - bash scripts/ravel-policy-typecheck.sh "{{.RAVEL}}"
+
+  ravel:policy:runtime:
+    desc: Run Grove-readable policies through copied installed Ravel with fake agents and isolated PATH
+    requires:
+      vars: [RAVEL]
+    env:
+      GROVE_TEST_RAVEL: '{{.RAVEL}}'
+    cmds:
+      - cargo nextest run --locked -p grove --test ravel_policy_assets --run-ignored only {{.CLI_ARGS}}
+
+  ravel:policy:compatibility:
+    desc: Check the retained pre-k6 Grove adapter, review, sample and generic-example fixtures
+    cmds:
+      - task: dispatch:typecheck
+      - cargo nextest run --locked -p harness-dispatch --test grove --test review --test sample --test examples --test choice_file
+
   ravel:commands:
     desc: Check shared public lifecycle and confined commands against installed Ravel
     requires:

@@ -29,3 +29,11 @@ if python3 "$root/scripts/floor_seccomp.py" "$scratch/missing.json" >"$scratch/r
 fi
 [[ ! -s "$scratch/refused.json" ]]
 echo 'floor-seccomp-test: pinned derivation and changed/missing source refusals passed'
+python3 "$root/scripts/floor_seccomp.py" --qemu >"$scratch/qemu.json"
+python3 - "$scratch/profile.json" "$scratch/qemu.json" <<'PY'
+import json, sys
+native, qemu = (json.load(open(p)) for p in sys.argv[1:])
+assert qemu['defaultAction'] == native['defaultAction'] == 'SCMP_ACT_ERRNO'
+assert qemu['syscalls'][:-1] == native['syscalls']
+assert qemu['syscalls'][-1] == {'names': ['unshare'], 'action': 'SCMP_ACT_ALLOW', 'args': [{'index': 0, 'value': 0x10020000, 'op': 'SCMP_CMP_EQ'}]}
+PY

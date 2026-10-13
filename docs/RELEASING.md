@@ -229,11 +229,11 @@ pinned digests/targets/exact layouts, and never builds a bundled worker. See
 
 ### Installed smoke test
 
-For the real native Linux standalone confinement backend/environment, use the
-[native floor preparation and acceptance tasks](linux-floor-native.md).
-The general all-target runner still needs the Linux namespace/QEMU environment
-handoff before final release acceptance; a backend diagnostic refusal is not
-a passing standalone smoke test.
+The general all-target runner uses the supported real
+[native floor environment](linux-floor-native.md) and
+[QEMU confinement environment](linux-floor-qemu.md), including backend refusal
+controls and actual output publication. Backend diagnostics alone do not replace
+that acceptance. These are test-only resources, outside the production archives.
 
 A matching archive is not evidence until it has executed on its target. The
 release task runs `scripts/release-smoke.sh --archives target/dist` after the
@@ -263,15 +263,19 @@ retained caller fixture and the retired package behaviors.
   probe that executes one instruction beyond the CPU model, AVX2 on x64 or an
   Armv8.1 atomic on arm64, must be killed by SIGILL under that model, and must
   run under the same QEMU with `-cpu max`. Every ELF file in both project archives must
-  also match the emulator's registration, so that none runs on the host's own
-  CPU instead.
-- **The emulated runs** chroot into the userland inside an ordinary arm64
-  container. The emulator is registered in a binfmt_misc instance private to
+  also match the emulator's registration, so automatic kernel exec follows the
+  pinned CPU model. A sandbox descendant repeats the beyond-floor refusal; raw
+  emulator invocation is outside this deterministic test claim.
+- **The emulated runs** pivot into the userland inside an ordinary arm64
+  helper container and drop all bounding capabilities/groups to uid/gid 1000
+  with no-new-privileges before target execution. The emulator is registered in a binfmt_misc instance private to
   that container's user namespace, so Docker's settings and global
-  registrations are untouched. That one container runs without Docker's
-  seccomp filter, because the built-in profile of Docker 29 refuses a
-  container the user namespace. It gains no capability by that, and has no
-  network and a read-only mount. x64 uses a pinned QEMU 10.2.3 from
+  registrations are untouched. The helper uses a pinned
+  default-deny seccomp allowlist with narrow namespace additions and explicit
+  private-procfs support. It adds no outer capability, and has no network and
+  read-only inputs. Real host-native bubblewrap performs kernel namespace work
+  while payload ELFs remain emulated; its glibc 2.17 closure and emulator
+  resources are available read-only to Ravel's actual empty sandbox. x64 uses a pinned QEMU 10.2.3 from
   `tonistiigi/binfmt`, because Docker Desktop's own QEMU crashes CentOS 7's
   x86-64 userland. arm64 uses the `qemu-aarch64` of Debian's `qemu-user`
   10.2.2, because that image leaves out its own architecture's emulator. The

@@ -8,12 +8,23 @@ prefix="$1"
 version="$2"
 ravel="$3/bin/ravel"
 mode="${FLOOR_MODE:?native runner must name its environment}"
-/smoke/security || fail 'outer container security contract failed'
+if [[ "${FLOOR_KIND:-native}" == qemu ]]; then
+  /usr/libexec/floor-security || fail 'outer QEMU kernel security contract failed'
+  [[ -f /usr/libexec/floor-cpu-probe ]] || fail 'missing sandbox CPU control'
+else
+  /smoke/security || fail 'outer container security contract failed'
+fi
+grep -q '^CapBnd:[[:space:]]*0000000000000000$' /proc/self/status || fail 'nonempty bounding capability set'
 grep -q ' /smoke ro[, ]' /proc/self/mountinfo || fail 'smoke inputs are not mounted read-only'
 if [[ "$mode" != missing ]]; then
   [[ "$(/usr/bin/bwrap --version)" == 'bubblewrap 0.11.0' ]] || fail 'wrong real backend'
   [[ ! -u /usr/bin/bwrap && ! -g /usr/bin/bwrap ]] || fail 'privileged backend'
-  cmp /smoke/libcap.so.2 /usr/lib64/libcap.so.2.22 || fail 'wrong floor libcap'
+  if [[ "${FLOOR_KIND:-native}" == qemu && "$mode" == supported ]]; then
+    cmp /smoke/native/libcap.so.2 /usr/libexec/floor-backend/libcap.so.2 || fail 'wrong native floor libcap'
+    /usr/libexec/floor-backend/ld-linux-aarch64.so.1 --list /usr/libexec/floor-backend/bwrap
+  else
+    cmp /smoke/libcap.so.2 /usr/lib64/libcap.so.2.22 || fail 'wrong floor libcap'
+  fi
 else
   [[ ! -e /usr/bin/bwrap && ! -e /bin/bwrap ]] || fail 'missing-backend control has a backend'
 fi
@@ -38,6 +49,7 @@ cat >"$work/agent.sh" <<'EOF'
 set -eu
 secret="$2"
 tool="$1"
+floor_kind="$3"
 /bin/cat /etc/passwd >/dev/null || exit 80
 [ "$(/usr/bin/id -u)" = 1000 ] || exit 80
 [ -f /usr/bin/true ] && [ -f /proc/sys/kernel/hostname ] || exit 93
@@ -56,7 +68,18 @@ if (printf hacked >>"$tool") 2>/dev/null; then exit 87; fi
 if (printf hacked >/dev/escape) 2>/dev/null; then exit 88; fi
 if (printf hacked >/proc/sys/kernel/hostname) 2>/dev/null; then exit 89; fi
 /bin/grep -q '^CapEff:[[:space:]]*0000000000000000$' /proc/self/status || exit 90
+/bin/grep -q '^CapBnd:[[:space:]]*0000000000000000$' /proc/self/status || exit 90
 /bin/grep -q '^NoNewPrivs:[[:space:]]*1$' /proc/self/status || exit 91
+if [ "$floor_kind" = qemu ]; then
+  [ -f /usr/libexec/floor-cpu-probe ] || exit 98
+  status=0
+  /bin/sh -c 'exec /usr/libexec/floor-cpu-probe' >cpu.stdout 2>cpu.stderr || status=$?
+  [ "$status" = 132 ] || exit 94
+  /bin/grep -q 'cpu probe started' cpu.stdout || exit 95
+  if /bin/grep -q 'executed its instruction' cpu.stdout; then exit 96; fi
+  [ ! -e /usr/libexec/floor-qemu/interpreter-max ] || exit 97
+  printf 'sandbox descendant CPU refusal passed (132)\n'
+fi
 printf 'read/write, descendant/symlink, root/system/runtime/proc/dev and payload capability denials passed\n'
 printf denied-and-published >published.txt
 exec "$tool" end-session grove-continue
@@ -69,7 +92,7 @@ import { withProvenance } from "$prefix/libexec/ravel-policy/provenance.ts";
 import { groveReviewSelector } from "$prefix/libexec/ravel-policy/examples/grove-review.ts";
 writeFileSync("$work/selected", "selected");
 export const policy = withProvenance(definePolicy({ schemaVersion: 2, version: "native-denials",
-  ...groveReviewSelector({ routes: { check: () => ({ program: "/bin/sh", args: ["agent.sh", "$ravel", "$work/secret"], provider: "fixture", model: "none", effort: "none" }) }, reviews: {} }) }));
+  ...groveReviewSelector({ routes: { check: () => ({ program: "/bin/sh", args: ["agent.sh", "$ravel", "$work/secret", "${FLOOR_KIND:-native}"], provider: "fixture", model: "none", effort: "none" }) }, reviews: {} }) }));
 EOF
 status=0
 (cd "$work/project" && env -i HOME="$work/home" TMPDIR="$work/tmp" PATH="$work/tools" \
@@ -93,6 +116,7 @@ else
     missing) grep -q 'requires bubblewrap' "$work/stderr" ;;
     default-seccomp) grep -q 'namespace.*Operation not permitted\|No permissions.*namespace' "$work/stderr" ;;
     masked-proc) grep -q "Can't mount proc.*Operation not permitted" "$work/stderr" ;;
+    qemu-unusable) grep -q 'namespace.*Invalid argument\|Creating new namespace failed' "$work/stderr" ;;
     *) fail "unknown mode $mode" ;;
   esac
 fi

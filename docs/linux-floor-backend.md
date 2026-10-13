@@ -69,7 +69,7 @@ no fake backend and makes no privilege/network/seccomp changes to the existing
 routes. This task is not wired into release acceptance as a substitute for
 `release:smoke`.
 
-## Remaining environment work
+## Environment boundaries
 
 Docker 29.8.1's original native profile refuses unprivileged namespace creation.
 [Docker's documented seccomp contract](https://docs.docker.com/engine/security/seccomp/)
@@ -83,18 +83,20 @@ and [10.2.2 syscall.c](https://gitlab.com/qemu-project/qemu/-/blob/v10.2.2/linux
 excludes NEWNS/NEWUSER/NEWPID/NEWIPC/NEWUTS, which bubblewrap's `raw_clone`
 requires. Target execution and CPU-floor emulation do not imply namespace
 support. The real empty sandbox must also retain read-only emulator resources;
-the current `/qemu` path lies outside Ravel's implicit system reads.
+the former `/qemu` path lay outside Ravel's implicit system reads. The
+[QEMU confinement instrument](linux-floor-qemu.md) now supplies a native kernel
+backend and read-only emulator resources under `/usr/libexec`.
 
 The [native floor instrument](linux-floor-native.md) supplies a supported
 test-only filtered namespace/procfs environment and actual native acceptance.
-`linux-floor-native-k54` owns native support and real separately installed Grove/
-Ravel standalone output/lifecycle/result and backend-unavailable refusals.
-`linux-floor-qemu-k55` owns the supported QEMU boundary, both CPU floors,
-independent Ravel-only smoke and complete parent reconciliation. They must retain
-real sandbox denials and no-publication controls. The parent `k52` stays live;
-`grove-delivery-acceptance-k51` runs final freshly rebuilt all-target acceptance
-only after it closes. No original driver/keg/ending channel, owner policy,
-adjacent checkout, installation or release is changed by this preparation.
+The native and QEMU instruments now pass actual separate-prefix callers,
+standalone publication and backend-unavailable refusals. The complete k52
+contract is reconciled in [the QEMU handoff](linux-floor-qemu.md); k51 retains
+final freshly rebuilt all-target/formula/ignored-test delivery acceptance.
+Both instruments keep actual sandbox denials and no-publication controls. They
+change no original driver/keg/ending channel, owner policy, adjacent checkout,
+installation or production archive. The preparation evidence below records the
+earlier diagnostic-only stage, before these environments were supplied.
 
 ## Prepared handoff — 2026-10-13
 

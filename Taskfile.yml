@@ -3,6 +3,25 @@ version: '3'
 set: [errexit, nounset, pipefail]
 
 tasks:
+  release:floor:qemu:
+    desc: Prove actual separately admitted callers and backend refusals at both pinned QEMU floors
+    requires:
+      vars: [ARCHIVES, RAVEL_ARCHIVES]
+    cmds:
+      - bash scripts/release-floor-qemu.sh "{{.ARCHIVES}}" "{{.RAVEL_ARCHIVES}}" {{.TARGETS}}
+
+  release:floor:qemu:prepare:
+    desc: Prepare test-only host-native bubblewrap with its isolated glibc 2.17 dependency closure
+    requires:
+      vars: [OUT]
+    cmds:
+      - bash scripts/release-floor-qemu-backend.sh "{{.OUT}}"
+
+  release:floor:qemu:controls:
+    desc: Refuse unsupported QEMU targets and existing or aliased backend destinations
+    cmds:
+      - bash scripts/release-floor-qemu.test.sh
+
   release:floor:native:
     desc: Rebuild and prove real native arm64 confinement, publication and backend refusals at glibc 2.17
     requires:

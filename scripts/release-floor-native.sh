@@ -39,6 +39,7 @@ echo "floor-native: image $FLOOR_IMAGE, Docker $(docker version --format '{{.Ser
 for input in "$archive" "$mount/"* "$mount/probes/"*; do
   [[ ! -f "$input" ]] || shasum -a 256 "$input"
 done
+find "$mount" -type f -exec shasum -a 256 {} \; | LC_ALL=C sort >"$SCRATCH/inputs-before"
 for mode in missing default-seccomp masked-proc supported; do
   options=(--cap-drop ALL --security-opt no-new-privileges)
   [[ "$mode" == default-seccomp ]] || options+=(--security-opt "seccomp=$mount/seccomp.json")
@@ -52,5 +53,7 @@ for mode in missing default-seccomp masked-proc supported; do
     "$FLOOR_IMAGE" /usr/bin/env -i PATH=/usr/bin:/bin "FLOOR_MODE=$mode" \
     /bin/bash /smoke/release-smoke-target.sh "$target" "/smoke/$(basename "$archive")" \
     /smoke/installed-smoke.sh /smoke/probes
+  find "$mount" -type f -exec shasum -a 256 {} \; | LC_ALL=C sort >"$SCRATCH/inputs-after"
+  cmp "$SCRATCH/inputs-before" "$SCRATCH/inputs-after" || die 'native staged inputs changed during execution'
 done
 echo 'floor-native: real native standalone/lifecycle/imports, sandbox denials and three pre-selection refusal controls passed'

@@ -157,3 +157,7 @@ Neither complete graph coverage nor a kernel-floor claim is implied.
 Native k54's contract is met. k55 consumes this supported native task and
 retains both QEMU CPU-floor, independent Ravel-only and all-target route work.
 No release, installation, live-policy edit, parent close or teardown occurred.
+
+The [QEMU confinement instrument](linux-floor-qemu.md) supplies the corresponding
+real namespace boundary for both CPU floors. Ordinary release smoke now runs
+this native contract and that instrument together before publication.

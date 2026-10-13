@@ -106,7 +106,7 @@ readonly QEMU_DEB_URL="https://snapshot.debian.org/file/4b7f47627ad6e57745d33d11
 readonly QEMU_DEB_SHA256="f8bf89dacd04e66a1e34526bf6eb9b4eb1b4da6205d0d820381f0c87cb0db8bb"
 
 # The helper container that holds the emulated userland: Ubuntu 24.04, for
-# util-linux's unshare and mount and coreutils' chroot --userspec.
+# util-linux's unshare/mount and coreutils' preliminary chroot controls.
 readonly HELPER_IMAGE="docker.io/library/ubuntu:24.04@sha256:008173c23f95b170204355c12626cb5a965d779a7e1283b09e9cffbb1bf33ca3"
 
 die() {
@@ -213,7 +213,7 @@ smoke_native() {
 }
 
 # The binfmt_misc interpreter pair for ARCH's guests, in DIR: static
-# executables for Docker's arm64 that run /qemu/qemu, where
+# executables for Docker's arm64 that run /usr/libexec/floor-qemu/qemu, where
 # release-smoke-qemu.sh puts the emulator inside the userland, with ARCH's
 # options before the arguments binfmt_misc passes them. With its P flag those
 # are the executable's path, then its argv[0], then the rest, and each
@@ -238,7 +238,7 @@ build_qemu_interpreters() {
 #include <unistd.h>
 
 int main(int argc, char **argv) {
-  static char *const fixed[] = {"/qemu/qemu", QEMU_OPTIONS};
+  static char *const fixed[] = {"/usr/libexec/floor-qemu/qemu", QEMU_OPTIONS};
   const int count = sizeof fixed / sizeof *fixed;
   char *args[count + argc + 1];
   int n = 0;
@@ -257,7 +257,7 @@ int main(int argc, char **argv) {
 #endif
   args[n] = NULL;
   execv(args[0], args);
-  perror("release-smoke interpreter: /qemu/qemu");
+  perror("release-smoke interpreter: /usr/libexec/floor-qemu/qemu");
   return 127;
 }
 EOF
@@ -380,16 +380,12 @@ archive_elf_headers() {
 # target's CPU floor, in a helper container of Docker's own architecture (WHY
 # OUR OWN QEMU, WHY A CPU MODEL).
 #
-# WHY THE HELPER HAS NO SECCOMP FILTER. release-smoke-qemu.sh registers the
-# emulator in a binfmt_misc instance of its own, which takes a user namespace.
-# Docker 29.8.1's built-in seccomp profile refuses unshare(2) to a container
-# without CAP_SYS_ADMIN, so the helper's root got EPERM and no emulated route
-# ran. Under Docker Desktop 28.1.1 the same script passed with the profile in
-# place. Lifting the filter adds no capability: the helper keeps Docker's
-# default set, no network and a read-only mount, and runs only this script's
-# digest-pinned inputs. --cap-add SYS_ADMIN works too and keeps the filter,
-# but it hands the container the capability most container escapes begin
-# with. The floor container, which needs no namespace, keeps the profile.
+# The pinned default-deny native profile adds helper unshare(NEWUSER|NEWNS).
+# Private setup retains Docker's default capabilities, then the native entry
+# launcher pivots root and drops every bounding cap/group and uid/gid to 1000,
+# setting no-new-privileges before any target smoke. systempaths admits private
+# procfs exactly as in the native instrument; no outer SYS_ADMIN is added.
+# See docs/linux-floor-qemu.md for the supported test-only boundary and limits.
 smoke_under_qemu() {
   local target="$1" archive="$2" platform="$3" mount="$4" arch="${1%%-*}" cpu
   cpu="$(cpu_floor "$arch")" || return 1
@@ -401,14 +397,26 @@ smoke_under_qemu() {
   copy_from_image "$platform" "$FLOOR_IMAGE" / "$mount/rootfs.tar" || return 1
   pinned_qemu "$arch" "$mount/qemu" || return 1
   build_qemu_interpreters "$arch" "$cpu" "$mount"
-  cp "$QEMU_SCRIPT" "$mount/" || return 1
+  cp "$QEMU_SCRIPT" "$mount/release-smoke-qemu.sh" || return 1
+  zig cc -target aarch64-linux-musl -static -O2 -Wall -Wextra -Werror \
+    "$REPO_ROOT/scripts/floor-qemu-enter.c" -o "$mount/enter" || return 1
+  python3 "$REPO_ROOT/scripts/floor_seccomp.py" --qemu >"$mount/seccomp.json" || return 1
+  local before="$mount.inputs-before" after="$mount.inputs-after" status=0
+  find "$mount" -type f -exec shasum -a 256 {} \; | LC_ALL=C sort >"$before" || return 1
+  cat "$before"
   echo "release-smoke: $target: $platform userland under the pinned QEMU with -cpu $cpu, in a $DOCKER_PLATFORM $HELPER_IMAGE container"
   docker run --rm --network none \
-    --security-opt seccomp=unconfined \
+    --security-opt "seccomp=$mount/seccomp.json" \
+    --security-opt systempaths=unconfined \
     --platform "$DOCKER_PLATFORM" \
     --volume "$mount:/smoke:ro" \
     "$HELPER_IMAGE" \
-    /bin/bash /smoke/release-smoke-qemu.sh /smoke "$target" "$(basename "$archive")" "$cpu"
+    /usr/bin/env "FLOOR_MODE=${FLOOR_MODE:-supported}" \
+    /bin/bash /smoke/release-smoke-qemu.sh /smoke "$target" "$(basename "$archive")" "$cpu" || status=$?
+  find "$mount" -type f -exec shasum -a 256 {} \; | LC_ALL=C sort >"$after" || return 1
+  cmp "$before" "$after" || die 'QEMU staged inputs changed during execution'
+  echo 'release-smoke: every staged QEMU input retained its individual SHA-256'
+  return "$status"
 }
 
 # A target native to Docker runs in its container, then emulated at its CPU
@@ -416,6 +424,18 @@ smoke_under_qemu() {
 smoke_linux() {
   local target="$1" archive="$2" mount="$SCRATCH/$1" platform
   platform="$(docker_platform "$target")" || return 1
+  if [[ "$CASES" == "$REPO_ROOT/scripts/grove-installed-smoke.sh" ]]; then
+    # Actual Grove standalone requires the prepared real namespace environments.
+    # Separate scripts preserve the Ravel-only and backend-diagnostic consumers.
+    if [[ "$platform" == "$DOCKER_PLATFORM" ]]; then
+      bash "$REPO_ROOT/scripts/release-floor-backend.sh" "$mount-backends" "$target" || return 1
+      bash "$REPO_ROOT/scripts/release-floor-native.sh" "$mount-backends" \
+        "$(dirname "$archive")" "$RAVEL_INPUTS/archives" || return 1
+    fi
+    bash "$REPO_ROOT/scripts/release-floor-qemu.sh" "$(dirname "$archive")" \
+      "$RAVEL_INPUTS/archives" "$target"
+    return "$?"
+  fi
   stage_linux_inputs "$target" "$archive" "$mount" || return 1
   if [[ "$platform" == "$DOCKER_PLATFORM" ]]; then
     smoke_in_floor_container "$target" "$archive" "$platform" "$mount" || return 1

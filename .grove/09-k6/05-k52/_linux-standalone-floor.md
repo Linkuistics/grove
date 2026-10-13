@@ -104,3 +104,39 @@ and adopt the supported backend/environment in the general all-target release
 runner. The existing release:archives rebuild replaces its entire output, so
 rebuild all required targets before that acceptance. k52 remains live; no parent
 criterion or k51 final rebuilt acceptance has been waived.
+
+## Complete confinement handoff — linux-floor-qemu-k55
+
+Every Done-when clause is met by k53/k54/k55 together. The deterministic upstream
+backend and pinned floor libraries are prepared by k53; k54's supported native
+namespace/procfs environment passes actual callers and refusal controls; k55's
+host-native real kernel backend, pivot-root/capability-drop entry and private
+binfmt mount supply both pinned QEMU CPU routes. Exact glibc 2.17 and original
+CPU/address controls remain. Actual sandbox descendants repeat the CPU refusal,
+and a deliberately lost mount fails that control rather than silently passing
+on native arm64. All payload archive ELFs stay unmodified/emulated.
+
+Normal release-smoke.sh now adopts these real environments automatically for
+Grove, including native missing/default-seccomp/masked-proc and both QEMU
+missing/real-emulated-unusable controls before policy selection/publication.
+Separately admitted public Ravel 0.1.0 and complete Grove 22.1.0 archives pass
+lifecycle/results, standalone output, direct/symlink imports and actual filesystem
+security denials. Independent Ravel-only all-target smoke still passes.
+
+The durable complete contract/evidence is docs/linux-floor-qemu.md. Reuse
+release:floor:qemu ARCHIVES=... RAVEL_ARCHIVES=..., or the normal release:smoke
+path. All 18 task-check gates, 1,378 cases, nine doctests and six books pass.
+Final target/k55 records each of 42 target/route/control outcomes and staged
+input hashes. 35,355 stable subjects match individually; one mutable shared
+legacy SQLite change is attributed with read-only metadata to another
+BookScanBuilder driver ending/relaunching. Installed 22.1.0/config/adjacent
+checkout bytes/state remain preserved. No installation/release/policy or
+production backend/runtime change or teardown occurred.
+
+The supported contract is test-only: filtered pinned allowlist and explicit
+private-procfs support, outer default caps only for namespace setup, then uid/
+gid 1000 with zero effective/bounding caps/no-new-privileges, network none and
+read-only inputs. Native backend dependencies have their own glibc 2.17 closure.
+Raw explicit QEMU invocation is outside the trusted automatic-exec CPU claim;
+no kernel floor is measured. Keep those limits and pinned input admission in
+k51's final freshly rebuilt acceptance. k52 closes; k6 stays live for k51.

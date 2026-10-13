@@ -11,7 +11,7 @@ SOURCE = Path(__file__).with_name("floor-seccomp") / "default.json"
 SHA256 = "6416b47770785a41ac59073cdc77d9fe98517df2799dc83ef207e622de3053f6"
 
 
-def profile(source: Path) -> dict[str, object]:
+def profile(source: Path, *, qemu: bool = False) -> dict[str, object]:
     data = source.read_bytes()
     if hashlib.sha256(data).hexdigest() != SHA256:
         raise ValueError(f"{source} differs from pinned Moby seccomp source")
@@ -36,14 +36,27 @@ def profile(source: Path) -> dict[str, object]:
             {"names": ["mount", "pivot_root", "umount2"], "action": "SCMP_ACT_ALLOW"},
         ]
     )
+    if qemu:
+        # Private binfmt setup only: NEWUSER | NEWNS, before dropping all caps.
+        result["syscalls"].append(
+            {
+                "names": ["unshare"],
+                "action": "SCMP_ACT_ALLOW",
+                "args": [{"index": 0, "value": 0x10020000, "op": "SCMP_CMP_EQ"}],
+            }
+        )
     return result
 
 
 def main() -> None:
-    if len(sys.argv) > 2:
-        raise ValueError("usage: floor_seccomp.py [PINNED_SOURCE]")
-    source = Path(sys.argv[1]) if len(sys.argv) == 2 else SOURCE
-    print(json.dumps(profile(source), indent=2))
+    arguments = sys.argv[1:]
+    qemu = bool(arguments and arguments[0] == "--qemu")
+    if qemu:
+        arguments = arguments[1:]
+    if len(arguments) > 1:
+        raise ValueError("usage: floor_seccomp.py [--qemu] [PINNED_SOURCE]")
+    source = Path(arguments[0]) if arguments else SOURCE
+    print(json.dumps(profile(source, qemu=qemu), indent=2))
 
 
 if __name__ == "__main__":

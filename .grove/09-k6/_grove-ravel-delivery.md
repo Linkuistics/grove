@@ -157,3 +157,34 @@ root brief; every later release/recovery shell must source its release-env.sh.
 k50's preparation contract is met. k52 supplies the Linux standalone floor;
 k51 owns final all-target delivery acceptance and reconciliation. No k6 close,
 release/publication, live transition application or teardown is implied.
+
+## Linux confinement handoff — linux-standalone-floor-k52 closed
+
+k53/k54/k55 meet every k52 criterion; docs/linux-floor-qemu.md records the exact
+supported native/kernel/QEMU environment, source pins and measured evidence.
+Normal release-smoke.sh now prepares/uses real namespaces for Grove's Linux
+standalone paths and runs all backend refusal/publication controls. Both pinned
+CPUs execute unchanged Grove/Ravel payload ELFs through private binfmt while
+real host-native bubblewrap performs kernel operations with its isolated
+arm64 glibc 2.17/libcap 2.22/libattr closure. Pivot-root retains the private mount;
+payload uid/gid 1000 has no effective/bounding caps, no-new-privileges and no
+network, with filtered seccomp and read-only inputs/resources.
+
+All-target separate-prefix Grove 22.1.0/Ravel 0.1.0 lifecycle/standalone/imports,
+filesystem denials, glibc/CPU/address controls and absent/unusable no-publication
+cases pass. Independent Ravel-only all-target smoke and 18-principal-check task
+check pass; 35,355 stable per-file subjects/configs/installations/adjacent states
+match. One shared legacy database change is classified as another BookScanBuilder
+session ending/relaunching, not restored. Full target/k55 logs/snapshots retain
+all 42 named route/control outcomes and actual mutation evidence.
+
+k51 must freshly rebuild all three archives and run its complete formula,
+explicit ignored installed tests and source-surface acceptance before closing
+k6; do not consume a stale partial target/archives directory. Its normal smoke
+now adopts the supported floor instruments. Developer policy checks still need
+Bun 1.4.2: k55 used the existing pinned local binary on temporary verification
+PATH when host Bun 1.4.3 refused. No installation is prescribed or performed.
+The CPU measurement covers trusted automatic exec, not arbitrary explicit raw
+QEMU invocation; no kernel floor is measured. Keep the custom-profile/private-
+procfs and original 22.1.0 driver/ending contracts. No production archive backend,
+owner-policy change, release or teardown occurs here.

@@ -119,6 +119,7 @@ run_check "shellcheck" shellcheck \
   scripts/atomic-directory-publish.test.sh \
   scripts/release-floor-backend-probe.sh scripts/release-floor-backend-probe-host.sh \
   scripts/floor-seccomp.test.sh scripts/release-floor-native.sh scripts/grove-floor-native-cases.sh \
+  scripts/release-floor-qemu.sh scripts/release-floor-qemu-backend.sh scripts/release-floor-qemu.test.sh \
   scripts/ravel-target-smoke-target.sh scripts/ravel-installed-smoke.sh scripts/ravel-target-inputs.test.sh scripts/grove-installed-smoke.sh
 run_check "cargo clippy" cargo clippy --workspace --all-targets
 run_check "plugin install" bash plugins/install.test.sh
@@ -128,6 +129,7 @@ run_check "release preparation" bash scripts/release-prepare.test.sh
 run_check "Ravel archive admission" python3 scripts/test_ravel_target_inputs.py
 run_check "Linux floor backend admission" task release:floor:controls
 run_check "native floor seccomp admission" task release:floor:seccomp:controls
+run_check "QEMU floor admission" task release:floor:qemu:controls
 run_check "legacy driver preservation controls" task legacy:controls
 run_check "release Codex helper" bash scripts/release-notes/codex-headless.test.sh
 # The ignored public caller fixtures exercise the independently installed SDK

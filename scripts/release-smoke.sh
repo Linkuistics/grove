@@ -4,7 +4,7 @@
 # archive, extracted where that target runs and exercised with no Bun or Node
 # on PATH.
 #
-#   scripts/release-smoke.sh [--archives DIR] [TARGET...]
+#   scripts/release-smoke.sh [--archives DIR] [--ravel-archives DIR] [TARGET...]
 #
 # DIR holds one grove-v<version>-<target>.tar.xz per target; the default is
 # target/archives, which `task release:archives` fills. The default targets are
@@ -25,8 +25,8 @@
 #
 # scripts/release-smoke-target.sh runs inside each environment: it asserts the
 # environment, extracts the archive with that environment's tar into a fresh
-# prefix, checks the versions, and runs harness-dispatch's installed-layout
-# cases, crates/harness-dispatch/scripts/installed-smoke.sh.
+# prefix, checks the versions, and runs Grove's installed-layout
+# cases, scripts/grove-installed-smoke.sh.
 #
 # WHY A CONTROL. A userland that is not really at the floor passes everything a
 # floor userland passes. So each Linux run also executes a pair of probes built
@@ -77,7 +77,8 @@ readonly REPO_ROOT
 # Sourcing this runner reuses platform/floor mechanics with caller-owned cases.
 TARGET_SCRIPT="$REPO_ROOT/scripts/release-smoke-target.sh"
 QEMU_SCRIPT="$REPO_ROOT/scripts/release-smoke-qemu.sh"
-CASES="$REPO_ROOT/crates/harness-dispatch/scripts/installed-smoke.sh"
+CASES="$REPO_ROOT/scripts/grove-installed-smoke.sh"
+RAVEL_INPUTS=""
 
 # TARGETS, the release target list, and assert_archive, the manifest check.
 # shellcheck source=scripts/release-common.sh
@@ -206,7 +207,9 @@ EOF
 
 smoke_native() {
   local target="$1" archive="$2"
-  env -i PATH=/usr/bin:/bin /bin/bash "$TARGET_SCRIPT" "$target" "$archive" "$CASES"
+  local dependency=()
+  [[ -z "$RAVEL_INPUTS" ]] || dependency=("RAVEL_TARGET_ARCHIVE=$RAVEL_INPUTS/archives/ravel-v0.1.0-$target.tar.xz")
+  env -i PATH=/usr/bin:/bin "${dependency[@]+"${dependency[@]}"}" /bin/bash "$TARGET_SCRIPT" "$target" "$archive" "$CASES"
 }
 
 # The binfmt_misc interpreter pair for ARCH's guests, in DIR: static
@@ -337,6 +340,9 @@ stage_linux_inputs() {
   build_glibc_probes "$arch" "$mount/probes"
   build_cpu_probe "$arch" "$mount/probes"
   cp "$archive" "$mount/" || return 1
+  if [[ -n "$RAVEL_INPUTS" ]]; then
+    cp "$RAVEL_INPUTS/archives/ravel-v0.1.0-$target.tar.xz" "$mount/" || return 1
+  fi
   cp "$TARGET_SCRIPT" "$mount/release-smoke-target.sh" || return 1
   cp "$REPO_ROOT/scripts/release-smoke-environment.sh" "$mount/" || return 1
   cp "$CASES" "$mount/installed-smoke.sh"
@@ -388,6 +394,10 @@ smoke_under_qemu() {
   local target="$1" archive="$2" platform="$3" mount="$4" arch="${1%%-*}" cpu
   cpu="$(cpu_floor "$arch")" || return 1
   archive_elf_headers "$archive" "$mount/elf-headers" || return 1
+  if [[ -n "$RAVEL_INPUTS" ]]; then
+    archive_elf_headers "$RAVEL_INPUTS/archives/ravel-v0.1.0-$target.tar.xz" "$mount/ravel-elf-headers" || return 1
+    cat "$mount/ravel-elf-headers" >>"$mount/elf-headers" || return 1
+  fi
   copy_from_image "$platform" "$FLOOR_IMAGE" / "$mount/rootfs.tar" || return 1
   pinned_qemu "$arch" "$mount/qemu" || return 1
   build_qemu_interpreters "$arch" "$cpu" "$mount"
@@ -414,9 +424,13 @@ smoke_linux() {
 }
 
 main() {
-  local archives="$REPO_ROOT/target/archives" targets=() target known
+  local archives="$REPO_ROOT/target/archives" ravel_archives=() targets=() target known
   if [[ "${1:-}" == "--archives" ]]; then
     archives="${2:?--archives needs a directory}"
+    shift 2
+  fi
+  if [[ "${1:-}" == --ravel-archives ]]; then
+    ravel_archives=(--archives "${2:?--ravel-archives needs a directory}")
     shift 2
   fi
   targets=("$@")
@@ -427,6 +441,12 @@ main() {
     done
     die "unknown target '$target'; the release targets are $(IFS=' ' && echo "${TARGETS[*]}")"
   done
+  SCRATCH="$(mktemp -d)"
+  trap 'rm -rf "$SCRATCH"' EXIT
+  # Public pins, exact target/layout and digests are admitted before any invocation.
+  python3 "$REPO_ROOT/scripts/ravel_target_inputs.py" "${ravel_archives[@]+"${ravel_archives[@]}"}" \
+    --output "$SCRATCH/ravel" "${targets[@]}" || die 'independent Ravel admission failed'
+  RAVEL_INPUTS="$SCRATCH/ravel"
   for target in "${targets[@]}"; do
     [[ "$target" == *-linux-gnu ]] || continue
     command -v zig >/dev/null 2>&1 || die "zig is required for the glibc control's probes; see docs/RELEASING.md"
@@ -438,9 +458,6 @@ main() {
     break
   done
 
-  SCRATCH="$(mktemp -d)"
-  # shellcheck disable=SC2064 # expand now: the trap must remove this directory
-  trap "rm -rf '$SCRATCH'" EXIT
   local archive
   for target in "${targets[@]}"; do
     archive="$(find_archive "$archives" "$target")"

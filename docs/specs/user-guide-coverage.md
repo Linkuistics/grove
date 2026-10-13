@@ -16,7 +16,7 @@ provably complete against a set nobody wanted: `grove` itself exposes only `-h`
 and `-V`, so a guide covering "every subcommand and flag the `grove` binary
 exposes" is three rows long and omits every command a human actually meets. Too
 wide and the guide takes the
-[harness-dispatch README](../../crates/harness-dispatch/README.md)'s subject,
+[harness-dispatch README](https://github.com/Linkuistics/Ravel)'s subject,
 which the ownership table forbids.
 
 ## Solution

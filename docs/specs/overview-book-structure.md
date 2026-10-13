@@ -578,7 +578,7 @@ is another book's corpus and no byte of it appears here.
 
 The owner's `harness-dispatch` policy is named in chapters 1 and 2 as the reason
 the command line has nothing to select.
-[`harness-dispatch`'s own documentation](../../crates/harness-dispatch/README.md)
+[`harness-dispatch`'s own documentation](https://github.com/Linkuistics/Ravel)
 owns it, and the ownership table's one-canonical-source rule is what keeps this
 book from re-describing it.
 

@@ -32,12 +32,11 @@ authoring tool.
 | `ordinal-fs-tree` | Domain-free ordered tree store | none |
 | `jj-workspace` | Domain-free workspace and commit seam | none |
 | `keyed-launch` | Domain-free command runner | none |
-| `harness-dispatch` | Retained pre-k6 build/archive compatibility package; active callers use independent Ravel | `keyed-launch` |
 | `book-validation` | Source-fragment and Markdown checks | none |
 
 Ratatui and Crossterm belong to the viewer. Neither the loop library nor the
-session binary depends on the UI. Current archive recipes still bundle the old
-front/worker until delivery k6 removes them. Active Grove callers resolve the
+session binary depends on the UI. Grove archives contain its two executables
+and readable caller policy assets. Grove callers resolve the
 independently released Ravel CLI on PATH, regardless of Grove's prefix/version.
 Ravel is outside this workspace and supplies no shared Rust dependency. Grove
 keeps local `keyed-launch` for its own jobs; Ravel has its own runner.

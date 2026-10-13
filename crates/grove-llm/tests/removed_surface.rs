@@ -674,10 +674,13 @@ impl Fixture {
     }
 
     fn run(&self, extra_env: &[(String, String)]) -> Output {
-        // The sibling `grove` launches every session through.
-        support::harness_dispatch();
+        // Launch through the independently installed public Ravel pair.
+        support::installed_ravel();
         let mut command = Command::new(support::grove_bin());
-        command.current_dir(&self.worktree).env("HOME", &self.home);
+        command
+            .current_dir(&self.worktree)
+            .env("HOME", &self.home)
+            .env("PATH", support::ravel_path());
         // A subprocess inherits this process's *whole* ambient environment, and
         // this repo dogfoods Grove — so scrub the legacy surface first and let
         // each case put back exactly what it means to test. The scrub covers

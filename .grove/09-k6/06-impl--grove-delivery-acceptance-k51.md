@@ -7,7 +7,7 @@ parent criterion is satisfied.
 
 ## Context
 
-Consume k47-k50's exact committed interfaces/evidence and recheck adjacent
+Consume k47-k50 and linux-standalone-floor-k52's exact committed interfaces/evidence and recheck adjacent
 Ravel/tap/default Grove, owner config and original complete installed keg.
 
 ## Done when

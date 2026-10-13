@@ -2,9 +2,8 @@
 //! independent Ravel front and its compiled worker, a policy in a temporary
 //! HOME, and a deterministic shell harness. Nothing here calls a model.
 //!
-//! The worker is not a cargo artifact. `task dispatch:worker` builds it, and
-//! without it the front refuses with exit 5, so these cases fail rather than
-//! skip (`docs/specs/harness-selection-and-execution.md`, *Agreed test seams*).
+//! The pair is supplied explicitly by GROVE_TEST_RAVEL and copied to an
+//! independent prefix. Missing front/worker files fail rather than skip.
 
 mod support;
 

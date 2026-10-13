@@ -508,17 +508,6 @@ pub fn grove_bin() -> PathBuf {
     workspace_binary("grove")
 }
 
-/// The `harness-dispatch` front, on the same terms — and only the front.
-///
-/// Its policy worker is not a cargo artifact: it builds only through
-/// `task dispatch:worker`, which `scripts/check.sh` runs before `cargo test`,
-/// into `target/libexec/harness-dispatch/`, where this front finds it from its
-/// own real path. A missing or stale worker makes the front refuse with exit 5
-/// and name that task, so a test launching through it fails rather than skips.
-pub fn harness_dispatch() -> PathBuf {
-    workspace_binary("harness-dispatch")
-}
-
 /// An explicit installed public pair, copied once per test process.
 pub fn installed_ravel() -> PathBuf {
     static PAIR: std::sync::OnceLock<(tempfile::TempDir, ravel::InstalledRavel)> =

@@ -29,7 +29,7 @@ them.
 | Human workflow and commands | [`USAGE.md`](USAGE.md) |
 | Cutting and publishing a release | [`RELEASING.md`](RELEASING.md) |
 | Launch policy, a refused launch, and a review's creator line as a Grove owner meets them | [`USAGE.md`](USAGE.md#usage-launch-policy) |
-| `harness-dispatch` itself: policies, inspection, running, records and refusals | [`crates/harness-dispatch/README.md`](../crates/harness-dispatch/README.md) — beside the package and not under `docs/`, so that it travels with it |
+| `harness-dispatch` itself: policies, inspection, running, records and refusals | [`crates/harness-dispatch/README.md`](https://github.com/Linkuistics/Ravel) — beside the package and not under `docs/`, so that it travels with it |
 | The `harness-dispatch` contract | [`specs/harness-selection-and-execution.md`](specs/harness-selection-and-execution.md), with its [visual views and runtime evidence](design/harness-selection-and-execution/README.md) |
 | Runtime and repository design — the decisions, the constraints, and the measurement records | this document |
 | Grove vocabulary | [`CONTEXT.md`](../CONTEXT.md) |
@@ -98,13 +98,13 @@ title does not change the anchor.
 <a id="skills-monorepo"></a>
 ## Repository products
 
-The repository contains the CLI, a separate harness-selection command and three
-skill plugins:
+The repository contains the CLI, its readable caller policies and three skill
+plugins. Ravel is an independently delivered runtime dependency:
 
 | Product | Source | Delivery |
 |---|---|---|
 | Grove CLI | `crates/` | Homebrew and the release archives install `grove` and `grove-llm`. |
-| harness-dispatch | `crates/harness-dispatch/` | The same formula and archives install `harness-dispatch` beside them, with its compiled policy worker under `libexec/harness-dispatch/`. [Its own section](#harness-dispatch) places it. |
+| Grove caller assets | `assets/ravel-policy/` | Grove archives/formula install `libexec/ravel-policy`; the formula depends on separately versioned Ravel. [Delivery boundary](grove-delivery-contraction.md). |
 | Agent skill plugins | `plugins/grove/`, `plugins/linkuistics/`, `plugins/testanyware/` | Claude marketplace, automatic Codex provisioning by bare `grove`, or `plugins/install.sh` for manual checkout delivery. |
 
 Their documented interfaces evolve together. `plugins/` is the authoritative
@@ -435,7 +435,7 @@ teardown commit.
 of Grove. It passes the caller's inputs to an owner's TypeScript `select`,
 records the handoff, spawns the selected harness, supervises it to reap, and
 records and reports its ending. The [area specification](specs/harness-selection-and-execution.md)
-owns the contract and [its README](../crates/harness-dispatch/README.md) owns
+owns the contract and [its README](https://github.com/Linkuistics/Ravel) owns
 what an owner writes and runs. [Policy ownership](adr/harness-selection-is-owned-by-policy.md)
 and [supervision](adr/dispatch-supervises-the-harness.md) state the boundaries.
 
@@ -1769,7 +1769,7 @@ from its package map onward.
 That map lists `harness-dispatch` with its domain-free `keyed-launch`
 dependency; no walkthrough book covers dispatch's own source. The package's place and boundary are
 [its own section](#harness-dispatch) above, and its internals are described by
-its module comments, [its README](../crates/harness-dispatch/README.md) and the
+its module comments, [its README](https://github.com/Linkuistics/Ravel) and the
 [area specification](specs/harness-selection-and-execution.md).
 
 **The workspace root is not a package**, so a module's package is part of its
@@ -1824,10 +1824,11 @@ bash scripts/check.sh
 
 The script owns the check list: formatting, shell and Rust linting, plugin
 installation and conformance, release tooling, workspace tests and source-exact
-book validation. Before the workspace tests it compiles `harness-dispatch`'s
-policy worker and its probe builds and type-checks the worker's TypeScript, so
-the script needs Task and the Bun version that package pins. It announces the
-resolved toolchain and reports each failed check at the end.
+book validation. It typechecks Grove's caller assets with the pinned compiler
+under `tools/ravel-policy` against independently installed Ravel declarations,
+and runs real-worker/fake-agent caller/provenance fixtures. The gate resolves Ravel from PATH; GROVE_TEST_RAVEL selects another installed
+public front. No bundled dispatch worker or probes are built.
+The script announces the resolved toolchain and reports each failed check.
 
 The two conformance scripts are the methodology's own, and they are shell rather
 than Rust because the thing they assert about — the composed loaded path of an
@@ -1844,31 +1845,19 @@ leaves of the crate split with nothing to report it. The script exists so the
 list is retyped by nobody; it does not make a green tree a guarded one. The
 script's own header carries why it pins no toolchain.
 
-Integration tests drive the real bare `grove` process in native jj and colocated
-jj worktrees, with isolated home directories holding a harness-dispatch policy,
-the real front and its compiled worker, executable fake harnesses that record
-argv/cwd/environment/prompt, and the real `grove-llm` binary. Clocks, wait policy, lock backends, and kill
-graces are injected through internal module seams, never through supported
-process configuration.
+Integration tests drive the real Grove callers in native/colocated jj trees,
+isolated homes and independent Ravel prefixes with fake agents. Runtime tests
+use nextest; doctests remain Cargo's responsibility. Caller boundary controls
+verify the removed/legacy authority exclusions before policy selection. Ravel's
+own generic runtime/hostile suite belongs to its independent project.
 
-**`harness-dispatch` is verified at two process seams, and once more on each
-release target.** Its own suite drives the built front with temporary policies
-and fake harnesses, in a cleared environment with no Grove installation or
-task tree. Grove's launch-boundary suite drives the real driver, front and
-worker together, at the launch boundary and under a
-controlling terminal. Neither skips without the compiled worker. Cargo never
-builds it, and the front refuses a worker built from other source with exit 5,
-so a missing or stale worker fails every case that needs one. The probe builds
-are the shipped worker source with one control removed each. A hostile fixture
-is credited only beside a configuration under which it is seen to fire: a
-probe build, the same file named explicitly, or the shipped worker started
-without the front's scrubbing. No front accepts a probe as its worker. The
-third instrument is outside the script:
-`task release:smoke` runs each release archive's installed layout on its
-target, at the Linux floors, and a release runs it over the archives it is
-about to publish
-([the installed smoke test](RELEASING.md#installed-smoke-test)). Run it again
-after a change to the worker, the installed layout or a native dependency. The
+`task release:smoke` additionally runs each Grove archive with admitted separate
+Ravel target inputs, at Linux glibc/CPU floors and natively on macOS. Every ELF
+from both projects is checked against the CPU registration. Readable caller
+imports, lifecycle completion and standalone publication run without host
+Bun/Node ([installed smoke](RELEASING.md#installed-smoke-test)). Broader historical
+process ownership prose below/above is reconciled by the extraction docs leaf.
+The
 specification's [test seams](specs/harness-selection-and-execution.md#test-seams)
 list what each seam must observe.
 

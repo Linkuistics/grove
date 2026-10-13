@@ -2,8 +2,8 @@
 
 These readable TypeScript files belong to Grove. Ravel 0.1.0 supplies the
 generic `ravel/sdk` and `ravel/examples/static` modules; it embeds no Grove
-adapter or example. Grove's delivery increment will ship these assets in its
-own installation. They can already be used directly from this checkout.
+adapter or example. Grove ships this complete tree at `libexec/ravel-policy` in its own installation.
+The same files can be used directly from this checkout.
 
 Copy `sample/policy.ts` to `~/.config/ravel/policy.ts` and edit the copy, or
 copy `examples/grove-static.ts` beside a personal policy and import it normally:

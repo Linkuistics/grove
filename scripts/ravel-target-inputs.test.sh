@@ -76,6 +76,6 @@ refused 'SHA-256' env PATH="$scratch/tools:$PATH" python3 \
   refused 'escape the CPU model' check_registration "$headers" "$magic" "$mask"
   sed 's|libexec/ravel/ravel-policy|libexec/harness-dispatch/harness-dispatch-policy|' "$headers" >"$scratch/mixed"
   { read -r magic && read -r mask && read -r limit; } < <(guest aarch64)
-  refused 'no complete dispatch or Ravel pair' check_registration "$scratch/mixed" "$magic" "$mask"
+  refused 'lacks the complete Ravel pair' check_registration "$scratch/mixed" "$magic" "$mask"
 )
 printf 'ravel-inputs-test: cache and QEMU-registration controls passed\n'

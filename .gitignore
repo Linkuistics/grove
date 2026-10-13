@@ -29,10 +29,6 @@ __pycache__/
 # stays ignored so that a copy left in a checkout is never snapshotted.
 .grove.kdl
 
-# harness-dispatch's development-only type checker, installed by
-# `task dispatch:deps` from the pinned `worker/bun.lock`. The compiled worker
-# imports nothing from it.
-/crates/harness-dispatch/worker/node_modules/
 
 # Grove's caller-policy compiler is development tooling; it does not ship.
 /tools/ravel-policy/node_modules/

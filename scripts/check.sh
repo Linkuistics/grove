@@ -41,6 +41,10 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 readonly REPO_ROOT
 cd "$REPO_ROOT"
 
+# Tests use an explicit public installation; normal checks resolve it from PATH.
+# An override allows independently staged layouts without changing installation.
+export GROVE_TEST_RAVEL="${GROVE_TEST_RAVEL:-$(command -v ravel || true)}"
+
 failed=()
 checks=0
 
@@ -108,11 +112,10 @@ run_check "shellcheck" shellcheck \
   scripts/release-prepare.sh scripts/release-prepare.test.sh \
   scripts/release-notes.sh \
   scripts/release-notes/codex-headless.sh scripts/release-notes/codex-headless.test.sh \
-  scripts/release-doctor.sh scripts/release-common.sh scripts/release-build.sh \
+  scripts/release-doctor.sh scripts/release-common.sh scripts/release-build.sh scripts/release-formula.test.sh scripts/release-registration.test.sh \
   scripts/release-smoke.sh scripts/release-smoke-target.sh scripts/release-smoke-qemu.sh \
   scripts/release-smoke-environment.sh scripts/ravel-target-smoke.sh \
-  scripts/ravel-target-smoke-target.sh scripts/ravel-installed-smoke.sh scripts/ravel-target-inputs.test.sh \
-  crates/harness-dispatch/scripts/dispatch.sh crates/harness-dispatch/scripts/installed-smoke.sh
+  scripts/ravel-target-smoke-target.sh scripts/ravel-installed-smoke.sh scripts/ravel-target-inputs.test.sh scripts/grove-installed-smoke.sh
 run_check "cargo clippy" cargo clippy --workspace --all-targets
 run_check "plugin install" bash plugins/install.test.sh
 run_check "conformance" bash plugins/grove/conformance.sh
@@ -120,22 +123,11 @@ run_check "conformance suite" bash plugins/grove/conformance.test.sh
 run_check "release preparation" bash scripts/release-prepare.test.sh
 run_check "Ravel archive admission" python3 scripts/test_ravel_target_inputs.py
 run_check "release Codex helper" bash scripts/release-notes/codex-headless.test.sh
-# Before nextest, which needs the worker: harness-dispatch's command-seam
-# tests refuse a missing or stale one with exit 5 rather than skip. This builds
-# it from the current source with the pinned Bun, then type-checks the worker,
-# the SDK and its fixtures against the declarations that build emitted. The
-# probe builds, which the hostile-fixture tests drive to see each fixture fire,
-# come from the same source here, and those tests fail rather than skip
-# without them.
-run_check "dispatch worker, probes and types" task dispatch:typecheck dispatch:probes
-# The public caller assets include ignored installed-pair fixtures, which the
-# workspace runtime run alone does not execute. Keep the retained compatibility
-# task until k6 removes the bundled dispatch package.
+# The ignored public caller fixtures exercise the independently installed SDK
+# and worker explicitly; the workspace runtime run does not include them.
 run_check "Ravel caller assets and provenance" task ravel:review \
   "RAVEL=${GROVE_TEST_RAVEL:?Set GROVE_TEST_RAVEL to an installed Ravel front}"
-# After the worker task, which installs its pinned type checker: the release
-# tests compare the archive manifest with what the worker build emits.
-run_check "release tasks" bash scripts/release.test.sh
+run_check "release tasks" task release:test
 # nextest runs runtime tests; doctests remain Cargo's responsibility.
 # https://nexte.st/docs/running/#options-and-arguments
 run_check "cargo nextest" cargo nextest run --locked --workspace --no-fail-fast

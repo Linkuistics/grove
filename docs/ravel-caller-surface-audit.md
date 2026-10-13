@@ -66,9 +66,8 @@ the affirmative replacement clauses; classification alone proves no semantics.
   command. Its transcript contains no retired prompt-reproduction instruction.
   The linked worker ADR distinguishes Grove scrubbing from Ravel's forbidden
   worker grants; the standalone spec describes Ravel's public result.
-- `dispatch:check` now uses nextest for the retained binary package's runtime
-  suite; it has no library doctest target. The root gate retains workspace
-  doctests. `grove-loop` keeps `serde_json` only as a dev
+- The bundled dispatch package and its obsolete recipes are removed by k49.
+  The root gate retains workspace nextest and doctests. `grove-loop` keeps `serde_json` only as a dev
   dependency for public installed-session fixtures.
 - Source-book literal fragments, manifest roots/ranges, ownership and fragment
   indexes, rollups, explanatory examples and concept indexes are reconciled.
@@ -83,7 +82,7 @@ The following mixed current surfaces require line-level interpretation:
 | Surface | Retained meaning |
 |---|---|
 | `.cargo/config.toml` | Force-clear original/new admission, ending, PID and provider-evidence authority; explicitly preserve the original launch-prompt ending. |
-| `testing/support.rs` | Both control sets are scrubbed. `harness_dispatch()` is the actual retained old front helper for old-package/removed-surface fixtures; installed Ravel fixtures use their independent helper. |
+| `testing/support.rs` | Both control sets are scrubbed. The obsolete old-front helper is removed; all current caller fixtures use explicit independent installed Ravel. |
 | `crates/grove/src/standalone.rs`, `crates/grove-loop/src/loop_driver.rs` | Legacy environment names remain in the ten-control scrub, alongside `RAVEL_EXIT_FILE` and `GROVE_PROVIDER_EVIDENCE`. |
 | `crates/grove/src/dispatch/ravel.rs` | An old-tool version string is deliberately rejected by the version parser. Its version probe uses the caller scrub list. |
 | `crates/grove-loop/src/prompt.rs`, `crates/grove-loop/src/tree_lifecycle.rs`, `crates/grove-llm/src/cli.rs` | Original installed-v22 ending guidance is explicitly conditional on that live launch contract. |
@@ -91,15 +90,15 @@ The following mixed current surfaces require line-level interpretation:
 | `crates/grove/tests/loop_driver.rs` | Retired run/store controls and private `--ending-file` are rejected. Old JSON ending observations are unsupported-result fixtures, not accepted reports. |
 | `crates/grove/tests/ravel_activation.rs`, `crates/grove/tests/standalone.rs` | Old sibling executables and a legacy store are decoys/unreadable-file probes. No active lookup or store access is implied. |
 | `crates/grove/tests/lifecycle_cutover.rs` | A pre-launch control-directory failure must not contain old/new launch diagnostics. |
-| `crates/grove-llm/tests/removed_surface.rs` | The old front provides the retained metadata-diversity fixture, not current launch routing. |
+| `crates/grove-llm/tests/removed_surface.rs` | The metadata-diversity fixture now uses installed_ravel/ravel_path; no old binary is built. |
 | `crates/grove-llm/tests/composition_guidance.rs`, `crates/grove-loop/tests/prompt.rs`, `crates/grove-llm/tests/leaf_ops.rs` | Assert explicit legacy guidance or reminder absence/data separation. |
 | `crates/grove/tests/support/session-probe.c` | Names the old package probe as the historical reason to use C; the current witness is Ravel-based. |
 | `plugins/grove/skills/grove-finish/SKILL.md`, `grove/references/driver.md`, `grove/references/retire.md` | Paths under `plugins/grove/skills/`; preserve only the original live-v22 ending and Creator-run compatibility. Current Creator records use caller receipts/declarations. |
 | `plugins/grove/skills/configure-grove/references/policy.md`, `plugins/grove/conformance/rules.tsv` | The explicit original-v22 Creator/ending exception and its checked wording remain; no current inspection or store lookup is prescribed. |
 | `docs/USAGE.md`, `docs/grove-provider-evidence.md`, `docs/adr/a-review-carries-its-creator-reference.md` | Explicit original-v22 exceptions and rejected legacy provenance forms. |
-| `docs/walkthroughs/overview/05-what-the-call-reaches.md` | Actual old workspace-package row is labelled pre-k6 archive/build compatibility; active callers resolve Ravel independently. |
+| `docs/walkthroughs/overview/05-what-the-call-reaches.md` | Package table and delivery prose match the contracted workspace and independently installed Ravel. |
 | `docs/walkthroughs/overview/06-standalone-invocations.md`, `grove-loop/18-the-core.md`, `grove-loop/19-the-loop.md`, `grove-loop/14-finishing.md`, `grove-llm/05-ending-work.md` | Paths under `docs/walkthroughs/`; exact source literals retain scrubs, rejection fixtures and conditional live-v22 guidance. |
-| `Taskfile.yml`, `scripts/check.sh` | Retained old worker/probe/type/archive and policy-compatibility recipes remain executable until k6. Their presence does not select the caller front. |
+| `Taskfile.yml`, `scripts/check.sh` | Old worker/probe/type/install/compatibility recipes are removed; current caller tests require independent installed Ravel. |
 | `AGENTS.md`, `CLAUDE.md` | Original live-driver/release instructions; no running session authority is rewritten. |
 
 All four authority lists agree on the same ten names: both retired signal paths,

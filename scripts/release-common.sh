@@ -24,47 +24,30 @@ TARGETS=(
   x86_64-unknown-linux-gnu
 )
 
-# Every file a release archive holds, relative to its one top directory
-# `grove-v<version>-<target>/`, and nothing else. That directory is an
-# installation prefix: harness-dispatch finds its worker at
-# ../libexec/harness-dispatch/ from its own real path
-# (docs/specs/harness-selection-and-execution.md, *Delivery and release*), and
-# the Homebrew formula installs the same two directories into its keg. A later
-# change that ships another file adds it here in the same change.
+# Exact Grove installation prefix; Ravel is a separate runtime dependency.
+# Caller assets retain their complete readable tree and relative imports.
 archive_manifest() {
   cat <<'EOF'
 LICENSE
 README.md
 bin/grove
 bin/grove-llm
-bin/harness-dispatch
-libexec/harness-dispatch/examples/grove-review.d.ts
-libexec/harness-dispatch/examples/grove-review.ts
-libexec/harness-dispatch/examples/grove-static.d.ts
-libexec/harness-dispatch/examples/grove-static.ts
-libexec/harness-dispatch/examples/review.d.ts
-libexec/harness-dispatch/examples/review.ts
-libexec/harness-dispatch/examples/sample.ts
-libexec/harness-dispatch/examples/static.d.ts
-libexec/harness-dispatch/examples/static.ts
-libexec/harness-dispatch/grove/index.d.ts
-libexec/harness-dispatch/grove/index.ts
-libexec/harness-dispatch/harness-dispatch-policy
-libexec/harness-dispatch/notices/NOTICES.md
-libexec/harness-dispatch/notices/bun-LICENSE.md
-libexec/harness-dispatch/notices/sqlite.md
-libexec/harness-dispatch/sdk/index.d.ts
-libexec/harness-dispatch/sdk/index.ts
+libexec/ravel-policy/README.md
+libexec/ravel-policy/examples/grove-review.ts
+libexec/ravel-policy/examples/grove-static.ts
+libexec/ravel-policy/examples/review.ts
+libexec/ravel-policy/grove.ts
+libexec/ravel-policy/provenance.ts
+libexec/ravel-policy/sample/policy.ts
+libexec/ravel-policy/typecheck/review.ts
+libexec/ravel-policy/typecheck/static.ts
 EOF
 }
 
-# The manifest entries that must be executable.
 archive_executables() {
   cat <<'EOF'
 bin/grove
 bin/grove-llm
-bin/harness-dispatch
-libexec/harness-dispatch/harness-dispatch-policy
 EOF
 }
 

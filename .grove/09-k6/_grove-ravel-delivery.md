@@ -63,6 +63,7 @@ Each needs a fresh focused session; the first child runs in the decomposing sess
 - ravel-target-inputs-k48 supplies fail-closed, pinned independent layouts for all supported targets before delivery removal.
 - grove-delivery-contraction-k49 removes the old package/build recipes and switches archives, formula and smoke consumers together, preserving caller assets/tests and source-pinned books.
 - legacy-driver-transition-k50 prepares/tests isolated old-keg preservation and upgrade/unlink, without modifying the live installation.
+- linux-standalone-floor-k52 prepares the newly exposed missing Linux confinement backend before complete acceptance.
 - grove-delivery-acceptance-k51 runs frozen complete target/formula/check acceptance and reconciles every parent criterion before closing k6.
 
 ## Decisions (running log)
@@ -109,3 +110,26 @@ prefixes and frozen full logs/layouts are retained in target/k48; all 18,172
 named subjects match, and task check passes all 15 principal checks. Original
 driver/config/installation and adjacent checkouts remain intact. k49 still owns
 the atomic consumer/archive/formula contraction; k50 and k51 remain live.
+
+## Contraction handoff — grove-delivery-contraction-k49
+
+Grove's workspace/build/gate/tasks/archive/formula now contract atomically to its
+two fronts plus the complete readable libexec/ravel-policy tree. The formula
+depends on independent Ravel; old package/worker/probe/compatibility recipes and
+the unused old-front test helper are removed. docs/grove-delivery-contraction.md
+records fixture ownership, current tasks, preserved guards and the exact boundary.
+
+Default task check resolves installed Ravel from PATH and passes all 14 checks,
+1,378 workspace cases, nine doctests and six final/all books. Native installed
+callers, actual private Homebrew install/test, explicit ignored public fixtures
+and combined Linux ELF refusal controls pass. Independent Ravel-only all-target
+smoke remains green. All 15,780 frozen subjects and 2,076 protected k48 baseline
+subjects match; k49 holds complete per-item logs and coverage/removal controls.
+
+The new real standalone caller exposed the CentOS floor image's missing bwrap.
+linux-standalone-floor-k52 is inserted before k51 to supply a deterministic real
+compatible backend/environment, never an unconfined fallback or skip. k51 consumes
+k47-k50 plus k52 and owns final rebuilt all-target caller/formula acceptance.
+k50's original-keg transition preparation and k51 remain unfinished. Original
+22.1.0 installation/config/driver ending are unchanged; no publication/install
+or parent close is implied by this contraction.

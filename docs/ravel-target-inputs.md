@@ -3,8 +3,8 @@
 Grove's target tests consume released **Ravel 0.1.0**, independently of Grove's
 version, archive manifest and source tree. No adjacent Ravel checkout, Homebrew,
 host Bun/Node, installed-front replacement or release operation is required.
-These tasks expand the delivery inputs; Grove's existing archives and smoke
-runner retain their current consumers until the delivery contraction.
+Grove's release smoke now admits these independent inputs before running its
+installed callers. No Ravel executable or worker is bundled in a Grove archive.
 
 ## Pinned public inputs
 
@@ -49,7 +49,7 @@ TARGET/ravel-v0.1.0-TARGET/bin/ravel
 TARGET/ravel-v0.1.0-TARGET/libexec/ravel/...
 ```
 
-k49 places Grove in a different installation prefix and supplies the matching
+The release smoke places Grove in a different installation prefix and supplies the matching
 Ravel `bin` on its test child's PATH, or passes the absolute public front where
 the caller fixture permits it. Ravel locates its own worker from its real front
 path. Retain its whole prefix; do not move only the front, compare its version to

@@ -93,7 +93,7 @@ in grove's language. So the boundary exists, and the
 word. What is withheld is the declaration, which would give the package a
 glossary of its own. Its
 [specification](./docs/specs/harness-selection-and-execution.md) and
-[README](./crates/harness-dispatch/README.md) already define its words where
+[README](https://github.com/Linkuistics/Ravel) already define its words where
 they use them, so a glossary would state them a third time. Grove's
 [`CONTEXT.md`](./CONTEXT.md) holds the ones a Grove owner or session meets,
 from *Selection provider* to *Delivered context*, where that reader looks for
@@ -352,7 +352,7 @@ answer is stated in, not which files it touches.
 A topic about a selection policy, the command it returns, its settings, a run
 record or an observation is `harness-dispatch`'s. That package is not a declared context, so
 state the answer in its own words, from
-[its README](./crates/harness-dispatch/README.md) and
+[its README](https://github.com/Linkuistics/Ravel) and
 [specification](./docs/specs/harness-selection-and-execution.md), and qualify
 the words [the two sides share](#grove-and-harness-dispatch). A topic about the
 command a Grove kind runs, or about a review's `**Creator:**` line, is **grove**.

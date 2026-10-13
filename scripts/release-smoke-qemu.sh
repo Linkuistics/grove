@@ -126,7 +126,7 @@ outside() {
 # on the helper's own CPU, out of the model's reach, and pass untested. HEADERS
 # lists each file's first 20 bytes; it must include the front and the worker.
 assert_archive_matches() {
-  local headers="$1" magic mask header path i count=0 front=0 worker=0 ravel_front=0 ravel_worker=0
+  local headers="$1" magic mask header path i count=0 grove=0 llm=0 ravel_front=0 ravel_worker=0
   # A registration's escapes as hex; a pipe carries their NUL bytes.
   magic="$(printf '%b' "$2" | od -An -tx1 | tr -d ' \n')"
   mask="$(printf '%b' "$3" | od -An -tx1 | tr -d ' \n')"
@@ -139,14 +139,14 @@ assert_archive_matches() {
     done
     count=$((count + 1))
     case "$path" in
-      */bin/harness-dispatch) front=1 ;;
-      */libexec/harness-dispatch/harness-dispatch-policy) worker=1 ;;
+      */bin/grove) grove=1 ;;
+      */bin/grove-llm) llm=1 ;;
       */bin/ravel) ravel_front=1 ;;
       */libexec/ravel/ravel-policy) ravel_worker=1 ;;
     esac
   done <"$headers"
-  (( (front && worker) || (ravel_front && ravel_worker) )) ||
-    die "$headers lists no complete dispatch or Ravel pair: $(cat "$headers")"
+  ((ravel_front && ravel_worker && ((grove && llm) || (!grove && !llm)))) ||
+    die "$headers lacks the complete Ravel pair or lists an incomplete Grove pair: $(cat "$headers")"
   note "all $count ELF files in the archive match the registration, so they run under the model"
 }
 

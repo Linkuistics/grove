@@ -1,24 +1,27 @@
 sequenceDiagram
-  participant G as Grove driver
-  participant D as harness-dispatch
-  participant S as Record store
+  participant G as Grove caller
+  participant R as Ravel
+  participant A as Grove caller policy assets
   participant P as Producer session
   participant V as Review session
-  G->>D: Producer launch: kind, task file, handle H
-  D->>S: Commit run R: task H, provider label of the selected command
-  D->>P: Spawn as its child, environment carries HARNESS_DISPATCH_RUN_ID=R
-  P->>P: Finish work, then cut review leaf with Reviews H and Creator run R
-  Note over P: Same line on live reviews of H and of each node<br/>its close cascade closes. Without a run, remove the line
-  P->>G: Retire and commit (retire renames one file)
-  G->>D: Review launch: kind, review task file, review handle
-  D->>D: Adapter reads Reviews and Creator lines from the review task file
-  D->>S: run(R): read-only lookup of the immutable launch fields
-  S-->>D: provider of R (recorded), or missing
-  alt Creator run found, or Creator declared
-    D->>D: Example policy requires a reviewer provider not equal to the creator's
-    D->>S: Commit review run with the provenance it used
-    D->>V: Spawn the different-provider reviewer
-  else No Creator line, unknown run, or no reviewer of another provider
-    D-->>G: Refuse (exit 3) naming the remedy, nothing launches
+  G->>R: Producer kind, task file, handle and prompt
+  R->>A: Owner explicitly imports provenance wrapper
+  A->>A: Capture selected provider in canonical receipt
+  A-->>R: Wrapped selected command
+  R->>P: Managed process receives GROVE_PROVIDER_EVIDENCE
+  P->>P: Finish producer, name own receipt on live reviews of producer and closed nodes
+  Note over P: Missing evidence clears earlier Creator, owner declaration required<br/>Invalid evidence stops for repair, unfinished attempt writes nothing
+  P->>P: Retire and commit task plus review Creator record
+  P->>R: Prompt's exact end-session grove-continue
+  R-->>G: Opaque result after cleanup
+  G->>R: Review kind, committed review task and prompt
+  R->>A: Read Reviews and Creator through generic measured reads
+  A->>A: Validate receipt/declaration, enforce owner's provider rule
+  alt Valid creator evidence and different-provider route
+    A-->>R: Selected reviewer command, optionally wrapped with its own receipt
+    R->>V: Start and supervise reviewer
+  else Missing, invalid, legacy or unsupported creator/route
+    A-->>R: Refusal with remedy
+    R-->>G: Nonzero status, nothing launched
   end
-  Note over G,V: No lookup by handle, so a later grove reusing H cannot collide with R
+  Note over G,V: Receipt association is same-user attestation, no persistent Ravel lookup

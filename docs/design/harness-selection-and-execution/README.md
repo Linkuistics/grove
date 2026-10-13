@@ -1,40 +1,44 @@
-# Harness selection and execution — visual design
+# Harness selection and execution — Grove caller views
 
-The [area specification](../../specs/harness-selection-and-execution.md) is the
-behavioral contract of the `harness-dispatch` command and of Grove's use of it.
-This presentation shows the same package, execution and supervision, Grove
-integration and original-creator topics as views. Where a view and the
-specification differ, the specification binds.
+The [caller specification](../../specs/harness-selection-and-execution.md) owns
+Grove's use of independently installed Ravel. These views show public process
+behavior, Grove's lifecycle/standalone interpretation and caller-owned creator
+evidence. [Ravel's executable specification](https://github.com/Linkuistics/Ravel/blob/v0.1.0/docs/specs/session-execution.md)
+owns routing, private runtime/transport and supervision mechanics. Each project
+keeps its own runner, version and complete installation prefix.
 
 Run `task design:harness-selection` from the repository root, then open
-[the viewer](http://127.0.0.1:8769/). The server exposes this presentation
-directory only. `PORT=...` is a Task variable for choosing a different port.
-The `.mmd` sources and `diagrams.json` are the editable artifacts; the viewer
-renders with pinned Mermaid 12.0.0 from jsDelivr and requires network access.
-There are no generated image exports to keep in sync.
+[the viewer](http://127.0.0.1:8769/). The server exposes only this presentation
+directory; `PORT=...` chooses another port. The `.mmd` files and `diagrams.json`
+are editable source artifacts. The viewer uses pinned Mermaid 12.0.0 from
+jsDelivr and requires network access; no generated image exports are maintained.
 
-Graph views start at a dark, bold **Start here** node; ordered edges are numbered.
-Sequence views start with the first message, and the state view with its initial
-state. These views distinguish source packages and process participants; none
-claims to be a C4 deployment container or a formally checked state machine: the
-state view is a reading aid for the specification's supervision contract, not a
-model.
+Graph views start at a dark **Start here** node with numbered main steps.
+Sequences start at their first message, and the state view at its initial state.
+These are caller/process views, not deployment containers or checked models.
+The result state view illustrates public behavior without asserting private
+transport or escalation details.
 
-| View | What it shows |
+| View | Contract illustrated |
 |---|---|
-| [Caller, dispatcher and policy packages](http://127.0.0.1:8769/#diagram-packages) | Which package owns what, that the policy returns the command, that dispatch supervises it and reports the run ending, and the runner both sides use |
-| [Prepare, record and supervise the harness](http://127.0.0.1:8769/#diagram-handoff) | Selection, the handoff record, the supervised run and its end observation, for `inspect` and for `run` |
-| [Two nested jobs: driver, dispatch, harness](http://127.0.0.1:8769/#diagram-chain) | The process and terminal chain, who holds the terminal when, and where the exit signal goes |
-| [A supervised run from selection to its ending](http://127.0.0.1:8769/#diagram-ending) | The run's states, the escalation, cancellation, and how the run ending is chosen |
-| [Grove's two launches: lifecycle and confined standalone](http://127.0.0.1:8769/#diagram-grove-launch) | What Grove passes, the teardown record, where a refusal lands, and how a confined invocation launches through `run --confine` |
-| [How the driver reads a reaped launch](http://127.0.0.1:8769/#diagram-loop-decision) | Interrupted, finished, relaunched or stopped, from the teardown record and the run ending |
-| [Where each option keeps the creator's provider](http://127.0.0.1:8769/#diagram-creator-options) | The options the [creator-reference decision](../../adr/a-review-carries-its-creator-reference.md) weighed, and the one chosen |
-| [Producer names its run; the review resolves it](http://127.0.0.1:8769/#diagram-creator-flow) | The creator reference from a producer's launch to its review's provider check |
-| [Resolve the Creator line before selecting a reviewer](http://127.0.0.1:8769/#diagram-creator) | The supplied review policy's path to a selection or a refusal |
+| [Independent ownership](http://127.0.0.1:8769/#diagram-packages) | Public CLI between separate releases, caller imports and local runners. |
+| [Route and return](http://127.0.0.1:8769/#diagram-handoff) | Unchanged caller prompt, refusal, supervision and opaque result after cleanup. |
+| [Nested jobs](http://127.0.0.1:8769/#diagram-chain) | Grove's Ravel job, Ravel's managed job and terminal recovery. |
+| [Result lifecycle](http://127.0.0.1:8769/#diagram-ending) | Successful publication versus absent result, cancellation or cleanup failure. |
+| [Two Grove callers](http://127.0.0.1:8769/#diagram-grove-launch) | Lifecycle admission/teardown and confined standalone output publication. |
+| [Post-reap decision](http://127.0.0.1:8769/#diagram-loop-decision) | Epoch gate, interruption, teardown, surviving group, status and exact result. |
+| [Creator alternatives](http://127.0.0.1:8769/#diagram-creator-options) | The [Creator decision](../../adr/a-review-carries-its-creator-reference.md)'s inline receipt/declaration and rejected store/today's-route alternatives. |
+| [Creator handoff](http://127.0.0.1:8769/#diagram-creator-flow) | Caller wrapper, finishing producer and review's committed provider evidence. |
+| [Configured review](http://127.0.0.1:8769/#diagram-creator) | Validation and different-provider routing by opt-in Grove policy assets. |
 
-The [runtime evidence](runtime-evidence.md) records what was observed of the
-runtime the worker is built on: the ambient-loading controls, the embedded
-specifiers, the worker's directory and the installed smoke test at each
-target's floor. The specification's
-[acceptance table](../../specs/harness-selection-and-execution.md#test-seams)
-maps the acceptance cases to the four agreed seams.
+Ravel injects no ending instruction and gives result tokens no meaning. Current
+Grove prompts name its canonical `end-session grove-continue` command. Finish
+records Grove's teardown first. **Already running original-v22 sessions** keep
+`harness-dispatch exit` and their original Creator/admission/teardown contract;
+no view changes their live channel.
+
+The [runtime evidence locator](runtime-evidence.md) points to executable-owned
+Ravel controls and immutable historical experiments. Grove's
+[caller acceptance](../../ravel-caller-surface-audit.md) and
+[delivery acceptance](../../grove-delivery-contraction.md) establish its own
+public integration; neither duplicates Ravel's private runtime contract.

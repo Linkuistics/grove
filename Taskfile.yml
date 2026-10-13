@@ -34,15 +34,32 @@ tasks:
     cmds:
       - task: ravel:policy:typecheck
         vars: {RAVEL: '{{.RAVEL}}'}
+      - task: ravel:policy:compiler-test
+        vars: {RAVEL: '{{.RAVEL}}'}
       - task: ravel:policy:runtime
         vars: {RAVEL: '{{.RAVEL}}'}
+
+  ravel:policy:deps:
+    desc: Install Grove's pinned development compiler for its caller-owned policy assets
+    dir: tools/ravel-policy
+    cmds:
+      - bun install --frozen-lockfile
+
+  ravel:policy:compiler-test:
+    desc: Prove public-SDK typechecking works without dispatch source and refuses invalid inputs
+    requires:
+      vars: [RAVEL]
+    env:
+      GROVE_TEST_RAVEL: '{{.RAVEL}}'
+    cmds:
+      - bash scripts/ravel-policy-typecheck.test.sh
 
   ravel:policy:typecheck:
     desc: Typecheck Grove policy assets and ordinary imports against installed Ravel declarations
     requires:
       vars: [RAVEL]
     cmds:
-      - task: dispatch:deps
+      - task: ravel:policy:deps
       - bash scripts/ravel-policy-typecheck.sh "{{.RAVEL}}"
 
   ravel:policy:runtime:

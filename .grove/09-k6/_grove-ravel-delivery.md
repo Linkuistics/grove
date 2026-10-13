@@ -1,4 +1,4 @@
-# grove-ravel-delivery-k6
+# grove-ravel-delivery-k6 — brief
 
 ## Goal
 
@@ -53,6 +53,22 @@ Ravel as an independently versioned runtime dependency.
   cleanup procedure. There is no historical catch-up/import work. Keep the legacy installation until the driver has
   ended; neither k13 nor final finish removes it before its final signal.
 
+## Decomposition
+
+This leaf spans compiler ownership, target inputs, an atomic package/delivery
+removal, a live-install compatibility instrument, and complete target acceptance.
+Each needs a fresh focused session; the first child runs in the decomposing session.
+
+- grove-policy-toolchain-k47 detaches the caller compiler and validates installed-SDK typechecking without the old source tree.
+- ravel-target-inputs-k48 supplies fail-closed, pinned independent layouts for all supported targets before delivery removal.
+- grove-delivery-contraction-k49 removes the old package/build recipes and switches archives, formula and smoke consumers together, preserving caller assets/tests and source-pinned books.
+- legacy-driver-transition-k50 prepares/tests isolated old-keg preservation and upgrade/unlink, without modifying the live installation.
+- grove-delivery-acceptance-k51 runs frozen complete target/formula/check acceptance and reconciles every parent criterion before closing k6.
+
+## Decisions (running log)
+
+- Decompose at the independently testable delivery seams. Keep the original installed driver/exit channel and all Cargo authority guards throughout. First move only Grove's policy-development compiler dependencies/configuration; retained dispatch build/typecheck/probe tasks remain until the atomic contraction child.
+
 ## Notes
 
 Verify source and unreleased archives here. k13 performs the human-requested
@@ -69,3 +85,17 @@ preserve installed-Ravel checks from `ravel:policy`/`ravel:provenance`. Drop
 `ravel:policy:compatibility` only with the old package's delivery removal; k42
 has preserved and verified those fixtures at the current boundary. k5's promoted
 handoff and k42's terminal leaf contain exact tested asset/evidence contracts.
+
+## Compiler handoff — grove-policy-toolchain-k47
+
+Grove caller typechecking now owns tools/ravel-policy and ravel:policy:deps;
+the actual Taskfile/helper passes against installed Ravel 0.1.0 in a checkout
+fragment without crates/. Exact compiler lock pins and strict flags are retained.
+The invalid-type/absent-SDK controls and full task check pass; 18,123 individually
+frozen subjects match. k47 carries the complete evidence/log boundaries.
+
+The old dispatch package/compiler/tasks remain intentionally for k49's atomic
+contraction, independent of the new caller compiler. k48 supplies pinned target
+layouts next; k50 prepares the actual-old-keg transition; k51 owns final delivery
+acceptance. No k6 archive/formula/removal/transition criterion is declared done
+by this compiler increment. Original 22.1.0 exit/admission bytes remain preserved.

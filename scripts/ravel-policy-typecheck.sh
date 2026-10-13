@@ -6,15 +6,15 @@ IFS=$'\n\t'
 
 main() {
   local ravel="${1:?usage: ravel-policy-typecheck.sh /absolute/path/to/ravel}"
-  local root worker scratch cleanup
+  local root tooling scratch cleanup
   root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-  worker="$root/crates/harness-dispatch/worker"
+  tooling="$root/tools/ravel-policy"
   [[ "$(bun --version)" == 1.4.2 ]] || {
     echo 'policy typecheck: Bun 1.4.2 is pinned; install it and retry' >&2
     return 1
   }
-  [[ -f "$worker/node_modules/typescript/bin/tsc" ]] || {
-    echo 'policy typecheck: run task dispatch:deps to install the pinned compiler' >&2
+  [[ -f "$tooling/node_modules/typescript/bin/tsc" ]] || {
+    echo 'policy typecheck: run task ravel:policy:deps to install the pinned compiler' >&2
     return 1
   }
   scratch="$(mktemp -d)"
@@ -32,17 +32,17 @@ main() {
     for (const file of [sdk, example]) {
       if (!existsSync(file)) throw new Error(`missing installed Ravel declarations: ${file}`);
     }
-    const worker = join(root, "crates/harness-dispatch/worker");
+    const tooling = join(root, "tools/ravel-policy");
     writeFileSync(join(scratch, "tsconfig.json"), JSON.stringify({
-      extends: join(worker, "tsconfig.json"),
+      extends: join(tooling, "tsconfig.json"),
       compilerOptions: {
-        typeRoots: [join(worker, "node_modules/@types")],
+        typeRoots: [join(tooling, "node_modules/@types")],
         paths: { "ravel/sdk": [sdk], "ravel/examples/static": [example] }
       },
       include: [join(root, "assets/ravel-policy/**/*.ts")]
     }));
   ' "$ravel" "$root" "$scratch"
-  bun "$worker/node_modules/typescript/bin/tsc" -p "$scratch/tsconfig.json"
+  bun "$tooling/node_modules/typescript/bin/tsc" -p "$scratch/tsconfig.json"
   echo 'policy typecheck: Grove assets and import fixtures passed against the installed Ravel SDK'
 }
 

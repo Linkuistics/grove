@@ -3,6 +3,26 @@ version: '3'
 set: [errexit, nounset, pipefail]
 
 tasks:
+  release:floor:prepare:
+    desc: Build pinned test-only bubblewrap 0.11.0 for the exact Linux glibc floor
+    requires:
+      vars: [OUT]
+    cmds:
+      - bash scripts/release-floor-backend.sh "{{.OUT}}" {{.TARGETS}}
+
+  release:floor:controls:
+    desc: Refuse changed/missing backend inputs, wrong ELF and unsafe output destinations
+    cmds:
+      - bash scripts/release-floor-backend.test.sh
+      - bash scripts/atomic-directory-publish.test.sh
+
+  release:floor:probe:
+    desc: Diagnose real backend execution and namespace availability at native/QEMU floors (not caller acceptance)
+    requires:
+      vars: [BACKENDS]
+    cmds:
+      - bash scripts/release-floor-backend-probe-host.sh "{{.BACKENDS}}"
+
   legacy:prepare:
     desc: Read and back up the complete original 22.1.0 keg without modifying installation or PATH
     requires:

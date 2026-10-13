@@ -72,6 +72,11 @@ authorize invoking an archive later modified by another process.
 
 ## Reused execution seams
 
+Linux standalone confinement additionally requires the test environment's real
+bubblewrap backend. [Linux floor backend preparation](linux-floor-backend.md)
+provides pinned target builds and execution diagnostics; namespace availability
+and actual Grove standalone acceptance remain required separately.
+
 `ravel-target-smoke.sh` sources the existing release platform runner, substituting
 its target/case scripts while retaining the pinned images, QEMU emulators,
 Zig-built probes, native container and private binfmt namespace machinery.

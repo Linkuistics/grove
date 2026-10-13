@@ -1,4 +1,4 @@
-# grove-ravel-runtime-k27
+# grove-ravel-runtime-k27 — brief
 
 
 ## Goal
@@ -37,3 +37,19 @@ Use no private worker protocol. k5's full Done when remains the migration contra
 If this fan-out exceeds one focused session, decompose at green expand/migrate
 seams. k28 owns generic policy/provenance assets; coordinate public caller context
 fields through the parent brief rather than inventing Ravel storage.
+
+## Decomposition
+
+The current runner sends both output streams to the terminal or transcript. Ravel
+returns its public result on stdout, so capturing that stream without changing
+job/terminal supervision is the prerequisite green seam.
+
+- session-stdout-capture-k30 expands keyed-launch with separate regular-file
+  stdout capture for interactive and noninteractive jobs, verified at process
+  and PTY boundaries. Existing launches and APIs remain active.
+- grove-ravel-consumers-k31 performs the atomic migration of both launch/read
+  paths, prompts, confinement and installed-pair/lifecycle fixtures, using that
+  capture seam. It owns all remaining Done when above and changed source books.
+
+The node remains live until actual consumer migration passes. No Grove runtime
+or source prompt is switched by the expansion child.

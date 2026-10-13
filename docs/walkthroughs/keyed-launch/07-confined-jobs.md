@@ -11,6 +11,11 @@ new POSIX session and keeps stdin at EOF. Grove uses it to supervise dispatch.
 It adds no filesystem confinement. The interactive `run` and `run_observed`
 path retains its foreground-job behavior.
 
+`run_noninteractive_with_stdout` keeps that detached-job behavior and directs
+stdout into a separate regular file, leaving only stderr in the log. Its
+interactive counterpart is `run_observed_with_stdout`; chapter 3 explains
+[stream redirection independent of job mode](03-the-job.md#run-output-modes).
+
 `run_confined_observed` uses the detached process mode with inherited stdout
 and stderr. `FilesystemGrants` names writable directories and literal runtime
 files. It clears the environment before applying explicit grants and setting

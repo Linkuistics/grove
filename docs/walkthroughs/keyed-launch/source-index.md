@@ -9,17 +9,17 @@
 | Root ID | Source path | Lines |
 |---|---|---|
 | `source-crate-manifest` | `crates/keyed-launch/Cargo.toml` | 42 |
-| `source-library-root` | `crates/keyed-launch/src/lib.rs` | 52 |
+| `source-library-root` | `crates/keyed-launch/src/lib.rs` | 53 |
 | `source-error-type` | `crates/keyed-launch/src/error.rs` | 56 |
 | `source-argv` | `crates/keyed-launch/src/argv.rs` | 64 |
 | `source-channel` | `crates/keyed-launch/src/channel.rs` | 429 |
-| `source-run` | `crates/keyed-launch/src/run.rs` | 1,340 |
+| `source-run` | `crates/keyed-launch/src/run.rs` | 1,387 |
 | `source-confinement` | `crates/keyed-launch/src/confinement.rs` | 326 |
 
 <!-- source-root «source-crate-manifest» source="crates/keyed-launch/Cargo.toml" lines="1-42" -->
 <!-- insert «manifest-one-dependency» -->
 <!-- /source-root -->
-<!-- source-root «source-library-root» source="crates/keyed-launch/src/lib.rs" lines="1-52" -->
+<!-- source-root «source-library-root» source="crates/keyed-launch/src/lib.rs" lines="1-53" -->
 <!-- insert «library-root» -->
 <!-- /source-root -->
 <!-- source-root «source-error-type» source="crates/keyed-launch/src/error.rs" lines="1-56" -->
@@ -32,7 +32,7 @@
 <!-- insert «channel-production» -->
 <!-- insert «channel-inline-tests» -->
 <!-- /source-root -->
-<!-- source-root «source-run» source="crates/keyed-launch/src/run.rs" lines="1-1340" -->
+<!-- source-root «source-run» source="crates/keyed-launch/src/run.rs" lines="1-1387" -->
 <!-- insert «launch-shape» -->
 <!-- insert «watch-and-launcher-signals» -->
 <!-- insert «terminal-and-spawn» -->
@@ -48,15 +48,15 @@
 | Block ID | Root ID | Owner | Source lines | Count | State |
 |---|---|---|---|---|---|
 | `manifest-one-dependency` | `source-crate-manifest` | `understands-neither` | `1-42` | 42 | `resolved` |
-| `library-root` | `source-library-root` | `understands-neither` | `1-52` | 52 | `resolved` |
+| `library-root` | `source-library-root` | `understands-neither` | `1-53` | 53 | `resolved` |
 | `one-opaque-error` | `source-error-type` | `understands-neither` | `1-56` | 56 | `resolved` |
 | `argv` | `source-argv` | `understands-neither` | `1-64` | 64 | `resolved` |
 | `channel-production` | `source-channel` | `appearance-is-the-event` | `1-268` | 268 | `resolved` |
 | `channel-inline-tests` | `source-channel` | `checked-without-meaning` | `269-429` | 161 | `resolved` |
 | `launch-shape` | `source-run` | `nothing-else-added` | `1-196` | 196 | `resolved` |
 | `watch-and-launcher-signals` | `source-run` | `the-launchers-job` | `197-385` | 189 | `resolved` |
-| `terminal-and-spawn` | `source-run` | `nothing-else-added` | `386-998` | 613 | `resolved` |
-| `supervise-and-escalate` | `source-run` | `the-launchers-job` | `999-1340` | 342 | `resolved` |
+| `terminal-and-spawn` | `source-run` | `nothing-else-added` | `386-1045` | 660 | `resolved` |
+| `supervise-and-escalate` | `source-run` | `the-launchers-job` | `1046-1387` | 342 | `resolved` |
 | `confinement-policy` | `source-confinement` | `confined-jobs` | `1-326` | 326 | `resolved` |
 
 <a id="fragment-index"></a>
@@ -71,13 +71,13 @@
 | `manifest-dev-dependencies` | `orientation` | `source-crate-manifest` | `literal` | `understands-neither` | `22-24` | `manifest-one-dependency` | `—` |
 | `manifest-lints` | `orientation` | `source-crate-manifest` | `literal` | `understands-neither` | `25-27` | `manifest-one-dependency` | `—` |
 | `manifest-release` | `orientation` | `source-crate-manifest` | `literal` | `understands-neither` | `28-42` | `manifest-one-dependency` | `—` |
-| `source-library-root` | `source-index` | `source-library-root` | `root` | `—` | `1-52` | `—` | `library-root` |
+| `source-library-root` | `source-index` | `source-library-root` | `root` | `—` | `1-53` | `—` | `library-root` |
 | `library-root-thesis` | `orientation` | `source-library-root` | `literal` | `understands-neither` | `1-8` | `library-root` | `—` |
-| `library-root` | `orientation` | `source-library-root` | `composite` | `understands-neither` | `1-52` | `source-library-root` | `library-root-thesis`, `library-root-to-a-child`, `library-root-job-and-out-of-band`, `library-root-observed`, `library-root-modules-and-exports` |
+| `library-root` | `orientation` | `source-library-root` | `composite` | `understands-neither` | `1-53` | `source-library-root` | `library-root-thesis`, `library-root-to-a-child`, `library-root-job-and-out-of-band`, `library-root-observed`, `library-root-modules-and-exports` |
 | `library-root-to-a-child` | `orientation` | `source-library-root` | `literal` | `understands-neither` | `9-14` | `library-root` | `—` |
 | `library-root-job-and-out-of-band` | `orientation` | `source-library-root` | `literal` | `understands-neither` | `15-30` | `library-root` | `—` |
 | `library-root-observed` | `orientation` | `source-library-root` | `literal` | `understands-neither` | `31-35` | `library-root` | `—` |
-| `library-root-modules-and-exports` | `orientation` | `source-library-root` | `literal` | `understands-neither` | `36-52` | `library-root` | `—` |
+| `library-root-modules-and-exports` | `orientation` | `source-library-root` | `literal` | `understands-neither` | `36-53` | `library-root` | `—` |
 | `source-error-type` | `source-index` | `source-error-type` | `root` | `—` | `1-56` | `—` | `one-opaque-error` |
 | `error-import` | `orientation` | `source-error-type` | `literal` | `understands-neither` | `1-1` | `one-opaque-error` | `—` |
 | `one-opaque-error` | `orientation` | `source-error-type` | `composite` | `understands-neither` | `1-56` | `source-error-type` | `error-import`, `error-launch-type`, `error-launch-traits` |
@@ -115,7 +115,7 @@
 | `channel-parent-identity-test` | `how-checked` | `source-channel` | `literal` | `checked-without-meaning` | `361-377` | `channel-tests-discard` | `—` |
 | `channel-discard-postcondition-test` | `how-checked` | `source-channel` | `literal` | `checked-without-meaning` | `378-390` | `channel-tests-discard` | `—` |
 | `channel-tests-cleanup` | `how-checked` | `source-channel` | `literal` | `checked-without-meaning` | `391-429` | `channel-inline-tests` | `—` |
-| `source-run` | `source-index` | `source-run` | `root` | `—` | `1-1340` | `—` | `launch-shape`, `watch-and-launcher-signals`, `terminal-and-spawn`, `supervise-and-escalate` |
+| `source-run` | `source-index` | `source-run` | `root` | `—` | `1-1387` | `—` | `launch-shape`, `watch-and-launcher-signals`, `terminal-and-spawn`, `supervise-and-escalate` |
 | `run-thesis` | `the-job` | `source-run` | `literal` | `nothing-else-added` | `1-14` | `launch-shape` | `—` |
 | `launch-shape` | `the-job` | `source-run` | `composite` | `nothing-else-added` | `1-196` | `source-run` | `run-thesis`, `run-poll-interval`, `run-escalation`, `run-launch`, `run-ended`, `run-group`, `run-end` |
 | `run-poll-interval` | `the-job` | `source-run` | `literal` | `nothing-else-added` | `15-22` | `launch-shape` | `—` |
@@ -135,7 +135,7 @@
 | `run-sigchld-ignored-at-entry` | `the-escalation` | `source-run` | `literal` | `the-launchers-job` | `347-353` | `watch-and-launcher-signals` | `—` |
 | `run-restore-child-watching` | `the-escalation` | `source-run` | `literal` | `the-launchers-job` | `354-385` | `watch-and-launcher-signals` | `—` |
 | `run-default-dispositions` | `the-job` | `source-run` | `literal` | `nothing-else-added` | `386-412` | `terminal-and-spawn` | `—` |
-| `terminal-and-spawn` | `the-job` | `source-run` | `composite` | `nothing-else-added` | `386-998` | `source-run` | `run-default-dispositions`, `run-entry-signals`, `run-terminal-type`, `run-terminal-open`, `run-terminal-accessors`, `run-terminal-hand-to`, `run-terminal-attributes`, `run-own-group`, `run-lease-type`, `run-lease-hold`, `run-lease-lend`, `run-lease-reclaim`, `run-the-child-is-a-job`, `run-command-and-environment`, `run-terminal-handover`, `run-process-group`, `run-pre-exec`, `run-clear-and-spawn`, `run-parent-group-and-supervise` |
+| `terminal-and-spawn` | `the-job` | `source-run` | `composite` | `nothing-else-added` | `386-1045` | `source-run` | `run-default-dispositions`, `run-entry-signals`, `run-terminal-type`, `run-terminal-open`, `run-terminal-accessors`, `run-terminal-hand-to`, `run-terminal-attributes`, `run-own-group`, `run-lease-type`, `run-lease-hold`, `run-lease-lend`, `run-lease-reclaim`, `run-the-child-is-a-job`, `run-command-and-environment`, `run-terminal-handover`, `run-process-group`, `run-pre-exec`, `run-clear-and-spawn`, `run-parent-group-and-supervise` |
 | `run-entry-signals` | `the-job` | `source-run` | `literal` | `nothing-else-added` | `413-493` | `terminal-and-spawn` | `—` |
 | `run-terminal-type` | `the-job` | `source-run` | `literal` | `nothing-else-added` | `494-497` | `terminal-and-spawn` | `—` |
 | `run-terminal-open` | `the-job` | `source-run` | `literal` | `nothing-else-added` | `498-522` | `terminal-and-spawn` | `—` |
@@ -148,33 +148,33 @@
 | `run-lease-lend` | `the-job` | `source-run` | `literal` | `nothing-else-added` | `615-632` | `terminal-and-spawn` | `—` |
 | `run-lease-reclaim` | `the-job` | `source-run` | `literal` | `nothing-else-added` | `633-671` | `terminal-and-spawn` | `—` |
 | `run-the-child-is-a-job` | `the-job` | `source-run` | `literal` | `nothing-else-added` | `672-713` | `terminal-and-spawn` | `—` |
-| `run-output-modes` | `the-job` | `source-run` | `literal` | `nothing-else-added` | `714-776` | `run-command-and-environment` | `—` |
-| `run-command-and-environment` | `the-job` | `source-run` | `composite` | `nothing-else-added` | `714-846` | `terminal-and-spawn` | `run-output-modes`, `run-output-setup` |
-| `run-output-setup` | `the-job` | `source-run` | `literal` | `nothing-else-added` | `777-846` | `run-command-and-environment` | `—` |
-| `run-terminal-handover` | `the-job` | `source-run` | `literal` | `nothing-else-added` | `847-861` | `terminal-and-spawn` | `—` |
-| `run-process-group` | `the-job` | `source-run` | `literal` | `nothing-else-added` | `862-869` | `terminal-and-spawn` | `—` |
-| `run-pre-exec` | `the-job` | `source-run` | `literal` | `nothing-else-added` | `870-920` | `terminal-and-spawn` | `—` |
-| `run-clear-and-spawn` | `the-job` | `source-run` | `literal` | `nothing-else-added` | `921-933` | `terminal-and-spawn` | `—` |
-| `run-spawn-handoff` | `the-job` | `source-run` | `literal` | `nothing-else-added` | `934-960` | `run-parent-group-and-supervise` | `—` |
-| `run-parent-group-and-supervise` | `the-job` | `source-run` | `composite` | `nothing-else-added` | `934-998` | `terminal-and-spawn` | `run-spawn-handoff`, `run-descriptor-bound` |
-| `run-descriptor-bound` | `the-job` | `source-run` | `literal` | `nothing-else-added` | `961-998` | `run-parent-group-and-supervise` | `—` |
-| `run-second-kill-pause` | `the-escalation` | `source-run` | `literal` | `the-launchers-job` | `999-1008` | `supervise-and-escalate` | `—` |
-| `supervise-and-escalate` | `the-escalation` | `source-run` | `composite` | `the-launchers-job` | `999-1340` | `source-run` | `run-second-kill-pause`, `run-group-confirmation`, `run-killed-poll-interval`, `run-mode`, `run-process-seam`, `run-process-for-child`, `run-confirm-gone`, `run-watched-and-failed`, `run-supervise`, `run-watch-signature`, `run-watch-lend`, `run-watch-forward-interrupt`, `run-watch-exited`, `run-watch-escalation`, `run-watch-end-the-group`, `run-kill` |
-| `run-group-confirmation` | `the-escalation` | `source-run` | `literal` | `the-launchers-job` | `1009-1017` | `supervise-and-escalate` | `—` |
-| `run-killed-poll-interval` | `the-escalation` | `source-run` | `literal` | `the-launchers-job` | `1018-1022` | `supervise-and-escalate` | `—` |
-| `run-mode` | `the-escalation` | `source-run` | `literal` | `the-launchers-job` | `1023-1031` | `supervise-and-escalate` | `—` |
-| `run-process-seam` | `the-escalation` | `source-run` | `literal` | `the-launchers-job` | `1032-1051` | `supervise-and-escalate` | `—` |
-| `run-process-for-child` | `the-escalation` | `source-run` | `literal` | `the-launchers-job` | `1052-1107` | `supervise-and-escalate` | `—` |
-| `run-confirm-gone` | `the-escalation` | `source-run` | `literal` | `the-launchers-job` | `1108-1131` | `supervise-and-escalate` | `—` |
-| `run-watched-and-failed` | `the-escalation` | `source-run` | `literal` | `the-launchers-job` | `1132-1145` | `supervise-and-escalate` | `—` |
-| `run-supervise` | `the-escalation` | `source-run` | `literal` | `the-launchers-job` | `1146-1195` | `supervise-and-escalate` | `—` |
-| `run-watch-signature` | `the-escalation` | `source-run` | `literal` | `the-launchers-job` | `1196-1208` | `supervise-and-escalate` | `—` |
-| `run-watch-lend` | `the-escalation` | `source-run` | `literal` | `the-launchers-job` | `1209-1211` | `supervise-and-escalate` | `—` |
-| `run-watch-forward-interrupt` | `the-escalation` | `source-run` | `literal` | `the-launchers-job` | `1212-1230` | `supervise-and-escalate` | `—` |
-| `run-watch-exited` | `the-escalation` | `source-run` | `literal` | `the-launchers-job` | `1231-1256` | `supervise-and-escalate` | `—` |
-| `run-watch-escalation` | `the-escalation` | `source-run` | `literal` | `the-launchers-job` | `1257-1285` | `supervise-and-escalate` | `—` |
-| `run-watch-end-the-group` | `the-escalation` | `source-run` | `literal` | `the-launchers-job` | `1286-1307` | `supervise-and-escalate` | `—` |
-| `run-kill` | `the-escalation` | `source-run` | `literal` | `the-launchers-job` | `1308-1340` | `supervise-and-escalate` | `—` |
+| `run-output-modes` | `the-job` | `source-run` | `literal` | `nothing-else-added` | `714-817` | `run-command-and-environment` | `—` |
+| `run-command-and-environment` | `the-job` | `source-run` | `composite` | `nothing-else-added` | `714-893` | `terminal-and-spawn` | `run-output-modes`, `run-output-setup` |
+| `run-output-setup` | `the-job` | `source-run` | `literal` | `nothing-else-added` | `818-893` | `run-command-and-environment` | `—` |
+| `run-terminal-handover` | `the-job` | `source-run` | `literal` | `nothing-else-added` | `894-908` | `terminal-and-spawn` | `—` |
+| `run-process-group` | `the-job` | `source-run` | `literal` | `nothing-else-added` | `909-916` | `terminal-and-spawn` | `—` |
+| `run-pre-exec` | `the-job` | `source-run` | `literal` | `nothing-else-added` | `917-967` | `terminal-and-spawn` | `—` |
+| `run-clear-and-spawn` | `the-job` | `source-run` | `literal` | `nothing-else-added` | `968-980` | `terminal-and-spawn` | `—` |
+| `run-spawn-handoff` | `the-job` | `source-run` | `literal` | `nothing-else-added` | `981-1007` | `run-parent-group-and-supervise` | `—` |
+| `run-parent-group-and-supervise` | `the-job` | `source-run` | `composite` | `nothing-else-added` | `981-1045` | `terminal-and-spawn` | `run-spawn-handoff`, `run-descriptor-bound` |
+| `run-descriptor-bound` | `the-job` | `source-run` | `literal` | `nothing-else-added` | `1008-1045` | `run-parent-group-and-supervise` | `—` |
+| `run-second-kill-pause` | `the-escalation` | `source-run` | `literal` | `the-launchers-job` | `1046-1055` | `supervise-and-escalate` | `—` |
+| `supervise-and-escalate` | `the-escalation` | `source-run` | `composite` | `the-launchers-job` | `1046-1387` | `source-run` | `run-second-kill-pause`, `run-group-confirmation`, `run-killed-poll-interval`, `run-mode`, `run-process-seam`, `run-process-for-child`, `run-confirm-gone`, `run-watched-and-failed`, `run-supervise`, `run-watch-signature`, `run-watch-lend`, `run-watch-forward-interrupt`, `run-watch-exited`, `run-watch-escalation`, `run-watch-end-the-group`, `run-kill` |
+| `run-group-confirmation` | `the-escalation` | `source-run` | `literal` | `the-launchers-job` | `1056-1064` | `supervise-and-escalate` | `—` |
+| `run-killed-poll-interval` | `the-escalation` | `source-run` | `literal` | `the-launchers-job` | `1065-1069` | `supervise-and-escalate` | `—` |
+| `run-mode` | `the-escalation` | `source-run` | `literal` | `the-launchers-job` | `1070-1078` | `supervise-and-escalate` | `—` |
+| `run-process-seam` | `the-escalation` | `source-run` | `literal` | `the-launchers-job` | `1079-1098` | `supervise-and-escalate` | `—` |
+| `run-process-for-child` | `the-escalation` | `source-run` | `literal` | `the-launchers-job` | `1099-1154` | `supervise-and-escalate` | `—` |
+| `run-confirm-gone` | `the-escalation` | `source-run` | `literal` | `the-launchers-job` | `1155-1178` | `supervise-and-escalate` | `—` |
+| `run-watched-and-failed` | `the-escalation` | `source-run` | `literal` | `the-launchers-job` | `1179-1192` | `supervise-and-escalate` | `—` |
+| `run-supervise` | `the-escalation` | `source-run` | `literal` | `the-launchers-job` | `1193-1242` | `supervise-and-escalate` | `—` |
+| `run-watch-signature` | `the-escalation` | `source-run` | `literal` | `the-launchers-job` | `1243-1255` | `supervise-and-escalate` | `—` |
+| `run-watch-lend` | `the-escalation` | `source-run` | `literal` | `the-launchers-job` | `1256-1258` | `supervise-and-escalate` | `—` |
+| `run-watch-forward-interrupt` | `the-escalation` | `source-run` | `literal` | `the-launchers-job` | `1259-1277` | `supervise-and-escalate` | `—` |
+| `run-watch-exited` | `the-escalation` | `source-run` | `literal` | `the-launchers-job` | `1278-1303` | `supervise-and-escalate` | `—` |
+| `run-watch-escalation` | `the-escalation` | `source-run` | `literal` | `the-launchers-job` | `1304-1332` | `supervise-and-escalate` | `—` |
+| `run-watch-end-the-group` | `the-escalation` | `source-run` | `literal` | `the-launchers-job` | `1333-1354` | `supervise-and-escalate` | `—` |
+| `run-kill` | `the-escalation` | `source-run` | `literal` | `the-launchers-job` | `1355-1387` | `supervise-and-escalate` | `—` |
 | `source-confinement` | `source-index` | `source-confinement` | `root` | `—` | `1-326` | `—` | `confinement-policy` |
 | `held-directory-read` | `confined-jobs` | `source-confinement` | `literal` | `confined-jobs` | `1-42` | `confinement-policy` | `—` |
 | `confinement-policy` | `confined-jobs` | `source-confinement` | `composite` | `confined-jobs` | `1-326` | `source-confinement` | `held-directory-read`, `confinement-contract`, `confinement-resource-resolution`, `confinement-macos`, `confinement-linux`, `confinement-unavailable` |
@@ -190,26 +190,26 @@
 | Symbol family | First use | Owner | Minimum local statement | Status |
 |---|---|---|---|---|
 | `Channel`, `signal` | `01-orientation.md#the-cast` | `appearance-is-the-event` | A fresh path per launch that allocation picks and writes nothing to; `signal` is what the child calls to make it appear, and the runner reports appearance through `Ended.signalled`. | `explained` |
-| `run`, `run_observed`, `LaunchEvent`, `Launch`, `EntrySignals`, `Ended`, `End`, `Group`, `Escalation` | `01-orientation.md#the-cast` | `nothing-else-added` | `run_observed` reports successful spawn and confirmed reap synchronously; `run` uses a no-op observer. Each spawns one `Launch` — argv, channel, scrub list, granted values, a transparent caller's `EntrySignals` when there is one, working directory and the two graces of an `Escalation` — and returns an `Ended` saying which of `End`'s three cases happened, whether the channel appeared, and whether the child's `Group` was confirmed gone. | `explained` |
+| `run`, `run_observed`, `run_observed_with_stdout`, `LaunchEvent`, `Launch`, `EntrySignals`, `Ended`, `End`, `Group`, `Escalation` | `01-orientation.md#the-cast` | `nothing-else-added` | `run_observed` reports successful spawn and confirmed reap synchronously; `run` uses a no-op observer. `run_observed_with_stdout` captures stdout in a caller-owned regular file without changing foreground job control. Each spawns one `Launch` — argv, channel, scrub list, granted values, a transparent caller's `EntrySignals` when there is one, working directory and the two graces of an `Escalation` — and returns an `Ended` saying which of `End`'s three cases happened, whether the channel appeared, and whether the child's `Group` was confirmed gone. | `explained` |
 | `reraise`, `take_interrupt` | `01-orientation.md#the-cast` | `the-launchers-job` | The launcher's own two obligations for a termination signal: `take_interrupt` collects one that arrived between launches, and `reraise` is how a launcher dies of the same signal rather than reporting an exit code. | `explained` |
-| `run_noninteractive`, `run_confined_observed`, `NoninteractiveLaunch`, `FilesystemGrants`, `confinement_available`, `confinement_system_reads`, `regular_file_at` | `01-orientation.md#the-cast` | `confined-jobs` | Detached launches with file or inherited output, mandatory filesystem grants, backend availability and system-read inventory, and stable reads of artifacts through held directories. | `explained` |
+| `run_noninteractive`, `run_noninteractive_with_stdout`, `run_confined_observed`, `NoninteractiveLaunch`, `FilesystemGrants`, `confinement_available`, `confinement_system_reads`, `regular_file_at` | `01-orientation.md#the-cast` | `confined-jobs` | Detached launches with file or inherited output, separate regular-file stdout capture through `run_noninteractive_with_stdout`, mandatory filesystem grants, backend availability and system-read inventory, and stable reads of artifacts through held directories. | `explained` |
 | `install_termination_handler`, `restore_child_watching`, `INTERRUPTED_BY`, `Mode`, `supervise` | `03-the-job.md#the-spawn` | `the-launchers-job` | `run`'s first and last acts: the handler that latches a cancelling signal the launcher does not ignore into the process-global `INTERRUPTED_BY`, cleared immediately before each spawn; the repair for an inherited ignored SIGCHLD; and the supervisor that, told the launch's `Mode`, watches the child, ends its group and gives the terminal back. | `explained` |
 
 <a id="owned-source-totals"></a>
 ## Owned source totals
 
 Every source line is credited once to its owning chapter. The 7 roots
-contain 2,309 lines, divided below by the manifest's ownership
+contain 2,357 lines, divided below by the manifest's ownership
 blocks. `channel.rs` and `run.rs` split across chapters; the remaining roots
 are owned whole.
 
 | Slice | Page | Owned lines |
 |---|---|---:|
-| `understands-neither` | `01-orientation.md` | 214 |
+| `understands-neither` | `01-orientation.md` | 215 |
 | `appearance-is-the-event` | `02-the-channel.md` | 268 |
-| `nothing-else-added` | `03-the-job.md` | 809 |
+| `nothing-else-added` | `03-the-job.md` | 856 |
 | `the-launchers-job` | `04-the-escalation.md` | 531 |
 | `checked-without-meaning` | `05-how-checked.md` | 161 |
 | `assembly` | `06-what-ends-a-launch.md` | 0 |
 | `confined-jobs` | `07-confined-jobs.md` | 326 |
-| **Total** | 7 source roots | **2,309** |
+| **Total** | 7 source roots | **2,357** |

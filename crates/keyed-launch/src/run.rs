@@ -736,7 +736,34 @@ pub fn run_observed(
     launch: Launch<'_>,
     observer: &mut dyn FnMut(LaunchEvent),
 ) -> Result<Ended, LaunchError> {
-    run_with_output(launch.into(), observer, None, None)
+    run_with_output(launch.into(), observer, None, None, None)
+}
+
+/// Run an observed foreground job with stdout directed to a caller-owned
+/// regular file. Stdin, stderr, terminal lending and supervision are unchanged.
+/// The file is checked before spawn; its position and contents are the caller's.
+/// No truncation, rewind or interpretation is performed.
+pub fn run_observed_with_stdout(
+    launch: Launch<'_>,
+    stdout: File,
+    observer: &mut dyn FnMut(LaunchEvent),
+) -> Result<Ended, LaunchError> {
+    regular_output(&stdout, "stdout")?;
+    run_with_output(launch.into(), observer, None, Some(stdout), None)
+}
+
+/// Run a detached job with stdout in a separate caller-owned regular file and
+/// stderr in `output`. Both files are checked before spawn. Stdin remains EOF;
+/// cancellation, descriptor closure and reap follow [`run_noninteractive`].
+/// File positions and contents remain the caller's, as in
+/// [`run_observed_with_stdout`].
+pub fn run_noninteractive_with_stdout(
+    launch: NoninteractiveLaunch<'_>,
+    output: File,
+    stdout: File,
+) -> Result<Ended, LaunchError> {
+    regular_output(&stdout, "stdout")?;
+    run_noninteractive_output(launch, output, Some(stdout))
 }
 
 /// Run a noninteractive child in a new POSIX session, without a controlling
@@ -750,14 +777,27 @@ pub fn run_noninteractive(
     launch: NoninteractiveLaunch<'_>,
     output: File,
 ) -> Result<Ended, LaunchError> {
+    run_noninteractive_output(launch, output, None)
+}
+
+fn regular_output(output: &File, name: &str) -> Result<(), LaunchError> {
     let regular = output
         .metadata()
-        .map_err(|error| LaunchError::new(format!("cannot inspect the launch log: {error}")))?;
+        .map_err(|error| LaunchError::new(format!("cannot inspect the launch {name}: {error}")))?;
     if !regular.is_file() {
-        return Err(LaunchError::new(
-            "the noninteractive launch log must be a regular file",
-        ));
+        return Err(LaunchError::new(format!(
+            "the launch {name} must be a regular file"
+        )));
     }
+    Ok(())
+}
+
+fn run_noninteractive_output(
+    launch: NoninteractiveLaunch<'_>,
+    output: File,
+    stdout: Option<File>,
+) -> Result<Ended, LaunchError> {
+    regular_output(&output, "log")?;
     run_with_output(
         Job {
             argv: launch.argv,
@@ -770,6 +810,7 @@ pub fn run_noninteractive(
         },
         &mut |_| {},
         Some(output),
+        stdout,
         None,
     )
 }
@@ -787,13 +828,14 @@ pub fn run_confined_observed(
 ) -> Result<Ended, LaunchError> {
     let mut command = crate::confinement::command_with_grants(launch.argv, policy)?;
     command.env_clear();
-    run_with_output(launch.into(), observer, None, Some(command))
+    run_with_output(launch.into(), observer, None, None, Some(command))
 }
 
 fn run_with_output(
     launch: Job<'_>,
     observer: &mut dyn FnMut(LaunchEvent),
     output: Option<File>,
+    stdout: Option<File>,
     confined_command: Option<Command>,
 ) -> Result<Ended, LaunchError> {
     let mode = match (&output, &confined_command) {
@@ -823,6 +865,11 @@ fn run_with_output(
             LaunchError::new(format!("cannot duplicate the launch log: {error}"))
         })?;
         command.stdin(Stdio::null()).stdout(output).stderr(stderr);
+    }
+    // Redirection is independent of job mode: capturing stdout must not detach
+    // a foreground job or replace its terminal stdin/stderr with a log.
+    if let Some(stdout) = stdout {
+        command.stdout(stdout);
     }
     if let Some(cwd) = launch.cwd {
         command.current_dir(cwd);
@@ -1021,7 +1068,7 @@ const GROUP_CONFIRMATION: Duration = Duration::from_secs(1);
 /// shorter than [`POLL_INTERVAL`].
 const KILLED_POLL_INTERVAL: Duration = Duration::from_millis(10);
 
-/// Which of the three launch functions this is, as far as supervision cares:
+/// The launch's process mode, as far as supervision cares:
 /// how a cancellation reaches the child.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Mode {

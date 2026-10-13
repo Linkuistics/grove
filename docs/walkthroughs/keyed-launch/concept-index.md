@@ -28,6 +28,7 @@
 - [The appearance the crate reports](01-orientation.md#the-launch-in-outline)
 - [Five private modules and the re-exported surface](01-orientation.md#the-cast)
 - [The cast, and the chapter that owns each name](01-orientation.md#the-cast)
+- [Separate stdout capture preserves the launch's job mode](03-the-job.md#run-output-modes)
 - [One opaque error](01-orientation.md#one-opaque-error)
 - [Opacity as a design, not an omission](01-orientation.md#one-opaque-error)
 - [Name what is wrong, name where, name what fixes it](01-orientation.md#one-opaque-error)

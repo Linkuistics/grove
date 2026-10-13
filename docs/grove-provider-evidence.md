@@ -3,7 +3,7 @@
 Grove's optional `assets/ravel-policy/provenance.ts` wraps the owner's final
 policy using Ravel 0.1.0's public `Policy`/`Selected` API. It uses no Ravel store,
 record verb, private protocol or run lookup. Ravel supplies only routing and
-process supervision. k42 consumes this contract for creator-aware review routing.
+process supervision. The readable Grove review adapter consumes this contract for creator-aware routing.
 
 ```typescript
 import { policy as owner } from "./owner-policy.ts";
@@ -88,8 +88,14 @@ Deliver a schemaVersion-1 context with `facts.creator` containing
 `sources`; Ravel adds the canonical source path, bytes and SHA-256 to `measured`.
 For the owner's `**Creator:** declared <provider>`, deliver
 `{ evidence: "declared", provider }`, retaining that evidence label. The suffix
-is a nonblank single-line origin, not inferred from a command. k42 owns the
-adapter implementation, review selection and complete refusal/resume matrix.
+is a nonblank single-line origin, not inferred from a command. `assets/ravel-policy/grove.ts` implements this loader and
+`examples/review.ts` validates these facts before selecting a reviewer.
+`facts.reviewedArtifact` contains `{ id }`, the reviewed handle (or an external
+artifact ID for generic callers). Grove refuses caller-supplied review facts
+that conflict with its task. Other facts/assessments/sources are retained.
+The provider must be an exact own key in the review kind's origin table and the
+selected reviewer must have another provider. A gateway keeps its model origin.
+Unknown origins refuse without guessing or choosing a fallback.
 
 Missing Creator is unknown: refuse with an owner-declaration remedy. Duplicate,
 malformed, noncanonical, unsupported or oversized records refuse with a repair
@@ -110,11 +116,25 @@ and leaves the owner declaration pending. Invalid evidence stops for repair
 before retirement is committed. It must not fall back to legacy or stale data.
 Nothing in this document changes a running session's ending binary/channel.
 
+## Using the review policy
+
+Import `assets/ravel-policy/examples/grove-review.ts` normally. Its final policy
+uses `withProvenance`, so creator receipt production and review consumption work
+together. Owners can compose `groveReviewSelector({ routes, reviews })` with
+custom routes and wrap their final policy once. The illustrative routes/models
+remain owner-edited starting points; static sample choices stay unchanged.
+The generic `examples/review.ts` selector is also usable without Grove, from
+explicit JSON context. Its receipt object must have the exact schema/values
+above and agree with the separate `facts.creator.provider`; missing or invalid
+facts refuse. JSON transport may reorder object keys, so this path reconstructs
+canonical order before shared validation. Canonical input encoding and duplicate
+JSON keys are checked on raw Grove task lines, not already-parsed generic objects. No executable data is accepted in this context.
+
 ## Verification
 
-`task ravel:provenance RAVEL=/absolute/installed/ravel` checks strict installed-SDK
+`task ravel:review RAVEL=/absolute/installed/ravel` checks strict installed-SDK
 types, real installed-worker production/parser fixtures, actual Grove lifecycle
 sessions with fake agents, and inherited-evidence isolation. Save complete logs
-with `set -o pipefail; task ... 2>&1 | tee target/k41/provenance.log`.
+with `set -o pipefail; task ... 2>&1 | tee target/k42/review.log`.
 The broader `task ravel:policy:compatibility` retains old bundled fixtures until
 k6 removes that delivery. No test launches a model or edits the owner policy.

@@ -30,7 +30,14 @@ impl Fixture {
             capture.display(),
             pair.executable().display(),
         );
-        for name in ["my-codex-wrapper", "my-claude-wrapper", "codex", "claude"] {
+        for name in [
+            "my-codex-wrapper",
+            "my-claude-wrapper",
+            "my-agent-wrapper",
+            "my-other-agent-wrapper",
+            "codex",
+            "claude",
+        ] {
             let file = pair.bin().join(name);
             fs::write(&file, &script).unwrap();
             fs::set_permissions(file, fs::Permissions::from_mode(0o755)).unwrap();
@@ -73,6 +80,10 @@ impl Fixture {
     }
 
     fn run(&self, kind: &str) -> Output {
+        self.run_with(kind, &[])
+    }
+
+    fn run_with(&self, kind: &str, extra: &[&str]) -> Output {
         if self.capture.exists() {
             fs::remove_file(&self.capture).unwrap();
         }
@@ -88,6 +99,7 @@ impl Fixture {
                 "--config",
             ])
             .arg(&self.policy)
+            .args(extra)
             .env("HOME", self.temp.path())
             .current_dir(self.temp.path())
             .output()
@@ -515,4 +527,356 @@ export const policy = {{ schemaVersion: 2, version: 'measured-receipt-consumer',
     let output = fixture.run("review-impl");
     assert!(output.status.success(), "{output:?}");
     assert_eq!(output.stdout, b"grove-continue");
+}
+
+// Dropping provider diversity, accepting malformed markers, or trusting supplied
+// review facts must refuse before a fake agent can be launched.
+#[test]
+#[ignore = "requires installed Ravel: task ravel:policy RAVEL=/absolute/path/to/ravel"]
+fn readable_grove_review_parses_measured_evidence_and_refuses_bad_relationships() {
+    let fixture = Fixture::new("examples/grove-static.ts");
+    let adapter = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../assets/ravel-policy/examples/grove-review.ts");
+    fs::write(&fixture.policy, format!(r#"
+import {{ policy as owner }} from {adapter:?};
+export const policy = {{ ...owner,
+  async loadContext(request, host) {{
+    const context = await owner.loadContext(request, host);
+    if ('status' in context) return context;
+    if (request.kind.startsWith('review-') && context.sources.length !== 1) throw new Error('task not attributed');
+    return context;
+  }},
+  async select(request, context, host) {{
+    if (request.kind.startsWith('review-') && context.measured.length !== 1) throw new Error('task not measured');
+    return owner.select(request, context, host);
+  }}
+}};
+"#, adapter = adapter.to_str().unwrap())).unwrap();
+    let task = fixture.temp.path().join("review.md");
+    let extra = ["--task-file", task.to_str().unwrap()];
+    let receipt = r#"{"schemaVersion":1,"attemptId":"12345678-1234-4123-8123-123456789abc","provider":"openai","policyVersion":"old-owner","kind":"art","taskId":"closing-child-k3"}"#;
+    for (kind, effort) in [
+        ("review-requirements", "xhigh"),
+        ("review-design", "xhigh"),
+        ("review-planning", "xhigh"),
+        ("review-prototype", "medium"),
+        ("review-impl", "high"),
+    ] {
+        for (creator, agent, model) in [
+            (
+                format!("recorded {receipt}"),
+                "my-claude-wrapper",
+                "your-claude-model",
+            ),
+            (
+                "declared openai".into(),
+                "my-claude-wrapper",
+                "your-claude-model",
+            ),
+            (
+                "declared anthropic".into(),
+                "my-codex-wrapper",
+                "your-codex-model",
+            ),
+        ] {
+            // CRLF is legitimate; node-close request identity differs on purpose.
+            fs::write(
+                &task,
+                format!("# review\r\n**Reviews:** producer-k1\r\n**Creator:** {creator}\r\n"),
+            )
+            .unwrap();
+            let output = fixture.run_with(kind, &extra);
+            assert!(output.status.success(), "{kind}: {output:?}");
+            assert_eq!(output.stdout, b"grove-continue");
+            assert_eq!(
+                fixture.arguments(),
+                [agent, "--model", model, "--effort", effort, PROMPT]
+            );
+            assert!(String::from_utf8_lossy(&output.stderr).contains(
+                if creator.starts_with("recorded") {
+                    "recorded"
+                } else {
+                    "declared"
+                }
+            ));
+        }
+    }
+    let mut bad = vec![
+        ("# review\n".to_owned(), "reviews_line_missing"),
+        ("**Reviews:** producer-k1\n".into(), "creator_line_missing"),
+        ("**Reviews:** producer-k01\n**Creator:** declared openai\n".into(), "reviews_line_malformed"),
+        ("**Reviews:** producer-k1 \n**Creator:** declared openai\n".into(), "reviews_line_malformed"),
+        ("**Reviews:**producer-k1\n**Creator:** declared openai\n".into(), "reviews_line_malformed"),
+        ("**Reviews:** producer-k1\n**Reviews:** other-k2\n**Creator:** declared openai\n".into(), "reviews_line_duplicate"),
+        ("**Reviews:** producer-k1\n**Creator:** declared openai\n**Creator:** declared anthropic\n".into(), "creator_line_duplicate"),
+        ("**Reviews:** producer-k1\n\n**Creator:** declared openai\n".into(), "creator_line_misplaced"),
+        ("**Creator:** declared openai\n**Reviews:** producer-k1\n".into(), "creator_line_misplaced"),
+        ("**Reviews:** producer-k1\n **Creator:** declared openai\n".into(), "creator_line_missing"),
+        ("**Reviews:** producer-k1\n**Creator:**declared openai\n".into(), "creator_line_malformed"),
+        ("**Reviews:** producer-k1\n**Creator:** declared \n".into(), "creator_line_malformed"),
+        ("**Reviews:** producer-k1\n**Creator:** declared openai\0\n".into(), "creator_line_malformed"),
+        ("**Reviews:** producer-k1\n**Creator:** run 12345678-1234-4123-8123-123456789abc\n".into(), "creator_legacy_unsupported"),
+        ("**Reviews:** producer-k1\n**Creator:** recorded {}\n".into(), "creator_line_malformed"),
+        ("**Reviews:** producer-k1\n**Creator:** declared OPENAI\n".into(), "creator_origin_unlisted"),
+        ("**Reviews:** producer-k1\n**Creator:** declared openai \n".into(), "creator_origin_unlisted"),
+        ("**Reviews:** producer-k1\n**Creator:** declared __proto__\n".into(), "creator_origin_unlisted"),
+        ("**Reviews:** producer-k1\n**Creator:** declared openai\n```\n**Reviews:** other-k2\n```\n".into(), "reviews_line_duplicate"),
+    ];
+    for invalid in [
+        format!(" {receipt}"),
+        receipt.replace("\"provider\":", "\"provider\":\"anthropic\",\"provider\":"),
+        receipt.replace("openai", &"x".repeat(8192)),
+    ] {
+        bad.push((
+            format!("**Reviews:** producer-k1\n**Creator:** recorded {invalid}\n"),
+            "creator_line_malformed",
+        ));
+    }
+    for (body, code) in bad {
+        fs::write(&task, &body).unwrap();
+        let output = fixture.run_with("review-impl", &extra);
+        assert_eq!(output.status.code(), Some(3), "{code}: {output:?}");
+        assert!(
+            String::from_utf8_lossy(&output.stderr).contains(code),
+            "{code}: {output:?}"
+        );
+        assert!(
+            String::from_utf8_lossy(&output.stderr).contains("remedy"),
+            "{output:?}"
+        );
+        assert!(output.stdout.is_empty());
+        assert!(!fixture.capture.exists());
+    }
+    // A declaration repairs the refusal and launches the other provider.
+    fs::write(
+        &task,
+        "**Reviews:** producer-k1\n**Creator:** declared openai\n",
+    )
+    .unwrap();
+    assert!(fixture.run_with("review-impl", &extra).status.success());
+    let output = fixture.run_with("impl", &extra);
+    assert_eq!(output.status.code(), Some(3));
+    assert!(String::from_utf8_lossy(&output.stderr).contains("review_kind_unlisted"));
+    assert!(!fixture.capture.exists());
+    // Composition must preserve every nonreview static route after removing
+    // the five review entries from that table.
+    for (kind, agent, model, effort) in [
+        (
+            "requirements",
+            "my-codex-wrapper",
+            "your-codex-model",
+            "max",
+        ),
+        ("design", "my-codex-wrapper", "your-codex-model", "xhigh"),
+        ("planning", "my-codex-wrapper", "your-codex-model", "xhigh"),
+        (
+            "prototype",
+            "my-codex-wrapper",
+            "your-codex-model",
+            "medium",
+        ),
+        ("impl", "my-codex-wrapper", "your-codex-model", "high"),
+        ("research-a", "my-codex-wrapper", "your-codex-model", "high"),
+        (
+            "research-b",
+            "my-claude-wrapper",
+            "your-claude-model",
+            "high",
+        ),
+        (
+            "combine-research",
+            "my-codex-wrapper",
+            "your-codex-model",
+            "xhigh",
+        ),
+        ("draft", "my-codex-wrapper", "your-codex-model", "high"),
+        (
+            "copy-edit",
+            "my-claude-wrapper",
+            "your-claude-model",
+            "medium",
+        ),
+        ("art", "my-codex-wrapper", "your-codex-model", "medium"),
+        ("proof", "my-claude-wrapper", "your-claude-model", "high"),
+        ("finish", "my-codex-wrapper", "your-codex-model", "medium"),
+        (
+            "integrate-review-requirements",
+            "my-codex-wrapper",
+            "your-codex-model",
+            "xhigh",
+        ),
+        (
+            "integrate-review-design",
+            "my-codex-wrapper",
+            "your-codex-model",
+            "xhigh",
+        ),
+        (
+            "integrate-review-planning",
+            "my-codex-wrapper",
+            "your-codex-model",
+            "xhigh",
+        ),
+        (
+            "integrate-review-prototype",
+            "my-codex-wrapper",
+            "your-codex-model",
+            "medium",
+        ),
+        (
+            "integrate-review-impl",
+            "my-codex-wrapper",
+            "your-codex-model",
+            "medium",
+        ),
+    ] {
+        let output = fixture.run(kind);
+        assert!(output.status.success(), "{kind}: {output:?}");
+        assert_eq!(
+            fixture.arguments(),
+            [agent, "--model", model, "--effort", effort, PROMPT]
+        );
+    }
+    let output = fixture.run("unlisted");
+    assert_eq!(output.status.code(), Some(3));
+    assert!(!fixture.capture.exists());
+    let supplied = fixture.temp.path().join("context.json");
+    fs::write(
+        &supplied,
+        r#"{"schemaVersion":1,"facts":{"creator":{"evidence":"declared","provider":"anthropic"}}}"#,
+    )
+    .unwrap();
+    let output = fixture.run_with(
+        "review-impl",
+        &[
+            "--task-file",
+            task.to_str().unwrap(),
+            "--context",
+            supplied.to_str().unwrap(),
+        ],
+    );
+    assert_eq!(output.status.code(), Some(3));
+    assert!(String::from_utf8_lossy(&output.stderr).contains("reviewed_artifact_conflict"));
+    assert!(!fixture.capture.exists());
+    let output = fixture.run("review-impl");
+    assert_eq!(output.status.code(), Some(3));
+    assert!(String::from_utf8_lossy(&output.stderr).contains("task_file_missing"));
+    assert!(!fixture.capture.exists());
+}
+
+#[test]
+#[ignore = "requires installed Ravel: task ravel:policy RAVEL=/absolute/path/to/ravel"]
+fn readable_review_rule_keeps_gateway_origin_and_validates_generic_caller_facts() {
+    let fixture = Fixture::new("examples/grove-static.ts");
+    let selector =
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../assets/ravel-policy/examples/review.ts");
+    fs::write(&fixture.policy, format!(r#"
+import {{ reviewSelector }} from {selector:?};
+const route = (request) => ({{ program: 'my-codex-wrapper', args: [request.prompt], provider: 'openai', model: 'gateway', effort: 'high' }});
+export const policy = {{ schemaVersion: 2, version: 'gateway-fixture', ...reviewSelector({{
+  routes: {{ impl: route }}, reviews: {{ 'review-impl': {{ openai: route, anthropic: route }} }}
+}}) }};
+"#, selector = selector.to_str().unwrap())).unwrap();
+    let context = fixture.temp.path().join("context.json");
+    for (facts, kind, code) in [
+        (
+            serde_json::json!({"reviewedArtifact":{"id":"external"},"creator":{"evidence":"declared","provider":"openai"}}),
+            "review-impl",
+            "same_origin",
+        ),
+        (
+            serde_json::json!({"reviewedArtifact":{"id":"external"}}),
+            "review-impl",
+            "creator_missing",
+        ),
+        (
+            serde_json::json!({"creator":{"evidence":"declared","provider":"anthropic"}}),
+            "review-impl",
+            "reviewed_artifact_missing",
+        ),
+        (
+            serde_json::json!({"reviewedArtifact":{"id":"external"},"creator":{"evidence":"run","provider":"anthropic"}}),
+            "review-impl",
+            "creator_invalid",
+        ),
+        (
+            serde_json::json!({"reviewedArtifact":{"id":"external"},"creator":{"evidence":"recorded","provider":"anthropic","receipt":{}}}),
+            "review-impl",
+            "creator_invalid",
+        ),
+        (
+            serde_json::json!({"reviewedArtifact":{"id":"external"},"creator":{"evidence":"declared","provider":"anthropic"}}),
+            "impl",
+            "review_kind_unlisted",
+        ),
+    ] {
+        fs::write(
+            &context,
+            serde_json::json!({"schemaVersion":1,"facts":facts}).to_string(),
+        )
+        .unwrap();
+        let output = fixture.run_with(kind, &["--context", context.to_str().unwrap()]);
+        assert_eq!(output.status.code(), Some(3), "{code}: {output:?}");
+        assert!(
+            String::from_utf8_lossy(&output.stderr).contains(code),
+            "{code}: {output:?}"
+        );
+        assert!(!fixture.capture.exists());
+    }
+    fs::write(&context, r#"{"schemaVersion":1,"facts":{"reviewedArtifact":{"id":"external"},"creator":{"evidence":"declared","provider":"anthropic"}}}"#).unwrap();
+    let output = fixture.run_with("review-impl", &["--context", context.to_str().unwrap()]);
+    assert!(output.status.success(), "{output:?}");
+    assert_eq!(fixture.arguments(), ["my-codex-wrapper", PROMPT]);
+}
+
+#[test]
+#[ignore = "requires installed Ravel: task ravel:policy RAVEL=/absolute/path/to/ravel"]
+fn readable_generic_review_example_accepts_both_evidence_forms_and_preserves_effort() {
+    let fixture = Fixture::new("examples/review.ts");
+    let context = fixture.temp.path().join("context.json");
+    let receipt = r#"{"schemaVersion":1,"attemptId":"12345678-1234-4123-8123-123456789abc","provider":"your-provider","policyVersion":"original-owner","kind":"feature"}"#;
+    for (kind, effort) in [("code-review", "high"), ("architecture-review", "xhigh")] {
+        for (creator, agent, model) in [
+            (
+                format!(
+                    r#"{{"evidence":"recorded","provider":"your-provider","receipt":{receipt}}}"#
+                ),
+                "my-other-agent-wrapper",
+                "your-other-model",
+            ),
+            (
+                r#"{"evidence":"declared","provider":"your-other-provider"}"#.to_owned(),
+                "my-agent-wrapper",
+                "your-model",
+            ),
+        ] {
+            fs::write(&context, format!(r#"{{"schemaVersion":1,"facts":{{"reviewedArtifact":{{"id":"external"}},"creator":{creator}}}}}"#)).unwrap();
+            let output = fixture.run_with(kind, &["--context", context.to_str().unwrap()]);
+            assert!(output.status.success(), "{output:?}");
+            assert_eq!(
+                fixture.arguments(),
+                [agent, "--model", model, "--effort", effort, PROMPT]
+            );
+        }
+    }
+    for creator in [
+        format!(
+            r#"{{"evidence":"recorded","provider":"your-other-provider","receipt":{receipt}}}"#
+        ),
+        format!(
+            r#"{{"evidence":"recorded","provider":"your-provider","receipt":{receipt},"extra":true}}"#
+        ),
+        r#"{"evidence":"declared","provider":"your-provider","receipt":{}}"#.to_owned(),
+        "null".to_owned(),
+        "[]".to_owned(),
+    ] {
+        fs::write(&context, format!(r#"{{"schemaVersion":1,"facts":{{"reviewedArtifact":{{"id":"external"}},"creator":{creator}}}}}"#)).unwrap();
+        let output = fixture.run_with("code-review", &["--context", context.to_str().unwrap()]);
+        assert_eq!(output.status.code(), Some(3), "{output:?}");
+        assert!(
+            String::from_utf8_lossy(&output.stderr).contains("creator_invalid"),
+            "{output:?}"
+        );
+        assert!(!fixture.capture.exists());
+    }
 }

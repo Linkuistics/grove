@@ -31,3 +31,10 @@ k12 owns broader prose. The original installed 22.1.0 driver remains live.
 ## Notes
 This is caller contract closure, not integration/release or teardown. k13 and
 the original driver-owned finish sequence retain those responsibilities.
+
+## k28 acceptance input
+
+k42's terminal handoff and k5's promoted policy/provenance section carry exact
+asset hashes, logs and the parsed-JSON/inline-receipt distinction. Include
+`task ravel:review RAVEL=/opt/homebrew/bin/ravel` in the complete caller acceptance;
+it exercises production/consumption and retains pre-k6 compatibility fixtures.

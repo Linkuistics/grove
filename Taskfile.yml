@@ -3,6 +3,15 @@ version: '3'
 set: [errexit, nounset, pipefail]
 
 tasks:
+  ravel:review:
+    desc: Check creator-aware Grove review assets, launch/retirement provenance and retained pre-k6 fixtures
+    requires:
+      vars: [RAVEL]
+    cmds:
+      - task: ravel:provenance
+        vars: {RAVEL: '{{.RAVEL}}'}
+      - task: ravel:policy:compatibility
+
   ravel:provenance:
     desc: Check Grove-owned selected-provider evidence, retirement and inherited-evidence isolation
     requires:
@@ -19,7 +28,7 @@ tasks:
       - bash plugins/grove/conformance.sh
 
   ravel:policy:
-    desc: Check Grove-readable static assets through the independent installed Ravel SDK and worker
+    desc: Check Grove-readable static and review assets through the independent installed Ravel SDK and worker
     requires:
       vars: [RAVEL]
     cmds:

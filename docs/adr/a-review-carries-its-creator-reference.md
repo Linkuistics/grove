@@ -24,7 +24,10 @@ invalid and legacy run references with explicit remedies.
 the exact schema, canonical validation, generic measured context shape, budgets,
 confinement grants and refusal rules. Ravel's public SDK supplies ordinary
 policy selection and measured reads; no Ravel feature or store is required.
-The current increment supplies evidence; k42 supplies creator-aware review routing.
+The readable `grove.ts` loader supplies measured `facts.creator` and
+`facts.reviewedArtifact`; `examples/grove-review.ts` composes it with exact
+provider-origin selection and the final provenance wrapper. Caller-supplied
+review facts conflict with Grove task evidence rather than overriding it.
 
 This reopens the earlier rejection of caller-owned launch receipts: extraction
 removed the dispatch store, so the caller now preserves the provenance it needs.

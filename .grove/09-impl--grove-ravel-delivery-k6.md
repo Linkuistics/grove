@@ -59,3 +59,13 @@ Verify source and unreleased archives here. k13 performs the human-requested
 mid-grove extraction release after k12; final finish releases session-control
 behavior later. No installation changes here. k6's preservation is a temporary
 transition instrument outside Grove's new archives/formula, not bundled Ravel.
+
+## k28 delivery input
+
+Ship `assets/ravel-policy/` with its relative imports intact. Before removing the
+old dispatch crate, relocate the pinned policy-development dependencies and
+`tsconfig.json` used by `scripts/ravel-policy-typecheck.sh`/`dispatch:deps`, and
+preserve installed-Ravel checks from `ravel:policy`/`ravel:provenance`. Drop
+`ravel:policy:compatibility` only with the old package's delivery removal; k42
+has preserved and verified those fixtures at the current boundary. k5's promoted
+handoff and k42's terminal leaf contain exact tested asset/evidence contracts.

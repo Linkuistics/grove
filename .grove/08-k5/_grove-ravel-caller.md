@@ -118,3 +118,43 @@ final complete surface audit and repository task check (with explicit
 GROVE_TEST_RAVEL=/opt/homebrew/bin/ravel and the pinned Bun directory for retained
 package checks); k6 owns bundled delivery removal and k12 broader prose. This
 node remains live for k28/k29. No installation or new driver was launched.
+
+## Policy/provenance handoff — grove-ravel-policy-k28 closed
+
+k40/k41/k42 deliver the complete readable `assets/ravel-policy/` set: static
+sample/example, optional `withProvenance` producer wrapper, measured Grove task
+adapter, generic review rule and composed creator-aware Grove review example.
+The composed policy wraps its final selection once. Imports are ordinary local
+files plus Ravel's public SDK/static module, never an embedded Grove registry.
+`docs/grove-provider-evidence.md` owns the exact receipt/context contract and
+`assets/ravel-policy/README.md` its import/composition instructions.
+
+The finishing session's recorded receipt, or the owner's explicit declaration,
+becomes measured `facts.creator`; `facts.reviewedArtifact` names the producer.
+Raw inline records require canonical bytes; parsed generic JSON records validate
+exact fields/values independent of transport key order. Exact own-key origin
+entries select another provider. Missing/invalid/duplicate/unknown/legacy origins,
+same-provider gateways and conflicting caller review facts refuse with remedies.
+Current routing never supplies past creator identity; node closes can carry a
+closing child's task/kind. Actual producer retirement/retry/cascade and review
+consumption run together against independent installed Ravel 0.1.0 with fake
+agents. Review retries preserve the finishing evidence after producer remapping.
+
+k42's terminal handoff pins core assets and gives complete saved logs/digests.
+`task ravel:review RAVEL=/opt/homebrew/bin/ravel` passes 88 unique nextest cases,
+public/retained SDK types and shipped conformance; formatting and workspace
+all-target clippy pass. All 3,046 measured subjects retain their individual
+hashes, including owner policy, complete original v22 keg and independent Ravel.
+The scoped reviewer found no issues; same-origin and receipt/provider-agreement
+mutation controls fired. No changed source belongs to any source-book corpus.
+Ravel/tap remain clean successors of the published `3916a4a1`/`bd5aa37b` states.
+
+This closes k28 only. k29 must consume the complete new asset tests in its
+repository acceptance and classify remaining whole-repository spellings.
+k6 must ship the readable directory structure and relocate the policy
+compiler/tsconfig/typecheck seam out of the retained dispatch crate before
+removing that package; normal gates must keep installed-Ravel policy/provenance
+checks while dropping legacy compatibility checks. k12 retains broader prose
+reconciliation. Those are already named live tasks, not unresolved k28 work.
+No personal choices, arguments, bounds or grants were edited. The original
+installed-v22 driver's admission/teardown and `harness-dispatch exit` remain live.

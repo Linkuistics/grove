@@ -36,23 +36,8 @@ impl Fixture {
         fs::write(path, body).unwrap();
     }
 
-    fn policy(&self, producer_origin: &str) {
-        let policy = format!(
-            r#"import {{ readFileSync }} from 'node:fs';
-export const policy = {{ schemaVersion: 2, version: 'caller-review-fixture', select(request) {{
-  let origin = {producer_origin:?};
-  if (request.kind === 'review-impl') {{
-    const creator = readFileSync(request.taskFile, 'utf8').match(/^\*\*Creator:\*\* declared (.+)$/m)?.[1];
-    if (!creator) return {{ status: 'refused', code: 'creator_missing', message: 'declare the original creator', remedy: 'supply caller provenance' }};
-    origin = creator === 'origin-a' ? 'origin-b' : 'origin-a';
-  }}
-  return {{ status: 'selected', program: '/bin/sh', args: [{script:?}, request.prompt, origin],
-    provider: origin, model: 'fixture', effort: 'none', reason: 'explicit caller provenance' }};
-}} }};
-"#,
-            script = self.script.to_str().unwrap()
-        );
-        support::write_policy(&self.home, &policy);
+    fn policy(&self, origin: &str) {
+        self.review_policy(origin, false);
     }
 
     fn steps(&self, actions: &str) {
@@ -124,32 +109,37 @@ esac
     }
 
     fn provenance_policy(&self, origin: &str) {
-        let wrapper = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("../../assets/ravel-policy/provenance.ts");
+        self.review_policy(origin, true);
+    }
+
+    fn review_policy(&self, origin: &str, recorded: bool) {
+        let assets = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../assets/ravel-policy");
         support::write_policy(
             &self.home,
             &format!(
                 r#"
-import {{ withProvenance, parseEvidence }} from {wrapper:?};
-export const policy = withProvenance({{
-  schemaVersion: 2, version: 'actual-caller-fixture',
-  loadContext(request, host) {{
-    if (request.kind !== 'review-impl') return {{ schemaVersion: 1 }};
-    const read = host.readText(request.taskFile);
-    const text = read.text.match(/^\*\*Creator:\*\* recorded (.+)$/m)?.[1];
-    const receipt = text === undefined ? undefined : parseEvidence(text);
-    if (!receipt) return {{ status: 'refused', code: 'creator_invalid', message: 'missing/invalid evidence', remedy: 'repair the receipt or declare the provider' }};
-    return {{ schemaVersion: 1, facts: {{ creator: {{ evidence: "recorded", provider: receipt.provider, receipt: {{ ...receipt }} }} }}, sources: [read.source] }};
-  }},
-  select(request, context) {{
-    const creator = context?.facts?.creator;
-    const origin = request.kind === 'review-impl' ? (creator.provider === 'origin-a' ? 'origin-b' : 'origin-a') : {origin:?};
-    return {{ status: 'selected', program: '/bin/sh', args: [{script:?}, request.prompt, origin],
-      provider: origin, model: 'irrelevant-label', effort: 'none', reason: 'actual selection evidence' }};
-  }}
+import {{ withProvenance }} from {wrapper:?};
+import {{ groveReviewSelector }} from {adapter:?};
+const route = (origin) => (request) => ({{
+  program: '/bin/sh', args: [{script:?}, request.prompt, origin],
+  provider: origin, model: 'irrelevant-label', effort: 'none'
 }});
+const owner = {{
+  schemaVersion: 2, version: 'actual-caller-fixture',
+  ...groveReviewSelector({{
+    routes: {{ impl: route({origin:?}) }},
+    reviews: {{ 'review-impl': {{ 'origin-a': route('origin-b'), 'origin-b': route('origin-a') }} }}
+  }})
+}};
+export const policy = {selected};
 "#,
-                wrapper = wrapper.to_str().unwrap(),
+                selected = if recorded {
+                    "withProvenance(owner)"
+                } else {
+                    "owner"
+                },
+                wrapper = assets.join("provenance.ts").to_str().unwrap(),
+                adapter = assets.join("examples/grove-review.ts").to_str().unwrap(),
                 script = self.script.to_str().unwrap()
             ),
         );
@@ -256,11 +246,11 @@ fn a_node_cascade_clears_all_live_reviews_of_finished_producers_only() {
 fn a_review_without_provenance_refuses_then_resumes_after_an_owner_declaration() {
     let fixture = Fixture::new();
     fixture.file("01-review-impl--review-k1.md", &review("", "producer-k99"));
-    fixture.policy("origin-a");
+    fixture.provenance_policy("origin-a");
     fixture.steps("review-k1) printf '%s' \"$origin\" > reviewer-origin; touch \"$GROVE_LAUNCH_DIR/teardown\" ;;");
     let refused = fixture.drive();
     assert!(
-        String::from_utf8_lossy(&refused.stderr).contains("creator_missing"),
+        String::from_utf8_lossy(&refused.stderr).contains("creator_line_missing"),
         "{refused:?}"
     );
     assert!(!fixture.root.join("reviewer-origin").exists());
@@ -346,7 +336,8 @@ fn recorded_node_close_attributes_every_finished_producer_to_closing_child_only(
         r#"child-k3)
       "$llm" leaf-retire .grove/01-k1/01-k2/01-impl--child-k3.md
       settle_recorded child-k3; settle_recorded piece-k2; settle_recorded producer-k1
-      touch "$GROVE_LAUNCH_DIR/teardown" ;;"#,
+      touch "$GROVE_LAUNCH_DIR/teardown" ;;
+    whole-k4) printf '%s' "$origin" > node-reviewer; touch "$GROVE_LAUNCH_DIR/teardown" ;;"#,
     );
     fixture.drive();
     let mut receipts = Vec::new();
@@ -372,5 +363,56 @@ fn recorded_node_close_attributes_every_finished_producer_to_closing_child_only(
         "07-ABANDONED-review-impl--abandoned-k9.md",
     ] {
         assert!(fixture.read(name).contains("**Creator:** declared earlier"));
+    }
+    fixture.provenance_policy("origin-b");
+    fixture.drive();
+    assert_eq!(
+        fs::read_to_string(fixture.root.join("node-reviewer")).unwrap(),
+        "origin-b"
+    );
+}
+
+// Invalid/legacy/multiple creators must leave the actual Grove leaf live, and
+// an owner declaration must resume it through the shipped adapter.
+#[test]
+fn invalid_creator_refusals_leave_the_review_live_and_resume_after_repair() {
+    for (creator, code) in [
+        ("**Creator:** recorded {}", "creator_line_malformed"),
+        (
+            "**Creator:** run 12345678-1234-4123-8123-123456789abc",
+            "creator_legacy_unsupported",
+        ),
+        ("**Creator:** declared unknown", "creator_origin_unlisted"),
+        (
+            "**Creator:** declared origin-a\n**Creator:** declared origin-b",
+            "creator_line_duplicate",
+        ),
+    ] {
+        let fixture = Fixture::new();
+        fixture.file(
+            "01-review-impl--review-k1.md",
+            &review(creator, "producer-k99"),
+        );
+        fixture.provenance_policy("origin-a");
+        fixture.steps("review-k1) printf '%s' \"$origin\" > reviewer-origin; touch \"$GROVE_LAUNCH_DIR/teardown\" ;;");
+        let refused = fixture.drive();
+        assert!(
+            String::from_utf8_lossy(&refused.stderr).contains(code),
+            "{code}: {refused:?}"
+        );
+        assert!(!fixture.root.join("reviewer-origin").exists());
+        assert!(fixture
+            .root
+            .join(".grove/01-review-impl--review-k1.md")
+            .exists());
+        fixture.file(
+            "01-review-impl--review-k1.md",
+            &review("**Creator:** declared origin-a", "producer-k99"),
+        );
+        fixture.drive();
+        assert_eq!(
+            fs::read_to_string(fixture.root.join("reviewer-origin")).unwrap(),
+            "origin-b"
+        );
     }
 }

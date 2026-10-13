@@ -122,51 +122,43 @@ inspect: (cd /home/you/app && /opt/grove/bin/harness-dispatch inspect --kind spi
 
 ## Reviews and the creator line
 
-The sample sends each review to the other provider by its arrangement and
-consults no creator. A policy that imports
-`harness-dispatch/examples/grove-review` enforces the pairing at launch
-instead: for the five `review-*` kinds it reads the review leaf's
-`**Reviews:**` and `**Creator:**` lines and selects a reviewer from another
-provider than the creator's. It checks one provider, the original creator's.
-A producer several providers worked on is still yours to check.
+The static sample sends reviews to the other provider by arrangement and consults
+no creator. Grove's readable `assets/ravel-policy/examples/grove-review.ts`
+enforces creator-aware pairing. Import that file normally or copy its directory
+structure beside the owner policy; there is no embedded Grove module in Ravel.
+For the five `review-*` kinds, it measures the supplied task file, parses exactly
+one `**Reviews:**` line and its adjacent `**Creator:**`, and selects a command
+whose provider differs from the finishing creator's exact origin label. Unknown
+origins and same-provider gateways refuse; no substitute reviewer launches.
 
-The `**Creator:**` line sits directly under `**Reviews:**` and has two forms,
-with two writers:
+The Creator line has two current forms and two writers:
 
-- `**Creator:** run <run-id>` comes from the session that finished the
-  producer, by retiring its leaf or closing its node. The `grove` skill's
-  `references/retire.md` owns that step. The session writes its own
-  `HARNESS_DISPATCH_RUN_ID`, replacing any line there. With no run it removes
-  the line, in either form.
-- `**Creator:** declared <provider>` is the user's alone, for a producer
-  finished with no run. Do not write one on the user's behalf: the provider is
-  their assertion about who made the artifact.
+- `**Creator:** recorded <canonical JSON>` is copied byte for byte from the
+  finishing session's `GROVE_PROVIDER_EVIDENCE`. The opt-in Grove
+  `withProvenance` wrapper records the actual selected provider and a fresh
+  attempt identity. A retry that finishes replaces previous evidence; a node
+  close attributes the closing child. No receipt means the session removes an
+  earlier Creator; invalid evidence requires repair before commit.
+- `**Creator:** declared <provider>` is the owner's assertion for an artifact
+  without recorded evidence. Do not write one on their behalf.
 
-Under the review example, a review that cannot name its creator refuses as
-`policy_refused` at stage `context`, and its policy code says which line is
-wrong: `creator_line_missing`, `reviews_line_missing`, a `_duplicate` or
-`_malformed` form of either, or `review_kind_unlisted`. For a missing creator,
-ask the user which provider finished the producer and have them write the
-declaration. Never replace a refused reviewer with one of the creator's
-provider.
+[The record/context contract](../../../../../docs/grove-provider-evidence.md)
+owns exact grammar, budgets and lifetime. The line must be directly beneath
+Reviews. Column-one markers count even in fenced examples; indented/inline
+mentions do not. Missing, malformed, duplicate or displaced markers refuse
+with a specific policy code and repair remedy. A missing creator needs the
+owner's declaration; never infer it from today's producer route or an earlier
+same-task attempt. A caller context cannot override task review facts.
 
-**A run line is its writer's word, and launch does not check it.**
-harness-dispatch records the provider each run launched. It cannot tell which
-run made an artifact, so a line naming some other existing run lends that run's
-provider. Nor is the run's task compared with the `**Reviews:**` handle,
-because a decomposed producer is finished by a child task with its own handle.
-So never copy a run ID into a review from another review, from version history
-or from `record show`. Inspecting the review with its task file and handle, as
-a refusal's `inspect:` line does, shows the reviewed handle beside the run, its
-recorded provider and the task it was launched for. Report a run whose task is
-neither the reviewed producer nor work under it.
+Receipts and declarations are same-user attestations, not authenticated backend
+identity. Measured reads pin task bytes; commits preserve those bytes for review
+retries. Receipt task/kind need not equal the reviewed handle: a child can close
+a whole node. Confirm the association against the actual finishing work when
+changing a policy. Ravel supplies no run lookup, record verb or persistent store.
+Review findings belong to Grove task/document artifacts and their VCS history.
 
-A review can attach its findings to the run its line names:
-
-```sh
-harness-dispatch record observe --run "$RUN_ID" --file observation.json
-```
-
-The record store is outside the tree, so the observation remains after
-`.grove/` is removed. The observation document's shape is in
-[harness-dispatch usage](https://github.com/Linkuistics/grove/blob/main/crates/harness-dispatch/README.md#observations).
+Only sessions still launched by the original installed-v22 driver use
+`**Creator:** run <HARNESS_DISPATCH_RUN_ID>` under that driver's legacy
+policy/store and ending contract. New consumers refuse that form with a remedy
+to declare the provider or finish again under a receipt-producing policy. Never
+copy legacy IDs or receipts from other reviews, version history or a store.

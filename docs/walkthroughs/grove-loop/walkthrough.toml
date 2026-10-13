@@ -239,12 +239,12 @@ lines = 2083
 [[root]]
 id    = "source-prompt"
 path  = "crates/grove-loop/src/prompt.rs"
-lines = 222
+lines = 228
 
 [[root]]
 id    = "source-loop-driver"
 path  = "crates/grove-loop/src/loop_driver.rs"
-lines = 816
+lines = 818
 
 [[root]]
 id = "source-observation"
@@ -466,13 +466,13 @@ lines = "967-2083"
 id    = "the-prompt-core"
 root  = "source-prompt"
 owner = "too-late-to-say-later"
-lines = "1-222"
+lines = "1-228"
 
 [[block]]
 id    = "loop-driver"
 root  = "source-loop-driver"
 owner = "four-things-a-runner-cannot-choose"
-lines = "1-816"
+lines = "1-818"
 
 [[block]]
 id = "observation-tree"
@@ -552,13 +552,13 @@ lines = "176-717"
 [[root]]
 id = "source-launch-directory"
 path = "crates/grove-loop/src/launch_directory.rs"
-lines = 193
+lines = 134
 
 [[block]]
 id = "launch-control-directory"
 root = "source-launch-directory"
 owner = "four-things-a-runner-cannot-choose"
-lines = "1-193"
+lines = "1-134"
 
 [[root]]
 id = "source-session-result"

@@ -19,14 +19,14 @@ mandate wins, and the inserted leaf is simply the next iteration's work.
 
 ## What launched this session
 
-Grove has no launch configuration. The driver runs `harness-dispatch` for every
+Grove has no launch configuration. The driver runs the once-resolved installed `ravel` for every
 session, and the owner's policy there returns the command: the executable or
 wrapper and every argument — harness, model, reasoning effort, approval,
 permission and sandbox policy. Grove neither knows nor infers which harness it
 eventually reaches. It reads the selected leaf's kind from the filename and
 passes that kind, the task file, the handle and the prompt. The request's `cwd`
 is the working-tree root, and Grove passes no named parameter. The launch's
-exit directory and ending file are run mechanics and reach no policy. The
+exit directory and held stdout result are run mechanics and reach no policy. The
 prompt carries what grove has to say to the session.
 **Nothing else routes a session** — Grove reads no environment variable, no
 command-line flag and no field in a task file to choose one, and has no implicit
@@ -54,30 +54,30 @@ loop could stand in (constraint 6).
 
 ## What ends the run and what continues the loop
 
-Dispatch watches its own exit channel. The prompt names `harness-dispatch exit`
-as the session's final action; dispatch lets the harness end during a short
-grace, then ends it if necessary. Grove does not watch that channel or escalate
-the harness. It waits for dispatch and reads the ending file dispatch wrote.
+The prompt supplies the exact canonical executable's
+`end-session grove-continue` command. Ravel ends and reaps the managed group,
+then returns that opaque result on stdout. Managed output stays on stderr.
+Grove holds a separate unlinked regular file for stdout and never parses a
+private report or transcript.
 
-The driver's own TERM or HUP interrupts the loop first. Otherwise a teardown
-record finishes it; `grove-finish` owns when to write that record. Without one,
-a survivor in dispatch's own process group stops the loop before any ending
-can relaunch it. That group contains the policy worker, not the harness; a
-harness supervision failure reaches Grove as dispatch exit 5. Otherwise an
-`exit_signal` ending relaunches on the next leaf, whatever the harness's exit
-status. Every other ending stops: the harness's own exit, cancellation, a
-refusal, dispatch's death, a supervision failure, or a missing or unreadable
-ending file. The live leaf remains resumable. Dispatch can die leaving its
-harness alive, which is why that ending stops instead of selecting more work.
+After reap, Grove restores the terminal and invalidates the session epoch.
+The driver's interruption takes precedence, then a recorded teardown finishes.
+Without teardown, a surviving supervisor group or unsuccessful Ravel status
+stops the loop before result interpretation. Only the exact supported
+`grove-continue` bytes relaunch. Missing, unsupported or unreadable results,
+refusal, cancellation and supervisor death stop with the live leaf resumable.
+A replacement driver invalidates the old epoch before removing abandoned launch
+directories without interpreting their contents.
 
 Each launch has a fresh directory in the workspace's VCS-administration control
-area. Grove publishes it to the harness as `GROVE_LAUNCH_DIR`, after scrubbing
-inherited loop controls; the policy worker never receives it unless the owner
-grants it. The directory holds dispatch's exit channel and ending file, and
-the session's teardown record. Its session epoch admits tree verbs only while
-that launch is current. After dispatch is reaped, Grove invalidates the epoch,
-reads the launch and removes its directory. A replacement driver removes
-abandoned directories after invalidating the old epoch, without reading them.
+area. Grove grants it as `GROVE_LAUNCH_DIR` after scrubbing old/new enclosing
+controls; policy sees it only through an explicit owner grant. Ravel creates its
+ephemeral context below that writable exit area. The teardown marker is Grove's;
+the returned result is held outside pathname-based managed writes.
+
+Legacy sessions launched by Grove 22.1.0 through dispatch retain their original
+`harness-dispatch exit` command and inherited channel/admission/teardown. New
+source or installed skills do not change a running launch prompt.
 
 ## What the scaffold creates, and why it is not yours to create
 

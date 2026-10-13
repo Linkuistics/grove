@@ -26,7 +26,7 @@ const WRITES_NOTES: &str = "printf ok > notes.md\nacknowledge\n";
 fn standalone_scrubs_enclosing_ravel_and_retired_controls_before_selection() {
     let fixture = Fixture::new(WRITES_NOTES);
     let controls = [
-        "RAVEL_EXIT_FILE",
+        "GROVE_SIGNAL_FILE",
         "GROVE_RUN_SIGNAL_FILE",
         "GROVE_HARNESS_PID",
         "GROVE_CLAUDE_PID",
@@ -45,24 +45,34 @@ fn standalone_scrubs_enclosing_ravel_and_retired_controls_before_selection() {
     ));
     fs::write(
         fixture.dispatch_file("settings.json"),
-        serde_json::json!({"policyEnv": ["OWNER_GRANT", "RAVEL_EXIT_FILE", "GROVE_RUN_SIGNAL_FILE", "GROVE_HARNESS_PID", "GROVE_CLAUDE_PID"]}).to_string(),
+        serde_json::json!({"policyEnv": ["OWNER_GRANT", "GROVE_SIGNAL_FILE", "GROVE_RUN_SIGNAL_FILE", "GROVE_HARNESS_PID", "GROVE_CLAUDE_PID"]}).to_string(),
     ).unwrap();
 
     // Dirty control: the same policy sees the granted controls when Grove is
     // bypassed, so a clean Grove run cannot come from a probe that reads nothing.
-    let mut direct = fixture.grove(&support::harness_dispatch());
-    direct.args(["run", "--kind=release-notes", "--prompt=control"]);
+    let mut direct = fixture.grove(&support::installed_ravel());
+    direct.args(["start-session", "--kind=release-notes", "--prompt=control"]);
     direct.env("OWNER_GRANT", "granted");
     for name in controls {
-        direct.env(name, "/inert-enclosing-control");
+        let dirty = direct
+            .env(name, "/inert-enclosing-control")
+            .output()
+            .unwrap();
+        assert_eq!(dirty.status.code(), Some(3), "{name}: {dirty:?}");
+        assert!(String::from_utf8_lossy(&dirty.stderr)
+            .contains("enclosing authority reached selection"));
+        direct.env_remove(name);
     }
-    let dirty = direct.output().unwrap();
-    assert_eq!(dirty.status.code(), Some(3), "{}", stderr(&dirty));
-    assert!(stderr(&dirty).contains("enclosing authority reached selection"));
+    let probe = support::ravel_entry_probe(&fixture.root.join("entry-bin"));
+    support::observe_dirty_entry(&probe, &fixture.home);
 
     let mut grove = fixture.run_kind("release-notes");
-    grove.env("OWNER_GRANT", "granted");
-    for name in controls {
+    grove
+        .env("OWNER_GRANT", "granted")
+        .env("PATH", support::path_with_entry(probe.parent().unwrap()))
+        .arg("--runtime-read")
+        .arg(&probe);
+    for name in support::LOOP_CONTROL_ENV {
         grove.env(name, "/inert-enclosing-control");
     }
     let output = grove.output().unwrap();
@@ -85,7 +95,7 @@ impl Fixture {
     /// the prompt, the empty parameter object and cwd, and refuses every other kind.
     fn new(harness: &str) -> Self {
         // The sibling dispatch Grove launches from its own directory.
-        support::harness_dispatch();
+        support::installed_ravel();
 
         let dir = tempfile::tempdir().unwrap();
         let root = dir.path().canonicalize().unwrap();
@@ -120,7 +130,7 @@ impl Fixture {
     }
 
     fn dispatch_file(&self, name: &str) -> PathBuf {
-        self.home.join(".config/harness-dispatch").join(name)
+        self.home.join(".config/ravel").join(name)
     }
 
     fn policy(&self, source: &str) {
@@ -139,7 +149,7 @@ impl Fixture {
         command
             .env_clear()
             .env("HOME", &self.home)
-            .env("PATH", "/usr/bin:/bin")
+            .env("PATH", support::ravel_path())
             .env("TMPDIR", self.root.join("tmp"))
             .current_dir(&self.cwd)
             .stdin(Stdio::null());
@@ -192,11 +202,8 @@ fn write_executable(path: &Path, body: &str, mode: u32) {
 /// A harness on PATH that publishes `word`, for a policy that returns a name.
 fn named_harness(word: &str) -> String {
     format!(
-        "#!/bin/sh\nprintf {word} > notes.md\n'{}' exit\n",
-        support::harness_dispatch()
-            .canonicalize()
-            .unwrap()
-            .display()
+        "#!/bin/sh\nprintf {word} > notes.md\n'{}' end-session grove-continue\n",
+        support::installed_ravel().canonicalize().unwrap().display()
     )
 }
 
@@ -215,8 +222,8 @@ const NAMED: &str = r#"export const policy = {
 fn the_policy_selects_outside_the_sandbox_and_the_harness_runs_inside_it() {
     let fixture = Fixture::new(
         "set -eu\n\
-         for file in \"$HOME/.config/harness-dispatch/policy.ts\" \
-         \"$HOME/.config/harness-dispatch/settings.json\" \
+         for file in \"$HOME/.config/ravel/policy.ts\" \
+         \"$HOME/.config/ravel/settings.json\" \
          \"$HOME/.local/state/harness-dispatch/records.sqlite3\"; do\n\
          if cat \"$file\" > /dev/null 2>&1; then exit 41; fi\n\
          done\n\
@@ -224,7 +231,7 @@ fn the_policy_selects_outside_the_sandbox_and_the_harness_runs_inside_it() {
          test -z \"${GROVE_LAUNCH_DIR-}\"\n\
          test -z \"${TMUX-}\"\n\
          case \"$1\" in 'Produce notes.'*) ;; *) exit 9 ;; esac\n\
-         printf '%s\\n' \"${HARNESS_DISPATCH_RUN_ID-<unset>}\" \"${OWNER_GRANT-<unset>}\" \
+         printf '%s\\n' \"${RAVEL_EXIT_FILE-<unset>}\" \"${OWNER_GRANT-<unset>}\" \
          \"$2\" \"$3\" \"$4\" \"$5\" \"$(pwd -P)\" > notes.md\n\
          cat message.txt >> notes.md\n\
          acknowledge\n",
@@ -264,10 +271,7 @@ fn the_policy_selects_outside_the_sandbox_and_the_harness_runs_inside_it() {
             // identity is not the harness's.
             .env("GROVE_SIGNAL_FILE", fixture.root.join("outer-signal"))
             .env("GROVE_LAUNCH_DIR", fixture.root.join("outer-launch"))
-            .env(
-                "HARNESS_DISPATCH_EXIT_FILE",
-                fixture.root.join("outer-exit"),
-            )
+            .env("RAVEL_EXIT_FILE", fixture.root.join("outer-exit"))
             .env(
                 "HARNESS_DISPATCH_RUN_ID",
                 "0192f0c4-7a1e-4b2c-9d3e-4f5a6b7c8d9e",
@@ -285,15 +289,10 @@ fn the_policy_selects_outside_the_sandbox_and_the_harness_runs_inside_it() {
     assert_eq!(lines.len(), 8, "{notes}");
     assert_ne!(lines[0], "<unset>", "the harness has a run identity");
     assert_ne!(lines[0], "0192f0c4-7a1e-4b2c-9d3e-4f5a6b7c8d9e");
-    let record = Command::new(support::harness_dispatch())
-        .env_clear()
-        .env("HOME", &fixture.home)
-        .env("PATH", "/usr/bin:/bin")
-        .args(["record", "show", "--run", lines[0], "--json"])
-        .output()
-        .unwrap();
-    assert!(record.status.success(), "{record:?}");
-    assert!(String::from_utf8_lossy(&record.stdout).contains("exit_signal"));
+    assert!(
+        !Path::new(lines[0]).exists(),
+        "the session context is stale after reap"
+    );
     assert_eq!(lines[1], "<unset>", "the grant is the policy's alone");
     assert_eq!(lines[2], "granted", "the policy saw what its owner granted");
     assert_eq!(
@@ -303,7 +302,10 @@ fn the_policy_selects_outside_the_sandbox_and_the_harness_runs_inside_it() {
     assert_eq!(lines[4], "{}", "selection is passed no parameter");
     assert_eq!(lines[5], lines[6], "selection runs in the staged directory");
     assert_eq!(lines[7], "Verified release notes.");
-    assert!(store.is_file());
+    assert!(
+        !store.exists(),
+        "the independent router creates no record store"
+    );
     assert!(!fixture.cwd.join(".grove").exists());
     assert!(!fixture.cwd.join(".jj").exists());
     assert!(!fixture.root.join("outer-signal").exists());
@@ -339,6 +341,7 @@ fn an_unexecutable_file_earlier_on_path_does_not_shadow_the_reported_program() {
         0o755,
     );
     let path = std::env::join_paths([
+        support::installed_ravel().parent().unwrap(),
         first.as_path(),
         second.as_path(),
         Path::new("/usr/bin"),
@@ -374,6 +377,7 @@ fn a_relative_path_entry_is_resolved_where_dispatch_selected() {
         0o755,
     );
     let path = std::env::join_paths([
+        support::installed_ravel().parent().unwrap(),
         Path::new("bin"),
         second.as_path(),
         Path::new("/usr/bin"),
@@ -415,7 +419,7 @@ fn a_refused_selection_reports_its_code_message_and_remedy_and_publishes_nothing
     assert_nothing_published(&fixture, &output);
     let report = stderr(&output);
     assert!(report.contains("policy_missing"), "{report}");
-    assert!(report.contains("harness-dispatch init"), "{report}");
+    assert!(report.contains("exporting a `policy`"), "{report}");
     assert_eq!(fixture.transcripts(), 4, "{report}");
 }
 
@@ -499,7 +503,7 @@ fn a_signal_during_selection_launches_nothing_and_publishes_nothing() {
 // sibling names the path it looked at, and a symlink to `grove` does not move
 // the lookup to the link's directory.
 #[test]
-fn harness_dispatch_is_found_beside_groves_real_path_and_a_missing_one_is_named() {
+fn ravel_is_found_on_path_independently_of_groves_real_path() {
     let fixture = Fixture::new(WRITES_NOTES);
     let alone = fixture.root.join("alone/bin");
     fs::create_dir_all(&alone).unwrap();
@@ -507,6 +511,7 @@ fn harness_dispatch_is_found_beside_groves_real_path_and_a_missing_one_is_named(
 
     let output = fixture
         .grove(&alone.join("grove"))
+        .env("PATH", "/usr/bin:/bin")
         .args(["run", "release-notes", "Produce notes.", "--ui", "inline"])
         .arg("--output")
         .arg(fixture.notes())
@@ -514,11 +519,9 @@ fn harness_dispatch_is_found_beside_groves_real_path_and_a_missing_one_is_named(
         .unwrap();
 
     assert_nothing_published(&fixture, &output);
-    let missing = alone.join("harness-dispatch");
     assert!(
-        stderr(&output).contains(missing.to_str().unwrap()),
-        "{}",
-        stderr(&output)
+        stderr(&output).contains("brew install linkuistics/taps/ravel"),
+        "{output:?}"
     );
     assert_eq!(fixture.transcripts(), 0);
 
@@ -548,8 +551,8 @@ fn harness_dispatch_is_found_beside_groves_real_path_and_a_missing_one_is_named(
 }
 
 #[test]
-fn failed_or_unacknowledged_harnesses_do_not_publish_outputs() {
-    for tail in ["exit 0", "exit 7", "acknowledge; exit 7"] {
+fn unacknowledged_harnesses_do_not_publish_outputs() {
+    for tail in ["exit 0", "exit 7"] {
         let fixture = Fixture::new(&format!("printf partial > notes.md\n{tail}\n"));
         assert_nothing_published(&fixture, &fixture.run());
         assert_eq!(
@@ -558,6 +561,12 @@ fn failed_or_unacknowledged_harnesses_do_not_publish_outputs() {
             "a launch leaves its log and status"
         );
     }
+}
+
+#[test]
+fn an_acknowledged_result_survives_the_managed_process_nonzero_exit() {
+    let fixture = Fixture::new("printf published > notes.md\nacknowledge; exit 7\n");
+    assert_published(&fixture, &fixture.run(), "published");
 }
 
 #[test]
@@ -612,21 +621,21 @@ fn replacing_the_staging_directory_cannot_redirect_export_to_host_files() {
 }
 
 #[test]
-fn the_confined_harness_cannot_forge_the_supervisors_ending_report() {
+fn a_legacy_report_cannot_forge_the_held_public_result() {
     let fixture = Fixture::new(
         "printf forged > notes.md\n\
-         if printf '%s' '{\"schemaVersion\":1,\"source\":\"harness-dispatch\",\"measurements\":{\"ending\":{\"state\":\"observed\",\"value\":\"exit_signal\"}}}' > ../control/ending.json; then exit 41; fi\n\
-         printf report-write-denied\nexit 0\n",
+         printf grove-continue > ../control/ending.json || true\n\
+         printf legacy-report-ignored\nexit 0\n",
     );
     let output = fixture.run();
     assert_nothing_published(&fixture, &output);
     assert!(
-        stderr(&output).contains("report-write-denied"),
+        stderr(&output).contains("legacy-report-ignored"),
         "{}",
         stderr(&output)
     );
     assert!(
-        stderr(&output).contains("without an exit-signal ending"),
+        stderr(&output).contains("session_result_missing"),
         "{}",
         stderr(&output)
     );
@@ -751,10 +760,7 @@ fn cancellation_during_run_reaps_the_harness_and_preserves_enclosing_controls() 
         .run_kind("release-notes")
         .env("GROVE_SIGNAL_FILE", fixture.root.join("outer-signal"))
         .env("GROVE_LAUNCH_DIR", fixture.root.join("outer-launch"))
-        .env(
-            "HARNESS_DISPATCH_EXIT_FILE",
-            fixture.root.join("outer-exit"),
-        )
+        .env("RAVEL_EXIT_FILE", fixture.root.join("outer-exit"))
         .stderr(Stdio::null())
         .spawn()
         .unwrap();
@@ -846,12 +852,12 @@ fn nested_exit_and_cancellation_leave_the_enclosing_dispatched_run_intact() {
         });
         let outer = fixture.root.join("outer.sh");
         let grove = Path::new(env!("CARGO_BIN_EXE_grove"));
-        let dispatch = support::harness_dispatch().canonicalize().unwrap();
+        let dispatch = support::installed_ravel().canonicalize().unwrap();
         let body = format!(
-            "set -eu\nouter_id=$HARNESS_DISPATCH_RUN_ID\nouter_exit=$HARNESS_DISPATCH_EXIT_FILE\n\
+            "set -eu\nouter_exit=$RAVEL_EXIT_FILE\n\
              '{}' run release-notes 'Produce notes.' --ui inline --runtime-read '{}' --output '{}' &\ninner=$!\n{}\n\
-             test \"$outer_id\" = \"$HARNESS_DISPATCH_RUN_ID\"\ntest ! -e \"$outer_exit\"\n\
-             printf survived > '{}'\n'{}' exit\n",
+             test ! -e \"$outer_exit\"\n\
+             printf survived > '{}'\n'{}' end-session grove-continue\n",
             grove.display(), fixture.script.display(), fixture.notes().display(),
             if cancel {
                 format!("while ! grep -q nested-ready '{}'/runs/*.log 2>/dev/null; do sleep 0.02; done\nkill -TERM \"$inner\"\nif wait \"$inner\"; then exit 41; fi", fixture.home.join(".local/state/grove").display())
@@ -866,7 +872,7 @@ fn nested_exit_and_cancellation_leave_the_enclosing_dispatched_run_intact() {
         let output = fixture
             .grove(&dispatch)
             .args([
-                "run",
+                "start-session",
                 "--kind",
                 "enclosing",
                 "--prompt",
@@ -889,8 +895,8 @@ fn acknowledgement_names_the_canonical_dispatch_path_when_the_sibling_is_a_symli
     let bin = fixture.root.join("aliased-bin");
     fs::create_dir(&bin).unwrap();
     fs::copy(env!("CARGO_BIN_EXE_grove"), bin.join("grove")).unwrap();
-    let dispatch = support::harness_dispatch().canonicalize().unwrap();
-    std::os::unix::fs::symlink(&dispatch, bin.join("harness-dispatch")).unwrap();
+    let dispatch = support::installed_ravel().canonicalize().unwrap();
+    std::os::unix::fs::symlink(&dispatch, bin.join("ravel")).unwrap();
     let output = fixture
         .grove(&bin.join("grove"))
         .args(["run", "release-notes", "Produce notes.", "--ui", "inline"])
@@ -900,5 +906,9 @@ fn acknowledgement_names_the_canonical_dispatch_path_when_the_sibling_is_a_symli
         .arg(fixture.notes())
         .output()
         .unwrap();
-    assert_published(&fixture, &output, &format!("'{}' exit", dispatch.display()));
+    assert_published(
+        &fixture,
+        &output,
+        &format!("'{}' end-session grove-continue", dispatch.display()),
+    );
 }

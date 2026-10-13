@@ -338,7 +338,7 @@ help teaches the shape of a kind and lists none, because there is no list.
 const KIND_HELP: &str = "Leaf kind, written into the filename: lowercase ASCII letters, \
 digits and single dashes, no `--`. Grove holds no list of kinds — the installed methodology \
 does — so any well-formed token is written. Whether a kind can be launched is decided by \
-the owner's harness-dispatch policy when the leaf launches, and a refused launch leaves the \
+the owner's Ravel policy when the leaf launches, and a refused launch leaves the \
 leaf live. `finish` is driver-reserved and refused by this verb";
 
 ````

@@ -5,7 +5,7 @@ use clap::{Parser, Subcommand};
 use grove_loop::{DriverLease, LoopOutcome, Workspace};
 
 /// Bare `grove` drives the lifecycle; `run` launches a standalone invocation.
-/// Launch policy stays in the owner's harness-dispatch policy rather than
+/// Launch policy stays in the owner's Ravel policy rather than
 /// command-line selectors.
 #[derive(Parser)]
 #[command(
@@ -28,7 +28,7 @@ pub struct Cli {
 enum Command {
     /// Run one task kind in a confined temporary directory, without a grove.
     #[command(
-        after_help = "Examples:\n  grove run release-notes --prompt-file prompt.md --input changes.txt --output notes.md\n  grove run summarise 'Summarise input.txt into summary.md' --input input.txt --output summary.md --ui inline\n\nThe owner's harness-dispatch policy selects the command for the kind; no jj or project discovery. Requires OS confinement and a noninteractive harness command. Exit codes: 0 completed and outputs published, 1 failure/cancellation, 2 invalid usage. Existing output files are never overwritten. Runtime credentials need explicit --runtime-read grants."
+        after_help = "Examples:\n  grove run release-notes --prompt-file prompt.md --input changes.txt --output notes.md\n  grove run summarise 'Summarise input.txt into summary.md' --input input.txt --output summary.md --ui inline\n\nThe owner's Ravel policy selects the command for the kind; no jj or project discovery. Requires OS confinement and a noninteractive harness command. Exit codes: 0 completed and outputs published, 1 failure/cancellation, 2 invalid usage. Existing output files are never overwritten. Runtime credentials need explicit --runtime-read grants."
     )]
     Run(crate::standalone::Args),
     /// Display a standalone transcript in a supervisor-owned pane.
@@ -41,7 +41,7 @@ enum Command {
     },
     /// Browse a .grove task tree read-only with automatic refresh.
     #[command(
-        long_about = "Browse WORKTREE/.grove read-only with automatic refresh. There is no upward search: from a subdirectory, view observes that subdirectory's .grove. Requires an interactive terminal; no jj workspace or harness-dispatch policy is needed.",
+        long_about = "Browse WORKTREE/.grove read-only with automatic refresh. There is no upward search: from a subdirectory, view observes that subdirectory's .grove. Requires an interactive terminal; no jj workspace or Ravel policy is needed.",
         after_help = "Examples:\n  grove view\n  grove view /path/to/another/worktree"
     )]
     View {
@@ -96,8 +96,8 @@ fn execute(cli: Cli) -> anyhow::Result<()> {
     let workspace = Workspace::resolve(&cwd)?;
     let lease = DriverLease::acquire(&workspace)?;
     crate::provision::ensure_codex_skills()?;
-    let dispatch = crate::dispatch::locate()?;
-    match grove_loop::run(&workspace, lease, &dispatch)? {
+    let ravel = crate::dispatch::locate()?;
+    match grove_loop::run(&workspace, lease, &ravel)? {
         LoopOutcome::Finished | LoopOutcome::Stopped => Ok(()),
         LoopOutcome::Interrupted(signal) => grove_loop::reraise(signal),
     }

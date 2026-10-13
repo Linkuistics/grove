@@ -43,7 +43,7 @@ lives as long as the harness and of nested job control.
 
 ## What it costs
 
-- **Independent Ravel resolution trusts PATH.** Grove's staged Ravel resolver
+- **Independent Ravel resolution trusts PATH.** Grove's active Ravel resolver
   selects the first executable regular file named `ravel` in an absolute PATH
   directory, canonicalizes it once, and probes that same path with `--version`.
   Empty and relative entries are skipped, so resolution never adds the working
@@ -57,8 +57,12 @@ lives as long as the harness and of nested job control.
   two-verb contract; other minors/majors, prereleases and malformed or unsuccessful
   probes refuse with an upgrade remedy. Refusal does not fall through to a later
   PATH installation. Homebrew presence alone does not establish compatibility.
-  The old bundled locator remains the active caller entry point during this
-  expansion; both callers switch together in the migration stage.
+  Both actual callers now use this boundary; no sibling locator remains.
+  The version subprocess scrubs the same old/new session controls as launch.
+  Lifecycle and standalone commands use the once-selected path, shared public
+  argv and canonical ending instructions. Public stdout is held separately;
+  continuation/publication follows reap and each caller's authority checks.
+  Ravel returns no private report, record identity or persistent store data.
 
 - **A process for the harness's lifetime, and two layers of job control.**
   Grove's runner makes dispatch a job, and dispatch makes the harness one, as a

@@ -17,12 +17,12 @@
 | `source-verbs` | `crates/grove-loop/src/verbs.rs` | 331 |
 | `source-driver` | `crates/grove-loop/src/driver.rs` | 59 |
 | `source-driver-lease` | `crates/grove-loop/src/driver_lease.rs` | 2,083 |
-| `source-prompt` | `crates/grove-loop/src/prompt.rs` | 222 |
-| `source-loop-driver` | `crates/grove-loop/src/loop_driver.rs` | 816 |
+| `source-prompt` | `crates/grove-loop/src/prompt.rs` | 228 |
+| `source-loop-driver` | `crates/grove-loop/src/loop_driver.rs` | 818 |
 | `source-observation` | `crates/grove-loop/src/observation.rs` | 218 |
 | `source-runtime-observation` | `crates/grove-loop/src/driver_lease/observation.rs` | 2,146 |
 | `source-witnesses` | `crates/grove-loop/src/driver_lease/witnesses.rs` | 717 |
-| `source-launch-directory` | `crates/grove-loop/src/launch_directory.rs` | 193 |
+| `source-launch-directory` | `crates/grove-loop/src/launch_directory.rs` | 134 |
 | `source-session-result` | `crates/grove-loop/src/session_result.rs` | 93 |
 | `source-session-command` | `crates/grove-loop/src/session_command.rs` | 91 |
 
@@ -80,10 +80,10 @@
 <!-- insert «lease-and-epoch» -->
 <!-- insert «lease-tests» -->
 <!-- /source-root -->
-<!-- source-root «source-prompt» source="crates/grove-loop/src/prompt.rs" lines="1-222" -->
+<!-- source-root «source-prompt» source="crates/grove-loop/src/prompt.rs" lines="1-228" -->
 <!-- insert «the-prompt-core» -->
 <!-- /source-root -->
-<!-- source-root «source-loop-driver» source="crates/grove-loop/src/loop_driver.rs" lines="1-816" -->
+<!-- source-root «source-loop-driver» source="crates/grove-loop/src/loop_driver.rs" lines="1-818" -->
 <!-- insert «loop-driver» -->
 <!-- /source-root -->
 
@@ -98,7 +98,7 @@
 <!-- insert «launch-witnesses-production» -->
 <!-- insert «witness-tests» -->
 <!-- /source-root -->
-<!-- source-root «source-launch-directory» source="crates/grove-loop/src/launch_directory.rs" lines="1-193" -->
+<!-- source-root «source-launch-directory» source="crates/grove-loop/src/launch_directory.rs" lines="1-134" -->
 <!-- insert «launch-control-directory» -->
 <!-- /source-root -->
 
@@ -150,13 +150,13 @@
 | `driver-operations` | `source-driver` | `twelve-not-fourteen` | `1-59` | 59 | `resolved` |
 | `lease-and-epoch` | `source-driver-lease` | `one-per-working-tree` | `1-966` | 966 | `resolved` |
 | `lease-tests` | `source-driver-lease` | `which-calls-are-admitted` | `967-2083` | 1,117 | `resolved` |
-| `the-prompt-core` | `source-prompt` | `too-late-to-say-later` | `1-222` | 222 | `resolved` |
-| `loop-driver` | `source-loop-driver` | `four-things-a-runner-cannot-choose` | `1-816` | 816 | `resolved` |
+| `the-prompt-core` | `source-prompt` | `too-late-to-say-later` | `1-228` | 228 | `resolved` |
+| `loop-driver` | `source-loop-driver` | `four-things-a-runner-cannot-choose` | `1-818` | 818 | `resolved` |
 | `observation-tree` | `source-observation` | `one-spelling-of-grove` | `1-218` | 218 | `resolved` |
 | `runtime-observer` | `source-runtime-observation` | `which-calls-are-admitted` | `1-2146` | 2,146 | `resolved` |
 | `launch-witnesses-production` | `source-witnesses` | `one-per-working-tree` | `1-175` | 175 | `resolved` |
 | `witness-tests` | `source-witnesses` | `which-calls-are-admitted` | `176-717` | 542 | `resolved` |
-| `launch-control-directory` | `source-launch-directory` | `four-things-a-runner-cannot-choose` | `1-193` | 193 | `resolved` |
+| `launch-control-directory` | `source-launch-directory` | `four-things-a-runner-cannot-choose` | `1-134` | 134 | `resolved` |
 | `held-session-result` | `source-session-result` | `four-things-a-runner-cannot-choose` | `1-93` | 93 | `resolved` |
 | `public-session-commands` | `source-session-command` | `four-things-a-runner-cannot-choose` | `1-91` | 91 | `resolved` |
 
@@ -613,47 +613,46 @@
 | `epoch-tests-probe-releases` | `the-epoch` | `source-driver-lease` | `literal` | `which-calls-are-admitted` | `2005-2046` | `lease-tests` | `—` |
 | `epoch-tests-active-no-lease` | `the-epoch` | `source-driver-lease` | `literal` | `which-calls-are-admitted` | `2047-2066` | `lease-tests` | `—` |
 | `epoch-tests-malformed` | `the-epoch` | `source-driver-lease` | `literal` | `which-calls-are-admitted` | `2067-2083` | `lease-tests` | `—` |
-| `source-prompt` | `source-index` | `source-prompt` | `root` | `—` | `1-222` | `—` | `the-prompt-core` |
+| `source-prompt` | `source-index` | `source-prompt` | `root` | `—` | `1-228` | `—` | `the-prompt-core` |
 | `core-header` | `the-core` | `source-prompt` | `literal` | `too-late-to-say-later` | `1-41` | `the-prompt-core` | `—` |
-| `the-prompt-core` | `the-core` | `source-prompt` | `composite` | `too-late-to-say-later` | `1-222` | `source-prompt` | `core-header`, `core-imports`, `core-plugin`, `core-skill-name`, `core-load-instruction`, `core-runtime-facts`, `core-signalling-contract`, `core-mandate`, `core-compose`, `core-stated-vcs` |
+| `the-prompt-core` | `the-core` | `source-prompt` | `composite` | `too-late-to-say-later` | `1-228` | `source-prompt` | `core-header`, `core-imports`, `core-plugin`, `core-skill-name`, `core-load-instruction`, `core-runtime-facts`, `core-signalling-contract`, `core-mandate`, `core-compose`, `core-stated-vcs` |
 | `core-imports` | `the-core` | `source-prompt` | `literal` | `too-late-to-say-later` | `42-45` | `the-prompt-core` | `—` |
 | `core-plugin` | `the-core` | `source-prompt` | `literal` | `too-late-to-say-later` | `46-54` | `the-prompt-core` | `—` |
 | `core-skill-name` | `the-core` | `source-prompt` | `literal` | `too-late-to-say-later` | `55-65` | `the-prompt-core` | `—` |
 | `core-load-instruction` | `the-core` | `source-prompt` | `literal` | `too-late-to-say-later` | `66-107` | `the-prompt-core` | `—` |
 | `core-runtime-facts` | `the-core` | `source-prompt` | `literal` | `too-late-to-say-later` | `108-125` | `the-prompt-core` | `—` |
-| `core-signalling-contract` | `the-core` | `source-prompt` | `literal` | `too-late-to-say-later` | `126-155` | `the-prompt-core` | `—` |
-| `core-mandate` | `the-core` | `source-prompt` | `literal` | `too-late-to-say-later` | `156-178` | `the-prompt-core` | `—` |
-| `core-compose` | `the-core` | `source-prompt` | `literal` | `too-late-to-say-later` | `179-199` | `the-prompt-core` | `—` |
-| `core-stated-vcs` | `the-core` | `source-prompt` | `literal` | `too-late-to-say-later` | `200-222` | `the-prompt-core` | `—` |
-| `source-loop-driver` | `source-index` | `source-loop-driver` | `root` | `—` | `1-816` | `—` | `loop-driver` |
+| `core-signalling-contract` | `the-core` | `source-prompt` | `literal` | `too-late-to-say-later` | `126-154` | `the-prompt-core` | `—` |
+| `core-mandate` | `the-core` | `source-prompt` | `literal` | `too-late-to-say-later` | `155-179` | `the-prompt-core` | `—` |
+| `core-compose` | `the-core` | `source-prompt` | `literal` | `too-late-to-say-later` | `180-205` | `the-prompt-core` | `—` |
+| `core-stated-vcs` | `the-core` | `source-prompt` | `literal` | `too-late-to-say-later` | `206-228` | `the-prompt-core` | `—` |
+| `source-loop-driver` | `source-index` | `source-loop-driver` | `root` | `—` | `1-818` | `—` | `loop-driver` |
 | `loop-header` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `1-12` | `loop-driver` | `—` |
-| `loop-driver` | `the-loop` | `source-loop-driver` | `composite` | `four-things-a-runner-cannot-choose` | `1-816` | `source-loop-driver` | `loop-header`, `loop-imports`, `loop-control-env`, `loop-scrub-list`, `loop-scrub-helper`, `loop-outcome`, `loop-run`, `loop-drive-open`, `loop-drive-interrupt`, `loop-drive-selection`, `loop-drive-invocation`, `loop-drive-launch`, `loop-drive-discard`, `loop-drive-survivor`, `loop-drive-endings`, `loop-session-prompt`, `loop-dispatch-run`, `loop-launch-contract`, `loop-launch-spawn`, `loop-handoff`, `loop-escalation`, `loop-reset-terminal`, `loop-ignore-interrupts`, `loop-picked`, `loop-tests-open`, `loop-test-handoff-preserves`, `loop-test-ordering` |
-| `loop-imports` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `13-23` | `loop-driver` | `—` |
-| `loop-control-env` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `24-72` | `loop-driver` | `—` |
-| `loop-scrub-list` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `73-77` | `loop-driver` | `—` |
-| `loop-scrub-helper` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `78-88` | `loop-driver` | `—` |
-| `loop-outcome` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `89-117` | `loop-driver` | `—` |
-| `loop-run` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `118-155` | `loop-driver` | `—` |
-| `loop-drive-open` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `156-165` | `loop-driver` | `—` |
-| `loop-drive-interrupt` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `166-180` | `loop-driver` | `—` |
-| `loop-drive-selection` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `181-189` | `loop-driver` | `—` |
-| `loop-drive-invocation` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `190-192` | `loop-driver` | `—` |
-| `loop-drive-launch` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `193-214` | `loop-driver` | `—` |
-| `loop-drive-discard` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `215-246` | `loop-driver` | `—` |
-| `loop-drive-survivor` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `247-259` | `loop-driver` | `—` |
-| `loop-drive-endings` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `260-282` | `loop-driver` | `—` |
-| `loop-session-prompt` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `283-316` | `loop-driver` | `—` |
-| `loop-dispatch-run` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `317-349` | `loop-driver` | `—` |
-| `loop-launch-contract` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `350-378` | `loop-driver` | `—` |
-| `loop-launch-spawn` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `379-406` | `loop-driver` | `—` |
-| `loop-handoff` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `407-424` | `loop-driver` | `—` |
-| `loop-escalation` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `425-433` | `loop-driver` | `—` |
-| `loop-reset-terminal` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `434-465` | `loop-driver` | `—` |
-| `loop-ignore-interrupts` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `466-496` | `loop-driver` | `—` |
-| `loop-picked` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `497-536` | `loop-driver` | `—` |
-| `loop-tests-open` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `537-757` | `loop-driver` | `—` |
-| `loop-test-handoff-preserves` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `758-793` | `loop-driver` | `—` |
-| `loop-test-ordering` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `794-816` | `loop-driver` | `—` |
+| `loop-driver` | `the-loop` | `source-loop-driver` | `composite` | `four-things-a-runner-cannot-choose` | `1-818` | `source-loop-driver` | `loop-header`, `loop-imports`, `loop-control-env`, `loop-scrub-list`, `loop-scrub-helper`, `loop-outcome`, `loop-run`, `loop-drive-open`, `loop-drive-interrupt`, `loop-drive-selection`, `loop-drive-invocation`, `loop-drive-launch`, `loop-drive-discard`, `loop-drive-survivor`, `loop-drive-endings`, `loop-session-prompt`, `loop-launch-contract`, `loop-launch-spawn`, `loop-handoff`, `loop-escalation`, `loop-reset-terminal`, `loop-ignore-interrupts`, `loop-picked`, `loop-tests-open`, `loop-test-handoff-preserves`, `loop-test-ordering` |
+| `loop-imports` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `13-25` | `loop-driver` | `—` |
+| `loop-control-env` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `26-74` | `loop-driver` | `—` |
+| `loop-scrub-list` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `75-79` | `loop-driver` | `—` |
+| `loop-scrub-helper` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `80-90` | `loop-driver` | `—` |
+| `loop-outcome` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `91-119` | `loop-driver` | `—` |
+| `loop-run` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `120-157` | `loop-driver` | `—` |
+| `loop-drive-open` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `158-167` | `loop-driver` | `—` |
+| `loop-drive-interrupt` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `168-182` | `loop-driver` | `—` |
+| `loop-drive-selection` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `183-191` | `loop-driver` | `—` |
+| `loop-drive-invocation` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `192-195` | `loop-driver` | `—` |
+| `loop-drive-launch` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `196-225` | `loop-driver` | `—` |
+| `loop-drive-discard` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `226-260` | `loop-driver` | `—` |
+| `loop-drive-survivor` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `261-273` | `loop-driver` | `—` |
+| `loop-drive-endings` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `274-299` | `loop-driver` | `—` |
+| `loop-session-prompt` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `300-339` | `loop-driver` | `—` |
+| `loop-launch-contract` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `340-369` | `loop-driver` | `—` |
+| `loop-launch-spawn` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `370-398` | `loop-driver` | `—` |
+| `loop-handoff` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `399-416` | `loop-driver` | `—` |
+| `loop-escalation` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `417-424` | `loop-driver` | `—` |
+| `loop-reset-terminal` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `425-456` | `loop-driver` | `—` |
+| `loop-ignore-interrupts` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `457-487` | `loop-driver` | `—` |
+| `loop-picked` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `488-527` | `loop-driver` | `—` |
+| `loop-tests-open` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `528-759` | `loop-driver` | `—` |
+| `loop-test-handoff-preserves` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `760-795` | `loop-driver` | `—` |
+| `loop-test-ordering` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `796-818` | `loop-driver` | `—` |
 | `source-observation` | `source-index` | `source-observation` | `root` | `—` | `1-218` | `—` | `observation-tree` |
 | `observation-imports` | `opening` | `source-observation` | `literal` | `one-spelling-of-grove` | `1-11` | `observation-tree` | `—` |
 | `observation-tree` | `opening` | `source-observation` | `composite` | `one-spelling-of-grove` | `1-218` | `source-observation` | `observation-imports`, `observation-lifetime`, `observation-values`, `observation-capture` |
@@ -711,8 +710,8 @@
 | `witness-tests` | `the-epoch` | `source-witnesses` | `composite` | `which-calls-are-admitted` | `176-717` | `source-witnesses` | `witness-process-holder`, `witness-foreign-launch`, `witness-local-controls` |
 | `witness-foreign-launch` | `the-epoch` | `source-witnesses` | `literal` | `which-calls-are-admitted` | `261-440` | `witness-tests` | `—` |
 | `witness-local-controls` | `the-epoch` | `source-witnesses` | `literal` | `which-calls-are-admitted` | `441-717` | `witness-tests` | `—` |
-| `source-launch-directory` | `source-index` | `source-launch-directory` | `root` | `—` | `1-193` | `—` | `launch-control-directory` |
-| `launch-control-directory` | `the-loop` | `source-launch-directory` | `literal` | `four-things-a-runner-cannot-choose` | `1-193` | `source-launch-directory` | `—` |
+| `source-launch-directory` | `source-index` | `source-launch-directory` | `root` | `—` | `1-134` | `—` | `launch-control-directory` |
+| `launch-control-directory` | `the-loop` | `source-launch-directory` | `literal` | `four-things-a-runner-cannot-choose` | `1-134` | `source-launch-directory` | `—` |
 | `source-session-result` | `source-index` | `source-session-result` | `root` | `—` | `1-93` | `—` | `held-session-result` |
 | `held-session-result` | `the-loop` | `source-session-result` | `literal` | `four-things-a-runner-cannot-choose` | `1-93` | `source-session-result` | `—` |
 | `source-session-command` | `source-index` | `source-session-command` | `root` | `—` | `1-91` | `—` | `public-session-commands` |
@@ -800,8 +799,8 @@ the roots and fragment relationships; this rollup totals the lines across the de
 | `twelve-not-fourteen` | `15-the-verbs.md` | 390 |
 | `one-per-working-tree` | `16-the-lease.md` | 1,141 |
 | `which-calls-are-admitted` | `17-the-epoch.md` | 3,805 |
-| `too-late-to-say-later` | `18-the-core.md` | 222 |
-| `four-things-a-runner-cannot-choose` | `19-the-loop.md` | 1,193 |
+| `too-late-to-say-later` | `18-the-core.md` | 228 |
+| `four-things-a-runner-cannot-choose` | `19-the-loop.md` | 1,136 |
 | `assembly` | `20-what-could-not-move.md` | 0 |
-| **Total** | 17 source roots | **14,383** |
+| **Total** | 17 source roots | **14,332** |
 

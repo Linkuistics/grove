@@ -2,7 +2,7 @@
 //!
 //! The caller supplies the executable already selected and canonicalized by
 //! Grove's PATH/version resolver. These helpers never resolve that path again.
-//! Both active callers still use dispatch until their atomic migration.
+//! Both callers share these public launch and ending commands.
 
 use std::ffi::{OsStr, OsString};
 use std::path::{Path, PathBuf};

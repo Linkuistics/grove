@@ -104,7 +104,7 @@ fn lifecycle_scrubs_enclosing_ravel_and_retired_controls_before_selection() {
     let dispatch = Dispatch::new("worktree");
     plant_tree(&dispatch.worktree, "01-impl--subject-k1.md");
     let controls = [
-        "RAVEL_EXIT_FILE",
+        "GROVE_SIGNAL_FILE",
         "GROVE_RUN_SIGNAL_FILE",
         "GROVE_HARNESS_PID",
         "GROVE_CLAUDE_PID",
@@ -121,9 +121,9 @@ fn lifecycle_scrubs_enclosing_ravel_and_retired_controls_before_selection() {
         serde_json::to_string(&controls).unwrap(),
         dispatch.harness.to_str().unwrap(),
     ));
-    dispatch.settings(&serde_json::json!({"policyEnv": ["OWNER_GRANT", "RAVEL_EXIT_FILE", "GROVE_RUN_SIGNAL_FILE", "GROVE_HARNESS_PID", "GROVE_CLAUDE_PID"]}).to_string());
+    dispatch.settings(&serde_json::json!({"policyEnv": ["OWNER_GRANT", "GROVE_SIGNAL_FILE", "GROVE_RUN_SIGNAL_FILE", "GROVE_HARNESS_PID", "GROVE_CLAUDE_PID"]}).to_string());
 
-    let mut direct = Command::new(support::harness_dispatch());
+    let mut direct = Command::new(support::installed_ravel());
     for name in support::grove_env_names() {
         direct.env_remove(name);
     }
@@ -131,19 +131,25 @@ fn lifecycle_scrubs_enclosing_ravel_and_retired_controls_before_selection() {
         .current_dir(&dispatch.worktree)
         .env("HOME", &dispatch.home)
         .env("OWNER_GRANT", "granted")
-        .args(["run", "--kind=impl", "--prompt=control"]);
+        .args(["start-session", "--kind=impl", "--prompt=control"]);
     for name in controls {
-        direct.env(name, "/inert-enclosing-control");
+        let dirty = direct
+            .env(name, "/inert-enclosing-control")
+            .output()
+            .unwrap();
+        assert_eq!(dirty.status.code(), Some(3), "{name}: {dirty:?}");
+        assert!(String::from_utf8_lossy(&dirty.stderr)
+            .contains("enclosing authority reached selection"));
+        direct.env_remove(name);
     }
-    let dirty = direct.output().unwrap();
-    assert_eq!(dirty.status.code(), Some(3), "{dirty:?}");
-    assert!(
-        String::from_utf8_lossy(&dirty.stderr).contains("enclosing authority reached selection")
-    );
+    let probe = support::ravel_entry_probe(&dispatch.root.join("entry-bin"));
+    support::observe_dirty_entry(&probe, &dispatch.home);
 
     let mut grove = grove_driver(&dispatch.worktree, &dispatch.home);
-    grove.env("OWNER_GRANT", "granted");
-    for name in controls {
+    grove
+        .env("OWNER_GRANT", "granted")
+        .env("PATH", support::path_with_entry(probe.parent().unwrap()));
+    for name in support::LOOP_CONTROL_ENV {
         grove.env(name, "/inert-enclosing-control");
     }
     let output = grove.output().unwrap();
@@ -161,7 +167,7 @@ fn lifecycle_scrubs_enclosing_ravel_and_retired_controls_before_selection() {
 /// only input.
 fn driver_command(worktree: &Path, home: &Path) -> Command {
     // The sibling this `grove` launches every session through.
-    support::harness_dispatch();
+    support::installed_ravel();
     driver_command_at(Path::new(env!("CARGO_BIN_EXE_grove")), worktree, home)
 }
 
@@ -178,7 +184,7 @@ fn driver_command_at(grove: &Path, worktree: &Path, home: &Path) -> Command {
     for name in ["HARNESS_DISPATCH_RUN_ID", "HARNESS_DISPATCH_STATE_DIR"] {
         command.env_remove(name);
     }
-    command.env("HOME", home);
+    command.env("HOME", home).env("PATH", support::ravel_path());
     command
 }
 
@@ -330,9 +336,8 @@ echo session-finished
     support::route_every_kind_to(&home, &configured);
     let output = run_driver(&worktree, &home);
     assert!(output.status.success());
-    assert_eq!(
-        String::from_utf8_lossy(&output.stdout),
-        "session-finished\n",
+    assert!(
+        String::from_utf8_lossy(&output.stderr).contains("session-finished\n"),
         "a test session must not be able to change the runner's terminal"
     );
 }
@@ -529,7 +534,7 @@ fn the_driver_activates_immediately_before_spawn_and_invalidates_after_reap() {
     write_exec(
         &configured,
         &format!(
-            "#!/bin/sh\ncp \"$PWD/.jj/grove/session.epoch\" {epoch}\nprintf '%s\\n' \"$HARNESS_DISPATCH_EXIT_FILE\" > {signal}\nexit 0\n",
+            "#!/bin/sh\ncp \"$PWD/.jj/grove/session.epoch\" {epoch}\nprintf '%s\\n' \"$GROVE_LAUNCH_DIR/result-placeholder\" > {signal}\nexit 0\n",
             epoch = shell_quote(&observed_epoch),
             signal = shell_quote(&observed_signal),
         ),
@@ -602,7 +607,7 @@ fn a_session_mutates_the_tree_through_grove_llm_without_deadlocking_the_driver()
              : > {first_run}\n\
              {grove_llm} leaf-add . follow-up --kind design >> {verbs} 2>&1 || exit 91\n\
              {grove_llm} leaf-retire .grove/01-impl--subject-k1.md >> {verbs} 2>&1 || exit 92\n\
-             : > \"$HARNESS_DISPATCH_EXIT_FILE\"\n\
+             ravel end-session grove-continue\n\
              exit 0\n",
             mandates = shell_quote(&mandates),
             verbs = shell_quote(&verbs),
@@ -816,7 +821,7 @@ fn a_done_signal_finishes_the_loop_once_and_housekeeping_stays_advisory() {
     write_exec(
         &configured,
         &format!(
-            "#!/bin/sh\nprintf 'ran\\n' >> {log}\n: > \"$GROVE_LAUNCH_DIR/teardown\"; : > \"$HARNESS_DISPATCH_EXIT_FILE\"\nexit 0\n",
+            "#!/bin/sh\nprintf 'ran\\n' >> {log}\n: > \"$GROVE_LAUNCH_DIR/teardown\"; ravel end-session grove-continue\nexit 0\n",
             log = shell_quote(&log),
         ),
     );
@@ -877,7 +882,7 @@ fn a_signal_removal_failure_does_not_override_a_done_disposition() {
     write_exec(
         &configured,
         &format!(
-            "#!/bin/sh\n: > \"$GROVE_LAUNCH_DIR/teardown\"; : > \"$HARNESS_DISPATCH_EXIT_FILE\"\nprintf '%s\\n' \"$HARNESS_DISPATCH_EXIT_FILE\" > {log}\nchmod 0500 \"$(dirname \"$HARNESS_DISPATCH_EXIT_FILE\")\"\nexit 0\n",
+            "#!/bin/sh\n: > \"$GROVE_LAUNCH_DIR/teardown\"; ravel end-session grove-continue\nprintf '%s\\n' \"$GROVE_LAUNCH_DIR/teardown\" > {log}\nchmod 0500 \"$GROVE_LAUNCH_DIR\"\nexit 0\n",
             log = shell_quote(&signal_log),
         ),
     );
@@ -945,7 +950,7 @@ fn concurrent_loops_with_the_same_grove_name_in_different_worktrees_do_not_inter
 
     let (attacker_home, attacker_tree) = setup(
         "attacker",
-        "#!/bin/sh\n: > \"$GROVE_LAUNCH_DIR/teardown\"; : > \"$HARNESS_DISPATCH_EXIT_FILE\"\nexec sleep 30\n",
+        "#!/bin/sh\n: > \"$GROVE_LAUNCH_DIR/teardown\"; ravel end-session grove-continue\nexec sleep 30\n",
     );
     let (victim_home, victim_tree) = setup("victim", "#!/bin/sh\nsleep 1.5\nexit 0\n");
 
@@ -964,7 +969,7 @@ fn concurrent_loops_with_the_same_grove_name_in_different_worktrees_do_not_inter
         "sanity check: the attacker's own `done` signal still ends its own loop: {attacker_stderr}"
     );
     assert!(
-        victim_stderr.contains("without an exit-signal ending"),
+        victim_stderr.contains("without a supported Grove result"),
         "the victim's session ended without ever signalling anything of its own — a \
          foreign `done` from the other worktree's loop must not be mistaken for its \
          own completion signal: {victim_stderr}"
@@ -1091,7 +1096,7 @@ fn the_escalation_reaps_the_sessions_descendants() {
             "#!/bin/sh\n\
              sh -c 'while : ; do sleep 0.05 ; done' &\n\
              printf '%s\\n' \"$!\" > {pid}\n\
-             : > \"$GROVE_LAUNCH_DIR/teardown\"; : > \"$HARNESS_DISPATCH_EXIT_FILE\"\n\
+             : > \"$GROVE_LAUNCH_DIR/teardown\"; ravel end-session grove-continue\n\
              while : ; do sleep 0.05 ; done\n",
             pid = shell_quote(&descendant_pid),
         ),
@@ -1248,11 +1253,11 @@ fn an_orphaned_epoch_guard_stops_before_consuming_the_relaunch_signal() {
 n=$(cat {count} 2>/dev/null || echo 0)
 n=$((n + 1))
 printf '%s\n' "$n" > {count}
-printf '%s\n' "$HARNESS_DISPATCH_EXIT_FILE" > {observed}
+printf '%s\n' "$GROVE_LAUNCH_DIR/unconsumed" > {observed}
 printf '%s\n' "$$" > {pid}
 : > {ready}
 while [ ! -e {held} ]; do sleep 0.01; done
-: > "$HARNESS_DISPATCH_EXIT_FILE"
+ravel end-session grove-continue
 trap ': > {term}' TERM
 while :; do sleep 0.1; done
 "#,
@@ -1405,7 +1410,7 @@ while :; do sleep 0.1; done
         .map(|path| PathBuf::from(path.trim()));
     let signal_was_left_unconsumed = signal_path
         .as_ref()
-        .is_some_and(|path| path.parent().unwrap().join("ending.json").exists());
+        .is_some_and(|path| path.parent().unwrap().exists());
 
     let _ = release_tx.send(());
     lock_thread.join().unwrap();
@@ -1496,7 +1501,7 @@ while :; do sleep 0.1; done
 /// beside it. A missing or stale worker refuses with exit 5, so every case
 /// here fails rather than skips without one.
 fn harness_dispatch() -> PathBuf {
-    support::harness_dispatch()
+    support::installed_ravel()
 }
 
 /// A fixture for the launch boundary: a HOME, a jj working tree, a fake
@@ -1518,10 +1523,9 @@ struct Dispatch {
 /// What the fake harness observed at one start.
 struct Launch {
     args: Vec<OsString>,
-    /// `HARNESS_DISPATCH_RUN_ID`, or `<unset>`.
-    run_id: String,
-    /// `HARNESS_DISPATCH_EXIT_FILE`, or `<unset>`.
+    /// `RAVEL_EXIT_FILE`, or `<unset>`.
     channel: String,
+    launch_dir: String,
     /// The driver's session epoch, as it stood while the harness ran.
     epoch: String,
 }
@@ -1578,7 +1582,7 @@ impl Dispatch {
     /// Replace the owner settings, beside the policy. Grove passes dispatch no
     /// bound and no grant, so a case that needs either sets it as an owner does.
     fn settings(&self, json: &str) {
-        let file = self.home.join(".config/harness-dispatch/settings.json");
+        let file = self.home.join(".config/ravel/settings.json");
         fs::create_dir_all(file.parent().unwrap()).unwrap();
         fs::write(file, json).unwrap();
     }
@@ -1610,8 +1614,8 @@ impl Dispatch {
         assert_eq!(args.pop(), Some(OsString::new()), "NUL-terminated");
         Launch {
             args,
-            run_id: fs::read_to_string(record.join("run-id")).unwrap(),
             channel: fs::read_to_string(record.join("channel")).unwrap(),
+            launch_dir: fs::read_to_string(record.join("launch-dir")).unwrap(),
             epoch: fs::read_to_string(record.join("epoch")).unwrap(),
         }
     }
@@ -1622,23 +1626,6 @@ impl Dispatch {
         let view = fs::read_to_string(&self.view).expect("the policy probe ran");
         fs::remove_file(&self.view).unwrap();
         serde_json::from_str(&view).unwrap()
-    }
-
-    /// `harness-dispatch record show` of one run, from the default store
-    /// under this fixture's HOME.
-    fn recorded(&self, run_id: &str) -> serde_json::Value {
-        let output = Command::new(harness_dispatch())
-            .env_clear()
-            .env("HOME", &self.home)
-            .args(["record", "show", "--run", run_id, "--json"])
-            .output()
-            .unwrap();
-        assert!(
-            output.status.success(),
-            "run {run_id} is not recorded: {}",
-            String::from_utf8_lossy(&output.stderr)
-        );
-        serde_json::from_slice(&output.stdout).unwrap()
     }
 
     /// The selected leaf's task file as the driver names it: under the
@@ -1657,8 +1644,8 @@ impl Dispatch {
 /// from the working tree.
 const RECORD_START: &str = "\
     for argument in \"$@\"; do printf '%s\\0' \"$argument\"; done > \"$record/args\"\n\
-    printf '%s' \"${HARNESS_DISPATCH_RUN_ID-<unset>}\" > \"$record/run-id\"\n\
-    printf '%s' \"${HARNESS_DISPATCH_EXIT_FILE-<unset>}\" > \"$record/channel\"\n\
+    printf '%s' \"${RAVEL_EXIT_FILE-<unset>}\" > \"$record/channel\"\n\
+    printf '%s' \"$GROVE_LAUNCH_DIR\" > \"$record/launch-dir\"\n\
     cp .jj/grove/session.epoch \"$record/epoch\"\n";
 
 /// Mark teardown directly in this fixture so cases can inspect the retained
@@ -1666,14 +1653,10 @@ const RECORD_START: &str = "\
 /// below exercises the real finish-commit/record-teardown precondition.
 fn complete_done() -> String {
     format!(
-        "touch \"$GROVE_LAUNCH_DIR/teardown\"; exec {} exit",
+        "touch \"$GROVE_LAUNCH_DIR/teardown\"; exec {} end-session grove-continue",
         shell_quote(&harness_dispatch())
     )
 }
-
-/// What Grove passes `harness-dispatch run` for a lifecycle session, each a
-/// flag joined to its value: the selection inputs, and no parameter.
-const PASSED: [&str; 4] = ["--kind=", "--task-file=", "--task-id=", "--prompt="];
 
 /// A dispatch policy whose `select` returns the fake harness for each of
 /// `kinds`, and refuses any other kind as `incomplete_mapping`, its own code.
@@ -1683,7 +1666,7 @@ const PASSED: [&str; 4] = ["--kind=", "--task-file=", "--task-id=", "--prompt="]
 ///
 /// At import it writes `view` with the names in the worker's environment and
 /// in the environment of a child it spawns, and the worker's value of
-/// `HARNESS_DISPATCH_EXIT_FILE`, so that what selection code can reach is observed
+/// `RAVEL_EXIT_FILE`, so that what selection code can reach is observed
 /// where it runs.
 fn probing_policy(view: &Path, harness: &Path, kinds: &[&str]) -> String {
     let kinds = kinds
@@ -1732,7 +1715,6 @@ export const policy = {{
 
 /// Whether a session epoch names `channel` as its live signal path.
 fn epoch_names(epoch: &str, channel: &str) -> bool {
-    let channel = Path::new(channel).parent().unwrap().to_str().unwrap();
     let hex: String = channel
         .as_bytes()
         .iter()
@@ -1796,6 +1778,7 @@ fn a_session_s_task_reaches_select_as_native_data_and_only_its_harness_holds_the
         kind: &grove_loop::Kind::new("impl").unwrap(),
         workspace: &grove_loop::Workspace::resolve(&root).unwrap(),
         version: grove_loop::VERSION,
+        ending_command: &grove_loop::session_command::end_session(&harness_dispatch()).unwrap(),
     });
     assert!(
         mandate.contains(&format!("{MANDATED_LEAF}subject-k1`"))
@@ -1828,26 +1811,8 @@ fn a_session_s_task_reaches_select_as_native_data_and_only_its_harness_holds_the
         "dispatch runs in the working-tree root, not the main repository's"
     );
 
-    let recorded = dispatch.recorded(&launch.run_id);
-    assert_eq!(recorded["runId"], launch.run_id.as_str(), "{recorded}");
-    let fields = &recorded["launch"];
-    assert_eq!(fields["kind"], "impl", "{recorded}");
-    assert_eq!(fields["taskId"], "subject-k1", "{recorded}");
-    assert_eq!(
-        fields["taskFile"],
-        task_file.to_str().unwrap(),
-        "{recorded}"
-    );
-    assert_eq!(
-        fields["candidate"]["program"],
-        dispatch.harness.to_str().unwrap(),
-        "{recorded}"
-    );
-    assert_eq!(fields["candidate"]["provider"], "origin-a", "{recorded}");
-    assert_eq!(fields["params"], params, "{recorded}");
-
     assert!(
-        epoch_names(&launch.epoch, &launch.channel),
+        epoch_names(&launch.epoch, &launch.launch_dir),
         "the harness's channel {:?} is not the one the live epoch names: {:?}",
         launch.channel,
         launch.epoch
@@ -1878,14 +1843,7 @@ fn a_session_s_task_reaches_select_as_native_data_and_only_its_harness_holds_the
     dispatch.settings(r#"{ "policyEnv": ["GROVE_LAUNCH_DIR"] }"#);
     dispatch.drive_to_completion();
     let granted = dispatch.launch(1);
-    assert_eq!(
-        dispatch.view()["channel"],
-        Path::new(&granted.channel)
-            .parent()
-            .unwrap()
-            .to_str()
-            .unwrap()
-    );
+    assert_eq!(dispatch.view()["channel"], granted.launch_dir.as_str());
     assert_ne!(
         granted.channel, launch.channel,
         "each launch gets a fresh channel"
@@ -1910,7 +1868,7 @@ fn a_kind_the_policy_refuses_leaves_its_leaf_live_and_launches_once_the_policy_r
         "if [ $n = 0 ]; then\n\
          {grove_llm} leaf-add . follow-up --kind design > {authored} 2>&1 || exit 91\n\
          {grove_llm} leaf-retire .grove/01-impl--subject-k1.md > /dev/null 2>&1 || exit 92\n\
-         exec {exit_dispatch} exit\n\
+         exec {exit_dispatch} end-session grove-continue\n\
          fi\n\
          {complete}",
         authored = shell_quote(&authored),
@@ -1942,44 +1900,31 @@ fn a_kind_the_policy_refuses_leaves_its_leaf_live_and_launches_once_the_policy_r
         "refused (policy_refused, stage selection)",
         "  policy code: incomplete_mapping",
         "  remedy: add the kind to the policy",
-        "session ended without an exit-signal ending — status exit status: 3",
+        "session ended without a supported Grove result — status exit status: 3",
         "session kind `design` for `follow-up-k2` failed",
         "rerun `grove` to continue",
     ] {
         assert!(stderr.contains(said), "no {said:?} in: {stderr}");
     }
 
-    // The refusal's own reproduction, run as its reader would run it, refuses
-    // the same selection for the same task without launching anything.
-    let line = stderr
-        .lines()
-        .find_map(|line| line.strip_prefix("  inspect: "))
-        .unwrap_or_else(|| panic!("no inspect line: {stderr}"));
-    for word in ["inspect", "design", "follow-up-k2"] {
-        assert!(line.contains(word), "{line}");
-    }
-    assert!(
-        !line.contains("--param"),
-        "no parameter to reproduce: {line}"
-    );
-    assert!(line.contains(leaf.to_str().unwrap()), "{line}");
-    let reproduced = Command::new("/bin/sh")
-        .args(["-c", line])
+    // Reproduce through the same public request; Ravel has no inspect verb.
+    let reproduced = Command::new(harness_dispatch())
+        .args([
+            "start-session",
+            "--kind=design",
+            "--task-id=follow-up-k2",
+            "--prompt=control",
+        ])
+        .arg(format!("--task-file={}", leaf.display()))
         .env_clear()
         .env("HOME", &dispatch.home)
-        .env("PATH", std::env::var_os("PATH").unwrap())
+        .env("PATH", support::ravel_path())
         .output()
         .unwrap();
-    let said = String::from_utf8_lossy(&reproduced.stderr);
-    assert_eq!(reproduced.status.code(), Some(3), "{line}\n{said}");
-    for expected in [
-        "refused (policy_refused, stage selection)",
-        "  policy code: incomplete_mapping",
-    ] {
-        assert!(said.contains(expected), "no {expected:?} in: {said}");
-    }
+    assert_eq!(reproduced.status.code(), Some(3), "{reproduced:?}");
+    assert!(String::from_utf8_lossy(&reproduced.stderr).contains("incomplete_mapping"));
     assert_eq!(dispatch.launch_count(), 1);
-    assert!(leaf.is_file(), "the refused leaf must still be live");
+    assert!(leaf.is_file());
 
     // Still live: add the kind, and the next run launches that leaf.
     dispatch.policy(&probing_policy(
@@ -2080,8 +2025,8 @@ fn a_fresh_tree_is_scaffolded_with_no_policy_and_its_first_launch_refuses_naming
     );
     for said in [
         "refused (policy_missing",
-        "harness-dispatch init",
-        "session ended without an exit-signal ending",
+        "exporting a `policy`",
+        "session ended without a supported Grove result",
         "session kind `requirements` for `plan-k1` failed",
     ] {
         assert!(stderr.contains(said), "no {said:?} in: {stderr}");
@@ -2120,924 +2065,45 @@ fn a_missing_harness_dispatch_beside_grove_is_reported_with_its_path() {
     fs::create_dir_all(&alone).unwrap();
     fs::copy(env!("CARGO_BIN_EXE_grove"), alone.join("grove")).unwrap();
 
-    let output = DriverProcess::capture(detached(driver_command_at(
-        &alone.join("grove"),
-        &dispatch.worktree,
-        &dispatch.home,
-    )))
-    .finish();
+    let mut command = driver_command_at(&alone.join("grove"), &dispatch.worktree, &dispatch.home);
+    command.env("PATH", "/usr/bin:/bin");
+    let output = DriverProcess::capture(detached(command)).finish();
 
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(!output.status.success(), "{stderr}");
-    let missing = alone.canonicalize().unwrap().join("harness-dispatch");
-    assert!(stderr.contains(missing.to_str().unwrap()), "{stderr}");
     assert!(
-        stderr.contains("Install grove and harness-dispatch together"),
+        stderr.contains("brew install linkuistics/taps/ravel"),
         "{stderr}"
     );
     assert!(!dispatch.worktree.join(".grove").exists(), "{stderr}");
     assert_eq!(dispatch.launch_count(), 0);
 }
 
-/// The Grove invocations `text` quotes: each from `harness-dispatch run
-/// --kind=` to the end of its code span or its line, whichever comes first.
-fn quoted_grove_invocations(text: &str) -> Vec<&str> {
-    text.match_indices("harness-dispatch run --kind=")
-        .map(|(at, _)| {
-            let rest = &text[at..];
-            &rest[..rest.find(['`', '\n']).unwrap_or(rest.len())]
-        })
-        .collect()
-}
-
-// The invocation an owner is shown is the one Grove makes. `harness-dispatch
-// --help` and `run --help` each carry a Grove example, on one line, and each
-// policy input is one of the flags the native-data case above shows reaching
-// `select`, joined to a placeholder, in the driver's order. A lifecycle example
-// must also show the exit directory and ending file: these run mechanics reach
-// no policy. Any Grove
-// invocation that dispatch's README, the usage guide or the configure-grove
-// skill quotes is held to the same form. So a surface that drops the example,
-// wraps it, or quotes another form fails here instead of drifting from what
-// was tested.
 #[test]
-fn the_grove_invocation_dispatch_s_help_shows_is_the_one_the_driver_makes() {
-    let help = |args: &[&str]| {
-        let output = Command::new(harness_dispatch())
-            .args(args)
-            .output()
-            .unwrap();
-        assert!(output.status.success(), "{args:?}");
-        String::from_utf8(output.stdout).unwrap()
-    };
-    let root = support::repo_root();
-    let document = |relative: &str| fs::read_to_string(root.join(relative)).unwrap();
-    let mut skill = String::new();
-    let mut directories = vec![root.join("plugins/grove/skills/configure-grove")];
-    while let Some(directory) = directories.pop() {
-        for entry in fs::read_dir(directory).unwrap() {
-            let path = entry.unwrap().path();
-            if path.is_dir() {
-                directories.push(path);
-            } else if path.extension().is_some_and(|extension| extension == "md") {
-                skill += &fs::read_to_string(&path).unwrap();
-            }
-        }
-    }
-    let surfaces = [
-        ("harness-dispatch --help", help(&["--help"]), true),
-        (
-            "harness-dispatch run --help",
-            help(&["run", "--help"]),
-            true,
-        ),
-        ("the configure-grove skill", skill, false),
-        (
-            "crates/harness-dispatch/README.md",
-            document("crates/harness-dispatch/README.md"),
-            false,
-        ),
-        ("docs/USAGE.md", document("docs/USAGE.md"), false),
-    ];
-
-    for (surface, text, required) in &surfaces {
-        let quoted = quoted_grove_invocations(text);
-        assert!(
-            !required || !quoted.is_empty(),
-            "{surface} quotes no Grove invocation of dispatch"
-        );
-        for command in quoted {
-            let words: Vec<&str> = command.split_whitespace().collect();
-            let flags: Vec<&str> = words[2..]
-                .iter()
-                .map(|word| &word[..word.rfind('=').map_or(0, |at| at + 1)])
-                .collect();
-            let valid_flags = flags
-                == PASSED
-                    .iter()
-                    .copied()
-                    .chain(["--exit-dir=", "--ending-file="])
-                    .collect::<Vec<_>>();
-            assert!(
-                words[..2] == ["harness-dispatch", "run"] && valid_flags,
-                "{surface} quotes {command:?}, whose policy inputs are not {PASSED:?} \
-                 followed by --exit-dir= and --ending-file="
-            );
-        }
-    }
-}
-
-// ---------------------------------------------------------------------------
-// The original creator across Grove's lifecycle
-//
-// A review routed through the shipped Grove review example learns its
-// producer's original creator from the `**Creator:**` line of its own task
-// file (`docs/specs/harness-selection-and-execution.md`, *Identity and
-// original creator*). Grove's code writes no such line. The methodology has
-// the session that finishes a producer settle it, in the plugin's
-// `references/retire.md`, *Naming your run on what you finish*: on every live
-// review naming a producer it finished, by retiring its leaf or by closing a
-// node, it writes its own `HARNESS_DISPATCH_RUN_ID`, or removes the line when
-// it has none.
-//
-// These cases run fake sessions that follow that procedure behind the real
-// driver and the real front and worker, under the example activated whole
-// from a personal policy. A fake session reads its handle from the mandate,
-// resolves it, and grows, retires and signals through `grove-llm`, as a
-// session does. Whether a real session complies is the conformance rows'
-// concern, not this seam's. What these pin is what a review's launch selects
-// from once the tree has moved under its line.
-//
-// One session here does not follow the procedure, and is there because it
-// does not: the first attempt of the no-run case names its run while its leaf
-// is live, which the procedure forbids, to leave the stale line a finishing
-// session must remove.
-
-/// A fake session's own procedure, after [`RECORD_START`]: which leaf it was
-/// launched for, and the methodology's steps as functions for its step to
-/// call.
-///
-/// `name_run` is *Naming your run on what you finish* for one finished
-/// producer, `$1`: on every live review leaf whose `**Reviews:**` line names
-/// it, the line under that one becomes this session's run, or goes. `finish`
-/// retires the session's leaf and walks the close cascade: each ancestor node
-/// the retirement left with no live leaf is a producer this session finished
-/// too, innermost first. `signal` ends the session through `harness-dispatch exit`, first leaving every creator line in the tree where a case can
-/// read what stood when the session ended.
-const SESSION: &str = r#"for prompt; do :; done
-handle=${prompt#*"$marker"}
-handle=${handle%%'`'*}
-printf '%s' "$handle" > "$record/handle"
-leaf=$("$grove_llm" resolve "$handle")
-[ -f "$leaf" ] || exit 93
-name_run() {
-  for review in $(grep -rlx --include='[0-9]*.md' "\*\*Reviews:\*\* $1" .grove); do
-    case ${review##*/} in [0-9]*-DONE-* | [0-9]*-ABANDONED-*) continue ;; esac
-    awk -v run="${HARNESS_DISPATCH_RUN_ID-}" '
-      /^\*\*Creator:\*\*/ { next }
-      { print }
-      /^\*\*Reviews:\*\* / && run != "" { print "**Creator:** run " run }
-    ' "$review" > "$record/settled" && cat "$record/settled" > "$review" || exit 91
-  done
-}
-finish() {
-  "$grove_llm" leaf-retire "$leaf" > /dev/null || exit 92
-  name_run "$handle"
-  node=${leaf%/*}
-  while [ "${node##*/}" != .grove ]; do
-    live=$(find "$node" -type f -name '[0-9]*.md' ! -name '[0-9]*-DONE-*' ! -name '[0-9]*-ABANDONED-*')
-    [ -z "$live" ] || break
-    brief=$(basename "$node"/_*.md .md)
-    name_run "${brief#_}-${node##*-}"
-    node=${node%/*}
-  done
-}
-signal() {
-  grep -rh '^\*\*Creator:\*\*' .grove > "$record/creators"
-  if [ "${1-}" = --done ]; then : > "$GROVE_LAUNCH_DIR/teardown"; fi
-  exec "$dispatch_exit" exit
-}
-"#;
-
-/// The shipped example, whole, as an owner's personal policy activates it.
-const REVIEW_EXAMPLE: &str = "export { policy } from \"harness-dispatch/examples/grove-review\";\n";
-
-/// The owner's later mapping: the lead at `high`, which the example runs for
-/// `impl` and gives an `anthropic` creator's `review-impl`, is now the other
-/// provider's harness. Read from this policy, an `impl` creator is
-/// `anthropic`, whose reviewer is that same command, of that same origin, so
-/// the review would refuse.
-const REMAPPED: &str = r#"import { reviews, routes, groveReviewSelector } from "harness-dispatch/examples/grove-review";
-import { review } from "harness-dispatch/examples/grove-static";
-const today = review("high");
-export const policy = {
-  schemaVersion: 2,
-  version: "remapped-1",
-  ...groveReviewSelector({
-    routes: { ...routes, impl: today },
-    reviews: { ...reviews, "review-impl": { ...reviews["review-impl"], anthropic: today } },
-  }),
-};
-"#;
-
-/// The planted review's body, with `creator` as its `**Creator:**` line or
-/// with none. A fake session's `name_run` writes and removes exactly that
-/// line, so each state of the leaf is one of these, byte for byte.
-fn review_body(creator: Option<&str>) -> String {
-    review_leaf("parser-k2", "parser-k1", creator)
-}
-
-/// The body of the review leaf `own`, which reviews `reviewed`, in the shape
-/// of [`review_body`].
-fn review_leaf(own: &str, reviewed: &str, creator: Option<&str>) -> String {
-    let creator = creator.map(|line| format!("{line}\n")).unwrap_or_default();
-    format!("# {own}\n\n**Reviews:** {reviewed}\n{creator}\n## Goal\n\nReview the parser.\n")
-}
-
-/// A `**Creator:**` line naming `run_id`, as a dispatched session writes it.
-fn creator_run(run_id: &str) -> String {
-    format!("**Creator:** run {run_id}")
-}
-
-/// The first four arguments the example's wrappers receive for `model` at
-/// `high`: which harness ran, at what effort. The prompt follows them.
-fn selected(model: &str) -> [OsString; 4] {
-    ["--model", model, "--effort", "high"].map(OsString::from)
-}
-
-/// A fixture for the creator lifecycle: a [`Dispatch`] whose tree holds the
-/// producer `parser-k1` and, cut before it ran, its review `parser-k2`, and
-/// whose personal policy is the shipped Grove review example.
-struct Lifecycle {
-    dispatch: Dispatch,
-    /// The driver's `PATH`: the two wrapper programs the example's commands
-    /// run, each of which execs the fake harness, then the ambient one.
-    path: OsString,
-}
-
-impl Lifecycle {
-    /// The planted producer and its pre-cut review, at their first positions.
-    const PRODUCER: &str = "01-impl--parser-k1.md";
-    const REVIEW: &str = "02-review-impl--parser-k2.md";
-
-    /// A fixture whose fake sessions do `steps`: the arms of a shell `case`
-    /// on the session's handle, each ending in `signal`, which relaunches, or
-    /// `signal --done`, which returns control to the case.
-    fn new(steps: &str) -> Self {
-        let dispatch = Dispatch::new("worktree");
-        let grove = dispatch.worktree.join(".grove");
-        fs::create_dir_all(&grove).unwrap();
-        fs::write(grove.join("_BRIEF.md"), "# g — brief\n").unwrap();
-        fs::write(
-            grove.join(Self::PRODUCER),
-            "# parser-k1\n\n## Goal\n\nBuild the parser.\n",
-        )
-        .unwrap();
-        fs::write(grove.join(Self::REVIEW), review_body(None)).unwrap();
-
-        let bin = dispatch.root.join("bin");
-        fs::create_dir(&bin).unwrap();
-        for wrapper in ["my-codex-wrapper", "my-claude-wrapper"] {
-            write_exec(
-                &bin.join(wrapper),
-                &format!(
-                    "#!/bin/sh\nexec {} \"$@\"\n",
-                    shell_quote(&dispatch.harness)
-                ),
-            );
-        }
-        let ambient = std::env::var_os("PATH").unwrap();
-        let path =
-            std::env::join_paths(std::iter::once(bin).chain(std::env::split_paths(&ambient)))
-                .unwrap();
-
-        dispatch.policy(REVIEW_EXAMPLE);
-        dispatch.harness_then(&format!(
-            "grove_llm={grove_llm}\n\
-             dispatch_exit={dispatch_exit}\n\
-             marker='{MANDATED_LEAF}'\n\
-             {SESSION}\
-             case $handle in\n\
-             {steps}\n\
-             *) exit 94 ;;\n\
-             esac",
-            grove_llm = shell_quote(&own_grove_llm()),
-            dispatch_exit = shell_quote(&harness_dispatch()),
-        ));
-        Lifecycle { dispatch, path }
-    }
-
-    /// Run the loop until it stops, returning what the driver said.
-    fn drive(&self) -> String {
-        let mut driver = grove_driver(&self.dispatch.worktree, &self.dispatch.home);
-        driver.env("PATH", &self.path);
-        let output = DriverProcess::capture(driver).finish_within(SESSION_LIMIT);
-        let stderr = String::from_utf8_lossy(&output.stderr).into_owned();
-        assert!(output.status.success(), "{stderr}");
-        stderr
-    }
-
-    /// [`Lifecycle::drive`], until a session signals `done`.
-    fn drive_to_done(&self) {
-        let stderr = self.drive();
-        assert!(
-            stderr.contains("grove finished — loop complete"),
-            "the loop did not end on a session's `done`: {stderr}"
-        );
-    }
-
-    /// The handle start `n` read from its mandate.
-    fn handle(&self, n: usize) -> String {
-        fs::read_to_string(self.dispatch.record(n).join("handle")).unwrap()
-    }
-
-    /// Every `**Creator:**` line in the tree as start `n`'s session ended.
-    fn creators(&self, n: usize) -> String {
-        fs::read_to_string(self.dispatch.record(n).join("creators")).unwrap()
-    }
-
-    /// The body of the review leaf, which must be at `leaf` under `.grove/`.
-    fn review(&self, leaf: &str) -> String {
-        let path = self.dispatch.task_file(leaf);
-        fs::read_to_string(&path).unwrap_or_else(|error| panic!("{}: {error}", path.display()))
-    }
-
-    /// `harness-dispatch` as the owner runs it by hand in the working tree.
-    fn harness_dispatch(&self) -> Command {
-        let mut command = Command::new(harness_dispatch());
-        command
-            .env_clear()
-            .env("HOME", &self.dispatch.home)
-            .env("PATH", &self.path)
-            .current_dir(&self.dispatch.worktree);
-        command
-    }
-
-    /// Inspect the review at `leaf`, as its refused launch's `inspect:` line
-    /// does, with any `extra` words.
-    fn inspect(&self, leaf: &str, extra: &[&str]) -> Output {
-        self.harness_dispatch()
-            .args(["inspect", "--kind", "review-impl", "--task-file"])
-            .arg(self.dispatch.task_file(leaf))
-            .args(["--task-id", "parser-k2"])
-            .args(extra)
-            .output()
-            .unwrap()
-    }
-}
-
-// Retirement and reordering move the producer's file and the review's, and
-// the review's creator is neither: it is the run the review's own line names.
-// The dispatched producer finishes, so it writes its run on the review cut
-// before it ran, retires, and inserts new work ahead of that review, which
-// moves the review to another position. The owner then points the lead at
-// `high` at the other provider's harness. The inserted leaf launches under
-// that mapping and records it, which is the control that it was live. The
-// review, at its new path, still selects from the provider recorded for the
-// producer's run: the reviewer is the one the example gives an `openai`
-// creator, where today's policy would have refused the review as same-origin.
-#[test]
-fn retiring_and_reordering_a_producer_leaves_its_review_s_creator_unchanged() {
-    let lifecycle = Lifecycle::new(
-        "parser-k1)\n\
-         finish\n\
-         \"$grove_llm\" leaf-insert --kind impl parser-k2 groundwork > /dev/null || exit 95\n\
-         signal --done ;;\n\
-         groundwork-k3) finish; signal ;;\n\
-         parser-k2) signal --done ;;",
-    );
-    let dispatch = &lifecycle.dispatch;
-
-    lifecycle.drive_to_done();
-    assert_eq!(lifecycle.handle(0), "parser-k1");
-    let producer = dispatch.launch(0);
-    assert_eq!(producer.args[..4], selected("your-codex-model"));
-    assert!(dispatch.task_file("01-DONE-impl--parser-k1.md").is_file());
-    assert!(dispatch.task_file("02-impl--groundwork-k3.md").is_file());
-    let named = review_body(Some(&creator_run(&producer.run_id)));
-    assert_eq!(lifecycle.review("03-review-impl--parser-k2.md"), named);
-
-    dispatch.policy(REMAPPED);
-    lifecycle.drive_to_done();
-    assert_eq!(dispatch.launch_count(), 3);
-
-    // The control: the inserted leaf ran under today's mapping.
-    assert_eq!(lifecycle.handle(1), "groundwork-k3");
-    let inserted = dispatch.launch(1);
-    assert_eq!(inserted.args[..4], selected("your-claude-model"));
-    let today = dispatch.recorded(&inserted.run_id);
-    assert_eq!(
-        today["launch"]["candidate"]["program"], "my-claude-wrapper",
-        "{today}"
-    );
-    assert_eq!(
-        today["launch"]["candidate"]["provider"], "anthropic",
-        "{today}"
-    );
-
-    assert_eq!(lifecycle.handle(2), "parser-k2");
-    let reviewer = dispatch.launch(2);
-    assert_eq!(reviewer.args[..4], selected("your-claude-model"));
-    assert_eq!(
-        lifecycle.review("03-review-impl--parser-k2.md"),
-        named,
-        "no later session finished parser-k1, so none may touch its line"
-    );
-    let recorded = dispatch.recorded(&reviewer.run_id);
-    let launch = &recorded["launch"];
-    assert_eq!(launch["policy"]["version"], "remapped-1", "{recorded}");
-    assert_eq!(launch["taskId"], "parser-k2", "{recorded}");
-    assert_eq!(
-        launch["taskFile"],
-        dispatch
-            .task_file("03-review-impl--parser-k2.md")
-            .to_str()
-            .unwrap(),
-        "{recorded}"
-    );
-    assert_eq!(launch["candidate"]["provider"], "anthropic", "{recorded}");
-    assert_eq!(
-        launch["reviewedArtifact"],
-        serde_json::json!({ "id": "parser-k1", "creator": { "run": producer.run_id } }),
-        "{recorded}"
-    );
-    let creator = &launch["creator"];
-    assert_eq!(creator["evidence"], "execution_recorded", "{recorded}");
-    assert_eq!(creator["provider"], "openai", "{recorded}");
-    let lookup = &creator["lookup"];
-    assert_eq!(lookup["taskId"], "parser-k1", "{recorded}");
-    assert_eq!(
-        (&lookup["provider"], &lookup["model"], &lookup["effort"]),
-        (
-            &serde_json::json!("openai"),
-            &serde_json::json!("your-codex-model"),
-            &serde_json::json!("high"),
-        ),
-        "{recorded}"
-    );
-
-    // The control: a creator read from today's policy is `anthropic`, and
-    // the review of one refuses as same-origin.
-    let declared = review_body(Some("**Creator:** declared anthropic"));
-    let leaf = dispatch.root.join("declared-review.md");
-    fs::write(&leaf, declared).unwrap();
-    let refused = lifecycle
-        .harness_dispatch()
-        .args(["inspect", "--kind", "review-impl", "--task-file"])
-        .arg(&leaf)
+fn installed_ravel_help_exposes_only_the_public_launch_boundary() {
+    let output = Command::new(harness_dispatch())
+        .args(["start-session", "--help"])
         .output()
         .unwrap();
-    let said = String::from_utf8_lossy(&refused.stderr);
-    assert_eq!(refused.status.code(), Some(3), "{said}");
-    assert!(said.contains("  policy code: same_origin"), "{said}");
-}
-
-// A producer that proves too big decomposes, and the review cut before it did
-// still names its handle, now a node's. Nothing finishes that producer until
-// a retirement leaves the node with no live leaf. Here `parser-k1` becomes a
-// node holding `lexer-k3` and `grammar-k4`, and `grammar-k4` a node in turn,
-// holding `tokens-k5`. Retiring `lexer-k3` closes nothing, so the review still
-// has no line. Retiring `tokens-k5` closes `grammar-k4` and, through it,
-// `parser-k1`, in one cascade, so that session names its run on the review.
-// The review then selects from that run, whose task identity is the child's:
-// launch compares no handles, and inspection shows the two side by side.
-#[test]
-fn a_decomposed_producer_s_review_carries_the_run_whose_retirement_closed_its_node() {
-    let lifecycle = Lifecycle::new(
-        "parser-k1)\n\
-         \"$grove_llm\" leaf-decompose \"$leaf\" lexer > /dev/null || exit 95\n\
-         \"$grove_llm\" leaf-add parser-k1 grammar --kind impl > /dev/null || exit 95\n\
-         signal ;;\n\
-         lexer-k3) finish; signal ;;\n\
-         grammar-k4)\n\
-         \"$grove_llm\" leaf-decompose \"$leaf\" tokens > /dev/null || exit 95\n\
-         signal ;;\n\
-         tokens-k5) finish; signal ;;\n\
-         parser-k2) signal --done ;;",
-    );
-    let dispatch = &lifecycle.dispatch;
-
-    lifecycle.drive_to_done();
-    let handles: Vec<String> = (0..dispatch.launch_count())
-        .map(|n| lifecycle.handle(n))
-        .collect();
-    assert_eq!(
-        handles,
-        [
-            "parser-k1",
-            "lexer-k3",
-            "grammar-k4",
-            "tokens-k5",
-            "parser-k2"
-        ]
-    );
-    assert!(dispatch
-        .task_file("01-k1/02-k4/01-DONE-impl--tokens-k5.md")
-        .is_file());
-
-    // No session before the one that closed the node named a run, the one
-    // that retired a leaf under it included.
-    for (n, handle) in handles.iter().enumerate().take(3) {
-        assert_eq!(lifecycle.creators(n), "", "after {handle}");
-    }
-    let closer = dispatch.launch(3);
-    assert_eq!(
-        lifecycle.creators(3),
-        format!("{}\n", creator_run(&closer.run_id))
-    );
-    assert_eq!(
-        lifecycle.review(Lifecycle::REVIEW),
-        review_body(Some(&creator_run(&closer.run_id)))
-    );
-
-    let reviewer = dispatch.launch(4);
-    assert_eq!(reviewer.args[..4], selected("your-claude-model"));
-    let recorded = dispatch.recorded(&reviewer.run_id);
-    let launch = &recorded["launch"];
-    assert_eq!(launch["reviewedArtifact"]["id"], "parser-k1", "{recorded}");
-    assert_eq!(
-        launch["creator"]["reference"],
-        serde_json::json!({ "run": closer.run_id }),
-        "{recorded}"
-    );
-    assert_eq!(
-        launch["creator"]["lookup"]["taskId"], "tokens-k5",
-        "{recorded}"
-    );
-
-    // Inspection shows the reviewed handle and the named run's task identity,
-    // in both forms.
-    let inspected = lifecycle.inspect(Lifecycle::REVIEW, &["--json"]);
-    assert!(
-        inspected.status.success(),
-        "{}",
-        String::from_utf8_lossy(&inspected.stderr)
-    );
-    let report: serde_json::Value = serde_json::from_slice(&inspected.stdout).unwrap();
-    assert_eq!(report["reviewedArtifact"]["id"], "parser-k1", "{report}");
-    assert_eq!(
-        report["creator"]["lookup"]["taskId"], "tokens-k5",
-        "{report}"
-    );
-    let inspected = lifecycle.inspect(Lifecycle::REVIEW, &[]);
-    let text = String::from_utf8_lossy(&inspected.stdout);
-    for shown in ["parser-k1", "tokens-k5", closer.run_id.as_str()] {
-        assert!(text.contains(shown), "no {shown:?} in:\n{text}");
-    }
-}
-
-// The step's set is every live review of every producer the session finished,
-// wherever the review sits, and no other file. Each case above holds one
-// review, at the grove root, of one producer, so none of them can tell that
-// set from a part of it or from more than it. This tree holds the rest. A
-// second live review of `parser-k1` sits inside another node. The session
-// whose retirement closes `grammar-k19` and, through it, `parser-k1` cuts the
-// inner node's review itself, and writes its body, before it finishes. Two
-// reviews of `parser-k1` are terminal, one done and one abandoned, each
-// holding the line it had. A live review of another producer, `parser-k17`,
-// names a handle that `parser-k1` begins, and ends a line of its prose with
-// `parser-k1`'s own line.
-//
-// The closing session's run goes on the three live reviews of the two nodes
-// it closed, and nowhere else. Both reviews of `parser-k1` then launch and
-// select from that run, the nested one included.
-#[test]
-fn a_close_cascade_settles_every_live_review_of_each_producer_it_finishes_and_no_other() {
-    const NESTED: &str = "03-k3/01-review-impl--parser-k4.md";
-    const DONE: &str = "04-DONE-review-impl--parser-k5.md";
-    const ABANDONED: &str = "05-ABANDONED-review-impl--parser-k6.md";
-    const UNRELATED: &str = "07-review-impl--parser-k8.md";
-    const INNER: &str = "08-review-impl--grammar-k21.md";
-    const EARLIER: &str = "**Creator:** run 00000000-0000-4000-8000-000000000001";
-    const DECLARED: &str = "**Creator:** declared anthropic";
-
-    let lifecycle = Lifecycle::new(&format!(
-        "parser-k1)\n\
-         \"$grove_llm\" leaf-decompose \"$leaf\" lexer > /dev/null || exit 95\n\
-         \"$grove_llm\" leaf-add parser-k1 grammar --kind impl > /dev/null || exit 95\n\
-         signal ;;\n\
-         lexer-k18) finish; signal ;;\n\
-         grammar-k19)\n\
-         \"$grove_llm\" leaf-decompose \"$leaf\" tokens > /dev/null || exit 95\n\
-         signal ;;\n\
-         tokens-k20)\n\
-         cut=$(\"$grove_llm\" leaf-add . grammar --kind review-impl) || exit 95\n\
-         printf '{inner}' > \"$cut\"\n\
-         finish; signal ;;\n\
-         parser-k2) finish; signal ;;\n\
-         parser-k4) signal --done ;;",
-        inner = review_leaf("grammar-k21", "grammar-k19", None).replace('\n', "\\n"),
-    ));
-    let dispatch = &lifecycle.dispatch;
-    let nested = |creator| review_leaf("parser-k4", "parser-k1", creator);
-    let done = review_leaf("parser-k5", "parser-k1", Some(EARLIER));
-    let abandoned = review_leaf("parser-k6", "parser-k1", Some(DECLARED));
-    let unrelated = format!(
-        "{}\nIts line is not **Reviews:** parser-k1\n",
-        review_leaf("parser-k8", "parser-k17", Some(DECLARED))
-    );
-    fs::create_dir(dispatch.task_file("03-k3")).unwrap();
-    for (leaf, body) in [
-        ("03-k3/_audit.md", "# audit-k3 — brief\n"),
-        (NESTED, nested(None).as_str()),
-        (DONE, done.as_str()),
-        (ABANDONED, abandoned.as_str()),
-        ("06-DONE-impl--parser-k17.md", "# parser-k17\n"),
-        (UNRELATED, unrelated.as_str()),
+    assert!(output.status.success(), "{output:?}");
+    let help = String::from_utf8_lossy(&output.stdout);
+    for flag in [
+        "--kind",
+        "--prompt",
+        "--task-file",
+        "--task-id",
+        "--exit-dir",
+        "--runtime-read",
     ] {
-        fs::write(dispatch.task_file(leaf), body).unwrap();
+        assert!(help.contains(flag), "{help}");
     }
-    let sorted = |lines: &[&str]| {
-        let mut lines: Vec<String> = lines.iter().map(|line| line.to_string()).collect();
-        lines.sort();
-        lines
-    };
-    let creators = |n| {
-        let recorded = lifecycle.creators(n);
-        sorted(&recorded.lines().collect::<Vec<_>>())
-    };
-
-    lifecycle.drive_to_done();
-    let handles: Vec<String> = (0..dispatch.launch_count())
-        .map(|n| lifecycle.handle(n))
-        .collect();
-    assert_eq!(
-        handles,
-        [
-            "parser-k1",
-            "lexer-k18",
-            "grammar-k19",
-            "tokens-k20",
-            "parser-k2",
-            "parser-k4"
-        ]
-    );
-
-    // Until the cascade closed a node, the tree held the planted lines only.
-    for (n, handle) in handles.iter().enumerate().take(3) {
-        assert_eq!(
-            creators(n),
-            sorted(&[EARLIER, DECLARED, DECLARED]),
-            "after {handle}"
-        );
-    }
-    let closer = dispatch.launch(3);
-    let named = creator_run(&closer.run_id);
-    assert_eq!(
-        creators(3),
-        sorted(&[EARLIER, DECLARED, DECLARED, &named, &named, &named]),
-        "the closing session names its run on three reviews and no more"
-    );
-
-    // Every live review of the outer node, wherever it sits.
-    assert_eq!(
-        lifecycle.review("02-DONE-review-impl--parser-k2.md"),
-        review_body(Some(&named))
-    );
-    assert_eq!(lifecycle.review(NESTED), nested(Some(&named)));
-    // The inner node is a producer the cascade finished too, and its review is
-    // the one this session cut.
-    assert_eq!(
-        lifecycle.review(INNER),
-        review_leaf("grammar-k21", "grammar-k19", Some(&named))
-    );
-    // No terminal review, and no review of another producer.
-    assert_eq!(lifecycle.review(DONE), done);
-    assert_eq!(lifecycle.review(ABANDONED), abandoned);
-    assert_eq!(lifecycle.review(UNRELATED), unrelated);
-
-    // Both reviews of `parser-k1` launched from the closing session's run.
-    for (n, task) in [(4, "parser-k2"), (5, "parser-k4")] {
-        let reviewer = dispatch.launch(n);
-        assert_eq!(reviewer.args[..4], selected("your-claude-model"), "{task}");
-        let recorded = dispatch.recorded(&reviewer.run_id);
-        let launch = &recorded["launch"];
-        assert_eq!(launch["taskId"], task, "{recorded}");
-        assert_eq!(
-            launch["reviewedArtifact"],
-            serde_json::json!({ "id": "parser-k1", "creator": { "run": closer.run_id } }),
-            "{recorded}"
-        );
-        assert_eq!(
-            launch["creator"]["lookup"]["taskId"], "tokens-k20",
-            "{recorded}"
-        );
-    }
+    assert!(!help.contains("--ending-file"), "{help}");
 }
 
-// A producer's earlier attempt is not its creator, whatever line it left. The
-// stale line is planted by a fault: the dispatched attempt names its run on
-// the review while its leaf is live, then dies. No session that follows the
-// procedure does that, because it retires first and a leaf left live writes
-// nothing. An attempt that wrote nothing would give the finish nothing to
-// remove, and this case would pass with a fake that never removes. The next
-// session has no run to name: its harness drops `HARNESS_DISPATCH_RUN_ID`
-// before it works, as one started by hand in the working tree has none. It
-// does follow the procedure, so it finishes the producer and removes the line
-// it found. The review that follows in the same loop refuses, though runs of
-// the producer's task are in the store, and its remedy is the declaration.
-// The owner declares the provider that finished the artifact, and the review
-// launches on the other one. Had the attempt's line survived, its `openai`
-// run would have selected the `anthropic` reviewer: the provider declared to
-// have finished the artifact.
-#[test]
-fn a_finish_by_a_session_with_no_run_removes_an_attempt_s_run_and_the_review_refuses_until_declared(
-) {
-    let lifecycle = Lifecycle::new(
-        "parser-k1)\n\
-         if [ $n = 0 ]; then name_run \"$handle\"; exit 0; fi\n\
-         unset HARNESS_DISPATCH_RUN_ID\n\
-         finish; signal ;;\n\
-         parser-k2) signal --done ;;",
-    );
-    let dispatch = &lifecycle.dispatch;
-
-    let stderr = lifecycle.drive();
-    assert!(
-        stderr.contains("session ended without an exit-signal ending"),
-        "{stderr}"
-    );
-    let attempt = dispatch.launch(0);
-    assert_eq!(attempt.args[..4], selected("your-codex-model"));
-    assert!(dispatch.task_file(Lifecycle::PRODUCER).is_file());
-    assert_eq!(
-        lifecycle.review(Lifecycle::REVIEW),
-        review_body(Some(&creator_run(&attempt.run_id))),
-        "the attempt's line must be there for the finish to remove"
-    );
-
-    let stderr = lifecycle.drive();
-    assert_eq!(lifecycle.handle(1), "parser-k1");
-    assert!(dispatch.task_file("01-DONE-impl--parser-k1.md").is_file());
-    assert_eq!(lifecycle.creators(1), "");
-    assert_eq!(lifecycle.review(Lifecycle::REVIEW), review_body(None));
-    assert_eq!(
-        dispatch.launch_count(),
-        2,
-        "the refused review must reach no harness: {stderr}"
-    );
-    for said in [
-        "refused (policy_refused, stage context)",
-        "creator_line_missing",
-        "reviews \"parser-k1\" but has no **Creator:** line",
-        "If parser-k1 was finished without harness-dispatch, declare its origin: \
-         directly under the **Reviews:** line, write \"**Creator:** declared <origin>\"",
-        "session kind `review-impl` for `parser-k2` failed",
-    ] {
-        assert!(stderr.contains(said), "no {said:?} in: {stderr}");
-    }
-    // The attempt's run of the producer's task is recorded, and stood in for
-    // nothing.
-    assert_eq!(
-        dispatch.recorded(&attempt.run_id)["launch"]["taskId"],
-        "parser-k1"
-    );
-    let refused = lifecycle.inspect(Lifecycle::REVIEW, &[]);
-    assert_eq!(refused.status.code(), Some(3));
-
-    // The owner's declaration: the artifact was finished by `anthropic`.
-    fs::write(
-        dispatch.task_file(Lifecycle::REVIEW),
-        review_body(Some("**Creator:** declared anthropic")),
-    )
-    .unwrap();
-    lifecycle.drive_to_done();
-    assert_eq!(lifecycle.handle(2), "parser-k2");
-    let reviewer = dispatch.launch(2);
-    assert_eq!(reviewer.args[..4], selected("your-codex-model"));
-    let recorded = dispatch.recorded(&reviewer.run_id);
-    let launch = &recorded["launch"];
-    assert_eq!(
-        launch["candidate"]["program"], "my-codex-wrapper",
-        "{recorded}"
-    );
-    assert_eq!(launch["candidate"]["provider"], "openai", "{recorded}");
-    assert_eq!(
-        launch["creator"],
-        serde_json::json!({
-            "reference": { "declared": "anthropic" },
-            "evidence": "declared",
-            "provider": "anthropic",
-            "lookup": null,
-        }),
-        "{recorded}"
-    );
-}
-
-// A review knows its producer's run from its own task file, and that is all
-// it needs to attach what it found. The run and its observations live in the
-// record store, outside the tree, so they outlast it.
-//
-// This is also the ordinary chain, where no review waits beforehand: the
-// producer cuts its review as its last act, writes the body, and names its
-// run on the leaf it cut. The review session reads the run from that line.
-// After `.grove/` is gone, as teardown leaves it, an observation of that run
-// is imported and `record show` returns it beside the producer's launch
-// fields.
-#[test]
-fn a_review_s_findings_attach_to_the_producer_s_run_after_the_tree_is_removed() {
-    let lifecycle = Lifecycle::new(&format!(
-        "parser-k1)\n\
-         cut=$(\"$grove_llm\" leaf-add . parser --kind review-impl) || exit 95\n\
-         printf '{body}' > \"$cut\"\n\
-         finish; signal ;;\n\
-         parser-k2)\n\
-         sed -n 's/^\\*\\*Creator:\\*\\* run //p' \"$leaf\" > \"$record/creator\"\n\
-         signal --done ;;",
-        body = review_body(None).replace('\n', "\\n"),
-    ));
-    let dispatch = &lifecycle.dispatch;
-    fs::remove_file(dispatch.task_file(Lifecycle::REVIEW)).unwrap();
-
-    lifecycle.drive_to_done();
-    let producer = dispatch.launch(0);
-    let reviewer = dispatch.launch(1);
-    assert_eq!(
-        lifecycle.review(Lifecycle::REVIEW),
-        review_body(Some(&creator_run(&producer.run_id))),
-        "the producer names its run on the review it cut"
-    );
-    let named = fs::read_to_string(dispatch.record(1).join("creator")).unwrap();
-    assert_eq!(named, format!("{}\n", producer.run_id));
-    let run_id = named.trim_end();
-
-    fs::remove_dir_all(dispatch.worktree.join(".grove")).unwrap();
-    // The control: nothing but dispatch's own end observation has observed the
-    // producer's run yet, and it measured no findings.
-    let before = dispatch.recorded(run_id);
-    assert_eq!(
-        before["observations"].as_array().map(Vec::len),
-        Some(1),
-        "{before}"
-    );
-    assert_eq!(
-        before["observations"][0]["source"], "harness-dispatch",
-        "{before}"
-    );
-    assert_eq!(
-        before["measurements"]["missedDefects"]["state"], "unobserved",
-        "{before}"
-    );
-
-    let observation = serde_json::json!({
-        "schemaVersion": 1,
-        "observationId": "parser-k2-findings",
-        "runId": run_id,
-        "source": format!("review-impl session parser-k2, run {}", reviewer.run_id),
-        "observedAt": "2026-10-01T09:30:00Z",
-        "evidence": "the review's findings",
-        "measurements": {
-            "acceptance": { "state": "observed", "value": "rejected" },
-            "missedDefects": { "state": "observed", "value": [{ "id": "F1", "summary": "unbounded read" }] },
-        },
-    });
-    let document = dispatch.root.join("observation.json");
-    fs::write(&document, observation.to_string()).unwrap();
-    let observed = lifecycle
-        .harness_dispatch()
-        .args(["record", "observe", "--run", run_id, "--file"])
-        .arg(&document)
-        .output()
-        .unwrap();
-    assert!(
-        observed.status.success(),
-        "{}",
-        String::from_utf8_lossy(&observed.stderr)
-    );
-
-    let export = dispatch.recorded(run_id);
-    assert_eq!(export["launch"]["taskId"], "parser-k1", "{export}");
-    assert_eq!(
-        export["observations"][1]["observationId"], "parser-k2-findings",
-        "{export}"
-    );
-    assert_eq!(
-        export["measurements"]["missedDefects"]["current"][0]["value"][0]["id"], "F1",
-        "{export}"
-    );
-    assert_eq!(
-        export["measurements"]["acceptance"]["state"], "observed",
-        "{export}"
-    );
-}
-
-// ---------------------------------------------------------------------------
-// The launch boundary under a controlling terminal
-//
-// A human starts Grove from a shell, so the driver owns a terminal and leads
-// its foreground group, and keyed-launch hands that terminal to each session
-// it launches (`docs/adr/the-launched-child-is-a-job.md`). Every case above
-// detaches its driver instead. These start it on a pseudo-terminal of their
-// own, as the leader of a session whose controlling terminal it is, and the
-// master side stands for the human: writing the interrupt character to it is
-// a typed Ctrl-C, and what it reads is what the human would see. The driver's
-// streams go to files, which the harness inherits, so the terminal is its
-// stdin and its controlling terminal; the one case about what the terminal
-// shows puts the driver's streams on it as a shell does.
-//
-// The harness is `session-probe` (`tests/support/session-probe.c`), which
-// reports the process exec made it and then execs a shell step that records
-// the rest and does the case's action. What the harness is handed is what
-// Grove hands the process it spawns: std keeps the mask and resets SIGPIPE at
-// the spawn, and keyed-launch resets seven terminal signals. Dispatch, which
-// is that process and spawns the harness as its own child, hands it that entry
-// state and must add nothing to it.
-
-/// The longest a case's loop may run before the case fails rather than hangs.
 const SESSION_LIMIT: Duration = Duration::from_secs(60);
-
-/// Ctrl-C.
 const INTERRUPT: u8 = 0x03;
-
-/// Every signal number either platform uses.
 const LAST_SIGNAL: libc::c_int = 64;
 
-/// A pseudo-terminal for one driver to take as its controlling terminal.
-///
-/// One per driver run: on macOS a session leader's exit revokes its
-/// controlling terminal, so a terminal outlives the first driver that owned it
-/// only as a dead descriptor. The master is held for as long as the terminal
-/// is, since closing it hangs the terminal up, and is read throughout.
 struct Pty {
     master: fs::File,
     slave: fs::File,
@@ -3354,12 +2420,6 @@ impl Dispatch {
         Probed::read(&self.record(n).join("process"))
     }
 
-    /// The default record store under this fixture's HOME.
-    fn store(&self) -> PathBuf {
-        self.home
-            .join(".local/state/harness-dispatch/records.sqlite3")
-    }
-
     /// A policy whose `select` returns the probe for every kind, altering
     /// what it was handed if `alter` says so. At import it writes the view: its stdin and
     /// a descriptor on the controlling terminal as one measurement reads them,
@@ -3434,7 +2494,7 @@ export const policy = {{
     }
 
     /// Run the loop on a terminal of its own until it stops on a session that
-    /// ended without an exit-signal ending, doing `meanwhile` to the running
+    /// ended without a supported Grove result, doing `meanwhile` to the running
     /// driver and its terminal first. Returns the status Grove reported for
     /// that session, and all it said.
     fn drive_to_stop(&self, meanwhile: impl FnOnce(&mut DriverProcess, &Pty)) -> (String, String) {
@@ -3449,7 +2509,7 @@ export const policy = {{
             "the driver itself was interrupted: {stderr}"
         );
         let status = stderr
-            .split_once("session ended without an exit-signal ending — status ")
+            .split_once("session ended without a supported Grove result — status ")
             .and_then(|(_, rest)| rest.split_once(", elapsed "))
             .unwrap_or_else(|| panic!("no ended session reported: {stderr}"))
             .0
@@ -3594,9 +2654,9 @@ fn the_harness_is_the_foreground_job_grove_launched() {
     );
 
     let launch = dispatch.launch(0);
-    assert_ne!(launch.run_id, "<unset>");
+    assert_ne!(launch.channel, "<unset>");
     assert!(
-        epoch_names(&launch.epoch, &launch.channel),
+        epoch_names(&launch.epoch, &launch.launch_dir),
         "the harness's channel {:?} is not the one the live epoch names: {:?}",
         launch.channel,
         launch.epoch
@@ -3647,14 +2707,7 @@ fn the_harness_is_the_foreground_job_grove_launched() {
     assert!(signals.ignored.contains(&libc::SIGPIPE), "{altered:?}");
     assert!(signals.blocked.contains(&libc::SIGALRM), "{altered:?}");
     let granted = dispatch.launch(1);
-    assert_eq!(
-        dispatch.view()["channel"],
-        Path::new(&granted.channel)
-            .parent()
-            .unwrap()
-            .to_str()
-            .unwrap()
-    );
+    assert_eq!(dispatch.view()["channel"], granted.launch_dir.as_str());
     assert_ne!(
         granted.channel, launch.channel,
         "each launch gets a fresh channel"
@@ -3684,10 +2737,11 @@ fn the_harness_s_exit_and_signal_death_reach_grove_unmodified() {
     {
         dispatch.probe_then(ending);
         let (status, stderr) = dispatch.drive_to_stop(|_, _| {});
-        assert_eq!(status, reported, "`{ending}`: {stderr}");
-        assert!(!stderr.contains("refused ("), "{stderr}");
+        assert_eq!(status, "exit status: 1", "`{ending}`: {stderr}");
+        assert!(stderr.contains(&reported), "{stderr}");
+        assert!(stderr.contains("session_result_missing"), "{stderr}");
         assert_ne!(
-            dispatch.launch(n).run_id,
+            dispatch.launch(n).channel,
             "<unset>",
             "launch {n} never reached its harness"
         );
@@ -3734,16 +2788,16 @@ fn a_refused_launch_s_diagnostic_reaches_the_terminal() {
             .find(said)
             .unwrap_or_else(|| panic!("no {said:?} on the terminal: {shown}"))
     };
-    let refusal = at("harness-dispatch: refused (policy_refused, stage selection)");
+    let refusal = at("ravel: refused (policy_refused, stage selection)");
     for said in [
         "  policy code: incomplete_mapping",
         "  remedy: add the kind to the policy",
-        "  inspect: ",
     ] {
         assert!(at(said) > refusal, "{shown}");
     }
     assert!(
-        at("session kind `impl` for `subject-k1` failed") > at("  inspect: "),
+        at("session kind `impl` for `subject-k1` failed")
+            > at("  remedy: add the kind to the policy"),
         "Grove's report points at a diagnostic above it: {shown}"
     );
     assert_eq!(dispatch.launch_count(), 0, "{shown}");
@@ -3779,7 +2833,7 @@ fn an_interrupt_typed_at_the_terminal_ends_the_job_during_selection_and_during_e
     });
     assert_eq!(status, interrupted, "{stderr}");
     for said in [
-        "refused (selection_cancelled, stage evaluation)",
+        "refused (session_cancelled, stage exec)",
         "signal: SIGINT",
         "session kind `impl` for `subject-k1` failed",
     ] {
@@ -3788,14 +2842,14 @@ fn an_interrupt_typed_at_the_terminal_ends_the_job_during_selection_and_during_e
     assert_eq!(dispatch.launch_count(), 0, "a harness launched: {stderr}");
     let pid: libc::pid_t = fs::read_to_string(&worker).unwrap().trim().parse().unwrap();
     assert!(!exists(pid), "worker {pid} outlived its selection");
-    assert!(!dispatch.store().exists(), "a run was recorded: {stderr}");
 
     dispatch.policy(&dispatch.terminal_policy(false, &holding(&worker, Some(300))));
     let (status, stderr) =
         dispatch.drive_to_stop(|driver, terminal| dispatch.interrupt_running(driver, terminal, 0));
-    assert_eq!(status, interrupted, "{stderr}");
-    assert!(!stderr.contains("refused ("), "{stderr}");
-    assert_ne!(dispatch.launch(0).run_id, "<unset>");
+    assert_eq!(status, "exit status: 1", "{stderr}");
+    assert!(stderr.contains(&interrupted), "{stderr}");
+    assert!(stderr.contains("session_result_missing"), "{stderr}");
+    assert_ne!(dispatch.launch(0).channel, "<unset>");
 }
 
 // Dispatch's escalation reaps the harness's descendants under a terminal
@@ -3811,7 +2865,7 @@ fn the_escalation_reaps_the_session_s_descendants_under_a_terminal() {
     dispatch.probe_then(&format!(
         "sh -c 'while : ; do sleep 0.05 ; done' &\n\
          printf '%s\\n' \"$!\" > \"$record/descendant\"\n\
-         touch \"$GROVE_LAUNCH_DIR/teardown\"; {dispatch_exit} exit || exit 91\n\
+         touch \"$GROVE_LAUNCH_DIR/teardown\"; {dispatch_exit} end-session grove-continue || exit 91\n\
          while : ; do sleep 0.05 ; done",
         dispatch_exit = shell_quote(&harness_dispatch()),
     ));
@@ -3832,7 +2886,7 @@ fn the_escalation_reaps_the_session_s_descendants_under_a_terminal() {
         output.status.success() && stderr.contains("grove finished — loop complete"),
         "{stderr}"
     );
-    assert_ne!(dispatch.launch(0).run_id, "<unset>");
+    assert_ne!(dispatch.launch(0).channel, "<unset>");
     let descendant: libc::pid_t = fs::read_to_string(dispatch.record(0).join("descendant"))
         .expect("the session never reported its descendant")
         .trim()
@@ -3875,7 +2929,10 @@ fn launch_directory_teardown_finishes_after_dispatch_signal_or_own_exit() {
              {llm} record-teardown\n\
              {}",
             if ending == "exit_signal" {
-                format!("exec {} exit", shell_quote(&harness_dispatch()))
+                format!(
+                    "exec {} end-session grove-continue",
+                    shell_quote(&harness_dispatch())
+                )
             } else {
                 "exit 7".into()
             }
@@ -3907,7 +2964,9 @@ fn launch_directory_teardown_finishes_after_dispatch_signal_or_own_exit() {
             dispatch.worktree.canonicalize().unwrap().join(".jj/grove")
         );
         assert_eq!(
-            Path::new(&dispatch.launch(0).channel).parent(),
+            Path::new(&dispatch.launch(0).channel)
+                .parent()
+                .and_then(Path::parent),
             Some(launch.as_path())
         );
         assert!(
@@ -3961,13 +3020,13 @@ fn launch_directory_rotates_and_rejects_stale_tree_and_teardown_verbs() {
         "set -e\n\
          printf '%s' \"$GROVE_LAUNCH_DIR\" > \"$record/launch-dir\"\n\
          ls -ld \"$GROVE_LAUNCH_DIR\" > \"$record/mode\"\n\
-         if [ \"$n\" = 0 ]; then exec {exit_dispatch} exit; fi\n\
+         if [ \"$n\" = 0 ]; then exec {exit_dispatch} end-session grove-continue; fi\n\
          old=$(cat {launches}/0/launch-dir)\n\
          test ! -e \"$old\"\n\
          for verb in 'pick' 'leaf-add . stale --kind impl' 'record-teardown'; do\n\
              if env GROVE_LAUNCH_DIR=\"$old\" {llm} $verb > \"$record/stale-$verb\" 2>&1; then exit 92; fi\n\
          done\n\
-         touch \"$GROVE_LAUNCH_DIR/teardown\"; exec {exit_dispatch} exit",
+         touch \"$GROVE_LAUNCH_DIR/teardown\"; exec {exit_dispatch} end-session grove-continue",
         launches = shell_quote(&dispatch.launches),
         exit_dispatch = shell_quote(&harness_dispatch())
     ));
@@ -4069,7 +3128,7 @@ fn dispatch_exit_signal_relaunches_and_own_exit_stops_under_a_terminal() {
     let exit = shell_quote(&harness_dispatch());
     dispatch.harness_then(&format!(
         "test -z \"${{GROVE_SIGNAL_FILE-}}\" || exit 91\n\
-         if [ $n = 0 ]; then {exit} exit || exit 92; exit 7; fi\n\
+         if [ $n = 0 ]; then {exit} end-session grove-continue || exit 92; exit 7; fi\n\
          exit 3"
     ));
     support::route_every_kind_to(&dispatch.home, &dispatch.harness);
@@ -4301,9 +3360,10 @@ fn a_stale_exit_signal_cannot_end_the_next_dispatch_launch() {
     plant_tree(&dispatch.worktree, "01-impl--subject-k1.md");
     let exit = shell_quote(&harness_dispatch());
     dispatch.harness_then(&format!(
-        "if [ $n = 0 ]; then exec {exit} exit; fi\n\
+        "if [ $n = 0 ]; then exec {exit} end-session grove-continue; fi\n\
          old=$(cat {launches}/0/channel)\n\
-         if env HARNESS_DISPATCH_EXIT_FILE=\"$old\" {exit} exit > \"$record/stale\" 2>&1; then exit 91; fi\n\
+         if env RAVEL_EXIT_FILE=\"$old\" {exit} end-session grove-continue > \"$record/stale\" 2>&1; then exit 91; fi\n\
+         printf stale-rejected > \"$record/stale-result\"\n\
          sleep 3\nexit 0", launches = shell_quote(&dispatch.launches)));
     support::route_every_kind_to(&dispatch.home, &dispatch.harness);
     let terminal = Pty::open();
@@ -4314,10 +3374,7 @@ fn a_stale_exit_signal_cannot_end_the_next_dispatch_launch() {
     assert_eq!(dispatch.launch_count(), 2, "{stderr}");
     assert_ne!(dispatch.launch(0).channel, dispatch.launch(1).channel);
     assert!(
-        dispatch.recorded(&dispatch.launch(1).run_id)["measurements"]["duration"]["current"][0]
-            ["value"]
-            .as_f64()
-            .is_some_and(|n| n >= 3.0)
+        fs::read_to_string(dispatch.record(1).join("stale-result")).unwrap() == "stale-rejected"
     );
     assert!(dispatch.task_file("01-impl--subject-k1.md").is_file());
     assert!(stderr.contains("loop stopped"), "{stderr}");

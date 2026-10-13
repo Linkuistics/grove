@@ -103,19 +103,7 @@ case "${RELEASE_TEST_MODE:-success}" in
   *) exit 2 ;;
 esac
 EOF
-# The harness-dispatch pair that the real `grove run` selects through.
-export RELEASE_TEST_TASK
-RELEASE_TEST_TASK="$(command -v task)"
-cat >"$scratch/bin/task" <<'EOF'
-#!/usr/bin/env bash
-set -euo pipefail
-IFS=$'\n\t'
-if [[ "$*" != dispatch:build ]]; then
-  exec "$RELEASE_TEST_TASK" "$@"
-fi
-echo dispatch >>"$RELEASE_TEST_SCRATCH/calls"
-EOF
-chmod +x "$scratch/bin/cargo" "$scratch/bin/task"
+chmod +x "$scratch/bin/cargo"
 original_path="$PATH"
 export PATH="$scratch/bin:$PATH"
 printf '{}\n' >"$scratch/auth one.json"
@@ -232,7 +220,7 @@ done
 # unrelated work stays saved.
 : >"$scratch/calls"
 (cd "$scratch/repo" && bash scripts/release-prepare.sh)
-[[ "$(cat "$scratch/calls")" == $'dispatch\nbuild\nrun' ]]
+[[ "$(cat "$scratch/calls")" == $'build\nrun' ]]
 grep -Fxq -- '- The fixture now prints an improvement.' "$scratch/repo/CHANGELOG.md"
 grep -Fxq -- '- Existing notes.' "$scratch/repo/CHANGELOG.md"
 grep -Fxq -- '- Existing notes.' "$scratch/observed/previous-changelog.md"
@@ -264,23 +252,25 @@ if (cd "$scratch/repo" && bash scripts/release-prepare.sh) >"$scratch/output" 2>
 fi
 grep -Fq 'No changes since v1.2.3' "$scratch/output"
 # Exercise the staged release inputs through the real confined boundary too.
-# This deterministic harness follows the prompt's canonical dispatch exit command.
-PATH="$original_path" "$RELEASE_TEST_TASK" --dir "$repo_root" dispatch:build
+# This deterministic harness follows the prompt's canonical Ravel ending command.
+ravel_source="${GROVE_TEST_RAVEL:?Set GROVE_TEST_RAVEL to an installed Ravel front}"
+mkdir -p "$scratch/real-bin"
+ln -s "$ravel_source" "$scratch/real-bin/ravel"
 PATH="$original_path" "$RELEASE_TEST_CARGO" build --manifest-path "$repo_root/Cargo.toml" --locked -p grove
-mkdir -p "$scratch/real-home/.config/harness-dispatch"
+mkdir -p "$scratch/real-home/.config/ravel"
 cat >"$scratch/real-harness.sh" <<'EOF_HARNESS'
 #!/bin/sh
 set -eu
 for input in changes.txt changes.diff current-unreleased.md previous-changelog.md SKILL.md codex-headless.sh; do
   test -r "$input"
 done
-test -n "$HARNESS_DISPATCH_RUN_ID"
+test -n "$RAVEL_EXIT_FILE"
 printf '%s\n' '- Deterministic notes from staged release evidence.' > release-notes.md
 completion=$(printf '%s\n' "$1" | sed -n '/exact command as your final action:/{n;p;}')
-case "$completion" in *"harness-dispatch' exit") ;; *) exit 41 ;; esac
+case "$completion" in *"ravel' end-session grove-continue") ;; *) exit 41 ;; esac
 eval "$completion"
 EOF_HARNESS
-cat >"$scratch/real-home/.config/harness-dispatch/policy.ts" <<EOF_POLICY
+cat >"$scratch/real-home/.config/ravel/policy.ts" <<EOF_POLICY
 export const policy = {
   schemaVersion: 2,
   version: "release-test",
@@ -294,7 +284,7 @@ real_inputs=()
 for input in changes.txt changes.diff current-unreleased.md previous-changelog.md SKILL.md codex-headless.sh; do
   real_inputs+=(--input "$scratch/observed/$input")
 done
-HOME="$scratch/real-home" PATH="$original_path" "$repo_root/target/debug/grove" run release-notes \
+HOME="$scratch/real-home" PATH="$scratch/real-bin:$original_path" "$repo_root/target/debug/grove" run release-notes \
   --prompt-file "$scratch/observed/prompt" "${real_inputs[@]}" \
   --runtime-read "$scratch/real-harness.sh" --output "$scratch/real-notes/release-notes.md" --ui inline
 grep -Fxq -- '- Deterministic notes from staged release evidence.' "$scratch/real-notes/release-notes.md"

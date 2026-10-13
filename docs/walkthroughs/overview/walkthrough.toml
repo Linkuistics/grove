@@ -175,13 +175,13 @@ anchors = ["driver-lease", "stated-vcs", "loop-control-channel", "guaranteed-cor
 [[root]]
 id = "source-standalone"
 path = "crates/grove/src/standalone.rs"
-lines = 321
+lines = 306
 
 [[block]]
 id = "standalone-invocation"
 root = "source-standalone"
 owner = "isolated-invocation"
-lines = "1-321"
+lines = "1-306"
 
 [[root]]
 id = "source-run-display"
@@ -197,22 +197,22 @@ lines = "1-119"
 [[root]]
 id = "source-dispatch-lookup"
 path = "crates/grove/src/dispatch.rs"
-lines = 36
+lines = 5
 
 [[block]]
 id = "dispatch-lookup"
 root = "source-dispatch-lookup"
 owner = "isolated-invocation"
-lines = "1-36"
+lines = "1-5"
 
 [[root]]
 id = "source-ravel-resolution"
 path = "crates/grove/src/dispatch/ravel.rs"
-lines = 260
+lines = 302
 
 [[block]]
 id = "ravel-resolution"
 root = "source-ravel-resolution"
 owner = "isolated-invocation"
-lines = "1-260"
+lines = "1-302"
 

@@ -437,7 +437,7 @@ leaf launches. *Growing the tree* shows the write.
 // on, and each is stated where it happens: read the operator's text with the
 // type that owns it *before* taking a lock, and admit the session against the
 // launch directory *before* writing the teardown record. No verb asks whether
-// a kind can be launched: the owner's harness-dispatch policy answers that when a leaf of
+// a kind can be launched: the owner's Ravel policy answers that when a leaf of
 // that kind launches, and nowhere earlier.
 ````
 <!-- /fragment -->

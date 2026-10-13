@@ -23,7 +23,7 @@ impl Fixture {
         fs::set_permissions(&script, fs::Permissions::from_mode(0o755)).unwrap();
         // The sibling `grove` launches through, and a policy that runs the
         // script for every kind.
-        support::harness_dispatch();
+        support::installed_ravel();
         support::route_every_kind_to(home.path(), &script);
         Self { home, work }
     }
@@ -31,6 +31,7 @@ impl Fixture {
         let mut cmd = Command::new(env!("CARGO_BIN_EXE_grove"));
         cmd.current_dir(self.work.path())
             .env("HOME", self.home.path())
+            .env("PATH", support::ravel_path())
             .env_remove("CODEX_HOME")
             .env_remove("XDG_CONFIG_HOME")
             .stdin(Stdio::null());

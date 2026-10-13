@@ -96,7 +96,7 @@ fn grove_driver(root: &Path, harness: &Path, home: &Path) -> Command {
     fs::create_dir_all(home.join(".codex")).unwrap();
     // The real front, beside the `grove` it is launched by, and a policy that
     // runs the fake harness for every kind.
-    support::harness_dispatch();
+    support::installed_ravel();
     support::route_every_kind_to(home, harness);
 
     let mut command = Command::new(support::grove_bin());
@@ -104,7 +104,10 @@ fn grove_driver(root: &Path, harness: &Path, home: &Path) -> Command {
     for name in support::grove_env_names() {
         command.env_remove(name);
     }
-    command.env("HOME", home);
+    command
+        .env("HOME", home)
+        .env("PATH", support::ravel_path())
+        .env("PATH", support::ravel_path());
     command
 }
 
@@ -977,7 +980,7 @@ fn a_lease_replaced_under_a_running_driver_refuses_the_next_transition() {
     write_executable(
         &configured,
         &format!(
-            "#!/bin/sh\nprintf x >> {log}\nmv {held} {held}.old\n: > {held}\n: > \"$HARNESS_DISPATCH_EXIT_FILE\"\n",
+            "#!/bin/sh\nprintf x >> {log}\nmv {held} {held}.old\n: > {held}\nravel end-session grove-continue\n",
             log = shell_quote(&launch_log),
             held = shell_quote(&lease_path(&root)),
         ),

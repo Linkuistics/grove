@@ -20,7 +20,7 @@
 // on, and each is stated where it happens: read the operator's text with the
 // type that owns it *before* taking a lock, and admit the session against the
 // launch directory *before* writing the teardown record. No verb asks whether
-// a kind can be launched: the owner's harness-dispatch policy answers that when a leaf of
+// a kind can be launched: the owner's Ravel policy answers that when a leaf of
 // that kind launches, and nowhere earlier.
 
 use anyhow::{bail, Context, Result};
@@ -314,7 +314,7 @@ pub struct RootInitArgs {
 const KIND_HELP: &str = "Leaf kind, written into the filename: lowercase ASCII letters, \
 digits and single dashes, no `--`. Grove holds no list of kinds — the installed methodology \
 does — so any well-formed token is written. Whether a kind can be launched is decided by \
-the owner's harness-dispatch policy when the leaf launches, and a refused launch leaves the \
+the owner's Ravel policy when the leaf launches, and a refused launch leaves the \
 leaf live. `finish` is driver-reserved and refused by this verb";
 
 /// [`KIND_HELP`] for `leaf-decompose`, whose `--kind` overrides an inherited
@@ -710,7 +710,7 @@ fn eprint_next_steps(verb: &str, marked: usize) {
     };
     eprintln!("{verb}: two steps remain:");
     eprintln!("  1. commit this session's work, including {renames}");
-    eprintln!("  2. run `harness-dispatch exit` as your last action");
+    eprintln!("  2. run the exact ending command from your launch prompt as your last action (`ravel end-session grove-continue` for Ravel; legacy v22 sessions keep `harness-dispatch exit`)");
 }
 
 fn cmd_leaf_retire(args: &LeafRetireArgs) -> Result<()> {

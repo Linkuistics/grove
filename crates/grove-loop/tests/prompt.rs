@@ -83,6 +83,7 @@ fn compose_with(kind: &Kind, handle: &str) -> String {
         kind,
         workspace: &workspace(),
         version: FIXTURE_VERSION,
+        ending_command: "'/fixture/ravel' end-session grove-continue",
     })
 }
 
@@ -230,7 +231,7 @@ fn the_signalling_contract_states_the_mechanism_and_defers_the_ending() {
              so anything after it may not run",
         ),
         (
-            "loop waits for the harness to end, then stops with the leaf live",
+            "loop stops with the leaf live",
             "that an unsignalled interactive harness can leave the loop waiting until \
              the harness ends, when it stops with the leaf live",
         ),
@@ -421,6 +422,7 @@ fn the_prompt_publishes_the_release_version_the_version_flag_renders() {
         kind: &a_kind("impl"),
         workspace: &workspace(),
         version: env!("CARGO_PKG_VERSION"),
+        ending_command: "'/fixture/ravel' end-session grove-continue",
     });
     assert!(
         prompt.contains(&format!("Grove version: {}.", env!("CARGO_PKG_VERSION"))),
@@ -616,15 +618,15 @@ fn the_size_alarm_fires_on_an_oversized_prompt() {
 }
 
 #[test]
-fn the_contract_names_dispatch_as_supervisor_and_groves_teardown_record() {
+fn the_contract_names_ravel_and_groves_teardown_record() {
     let contract = signalling_contract();
     for phrase in [
         "harness-dispatch exit",
         "grove-llm record-teardown",
-        "HARNESS_DISPATCH_EXIT_FILE",
-        "grace",
-        "SIGTERM",
-        "SIGKILL",
+        "end-session grove-continue",
+        "Ravel",
+        "reaps",
+        "epoch invalidation",
     ] {
         assert!(contract.contains(phrase), "missing {phrase}: {contract}");
     }

@@ -13,6 +13,20 @@ tasks:
       - cargo nextest run --locked -p grove-loop --test session_command
       - cargo nextest run --locked -p grove-loop --test session_command --run-ignored only
 
+  ravel:activation:
+    desc: Check both actual callers and inherited lifecycle/process/authority boundaries
+    requires:
+      vars: [RAVEL]
+    cmds:
+      - task: test:grove
+        vars: {RAVEL: '{{.RAVEL}}'}
+      - task: test:grove-loop
+        vars: {RAVEL: '{{.RAVEL}}'}
+      - task: test:grove-llm
+      - task: test:keyed-launch
+      - task: test:authority
+        vars: {RAVEL: '{{.RAVEL}}'}
+
   ravel:fixtures:
     desc: Check shared installed-Ravel fixtures through the resolver and both stdout runners
     requires:
@@ -29,7 +43,7 @@ tasks:
       - bash scripts/check.sh
 
   ravel:resolution:
-    desc: Check staged PATH/version resolution and a real independently installed Ravel pair
+    desc: Check PATH/version resolution and a real independently installed Ravel pair
     requires:
       vars: [RAVEL]
     env:
@@ -39,14 +53,21 @@ tasks:
       - cargo nextest run --locked -p grove -E 'test(installed_front_and_worker_return_only_the_session_result)' --run-ignored only
 
   test:grove:
+    requires:
+      vars: [RAVEL]
     desc: Run Grove's caller and repository-surface regression suite with nextest
+    env:
+      GROVE_TEST_RAVEL: '{{.RAVEL}}'
     cmds:
       - task: dispatch:worker
       - cargo nextest run --locked -p grove {{.CLI_ARGS}}
 
   test:authority:
+    requires:
+      vars: [RAVEL]
     desc: Prove Cargo and both callers remove inherited old/new session controls
     env:
+      GROVE_TEST_RAVEL: '{{.RAVEL}}'
       GROVE_SIGNAL_FILE: /inert-authority-control
       GROVE_RUN_SIGNAL_FILE: /inert-authority-control
       GROVE_LAUNCH_DIR: /inert-authority-control
@@ -77,10 +98,19 @@ tasks:
       - cargo test --locked -p keyed-launch --doc
 
   test:grove-loop:
+    requires:
+      vars: [RAVEL]
     desc: Check Grove's task tree, driver, authority and result transport with nextest
+    env:
+      GROVE_TEST_RAVEL: '{{.RAVEL}}'
     cmds:
       - cargo nextest run --locked -p grove-loop {{.CLI_ARGS}}
       - cargo test --locked -p grove-loop --doc
+
+  test:grove-llm:
+    desc: Check the agent CLI, retirement guidance and tree verbs with nextest
+    cmds:
+      - cargo nextest run --locked -p grove-llm {{.CLI_ARGS}}
 
   # harness-dispatch: the Rust front and its Bun-compiled policy worker. The
   # worker builds only here, never from cargo; `crates/harness-dispatch/scripts/

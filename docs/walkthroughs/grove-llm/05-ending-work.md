@@ -158,7 +158,7 @@ fn eprint_next_steps(verb: &str, marked: usize) {
     };
     eprintln!("{verb}: two steps remain:");
     eprintln!("  1. commit this session's work, including {renames}");
-    eprintln!("  2. run `harness-dispatch exit` as your last action");
+    eprintln!("  2. run the exact ending command from your launch prompt as your last action (`ravel end-session grove-continue` for Ravel; legacy v22 sessions keep `harness-dispatch exit`)");
 }
 
 ````

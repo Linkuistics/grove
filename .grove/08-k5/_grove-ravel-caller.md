@@ -10,15 +10,13 @@ policy adapter and provenance.
 
 - Requires ravel-publication-k11's independently installed release and k3's
   documented rename/report/layout contract.
-- `crates/grove/src/dispatch.rs::locate` currently canonicalizes Grove's path
-  and selects its sibling `harness-dispatch`; lifecycle and standalone callers
-  both use it. The existing launch-directory reader consumes a structured ending
-  report; migrate it to the opaque result returned by start-session. Prompt and confinement/runtime-read
-  construction must follow the resolved Ravel executable.
-  Resolve `ravel` from the launching process's PATH, canonicalize the selected
-  executable once, and use that same path throughout launch/confinement. Do not
-  search the cwd, repository, Grove sibling or equal-version keg as a fallback.
-  Document the PATH trust decision and its costs in Grove's existing caller ADR.
+- Actual lifecycle and standalone callers now use installed Ravel 0.1.0 through
+  `dispatch::ravel::locate`, shared public session_command builders and the held
+  SessionResult reader. The resolver trusts executable absolute PATH entries,
+  canonicalizes/version-checks once and scrubs version-probe authority. The old
+  sibling locator and JSON ending readers are gone. Launch and prompt ending
+  commands use that exact selected path; standalone public confinement reads
+  resolve before staging cwd. The caller ADR records the PATH trust costs.
 - Preserve the current adapter, Grove examples/sample, fixtures and command
   tests from the old dispatch package. The adapter uses the generic SDK and
   public task conventions; deliver it through Grove-owned readable assets and
@@ -97,3 +95,26 @@ This migration exceeds a focused session. Sequence expand → migrate → contra
 Each child must leave its deliverable independently verifiable. The parent
 Done when remains binding; k6 owns removal of bundled package delivery and k12
 owns the broader prose reconciliation. Do not change the live v22 ending channel.
+
+## Actual consumer handoff — runtime switch subtree closed
+
+k39 delivers the atomic caller migration, completing grove-ravel-atomic-switch-k37,
+grove-ravel-migrate-k35, grove-ravel-switch-k33, grove-ravel-consumers-k31 and
+grove-ravel-runtime-k27. Its terminal handoff records exact logs, controls and
+frozen input comparisons. Both actual consumers now accept only grove-continue
+from held stdout after reap and their ordered authority checks. Runtime nextest
+passes 827 unique cases, plus installed and authority checks; all three changed
+source books, release helper/asset fixtures and skill conformance pass. All 2,022
+measured subjects match, and installed original v22/Ravel bytes are preserved.
+
+Future siblings consume the active public boundary, not staged commands or
+private worker/store reports. Current prompts and finish guidance name the exact
+canonical end-session command; legacy v22 sessions retain their original dispatch
+exit/admission/teardown. k28 retains ownership of generic adapter/sample/examples
+and caller-owned provenance; current Ravel has no run lookup, identity or store.
+The caller fixtures preserve review retirement/reordering/cascade and explicit
+creator refusal/declaration resume without embedded Ravel adapters. k29 owns the
+final complete surface audit and repository task check (with explicit
+GROVE_TEST_RAVEL=/opt/homebrew/bin/ravel and the pinned Bun directory for retained
+package checks); k6 owns bundled delivery removal and k12 broader prose. This
+node remains live for k28/k29. No installation or new driver was launched.

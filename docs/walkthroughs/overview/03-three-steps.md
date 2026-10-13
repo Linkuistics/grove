@@ -158,7 +158,7 @@ fn execute(cli: Cli) -> anyhow::Result<()> {
     let workspace = Workspace::resolve(&cwd)?;
     let lease = DriverLease::acquire(&workspace)?;
     crate::provision::ensure_codex_skills()?;
-    let dispatch = crate::dispatch::locate()?;
+    let ravel = crate::dispatch::locate()?;
 ````
 <!-- /fragment -->
 
@@ -731,7 +731,7 @@ have already returned before this match can run.
 
 <!-- fragment «run-call-and-endings» owner="one-call" source="crates/grove/src/cli.rs" lines="100-105" parent="surface-resolve-lease-run" -->
 ````rust
-    match grove_loop::run(&workspace, lease, &dispatch)? {
+    match grove_loop::run(&workspace, lease, &ravel)? {
         LoopOutcome::Finished | LoopOutcome::Stopped => Ok(()),
         LoopOutcome::Interrupted(signal) => grove_loop::reraise(signal),
     }

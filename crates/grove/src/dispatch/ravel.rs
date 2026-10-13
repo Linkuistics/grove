@@ -6,7 +6,7 @@ use std::process::Command;
 
 use anyhow::{bail, ensure, Context, Result};
 
-pub(super) fn locate() -> Result<PathBuf> {
+pub(crate) fn locate() -> Result<PathBuf> {
     locate_on_path(std::env::var_os("PATH").as_deref())
 }
 
@@ -39,10 +39,13 @@ fn check_version(executable: &std::path::Path) -> Result<()> {
             executable.display()
         )
     };
-    let output = Command::new(executable)
-        .arg("--version")
-        .output()
-        .with_context(remedy)?;
+    let mut probe = Command::new(executable);
+    // A version probe is not an admitted session and must inherit no ending
+    // or Grove tree authority, even when PATH selects an executable wrapper.
+    for name in crate::standalone::CONTROL_ENV {
+        probe.env_remove(name);
+    }
+    let output = probe.arg("--version").output().with_context(remedy)?;
     // Ravel's public version flag identifies the two-verb CLI, not its worker protocol.
     // https://github.com/Linkuistics/Ravel/blob/v0.1.0/docs/session-cli.md
     let supported = std::str::from_utf8(&output.stdout)
@@ -205,6 +208,45 @@ mod tests {
             "{}",
             String::from_utf8_lossy(&output.stderr)
         );
+    }
+
+    #[test]
+    fn version_probe_scrubs_every_enclosing_control() {
+        let temp = TempDir::new().unwrap();
+        let checks: String = super::support::LOOP_CONTROL_ENV.iter().map(|name| format!(
+            "if [ \"${{{name}-}}\" = /inert-enclosing-control ]; then printf 'version-observed:{name}\\n' >&2; exit 93; fi\n"
+        )).collect();
+        let front = executable(temp.path(), &format!("{checks}echo 'ravel 0.1.0'"));
+        for name in super::support::LOOP_CONTROL_ENV {
+            let output = Command::new(&front)
+                .env_clear()
+                .env(name, "/inert-enclosing-control")
+                .arg("--version")
+                .output()
+                .unwrap();
+            assert_eq!(output.status.code(), Some(93), "{name}: {output:?}");
+            assert!(
+                String::from_utf8_lossy(&output.stderr).contains(name),
+                "{output:?}"
+            );
+        }
+        let mut command = Command::new(std::env::current_exe().unwrap());
+        command
+            .args([
+                "--exact",
+                "dispatch::ravel::tests::resolver_process_fixture",
+                "--ignored",
+            ])
+            .env("PATH", temp.path())
+            .env(
+                "GROVE_TEST_EXPECTED_RAVEL",
+                fs::canonicalize(front).unwrap(),
+            );
+        for name in super::support::LOOP_CONTROL_ENV {
+            command.env(name, "/inert-enclosing-control");
+        }
+        let output = command.output().unwrap();
+        assert!(output.status.success(), "{output:?}");
     }
 
     #[test]

@@ -310,7 +310,7 @@ pub fn kind_labels() -> Vec<String> {
 /// cargo runs. The two guards are independent on purpose: that one covers tests
 /// which never touch these helpers, this one covers a test binary executed
 /// directly rather than through cargo. Neither subsumes the other.
-const LOOP_CONTROL_ENV: [&str; 9] = [
+pub const LOOP_CONTROL_ENV: [&str; 9] = [
     "GROVE_SIGNAL_FILE",
     "GROVE_RUN_SIGNAL_FILE",
     "GROVE_LAUNCH_DIR",
@@ -441,7 +441,7 @@ pub fn fixture_home() -> &'static Path {
 /// the real front and its compiled worker select from it, and Grove reads
 /// nothing.
 pub fn write_policy(home: &Path, source: &str) {
-    let entry = home.join(".config/harness-dispatch/policy.ts");
+    let entry = home.join(".config/ravel/policy.ts");
     fs::create_dir_all(entry.parent().expect("a policy path has a parent"))
         .expect("fixture policy dir");
     fs::write(entry, source).expect("fixture policy");
@@ -522,6 +522,75 @@ pub fn grove_bin() -> PathBuf {
 /// and name that task, so a test launching through it fails rather than skips.
 pub fn harness_dispatch() -> PathBuf {
     workspace_binary("harness-dispatch")
+}
+
+/// An explicit installed public pair, copied once per test process.
+pub fn installed_ravel() -> PathBuf {
+    static PAIR: std::sync::OnceLock<(tempfile::TempDir, ravel::InstalledRavel)> =
+        std::sync::OnceLock::new();
+    PAIR.get_or_init(|| {
+        let source = std::env::var_os("GROVE_TEST_RAVEL")
+            .expect("consumer tests require GROVE_TEST_RAVEL=/absolute/installed/ravel");
+        let temp = tempfile::tempdir().expect("Ravel fixture prefix");
+        let pair =
+            ravel::InstalledRavel::copy_from(Path::new(&source), &temp.path().join("ravel-0.1.0"));
+        (temp, pair)
+    })
+    .1
+    .executable()
+    .to_path_buf()
+}
+
+pub fn ravel_path() -> std::ffi::OsString {
+    let ravel = installed_ravel();
+    std::env::join_paths(
+        std::iter::once(ravel.parent().unwrap().to_path_buf())
+            .chain(std::env::split_paths(&std::env::var_os("PATH").unwrap())),
+    )
+    .expect("fixture PATH")
+}
+
+/// Public-front entry observer: reserved controls cannot be granted to policy.
+/// Each injected sentinel must be observed before delegation to the real pair.
+pub fn ravel_entry_probe(bin: &Path) -> PathBuf {
+    use std::os::unix::fs::PermissionsExt;
+    fs::create_dir_all(bin).unwrap();
+    let file = bin.join("ravel");
+    let source = installed_ravel();
+    let source = format!("'{}'", source.to_str().unwrap().replace('\'', "'\\''"));
+    let checks: String = LOOP_CONTROL_ENV.iter().map(|name| format!(
+        "if [ \"${{{name}-}}\" = /inert-enclosing-control ]; then printf 'entry-observed:{name}\\n' >&2; exit 93; fi\n"
+    )).collect();
+    fs::write(&file, format!("#!/bin/sh\nif [ \"${{1-}}\" = start-session ]; then\n{checks}fi\nexec {source} \"$@\"\n")).unwrap();
+    fs::set_permissions(&file, fs::Permissions::from_mode(0o755)).unwrap();
+    file
+}
+
+pub fn path_with_entry(bin: &Path) -> std::ffi::OsString {
+    std::env::join_paths(
+        std::iter::once(bin.to_path_buf()).chain(std::env::split_paths(&ravel_path())),
+    )
+    .unwrap()
+}
+
+pub fn observe_dirty_entry(probe: &Path, home: &Path) {
+    for name in LOOP_CONTROL_ENV {
+        let mut command = std::process::Command::new(probe);
+        for control in grove_env_names() {
+            command.env_remove(control);
+        }
+        let output = command
+            .args(["start-session", "--kind=impl", "--prompt=control"])
+            .env("HOME", home)
+            .env(name, "/inert-enclosing-control")
+            .output()
+            .unwrap();
+        assert_eq!(output.status.code(), Some(93), "{name}: {output:?}");
+        assert!(
+            String::from_utf8_lossy(&output.stderr).contains(&format!("entry-observed:{name}")),
+            "{name}: {output:?}"
+        );
+    }
 }
 
 fn workspace_binary(name: &str) -> PathBuf {

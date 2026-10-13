@@ -27,18 +27,24 @@ already names its handle. Search `.grove/` for the whole handle, because a
 review cut earlier can sit anywhere in the tree, and `-k1` also begins `-k13`.
 On each, settle the line directly under `**Reviews:**`:
 
-- **With `HARNESS_DISPATCH_RUN_ID` set to a run ID in your environment**, write
+- **For a legacy dispatch launch, with `HARNESS_DISPATCH_RUN_ID` set to a run ID in your environment**, write
   `**Creator:** run <run-id>` with that value, replacing any `**Creator:**` line
   already there.
 - **Without one you have no run to name**, so remove any `**Creator:**` line, in
   either form, and write nothing in its place. A line already there describes an
   earlier attempt at the producer, not the session that finished it.
 
-Take the value from your own environment and from nowhere else. A run ID copied
+Ravel launches have no run identity or record store. Without caller-owned
+execution provenance, leave the reference absent and let the owner declare the
+provider; never call Ravel record/inspect commands or invent a run. Legacy run
+references belong to the original dispatch store and require explicit legacy
+handling by the caller-owned adapter.
+
+Take the legacy value from your own environment and from nowhere else. A run ID copied
 from another review body, from version history or from a record store names some
 other session's run, and nothing at launch detects the substitution. Do not
 write the `declared` form either: it is the owner's assertion for an artifact
-finished without a run. Where a dispatch policy reads the line, a review without
+finished without a run. Where a caller-owned review policy reads the line, a review without
 one refuses at launch until the owner declares. A leaf left live and a node left
 open finish nothing, and write nothing. What the line is, and who reads it, is
 `TASK-FORMAT.md`'s.

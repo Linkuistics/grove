@@ -30,8 +30,10 @@ do not ask again for its individual steps.
 5. Return to the original session workspace and run
    the ending commands specified by this session's launch prompt and kind
    skill, as the last action, only after the requested integration and release
-   have completed. A launch under v22 ends with `grove-llm complete --done`;
-   a supervised-dispatch launch first runs `grove-llm record-teardown`, then
+   have completed. Current Ravel launches first run `grove-llm record-teardown`,
+   then the exact canonical `end-session grove-continue` command in their prompt.
+   Legacy complete-channel launches use `grove-llm complete --done`; the
+   original supervised-dispatch launch first records teardown, then sends
    `harness-dispatch exit`. The installed driver and launch prompt decide which
    contract this session must use, even if the release has installed new binaries.
 
@@ -51,11 +53,11 @@ version is not bumped again.
 Use the installed binary — `grove-llm <verb> …` — or `./target/debug/grove-llm
 <verb> …`. Not `cargo run -p grove-llm --bin grove-llm -- <verb> …`.
 
-`.cargo/config.toml` force-clears `GROVE_LAUNCH_DIR` and
-`HARNESS_DISPATCH_EXIT_FILE` for everything cargo runs. This repository is a
+`.cargo/config.toml` force-clears `GROVE_LAUNCH_DIR`, `RAVEL_EXIT_FILE`,
+`HARNESS_DISPATCH_EXIT_FILE` and provider evidence for everything cargo runs. This repository is a
 **meta-grove**: its test suite runs inside a live session and inherits its
 authority. Without the guard a test could impersonate that session through
-Grove's epoch admission or end it through dispatch's exit channel. The guard
+Grove's epoch admission or end it through the enclosing supervisor's channel. The guard
 also retains the retired `GROVE_SIGNAL_FILE` and `GROVE_RUN_SIGNAL_FILE` names
 while installed v22 binaries drive this cutover.
 
@@ -63,6 +65,7 @@ The guard covers `cargo run` too, so verbs launched through cargo lack that
 authority: a tree verb runs without session admission, `record-teardown`
 reports no launch directory and records nothing, and `harness-dispatch exit`
 reports no supervised run and signals nothing. Those last two no-ops exit 0.
+Current `ravel end-session` refuses without its enclosing context.
 Under an installed v22 launch, a cargo-launched `grove-llm complete` likewise
 reports no channel and signals nothing. Invoke the binary directly, and use
 the version and ending contract named by the session's launch prompt.

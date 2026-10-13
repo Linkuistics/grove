@@ -1,6 +1,6 @@
 // The driver's lifecycle around a launch: what it refuses before one, what it
 // scaffolds, and what it reports when a session ends. Every case that launches
-// goes through the real `harness-dispatch` front and its compiled worker, under
+// goes through the real independent Ravel front and its compiled worker, under
 // a personal policy in a temporary HOME; Grove reads no configuration.
 
 mod support;
@@ -131,10 +131,11 @@ fn mandate_naming(handle: &str) -> String {
 
 fn run_grove(home: &Path, worktree: &Path) -> Output {
     // The sibling this `grove` launches every session through.
-    support::harness_dispatch();
+    support::installed_ravel();
     Command::new(env!("CARGO_BIN_EXE_grove"))
         .current_dir(worktree)
         .env("HOME", home)
+        .env("PATH", support::ravel_path())
         .env_remove("CODEX_HOME")
         .output()
         .unwrap()
@@ -227,7 +228,7 @@ shift
   done
   printf 'signal=<%s>\n' "${GROVE_SIGNAL_FILE-unset}"
   printf 'launch=<%s>\n' "$GROVE_LAUNCH_DIR"
-  printf 'dispatch_exit=<%s>\n' "$HARNESS_DISPATCH_EXIT_FILE"
+  printf 'dispatch_exit=<%s>\n' "$RAVEL_EXIT_FILE"
   printf 'legacy_harness_pid=<%s>\n' "${GROVE_HARNESS_PID-unset}"
   printf 'legacy_claude_pid=<%s>\n' "${GROVE_CLAUDE_PID-unset}"
   printf 'unrelated=<%s>\n' "${UNRELATED_AMBIENT-unset}"
@@ -245,18 +246,15 @@ exit 0
         &[argv_log.to_str().unwrap(), "--before", PROMPT, "--after"],
     );
 
-    support::harness_dispatch();
+    support::installed_ravel();
     let output = Command::new(env!("CARGO_BIN_EXE_grove"))
         .current_dir(&worktree)
         .env_clear()
         .env("HOME", &home)
-        .env("PATH", std::env::var_os("PATH").unwrap_or_default())
+        .env("PATH", support::ravel_path())
         .env("GROVE_SIGNAL_FILE", fixture.path().join("stale-signal"))
         .env("GROVE_LAUNCH_DIR", fixture.path().join("stale-launch"))
-        .env(
-            "HARNESS_DISPATCH_EXIT_FILE",
-            fixture.path().join("stale-exit"),
-        )
+        .env("RAVEL_EXIT_FILE", fixture.path().join("stale-exit"))
         .env("GROVE_HARNESS_PID", "stale-harness-pid")
         .env("GROVE_CLAUDE_PID", "stale-claude-pid")
         .env("UNRELATED_AMBIENT", "preserved")
@@ -311,7 +309,10 @@ exit 0
         .find_map(|line| line.strip_prefix("dispatch_exit=<")?.strip_suffix('>'))
         .unwrap();
     assert_ne!(exit, fixture.path().join("stale-exit").to_str().unwrap());
-    assert_eq!(Path::new(exit).parent(), Some(Path::new(launch)));
+    assert_eq!(
+        Path::new(exit).parent().and_then(Path::parent),
+        Some(Path::new(launch))
+    );
     assert!(!fixture.path().join("stale-exit").exists());
     assert!(log.contains("legacy_harness_pid=<unset>\n"), "{log:?}");
     assert!(log.contains("legacy_claude_pid=<unset>\n"), "{log:?}");
@@ -410,7 +411,9 @@ fn an_unwritable_control_directory_fails_before_tree_access_or_launch() {
         "the failure must name the control directory it could not create: {stderr}"
     );
     assert!(
-        !stderr.contains("malformed Grove") && !stderr.contains("harness-dispatch"),
+        !stderr.contains("malformed Grove")
+            && !stderr.contains("harness-dispatch")
+            && !stderr.contains("ravel"),
         "neither the tree nor the launch may have been reached: {stderr}"
     );
     assert_eq!(
@@ -517,7 +520,7 @@ fn relaunch_selects_afresh_from_the_policy_and_uses_the_new_filename_kind() {
 
     let log = fixture.path().join("reload.log");
     let next_policy = fixture.path().join("next-policy.ts");
-    let active_policy = home.join(".config/harness-dispatch/policy.ts");
+    let active_policy = home.join(".config/ravel/policy.ts");
     let fake = fixture.path().join("reload-command.sh");
     write_executable(
         &fake,
@@ -532,12 +535,12 @@ if [ "$marker" = first-policy ]; then
   mv .grove/01-impl--first-k1.md .grove/01-DONE-impl--first-k1.md
   printf '# second-k2\n' > .grove/02-design--second-k2.md
   cp "$next_policy" "$active_policy"
-  "$6" exit
+  "$6" end-session grove-continue
 fi
 exit 0
 "#,
     );
-    let dispatch = support::harness_dispatch();
+    let dispatch = support::installed_ravel();
     let args = |marker: &'static str| {
         [
             log.to_str().unwrap(),
@@ -685,7 +688,7 @@ fn nonsignalled_nonzero_exit_reports_status_elapsed_kind_and_handle() {
 
     assert!(output.status.success());
     let stderr = String::from_utf8_lossy(&output.stderr);
-    assert!(stderr.contains("status exit status: 23"), "{stderr}");
+    assert!(stderr.contains("session_result_missing"), "{stderr}");
     assert!(stderr.contains("elapsed "), "{stderr}");
     assert!(
         stderr.contains("session kind `design` for `crashing-k4` failed"),
@@ -732,7 +735,7 @@ fn a_session_that_retires_its_leaf_and_then_fails_is_not_reported_as_leaving_it_
     assert!(output.status.success(), "{stderr}");
     assert!(grove.join("01-DONE-impl--retired-k1.md").is_file());
     for said in [
-        "status exit status: 23",
+        "session_result_missing",
         "session kind `impl` for `retired-k1` failed",
         "rerun `grove` to continue",
     ] {
@@ -988,7 +991,8 @@ exit 0
     assert!(finish_body.starts_with("# finish-k2\n"));
     assert!(finish_body.contains("grove-llm finish-commit finish-k2"));
     assert!(finish_body.contains("grove-llm record-teardown"));
-    assert!(finish_body.contains("harness-dispatch exit"));
+    assert!(finish_body.contains("exact ending command from your launch prompt"));
+    assert!(finish_body.contains("ravel end-session grove-continue"));
     assert!(!finish_body.contains("**Kind:**"));
     assert!(fs::read_to_string(&launch_log)
         .unwrap()

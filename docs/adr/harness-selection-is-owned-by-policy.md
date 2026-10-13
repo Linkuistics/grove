@@ -1,43 +1,35 @@
 # Harness selection is owned by policy
 
 Which harness, model and reasoning effort runs a piece of work is decided by one
-function the owner writes, and by nothing else. The `harness-dispatch`
+function the owner writes, and by nothing else. The `ravel`
 executable passes that `select` function what its caller passed, the prompt
 included, and acts on what it returns: the command to run, with its provider,
 model and effort labels, or a refusal. The executable holds no catalog of
 harnesses, no table of kinds and no rule about which choice is allowed. Grove
 runs it for every session it launches, lifecycle and standalone alike, and
 carries no launch configuration of its own. The
-[area specification](../specs/harness-selection-and-execution.md) owns the
-protocol, identity, records and delivery contracts. The
-[worker decision](policy-evaluation-precedes-the-launch.md) chooses the Rust
-front process and bundled TypeScript runtime separately from this boundary, and
-[dispatch supervises the harness](dispatch-supervises-the-harness.md) records
-why the command stays the harness's parent.
+[supervision decision](dispatch-supervises-the-harness.md) owns the
+Grove caller boundary. The independent
+[Ravel specification](https://github.com/Linkuistics/Ravel/blob/v0.1.0/docs/specs/session-execution.md)
+owns executable/runtime behavior. The
+[worker decision](policy-evaluation-precedes-the-launch.md) records the native
+selection boundary and [supervision](dispatch-supervises-the-harness.md) records
+why the selected process remains a managed job.
 
-Grove supplies its already selected session kind, task file, stable task handle
-and unchanged prompt, and no parameter. It runs the command where the prompt
-assumes the session is — the working-tree root — so a policy reads the session's
-location from the request's `cwd`. A policy that must grant a secondary jj
-workspace's harness its store derives the store from `<cwd>/.jj/repo` itself,
-as the sample does; nothing jj-specific enters the command, and naming the
-session is the methodology's. Callers supply stable task identities as data, so an association
-survives a Grove task's retirement and reordering without any filename being
-parsed. The discovery guarantee spans sessions in the same live grove and
-workspace. Provenance travels as globally unique run identities, so handles need
-no namespace. Run and observation records live outside task bodies and survive
-the tree's teardown, and a review task carries only its creator reference. There
-is no automatic cross-checkout discovery and no post-teardown artifact lookup.
+Grove supplies kind, task file, stable handle and unchanged prompt as ordinary
+caller data, with no parameter. Lifecycle work runs in the workspace root;
+standalone work in its staged cwd. An owner policy can derive workspace grants
+from `request.cwd` and `.jj/repo`. No jj/task convention belongs to Ravel.
+Grove's readable assets interpret task relationships and preserve inline creator
+receipts; Ravel supplies no run lookup, persistent records or historical API.
 
-The dependency runs one way. Grove requires the executable and is one caller
-among many; the package depends on no Grove package and has no Grove concept in
-its core, so ordinary use needs no Grove installation or task-tree conventions,
-and whatever Grove needs from it is a capability any caller can use. The
-executable is a separate package in this repository and ships through Grove's
-installation and release, with everything needed to evaluate TypeScript without
-a separately installed runtime. Co-location makes development, integration tests
-and deployment easier, and the package can still be extracted into a repository
-of its own.
+The dependency runs one way. Grove requires independently installed Ravel's
+public CLI, resolved once from PATH and version-checked. Ravel needs no Grove
+installation. Its front and compiled worker ship independently, without host
+Bun/Node. Grove keeps its own local runner and caller-owned policy assets.
+Grove archives contain its executables and caller assets; the Homebrew formula
+depends on separate Ravel. No executable worker or shared Rust dependency is
+bundled ([delivery boundary](../grove-delivery-contraction.md)).
 
 ## What each half of the decision costs
 
@@ -82,11 +74,11 @@ artifact's original creator for every review it selects, including
 re-invocations. It is activated explicitly through personal policy and tested as
 the delivered artifact. Provider is the owner's label on the command a policy
 returns, for model origin; it is not a gateway or an identity inferred from the
-program or its arguments. The package exposes each recorded run's provider to
-TypeScript, and a review names its creator's run, as
+program or its arguments. The opt-in Grove provenance wrapper preserves the actual selected provider in
+a canonical receipt, and a review carries that receipt or an owner declaration, as
 [a review carries its creator reference](a-review-carries-its-creator-reference.md)
 records; today's policy cannot reconstruct the original creator's identity. An
-explicit owner declaration remedies missing execution records and is visibly
+explicit owner declaration remedies missing caller evidence and is visibly
 labelled as declared; absence of both forms stops review. This is a simple
 original-creator comparison, with no separate model-inequality check or
 multi-author exclusion set. The generic executable contains no review-specific
@@ -102,8 +94,7 @@ invocation, the selection bound and the environment granted to the policy among
 them, lives in a settings file with the same personal authority, and is the
 same for every kind. A missing
 policy stops with a diagnostic: the executable invents no default, and a policy
-arrives only by the owner writing one or running the subcommand that installs
-the shipped sample.
+arrives only by the owner writing one or explicitly copying Grove's readable sample.
 
 One checkout gets a different selection from another through policy code. A
 supported helper reads a local choice file, and that file can only name options
@@ -112,18 +103,19 @@ which is why it needs no version-control check where the configuration delta
 needed one.
 
 Selection helpers are granted no authority to end a run, and the harness is
-dispatch's own foreground job
+Ravel's own foreground job
 ([the launched child is a job](the-launched-child-is-a-job.md)); the
 specification owns the bounds, cancellation and authority contracts that
 preserve this. Trusted TypeScript is executable configuration, not a sandbox
-against a hostile local owner. A confined standalone invocation launches through
-`run --confine`: dispatch selects outside the sandbox, with the owner's grants
-and bounds, and confines only the harness it spawns, which receives a run ID and
-has a run record. A confined launch through the command was once declined
-because the launch was Grove's runner's, and the command would have needed a
-launcher option, a Grove helper and the runner's environment scrub moved behind
-selection. With dispatch the harness's supervisor, the scrub is dispatch's own
-and the other two are not needed.
+against a hostile local owner. Grove's confined standalone invocation uses
+`ravel start-session --confine`: Ravel selects outside the sandbox, with the
+owner's grants and bounds, and confines only the managed process. That process
+receives its own ephemeral ending context, with no run ID or persistent record.
+Grove scrubs enclosing session authority before invoking Ravel; Ravel isolates
+policy evaluation and supplies fresh ending context to the managed process.
+Grove's optional wrapper supplies caller-owned provider receipts separately.
+The public CLI carries confinement and result transport, so Grove needs no
+private worker protocol or launch hook.
 
 ## Considered options
 
@@ -150,7 +142,10 @@ and the other two are not needed.
   conversion of their own configuration.
 - **Install the sample when no policy exists.** Rejected because the sample runs
   a harness with approvals off, and an invocation that found no policy would
-  have launched it unread. Installation is an explicit subcommand.
+  have launched it unread. The owner explicitly reads and copies Grove's
+  readable assets, then imports them from personal policy. Neither executable
+  installs a policy automatically, and Ravel has no installation subcommand.
+  Reopen only if an explicit owner-reviewed setup workflow is required.
 - **Let the executable discover a per-checkout override file.** Rejected because
   it reverses the rule that a repository grants nothing. The helper is taken up
   only where the owner's policy calls it.
@@ -158,15 +153,16 @@ and the other two are not needed.
   definitions could carry different flags for different kinds. Rejected because
   it puts a table of kinds back in the tool. Each bound is a ceiling, so one
   value that admits the slowest selection serves the rest, at the cost of a
-  shorter failure bound for the others, and a record directory per kind would
-  split the store a run lookup reads. Reopen if an owner needs a grant or a
+  longer wait before failure for faster routes. No record directory or store
+  participates in these settings. Reopen if an owner needs a grant or a
   bound that one kind must not share.
 - **Hard-code review diversity in the executable.** The rule is an owner's
-  policy and belongs with the rest of selection computation. Provenance is data
-  the executable makes available, not a reason to give the core review
-  semantics. Reconsider only if the tool acquires an explicit requirement to
+  policy and belongs with the rest of selection computation. Grove preserves
+  the selected provider in caller-owned receipts; Ravel supplies no provenance
+  store or review lookup. Reconsider only if the tool acquires a requirement to
   enforce this rule independently of its owner's configuration.
-- **Keep the executable in a repository of its own.** Independent ownership
-  stays possible, but development, integration testing and deployment benefit
-  from one repository and release route. Extract when those benefits no longer
-  outweigh independent maintenance and delivery.
+- **Bundle the executable with Grove's repository and release.** A shared
+  route simplifies development and delivery but couples independent callers to
+  Grove's packaging and versions. Ravel has its own repository, release tasks,
+  archives and Homebrew formula; Grove checks the public CLI contract at runtime.
+  Reopen only if independent use and delivery cease to be requirements.

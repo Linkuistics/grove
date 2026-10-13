@@ -22,16 +22,16 @@ class Grove < Formula
     end
   end
 
+  depends_on "linkuistics/taps/ravel"
+
   def install
     # Codex skill snapshots are embedded in grove and provisioned at startup.
     # Claude Code retains marketplace delivery; no separate payload is fetched.
     #
-    # The archive is an installation prefix, and the keg keeps its shape:
-    # harness-dispatch finds its private policy worker at
-    # ../libexec/harness-dispatch/ from its own real path, which the bin/
-    # symlink Homebrew links resolves to. No system Bun or Node takes part.
-    bin.install "bin/grove", "bin/grove-llm", "bin/harness-dispatch"
-    libexec.install "libexec/harness-dispatch"
+    # Readable caller assets retain ordinary relative imports. Ravel owns its
+    # own front, private worker, SDK and notices in its independently sized keg.
+    bin.install "bin/grove", "bin/grove-llm"
+    libexec.install "libexec/ravel-policy"
   end
 
   def caveats
@@ -55,45 +55,47 @@ class Grove < Formula
         git clone https://github.com/Linkuistics/grove
         ./grove/plugins/install.sh
 
-      Grove launches every session through harness-dispatch, which needs
-      your policy in ~/.config/harness-dispatch/policy.ts. Install the sample:
+      Grove launches sessions through the independent Ravel dependency.
+      Copy the readable sample and edit your owner policy before the first run:
 
-        harness-dispatch init
+        mkdir -p ~/.config/ravel
+        cp #{libexec}/ravel-policy/sample/policy.ts ~/.config/ravel/policy.ts
 
-      Read it and edit it before the first run: it launches codex with
-      approvals off and full access. A config.kdl or .grove.kdl from an
-      earlier release is no longer read.
+      The sample launches codex with approvals off and full access. Copy only
+      into an absent policy; preserve an existing policy and its relative helpers.
+      Creator-aware examples live in #{libexec}/ravel-policy/examples;
+      keep the whole caller asset tree together when copying their imports.
+      Earlier config.kdl or .grove.kdl files are no longer read.
     EOS
   end
 
   test do
     assert_equal "grove @VERSION@\n", shell_output("#{bin}/grove --version")
     assert_equal "grove-llm @VERSION@\n", shell_output("#{bin}/grove-llm --version")
-    assert_equal "harness-dispatch @VERSION@\n", shell_output("#{bin}/harness-dispatch --version")
-
-    # The worker reports its own version, and the front refuses a worker from
-    # another build before evaluating anything. Inspect through a symlink to
-    # the front, as bin/ is linked, so the worker is found from the real path.
-    (testpath/"policy.ts").write <<~TS
-      export const policy = {
-        schemaVersion: 2,
-        version: "brew-test",
-        select: () => ({
-          status: "selected",
-          program: "true",
-          args: [],
-          provider: "check",
-          model: "check",
-          effort: "check",
-          reason: "brew test",
-        }),
-      };
+    ravel = Formula["ravel"].opt_bin/"ravel"
+    assert_match(/^ravel 0\.1\./, shell_output("#{ravel} --version"))
+    assets = libexec/"ravel-policy"
+    %w[README.md grove.ts provenance.ts examples/grove-static.ts
+       examples/grove-review.ts examples/review.ts sample/policy.ts
+       typecheck/static.ts typecheck/review.ts].each do |asset|
+      assert_path_exists assets/asset
+    end
+    # The real Grove standalone path consumes a public result from a separate
+    # Ravel keg and imports the installed caller helpers without host Bun/Node.
+    (testpath/"home/.config/ravel").mkpath
+    (testpath/"home/.config/ravel/policy.ts").write <<~TS
+      import { definePolicy } from "ravel/sdk";
+      import { withProvenance } from "#{assets}/provenance.ts";
+      import { groveReviewSelector } from "#{assets}/examples/grove-review.ts";
+      const route = request => ({ program: "/bin/sh", args: ["-c",
+        'printf published > published.txt; "$1" end-session grove-continue',
+        "fixture", #{ravel.to_s.to_json}], provider: "fixture", model: "none", effort: "none" });
+      export const policy = withProvenance(definePolicy({ schemaVersion: 2,
+        version: "brew-test", ...groveReviewSelector({ routes: { check: route }, reviews: {} }) }));
     TS
-    ln_s bin/"harness-dispatch", testpath/"harness-dispatch"
-    report = JSON.parse(shell_output(
-      "#{testpath}/harness-dispatch inspect --kind check --config #{testpath}/policy.ts --json",
-    ))
-    assert_equal "@VERSION@", report["worker"]["packageVersion"]
-    assert_equal (libexec/"harness-dispatch/harness-dispatch-policy").realpath.to_s, report["worker"]["path"]
+    ENV["HOME"] = (testpath/"home").to_s
+    ENV["PATH"] = "#{Formula["ravel"].opt_bin}:/usr/bin:/bin"
+    shell_output("#{bin}/grove run check Write --ui=inline --output #{testpath}/published.txt")
+    assert_equal "published", (testpath/"published.txt").read
   end
 end

@@ -41,14 +41,19 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 readonly REPO_ROOT
 cd "$REPO_ROOT"
 
-failed=()
+# Tests use an explicit public installation; normal checks resolve it from PATH.
+# An override allows independently staged layouts without changing installation.
+export GROVE_TEST_RAVEL="${GROVE_TEST_RAVEL:-$(command -v ravel || true)}"
 
-# `--workspace` on both cargo lines because this root is *also* a package: a
-# bare invocation tests and lints `grove` alone and leaves the other five crates
-# unread.
+failed=()
+checks=0
+
+# Select the whole workspace explicitly for both runtime and documentation
+# tests; a default-member change must not silently reduce the gate's scope.
 run_check() {
   local label="$1"
   shift
+  checks=$((checks + 1))
   echo
   echo "=== $label"
   if "$@"; then
@@ -103,37 +108,45 @@ run_check "cargo fmt" cargo fmt --all --check
 run_check "shellcheck" shellcheck \
   plugins/install.sh plugins/install.test.sh \
   plugins/grove/conformance.sh plugins/grove/conformance.test.sh \
-  scripts/check.sh scripts/release-publish.sh scripts/release.test.sh \
+  scripts/check.sh scripts/ravel-policy-typecheck.sh scripts/ravel-policy-typecheck.test.sh scripts/release-publish.sh scripts/release.test.sh \
   scripts/release-prepare.sh scripts/release-prepare.test.sh \
   scripts/release-notes.sh \
   scripts/release-notes/codex-headless.sh scripts/release-notes/codex-headless.test.sh \
-  scripts/release-doctor.sh scripts/release-common.sh scripts/release-build.sh \
+  scripts/release-doctor.sh scripts/release-common.sh scripts/release-build.sh scripts/release-formula.test.sh scripts/release-registration.test.sh \
   scripts/release-smoke.sh scripts/release-smoke-target.sh scripts/release-smoke-qemu.sh \
-  crates/harness-dispatch/scripts/dispatch.sh crates/harness-dispatch/scripts/installed-smoke.sh
+  scripts/release-smoke-environment.sh scripts/ravel-target-smoke.sh \
+  scripts/release-floor-backend.sh scripts/release-floor-backend.test.sh \
+  scripts/atomic-directory-publish.test.sh \
+  scripts/release-floor-backend-probe.sh scripts/release-floor-backend-probe-host.sh \
+  scripts/floor-seccomp.test.sh scripts/release-floor-native.sh scripts/grove-floor-native-cases.sh \
+  scripts/release-floor-qemu.sh scripts/release-floor-qemu-backend.sh scripts/release-floor-qemu.test.sh \
+  scripts/ravel-target-smoke-target.sh scripts/ravel-installed-smoke.sh scripts/ravel-target-inputs.test.sh scripts/grove-installed-smoke.sh
 run_check "cargo clippy" cargo clippy --workspace --all-targets
 run_check "plugin install" bash plugins/install.test.sh
 run_check "conformance" bash plugins/grove/conformance.sh
 run_check "conformance suite" bash plugins/grove/conformance.test.sh
 run_check "release preparation" bash scripts/release-prepare.test.sh
+run_check "Ravel archive admission" python3 scripts/test_ravel_target_inputs.py
+run_check "Linux floor backend admission" task release:floor:controls
+run_check "native floor seccomp admission" task release:floor:seccomp:controls
+run_check "QEMU floor admission" task release:floor:qemu:controls
+run_check "legacy driver preservation controls" task legacy:controls
 run_check "release Codex helper" bash scripts/release-notes/codex-headless.test.sh
-# Before `cargo test`, which needs the worker: harness-dispatch's command-seam
-# tests refuse a missing or stale one with exit 5 rather than skip. This builds
-# it from the current source with the pinned Bun, then type-checks the worker,
-# the SDK and its fixtures against the declarations that build emitted. The
-# probe builds, which the hostile-fixture tests drive to see each fixture fire,
-# come from the same source here, and those tests fail rather than skip
-# without them.
-run_check "dispatch worker, probes and types" task dispatch:typecheck dispatch:probes
-# After the worker task, which installs its pinned type checker: the release
-# tests compare the archive manifest with what the worker build emits.
-run_check "release tasks" bash scripts/release.test.sh
-run_check "cargo test" cargo test --locked --workspace
+# The ignored public caller fixtures exercise the independently installed SDK
+# and worker explicitly; the workspace runtime run does not include them.
+run_check "Ravel caller assets and provenance" task ravel:review \
+  "RAVEL=${GROVE_TEST_RAVEL:?Set GROVE_TEST_RAVEL to an installed Ravel front}"
+run_check "release tasks" task release:test
+# nextest runs runtime tests; doctests remain Cargo's responsibility.
+# https://nexte.st/docs/running/#options-and-arguments
+run_check "cargo nextest" cargo nextest run --locked --workspace --no-fail-fast
+run_check "cargo doctests" cargo test --locked --workspace --doc
 run_check "book-check" book_check
 
 echo
 if ((${#failed[@]} > 0)); then
-  echo "check: FAILED — ${#failed[@]} of 12"
+  echo "check: FAILED — ${#failed[@]} of $checks"
   printf 'check:   ✗ %s\n' "${failed[@]}"
   exit 1
 fi
-echo "check: all 12 principal checks pass"
+echo "check: all $checks principal checks pass"

@@ -112,9 +112,7 @@ Use one literal file path per line; see docs/RELEASING.md#runtime-access."
     run_args+=(--runtime-read "$runtime_read")
   done <<<"${GROVE_RELEASE_RUNTIME_READ:-}"
 
-  # `grove run` selects through the harness-dispatch built beside it, whose
-  # policy worker cargo does not build.
-  task dispatch:build
+  # `grove run` resolves/version-checks the independently installed Ravel on PATH.
   cargo build --locked -p grove -p grove-llm
   if ! ./target/debug/grove "${run_args[@]}"; then
     die "the release-notes writer your policy selects failed; CHANGELOG.md was left unchanged.

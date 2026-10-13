@@ -1,23 +1,21 @@
 flowchart TB
-  Caller["Start here: caller\nGrove or another tool"]:::start
-  Native["harness-dispatch\nRust command, supervisor and record store"]
-  Runner["keyed-launch\nDomain-free runner: job, terminal,\nexit channel, escalation, confinement"]
-  Settings["Owner settings\nBounds, grants, record directory"]
-  Worker["Private policy worker\nCompiled Bun + TypeScript SDK"]
-  Policy["Owner policy: one select function\nEvery command it can return"]
-  Adapter["Optional Grove adapter\nReads only the supplied task file"]
-  Choice["Optional choice file\nNames options the policy offers"]
-  Harness["Selected command\nProgram, arguments, owner's labels"]
-  Caller -->|"1. Kind, prompt, parameters, task, context"| Native
-  Settings -.->|"Read before the worker starts"| Native
-  Native -->|"2. Bounded request with the prompt; no control env"| Worker
-  Worker -->|"3. Evaluate the personal entry"| Policy
-  Policy -.->|"Explicit import"| Adapter
-  Policy -.->|"SDK helper it calls"| Choice
-  Policy -->|"4. Command + labels + reason, or a refusal"| Native
-  Native -->|"5. Record, then spawn and supervise"| Harness
-  Harness -.->|"6. Exit signal"| Native
-  Native -->|"7. Run ending"| Caller
-  Caller -.->|"Runs dispatch as a job"| Runner
-  Native -.->|"Runs the harness"| Runner
+  Caller["Start here: Grove caller
+leaf, mandate and result meanings"]:::start
+  Assets["Grove readable caller assets
+context and provider receipts"]
+  Local["Grove local keyed-launch
+Ravel job and terminal"]
+  Ravel["Independent Ravel installation
+public two-verb process boundary"]
+  Policy["Owner policy and settings
+explicit SDK and caller imports"]
+  Child["Selected managed process"]
+  Caller -->|"1. Resolve absolute PATH and version"| Ravel
+  Caller -->|"2. Spawn public start-session"| Local
+  Local --> Ravel
+  Ravel -->|"3. Evaluate"| Policy
+  Policy -.->|"Explicit ordinary imports"| Assets
+  Ravel -->|"4. Supervise with Ravel's own runner"| Child
+  Child -.->|"5. end-session RESULT"| Ravel
+  Ravel -->|"6. Opaque stdout after cleanup"| Caller
   classDef start fill:#163a57,color:#fff,stroke:#163a57,font-weight:bold

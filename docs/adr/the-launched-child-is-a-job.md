@@ -12,14 +12,14 @@ well as the pid, and whenever the child exits, whatever ended it, the launcher
 kills what remains of its group before reaping it.
 
 A lifecycle session is two such jobs, one inside the other, as a shell would
-make them. Grove's driver makes `harness-dispatch run` a job, and dispatch, which
+make them. Grove's driver makes `ravel start-session` a job, and Ravel, which
 [supervises the harness](dispatch-supervises-the-harness.md), makes the harness
-one. While the policy is selecting, the terminal is dispatch's group's, which its
+one. While the policy is selecting, the terminal is Ravel's group's, which its
 policy worker joins; while the harness runs it is the harness's group's alone.
 Each launcher takes it back from its own child, so a raw-mode harness that the
-escalation killed leaves dispatch a terminal to restore and dispatch leaves
+escalation killed leaves Ravel a terminal to restore and Ravel leaves
 Grove one, and a launcher whose child died of a signal takes it from whichever
-group its launch left holding it, so a dispatch killed while its orphaned
+group its launch left holding it, so a Ravel killed while its orphaned
 harness held the terminal leaves Grove one too.
 
 Three things follow, and each closes a defect that a per-process launch cannot.
@@ -86,13 +86,13 @@ with the launcher that was supposed to hand it over.
   finished waits for it. Reaping first and signalling the group afterwards was
   declined because an emptied group's ID can be reused before the signal.
 - **Reclaim the terminal only from the direct child's group, always.**
-  Rejected: a supervisor that dies, as dispatch can under SIGKILL, leaves its
+  Rejected: a supervisor that dies, as Ravel can under SIGKILL, leaves its
   own child's group holding the terminal, so its launcher would never take it
   back and a raw-mode orphan would go on reading the human's input. Taking it
   from any group but the launcher's own and the session leader's, after every
   launch, was declined too: a job-controlling shell nested inside another in one
   session leads no session, and one that took the terminal after the driver died
-  would lose it when dispatch reaped a harness that had simply exited. The broad
+  would lose it when Ravel reaped a harness that had simply exited. The broad
   take-back is therefore kept for a child that died of a signal, the one way a
   supervisor between can leave a delegated terminal unreclaimed. Its residue,
   accepted: such a nested shell can still lose the terminal when a launch ends
@@ -104,13 +104,13 @@ with the launcher that was supposed to hand it over.
   keep the disposition under which a syscall never sees one. The guarantee also
   belongs to the thing that spawns: a runner handing an interactive child a
   terminal cannot know what its caller did to its own dispositions.
-- **Keep the harness in dispatch's group, or dispatch in the driver's.** The
+- **Keep the harness in Ravel's group, or Ravel in the driver's.** The
   first would deliver a typed Ctrl-C to the wrapper as well as the harness, so
   the wrapper would have to catch what the harness alone should receive. The
   second would put the driver in the terminal's foreground group while the
-  policy selects, and leave it no group to address if dispatch died. Each
+  policy selects, and leave it no group to address if Ravel died. Each
   supervisor makes its own child a job instead, which is also what any shell in
-  front of dispatch does.
+  front of Ravel does.
 - **Take a caller flag for job control.** Rejected: the gate is already exact and
   needs no configuration — a launcher with no controlling terminal cannot open
   `/dev/tty`, and one that is not the terminal's current foreground group has no

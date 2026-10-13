@@ -11,7 +11,7 @@ before obtaining the current directory. For
 `view`, it calls the viewer with the supplied path or that directory and
 returns. The remaining
 statements belong to the bare lifecycle. Tree viewing needs no workspace and
-no harness-dispatch policy.
+no Ravel policy.
 
 For bare `grove`, the workspace is resolved once and shared with the lease and
 loop. The binary provisions bundled Codex-compatible skills before calling the
@@ -134,12 +134,11 @@ resolution.
 | `grove_tui::run` | A view request observes a path and returns before the following steps |
 | `Workspace::resolve` | Find the enclosing jj workspace for bare invocation |
 | `DriverLease::acquire` | Refuse a competing lifecycle driver, otherwise hold the lease |
-| `provision::ensure_codex_skills` | Install or repair bundled Codex skills, or skip when Codex is absent |
-| `dispatch::locate` | Find `harness-dispatch` beside this executable, or refuse naming where it looked |
+| `dispatch::ravel::locate` | Resolve/version-check independent Ravel once from absolute PATH entries |
 
-A `harness-dispatch` missing from beside this executable fails the lifecycle
-here, before anything is scaffolded or launched. It is never looked for on a view
-request. A non-jj directory can be observed, even though
+Missing Ravel on PATH refuses with its independent installation remedy before
+scaffolding or launch. Resolution never happens on a view request. A non-jj
+directory can be observed, even though
 bare invocation there is refused. Both outcomes follow from the early return.
 
 <!-- fragment «run-three-steps» owner="one-call" source="crates/grove/src/cli.rs" lines="85-99" parent="surface-resolve-lease-run" -->
@@ -158,7 +157,7 @@ fn execute(cli: Cli) -> anyhow::Result<()> {
     let workspace = Workspace::resolve(&cwd)?;
     let lease = DriverLease::acquire(&workspace)?;
     crate::provision::ensure_codex_skills()?;
-    let dispatch = crate::dispatch::locate()?;
+    let ravel = crate::dispatch::locate()?;
 ````
 <!-- /fragment -->
 
@@ -731,7 +730,7 @@ have already returned before this match can run.
 
 <!-- fragment «run-call-and-endings» owner="one-call" source="crates/grove/src/cli.rs" lines="100-105" parent="surface-resolve-lease-run" -->
 ````rust
-    match grove_loop::run(&workspace, lease, &dispatch)? {
+    match grove_loop::run(&workspace, lease, &ravel)? {
         LoopOutcome::Finished | LoopOutcome::Stopped => Ok(()),
         LoopOutcome::Interrupted(signal) => grove_loop::reraise(signal),
     }
@@ -752,7 +751,7 @@ grove
   resolve: workspace /work/atlas
   lease: claim the lifecycle driver for /work/atlas
   provision: ensure bundled Codex-compatible skills are available
-  dispatch: find harness-dispatch beside this executable
+  dispatch: resolve/version-check independent Ravel on PATH
   run: the loop launches each selected session and reads its completion signal
 ```
 
@@ -783,7 +782,7 @@ signal sent to the driver itself. The returned outcome preserves that distinctio
 <a id="what-run-refuses"></a>
 ## Errors return through main
 
-Workspace, lease, provisioning and missing-dispatch refusals stop the lifecycle
+Workspace, lease, provisioning and missing/incompatible-Ravel refusals stop the lifecycle
 before any session launch. Runtime failures can stop it later; a launch the
 owner's policy refuses is not one of them, since the loop stops on it and returns
 cleanly. A viewer can return a
@@ -805,10 +804,11 @@ to `run`, which writes the error and returns exit 1 to main.
 
 One lifecycle iteration reads the tree, performs any required lifecycle
 transition, selects a leaf, prepares its session epoch and launch directory,
-runs `harness-dispatch` for that leaf and waits for its ending report.
+runs `ravel start-session` for that leaf and holds its public stdout result.
 Grove's interruption wins; otherwise recorded teardown finishes, a surviving
-dispatch group stops, an exit-signal ending relaunches, and anything else stops.
-Dispatch owns the harness's exit channel and escalation. Those details belong to the
+Ravel group or unsuccessful status stops, and exactly `grove-continue` on
+success advances; anything else stops. Ravel owns managed-process completion
+and escalation, while Grove supplies the instruction and result meaning. Those details belong to the
 loop walkthrough at `docs/walkthroughs/grove-loop/README.md`, whose public `run` is this
 chapter's boundary. No viewer action enters that loop.
 

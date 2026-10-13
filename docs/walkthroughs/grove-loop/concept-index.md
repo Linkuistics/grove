@@ -17,7 +17,7 @@
 - [How this book's spine differs from the `jj-workspace` and `keyed-launch` books'](01-orientation.md#allowed-to-mean)
 - [The `Key` / `Entry` collision between the two vocabularies](01-orientation.md#allowed-to-mean)
 - [Allowed to be domain-bound, and the record that says so](01-orientation.md#the-package)
-- [Five dependencies, and the four that carry a reason in situ](01-orientation.md#the-package)
+- [Dependency ownership and staged result capture](01-orientation.md#the-package)
 - [A clause true of the verbs and false of the crate, and the distinction that fixed it](01-orientation.md#the-package)
 - [`default-features = false`, and the set the crate imposes](01-orientation.md#the-package)
 - [Why the tests need a real directory](01-orientation.md#the-package)
@@ -558,9 +558,9 @@
 - [A lease taken by value, so ownership cannot outlive the loop](19-the-loop.md#run)
 - [A record whose written source has drifted from the signature it states](19-the-loop.md#run)
 - [A kind asked about when its leaf launches, and nowhere earlier](19-the-loop.md#no-kind-is-asked)
-- [An invocation built for dispatch from one guarded selection](19-the-loop.md#dispatch-run)
+- [An invocation built for Ravel from one guarded selection](19-the-loop.md#dispatch-run)
 - [The only production call site of either driver operation](19-the-loop.md#the-selection)
-- [A refused launch reported by kind and handle, under dispatch's own diagnostic](19-the-loop.md#the-loop-body)
+- [A refused launch reported by kind and handle, under Ravel's own diagnostic](19-the-loop.md#the-loop-body)
 - [Terminal restoration placed ahead of the gate, and why that is not an exception](19-the-loop.md#the-loop-body)
 - [A launch that appends, injects and reorders nothing](19-the-loop.md#launch)
 - [A stable handle in the log because paths move under `leaf-insert`](19-the-loop.md#launch)
@@ -625,3 +625,6 @@ in [the guarded selection](19-the-loop.md#picked) and exercised through the
 
 - [Native process death, exec survivors and replaced roots](17-the-epoch.md#native-witness-processes)
 
+
+- [Held stdout capture and bounded continue interpretation](19-the-loop.md#held-session-result)
+- [Public lifecycle and confined commands, with a quoted ending path](19-the-loop.md#public-session-commands)

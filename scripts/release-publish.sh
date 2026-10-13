@@ -28,8 +28,8 @@
 #   scratch=$(mktemp -d) && cd "$scratch" && jj git init . >/dev/null
 #   printf '#!/bin/sh\nprintf "GROVE_SIGNAL_FILE=%%s\\n" "$GROVE_SIGNAL_FILE"\n' > fake
 #   chmod +x fake
-#   mkdir -p "$scratch/home/.config/harness-dispatch"
-#   cat > "$scratch/home/.config/harness-dispatch/policy.ts" <<EOF
+#   mkdir -p "$scratch/home/.config/ravel"
+#   cat > "$scratch/home/.config/ravel/policy.ts" <<EOF
 #   export const policy = {
 #     schemaVersion: 2,
 #     version: "smoke",
@@ -44,15 +44,14 @@
 # The isolated `HOME` is what makes this a *test* rather than a run of your own
 # launch policy: the policy there selects the fake for every kind. Bare `grove`
 # scaffolds the tree and launches its first leaf through the installed
-# `harness-dispatch`. The fake exits 0 without signalling, so the nested loop
+# independent Ravel. The fake exits 0 without signalling, so the nested loop
 # stops itself after one iteration.
 #
-# What that shows: the installed pair finding each other, the policy's command
-# reaching the real foreground child, and a fresh completion-signal path granted
-# to it. It shows nothing about the methodology delivery: that needs an isolated
+# What that shows: Grove finding independent Ravel and the policy's command
+# reaching the real foreground child. It shows nothing about the methodology delivery: that needs an isolated
 # Codex installation and is covered by skill_provisioning.rs. Point `HOME` at a
 # directory with no policy for the other half: the `policy_missing` refusal,
-# whose remedy names `harness-dispatch init`, with the leaf left live.
+# whose remedy names the missing owner policy, with the leaf left live.
 #
 # Run this in the same session as the `brew upgrade` — see release.toml on why
 # that is safe and why deferring it to a follow-up session is unnecessary.

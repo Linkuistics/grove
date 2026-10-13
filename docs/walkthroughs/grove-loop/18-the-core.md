@@ -33,11 +33,11 @@ The carried example reaches the point where a selected leaf becomes a session.
   the walk has chosen a leaf              kind `impl`, handle `plan-k1`
   the lease has admitted the driver       chapters 16, 17
 
-  compose(Mandate { handle, kind, workspace, version })
+  compose(Mandate { handle, kind, workspace, version, ending_command })
 
     part 1  load `grove-impl`, bare and namespaced   -> the first action
     part 2  handle, stated VCS, version              -> three launch-varying values
-    part 3  the signalling contract                  -> the last action
+    part 3  caller ending instructions with canonical path -> the last action
 
   -> one String, ~1.9 KiB, and the driver never looks inside it again
 ```
@@ -218,7 +218,7 @@ names it needs, then the three parts **in the order they appear in the prompt**,
 then the values one launch varies, then the composition that joins them, and last
 the one derived value the module computes for itself.
 
-<!-- fragment «the-prompt-core» owner="too-late-to-say-later" source="crates/grove-loop/src/prompt.rs" lines="1-222" parent="source-prompt" -->
+<!-- fragment «the-prompt-core» owner="too-late-to-say-later" source="crates/grove-loop/src/prompt.rs" lines="1-228" parent="source-prompt" -->
 <!-- insert «core-header» -->
 <!-- insert «core-imports» -->
 <!-- insert «core-plugin» -->
@@ -453,7 +453,7 @@ grove writes the leaf*, and this is the last place in the driver that had to be
 changed for that to be true.
 
 The claim generalises, and it holds under enumeration. `label()` is reached four
-times in `loop_driver.rs` — once to hand `harness-dispatch` its `--kind`, and
+times in `loop_driver.rs` — once to hand `Ravel` its `--kind`, and
 three times as a diagnostic's argument — and none of the four is a branch. Together with this module's zero conditionals, *the driver interprets a
 kind nowhere* is a statement about code that can be checked rather than a
 statement of intent. The crate does still know that two kind tokens are reserved,
@@ -600,66 +600,67 @@ Part 3 is thirty-four lines of argument over an eighteen-line constant, and
 every paragraph of the argument is about something the text deliberately does
 not say.
 
-<!-- fragment «core-signalling-contract» owner="too-late-to-say-later" source="crates/grove-loop/src/prompt.rs" lines="126-155" parent="the-prompt-core" -->
+<!-- fragment «core-signalling-contract» owner="too-late-to-say-later" source="crates/grove-loop/src/prompt.rs" lines="126-154" parent="the-prompt-core" -->
 ````rust
 /// **Part 3 — grove's own signalling contract.** Last, because it describes the
 /// last action.
 ///
-/// One text for every kind: dispatch owns the harness's exit channel and kill
-/// escalation, while Grove reads the reported ending after reap. The kind's
-/// ending remains the sentence's object; the ordinary exit verb is subordinate.
-/// A finish records teardown separately before sending the same pure signal.
-/// A finish whose skill is unread can still send only that signal after deleting
+/// One text for every kind: Ravel owns process supervision and opaque result
+/// transport, while Grove reads the public result after reap. The kind's
+/// ending remains the sentence's object; the exact ending command is supplied.
+/// A finish records teardown separately before publishing the same result.
+/// A finish whose skill is unread can publish only that result after deleting
 /// the tree, causing a relaunch. Decision 9 records that residue and its reopen
-/// condition: an exit signal after an unrecorded teardown.
+/// condition: a continue result after an unrecorded teardown.
 const SIGNALLING_CONTRACT: &str = "\
-**Signal.** Your kind's skill states how this session ends, and that ending is
-your **last action — then do nothing else**. Ordinarily it is **`harness-dispatch exit`**,
-once the task is retired and committed (and any parent-chain cascade is settled
-and included). A finish session first records its teardown with
-`grove-llm record-teardown`, then sends the exit signal. Dispatch watches its
-run's exit channel (`HARNESS_DISPATCH_EXIT_FILE`); the exit verb only creates
-the signal file and returns, carrying nothing. Ending the harness is
-**dispatch's** job: it applies grace → SIGTERM → kill-grace → SIGKILL to its
-child's group, reaps it, and reports the run ending to Grove. Grove then reads
-its own teardown record to finish, or an exit-signal ending to relaunch with
-fresh context. Run outside dispatch (no `HARNESS_DISPATCH_EXIT_FILE`), the exit
-verb is a safe no-op that tells you to exit manually. Without signalling, the
-loop waits for the harness to end, then stops with the leaf live; ending a turn
-in an interactive harness can leave it waiting at its prompt. A crash or a
-Ctrl-C can end the harness without signalling, and for at least one kind that
-is a stated ending. A recorded teardown instead finishes the loop after reap,
-unless the driver itself was interrupted.
+**Signal.** Your kind's skill states how this session ends. After retirement and
+commit (including any settled parent cascade), run this exact command as your
+**last action — then do nothing else**:
+`{ending_command}`
+A finish session first runs `grove-llm record-teardown`, then the same command.
+Ravel finds the enclosing session from inherited process context, terminates and
+reaps its managed group, and returns Grove's opaque `grove-continue` result.
+Grove interprets the result only after reap and epoch invalidation. A recorded
+teardown finishes the loop; otherwise that exact result continues with fresh
+context. Driver interruption takes precedence. Without a supported result the
+loop stops with the leaf live; ending a turn in an interactive harness may leave
+it waiting at its prompt. A crash or Ctrl-C can end the harness without a result.
+Outside a Ravel session, `end-session` refuses; it needs no session ID argument.
+The ending command in this launch prompt governs this session. Legacy sessions
+launched by Grove 22.1.0 through dispatch keep their original
+`harness-dispatch exit` command and channel, including admission and teardown.
 ";
 
 ````
 <!-- /fragment -->
 
-This is the largest of the three parts, and the only one that does not vary.
-Grove states a fact about the process tree: after a forgotten signal an
-interactive harness can remain at its prompt, leaving the loop waiting until
-the harness ends. Dispatch owns the
-harness channel and its escalation; Grove owns the reading of the ending.
+This is the largest of the three parts. Its ending command varies with the
+canonical Ravel path resolved for the launch. Grove states a fact about the
+process tree: an interactive harness can remain at its prompt without publishing
+completion, leaving Ravel and Grove waiting. Ravel owns the managed process's
+channel and escalation; Grove owns returned-result interpretation.
 
-The kind's own ending remains the object, with the ordinary `harness-dispatch
-exit` subordinate to it. The exit signal carries nothing. A finish that has torn
-down the grove first records that disposition through `grove-llm record-teardown`,
-then sends the same signal. The driver finishes on the record regardless of the
-harness's own ending, and relaunches only on an exit-signal report otherwise.
+The kind's ending remains the object, with the exact `end-session grove-continue`
+command subordinate to it. Grove supplies that instruction and meaning; Ravel
+returns the argument unchanged after cleanup. A finish first records teardown
+with `grove-llm record-teardown`. The driver finishes on its own record regardless
+of supervisor result/status; otherwise successful supported completion advances.
+Original live-v22 sessions retain the ending named in their original prompt.
 
 The accepted residue remains a finish whose skill is unread and whose teardown
 is not recorded before the exit signal. The loop cannot infer confirmation from
-`.grove/` being absent. The contract test pins dispatch's exit verb, its channel
-and escalation, and Grove's teardown verb. The shipped skills use dispatch exit, and Grove's CLI exposes only the separate
-teardown record operation.
+`.grove/` being absent. Grove's prompt tests pin its supplied ending command and
+teardown instructions. Ravel's channel/escalation controls belong to Ravel's
+runtime evidence. The shipped skills use the exact command in the launch prompt;
+Grove's CLI exposes the separate teardown record operation.
 
 <a id="what-one-launch-varies"></a>
 ## Everything one launch varies
 
-Four fields, and the doc comment on each names the owner of the thing rather
+The mandate fields, and the doc comment on each names the owner of the thing rather
 than explaining it.
 
-<!-- fragment «core-mandate» owner="too-late-to-say-later" source="crates/grove-loop/src/prompt.rs" lines="156-178" parent="the-prompt-core" -->
+<!-- fragment «core-mandate» owner="too-late-to-say-later" source="crates/grove-loop/src/prompt.rs" lines="155-179" parent="the-prompt-core" -->
 ````rust
 /// Everything one launch varies, and the whole of what composition reads.
 ///
@@ -682,14 +683,16 @@ pub struct Mandate<'a> {
     /// orders and means something to a human. `grove --version` renders the same
     /// value and remains as a fallback, not as the mechanism.
     pub version: &'a str,
+    /// Exact shell command built from this launch's once-resolved Ravel path.
+    pub ending_command: &'a str,
 }
 
 ````
 <!-- /fragment -->
 
-The four fields are decision 9's, and unusually the record carries them as
+The fields are decision 9's, and unusually the record carries them as
 written source rather than as prose: the `Mandate` struct in
-`docs/specs/module-decomposition.md` has these four fields in this order, beside
+`docs/specs/module-decomposition.md` has these fields in this order, beside
 `pub fn compose(mandate: &Mandate<'_>) -> String`. So *the shape is the record's*
 is checkable by reading the record.
 
@@ -709,7 +712,7 @@ dropped.
 The function the whole module exists for, and the only place its three parts
 meet.
 
-<!-- fragment «core-compose» owner="too-late-to-say-later" source="crates/grove-loop/src/prompt.rs" lines="179-199" parent="the-prompt-core" -->
+<!-- fragment «core-compose» owner="too-late-to-say-later" source="crates/grove-loop/src/prompt.rs" lines="180-205" parent="the-prompt-core" -->
 ````rust
 /// Compose the whole of `${prompt}` for one launch.
 ///
@@ -729,7 +732,12 @@ pub fn compose(mandate: &Mandate<'_>) -> String {
         .replace("{stated_vcs}", &stated_vcs(mandate.workspace))
         .replace("{version}", mandate.version);
 
-    [load, facts, SIGNALLING_CONTRACT.to_string()].join("\n")
+    [
+        load,
+        facts,
+        SIGNALLING_CONTRACT.replace("{ending_command}", mandate.ending_command),
+    ]
+    .join("\n")
 }
 
 ````
@@ -782,7 +790,7 @@ build on that is a gate this design declines to erect.
 
 The last item, and the only value this module computes rather than receives.
 
-<!-- fragment «core-stated-vcs» owner="too-late-to-say-later" source="crates/grove-loop/src/prompt.rs" lines="200-222" parent="the-prompt-core" -->
+<!-- fragment «core-stated-vcs» owner="too-late-to-say-later" source="crates/grove-loop/src/prompt.rs" lines="206-228" parent="the-prompt-core" -->
 ````rust
 /// The **value** that states this working tree's VCS to the session.
 ///

@@ -295,7 +295,7 @@ sentinel between the last ordinary session and the finish session. Those two
 writes mint the only two leaves grove itself authors, and they are the only two
 kinds it may name — `requirements` for the first, `finish` for the second. Every
 other kind is an opaque string that grove substitutes into a skill name and
-passes to `harness-dispatch` as `--kind`, and interprets in neither.
+passes to `ravel start-session` as `--kind`, and interprets in neither.
 
 That rule also covers the places a kind is asked about: `finish` sorting last in
 selection, `finish` being refused to the grow verbs, and teardown. All of them go
@@ -316,10 +316,10 @@ literal that would silently produce a *wrong* leaf rather than an error.
 
 The runner takes a program and its arguments from its caller and launches them
 as a job it supervises to the end. It reads no configuration and resolves no
-name to a command, and it understands none of Grove's or dispatch's paths,
-kinds or records. Its two callers build the argv themselves: harness-dispatch
-launches the command its owner's policy selected, and Grove launches
-`harness-dispatch run`, for a lifecycle session and for `grove run` alike
+name to a command, and it understands no task, kind or provider receipt.
+Grove's lifecycle and standalone callers build `ravel start-session` argv
+through the shared public-command adapter. Ravel independently retains its own
+runner for the selected process; no shared Rust dependency crosses that boundary
 ([harness selection and execution](harness-selection-and-execution.md#grove-integration)).
 
 ```rust
@@ -451,7 +451,7 @@ takes nothing
 ([`the-launched-child-is-a-job`](../adr/the-launched-child-is-a-job.md)).
 Its terminal-generated signal dispositions are the defaults, unless its caller
 is a transparent wrapper that passes on its own entry signal mask and
-dispositions instead, as dispatch does, its pending signals staying its own; and
+dispositions instead, its pending signals staying its own; and
 the runner installs no handler over a disposition its launcher ignores. A
 launcher that inherited SIGCHLD ignored has its default restored, never a
 handler, so that its child is not reaped unwatched, while the child still
@@ -471,22 +471,14 @@ noninteractive child's group is sent the same signal and, after the kill-grace,
 SIGKILL; a confined child's group is killed at once, so that a cancellation
 nested inside another supervisor's grace finishes inside it.
 
-Dispatch launches its harness interactively or confined, with a channel and its
-own constant graces. Grove launches dispatch interactively for a lifecycle
-session and noninteractively for `grove run`, both with no channel. Lifecycle
-uses a 10-second kill-grace, longer than dispatch's because dispatch must end
-its interactive harness. Standalone uses five seconds: confined cancellation
-kills the harness group immediately, leaving time to reap and record its end.
-A confined launch is specified in
-[harness selection and execution](harness-selection-and-execution.md#confinement).
-
-Grove's 10-second kill-grace covers dispatch noticing cancellation at its
-next poll (up to 500 ms), its 5-second kill-grace, the 10 ms killed-child poll,
-the 20 ms second group kill, the 1-second group confirmation and the store
-append's single 2-second lock wait: about 8.53 seconds, leaving about 1.47
-seconds for scheduling and file I/O. Migration runs inside the append's same
-exclusive transaction, adding no second lock wait. This is a budget under
-ordinary scheduling, not a wall-clock guarantee against suspension or slow I/O.
+Grove launches Ravel interactively for lifecycle and noninteractively for
+standalone work, with no local completion channel. Lifecycle keeps a 10-second
+kill-grace; standalone keeps five seconds. Its stdout-capturing runner entry
+points keep Ravel's public result separate from managed output and transcripts.
+Ravel owns its selected process's confinement, completion channel, bounds and
+cleanup ([Ravel process decision](https://github.com/Linkuistics/Ravel/blob/v0.1.0/docs/adr/the-launched-child-is-a-job.md)).
+There is no store append or migration wait in that boundary. The nested grace
+is a scheduling budget, not a wall-clock guarantee under suspension or slow I/O.
 
 ### 8 — The VCS seam
 
@@ -569,10 +561,11 @@ pub struct Mandate<'a> {
     pub kind: &'a Kind,
     pub workspace: &'a Workspace,
     pub version: &'a str,
+    pub ending_command: &'a str,
 }
 pub fn compose(mandate: &Mandate<'_>) -> String;
 
-pub fn run(workspace: &Workspace, lease: DriverLease, dispatch: &Path)
+pub fn run(workspace: &Workspace, lease: DriverLease, ravel: &Path)
     -> Result<LoopOutcome, Error>;
 
 /// The loop's terminal disposition, so a clean whole-grove finish, a
@@ -720,11 +713,11 @@ a bare *send the exit signal* — the ending that, taken alone by the one sessio
 that may have just deleted the task tree, relaunches the loop onto a torn-down
 grove, and whose stated precondition a completed teardown satisfies exactly.
 The contract answers that by making the kind's own ending the sentence's object
-and the ordinary verb, `harness-dispatch exit`, subordinate to it, so no prompt
-ends on a bare imperative for the wrong action. A teardown is a record of its
-own, written by `grove-llm record-teardown` before that verb, and the loop
-finishes on the record rather than on what the exit signal carries, which is
-nothing ([dispatch supervises the harness](../adr/dispatch-supervises-the-harness.md)).
+and the exact canonical `ravel end-session grove-continue` command subordinate
+to it, so no prompt ends on a bare imperative for the wrong action. Grove
+supplies those instructions and the result meaning; Ravel injects neither. A
+teardown is Grove's record, written by `grove-llm record-teardown` before the
+ending command; that record takes precedence over the returned opaque result ([dispatch supervises the harness](../adr/dispatch-supervises-the-harness.md)).
 What is not answered is the compound with decision 10's accepted residue: a
 `finish` session whose `grove-finish` skill is missing or unread meets the
 ordinary default and nothing contradicting it, where the old prompt alone was
@@ -834,7 +827,7 @@ a kind label literally only for the two leaves it authors itself.
   the session that could not load the skill
 
 #### Scenario: a kind no launch policy routes
-- **WHEN** a leaf of kind K is added and the owner's dispatch policy refuses K
+- **WHEN** a leaf of kind K is added and the owner's Ravel policy refuses K
 - **THEN** the add succeeds, because no tree verb consults a policy; the
   refusal arrives when the leaf launches, and the leaf stays live
 
@@ -906,6 +899,6 @@ updated in the same accepted change. No additional test service is introduced.
 - **A harness registry row for a further harness.** Answered by deletion — there
   is no registry to hold a row. A row was only ever *a place to write files*, so a
   further harness is answered by that harness's own skill-install route.
-- **Invoking a harness plugin.** The command a dispatch policy returns expresses
+- **Invoking a harness plugin.** The command a Ravel policy returns expresses
   this; if more is meant it is a new runner capability, belonging to decision
   7's contract and not to any registry.

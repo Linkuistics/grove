@@ -24,8 +24,10 @@
 #           the launch prompt rather than carried by any skill. One row has it,
 #           `signal-is-the-last-action`, and it binds every kind:
 #           `prompt-names-the-kind-k18` replaced the two inlined signal files
-#           with one driver-authored exit contract, now `harness-dispatch exit`
-#           as the final action. The mechanism is stated once for every kind
+#           with one driver-authored ending contract. Current prompts name the
+#           canonical `ravel end-session grove-continue` command; original
+#           live-v22 prompts retain `harness-dispatch exit` as their final action.
+#           The mechanism is stated once for every kind
 #           and `finish-three-endings` — the ending
 #           that differs — moved to `grove-finish/SKILL.md`, where the spine
 #           already says a kind's own ending belongs. Neither assertion below can
@@ -225,7 +227,7 @@ silence-is-a-finding	grove/references/research.md	B	static(research)
 walk-away-check-per-system	grove/references/research.md	B	static(research)	
 cascade-is-silent	grove/references/retire.md	B	on(a node has no live leaf left) @ grove/SKILL.md	
 finish-is-the-drivers-to-discover	grove/references/retire.md	B	on(the last live leaf retires) @ grove/SKILL.md	You do not discover that a grove is finished
-finishing-session-names-its-run	grove/references/retire.md	B	on(the work is done) @ grove/SKILL.md	The session that finishes a producer names its run on that producer's reviews
+finishing-session-names-its-evidence	grove/references/retire.md	B	on(the work is done) @ grove/SKILL.md	The session that finishes a producer names its provider evidence on that producer's reviews
 no-fourth-status	grove/references/retire.md	B+S	on(a leaf's place is in doubt) @ grove/SKILL.md	There is no fourth state
 node-close-four-steps	grove/references/retire.md	B	on(a node has no live leaf left) @ grove/references/retire.md	a node you close is a producer you finished
 node-close-is-implicit	grove/references/retire.md	B	on(a node has no live leaf left) @ grove/SKILL.md	The close asks the human nothing

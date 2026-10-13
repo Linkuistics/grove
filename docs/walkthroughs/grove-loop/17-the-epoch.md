@@ -237,7 +237,7 @@ nonce/launch-directory binding. Admission accepts absent, unsupported and malfor
 extensions, including invalid UTF-8, while rejecting wrong launch directorys and
 corrupt mandatory path fields. A limited writer fails partway through the real
 extension serializer to prove mandatory activation survives. The real-run event
-control writes a dispatch exit at Started and checks that both locks remain
+control signals the local runner's generic test channel at Started and checks that both locks remain
 held until Reaped; successful spawn leaves exactly eight bytes, failed spawn none.
 
 <!-- fragment «epoch-tests-launch-owner» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="969-1501" parent="lease-tests" -->

@@ -7,13 +7,10 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{bail, Context, Result};
 
-use std::io::Read;
-
 pub(crate) struct LaunchDirectory(PathBuf);
 
 pub(crate) struct LaunchReading {
     pub(crate) teardown: bool,
-    pub(crate) exit_signal: bool,
 }
 
 pub(crate) fn is_launch_name(name: Option<&OsStr>) -> bool {
@@ -48,36 +45,12 @@ impl LaunchDirectory {
         &self.0
     }
 
-    /// Interpretation happens only after dispatch's reap and epoch invalidation.
-    /// Missing, unreadable, malformed or unsupported reports never relaunch.
+    /// Teardown is interpreted only after Ravel's reap and epoch invalidation.
+    /// The public result is held separately, never reopened through this path.
     pub(crate) fn read(&self) -> LaunchReading {
-        let exit_signal = (|| {
-            let mut bytes = Vec::new();
-            let file = OpenOptions::new()
-                .read(true)
-                .custom_flags(libc::O_NOFOLLOW | libc::O_NONBLOCK)
-                .open(self.0.join("ending.json"))
-                .ok()?;
-            if !file.metadata().ok()?.is_file() {
-                return None;
-            }
-            file.take(1024 * 1024 + 1).read_to_end(&mut bytes).ok()?;
-            if bytes.len() > 1024 * 1024 {
-                return None;
-            }
-            let report: serde_json::Value = serde_json::from_slice(&bytes).ok()?;
-            Some(
-                report["schemaVersion"] == 1
-                    && report["source"] == "harness-dispatch"
-                    && report["measurements"]["ending"]["state"] == "observed"
-                    && report["measurements"]["ending"]["value"] == "exit_signal",
-            )
-        })()
-        .unwrap_or(false);
         LaunchReading {
             teardown: fs::symlink_metadata(self.0.join("teardown"))
                 .is_ok_and(|metadata| metadata.file_type().is_file()),
-            exit_signal,
         }
     }
 
@@ -140,54 +113,22 @@ mod tests {
     use super::*;
 
     #[test]
-    fn only_a_supported_observed_exit_signal_relaunches() {
+    fn teardown_requires_a_regular_marker_and_ignores_legacy_reports() {
         let control = tempfile::tempdir().unwrap();
         let launch = LaunchDirectory::allocate(control.path()).unwrap();
-        let report = launch.path().join("ending.json");
-        assert!(!launch.read().exit_signal);
-        for (document, want) in [
-            (
-                r#"{"schemaVersion":1,"source":"harness-dispatch","measurements":{"ending":{"state":"observed","value":"exit_signal"}}}"#,
-                true,
-            ),
-            (
-                r#"{"schemaVersion":1,"source":"harness-dispatch","measurements":{"ending":{"state":"observed","value":"harness_exit"}}}"#,
-                false,
-            ),
-            (
-                r#"{"schemaVersion":1,"source":"harness-dispatch","measurements":{"ending":{"state":"observed","value":"cancelled"}}}"#,
-                false,
-            ),
-            (
-                r#"{"schemaVersion":2,"source":"harness-dispatch","measurements":{"ending":{"state":"observed","value":"exit_signal"}}}"#,
-                false,
-            ),
-            (
-                r#"{"schemaVersion":1,"source":"other","measurements":{"ending":{"state":"observed","value":"exit_signal"}}}"#,
-                false,
-            ),
-            (
-                r#"{"schemaVersion":1,"source":"harness-dispatch","measurements":{"ending":{"state":"unknown","value":"exit_signal"}}}"#,
-                false,
-            ),
-            ("{}", false),
-            ("broken", false),
-        ] {
-            fs::write(&report, document).unwrap();
-            assert_eq!(launch.read().exit_signal, want, "{document}");
-        }
-        fs::remove_file(&report).unwrap();
-        fs::create_dir(&report).unwrap();
-        assert!(!launch.read().exit_signal);
-    }
-
-    #[test]
-    fn an_ending_symlink_does_not_relaunch() {
-        let control = tempfile::tempdir().unwrap();
-        let launch = LaunchDirectory::allocate(control.path()).unwrap();
-        let other = control.path().join("other-ending");
-        fs::write(&other, r#"{"schemaVersion":1,"source":"harness-dispatch","measurements":{"ending":{"state":"observed","value":"exit_signal"}}}"#).unwrap();
-        std::os::unix::fs::symlink(other, launch.path().join("ending.json")).unwrap();
-        assert!(!launch.read().exit_signal);
+        assert!(!launch.read().teardown);
+        fs::write(launch.path().join("ending.json"), "grove-continue").unwrap();
+        assert!(!launch.read().teardown);
+        let other = control.path().join("other-teardown");
+        fs::write(&other, "").unwrap();
+        let marker = launch.path().join("teardown");
+        std::os::unix::fs::symlink(other, &marker).unwrap();
+        assert!(!launch.read().teardown);
+        fs::remove_file(&marker).unwrap();
+        fs::create_dir(&marker).unwrap();
+        assert!(!launch.read().teardown);
+        fs::remove_dir(&marker).unwrap();
+        fs::write(marker, "").unwrap();
+        assert!(launch.read().teardown);
     }
 }

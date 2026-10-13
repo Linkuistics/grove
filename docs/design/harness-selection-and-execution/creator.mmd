@@ -1,28 +1,31 @@
 flowchart TB
-  Start["Start here: review policy\nreads the task file"]:::start
-  Kind{"Configured\nreview kind?"}
-  Decl{"Declares\nReviews?"}
-  Plain["Owner's own\ntable"]
-  Line{"One Reviews and\none Creator line?"}
-  Form{"Creator\nform?"}
-  Run{"R found, not\nmarked failed?"}
-  Member{"Provider listed in\nthe review entry?"}
-  Choice{"Its reviewer has a\ndifferent provider?"}
-  Dispatch["Record provenance\nused, then dispatch"]
-  Refuse["Refuse, exit 3:\nno launch, no substitute,\nremedy named"]
-  Start -->|"1"| Kind
-  Kind -->|"2a. No"| Decl
-  Decl -->|"No"| Plain
-  Decl -->|"Yes"| Refuse
-  Kind -->|"2b. Yes"| Line
-  Line -->|"3a. No"| Refuse
-  Line -->|"3b. Yes"| Form
-  Form -->|"4a. run R"| Run
-  Form -->|"4b. declared P"| Member
-  Run -->|"No"| Refuse
-  Run -->|"Yes: recorded"| Member
-  Member -->|"5a. No"| Refuse
-  Member -->|"5b. Yes"| Choice
-  Choice -->|"6a. Yes"| Dispatch
-  Choice -->|"6b. No"| Refuse
+  Start["Start here: Grove task adapter
+reads supplied task file"]:::start
+  Lines{"Valid Reviews and Creator
+for a configured review?"}
+  Form{"Creator form?"}
+  Receipt{"Canonical recorded receipt
+with matching provider?"}
+  Declared{"Valid owner-declared provider?"}
+  Route{"Origin listed in review table?"}
+  Different{"Selected reviewer has
+a different provider?"}
+  Selected["Return selected command
+Ravel launches and supervises"]
+  Refuse["Refuse with named remedy
+no launch or substitute"]
+  Start -->|"1"| Lines
+  Lines -->|"No"| Refuse
+  Lines -->|"2. Yes"| Form
+  Form -->|"3a. recorded"| Receipt
+  Form -->|"3b. declared"| Declared
+  Form -->|"Legacy run or invalid"| Refuse
+  Receipt -->|"No"| Refuse
+  Declared -->|"No"| Refuse
+  Receipt -->|"4. Yes"| Route
+  Declared -->|"4. Yes"| Route
+  Route -->|"No"| Refuse
+  Route -->|"5. Yes"| Different
+  Different -->|"No"| Refuse
+  Different -->|"6. Yes"| Selected
   classDef start fill:#163a57,color:#fff,stroke:#163a57,font-weight:bold

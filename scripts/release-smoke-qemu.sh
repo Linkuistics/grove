@@ -16,14 +16,14 @@
 # bytes of each ELF file in ARCHIVE.
 #
 # The userland is the same image the container route runs, unpacked into
-# /floor and entered with chroot as uid 1000. Its executables reach qemu
+# /floor and entered by native pivot_root and authority drop as uid 1000. Its executables reach qemu
 # through binfmt_misc, even where the helper's architecture could run them
 # itself, and the registration must not touch the Docker host's own, which
 # every other container uses. So it
 # goes into a private binfmt_misc instance, which the kernel (6.7 and later)
 # gives each user namespace that mounts one. The namespace maps uids and gids
 # 0-65535 to themselves, so root inside it is the container's root, and uid
-# 1000 in the chroot owns nothing there, as in the container route.
+# 1000 in the target root owns nothing there, as in the container route.
 #
 # Before the smoke test, the guest's own /proc/self/maps must show a vDSO and
 # no mapping at or above the target's user address limit but the vsyscall
@@ -38,6 +38,7 @@ set -euo pipefail
 IFS=$'\n\t'
 
 readonly FLOOR=/floor
+readonly EMULATOR=/usr/libexec/floor-qemu
 
 die() {
   echo "release-smoke: ${TARGET:-qemu}: FAIL: $*" >&2
@@ -94,16 +95,33 @@ outside() {
   local inputs="$1" archive="$3" cpu="$4" arch file
   arch="${TARGET%%-*}"
   guest "$arch" >/dev/null
-  mkdir "$FLOOR" "$FLOOR/qemu"
+  mkdir -p "$FLOOR$EMULATOR"
   tar -xf "$inputs/rootfs.tar" -C "$FLOOR" || die "cannot unpack the floor image's filesystem"
   for file in qemu interpreter interpreter-max; do
-    cp "$inputs/$file" "$FLOOR/qemu/"
-    exempt "$FLOOR/qemu/$file"
+    cp "$inputs/$file" "$FLOOR$EMULATOR/"
+    exempt "$FLOOR$EMULATOR/$file"
   done
-  # The interpreter runs /qemu/qemu in its caller's root, which is the
+  # The interpreter runs the read-only system emulator in its caller's root,
   # helper's own for a helper executable that matches the registration.
-  ln -s "$FLOOR/qemu" /qemu
-  note "userland unpacked; $("$FLOOR/qemu/qemu" --version | head -n 1), -cpu $cpu"
+  ln -s "$FLOOR$EMULATOR" "$EMULATOR"
+  cp "$inputs/enter" /floor-enter
+  exempt /floor-enter
+  if [[ -d "$inputs/native" ]]; then
+    cp -a "$inputs/native" "$FLOOR/usr/libexec/floor-backend"
+    case "${FLOOR_MODE:?caller runner must name the backend mode}" in
+      supported)
+        cp "$inputs/native/bwrap" "$FLOOR/usr/bin/bwrap"
+        exempt "$FLOOR/usr/bin/bwrap"
+        ;;
+      qemu-unusable) cp "$inputs/bwrap" "$FLOOR/usr/bin/bwrap" ;;
+      missing) ;;
+      *) die "unknown backend mode $FLOOR_MODE" ;;
+    esac
+    cp "$inputs/security" "$FLOOR/usr/libexec/floor-security"
+    exempt "$FLOOR/usr/libexec/floor-security"
+    cp "$inputs/probes/cpu-$arch" "$FLOOR/usr/libexec/floor-cpu-probe"
+  fi
+  note "userland unpacked; $("$FLOOR$EMULATOR/qemu" --version | head -n 1), -cpu $cpu"
 
   local sync own pid status=0
   sync="$(mktemp -d)"
@@ -126,7 +144,7 @@ outside() {
 # on the helper's own CPU, out of the model's reach, and pass untested. HEADERS
 # lists each file's first 20 bytes; it must include the front and the worker.
 assert_archive_matches() {
-  local headers="$1" magic mask header path i count=0 front=0 worker=0
+  local headers="$1" magic mask header path i count=0 grove=0 llm=0 ravel_front=0 ravel_worker=0
   # A registration's escapes as hex; a pipe carries their NUL bytes.
   magic="$(printf '%b' "$2" | od -An -tx1 | tr -d ' \n')"
   mask="$(printf '%b' "$3" | od -An -tx1 | tr -d ' \n')"
@@ -139,11 +157,14 @@ assert_archive_matches() {
     done
     count=$((count + 1))
     case "$path" in
-      */bin/harness-dispatch) front=1 ;;
-      */libexec/harness-dispatch/harness-dispatch-policy) worker=1 ;;
+      */bin/grove) grove=1 ;;
+      */bin/grove-llm) llm=1 ;;
+      */bin/ravel) ravel_front=1 ;;
+      */libexec/ravel/ravel-policy) ravel_worker=1 ;;
     esac
   done <"$headers"
-  ((front && worker)) || die "$headers lists no harness-dispatch front or worker: $(cat "$headers")"
+  ((ravel_front && ravel_worker && ((grove && llm) || (!grove && !llm)))) ||
+    die "$headers lacks the complete Ravel pair or lists an incomplete Grove pair: $(cat "$headers")"
   note "all $count ELF files in the archive match the registration, so they run under the model"
 }
 
@@ -155,7 +176,9 @@ in_namespace() {
   arch="${TARGET%%-*}"
   { read -r magic && read -r mask && read -r limit; } < <(guest "$arch")
   assert_archive_matches "$inputs/elf-headers" "$magic" "$mask"
-  binfmt="$(mktemp -d)"
+  # Keep this mount in the new root; detaching it loses the registration.
+  binfmt="$FLOOR/.floor-binfmt"
+  mkdir "$binfmt"
   mount -t binfmt_misc binfmt_misc "$binfmt" || die "cannot mount a private binfmt_misc instance"
   mkdir -p "$FLOOR/smoke"
   # A bind keeps the read-only flag of release-smoke.sh's volume, which the
@@ -168,12 +191,12 @@ in_namespace() {
   # the interpreter now, outside the chroot; the interpreter finds qemu inside
   # it. P passes the executable's own argv[0], which the interpreter hands on
   # as its qemu takes it.
-  printf '%s' ":release-smoke-$arch:M::$magic:$mask:$FLOOR/qemu/interpreter:PF" >"$binfmt/register" ||
+  printf '%s' ":release-smoke-$arch:M::$magic:$mask:$FLOOR$EMULATOR/interpreter:PF" >"$binfmt/register" ||
     die "cannot register the interpreter"
 
   local maps line end vdso=0
   maps="$(chroot --userspec=1000:1000 "$FLOOR" /usr/bin/cat /proc/self/maps)" ||
-    die "the userland's cat did not run under $FLOOR/qemu/interpreter"
+    die "the userland's cat did not run under $FLOOR$EMULATOR/interpreter"
   while IFS= read -r line; do
     case "$line" in
       *'[vsyscall]') continue ;;
@@ -198,14 +221,17 @@ in_namespace() {
     die "positive control: under -cpu $cpu, the CPU probe was not killed by SIGILL at its instruction (exit $status): $refused"
   fi
   status=0
-  output="$(chroot --userspec=1000:1000 "$FLOOR" /qemu/interpreter-max "$probe" "cpu-$arch" 2>&1)" || status=$?
+  output="$(chroot --userspec=1000:1000 "$FLOOR" "$EMULATOR/interpreter-max" "$probe" "cpu-$arch" 2>&1)" || status=$?
   if ((status != 0)) || [[ "$output" != *"cpu probe executed its instruction" ]]; then
     die "the CPU probe did not run under the same QEMU with -cpu max, so its refusal is not evidence (exit $status): $output"
   fi
   note "CPU control: -cpu $cpu killed the probe at its instruction (exit 132): ${refused//$'\n'/ | }; -cpu max ran it"
 
-  exec chroot --userspec=1000:1000 "$FLOOR" \
-    /usr/bin/env -i PATH=/usr/bin:/bin /bin/bash /smoke/release-smoke-target.sh \
+  # The max control is not a payload resource. Only the pinned interpreter stays.
+  rm "$FLOOR$EMULATOR/interpreter-max"
+  exec /floor-enter "$FLOOR" \
+    /usr/bin/env -i PATH=/usr/bin:/bin "FLOOR_MODE=${FLOOR_MODE:-supported}" \
+    "FLOOR_KIND=qemu" /bin/bash /smoke/release-smoke-target.sh \
     "$TARGET" "/smoke/$archive" /smoke/installed-smoke.sh /smoke/probes
 }
 
@@ -223,4 +249,6 @@ main() {
   "$phase" "$@"
 }
 
-main "$@"
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+  main "$@"
+fi

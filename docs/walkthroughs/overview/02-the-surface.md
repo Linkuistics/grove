@@ -25,7 +25,7 @@ The grammar owns the imports, its stated contract, clap metadata and the
 command declarations. Their source-order concatenation is independent of the
 reader order below. The `Command` enum belongs here alongside `Cli`, because
 its job is parsing the requested operation. Standalone mode names a kind;
-the owner's harness-dispatch policy selects the command that implements it.
+the owner's Ravel policy selects the command that implements it.
 
 <!-- fragment «surface-grammar» owner="no-arguments" source="crates/grove/src/cli.rs" lines="1-62" parent="source-command-surface" -->
 <!-- insert «surface-imports» -->
@@ -64,7 +64,7 @@ use grove_loop::{DriverLease, LoopOutcome, Workspace};
 ## Launch policy stays on disk
 
 The doc comment distinguishes an observation path from a lifecycle selector.
-The tree still decides which leaf runs, and the owner's `harness-dispatch` policy
+The tree still decides which leaf runs, and the owner's `ravel` policy
 decides how to launch its kind. Bare `grove` takes neither as an argument.
 Adding the browser does not give the launcher a second source of policy.
 
@@ -72,7 +72,7 @@ Adding the browser does not give the launcher a second source of policy.
 ````rust
 
 /// Bare `grove` drives the lifecycle; `run` launches a standalone invocation.
-/// Launch policy stays in the owner's harness-dispatch policy rather than
+/// Launch policy stays in the owner's Ravel policy rather than
 /// command-line selectors.
 ````
 <!-- /fragment -->
@@ -128,7 +128,7 @@ pub struct Cli {
 enum Command {
     /// Run one task kind in a confined temporary directory, without a grove.
     #[command(
-        after_help = "Examples:\n  grove run release-notes --prompt-file prompt.md --input changes.txt --output notes.md\n  grove run summarise 'Summarise input.txt into summary.md' --input input.txt --output summary.md --ui inline\n\nThe owner's harness-dispatch policy selects the command for the kind; no jj or project discovery. Requires OS confinement and a noninteractive harness command. Exit codes: 0 completed and outputs published, 1 failure/cancellation, 2 invalid usage. Existing output files are never overwritten. Runtime credentials need explicit --runtime-read grants."
+        after_help = "Examples:\n  grove run release-notes --prompt-file prompt.md --input changes.txt --output notes.md\n  grove run summarise 'Summarise input.txt into summary.md' --input input.txt --output summary.md --ui inline\n\nThe owner's Ravel policy selects the command for the kind; no jj or project discovery. Requires OS confinement and a noninteractive harness command. Exit codes: 0 completed and outputs published, 1 failure/cancellation, 2 invalid usage. Existing output files are never overwritten. Runtime credentials need explicit --runtime-read grants."
     )]
     Run(crate::standalone::Args),
     /// Display a standalone transcript in a supervisor-owned pane.
@@ -141,7 +141,7 @@ enum Command {
     },
     /// Browse a .grove task tree read-only with automatic refresh.
     #[command(
-        long_about = "Browse WORKTREE/.grove read-only with automatic refresh. There is no upward search: from a subdirectory, view observes that subdirectory's .grove. Requires an interactive terminal; no jj workspace or harness-dispatch policy is needed.",
+        long_about = "Browse WORKTREE/.grove read-only with automatic refresh. There is no upward search: from a subdirectory, view observes that subdirectory's .grove. Requires an interactive terminal; no jj workspace or Ravel policy is needed.",
         after_help = "Examples:\n  grove view\n  grove view /path/to/another/worktree"
     )]
     View {
@@ -176,7 +176,7 @@ an actionable error before changing terminal modes. The integration tests in
 ## The agent surface remains flat
 
 The twelve tree/session verbs belong to `grove-llm` and retain their task-tree
-epoch checks. A standalone harness acknowledges through `harness-dispatch exit`;
+epoch checks. A standalone harness acknowledges through the launch prompt's exact `ravel end-session grove-continue` command;
 Grove grants it no tree authority. The human binary delegates observation to
 `grove-tui` and lifecycle execution to `grove-loop`. [Lifecycle startup](03-three-steps.md)
 shows the branch that separates these paths.

@@ -4,7 +4,7 @@
 # archive, extracted where that target runs and exercised with no Bun or Node
 # on PATH.
 #
-#   scripts/release-smoke.sh [--archives DIR] [TARGET...]
+#   scripts/release-smoke.sh [--archives DIR] [--ravel-archives DIR] [TARGET...]
 #
 # DIR holds one grove-v<version>-<target>.tar.xz per target; the default is
 # target/archives, which `task release:archives` fills. The default targets are
@@ -25,8 +25,8 @@
 #
 # scripts/release-smoke-target.sh runs inside each environment: it asserts the
 # environment, extracts the archive with that environment's tar into a fresh
-# prefix, checks the versions, and runs harness-dispatch's installed-layout
-# cases, crates/harness-dispatch/scripts/installed-smoke.sh.
+# prefix, checks the versions, and runs Grove's installed-layout
+# cases, scripts/grove-installed-smoke.sh.
 #
 # WHY A CONTROL. A userland that is not really at the floor passes everything a
 # floor userland passes. So each Linux run also executes a pair of probes built
@@ -74,9 +74,11 @@ IFS=$'\n\t'
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 readonly REPO_ROOT
-readonly TARGET_SCRIPT="$REPO_ROOT/scripts/release-smoke-target.sh"
-readonly QEMU_SCRIPT="$REPO_ROOT/scripts/release-smoke-qemu.sh"
-readonly CASES="$REPO_ROOT/crates/harness-dispatch/scripts/installed-smoke.sh"
+# Sourcing this runner reuses platform/floor mechanics with caller-owned cases.
+TARGET_SCRIPT="$REPO_ROOT/scripts/release-smoke-target.sh"
+QEMU_SCRIPT="$REPO_ROOT/scripts/release-smoke-qemu.sh"
+CASES="$REPO_ROOT/scripts/grove-installed-smoke.sh"
+RAVEL_INPUTS=""
 
 # TARGETS, the release target list, and assert_archive, the manifest check.
 # shellcheck source=scripts/release-common.sh
@@ -104,7 +106,7 @@ readonly QEMU_DEB_URL="https://snapshot.debian.org/file/4b7f47627ad6e57745d33d11
 readonly QEMU_DEB_SHA256="f8bf89dacd04e66a1e34526bf6eb9b4eb1b4da6205d0d820381f0c87cb0db8bb"
 
 # The helper container that holds the emulated userland: Ubuntu 24.04, for
-# util-linux's unshare and mount and coreutils' chroot --userspec.
+# util-linux's unshare/mount and coreutils' preliminary chroot controls.
 readonly HELPER_IMAGE="docker.io/library/ubuntu:24.04@sha256:008173c23f95b170204355c12626cb5a965d779a7e1283b09e9cffbb1bf33ca3"
 
 die() {
@@ -205,11 +207,13 @@ EOF
 
 smoke_native() {
   local target="$1" archive="$2"
-  env -i PATH=/usr/bin:/bin /bin/bash "$TARGET_SCRIPT" "$target" "$archive" "$CASES"
+  local dependency=()
+  [[ -z "$RAVEL_INPUTS" ]] || dependency=("RAVEL_TARGET_ARCHIVE=$RAVEL_INPUTS/archives/ravel-v0.1.0-$target.tar.xz")
+  env -i PATH=/usr/bin:/bin "${dependency[@]+"${dependency[@]}"}" /bin/bash "$TARGET_SCRIPT" "$target" "$archive" "$CASES"
 }
 
 # The binfmt_misc interpreter pair for ARCH's guests, in DIR: static
-# executables for Docker's arm64 that run /qemu/qemu, where
+# executables for Docker's arm64 that run /usr/libexec/floor-qemu/qemu, where
 # release-smoke-qemu.sh puts the emulator inside the userland, with ARCH's
 # options before the arguments binfmt_misc passes them. With its P flag those
 # are the executable's path, then its argv[0], then the rest, and each
@@ -234,7 +238,7 @@ build_qemu_interpreters() {
 #include <unistd.h>
 
 int main(int argc, char **argv) {
-  static char *const fixed[] = {"/qemu/qemu", QEMU_OPTIONS};
+  static char *const fixed[] = {"/usr/libexec/floor-qemu/qemu", QEMU_OPTIONS};
   const int count = sizeof fixed / sizeof *fixed;
   char *args[count + argc + 1];
   int n = 0;
@@ -253,7 +257,7 @@ int main(int argc, char **argv) {
 #endif
   args[n] = NULL;
   execv(args[0], args);
-  perror("release-smoke interpreter: /qemu/qemu");
+  perror("release-smoke interpreter: /usr/libexec/floor-qemu/qemu");
   return 127;
 }
 EOF
@@ -335,7 +339,13 @@ stage_linux_inputs() {
   mkdir -p "$mount/probes" || return 1
   build_glibc_probes "$arch" "$mount/probes"
   build_cpu_probe "$arch" "$mount/probes"
-  cp "$archive" "$TARGET_SCRIPT" "$CASES" "$mount/"
+  cp "$archive" "$mount/" || return 1
+  if [[ -n "$RAVEL_INPUTS" ]]; then
+    cp "$RAVEL_INPUTS/archives/ravel-v0.1.0-$target.tar.xz" "$mount/" || return 1
+  fi
+  cp "$TARGET_SCRIPT" "$mount/release-smoke-target.sh" || return 1
+  cp "$REPO_ROOT/scripts/release-smoke-environment.sh" "$mount/" || return 1
+  cp "$CASES" "$mount/installed-smoke.sh"
 }
 
 smoke_in_floor_container() {
@@ -370,31 +380,43 @@ archive_elf_headers() {
 # target's CPU floor, in a helper container of Docker's own architecture (WHY
 # OUR OWN QEMU, WHY A CPU MODEL).
 #
-# WHY THE HELPER HAS NO SECCOMP FILTER. release-smoke-qemu.sh registers the
-# emulator in a binfmt_misc instance of its own, which takes a user namespace.
-# Docker 29.8.1's built-in seccomp profile refuses unshare(2) to a container
-# without CAP_SYS_ADMIN, so the helper's root got EPERM and no emulated route
-# ran. Under Docker Desktop 28.1.1 the same script passed with the profile in
-# place. Lifting the filter adds no capability: the helper keeps Docker's
-# default set, no network and a read-only mount, and runs only this script's
-# digest-pinned inputs. --cap-add SYS_ADMIN works too and keeps the filter,
-# but it hands the container the capability most container escapes begin
-# with. The floor container, which needs no namespace, keeps the profile.
+# The pinned default-deny native profile adds helper unshare(NEWUSER|NEWNS).
+# Private setup retains Docker's default capabilities, then the native entry
+# launcher pivots root and drops every bounding cap/group and uid/gid to 1000,
+# setting no-new-privileges before any target smoke. systempaths admits private
+# procfs exactly as in the native instrument; no outer SYS_ADMIN is added.
+# See docs/linux-floor-qemu.md for the supported test-only boundary and limits.
 smoke_under_qemu() {
   local target="$1" archive="$2" platform="$3" mount="$4" arch="${1%%-*}" cpu
   cpu="$(cpu_floor "$arch")" || return 1
   archive_elf_headers "$archive" "$mount/elf-headers" || return 1
+  if [[ -n "$RAVEL_INPUTS" ]]; then
+    archive_elf_headers "$RAVEL_INPUTS/archives/ravel-v0.1.0-$target.tar.xz" "$mount/ravel-elf-headers" || return 1
+    cat "$mount/ravel-elf-headers" >>"$mount/elf-headers" || return 1
+  fi
   copy_from_image "$platform" "$FLOOR_IMAGE" / "$mount/rootfs.tar" || return 1
   pinned_qemu "$arch" "$mount/qemu" || return 1
   build_qemu_interpreters "$arch" "$cpu" "$mount"
-  cp "$QEMU_SCRIPT" "$mount/" || return 1
+  cp "$QEMU_SCRIPT" "$mount/release-smoke-qemu.sh" || return 1
+  zig cc -target aarch64-linux-musl -static -O2 -Wall -Wextra -Werror \
+    "$REPO_ROOT/scripts/floor-qemu-enter.c" -o "$mount/enter" || return 1
+  python3 "$REPO_ROOT/scripts/floor_seccomp.py" --qemu >"$mount/seccomp.json" || return 1
+  local before="$mount.inputs-before" after="$mount.inputs-after" status=0
+  find "$mount" -type f -exec shasum -a 256 {} \; | LC_ALL=C sort >"$before" || return 1
+  cat "$before"
   echo "release-smoke: $target: $platform userland under the pinned QEMU with -cpu $cpu, in a $DOCKER_PLATFORM $HELPER_IMAGE container"
   docker run --rm --network none \
-    --security-opt seccomp=unconfined \
+    --security-opt "seccomp=$mount/seccomp.json" \
+    --security-opt systempaths=unconfined \
     --platform "$DOCKER_PLATFORM" \
     --volume "$mount:/smoke:ro" \
     "$HELPER_IMAGE" \
-    /bin/bash /smoke/release-smoke-qemu.sh /smoke "$target" "$(basename "$archive")" "$cpu"
+    /usr/bin/env "FLOOR_MODE=${FLOOR_MODE:-supported}" \
+    /bin/bash /smoke/release-smoke-qemu.sh /smoke "$target" "$(basename "$archive")" "$cpu" || status=$?
+  find "$mount" -type f -exec shasum -a 256 {} \; | LC_ALL=C sort >"$after" || return 1
+  cmp "$before" "$after" || die 'QEMU staged inputs changed during execution'
+  echo 'release-smoke: every staged QEMU input retained its individual SHA-256'
+  return "$status"
 }
 
 # A target native to Docker runs in its container, then emulated at its CPU
@@ -402,6 +424,18 @@ smoke_under_qemu() {
 smoke_linux() {
   local target="$1" archive="$2" mount="$SCRATCH/$1" platform
   platform="$(docker_platform "$target")" || return 1
+  if [[ "$CASES" == "$REPO_ROOT/scripts/grove-installed-smoke.sh" ]]; then
+    # Actual Grove standalone requires the prepared real namespace environments.
+    # Separate scripts preserve the Ravel-only and backend-diagnostic consumers.
+    if [[ "$platform" == "$DOCKER_PLATFORM" ]]; then
+      bash "$REPO_ROOT/scripts/release-floor-backend.sh" "$mount-backends" "$target" || return 1
+      bash "$REPO_ROOT/scripts/release-floor-native.sh" "$mount-backends" \
+        "$(dirname "$archive")" "$RAVEL_INPUTS/archives" || return 1
+    fi
+    bash "$REPO_ROOT/scripts/release-floor-qemu.sh" "$(dirname "$archive")" \
+      "$RAVEL_INPUTS/archives" "$target"
+    return "$?"
+  fi
   stage_linux_inputs "$target" "$archive" "$mount" || return 1
   if [[ "$platform" == "$DOCKER_PLATFORM" ]]; then
     smoke_in_floor_container "$target" "$archive" "$platform" "$mount" || return 1
@@ -410,9 +444,13 @@ smoke_linux() {
 }
 
 main() {
-  local archives="$REPO_ROOT/target/archives" targets=() target known
+  local archives="$REPO_ROOT/target/archives" ravel_archives=() targets=() target known
   if [[ "${1:-}" == "--archives" ]]; then
     archives="${2:?--archives needs a directory}"
+    shift 2
+  fi
+  if [[ "${1:-}" == --ravel-archives ]]; then
+    ravel_archives=(--archives "${2:?--ravel-archives needs a directory}")
     shift 2
   fi
   targets=("$@")
@@ -423,6 +461,12 @@ main() {
     done
     die "unknown target '$target'; the release targets are $(IFS=' ' && echo "${TARGETS[*]}")"
   done
+  SCRATCH="$(mktemp -d)"
+  trap 'rm -rf "$SCRATCH"' EXIT
+  # Public pins, exact target/layout and digests are admitted before any invocation.
+  python3 "$REPO_ROOT/scripts/ravel_target_inputs.py" "${ravel_archives[@]+"${ravel_archives[@]}"}" \
+    --output "$SCRATCH/ravel" "${targets[@]}" || die 'independent Ravel admission failed'
+  RAVEL_INPUTS="$SCRATCH/ravel"
   for target in "${targets[@]}"; do
     [[ "$target" == *-linux-gnu ]] || continue
     command -v zig >/dev/null 2>&1 || die "zig is required for the glibc control's probes; see docs/RELEASING.md"
@@ -434,9 +478,6 @@ main() {
     break
   done
 
-  SCRATCH="$(mktemp -d)"
-  # shellcheck disable=SC2064 # expand now: the trap must remove this directory
-  trap "rm -rf '$SCRATCH'" EXIT
   local archive
   for target in "${targets[@]}"; do
     archive="$(find_archive "$archives" "$target")"
@@ -451,4 +492,6 @@ main() {
   echo "release-smoke: passed: $(IFS=' ' && echo "${targets[*]}")"
 }
 
-main "$@"
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+  main "$@"
+fi

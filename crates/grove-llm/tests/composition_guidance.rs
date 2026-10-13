@@ -711,7 +711,7 @@ fn canonical_guidance_drops_receipt_and_diversity_era_review_routing() {
         (
             "content/references/decompose.md",
             DECOMPOSE_REFERENCE,
-            "it records nothing about how the producer ran, compares nothing, and warns about \
+            "task-tree driver records nothing about how the producer ran, compares nothing, and warns about \
              nothing",
         ),
         (
@@ -768,12 +768,12 @@ fn canonical_guidance_preserves_composition_relationships_and_pruning_scope() {
         // The composition relationships used to be *preserved* by the one thing
         // that rewrote task bodies — migration's marker strip. That is gone
         // (`delete-migration-k6`), so the stronger claim is the one to hold: none
-        // of Grove's own code writes or reads them at all. The scope is Grove's
-        // code and no wider, because a dispatch policy's adapter does read them.
+        // of Grove's binaries writes or reads them at all. The caller-owned
+        // policy adapter reads them only when explicitly imported by the owner.
         (
             "CONTEXT.md",
             CONTEXT,
-            "the session authoring the body, and **none of Grove's own code reads them**",
+            "the session authoring the body, and **none of Grove's binaries reads them**",
         ),
         (
             "CONTEXT.md",
@@ -847,6 +847,26 @@ fn the_creator_reference_amendment_is_stated_where_each_rule_lives() {
             "**Creator:** run <run-id>",
         ),
         (
+            "content/TASK-FORMAT.md",
+            TASK_FORMAT,
+            "**Creator:** recorded <canonical JSON receipt>",
+        ),
+        (
+            "content/references/retire.md",
+            RETIRE_REFERENCE,
+            "`GROVE_PROVIDER_EVIDENCE`",
+        ),
+        (
+            "content/references/retire.md",
+            RETIRE_REFERENCE,
+            "Invalid evidence stops for repair before committing retirement",
+        ),
+        (
+            "content/references/retire.md",
+            RETIRE_REFERENCE,
+            "Only an explicitly original installed-v22-driver launch",
+        ),
+        (
             "content/references/retire.md",
             RETIRE_REFERENCE,
             "**Retirement touches one filename and nothing else**",
@@ -854,7 +874,7 @@ fn the_creator_reference_amendment_is_stated_where_each_rule_lives() {
         (
             "content/references/retire.md",
             RETIRE_REFERENCE,
-            "The session that finishes a producer names its run on that producer's reviews",
+            "The session that finishes a producer names its provider evidence on that producer's reviews",
         ),
         (
             "content/references/retire.md",
@@ -896,7 +916,7 @@ fn the_creator_reference_amendment_is_stated_where_each_rule_lives() {
         (
             "content/references/decompose.md",
             DECOMPOSE_REFERENCE,
-            "it records nothing about how the producer ran, compares nothing, and warns about \
+            "task-tree driver records nothing about how the producer ran, compares nothing, and warns about \
              nothing",
         ),
         (
@@ -907,22 +927,22 @@ fn the_creator_reference_amendment_is_stated_where_each_rule_lives() {
         (
             "content/TASK-FORMAT.md",
             TASK_FORMAT,
-            "parsed by none of Grove's own code",
+            "parsed by none of Grove's binaries",
         ),
         (
             "CONTEXT.md",
             CONTEXT,
-            "**none of Grove's own code reads them**",
+            "**none of Grove's binaries reads them**",
         ),
         (
             "docs/ARCHITECTURE.md",
             ARCHITECTURE,
-            "parsed by none of Grove's own code",
+            "parsed by none of Grove's binaries",
         ),
         (
             "docs/USAGE.md",
             USAGE,
-            "Grove's own code neither writes nor reads those lines",
+            "Grove's binaries neither write nor read those lines",
         ),
     ] {
         if !flat(text).contains(&flat(expected)) {

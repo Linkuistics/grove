@@ -224,7 +224,7 @@ expect_dirty "${root}" "finish-records-teardown-before-exit" \
 
 # -- The creator step: present, and stated once -------------------------------
 #
-# `finishing-session-names-its-run` and the node-close step that carries it are
+# `finishing-session-names-its-evidence` and the node-close step that carries it are
 # `references/retire.md`'s. A spine whose retire procedure lacks either is the
 # methodology as it stood before the creator reference, and it has to read dirty
 # rather than merely shorter. The second owner built here is the likeliest one:
@@ -232,10 +232,10 @@ expect_dirty "${root}" "finish-records-teardown-before-exit" \
 # the step is most tempting to restate.
 
 root="$(new_skill_set creator-step-missing)"
-command grep -v 'names its run on that producer' \
+command grep -v 'names its provider evidence on that producer' \
   "${root}/grove/references/retire.md" >"${root}/retire.tmp"
 mv "${root}/retire.tmp" "${root}/grove/references/retire.md"
-expect_dirty "${root}" "finishing-session-names-its-run" \
+expect_dirty "${root}" "finishing-session-names-its-evidence" \
   "a retire procedure without the creator step is caught"
 
 root="$(new_skill_set creator-step-missing-at-node-close)"
@@ -246,9 +246,9 @@ expect_dirty "${root}" "node-close-four-steps" \
   "a node close without the creator step is caught"
 
 root="$(new_skill_set creator-step-restated)"
-printf "\nThe session that finishes a producer names its run on that producer's reviews.\n" \
+printf "\nThe session that finishes a producer names its provider evidence on that producer's reviews.\n" \
   >>"${root}/grove/references/decompose.md"
-expect_dirty "${root}" "finishing-session-names-its-run" \
+expect_dirty "${root}" "finishing-session-names-its-evidence" \
   "the creator step stated by a second file is caught"
 
 # -- Assertion 1: a load predicate in neither form ---------------------------

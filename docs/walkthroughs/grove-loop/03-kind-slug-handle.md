@@ -132,7 +132,7 @@ line 63 renders `format!("{PLUGIN}-{}", kind.label())` with `PLUGIN` as `"grove"
 so the kind `impl` names the skill `grove-impl`, and chapter 18 reads that
 composition. The third clause is exact as written: the launch is selected by the
 label itself. `dispatch_run` in `crates/grove-loop/src/loop_driver.rs` passes
-`task.kind.label()` to `harness-dispatch` as `--kind`, and the owner's policy
+`task.kind.label()` to `ravel` as `--kind`, and the owner's policy
 selects a command from it. Chapter 19 reads that call.
 
 The claim in the second bold sentence is checkable inside this corpus, and it
@@ -222,7 +222,7 @@ impl Kind {
     }
 
     /// The token as it appears in a filename, in a skill name, and as the kind
-    /// `harness-dispatch` is given.
+    /// `ravel start-session` is given.
     #[must_use]
     pub fn label(&self) -> &str {
         &self.0

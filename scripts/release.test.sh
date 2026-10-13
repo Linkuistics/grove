@@ -43,8 +43,8 @@ export PATH="$scratch/bin:$PATH"
 # Release archive contents. release-build.sh packs every archive with
 # release-common.sh's pack_archive and checks it against the manifest there;
 # these cases show that check fires on each way an archive can be wrong, and
-# that the manifest agrees with what harness-dispatch's build emits and with the
-# formula, here, before any version is cut.
+# that the manifest agrees with Grove's caller assets and the formula before
+# any version is cut.
 # shellcheck source=scripts/release-common.sh
 source "$repo_root/scripts/release-common.sh"
 fail() {
@@ -77,39 +77,31 @@ refused_archive() {
     fail "the manifest check did not report '$2': $(cat "$scratch/archive/output")"
 }
 
-# The layout the spec places harness-dispatch in, stated independently of the
-# manifest so that dropping an entry cannot quietly narrow what ships.
-for required in bin/grove bin/grove-llm bin/harness-dispatch \
-  libexec/harness-dispatch/harness-dispatch-policy \
-  libexec/harness-dispatch/sdk/index.d.ts libexec/harness-dispatch/sdk/index.ts \
-  libexec/harness-dispatch/examples/sample.ts \
-  libexec/harness-dispatch/notices/NOTICES.md libexec/harness-dispatch/notices/bun-LICENSE.md \
-  libexec/harness-dispatch/notices/sqlite.md; do
+# Caller assets ship independently of Ravel's SDK and runtime.
+for required in bin/grove bin/grove-llm libexec/ravel-policy/grove.ts \
+  libexec/ravel-policy/provenance.ts libexec/ravel-policy/examples/grove-review.ts \
+  libexec/ravel-policy/examples/grove-static.ts libexec/ravel-policy/examples/review.ts \
+  libexec/ravel-policy/sample/policy.ts libexec/ravel-policy/README.md \
+  libexec/ravel-policy/typecheck/review.ts libexec/ravel-policy/typecheck/static.ts; do
   archive_manifest | grep -Fxq -- "$required" || fail "the archive manifest omits $required"
 done
 archive_executables | while IFS= read -r entry; do
   archive_manifest | grep -Fxq -- "$entry" || fail "executable $entry is not in the archive manifest"
 done
+(cd "$repo_root/assets/ravel-policy" && find . ! -type d | sed 's|^\./||' | LC_ALL=C sort) >"$scratch/assets-source"
+archive_manifest | sed -n 's|^libexec/ravel-policy/||p' | LC_ALL=C sort >"$scratch/assets-manifest"
+diff -u "$scratch/assets-source" "$scratch/assets-manifest" >&2 ||
+  fail "the archive manifest differs from the complete caller asset tree"
 
-# The manifest's harness-dispatch files are exactly what `dispatch.sh build`
-# emits, so a file that build starts shipping without a manifest entry, or
-# stops shipping, fails here rather than at release time. This is the build
-# itself, not a restatement of its rules.
-bash "$repo_root/crates/harness-dispatch/scripts/dispatch.sh" build "$scratch/dispatch-out" >/dev/null
-(cd "$scratch/dispatch-out" && find . ! -type d | sed 's|^\./||' | LC_ALL=C sort) >"$scratch/dispatch-built"
-archive_manifest | sed -n 's|^libexec/harness-dispatch/||p' | LC_ALL=C sort >"$scratch/dispatch-manifest"
-diff -u "$scratch/dispatch-built" "$scratch/dispatch-manifest" >&2 ||
-  fail "the archive manifest's harness-dispatch files differ from what dispatch.sh build emits"
-
-# The formula installs exactly the manifest's executables and its one libexec
-# directory; everything else it ships is a top-level metafile.
 template="$repo_root/scripts/templates/grove.rb.tmpl"
 formula_bins="$(sed -n 's/^ *bin\.install //p' "$template" | tr -d '"' | tr ',' '\n' | tr -d ' ' | LC_ALL=C sort)"
 [[ "$formula_bins" == "$(archive_manifest | grep '^bin/' | LC_ALL=C sort)" ]] ||
   fail "the formula's bin.install ($formula_bins) differs from the manifest's bin/ entries"
-grep -Fxq '    libexec.install "libexec/harness-dispatch"' "$template" ||
-  fail 'the formula does not install libexec/harness-dispatch'
-if archive_manifest | grep -v -e '^bin/' -e '^libexec/harness-dispatch/' | grep -q /; then
+grep -Fxq '    libexec.install "libexec/ravel-policy"' "$template" ||
+  fail 'the formula does not install libexec/ravel-policy'
+grep -Fxq '  depends_on "linkuistics/taps/ravel"' "$template" ||
+  fail 'the formula does not depend on independent Ravel'
+if archive_manifest | grep -v -e '^bin/' -e '^libexec/ravel-policy/' | grep -q /; then
   fail 'the manifest ships a directory the formula does not install'
 fi
 
@@ -131,36 +123,26 @@ while IFS= read -r entry; do
   refused_archive "$top" "missing $top/$entry"
 done < <(archive_manifest)
 
-stage_archive "$top"
-touch "$scratch/archive/stage/$top/libexec/harness-dispatch/bun-darwin-aarch64-v1.4.2"
-pack_fixture "$top"
-refused_archive "$top" "unexpected $top/libexec/harness-dispatch/bun-darwin-aarch64-v1.4.2"
+# Runtime, SDK, probes and notices from another project must never ship.
+for extra in bin/harness-dispatch bin/ravel libexec/ravel/ravel-policy \
+  libexec/harness-dispatch/harness-dispatch-policy libexec/ravel/sdk/index.ts \
+  libexec/ravel-policy/node_modules/cache libexec/ravel-policy/notices/NOTICES.md; do
+  stage_archive "$top"
+  mkdir -p "$(dirname "$scratch/archive/stage/$top/$extra")"
+  touch "$scratch/archive/stage/$top/$extra"
+  pack_fixture "$top"
+  refused_archive "$top" "unexpected $top/$extra"
+done
 
 stage_archive "$top"
-mkdir -p "$scratch/archive/stage/$top/libexec/harness-dispatch/node_modules/.cache"
+chmod -x "$scratch/archive/stage/$top/bin/grove-llm"
 pack_fixture "$top"
-refused_archive "$top" "unexpected $top/libexec/harness-dispatch/node_modules/"
-
-# A probe build (`dispatch.sh probes`) is a test instrument and never ships.
-# Beside the worker, the manifest refuses it by path. In the worker's own
-# place it passes the manifest but not the installed smoke test, whose front
-# refuses a probe's identity (tests/hostile.rs,
-# a_probe_build_is_never_accepted_as_an_installations_worker).
-stage_archive "$top"
-mkdir -p "$scratch/archive/stage/$top/libexec/harness-dispatch/probes/unregistered"
-printf 'fixture probe\n' >"$scratch/archive/stage/$top/libexec/harness-dispatch/probes/unregistered/harness-dispatch-policy"
-pack_fixture "$top"
-refused_archive "$top" "unexpected $top/libexec/harness-dispatch/probes/"
+refused_archive "$top" "$top/bin/grove-llm is not executable"
 
 stage_archive "$top"
-chmod -x "$scratch/archive/stage/$top/libexec/harness-dispatch/harness-dispatch-policy"
+ln -sf ../grove "$scratch/archive/stage/$top/bin/grove-llm"
 pack_fixture "$top"
-refused_archive "$top" "$top/libexec/harness-dispatch/harness-dispatch-policy is not executable"
-
-stage_archive "$top"
-ln -sf ../../bin/harness-dispatch "$scratch/archive/stage/$top/libexec/harness-dispatch/harness-dispatch-policy"
-pack_fixture "$top"
-refused_archive "$top" "$top/libexec/harness-dispatch/harness-dispatch-policy is not a regular file"
+refused_archive "$top" "$top/bin/grove-llm is not a regular file"
 
 stage_archive "$top"
 mkdir "$scratch/archive/stage/stray"
@@ -172,10 +154,10 @@ refused_archive "$top" "top level is not exactly $top/:"
 # bsdtar hides when it reads; the check must see it. pack_archive must leave
 # both the member and the attribute out.
 stage_archive "$top"
-policy="libexec/harness-dispatch/harness-dispatch-policy"
+policy="libexec/ravel-policy/grove.ts"
 xattr -w org.linkuistics.grove.probe fixture "$scratch/archive/stage/$top/$policy"
 tar -C "$scratch/archive/stage" -cJf "$scratch/archive/$top.tar.xz" "$top"
-refused_archive "$top" "unexpected $top/libexec/harness-dispatch/._harness-dispatch-policy"
+refused_archive "$top" "unexpected $top/libexec/ravel-policy/._grove.ts"
 pack_fixture "$top"
 assert_archive "$scratch/archive/$top.tar.xz" "$top" >"$scratch/archive/output" ||
   fail "pack_archive kept macOS metadata: $(cat "$scratch/archive/output")"

@@ -24,7 +24,7 @@
 #
 # `crates/grove-loop` is grove's loop (decision 9): the task tree in grove's own
 # vocabulary, the twelve verbs a session invokes over it, and — since this leaf —
-# the driver, its lease, the prompt it composes and the `harness-dispatch`
+# the driver, its lease, the prompt it composes and the independent Ravel
 # invocation it builds. It shares domain vocabulary with the read-only grove-tui viewer.
 #
 # `crates/ordinal-fs-tree` is the tree library grove's own tree modules were
@@ -43,12 +43,8 @@
 # its caller built, spawned directly as a job and supervised. It is domain-free
 # down to the noun — it says *launch*, never *session*.
 #
-# `crates/harness-dispatch` is a separate executable, not a part of grove
-# (`docs/specs/harness-selection-and-execution.md`). It evaluates an owner's
-# TypeScript selection policy through a private Bun-compiled worker, which lives
-# in the same directory and is built only by `task dispatch:worker`. It depends
-# on no Grove crate, so that it can be used without Grove and extracted from
-# this repository.
+# Ravel is an independently installed CLI dependency, outside this workspace.
+# Grove ships its own caller assets and uses only the public session boundary.
 #
 # `resolver = "2"` is stated rather than inherited. A workspace root that is not
 # a package has no package edition to take a resolver from, so this line is now
@@ -60,7 +56,6 @@ members = [
     "crates/grove-llm",
     "crates/grove-loop",
     "crates/grove-tui",
-    "crates/harness-dispatch",
     "crates/jj-workspace",
     "crates/keyed-launch",
     "crates/ordinal-fs-tree",

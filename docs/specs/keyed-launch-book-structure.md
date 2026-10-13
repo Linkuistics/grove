@@ -209,14 +209,14 @@ launch needs one at all — an interactive child returns to its prompt when it
 finishes rather than exiting, so its own exit is not the event anyone is waiting
 for; **allocation picks a name and writes nothing**, which is what makes
 *appearance* the event; the name grammar — a recognisable prefix plus 128 bits of
-randomness — and why the prefix is named for `signal`, while dispatch chooses the directory; `DRAW_RETRY_LIMIT` as a bound rather than an
+randomness — and why the prefix is named for `signal`, while the caller chooses the directory; `DRAW_RETRY_LIMIT` as a bound rather than an
 unbounded retry; why `allocate` checks the directory rather than leaving it to the
 child's first write; `signal` creates the file without content and is a free
 function because the two ends are different processes; and `discard` removes
 the allocated path, leaving directory ownership to the consumer.
 
 This is the chapter that cites [`CONTEXT.md`](../../CONTEXT.md) at
-`exit-signal`, at its first use of the exit channel dispatch publishes.
+`exit-signal`, at its first contrast between generic runner channels and Ravel completion.
 
 ### 3 · The child is a job — nothing else added
 
@@ -392,14 +392,14 @@ owes, and a technical review checks for them:
 
 ## Worked examples
 
-**The carried example is dispatch launching a Grove harness, told strictly
+**The carried example is a generic launcher supervising a command, told strictly
 from the runner's side.** The reader knows exactly what the words mean and watches the crate not
 care, which is the spine made visible. It starts from an argv the caller built:
 
 - `Argv::new("claude", ["--model", "opus", "<the mandate>"])`, the last argument
   a long prompt with spaces and newlines in it;
 - the control directory `/work/atlas/.jj/grove`;
-- the channel variable `HARNESS_DISPATCH_EXIT_FILE`, and a scrub list that names it;
+- the inert example channel variable `TEST_CHANNEL`, and a scrub list that names it;
 - the working directory `/work/atlas`, and an escalation of two seconds and
   five.
 
@@ -407,7 +407,7 @@ care, which is the spine made visible. It starts from an argv the caller built:
 |---:|---|---|---|
 | 1 | `#the-launch-in-outline` | an argv the caller built | a running child and its exit signal, named but not traced |
 | 2 | `#a-path-and-nothing-else` | `Channel::allocate` in the control directory | a path that does not exist, and its appearance after `signal` |
-| 3 | `#the-spawn` | `run` with that argv and channel | the child in its own group, holding the terminal, with `HARNESS_DISPATCH_EXIT_FILE` set and the scrub applied |
+| 3 | `#the-spawn` | `run` with that argv and channel | the child in its own group, holding the terminal, with `TEST_CHANNEL` set and the scrub applied |
 | 4 | `#the-two-graces` | the exit file appearing | grace → SIGTERM → kill-grace → SIGKILL; and the launcher's own SIGTERM as `End::Interrupted` |
 
 Chapters 5 and 6 carry no step of it. Chapter 5's tests work on a temporary
@@ -464,7 +464,7 @@ their headings.
 reader's entry point. `usage-session-lifecycle` says what a launch is *for*,
 so no chapter has to, and it is where chapter 6 sends the obligation the
 crate cannot hold. `exit-signal` is cited at chapter 2's first use of the
-dispatch channel; `loop-control-channel` names Grove's separate launch directory.
+generic channel contrasted with Ravel completion; `loop-control-channel` names Grove's separate launch directory.
 
 Rejected: `usage-review-composition`, a false friend whose *escalation* is the
 methodology's review escalation and not the kill escalation; `usage-driver-lease`

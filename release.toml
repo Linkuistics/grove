@@ -64,11 +64,11 @@
 # and no leaf may rely on one: the build-pairing report *reported* rather than
 # refused (`docs/USAGE.md`), and it went with provisioning at
 # `delete-provisioning-k19`. What stops a loop across a reinstall is the
-# session's own ending — a session that retires, commits and exits **without**
-# `grove-llm complete` breaks the loop, so the old driver process cannot run
-# another iteration against a delivery it no longer understands. A shipping task
-# therefore does its installed-binary checks in its own session and ends that
-# way — see `scripts/release-publish.sh` for the rig.
+# session's own ending — a cutover can stop without publishing completion so
+# the old driver cannot run another iteration against a changed delivery.
+# The live 22.1.0 extraction instead preserves its complete original installation
+# through final finish (docs/legacy-driver-transition.md). Follow that launch's
+# exact ending contract; never substitute current Ravel commands into it.
 
 # Not a crates.io crate — `cargo release` must skip `cargo publish`.
 publish = false
@@ -99,7 +99,7 @@ pre-release-commit-message = "chore: release v{{version}}"
 
 # **This value is not a choice, and the setting is not what excludes a member
 # from the cut.** cargo-release 1.1.2 forces `consolidate-commits = true` on
-# every package it resolves a `shared-version` group for, and the eight crates the
+# every package it resolves a `shared-version` group for, and the seven crates the
 # release ships all take `version.workspace = true` — so they are one such group
 # and this key cannot move them. Writing `false` here does not make the cut
 # per-crate; it makes the cut *refuse*, with `error: inconsistent

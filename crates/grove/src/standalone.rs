@@ -9,23 +9,28 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
 use anyhow::{bail, ensure, Context, Result};
-use keyed_launch::{Argv, End, Escalation, Group, NoninteractiveLaunch};
-use serde_json::Value;
+use grove_loop::{session_command, session_result::SessionResult};
+use keyed_launch::{End, Escalation, Group, NoninteractiveLaunch};
 
 /// What selection must not inherit: the completion channel of a session this
 /// invocation runs inside, lifecycle or standalone. The policy decides what
 /// launches, and ends nothing.
-const CONTROL_ENV: [&str; 5] = [
+pub(crate) const CONTROL_ENV: [&str; 10] = [
     "GROVE_SIGNAL_FILE",
+    "GROVE_RUN_SIGNAL_FILE",
     "GROVE_LAUNCH_DIR",
     "HARNESS_DISPATCH_EXIT_FILE",
     "HARNESS_DISPATCH_RUN_ID",
     "HARNESS_DISPATCH_STATE_DIR",
+    "RAVEL_EXIT_FILE",
+    "GROVE_PROVIDER_EVIDENCE",
+    "GROVE_HARNESS_PID",
+    "GROVE_CLAUDE_PID",
 ];
 
 #[derive(clap::Args)]
 pub(crate) struct Args {
-    /// Task kind, which the owner's harness-dispatch policy routes to a command.
+    /// Task kind, which the owner's Ravel policy routes to a command.
     pub kind: String,
     /// Task instructions, delivered as one literal prompt argument.
     #[arg(
@@ -58,14 +63,14 @@ pub(crate) enum Ui {
 }
 
 pub(crate) fn run(args: Args) -> Result<()> {
-    let dispatch = crate::dispatch::locate()?.canonicalize()?;
+    let ravel = crate::dispatch::locate()?;
     let owner_home =
         std::env::var_os("HOME").context("HOME is required to locate personal run logs")?;
     let logs = PathBuf::from(owner_home).join(".local/state/grove/runs");
-    execute(args, &dispatch, &logs)
+    execute(args, &ravel, &logs)
 }
 
-fn execute(args: Args, dispatch: &Path, logs: &Path) -> Result<()> {
+fn execute(args: Args, ravel: &Path, logs: &Path) -> Result<()> {
     let prompt = match (&args.prompt, &args.prompt_file) {
         (Some(prompt), None) => prompt.clone(),
         (None, Some(path)) => fs::read_to_string(path)
@@ -82,7 +87,8 @@ fn execute(args: Args, dispatch: &Path, logs: &Path) -> Result<()> {
     fs::create_dir(&work)?;
     let control = root.join("control");
     fs::create_dir(&control)?;
-    let ending_file = control.join("ending.json");
+    let capture = SessionResult::allocate()?;
+    let stdout = capture.stdout()?;
 
     let mut names = HashSet::new();
     for source in &args.input {
@@ -120,26 +126,19 @@ fn execute(args: Args, dispatch: &Path, logs: &Path) -> Result<()> {
         "{prompt}\n\nStandalone invocation: work only on the staged files in the current directory. \
          There is no project, jj workspace, or Grove task tree here.\nInputs: {:?}\nRequired outputs: {:?}\n\
          After writing and checking every required output, run this exact command as your final action:\n\
-         {} exit\n\
+         {}\n\
          If unable to complete, explain the failure and exit without signalling completion.\n",
         args.input.iter().map(|path| path.file_name()).collect::<Vec<_>>(),
         destinations.iter().map(|path| path.file_name()).collect::<Vec<_>>(),
-        shell_word(dispatch.as_os_str())?
+        session_command::end_session(ravel)?
     );
-    let mut dispatch_args = vec![
-        "run".into(),
-        "--confine".into(),
-        format!("--kind={}", args.kind).into(),
-        format!("--prompt={instructions}").into(),
-        "--ending-file".into(),
-        ending_file.as_os_str().to_owned(),
-    ];
-    for path in &args.runtime_read {
-        // Resolve before moving into the staged working directory.
-        dispatch_args.push("--runtime-read".into());
-        dispatch_args.push(path.canonicalize()?.into_os_string());
-    }
-    let argv = Argv::new(dispatch.as_os_str().to_owned(), dispatch_args);
+    let argv = session_command::confined(
+        ravel,
+        &args.kind,
+        &instructions,
+        &control,
+        &args.runtime_read,
+    )?;
     // Hold the original directory, since the harness can rename paths inside
     // its scratch root. Output reads must never follow a substituted parent.
     let artifacts = File::open(&work)?;
@@ -164,13 +163,13 @@ fn execute(args: Args, dispatch: &Path, logs: &Path) -> Result<()> {
     );
     crate::run_display::open(args.ui, &args.kind, &log_path, &status_path)?;
 
-    // Selection inherits the owner's grants. Dispatch scrubs its confined
+    // Selection inherits the owner's grants. Ravel scrubs its confined
     // child's environment after selection; enclosing control authority stops here.
     let scrub: Vec<&OsStr> = CONTROL_ENV.iter().map(OsStr::new).collect();
     let finished = AtomicBool::new(false);
     let outcome = std::thread::scope(|scope| {
         let relay = scope.spawn(|| crate::run_display::relay(reader, &finished));
-        let result = keyed_launch::run_noninteractive(
+        let result = keyed_launch::run_noninteractive_with_stdout(
             NoninteractiveLaunch {
                 argv: &argv,
                 scrub: &scrub,
@@ -181,6 +180,7 @@ fn execute(args: Args, dispatch: &Path, logs: &Path) -> Result<()> {
                 },
             },
             log,
+            stdout,
         );
         finished.store(true, Ordering::Release);
         let displayed = relay
@@ -195,7 +195,7 @@ fn execute(args: Args, dispatch: &Path, logs: &Path) -> Result<()> {
         // still be writing what would be published.
         if let Group::Present { pgid } = ended.group {
             bail!(
-                "members of the dispatch process group {pgid} may have survived it; \
+                "members of the Ravel process group {pgid} may have survived it; \
                  outputs were not published"
             );
         }
@@ -209,23 +209,13 @@ fn execute(args: Args, dispatch: &Path, logs: &Path) -> Result<()> {
         );
         ensure!(
             ended.status.success(),
-            "dispatch failed ({}); inspect {}; outputs were not published",
+            "Ravel failed ({}); inspect {}; outputs were not published",
             ended.status,
             log_path.display()
         );
-        let report: Value = serde_json::from_slice(
-            &fs::read(&ending_file)
-                .context("dispatch reported no run ending; outputs were not published")?,
-        )
-        .context("reading dispatch's run ending")?;
-        ensure!(
-            report["schemaVersion"] == 1
-                && report["source"] == "harness-dispatch"
-                && report["measurements"]["ending"]["state"] == "observed"
-                && report["measurements"]["ending"]["value"] == "exit_signal",
-            "harness exited without an exit-signal ending; inspect {}; outputs were not published",
-            log_path.display()
-        );
+        capture
+            .read_continue()
+            .context("Ravel returned no supported Grove result; outputs were not published")?;
         publish_outputs(&artifacts, &destinations)?;
         Ok(())
     })();

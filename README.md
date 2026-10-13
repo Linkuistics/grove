@@ -11,10 +11,10 @@ also contains the agent skills used by those sessions.
 | Product | Source | Purpose |
 |---|---|---|
 | Grove | [`crates/`](crates/) | The Rust workspace: two thin binaries over five library crates, the loop that launches one session per task among them. |
-| harness-dispatch | [`crates/harness-dispatch/`](crates/harness-dispatch/) | A separate command in the same workspace, installed with Grove and usable without it: it selects and runs an agent harness from its owner's TypeScript policy. Grove launches every session through it. |
+| Grove caller policies | [`assets/ravel-policy/`](assets/ravel-policy/) | Readable owner-editable policies and adapters for independent Ravel. |
 | Skill plugins | [`plugins/`](plugins/) | Grove's own methodology, the Linkuistics coding/design skills, and the Testanyware GUI-testing skill. |
 
-The products share a repository and a release snapshot. Bare `grove` installs
+Grove and its skills share a release snapshot; [Ravel](https://github.com/Linkuistics/Ravel) is independently released. Bare `grove` installs
 and repairs the bundled Codex-compatible skills before launching a session.
 Claude Code uses the plugin marketplace with auto-update enabled.
 
@@ -26,36 +26,30 @@ brew install grove
 ```
 
 There is no per-project installation step. `grove --version` reports the
-installed binary version. The same installation carries `harness-dispatch`, a
-separate command that selects and runs an agent harness from its owner's
-TypeScript policy ([its README](crates/harness-dispatch/README.md)). The first bare `grove` run provisions Codex skills when
-`~/.codex` is a directory or `CODEX_HOME` is set to a nonempty value. Claude Code and other
-harnesses need the setup below.
+installed binary version. Homebrew installs independently versioned Ravel as a
+runtime dependency. Grove archives ship only Grove executables and its readable
+caller assets at `libexec/ravel-policy`; archive users install Ravel separately.
+The first bare `grove` run provisions Codex skills when `~/.codex` is a directory
+or `CODEX_HOME` is nonempty. Other harnesses need the setup below.
 
-Grove has no launch configuration of its own. It launches every session by
-running `harness-dispatch`, and your policy there,
-`~/.config/harness-dispatch/policy.ts`, returns the harness command for each
-session kind. Install the sample policy once, read it, and edit it:
+Grove has no launch configuration of its own. Independent Ravel reads your
+owner policy at `~/.config/ravel/policy.ts` and returns the selected command.
+Copy the sample into an absent owner policy, read it and edit it:
 
 ```sh
-harness-dispatch init
-cd /work/parser && harness-dispatch inspect --kind impl
+mkdir -p ~/.config/ravel
+cp "$(brew --prefix grove)/libexec/ravel-policy/sample/policy.ts" ~/.config/ravel/policy.ts
 ```
 
-The sample launches `codex` with approvals off and full access, so read it
-before the first launch. `inspect` reports what a kind would launch, and
-launches nothing; run it in the working-tree root, where Grove runs it. A kind your policy does not route is refused when its leaf
-launches, with a remedy, and rerunning `grove` continues. A `config.kdl` or
-`.grove.kdl` from an earlier release is never read.
+Preserve an existing policy. The sample launches codex with approvals off and
+full access. Creator-aware examples require the complete caller directory tree
+so their relative imports remain intact. A policy refusal gives a repair remedy;
+rerunning `grove` continues. Ravel evaluates policy when a session starts; it has no inspection verb. Earlier config.kdl/.grove.kdl files are ignored.
 
-Two more files are yours. `~/.config/harness-dispatch/settings.json` sets what
-applies to every launch: the selection time bound and the environment variables
-granted to the policy among it. Never grant `GROVE_LAUNCH_DIR` there, because
-a policy holding it could act on the Grove tree or record a teardown for
-the session it is selecting for. A `.harness-dispatch-choice` file in a working-tree root picks, for that checkout,
-among the options your policy offers.
-[Launch policy](docs/USAGE.md#usage-launch-policy) in the usage guide has the
-rest.
+`~/.config/ravel/settings.json` holds selection bounds and explicit policy
+environment grants. Grove removes enclosing session authority before selection;
+never grant lifecycle control names. `.ravel-choice` chooses among options the
+policy offers. [Launch policy](docs/USAGE.md#usage-launch-policy) has the rest.
 
 Grove's methodology uses Linkuistics' `decision-records` for ADR discipline and
 `codebase-design` for module design, structural simplicity, and test seams.
@@ -120,9 +114,10 @@ for the catalogue, ownership rules and installation paths.
 
 - [Usage](docs/USAGE.md) — the bare `grove` lifecycle, the `grove-llm` verbs
   over the task tree, and the start-to-finish workflow.
-- [harness-dispatch](crates/harness-dispatch/README.md) — selection policies,
-  inspection, run records and refusals, and
-  [how Grove calls it](crates/harness-dispatch/README.md#called-from-grove).
+- [Ravel](https://github.com/Linkuistics/Ravel) — independent process/router CLI;
+  [Grove caller assets](assets/ravel-policy/README.md) — ordinary SDK policies,
+  task conventions and creator evidence.
+
 - [Architecture](docs/ARCHITECTURE.md) — the design decisions, constraints and
   measurement records behind the runtime, the task tree and the VCS seam.
 - [System overview](docs/walkthroughs/overview/README.md) — the `grove` binary

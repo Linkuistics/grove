@@ -1,6 +1,6 @@
 //! **No tree verb asks whether a kind can be launched.**
 //!
-//! Grove has no launch configuration, and the owner's harness-dispatch policy
+//! Grove has no launch configuration, and the owner's Ravel policy
 //! is consulted when a leaf launches and nowhere earlier
 //! (`docs/specs/harness-selection-and-execution.md`, *A refusal*). So each verb
 //! that writes a leaf writes one of any well-formed kind under a HOME that

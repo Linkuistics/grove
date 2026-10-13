@@ -75,7 +75,7 @@ present, checks that directory against the admitted guard, and delegates the
 absent-root check and record creation.
 
 **Ten verbs put something on stdout and two put nothing there.**
-`finish-commit` and `record-teardown` print only advice on stderr. Dispatch exit
+`finish-commit` and `record-teardown` print only advice on stderr. Ravel completion
 is a separate command and does not contribute a Grove verb to this count.
 
 **Three of the six verbs that write to the tree are silent on stderr when they
@@ -126,7 +126,7 @@ template in Grove's configuration, and refused if it did not. Grove has no
 launch configuration now, and the header says so in the sentence after the one
 that names the two orders left. A kind is written if it is a well-formed token.
 Whether a session of that kind can run is decided by the owner's
-harness-dispatch policy when the driver launches the leaf, and a refused launch
+Ravel policy when the driver launches the leaf, and a refused launch
 leaves the leaf live. The deletion moved a cost and did not remove it: a leaf of
 a kind nothing routes now lands on disk and is picked, and the refusal arrives
 at launch where it used to arrive before a byte moved.
@@ -288,7 +288,7 @@ about *this* crate, and no row is a claim about the loop.
 | The renumber, and the cross-reference scan that follows it | [*`leaf-insert`: the renumber, and the lint*](04-growing-the-tree.md#the-renumber-and-the-lint) | Why the hits come back as a value, and where the second opening would have deadlocked |
 | The terminal marks, and what a node's prune leaves alone | [*`leaf-prune`: the HITL rule, the node case*](05-ending-work.md#the-node-case) | What the marked paths on stdout are, and which leaves the advisory reports |
 | The [session epoch](../../../CONTEXT.md#session-epoch), the [driver lease](../../../CONTEXT.md#driver-lease), and admission | [*Admitted before dispatch*](02-the-grammar.md#admitted-before-dispatch) | Why `run` can refuse at the epoch-admission call, before any handler is chosen |
-| The launch directory and dispatch job context | [*Two separate effects*](06-leaving-the-loop.md#admit-before-signal) | Grove admission and teardown recording; dispatch owns harness exit |
+| The launch directory and Ravel job context | [*Two separate effects*](06-leaving-the-loop.md#admit-before-signal) | Grove admission and teardown recording; Ravel owns process completion |
 | The deletion and the path-scoped commit behind the finish sentinel | [*`cmd_finish_commit`*](06-leaving-the-loop.md#the-teardown) | What the change id on stderr records |
 | Whether a kind can be launched at all | [*Text before lock*](04-growing-the-tree.md#before-the-lock) | Why no verb asks, and where the answer is given instead |
 
@@ -296,7 +296,7 @@ Each row but the last is a subject of `crates/grove-loop`, or of a crate the
 loop reaches on this crate's behalf — the path-scoped commit is the
 version-control seam's — and the account of each is that crate's own. The last
 row is no Grove crate's: whether a kind can be launched is the owner's
-harness-dispatch policy's to decide, when the driver launches a leaf of it. The
+Ravel policy's to decide, when the driver launches a leaf of it. The
 methodology those verbs serve is in
 neither: it is the
 guide's, at [the account of the verbs over the tree](../../USAGE.md#usage-tree-verbs),
@@ -373,7 +373,7 @@ clause it rewrote in the same seven lines — the manifest's *a binary target
 can reach its own library's private items*, which *Orientation* had read
 against the one shape it holds for and which `bin-target-privacy-claim-k87`
 had corrected everywhere else. The later source cutover moves completion out of this binary: the final
-reminder names `harness-dispatch exit`, while `record-teardown` records Grove's
+reminder names the launch prompt's exact `ravel end-session grove-continue` command, while `record-teardown` records Grove's
 absent-root fact. Historical measurements below describe the earlier corpus;
 the final checks at the end of this chapter verify the current four roots.
 

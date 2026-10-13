@@ -107,9 +107,9 @@ not authentication. It prevents an old session from resolving, mutating, or
 recording a teardown through `grove-llm` after epoch rotation, including after
 finish deletion and handle reuse. It cannot prevent a stale process from
 directly editing files, committing, or writing into a known launch directory
-outside `grove-llm`. The run's exit signal is harness-dispatch's and is outside
-this protocol: dispatch allocates a fresh exit channel for every run, inside the
-launch directory, so a stale session's exit signal can end only its own run.
+outside `grove-llm`. The session result channel is Ravel's and is outside
+this protocol: Ravel allocates a fresh exit channel for every session, inside the
+launch directory, so a stale session can publish only to its own enclosing session.
 Nor does Grove defend against another process deleting or replacing files in
 the VCS administration area; that is repository-control corruption, and no
 claim is made that open/lock identity revalidation survives unlink/recreate

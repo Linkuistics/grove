@@ -7,9 +7,9 @@
 
 `grove` is the human's command. Bare invocation in a Jujutsu working tree
 resolves that tree, takes its driver lease and calls the loop. The loop chooses
-the next task and launches it through `harness-dispatch`, which selects the
+the next task and launches it through `ravel`, which selects the
 command. Viewing has a separate early-return path. `grove run` names
-one kind explicitly, asks the owner's harness-dispatch policy for its command,
+one kind explicitly, asks the owner's Ravel policy for its command,
 and orchestrates its confined temporary files,
 completion and output transfer without entering a task-tree lifecycle.
 
@@ -120,7 +120,7 @@ how to run it. Here both were moved out of the binary before the binary was
 written. What to run is read from the
 [task tree](../../../CONTEXT.md#task-tree-scheme) in the working tree, which the
 loop walks for its next live leaf; how to run it is decided by the human's
-personal `harness-dispatch` policy, `~/.config/harness-dispatch/policy.ts`, whose
+personal `ravel` policy, `~/.config/ravel/policy.ts`, whose
 `select` function returns the command for each launch. With both facts on disk, an argument
 that selected either would be a second source for a fact that already has one.
 *The surface* reads the grammar that results, and *Proving a negative* reads the
@@ -222,7 +222,7 @@ binary never opens a store lock itself. The manifest therefore records two
 public entry seams without importing their private implementation modules.
 `keyed-launch` supplies its argv and confinement APIs to standalone
 invocation, which loads no configuration and takes its command from
-`harness-dispatch`. `serde_json` reads that selection,
+`ravel`. `serde_json` serves integration fixtures,
 `tempfile` owns scratch storage and staged exports, and `libc` supplies the
 artifact-open flags used by that runner.
 
@@ -346,14 +346,14 @@ and the human's policy returns one command for every kind:
     └── gateway/
         └── src/                            the directory grove is typed in
 
-~/.config/harness-dispatch/policy.ts
+~/.config/ravel/policy.ts
     export const policy = {
       schemaVersion: 2,
       version: "atlas-1",
       select: (request) => ({
         status: "selected",
         program: "claude",
-        args: ["--add-dir", request.params.repo, request.prompt],
+        args: ["--add-dir", request.cwd, request.prompt],
         provider: "anthropic", model: "default", effort: "default",
         reason: "every kind runs claude",
       }),
@@ -370,13 +370,12 @@ $ grove
   resolve   the nearest ancestor of crates/gateway/src holding .jj/ is /work/atlas
   lease     /work/atlas/.jj/grove/driver.lease is locked; this process is the
             tree's one driver for as long as it runs
-  provision install or repair bundled skills when Codex is present
-  dispatch  harness-dispatch is found beside this executable
+  dispatch  independent Ravel is resolved/version-checked once on PATH
   run       grove_loop::run(workspace, lease, dispatch) — once per iteration:
               read the task tree    the first live leaf is rate-limit-k3, kind impl
-              launch, then wait     grove: launching impl through harness-dispatch — rate-limit-k3
-                                    the policy selects claude, which replaces dispatch
-              read the signal       the session signalled completion: relaunch
+              launch, then wait     grove: launching impl through Ravel — rate-limit-k3
+                                    the policy selects claude; Ravel supervises and reaps it
+              read the result       grove-continue after reap: relaunch
             … later iterations retire every live leaf, and the teardown session
             signals that the grove itself is done:
                                     grove: grove finished — loop complete.

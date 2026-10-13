@@ -10,53 +10,16 @@
 # on Linux a glibc of exactly 2.17 that is seen to refuse a newer binary (the
 # probes release-smoke.sh builds into PROBES). Then it extracts ARCHIVE, named
 # grove-v<version>-<target>.tar.xz, into a fresh prefix with this environment's
-# own tar, checks that grove, grove-llm and harness-dispatch report that
-# version, and hands the prefix to harness-dispatch's installed-layout cases,
-# CASES (crates/harness-dispatch/scripts/installed-smoke.sh). Like those cases,
+# own tar, checks Grove versions, extracts the host-admitted independent Ravel
+# archive into a separate prefix, and invokes Grove caller cases. Like those cases,
 # it needs only bash 3.2, coreutils, grep and cmp, because macOS's /bin/bash
 # and CentOS 7's both run it.
 
 set -euo pipefail
 IFS=$'\n\t'
 
-fail() {
-  echo "release-smoke: $TARGET: FAIL: $*" >&2
-  exit 1
-}
-
-note() {
-  echo "release-smoke: $TARGET: $*"
-}
-
-# `uname -sm` where TARGET's executables run.
-target_system() {
-  case "$1" in
-    aarch64-apple-darwin) echo "Darwin arm64" ;;
-    aarch64-unknown-linux-gnu) echo "Linux aarch64" ;;
-    x86_64-unknown-linux-gnu) echo "Linux x86_64" ;;
-    *) fail "no environment is known for this target" ;;
-  esac
-}
-
-# The C library must be the floor, and must be seen to enforce it: the probe
-# built against glibc 2.17 runs, and its twin, which needs getrandom's
-# GLIBC_2.25 symbol version, is refused for that version. The twin's refusal is
-# evidence only beside the floor probe's success, which shows this userland
-# runs binaries of its architecture at all.
-assert_glibc_floor() {
-  local probes="$1" machine libc output status=0
-  machine="$(uname -m)"
-  libc="$(getconf GNU_LIBC_VERSION)" || fail "getconf reports no GNU C library"
-  [[ "$libc" == "glibc 2.17" ]] || fail "this userland's C library is $libc, not the glibc 2.17 floor"
-  output="$("$probes/floor-$machine" 2>&1)" ||
-    fail "the probe built against glibc 2.17 did not run here: $output"
-  [[ "$output" == "glibc probe ran" ]] || fail "the probe built against glibc 2.17 printed: $output"
-  output="$("$probes/above-$machine" 2>&1)" || status=$?
-  if ((status == 0)) || [[ "$output" != *"version \`GLIBC_2.25' not found"* ]]; then
-    fail "positive control: the probe built against glibc 2.25 was not refused for its symbol version (exit $status): $output"
-  fi
-  note "$libc; control: the glibc 2.25 probe was refused (exit $status): $output"
-}
+# shellcheck source=scripts/release-smoke-environment.sh
+source "$(dirname "${BASH_SOURCE[0]}")/release-smoke-environment.sh"
 
 main() {
   (($# == 3 || $# == 4)) || {
@@ -82,7 +45,7 @@ main() {
   scratch="$(mktemp -d)"
   # shellcheck disable=SC2064 # expand now: the trap must remove this directory
   trap "rm -rf '$scratch'" EXIT
-  mkdir "$scratch/prefix" "$scratch/home" "$scratch/tmp"
+  mkdir "$scratch/prefix" "$scratch/ravel" "$scratch/home" "$scratch/tmp"
   # Nothing outside the scratch directory: no personal configuration, and the
   # cases' own temporary files where the trap removes them.
   export HOME="$scratch/home" TMPDIR="$scratch/tmp"
@@ -96,12 +59,19 @@ main() {
   tar -xJf "$archive" -C "$scratch/prefix" || fail "$(tar --version | head -n 1) cannot extract $archive"
   [[ "$(ls -A "$scratch/prefix")" == "$top" ]] ||
     fail "$archive does not unpack to exactly $top/: $(ls -A "$scratch/prefix")"
-  for command in grove grove-llm harness-dispatch; do
+  for command in grove grove-llm; do
     reported="$("$scratch/prefix/$top/bin/$command" --version)" || fail "bin/$command --version exited $?"
     [[ "$reported" == "$command $version" ]] || fail "bin/$command reports '$reported', not '$command $version'"
   done
-  note "extracted with $(tar --version | head -n 1); grove, grove-llm and harness-dispatch report $version"
-  "$BASH" "$cases" "$scratch/prefix/$top" "$version"
+  local dependency="${RAVEL_TARGET_ARCHIVE:-/smoke/ravel-v0.1.0-$TARGET.tar.xz}"
+  [[ -f "$dependency" ]] || fail "missing admitted separate Ravel archive: $dependency"
+  tar -xJf "$dependency" -C "$scratch/ravel" || fail 'cannot extract admitted Ravel archive'
+  [[ "$(ls -A "$scratch/ravel")" == "ravel-v0.1.0-$TARGET" ]] || fail 'wrong Ravel target prefix'
+  note "extracted Grove $version and independent Ravel 0.1.0 into separate prefixes"
+  "$BASH" "$cases" "$scratch/prefix/$top" "$version" "$scratch/ravel/ravel-v0.1.0-$TARGET"
+
 }
 
-main "$@"
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+  main "$@"
+fi

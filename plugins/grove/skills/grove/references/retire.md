@@ -16,32 +16,43 @@ leaf waiting beside the producer is no exception: the verb writes nothing into
 it. That review reads the committed artifact, and the one record it carries of
 how its producer ran is a line you write by hand, next.
 
-## Naming your run on what you finish
+## Naming your provider evidence on what you finish
 
-**The session that finishes a producer names its run on that producer's
+**The session that finishes a producer names its provider evidence on that producer's
 reviews.** You finish your own leaf by retiring it, and you finish each node your
-close cascade closes, at the last of its four steps (below), so one session can
-finish several producers. For each one, before the task's commit, take the
-review leaf you cut for it and every live review leaf whose `**Reviews:**` line
-already names its handle. Search `.grove/` for the whole handle, because a
-review cut earlier can sit anywhere in the tree, and `-k1` also begins `-k13`.
-On each, settle the line directly under `**Reviews:**`:
+close cascade closes at the last of its four steps (below). For each one, before
+the task's commit, take the review leaf you cut and every live review whose
+`**Reviews:**` names that producer. Search `.grove/` for the whole handle;
+`-k1` also begins `-k13`. Ignore terminal reviews. Settle exactly one Creator
+line directly under `**Reviews:**`, replacing all earlier Creator lines:
 
-- **With `HARNESS_DISPATCH_RUN_ID` set to a run ID in your environment**, write
-  `**Creator:** run <run-id>` with that value, replacing any `**Creator:**` line
-  already there.
-- **Without one you have no run to name**, so remove any `**Creator:**` line, in
-  either form, and write nothing in its place. A line already there describes an
-  earlier attempt at the producer, not the session that finished it.
+- **A current Ravel launch with `GROVE_PROVIDER_EVIDENCE`** copies its own
+  canonical JSON receipt byte for byte as `**Creator:** recorded <JSON>`.
+  Validate schemaVersion 1, UUID-v4 attemptId, nonblank single-line provider,
+  policyVersion and kind, optional taskId, no unknown/duplicate fields and at
+  most 8192 UTF-8 bytes. Use the caller's `parseEvidence` when available.
+  In a task session, check taskId names your own mandated leaf; a node you close
+  still receives your child's receipt, not an invented node identity.
+- **Invalid evidence stops for repair before committing retirement.** Never
+  retain an earlier attempt, invent a provider, or fall back to legacy data.
+- **Only an explicitly original installed-v22-driver launch**, whose prompt
+  retains `harness-dispatch exit` and with `HARNESS_DISPATCH_RUN_ID` set in its
+  own environment, writes `**Creator:** run <run-id>`. This is the named legacy
+  exception, consumed by the original policy/store alone.
+- **Without current evidence or that explicit legacy launch**, remove any
+  `**Creator:**` line and write nothing in its place. Earlier lines describe an
+  earlier attempt; the owner must declare the provider if review policy needs it.
 
-Take the value from your own environment and from nowhere else. A run ID copied
-from another review body, from version history or from a record store names some
-other session's run, and nothing at launch detects the substitution. Do not
-write the `declared` form either: it is the owner's assertion for an artifact
-finished without a run. Where a dispatch policy reads the line, a review without
-one refuses at launch until the owner declares. A leaf left live and a node left
-open finish nothing, and write nothing. What the line is, and who reads it, is
-`TASK-FORMAT.md`'s.
+Take evidence only from your own environment. Do not copy it from another task,
+version history or a store. Do not write the owner's `declared` form yourself.
+Ravel has no run identity, store, record or inspect verb. New caller-owned review
+policies refuse legacy run references with an owner-declaration remedy and never
+open that store. Missing/invalid Creator refuses until corrected or declared.
+A leaf left live or node left open finishes nothing and writes nothing. The
+committed inline receipt pins the finishing attempt for review retries even if
+routing changes. `TASK-FORMAT.md` owns the body grammar; Grove's
+`docs/grove-provider-evidence.md` specifies its caller implementation and context.
+The session's inherited ending command/channel remains the launch prompt's.
 
 **If you cut a review this session, cut it before you retire.** That holds for a
 review of your own leaf and for a review of a node your retirement will close.
@@ -126,8 +137,8 @@ four steps:
    ordinary escalation, discretionary and always legitimate, not a routine gate.
 4. **Promote** anything still relevant from the brief upward — to the parent
    brief, an ADR, or the glossary — so it stays in the brief chain of future
-   siblings; **name your run** on the node's reviews — a node you close is a
-   producer you finished, so take *Naming your run on what you finish* (above)
+   siblings; **name your provider evidence** on the node's reviews — a node you close is a
+   producer you finished, so take *Naming your provider evidence on what you finish* (above)
    for the node's handle; and **report** the close by naming the node's
    `<slug>-k<key>` handle in the commit message alongside the leaf's own. A
    brief is context rather than a task, so it is never marked done and promotion

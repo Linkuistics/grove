@@ -1,14 +1,10 @@
-# guard-loop-signal-k37 — keep `cargo test` from killing the session it was
-# typed into.
+# Keep Cargo-launched checks from borrowing the enclosing live session.
 #
-# This repo is a **meta-grove**: its own test suite *is* the loop machinery, and
-# this grove is still driven by installed v22 binaries and skills. Its live session's
-# environment carries `GROVE_SIGNAL_FILE` — the path the loop driver watches, and
-# whose mere appearance makes it SIGTERM the harness child (self-driving-loop).
-# Authority to end a session is therefore ambient: every descendant of the
-# session inherits it, `cargo test` included. The suite's fake harnesses do
-# `: > "$GROVE_SIGNAL_FILE"`, so any harness spawn that does not scope the
-# variable writes the *live* path and kills the developer's terminal.
+# This repository is a meta-grove: tests exercise the same lifecycle machinery
+# that launched their enclosing session. Installed-v22 dispatch carries
+# HARNESS_DISPATCH_EXIT_FILE; current Ravel carries RAVEL_EXIT_FILE. Both share
+# Grove launch-directory admission. Retired signal/PID names remain compatibility
+# guards. Every Cargo subprocess must receive empty authority/evidence values.
 #
 # Force-clear it for everything cargo runs. Empty is deliberately stronger than
 # redirecting to an inert path: the installed v22 `grove-llm` treats every nonempty signal path
@@ -19,17 +15,24 @@
 # deliberately independent, because a test binary executed directly rather than
 # through cargo gets only the latter.
 #
-# Dispatch runs carry exit authority as a signal path, while Grove lifecycle
-# sessions also carry a launch directory for epoch admission. Clear these beside
-# the installed v22 channel so nested tests cannot end or impersonate a session.
+# Dispatch and Ravel sessions carry inherited exit authority, while Grove
+# lifecycle sessions also carry a launch directory for epoch admission. Clear
+# both contexts, retired channels/PID handles and dispatch's old run/store
+# identity so nested tests cannot end, impersonate or borrow an enclosing session.
 #
 # Scope note: this also applies to `cargo run -- …` in this repo. The current
-# CLI has no `complete` verb. This grove's own sessions still end through the
-# installed v22 `grove-llm complete`, directly and never through cargo; no leaf
-# installs the new binaries or skills before the release.
+# CLI has no `complete` verb. Follow the live session's original launch prompt:
+# this grove uses `harness-dispatch exit`, directly and never through cargo.
+# A retired installed-v22 complete channel remains cleared for compatibility.
 [env]
 GROVE_SIGNAL_FILE = { value = "", force = true }
 GROVE_RUN_SIGNAL_FILE = { value = "", force = true }
-# Dispatch exit authority must also stop at the cargo boundary.
+# Old/new exit authority and session identity stop at the cargo boundary.
 HARNESS_DISPATCH_EXIT_FILE = { value = "", force = true }
 GROVE_LAUNCH_DIR = { value = "", force = true }
+HARNESS_DISPATCH_RUN_ID = { value = "", force = true }
+HARNESS_DISPATCH_STATE_DIR = { value = "", force = true }
+RAVEL_EXIT_FILE = { value = "", force = true }
+GROVE_PROVIDER_EVIDENCE = { value = "", force = true }
+GROVE_HARNESS_PID = { value = "", force = true }
+GROVE_CLAUDE_PID = { value = "", force = true }

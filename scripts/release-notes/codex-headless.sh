@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Headless Codex for a confined `grove run`, staged beside SKILL.md.
-# The owner's harness-dispatch policy selects it and keeps the model and
+# The owner's Ravel policy selects it and keeps the model and
 # effort. Its `select` returns, for the `release-notes` kind:
 #   program "/bin/bash", args ["codex-headless.sh", model, effort, request.prompt]
 # It runs with the private invocation directory as its working directory and

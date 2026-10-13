@@ -6,7 +6,7 @@
  *
  * RECORDS and NEXT are absolute, since `--alter` changes directory.
  *
- * It is C for the reason harness-dispatch's signal probe is: C's runtime
+ * Like the pre-extraction dispatch signal probe, it is C because its runtime
  * changes none of what it reports before main, while a shell rewrites its own
  * dispositions as it starts and a Rust program's runtime ignores SIGPIPE
  * before its main runs. The launch suite compiles it with the host's C

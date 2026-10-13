@@ -1074,7 +1074,7 @@ loop read the configuration twice per iteration, and the comment named both
 reads in the same sentence that said *once*. `template-source-read-count-k86`
 landed the fix. The file, both reads and the chapter that explained the sentence
 have since gone: Grove reads no configuration, and the loop launches each
-session through `harness-dispatch`.
+session through independently installed `ravel start-session`.
 
 ### 3 · *`libc` is the probe in `task_tree`* and *`keyed-launch` is reached by exactly one verb* — chapter 1, corrected
 
@@ -1092,7 +1092,7 @@ thirteen lines, more than the other two together. The `keyed-launch` clause was 
 of the crate** at that correction: `complete` was then the only verb reaching
 the runner, while `driver_lease`, `loop_driver` and `src/lib.rs` reached it too.
 The supervised-dispatch cutover has since removed `complete`; the loop still
-uses the runner to launch dispatch and re-export signal propagation.
+uses its local runner to launch independent Ravel and re-export signal propagation.
 
 `manifest-dependency-clauses-k133` landed both fixes, and the distinction is what
 the correction turns on: the corrected clause then said the **verb surface** reached the

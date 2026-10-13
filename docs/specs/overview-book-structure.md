@@ -262,7 +262,7 @@ Owns `crates/grove/src/cli.rs` lines 1–19: the imports, the `Cli` struct, and 
 clap attributes. Absorbs *Command surfaces*. Responsible for: the audience split
 between a human binary and an agent binary; the human grammar having nothing left
 to select and why — the driver reads the task tree for what to do and the
-owner's `harness-dispatch` policy decides how to launch it; the twelve `grove-llm` verbs as
+owner's Ravel policy decides which harness runs it; the twelve `grove-llm` verbs as
 a flat surface; and one version constant read by both binaries so `grove
 --version` and `grove-llm --version` cannot skew.
 
@@ -576,9 +576,9 @@ is another book's corpus and no byte of it appears here.
 
 ### Launch policy
 
-The owner's `harness-dispatch` policy is named in chapters 1 and 2 as the reason
+The owner's Ravel policy is named in chapters 1 and 2 as the reason
 the command line has nothing to select.
-[`harness-dispatch`'s own documentation](../../crates/harness-dispatch/README.md)
+[Ravel's own CLI documentation](https://github.com/Linkuistics/Ravel/blob/v0.1.0/docs/session-cli.md)
 owns it, and the ownership table's one-canonical-source rule is what keeps this
 book from re-describing it.
 

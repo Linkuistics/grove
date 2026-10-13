@@ -1,9 +1,9 @@
-// The self-driving loop: select a leaf, compose its prompt, run dispatch,
+// The self-driving loop: select a leaf, compose its prompt, run ravel,
 // invalidate the reaped session's epoch, then interpret the launch.
 //
-// Dispatch alone watches the harness's exit channel and ends its group. Grove
-// launches dispatch as a channel-free job; its runner forwards cancellation,
-// reaps dispatch and restores the terminal, including after dispatch's death
+// Ravel alone watches the harness's exit channel and ends its group. Grove
+// launches ravel as a channel-free job; its runner forwards cancellation,
+// reaps ravel and restores the terminal, including after ravel's death
 // left an orphaned harness holding the foreground. The driver then resets it.
 //
 // Restart is continuation: each iteration derives its position from the tree.
@@ -15,7 +15,9 @@ use crate::{Handle, Kind, Reading, Selection, Sought, TreeLifetime};
 use anyhow::{ensure, Context, Result};
 use jj_workspace::Workspace;
 use keyed_launch::{Argv, End, Ended, Escalation, Group, Launch};
-use std::ffi::{OsStr, OsString};
+use std::ffi::OsStr;
+#[cfg(test)]
+use std::ffi::OsString;
 use std::io::Write;
 use std::path::Path;
 use std::process::Command;
@@ -25,10 +27,10 @@ use std::time::Duration;
 /// variables a descendant could act on, and the exact set every spawn below
 /// hands to `keyed_launch` as its scrub list.
 ///
-/// `GROVE_SIGNAL_FILE` is legacy completion authority, scrubbed while this
-/// meta-grove still runs under installed v22. No current launch grants it.
-/// `GROVE_LAUNCH_DIR` identifies the admitted session; `HARNESS_DISPATCH_EXIT_FILE`
-/// ends a dispatch run. Both are scrubbed before the current launch is granted.
+/// `GROVE_SIGNAL_FILE` and `GROVE_RUN_SIGNAL_FILE` are retired completion
+/// authority, retained for installed v22 sessions. `GROVE_LAUNCH_DIR` identifies
+/// the admitted session. Dispatch and Ravel exit contexts, and dispatch's old
+/// run/store context, are removed before the current launch is granted.
 /// `GROVE_HARNESS_PID` / `GROVE_CLAUDE_PID` are the retired pre-watcher handles
 /// (self-driving-loop), kept here because a stale, unrelated PID leaking into a
 /// nested grove is the same class of mistake one notch quieter — the value is
@@ -46,7 +48,7 @@ use std::time::Duration;
 /// commands write `"$GROVE_SIGNAL_FILE"` unconditionally, and `cargo test`
 /// killed the terminal it was typed into.
 ///
-/// Grove's own spawns are exactly two — the session and `stty sane`
+/// This loop's own spawns are two — the session and `stty sane`
 /// — and both scrub. (There were three: the build-pairing probe went with
 /// provisioning at `delete-provisioning-k19`, since a driver that writes no
 /// skill directory has no pairing to report.) The one
@@ -58,10 +60,15 @@ use std::time::Duration;
 /// on one* — `jj` execs a user-configured pager, editor and fsmonitor, which
 /// inherit whatever `jj` inherited — and the seam's own record is where that
 /// belongs rather than here.
-const LOOP_CONTROL_ENV: [&str; 5] = [
+const LOOP_CONTROL_ENV: [&str; 10] = [
     "GROVE_SIGNAL_FILE",
+    "GROVE_RUN_SIGNAL_FILE",
     "GROVE_LAUNCH_DIR",
     "HARNESS_DISPATCH_EXIT_FILE",
+    "HARNESS_DISPATCH_RUN_ID",
+    "HARNESS_DISPATCH_STATE_DIR",
+    "RAVEL_EXIT_FILE",
+    "GROVE_PROVIDER_EVIDENCE",
     "GROVE_HARNESS_PID",
     "GROVE_CLAUDE_PID",
 ];
@@ -118,12 +125,12 @@ pub enum LoopOutcome {
 /// The three arguments are the three things a loop cannot derive for itself and
 /// is therefore handed: the **workspace** it drives (resolved by its caller,
 /// which had to resolve one to take the lease), the **lease** proving it is the
-/// only driver in that working tree, and the path of the **`harness-dispatch`**
-/// executable every session is launched through, which its caller found beside
-/// its own.
+/// only driver in that working tree, and the path of the **Ravel**
+/// executable every session is launched through, selected and version-checked
+/// by its caller from absolute PATH entries.
 ///
 /// Nothing here inspects the working tree for a harness, nothing chooses a
-/// binary and nothing reads a configuration: the owner's dispatch policy is the
+/// binary and nothing reads a configuration: the owner's ravel policy is the
 /// whole of launch policy (`docs/specs/harness-selection-and-execution.md`,
 /// *Grove integration*). Nothing here
 /// delivers the methodology either — since `delete-provisioning-k19` the
@@ -137,24 +144,24 @@ pub enum LoopOutcome {
 /// # Errors
 ///
 /// A lease that stops naming the descriptors this process owns, a tree the
-/// store refuses, or a `harness-dispatch` that could not be spawned. A launch
+/// store refuses, or a Ravel that could not be spawned. A launch
 /// the owner's policy refuses is not an error: it is a session that ended
-/// without an exit-signal ending, and the loop stops on it.
+/// without a supported Grove result, and the loop stops on it.
 pub fn run(
     workspace: &Workspace,
     mut lease: DriverLease,
-    dispatch: &Path,
+    ravel: &Path,
 ) -> Result<LoopOutcome, crate::Error> {
     ignore_interrupts();
-    Ok(drive(workspace, &mut lease, dispatch)?)
+    Ok(drive(workspace, &mut lease, ravel)?)
 }
 
 fn drive(
     workspace: &Workspace,
     driver_lease: &mut DriverLease,
-    dispatch: &Path,
+    ravel: &Path,
 ) -> Result<LoopOutcome> {
-    // Taken from the lease rather than recomputed: dispatch runs here, which is
+    // Taken from the lease rather than recomputed: ravel runs here, which is
     // the location the prompt assumes and the one a policy reads as its `cwd`.
     let worktree_path = driver_lease.worktree_root().to_path_buf();
     let worktree = worktree_path.as_path();
@@ -184,15 +191,24 @@ fn drive(
         };
         let selection = selected.selection.clone();
 
-        let prompt = session_prompt(&selection.handle, &selection.kind, workspace);
+        let ending = crate::session_command::end_session(ravel)?;
+        let prompt = session_prompt(&selection.handle, &selection.kind, workspace, &ending);
 
         driver_lease
             .revalidate()
             .context("revalidating driver lease before foreground launch")?;
         let launch_dir =
             crate::launch_directory::LaunchDirectory::allocate(driver_lease.control_dir())?;
-        let argv = dispatch_run(dispatch, &selection, &prompt, launch_dir.path());
-        let ended = launch_session(&argv, selected, worktree, launch_dir.path(), driver_lease);
+        let capture = crate::session_result::SessionResult::allocate()?;
+        let argv = crate::session_command::lifecycle(ravel, &selection, &prompt, launch_dir.path());
+        let ended = launch_session(
+            &argv,
+            selected,
+            worktree,
+            launch_dir.path(),
+            driver_lease,
+            capture.stdout()?,
+        );
         // Unconditionally, and before the invalidation gate below: the session
         // may have left the terminal in raw mode and on the alternate screen,
         // and an error path that returns without restoring it hands the human
@@ -214,7 +230,9 @@ fn drive(
             );
         }
 
-        if let Some(outcome) = interpret_launch(&ended, &reading, &selection) {
+        if let Some(outcome) =
+            interpret_launch(&ended, &reading, &selection, || capture.read_continue())
+        {
             return Ok(outcome);
         }
     }
@@ -227,6 +245,7 @@ fn interpret_launch(
     ended: &Ended,
     reading: &crate::launch_directory::LaunchReading,
     selection: &Selection,
+    read_continue: impl FnOnce() -> std::result::Result<(), crate::Error>,
 ) -> Option<LoopOutcome> {
     if let End::Interrupted { signal } = ended.end {
         eprintln!("grove: interrupted by signal {signal} — stopping the loop.");
@@ -241,7 +260,7 @@ fn interpret_launch(
     }
 
     // Before the ending is acted on, and whatever it says: a member of
-    // dispatch's group that survived the runner's kills may still hold the
+    // ravel's group that survived the runner's kills may still hold the
     // tree, so no relaunch may happen beside it.
     if let Group::Present { pgid } = ended.group {
         eprintln!(
@@ -253,20 +272,23 @@ fn interpret_launch(
         return Some(LoopOutcome::Stopped);
     }
 
-    if reading.exit_signal {
-        return None;
+    if ended.status.success() {
+        match read_continue() {
+            Ok(()) => return None,
+            Err(error) => eprintln!("grove: unsupported or missing session result: {error}"),
+        }
     }
     eprintln!(
-        "grove: session ended without an exit-signal ending — status {}, elapsed {:.3}s; loop stopped.",
+        "grove: session ended without a supported Grove result — status {}, elapsed {:.3}s; loop stopped.",
         ended.status, ended.elapsed.as_secs_f64()
     );
     use std::os::unix::process::ExitStatusExt as _;
     if ended.status.signal().is_some() {
-        eprintln!("       dispatch died of a signal; its harness may have survived. Check for a leftover process before rerunning `grove`.");
+        eprintln!("       Ravel died of a signal; its harness may have survived. Check for a leftover process before rerunning `grove`.");
     }
     if !ended.status.success() {
         eprintln!(
-            "       session kind `{}` for `{}` failed; if harness-dispatch refused the \
+            "       session kind `{}` for `{}` failed; if Ravel refused the \
              launch, its diagnostic and remedy are above and the leaf is still live. \
              Either way, rerun `grove` to continue.",
             selection.kind.label(),
@@ -285,7 +307,7 @@ fn interpret_launch(
 /// control from, and grove's own published release version.
 ///
 /// The kind is passed in rather than re-read: it is the same value
-/// `harness-dispatch` receives as `--kind`, taken from the one guarded
+/// Ravel receives as `--kind`, taken from the one guarded
 /// selection, so the prompt and the policy that selects the command cannot
 /// disagree about what kind it is.
 ///
@@ -301,51 +323,24 @@ fn interpret_launch(
 /// proved a marker existed by leasing the `.jj/` beside it — an unreachable
 /// error arm the loop still had to carry. The loop is handed the workspace it
 /// is driving, so there is nothing left here to fail.
-fn session_prompt(handle: &Handle, kind: &Kind, workspace: &Workspace) -> String {
+fn session_prompt(
+    handle: &Handle,
+    kind: &Kind,
+    workspace: &Workspace,
+    ending_command: &str,
+) -> String {
     crate::prompt::compose(&crate::prompt::Mandate {
         handle,
         kind,
         workspace,
         version: crate::VERSION,
+        ending_command,
     })
 }
 
-/// The `harness-dispatch run` invocation for one selected leaf: everything the
-/// owner's policy may select from, and nothing about how it selects
-/// (`docs/specs/harness-selection-and-execution.md`, *A lifecycle session*).
-///
-/// The kind, the task file and the handle are read from the selection that
-/// composed `prompt`, so they cannot describe a different leaf from the mandate.
-/// No parameter is passed. The session's location is the `cwd` dispatch runs
-/// in, and naming the session is the methodology's. No policy entry, bound,
-/// grant or record directory is passed either: those are the owner's settings.
-///
-/// Each value is joined to its flag in one word, so a prompt or a path that
-/// begins with a dash is still a value. A value dispatch cannot take, a path
-/// that is not UTF-8 for one, is dispatch's to refuse.
-fn dispatch_run(dispatch: &Path, task: &Selection, prompt: &str, launch_dir: &Path) -> Argv {
-    let word = |flag: &str, value: &OsStr| {
-        let mut word = OsString::from(flag);
-        word.push(value);
-        word
-    };
-    Argv::new(
-        dispatch.into(),
-        vec![
-            "run".into(),
-            word("--kind=", task.kind.label().as_ref()),
-            word("--task-file=", task.path.as_os_str()),
-            word("--task-id=", task.handle.to_string().as_ref()),
-            word("--prompt=", prompt.as_ref()),
-            word("--exit-dir=", launch_dir.as_os_str()),
-            word("--ending-file=", launch_dir.join("ending.json").as_os_str()),
-        ],
-    )
-}
-
-/// Launch dispatch as a foreground, channel-free job. Dispatch selects and
+/// Launch ravel as a foreground, channel-free job. Ravel selects and
 /// supervises the harness as a separate job and owns its exit signal. The runner
-/// reports dispatch's start/reap and restores the handed-over terminal modes.
+/// reports ravel's start/reap and restores the handed-over terminal modes.
 ///
 /// Prints one diagnostic line naming the kind and the selected handle. That
 /// line is the only durable record of what each session in a loop was working
@@ -364,10 +359,11 @@ fn launch_session(
     worktree: &Path,
     launch_dir: &Path,
     driver_lease: &mut DriverLease,
+    stdout: std::fs::File,
 ) -> Result<Ended> {
     let selection = &selected.selection;
     eprintln!(
-        "grove: launching {} through harness-dispatch — {}",
+        "grove: launching {} through Ravel — {}",
         selection.kind.label(),
         selection.handle
     );
@@ -378,7 +374,7 @@ fn launch_session(
 
     driver_lease
         .supervise_launch(|observer| {
-            keyed_launch::run_observed(
+            keyed_launch::run_observed_with_stdout(
                 Launch {
                     argv,
                     channel: None,
@@ -388,6 +384,7 @@ fn launch_session(
                     cwd: Some(worktree),
                     escalation: ESCALATION,
                 },
+                stdout,
                 observer,
             )
         })
@@ -419,9 +416,8 @@ fn complete_post_reap_epoch_handoff<E, T>(
 }
 
 /// No channel grace: Grove ends no harness. Its own TERM/HUP is forwarded
-/// to dispatch, whose cancellation must finish before this 10-second kill-grace.
-/// Dispatch budgets 5 seconds for the harness, 1 for group confirmation and
-/// 2 for its record-store lock (decision 7).
+/// to ravel, whose cancellation must finish before this 10-second kill-grace.
+/// Ravel budgets managed-process cleanup before its public result returns.
 const ESCALATION: Escalation = Escalation {
     grace: Duration::ZERO,
     kill_grace: Duration::from_secs(10),
@@ -551,7 +547,7 @@ mod tests {
         temp
     }
 
-    /// The loop's own `harness-dispatch run` for `task`, under a HOME whose
+    /// The loop's own `harness-ravel run` for `task`, under a HOME whose
     /// policy runs `harness` for every kind. The real front and its compiled
     /// worker select it. `env` sets that HOME on the front it becomes, because
     /// a test may not change its own process's environment.
@@ -562,8 +558,8 @@ mod tests {
         std::fs::set_permissions(harness, permissions).unwrap();
         support::route_every_kind_to(home, harness);
         std::fs::create_dir_all(home.join("exit")).unwrap();
-        let run = dispatch_run(
-            &support::harness_dispatch(),
+        let run = crate::session_command::lifecycle(
+            &support::installed_ravel(),
             task,
             "prompt",
             &home.join("exit"),
@@ -583,7 +579,7 @@ mod tests {
             handle: Handle::parse("work-k1").unwrap(),
             kind: Kind::new("impl").unwrap(),
         };
-        for (end, group, teardown, exit_signal, want) in [
+        for (end, group, teardown, supported_result, want) in [
             (
                 End::Interrupted {
                     signal: libc::SIGTERM,
@@ -635,18 +631,21 @@ mod tests {
             let ended = Ended {
                 end,
                 group,
-                status: std::process::ExitStatus::from_raw(7 << 8),
+                status: std::process::ExitStatus::from_raw(0),
                 elapsed: Duration::ZERO,
                 signalled: false,
             };
-            let reading = crate::launch_directory::LaunchReading {
-                teardown,
-                exit_signal,
-            };
+            let reading = crate::launch_directory::LaunchReading { teardown };
             assert_eq!(
-                interpret_launch(&ended, &reading, &selection),
+                interpret_launch(&ended, &reading, &selection, || {
+                    if supported_result {
+                        Ok(())
+                    } else {
+                        Err(anyhow::anyhow!("missing result").into())
+                    }
+                }),
                 want,
-                "{end:?}, {group:?}, teardown={teardown}, exit_signal={exit_signal}"
+                "{end:?}, {group:?}, teardown={teardown}, supported_result={supported_result}"
             );
         }
     }
@@ -677,7 +676,15 @@ mod tests {
             );
             let launch_dir =
                 crate::launch_directory::LaunchDirectory::allocate(lease.control_dir()).unwrap();
-            let result = launch_session(&argv, selection, work, launch_dir.path(), &mut lease);
+            let capture = crate::session_result::SessionResult::allocate().unwrap();
+            let result = launch_session(
+                &argv,
+                selection,
+                work,
+                launch_dir.path(),
+                &mut lease,
+                capture.stdout().unwrap(),
+            );
             assert_eq!(result.is_ok(), state == "current", "{state}: {result:?}");
             assert_eq!(work.join("launched").exists(), state == "current");
             let epoch = std::fs::read_to_string(lease.control_dir().join("session.epoch")).unwrap();

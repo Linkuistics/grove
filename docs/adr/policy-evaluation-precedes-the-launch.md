@@ -1,76 +1,27 @@
 # Policy evaluation precedes the launch
 
-`harness-dispatch` uses a Rust front process and an installed, matching Bun-compiled
-policy worker. Rust retains the original launch environment and terminal, gives
-the worker a bounded request without the authority to end a run, reaps it,
-durably records the selected handoff, and only then starts the harness, which it
-supervises to its end ([dispatch supervises the harness](dispatch-supervises-the-harness.md)).
-The [area specification](../specs/harness-selection-and-execution.md) owns the
-protocol, trust controls, cancellation and evidence contracts.
+Independent Ravel uses a native front and a matching compiled TypeScript worker.
+The front retains launch environment/terminal, evaluates bounded owner selection
+without session authority, reaps the worker and then supervises the selected
+process. Grove relies on that public behavior; it never calls the private worker.
+[Ravel's executable specification](https://github.com/Linkuistics/Ravel/blob/v0.1.0/docs/specs/session-execution.md)
+owns the detailed runtime/authority controls.
 
-The split matters more under supervision than it did under process replacement.
-The front holds the run's exit channel, and the harness's run ID, for as long as
-the harness runs. No policy code, and nothing a policy starts, runs in that
-process or ever learns either: the worker is reaped before the harness starts,
-and its environment carries no `HARNESS_DISPATCH_*` value. The handoff exports
-the run's identity to the harness, so the launched session can name its own run
-later. That is how a review finds its creator without the tool reconstructing
-one from attempts
-([a review carries its creator reference](a-review-carries-its-creator-reference.md)).
+The separation keeps executable policy out of the process holding the enclosing
+session channel. Grove scrubs its enclosing launch and provider-evidence
+authority before invoking Ravel. Ravel forbids grants of its own and legacy
+dispatch controls to the policy worker and supplies fresh ending context only
+to the managed process. Grove's optional provenance wrapper
+supplies selected-provider evidence as caller data; there is no Ravel run ID or
+store ([creator reference](a-review-carries-its-creator-reference.md)).
 
-Bun supplies TypeScript and ordinary filesystem/network computation without
-maintaining a new JavaScript standard library. Compiling the worker keeps a
-separately installed runtime out of the launch contract. Its costs are a larger
-installation, a second build tool, runtime notices, and per-target execution
-checks.
-
-Bun also takes ambient input as it starts and as it resolves imports, and each
-control answers a class that fires without it. cwd dotenv and bunfig preloads
-fire in a default build. They stay inert under a build without dotenv and
-bunfig autoloading, and under a private empty start directory, each alone. A
-`BUN_OPTIONS` preload fires even in the guarded build, which is why Rust scrubs
-the environment before start. Bun's runtime transpiler cache, under HOME, runs
-an altered cached output of an imported file in place of the file. Only a
-variable set before start turns the cache off, so Rust sets it. A
-`node_modules` shadow beside the entry loses to a registered embedded module.
-tsconfig `paths` fire only in a build that enables tsconfig autoloading.
-
-package.json autoloading is the one switch left on, so that a package whose
-entry `main` or `exports` declares loads. It can be on only because of where
-the worker runs. The front creates the private start directory under the
-caller's TMPDIR, and that directory's ancestors are not private. A worker that stayed there would
-read each `package.json` at or above it on every evaluation. One there can
-stall a plain policy to its deadline, and another can answer an import from a
-module with no file location. With every switch off, a `node_modules` above
-the start directory answers a bare import from such a module too. So the
-worker starts in the private directory and moves to `/` before it loads any
-policy code. The runtime reads its startup files from where a process starts
-and resolves such a module from where the process is, and `/` has no
-ancestors. After the move, a `node_modules` above the start directory answers
-nothing, and nor does a `package.json` there, whether it maps an import or
-would stall a worker that opened it. `/` itself still answers, as it does for
-a module in a file.
-
-The move costs one control. The runtime loads dotenv files again for each VM
-it starts, from where the process then is. So a native `Worker` a policy starts
-would read `/.env`, where one started by a worker that stayed put would read
-the empty directory. Only the dotenv switch keeps that out. The cost is
-accepted: the reach the move closes would be open to anyone who can write
-TMPDIR, and what the move leaves to one control is a file only the owner of `/` can
-write, behind a switch a command-seam test holds.
-
-package.json autoloading has a limit of its own. An entry's own `package.json`
-takes part as it does in Node when it is well formed, and one that does not
-parse is passed over for the next one above. An `imports` alias there that
-names a registered specifier is looked up in `node_modules`, so beside a shadow
-it loads the shadow. A registered specifier an import names still resolves to
-its embedded module.
-
-Each claim above was observed on one macOS arm64 host with one Bun version, and
-some classes have no known firing configuration at all. The
-[runtime evidence](../design/harness-selection-and-execution/runtime-evidence.md)
-records exactly which, the limits of each observation and the primary runtime
-documentation.
+The compiled worker keeps host Bun/Node out of the installed contract. Its
+startup/import controls, per-target checks and runtime notices belong to Ravel,
+not Grove. The transferred
+[worker decision](https://github.com/Linkuistics/Ravel/blob/v0.1.0/docs/adr/policy-evaluation-precedes-the-launch.md)
+and [runtime evidence](https://github.com/Linkuistics/Ravel/blob/v0.1.0/docs/runtime-evidence.md)
+record the pinned observations and limits. Grove verifies the public installed
+pair with fake agents; it does not duplicate those private runtime claims.
 
 Considered alternatives:
 

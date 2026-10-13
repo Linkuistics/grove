@@ -52,6 +52,34 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+### Changed
+
+- Extract harness supervision and policy routing into independently released
+  Ravel. Grove now requires the supported Ravel 0.1.x CLI on PATH; Homebrew
+  installs it as a separate dependency. Grove archives contain only Grove's
+  commands and caller-owned policy assets, with no bundled dispatch worker.
+- Grove launches `ravel start-session` and supplies its own prompt and exact
+  `ravel end-session grove-continue` instructions. Ravel returns an opaque
+  result after reaping the harness; Grove owns continuation, teardown and
+  standalone output publication. Existing sessions retain their original
+  launch and ending contracts through the documented preservation procedure.
+- Publish Grove's readable policy samples against Ravel's public SDK, with
+  creator-aware review routing and Grove-owned provider evidence. Installation
+  preserves existing owner policies; copy and adapt samples explicitly under
+  `~/.config/ravel`.
+- Reconcile guides, specs, decision records, walkthroughs and plugin guidance
+  with the independent executable boundary. Replace Rust runtime test tasks
+  with cargo nextest while retaining doctest checks.
+
+### Fixed
+
+- Scrub inherited original and Ravel session authority from test helpers and
+  child launches. Exercise result transport, stale/nested context isolation,
+  confinement and installed caller behavior through independent Ravel layouts.
+- Validate release archives on all three supported targets, including native
+  and QEMU Linux glibc/CPU floors, actual sandbox output publication, pinned
+  independent Ravel inputs and the Homebrew installation contract.
+
 ## v22.1.0
 
 ### Breaking upgrade: update the policy, binaries and skills together
@@ -146,7 +174,7 @@ An already running v22 driver keeps its old completion contract.
   other directory, nothing more. A `.jj/repo` file that names no store refuses
   as `jj_store_unreadable`. `init`'s report, the help's Grove invocation and
   the typecheck fixtures follow
-  ([the sample policy](crates/harness-dispatch/README.md#the-sample-policy)).
+  ([the sample policy](https://github.com/Linkuistics/grove/blob/v22.1.0/crates/harness-dispatch/README.md#the-sample-policy)).
 - **A Grove launch now ends with its whole process group.** Whatever ends the
   session, an exit on the escalation's TERM, within the grace or on its own, the
   runner kills what remains of the session's process group before it reaps the
@@ -246,7 +274,7 @@ policy written for 21.13.0 refuses too.
   objects among a candidate's arguments and the `--choice` input are gone, and
   so is the `harness-dispatch/examples/dynamic` example. Rewrite the policy as
   one `select` that returns the command to run, or start from `init`'s sample
-  ([a policy](crates/harness-dispatch/README.md#a-policy)).
+  ([a policy](https://github.com/Linkuistics/grove/blob/v22.1.0/crates/harness-dispatch/README.md#a-policy)).
 - **A kind your policy does not route is caught only when its leaf launches.**
   `leaf-add`, `leaf-insert`, `leaf-decompose`, root scaffolding and the
   `finish` leaf consult no policy, so a leaf of any well-formed kind is
@@ -259,7 +287,7 @@ policy written for 21.13.0 refuses too.
   Grove passes harness-dispatch no bound, grant or record directory. Set
   `timeoutMs`, `contextBytes`, `stateDir` and `policyEnv` once, in
   `~/.config/harness-dispatch/settings.json`
-  ([owner settings](crates/harness-dispatch/README.md#owner-settings)). Do not
+  ([owner settings](https://github.com/Linkuistics/grove/blob/v22.1.0/crates/harness-dispatch/README.md#owner-settings)). Do not
   grant `GROVE_SIGNAL_FILE` there.
 - **A per-checkout `.grove.kdl` becomes a choice file.**
   `.harness-dispatch-choice` in the working-tree root names which of the
@@ -322,7 +350,7 @@ policy written for 21.13.0 refuses too.
   caller's directory and reaps, within the selection bound. No agent policy
   and no model-calling policy ships. The prompt is a mandate, so keeping such
   an agent from executing the task it evaluates is the policy owner's job
-  ([handing the prompt to a deciding agent](crates/harness-dispatch/README.md#handing-the-prompt-to-a-deciding-agent)).
+  ([handing the prompt to a deciding agent](https://github.com/Linkuistics/grove/blob/v22.1.0/crates/harness-dispatch/README.md#handing-the-prompt-to-a-deciding-agent)).
 - `inspect` reports the selected command as a `command` object: the `program`
   and `args` the policy returned and the `executable` the program resolved to.
   Without `--prompt` it gives `select` a marker the SDK names
@@ -360,7 +388,7 @@ policy written for 21.13.0 refuses too.
   records the handoff, and replaces itself with that harness. The policy is
   `~/.config/harness-dispatch/policy.ts`, or the entry `--config` names, and
   never one found in the current directory. Installing or upgrading writes no
-  policy. Its [README](crates/harness-dispatch/README.md) is the owner's
+  policy. Its [README](https://github.com/Linkuistics/grove/blob/v22.1.0/crates/harness-dispatch/README.md) is the owner's
   guide, and the
   [specification](docs/specs/harness-selection-and-execution.md) is its
   contract

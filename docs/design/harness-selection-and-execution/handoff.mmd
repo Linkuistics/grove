@@ -1,33 +1,21 @@
 sequenceDiagram
-  participant G as Grove / caller
-  participant R as Rust front process
-  participant W as Policy worker
-  participant D as Record store
-  participant H as Harness
-  G->>R: Kind, prompt, parameters + terminal, cwd, environment
-  R->>R: Read owner settings: bounds, grants, record directory
-  R->>W: Fresh env, private start directory, bounded request with the prompt, null stdin
-  opt Dynamic dispatch, the owner's own code
-    W->>W: Start a deciding agent in the caller's cwd, wait, reap
-  end
-  W-->>R: select's result: command + labels + reason, or a refusal
-  R->>R: Reap worker, validate the result's shape, resolve the program
-  alt Inspect
-    R-->>G: Proposal + bounds + command, no harness or run receipt
-  else Run
-    R->>D: Durable handoff-attempt record
-    alt Write fails or cancellation observed
-      R-->>G: Nonzero refusal, no harness
-    else Admission succeeds
-      R->>H: Spawn as its own job: entry signal mask and dispositions, terminal, exit channel, run ID
-      Note over R,H: The front stays the parent, its handlers still installed
-      H->>R: Exit signal: harness-dispatch exit creates the channel
-      R->>H: Grace, then TERM, kill-grace, KILL on the harness's group
-      H-->>R: Exits: exit code or signal, observed unreaped
-      R->>H: KILL what remains of the harness's group, reap, confirm the group gone
-      R->>R: Take the terminal back, restore its modes
-      R->>D: End observation: execution confirmed, ending, exit, duration
-      R-->>G: Ending file, end notice, exit per the ending
+  participant G as Grove caller
+  participant R as Independent Ravel
+  participant P as Owner policy
+  participant H as Managed process
+  G->>R: start-session: kind, unchanged prompt, public caller data
+  R->>P: Evaluate bounded selection without enclosing completion authority
+  P-->>R: Selected command or refusal
+  alt Refusal or selection failure
+    R-->>G: Diagnostic and nonzero status, no managed process
+  else Selected command
+    R->>H: Start and supervise with fresh enclosing ending context
+    H->>R: Prompt's exact end-session RESULT command
+    R->>H: End managed group, reap and restore terminal
+    alt Cleanup succeeds and result published
+      R-->>G: Exact opaque stdout, successful status
+    else Cancellation, cleanup failure or missing result
+      R-->>G: No successful result
     end
   end
-  Note over D: A dispatch killed mid-run leaves its attempt as it stood
+  Note over G,R: No instruction injection, persistent record or caller result meaning in Ravel

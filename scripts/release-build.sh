@@ -19,10 +19,8 @@
 # final name only once it has passed the manifest check.
 #
 # Every archive holds one directory, grove-v<ver>-<target>/, laid out as an
-# installation prefix: bin/ holds grove, grove-llm and harness-dispatch, and
-# libexec/harness-dispatch/ holds harness-dispatch's compiled policy worker, the
-# declarations and readable sources of its SDK and examples, the sample policy,
-# and its notices.
+# installation prefix: bin/ holds grove and grove-llm; libexec/ravel-policy/
+# holds Grove's readable caller assets. Ravel ships independently.
 # `archive_manifest` in release-common.sh lists every file, and each archive is
 # checked against it as soon as it is packed.
 
@@ -34,7 +32,6 @@ readonly REPO_ROOT
 readonly DIST_DIR="$REPO_ROOT/target/dist"
 readonly ARCHIVES_DIR="$REPO_ROOT/target/archives"
 readonly TEMPLATE="$REPO_ROOT/scripts/templates/grove.rb.tmpl"
-readonly DISPATCH="$REPO_ROOT/crates/harness-dispatch/scripts/dispatch.sh"
 
 # TARGETS, pin_rust_toolchain, archive_manifest and assert_archive — shared
 # with release-doctor.sh and the release tests, so the doctor checks the
@@ -70,17 +67,6 @@ workspace_version() {
   echo "${id##*[#@]}"
 }
 
-# The Bun compile target whose pinned runtime the worker for a release target
-# is built from (see `runtime_package` in dispatch.sh).
-bun_target() {
-  case "$1" in
-    aarch64-apple-darwin) echo bun-darwin-arm64 ;;
-    aarch64-unknown-linux-gnu) echo bun-linux-arm64 ;;
-    x86_64-unknown-linux-gnu) echo bun-linux-x64 ;;
-    *) die "no Bun target for $1" ;;
-  esac
-}
-
 build_target() {
   local target="$1" version="$2" out_dir="$3"
   # NOTE: the explicit `|| return 1`s are load-bearing. build_target runs inside
@@ -90,39 +76,30 @@ build_target() {
   # and tarball a STALE binary from a previous build. The caller also tests the
   # exit status. For the same reason everything but the archive path goes to
   # stderr: stdout is the caller's value.
-  # **The three packages that ship, named explicitly.** `grove-llm` is its own
-  # package since `loop-crate-verbs-k21`, harness-dispatch is its own by
-  # contract, and this workspace root is also a package, so a bare `cargo
-  # build` builds `grove` alone and the `cp` below would tarball stale binaries
-  # or fail outright. `--workspace` would work too and would also build the
-  # store's own `syllabus` binary, which ships in no archive; naming the three
-  # that do is what keeps this line honest.
+  # Name only the two executable packages that ship in Grove archives.
   case "$target" in
     *-apple-darwin)
       cargo build --release --locked --target "$target" \
-        -p grove -p grove-llm -p harness-dispatch || return 1
+        -p grove -p grove-llm || return 1
       ;;
     *-unknown-linux-gnu)
-      # grove is pure Rust with no system-lib deps (the TUI tower that once
-      # pulled curl/openssl was shed in `shed-tui-k20`). harness-dispatch
-      # compiles SQLite in from source (rusqlite's `bundled`), and zigbuild's
-      # C compiler builds that against the same glibc floor.
+      # Grove's two executables have no bundled runtime or system-library deps.
       cargo zigbuild --release --locked --target "${target}.${LINUX_GLIBC}" \
-        -p grove -p grove-llm -p harness-dispatch || return 1
+        -p grove -p grove-llm || return 1
       ;;
     *)
       die "unknown target: $target"
       ;;
   esac
 
-  local top="grove-v${version}-${target}" binary bun
+  local top="grove-v${version}-${target}" binary
   local stage="$out_dir/staging/$top"
   mkdir -p "$stage/bin" || return 1
-  for binary in grove grove-llm harness-dispatch; do
+  for binary in grove grove-llm; do
     cp "$REPO_ROOT/target/$target/release/$binary" "$stage/bin/$binary" || return 1
   done
-  bun="$(bun_target "$target")" || return 1
-  bash "$DISPATCH" build --target "$bun" "$stage/libexec/harness-dispatch" >&2 || return 1
+  mkdir -p "$stage/libexec" || return 1
+  cp -R "$REPO_ROOT/assets/ravel-policy" "$stage/libexec/ravel-policy" || return 1
   cp "$REPO_ROOT/LICENSE" "$REPO_ROOT/README.md" "$stage/" || return 1
 
   local archive="$out_dir/$top.tar.xz"
@@ -200,9 +177,6 @@ main() {
     version="$(workspace_version)"
     echo "release-build: unreleased archives of the working copy at v${version}"
   fi
-
-  # The worker build emits its SDK declarations with the pinned type checker.
-  task --dir "$REPO_ROOT" dispatch:deps
 
   mkdir -p "$out_dir/staging"
 

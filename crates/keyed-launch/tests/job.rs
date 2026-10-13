@@ -157,7 +157,7 @@ fn launcher() {
     let control = TempDir::new().unwrap();
     let channel = Channel::allocate(control.path()).unwrap();
     let entry = EntrySignals::new([libc::SIGHUP], [libc::SIGUSR1]);
-    let ended = run(Launch {
+    let launch = Launch {
         argv: &argv,
         channel: Some((&channel, "TEST_CHANNEL")),
         scrub: &[],
@@ -168,8 +168,27 @@ fn launcher() {
             grace: Duration::from_millis(600),
             kill_grace: Duration::from_millis(900),
         },
-    })
+    };
+    let mut events = Vec::new();
+    let ended = if let Some(path) = std::env::var_os("JOB_STDOUT") {
+        keyed_launch::run_observed_with_stdout(
+            launch,
+            fs::File::create(path).unwrap(),
+            &mut |event| events.push(event),
+        )
+    } else {
+        run(launch)
+    }
     .unwrap();
+    if std::env::var_os("JOB_STDOUT").is_some() {
+        assert_eq!(
+            events,
+            [
+                keyed_launch::LaunchEvent::Started,
+                keyed_launch::LaunchEvent::Reaped
+            ]
+        );
+    }
 
     report.push(format!(
         "end={}",
@@ -485,6 +504,46 @@ fn kill_group(pgid: &str) {
 
 // ---------------------------------------------------------------------------
 // The terminal comes back as it was handed over
+
+/// Capturing a result stream must preserve foreground stdin/stderr and restore
+/// terminal modes even when the child ignores TERM and requires SIGKILL.
+#[test]
+fn captured_stdout_keeps_the_foreground_terminal_and_recovers_raw_modes() {
+    let scratch = Scratch::new();
+    let child = scratch.script(&format!(
+        "test -t 0 && test -t 2 || exit 71\n\
+         test ! -t 1 || exit 72\n\
+         stty raw -echo\nstty -a > '{modes}'\n\
+         printf opaque-result\nprintf managed-output >&2\n\
+         trap '' TERM\n: > \"$TEST_CHANNEL\"\nwhile : ; do sleep 0.05 ; done\n",
+        modes = scratch.path("raw-modes").display()
+    ));
+    let (status, output) = in_pty(
+        role_command(
+            "launcher",
+            &[
+                ("JOB_CHILD", &child),
+                ("JOB_REPORT", &scratch.os("report")),
+                ("JOB_STDOUT", &scratch.os("result")),
+            ],
+        ),
+        Duration::from_secs(20),
+        |_| {},
+    );
+    assert!(status.success(), "{status:?}\n{output}");
+    assert_eq!(fs::read(scratch.path("result")).unwrap(), b"opaque-result");
+    assert!(output.contains("managed-output"), "{output}");
+    assert!(!output.contains("opaque-result"), "{output}");
+    let raw = fs::read_to_string(scratch.path("raw-modes")).unwrap();
+    assert!(raw.contains("-icanon") && raw.contains("-echo "), "{raw}");
+    let report = report(&scratch.path("report"));
+    assert_eq!(report["before_foreground"], report["group"]);
+    assert_eq!(report["after_foreground"], report["group"]);
+    assert_eq!(report["after_modes"], report["before_modes"]);
+    assert_eq!(report["signal"], "9");
+    assert_eq!(report["end"], "escalated");
+    assert_eq!(report["child_group"], "gone");
+}
 
 /// The case the saved attributes exist for. A child that sets the terminal raw
 /// and is then killed cannot undo it, so the human would get a shell that does

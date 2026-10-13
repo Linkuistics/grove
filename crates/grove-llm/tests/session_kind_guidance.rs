@@ -716,12 +716,13 @@ fn the_filename_classifier_separates_the_current_grammar_from_its_predecessor() 
 // ---------------------------------------------------------------------------
 // Launch policy has one home, and the methodology may not name another
 
-/// The one `GROVE_*` name the methodology may legitimately mention: the launch
-/// directory, which the driver grants its harness and the session epoch admits.
-/// It is session authority, not a setting — every removed routing variable is
+/// The launch directory is session authority, not a setting. Caller evidence
+/// is selection data, not routing configuration or session authority.
+/// Every removed routing variable is
 /// classified by `tests/removed_surface.rs`, which deliberately leaves the
 /// shipped methodology to this file.
 const SESSION_AUTHORITY: &str = "GROVE_LAUNCH_DIR";
+const CALLER_EVIDENCE: &str = "GROVE_PROVIDER_EVIDENCE";
 
 fn grove_names_in(line: &str) -> Vec<String> {
     const PREFIX: &str = "GROVE_";
@@ -754,7 +755,7 @@ fn the_methodology_names_no_launch_policy_environment_variable() {
     for (path, text) in shipped_markdown() {
         for (offset, line) in text.lines().enumerate() {
             for name in grove_names_in(line) {
-                if name == SESSION_AUTHORITY {
+                if name == SESSION_AUTHORITY || name == CALLER_EVIDENCE {
                     continue;
                 }
                 findings.push(format!("{}:{}: {name}", path.display(), offset + 1));
@@ -771,8 +772,10 @@ fn the_methodology_names_no_launch_policy_environment_variable() {
     // Pin both a retired routing variable and the admitted session authority:
     // a classifier that misses either cannot justify the sweep's distinction.
     assert_eq!(
-        grove_names_in("set `GROVE_HARNESS` and read `GROVE_LAUNCH_DIR`"),
-        ["GROVE_HARNESS", SESSION_AUTHORITY],
+        grove_names_in(
+            "set `GROVE_HARNESS`, read `GROVE_LAUNCH_DIR` and `GROVE_PROVIDER_EVIDENCE`"
+        ),
+        ["GROVE_HARNESS", SESSION_AUTHORITY, CALLER_EVIDENCE],
         "the scan must find a launch-policy variable when one is present"
     );
     assert!(

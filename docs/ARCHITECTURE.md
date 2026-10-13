@@ -7,9 +7,11 @@ ordinary repository files and VCS;
 Grove adds only enough coordination to own one working tree, select one task,
 launch one agent session, and continue until the tree is complete.
 
-Grove does not know what it launches. It runs `harness-dispatch` for every
-session; the owner's policy returns the command, and dispatch spawns and
-supervises the harness to its end. Everything below is what remains once launch policy leaves the binary
+Grove does not know which harness it launches. It runs independently installed
+`ravel start-session` for every session; the owner's policy returns the command,
+and Ravel supervises that process before returning its opaque completion result.
+Grove supplies the prompt, ending instructions and result meaning. Everything
+below is what remains once launch policy leaves the binary
 — process ownership, a task-tree data model, and the loop that composes them —
 recorded as the decisions, the constraints and the measurements behind each.
 The description of what the system does at its entry point, how its two command
@@ -29,8 +31,8 @@ them.
 | Human workflow and commands | [`USAGE.md`](USAGE.md) |
 | Cutting and publishing a release | [`RELEASING.md`](RELEASING.md) |
 | Launch policy, a refused launch, and a review's creator line as a Grove owner meets them | [`USAGE.md`](USAGE.md#usage-launch-policy) |
-| `harness-dispatch` itself: policies, inspection, running, records and refusals | [`crates/harness-dispatch/README.md`](../crates/harness-dispatch/README.md) — beside the package and not under `docs/`, so that it travels with it |
-| The `harness-dispatch` contract | [`specs/harness-selection-and-execution.md`](specs/harness-selection-and-execution.md), with its [visual views and runtime evidence](design/harness-selection-and-execution/README.md) |
+| Ravel's process/router CLI and executable behavior | [Ravel CLI](https://github.com/Linkuistics/Ravel/blob/v0.1.0/docs/session-cli.md), [executable specification](https://github.com/Linkuistics/Ravel/blob/v0.1.0/docs/specs/session-execution.md) and [runtime evidence](https://github.com/Linkuistics/Ravel/blob/v0.1.0/docs/runtime-evidence.md), maintained in its independent project |
+| Grove's Ravel caller contract | [`specs/harness-selection-and-execution.md`](specs/harness-selection-and-execution.md), with its [visual views and evidence locators](design/harness-selection-and-execution/README.md) |
 | Runtime and repository design — the decisions, the constraints, and the measurement records | this document |
 | Grove vocabulary | [`CONTEXT.md`](../CONTEXT.md) |
 | Relationships between this repository's bounded contexts | [`CONTEXT-MAP.md`](../CONTEXT-MAP.md) |
@@ -98,13 +100,13 @@ title does not change the anchor.
 <a id="skills-monorepo"></a>
 ## Repository products
 
-The repository contains the CLI, a separate harness-selection command and three
-skill plugins:
+The repository contains the CLI, its readable caller policies and three skill
+plugins. Ravel is an independently delivered runtime dependency:
 
 | Product | Source | Delivery |
 |---|---|---|
 | Grove CLI | `crates/` | Homebrew and the release archives install `grove` and `grove-llm`. |
-| harness-dispatch | `crates/harness-dispatch/` | The same formula and archives install `harness-dispatch` beside them, with its compiled policy worker under `libexec/harness-dispatch/`. [Its own section](#harness-dispatch) places it. |
+| Grove caller assets | `assets/ravel-policy/` | Grove archives/formula install `libexec/ravel-policy`; the formula depends on separately versioned Ravel. [Delivery boundary](grove-delivery-contraction.md). |
 | Agent skill plugins | `plugins/grove/`, `plugins/linkuistics/`, `plugins/testanyware/` | Claude marketplace, automatic Codex provisioning by bare `grove`, or `plugins/install.sh` for manual checkout delivery. |
 
 Their documented interfaces evolve together. `plugins/` is the authoritative
@@ -125,8 +127,8 @@ restored any skill directory another build had clobbered, and re-checked the
 identity — a mid-loop `brew upgrade` being exactly the skew a start-time check
 misses. Both had the same subject, the embedded corpus, and both went with it at
 `delete-provisioning-k19`. Nothing in the iteration is advisory now:
-the lease, the workspace layout and the `harness-dispatch` beside the binary are
-facts the driver establishes directly and stops on. Codex provisioning now happens once in the binary before
+the lease, workspace layout and supported Ravel resolved from absolute PATH
+directories are facts established at startup. Codex provisioning happens once before
 the loop begins; it fails startup on an installation error.
 
 <a id="cli-binary-split"></a>
@@ -311,35 +313,35 @@ The renderer performs no I/O.
 
 ## Launching a session
 
-Grove reads no configuration file. Every launch's command is selected by the
-owner's `harness-dispatch` policy ([below](#harness-dispatch)), and a
-`config.kdl` or `.grove.kdl` left on disk is never read. Grove finds
-`harness-dispatch` beside its own executable, from its own real path, never
-from PATH or the cwd, so the pair is one release.
+Grove reads no launch configuration file. Every selected harness comes from
+owner policy through independently installed Ravel ([below](#harness-dispatch)).
+Grove chooses the first executable regular `ravel` in an absolute PATH directory,
+canonicalizes it once and checks that path's stable 0.1.x CLI version. Relative
+and empty PATH entries supply no cwd fallback; an incompatible or failed probe
+refuses without trying another installation. Launch and the quoted ending
+command reuse that canonical path. This trusts the owner's PATH executable;
+a version string authenticates no program and canonicalization pins no inode.
 
-Three files decide a launch, and none of them is Grove's. The
-policy, `~/.config/harness-dispatch/policy.ts`, returns the command.
-`harness-dispatch init` installs a sample, and the owner edits it. The owner
-settings, `settings.json` beside it, carry the selection bound, the context
-budget, the record directory and the environment granted to the policy, which
-Grove therefore never passes. A choice file, `.harness-dispatch-choice` in the
-working-tree root, picks among the options the policy offers for that
-checkout's lifecycle sessions and can introduce nothing. `harness-dispatch inspect` shows what a kind would launch. Nothing is
-evaluated before a launch, and a refused launch leaves its leaf live with the
-remedy on the terminal ([usage](USAGE.md#usage-refused-launch)).
+The owner's `~/.config/ravel/policy.ts` selects a command. Adjacent
+`settings.json` bounds selection/context and grants policy environment names;
+`.ravel-choice` selects among options that policy offers when it calls the SDK
+helper. Neither file belongs to Grove. The owner explicitly reads and copies
+Grove's sample from `libexec/ravel-policy`, preserving any existing policy.
+Ravel has exactly `start-session` and `end-session RESULT`, plus help/version
+flags; it has no init or inspection verb. Refusal leaves the leaf live with a
+remedy ([usage](USAGE.md#usage-refused-launch)). Old `config.kdl` and `.grove.kdl`
+files remain ignored.
 
 **`crates/keyed-launch` runs the command it is handed, and has never heard of a
-session.** It reads no configuration and resolves no name to a command. The
-crate spawns an argv directly with no shell and supervises the child as a job.
-Dispatch allocates a channel through it for the harness; Grove launches dispatch
-with no channel. A channel's appearance drives the harness escalation. Whatever
-ends a child, the crate kills what remains of its process group before reaping
-it, restores the terminal modes, and reports a surviving group beside the status.
-`Argv::new` preserves each string as one argument. Grove's lifecycle uses
-`run_observed(Launch, callback)` for dispatch's job and witness events; standalone
-uses channel-free `run_noninteractive(NoninteractiveLaunch, output)` for its
-transcript. Dispatch uses `run_observed` or `run_confined_observed` to supervise
-the selected harness. The runner selects no command and understands no session.
+session.** It reads no configuration and resolves no name to a command. Grove
+uses this local runner to spawn Ravel directly and supervise its job. Ravel's
+independently owned runner supervises the selected harness; no shared Rust
+library crosses the project boundary. Each supervisor cleans up its direct
+child's group, reaps it and restores terminal modes. `Argv::new` preserves each
+string as one argument. Lifecycle uses stdout-capturing observed launch for
+Ravel's result and witness events; standalone captures that result separately
+from its managed-output transcript. The local runner's channel abstraction
+remains available but Grove grants it no session-completion channel.
 
 The driver retains the selected task-root directory in a separate `TreeLifetime`
 pin, checked under the selection's tree guard. Finish materialization is followed
@@ -411,7 +413,7 @@ consumers handle observational failures internally. Ordinary `run(Launch)`
 remains available. Grove uses these events for witness publication and release;
 the viewer consumes their verified same-tree evidence for RUNNING and NEXT.
 
-Grove spawns `harness-dispatch run` directly — no shell, no proxy, no router
+Grove spawns `ravel start-session` directly — no shell, no proxy, no router
 service, and no harness-specific argument or environment injection. The command
 the policy selects never passes through Grove, so Grove cannot identify the
 program a session runs, which is what removes harness detection, model routing,
@@ -421,100 +423,65 @@ the binary altogether. Those choices are visible in the owner's policy instead.
 Two environment rules follow from that. Immediately before spawning the
 child, Grove clears its own loop-control variables and grants only
 this launch's `GROVE_LAUNCH_DIR`; everything else the caller had, including Git
-repository selectors, is preserved for the harness. The policy worker is given
-a fresh environment instead ([below](#harness-dispatch)).
+repository selectors, is preserved for the harness. Ravel evaluates policy in
+a fresh explicitly granted environment instead ([below](#harness-dispatch)).
 Driver-internal VCS children follow the opposite rule — they scrub both the loop
 controls and the repository selectors and are pinned to the leased working tree
 by their working directory — so personal launch context cannot redirect a
 teardown commit.
 
 <a id="harness-dispatch"></a>
-## The harness-dispatch package
+## Independent Ravel and Grove's caller boundary
 
-`crates/harness-dispatch` is a second product of this workspace, independent
-of Grove. It passes the caller's inputs to an owner's TypeScript `select`,
-records the handoff, spawns the selected harness, supervises it to reap, and
-records and reports its ending. The [area specification](specs/harness-selection-and-execution.md)
-owns the contract and [its README](../crates/harness-dispatch/README.md) owns
-what an owner writes and runs. [Policy ownership](adr/harness-selection-is-owned-by-policy.md)
-and [supervision](adr/dispatch-supervises-the-harness.md) state the boundaries.
+The retained `harness-dispatch` anchor names the boundary now served by
+independently installed Ravel. Its [CLI contract](https://github.com/Linkuistics/Ravel/blob/v0.1.0/docs/session-cli.md),
+[executable specification](https://github.com/Linkuistics/Ravel/blob/v0.1.0/docs/specs/session-execution.md)
+and [runtime evidence](https://github.com/Linkuistics/Ravel/blob/v0.1.0/docs/runtime-evidence.md)
+remain in Ravel. Grove's [caller specification](specs/harness-selection-and-execution.md)
+and [supervision decision](adr/dispatch-supervises-the-harness.md) describe its use.
+Ravel injects no instructions, interprets no result token and keeps no persistent
+store, run identity, observation or lookup API. Existing dispatch history stays
+with the old executable.
 
-**Grove runs it for every session and still does not know the selected command.**
-A lifecycle invocation carries the kind, absolute task path, handle, unchanged
-mandate, launch directory as `--exit-dir`, and ending report as `--ending-file`.
-It runs in the working-tree root. `grove run` stages its own directory, then
-launches `harness-dispatch run --confine` there with the prompt, runtime reads
-and an ending file outside the sandbox. Grove passes no selection parameter,
-policy entry, bound, environment grant or record directory: those are owner
-settings. Selection is evaluated only at launch; a refused kind leaves its
-leaf live or its standalone outputs unpublished.
+| Owner | Boundary |
+|---|---|
+| Ravel | Routes through owner policy, confines/supervises the selected process, cleans up and returns the opaque published argument. Its front, compiled worker, SDK and local runner ship independently, without host Bun/Node or Grove. |
+| Grove | Selects a task, composes prompt/ending instructions, holds epoch admission, captures the public stdout result and decides continuation/teardown. Keeps its own local runner. |
+| Grove caller assets | Ordinary readable SDK policies, task/Creator adapters and optional provider-evidence wrapper under Grove's `libexec/ravel-policy`. |
+| Owner | Chooses commands, labels, grants, bounds and any review-provider rule in personal policy. |
 
-The dependency runs one way:
+Lifecycle launches carry `--kind`, unchanged `--prompt`, `--task-file`, stable
+`--task-id` and `--exit-dir`, in the working-tree root. Standalone work uses
+`start-session --confine` in a staged directory with explicit runtime reads.
+Grove passes no selection parameter, configuration path or private ending-file
+argument. Exit-directory allocation is public mechanics and reaches no policy.
+Values are joined to their flags so leading dashes remain data.
 
-| Side | Rule | Why |
-|---|---|---|
-| What dispatch depends on | Third-party crates, built-in SQLite, the matching compiled policy worker, and domain-free `keyed-launch` | No system Bun, Node, SQLite service or Grove package is required |
-| What dispatch must not depend on | Grove crates, task-tree grammar or jj; in its core, review-kind or creator-reference grammar | Grove supplies kind, task and prompt as data; a review rule is owner policy |
-| What Grove depends on | The installed command line and the run-ending observation file; no Grove crate links dispatch | Grove reads no selected command, labels or run record |
-| What Grove must not hold | Launch configuration or producer execution records | Policy owns selection and dispatch owns run records |
+Grove removes inherited completion/admission/provider authority before probes
+and launches. It grants only this lifecycle launch's `GROVE_LAUNCH_DIR`;
+standalone helpers inherit no tree authority. Ravel gives its managed process
+fresh enclosing ending context and isolates policy from completion controls.
+The prompt names the resolved executable's exact `end-session grove-continue`
+command. Ravel terminates and reaps the managed group before returning that
+argument; Grove reads the captured result after reaping its own Ravel job.
 
-What crosses the boundary:
+Grove's readable `grove.ts` adapter reads the supplied task's `**Reviews:**` and
+`**Creator:**` lines only when explicitly imported by owner policy. Grove's
+binaries parse neither relationship. The optional provenance wrapper preserves
+selected-provider evidence in `GROVE_PROVIDER_EVIDENCE`; a finishing session
+copies its canonical receipt inline as `**Creator:** recorded <JSON>`, or the
+owner supplies `declared <provider>`. There is no store lookup. Original live-v22
+sessions alone retain Creator-run references with their original policy
+([creator decision](adr/a-review-carries-its-creator-reference.md)).
 
-- **Arguments.** The policy receives kind, task path, handle and unchanged
-  prompt, with the session location as `cwd` and empty `params`. Exit-directory
-  and ending-file flags are mechanics and reach no policy.
-- **Environment.** A lifecycle harness inherits `GROVE_LAUNCH_DIR` through
-  dispatch. Dispatch replaces inherited run ID, state directory and exit
-  channel with its own `HARNESS_DISPATCH_*` values. Policy has a fresh,
-  explicitly granted environment, never dispatch authority; owners must never
-  grant Grove's launch directory. A confined harness has the documented
-  minimal environment and no enclosing Grove authority.
-- **Process ownership.** Grove makes dispatch a foreground job; dispatch
-  makes the harness another foreground job. Each supervisor reaps its own
-  child and restores the terminal in reverse order. Dispatch alone watches
-  the exit channel, escalates the harness and applies confinement. Grove
-  forwards cancellation to dispatch and reads the ending after reap.
-- **The task file.** Sessions write review `**Reviews:**` and `**Creator:**`
-  lines and policy imports read them. Grove code reads and writes neither
-  ([creator references](adr/a-review-carries-its-creator-reference.md)).
-  Methodology uses only the harness's own `HARNESS_DISPATCH_RUN_ID` to name
-  its creator, which is why skills and binaries ship together.
-
-**The Grove adapter is the one piece of the package that knows a Grove
-convention.** `harness-dispatch/grove` reads those two lines from the task file
-it is given. It is an explicit import of an owner's policy, and depends only on
-the public SDK and the documented task format. The front has none of its code.
-The policy host imports it only to embed it beside the SDK and the examples,
-register its specifier and report its version, and never calls its reader, so
-it reads a task file only when a policy imports it. It ships inside the worker
-so that it always matches the SDK embedded there. An extraction can move it to
-Grove's side instead, which also takes it, and the Grove review example that
-composes it, out of the host's embedded set.
-
-**An extraction moves dispatch and its domain-free runner.** `crates/harness-dispatch` holds the Rust
-front, and under `worker/` the policy host, the SDK, the adapter, the examples
-and their type-check fixtures. `crates/keyed-launch` moves with it, while
-Grove continues to depend on that runner from its new home. Dispatch holds `scripts/dispatch.sh`, which owns the
-worker's build, type check, probe builds and installation, and
-`scripts/installed-smoke.sh`, the installed-layout cases. It holds the notices
-an archive carries, and a test suite whose support code is its own. The rest
-is what refers to that directory from outside it:
-
-- the Taskfile's `dispatch:*` entries, which call into `dispatch.sh`, and the
-  step of `scripts/check.sh` that runs them;
-- the release scripts, which build the front and worker for each target, hold
-  the archive manifest and the formula, and run the installed smoke test;
-- Grove's launch code and its launch-boundary tests, which run the front
-  beside Grove's own executable and would need an installed one;
-- the specification, the decisions and the design directory, which live
-  under `docs/` while the package lives here and would move with it.
-
-The package takes the workspace version and ships inside Grove's cut, and its
-worker embeds that version
-([Releasing](RELEASING.md#one-release-eight-packages-one-tag)). An extracted
-package would need a release lane of its own. Extraction is not planned: the
-decision above keeps one repository and one release route while development,
-integration tests and delivery benefit from it.
+Grove's formula depends on Ravel; Grove archives ship only Grove executables and
+caller assets, so archive users install Ravel separately. No neighboring binary,
+equal version, shared Cellar path, private worker protocol or shared Rust
+library is assumed. Each project owns its build/release and runtime notices
+([delivery](grove-delivery-contraction.md)). The complete original 22.1.0
+installation remains available to this workstream's live driver through its
+last `harness-dispatch exit` ([transition](legacy-driver-transition.md)); that
+launch contract is not rewritten by installing the new pair.
 
 ## Process ownership
 
@@ -552,11 +519,11 @@ launched command cannot pass ownership to a descendant.
 The same control directory holds a **session epoch** binding the driver's
 fresh 128-bit OS-random nonce, working-tree identity and current launch
 directory. Each launch creates an owner-only `launch-*` directory with an
-independent random suffix. Dispatch allocates its exit file there, writes the
-ending report there, and a finish session records teardown there. The driver
+independent random suffix. Ravel uses it for ephemeral completion allocation, and a finish session records
+Grove teardown there. The public result travels through captured stdout. The driver
 rewrites the epoch under a scoped exclusive guard: inactive after lease
 acquisition, active before spawn, inactive after reap and before reading the
-ending or teardown. Active epochs require `launch-dir-hex`; legacy signal-path
+result or teardown. Active epochs require `launch-dir-hex`; legacy signal-path
 records grant no admission. The driver removes the interpreted launch directory;
 a replacement invalidates the predecessor epoch and removes abandoned ones unread.
 
@@ -567,8 +534,8 @@ guard throughout the operation, so a replacement cannot install the next epoch
 until admitted work returns. Each epoch acquisition first tries without blocking,
 emits one diagnostic on contention, and waits a fixed internal 30-second bound.
 Timeout performs no tree access or epoch rewrite and stops the driver `blocked`.
-Dispatch kills the harness group at every ending; Grove cleans up dispatch's
-group. Commands outside those groups, or a harness orphaned by dispatch's death,
+Ravel cleans up the managed group; Grove cleans up its Ravel job's
+group. Commands outside those groups, or a harness orphaned by Ravel's death,
 can still retain a guard. Manual commands without launch context keep ordinary
 behavior ([job ownership](adr/the-launched-child-is-a-job.md)).
 
@@ -1045,14 +1012,14 @@ Sessions outside that procedural predicate retain standalone doubt behavior. See
 A chain's steps declare their relationships in their bodies: the review carries
 `**Reviews:** <producer-handle>` and the integration carries `**Integrates:**
 <review-handle>`. Those lines are **written by hand by the session authoring the
-body and parsed by none of Grove's own code** — a documented convention (the
+body and parsed by none of Grove's binaries** — a documented convention (the
 spine's `TASK-FORMAT.md`) for the human and for the session that picks the step
 up, which is constraint 3: task files are freeform markdown and Grove validates
 nothing in them. A review may carry one more hand-written line, `**Creator:**`,
 which the session that finishes its producer writes or removes
-(`references/retire.md`) and which Grove's code reads no more than the other
-two. The reader of `**Reviews:**` and `**Creator:**` is outside Grove:
-`harness-dispatch/grove`, the adapter a dispatch policy imports
+(`references/retire.md`) and which Grove's binaries read no more than the other
+two. Their reader is an ordinary owner-policy import:
+Grove's readable `grove.ts` adapter, explicitly imported by owner policy
 ([a review carries its creator reference](adr/a-review-carries-its-creator-reference.md)).
 Names and positions likewise remain presentation and walk order, never
 relationship grammar, and the driver routes a scheduled review solely by its
@@ -1328,20 +1295,24 @@ missing tree used to be a finished one: a teardown commit proves that Grove
 deleted an earlier tree but not whether the present invocation means "recover
 that" or "start another".
 
-**Dispatch ends the harness run**, outside the session's own sandbox. A
-session retires and commits its task, then sends `harness-dispatch exit`; the
-file's appearance starts dispatch's grace → TERM → kill-grace → KILL. Grove
-watches no channel. It waits for dispatch, invalidates the epoch, and reads the
-ending and Grove's separate teardown record.
+**Ravel ends the managed process**, outside its sandbox. A session retires and
+commits, then executes the exact canonical `end-session grove-continue` command
+from its prompt. Ravel watches its own ephemeral channel, ends/reaps the group
+and returns the opaque argument. Grove watches no completion channel. It waits
+for its Ravel job, invalidates the epoch, then interprets the captured stdout
+result and Grove's separate teardown record.
 
-The outcome uses first-match precedence: Grove's own TERM/HUP interrupts; a
-teardown record finishes; a surviving dispatch group stops; an `exit_signal`
-ending relaunches; anything else stops. A teardown record finishes even if the
-harness exited on its own, so task-root absence is never used as a substitute
-for that record. Dispatch reports a surviving harness group as a supervision
-failure without an ending file. An interactive harness that returns to its
-prompt without signalling leaves dispatch watching and Grove waiting until
-the harness ends.
+After successful epoch invalidation the first-match precedence is driver
+interruption, this launch's teardown record, surviving Ravel group, then
+successful Ravel status with exactly `grove-continue`; anything else stops.
+Teardown finishes irrespective of result/status/group, so task-root absence
+never substitutes for the record. An interactive harness returning to its prompt
+without publishing a result may leave Ravel and Grove waiting. Current Grove
+supports only `grove-continue`; force-stop is later caller work.
+
+Original live-v22 sessions use the original `harness-dispatch exit`, ending-file
+and admission contract until that driver ends. New Ravel commands are never
+substituted into an already running session.
 
 <a id="legacy-migration"></a>
 <a id="no-migration"></a>
@@ -1378,7 +1349,9 @@ the CLI has two explicit authority boundaries:
 
 **Finishing happens inside a real, resumable session**: declining before
 teardown leaves the finish leaf for a later `grove`. A completed teardown is
-recorded with `grove-llm record-teardown` before the final `harness-dispatch exit`. No commit is
+recorded with `grove-llm record-teardown` before the prompt's exact ending
+command (current Ravel: `end-session grove-continue`; original live v22:
+`harness-dispatch exit`). No commit is
 made *for* that leaf and it is never retired — its addition and deletion cancel
 in the focused finish commit. `finish-commit` cannot attest that a human spoke
 through an opaque command; it is the deterministic last-moment tree and VCS
@@ -1766,11 +1739,10 @@ every `grove-loop` module — is the overview's
 [*What the call reaches*](walkthroughs/overview/05-what-the-call-reaches.md#the-package-map),
 from its package map onward.
 
-That map lists `harness-dispatch` with its domain-free `keyed-launch`
-dependency; no walkthrough book covers dispatch's own source. The package's place and boundary are
-[its own section](#harness-dispatch) above, and its internals are described by
-its module comments, [its README](../crates/harness-dispatch/README.md) and the
-[area specification](specs/harness-selection-and-execution.md).
+That map lists Grove's local `keyed-launch` runner and its caller modules.
+Ravel is outside the workspace, reached only through the public CLI boundary
+[above](#harness-dispatch). Its executable internals and runtime decisions live
+in its independent [specification](https://github.com/Linkuistics/Ravel/blob/v0.1.0/docs/specs/session-execution.md).
 
 **The workspace root is not a package**, so a module's package is part of its
 identity (`docs/specs/module-decomposition.md`, decision 1).
@@ -1785,7 +1757,7 @@ service layer. The task tree, subprocess boundary, and VCS adapter are the
 important seams and are tested through public behavior. No harness abstraction
 replaces the removed routing registry: a launch has exactly one
 production adapter — direct process execution — so another port would be
-hypothetical indirection. `harness-dispatch` adds none: it is the program the
+hypothetical indirection. `ravel start-session` adds none: it is the program the
 loop spawns, on the far side of that one adapter.
 
 Module visibility is load-bearing rather than incidental: a `pub` item in a
@@ -1824,10 +1796,11 @@ bash scripts/check.sh
 
 The script owns the check list: formatting, shell and Rust linting, plugin
 installation and conformance, release tooling, workspace tests and source-exact
-book validation. Before the workspace tests it compiles `harness-dispatch`'s
-policy worker and its probe builds and type-checks the worker's TypeScript, so
-the script needs Task and the Bun version that package pins. It announces the
-resolved toolchain and reports each failed check at the end.
+book validation. It typechecks Grove's caller assets with the pinned compiler
+under `tools/ravel-policy` against independently installed Ravel declarations,
+and runs real-worker/fake-agent caller/provenance fixtures. The gate resolves Ravel from PATH; GROVE_TEST_RAVEL selects another installed
+public front. No bundled dispatch worker or probes are built.
+The script announces the resolved toolchain and reports each failed check.
 
 The two conformance scripts are the methodology's own, and they are shell rather
 than Rust because the thing they assert about — the composed loaded path of an
@@ -1844,32 +1817,19 @@ leaves of the crate split with nothing to report it. The script exists so the
 list is retyped by nobody; it does not make a green tree a guarded one. The
 script's own header carries why it pins no toolchain.
 
-Integration tests drive the real bare `grove` process in native jj and colocated
-jj worktrees, with isolated home directories holding a harness-dispatch policy,
-the real front and its compiled worker, executable fake harnesses that record
-argv/cwd/environment/prompt, and the real `grove-llm` binary. Clocks, wait policy, lock backends, and kill
-graces are injected through internal module seams, never through supported
-process configuration.
+Integration tests drive the real Grove callers in native/colocated jj trees,
+isolated homes and independent Ravel prefixes with fake agents. Runtime tests
+use nextest; doctests remain Cargo's responsibility. Caller boundary controls
+verify the removed/legacy authority exclusions before policy selection. Ravel's
+own generic runtime/hostile suite belongs to its independent project.
 
-**`harness-dispatch` is verified at two process seams, and once more on each
-release target.** Its own suite drives the built front with temporary policies
-and fake harnesses, in a cleared environment with no Grove installation or
-task tree. Grove's launch-boundary suite drives the real driver, front and
-worker together, at the launch boundary and under a
-controlling terminal. Neither skips without the compiled worker. Cargo never
-builds it, and the front refuses a worker built from other source with exit 5,
-so a missing or stale worker fails every case that needs one. The probe builds
-are the shipped worker source with one control removed each. A hostile fixture
-is credited only beside a configuration under which it is seen to fire: a
-probe build, the same file named explicitly, or the shipped worker started
-without the front's scrubbing. No front accepts a probe as its worker. The
-third instrument is outside the script:
-`task release:smoke` runs each release archive's installed layout on its
-target, at the Linux floors, and a release runs it over the archives it is
-about to publish
-([the installed smoke test](RELEASING.md#installed-smoke-test)). Run it again
-after a change to the worker, the installed layout or a native dependency. The
-specification's [test seams](specs/harness-selection-and-execution.md#test-seams)
+`task release:smoke` additionally runs each Grove archive with admitted separate
+Ravel target inputs, at Linux glibc/CPU floors and natively on macOS. Every ELF
+from both projects is checked against the CPU registration. Readable caller
+imports, lifecycle completion and standalone publication run without host
+Bun/Node ([installed smoke](RELEASING.md#installed-smoke-test)). Broader historical
+process observations retain the source/revision limits of their evidence records. The
+caller specification's [test seams](specs/harness-selection-and-execution.md#test-seams)
 list what each seam must observe.
 
 <a id="embed-test-seam"></a>

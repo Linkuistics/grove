@@ -24,7 +24,7 @@ Grove skills declare `harnesses: [any]`. Both automatic Codex provisioning and
 the manual installer select skills through this metadata.
 
 The `configure-grove` operator skill installs, inspects and edits the owner's
-harness-dispatch policy, which selects the harness, model and effort for each
+Ravel policy, which selects the harness, model and effort for each
 session kind, with its owner settings and per-checkout choice file. It is
 available without a task tree and is not a lifecycle kind.
 

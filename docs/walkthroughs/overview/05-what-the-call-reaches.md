@@ -6,14 +6,14 @@
 ## Observation and lifecycle have separate lifetimes
 
 <!-- rollup «owned-lines-total» -->
-The book reconstructs 1,129 source lines. The preceding chapters explain parsing,
+The book reconstructs 1,400 source lines. The preceding chapters explain parsing,
 dispatch and their tests. This chapter
 connects the public library calls and owns no source of its own.
 
 Bare `grove` resolves a jj workspace, takes the driver lease and calls
 `grove_loop::run`. `grove view [WORKTREE]` returns through `grove_tui::run`
 before those steps. An observation path needs no workspace identity, driver
-lease or harness-dispatch policy. All paths return errors through the same main;
+lease or Ravel policy. All paths return errors through the same main;
 the viewer restores its terminal before returning an error.
 
 <a id="the-package-map"></a>
@@ -32,16 +32,14 @@ authoring tool.
 | `ordinal-fs-tree` | Domain-free ordered tree store | none |
 | `jj-workspace` | Domain-free workspace and commit seam | none |
 | `keyed-launch` | Domain-free command runner | none |
-| `harness-dispatch` | A separate command: harness selection by an owner's TypeScript policy, run records and harness supervision | `keyed-launch` |
 | `book-validation` | Source-fragment and Markdown checks | none |
 
 Ratatui and Crossterm belong to the viewer. Neither the loop library nor the
-session binary depends on the terminal UI. Release archives contain `grove`,
-`grove-llm` and `harness-dispatch` with its compiled policy worker: the viewer
-is linked into the human executable. No Grove package depends on
-`harness-dispatch`; dispatch shares only the domain-free `keyed-launch` runner. Grove reaches it only as a
-command it runs; `docs/ARCHITECTURE.md` places the package
-and states its boundary.
+session binary depends on the UI. Grove archives contain its two executables
+and readable caller policy assets. Grove callers resolve the
+independently released Ravel CLI on PATH, regardless of Grove's prefix/version.
+Ravel is outside this workspace and supplies no shared Rust dependency. Grove
+keeps local `keyed-launch` for its own jobs; Ravel has its own runner.
 
 <a id="the-seven-names"></a>
 ## What crosses the binary boundary
@@ -51,12 +49,12 @@ and states its boundary.
 | `grove_loop::VERSION` | Shared release metadata |
 | `grove_loop::Workspace` | Resolve the bare lifecycle's jj working tree |
 | `grove_loop::DriverLease` | Hold the one-driver claim |
-| `dispatch::locate` | Find `harness-dispatch` beside this executable, for the loop to launch through |
+| `dispatch::ravel::locate` | Resolve/version-check independently installed Ravel on PATH |
 | `grove_loop::run` | Execute the lifecycle |
 | `grove_loop::LoopOutcome` | Distinguish clean stops and interruption |
 | `grove_loop::reraise` | Preserve an interrupted driver's signal exit |
 | `grove_tui::run` | Own the interactive observation session |
-| `keyed_launch::run_noninteractive` | Launch and reap dispatch; dispatch confines its selected harness |
+| `keyed_launch::run_noninteractive_with_stdout` | Launch/reap Ravel with result stdout separate from the transcript; Ravel confines its managed process |
 
 All are public library items. The package boundary makes accidental access to
 private items a compiler error; a source inclusion from outside the package
@@ -111,7 +109,7 @@ proves reproduction and ownership, not the truth of explanatory claims.
 <!-- rollup «ownership-blocks» -->
 <!-- rollup «source-roots» -->
 <!-- rollup «ownership-blocks-not-owned-by» of="compiler-held" -->
-There are 9 ownership blocks over 7 source roots; 8 blocks belong to chapters
+There are 10 ownership blocks over 8 source roots; 9 blocks belong to chapters
 after Orientation. Each is resolved in the source index.
 
 <!-- rollup «early-use-rows» -->
@@ -121,7 +119,7 @@ types at first use.
 
 <!-- rollup «owned-lines-sequence» -->
 <!-- rollup «source-owning-chapters» -->
-Owned source is 61 + 62 + 461 + 83 + 462 = 1,129 lines across 5 source-owning chapters.
+Owned source is 61 + 62 + 461 + 83 + 733 = 1,400 lines across 5 source-owning chapters.
 Assembly owns none. The ledgers are maintained with source changes;
 production files remain authoritative.
 
@@ -141,7 +139,7 @@ terminal smoke. The task's verification record states their observed results.
 <!-- rollup «source-roots» -->
 <!-- rollup «owned-lines-total» -->
 <!-- rollup «chapters» -->
-The corpus contains 7 roots and 1,129 lines, explained across 6 chapters and two
+The corpus contains 8 roots and 1,400 lines, explained across 6 chapters and two
 lookup pages. No deferred source range belongs in the final book.
 
 [Previous: Proving a negative](04-proving-a-negative.md) | [Contents](README.md) | [Next: One isolated invocation](06-standalone-invocations.md)

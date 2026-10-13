@@ -72,6 +72,9 @@ enum Role {
     /// The one capability the driver grants its foreground child: the path it
     /// watches to end the session. Production reads and writes it by design.
     LoopControlChannel,
+    /// Caller-owned selected-provider evidence; scrubbed before each new
+    /// launch and supplied only by that launch's explicit policy wrapper.
+    CallerEvidence,
     /// Deterministic failure/pause seams and fixture handshakes. Internal test
     /// controls, never supported process configuration — which is why
     /// production names them only to scrub them from a configured session.
@@ -97,8 +100,13 @@ enum Role {
 const ROLES: &[(&str, Role)] = &[
     ("GROVE_SIGNAL_FILE", Role::RetiredControlGuard),
     ("GROVE_LAUNCH_DIR", Role::LoopControlChannel),
+    ("GROVE_PROVIDER_EVIDENCE", Role::CallerEvidence),
     ("GROVE_RUN_SIGNAL_FILE", Role::RetiredControlGuard),
     ("GROVE_RELEASE_RUNTIME_READ", Role::ReleaseTooling),
+    // Absolute original fronts exported only by the legacy release preparation
+    // shell; these do not configure Grove's caller or running driver.
+    ("GROVE_ORIGINAL_DISPATCH", Role::ReleaseTooling),
+    ("GROVE_ORIGINAL_LLM", Role::ReleaseTooling),
     (
         "GROVE_DRIVER_LEASE_FORK_SENSITIVE_TEST",
         Role::InternalTestSeam,
@@ -670,10 +678,13 @@ impl Fixture {
     }
 
     fn run(&self, extra_env: &[(String, String)]) -> Output {
-        // The sibling `grove` launches every session through.
-        support::harness_dispatch();
+        // Launch through the independently installed public Ravel pair.
+        support::installed_ravel();
         let mut command = Command::new(support::grove_bin());
-        command.current_dir(&self.worktree).env("HOME", &self.home);
+        command
+            .current_dir(&self.worktree)
+            .env("HOME", &self.home)
+            .env("PATH", support::ravel_path());
         // A subprocess inherits this process's *whole* ambient environment, and
         // this repo dogfoods Grove — so scrub the legacy surface first and let
         // each case put back exactly what it means to test. The scrub covers

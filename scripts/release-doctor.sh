@@ -141,13 +141,11 @@ check_gh_auth() {
   fi
 }
 
-# `scripts/check.sh`, which the release runs, compiles harness-dispatch's
-# policy worker with exactly one Bun release. The pin lives in the worker's
-# build script, and is read from there rather than restated here.
+# Bun is development-only: the pinned compiler checks Grove's readable assets.
+# Runtime execution uses independent installed Ravel, never host Bun or Node.
 check_bun() {
   local pinned version
-  pinned="$(sed -n 's/^readonly BUN_VERSION="\(.*\)"$/\1/p' \
-    "$REPO_ROOT/crates/harness-dispatch/scripts/dispatch.sh")"
+  pinned="$(sed -n 's/.*"@types\/bun": "\([^"]*\)".*/\1/p' "$REPO_ROOT/tools/ravel-policy/package.json")"
   if ! command -v bun >/dev/null 2>&1; then
     mark_fail "bun: not on PATH"
     remediation "install bun $pinned (https://bun.sh/docs/installation)"
@@ -157,7 +155,7 @@ check_bun() {
   if [[ -n "$pinned" && "$version" == "$pinned" ]]; then
     mark_pass "bun: $version"
   else
-    mark_fail "bun: $version, but harness-dispatch pins ${pinned:-an unreadable version}"
+    mark_fail "bun: $version, but Grove's policy compiler pins ${pinned:-an unreadable version}"
     remediation "install bun $pinned"
   fi
 }

@@ -17,7 +17,7 @@ that is not rendering: **order**. Two orders, each stated where it happens —
 the operator's text read by the type that owns it before a lock is taken, and
 the session admitted against the launch directory before teardown is recorded.
 The header also says what no verb does: none asks whether a kind can be
-launched, which the owner's harness-dispatch policy answers when a leaf of that
+launched, which the owner's Ravel policy answers when a leaf of that
 kind launches. Each chapter opens on
 the one thing a thin binary still has to get right at that point in a session,
 and the description of the verbs a session runs at that point is that chapter's

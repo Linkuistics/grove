@@ -233,7 +233,7 @@ fn add_accepts_every_non_reserved_kind() {
 /// refused naming the file that must declare it. `open-kind-k20` deleted the
 /// set, and Grove's launch configuration went after it: the grammar validates a
 /// token's shape, *which* kinds exist is the installed methodology's answer, and
-/// whether one can be launched is the owner's harness-dispatch policy's, asked
+/// whether one can be launched is the owner's Ravel policy's, asked
 /// when the leaf launches. So a typo is written, like any other token.
 #[test]
 fn add_writes_a_kind_grove_has_never_heard_of() {

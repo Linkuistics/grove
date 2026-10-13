@@ -586,7 +586,7 @@ impl SessionEpochGuard {
 The guard's method requires the exact launch directory before the teardown
 record is written. `grove-llm` calls it in `cmd_record_teardown`; a mismatched
 path returns an error while the shared epoch guard is still held. Admission uses only the launch directory: `GROVE_LAUNCH_DIR` is Grove's ambient authority,
-and dispatch separately owns its harness exit channel.
+and Ravel separately owns managed-process completion context.
 
 <a id="acquisition-is-an-order"></a>
 ## Acquisition is an order, not a set of steps
@@ -1109,7 +1109,7 @@ on process death.
 
 The record names three write points and gives each a state: *inactive
 immediately after lease acquisition, active immediately before spawn, and
-inactive after the child is reaped and before reading dispatch's receipt.* All three
+inactive after the child is reaped and before reading Ravel's returned result or Grove's teardown record.* All three
 go through `write_epoch_contents`, and the three call paths are visible in this
 block and one chapter ahead:
 
@@ -1549,7 +1549,7 @@ process that does not exist.
 
 The failure this prevents is the record's first rejected option: *keep the status
 quo with no lifetime owner — rejected because two bare drivers can select and
-launch the same work or consume one another's dispatch exits.* Two drivers
+launch the same work or consume one another's completion results.* Two drivers
 over one grove is not a merge conflict; it is two sessions launched for the same
 leaf, with two incompatible owners of the same launch context.
 

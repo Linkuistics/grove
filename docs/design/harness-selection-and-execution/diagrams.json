@@ -1,135 +1,91 @@
 {
-  "title": "Harness selection and execution",
-  "intro": "Views of the harness-dispatch command and of Grove's use of it, matching the area specification's package, execution, supervision, Grove-integration and original-creator topics. These are source-package and process views, not deployment containers; the state view is a reading aid, not a checked model. Graphs begin at a dark Start here node with numbered steps; sequence views begin at the first message, the state view at its initial state.",
+  "title": "Harness selection and execution \u2014 Grove caller views",
+  "intro": "Current caller/process views of independently installed Ravel and Grove. The caller spec owns Grove interpretation; Ravel owns executable runtime behavior. Original live-v22 sessions retain their launch-prompt ending contract and are not depicted as new Ravel launches. Graphs begin at Start here, sequences at their first message, and the state view at its initial state.",
   "groups": [
     {
       "id": "boundary",
-      "title": "Package boundary",
-      "description": "One public command, an installed private worker, one owner policy, optional caller adapters, and the domain-free runner both sides use."
+      "title": "Independent ownership",
+      "description": "Grove and Ravel meet at a public CLI; each keeps its own runner and release."
     },
     {
       "id": "execution",
-      "title": "Execution and supervision",
-      "description": "Selection ends before the harness starts; dispatch then stays its parent to the end, catches its exit signal and reports how the run ended."
+      "title": "Public process behavior",
+      "description": "Ravel routes and supervises, then returns an opaque argument after cleanup. Its own spec owns private runtime mechanics."
     },
     {
       "id": "grove",
-      "title": "Grove integration",
-      "description": "Grove launches through run with no parameter, gives the session a launch directory, records a teardown itself and reads the loop's next step from the run ending."
+      "title": "Grove interpretation",
+      "description": "Grove owns launch admission, instructions, teardown and the meaning of grove-continue."
     },
     {
       "id": "provenance",
-      "title": "Original creator and review",
-      "description": "A review carries a reference to its creator's run; run records outlive the task tree."
+      "title": "Caller-owned creator evidence",
+      "description": "Grove policy assets and committed task receipts supply review evidence. Ravel supplies no store or run identity."
     }
   ],
-  "discussion": {
-    "title": "harness-dispatch supervises the harness; Grove keeps the leaf, the prompt and the teardown record",
-    "status": "Proposed in harness-wrapper-k2; reviewed in harness-wrapper-k3, whose findings harness-wrapper-k5 integrated before planning",
-    "summary": "run spawns the harness as its own job and stays its parent: it catches the exit signal (harness-dispatch exit, carrying nothing), escalates, restores the terminal, confines when asked, appends its end observation and writes the run ending to the caller's ending file. Grove passes no parameter, names its launch directory as the exit directory, records a teardown with grove-llm record-teardown, and reads teardown, exit signal or anything else as finished, relaunch or stopped.",
-    "diagramIds": [
-      "chain",
-      "ending",
-      "loop-decision",
-      "grove-launch",
-      "handoff",
-      "packages",
-      "creator-flow"
-    ],
-    "updatedDiagrams": [
-      {
-        "id": "chain",
-        "summary": "New: the two nested jobs from the shell to the harness, who holds the terminal while selecting and while running, and where the exit signal goes, and how a launcher takes the terminal back, a dead dispatch's included."
-      },
-      {
-        "id": "ending",
-        "summary": "New: a supervised run's states from selection to its run ending, with the escalation and cancellation paths and the group cleanup before the ending is reported."
-      },
-      {
-        "id": "loop-decision",
-        "summary": "New: how the driver reads a reaped launch as interrupted, finished, relaunched or stopped."
-      },
-      {
-        "id": "grove-launch",
-        "summary": "Both launches go through run: the lifecycle launch passes no parameter and names its launch directory; grove run passes --confine and publishes on the exit-signal ending."
-      },
-      {
-        "id": "handoff",
-        "summary": "The front spawns and supervises the harness instead of replacing itself, and records the end."
-      },
-      {
-        "id": "packages",
-        "summary": "Added the shared runner, the exit signal back to dispatch and the run ending back to the caller."
-      },
-      {
-        "id": "creator-flow",
-        "summary": "Dispatch spawns the producer and the reviewer rather than exec'ing them."
-      }
-    ]
-  },
   "diagrams": [
     {
       "id": "packages",
       "group": "boundary",
-      "title": "Caller, dispatcher and policy packages",
+      "title": "Independent caller and process-manager boundary",
       "source": "packages.mmd",
-      "caption": "Source packages and runtime participants. The command holds no catalog: the owner's function returns the command. Grove-specific relationship parsing belongs to the optional adapter. keyed-launch has no Grove, task-tree or jj dependency; dispatch runs the harness through it and Grove runs dispatch through it."
+      "caption": "Separate prefixes and versions, ordinary caller imports, and local runners on each side; no shared Rust library or bundled Ravel worker."
     },
     {
       "id": "handoff",
       "group": "execution",
-      "title": "Prepare, record and supervise the harness",
+      "title": "Route, supervise and return an argument",
       "source": "handoff.mmd",
-      "caption": "The worker shares the front's job and has null stdin, and is reaped before the harness starts. Cancellation or timeout before the handoff launches nothing; a signal after it cancels the run, which dispatch ends and records. Keeping a deciding agent from executing the task it evaluates is its policy owner's job."
+      "caption": "The caller supplies instructions. Selection refusal launches nothing; only confirmed cleanup can return a successful opaque result."
     },
     {
       "id": "chain",
       "group": "execution",
-      "title": "Two nested jobs: driver, dispatch, harness",
+      "title": "Two nested jobs and terminal ownership",
       "source": "chain.mmd",
-      "caption": "Each supervisor makes its own child a foreground job, as a shell would. While the policy selects the terminal is dispatch's group's; while the harness runs it is the harness's group's alone, so a typed Ctrl-C reaches only the harness. The driver sets GROVE_LAUNCH_DIR for dispatch; dispatch sets HARNESS_DISPATCH_EXIT_FILE for the harness, and the exit verb creates that file. The escalation is grace, TERM, kill-grace, KILL on group H, ending its descendants with it, and whatever ends the harness, what remains of group H is killed before the harness is reaped. Each launcher takes the terminal back from its child's group with the attributes it saved restored, and, when its child died of a signal, from whichever group holds it but its own or the session leader's, so a dispatch that died still leaves the driver a terminal to restore."
+      "caption": "Grove manages the Ravel job; Ravel manages the harness job. Each restores its child terminal. Descendants escaping a group are outside its cleanup guarantee."
     },
     {
       "id": "ending",
       "group": "execution",
-      "title": "A supervised run from selection to its ending",
+      "title": "Observable session result lifecycle",
       "source": "ending.mmd",
-      "caption": "Grace 2 s and kill-grace 5 s are dispatch's constants. A confined run is killed at once on cancellation. When the harness exits, what remains of its group is killed before the reap, and the ending is reported only once the group is gone; a group still present is a supervision failure, with no ending file. A run that started no harness has no ending. A dispatch killed by SIGKILL leaves the harness orphaned and its attempt as it stood; that path has no state here because nothing in dispatch runs it."
+      "caption": "A reading aid for public behavior, not a checked model or a description of private transport. A published result can succeed despite the managed process later exiting nonzero."
     },
     {
       "id": "grove-launch",
       "group": "grove",
-      "title": "Grove's two launches: lifecycle and confined standalone",
+      "title": "Lifecycle and confined standalone callers",
       "source": "grove-launch.mmd",
-      "caption": "Grove passes no parameter and reads no configuration. The two run-mechanics flags reach no policy. A lifecycle session ends with harness-dispatch exit, after grove-llm record-teardown when it tore the grove down. A standalone invocation is selected outside the sandbox and confined by dispatch, gets a run record, and publishes only on the exit-signal ending with exit 0."
+      "caption": "Both use the canonical installed Ravel path and public flags. The lifecycle caller owns epoch/teardown; the standalone caller validates outputs before publication."
     },
     {
       "id": "loop-decision",
       "group": "grove",
-      "title": "How the driver reads a reaped launch",
+      "title": "Grove post-reap decision order",
       "source": "loop-decision.mmd",
-      "caption": "A teardown record finishes whatever the run ending, so a finish session whose harness exits on its own after recording still finishes. Only the exit signal relaunches, so a harness orphaned by dispatch's death is never joined by a second session on the same tree."
+      "caption": "Epoch invalidation gates interpretation. Driver interruption precedes teardown; teardown precedes surviving group, Ravel status and result checks."
     },
     {
       "id": "creator-options",
       "group": "provenance",
-      "title": "Where each option keeps the creator's provider",
+      "title": "Creator evidence and rejected alternatives",
       "source": "creator-options.mmd",
-      "caption": "The decision is A. A lookup keyed by handle must tell this grove's handle from an earlier grove's in the same workspace, which needs durable state Grove deliberately lacks (B). A globally unique run reference carried by the review needs none (A)."
+      "caption": "Inline selected receipts or explicit owner declarations avoid a store namespace and preserve finishing-attempt origin. They are same-user attestations."
     },
     {
       "id": "creator-flow",
       "group": "provenance",
-      "title": "Producer names its run; the review resolves it",
+      "title": "Finishing producer pins evidence for review",
       "source": "creator-flow.mmd",
-      "caption": "The run reference is written by the session that ran under it, so the provider comes from dispatch's immutable record rather than a transcription. The association itself is that session's attestation, not verified. A session that finishes without a run removes any earlier line, and the owner declares the finished artifact's provider."
+      "caption": "Grove caller assets wrap selection and read committed task evidence. Retirement renames only; the finishing session writes Creator lines and commits them."
     },
     {
       "id": "creator",
       "group": "provenance",
-      "title": "Resolve the Creator line before selecting a reviewer",
+      "title": "Configured review selection from caller evidence",
       "source": "creator.mmd",
-      "caption": "The supplied example policy. Every invocation and retry takes the same path; a retry reads the same line and the same immutable run, so it cannot change the creator."
+      "caption": "The configured-review branch of Grove's opt-in policy. Nonreview routing is outside this view. Missing/invalid/legacy evidence or a same-provider route refuses."
     }
   ]
 }

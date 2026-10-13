@@ -193,12 +193,12 @@ role  = "lookup"
 [[root]]
 id    = "source-crate-manifest"
 path  = "crates/grove-loop/Cargo.toml"
-lines = 66
+lines = 67
 
 [[root]]
 id    = "source-library-root"
 path  = "crates/grove-loop/src/lib.rs"
-lines = 418
+lines = 420
 
 [[root]]
 id    = "source-task-name"
@@ -218,7 +218,7 @@ lines = 518
 [[root]]
 id    = "source-tree-lifecycle"
 path  = "crates/grove-loop/src/tree_lifecycle.rs"
-lines = 2735
+lines = 2745
 
 [[root]]
 id    = "source-verbs"
@@ -239,12 +239,12 @@ lines = 2083
 [[root]]
 id    = "source-prompt"
 path  = "crates/grove-loop/src/prompt.rs"
-lines = 222
+lines = 228
 
 [[root]]
 id    = "source-loop-driver"
 path  = "crates/grove-loop/src/loop_driver.rs"
-lines = 812
+lines = 819
 
 [[root]]
 id = "source-observation"
@@ -255,13 +255,13 @@ lines = 218
 id    = "manifest-domain-bound"
 root  = "source-crate-manifest"
 owner = "allowed-to-mean"
-lines = "1-66"
+lines = "1-67"
 
 [[block]]
 id    = "library-root"
 root  = "source-library-root"
 owner = "allowed-to-mean"
-lines = "1-418"
+lines = "1-420"
 
 [[block]]
 id    = "tokens-and-verdicts"
@@ -387,55 +387,55 @@ lines = "1-518"
 id    = "finish-transition"
 root  = "source-tree-lifecycle"
 owner = "the-tree-deletes-itself"
-lines = "1-327"
+lines = "1-329"
 
 [[block]]
 id    = "grove-beginning"
 root  = "source-tree-lifecycle"
 owner = "never-mistaken-for-finished"
-lines = "328-488"
+lines = "330-490"
 
 [[block]]
 id    = "decompose-production"
 root  = "source-tree-lifecycle"
 owner = "the-key-survives"
-lines = "489-706"
+lines = "491-708"
 
 [[block]]
 id    = "outcomes-in-place"
 root  = "source-tree-lifecycle"
 owner = "marked-in-place"
-lines = "707-1023"
+lines = "709-1025"
 
 [[block]]
 id    = "body-helpers"
 root  = "source-tree-lifecycle"
 owner = "never-mistaken-for-finished"
-lines = "1024-1087"
+lines = "1026-1089"
 
 [[block]]
 id    = "root-init-tests"
 root  = "source-tree-lifecycle"
 owner = "never-mistaken-for-finished"
-lines = "1088-1503"
+lines = "1090-1505"
 
 [[block]]
 id    = "finish-tests"
 root  = "source-tree-lifecycle"
 owner = "the-tree-deletes-itself"
-lines = "1504-1698"
+lines = "1506-1708"
 
 [[block]]
 id    = "decompose-tests"
 root  = "source-tree-lifecycle"
 owner = "the-key-survives"
-lines = "1699-2244"
+lines = "1709-2254"
 
 [[block]]
 id    = "retire-and-prune-tests"
 root  = "source-tree-lifecycle"
 owner = "marked-in-place"
-lines = "2245-2735"
+lines = "2255-2745"
 
 [[block]]
 id    = "the-twelve-verbs"
@@ -466,13 +466,13 @@ lines = "967-2083"
 id    = "the-prompt-core"
 root  = "source-prompt"
 owner = "too-late-to-say-later"
-lines = "1-222"
+lines = "1-228"
 
 [[block]]
 id    = "loop-driver"
 root  = "source-loop-driver"
 owner = "four-things-a-runner-cannot-choose"
-lines = "1-812"
+lines = "1-819"
 
 [[block]]
 id = "observation-tree"
@@ -552,10 +552,32 @@ lines = "176-717"
 [[root]]
 id = "source-launch-directory"
 path = "crates/grove-loop/src/launch_directory.rs"
-lines = 193
+lines = 134
 
 [[block]]
 id = "launch-control-directory"
 root = "source-launch-directory"
 owner = "four-things-a-runner-cannot-choose"
-lines = "1-193"
+lines = "1-134"
+
+[[root]]
+id = "source-session-result"
+path = "crates/grove-loop/src/session_result.rs"
+lines = 93
+
+[[block]]
+id = "held-session-result"
+root = "source-session-result"
+owner = "four-things-a-runner-cannot-choose"
+lines = "1-93"
+
+[[root]]
+id = "source-session-command"
+path = "crates/grove-loop/src/session_command.rs"
+lines = 91
+
+[[block]]
+id = "public-session-commands"
+root = "source-session-command"
+owner = "four-things-a-runner-cannot-choose"
+lines = "1-91"

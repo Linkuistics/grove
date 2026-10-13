@@ -133,9 +133,10 @@ random-collision limit is the same as the launch directory's, without tombstones
 
 The generic runner exposes launch events to its caller: **Started** after a
 successful spawn and **Reaped** when it confirms that child's reap, including
-escalated termination. The child is `harness-dispatch run`, which supervises the
-harness and is reaped only after it, so the witness spans selection and the
-harness's whole run. These synchronous parent-side notifications introduce no
+escalated termination. The child is independently installed `ravel start-session`,
+which normally reaps its managed group before returning a result. The witness
+spans Grove's Ravel job, including selection; uncatchable supervisor death can
+leave an orphaned harness without a successful result. These notifications introduce no
 Grove vocabulary or child-side acknowledgement. Ordinary callers can run with
 no observer. Notifications are infallible and do not change launch disposition;
 Grove's callbacks take no epoch/tree lock and perform no waiting operation.
@@ -431,7 +432,7 @@ terminal fixture owns key translation and terminal cleanup checks.
 | Only ordinary running leaf plus finish remains | Finish becomes NEXT after exclusion; no sentinel is created by viewing | Typed selection; application |
 | Running ordinary leaf, later ordinary leaves and early finish | First remaining ordinary leaf wins; malformed duplicate finishes are still refused before exclusion | Typed selection |
 | Successful, immediate-exit and failed spawn | Started evidence is published only on success; failure never reports RUNNING; reap clears activity before epoch handoff | Real runner/process fixtures |
-| Exit signal precedes reap | RUNNING persists through dispatch's grace and escalation until dispatch is reaped; it does not disappear at the exit signal, a teardown record or retirement | Real runner/process fixtures |
+| Completion precedes reap | RUNNING persists through Ravel's grace and escalation until Grove reaps its Ravel job; it does not disappear at result publication, a teardown record or retirement | Real runner/process fixtures |
 | Driver killed with started bytes left behind | Next observation cannot report that launch RUNNING, even if a child still exists | Real process fixture |
 | Multiple observers probe an unlocked started witness while replacement retains old lease bytes | Shared probes do not contend with one another and cannot manufacture RUNNING; observers never lock the driver lease | Process fixture and lock barriers |
 | Replacement holds lease with old bytes while an old epoch guard blocks handoff | Old witness cannot establish RUNNING; viewer attempts return promptly and do not wait for handoff | Process fixture and lock barriers |

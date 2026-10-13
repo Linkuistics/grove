@@ -16,7 +16,7 @@ provably complete against a set nobody wanted: `grove` itself exposes only `-h`
 and `-V`, so a guide covering "every subcommand and flag the `grove` binary
 exposes" is three rows long and omits every command a human actually meets. Too
 wide and the guide takes the
-[harness-dispatch README](../../crates/harness-dispatch/README.md)'s subject,
+[Ravel CLI contract](https://github.com/Linkuistics/Ravel/blob/v0.1.0/docs/session-cli.md)'s subject,
 which the ownership table forbids.
 
 ## Solution
@@ -49,7 +49,7 @@ text and the methodology skills, and restating it here would create a second
 source for it.
 
 **Three lines the boundary does not cross.** What launches for a kind is the
-owner's dispatch policy, and the harness-dispatch README's. Installation is the
+owner's Ravel policy, and Ravel's executable documentation. Installation is the
 `README`'s. The methodology a session executes — kinds, their disciplines, the
 review procedures — belongs to the `grove` plugin skills. The guide may *link*
 each; it may not restate any.
@@ -69,7 +69,7 @@ the guide must show a real invocation, not merely name the command.
 | Row | Surface | Obligation |
 |---|---|---|
 | G1 | `grove` (no arguments) | Worked. All three dispatch outcomes: no `.grove/` ⇒ `root-init` plus a first `requirements` leaf; live leaves ⇒ launch the first in tree order; no live leaves ⇒ materialize the `finish` leaf. |
-| G9 | `grove run KIND [PROMPT]` | Prompt/file choice; repeatable inputs, outputs and runtime grants; personal named command and no project/jj; mandatory confinement; dispatch supervision and a recorded run; isolated exit signal; artifact validation and no overwrite; inline/mux visibility, persistent logs, cancellation and exit codes. |
+| G9 | `grove run KIND [PROMPT]` | Prompt/file choice; repeatable inputs, outputs and runtime grants; owner policy selection and no project/jj; mandatory Ravel confinement/supervision; caller-owned transcript and opaque completion result; artifact validation and no overwrite; inline/mux visibility, persistent logs, cancellation and exit codes. |
 | G2 | `-h`, `--help` | Named, with the fact that it stops before touching a repository. |
 | G3 | `-V`, `--version` | Named, same stop-before-touching guarantee. |
 | G4 | Bare lifecycle has no launch-policy selectors | Stated: bare `grove` takes no tree argument and no confirmation step; its enclosing working tree selects the workstream. The viewer path only selects an observation location. |
@@ -101,7 +101,7 @@ binary itself. Twelve verbs; `help` is clap's own and is covered by the row for
 | L9 | `leaf-retire` | `<LEAF_PATH>` | Worked. Adds the `DONE` infix in place; refuses a brief, a `DONE` leaf and an `ABANDONED` leaf; no commit. |
 | L10 | `leaf-prune` | `<PATH>` — a live leaf **or** a node directory | Worked. HITL: only after explicit human confirmation. On a node it marks every live leaf in the subtree and leaves `DONE` ones alone; refuses the grove root; no commit. |
 | L11 | `finish-commit` | `<FINISH_HANDLE>` | Worked. Revalidates the finish leaf and the absence of ordinary work, then deletes and commits only `.grove/`; does not stand in for the human confirmation. |
-| L12 | `record-teardown` | none | Worked. Records a completed teardown in `$GROVE_LAUNCH_DIR` after `finish-commit`; refuses while the tree exists; outside a loop records nothing. Sessions end with `harness-dispatch exit`, ordinary tasks relaunch, recorded teardown finishes, other endings stop. |
+| L12 | `record-teardown` | none | Worked. Records a completed teardown in `$GROVE_LAUNCH_DIR` after `finish-commit`; refuses while the tree exists; outside a loop records nothing. Current sessions use the prompt's canonical `ravel end-session grove-continue`; recorded teardown takes precedence, supported completion continues, other results stop. Original live-v22 launches retain their own ending contract. |
 | L13 | `-h`/`--help`, `-V`/`--version`, `help [COMMAND]` | — | Named once, with the note that every verb carries its own `--help` and that the help text is the authority on what exists. |
 
 **Two rows were corrected by `usage-guide-k23`, against the binary.** The
@@ -169,7 +169,7 @@ change silently when a heading is retitled; these do not.
 |---|---|---|
 | `usage-running-grove` | Running grove: start, resume, finish | Anyone meeting the binary for the first time — the overview's entry point |
 | `usage-task-tree` | The task tree and its filename grammar | A reader who has a `.grove/` in front of them |
-| `usage-session-lifecycle` | What happens in a session | A reader tracing kind ⇒ launch ⇒ signal ⇒ relaunch |
+| `usage-session-lifecycle` | What happens in a session | A reader tracing kind ⇒ launch ⇒ returned result ⇒ continuation |
 | `usage-tree-verbs` | The `grove-llm` verbs over the tree | A reader tracing what a session does to the tree |
 | `usage-review-composition` | Review composition and escalation | A reader following how review chains are built |
 | `usage-driver-lease` | One driver per working tree | A reader on ownership, leases and concurrent drivers |
@@ -189,10 +189,10 @@ validation is what reports it.
 
 Named here so that "complete" does not silently mean "everything".
 
-- **The policy contract.** The harness-dispatch README owns what a policy is,
+- **The policy contract.** Ravel's specification owns what a policy is,
   what `select` receives and returns, and every refusal. The guide says what a
   Grove owner does, installing and editing a policy, the owner settings, the
-  choice file, inspection and recovering from a refused launch, and that a kind
+  choice file and recovering from a refused launch, and that a kind
   is selected for only when its leaf launches. It links the rest.
 - **Installation and the marketplace.** The `README` owns them.
 - **The methodology.** Kinds, their disciplines and the seven constraints belong

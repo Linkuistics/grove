@@ -227,7 +227,7 @@ impl Kind {
     }
 
     /// The token as it appears in a filename, in a skill name, and as the kind
-    /// `harness-dispatch` is given.
+    /// `ravel start-session` is given.
     #[must_use]
     pub fn label(&self) -> &str {
         &self.0

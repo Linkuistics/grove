@@ -23,11 +23,12 @@ silently.
 <a id="skill-delivery"></a>
 ### Skill delivery / the retired sweep
 
-How grove's methodology reaches a session: it does not. The methodology is the
-**`grove` plugin** — a spine skill and one `grove-<kind>` skill per kind — and a
-human installs it the way this repo's other plugins are installed. `${prompt}`
-names the one skill this session's kind needs ([[Guaranteed core]]) and grove
-does nothing else about delivery.
+How the **`grove` plugin** reaches a session: a spine skill and one
+`grove-<kind>` skill per kind, delivered through the harness's installation
+route. Bare Grove embeds and provisions compatible Codex plugin snapshots at
+startup. Claude Code uses the marketplace; manual Codex, Gemini and Pi users
+can use the checkout installer. `${prompt}` names the skill this session needs
+([[Guaranteed core]]). Contract: `docs/specs/codex-skill-provisioning.md`.
 
 **What this replaces, and why the arguments are kept.** The binary used to embed
 its whole methodology as a `content/` tree and sweep it, on every invocation,
@@ -38,15 +39,16 @@ provisioning* (the sweep), *embedded methodology* (the `include_dir!` tree fixed
 at build time), *methodology identity* (its content hash, written as the
 directory's stamp), and *build pairing* (the report comparing that hash against
 the `grove-llm` a session's `PATH` resolved). All four existed to make one
-mechanism safe, and none has a subject once the mechanism goes.
+mechanism safe. The current Codex snapshot adapter has its own ownership checks;
+it does not restore that multi-harness sweep or its build-pairing probes.
 
-**The cost, recorded rather than argued away.** Grove no longer guarantees the
-methodology is present, so a session can be launched pointing at a skill that is
-not installed. That is a message, not machinery: grove states the version it is,
-names the skill, and stops. A harness with a skill-loading affordance is
-unaffected; one without has lost its fallback. **The reopen condition is a
-session that cannot reach the methodology by the affordance alone** — an
-observation, not a suspicion.
+**The remaining cost.** Startup provisioning covers bundled compatible Codex
+skills, not independently authored kinds or another harness's installation.
+Another build can update shared links after startup; an already running session
+can still meet a mismatched helper. Grove states its version and names the skill;
+the session must load it. **The reopen condition is a session that cannot reach
+the methodology through its installation/loading route** — an observation, not
+a suspicion.
 
 _Avoid_: reviving the sweep because a session missed its skill once. That is the
 delivery question, and it is answered by a better install route or a stronger
@@ -93,45 +95,25 @@ saving.
 <a id="guaranteed-core"></a>
 ### Guaranteed core / the too-late test
 
-The whole of a session's `${prompt}`, which is this repository's name for the
-prompt Grove composes. The spelling is the command-template slot that once
-carried it; nothing expands it now, and Grove passes the prompt to
-`harness-dispatch run` as `--prompt`. It holds a forceful instruction to load this kind's
-[[Kind skill]], named in both the bare and the plugin-namespaced spelling of that
-one target; the runtime facts the driver resolved (the selected [[Work-item
-handle]], the [[Stated VCS]], and Grove's published release version); and Grove's
-own signalling contract — in that order, which is the session's own timeline.
-What may join it is decided by the **too-late test**: a sentence earns
-`${prompt}` only when its failure mode is one the skill cannot repair, because by
-the time the skill could speak the moment has passed. Three shapes pass — a fact
-only the driver holds, the instruction to open the skill, and the mechanism the
-session's last action drives — and the test's first output is a list of **one**
-methodology condition. The **prose** drift surface is zero bytes and is now zero
-by construction: `prompt-names-the-kind-k18` made all three parts driver prose,
-so the core reads nothing and there is no shared text to hold in step. One
-coupling survives — the `grove-<kind>` skill the prompt names has to exist — and
-it is not closeable from the binary, because what a machine has installed is
-outside any suite.
-Design: [[Skill delivery]], and `docs/ARCHITECTURE.md`, *How the methodology
+The prompt Grove composes for one selected session: an instruction to load its
+[[Kind skill]], the resolved [[Work-item handle]], [[Stated VCS]] and Grove
+version, followed by caller-owned ending instructions. Grove passes it unchanged
+through `ravel start-session --prompt`; Ravel injects nothing. `${prompt}` is the
+retained name of the former template slot, not an expansion mechanism.
+
+The **too-late test** admits only a sentence whose failure the skill cannot
+repair after it loads: a driver-only fact, the instruction to open the skill, or
+the mechanism the last action drives. Current prompts name the canonical Ravel
+path's `end-session grove-continue`, with [[Teardown record]] first for finish.
+Original live-v22 prompts keep `harness-dispatch exit` and their original
+[[Exit signal]] contract. The kind skill decides the ending appropriate to
+what happened; the driver states the mechanism before the skill can speak.
+Design: [[Skill delivery]] and `docs/ARCHITECTURE.md`, *How the methodology
 reaches a session*.
-_Avoid_: admitting a sentence because it is **important**, needed every session,
-or short. Importance is unbounded and is what builds a wall; frequency is not
-timing; size is a consequence of the rule and never a criterion.
-_Avoid_: reading the core as an abridged methodology a session may work from. It
-is three facts and one instruction, and it teaches nothing.
-_Avoid_: reading the third part as an instruction. It is a **mechanism** —
-harness-dispatch is watching for the [[Exit signal]], sending it ends the
-session, not sending it stops the loop — and one text serves every kind because
-of that. Which
-of the three endings a kind takes is a rule about that kind, and the shipped
-spine assigns it to that kind's own skill. Two embedded files used to carry the
-split, and `finish` needed the second: a fixed instruction would relaunch the
-loop onto a torn-down grove, while omitting the part would drop the
-too-late-shaped sentence in the session where a forgotten signal costs most. The
-contract answers both by stating neither ending — and the residue it does carry,
-a default `finish` overrides, is recorded at `crates/grove-loop/src/prompt.rs`.
-_Avoid_: reading its 4 KiB assertion as a budget the design was fitted to — it is
-an alarm on the test, and nothing legitimate approaches it.
+_Avoid_: adding prose because it is important, frequent or short. Those are not
+timing tests, and the core is no abridged methodology.
+_Avoid_: treating Ravel as a prompt author or interpreter of Grove results.
+_Avoid_: reading the 4 KiB assertion as a target budget; it is a growth alarm.
 
 <a id="family-reference-file"></a>
 ### Family reference file
@@ -244,8 +226,9 @@ change is judged on.
 <a id="spine-skill"></a>
 ### Spine skill / kind skill
 
-The two species the corpus becomes once the methodology ships as a skill plugin
-rather than as bytes the binary provisions ([`plugins/CONTEXT.md`](./plugins/CONTEXT.md)
+The two species of the methodology's skill plugin, whose source is authoritative
+for both marketplace/manual delivery and Grove's Codex snapshot adapter
+([`plugins/CONTEXT.md`](./plugins/CONTEXT.md)
 owns that delivery vocabulary). The **spine** is one skill, `grove`,
 carrying every rule shared across families — the numbered constraints, the
 [[Loop-step reference file]] set, the format documents, and the four *family*
@@ -396,60 +379,63 @@ unchanged.
 _Avoid_: "nested grove" — that is `grove` launched from inside another grove's session (two drivers, two trees). A meta-grove is one grove whose *code under test* happens to be grove.
 During a live v22 cutover, cargo and test-helper guards retain both
 `GROVE_SIGNAL_FILE` and standalone's `GROVE_RUN_SIGNAL_FILE` beside the new
-dispatch exit and launch-directory names.
+original dispatch, current Ravel, provider-evidence and launch-directory names.
 _Avoid_: treating a meta-grove as self-hosting in the strong sense — it develops
 the next build's methodology while being driven by the last one's.
 
 <a id="loop-control-channel"></a>
 ### Launch directory (`GROVE_LAUNCH_DIR`)
 
-The collision-resistant per-launch directory the loop driver allocates in its
-workspace control area and publishes to the session it launches. Its exact path
-names the active [[Session epoch]], so a descendant of a previous launch cannot
-act on the next one; it holds that launch's [[Teardown record]] and
-harness-dispatch's ending file, and dispatch allocates the session's [[Exit
-signal]] channel in it. The driver reads it only after reaping the launch, and
-removes it. It is **ambient authority**: the foreground launch is the only site
-that sets it, and every other spawn must scrub it.
-_Avoid_: the retired **loop control channel** (`GROVE_SIGNAL_FILE`), the file
-the driver used to watch, whose appearance ended the session and whose content
-told a relaunch from a teardown. Nothing Grove owns is watched now: dispatch
-watches for the exit signal, and a teardown is a record of its own.
-_Avoid_: reading a **missing** exit signal as "the loop stops". That holds only
-for a harness that exits on its own. An interactive one returns to its prompt
-when its turn ends, so it is never reaped, and the loop **stalls** instead —
-indefinitely, dispatch's watch having no timeout. Which of the two a forgotten
-`harness-dispatch exit` produces is a property of the launched harness.
-_Avoid_: calling the path a credential or security token — any descendant can read or deliberately discard its environment. The session epoch prevents ordinary stale-loop behavior; it does not defend against a hostile local process.
-_Avoid_: treating a redirected `cargo test` as evidence the guard works — a redirected run is safe by construction and passes with the guard removed. The acceptance test is a full run from a live pane with the real path in ambient env, verified absent afterwards.
+The collision-resistant per-launch directory Grove allocates in its workspace
+control area. Its exact path binds the active [[Session epoch]], so an ordinary
+stale descendant cannot act on a later launch. It holds Grove's [[Teardown
+record]] and provides Ravel's public `--exit-dir` allocation location. Grove
+reads its own record and captured stdout result after reap, then removes the
+directory. Foreground lifecycle launch alone grants this ambient authority;
+other spawns scrub it.
+
+Original live-v22 sessions also use this directory for the old dispatch ending
+report and [[Exit signal]] channel. Current Grove reads no private ending file.
+_Avoid_: the retired `GROVE_SIGNAL_FILE` channel watched by Grove itself.
+_Avoid_: inferring that missing completion means the loop has already stopped;
+an interactive harness can leave the supervisors waiting at its prompt.
+_Avoid_: calling this path authentication. Same-user descendants can forge or
+discard environment; epoch admission prevents ordinary stale-loop behavior.
+_Avoid_: treating redirected tests as proof of the inherited-authority guard;
+acceptance must exercise removal of actual ambient controls.
 
 <a id="exit-signal"></a>
-### Exit signal (`harness-dispatch exit`)
+### Exit signal / session completion
 
-A session's statement to harness-dispatch that its harness run is over. It
-carries nothing: the verb creates the per-run file `HARNESS_DISPATCH_EXIT_FILE`
-names, and its appearance starts dispatch's kill escalation. It is dispatch's
-and not Grove's, and it is the ending every session's prompt names.
-_Avoid_: reading it as a disposition. Whether the loop relaunches or finishes is
-not in it: a finish records a [[Teardown record]] first, and the exit signal
-then ends the run as it ends any other.
-_Avoid_: `grove-llm complete`, the retired verb that wrote a disposition into the
-loop control channel.
+The historical name for the session's completion publication. Current sessions
+execute the exact canonical `ravel end-session grove-continue` command in their
+launch prompt. Ravel finds the enclosing session through inherited context,
+ends/reaps the managed group and returns the opaque argument. Grove supplies
+both the instruction and the meaning of `grove-continue`; a finish writes its
+[[Teardown record]] first. Ravel takes no session identifier or target path.
+
+Only original live-v22 launches use the empty-file signal created by
+`harness-dispatch exit` at `HARNESS_DISPATCH_EXIT_FILE`. Their installed driver,
+policy and ending channel remain in force until that driver ends.
+_Avoid_: treating the old empty signal or `grove-llm complete` as a current
+Ravel command. Current Ravel has only start-session/end-session.
 
 <a id="run-ending"></a>
-### Run ending
+### Run ending / returned result
 
-How harness-dispatch saw one supervised run end: through the [[Exit signal]],
-by the harness exiting on its own, or by cancellation latched at the **reap
-sample** (the latch read immediately after waiting for the harness), recorded as the
-`ending` of dispatch's own end observation and reported to its caller. A run
-that never launched a harness has none. It reaches the caller only once the
-harness's process group is gone; a group that outlives its harness is a
-**supervision failure**, which records the ending but reports none.
-_Avoid_: reading it as the loop's outcome (finished, stopped, interrupted),
-which Grove decides from the run ending, its [[Teardown record]] and its own
-signals; or as a session's ending in the methodology's sense, which is the kind
-skill's choice of what to send.
+The public completion argument Ravel returns after managed-process cleanup,
+opaque to Ravel and interpreted by its caller. Current Grove accepts exactly
+`grove-continue`, after its Ravel job is reaped and epoch admission invalidated.
+Its own interruption and [[Teardown record]] precede group/status/result checks;
+missing or unsupported results stop. Natural process exit supplies no completion
+acknowledgement. Standalone accepts the same value before validating outputs.
+Contract: `docs/specs/harness-selection-and-execution.md`.
+
+Original live-v22 dispatch instead reports an exit-signal, harness-exit or
+cancellation ending through its old report protocol. That historical observation
+is neither a Ravel result nor a persistent Ravel record.
+_Avoid_: assigning continue/finish/force-stop meaning inside Ravel. Grove owns
+those conventions and currently supports only ordinary continuation.
 
 <a id="teardown-record"></a>
 ### Teardown record
@@ -573,7 +559,7 @@ is twenty-three, five producers (`requirements`, `design`, `planning`,
 (`draft`, `copy-edit`, `art`, `proof`), and the driver-reserved `finish`. Grove spells
 two of those tokens and no others, at the two places it writes a leaf itself:
 `requirements` for root scaffolding and `finish` for the teardown sentinel.
-No tree verb asks whether a kind can launch: a kind the owner's dispatch policy
+No tree verb asks whether a kind can launch: a kind the owner's Ravel policy
 refuses is caught when its leaf launches, and the leaf stays live. A kind that
 is **ill-formed** is a malformed
 tree that stops tree operations, never a degradation to `impl`, while a kind
@@ -667,8 +653,9 @@ _Avoid_: treating either shape as enforced — grove validates no ordering betwe
 leaves, because a grammar is a relation *between* leaves and grove expresses
 none (task-kind-taxonomy). The shared stem is a habit nothing parses, and
 so are the `**Reviews:**` / `**Integrates:**` lines: they are written by hand by
-the session authoring the body, and **none of Grove's own code reads them**. The
-one reader is outside Grove: the [[Grove adapter]] a dispatch policy imports.
+the session authoring the body, and **none of Grove's binaries reads them**. The
+one reader is Grove's caller-owned [[Grove adapter]], explicitly imported by
+owner policy outside the binaries.
 _Avoid_: expecting a chain's steps to stay contiguous. They are appended at the
 parent's next free position, so one cut after unrelated work lands after it, and
 a sibling `leaf-insert` can split a chain that was contiguous. Grove enforces
@@ -838,7 +825,7 @@ either**: Grove has no launch configuration, a copy left on disk changes
 nothing about a launch, and the terms that named its parts (*configuration
 profile*, *command definition*, *command parameter*, *kind route*, *command
 binding*, and the runner's *catalog*, *templates*, *slot* and *overlay*) went
-with it. What runs for a kind is decided by the owner's harness-dispatch policy
+with it. What runs for a kind is decided by the owner's Ravel policy
 ([[Kind routing]]).
 _Avoid_: "primary harness" — harness selection is decided per launch, not for
 the grove as a whole.
@@ -852,7 +839,7 @@ driver-side [[Pick]]. The driver reads the session kind from that leaf's
 filename, composes the [[Guaranteed core]] as the prompt — which names that
 kind's [[Kind skill]] and no file by path — and embeds the selected stable
 handle there as the launched session's mandate, alongside the [[Stated VCS]].
-It then runs `harness-dispatch run` in the working-tree root with the kind,
+It then runs `ravel start-session` in the working-tree root with the kind,
 the task file, the handle and the prompt, and no [[Selection parameter]], and
 the owner's policy returns the [[Selected command]]. Grove holds no table from a kind to a command and is
 not a model router or proxy. The session first validates its [[Session epoch]],
@@ -891,111 +878,98 @@ with no `.jj/` never reaches a mandate at all — it is refused at the gate, wit
 ### Review target diversity
 
 Whether a scheduled review uses a different harness or model from its producer
-is the owner's harness-dispatch policy to decide. Grove does not read a
-[[Selected command]] to recover target identity, persist producer launch
-receipts, compare targets, or warn; a `review-*` leaf supplies a fresh session,
-and returning a materially different command for it is the policy owner's
-responsibility. harness-dispatch's supplied review policy compares providers
-itself, from a review's [[Creator reference]].
+is the owner's Ravel policy to decide. Grove's optional wrapper preserves
+selected-provider receipts, and its readable review example compares them with
+the review's [[Creator reference]]. Grove's binaries do not recover identity
+from argv, compare models or enforce diversity. A `review-*` leaf supplies a
+fresh session; the owner's policy decides whether its provider differs.
 
 <a id="selection-provider"></a>
 ### Selection provider
 
-The owner's `provider` label on a [[Selected command]], identifying model origin
-for the supplied review policy. It reaches inspection and the run record as the
-owner wrote it, and changing a gateway or harness does not change that origin.
-_Avoid_: reading it as verified backend identity, or as something inferred from
-the program or its arguments. It is the owner's assertion.
+The owner's `provider` label on a [[Selected command]], identifying model origin.
+Grove's optional caller-owned wrapper captures it at selection in a versioned
+receipt; Ravel supplies no inspection/store API. Changing a gateway or harness
+must not change that origin.
+_Avoid_: reading it as verified backend identity or inferring it from a program
+or model string. It is the owner's assertion.
 
 <a id="original-creator"></a>
 ### Original creator
 
-The one producer execution associated with an artifact for review selection,
-whose **selection provider** is execution-recorded or explicitly declared by the
-owner; it is neither today's producer mapping nor the set of all contributors.
-Under harness-dispatch it is the run of the session that finished the
-producer, by retiring its leaf or closing its node, named by the review's
-[[Creator reference]]; a retry or an attempted handoff does not choose or
-replace it.
+The finishing producer attempt whose selected provider evidence a review
+carries, or the owner's explicit declaration where evidence is missing. A
+finishing retry replaces the reference; an unfinished attempt does not. A node's
+creator is the child session that closes it, whatever that child's kind.
 
 <a id="creator-reference"></a>
 ### Creator reference
 
-The line under `**Reviews:**` that names a review's **original creator** to a
-harness-dispatch review policy: `**Creator:** run <run-id>`, which the session
-that finished the producer writes from its own `HARNESS_DISPATCH_RUN_ID` as the
-methodology's retirement procedure directs, or `**Creator:** declared
-<provider>`, the owner's declaration for an artifact finished without a run,
-whose finishing session removed any earlier line. It is the only record of a
-past session a task body carries. A run reference is the writing session's
-attestation: its provider is recorded, its association with the artifact is not
-verified.
+The line directly under `**Reviews:**`: `**Creator:** recorded <JSON>` carries
+Grove's canonical provider receipt from the finishing session's own
+`GROVE_PROVIDER_EVIDENCE`; `**Creator:** declared <provider>` is the owner's
+assertion where selected evidence is absent. It is the only record of a past
+session a task body carries. The task commit pins the inline record for review
+retries. UUID attempt identity distinguishes selections without a lookup store;
+the provider and artifact association remain same-user attestations.
+Explicitly original installed-v22-driver sessions retain
+`**Creator:** run <run-id>` from `HARNESS_DISPATCH_RUN_ID` for their original
+policy alone. New consumers refuse that legacy form and access no old store.
+Contract: [`docs/grove-provider-evidence.md`](docs/grove-provider-evidence.md).
 _Avoid_: calling it launch metadata; nothing in it routes the review's own
-session.
+session, or recomputing it from today's producer mapping.
 
 <a id="grove-adapter"></a>
 ### Grove adapter
 
-`harness-dispatch/grove`, the explicit import that turns a supplied Grove task
-file's `**Reviews:**` and `**Creator:**` lines into the generic reviewed
-artifact a dispatch policy reads. It reads only that file, through the measured
-read, and returns a refusal rather than guessing when a line is missing,
-duplicated or malformed. harness-dispatch builds it into the policy worker and
-calls it nowhere, so it reads a task file only when a policy imports it, and
-Grove's own code reads neither line.
-_Avoid_: calling it part of dispatch or of Grove; it is a policy import that
-sits between them.
+Grove's readable `assets/ravel-policy/grove.ts`, explicitly imported by owner
+policy, which interprets a supplied task's `**Reviews:**` and `**Creator:**`
+lines through Ravel's public measured-context host. Invalid, duplicated or
+missing relationships refuse rather than guess. It ships with Grove's caller
+assets under `libexec/ravel-policy`; it is not embedded in Ravel. Grove's binaries
+parse neither relationship. Contract: `docs/grove-provider-evidence.md`.
+_Avoid_: the retired `harness-dispatch/grove` specifier as a current import.
+Original live-v22 policies alone retain their original embedded adapter.
 
 <a id="joint-candidate"></a>
 ### Joint candidate *(retired)*
 
-One entry of the catalog a harness-dispatch policy used to export: a harness,
-model and reasoning-effort choice with a provider-origin label and a stable
-catalog ID, which a function or a caller's `--choice` named. **Nothing holds
-one**: a policy's `select` returns a [[Selected command]], and a caller steers
-with a [[Selection parameter]]. The term is kept because run records are: a run
-recorded under the catalog contract still carries its candidate ID, and every
-command still reads it.
-_Avoid_: *candidate* for what `select` returns, and reading the `candidate`
-field of a run's launch document as a catalog entry. The field holds the
-labels, program and arguments of any run, with a `null` ID for one recorded
-since.
+An entry in the old dispatch catalog: harness, model, effort, provider-origin
+label and catalog ID. Current Ravel policy returns a [[Selected command]]
+directly, with no catalog or candidate ID. Existing catalog-era history remains
+with the old dispatch tool; current Grove/Ravel open no historical store.
+_Avoid_: calling the selected argv a catalog candidate.
 
 <a id="handoff-attempt"></a>
-### Handoff attempt
+### Handoff attempt *(retired)*
 
-The durable execution intent recorded immediately before harness-dispatch
-starts the selected harness. It proves neither that the harness started nor
-that the task was accepted; dispatch's own end observation confirms execution
-when the harness ends, and later observations retain their own source and
-evidence. A dispatch killed while its harness runs leaves the attempt as it
-stood.
+The old dispatch store's durable execution intent written before launch. It
+proved neither spawn nor task acceptance. Existing records belong to that old
+tool; Ravel keeps no attempts, run identity, observations or lookup store.
+Grove preserves only the selected-provider evidence it needs in caller-owned
+[[Creator reference]] receipts.
 
 <a id="delivered-context"></a>
 ### Delivered context
 
-The context a harness-dispatch `select` receives: the policy's `loadContext`
-result, or without a loader the caller's `--context` document, with every
-source harness-dispatch measured for it attached as `measured`, each read's
-canonical name or each run lookup's run ID, with its bytes and SHA-256. When
-the loader looked a run up, the answers are attached too, as `runs`, so a
-creator's provider there is the record store's. Its encoded size is what the
-context budget bounds, and it is what inspection shows and what the run record
-names by digest and size.
-_Avoid_: *loaded context* for it, which is the loader's result before the
-measured sources are attached; *sources* for the measured list, which is the
-name of the evidence records a context attributes itself.
+Generic data Ravel supplies to the owner's selection function: optional loaded
+context and measured file sources through its public SDK. Grove's adapter uses
+those reads for task relationships and inline creator evidence. Context is
+bounded by owner settings; there is no run lookup, inspection or stored context
+history. Ravel's [specification](https://github.com/Linkuistics/Ravel/blob/v0.1.0/docs/specs/session-execution.md)
+owns its shape; `docs/grove-provider-evidence.md` owns Grove's receipt facts.
+_Avoid_: treating measured bytes as authenticated provider identity.
 
 <a id="static-dispatch"></a>
 ### Static dispatch / dynamic dispatch
 
-Two descriptions of what an owner's harness-dispatch `select` function consults,
+Two descriptions of what an owner's Ravel `select` function consults,
 a distinction that exists only inside the policy file. **Static** is driven by
 the kind, without reference to the prompt or any content. **Dynamic** is
 everything else: it consults the session's prompt (the [[Guaranteed core]]) or
 the task's content, up to handing that prompt to a [[Deciding agent]] that
 evaluates the task.
-_Avoid_: reading either as something harness-dispatch knows, reports or
+_Avoid_: reading either as something Ravel knows, reports or
 validates. The command sees a `select` function and what it returns.
 _Avoid_: mapping the pair onto a table versus a function. A table keyed by kind
 is one thing a `select` may consult, and a function that computes from the kind
@@ -1009,14 +983,14 @@ evaluation of the task the policy turns into its choice of harness, model and
 reasoning effort. It is its policy owner's: assumed to have the skills installed
 and to run in the grove's working tree, so that it resolves what the prompt
 refers to the way a session does.
-_Avoid_: expecting Grove or harness-dispatch to supply one, or to keep it from
+_Avoid_: expecting Grove or Ravel to supply one, or to keep it from
 executing the task it evaluates. Neither ships an agent policy, and what a
 deciding agent is told and permitted is its owner's to state.
 
 <a id="selected-command"></a>
 ### Selected command
 
-What a harness-dispatch `select` returns when it does not refuse: a program, its
+What a Ravel `select` returns when it does not refuse: a program, its
 arguments, and the owner's provider, model and effort labels for what they run.
 The command validates its shape and runs it; it comes from no catalog.
 _Avoid_: *candidate* and *candidate ID* for it. A [[Joint candidate]] was a
@@ -1025,40 +999,38 @@ catalog entry a function named, and there is no catalog.
 <a id="selection-parameter"></a>
 ### Selection parameter
 
-A named string a caller passes to harness-dispatch with `--param`, which reaches
-`select` as data and means nothing to the command. Grove passes none: a
-policy takes the session's location from the request's `cwd`, which is the
-location the prompt assumes.
-_Avoid_: *slot*. A slot was a place in a template the tool filled; a parameter
-is a value the owner's function reads.
+A named string passed through Ravel's public `--param NAME=VALUE` argument to
+policy as generic data. Grove supplies none; policy reads the request's `cwd`
+for session location. Other callers may define their own parameters without
+adding task-tree meaning to Ravel.
+_Avoid_: *slot*, a position the retired command-template mechanism filled.
 
 <a id="owner-settings"></a>
-### Owner settings (`~/.config/harness-dispatch/settings.json`)
+### Owner settings (`~/.config/ravel/settings.json`)
 
-What an owner sets about every harness-dispatch invocation without the caller
-passing it: the selection time bound, the context budget, the record directory
-and the environment names granted to the policy. One set of values applies to
-every kind. It has the personal policy's authority and is read before the
-policy loads.
-_Avoid_: calling it configuration of Grove. Grove reads no personal file.
+The owner's selection time bound, context budget and explicit policy environment
+grants, read with personal policy authority. One set applies to every kind.
+There is no record directory or store. Ravel owns this format; Grove reads no
+personal launch configuration.
+_Avoid_: granting completion/admission authority to selection helpers.
 
 <a id="choice-file"></a>
-### Choice file (`.harness-dispatch-choice`)
+### Choice file (`.ravel-choice`)
 
-A file in one checkout that names which of the options an owner's policy offers
-apply there, read by an SDK helper the policy calls. It can choose among those
-options and can introduce nothing.
-_Avoid_: reading it as configuration. It names no program, argument
-or kind, so a repository that ships one gains no authority.
+A checkout file read only when owner policy calls the public SDK helper. It
+chooses among options that policy offers and introduces no program or argument.
+_Avoid_: treating it as executable repository configuration or automatic trust.
 
 <a id="sample-policy"></a>
 ### Sample policy
 
-The policy `harness-dispatch init` installs as the owner's own: a conversion of
-one owner's Grove configuration, with real `codex` and `claude` command lines,
-several arrangements and a [[Choice file]] to pick among them.
-_Avoid_: *example* for it. An example is inert until a policy imports it; the
-sample is a file an owner runs and edits.
+Grove's readable `assets/ravel-policy/sample/policy.ts`, installed with its
+caller assets, which the owner reads and explicitly copies into an absent
+personal Ravel policy. It carries actual command choices and checkout
+arrangements; upgrades preserve owner edits. Ravel has no init verb and neither
+executable installs personal policy automatically.
+_Avoid_: importing a retired Ravel-embedded Grove sample. Creator-aware examples
+need the complete caller directory tree to retain their relative imports.
 
 <a id="spec"></a>
 ### Spec (`docs/specs/<slug>.md`)

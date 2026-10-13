@@ -29,18 +29,17 @@ explicit human confirmation before any teardown** — never run steps 2–3
 unprompted; with no human to ask, report the plan instead.
 
 **How this session ends is decided by what it did**, and all three outcomes are
-open to you. In the two that signal, `harness-dispatch exit` is your **last
-action — then do nothing else**; dispatch watches its exit channel and ends
-the harness after a short grace.
+open to you. In the two that signal, the exact ending command supplied by your launch prompt is your **last
+action — then do nothing else**; Ravel returns Grove's result after ending and reaping the harness.
 
 | what the session did | ending |
 |---|---|
-| teardown completed | `grove-llm record-teardown`, then `harness-dispatch exit` — the loop finishes |
-| externalised work instead | `harness-dispatch exit` — the loop relaunches and picks the new leaf; the sentinel waits |
+| teardown completed | `grove-llm record-teardown`, then the exact ending command supplied by your launch prompt — the loop finishes |
+| externalised work instead | the exact ending command supplied by your launch prompt — the loop relaunches and picks the new leaf; the sentinel waits |
 | declined, or no human present | no signal — the loop waits for you to end the harness, then stops with the leaf live and resumable |
 
-**Record the teardown before sending the exit signal.** Every prompt names
-`harness-dispatch exit` as the final action. After teardown, the record tells
+**Record the teardown before sending the exit signal.** Every prompt supplies
+its exact final command; current Ravel launches use `end-session grove-continue`. After teardown, the record tells
 Grove that the loop has finished; an exit signal alone would relaunch onto a
 grove that is no longer there. This table is the `finish` ending, and it is
 stated here because the ending a kind takes is that kind's own rule.
@@ -77,14 +76,14 @@ On confirmation, run:
    stop and hand the diagnostic to the human; Grove never rewrites history to
    clear anything.
 3. **End on the row that matches what this session did** — the table above —
-   and `harness-dispatch exit` is the **very last** action. Once all authorized
+   and the exact ending command supplied by your launch prompt is the **very last** action. Once all authorized
    finish work is done, for completed teardown first run
    `grove-llm record-teardown` from inside this session's working tree. It
    verifies the live session epoch, which stays valid after `.grove/` is deleted,
    refuses while the tree still exists, and records the
    teardown in this launch's directory; recording it again succeeds. Without a
    launch directory it records nothing and says so. Then send the exit signal:
-   dispatch is watching for it, so signalling earlier would cut that work short.
+   the supervisor is watching for it, so signalling earlier would cut that work short.
 
 Nothing after: integrating the grove's branch and tearing down the working tree
 are **not** grove workflow — both belong to jj, to `gh`, or to the user's own
@@ -109,4 +108,12 @@ commit is already in history; there is no half-finished grove to resume, only a
 working tree without one. Once the teardown is recorded, the driver finishes
 even if the harness exits on its own without sending the exit signal. The
 driver's own interruption takes precedence. `references/driver.md` states how
-Grove reads dispatch's ending and the teardown record.
+Grove reads Ravel's public result and its own teardown record.
+
+## Legacy live-driver compatibility
+
+A session launched by Grove 22.1.0 through dispatch must retain the exact
+`harness-dispatch exit` command in its original launch prompt. The current skill
+never changes that running session's exit/admission/teardown authority. Current
+Ravel sessions use the canonical `ravel end-session grove-continue` command
+supplied by their own prompt; neither command takes a session ID.

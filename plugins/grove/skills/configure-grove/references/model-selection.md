@@ -77,13 +77,13 @@ scope; an explicit override does not waive provider separation.
 For a policy that consults a table by kind, check each producer/review pairing
 under every selection the policy offers. This proves a prospective pairing
 only: changing a table does not change the identity of a past producer. Check
-pending reviews affected by a provider change against the run each review's
-`**Creator:**` line names, or the human's account; unknown provenance must be
+pending reviews affected by a provider change against the finishing receipt each review's
+`**Creator:**` line carries, or the human's account; unknown provenance must be
 resolved before activating a conflicting or unverifiable pairing.
 
 A policy that enforces the pairing at launch needs the reviewed artifact's
 creator and that creator's actual model provider as context.
-`harness-dispatch/examples/grove-review` reads both, as
+`assets/ravel-policy/examples/grove-review.ts` reads both, as
 [policy.md](policy.md) describes. A policy of the user's own must exclude that
 provider before it chooses, and refuse when it cannot. Identify the underlying
 model provider, not its gateway or the executable hosting it. Missing
@@ -101,7 +101,7 @@ A learned selector needs outcomes from comparable tasks and an approved menu
 of model/effort pairs. Treat its option probability as a classification signal
 until held-out outcomes demonstrate calibration for successful task completion.
 Compare it against fixed task-kind defaults and a simple rules baseline before
-letting it change launches. harness-dispatch substitutes nothing for a refused
+letting it change launches. Ravel substitutes nothing for a refused
 selection, so a policy that falls back to its own table on insufficient
 context, an unavailable model or a failed selection must say so in its
 `reason`. A fallback must satisfy the same review-provider constraint. If none

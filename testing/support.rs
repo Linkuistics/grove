@@ -68,6 +68,9 @@ use std::process::Child;
 use std::thread;
 use std::time::{Duration, Instant};
 
+#[path = "ravel.rs"]
+pub mod ravel;
+
 /// The upper bound on a readiness wait. It exists so a *wedged* producer fails
 /// the suite instead of parking it, and it is deliberately two orders of
 /// magnitude above the cost of a healthy driver start-up.
@@ -295,23 +298,23 @@ pub fn kind_labels() -> Vec<String> {
 ///
 /// `GROVE_SIGNAL_FILE` is retired authority kept only to protect this meta-grove
 /// while installed v22 binaries still drive it. New sessions carry a launch
-/// directory and dispatch exit channel, scrubbed beside that legacy name.
-/// These tests normally run inside a live loop session, so the variable is
-/// present in this process's ambient environment, and the fake commands below
-/// write `"$GROVE_SIGNAL_FILE"` unconditionally — a spawn that does not scope
-/// the variable therefore kills the session `cargo test` was typed into
-/// (guard-loop-signal-k37).
-///
-/// `.cargo/config.toml` force-overrides the same signal variable for everything
-/// cargo runs. The two guards are independent on purpose: that one covers tests
-/// which never touch these helpers, this one covers a test binary executed
-/// directly rather than through cargo. Neither subsumes the other.
-const LOOP_CONTROL_ENV: [&str; 5] = [
+/// directory and an executable-owned exit context. Dispatch and Ravel contexts
+/// are both scrubbed beside the retired completion channels and PID handles.
+/// These tests can run inside a live original-dispatch or Ravel session. Child
+/// fixtures must not inherit that session's ending channel, Grove admission or
+/// provider receipt. `.cargo/config.toml` independently clears the same controls
+/// for Cargo-launched processes; direct test binaries rely on this helper.
+pub const LOOP_CONTROL_ENV: [&str; 10] = [
     "GROVE_SIGNAL_FILE",
     "GROVE_RUN_SIGNAL_FILE",
     "GROVE_LAUNCH_DIR",
     "HARNESS_DISPATCH_EXIT_FILE",
     "HARNESS_DISPATCH_RUN_ID",
+    "HARNESS_DISPATCH_STATE_DIR",
+    "RAVEL_EXIT_FILE",
+    "GROVE_PROVIDER_EVIDENCE",
+    "GROVE_HARNESS_PID",
+    "GROVE_CLAUDE_PID",
 ];
 
 /// The launch-policy environment Grove no longer reads. It is scrubbed rather
@@ -417,7 +420,7 @@ pub fn jj(path: &Path, args: &[&str]) -> String {
 ///
 /// **Why a verb-driving test needs one at all.** A tree verb consults nothing
 /// outside the working tree: no Grove configuration exists to read, and no
-/// harness-dispatch policy is asked about a kind before its leaf launches
+/// Ravel policy is asked about a kind before its leaf launches
 /// (`docs/specs/harness-selection-and-execution.md`, *A refusal*). Running
 /// every verb under a HOME that holds no policy is what shows that. Under the
 /// developer's own HOME a verb that did read a personal file would pass on a
@@ -428,12 +431,12 @@ pub fn fixture_home() -> &'static Path {
         .path()
 }
 
-/// Write `source` as the personal `harness-dispatch` policy under `home`, at
+/// Write `source` as the personal Ravel policy under `home`, at
 /// the default entry path. A test that launches a session puts its policy here:
 /// the real front and its compiled worker select from it, and Grove reads
 /// nothing.
 pub fn write_policy(home: &Path, source: &str) {
-    let entry = home.join(".config/harness-dispatch/policy.ts");
+    let entry = home.join(".config/ravel/policy.ts");
     fs::create_dir_all(entry.parent().expect("a policy path has a parent"))
         .expect("fixture policy dir");
     fs::write(entry, source).expect("fixture policy");
@@ -505,15 +508,73 @@ pub fn grove_bin() -> PathBuf {
     workspace_binary("grove")
 }
 
-/// The `harness-dispatch` front, on the same terms — and only the front.
-///
-/// Its policy worker is not a cargo artifact: it builds only through
-/// `task dispatch:worker`, which `scripts/check.sh` runs before `cargo test`,
-/// into `target/libexec/harness-dispatch/`, where this front finds it from its
-/// own real path. A missing or stale worker makes the front refuse with exit 5
-/// and name that task, so a test launching through it fails rather than skips.
-pub fn harness_dispatch() -> PathBuf {
-    workspace_binary("harness-dispatch")
+/// An explicit installed public pair, copied once per test process.
+pub fn installed_ravel() -> PathBuf {
+    static PAIR: std::sync::OnceLock<(tempfile::TempDir, ravel::InstalledRavel)> =
+        std::sync::OnceLock::new();
+    PAIR.get_or_init(|| {
+        let source = std::env::var_os("GROVE_TEST_RAVEL")
+            .expect("consumer tests require GROVE_TEST_RAVEL=/absolute/installed/ravel");
+        let temp = tempfile::tempdir().expect("Ravel fixture prefix");
+        let pair =
+            ravel::InstalledRavel::copy_from(Path::new(&source), &temp.path().join("ravel-0.1.0"));
+        (temp, pair)
+    })
+    .1
+    .executable()
+    .to_path_buf()
+}
+
+pub fn ravel_path() -> std::ffi::OsString {
+    let ravel = installed_ravel();
+    std::env::join_paths(
+        std::iter::once(ravel.parent().unwrap().to_path_buf())
+            .chain(std::env::split_paths(&std::env::var_os("PATH").unwrap())),
+    )
+    .expect("fixture PATH")
+}
+
+/// Public-front entry observer: reserved controls cannot be granted to policy.
+/// Each injected sentinel must be observed before delegation to the real pair.
+pub fn ravel_entry_probe(bin: &Path) -> PathBuf {
+    use std::os::unix::fs::PermissionsExt;
+    fs::create_dir_all(bin).unwrap();
+    let file = bin.join("ravel");
+    let source = installed_ravel();
+    let source = format!("'{}'", source.to_str().unwrap().replace('\'', "'\\''"));
+    let checks: String = LOOP_CONTROL_ENV.iter().map(|name| format!(
+        "if [ \"${{{name}-}}\" = /inert-enclosing-control ]; then printf 'entry-observed:{name}\\n' >&2; exit 93; fi\n"
+    )).collect();
+    fs::write(&file, format!("#!/bin/sh\nif [ \"${{1-}}\" = start-session ]; then\n{checks}fi\nexec {source} \"$@\"\n")).unwrap();
+    fs::set_permissions(&file, fs::Permissions::from_mode(0o755)).unwrap();
+    file
+}
+
+pub fn path_with_entry(bin: &Path) -> std::ffi::OsString {
+    std::env::join_paths(
+        std::iter::once(bin.to_path_buf()).chain(std::env::split_paths(&ravel_path())),
+    )
+    .unwrap()
+}
+
+pub fn observe_dirty_entry(probe: &Path, home: &Path) {
+    for name in LOOP_CONTROL_ENV {
+        let mut command = std::process::Command::new(probe);
+        for control in grove_env_names() {
+            command.env_remove(control);
+        }
+        let output = command
+            .args(["start-session", "--kind=impl", "--prompt=control"])
+            .env("HOME", home)
+            .env(name, "/inert-enclosing-control")
+            .output()
+            .unwrap();
+        assert_eq!(output.status.code(), Some(93), "{name}: {output:?}");
+        assert!(
+            String::from_utf8_lossy(&output.stderr).contains(&format!("entry-observed:{name}")),
+            "{name}: {output:?}"
+        );
+    }
 }
 
 fn workspace_binary(name: &str) -> PathBuf {

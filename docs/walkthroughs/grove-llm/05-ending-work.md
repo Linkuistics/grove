@@ -10,12 +10,12 @@ marks a live leaf, or every live leaf under a node, `ABANDONED`. Both are one
 rename per leaf — an infix added after the position in the filename, no byte
 inside the file touched — and both are the last verbs a session runs against
 the tree: after the mark comes the commit, which is jj's and not this binary's,
-and after the commit comes `harness-dispatch exit`, which is outside this binary. The rule this
+and after the commit comes the launch prompt's exact `ravel end-session grove-continue` command, which is outside this binary. The rule this
 chapter opens on is what a thin binary does at that point in a session, and it
 is not about the mark. The mark is one call into `grove_loop::verbs` like every
 other verb's. It is about what the handler prints after the call returns: each
 handler names, on stderr, **the two steps that remain** — commit this session's
-work, including the rename; then run `harness-dispatch exit` as the last action —
+work, including the rename; then run the launch prompt's exact `ravel end-session grove-continue` command as the last action —
 at the moment of decision, in the output of the verb that ended the work,
 rather than leaving them in a mandate the session read a whole context earlier.
 stdout stays data: the marked paths, one per line, which callers parse.
@@ -55,7 +55,7 @@ $ cd /work/atlas && grove-llm leaf-retire /work/atlas/.grove/01-impl--rate-limit
 /work/atlas/.grove/01-DONE-impl--rate-limit-k3.md
 leaf-retire: two steps remain:
   1. commit this session's work, including this rename
-  2. run `harness-dispatch exit` as your last action
+  2. run the launch prompt's exact `ravel end-session grove-continue` command as your last action
 ```
 
 `cmd_leaf_retire` resolves the working tree, normalizes the path — absolute
@@ -105,7 +105,7 @@ leaf-prune: left 1 already-DONE leaf untouched:
   /work/atlas/.grove/03-k5/01-DONE-impl--warm-k6.md
 leaf-prune: two steps remain:
   1. commit this session's work, including these renames
-  2. run `harness-dispatch exit` as your last action
+  2. run the launch prompt's exact `ravel end-session grove-continue` command as your last action
 ```
 
 The call marks the two live leaves and leaves the retired one alone, and the
@@ -158,7 +158,7 @@ fn eprint_next_steps(verb: &str, marked: usize) {
     };
     eprintln!("{verb}: two steps remain:");
     eprintln!("  1. commit this session's work, including {renames}");
-    eprintln!("  2. run `harness-dispatch exit` as your last action");
+    eprintln!("  2. run the exact ending command from your launch prompt as your last action (`ravel end-session grove-continue` for Ravel; legacy v22 sessions keep `harness-dispatch exit`)");
 }
 
 ````
@@ -166,7 +166,7 @@ fn eprint_next_steps(verb: &str, marked: usize) {
 
 The function takes the verb's name and the number of leaves marked, and prints
 three lines on stderr: the verb and *two steps remain*, then the commit, then
-`harness-dispatch exit`. The count decides two words — *this rename* for one leaf, *these
+the launch prompt's exact `ravel end-session grove-continue` command. The count decides two words — *this rename* for one leaf, *these
 renames* for more — and nothing else; the two steps are the same for both verbs
 and for any count, because what follows a terminal mark does not depend on how
 many marks there were. `leaf-retire` always passes `1`, so the singular is the
@@ -178,7 +178,7 @@ these are the last tree verbs a session runs, Retire precedes Commit, and the
 commit is not this binary's, so the two steps are printed where the session
 will read them at the moment it has to take them. Both qualifiers in *the last
 tree verbs a session runs* are load-bearing, and dropping either makes the
-sentence false. **Tree verbs**, because `harness-dispatch exit` runs after both
+sentence false. **Tree verbs**, because the launch prompt's exact `ravel end-session grove-continue` command runs after both
 and the reminder's own second line says so — it is a verb of this binary that
 opens no tree, so it ends the session without ending the work on the tree.
 **A session runs**, because `finish-commit` does open the tree — not in its
@@ -201,7 +201,7 @@ The second reason is the stream, and it is the one a test holds. stdout is
 data — the marked paths, which callers parse — so the reminder goes to stderr,
 where `leaf-prune`'s two advisories already were. `assert_next_steps` in
 `crates/grove-llm/tests/leaf_ops.rs` is the shared assertion: it requires the
-commit step and the dispatch exit step on stderr in that order, requires *last
+commit step and the launch-prompt completion step on stderr in that order, requires *last
 action*, requires the expected singular or plural, and requires that the word
 the exit reminder does not reach stdout. `retire_names_the_remaining_steps_on_stderr`
 applies it to `leaf-retire` and additionally requires stdout to be exactly one
@@ -447,8 +447,7 @@ the final thing the verb said is what to do next, after the advisory about
 leaves left alone; the source holds that order and no test asserts it. Only
 when the marked list is not empty, because a prune that ended no work leaves no
 session to close — the no-op case printed its advisory and nothing more — and
-`prune_that_marks_nothing_stays_quiet` holds it by requiring the string
-`harness-dispatch exit` absent from stderr. The count passed is the marked list's
+`prune_that_marks_nothing_stays_quiet` holds it by requiring the ending reminder to be absent from stderr. The count passed is the marked list's
 length, which is what turns *this rename* into *these renames* for the node case
 and keeps the singular for a single-leaf prune, which
 `prune_of_one_leaf_names_the_remaining_steps_on_stderr` requires.
@@ -594,9 +593,10 @@ The composite that reassembles the two variants is stated here.
 
 The two verbs that end work have now been read, and each is one call and two
 streams: the marked paths on stdout, and on stderr — last, and only when a mark
-was made — the commit and dispatch exit that remain. The commit is
-jj's. The exit is dispatch's; Grove separately records teardown when finishing. This separation is what
-it is talking to the loop that launched it before it writes anything; the next
-chapter reads it, and the other verb that opens no tree.
+was made — the commit and launch-prompt completion that remain. The commit is
+jj's. Ravel owns process completion; Grove supplies the result meaning and
+separately records teardown when finishing. The next chapter reads that
+teardown operation and its epoch admission: before writing, the helper verifies
+that it belongs to the launch named by its enclosing loop.
 
 [Previous: Growing the tree](04-growing-the-tree.md) | [Contents](README.md) | [Next: Leaving the loop](06-leaving-the-loop.md)

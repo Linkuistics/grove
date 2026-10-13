@@ -1,33 +1,28 @@
 sequenceDiagram
   participant G as Grove
-  participant N as Runner (job, terminal, launch events)
-  participant X as harness-dispatch beside Grove
-  participant P as Owner policy
-  participant H as Harness
-  Note over G,H: Lifecycle session: bare grove
-  G->>G: Create a fresh launch directory, activate the epoch with its path
-  G->>N: run --kind --task-file --task-id --prompt --exit-dir --ending-file, no parameter
-  N->>X: Spawn in the working-tree root as a job, GROVE_LAUNCH_DIR set
-  X->>P: select(request), cwd = working-tree root
-  alt Policy refuses, or no policy
-    X-->>N: Diagnostic + remedy + inspect line on the terminal, nonzero exit, no ending
-    N-->>G: Reaped: the loop stops, the leaf stays live
-  else Command selected
-    X->>H: Record the run, spawn the harness as dispatch's own job
-    opt Finish session that tore the grove down
-      H->>G: grove-llm record-teardown writes the teardown record
-    end
-    H->>X: harness-dispatch exit, the exit signal
-    X->>H: Escalate, end its group, reap, restore the terminal
-    X-->>N: End observation recorded, ending file written, exit
-    N-->>G: Reaped: read the teardown record and the ending
+  participant L as Grove local runner
+  participant R as Independently resolved Ravel
+  participant H as Managed session
+  Note over G,H: Lifecycle: bare grove
+  G->>G: Pick leaf, compose prompt and exact ending command
+  G->>G: Allocate launch directory, epoch admission and stdout capture
+  G->>L: Public lifecycle arguments, no named parameter
+  L->>R: Spawn in working-tree root as a job
+  R->>H: Select, then supervise with fresh ending context
+  opt Finish after confirmed teardown
+    H->>G: grove-llm record-teardown in this launch directory
   end
-  Note over G,H: Standalone invocation: grove run KIND
-  G->>G: Stage the private working directory
-  G->>N: run --confine --kind --prompt --runtime-read --ending-file, noninteractively
-  N->>X: Spawn in the staged directory, own session, output to the transcript
-  X->>P: select(request), outside the sandbox, with the owner's grants
-  X->>H: Record the run, spawn confined: small environment, run ID, exit channel
-  H->>X: Outputs written, then harness-dispatch exit by its canonical path
-  X-->>N: exit_signal ending, exit 0
-  N-->>G: Publish the declared outputs
+  H->>R: Exact canonical end-session grove-continue
+  R-->>L: Public stdout result and status after cleanup
+  L-->>G: Reaped Ravel job, terminal restored
+  G->>G: Invalidate epoch, then interpret teardown/status/group/result
+  Note over G,H: Standalone: grove run KIND
+  G->>G: Stage private cwd, inputs and output instructions, scrub tree authority
+  G->>L: start-session with --confine and explicit --runtime-read grants
+  L->>R: Spawn without parent terminal or mux handles
+  R->>H: Select outside confinement, supervise inside it
+  H->>H: Write declared outputs
+  H->>R: Exact canonical end-session grove-continue
+  R-->>L: Result and status after cleanup
+  L-->>G: Reaped, cancellation and survivor checks
+  G->>G: Accept exact result, validate and publish outputs

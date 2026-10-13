@@ -37,7 +37,7 @@ if reversed: a lock over the whole grove taken, and waited for, to refuse a
 typo; and a teardown record written for a launch that did not admit this session. The header
 also says what is not there. No verb asks whether a kind can be launched. That
 was a third order until Grove lost its launch configuration — a presence rule,
-asked before the mutation — and the owner's harness-dispatch policy now answers
+asked before the mutation — and the owner's Ravel policy now answers
 the question when a leaf of the kind launches. The two orders, the cost of
 each, and what would catch its reversal are what the reader takes away — given
 a thin surface of their own, what is left there that is not rendering, and
@@ -419,7 +419,7 @@ The fragment's last sentence is a negative, and it is there because it used to
 be an order. Until Grove's launch configuration was deleted, each leaf-writing
 verb asked whether its kind resolved to a launch template before it touched the
 tree. Nothing asks now: a well-formed kind is written, and the owner's
-harness-dispatch policy decides whether a session of that kind can run when the
+Ravel policy decides whether a session of that kind can run when the
 leaf launches. *Growing the tree* shows the write.
 
 <!-- fragment «surface-header-thin-and-order» owner="one-call-plus-rendering" source="crates/grove-llm/src/cli.rs" lines="10-24" parent="surface-thesis-and-imports" -->
@@ -437,7 +437,7 @@ leaf launches. *Growing the tree* shows the write.
 // on, and each is stated where it happens: read the operator's text with the
 // type that owns it *before* taking a lock, and admit the session against the
 // launch directory *before* writing the teardown record. No verb asks whether
-// a kind can be launched: the owner's harness-dispatch policy answers that when a leaf of
+// a kind can be launched: the owner's Ravel policy answers that when a leaf of
 // that kind launches, and nowhere earlier.
 ````
 <!-- /fragment -->
@@ -529,7 +529,7 @@ every later page.
 
 The starting tree is the overview's: a Jujutsu workspace holding a grove with
 one live leaf, and a driver that has taken the lease over it. The overview's
-page also carries the owner's harness-dispatch policy, which decided what the
+page also carries the owner's Ravel policy, which decided what the
 driver launched. It is left out here because no verb in this book reads it, and
 there is no Grove configuration for one to read. The driver has launched a
 session for that leaf and is watching for one file to appear.
@@ -581,12 +581,12 @@ $ grove-llm leaf-retire /work/atlas/.grove/01-impl--rate-limit-k3.md
   stdout   /work/atlas/.grove/01-DONE-impl--rate-limit-k3.md
   stderr   leaf-retire: two steps remain:
              1. commit this session's work, including this rename
-             2. run `harness-dispatch exit` as your last action
+             2. run the launch prompt's exact `ravel end-session grove-continue` command as your last action
 
 $ jj commit -m 'rate-limit-k3: …'
   jj's, not grove-llm's: the work, the new leaf and the rename, in one change
 
-$ harness-dispatch exit
+$ ravel end-session grove-continue
   dispatch ends its harness job; Grove reads its receipt and checks the tree
 ```
 
@@ -598,7 +598,7 @@ first order made visible; that chapter's second ending is this same argv with
 a kind that is not a well-formed token, refused before any lock, and its third
 is a kind no methodology names, written all the same. The
 retirement is *Ending work*'s, and its stderr is why that chapter is named for
-two steps. `harness-dispatch exit` is the final dispatch operation, outside this
+two steps. The launch prompt's exact `ravel end-session grove-continue` command is the final Ravel completion operation, outside this
 binary's corpus; *Leaving the loop* explains the separate Grove teardown record.
 
 The fresh key is `k4` because a key is the maximum over the whole tree plus

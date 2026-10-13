@@ -3,18 +3,18 @@
 [Previous: Ending work](05-ending-work.md) | [Contents](README.md) | [Next: What order holds](07-what-order-holds.md)
 
 <a id="admit-before-signal"></a>
-## Two separate effects: teardown and dispatch exit
+## Two separate effects: teardown and the session result
 
 `finish-commit` deletes and commits `.grove/`. `record-teardown` records that
 fact in the admitted launch directory. Neither operation ends the harness run.
-The session ends through `harness-dispatch exit`, whose per-launch job channel
-belongs to dispatch rather than to this binary. An ordinary leaf retires and
+The session ends through the launch prompt's exact `ravel end-session grove-continue` command, whose per-launch job channel
+belongs to Ravel rather than to this binary. An ordinary leaf retires and
 commits its work before exiting; a finish commits the deletion, records teardown,
 and exits after any requested integration and release.
 
 The order this chapter owns is admission before the teardown write. `run`
 obtains a shared epoch guard for the ambient `GROVE_LAUNCH_DIR` and retains it
-through dispatch to the handler. `cmd_record_teardown` requires that same
+through CLI dispatch to the handler. `cmd_record_teardown` requires that same
 directory before it calls the verb. A replacement driver therefore cannot
 invalidate an admitted operation midway through its write.
 
@@ -28,16 +28,17 @@ grove-llm finish-commit finish-k9
   -> .grove/ deleted and its deletion committed; change id on stderr
 grove-llm record-teardown
   -> teardown record in the admitted launch directory; path on stderr
-harness-dispatch exit
-  -> dispatch ends its job and returns a checked receipt to Grove
+ravel end-session grove-continue
+  -> Ravel reaps its managed group and returns grove-continue
 ```
 
-The dispatch receipt accounts for how the harness ended. Grove separately checks
-whether the launch directory contains the teardown record and `.grove/` is
-absent. A receipt alone cannot establish that a finish deleted its tree, and a
-teardown record alone cannot establish how the harness ended. The driver reads
-those facts together after dispatch returns. The integration specification
-`docs/specs/harness-selection-and-execution.md` owns this separation.
+After reap and successful epoch invalidation, Grove checks its own interruption,
+then this launch's teardown record. That record finishes before group/status or
+result checks; absent it, successful supported completion advances. Task-root
+absence alone attests neither teardown nor confirmation. A teardown record
+alone does not end the supervised process. Original installed-v22 sessions keep
+the legacy launch prompt's command/channel; these current examples describe
+Ravel. The caller boundary is `docs/adr/dispatch-supervises-the-harness.md`.
 
 <a id="the-teardown"></a>
 ## `cmd_finish_commit`: a handle becomes a committed deletion
@@ -163,7 +164,7 @@ Both successful cases return without ending the session and print no stdout.
 |---|---|---|---|
 | `finish-commit` | canonical live finish handle | delete and commit only `.grove/` | absent/untracked/symlinked root, ordinary work, wrong handle, deletion or commit failure |
 | `record-teardown` | admitted ambient launch directory | absent-root check and teardown record | admission mismatch, tree still present, record creation failure |
-| `harness-dispatch exit` | dispatch's ambient job context | request that dispatch end its harness job | owned by dispatch, outside this binary's corpus |
+| the launch prompt's exact `ravel end-session grove-continue` command | Ravel's enclosing process context | publish grove-continue and end the managed group | owned by Ravel, outside this binary's corpus |
 
 The source-order composites below reassemble both variants and both handlers.
 They contribute no bytes beyond their explicitly inserted children.
@@ -179,7 +180,7 @@ They contribute no bytes beyond their explicitly inserted children.
 <!-- /fragment -->
 
 The two orders are now visible: grammar validation before tree opening, and
-epoch admission before recording teardown. Dispatch exit is the session's final
+epoch admission before recording teardown. Ravel completion is the session's final
 action; it is not a thirteenth Grove verb. The next chapter compares all twelve
 Grove verbs and the checks that hold their boundaries.
 

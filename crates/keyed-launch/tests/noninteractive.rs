@@ -131,18 +131,25 @@ fn supervisor() {
             "--nocapture".into(),
         ],
     );
-    let result = keyed_launch::run_noninteractive(
-        keyed_launch::NoninteractiveLaunch {
-            argv: &argv,
-            scrub: &[],
-            cwd: Some(dir.path()),
-            escalation: Escalation {
-                grace: Duration::ZERO,
-                kill_grace,
-            },
+    let launch = keyed_launch::NoninteractiveLaunch {
+        argv: &argv,
+        scrub: &[],
+        cwd: Some(dir.path()),
+        escalation: Escalation {
+            grace: Duration::ZERO,
+            kill_grace,
         },
-        fs::File::create(dir.path().join("harness.log")).unwrap(),
-    )
+    };
+    let log = fs::File::create(dir.path().join("harness.log")).unwrap();
+    let result = if std::env::var_os("RUNNER_CAPTURE").is_some() {
+        keyed_launch::run_noninteractive_with_stdout(
+            launch,
+            log,
+            fs::File::create(dir.path().join("stdout")).unwrap(),
+        )
+    } else {
+        keyed_launch::run_noninteractive(launch, log)
+    }
     .unwrap();
     assert_eq!(result.group, Group::Gone);
     match scenario.as_str() {
@@ -372,13 +379,22 @@ impl Drop for RunningSupervisor {
 /// Cancel the named noninteractive scenario with `signal` once its child is
 /// ready, and require the supervisor to finish inside `within`.
 fn assert_cancellation_cleanup(scenario: &str, signal: i32, kill_grace_ms: &str, within: Duration) {
+    assert_cancellation_cleanup_with_capture(scenario, signal, kill_grace_ms, within, false);
+}
+
+fn assert_cancellation_cleanup_with_capture(
+    scenario: &str,
+    signal: i32,
+    kill_grace_ms: &str,
+    within: Duration,
+    capture: bool,
+) {
     let directory = tempfile::tempdir().unwrap();
-    let mut supervisor = RunningSupervisor::start_with(
-        directory.path(),
-        scenario,
-        signal,
-        &[("RUNNER_KILL_GRACE_MS", kill_grace_ms.as_ref())],
-    );
+    let mut extra = vec![("RUNNER_KILL_GRACE_MS", kill_grace_ms.as_ref())];
+    if capture {
+        extra.push(("RUNNER_CAPTURE", "1".as_ref()));
+    }
+    let mut supervisor = RunningSupervisor::start_with(directory.path(), scenario, signal, &extra);
     let (child, _) = supervisor.await_ready();
     let deadline = Instant::now() + within;
     // SAFETY: the supervisor is our live direct child and readiness confirms
@@ -389,6 +405,37 @@ fn assert_cancellation_cleanup(scenario: &str, signal: i32, kill_grace_ms: &str,
     );
     supervisor.await_exit(deadline);
     assert_process_gone(child);
+}
+
+#[test]
+fn captured_stdout_preserves_cancellation_and_kill_grace() {
+    for (scenario, signal, grace) in [
+        ("cooperative_child", libc::SIGINT, "10000"),
+        ("stubborn_child", libc::SIGTERM, "1000"),
+    ] {
+        assert_cancellation_cleanup_with_capture(
+            scenario,
+            signal,
+            grace,
+            Duration::from_secs(4),
+            true,
+        );
+    }
+}
+
+#[test]
+fn captured_stdout_stops_a_group_helper_before_returning() {
+    let directory = tempfile::tempdir().unwrap();
+    let mut supervisor = RunningSupervisor::start_with(
+        directory.path(),
+        "exiting_leader",
+        0,
+        &[("RUNNER_CAPTURE", "1".as_ref())],
+    );
+    let (helper, group) = supervisor.await_ready();
+    assert_ne!(helper, group);
+    supervisor.await_exit(Instant::now() + Duration::from_secs(4));
+    assert_process_gone(helper);
 }
 
 /// A noninteractive child may itself be a supervisor, which needs the

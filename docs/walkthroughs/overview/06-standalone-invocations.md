@@ -5,41 +5,41 @@
 <a id="one-isolated-invocation"></a>
 ## A kind without a task tree
 
-`grove run` stages one kind's inputs and exports its declared outputs without
-resolving a workspace or acquiring a driver lease. Grove owns that transfer
-and the transcript. It launches `harness-dispatch run --confine` through
-`keyed_launch::run_noninteractive`; dispatch selects, records, confines and
-supervises the harness. Grove reads only dispatch's ending observation.
+`grove run` stages inputs and exports declared outputs without a workspace or
+lease. Grove resolves/version-checks an independent installed Ravel, supplies
+its prompt and exact canonical ending command, and supervises through
+`keyed_launch::run_noninteractive_with_stdout`. Ravel selects and confines the
+managed command, reaps its group, and returns only its public result on stdout.
+Grove retains managed output on stderr in its transcript.
 
 <a id="worked-standalone"></a>
 ## Worked example: turn staged changes into release notes
 
-Run `grove run release-notes 'Draft notes from changes.txt' --input /work/release/changes.txt --output /work/release/notes.md --ui inline`, where the input
-is regular and the destination absent. Grove copies the input into a private
-`grove-run-…/work` directory and launches dispatch there with the kind and the
-whole prompt. Dispatch selects outside confinement with the owner's policy
-grants; the harness receives a fresh run ID and writes `notes.md` in the sandbox.
-The prompt names the canonical sibling dispatch executable and asks the harness
-to run its `exit` verb after checking the required output.
+Run `grove run release-notes 'Draft notes from changes.txt' --input /work/release/changes.txt --output /work/release/notes.md --ui inline` with a regular input and
+absent destination. Grove copies the input to its private work directory,
+holds that directory open, and launches the once-selected Ravel with public
+`start-session --confine` inputs. The policy selects outside confinement; the
+harness receives its own ephemeral ending context and the exact
+`end-session grove-continue` command in the prompt.
 
-Dispatch stops and reaps the harness's group before writing the ending file
-in Grove's separate control directory. Grove waits for dispatch, requires its
-exit 0 and an observed `exit_signal` ending, and checks its own cancellation.
-It reads outputs through the work-directory descriptor held before launch,
-stages all copies beside their destinations, then publishes without replacement.
-The result is a new `notes.md`, a completed status and a retained transcript.
-An unacknowledged exit, failure or cancellation publishes nothing. A destination
-race or cancellation during publication reports any already published prefix.
+After Ravel reaps its managed group, Grove rejects a surviving supervisor group,
+cancellation or unsuccessful front status before reading the separate held,
+unlinked result file. Only exact `grove-continue` authorizes publication. Grove
+reads output through the original directory descriptor, copies the whole set
+beside its destinations and publishes without replacement. Refusal, a missing
+or unsupported result, or cancellation publishes nothing; a publication race
+reports any already published prefix. A result published before a later managed
+nonzero exit remains successful after cleanup, as Ravel's public contract states.
 
 | Actor | Authority | Result |
 |---|---|---|
-| Caller | Kind, inputs, output destinations and runtime reads | One invocation |
-| Owner's policy | Personal policy data outside the sandbox | Command or refusal |
-| Dispatch | Recorded run, sandbox and harness process group | Ending after group cleanup |
-| Confined harness | Staged cwd and its private run directory | Outputs and exit signal |
-| Grove | Held work directory, transcript and destination paths | Validated publication |
+| Caller | Kind, input/output paths and runtime reads | One invocation |
+| Owner policy | Personal grants outside confinement | Command or refusal |
+| Ravel | Managed group and ephemeral ending context | Public stdout after cleanup |
+| Managed harness | Scratch writes and explicit runtime reads | Outputs and opaque result |
+| Grove | Held output directory, result descriptor and destinations | Checked publication |
 
-<!-- fragment «standalone-invocation» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="1-317" parent="source-standalone" -->
+<!-- fragment «standalone-invocation» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="1-307" parent="source-standalone" -->
 <!-- insert «standalone-interface» -->
 <!-- insert «standalone-staging» -->
 <!-- insert «standalone-launch-context» -->
@@ -52,11 +52,17 @@ race or cancellation during publication reports any already published prefix.
 ## The invocation inputs
 
 `Args` carries the kind, one prompt source, transfer paths, runtime reads and
-display choice. `run` locates the canonical sibling dispatch and names the
-persistent logs. `CONTROL_ENV` removes enclosing Grove and dispatch controls
-before selection, preserving the owner's other environment grants.
+display choice. `run` resolves/version-checks Ravel once and names the
+persistent logs. The version probe scrubs enclosing authority as well as launch. `CONTROL_ENV` removes enclosing Grove, dispatch and Ravel
+controls before selection, preserving the owner's other environment grants.
+It also removes retired completion channels, PID handles and inherited
+`GROVE_PROVIDER_EVIDENCE`, so a nested caller cannot borrow its parent's creator. The real-process
+fixture `standalone_scrubs_enclosing_ravel_and_retired_controls_before_selection`
+uses process-entry probes for all ten controls and allowed Grove/owner grants
+through actual selection. Every name is observed dirty independently; both
+callers scrub enclosing authority before delegation to installed Ravel.
 
-<!-- fragment «standalone-interface» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="1-67" parent="standalone-invocation" -->
+<!-- fragment «standalone-interface» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="1-72" parent="standalone-invocation" -->
 ````rust
 //! One invocation of a kind, with no workspace or task-tree authority.
 use std::collections::HashSet;
@@ -69,23 +75,28 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
 use anyhow::{bail, ensure, Context, Result};
-use keyed_launch::{Argv, End, Escalation, Group, NoninteractiveLaunch};
-use serde_json::Value;
+use grove_loop::{session_command, session_result::SessionResult};
+use keyed_launch::{End, Escalation, Group, NoninteractiveLaunch};
 
 /// What selection must not inherit: the completion channel of a session this
 /// invocation runs inside, lifecycle or standalone. The policy decides what
 /// launches, and ends nothing.
-const CONTROL_ENV: [&str; 5] = [
+pub(crate) const CONTROL_ENV: [&str; 10] = [
     "GROVE_SIGNAL_FILE",
+    "GROVE_RUN_SIGNAL_FILE",
     "GROVE_LAUNCH_DIR",
     "HARNESS_DISPATCH_EXIT_FILE",
     "HARNESS_DISPATCH_RUN_ID",
     "HARNESS_DISPATCH_STATE_DIR",
+    "RAVEL_EXIT_FILE",
+    "GROVE_PROVIDER_EVIDENCE",
+    "GROVE_HARNESS_PID",
+    "GROVE_CLAUDE_PID",
 ];
 
 #[derive(clap::Args)]
 pub(crate) struct Args {
-    /// Task kind, which the owner's harness-dispatch policy routes to a command.
+    /// Task kind, which the owner's Ravel policy routes to a command.
     pub kind: String,
     /// Task instructions, delivered as one literal prompt argument.
     #[arg(
@@ -118,11 +129,11 @@ pub(crate) enum Ui {
 }
 
 pub(crate) fn run(args: Args) -> Result<()> {
-    let dispatch = crate::dispatch::locate()?.canonicalize()?;
+    let ravel = crate::dispatch::locate()?;
     let owner_home =
         std::env::var_os("HOME").context("HOME is required to locate personal run logs")?;
     let logs = PathBuf::from(owner_home).join(".local/state/grove/runs");
-    execute(args, &dispatch, &logs)
+    execute(args, &ravel, &logs)
 }
 
 ````
@@ -136,9 +147,9 @@ directories. Inputs are copied as regular files, names cannot collide, and every
 output destination must be absent. The control directory remains outside the
 harness's writable grants.
 
-<!-- fragment «standalone-staging» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="68-118" parent="standalone-invocation" -->
+<!-- fragment «standalone-staging» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="73-124" parent="standalone-invocation" -->
 ````rust
-fn execute(args: Args, dispatch: &Path, logs: &Path) -> Result<()> {
+fn execute(args: Args, ravel: &Path, logs: &Path) -> Result<()> {
     let prompt = match (&args.prompt, &args.prompt_file) {
         (Some(prompt), None) => prompt.clone(),
         (None, Some(path)) => fs::read_to_string(path)
@@ -155,7 +166,8 @@ fn execute(args: Args, dispatch: &Path, logs: &Path) -> Result<()> {
     fs::create_dir(&work)?;
     let control = root.join("control");
     fs::create_dir(&control)?;
-    let ending_file = control.join("ending.json");
+    let capture = SessionResult::allocate()?;
+    let stdout = capture.stdout()?;
 
     let mut names = HashSet::new();
     for source in &args.input {
@@ -193,40 +205,33 @@ fn execute(args: Args, dispatch: &Path, logs: &Path) -> Result<()> {
 <!-- /fragment -->
 
 <a id="standalone-launch-context"></a>
-## Build the dispatched invocation
+## Build the public Ravel invocation
 
-The prompt names the exact dispatch `exit` command as the harness's final
-action after output validation. The argv contains `run --confine`, the kind,
-prompt, ending file and canonical runtime reads; it carries no task identity,
+The prompt names the exact canonical `end-session grove-continue` command
+after output validation. The shared argv contains `start-session --confine`,
+the kind, literal prompt, writable exit directory and canonical runtime reads; it carries no task identity,
 task file or selection parameter. Grove holds the work directory before launch,
 opens the persistent transcript and retains display control.
 
-<!-- fragment «standalone-launch-context» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="119-169" parent="standalone-invocation" -->
+<!-- fragment «standalone-launch-context» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="125-168" parent="standalone-invocation" -->
 ````rust
     let instructions = format!(
         "{prompt}\n\nStandalone invocation: work only on the staged files in the current directory. \
          There is no project, jj workspace, or Grove task tree here.\nInputs: {:?}\nRequired outputs: {:?}\n\
          After writing and checking every required output, run this exact command as your final action:\n\
-         {} exit\n\
+         {}\n\
          If unable to complete, explain the failure and exit without signalling completion.\n",
         args.input.iter().map(|path| path.file_name()).collect::<Vec<_>>(),
         destinations.iter().map(|path| path.file_name()).collect::<Vec<_>>(),
-        shell_word(dispatch.as_os_str())?
+        session_command::end_session(ravel)?
     );
-    let mut dispatch_args = vec![
-        "run".into(),
-        "--confine".into(),
-        format!("--kind={}", args.kind).into(),
-        format!("--prompt={instructions}").into(),
-        "--ending-file".into(),
-        ending_file.as_os_str().to_owned(),
-    ];
-    for path in &args.runtime_read {
-        // Resolve before moving into the staged working directory.
-        dispatch_args.push("--runtime-read".into());
-        dispatch_args.push(path.canonicalize()?.into_os_string());
-    }
-    let argv = Argv::new(dispatch.as_os_str().to_owned(), dispatch_args);
+    let argv = session_command::confined(
+        ravel,
+        &args.kind,
+        &instructions,
+        &control,
+        &args.runtime_read,
+    )?;
     // Hold the original directory, since the harness can rename paths inside
     // its scratch root. Output reads must never follow a substituted parent.
     let artifacts = File::open(&work)?;
@@ -251,7 +256,7 @@ opens the persistent transcript and retains display control.
     );
     crate::run_display::open(args.ui, &args.kind, &log_path, &status_path)?;
 
-    // Selection inherits the owner's grants. Dispatch scrubs its confined
+    // Selection inherits the owner's grants. Ravel scrubs its confined
     // child's environment after selection; enclosing control authority stops here.
     let scrub: Vec<&OsStr> = CONTROL_ENV.iter().map(OsStr::new).collect();
 ````
@@ -261,22 +266,22 @@ opens the persistent transcript and retains display control.
 ## Supervise before accepting outputs
 
 `NoninteractiveLaunch` carries no completion channel. The runner detaches
-dispatch into its own session with EOF stdin and captured output, forwarding
+Ravel into its own session with EOF stdin and captured output, forwarding
 cancellation and waiting through its kill grace. The relay sanitizes the log for
-display. After reap, Grove refuses a surviving dispatch group, cancellation,
-failed status, missing ending file or any ending other than observed
-`exit_signal`. Dispatch writes an ending only after its harness group is gone.
+display. After reap, Grove refuses a surviving supervisor group, cancellation
+or unsuccessful Ravel status, then reads the held stdout result. Only exact
+`grove-continue` authorizes output publication.
 The status file records either completed or failed, including selection refusal.
 Relay failure prevents publication too, retaining the log even for an
-acknowledged run. An uncatchable Grove death can orphan its detached dispatch
+acknowledged run. An uncatchable Grove death can orphan its detached Ravel
 and harness; that dead publisher exports nothing.
 
-<!-- fragment «standalone-supervision» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="170-245" parent="standalone-invocation" -->
+<!-- fragment «standalone-supervision» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="169-235" parent="standalone-invocation" -->
 ````rust
     let finished = AtomicBool::new(false);
     let outcome = std::thread::scope(|scope| {
         let relay = scope.spawn(|| crate::run_display::relay(reader, &finished));
-        let result = keyed_launch::run_noninteractive(
+        let result = keyed_launch::run_noninteractive_with_stdout(
             NoninteractiveLaunch {
                 argv: &argv,
                 scrub: &scrub,
@@ -287,6 +292,7 @@ and harness; that dead publisher exports nothing.
                 },
             },
             log,
+            stdout,
         );
         finished.store(true, Ordering::Release);
         let displayed = relay
@@ -301,7 +307,7 @@ and harness; that dead publisher exports nothing.
         // still be writing what would be published.
         if let Group::Present { pgid } = ended.group {
             bail!(
-                "members of the dispatch process group {pgid} may have survived it; \
+                "members of the Ravel process group {pgid} may have survived it; \
                  outputs were not published"
             );
         }
@@ -315,23 +321,13 @@ and harness; that dead publisher exports nothing.
         );
         ensure!(
             ended.status.success(),
-            "dispatch failed ({}); inspect {}; outputs were not published",
+            "Ravel failed ({}); inspect {}; outputs were not published",
             ended.status,
             log_path.display()
         );
-        let report: Value = serde_json::from_slice(
-            &fs::read(&ending_file)
-                .context("dispatch reported no run ending; outputs were not published")?,
-        )
-        .context("reading dispatch's run ending")?;
-        ensure!(
-            report["schemaVersion"] == 1
-                && report["source"] == "harness-dispatch"
-                && report["measurements"]["ending"]["state"] == "observed"
-                && report["measurements"]["ending"]["value"] == "exit_signal",
-            "harness exited without an exit-signal ending; inspect {}; outputs were not published",
-            log_path.display()
-        );
+        capture
+            .read_continue()
+            .context("Ravel returned no supported Grove result; outputs were not published")?;
         publish_outputs(&artifacts, &destinations)?;
         Ok(())
     })();
@@ -357,10 +353,10 @@ and harness; that dead publisher exports nothing.
 
 Basenames must name one artifact. Existing destinations are refused and input
 opens use `O_NOFOLLOW` and `O_NONBLOCK`, rejecting symlinks and non-regular files
-without hanging on a FIFO. These checks protect the transfer before dispatch
+without hanging on a FIFO. These checks protect the transfer before Ravel
 selects anything.
 
-<!-- fragment «standalone-artifact-checks» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="246-281" parent="standalone-invocation" -->
+<!-- fragment «standalone-artifact-checks» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="236-271" parent="standalone-invocation" -->
 ````rust
 fn basename(path: &Path) -> Result<&OsStr> {
     path.file_name()
@@ -410,7 +406,7 @@ without replacing a destination. Cancellation is checked before each publish;
 an error names the prefix already exported. `shell_word` quotes the canonical
 exit command and the parent's display commands for literal shell use.
 
-<!-- fragment «standalone-publication» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="282-317" parent="standalone-invocation" -->
+<!-- fragment «standalone-publication» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="272-307" parent="standalone-invocation" -->
 ````rust
 fn publish_outputs(work: &File, destinations: &[PathBuf]) -> Result<()> {
     let mut staged = Vec::new();
@@ -452,42 +448,358 @@ pub(crate) fn shell_word(word: &OsStr) -> Result<String> {
 <!-- /fragment -->
 
 <a id="dispatch-lookup"></a>
-## Find dispatch beside Grove
+## Delegate to independent Ravel resolution
 
-`dispatch::locate` resolves Grove's own executable to its real path and names
-the `harness-dispatch` in the same directory. The two ship together, so that
-sibling is the matching release. PATH and the working directory take no part,
-and running Grove through a symlink does not move the lookup to the link's
-directory. A sibling that is missing or not executable is refused with its path
-and the repair, before anything is staged.
+The dispatch module delegates both actual callers to the PATH/version resolver.
+Grove and Ravel may live in different versioned prefixes. No sibling, cwd or
+repository fallback is used, and no staged dead-code suppression remains.
 
-<!-- fragment «dispatch-lookup» owner="isolated-invocation" source="crates/grove/src/dispatch.rs" lines="1-26" parent="source-dispatch-lookup" -->
+<!-- fragment «dispatch-lookup» owner="isolated-invocation" source="crates/grove/src/dispatch.rs" lines="1-5" parent="source-dispatch-lookup" -->
 ````rust
-//! Where Grove finds `harness-dispatch`: beside its own executable.
-//!
-//! The two ship in one `bin/` directory, so the sibling of Grove's real path is
-//! the matching release. PATH and the cwd take no part, and a symlink to Grove
-//! does not move the lookup (`docs/specs/harness-selection-and-execution.md`,
-//! *Grove integration*).
+//! Grove resolves an independent installed Ravel through absolute PATH entries.
+//! The selected canonical executable and supported CLI version serve both callers.
+mod ravel;
+
+pub(crate) use ravel::locate;
+````
+<!-- /fragment -->
+
+<a id="ravel-resolution"></a>
+## Resolve the independent installed Ravel
+
+The active `dispatch::ravel::locate` reads the launching process's PATH. Its
+`locate_on_path` helper examines only absolute directories, skips candidates
+that are not executable regular files, and canonicalizes the first candidate
+once. It returns that path only after `check_version` accepts its public
+`--version` response. An incompatible first executable refuses; a later
+installation cannot silently replace it. Missing Ravel reports an install
+command, while a malformed, unsuccessful or unsupported probe reports an
+upgrade command.
+
+The compatibility check accepts stable `ravel 0.1.x`, starting with the delivered
+0.1.0 two-verb contract. It validates stdout as UTF-8 and rejects extra output,
+prereleases, other CLI lines and a failed status. The
+caller ADR, `docs/adr/dispatch-supervises-the-harness.md`, records the PATH trust
+cost: this probe executes the owner's selected program, and neither version
+output nor canonicalization authenticates or pins its bytes. Both actual
+callers consume the selected executable; the old sibling locator is gone.
+
+The inline tests drive executable decoys and a subprocess with its own cwd/PATH;
+they do not mutate the test runner's environment. The installed-pair test copies
+an actual front and worker through the shared `testing/ravel.rs` fixture into a
+temporary independent prefix and routes a fake
+shell agent through `ravel/sdk`. With only that prefix on the child's PATH, the
+session's noise stays on stderr and stdout contains exactly its supplied result.
+`task ravel:resolution RAVEL=/absolute/path/to/ravel` runs this installed case as
+well as the ordinary resolver tests; the ignored subprocess role runs only as a
+child of its cwd-decoy test. `task ravel:fixtures` combines this check with the
+shared-result runner checks. Its real-worker controls remove the copied worker
+and inject inherited authority into a re-executed entry probe; clean runs use
+the isolated pair without host Bun/Node or a Grove sibling installation.
+
+<!-- fragment «ravel-resolution» owner="isolated-invocation" source="crates/grove/src/dispatch/ravel.rs" lines="1-302" parent="source-ravel-resolution" -->
+````rust
+//! PATH and CLI compatibility at Grove's independent Ravel boundary.
+use std::ffi::OsStr;
 use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
+use std::process::Command;
 
-use anyhow::{ensure, Context, Result};
+use anyhow::{bail, ensure, Context, Result};
 
 pub(crate) fn locate() -> Result<PathBuf> {
-    let grove = std::env::current_exe()
-        .and_then(std::fs::canonicalize)
-        .context("resolving grove's own executable path")?;
-    let dispatch = grove.with_file_name("harness-dispatch");
-    let executable = std::fs::metadata(&dispatch)
-        .is_ok_and(|file| file.is_file() && file.permissions().mode() & 0o111 != 0);
+    locate_on_path(std::env::var_os("PATH").as_deref())
+}
+
+fn locate_on_path(path: Option<&OsStr>) -> Result<PathBuf> {
+    if let Some(path) = path {
+        for directory in std::env::split_paths(path).filter(|directory| directory.is_absolute()) {
+            let candidate = directory.join("ravel");
+            if !std::fs::metadata(&candidate)
+                .is_ok_and(|file| file.is_file() && file.permissions().mode() & 0o111 != 0)
+            {
+                continue;
+            }
+            let executable = std::fs::canonicalize(&candidate)
+                .with_context(|| format!("resolving Ravel executable {}", candidate.display()))?;
+            check_version(&executable)?;
+            return Ok(executable);
+        }
+    }
+    bail!(
+        "Ravel is missing from absolute PATH directories. Install it with \
+           `brew install linkuistics/taps/ravel` and add its bin directory to PATH."
+    )
+}
+
+fn check_version(executable: &std::path::Path) -> Result<()> {
+    let remedy = || {
+        format!(
+            "{} must report a supported stable Ravel 0.1.x CLI version. \
+         Run `brew upgrade ravel` and select that installation on PATH.",
+            executable.display()
+        )
+    };
+    let mut probe = Command::new(executable);
+    // A version probe is not an admitted session and must inherit no ending
+    // or Grove tree authority, even when PATH selects an executable wrapper.
+    for name in crate::standalone::CONTROL_ENV {
+        probe.env_remove(name);
+    }
+    let output = probe.arg("--version").output().with_context(remedy)?;
+    // Ravel's public version flag identifies the two-verb CLI, not its worker protocol.
+    // https://github.com/Linkuistics/Ravel/blob/v0.1.0/docs/session-cli.md
+    let supported = std::str::from_utf8(&output.stdout)
+        .ok()
+        .and_then(|text| text.trim().strip_prefix("ravel 0.1."))
+        .is_some_and(|patch| {
+            !patch.is_empty()
+                && patch.bytes().all(|byte| byte.is_ascii_digit())
+                && (patch == "0" || !patch.starts_with('0'))
+        });
     ensure!(
-        executable,
-        "grove launches through {}, which is missing or not executable. Install grove and \
-         harness-dispatch together, from one release: they ship in the same bin directory.",
-        dispatch.display()
+        output.status.success() && supported,
+        "{} Received status {} and version {:?}.",
+        remedy(),
+        output.status,
+        String::from_utf8_lossy(&output.stdout)
     );
-    Ok(dispatch)
+    Ok(())
+}
+
+#[cfg(test)]
+#[path = "../../../../testing/support.rs"]
+mod support;
+
+#[cfg(test)]
+mod tests {
+    use std::fs;
+    use std::os::unix::fs::{symlink, PermissionsExt};
+    use std::path::Path;
+
+    use tempfile::TempDir;
+
+    use super::*;
+
+    fn executable(dir: &Path, body: &str) -> PathBuf {
+        fs::create_dir_all(dir).unwrap();
+        let file = dir.join("ravel");
+        fs::write(&file, format!("#!/bin/sh\n{body}\n")).unwrap();
+        fs::set_permissions(&file, fs::Permissions::from_mode(0o755)).unwrap();
+        file
+    }
+
+    fn path(dirs: &[&Path]) -> std::ffi::OsString {
+        std::env::join_paths(dirs).unwrap()
+    }
+
+    #[test]
+    fn resolves_first_executable_to_its_real_path() {
+        let temp = TempDir::new().unwrap();
+        let real = executable(&temp.path().join("ravel-0.1.7/bin"), "echo 'ravel 0.1.7'");
+        let links = temp.path().join("links");
+        fs::create_dir(&links).unwrap();
+        symlink(&real, links.join("ravel")).unwrap();
+        let later = temp.path().join("later");
+        executable(&later, "echo 'ravel 0.1.0'");
+        assert_eq!(
+            locate_on_path(Some(&path(&[&links, &later]))).unwrap(),
+            fs::canonicalize(real).unwrap()
+        );
+    }
+
+    #[test]
+    fn skips_nonexecutables_and_directories() {
+        let temp = TempDir::new().unwrap();
+        let nonexec = temp.path().join("nonexec");
+        let file = executable(&nonexec, "exit 99");
+        fs::set_permissions(file, fs::Permissions::from_mode(0o644)).unwrap();
+        let directory = temp.path().join("directory");
+        fs::create_dir_all(directory.join("ravel")).unwrap();
+        let valid = temp.path().join("valid");
+        let file = executable(&valid, "echo 'ravel 0.1.0'");
+        assert_eq!(
+            locate_on_path(Some(&path(&[&nonexec, &directory, &valid]))).unwrap(),
+            fs::canonicalize(file).unwrap()
+        );
+    }
+
+    #[test]
+    fn missing_absolute_path_candidate_has_install_remedy() {
+        let temp = TempDir::new().unwrap();
+        for value in [
+            None,
+            Some(OsStr::new("")),
+            Some(OsStr::new(".:bin")),
+            Some(temp.path().as_os_str()),
+        ] {
+            let error = locate_on_path(value).unwrap_err().to_string();
+            assert!(
+                error.contains("brew install linkuistics/taps/ravel"),
+                "{error}"
+            );
+        }
+    }
+
+    #[test]
+    fn rejects_the_selected_incompatible_version_without_falling_through() {
+        let temp = TempDir::new().unwrap();
+        let selected = temp.path().join("selected");
+        let later = temp.path().join("later");
+        executable(&later, "echo 'ravel 0.1.0'");
+        for version in [
+            "ravel 0.0.9",
+            "ravel 0.2.0",
+            "ravel 1.0.0",
+            "ravel 0.1.0-beta",
+            "ravel 0.1",
+            "ravel 00.1.0",
+            "harness-dispatch 0.1.0",
+            "ravel 0.1.0 extra",
+        ] {
+            executable(&selected, &format!("echo '{version}'"));
+            let error = locate_on_path(Some(&path(&[&selected, &later])))
+                .unwrap_err()
+                .to_string();
+            assert!(error.contains("brew upgrade ravel"), "{version}: {error}");
+            assert!(error.contains(&selected.display().to_string()), "{error}");
+        }
+    }
+
+    #[test]
+    fn unsuccessful_version_probe_is_not_a_supported_installation() {
+        let temp = TempDir::new().unwrap();
+        executable(temp.path(), "echo 'ravel 0.1.0'; exit 1");
+        let error = locate_on_path(Some(temp.path().as_os_str()))
+            .unwrap_err()
+            .to_string();
+        assert!(error.contains("brew upgrade ravel"), "{error}");
+    }
+
+    #[test]
+    fn cwd_decoy_cannot_override_absolute_path() {
+        let temp = TempDir::new().unwrap();
+        executable(temp.path(), "exit 99");
+        executable(&temp.path().join("bin"), "exit 99");
+        let selected = executable(&temp.path().join("selected"), "echo 'ravel 0.1.0'");
+        let output = std::process::Command::new(std::env::current_exe().unwrap())
+            .args([
+                "--exact",
+                "dispatch::ravel::tests::resolver_process_fixture",
+                "--ignored",
+            ])
+            .current_dir(temp.path())
+            .env(
+                "PATH",
+                path(&[
+                    Path::new(""),
+                    Path::new("."),
+                    Path::new("bin"),
+                    selected.parent().unwrap(),
+                ]),
+            )
+            .env(
+                "GROVE_TEST_EXPECTED_RAVEL",
+                fs::canonicalize(selected).unwrap(),
+            )
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
+
+    #[test]
+    fn version_probe_scrubs_every_enclosing_control() {
+        let temp = TempDir::new().unwrap();
+        let checks: String = super::support::LOOP_CONTROL_ENV.iter().map(|name| format!(
+            "if [ \"${{{name}-}}\" = /inert-enclosing-control ]; then printf 'version-observed:{name}\\n' >&2; exit 93; fi\n"
+        )).collect();
+        let front = executable(temp.path(), &format!("{checks}echo 'ravel 0.1.0'"));
+        for name in super::support::LOOP_CONTROL_ENV {
+            let output = Command::new(&front)
+                .env_clear()
+                .env(name, "/inert-enclosing-control")
+                .arg("--version")
+                .output()
+                .unwrap();
+            assert_eq!(output.status.code(), Some(93), "{name}: {output:?}");
+            assert!(
+                String::from_utf8_lossy(&output.stderr).contains(name),
+                "{output:?}"
+            );
+        }
+        let mut command = Command::new(std::env::current_exe().unwrap());
+        command
+            .args([
+                "--exact",
+                "dispatch::ravel::tests::resolver_process_fixture",
+                "--ignored",
+            ])
+            .env("PATH", temp.path())
+            .env(
+                "GROVE_TEST_EXPECTED_RAVEL",
+                fs::canonicalize(front).unwrap(),
+            );
+        for name in super::support::LOOP_CONTROL_ENV {
+            command.env(name, "/inert-enclosing-control");
+        }
+        let output = command.output().unwrap();
+        assert!(output.status.success(), "{output:?}");
+    }
+
+    #[test]
+    #[ignore = "subprocess role driven by cwd_decoy_cannot_override_absolute_path"]
+    fn resolver_process_fixture() {
+        assert_eq!(
+            locate().unwrap(),
+            PathBuf::from(std::env::var_os("GROVE_TEST_EXPECTED_RAVEL").unwrap())
+        );
+    }
+
+    #[test]
+    #[ignore = "requires installed Ravel: task ravel:resolution RAVEL=/absolute/path/to/ravel"]
+    fn installed_front_and_worker_return_only_the_session_result() {
+        let temp = TempDir::new().unwrap();
+        let prefix = temp.path().join("independent-ravel-0.1.0");
+        let source = std::env::var_os("GROVE_TEST_RAVEL").expect("GROVE_TEST_RAVEL is required");
+        let pair = super::support::ravel::InstalledRavel::copy_from(Path::new(&source), &prefix);
+        let selected = locate_on_path(Some(pair.bin().as_os_str())).unwrap();
+        assert_eq!(selected, pair.executable());
+        let policy = temp.path().join("policy.ts");
+        let selected_json = serde_json::to_string(&selected).unwrap();
+        fs::write(&policy, format!(r#"import {{ definePolicy }} from 'ravel/sdk';
+export const policy = definePolicy({{
+  schemaVersion: 2, version: 'grove-resolver-fixture',
+  select: () => ({{ status: 'selected', program: '/bin/sh',
+    args: ['-c', 'printf session-noise; "$1" end-session grove-continue', 'fixture', {selected_json}],
+    provider: 'fixture', model: 'fixture', effort: 'low', reason: 'installed pair' }})
+}});
+"#)).unwrap();
+        let mut command = pair.command();
+        command
+            .args([
+                "start-session",
+                "--kind",
+                "fixture",
+                "--prompt",
+                "unchanged",
+                "--config",
+            ])
+            .arg(&policy)
+            .env("HOME", temp.path())
+            .current_dir(temp.path());
+        let output = command.output().unwrap();
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert_eq!(output.stdout, b"grove-continue");
+        assert!(String::from_utf8_lossy(&output.stderr).contains("session-noise"));
+    }
 }
 ````
 <!-- /fragment -->

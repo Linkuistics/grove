@@ -126,31 +126,30 @@ Grove version: {version}.
 /// **Part 3 — grove's own signalling contract.** Last, because it describes the
 /// last action.
 ///
-/// One text for every kind: dispatch owns the harness's exit channel and kill
-/// escalation, while Grove reads the reported ending after reap. The kind's
-/// ending remains the sentence's object; the ordinary exit verb is subordinate.
-/// A finish records teardown separately before sending the same pure signal.
-/// A finish whose skill is unread can still send only that signal after deleting
+/// One text for every kind: Ravel owns process supervision and opaque result
+/// transport, while Grove reads the public result after reap. The kind's
+/// ending remains the sentence's object; the exact ending command is supplied.
+/// A finish records teardown separately before publishing the same result.
+/// A finish whose skill is unread can publish only that result after deleting
 /// the tree, causing a relaunch. Decision 9 records that residue and its reopen
-/// condition: an exit signal after an unrecorded teardown.
+/// condition: a continue result after an unrecorded teardown.
 const SIGNALLING_CONTRACT: &str = "\
-**Signal.** Your kind's skill states how this session ends, and that ending is
-your **last action — then do nothing else**. Ordinarily it is **`harness-dispatch exit`**,
-once the task is retired and committed (and any parent-chain cascade is settled
-and included). A finish session first records its teardown with
-`grove-llm record-teardown`, then sends the exit signal. Dispatch watches its
-run's exit channel (`HARNESS_DISPATCH_EXIT_FILE`); the exit verb only creates
-the signal file and returns, carrying nothing. Ending the harness is
-**dispatch's** job: it applies grace → SIGTERM → kill-grace → SIGKILL to its
-child's group, reaps it, and reports the run ending to Grove. Grove then reads
-its own teardown record to finish, or an exit-signal ending to relaunch with
-fresh context. Run outside dispatch (no `HARNESS_DISPATCH_EXIT_FILE`), the exit
-verb is a safe no-op that tells you to exit manually. Without signalling, the
-loop waits for the harness to end, then stops with the leaf live; ending a turn
-in an interactive harness can leave it waiting at its prompt. A crash or a
-Ctrl-C can end the harness without signalling, and for at least one kind that
-is a stated ending. A recorded teardown instead finishes the loop after reap,
-unless the driver itself was interrupted.
+**Signal.** Your kind's skill states how this session ends. After retirement and
+commit (including any settled parent cascade), run this exact command as your
+**last action — then do nothing else**:
+`{ending_command}`
+A finish session first runs `grove-llm record-teardown`, then the same command.
+Ravel finds the enclosing session from inherited process context, terminates and
+reaps its managed group, and returns Grove's opaque `grove-continue` result.
+Grove interprets the result only after reap and epoch invalidation. A recorded
+teardown finishes the loop; otherwise that exact result continues with fresh
+context. Driver interruption takes precedence. Without a supported result the
+loop stops with the leaf live; ending a turn in an interactive harness may leave
+it waiting at its prompt. A crash or Ctrl-C can end the harness without a result.
+Outside a Ravel session, `end-session` refuses; it needs no session ID argument.
+The ending command in this launch prompt governs this session. Legacy sessions
+launched by Grove 22.1.0 through dispatch keep their original
+`harness-dispatch exit` command and channel, including admission and teardown.
 ";
 
 /// Everything one launch varies, and the whole of what composition reads.
@@ -174,6 +173,8 @@ pub struct Mandate<'a> {
     /// orders and means something to a human. `grove --version` renders the same
     /// value and remains as a fallback, not as the mechanism.
     pub version: &'a str,
+    /// Exact shell command built from this launch's once-resolved Ravel path.
+    pub ending_command: &'a str,
 }
 
 /// Compose the whole of `${prompt}` for one launch.
@@ -194,7 +195,12 @@ pub fn compose(mandate: &Mandate<'_>) -> String {
         .replace("{stated_vcs}", &stated_vcs(mandate.workspace))
         .replace("{version}", mandate.version);
 
-    [load, facts, SIGNALLING_CONTRACT.to_string()].join("\n")
+    [
+        load,
+        facts,
+        SIGNALLING_CONTRACT.replace("{ending_command}", mandate.ending_command),
+    ]
+    .join("\n")
 }
 
 /// The **value** that states this working tree's VCS to the session.

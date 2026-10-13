@@ -293,8 +293,22 @@ fn no_first_party_source_mutates_its_own_process_environment() {
 #[test]
 fn launch_and_dispatch_exit_authority_stop_at_cargo_and_helper_boundaries() {
     let config = std::fs::read_to_string(repo_root().join(".cargo/config.toml")).unwrap();
-    for name in ["GROVE_LAUNCH_DIR", "HARNESS_DISPATCH_EXIT_FILE"] {
-        assert!(std::env::var_os(name).unwrap().is_empty());
+    for name in [
+        "GROVE_SIGNAL_FILE",
+        "GROVE_RUN_SIGNAL_FILE",
+        "GROVE_LAUNCH_DIR",
+        "HARNESS_DISPATCH_EXIT_FILE",
+        "HARNESS_DISPATCH_RUN_ID",
+        "HARNESS_DISPATCH_STATE_DIR",
+        "RAVEL_EXIT_FILE",
+        "GROVE_PROVIDER_EVIDENCE",
+        "GROVE_HARNESS_PID",
+        "GROVE_CLAUDE_PID",
+    ] {
+        assert!(
+            std::env::var_os(name).is_some_and(|value| value.is_empty()),
+            "{name} must be force-cleared by Cargo"
+        );
         let declaration = config
             .lines()
             .find(|line| line.starts_with(&format!("{name} =")))

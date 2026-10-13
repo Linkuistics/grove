@@ -92,42 +92,31 @@ tells the harness to read and follow it. It is deliberately outside `plugins/`:
 it is not a session kind, has no task-tree lifecycle, and must not depend on the
 sandbox discovering an installed skill.
 
-Both paths require your harness-dispatch policy,
-`~/.config/harness-dispatch/policy.ts`, to route the `release-notes` kind to a
-noninteractive command that can keep its writable state in the scratch
-directory. The sample policy that `harness-dispatch init` installs routes it to
-the staged Codex helper. An interactive session command generally cannot serve,
-so route the kind to a headless command of its own.
+Both paths require independent installed Ravel and your owner policy at
+`~/.config/ravel/policy.ts`, routing `release-notes` to a noninteractive command
+that keeps its writable state in the scratch directory. The Grove sample's
+headless route invokes the staged Codex helper.
 
-**Install the policy before notes are generated.** Grove reads no
-configuration of its own, so with no policy, or with one that does not route
-`release-notes`, generation refuses and a release stops before its version
-cut:
+Install Ravel, then copy the sample only if no owner policy exists:
 
 ```sh
-task dispatch:build
-./target/debug/harness-dispatch init
+brew install linkuistics/taps/ravel
+mkdir -p ~/.config/ravel
+# Preserve an existing policy; read and edit this copy before launching.
+cp assets/ravel-policy/sample/policy.ts ~/.config/ravel/policy.ts
 ```
 
-`init` writes the sample only when no policy exists, and the file is then
-yours to edit. A release whose Unreleased notes are already written generates
-nothing and needs no policy. The policy is read by the `harness-dispatch` this
-checkout builds, so it must be written to that build's contract, which is why
-the checkout's own `init` installs it: an installed release may predate `init`
-or carry an older sample. A policy an earlier release accepted can refuse here,
-and the refusal's remedy says what to change.
-
-The script builds
-`harness-dispatch` and its policy worker beside the `grove` it runs, with
-`task dispatch:build`. The release task does not select a harness, model, or
-permission policy.
+A release with existing Unreleased notes generates nothing. Generation builds
+only `grove` and `grove-llm`; it resolves Ravel on PATH and uses its supported
+public CLI version. The release task selects no harness, model or permission
+policy and builds no Ravel executable or worker.
 
 The skill asks for a concise Markdown section body grounded in the supplied
 changes. `grove run` copies the input files (`SKILL.md`,
 `previous-changelog.md`, `current-unreleased.md`, `changes.txt`,
 `changes.diff` and the optional headless helper `codex-headless.sh`) into a
-private working directory and launches `harness-dispatch run --confine`.
-Dispatch selects outside the OS sandbox, then confines and supervises the
+private working directory and launches `ravel start-session --confine`.
+Ravel selects outside the OS sandbox, then confines and supervises the
 harness. The harness follows the invocation's completion instructions and
 produces `release-notes.md`; empty bodies and `##` headings fail before any
 changelog or `main` update.
@@ -225,31 +214,26 @@ git -C "${GROVE_TAP_DIR:-$HOME/Development/homebrew-taps}" status --short --bran
 ```
 
 The doctor checks the pinned Rust toolchain, all release targets, Zig,
-`cargo-zigbuild`, GitHub authentication, and Bun at the version harness-dispatch
-pins: the release's `scripts/check.sh` compiles that package's policy worker,
-and its first run fetches the worker's pinned type checker with `bun install
---frozen-lockfile`. It also checks the hosts the installed smoke test needs: an
-Apple silicon Mac, and a running arm64 Docker whose kernel is 6.7 or later. So a
-missing Docker stops the release before its version is cut, not after. The
-doctor installs nothing.
+`cargo-zigbuild`, GitHub authentication, and development Bun pinned by
+`tools/ravel-policy/package.json`. `task check` checks Grove's readable caller
+assets against the installed Ravel SDK using Grove's locked compiler. The gate resolves Ravel from PATH;
+`GROVE_TEST_RAVEL=/absolute/path/to/ravel` overrides that installation. Host Bun/Node are not
+runtime dependencies of either installed project.
 
-The archive build needs two things more, which the doctor cannot check.
-
-- **A C compiler for each Linux target.** harness-dispatch compiles SQLite in
-  from source, so its Linux front executables compile C through `cargo
-  zigbuild`'s Zig at the glibc 2.17 floor. A clean host build says nothing
-  about those cross-builds; `task release:archives` builds all three targets
-  without a tag, as a rehearsal.
-- **Network access to npm, once per Bun runtime.** Each target's policy worker
-  is that target's Bun 1.4.2 runtime with the policy host appended.
-  `crates/harness-dispatch/scripts/dispatch.sh` downloads the
-  `@oven/bun-<platform>` tarball from `registry.npmjs.org`, refuses it unless
-  its SHA-256 equals the digest pinned in that script, and caches it under
-  `target/bun-runtimes/`; Bun's own download, which verifies nothing, never
-  runs. A digest mismatch is not something to re-pin past: the published
-  runtime has changed, so find out why before building a release from it.
+The doctor also checks an Apple silicon Mac and running arm64 Docker with a
+kernel of 6.7 or later, before cutting a version. It installs nothing.
+`task release:archives` rehearses all three builds without a tag. Installed
+smoke fetches the independently released Ravel target archives, validates their
+pinned digests/targets/exact layouts, and never builds a bundled worker. See
+[ravel-target-inputs.md](ravel-target-inputs.md) for offline inputs and refusals.
 
 ### Installed smoke test
+
+The general all-target runner uses the supported real
+[native floor environment](linux-floor-native.md) and
+[QEMU confinement environment](linux-floor-qemu.md), including backend refusal
+controls and actual output publication. Backend diagnostics alone do not replace
+that acceptance. These are test-only resources, outside the production archives.
 
 A matching archive is not evidence until it has executed on its target. The
 release task runs `scripts/release-smoke.sh --archives target/dist` after the
@@ -258,15 +242,16 @@ same test on archives it rebuilds from the working copy, as a rehearsal or a
 regression check. `TARGETS=aarch64-unknown-linux-gnu` limits it to one target,
 as for `task release:archives`.
 
-Each archive must first match the archive manifest, as the build checked it.
-Then it is extracted into a fresh prefix where its target runs. There, with no
-Bun or Node on `PATH`, harness-dispatch runs its installed-layout cases through
-its front and through a symlink to it. It installs the sample policy with
-`init` into an empty HOME and inspects it. It inspects and runs a static and a
-computed TypeScript policy against a fake harness and reads each run's record
-back. It inspects a policy that imports one package declared by `main` and one
-by `exports`. And it runs a harness that signals itself, to show that the
-caller's ignored or default SIGPIPE and HUP reach it unchanged.
+Each Grove archive must match the exact manifest. Before any executable is
+invoked, independent Ravel 0.1.0 inputs pass the public archive admission checks.
+The two projects unpack into separate prefixes with different versions. With
+only selected system utilities and Ravel on child PATH, the cases exercise
+Grove lifecycle and standalone output publication, public result consumption,
+readable caller imports and direct/symlinked Grove fronts. There is no host
+Bun/Node, shared Cellar or equal-version assumption. The lifecycle fake supplies
+a teardown marker without retiring real work; Rust fixtures verify jj/lifecycle
+operations. [The delivery boundary](grove-delivery-contraction.md) names each
+retained caller fixture and the retired package behaviors.
 
 - **macOS arm64** runs natively, so it needs an Apple silicon Mac.
 - **Each Linux target** runs in the CentOS 7 userland of its architecture, the
@@ -277,16 +262,20 @@ caller's ignored or default SIGPIPE and HUP reach it unchanged.
   glibc 2.25 must be refused, or the userland is not enforcing its floor. A
   probe that executes one instruction beyond the CPU model, AVX2 on x64 or an
   Armv8.1 atomic on arm64, must be killed by SIGILL under that model, and must
-  run under the same QEMU with `-cpu max`. Every ELF file in the archive must
-  also match the emulator's registration, so that none runs on the host's own
-  CPU instead.
-- **The emulated runs** chroot into the userland inside an ordinary arm64
-  container. The emulator is registered in a binfmt_misc instance private to
+  run under the same QEMU with `-cpu max`. Every ELF file in both project archives must
+  also match the emulator's registration, so automatic kernel exec follows the
+  pinned CPU model. A sandbox descendant repeats the beyond-floor refusal; raw
+  emulator invocation is outside this deterministic test claim.
+- **The emulated runs** pivot into the userland inside an ordinary arm64
+  helper container and drop all bounding capabilities/groups to uid/gid 1000
+  with no-new-privileges before target execution. The emulator is registered in a binfmt_misc instance private to
   that container's user namespace, so Docker's settings and global
-  registrations are untouched. That one container runs without Docker's
-  seccomp filter, because the built-in profile of Docker 29 refuses a
-  container the user namespace. It gains no capability by that, and has no
-  network and a read-only mount. x64 uses a pinned QEMU 10.2.3 from
+  registrations are untouched. The helper uses a pinned
+  default-deny seccomp allowlist with narrow namespace additions and explicit
+  private-procfs support. It adds no outer capability, and has no network and
+  read-only inputs. Real host-native bubblewrap performs kernel namespace work
+  while payload ELFs remain emulated; its glibc 2.17 closure and emulator
+  resources are available read-only to Ravel's actual empty sandbox. x64 uses a pinned QEMU 10.2.3 from
   `tonistiigi/binfmt`, because Docker Desktop's own QEMU crashes CentOS 7's
   x86-64 userland. arm64 uses the `qemu-aarch64` of Debian's `qemu-user`
   10.2.2, because that image leaves out its own architecture's emulator. The
@@ -297,38 +286,23 @@ caller's ignored or default SIGPIPE and HUP reach it unchanged.
   arm64, as Docker Desktop is on Apple silicon, with a kernel of 6.7 or later
   and addresses at least 48 bits wide. Any other Docker is refused.
 
-Neither a container nor user-mode emulation observes the kernel floor, since
-both run on Docker's own kernel. That floor is Bun 1.4.2's documented range,
-stated as documented rather than executed: 5.1 in Bun's README, 3.10 (RHEL 7)
-on its installation page. A Bun upgrade rechecks both documents. It also
-re-pins the three runtime digests, replaces Bun's notice and reruns the
-runtime-evidence cases, as `crates/harness-dispatch/scripts/dispatch.sh` says
-where it pins them. The
-[runtime evidence](design/harness-selection-and-execution/runtime-evidence.md#installed-smoke)
-records what executed where, and why each emulator is the one it is. Rerun
-`task release:smoke` after any change to harness-dispatch's worker, the archive
-layout or native dependencies.
+Neither a container nor user-mode emulation observes the kernel floor. Ravel
+owns the pinned Bun runtime's supported kernel/CPU contract and its notices;
+Grove consumes the public release pins. Existing emulator/floor rationale is
+recorded in the historical [runtime evidence](design/harness-selection-and-execution/runtime-evidence.md#installed-smoke).
+Rerun `task release:smoke` after changing caller assets, either installed layout,
+Grove native dependencies or admitted Ravel release inputs. Final all-target
+acceptance is required before publication.
 
-## One release, eight packages, one tag
+<a id="one-release-eight-packages-one-tag"></a>
+## One release, seven product packages, one tag
 
-Every crate this release ships takes `version.workspace = true`, so a cut
-rewrites one field and moves all eight versions together — one workspace, one
-release version, one changelog, one tag
-(`docs/specs/module-decomposition.md`, decision 1). Only `crates/grove` is
-*released*: it is the human's binary and the thing the tag names. The other
-seven carry `[package.metadata.release] release = false`.
-
-`crates/harness-dispatch` is the one of the eight that ships as its own
-executable rather than inside `grove` or `grove-llm`. Every archive and the
-formula install it beside them, with its compiled policy worker, which embeds
-the same workspace version; the formula's test checks that the front, the
-worker and Grove report one version.
-
-The workspace has a ninth member the cut does not ship.
-`crates/book-validation` is the authoring tool behind `docs/walkthroughs/`, not
-part of the shipped system; it sets `publish = false` and carries a
-`version = "0.1.0"` of its own rather than inheriting. Read every claim on this
-page as a claim about the eight, not about workspace membership.
+Grove's product crates take `version.workspace = true`: one workspace release
+version, changelog and tag (`docs/specs/module-decomposition.md`, decision 1).
+Only `crates/grove` is released; the other product packages carry
+`[package.metadata.release] release = false`. The separately versioned
+`book-validation` authoring tool also disables release. Ravel is outside this
+workspace, released independently, and is a Homebrew runtime dependency.
 
 **It does need a `release = false` line, and until v20.2.0 it did not have one.**
 This page used to say the opposite — that carrying its own version was enough to
@@ -342,7 +316,7 @@ makes that heading absurd rather than merely duplicated.
 
 Its exclusion is also what makes the cut *run at all*. cargo-release forces
 `consolidate-commits = true` on every package in a `shared-version` group, which
-the eight inheriting crates form and `book-validation` — carrying its own version —
+the seven inheriting crates form and `book-validation` — carrying its own version —
 does not; a `release.toml` asking for `false` therefore reached only that one
 crate, and the cut refused with `error: inconsistent `consolidate-commits`
 setting` rather than releasing anything. `release.toml` records the measurement
@@ -426,7 +400,7 @@ cargo release patch --execute
 ```
 
 The first `cargo release` is a dry run. The executed command bumps the root
-`Cargo.toml`'s `[workspace.package] version` — the one field all eight inherit,
+`Cargo.toml`'s `[workspace.package] version` — the one field all seven product crates inherit,
 so they move together — and `Cargo.lock`, closes the changelog's
 `## Unreleased` section, creates a `chore: release v<version>` commit, and
 creates the corresponding `v<version>` tag. Use `minor` or `major` instead of `patch` when appropriate.
@@ -460,11 +434,11 @@ Do the three edits `cargo release` would have made, then let jj and git make the
 two artifacts it would have created:
 
 ```sh
-# 1. the version — ONE field, the workspace's. All eight shipped crates take
+# 1. the version — ONE field, the workspace's. All seven product crates take
 #    `version.workspace = true`, so editing `[workspace.package] version` in the
-#    root `Cargo.toml` moves all eight together; no member manifest is touched.
+#    root `Cargo.toml` moves all seven together; no member manifest is touched.
 #    Edit `version = "<old>"` → "<new>" there, then:
-cargo check                                  # rewrites Cargo.lock's eight entries
+cargo check                                  # rewrites Cargo.lock's product entries
 # 2. close the changelog heading, exactly as pre-release-replacements would:
 #    insert `## v<new>` two lines under the standing `## Unreleased`
 # 3. the release change, the bookmark, and git's HEAD
@@ -494,14 +468,13 @@ work to budget for in the release window rather than discover after the fact.
 
 ```sh
 for t in ~/Development/*/.grove; do
-  ( cd "$(dirname "$t")" && env -u GROVE_LAUNCH_DIR -u HARNESS_DISPATCH_EXIT_FILE -u GROVE_SIGNAL_FILE ./path/to/new/grove-llm pick )
+  ( cd "$(dirname "$t")" && env -u GROVE_LAUNCH_DIR -u RAVEL_EXIT_FILE -u GROVE_PROVIDER_EVIDENCE -u HARNESS_DISPATCH_EXIT_FILE -u HARNESS_DISPATCH_RUN_ID -u HARNESS_DISPATCH_STATE_DIR -u GROVE_SIGNAL_FILE -u GROVE_RUN_SIGNAL_FILE -u GROVE_HARNESS_PID -u GROVE_CLAUDE_PID ./path/to/new/grove-llm pick )
 done
 ```
 
-`env -u GROVE_LAUNCH_DIR -u HARNESS_DISPATCH_EXIT_FILE -u GROVE_SIGNAL_FILE`
-matters: without it the probe inherits the calling
-session's launch authority. The dispatch exit channel and the legacy v22
-channel are scrubbed too, so the same probe is safe during a live cutover.
+The authority removals matter: without them the probe inherits the calling
+session's admission, ending or provider evidence. Current Ravel and original
+dispatch/complete-channel controls are scrubbed together during a live cutover.
 A session's own working-tree guard answers before the
 tree is ever looked at, which is the other way to keep the probe honest.
 
@@ -513,7 +486,19 @@ release window and pinned to `v19.4.0` or later. A release that does **not** mov
 how a tree is read owes no such check.
 
 <a id="signal-contract-cutover"></a>
-### A release that changes the session signal meets every live grove
+For the mid-grove **22.1.0 → independent Ravel** extraction checkpoint, use
+[the complete-keg legacy-driver transition](legacy-driver-transition.md).
+That live driver's ending remains `harness-dispatch exit`, and its original
+`grove-llm` admission/teardown remains available through final finish.
+
+### Historical v22.0 complete-channel to v22.1 dispatch cutover
+
+The sequence below records the earlier complete-channel transition. It is not
+the current independent-Ravel upgrade recipe. For this extraction use the
+[complete-keg transition](legacy-driver-transition.md), retaining the original
+driver and ending command through final finish. New Ravel launches receive
+Grove's exact canonical end-session instructions and returned-result convention;
+Ravel adds neither itself.
 
 The v22 → supervised-dispatch release removes `grove-llm complete`. A v22
 session sends its disposition through `GROVE_SIGNAL_FILE`; the candidate's
@@ -531,7 +516,7 @@ running in memory does not acquire the new contract when PATH changes.
 2. Prepare the owner policy before replacing binaries. Remove reliance on
    `request.params.repo` and `request.params.session_name`, keep the owner's
    harness/model choices, and derive any secondary-workspace grant from
-   `request.cwd/.jj/repo`, as the [sample policy](../crates/harness-dispatch/worker/sample/policy.ts)
+   `request.cwd/.jj/repo`, as the [sample policy](../assets/ravel-policy/sample/policy.ts)
    shows. Ignore old parameters rather than rejecting their presence: v22 still
    supplies them. Draft and inspect the edit under both versions, then obtain
    the owner's confirmation before applying a personal policy change. If the
@@ -630,19 +615,19 @@ keg:
 ```text
 bin/grove
 bin/grove-llm
-bin/harness-dispatch
-libexec/harness-dispatch/harness-dispatch-policy   the compiled policy worker
-libexec/harness-dispatch/sdk/                      SDK declarations and source
-libexec/harness-dispatch/grove/                    Grove adapter declarations and source
-libexec/harness-dispatch/examples/                 example declarations and sources
-libexec/harness-dispatch/notices/                  Bun's and SQLite's notices
+libexec/ravel-policy/README.md                   readable caller documentation
+libexec/ravel-policy/grove.ts                    Grove task/context adapter
+libexec/ravel-policy/provenance.ts               caller-owned provider receipts
+libexec/ravel-policy/examples/                   ordinary readable examples
+libexec/ravel-policy/sample/policy.ts             owner-editable sample
+libexec/ravel-policy/typecheck/                   strict development fixtures
 LICENSE
 README.md
 ```
 
-`harness-dispatch` finds its worker at `../libexec/harness-dispatch/` from its
-own real path, so the Homebrew `bin/` symlink and a moved prefix both work, and
-an archive user can put the extracted `bin/` on `PATH` as it stands.
+Grove resolves independently installed Ravel from PATH. The formula installs
+`libexec/ravel-policy` and depends on `linkuistics/taps/ravel`. An archive user
+must independently install Ravel and keep each project's whole prefix intact.
 `archive_manifest` in `scripts/release-common.sh` lists every file, and the
 build checks each archive against it as soon as it is packed: a missing,
 unexpected or non-executable entry, or an extra directory, stops the build
@@ -652,7 +637,7 @@ packed without macOS extended attributes, so they hold none of the AppleDouble
 them back; the check reads them as GNU `tar` would. A change that ships another
 file adds it to that list; `bash scripts/release.test.sh`, which
 `scripts/check.sh` runs, fails before any cut when the list disagrees with what
-harness-dispatch's build emits or with the formula. So a failure at this step is
+the complete caller asset tree contains or with the formula. So a failure at this step is
 a build fault, not a stale list. Correct it and rerun `scripts/release-build.sh`;
 the tagged version is not cut again. The build also refuses a tag that differs
 from the workspace version.
@@ -724,18 +709,17 @@ If Grove is not installed yet, use `brew install linkuistics/taps/grove` instead
 of `brew upgrade grove`.
 
 Confirm that the reported version matches the tag and that the GitHub Release
-contains all three archives. `harness-dispatch --version` must report the same
-version. `brew test grove` checks the three commands' versions and has the
-installed `harness-dispatch`, through a symlink, inspect a static policy, which
-proves it finds and accepts its worker and that the worker reports that version
-too. For a behavioral smoke test of the installed binary, use the isolated
-harness procedure documented in `scripts/release-publish.sh`.
+contains all three archives. `grove-llm --version` must match Grove's tag;
+`ravel --version` is independently versioned. `brew test grove` checks the two
+Grove commands, the installed caller asset tree and actual standalone output
+publication through the dependency's public CLI, without host Bun/Node.
 
-An installation launches nothing until its owner has a policy. The formula's
-caveats say so: `harness-dispatch init` installs the sample, which the owner
-reads and edits before the first run. Installing or upgrading writes no policy
-and changes none, and a `config.kdl` or `.grove.kdl` an earlier release read is
-left where it is and ignored.
+The formula's caveats show explicit sample copying from its installed caller
+assets to `~/.config/ravel/policy.ts`. Preserve an existing policy, read/edit a
+new one before running, and keep relative helpers together. Installation and
+upgrade never write an owner policy. Earlier config.kdl/.grove.kdl files are
+ignored. Keep the live original-v22 installation and ending channel until its
+driver ends, as the transition section requires.
 
 The read-only monitor ships inside `grove`, not as a command of its own. Check
 `grove view --help` from the installed binaries,

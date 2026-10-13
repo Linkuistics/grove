@@ -1,16 +1,21 @@
 flowchart TB
-  Shell["Start here: the human's shell\nowns the terminal"]:::start
-  Driver["Bare grove: the driver\nits own job"]
-  Dispatch["harness-dispatch run\njob D: own group,\nterminal handed to D"]
-  Worker["Policy worker\njoins group D,\nreaped before launch"]
-  Harness["Harness\njob H: own group,\nterminal handed to H"]
-  Tools["Tool subprocesses\nin group H"]
-  Shell -->|"1. Foreground job"| Driver
-  Driver -->|"2. Spawn in the\nworking-tree root"| Dispatch
-  Dispatch -->|"3. Select:\nCtrl-C reaches D"| Worker
-  Dispatch -->|"4. Record, spawn:\nCtrl-C reaches H"| Harness
-  Harness -->|"5. Descendants"| Tools
-  Harness -.->|"6. harness-dispatch exit"| Dispatch
-  Dispatch -.->|"7. Escalate on H,\nreap, restore"| Harness
-  Dispatch -.->|"8. Ending, exit,\nterminal back"| Driver
+  Shell["Start here: human shell
+owns the terminal"]:::start
+  Driver["Grove driver"]
+  Ravel["ravel start-session
+Grove's child job"]
+  Selection["Ravel-owned selection phase
+terminal belongs to Ravel's group"]
+  Harness["Managed harness
+Ravel's child job, own group"]
+  Tools["Descendants remaining
+in managed group"]
+  Shell -->|"1. Start driver"| Driver
+  Driver -->|"2. Local runner gives terminal to Ravel"| Ravel
+  Ravel -->|"3. Evaluate owner policy"| Selection
+  Ravel -->|"4. Give terminal to managed job"| Harness
+  Harness -->|"5. Spawn tools"| Tools
+  Harness -.->|"6. end-session opaque argument"| Ravel
+  Ravel -.->|"7. Cleanup and terminal restoration"| Harness
+  Ravel -->|"8. Result after cleanup; terminal back"| Driver
   classDef start fill:#163a57,color:#fff,stroke:#163a57,font-weight:bold

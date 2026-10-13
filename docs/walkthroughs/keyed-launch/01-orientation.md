@@ -185,7 +185,7 @@ order is that account's order. The book reads it whole here, in five fragments:
 four that follow the doc comment's own paragraph breaks, and one for the module
 declarations and exports, which this chapter reads after the worked example.
 
-<!-- fragment «library-root» owner="understands-neither" source="crates/keyed-launch/src/lib.rs" lines="1-52" parent="source-library-root" -->
+<!-- fragment «library-root» owner="understands-neither" source="crates/keyed-launch/src/lib.rs" lines="1-53" parent="source-library-root" -->
 <!-- insert «library-root-thesis» -->
 <!-- insert «library-root-to-a-child» -->
 <!-- insert «library-root-job-and-out-of-band» -->
@@ -317,10 +317,10 @@ it.
      -> /work/atlas/.jj/grove/signal-3f9c1d4a7b2e5086c1a4f70d93b6e281
      the path is drawn; nothing is written
 
-3  run(Launch { argv, channel: Some((channel, "HARNESS_DISPATCH_EXIT_FILE")),
+3  run(Launch { argv, channel: Some((channel, "TEST_CHANNEL")),
                 scrub, grant, transparent, cwd: Some("/work/atlas"), escalation })  chapters 3, 4
      child spawned in its own process group, holding the terminal,
-     with HARNESS_DISPATCH_EXIT_FILE set to the path from step 2
+     with TEST_CHANNEL set to the path from step 2
 
 4  the child creates an empty file at that path and returns to its prompt
      the file appears; the grace elapses; the child is signalled
@@ -348,7 +348,7 @@ This book reads them here rather than deferring each name to its own chapter,
 because the list is short and the map above has already said which chapter owns
 what.
 
-<!-- fragment «library-root-modules-and-exports» owner="understands-neither" source="crates/keyed-launch/src/lib.rs" lines="36-52" parent="library-root" -->
+<!-- fragment «library-root-modules-and-exports» owner="understands-neither" source="crates/keyed-launch/src/lib.rs" lines="36-53" parent="library-root" -->
 ````rust
 
 mod argv;
@@ -364,8 +364,9 @@ pub use confinement::{
 };
 pub use error::LaunchError;
 pub use run::{
-    reraise, run, run_confined_observed, run_noninteractive, run_observed, take_interrupt, End,
-    Ended, EntrySignals, Escalation, Group, Launch, LaunchEvent, NoninteractiveLaunch,
+    reraise, run, run_confined_observed, run_noninteractive, run_noninteractive_with_stdout,
+    run_observed, run_observed_with_stdout, take_interrupt, End, Ended, EntrySignals, Escalation,
+    Group, Launch, LaunchEvent, NoninteractiveLaunch,
 };
 ````
 <!-- /fragment -->
@@ -386,9 +387,9 @@ The last row is this chapter's own and is not one.
 | Names | Minimum statement | Chapter |
 |---|---|---:|
 | `Channel`, `signal` | A fresh path per launch that allocation picks and writes nothing to; `signal` is what the child calls to make it appear, and the runner reports appearance through `Ended.signalled`. | 2 |
-| `run`, `run_observed`, `LaunchEvent`, `Launch`, `EntrySignals`, `Ended`, `End`, `Group`, `Escalation` | `run_observed` reports successful spawn and confirmed reap synchronously; `run` uses a no-op observer. Each spawns one `Launch` — argv, channel, scrub list, granted values, a transparent caller's `EntrySignals` when there is one, working directory and the two graces of an `Escalation` — and returns an `Ended` saying which of `End`'s three cases happened, whether the channel appeared, and whether the child's `Group` was confirmed gone. | 3 |
+| `run`, `run_observed`, `run_observed_with_stdout`, `LaunchEvent`, `Launch`, `EntrySignals`, `Ended`, `End`, `Group`, `Escalation` | `run_observed` reports successful spawn and confirmed reap synchronously; `run` uses a no-op observer. `run_observed_with_stdout` captures stdout in a caller-owned regular file without changing foreground job control. Each spawns one `Launch` — argv, channel, scrub list, granted values, a transparent caller's `EntrySignals` when there is one, working directory and the two graces of an `Escalation` — and returns an `Ended` saying which of `End`'s three cases happened, whether the channel appeared, and whether the child's `Group` was confirmed gone. | 3 |
 | `reraise`, `take_interrupt` | The launcher's own two obligations for a termination signal: `take_interrupt` collects one that arrived between launches, and `reraise` is how a launcher dies of the same signal rather than reporting an exit code. | 4 |
-| `run_noninteractive`, `run_confined_observed`, `NoninteractiveLaunch`, `FilesystemGrants`, `confinement_available`, `confinement_system_reads`, `regular_file_at` | Detached launches with file or inherited output, mandatory filesystem grants, backend availability and system-read inventory, and stable reads of artifacts through held directories. | 7 |
+| `run_noninteractive`, `run_noninteractive_with_stdout`, `run_confined_observed`, `NoninteractiveLaunch`, `FilesystemGrants`, `confinement_available`, `confinement_system_reads`, `regular_file_at` | Detached launches with file or inherited output, separate regular-file stdout capture through `run_noninteractive_with_stdout`, mandatory filesystem grants, backend availability and system-read inventory, and stable reads of artifacts through held directories. | 7 |
 | `LaunchError`, `Argv` | the one error type and the type a command arrives in, read next | 1 |
 
 <a id="one-opaque-error"></a>
@@ -423,7 +424,7 @@ wrong, names where, and names what would fix it. The constructor is
 One fact rides beside the message, and only one. When the child could not be
 spawned, the error keeps the system's error number, and `raw_os_error` answers
 it; every other failure answers `None`. A caller that reports a failed start by
-its cause needs the number rather than the words: `harness-dispatch` exits 127
+its cause needs the number rather than the words: `ravel` exits 127
 for `ENOENT`, as a shell does for a missing program, and 126 for any other
 cause. `Some` therefore also says that nothing was started. `with_errno` is how
 the spawn in chapter 3 attaches it, and it is `pub(crate)` like the
@@ -568,18 +569,15 @@ impl Argv {
 <!-- /fragment -->
 
 `Argv::new` is public, and it checks nothing: a program and a list of arguments
-go in, and the same program and arguments are what the value holds. Grove calls
-it in two places. `crates/grove-loop/src/loop_driver.rs` builds the
-`harness-dispatch run` invocation for a lifecycle session, and
-`crates/grove/src/standalone.rs` builds a noninteractive `harness-dispatch run --confine` invocation from its canonical
-sibling path, kind, prompt, runtime reads and ending-file path. The third caller is
-`harness-dispatch run` itself, which builds the harness's command from what its
-owner's policy selected.
+go in, and the same program and arguments are what the value holds. Grove's shared `session_command` builders compose public lifecycle and confined
+standalone `ravel start-session` requests from the once-resolved independent
+executable. This local runner supervises Ravel, which supervises its own managed
+process using Ravel's separate runner. The old in-workspace dispatch caller
+is gone.
 
-That third caller is why `with_arg0` exists. Dispatch has already resolved the
-program the policy named to an absolute path, and spawns that path, so that
-nothing is looked up a second time under another directory or `PATH`. The
-harness is still to see, as its `argv[0]`, the program as the policy wrote it.
+The generic `with_arg0` API remains: a caller can resolve a program to an absolute
+path before spawning, while preserving the name its child sees as `argv[0]`.
+No program lookup is repeated under a different directory or `PATH`.
 `with_arg0` sets that word and leaves the program alone. A confined launch runs
 the path through the sandbox's own launcher, which gives its child the path as
 `argv[0]`, so the doc comment says the word has no effect there.

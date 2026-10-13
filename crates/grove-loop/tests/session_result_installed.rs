@@ -163,6 +163,7 @@ fn both_stdout_runner_apis_read_only_the_installed_session_result() {
     for noninteractive in [false, true] {
         for (supplied, valid, successful) in [
             (Some("grove-continue"), true, true),
+            (Some("grove-force-stop"), true, true),
             (Some("grove-continue\n"), false, true),
             (Some(""), false, true),
             (None, false, false),
@@ -238,7 +239,7 @@ fn both_stdout_runner_apis_read_only_the_installed_session_result() {
             .unwrap();
             assert!(!matches!(ended.group, Group::Present { .. }));
             assert_eq!(ended.status.success(), successful);
-            assert_eq!(capture.read_continue().is_ok(), valid);
+            assert_eq!(capture.read().is_ok(), valid);
             if noninteractive {
                 transcript.rewind().unwrap();
                 let mut text = String::new();

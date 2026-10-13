@@ -231,7 +231,7 @@ fn confined_request_grants_only_the_named_runtime_file_and_isolates_the_result()
         .unwrap();
         assert_eq!(ended.group, Group::Gone);
         assert_eq!(ended.status.success(), granted, "{ended:?}");
-        assert_eq!(capture.read_continue().is_ok(), granted);
+        assert_eq!(capture.read().is_ok(), granted);
         transcript.rewind().unwrap();
         let mut text = String::new();
         transcript.read_to_string(&mut text).unwrap();

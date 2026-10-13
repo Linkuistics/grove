@@ -102,17 +102,4 @@ impl SessionResult {
             ))),
         }
     }
-
-    /// Accept continuation only, for a caller whose success requires it.
-    ///
-    /// # Errors
-    /// A force-stop, missing, unsupported or unreadable result.
-    pub fn read_continue(self) -> Result<(), Error> {
-        match self.read()? {
-            SessionDisposition::Continue => Ok(()),
-            SessionDisposition::ForceStop => Err(Error::msg(
-                "Grove force-stop requested; completion was not acknowledged",
-            )),
-        }
-    }
 }

@@ -1518,10 +1518,11 @@ one byte that rejects any tail. The shorter `grove-continue` is also exact.
 Empty, padded, binary, transcript-contaminated and unsupported values refuse.
 The typed disposition carries only Grove's meaning; it cannot establish
 supervisor success, group cleanup or epoch invalidation. Lifecycle interprets
-force-stop before teardown; the continuation-only adapter refuses it for
-standalone publication until that caller adopts explicit force-stop instructions.
+force-stop before teardown; standalone reports force-stop as failure before
+validating or publishing any outputs. Both callers consume the typed reader
+directly, with no continuation-only adapter.
 
-<!-- fragment «held-session-result» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/session_result.rs" lines="1-118" parent="source-session-result" -->
+<!-- fragment «held-session-result» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/session_result.rs" lines="1-105" parent="source-session-result" -->
 ````rust
 //! Caller-owned stdout transport for Ravel's opaque Grove results.
 
@@ -1625,19 +1626,6 @@ impl SessionResult {
             _ => Err(Error::msg(format!(
                 "Ravel returned an unsupported session result; expected exactly {CONTINUE_RESULT} or {FORCE_STOP_RESULT}"
             ))),
-        }
-    }
-
-    /// Accept continuation only, for a caller whose success requires it.
-    ///
-    /// # Errors
-    /// A force-stop, missing, unsupported or unreadable result.
-    pub fn read_continue(self) -> Result<(), Error> {
-        match self.read()? {
-            SessionDisposition::Continue => Ok(()),
-            SessionDisposition::ForceStop => Err(Error::msg(
-                "Grove force-stop requested; completion was not acknowledged",
-            )),
         }
     }
 }

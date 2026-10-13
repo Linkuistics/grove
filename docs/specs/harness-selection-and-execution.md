@@ -185,7 +185,9 @@ Grove logs and streams sanitized managed output, checks cancellation, surviving
 group and successful Ravel status, then accepts exactly `grove-continue` before
 validating/publishing outputs through the held work-directory descriptor without
 overwriting destinations. Refusal, absent/unsupported result or invalid outputs
-publish nothing. [Standalone invocations](standalone-invocations.md) owns that
+publish nothing. Exact `grove-force-stop` reports failure and publishes no
+outputs. The prompt supplies canonical commands and both result meanings.
+[Standalone invocations](standalone-invocations.md) owns that
 staging, output and transcript contract.
 
 <a id="identity-and-creator"></a>

@@ -56,6 +56,25 @@ frozen inputs and limits. k60 owns standalone's explicit stopping/publication
 path; k61 owns full parent acceptance and remaining active-surface reconciliation.
 No parent close, installation, release or teardown occurred in k59.
 
+### Standalone handoff — k60
+
+k60 supplies both exact canonical standalone commands and their meanings.
+Continue publishes checked outputs; force-stop returns failure, records failed
+status and publishes none. Both production callers now use the typed reader
+directly; the temporary adapter is removed. Real installed fake-agent tests
+cover both endings, valid whole output sets, descendant cleanup, unchanged
+enclosing channels and nested completion/force-stop/cancellation. Existing
+refusal, cancellation, natural exit, invalid-result and publication checks pass.
+
+Final `task check` passes all 18 checks (1,385 runtime cases, nine doctests, six
+books), alongside explicit installed command/result and authority tasks and
+original-driver preservation verification. The host Bun 1.4.3 refusal was
+resolved by selecting the existing pinned 1.4.2 binary only for verification;
+all 2,983 frozen subjects match. The child's verification section names logs,
+per-file digests and limits. k61 retains full parent acceptance and active
+surface/separate-target reconciliation. No parent close, install, release or
+teardown occurred in k60; the live original-driver boundary stays in force.
+
 The agent-server stays on the root brief's horizon. The driver-owned finish
 session performs the authorized final Grove integration/release; this leaf
 does not signal teardown or install replacement Grove while developing it.

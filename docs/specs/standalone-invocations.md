@@ -12,7 +12,8 @@ The owner policy/settings are personal files that the confined process cannot
 read. Grove resolves and version-checks independent Ravel once from absolute
 PATH entries before staging; public `start-session --confine` selects outside
 the sandbox and supervises inside it. The unchanged caller prompt supplies the
-exact canonical `end-session grove-continue` command. Grove sends kind, prompt,
+exact canonical `end-session grove-continue` and `end-session grove-force-stop`
+commands and explains their meanings. Grove sends kind, prompt,
 exit directory and canonical `--runtime-read` grants, with no task identity or
 settings override. Ravel's
 [public execution contract](https://github.com/Linkuistics/Ravel/blob/v0.1.0/docs/specs/session-execution.md)
@@ -44,8 +45,10 @@ selectors or terminal/multiplexer capabilities. Its exit channel is its own run'
 and distinct from any enclosing session's. The harness acknowledges its work with
 the canonical `ravel end-session grove-continue` command in its prompt, which
 ends only that invocation and takes no session ID. Tree verbs are unavailable.
-Grove publishes only after a successful Ravel exit and the exact supported
-result. A missing/unsupported result, supervision failure, abnormal supervisor
+Grove publishes only after a successful Ravel exit and exact `grove-continue`.
+The prompt's `grove-force-stop` command stops only this invocation, reports
+failure and publishes no output, even if every required output is valid.
+A missing/unsupported result, supervision failure, abnormal supervisor
 exit or cancellation prevents success. Ravel's first publication wins: a managed
 process exiting nonzero after publishing does not override a successfully reaped
 result. Grove adds no contradictory private child-exit interpretation.
@@ -98,12 +101,13 @@ must never depend on paid LLM calls.
   enclosing context and cannot read the personal policy or owner settings.
 - The file that runs is the one Ravel resolved, whatever else of that name
   PATH or Grove's own directory holds.
-- A nested result publication and nested cancellation leave the enclosing session's run
-  intact.
+- Nested completion, force-stop and cancellation leave the enclosing session's
+  run intact.
 - The harness cannot consume caller stdin or obtain its terminal/mux handles.
 - Real sandbox probes deny reads and writes to an unrelated project while
   permitting staged artifacts and explicitly granted runtime reads.
-- Harness exit without a result, supervision failure, cancellation,
+- Force-stop, harness exit without a result, malformed/unsupported results,
+  supervision failure, cancellation,
   output symlinks, missing outputs and destination races fail visibly.
 - A writer left in the harness's group after a clean acknowledgement is stopped
   before any output publishes.

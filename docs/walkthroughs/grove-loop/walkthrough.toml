@@ -563,13 +563,13 @@ lines = "1-134"
 [[root]]
 id = "source-session-result"
 path = "crates/grove-loop/src/session_result.rs"
-lines = 118
+lines = 105
 
 [[block]]
 id = "held-session-result"
 root = "source-session-result"
 owner = "four-things-a-runner-cannot-choose"
-lines = "1-118"
+lines = "1-105"
 
 [[root]]
 id = "source-session-command"

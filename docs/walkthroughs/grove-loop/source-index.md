@@ -23,7 +23,7 @@
 | `source-runtime-observation` | `crates/grove-loop/src/driver_lease/observation.rs` | 2,146 |
 | `source-witnesses` | `crates/grove-loop/src/driver_lease/witnesses.rs` | 717 |
 | `source-launch-directory` | `crates/grove-loop/src/launch_directory.rs` | 134 |
-| `source-session-result` | `crates/grove-loop/src/session_result.rs` | 118 |
+| `source-session-result` | `crates/grove-loop/src/session_result.rs` | 105 |
 | `source-session-command` | `crates/grove-loop/src/session_command.rs` | 106 |
 
 <!-- source-root «source-crate-manifest» source="crates/grove-loop/Cargo.toml" lines="1-67" -->
@@ -102,7 +102,7 @@
 <!-- insert «launch-control-directory» -->
 <!-- /source-root -->
 
-<!-- source-root «source-session-result» source="crates/grove-loop/src/session_result.rs" lines="1-118" -->
+<!-- source-root «source-session-result» source="crates/grove-loop/src/session_result.rs" lines="1-105" -->
 <!-- insert «held-session-result» -->
 <!-- /source-root -->
 <!-- source-root «source-session-command» source="crates/grove-loop/src/session_command.rs" lines="1-106" -->
@@ -157,7 +157,7 @@
 | `launch-witnesses-production` | `source-witnesses` | `one-per-working-tree` | `1-175` | 175 | `resolved` |
 | `witness-tests` | `source-witnesses` | `which-calls-are-admitted` | `176-717` | 542 | `resolved` |
 | `launch-control-directory` | `source-launch-directory` | `four-things-a-runner-cannot-choose` | `1-134` | 134 | `resolved` |
-| `held-session-result` | `source-session-result` | `four-things-a-runner-cannot-choose` | `1-118` | 118 | `resolved` |
+| `held-session-result` | `source-session-result` | `four-things-a-runner-cannot-choose` | `1-105` | 105 | `resolved` |
 | `public-session-commands` | `source-session-command` | `four-things-a-runner-cannot-choose` | `1-106` | 106 | `resolved` |
 
 <a id="fragment-index"></a>
@@ -712,8 +712,8 @@
 | `witness-local-controls` | `the-epoch` | `source-witnesses` | `literal` | `which-calls-are-admitted` | `441-717` | `witness-tests` | `—` |
 | `source-launch-directory` | `source-index` | `source-launch-directory` | `root` | `—` | `1-134` | `—` | `launch-control-directory` |
 | `launch-control-directory` | `the-loop` | `source-launch-directory` | `literal` | `four-things-a-runner-cannot-choose` | `1-134` | `source-launch-directory` | `—` |
-| `source-session-result` | `source-index` | `source-session-result` | `root` | `—` | `1-118` | `—` | `held-session-result` |
-| `held-session-result` | `the-loop` | `source-session-result` | `literal` | `four-things-a-runner-cannot-choose` | `1-118` | `source-session-result` | `—` |
+| `source-session-result` | `source-index` | `source-session-result` | `root` | `—` | `1-105` | `—` | `held-session-result` |
+| `held-session-result` | `the-loop` | `source-session-result` | `literal` | `four-things-a-runner-cannot-choose` | `1-105` | `source-session-result` | `—` |
 | `source-session-command` | `source-index` | `source-session-command` | `root` | `—` | `1-106` | `—` | `public-session-commands` |
 | `public-session-commands` | `the-loop` | `source-session-command` | `literal` | `four-things-a-runner-cannot-choose` | `1-106` | `source-session-command` | `—` |
 
@@ -800,7 +800,7 @@ the roots and fragment relationships; this rollup totals the lines across the de
 | `one-per-working-tree` | `16-the-lease.md` | 1,141 |
 | `which-calls-are-admitted` | `17-the-epoch.md` | 3,805 |
 | `too-late-to-say-later` | `18-the-core.md` | 241 |
-| `four-things-a-runner-cannot-choose` | `19-the-loop.md` | 1,267 |
+| `four-things-a-runner-cannot-choose` | `19-the-loop.md` | 1,254 |
 | `assembly` | `20-what-could-not-move.md` | 0 |
-| **Total** | 17 source roots | **14,488** |
+| **Total** | 17 source roots | **14,475** |
 

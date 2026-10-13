@@ -9,7 +9,10 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
 use anyhow::{bail, ensure, Context, Result};
-use grove_loop::{session_command, session_result::SessionResult};
+use grove_loop::{
+    session_command,
+    session_result::{SessionDisposition, SessionResult},
+};
 use keyed_launch::{End, Escalation, Group, NoninteractiveLaunch};
 
 /// What selection must not inherit: the completion channel of a session this
@@ -127,10 +130,15 @@ fn execute(args: Args, ravel: &Path, logs: &Path) -> Result<()> {
          There is no project, jj workspace, or Grove task tree here.\nInputs: {:?}\nRequired outputs: {:?}\n\
          After writing and checking every required output, run this exact command as your final action:\n\
          {}\n\
-         If unable to complete, explain the failure and exit without signalling completion.\n",
+         Grove interprets grove-continue as successful completion and publishes the checked outputs.\n\
+         To stop without completing, explain the failure and run:\n\
+         {}\n\
+         Grove interprets grove-force-stop as failure and publishes no outputs. \
+         This command must be your final action.\n",
         args.input.iter().map(|path| path.file_name()).collect::<Vec<_>>(),
         destinations.iter().map(|path| path.file_name()).collect::<Vec<_>>(),
-        session_command::end_session(ravel)?
+        session_command::end_session(ravel)?,
+        session_command::force_stop(ravel)?
     );
     let argv = session_command::confined(
         ravel,
@@ -213,9 +221,15 @@ fn execute(args: Args, ravel: &Path, logs: &Path) -> Result<()> {
             ended.status,
             log_path.display()
         );
-        capture
-            .read_continue()
-            .context("Ravel returned no supported Grove result; outputs were not published")?;
+        match capture
+            .read()
+            .context("Ravel returned no supported Grove result; outputs were not published")?
+        {
+            SessionDisposition::Continue => {}
+            SessionDisposition::ForceStop => {
+                bail!("Grove force-stop requested; outputs were not published");
+            }
+        }
         publish_outputs(&artifacts, &destinations)?;
         Ok(())
     })();

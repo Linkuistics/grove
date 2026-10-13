@@ -7,7 +7,7 @@
 
 `grove run` stages inputs and exports declared outputs without a workspace or
 lease. Grove resolves/version-checks an independent installed Ravel, supplies
-its prompt and exact canonical ending command, and supervises through
+its prompt and exact canonical continue and force-stop commands, and supervises through
 `keyed_launch::run_noninteractive_with_stdout`. Ravel selects and confines the
 managed command, reaps its group, and returns only its public result on stdout.
 Grove retains managed output on stderr in its transcript.
@@ -20,15 +20,15 @@ absent destination. Grove copies the input to its private work directory,
 holds that directory open, and launches the once-selected Ravel with public
 `start-session --confine` inputs. The policy selects outside confinement; the
 harness receives its own ephemeral ending context and the exact
-`end-session grove-continue` command in the prompt.
+`end-session grove-continue` and `end-session grove-force-stop` commands in the prompt.
 
 After Ravel reaps its managed group, Grove rejects a surviving supervisor group,
 cancellation or unsuccessful front status before reading the separate held,
 unlinked result file. Only exact `grove-continue` authorizes publication. Grove
 reads output through the original directory descriptor, copies the whole set
 beside its destinations and publishes without replacement. Refusal, a missing
-or unsupported result, or cancellation publishes nothing; a publication race
-reports any already published prefix. A result published before a later managed
+or unsupported result, force-stop, or cancellation publishes nothing; a publication race
+reports any already published prefix. A continue result published before a later managed
 nonzero exit remains successful after cleanup, as Ravel's public contract states.
 
 | Actor | Authority | Result |
@@ -39,7 +39,7 @@ nonzero exit remains successful after cleanup, as Ravel's public contract states
 | Managed harness | Scratch writes and explicit runtime reads | Outputs and opaque result |
 | Grove | Held output directory, result descriptor and destinations | Checked publication |
 
-<!-- fragment «standalone-invocation» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="1-307" parent="source-standalone" -->
+<!-- fragment «standalone-invocation» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="1-321" parent="source-standalone" -->
 <!-- insert «standalone-interface» -->
 <!-- insert «standalone-staging» -->
 <!-- insert «standalone-launch-context» -->
@@ -62,7 +62,7 @@ uses process-entry probes for all ten controls and allowed Grove/owner grants
 through actual selection. Every name is observed dirty independently; both
 callers scrub enclosing authority before delegation to installed Ravel.
 
-<!-- fragment «standalone-interface» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="1-72" parent="standalone-invocation" -->
+<!-- fragment «standalone-interface» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="1-75" parent="standalone-invocation" -->
 ````rust
 //! One invocation of a kind, with no workspace or task-tree authority.
 use std::collections::HashSet;
@@ -75,7 +75,10 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
 use anyhow::{bail, ensure, Context, Result};
-use grove_loop::{session_command, session_result::SessionResult};
+use grove_loop::{
+    session_command,
+    session_result::{SessionDisposition, SessionResult},
+};
 use keyed_launch::{End, Escalation, Group, NoninteractiveLaunch};
 
 /// What selection must not inherit: the completion channel of a session this
@@ -147,7 +150,7 @@ directories. Inputs are copied as regular files, names cannot collide, and every
 output destination must be absent. The control directory remains outside the
 harness's writable grants.
 
-<!-- fragment «standalone-staging» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="73-124" parent="standalone-invocation" -->
+<!-- fragment «standalone-staging» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="76-127" parent="standalone-invocation" -->
 ````rust
 fn execute(args: Args, ravel: &Path, logs: &Path) -> Result<()> {
     let prompt = match (&args.prompt, &args.prompt_file) {
@@ -207,23 +210,30 @@ fn execute(args: Args, ravel: &Path, logs: &Path) -> Result<()> {
 <a id="standalone-launch-context"></a>
 ## Build the public Ravel invocation
 
-The prompt names the exact canonical `end-session grove-continue` command
-after output validation. The shared argv contains `start-session --confine`,
+The prompt names exact canonical commands: `end-session grove-continue` after
+checking every output, and `end-session grove-force-stop` when unable to complete.
+It explains that continue publishes checked outputs and force-stop reports
+failure with no publication. The shared argv contains `start-session --confine`,
 the kind, literal prompt, writable exit directory and canonical runtime reads; it carries no task identity,
 task file or selection parameter. Grove holds the work directory before launch,
 opens the persistent transcript and retains display control.
 
-<!-- fragment «standalone-launch-context» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="125-168" parent="standalone-invocation" -->
+<!-- fragment «standalone-launch-context» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="128-176" parent="standalone-invocation" -->
 ````rust
     let instructions = format!(
         "{prompt}\n\nStandalone invocation: work only on the staged files in the current directory. \
          There is no project, jj workspace, or Grove task tree here.\nInputs: {:?}\nRequired outputs: {:?}\n\
          After writing and checking every required output, run this exact command as your final action:\n\
          {}\n\
-         If unable to complete, explain the failure and exit without signalling completion.\n",
+         Grove interprets grove-continue as successful completion and publishes the checked outputs.\n\
+         To stop without completing, explain the failure and run:\n\
+         {}\n\
+         Grove interprets grove-force-stop as failure and publishes no outputs. \
+         This command must be your final action.\n",
         args.input.iter().map(|path| path.file_name()).collect::<Vec<_>>(),
         destinations.iter().map(|path| path.file_name()).collect::<Vec<_>>(),
-        session_command::end_session(ravel)?
+        session_command::end_session(ravel)?,
+        session_command::force_stop(ravel)?
     );
     let argv = session_command::confined(
         ravel,
@@ -270,13 +280,14 @@ Ravel into its own session with EOF stdin and captured output, forwarding
 cancellation and waiting through its kill grace. The relay sanitizes the log for
 display. After reap, Grove refuses a surviving supervisor group, cancellation
 or unsuccessful Ravel status, then reads the held stdout result. Only exact
-`grove-continue` authorizes output publication.
+`grove-continue` authorizes output publication. Exact `grove-force-stop` returns
+an error before output validation or publication, even for valid staged files.
 The status file records either completed or failed, including selection refusal.
 Relay failure prevents publication too, retaining the log even for an
 acknowledged run. An uncatchable Grove death can orphan its detached Ravel
 and harness; that dead publisher exports nothing.
 
-<!-- fragment «standalone-supervision» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="169-235" parent="standalone-invocation" -->
+<!-- fragment «standalone-supervision» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="177-249" parent="standalone-invocation" -->
 ````rust
     let finished = AtomicBool::new(false);
     let outcome = std::thread::scope(|scope| {
@@ -325,9 +336,15 @@ and harness; that dead publisher exports nothing.
             ended.status,
             log_path.display()
         );
-        capture
-            .read_continue()
-            .context("Ravel returned no supported Grove result; outputs were not published")?;
+        match capture
+            .read()
+            .context("Ravel returned no supported Grove result; outputs were not published")?
+        {
+            SessionDisposition::Continue => {}
+            SessionDisposition::ForceStop => {
+                bail!("Grove force-stop requested; outputs were not published");
+            }
+        }
         publish_outputs(&artifacts, &destinations)?;
         Ok(())
     })();
@@ -356,7 +373,7 @@ opens use `O_NOFOLLOW` and `O_NONBLOCK`, rejecting symlinks and non-regular file
 without hanging on a FIFO. These checks protect the transfer before Ravel
 selects anything.
 
-<!-- fragment «standalone-artifact-checks» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="236-271" parent="standalone-invocation" -->
+<!-- fragment «standalone-artifact-checks» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="250-285" parent="standalone-invocation" -->
 ````rust
 fn basename(path: &Path) -> Result<&OsStr> {
     path.file_name()
@@ -406,7 +423,7 @@ without replacing a destination. Cancellation is checked before each publish;
 an error names the prefix already exported. `shell_word` quotes the canonical
 exit command and the parent's display commands for literal shell use.
 
-<!-- fragment «standalone-publication» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="272-307" parent="standalone-invocation" -->
+<!-- fragment «standalone-publication» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="286-321" parent="standalone-invocation" -->
 ````rust
 fn publish_outputs(work: &File, destinations: &[PathBuf]) -> Result<()> {
     let mut staged = Vec::new();

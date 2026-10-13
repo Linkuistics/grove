@@ -17,13 +17,6 @@ fn reads_both_exact_dispositions_without_granting_force_stop_completion() {
         result.stdout().unwrap().write_all(bytes).unwrap();
         assert_eq!(result.read().unwrap(), want);
     }
-    let result = SessionResult::allocate().unwrap();
-    result
-        .stdout()
-        .unwrap()
-        .write_all(b"grove-force-stop")
-        .unwrap();
-    assert!(result.read_continue().is_err());
 }
 
 #[test]
@@ -33,7 +26,7 @@ fn reads_the_exact_result_after_the_writer_advanced_the_shared_offset() {
     stdout.write_all(b"grove-").unwrap();
     stdout.write_all(b"continue").unwrap();
     drop(stdout);
-    result.read_continue().unwrap();
+    assert_eq!(result.read().unwrap(), SessionDisposition::Continue);
 }
 
 #[test]
@@ -66,7 +59,7 @@ fn oversized_result_reads_only_the_literal_and_one_rejecting_byte() {
     stdout.write_all(b"grove-continue").unwrap();
     // A sparse tail would be expensive to read without the caller's bound.
     stdout.set_len(1024 * 1024).unwrap();
-    assert!(result.read_continue().is_err());
+    assert!(result.read().is_err());
     // Clones share the offset: this sees how far the actual reader consumed.
     assert_eq!(stdout.stream_position().unwrap(), 17);
 }

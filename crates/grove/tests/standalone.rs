@@ -110,7 +110,10 @@ impl Fixture {
             fs::create_dir(dir).unwrap();
         }
         fs::write(&fixture.script, format!(
-            "dispatch_exit=$(printf '%s\\n' \"$1\" | sed -n '/exact command as your final action:/{{n;p;}}')\nacknowledge() {{ eval \"$dispatch_exit\"; }}\n{harness}"
+            "dispatch_exit=$(printf '%s\\n' \"$1\" | sed -n '/exact command as your final action:/{{n;p;}}')\n\
+             force_stop=$(printf '%s\\n' \"$1\" | sed -n '/To stop without completing, explain the failure and run:/{{n;p;}}')\n\
+             acknowledge() {{ eval \"$dispatch_exit\"; }}\n\
+             stop_work() {{ test -n \"$force_stop\"; eval \"$force_stop\"; }}\n{harness}"
         )).unwrap();
         fixture.policy(&format!(
             r#"export const policy = {{
@@ -191,6 +194,73 @@ fn assert_published(fixture: &Fixture, output: &Output, expected: &str) {
 fn assert_nothing_published(fixture: &Fixture, output: &Output) {
     assert!(!output.status.success(), "{}", stderr(output));
     assert!(!fixture.notes().exists(), "{}", stderr(output));
+}
+
+/// Missing/wrong prompt commands must prevent completion or an explicit stop;
+/// treating force-stop as success must never publish even a valid output set.
+#[test]
+fn prompt_commands_complete_or_force_stop_without_touching_enclosing_channels() {
+    for stop in [false, true] {
+        let fixture = Fixture::new(&format!(
+            "set -eu\nprintf first > notes.md\nprintf second > second.md\n\
+             ( trap '' TERM; while :; do sleep 0.05; done ) &\n\
+             printf 'writer:%s\\n' \"$!\"\n{}\n",
+            if stop { "stop_work" } else { "acknowledge" }
+        ));
+        let second = fixture.cwd.join("second.md");
+        let controls = [
+            ("GROVE_SIGNAL_FILE", "outer-signal"),
+            ("GROVE_RUN_SIGNAL_FILE", "outer-standalone"),
+            ("HARNESS_DISPATCH_EXIT_FILE", "outer-legacy-exit"),
+            ("RAVEL_EXIT_FILE", "outer-exit"),
+        ];
+        let mut command = fixture.run_kind("release-notes");
+        command.arg("--output").arg(&second);
+        for (name, path) in controls {
+            fs::write(fixture.root.join(path), "enclosing").unwrap();
+            command.env(name, fixture.root.join(path));
+        }
+        let output = command.output().unwrap();
+        let writer: i32 = stderr(&output)
+            .lines()
+            .find_map(|line| line.strip_prefix("writer:"))
+            .unwrap()
+            .parse()
+            .unwrap();
+        // SAFETY: signal 0 only queries the reported confined descendant PID.
+        assert_eq!(unsafe { libc::kill(writer, 0) }, -1);
+        if stop {
+            assert_eq!(output.status.code(), Some(1), "{output:?}");
+            assert_nothing_published(&fixture, &output);
+            assert!(!second.exists());
+            assert!(
+                stderr(&output).contains("force-stop requested"),
+                "{output:?}"
+            );
+            assert!(
+                stderr(&output).contains("outputs were not published"),
+                "{output:?}"
+            );
+        } else {
+            assert_published(&fixture, &output, "first");
+            assert_eq!(fs::read_to_string(second).unwrap(), "second");
+        }
+        let status = fs::read_dir(fixture.home.join(".local/state/grove/runs"))
+            .unwrap()
+            .map(|entry| entry.unwrap().path())
+            .find(|path| path.extension().is_some_and(|ext| ext == "status"))
+            .unwrap();
+        assert_eq!(
+            fs::read_to_string(status).unwrap(),
+            if stop { "failed" } else { "completed" }
+        );
+        for (_, path) in controls {
+            assert_eq!(
+                fs::read_to_string(fixture.root.join(path)).unwrap(),
+                "enclosing"
+            );
+        }
+    }
 }
 
 fn write_executable(path: &Path, body: &str, mode: u32) {
@@ -563,6 +633,33 @@ fn unacknowledged_harnesses_do_not_publish_outputs() {
     }
 }
 
+/// Accepting padded, malformed or unsupported results would publish a valid
+/// staged artifact even though the harness never acknowledged completion.
+#[test]
+fn unsupported_results_do_not_publish_valid_outputs() {
+    for result in [
+        "other",
+        "grove-force-stop\n",
+        " grove-continue",
+        "grove-continue\n",
+    ] {
+        let encoded = result.replace('\n', "\\n");
+        // The underscore preserves a trailing newline across shell command
+        // substitution, then parameter expansion removes only that sentinel.
+        let fixture = Fixture::new(&format!(
+            "set -eu\nprintf valid > notes.md\nresult=$(printf '{encoded}_')\n\
+             '{}' end-session \"${{result%_}}\"\n",
+            support::installed_ravel().canonicalize().unwrap().display()
+        ));
+        let output = fixture.run();
+        assert_nothing_published(&fixture, &output);
+        assert!(
+            stderr(&output).contains("unsupported session result"),
+            "{output:?}"
+        );
+    }
+}
+
 #[test]
 fn an_acknowledged_result_survives_the_managed_process_nonzero_exit() {
     let fixture = Fixture::new("printf published > notes.md\nacknowledge; exit 7\n");
@@ -840,15 +937,15 @@ fn confined_harness_cannot_consume_stdin_or_parent_handles_but_can_read_runtime_
     );
 }
 
-/// Either nested acknowledgement or cancellation must finish only the inner
-/// invocation. The real enclosing dispatch then acknowledges independently.
+/// Nested completion, force-stop or cancellation finishes only the inner
+/// invocation. The real enclosing Ravel then acknowledges independently.
 #[test]
 fn nested_exit_and_cancellation_leave_the_enclosing_dispatched_run_intact() {
-    for cancel in [false, true] {
-        let fixture = Fixture::new(if cancel {
-            "trap '' TERM INT\necho nested-ready\nwhile :; do sleep 0.05; done\n"
-        } else {
-            WRITES_NOTES
+    for ending in ["continue", "force-stop", "cancel"] {
+        let fixture = Fixture::new(match ending {
+            "cancel" => "trap '' TERM INT\necho nested-ready\nwhile :; do sleep 0.05; done\n",
+            "force-stop" => "set -eu\nprintf partial > notes.md\nstop_work\n",
+            _ => WRITES_NOTES,
         });
         let outer = fixture.root.join("outer.sh");
         let grove = Path::new(env!("CARGO_BIN_EXE_grove"));
@@ -859,8 +956,10 @@ fn nested_exit_and_cancellation_leave_the_enclosing_dispatched_run_intact() {
              test ! -e \"$outer_exit\"\n\
              printf survived > '{}'\n'{}' end-session grove-continue\n",
             grove.display(), fixture.script.display(), fixture.notes().display(),
-            if cancel {
+            if ending == "cancel" {
                 format!("while ! grep -q nested-ready '{}'/runs/*.log 2>/dev/null; do sleep 0.02; done\nkill -TERM \"$inner\"\nif wait \"$inner\"; then exit 41; fi", fixture.home.join(".local/state/grove").display())
+            } else if ending == "force-stop" {
+                "if wait \"$inner\"; then exit 41; fi".to_owned()
             } else { "wait \"$inner\"".to_owned() },
             fixture.cwd.join("outer-survived").display(), dispatch.display()
         );
@@ -881,17 +980,20 @@ fn nested_exit_and_cancellation_leave_the_enclosing_dispatched_run_intact() {
             .output()
             .unwrap();
         assert!(output.status.success(), "{}", stderr(&output));
+        assert_eq!(output.stdout, b"grove-continue");
         assert_eq!(
             fs::read_to_string(fixture.cwd.join("outer-survived")).unwrap(),
             "survived"
         );
-        assert_eq!(fixture.notes().exists(), !cancel);
+        assert_eq!(fixture.notes().exists(), ending == "continue");
     }
 }
 
 #[test]
 fn acknowledgement_names_the_canonical_dispatch_path_when_the_sibling_is_a_symlink() {
-    let fixture = Fixture::new("printf '%s' \"$dispatch_exit\" > notes.md\nacknowledge\n");
+    let fixture = Fixture::new(
+        "printf '%s\\n%s' \"$dispatch_exit\" \"$force_stop\" > notes.md\nacknowledge\n",
+    );
     let bin = fixture.root.join("aliased-bin");
     fs::create_dir(&bin).unwrap();
     fs::copy(env!("CARGO_BIN_EXE_grove"), bin.join("grove")).unwrap();
@@ -909,6 +1011,10 @@ fn acknowledgement_names_the_canonical_dispatch_path_when_the_sibling_is_a_symli
     assert_published(
         &fixture,
         &output,
-        &format!("'{}' end-session grove-continue", dispatch.display()),
+        &format!(
+            "'{}' end-session grove-continue\n'{}' end-session grove-force-stop",
+            dispatch.display(),
+            dispatch.display()
+        ),
     );
 }

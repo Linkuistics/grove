@@ -25,7 +25,8 @@ force-stop wins over teardown and exits 1 without completion; it leaves
 remaining live work resumable. Teardown otherwise retains its authority over
 status, results and surviving groups. Continuation requires successful status
 and a gone group. Missing/unsupported results stop without continuation.
-Standalone work currently requires continuation before publishing validated outputs.
+Standalone work requires continuation before publishing validated outputs;
+force-stop reports failure and publishes nothing.
 Session output does not contaminate stdout's held result.
 
 The prompt gives exact canonical continue and force-stop commands. A finish records teardown

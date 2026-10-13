@@ -198,9 +198,11 @@ stem is the CLI's to state; read `--help`.
 `research-b` session reaches a different harness or model from its producer's is
 a property of what the owner's Ravel policy returns for the two
 kinds. Grove passes the kind and never sees the command that comes back, so
-it records nothing about how the producer ran, compares nothing, and warns about
-nothing. Where a comparison is made at all, it is made outside Grove: the session
-that finishes the producer names its run on the review (`references/retire.md`),
+its task-tree driver records nothing about how the producer ran, compares nothing, and warns about
+nothing. Caller-owned policy wrappers can record selected provider evidence;
+comparison belongs to the owner policy. The session
+that finishes the producer names its provider evidence on the review
+(`references/retire.md`),
 and a policy that enforces a provider rule compares providers from that line. If
 the axis matters, inspect the owner's routes and caller-owned execution
 provenance before paying for the second leaf. Ravel has no inspect or run lookup

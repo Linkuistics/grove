@@ -711,7 +711,7 @@ fn canonical_guidance_drops_receipt_and_diversity_era_review_routing() {
         (
             "content/references/decompose.md",
             DECOMPOSE_REFERENCE,
-            "it records nothing about how the producer ran, compares nothing, and warns about \
+            "task-tree driver records nothing about how the producer ran, compares nothing, and warns about \
              nothing",
         ),
         (
@@ -847,6 +847,26 @@ fn the_creator_reference_amendment_is_stated_where_each_rule_lives() {
             "**Creator:** run <run-id>",
         ),
         (
+            "content/TASK-FORMAT.md",
+            TASK_FORMAT,
+            "**Creator:** recorded <canonical JSON receipt>",
+        ),
+        (
+            "content/references/retire.md",
+            RETIRE_REFERENCE,
+            "`GROVE_PROVIDER_EVIDENCE`",
+        ),
+        (
+            "content/references/retire.md",
+            RETIRE_REFERENCE,
+            "Invalid evidence stops for repair before committing retirement",
+        ),
+        (
+            "content/references/retire.md",
+            RETIRE_REFERENCE,
+            "Only an explicitly original installed-v22-driver launch",
+        ),
+        (
             "content/references/retire.md",
             RETIRE_REFERENCE,
             "**Retirement touches one filename and nothing else**",
@@ -854,7 +874,7 @@ fn the_creator_reference_amendment_is_stated_where_each_rule_lives() {
         (
             "content/references/retire.md",
             RETIRE_REFERENCE,
-            "The session that finishes a producer names its run on that producer's reviews",
+            "The session that finishes a producer names its provider evidence on that producer's reviews",
         ),
         (
             "content/references/retire.md",
@@ -896,7 +916,7 @@ fn the_creator_reference_amendment_is_stated_where_each_rule_lives() {
         (
             "content/references/decompose.md",
             DECOMPOSE_REFERENCE,
-            "it records nothing about how the producer ran, compares nothing, and warns about \
+            "task-tree driver records nothing about how the producer ran, compares nothing, and warns about \
              nothing",
         ),
         (

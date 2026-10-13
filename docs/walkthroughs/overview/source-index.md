@@ -12,7 +12,7 @@
 | `source-entry-point` | `crates/grove/src/main.rs` | 17 |
 | `source-command-surface` | `crates/grove/src/cli.rs` | 188 |
 | `source-codex-provisioning` | `crates/grove/src/provision.rs` | 401 |
-| `source-standalone` | `crates/grove/src/standalone.rs` | 306 |
+| `source-standalone` | `crates/grove/src/standalone.rs` | 307 |
 | `source-run-display` | `crates/grove/src/run_display.rs` | 119 |
 | `source-dispatch-lookup` | `crates/grove/src/dispatch.rs` | 5 |
 | `source-ravel-resolution` | `crates/grove/src/dispatch/ravel.rs` | 302 |
@@ -38,7 +38,7 @@
 
 
 
-<!-- source-root «source-standalone» source="crates/grove/src/standalone.rs" lines="1-306" -->
+<!-- source-root «source-standalone» source="crates/grove/src/standalone.rs" lines="1-307" -->
 <!-- insert «standalone-invocation» -->
 <!-- /source-root -->
 
@@ -65,7 +65,7 @@
 | `surface-resolve-lease-run` | `source-command-surface` | `one-call` | `63-105` | 43 | `resolved` |
 | `surface-closure-tests` | `source-command-surface` | `closure-proved` | `106-188` | 83 | `resolved` |
 | `codex-provisioning` | `source-codex-provisioning` | `one-call` | `1-401` | 401 | `resolved` |
-| `standalone-invocation` | `source-standalone` | `isolated-invocation` | `1-306` | 306 | `resolved` |
+| `standalone-invocation` | `source-standalone` | `isolated-invocation` | `1-307` | 307 | `resolved` |
 | `standalone-display` | `source-run-display` | `isolated-invocation` | `1-119` | 119 | `resolved` |
 | `dispatch-lookup` | `source-dispatch-lookup` | `isolated-invocation` | `1-5` | 5 | `resolved` |
 | `ravel-resolution` | `source-ravel-resolution` | `isolated-invocation` | `1-302` | 302 | `resolved` |
@@ -124,14 +124,14 @@
 | `provision-link-publication` | `three-steps` | `source-codex-provisioning` | `literal` | `one-call` | `179-190` | `codex-provisioning` | `—` |
 | `provision-install-flow` | `three-steps` | `source-codex-provisioning` | `literal` | `one-call` | `191-307` | `codex-provisioning` | `—` |
 | `provision-unit-tests` | `three-steps` | `source-codex-provisioning` | `literal` | `one-call` | `308-401` | `codex-provisioning` | `—` |
-| `source-standalone` | `source-index` | `source-standalone` | `root` | `—` | `1-306` | `—` | `standalone-invocation` |
-| `standalone-interface` | `standalone-invocations` | `source-standalone` | `literal` | `isolated-invocation` | `1-71` | `standalone-invocation` | `—` |
-| `standalone-invocation` | `standalone-invocations` | `source-standalone` | `composite` | `isolated-invocation` | `1-306` | `source-standalone` | `standalone-interface`, `standalone-staging`, `standalone-launch-context`, `standalone-supervision`, `standalone-artifact-checks`, `standalone-publication` |
-| `standalone-staging` | `standalone-invocations` | `source-standalone` | `literal` | `isolated-invocation` | `72-123` | `standalone-invocation` | `—` |
-| `standalone-launch-context` | `standalone-invocations` | `source-standalone` | `literal` | `isolated-invocation` | `124-167` | `standalone-invocation` | `—` |
-| `standalone-supervision` | `standalone-invocations` | `source-standalone` | `literal` | `isolated-invocation` | `168-234` | `standalone-invocation` | `—` |
-| `standalone-artifact-checks` | `standalone-invocations` | `source-standalone` | `literal` | `isolated-invocation` | `235-270` | `standalone-invocation` | `—` |
-| `standalone-publication` | `standalone-invocations` | `source-standalone` | `literal` | `isolated-invocation` | `271-306` | `standalone-invocation` | `—` |
+| `source-standalone` | `source-index` | `source-standalone` | `root` | `—` | `1-307` | `—` | `standalone-invocation` |
+| `standalone-interface` | `standalone-invocations` | `source-standalone` | `literal` | `isolated-invocation` | `1-72` | `standalone-invocation` | `—` |
+| `standalone-invocation` | `standalone-invocations` | `source-standalone` | `composite` | `isolated-invocation` | `1-307` | `source-standalone` | `standalone-interface`, `standalone-staging`, `standalone-launch-context`, `standalone-supervision`, `standalone-artifact-checks`, `standalone-publication` |
+| `standalone-staging` | `standalone-invocations` | `source-standalone` | `literal` | `isolated-invocation` | `73-124` | `standalone-invocation` | `—` |
+| `standalone-launch-context` | `standalone-invocations` | `source-standalone` | `literal` | `isolated-invocation` | `125-168` | `standalone-invocation` | `—` |
+| `standalone-supervision` | `standalone-invocations` | `source-standalone` | `literal` | `isolated-invocation` | `169-235` | `standalone-invocation` | `—` |
+| `standalone-artifact-checks` | `standalone-invocations` | `source-standalone` | `literal` | `isolated-invocation` | `236-271` | `standalone-invocation` | `—` |
+| `standalone-publication` | `standalone-invocations` | `source-standalone` | `literal` | `isolated-invocation` | `272-307` | `standalone-invocation` | `—` |
 | `source-run-display` | `source-index` | `source-run-display` | `root` | `—` | `1-119` | `—` | `standalone-display` |
 | `display-relay` | `standalone-invocations` | `source-run-display` | `literal` | `isolated-invocation` | `1-43` | `standalone-display` | `—` |
 | `standalone-display` | `standalone-invocations` | `source-run-display` | `composite` | `isolated-invocation` | `1-119` | `source-run-display` | `display-relay`, `display-pane`, `display-control-test` |
@@ -165,5 +165,5 @@ Every source line is credited once to its owning chapter.
 | `one-call` | `03-three-steps.md` | 461 |
 | `closure-proved` | `04-proving-a-negative.md` | 83 |
 | `assembly` | `05-what-the-call-reaches.md` | 0 |
-| `isolated-invocation` | `06-standalone-invocations.md` | 732 |
-| **Total** | 8 source roots | **1,399** |
+| `isolated-invocation` | `06-standalone-invocations.md` | 733 |
+| **Total** | 8 source roots | **1,400** |

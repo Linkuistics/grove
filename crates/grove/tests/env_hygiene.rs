@@ -301,6 +301,7 @@ fn launch_and_dispatch_exit_authority_stop_at_cargo_and_helper_boundaries() {
         "HARNESS_DISPATCH_RUN_ID",
         "HARNESS_DISPATCH_STATE_DIR",
         "RAVEL_EXIT_FILE",
+        "GROVE_PROVIDER_EVIDENCE",
         "GROVE_HARNESS_PID",
         "GROVE_CLAUDE_PID",
     ] {

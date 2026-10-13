@@ -15,7 +15,7 @@ use keyed_launch::{End, Escalation, Group, NoninteractiveLaunch};
 /// What selection must not inherit: the completion channel of a session this
 /// invocation runs inside, lifecycle or standalone. The policy decides what
 /// launches, and ends nothing.
-pub(crate) const CONTROL_ENV: [&str; 9] = [
+pub(crate) const CONTROL_ENV: [&str; 10] = [
     "GROVE_SIGNAL_FILE",
     "GROVE_RUN_SIGNAL_FILE",
     "GROVE_LAUNCH_DIR",
@@ -23,6 +23,7 @@ pub(crate) const CONTROL_ENV: [&str; 9] = [
     "HARNESS_DISPATCH_RUN_ID",
     "HARNESS_DISPATCH_STATE_DIR",
     "RAVEL_EXIT_FILE",
+    "GROVE_PROVIDER_EVIDENCE",
     "GROVE_HARNESS_PID",
     "GROVE_CLAUDE_PID",
 ];

@@ -149,13 +149,17 @@ carries**:
 
 ```markdown
 **Reviews:** sync-design-k13
-**Creator:** run <run-id>
+**Creator:** recorded <canonical JSON receipt>
 ```
 
-It names the run of the session that finished the reviewed producer.
+It carries the selected provider evidence of the session that finished the reviewed
+producer. The versioned, canonical receipt is supplied by the caller-owned policy
+wrapper, not a Ravel run lookup.
 `references/retire.md` states who writes it, when, and when it is removed
 instead. The owner's `**Creator:** declared <provider>` takes its place for an
-artifact finished without a run. None of Grove's own code reads the line; its
+artifact finished without evidence. Only an explicitly original installed-v22
+driver session retains `**Creator:** run <run-id>` for its legacy policy; new
+consumers refuse that form without accessing the old store. None of Grove's own code reads the line; its
 reader is a dispatch policy its owner chose. Everything about the
 launch still comes from the filename's kind and what the owner's policy returns
 for it (`references/driver.md`).

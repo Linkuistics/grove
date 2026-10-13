@@ -37,5 +37,6 @@ GROVE_LAUNCH_DIR = { value = "", force = true }
 HARNESS_DISPATCH_RUN_ID = { value = "", force = true }
 HARNESS_DISPATCH_STATE_DIR = { value = "", force = true }
 RAVEL_EXIT_FILE = { value = "", force = true }
+GROVE_PROVIDER_EVIDENCE = { value = "", force = true }
 GROVE_HARNESS_PID = { value = "", force = true }
 GROVE_CLAUDE_PID = { value = "", force = true }

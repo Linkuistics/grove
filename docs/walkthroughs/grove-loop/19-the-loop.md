@@ -50,7 +50,7 @@ The composite below connects the loop's source fragments in production order.
 The definitions follow the reader's path from caller data through launch to
 interpretation. The root still includes the inline tests.
 
-<!-- fragment «loop-driver» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="1-818" parent="source-loop-driver" -->
+<!-- fragment «loop-driver» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="1-819" parent="source-loop-driver" -->
 <!-- insert «loop-header» -->
 <!-- insert «loop-imports» -->
 <!-- insert «loop-control-env» -->
@@ -136,7 +136,9 @@ spawn. The current Ravel launch receives only its own `GROVE_LAUNCH_DIR`
 after scrubbing. Ravel grants its fresh exit channel to the harness. The
 Ravel job authority and `GROVE_LAUNCH_DIR` are scrubbed in nested launches.
 The list also removes Ravel's inherited ending context, the retired standalone
-channel, old Ravel run/store identity and retired PID handles. This guard
+channel, old dispatch run/store identity and retired PID handles. It also
+scrubs `GROVE_PROVIDER_EVIDENCE`: only the current owner policy wrapper may
+provide fresh evidence to the managed process. This guard
 guards both active Ravel callers, including the version probe. The helper gives
 `stty` the same scrub list so resetting the terminal carries no completion
 authority. The real lifecycle fixture
@@ -144,7 +146,7 @@ authority. The real lifecycle fixture
 each reserved control at process entry and allowed controls through policy:
 a direct dirty probe observes every injected name, while the Grove launch removes them and completes.
 
-<!-- fragment «loop-control-env» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="26-74" parent="loop-driver" -->
+<!-- fragment «loop-control-env» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="26-75" parent="loop-driver" -->
 ````rust
 /// The loop driver's **launch-scoped environment** (self-driving-loop) — the
 /// variables a descendant could act on, and the exact set every spawn below
@@ -183,7 +185,7 @@ a direct dirty probe observes every injected name, while the Grove launch remove
 /// on one* — `jj` execs a user-configured pager, editor and fsmonitor, which
 /// inherit whatever `jj` inherited — and the seam's own record is where that
 /// belongs rather than here.
-const LOOP_CONTROL_ENV: [&str; 9] = [
+const LOOP_CONTROL_ENV: [&str; 10] = [
     "GROVE_SIGNAL_FILE",
     "GROVE_RUN_SIGNAL_FILE",
     "GROVE_LAUNCH_DIR",
@@ -191,6 +193,7 @@ const LOOP_CONTROL_ENV: [&str; 9] = [
     "HARNESS_DISPATCH_RUN_ID",
     "HARNESS_DISPATCH_STATE_DIR",
     "RAVEL_EXIT_FILE",
+    "GROVE_PROVIDER_EVIDENCE",
     "GROVE_HARNESS_PID",
     "GROVE_CLAUDE_PID",
 ];
@@ -206,7 +209,7 @@ bound into the session epoch before spawning, so only that launch's tree verbs
 are admitted. Ravel's `--exit-dir` chooses where its own fresh channel can be
 written; The public stdout descriptor returns the opaque result. Neither reaches policy.
 
-<!-- fragment «loop-scrub-list» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="75-79" parent="loop-driver" -->
+<!-- fragment «loop-scrub-list» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="76-80" parent="loop-driver" -->
 ````rust
 /// [`LOOP_CONTROL_ENV`] as the runner takes it.
 fn scrub_list() -> [&'static OsStr; LOOP_CONTROL_ENV.len()] {
@@ -218,7 +221,7 @@ fn scrub_list() -> [&'static OsStr; LOOP_CONTROL_ENV.len()] {
 
 `scrub_loop_control_env` applies the same names to the terminal-reset command. A helper spawn receives no launch authority.
 
-<!-- fragment «loop-scrub-helper» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="80-90" parent="loop-driver" -->
+<!-- fragment «loop-scrub-helper» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="81-91" parent="loop-driver" -->
 ````rust
 /// Deliberately one helper rather than an `env_remove` per site: the list is the
 /// interesting part, and a second site open-coding it is how the first one came
@@ -241,7 +244,7 @@ pub(crate) fn scrub_loop_control_env(cmd: &mut Command) {
 own interruption. The signal number is retained so the human-facing binary can
 re-raise it and its parent can distinguish cancellation from success.
 
-<!-- fragment «loop-outcome» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="91-119" parent="loop-driver" -->
+<!-- fragment «loop-outcome» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="92-120" parent="loop-driver" -->
 ````rust
 /// Why the loop stopped — the loop's terminal disposition, made first-class so
 /// a clean whole-grove finish is distinguishable from an abnormal stop (rather
@@ -283,7 +286,7 @@ It ignores driver SIGINT between sessions and delegates to `drive`. Taking the
 lease by value releases ownership when the loop returns. A policy refusal is a
 stopped launch, while failure to spawn Ravel returns an error.
 
-<!-- fragment «loop-run» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="120-157" parent="loop-driver" -->
+<!-- fragment «loop-run» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="121-158" parent="loop-driver" -->
 ````rust
 /// **The whole loop**: `exists? → create or find next → run → finalise`, one
 /// foreground session per selected task, until a session stops signalling
@@ -343,7 +346,7 @@ front status, then exact result acceptance or stop. A surviving Ravel group prev
 that died of a signal can have left its harness alive, so the stop identifies
 that possibility instead of treating missing output as completion.
 
-<!-- fragment «loop-drive-open» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="158-167" parent="loop-driver" -->
+<!-- fragment «loop-drive-open» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="159-168" parent="loop-driver" -->
 ````rust
 fn drive(
     workspace: &Workspace,
@@ -360,7 +363,7 @@ fn drive(
 
 The top-of-loop interrupt check consumes cancellation that arrived between launches, before Grove mutates the tree or starts another session.
 
-<!-- fragment «loop-drive-interrupt» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="168-182" parent="loop-driver" -->
+<!-- fragment «loop-drive-interrupt» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="169-183" parent="loop-driver" -->
 ````rust
     loop {
         // A SIGTERM or SIGHUP that arrived while no session was running has no
@@ -382,7 +385,7 @@ The top-of-loop interrupt check consumes cancellation that arrived between launc
 
 Lease validation precedes transition and selection. The selected lifetime and kind remain the values that the launch will use.
 
-<!-- fragment «loop-drive-selection» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="183-191" parent="loop-driver" -->
+<!-- fragment «loop-drive-selection» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="184-192" parent="loop-driver" -->
 ````rust
 
         // No kind is checked here, or anywhere before the launch: whether the
@@ -410,7 +413,7 @@ live. No route table or owner configuration is read by this module.
 under a fresh guard. The retained `TreeLifetime` pins the selected root's
 identity without retaining its tree lock across a session.
 
-<!-- fragment «loop-drive-invocation» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="192-195" parent="loop-driver" -->
+<!-- fragment «loop-drive-invocation» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="193-196" parent="loop-driver" -->
 ````rust
 
         let ending = crate::session_command::end_session(ravel)?;
@@ -421,7 +424,7 @@ identity without retaining its tree lock across a session.
 
 The launch directory is allocated after lease validation. Its path becomes both session identity and the directory Ravel uses for its run mechanics.
 
-<!-- fragment «loop-drive-launch» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="196-225" parent="loop-driver" -->
+<!-- fragment «loop-drive-launch» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="197-226" parent="loop-driver" -->
 ````rust
         driver_lease
             .revalidate()
@@ -464,7 +467,7 @@ teardown wins over a surviving Ravel group. The branch body is kept at the
 runner-result seam so the survivor precedence can be exercised without an
 unkillable process fixture.
 
-<!-- fragment «loop-drive-discard» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="226-260" parent="loop-driver" -->
+<!-- fragment «loop-drive-discard» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="227-261" parent="loop-driver" -->
 ````rust
         if let Err(error) = launch_dir.discard() {
             eprintln!(
@@ -506,7 +509,7 @@ fn interpret_launch(
 
 A remaining Ravel group is reported with the selected handle. A relaunch beside a survivor would let two processes keep changing the tree.
 
-<!-- fragment «loop-drive-survivor» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="261-273" parent="loop-driver" -->
+<!-- fragment «loop-drive-survivor» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="262-274" parent="loop-driver" -->
 ````rust
     // Before the ending is acted on, and whatever it says: a member of
     // ravel's group that survived the runner's kills may still hold the
@@ -526,7 +529,7 @@ A remaining Ravel group is reported with the selected handle. A relaunch beside 
 
 The final branch relaunches only on the supported exact `grove-continue` result. Unsupported, missing or unreadable results stop, with Ravel death identified as a possible surviving harness.
 
-<!-- fragment «loop-drive-endings» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="274-299" parent="loop-driver" -->
+<!-- fragment «loop-drive-endings» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="275-300" parent="loop-driver" -->
 ````rust
     if ended.status.success() {
         match read_continue() {
@@ -566,7 +569,7 @@ task path and handle, so the mandate and policy inputs cannot name different
 leaves. The signalling contract now names Ravel's end-session command and Grove's
 separate teardown record and exact caller-owned result.
 
-<!-- fragment «loop-session-prompt» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="300-339" parent="loop-driver" -->
+<!-- fragment «loop-session-prompt» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="301-340" parent="loop-driver" -->
 ````rust
 /// The whole `${prompt}`: the guaranteed core, composed for the launched kind.
 ///
@@ -628,7 +631,7 @@ spawn. `supervise_launch` carries the witness across runner start and reap event
 The runner receives `channel: None`, the scrub list and only the launch-directory
 grant. Ravel then makes the harness its own foreground job.
 
-<!-- fragment «loop-launch-contract» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="340-369" parent="loop-driver" -->
+<!-- fragment «loop-launch-contract» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="341-370" parent="loop-driver" -->
 ````rust
 /// Launch ravel as a foreground, channel-free job. Ravel selects and
 /// supervises the harness as a separate job and owns its exit signal. The runner
@@ -665,7 +668,7 @@ fn launch_session(
 
 The epoch already names this launch when the runner spawns Ravel. Witness events surround the job, and a channel-free launch forwards only caller cancellation.
 
-<!-- fragment «loop-launch-spawn» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="370-398" parent="loop-driver" -->
+<!-- fragment «loop-launch-spawn» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="371-399" parent="loop-driver" -->
 ````rust
     driver_lease
         .prepare_launch(selected.lifetime, selection, launch_dir)
@@ -707,7 +710,7 @@ successful invalidation invokes the reading closure. If both fail, the error
 retains the launch failure beside the invalidation failure; nothing consumes the
 ending beside an admitted orphan still holding the old epoch.
 
-<!-- fragment «loop-handoff» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="399-416" parent="loop-driver" -->
+<!-- fragment «loop-handoff» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="400-417" parent="loop-driver" -->
 ````rust
 fn complete_post_reap_epoch_handoff<E, T>(
     ended: Result<E>,
@@ -738,7 +741,7 @@ no channel. The ten-second kill-grace bounds forwarded cancellation of Ravel,
 covering managed shutdown and group confirmation before the public result.
 Grove does not choose the harness's exit-signal graces.
 
-<!-- fragment «loop-escalation» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="417-424" parent="loop-driver" -->
+<!-- fragment «loop-escalation» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="418-425" parent="loop-driver" -->
 ````rust
 /// No channel grace: Grove ends no harness. Its own TERM/HUP is forwarded
 /// to ravel, whose cancellation must finish before this 10-second kill-grace.
@@ -760,7 +763,7 @@ not just Ravel's. `reset_terminal` then runs `stty sane`, leaves the alternate
 screen and shows the cursor. It runs only on tty stdin while the driver owns the
 foreground; otherwise an `stty` child could stop on SIGTTOU and hang the driver.
 
-<!-- fragment «loop-reset-terminal» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="425-456" parent="loop-driver" -->
+<!-- fragment «loop-reset-terminal» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="426-457" parent="loop-driver" -->
 ````rust
 /// Reset the terminal after a (possibly SIGTERM'd) TUI: restore cooked mode,
 /// leave the alternate screen, show the cursor. No-op when stdin isn't a TTY
@@ -804,7 +807,7 @@ The driver's SIGINT ignore covers gaps between launches. The runner resets the
 child's terminal-signal dispositions so Ravel and the harness receive typed
 Ctrl-C. TERM/HUP belong to runner cancellation and are forwarded to the job.
 
-<!-- fragment «loop-ignore-interrupts» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="457-487" parent="loop-driver" -->
+<!-- fragment «loop-ignore-interrupts» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="458-488" parent="loop-driver" -->
 ````rust
 /// Ignore SIGINT in the driver so a terminal Ctrl-C does not kill the loop. The
 /// driver must survive the interrupt to reach the relaunch-vs-stop decision.
@@ -848,7 +851,7 @@ it while the guard is held. `picked_after_finish` selects afresh after
 materialization. A concurrent root replacement cannot lend an old selection
 the new root's identity.
 
-<!-- fragment «loop-picked» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="488-527" parent="loop-driver" -->
+<!-- fragment «loop-picked» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="489-528" parent="loop-driver" -->
 ````rust
 /// The driver's own `pick`, over the worktree it is driving.
 ///
@@ -905,7 +908,7 @@ makes the runner-result test fail. They exercise the real
 Ravel front for the launch case. The process suite supplies the PTY ending,
 terminal, refusal, stale-session and cancellation cases.
 
-<!-- fragment «loop-tests-open» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="528-759" parent="loop-driver" -->
+<!-- fragment «loop-tests-open» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="529-760" parent="loop-driver" -->
 ````rust
 // The repository's shared test helpers. Declared out here because a `#[path]`
 // inside the inline module below would resolve against a directory that does
@@ -1144,7 +1147,7 @@ mod tests {
 
 This case supplies simultaneous launch and invalidation failures. It checks that both causes remain visible and interpretation never runs.
 
-<!-- fragment «loop-test-handoff-preserves» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="760-795" parent="loop-driver" -->
+<!-- fragment «loop-test-handoff-preserves» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="761-796" parent="loop-driver" -->
 ````rust
     #[test]
     fn an_epoch_handoff_failure_preserves_the_launch_failure_that_preceded_it() {
@@ -1187,7 +1190,7 @@ This case supplies simultaneous launch and invalidation failures. It checks that
 
 This case isolates the invalidation gate. Even a successful reap cannot cause the reading closure to run before exclusive epoch admission is obtained.
 
-<!-- fragment «loop-test-ordering» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="796-818" parent="loop-driver" -->
+<!-- fragment «loop-test-ordering» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="797-819" parent="loop-driver" -->
 ````rust
     #[test]
     fn signal_interpretation_cannot_run_before_epoch_invalidation_succeeds() {

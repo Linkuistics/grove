@@ -64,6 +64,14 @@ impl Fixture {
         }
     }
 
+    fn wrap(&self) {
+        let source = fs::read_to_string(&self.policy).unwrap();
+        let wrapper =
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("../../assets/ravel-policy/provenance.ts");
+        fs::write(&self.policy, format!("import {{ withProvenance }} from {:?};\n{}\nexport const policy = withProvenance(owner);\n",
+            wrapper.to_str().unwrap(), source.replace("export { policy } from", "import { policy as owner } from"))).unwrap();
+    }
+
     fn run(&self, kind: &str) -> Output {
         if self.capture.exists() {
             fs::remove_file(&self.capture).unwrap();
@@ -133,6 +141,7 @@ impl Fixture {
 #[ignore = "requires installed Ravel: task ravel:policy RAVEL=/absolute/path/to/ravel"]
 fn readable_static_routes_preserve_all_kinds_and_prompt_arguments() {
     let fixture = Fixture::new("examples/grove-static.ts");
+    fixture.wrap();
     for (kind, reviewer, effort) in [
         ("requirements", false, "max"),
         ("review-requirements", true, "xhigh"),
@@ -179,6 +188,7 @@ fn readable_static_routes_preserve_all_kinds_and_prompt_arguments() {
 #[ignore = "requires installed Ravel: task ravel:policy RAVEL=/absolute/path/to/ravel"]
 fn readable_sample_applies_arrangements_modifiers_and_refusals() {
     let fixture = Fixture::new("sample/policy.ts");
+    fixture.wrap();
     for (choice, kind, agent, model, effort) in [
         (None, "impl", "claude", "claude-opus-5-5", "high"),
         (None, "review-design", "codex", "gpt-6.1-sol", "high"),
@@ -280,6 +290,7 @@ fn readable_sample_applies_arrangements_modifiers_and_refusals() {
 #[ignore = "requires installed Ravel: task ravel:policy RAVEL=/absolute/path/to/ravel"]
 fn readable_sample_keeps_secondary_jj_grants_and_refuses_unreadable_stores() {
     let fixture = Fixture::new("sample/policy.ts");
+    fixture.wrap();
     let main = fixture.temp.path().join("main-repository");
     fs::create_dir_all(main.join(".jj/repo")).unwrap();
     fs::create_dir_all(fixture.temp.path().join(".jj")).unwrap();
@@ -314,6 +325,7 @@ fn readable_sample_keeps_secondary_jj_grants_and_refuses_unreadable_stores() {
 #[ignore = "requires installed Ravel: task ravel:policy RAVEL=/absolute/path/to/ravel"]
 fn readable_sample_defaults_cover_every_session_kind() {
     let fixture = Fixture::new("sample/policy.ts");
+    fixture.wrap();
     for (kind, agent, effort) in [
         ("requirements", "claude", "max"),
         ("review-requirements", "codex", "high"),
@@ -354,4 +366,153 @@ fn readable_sample_defaults_cover_every_session_kind() {
             assert_eq!(args[4], effort, "{kind}");
         }
     }
+}
+
+// Provider evidence follows the selected label, even when program/model labels
+// would suggest another provider. The exec wrapper must preserve literal argv,
+// including '=' in the executable and empty arguments.
+#[test]
+#[ignore = "requires installed Ravel: task ravel:provenance RAVEL=/absolute/path/to/ravel"]
+fn provenance_wrapper_delivers_selection_labels_and_preserves_context_and_argv() {
+    let fixture = Fixture::new("examples/grove-static.ts");
+    fixture.wrap();
+    let wrapper =
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../assets/ravel-policy/provenance.ts");
+    let evidence = fixture.temp.path().join("evidence.json");
+    fs::write(
+        &fixture.policy,
+        format!(
+            r#"import {{ withProvenance }} from {wrapper:?};
+export const policy = withProvenance({{
+  schemaVersion: 2, version: 'original-owner-version',
+  loadContext(request, host) {{
+    const read = host.readText(request.taskFile);
+    return {{ schemaVersion: 1, facts: {{ marker: read.text }}, sources: [read.source] }};
+  }},
+  select(request, context) {{
+    if (context.facts.marker !== 'measured task') throw new Error('loader lost');
+    return {{ status: 'selected', program: 'agent=fixture',
+      args: ['--flag', '', request.prompt], provider: 'gateway-origin',
+      model: 'anthropic-looking-model', effort: 'none', reason: 'owner route' }};
+  }}
+}});
+"#,
+            wrapper = wrapper.to_str().unwrap()
+        ),
+    )
+    .unwrap();
+    fs::write(
+        fixture.pair.bin().join("agent=fixture"),
+        format!(
+            "#!/bin/sh\nprintf '%s' \"$GROVE_PROVIDER_EVIDENCE\" > '{}'\nprintf '%s\\0' \"$@\" > '{}'\n'{}' end-session grove-continue\n",
+            evidence.display(), fixture.capture.display(), fixture.pair.executable().display()
+        ),
+    )
+    .unwrap();
+    fs::set_permissions(
+        fixture.pair.bin().join("agent=fixture"),
+        fs::Permissions::from_mode(0o755),
+    )
+    .unwrap();
+    let task = fixture.temp.path().join("task.md");
+    fs::write(&task, "measured task").unwrap();
+    let output = fixture
+        .pair
+        .command()
+        .args([
+            "start-session",
+            "--kind",
+            "impl",
+            "--prompt",
+            PROMPT,
+            "--task-id",
+            "producer-k7",
+            "--task-file",
+        ])
+        .arg(&task)
+        .arg("--config")
+        .arg(&fixture.policy)
+        .current_dir(fixture.temp.path())
+        .output()
+        .unwrap();
+    assert!(output.status.success(), "{output:?}");
+    assert_eq!(output.stdout, b"grove-continue");
+    let mut receipt: serde_json::Value =
+        serde_json::from_slice(&fs::read(evidence).unwrap()).unwrap();
+    let attempt = receipt
+        .as_object_mut()
+        .unwrap()
+        .remove("attemptId")
+        .unwrap();
+    assert_eq!(attempt.as_str().unwrap().len(), 36);
+    assert_eq!(
+        receipt,
+        serde_json::json!({"schemaVersion": 1, "provider": "gateway-origin",
+        "policyVersion": "original-owner-version", "kind": "impl", "taskId": "producer-k7"})
+    );
+    assert_eq!(
+        fs::read(&fixture.capture).unwrap(),
+        format!("--flag\0\0{PROMPT}\0").as_bytes()
+    );
+}
+
+#[test]
+#[ignore = "requires installed Ravel: task ravel:provenance RAVEL=/absolute/path/to/ravel"]
+fn recorded_evidence_is_validated_before_becoming_measured_caller_context() {
+    let fixture = Fixture::new("examples/grove-static.ts");
+    fixture.wrap();
+    let wrapper =
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../assets/ravel-policy/provenance.ts");
+    let receipt = serde_json::json!({"schemaVersion": 1,
+        "attemptId": "12345678-1234-4123-8123-123456789abc", "provider": "actual-origin",
+        "policyVersion": "original", "kind": "impl", "taskId": "child-k3"});
+    // Canonical production field order is part of the byte-copy contract.
+    let valid = "{\"schemaVersion\":1,\"attemptId\":\"12345678-1234-4123-8123-123456789abc\",\"provider\":\"actual-origin\",\"policyVersion\":\"original\",\"kind\":\"impl\",\"taskId\":\"child-k3\"}";
+    let mut invalid = vec![
+        "".to_string(),
+        "{}".to_string(),
+        "[]".to_string(),
+        "null".to_string(),
+        format!("{valid}\n"),
+        format!(" {valid}"),
+        valid.replace("\"provider\":", "\"provider\":\"stale\",\"provider\":"),
+        valid.replace("actual-origin", &"x".repeat(8192)),
+    ];
+    for (field, replacement) in [
+        ("schemaVersion", serde_json::json!(2)),
+        ("attemptId", serde_json::json!("not-a-launch")),
+        ("provider", serde_json::json!("")),
+        ("provider", serde_json::json!(false)),
+        ("policyVersion", serde_json::json!(null)),
+        ("kind", serde_json::json!("impl\nreview")),
+        ("taskId", serde_json::json!("")),
+        ("unknown", serde_json::json!("extra")),
+    ] {
+        let mut changed = receipt.clone();
+        changed[field] = replacement;
+        invalid.push(changed.to_string());
+    }
+    let record = fixture.temp.path().join("receipt.txt");
+    fs::write(&record, valid).unwrap();
+    fs::write(&fixture.policy, format!(r#"
+import {{ parseEvidence }} from {wrapper:?};
+export const policy = {{ schemaVersion: 2, version: 'measured-receipt-consumer',
+  loadContext(request, host) {{
+    for (const text of {invalid}) if (parseEvidence(text) !== undefined) throw new Error('invalid receipt accepted');
+    const read = host.readText({record:?});
+    const receipt = parseEvidence(read.text);
+    if (!receipt) throw new Error('valid receipt rejected');
+    return {{ schemaVersion: 1, facts: {{ creator: {{ evidence: "recorded", provider: receipt.provider, receipt: {{ ...receipt }} }} }}, sources: [read.source] }};
+  }},
+  select(request, context) {{
+    if (context.facts.creator.provider !== 'actual-origin' || context.measured.length !== 1) throw new Error('context lost');
+    return {{ status: 'selected', program: 'my-codex-wrapper', args: [request.prompt],
+      provider: 'review-origin', model: 'fake', effort: 'none', reason: 'measured caller facts' }};
+  }}
+}};
+"#, wrapper = wrapper.to_str().unwrap(), record = record.to_str().unwrap(),
+        invalid = serde_json::to_string(&invalid).unwrap())).unwrap();
+    let output = fixture.run("review-impl");
+    assert!(output.status.success(), "{output:?}");
+    assert_eq!(output.stdout, b"grove-continue");
 }

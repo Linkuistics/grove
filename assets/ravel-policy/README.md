@@ -44,3 +44,14 @@ Development typechecking reuses the repository's pinned Bun 1.4.2 and TypeScript
 7.0.2. Runtime tests copy the independent installed front and worker, with no
 Bun/Node on the child PATH and no model launches. The complete logs can be saved
 with `set -o pipefail; task ravel:policy RAVEL=... 2>&1 | tee <log>`.
+
+For selected-provider evidence, opt in around the final owner policy with
+`withProvenance` from `provenance.ts`. This wrapper supplies
+`GROVE_PROVIDER_EVIDENCE` to the managed process while preserving the original
+argv and labels. It is independent of creator-aware review routing, which k42
+will add. The [caller-owned record/context contract](../../docs/grove-provider-evidence.md)
+explains retirement, attempts/node closes, missing/invalid evidence, the explicit
+original-v22 exception, Bash/argv budgets and confined executable grants.
+`task ravel:provenance RAVEL=...` exercises production through installed Ravel and
+actual Grove lifecycle sessions with fake agents. Personal policy files are never
+automatically rewritten.

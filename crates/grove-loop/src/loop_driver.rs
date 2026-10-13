@@ -60,7 +60,7 @@ use std::time::Duration;
 /// on one* — `jj` execs a user-configured pager, editor and fsmonitor, which
 /// inherit whatever `jj` inherited — and the seam's own record is where that
 /// belongs rather than here.
-const LOOP_CONTROL_ENV: [&str; 9] = [
+const LOOP_CONTROL_ENV: [&str; 10] = [
     "GROVE_SIGNAL_FILE",
     "GROVE_RUN_SIGNAL_FILE",
     "GROVE_LAUNCH_DIR",
@@ -68,6 +68,7 @@ const LOOP_CONTROL_ENV: [&str; 9] = [
     "HARNESS_DISPATCH_RUN_ID",
     "HARNESS_DISPATCH_STATE_DIR",
     "RAVEL_EXIT_FILE",
+    "GROVE_PROVIDER_EVIDENCE",
     "GROVE_HARNESS_PID",
     "GROVE_CLAUDE_PID",
 ];

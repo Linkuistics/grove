@@ -244,7 +244,7 @@ lines = 228
 [[root]]
 id    = "source-loop-driver"
 path  = "crates/grove-loop/src/loop_driver.rs"
-lines = 818
+lines = 819
 
 [[root]]
 id = "source-observation"
@@ -472,7 +472,7 @@ lines = "1-228"
 id    = "loop-driver"
 root  = "source-loop-driver"
 owner = "four-things-a-runner-cannot-choose"
-lines = "1-818"
+lines = "1-819"
 
 [[block]]
 id = "observation-tree"

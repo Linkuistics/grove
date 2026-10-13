@@ -928,6 +928,14 @@ it.
 <a id="identity-and-creator"></a>
 ## Identity and original creator
 
+Current Grove/Ravel extraction contract: [Grove provider evidence](../grove-provider-evidence.md)
+replaces the run/store-based Creator mechanism below. Grove's optional wrapper
+captures the actual public Selected origin in a canonical inline receipt. New
+review consumers measured-read that receipt or an owner declaration; they refuse
+legacy run references and never access an old store. The remaining description
+in this section specifies the retained bundled pre-k6 package only. Original
+installed-v22-driver sessions keep their inherited ending/legacy contract.
+
 A run may be associated with a **task identity**, a **reviewed artifact**, both,
 or neither. The task identity is the caller's `--task-id`, which survives the
 task's file being renamed, retired or reordered; Grove supplies its selected

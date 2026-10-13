@@ -225,7 +225,7 @@ silence-is-a-finding	grove/references/research.md	B	static(research)
 walk-away-check-per-system	grove/references/research.md	B	static(research)	
 cascade-is-silent	grove/references/retire.md	B	on(a node has no live leaf left) @ grove/SKILL.md	
 finish-is-the-drivers-to-discover	grove/references/retire.md	B	on(the last live leaf retires) @ grove/SKILL.md	You do not discover that a grove is finished
-finishing-session-names-its-run	grove/references/retire.md	B	on(the work is done) @ grove/SKILL.md	The session that finishes a producer names its run on that producer's reviews
+finishing-session-names-its-evidence	grove/references/retire.md	B	on(the work is done) @ grove/SKILL.md	The session that finishes a producer names its provider evidence on that producer's reviews
 no-fourth-status	grove/references/retire.md	B+S	on(a leaf's place is in doubt) @ grove/SKILL.md	There is no fourth state
 node-close-four-steps	grove/references/retire.md	B	on(a node has no live leaf left) @ grove/references/retire.md	a node you close is a producer you finished
 node-close-is-implicit	grove/references/retire.md	B	on(a node has no live leaf left) @ grove/SKILL.md	The close asks the human nothing

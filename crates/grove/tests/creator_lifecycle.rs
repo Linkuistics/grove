@@ -74,6 +74,14 @@ settle_without_provenance() {{
     cat settled > "$review"
   done
 }}
+settle_recorded() {{
+  test -n "$GROVE_PROVIDER_EVIDENCE"
+  for review in $(grep -rlx --include='[0-9]*.md' "\*\*Reviews:\*\* $1" .grove); do
+    case ${{review##*/}} in [0-9]*-DONE-* | [0-9]*-ABANDONED-*) continue ;; esac
+    awk '!/^\*\*Creator:\*\*/ {{ print; if ($0 ~ /^\*\*Reviews:\*\*/) print "**Creator:** recorded " ENVIRON["GROVE_PROVIDER_EVIDENCE"] }}' "$review" > settled
+    cat settled > "$review"
+  done
+}}
 case $handle in
 {actions}
 *) exit 94 ;;
@@ -113,6 +121,38 @@ esac
 
     fn read(&self, name: &str) -> String {
         fs::read_to_string(self.root.join(".grove").join(name)).unwrap()
+    }
+
+    fn provenance_policy(&self, origin: &str) {
+        let wrapper = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../assets/ravel-policy/provenance.ts");
+        support::write_policy(
+            &self.home,
+            &format!(
+                r#"
+import {{ withProvenance, parseEvidence }} from {wrapper:?};
+export const policy = withProvenance({{
+  schemaVersion: 2, version: 'actual-caller-fixture',
+  loadContext(request, host) {{
+    if (request.kind !== 'review-impl') return {{ schemaVersion: 1 }};
+    const read = host.readText(request.taskFile);
+    const text = read.text.match(/^\*\*Creator:\*\* recorded (.+)$/m)?.[1];
+    const receipt = text === undefined ? undefined : parseEvidence(text);
+    if (!receipt) return {{ status: 'refused', code: 'creator_invalid', message: 'missing/invalid evidence', remedy: 'repair the receipt or declare the provider' }};
+    return {{ schemaVersion: 1, facts: {{ creator: {{ evidence: "recorded", provider: receipt.provider, receipt: {{ ...receipt }} }} }}, sources: [read.source] }};
+  }},
+  select(request, context) {{
+    const creator = context?.facts?.creator;
+    const origin = request.kind === 'review-impl' ? (creator.provider === 'origin-a' ? 'origin-b' : 'origin-a') : {origin:?};
+    return {{ status: 'selected', program: '/bin/sh', args: [{script:?}, request.prompt, origin],
+      provider: origin, model: 'irrelevant-label', effort: 'none', reason: 'actual selection evidence' }};
+  }}
+}});
+"#,
+                wrapper = wrapper.to_str().unwrap(),
+                script = self.script.to_str().unwrap()
+            ),
+        );
     }
 }
 
@@ -233,4 +273,104 @@ fn a_review_without_provenance_refuses_then_resumes_after_an_owner_declaration()
         fs::read_to_string(fixture.root.join("reviewer-origin")).unwrap(),
         "origin-b"
     );
+}
+
+#[test]
+fn recorded_finishing_attempt_survives_remapping_and_review_retry() {
+    let fixture = Fixture::new();
+    fixture.file("01-impl--producer-k1.md", "# producer\n");
+    fixture.file(
+        "02-review-impl--review-k2.md",
+        &review("**Creator:** declared stale", "producer-k1"),
+    );
+    fixture.provenance_policy("origin-b");
+    fixture.steps(r#"producer-k1) printf '%s' "$GROVE_PROVIDER_EVIDENCE" > first-attempt; touch "$GROVE_LAUNCH_DIR/teardown" ;;"#);
+    fixture.drive();
+    assert!(fixture
+        .read("02-review-impl--review-k2.md")
+        .contains("declared stale"));
+    fixture.provenance_policy("origin-a");
+    fixture.steps(
+        r#"producer-k1)
+      "$llm" leaf-retire .grove/01-impl--producer-k1.md
+      settle_recorded producer-k1
+      printf '%s' "$GROVE_PROVIDER_EVIDENCE" > finishing-attempt
+      touch "$GROVE_LAUNCH_DIR/teardown" ;;
+    review-k2) printf '%s' "$origin" >> reviewer-origins; touch "$GROVE_LAUNCH_DIR/teardown" ;;"#,
+    );
+    fixture.drive();
+    let body = fixture.read("02-review-impl--review-k2.md");
+    let receipt = body
+        .lines()
+        .find_map(|line| line.strip_prefix("**Creator:** recorded "))
+        .unwrap();
+    assert_eq!(
+        receipt,
+        fs::read_to_string(fixture.root.join("finishing-attempt")).unwrap()
+    );
+    assert_ne!(
+        receipt,
+        fs::read_to_string(fixture.root.join("first-attempt")).unwrap()
+    );
+    let parsed: serde_json::Value = serde_json::from_str(receipt).unwrap();
+    assert_eq!(parsed["provider"], "origin-a");
+    assert_eq!(parsed["taskId"], "producer-k1");
+    fixture.provenance_policy("origin-b");
+    fixture.drive();
+    fixture.drive();
+    assert_eq!(fixture.read("02-review-impl--review-k2.md"), body);
+    assert_eq!(
+        fs::read_to_string(fixture.root.join("reviewer-origins")).unwrap(),
+        "origin-borigin-b"
+    );
+}
+
+#[test]
+fn recorded_node_close_attributes_every_finished_producer_to_closing_child_only() {
+    let fixture = Fixture::new();
+    fixture.file("01-k1/_producer.md", "# producer\n");
+    fixture.file("01-k1/01-k2/_piece.md", "# piece\n");
+    fixture.file("01-k1/01-k2/01-impl--child-k3.md", "# child\n");
+    for (name, producer) in [
+        ("02-review-impl--whole-k4.md", "producer-k1"),
+        ("03-review-impl--part-k5.md", "piece-k2"),
+        ("04-review-impl--child-k6.md", "child-k3"),
+        ("05-review-impl--prefix-k7.md", "producer-k13"),
+        ("06-DONE-review-impl--past-k8.md", "producer-k1"),
+        ("07-ABANDONED-review-impl--abandoned-k9.md", "producer-k1"),
+    ] {
+        fixture.file(name, &review("**Creator:** declared earlier", producer));
+    }
+    fixture.provenance_policy("origin-a");
+    fixture.steps(
+        r#"child-k3)
+      "$llm" leaf-retire .grove/01-k1/01-k2/01-impl--child-k3.md
+      settle_recorded child-k3; settle_recorded piece-k2; settle_recorded producer-k1
+      touch "$GROVE_LAUNCH_DIR/teardown" ;;"#,
+    );
+    fixture.drive();
+    let mut receipts = Vec::new();
+    for name in [
+        "02-review-impl--whole-k4.md",
+        "03-review-impl--part-k5.md",
+        "04-review-impl--child-k6.md",
+    ] {
+        let body = fixture.read(name);
+        let receipt = body
+            .lines()
+            .find_map(|line| line.strip_prefix("**Creator:** recorded "))
+            .unwrap()
+            .to_owned();
+        let parsed: serde_json::Value = serde_json::from_str(&receipt).unwrap();
+        assert_eq!(parsed["taskId"], "child-k3");
+        receipts.push(receipt);
+    }
+    assert!(receipts.windows(2).all(|pair| pair[0] == pair[1]));
+    for name in [
+        "05-review-impl--prefix-k7.md",
+        "06-DONE-review-impl--past-k8.md",
+        "07-ABANDONED-review-impl--abandoned-k9.md",
+    ] {
+        assert!(fixture.read(name).contains("**Creator:** declared earlier"));
+    }
 }

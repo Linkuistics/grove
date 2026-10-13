@@ -3,6 +3,21 @@ version: '3'
 set: [errexit, nounset, pipefail]
 
 tasks:
+  ravel:provenance:
+    desc: Check Grove-owned selected-provider evidence, retirement and inherited-evidence isolation
+    requires:
+      vars: [RAVEL]
+    env:
+      GROVE_TEST_RAVEL: '{{.RAVEL}}'
+      GROVE_PROVIDER_EVIDENCE: /inert-enclosing-evidence
+    cmds:
+      - task: ravel:policy
+        vars: {RAVEL: '{{.RAVEL}}'}
+      - cargo nextest run --locked -p grove --test creator_lifecycle --test env_hygiene
+      - cargo nextest run --locked -p grove -E 'test(enclosing_ravel_and_retired_controls)'
+      - cargo nextest run --locked -p grove-llm --test composition_guidance
+      - bash plugins/grove/conformance.sh
+
   ravel:policy:
     desc: Check Grove-readable static assets through the independent installed Ravel SDK and worker
     requires:

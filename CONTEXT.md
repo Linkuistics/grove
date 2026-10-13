@@ -901,37 +901,37 @@ itself, from a review's [[Creator reference]].
 <a id="selection-provider"></a>
 ### Selection provider
 
-The owner's `provider` label on a [[Selected command]], identifying model origin
-for the supplied review policy. It reaches inspection and the run record as the
-owner wrote it, and changing a gateway or harness does not change that origin.
-_Avoid_: reading it as verified backend identity, or as something inferred from
-the program or its arguments. It is the owner's assertion.
+The owner's `provider` label on a [[Selected command]], identifying model origin.
+Grove's optional caller-owned wrapper captures it at selection in a versioned
+receipt; Ravel supplies no inspection/store API. Changing a gateway or harness
+must not change that origin.
+_Avoid_: reading it as verified backend identity or inferring it from a program
+or model string. It is the owner's assertion.
 
 <a id="original-creator"></a>
 ### Original creator
 
-The one producer execution associated with an artifact for review selection,
-whose **selection provider** is execution-recorded or explicitly declared by the
-owner; it is neither today's producer mapping nor the set of all contributors.
-Under harness-dispatch it is the run of the session that finished the
-producer, by retiring its leaf or closing its node, named by the review's
-[[Creator reference]]; a retry or an attempted handoff does not choose or
-replace it.
+The finishing producer attempt whose selected provider evidence a review
+carries, or the owner's explicit declaration where evidence is missing. A
+finishing retry replaces the reference; an unfinished attempt does not. A node's
+creator is the child session that closes it, whatever that child's kind.
 
 <a id="creator-reference"></a>
 ### Creator reference
 
-The line under `**Reviews:**` that names a review's **original creator** to a
-harness-dispatch review policy: `**Creator:** run <run-id>`, which the session
-that finished the producer writes from its own `HARNESS_DISPATCH_RUN_ID` as the
-methodology's retirement procedure directs, or `**Creator:** declared
-<provider>`, the owner's declaration for an artifact finished without a run,
-whose finishing session removed any earlier line. It is the only record of a
-past session a task body carries. A run reference is the writing session's
-attestation: its provider is recorded, its association with the artifact is not
-verified.
+The line directly under `**Reviews:**`: `**Creator:** recorded <JSON>` carries
+Grove's canonical provider receipt from the finishing session's own
+`GROVE_PROVIDER_EVIDENCE`; `**Creator:** declared <provider>` is the owner's
+assertion where selected evidence is absent. It is the only record of a past
+session a task body carries. The task commit pins the inline record for review
+retries. UUID attempt identity distinguishes selections without a lookup store;
+the provider and artifact association remain same-user attestations.
+Explicitly original installed-v22-driver sessions retain
+`**Creator:** run <run-id>` from `HARNESS_DISPATCH_RUN_ID` for their original
+policy alone. New consumers refuse that legacy form and access no old store.
+Contract: [`docs/grove-provider-evidence.md`](docs/grove-provider-evidence.md).
 _Avoid_: calling it launch metadata; nothing in it routes the review's own
-session.
+session, or recomputing it from today's producer mapping.
 
 <a id="grove-adapter"></a>
 ### Grove adapter

@@ -39,7 +39,7 @@ nonzero exit remains successful after cleanup, as Ravel's public contract states
 | Managed harness | Scratch writes and explicit runtime reads | Outputs and opaque result |
 | Grove | Held output directory, result descriptor and destinations | Checked publication |
 
-<!-- fragment «standalone-invocation» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="1-306" parent="source-standalone" -->
+<!-- fragment «standalone-invocation» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="1-307" parent="source-standalone" -->
 <!-- insert «standalone-interface» -->
 <!-- insert «standalone-staging» -->
 <!-- insert «standalone-launch-context» -->
@@ -55,13 +55,14 @@ nonzero exit remains successful after cleanup, as Ravel's public contract states
 display choice. `run` resolves/version-checks Ravel once and names the
 persistent logs. The version probe scrubs enclosing authority as well as launch. `CONTROL_ENV` removes enclosing Grove, dispatch and Ravel
 controls before selection, preserving the owner's other environment grants.
-It also removes retired completion channels and PID handles. The real-process
+It also removes retired completion channels, PID handles and inherited
+`GROVE_PROVIDER_EVIDENCE`, so a nested caller cannot borrow its parent's creator. The real-process
 fixture `standalone_scrubs_enclosing_ravel_and_retired_controls_before_selection`
-uses process-entry probes for all nine controls and allowed Grove/owner grants
+uses process-entry probes for all ten controls and allowed Grove/owner grants
 through actual selection. Every name is observed dirty independently; both
 callers scrub enclosing authority before delegation to installed Ravel.
 
-<!-- fragment «standalone-interface» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="1-71" parent="standalone-invocation" -->
+<!-- fragment «standalone-interface» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="1-72" parent="standalone-invocation" -->
 ````rust
 //! One invocation of a kind, with no workspace or task-tree authority.
 use std::collections::HashSet;
@@ -80,7 +81,7 @@ use keyed_launch::{End, Escalation, Group, NoninteractiveLaunch};
 /// What selection must not inherit: the completion channel of a session this
 /// invocation runs inside, lifecycle or standalone. The policy decides what
 /// launches, and ends nothing.
-pub(crate) const CONTROL_ENV: [&str; 9] = [
+pub(crate) const CONTROL_ENV: [&str; 10] = [
     "GROVE_SIGNAL_FILE",
     "GROVE_RUN_SIGNAL_FILE",
     "GROVE_LAUNCH_DIR",
@@ -88,6 +89,7 @@ pub(crate) const CONTROL_ENV: [&str; 9] = [
     "HARNESS_DISPATCH_RUN_ID",
     "HARNESS_DISPATCH_STATE_DIR",
     "RAVEL_EXIT_FILE",
+    "GROVE_PROVIDER_EVIDENCE",
     "GROVE_HARNESS_PID",
     "GROVE_CLAUDE_PID",
 ];
@@ -145,7 +147,7 @@ directories. Inputs are copied as regular files, names cannot collide, and every
 output destination must be absent. The control directory remains outside the
 harness's writable grants.
 
-<!-- fragment «standalone-staging» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="72-123" parent="standalone-invocation" -->
+<!-- fragment «standalone-staging» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="73-124" parent="standalone-invocation" -->
 ````rust
 fn execute(args: Args, ravel: &Path, logs: &Path) -> Result<()> {
     let prompt = match (&args.prompt, &args.prompt_file) {
@@ -211,7 +213,7 @@ the kind, literal prompt, writable exit directory and canonical runtime reads; i
 task file or selection parameter. Grove holds the work directory before launch,
 opens the persistent transcript and retains display control.
 
-<!-- fragment «standalone-launch-context» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="124-167" parent="standalone-invocation" -->
+<!-- fragment «standalone-launch-context» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="125-168" parent="standalone-invocation" -->
 ````rust
     let instructions = format!(
         "{prompt}\n\nStandalone invocation: work only on the staged files in the current directory. \
@@ -274,7 +276,7 @@ Relay failure prevents publication too, retaining the log even for an
 acknowledged run. An uncatchable Grove death can orphan its detached Ravel
 and harness; that dead publisher exports nothing.
 
-<!-- fragment «standalone-supervision» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="168-234" parent="standalone-invocation" -->
+<!-- fragment «standalone-supervision» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="169-235" parent="standalone-invocation" -->
 ````rust
     let finished = AtomicBool::new(false);
     let outcome = std::thread::scope(|scope| {
@@ -354,7 +356,7 @@ opens use `O_NOFOLLOW` and `O_NONBLOCK`, rejecting symlinks and non-regular file
 without hanging on a FIFO. These checks protect the transfer before Ravel
 selects anything.
 
-<!-- fragment «standalone-artifact-checks» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="235-270" parent="standalone-invocation" -->
+<!-- fragment «standalone-artifact-checks» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="236-271" parent="standalone-invocation" -->
 ````rust
 fn basename(path: &Path) -> Result<&OsStr> {
     path.file_name()
@@ -404,7 +406,7 @@ without replacing a destination. Cancellation is checked before each publish;
 an error names the prefix already exported. `shell_word` quotes the canonical
 exit command and the parent's display commands for literal shell use.
 
-<!-- fragment «standalone-publication» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="271-306" parent="standalone-invocation" -->
+<!-- fragment «standalone-publication» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="272-307" parent="standalone-invocation" -->
 ````rust
 fn publish_outputs(work: &File, destinations: &[PathBuf]) -> Result<()> {
     let mut staged = Vec::new();

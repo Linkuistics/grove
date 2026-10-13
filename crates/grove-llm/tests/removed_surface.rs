@@ -72,6 +72,9 @@ enum Role {
     /// The one capability the driver grants its foreground child: the path it
     /// watches to end the session. Production reads and writes it by design.
     LoopControlChannel,
+    /// Caller-owned selected-provider evidence; scrubbed before each new
+    /// launch and supplied only by that launch's explicit policy wrapper.
+    CallerEvidence,
     /// Deterministic failure/pause seams and fixture handshakes. Internal test
     /// controls, never supported process configuration — which is why
     /// production names them only to scrub them from a configured session.
@@ -97,6 +100,7 @@ enum Role {
 const ROLES: &[(&str, Role)] = &[
     ("GROVE_SIGNAL_FILE", Role::RetiredControlGuard),
     ("GROVE_LAUNCH_DIR", Role::LoopControlChannel),
+    ("GROVE_PROVIDER_EVIDENCE", Role::CallerEvidence),
     ("GROVE_RUN_SIGNAL_FILE", Role::RetiredControlGuard),
     ("GROVE_RELEASE_RUNTIME_READ", Role::ReleaseTooling),
     (

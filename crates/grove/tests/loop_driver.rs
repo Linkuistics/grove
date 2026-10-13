@@ -108,6 +108,7 @@ fn lifecycle_scrubs_enclosing_ravel_and_retired_controls_before_selection() {
         "GROVE_RUN_SIGNAL_FILE",
         "GROVE_HARNESS_PID",
         "GROVE_CLAUDE_PID",
+        "GROVE_PROVIDER_EVIDENCE",
     ];
     dispatch.policy(&format!(
         "export const policy = {{ schemaVersion: 2, version: 'authority-probe', \
@@ -121,7 +122,7 @@ fn lifecycle_scrubs_enclosing_ravel_and_retired_controls_before_selection() {
         serde_json::to_string(&controls).unwrap(),
         dispatch.harness.to_str().unwrap(),
     ));
-    dispatch.settings(&serde_json::json!({"policyEnv": ["OWNER_GRANT", "GROVE_SIGNAL_FILE", "GROVE_RUN_SIGNAL_FILE", "GROVE_HARNESS_PID", "GROVE_CLAUDE_PID"]}).to_string());
+    dispatch.settings(&serde_json::json!({"policyEnv": ["OWNER_GRANT", "GROVE_SIGNAL_FILE", "GROVE_RUN_SIGNAL_FILE", "GROVE_HARNESS_PID", "GROVE_CLAUDE_PID", "GROVE_PROVIDER_EVIDENCE"]}).to_string());
 
     let mut direct = Command::new(support::installed_ravel());
     for name in support::grove_env_names() {

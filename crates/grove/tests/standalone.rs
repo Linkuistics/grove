@@ -30,6 +30,7 @@ fn standalone_scrubs_enclosing_ravel_and_retired_controls_before_selection() {
         "GROVE_RUN_SIGNAL_FILE",
         "GROVE_HARNESS_PID",
         "GROVE_CLAUDE_PID",
+        "GROVE_PROVIDER_EVIDENCE",
     ];
     let source = fs::read_to_string(fixture.dispatch_file("policy.ts")).unwrap();
     fixture.policy(&source.replace(
@@ -45,7 +46,7 @@ fn standalone_scrubs_enclosing_ravel_and_retired_controls_before_selection() {
     ));
     fs::write(
         fixture.dispatch_file("settings.json"),
-        serde_json::json!({"policyEnv": ["OWNER_GRANT", "GROVE_SIGNAL_FILE", "GROVE_RUN_SIGNAL_FILE", "GROVE_HARNESS_PID", "GROVE_CLAUDE_PID"]}).to_string(),
+        serde_json::json!({"policyEnv": ["OWNER_GRANT", "GROVE_SIGNAL_FILE", "GROVE_RUN_SIGNAL_FILE", "GROVE_HARNESS_PID", "GROVE_CLAUDE_PID", "GROVE_PROVIDER_EVIDENCE"]}).to_string(),
     ).unwrap();
 
     // Dirty control: the same policy sees the granted controls when Grove is

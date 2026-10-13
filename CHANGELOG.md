@@ -52,6 +52,8 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+## v22.2.0
+
 ### Changed
 
 - Extract harness supervision and policy routing into independently released

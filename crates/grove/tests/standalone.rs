@@ -1,5 +1,5 @@
 //! `grove run` under real confinement: the real `grove`, the real
-//! `harness-dispatch` front and its compiled worker, a policy in a temporary
+//! independent Ravel front and its compiled worker, a policy in a temporary
 //! HOME, and a deterministic shell harness. Nothing here calls a model.
 //!
 //! The worker is not a cargo artifact. `task dispatch:worker` builds it, and

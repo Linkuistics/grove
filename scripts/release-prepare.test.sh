@@ -216,7 +216,7 @@ for mode in build-failure runner-failure missing empty whitespace heading indent
   [[ "$(jj -R "$scratch/repo" log --no-graph -r main -T commit_id)" == "$main_before" ]]
 done
 
-# Missing notes use the runner, after building the pair it selects through;
+# Missing notes use the runner, after building the Grove caller binaries;
 # unrelated work stays saved.
 : >"$scratch/calls"
 (cd "$scratch/repo" && bash scripts/release-prepare.sh)

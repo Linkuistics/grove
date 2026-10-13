@@ -20,7 +20,7 @@ The order used to have a step between those two. Each grow verb asked whether
 the kind it was about to write resolved to a launch template in Grove's own
 configuration, and refused before the tree moved if it did not. Grove has no
 launch configuration now, and no verb asks whether a kind can be launched: the
-owner's harness-dispatch policy answers that when a leaf of the kind launches,
+owner's Ravel policy answers that when a leaf of the kind launches,
 and nowhere earlier (`docs/specs/harness-selection-and-execution.md`, *A
 refusal*). A well-formed kind is written, whatever it is, and what is left
 before the lock is text.

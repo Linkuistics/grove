@@ -126,7 +126,7 @@ template in Grove's configuration, and refused if it did not. Grove has no
 launch configuration now, and the header says so in the sentence after the one
 that names the two orders left. A kind is written if it is a well-formed token.
 Whether a session of that kind can run is decided by the owner's
-harness-dispatch policy when the driver launches the leaf, and a refused launch
+Ravel policy when the driver launches the leaf, and a refused launch
 leaves the leaf live. The deletion moved a cost and did not remove it: a leaf of
 a kind nothing routes now lands on disk and is picked, and the refusal arrives
 at launch where it used to arrive before a byte moved.
@@ -296,7 +296,7 @@ Each row but the last is a subject of `crates/grove-loop`, or of a crate the
 loop reaches on this crate's behalf — the path-scoped commit is the
 version-control seam's — and the account of each is that crate's own. The last
 row is no Grove crate's: whether a kind can be launched is the owner's
-harness-dispatch policy's to decide, when the driver launches a leaf of it. The
+Ravel policy's to decide, when the driver launches a leaf of it. The
 methodology those verbs serve is in
 neither: it is the
 guide's, at [the account of the verbs over the tree](../../USAGE.md#usage-tree-verbs),
@@ -373,7 +373,7 @@ clause it rewrote in the same seven lines — the manifest's *a binary target
 can reach its own library's private items*, which *Orientation* had read
 against the one shape it holds for and which `bin-target-privacy-claim-k87`
 had corrected everywhere else. The later source cutover moves completion out of this binary: the final
-reminder names `harness-dispatch exit`, while `record-teardown` records Grove's
+reminder names the launch prompt's exact `ravel end-session grove-continue` command, while `record-teardown` records Grove's
 absent-root fact. Historical measurements below describe the earlier corpus;
 the final checks at the end of this chapter verify the current four roots.
 

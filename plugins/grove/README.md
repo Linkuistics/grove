@@ -10,7 +10,7 @@ them. Prose here describes the set as it stands, which is a different thing from
 machinery holding it.
 
 The separate [`configure-grove`](skills/configure-grove/SKILL.md) operator skill
-maintains the owner's harness-dispatch policy, its settings and a checkout's
+maintains the owner's Ravel policy, its settings and a checkout's
 choice file. Its name
 does not use the `grove-<kind>` prefix because it is not a lifecycle task kind.
 
@@ -96,10 +96,10 @@ files the spine carries. And `content/SIGNAL.md` and `content/SIGNAL-FINISH.md`
 became driver prose at `prompt-names-the-kind-k18`: `${prompt}` states grove's
 exit contract once for every kind, and `finish`'s three endings are inline in
 `grove-finish/SKILL.md`: record a completed teardown with
-`grove-llm record-teardown`, then make `harness-dispatch exit` the final action; signal
-externalised work with `harness-dispatch exit`; decline or find no human and
-stop without a signal. Dispatch watches the channel and ends the harness.
-Grove reads dispatch's ending file and the launch's teardown record to decide
+`grove-llm record-teardown`, then make the launch prompt's exact ending command the final action; signal
+externalised work with the launch prompt's exact ending command; decline or find no human and
+stop without a result. Ravel ends/reaps the managed process before returning.
+Grove reads Ravel's public stdout result and its own launch teardown record to decide
 whether to relaunch, finish or stop. Grove passes no session-name or root
 parameter to policy; naming the session belongs to the methodology.
 
@@ -221,7 +221,7 @@ into a single site and read clean over the duplicate it exists to find. The cont
   [`conformance/removed-paraphrases.tsv`](conformance/removed-paraphrases.tsv);
   nothing claims a fourth does not exist.
 - **One** row is delivered by the **driver**, not by any skill: the final
-  `harness-dispatch exit` step, which `${prompt}` states for every kind. Its owner cell is
+  launch-prompt ending command, which `${prompt}` states for every kind. Its owner cell is
   `${prompt}` and neither assertion touches it — a runner over an installed skill
   set cannot read a prompt. It is reported as prompt-delivered rather than
   *pending*, because pending promises a later leaf that ships the file and no
@@ -231,7 +231,7 @@ into a single site and read clean over the duplicate it exists to find. The cont
   endings rode the prompt because the driver inlined a per-kind signal file; they
   are now inline in `grove-finish/SKILL.md`, so that row came back inside this
   runner's reach. Its completed-teardown ending now records the teardown before
-  sending dispatch's exit signal; the record and the signal have different
+  publishing Grove's result through Ravel; the record and the result have different
   owners and purposes. The corpus copy that briefly restated it alongside,
   `content/SIGNAL-FINISH.md`, went with `content/` at
   `delete-provisioning-k19`, so the pair is one statement again.

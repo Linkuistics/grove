@@ -101,7 +101,7 @@ A learned selector needs outcomes from comparable tasks and an approved menu
 of model/effort pairs. Treat its option probability as a classification signal
 until held-out outcomes demonstrate calibration for successful task completion.
 Compare it against fixed task-kind defaults and a simple rules baseline before
-letting it change launches. harness-dispatch substitutes nothing for a refused
+letting it change launches. Ravel substitutes nothing for a refused
 selection, so a policy that falls back to its own table on insufficient
 context, an unavailable model or a failed selection must say so in its
 `reason`. A fallback must satisfy the same review-provider constraint. If none

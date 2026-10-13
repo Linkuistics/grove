@@ -605,13 +605,13 @@ not say.
 /// **Part 3 — grove's own signalling contract.** Last, because it describes the
 /// last action.
 ///
-/// One text for every kind: dispatch owns the harness's exit channel and kill
-/// escalation, while Grove reads the reported ending after reap. The kind's
-/// ending remains the sentence's object; the ordinary exit verb is subordinate.
-/// A finish records teardown separately before sending the same pure signal.
-/// A finish whose skill is unread can still send only that signal after deleting
+/// One text for every kind: Ravel owns process supervision and opaque result
+/// transport, while Grove reads the public result after reap. The kind's
+/// ending remains the sentence's object; the exact ending command is supplied.
+/// A finish records teardown separately before publishing the same result.
+/// A finish whose skill is unread can publish only that result after deleting
 /// the tree, causing a relaunch. Decision 9 records that residue and its reopen
-/// condition: an exit signal after an unrecorded teardown.
+/// condition: a continue result after an unrecorded teardown.
 const SIGNALLING_CONTRACT: &str = "\
 **Signal.** Your kind's skill states how this session ends. After retirement and
 commit (including any settled parent cascade), run this exact command as your

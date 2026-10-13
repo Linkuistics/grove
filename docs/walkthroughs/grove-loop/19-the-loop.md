@@ -107,7 +107,7 @@ area. A harness that exits by itself leaves its leaf live.
 ## The loop's vocabulary and runner types
 
 Tree vocabulary belongs to Grove; `Argv`, `Launch`, `Ended`, `End` and `Group`
-belong to its runner. An ending report is read by `LaunchDirectory`, keeping
+belong to its runner. A held stdout result is read separately from `LaunchDirectory`, keeping
 JSON interpretation apart from the loop's selection and terminal reset.
 
 <!-- fragment «loop-imports» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="13-25" parent="loop-driver" -->
@@ -1230,9 +1230,9 @@ while the harness performs its own mutations.
 ## The executable seams
 
 The executable seams hold distinct obligations: the runner's job tests hold
-job control and recovery; Ravel's suite holds harness escalation and ending
-reports; Grove's PTY suite holds composition of those mechanisms and the loop's
-reading table. An exit status alone cannot replace the ending report.
+job control and recovery; Ravel's suite holds harness escalation and opaque
+result transport; Grove's PTY suite holds composition of those mechanisms and the loop's
+reading table. An exit status alone cannot replace the supported public result.
 
 <a id="the-zeros"></a>
 ## The ownership boundaries

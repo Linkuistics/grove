@@ -1,14 +1,10 @@
-# guard-loop-signal-k37 — keep `cargo test` from killing the session it was
-# typed into.
+# Keep Cargo-launched checks from borrowing the enclosing live session.
 #
-# This repo is a **meta-grove**: its own test suite *is* the loop machinery, and
-# this grove is still driven by installed v22 binaries and skills. Its live session's
-# environment carries `GROVE_SIGNAL_FILE` — the path the loop driver watches, and
-# whose mere appearance makes it SIGTERM the harness child (self-driving-loop).
-# Authority to end a session is therefore ambient: every descendant of the
-# session inherits it, `cargo test` included. The suite's fake harnesses do
-# `: > "$GROVE_SIGNAL_FILE"`, so any harness spawn that does not scope the
-# variable writes the *live* path and kills the developer's terminal.
+# This repository is a meta-grove: tests exercise the same lifecycle machinery
+# that launched their enclosing session. Installed-v22 dispatch carries
+# HARNESS_DISPATCH_EXIT_FILE; current Ravel carries RAVEL_EXIT_FILE. Both share
+# Grove launch-directory admission. Retired signal/PID names remain compatibility
+# guards. Every Cargo subprocess must receive empty authority/evidence values.
 #
 # Force-clear it for everything cargo runs. Empty is deliberately stronger than
 # redirecting to an inert path: the installed v22 `grove-llm` treats every nonempty signal path

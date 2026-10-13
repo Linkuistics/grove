@@ -210,7 +210,7 @@ tasks:
     cmds:
       - task: dispatch:typecheck
       - task: dispatch:probes
-      - cargo test --locked -p harness-dispatch
+      - cargo nextest run --locked -p harness-dispatch
 
   dispatch:install:
     desc: Install the harness-dispatch pair under PREFIX/bin and PREFIX/libexec (default ~/.local)

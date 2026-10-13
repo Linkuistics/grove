@@ -61,7 +61,7 @@ ends with an `Ended`. It runs twice, because two different things can end the
 same launch, and the second is the one the completion channel cannot express.
 
 The launch is the one chapter 3 spawned: `claude --model opus <the mandate>`,
-pid 4137 and pgid 4137, with `HARNESS_DISPATCH_EXIT_FILE` set to
+pid 4137 and pgid 4137, with `TEST_CHANNEL` set to
 `/work/atlas/.jj/grove/signal-3f9c1d4a7b2e5086c1a4f70d93b6e281`, under grove's
 own escalation of two seconds and five. The supervisor polls every 500ms.
 

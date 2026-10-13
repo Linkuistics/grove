@@ -29,3 +29,17 @@ driven by original installed 22.1.0/dispatch. No integration/release/teardown.
   the final action after retirement/commit; no new driver is launched.
 
 ## Notes
+
+## k44 acceptance inputs
+
+Read `docs/ravel-caller-surface-audit.md`, its per-file TSV and k44's terminal
+handoff before measuring. `target/k44/` has exact lexicon/line classifications,
+observed controls, source pins, per-case comparisons and two matching 3,099-file
+measurements. Corrected dispatch:check passes 345 nextest cases and has no
+library doctest target; the root gate still runs actual workspace doctests.
+Caller focused cases (121), sentinel cases (2), all six final/all books,
+conformance/mutation controls, clippy and real release-preparation pass.
+The TSV is a measurement-boundary snapshot: coordination handoff/retirement
+notes follow it. k44 leaves all ownership-prose-k12 and retained-delivery-k6
+files explicitly classified; verify those scope boundaries against the parent
+contract rather than calling old spellings absent from the whole repository.

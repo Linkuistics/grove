@@ -56,8 +56,8 @@ field; this crate supplies only the spawn and supervision mechanics.
 ```text
 run(Launch {
     argv:        ["claude", "--model", "opus", "<the mandate>"],
-    channel:     Some((Channel { path: "/work/atlas/.jj/grove/signal-3f9c1d4a7b2e5086c1a4f70d93b6e281" }, "HARNESS_DISPATCH_EXIT_FILE")),
-    scrub:       ["HARNESS_DISPATCH_EXIT_FILE"],
+    channel:     Some((Channel { path: "/work/atlas/.jj/grove/signal-3f9c1d4a7b2e5086c1a4f70d93b6e281" }, "TEST_CHANNEL")),
+    scrub:       ["TEST_CHANNEL"],
     grant:       [],
     transparent: None,
     cwd:         Some("/work/atlas"),
@@ -75,8 +75,8 @@ launcher  pid 4100  pgid 4100
 
   argv     claude --model opus <the mandate>
   cwd      /work/atlas
-  env      the launcher's own, minus the inherited HARNESS_DISPATCH_EXIT_FILE,
-           plus HARNESS_DISPATCH_EXIT_FILE = /work/atlas/.jj/grove/signal-3f9c…e281
+  env      the launcher's own, minus the inherited TEST_CHANNEL,
+           plus TEST_CHANNEL = /work/atlas/.jj/grove/signal-3f9c…e281
   signals  SIGINT SIGQUIT SIGTERM SIGHUP SIGTSTP SIGTTIN SIGTTOU
            at their default dispositions, whatever the launcher's were
 ```
@@ -90,7 +90,7 @@ launcher's happened to be. And its `argv` is the four words the caller built,
 with nothing appended.
 
 Two things about that environment are worth reading before the source, because
-both look wrong at first glance. `HARNESS_DISPATCH_EXIT_FILE` is in the scrub list and is
+both look wrong at first glance. `TEST_CHANNEL` is in the scrub list and is
 nonetheless set: the list names the launch-control variables a nested launcher
 must not inherit, the channel variable is the first of them, and the grant is
 exactly the exception that this ordering preserves.
@@ -450,7 +450,7 @@ directory either, and `the_child_starts_in_the_given_directory` pins the arm a
 caller should almost always take.
 
 `grant` is the other half of `scrub`. A caller's own control variables — for
-`harness-dispatch`, the run's identity and its record directory — are values the
+Grove, its launch directory and optional provider receipt — are values the
 child should have whatever its environment carried, so they are set after the
 scrub, and an inherited value of the same name is replaced rather than kept.
 They are set *before* the channel, which is set last, so no grant can publish a
@@ -556,8 +556,8 @@ the group's ID so that a caller's diagnostic can name it. The ID was the child's
 pid, so once the child is reaped it can be reused; the comment says to name it
 and never to signal it. **The field sits beside `status` rather than replacing
 it**, which is the design's reason for a field instead of an error: a caller such
-as `harness-dispatch` records what the child did and refuses to act on the
-ending, and it needs both halves to do that. Grove's two callers act on
+as Grove retains the child status and refuses to act on a
+result beside survivors, and it needs both halves to do that. Grove's two callers act on
 `Present` today, the loop stopping with its leaf live and `grove run`
 publishing nothing. `a_term_ignoring_descendant_is_gone_before_the_launch_returns`
 pins `Gone` from a real launch. `a_surviving_group_is_reported_beside_the_childs_status`,
@@ -717,7 +717,7 @@ terminal has no business intercepting it.
 The list is the right default for a launcher like Grove's driver, which chose its
 own ignored SIGINT and must not pass that choice on. It is the wrong one for a
 launcher whose own caller should see the child as though it had started it
-directly. `harness-dispatch run` is that launcher: it stands between its caller
+directly. `ravel start-session` is that launcher: it stands between its caller
 and the harness, and the harness is to receive the caller's signal mask and
 every disposition that survives exec, as dispatch inherited them, a `nohup`
 caller's ignored SIGHUP included. That launcher sets `Launch::transparent`, and
@@ -814,7 +814,7 @@ numbers rather than read from the process, which is the point its comment makes
 first. By the time any Rust code runs, the standard runtime has already set
 SIGPIPE to ignored, so a launcher that read its state in `main` would hand every
 child an ignored SIGPIPE its own caller never set. Only the launcher can read
-early enough — `harness-dispatch` does it from its executable's initializer
+early enough — `ravel` does it from its executable's initializer
 section — so this crate takes the answer as data and only hands it on.
 
 `reinstate` runs inside the `pre_exec` closure below, between `fork` and

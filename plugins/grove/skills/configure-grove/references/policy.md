@@ -1,124 +1,113 @@
 # Policy mechanics
 
-Source: [harness-dispatch usage](https://github.com/Linkuistics/grove/blob/main/crates/harness-dispatch/README.md).
-Check `harness-dispatch --help` for the installed version before depending on
-a flag.
+Sources: [Ravel 0.1.0 session CLI](https://github.com/Linkuistics/Ravel/blob/v0.1.0/docs/session-cli.md)
+and [Grove's readable policy assets](https://github.com/Linkuistics/grove/tree/main/assets/ravel-policy).
+Check `ravel --version` and `ravel start-session --help` before relying on flags.
 
 ## What Grove passes
 
-`harness-dispatch` is a separate command installed beside Grove, and Grove
-runs it for every session. For a lifecycle session it runs this, in the
-working-tree root, with values from the leaf it selected:
+Grove resolves the first executable regular `ravel` in an absolute PATH entry,
+canonicalizes and version-checks it once, then uses that exact path for launch,
+confinement and prompt ending instructions. It need not share Grove's prefix or
+version. Missing Ravel names `brew install linkuistics/taps/ravel`; unsupported
+versions refuse with an upgrade remedy. Grove currently accepts stable 0.1.x.
+
+For lifecycle work, in the working-tree root, the public request is:
 
 ```text
-harness-dispatch run --kind=KIND --task-file=TASK_FILE --task-id=HANDLE --prompt=MANDATE --exit-dir=LAUNCH_DIR --ending-file=ENDING_FILE
+ravel start-session --kind=KIND --task-file=TASK_FILE --task-id=HANDLE --prompt=MANDATE --exit-dir=LAUNCH_DIR
 ```
 
-The policy's `select` receives the kind, the task file, the handle and the
-prompt, and reads the session's location as `request.cwd`. The exit directory
-and ending file are run mechanics and reach no policy. Grove passes no
-parameter, so `request.params` is empty, and no policy entry, bound, grant or
-record directory. A policy that names a session or grants a secondary jj
-workspace's harness its main repository derives either from `request.cwd`: the
-sample reads the main repository from the `.jj/repo` file there, and names no
-session. `grove run KIND`
-selects through the same policy, with `run --confine`, outside its sandbox. It has no
-task, so it passes no task file and no task identity, and its harness must be
-a noninteractive command.
+`select` receives kind, task file, task identity, unchanged prompt and
+`request.cwd`. Grove passes no parameter, settings override or record path.
+The exit directory is supervision machinery and reaches no policy.
+`grove run KIND` uses the same public verb with `--confine` in its staged cwd;
+it has no task file/identity. Its selected command must be noninteractive.
+Grove grants documented runtime reads, not a private worker protocol.
 
-## Installing a policy
+The caller prompt supplies the canonical `ravel end-session grove-continue`
+command. It takes no session ID. Ravel returns the opaque result on stdout
+only after cleanup; session output and diagnostics remain separate. Grove
+interprets that result after its own authority checks. A finish first records
+Grove's teardown. Original installed-v22 sessions keep their original ending
+command/channel; installing new assets never changes a running mandate.
 
-The personal policy is `~/.config/harness-dispatch/policy.ts`.
-harness-dispatch never discovers one in a repository. Naming a repository file
-with `--config`, or importing one from the personal policy, runs that
-repository's code with the user's authority, so do either only with the user's
-explicit authorization.
+## Installing and selecting a policy
+
+The personal entry is `~/.config/ravel/policy.ts`. Ravel discovers no repository
+policy. Explicit `--config` or personal imports execute that code with the
+owner's authority. Authorize the imported code before activating it.
+
+Ravel has no `init` or `inspect`. When asked to install, copy Grove's readable
+`assets/ravel-policy/sample/policy.ts` to an absent personal entry and edit the
+copy. Preserve an existing policy. Installation/upgrading Grove writes none.
+The sample disables approvals and enables full access for its concrete harness
+commands; configure those arguments according to the owner's request.
+
+The sample's `ROUTES` map kinds to roles/efforts. `ARRANGEMENTS` offer
+`codex-led`, `claude-led`, `codex-design-claude-impl` and
+`claude-design-codex-impl`; `MODIFIERS` offer `codex-sol` and `high-effort`.
+`DEFAULT` applies without a choice file. A missing route refuses. A wrapper
+must exec its harness. The readable `examples/grove-static.ts` and
+`examples/grove-review.ts` import caller files normally, together with generic
+`ravel/sdk` and `ravel/examples/static`; Ravel embeds no Grove module. Copy the
+required directory structure or import an explicitly authorized absolute file.
+
+`.ravel-choice` in the launch cwd names offered options separated by whitespace:
 
 ```sh
-harness-dispatch init
+printf '%s\n' 'codex-led high-effort' > .ravel-choice
 ```
 
-`init` installs the sample policy when nothing is at that path, and has no
-option to replace one. Installing or upgrading Grove writes no policy. The
-sample launches `codex` with approvals off and full access. Say so before the
-user's first launch, and remove those arguments if they do not want them.
-
-The sample is a `select` over tables in the file:
-
-- `ROUTES` maps each of Grove's session kinds, and the standalone
-  `release-notes` kind, to a role and usually an effort. A kind it does not
-  list refuses.
-- `ARRANGEMENTS` says which harness takes which role. There are four:
-  `codex-led`, `claude-led`, `codex-design-claude-impl` and
-  `claude-design-codex-impl`.
-- `MODIFIERS` change model and effort across an arrangement: `codex-sol` and
-  `high-effort`.
-- `DEFAULT` is what applies with no choice file.
-
-Change a kind's model or effort in its route. Add a kind by adding its route.
-A program that is a wrapper must `exec` its harness. The shipped examples,
-`harness-dispatch/examples/grove-static` and `grove-review`, are alternatives
-a policy imports. Prefer an edited copy to re-exporting a specifier, because an
-imported example changes when the installation upgrades.
-
-## The choice file
-
-`.harness-dispatch-choice` in the working-tree root holds names separated by
-whitespace. For the sample, one arrangement and any modifiers:
-
-```sh
-echo 'codex-led high-effort' > .harness-dispatch-choice
-```
-
-It replaces the sample's default whole. It can name only what the policy
-offers: an unoffered name, no arrangement, or two refuse the launch, naming the
-names on offer. The file introduces no program, argument or label, so it needs
-no ignore rule and no trackedness check. Whether to commit it is the user's
-choice, and a repository may ship one. It is read in the directory the launch
-runs in: the working-tree root for a lifecycle session, with no search of
-parent directories. `grove run` selects in its staged directory, so no
-checkout's choice file applies to a standalone kind. It affects only an owner whose policy reads it, and harness-dispatch
-itself never looks for it. A policy the user wrote reads one only if its
-`select` calls the SDK's `readChoice`.
+It replaces the sample default whole and must contain exactly one arrangement.
+It introduces no program or argument. The generic `readChoice` helper reads it
+only when the policy opts in. There is no parent search; standalone work selects
+in its staged cwd, so it sees no checkout choice file.
 
 ## Owner settings
 
-`~/.config/harness-dispatch/settings.json` is optional, and holds at most four
-keys: `timeoutMs` (1000 to 600000), `contextBytes`, `stateDir` (an absolute
-path) and `policyEnv` (an array of names). They are the same for every kind. A
-flag replaces its setting for one invocation, `--policy-env` adds to the
-grants, and Grove passes no settings override. Raise
-`timeoutMs` only when a policy legitimately takes longer than 30 seconds, since
-the bound is also how long a stuck policy holds a launch.
+`~/.config/ravel/settings.json` is optional. Its keys are `timeoutMs`
+(1000–600000), `contextBytes` and `policyEnv` (environment names). Flags override
+bounds and `--policy-env` adds grants; Grove supplies none. `stateDir` is an
+obsolete unknown key, not a Ravel store location. Raise the 30-second default
+only when selection needs it.
 
-**Never grant `GROVE_LAUNCH_DIR`**, in `policyEnv` or with `--policy-env`.
-That directory carries the session's authority: a policy holding its path
-could record a teardown or end the run it is selecting for. Dispatch keeps it
-out of the worker unless the owner grants it, and does not refuse such a grant.
-Grant only names the policy itself reads.
+Never grant `GROVE_LAUNCH_DIR`: it carries session authority. Policy evaluation
+starts with a minimal environment and does not inherit Grove/Ravel/legacy
+controls. Grant only names the selection code actually reads. Trusted policy
+code is not a sandbox against a hostile same-user script.
+
+## Verify choices without a model launch
+
+Read selection code and its actual wrapper/profile settings first. There is no
+selection-only command. `start-session` executes its selected command.
+
+For shipped assets, run `task ravel:review RAVEL=/absolute/installed/ravel`.
+It typechecks public SDK imports and runs temporary policies/fake agents through
+a copied independent front/worker on a child PATH without Bun/Node or Grove.
+No personal policy is overwritten and no model runs.
+
+For an owner policy, build an isolated temporary HOME, copy the complete policy
+and authorized imports/settings/choice, and put executable fake agents matching
+its harness names on a private PATH. Make them record argv and end through the
+absolute installed Ravel with a fixture-only result. Cover every changed kind,
+choice and provider pair. A policy using absolute commands or wrappers requires
+an explicit fixture adaptation; PATH alone cannot replace those programs.
+Do not pass production prompts or advertise this as evaluating the original
+policy unchanged. Verify the requested prompt/context too if selection reads it.
+Policy evaluation itself may execute code or start tools, so inspect it before
+running these fixtures. Typechecking alone establishes no routing outcome.
 
 ## Remedy a refused launch
 
-A refused launch launches nothing, and nothing is substituted. Grove reports
-that the session ended without an exit signal, with harness-dispatch's
-exit status, and stops the loop. Grove's own exit status is 0, so read the
-refusal from its report. The leaf stays live. The refusal's `inspect:` line
-reproduces the selection without the prompt:
-
-```text
-inspect: (cd /home/you/app && /opt/grove/bin/harness-dispatch inspect --kind spike --task-file /home/you/app/.grove/01-spike--api-k1.md --task-id api-k1)
-```
-
-1. Run that line. It refuses the same way and launches nothing. It names the
-   `harness-dispatch` Grove ran by its full path, so keep that path.
-2. Do what the remedy names. `policy_missing` is remedied by the user
-   installing or writing a policy. A policy's own refusal is `policy_refused`
-   with a `policy code`: for the sample, `incomplete_mapping` means the kind
-   has no route, and `choice_unoffered` or `choice_arrangement` that the choice
-   file is wrong. A missing route is the user's decision. Do not fill it with a
-   catch-all.
-3. Run the line again until it reports a command.
-4. Run `grove` again. The same leaf launches.
+Ravel reports routing refusals on stderr, exits 3 and launches no selected
+process. Grove reports no supported result and stops, leaving the leaf live.
+Read the actual policy code/remedy; `policy_missing` requires an owner policy,
+`incomplete_mapping` an explicit kind route, and invalid choice codes a choice
+among offered options. Do not add a catch-all to hide a missing owner decision.
+Correct the source, verify with safe fixtures, then rerun `grove` to retry the
+same leaf. No `inspect:` reproduction is available. A public start-session
+reproduction can launch after repair and needs its own ending instructions.
 
 ## Reviews and the creator line
 

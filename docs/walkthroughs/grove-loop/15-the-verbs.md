@@ -11,7 +11,7 @@ each session operation and the separate driver operations.
 `verbs.rs` declares thirteen public functions: twelve verbs and the
 `stale_cross_refs` helper that completes `leaf-insert`'s contract. `driver.rs`
 holds two operations that prepare the tree before a session owns it. The surface
-has twelve verbs after completion moves to harness-dispatch.
+has twelve verbs after completion moves to Ravel.
 
 **Say which tree.** The store's vocabulary reaches this chapter in exactly one
 word: `Sought`, which `ordinal-fs-tree` uses for *a search that matched, or
@@ -670,8 +670,8 @@ is gone and the commit is named, or the tree is untouched and the handle is
 refused.
 
 The other outward-reaching verb, `record_teardown`, records an absent tree in
-the current launch directory. It does not end a harness run. Dispatch owns that
-last effect through `harness-dispatch exit`, so Grove's twelve-verb surface has
+the current launch directory. It does not end a harness run. Ravel owns that
+last effect through the launch prompt's exact `ravel end-session grove-continue` command, so Grove's twelve-verb surface has
 one teardown-record operation and no completion-token operation.
 
 <a id="one-place-the-crate-crosses-that-boundary"></a>

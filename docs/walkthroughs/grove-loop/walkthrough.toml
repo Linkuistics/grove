@@ -193,7 +193,7 @@ role  = "lookup"
 [[root]]
 id    = "source-crate-manifest"
 path  = "crates/grove-loop/Cargo.toml"
-lines = 65
+lines = 67
 
 [[root]]
 id    = "source-library-root"
@@ -218,7 +218,7 @@ lines = 518
 [[root]]
 id    = "source-tree-lifecycle"
 path  = "crates/grove-loop/src/tree_lifecycle.rs"
-lines = 2735
+lines = 2745
 
 [[root]]
 id    = "source-verbs"
@@ -255,7 +255,7 @@ lines = 218
 id    = "manifest-domain-bound"
 root  = "source-crate-manifest"
 owner = "allowed-to-mean"
-lines = "1-65"
+lines = "1-67"
 
 [[block]]
 id    = "library-root"
@@ -387,55 +387,55 @@ lines = "1-518"
 id    = "finish-transition"
 root  = "source-tree-lifecycle"
 owner = "the-tree-deletes-itself"
-lines = "1-327"
+lines = "1-329"
 
 [[block]]
 id    = "grove-beginning"
 root  = "source-tree-lifecycle"
 owner = "never-mistaken-for-finished"
-lines = "328-488"
+lines = "330-490"
 
 [[block]]
 id    = "decompose-production"
 root  = "source-tree-lifecycle"
 owner = "the-key-survives"
-lines = "489-706"
+lines = "491-708"
 
 [[block]]
 id    = "outcomes-in-place"
 root  = "source-tree-lifecycle"
 owner = "marked-in-place"
-lines = "707-1023"
+lines = "709-1025"
 
 [[block]]
 id    = "body-helpers"
 root  = "source-tree-lifecycle"
 owner = "never-mistaken-for-finished"
-lines = "1024-1087"
+lines = "1026-1089"
 
 [[block]]
 id    = "root-init-tests"
 root  = "source-tree-lifecycle"
 owner = "never-mistaken-for-finished"
-lines = "1088-1503"
+lines = "1090-1505"
 
 [[block]]
 id    = "finish-tests"
 root  = "source-tree-lifecycle"
 owner = "the-tree-deletes-itself"
-lines = "1504-1698"
+lines = "1506-1708"
 
 [[block]]
 id    = "decompose-tests"
 root  = "source-tree-lifecycle"
 owner = "the-key-survives"
-lines = "1699-2244"
+lines = "1709-2254"
 
 [[block]]
 id    = "retire-and-prune-tests"
 root  = "source-tree-lifecycle"
 owner = "marked-in-place"
-lines = "2245-2735"
+lines = "2255-2745"
 
 [[block]]
 id    = "the-twelve-verbs"

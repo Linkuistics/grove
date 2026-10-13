@@ -57,7 +57,7 @@
 - [Verification](05-what-the-call-reaches.md#final-verification)
 - [Standalone invocation boundary](06-standalone-invocations.md#one-isolated-invocation)
 - [Staged inputs and checked output publication](06-standalone-invocations.md#worked-standalone)
-- [Finding `harness-dispatch` beside Grove's real path](06-standalone-invocations.md#dispatch-lookup)
+- [Resolving independent Ravel on PATH](06-standalone-invocations.md#dispatch-lookup)
 - [Independent Ravel PATH and version checks](06-standalone-invocations.md#ravel-resolution)
 - [Dispatched selection and confined launch](06-standalone-invocations.md#standalone-launch-context)
 - [Parent-owned transcript and mux display](06-standalone-invocations.md#display-relay)

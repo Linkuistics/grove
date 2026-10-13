@@ -1,6 +1,6 @@
 // The driver's lifecycle around a launch: what it refuses before one, what it
 // scaffolds, and what it reports when a session ends. Every case that launches
-// goes through the real `harness-dispatch` front and its compiled worker, under
+// goes through the real independent Ravel front and its compiled worker, under
 // a personal policy in a temporary HOME; Grove reads no configuration.
 
 mod support;
@@ -411,7 +411,9 @@ fn an_unwritable_control_directory_fails_before_tree_access_or_launch() {
         "the failure must name the control directory it could not create: {stderr}"
     );
     assert!(
-        !stderr.contains("malformed Grove") && !stderr.contains("harness-dispatch"),
+        !stderr.contains("malformed Grove")
+            && !stderr.contains("harness-dispatch")
+            && !stderr.contains("ravel"),
         "neither the tree nor the launch may have been reached: {stderr}"
     );
     assert_eq!(
@@ -989,7 +991,8 @@ exit 0
     assert!(finish_body.starts_with("# finish-k2\n"));
     assert!(finish_body.contains("grove-llm finish-commit finish-k2"));
     assert!(finish_body.contains("grove-llm record-teardown"));
-    assert!(finish_body.contains("harness-dispatch exit"));
+    assert!(finish_body.contains("exact ending command from your launch prompt"));
+    assert!(finish_body.contains("ravel end-session grove-continue"));
     assert!(!finish_body.contains("**Kind:**"));
     assert!(fs::read_to_string(&launch_log)
         .unwrap()

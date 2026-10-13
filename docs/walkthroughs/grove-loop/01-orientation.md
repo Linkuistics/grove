@@ -43,7 +43,7 @@ read: a crate that is allowed to be domain-bound says so in the one file that
 holds no code, and the dependency declarations expose the cost of that
 permission.
 
-<!-- fragment «manifest-domain-bound» owner="allowed-to-mean" source="crates/grove-loop/Cargo.toml" lines="1-65" parent="source-crate-manifest" -->
+<!-- fragment «manifest-domain-bound» owner="allowed-to-mean" source="crates/grove-loop/Cargo.toml" lines="1-67" parent="source-crate-manifest" -->
 <!-- insert «manifest-package-identity» -->
 <!-- insert «manifest-dependencies» -->
 <!-- insert «manifest-extracted-tree» -->
@@ -82,7 +82,7 @@ the dispatch receipt. `tempfile` supplies the shared held-file result capture
 for the staged Ravel migration, as well as temporary directories in tests. The loop uses the runner to spawn and reap dispatch, while
 the verb surface writes only Grove's teardown record in the launch directory.
 
-<!-- fragment «manifest-dependencies» owner="allowed-to-mean" source="crates/grove-loop/Cargo.toml" lines="11-39" parent="manifest-domain-bound" -->
+<!-- fragment «manifest-dependencies» owner="allowed-to-mean" source="crates/grove-loop/Cargo.toml" lines="11-38" parent="manifest-domain-bound" -->
 ````toml
 
 # **This crate and grove-tui are domain-bound.** The three reusable
@@ -91,7 +91,7 @@ the verb surface writes only Grove's teardown record in the launch directory.
 # 1, marks it *not domain-free* for exactly that reason.
 #
 # Its dependencies are the three modules it composes plus `anyhow` and `libc`.
-# `serde_json` reads dispatch's ending report; it is internal too.
+# `serde_json` is used only by integration fixtures, as a dev dependency below.
 # `anyhow` is **internal only**: every public entry point answers this crate's
 # own opaque [`Error`], so a consumer takes on no error library of ours — the
 # same rule `crates/jj-workspace`, `crates/keyed-launch` and
@@ -101,7 +101,7 @@ the verb surface writes only Grove's teardown record in the launch directory.
 # largest user, for the lease's own `flock(2)` and for the `fcntl(2)`
 # close-on-exec descriptors it carries across a spawn; and `loop_driver`, for
 # `isatty`, `tcgetpgrp` and `signal`. `keyed-launch` is the runner, and the
-# loop uses it to spawn and reap dispatch, and `lib.rs` re-exports `reraise`
+# loop uses it to spawn and reap Ravel, and `lib.rs` re-exports `reraise`
 # so Grove's binary can die of a signal without depending on the runner itself.
 # The verb surface writes no runner channel: `record-teardown` writes only
 # Grove's separate record in the current launch directory.
@@ -110,7 +110,6 @@ anyhow = "1.0"
 jj-workspace = { path = "../jj-workspace" }
 keyed-launch = { path = "../keyed-launch" }
 libc = "0.2"
-serde_json = "1.0"
 # Shared caller-owned stdout capture for the independent Ravel boundary.
 tempfile = "3.10"
 ````
@@ -177,7 +176,7 @@ in `the_library_imposes_only_libc` and
 evidence rather than corpus, and chapter 20 returns to them as the third
 question's proof.
 
-<!-- fragment «manifest-extracted-tree» owner="allowed-to-mean" source="crates/grove-loop/Cargo.toml" lines="40-47" parent="manifest-domain-bound" -->
+<!-- fragment «manifest-extracted-tree» owner="allowed-to-mean" source="crates/grove-loop/Cargo.toml" lines="39-46" parent="manifest-domain-bound" -->
 ````toml
 # The extracted tree library (gh issue #13). `default-features = false` turns off
 # its `cli` feature, which exists for its own `syllabus` binary and pulls in
@@ -194,8 +193,11 @@ The lints table inherits the workspace's lint configuration rather than declarin
 its own, which is the mechanism by which this crate is held to the same clippy
 and rustc settings as every other member.
 
-<!-- fragment «manifest-lints» owner="allowed-to-mean" source="crates/grove-loop/Cargo.toml" lines="48-50" parent="manifest-domain-bound" -->
+<!-- fragment «manifest-lints» owner="allowed-to-mean" source="crates/grove-loop/Cargo.toml" lines="47-52" parent="manifest-domain-bound" -->
 ````toml
+
+[dev-dependencies]
+serde_json = "1.0"
 
 [lints]
 workspace = true
@@ -213,7 +215,7 @@ does **not** freeze the version, because the package block above takes
 release ships. The second paragraph records that publication is an answered
 question rather than an open one, and names where the answer lives.
 
-<!-- fragment «manifest-release» owner="allowed-to-mean" source="crates/grove-loop/Cargo.toml" lines="51-65" parent="manifest-domain-bound" -->
+<!-- fragment «manifest-release» owner="allowed-to-mean" source="crates/grove-loop/Cargo.toml" lines="53-67" parent="manifest-domain-bound" -->
 ````toml
 
 # `cargo release` cuts *grove* (`crates/grove`), and `release.toml` configures

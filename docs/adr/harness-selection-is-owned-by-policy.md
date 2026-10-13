@@ -1,43 +1,34 @@
 # Harness selection is owned by policy
 
 Which harness, model and reasoning effort runs a piece of work is decided by one
-function the owner writes, and by nothing else. The `harness-dispatch`
+function the owner writes, and by nothing else. The `ravel`
 executable passes that `select` function what its caller passed, the prompt
 included, and acts on what it returns: the command to run, with its provider,
 model and effort labels, or a refusal. The executable holds no catalog of
 harnesses, no table of kinds and no rule about which choice is allowed. Grove
 runs it for every session it launches, lifecycle and standalone alike, and
 carries no launch configuration of its own. The
-[area specification](../specs/harness-selection-and-execution.md) owns the
-protocol, identity, records and delivery contracts. The
-[worker decision](policy-evaluation-precedes-the-launch.md) chooses the Rust
-front process and bundled TypeScript runtime separately from this boundary, and
-[dispatch supervises the harness](dispatch-supervises-the-harness.md) records
-why the command stays the harness's parent.
+[supervision decision](dispatch-supervises-the-harness.md) owns the
+Grove caller boundary. The independent
+[Ravel specification](https://github.com/Linkuistics/Ravel/blob/v0.1.0/docs/specs/session-execution.md)
+owns executable/runtime behavior. The
+[worker decision](policy-evaluation-precedes-the-launch.md) records the native
+selection boundary and [supervision](dispatch-supervises-the-harness.md) records
+why the selected process remains a managed job.
 
-Grove supplies its already selected session kind, task file, stable task handle
-and unchanged prompt, and no parameter. It runs the command where the prompt
-assumes the session is — the working-tree root — so a policy reads the session's
-location from the request's `cwd`. A policy that must grant a secondary jj
-workspace's harness its store derives the store from `<cwd>/.jj/repo` itself,
-as the sample does; nothing jj-specific enters the command, and naming the
-session is the methodology's. Callers supply stable task identities as data, so an association
-survives a Grove task's retirement and reordering without any filename being
-parsed. The discovery guarantee spans sessions in the same live grove and
-workspace. Provenance travels as globally unique run identities, so handles need
-no namespace. Run and observation records live outside task bodies and survive
-the tree's teardown, and a review task carries only its creator reference. There
-is no automatic cross-checkout discovery and no post-teardown artifact lookup.
+Grove supplies kind, task file, stable handle and unchanged prompt as ordinary
+caller data, with no parameter. Lifecycle work runs in the workspace root;
+standalone work in its staged cwd. An owner policy can derive workspace grants
+from `request.cwd` and `.jj/repo`. No jj/task convention belongs to Ravel.
+Grove's readable assets interpret task relationships and preserve inline creator
+receipts; Ravel supplies no run lookup, persistent records or historical API.
 
-The dependency runs one way. Grove requires the executable and is one caller
-among many; the package depends on no Grove package and has no Grove concept in
-its core, so ordinary use needs no Grove installation or task-tree conventions,
-and whatever Grove needs from it is a capability any caller can use. The
-executable is a separate package in this repository and ships through Grove's
-installation and release, with everything needed to evaluate TypeScript without
-a separately installed runtime. Co-location makes development, integration tests
-and deployment easier, and the package can still be extracted into a repository
-of its own.
+The dependency runs one way. Grove requires independently installed Ravel's
+public CLI, resolved once from PATH and version-checked. Ravel needs no Grove
+installation. Its front and compiled worker ship independently, without host
+Bun/Node. Grove keeps its own local runner and caller-owned policy assets.
+The old workspace package/archive recipes are retained only until delivery k6;
+they are not active caller resolution or a shared Rust dependency.
 
 ## What each half of the decision costs
 
@@ -82,11 +73,11 @@ artifact's original creator for every review it selects, including
 re-invocations. It is activated explicitly through personal policy and tested as
 the delivered artifact. Provider is the owner's label on the command a policy
 returns, for model origin; it is not a gateway or an identity inferred from the
-program or its arguments. The package exposes each recorded run's provider to
-TypeScript, and a review names its creator's run, as
+program or its arguments. The opt-in Grove provenance wrapper preserves the actual selected provider in
+a canonical receipt, and a review carries that receipt or an owner declaration, as
 [a review carries its creator reference](a-review-carries-its-creator-reference.md)
 records; today's policy cannot reconstruct the original creator's identity. An
-explicit owner declaration remedies missing execution records and is visibly
+explicit owner declaration remedies missing caller evidence and is visibly
 labelled as declared; absence of both forms stops review. This is a simple
 original-creator comparison, with no separate model-inequality check or
 multi-author exclusion set. The generic executable contains no review-specific
@@ -102,8 +93,7 @@ invocation, the selection bound and the environment granted to the policy among
 them, lives in a settings file with the same personal authority, and is the
 same for every kind. A missing
 policy stops with a diagnostic: the executable invents no default, and a policy
-arrives only by the owner writing one or running the subcommand that installs
-the shipped sample.
+arrives only by the owner writing one or explicitly copying Grove's readable sample.
 
 One checkout gets a different selection from another through policy code. A
 supported helper reads a local choice file, and that file can only name options
@@ -112,7 +102,7 @@ which is why it needs no version-control check where the configuration delta
 needed one.
 
 Selection helpers are granted no authority to end a run, and the harness is
-dispatch's own foreground job
+Ravel's own foreground job
 ([the launched child is a job](the-launched-child-is-a-job.md)); the
 specification owns the bounds, cancellation and authority contracts that
 preserve this. Trusted TypeScript is executable configuration, not a sandbox

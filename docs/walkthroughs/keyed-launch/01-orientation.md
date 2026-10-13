@@ -317,10 +317,10 @@ it.
      -> /work/atlas/.jj/grove/signal-3f9c1d4a7b2e5086c1a4f70d93b6e281
      the path is drawn; nothing is written
 
-3  run(Launch { argv, channel: Some((channel, "HARNESS_DISPATCH_EXIT_FILE")),
+3  run(Launch { argv, channel: Some((channel, "TEST_CHANNEL")),
                 scrub, grant, transparent, cwd: Some("/work/atlas"), escalation })  chapters 3, 4
      child spawned in its own process group, holding the terminal,
-     with HARNESS_DISPATCH_EXIT_FILE set to the path from step 2
+     with TEST_CHANNEL set to the path from step 2
 
 4  the child creates an empty file at that path and returns to its prompt
      the file appears; the grace elapses; the child is signalled
@@ -424,7 +424,7 @@ wrong, names where, and names what would fix it. The constructor is
 One fact rides beside the message, and only one. When the child could not be
 spawned, the error keeps the system's error number, and `raw_os_error` answers
 it; every other failure answers `None`. A caller that reports a failed start by
-its cause needs the number rather than the words: `harness-dispatch` exits 127
+its cause needs the number rather than the words: `ravel` exits 127
 for `ENOENT`, as a shell does for a missing program, and 126 for any other
 cause. `Some` therefore also says that nothing was started. `with_errno` is how
 the spawn in chapter 3 attaches it, and it is `pub(crate)` like the
@@ -569,15 +569,13 @@ impl Argv {
 <!-- /fragment -->
 
 `Argv::new` is public, and it checks nothing: a program and a list of arguments
-go in, and the same program and arguments are what the value holds. Grove calls
-it in two places. `crates/grove-loop/src/loop_driver.rs` builds the
-`harness-dispatch run` invocation for a lifecycle session, and
-`crates/grove/src/standalone.rs` builds a noninteractive `harness-dispatch run --confine` invocation from its canonical
-sibling path, kind, prompt, runtime reads and ending-file path. The third caller is
-`harness-dispatch run` itself, which builds the harness's command from what its
-owner's policy selected.
+go in, and the same program and arguments are what the value holds. Grove's shared `session_command` builders compose public lifecycle and confined
+standalone `ravel start-session` requests from the once-resolved independent
+executable. This local runner supervises Ravel, which supervises its own managed
+process using Ravel's separate runner. The retained pre-k6 dispatch package is
+another local caller of `Argv`, for compatibility tests/archive recipes.
 
-That third caller is why `with_arg0` exists. Dispatch has already resolved the
+That retained caller is why `with_arg0` exists. Dispatch has already resolved the
 program the policy named to an absolute path, and spawns that path, so that
 nothing is looked up a second time under another directory or `PATH`. The
 harness is still to see, as its `argv[0]`, the program as the policy wrote it.

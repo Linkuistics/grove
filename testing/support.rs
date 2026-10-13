@@ -300,16 +300,10 @@ pub fn kind_labels() -> Vec<String> {
 /// while installed v22 binaries still drive it. New sessions carry a launch
 /// directory and an executable-owned exit context. Dispatch and Ravel contexts
 /// are both scrubbed beside the retired completion channels and PID handles.
-/// These tests normally run inside a live loop session, so the variable is
-/// present in this process's ambient environment, and the fake commands below
-/// write `"$GROVE_SIGNAL_FILE"` unconditionally — a spawn that does not scope
-/// the variable therefore kills the session `cargo test` was typed into
-/// (guard-loop-signal-k37).
-///
-/// `.cargo/config.toml` force-overrides the same signal variable for everything
-/// cargo runs. The two guards are independent on purpose: that one covers tests
-/// which never touch these helpers, this one covers a test binary executed
-/// directly rather than through cargo. Neither subsumes the other.
+/// These tests can run inside a live original-dispatch or Ravel session. Child
+/// fixtures must not inherit that session's ending channel, Grove admission or
+/// provider receipt. `.cargo/config.toml` independently clears the same controls
+/// for Cargo-launched processes; direct test binaries rely on this helper.
 pub const LOOP_CONTROL_ENV: [&str; 10] = [
     "GROVE_SIGNAL_FILE",
     "GROVE_RUN_SIGNAL_FILE",
@@ -426,7 +420,7 @@ pub fn jj(path: &Path, args: &[&str]) -> String {
 ///
 /// **Why a verb-driving test needs one at all.** A tree verb consults nothing
 /// outside the working tree: no Grove configuration exists to read, and no
-/// harness-dispatch policy is asked about a kind before its leaf launches
+/// Ravel policy is asked about a kind before its leaf launches
 /// (`docs/specs/harness-selection-and-execution.md`, *A refusal*). Running
 /// every verb under a HOME that holds no policy is what shows that. Under the
 /// developer's own HOME a verb that did read a personal file would pass on a
@@ -437,7 +431,7 @@ pub fn fixture_home() -> &'static Path {
         .path()
 }
 
-/// Write `source` as the personal `harness-dispatch` policy under `home`, at
+/// Write `source` as the personal Ravel policy under `home`, at
 /// the default entry path. A test that launches a session puts its policy here:
 /// the real front and its compiled worker select from it, and Grove reads
 /// nothing.

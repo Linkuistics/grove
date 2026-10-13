@@ -13,7 +13,7 @@ connects the public library calls and owns no source of its own.
 Bare `grove` resolves a jj workspace, takes the driver lease and calls
 `grove_loop::run`. `grove view [WORKTREE]` returns through `grove_tui::run`
 before those steps. An observation path needs no workspace identity, driver
-lease or harness-dispatch policy. All paths return errors through the same main;
+lease or Ravel policy. All paths return errors through the same main;
 the viewer restores its terminal before returning an error.
 
 <a id="the-package-map"></a>
@@ -32,16 +32,15 @@ authoring tool.
 | `ordinal-fs-tree` | Domain-free ordered tree store | none |
 | `jj-workspace` | Domain-free workspace and commit seam | none |
 | `keyed-launch` | Domain-free command runner | none |
-| `harness-dispatch` | A separate command: harness selection by an owner's TypeScript policy, run records and harness supervision | `keyed-launch` |
+| `harness-dispatch` | Retained pre-k6 build/archive compatibility package; active callers use independent Ravel | `keyed-launch` |
 | `book-validation` | Source-fragment and Markdown checks | none |
 
 Ratatui and Crossterm belong to the viewer. Neither the loop library nor the
-session binary depends on the terminal UI. Release archives contain `grove`,
-`grove-llm` and `harness-dispatch` with its compiled policy worker: the viewer
-is linked into the human executable. No Grove package depends on
-`harness-dispatch`; dispatch shares only the domain-free `keyed-launch` runner. Grove reaches it only as a
-command it runs; `docs/ARCHITECTURE.md` places the package
-and states its boundary.
+session binary depends on the UI. Current archive recipes still bundle the old
+front/worker until delivery k6 removes them. Active Grove callers resolve the
+independently released Ravel CLI on PATH, regardless of Grove's prefix/version.
+Ravel is outside this workspace and supplies no shared Rust dependency. Grove
+keeps local `keyed-launch` for its own jobs; Ravel has its own runner.
 
 <a id="the-seven-names"></a>
 ## What crosses the binary boundary
@@ -51,7 +50,7 @@ and states its boundary.
 | `grove_loop::VERSION` | Shared release metadata |
 | `grove_loop::Workspace` | Resolve the bare lifecycle's jj working tree |
 | `grove_loop::DriverLease` | Hold the one-driver claim |
-| `dispatch::locate` | Find `harness-dispatch` beside this executable, for the loop to launch through |
+| `dispatch::ravel::locate` | Resolve/version-check independently installed Ravel on PATH |
 | `grove_loop::run` | Execute the lifecycle |
 | `grove_loop::LoopOutcome` | Distinguish clean stops and interruption |
 | `grove_loop::reraise` | Preserve an interrupted driver's signal exit |

@@ -175,7 +175,9 @@ fn finish_body(handle: &Handle) -> String {
          - Promote durable material from the grove briefs.\n\
          - Run `grove-llm finish-commit {handle}`.\n\
          - Run `grove-llm record-teardown`.\n\
-         - Run `harness-dispatch exit` as the last action.\n"
+         - Run the exact ending command from your launch prompt as the last action \
+         (`ravel end-session grove-continue` for Ravel; legacy v22 sessions keep \
+         `harness-dispatch exit`).\n"
     )
 }
 
@@ -1526,6 +1528,14 @@ mod tests {
         assert!(body.starts_with("# finish-k2\n"), "got {body:?}");
         assert!(
             body.contains("grove-llm finish-commit finish-k2"),
+            "got {body:?}"
+        );
+        assert!(
+            body.contains("exact ending command from your launch prompt"),
+            "got {body:?}"
+        );
+        assert!(
+            body.contains("ravel end-session grove-continue"),
             "got {body:?}"
         );
     }

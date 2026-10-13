@@ -1,18 +1,11 @@
 // Integration tests for the self-driving loop (src/loop_driver.rs).
 //
-// Every test here drives the **real bare `grove` process** against an isolated
-// `$HOME` carrying a personal harness-dispatch policy, which the real
-// `harness-dispatch` front and its compiled worker select a fake harness from.
-// That is the only way in: there is no Grove configuration to write, no stand-in
-// for dispatch, no binary override to point somewhere else, and no in-process
-// entry point that skips the driver's signal handlers. The worker is not a cargo
-// artifact: `task dispatch:worker` builds it, and without it the front refuses
-// with exit 5, so these cases fail rather than skip. What the process seam buys is exactly what these tests are
-// about — the driver's own stderr, its session-epoch bookkeeping, its response
-// to being signalled, and its ownership of one foreground child.
-//
-// Dispatch owns the harness's escalation; these cases exercise Grove's
-// interpretation, cancellation forwarding and terminal recovery through it.
+// Every case drives the real Grove process with a temporary HOME and personal
+// Ravel policy. The independently installed front and worker select fake agents
+// through an isolated PATH; GROVE_TEST_RAVEL names the test installation.
+// There is no Grove launch configuration or in-process driver shortcut.
+// These cases observe epoch admission, stderr, cancellation and terminal recovery.
+// Ravel owns harness supervision; Grove interprets its opaque result after reap.
 
 mod support;
 
@@ -1487,21 +1480,13 @@ while :; do sleep 0.1; done
 // ---------------------------------------------------------------------------
 // The launch boundary
 //
-// Grove launches every lifecycle session by running `harness-dispatch run`
-// itself, and reads no configuration of its own
-// (`docs/specs/harness-selection-and-execution.md`, *Grove integration*). These
-// cases put the real front and its compiled worker between the real driver and
-// a fake harness, under a temporary personal dispatch policy in the fixture's
-// HOME, where the owner settings and the default record store live too. What
-// they pin is the seam seen from Grove's side: what reaches the policy's
-// `select`; that the authority to end the session reaches the harness and not
-// the policy; and that a kind is asked about when its leaf launches and nowhere
-// earlier.
+// Grove launches lifecycle sessions through ravel start-session, using the
+// once-selected independent installation. A temporary personal Ravel policy
+// selects a fake agent; there is no Ravel record store. These cases observe the
+// request, authority separation and the public result at Grove's boundary.
 
-/// The `harness-dispatch` front, whose worker `task dispatch:worker` builds
-/// beside it. A missing or stale worker refuses with exit 5, so every case
-/// here fails rather than skips without one.
-fn harness_dispatch() -> PathBuf {
+/// The independently installed Ravel front and its compiled worker.
+fn ravel() -> PathBuf {
     support::installed_ravel()
 }
 
@@ -1650,12 +1635,12 @@ const RECORD_START: &str = "\
     cp .jj/grove/session.epoch \"$record/epoch\"\n";
 
 /// Mark teardown directly in this fixture so cases can inspect the retained
-/// task tree, then send the real dispatch exit signal. The teardown-verb case
+/// task tree, then publish the real Ravel result. The teardown-verb case
 /// below exercises the real finish-commit/record-teardown precondition.
 fn complete_done() -> String {
     format!(
         "touch \"$GROVE_LAUNCH_DIR/teardown\"; exec {} end-session grove-continue",
-        shell_quote(&harness_dispatch())
+        shell_quote(&ravel())
     )
 }
 
@@ -1727,7 +1712,7 @@ fn epoch_names(epoch: &str, channel: &str) -> bool {
 // A lifecycle session's policy receives the driver's own selection as native
 // data, from the working-tree root: the kind, the absolute task path, the
 // handle and the mandate byte for byte, and no parameter at all. The policy
-// places each in the harness's arguments whole, and the run record holds them.
+// places each in the fake agent's arguments whole, where this test observes them.
 // No Grove configuration file exists anywhere. The working tree is a secondary
 // workspace, so its root is not the main repository's, and its name puts
 // spaces, quotes and shell punctuation into the task path and into the prompt,
@@ -1779,7 +1764,7 @@ fn a_session_s_task_reaches_select_as_native_data_and_only_its_harness_holds_the
         kind: &grove_loop::Kind::new("impl").unwrap(),
         workspace: &grove_loop::Workspace::resolve(&root).unwrap(),
         version: grove_loop::VERSION,
-        ending_command: &grove_loop::session_command::end_session(&harness_dispatch()).unwrap(),
+        ending_command: &grove_loop::session_command::end_session(&ravel()).unwrap(),
     });
     assert!(
         mandate.contains(&format!("{MANDATED_LEAF}subject-k1`"))
@@ -1873,7 +1858,7 @@ fn a_kind_the_policy_refuses_leaves_its_leaf_live_and_launches_once_the_policy_r
          fi\n\
          {complete}",
         authored = shell_quote(&authored),
-        exit_dispatch = shell_quote(&harness_dispatch()),
+        exit_dispatch = shell_quote(&ravel()),
         complete = complete_done(),
     ));
     dispatch.policy(&probing_policy(
@@ -1909,7 +1894,7 @@ fn a_kind_the_policy_refuses_leaves_its_leaf_live_and_launches_once_the_policy_r
     }
 
     // Reproduce through the same public request; Ravel has no inspect verb.
-    let reproduced = Command::new(harness_dispatch())
+    let reproduced = Command::new(ravel())
         .args([
             "start-session",
             "--kind=design",
@@ -2013,7 +1998,7 @@ fn old_configuration_files_left_on_disk_change_nothing_about_a_launch() {
 // subcommand that installs one. The leaf stays live, and once a policy exists
 // the next run launches it.
 #[test]
-fn a_fresh_tree_is_scaffolded_with_no_policy_and_its_first_launch_refuses_naming_init() {
+fn a_fresh_tree_is_scaffolded_with_no_policy_and_its_first_launch_requests_a_policy() {
     let dispatch = Dispatch::new("worktree");
 
     let output = run_driver(&dispatch.worktree, &dispatch.home);
@@ -2050,12 +2035,10 @@ fn a_fresh_tree_is_scaffolded_with_no_policy_and_its_first_launch_refuses_naming
     );
 }
 
-// Grove finds `harness-dispatch` beside its own executable and nowhere else. A
-// copy of `grove` with no sibling reports the path it looked at and that the
-// two install together, before it scaffolds or launches anything. Every other
-// case here is the control: the same driver, with its sibling, launches.
+// A Grove copy without Ravel on its isolated PATH refuses before scaffolding.
+// Other cases use a separate Ravel installation and prove it need not be a sibling.
 #[test]
-fn a_missing_harness_dispatch_beside_grove_is_reported_with_its_path() {
+fn a_missing_ravel_on_path_reports_the_independent_install_remedy() {
     let dispatch = Dispatch::new("worktree");
     dispatch.policy(&probing_policy(
         &dispatch.view,
@@ -2082,7 +2065,7 @@ fn a_missing_harness_dispatch_beside_grove_is_reported_with_its_path() {
 
 #[test]
 fn installed_ravel_help_exposes_only_the_public_launch_boundary() {
-    let output = Command::new(harness_dispatch())
+    let output = Command::new(ravel())
         .args(["start-session", "--help"])
         .output()
         .unwrap();
@@ -2685,9 +2668,9 @@ fn the_harness_is_the_foreground_job_grove_launched() {
         .collect();
     assert!(names.contains(&"HOME"), "the probe read nothing: {view}");
     assert!(
-        !names
-            .iter()
-            .any(|name| name.starts_with("GROVE_") || name.starts_with("HARNESS_DISPATCH_")),
+        !names.iter().any(|name| name.starts_with("GROVE_")
+            || name.starts_with("HARNESS_DISPATCH_")
+            || name.starts_with("RAVEL_")),
         "the worker holds a control variable: {view}"
     );
     assert_eq!(view["channel"], serde_json::Value::Null, "{view}");
@@ -2868,7 +2851,7 @@ fn the_escalation_reaps_the_session_s_descendants_under_a_terminal() {
          printf '%s\\n' \"$!\" > \"$record/descendant\"\n\
          touch \"$GROVE_LAUNCH_DIR/teardown\"; {dispatch_exit} end-session grove-continue || exit 91\n\
          while : ; do sleep 0.05 ; done",
-        dispatch_exit = shell_quote(&harness_dispatch()),
+        dispatch_exit = shell_quote(&ravel()),
     ));
     dispatch.policy(&dispatch.terminal_policy(false, ""));
     let mut bystander = Reaped(
@@ -2907,7 +2890,7 @@ fn the_escalation_reaps_the_session_s_descendants_under_a_terminal() {
 }
 
 #[test]
-fn launch_directory_teardown_finishes_after_dispatch_signal_or_own_exit() {
+fn launch_directory_teardown_finishes_after_the_ravel_result() {
     for ending in ["exit_signal", "harness_exit"] {
         let dispatch = Dispatch::new("worktree");
         plant_tree(&dispatch.worktree, "01-impl--subject-k1.md");
@@ -2930,10 +2913,7 @@ fn launch_directory_teardown_finishes_after_dispatch_signal_or_own_exit() {
              {llm} record-teardown\n\
              {}",
             if ending == "exit_signal" {
-                format!(
-                    "exec {} end-session grove-continue",
-                    shell_quote(&harness_dispatch())
-                )
+                format!("exec {} end-session grove-continue", shell_quote(&ravel()))
             } else {
                 "exit 7".into()
             }
@@ -3029,7 +3009,7 @@ fn launch_directory_rotates_and_rejects_stale_tree_and_teardown_verbs() {
          done\n\
          touch \"$GROVE_LAUNCH_DIR/teardown\"; exec {exit_dispatch} end-session grove-continue",
         launches = shell_quote(&dispatch.launches),
-        exit_dispatch = shell_quote(&harness_dispatch())
+        exit_dispatch = shell_quote(&ravel())
     ));
     support::route_every_kind_to(&dispatch.home, &dispatch.harness);
     let terminal = Pty::open();
@@ -3126,7 +3106,7 @@ fn replacement_driver_removes_abandoned_launches_without_interpreting_contents()
 fn dispatch_exit_signal_relaunches_and_own_exit_stops_under_a_terminal() {
     let dispatch = Dispatch::new("worktree");
     plant_tree(&dispatch.worktree, "01-impl--subject-k1.md");
-    let exit = shell_quote(&harness_dispatch());
+    let exit = shell_quote(&ravel());
     dispatch.harness_then(&format!(
         "test -z \"${{GROVE_SIGNAL_FILE-}}\" || exit 91\n\
          if [ $n = 0 ]; then {exit} end-session grove-continue || exit 92; exit 7; fi\n\
@@ -3359,7 +3339,7 @@ fn a_driver_started_in_the_background_takes_no_foreground() {
 fn a_stale_exit_signal_cannot_end_the_next_dispatch_launch() {
     let dispatch = Dispatch::new("worktree");
     plant_tree(&dispatch.worktree, "01-impl--subject-k1.md");
-    let exit = shell_quote(&harness_dispatch());
+    let exit = shell_quote(&ravel());
     dispatch.harness_then(&format!(
         "if [ $n = 0 ]; then exec {exit} end-session grove-continue; fi\n\
          old=$(cat {launches}/0/channel)\n\

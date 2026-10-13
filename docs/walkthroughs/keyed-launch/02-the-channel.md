@@ -28,14 +28,13 @@ which is forever. So the ending has to be carried out of band — over a path th
 launcher chose before the child started, on which the child says one thing and
 then stops mattering.
 
-The glossary names dispatch's [exit signal](../../../CONTEXT.md#exit-signal):
-the per-run path dispatch watches while its harness child runs. Its appearance
-starts escalation; content carries no result. Grove separately allocates a
-[launch directory](../../../CONTEXT.md#loop-control-channel) for epoch admission,
-ending reports and teardown. Dispatch may allocate its exit channel there,
-but neither that location nor Grove's relaunch/finish decision belongs to this
-crate. What follows is the mechanism at the runner's filesystem boundary: a
-directory, a name, and a file that may or may not appear.
+This is the local runner's appearance-only `Channel` seam, retained for generic
+callers and the pre-k6 dispatch compatibility package. Active Grove callers
+allocate no harness Channel: independent Ravel owns its opaque result transport,
+while Grove allocates a launch directory for epoch admission and teardown and
+holds Ravel stdout separately. The worked channel examples use `TEST_CHANNEL`,
+a caller-chosen variable with no Grove or Ravel authority. What follows is this
+runner's filesystem mechanism, not Ravel's private result protocol.
 
 One property makes the whole arrangement work, and it is the first thing the file
 says about itself: **allocation picks a name and writes nothing**. The channel
@@ -422,8 +421,8 @@ publishes to the child under the caller's chosen variable name*. Two facts are
 deferred by that sentence rather than
 asserted. The publishing is chapter 3's — `run` sets the variable immediately
 before the spawn — and **the variable's name is the caller's**, so this crate
-does not know that harness-dispatch calls it `HARNESS_DISPATCH_EXIT_FILE`. The book's worked example
-uses that name because grove chose it; `crates/keyed-launch/tests/launch.rs`
+knows no executable-owned variable. The worked example
+uses the inert `TEST_CHANNEL` name; `crates/keyed-launch/tests/launch.rs`
 publishes the same path under `TEST_CHANNEL` throughout, and nothing in these production
 lines can tell the difference.
 

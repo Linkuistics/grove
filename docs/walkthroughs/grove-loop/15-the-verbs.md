@@ -683,7 +683,7 @@ exists to keep.
 `record_teardown` delegates the absent-root check and record creation to the
 launch-directory module. It takes the worktree and optional directory and returns
 `Recorded::Wrote(path)` or `Recorded::NoLoop`; the CLI holds the admitted epoch
-through the call. This twelfth verb separates teardown disposition from dispatch exit. The directory module and the driver that reads it are explained
+through the call. This twelfth verb separates Grove teardown from Ravel process completion. The directory module and the driver that reads it are explained
 in [The launch directory carries identity and teardown](19-the-loop.md#launch-control-area).
 
 <!-- fragment «verbs-sought» owner="twelve-not-fourteen" source="crates/grove-loop/src/verbs.rs" lines="302-313" parent="the-twelve-verbs" -->
@@ -705,8 +705,8 @@ fn sought<T>(found: Option<T>) -> Sought<T> {
 
 The teardown operation takes the worktree and optional launch directory, checks
 that `.grove/` is absent through the launch-directory module, and returns the
-recorded path. It runs while the CLI retains the shared epoch guard. Dispatch
-exit can therefore end the harness without conflating its receipt with this
+recorded path. It runs while the CLI retains the shared epoch guard. Ravel
+completion can end the process without conflating its opaque result with this
 Grove filesystem fact.
 
 <!-- fragment «verbs-record-teardown» owner="twelve-not-fourteen" source="crates/grove-loop/src/verbs.rs" lines="314-324" parent="the-twelve-verbs" -->
@@ -905,7 +905,7 @@ Grove owns twelve verbs because only it names brief chains, kinds, outcomes,
 handles and finishing. `stale_cross_refs` is the second half of `leaf-insert`,
 not an additional verb. The two driver operations sit separately because they
 prepare the tree a session is about to receive. Harness completion belongs to
-dispatch; recording Grove teardown belongs here because only Grove can check
+Ravel; recording Grove teardown belongs here because only Grove can check
 that `.grove/` is gone.
 
 [Previous: Finishing](14-finishing.md) | [Contents](README.md) | [Next: One live driver per working tree](16-the-lease.md)

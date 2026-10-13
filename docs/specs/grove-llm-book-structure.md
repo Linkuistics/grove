@@ -197,7 +197,7 @@ orders, and the launch question no verb asks — which is the book's map; the
 import block read as the evidence of what the binary reaches, thirteen
 `grove_loop` items and one `jj_workspace` type; the five dev-dependencies and
 which test needs each — `assert_cmd` and `tempfile` for driving the binary
-against a temporary tree, `keyed-launch` for the dispatch exit channel's own
+against a temporary tree, `keyed-launch` for generic runner channel
 framing, `libc` for holding the tree lock from outside the binary,
 `ordinal-fs-tree` for reading a filename back through the seam production uses;
 and `release = false` as an answered question.
@@ -322,8 +322,8 @@ reads `GROVE_LAUNCH_DIR`, checks it through
 with that guard alive. No directory returns `Recorded::NoLoop` without workspace
 resolution; an admitted directory refuses while `.grove/` exists and otherwise
 records teardown. `cmd_finish_commit` parses the handle, resolves the workspace
-and prints the committed change on stderr. The exit signal belongs to dispatch
-and is sent separately after teardown is recorded. Link the glossary's retained
+and prints the committed change on stderr. Managed-process completion belongs to Ravel; Grove supplies the exact ending
+command and result meaning, with its own teardown record written first. Link the glossary's retained
 `loop-control-channel` anchor, now the launch-directory definition, and the
 guide's `usage-finish`. Evidence: `record_teardown.rs`, `finish_commit.rs` and
 the real-binary epoch-admission tests.
@@ -515,7 +515,7 @@ production source and its job is synthesis.
 
 | Chapter | Required anchor | Start and observable end |
 |---|---|---|
-| `01-orientation.md` | `one-session` | The carried session at low resolution: the mandated handle resolved, the brief chain printed, the work done, a review leaf added, the session's own leaf retired, the commit, and `harness-dispatch exit` sending the exit signal after the commit — one tree, one live leaf, every verb named, no handler shown. |
+| `01-orientation.md` | `one-session` | The carried session at low resolution: the mandated handle resolved, the brief chain printed, the work done, a review leaf added, the session's own leaf retired, the commit, and the prompt's exact canonical `ravel end-session grove-continue` publishing the caller result after the commit — one tree, one live leaf, every verb named, no handler shown. |
 | `02-the-grammar.md` | `worked-dispatch` | The session's first verb as argv: `grove-llm resolve <handle>` parsed, its operation label, the epoch admitted, the handler dispatched; the same argv one directory off, refused with `root-init` named as the remedy; and `grove-llm --version` answered before admission is reached. |
 | `03-reading-the-tree.md` | `worked-resolve` | `resolve` at full resolution with three renderings: the live leaf's path on stdout and nothing on stderr; the same handle after retirement — the path, and the note; and a bare slug two entries share — empty stdout, the keys on stderr, exit zero. `brief-chain` for the same leaf follows on the same values. |
 | `04-growing-the-tree.md` | `worked-leaf-add` | `leaf-add . <stem> --kind review-impl`: the kinds, the slug and the parent read by their types, the exclusive opening, the run landed and its path printed; then the same argv with a kind that is not a well-formed token — refused naming the flag and the character, no exclusive lock taken, the tree byte-identical; then a well-formed kind no methodology names, written all the same. `root-init` on a vacancy is a second, shorter trace. |

@@ -67,3 +67,22 @@ decomposition land together in k56's sealed change.
 k57/k58 remain live. This is no whole-repo prose acceptance or release-ready
 k12 closure. Original driver/config/product installations remain preserved;
 no runtime, installation, publication, new driver or live-channel change.
+
+## Ownership handoff — k57
+
+The architecture, glossary/context map, guide/caller-decision/spec and active
+book/plugin/root prose now agree with independent Ravel and Grove-owned caller
+conventions. Existing anchors and source-exact fragments remain. The current
+Codex delivery summary is reconciled too. The two old all-Grove-code wording
+pins now explicitly distinguish binaries from imported caller assets.
+
+docs/grove-ravel-docs-evidence.md records the 46 pinned payloads, destination
+and citation checks, observed controls, sole review and frozen final gate.
+All 18 checks, 1,378 workspace cases, nine doctests and six books pass;
+35,372 frozen inputs and 1,387 unique runtime identities agree individually.
+Use the existing Ravel/target/tools Bun 1.4.2 first on PATH for these checks;
+host Bun 1.4.3 is deliberately refused. Complete logs are in target/k57.
+
+k58 remains live and owns whole-surface acceptance, named exceptions and k12
+closure/release-ready promotion. No installation, publication or driver/channel
+change occurred; the original 22.1.0 launch contract remains in force.

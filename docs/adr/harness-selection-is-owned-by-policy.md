@@ -27,8 +27,9 @@ The dependency runs one way. Grove requires independently installed Ravel's
 public CLI, resolved once from PATH and version-checked. Ravel needs no Grove
 installation. Its front and compiled worker ship independently, without host
 Bun/Node. Grove keeps its own local runner and caller-owned policy assets.
-The old workspace package/archive recipes are retained only until delivery k6;
-they are not active caller resolution or a shared Rust dependency.
+Grove archives contain its executables and caller assets; the Homebrew formula
+depends on separate Ravel. No executable worker or shared Rust dependency is
+bundled ([delivery boundary](../grove-delivery-contraction.md)).
 
 ## What each half of the decision costs
 

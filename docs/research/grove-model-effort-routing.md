@@ -4,23 +4,23 @@ Evidence checked 29 September 2026. This is a recommendation and design
 exploration, not a benchmark of these models on Grove's own tasks. The initial
 research inspected policy without changing it; personal model/effort defaults
 were subsequently applied before the requirements session. Its proposals are
-left as they were written on that date. What was built from them is
-`harness-dispatch`, and the next section says where its contract lives.
+left as they were written on that date. The original implementation was
+`harness-dispatch`; current Grove uses independently installed Ravel as the
+next section describes. Historical configuration/catalog/store proposals below
+are research evidence, not current operator instructions.
 
 ## Adopted boundary
 
 The requirements discussion adopted
 [harness selection owned by policy](../adr/harness-selection-is-owned-by-policy.md):
-an independent package in this repository, shipped with Grove, with selection
-rules in personal static or TypeScript configuration. Installation includes
-TypeScript evaluation without a separately installed runtime. The delivered
-command provides static routing, a programmable selection interface and
-evaluation records with later outcome entry. No local selector ships, so the
-pilot below is still a proposal. The interface examples below are the
-research's proposals, not the delivered API. The
-[harness-dispatch specification](../specs/harness-selection-and-execution.md)
-owns the interface and delivery contracts, and the research examples are
-exploratory evidence rather than an alternate protocol contract.
+Grove selects a task and invokes independently installed Ravel's public CLI.
+Personal TypeScript policy selects argv; Ravel supervises and returns the opaque
+argument published by end-session. Grove supplies ending instructions, result
+meaning and optional provider receipts. Ravel has no catalog, persistent store,
+record/inspection API or prompt injection. No local selector ships, so the pilot
+below remains a proposal. The [Grove caller specification](../specs/harness-selection-and-execution.md)
+owns caller conventions; [Ravel's specification](https://github.com/Linkuistics/Ravel/blob/v0.1.0/docs/specs/session-execution.md)
+owns executable behavior. Each has its own release and installed prefix.
 
 ## Policy inspected during research
 
@@ -148,6 +148,11 @@ not effort comparisons established by the published benchmarks.
 
 ## Configuration skill
 
+This section records the original configuration proposal. Current
+[configure-grove](../../plugins/grove/skills/configure-grove/SKILL.md) works with
+`~/.config/ravel/policy.ts`, settings and policy-read `.ravel-choice`; Grove
+ignores `.grove.kdl` and supports no `grove config` command.
+
 The new [configure-grove skill](../../plugins/grove/skills/configure-grove/SKILL.md)
 supports inspecting/recommending policy, applying authorized personal changes,
 and creating project deltas. It reads the task contracts, checks current model
@@ -160,6 +165,10 @@ unadmitted kinds. `grove run` ignores them entirely. The skill makes those
 limitations explicit instead of promising per-invocation dispatch from a file.
 
 ## Separate executable for dispatch
+
+The following is the September proposal, retained as research evidence. Its
+exec handoff, catalog, configuration slots and persistent records were not
+adopted as Ravel's current contract; use the specifications linked above.
 
 The preferred boundary is the one proposed in the discussion: **Grove selects
 the task; a separate executable selects and launches the harness.**

@@ -77,9 +77,9 @@ rust-version.workspace = true
 
 The dependency comment calls this crate and the viewer domain-bound. Grove
 composes `jj-workspace`, `keyed-launch` and `ordinal-fs-tree`; `anyhow` stays
-behind its opaque public error and `libc` supplies Unix calls. `serde_json` reads
-the dispatch receipt. `tempfile` supplies the shared held-file result capture
-for the staged Ravel migration, as well as temporary directories in tests. The loop uses the runner to spawn and reap dispatch, while
+behind its opaque public error and `libc` supplies Unix calls. `serde_json` is an integration-fixture dev dependency. `tempfile` supplies
+the held-file public result capture and temporary test directories. The loop
+uses the local runner to spawn and reap independent Ravel, while
 the verb surface writes only Grove's teardown record in the launch directory.
 
 <!-- fragment «manifest-dependencies» owner="allowed-to-mean" source="crates/grove-loop/Cargo.toml" lines="11-38" parent="manifest-domain-bound" -->
@@ -118,7 +118,7 @@ tempfile = "3.10"
 **Both of those attributions are longer than they need to be, and the reason is
 a move.** Until `loop-crate-driver-k22` the lease and the loop
 were not in this crate, and the comment could name one user of
-each: the contention probe for `libc`, and the dispatch job and teardown checks for
+each: the contention probe for `libc`, and the Ravel job and teardown checks for
 `keyed-launch`. The driver's arrival widened both, and it widened them in two
 different ways, which is why the two clauses are not parallel.
 

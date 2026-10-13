@@ -782,7 +782,7 @@ signal sent to the driver itself. The returned outcome preserves that distinctio
 <a id="what-run-refuses"></a>
 ## Errors return through main
 
-Workspace, lease, provisioning and missing-dispatch refusals stop the lifecycle
+Workspace, lease, provisioning and missing/incompatible-Ravel refusals stop the lifecycle
 before any session launch. Runtime failures can stop it later; a launch the
 owner's policy refuses is not one of them, since the loop stops on it and returns
 cleanly. A viewer can return a
@@ -806,8 +806,9 @@ One lifecycle iteration reads the tree, performs any required lifecycle
 transition, selects a leaf, prepares its session epoch and launch directory,
 runs `ravel start-session` for that leaf and holds its public stdout result.
 Grove's interruption wins; otherwise recorded teardown finishes, a surviving
-dispatch group stops, an exit-signal ending relaunches, and anything else stops.
-Dispatch owns the harness's exit channel and escalation. Those details belong to the
+Ravel group or unsuccessful status stops, and exactly `grove-continue` on
+success advances; anything else stops. Ravel owns managed-process completion
+and escalation, while Grove supplies the instruction and result meaning. Those details belong to the
 loop walkthrough at `docs/walkthroughs/grove-loop/README.md`, whose public `run` is this
 chapter's boundary. No viewer action enters that loop.
 

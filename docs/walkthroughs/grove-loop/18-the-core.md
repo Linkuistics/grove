@@ -33,11 +33,11 @@ The carried example reaches the point where a selected leaf becomes a session.
   the walk has chosen a leaf              kind `impl`, handle `plan-k1`
   the lease has admitted the driver       chapters 16, 17
 
-  compose(Mandate { handle, kind, workspace, version })
+  compose(Mandate { handle, kind, workspace, version, ending_command })
 
     part 1  load `grove-impl`, bare and namespaced   -> the first action
     part 2  handle, stated VCS, version              -> three launch-varying values
-    part 3  the signalling contract                  -> the last action
+    part 3  caller ending instructions with canonical path -> the last action
 
   -> one String, ~1.9 KiB, and the driver never looks inside it again
 ```
@@ -634,28 +634,30 @@ launched by Grove 22.1.0 through dispatch keep their original
 ````
 <!-- /fragment -->
 
-This is the largest of the three parts, and the only one that does not vary.
-Grove states a fact about the process tree: after a forgotten signal an
-interactive harness can remain at its prompt, leaving the loop waiting until
-the harness ends. Dispatch owns the
-harness channel and its escalation; Grove owns the reading of the ending.
+This is the largest of the three parts. Its ending command varies with the
+canonical Ravel path resolved for the launch. Grove states a fact about the
+process tree: an interactive harness can remain at its prompt without publishing
+completion, leaving Ravel and Grove waiting. Ravel owns the managed process's
+channel and escalation; Grove owns returned-result interpretation.
 
-The kind's own ending remains the object, with the ordinary `Ravel
-exit` subordinate to it. The exit signal carries nothing. A finish that has torn
-down the grove first records that disposition through `grove-llm record-teardown`,
-then sends the same signal. The driver finishes on the record regardless of the
-harness's own ending, and relaunches only on an exit-signal report otherwise.
+The kind's ending remains the object, with the exact `end-session grove-continue`
+command subordinate to it. Grove supplies that instruction and meaning; Ravel
+returns the argument unchanged after cleanup. A finish first records teardown
+with `grove-llm record-teardown`. The driver finishes on its own record regardless
+of supervisor result/status; otherwise successful supported completion advances.
+Original live-v22 sessions retain the ending named in their original prompt.
 
 The accepted residue remains a finish whose skill is unread and whose teardown
 is not recorded before the exit signal. The loop cannot infer confirmation from
-`.grove/` being absent. The contract test pins Ravel's exit verb, its channel
-and escalation, and Grove's teardown verb. The shipped skills use Ravel exit, and Grove's CLI exposes only the separate
-teardown record operation.
+`.grove/` being absent. Grove's prompt tests pin its supplied ending command and
+teardown instructions. Ravel's channel/escalation controls belong to Ravel's
+runtime evidence. The shipped skills use the exact command in the launch prompt;
+Grove's CLI exposes the separate teardown record operation.
 
 <a id="what-one-launch-varies"></a>
 ## Everything one launch varies
 
-Four fields, and the doc comment on each names the owner of the thing rather
+The mandate fields, and the doc comment on each names the owner of the thing rather
 than explaining it.
 
 <!-- fragment «core-mandate» owner="too-late-to-say-later" source="crates/grove-loop/src/prompt.rs" lines="155-179" parent="the-prompt-core" -->
@@ -688,9 +690,9 @@ pub struct Mandate<'a> {
 ````
 <!-- /fragment -->
 
-The four fields are decision 9's, and unusually the record carries them as
+The fields are decision 9's, and unusually the record carries them as
 written source rather than as prose: the `Mandate` struct in
-`docs/specs/module-decomposition.md` has these four fields in this order, beside
+`docs/specs/module-decomposition.md` has these fields in this order, beside
 `pub fn compose(mandate: &Mandate<'_>) -> String`. So *the shape is the record's*
 is checkable by reading the record.
 

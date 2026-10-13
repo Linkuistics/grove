@@ -8,7 +8,9 @@ in lockstep, which is why they live together (see
 `ordinal-fs-tree`, is declared on vocabulary alone: it has a glossary whose terms
 mean something else in grove's, and its crate ships by no path of its own — it
 rides inside grove's cut, wearing grove's version, and is not published
-separately (`docs/RELEASING.md`, *One release, eight packages, one tag*).
+separately ([release packages](docs/RELEASING.md#one-release-eight-packages-one-tag)).
+Ravel is an external project reached through its public CLI, with its own
+release, installed prefix and executable documentation.
 
 ## Contexts
 
@@ -83,41 +85,29 @@ for. Its decisions are the grove context's, as ever:
 [decision 1](./docs/specs/module-decomposition.md) for the crate split and
 [decision 9](./docs/specs/module-decomposition.md) for the loop's own surface.
 
-**`crates/harness-dispatch` is a language boundary and is not declared a fourth
-context, which is a deliberate exception to this map's own test.** It is a
-separate command with a vocabulary of its own: *policy*, *selected command*,
-*provider origin*, *parameter*, *owner settings*, *run*, *handoff attempt*,
-*observation*, *exit signal*, *run ending*. Unlike the runner's, several of its words do mean something else
-in grove's language. So the boundary exists, and the
-[relationship below](#grove-and-harness-dispatch) is what holds it, word by
-word. What is withheld is the declaration, which would give the package a
-glossary of its own. Its
-[specification](./docs/specs/harness-selection-and-execution.md) and
-[README](https://github.com/Linkuistics/Ravel) already define its words where
-they use them, so a glossary would state them a third time. Grove's
-[`CONTEXT.md`](./CONTEXT.md) holds the ones a Grove owner or session meets,
-from *Selection provider* to *Delivered context*, where that reader looks for
-them. Those among them that describe the command alone therefore sit outside
-the glossary of the side that owns the words, and the exception covers that
-too. Its records are the grove context's, in the list under *A durable record
-has one owner*. The human accepted the exception on 2026-10-01
-(`dispatch-documentation-k72`). An extraction ends it, because the package then
-needs a glossary to carry: the entries that describe the command alone would go
-with it, and *Original creator*, *Creator reference* and *Grove adapter*, which
-describe its seam with a Grove review, would stay.
+**Ravel is an independent external language and command boundary.** Its
+[CLI](https://github.com/Linkuistics/Ravel/blob/v0.1.0/docs/session-cli.md) and
+[executable specification](https://github.com/Linkuistics/Ravel/blob/v0.1.0/docs/specs/session-execution.md)
+define policy requests, selected commands, parameters, context, settings and
+opaque session results. The earlier in-repository dispatch exception has ended:
+executable/runtime obligations are maintained in Ravel, while Grove keeps its
+caller contract, prompt/result conventions, provider receipts and readable
+adapter. Retired store terms in Grove's glossary are historical locators, not
+active Ravel APIs. The [relationship below](#grove-and-harness-dispatch) keeps
+shared words distinct without duplicating Ravel's specification.
 
 **Where every term lives, one line per module.** Four of Grove's crates carry
 vocabulary and the plugin carries a fifth, and no word is owned twice among
-them. `harness-dispatch` has the last row:
+them. The external Ravel boundary has the last row:
 
 | module | owns | glossary |
 |---|---|---|
 | `ordinal-fs-tree` | *entry*, *leaf*, *node*, *ordinal*, *key*, *distinguished child*, *snapshot*, *guard*, *refusal*, *sought*, *promote* | [`docs/ordinal-fs-tree/CONTEXT.md`](./docs/ordinal-fs-tree/CONTEXT.md) |
-| `keyed-launch` | *argv*, *launch*, *channel*, *escalation* | none — its words are its own interface's, and none of them collides |
+| Grove's local `keyed-launch` | *argv*, *launch*, *channel*, *escalation* | none — its words are its own interface's, and none of them collides; Ravel maintains its own runner |
 | `jj-workspace` | *workspace*, *main repo*, *control directory*, *namespace*, *tracked*, *commit*, *change id* | none — the words are Jujutsu's, with Jujutsu's meanings |
 | `grove-loop`, with `grove`, `grove-llm` and the `grove-tui` reader over it | **Session kind**, **Work-item handle**, **Position**, **Permanent key**, **Leaf**, **Node directory**, **Node file**, **Brief chain**, **Selection**, **Driver lease**, **Session epoch**, **Launch directory**, **Teardown record**, **Guaranteed core**, **Stated VCS** | [`CONTEXT.md`](./CONTEXT.md) |
 | the `grove` plugin | **Spine skill**, **Kind skill**, **Composed loaded path**, **Condition** / **procedure**, **Loop-step reference file** | [`CONTEXT.md`](./CONTEXT.md) for the terms, [`plugins/CONTEXT.md`](./plugins/CONTEXT.md) for packaging and delivery |
-| `harness-dispatch` | *policy*, *selected command*, *provider origin*, *parameter*, *owner settings*, *choice file*, *context*, *run*, *handoff attempt*, *observation*, *exit signal*, *run ending*; with the seam, **Original creator**, **Creator reference** and **Grove adapter** | none of its own — its specification and README define its words, and [`CONTEXT.md`](./CONTEXT.md) holds those a Grove owner meets |
+| Ravel (external) | *policy*, *selected command*, *parameter*, *owner settings*, *choice file*, *context*, opaque *result* | [Ravel specification](https://github.com/Linkuistics/Ravel/blob/v0.1.0/docs/specs/session-execution.md); Grove's **Original creator**, **Creator reference** and **Grove adapter** remain in [`CONTEXT.md`](./CONTEXT.md) |
 
 The `keyed-launch` and `jj-workspace` rows are the ones that had to be *bought*:
 the first avoids **session** and the second refuses to name its consumer, and
@@ -128,9 +118,9 @@ each is a naming decision argued above rather than an accident of scope.
 - **grove → skills, a documentation-level prerequisite that binds without the
   install.** grove's methodology cites `linkuistics:decision-records` for ADR
   philosophy and `linkuistics:codebase-design` for seam judgement, and the
-  dependency is **not install-enforced** — the `grove` binary ships no skills at
-  all, so every plugin is a separate install. It is
-  no longer **silent**: every citation states what binds in the plugin's absence,
+  dependency is not install-enforced for marketplace/manual users; current
+  Grove embeds and provisions compatible Codex skills. The methodological
+  prerequisite still binds without the dependency installed: every citation states what binds in the plugin's absence,
   and grove owns locally the part whose absence would change *what* a session
   writes — the ADR when-to-write test and minimum-coherent-set discipline
   (`plugins/grove/skills/grove/ADR-FORMAT.md`), the operative seam rules
@@ -143,23 +133,15 @@ each is a naming decision argued above rather than an accident of scope.
   Decision: `docs/adr/a-skill-states-what-binds-without-its-dependencies.md`;
   enforcement: `crates/grove/tests/plugin_fallback.rs`.
 
-- **Shared target: the personal skill directory — and only one writer now.**
-  `plugins/install.sh` symlinks every eligible bundled skill into
-  `~/.codex/skills/`, `~/.gemini/skills/` and `~/.pi/agent/skills/`, and Claude
-  Code installs the same plugins through the marketplace (`ordinal-fs-tree`
-  installs nothing).
-  **This used to be a genuinely shared target**, because the `grove` binary swept
-  its embedded `content/` into `~/.claude/skills/grove/` and the Codex and Pi
-  equivalents while `install.sh` wrote the neighbouring entries. That was the one
-  place a code product and a documentation product met on disk, and it carried
-  two questions: precedence between the contexts, and contention *within* the
-  `grove` entry between two builds.
-  `delete-provisioning-k19` removed the binary from the picture entirely. Grove's
-  own methodology is now a plugin installed by the same script and the same
-  marketplace as the others, so the directory has one writer, the two questions
-  are closed, and the two records that answered them —
-  `skill-delivers-the-methodology` and `one-build-owns-a-session` — are retired.
-  What would reopen the entry is a *binary* writing into this namespace again.
+- **Shared target: personal skill directories.** Current Grove embeds the
+  compatible plugin snapshot and automatically provisions Codex links in
+  `~/.agents/skills` through its staged snapshot and shared installation lock.
+  Foreign entries refuse rather than being overwritten. Claude Code uses its
+  marketplace; `plugins/install.sh` supports manual Codex, Gemini and Pi links.
+  These are separate delivery routes for the same plugin source
+  ([provisioning contract](docs/specs/codex-skill-provisioning.md)). The old
+  multi-harness `content/` sweep remains retired. Startup alignment does not pin
+  the lifetime of an already running session against another build's updates.
 
 - **grove → ordinal-fs-tree, a vocabulary boundary held by hand.** grove is the
   library's first and so far only consumer: it supplies a domain implementation
@@ -199,26 +181,30 @@ each is a naming decision argued above rather than an accident of scope.
   leaves ([`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md#interrupted-promotion)),
   which is exactly the drift a map prevents and a re-wording does not.
 
-- <a id="grove-and-harness-dispatch"></a>**grove → harness-dispatch, a command
-  boundary whose shared words are held by hand.** Grove runs the command
-  itself and depends on it nowhere in code, and the package
-  depends on no Grove domain crate — only on the domain-free runner,
-  `keyed-launch`, whose words are its own
-  ([`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md#harness-dispatch) states the
-  boundary). So no compiler keeps the two vocabularies apart, and an owner
-  reads both in one sitting: Grove's report of a stopped loop, then the
-  command's own refusal.
+- <a id="grove-and-harness-dispatch"></a>**grove → Ravel, a public CLI
+  boundary.** Grove resolves the first executable regular Ravel on absolute
+  PATH once and requires stable 0.1.x. Launch and ending instructions reuse
+  that canonical path; there is no incompatible-install fallback. Separate
+  prefixes and versions are supported. Ravel links no Grove crate; Grove links
+  no Ravel crate. Each retains its own runner. Grove's Homebrew dependency and
+  readable `libexec/ravel-policy` assets describe installation, not shared
+  release identity ([caller boundary](docs/ARCHITECTURE.md#harness-dispatch)).
 
-  | harness-dispatch says | grove says | class |
+  | Ravel says | Grove says | class |
   |---|---|---|
-  | *kind* — any nonempty token a caller passes | **Session kind** — a well-formed token of the filename grammar | the meanings nest; Grove passes its token unchanged |
-  | *task identity* — the caller's `--task-id` | **Work-item handle** | the words differ; Grove supplies its handle as the value |
-  | *selection* — a policy choosing a command | the driver's selection of one leaf | the words collide |
-  | *run* — one recorded handoff with its run ID, and the subcommand that makes one | `grove run` — a standalone invocation | the words collide |
-  | *context* — the data a policy selects from | a session's fresh context; a bounded context, in this file | the words collide |
-  | *run ending* — how one supervised run ended: exit signal, harness exit or cancellation | the loop's outcome — finished, stopped or interrupted | the words differ; Grove decides its outcome from the run ending and its own **Teardown record** |
+  | *kind* — caller data | **Session kind** — well-formed filename token | Grove passes its token unchanged |
+  | *task identity* — public `--task-id` data | **Work-item handle** | Grove supplies its handle |
+  | *selection* — policy chooses argv | driver selects one leaf | the words collide |
+  | *session* — supervised process lifetime | one mandated task attempt | Grove supplies the task discipline |
+  | *context* — optional measured policy data | agent context or bounded context | the words collide |
+  | opaque *result* | `grove-continue`, or explicit **Teardown record** precedence | Grove supplies meaning; Ravel returns the argument after cleanup |
 
-  A document that speaks of both sides says which *selection* it means.
+  Grove supplies prompt and exact end-session instructions unchanged. Ravel
+  injects nothing and interprets no continue/force-stop convention. Grove's
+  optional provider wrapper and task adapter are ordinary SDK imports; Creator
+  receipts stay caller-owned and require no run store. Original live-v22
+  launches alone retain dispatch's old empty signal, report and Creator-run
+  contract through their last inherited `harness-dispatch exit`.
 
 - **A durable record has one owner.** Every record under `docs/adr/` and
   `docs/specs/` has a repo-wide unique slug and a maintaining context recorded
@@ -349,13 +335,14 @@ about `.grove/` *as a task tree* stays **grove** even when it is
 about the same directories on disk: the discriminator is which vocabulary the
 answer is stated in, not which files it touches.
 
-A topic about a selection policy, the command it returns, its settings, a run
-record or an observation is `harness-dispatch`'s. That package is not a declared context, so
-state the answer in its own words, from
-[its README](https://github.com/Linkuistics/Ravel) and
-[specification](./docs/specs/harness-selection-and-execution.md), and qualify
-the words [the two sides share](#grove-and-harness-dispatch). A topic about the
-command a Grove kind runs, or about a review's `**Creator:**` line, is **grove**.
+A topic about generic policy selection, the selected process, settings,
+measured context or ephemeral completion is **Ravel**, outside this repo. Use
+its [CLI](https://github.com/Linkuistics/Ravel/blob/v0.1.0/docs/session-cli.md) and
+[specification](https://github.com/Linkuistics/Ravel/blob/v0.1.0/docs/specs/session-execution.md),
+and qualify [shared words](#grove-and-harness-dispatch). A topic about Grove's
+prompt/result conventions, provider receipts, task/Creator adapter or installed
+caller assets is **grove**. Historical dispatch stores are neither current
+Ravel nor a new Grove persistence API.
 
 The word "plugin" in this repository refers to the Claude Code skill plugins
 under `plugins/`; route their authoring, packaging, triggering, and installation

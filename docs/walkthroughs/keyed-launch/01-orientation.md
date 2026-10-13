@@ -572,13 +572,12 @@ impl Argv {
 go in, and the same program and arguments are what the value holds. Grove's shared `session_command` builders compose public lifecycle and confined
 standalone `ravel start-session` requests from the once-resolved independent
 executable. This local runner supervises Ravel, which supervises its own managed
-process using Ravel's separate runner. The retained pre-k6 dispatch package is
-another local caller of `Argv`, for compatibility tests/archive recipes.
+process using Ravel's separate runner. The old in-workspace dispatch caller
+is gone.
 
-That retained caller is why `with_arg0` exists. Dispatch has already resolved the
-program the policy named to an absolute path, and spawns that path, so that
-nothing is looked up a second time under another directory or `PATH`. The
-harness is still to see, as its `argv[0]`, the program as the policy wrote it.
+The generic `with_arg0` API remains: a caller can resolve a program to an absolute
+path before spawning, while preserving the name its child sees as `argv[0]`.
+No program lookup is repeated under a different directory or `PATH`.
 `with_arg0` sets that word and leaves the program alone. A confined launch runs
 the path through the sandbox's own launcher, which gives its child the path as
 `argv[0]`, so the doc comment says the word has no effect there.

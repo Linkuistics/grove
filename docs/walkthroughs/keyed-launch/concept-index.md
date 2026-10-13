@@ -41,7 +41,7 @@
 - [Fourteen must-use functions, and the one whose value is not the reason to call it](01-orientation.md#the-argv)
 - [Appearance is the event: the ending this crate must not infer](02-the-channel.md#appearance-is-the-event)
 - [Why an interactive child's own exit is not an ending](02-the-channel.md#appearance-is-the-event)
-- [Dispatch's exit signal at the crate's filesystem boundary](02-the-channel.md#appearance-is-the-event)
+- [Generic channel appearance at the crate's filesystem boundary](02-the-channel.md#appearance-is-the-event)
 - [Allocation writes nothing, and what that buys chapters 3 and 4](02-the-channel.md#appearance-is-the-event)
 - [One launch end to end: a drawn path, an empty file, a reported appearance](02-the-channel.md#a-path-and-nothing-else)
 - [Where `relaunch` acquires a meaning, and it is not here](02-the-channel.md#a-path-and-nothing-else)

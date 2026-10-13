@@ -54,7 +54,7 @@ keeps local `keyed-launch` for its own jobs; Ravel has its own runner.
 | `grove_loop::LoopOutcome` | Distinguish clean stops and interruption |
 | `grove_loop::reraise` | Preserve an interrupted driver's signal exit |
 | `grove_tui::run` | Own the interactive observation session |
-| `keyed_launch::run_noninteractive` | Launch and reap dispatch; dispatch confines its selected harness |
+| `keyed_launch::run_noninteractive_with_stdout` | Launch/reap Ravel with result stdout separate from the transcript; Ravel confines its managed process |
 
 All are public library items. The package boundary makes accidental access to
 private items a compiler error; a source inclusion from outside the package

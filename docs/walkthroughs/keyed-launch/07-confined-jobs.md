@@ -7,7 +7,7 @@
 
 `run_noninteractive` accepts a `NoninteractiveLaunch` without a completion
 channel, captures stdout and stderr in a caller-owned regular file, creates a
-new POSIX session and keeps stdin at EOF. Grove uses it to supervise dispatch.
+new POSIX session and keeps stdin at EOF. Grove uses the separate-stdout counterpart to supervise its standalone Ravel job.
 It adds no filesystem confinement. The interactive `run` and `run_observed`
 path retains its foreground-job behavior.
 
@@ -19,7 +19,8 @@ interactive counterpart is `run_observed_with_stdout`; chapter 3 explains
 `run_confined_observed` uses the detached process mode with inherited stdout
 and stderr. `FilesystemGrants` names writable directories and literal runtime
 files. It clears the environment before applying explicit grants and setting
-the channel last. Dispatch uses it to confine cwd, scratch and exit storage.
+the channel last. Generic callers can use it for cwd, scratch and channel storage. Grove delegates
+managed-process confinement to Ravel's independently owned runner.
 Both detached forms close inherited descriptors above stderr on exec and
 report cancellation only after group cleanup.
 
@@ -157,7 +158,7 @@ pub fn regular_file_at(directory: &File, name: &OsStr) -> std::io::Result<File> 
 `command_with_grants` canonicalizes every writable directory, rejects the
 filesystem root, resolves the executable the argv names and validates runtime
 reads as regular files. It gives the native backend those paths and appends
-the executable with its exact arguments. Dispatch supplies scratch-directory
+the executable with its exact arguments. A caller supplies scratch-directory
 environment values through the launch's explicit grants. Policy preparation or spawn failure returns `LaunchError`. If the
 backend starts and then refuses its setup, supervision instead returns an
 `Ended` carrying its unsuccessful status and usually no completion signal. The caller must
@@ -168,14 +169,16 @@ without confinement.
 the required system launcher around `/usr/bin/true` with empty explicit grants,
 capturing its diagnostics. It temporarily repairs an ignored SIGCHLD for the
 wait and restores it afterwards; it leaves the caller's signal mask unchanged.
-Dispatch uses this probe before selection, so a backend denied permission to
-apply its sandbox refuses without evaluating policy or recording a run. The
+A caller can probe before doing its own preparation; backend refusal is then
+observed before that preparation. This local runner selects no policy and
+records no run. The
 probe cannot guarantee subsequent grant setup or exclude intervening resource
 changes. `confinement_system_reads`
 is the same inventory the backends grant: a caller protecting policy, settings
 or state checks those implicit reads too. This runner knows no owner paths and
-performs no policy selection. Dispatch checks canonical overlap before its
-worker evaluates anything and refuses an owner resource beneath a system tree.
+performs no policy selection. A caller granting private resources must check
+canonical overlap itself. Ravel's independent confinement controls are described
+in its own specification, not established by this local runner book.
 
 <!-- fragment «confinement-contract» owner="confined-jobs" source="crates/keyed-launch/src/confinement.rs" lines="43-179" parent="confinement-policy" -->
 ````rust

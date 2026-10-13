@@ -5,8 +5,8 @@ The [caller specification](specs/harness-selection-and-execution.md) and
 public use of independently installed Ravel. The executable specification,
 runtime decisions and controls remain Ravel-owned. This evidence covers those
 documents and their evidence locator; it establishes no whole-repository prose
-closure. Architecture/glossary reconciliation and complete surface acceptance
-remain the following increments of grove-ravel-docs-k12.
+closure. The ownership reconciliation below extends that bounded evidence;
+complete surface acceptance remains grove-ravel-prose-acceptance-k58.
 
 ## Source and destination boundaries
 
@@ -81,3 +81,74 @@ visual rendering or layout quality.
 The original driver's admission/teardown/ending contract is preserved. This
 increment changes documentation and task decomposition, with no production
 runtime, owner-policy, product installation, publication or live-channel change.
+
+<a id="ownership-reconciliation"></a>
+## Ownership reconciliation — k57
+
+The k57 change on sealed k56 baseline `2953777d` reconciles architecture,
+glossary/context map, current guides, caller decisions/spec clauses, book prose
+and structure briefs, lookup captions, plugin guidance and root/config comments.
+The exact 46 payload paths and SHA-256 pins are in
+`target/k57/document-pins.json`. The existing composition-guidance test pins now
+distinguish Grove's binaries from its explicitly imported caller adapter. No
+production runtime source or source-exact book fragment changed.
+
+Current prose describes the public start-session/end-session boundary, one
+absolute-PATH/version resolution, independent installs, caller-owned prompts,
+results, provider receipts and readable assets, Grove's local runner, and its
+task/Creator/teardown conventions. Historical store vocabulary remains labelled
+retired; old anchors remain stable. Original live-v22 sessions alone keep their
+dispatch ending/admission/Creator-run contract. The retired multi-harness skill
+sweep is distinguished from current Codex snapshot provisioning.
+
+| Instrument | Bounded result |
+|---|---|
+| Lexical inventory | Every token occurrence in the 46 payloads is enumerated; boundary tokens are classified as current CLI/caller contracts, local runner, preserved source/example, stable locator, generic code dispatch or named history/legacy exception. This is an inventory plus semantic passage review, not whole-repository coverage. |
+| Search controls | Current obsolete-ownership clauses read clean; the same instrument finds the historical architecture and a deliberate mutation. The public-command positive also fails after deliberate deletion. All five controls were observed. |
+| Citations and anchors | All explicit payload anchors remain. All 43 external citations fetched successfully; four Ravel document URLs additionally match their exact `v0.1.0` committed bytes. Local links/references pass the repository's 13 reference-navigation cases. |
+| Fresh-context review | One reviewer found six actionable defects in attribution, teardown precedence, obsolete exit wording/runtime ownership, mandate summaries, binaries/assets scope and sentence completeness. Each was repaired against the existing source contract. No new design or second reviewer. |
+| Final repository gate | With existing checkout-local Bun 1.4.2 first on PATH, `task check` passes all 18 checks, 1,378 workspace nextest cases, nine doctests and six final/all books with no deferred source lines. Installed caller assets/provenance and conformance negative controls also pass. |
+| Individual comparison | All 35,372 named frozen inputs agree before/after. All 1,387 unique runtime identities and outcomes agree with k56; the focused 13 reference and 17 composition cases agree individually with the final gate. The gate contains 1,419 nextest executions including repeated helper cases. |
+
+Complete logs and instruments are under `target/k57/`: `check.log` is a recorded
+terminal session retaining nextest's UI; `audit.py`, `audit.log`, `measure.py`,
+`before.json`, `after.json`, `freeze-comparison.json`, `lexicon.json`,
+`classified-references.json`, `anchors.json`, `controls.json`,
+`ravel-destinations.json`, `external-citations.json`, `runtime-outcomes.json`
+and `per-case-comparison.json` retain the per-item evidence. Focused logs are
+`references.log`, `composition.log` and `typecheck.log`.
+After adding this reporting section, all 13 reference-navigation cases passed
+again (`postreport-references.log`); the 46 measured payload pins still agree.
+
+The first preflight was stopped to repair an additional glossary delivery
+contradiction. A subsequent full run exposed host PATH Bun 1.4.3 and the two
+obsolete wording-pin cases; those failures are retained in `failed-check.log`.
+Both earlier measured subject sets also agree individually. Verification uses
+the already existing `/Users/antony/Development/Ravel/target/tools/bun` 1.4.2,
+without replacing any installation. The final freeze explicitly includes that
+effective tool. All edits preceded the final measurement; reporting and
+coordination/retirement follow it.
+
+The freeze covers tracked source/task notes, book manifests/indexes/fragments,
+locked Cargo dependency sources, compiler dependencies, measurement instruments,
+retained target/floor inputs, complete original Grove 22.1.0 and independent
+Ravel prefixes, owner configuration and adjacent tracked Grove/Ravel/tap files.
+Generated run outputs and mutable shared legacy history are excluded. The
+measurement script defines the exact paths. Adjacent Ravel, tap and default
+Grove checkouts remain clean at `3916a4a1`, `bd5aa37b` and `89f947d5`.
+
+Tier 2 graph evidence used generation `2026-10-13T15:02:28Z`, exact resolver,
+command/result/precedence snippets and caller traces. Every relied-on path and
+the relevant book/spec scopes received coverage checks. No recorded gaps were
+reported except the intentionally excluded `.cargo/`, whose configuration was
+read directly. Coverage remains best-effort; semantic and source checks remain
+necessary. Workspace nextest skips 31 cases; this run does not claim every
+ignored installed/target case or a new all-target delivery run.
+
+k57 establishes this bounded ownership handoff. k58 still owns complete affected
+surface enumeration, exception reconciliation and k12 closure/release-ready
+promotion for k13. Ravel injects no instructions and assigns no result meanings;
+current Grove accepts only `grove-continue`, with force-stop remaining k8 work.
+No installation, publication, policy mutation, new driver, teardown or live
+ending-channel change occurred. This session retains original
+`harness-dispatch exit`.

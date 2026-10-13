@@ -1047,8 +1047,8 @@ Nothing about the producer's leaf moves, so its stable handle and bytes are
 preserved by construction.
 
 Write the relationship into the new leaf's body by hand — `**Reviews:**
-<producer-handle>`, or `**Integrates:** <review-handle>`. Grove's own code
-neither writes nor reads those lines; they are a convention for you and for the
+<producer-handle>`, or `**Integrates:** <review-handle>`. Grove's binaries
+neither write nor read those lines; they are a convention for you and for the
 session that picks the step up. A caller-owned review adapter may read
 `**Reviews:**` and the `**Creator:**` line directly below it.
 

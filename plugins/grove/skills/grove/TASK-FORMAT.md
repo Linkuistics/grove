@@ -130,7 +130,7 @@ is decomposed into a node, the handle gains a ` — brief` suffix
 (`# <slug>-k<key> — brief`) and nothing else changes.
 
 A review or an integration adds the one line that declares what it composes with,
-written by hand and parsed by none of Grove's own code:
+written by hand and parsed by none of Grove's binaries:
 
 ```markdown
 # sync-design-k14
@@ -159,7 +159,8 @@ wrapper, not a Ravel run lookup.
 instead. The owner's `**Creator:** declared <provider>` takes its place for an
 artifact finished without evidence. Only an explicitly original installed-v22
 driver session retains `**Creator:** run <run-id>` for its legacy policy; new
-consumers refuse that form without accessing the old store. None of Grove's own code reads the line; its
-reader is a dispatch policy its owner chose. Everything about the
+consumers refuse that form without accessing the old store. None of Grove's binaries
+reads the line; its reader is the Grove caller adapter explicitly imported by
+owner policy. Everything about the
 launch still comes from the filename's kind and what the owner's policy returns
 for it (`references/driver.md`).

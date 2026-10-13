@@ -75,7 +75,7 @@ present, checks that directory against the admitted guard, and delegates the
 absent-root check and record creation.
 
 **Ten verbs put something on stdout and two put nothing there.**
-`finish-commit` and `record-teardown` print only advice on stderr. Dispatch exit
+`finish-commit` and `record-teardown` print only advice on stderr. Ravel completion
 is a separate command and does not contribute a Grove verb to this count.
 
 **Three of the six verbs that write to the tree are silent on stderr when they
@@ -288,7 +288,7 @@ about *this* crate, and no row is a claim about the loop.
 | The renumber, and the cross-reference scan that follows it | [*`leaf-insert`: the renumber, and the lint*](04-growing-the-tree.md#the-renumber-and-the-lint) | Why the hits come back as a value, and where the second opening would have deadlocked |
 | The terminal marks, and what a node's prune leaves alone | [*`leaf-prune`: the HITL rule, the node case*](05-ending-work.md#the-node-case) | What the marked paths on stdout are, and which leaves the advisory reports |
 | The [session epoch](../../../CONTEXT.md#session-epoch), the [driver lease](../../../CONTEXT.md#driver-lease), and admission | [*Admitted before dispatch*](02-the-grammar.md#admitted-before-dispatch) | Why `run` can refuse at the epoch-admission call, before any handler is chosen |
-| The launch directory and dispatch job context | [*Two separate effects*](06-leaving-the-loop.md#admit-before-signal) | Grove admission and teardown recording; dispatch owns harness exit |
+| The launch directory and Ravel job context | [*Two separate effects*](06-leaving-the-loop.md#admit-before-signal) | Grove admission and teardown recording; Ravel owns process completion |
 | The deletion and the path-scoped commit behind the finish sentinel | [*`cmd_finish_commit`*](06-leaving-the-loop.md#the-teardown) | What the change id on stderr records |
 | Whether a kind can be launched at all | [*Text before lock*](04-growing-the-tree.md#before-the-lock) | Why no verb asks, and where the answer is given instead |
 

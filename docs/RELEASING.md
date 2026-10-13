@@ -468,14 +468,13 @@ work to budget for in the release window rather than discover after the fact.
 
 ```sh
 for t in ~/Development/*/.grove; do
-  ( cd "$(dirname "$t")" && env -u GROVE_LAUNCH_DIR -u HARNESS_DISPATCH_EXIT_FILE -u GROVE_SIGNAL_FILE ./path/to/new/grove-llm pick )
+  ( cd "$(dirname "$t")" && env -u GROVE_LAUNCH_DIR -u RAVEL_EXIT_FILE -u GROVE_PROVIDER_EVIDENCE -u HARNESS_DISPATCH_EXIT_FILE -u HARNESS_DISPATCH_RUN_ID -u HARNESS_DISPATCH_STATE_DIR -u GROVE_SIGNAL_FILE -u GROVE_RUN_SIGNAL_FILE -u GROVE_HARNESS_PID -u GROVE_CLAUDE_PID ./path/to/new/grove-llm pick )
 done
 ```
 
-`env -u GROVE_LAUNCH_DIR -u HARNESS_DISPATCH_EXIT_FILE -u GROVE_SIGNAL_FILE`
-matters: without it the probe inherits the calling
-session's launch authority. The dispatch exit channel and the legacy v22
-channel are scrubbed too, so the same probe is safe during a live cutover.
+The authority removals matter: without them the probe inherits the calling
+session's admission, ending or provider evidence. Current Ravel and original
+dispatch/complete-channel controls are scrubbed together during a live cutover.
 A session's own working-tree guard answers before the
 tree is ever looked at, which is the other way to keep the probe honest.
 
@@ -492,7 +491,14 @@ For the mid-grove **22.1.0 → independent Ravel** extraction checkpoint, use
 That live driver's ending remains `harness-dispatch exit`, and its original
 `grove-llm` admission/teardown remains available through final finish.
 
-### A release that changes the session signal meets every live grove
+### Historical v22.0 complete-channel to v22.1 dispatch cutover
+
+The sequence below records the earlier complete-channel transition. It is not
+the current independent-Ravel upgrade recipe. For this extraction use the
+[complete-keg transition](legacy-driver-transition.md), retaining the original
+driver and ending command through final finish. New Ravel launches receive
+Grove's exact canonical end-session instructions and returned-result convention;
+Ravel adds neither itself.
 
 The v22 → supervised-dispatch release removes `grove-llm complete`. A v22
 session sends its disposition through `GROVE_SIGNAL_FILE`; the candidate's

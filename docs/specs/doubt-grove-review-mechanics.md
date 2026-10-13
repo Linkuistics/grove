@@ -22,7 +22,7 @@ decision assigns the orchestration boundary.
 `content/references/execute.md` is the canonical source for the review budget —
 the ownership predicate, the leaf-wide one-reviewer allowance and what spends it,
 the per-kind allowances, the four-step doubt pass, and the rule that an escalated
-review's route belongs to the owner's dispatch policy. A spec describes how an area works and
+review's route belongs to the owner's Ravel policy. A spec describes how an area works and
 **cites** the rules in its area rather than restating them
 (`plugins/grove/conformance/rules.tsv`, transcribed from the ownership spec that
 went with `content/`), and this one predates that map: it
@@ -120,13 +120,14 @@ and, for an integration:
 **Integrates:** sync-design-k21
 ```
 
-**None of Grove's own code writes those lines or parses them.** They are a
-documented convention (`content/TASK-FORMAT.md`) for the human reading `find
+**Grove's binaries neither write those lines nor parse them.** Its caller-owned
+adapter parses them only when explicitly imported by owner policy. They are a
+documented convention (`plugins/grove/skills/grove/TASK-FORMAT.md`) for the human reading `find
 .grove` and for the session that picks the step up, which is Grove constraint 3:
 task files are freeform markdown and Grove validates nothing in them. A leaf
 carries no `**Kind:**`, `**Harness:**`, or producer target metadata. The one
-`**Creator:**` line a review may carry names a dispatch run rather than a
-target, and is
+`**Creator:**` line a review carries preserves a selected-provider receipt or
+owner declaration, never today's producer mapping, and is
 [harness selection and execution](harness-selection-and-execution.md#identity-and-creator)'s.
 
 A review that finds nothing worth acting on **creates nothing** and simply
@@ -244,7 +245,7 @@ retirement being a filename transition and nothing else,
 adds is the consequence for *this* shape — the review leaf beside the producer is
 byte-identical after the producer retires, so escalation needs no receipt, no
 producer-target record and no recovery protocol. The next driver iteration picks
-the review leaf, and the owner's dispatch policy selects its command.
+the review leaf, and the owner's Ravel policy selects its command.
 
 ## Test seams
 

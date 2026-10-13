@@ -29,7 +29,7 @@ launcher chose before the child started, on which the child says one thing and
 then stops mattering.
 
 This is the local runner's appearance-only `Channel` seam, retained for generic
-callers and the pre-k6 dispatch compatibility package. Active Grove callers
+callers; the old in-workspace dispatch package is gone. Active Grove callers
 allocate no harness Channel: independent Ravel owns its opaque result transport,
 while Grove allocates a launch directory for epoch admission and teardown and
 holds Ravel stdout separately. The worked channel examples use `TEST_CHANNEL`,

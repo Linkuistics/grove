@@ -30,3 +30,18 @@ original 22.1.0 driver and its harness-dispatch exit/admission/teardown contract
 No installation/publication or live-channel changes belong to this node.
 
 ## Notes
+
+Consume k57's sealed handle-named change and the ownership section of
+docs/grove-ravel-docs-evidence.md. target/k57 holds exact payload pins,
+enumerated/classified boundary tokens, all anchor/citation/control records and
+complete final terminal logs. The 46 payloads are a bounded handoff, not this
+leaf's whole affected-surface inventory. Existing source fragments were not
+changed; historical/legacy locators and generic code-dispatch names remain.
+
+Run verification with existing `/Users/antony/Development/Ravel/target/tools`
+first on PATH (Bun 1.4.2). The host's 1.4.3 is refused by the standing compiler
+guard; no install change is needed. k57's final gate passes all 18 checks,
+1,378 workspace cases, nine doctests and six final/all books; 35,372 frozen
+inputs agree. All 1,387 unique runtime identities equal k56 individually;
+the gate skips 31 workspace cases, so retain the earlier delivery/ignored-case
+evidence's limits. Reporting/coordination/retirement follow that freeze.

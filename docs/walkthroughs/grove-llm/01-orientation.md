@@ -598,7 +598,7 @@ first order made visible; that chapter's second ending is this same argv with
 a kind that is not a well-formed token, refused before any lock, and its third
 is a kind no methodology names, written all the same. The
 retirement is *Ending work*'s, and its stderr is why that chapter is named for
-two steps. The launch prompt's exact `ravel end-session grove-continue` command is the final dispatch operation, outside this
+two steps. The launch prompt's exact `ravel end-session grove-continue` command is the final Ravel completion operation, outside this
 binary's corpus; *Leaving the loop* explains the separate Grove teardown record.
 
 The fresh key is `k4` because a key is the maximum over the whole tree plus

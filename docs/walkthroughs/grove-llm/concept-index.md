@@ -117,7 +117,7 @@
 - [The pruned producer's review stays live, and the verb does not warn](05-ending-work.md#the-node-case)
 - [The two contracts, and the line and test behind each promise](05-ending-work.md#the-two-contracts)
 - [What the help says that the code only says](05-ending-work.md#the-two-contracts)
-- [Teardown and dispatch exit are separate effects](06-leaving-the-loop.md#admit-before-signal)
+- [Teardown and Ravel completion are separate effects](06-leaving-the-loop.md#admit-before-signal)
 - [A finish records teardown, then exits](06-leaving-the-loop.md#worked-complete)
 - [Only `.grove/` is committed](06-leaving-the-loop.md#the-teardown)
 - [Admission precedes the teardown write](06-leaving-the-loop.md#the-order)

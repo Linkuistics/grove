@@ -102,7 +102,7 @@ malformed, noncanonical, unsupported or oversized records refuse with a repair
 remedy; never silently reinterpret them as declared or use stale evidence.
 `**Creator:** run <id>` is explicitly legacy and unsupported by the new consumer:
 refuse with a remedy to have the owner declare the provider or finish again
-under a receipt-producing policy. Never open the original dispatch/Ravel store.
+under a receipt-producing policy. Never open the original dispatch store; current Ravel has none.
 
 ## Original installed-v22-driver sessions
 

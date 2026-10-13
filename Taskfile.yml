@@ -360,8 +360,8 @@ tasks:
   # QEMU emulating its CPU floor, Nehalem or Cortex-A53, after a native
   # container where Docker runs the architecture; that needs an arm64 Docker
   # and Zig (scripts/release-smoke.sh). The release runs the same script over
-  # target/dist before publishing. Rerun it after any change to the worker, the
-  # layout or native dependencies.
+  # target/dist before publishing. Rerun it after any change to Grove's caller
+  # assets/layout, native dependencies or the admitted independent Ravel inputs.
   release:smoke:
     desc: Build archives of the working copy and smoke-test each one's installed layout on its target
     cmds:

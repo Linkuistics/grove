@@ -44,8 +44,7 @@ cp "$(brew --prefix grove)/libexec/ravel-policy/sample/policy.ts" ~/.config/rave
 Preserve an existing policy. The sample launches codex with approvals off and
 full access. Creator-aware examples require the complete caller directory tree
 so their relative imports remain intact. A policy refusal gives a repair remedy;
-rerunning `grove` continues. Ravel launches selection successfully; it has no
-inspection verb. Earlier config.kdl/.grove.kdl files are ignored.
+rerunning `grove` continues. Ravel evaluates policy when a session starts; it has no inspection verb. Earlier config.kdl/.grove.kdl files are ignored.
 
 `~/.config/ravel/settings.json` holds selection bounds and explicit policy
 environment grants. Grove removes enclosing session authority before selection;

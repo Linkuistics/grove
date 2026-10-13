@@ -14,7 +14,7 @@ and exits after any requested integration and release.
 
 The order this chapter owns is admission before the teardown write. `run`
 obtains a shared epoch guard for the ambient `GROVE_LAUNCH_DIR` and retains it
-through dispatch to the handler. `cmd_record_teardown` requires that same
+through CLI dispatch to the handler. `cmd_record_teardown` requires that same
 directory before it calls the verb. A replacement driver therefore cannot
 invalidate an admitted operation midway through its write.
 
@@ -32,9 +32,10 @@ ravel end-session grove-continue
   -> Ravel reaps its managed group and returns grove-continue
 ```
 
-Grove checks the exact supported result after reap and epoch invalidation,
-then reads its own teardown record and absent-tree condition. A public result
-alone does not attest tree deletion or human confirmation. A teardown record
+After reap and successful epoch invalidation, Grove checks its own interruption,
+then this launch's teardown record. That record finishes before group/status or
+result checks; absent it, successful supported completion advances. Task-root
+absence alone attests neither teardown nor confirmation. A teardown record
 alone does not end the supervised process. Original installed-v22 sessions keep
 the legacy launch prompt's command/channel; these current examples describe
 Ravel. The caller boundary is `docs/adr/dispatch-supervises-the-harness.md`.
@@ -179,7 +180,7 @@ They contribute no bytes beyond their explicitly inserted children.
 <!-- /fragment -->
 
 The two orders are now visible: grammar validation before tree opening, and
-epoch admission before recording teardown. Dispatch exit is the session's final
+epoch admission before recording teardown. Ravel completion is the session's final
 action; it is not a thirteenth Grove verb. The next chapter compares all twelve
 Grove verbs and the checks that hold their boundaries.
 

@@ -404,7 +404,7 @@ impl<'a> From<Launch<'a>> for Job<'a> {
 <!-- /fragment -->
 
 `NoninteractiveLaunch` has only argv, scrub, cwd and escalation. Grove uses
-it to supervise dispatch without supplying another exit channel. The private
+its stdout-capturing counterpart to supervise Ravel without another exit channel. The private
 `Job` shares the spawn path: converting a `Launch` retains its completion
 capability, while a noninteractive launch supplies none. Supervision observes
 channel appearance only when that capability exists.
@@ -463,7 +463,7 @@ child still writes through the channel.
 section below reads it beside the defaults it replaces.
 
 `channel` is optional and holds the path and its publishing variable together.
-Dispatch grants it to its harness; Grove passes `None` when supervising dispatch.
+A generic caller may grant it to its child; Grove passes `None` for its Ravel job.
 The agreement about the variable belongs to caller and child. With no channel,
 only the child's exit or caller cancellation ends the launch. `escalation` is the only field with no comment
 at all, because the type two fragments above carries its argument and repeating it
@@ -719,7 +719,7 @@ own ignored SIGINT and must not pass that choice on. It is the wrong one for a
 launcher whose own caller should see the child as though it had started it
 directly. `ravel start-session` is that launcher: it stands between its caller
 and the harness, and the harness is to receive the caller's signal mask and
-every disposition that survives exec, as dispatch inherited them, a `nohup`
+every disposition that survives exec, as the transparent caller inherited them, a `nohup`
 caller's ignored SIGHUP included. That launcher sets `Launch::transparent`, and
 the state it passes is this type.
 

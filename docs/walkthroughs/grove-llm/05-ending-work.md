@@ -201,7 +201,7 @@ The second reason is the stream, and it is the one a test holds. stdout is
 data — the marked paths, which callers parse — so the reminder goes to stderr,
 where `leaf-prune`'s two advisories already were. `assert_next_steps` in
 `crates/grove-llm/tests/leaf_ops.rs` is the shared assertion: it requires the
-commit step and the dispatch exit step on stderr in that order, requires *last
+commit step and the launch-prompt completion step on stderr in that order, requires *last
 action*, requires the expected singular or plural, and requires that the word
 the exit reminder does not reach stdout. `retire_names_the_remaining_steps_on_stderr`
 applies it to `leaf-retire` and additionally requires stdout to be exactly one
@@ -593,9 +593,10 @@ The composite that reassembles the two variants is stated here.
 
 The two verbs that end work have now been read, and each is one call and two
 streams: the marked paths on stdout, and on stderr — last, and only when a mark
-was made — the commit and dispatch exit that remain. The commit is
-jj's. The exit is dispatch's; Grove separately records teardown when finishing. This separation is what
-it is talking to the loop that launched it before it writes anything; the next
-chapter reads it, and the other verb that opens no tree.
+was made — the commit and launch-prompt completion that remain. The commit is
+jj's. Ravel owns process completion; Grove supplies the result meaning and
+separately records teardown when finishing. The next chapter reads that
+teardown operation and its epoch admission: before writing, the helper verifies
+that it belongs to the launch named by its enclosing loop.
 
 [Previous: Growing the tree](04-growing-the-tree.md) | [Contents](README.md) | [Next: Leaving the loop](06-leaving-the-loop.md)

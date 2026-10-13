@@ -7,7 +7,7 @@
 
 Grove owns the task tree and the loop decision. Ravel owns one harness run:
 it selects the command, spawns the harness as its own job, watches its exit
-channel, ends its group, and reports the ending. Grove's runner supervises
+channel, ends its group, and returns the opaque published argument. Grove's runner supervises
 Ravel as a channel-free job. This separation lets another caller use Ravel
 without implementing a harness watcher.
 
@@ -335,8 +335,8 @@ pub fn run(
 `drive` revalidates the lease, transitions the tree, and obtains one selection.
 It then composes the prompt and allocates a fresh launch directory. The runner
 forwards driver TERM/HUP to Ravel and waits up to ten seconds before killing
-Ravel's group. Ravel has time to cancel, reap its harness and append the
-ending within that budget.
+Ravel's group. The budget allows Ravel to cancel and reap its managed group;
+it promises no wall-clock bound under suspension or slow I/O.
 
 After the reap, terminal reset happens even on an error path. Epoch invalidation
 must then succeed before any launch record is interpreted. The directory is
@@ -1248,7 +1248,7 @@ cancellation bound because Ravel remains its child.
 The loop's choices stay here: which leaf runs, what prompt it receives, where
 its launch identity lives, and which ending continues the tree. The runner has
 no task vocabulary. Ravel has no Grove vocabulary. A teardown remains
-Grove's deliberate record rather than payload in Ravel's pure exit signal.
+Grove's deliberate record, interpreted before Ravel's opaque returned result.
 
 <a id="launch-control-area"></a>
 ## The launch directory carries identity, ending and teardown

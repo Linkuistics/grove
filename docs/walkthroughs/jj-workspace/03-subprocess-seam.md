@@ -223,7 +223,7 @@ asked to produce. Both are stated here as unasserted rather than left for a read
 to assume covered.
 
 > **The consumer's half.** Grove's lifecycle launch gives the harness
-> `GROVE_LAUNCH_DIR`, and dispatch gives it `RAVEL_EXIT_FILE`.
+> `GROVE_LAUNCH_DIR`, and Ravel gives it `RAVEL_EXIT_FILE`.
 > Neither authority belongs to the VCS seam. The explicit `current_dir` pins
 > each jj command to the resolved root; Grove's callers separately scrub their
 > control variables before spawning jj. This crate itself removes repository

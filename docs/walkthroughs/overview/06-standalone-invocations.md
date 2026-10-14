@@ -514,7 +514,7 @@ shared-result runner checks. Its real-worker controls remove the copied worker
 and inject inherited authority into a re-executed entry probe; clean runs use
 the isolated pair without host Bun/Node or a Grove sibling installation.
 
-<!-- fragment «ravel-resolution» owner="isolated-invocation" source="crates/grove/src/dispatch/ravel.rs" lines="1-302" parent="source-ravel-resolution" -->
+<!-- fragment «ravel-resolution» owner="isolated-invocation" source="crates/grove/src/dispatch/ravel.rs" lines="1-313" parent="source-ravel-resolution" -->
 ````rust
 //! PATH and CLI compatibility at Grove's independent Ravel boundary.
 use std::ffi::OsStr;

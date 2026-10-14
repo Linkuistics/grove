@@ -52,6 +52,8 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+## v22.3.0
+
 - Exercise the Homebrew formula's real lifecycle test within Homebrew's outer
   sandbox, then verify actual confined standalone publication separately from
   the installed Grove/Ravel pair. This avoids non-nestable macOS sandboxes.

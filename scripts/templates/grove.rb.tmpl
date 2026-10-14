@@ -73,7 +73,7 @@ class Grove < Formula
     assert_equal "grove @VERSION@\n", shell_output("#{bin}/grove --version")
     assert_equal "grove-llm @VERSION@\n", shell_output("#{bin}/grove-llm --version")
     ravel = Formula["ravel"].opt_bin/"ravel"
-    assert_match(/^ravel 0\.1\./, shell_output("#{ravel} --version"))
+    assert_match(/^ravel 1\./, shell_output("#{ravel} --version"))
     assets = libexec/"ravel-policy"
     %w[README.md grove.ts provenance.ts examples/grove-static.ts
        examples/grove-review.ts examples/review.ts sample/policy.ts

@@ -808,8 +808,11 @@ fn cancellation_while_staging_publication_publishes_nothing() {
 /// after validation. A stable exported value and absent PID prove the boundary.
 #[test]
 fn acknowledged_writer_is_stopped_before_publication() {
+    // Cleanup may kill the writer at any instruction. Replace complete files
+    // so stopping between truncation and writing cannot leave an empty value.
     let fixture = Fixture::new(
-        "set -eu\n( trap '' TERM; while :; do printf writer > notes.md; sleep 0.02; done ) &\n\
+        "set -eu\nprintf writer > notes.md\n\
+         ( trap '' TERM; while :; do printf writer > notes.next; mv notes.next notes.md; sleep 0.02; done ) &\n\
          writer=$!\nprintf '%s' \"$writer\" > writer.pid\nsleep 0.1\nacknowledge\n",
     );
     let pid_file = fixture.cwd.join("writer.pid");

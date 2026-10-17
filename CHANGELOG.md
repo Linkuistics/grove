@@ -56,6 +56,9 @@ stood at the graft — a closed record, not part of the versioned sequence above
   styling, subject to the document's admitted media. It calls for representative
   diagram and maintenance trials before migration, preserves notation semantics,
   and keeps one authoritative source per figure.
+- Make the standalone writer-cleanup test replace complete files atomically,
+  avoiding a false failure when cleanup stops the fixture between truncation
+  and writing.
 
 ## v22.3.0
 

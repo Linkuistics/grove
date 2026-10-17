@@ -25,6 +25,35 @@ Where the contract admits only the page's own bytes, a figure is a table, a list
 figure or a drawing inside a text fence, and there is no file beside the page.
 **Do not introduce a medium the contract does not name.**
 
+## Prefer a shared renderer when diagrams need a unified look
+
+Where the contract admits generated figures, prefer **Typst/CeTZ** for final
+drawing when different diagram tools would otherwise produce inconsistent
+fonts, line weights, colours or spacing. This is a preference, not a requirement
+to migrate every diagram. Preserve the notation's meaning: common styling must
+not erase distinctions such as arrow kinds, boundaries or sequence ordering.
+
+Mermaid, PlantUML, Graphviz and similar tools may supply layout, but adopting
+their coordinates is a pipeline to prove, not an assumed conversion. Measure
+labels with the final fonts and sizes before layout, or recompute layout when
+those metrics change. Share typography, strokes, colours, padding and arrow
+styles in one drawing module. [CeTZ](https://typst.app/universe/package/cetz/)
+provides the drawing layer; notation-specific libraries such as
+[Fletcher](https://typst.app/universe/package/fletcher/) can build on it.
+
+Before a broad migration, trial representative diagrams with different
+notation and density — for example a dense architecture view and a sequence.
+Compare them at publication width, then lengthen a label and add a participant.
+Evaluate legibility, semantic fidelity, regeneration and maintenance effort,
+and get the owner's reaction before choosing a document-wide migration.
+
+Keep **one authoritative source per figure**: either generate the final drawing
+from the layout source, or make the final drawing source authoritative and
+retire the superseded source. Do not maintain two independent editable copies.
+Record renderer/library/font versions and the regeneration command; inspect
+the exported figures in their actual reading environment. Keep the existing
+figures until the trial supports changing the document's rendering contract.
+
 ## Two rules, and they are the whole charter
 
 - A relation the reader would otherwise have to hold in their head — a sequence,

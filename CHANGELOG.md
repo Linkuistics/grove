@@ -52,6 +52,11 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+- `grove-art` now prefers a shared Typst/CeTZ renderer when diagrams need unified
+  styling, subject to the document's admitted media. It calls for representative
+  diagram and maintenance trials before migration, preserves notation semantics,
+  and keeps one authoritative source per figure.
+
 ## v22.3.0
 
 - Exercise the Homebrew formula's real lifecycle test within Homebrew's outer

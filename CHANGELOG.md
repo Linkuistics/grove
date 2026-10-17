@@ -52,6 +52,8 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+## v22.4.0
+
 - `grove-art` now prefers a shared Typst/CeTZ renderer when diagrams need unified
   styling, subject to the document's admitted media. It calls for representative
   diagram and maintenance trials before migration, preserves notation semantics,

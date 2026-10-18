@@ -125,6 +125,10 @@ run_check "cargo clippy" cargo clippy --workspace --all-targets
 run_check "plugin install" bash plugins/install.test.sh
 run_check "conformance" bash plugins/grove/conformance.sh
 run_check "conformance suite" bash plugins/grove/conformance.test.sh
+# The vendored STE checker ships its own self-test; `-I` keeps the interpreter
+# from importing anything out of the current directory or the user's site.
+run_check "technical-communication checker self-test" \
+  python3 -I plugins/linkuistics/skills/technical-communication/scripts/ste-lint.py --selftest
 run_check "release preparation" bash scripts/release-prepare.test.sh
 run_check "Ravel archive admission" python3 scripts/test_ravel_target_inputs.py
 run_check "Linux floor backend admission" task release:floor:controls

@@ -267,8 +267,8 @@ in American spelling stays as it is.
 | Identifier | Rules |
 |---|---|
 | `plain-word` | 1.1 |
-| `one-meaning` | 1.3 |
-| `word-class` | 1.2, 1.7, 1.13 |
+| `one-meaning` | 1.3, 9.2 |
+| `word-class` | 1.2, 1.7, 1.13, 9.2 |
 | `domain-terms` | 1.1, 1.5, 1.6, 1.8 |
 | `no-coined-words` | 1.4 |
 | `short-terms` | 1.9 |

@@ -223,4 +223,4 @@ verb when the verb says the same thing.
 | `verb-for-action` | 3.7 |
 | `nominalisation` | 3.7 |
 
-`phrasal-verb` comes from the checker and has no rule number of its own.
+`phrasal-verb` comes from the checker, and it restates rule 9.3 too.

@@ -44,8 +44,8 @@ When rules conflict, this order decides. The highest item wins.
    only when no such wording exists.
 3. **This skill's rules** for words and sentences.
 4. **House style:** the project style guide, document templates, commit
-   conventions and the output style in use. It governs everything that the rules
-   leave alone, such as formatting, what to explain, abbreviations and units.
+   conventions and the output style in use. It governs what the rules leave alone.
+   Examples are formatting, what to explain, and which units and abbreviations to use.
 
 A hedge is content. The words "may", "might" and "could" stay when the claim is
 uncertain.
@@ -110,12 +110,20 @@ grammar, so it gives false alarms. Judge each by reading.
 | `long-sentence`, `one-idea-per-sentence`, `say-what-happens`, `full-words`, `vertical-list`, `dangling-conjunction`, `connect-sentences`, `articles` | `references/sentences.md` |
 | `long-sentence`, `one-action-per-step`, `imperative-steps`, `condition-first`, `notes-inform-only` | `references/procedures.md` |
 | `long-sentence`, `gradual-order`, `repeat-key-terms`, `paragraph-topic`, `long-paragraph` | `references/descriptions.md` |
+| `risk-label`, `command-first`, `state-the-risk` | `references/safety.md` |
+| `semicolon`, `hyphen-compound`, `parentheses`, `word-count` | `references/punctuation.md` |
+| `rewrite-not-swap`, `literal-sense`, `consistent-wording`, `keep-that`, `with-one-meaning`, `clear-pronoun`, `false-friend`, `no-latin-abbreviation`, `neutral-people`, `possessive-care` | `references/practices.md` |
 
 Read a reference file when the task needs it. Read `procedures.md` for steps,
 `descriptions.md` for explanations, and `sentences.md` for lists, articles and
 sentence form. Read `words.md` to choose a word. Read `noun-clusters.md` for a long
 run of nouns, and `verbs.md` for tenses and voice. The rules in a file cover one
 part of the standard each. Each file names that part.
+
+Read `safety.md` before you write a warning. Read it also before you write a text
+that proposes or reports a step that deletes, overwrites or publishes. Read
+`punctuation.md` for hyphens, parentheses and word counts. Read `practices.md` when a
+word swap fails or a sentence has two readings.
 
 ## Markers
 

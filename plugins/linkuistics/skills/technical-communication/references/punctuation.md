@@ -7,30 +7,36 @@ also says how to count the words of a sentence.
 
 | Identifier | Level | Idea |
 |---|---|---|
-| `semicolon` | hard | No semicolon. Write two sentences |
-| `hyphen-compound` | none | A hyphen joins words that act as one modifier or one term |
 | `parentheses` | none | Parentheses carry four kinds of extra information and no others |
+| `hyphen-compound` | none | A hyphen joins words that act as one modifier or one term |
+| `semicolon` | hard | No semicolon. Write two sentences |
 | `word-count` | none | The counting method that `long-sentence` uses |
 
-## semicolon
+## parentheses
 
-A semicolon joins two sentences into one long one, and writers often place it badly.
-Replace it with a full stop. When the second part gives a result or a reason, a connector
-such as "so" or "because" shows the link (see `connect-sentences` in
-`sentences.md`).
+Parentheses carry four kinds of extra information, and nothing else:
+
+1. **A gloss or a substitute.** A gloss explains a word. A substitute is an alternative
+   that the reader may use instead. Examples: "Use the staging key (the one that
+   starts with `stg_`)." "Pass the host name (or the IP address) of the server."
+2. **An abbreviation** after the full name (see `short-form-after-full` in
+   `noun-clusters.md`).
+3. **A label or a pointer.** A label is an identifier or a step number. A pointer is a
+   reference to another place. Examples: "(see section 3)", "(line 42 of
+   `build.sh`)", "the two failing jobs (3 and 7)", "(1)". In Markdown, a list marker
+   numbers a step better.
+4. **Singular and plural at once:** "the file(s)". Write "one or more files" when this
+   is not clear.
+
+The words in parentheses belong to the sentence, and they count in its limit (see
+`word-count`). A parenthesis that needs more than a few words is a sentence. Write it
+as one. Do not put one parenthesis inside another. Do not hide a hedge, a joke or a
+second point in parentheses, because the reader may skip it.
 
 ```text
-Before: The importer skips empty rows; it logs each skipped row at debug level.
-After: The importer skips empty rows. It logs each skipped row at debug level.
-
-Before: The cache is cold; the first request is slow.
-After: The cache is cold, so the first request is slow.
+Before: The job retries (sometimes, when the queue is not full, and only if the owner turned retries on) before it fails.
+After: The job retries before it fails. It retries only when the queue is not full and the owner turned retries on.
 ```
-
-The checker reports `semicolon` at the hard level in any prose, including a heading,
-a table cell and a list item. It does not read code spans or quoted text, so a
-statement terminator in code is safe. A semicolon never separates the items of a
-vertical list (see `vertical-list`).
 
 ## hyphen-compound
 
@@ -62,31 +68,25 @@ Before: The retry logic is a best effort - it gives up after three tries.
 After: The retry logic is a best effort. It gives up after three tries.
 ```
 
-## parentheses
+## semicolon
 
-Parentheses carry four kinds of extra information, and nothing else:
-
-1. **A gloss or a substitute.** A gloss explains a word. A substitute is an alternative
-   that the reader may use instead. Examples: "Use the staging key (the one that
-   starts with `stg_`)." "Pass the host name (or the IP address) of the server."
-2. **An abbreviation** after the full name (see `short-form-after-full` in
-   `noun-clusters.md`).
-3. **A label or a pointer.** A label is an identifier or a step number. A pointer is a
-   reference to another place. Examples: "(see section 3)", "(line 42 of
-   `build.sh`)", "the two failing jobs (3 and 7)", "(1)". In Markdown, a list marker
-   numbers a step better.
-4. **Singular and plural at once:** "the file(s)". Write "one or more files" when this
-   is not clear.
-
-The words in parentheses belong to the sentence, and they count in its limit (see
-`word-count`). A parenthesis that needs more than a few words is a sentence. Write it
-as one. Do not put one parenthesis inside another. Do not hide a hedge, a joke or a
-second point in parentheses, because the reader may skip it.
+A semicolon joins two sentences into one long one, and writers often place it badly.
+Replace it with a full stop. When the second part gives a result or a reason, a connector
+such as "so" or "because" shows the link (see `connect-sentences` in
+`sentences.md`).
 
 ```text
-Before: The job retries (sometimes, when the queue is not full, and only if the owner turned retries on) before it fails.
-After: The job retries before it fails. It retries only when the queue is not full and the owner turned retries on.
+Before: The importer skips empty rows; it logs each skipped row at debug level.
+After: The importer skips empty rows. It logs each skipped row at debug level.
+
+Before: The cache is cold; the first request is slow.
+After: The cache is cold, so the first request is slow.
 ```
+
+The checker reports `semicolon` at the hard level in any prose, including a heading,
+a table cell and a list item. It does not read code spans or quoted text, so a
+statement terminator in code is safe. A semicolon never separates the items of a
+vertical list (see `vertical-list`).
 
 ## word-count
 

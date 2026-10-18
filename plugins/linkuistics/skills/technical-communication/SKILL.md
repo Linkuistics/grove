@@ -107,11 +107,11 @@ grammar, so it gives false alarms. Judge each by reading.
 | `plain-word`, `one-meaning`, `word-class`, `domain-terms`, `no-coined-words`, `short-terms`, `no-slang`, `synonym-rotation`, `domain-verbs`, `marketing-adjective`, `spelling` | `references/words.md` |
 | `noun-cluster`, `short-form-after-full`, `hyphen-unit` | `references/noun-clusters.md` |
 | `simple-tenses`, `present-perfect`, `participle-adjective`, `ing-forms`, `passive-voice`, `verb-for-action`, `nominalisation`, `phrasal-verb` | `references/verbs.md` |
-| `long-sentence`, `one-idea-per-sentence`, `say-what-happens`, `full-words`, `vertical-list`, `dangling-conjunction`, `connect-sentences`, `articles` | `references/sentences.md` |
-| `long-sentence`, `one-action-per-step`, `imperative-steps`, `condition-first`, `notes-inform-only` | `references/procedures.md` |
-| `long-sentence`, `gradual-order`, `repeat-key-terms`, `paragraph-topic`, `long-paragraph` | `references/descriptions.md` |
+| `articles`, `full-words`, `say-what-happens`, `one-idea-per-sentence`, `long-sentence`, `connect-sentences`, `vertical-list`, `dangling-conjunction` | `references/sentences.md` |
+| `imperative-steps`, `one-action-per-step`, `notes-inform-only`, `condition-first`, `long-sentence` | `references/procedures.md` |
+| `paragraph-topic`, `long-paragraph`, `gradual-order`, `repeat-key-terms`, `long-sentence` | `references/descriptions.md` |
 | `risk-label`, `command-first`, `state-the-risk` | `references/safety.md` |
-| `semicolon`, `hyphen-compound`, `parentheses`, `word-count` | `references/punctuation.md` |
+| `parentheses`, `hyphen-compound`, `semicolon`, `word-count` | `references/punctuation.md` |
 | `rewrite-not-swap`, `literal-sense`, `consistent-wording`, `keep-that`, `with-one-meaning`, `clear-pronoun`, `false-friend`, `no-latin-abbreviation`, `neutral-people`, `possessive-care` | `references/practices.md` |
 
 Read a reference file when the task needs it. Read `procedures.md` for steps,

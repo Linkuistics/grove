@@ -12,29 +12,37 @@ The rules for any sentence (`sentences.md`) also apply here.
 
 | Identifier | Level | Idea |
 |---|---|---|
-| `long-sentence` | hard | An instruction has 20 words at most |
-| `one-action-per-step` | none | A step names one action |
 | `imperative-steps` | none | A step is a command |
-| `condition-first` | none | The condition comes before the command |
+| `one-action-per-step` | none | A step names one action |
 | `notes-inform-only` | none | A note gives background and no orders |
+| `condition-first` | none | The condition comes before the command |
+| `long-sentence` | hard | An instruction has 20 words at most |
 
-## long-sentence
+## imperative-steps
 
-An instruction has 20 words at most. Safety text in a procedure follows the same
-limit.
+Write each instruction as a command: "Restart the worker." Any other form leaves the
+reader a question that the text should answer.
 
-When a step is too long, check whether it holds two actions. If it does, split it
-into two steps (see `one-action-per-step`). If it holds one action with a long
-setting, split the setting from the action. Write the setting first.
+| Form | What the reader cannot tell |
+|---|---|
+| "The worker can be restarted" | Whether the step needs doing |
+| "You might want to restart the worker" | Whether the step is optional |
+| "The worker should be restarted" | Who restarts it |
+| "The worker was restarted" | Whether the work is already done |
 
 ```text
-Before: Set the timeout in the section of the settings file that the deploy tool reads when it starts, to a value of about 30 seconds.
-After:
-1. Open the settings file that the deploy tool reads at start.
-2. Set the timeout to 30 seconds.
+Before: The configuration file can be reloaded with the admin tool.
+After: Reload the configuration file with the admin tool.
+
+Before: You will need to clear the cache first.
+After: Clear the cache first.
 ```
 
-A note is a description, so a note has the higher limit of 25 words.
+A command needs no "must" in front of it. Keep "must" for a limit that a result has to
+meet, such as "The build must finish in 10 minutes", and for safety text.
+
+The same holds for a prompt to another model. Write "Read the failing test, then list
+its inputs", not "You might want to read the failing test".
 
 ## one-action-per-step
 
@@ -64,50 +72,6 @@ Export the report. The file must be under 5 MB.
 Test a step like this: if the reader could do the two parts at different times, they
 are two steps.
 
-## imperative-steps
-
-Write each instruction as a command: "Restart the worker." Any other form leaves the
-reader a question that the text should answer.
-
-| Form | What the reader cannot tell |
-|---|---|
-| "The worker can be restarted" | Whether the step needs doing |
-| "You might want to restart the worker" | Whether the step is optional |
-| "The worker should be restarted" | Who restarts it |
-| "The worker was restarted" | Whether the work is already done |
-
-```text
-Before: The configuration file can be reloaded with the admin tool.
-After: Reload the configuration file with the admin tool.
-
-Before: You will need to clear the cache first.
-After: Clear the cache first.
-```
-
-A command needs no "must" in front of it. Keep "must" for a limit that a result has to
-meet, such as "The build must finish in 10 minutes", and for safety text.
-
-The same holds for a prompt to another model. Write "Read the failing test, then list
-its inputs", not "You might want to read the failing test".
-
-## condition-first
-
-A conditional step opens with its condition. A comma ends the condition, and the
-command follows. The reader meets the condition before the action and cannot do the
-action by mistake.
-
-```text
-Before: Delete the branch if the merge is complete.
-After: If the merge is complete, delete the branch.
-
-Before: Increase the timeout when the job fails twice.
-After: When the job fails twice, increase the timeout.
-```
-
-The comma matters, because it marks where the condition ends. A comma in the wrong
-place can attach a word to the wrong verb. Read the sentence aloud and check that the
-comma sits at the end of the condition.
-
 ## notes-inform-only
 
 A note is background for the reader. It is descriptive text, so the rules of
@@ -133,7 +97,7 @@ After:
 These are correct notes:
 
 ```text
-Note: The cache fills during the first minute.
+Note: The export keeps the original row order.
 Note: A second sync does not need a new token.
 ```
 
@@ -142,3 +106,39 @@ is a fact that a note holds and a step needs. Move it into a step, and test agai
 
 Notes belong to procedures. A description needs one only beside a figure or a table
 that it cannot explain alone.
+
+## condition-first
+
+A conditional step opens with its condition. A comma ends the condition, and the
+command follows. The reader meets the condition before the action and cannot do the
+action by mistake.
+
+```text
+Before: Delete the branch if the merge is complete.
+After: If the merge is complete, delete the branch.
+
+Before: Increase the timeout when the job fails twice.
+After: When the job fails twice, increase the timeout.
+```
+
+The comma matters, because it marks where the condition ends. A comma in the wrong
+place can attach a word to the wrong verb. Read the sentence aloud and check that the
+comma sits at the end of the condition.
+
+## long-sentence
+
+An instruction has 20 words at most. Safety text in a procedure follows the same
+limit.
+
+When a step is too long, check whether it holds two actions. If it does, split it
+into two steps (see `one-action-per-step`). If it holds one action with a long
+setting, split the setting from the action. Write the setting first.
+
+```text
+Before: Set the timeout in the section of the settings file that the deploy tool reads when it starts, to a value of about 30 seconds.
+After:
+1. Open the settings file that the deploy tool reads at start.
+2. Set the timeout to 30 seconds.
+```
+
+A note is a description, so a note has the higher limit of 25 words.

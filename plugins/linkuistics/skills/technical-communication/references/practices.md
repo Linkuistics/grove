@@ -169,25 +169,21 @@ After: Note that the config reloads without a restart.
 
 ## with-one-meaning
 
-The word "with" can attach to a noun, or to the action. In "Deploy the service with
-the new flag", the service may have the flag, or the flag may be the means of the
-deploy. Reread each sentence that has "with". When the sentence has two readings,
+The word "with" can attach to a noun, or to the action. In "Restart the worker with
+the saved queue", the worker may hold the queue, or the queue may be what the restart
+loads. Reread each sentence that has "with". When the sentence has two readings,
 rewrite it so that each part has one place to attach.
 
 ```text
-Before: Deploy the service with the new flag.
-After: Deploy the service that has the new flag.
-After: Deploy the service. Set the new flag during the deploy.
+Before: Restart the worker with the saved queue.
+After: Restart the worker that holds the saved queue.
+After: Restart the worker. Load the saved queue at start.
 ```
 
-When the condition is the point, put it first (see `condition-first` in
-`procedures.md`). When "with" names a means, name the action as the verb, and let
-"with" carry only the means. Do not hide the action behind "use".
-
-```text
-Before: Use a script to export the data.
-After: Export the data with a script.
-```
+When "with" gives a condition, put the condition first (see `condition-first` in
+`procedures.md`). When "with" gives a means, the action stays the verb of the
+sentence. A weak verb such as "use" or "perform" must not carry the action (see
+`verb-for-action` in `verbs.md`).
 
 ## no-latin-abbreviation
 

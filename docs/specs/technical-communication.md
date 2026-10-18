@@ -176,7 +176,10 @@ the harness gave it. Only the file name is cleaned. A missing `harness` or
 
 - **A start record** (`kind: "start"`) is written each time the instruction is
   sent. It adds `source`: the harness's own value (`startup`, `resume`,
-  `clear`, `compact` or `fork`), or `subagent`.
+  `clear`, `compact` or `fork`), or `subagent`. Pi sends the instruction with
+  every prompt, so it writes a start record only when a session starts, with the
+  source `startup`, `resume` or `fork`. Pi's compaction keeps the system prompt,
+  so on Pi it does not reset `since_start`.
 - **A reply record** (`kind: "reply"`) adds `model` (null when the harness does
   not give it), `seq`, `since_start`, `words`, `hard`, `advisory`, `per_100`,
   `rules`, `exempt` and `checker`.
@@ -454,7 +457,7 @@ govern the words inside them, and nothing in that plugin changes.
 | Layer | Claude Code | Codex | Pi | Gemini CLI |
 |---|---|---|---|---|
 | Instruction | `SessionStart`, and `SubagentStart` for subagents | `SessionStart` and `SubagentStart`, once trusted | `before_agent_start`, added to the system prompt on each run | None: the skill only |
-| Reminder | `UserPromptSubmit` | `UserPromptSubmit`, once trusted | A `context` handler, for each request and not stored | None |
+| Reminder | `UserPromptSubmit` | `UserPromptSubmit`, once trusted | `before_agent_start`, as a hidden message that Pi saves | None |
 | Document gate | `PostToolUse` on `Write`, `Edit` and `NotebookEdit` | `PostToolUse` on `apply_patch`, with the paths read from the patch's headers | `tool_result` on `write` and `edit` | The model runs the checker |
 | Reply log | `Stop` and `SubagentStop`, from `last_assistant_message` | `Stop` and `SubagentStop`, from `last_assistant_message`, once trusted | `agent_end`, from the run's last assistant message | None |
 | Delivered by | The marketplace plugin, with auto-update | The hooks plugin, which the human adds and trusts once | `install.sh` links the extension | `install.sh` links the skill when Gemini is installed |
@@ -483,7 +486,8 @@ govern the words inside them, and nothing in that plugin changes.
   checked, and a content line of an added file cannot pass for a header.
 - **The core takes the harness's own payload** as
   `tc-hook <harness> <event>`. The events are `session-start`,
-  `subagent-start`, `prompt`, `write` and `reply`. The thin adapter for each
+  `subagent-start`, `prompt`, `write` and `reply`. Pi also uses `instruction`,
+  which returns the instruction and writes no start record. The thin adapter for each
   harness lives in `tc_hook.py`: it reads that harness's payload and writes that
   harness's output. The Pi extension calls the same core or the checker as a
   child process, and it repeats no rule logic in TypeScript.
@@ -492,6 +496,28 @@ govern the words inside them, and nothing in that plugin changes.
   untrusted entry without a word. Codex's hooks run outside its sandbox, so the
   log write is not blocked there, even when the state directory is outside the
   session's writable folders.
+- **The Pi extension sends one event for each Pi event, and holds no rule.** It
+  runs `/bin/sh scripts/tc-hook pi EVENT` as a child process and writes a small
+  JSON payload to its standard input. It kills the child at a timeout: 5 seconds
+  for `instruction` and `prompt`, 10 for `session-start` and `reply`, and 15 for
+  `write`. It uses `spawn` and never `spawnSync`, which would block Pi's
+  rendering. The core answers with `{"additionalContext": TEXT}` or nothing.
+  - `session_start` sends `session-start` and drops the answer. It writes the
+    start record. A reload writes none, because the session stays the same.
+  - `before_agent_start` sends `instruction` and `prompt` at the same time. It
+    returns the system prompt with the instruction added, and the reminder as a
+    hidden message. Pi clears the system prompt after each run, so every prompt
+    sends the instruction again. Pi saves the reminder after the prompt, as the
+    other harnesses do. The history then stays the same between requests, and
+    the provider's prompt cache keeps working. A reminder added to the end of
+    each request would move the cache breakpoint every time.
+  - `tool_result` for `write` and `edit` sends `write` with the path of the call
+    and adds the gate message to the result. `isError` stays as it is.
+  - `agent_end` sends `reply` with the text and the model of the last assistant
+    message. A run that ends in an error or an abort writes no record.
+  - A file that the model writes through `bash` is not gated, and the model runs
+    the checker on it. A run that Pi starts with `sendMessage` while it is idle
+    skips `before_agent_start` in Pi 0.84.2, so it has no instruction.
 - **Gemini CLI gets the skill only.** It is not installed here, and for
   unpaid-tier users Antigravity CLI replaced it. The extension layout in the
   [harness survey](../research/harness-hooks-a.md) remains for a later grove.
@@ -567,9 +593,14 @@ No tests are built beyond the checker's own self-test, which runs in
 `scripts/check.sh` (the human's decision in `plan-k1`). Each leaf shows its
 behaviour by running it. The checker leaves run it on real documents and
 replies. Each always-on leaf runs a real session and shows each layer and the
-switch working. A Pi load check that uses no model quota goes into
-`scripts/check.sh` if `pi-always-on-k13` finds one. It checks that the extension
-loads, not how well the skill works.
+switch working.
+
+`scripts/pi-extension-load.test.sh` is a Pi load check that uses no model
+quota, and `scripts/check.sh` runs it. It starts Pi in RPC mode and reads the
+start record that the extension writes. So it fails when the extension does not
+load, or when it registers no working handler. It also fails when the off file
+does not stop the record, or when Pi stops reporting a broken extension. It
+checks that the extension loads, not how well the skill works.
 
 ## Out of scope
 

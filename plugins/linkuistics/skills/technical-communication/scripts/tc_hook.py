@@ -2,8 +2,8 @@
 """The hook core of the technical-communication skill.
 
 Run as `tc-hook HARNESS EVENT`, with the harness's payload on standard input.
-The events are session-start, subagent-start, prompt, write and reply. The core
-does the work and an adapter for each harness reads that harness's payload and
+The events are session-start, subagent-start, prompt, write and reply, and
+instruction, which only Pi uses. The core does the work and an adapter for each harness reads that harness's payload and
 writes that harness's output, so a harness entry stays a thin, stable file.
 
 The core checks the off file first. Every path ends in exit 0, and the core
@@ -173,7 +173,37 @@ class Codex(Adapter):
         return paths
 
 
-ADAPTERS = {adapter.name: adapter for adapter in (ClaudeCode(), Codex())}
+class Pi(Adapter):
+    """Pi's payloads and output.
+
+    Pi has no hook payloads. The extension (harnesses/pi/technical-communication.ts)
+    builds one from Pi 0.84.2's events (docs/research/harness-hooks-a.md,
+    section 3): session_id, cwd, source (a session_start reason), model and
+    last_assistant_message (from agent_end), and tool_input.path (from a write or
+    edit result). The output is {"additionalContext": text}, which the extension
+    places itself, so the core needs no event name in it.
+    """
+
+    name = "pi"
+
+    def model(self, payload):
+        model = payload.get("model")
+        return model if isinstance(model, str) and model else None
+
+    def written_paths(self, payload):
+        """The path of a write or edit call, as Pi's own tools read it."""
+        tool_input = payload.get("tool_input")
+        path = tool_input.get("path") if isinstance(tool_input, dict) else None
+        if not isinstance(path, str) or not path:
+            return []
+        # Pi's tools drop a leading "@" and expand "~" before they resolve a path.
+        return [os.path.expanduser(path[1:] if path.startswith("@") else path)]
+
+    def output(self, event, context):
+        return {"additionalContext": context}
+
+
+ADAPTERS = {adapter.name: adapter for adapter in (ClaudeCode(), Codex(), Pi())}
 
 
 # --- the layers ---------------------------------------------------------------
@@ -282,6 +312,10 @@ def handle(adapter, event, payload, checker):
         checker.log_start(adapter.name, session, agent,
                           adapter.source(event, payload))
         return text
+    if event == "instruction":
+        # Pi sends the instruction with every prompt, so this event only reads it.
+        # The start record belongs to the session-start event.
+        return always_on_text("instruction.md")
     if event == "prompt":
         return always_on_text("reminder.md")
     if event == "write":

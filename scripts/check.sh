@@ -121,7 +121,8 @@ run_check "shellcheck" shellcheck \
   scripts/floor-seccomp.test.sh scripts/release-floor-native.sh scripts/grove-floor-native-cases.sh \
   scripts/release-floor-qemu.sh scripts/release-floor-qemu-backend.sh scripts/release-floor-qemu.test.sh \
   scripts/ravel-target-smoke-target.sh scripts/ravel-installed-smoke.sh scripts/ravel-target-inputs.test.sh scripts/grove-installed-smoke.sh \
-  plugins/linkuistics/skills/technical-communication/scripts/tc-hook
+  plugins/linkuistics/skills/technical-communication/scripts/tc-hook \
+  scripts/pi-extension-load.test.sh
 run_check "cargo clippy" cargo clippy --workspace --all-targets
 run_check "plugin install" bash plugins/install.test.sh
 run_check "conformance" bash plugins/grove/conformance.sh
@@ -130,6 +131,9 @@ run_check "conformance suite" bash plugins/grove/conformance.test.sh
 # from importing anything out of the current directory or the user's site.
 run_check "technical-communication checker self-test" \
   python3 -I plugins/linkuistics/skills/technical-communication/scripts/ste-lint.py --selftest
+# Loads the Pi extension in a real Pi, with no model request; it skips visibly
+# when Pi is not installed.
+run_check "technical-communication Pi extension loads" bash scripts/pi-extension-load.test.sh
 run_check "release preparation" bash scripts/release-prepare.test.sh
 run_check "Ravel archive admission" python3 scripts/test_ravel_target_inputs.py
 run_check "Linux floor backend admission" task release:floor:controls

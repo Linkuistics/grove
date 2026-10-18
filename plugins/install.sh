@@ -22,10 +22,16 @@
 # no need to re-run this script unless skills are added, removed, or change
 # their eligibility.
 #
+# A skill that carries a Pi extension (`harnesses/pi/*.ts` in its directory) and
+# is eligible for Pi gets that file linked into ~/.pi/agent/extensions/ as well.
+# Unlike a skill, an extension is code: Pi loads it on every start with no trust
+# prompt, so it is linked only when the skill's own directory ships it.
+#
 # A re-run reconciles rather than only adding: every symlink in a harness's
 # skills directory that points into a checkout of this repo is this script's to
 # manage, so one whose skill has been deleted, renamed, or made ineligible for
-# that harness is removed rather than left dangling.
+# that harness is removed rather than left dangling. The same holds for the
+# extension links in ~/.pi/agent/extensions/.
 #
 # Usage: ./plugins/install.sh [--force]
 
@@ -256,9 +262,64 @@ is_ours() {
   return 1
 }
 
+# link_pi_extensions <extensions-dir>: link each `harnesses/pi/*.ts` file of a
+# Pi-eligible skill into <extensions-dir> under its own file name, with the skill
+# links' rules. Ownership is the same test (is_ours: the target's shape), so a
+# link that is not ours is never touched. Reconciliation runs first: an ours-link
+# is kept only while an eligible skill still ships a file of that name. A real
+# file at a target path is refused, never replaced, and counts against the exit
+# status like a blocked skill.
+link_pi_extensions() {
+  local ext_root="$1" link name record skill_path file keep
+
+  if [[ -d "${ext_root}" ]]; then
+    for link in "${ext_root}"/*; do
+      [[ -L "${link}" ]] || continue
+      is_ours "${link}" || continue
+      name="$(basename "${link}")"
+      keep=0
+      for record in "${skill_records[@]}"; do
+        skill_path="${record#*	}"
+        if is_eligible "${skill_path}" pi && [[ -f "${skill_path}/harnesses/pi/${name}" ]]; then
+          keep=1
+          break
+        fi
+      done
+      if ((!keep)); then
+        rm "${link}"
+        echo "unlink pi  ${name}  (extension no longer shipped here)"
+        ext_unlinked=$((ext_unlinked + 1))
+      fi
+    done
+  fi
+
+  for record in "${skill_records[@]}"; do
+    skill_path="${record#*	}"
+    is_eligible "${skill_path}" pi || continue
+    for file in "${skill_path}"/harnesses/pi/*.ts; do
+      [[ -f "${file}" ]] || continue
+      name="$(basename "${file}")"
+      link="${ext_root}/${name}"
+      mkdir -p "${ext_root}"
+      if [[ -L "${link}" ]]; then
+        rm "${link}"
+      elif [[ -e "${link}" ]]; then
+        echo "error  ${link} exists and is not a symlink — ${name} extension not installed" >&2
+        blocked+=("${link}")
+        continue
+      fi
+      ln -s "${file}" "${link}"
+      ext_linked=$((ext_linked + 1))
+    done
+  done
+  echo "ok     ${ext_root}"
+}
+
 linked=0
 unlinked=0
 skipped=0
+ext_linked=0
+ext_unlinked=0
 blocked=()
 declared_none=()
 personal=()
@@ -338,6 +399,9 @@ for target in "${harness_targets[@]}"; do
     linked=$((linked + 1))
   done
   echo "ok     ${target_root}"
+  if [[ "${harness_id}" == "pi" ]]; then
+    link_pi_extensions "${harness_home}/extensions"
+  fi
 done
 
 if ((${#declared_none[@]})); then
@@ -356,23 +420,24 @@ if ((${#personal[@]})); then
 fi
 
 echo "linked ${linked} skill symlink(s); removed ${unlinked}; skipped ${skipped}"
+echo "linked ${ext_linked} Pi extension symlink(s); removed ${ext_unlinked}"
 
 if ((${#blocked[@]})); then
   cat >&2 <<EOF
 
-error: ${#blocked[@]} skill(s) not installed — a real file or directory sits at
+error: ${#blocked[@]} link(s) not installed — a real file or directory sits at
        the path this script installs to:
 
 $(printf '         %s\n' "${blocked[@]}")
 
-Something else owns those paths, and a directory this script did not create is
-not its to replace. The usual cause is a grove build older than
+Something else owns those paths, and a file or directory this script did not
+create is not its to replace. The usual cause is a grove build older than
 delete-provisioning-k19, which swept its own methodology into
 ~/.codex/skills/grove and ~/.pi/agent/skills/grove on every invocation; no
 current build writes them.
 
-  keep both:    let the other owner keep the path; the skill stays uninstalled
-                for that harness
+  keep both:    let the other owner keep the path; what belongs there stays
+                uninstalled for that harness
   hand over:    remove the path yourself, then re-run this script
 
 Nothing was overwritten.

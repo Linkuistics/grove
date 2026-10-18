@@ -353,6 +353,101 @@ make_repo "${scratch}/git-main/vendored"
 check "unpacked copy inside another repo installs" 0 "${EXPECTED_LINKS}" 'linked' \
   "${scratch}/git-main/vendored"
 
+# --- Pi extensions -----------------------------------------------------------
+
+# A skill that ships `harnesses/pi/<name>.ts` and is eligible for Pi gets that
+# file linked into ~/.pi/agent/extensions/. It is code Pi runs on every start, so
+# the link follows the skill's own eligibility and the skill links' ownership and
+# reconciliation rules. These fixtures sit beside the fixed skill set rather than
+# in it, because EXPECTED_LINKS counts that set.
+make_extension() {
+  local dir="$1" skill="$2" name="$3"
+  mkdir -p "${dir}/plugins/linkuistics/skills/${skill}/harnesses/pi"
+  printf 'export default function () {}\n' \
+    >"${dir}/plugins/linkuistics/skills/${skill}/harnesses/pi/${name}"
+}
+
+ext="${scratch}/extension"
+make_repo "${ext}"
+make_extension "${ext}" portable-one hook.ts
+make_extension "${ext}" codex-only never.ts
+home="$(make_home)"
+output="$(run_install "${home}" "${ext}")"
+extdir="${home}/.pi/agent/extensions"
+problem=""
+[[ "$(last_status)" == 0 ]] || problem+=" exit $(last_status);"
+[[ -L "${extdir}/hook.ts" ]] || problem+=" the extension was not linked;"
+[[ "$(readlink "${extdir}/hook.ts")" == "${ext}/plugins/linkuistics/skills/portable-one/harnesses/pi/hook.ts" ]] ||
+  problem+=" the link does not point at the skill's file;"
+[[ -e "${extdir}/never.ts" ]] && problem+=" an extension of a skill that is not eligible for Pi was linked;"
+[[ -e "${home}/.codex/skills/hook.ts" || -e "${home}/.codex/hook.ts" ]] && problem+=" the extension reached Codex;"
+[[ "${output}" =~ linked[[:space:]]1[[:space:]]Pi[[:space:]]extension ]] || problem+=" the summary does not count it;"
+record "an eligible skill's Pi extension is linked, an ineligible one is not" "${problem}" "${output}"
+
+# A re-run converges: it replaces its own link and does not stack or fail.
+output="$(run_install "${home}" "${ext}")"
+problem=""
+[[ "$(last_status)" == 0 ]] || problem+=" exit $(last_status);"
+links="$(count_links "${extdir}" 2>/dev/null || echo none)"
+[[ "${links}" == 1 ]] || problem+=" ${links} links after a re-run;"
+record "re-running keeps one extension link" "${problem}" "${output}"
+
+# Reconciliation: the file is gone, or its skill is no longer eligible for Pi.
+rm "${ext}/plugins/linkuistics/skills/portable-one/harnesses/pi/hook.ts"
+output="$(run_install "${home}" "${ext}")"
+problem=""
+[[ -e "${extdir}/hook.ts" || -L "${extdir}/hook.ts" ]] && problem+=" a deleted extension left its link behind;"
+[[ "${output}" =~ unlink[[:space:]]+pi[[:space:]]+hook.ts ]] || problem+=" the removal was not reported;"
+record "a deleted extension's link is removed" "${problem}" "${output}"
+
+make_extension "${ext}" portable-two hook.ts
+run_install "${home}" "${ext}" >/dev/null
+make_skill "${ext}" linkuistics portable-two 'harnesses: [codex]'
+output="$(run_install "${home}" "${ext}")"
+problem=""
+[[ -e "${extdir}/hook.ts" || -L "${extdir}/hook.ts" ]] && problem+=" the link survived the loss of Pi eligibility;"
+record "losing Pi eligibility removes the extension link" "${problem}" "${output}"
+
+# Links that are not ours stay, and a real file at a target is refused, never
+# replaced: Pi runs whatever sits there.
+own="${scratch}/extension-own"
+make_repo "${own}"
+make_extension "${own}" portable-one hook.ts
+home="$(make_home)"
+mkdir -p "${home}/.pi/agent/extensions" "${scratch}/foreign-ext"
+printf 'export default function () {}\n' >"${scratch}/foreign-ext/mine.ts"
+ln -s "${scratch}/foreign-ext/mine.ts" "${home}/.pi/agent/extensions/mine.ts"
+printf 'the human wrote this\n' >"${home}/.pi/agent/extensions/hook.ts"
+output="$(run_install "${home}" "${own}")"
+problem=""
+[[ "$(last_status)" == 1 ]] || problem+=" exit $(last_status) (want 1);"
+[[ -L "${home}/.pi/agent/extensions/mine.ts" ]] || problem+=" a foreign extension link was removed;"
+[[ ! -L "${home}/.pi/agent/extensions/hook.ts" && "$(cat "${home}/.pi/agent/extensions/hook.ts")" == "the human wrote this" ]] ||
+  problem+=" the human's file was replaced;"
+[[ "${output}" =~ hook.ts[[:space:]]extension[[:space:]]not[[:space:]]installed ]] || problem+=" the collision was not reported;"
+[[ -L "${home}/.pi/agent/skills/portable-one" ]] || problem+=" the collision blocked a skill link;"
+record "a real file at an extension path is refused, a foreign link is left" "${problem}" "${output}"
+
+# Without a Pi home there is nothing to link into, and nothing is created.
+home="$(mktemp -d "${scratch}/home.XXXXXX")"
+mkdir -p "${home}/.codex"
+output="$(run_install "${home}" "${ext}")"
+problem=""
+[[ -e "${home}/.pi" ]] && problem+=" ~/.pi was created;"
+record "no Pi home, no extension directory" "${problem}" "${output}"
+
+# The real corpus: the technical-communication skill ships its Pi extension, and
+# the install reaches it. --force, because this tree may be a secondary workspace;
+# HOME is a scratch directory, so no real link is touched.
+home="$(make_home)"
+output="$(HOME="${home}" bash "${script}" --force 2>&1 || true)"
+problem=""
+[[ -L "${home}/.pi/agent/extensions/technical-communication.ts" ]] ||
+  problem+=" the real extension was not linked;"
+[[ -f "${home}/.pi/agent/extensions/technical-communication.ts" ]] ||
+  problem+=" the real extension link dangles;"
+record "the real technical-communication extension is linked" "${problem}" "${output}"
+
 # --- summary -----------------------------------------------------------------
 
 printf '\n%d passed, %d failed, %d skipped\n' "${pass}" "${fail}" "${skip}"

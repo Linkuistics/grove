@@ -6,7 +6,7 @@ release archives. The independent Ravel installation supplies the public SDK
 and static-example declarations; no Ravel checkout or private worker source is
 needed here.
 
-The pins retain Bun 1.4.2, `@types/bun` 1.4.2 and TypeScript 7.0.2 from the
+The pins retain Bun 1.4.3, `@types/bun` 1.4.3 and TypeScript 7.0.2 from the
 pre-extraction compiler, including its locked transitive packages and strict
 compiler flags. The helper resolves declarations from the explicitly supplied
 Ravel front's canonical installation prefix. Ordinary relative policy imports

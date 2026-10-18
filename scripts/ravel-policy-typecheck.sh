@@ -9,8 +9,8 @@ main() {
   local root tooling scratch cleanup
   root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
   tooling="$root/tools/ravel-policy"
-  [[ "$(bun --version)" == 1.4.2 ]] || {
-    echo 'policy typecheck: Bun 1.4.2 is pinned; install it and retry' >&2
+  [[ "$(bun --version)" == 1.4.3 ]] || {
+    echo 'policy typecheck: Bun 1.4.3 is pinned; install it and retry' >&2
     return 1
   }
   [[ -f "$tooling/node_modules/typescript/bin/tsc" ]] || {

@@ -221,8 +221,9 @@ that need no dictionary.
   headings, list items, table cells and block quotes. The text of links and
   emphasis is prose too. These are not prose: fenced code, inline code, link and
   image targets, reference definitions, bare URLs and autolinks. HTML comments
-  (which hold the markers) and HTML tags are not prose. Front matter is not
-  prose, except the value of a `description` key. A fence closes only on a fence
+  (which hold the markers) and HTML tags are not prose. Front matter (in `.md`
+  and `.markdown` files only) is not prose, except the value of a `description`
+  key. A fence closes only on a fence
   of its own kind and at least its own length. A span in double quotation marks
   on one line is a quotation, and it is masked as code is. Text inside an `off`
   or `pending` region is not checked.
@@ -250,9 +251,12 @@ owns. The patterns and the list cover:
   "modeling"
 - a few single words
 
-The rule flags only a form that British usage does not also accept. Code, identifiers, words with internal capitals and words
-in capitals only are not checked. Hedges ("may", "might", "could") are never
-flagged.
+The rule flags only a form that British usage does not also accept. So it
+leaves "program", "disk", "dialog", "meter", "license", "practice" and
+"judgment" alone. Code, identifiers (a token with an underscore, a dot, a slash
+or a leading hyphen), words with internal capitals and words in capitals only
+are not checked. A word that starts with a capital inside a sentence is a name
+and is not checked. Hedges ("may", "might", "could") are never flagged.
 
 **Markers.** A marker is an HTML comment, so rendered Markdown hides it. Its
 grammar is `<!-- tc: VERB [RULES] because REASON -->`.
@@ -267,9 +271,13 @@ grammar is `<!-- tc: VERB [RULES] because REASON -->`.
 
 A departure accepts only the findings of the named rules in its scope. A marker
 that lacks `because` and a reason, names an unknown verb or rule, or closes
-nothing is a hard `marker` finding, and it does not apply. So a justified
-departure is accepted and a bare one is not. In a reply, only `exempt` has an
-effect.
+nothing is a hard `marker` finding, and it does not apply. Two more cases are
+faults of the same kind: a `depart` marker alone on its line with no block after
+it, and an `off` or `pending` marker while another region is open. So a
+justified departure is accepted and a bare one is not. A valid `exempt` marker
+anywhere in a document makes the whole document unchecked. In a reply, only
+`exempt` has an effect: the checker ignores every other verb there, faulty or
+not.
 
 **Rule identifiers.** The vendored rules keep their identifiers, except that
 `nominalization` becomes `nominalisation` for the British spelling. New rules
@@ -295,14 +303,27 @@ numbering or name.
 - Text output prints `FILE:LINE:COL RULE: MESSAGE` for each unaccepted
   finding. One summary line follows. It gives the findings at each level, the
   accepted departures, the pending regions, the words, and the hard findings
-  per 100 words.
+  per 100 words. The message of a rule that matches a word or phrase names it,
+  so a gate message needs no other field.
 - `--json` prints one object: `findings` (each with `file`, `line`, `col`,
   `rule`, `level`, `match` and `message`), `hard`, `advisory`, `accepted` (a
-  count for each rule), `pending`, `words`, `per_100`, `text_type` and
-  `baseline`. Only this command-line output carries `match`. The log never
-  does.
+  count for each rule), `pending` (the number of pending regions), `words`,
+  `per_100`, `exempt`, `text_type` and `baseline`. Only this command-line
+  output carries `match`. The log never does.
+- `--markers` prints one line for each marker, `FILE:LINE VERB [RULES] [because
+  REASON]`, and one line `FILE:LINE:COL marker: MESSAGE` for each faulty
+  marker. With `--json` it prints `{"markers": [...]}`, each marker with `file`,
+  `line`, `col`, `verb`, `rules`, `reason` and `error` (null when valid). It
+  exits 1 when any marker is faulty.
 - The hook core does not read exit codes. It loads the checker by path and calls
-  the same functions in its own process.
+  the same functions in its own process. The function is
+  `analyse(text, filename, text_type, reply)`. It returns a dict with
+  `findings` (the unaccepted ones), `accepted`, `pending`, `words`, `exempt`,
+  `markers`, `first_prose_line` (the first line that holds prose, so a gate can
+  tell whether a first marker comes before any prose), `unclosed` (the verb of
+  an `off` or `pending` region that the end of the text leaves open, or null)
+  and `text_type`. `lint(text, filename, text_type)` returns the findings and
+  the word count. Neither function writes anything.
 
 ### The document gate and conversion
 

@@ -31,8 +31,38 @@ always on, measured in real use, and turned off by one switch.
 
 ## Decomposition
 
-The requirements are settled in `plan-k1`. A `planning` leaf decomposes the
-rest into the sessions that design, build and release the skill.
+The requirements are settled in `plan-k1`. `technical-communication-k2` cut the
+rest as flat leaves under the root, in dependency order:
+
+- `vendored-checker-k3` moves the checker in unchanged. It needs nothing else,
+  and it gives the design real code to extend.
+- `harness-hooks-k4` (one survey) and `skill-design-k5` establish what each
+  harness allows and how the layers fit. Every leaf after them builds on the spec
+  and ADRs that `skill-design-k5` writes.
+- `document-checks-k6` and `reply-scoring-k7` extend the checker for the two
+  things that run on it: the document gate and the reply log.
+- `skill-sentences-k8`, `skill-words-k9` and
+  `skill-safety-punctuation-practices-k10` write the skill. The first creates it
+  as a working whole, and the other two complete the coverage of Part 1.
+- `claude-code-always-on-k11` builds the always-on layer and the pieces the other
+  harnesses reuse. `codex-always-on-k12`, `pi-always-on-k13` and
+  `gemini-always-on-k14` each follow with the same layers as far as that harness
+  allows.
+- `grove-communication-reword-k15` fits grove's own communication section under
+  the precedence order. `publication-k16` records provenance, writes the user
+  document and sweeps for licence leaks.
+
+Integration into `main` and the release are the finish cycle's, so no leaf
+carries them (`CLAUDE.md`). No leaf builds tests or evaluations, because the
+human judges the skill in use.
+
+## Pointers to hold for every leaf
+
+- Never copy text from the standard into the repository or `.grove/`. Read it as
+  page images, keep notes in the scratchpad, and invent every example.
+- The skill lives at `plugins/linkuistics/skills/technical-communication/`; the
+  spec at `docs/specs/technical-communication.md` and the ADRs in `docs/adr/`
+  arrive with `skill-design-k5`.
 
 ## Pointers
 

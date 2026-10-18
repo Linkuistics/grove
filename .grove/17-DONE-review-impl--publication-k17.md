@@ -69,3 +69,23 @@ Test each of these calls, and say which you would change:
 - The finished leaves' logs in `.grove/` name the standard because they record
   the human's own decisions. The producer left them as they are and reports that
   as a finding for the human, so it is not yours to fix.
+
+## Decisions (running log)
+
+- **Review boundary.** The producer is commit `30fdcaa70734`. The working copy
+  started empty on that commit, and the twelve files under review have no later
+  edits. I read PDF pages 45 to 128 as images, without text extraction or OCR.
+  This harness has no PDF `Read` tool, so `pdftoppm` rendered temporary page
+  images outside the repository. No test, build, lint or format command ran.
+- **The three trade-offs.** Numeric coverage tables and generic grammatical
+  identifiers are acceptable. A necessary grammatical operation is acceptable
+  too, but it does not excuse a discretionary scenario or a source-shaped
+  sequence of examples. Preserving a reference file's whole teaching order is
+  separate from the permitted coverage numbers. The report records that
+  distinction and the places where it matters.
+- **Findings.** Three items warrant integration triage: a retained instrument
+  example pattern, a retained timed start-up note, and teaching outlines that
+  still follow the source's topic order. The findings, all twelve file verdicts,
+  the rewritten-passage check and the risk-reduction recommendation are in
+  `docs/technical-communication-publication-review.md`. The implementation is
+  unchanged. These findings apply the existing contract; they change no ADR.

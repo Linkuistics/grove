@@ -106,8 +106,17 @@ whole input manifest byte for byte. Final executable SHA-256 values are:
 
 | Target | SHA-256 |
 |---|---|
-| aarch64-unknown-linux-gnu | `05cc65bb55a89c7f6268f786957c4a06146fae7e0e6ea70d31a701d8e6837a76` |
-| x86_64-unknown-linux-gnu | `8d636ca7a620e9065ce83592c2855d540dfa3d1f75e9ad2edfa84b5b5f695aca` |
+| aarch64-unknown-linux-gnu | `21ad63faa809f91a95a036edcac5e9d35547616c90d56013992e988a4844b561` |
+| x86_64-unknown-linux-gnu | `4cbf65c81477e5bfb4fa679937db54ba24ac01ba8204797fce69cac4bd06231d` |
+
+**Re-measured 2026-10-18.** A release smoke test refused the aarch64 backend
+because the build no longer reproduced the 2026-10-13 hash. The values above are
+the current ones. The inputs are unchanged: the bubblewrap 0.11.0 and libcap
+2.77 source archives, the floor `libcap.so.2` (`47c73bce…`), the CentOS image
+digest and Zig 0.17.0. Repeat builds into different output paths agree byte for
+byte. The cause of the drift is not known, and the earlier binaries are not
+kept, so the old and new executables were not compared. The backend is a
+test-only helper and ships in no archive.
 
 `probe-final.log` verifies both real backends' versions and floor libcap bytes.
 Native arm64 returns bubblewrap's EPERM namespace diagnostic; Cortex-A53 and

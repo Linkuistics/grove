@@ -31,7 +31,7 @@ cp "$root/scripts/grove-installed-smoke.sh" "$mount/"
 cp "$backends/$target/bwrap" "$mount/bwrap"
 cp "$backends/$target/libcap.so.2" "$mount/libcap.so.2"
 verify_floor_elf aarch64 "$mount/bwrap"
-verify_floor_input "$mount/bwrap" 05cc65bb55a89c7f6268f786957c4a06146fae7e0e6ea70d31a701d8e6837a76
+verify_floor_input "$mount/bwrap" 21ad63faa809f91a95a036edcac5e9d35547616c90d56013992e988a4844b561
 verify_floor_input "$mount/libcap.so.2" 47c73bce965ec946e14062b123a712df3505d79db5ec242602337e8830d91398
 python3 "$root/scripts/floor_seccomp.py" >"$mount/seccomp.json"
 zig cc -target aarch64-linux-gnu.2.17 -O2 "$root/scripts/floor-native-security.c" -o "$mount/security"

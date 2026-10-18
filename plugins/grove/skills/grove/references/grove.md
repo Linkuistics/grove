@@ -47,7 +47,7 @@ differently.
 
 ## What the `linkuistics` plugin carries, and why it is separate
 
-Three bodies of guidance grove leans on live in a **separately installed**
+The guidance that grove leans on lives in a **separately installed**
 plugin. Grove requires it and does not ship it — the `grove` binaries carry no
 skills at all, and this methodology and that plugin are installed the same way,
 each on its own, through the Claude Code marketplace or the repo's
@@ -67,6 +67,10 @@ each citation states what binds in the plugin's absence:
 - **`linkuistics:using-jujutsu`** — the working-copy-as-commit lane. What binds
   without it is `references/commit.md`, which carries the whole boundary a grove
   session needs on its own; the skill deepens the lane rather than completing it.
+- **`linkuistics:technical-communication`** — controlled English for everything a
+  session writes in natural language. What binds without it is the "Human-facing
+  communication" section of `SKILL.md`: it says what to explain and in what
+  order, and it stands on its own. The skill adds rules for words and sentences.
 
 The dependency is documentation-level, not install-enforced: absence changes how
 *well* a session writes these artifacts, never *what* it is obliged to write

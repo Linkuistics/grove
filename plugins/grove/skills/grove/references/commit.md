@@ -4,6 +4,8 @@ One task is **one focused commit**: the artifact, whatever the grow verbs wrote,
 and the `DONE` rename that retires the leaf, together with anything the cascade
 above promoted or added. Everything in that list is written by Retire, which is
 why Retire comes first — the message cannot name a node you have not yet closed.
+A change that another skill needs first, such as a document's conversion, lands as
+its own commit before the task's commit.
 
 ## Where the boundary falls
 

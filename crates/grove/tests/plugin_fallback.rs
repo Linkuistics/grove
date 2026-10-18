@@ -96,8 +96,8 @@ struct Citation {
 /// repointed those citations at `ADR-FORMAT.md` and `references/requirements.md`;
 /// the files no longer name the plugin at all, which is why they have no row.
 ///
-/// `grove/references/grove.md` is the **hub**: it states what binds for all
-/// three skills in one place, and the spine's `SKILL.md` routes every
+/// `grove/references/grove.md` is the **hub**: it states what binds for every
+/// cited skill in one place, and the spine's `SKILL.md` routes every
 /// citation there ([`the_hub_is_reachable_from_the_condition_register`]). That is
 /// why no other file mirrors the seam gloss — a second statement of it would be
 /// the duplication the ownership inventory exists to remove.
@@ -137,6 +137,16 @@ const CITATIONS: &[Citation] = &[
         file: "grove/references/grove.md",
         skill: "using-jujutsu",
         binds: "what binds without it is references/commit.md",
+    },
+    Citation {
+        file: "grove/references/grove.md",
+        skill: "technical-communication",
+        binds: "it says what to explain and in what order, and it stands on its own",
+    },
+    Citation {
+        file: "grove/SKILL.md",
+        skill: "technical-communication",
+        binds: "without the skill, this section binds as it stands",
     },
     Citation {
         file: "grove/references/review.md",
@@ -231,8 +241,8 @@ fn the_citation_registry_is_exhaustive_over_the_corpus() {
     // broken-marker failure cannot pass as a clean audit.
     assert_eq!(
         found.len(),
-        8,
-        "the shipped skill set carries eight audited citations across six files: {found:?}"
+        10,
+        "the shipped skill set carries ten audited citations across seven files: {found:?}"
     );
 }
 

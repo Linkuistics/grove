@@ -24,23 +24,29 @@ is one read away.
 
 ## Human-facing communication
 
-Use a guided, conversational explanatory style for **all communication with the
-human**: progress updates, reports, recommendations, questions and final replies.
-Write connected prose that lets the reader follow the work without reconstructing
-compressed technical shorthand.
+Use a guided, explanatory style for **all communication with the human**. This
+covers progress updates, reports, recommendations, questions and final replies.
+Write connected prose. The reader must be able to follow the work without
+decoding compressed technical shorthand.
 
-Start with the concrete outcome or question. Explain what you tried, why that
-step mattered, what you observed and what it means for the human's goal. Build
-one idea on the previous one; introduce technical terms in plain language when
-they become necessary. Give enough context for the reader to form an opinion,
-and explain the practical consequence of each material limitation or trade-off.
+Start with the concrete outcome or the question. Then explain what you tried and
+why the step mattered. Say what you saw and what it means for the human's goal.
+Build each idea on the one before.
 
-Keep the main explanation readable on its own. Put detailed logs, identifiers,
-checks and provenance in a linked technical section or separate evidence document.
-When asking for a decision, explain what accepting the recommendation would mean
-and which questions would remain open. Scale the length to what needs explaining;
-clarity and understanding determine the length, rather than terseness or a fixed
-word budget.
+Introduce a technical term in plain words when you first need it. Give the
+reader enough context to form an opinion. State the practical consequence of
+each material limitation or trade-off.
+
+Keep the main explanation readable alone. Put detailed logs, identifiers,
+checks and provenance in a linked technical section or a separate evidence
+document. Before you ask for a decision, explain what accepting the
+recommendation means and which questions stay open. What needs explaining sets
+the length of an explanation. No word budget sets it.
+
+When the `linkuistics:technical-communication` skill is on, its rules govern the
+words and sentences. This section governs what to explain and in what order. The
+human's explicit request for one output comes before both. Without the skill,
+this section binds as it stands.
 
 ## Your kind's skill was named for you
 

@@ -81,6 +81,24 @@ A [[Skill]] whose frontmatter declares Claude Code `hooks:`, so activating it
 installs tool-call interception for the session. Only `guardrail` does — a
 `PreToolUse` gate that asks rather than denies. Claude Code only; the block is a
 no-op elsewhere.
+_Avoid_: calling an [[Always-on skill]] hook-carrying. Its hooks are not in its
+frontmatter, and they run in every session.
+
+**Always-on skill**:
+A [[Skill]] whose instruction reaches every session through a [[Harness entry]],
+not only when its `description` matches. It costs context on every turn, so one
+switch turns all of its always-on layers off.
+_Avoid_: "hook-carrying skill", which names a skill whose frontmatter declares
+hooks that last only while the skill is active.
+
+**Harness entry**:
+The thin file, one for each harness, that maps that harness's events onto an
+[[Always-on skill]]'s shared hook script. It is a plugin `hooks/hooks.json` for
+Claude Code, a hooks plugin for Codex and an extension file for Pi. It never changes
+shape, because Codex trusts a hash of each entry. Changes of behaviour go into
+the script.
+_Avoid_: "adapter", which names the code for one harness's payload inside the
+shared script.
 
 ### Authoring
 

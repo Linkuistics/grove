@@ -11,9 +11,15 @@ the switch.
 ## Context
 
 - The design `docs/specs/technical-communication.md` fixes the layers, the
-  switch, the log and the gate. `harness-hooks-a.md` holds Claude Code's hook
-  events, payloads, configuration schema and pitfalls, with the installed
-  version they were checked against.
+  switch, the log and the gate. This leaf builds the hook core
+  (`scripts/tc-hook`, the POSIX sh guard, and `scripts/tc_hook.py`, with the
+  Claude Code adapter), the gate's file classes and message, and the entry
+  `plugins/linkuistics/hooks/hooks.json`. The entry is in exec form with fixed
+  timeouts, and it never changes shape after this leaf. `harness-hooks-a.md`
+  holds Claude Code's hook events, payloads, configuration schema and pitfalls,
+  with the installed version they were checked against.
+- Set `TECHNICAL_COMMUNICATION_STATE_DIR` for every test run, so that the
+  human's real off file and log are untouched.
 - The `guardrail` skill's hook is skill-scoped and runs only while that skill
   is active. This skill's hooks must run in every session, so the survey says
   where a plugin ships always-on hooks. The plugin is `plugins/linkuistics`,
@@ -35,7 +41,8 @@ the switch.
   also works. Put the evidence in the running log.
 - The shared scripts take what they need from the harness through a thin adapter,
   so the Codex, Pi and Gemini leaves reuse them.
-- The running log says whether hooks also ran in a subagent session.
+- `SubagentStart` sends the instruction to a subagent. The running log says
+  whether the gate and the log also ran inside a subagent.
 - The reminder is within the size budget in the spec.
 
 ## Notes

@@ -308,6 +308,24 @@ tasks:
     cmds:
       - python3 -m http.server {{.PORT}} --bind 127.0.0.1 --directory docs/design/harness-selection-and-execution
 
+  design:technical-communication:
+    desc: Serve the technical-communication design views at localhost (default port 8770)
+    vars:
+      PORT: '{{.PORT | default "8770"}}'
+    cmds:
+      - python3 -m http.server {{.PORT}} --bind 127.0.0.1 --directory docs/design/technical-communication
+
+  design:technical-communication:render:
+    desc: Export the technical-communication design views from their D2 sources
+    dir: docs/design/technical-communication
+    sources:
+      - '*.d2'
+    generates:
+      - '*.svg'
+    cmds:
+      - for: sources
+        cmd: d2 --layout=elk --theme=0 --dark-theme=200 '{{.ITEM}}' '{{trimSuffix ".d2" .ITEM}}.svg'
+
   release:patch:
     desc: Publish and install the next patch release
     cmds:

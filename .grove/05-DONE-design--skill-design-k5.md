@@ -80,3 +80,71 @@ The spec and ADRs are committed, and each of these has a recorded answer.
   one at the end, and cut it lazily as the last act if you judge it needed.
 - The checker's passive-voice check matches word shapes, not grammar. Treat it as
   an advisory in the design, never as a gate.
+
+## Decisions (running log)
+
+**The human's global instruction files stay the human's.** This repository
+never writes the priming sections of `~/.codex/AGENTS.md` or
+`~/.pi/agent/AGENTS.md`. The user document offers one optional line the human
+may paste; that line names the off file, so the switch still reaches it. The
+human chose this over a block that `install.sh` manages (outside the switch,
+left behind on uninstall, in files maintained elsewhere) and over no line at
+all.
+
+**Codex: a small hooks plugin in the skill directory, trusted once by hand.** It
+carries all four layers. Its entries never change shape, so the trust (a hash
+of each entry) survives script updates. Until the human trusts it, Codex has the
+skill and the model runs the checker itself. Chosen over per-launch `-c` flags
+through Ravel (Grove launches only, unproven in a real turn) and over skill and
+fallback only.
+
+**Gemini CLI: the skill only; `gemini-always-on-k14` is abandoned with the
+human's confirmation.** Gemini receives the skill through `install.sh` when it
+is installed, and nothing more. The survey keeps the extension layout for a
+later grove. Chosen over building and live-testing an extension for a harness
+the human does not use now.
+
+**`plugins/install.sh` also links the Pi extension, and runs no Codex
+command.** It links the extension into `~/.pi/agent/extensions/`, the same kind
+of link it already makes for skills, so Pi has every layer from installation.
+The human adds and trusts the Codex plugin by hand, as the user document says.
+Grove's startup provisioning is unchanged: it places skill links only. Chosen
+over also running `codex plugin add` (trust stays manual anyway) and over no
+code delivery.
+
+**The switch: one off file; off acts at each layer's next event, with no
+retraction.** The file is `~/.local/state/technical-communication/off` (under
+`$XDG_STATE_HOME` when set); absent means on. Every hook reads it first on every
+event. Text already in a running session stays until that session ends; new
+sessions get no instruction, and the reminder, gate and log stop at once. Live
+check with the human: chosen over also sending a one-line "now off" notice,
+which needs per-session marker state.
+
+**The reply log: scores and counts only, one file per session.** A record
+stores counts, rates, per-rule counts and the exemption mark, and no reply text
+or matched fragments. Each session has its own JSON Lines file holding start
+records and reply records, so the writer counts position cheaply under a file
+lock and records replies since the last start (which a compaction resets). Live
+check with the human: chosen over storing flagged fragments or full text, and
+over one file for every session.
+
+**No review chain.** The human agreed the main decisions live, and the detailed
+contracts meet real code first in `document-checks-k6` and `reply-scoring-k7`,
+which repair the spec in place when they find a defect. Chosen with the human
+over a `review-design` and `integrate-review-design` pair, to keep the plan lean.
+
+**The ADR set is three records; the spec carries the rest.** Each was tested
+against all three conditions. `technical-communication-carries-no-standard-text`
+is the required licence posture. `documents-are-gated-replies-are-measured`
+passes: a reply gate added later would break the log's series, the choice
+surprises a reader who expects consistency, and the reply gate was rejected on
+evidence. `the-off-file-is-the-only-switch` passes: moving the file silently
+turns the skill on again for anyone who turned it off, a file looks odd beside
+an environment variable, and three alternatives were rejected. These fail
+"hard to reverse" and live in the spec with their reasons: the precedence
+order, British spelling, lazy conversion and its thresholds, the log's fields,
+the markers, the layout, and the boundary that this repository never writes the
+human's instruction files or grants trust. The agreed diagram sources are kept
+beside the design in `docs/design/technical-communication/`, after the
+precedent of `docs/design/harness-selection-and-execution/`, with two Taskfile
+tasks that serve and export them.

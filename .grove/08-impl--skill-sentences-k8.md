@@ -12,8 +12,14 @@ skill loads and a model can follow it; `skill-words-k9` and
 ## Context
 
 - Read the spec `docs/specs/technical-communication.md` and the ADRs it cites
-  first: they fix the file layout, the always-on text's size budget, the
-  restatement discipline and the checker's rule identifiers.
+  first. *Layers and layout* fixes the files: `SKILL.md`,
+  `always-on/instruction.md` and `always-on/reminder.md`, and `references/` with
+  one file for each section. This leaf writes `references/sentences.md`,
+  `procedures.md` and `descriptions.md`. The same section fixes the size
+  budgets, the description's conditional trigger, the instruction's content and
+  order, and the rule identifiers. *The checker's contract* holds the markers
+  and *The document gate and conversion* holds the conversion procedure that
+  `SKILL.md` states. *Restatement discipline* binds every rule and example.
 - The standard is `~/Downloads/ASD-STE100_ISSUE9.pdf`. It is licensed to the
   human and may not be redistributed. Read sections 4 to 6 as page images with
   the `Read` tool's `pages` option; the file disallows text copying. Keep your
@@ -30,10 +36,18 @@ skill loads and a model can follow it; `skill-words-k9` and
 
 - `SKILL.md` carries the precedence order (the human's request, then meaning,
   then this skill's rules, then house style), British spelling, the exclusions,
-  the lazy-conversion procedure with its fallback for large documents, how to
-  run the checker, and the switch.
-- The always-on instruction and the reminder exist as short, harness-neutral
-  files within the spec's size budget. The harness leaves inject them.
+  the text types and limits, the markers, the lazy-conversion procedure with its
+  fallback for large documents and its landing step, how to run the checker
+  (including on a commit message, a pull request or an issue text before it is
+  sent), and the switch.
+- The description stays within 400 characters and says to use the skill when
+  the always-on instruction is in context or when the human asks for
+  controlled English.
+- The always-on instruction (2,500 characters at most) and the reminder (200
+  at most) exist as harness-neutral files that follow the spec's content
+  contract. The instruction states facts, not commands, and its core rules carry
+  their identifiers and state no rule that `SKILL.md` lacks. The harness leaves
+  inject them.
 - Rules for sections 4, 5 and 6 are restated in our own words. No sentence, rule
   wording, explanatory text or example comes from the standard; every example
   is invented. Say in the running log how each rule was checked against that.

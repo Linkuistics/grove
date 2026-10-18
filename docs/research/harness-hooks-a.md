@@ -1088,3 +1088,18 @@ evidence each rests on.
 - **Not in this tree:** a durable, version-pinned guide to making a skill
   always on across harnesses, distilled from this survey and the always-on
   leaves' live evidence, is Linkuistics/grove#21.
+
+## Where these findings landed
+
+- [Documents are gated, and replies are measured](../adr/documents-are-gated-replies-are-measured.md)
+  rests on findings 6 and 7. The gate uses the quiet channel, and the reply log
+  prints nothing.
+- [The off file is the only switch](../adr/the-off-file-is-the-only-switch.md)
+  rests on finding 9.
+- The spec [`technical-communication`](../specs/technical-communication.md)
+  carries the layer map, the fail-open recipe for each entry, the Codex trust
+  constraint, the Pi extension and Gemini's scope. It also records the human's
+  answers to the handoff's questions. This repository never writes the human's
+  global instruction files. Codex gets a hooks plugin that the human trusts
+  once. Gemini CLI gets the skill only. `plugins/install.sh` also links the Pi
+  extension.

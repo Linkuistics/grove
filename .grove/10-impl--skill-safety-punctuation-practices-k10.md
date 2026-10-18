@@ -5,7 +5,9 @@
 Complete the skill's coverage of Part 1 with the last three sections, restated
 in our own words: section 7 (safety instructions), section 8 (punctuation and
 word count) and section 9 (writing practices, including the general
-recommendations). After this leaf the skill covers all nine sections.
+recommendations), in `references/safety.md`, `punctuation.md` and
+`practices.md`, with their lines in `SKILL.md`'s rule index. After this leaf the
+skill covers all nine sections.
 
 ## Context
 

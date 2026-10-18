@@ -18,11 +18,13 @@ always on, measured in real use, and turned off by one switch.
   no dictionary.
 - The skill carries the checker vendored from `danyuchn/asd-ste100-skill` at
   commit `3944283`, under its MIT notice, extended as the requirements say.
-- On Claude Code, Codex, Pi and Gemini, the always-on part runs as far as each
-  harness allows: the instruction, the reminder before each prompt, the
-  document gate and the reply log. Where a harness has no hook, the model runs
-  the checker itself. It is on from installation, and one switch turns all of
-  it off.
+- On Claude Code, Codex and Pi, the always-on part runs as the spec
+  `docs/specs/technical-communication.md` maps it: the instruction, the
+  reminder before each prompt, the document gate and the reply log. On Codex it
+  runs once the human trusts its hooks plugin. Gemini CLI receives the skill
+  only, by the human's decision in `skill-design-k5`. Where no hook runs, the
+  model runs the checker itself. It is on from installation, and one switch
+  turns all of it off.
 - The decisions that must outlive `.grove/` are in the ADR set. The licence
   posture passes the ADR test (a one-way door once text is public, surprising
   without context, chosen over rejected alternatives); the design decides which
@@ -45,9 +47,9 @@ rest as flat leaves under the root, in dependency order:
   `skill-safety-punctuation-practices-k10` write the skill. The first creates it
   as a working whole, and the other two complete the coverage of Part 1.
 - `claude-code-always-on-k11` builds the always-on layer and the pieces the other
-  harnesses reuse. `codex-always-on-k12`, `pi-always-on-k13` and
-  `gemini-always-on-k14` each follow with the same layers as far as that harness
-  allows.
+  harnesses reuse. `codex-always-on-k12` and `pi-always-on-k13` each follow
+  with the layers the spec maps for that harness. `gemini-always-on-k14` was
+  abandoned in `skill-design-k5`: Gemini CLI gets the skill only.
 - `grove-communication-reword-k15` fits grove's own communication section under
   the precedence order. `publication-k16` records provenance, writes the user
   document and sweeps for licence leaks.
@@ -60,9 +62,9 @@ human judges the skill in use.
 
 - Never copy text from the standard into the repository or `.grove/`. Read it as
   page images, keep notes in the scratchpad, and invent every example.
-- The skill lives at `plugins/linkuistics/skills/technical-communication/`; the
-  spec at `docs/specs/technical-communication.md` and the ADRs in `docs/adr/`
-  arrive with `skill-design-k5`.
+- The skill lives at `plugins/linkuistics/skills/technical-communication/`.
+  The spec `docs/specs/technical-communication.md` and the ADRs it cites bind
+  every leaf after `skill-design-k5`.
 
 ## Pointers
 

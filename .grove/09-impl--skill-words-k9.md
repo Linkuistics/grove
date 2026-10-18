@@ -4,7 +4,8 @@
 
 Add the rules for the standard's word-level sections to the skill, restated in
 our own words: section 1 (words), section 2 (multi-word nouns) and section 3
-(verbs). Vocabulary is controlled only approximately, because the skill ships
+(verbs), in `references/words.md`, `noun-clusters.md` and `verbs.md`, with
+their lines in `SKILL.md`'s rule index. Vocabulary is controlled only approximately, because the skill ships
 no dictionary.
 
 ## Context

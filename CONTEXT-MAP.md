@@ -256,7 +256,13 @@ each is a naming decision argued above rather than an accident of scope.
   The **skills** context owns
   [`behavioral-acceptance-is-closed-unmet`](docs/adr/behavioral-acceptance-is-closed-unmet.md),
   which records the acceptance boundary for the shipped
-  `writing-code-walkthroughs` skill.
+  `writing-code-walkthroughs` skill. It also owns the spec
+  [`technical-communication`](docs/specs/technical-communication.md) and the
+  records
+  [`technical-communication-carries-no-standard-text`](docs/adr/technical-communication-carries-no-standard-text.md),
+  [`documents-are-gated-replies-are-measured`](docs/adr/documents-are-gated-replies-are-measured.md)
+  and [`the-off-file-is-the-only-switch`](docs/adr/the-off-file-is-the-only-switch.md),
+  which describe the always-on `technical-communication` skill.
   The **ordinal-fs-tree** context owns
   [`entry-name-is-the-only-seam`](docs/adr/entry-name-is-the-only-seam.md),
   [`entries-are-never-removed`](docs/adr/entries-are-never-removed.md) and

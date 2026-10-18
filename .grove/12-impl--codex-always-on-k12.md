@@ -18,9 +18,15 @@ has none. The one switch turns it all off.
   and through `plugins/install.sh`. Executable flags on supporting scripts are
   preserved. Check that anything this leaf adds under `plugins/` reaches Codex by
   both routes.
-- Codex's global `AGENTS.md` carries a skills-priming section the human
-  maintains outside this repository. What this repository does about it was
-  decided with the human in `skill-design-k5`; follow that decision.
+- The route is the spec's: a hooks plugin whose root is the skill directory
+  (`.codex-plugin/plugin.json`, with its entries in `harnesses/codex/hooks.json`
+  and a Codex adapter in `tc_hook.py`). The human adds and trusts it once by
+  hand. Never write trust into the human's configuration. For the live run, use
+  a scratch `CODEX_HOME`, where trust through the TUI or
+  `--dangerously-bypass-hook-trust` is acceptable for the test only. Check that
+  the entries still reach the scripts if Codex copies the plugin.
+- This repository never writes Codex's global `AGENTS.md`
+  (`skill-design-k5`). `publication-k16` offers the human an optional line.
 - A project memory records that Codex's sandbox blocks writes to the git
   directory. Check what it does to a hook that writes the reply log.
 
@@ -28,11 +34,12 @@ has none. The one switch turns it all off.
 
 - In a real Codex session, show by running it which layers work and which fall
   back to the model running the checker, and that the switch turns them off.
-  Put the evidence in the running log.
+  Put the evidence in the running log, with the exact commands the human runs to
+  add and trust the plugin, for `publication-k16`'s user document.
 - `bash scripts/check.sh` is green, and the provisioning path still passes its
   checks.
 
 ## Notes
 
-- If Codex has no hook worth using, the correct outcome is the skill plus the
-  priming decision, and saying so plainly.
+- Until the human trusts the plugin, Codex has the skill and the fallback.
+  Say so plainly.

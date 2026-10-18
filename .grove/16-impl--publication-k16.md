@@ -11,8 +11,8 @@ release").
 ## Context
 
 - The licence posture is in the root brief, in `plan-k1`'s log and in the ADR
-  from `skill-design-k5`. The sweep procedure is in the spec, item "Restatement
-  discipline". The standard is `~/Downloads/ASD-STE100_ISSUE9.pdf`, page images
+  from `skill-design-k5`. The sweep procedure is in the spec
+  `docs/specs/technical-communication.md`, section *Restatement discipline*. The standard is `~/Downloads/ASD-STE100_ISSUE9.pdf`, page images
   only; scratch notes stay in the scratchpad.
 - `plugins/linkuistics/PROVENANCE.md` holds the sources of the skills in this
   plugin. The vendored checker needs an entry: upstream, commit `3944283`, MIT,
@@ -25,9 +25,15 @@ release").
 ## Done when
 
 - `PROVENANCE.md` carries the entry, and the plugin and context documents list
-  the skill with the glossary terms the design introduced.
+  the skill. `plugins/CONTEXT.md` already defines **Always-on skill** and
+  **Harness entry**; name `technical-communication` as their instance, and bring
+  **Symlink install** up to date with the Pi extension link.
 - A user document says in plain words what the skill does, that it is on from
   installation, how to turn it off, where the reply log is and how to read it.
+  It also gives the commands that add and trust the Codex plugin (from
+  `codex-always-on-k12`), says that Pi gets the extension through
+  `plugins/install.sh` and that Gemini CLI gets the skill only, and offers the
+  optional line for a global `AGENTS.md`. That line names the off file.
 - The licence sweep is done as the spec's procedure says, with positive controls
   that were seen to fail first. It finds no text, rule wording or example from the
   standard anywhere in the repository or in `.grove/`, and no use of the

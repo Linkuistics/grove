@@ -10,12 +10,17 @@ the same layers, fallback and switch as the other harnesses.
 - Read the design `docs/specs/technical-communication.md` and `harness-hooks-a.md`
   for Pi's extension or hook mechanism and its pitfalls, and reuse the shared
   scripts and switch from `claude-code-always-on-k11`.
-- Pi reads a global `AGENTS.md` carrying a skills-priming section the human
-  maintains outside this repository. A project memory records that `~/.pi/rules/`
-  is not loaded, verified in Pi's `resource-loader.js`; do not rely on it.
-  What this repository does about the priming section was decided with the human
-  in `skill-design-k5`; follow that decision.
-- `plugins/install.sh` links the skill into `~/.pi/agent/skills`.
+- The extension is `harnesses/pi/technical-communication.ts`. It finds the
+  skill directory through its own real path, imports only Node's built-in
+  modules, keeps its factory to registrations, and catches every error in every
+  handler, because a broken extension stops Pi from starting.
+- `plugins/install.sh` links the skill into `~/.pi/agent/skills`. This leaf
+  makes it also link the extension into `~/.pi/agent/extensions/`, with the same
+  ownership and reconciliation rules as its skill links, covered by
+  `plugins/install.test.sh`.
+- This repository never writes Pi's global `AGENTS.md` (`skill-design-k5`). A
+  project memory records that `~/.pi/rules/` is not loaded, verified in Pi's
+  `resource-loader.js`; do not rely on it.
 
 ## Done when
 
@@ -23,4 +28,6 @@ the same layers, fallback and switch as the other harnesses.
   to the model running the checker, and that the switch turns them off. A project
   memory records that Pi needs `tail -f /dev/null` alongside `script -q` to be
   driven unattended. Put the evidence in the running log.
+- If a Pi load check that spends no model quota exists, it runs in
+  `scripts/check.sh`.
 - `bash scripts/check.sh` is green.

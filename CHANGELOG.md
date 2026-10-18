@@ -52,6 +52,25 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+- `linkuistics` / `technical-communication`: new skill, modelled on ASD-STE100
+  Simplified Technical English, that keeps a model's replies, the documents it
+  writes and the text it writes for other models in controlled English. It
+  restates the rules of all nine sections of the standard's Part 1 in its own
+  words, carries the precedence order, British spelling, the exclusions and the
+  lazy-conversion procedure, and ships no text from the standard and no
+  dictionary.
+- `linkuistics` / `technical-communication`: vendor the checker from
+  `danyuchn/asd-ste100-skill` (commit `3944283`, MIT notice kept) and extend it
+  to gate whole prose documents (`--log-start`, `--log-reply` score replies).
+- `linkuistics` / `technical-communication`: always-on layers for Claude Code
+  (hooks), Codex (hooks plugin, active once the human trusts it) and Pi
+  (extension), with one switch that turns all of it off. Gemini CLI receives the
+  skill only. `docs/TECHNICAL-COMMUNICATION.md` documents it for the user.
+- `grove`: the communication section now sits under the technical-communication
+  precedence order.
+- Pin Bun and `@types/bun` 1.4.3 for the Ravel policy typecheck, matching the
+  installed toolchain.
+
 ## v22.4.0
 
 - `grove-art` now prefers a shared Typst/CeTZ renderer when diagrams need unified

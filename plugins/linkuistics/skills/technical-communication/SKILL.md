@@ -104,14 +104,18 @@ grammar, so it gives false alarms. Judge each by reading.
 
 | Rule | Reference file |
 |---|---|
+| `plain-word`, `one-meaning`, `word-class`, `domain-terms`, `no-coined-words`, `short-terms`, `no-slang`, `synonym-rotation`, `domain-verbs`, `marketing-adjective`, `spelling` | `references/words.md` |
+| `noun-cluster`, `short-form-after-full`, `hyphen-unit` | `references/noun-clusters.md` |
+| `simple-tenses`, `present-perfect`, `participle-adjective`, `ing-forms`, `passive-voice`, `verb-for-action`, `nominalisation`, `phrasal-verb` | `references/verbs.md` |
 | `long-sentence`, `one-idea-per-sentence`, `say-what-happens`, `full-words`, `vertical-list`, `dangling-conjunction`, `connect-sentences`, `articles` | `references/sentences.md` |
 | `long-sentence`, `one-action-per-step`, `imperative-steps`, `condition-first`, `notes-inform-only` | `references/procedures.md` |
 | `long-sentence`, `gradual-order`, `repeat-key-terms`, `paragraph-topic`, `long-paragraph` | `references/descriptions.md` |
 
 Read a reference file when the task needs it. Read `procedures.md` for steps,
 `descriptions.md` for explanations, and `sentences.md` for lists, articles and
-sentence form. The rules in a file cover one part of the standard each. Each file
-names that part.
+sentence form. Read `words.md` to choose a word. Read `noun-clusters.md` for a long
+run of nouns, and `verbs.md` for tenses and voice. The rules in a file cover one
+part of the standard each. Each file names that part.
 
 ## Markers
 

@@ -120,7 +120,8 @@ run_check "shellcheck" shellcheck \
   scripts/release-floor-backend-probe.sh scripts/release-floor-backend-probe-host.sh \
   scripts/floor-seccomp.test.sh scripts/release-floor-native.sh scripts/grove-floor-native-cases.sh \
   scripts/release-floor-qemu.sh scripts/release-floor-qemu-backend.sh scripts/release-floor-qemu.test.sh \
-  scripts/ravel-target-smoke-target.sh scripts/ravel-installed-smoke.sh scripts/ravel-target-inputs.test.sh scripts/grove-installed-smoke.sh
+  scripts/ravel-target-smoke-target.sh scripts/ravel-installed-smoke.sh scripts/ravel-target-inputs.test.sh scripts/grove-installed-smoke.sh \
+  plugins/linkuistics/skills/technical-communication/scripts/tc-hook
 run_check "cargo clippy" cargo clippy --workspace --all-targets
 run_check "plugin install" bash plugins/install.test.sh
 run_check "conformance" bash plugins/grove/conformance.sh

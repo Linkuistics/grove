@@ -190,6 +190,12 @@ and compound tenses) are counted in `rules` and `advisory` but not in
 `per_100`, because they match word shapes, not grammar. A faulty `exempt` marker
 in a reply is a hard `marker` finding, like any other hard finding.
 
+**Where `model` comes from.** Claude Code's hook payloads do not name the model.
+Its adapter reads the model of the latest assistant entry at the end of the
+transcript. A subagent has its own transcript. When the read fails, the record
+holds null. The transcript can lag the reply, so the first reply after a model
+change may carry the old name.
+
 **The log stores no reply text and no matched fragment**, and not the reason in
 an exemption marker. To judge a false alarm, the human runs the checker on the
 reply again. A reply with no prose words writes no record, and a reply that

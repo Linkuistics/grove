@@ -134,7 +134,11 @@ layers off and deletes it to turn them on, or asks the model to do either. Its
 content does not matter. [The off file is the only
 switch](../adr/the-off-file-is-the-only-switch.md) records the choice. The
 variable `TECHNICAL_COMMUNICATION_STATE_DIR` moves the whole state directory for
-a test run. It is a location, not a second switch.
+a test run. It is a location, not a second switch. The state directory is
+`technical-communication` in `$XDG_STATE_HOME`: it holds `off` and `sessions/`.
+The variable names that directory itself, so with the variable set the off file
+is `$TECHNICAL_COMMUNICATION_STATE_DIR/off`. A value of `$XDG_STATE_HOME` that is
+not an absolute path counts as unset.
 
 | Layer | Effect of the off file |
 |---|---|
@@ -155,7 +159,9 @@ whole log: `cat sessions/*.jsonl | jq …`.
 
 Each record is one line. Every record has `v` (1), `kind`, `ts` (UTC, ISO 8601,
 to the second), `harness` (`claude-code`, `codex` or `pi`), `session` and
-`agent` (null for the main thread).
+`agent` (null for the main thread). The record keeps the session identifier as
+the harness gave it. Only the file name is cleaned. A missing `harness` or
+`session` is `unknown`, in the record and in the file name.
 
 - **A start record** (`kind: "start"`) is written each time the instruction is
   sent. It adds `source`: the harness's own value (`startup`, `resume`,
@@ -167,8 +173,8 @@ to the second), `harness` (`claude-code`, `codex` or `pi`), `session` and
 | Field | Meaning |
 |---|---|
 | `seq` | The position of this reply among this agent's reply records in the file, from 1 |
-| `since_start` | The position since this agent's last start record. It equals `seq` when there is no start record |
-| `words` | Prose words scored |
+| `since_start` | The position since this agent's last start record, from 1. It equals `seq` when there is no start record. A start record of another agent does not reset it |
+| `words` | Prose words scored. An exempt reply is scored too |
 | `hard`, `advisory` | Counts of findings at each level |
 | `per_100` | Hard findings per 100 words, to one decimal place |
 | `rules` | A count for each rule identifier, at both levels |
@@ -181,17 +187,24 @@ whether compliance fades within a session, and a compaction resets
 show whether harnesses differ. `ts` and `checker` show whether replies improve
 over time and across versions of the rules. Advisory findings (passive voice
 and compound tenses) are counted in `rules` and `advisory` but not in
-`per_100`, because they match word shapes, not grammar.
+`per_100`, because they match word shapes, not grammar. A faulty `exempt` marker
+in a reply is a hard `marker` finding, like any other hard finding.
 
 **The log stores no reply text and no matched fragment**, and not the reason in
 an exemption marker. To judge a false alarm, the human runs the checker on the
-reply again. A reply with no prose words writes no record.
+reply again. A reply with no prose words writes no record, and a reply that
+only holds code and an `exempt` marker has no prose words.
 
 **The writer** is the checker. It takes an exclusive `flock` on the session's
 file, counts the earlier records, appends one line and releases the lock. It
 waits two seconds at most for the lock. When it cannot write, for any reason, it
 writes nothing and exits 0. A lost record shifts `seq` for later replies, and
-the design accepts that.
+the design accepts that. The same holds for a bad argument: the two log modes
+parse their own arguments and exit 0 on a usage error too. They skip a line of
+the file that is not JSON when they count, and they start a new line first when
+a crashed writer left the last one without its newline. They read the reply
+as UTF-8 and replace bytes that are not, so a bad byte does not lose the score.
+The file mode is 0600.
 
 ### The checker's contract
 
@@ -323,7 +336,9 @@ numbering or name.
   tell whether a first marker comes before any prose), `unclosed` (the verb of
   an `off` or `pending` region that the end of the text leaves open, or null)
   and `text_type`. `lint(text, filename, text_type)` returns the findings and
-  the word count. Neither function writes anything.
+  the word count. Neither function writes anything. With `reply` true, a valid
+  `exempt` marker sets `exempt` and the reply is still scored. With `reply` false
+  it makes the document unchecked.
 
 ### The document gate and conversion
 

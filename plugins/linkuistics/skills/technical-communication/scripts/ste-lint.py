@@ -25,7 +25,12 @@ Usage:
     ste-lint.py --baseline 5 FILE      # pass unless hard findings exceed 5
     ste-lint.py --disable passive-voice,present-perfect FILE
     ste-lint.py --markers FILE [FILE ...]
+    ste-lint.py --log-start --harness H --session S [--agent A] --source X
+    echo "reply" | ste-lint.py --log-reply --harness H --session S [--agent A] [--model M]
     ste-lint.py --selftest
+
+The two log modes write one record to the session's file in the state directory
+and print nothing. They exit 0 on every path, and write nothing when they fail.
 
 Exit 0 when the hard findings that no departure accepts are at or under the
 baseline (default 0). Advisory findings never fail a check. Exit 1 when they
@@ -35,12 +40,16 @@ rule, or a file that cannot be read or is not UTF-8.
 import argparse
 import bisect
 import contextlib
+import datetime  # ours: the reply log
+import hashlib  # ours: the reply log
 import io
 import json
 import os
 import re
 import sys
 import tempfile
+import threading  # ours: the self-test of the reply log
+import time  # ours: the reply log
 
 # ponytail: regex heuristics, not a parser. No noun-cluster rule — needs POS
 # tagging to avoid constant false positives; add spaCy-backed rule if ever needed.
@@ -1028,14 +1037,15 @@ def analyse(text, filename="<stdin>", text_type="auto", reply=False):
     accepted   a count for each rule of the findings that a departure accepted
     pending    the number of pending regions
     words      the prose words that were checked
-    exempt     true when a valid exempt marker makes the text unchecked
+    exempt     true when a valid exempt marker is present; a document it makes
+               unchecked, with no findings and no words
     markers    each marker: line, col, verb, rules, reason and error
     first_prose_line  the first line that holds prose, or None
     unclosed   the verb of an off or pending region that the end of the text
                leaves open, or None
 
-    With reply=True only an exempt marker has an effect. The other markers are
-    ignored, valid or not.
+    With reply=True only an exempt marker has an effect: it sets exempt, and
+    the reply is still scored. The other markers are ignored, valid or not.
     """
     masked, comments, first_prose = _prepare(text, filename, text_type)
     departable = RULE_IDS - {"marker"}
@@ -1091,7 +1101,7 @@ def analyse(text, filename="<stdin>", text_type="auto", reply=False):
               "exempt": exempt, "markers": markers,
               "first_prose_line": first_prose, "unclosed": unclosed,
               "text_type": text_type}
-    if exempt:
+    if exempt and not reply:
         return result
     for first, last in regions:
         for lineno in range(first + 1, last):
@@ -1182,6 +1192,168 @@ def report_markers(entries, as_json):
             print(f"{e['file']}:{e['line']} {e['verb']}{detail}{reason}")
         else:
             print(f"{e['file']}:{e['line']}:{e['col']} marker: {e['error']}")
+# ours: end
+
+# ours: begin the reply log
+STATE_DIR_VARIABLE = "TECHNICAL_COMMUNICATION_STATE_DIR"
+LOCK_WAIT_SECONDS = 2.0
+LOG_VERSION = 1
+
+
+def state_dir():
+    """The directory that holds the off file and the sessions: the variable's
+    value, else technical-communication in $XDG_STATE_HOME (default ~/.local/state)."""
+    override = os.environ.get(STATE_DIR_VARIABLE)
+    if override:
+        return override
+    base = os.environ.get("XDG_STATE_HOME", "")
+    if not os.path.isabs(base):
+        base = os.path.join(os.path.expanduser("~"), ".local", "state")
+    return os.path.join(base, "technical-communication")
+
+
+def checker_digest():
+    """The first 12 hex digits of the SHA-256 of this file."""
+    with open(os.path.realpath(__file__), "rb") as fh:
+        return hashlib.sha256(fh.read()).hexdigest()[:12]
+
+
+def _session_file(harness, session):
+    safe = lambda value: re.sub(r"[^A-Za-z0-9._-]", "_", value or "unknown")  # noqa: E731
+    name = f"{safe(harness)}--{safe(session)}.jsonl"
+    return os.path.join(state_dir(), "sessions", name)
+
+
+def _utc_now():
+    return datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def _append_record(path, build):
+    """Append one record to a session file under an exclusive lock.
+
+    build(earlier) receives the earlier records that parse and returns the new
+    record. Returns True when the line was written. A failure of any kind writes
+    nothing: the caller has no error to handle.
+    """
+    import fcntl
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    fd = os.open(path, os.O_RDWR | os.O_CREAT | os.O_APPEND, 0o600)
+    try:
+        deadline = time.monotonic() + LOCK_WAIT_SECONDS
+        while True:
+            try:
+                fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                break
+            except OSError:
+                if time.monotonic() >= deadline:
+                    return False
+                time.sleep(0.01)
+        size = os.fstat(fd).st_size
+        data = b""
+        while len(data) < size:
+            chunk = os.pread(fd, size - len(data), len(data))
+            if not chunk:
+                break
+            data += chunk
+        earlier = []
+        for line in data.decode("utf-8", errors="replace").splitlines():
+            try:
+                record = json.loads(line)
+            except ValueError:
+                continue
+            if isinstance(record, dict):
+                earlier.append(record)
+        record = build(earlier)
+        if record is None:
+            return False
+        line = json.dumps(record, ensure_ascii=False, separators=(",", ":")) + "\n"
+        # a crashed writer may have left a line without its newline
+        if data and not data.endswith(b"\n"):
+            line = "\n" + line
+        payload = line.encode("utf-8")
+        written = os.write(fd, payload)
+        return written == len(payload)
+    finally:
+        os.close(fd)  # closing the descriptor releases the lock
+
+
+def _base_record(kind, harness, session, agent):
+    return {"v": LOG_VERSION, "kind": kind, "ts": _utc_now(),
+            "harness": harness or "unknown", "session": session or "unknown",
+            "agent": agent or None}
+
+
+def log_start(harness, session, agent, source):
+    """Append a start record. Returns True when it was written."""
+    def build(_earlier):
+        record = _base_record("start", harness, session, agent)
+        record["source"] = source or None
+        return record
+    return _append_record(_session_file(harness, session), build)
+
+
+def score_reply(text):
+    """Score one reply. Returns the scoring fields of a reply record, or None
+    when the reply has no prose words."""
+    result = analyse(text, "<reply>", "auto", reply=True)
+    if not result["words"]:
+        return None
+    rules = {}
+    for finding in result["findings"]:
+        rules[finding["rule"]] = rules.get(finding["rule"], 0) + 1
+    hard = sum(1 for f in result["findings"] if f["level"] == HARD)
+    return {"words": result["words"], "hard": hard,
+            "advisory": len(result["findings"]) - hard,
+            "per_100": round(hard * 100 / result["words"], 1),
+            "rules": dict(sorted(rules.items())), "exempt": result["exempt"]}
+
+
+def log_reply(text, harness, session, agent, model):
+    """Score a reply and append a reply record. Returns True when written."""
+    score = score_reply(text)
+    if score is None:
+        return False
+    digest = checker_digest()
+    agent = agent or None
+
+    def build(earlier):
+        mine = [r for r in earlier if r.get("agent") == agent]
+        replies = sum(1 for r in mine if r.get("kind") == "reply")
+        last_start = max((i for i, r in enumerate(mine) if r.get("kind") == "start"),
+                         default=-1)
+        since = sum(1 for r in mine[last_start + 1:] if r.get("kind") == "reply")
+        record = _base_record("reply", harness, session, agent)
+        record.update(model=model or None, seq=replies + 1, since_start=since + 1,
+                      **score, checker=digest)
+        return record
+    return _append_record(_session_file(harness, session), build)
+
+
+class _QuietParser(argparse.ArgumentParser):
+    def error(self, message):
+        raise ValueError(message)
+
+
+def log_main(argv):
+    """The --log-start and --log-reply modes. Exit 0 on every path: when
+    anything fails, nothing is written."""
+    try:
+        parser = _QuietParser(prog="ste-lint.py", add_help=False, allow_abbrev=False)
+        mode = parser.add_mutually_exclusive_group(required=True)
+        mode.add_argument("--log-start", action="store_true")
+        mode.add_argument("--log-reply", action="store_true")
+        for name in ("--harness", "--session", "--agent", "--source", "--model"):
+            parser.add_argument(name, default=None)
+        args = parser.parse_args(argv)
+        if args.log_start:
+            log_start(args.harness, args.session, args.agent, args.source)
+        else:
+            text = sys.stdin.buffer.read().decode("utf-8", errors="replace")
+            log_reply(text.lstrip("﻿"), args.harness, args.session,
+                      args.agent, args.model)
+    except BaseException:  # noqa: BLE001 - a log failure never reaches the model
+        pass
+    return 0
 # ours: end
 
 
@@ -1387,6 +1559,9 @@ def selftest():
     assert _rule_list("passive-voice,present-perfect") == {"passive-voice", "present-perfect"}
     # ours: begin assertions for the whole-document checks
     _selftest_documents()
+    # ours: end
+    # ours: begin assertions for the reply log
+    _selftest_log()
     # ours: end
     print("selftest OK")
 
@@ -1597,6 +1772,143 @@ def _selftest_documents():
 # ours: end
 
 
+# ours: begin
+def _selftest_log():
+    """Assertions for the reply log. They write only into a temporary state directory."""
+    saved = os.environ.get(STATE_DIR_VARIABLE)
+    try:
+        with tempfile.TemporaryDirectory() as tmp:
+            os.environ[STATE_DIR_VARIABLE] = os.path.join(tmp, "state")
+            sessions = os.path.join(tmp, "state", "sessions")
+
+            def records(name):
+                """The records of a session file; a line that is not JSON is skipped."""
+                found = []
+                with open(os.path.join(sessions, name), encoding="utf-8") as fh:
+                    for line in fh:
+                        try:
+                            found.append(json.loads(line))
+                        except ValueError:
+                            assert not line.endswith("\n") or line.startswith('{"v":1,"kind":"rep'), line
+                return found
+
+            def run_log(args, stdin=""):
+                saved_stdin = sys.stdin
+                sys.stdin = io.TextIOWrapper(io.BytesIO(stdin.encode("utf-8")))
+                try:
+                    with contextlib.redirect_stdout(io.StringIO()) as out, \
+                            contextlib.redirect_stderr(io.StringIO()) as err:
+                        code = main(args)
+                finally:
+                    sys.stdin = saved_stdin
+                assert out.getvalue() == "" and err.getvalue() == "", (out.getvalue(), err.getvalue())
+                return code
+
+            long_line = " ".join(["word"] * 30) + "."
+            who = ["--harness", "codex", "--session", "a/b c"]
+            # a reply before any start record: since_start equals seq
+            assert run_log(["--log-reply", *who, "--model", "m1"], "A short line here.\n") == 0
+            assert run_log(["--log-start", *who, "--source", "startup"]) == 0
+            assert run_log(["--log-reply", *who], f"{long_line}\n") == 0
+            assert run_log(["--log-reply", *who], "Fine; but not.\n") == 0
+            # another agent counts apart, and a start resets only its own count
+            assert run_log(["--log-start", *who, "--agent", "sub1", "--source", "subagent"]) == 0
+            assert run_log(["--log-reply", *who, "--agent", "sub1"], "A short line here.\n") == 0
+            assert run_log(["--log-start", *who, "--source", "compact"]) == 0
+            assert run_log(["--log-reply", *who], "A short line here.\n") == 0
+            got = records("codex--a_b_c.jsonl")
+            assert [(r["kind"], r["agent"]) for r in got] == [
+                ("reply", None), ("start", None), ("reply", None), ("reply", None),
+                ("start", "sub1"), ("reply", "sub1"), ("start", None), ("reply", None)], got
+            replies = [r for r in got if r["kind"] == "reply" and r["agent"] is None]
+            assert [(r["seq"], r["since_start"]) for r in replies] == [
+                (1, 1), (2, 1), (3, 2), (4, 1)], replies
+            assert next(r for r in got if r["agent"] == "sub1" and r["kind"] == "reply"
+                        )["seq"] == 1
+            first = replies[0]
+            assert first["v"] == 1 and first["model"] == "m1" and first["session"] == "a/b c", first
+            assert first["words"] == 4 and first["hard"] == 0 and first["rules"] == {}, first
+            assert first["exempt"] is False and first["checker"] == checker_digest(), first
+            assert re.fullmatch(r"\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ", first["ts"]), first
+            assert replies[1]["rules"] == {"long-sentence": 1} and replies[1]["per_100"] > 0, replies[1]
+            assert replies[2]["rules"] == {"semicolon": 1} and replies[2]["hard"] == 1, replies[2]
+            assert got[1]["source"] == "startup" and got[4]["source"] == "subagent", got
+            # the log stores no text
+            assert "word word" not in open(os.path.join(sessions, "codex--a_b_c.jsonl")).read()
+            # an advisory finding is counted in the rules and not in per_100
+            run_log(["--log-reply", "--harness", "pi", "--session", "s"],
+                    "The panel is removed by the agent.\n")
+            advisory = records("pi--s.jsonl")[0]
+            assert advisory["advisory"] >= 1 and advisory["per_100"] == 0.0, advisory
+            assert "passive-voice" in advisory["rules"], advisory
+            # exempt: scored, and marked
+            run_log(["--log-reply", "--harness", "pi", "--session", "s"],
+                    f"{long_line}\n\n<!-- tc: exempt because the human asked -->\n")
+            exempt = records("pi--s.jsonl")[1]
+            assert exempt["exempt"] is True and exempt["words"] == 30 and exempt["hard"] == 1, exempt
+            # a reply with no prose words writes no record
+            for empty in ("", "\n", "```\ncode only\n```\n", "<!-- tc: exempt because x -->\n"):
+                run_log(["--log-reply", "--harness", "pi", "--session", "s"], empty)
+            assert len(records("pi--s.jsonl")) == 2
+            # a missing session is "unknown"
+            run_log(["--log-start", "--harness", "claude-code", "--source", "resume"])
+            assert records("claude-code--unknown.jsonl")[0]["session"] == "unknown"
+            # a record that a crash left without its newline does not join the next
+            path = os.path.join(sessions, "pi--s.jsonl")
+            with open(path, "ab") as fh:
+                fh.write(b'{"v":1,"kind":"rep')
+            run_log(["--log-reply", "--harness", "pi", "--session", "s"], "A short line here.\n")
+            assert [r["seq"] for r in records("pi--s.jsonl")] == [1, 2, 3]
+            assert open(path, encoding="utf-8").read().count("\n") == 4
+            # concurrent writers do not corrupt the file or repeat a seq
+            threads = [threading.Thread(target=log_reply, args=(
+                "A short line here.\n", "pi", "race", None, None)) for _ in range(24)]
+            for thread in threads:
+                thread.start()
+            for thread in threads:
+                thread.join()
+            raced = records("pi--race.jsonl")
+            assert sorted(r["seq"] for r in raced) == list(range(1, 25)), raced
+            # a failure writes nothing and exits 0
+            blocker = os.path.join(tmp, "blocker")
+            with open(blocker, "w", encoding="utf-8") as fh:
+                fh.write("a file, not a directory")
+            os.environ[STATE_DIR_VARIABLE] = os.path.join(blocker, "state")
+            assert run_log(["--log-reply", *who], "A short line here.\n") == 0
+            assert run_log(["--log-start", *who, "--source", "startup"]) == 0
+            os.environ[STATE_DIR_VARIABLE] = os.path.join(tmp, "state")
+            for bad in (["--log-reply", "--nonsense"], ["--log-start", "--log-reply"],
+                        ["--log-reply", "--harness"]):
+                assert run_log(bad, "A short line here.\n") == 0, bad
+            # a reply that is not UTF-8 is still scored
+            saved_stdin = sys.stdin
+            sys.stdin = io.TextIOWrapper(io.BytesIO(b"A short \xff line here.\n"))
+            try:
+                assert main(["--log-reply", "--harness", "pi", "--session", "bytes"]) == 0
+            finally:
+                sys.stdin = saved_stdin
+            # the replacement character for the bad byte is not a word
+            assert records("pi--bytes.jsonl")[0]["words"] == 4
+    finally:
+        if saved is None:
+            os.environ.pop(STATE_DIR_VARIABLE, None)
+        else:
+            os.environ[STATE_DIR_VARIABLE] = saved
+    # without the variable the state directory follows XDG_STATE_HOME
+    saved_xdg = os.environ.pop(STATE_DIR_VARIABLE, None), os.environ.get("XDG_STATE_HOME")
+    try:
+        os.environ["XDG_STATE_HOME"] = "/xdg"
+        assert state_dir() == "/xdg/technical-communication", state_dir()
+        os.environ.pop("XDG_STATE_HOME")
+        assert state_dir() == os.path.join(os.path.expanduser("~"), ".local", "state",
+                                           "technical-communication"), state_dir()
+    finally:
+        for name, value in zip((STATE_DIR_VARIABLE, "XDG_STATE_HOME"), saved_xdg):
+            if value is not None:
+                os.environ[name] = value
+# ours: end
+
+
 RULE_IDS = {rule_id for rule_id, *_ in RULES} | {
     # ours: the new rules
     "long-sentence", "long-paragraph", "synonym-rotation", "dangling-conjunction",
@@ -1624,6 +1936,9 @@ def _non_negative_int(value):
 
 
 def main(argv):
+    # ours: the log modes take their own arguments and never fail
+    if "--log-start" in argv or "--log-reply" in argv:
+        return log_main(argv)
     parser = argparse.ArgumentParser(
         prog="ste-lint.py", allow_abbrev=False,
         description="Deterministic checker for the structural rules of the "  # ours

@@ -132,21 +132,14 @@ that the project gives to its own command, tool or type is a domain term too.
 
 ## short-terms
 
-When the field has no name for a thing, make a short name of common words. It has
-three words at most. Add an adjective only when the reader
-needs it to tell two things apart. `noun-cluster` in `noun-clusters.md` states the
+When the field has no name for a thing, make one from common words, and keep it to
+three words. An extra adjective earns its place only when it tells two things apart. `noun-cluster` in `noun-clusters.md` states the
 limit and the ways to keep it.
 
 When something else already identifies the thing, the bare noun is enough. A path,
-a number, a label or an earlier step can do that.
-
-```text
-Before: Open the generated JSON build output manifest file.
-After: Open the manifest file.
-```
-
-In the example, the step before it gave the path of the file. So the short noun
-is clear.
+a number, a label or an earlier step can do that. After a step that names
+`build/out.json`, write "the output file", and not "the generated JSON build output
+file".
 
 ## no-slang
 

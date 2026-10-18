@@ -48,6 +48,7 @@ task at hand — across Claude Code, Codex, and other agents supporting the
 | `doubt-driven-development` | by description | in-flight adversarial verify — spawn a fresh-context reviewer to disprove a non-trivial decision before it stands |
 | `model-led-development` | by description | route a specification question to the instrument that answers it — Alloy, Quint, a type system, or no model at all — then let the checked model lead the implementation; the routing table, the non-formal instruments and the log format are in `references/` |
 | `simplify-project` | by description | contract-preserving repository simplification — consolidate current-state docs, remove proven-dead artifacts, reconcile every consumer |
+| `technical-communication` | always on, and by description | the model writes replies, documents and prompts in controlled English modelled on ASD-STE100; hooks put it in front of every session on Claude Code, Codex and Pi, and one off file turns them off — see [the user document](../docs/TECHNICAL-COMMUNICATION.md) |
 | `using-jujutsu` | by description | drive version control through Jujutsu natively when the repo is jj-enabled (`.jj/` present); git, silently, everywhere else — command surface and the git→jj mapping in `references/` |
 | `using-codebase-memory` | by description | query a codebase knowledge graph from any shell via the `codebase-memory-mcp` CLI; the silent failure modes are in `references/` |
 | `authoring-conventions` | by hand (`/authoring-conventions`, user-invoked) | house `SKILL.md` conventions — a thin delta over superpowers' `writing-skills` |
@@ -66,6 +67,15 @@ and fall back to the `description`.
 
 Two skills are **user-invoked** (`disable-model-invocation: true`): they never
 auto-fire and cost no standing context, reachable only by typing `/<name>`.
+
+One skill is **always on**: `technical-communication`. Its instruction reaches
+every session through a harness entry, which costs context on every turn, so a
+single off file turns all of its layers off. Claude Code loads
+[`linkuistics/hooks/hooks.json`](linkuistics/hooks/hooks.json) with the plugin.
+Codex needs the hooks plugin that [`.agents/plugins/marketplace.json`](../.agents/plugins/marketplace.json)
+lists, which the human adds and trusts once. Pi gets an extension through
+`install.sh`, and Gemini CLI gets the skill only. The commands, the switch and
+the reply log are in [the user document](../docs/TECHNICAL-COMMUNICATION.md).
 
 ## `testanyware` — GUI testing in isolated VMs
 
@@ -129,7 +139,9 @@ cd grove
 
 [`install.sh`](install.sh) symlinks each **eligible** skill directory — from
 all three plugins — into `~/.codex/skills/`, `~/.gemini/skills/`, and `~/.pi/agent/skills/`
-(only for harnesses that are installed). Because the targets are symlinks,
+(only for harnesses that are installed). A skill that ships `harnesses/pi/*.ts`
+also has that Pi extension linked into `~/.pi/agent/extensions/`, under the same
+ownership and reconciliation rules; `technical-communication` is the one that does. Because the targets are symlinks,
 `git pull` refreshes the content in place — re-run the script only when skills are
 added, removed, or change which harnesses they declare.
 

@@ -131,3 +131,6 @@ for the catalogue, ownership rules and installation paths.
   adjacent format guides.
 - [Skill plugin documentation](plugins/README.md) and
   [provenance](plugins/linkuistics/PROVENANCE.md).
+- [Technical communication](docs/TECHNICAL-COMMUNICATION.md) — the always-on
+  controlled-English skill: what it does, how to install its hooks, how to turn it
+  off, and how to read its reply log.

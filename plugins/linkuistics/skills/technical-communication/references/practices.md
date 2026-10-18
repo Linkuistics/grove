@@ -19,13 +19,13 @@ identifier.
 | `rewrite-not-swap` | none | When a word swap fails, rebuild the sentence |
 | `literal-sense` | none | A word of position or motion keeps its physical sense |
 | `consistent-wording` | none | The same job gets the same words every time |
+| `clear-pronoun` | none | A pronoun, or "this", points to one thing |
 | `keep-that` | none | Keep "that" after a verb that introduces a clause |
 | `with-one-meaning` | none | Reread every "with", and rewrite a sentence that has two readings |
-| `clear-pronoun` | none | A pronoun, or "this", points to one thing |
-| `false-friend` | none | Check the English sense of a word that looks foreign |
 | `no-latin-abbreviation` | none | Write the English words, not "e.g." or "etc." |
-| `neutral-people` | none | No gendered pronoun for a person whose gender is unknown |
+| `false-friend` | none | Check the English sense of a word that looks foreign |
 | `possessive-care` | none | Use the possessive only when it is clear |
+| `neutral-people` | none | No gendered pronoun for a person whose gender is unknown |
 
 ## rewrite-not-swap
 
@@ -40,10 +40,10 @@ When one answer is no, a swap is not enough. Rebuild the sentence.
 
 A swap fails in three ways:
 
-1. **The new word needs a different structure.** A verb needs a subject, and an
+1. **The nearest plain word changes the meaning.**
+2. **No plain word exists.** The idea needs a different construction.
+3. **The new word needs a different structure.** A verb needs a subject, and an
    adjective does not.
-2. **The nearest plain word changes the meaning.**
-3. **No plain word exists.** The idea needs a different construction.
 
 ```text
 Before: The release is blocked on review.
@@ -58,13 +58,13 @@ Before: The script is brittle.
 After: The script fails when a file name has a space.
 ```
 
-To rebuild, ask what the reader must know or do, and write that. You may need to
-split a long sentence, delete detail that the reader does not need, or find a fact
-that you left out. When a sentence hides a fact that you do not know, find it. Read
-the code, or ask the human. A vague word does not fill the gap.
+To rebuild, ask what the reader must know or do, and write that. Start with the fact
+that you left out, if one is missing. Read the code, or ask the human, because a vague
+word does not fill the gap. Then cut the detail that the reader does not need, and
+split what remains into short sentences.
 
-After a rebuild, read the whole sentence again, and then its neighbours. A change in
-one place can break a term or a link in another place.
+Reread the neighbouring sentences too. A new wording can break a term that a later
+sentence still uses.
 
 ## literal-sense
 
@@ -121,6 +121,36 @@ in `SKILL.md`).
 When two steps differ in meaning, write them differently, so the reader sees the
 difference.
 
+## clear-pronoun
+
+A pronoun stands for a noun that came before. "This", "it", "those" and "they" are
+common ones. When a pronoun can stand for more than one noun, the sentence has two
+readings. Name the noun again.
+
+1. Find the pronoun.
+2. Find the nearest noun that fits it.
+3. Look for a second noun that fits. If one exists, write the noun in place of the
+   pronoun.
+
+```text
+Before: The importer reads the queue and the cache, and then it logs the delay.
+After: The importer reads the queue and the cache, and then the importer logs the delay.
+```
+
+The word "this" needs more care. Used alone, it can point to a thing, an action or a
+whole fact. Put a noun after it: "this restore", "this change", "this limit". When no
+noun is clear, rewrite the sentence.
+
+```text
+Before: The deploy retries after a failure and restores the old config. This can hide the real error.
+After: The deploy retries after a failure and restores the old config. This restore can hide the real error.
+```
+
+A reader of a reply or of a prompt may lack the context that the writer has. A pronoun
+that points to something only the conversation holds has no target. In text for another
+model, and in a long reply, name the thing. Never point a pronoun at another pronoun.
+`neutral-people` covers the pronouns for people.
+
 ## keep-that
 
 After a verb that introduces a statement, keep the word "that". Verbs such as "check",
@@ -139,60 +169,45 @@ After: Note that the config reloads without a restart.
 
 ## with-one-meaning
 
-The word "with" has three common meanings. It can show that a thing has something,
-or that two things go together. It can also name the tool or the means of an action.
-The context often settles the meaning. Reread each sentence that has "with". When the
-sentence has two readings, rewrite it.
+The word "with" can attach to a noun, or to the action. In "Deploy the service with
+the new flag", the service may have the flag, or the flag may be the means of the
+deploy. Reread each sentence that has "with". When the sentence has two readings,
+rewrite it so that each part has one place to attach.
 
 ```text
-Before: Update the script with the new path.
-After: Write the new path in the script.
-
-Before: Run the tests with the flaky fixture.
-After: Run the tests that use the flaky fixture.
-
-Before: Restart the worker with the queue full.
-After: When the queue is full, restart the worker.
+Before: Deploy the service with the new flag.
+After: Deploy the service that has the new flag.
+After: Deploy the service. Set the new flag during the deploy.
 ```
 
-Three rewrites cover most cases. Use "that has" for having. Move a condition to the
-front (see `condition-first` in `procedures.md`). Name the main action as the verb,
-and let "with" carry the tool. Do not hide the action behind "use".
+When the condition is the point, put it first (see `condition-first` in
+`procedures.md`). When "with" names a means, name the action as the verb, and let
+"with" carry only the means. Do not hide the action behind "use".
 
 ```text
-Before: Use a regular expression to match the version string.
-After: Match the version string with a regular expression.
+Before: Use a script to export the data.
+After: Export the data with a script.
 ```
 
-## clear-pronoun
+## no-latin-abbreviation
 
-A pronoun points back to a noun. Words such as "it", "they", "that", "these" and "this"
-are pronouns. When a pronoun can point to more than one noun, the sentence has two
-readings. Name the noun again.
-
-1. Find the pronoun.
-2. Find the nearest noun that fits it.
-3. Look for a second noun that fits. If one exists, write the noun in place of the
-   pronoun.
+Do not use a Latin abbreviation in prose: "e.g.", "i.e.", "etc.", "cf.", "vs.",
+"viz." or "N.B.". A reader may not know it, and a reader may mix up "e.g." and
+"i.e.". Write the English: "for example", "that is", "and so on", "compare",
+"against", "namely" or "note".
 
 ```text
-Before: If the client sends the token to the proxy without a header, it rejects the request.
-After: If the client sends the token to the proxy without a header, the proxy rejects the request.
+Before: The linter reports style faults, e.g. long lines.
+After: The linter reports style faults, for example long lines.
+
+Before: The cache is per-user, i.e. not shared.
+After: The cache belongs to one user. Other users cannot read it.
 ```
 
-The word "this" needs more care. Used alone, it can point to a thing, an action or a
-whole fact. Put a noun after it: "this restore", "this change", "this limit". When no
-noun is clear, rewrite the sentence.
-
-```text
-Before: The deploy retries after a failure and restores the old config. This can hide the real error.
-After: The deploy retries after a failure and restores the old config. This restore can hide the real error.
-```
-
-A reader of a reply or of a prompt may lack the context that the writer has. A pronoun
-that points to something only the conversation holds has no target. In text for another
-model, and in a long reply, name the thing. Never point a pronoun at another pronoun.
-`neutral-people` covers the pronouns for people.
+A list that ends with "etc." hides the last items. Choose one of two fixes. Give the
+whole list when the reader needs every item. Otherwise write "for example" before the
+items and leave the "etc." out. Code and quoted text keep their own form. The checker
+does not enforce this rule.
 
 ## false-friend
 
@@ -217,25 +232,22 @@ Before: The job eventually fails when the disk is full.
 After: The job may fail when the disk is full.
 ```
 
-## no-latin-abbreviation
+## possessive-care
 
-Do not use a Latin abbreviation in prose: "e.g.", "i.e.", "etc.", "cf.", "vs.",
-"viz." or "N.B.". A reader may not know it, and a reader may mix up "e.g." and
-"i.e.". Write the English: "for example", "that is", "and so on", "compare",
-"against", "namely" or "note".
+The possessive ("the maintainer's review", "the user's files") is standard English,
+and it is clear in short phrases. A reader whose first language marks ownership in a
+different way may find it hard. When the sentence is in doubt, write "of" or a plain
+phrase.
+
+- A chain of two possessives is hard to read. Write it with "of" or "in".
+- A long or technical owner reads better with "of" or "in".
+- Write "its" with no apostrophe for a thing. "It's" is a contraction that `full-words`
+  forbids.
 
 ```text
-Before: Pin the tools (e.g. rustfmt, clippy, etc.).
-After: Pin the tools, for example rustfmt and clippy.
-
-Before: The cache is per-user, i.e. not shared.
-After: The cache belongs to one user. Other users cannot read it.
+Before: The config's default's value is zero.
+After: The default value in the config is zero.
 ```
-
-A list that ends with "etc." hides the last items. Choose one of two fixes. Give the
-whole list when the reader needs every item. Otherwise write "for example" before the
-items and leave the "etc." out. Code and quoted text keep their own form. The checker
-does not enforce this rule.
 
 ## neutral-people
 
@@ -262,23 +274,6 @@ After: The maintainer decides and owns the release.
 Use neutral role words, as well as neutral pronouns. Write "person-hours" and not
 "man-hours". Write "everyone" or "the team" and not "guys". The same care covers any
 group. Describe a person by what matters for the task, and not by a trait that does not.
-
-## possessive-care
-
-You may use the possessive form when it is clear: "the maintainer's review",
-"the user's files". The form is hard for readers whose first language marks ownership
-in a different way. When you are not sure that the sentence is right, use "of" or a
-plain phrase.
-
-- A chain of two possessives is hard to read. Write it with "of" or "in".
-- A long or technical owner reads better with "of" or "in".
-- Write "its" with no apostrophe for a thing. "It's" is a contraction that `full-words`
-  forbids.
-
-```text
-Before: The config's default's value is zero.
-After: The default value in the config is zero.
-```
 
 ## Coverage
 

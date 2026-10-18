@@ -1,18 +1,18 @@
 # technical-communication carries no text from the standard
 
-The `technical-communication` skill is modelled on ASD-STE100 Simplified
-Technical English (Issue 9), and it carries none of the standard's text. It
-holds no rule wording, no explanatory text, no example and no dictionary from
-the standard. It claims no conformance. Its name and its description do not use
-the trademark "ASD-STE100 Simplified Technical English". The skill describes
-itself only as modelled on ASD-STE100.
+The `technical-communication` skill is modelled on ASD-STE100 (Issue 9), and it
+carries none of the standard's text. It holds no rule wording, no explanatory
+text, no example and no dictionary from the standard. It claims no conformance.
+Its name and its description never use the standard's full trademarked title.
+The skill describes itself only as modelled on ASD-STE100.
 
 This binds because publication is a one-way door. The skill ships from a public
-Apache-2.0 repository by three routes. They are the Claude Code marketplace,
-the plugin snapshot in every released Grove binary, and `plugins/install.sh`. The
+Apache-2.0 repository by four routes. They are the Claude Code marketplace, the
+Codex hooks plugin that `.agents/plugins/marketplace.json` lists, the plugin
+snapshot in every released Grove binary, and `plugins/install.sh`. The
 standard's copyright notice forbids reproduction or publication, in whole or in
-part, without written authority from ASD. Only eight listed groups of users are
-free of that limit. Text in a public commit cannot be taken back from those
+part, without written authority from its owner. Only eight listed groups of
+users are free of that limit. Text in a public commit cannot be taken back from those
 routes or from the history.
 
 ## Consequences
@@ -30,12 +30,12 @@ routes or from the history.
 
 ## Considered options
 
-- **A private skill that carries ASD material.** Rejected: every route that
+- **A private skill that carries the standard's material.** Rejected: every route that
   ships the plugin is public, and one skill cannot be held back from its
   plugin's routes. Reopen if the skill moves to a private repository with no
   public distribution.
-- **Wait for written authority from ASD.** Rejected: there is no timeline, and
-  the human's use is an experiment that needs the skill now. Reopen if ASD gives
+- **Wait for written authority from the standard's owner.** Rejected: there is no timeline, and
+  the human's use is an experiment that needs the skill now. Reopen if the owner gives
   written authority to redistribute named parts. Then only those parts change.
 - **Install or fork `danyuchn/asd-ste100-skill`.** Rejected: it carries the
   trademark in its name, it presents two rule passages as quotations, and it

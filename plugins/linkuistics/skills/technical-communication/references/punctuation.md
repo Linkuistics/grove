@@ -9,13 +9,13 @@ also says how to count the words of a sentence.
 |---|---|---|
 | `semicolon` | hard | No semicolon. Write two sentences |
 | `hyphen-compound` | none | A hyphen joins words that act as one modifier or one term |
-| `parentheses` | none | Parentheses serve seven jobs and no others |
+| `parentheses` | none | Parentheses carry four kinds of extra information and no others |
 | `word-count` | none | The counting method that `long-sentence` uses |
 
 ## semicolon
 
-A semicolon lets two sentences grow into one, and it is easy to use wrongly. Replace
-it with a full stop. When the second part gives a result or a reason, a connector
+A semicolon joins two sentences into one long one, and writers often place it badly.
+Replace it with a full stop. When the second part gives a result or a reason, a connector
 such as "so" or "because" shows the link (see `connect-sentences` in
 `sentences.md`).
 
@@ -47,7 +47,7 @@ the other jobs:
    "re-enter" and "re-examine", so the reader does not see a different word.
 3. **A number that you write in words.** Join the two parts: "forty-two".
 4. **A verb that the field writes with a hyphen.** The field decides, as in
-   "cherry-pick" and "fast-forward". Do not make a new one (see `no-coined-words`
+   "cherry-pick" and "force-push". Do not make a new one (see `no-coined-words`
    in `words.md`).
 
 Do not hyphenate an adverb that ends in "-ly" and the word after it: write "a newly
@@ -64,19 +64,19 @@ After: The retry logic is a best effort. It gives up after three tries.
 
 ## parentheses
 
-Use parentheses for these seven jobs only:
+Parentheses carry four kinds of extra information, and nothing else:
 
-1. An explanation of a word or phrase: "Use the staging key (the one that starts with
-   `stg_`)."
-2. An alternative: "Pass the host name (or the IP address) of the server."
-3. An abbreviation after the full name (see `short-form-after-full` in
+1. **A gloss or a substitute.** A gloss explains a word. A substitute is an alternative
+   that the reader may use instead. Examples: "Use the staging key (the one that
+   starts with `stg_`)." "Pass the host name (or the IP address) of the server."
+2. **An abbreviation** after the full name (see `short-form-after-full` in
    `noun-clusters.md`).
-4. A pointer to another place: "(see section 3)", "(line 42 of `build.sh`)".
-5. An identifier for an item: "the two failing jobs (3 and 7)".
-6. A number for a step in a procedure: "(1)". In Markdown, a list marker does this
-   job better.
-7. The singular and the plural at once: "the file(s)". Write "one or more files" when
-   this is not clear.
+3. **A label or a pointer.** A label is an identifier or a step number. A pointer is a
+   reference to another place. Examples: "(see section 3)", "(line 42 of
+   `build.sh`)", "the two failing jobs (3 and 7)", "(1)". In Markdown, a list marker
+   numbers a step better.
+4. **Singular and plural at once:** "the file(s)". Write "one or more files" when this
+   is not clear.
 
 The words in parentheses belong to the sentence, and they count in its limit (see
 `word-count`). A parenthesis that needs more than a few words is a sentence. Write it

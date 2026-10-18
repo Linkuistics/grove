@@ -4,10 +4,10 @@ This file restates section 6 of Part 1 (rules 6.1 to 6.6). A description gives
 information and no instructions, so it has no imperative verb. These are
 descriptions:
 
-- How a system works and what parts it has.
-- Why a design decision stands.
 - A report of what the model found, did or changed.
-- A note in a procedure, a commit body and a pull request summary.
+- A commit body, a pull request summary and the notes of a procedure.
+- Why a design decision stands.
+- How a system works and what parts it has.
 
 The rules for any sentence (`sentences.md`) also apply here. A text that tells the
 reader to act is a procedure, and `procedures.md` governs it.

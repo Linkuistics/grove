@@ -577,12 +577,15 @@ results go into its running log, with no text from the standard.
    copy of a repository file and show that the search finds it. Then change one
    word of the phrase and show that the search does not. Only then credit a clean
    result. Delete the phrase list at the end of the session.
-5. **Sweep for the trademark.** Search the same surface for "Simplified
-   Technical English", "STE100", "ASD-STE", and the whole words "ASD" and
-   "STE", matching case. Classify each hit. Three classes of hit are allowed: the phrase
-   "modelled on ASD-STE100", the upstream repository's name
-   `danyuchn/asd-ste100-skill` in provenance and attribution, and the licence
-   file. Each other hit is fixed.
+5. **Sweep for the trademark.** Search the same surface for the standard's full
+   title, for its short code with the digits after it, and for the initials of
+   its owner and of its title as whole words, matching case. Type each pattern
+   in the scratchpad, so that this spec holds none of them. Classify each hit.
+   Three classes are allowed: the phrase "modelled on ASD-STE100", the upstream
+   repository's name `danyuchn/asd-ste100-skill` in provenance and attribution,
+   and the licence file. Fix each other hit. A hit in the log of a finished leaf
+   is a finding for the human, because that log records the human's own
+   decisions and the VCS history keeps it anyway.
 6. **Decide on a fresh read.** If a leaf that wrote the text asked for a
    fresh-context read in its commit message, run it here, within the session's
    reviewer allowance.

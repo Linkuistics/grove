@@ -13,10 +13,10 @@ The rules for any sentence (`sentences.md`) also apply here.
 | Identifier | Level | Idea |
 |---|---|---|
 | `long-sentence` | hard | An instruction has 20 words at most |
-| `one-action-per-step` | none | One instruction in each sentence |
+| `one-action-per-step` | none | A step names one action |
 | `imperative-steps` | none | A step is a command |
 | `condition-first` | none | The condition comes before the command |
-| `notes-inform-only` | none | A note informs and never instructs |
+| `notes-inform-only` | none | A note gives background and no orders |
 
 ## long-sentence
 
@@ -52,14 +52,13 @@ Two actions can share a sentence only when they happen at the same time:
 
 ```text
 Start the stopwatch and run the query.
-Keep the dialog open and wait for the progress bar.
 ```
 
-A step can also have a second sentence. Add one when the result or the limit of the
-action follows at once. A second sentence can also explain the step.
+A step can also have a second sentence, when the result of the action follows at once.
+This sentence can give a limit, or it can explain the step.
 
 ```text
-Call the endpoint ten times. The median response time must stay below 300 ms.
+Export the report. The file must be under 5 MB.
 ```
 
 Test a step like this: if the reader could do the two parts at different times, they
@@ -105,16 +104,9 @@ Before: Increase the timeout when the job fails twice.
 After: When the job fails twice, increase the timeout.
 ```
 
-The comma matters. Moving it can change the meaning of the sentence:
-
-```text
-If the job fails again, notify the owner.
-If the job fails, again notify the owner.
-```
-
-The first sentence acts on a second failure. The second sentence repeats a message
-after a first failure. Read the sentence aloud and check that the comma marks the
-end of the condition.
+The comma matters, because it marks where the condition ends. A comma in the wrong
+place can attach a word to the wrong verb. Read the sentence aloud and check that the
+comma sits at the end of the condition.
 
 ## notes-inform-only
 
@@ -128,26 +120,25 @@ A note is background for the reader. It is descriptive text, so the rules of
 ```text
 Before:
 3. Run the benchmark.
-Note: The run must finish in less than 90 seconds.
+Note: The token must not be expired.
 After:
-3. Run the benchmark. The run must finish in less than 90 seconds.
+3. Run the benchmark with a token that has not expired.
 
-Before: Note: Back up the database before the migration.
+Before: Note: Check the free disk space first.
 After:
-2. Back up the database.
-3. Run the migration.
+2. Check the free disk space.
+3. Start the import.
 ```
 
 These are correct notes:
 
 ```text
-Note: The first sync takes about two minutes.
-Note: It is not necessary to restart the proxy after this change.
+Note: The cache fills during the first minute.
+Note: A second sync does not need a new token.
 ```
 
-Test a procedure that has notes. Remove the notes, and follow the steps exactly. If
-the task fails, or the result is wrong, a note holds a fact that the reader needs.
-Move that fact into a step, and test again.
+Hide the notes, and follow the steps exactly. Whatever then fails or comes out wrong
+is a fact that a note holds and a step needs. Move it into a step, and test again.
 
-Keep notes inside procedures. A description may carry a note only to explain a
-figure or a table that belongs to it.
+Notes belong to procedures. A description needs one only beside a figure or a table
+that it cannot explain alone.

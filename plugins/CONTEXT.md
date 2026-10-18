@@ -87,7 +87,8 @@ frontmatter, and they run in every session.
 **Always-on skill**:
 A [[Skill]] whose instruction reaches every session through a [[Harness entry]],
 not only when its `description` matches. It costs context on every turn, so one
-switch turns all of its always-on layers off.
+switch turns all of its always-on layers off. `technical-communication` is the
+instance: its off file is the switch.
 _Avoid_: "hook-carrying skill", which names a skill whose frontmatter declares
 hooks that last only while the skill is active.
 
@@ -96,7 +97,9 @@ The thin file, one for each harness, that maps that harness's events onto an
 [[Always-on skill]]'s shared hook script. It is a plugin `hooks/hooks.json` for
 Claude Code, a hooks plugin for Codex and an extension file for Pi. It never changes
 shape, because Codex trusts a hash of each entry. Changes of behaviour go into
-the script.
+the script. `technical-communication` has three: `plugins/linkuistics/hooks/hooks.json`,
+`harnesses/codex/hooks.json` and `harnesses/pi/technical-communication.ts`. Gemini CLI
+has none, so it gets the skill only.
 _Avoid_: "adapter", which names the code for one harness's payload inside the
 shared script.
 
@@ -137,7 +140,9 @@ plugin's own content, when it identifies the repo's.
 **Symlink install** (`plugins/install.sh`):
 The delivery path for harnesses that read `SKILL.md` but have no [[Plugin]]
 mechanism: symlink each **eligible** skill directory into that harness's personal
-skills folder (`~/.codex/skills`, `~/.gemini/skills`, `~/.pi/agent/skills`).
+skills folder (`~/.codex/skills`, `~/.gemini/skills`, `~/.pi/agent/skills`). It
+also links each Pi-eligible skill's `harnesses/pi/*.ts` extension into
+`~/.pi/agent/extensions/`, the one place it links something that is not a skill.
 Because the targets are links, a `git pull` updates content in place — re-run only
 when skills are added, removed, or change their [[Harness eligibility]]. It scans
 **every** bundled plugin: which harnesses a skill reaches is the skill's own

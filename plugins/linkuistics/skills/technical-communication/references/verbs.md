@@ -71,8 +71,8 @@ It skips a hedge such as "may have failed".
 ## participle-adjective
 
 A past participle can work as an adjective. It can stand before a noun ("the
-disabled flag", "a failed job"), or after a linking verb ("is", "becomes",
-"remains"). It names the condition of a thing and does not name an actor.
+disabled flag", "a failed job"), or after a linking verb ("is", "remains",
+"looks"). It names the condition of a thing and does not name an actor.
 
 The test is whether the sentence describes a state or an event. A state holds now
 and has no actor in view. An event happened, and someone or something caused it.
@@ -152,15 +152,10 @@ When a passive has an auxiliary, such as "must be adjusted", decide first what t
 sentence is. In a procedure, it is an instruction, so use the imperative. In a
 description, name the actor and use "must" or "can" with it.
 
-The passive stays when the actor is unknown or does not matter. "The log was
-truncated at 02:00" is correct when nothing shows who or what did it. Never invent
-an actor to avoid a passive. A wrong actor changes the meaning, and meaning comes
-before this rule.
-
-```text
-Before: The log was truncated at 02:00. (Nothing shows the cause.)
-Wrong rewrite: The log rotation truncated the log at 02:00.
-```
+The passive stays when the actor is unknown or does not matter. "The commit was
+amended after the review" is right when nothing shows who did it. Never invent an
+actor only to avoid a passive, because a wrong actor changes the meaning. Meaning
+comes before this rule. When you find the real actor, write it.
 
 ## verb-for-action
 

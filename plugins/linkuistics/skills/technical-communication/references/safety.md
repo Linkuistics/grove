@@ -19,7 +19,7 @@ of the harness decide that. A warning in a reply is never a substitute for askin
 | Identifier | Level | Idea |
 |---|---|---|
 | `risk-label` | none | A label word shows the level of risk before anything else |
-| `command-first` | none | The warning starts with the command or the condition |
+| `command-first` | none | The first words of a warning are the order or the condition |
 | `state-the-risk` | none | The warning says what goes wrong, and whether it can be undone |
 
 Every sentence of safety text keeps to the instruction limit of 20 words. The checker
@@ -36,9 +36,8 @@ A label word tells the reader how much care the step needs. Use two levels:
 - **Caution.** The step can cause damage that someone can repair. Examples are a
   broken local build, a lost hour and a reset of local state.
 
-Decide the level by a short risk analysis. Ask three questions. What is the worst
-result? Can the reader undo it? Who carries the cost? When one step carries both
-levels, use "Warning".
+Decide the level with three questions. What is the worst result? Can the reader undo
+it? Who carries the cost? A step that carries both levels gets "Warning".
 
 Put the label at the start, before the instruction. A reader who sees the label
 first slows down in time. The project style or a template may name other levels.
@@ -69,7 +68,7 @@ Sometimes a condition decides whether the warning applies. Put the condition at 
 front, and end it with a comma (see `condition-first` in `procedures.md`).
 
 ```text
-Caution: When the migration runs, do not stop the process. A stopped migration leaves the table half changed.
+Caution: Before you rebuild the index, stop the writer. A running writer corrupts the new index.
 ```
 
 Background does not come first. A sentence of context before the command delays the
@@ -79,9 +78,9 @@ second sentence when one exists. Start it with "Instead".
 ## state-the-risk
 
 After the command, say what goes wrong. Name the thing that suffers, the result and,
-where the reader needs it, whether the harm can be undone. A reader who sees the
-result takes more care. A reader who sees it also decides a case that the warning
-did not foresee.
+where the reader needs it, whether the harm can be undone. The result tells the
+reader how much care to take. It also helps with a case that the warning did not
+foresee.
 
 ```text
 Before: Warning: Do not delete the volume. This may cause problems.

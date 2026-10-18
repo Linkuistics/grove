@@ -82,10 +82,10 @@ the rule. A hard finding fails the check. An advisory finding never fails it.
 | `long-sentence` | hard | An instruction has 20 words at most. A description has 25 |
 | `long-paragraph` | hard | A paragraph has 6 sentences at most |
 | `one-idea-per-sentence` | none | A sentence has one subject and one point |
-| `one-action-per-step` | none | A step has one instruction, unless two actions happen together |
+| `one-action-per-step` | none | A step names one action. Two actions share a step only when they happen at once |
 | `imperative-steps` | none | A step is a command, not a passive or a "should" |
 | `condition-first` | none | The condition comes first, then a comma, then the command |
-| `full-words` | none | No dropped words and no contractions |
+| `full-words` | none | Write whole sentences, and spell out "do not" and "cannot" |
 | `passive-voice` | advisory | Name the actor. Use the passive when the actor is unknown or not important |
 | `present-perfect` | advisory | Use the simple past or present, unless the link to now is the point |
 | `nominalisation` | hard | Use the verb. Write "analyse", not "perform an analysis" |

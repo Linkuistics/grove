@@ -1060,6 +1060,21 @@ trusted, does a user-settings hook run (source says no) and an extension hook
 `prompt_response` include text from before tool calls? Do symlinked skills in
 `~/.gemini/skills` load, and with what conflict warnings?
 
+## Where the findings landed
+
+The design adopted these findings, and two of its decisions are ADRs:
+
+- Findings 6 and 7 are in
+  [documents are gated, and replies are measured](../adr/documents-are-gated-replies-are-measured.md):
+  the document gate uses the quiet channel, and no hook holds back a reply.
+- Finding 9 is in
+  [the off file is the only switch](../adr/the-off-file-is-the-only-switch.md).
+
+The other findings landed in the
+[spec](../specs/technical-communication.md), under *Harness mapping*. Finding 2
+is there as the decision that this repository never grants Codex trust, and
+finding 4 is there as the decision that Gemini CLI gets the skill only.
+
 ## Handoff
 
 This survey decides nothing; these are the decisions it hands on, with the

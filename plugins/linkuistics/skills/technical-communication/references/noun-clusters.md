@@ -40,26 +40,25 @@ words.
 ## short-form-after-full
 
 An official name can be longer than three words. A product, a setting, a document
-or a tool can have one. Keep the name as it is. Write it in full at its first use.
-
-Then give a short form of three words or fewer, and say what the name means when
-the reader cannot see it. For the rest of the text, use only the short form. See
-`synonym-rotation` in `words.md`.
+or a tool can have one. Keep the name as it is, and write it in full at its first
+use. At that point, give a short form of three words or fewer. Say what the name
+means when the reader cannot see it. After that, use only the short form (see
+`synonym-rotation` in `words.md`).
 
 ```text
-Before you edit the Regional Replica Lag Alert Rule (called "the lag rule" here),
-stop the alert service. Then save the lag rule.
+The Regional Replica Lag Alert Rule (the lag rule, from here on) pages the
+on-call engineer. The lag rule fires after five minutes of delay.
 ```
 
 An abbreviation can be the short form. It comes from the documents of the project
 or of the field, and the first use gives the full name. Do not make up an
 abbreviation without defining it where it first appears. A name of three words or
-fewer needs no abbreviation. An abbreviation saves little, and a text full of
-letters is hard to read.
+fewer stays as it is. An abbreviation saves few words, and a reader who meets many
+of them in one text slows down.
 
 ```text
-Before: When the CBT trips, the RPCL retries.
-After: When the circuit breaker trips, the remote-call layer retries.
+Before: When the DLQ fills, the RM pauses.
+After: When the dead-letter queue fills, the retry manager pauses.
 ```
 
 An abbreviation that the whole field knows, such as "API", "URL" or "CPU", needs no

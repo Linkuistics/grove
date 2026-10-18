@@ -14,10 +14,10 @@ Core rules, by identifier:
 - `long-sentence`: an instruction has 20 words at most, and a description has 25.
 - `long-paragraph`: a paragraph has 6 sentences at most.
 - `one-idea-per-sentence`: a sentence has one subject and one point.
-- `one-action-per-step`: a step has one instruction, unless two actions happen together.
+- `one-action-per-step`: a step names one action. Two actions share a step only when they happen at once.
 - `imperative-steps`: a step is a command, such as "Restart the worker."
 - `condition-first`: the condition comes first, then a comma, then the command.
-- `full-words`: no dropped words and no contractions.
+- `full-words`: write whole sentences, and spell out "do not" and "cannot".
 - `passive-voice` and `present-perfect`: advisory. Name the actor, and prefer the simple tense.
 - `nominalisation`: "analyse", not "perform an analysis".
 - `phrasal-verb`: "start", not "spin up".

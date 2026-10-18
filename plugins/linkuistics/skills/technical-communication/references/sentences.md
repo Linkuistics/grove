@@ -9,7 +9,7 @@ any sentence, in a procedure or in a description. `procedures.md` and
 | `long-sentence` | hard | A sentence has a word limit |
 | `one-idea-per-sentence` | none | One subject and one point in each sentence |
 | `say-what-happens` | none | Concrete and exact, never abstract |
-| `full-words` | none | No dropped words and no contractions |
+| `full-words` | none | Write whole sentences, and spell out "do not" and "cannot" |
 | `vertical-list` | none | A list for many items, with a fixed form |
 | `dangling-conjunction` | hard | No list item ends in "and" or "or" |
 | `connect-sentences` | none | Connectors link related sentences |
@@ -31,12 +31,12 @@ dropping words, because `full-words` forbids that. A clause that starts with
 "which", "that" or "while" is often a second sentence.
 
 ```text
-Before: To publish the package, make sure the manifest has a new version, build the archive that the registry accepts, upload it with your token, and wait until the registry confirms it.
+Before: To release the library, bump the version in the manifest, build the wheel that the index accepts, upload it with your token and wait until the index lists it.
 After:
-1. Check that the manifest has a new version.
-2. Build the archive.
-3. Upload the archive with your token.
-4. Wait for the registry to confirm the upload.
+1. Bump the version in the manifest.
+2. Build the wheel.
+3. Upload the wheel with your token.
+4. Wait until the index lists the wheel.
 ```
 
 ## one-idea-per-sentence
@@ -108,23 +108,23 @@ each item says, and how you mark the list.
 
 **How to mark the list**
 
-- The lead-in is a full sentence that ends with a colon.
 - All items have the same marker. Use numbers or letters when the order matters, and
   bullets when it does not.
+- No item ends with a comma. No item ends with a semicolon.
 - Each item starts with a capital letter.
-- An item that is a full sentence ends with a period.
-- An item that is a fragment has no end mark, except the last one. The last item ends
-  with a period, because it closes the sentence that the lead-in opened.
-- No item ends with a comma or a semicolon.
+- The lead-in is a full sentence that ends with a colon.
+- Mark the end of each item by its form. A full sentence ends with a period. A
+  fragment has no end mark, except the last one. The last item ends with a period,
+  because it closes the sentence that the lead-in opened.
 
 ```text
-Before: The pipeline runs the linter, the unit tests, the integration tests, and the packaging step.
+Before: Before you merge, check the lint report, the test results, the coverage figure and the changelog entry.
 After:
-The pipeline has four stages:
-- The linter
-- The unit tests
-- The integration tests
-- The packaging step.
+Before you merge, check these items:
+- Lint report
+- Test results
+- Coverage figure
+- Changelog entry.
 ```
 
 The checker treats an item of an ordered list as an instruction. It treats an
@@ -164,8 +164,8 @@ repeatable."
 An article or a demonstrative shows which noun the sentence means. Without it, a
 sentence reads like a headline, and the reader cannot tell one thing from many.
 
-- Put "the", "a" or "an" before a noun that stands for a particular thing, or for one
-  of several. Use "this" or "these" for a thing that the text named just before.
+- Put "the", "a" or "an" before a noun that names one particular thing, or one of
+  several. Use "this" or "these" for a thing that the text named just before.
 - Leave the article out when the noun speaks of a whole kind, as in "Caches improve
   latency". Leave it out before an abstract noun too.
 - A noun that an identifier follows works as a name, so it takes no article: "Open
@@ -173,8 +173,7 @@ sentence reads like a headline, and the reader cannot tell one thing from many.
 - Watch the scope of an adjective in a series. After "the old logs, snapshots and
   temporary files", the reader may think that "old" covers all three nouns. Repeat the
   article when it does not.
-- In a short series, an article before each noun is clearer. In a long series, one
-  article before the first noun is enough.
+- A long series needs only the first article. In a short one, repeat it.
 
 ```text
 Before: Restart worker.
@@ -182,7 +181,4 @@ After: Restart the worker.
 
 Before: Open the ticket 4821.
 After: Open ticket 4821.
-
-Before: Delete the old logs, snapshots and temporary files.
-After: Delete the old logs, the snapshots and the temporary files.
 ```

@@ -66,3 +66,35 @@ records that Codex's sandbox blocks gitdir writes). The fallback to beat is
 
 - Read `references/research.md` in the `grove` skill for what a survey owes.
 - Do not run a second survey; one corpus is enough for documentation reading.
+
+## Decisions (running log)
+
+**Versions of record.** Claude Code 2.1.302 (native binary), codex-cli 0.163.0
+(Homebrew cask), Pi 0.84.2 (`@earendil-works/pi-coding-agent`, first on
+`PATH`; an older `@mariozechner` copy in `/usr/local` is shadowed). Gemini CLI
+is not installed: `gemini` is not on `PATH` and `~/.gemini` does not exist, so
+`plugins/install.sh` skips it. Its version of record is the latest stable npm
+release, read from the published package and upstream source, never run.
+
+**Evidence gathering split by harness.** Four delegated readers, one per
+harness, each wrote a cited evidence file in the session scratchpad; the survey
+is written from those files, and every claim a later leaf's design rests on is
+re-checked against its source before it goes into the survey. No model session
+of any harness is started here: the live runs belong to the always-on leaves.
+
+**A cross-harness always-on guide is externalised, not grown here.** The human
+asked whether a skill-writing skill covers always-on mechanisms for several
+harnesses. None does: `superpowers:writing-skills` assumes Claude Code,
+`authoring-conventions` covers only the `harnesses:` key, and `plugin-dev` is
+Claude Code only. At the human's request it is filed as
+Linkuistics/grove#21, for a future grove that distils this survey and the
+always-on leaves' live evidence once they are on `main`. The survey's handoff
+names the issue; no leaf in this tree owns it.
+
+**Gemini's scope is handed on, not asked here.** Gemini CLI's README says that,
+for unpaid-tier and Google One users, it was replaced by Antigravity CLI on
+2026-06-18, and it is not installed here. Whether the grove still covers it is
+the human's call. `skill-design-k5` already asks the human about the switch,
+the log and the harness mapping, so the survey's handoff puts the question
+there with the evidence, beside the Codex trust route, which also touches the
+human's own files. Antigravity CLI is not surveyed.

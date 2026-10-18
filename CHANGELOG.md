@@ -52,6 +52,8 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+## v22.5.0
+
 - `linkuistics` / `technical-communication`: new skill, modelled on ASD-STE100
   Simplified Technical English, that keeps a model's replies, the documents it
   writes and the text it writes for other models in controlled English. It

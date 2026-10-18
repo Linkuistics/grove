@@ -144,7 +144,7 @@ not an absolute path counts as unset.
 |---|---|
 | Instruction | Not sent to a session or subagent that starts afterwards |
 | Reminder, gate, reply log | Stop at the next event: the core exits 0, prints nothing and writes nothing |
-| Text already in a running session | Stays until that session ends. Nothing retracts it |
+| Text already in a running session | Stays until that session ends. Nothing retracts it. When the human turns the switch off in a session, `SKILL.md` tells the model to stop applying the rules there too, because the human's request is precedence 1 |
 | The skill | Stays installed. Its description loads it only on the instruction or an explicit request |
 | A line the human pastes into a global `AGENTS.md` | Obeys the switch only because the offered line names the off file |
 

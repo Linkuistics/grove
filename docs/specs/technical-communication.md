@@ -42,9 +42,12 @@ converts the whole document first, as its own change.
 
 ### Layers and layout
 
-Everything except Claude Code's entry lives in one skill directory.
+Everything except two entry files lives in one skill directory. Claude Code's
+entry is in the plugin root, and Codex's marketplace file is in the repository
+root.
 
 ```text
+.agents/plugins/marketplace.json     Codex marketplace that lists the hooks plugin
 plugins/linkuistics/
 ├── hooks/hooks.json                 Claude Code entry (the plugin root is required)
 └── skills/technical-communication/
@@ -69,9 +72,17 @@ plugins/linkuistics/
   `plugin.json`. A skill's frontmatter hook lasts only while that skill is
   active.
 - **The Codex plugin's root is the skill directory itself.** Its entries then
-  reach the scripts through `${PLUGIN_ROOT}/scripts/`, and they still work if
-  Codex copies the plugin into its cache. The directory has no `skills/`
-  subdirectory, so the plugin adds no second copy of the skill.
+  reach the scripts through `${PLUGIN_ROOT}/scripts/`, and they work from
+  Codex's cache, which holds a copy of the whole directory. The directory has no
+  `skills/` subdirectory, so the plugin adds no second copy of the skill.
+- **Codex adds a plugin only from a marketplace.**
+  `.agents/plugins/marketplace.json` at the repository root lists the one plugin,
+  `technical-communication`, with the skill directory as its source. Codex reads
+  that file before `.claude-plugin/marketplace.json`, so Claude Code's
+  marketplace stays as it is. The cache copy is a snapshot: after the scripts
+  change, the human installs the plugin again to refresh it. Until then the
+  cached scripts run, and a cached script that lacks a newer harness name
+  does nothing.
 - **The Pi extension finds the skill directory through its own real path.**
   `install.sh` links it into `~/.pi/agent/extensions/`, so its loaded path is
   the link.
@@ -190,11 +201,11 @@ and compound tenses) are counted in `rules` and `advisory` but not in
 `per_100`, because they match word shapes, not grammar. A faulty `exempt` marker
 in a reply is a hard `marker` finding, like any other hard finding.
 
-**Where `model` comes from.** Claude Code's hook payloads do not name the model.
-Its adapter reads the model of the latest assistant entry at the end of the
-transcript. A subagent has its own transcript. When the read fails, the record
-holds null. The transcript can lag the reply, so the first reply after a model
-change may carry the old name.
+**Where `model` comes from.** Codex's hook payloads carry the model. Claude
+Code's hook payloads do not, so its adapter reads the model of the latest
+assistant entry at the end of the transcript. A subagent has its own transcript.
+When the read fails, the record holds null. The transcript can lag the reply, so
+the first reply after a model change may carry the old name.
 
 **The log stores no reply text and no matched fragment**, and not the reason in
 an exemption marker. To judge a false alarm, the human runs the checker on the
@@ -458,6 +469,18 @@ govern the words inside them, and nothing in that plugin changes.
 - **Entries never change shape.** Codex trusts a hash of each entry's command,
   matcher and timeout, so a changed entry loses its trust, and `codex exec` then
   skips it without a word. Behaviour changes go into the scripts.
+- **A Codex entry is a shell command string**, because Codex has no `args`
+  field: `/bin/sh "${PLUGIN_ROOT}/scripts/tc-hook" codex EVENT || true`. Codex
+  hashes the command before it fills in `${PLUGIN_ROOT}`, so the trust holds
+  wherever the cache is. `|| true` covers a missing guard file, which would
+  otherwise give a failed hook row on every event. The timeouts are 10 seconds
+  for `SessionStart`, `SubagentStart`, `Stop` and `SubagentStop`, 5 for
+  `UserPromptSubmit` and 15 for `PostToolUse`, whose matcher is `apply_patch`.
+- **The Codex adapter needs no transcript.** Codex puts `model` in every
+  payload. For the gate it reads the paths from the patch text in
+  `tool_input.command`: the files of its `*** Add File:`, `*** Update File:`
+  and `*** Move to:` headers, taken relative to `cwd`. A deleted file is not
+  checked, and a content line of an added file cannot pass for a header.
 - **The core takes the harness's own payload** as
   `tc-hook <harness> <event>`. The events are `session-start`,
   `subagent-start`, `prompt`, `write` and `reply`. The thin adapter for each
@@ -465,8 +488,10 @@ govern the words inside them, and nothing in that plugin changes.
   harness's output. The Pi extension calls the same core or the checker as a
   child process, and it repeats no rule logic in TypeScript.
 - **Codex runs no layer until the human trusts the plugin.** Until then, Codex
-  has the skill, and the model runs the checker itself. Codex's hooks run
-  outside its sandbox, so the log write is not blocked there.
+  has the skill, and the model runs the checker itself. `codex exec` skips an
+  untrusted entry without a word. Codex's hooks run outside its sandbox, so the
+  log write is not blocked there, even when the state directory is outside the
+  session's writable folders.
 - **Gemini CLI gets the skill only.** It is not installed here, and for
   unpaid-tier users Antigravity CLI replaced it. The extension layout in the
   [harness survey](../research/harness-hooks-a.md) remains for a later grove.

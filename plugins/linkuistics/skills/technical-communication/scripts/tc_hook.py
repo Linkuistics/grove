@@ -46,16 +46,15 @@ def load_checker():
 
 # --- the adapter for each harness ---------------------------------------------
 
-class ClaudeCode:
-    """Claude Code's payloads and output.
+class Adapter:
+    """What the harnesses agree on: session_id, agent_id, source, cwd, the
+    last_assistant_message of a stop event, and an additionalContext nested
+    under hookSpecificOutput. An adapter overrides what differs.
 
-    The payload fields are those of Claude Code 2.1.302
-    (docs/research/harness-hooks-a.md, section 1). A top-level
-    additionalContext is dropped by Claude Code, so the output always nests it
-    under hookSpecificOutput and names the event.
+    Each harness names its own payload fields in its subclass docstring.
     """
 
-    name = "claude-code"
+    name = ""
     EVENT_NAMES = {"session-start": "SessionStart",
                    "subagent-start": "SubagentStart",
                    "prompt": "UserPromptSubmit",
@@ -72,6 +71,35 @@ class ClaudeCode:
         if event == "subagent-start":
             return "subagent"
         return payload.get("source")
+
+    def model(self, payload):
+        return None
+
+    def reply(self, payload):
+        text = payload.get("last_assistant_message")
+        return text if isinstance(text, str) else ""
+
+    def cwd(self, payload):
+        return payload.get("cwd") or os.getcwd()
+
+    def written_paths(self, payload):
+        return []
+
+    def output(self, event, context):
+        return {"hookSpecificOutput": {"hookEventName": self.EVENT_NAMES[event],
+                                       "additionalContext": context}}
+
+
+class ClaudeCode(Adapter):
+    """Claude Code's payloads and output.
+
+    The payload fields are those of Claude Code 2.1.302
+    (docs/research/harness-hooks-a.md, section 1). A top-level
+    additionalContext is dropped by Claude Code, so the output always nests it
+    under hookSpecificOutput and names the event.
+    """
+
+    name = "claude-code"
 
     def model(self, payload):
         """The model of the latest assistant turn in the transcript, or None.
@@ -101,13 +129,6 @@ class ClaudeCode:
             pass
         return None
 
-    def reply(self, payload):
-        text = payload.get("last_assistant_message")
-        return text if isinstance(text, str) else ""
-
-    def cwd(self, payload):
-        return payload.get("cwd") or os.getcwd()
-
     def written_paths(self, payload):
         tool_input = payload.get("tool_input")
         if not isinstance(tool_input, dict):
@@ -115,12 +136,44 @@ class ClaudeCode:
         path = tool_input.get("file_path") or tool_input.get("notebook_path")
         return [path] if isinstance(path, str) and path else []
 
-    def output(self, event, context):
-        return {"hookSpecificOutput": {"hookEventName": self.EVENT_NAMES[event],
-                                       "additionalContext": context}}
+
+class Codex(Adapter):
+    """Codex's payloads and output.
+
+    The payload fields are those of Codex 0.163.0
+    (docs/research/harness-hooks-a.md, section 2). Codex rejects a Stop
+    output it does not know, and the core prints nothing for a reply, so only
+    the context events need a shape: the same hookSpecificOutput object as
+    Claude Code. A subagent shares its parent's session_id.
+    """
+
+    name = "codex"
+    # The patch headers that name a file the patch leaves behind. A line of an
+    # added file's content starts with "+", so content cannot imitate a header.
+    PATCH_HEADER = re.compile(r"^\*\*\* (?:Add File|Update File|Move to): (.+)$")
+
+    def model(self, payload):
+        model = payload.get("model")
+        return model if isinstance(model, str) and model else None
+
+    def written_paths(self, payload):
+        """The files that an apply_patch call wrote, from the patch's headers.
+
+        Codex gives the gate no list of changed paths, only the patch text.
+        """
+        tool_input = payload.get("tool_input")
+        patch = tool_input.get("command") if isinstance(tool_input, dict) else None
+        if not isinstance(patch, str):
+            return []
+        paths = []
+        for line in patch.splitlines():
+            match = self.PATCH_HEADER.match(line)
+            if match and match.group(1).strip() not in paths:
+                paths.append(match.group(1).strip())
+        return paths
 
 
-ADAPTERS = {adapter.name: adapter for adapter in (ClaudeCode(),)}
+ADAPTERS = {adapter.name: adapter for adapter in (ClaudeCode(), Codex())}
 
 
 # --- the layers ---------------------------------------------------------------

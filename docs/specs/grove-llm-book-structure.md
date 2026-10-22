@@ -690,18 +690,23 @@ summarise the loop, and it is not silent about it.
 
 ### The tests
 
-`crates/grove-llm/tests/` — twenty-four test files and a support module, 9,865
-lines — is outside the corpus: no chapter owns it and no fragment reconstructs
-it. Tests remain **evidence** the book cites, and this book cites them more
-heavily than either precedent, because *hold the help to the handler* names a
-test for every promise. The only traces of them inside the corpus are the five
-dev-dependencies, three of them under manifest comments saying which test needs
-them, which
-chapter 1 owns and explains. Four of the files — `instructed_verbs.rs`,
-`composition_guidance.rs`, `session_kind_guidance.rs` and `removed_surface.rs` —
-test the shipped methodology and the repository's documents against this binary
-rather than the binary itself; chapter 7 names that fact once and the book does
-not explain the skills.
+<!-- tc: on -->
+
+`crates/grove-llm/tests/` holds twenty-four test files and a support module,
+9,865 lines in all. It is outside the corpus. No chapter owns it and no fragment
+reconstructs it. Tests remain **evidence** that the book cites. This book cites
+them more heavily than either precedent, because *hold the help to the handler*
+names a test for every promise.
+
+The only traces of the tests inside the corpus are the five dev-dependencies.
+Three of them sit under manifest comments that say which test needs them.
+Chapter 1 owns and explains these. Four of the files test the shipped
+methodology and the repository's documents against this binary rather than the
+binary itself. They are `instructed_verbs.rs`, `composition_guidance.rs`,
+`session_kind_guidance.rs` and `removed_surface.rs`. Chapter 7 names that fact
+once, and the book does not explain the skills.
+
+<!-- tc: pending because the conversion has not reached this part of the document -->
 
 ### The guide's account, and the methodology inside the help text
 

@@ -6,7 +6,7 @@
 ## Observation and lifecycle have separate lifetimes
 
 <!-- rollup «owned-lines-total» -->
-The book reconstructs 1,449 source lines. The preceding chapters explain parsing,
+The book reconstructs 1,454 source lines. The preceding chapters explain parsing,
 dispatch and their tests. This chapter
 connects the public library calls and owns no source of its own.
 
@@ -25,7 +25,7 @@ authoring tool.
 
 | Package | Responsibility | Workspace runtime dependencies |
 |---|---|---|
-| `grove` | Human CLI and standalone orchestration | `grove-loop`, `grove-tui`, `keyed-launch` |
+| `grove` | Human CLI and standalone orchestration | `grove-loop`, `grove-tui` |
 | `grove-tui` | Read-only application, capture, rendering and terminal lifetime | `grove-loop` |
 | `grove-loop` | Grove vocabulary, reader, verbs and driver | `ordinal-fs-tree`, `jj-workspace`, `keyed-launch` |
 | `grove-llm` | Session CLI | `grove-loop`, `jj-workspace` |
@@ -55,7 +55,8 @@ keeps local `keyed-launch` for its own jobs. Ravel has its own runner.
 | `grove_loop::LoopOutcome` | Distinguish clean stops and interruption |
 | `grove_loop::reraise` | Preserve an interrupted driver's signal exit |
 | `grove_tui::run` | Own the interactive observation session |
-| `keyed_launch::run_noninteractive_with_stdout` | Launch/reap Ravel with result stdout separate from the transcript. Ravel confines its managed process |
+| `grove_loop::ravel_job::launch` | Launch and reap Ravel as an ordinary child, with result stdout separate from the transcript. Ravel confines its managed process |
+| `grove_loop::ravel_job::scrub` | Remove the loop control variables from the environment of the version probe |
 
 All are public library items. The package boundary makes accidental access to
 private items a compiler error. Privacy does not forbid a source inclusion from
@@ -123,7 +124,7 @@ types at first use.
 
 <!-- rollup «owned-lines-sequence» -->
 <!-- rollup «source-owning-chapters» -->
-Owned source is 61 + 62 + 464 + 83 + 779 = 1,449 lines across 5 source-owning chapters.
+Owned source is 59 + 62 + 464 + 83 + 786 = 1,454 lines across 5 source-owning chapters.
 Assembly owns none. The ledgers are maintained with source changes.
 Production files remain authoritative.
 
@@ -143,7 +144,7 @@ terminal smoke. The task's verification record states their observed results.
 <!-- rollup «source-roots» -->
 <!-- rollup «owned-lines-total» -->
 <!-- rollup «chapters» -->
-The corpus contains 8 roots and 1,449 lines, explained across 6 chapters and two
+The corpus contains 8 roots and 1,454 lines, explained across 6 chapters and two
 lookup pages. No deferred source range belongs in the final book.
 
 [Previous: Proving a negative](04-proving-a-negative.md) | [Contents](README.md) | [Next: One isolated invocation](06-standalone-invocations.md)

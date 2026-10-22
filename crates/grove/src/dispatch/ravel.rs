@@ -42,9 +42,7 @@ fn check_version(executable: &std::path::Path) -> Result<()> {
     let mut probe = Command::new(executable);
     // A version probe is not an admitted session and must inherit no ending
     // or Grove tree authority, even when PATH selects an executable wrapper.
-    for name in crate::standalone::CONTROL_ENV {
-        probe.env_remove(name);
-    }
+    grove_loop::ravel_job::scrub(&mut probe);
     let output = probe.arg("--version").output().with_context(remedy)?;
     // Ravel's public version flag identifies the two-verb CLI, not its worker protocol.
     // https://github.com/Linkuistics/Ravel/blob/v1.0.0/docs/session-cli.md

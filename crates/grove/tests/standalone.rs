@@ -886,6 +886,148 @@ fn cancellation_during_run_reaps_the_harness_and_preserves_enclosing_controls() 
     assert!(!fixture.root.join("outer-exit").exists());
 }
 
+/// The group that `pid` leads and the foreground group of its terminal.
+fn groups(pid: u32) -> (u32, u32) {
+    let output = Command::new("/bin/ps")
+        .args(["-o", "pgid=", "-o", "tpgid=", "-p", &pid.to_string()])
+        .output()
+        .unwrap();
+    let text = String::from_utf8_lossy(&output.stdout).into_owned();
+    let numbers: Vec<u32> = text
+        .split_whitespace()
+        .map(|word| word.parse().unwrap())
+        .collect();
+    let [group, foreground] = numbers.as_slice() else {
+        panic!("ps reported {text:?} for {pid}");
+    };
+    (*group, *foreground)
+}
+
+/// `grove run` is a detached job: it keeps the terminal, so a Ctrl-C typed
+/// there reaches Grove and no other process. The case types it on a
+/// pseudo-terminal of its own, never the terminal of the developer.
+///
+/// A foreground that moved to `ravel` would send the interrupt past Grove. The
+/// run would then end as a failed Ravel and not as a cancellation, so the
+/// message of the error is part of the check.
+#[test]
+fn a_typed_ctrl_c_cancels_grove_run_and_the_foreground_stays_with_it() {
+    use std::io::{Read as _, Write as _};
+    use std::os::fd::{AsRawFd as _, FromRawFd as _};
+    use std::sync::{Arc, Mutex};
+
+    const INTERRUPT: u8 = 0x03;
+
+    let fixture = Fixture::new(
+        "trap '' TERM INT\nprintf partial > notes.md\nprintf 'ready:%s\\n' \"$$\"\n\
+         while :; do sleep 0.05; done\n",
+    );
+    let (mut master, mut slave) = (-1, -1);
+    // SAFETY: valid out pointers, with the default settings and size.
+    assert_eq!(
+        unsafe {
+            libc::openpty(
+                &mut master,
+                &mut slave,
+                std::ptr::null_mut(),
+                std::ptr::null_mut(),
+                std::ptr::null_mut(),
+            )
+        },
+        0
+    );
+    // SAFETY: `openpty` returned two fresh descriptors that nothing else owns.
+    let (mut master, slave) =
+        unsafe { (fs::File::from_raw_fd(master), fs::File::from_raw_fd(slave)) };
+    for fd in [master.as_raw_fd(), slave.as_raw_fd()] {
+        // SAFETY: live descriptors. Neither end should leak across the exec.
+        assert_ne!(
+            unsafe { libc::fcntl(fd, libc::F_SETFD, libc::FD_CLOEXEC) },
+            -1
+        );
+    }
+    // The line discipline must turn the typed character into SIGINT, whatever
+    // the defaults of this platform are.
+    // SAFETY: a termios read from, and written back to, a live terminal.
+    unsafe {
+        let mut settings: libc::termios = std::mem::zeroed();
+        assert_eq!(libc::tcgetattr(slave.as_raw_fd(), &mut settings), 0);
+        settings.c_lflag |= libc::ISIG;
+        settings.c_cc[libc::VINTR] = INTERRUPT;
+        assert_eq!(
+            libc::tcsetattr(slave.as_raw_fd(), libc::TCSANOW, &settings),
+            0
+        );
+    }
+    // A reader, as a terminal emulator is. On macOS a session leader's exit
+    // first drains its terminal, and the echo of the typed character is output.
+    let mut reader = master.try_clone().unwrap();
+    let shown = Arc::new(Mutex::new(Vec::new()));
+    let screen = Arc::clone(&shown);
+    std::thread::spawn(move || {
+        let mut buffer = [0; 1024];
+        while let Ok(read @ 1..) = reader.read(&mut buffer) {
+            screen.lock().unwrap().extend_from_slice(&buffer[..read]);
+        }
+    });
+
+    let mut command = fixture.run_kind("release-notes");
+    command
+        .stdin(Stdio::from(slave.try_clone().unwrap()))
+        .stdout(Stdio::from(slave.try_clone().unwrap()))
+        .stderr(Stdio::from(slave));
+    // SAFETY: only `setsid` and `ioctl` run between the fork and the exec.
+    // Grove then leads a session whose controlling terminal is the pseudo-terminal,
+    // as a shell starts a foreground job.
+    unsafe {
+        command.pre_exec(|| {
+            if libc::setsid() == -1
+                || libc::ioctl(libc::STDIN_FILENO, libc::TIOCSCTTY as _, 0) == -1
+            {
+                return Err(std::io::Error::last_os_error());
+            }
+            Ok(())
+        });
+    }
+    let mut grove = command.spawn().unwrap();
+    drop(command);
+
+    let text = wait_for_transcript(&fixture, "ready:");
+    let harness: i32 = text
+        .lines()
+        .find_map(|line| line.strip_prefix("ready:"))
+        .unwrap()
+        .parse()
+        .unwrap();
+    let (group, foreground) = groups(grove.id());
+    assert_eq!(group, grove.id(), "Grove leads its own group");
+    assert_eq!(foreground, group, "the terminal stayed with Grove");
+
+    master.write_all(&[INTERRUPT]).unwrap();
+    let deadline = Instant::now() + Duration::from_secs(20);
+    let status = loop {
+        if let Some(status) = grove.try_wait().unwrap() {
+            break status;
+        }
+        if Instant::now() >= deadline {
+            // SAFETY: the session that this test started. Grove leads its group.
+            unsafe { libc::kill(-i32::try_from(grove.id()).unwrap(), libc::SIGKILL) };
+            let _ = grove.wait();
+            panic!("Ctrl-C did not end grove run");
+        }
+        std::thread::sleep(Duration::from_millis(20));
+    };
+    let screen = String::from_utf8_lossy(&shown.lock().unwrap()).into_owned();
+    assert!(!status.success(), "{status:?}: {screen}");
+    assert!(
+        screen.contains("standalone invocation was cancelled"),
+        "the interrupt did not reach Grove: {screen}"
+    );
+    assert!(!fixture.notes().exists(), "{screen}");
+    // SAFETY: signal 0 queries the reported harness PID.
+    assert_eq!(unsafe { libc::kill(harness, 0) }, -1, "{screen}");
+}
+
 #[test]
 fn destination_created_during_run_is_never_overwritten() {
     let fixture = Fixture::new("printf changed > notes.md\necho ready\nsleep 1\nacknowledge\n");

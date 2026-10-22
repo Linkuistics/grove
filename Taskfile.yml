@@ -225,6 +225,7 @@ tasks:
       - task: ravel:job
         vars: {RAVEL: '{{.RAVEL}}'}
       - task: test:grove-llm
+        vars: {RAVEL: '{{.RAVEL}}'}
       - task: test:keyed-launch
       - task: test:authority
         vars: {RAVEL: '{{.RAVEL}}'}
@@ -308,7 +309,11 @@ tasks:
       - cargo test --locked -p grove-loop --doc
 
   test:grove-llm:
+    requires:
+      vars: [RAVEL]
     desc: Check the agent CLI, retirement guidance and tree verbs with nextest
+    env:
+      GROVE_TEST_RAVEL: '{{.RAVEL}}'
     cmds:
       - cargo nextest run --locked -p grove-llm {{.CLI_ARGS}}
 

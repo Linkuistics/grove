@@ -1,35 +1,19 @@
 //! One invocation of a kind, with no workspace or task-tree authority.
 use std::collections::HashSet;
-use std::ffi::OsStr;
+use std::ffi::{CString, OsStr};
 use std::fs::{self, File, OpenOptions};
 use std::io::Write;
+use std::os::fd::{AsRawFd, FromRawFd};
 use std::os::unix::fs::OpenOptionsExt;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::time::Duration;
 
 use anyhow::{bail, ensure, Context, Result};
 use grove_loop::{
+    ravel_job::{self, LaunchEvent, Shape},
     session_command,
     session_result::{SessionDisposition, SessionResult},
 };
-use keyed_launch::{End, Escalation, Group, NoninteractiveLaunch};
-
-/// What selection must not inherit: the completion channel of a session this
-/// invocation runs inside, lifecycle or standalone. The policy decides what
-/// launches, and ends nothing.
-pub(crate) const CONTROL_ENV: [&str; 10] = [
-    "GROVE_SIGNAL_FILE",
-    "GROVE_RUN_SIGNAL_FILE",
-    "GROVE_LAUNCH_DIR",
-    "HARNESS_DISPATCH_EXIT_FILE",
-    "HARNESS_DISPATCH_RUN_ID",
-    "HARNESS_DISPATCH_STATE_DIR",
-    "RAVEL_EXIT_FILE",
-    "GROVE_PROVIDER_EVIDENCE",
-    "GROVE_HARNESS_PID",
-    "GROVE_CLAUDE_PID",
-];
 
 #[derive(clap::Args)]
 pub(crate) struct Args {
@@ -171,26 +155,20 @@ fn execute(args: Args, ravel: &Path, logs: &Path) -> Result<()> {
     );
     crate::run_display::open(args.ui, &args.kind, &log_path, &status_path)?;
 
-    // Selection inherits the owner's grants. Ravel scrubs its confined
-    // child's environment after selection; enclosing control authority stops here.
-    let scrub: Vec<&OsStr> = CONTROL_ENV.iter().map(OsStr::new).collect();
-    // The runner takes its own value until the migration leaves delete this.
-    let keyed_argv = keyed_launch::Argv::new(argv.program().to_owned(), argv.args().to_vec());
+    // Selection inherits the owner's grants. The shared function scrubs the
+    // loop control variables, so enclosing control authority stops here. Ravel
+    // scrubs its confined child's environment after selection.
     let finished = AtomicBool::new(false);
     let outcome = std::thread::scope(|scope| {
         let relay = scope.spawn(|| crate::run_display::relay(reader, &finished));
-        let result = keyed_launch::run_noninteractive_with_stdout(
-            NoninteractiveLaunch {
-                argv: &keyed_argv,
-                scrub: &scrub,
-                cwd: Some(&work),
-                escalation: Escalation {
-                    grace: Duration::from_secs(2),
-                    kill_grace: Duration::from_secs(5),
-                },
-            },
-            log,
+        // No lease takes the notices of a standalone invocation.
+        let mut observer = |_: LaunchEvent| {};
+        let result = ravel_job::launch(
+            &argv,
+            &work,
             stdout,
+            &mut observer,
+            Shape::Detached { transcript: log },
         );
         finished.store(true, Ordering::Release);
         let displayed = relay
@@ -201,20 +179,12 @@ fn execute(args: Args, ravel: &Path, logs: &Path) -> Result<()> {
     });
     let result = (|| {
         let ended = outcome?;
-        // First, whatever the harness said: a survivor in its group could
-        // still be writing what would be published.
-        if let Group::Present { pgid } = ended.group {
-            bail!(
-                "members of the Ravel process group {pgid} may have survived it; \
-                 outputs were not published"
-            );
-        }
         ensure!(
-            !matches!(ended.end, End::Interrupted { .. }),
+            ended.interrupted.is_none(),
             "standalone invocation was cancelled"
         );
         ensure!(
-            keyed_launch::take_interrupt().is_none(),
+            ravel_job::take_interrupt().is_none(),
             "standalone invocation was cancelled before publication"
         );
         ensure!(
@@ -285,10 +255,49 @@ fn regular_file(path: &Path) -> Result<File> {
     Ok(file)
 }
 
+/// Open `name` under the held `directory` as a regular file, following no link.
+///
+/// The harness can rename paths inside its scratch root, so a read by path could
+/// follow a substituted parent. `openat` on the held descriptor cannot.
+/// `O_NONBLOCK` keeps a FIFO from hanging the open.
+fn regular_file_at(directory: &File, name: &OsStr) -> std::io::Result<File> {
+    let mut components = Path::new(name).components();
+    if !matches!(components.next(), Some(std::path::Component::Normal(_)))
+        || components.next().is_some()
+    {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            "expected one artifact basename",
+        ));
+    }
+    let name = CString::new(name.as_encoded_bytes())?;
+    // SAFETY: directory is held open, name is NUL-terminated, and the returned
+    // fresh descriptor is immediately owned.
+    let fd = unsafe {
+        libc::openat(
+            directory.as_raw_fd(),
+            name.as_ptr(),
+            libc::O_RDONLY | libc::O_CLOEXEC | libc::O_NOFOLLOW | libc::O_NONBLOCK,
+        )
+    };
+    if fd < 0 {
+        return Err(std::io::Error::last_os_error());
+    }
+    // SAFETY: `openat` returned this descriptor and nothing else owns it.
+    let file = unsafe { File::from_raw_fd(fd) };
+    if !file.metadata()?.is_file() {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            "artifact is not a regular file",
+        ));
+    }
+    Ok(file)
+}
+
 fn publish_outputs(work: &File, destinations: &[PathBuf]) -> Result<()> {
     let mut staged = Vec::new();
     for destination in destinations {
-        let mut source = keyed_launch::regular_file_at(work, basename(destination)?)
+        let mut source = regular_file_at(work, basename(destination)?)
             .with_context(|| format!("reading staged output {}", destination.display()))?;
         let parent = destination.parent().context("output has no parent")?;
         let mut stage = tempfile::NamedTempFile::new_in(parent)?;
@@ -299,7 +308,7 @@ fn publish_outputs(work: &File, destinations: &[PathBuf]) -> Result<()> {
     let mut published = Vec::new();
     for (stage, destination) in staged {
         ensure!(
-            keyed_launch::take_interrupt().is_none(),
+            ravel_job::take_interrupt().is_none(),
             "publication cancelled; already published: {published:?}"
         );
         stage.persist_noclobber(destination).map_err(|error| {

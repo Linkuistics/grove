@@ -54,7 +54,7 @@ lines of it, in eight fragments that follow the file's own order. It is read
 first because the first mechanism is declared there rather than argued anywhere
 else: the package is a crate, and the crate has no library.
 
-<!-- fragment «manifest-thin-by-construction» owner="compiler-held" source="crates/grove/Cargo.toml" lines="1-61" parent="source-crate-manifest" -->
+<!-- fragment «manifest-thin-by-construction» owner="compiler-held" source="crates/grove/Cargo.toml" lines="1-59" parent="source-crate-manifest" -->
 <!-- insert «manifest-package-identity» -->
 <!-- insert «manifest-human-binary» -->
 <!-- insert «manifest-crate-not-a-bin» -->
@@ -181,9 +181,8 @@ on trust.
 The check is one line. Every `grove_loop::` path that the Rust files name is a
 `pub` re-export in the root of that library. The sentence of the comment and
 decision 1 of `docs/specs/module-decomposition.md` both name the shape that the
-clause holds for. This section spells out the shape that it excludes. The same
-public boundary holds for `keyed-launch`. The binary owns standalone artifact
-handling.
+clause holds for. This section spells out the shape that it excludes. The binary
+owns standalone artifact handling.
 
 <!-- fragment «manifest-crate-not-a-bin» owner="compiler-held" source="crates/grove/Cargo.toml" lines="14-20" parent="manifest-thin-by-construction" -->
 ````toml
@@ -192,8 +191,8 @@ handling.
 # binary target inside `grove-loop` that compiled the library's modules into
 # itself could name the items that library keeps private, so *the binary is
 # thin* would stop being compiler-enforced. Here the compiler holds it:
-# main reaches only public loop, viewer and keyed-launch interfaces; standalone
-# artifact handling is a binary-owned adapter.
+# main reaches only public loop and viewer interfaces; standalone artifact
+# handling is a binary-owned adapter.
 ````
 <!-- /fragment -->
 
@@ -236,16 +235,16 @@ Crossterm.
 `Workspace` still arrives through the re-export of the loop, and the human
 binary never opens a store lock itself. The manifest therefore records two
 public entry seams without importing their private implementation modules.
-`keyed-launch` supplies its argv and confinement APIs to standalone
-invocation, which loads no configuration and takes its command from `ravel`.
+Standalone invocation starts `ravel` through the `ravel_job` module of
+`grove-loop`. It loads no configuration and takes its command from `ravel`.
 `serde_json` serves integration fixtures. `tempfile` owns scratch storage and
-staged exports. `libc` supplies the artifact-open flags that the runner uses.
+staged exports. `libc` supplies the artifact-open flags of the standalone module.
 
 The dependency comment names the two public entry points and places terminal
 dependencies behind the viewer. That keeps display concerns out of the loop and
 the agent binary. The exact manifest fragment below records those edges.
 
-<!-- fragment «manifest-dependencies» owner="compiler-held" source="crates/grove/Cargo.toml" lines="28-40" parent="manifest-thin-by-construction" -->
+<!-- fragment «manifest-dependencies» owner="compiler-held" source="crates/grove/Cargo.toml" lines="28-38" parent="manifest-thin-by-construction" -->
 ````toml
 
 [dependencies]
@@ -255,8 +254,6 @@ clap = { version = "4", features = ["derive"] }
 # behind grove-tui.
 grove-loop = { path = "../grove-loop" }
 grove-tui = { path = "../grove-tui" }
-# The runner Grove uses to supervise noninteractive dispatch invocations.
-keyed-launch = { path = "../keyed-launch" }
 serde_json = "1.0"
 tempfile = "3.10"
 libc = "0.2"
@@ -289,7 +286,7 @@ The comment names the original repository-surface tests. Later tests include
 viewer and standalone fixtures. All are evidence for this book
 rather than corpus: `tests/` directories are cited and never reproduced.
 
-<!-- fragment «manifest-tests-live-here» owner="compiler-held" source="crates/grove/Cargo.toml" lines="41-52" parent="manifest-thin-by-construction" -->
+<!-- fragment «manifest-tests-live-here» owner="compiler-held" source="crates/grove/Cargo.toml" lines="39-50" parent="manifest-thin-by-construction" -->
 ````toml
 
 # **The repository-surface tests live here**, and that is deliberate rather than
@@ -317,7 +314,7 @@ path — the driver dying of the signal it was sent — is *Lifecycle startup*'s
 ending, and this line is the first trace of it in the corpus. `tempfile`
 supplies the temporary trees.
 
-<!-- fragment «manifest-dev-dependencies» owner="compiler-held" source="crates/grove/Cargo.toml" lines="53-58" parent="manifest-thin-by-construction" -->
+<!-- fragment «manifest-dev-dependencies» owner="compiler-held" source="crates/grove/Cargo.toml" lines="51-56" parent="manifest-thin-by-construction" -->
 ````toml
 [dev-dependencies]
 book-validation = { path = "../book-validation" }
@@ -331,7 +328,7 @@ tempfile = "3.10"
 The lint configuration is inherited for the same reason `version` is: one
 workspace, one standard, and nothing crate-specific to add.
 
-<!-- fragment «manifest-lints» owner="compiler-held" source="crates/grove/Cargo.toml" lines="59-61" parent="manifest-thin-by-construction" -->
+<!-- fragment «manifest-lints» owner="compiler-held" source="crates/grove/Cargo.toml" lines="57-59" parent="manifest-thin-by-construction" -->
 ````toml
 
 [lints]

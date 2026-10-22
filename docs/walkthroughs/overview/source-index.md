@@ -8,16 +8,16 @@
 
 | Root ID | Source path | Lines |
 |---|---|---|
-| `source-crate-manifest` | `crates/grove/Cargo.toml` | 61 |
+| `source-crate-manifest` | `crates/grove/Cargo.toml` | 59 |
 | `source-entry-point` | `crates/grove/src/main.rs` | 17 |
 | `source-command-surface` | `crates/grove/src/cli.rs` | 191 |
 | `source-codex-provisioning` | `crates/grove/src/provision.rs` | 401 |
-| `source-standalone` | `crates/grove/src/standalone.rs` | 323 |
+| `source-standalone` | `crates/grove/src/standalone.rs` | 332 |
 | `source-run-display` | `crates/grove/src/run_display.rs` | 119 |
 | `source-dispatch-lookup` | `crates/grove/src/dispatch.rs` | 5 |
-| `source-ravel-resolution` | `crates/grove/src/dispatch/ravel.rs` | 332 |
+| `source-ravel-resolution` | `crates/grove/src/dispatch/ravel.rs` | 330 |
 
-<!-- source-root «source-crate-manifest» source="crates/grove/Cargo.toml" lines="1-61" -->
+<!-- source-root «source-crate-manifest» source="crates/grove/Cargo.toml" lines="1-59" -->
 <!-- insert «manifest-thin-by-construction» -->
 <!-- /source-root -->
 
@@ -38,7 +38,7 @@
 
 
 
-<!-- source-root «source-standalone» source="crates/grove/src/standalone.rs" lines="1-323" -->
+<!-- source-root «source-standalone» source="crates/grove/src/standalone.rs" lines="1-332" -->
 <!-- insert «standalone-invocation» -->
 <!-- /source-root -->
 
@@ -50,7 +50,7 @@
 <!-- insert «dispatch-lookup» -->
 <!-- /source-root -->
 
-<!-- source-root «source-ravel-resolution» source="crates/grove/src/dispatch/ravel.rs" lines="1-332" -->
+<!-- source-root «source-ravel-resolution» source="crates/grove/src/dispatch/ravel.rs" lines="1-330" -->
 <!-- insert «ravel-resolution» -->
 <!-- /source-root -->
 
@@ -59,32 +59,32 @@
 
 | Block ID | Root ID | Owner | Source lines | Count | State |
 |---|---|---|---|---|---|
-| `manifest-thin-by-construction` | `source-crate-manifest` | `compiler-held` | `1-61` | 61 | `resolved` |
+| `manifest-thin-by-construction` | `source-crate-manifest` | `compiler-held` | `1-59` | 59 | `resolved` |
 | `entry-point-three-steps` | `source-entry-point` | `one-call` | `1-17` | 17 | `resolved` |
 | `surface-grammar` | `source-command-surface` | `no-arguments` | `1-62` | 62 | `resolved` |
 | `surface-resolve-lease-run` | `source-command-surface` | `one-call` | `63-108` | 46 | `resolved` |
 | `surface-closure-tests` | `source-command-surface` | `closure-proved` | `109-191` | 83 | `resolved` |
 | `codex-provisioning` | `source-codex-provisioning` | `one-call` | `1-401` | 401 | `resolved` |
-| `standalone-invocation` | `source-standalone` | `isolated-invocation` | `1-323` | 323 | `resolved` |
+| `standalone-invocation` | `source-standalone` | `isolated-invocation` | `1-332` | 332 | `resolved` |
 | `standalone-display` | `source-run-display` | `isolated-invocation` | `1-119` | 119 | `resolved` |
 | `dispatch-lookup` | `source-dispatch-lookup` | `isolated-invocation` | `1-5` | 5 | `resolved` |
-| `ravel-resolution` | `source-ravel-resolution` | `isolated-invocation` | `1-332` | 332 | `resolved` |
+| `ravel-resolution` | `source-ravel-resolution` | `isolated-invocation` | `1-330` | 330 | `resolved` |
 
 <a id="fragment-index"></a>
 ## Fragment index
 
 | Fragment ID | Page ID | Root ID | Kind | Owner | Source lines | Parent ID | Child IDs |
 |---|---|---|---|---|---|---|---|
-| `source-crate-manifest` | `source-index` | `source-crate-manifest` | `root` | `—` | `1-61` | `—` | `manifest-thin-by-construction` |
+| `source-crate-manifest` | `source-index` | `source-crate-manifest` | `root` | `—` | `1-59` | `—` | `manifest-thin-by-construction` |
 | `manifest-package-identity` | `orientation` | `source-crate-manifest` | `literal` | `compiler-held` | `1-8` | `manifest-thin-by-construction` | `—` |
-| `manifest-thin-by-construction` | `orientation` | `source-crate-manifest` | `composite` | `compiler-held` | `1-61` | `source-crate-manifest` | `manifest-package-identity`, `manifest-human-binary`, `manifest-crate-not-a-bin`, `manifest-no-lib-one-target`, `manifest-dependencies`, `manifest-tests-live-here`, `manifest-dev-dependencies`, `manifest-lints` |
+| `manifest-thin-by-construction` | `orientation` | `source-crate-manifest` | `composite` | `compiler-held` | `1-59` | `source-crate-manifest` | `manifest-package-identity`, `manifest-human-binary`, `manifest-crate-not-a-bin`, `manifest-no-lib-one-target`, `manifest-dependencies`, `manifest-tests-live-here`, `manifest-dev-dependencies`, `manifest-lints` |
 | `manifest-human-binary` | `orientation` | `source-crate-manifest` | `literal` | `compiler-held` | `9-13` | `manifest-thin-by-construction` | `—` |
 | `manifest-crate-not-a-bin` | `orientation` | `source-crate-manifest` | `literal` | `compiler-held` | `14-20` | `manifest-thin-by-construction` | `—` |
 | `manifest-no-lib-one-target` | `orientation` | `source-crate-manifest` | `literal` | `compiler-held` | `21-27` | `manifest-thin-by-construction` | `—` |
-| `manifest-dependencies` | `orientation` | `source-crate-manifest` | `literal` | `compiler-held` | `28-40` | `manifest-thin-by-construction` | `—` |
-| `manifest-tests-live-here` | `orientation` | `source-crate-manifest` | `literal` | `compiler-held` | `41-52` | `manifest-thin-by-construction` | `—` |
-| `manifest-dev-dependencies` | `orientation` | `source-crate-manifest` | `literal` | `compiler-held` | `53-58` | `manifest-thin-by-construction` | `—` |
-| `manifest-lints` | `orientation` | `source-crate-manifest` | `literal` | `compiler-held` | `59-61` | `manifest-thin-by-construction` | `—` |
+| `manifest-dependencies` | `orientation` | `source-crate-manifest` | `literal` | `compiler-held` | `28-38` | `manifest-thin-by-construction` | `—` |
+| `manifest-tests-live-here` | `orientation` | `source-crate-manifest` | `literal` | `compiler-held` | `39-50` | `manifest-thin-by-construction` | `—` |
+| `manifest-dev-dependencies` | `orientation` | `source-crate-manifest` | `literal` | `compiler-held` | `51-56` | `manifest-thin-by-construction` | `—` |
+| `manifest-lints` | `orientation` | `source-crate-manifest` | `literal` | `compiler-held` | `57-59` | `manifest-thin-by-construction` | `—` |
 | `source-entry-point` | `source-index` | `source-entry-point` | `root` | `—` | `1-17` | `—` | `entry-point-three-steps` |
 | `entry-point-module-doc` | `three-steps` | `source-entry-point` | `literal` | `one-call` | `1-7` | `entry-point-three-steps` | `—` |
 | `entry-point-three-steps` | `three-steps` | `source-entry-point` | `composite` | `one-call` | `1-17` | `source-entry-point` | `entry-point-module-doc`, `entry-point-module-and-main` |
@@ -124,14 +124,14 @@
 | `provision-link-publication` | `three-steps` | `source-codex-provisioning` | `literal` | `one-call` | `179-190` | `codex-provisioning` | `—` |
 | `provision-install-flow` | `three-steps` | `source-codex-provisioning` | `literal` | `one-call` | `191-307` | `codex-provisioning` | `—` |
 | `provision-unit-tests` | `three-steps` | `source-codex-provisioning` | `literal` | `one-call` | `308-401` | `codex-provisioning` | `—` |
-| `source-standalone` | `source-index` | `source-standalone` | `root` | `—` | `1-323` | `—` | `standalone-invocation` |
-| `standalone-interface` | `standalone-invocations` | `source-standalone` | `literal` | `isolated-invocation` | `1-75` | `standalone-invocation` | `—` |
-| `standalone-invocation` | `standalone-invocations` | `source-standalone` | `composite` | `isolated-invocation` | `1-323` | `source-standalone` | `standalone-interface`, `standalone-staging`, `standalone-launch-context`, `standalone-supervision`, `standalone-artifact-checks`, `standalone-publication` |
-| `standalone-staging` | `standalone-invocations` | `source-standalone` | `literal` | `isolated-invocation` | `76-127` | `standalone-invocation` | `—` |
-| `standalone-launch-context` | `standalone-invocations` | `source-standalone` | `literal` | `isolated-invocation` | `128-176` | `standalone-invocation` | `—` |
-| `standalone-supervision` | `standalone-invocations` | `source-standalone` | `literal` | `isolated-invocation` | `177-251` | `standalone-invocation` | `—` |
-| `standalone-artifact-checks` | `standalone-invocations` | `source-standalone` | `literal` | `isolated-invocation` | `252-287` | `standalone-invocation` | `—` |
-| `standalone-publication` | `standalone-invocations` | `source-standalone` | `literal` | `isolated-invocation` | `288-323` | `standalone-invocation` | `—` |
+| `source-standalone` | `source-index` | `source-standalone` | `root` | `—` | `1-332` | `—` | `standalone-invocation` |
+| `standalone-interface` | `standalone-invocations` | `source-standalone` | `literal` | `isolated-invocation` | `1-59` | `standalone-invocation` | `—` |
+| `standalone-invocation` | `standalone-invocations` | `source-standalone` | `composite` | `isolated-invocation` | `1-332` | `source-standalone` | `standalone-interface`, `standalone-staging`, `standalone-launch-context`, `standalone-supervision`, `standalone-artifact-checks`, `standalone-publication` |
+| `standalone-staging` | `standalone-invocations` | `source-standalone` | `literal` | `isolated-invocation` | `60-111` | `standalone-invocation` | `—` |
+| `standalone-launch-context` | `standalone-invocations` | `source-standalone` | `literal` | `isolated-invocation` | `112-160` | `standalone-invocation` | `—` |
+| `standalone-supervision` | `standalone-invocations` | `source-standalone` | `literal` | `isolated-invocation` | `161-221` | `standalone-invocation` | `—` |
+| `standalone-artifact-checks` | `standalone-invocations` | `source-standalone` | `literal` | `isolated-invocation` | `222-296` | `standalone-invocation` | `—` |
+| `standalone-publication` | `standalone-invocations` | `source-standalone` | `literal` | `isolated-invocation` | `297-332` | `standalone-invocation` | `—` |
 | `source-run-display` | `source-index` | `source-run-display` | `root` | `—` | `1-119` | `—` | `standalone-display` |
 | `display-relay` | `standalone-invocations` | `source-run-display` | `literal` | `isolated-invocation` | `1-43` | `standalone-display` | `—` |
 | `standalone-display` | `standalone-invocations` | `source-run-display` | `composite` | `isolated-invocation` | `1-119` | `source-run-display` | `display-relay`, `display-pane`, `display-control-test` |
@@ -139,8 +139,8 @@
 | `display-control-test` | `standalone-invocations` | `source-run-display` | `literal` | `isolated-invocation` | `117-119` | `standalone-display` | `—` |
 | `source-dispatch-lookup` | `source-index` | `source-dispatch-lookup` | `root` | `—` | `1-5` | `—` | `dispatch-lookup` |
 | `dispatch-lookup` | `standalone-invocations` | `source-dispatch-lookup` | `literal` | `isolated-invocation` | `1-5` | `source-dispatch-lookup` | `—` |
-| `source-ravel-resolution` | `source-index` | `source-ravel-resolution` | `root` | `—` | `1-332` | `—` | `ravel-resolution` |
-| `ravel-resolution` | `standalone-invocations` | `source-ravel-resolution` | `literal` | `isolated-invocation` | `1-332` | `source-ravel-resolution` | `—` |
+| `source-ravel-resolution` | `source-index` | `source-ravel-resolution` | `root` | `—` | `1-330` | `—` | `ravel-resolution` |
+| `ravel-resolution` | `standalone-invocations` | `source-ravel-resolution` | `literal` | `isolated-invocation` | `1-330` | `source-ravel-resolution` | `—` |
 
 <a id="early-uses"></a>
 ## Early uses
@@ -160,10 +160,10 @@ Every source line is credited once to its owning chapter.
 
 | Slice | Page | Owned lines |
 |---|---|---:|
-| `compiler-held` | `01-orientation.md` | 61 |
+| `compiler-held` | `01-orientation.md` | 59 |
 | `no-arguments` | `02-the-surface.md` | 62 |
 | `one-call` | `03-three-steps.md` | 464 |
 | `closure-proved` | `04-proving-a-negative.md` | 83 |
 | `assembly` | `05-what-the-call-reaches.md` | 0 |
-| `isolated-invocation` | `06-standalone-invocations.md` | 779 |
-| **Total** | 8 source roots | **1,449** |
+| `isolated-invocation` | `06-standalone-invocations.md` | 786 |
+| **Total** | 8 source roots | **1,454** |

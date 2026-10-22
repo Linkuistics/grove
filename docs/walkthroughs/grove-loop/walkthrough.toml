@@ -585,10 +585,10 @@ lines = "1-143"
 [[root]]
 id = "source-ravel-job"
 path = "crates/grove-loop/src/ravel_job.rs"
-lines = 728
+lines = 757
 
 [[block]]
 id = "ravel-job"
 root = "source-ravel-job"
 owner = "four-things-a-runner-cannot-choose"
-lines = "1-728"
+lines = "1-757"

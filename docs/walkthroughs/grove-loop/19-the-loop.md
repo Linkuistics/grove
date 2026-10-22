@@ -1858,7 +1858,7 @@ through the runner. Each converts its `Argv` at one call site. The function take
 two shapes. The foreground shape serves the lifecycle, and the detached shape
 serves `grove run`.
 
-<!-- fragment «ravel-job» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/ravel_job.rs" lines="1-728" parent="source-ravel-job" -->
+<!-- fragment «ravel-job» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/ravel_job.rs" lines="1-757" parent="source-ravel-job" -->
 <!-- insert «ravel-job-header» -->
 <!-- insert «ravel-job-scrub» -->
 <!-- insert «ravel-job-vocabulary» -->
@@ -1867,6 +1867,7 @@ serves `grove run`.
 <!-- insert «ravel-job-latch» -->
 <!-- insert «ravel-job-terminal» -->
 <!-- insert «ravel-job-lease» -->
+<!-- insert «ravel-job-tests» -->
 <!-- /fragment -->
 
 <a id="the-ravel-job-header"></a>
@@ -2129,7 +2130,7 @@ pub fn launch(
     start_and_watch(command, cwd, stdout, observer, shape, sigchld_ignored).map_err(|failure| {
         JobError {
             message: failure.message,
-            interrupted: failure.sent.or_else(take_interrupt),
+            interrupted: freeze(failure.sent),
         }
     })
 }
@@ -2294,7 +2295,7 @@ fn watch(
                 let elapsed = started.elapsed();
                 // Freeze the job at the reap, before the observer or the
                 // terminal recovery can delay it. Later signals are the caller's.
-                let interrupted = interrupted.or_else(take_interrupt);
+                let interrupted = freeze(interrupted);
                 observer(LaunchEvent::Reaped);
                 if let Some(lease) = lease {
                     lease.reclaim(Some(status));
@@ -2391,11 +2392,16 @@ makes the kernel reap children unwatched, and then nothing is left to wait for.
 Grove restores the default for itself and never installs a handler. The child
 gets the ignore back across the exec.
 
+A job reports the first signal that Grove sent to `ravel`. At the reap and at a
+failure, `freeze` also drains the latch. It drains the latch even when Grove
+already sent a signal. So a later signal does not stay in the latch for the
+caller to mistake for one that came after the job.
+
 `take_interrupt` lets a looping driver collect a signal between jobs. `reraise`
 dies of the signal, so that the parent of Grove sees `128 + N` and not a normal
 exit. This module owns that call because this module installed the handler.
 
-<!-- fragment «ravel-job-latch» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/ravel_job.rs" lines="410-532" parent="ravel-job" -->
+<!-- fragment «ravel-job-latch» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/ravel_job.rs" lines="410-543" parent="ravel-job" -->
 ````rust
 /// The signal that the handler last received, or `0`.
 ///
@@ -2429,6 +2435,17 @@ pub fn take_interrupt() -> Option<i32> {
         0 => None,
         signal => Some(signal),
     }
+}
+
+/// The interruption of a job: the first signal that Grove sent to `ravel`, or
+/// else the one that the latch holds. The call drains the latch either way.
+///
+/// **The drain does not depend on the first signal.** `Option::or_else` would
+/// skip it once a signal had been sent. A later signal would then stay in the
+/// latch, and the caller would take it for one that came after the job.
+fn freeze(sent: Option<i32>) -> Option<i32> {
+    let latched = take_interrupt();
+    sent.or(latched)
 }
 
 /// A single store is the only work here that is async-signal-safe. The signal
@@ -2536,7 +2553,7 @@ it and gets no job control. That is the whole gate, and no caller can configure
 it wrongly. `tcsetpgrp` from a background group raises SIGTTOU, so every call
 ignores SIGTTOU and then restores the previous disposition.
 
-<!-- fragment «ravel-job-terminal» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/ravel_job.rs" lines="533-641" parent="ravel-job" -->
+<!-- fragment «ravel-job-terminal» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/ravel_job.rs" lines="544-652" parent="ravel-job" -->
 ````rust
 /// The signals that the child gets at their **default** disposition.
 ///
@@ -2665,7 +2682,7 @@ leader's. After a failed wait it behaves as after an ordinary exit.
 The attributes return whenever Grove ends in the foreground. So a raw-mode
 harness that was killed still leaves cooked mode behind.
 
-<!-- fragment «ravel-job-lease» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/ravel_job.rs" lines="642-728" parent="ravel-job" -->
+<!-- fragment «ravel-job-lease» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/ravel_job.rs" lines="653-740" parent="ravel-job" -->
 ````rust
 /// The share of the terminal that one foreground job holds: when it was held,
 /// what it looked like then, and how it returns.
@@ -2754,6 +2771,7 @@ impl Lease {
         }
     }
 }
+
 ````
 <!-- /fragment -->
 
@@ -2768,8 +2786,41 @@ uses `/usr/bin/env` and `/usr/bin/true` only for the environment and the notices
 Job control has no stand-in test. `tests/session_command.rs` and
 `tests/session_result_installed.rs` run the installed Ravel through the function,
 one case for each shape. `task ravel:commands` and `task ravel:result` run them
-with `RAVEL` set. A pseudo-terminal run of the lifecycle case engages the
-handover. The loop-driver cases under a pseudo-terminal stay the acceptance of
-the foreground job after the lifecycle moves here.
+with `RAVEL` set. Neither case has a terminal, so neither checks the handover.
+
+`tests/ravel_job_terminal.rs` checks the handover. It runs the foreground shape
+on a pseudo-terminal of its own. The harness reports which group holds the
+terminal while it runs. The case fails when the function does not hand over the
+terminal. After the reap, the case checks that the terminal is back with the
+group of Grove. `task ravel:job` runs it with `RAVEL` set.
+
+The loop-driver cases under a pseudo-terminal stay the acceptance of the
+foreground job after the lifecycle moves here.
+
+No caller can time the window between the last check of the latch and the reap.
+So one unit test drives `freeze` with a signal stored in the latch. The test
+fails when `freeze` skips the drain.
+
+<!-- fragment «ravel-job-tests» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/ravel_job.rs" lines="741-757" parent="ravel-job" -->
+````rust
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // A drain that skips when a signal was already sent leaves the HUP in the
+    // latch for the caller.
+    #[test]
+    fn the_freeze_drains_the_latch_when_the_job_already_has_a_signal() {
+        INTERRUPTED_BY.store(libc::SIGHUP, Ordering::Relaxed);
+        assert_eq!(freeze(Some(libc::SIGTERM)), Some(libc::SIGTERM));
+        assert_eq!(take_interrupt(), None);
+
+        INTERRUPTED_BY.store(libc::SIGHUP, Ordering::Relaxed);
+        assert_eq!(freeze(None), Some(libc::SIGHUP));
+        assert_eq!(take_interrupt(), None);
+    }
+}
+````
+<!-- /fragment -->
 
 [Previous: The guaranteed core](18-the-core.md) | [Contents](README.md) | [Next: What could not move](20-what-could-not-move.md)

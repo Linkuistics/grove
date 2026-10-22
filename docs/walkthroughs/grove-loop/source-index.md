@@ -25,7 +25,7 @@
 | `source-launch-directory` | `crates/grove-loop/src/launch_directory.rs` | 134 |
 | `source-session-result` | `crates/grove-loop/src/session_result.rs` | 105 |
 | `source-session-command` | `crates/grove-loop/src/session_command.rs` | 143 |
-| `source-ravel-job` | `crates/grove-loop/src/ravel_job.rs` | 728 |
+| `source-ravel-job` | `crates/grove-loop/src/ravel_job.rs` | 757 |
 
 <!-- source-root «source-crate-manifest» source="crates/grove-loop/Cargo.toml" lines="1-67" -->
 <!-- insert «manifest-domain-bound» -->
@@ -109,7 +109,7 @@
 <!-- source-root «source-session-command» source="crates/grove-loop/src/session_command.rs" lines="1-143" -->
 <!-- insert «public-session-commands» -->
 <!-- /source-root -->
-<!-- source-root «source-ravel-job» source="crates/grove-loop/src/ravel_job.rs" lines="1-728" -->
+<!-- source-root «source-ravel-job» source="crates/grove-loop/src/ravel_job.rs" lines="1-757" -->
 <!-- insert «ravel-job» -->
 <!-- /source-root -->
 
@@ -163,7 +163,7 @@
 | `launch-control-directory` | `source-launch-directory` | `four-things-a-runner-cannot-choose` | `1-134` | 134 | `resolved` |
 | `held-session-result` | `source-session-result` | `four-things-a-runner-cannot-choose` | `1-105` | 105 | `resolved` |
 | `public-session-commands` | `source-session-command` | `four-things-a-runner-cannot-choose` | `1-143` | 143 | `resolved` |
-| `ravel-job` | `source-ravel-job` | `four-things-a-runner-cannot-choose` | `1-728` | 728 | `resolved` |
+| `ravel-job` | `source-ravel-job` | `four-things-a-runner-cannot-choose` | `1-757` | 757 | `resolved` |
 
 <a id="fragment-index"></a>
 ## Fragment index
@@ -721,16 +721,17 @@
 | `held-session-result` | `the-loop` | `source-session-result` | `literal` | `four-things-a-runner-cannot-choose` | `1-105` | `source-session-result` | `—` |
 | `source-session-command` | `source-index` | `source-session-command` | `root` | `—` | `1-143` | `—` | `public-session-commands` |
 | `public-session-commands` | `the-loop` | `source-session-command` | `literal` | `four-things-a-runner-cannot-choose` | `1-143` | `source-session-command` | `—` |
-| `source-ravel-job` | `source-index` | `source-ravel-job` | `root` | `—` | `1-728` | `—` | `ravel-job` |
+| `source-ravel-job` | `source-index` | `source-ravel-job` | `root` | `—` | `1-757` | `—` | `ravel-job` |
 | `ravel-job-header` | `the-loop` | `source-ravel-job` | `literal` | `four-things-a-runner-cannot-choose` | `1-32` | `ravel-job` | `—` |
-| `ravel-job` | `the-loop` | `source-ravel-job` | `composite` | `four-things-a-runner-cannot-choose` | `1-728` | `source-ravel-job` | `ravel-job-header`, `ravel-job-scrub`, `ravel-job-vocabulary`, `ravel-job-launch`, `ravel-job-watch`, `ravel-job-latch`, `ravel-job-terminal`, `ravel-job-lease` |
+| `ravel-job` | `the-loop` | `source-ravel-job` | `composite` | `four-things-a-runner-cannot-choose` | `1-757` | `source-ravel-job` | `ravel-job-header`, `ravel-job-scrub`, `ravel-job-vocabulary`, `ravel-job-launch`, `ravel-job-watch`, `ravel-job-latch`, `ravel-job-terminal`, `ravel-job-lease`, `ravel-job-tests` |
 | `ravel-job-scrub` | `the-loop` | `source-ravel-job` | `literal` | `four-things-a-runner-cannot-choose` | `33-62` | `ravel-job` | `—` |
 | `ravel-job-vocabulary` | `the-loop` | `source-ravel-job` | `literal` | `four-things-a-runner-cannot-choose` | `63-149` | `ravel-job` | `—` |
 | `ravel-job-launch` | `the-loop` | `source-ravel-job` | `literal` | `four-things-a-runner-cannot-choose` | `150-301` | `ravel-job` | `—` |
 | `ravel-job-watch` | `the-loop` | `source-ravel-job` | `literal` | `four-things-a-runner-cannot-choose` | `302-409` | `ravel-job` | `—` |
-| `ravel-job-latch` | `the-loop` | `source-ravel-job` | `literal` | `four-things-a-runner-cannot-choose` | `410-532` | `ravel-job` | `—` |
-| `ravel-job-terminal` | `the-loop` | `source-ravel-job` | `literal` | `four-things-a-runner-cannot-choose` | `533-641` | `ravel-job` | `—` |
-| `ravel-job-lease` | `the-loop` | `source-ravel-job` | `literal` | `four-things-a-runner-cannot-choose` | `642-728` | `ravel-job` | `—` |
+| `ravel-job-latch` | `the-loop` | `source-ravel-job` | `literal` | `four-things-a-runner-cannot-choose` | `410-543` | `ravel-job` | `—` |
+| `ravel-job-terminal` | `the-loop` | `source-ravel-job` | `literal` | `four-things-a-runner-cannot-choose` | `544-652` | `ravel-job` | `—` |
+| `ravel-job-lease` | `the-loop` | `source-ravel-job` | `literal` | `four-things-a-runner-cannot-choose` | `653-740` | `ravel-job` | `—` |
+| `ravel-job-tests` | `the-loop` | `source-ravel-job` | `literal` | `four-things-a-runner-cannot-choose` | `741-757` | `ravel-job` | `—` |
 
 <a id="early-uses"></a>
 ## Early uses
@@ -815,7 +816,7 @@ the roots and fragment relationships; this rollup totals the lines across the de
 | `one-per-working-tree` | `16-the-lease.md` | 1,141 |
 | `which-calls-are-admitted` | `17-the-epoch.md` | 3,805 |
 | `too-late-to-say-later` | `18-the-core.md` | 241 |
-| `four-things-a-runner-cannot-choose` | `19-the-loop.md` | 2,022 |
+| `four-things-a-runner-cannot-choose` | `19-the-loop.md` | 2,051 |
 | `assembly` | `20-what-could-not-move.md` | 0 |
-| **Total** | 18 source roots | **15,244** |
+| **Total** | 18 source roots | **15,273** |
 

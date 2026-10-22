@@ -204,6 +204,15 @@ tasks:
       - cargo nextest run --locked -p grove-loop --test session_command
       - cargo nextest run --locked -p grove-loop --test session_command --run-ignored only
 
+  ravel:job:
+    desc: Check the foreground handover of the shared function against installed Ravel on a pseudo-terminal
+    requires:
+      vars: [RAVEL]
+    env:
+      GROVE_TEST_RAVEL: '{{.RAVEL}}'
+    cmds:
+      - cargo nextest run --locked -p grove-loop --test ravel_job_terminal --run-ignored only
+
   ravel:activation:
     desc: Check both actual callers and inherited lifecycle/process/authority boundaries
     requires:
@@ -212,6 +221,8 @@ tasks:
       - task: test:grove
         vars: {RAVEL: '{{.RAVEL}}'}
       - task: test:grove-loop
+        vars: {RAVEL: '{{.RAVEL}}'}
+      - task: ravel:job
         vars: {RAVEL: '{{.RAVEL}}'}
       - task: test:grove-llm
       - task: test:keyed-launch

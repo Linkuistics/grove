@@ -183,7 +183,7 @@ pub fn launch(
     start_and_watch(command, cwd, stdout, observer, shape, sigchld_ignored).map_err(|failure| {
         JobError {
             message: failure.message,
-            interrupted: failure.sent.or_else(take_interrupt),
+            interrupted: freeze(failure.sent),
         }
     })
 }
@@ -327,7 +327,7 @@ fn watch(
                 let elapsed = started.elapsed();
                 // Freeze the job at the reap, before the observer or the
                 // terminal recovery can delay it. Later signals are the caller's.
-                let interrupted = interrupted.or_else(take_interrupt);
+                let interrupted = freeze(interrupted);
                 observer(LaunchEvent::Reaped);
                 if let Some(lease) = lease {
                     lease.reclaim(Some(status));
@@ -439,6 +439,17 @@ pub fn take_interrupt() -> Option<i32> {
         0 => None,
         signal => Some(signal),
     }
+}
+
+/// The interruption of a job: the first signal that Grove sent to `ravel`, or
+/// else the one that the latch holds. The call drains the latch either way.
+///
+/// **The drain does not depend on the first signal.** `Option::or_else` would
+/// skip it once a signal had been sent. A later signal would then stay in the
+/// latch, and the caller would take it for one that came after the job.
+fn freeze(sent: Option<i32>) -> Option<i32> {
+    let latched = take_interrupt();
+    sent.or(latched)
 }
 
 /// A single store is the only work here that is async-signal-safe. The signal
@@ -724,5 +735,23 @@ impl Lease {
         if let Some(saved) = self.saved.as_ref().filter(|_| terminal.foreground() == own) {
             terminal.restore(saved);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // A drain that skips when a signal was already sent leaves the HUP in the
+    // latch for the caller.
+    #[test]
+    fn the_freeze_drains_the_latch_when_the_job_already_has_a_signal() {
+        INTERRUPTED_BY.store(libc::SIGHUP, Ordering::Relaxed);
+        assert_eq!(freeze(Some(libc::SIGTERM)), Some(libc::SIGTERM));
+        assert_eq!(take_interrupt(), None);
+
+        INTERRUPTED_BY.store(libc::SIGHUP, Ordering::Relaxed);
+        assert_eq!(freeze(None), Some(libc::SIGHUP));
+        assert_eq!(take_interrupt(), None);
     }
 }

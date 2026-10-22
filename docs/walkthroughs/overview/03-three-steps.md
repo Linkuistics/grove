@@ -806,15 +806,23 @@ to `run`, which writes the error and returns exit 1 to main.
 <a id="one-iteration"></a>
 ## The lifecycle behind the call
 
-One lifecycle iteration reads the tree, performs any required lifecycle
-transition, selects a leaf, prepares its session epoch and launch directory,
-runs `ravel start-session` for that leaf and holds its public stdout result.
-Grove's interruption wins, including signals received after reap; successful
-exact `grove-force-stop` then stops without completion. Otherwise recorded
-teardown finishes, a surviving Ravel group or unsuccessful status stops, and exactly `grove-continue` on
-success advances; anything else stops. Ravel owns managed-process completion
-and escalation, while Grove supplies the instruction and result meaning. Those details belong to the
-loop walkthrough at `docs/walkthroughs/grove-loop/README.md`, whose public `run` is this
-chapter's boundary. No viewer action enters that loop.
+One lifecycle iteration reads the tree and performs any required lifecycle
+transition. It selects a leaf and prepares the session epoch and the launch
+directory. Then it runs `ravel start-session` for that leaf and holds the public
+stdout result.
+
+After the reap and the epoch invalidation, the iteration reads the end in this
+order. Interruption of the driver comes first, including a signal that arrives
+after the reap. A successful status with exactly `grove-force-stop` comes next,
+and it stops the loop without completion. A recorded teardown then finishes the
+loop. A surviving Ravel group stops the loop, and so does an unsuccessful status.
+
+On success, exactly `grove-continue` starts the next pick. Any other end stops
+the loop.
+
+Ravel owns the completion and the escalation of the managed process. Grove
+supplies the instruction and gives the result its meaning. The loop walkthrough
+at `docs/walkthroughs/grove-loop/README.md` describes these details. Its public
+`run` is the boundary of this chapter. No viewer action enters that loop.
 
 [Previous: The surface](02-the-surface.md) | [Contents](README.md) | [Next: Proving a negative](04-proving-a-negative.md)

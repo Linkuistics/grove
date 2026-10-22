@@ -51,6 +51,12 @@ callers move in the next two leaves.
   `session_result_installed.rs` run through the new function, with one case per
   shape. No test uses a stand-in child to check job control.
 - The book of `grove-loop` covers the new module and every changed line.
+- The `Argv` conversion at the call site in `crates/grove/src/standalone.rs`
+  changes source that the `overview` book quotes. The fragments are
+  `standalone-launch-context` and `standalone-supervision` of chapter 06. The
+  indexes and any moved line counts change with them. Chapter 06 matches that
+  change in this leaf, so `book-check` passes at this boundary. The conversion
+  of chapter 06 may already exist from `ravel-floor-k6`.
 - `bash scripts/check.sh` passes. These tasks pass with `RAVEL` set:
   `ravel:commands`, `ravel:result` and `test:grove-loop`.
 
@@ -59,6 +65,8 @@ callers move in the next two leaves.
 - Convert each edited record as its own change before the edit. The
   documents of this leaf are the book chapters that it touches.
   The caller contract spec already passes the checker.
+- The `loop_driver.rs` call site converts `Argv` too. The book of `grove-loop`
+  quotes it, and this leaf covers it.
 - Decision 7 of `docs/specs/module-decomposition.md` records the shipped
   interface. That edit waits for `design-records-k12`, after the callers move.
 - Names are the implementation's to choose. Record the chosen names in the

@@ -68,9 +68,11 @@ Find the smallest increments that are useful on their own and keep
   stays easy to review. The shared function already returns an error that
   carries the interruption.
 - **The structure specs wait for the last leaf (planning, 2026-10-22).** The
-  specs of the books are not gated by a test, except the row in
+  specs of the books are not gated by a content test, except the row in
   `walkthrough-books.md`, which goes with the crate. Each spec converts once,
-  in `book-specs-k14`.
+  in `book-specs-k14`. *Corrected by `ravel-child-plan-k16`:* a Markdown link
+  to a removed file is gated by `every_repository_markdown_reference_resolves`,
+  so `keyed-launch-removal-k11` also fixes the two inbound links.
 - **Mapping of the work to leaves (planning, 2026-10-22).**
   - Shared function, `Argv`, `LaunchEvent`, `take_interrupt`, `reraise` and the
     scrub list: `ravel-job-k7`.
@@ -86,7 +88,9 @@ Find the smallest increments that are useful on their own and keep
   - `RELEASING.md`, `USAGE.md` and `driver.md`: `user-records-k13`.
   - The structure specs and `user-guide-coverage.md`: `book-specs-k14`.
   - The 1.1.0 floor with the release inputs and the resolver cases:
-    `ravel-floor-k6`.
+    `ravel-floor-k6`. *Added by `ravel-child-plan-k16`:* the two target-input
+    controls, `release-smoke.sh`, the installed-Ravel version assertion and
+    the overview fragment of the resolver file.
 - **A review of the plan runs first (planning, 2026-10-22).** Nine sessions
   build on this decomposition, and the gate order is new content. The
   `review-planning` leaf sits ahead of the first leaf of code. The producers

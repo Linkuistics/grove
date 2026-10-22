@@ -33,7 +33,8 @@ first caller to migrate. It is the smaller one, and it needs no lease.
 - `crates/grove/Cargo.toml` no longer depends on `keyed-launch`.
 - A new standalone case runs under a pseudo-terminal. A Ctrl-C typed at
   `grove run` cancels it and publishes nothing. The foreground stays with the
-  group of `grove run`.
+  group of `grove run`. The case is an ordinary test that the named activation
+  tasks reach, with no `#[ignore]` outside what those tasks already run.
 - Chapters 01, 05 and 06 of the `overview` book match the changed code and the
   changed `Cargo.toml`. The conversions of those chapters land first as their
   own changes.
@@ -46,4 +47,7 @@ first caller to migrate. It is the smaller one, and it needs no lease.
   tree until `lifecycle-job-k9`. They never run in one process, because
   `grove run` and `grove do` are separate invocations.
 - Remove the conversion of `Argv` at the call site of `grove run` that
-  `ravel-job-k7` left.
+  `ravel-job-k7` left. That leaf already edited the quoting fragments of
+  chapter 06. This leaf edits the same fragments again for the migration.
+- Chapter 06 and its conversion may already exist from `ravel-floor-k6` and
+  `ravel-job-k7`. Convert a chapter only if it is not yet converted.

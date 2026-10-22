@@ -29,9 +29,27 @@ This is the contract step. It runs only after no caller uses the crate.
   of `grove-loop`, chapters 01 and 05 of `overview`, and chapter 07 of
   `jj-workspace` describe the crate graph and the checks without the crate.
 - The four test comments no longer cite the crate.
-- A search of the whole tree for `keyed-launch` and `keyed_launch` finds only
-  dated evidence and released changelog entries. Enumerate the matches, and
+- Every Markdown link into the removed book or structure spec is gone, so
+  `every_repository_markdown_reference_resolves`
+  (`crates/grove/tests/reference_navigation.rs`) passes at this boundary. The
+  two inbound links are the row at `docs/ARCHITECTURE.md:45` (remove the row)
+  and the sentence at `docs/specs/grove-loop-book-structure.md:19` (rewrite it
+  without the link). Convert only the touched sections first, as their own
+  changes. The rest of each document stays with `design-records-k12` and
+  `book-specs-k14`. This leaf also edits the passage in
+  `docs/specs/walkthrough-books.md` (around line 978) that cites the removed
+  book's chapter. The leaf already edits that document for the row.
+- A search of the tree for `keyed-launch` and `keyed_launch`, excluding
+  `.grove/`, finds matches only in these classes. Enumerate the matches, and
   classify each one. Show that the search finds a seeded match.
+  - Code, manifests, tasks, tests, scripts and books: none.
+  - Dated evidence and released changelog entries: kept.
+  - Current records that a later leaf owns: kept, and listed by file with the
+    owning leaf in the running log. The owners are `design-records-k12`
+    (`CONTEXT-MAP.md`, `docs/ARCHITECTURE.md`, `module-decomposition.md`,
+    `one-live-driver-per-working-tree.md`, `grove-delivery-contraction.md`,
+    `diagrams.json`) and `book-specs-k14` (the structure specs and
+    `user-guide-coverage.md`).
 - `bash scripts/check.sh` passes. `ravel:activation` passes with `RAVEL` set.
 
 ## Notes
@@ -43,5 +61,8 @@ This is the contract step. It runs only after no caller uses the crate.
   `docs/grove-session-control-evidence.md`.
 - Rework of the remaining records is in the next three leaves. Prose in
   `CONTEXT-MAP.md`, `docs/ARCHITECTURE.md` and the other records still names
-  the crate when this leaf ends.
+  the crate when this leaf ends. Only links are not allowed to dangle.
+- Structure specs are not gated by a content test, but the Markdown reference
+  test scans them for links. This is why the removed spec's inbound link is
+  fixed here.
 - Convert each edited record as its own change before the edit.

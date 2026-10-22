@@ -195,7 +195,14 @@ the published release. That release has the same three targets.
   `scripts/release-registration.test.sh`,
   `scripts/release-floor-backend-probe-host.sh` and
   `scripts/release-smoke-target.sh`.
-- The version check in `scripts/grove-installed-smoke.sh`.
+- The version check in `scripts/grove-installed-smoke.sh`, and the archive
+  names in `scripts/release-smoke.sh`.
+- The two controls that build the archive layout: `scripts/test_ravel_target_inputs.py`
+  and `scripts/ravel-target-inputs.test.sh`. `ravel:targets:controls` runs both
+  and requires `ARCHIVES`.
+- The installed-version assertion in
+  `crates/grove-loop/tests/session_result_installed.rs`.
+- The overview fragment `ravel-resolution`, which quotes the resolver file.
 - The description of `ravel:targets:prepare` in `Taskfile.yml`, and the Ravel
   inputs that `docs/RELEASING.md` names.
 
@@ -242,23 +249,25 @@ the published release. That release has the same three targets.
   changes.
 - `06` `ravel-child-plan-k15` (review-planning): an adversarial read of the
   plan below, before any leaf of code runs.
-- `07` `ravel-floor-k6` (impl): the Ravel 1.1.0 floor in the resolver and the
-  release inputs.
-- `08` `ravel-job-k7` (impl): the shared function and its book coverage, beside
-  `keyed-launch`.
-- `09` `grove-run-job-k8` (impl): `grove run` on the detached shape.
-- `10` `lifecycle-job-k9` (impl): the loop driver and the driver lease on the
-  foreground shape.
-- `11` `interrupted-errors-k10` (impl): every error that stops the loop keeps a
+- `07` `ravel-child-plan-k16` (integrate-review-planning): the findings of that
+  review, applied to the leaves below.
+- `08` `ravel-floor-k6` (impl): the Ravel 1.1.0 floor in the resolver, its
+  overview fragment and the release inputs with all their consumers.
+- `09` `ravel-job-k7` (impl): the shared function and its book coverage, beside
+  `keyed-launch`, with the overview edits of the `Argv` bridge.
+- `10` `grove-run-job-k8` (impl): `grove run` on the detached shape.
+- `11` `lifecycle-job-k9` (impl): the loop driver and the driver lease on the
+  foreground shape, with the prose that described the removed interpretation.
+- `12` `interrupted-errors-k10` (impl): every error that stops the loop keeps a
   caught signal.
-- `12` `keyed-launch-removal-k11` (impl): the crate, its tasks, tests, book and
-  structure spec.
-- `13` `design-records-k12`, `14` `user-records-k13` and `15` `book-specs-k14`
+- `13` `keyed-launch-removal-k11` (impl): the crate, its tasks, tests, book and
+  structure spec, and the links that point at them.
+- `14` `design-records-k12`, `15` `user-records-k13` and `16` `book-specs-k14`
   (impl): the records that state the reversed decision.
 
-Each leaf from `08` to `12` carries the book edits for the code that it
-changes, because `book-check` gates the quotes. The order is expand (`08`),
-migrate (`09`, `10`, `11`) and contract (`12`). The records follow the code.
+Each leaf from `08` to `13` carries the book edits for the code that it
+changes, because `book-check` gates the quotes. The floor (`08`) comes first.
+The order is then expand (`09`), migrate (`10`, `11`, `12`) and contract (`13`). The records follow the code.
 
 ## Pointers
 

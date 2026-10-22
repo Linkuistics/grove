@@ -27,9 +27,15 @@ describe the shipped arrangement. The code and the books are final by now.
   arrangement without the crate.
 - The current-discussion panel is removed from
   `docs/design/harness-selection-and-execution/diagrams.json`. The file parses.
-- A search for the reversed decision finds no record that still states it,
-  except dated evidence and released changelog entries. Enumerate the matches,
-  and classify each one.
+- A search of the records that this leaf owns finds no statement of the
+  reversed decision: `CONTEXT.md`, `CONTEXT-MAP.md`, `docs/ARCHITECTURE.md`,
+  `docs/grove-delivery-contraction.md`, `module-decomposition.md`,
+  `one-live-driver-per-working-tree.md` and `diagrams.json`. The pattern covers
+  `keyed-launch`, `keyed_launch`, `survivor`, `surviving`, "group is gone" and
+  "runner". Enumerate the matches, and classify each one. Show that the
+  search finds a seeded match.
+- Records that `user-records-k13` and `book-specs-k14` still own may keep their
+  matches. List them by file in the running log.
 - Every edited record passes the technical-communication checker. Convert each
   record as its own change before the edit. A large document converts only the
   sections that the edit touches.

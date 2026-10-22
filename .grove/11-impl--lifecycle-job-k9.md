@@ -18,6 +18,12 @@ children, with no group and no KILL.
   re-export of `reraise`.
 - The book of `grove-loop`: chapters 01 and 16 to 20, with the concept
   index, the source index and the README.
+- Current prose that describes the removed interpretation:
+  `docs/walkthroughs/overview/03-three-steps.md:814` ("a surviving Ravel
+  group ... stops"), `docs/walkthroughs/overview/04-proving-a-negative.md:263`
+  (the surviving-group combinations as a runner-result input) and the doc
+  comment at `crates/grove-loop/src/session_result.rs:26-30` (keyed-launch's
+  entry point, "survivor checks").
 
 ## Done when
 
@@ -49,6 +55,11 @@ children, with no group and no KILL.
   acceptance of the foreground job.
 - The `grove-loop` book matches every changed line. The conversions of the
   chapters land first as their own changes.
+- Chapters 03 and 04 of the `overview` book no longer describe a surviving
+  group as a stop condition or a result input. The `session_result.rs` doc
+  comment describes the held file and the shared function, with no survivor
+  check, and the chapter fragment that quotes it matches. The conversions of
+  chapters 03 and 04 land first as their own changes.
 - `bash scripts/check.sh` passes. These tasks pass with `RAVEL` set:
   `ravel:activation`, `ravel:fixtures` and `ravel:result`.
 
@@ -57,7 +68,11 @@ children, with no group and no KILL.
 - This is the largest leaf. Edits to the book are mechanical but exact.
   If it proves bigger than one session, decompose it. The natural seam is the
   lease with its tests first, and the loop driver with its tests second.
-  `LaunchEvent` and the observer then move in the first child.
+  `LaunchEvent` and the observer then move in the first child. That child
+  needs a bridge. The old loop runner still emits `keyed_launch::LaunchEvent`,
+  and the migrated lease expects the new type. So the first child converts the
+  observer at its call site. It keeps the `keyed-launch` dependency of
+  `grove-loop`. The second child removes the last use and the dependency line.
 - Keep the behaviour of the errors as it is. `interrupted-errors-k10` adds the
   rule that an error keeps a caught signal.
 - Cut a `review-impl` leaf at the end of this leaf. The terminal and signal

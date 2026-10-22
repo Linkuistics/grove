@@ -69,11 +69,137 @@ The owner settled these in `plan-k1`. Its running log holds the reasons.
 - The driver lease receives a Started notice after a successful spawn, and a
   Reaped notice after a successful wait.
 
+## Design
+
+The design leaf `ravel-child-k2` settled the mechanics. The durable records hold
+the design. The first is the caller contract,
+`docs/specs/harness-selection-and-execution.md`, in its sections *Independent
+packages*, *Jobs and authority*, *Lifecycle interpretation*, *Standalone
+interpretation* and *Caller acceptance*. The others are
+`docs/specs/standalone-invocations.md` and the ADRs
+`docs/adr/the-launched-child-is-a-job.md` and
+`docs/adr/dispatch-supervises-the-harness.md`.
+
+The running log of `ravel-child-k2` gives the reason for each decision. This
+section holds what the planning needs and what dies with `.grove/`.
+
+### The shared function
+
+- A new module of `grove-loop` owns the one function that starts `ravel`. The
+  implementation chooses its names. Decision 7 of
+  `docs/specs/module-decomposition.md` then records the shipped interface.
+<!-- tc: depart synonym-rotation because Launch directory is a defined glossary term -->
+- The function takes the command, the working directory, the held stdout file,
+  an observer of the notices and a shape. The foreground shape carries the
+  launch directory, and the detached shape carries the transcript file.
+- It returns the end of the job: the wait status of `ravel`, the interruption
+  and the elapsed time. The end has no group field.
+- It polls at a constant interval, as the runner does now. At each poll it passes
+  the foreground on, sends each latched signal to `ravel` and checks for an
+  exit without blocking. A stop is not an exit.
+
+### New homes
+
+| Use of the crate | New home |
+|---|---|
+| `Argv` | A value type in `session_command`, with the program, the arguments and `words()` |
+| `LaunchEvent` | The new module. `DriverLease::supervise_launch` keeps its shape |
+| `take_interrupt` and `reraise` | The new module, which installs the handlers. The re-export in `lib.rs` follows them |
+| `Channel::discard_abandoned` | None. The cleanup goes |
+| `regular_file_at` | A private function in the standalone module of `grove` |
+| `Launch::scrub` and the two copies of the list | One list in the new module, with a helper for the version probe and `stty` |
+| `End`, `Ended`, `Group` and `Escalation` | The end value of the new module. `Group` and `Escalation` go |
+
+### Removal
+
+- Remove `crates/keyed-launch` and its entries in `Cargo.lock`.
+- Remove its member line and its decision comment from the root `Cargo.toml`.
+- Remove its dependency lines from `crates/grove-loop/Cargo.toml` and
+  `crates/grove/Cargo.toml`.
+- In `Taskfile.yml`, remove `test:keyed-launch` and its call in
+  `ravel:activation`. Reword "both stdout runners" in `ravel:fixtures`.
+- Remove the member `keyed-launch` from `grove_sources` in `testing/support.rs`.
+- Remove the book `docs/walkthroughs/keyed-launch/`, its structure spec
+  `docs/specs/keyed-launch-book-structure.md` and its row in
+  `docs/specs/walkthrough-books.md`.
+
+The tests of the crate go with it. The two agreed seams cover what Grove needs
+from them.
+
+### Records to rework
+
+Each record below states the reversed decision or quotes changed code. A book
+chapter lands with the code that it quotes, because `scripts/check.sh` gates the
+quotes.
+
+- `docs/specs/module-decomposition.md`: decision 1, with its table and prose,
+  and decision 7 with the shipped interface.
+- The book structure specs `grove-loop-book-structure.md`,
+  `overview-book-structure.md` and `grove-llm-book-structure.md`, and
+  `user-guide-coverage.md`.
+- The books: chapters 01 and 16 to 20 of `docs/walkthroughs/grove-loop/` with
+  its concept index and README, chapters 01, 05 and 06 of
+  `docs/walkthroughs/overview/`, and chapter 07 of
+  `docs/walkthroughs/jj-workspace/`.
+- `docs/adr/one-live-driver-per-working-tree.md`. Its passage on orphaned
+  processes credits Grove's job decision with the reap of the session's group,
+  but Ravel's guarantee does that. Its "two generic runner events" become the
+  two notices of the new module. Convert the touched sections first.
+- The entry *Run ending* in `CONTEXT.md`. The rows and paragraphs of
+  `CONTEXT-MAP.md` on the crate, and its "no surviving group".
+- `docs/ARCHITECTURE.md` and `docs/grove-delivery-contraction.md`.
+- `docs/RELEASING.md`: seven product packages become six. The anchor stays.
+- The comments that cite the crate in `crates/grove-llm/tests/removed_surface.rs`,
+  `crates/jj-workspace/tests/environment.rs`,
+  `crates/grove/tests/reference_navigation.rs` and
+  `crates/grove/tests/loop_driver.rs`.
+- The current-discussion panel in
+  `docs/design/harness-selection-and-execution/diagrams.json`. Remove it once
+  the code ships.
+
+Dated evidence of bounded runs stays unchanged, by
+`docs/adr/evidence-outlives-the-instrument.md`. These records are
+`docs/ravel-caller-surface-audit.md`, `docs/ravel-caller-surface-inventory.tsv`,
+`docs/grove-ravel-docs-evidence.md`, `docs/preservation-baseline.md` and
+`docs/grove-session-control-evidence.md`. Released entries of `CHANGELOG.md`
+stay too.
+
+### Tests
+
+- Port `crates/grove-loop/tests/session_command.rs` and
+  `session_result_installed.rs` to the new function, with one case per shape.
+- Port the driver-lease tests that spawn `/bin/sh` to the new function. They
+  check the order of the notices, not job control, and they run without a
+  terminal. A launch directory replaces the `Channel` that named their path.
+- Rewrite the two interpretation tests in `loop_driver.rs` without `Group`.
+- Drop the `signal-` fixtures from the loop-driver case on housekeeping. The
+  cases on abandoned launch directories keep that cleanup covered.
+- Add one standalone case under a pseudo-terminal. A Ctrl-C typed at
+  `grove run` cancels it and publishes nothing. The foreground stays with the
+  group of `grove run`.
+- Give the resolver tests the 1.1.0 floor. `ravel 1.0.0` and `ravel 1.0.9`
+  refuse, and `ravel 1.1.0` and `ravel 1.12.3` pass. Fixtures that print
+  `ravel 1.0.0` as a valid version change to 1.1.0.
+- The loop-driver cases under a pseudo-terminal stay the acceptance of the
+  foreground job. Each must still pass with the installed Ravel 1.1.0.
+
+### Residues
+
+- A failed exec after the handover in the child leaves the foreground with the
+  group of the failed child, as today. The driver exits, and its shell takes
+  the terminal back.
+- A TERM before the first session still ends the driver by the default action,
+  as today. The function installs the handlers, so they exist only from the
+  first job on.
+
 ## Decomposition
 
 - `01` `plan-k1` (requirements): the requirements above, settled with the owner.
 - `02` `ravel-child-k2` (design): the mechanics and the records that the design
-  reworks. Its last act cuts the leaf that follows it.
+  reworks.
+- `03` `ravel-child-k3` (review-design): an adversarial read of the design.
+- `04` `ravel-child-plan-k4` (planning): the leaves of the code, book and record
+  changes.
 
 ## Pointers
 
@@ -118,15 +244,11 @@ The owner settled these in `plan-k1`. Its running log holds the reasons.
   with the crate. Chapters of the `grove-loop` and overview books quote the
   changed code, and `scripts/check.sh` gates them. So each code change lands
   with its book edits.
-- **Each edited record needs a conversion first.** No record that this work
-  edits passes the controlled-English checker today. The
-  `technical-communication` skill converts each one as its own change before the
-  edit. A large document converts only the sections that the edit touches.
+- **Each edited record needs a conversion first.** The `technical-communication`
+  skill converts each record as its own change before the edit. A large document
+  converts only the sections that the edit touches. The design converted the two
+  specs and the two ADRs that it reworked, and the README of the caller views.
+  These pass the checker now. No other record on the list above passes it yet.
 - **The project Taskfile.** `Taskfile.yml` is the entry point for repeatable
   work. Its `test:keyed-launch` task goes with the crate, and so does the use of
   that task in `ravel:activation`.
-
-## On the horizon
-
-- The planning of the code, book and record changes, after the design settles
-  the mechanics.

@@ -7,16 +7,20 @@ argument that `ravel end-session RESULT` published. The caller supplies the
 prompt and the ending instructions. Ravel injects none and gives the result no
 meaning.
 
-[Ravel's executable contract](https://github.com/Linkuistics/Ravel/blob/v1.0.0/docs/specs/session-execution.md)
+[Ravel's executable contract](https://github.com/Linkuistics/Ravel/blob/v1.1.0/docs/specs/session-execution.md)
 owns selection, ephemeral transport, cleanup and confinement. Grove consumes
 only the public CLI and the stdout result. It never consumes a private worker or
 report protocol, a run record or a persistent store.
 
 Supervision puts the end of the harness in one process for every caller. The
 cost is one process for the lifetime of the harness, and nested job control.
-Grove's local `keyed-launch` remains its domain-free runner. Ravel has its own
-runner. No shared Rust dependency crosses the boundary between the independently
-released packages.
+Grove keeps no runner. It launches `ravel` as an ordinary child process, as a
+job-control shell launches a job. No shared Rust dependency crosses the boundary
+between the independently released packages.
+
+**Ravel alone gives the cleanup assurance.** A successful Ravel status with an
+exact result is the only evidence of cleanup that Grove uses. Grove sends no
+KILL to `ravel` and probes no process group after the reap.
 
 ## Grove's side of the boundary
 
@@ -27,9 +31,9 @@ reaps it, Grove invalidates the epoch. Then Grove interprets exactly
 
 Driver interruption wins first. A successful Ravel force-stop wins over teardown
 and exits 1 without completion. It leaves the remaining live work resumable.
-Otherwise teardown keeps its authority over status, results and surviving
-groups. Continuation needs a successful status and a gone group. A missing or
-unsupported result stops the loop without continuation.
+Otherwise teardown keeps its authority over status and results. Continuation
+needs a successful status and exactly `grove-continue`. A missing or unsupported
+result stops the loop without continuation.
 
 Standalone work needs continuation before Grove publishes checked outputs. A
 force-stop reports failure and publishes nothing. Session output does not
@@ -48,10 +52,15 @@ Grove chooses the first executable regular `ravel` in an absolute PATH
 directory. It canonicalises that path once and probes it with `--version`. An
 empty or relative PATH entry adds no fallback to the current directory.
 
-Stable `ravel 1.x`, from 1.0.0, is the supported CLI line. Grove refuses other minor
-or major versions, prereleases, and malformed or unsuccessful probes, with an
+Stable `ravel 1.x` from 1.1.0 is the supported CLI line. Grove refuses 1.0.x,
+other major versions, prereleases, and malformed or unsuccessful probes, with an
 upgrade remedy. A refusal never falls through to another installation.
 Homebrew presence alone proves no runtime compatibility.
+
+The floor is 1.1.0 because Grove relies on Ravel's failure paths for its cleanup
+assurance. Ravel 1.1.0 changes the behaviour of five of them. In one, Ravel
+stops a session when it cannot check that it reaped its policy worker. Grove's
+own survivor check of the group of `ravel` used to catch that case.
 
 This trusts the program that the owner's PATH selects, even during the probe.
 Version output is not authentication. Canonicalisation fixes the symlink
@@ -101,4 +110,14 @@ file. Selection and provider receipts stay separate
   of the child, even with 0, supplies no acknowledgement from the caller. Grove
   needs a supported result after cleanup.
 - **Use a shared runner crate across projects.** Rejected for the independent
-  CLI boundary. Each project keeps its local implementation and release checks.
+  CLI boundary. Ravel publishes no runner library.
+- **Keep a local copy of the runner in Grove.** Rejected (owner, 2026-10-21).
+  Ravel copied the runner from Grove commit `639b9d6`, and the two copies
+  diverged. Grove's copy lacked Ravel's corrections of its failure paths and its
+  native entry. It also repeated cleanup that Ravel already guarantees. Reopen
+  only if Ravel stops supervising its own job.
+- **Check the group of `ravel` after the reap, and kill a survivor.** Rejected
+  (owner, 2026-10-22). The harness runs in a group that Ravel owns, so a check
+  of the group of `ravel` never covered it. A KILL from Grove would also cut
+  Ravel's own cleanup short and orphan its managed job. Reopen if Ravel stops
+  checking the absence of its groups before it returns a result.

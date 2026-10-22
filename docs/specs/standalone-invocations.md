@@ -18,7 +18,7 @@ prompt supplies the exact canonical `end-session grove-continue` and
 Grove sends the kind, the prompt, the exit directory and the canonical
 `--runtime-read` grants. It sends no task identity and no settings override.
 Ravel's
-[public execution contract](https://github.com/Linkuistics/Ravel/blob/v1.0.0/docs/specs/session-execution.md)
+[public execution contract](https://github.com/Linkuistics/Ravel/blob/v1.1.0/docs/specs/session-execution.md)
 owns confinement and cleanup. Ravel returns only an opaque stdout result after
 the reap. It supplies no private ending report, persistent store or run
 identity.
@@ -63,12 +63,18 @@ publication wins. A managed process that exits nonzero after it publishes does
 not override a result that Ravel reaped successfully. Grove adds no private
 interpretation of the child's exit that contradicts this.
 
-Grove runs Ravel noninteractively in its own POSIX session, with no inherited
-input or terminal streams. It holds the public stdout separately. Managed output
-and diagnostics on stderr go to the transcript of the invocation. Ravel owns the
-cancellation of the harness and kills its process group at once. Grove forwards
-its own cancellation to Ravel and waits for it. So a nested cancellation
-finishes inside the grace of an outer supervisor.
+Grove runs Ravel as a detached job. Ravel leads its own POSIX session, with
+standard input at end of file and no inherited descriptor above standard error.
+Grove holds the public stdout separately. Managed output and diagnostics on
+stderr go to the transcript of the invocation. `grove run` keeps the terminal, so
+its relay writes from the foreground group and a typed Ctrl-C reaches Grove.
+
+Grove sends a caught INT, TERM or HUP on to the `ravel` process and waits for it
+to exit. Grove sends no KILL. Ravel owns the cancellation of the harness and
+kills its process group at once. So a nested cancellation can finish inside the
+grace of an outer supervisor. The caller contract states the
+[detached job](harness-selection-and-execution.md#execution-contract) and its
+[signals](harness-selection-and-execution.md#interruption).
 
 Before Grove considers the outputs, Ravel and the harness are gone. So is the
 process group of the harness. Ravel kills what remains of that group when the
@@ -81,8 +87,9 @@ stronger containment in the backend. No guarantee about the process tree may
 rest on a kill of the process group alone.
 
 An uncatchable death of Grove can leave its detached Ravel and harness running.
-Grove then publishes nothing. The cancellation grace bounds ordinary nested runs
-only when Ravel's cleanup finishes within that grace. A failure of the
+Grove then publishes nothing. Grove sets no bound on its wait for Ravel. An
+outer supervisor's grace bounds a nested run only when Ravel's cleanup finishes
+within that grace. A failure of the
 transcript relay also prevents publication and keeps the log for inspection,
 even when the harness acknowledged successfully.
 
@@ -127,5 +134,7 @@ must never depend on paid LLM calls.
   destination races fail visibly.
 - A writer that stays in the group of the harness after a clean acknowledgement
   stops before any output publishes.
+- A Ctrl-C typed on the terminal of `grove run` cancels the invocation and
+  publishes nothing. The terminal stays with the group of `grove run`.
 - The existing interactive Grove job control and the session-epoch checks stay
   green.

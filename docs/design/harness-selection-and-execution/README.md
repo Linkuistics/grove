@@ -3,9 +3,10 @@
 The [caller specification](../../specs/harness-selection-and-execution.md) owns
 Grove's use of independently installed Ravel. These views show the public
 process behaviour, Grove's lifecycle and standalone interpretation, and the
-creator evidence that the caller owns. [Ravel's executable specification](https://github.com/Linkuistics/Ravel/blob/v1.0.0/docs/specs/session-execution.md)
+creator evidence that the caller owns. [Ravel's executable specification](https://github.com/Linkuistics/Ravel/blob/v1.1.0/docs/specs/session-execution.md)
 owns routing, the private runtime and transport, and the supervision mechanics.
-Each project keeps its own runner, version and complete installation prefix.
+Grove keeps no runner and runs `ravel` as an ordinary child. Ravel keeps its
+own runner. Each project keeps its own version and complete installation prefix.
 
 Run `task design:harness-selection` from the repository root, then open
 [the viewer](http://127.0.0.1:8769/). The server exposes only this presentation
@@ -21,12 +22,12 @@ asserts no private transport or escalation details.
 
 | View | Contract illustrated |
 |---|---|
-| [Independent ownership](http://127.0.0.1:8769/#diagram-packages) | Public CLI between separate releases, caller imports and local runners. |
+| [Independent ownership](http://127.0.0.1:8769/#diagram-packages) | Public CLI between separate releases, caller imports, Grove's shared job function and Ravel's runner. |
 | [Route and return](http://127.0.0.1:8769/#diagram-handoff) | Unchanged caller prompt, refusal, supervision and opaque result after cleanup. |
-| [Nested jobs](http://127.0.0.1:8769/#diagram-chain) | Grove's Ravel job, Ravel's managed job and terminal recovery. |
+| [Nested jobs](http://127.0.0.1:8769/#diagram-chain) | Grove's foreground job for `ravel`, signal forwarding, Ravel's managed job and terminal recovery. |
 | [Result lifecycle](http://127.0.0.1:8769/#diagram-ending) | Successful publication against an absent result, cancellation or cleanup failure. |
-| [Two Grove callers](http://127.0.0.1:8769/#diagram-grove-launch) | Lifecycle admission and teardown, and confined standalone output publication. |
-| [Post-reap decision](http://127.0.0.1:8769/#diagram-loop-decision) | Epoch gate, interruption, successful force-stop, teardown, surviving group and successful continuation. |
+| [Two Grove callers](http://127.0.0.1:8769/#diagram-grove-launch) | The foreground and detached jobs, lifecycle admission and teardown, and confined standalone output publication. |
+| [Post-reap decision](http://127.0.0.1:8769/#diagram-loop-decision) | Epoch gate, interruption, successful force-stop, teardown and successful continuation. |
 | [Creator alternatives](http://127.0.0.1:8769/#diagram-creator-options) | The inline receipt or declaration of the [Creator decision](../../adr/a-review-carries-its-creator-reference.md), and its rejected alternatives of a store or today's route. |
 | [Creator handoff](http://127.0.0.1:8769/#diagram-creator-flow) | Caller wrapper, finishing producer and the committed provider evidence of the review. |
 | [Configured review](http://127.0.0.1:8769/#diagram-creator) | Validation and routing to a different provider by opt-in Grove policy assets. |

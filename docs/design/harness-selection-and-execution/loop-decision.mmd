@@ -13,8 +13,7 @@ exactly grove-force-stop?"}
 remaining live work resumable"]
   Teardown{"This launch's teardown record?"}
   Finished["Finished regardless of
-result, status or surviving group"]
-  Group{"Ravel group survives?"}
+result or status"]
   Status{"Successful Ravel status?"}
   Result{"Exactly grove-continue?"}
   Continue["Continue to next pick"]
@@ -29,11 +28,9 @@ remaining tree"]
   ForceStop -->|"Yes"| ForceStopped
   ForceStop -->|"5. No"| Teardown
   Teardown -->|"Yes"| Finished
-  Teardown -->|"6. No"| Group
-  Group -->|"Yes"| Stop
-  Group -->|"7. No"| Status
+  Teardown -->|"6. No"| Status
   Status -->|"No"| Stop
-  Status -->|"8. Yes"| Result
+  Status -->|"7. Yes"| Result
   Result -->|"Yes"| Continue
   Result -->|"No"| Stop
   classDef start fill:#163a57,color:#fff,stroke:#163a57,font-weight:bold

@@ -1,30 +1,30 @@
 sequenceDiagram
   participant G as Grove
-  participant L as Grove local runner
+  participant L as Grove shared job function
   participant R as Independently resolved Ravel
   participant H as Managed session
   Note over G,H: Lifecycle: bare grove
   G->>G: Pick leaf, compose unchanged prompt and both exact ending commands
   G->>G: Allocate launch directory, epoch admission and stdout capture
   G->>L: Public lifecycle arguments, no named parameter
-  L->>R: Spawn in working-tree root as a job
+  L->>R: Spawn in working-tree root as a foreground job
   R->>H: Select, then supervise with fresh ending context
   opt Finish after confirmed teardown
     H->>G: grove-llm record-teardown in this launch directory
   end
   H->>R: Exact canonical end-session grove-continue or grove-force-stop
   R-->>L: Public stdout result and status after cleanup
-  L-->>G: Reaped Ravel job, terminal restored
-  G->>G: Invalidate epoch then apply interruption, successful force-stop, teardown, group, continuation
+  L-->>G: Reaped ravel, interruption if caught, terminal restored
+  G->>G: Invalidate epoch then apply interruption, successful force-stop, teardown, continuation
   Note over G,H: Standalone: grove run KIND
   G->>G: Stage private cwd, inputs and output instructions, scrub tree authority
   G->>L: start-session with --confine and explicit --runtime-read grants
-  L->>R: Spawn without parent terminal or mux handles
+  L->>R: Spawn as a detached job: own session, EOF stdin, no terminal
   R->>H: Select outside confinement, supervise inside it
   H->>H: Write declared outputs
   H->>R: Exact canonical end-session grove-continue or grove-force-stop
   R-->>L: Result and status after cleanup
-  L-->>G: Reaped, cancellation and survivor checks
+  L-->>G: Reaped ravel and any caught cancellation
   alt Successful status and exact grove-continue
     G->>G: Validate and publish outputs
   else Force-stop or any other unsuccessful ending

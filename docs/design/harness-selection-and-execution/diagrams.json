@@ -1,11 +1,41 @@
 {
-  "title": "Harness selection and execution \u2014 Grove caller views",
+  "title": "Harness selection and execution — Grove caller views",
   "intro": "Current caller/process views of independently installed Ravel and Grove. The caller spec owns Grove interpretation; Ravel owns executable runtime behavior. Original live-v22 sessions retain their launch-prompt ending contract and are not depicted as new Ravel launches. Graphs begin at Start here, sequences at their first message, and the state view at its initial state.",
+  "discussion": {
+    "title": "Grove launches ravel as an ordinary child",
+    "status": "Proposed by design ravel-child-k2. Awaiting review-design, then planning.",
+    "summary": "The keyed-launch runner goes. One shared Grove function launches ravel as a foreground job for the lifecycle or a detached job for grove run. Grove forwards a caught signal to ravel alone, sends no KILL and checks no group. Ravel alone gives the cleanup assurance.",
+    "diagramIds": [
+      "packages",
+      "chain",
+      "grove-launch",
+      "loop-decision",
+      "ending"
+    ],
+    "updatedDiagrams": [
+      {
+        "id": "packages",
+        "summary": "Replaced the local keyed-launch runner with Grove's shared job function, and named Ravel as the only cleanup owner."
+      },
+      {
+        "id": "chain",
+        "summary": "Showed the driver's signal policy and the forwarding of a caught TERM or HUP to ravel alone, with no KILL."
+      },
+      {
+        "id": "grove-launch",
+        "summary": "Named the foreground and detached job shapes, and removed the survivor check from both callers."
+      },
+      {
+        "id": "loop-decision",
+        "summary": "Removed the surviving-group decision, so a failed teardown check goes straight to the status check."
+      }
+    ]
+  },
   "groups": [
     {
       "id": "boundary",
       "title": "Independent ownership",
-      "description": "Grove and Ravel meet at a public CLI; each keeps its own runner and release."
+      "description": "Grove and Ravel meet at a public CLI. Grove launches ravel as an ordinary child, and Ravel keeps its own runner and release."
     },
     {
       "id": "execution",
@@ -29,7 +59,7 @@
       "group": "boundary",
       "title": "Independent caller and process-manager boundary",
       "source": "packages.mmd",
-      "caption": "Separate prefixes and versions, ordinary caller imports, and local runners on each side; no shared Rust library or bundled Ravel worker."
+      "caption": "Separate prefixes and versions, ordinary caller imports, Grove's shared job function and Ravel's own runner. No shared Rust library or bundled Ravel worker. Ravel alone gives the cleanup assurance."
     },
     {
       "id": "handoff",
@@ -43,7 +73,7 @@
       "group": "execution",
       "title": "Two nested jobs and terminal ownership",
       "source": "chain.mmd",
-      "caption": "Grove manages the Ravel job; Ravel manages the harness job. Each restores its child terminal. Descendants escaping a group are outside its cleanup guarantee."
+      "caption": "Grove launches ravel as its foreground job and sends a caught TERM or HUP to ravel alone. Ravel manages the harness job and its cleanup. Each supervisor takes the terminal back from its own child. Descendants that escape a group are outside its cleanup guarantee."
     },
     {
       "id": "ending",
@@ -57,14 +87,14 @@
       "group": "grove",
       "title": "Lifecycle and confined standalone callers",
       "source": "grove-launch.mmd",
-      "caption": "Both supply canonical continue and force-stop commands through unchanged prompts. Lifecycle force-stop stops without completion; standalone force-stop fails without publishing outputs."
+      "caption": "Both callers use one shared job function: a foreground job for the lifecycle, a detached job for grove run. Both supply canonical continue and force-stop commands through unchanged prompts. Lifecycle force-stop stops without completion. Standalone force-stop fails without publishing outputs."
     },
     {
       "id": "loop-decision",
       "group": "grove",
       "title": "Grove post-reap decision order",
       "source": "loop-decision.mmd",
-      "caption": "Epoch invalidation gates interpretation. Driver interruption precedes successful exact force-stop, then teardown, surviving group and successful exact continuation. Force-stop exits 1 without undoing teardown."
+      "caption": "Epoch invalidation gates interpretation. Driver interruption precedes successful exact force-stop, then teardown, then successful exact continuation. Grove checks no process group after the reap. Force-stop exits 1 without undoing teardown."
     },
     {
       "id": "creator-options",

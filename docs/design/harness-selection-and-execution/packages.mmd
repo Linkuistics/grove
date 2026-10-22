@@ -3,8 +3,8 @@ flowchart TB
 leaf, mandate and result meanings"]:::start
   Assets["Grove readable caller assets
 context and provider receipts"]
-  Local["Grove local keyed-launch
-Ravel job and terminal"]
+  Local["Grove shared job function
+ravel as a foreground or detached job"]
   Ravel["Independent Ravel installation
 public two-verb process boundary"]
   Policy["Owner policy and settings
@@ -15,7 +15,7 @@ explicit SDK and caller imports"]
   Local --> Ravel
   Ravel -->|"3. Evaluate"| Policy
   Policy -.->|"Explicit ordinary imports"| Assets
-  Ravel -->|"4. Supervise with Ravel's own runner"| Child
+  Ravel -->|"4. Supervise with Ravel's own runner; Ravel alone cleans up"| Child
   Child -.->|"5. end-session RESULT"| Ravel
   Ravel -->|"6. Opaque stdout after cleanup"| Caller
   classDef start fill:#163a57,color:#fff,stroke:#163a57,font-weight:bold

@@ -1,3 +1,5 @@
+<!-- tc: pending because the conversion has not reached this part of the document -->
+
 # Using Grove
 
 Grove drives a long-running workstream as a sequence of fresh agent sessions.
@@ -30,22 +32,25 @@ Transcripts below illustrate the current command boundary, with the working tree
 programs to system paths. The launches in them were selected by the sample
 policy.
 
+<!-- tc: on -->
+
 <a id="usage-launch-policy"></a>
 ## Launch policy
 
-Grove resolves the first executable `ravel` in an absolute PATH directory,
-canonicalizes it once and checks its stable 1.x CLI version. Install Ravel
-independently with `brew install linkuistics/taps/ravel`; different Grove/Ravel
-prefixes and versions are supported. Missing tools name that install remedy;
-unsupported or malformed versions name `brew upgrade ravel`. Empty/relative PATH
-entries, cwd decoys and Grove siblings cannot supply a fallback.
+Grove resolves the first executable `ravel` in an absolute PATH directory. It canonicalises
+the path once and checks the CLI version of that Ravel. Grove accepts a stable Ravel 1.x CLI.
 
-Your `~/.config/ravel/policy.ts` exports a policy that selects a command from
-kind, unchanged prompt, optional task file/handle and caller cwd. Write or copy
-that policy explicitly; upgrades do not edit it. Ravel has exactly
-`start-session` and `end-session RESULT`, with ordinary help/version flags.
-There is no init, inspect or record verb. The public SDK is `ravel/sdk`, and
-owner settings live in `~/.config/ravel/settings.json`.
+Install Ravel independently with `brew install linkuistics/taps/ravel`. Grove and Ravel can
+have different prefixes and different versions. A missing `ravel` names that install remedy.
+An unsupported or malformed version names `brew upgrade ravel`. Empty and relative PATH
+entries, decoys in the working directory and Grove siblings cannot supply a fallback.
+
+Your `~/.config/ravel/policy.ts` exports a policy. The policy selects a command from the kind, the unchanged prompt, an optional task file and
+handle, and the working directory of the caller. Write or copy that policy yourself. Upgrades do not edit it.
+
+Ravel has exactly two commands, `start-session` and `end-session RESULT`, with the ordinary
+help and version flags. It has no init, inspect or record command. The public SDK is
+`ravel/sdk`. Owner settings live in `~/.config/ravel/settings.json`.
 
 For example, an owner's deterministic fixture policy is:
 
@@ -63,9 +68,9 @@ export const policy = {
 
 Your real routes choose your harness, model, effort and approvals. The generic
 [Ravel CLI contract](https://github.com/Linkuistics/Ravel/blob/v1.0.0/docs/session-cli.md)
-describes the SDK, bounds, environment grants and `.ravel-choice` helper.
-Grove-owned adapter/examples and provenance conventions are caller assets,
-loaded through ordinary policy imports, rather than Ravel embedded modules.
+describes the SDK, the bounds, the environment grants and the `.ravel-choice` helper. The
+adapter, the examples and the provenance conventions of Grove are caller assets. Policy
+imports load them. Ravel does not embed them as modules.
 
 The lifecycle command is:
 
@@ -73,11 +78,12 @@ The lifecycle command is:
 ravel start-session --kind=KIND --prompt=MANDATE --exit-dir=LAUNCH_DIR --task-file=TASK_FILE --task-id=HANDLE
 ```
 
-The values come from the one selected leaf. The exit directory is launch
-mechanics, while the result is captured separately from managed output.
-Grove supplies no policy/config/record path and no named parameter. Scaffolding
-and tree verbs consult no policy; an unrouted kind refuses only at its launch,
-leaving the leaf live and resumable after you correct the owner's route.
+The values come from the one selected leaf. The exit directory is launch mechanics. Grove
+captures the result separately from the managed output. Grove supplies no policy path, no
+config path, no record path and no named parameter.
+
+Scaffolding verbs and tree verbs consult no policy. An unrouted kind refuses only at its
+launch. The leaf stays live, and Grove resumes it after you correct the owner's route.
 
 <a id="usage-standalone"></a>
 ## Running a standalone task
@@ -88,51 +94,62 @@ grove run release-notes --prompt-file prompt.md \
   --input changes.txt --output release-notes.md --ui auto
 ```
 
-Route the kind to a noninteractive command in your
-[launch policy](#usage-launch-policy). `release-notes` must run the headless helper
-staged by the release task ([Releasing](RELEASING.md#release-notes)). Grove runs
-`ravel start-session --confine` in the staged directory. Ravel selects outside
-confinement and supervises inside it. Owner policy and settings stay outside
-managed reads. The invocation has no task identity or persistent Ravel record;
-it receives only its own ephemeral ending context. Refusal starts nothing and
-publishes nothing; diagnostics remain in Grove's transcript.
+Route the kind to a noninteractive command in your [launch policy](#usage-launch-policy).
+The `release-notes` kind must run the headless helper that the release task stages
+([Releasing](RELEASING.md#release-notes)). Grove runs `ravel start-session --confine` in the
+staged directory. Ravel selects outside confinement and supervises inside it.
 
-This invocation can run
-from anywhere, including a release task launched inside a running grove. It
-creates a private temporary directory, copies inputs into it by basename, and
-passes your prompt plus output and completion instructions to the harness your
-policy selects. You can supply the prompt as a positional argument instead of
-`--prompt-file`. Repeat `--input`, `--output` or `--runtime-read` for multiple
-files. Input/output basenames must be distinct; symlink inputs and existing
-output destinations are refused.
+Owner policy and settings stay outside the managed reads. The invocation has no task
+identity and no persistent Ravel record. It receives only its own ephemeral ending context.
+A refusal launches nothing and publishes nothing. The diagnostics stay in the transcript of
+Grove.
 
-The harness can write only inside its invocation directory. Supply private
-runtime files, such as credentials, with explicit read-only `--runtime-read`
-grants; writable harness state must remain in the temporary directory. macOS
-requires its native sandbox; Linux requires bubblewrap. An unavailable sandbox
-fails the invocation before any unconfined command can run.
+This invocation can run from anywhere, including from a release task that a running grove
+launched. It creates a private temporary directory and copies the inputs into it by
+basename. It passes your prompt, the output instructions and the completion instructions to
+the harness that your policy selects.
 
-Every invocation that launches announces its task kind and transcript location under
-`~/.local/state/grove/runs/`, streams sanitized output through its caller, and
-reports completion or failure. `--ui auto` also opens a view in an active tmux
-or Zellij session when available; a failed pane falls back to inline output.
-`--ui inline` requests just the caller's transcript; `--ui pane` requires a
-working supported mux and reports an error otherwise. The pane displays the
-transcript; interaction and approvals belong to the noninteractive command
-your policy selects. The child receives no parent terminal or mux handles. Logs remain
-available after the pane or temporary directory closes.
+You can supply the prompt as a positional argument instead of `--prompt-file`. Repeat
+`--input`, `--output` or `--runtime-read` for multiple files. The basenames of the inputs and
+outputs must all be distinct. Grove refuses symlink inputs and existing output destinations.
 
-After checking the outputs, the harness executes the exact canonical
-`ravel end-session grove-continue` command in its prompt. It takes no session ID
-and ends only its enclosing invocation. Ravel reaps the managed group before
-returning the result. Grove checks its cancellation, survivor group and Ravel
-status before accepting exactly those bytes from a held unlinked stdout file.
-It publishes outputs through the original held work-directory descriptor,
-without overwriting a destination. Missing or unsupported results publish
-nothing; managed output cannot contaminate the result. The prompt also supplies
-the exact `ravel end-session grove-force-stop` command: it fails this invocation
-and publishes no outputs, even when every declared output is valid. A continue
-result succeeds after cleanup even when the managed process later exits nonzero.
+The harness can write only inside its invocation directory. Supply private runtime files,
+such as credentials, with explicit read-only `--runtime-read` grants. Writable harness state
+must stay in the temporary directory. macOS requires its native sandbox. Linux requires
+bubblewrap. An unavailable sandbox fails the invocation before any unconfined command can
+run.
+
+Every invocation that launches announces its task kind and the location of its transcript
+under `~/.local/state/grove/runs/`. It streams the sanitised output through its caller. It
+reports completion or failure.
+
+`--ui auto` also opens a view in an active tmux or Zellij session when one is available. If
+the pane fails, Grove falls back to inline output. `--ui inline` requests just the
+transcript of the caller. `--ui pane` requires a working supported mux and reports an error
+otherwise.
+
+The pane shows the transcript. Interaction and approvals belong to the noninteractive
+command that your policy selects. The child receives no terminal handle and no mux handle
+from its parent. The logs stay available after the pane or the temporary directory closes.
+
+After the harness checks the outputs, it executes the exact canonical
+`ravel end-session grove-continue` command in its prompt. The command takes no session ID.
+It ends only its enclosing invocation. Ravel reaps the managed group before it returns the
+result.
+
+Grove checks its cancellation, the survivor group and the Ravel status before it accepts the
+result. It accepts exactly those bytes from a held unlinked stdout file. Managed output
+cannot contaminate the result.
+
+Grove publishes the outputs through the original held work-directory descriptor. It does not
+overwrite a destination. A missing or unsupported result publishes nothing.
+
+The prompt also supplies the exact `ravel end-session grove-force-stop` command. That command
+fails this invocation and publishes no outputs, even when every declared output is valid. A
+continue result succeeds after the cleanup, even when the managed process later exits with a
+nonzero status.
+
+<!-- tc: pending because the conversion has not reached this part of the document -->
 
 <a id="usage-viewing-tree"></a>
 ## Viewing a tree
@@ -463,12 +480,14 @@ The same recovery serves every refusal. Three an owner meets:
   following the [caller provenance contract](grove-provider-evidence.md), and
   rerun `grove`.
 
+<!-- tc: on -->
+
 ### Stopping the loop
 
-**Ctrl-C is the session's, not the loop's.** While a session runs it owns the
-terminal in its own right, so an interrupt you type reaches the session and
-leaves the driver standing to make the relaunch-or-stop decision. Ending the
-loop from outside is `kill` on the `grove` process:
+**Ctrl-C belongs to the session, not to the loop.** While a session runs, it owns the
+terminal in its own right. An interrupt that you type reaches the session. The driver stays
+alive to decide whether to relaunch or stop. To end the loop from outside, send `kill` to
+the `grove` process:
 
 ```console
 # the shell running the loop
@@ -487,17 +506,20 @@ $ echo $?
 0
 ```
 
-**Read the status where Grove exits, not where you signal it.** `$?` after the
-`kill` is the *signal delivery*'s status and is `0` whenever the signal was
-sent; only the wait status of the `grove` process itself carries `128 + N`. A
-wrapper script that backgrounds Grove reads it with `wait "$grove_pid"`.
+**Read the status where Grove exits, not where you signal it.** `$?` after the `kill` is the
+status of the *signal delivery*. It is `0` whenever the signal was sent. Only the wait status
+of the `grove` process itself carries `128 + N`. A wrapper script that backgrounds Grove
+reads that status with `wait "$grove_pid"`.
 
-Grove forwards the signal to Ravel's process group; Ravel cancels and
-reaps the managed group. Grove waits for Ravel,
-restores your terminal, and then **dies of the same signal** — so a wrapper
-script, a `timeout`, or a systemd unit reads `128 + N` and can tell an
-interrupted grove from a finished one. A grove that ran to a clean finish, or
-stopped because a session ended without signalling, exits `0`.
+Grove forwards the signal to Ravel's process group. Ravel cancels and reaps the managed
+group. Grove waits for Ravel and restores your terminal. Then Grove **dies of the same
+signal**. A wrapper script, a `timeout` or a systemd unit reads `128 + N`, so it can tell an
+interrupted grove from a finished one.
+
+A grove that ran to a clean finish exits `0`. A grove that stopped because a session ended
+without a signal also exits `0`.
+
+<!-- tc: pending because the conversion has not reached this part of the document -->
 
 <a id="undoing-a-mistake"></a>
 ### Undoing a mistake
@@ -930,42 +952,47 @@ deliberately hand-cut partial pair. There is no pair verb: `leaf-add` takes an
 ordered list of kinds, so the three tokens are spelled by the methodology that
 owns them rather than held in the binary.
 
+<!-- tc: on -->
+
 ### Ending the session, and ending the grove
 
-The exact canonical `ravel end-session grove-continue` command in the launch
-prompt is a session's last action, after retirement and commit. Ravel discovers
-the enclosing session from inherited process context; it takes no session ID.
-It ends/reaps the managed group and returns Grove's opaque result. A finish
-first records teardown with `grove-llm record-teardown`, then executes that same
-ending command. `record-teardown` checks the current epoch and requires the
-tree to be gone; without `GROVE_LAUNCH_DIR` it records nothing and exits 0.
-Outside a Ravel session, end-session refuses instead of signalling another run.
+The exact canonical `ravel end-session grove-continue` command in the launch prompt is the
+last action of a session. The session runs it after retirement and commit. Ravel discovers
+the enclosing session from the inherited process context. The command takes no session ID.
+Ravel ends and reaps the managed group, and it returns the opaque result of Grove.
 
-Grove restores the terminal and invalidates the epoch after reap. Driver
-interruption wins, including signals received after reap. Successful Ravel status
-with exactly `grove-force-stop` then stops without completion, exits 1 and leaves
-remaining live work resumable. It overrides teardown but does not restore a
-removed tree or retire a leaf. A teardown record otherwise finishes. Without
-teardown, a surviving supervisor group or unsuccessful Ravel status stops.
-Only exact `grove-continue` continues; missing/unsupported/unreadable results
-stop with the leaf live. Returning to an interactive prompt can leave the
-supervisor waiting until the harness ends.
+A finish session first records teardown with `grove-llm record-teardown`. Then it executes
+that same ending command. `record-teardown` checks the current epoch, and it requires the
+tree to be gone. Without `GROVE_LAUNCH_DIR` it records nothing and exits 0. Outside a Ravel
+session, `end-session` refuses and signals no other run.
 
-Use the launch prompt's exact canonical `end-session grove-force-stop` command
-to stop the sequence explicitly. Use its continue command after ordinary
-retirement and commit, or after recording a completed finish teardown. Ravel
-returns either value unchanged; Grove owns these instructions and meanings.
+After the reap, Grove restores the terminal and invalidates the epoch. Driver interruption
+wins, including signals that arrive after the reap.
 
-**Legacy live-driver compatibility:** sessions launched by Grove 22.1.0 through
-dispatch keep their original `harness-dispatch exit` command and inherited
-exit/admission/teardown controls. New source and skills never rewrite a running
-launch prompt. No new Ravel command is substituted into such a session.
+A successful Ravel status with exactly `grove-force-stop` then stops the loop without
+completion. Grove exits 1 and leaves the remaining live work resumable. The force-stop
+overrides teardown. It does not restore a removed tree, and it does not retire a leaf.
 
-`finish-commit` is the teardown, covered in [Finish](#usage-finish) below. It
-takes the launched finish leaf's stable handle, revalidates under the tree lock
-that this really is the live finish leaf and that no ordinary work has appeared,
-and only then deletes and commits `.grove/`. On success it names the change it
-made, on stderr:
+A teardown record otherwise finishes the loop. Without a teardown record, a surviving
+supervisor group or an unsuccessful Ravel status stops the loop. Only an exact
+`grove-continue` continues. A missing, unsupported or unreadable result stops the loop with
+the leaf live. If a session returns to an interactive prompt, the supervisor can wait until
+the harness ends.
+
+Use the exact canonical `end-session grove-force-stop` command of the launch prompt to stop
+the sequence explicitly. Use its continue command after ordinary retirement and commit. Use
+it also after you record a completed finish teardown. Ravel returns either value unchanged.
+Grove owns these instructions and meanings.
+
+**Legacy live-driver compatibility:** Sessions that Grove 22.1.0 launched through dispatch
+keep their original `harness-dispatch exit` command. They also keep their inherited exit,
+admission and teardown controls. New source and skills never rewrite a running launch
+prompt. Grove substitutes no new Ravel command into such a session.
+
+`finish-commit` is the teardown, covered in [Finish](#usage-finish) below. It takes the stable
+handle of the launched finish leaf. Under the tree lock, it revalidates two facts. The leaf
+is really the live finish leaf, and no ordinary work appeared. Only then does it remove and
+commit `.grove/`. On success it names the change that it made, on stderr:
 
 ```console
 $ grove-llm finish-commit finish-k42
@@ -974,14 +1001,14 @@ $ ls .grove
 ls: cannot access '.grove': No such file or directory
 ```
 
-That commit is path-scoped to `.grove/` alone, so anything else in your working
-copy is left uncommitted and untouched. It is the **one verb here that commits**,
-and the deletion it records is the only thing in it.
+That commit covers the path `.grove/` alone. Anything else in your working copy stays
+uncommitted and untouched. It is the **one verb here that commits**. The deletion that it
+records is the only change in it.
 
-It **does not** stand in for the human confirmation the finish session owes you —
-it enforces tree and VCS facts and infers nothing about your consent. Both of its
-refusals leave the tree exactly as it was; this is the stale-handle one, and
-[Finish](#usage-finish) below shows the live-work one:
+It **does not** stand in for the human confirmation that the finish session owes you. It
+enforces tree facts and VCS facts. It infers nothing about your consent. Both of its
+refusals leave the tree exactly as it was. The next example is the stale-handle refusal.
+[Finish](#usage-finish) below shows the live-work refusal:
 
 ```console
 $ grove-llm finish-commit finish-k42
@@ -990,6 +1017,8 @@ Error: `grove-llm finish-commit finish-k42`
 Caused by:
     the requested finish leaf is no longer live
 ```
+
+<!-- tc: pending because the conversion has not reached this part of the document -->
 
 <a id="usage-review-composition"></a>
 ## Review composition and escalation

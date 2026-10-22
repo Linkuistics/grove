@@ -815,14 +815,14 @@ After the reap and the epoch invalidation, the iteration reads the end in this
 order. Interruption of the driver comes first, including a signal that arrives
 after the reap. A successful status with exactly `grove-force-stop` comes next,
 and it stops the loop without completion. A recorded teardown then finishes the
-loop. A surviving Ravel group stops the loop, and so does an unsuccessful status.
+loop. On success, exactly `grove-continue` starts the next pick. Any other end
+stops the loop, including an unsuccessful status.
 
-On success, exactly `grove-continue` starts the next pick. Any other end stops
-the loop.
-
-Ravel owns the completion and the escalation of the managed process. Grove
-supplies the instruction and gives the result its meaning. The loop walkthrough
-at `docs/walkthroughs/grove-loop/README.md` describes these details. Its public
-`run` is the boundary of this chapter. No viewer action enters that loop.
+Ravel owns the completion, the escalation and the cleanup of the managed process.
+Grove takes a successful Ravel status as the only evidence of cleanup, and it
+probes no process group. Grove supplies the instruction and gives the result its
+meaning. The loop walkthrough at `docs/walkthroughs/grove-loop/README.md`
+describes these details. Its public `run` is the boundary of this chapter. No
+viewer action enters that loop.
 
 [Previous: The surface](02-the-surface.md) | [Contents](README.md) | [Next: Proving a negative](04-proving-a-negative.md)

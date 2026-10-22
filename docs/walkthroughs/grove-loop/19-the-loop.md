@@ -269,11 +269,10 @@ interruption again after the reset and the invalidation, because
 `JobEnd::interrupted` cannot include a signal that arrived after the reap.
 
 First match wins: driver interruption, successful exact force-stop, teardown,
-then exact continuation or stop. A surviving process group no longer stops the
-loop. Ravel ends its own group, and a successful status with an exact result is
-the only evidence of cleanup. A Ravel that died of a signal can have left its
-harness alive. So the stop names that possibility. It does not treat missing
-output as completion.
+then exact continuation or stop. Ravel ends its own group, and a successful
+status with an exact result is the only evidence of cleanup. A Ravel that died of
+a signal can have left its harness alive. So the stop names that possibility. It
+does not treat missing output as completion.
 
 <!-- fragment «loop-drive-open» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="97-106" parent="loop-driver" -->
 ````rust

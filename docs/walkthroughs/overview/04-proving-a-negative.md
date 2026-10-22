@@ -263,7 +263,8 @@ The abandoned-directory case supplies two abandoned directories. One holds an
 `ending.json` FIFO. The other holds a supported exit-signal report. Neither
 changes the stopped outcome or the launch count of the new launch.
 
-The surviving Ravel-group combinations are deterministic runner-result cases in
-Grove Loop. In those cases, the returned group state is the contract input.
+Grove Loop checks the remaining combinations deterministically. Those cases build
+the end of the job directly, as a status with an optional interruption signal.
+That value is the contract input.
 
 [Previous: Lifecycle startup](03-three-steps.md) | [Contents](README.md) | [Next: What the call reaches](05-what-the-call-reaches.md)

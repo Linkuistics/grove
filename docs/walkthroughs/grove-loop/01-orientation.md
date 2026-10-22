@@ -464,17 +464,17 @@ doc comment, and chapter 15 owns both the count and the argument.
 ## The cast
 
 The rest of the file is the crate's public surface. This section reads the module
-declarations, the version constant and the export list; the four sections after
-it read the types those exports name that this chapter owns.
+declarations, the version constant and the export list. The four sections after
+it read the types that those exports name and this chapter owns.
 
-Thirteen modules, five of them public. The eight private ones hold tree
-and driver work; their consumer surface arrives through the export list below.
+The file declares thirteen modules, and five of them are public. The eight private ones hold tree
+and driver work, and their consumer surface arrives through the export list below.
 The public modules are `driver`, `prompt`, `session_command`, `session_result`
 and `verbs`. The staged Ravel boundary shares [command construction and ending
 instructions](19-the-loop.md#public-session-commands) and [result capture and
 interpretation](19-the-loop.md#held-session-result) across its eventual callers.
-`driver` needs a separate reason: it
-holds two tree operations the loop calls directly, and chapter 15 reads why
+`driver` needs a separate reason, because it
+holds two tree operations that the loop calls directly. Chapter 15 reads why
 putting them beside the twelve would misstate the size of the surface.
 
 <!-- fragment «library-root-modules» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="50-64" parent="library-root" -->
@@ -518,30 +518,33 @@ pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 <!-- /fragment -->
 
 The comment quantifies over the crates an operator installs rather than over the
-workspace's members, and the two sets differ by one crate. Seven of the eight
+workspace's members. The two sets differ by one crate. Seven of the eight
 workspace members take `version.workspace = true` — the two binaries and the
-five libraries an operator's install is built from. The eighth,
-`book-validation`, is the authoring tool behind this book: it carries a
-`version = "0.1.0"` of its own, nothing an operator installs reads it, and the
-workspace root's manifest records that it does not inherit deliberately, because
-its home is with the walkthrough skill rather than this workspace. That is why
-the sentence quantifies the way it does, and the invariant it states is what
-makes `VERSION` the only version an operator can install: every crate the
-install is built from inherits the workspace's field, so there is no second
-version for the constant to disagree with. The identical clause appears in
+five libraries that go into an operator's install. The eighth,
+`book-validation`, is the authoring tool behind this book.
+
+It carries a `version = "0.1.0"` of its own. Nothing an operator installs reads it.
+The workspace root's manifest records that it does not inherit deliberately, because
+its home is with the walkthrough skill rather than this workspace.
+
+That is why the sentence quantifies the way it does. The invariant it states makes
+`VERSION` the only version an operator can install. Every crate that the
+install builds from inherits the workspace's field, so no second
+version exists for the constant to disagree with. The identical clause appears in
 `crates/grove/src/cli.rs`, which the overview's chapter 2 reads.
 
 The last block of the file's declarations is the import list and the export list,
 and the export list is the cast in one place. Nine `pub use` lines publish this
-crate's own names and three other crates': `jj_workspace::{Commit, Workspace}`
-is the version-control seam, which five modules of this crate reach directly and
-this line republishes;
-`ordinal_fs_tree::Sought` is the store's word for a search that matched nothing,
-which the third shape above requires every verb to answer with; and
-`keyed_launch::reraise` carries a doc comment of its own explaining the division
-it preserves — undoing the signal handler is the runner's, because the runner
-installed it, while *whether* to die of the signal is the binary's, and
-`LoopOutcome::Interrupted` is how the loop says it may.
+crate's own names and names from three other crates. `jj_workspace::{Commit, Workspace}`
+is the version-control seam. Five modules of this crate reach it directly, and
+this line republishes it.
+`ordinal_fs_tree::Sought` is the store's word for a search that matched nothing.
+The third shape above requires every verb to answer with it.
+
+`keyed_launch::reraise` carries a doc comment of its own that explains the division
+it preserves. Undoing the signal handler is the runner's job, because the runner
+installed it. *Whether* to die of the signal is the binary's decision. `LoopOutcome::Interrupted`
+is how the loop says it may.
 
 The observation exports let a viewer retain captured names and selected bytes
 after releasing the shared guard. [Chapter 5](05-opening.md#captured-observation)
@@ -576,33 +579,37 @@ pub use task_tree::entry_path;
 ````
 <!-- /fragment -->
 
-Four names in that block belong to no chapter of this book — `Commit` and
+Four names in that block belong to no chapter of this book. `Commit` and
 `Workspace` are `jj-workspace`'s, `Sought` is the store's, and `reraise` is the
-runner's, and each of those crates has a book of its own. Every other name in it
-belongs to a later chapter of this one. The types this chapter owns — `TreeWrite`,
-`Reading`, `Writing`, `Reference` and `Error` — are declared further down the
-file and are what the four sections after this one read. The table below states the
-minimum a reader needs to follow this chapter and nothing more; each row's owning
-chapter is where the full account lives. Every row is an **early use** — a name
-this page must state a minimum for because its owner is ahead of it — and the
+runner's. Each of those crates has a book of its own. Every other name in it
+belongs to a later chapter of this one.
+
+The types this chapter owns are `TreeWrite`,
+`Reading`, `Writing`, `Reference` and `Error`. The file declares them further down,
+and the four sections after this one read them. The table below states the
+minimum that a reader needs to follow this chapter and nothing more. The full account of
+each row lives in its owning chapter.
+
+Every row is an **early use** — a name
+this page must state a minimum for because its owner is ahead of it. The
 source index carries these twelve verbatim. It carries further rows besides,
-each first used on a page later than this one, and every chapter may add to them
-as it reproduces blocks a still later chapter owns. The ledger is the whole set;
-this table is the part of it this page owes.
+each first used on a page later than this one. Every chapter may add to them
+as it reproduces blocks that a still later chapter owns. The ledger is the whole set,
+and this table is the part of it this page owes.
 
 | Names | Minimum statement | Chapter |
 |---|---|---:|
 | `Outcome`, `TokenError` | The terminal marks a name can carry — `DONE` and `ABANDONED` — and the refusal a token that is not well-formed produces. | 2 |
 | `Handle`, `HandleError`, `Kind`, `Parts`, `Slug` | The named parts of a task name: a kind token, a slug, and the `<slug>-k<key>` handle that is the entry's identity. `Parts` is the set of them a positioned name decomposes into. | 3 |
-| `TaskName` | One parsed entry name, which renders back to the bytes it was parsed from or refuses to be computed at all. | 4 |
-| `Tree`, `Vacancy`, `task_tree::Guard`, `task_tree::write` | The tree read under the store's shared lock; the lock over a root that holds no tree; the store guard one mutation consumes; and the reopening a `TreeWrite` performs when it no longer holds one. | 5 |
+| `TaskName` | One parsed entry name, which renders back to the bytes the parser read, or refuses to be computed at all. | 4 |
+| `Tree`, `Vacancy`, `task_tree::Guard`, `task_tree::write` | `Tree` is the tree read under the store's shared lock. `Vacancy` is the lock over a root that holds no tree. `task_tree::Guard` is the store guard that one mutation consumes. `task_tree::write` is the reopening that a `TreeWrite` performs when it no longer holds one. | 5 |
 | `Selection` | The leaf a session was launched to work: its path, its identity and its kind. | 7 |
 | `verbs::resolve`, `Resolution` | Resolution of one reference against the tree, whose `Ambiguous` case lists the keys of every entry a bare slug matched. | 9 |
 | `verbs::root_init` | The verb that consumes a `Vacancy` and creates the whole grove — charter and first live leaf — as one store operation. | 11 |
 | `verbs::Recorded` | Whether Grove wrote the teardown record or had no loop context. | 15 |
-| `verbs`, `verbs::stale_cross_refs`, `verbs::record_teardown` | `verbs` declares thirteen public functions; twelve are verbs, and `stale_cross_refs` is the second half of `leaf_insert` rather than another verb. | 15 |
-| `admit_ambient_session`, `DriverLease`, `SessionEpochGuard` | The lease that keeps one live driver per working tree, the epoch that decides which calls it admits, and the check a session runs when there is no driver at all. | 16 |
-| `compose`, `Mandate` | The prompt a session is launched with, composed from the parts a skill cannot supply because by the time it could speak the moment has passed. | 18 |
+| `verbs`, `verbs::stale_cross_refs`, `verbs::record_teardown` | `verbs` declares thirteen public functions. Twelve are verbs, and `stale_cross_refs` is the second half of `leaf_insert` rather than another verb. | 15 |
+| `admit_ambient_session`, `DriverLease`, `SessionEpochGuard` | The lease that keeps one live driver per working tree. The epoch that decides which calls it admits. The check a session runs when there is no driver at all. | 16 |
+| `compose`, `Mandate` | The prompt that Grove launches a session with. Grove composes it from the parts a skill cannot supply, because the moment is past by the time a skill could speak. | 18 |
 | `run`, `LoopOutcome` | The loop itself, and how it ends: relaunched with fresh context, stopped resumably, or interrupted. | 19 |
 
 <a id="the-two-openings"></a>

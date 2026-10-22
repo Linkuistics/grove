@@ -106,9 +106,10 @@ area. A harness that exits by itself leaves its leaf live.
 <a id="what-it-imports"></a>
 ## The loop's vocabulary and runner types
 
-Tree vocabulary belongs to Grove; `Argv`, `Launch`, `Ended`, `End` and `Group`
-belong to its runner. A held stdout result is read separately from `LaunchDirectory`, keeping
-JSON interpretation apart from the loop's selection and terminal reset.
+Tree vocabulary belongs to Grove. `Argv`, `Launch`, `Ended`, `End` and `Group`
+belong to its runner. The loop reads a held stdout result separately from
+`LaunchDirectory`. This keeps JSON interpretation apart from the loop's selection
+and terminal reset.
 
 <!-- fragment «loop-imports» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="13-26" parent="loop-driver" -->
 ````rust
@@ -1647,7 +1648,7 @@ model launch or host runtime on the managed PATH.
 ## Shared public commands for the Ravel migration
 
 `session_command` takes the canonical executable the caller's resolver already
-selected. It performs no executable lookup or second canonicalization, so its
+selected. It performs no executable lookup or second canonicalisation, so its
 argv and ending instructions name the same selected installation. Both actual
 callers use this shared public boundary.
 
@@ -1655,12 +1656,13 @@ callers use this shared public boundary.
 literal prompt and writable exit directory. `confined` sends the standalone
 kind and prompt with `--confine` and canonical runtime-file grants, without task
 data. Each value joins its flag in one argv word, so a leading dash cannot become
-an option. These are public Ravel inputs; no private ending-report flag is sent.
+an option. These are public Ravel inputs. The call sends no private ending-report
+flag.
 
 Runtime-file paths resolve before the runner changes to the staged cwd. Ravel's
 public confinement contract admits its own real front, so Grove adds no worker
-or policy-directory grant. The caller still owns supervision and result capture;
-a correctly built command alone proves neither successful cleanup nor a result.
+or policy-directory grant. The caller still owns supervision and result capture.
+A correctly built command alone proves neither successful cleanup nor a result.
 
 `end_session` quotes the selected UTF-8 executable as one shell word and passes
 Grove's exact `grove-continue` result. Quotes, spaces and newlines in the path
@@ -1779,13 +1781,17 @@ fn value(flag: &str, argument: &OsStr) -> OsString {
 
 The evidence is `tests/session_command.rs`. Its shell test executes a path with
 quotes, newlines and shell punctuation on an unusable PATH. Installed Ravel
-fixtures observe lifecycle inputs through the actual policy, execute the quoted
-ending from a separate prefix and keep managed output separate from the result.
-The lifecycle's lookup PATH contains an executable decoy after selection, so
+fixtures observe the lifecycle inputs through the actual policy. They execute the
+quoted ending from a separate prefix. They keep managed output separate from the
+result.
+
+The lifecycle's lookup PATH contains an executable decoy after selection. So
 launching or ending through a bare name fails the same real-front check.
-The confined case first observes a denied credential read, then grants the same
-relative path before staging and verifies that it can be read while the policy
-stays unreadable. `task ravel:commands RAVEL=/absolute/path/to/ravel` runs the
-shell and installed checks with no model or host runtime on the managed PATH.
+
+The confined case first observes a denied credential read. It then grants the
+same relative path before staging. It verifies that the path can be read while
+the policy stays unreadable. `task ravel:commands RAVEL=/absolute/path/to/ravel`
+runs the shell and installed checks. It needs no model and no host runtime on the
+managed PATH.
 
 [Previous: The guaranteed core](18-the-core.md) | [Contents](README.md) | [Next: What could not move](20-what-could-not-move.md)

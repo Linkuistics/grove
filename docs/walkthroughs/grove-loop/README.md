@@ -2,28 +2,31 @@
 <!-- book-page id="contents" role="contents" -->
 
 This book explains the `grove-loop` crate to a reader who knows Rust and jj and
-has driven a grove. grove's own vocabulary is linked to the glossary rather than
-re-taught, and the entry point to the system is the
-[user guide's account of the task tree and its filename grammar](../../USAGE.md#usage-task-tree),
-which states this crate's subject in the terms an operator already uses: a
-directory of leaf files whose names carry a kind, a slug and a permanent key,
-and whose shape is the only state grove keeps. This reader has run a grove, has
-watched `pick` choose a leaf, and has seen a session's commit name a work item by
-its handle.
+has driven a grove. The book links grove's own vocabulary to the glossary and
+does not re-teach it.
+
+The entry point to the system is the
+[user guide's account of the task tree and its filename grammar](../../USAGE.md#usage-task-tree).
+That account states the subject of this crate in the terms an operator already
+uses. The subject is a directory of leaf files whose names carry a kind, a slug
+and a permanent key. The shape of that directory is the only state grove keeps.
+This reader has run a grove, has watched `pick` choose a leaf, and has seen a
+session's commit name a work item by its handle.
 
 `crates/grove-loop` is seventeen source roots and 14,383 lines, and it is the layer that
-stayed. Three domain-free crates sit underneath it — an ordered filesystem tree,
-a keyed launcher, a version-control workspace — and none of them has a word for a
+stayed. Three domain-free crates sit underneath it: an ordered filesystem tree,
+a keyed launcher and a version-control workspace. None of them has a word for a
 *kind*, a *brief chain*, an *outcome*, a *handle* or *finishing*. **This is the
-library that owns the domain alongside the read-only viewer**, and each
-chapter opens on what this module kept when the domain-free crates took the rest,
-and on why that part could not move.
+library that owns the domain alongside the read-only viewer.** Each chapter opens
+on what this module kept when the domain-free crates took the rest, and on why
+that part could not move.
 
 **The intended outcome is the what-could-not-move test.** At the end you should
 be able to take any system that has extracted a domain-free library from
-underneath itself — a store, a runner, a version-control seam — and ask of the
-layer that stayed: *what did not go, and why could it not?* The answer comes in
-three parts, each with a cost the layer visibly pays.
+underneath itself. The library can be a store, a runner or a version-control
+seam. You should then be able to ask of the layer that stayed: *what did not go,
+and why could it not?* The answer comes in three parts, each with a cost the
+layer visibly pays.
 
 - **On the way in — the names.** Does the layer own a grammar the library beneath
   it cannot check? A grammar you own must be canonical — `format(parse(f)) == f`

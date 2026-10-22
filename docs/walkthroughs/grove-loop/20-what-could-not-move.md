@@ -10,29 +10,31 @@
 This chapter owns none of the crate's 14,475 lines. The fragment graph spans
 [chapter 1](01-orientation.md) through [chapter 19](19-the-loop.md),
 including the captured observer in chapter 5. Its 44 ownership blocks are
-`resolved`; the [source index](source-index.md) records that graph in full and
+`resolved`. The [source index](source-index.md) records that graph in full. It
 gives this page a row whose owned-line count is zero. The row exists to be zero.
 
 What follows from that is the reason this page reads differently from the nineteen
 before it. **Every sentence here is a claim about another chapter, and the
 validator cannot read one.** `book-check` proves that this page declares no
-fragment, that its identity matches the manifest, that its navigation is the
-final-page form and that every link it makes resolves. It has nothing to say
+fragment and that its identity matches the manifest. It proves that its navigation
+is the final-page form and that every link it makes resolves. It has nothing to say
 about whether [chapter 13](13-outcomes.md) argues what this page says it argues.
-On every other page the fragment graph is a second reader: a claim about the
+
+On every other page the fragment graph is a second reader. A claim about the
 source sits next to the bytes, and a byte out of place is `F008`. Here there are
 no bytes. The check that a sentence below is true is the chapter it names, read
-again — which is how each of them was written, and the reason the page is worth
-the length it is.
+again. Each chapter was written that way, and that is the reason the page is worth
+its length.
 
 There is no carried-example step. The example's own observable end was
-[chapter 14](14-finishing.md), where the grove deletes itself, and chapter 19
-took the loop that drives it to its ending; what this page starts from is the
-nineteen chapters, and what it ends on is the three questions answered for the
-crate. The book's stated outcome is that a reader can take **any** system that
-has extracted a domain-free library from underneath itself and ask of the layer
-that stayed: *what did not go, and why could it not?* Nineteen chapters have each
-answered that for one concern. This one asks it of the crate.
+[chapter 14](14-finishing.md), where the grove deletes itself. Chapter 19
+took the loop that drives it to its ending. This page starts from the
+nineteen chapters and ends on the three questions answered for the crate.
+
+The book's stated outcome is as follows. A reader can take **any** system that
+has extracted a domain-free library from underneath itself. The reader can then ask
+of the layer that stayed: *what did not go, and why could it not?* Nineteen
+chapters have each answered that for one concern. This one asks it of the crate.
 
 <a id="nineteen-chapters"></a>
 ## Nineteen chapters, three questions
@@ -409,10 +411,10 @@ rather than by this page's say-so.
 <!-- rollup «ownership-blocks-owned-by» of="allowed-to-mean" -->
 <!-- rollup «ownership-blocks-not-owned-by» of="allowed-to-mean" -->
 **Ownership.** 44 top-level blocks over 17 source roots, every one
-`resolved`. [Chapter 1](01-orientation.md) owns 2 blocks; the other 42 belong to
-later chapters. The captured observer joins chapter 5 as a resolved block. No `defer` remains anywhere in the book, and none may — `F003`
-reports any defer at all in final mode, so *every reservation has become an
-insertion* is something the validator refuses to let be false rather than
+`resolved`. [Chapter 1](01-orientation.md) owns 2 blocks, and the other 42 belong to
+later chapters. The captured observer joins chapter 5 as a resolved block. No `defer` remains anywhere in the book, and none may, because `F003`
+reports any defer at all in final mode. So *every reservation has become an
+insertion* is something the validator refuses to let be false, rather than
 something this page asserts.
 
 <!-- rollup «early-use-rows» -->
@@ -509,7 +511,7 @@ makes no completeness claim.
 
 The current final check reads the corpus byte for byte and proves equality
 at signal-contract-k18. The historical repository gate below records the original
-authoring checks; the parent session owns the current repository-wide run.
+authoring checks. The parent session owns the current repository-wide run.
 
 ```console
 $ cargo run --quiet -p book-validation --bin book-check -- \
@@ -518,11 +520,11 @@ valid: 15 files, 14093 resolved lines, 0 deferred lines, final=true
 ```
 
 `--final` is what separates this from every scoped run the twenty drafting
-sessions made. In scoped mode a later chapter's range may be reserved by a defer
-and counted as deferred rather than resolved, and each of this book's first five
-children ended with thousands of lines legitimately deferred; in final mode a
-defer is an error, every source root must expand to its complete file, and the
-page inventory must match the manifest exactly. Every file resolved
+sessions made. In scoped mode a defer may reserve a later chapter's range, and the
+range counts as deferred rather than resolved. Each of this book's first five
+children ended with thousands of lines legitimately deferred. In final mode a
+defer is an error. Every source root must expand to its complete file, and the page
+inventory must match the manifest exactly. Every file resolved
 and 0 deferred is the whole frozen corpus reconstructed from explained fragments.
 
 The following repository gate transcript is historical evidence from the original
@@ -550,31 +552,33 @@ valid: 3 files, 204 resolved lines, 0 deferred lines, final=true
 check: all 8 principal checks pass
 ```
 
-The second command is the repository-wide gate, and this is the first point in
+The second command is the repository-wide gate. This is the first point in
 this book's drafting at which it passes. It runs `book-check --final --check
 all` over every book root under `docs/walkthroughs/` by discovery rather than
-from a list, which is why this book has been inside the gate since chapter 1
-created its directory and why every drafting session before this one left the
-script red on `book-check` alone: a prefix deliberately leaves later blocks
-deferred, and `--final` will not have it. Five of the script's tests cover this
-book without naming it — `every_repository_markdown_reference_resolves` sweeps
+from a list. For that reason this book has been inside the gate since chapter 1
+created its directory. For the same reason every drafting session before this one
+left the script red on `book-check` alone. A prefix deliberately leaves later blocks
+deferred, and `--final` will not have it.
+
+Five of the script's tests cover this book without naming it.
+`every_repository_markdown_reference_resolves` sweeps
 every Markdown file in the repository, so this page's links are checked with the
-rest; `every_book_root_has_a_documentation_ownership_row` fails a book root with
+rest. `every_book_root_has_a_documentation_ownership_row` fails a book root with
 no row in the *Documentation ownership* table of `docs/ARCHITECTURE.md`, which
-chapter 1's session added; and the three tests of
+chapter 1's session added. The three tests of
 `crates/grove/tests/corpus_exception_inventory.rs` require this manifest's single
 exclusion and its subject to equal the tables in
-`docs/specs/walkthrough-books.md`, the third by attacking a narrowed subject. All of those live in the `grove` crate's
+`docs/specs/walkthrough-books.md`. The third test does so by attacking a narrowed subject. All of those live in the `grove` crate's
 tests, not this crate's.
 
 <!-- rollup «source-roots» -->
 <!-- rollup «owned-lines-total» -->
 <!-- rollup «chapters» -->
 The book is complete: 17 roots, 14,475 lines, 20 chapters, two
-lookup surfaces, zero deferred ranges. What it argued is that a layer which
+lookup surfaces, zero deferred ranges. It argued that a layer which
 extracts a domain-free library from underneath itself keeps exactly what carries
-meaning, and that meaning is expensive in three measurable places. What it leaves
-the reader with is the question to take to a layer of their own: **what did not
+meaning. It also argued that meaning is expensive in three measurable places. It leaves
+the reader with a question for a layer of their own: **what did not
 go, and why could it not?**
 
 [Previous: The loop](19-the-loop.md) | [Contents](README.md)

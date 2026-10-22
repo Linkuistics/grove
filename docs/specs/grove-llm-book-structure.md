@@ -698,8 +698,8 @@ reconstructs it. Tests remain **evidence** that the book cites. This book cites
 them more heavily than either precedent, because *hold the help to the handler*
 names a test for every promise.
 
-The only traces of the tests inside the corpus are the five dev-dependencies.
-Three of them sit under manifest comments that say which test needs them.
+The only traces of the tests inside the corpus are the four dev-dependencies.
+Two of them sit under manifest comments that say which test needs them.
 Chapter 1 owns and explains these. Four of the files test the shipped
 methodology and the repository's documents against this binary rather than the
 binary itself. They are `instructed_verbs.rs`, `composition_guidance.rs`,

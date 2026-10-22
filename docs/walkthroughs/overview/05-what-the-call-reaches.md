@@ -13,14 +13,14 @@ connects the public library calls and owns no source of its own.
 Bare `grove` resolves a jj workspace, takes the driver lease and calls
 `grove_loop::run`. `grove view [WORKTREE]` returns through `grove_tui::run`
 before those steps. An observation path needs no workspace identity, driver
-lease or Ravel policy. All paths return errors through the same main;
-the viewer restores its terminal before returning an error.
+lease or Ravel policy. All paths return errors through the same main.
+The viewer restores its terminal before returning an error.
 
 <a id="the-package-map"></a>
 ## Packages and public boundaries
 
 The table lists every package of the workspace. All but one share the
-product's release version; `book-validation` is the separately versioned
+product's release version. `book-validation` is the separately versioned
 authoring tool.
 
 | Package | Responsibility | Workspace runtime dependencies |
@@ -38,8 +38,9 @@ Ratatui and Crossterm belong to the viewer. Neither the loop library nor the
 session binary depends on the UI. Grove archives contain its two executables
 and readable caller policy assets. Grove callers resolve the
 independently released Ravel CLI on PATH, regardless of Grove's prefix/version.
+
 Ravel is outside this workspace and supplies no shared Rust dependency. Grove
-keeps local `keyed-launch` for its own jobs; Ravel has its own runner.
+keeps local `keyed-launch` for its own jobs. Ravel has its own runner.
 
 <a id="the-seven-names"></a>
 ## What crosses the binary boundary
@@ -54,11 +55,11 @@ keeps local `keyed-launch` for its own jobs; Ravel has its own runner.
 | `grove_loop::LoopOutcome` | Distinguish clean stops and interruption |
 | `grove_loop::reraise` | Preserve an interrupted driver's signal exit |
 | `grove_tui::run` | Own the interactive observation session |
-| `keyed_launch::run_noninteractive_with_stdout` | Launch/reap Ravel with result stdout separate from the transcript; Ravel confines its managed process |
+| `keyed_launch::run_noninteractive_with_stdout` | Launch/reap Ravel with result stdout separate from the transcript. Ravel confines its managed process |
 
 All are public library items. The package boundary makes accidental access to
-private items a compiler error; a source inclusion from outside the package
-would be a visible change to that boundary, not something privacy forbids.
+private items a compiler error. Privacy does not forbid a source inclusion from
+outside the package. Such an inclusion would visibly change that boundary.
 
 <a id="the-modules-behind-the-call"></a>
 ## Behind each call
@@ -70,10 +71,12 @@ It copies display rows and selected file bytes while holding a short shared
 read guard, then drops it before rendering or waiting for input.
 
 The viewer's `Viewer::new`, `act`, `tick` and `render` methods are its application seam.
-Production keyboard input supplies actions; tests supply the same actions and
+Production keyboard input supplies actions. Tests supply the same actions and
 render through Ratatui's TestBackend. Selection opens a leaf file or branch
-brief. Automatic refresh follows permanent keys across moves and retirement;
-folded branches retain aggregate counts for all descendants. Missing and failed
+brief.
+
+Automatic refresh follows permanent keys across moves and retirement.
+Folded branches retain aggregate counts for all descendants. Missing and failed
 reads become visible states and retry automatically.
 
 <a id="the-boundary"></a>
@@ -82,10 +85,11 @@ reads become visible states and retry automatically.
 This book reconstructs the human crate's manifest and Rust source, including
 its parser tests. Viewer and loop internals are outside its corpus. The
 [usage guide](../../USAGE.md#usage-viewing-tree) owns the delivered interaction
-contract; `docs/ARCHITECTURE.md` names the seams.
+contract. `docs/ARCHITECTURE.md` names the seams.
+
 The viewer renders Markdown and observes changes automatically, with terminal
 restoration on handled exits. Source-offset reading positions survive unchanged
-refreshes; mapping anchors across content edits remains a subsequent increment.
+refreshes. Mapping anchors across content edits remains a subsequent increment.
 Those internals are owned by the viewer crate, not reconstructed in this book.
 
 <a id="the-test-applied-back"></a>
@@ -94,7 +98,7 @@ Those internals are owned by the viewer crate, not reconstructed in this book.
 | Guarantee | What would break it | Evidence |
 |---|---|---|
 | Public library access | Naming a private library item | Rust visibility checking |
-| No bare lifecycle selectors; command set `{run, run-log, view}` | An unlisted command or outer argument | CLI closed-set unit test |
+| No bare lifecycle selectors. The command set is `{run, run-log, view}` | An unlisted command or outer argument | CLI closed-set unit test |
 | Every listed item has help | Missing or whitespace-only help | Recursive description test |
 | Observation bypasses lifecycle setup | Trying to resolve jj or configure a driver for view | CLI refusal test and non-jj PTY smoke |
 | Display actions preserve the filesystem | Any name/content/state-file write | Application before/after fixture comparison |
@@ -109,7 +113,7 @@ proves reproduction and ownership, not the truth of explanatory claims.
 <!-- rollup «ownership-blocks» -->
 <!-- rollup «source-roots» -->
 <!-- rollup «ownership-blocks-not-owned-by» of="compiler-held" -->
-There are 10 ownership blocks over 8 source roots; 9 blocks belong to chapters
+There are 10 ownership blocks over 8 source roots. 9 blocks belong to chapters
 after Orientation. Each is resolved in the source index.
 
 <!-- rollup «early-use-rows» -->
@@ -120,8 +124,8 @@ types at first use.
 <!-- rollup «owned-lines-sequence» -->
 <!-- rollup «source-owning-chapters» -->
 Owned source is 61 + 62 + 464 + 83 + 758 = 1,428 lines across 5 source-owning chapters.
-Assembly owns none. The ledgers are maintained with source changes;
-production files remain authoritative.
+Assembly owns none. The ledgers are maintained with source changes.
+Production files remain authoritative.
 
 <a id="final-verification"></a>
 ## Verification

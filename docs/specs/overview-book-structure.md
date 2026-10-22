@@ -30,6 +30,107 @@ The chapter sequence and ownership mapping below are what
 `[[block]]` groups. Where the two disagree, that is a defect in one of them, not
 a licence to prefer either.
 
+<!-- tc: on -->
+
+## The book now
+
+The book grew after the cut that the later sections record. This section
+states the book as `docs/walkthroughs/overview/walkthrough.toml` records it today.
+The later sections keep the original cut of five chapters over three roots, with
+the line counts of that time. Where a count or a list differs, this section and
+the manifest rule.
+
+### Pages
+
+The book has six chapters, a contents page and two lookup pages.
+
+| Page | Role | Slice | Title |
+|---|---|---|---|
+| `README.md` | contents | none | System overview |
+| `01-orientation.md` | chapter | `compiler-held` | Orientation |
+| `02-the-surface.md` | chapter | `no-arguments` | The surface |
+| `03-three-steps.md` | chapter | `one-call` | Lifecycle startup |
+| `04-proving-a-negative.md` | chapter | `closure-proved` | Proving a negative |
+| `05-what-the-call-reaches.md` | chapter | `assembly` | What the call reaches |
+| `06-standalone-invocations.md` | chapter | `isolated-invocation` | One isolated invocation |
+| `concept-index.md` | lookup | none | Concept index |
+| `source-index.md` | lookup | none | Source index |
+
+Chapter 6 explains `grove run`, which is one isolated invocation. It stages the
+inputs and launches the independently installed Ravel through the shared launch
+function of `grove-loop`, in the detached shape. It publishes the outputs only
+after a successful result. The chapter owns four blocks.
+
+The `assembly` slice owns no block, and it stays final-only. Chapter 6 follows
+it. Chapters 1 to 4 own the three original roots and the Codex provisioning
+module.
+
+### Roots and blocks
+
+Eight roots, in the order that the source index presents. Together they hold
+1,472 lines.
+
+| Root ID | Source path | Lines |
+|---|---|---:|
+| `source-crate-manifest` | `crates/grove/Cargo.toml` | 59 |
+| `source-entry-point` | `crates/grove/src/main.rs` | 17 |
+| `source-command-surface` | `crates/grove/src/cli.rs` | 209 |
+| `source-codex-provisioning` | `crates/grove/src/provision.rs` | 401 |
+| `source-standalone` | `crates/grove/src/standalone.rs` | 332 |
+| `source-run-display` | `crates/grove/src/run_display.rs` | 119 |
+| `source-dispatch-lookup` | `crates/grove/src/dispatch.rs` | 5 |
+| `source-ravel-resolution` | `crates/grove/src/dispatch/ravel.rs` | 330 |
+| **total** | | **1,472** |
+
+The corpus rule is unchanged. It includes `crates/grove/Cargo.toml` and
+`crates/grove/src/**/*.rs`, and it declares no exception. Ten blocks cover the
+roots. Only `cli.rs` has more than one owner.
+
+| Block ID | Root ID | Owner | Source lines |
+|---|---|---|---|
+| `manifest-thin-by-construction` | `source-crate-manifest` | `compiler-held` | `1-59` |
+| `entry-point-three-steps` | `source-entry-point` | `one-call` | `1-17` |
+| `surface-grammar` | `source-command-surface` | `no-arguments` | `1-66` |
+| `surface-resolve-lease-run` | `source-command-surface` | `one-call` | `67-126` |
+| `surface-closure-tests` | `source-command-surface` | `closure-proved` | `127-209` |
+| `codex-provisioning` | `source-codex-provisioning` | `one-call` | `1-401` |
+| `standalone-invocation` | `source-standalone` | `isolated-invocation` | `1-332` |
+| `standalone-display` | `source-run-display` | `isolated-invocation` | `1-119` |
+| `dispatch-lookup` | `source-dispatch-lookup` | `isolated-invocation` | `1-5` |
+| `ravel-resolution` | `source-ravel-resolution` | `isolated-invocation` | `1-330` |
+
+### Owned lines and the scoped domain
+
+| Slice | Page | Owned lines |
+|---|---|---:|
+| `compiler-held` | `01-orientation.md` | 59 |
+| `no-arguments` | `02-the-surface.md` | 66 |
+| `one-call` | `03-three-steps.md` | 478 |
+| `closure-proved` | `04-proving-a-negative.md` | 83 |
+| `assembly` | `05-what-the-call-reaches.md` | 0 |
+| `isolated-invocation` | `06-standalone-invocations.md` | 786 |
+| **Total** | 8 source roots | **1,472** |
+
+Five slices own blocks, so five values are accepted for `--through`:
+`compiler-held`, `no-arguments`, `one-call`, `closure-proved` and
+`isolated-invocation`. The `assembly` slice is final-only.
+
+### Early uses, links and indexes
+
+The manifest records five early-use rows. Four are the rows of *Early uses the
+order forces*: `grove_loop::run`, `Workspace`, `DriverLease` and `LoopOutcome`.
+The fifth is Codex provisioning. Chapter 1 names it in the two-products
+section, and chapter 3 owns it.
+
+The book declares five guide anchors: `usage-viewing-tree`,
+`usage-running-grove`, `usage-tree-verbs`, `usage-driver-lease` and
+`usage-session-lifecycle`. It declares the five glossary anchors that *Outbound
+links* lists. The two lookup pages are generated against the finished chapters.
+The concept index lists the terms that each chapter earns. The source index lists
+every root, block and fragment with its owner and state.
+
+<!-- tc: pending because the conversion has not reached this part of the document -->
+
 ## Audience and intended outcome
 
 The audience is settled by decision 7 of `plan-k1` and is not re-opened here: a
@@ -199,9 +300,9 @@ only. It reaches that state for the three sections in play and no further.
 
 <!-- tc: on -->
 
-The mechanism for the rest is **deletion, not a second move**. The `grove-llm`,
-`keyed-launch` and `grove-loop` books re-derive the account of their crates from
-the source that they reconstruct. The description that survives in
+The mechanism for the rest is **deletion, not a second move**. The `grove-llm` and
+`grove-loop` books re-derive the account of their crates from the source that
+they reconstruct. The description that survives in
 `ARCHITECTURE.md` becomes redundant rather than relocatable.
 
 `architecture-residue-k75` owns removing it. That leaf runs last in

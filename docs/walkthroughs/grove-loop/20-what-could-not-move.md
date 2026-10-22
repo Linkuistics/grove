@@ -7,9 +7,9 @@
 
 <!-- rollup «owned-lines-total» -->
 <!-- rollup «ownership-blocks» -->
-This chapter owns none of the crate's 14,475 lines. The fragment graph spans
+This chapter owns none of the crate's 15,244 lines. The fragment graph spans
 [chapter 1](01-orientation.md) through [chapter 19](19-the-loop.md),
-including the captured observer in chapter 5. Its 44 ownership blocks are
+including the captured observer in chapter 5. Its 45 ownership blocks are
 `resolved`. The [source index](source-index.md) records that graph in full. It
 gives this page a row whose owned-line count is zero. The row exists to be zero.
 
@@ -410,8 +410,8 @@ rather than by this page's say-so.
 <!-- rollup «source-roots» -->
 <!-- rollup «ownership-blocks-owned-by» of="allowed-to-mean" -->
 <!-- rollup «ownership-blocks-not-owned-by» of="allowed-to-mean" -->
-**Ownership.** 44 top-level blocks over 17 source roots, every one
-`resolved`. [Chapter 1](01-orientation.md) owns 2 blocks, and the other 42 belong to
+**Ownership.** 45 top-level blocks over 18 source roots, every one
+`resolved`. [Chapter 1](01-orientation.md) owns 2 blocks, and the other 43 belong to
 later chapters. The captured observer joins chapter 5 as a resolved block. No `defer` remains anywhere in the book, and none may, because `F003`
 reports any defer at all in final mode. So *every reservation has become an
 insertion* is something the validator refuses to let be false, rather than
@@ -431,7 +431,7 @@ this book established in its own chapter 2 and applied in every chapter after it
 
 <!-- rollup «owned-lines-sequence» -->
 <!-- rollup «source-owning-chapters» -->
-**Owned source.** 487 + 373 + 529 + 773 + 521 + 320 + 336 + 438 + 604 + 518 + 641 + 764 + 808 + 532 + 390 + 1,141 + 3,805 + 241 + 1,254 = 14,475 lines across
+**Owned source.** 488 + 373 + 529 + 773 + 521 + 320 + 336 + 438 + 604 + 518 + 641 + 764 + 808 + 532 + 390 + 1,141 + 3,805 + 241 + 2,022 = 15,244 lines across
 19 source-owning chapters. This closing chapter owns zero lines. The source
 index records the root sizes, block ranges and chapter totals.
 
@@ -503,8 +503,8 @@ on their own pages and are not in it, wherever they fall.
 The [concept index](concept-index.md) and the [source index](source-index.md) are
 the two lookup surfaces and neither is part of the reading order. The source index
 is the authoritative record of how the fragment graph reconstructs each of the
-17 files; the concept index is curated navigation into the arguments and
-makes no completeness claim.
+18 files. The concept index is curated navigation into the arguments. It makes
+no completeness claim.
 
 <a id="final-verification"></a>
 ## Final verification
@@ -574,7 +574,7 @@ tests, not this crate's.
 <!-- rollup «source-roots» -->
 <!-- rollup «owned-lines-total» -->
 <!-- rollup «chapters» -->
-The book is complete: 17 roots, 14,475 lines, 20 chapters, two
+The book is complete: 18 roots, 15,244 lines, 20 chapters, two
 lookup surfaces, zero deferred ranges. It argued that a layer which
 extracts a domain-free library from underneath itself keeps exactly what carries
 meaning. It also argued that meaning is expensive in three measurable places. It leaves

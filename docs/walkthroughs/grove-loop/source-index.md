@@ -9,7 +9,7 @@
 | Root ID | Source path | Lines |
 |---|---|---|
 | `source-crate-manifest` | `crates/grove-loop/Cargo.toml` | 67 |
-| `source-library-root` | `crates/grove-loop/src/lib.rs` | 420 |
+| `source-library-root` | `crates/grove-loop/src/lib.rs` | 421 |
 | `source-task-name` | `crates/grove-loop/src/task_name.rs` | 1,675 |
 | `source-task-tree` | `crates/grove-loop/src/task_tree.rs` | 2,001 |
 | `source-task-grow` | `crates/grove-loop/src/task_grow.rs` | 518 |
@@ -18,18 +18,19 @@
 | `source-driver` | `crates/grove-loop/src/driver.rs` | 59 |
 | `source-driver-lease` | `crates/grove-loop/src/driver_lease.rs` | 2,083 |
 | `source-prompt` | `crates/grove-loop/src/prompt.rs` | 241 |
-| `source-loop-driver` | `crates/grove-loop/src/loop_driver.rs` | 909 |
+| `source-loop-driver` | `crates/grove-loop/src/loop_driver.rs` | 912 |
 | `source-observation` | `crates/grove-loop/src/observation.rs` | 218 |
 | `source-runtime-observation` | `crates/grove-loop/src/driver_lease/observation.rs` | 2,146 |
 | `source-witnesses` | `crates/grove-loop/src/driver_lease/witnesses.rs` | 717 |
 | `source-launch-directory` | `crates/grove-loop/src/launch_directory.rs` | 134 |
 | `source-session-result` | `crates/grove-loop/src/session_result.rs` | 105 |
-| `source-session-command` | `crates/grove-loop/src/session_command.rs` | 106 |
+| `source-session-command` | `crates/grove-loop/src/session_command.rs` | 143 |
+| `source-ravel-job` | `crates/grove-loop/src/ravel_job.rs` | 728 |
 
 <!-- source-root «source-crate-manifest» source="crates/grove-loop/Cargo.toml" lines="1-67" -->
 <!-- insert «manifest-domain-bound» -->
 <!-- /source-root -->
-<!-- source-root «source-library-root» source="crates/grove-loop/src/lib.rs" lines="1-420" -->
+<!-- source-root «source-library-root» source="crates/grove-loop/src/lib.rs" lines="1-421" -->
 <!-- insert «library-root» -->
 <!-- /source-root -->
 <!-- source-root «source-task-name» source="crates/grove-loop/src/task_name.rs" lines="1-1675" -->
@@ -83,7 +84,7 @@
 <!-- source-root «source-prompt» source="crates/grove-loop/src/prompt.rs" lines="1-241" -->
 <!-- insert «the-prompt-core» -->
 <!-- /source-root -->
-<!-- source-root «source-loop-driver» source="crates/grove-loop/src/loop_driver.rs" lines="1-909" -->
+<!-- source-root «source-loop-driver» source="crates/grove-loop/src/loop_driver.rs" lines="1-912" -->
 <!-- insert «loop-driver» -->
 <!-- /source-root -->
 
@@ -105,8 +106,11 @@
 <!-- source-root «source-session-result» source="crates/grove-loop/src/session_result.rs" lines="1-105" -->
 <!-- insert «held-session-result» -->
 <!-- /source-root -->
-<!-- source-root «source-session-command» source="crates/grove-loop/src/session_command.rs" lines="1-106" -->
+<!-- source-root «source-session-command» source="crates/grove-loop/src/session_command.rs" lines="1-143" -->
 <!-- insert «public-session-commands» -->
+<!-- /source-root -->
+<!-- source-root «source-ravel-job» source="crates/grove-loop/src/ravel_job.rs" lines="1-728" -->
+<!-- insert «ravel-job» -->
 <!-- /source-root -->
 
 
@@ -116,7 +120,7 @@
 | Block ID | Root ID | Owner | Source lines | Count | State |
 |---|---|---|---|---|---|
 | `manifest-domain-bound` | `source-crate-manifest` | `allowed-to-mean` | `1-67` | 67 | `resolved` |
-| `library-root` | `source-library-root` | `allowed-to-mean` | `1-420` | 420 | `resolved` |
+| `library-root` | `source-library-root` | `allowed-to-mean` | `1-421` | 421 | `resolved` |
 | `tokens-and-verdicts` | `source-task-name` | `four-verdicts` | `1-156` | 156 | `resolved` |
 | `kind-slug-and-handle` | `source-task-name` | `the-handle-not-the-position` | `157-505` | 349 | `resolved` |
 | `the-task-name` | `source-task-name` | `canonical-or-nothing` | `506-953` | 448 | `resolved` |
@@ -151,14 +155,15 @@
 | `lease-and-epoch` | `source-driver-lease` | `one-per-working-tree` | `1-966` | 966 | `resolved` |
 | `lease-tests` | `source-driver-lease` | `which-calls-are-admitted` | `967-2083` | 1,117 | `resolved` |
 | `the-prompt-core` | `source-prompt` | `too-late-to-say-later` | `1-241` | 241 | `resolved` |
-| `loop-driver` | `source-loop-driver` | `four-things-a-runner-cannot-choose` | `1-909` | 909 | `resolved` |
+| `loop-driver` | `source-loop-driver` | `four-things-a-runner-cannot-choose` | `1-912` | 912 | `resolved` |
 | `observation-tree` | `source-observation` | `one-spelling-of-grove` | `1-218` | 218 | `resolved` |
 | `runtime-observer` | `source-runtime-observation` | `which-calls-are-admitted` | `1-2146` | 2,146 | `resolved` |
 | `launch-witnesses-production` | `source-witnesses` | `one-per-working-tree` | `1-175` | 175 | `resolved` |
 | `witness-tests` | `source-witnesses` | `which-calls-are-admitted` | `176-717` | 542 | `resolved` |
 | `launch-control-directory` | `source-launch-directory` | `four-things-a-runner-cannot-choose` | `1-134` | 134 | `resolved` |
 | `held-session-result` | `source-session-result` | `four-things-a-runner-cannot-choose` | `1-105` | 105 | `resolved` |
-| `public-session-commands` | `source-session-command` | `four-things-a-runner-cannot-choose` | `1-106` | 106 | `resolved` |
+| `public-session-commands` | `source-session-command` | `four-things-a-runner-cannot-choose` | `1-143` | 143 | `resolved` |
+| `ravel-job` | `source-ravel-job` | `four-things-a-runner-cannot-choose` | `1-728` | 728 | `resolved` |
 
 <a id="fragment-index"></a>
 ## Fragment index
@@ -172,27 +177,27 @@
 | `manifest-extracted-tree` | `orientation` | `source-crate-manifest` | `literal` | `allowed-to-mean` | `39-46` | `manifest-domain-bound` | `—` |
 | `manifest-lints` | `orientation` | `source-crate-manifest` | `literal` | `allowed-to-mean` | `47-52` | `manifest-domain-bound` | `—` |
 | `manifest-release` | `orientation` | `source-crate-manifest` | `literal` | `allowed-to-mean` | `53-67` | `manifest-domain-bound` | `—` |
-| `source-library-root` | `source-index` | `source-library-root` | `root` | `—` | `1-420` | `—` | `library-root` |
+| `source-library-root` | `source-index` | `source-library-root` | `root` | `—` | `1-421` | `—` | `library-root` |
 | `library-root-thesis` | `orientation` | `source-library-root` | `literal` | `allowed-to-mean` | `1-9` | `library-root` | `—` |
-| `library-root` | `orientation` | `source-library-root` | `composite` | `allowed-to-mean` | `1-420` | `source-library-root` | `library-root-thesis`, `library-root-and-the-driver`, `library-root-opening-mirrors`, `library-root-three-shapes`, `library-root-one-error`, `library-root-modules`, `library-root-version`, `library-root-imports-and-exports`, `library-root-tree-and-vacancy`, `library-root-reading-and-writing`, `library-root-tree-write`, `library-root-tree-write-impl`, `library-root-read-and-write`, `library-root-grove-root`, `library-root-reference`, `library-root-reference-display`, `library-root-selection`, `library-root-error`, `library-root-error-traits` |
+| `library-root` | `orientation` | `source-library-root` | `composite` | `allowed-to-mean` | `1-421` | `source-library-root` | `library-root-thesis`, `library-root-and-the-driver`, `library-root-opening-mirrors`, `library-root-three-shapes`, `library-root-one-error`, `library-root-modules`, `library-root-version`, `library-root-imports-and-exports`, `library-root-tree-and-vacancy`, `library-root-reading-and-writing`, `library-root-tree-write`, `library-root-tree-write-impl`, `library-root-read-and-write`, `library-root-grove-root`, `library-root-reference`, `library-root-reference-display`, `library-root-selection`, `library-root-error`, `library-root-error-traits` |
 | `library-root-and-the-driver` | `orientation` | `source-library-root` | `literal` | `allowed-to-mean` | `10-14` | `library-root` | `—` |
 | `library-root-opening-mirrors` | `orientation` | `source-library-root` | `literal` | `allowed-to-mean` | `15-29` | `library-root` | `—` |
 | `library-root-three-shapes` | `orientation` | `source-library-root` | `literal` | `allowed-to-mean` | `30-40` | `library-root` | `—` |
 | `library-root-one-error` | `orientation` | `source-library-root` | `literal` | `allowed-to-mean` | `41-49` | `library-root` | `—` |
-| `library-root-modules` | `orientation` | `source-library-root` | `literal` | `allowed-to-mean` | `50-64` | `library-root` | `—` |
-| `library-root-version` | `orientation` | `source-library-root` | `literal` | `allowed-to-mean` | `65-74` | `library-root` | `—` |
-| `library-root-imports-and-exports` | `orientation` | `source-library-root` | `literal` | `allowed-to-mean` | `75-96` | `library-root` | `—` |
-| `library-root-tree-and-vacancy` | `orientation` | `source-library-root` | `literal` | `allowed-to-mean` | `97-111` | `library-root` | `—` |
-| `library-root-reading-and-writing` | `orientation` | `source-library-root` | `literal` | `allowed-to-mean` | `112-136` | `library-root` | `—` |
-| `library-root-tree-write` | `orientation` | `source-library-root` | `literal` | `allowed-to-mean` | `137-192` | `library-root` | `—` |
-| `library-root-tree-write-impl` | `orientation` | `source-library-root` | `literal` | `allowed-to-mean` | `193-245` | `library-root` | `—` |
-| `library-root-read-and-write` | `orientation` | `source-library-root` | `literal` | `allowed-to-mean` | `246-289` | `library-root` | `—` |
-| `library-root-grove-root` | `orientation` | `source-library-root` | `literal` | `allowed-to-mean` | `290-294` | `library-root` | `—` |
-| `library-root-reference` | `orientation` | `source-library-root` | `literal` | `allowed-to-mean` | `295-345` | `library-root` | `—` |
-| `library-root-reference-display` | `orientation` | `source-library-root` | `literal` | `allowed-to-mean` | `346-351` | `library-root` | `—` |
-| `library-root-selection` | `orientation` | `source-library-root` | `literal` | `allowed-to-mean` | `352-375` | `library-root` | `—` |
-| `library-root-error` | `orientation` | `source-library-root` | `literal` | `allowed-to-mean` | `376-394` | `library-root` | `—` |
-| `library-root-error-traits` | `orientation` | `source-library-root` | `literal` | `allowed-to-mean` | `395-420` | `library-root` | `—` |
+| `library-root-modules` | `orientation` | `source-library-root` | `literal` | `allowed-to-mean` | `50-65` | `library-root` | `—` |
+| `library-root-version` | `orientation` | `source-library-root` | `literal` | `allowed-to-mean` | `66-75` | `library-root` | `—` |
+| `library-root-imports-and-exports` | `orientation` | `source-library-root` | `literal` | `allowed-to-mean` | `76-97` | `library-root` | `—` |
+| `library-root-tree-and-vacancy` | `orientation` | `source-library-root` | `literal` | `allowed-to-mean` | `98-112` | `library-root` | `—` |
+| `library-root-reading-and-writing` | `orientation` | `source-library-root` | `literal` | `allowed-to-mean` | `113-137` | `library-root` | `—` |
+| `library-root-tree-write` | `orientation` | `source-library-root` | `literal` | `allowed-to-mean` | `138-193` | `library-root` | `—` |
+| `library-root-tree-write-impl` | `orientation` | `source-library-root` | `literal` | `allowed-to-mean` | `194-246` | `library-root` | `—` |
+| `library-root-read-and-write` | `orientation` | `source-library-root` | `literal` | `allowed-to-mean` | `247-290` | `library-root` | `—` |
+| `library-root-grove-root` | `orientation` | `source-library-root` | `literal` | `allowed-to-mean` | `291-295` | `library-root` | `—` |
+| `library-root-reference` | `orientation` | `source-library-root` | `literal` | `allowed-to-mean` | `296-346` | `library-root` | `—` |
+| `library-root-reference-display` | `orientation` | `source-library-root` | `literal` | `allowed-to-mean` | `347-352` | `library-root` | `—` |
+| `library-root-selection` | `orientation` | `source-library-root` | `literal` | `allowed-to-mean` | `353-376` | `library-root` | `—` |
+| `library-root-error` | `orientation` | `source-library-root` | `literal` | `allowed-to-mean` | `377-395` | `library-root` | `—` |
+| `library-root-error-traits` | `orientation` | `source-library-root` | `literal` | `allowed-to-mean` | `396-421` | `library-root` | `—` |
 | `source-task-name` | `source-index` | `source-task-name` | `root` | `—` | `1-1675` | `—` | `tokens-and-verdicts`, `kind-slug-and-handle`, `the-task-name`, `name-test-support-and-kit`, `classification-verdict-tests`, `grammar-and-canonicity-tests`, `shape-refusal-tests`, `slug-rule-tests`, `handle-grammar-tests` |
 | `name-the-only-grammar` | `the-tokens` | `source-task-name` | `literal` | `four-verdicts` | `1-7` | `tokens-and-verdicts` | `—` |
 | `tokens-and-verdicts` | `the-tokens` | `source-task-name` | `composite` | `four-verdicts` | `1-156` | `source-task-name` | `name-the-only-grammar`, `name-canonicity-departure`, `name-classification-loses-data`, `name-handle-is-this-grammar`, `name-handle-terminal-substring`, `name-imports`, `name-brief-and-key-mark`, `name-separator`, `name-outcome`, `name-outcome-infix-and-strip`, `name-token-error`, `name-token-error-traits`, `name-refuse-token` |
@@ -625,34 +630,34 @@
 | `core-mandate` | `the-core` | `source-prompt` | `literal` | `too-late-to-say-later` | `161-187` | `the-prompt-core` | `—` |
 | `core-compose` | `the-core` | `source-prompt` | `literal` | `too-late-to-say-later` | `188-218` | `the-prompt-core` | `—` |
 | `core-stated-vcs` | `the-core` | `source-prompt` | `literal` | `too-late-to-say-later` | `219-241` | `the-prompt-core` | `—` |
-| `source-loop-driver` | `source-index` | `source-loop-driver` | `root` | `—` | `1-909` | `—` | `loop-driver` |
+| `source-loop-driver` | `source-index` | `source-loop-driver` | `root` | `—` | `1-912` | `—` | `loop-driver` |
 | `loop-header` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `1-12` | `loop-driver` | `—` |
-| `loop-driver` | `the-loop` | `source-loop-driver` | `composite` | `four-things-a-runner-cannot-choose` | `1-909` | `source-loop-driver` | `loop-header`, `loop-imports`, `loop-control-env`, `loop-scrub-list`, `loop-scrub-helper`, `loop-outcome`, `loop-run`, `loop-drive-open`, `loop-drive-interrupt`, `loop-drive-selection`, `loop-drive-invocation`, `loop-drive-launch`, `loop-drive-discard`, `loop-drive-survivor`, `loop-drive-endings`, `loop-session-prompt`, `loop-launch-contract`, `loop-launch-spawn`, `loop-handoff`, `loop-escalation`, `loop-reset-terminal`, `loop-ignore-interrupts`, `loop-picked`, `loop-tests-open`, `loop-test-handoff-preserves`, `loop-test-ordering` |
-| `loop-imports` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `13-26` | `loop-driver` | `—` |
-| `loop-control-env` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `27-76` | `loop-driver` | `—` |
-| `loop-scrub-list` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `77-81` | `loop-driver` | `—` |
-| `loop-scrub-helper` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `82-92` | `loop-driver` | `—` |
-| `loop-outcome` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `93-124` | `loop-driver` | `—` |
-| `loop-run` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `125-162` | `loop-driver` | `—` |
-| `loop-drive-open` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `163-172` | `loop-driver` | `—` |
-| `loop-drive-interrupt` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `173-187` | `loop-driver` | `—` |
-| `loop-drive-selection` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `188-196` | `loop-driver` | `—` |
-| `loop-drive-invocation` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `197-207` | `loop-driver` | `—` |
-| `loop-drive-launch` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `208-237` | `loop-driver` | `—` |
-| `loop-drive-discard` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `238-285` | `loop-driver` | `—` |
-| `loop-drive-survivor` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `286-298` | `loop-driver` | `—` |
-| `loop-drive-endings` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `299-325` | `loop-driver` | `—` |
-| `loop-session-prompt` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `326-367` | `loop-driver` | `—` |
-| `loop-launch-contract` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `368-397` | `loop-driver` | `—` |
-| `loop-launch-spawn` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `398-426` | `loop-driver` | `—` |
-| `loop-handoff` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `427-444` | `loop-driver` | `—` |
-| `loop-escalation` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `445-452` | `loop-driver` | `—` |
-| `loop-reset-terminal` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `453-484` | `loop-driver` | `—` |
-| `loop-ignore-interrupts` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `485-515` | `loop-driver` | `—` |
-| `loop-picked` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `516-555` | `loop-driver` | `—` |
-| `loop-tests-open` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `556-850` | `loop-driver` | `—` |
-| `loop-test-handoff-preserves` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `851-886` | `loop-driver` | `—` |
-| `loop-test-ordering` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `887-909` | `loop-driver` | `—` |
+| `loop-driver` | `the-loop` | `source-loop-driver` | `composite` | `four-things-a-runner-cannot-choose` | `1-912` | `source-loop-driver` | `loop-header`, `loop-imports`, `loop-control-env`, `loop-scrub-list`, `loop-scrub-helper`, `loop-outcome`, `loop-run`, `loop-drive-open`, `loop-drive-interrupt`, `loop-drive-selection`, `loop-drive-invocation`, `loop-drive-launch`, `loop-drive-discard`, `loop-drive-survivor`, `loop-drive-endings`, `loop-session-prompt`, `loop-launch-contract`, `loop-launch-spawn`, `loop-handoff`, `loop-escalation`, `loop-reset-terminal`, `loop-ignore-interrupts`, `loop-picked`, `loop-tests-open`, `loop-test-handoff-preserves`, `loop-test-ordering` |
+| `loop-imports` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `13-27` | `loop-driver` | `—` |
+| `loop-control-env` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `28-77` | `loop-driver` | `—` |
+| `loop-scrub-list` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `78-82` | `loop-driver` | `—` |
+| `loop-scrub-helper` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `83-93` | `loop-driver` | `—` |
+| `loop-outcome` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `94-125` | `loop-driver` | `—` |
+| `loop-run` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `126-163` | `loop-driver` | `—` |
+| `loop-drive-open` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `164-173` | `loop-driver` | `—` |
+| `loop-drive-interrupt` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `174-188` | `loop-driver` | `—` |
+| `loop-drive-selection` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `189-197` | `loop-driver` | `—` |
+| `loop-drive-invocation` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `198-208` | `loop-driver` | `—` |
+| `loop-drive-launch` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `209-238` | `loop-driver` | `—` |
+| `loop-drive-discard` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `239-286` | `loop-driver` | `—` |
+| `loop-drive-survivor` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `287-299` | `loop-driver` | `—` |
+| `loop-drive-endings` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `300-326` | `loop-driver` | `—` |
+| `loop-session-prompt` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `327-368` | `loop-driver` | `—` |
+| `loop-launch-contract` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `369-398` | `loop-driver` | `—` |
+| `loop-launch-spawn` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `399-429` | `loop-driver` | `—` |
+| `loop-handoff` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `430-447` | `loop-driver` | `—` |
+| `loop-escalation` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `448-455` | `loop-driver` | `—` |
+| `loop-reset-terminal` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `456-487` | `loop-driver` | `—` |
+| `loop-ignore-interrupts` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `488-518` | `loop-driver` | `—` |
+| `loop-picked` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `519-558` | `loop-driver` | `—` |
+| `loop-tests-open` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `559-853` | `loop-driver` | `—` |
+| `loop-test-handoff-preserves` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `854-889` | `loop-driver` | `—` |
+| `loop-test-ordering` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `890-912` | `loop-driver` | `—` |
 | `source-observation` | `source-index` | `source-observation` | `root` | `—` | `1-218` | `—` | `observation-tree` |
 | `observation-imports` | `opening` | `source-observation` | `literal` | `one-spelling-of-grove` | `1-11` | `observation-tree` | `—` |
 | `observation-tree` | `opening` | `source-observation` | `composite` | `one-spelling-of-grove` | `1-218` | `source-observation` | `observation-imports`, `observation-lifetime`, `observation-values`, `observation-capture` |
@@ -714,8 +719,18 @@
 | `launch-control-directory` | `the-loop` | `source-launch-directory` | `literal` | `four-things-a-runner-cannot-choose` | `1-134` | `source-launch-directory` | `—` |
 | `source-session-result` | `source-index` | `source-session-result` | `root` | `—` | `1-105` | `—` | `held-session-result` |
 | `held-session-result` | `the-loop` | `source-session-result` | `literal` | `four-things-a-runner-cannot-choose` | `1-105` | `source-session-result` | `—` |
-| `source-session-command` | `source-index` | `source-session-command` | `root` | `—` | `1-106` | `—` | `public-session-commands` |
-| `public-session-commands` | `the-loop` | `source-session-command` | `literal` | `four-things-a-runner-cannot-choose` | `1-106` | `source-session-command` | `—` |
+| `source-session-command` | `source-index` | `source-session-command` | `root` | `—` | `1-143` | `—` | `public-session-commands` |
+| `public-session-commands` | `the-loop` | `source-session-command` | `literal` | `four-things-a-runner-cannot-choose` | `1-143` | `source-session-command` | `—` |
+| `source-ravel-job` | `source-index` | `source-ravel-job` | `root` | `—` | `1-728` | `—` | `ravel-job` |
+| `ravel-job-header` | `the-loop` | `source-ravel-job` | `literal` | `four-things-a-runner-cannot-choose` | `1-32` | `ravel-job` | `—` |
+| `ravel-job` | `the-loop` | `source-ravel-job` | `composite` | `four-things-a-runner-cannot-choose` | `1-728` | `source-ravel-job` | `ravel-job-header`, `ravel-job-scrub`, `ravel-job-vocabulary`, `ravel-job-launch`, `ravel-job-watch`, `ravel-job-latch`, `ravel-job-terminal`, `ravel-job-lease` |
+| `ravel-job-scrub` | `the-loop` | `source-ravel-job` | `literal` | `four-things-a-runner-cannot-choose` | `33-62` | `ravel-job` | `—` |
+| `ravel-job-vocabulary` | `the-loop` | `source-ravel-job` | `literal` | `four-things-a-runner-cannot-choose` | `63-149` | `ravel-job` | `—` |
+| `ravel-job-launch` | `the-loop` | `source-ravel-job` | `literal` | `four-things-a-runner-cannot-choose` | `150-301` | `ravel-job` | `—` |
+| `ravel-job-watch` | `the-loop` | `source-ravel-job` | `literal` | `four-things-a-runner-cannot-choose` | `302-409` | `ravel-job` | `—` |
+| `ravel-job-latch` | `the-loop` | `source-ravel-job` | `literal` | `four-things-a-runner-cannot-choose` | `410-532` | `ravel-job` | `—` |
+| `ravel-job-terminal` | `the-loop` | `source-ravel-job` | `literal` | `four-things-a-runner-cannot-choose` | `533-641` | `ravel-job` | `—` |
+| `ravel-job-lease` | `the-loop` | `source-ravel-job` | `literal` | `four-things-a-runner-cannot-choose` | `642-728` | `ravel-job` | `—` |
 
 <a id="early-uses"></a>
 ## Early uses
@@ -782,7 +797,7 @@ the roots and fragment relationships; this rollup totals the lines across the de
 
 | Slice | Page | Owned lines |
 |---|---|---:|
-| `allowed-to-mean` | `01-orientation.md` | 487 |
+| `allowed-to-mean` | `01-orientation.md` | 488 |
 | `four-verdicts` | `02-the-tokens.md` | 373 |
 | `the-handle-not-the-position` | `03-kind-slug-handle.md` | 529 |
 | `canonical-or-nothing` | `04-the-name.md` | 773 |
@@ -800,7 +815,7 @@ the roots and fragment relationships; this rollup totals the lines across the de
 | `one-per-working-tree` | `16-the-lease.md` | 1,141 |
 | `which-calls-are-admitted` | `17-the-epoch.md` | 3,805 |
 | `too-late-to-say-later` | `18-the-core.md` | 241 |
-| `four-things-a-runner-cannot-choose` | `19-the-loop.md` | 1,254 |
+| `four-things-a-runner-cannot-choose` | `19-the-loop.md` | 2,022 |
 | `assembly` | `20-what-could-not-move.md` | 0 |
-| **Total** | 17 source roots | **14,475** |
+| **Total** | 18 source roots | **15,244** |
 

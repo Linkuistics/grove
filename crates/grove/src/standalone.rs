@@ -174,12 +174,14 @@ fn execute(args: Args, ravel: &Path, logs: &Path) -> Result<()> {
     // Selection inherits the owner's grants. Ravel scrubs its confined
     // child's environment after selection; enclosing control authority stops here.
     let scrub: Vec<&OsStr> = CONTROL_ENV.iter().map(OsStr::new).collect();
+    // The runner takes its own value until the migration leaves delete this.
+    let keyed_argv = keyed_launch::Argv::new(argv.program().to_owned(), argv.args().to_vec());
     let finished = AtomicBool::new(false);
     let outcome = std::thread::scope(|scope| {
         let relay = scope.spawn(|| crate::run_display::relay(reader, &finished));
         let result = keyed_launch::run_noninteractive_with_stdout(
             NoninteractiveLaunch {
-                argv: &argv,
+                argv: &keyed_argv,
                 scrub: &scrub,
                 cwd: Some(&work),
                 escalation: Escalation {

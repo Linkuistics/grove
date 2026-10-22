@@ -11,11 +11,12 @@
 // prompt, argv and ordered reading of the ending and teardown record.
 
 use crate::driver_lease::DriverLease;
+use crate::session_command::Argv;
 use crate::session_result::SessionDisposition;
 use crate::{Handle, Kind, Reading, Selection, Sought, TreeLifetime};
 use anyhow::{ensure, Context, Result};
 use jj_workspace::Workspace;
-use keyed_launch::{Argv, End, Ended, Escalation, Group, Launch};
+use keyed_launch::{End, Ended, Escalation, Group, Launch};
 use std::ffi::OsStr;
 #[cfg(test)]
 use std::ffi::OsString;
@@ -399,11 +400,13 @@ fn launch_session(
         .prepare_launch(selected.lifetime, selection, launch_dir)
         .context("activating the foreground session epoch before spawn")?;
 
+    // The runner takes its own value until the migration leaves delete this.
+    let keyed_argv = keyed_launch::Argv::new(argv.program().to_owned(), argv.args().to_vec());
     driver_lease
         .supervise_launch(|observer| {
             keyed_launch::run_observed_with_stdout(
                 Launch {
-                    argv,
+                    argv: &keyed_argv,
                     channel: None,
                     scrub: &scrub_list(),
                     grant: &[(OsStr::new("GROVE_LAUNCH_DIR"), launch_dir.as_os_str())],

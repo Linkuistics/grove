@@ -39,7 +39,7 @@ nonzero exit remains successful after cleanup, as Ravel's public contract states
 | Managed harness | Scratch writes and explicit runtime reads | Outputs and opaque result |
 | Grove | Held output directory, result descriptor and destinations | Checked publication |
 
-<!-- fragment «standalone-invocation» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="1-321" parent="source-standalone" -->
+<!-- fragment «standalone-invocation» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="1-323" parent="source-standalone" -->
 <!-- insert «standalone-interface» -->
 <!-- insert «standalone-staging» -->
 <!-- insert «standalone-launch-context» -->
@@ -284,6 +284,10 @@ Ravel into its own session with EOF stdin and captured output, forwarding
 cancellation and waiting through its kill grace. The relay sanitises the log for
 display.
 
+The runner still takes its own argument value. Grove converts the `Argv` of
+`session_command` once, at this call. The migration to the shared function
+removes that conversion.
+
 After reap, Grove refuses a surviving supervisor group, cancellation
 or unsuccessful Ravel status, then reads the held stdout result. Only exact
 `grove-continue` authorises output publication. Exact `grove-force-stop` returns
@@ -294,14 +298,16 @@ Relay failure prevents publication too, and it retains the log even for an
 acknowledged run. An uncatchable Grove death can orphan its detached Ravel
 and harness. That dead publisher exports nothing.
 
-<!-- fragment «standalone-supervision» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="177-249" parent="standalone-invocation" -->
+<!-- fragment «standalone-supervision» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="177-251" parent="standalone-invocation" -->
 ````rust
+    // The runner takes its own value until the migration leaves delete this.
+    let keyed_argv = keyed_launch::Argv::new(argv.program().to_owned(), argv.args().to_vec());
     let finished = AtomicBool::new(false);
     let outcome = std::thread::scope(|scope| {
         let relay = scope.spawn(|| crate::run_display::relay(reader, &finished));
         let result = keyed_launch::run_noninteractive_with_stdout(
             NoninteractiveLaunch {
-                argv: &argv,
+                argv: &keyed_argv,
                 scrub: &scrub,
                 cwd: Some(&work),
                 escalation: Escalation {
@@ -380,7 +386,7 @@ opens use `O_NOFOLLOW` and `O_NONBLOCK`, rejecting symlinks and non-regular file
 without hanging on a FIFO. These checks protect the transfer before Ravel
 selects anything.
 
-<!-- fragment «standalone-artifact-checks» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="250-285" parent="standalone-invocation" -->
+<!-- fragment «standalone-artifact-checks» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="252-287" parent="standalone-invocation" -->
 ````rust
 fn basename(path: &Path) -> Result<&OsStr> {
     path.file_name()
@@ -430,7 +436,7 @@ without replacing a destination. Cancellation is checked before each publish.
 An error names the prefix already exported. `shell_word` quotes the canonical
 exit command and the parent's display commands for literal shell use.
 
-<!-- fragment «standalone-publication» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="286-321" parent="standalone-invocation" -->
+<!-- fragment «standalone-publication» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="288-323" parent="standalone-invocation" -->
 ````rust
 fn publish_outputs(work: &File, destinations: &[PathBuf]) -> Result<()> {
     let mut staged = Vec::new();

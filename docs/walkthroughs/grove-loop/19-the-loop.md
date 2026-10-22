@@ -50,7 +50,7 @@ The composite below connects the loop's source fragments in production order.
 The definitions follow the reader's path from caller data through launch to
 interpretation. The root still includes the inline tests.
 
-<!-- fragment «loop-driver» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="1-909" parent="source-loop-driver" -->
+<!-- fragment «loop-driver» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="1-912" parent="source-loop-driver" -->
 <!-- insert «loop-header» -->
 <!-- insert «loop-imports» -->
 <!-- insert «loop-control-env» -->
@@ -106,19 +106,21 @@ area. A harness that exits by itself leaves its leaf live.
 <a id="what-it-imports"></a>
 ## The loop's vocabulary and runner types
 
-Tree vocabulary belongs to Grove. `Argv`, `Launch`, `Ended`, `End` and `Group`
-belong to its runner. The loop reads a held stdout result separately from
+Tree vocabulary belongs to Grove. `Launch`, `Ended`, `End` and `Group`
+belong to its runner. `Argv` belongs to `session_command`, and `launch_session`
+converts it for the runner. The loop reads a held stdout result separately from
 `LaunchDirectory`. This keeps JSON interpretation apart from the loop's selection
 and terminal reset.
 
-<!-- fragment «loop-imports» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="13-26" parent="loop-driver" -->
+<!-- fragment «loop-imports» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="13-27" parent="loop-driver" -->
 ````rust
 use crate::driver_lease::DriverLease;
+use crate::session_command::Argv;
 use crate::session_result::SessionDisposition;
 use crate::{Handle, Kind, Reading, Selection, Sought, TreeLifetime};
 use anyhow::{ensure, Context, Result};
 use jj_workspace::Workspace;
-use keyed_launch::{Argv, End, Ended, Escalation, Group, Launch};
+use keyed_launch::{End, Ended, Escalation, Group, Launch};
 use std::ffi::OsStr;
 #[cfg(test)]
 use std::ffi::OsString;
@@ -148,7 +150,7 @@ authority. The real lifecycle fixture
 each reserved control at process entry and allowed controls through policy:
 a direct dirty probe observes every injected name, while the Grove launch removes them and completes.
 
-<!-- fragment «loop-control-env» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="27-76" parent="loop-driver" -->
+<!-- fragment «loop-control-env» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="28-77" parent="loop-driver" -->
 ````rust
 /// The loop driver's **launch-scoped environment** (self-driving-loop) — the
 /// variables a descendant could act on, and the exact set every spawn below
@@ -211,7 +213,7 @@ bound into the session epoch before spawning, so only that launch's tree verbs
 are admitted. Ravel's `--exit-dir` chooses where its own fresh channel can be
 written; The public stdout descriptor returns the opaque result. Neither reaches policy.
 
-<!-- fragment «loop-scrub-list» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="77-81" parent="loop-driver" -->
+<!-- fragment «loop-scrub-list» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="78-82" parent="loop-driver" -->
 ````rust
 /// [`LOOP_CONTROL_ENV`] as the runner takes it.
 fn scrub_list() -> [&'static OsStr; LOOP_CONTROL_ENV.len()] {
@@ -223,7 +225,7 @@ fn scrub_list() -> [&'static OsStr; LOOP_CONTROL_ENV.len()] {
 
 `scrub_loop_control_env` applies the same names to the terminal-reset command. A helper spawn receives no launch authority.
 
-<!-- fragment «loop-scrub-helper» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="82-92" parent="loop-driver" -->
+<!-- fragment «loop-scrub-helper» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="83-93" parent="loop-driver" -->
 ````rust
 /// Deliberately one helper rather than an `env_remove` per site: the list is the
 /// interesting part, and a second site open-coding it is how the first one came
@@ -246,7 +248,7 @@ pub(crate) fn scrub_loop_control_env(cmd: &mut Command) {
 own interruption. The signal number is retained so the human-facing binary can
 re-raise it and its parent can distinguish cancellation from success.
 
-<!-- fragment «loop-outcome» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="93-124" parent="loop-driver" -->
+<!-- fragment «loop-outcome» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="94-125" parent="loop-driver" -->
 ````rust
 /// Why the loop stopped — the loop's terminal disposition, made first-class so
 /// a clean whole-grove finish is distinguishable from an abnormal stop (rather
@@ -291,7 +293,7 @@ It ignores driver SIGINT between sessions and delegates to `drive`. Taking the
 lease by value releases ownership when the loop returns. A policy refusal is a
 stopped launch, while failure to spawn Ravel returns an error.
 
-<!-- fragment «loop-run» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="125-162" parent="loop-driver" -->
+<!-- fragment «loop-run» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="126-163" parent="loop-driver" -->
 ````rust
 /// **The whole loop**: `exists? → create or find next → run → finalise`, one
 /// foreground session per selected task, until a session stops signalling
@@ -354,7 +356,7 @@ A surviving Ravel group prevents relaunch. A Ravel
 that died of a signal can have left its harness alive, so the stop identifies
 that possibility instead of treating missing output as completion.
 
-<!-- fragment «loop-drive-open» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="163-172" parent="loop-driver" -->
+<!-- fragment «loop-drive-open» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="164-173" parent="loop-driver" -->
 ````rust
 fn drive(
     workspace: &Workspace,
@@ -371,7 +373,7 @@ fn drive(
 
 The top-of-loop interrupt check consumes cancellation that arrived between launches, before Grove mutates the tree or starts another session.
 
-<!-- fragment «loop-drive-interrupt» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="173-187" parent="loop-driver" -->
+<!-- fragment «loop-drive-interrupt» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="174-188" parent="loop-driver" -->
 ````rust
     loop {
         // A SIGTERM or SIGHUP that arrived while no session was running has no
@@ -393,7 +395,7 @@ The top-of-loop interrupt check consumes cancellation that arrived between launc
 
 Lease validation precedes transition and selection. The selected lifetime and kind remain the values that the launch will use.
 
-<!-- fragment «loop-drive-selection» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="188-196" parent="loop-driver" -->
+<!-- fragment «loop-drive-selection» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="189-197" parent="loop-driver" -->
 ````rust
 
         // No kind is checked here, or anywhere before the launch: whether the
@@ -421,7 +423,7 @@ live. No route table or owner configuration is read by this module.
 under a fresh guard. The retained `TreeLifetime` pins the selected root's
 identity without retaining its tree lock across a session.
 
-<!-- fragment «loop-drive-invocation» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="197-207" parent="loop-driver" -->
+<!-- fragment «loop-drive-invocation» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="198-208" parent="loop-driver" -->
 ````rust
 
         let ending = crate::session_command::end_session(ravel)?;
@@ -439,7 +441,7 @@ identity without retaining its tree lock across a session.
 
 The launch directory is allocated after lease validation. Its path becomes both session identity and the directory Ravel uses for its run mechanics.
 
-<!-- fragment «loop-drive-launch» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="208-237" parent="loop-driver" -->
+<!-- fragment «loop-drive-launch» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="209-238" parent="loop-driver" -->
 ````rust
         driver_lease
             .revalidate()
@@ -483,7 +485,7 @@ surviving Ravel group. The branch body is kept at the
 runner-result seam so the survivor precedence can be exercised without an
 unkillable process fixture.
 
-<!-- fragment «loop-drive-discard» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="238-285" parent="loop-driver" -->
+<!-- fragment «loop-drive-discard» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="239-286" parent="loop-driver" -->
 ````rust
         if let Err(error) = launch_dir.discard() {
             eprintln!(
@@ -538,7 +540,7 @@ fn interpret_launch(
 
 A remaining Ravel group is reported with the selected handle. A relaunch beside a survivor would let two processes keep changing the tree.
 
-<!-- fragment «loop-drive-survivor» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="286-298" parent="loop-driver" -->
+<!-- fragment «loop-drive-survivor» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="287-299" parent="loop-driver" -->
 ````rust
     // Before the ending is acted on, and whatever it says: a member of
     // ravel's group that survived the runner's kills may still hold the
@@ -558,7 +560,7 @@ A remaining Ravel group is reported with the selected handle. A relaunch beside 
 
 The final branch relaunches only on the supported exact `grove-continue` result. Unsupported, missing or unreadable results stop, with Ravel death identified as a possible surviving harness.
 
-<!-- fragment «loop-drive-endings» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="299-325" parent="loop-driver" -->
+<!-- fragment «loop-drive-endings» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="300-326" parent="loop-driver" -->
 ````rust
     if let Some(result) = result {
         match result {
@@ -599,7 +601,7 @@ task path and handle, so the mandate and policy inputs cannot name different
 leaves. The signalling contract now names Ravel's end-session command and Grove's
 separate teardown record and exact caller-owned result.
 
-<!-- fragment «loop-session-prompt» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="326-367" parent="loop-driver" -->
+<!-- fragment «loop-session-prompt» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="327-368" parent="loop-driver" -->
 ````rust
 /// The whole `${prompt}`: the guaranteed core, composed for the launched kind.
 ///
@@ -663,7 +665,7 @@ spawn. `supervise_launch` carries the witness across runner start and reap event
 The runner receives `channel: None`, the scrub list and only the launch-directory
 grant. Ravel then makes the harness its own foreground job.
 
-<!-- fragment «loop-launch-contract» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="368-397" parent="loop-driver" -->
+<!-- fragment «loop-launch-contract» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="369-398" parent="loop-driver" -->
 ````rust
 /// Launch ravel as a foreground, channel-free job. Ravel selects and
 /// supervises the harness as a separate job and owns its exit signal. The runner
@@ -699,18 +701,23 @@ fn launch_session(
 <!-- /fragment -->
 
 The epoch already names this launch when the runner spawns Ravel. Witness events surround the job, and a channel-free launch forwards only caller cancellation.
+The runner still takes its own `Argv`, so the call converts the value of
+`session_command` first. The migration to [the shared function](#ravel-job)
+removes that conversion.
 
-<!-- fragment «loop-launch-spawn» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="398-426" parent="loop-driver" -->
+<!-- fragment «loop-launch-spawn» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="399-429" parent="loop-driver" -->
 ````rust
     driver_lease
         .prepare_launch(selected.lifetime, selection, launch_dir)
         .context("activating the foreground session epoch before spawn")?;
 
+    // The runner takes its own value until the migration leaves delete this.
+    let keyed_argv = keyed_launch::Argv::new(argv.program().to_owned(), argv.args().to_vec());
     driver_lease
         .supervise_launch(|observer| {
             keyed_launch::run_observed_with_stdout(
                 Launch {
-                    argv,
+                    argv: &keyed_argv,
                     channel: None,
                     scrub: &scrub_list(),
                     grant: &[(OsStr::new("GROVE_LAUNCH_DIR"), launch_dir.as_os_str())],
@@ -742,7 +749,7 @@ successful invalidation invokes the reading closure. If both fail, the error
 retains the launch failure beside the invalidation failure; nothing consumes the
 ending beside an admitted orphan still holding the old epoch.
 
-<!-- fragment «loop-handoff» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="427-444" parent="loop-driver" -->
+<!-- fragment «loop-handoff» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="430-447" parent="loop-driver" -->
 ````rust
 fn complete_post_reap_epoch_handoff<E, T>(
     ended: Result<E>,
@@ -773,7 +780,7 @@ no channel. The ten-second kill-grace bounds forwarded cancellation of Ravel,
 covering managed shutdown and group confirmation before the public result.
 Grove does not choose the harness's exit-signal graces.
 
-<!-- fragment «loop-escalation» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="445-452" parent="loop-driver" -->
+<!-- fragment «loop-escalation» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="448-455" parent="loop-driver" -->
 ````rust
 /// No channel grace: Grove ends no harness. Its own TERM/HUP is forwarded
 /// to ravel, whose cancellation must finish before this 10-second kill-grace.
@@ -795,7 +802,7 @@ not just Ravel's. `reset_terminal` then runs `stty sane`, leaves the alternate
 screen and shows the cursor. It runs only on tty stdin while the driver owns the
 foreground; otherwise an `stty` child could stop on SIGTTOU and hang the driver.
 
-<!-- fragment «loop-reset-terminal» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="453-484" parent="loop-driver" -->
+<!-- fragment «loop-reset-terminal» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="456-487" parent="loop-driver" -->
 ````rust
 /// Reset the terminal after a (possibly SIGTERM'd) TUI: restore cooked mode,
 /// leave the alternate screen, show the cursor. No-op when stdin isn't a TTY
@@ -839,7 +846,7 @@ The driver's SIGINT ignore covers gaps between launches. The runner resets the
 child's terminal-signal dispositions so Ravel and the harness receive typed
 Ctrl-C. TERM/HUP belong to runner cancellation and are forwarded to the job.
 
-<!-- fragment «loop-ignore-interrupts» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="485-515" parent="loop-driver" -->
+<!-- fragment «loop-ignore-interrupts» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="488-518" parent="loop-driver" -->
 ````rust
 /// Ignore SIGINT in the driver so a terminal Ctrl-C does not kill the loop. The
 /// driver must survive the interrupt to reach the relaunch-vs-stop decision.
@@ -883,7 +890,7 @@ it while the guard is held. `picked_after_finish` selects afresh after
 materialization. A concurrent root replacement cannot lend an old selection
 the new root's identity.
 
-<!-- fragment «loop-picked» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="516-555" parent="loop-driver" -->
+<!-- fragment «loop-picked» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="519-558" parent="loop-driver" -->
 ````rust
 /// The driver's own `pick`, over the worktree it is driving.
 ///
@@ -940,7 +947,7 @@ makes the runner-result test fail. They exercise the real
 Ravel front for the launch case. The process suite supplies the PTY ending,
 terminal, refusal, stale-session and cancellation cases.
 
-<!-- fragment «loop-tests-open» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="556-850" parent="loop-driver" -->
+<!-- fragment «loop-tests-open» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="559-853" parent="loop-driver" -->
 ````rust
 // The repository's shared test helpers. Declared out here because a `#[path]`
 // inside the inline module below would resolve against a directory that does
@@ -1242,7 +1249,7 @@ mod tests {
 
 This case supplies simultaneous launch and invalidation failures. It checks that both causes remain visible and interpretation never runs.
 
-<!-- fragment «loop-test-handoff-preserves» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="851-886" parent="loop-driver" -->
+<!-- fragment «loop-test-handoff-preserves» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="854-889" parent="loop-driver" -->
 ````rust
     #[test]
     fn an_epoch_handoff_failure_preserves_the_launch_failure_that_preceded_it() {
@@ -1285,7 +1292,7 @@ This case supplies simultaneous launch and invalidation failures. It checks that
 
 This case isolates the invalidation gate. Even a successful reap cannot cause the reading closure to run before exclusive epoch admission is obtained.
 
-<!-- fragment «loop-test-ordering» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="887-909" parent="loop-driver" -->
+<!-- fragment «loop-test-ordering» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="890-912" parent="loop-driver" -->
 ````rust
     #[test]
     fn signal_interpretation_cannot_run_before_epoch_invalidation_succeeds() {
@@ -1652,6 +1659,11 @@ selected. It performs no executable lookup or second canonicalisation, so its
 argv and ending instructions name the same selected installation. Both actual
 callers use this shared public boundary.
 
+The module owns `Argv`, the value that both builders return. It holds a program
+and its arguments, and `words` lists them with the program first. It has no
+shell and no second reading of any word. The runner has its own `Argv` for now,
+so each caller converts the value once, at its one call site.
+
 `lifecycle` sends the selection's kind, task path and handle together with the
 literal prompt and writable exit directory. `confined` sends the standalone
 kind and prompt with `--confine` and canonical runtime-file grants, without task
@@ -1668,7 +1680,7 @@ A correctly built command alone proves neither successful cleanup nor a result.
 Grove's exact `grove-continue` result. Quotes, spaces and newlines in the path
 remain literal. A non-UTF-8 path refuses before it can become prompt text.
 
-<!-- fragment «public-session-commands» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/session_command.rs" lines="1-106" parent="source-session-command" -->
+<!-- fragment «public-session-commands» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/session_command.rs" lines="1-143" parent="source-session-command" -->
 ````rust
 //! Grove's public Ravel invocation and exact ending command.
 //!
@@ -1680,12 +1692,49 @@ use std::ffi::{OsStr, OsString};
 use std::path::{Path, PathBuf};
 
 use anyhow::Context;
-use keyed_launch::Argv;
 
 use crate::{
     session_result::{CONTINUE_RESULT, FORCE_STOP_RESULT},
     Error, Selection,
 };
+
+/// A program and its arguments, in order, ready to spawn.
+///
+/// There is no shell and no second reading of any word. Each word is spawned as
+/// it is given.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Argv {
+    program: OsString,
+    args: Vec<OsString>,
+}
+
+impl Argv {
+    /// A program and arguments that the caller built, each string one whole word.
+    #[must_use]
+    pub fn new(program: OsString, args: Vec<OsString>) -> Self {
+        Self { program, args }
+    }
+
+    #[must_use]
+    pub fn program(&self) -> &OsStr {
+        &self.program
+    }
+
+    #[must_use]
+    pub fn args(&self) -> &[OsString] {
+        &self.args
+    }
+
+    /// The whole command as one word list, program first. A consumer that builds
+    /// a `Command` and a diagnostic both want this shape.
+    #[must_use]
+    pub fn words(&self) -> Vec<OsString> {
+        let mut words = Vec::with_capacity(self.args.len() + 1);
+        words.push(self.program.clone());
+        words.extend(self.args.iter().cloned());
+        words
+    }
+}
 
 /// The lifecycle request for the same selection that composed the prompt.
 ///
@@ -1781,7 +1830,9 @@ fn value(flag: &str, argument: &OsStr) -> OsString {
 
 The evidence is `tests/session_command.rs`. Its shell test executes a path with
 quotes, newlines and shell punctuation on an unusable PATH. Installed Ravel
-fixtures observe the lifecycle inputs through the actual policy. They execute the
+fixtures observe the lifecycle inputs through the actual policy. They launch
+through [`ravel_job::launch`](#ravel-job), the lifecycle case in the foreground
+shape and the confined case in the detached shape. They execute the
 quoted ending from a separate prefix. They keep managed output separate from the
 result.
 
@@ -1793,5 +1844,932 @@ same relative path before staging. It verifies that the path can be read while
 the policy stays unreadable. `task ravel:commands RAVEL=/absolute/path/to/ravel`
 runs the shell and installed checks. It needs no model and no host runtime on the
 managed PATH.
+
+<a id="ravel-job"></a>
+## One function launches Ravel
+
+`ravel_job::launch` spawns `ravel` as an ordinary child, as a job-control shell
+spawns a job. The lifecycle and `grove run` will share it. It adds no completion
+channel, no escalation and no group probe. Ravel keeps job control of the managed
+process and does not change.
+
+No production caller uses the function yet. The loop and `grove run` still launch
+through the runner. Each converts its `Argv` at one call site. The function takes
+two shapes. The foreground shape serves the lifecycle, and the detached shape
+serves `grove run`.
+
+<!-- fragment «ravel-job» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/ravel_job.rs" lines="1-728" parent="source-ravel-job" -->
+<!-- insert «ravel-job-header» -->
+<!-- insert «ravel-job-scrub» -->
+<!-- insert «ravel-job-vocabulary» -->
+<!-- insert «ravel-job-launch» -->
+<!-- insert «ravel-job-watch» -->
+<!-- insert «ravel-job-latch» -->
+<!-- insert «ravel-job-terminal» -->
+<!-- insert «ravel-job-lease» -->
+<!-- /fragment -->
+
+<a id="the-ravel-job-header"></a>
+## The header, and what the function leaves out
+
+The header names the one function and the arrangement behind it. Grove keeps no
+runner of its own. Ravel supervises its managed process and ends its group. So
+this module sends no KILL and probes no process group. A successful Ravel status
+with an exact result is the only evidence of cleanup.
+
+The poll interval is a constant and not a setting. It bounds how late a caught
+signal reaches `ravel`. Ravel budgets its own cancellation in seconds, so a
+caller that tuned the interval would tune latency that it cannot observe.
+
+<!-- fragment «ravel-job-header» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/ravel_job.rs" lines="1-32" parent="ravel-job" -->
+````rust
+//! Starting `ravel` as an ordinary child, as a job-control shell starts a job.
+//!
+//! One function, [`launch`], serves both callers. The lifecycle uses the
+//! foreground [`Shape`]. `grove run` uses the detached one. The caller contract
+//! states the procedures: `docs/specs/harness-selection-and-execution.md`, in
+//! the section *Jobs and authority*.
+//!
+//! Grove keeps no runner of its own. Ravel supervises its managed process and
+//! ends its group. So this module sends no KILL and probes no process group.
+//! A successful Ravel status with an exact result is the only evidence of
+//! cleanup. Ravel states its side of the arrangement in chapter 9 of its book:
+//! <https://github.com/Linkuistics/Ravel/blob/v1.1.0/docs/book/src/09-jobs-signals-and-the-terminal.md>
+
+use std::fmt;
+use std::fs::File;
+use std::io::Write as _;
+use std::os::fd::{AsRawFd, FromRawFd, OwnedFd, RawFd};
+use std::os::unix::process::CommandExt as _;
+use std::path::Path;
+use std::process::{Child, Command, ExitStatus, Stdio};
+use std::sync::atomic::{AtomicI32, Ordering};
+use std::sync::OnceLock;
+use std::time::{Duration, Instant};
+
+use crate::session_command::Argv;
+
+/// How long the function waits between two checks of `ravel`.
+///
+/// This is not a knob. The interval only bounds how late a caught signal
+/// reaches `ravel`, and Ravel budgets its own cancellation in seconds.
+const POLL_INTERVAL: Duration = Duration::from_millis(500);
+
+````
+<!-- /fragment -->
+
+<a id="the-ravel-job-scrub"></a>
+## One list of ten names, and one helper
+
+An environment is inherited. A child that Grove merely declines to give a control
+variable still receives whatever Grove's own environment carried. That includes
+the launch directory of another session, and the launch directory is authority
+to end that session. So every spawn removes the ten names of `CONTROL_ENV`.
+
+`scrub` is the helper for that removal. The job calls it. The version probe and
+the terminal reset will call it when they move here. Until they move, the loop
+and `grove run` keep their own copies of the list.
+
+<!-- fragment «ravel-job-scrub» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/ravel_job.rs" lines="33-62" parent="ravel-job" -->
+````rust
+/// The loop control variables. Every spawn removes them.
+///
+/// An environment is inherited, so a child that Grove merely declines to give
+/// these still receives whatever Grove's own environment carried. That
+/// includes a live launch directory of another session, which is authority to
+/// end that session. `GROVE_SIGNAL_FILE` and `GROVE_RUN_SIGNAL_FILE` are
+/// retired completion authority, kept for installed v22 sessions.
+pub const CONTROL_ENV: [&str; 10] = [
+    "GROVE_SIGNAL_FILE",
+    "GROVE_RUN_SIGNAL_FILE",
+    "GROVE_LAUNCH_DIR",
+    "HARNESS_DISPATCH_EXIT_FILE",
+    "HARNESS_DISPATCH_RUN_ID",
+    "HARNESS_DISPATCH_STATE_DIR",
+    "RAVEL_EXIT_FILE",
+    "GROVE_PROVIDER_EVIDENCE",
+    "GROVE_HARNESS_PID",
+    "GROVE_CLAUDE_PID",
+];
+
+/// Remove every [`CONTROL_ENV`] name from `command`'s environment.
+///
+/// Each spawn of Grove calls this: the job, the version probe and the terminal
+/// reset. A rule with one argued exception is a rule that a later spawn breaks.
+pub fn scrub(command: &mut Command) {
+    for name in CONTROL_ENV {
+        command.env_remove(name);
+    }
+}
+
+````
+<!-- /fragment -->
+
+<a id="the-ravel-job-vocabulary"></a>
+## The shape, the notices, the end and the error
+
+`Shape` sets the terminal, the streams and the one variable that Grove grants.
+The foreground shape carries the launch directory. The detached shape carries the
+transcript file. `LaunchEvent` has the two notices that the driver lease needs:
+`Started` after a successful spawn and `Reaped` after a successful wait.
+
+`JobEnd` is the end of a job. It has the wait status, the interruption and the
+elapsed time. It has no group field, because Grove checks no group.
+
+`JobError` carries the interruption. A signal that Grove caught is the driver's,
+even when the spawn that follows it fails. An error that dropped the signal
+would turn a Ctrl-C into an ordinary error, and the driver would carry on.
+`Failure` is the same error before the latch is taken into it.
+
+<!-- fragment «ravel-job-vocabulary» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/ravel_job.rs" lines="63-149" parent="ravel-job" -->
+````rust
+/// Which kind of job `ravel` is. The shape fixes the terminal, the streams and
+/// the one variable that Grove grants.
+pub enum Shape<'a> {
+    /// `ravel` leads a new process group in Grove's session. When Grove holds
+    /// the foreground of its terminal, the group of `ravel` takes it. Standard
+    /// input and standard error are inherited. The job receives
+    /// `GROVE_LAUNCH_DIR` with `launch_dir` after the scrub.
+    Foreground { launch_dir: &'a Path },
+    /// `ravel` leads a new POSIX session with no terminal. Standard input is
+    /// end of file, and standard error goes to `transcript`. Every descriptor
+    /// above standard error closes at the exec. The job receives no variable
+    /// that Grove grants.
+    Detached { transcript: File },
+}
+
+/// Evidence about one job, independent of any result that `ravel` returns.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum LaunchEvent {
+    /// The spawn succeeded. `ravel` may already have exited.
+    Started,
+    /// A wait confirmed the reap. It comes before the terminal recovery.
+    Reaped,
+}
+
+/// How a job ended.
+#[derive(Debug)]
+pub struct JobEnd {
+    /// The wait status of `ravel`. Only a successful status counts as evidence
+    /// of cleanup.
+    pub status: ExitStatus,
+    /// The first signal that Grove caught during the job, or the signal that
+    /// the latch still held at the reap. A later signal belongs to the caller.
+    pub interrupted: Option<i32>,
+    /// The time from the spawn to the reap.
+    pub elapsed: Duration,
+}
+
+/// A job that failed to start or to be waited on.
+///
+/// **The error carries the interruption.** A signal that Grove caught is the
+/// driver's, even when the spawn that follows it fails. Dropping it would turn
+/// a Ctrl-C into an ordinary error, and the driver would carry on.
+pub struct JobError {
+    message: String,
+    interrupted: Option<i32>,
+}
+
+impl JobError {
+    /// The signal that Grove caught, if one reached the process before or
+    /// during the job.
+    #[must_use]
+    pub fn interrupted(&self) -> Option<i32> {
+        self.interrupted
+    }
+}
+
+impl fmt::Display for JobError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(&self.message)
+    }
+}
+
+/// The message, not a struct dump: a human reads this in an `anyhow` chain.
+impl fmt::Debug for JobError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(&self.message)
+    }
+}
+
+impl std::error::Error for JobError {}
+
+/// An error before the latch is taken into it.
+struct Failure {
+    message: String,
+    /// A signal that Grove already sent to `ravel` before the failure.
+    sent: Option<i32>,
+}
+
+impl Failure {
+    fn new(message: impl Into<String>) -> Self {
+        Self {
+            message: message.into(),
+            sent: None,
+        }
+    }
+}
+
+````
+<!-- /fragment -->
+
+<a id="the-ravel-job-launch"></a>
+## `launch`: scrub, grant, hand over, spawn
+
+`launch` reads the entry state once and then does its work in `start_and_watch`.
+The error path takes the latch into every failure. This holds for a failed spawn
+and for the checks that run before it.
+
+The order of the environment is load-bearing. The scrub list names
+`GROVE_LAUNCH_DIR`. So the scrub comes first and the foreground grant comes after
+it. Only the foreground shape grants the variable.
+
+The foreground job leads a new process group in Grove's session. The child hands
+itself the terminal before the exec, and the parent repeats the handover after
+the spawn. The detached job closes every descriptor above standard error at the
+exec and leads a new session. Both jobs set the seven job-control signals to
+their defaults between the fork and the exec. The function never clears the latch
+before the spawn.
+
+<!-- fragment «ravel-job-launch» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/ravel_job.rs" lines="150-301" parent="ravel-job" -->
+````rust
+/// Start `ravel` with `command` in `cwd` and wait until it exits.
+///
+/// Standard output goes to `stdout`, a regular file that the caller holds. Its
+/// position and contents stay the caller's. The function never truncates it,
+/// rewinds it or reads it.
+///
+/// `observer` receives [`LaunchEvent::Started`] once after a successful spawn
+/// and [`LaunchEvent::Reaped`] once after a successful wait. A failed spawn
+/// sends neither notice. A failed wait sends no `Reaped`. The observer must
+/// return promptly and must not panic.
+///
+/// **The environment is Grove's minus [`CONTROL_ENV`].** Only [`Shape::Foreground`]
+/// then adds `GROVE_LAUNCH_DIR`.
+///
+/// **The latch catches INT, TERM and HUP from the first call on.** A signal
+/// that Grove ignores stays ignored. The function never clears the latch before
+/// the spawn. So a signal that arrives after the last check of the caller and
+/// before the spawn goes to the new `ravel` at the first poll. At each poll the
+/// function passes the foreground on, sends each latched signal to `ravel`
+/// alone, and checks for an exit without blocking. It never signals a process
+/// group. It waits until `ravel` exits, however long that takes.
+///
+/// # Errors
+/// A command that cannot be spawned, a file that is not regular, or a wait that
+/// fails. Each error carries the interruption: see [`JobError`].
+pub fn launch(
+    command: &Argv,
+    cwd: &Path,
+    stdout: File,
+    observer: &mut dyn FnMut(LaunchEvent),
+    shape: Shape<'_>,
+) -> Result<JobEnd, JobError> {
+    let sigchld_ignored = *ENTRY.get_or_init(enter);
+    start_and_watch(command, cwd, stdout, observer, shape, sigchld_ignored).map_err(|failure| {
+        JobError {
+            message: failure.message,
+            interrupted: failure.sent.or_else(take_interrupt),
+        }
+    })
+}
+
+fn start_and_watch(
+    command: &Argv,
+    cwd: &Path,
+    stdout: File,
+    observer: &mut dyn FnMut(LaunchEvent),
+    shape: Shape<'_>,
+    sigchld_ignored: bool,
+) -> Result<JobEnd, Failure> {
+    ensure_regular(&stdout, "stdout")?;
+    let detached = matches!(shape, Shape::Detached { .. });
+    let mut job = Command::new(command.program());
+    job.args(command.args()).current_dir(cwd).stdout(stdout);
+    // Scrub first and grant second. The order is load-bearing: the scrub list
+    // names `GROVE_LAUNCH_DIR`, and a grant before it would remove the path
+    // that this job is meant to receive.
+    scrub(&mut job);
+    let mut lease = match shape {
+        Shape::Foreground { launch_dir } => {
+            job.env("GROVE_LAUNCH_DIR", launch_dir);
+            Some(Lease {
+                terminal: Terminal::open(),
+                child: 0,
+                held: false,
+                saved: None,
+            })
+        }
+        Shape::Detached { transcript } => {
+            ensure_regular(&transcript, "transcript")?;
+            job.stdin(Stdio::null()).stderr(transcript);
+            None
+        }
+    };
+    // Hand the terminal over from inside the child as well as from the parent
+    // below. The handover of the parent waits on `spawn`, and nothing orders the
+    // first read of the child after it. A read from a background group is what
+    // SIGTTIN stops. Holding the foreground now is also when the modes are
+    // saved, before a child can set the terminal raw.
+    let handover = lease.as_mut().and_then(Lease::hold_before_spawn);
+    let descriptor_limit = if detached { descriptor_limit()? } else { 3 };
+    if !detached {
+        // Through `std`, which runs it before the `pre_exec` callback and
+        // reports a failure as a failed spawn.
+        job.process_group(0);
+    }
+    // SAFETY: the closure runs between `fork` and `exec`, so it may call only
+    // async-signal-safe functions. `fcntl`, `setsid`, `signal`, `getpid` and
+    // `tcsetpgrp` (an `ioctl`) are all on the list of POSIX. The closure
+    // allocates nothing, takes no lock and touches no state of the Rust runtime.
+    unsafe {
+        job.pre_exec(move || {
+            if detached {
+                // Close on exec, not here: the error pipe of `std` must survive
+                // until the exec succeeds, and it is close-on-exec too.
+                for fd in 3..descriptor_limit {
+                    if libc::fcntl(fd, libc::F_SETFD, libc::FD_CLOEXEC) == -1 {
+                        let error = std::io::Error::last_os_error();
+                        if error.raw_os_error() != Some(libc::EBADF) {
+                            return Err(error);
+                        }
+                    }
+                }
+                // `setsid` creates the session and the group. It must come
+                // before the process becomes a group leader.
+                if libc::setsid() == -1 {
+                    return Err(std::io::Error::last_os_error());
+                }
+            }
+            // Until the `tcsetpgrp` below returns, this process is a background
+            // group that touches the terminal. That is what SIGTTOU is raised
+            // for. The loop that follows puts the default back.
+            libc::signal(libc::SIGTTOU, libc::SIG_IGN);
+            if let Some(fd) = handover {
+                libc::tcsetpgrp(fd, libc::getpid());
+            }
+            for signal in DEFAULT_DISPOSITION_IN_CHILD {
+                libc::signal(signal, libc::SIG_DFL);
+            }
+            // Grove repaired an inherited ignored SIGCHLD for itself alone. The
+            // child gets the disposition that it would have inherited.
+            if sigchld_ignored {
+                libc::signal(libc::SIGCHLD, libc::SIG_IGN);
+            }
+            Ok(())
+        });
+    }
+    let mut child = job.spawn().map_err(|error| {
+        Failure::new(format!(
+            "cannot spawn {:?}: {error}; check that the program exists and is executable",
+            command.program()
+        ))
+    })?;
+    observer(LaunchEvent::Started);
+    let pid = child_pid(&child);
+    if !detached {
+        // The parent's half of the same `setpgid`. It is insurance and not a
+        // race: `spawn` returns only after the exec, so the call is measured to
+        // fail with EACCES. That ordering is undocumented, so the call stays.
+        // SAFETY: `setpgid(2)` naming a child of this process.
+        unsafe { libc::setpgid(pid, pid) };
+    }
+    if let Some(lease) = lease.as_mut() {
+        lease.child = pid;
+    }
+    watch(&mut child, lease.as_mut(), observer)
+}
+
+fn child_pid(child: &Child) -> libc::pid_t {
+    // The cast cannot truncate: `std` took this value from a `pid_t`.
+    child.id() as libc::pid_t
+}
+
+````
+<!-- /fragment -->
+
+<a id="the-ravel-job-watch"></a>
+## The poll: forward, check, reap
+
+At each poll the function passes the foreground on and sends a latched signal to
+`ravel` alone. It then checks for an exit without blocking. `try_wait` reports an
+exit and never a stop, so a stopped `ravel` is not a finished job.
+
+At the reap the function takes the signal that the latch still holds into the
+report and then sends `Reaped`. Terminal recovery comes after the notice. A later
+signal belongs to the caller.
+
+A failed wait sends no `Reaped` and no KILL. The error names the process, and
+the signal that Grove already sent stays with the driver. The descriptor scan for
+the detached shape sits here too. It includes descriptors that a caller opened
+before it lowered its soft limit.
+
+<!-- fragment «ravel-job-watch» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/ravel_job.rs" lines="302-409" parent="ravel-job" -->
+````rust
+/// Watch `ravel` to its exit.
+fn watch(
+    child: &mut Child,
+    mut lease: Option<&mut Lease>,
+    observer: &mut dyn FnMut(LaunchEvent),
+) -> Result<JobEnd, Failure> {
+    let pid = child_pid(child);
+    let started = Instant::now();
+    let mut interrupted = None;
+    loop {
+        if let Some(lease) = lease.as_deref_mut() {
+            lease.lend();
+        }
+        if let Some(signal) = take_interrupt() {
+            interrupted.get_or_insert(signal);
+            // SAFETY: `kill(2)` on a child of this process that is not reaped.
+            // An unreaped child keeps its ID, so the signal cannot reach
+            // another process. A failure is ignored: ESRCH means that the exit
+            // came between the poll and the signal, and the check below sees it.
+            unsafe { libc::kill(pid, signal) };
+        }
+        // `try_wait` reports an exit and never a stop. A stopped child is not
+        // an exit.
+        match child.try_wait() {
+            Ok(Some(status)) => {
+                let elapsed = started.elapsed();
+                // Freeze the job at the reap, before the observer or the
+                // terminal recovery can delay it. Later signals are the caller's.
+                let interrupted = interrupted.or_else(take_interrupt);
+                observer(LaunchEvent::Reaped);
+                if let Some(lease) = lease {
+                    lease.reclaim(Some(status));
+                }
+                return Ok(JobEnd {
+                    status,
+                    interrupted,
+                    elapsed,
+                });
+            }
+            Ok(None) => std::thread::sleep(POLL_INTERVAL),
+            Err(error) => {
+                // The status is unknown. Grove sends no KILL: Ravel alone gives
+                // the cleanup assurance. The terminal comes back by the narrow
+                // rule, and the error names the process.
+                if let Some(lease) = lease {
+                    lease.reclaim(None);
+                }
+                return Err(Failure {
+                    message: format!(
+                        "cannot wait on ravel (process {pid}): {error}; it was not killed, \
+                         so check for a running process"
+                    ),
+                    sent: interrupted,
+                });
+            }
+        }
+    }
+}
+
+fn ensure_regular(file: &File, name: &str) -> Result<(), Failure> {
+    let metadata = file
+        .metadata()
+        .map_err(|error| Failure::new(format!("cannot inspect the job {name}: {error}")))?;
+    if metadata.is_file() {
+        Ok(())
+    } else {
+        Err(Failure::new(format!(
+            "the job {name} must be a regular file"
+        )))
+    }
+}
+
+/// Include existing descriptors even if the caller lowered its soft limit after
+/// opening them. The range then covers the descriptors that `std` opens while it
+/// prepares the child. A detached job must not start while another thread
+/// changes the descriptor limit.
+fn descriptor_limit() -> Result<RawFd, Failure> {
+    // SAFETY: `getrlimit` writes the initialised structure only.
+    let mut limit: libc::rlimit = unsafe { std::mem::zeroed() };
+    if unsafe { libc::getrlimit(libc::RLIMIT_NOFILE, &mut limit) } != 0 {
+        return Err(Failure::new(format!(
+            "cannot inspect the descriptor limit: {}",
+            std::io::Error::last_os_error()
+        )));
+    }
+    let mut maximum = i32::try_from(limit.rlim_cur).map_err(|_| {
+        Failure::new("cannot isolate an unbounded descriptor table; set a finite open-file limit")
+    })?;
+    let directory = if cfg!(target_os = "linux") {
+        "/proc/self/fd"
+    } else {
+        "/dev/fd"
+    };
+    for entry in std::fs::read_dir(directory)
+        .map_err(|error| Failure::new(format!("cannot inspect inherited descriptors: {error}")))?
+    {
+        let entry = entry.map_err(|error| Failure::new(error.to_string()))?;
+        if let Some(fd) = entry
+            .file_name()
+            .to_str()
+            .and_then(|name| name.parse::<i32>().ok())
+        {
+            maximum = maximum.max(fd.saturating_add(1));
+        }
+    }
+    Ok(maximum)
+}
+
+````
+<!-- /fragment -->
+
+<a id="the-ravel-job-latch"></a>
+## The latch, the handlers and `reraise`
+
+The latch holds a signal number, because the ending is reported onward. A driver
+that re-raises TERM for a HUP has told its parent the wrong thing. The first call
+of `launch` installs the handlers for INT, TERM and HUP. A signal that Grove
+ignores stays ignored. The driver ignores SIGINT, so a typed Ctrl-C never ends
+the driver. `grove run` keeps the default, so a Ctrl-C cancels it.
+
+The same first call repairs an inherited ignored SIGCHLD. An ignored SIGCHLD
+makes the kernel reap children unwatched, and then nothing is left to wait for.
+Grove restores the default for itself and never installs a handler. The child
+gets the ignore back across the exec.
+
+`take_interrupt` lets a looping driver collect a signal between jobs. `reraise`
+dies of the signal, so that the parent of Grove sees `128 + N` and not a normal
+exit. This module owns that call because this module installed the handler.
+
+<!-- fragment «ravel-job-latch» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/ravel_job.rs" lines="410-532" parent="ravel-job" -->
+````rust
+/// The signal that the handler last received, or `0`.
+///
+/// The state is process-global because a signal disposition is process-global.
+/// The latch holds the number and not a flag, because the ending is reported
+/// onward. A driver that re-raises TERM for a HUP has told its parent the wrong
+/// thing.
+///
+/// **The function never clears the latch before the spawn.** A signal that
+/// arrived while no child existed belongs to the driver, and [`take_interrupt`]
+/// is where the driver collects it. A signal that arrives after the last check of
+/// the driver and before the spawn goes to the new `ravel` at the first poll.
+static INTERRUPTED_BY: AtomicI32 = AtomicI32::new(0);
+
+/// Whether Grove inherited SIGCHLD ignored, read at the first call.
+///
+/// The first call also installs the handlers. The state is read once because
+/// the repair below changes the disposition, and every later read would see the
+/// repair.
+static ENTRY: OnceLock<bool> = OnceLock::new();
+
+/// Which signal, if any, reached this process since the last check. The call
+/// clears the latch.
+///
+/// A looping driver calls this at the top of each iteration and after each reap.
+/// It answers `None` before the first call of [`launch`], because no handler
+/// exists yet and the signal took its default action.
+#[must_use]
+pub fn take_interrupt() -> Option<i32> {
+    match INTERRUPTED_BY.swap(0, Ordering::Relaxed) {
+        0 => None,
+        signal => Some(signal),
+    }
+}
+
+/// A single store is the only work here that is async-signal-safe. The signal
+/// reaches `ravel` one poll later, on the ordinary stack of [`launch`].
+extern "C" fn on_signal(signal: libc::c_int) {
+    INTERRUPTED_BY.store(signal, Ordering::Relaxed);
+}
+
+/// Catch INT, TERM and HUP, then repair an inherited ignored SIGCHLD. Answer
+/// whether SIGCHLD was ignored.
+///
+/// **A disposition that Grove ignores stays ignored.** Ignoring is a statement
+/// that Grove made. The driver ignores SIGINT so that a typed Ctrl-C never ends
+/// it. A handler over that ignore would turn the signal into a cancellation.
+///
+/// **An ignored SIGCHLD makes the kernel reap children unwatched.** Then
+/// nothing is left for the wait to observe. Grove restores the default for
+/// itself, with no flags and never a handler: a handler would turn the exit of
+/// each child into EINTR on whatever Grove is doing.
+fn enter() -> bool {
+    // Through the function pointer, as rustc requires for the cast.
+    let handler = on_signal as extern "C" fn(libc::c_int) as usize;
+    for signal in [libc::SIGINT, libc::SIGTERM, libc::SIGHUP] {
+        if disposition(signal) != libc::SIG_IGN {
+            // SAFETY: `signal(2)` with a handler that performs one relaxed
+            // atomic store.
+            unsafe { libc::signal(signal, handler as libc::sighandler_t) };
+        }
+    }
+    let ignored = disposition(libc::SIGCHLD) == libc::SIG_IGN;
+    if ignored {
+        // SAFETY: `sigaction(2)` installing the default with an empty mask and
+        // no flags, which clears SA_NOCLDWAIT with it.
+        unsafe {
+            let mut default: libc::sigaction = std::mem::zeroed();
+            default.sa_sigaction = libc::SIG_DFL;
+            libc::sigemptyset(&mut default.sa_mask);
+            libc::sigaction(libc::SIGCHLD, &default, std::ptr::null_mut());
+        }
+    }
+    ignored
+}
+
+/// The current disposition of `signal`, read without changing it.
+fn disposition(signal: libc::c_int) -> libc::sighandler_t {
+    // SAFETY: `sigaction(2)` with a null new action only reads the current one
+    // into an initialised structure.
+    unsafe {
+        let mut current: libc::sigaction = std::mem::zeroed();
+        libc::sigaction(signal, std::ptr::null(), &mut current);
+        current.sa_sigaction
+    }
+}
+
+/// Die of the signal that ended this process, so that its parent sees `128 + N`
+/// in the wait status.
+///
+/// A process that catches TERM, tidies up and exits 0 tells its parent that it
+/// finished its work. An exit code cannot say that a signal ended the process.
+/// Only a wait status can, and the only way to produce one is to die of the
+/// signal. So the default disposition returns, the signal is unblocked in case
+/// the handler left it masked, and the signal is raised.
+///
+/// **This module owns the call because this module installed the handler.** What
+/// stays with the caller is whether to re-raise at all. That is a statement about
+/// the exit status of the caller.
+pub fn reraise(signal: i32) -> ! {
+    // A death by signal loses buffered output as `process::exit` does, and the
+    // last diagnostic before a termination is the one that a reader wants most.
+    let _ = std::io::stdout().flush();
+    let _ = std::io::stderr().flush();
+
+    // SAFETY: restoring the default disposition of a signal that this module set
+    // a handler for, unblocking that one signal and raising it against this
+    // process. The set is initialised by `sigemptyset` before use.
+    unsafe {
+        libc::signal(signal, libc::SIG_DFL);
+        let mut unblock: libc::sigset_t = std::mem::zeroed();
+        libc::sigemptyset(&mut unblock);
+        libc::sigaddset(&mut unblock, signal);
+        libc::sigprocmask(libc::SIG_UNBLOCK, &unblock, std::ptr::null_mut());
+        libc::raise(signal);
+    }
+
+    // Unreachable for a signal whose default action terminates, which is every
+    // signal that interrupts a driver. A caller that passes SIGCHLD or SIGURG
+    // gets the conventional code and not a fall-through to code that expected
+    // this call to diverge.
+    std::process::exit(128 + signal)
+}
+
+````
+<!-- /fragment -->
+
+<a id="the-ravel-job-terminal"></a>
+## Job-control defaults and the terminal
+
+Only an ignored disposition survives `execve`. The driver ignores SIGINT for its
+own reasons. Without the list of defaults, `ravel` would inherit the ignore and
+pass it to the harness. Nothing in that session could then be interrupted, and
+nothing could say why.
+
+`Terminal` opens `/dev/tty`. A process with no controlling terminal cannot open
+it and gets no job control. That is the whole gate, and no caller can configure
+it wrongly. `tcsetpgrp` from a background group raises SIGTTOU, so every call
+ignores SIGTTOU and then restores the previous disposition.
+
+<!-- fragment «ravel-job-terminal» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/ravel_job.rs" lines="533-641" parent="ravel-job" -->
+````rust
+/// The signals that the child gets at their **default** disposition.
+///
+/// **Only an ignored disposition survives `execve`.** POSIX resets a caught
+/// handler across an exec and leaves an ignore in place. The driver ignores
+/// SIGINT for its own reasons, and without this list `ravel` would inherit the
+/// ignore. Ravel passes its entry signal state to the harness, so the ignore
+/// would reach the harness and every login shell or `ssh` hop in between. An
+/// interactive session under them could not be interrupted, and nothing in it
+/// could say why.
+const DEFAULT_DISPOSITION_IN_CHILD: [libc::c_int; 7] = [
+    libc::SIGINT,
+    libc::SIGQUIT,
+    libc::SIGTERM,
+    libc::SIGHUP,
+    libc::SIGTSTP,
+    libc::SIGTTIN,
+    libc::SIGTTOU,
+];
+
+/// The controlling terminal of Grove, open for as long as a job needs to hand it
+/// over and take it back.
+struct Terminal(OwnedFd);
+
+impl Terminal {
+    /// `/dev/tty` and not standard input, and the difference is the gate.
+    ///
+    /// `/dev/tty` is the controlling terminal by definition. A process whose
+    /// standard input was redirected still hands over the right device. A
+    /// process with no controlling terminal, such as a test runner, a CI job or a
+    /// daemon, cannot open it and gets no job control. There is no flag to set
+    /// and nothing for a caller to configure wrongly.
+    fn open() -> Option<Self> {
+        // SAFETY: `open(2)` on a constant NUL-terminated path. The descriptor is
+        // owned from here on and closed by `OwnedFd`.
+        let fd = unsafe {
+            libc::open(
+                c"/dev/tty".as_ptr(),
+                libc::O_RDWR | libc::O_NOCTTY | libc::O_CLOEXEC,
+            )
+        };
+        if fd < 0 {
+            return None;
+        }
+        // SAFETY: a fresh descriptor that this process just opened and has not
+        // handed to anything else.
+        Some(Self(unsafe { OwnedFd::from_raw_fd(fd) }))
+    }
+
+    fn fd(&self) -> RawFd {
+        self.0.as_raw_fd()
+    }
+
+    /// The process group that owns the terminal now, or `-1`.
+    fn foreground(&self) -> libc::pid_t {
+        // SAFETY: `tcgetpgrp(3)` on a descriptor that this structure owns.
+        unsafe { libc::tcgetpgrp(self.fd()) }
+    }
+
+    /// Make `pgid` the foreground group of the terminal.
+    ///
+    /// **`tcsetpgrp` from a group that is not the foreground group raises
+    /// SIGTTOU at the caller**, and the default action stops it. A process that
+    /// reclaims the terminal from its child would stop itself in the act. Ignore
+    /// SIGTTOU across the call and restore the previous disposition after it.
+    /// That is the standard dance of job control, and it is why this is a method
+    /// and not a bare call at three sites.
+    fn hand_to(&self, pgid: libc::pid_t) {
+        // SAFETY: `signal(2)` and `tcsetpgrp(3)` on a descriptor that this
+        // structure owns. The previous disposition returns before this function
+        // does.
+        unsafe {
+            let previous = libc::signal(libc::SIGTTOU, libc::SIG_IGN);
+            libc::tcsetpgrp(self.fd(), pgid);
+            libc::signal(libc::SIGTTOU, previous);
+        }
+    }
+
+    /// The attributes of the terminal now, or `None` when they cannot be read.
+    fn attributes(&self) -> Option<libc::termios> {
+        // SAFETY: `tcgetattr(3)` fills an initialised structure from a
+        // descriptor that this structure owns.
+        unsafe {
+            let mut attributes: libc::termios = std::mem::zeroed();
+            (libc::tcgetattr(self.fd(), &mut attributes) == 0).then_some(attributes)
+        }
+    }
+
+    /// Put back attributes that were saved earlier: cooked mode and echo, for a
+    /// child that set the terminal raw and ended before it could undo that.
+    ///
+    /// SIGTTOU is ignored across the call, for the reason in [`Terminal::hand_to`].
+    fn restore(&self, attributes: &libc::termios) {
+        // SAFETY: `signal(2)` and `tcsetattr(3)` on a descriptor that this
+        // structure owns, with attributes that `tcgetattr` produced. The previous
+        // disposition returns before this function does.
+        unsafe {
+            let previous = libc::signal(libc::SIGTTOU, libc::SIG_IGN);
+            libc::tcsetattr(self.fd(), libc::TCSANOW, attributes);
+            libc::signal(libc::SIGTTOU, previous);
+        }
+    }
+}
+
+/// The process group of this process.
+fn own_group() -> libc::pid_t {
+    // SAFETY: `getpgrp(2)` takes no argument and cannot fail.
+    unsafe { libc::getpgrp() }
+}
+
+````
+<!-- /fragment -->
+
+<a id="the-ravel-job-lease"></a>
+## The lease: when the terminal comes back
+
+A `Lease` records whether the job ever held the foreground. Having held it is the
+gate for the way back. A process that never held the foreground lent nothing, so
+it takes nothing and restores nothing.
+
+Three rules decide from whom `reclaim` takes the terminal. After an ordinary
+exit it takes the terminal only from the group of `ravel`. After a death by
+signal it takes the terminal from any group except its own and the session
+leader's. After a failed wait it behaves as after an ordinary exit.
+
+The attributes return whenever Grove ends in the foreground. So a raw-mode
+harness that was killed still leaves cooked mode behind.
+
+<!-- fragment «ravel-job-lease» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/ravel_job.rs" lines="642-728" parent="ravel-job" -->
+````rust
+/// The share of the terminal that one foreground job holds: when it was held,
+/// what it looked like then, and how it returns.
+///
+/// **Having held the foreground is the gate for everything on the way back.**
+/// A process in the foreground lends the terminal to its child and owes the
+/// human a terminal back. A process that never held it lent nothing. It takes
+/// nothing and restores nothing, because anything else would steal the terminal
+/// from the job that holds it.
+struct Lease {
+    terminal: Option<Terminal>,
+    child: libc::pid_t,
+    /// Whether the job has held the foreground at any moment so far.
+    held: bool,
+    /// The attributes at the moment the job first held the foreground, when they
+    /// could be read.
+    saved: Option<libc::termios>,
+}
+
+impl Lease {
+    /// Before the spawn: whether Grove holds the foreground now. If it does,
+    /// answer the descriptor that the child hands itself the terminal through.
+    fn hold_before_spawn(&mut self) -> Option<RawFd> {
+        let terminal = self.terminal.as_ref()?;
+        if terminal.foreground() != own_group() {
+            return None;
+        }
+        self.held = true;
+        self.saved = terminal.attributes();
+        Some(terminal.fd())
+    }
+
+    /// Called at each poll. The check repeats each time, so a driver that started
+    /// in the background and later came forward (`grove &`, then `fg`) hands the
+    /// terminal to the job that runs under it. It saves the modes only then.
+    fn lend(&mut self) {
+        let Some(terminal) = &self.terminal else {
+            return;
+        };
+        if terminal.foreground() != own_group() {
+            return;
+        }
+        if !self.held {
+            self.held = true;
+            self.saved = terminal.attributes();
+        }
+        terminal.hand_to(self.child);
+    }
+
+    /// Take the terminal back after the reap, and restore it.
+    ///
+    /// **Three rules decide from whom.**
+    ///
+    /// - After an ordinary exit, take it only from the group of `ravel`. That
+    ///   group is gone by now, but the terminal still names it until another
+    ///   group receives it. A group that took the terminal on purpose, such as a
+    ///   job-control shell nested in this session, keeps it.
+    /// - After a death by signal, take it from any group except this one and
+    ///   the session leader's. A supervisor that died can leave the group of its
+    ///   own child holding the terminal, an orphan in the foreground that reads
+    ///   the input of the human. Only this rule takes the terminal back.
+    /// - After a failed wait the status is unknown. Take it only from the group
+    ///   of `ravel`.
+    ///
+    /// The attributes return whenever this group ends in the foreground, so a
+    /// raw-mode harness that was killed still leaves cooked mode behind.
+    fn reclaim(&self, status: Option<ExitStatus>) {
+        use std::os::unix::process::ExitStatusExt as _;
+        let Some(terminal) = self.terminal.as_ref().filter(|_| self.held) else {
+            return;
+        };
+        let holder = terminal.foreground();
+        let own = own_group();
+        let take = if status.and_then(|status| status.signal()).is_some() {
+            // SAFETY: `getsid(2)` on this process, which cannot fail.
+            let leader = unsafe { libc::getsid(0) };
+            holder > 0 && holder != own && holder != leader
+        } else {
+            holder == self.child
+        };
+        if take {
+            terminal.hand_to(own);
+        }
+        if let Some(saved) = self.saved.as_ref().filter(|_| terminal.foreground() == own) {
+            terminal.restore(saved);
+        }
+    }
+}
+````
+<!-- /fragment -->
+
+<a id="ravel-job-evidence"></a>
+## What checks the function
+
+`tests/ravel_job.rs` checks what a caller relies on, with no terminal. It checks
+the order of the notices and the environment grant of each shape. It checks that
+a failed spawn sends no notice and that the error carries a caught signal. It
+uses `/usr/bin/env` and `/usr/bin/true` only for the environment and the notices.
+
+Job control has no stand-in test. `tests/session_command.rs` and
+`tests/session_result_installed.rs` run the installed Ravel through the function,
+one case for each shape. `task ravel:commands` and `task ravel:result` run them
+with `RAVEL` set. A pseudo-terminal run of the lifecycle case engages the
+handover. The loop-driver cases under a pseudo-terminal stay the acceptance of
+the foreground job after the lifecycle moves here.
 
 [Previous: The guaranteed core](18-the-core.md) | [Contents](README.md) | [Next: What could not move](20-what-could-not-move.md)

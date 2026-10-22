@@ -6,10 +6,10 @@ use std::os::unix::ffi::OsStrExt;
 use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
 use std::process::Command;
-use std::time::Duration;
 
-use grove_loop::{session_command, session_result::SessionResult, Handle, Kind, Selection};
-use keyed_launch::{Argv, Escalation, Group, Launch, NoninteractiveLaunch};
+use grove_loop::ravel_job::{self, Shape};
+use grove_loop::session_command::{self, Argv};
+use grove_loop::{session_result::SessionResult, Handle, Kind, Selection};
 
 mod support;
 
@@ -76,11 +76,6 @@ fn invocation(home: &Path, path: &Path, request: Argv) -> Argv {
     Argv::new("/usr/bin/env".into(), words)
 }
 
-const ESCALATION: Escalation = Escalation {
-    grace: Duration::ZERO,
-    kill_grace: Duration::from_secs(10),
-};
-
 // A private report flag, wrong task data, prompt trimming or PATH fallback makes
 // the real front refuse or makes the observed policy/harness behavior disagree.
 #[test]
@@ -129,24 +124,19 @@ fn lifecycle_request_preserves_public_inputs_and_uses_the_selected_ending_path()
         let request = session_command::lifecycle(pair.executable(), &task, &prompt, &exit_dir);
         let argv = invocation(&home, &decoy_bin, request);
         let capture = SessionResult::allocate().unwrap();
-        let names = support::grove_env_names();
-        let scrub: Vec<&OsStr> = names.iter().map(OsStr::new).collect();
-        let ended = keyed_launch::run_observed_with_stdout(
-            Launch {
-                argv: &argv,
-                channel: None,
-                scrub: &scrub,
-                grant: &[],
-                transparent: None,
-                cwd: Some(temp.path()),
-                escalation: ESCALATION,
-            },
+        let launch_dir = temp.path().join("launch directory");
+        fs::create_dir(&launch_dir).unwrap();
+        let ended = ravel_job::launch(
+            &argv,
+            temp.path(),
             capture.stdout().unwrap(),
             &mut |_| {},
+            Shape::Foreground {
+                launch_dir: &launch_dir,
+            },
         )
         .unwrap();
         assert!(ended.status.success(), "{ended:?}");
-        assert_eq!(ended.group, Group::Gone);
         assert_eq!(
             capture.read().unwrap(),
             if force_stop {
@@ -216,20 +206,16 @@ fn confined_request_grants_only_the_named_runtime_file_and_isolates_the_result()
         let argv = invocation(&home, pair.bin(), request);
         let capture = SessionResult::allocate().unwrap();
         let mut transcript = tempfile::tempfile().unwrap();
-        let names = support::grove_env_names();
-        let scrub: Vec<&OsStr> = names.iter().map(OsStr::new).collect();
-        let ended = keyed_launch::run_noninteractive_with_stdout(
-            NoninteractiveLaunch {
-                argv: &argv,
-                scrub: &scrub,
-                cwd: Some(&work),
-                escalation: ESCALATION,
-            },
-            transcript.try_clone().unwrap(),
+        let ended = ravel_job::launch(
+            &argv,
+            &work,
             capture.stdout().unwrap(),
+            &mut |_| {},
+            Shape::Detached {
+                transcript: transcript.try_clone().unwrap(),
+            },
         )
         .unwrap();
-        assert_eq!(ended.group, Group::Gone);
         assert_eq!(ended.status.success(), granted, "{ended:?}");
         assert_eq!(capture.read().is_ok(), granted);
         transcript.rewind().unwrap();

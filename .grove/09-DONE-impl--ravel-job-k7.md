@@ -73,3 +73,52 @@ callers move in the next two leaves.
   running log so the next two leaves use them.
 - The function holds the signal and terminal contracts, and every later leaf
   relies on it. Cut a `review-impl` leaf at the end of this leaf.
+
+## Decisions (running log)
+
+- **Names.** The module is `grove_loop::ravel_job`, public so that the
+  integration tests and `crates/grove` reach it. The function is
+  `ravel_job::launch(command: &Argv, cwd: &Path, stdout: File, observer: &mut
+  dyn FnMut(LaunchEvent), shape: Shape<'_>) -> Result<JobEnd, JobError>`.
+  `Shape` is `Foreground { launch_dir: &Path }` or `Detached { transcript: File }`.
+  `JobEnd` holds `status`, `interrupted: Option<i32>` and `elapsed`. `JobError`
+  has `interrupted()`. The module also owns `LaunchEvent { Started, Reaped }`,
+  `take_interrupt`, `reraise`, `CONTROL_ENV` (the one list of ten names) and
+  `scrub(&mut Command)`. The next two leaves use these names.
+- **`Argv`.** It is `session_command::Argv` with `new`, `program`, `args` and
+  `words`. It has no `arg0` field, because no caller of Grove uses one. The two
+  callers convert it to `keyed_launch::Argv` with one line at the call site, in
+  `launch_session` and in `standalone::execute`. The contract leaves delete those
+  lines.
+- **Wait.** The function polls with `Child::try_wait`, which reaps at the poll
+  that sees the exit and never reports a stop. The runner needed `waitid` with
+  `WNOWAIT` only to kill the group before the reap. Grove no longer kills a
+  group, so the plain call is enough.
+- **Entry.** One `OnceLock<bool>` runs at the first call. It installs the INT,
+  TERM and HUP handlers over every disposition that is not an ignore, and it
+  repairs an inherited ignored SIGCHLD. The bool says whether SIGCHLD was ignored,
+  so the child gets that disposition back. Both effects share one lock so that
+  neither can run twice.
+- **Early errors.** A non-regular stdout or transcript, and a failed descriptor
+  scan, return before the spawn. They pass through the same constructor as a
+  failed spawn, so they take the latch into the error too.
+- **Tests.** `tests/ravel_job.rs` checks the notices, the environment grant, the
+  errors and the latch with no terminal. It uses `/usr/bin/env` and
+  `/usr/bin/true` only for the environment and the order of notices. Job control
+  is checked only by the installed-Ravel cases of `session_command.rs` and
+  `session_result_installed.rs`, one case per shape. The latch test was seen to
+  fail when `launch` stopped taking the latch into the error.
+- **Book.** No new chapter. `ravel_job.rs` is one more block of chapter 19, beside
+  `launch_directory`, `session_result` and `session_command`, under the slice
+  `four-things-a-runner-cannot-choose`. `book-specs-k14` must record that block in
+  `docs/specs/grove-loop-book-structure.md`, where chapter 19 still says that all
+  spawning is `keyed-launch`'s. No new slice is cut.
+- **Review.** `ravel-job-k17` (`review-impl`) is inserted ahead of
+  `grove-run-job-k8`, so the read comes before any caller moves. The root brief's
+  *Decomposition* list carries the new numbers. This session has no provider
+  evidence, so the review has no Creator line.
+- **Result.** `bash scripts/check.sh` passes all 20 checks. `task ravel:commands`,
+  `task ravel:result` and `task test:grove-loop` pass with the installed Ravel
+  1.1.0. A pseudo-terminal run of the lifecycle case engaged the handover and
+  passed. The `grove-loop` book now has 18 roots and 15,244 lines, and `overview`
+  chapter 06 carries the `Argv` bridge.

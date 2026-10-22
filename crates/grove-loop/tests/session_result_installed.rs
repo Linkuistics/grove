@@ -1,11 +1,10 @@
 //! Exercise the shared reader with the independently installed public Ravel CLI.
-use std::ffi::OsStr;
 use std::fs;
 use std::io::{Read, Seek};
-use std::time::Duration;
 
+use grove_loop::ravel_job::{self, Shape};
+use grove_loop::session_command::Argv;
 use grove_loop::session_result::SessionResult;
-use keyed_launch::{Argv, Escalation, Group, Launch, NoninteractiveLaunch};
 
 mod support;
 
@@ -156,11 +155,9 @@ fn both_stdout_runner_apis_read_only_the_installed_session_result() {
     assert!(version.status.success());
     assert_eq!(version.stdout, b"ravel 1.1.0\n");
 
-    // Both runners scrub inherited live authority independently of Cargo's
+    // Both shapes scrub inherited live authority independently of Cargo's
     // guard. PATH contains only the copied pair: no host Bun/Node or old sibling.
-    let names = support::grove_env_names();
-    let scrub: Vec<&OsStr> = names.iter().map(OsStr::new).collect();
-    for noninteractive in [false, true] {
+    for detached in [false, true] {
         for (supplied, valid, successful) in [
             (Some("grove-continue"), true, true),
             (Some("grove-force-stop"), true, true),
@@ -190,7 +187,7 @@ fn both_stdout_runner_apis_read_only_the_installed_session_result() {
             )
             .unwrap();
             // env execs the same public front, supplying an isolated PATH even
-            // for NoninteractiveLaunch, which deliberately has no env grants.
+            // for the detached shape, which deliberately has no env grants.
             let argv = Argv::new(
                 "/usr/bin/env".into(),
                 vec![
@@ -205,42 +202,26 @@ fn both_stdout_runner_apis_read_only_the_installed_session_result() {
                 ],
             );
             let capture = SessionResult::allocate().unwrap();
-            let escalation = Escalation {
-                grace: Duration::from_secs(2),
-                kill_grace: Duration::from_secs(5),
-            };
             let mut transcript = tempfile::tempfile().unwrap();
-            let ended = if noninteractive {
-                keyed_launch::run_noninteractive_with_stdout(
-                    NoninteractiveLaunch {
-                        argv: &argv,
-                        scrub: &scrub,
-                        cwd: Some(temp.path()),
-                        escalation,
-                    },
-                    transcript.try_clone().unwrap(),
-                    capture.stdout().unwrap(),
-                )
-            } else {
-                keyed_launch::run_observed_with_stdout(
-                    Launch {
-                        argv: &argv,
-                        channel: None,
-                        scrub: &scrub,
-                        grant: &[],
-                        transparent: None,
-                        cwd: Some(temp.path()),
-                        escalation,
-                    },
-                    capture.stdout().unwrap(),
-                    &mut |_| {},
-                )
-            }
+            let ended = ravel_job::launch(
+                &argv,
+                temp.path(),
+                capture.stdout().unwrap(),
+                &mut |_| {},
+                if detached {
+                    Shape::Detached {
+                        transcript: transcript.try_clone().unwrap(),
+                    }
+                } else {
+                    Shape::Foreground {
+                        launch_dir: temp.path(),
+                    }
+                },
+            )
             .unwrap();
-            assert!(!matches!(ended.group, Group::Present { .. }));
             assert_eq!(ended.status.success(), successful);
             assert_eq!(capture.read().is_ok(), valid);
-            if noninteractive {
+            if detached {
                 transcript.rewind().unwrap();
                 let mut text = String::new();
                 transcript.read_to_string(&mut text).unwrap();

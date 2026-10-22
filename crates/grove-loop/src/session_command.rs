@@ -8,12 +8,49 @@ use std::ffi::{OsStr, OsString};
 use std::path::{Path, PathBuf};
 
 use anyhow::Context;
-use keyed_launch::Argv;
 
 use crate::{
     session_result::{CONTINUE_RESULT, FORCE_STOP_RESULT},
     Error, Selection,
 };
+
+/// A program and its arguments, in order, ready to spawn.
+///
+/// There is no shell and no second reading of any word. Each word is spawned as
+/// it is given.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Argv {
+    program: OsString,
+    args: Vec<OsString>,
+}
+
+impl Argv {
+    /// A program and arguments that the caller built, each string one whole word.
+    #[must_use]
+    pub fn new(program: OsString, args: Vec<OsString>) -> Self {
+        Self { program, args }
+    }
+
+    #[must_use]
+    pub fn program(&self) -> &OsStr {
+        &self.program
+    }
+
+    #[must_use]
+    pub fn args(&self) -> &[OsString] {
+        &self.args
+    }
+
+    /// The whole command as one word list, program first. A consumer that builds
+    /// a `Command` and a diagnostic both want this shape.
+    #[must_use]
+    pub fn words(&self) -> Vec<OsString> {
+        let mut words = Vec::with_capacity(self.args.len() + 1);
+        words.push(self.program.clone());
+        words.extend(self.args.iter().cloned());
+        words
+    }
+}
 
 /// The lifecycle request for the same selection that composed the prompt.
 ///

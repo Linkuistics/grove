@@ -84,7 +84,7 @@ the guide must show a real invocation, not merely name the command.
 Rows G1–G3 come from `grove --help`. G4 and G5 are behaviours that no help text
 states. G4 is the absence of lifecycle selector arguments. G5 comes from the
 source: `grove` re-raises the signal that killed it
-(`keyed_launch::reraise`). That re-raise makes `128 + N` observable to a wrapper.
+(`grove_loop::reraise`, defined in `ravel_job`). That re-raise makes `128 + N` observable to a wrapper.
 
 ### `grove-llm` — the tree interface
 
@@ -105,7 +105,7 @@ The usage line is `Usage: grove-llm [COMMAND]`. The binary itself also takes
 | L9 | `leaf-retire` | `<LEAF_PATH>` | Worked. Adds the `DONE` infix in place. Refuses a brief, a `DONE` leaf and an `ABANDONED` leaf. Makes no commit. |
 | L10 | `leaf-prune` | `<PATH>` — a live leaf **or** a node directory | Worked. HITL: only after explicit human confirmation. On a node it marks every live leaf in the subtree and leaves `DONE` ones alone. Refuses the grove root. Makes no commit. |
 | L11 | `finish-commit` | `<FINISH_HANDLE>` | Worked. Revalidates the finish leaf and the absence of ordinary work, then deletes and commits only `.grove/`. Does not stand in for the human confirmation. |
-| L12 | `record-teardown` | none | Worked. Records a completed teardown in `$GROVE_LAUNCH_DIR` after `finish-commit`. Refuses while the tree exists. Outside a loop it records nothing. Current prompts supply canonical `ravel end-session grove-continue` and `grove-force-stop` commands. After epoch invalidation, interruption wins. A successful exact force-stop comes next, then the recorded teardown. Last comes continuation, with a successful status and no surviving group. Force-stop exits 1 without undoing teardown. Other results stop. Original live-v22 launches retain their own ending contract. |
+| L12 | `record-teardown` | none | Worked. Records a completed teardown in `$GROVE_LAUNCH_DIR` after `finish-commit`. Refuses while the tree exists. Outside a loop it records nothing. Current prompts supply canonical `ravel end-session grove-continue` and `grove-force-stop` commands. After epoch invalidation, interruption wins. A successful exact force-stop comes next, then the recorded teardown. Last comes continuation, which needs a successful status with exactly `grove-continue`. Grove probes no process group, because Ravel gives the cleanup assurance. Force-stop exits 1 without undoing teardown. Other results stop. Original live-v22 launches retain their own ending contract. |
 | L13 | `-h`/`--help`, `-V`/`--version`, `help [COMMAND]` | — | Named once, with the note that every verb carries its own `--help` and that the help text is the authority on what exists. |
 
 <!-- tc: pending because the conversion has not reached this part of the document -->

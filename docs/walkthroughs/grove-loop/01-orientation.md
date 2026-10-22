@@ -87,7 +87,7 @@ The verb surface writes only Grove's teardown record in the launch directory.
 <!-- fragment «manifest-dependencies» owner="allowed-to-mean" source="crates/grove-loop/Cargo.toml" lines="11-37" parent="manifest-domain-bound" -->
 ````toml
 
-# **This crate and grove-tui are domain-bound.** The three reusable
+# **This crate and grove-tui are domain-bound.** The two reusable
 # library crates say nothing about grove; this one is grove — kind, handle, brief
 # chain, outcome, finishing — and `docs/specs/module-decomposition.md`, decision
 # 1, marks it *not domain-free* for exactly that reason.

@@ -1059,7 +1059,7 @@ fn diagnostics_of(path: &Path) -> String {
     fs::read_to_string(path).unwrap_or_default()
 }
 
-// The escalation signals the session's **process group**, so a command the
+// Ravel's escalation signals the session's **process group**, so a command the
 // session spawned — a tool subprocess, a language server, an agent's own
 // in-flight `grove-llm` — is reaped with it rather than surviving the SIGKILL
 // and staying attached to the terminal.

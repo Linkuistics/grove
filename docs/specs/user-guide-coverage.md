@@ -1,3 +1,5 @@
+<!-- tc: pending because the conversion has not reached this part of the document -->
+
 # user-guide-coverage
 
 The coverage inventory for [`USAGE.md`](../USAGE.md): the set that document is
@@ -77,32 +79,36 @@ the guide must show a real invocation, not merely name the command.
 
 | G6 | `grove view [WORKTREE]` | Current and explicit worktree; no upward search, read-only Markdown, automatic/manual refresh, full-width Tree/File switching with active-view and Tab cues, leading lifecycle glyphs/words/colors with an independent cursor and fold markers, whole-subtree totals, bounded indentation and key-preserving elision at 60 × 10, tree/parent navigation, File-only line/page/Unicode horizontal scrolling, help, independent viewport and resize state retention, responsive contention/retry, error recovery and non-TTY refusal. Shared snapshot validation gives the viewer, driver and `pick` consistent duplicate-key and multiple-live-finish refusal, with identity-preserving repair guidance. Persistent RUNNING/NEXT summaries show idle NEXT and witnessed same-tree RUNNING with exclusion-aware NEXT, including finish after the last running ordinary leaf. RUNNING uses bold yellow activity/item text while lifecycle colors remain independent; rename/move/retirement/decomposition follow the key and branch children remain eligible. Labels and keys survive folded/File summaries at 60 × 10. Real launch application controls cover those behaviors, read-only multiple viewers and stale-row clearing. Independent tree/activity consistency, unavailable legacy active epochs, Idle after a validated private witness releases despite an active epoch, and bounded contention/recovery remain. Viewing guidance explains runtime waiting and the suspended-reader 30-second handoff bound and restart. Witnessed summaries retain launch handles with item absent, tree absent, tree unavailable or previous tree qualifiers; qualifiers and keys survive minimum-width clipping. Previous-tree mandates attach to no row and exclude no reused key; same-tree item absence still permits NEXT. Real-launch controls cover absence, replacement and first arrivals, saved-state reset versus same-root brief edits, aliases, failed/immediate spawn, signal-before-reap, handoff and killed drivers with surviving sessions. Full signal/panic restoration evidence follows separately. |
 
-Rows G1–G3 come from `grove --help`. G4 and G5 are behaviours no help text
-states: G4 is the absence of lifecycle selector arguments, and G5 is verified
-in the source — `grove` re-raises the signal it was killed by
-(`keyed_launch::reraise`), which is what makes `128 + N` observable to a wrapper.
+<!-- tc: on -->
+
+Rows G1–G3 come from `grove --help`. G4 and G5 are behaviours that no help text
+states. G4 is the absence of lifecycle selector arguments. G5 comes from the
+source: `grove` re-raises the signal that killed it
+(`keyed_launch::reraise`). That re-raise makes `128 + N` observable to a wrapper.
 
 ### `grove-llm` — the tree interface
 
-`Usage: grove-llm [COMMAND]`, plus `-h`/`--help` and `-V`/`--version` on the
-binary itself. Twelve verbs; `help` is clap's own and is covered by the row for
-`--help`.
+The usage line is `Usage: grove-llm [COMMAND]`. The binary itself also takes
+`-h`/`--help` and `-V`/`--version`. The surface has twelve verbs. The row for
+`--help` covers `help`, which is clap's own.
 
 | Row | Verb | Arguments and flags — all of them | Obligation |
 |---|---|---|---|
-| L1 | `root-init` | `[SLUG]` (default `plan`) | Worked. Creates `.grove/`, the root `_BRIEF.md`, and `01-requirements--<slug>-k1.md`; refuses an existing `.grove/`; no commit. Note that bare `grove` does this for you. |
-| L2 | `pick` | none | Worked, as a diagnostic. Depth-first pre-order; empty stdout when nothing is live. |
-| L3 | `brief-chain` | `[LEAF_PATH]` | Worked, as a diagnostic. Defaults to `pick`'s leaf; each level must have exactly one correctly placed node file; a missing or competing file refuses the read. |
+| L1 | `root-init` | `[SLUG]` (default `plan`) | Worked. Creates `.grove/`, the root `_BRIEF.md`, and `01-requirements--<slug>-k1.md`. Refuses an existing `.grove/`. Makes no commit. Note that bare `grove` does this for you. |
+| L2 | `pick` | none | Worked, as a diagnostic. Depth-first pre-order. Empty stdout when nothing is live. |
+| L3 | `brief-chain` | `[LEAF_PATH]` | Worked, as a diagnostic. Defaults to `pick`'s leaf. Each level must have exactly one correctly placed node file. A missing or competing file refuses the read. |
 | L4 | `kind` | `[LEAF_PATH]` | Named, as a diagnostic. Defaults to `pick`'s leaf. |
-| L5 | `resolve` | `<REFERENCE>` — `[n]`, `n`, `[n]-slug`, `<slug>-k<key>`, or a bare slug | Worked. Searches live, `DONE` and `ABANDONED` alike; a node resolves to its directory using its node-file slug and directory key; title edits change handles but preserve keys; ambiguity lists the keys; exits zero either way. |
-| L6 | `leaf-add` | `<PARENT>` `<SLUG>`, `--kind <KIND>` (required, repeatable) | Worked. `.` for the root; one leaf per `--kind` in order, as one unit; appends at the end; `finish` is refused; no commit. |
-| L7 | `leaf-insert` | `<TARGET>` `<SLUG>`, `--kind <KIND>` (required, **not** repeatable — one leaf per call) | Worked. Shifts the target and later siblings up one; subtrees and keys ride along; no file contents are rewritten; no commit. |
-| L8 | `leaf-decompose` | `<LEAF_PATH>` `<FIRST_CHILD_SLUG>`, `--kind <KIND>` (optional) | Worked. Leaf becomes a node directory with the key preserved, body becomes `_<slug>.md` inside `NN-k<key>/`, first child inherits the kind unless overridden; no commit. |
-| L9 | `leaf-retire` | `<LEAF_PATH>` | Worked. Adds the `DONE` infix in place; refuses a brief, a `DONE` leaf and an `ABANDONED` leaf; no commit. |
-| L10 | `leaf-prune` | `<PATH>` — a live leaf **or** a node directory | Worked. HITL: only after explicit human confirmation. On a node it marks every live leaf in the subtree and leaves `DONE` ones alone; refuses the grove root; no commit. |
-| L11 | `finish-commit` | `<FINISH_HANDLE>` | Worked. Revalidates the finish leaf and the absence of ordinary work, then deletes and commits only `.grove/`; does not stand in for the human confirmation. |
-| L12 | `record-teardown` | none | Worked. Records a completed teardown in `$GROVE_LAUNCH_DIR` after `finish-commit`; refuses while the tree exists; outside a loop records nothing. Current prompts supply canonical `ravel end-session grove-continue` and `grove-force-stop` commands. After epoch invalidation, interruption wins, then successful exact force-stop, then recorded teardown, then continuation with successful status and no surviving group. Force-stop exits 1 without undoing teardown; other results stop. Original live-v22 launches retain their own ending contract. |
+| L5 | `resolve` | `<REFERENCE>`, which is `[n]`, `n`, `[n]-slug`, `<slug>-k<key>` or a bare slug | Worked. Searches live, `DONE` and `ABANDONED` alike. A node resolves to its directory using its node-file slug and directory key. Title edits change handles but preserve keys. Ambiguity lists the keys. Exits zero either way. |
+| L6 | `leaf-add` | `<PARENT>` `<SLUG>`, `--kind <KIND>` (required, repeatable) | Worked. `.` names the root. One leaf per `--kind` in order, as one unit. Appends at the end. Refuses `finish`. Makes no commit. |
+| L7 | `leaf-insert` | `<TARGET>` `<SLUG>`, `--kind <KIND>` (required, **not** repeatable — one leaf per call) | Worked. Shifts the target and later siblings up one. Subtrees and keys ride along. Rewrites no file contents. Makes no commit. |
+| L8 | `leaf-decompose` | `<LEAF_PATH>` `<FIRST_CHILD_SLUG>`, `--kind <KIND>` (optional) | Worked. Leaf becomes a node directory with the key preserved. The body becomes `_<slug>.md` inside `NN-k<key>/`. The first child inherits the kind unless `--kind` overrides it. Makes no commit. |
+| L9 | `leaf-retire` | `<LEAF_PATH>` | Worked. Adds the `DONE` infix in place. Refuses a brief, a `DONE` leaf and an `ABANDONED` leaf. Makes no commit. |
+| L10 | `leaf-prune` | `<PATH>` — a live leaf **or** a node directory | Worked. HITL: only after explicit human confirmation. On a node it marks every live leaf in the subtree and leaves `DONE` ones alone. Refuses the grove root. Makes no commit. |
+| L11 | `finish-commit` | `<FINISH_HANDLE>` | Worked. Revalidates the finish leaf and the absence of ordinary work, then deletes and commits only `.grove/`. Does not stand in for the human confirmation. |
+| L12 | `record-teardown` | none | Worked. Records a completed teardown in `$GROVE_LAUNCH_DIR` after `finish-commit`. Refuses while the tree exists. Outside a loop it records nothing. Current prompts supply canonical `ravel end-session grove-continue` and `grove-force-stop` commands. After epoch invalidation, interruption wins. A successful exact force-stop comes next, then the recorded teardown. Last comes continuation, with a successful status and no surviving group. Force-stop exits 1 without undoing teardown. Other results stop. Original live-v22 launches retain their own ending contract. |
 | L13 | `-h`/`--help`, `-V`/`--version`, `help [COMMAND]` | — | Named once, with the note that every verb carries its own `--help` and that the help text is the authority on what exists. |
+
+<!-- tc: pending because the conversion has not reached this part of the document -->
 
 **Two rows were corrected by `usage-guide-k23`, against the binary.** The
 inventory claims traceability to grove 20.1.0, so a row the binary contradicts is

@@ -352,8 +352,8 @@ echo session-finished
 ///   by the driver's own lifetime and nothing else, and it still picks up what
 ///   a surviving grandchild wrote.
 /// - **The session outlives the run.** `Child::kill` signals the driver alone,
-///   and `keyed-launch` puts every session in a process group of its own
-///   (`run.rs`, `command.process_group(0)`), so a SIGKILLed driver leaves its
+///   and `ravel_job::launch` puts every session in a process group of its own
+///   (`ravel_job.rs`, the foreground shape), so a SIGKILLed driver leaves its
 ///   `configured-command.sh` running and reparented to pid 1. Those accumulate,
 ///   and idle orphans are load — which is what pushes these fixtures past their
 ///   deadlines in the first place.

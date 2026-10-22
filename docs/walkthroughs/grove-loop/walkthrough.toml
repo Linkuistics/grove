@@ -193,12 +193,12 @@ role  = "lookup"
 [[root]]
 id    = "source-crate-manifest"
 path  = "crates/grove-loop/Cargo.toml"
-lines = 67
+lines = 66
 
 [[root]]
 id    = "source-library-root"
 path  = "crates/grove-loop/src/lib.rs"
-lines = 421
+lines = 420
 
 [[root]]
 id    = "source-task-name"
@@ -244,7 +244,7 @@ lines = 241
 [[root]]
 id    = "source-loop-driver"
 path  = "crates/grove-loop/src/loop_driver.rs"
-lines = 918
+lines = 773
 
 [[root]]
 id = "source-observation"
@@ -255,13 +255,13 @@ lines = 218
 id    = "manifest-domain-bound"
 root  = "source-crate-manifest"
 owner = "allowed-to-mean"
-lines = "1-67"
+lines = "1-66"
 
 [[block]]
 id    = "library-root"
 root  = "source-library-root"
 owner = "allowed-to-mean"
-lines = "1-421"
+lines = "1-420"
 
 [[block]]
 id    = "tokens-and-verdicts"
@@ -472,7 +472,7 @@ lines = "1-241"
 id    = "loop-driver"
 root  = "source-loop-driver"
 owner = "four-things-a-runner-cannot-choose"
-lines = "1-918"
+lines = "1-773"
 
 [[block]]
 id = "observation-tree"

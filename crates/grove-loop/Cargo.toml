@@ -14,7 +14,7 @@ rust-version.workspace = true
 # chain, outcome, finishing — and `docs/specs/module-decomposition.md`, decision
 # 1, marks it *not domain-free* for exactly that reason.
 #
-# Its dependencies are the three modules it composes plus `anyhow` and `libc`.
+# Its dependencies are the two modules it composes plus `anyhow` and `libc`.
 # `serde_json` is used only by integration fixtures, as a dev dependency below.
 # `anyhow` is **internal only**: every public entry point answers this crate's
 # own opaque [`Error`], so a consumer takes on no error library of ours — the
@@ -24,15 +24,14 @@ rust-version.workspace = true
 # needs `flock(2)` non-blocking before it announces a wait; `driver_lease`, the
 # largest user, for the lease's own `flock(2)` and for the `fcntl(2)`
 # close-on-exec descriptors it carries across a spawn; and `loop_driver`, for
-# `isatty`, `tcgetpgrp` and `signal`. `keyed-launch` is the runner, and the
-# loop uses it to spawn and reap Ravel, and `lib.rs` re-exports `reraise`
-# so Grove's binary can die of a signal without depending on the runner itself.
+# `isatty`, `tcgetpgrp` and `signal`; and `ravel_job`, for the job-control calls
+# that start `ravel` as an ordinary child. `lib.rs` re-exports `reraise` so
+# Grove's binary can die of a signal without naming the module.
 # The verb surface writes no runner channel: `record-teardown` writes only
 # Grove's separate record in the current launch directory.
 [dependencies]
 anyhow = "1.0"
 jj-workspace = { path = "../jj-workspace" }
-keyed-launch = { path = "../keyed-launch" }
 libc = "0.2"
 # Shared caller-owned stdout capture for the independent Ravel boundary.
 tempfile = "3.10"

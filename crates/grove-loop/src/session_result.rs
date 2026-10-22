@@ -23,11 +23,11 @@ pub enum SessionDisposition {
 
 /// A held, unlinked regular file for Ravel's public stdout result.
 ///
-/// Pass [`Self::stdout`] to keyed-launch's stdout-capturing entry point. Call
-/// [`Self::read`] only after the supervisor has been reaped and all
-/// writers have closed. Lifecycle callers must also invalidate the session
-/// epoch first. Teardown precedence, cancellation, exit status and survivor
-/// checks belong to the caller; accepted bytes alone attest none of them.
+/// Pass [`Self::stdout`] to [`crate::ravel_job::launch`]. Call [`Self::read`]
+/// only after the supervisor has been reaped and all writers have closed.
+/// Lifecycle callers must also invalidate the session epoch first. Teardown
+/// precedence, cancellation and exit status belong to the caller; accepted bytes
+/// alone attest none of them.
 ///
 /// The result has no pathname for a managed process to substitute. Policy and
 /// Ravel still have the stdout authority deliberately given to the supervisor.

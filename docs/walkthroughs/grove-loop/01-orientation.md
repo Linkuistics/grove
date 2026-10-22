@@ -43,7 +43,7 @@ read: a crate that is allowed to be domain-bound says so in the one file that
 holds no code, and the dependency declarations expose the cost of that
 permission.
 
-<!-- fragment «manifest-domain-bound» owner="allowed-to-mean" source="crates/grove-loop/Cargo.toml" lines="1-67" parent="source-crate-manifest" -->
+<!-- fragment «manifest-domain-bound» owner="allowed-to-mean" source="crates/grove-loop/Cargo.toml" lines="1-66" parent="source-crate-manifest" -->
 <!-- insert «manifest-package-identity» -->
 <!-- insert «manifest-dependencies» -->
 <!-- insert «manifest-extracted-tree» -->
@@ -76,15 +76,15 @@ rust-version.workspace = true
 <!-- /fragment -->
 
 The dependency comment calls this crate and the viewer domain-bound. Grove
-composes `jj-workspace`, `keyed-launch` and `ordinal-fs-tree`. `anyhow` stays
+composes `jj-workspace` and `ordinal-fs-tree`. `anyhow` stays
 behind its opaque public error, and `libc` supplies Unix calls. `serde_json` is
 an integration-fixture dev dependency. `tempfile` supplies the held-file public
 result capture and temporary test directories.
 
-The loop uses the local runner to spawn and reap independent Ravel. The verb
-surface writes only Grove's teardown record in the launch directory.
+The loop spawns and reaps independent Ravel through its own `ravel_job` module.
+The verb surface writes only Grove's teardown record in the launch directory.
 
-<!-- fragment «manifest-dependencies» owner="allowed-to-mean" source="crates/grove-loop/Cargo.toml" lines="11-38" parent="manifest-domain-bound" -->
+<!-- fragment «manifest-dependencies» owner="allowed-to-mean" source="crates/grove-loop/Cargo.toml" lines="11-37" parent="manifest-domain-bound" -->
 ````toml
 
 # **This crate and grove-tui are domain-bound.** The three reusable
@@ -92,7 +92,7 @@ surface writes only Grove's teardown record in the launch directory.
 # chain, outcome, finishing — and `docs/specs/module-decomposition.md`, decision
 # 1, marks it *not domain-free* for exactly that reason.
 #
-# Its dependencies are the three modules it composes plus `anyhow` and `libc`.
+# Its dependencies are the two modules it composes plus `anyhow` and `libc`.
 # `serde_json` is used only by integration fixtures, as a dev dependency below.
 # `anyhow` is **internal only**: every public entry point answers this crate's
 # own opaque [`Error`], so a consumer takes on no error library of ours — the
@@ -102,27 +102,25 @@ surface writes only Grove's teardown record in the launch directory.
 # needs `flock(2)` non-blocking before it announces a wait; `driver_lease`, the
 # largest user, for the lease's own `flock(2)` and for the `fcntl(2)`
 # close-on-exec descriptors it carries across a spawn; and `loop_driver`, for
-# `isatty`, `tcgetpgrp` and `signal`. `keyed-launch` is the runner, and the
-# loop uses it to spawn and reap Ravel, and `lib.rs` re-exports `reraise`
-# so Grove's binary can die of a signal without depending on the runner itself.
+# `isatty`, `tcgetpgrp` and `signal`; and `ravel_job`, for the job-control calls
+# that start `ravel` as an ordinary child. `lib.rs` re-exports `reraise` so
+# Grove's binary can die of a signal without naming the module.
 # The verb surface writes no runner channel: `record-teardown` writes only
 # Grove's separate record in the current launch directory.
 [dependencies]
 anyhow = "1.0"
 jj-workspace = { path = "../jj-workspace" }
-keyed-launch = { path = "../keyed-launch" }
 libc = "0.2"
 # Shared caller-owned stdout capture for the independent Ravel boundary.
 tempfile = "3.10"
 ````
 <!-- /fragment -->
 
-**Both of those attributions are longer than they need to be, and the reason is
-a move.** Until `loop-crate-driver-k22` the lease and the loop
-were not in this crate, and the comment could name one user of
-each: the contention probe for `libc`, and the Ravel job and teardown checks for
-`keyed-launch`. The driver's arrival widened both, and it widened them in two
-different ways, which is why the two clauses are not parallel.
+**The `libc` attribution is longer than it needs to be, and the reason is a
+move.** Until `loop-crate-driver-k22` the lease and the loop were not in this
+crate. So the comment could name one user of `libc`, the contention probe. The
+driver's arrival widened the clause. The loop has since stopped depending on
+`keyed-launch`, so the comment no longer names that crate at all.
 
 `libc` supplies the loop's Unix calls and open flags. The contention probe in
 `task_tree` uses nonblocking `flock`, the lease uses locking and close-on-exec
@@ -132,20 +130,16 @@ open. [Chapter 5](05-opening.md#captured-observation) explains why this pin can
 outlive the tree lock. Tests also reach `libc` to exercise those guarantees.
 Those calls do not add runtime dependencies to the viewer.
 
-`keyed-launch` gained a **distinction**, and that is the more interesting half.
-*Reached by exactly one verb* was true when it was written and is still true —
-`record_teardown` is the only one of the twelve verbs chapter 15 counts that touches
-the runner — but it was doing duty as a statement about the whole crate, and as
-that it stopped being true the moment the driver arrived. So the clause now says
-the two things separately rather than letting one stand for the other: the
-**verb surface** reaches the runner once, and the crate reaches it in three more
-places. Two of those came with the driver — `driver_lease` discards an
-abandoned channel and `loop_driver` spawns and reaps through the runner — and
-the third is `src/lib.rs`, this chapter's other root, which re-exports
-`reraise` so that grove's binary can end on a signal without naming the runner
-as a dependency of its own. That re-export is one of four names this crate
-lifts out of its dependencies into its own public surface, and the account of
-the library root's exports later in this chapter reads all four.
+The clause about Ravel changed with the dependency. The comment now says that
+`ravel_job` uses `libc` for the job-control calls that launch `ravel` as an
+ordinary child. It also says that `lib.rs` re-exports `reraise`, so that the
+binary of Grove can end on a signal without naming the module. That re-export
+names a module of this crate, so chapter 19 owns the name. The account of the
+library root's exports later in this chapter says so.
+
+*Reached by exactly one verb*, the old claim about the runner, is gone with the
+dependency. `record_teardown` still writes only Grove's record in the launch directory, and
+it reaches no runner.
 
 **A clause that names one user is a class of defect rather than an accident
 here.** [Chapter 6](06-paths.md#canonicalise-to-compare) makes that case. It
@@ -179,7 +173,7 @@ in `the_library_imposes_only_libc` and
 evidence rather than corpus, and chapter 20 returns to them as the third
 question's proof.
 
-<!-- fragment «manifest-extracted-tree» owner="allowed-to-mean" source="crates/grove-loop/Cargo.toml" lines="39-46" parent="manifest-domain-bound" -->
+<!-- fragment «manifest-extracted-tree» owner="allowed-to-mean" source="crates/grove-loop/Cargo.toml" lines="38-45" parent="manifest-domain-bound" -->
 ````toml
 # The extracted tree library (gh issue #13). `default-features = false` turns off
 # its `cli` feature, which exists for its own `syllabus` binary and pulls in
@@ -196,7 +190,7 @@ The lints table inherits the workspace's lint configuration rather than declarin
 its own, which is the mechanism by which this crate is held to the same clippy
 and rustc settings as every other member.
 
-<!-- fragment «manifest-lints» owner="allowed-to-mean" source="crates/grove-loop/Cargo.toml" lines="47-52" parent="manifest-domain-bound" -->
+<!-- fragment «manifest-lints» owner="allowed-to-mean" source="crates/grove-loop/Cargo.toml" lines="46-51" parent="manifest-domain-bound" -->
 ````toml
 
 [dev-dependencies]
@@ -218,7 +212,7 @@ does **not** freeze the version, because the package block above takes
 release ships. The second paragraph records that publication is an answered
 question rather than an open one, and names where the answer lives.
 
-<!-- fragment «manifest-release» owner="allowed-to-mean" source="crates/grove-loop/Cargo.toml" lines="53-67" parent="manifest-domain-bound" -->
+<!-- fragment «manifest-release» owner="allowed-to-mean" source="crates/grove-loop/Cargo.toml" lines="52-66" parent="manifest-domain-bound" -->
 ````toml
 
 # `cargo release` cuts *grove* (`crates/grove`), and `release.toml` configures
@@ -255,7 +249,7 @@ fragments, and the five passages are read in the file's own order — which is n
 this book's chapter order, because the header opens on the crate and the book
 opens on the grammar underneath it.
 
-<!-- fragment «library-root» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="1-421" parent="source-library-root" -->
+<!-- fragment «library-root» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="1-420" parent="source-library-root" -->
 <!-- insert «library-root-thesis» -->
 <!-- insert «library-root-and-the-driver» -->
 <!-- insert «library-root-opening-mirrors» -->
@@ -540,16 +534,16 @@ version exists for the constant to disagree with. The identical clause appears i
 
 The last block of the file's declarations is the import list and the export list,
 and the export list is the cast in one place. Nine `pub use` lines publish this
-crate's own names and names from three other crates. `jj_workspace::{Commit, Workspace}`
+crate's own names and names from two other crates. `jj_workspace::{Commit, Workspace}`
 is the version-control seam. Five modules of this crate reach it directly, and
 this line republishes it.
 `ordinal_fs_tree::Sought` is the store's word for a search that matched nothing.
 The third shape above requires every verb to answer with it.
 
-`keyed_launch::reraise` carries a doc comment of its own that explains the division
-it preserves. Undoing the signal handler is the runner's job, because the runner
-installed it. *Whether* to die of the signal is the binary's decision. `LoopOutcome::Interrupted`
-is how the loop says it may.
+`ravel_job::reraise` carries a doc comment of its own that explains the division
+it preserves. Undoing the signal handler is the job of `ravel_job`, because that
+module installed it. *Whether* to die of the signal is the binary's decision.
+`LoopOutcome::Interrupted` is how the loop says it may.
 
 The observation exports let a viewer retain captured names and selected bytes
 after releasing the shared guard. [Chapter 5](05-opening.md#captured-observation)
@@ -557,7 +551,7 @@ owns that capture, the opaque directory lifetime and typed runtime results.
 `RunningMandate` and `TreeRelation` let a caller consume witnessed launch evidence
 without inferring a binding from numeric filesystem identities.
 
-<!-- fragment «library-root-imports-and-exports» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="76-97" parent="library-root" -->
+<!-- fragment «library-root-imports-and-exports» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="76-96" parent="library-root" -->
 ````rust
 
 use std::cell::RefCell;
@@ -566,12 +560,6 @@ use std::path::{Path, PathBuf};
 
 pub use driver_lease::{admit_ambient_session, DriverLease, SessionEpochGuard};
 pub use jj_workspace::{Commit, Workspace};
-/// Re-exported so the binary that owns this process's exit status can end on it
-/// without taking a direct dependency on the runner. Undoing the handler is the
-/// runner's to do — it is the crate that installed one
-/// (`crates/keyed-launch/src/run.rs`); *whether* to die of the signal is the
-/// binary's, and [`LoopOutcome::Interrupted`] is how the loop says it may.
-pub use keyed_launch::reraise;
 pub use loop_driver::{run, LoopOutcome};
 pub use observation::{
     try_observe, ActivityObservation, CapturedTree, LaunchTreeIdentity, ObservationGuard,
@@ -579,15 +567,20 @@ pub use observation::{
 };
 pub use ordinal_fs_tree::Sought;
 pub use prompt::{compose, Mandate};
+/// Re-exported so the binary that owns this process's exit status can end on it.
+/// Undoing the handler is [`ravel_job`]'s to do — it is the module that installed
+/// one; *whether* to die of the signal is the binary's, and
+/// [`LoopOutcome::Interrupted`] is how the loop says it may.
+pub use ravel_job::reraise;
 pub use task_name::{Handle, HandleError, Kind, Outcome, Parts, Slug, TaskName, TokenError};
 pub use task_tree::entry_path;
 ````
 <!-- /fragment -->
 
-Four names in that block belong to no chapter of this book. `Commit` and
-`Workspace` are `jj-workspace`'s, `Sought` is the store's, and `reraise` is the
-runner's. Each of those crates has a book of its own. Every other name in it
-belongs to a later chapter of this one.
+Three names in that block belong to no chapter of this book. `Commit` and
+`Workspace` are `jj-workspace`'s, and `Sought` is the store's. Each of those
+crates has a book of its own. Every other name in it belongs to a later chapter
+of this one, and `reraise` belongs to [chapter 19](19-the-loop.md#ravel-job).
 
 The types this chapter owns are `TreeWrite`,
 `Reading`, `Writing`, `Reference` and `Error`. The file declares them further down,
@@ -633,7 +626,7 @@ its comment states the consequence this crate relies on everywhere else — beca
 `verbs::root_init` consumes one, there is no check against clobbering an existing
 grove, since there is no way to call the verb.
 
-<!-- fragment «library-root-tree-and-vacancy» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="98-112" parent="library-root" -->
+<!-- fragment «library-root-tree-and-vacancy» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="97-111" parent="library-root" -->
 ````rust
 
 /// The task tree, read once under the store's **shared** lock.
@@ -666,7 +659,7 @@ Busy contains no guard or snapshot. Public `try_read` below delegates to the
 same `task_tree` acquisition owner and prints nothing, leaving a viewer free to
 render waiting state and retry without blocking terminal input.
 
-<!-- fragment «library-root-reading-and-writing» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="113-137" parent="library-root" -->
+<!-- fragment «library-root-reading-and-writing» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="112-136" parent="library-root" -->
 ````rust
 
 /// What [`read`] found.
@@ -710,7 +703,7 @@ call would block against this process forever. The gap between one guard closing
 and the next opening is the gap `docs/adr/bulk-marks-are-not-atomic.md` records,
 and chapter 13 is where a subtree prune spends *N* guards for *N* marks.
 
-<!-- fragment «library-root-tree-write» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="138-193" parent="library-root" -->
+<!-- fragment «library-root-tree-write» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="137-192" parent="library-root" -->
 ````rust
 
 /// **The right to be the writer** — the surface every mutating verb is on.
@@ -786,7 +779,7 @@ than fail to compile. The process-level property this care is spent on is held b
 `one_process_creating_and_reading_a_grove_never_waits_on_itself`, an inline test
 inside `src/tree_lifecycle.rs` that chapter 11 owns and reproduces.
 
-<!-- fragment «library-root-tree-write-impl» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="194-246" parent="library-root" -->
+<!-- fragment «library-root-tree-write-impl» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="193-245" parent="library-root" -->
 ````rust
 
 impl TreeWrite {
@@ -851,7 +844,7 @@ each is four lines over a `task_tree` call. Both take a worktree and join
 lock is taken either way, so a refusal from `write` has already waited for
 whatever else held it.
 
-<!-- fragment «library-root-read-and-write» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="247-290" parent="library-root" -->
+<!-- fragment «library-root-read-and-write» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="246-289" parent="library-root" -->
 ````rust
 
 /// Open the grove at `worktree` for reading, or find that there is none.
@@ -969,7 +962,7 @@ counts, so no ownership range moved, no ledger row changed and no other book was
 touched — which is the cheapest shape a source fix can take while the corpus is
 frozen.
 
-<!-- fragment «library-root-grove-root» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="291-295" parent="library-root" -->
+<!-- fragment «library-root-grove-root» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="290-294" parent="library-root" -->
 ````rust
 
 /// `<worktree>/.grove`, for [`read`] and [`write`]. Not the crate's only join.
@@ -998,7 +991,7 @@ there is something to look for, and the one thing it refuses is an empty or blan
 reference — a refusal whose message names all five spellings, which is the
 crate-wide obligation that every error say what fixes it.
 
-<!-- fragment «library-root-reference» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="296-346" parent="library-root" -->
+<!-- fragment «library-root-reference» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="295-345" parent="library-root" -->
 ````rust
 
 /// How a session names an existing entry.
@@ -1057,7 +1050,7 @@ impl Reference {
 `Display` writes the text back unchanged, which is what lets a diagnostic quote a
 session's own spelling rather than a normalised form of it.
 
-<!-- fragment «library-root-reference-display» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="347-352" parent="library-root" -->
+<!-- fragment «library-root-reference-display» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="346-351" parent="library-root" -->
 ````rust
 
 impl fmt::Display for Reference {
@@ -1082,7 +1075,7 @@ this operation to validate before copying rows and selected file content.
 [Chapter 7](07-the-walk.md#the-cost-of-the-finish-rule) explains why validation
 must precede exclusion and how the remaining candidates are ordered.
 
-<!-- fragment «library-root-selection» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="353-376" parent="library-root" -->
+<!-- fragment «library-root-selection» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="352-375" parent="library-root" -->
 ````rust
 
 /// The leaf a session was launched to work: its path, its identity, and its
@@ -1126,7 +1119,7 @@ rule to `keyed-launch`'s and `jj-workspace`'s errors, which is the workspace-wid
 form of it. `Error::msg` is `pub(crate)`, so the only messages this type can
 carry are ones a module of this crate wrote.
 
-<!-- fragment «library-root-error» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="377-395" parent="library-root" -->
+<!-- fragment «library-root-error» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="376-394" parent="library-root" -->
 ````rust
 
 /// **One error for the whole crate**, opaque by construction.
@@ -1160,7 +1153,7 @@ takes on no dependency of grove's to do it. The `From<anyhow::Error>` is what
 lets every module inside the crate keep stacking context with `?` and have it
 arrive here as one type.
 
-<!-- fragment «library-root-error-traits» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="396-421" parent="library-root" -->
+<!-- fragment «library-root-error-traits» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="395-420" parent="library-root" -->
 ````rust
 
 impl fmt::Display for Error {

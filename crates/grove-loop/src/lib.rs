@@ -80,12 +80,6 @@ use std::path::{Path, PathBuf};
 
 pub use driver_lease::{admit_ambient_session, DriverLease, SessionEpochGuard};
 pub use jj_workspace::{Commit, Workspace};
-/// Re-exported so the binary that owns this process's exit status can end on it
-/// without taking a direct dependency on the runner. Undoing the handler is the
-/// runner's to do — it is the crate that installed one
-/// (`crates/keyed-launch/src/run.rs`); *whether* to die of the signal is the
-/// binary's, and [`LoopOutcome::Interrupted`] is how the loop says it may.
-pub use keyed_launch::reraise;
 pub use loop_driver::{run, LoopOutcome};
 pub use observation::{
     try_observe, ActivityObservation, CapturedTree, LaunchTreeIdentity, ObservationGuard,
@@ -93,6 +87,11 @@ pub use observation::{
 };
 pub use ordinal_fs_tree::Sought;
 pub use prompt::{compose, Mandate};
+/// Re-exported so the binary that owns this process's exit status can end on it.
+/// Undoing the handler is [`ravel_job`]'s to do — it is the module that installed
+/// one; *whether* to die of the signal is the binary's, and
+/// [`LoopOutcome::Interrupted`] is how the loop says it may.
+pub use ravel_job::reraise;
 pub use task_name::{Handle, HandleError, Kind, Outcome, Parts, Slug, TaskName, TokenError};
 pub use task_tree::entry_path;
 

@@ -353,7 +353,6 @@ version = "22.5.0"
 dependencies = [
  "anyhow",
  "jj-workspace",
- "keyed-launch",
  "libc",
  "ordinal-fs-tree",
  "serde_json",

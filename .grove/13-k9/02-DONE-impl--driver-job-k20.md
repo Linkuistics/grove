@@ -67,3 +67,44 @@ the last use of `keyed-launch` from `grove-loop`. This is the second half of
 
 ## Decisions (running log)
 
+- **Driver.** `drive` and `launch_session` in `loop_driver.rs` call
+  `ravel_job::launch` with `Shape::Foreground { launch_dir }`. The bridge, the
+  `keyed_launch` imports, `ESCALATION`, `LOOP_CONTROL_ENV`, `scrub_list` and
+  `scrub_loop_control_env` are gone. `reset_terminal` calls `ravel_job::scrub`,
+  so one list remains. The file has 773 lines, down from 918.
+- **Interpretation.** `interpret_launch` takes `&JobEnd` and reads
+  `ended.interrupted`. The `Group` arm is gone. The order is unchanged:
+  interruption, a successful `grove-force-stop`, teardown, then
+  `grove-continue`. A surviving group no longer stops the loop.
+- **Tests.** The two interpretation tests build a `JobEnd` directly. The first is
+  now `launch_reading_precedence_over_interrupts`. The row that expected a stop
+  for a surviving group is gone, because that rule is gone.
+- **Dependency.** `grove-loop` no longer names `keyed-launch`, and `Cargo.lock`
+  follows. `lib.rs` has `pub use ravel_job::reraise`. `cargo fmt` moved that line
+  below `prompt::{compose, Mandate}`, so `lib.rs` has 420 lines.
+- **Comments.** The doc comment of `session_result.rs` names `ravel_job::launch`
+  and has no survivor check. The comment at line 355 of
+  `crates/grove/tests/loop_driver.rs` names `ravel_job::launch`.
+- **Book.** The re-cut of fragments was a script that aligned the old and new
+  source with `difflib`, with an explicit table for `loop_driver.rs`. The script
+  is not in the repository. Five fragments are gone: `loop-control-env`,
+  `loop-scrub-list`, `loop-scrub-helper`, `loop-drive-survivor` and
+  `loop-escalation`. Chapter 19 lost the section *The cancellation bound* and
+  keeps the section *The third choice* as a short pointer to `ravel_job::scrub`.
+  Totals: `Cargo.toml` 66, `lib.rs` 420, `loop_driver.rs` 773, all roots 15,074.
+  Slice `allowed-to-mean` is 486 and slice `four-things-a-runner-cannot-choose`
+  is 1,912. Chapter 18 needed no change: its claims concern `prompt.rs`. The
+  concept index lost five entries whose anchors or subjects are gone.
+- **Conversion.** One earlier change converted the findings in the touched
+  paragraphs of chapters 01 and 19. I did not convert paragraphs that this leaf
+  then deleted. Chapter 20 has one touched row, and its findings stay.
+- **Finding.** Chapter 20 still names `CHANNEL_VAR` (lines 70, 121 and 236), which
+  no source defines. Chapter 15 cites `loop_driver.rs:243` for
+  `transition_to_current`, and the call is at line 120. Chapter 18 says
+  `label()` is reached four times in `loop_driver.rs`, and it is reached three
+  times. These claims predate this leaf. `book-specs-k14` or the review may
+  correct them.
+- **Result.** `bash scripts/check.sh` passes all 20 checks. `task
+  ravel:activation`, `task ravel:fixtures` and `task ravel:result` pass with the
+  installed Ravel 1.1.0 in `RAVEL`. The pseudo-terminal cases of
+  `crates/grove/tests/loop_driver.rs` pass.

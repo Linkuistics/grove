@@ -204,10 +204,10 @@ answers these questions:
   the launch question that no verb asks. It is the book's map.
 - What does the import block show? It is the evidence of what the binary reaches:
   thirteen `grove_loop` items and one `jj_workspace` type.
-- Which test needs each of the five dev-dependencies? `assert_cmd` and `tempfile`
-  drive the binary against a temporary tree. `keyed-launch` supplies generic
-  runner channel framing. `libc` holds the tree lock from outside the binary.
-  `ordinal-fs-tree` reads a filename back through the seam that production uses.
+- Which test needs each of the four dev-dependencies? `assert_cmd` and `tempfile`
+  drive the binary against a temporary tree. `libc` holds the tree lock from
+  outside the binary. `ordinal-fs-tree` reads a filename back through the seam
+  that production uses.
 - Why is `release = false` an answered question?
 
 <!-- tc: pending because the conversion has not reached this part of the document -->
@@ -358,13 +358,17 @@ become an insertion, and record the final verification commands and results.
 Four source roots, in this fixed order — the order the source index presents
 and the manifest's `[[root]]` array follows.
 
+<!-- tc: on -->
+
 | Root ID | Source path | Lines |
 |---|---|---:|
-| `source-crate-manifest` | `crates/grove-llm/Cargo.toml` | 54 |
+| `source-crate-manifest` | `crates/grove-llm/Cargo.toml` | 51 |
 | `source-library-root` | `crates/grove-llm/src/lib.rs` | 16 |
 | `source-entry-point` | `crates/grove-llm/src/main.rs` | 3 |
 | `source-command-surface` | `crates/grove-llm/src/cli.rs` | 845 |
 | **total** | | **915** |
+
+<!-- tc: pending because the conversion has not reached this part of the document -->
 
 **The corpus rule needs no exceptions.** `include` is the two base patterns
 fixed by `[book].subject` — the exact path `crates/grove-llm/Cargo.toml` and

@@ -60,3 +60,46 @@ and left this work here.
   use the shared function and its error type.
 - Look at each `?` of the loop after the handlers exist. A failed pick after a
   TERM between sessions is one example.
+
+## Decisions (running log)
+
+- **The signal travels on the crate's `Error`.** `Error` now holds the `anyhow`
+  cause and an optional signal. `Error::interrupted` is the one public accessor,
+  and `interrupted_by` is `pub(crate)`. A newtype with no field could not carry
+  the signal across the crate boundary, and a second return type would have
+  changed every caller of `run`.
+- **`run` reads the signal after the failure.** It takes the signal that the
+  error carries first, and the latch second. This covers each `?` of `drive`
+  that returns before a latch check, including a failed pick after a TERM
+  between sessions, with no edit to those steps. The audit of the fallible paths
+  in the leaf needs no per-step change for that reason.
+- **A type carries the signal, and text does not.** `caught_signal` finds a
+  `JobError` or a `Caught` marker with `downcast_ref` through the context layers.
+  The handoff attaches `Caught` in the two arms that would drop the signal. One
+  arm is a failed invalidation after an interrupted `JobEnd`. The other is a
+  launch error that the second failure turns into text.
+- **`JobError::for_test` is a `cfg(test)` constructor.** The fields of `JobError`
+  are private to `ravel_job`, and a real failed `launch` would read the
+  process-global latch, which races with other tests. The constructor is the
+  smallest change that lets a test own the value.
+- **The handoff is no longer generic.** It takes `Result<JobEnd>`, because it must
+  read `JobEnd::interrupted`. The two old cases now use a `JobEnd` and an error
+  value that Grove owns. Three cases are new: a launch error with a signal, an
+  interrupted end with a failed invalidation, and both failures together.
+  Disabling the `Caught` attachment fails the last two. I ran that mutation and
+  restored the file.
+- **The CLI reports first.** `report` holds the one `Error: …` line. The CLI calls
+  it, and then calls `reraise`, so an error that carries a signal still prints
+  once. `grove run` is unchanged and keeps exit 1.
+- **Order of the changes.** The prose conversions of the touched book sections
+  landed first as their own change: chapters 01 and 19 of `grove-loop`, and
+  chapter 03 of `overview`. A script then moved each fragment of the four changed
+  sources from the diff and regenerated the quoted text. It also updated the
+  manifests, the source indexes and the totals. The script is not in the repository.
+  `book-check` accepts all six books.
+- **Not covered.** No test kills the real driver with a signal while a later
+  step fails. The seam tests cover the handoff, and the `?` paths rely on the
+  read in `run`. The PTY suite of the driver covers the interruption without an
+  error.
+- **Result.** `bash scripts/check.sh` passes all 20 checks. `task ravel:activation`
+  passes with `RAVEL` set. I spent no in-session reviewer.

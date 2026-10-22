@@ -114,6 +114,14 @@ impl JobError {
     pub fn interrupted(&self) -> Option<i32> {
         self.interrupted
     }
+
+    #[cfg(test)]
+    pub(crate) fn for_test(message: &str, interrupted: Option<i32>) -> Self {
+        Self {
+            message: message.to_string(),
+            interrupted,
+        }
+    }
 }
 
 impl fmt::Display for JobError {

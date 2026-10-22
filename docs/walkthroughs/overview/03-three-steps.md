@@ -27,7 +27,7 @@ order. The documentation separates ordinary errors from a signal that took the
 driver away; the body returns from standalone, display and observation operations
 before lifecycle setup.
 
-<!-- fragment «surface-resolve-lease-run» owner="one-call" source="crates/grove/src/cli.rs" lines="63-108" parent="source-command-surface" -->
+<!-- fragment «surface-resolve-lease-run» owner="one-call" source="crates/grove/src/cli.rs" lines="67-126" parent="source-command-surface" -->
 <!-- insert «run-seam-doc» -->
 <!-- insert «run-signal-doc» -->
 <!-- insert «run-errors-doc» -->
@@ -108,7 +108,7 @@ therefore runs once and passes its result to both consumers. This contract is
 about the lifecycle; the viewer's absolute observation path is not a workspace
 resolution.
 
-<!-- fragment «run-seam-doc» owner="one-call" source="crates/grove/src/cli.rs" lines="63-71" parent="surface-resolve-lease-run" -->
+<!-- fragment «run-seam-doc» owner="one-call" source="crates/grove/src/cli.rs" lines="67-75" parent="surface-resolve-lease-run" -->
 ````rust
 
 /// Dispatch a standalone invocation or the viewer before the lifecycle.
@@ -141,7 +141,7 @@ scaffolding or launch. Resolution never happens on a view request. A non-jj
 directory can be observed, even though
 bare invocation there is refused. Both outcomes follow from the early return.
 
-<!-- fragment «run-three-steps» owner="one-call" source="crates/grove/src/cli.rs" lines="85-99" parent="surface-resolve-lease-run" -->
+<!-- fragment «run-three-steps» owner="one-call" source="crates/grove/src/cli.rs" lines="91-105" parent="surface-resolve-lease-run" -->
 ````rust
 fn execute(cli: Cli) -> anyhow::Result<()> {
     if let Some(Command::Run(args)) = cli.command {
@@ -708,15 +708,18 @@ cleans up its child, drops the lease as it returns, and reports
 `LoopOutcome::Interrupted(signal)`. The CLI then calls `reraise`. Its parent
 then observes termination by that signal.
 
-This is the lifecycle's contract. The viewer's current Ctrl-c handling is an
-ordinary quit through its own terminal lifetime. Full signal hardening is a later
-viewer increment.
+This is the lifecycle's contract. An error of the loop keeps the signal too. The
+CLI reports the error, and then it dies of the signal. The viewer's current
+Ctrl-c handling is an ordinary quit through its own terminal lifetime. Full
+signal hardening is a later viewer increment.
 
-<!-- fragment «run-signal-doc» owner="one-call" source="crates/grove/src/cli.rs" lines="72-80" parent="surface-resolve-lease-run" -->
+<!-- fragment «run-signal-doc» owner="one-call" source="crates/grove/src/cli.rs" lines="76-86" parent="surface-resolve-lease-run" -->
 ````rust
-/// **A driver that was killed does not exit 0.** The loop returns *why* it
-/// stopped, and one of the reasons is that this process was sent SIGTERM or
-/// SIGHUP mid-grove. An explicit force-stop returns failure; ordinary stops and
+/// **A driver that was killed does not exit 0, and an error does not hide it.**
+/// The loop returns *why* it stopped, and one of the reasons is that this process
+/// was sent SIGTERM or SIGHUP mid-grove. An error of the loop can carry that
+/// signal too. The driver then reports the error and dies of the signal.
+/// An explicit force-stop returns failure; ordinary stops and
 /// completion exit cleanly. Interruption is the loop being taken away, and the only
 /// way to say so through a wait status is to die of the same signal after the
 /// cleanup — the lease is dropped by the `run` above, and the session was
@@ -726,14 +729,30 @@ viewer increment.
 ````
 <!-- /fragment -->
 
+The call comes first. The CLI reports an error from the loop that carries a
+signal, and then it re-raises that signal. An error with no signal returns to
+`run`, which exits 1.
+
 The final match maps lifecycle completion and ordinary stops to clean return,
 explicit force-stop to failure, and interruption to signal re-raising.
-The standalone runner, log viewer and tree viewer
-have already returned before this match can run.
+The standalone runner, log viewer and tree viewer have already returned before
+this match can run.
 
-<!-- fragment «run-call-and-endings» owner="one-call" source="crates/grove/src/cli.rs" lines="100-108" parent="surface-resolve-lease-run" -->
+<!-- fragment «run-call-and-endings» owner="one-call" source="crates/grove/src/cli.rs" lines="106-126" parent="surface-resolve-lease-run" -->
 ````rust
-    match grove_loop::run(&workspace, lease, &ravel)? {
+    let outcome = match grove_loop::run(&workspace, lease, &ravel) {
+        Ok(outcome) => outcome,
+        // An error that stops the loop is reported first. A signal that Grove
+        // caught then ends the driver, as it does without an error.
+        Err(error) => match error.interrupted() {
+            Some(signal) => {
+                report(&error);
+                grove_loop::reraise(signal)
+            }
+            None => return Err(error.into()),
+        },
+    };
+    match outcome {
         LoopOutcome::Finished | LoopOutcome::Stopped => Ok(()),
         LoopOutcome::ForceStopped => {
             anyhow::bail!("Grove force-stop requested; work did not complete")
@@ -781,6 +800,7 @@ the command's no-upward-search rule.
 | `Stopped` | `Ok(())`, process exits 0. A later bare invocation resumes |
 | `Interrupted(15)` | Re-raise SIGTERM. Shell convention reports 143 |
 | `Interrupted(1)` | Re-raise SIGHUP. Shell convention reports 129 |
+| An error that carries a signal | Print the error, then re-raise that signal |
 
 A session that ends without signalling stops the loop. That differs from a
 signal sent to the driver itself. The returned outcome preserves that
@@ -794,12 +814,12 @@ lifecycle before any session launch. Runtime failures can stop it later. A launc
 that the owner's policy refuses is not one of them, because the loop stops on it
 and returns cleanly.
 
-A viewer can return a non-TTY refusal or a terminal
-setup/input/draw error. Its terminal owner restores the modes before that error
+A viewer can return a non-TTY refusal or a terminal setup/input/draw error. Its terminal owner restores the modes before that error
 reaches the reporting boundary. `execute` returns the error to `run`. `run`
-writes the error and returns exit 1 to main.
+writes the error and returns exit 1 to main. An error of the loop that carries a
+signal is the exception. `execute` writes it and dies of the signal.
 
-<!-- fragment «run-errors-doc» owner="one-call" source="crates/grove/src/cli.rs" lines="81-84" parent="surface-resolve-lease-run" -->
+<!-- fragment «run-errors-doc» owner="one-call" source="crates/grove/src/cli.rs" lines="87-90" parent="surface-resolve-lease-run" -->
 ````rust
 /// # Errors
 ///

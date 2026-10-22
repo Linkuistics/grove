@@ -198,7 +198,7 @@ lines = 66
 [[root]]
 id    = "source-library-root"
 path  = "crates/grove-loop/src/lib.rs"
-lines = 420
+lines = 443
 
 [[root]]
 id    = "source-task-name"
@@ -244,7 +244,7 @@ lines = 241
 [[root]]
 id    = "source-loop-driver"
 path  = "crates/grove-loop/src/loop_driver.rs"
-lines = 773
+lines = 886
 
 [[root]]
 id = "source-observation"
@@ -261,7 +261,7 @@ lines = "1-66"
 id    = "library-root"
 root  = "source-library-root"
 owner = "allowed-to-mean"
-lines = "1-420"
+lines = "1-443"
 
 [[block]]
 id    = "tokens-and-verdicts"
@@ -472,7 +472,7 @@ lines = "1-241"
 id    = "loop-driver"
 root  = "source-loop-driver"
 owner = "four-things-a-runner-cannot-choose"
-lines = "1-773"
+lines = "1-886"
 
 [[block]]
 id = "observation-tree"
@@ -585,10 +585,10 @@ lines = "1-143"
 [[root]]
 id = "source-ravel-job"
 path = "crates/grove-loop/src/ravel_job.rs"
-lines = 757
+lines = 765
 
 [[block]]
 id = "ravel-job"
 root = "source-ravel-job"
 owner = "four-things-a-runner-cannot-choose"
-lines = "1-757"
+lines = "1-765"

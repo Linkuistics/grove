@@ -51,7 +51,7 @@ The composite below connects the loop's source fragments in production order.
 The definitions follow the reader's path from caller data through launch to
 interpretation. The root still includes the inline tests.
 
-<!-- fragment «loop-driver» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="1-773" parent="source-loop-driver" -->
+<!-- fragment «loop-driver» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="1-886" parent="source-loop-driver" -->
 <!-- insert «loop-header» -->
 <!-- insert «loop-imports» -->
 <!-- insert «loop-outcome» -->
@@ -207,9 +207,18 @@ pub enum LoopOutcome {
 `run` takes the workspace, lease by value and once-resolved installed Ravel path.
 It ignores driver SIGINT between sessions and delegates to `drive`. Taking the
 lease by value releases ownership when the loop returns. A policy refusal is a
-stopped launch, while failure to spawn Ravel returns an error.
+stopped launch. A failure to spawn Ravel returns an error.
 
-<!-- fragment «loop-run» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="59-96" parent="loop-driver" -->
+An error of `drive` keeps a signal that Grove caught. After the failure, `run`
+asks `caught_signal` for the signal that the error carries. If the error carries
+none, `run` takes the signal that the latch holds. The signal of the error comes
+first, because it arrived first.
+
+The latch covers a signal that no step consumed before a `?` returned. A TERM
+between sessions followed by a failed pick is one example. `run` stores the
+signal on the crate's `Error`, and the CLI reads it with `Error::interrupted`.
+
+<!-- fragment «loop-run» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="59-130" parent="loop-driver" -->
 ````rust
 /// **The whole loop**: `exists? → create or find next → run → finalise`, one
 /// foreground session per selected task, until a session stops signalling
@@ -240,17 +249,60 @@ stopped launch, while failure to spawn Ravel returns an error.
 /// store refuses, or a Ravel that could not be spawned. A launch
 /// the owner's policy refuses is not an error: it is a session that ended
 /// without a supported Grove result, and the loop stops on it.
+///
+/// An error keeps a signal that Grove caught: [`crate::Error::interrupted`]
+/// names it, and the caller ends on it after reporting the error.
 pub fn run(
     workspace: &Workspace,
     mut lease: DriverLease,
     ravel: &Path,
 ) -> Result<LoopOutcome, crate::Error> {
     ignore_interrupts();
-    Ok(drive(workspace, &mut lease, ravel)?)
+    drive(workspace, &mut lease, ravel).map_err(|error| {
+        // The latch is read after the failure, so a signal that no step consumed
+        // still ends the driver. The signal an error carries came first.
+        let signal = caught_signal(&error).or_else(ravel_job::take_interrupt);
+        crate::Error::from(error).interrupted_by(signal)
+    })
+}
+
+/// A signal that Grove caught and that an error of the loop still carries.
+///
+/// The failed spawn or wait carries it in [`ravel_job::JobError`]. The handoff
+/// below attaches it as [`Caught`] when a later error would otherwise drop it.
+fn caught_signal(error: &anyhow::Error) -> Option<i32> {
+    error
+        .downcast_ref::<Caught>()
+        .map(|caught| caught.0)
+        .or_else(|| {
+            error
+                .downcast_ref::<ravel_job::JobError>()
+                .and_then(ravel_job::JobError::interrupted)
+        })
+}
+
+/// The marker that keeps a caught signal on an error of the loop, as a type
+/// and not as text.
+#[derive(Debug)]
+struct Caught(i32);
+
+impl std::fmt::Display for Caught {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "signal {} reached the driver", self.0)
+    }
 }
 
 ````
 <!-- /fragment -->
+
+`caught_signal` finds a signal in two places. A failed spawn or wait carries it in
+`JobError`, which `ravel_job::launch` fills from the latch. `Caught` is the second
+place. It is a plain type that holds the signal number. The handoff attaches it
+as a context layer when a later error would drop the signal. A type survives the
+context layers that the loop stacks on an error.
+
+Text does not survive those layers. `downcast_ref` finds both types through
+them.
 
 <a id="the-loop-body"></a>
 ## The loop body: launch, invalidate, interpret
@@ -275,7 +327,7 @@ status with an exact result is the only evidence of cleanup. A Ravel that died o
 a signal can have left its harness alive. So the stop names that possibility. It
 does not treat missing output as completion.
 
-<!-- fragment «loop-drive-open» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="97-106" parent="loop-driver" -->
+<!-- fragment «loop-drive-open» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="131-140" parent="loop-driver" -->
 ````rust
 fn drive(
     workspace: &Workspace,
@@ -292,7 +344,7 @@ fn drive(
 
 The top-of-loop interrupt check consumes cancellation that arrived between launches, before Grove mutates the tree or launches another session.
 
-<!-- fragment «loop-drive-interrupt» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="107-121" parent="loop-driver" -->
+<!-- fragment «loop-drive-interrupt» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="141-155" parent="loop-driver" -->
 ````rust
     loop {
         // A SIGTERM or SIGHUP that arrived while no session was running has no
@@ -314,7 +366,7 @@ The top-of-loop interrupt check consumes cancellation that arrived between launc
 
 Lease validation precedes transition and selection. The selected lifetime and kind remain the values that the launch will use.
 
-<!-- fragment «loop-drive-selection» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="122-130" parent="loop-driver" -->
+<!-- fragment «loop-drive-selection» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="156-164" parent="loop-driver" -->
 ````rust
 
         // No kind is checked here, or anywhere before the launch: whether the
@@ -342,7 +394,7 @@ live. This module reads no route table and no owner configuration.
 under a fresh guard. The retained `TreeLifetime` pins the selected root's
 identity without retaining its tree lock across a session.
 
-<!-- fragment «loop-drive-invocation» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="131-141" parent="loop-driver" -->
+<!-- fragment «loop-drive-invocation» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="165-175" parent="loop-driver" -->
 ````rust
 
         let ending = crate::session_command::end_session(ravel)?;
@@ -360,7 +412,7 @@ identity without retaining its tree lock across a session.
 
 The launch directory is allocated after lease validation. Its path becomes both session identity and the directory Ravel uses for its run mechanics.
 
-<!-- fragment «loop-drive-launch» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="142-171" parent="loop-driver" -->
+<!-- fragment «loop-drive-launch» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="176-205" parent="loop-driver" -->
 ````rust
         driver_lease
             .revalidate()
@@ -405,7 +457,7 @@ teardown, and teardown wins over continuation. The driver keeps the branch body
 at the seam of the job's end. So a test can exercise every precedence with a
 `JobEnd` and no process.
 
-<!-- fragment «loop-drive-discard» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="172-219" parent="loop-driver" -->
+<!-- fragment «loop-drive-discard» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="206-253" parent="loop-driver" -->
 ````rust
         if let Err(error) = launch_dir.discard() {
             eprintln!(
@@ -460,7 +512,7 @@ fn interpret_launch(
 
 The final branch relaunches only on the supported exact `grove-continue` result. Unsupported, missing or unreadable results stop, with Ravel death identified as a possible surviving harness.
 
-<!-- fragment «loop-drive-endings» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="220-246" parent="loop-driver" -->
+<!-- fragment «loop-drive-endings» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="254-280" parent="loop-driver" -->
 ````rust
     if let Some(result) = result {
         match result {
@@ -501,7 +553,7 @@ task path and handle, so the mandate and policy inputs cannot name different
 leaves. The signalling contract now names Ravel's end-session command and Grove's
 separate teardown record and exact caller-owned result.
 
-<!-- fragment «loop-session-prompt» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="247-288" parent="loop-driver" -->
+<!-- fragment «loop-session-prompt» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="281-322" parent="loop-driver" -->
 ````rust
 /// The whole `${prompt}`: the guaranteed core, composed for the launched kind.
 ///
@@ -566,7 +618,7 @@ notices of `ravel_job::launch`. The function receives the foreground shape with
 the launch directory, and it grants `GROVE_LAUNCH_DIR` to this session only.
 Ravel then makes the harness its own foreground job.
 
-<!-- fragment «loop-launch-contract» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="289-319" parent="loop-driver" -->
+<!-- fragment «loop-launch-contract» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="323-353" parent="loop-driver" -->
 ````rust
 /// Launch ravel as a foreground job through [`ravel_job::launch`]. Ravel selects
 /// and supervises the harness as a separate job and owns its exit signal. The
@@ -607,7 +659,7 @@ notices of the function surround the job, and a foreground launch forwards only
 caller cancellation. The call passes the `Argv` of `session_command` and the
 observer of the lease as they are, with no conversion.
 
-<!-- fragment «loop-launch-spawn» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="320-342" parent="loop-driver" -->
+<!-- fragment «loop-launch-spawn» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="354-376" parent="loop-driver" -->
 ````rust
     driver_lease
         .prepare_launch(selected.lifetime, selection, launch_dir)
@@ -643,12 +695,22 @@ successful invalidation invokes the reading closure. If both fail, the error
 retains the launch failure beside the invalidation failure. Nothing consumes the
 ending beside an admitted orphan still holding the old epoch.
 
-<!-- fragment «loop-handoff» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="343-360" parent="loop-driver" -->
+The handoff also keeps the caught signal on each error. A launch error keeps the
+signal that its `JobError` carries. A failed invalidation after an interrupted
+job would drop the `JobEnd` that holds `interrupted`, so the handoff attaches
+that signal as `Caught` first. When both steps fail, the handoff reads the signal
+of the launch error before it turns that error into text. The reap has already
+emptied the latch, so a later check of the latch cannot recover the signal.
+
+<!-- fragment «loop-handoff» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="377-410" parent="loop-driver" -->
 ````rust
-fn complete_post_reap_epoch_handoff<E, T>(
-    ended: Result<E>,
+/// **Every outcome keeps a caught signal.** The launch error carries its own, and
+/// a failed invalidation after an interrupted job would drop the end that held
+/// it, so the signal is attached as [`Caught`] before the end goes.
+fn complete_post_reap_epoch_handoff<T>(
+    ended: Result<JobEnd>,
     invalidate: impl FnOnce() -> Result<()>,
-    continue_after_invalidation: impl FnOnce(E) -> T,
+    continue_after_invalidation: impl FnOnce(JobEnd) -> T,
 ) -> Result<T> {
     const INVALIDATION_CONTEXT: &str =
         "post-reap session epoch invalidation blocked; launch ending left unconsumed";
@@ -656,10 +718,23 @@ fn complete_post_reap_epoch_handoff<E, T>(
     match (ended, invalidate()) {
         (Ok(ended), Ok(())) => Ok(continue_after_invalidation(ended)),
         (Err(launch_error), Ok(())) => Err(launch_error),
-        (Ok(_), Err(invalidation_error)) => Err(invalidation_error.context(INVALIDATION_CONTEXT)),
-        (Err(launch_error), Err(invalidation_error)) => Err(invalidation_error.context(format!(
-            "{INVALIDATION_CONTEXT}; foreground session also failed: {launch_error:#}"
-        ))),
+        (Ok(ended), Err(invalidation_error)) => {
+            let error = invalidation_error.context(INVALIDATION_CONTEXT);
+            Err(match ended.interrupted {
+                Some(signal) => error.context(Caught(signal)),
+                None => error,
+            })
+        }
+        (Err(launch_error), Err(invalidation_error)) => {
+            let signal = caught_signal(&launch_error);
+            let error = invalidation_error.context(format!(
+                "{INVALIDATION_CONTEXT}; foreground session also failed: {launch_error:#}"
+            ));
+            Err(match signal {
+                Some(signal) => error.context(Caught(signal)),
+                None => error,
+            })
+        }
     }
 }
 
@@ -676,7 +751,7 @@ not just Ravel's. `reset_terminal` then runs `stty sane`, leaves the alternate
 screen and shows the cursor. It runs only on tty stdin while the driver owns the
 foreground. Otherwise an `stty` child could stop on SIGTTOU and hang the driver.
 
-<!-- fragment «loop-reset-terminal» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="361-392" parent="loop-driver" -->
+<!-- fragment «loop-reset-terminal» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="411-442" parent="loop-driver" -->
 ````rust
 /// Reset the terminal after a (possibly SIGTERM'd) TUI: restore cooked mode,
 /// leave the alternate screen, show the cursor. No-op when stdin isn't a TTY
@@ -721,7 +796,7 @@ resets the child's terminal-signal dispositions, so Ravel and the harness receiv
 a typed Ctrl-C. TERM and HUP belong to `ravel_job::launch`, which forwards them
 to Ravel.
 
-<!-- fragment «loop-ignore-interrupts» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="393-423" parent="loop-driver" -->
+<!-- fragment «loop-ignore-interrupts» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="443-473" parent="loop-driver" -->
 ````rust
 /// Ignore SIGINT in the driver so a terminal Ctrl-C does not kill the loop. The
 /// driver must survive the interrupt to reach the relaunch-vs-stop decision.
@@ -765,7 +840,7 @@ it while the guard is held. `picked_after_finish` selects afresh after
 materialisation. A concurrent root replacement cannot lend an old selection
 the new root's identity.
 
-<!-- fragment «loop-picked» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="424-463" parent="loop-driver" -->
+<!-- fragment «loop-picked» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="474-513" parent="loop-driver" -->
 ````rust
 /// The driver's own `pick`, over the worktree it is driving.
 ///
@@ -813,15 +888,23 @@ fn picked_after_finish(worktree: &Path) -> Result<SelectedTask> {
 <a id="the-test-block"></a>
 ## The inline tests: root identity and handoff ordering
 
-The inline tests cover root pinning, finish materialisation, admission before
-the spawn, the launch reading table and the error precedence of the invalidation
-gate. The reading-table cases combine teardown with TERM and HUP and with the exact
+The inline tests cover root pinning, finish materialisation and admission before
+the spawn. They also cover the launch reading table and the error precedence of
+the invalidation gate. The last group covers the signal that each failing handoff
+keeps.
+
+The reading-table cases combine teardown with TERM and HUP and with the exact
 result. They build a `JobEnd` directly, so no process runs. Swapping
 interruption and teardown makes both that test and the real PTY interruption
 case fail. The launch case uses the real Ravel front. The process suite supplies
 the PTY ending, terminal, refusal, stale-session and cancellation cases.
 
-<!-- fragment «loop-tests-open» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="464-714" parent="loop-driver" -->
+Two helpers build the values of the handoff cases. `job_end` makes a `JobEnd`
+with a chosen signal. `launch_error` wraps a `JobError` in the context of the
+session kind, as `launch_session` does. The fields of `JobError` are private to
+`ravel_job`, so that module offers a `cfg(test)` constructor, `for_test`.
+
+<!-- fragment «loop-tests-open» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="514-783" parent="loop-driver" -->
 ````rust
 // The repository's shared test helpers. Declared out here because a `#[path]`
 // inside the inline module below would resolve against a directory that does
@@ -1069,27 +1152,43 @@ mod tests {
         assert!(picked(work).is_err(), "duplicate keys bypassed validation");
     }
 
-    /// The two `complete_post_reap_epoch_handoff` cases below drive that
-    /// ordering with a stand-in for the launch result, because what the
-    /// ordering is *about* is which of the two failures survives — not what a
-    /// session left behind. The launch itself is `ravel_job::launch`'s, and
-    /// `tests/ravel_job.rs` drives it against a fake child.
+    /// The `complete_post_reap_epoch_handoff` cases below drive that ordering
+    /// with a result value that Grove owns, because what the ordering is *about*
+    /// is which failure survives and whether the caught signal survives with it,
+    /// not what a session left behind. The launch itself is `ravel_job::launch`'s,
+    /// and `tests/ravel_job.rs` drives it against a fake child.
+    fn job_end(interrupted: Option<i32>) -> JobEnd {
+        use std::os::unix::process::ExitStatusExt;
+        JobEnd {
+            status: std::process::ExitStatus::from_raw(0),
+            interrupted,
+            elapsed: Duration::ZERO,
+        }
+    }
+
+    /// A launch error as `launch_session` returns it: a `JobError` under the
+    /// context that names the session kind.
+    fn launch_error(interrupted: Option<i32>) -> anyhow::Error {
+        anyhow::Error::new(ravel_job::JobError::for_test(
+            "executable was not found",
+            interrupted,
+        ))
+        .context("launching session kind `impl`")
+    }
+
 ````
 <!-- /fragment -->
 
-This case supplies simultaneous launch and invalidation failures. It checks that both causes remain visible and interpretation never runs.
+This case supplies simultaneous launch and invalidation failures with no caught signal. It checks that both causes remain visible, that no signal appears and that interpretation never runs.
 
-<!-- fragment «loop-test-handoff-preserves» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="715-750" parent="loop-driver" -->
+<!-- fragment «loop-test-handoff-preserves» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="784-817" parent="loop-driver" -->
 ````rust
     #[test]
     fn an_epoch_handoff_failure_preserves_the_launch_failure_that_preceded_it() {
-        let launch: Result<&str> = Err(anyhow::anyhow!(
-            "launching the session: executable was not found"
-        ));
         let continuation_called = std::cell::Cell::new(false);
 
         let error = complete_post_reap_epoch_handoff(
-            launch,
+            Err(launch_error(None)),
             || {
                 Err(anyhow::anyhow!(
                     "timed out waiting for exclusive session epoch lock"
@@ -1111,6 +1210,7 @@ This case supplies simultaneous launch and invalidation failures. It checks that
             message.contains("timed out waiting for exclusive session epoch lock"),
             "{message}"
         );
+        assert_eq!(caught_signal(&error), None);
         assert!(
             !continuation_called.get(),
             "signal interpretation must remain behind successful epoch invalidation"
@@ -1122,14 +1222,18 @@ This case supplies simultaneous launch and invalidation failures. It checks that
 
 This case isolates the invalidation gate. Even a successful reap cannot cause the reading closure to run before the driver holds exclusive epoch admission.
 
-<!-- fragment «loop-test-ordering» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="751-773" parent="loop-driver" -->
+Three cases follow it. Each one drives the handoff with a value that Grove owns, so no process runs. The first gives a launch error with TERM or HUP and checks that the signal survives.
+
+The second gives an interrupted end and a failed invalidation. The failure drops the end, so the signal survives only through `Caught`. The third gives a launch error with HUP and a failed invalidation. It checks that the signal stays a type and does not survive only as text. A change that stops the handoff from attaching `Caught` fails the last two cases.
+
+<!-- fragment «loop-test-ordering» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="818-886" parent="loop-driver" -->
 ````rust
     #[test]
     fn signal_interpretation_cannot_run_before_epoch_invalidation_succeeds() {
         let continuation_called = std::cell::Cell::new(false);
 
         let error = complete_post_reap_epoch_handoff(
-            Ok("a session that ended"),
+            Ok(job_end(None)),
             || Err(anyhow::anyhow!("exclusive epoch handoff timed out")),
             |_| continuation_called.set(true),
         )
@@ -1141,10 +1245,56 @@ This case isolates the invalidation gate. Even a successful reap cannot cause th
             ),
             "{error:#}"
         );
+        assert_eq!(caught_signal(&error), None);
         assert!(
             !continuation_called.get(),
             "signal interpretation must remain behind successful epoch invalidation"
         );
+    }
+
+    #[test]
+    fn a_launch_error_keeps_the_signal_it_carries() {
+        for signal in [libc::SIGTERM, libc::SIGHUP] {
+            let error = complete_post_reap_epoch_handoff(
+                Err(launch_error(Some(signal))),
+                || Ok(()),
+                |_| (),
+            )
+            .unwrap_err();
+            assert!(format!("{error:#}").contains("executable was not found"));
+            assert_eq!(caught_signal(&error), Some(signal));
+        }
+    }
+
+    #[test]
+    fn a_failed_invalidation_after_an_interrupted_job_keeps_the_signal() {
+        for signal in [libc::SIGTERM, libc::SIGHUP] {
+            let error = complete_post_reap_epoch_handoff(
+                Ok(job_end(Some(signal))),
+                || Err(anyhow::anyhow!("exclusive epoch handoff timed out")),
+                |_| (),
+            )
+            .unwrap_err();
+            assert!(format!("{error:#}").contains("exclusive epoch handoff timed out"));
+            assert_eq!(caught_signal(&error), Some(signal));
+        }
+    }
+
+    #[test]
+    fn a_launch_error_and_a_failed_invalidation_keep_the_launch_signal_as_a_type() {
+        let error = complete_post_reap_epoch_handoff(
+            Err(launch_error(Some(libc::SIGHUP))),
+            || Err(anyhow::anyhow!("exclusive epoch handoff timed out")),
+            |_| (),
+        )
+        .unwrap_err();
+        let message = format!("{error:#}");
+        assert!(message.contains("executable was not found"), "{message}");
+        assert!(
+            message.contains("exclusive epoch handoff timed out"),
+            "{message}"
+        );
+        assert_eq!(caught_signal(&error), Some(libc::SIGHUP));
     }
 }
 ````
@@ -1692,7 +1842,7 @@ Both production callers use the function. The loop driver calls it through
 converts its `Argv`. The function takes two shapes. The foreground shape serves
 the lifecycle, and the detached shape serves `grove run`.
 
-<!-- fragment «ravel-job» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/ravel_job.rs" lines="1-757" parent="source-ravel-job" -->
+<!-- fragment «ravel-job» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/ravel_job.rs" lines="1-765" parent="source-ravel-job" -->
 <!-- insert «ravel-job-header» -->
 <!-- insert «ravel-job-scrub» -->
 <!-- insert «ravel-job-vocabulary» -->
@@ -1813,9 +1963,11 @@ elapsed time. It has no group field, because Grove checks no group.
 `JobError` carries the interruption. A signal that Grove caught is the driver's,
 even when the spawn that follows it fails. An error that dropped the signal
 would turn a Ctrl-C into an ordinary error, and the driver would carry on.
-`Failure` is the same error before the latch is taken into it.
+`Failure` is the same error before the latch is taken into it. The loop reads
+the signal with `JobError::interrupted`. The `cfg(test)` constructor `for_test`
+lets the tests of the loop build an error with a chosen signal.
 
-<!-- fragment «ravel-job-vocabulary» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/ravel_job.rs" lines="63-149" parent="ravel-job" -->
+<!-- fragment «ravel-job-vocabulary» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/ravel_job.rs" lines="63-157" parent="ravel-job" -->
 ````rust
 /// Which kind of job `ravel` is. The shape fixes the terminal, the streams and
 /// the one variable that Grove grants.
@@ -1871,6 +2023,14 @@ impl JobError {
     pub fn interrupted(&self) -> Option<i32> {
         self.interrupted
     }
+
+    #[cfg(test)]
+    pub(crate) fn for_test(message: &str, interrupted: Option<i32>) -> Self {
+        Self {
+            message: message.to_string(),
+            interrupted,
+        }
+    }
 }
 
 impl fmt::Display for JobError {
@@ -1925,7 +2085,7 @@ exec and leads a new session. Both jobs set the seven job-control signals to
 their defaults between the fork and the exec. The function never clears the latch
 before the spawn.
 
-<!-- fragment «ravel-job-launch» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/ravel_job.rs" lines="150-301" parent="ravel-job" -->
+<!-- fragment «ravel-job-launch» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/ravel_job.rs" lines="158-309" parent="ravel-job" -->
 ````rust
 /// Start `ravel` with `command` in `cwd` and wait until it exits.
 ///
@@ -2098,7 +2258,7 @@ the signal that Grove already sent stays with the driver. The descriptor scan fo
 the detached shape sits here too. It includes descriptors that a caller opened
 before it lowered its soft limit.
 
-<!-- fragment «ravel-job-watch» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/ravel_job.rs" lines="302-409" parent="ravel-job" -->
+<!-- fragment «ravel-job-watch» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/ravel_job.rs" lines="310-417" parent="ravel-job" -->
 ````rust
 /// Watch `ravel` to its exit.
 fn watch(
@@ -2234,7 +2394,7 @@ caller to mistake for one that came after the job.
 dies of the signal, so that the parent of Grove sees `128 + N` and not a normal
 exit. This module owns that call because this module installed the handler.
 
-<!-- fragment «ravel-job-latch» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/ravel_job.rs" lines="410-543" parent="ravel-job" -->
+<!-- fragment «ravel-job-latch» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/ravel_job.rs" lines="418-551" parent="ravel-job" -->
 ````rust
 /// The signal that the handler last received, or `0`.
 ///
@@ -2386,7 +2546,7 @@ it and has no job control. That is the whole gate, and no caller can configure
 it wrongly. `tcsetpgrp` from a background group raises SIGTTOU, so every call
 ignores SIGTTOU and then restores the previous disposition.
 
-<!-- fragment «ravel-job-terminal» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/ravel_job.rs" lines="544-652" parent="ravel-job" -->
+<!-- fragment «ravel-job-terminal» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/ravel_job.rs" lines="552-660" parent="ravel-job" -->
 ````rust
 /// The signals that the child gets at their **default** disposition.
 ///
@@ -2515,7 +2675,7 @@ leader's. After a failed wait it behaves as after an ordinary exit.
 The attributes return whenever Grove ends in the foreground. So a raw-mode
 harness that was killed still leaves cooked mode behind.
 
-<!-- fragment «ravel-job-lease» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/ravel_job.rs" lines="653-740" parent="ravel-job" -->
+<!-- fragment «ravel-job-lease» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/ravel_job.rs" lines="661-748" parent="ravel-job" -->
 ````rust
 /// The share of the terminal that one foreground job holds: when it was held,
 /// what it looked like then, and how it returns.
@@ -2634,7 +2794,7 @@ No caller can time the window between the last check of the latch and the reap.
 So one unit test drives `freeze` with a signal stored in the latch. The test
 fails when `freeze` skips the drain.
 
-<!-- fragment «ravel-job-tests» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/ravel_job.rs" lines="741-757" parent="ravel-job" -->
+<!-- fragment «ravel-job-tests» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/ravel_job.rs" lines="749-765" parent="ravel-job" -->
 ````rust
 #[cfg(test)]
 mod tests {

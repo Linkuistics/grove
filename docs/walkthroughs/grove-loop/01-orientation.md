@@ -250,7 +250,7 @@ fragments, and the five passages are read in the file's own order — which is n
 this book's chapter order, because the header opens on the crate and the book
 opens on the grammar underneath it.
 
-<!-- fragment «library-root» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="1-420" parent="source-library-root" -->
+<!-- fragment «library-root» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="1-443" parent="source-library-root" -->
 <!-- insert «library-root-thesis» -->
 <!-- insert «library-root-and-the-driver» -->
 <!-- insert «library-root-opening-mirrors» -->
@@ -1110,17 +1110,25 @@ pub fn select_snapshot(
 
 The file ends with the type that the module header promised. Reading it closes
 this chapter. The manifest bought `anyhow` for internal use. The header said the
-dependency stops at this boundary. These forty-five lines are where it stops.
+dependency stops at this boundary. These sixty-eight lines are where it stops.
 
-`Error` is a newtype over an `anyhow::Error`. It carries no variant, no code and
-no public accessor. Its comment states the obligation that replaces a taxonomy.
-Every message names what is wrong **and** what fixes it.
+`Error` holds an `anyhow::Error` and an optional signal number. It carries no
+variant and no code. Its one public accessor, `interrupted`, answers the signal
+that Grove caught before the error stopped the loop. Its comment states the
+obligation that replaces a taxonomy. Every message names what is wrong **and**
+what fixes it.
 
-The comment attributes the same rule to the errors of `keyed-launch` and `jj-workspace`, which is the
-workspace-wide form of it. `Error::msg` is `pub(crate)`. So this type can carry
-only the messages that a module of this crate wrote.
+The comment attributes the same rule to the errors of `keyed-launch` and
+`jj-workspace`, which is the workspace-wide form of it. `Error::msg` is
+`pub(crate)`. So this type can carry only the messages that a module of this
+crate wrote.
 
-<!-- fragment «library-root-error» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="376-394" parent="library-root" -->
+The signal travels with the error because the caller must report the error and
+then die of the signal. The loop sets the signal through `interrupted_by`, which
+is `pub(crate)`. A caller reads it with `interrupted` and passes it to
+`reraise`. Its parent then reads `128 + N` and not an ordinary failure.
+
+<!-- fragment «library-root-error» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="376-414" parent="library-root" -->
 ````rust
 
 /// **One error for the whole crate**, opaque by construction.
@@ -1133,33 +1141,53 @@ only the messages that a module of this crate wrote.
 /// It implements `std::error::Error` with its cause chain intact, so a consumer
 /// using `anyhow`, `thiserror` or nothing at all renders it the way it renders
 /// any other error — and takes on no dependency of ours to do it.
-pub struct Error(anyhow::Error);
+pub struct Error {
+    cause: anyhow::Error,
+    /// The signal that Grove caught and that ends the driver, if the error of
+    /// the loop carries one.
+    interrupted: Option<i32>,
+}
 
 impl Error {
+    /// The signal that Grove caught before this error stopped the loop.
+    ///
+    /// **An error that stops the loop keeps it.** The caller reports the error
+    /// and then ends on [`reraise`] with this signal, so its parent reads
+    /// `128 + N` and not an ordinary failure.
+    #[must_use]
+    pub fn interrupted(&self) -> Option<i32> {
+        self.interrupted
+    }
+
+    pub(crate) fn interrupted_by(mut self, signal: Option<i32>) -> Self {
+        self.interrupted = signal;
+        self
+    }
+
     /// An error from a message this crate states itself.
     pub(crate) fn msg(message: impl Into<String>) -> Self {
-        Self(anyhow::Error::msg(message.into()))
+        Self::from(anyhow::Error::msg(message.into()))
     }
 }
 ````
 <!-- /fragment -->
 
 The four trait implementations make the opacity affordable for a consumer.
-`Display` and `Debug` both defer to the inner error. `Debug` renders the whole
+`Display` and `Debug` both defer to the `anyhow` cause. `Debug` renders the whole
 chain the way `anyhow` does. A `Result`-returning `main` prints `Debug`, so it is
 the operator-facing form. `std::error::Error` keeps the cause chain intact.
 
 A consumer using `anyhow`, `thiserror` or nothing at all renders this type the way
 it renders any other error. That consumer takes on no dependency of grove's.
 The `From<anyhow::Error>` lets every module inside the crate keep stacking
-context with `?`. The context arrives here as one type.
+context with `?`. The context arrives here as one type, with no signal set.
 
-<!-- fragment «library-root-error-traits» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="395-420" parent="library-root" -->
+<!-- fragment «library-root-error-traits» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="415-443" parent="library-root" -->
 ````rust
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt::Display::fmt(&self.0, f)
+        fmt::Display::fmt(&self.cause, f)
     }
 }
 
@@ -1167,19 +1195,22 @@ impl fmt::Debug for Error {
     /// The whole chain, the way `anyhow` renders one. `Debug` is what a
     /// `Result`-returning `main` prints, so this is the operator-facing form.
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt::Debug::fmt(&self.0, f)
+        fmt::Debug::fmt(&self.cause, f)
     }
 }
 
 impl std::error::Error for Error {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        self.0.source()
+        self.cause.source()
     }
 }
 
 impl From<anyhow::Error> for Error {
-    fn from(error: anyhow::Error) -> Self {
-        Self(error)
+    fn from(cause: anyhow::Error) -> Self {
+        Self {
+            cause,
+            interrupted: None,
+        }
     }
 }
 ````

@@ -85,13 +85,47 @@ pub enum LoopOutcome {
 /// store refuses, or a Ravel that could not be spawned. A launch
 /// the owner's policy refuses is not an error: it is a session that ended
 /// without a supported Grove result, and the loop stops on it.
+///
+/// An error keeps a signal that Grove caught: [`crate::Error::interrupted`]
+/// names it, and the caller ends on it after reporting the error.
 pub fn run(
     workspace: &Workspace,
     mut lease: DriverLease,
     ravel: &Path,
 ) -> Result<LoopOutcome, crate::Error> {
     ignore_interrupts();
-    Ok(drive(workspace, &mut lease, ravel)?)
+    drive(workspace, &mut lease, ravel).map_err(|error| {
+        // The latch is read after the failure, so a signal that no step consumed
+        // still ends the driver. The signal an error carries came first.
+        let signal = caught_signal(&error).or_else(ravel_job::take_interrupt);
+        crate::Error::from(error).interrupted_by(signal)
+    })
+}
+
+/// A signal that Grove caught and that an error of the loop still carries.
+///
+/// The failed spawn or wait carries it in [`ravel_job::JobError`]. The handoff
+/// below attaches it as [`Caught`] when a later error would otherwise drop it.
+fn caught_signal(error: &anyhow::Error) -> Option<i32> {
+    error
+        .downcast_ref::<Caught>()
+        .map(|caught| caught.0)
+        .or_else(|| {
+            error
+                .downcast_ref::<ravel_job::JobError>()
+                .and_then(ravel_job::JobError::interrupted)
+        })
+}
+
+/// The marker that keeps a caught signal on an error of the loop, as a type
+/// and not as text.
+#[derive(Debug)]
+struct Caught(i32);
+
+impl std::fmt::Display for Caught {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "signal {} reached the driver", self.0)
+    }
 }
 
 fn drive(
@@ -340,10 +374,13 @@ fn launch_session(
         })
 }
 
-fn complete_post_reap_epoch_handoff<E, T>(
-    ended: Result<E>,
+/// **Every outcome keeps a caught signal.** The launch error carries its own, and
+/// a failed invalidation after an interrupted job would drop the end that held
+/// it, so the signal is attached as [`Caught`] before the end goes.
+fn complete_post_reap_epoch_handoff<T>(
+    ended: Result<JobEnd>,
     invalidate: impl FnOnce() -> Result<()>,
-    continue_after_invalidation: impl FnOnce(E) -> T,
+    continue_after_invalidation: impl FnOnce(JobEnd) -> T,
 ) -> Result<T> {
     const INVALIDATION_CONTEXT: &str =
         "post-reap session epoch invalidation blocked; launch ending left unconsumed";
@@ -351,10 +388,23 @@ fn complete_post_reap_epoch_handoff<E, T>(
     match (ended, invalidate()) {
         (Ok(ended), Ok(())) => Ok(continue_after_invalidation(ended)),
         (Err(launch_error), Ok(())) => Err(launch_error),
-        (Ok(_), Err(invalidation_error)) => Err(invalidation_error.context(INVALIDATION_CONTEXT)),
-        (Err(launch_error), Err(invalidation_error)) => Err(invalidation_error.context(format!(
-            "{INVALIDATION_CONTEXT}; foreground session also failed: {launch_error:#}"
-        ))),
+        (Ok(ended), Err(invalidation_error)) => {
+            let error = invalidation_error.context(INVALIDATION_CONTEXT);
+            Err(match ended.interrupted {
+                Some(signal) => error.context(Caught(signal)),
+                None => error,
+            })
+        }
+        (Err(launch_error), Err(invalidation_error)) => {
+            let signal = caught_signal(&launch_error);
+            let error = invalidation_error.context(format!(
+                "{INVALIDATION_CONTEXT}; foreground session also failed: {launch_error:#}"
+            ));
+            Err(match signal {
+                Some(signal) => error.context(Caught(signal)),
+                None => error,
+            })
+        }
     }
 }
 
@@ -707,20 +757,36 @@ mod tests {
         assert!(picked(work).is_err(), "duplicate keys bypassed validation");
     }
 
-    /// The two `complete_post_reap_epoch_handoff` cases below drive that
-    /// ordering with a stand-in for the launch result, because what the
-    /// ordering is *about* is which of the two failures survives — not what a
-    /// session left behind. The launch itself is `ravel_job::launch`'s, and
-    /// `tests/ravel_job.rs` drives it against a fake child.
+    /// The `complete_post_reap_epoch_handoff` cases below drive that ordering
+    /// with a result value that Grove owns, because what the ordering is *about*
+    /// is which failure survives and whether the caught signal survives with it,
+    /// not what a session left behind. The launch itself is `ravel_job::launch`'s,
+    /// and `tests/ravel_job.rs` drives it against a fake child.
+    fn job_end(interrupted: Option<i32>) -> JobEnd {
+        use std::os::unix::process::ExitStatusExt;
+        JobEnd {
+            status: std::process::ExitStatus::from_raw(0),
+            interrupted,
+            elapsed: Duration::ZERO,
+        }
+    }
+
+    /// A launch error as `launch_session` returns it: a `JobError` under the
+    /// context that names the session kind.
+    fn launch_error(interrupted: Option<i32>) -> anyhow::Error {
+        anyhow::Error::new(ravel_job::JobError::for_test(
+            "executable was not found",
+            interrupted,
+        ))
+        .context("launching session kind `impl`")
+    }
+
     #[test]
     fn an_epoch_handoff_failure_preserves_the_launch_failure_that_preceded_it() {
-        let launch: Result<&str> = Err(anyhow::anyhow!(
-            "launching the session: executable was not found"
-        ));
         let continuation_called = std::cell::Cell::new(false);
 
         let error = complete_post_reap_epoch_handoff(
-            launch,
+            Err(launch_error(None)),
             || {
                 Err(anyhow::anyhow!(
                     "timed out waiting for exclusive session epoch lock"
@@ -742,6 +808,7 @@ mod tests {
             message.contains("timed out waiting for exclusive session epoch lock"),
             "{message}"
         );
+        assert_eq!(caught_signal(&error), None);
         assert!(
             !continuation_called.get(),
             "signal interpretation must remain behind successful epoch invalidation"
@@ -753,7 +820,7 @@ mod tests {
         let continuation_called = std::cell::Cell::new(false);
 
         let error = complete_post_reap_epoch_handoff(
-            Ok("a session that ended"),
+            Ok(job_end(None)),
             || Err(anyhow::anyhow!("exclusive epoch handoff timed out")),
             |_| continuation_called.set(true),
         )
@@ -765,9 +832,55 @@ mod tests {
             ),
             "{error:#}"
         );
+        assert_eq!(caught_signal(&error), None);
         assert!(
             !continuation_called.get(),
             "signal interpretation must remain behind successful epoch invalidation"
         );
+    }
+
+    #[test]
+    fn a_launch_error_keeps_the_signal_it_carries() {
+        for signal in [libc::SIGTERM, libc::SIGHUP] {
+            let error = complete_post_reap_epoch_handoff(
+                Err(launch_error(Some(signal))),
+                || Ok(()),
+                |_| (),
+            )
+            .unwrap_err();
+            assert!(format!("{error:#}").contains("executable was not found"));
+            assert_eq!(caught_signal(&error), Some(signal));
+        }
+    }
+
+    #[test]
+    fn a_failed_invalidation_after_an_interrupted_job_keeps_the_signal() {
+        for signal in [libc::SIGTERM, libc::SIGHUP] {
+            let error = complete_post_reap_epoch_handoff(
+                Ok(job_end(Some(signal))),
+                || Err(anyhow::anyhow!("exclusive epoch handoff timed out")),
+                |_| (),
+            )
+            .unwrap_err();
+            assert!(format!("{error:#}").contains("exclusive epoch handoff timed out"));
+            assert_eq!(caught_signal(&error), Some(signal));
+        }
+    }
+
+    #[test]
+    fn a_launch_error_and_a_failed_invalidation_keep_the_launch_signal_as_a_type() {
+        let error = complete_post_reap_epoch_handoff(
+            Err(launch_error(Some(libc::SIGHUP))),
+            || Err(anyhow::anyhow!("exclusive epoch handoff timed out")),
+            |_| (),
+        )
+        .unwrap_err();
+        let message = format!("{error:#}");
+        assert!(message.contains("executable was not found"), "{message}");
+        assert!(
+            message.contains("exclusive epoch handoff timed out"),
+            "{message}"
+        );
+        assert_eq!(caught_signal(&error), Some(libc::SIGHUP));
     }
 }

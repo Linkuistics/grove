@@ -27,7 +27,7 @@ reader order below. The `Command` enum belongs here alongside `Cli`, because
 its job is parsing the requested operation. Standalone mode names a kind;
 the owner's Ravel policy selects the command that implements it.
 
-<!-- fragment «surface-grammar» owner="no-arguments" source="crates/grove/src/cli.rs" lines="1-62" parent="source-command-surface" -->
+<!-- fragment «surface-grammar» owner="no-arguments" source="crates/grove/src/cli.rs" lines="1-66" parent="source-command-surface" -->
 <!-- insert «surface-imports» -->
 <!-- insert «surface-doc-comment» -->
 <!-- insert «surface-clap-attributes» -->
@@ -193,7 +193,11 @@ dispatch. After parsing, `execute` returns any application failure to this
 boundary, which prints the error with its context chain once. Returning
 `ExitCode` lets `main` finish without Rust adding a second error message.
 
-<!-- fragment «surface-process-reporting» owner="no-arguments" source="crates/grove/src/cli.rs" lines="52-62" parent="surface-grammar" -->
+The printing sits in `report`, because a second path needs it. An error of the
+loop can carry a signal that Grove caught. `execute` then calls `report` itself
+and dies of the signal, so the error still prints once.
+
+<!-- fragment «surface-process-reporting» owner="no-arguments" source="crates/grove/src/cli.rs" lines="52-66" parent="surface-grammar" -->
 ````rust
 
 /// Own process reporting: clap exits on help, version and usage refusals.
@@ -201,10 +205,14 @@ pub fn run() -> ExitCode {
     match execute(Cli::parse()) {
         Ok(()) => ExitCode::SUCCESS,
         Err(error) => {
-            eprintln!("Error: {error:?}");
+            report(&error);
             ExitCode::FAILURE
         }
     }
+}
+
+fn report(error: &dyn std::fmt::Debug) {
+    eprintln!("Error: {error:?}");
 }
 ````
 <!-- /fragment -->

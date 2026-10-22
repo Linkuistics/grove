@@ -55,10 +55,14 @@ pub fn run() -> ExitCode {
     match execute(Cli::parse()) {
         Ok(()) => ExitCode::SUCCESS,
         Err(error) => {
-            eprintln!("Error: {error:?}");
+            report(&error);
             ExitCode::FAILURE
         }
     }
+}
+
+fn report(error: &dyn std::fmt::Debug) {
+    eprintln!("Error: {error:?}");
 }
 
 /// Dispatch a standalone invocation or the viewer before the lifecycle.
@@ -69,9 +73,11 @@ pub fn run() -> ExitCode {
 /// needed a workspace had two derivations of one fact and no way to see that
 /// they agreed (`docs/adr/one-live-driver-per-working-tree.md`).
 ///
-/// **A driver that was killed does not exit 0.** The loop returns *why* it
-/// stopped, and one of the reasons is that this process was sent SIGTERM or
-/// SIGHUP mid-grove. An explicit force-stop returns failure; ordinary stops and
+/// **A driver that was killed does not exit 0, and an error does not hide it.**
+/// The loop returns *why* it stopped, and one of the reasons is that this process
+/// was sent SIGTERM or SIGHUP mid-grove. An error of the loop can carry that
+/// signal too. The driver then reports the error and dies of the signal.
+/// An explicit force-stop returns failure; ordinary stops and
 /// completion exit cleanly. Interruption is the loop being taken away, and the only
 /// way to say so through a wait status is to die of the same signal after the
 /// cleanup — the lease is dropped by the `run` above, and the session was
@@ -97,7 +103,19 @@ fn execute(cli: Cli) -> anyhow::Result<()> {
     let lease = DriverLease::acquire(&workspace)?;
     crate::provision::ensure_codex_skills()?;
     let ravel = crate::dispatch::locate()?;
-    match grove_loop::run(&workspace, lease, &ravel)? {
+    let outcome = match grove_loop::run(&workspace, lease, &ravel) {
+        Ok(outcome) => outcome,
+        // An error that stops the loop is reported first. A signal that Grove
+        // caught then ends the driver, as it does without an error.
+        Err(error) => match error.interrupted() {
+            Some(signal) => {
+                report(&error);
+                grove_loop::reraise(signal)
+            }
+            None => return Err(error.into()),
+        },
+    };
+    match outcome {
         LoopOutcome::Finished | LoopOutcome::Stopped => Ok(()),
         LoopOutcome::ForceStopped => {
             anyhow::bail!("Grove force-stop requested; work did not complete")

@@ -384,18 +384,38 @@ pub fn select_snapshot(
 /// It implements `std::error::Error` with its cause chain intact, so a consumer
 /// using `anyhow`, `thiserror` or nothing at all renders it the way it renders
 /// any other error — and takes on no dependency of ours to do it.
-pub struct Error(anyhow::Error);
+pub struct Error {
+    cause: anyhow::Error,
+    /// The signal that Grove caught and that ends the driver, if the error of
+    /// the loop carries one.
+    interrupted: Option<i32>,
+}
 
 impl Error {
+    /// The signal that Grove caught before this error stopped the loop.
+    ///
+    /// **An error that stops the loop keeps it.** The caller reports the error
+    /// and then ends on [`reraise`] with this signal, so its parent reads
+    /// `128 + N` and not an ordinary failure.
+    #[must_use]
+    pub fn interrupted(&self) -> Option<i32> {
+        self.interrupted
+    }
+
+    pub(crate) fn interrupted_by(mut self, signal: Option<i32>) -> Self {
+        self.interrupted = signal;
+        self
+    }
+
     /// An error from a message this crate states itself.
     pub(crate) fn msg(message: impl Into<String>) -> Self {
-        Self(anyhow::Error::msg(message.into()))
+        Self::from(anyhow::Error::msg(message.into()))
     }
 }
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt::Display::fmt(&self.0, f)
+        fmt::Display::fmt(&self.cause, f)
     }
 }
 
@@ -403,18 +423,21 @@ impl fmt::Debug for Error {
     /// The whole chain, the way `anyhow` renders one. `Debug` is what a
     /// `Result`-returning `main` prints, so this is the operator-facing form.
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt::Debug::fmt(&self.0, f)
+        fmt::Debug::fmt(&self.cause, f)
     }
 }
 
 impl std::error::Error for Error {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        self.0.source()
+        self.cause.source()
     }
 }
 
 impl From<anyhow::Error> for Error {
-    fn from(error: anyhow::Error) -> Self {
-        Self(error)
+    fn from(cause: anyhow::Error) -> Self {
+        Self {
+            cause,
+            interrupted: None,
+        }
     }
 }

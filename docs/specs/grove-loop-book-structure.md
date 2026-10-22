@@ -44,15 +44,14 @@ rather than 428.
 That is 72% of the remaining corpus of the campaign, and five times the largest
 book written so far. Three things about it are new.
 
-- **It is the crate that is allowed to mean something.** The four books already
-  written are all about refusal, in one form or another.
+- **It is the crate that is allowed to mean something.** The earlier books are
+  all about refusal, in one form or another.
   - `jj-workspace` opens each chapter on what the crate declines to own.
-  - `keyed-launch` opens on what a stage must not add or interpret.
   - The overview opens on what the binary declines to do.
   - `grove-llm` opens on what is left when a binary is thin.
 
-  This crate is their mirror. It says so in its own first paragraph: it is *the
-  one library crate in the workspace that is allowed to be domain-bound*.
+  This crate is their mirror. It says so in its own first paragraph: *Grove
+  vocabulary lives here and in the read-only `grove-tui` viewer*.
 - **Thirty-eight per cent of the corpus is test code, and none of it is
   excluded.** Five roots carry an inline `#[cfg(test)] mod tests`. They are
   `tree_lifecycle.rs` with 1,649 lines, `task_tree.rs` with 1,008, `task_name.rs`
@@ -72,9 +71,94 @@ book written so far. Three things about it are new.
 markers, and **thirty-one name this crate**. Thirty are spelled
 `residue(grove-loop…)`, and one, at line 1324, is spelled
 `residue(jj-workspace, grove-loop)`. Three of the thirty-one are joint: line 471
-with `none`, line 1189 with `keyed-launch`, and line 1324 with `jj-workspace`.
-Both of those books are already written. So when this one lands,
-`architecture-residue-k75` is unblocked entirely.
+with `none`, line 1189 with the local runner crate, and line 1324 with
+`jj-workspace`. The books of both crates were written before this one, and a
+later change removed the runner crate and its book. So when this one landed,
+`architecture-residue-k75` was unblocked entirely.
+
+## The book now
+
+The corpus moved after the cut that the later sections record. This section
+states the book as `docs/walkthroughs/grove-loop/walkthrough.toml` records it
+today. The later sections keep the original cut and its line counts, because the
+cut was decided against them. Where a count or a list differs, this section and
+the manifest rule.
+
+### Pages
+
+The book has twenty chapters, a contents page and two lookup pages. The lookup
+pages are `concept-index.md` and `source-index.md`. The book generates both
+against the finished chapters.
+
+| Chapter | Page | Slice | Title | Owned lines |
+|---:|---|---|---|---:|
+| 1 | `01-orientation.md` | `allowed-to-mean` | Orientation | 509 |
+| 2 | `02-the-tokens.md` | `four-verdicts` | The tokens, and the four verdicts | 373 |
+| 3 | `03-kind-slug-handle.md` | `the-handle-not-the-position` | Kind, slug, handle | 529 |
+| 4 | `04-the-name.md` | `canonical-or-nothing` | The name, and canonicity | 773 |
+| 5 | `05-opening.md` | `one-spelling-of-grove` | Opening, contention and refusal | 521 |
+| 6 | `06-paths.md` | `paths-are-built-here` | Paths, and addressing | 320 |
+| 7 | `07-the-walk.md` | `first-live-leaf` | The walk: pick and select | 336 |
+| 8 | `08-kind-and-briefs.md` | `root-to-leaf` | Kind, and the brief chain | 438 |
+| 9 | `09-resolve.md` | `wider-than-a-key` | Resolve | 604 |
+| 10 | `10-growing.md` | `what-the-library-cannot-see` | Growing: leaf-add and leaf-insert | 518 |
+| 11 | `11-a-grove-begins.md` | `never-mistaken-for-finished` | A grove begins | 641 |
+| 12 | `12-leaf-to-node.md` | `the-key-survives` | A leaf becomes a node | 764 |
+| 13 | `13-outcomes.md` | `marked-in-place` | Outcomes are marked in place | 808 |
+| 14 | `14-finishing.md` | `the-tree-deletes-itself` | Finishing | 532 |
+| 15 | `15-the-verbs.md` | `twelve-not-fourteen` | The session verbs, and the driver operations | 390 |
+| 16 | `16-the-lease.md` | `one-per-working-tree` | One live driver per working tree | 1,133 |
+| 17 | `17-the-epoch.md` | `which-calls-are-admitted` | Which calls the lease admits | 3,782 |
+| 18 | `18-the-core.md` | `too-late-to-say-later` | The guaranteed core | 241 |
+| 19 | `19-the-loop.md` | `four-things-a-runner-cannot-choose` | The loop | 2,033 |
+| 20 | `20-what-could-not-move.md` | `assembly` | What could not move | 0 |
+
+Chapter 19 keeps the slice ID `four-things-a-runner-cannot-choose`. A rename
+would migrate the manifest, the ledgers and every anchor that cites the ID, and
+it would add nothing for a reader. The chapter itself states the current rule:
+Ravel owns the end of the harness.
+
+### Roots and blocks
+
+Eighteen roots hold 15,245 lines. Forty-five blocks cover them. One root,
+`complete.rs`, is gone since the cut. Seven roots are new:
+`observation.rs`, `driver_lease/observation.rs`, `driver_lease/witnesses.rs`,
+`launch_directory.rs`, `session_result.rs`, `session_command.rs` and
+`ravel_job.rs`.
+
+| Root | Lines | Chapters |
+|---|---:|---|
+| `Cargo.toml` | 66 | 1 |
+| `src/lib.rs` | 443 | 1 |
+| `src/task_name.rs` | 1,675 | 2, 3, 4 |
+| `src/task_tree.rs` | 2,001 | 5, 6, 7, 8, 9 |
+| `src/task_grow.rs` | 518 | 10 |
+| `src/tree_lifecycle.rs` | 2,745 | 11, 12, 13, 14 |
+| `src/verbs.rs` | 331 | 15 |
+| `src/driver.rs` | 59 | 15 |
+| `src/driver_lease.rs` | 2,101 | 16, 17 |
+| `src/prompt.rs` | 241 | 18 |
+| `src/loop_driver.rs` | 886 | 19 |
+| `src/observation.rs` | 218 | 5 |
+| `src/driver_lease/observation.rs` | 2,117 | 17 |
+| `src/driver_lease/witnesses.rs` | 697 | 16, 17 |
+| `src/launch_directory.rs` | 134 | 19 |
+| `src/session_result.rs` | 105 | 19 |
+| `src/session_command.rs` | 143 | 19 |
+| `src/ravel_job.rs` | 765 | 19 |
+
+Four chapters changed shape.
+
+- Chapter 16 owns `driver_lease.rs` lines 1–958 and `driver_lease/witnesses.rs`
+  lines 1–175.
+- Chapter 17 owns `driver_lease.rs` lines 959–2101, the whole of
+  `driver_lease/observation.rs` and `driver_lease/witnesses.rs` lines 176–697.
+- Chapter 5 also owns `observation.rs`, the captured tree observation.
+- Chapter 19 owns five whole roots: `loop_driver.rs`, `launch_directory.rs`,
+  `session_result.rs`, `session_command.rs` and `ravel_job.rs`.
+
+The early-use ledger, the four guide anchors and the eight glossary anchors are
+as *Early uses the order forces* and *Outbound links* state them.
 
 <!-- tc: pending because the conversion has not reached this part of the document -->
 
@@ -90,10 +174,10 @@ answered.
 
 <!-- tc: on -->
 
-**One audience refinement this corpus forces.** The reader knows four of the
-other five crates from their own books, and this book assumes that. Where
-`grove-loop` calls `ordinal-fs-tree`, `keyed-launch` or `jj-workspace`, the book
-says what grove asked for and what it got back. It does not explain the callee.
+**One audience refinement this corpus forces.** The reader knows the other
+source-owning crates from their own books, and this book assumes that. Where
+`grove-loop` calls `ordinal-fs-tree` or `jj-workspace`, the book says what grove
+asked for and what it got back. It does not explain the callee.
 The link contract (below) means the book cannot link to those books either. So
 the book names the callee in prose, once, at the chapter that makes the call.
 
@@ -139,12 +223,11 @@ the rest, and why it could not move.** The book recovers the spine from the
 source rather than imposing it, and it recovers it from eight places, not one.
 
 <!-- tc: depart long-sentence because the paragraph quotes the crate header verbatim -->
-`src/lib.rs` lines 4–10 state it for the crate: *the one library crate in the
-workspace that is allowed to be domain-bound … The other three say nothing about
-grove — `ordinal-fs-tree` has an ordered tree, `keyed-launch` has an argv and a
-job, `jj-workspace` has a workspace and a commit — and none of them has a word
-for a* kind, *a* brief chain, *an* outcome, *a* handle *or* finishing. *Those
-are here.* `Cargo.toml` lines 12–16 state it again for the manifest, in bold,
+`src/lib.rs` lines 4–10 state it for the crate: *Its reusable seams are
+domain-free: `ordinal-fs-tree` has an ordered tree and `jj-workspace` has a
+workspace and a commit — and neither has a word for a* kind, *a* brief chain,
+*an* outcome, *a* handle *or* finishing. *Those are here, and so are the twelve
+verbs stated in them.* `Cargo.toml` lines 12–16 state it again for the manifest, in bold,
 citing decision 1 of [`module-decomposition.md`](module-decomposition.md). Then
 every large module's own header opens on exactly the same move:
 
@@ -157,7 +240,7 @@ every large module's own header opens on exactly the same move:
 | `verbs.rs` | *none of which the store has a word for* | the surface, and its three shapes |
 | `driver.rs` | *the reason they are not in [`crate::verbs`]* | the two operations that are not verbs |
 | `driver_lease.rs` | the seam owns *where*, and grove owns *whose* | the lease, and the epoch |
-| `loop_driver.rs` | ***All of that is `crates/keyed-launch`'s, not this module's.*** *What stays here is the four things a loop has to choose and a runner cannot* | the four choices |
+| `loop_driver.rs` | *Ravel alone watches the harness's exit channel and ends its group* | the directory that carries the ending, the prompt and the ordered reading of it |
 
 Two tests pin the manifest's statement of the boundary:
 `the_library_imposes_only_libc` and
@@ -172,9 +255,7 @@ refuses to own and names who owns it instead. This book is its mirror.
 Every
 refusal in the workspace hands work *to here*. What arrives is the part nobody
 else could take, because meaning is the one thing a domain-free crate cannot
-hold. The spine of `keyed-launch` is what a stage must not add or interpret. It
-is the same relation seen from the other end, and chapter 1 says so in the same
-sentence.
+hold.
 
 **Two spines were rejected.** The first was *the lock a verb needs is visible in
 its signature* (`lib.rs` 17–41). It is the crate's sharpest claim, and the
@@ -191,10 +272,8 @@ instead.
 
 *A library of verbs and, since `loop-crate-driver-k22`, a driver* is the crate's
 true structural fact. It explains the only odd thing about the crate. But it is
-one boundary, so it gives the book two rules rather than a rule per chapter. That
-is the ground on which the brief of `keyed-launch` rejected its structurally
-identical candidate. Chapter 1 states it, and it is the Part IV/Part V boundary
-below.
+one boundary, so it gives the book two rules rather than a rule per chapter. Chapter
+1 states it, and it is the Part IV/Part V boundary below.
 
 <!-- tc: pending because the conversion has not reached this part of the document -->
 
@@ -301,16 +380,16 @@ and the chapter reproduces both whole. The manifest's `[dependencies]` table
 declares **five**, and four of them carry their reason in situ.
 
 - `anyhow` is internal only, so a consumer takes on no error library.
-- `libc` serves the three production modules that reach it, the `flock(2)`
-  contention probe among them.
-- `keyed-launch` is reached once by the verb surface and in four more places by
-  the crate.
+- `libc` serves the production modules that reach it. They include the `flock(2)`
+  contention probe and the job-control calls of `ravel_job`.
+- `tempfile` supplies the shared caller-owned stdout capture for the independent
+  Ravel boundary.
 - `ordinal-fs-tree` has `default-features = false`, so the dependency set that
   this crate *imposes* is exactly `libc`. `tests/library_dependency.rs` holds
   that last claim against `cargo metadata`, rather than leaving it as a comment.
 
 The fifth is `jj-workspace`, and it has no clause of its own. The comment
-accounts for it only as one of *the three modules it composes*. That is a gap in
+accounts for it only as one of *the two modules it composes*. That is a gap in
 the manifest's own account rather than an incidental omission. `jj-workspace`
 is the crate's version-control seam. `tree_lifecycle.rs`, `driver_lease.rs`,
 `prompt.rs` and `loop_driver.rs` all `use` it directly, and `lib.rs` re-exports
@@ -324,16 +403,15 @@ owner explains it. That is what a crate's own map is for, and it is the shape
 that all four preceding orientation chapters took.
 
 **It carries three things no later chapter returns to.** The first is the
-difference between this book's spine and the spines of `jj-workspace` and
-`keyed-launch`. The second is the *lock in the signature* claim, which the
+difference between this book's spine and the spine of `jj-workspace`. The second is the *lock in the signature* claim, which the
 compiler enforces and chapters 5–13 prove. The third is the `Key`/`Entry`
 collision. This crate takes the store's `Key` and `Entry` and adds grove's
 `Kind`, `Handle` and `Outcome` beside them. [`CONTEXT-MAP.md`](../../CONTEXT-MAP.md)
 keeps the two vocabularies apart by hand, and the book must not blur them.
 
 **It explains which crates take `version.workspace = true`, which member does
-not, and why the manifest's `libc` and `keyed-launch` clauses are worded as they
-are.** See *Known in advance*.
+not, and why the manifest's `libc` clause is worded as it is. It also explains why the
+old clause about the runner is gone.** See *Known in advance*.
 
 <!-- tc: pending because the conversion has not reached this part of the document -->
 
@@ -586,22 +664,36 @@ skill. `the_prompt_is_three_parts_in_the_sessions_own_timeline_order`,
 
 <!-- tc: on -->
 
-**The rule: `keyed-launch` owns all of the spawning, watching and escalating.**
-What stays here is the four things that a loop has to choose and a runner
-cannot. The first is the directory in which the channel is allocated. The second
-is the variable that publishes it. The third is the set of variables that the
-loop scrubs. The fourth is the length of the two graces.
+<!-- tc: depart synonym-rotation because Launch directory is a defined glossary term -->
+**The rule: Ravel owns the end of the harness, and Grove starts Ravel as an
+ordinary foreground child.** `ravel_job::launch` is the one function that does
+it, and `grove run` shares it in the detached shape. Grove keeps no runner of its
+own, no completion channel and no process-group probe. What stays in the loop is
+what only a loop can choose. The launch directory carries identity, ending and
+teardown. The loop also scrubs variables, composes the prompt and orders the
+post-reap reading.
 
-The chapter covers `run` and `drive`, `session_prompt`,
-`launch_configured_session`, `complete_post_reap_epoch_handoff`, the `ESCALATION`
-constant, `reset_terminal`, `ignore_interrupts` and `scrub_loop_control_env`. It
-also covers the inline tests that hold the ordering:
-`an_epoch_handoff_failure_preserves_the_launch_failure_that_preceded_it` and
-`signal_interpretation_cannot_run_before_epoch_invalidation_succeeds`.
+The chapter owns five blocks.
+
+- `loop_driver.rs`, whole. It holds `run` and `drive`, `session_prompt`,
+  `launch_session`, the handoff, `reset_terminal`, `ignore_interrupts` and
+  `picked`. Its inline tests hold the ordering and the caught signal.
+- `launch_directory.rs`, whole. The directory carries identity, ending and
+  teardown.
+- `session_result.rs`, whole. It holds the stdout capture and the bounded reading
+  of the result.
+- `session_command.rs`, whole. It holds the public lifecycle and confinement
+  commands.
+- `ravel_job.rs`, whole. It holds the function and its one scrub list. It also
+  holds the shape, the notices, the end and the error, the poll, the latch, the
+  handlers, `reraise`, the terminal and the lease.
 
 The chapter carries *restart ≡ continuation*. The loop body holds zero state and
 re-derives its position from the tree. It also carries the shell sketch that the
 header keeps, which is still the whole loop *because a boundary is not a step*.
+Last, it states what checks the shared function. Tests without a terminal check
+the notices and the environment. Only the installed Ravel, under a pseudo-terminal,
+checks job control.
 
 <!-- tc: pending because the conversion has not reached this part of the document -->
 
@@ -711,9 +803,8 @@ The third is this book's own, and it was set by measurement.
 
 Unsplit roots, for comparison: `driver.rs` 73%, `prompt.rs` 69%, `complete.rs`
 65%, `Cargo.toml` 59%, `lib.rs` 58%, `verbs.rs` 57%, `task_grow.rs` 49%. Across
-the corpus as first measured, about 35% of the lines are comment prose. That is
-close to the 33% of `keyed-launch`. But the distribution is the fact that
-matters, and it splits three ways.
+the corpus as first measured, about 35% of the lines are comment prose. But the
+distribution is the fact that matters, and it splits three ways.
 
 <!-- tc: pending because the conversion has not reached this part of the document -->
 
@@ -750,9 +841,8 @@ review can check it against the mapping above.
 <!-- tc: on -->
 
 **The risk closed** is a book that is thorough where the source already speaks
-and silent across the 38% where it does not. The brief of `keyed-launch` closed
-the same failure in the same direction. This brief closes it at four times the
-scale.
+and silent across the 38% where it does not. The earlier briefs closed the same
+failure in the same direction, at a smaller scale.
 
 <!-- tc: pending because the conversion has not reached this part of the document -->
 
@@ -833,9 +923,8 @@ ending rather than the carried thread, so the happy path is not an aside.
   test. But the fixtures are ad hoc per test: `a`/`b` for ordering,
   `design`/`build` for decomposition, `add` for outcomes. Each test builds and
   discards its own, because each isolates one property. So nineteen chapters
-  would carry nineteen unrelated trees. That is the ground on which the brief of
-  `keyed-launch` rejected the same shape. The tests remain the book's evidence,
-  cited chapter by chapter.
+  would carry nineteen unrelated trees. The earlier briefs rejected the same shape on the same
+  ground. The tests remain the book's evidence, cited chapter by chapter.
 - *One session's life, driver-side* is the crate's reason, and it carries
   chapters 15–19 better than anything else. But it reaches none of the 7,436
   lines before them. It is chapter 19's thesis instead.
@@ -953,7 +1042,7 @@ book precisely so it can do that uniformly against the full reserved set.
 <!-- tc: on -->
 
 Two guide anchors were considered and dropped. They are `usage-running-grove`
-and `usage-session-lifecycle`, which belong to `keyed-launch` and the overview.
+and `usage-session-lifecycle`, which belong to the overview.
 They describe the operator's experience of the loop, which is the subject of the
 overview and the guide. They describe nothing that this crate owns and that the
 four anchors above do not already reach.
@@ -1019,7 +1108,8 @@ chapter:
 <!-- tc: on -->
 
 Two of these are **joint**, and their other books are written. Line 1190 also
-names `keyed-launch`, and line 1325 also names `jj-workspace`. Line 472 is joint
+named the local runner crate, which a later change removed with its book. Line
+1325 also names `jj-workspace`. Line 472 is joint
 with `none`. So this book is the last condition on all thirty-one.
 
 <!-- tc: pending because the conversion has not reached this part of the document -->
@@ -1036,10 +1126,9 @@ they are; k75 does the deletion; the book's job is to make the deletion true.
 
 <!-- tc: on -->
 
-### The three domain-free crates' internals
+### The two domain-free crates' internals
 
-`ordinal-fs-tree`, `keyed-launch` and `jj-workspace` each have a book of their
-own. This book cannot link to any of them. Where `grove-loop` calls one, the book
+`ordinal-fs-tree` and `jj-workspace` each have a book of their own. This book cannot link to any of them. Where `grove-loop` calls one, the book
 says what grove asked for and what came back, names the crate in prose, and
 stops. This is the discipline of the spine: the seam is interesting from *this*
 side, and the other side is the subject of another book.
@@ -1145,7 +1234,7 @@ session through independently installed `ravel start-session`.
 
 <!-- tc: on -->
 
-### 3 · *`libc` is the probe in `task_tree`* and *`keyed-launch` is reached by exactly one verb* — chapter 1, corrected
+### 3 · *`libc` is the probe in `task_tree`* and *the runner is reached by exactly one verb* — chapter 1, corrected
 
 `Cargo.toml`'s dependency comment held this claim. The book found it at
 `orientation-k124` rather than while this brief was written. That is why the
@@ -1160,11 +1249,12 @@ user that the clause named is not the largest. Outside the test modules,
 `driver_lease` reaches `libc` on thirteen lines, which is more than the other two
 together.
 
-At that correction, the `keyed-launch` clause was **true of the verbs and false of
-the crate**. `complete` was then the only verb that reached the runner. But
+At that correction, the runner clause was **true of the verbs and false of the
+crate**. `complete` was then the only verb that reached the runner. But
 `driver_lease`, `loop_driver` and `src/lib.rs` reached it too. The
-supervised-dispatch cutover has since removed `complete`. The loop still used its
-local runner to launch independent Ravel and to re-export signal propagation.
+supervised-dispatch cutover later removed `complete`. A later change removed the
+runner crate, its dependency line and its clause. The `libc` clause now also
+names `ravel_job`, which starts `ravel` as an ordinary child.
 
 `manifest-dependency-clauses-k133` landed both corrections. They turn on a
 distinction. The corrected clause then said that the **verb surface** reached the
@@ -1176,8 +1266,9 @@ dependency argument is chapter 1's evidence for what the crate imposes. So what
 was wrong was their scope, not their existence.
 
 **The chapter no longer adjudicates.** Its paragraph explains why the two clauses
-are not parallel. It keeps what the adjudication carried: both attributions were
-true of a smaller crate, and the arrival of the driver widened them. Chapter 5
+were not parallel. It keeps what the adjudication carried: both attributions were
+true of a smaller crate, and the arrival of the driver widened them. It also
+records that the clause about the runner is gone with the dependency. Chapter 5
 owns the probe. It cross-references chapter 1 rather than restating the
 manifest.
 

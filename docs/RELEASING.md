@@ -304,7 +304,7 @@ acceptance is required before publication.
 <!-- tc: on -->
 
 <a id="one-release-eight-packages-one-tag"></a>
-## One release, seven product packages, one tag
+## One release, six product packages, one tag
 
 Grove's product crates take `version.workspace = true`. They share one workspace release
 version, one changelog and one tag (`docs/specs/module-decomposition.md`, decision 1).
@@ -328,7 +328,7 @@ The version of `book-validation` has no relation to the version of Grove. That m
 second heading absurd, and not only a duplicate.
 
 The exclusion also lets the cut run at all. cargo-release forces
-`consolidate-commits = true` on every package in a `shared-version` group. The seven
+`consolidate-commits = true` on every package in a `shared-version` group. The six
 inheriting crates form that group. `book-validation` carries its own version, so it is
 not in the group.
 
@@ -425,7 +425,7 @@ cargo release patch --execute
 
 The first `cargo release` is a dry run. The executed command does these things:
 
-- It bumps `[workspace.package] version` in the root `Cargo.toml`. All seven product
+- It bumps `[workspace.package] version` in the root `Cargo.toml`. All six product
   crates inherit that one field, so they move together.
 - It updates `Cargo.lock`.
 - It closes the `## Unreleased` section of the changelog.
@@ -466,9 +466,9 @@ two artifacts that it would have created:
 
 
 ```sh
-# 1. the version — ONE field, the workspace's. All seven product crates take
+# 1. the version — ONE field, the workspace's. All six product crates take
 #    `version.workspace = true`, so editing `[workspace.package] version` in the
-#    root `Cargo.toml` moves all seven together; no member manifest is touched.
+#    root `Cargo.toml` moves all six together; no member manifest is touched.
 #    Edit `version = "<old>"` → "<new>" there, then:
 cargo check                                  # rewrites Cargo.lock's product entries
 # 2. close the changelog heading, exactly as pre-release-replacements would:

@@ -373,9 +373,9 @@ use jj_workspace::Workspace;
 <!-- /fragment -->
 
 Two of the three are chapter 3's, and the third is another crate's. The absence
-is the striking part. `keyed_launch` appears nowhere in this module. Yet this
-module builds a string that exists only to be handed to the command that crate
-launches.
+is the striking part. No launcher crate appears in this module. Yet this
+module builds a string that exists only to be handed to the command that
+`ravel_job` launches.
 
 This module hands the runner nothing. It returns a `String` to its caller.
 Chapter 19's `session_prompt` passes it on.
@@ -952,7 +952,7 @@ admits, and how a session is launched and ended. This one is about a **channel**
 A channel poses one question: what has to be said now because it cannot be said
 later? Nothing beneath this layer could answer it.
 
-`keyed-launch` runs a command and knows nothing about sessions. `jj-workspace`
+`ravel_job` starts a command and knows nothing about sessions. `jj-workspace`
 resolves a workspace and knows nothing about what the answer is for. The store
 has no word for a kind at all.
 

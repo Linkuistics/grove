@@ -368,7 +368,6 @@ and this specification.
 | `grove-llm` | `crates/grove-llm` |
 | `grove-loop` | `crates/grove-loop` |
 | `jj-workspace` | `crates/jj-workspace` |
-| `keyed-launch` | `crates/keyed-launch` |
 
 A row is written before its book, not after it: each of the campaign's
 deliverables was authored against the subject this table already fixed,
@@ -975,7 +974,7 @@ then matched against every page of every book, in digits and spelled in words.
   inherits this. What stands in their place is the assembly chapter's own marked
   paragraphs, which state `chapters` and `source-owning-chapters` in digits.
 - **An ordinal is outside the mechanism by construction**, by the matching rule
-  above. So `keyed-launch`'s *The sixth owned-source row that exists to be zero*
+  above. So a title such as *The sixth owned-source row that exists to be zero*
   cannot be marked. It is not a defect.
 - **A roll-up restated in ordinary prose is the author's**, as this section
   already says. Every book's `README.md` and most of its chapters restate a

@@ -145,7 +145,7 @@ fn copied_pair_scrubs_inherited_authority_before_the_front() {
 
 #[test]
 #[ignore = "requires installed Ravel: task ravel:result RAVEL=/absolute/path/to/ravel"]
-fn both_stdout_runner_apis_read_only_the_installed_session_result() {
+fn both_shapes_read_only_the_installed_session_result() {
     let temp = tempfile::tempdir().unwrap();
     let prefix = temp.path().join("independent-ravel-1.1.0");
     let source = std::env::var_os("GROVE_TEST_RAVEL").expect("GROVE_TEST_RAVEL is required");

@@ -272,7 +272,7 @@ fn test_sessions_cannot_access_the_runners_terminal() {
                 break status;
             }
             if Instant::now() >= deadline {
-                // SIGKILLing the nested runner skips DriverProcess::drop. Its
+                // SIGKILLing the nested driver skips DriverProcess::drop. Its
                 // driver and configured session have separate process groups,
                 // so stop each parent before walking and killing its children.
                 fn kill_tree(pid: libc::pid_t) {
@@ -3233,7 +3233,7 @@ fn dispatch_exit_signal_relaunches_and_own_exit_stops_under_a_terminal() {
     assert!(stderr.contains("loop stopped"), "{stderr}");
     assert!(!stderr.contains("grove finished"), "{stderr}");
 }
-// Hold the driver's reset at stty, after runner recovery and before any reset
+// Hold the driver's reset at stty, after the job's terminal recovery and before any reset
 // changes the handed-over modes. The helper joins the driver's group.
 fn hold_terminal_reset(dispatch: &Dispatch) -> (OsString, PathBuf, PathBuf) {
     let bin = dispatch.root.join("reset-bin");

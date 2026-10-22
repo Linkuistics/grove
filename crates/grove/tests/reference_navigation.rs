@@ -1083,8 +1083,8 @@ fn documentation_ownership_targets(architecture: &str) -> Vec<String> {
 ///
 /// A row naming a page *inside* the book counts, because the canonical source
 /// for a book is its contents page rather than its directory — but only a page
-/// inside it: the trailing separator is what stops `…/keyed-launch-notes` from
-/// answering for `…/keyed-launch`.
+/// inside it: the trailing separator is what stops `…/jj-workspace-notes` from
+/// answering for `…/jj-workspace`.
 fn book_roots_without_ownership_row(book_roots: &[String], targets: &[String]) -> Vec<String> {
     book_roots
         .iter()

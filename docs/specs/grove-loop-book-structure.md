@@ -14,10 +14,9 @@ cover.
 decision below was settled in the `grove-loop-structure-k36` interview and is
 recorded, with its rejected alternatives, in that leaf's decision log. It
 follows [`jj-workspace-book-structure.md`](jj-workspace-book-structure.md),
-[`overview-book-structure.md`](overview-book-structure.md),
-[`grove-llm-book-structure.md`](grove-llm-book-structure.md) and
-[`keyed-launch-book-structure.md`](keyed-launch-book-structure.md), the four
-briefs elicited before their books, and is uniform with them.
+[`overview-book-structure.md`](overview-book-structure.md) and
+[`grove-llm-book-structure.md`](grove-llm-book-structure.md), the three briefs
+elicited before their books, and is uniform with them.
 
 **This brief is the human contract; the manifest is its machine-readable form.**
 The chapter sequence and ownership mapping below are what

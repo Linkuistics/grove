@@ -618,13 +618,7 @@ fn workspace_binary(name: &str) -> PathBuf {
 pub fn grove_sources() -> Vec<(String, String)> {
     let root = repo_root();
     let mut roots = Vec::new();
-    for member in [
-        "grove",
-        "grove-llm",
-        "grove-loop",
-        "jj-workspace",
-        "keyed-launch",
-    ] {
+    for member in ["grove", "grove-llm", "grove-loop", "jj-workspace"] {
         let member_src = root.join("crates").join(member).join("src");
         assert!(
             member_src.is_dir(),

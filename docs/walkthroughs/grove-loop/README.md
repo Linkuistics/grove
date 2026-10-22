@@ -14,8 +14,8 @@ This reader has run a grove, has watched `pick` choose a leaf, and has seen a
 session's commit name a work item by its handle.
 
 `crates/grove-loop` is eighteen source roots and 15,245 lines, and it is the layer that
-stayed. Three domain-free crates sit underneath it: an ordered filesystem tree,
-a keyed launcher and a version-control workspace. None of them has a word for a
+stayed. Two domain-free crates sit underneath it: an ordered filesystem tree
+and a version-control workspace. Neither has a word for a
 *kind*, a *brief chain*, an *outcome*, a *handle* or *finishing*. **This is the
 library that owns the domain alongside the read-only viewer.** Each chapter opens
 on what this module kept when the domain-free crates took the rest, and on why
@@ -23,7 +23,7 @@ that part could not move.
 
 **The intended outcome is the what-could-not-move test.** At the end you should
 be able to take any system that has extracted a domain-free library from
-underneath itself. The library can be a store, a runner or a version-control
+underneath itself. The library can be a store or a version-control
 seam. You should then be able to ask of the layer that stayed: *what did not go,
 and why could it not?* The answer comes in three parts, each with a cost the
 layer visibly pays.
@@ -44,9 +44,9 @@ All three are examined inside this corpus, and the closing chapter applies
 them to each of the nineteen source-owning chapters in turn.
 
 **The book's boundary is this crate's side of every seam it sits on.** Where
-`grove-loop` calls `ordinal-fs-tree`, `keyed-launch` or `jj-workspace`, the book
-says what grove asked for and what came back. It names the crate in prose and
-stops. Each of those crates has a book of its own.
+`grove-loop` calls `ordinal-fs-tree` or `jj-workspace`, the book says what grove
+asked for and what came back. It names the crate in prose and stops. Each of
+those crates has a book of its own.
 
 The methodology is outside the book too. The plugin and the guide own what a
 `requirements` session is for, when a leaf should decompose and which kinds

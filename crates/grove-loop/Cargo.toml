@@ -18,8 +18,8 @@ rust-version.workspace = true
 # `serde_json` is used only by integration fixtures, as a dev dependency below.
 # `anyhow` is **internal only**: every public entry point answers this crate's
 # own opaque [`Error`], so a consumer takes on no error library of ours — the
-# same rule `crates/jj-workspace`, `crates/keyed-launch` and
-# `crates/ordinal-fs-tree` state for theirs. `libc` supplies Unix calls and flags.
+# same rule `crates/jj-workspace` and `crates/ordinal-fs-tree` state for
+# theirs. `libc` supplies Unix calls and flags.
 # `observation` uses open flags; the lock-contention probe in `task_tree`
 # needs `flock(2)` non-blocking before it announces a wait; `driver_lease`, the
 # largest user, for the lease's own `flock(2)` and for the `fcntl(2)`
@@ -27,7 +27,7 @@ rust-version.workspace = true
 # `isatty`, `tcgetpgrp` and `signal`; and `ravel_job`, for the job-control calls
 # that start `ravel` as an ordinary child. `lib.rs` re-exports `reraise` so
 # Grove's binary can die of a signal without naming the module.
-# The verb surface writes no runner channel: `record-teardown` writes only
+# The verb surface writes no session result: `record-teardown` writes only
 # Grove's separate record in the current launch directory.
 [dependencies]
 anyhow = "1.0"

@@ -39,10 +39,6 @@
 # rather than knowing grove's name — and it is the only thing in this workspace
 # that spawns `jj`.
 #
-# `crates/keyed-launch` is the runner (decision 7): a program and its arguments
-# its caller built, spawned directly as a job and supervised. It is domain-free
-# down to the noun — it says *launch*, never *session*.
-#
 # Ravel is an independently installed CLI dependency, outside this workspace.
 # Grove ships its own caller assets and uses only the public session boundary.
 #
@@ -57,7 +53,6 @@ members = [
     "crates/grove-loop",
     "crates/grove-tui",
     "crates/jj-workspace",
-    "crates/keyed-launch",
     "crates/ordinal-fs-tree",
 ]
 resolver = "2"

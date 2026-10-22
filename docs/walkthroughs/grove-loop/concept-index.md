@@ -14,7 +14,7 @@
 - [Fragment notation](README.md#reading-fragments)
 - [The what-could-not-move test, stated](README.md)
 - [The layer that stayed, and why meaning could not move](01-orientation.md#allowed-to-mean)
-- [How this book's spine differs from the `jj-workspace` and `keyed-launch` books'](01-orientation.md#allowed-to-mean)
+- [How this book's spine differs from the `jj-workspace` book's](01-orientation.md#allowed-to-mean)
 - [The `Key` / `Entry` collision between the two vocabularies](01-orientation.md#allowed-to-mean)
 - [Allowed to be domain-bound, and the record that says so](01-orientation.md#the-package)
 - [Dependency ownership and staged result capture](01-orientation.md#the-package)

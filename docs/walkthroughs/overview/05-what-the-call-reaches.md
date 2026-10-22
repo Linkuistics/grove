@@ -27,11 +27,10 @@ authoring tool.
 |---|---|---|
 | `grove` | Human CLI and standalone orchestration | `grove-loop`, `grove-tui` |
 | `grove-tui` | Read-only application, capture, rendering and terminal lifetime | `grove-loop` |
-| `grove-loop` | Grove vocabulary, reader, verbs and driver | `ordinal-fs-tree`, `jj-workspace`, `keyed-launch` |
+| `grove-loop` | Grove vocabulary, reader, verbs and driver | `ordinal-fs-tree`, `jj-workspace` |
 | `grove-llm` | Session CLI | `grove-loop`, `jj-workspace` |
 | `ordinal-fs-tree` | Domain-free ordered tree store | none |
 | `jj-workspace` | Domain-free workspace and commit seam | none |
-| `keyed-launch` | Domain-free command runner | none |
 | `book-validation` | Source-fragment and Markdown checks | none |
 
 Ratatui and Crossterm belong to the viewer. Neither the loop library nor the
@@ -40,7 +39,8 @@ and readable caller policy assets. Grove callers resolve the
 independently released Ravel CLI on PATH, regardless of Grove's prefix/version.
 
 Ravel is outside this workspace and supplies no shared Rust dependency. Grove
-keeps local `keyed-launch` for its own jobs. Ravel has its own runner.
+starts `ravel` as an ordinary child process through `grove_loop::ravel_job`.
+Ravel keeps job control of its managed process.
 
 <a id="the-seven-names"></a>
 ## What crosses the binary boundary

@@ -575,13 +575,11 @@ valid: 4 files, 1017 resolved lines, 0 deferred lines, final=true
 valid: 13 files, 10557 resolved lines, 0 deferred lines, final=true
   book-check docs/walkthroughs/jj-workspace
 valid: 4 files, 797 resolved lines, 0 deferred lines, final=true
-  book-check docs/walkthroughs/keyed-launch
-valid: 9 files, 2073 resolved lines, 0 deferred lines, final=true
   book-check docs/walkthroughs/ordinal-fs-tree
 valid: 17 files, 8720 resolved lines, 0 deferred lines, final=true
   book-check docs/walkthroughs/overview
 valid: 3 files, 204 resolved lines, 0 deferred lines, final=true
-  6 book(s) checked, 0 failing
+  5 book(s) checked, 0 failing
   ✓ book-check
 
 check: all 8 principal checks pass
@@ -591,7 +589,8 @@ The umbrella. It runs `book-check --final --check all` over every book root unde
 `docs/walkthroughs/` **by discovery** rather than from a list. For that reason
 this book has been inside the gate since chapter 1 created its directory. For the
 same reason every drafting session but this one left the script red on
-`book-check` alone.
+`book-check` alone. The transcript above omits the book of a crate that Grove has
+since removed.
 
 The umbrella also runs the repository's own tests, and two of those cover this
 book without naming it. `every_repository_markdown_reference_resolves` sweeps

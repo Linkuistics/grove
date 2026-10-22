@@ -301,9 +301,9 @@ vocabulary, a count, a bound and — once — a test for admitting sentences. Th
 cost it pays for stating those choices is the one it pays least consistently, and
 the range above is the evidence.
 
-**And the thing the crate is really for.** Three domain-free crates sit
-underneath this one. None of them has a word for a kind, a brief chain, an
-outcome, a handle or finishing. Nineteen chapters have shown what that costs.
+**And the thing the crate is really for.** Two domain-free crates sit
+underneath this one. Neither has a word for a kind, a brief chain, an outcome, a
+handle or finishing. Nineteen chapters have shown what that costs.
 
 The sum is legible: **the layer that stayed is the layer that holds meaning, and
 meaning is expensive in exactly three places**. A name must survive a round trip
@@ -344,7 +344,7 @@ redundant description.
 
 Thirty-one of the forty-one residue markers of the
 document name this crate. Twenty-eight name it alone, one is joint with
-`keyed-launch`, one is joint with `jj-workspace`, and one is joint with `none`.
+a crate that Grove has since removed, one is joint with `jj-workspace`, and one is joint with `none`.
 The book checked each of the thirty-one against the chapter that the structure
 brief maps it to. It used the subject of the marker, not its line number.
 
@@ -483,7 +483,7 @@ module `prompt-names-the-kind-k18` had deleted. Only the fifth took a path:
 `Resolution` is public inside a private module and reaches the API as
 `verbs::Resolution`, so the re-export is the only spelling that resolves.
 Chapter 1's drafting found two clauses of `Cargo.toml`. One located `libc` in
-`task_tree` alone. The other located `keyed-launch` behind one verb.
+`task_tree` alone. The other located the local runner crate behind one verb.
 `manifest-dependency-clauses-k133` corrected both. `lib.rs`'s two claims that
 `<worktree>/.grove` is spelled in exactly one place were found at
 [chapter 5](05-opening.md)'s drafting, which could stop repeating them but owned
@@ -532,7 +532,8 @@ inventory must match the manifest exactly. Every file resolved
 and 0 deferred is the whole frozen corpus reconstructed from explained fragments.
 
 The following repository gate transcript is historical evidence from the original
-book, rather than a result claimed for the current cutover.
+book, rather than a result claimed for the current cutover. It omits the book of
+a crate that Grove has since removed.
 
 ```console
 $ bash scripts/check.sh
@@ -544,13 +545,11 @@ valid: 4 files, 1017 resolved lines, 0 deferred lines, final=true
 valid: 15 files, 10685 resolved lines, 0 deferred lines, final=true
   book-check docs/walkthroughs/jj-workspace
 valid: 4 files, 752 resolved lines, 0 deferred lines, final=true
-  book-check docs/walkthroughs/keyed-launch
-valid: 9 files, 2073 resolved lines, 0 deferred lines, final=true
   book-check docs/walkthroughs/ordinal-fs-tree
 valid: 17 files, 8905 resolved lines, 0 deferred lines, final=true
   book-check docs/walkthroughs/overview
 valid: 3 files, 204 resolved lines, 0 deferred lines, final=true
-  6 book(s) checked, 0 failing
+  5 book(s) checked, 0 failing
   ✓ book-check
 
 check: all 8 principal checks pass

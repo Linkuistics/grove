@@ -2,11 +2,11 @@
 //! session invokes over it.**
 //!
 //! Grove vocabulary lives here and in the read-only `grove-tui` viewer.
-//! Its reusable seams are domain-free: `ordinal-fs-tree` has an ordered tree,
-//! `keyed-launch` has an argv and a job, `jj-workspace` has a workspace and a
-//! commit — and none of them has a word for a *kind*, a *brief chain*, an
-//! *outcome*, a *handle* or *finishing*. Those are here, and so are the twelve
-//! verbs stated in them.
+//! Its reusable seams are domain-free: `ordinal-fs-tree` has an ordered tree and
+//! `jj-workspace` has a workspace and a commit — and neither has a word for a
+//! *kind*, a *brief chain*, an *outcome*, a *handle* or *finishing*. Those are
+//! here, and so are the twelve verbs stated in them. `ravel_job`, which starts
+//! `ravel` as an ordinary child, is grove's own too.
 //!
 //! Since `loop-crate-driver-k22` it is also the **driver**: the one-driver-per
 //! -working-tree lease, the prompt composition, and [`run`] — the loop itself.
@@ -42,7 +42,7 @@
 //! # One error for the whole crate
 //!
 //! [`Error`] is opaque, implements `std::error::Error` and `Display`, and is
-//! under the same obligation as the runner's: every one names what is wrong
+//! under the same obligation as `jj-workspace`'s: every one names what is wrong
 //! **and what fixes it**. Inside, the modules carry `anyhow` — the crate's
 //! errors are prose with context stacked on them, which is what `anyhow` is for
 //! — and it stops at this boundary, so a consumer takes on no error library of
@@ -377,7 +377,7 @@ pub fn select_snapshot(
 /// **One error for the whole crate**, opaque by construction.
 ///
 /// It carries the context stack the modules behind it built, and it is under the
-/// obligation `keyed-launch`'s and `jj-workspace`'s errors are under: a message
+/// obligation `jj-workspace`'s and `ordinal-fs-tree`'s errors are under: a message
 /// that only reports detection is unfinished, so every one of these names what
 /// is wrong **and** what fixes it (principle 2).
 ///

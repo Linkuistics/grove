@@ -5,10 +5,10 @@
 <a id="allowed-to-mean"></a>
 ## What this crate is allowed to mean
 
-`grove-loop` is the layer that stayed. Three domain-free crates sit underneath
-it. `ordinal-fs-tree` has an ordered filesystem tree. `keyed-launch` has an argv
-and a job. `jj-workspace` has a workspace and a commit. None of them has a word
-for a *kind*, a *brief chain*, an *outcome*, a *handle* or *finishing*.
+`grove-loop` is the layer that stayed. Two domain-free crates sit underneath it.
+`ordinal-fs-tree` has an ordered filesystem tree. `jj-workspace` has a workspace
+and a commit. Neither has a word for a *kind*, a *brief chain*, an *outcome*, a
+*handle* or *finishing*.
 
 Those words are here, because a domain-free crate cannot hold meaning. Every
 chapter of this book opens on what this module kept when the others took the
@@ -20,12 +20,11 @@ six dependencies on that basis, and `src/lib.rs`, whose first
 paragraph is the claim and whose remaining lines are the crate's own map of
 itself.
 
-**The comparison with the two books written before this one is made here and
+**The comparison with the book written before this one is made here and
 nowhere else.** The `jj-workspace` book opens each chapter on something that
-crate declines to own. It names who owns it instead. The `keyed-launch` book
-opens each chapter on what a stage must not add and must not interpret. Every
-refusal in those two crates assigns work to this one. What arrives here is the
-part nobody underneath could take.
+crate declines to own. It names who owns it instead. Every refusal in that crate
+assigns work to this one. What arrives here is the part nobody underneath could
+take.
 
 **One collision is worth naming before any code is read.** This crate takes the
 store's `Key` and `Entry` and adds a vocabulary of its own beside them — a kind,
@@ -97,8 +96,8 @@ The verb surface writes only Grove's teardown record in the launch directory.
 # `serde_json` is used only by integration fixtures, as a dev dependency below.
 # `anyhow` is **internal only**: every public entry point answers this crate's
 # own opaque [`Error`], so a consumer takes on no error library of ours — the
-# same rule `crates/jj-workspace`, `crates/keyed-launch` and
-# `crates/ordinal-fs-tree` state for theirs. `libc` supplies Unix calls and flags.
+# same rule `crates/jj-workspace` and `crates/ordinal-fs-tree` state for
+# theirs. `libc` supplies Unix calls and flags.
 # `observation` uses open flags; the lock-contention probe in `task_tree`
 # needs `flock(2)` non-blocking before it announces a wait; `driver_lease`, the
 # largest user, for the lease's own `flock(2)` and for the `fcntl(2)`
@@ -106,7 +105,7 @@ The verb surface writes only Grove's teardown record in the launch directory.
 # `isatty`, `tcgetpgrp` and `signal`; and `ravel_job`, for the job-control calls
 # that start `ravel` as an ordinary child. `lib.rs` re-exports `reraise` so
 # Grove's binary can die of a signal without naming the module.
-# The verb surface writes no runner channel: `record-teardown` writes only
+# The verb surface writes no session result: `record-teardown` writes only
 # Grove's separate record in the current launch directory.
 [dependencies]
 anyhow = "1.0"
@@ -120,9 +119,8 @@ tempfile = "3.10"
 **The `libc` attribution is longer than it needs to be, and the reason is a
 move.** Until `loop-crate-driver-k22` the lease and the loop were not in this
 crate. So the comment could name one user of `libc`, the contention probe. The
-driver's arrival widened the clause. The loop has since stopped depending on
-`keyed-launch`, so the dependency is gone. The comment still names that crate
-once, in the comparison of error conventions.
+driver's arrival widened the clause. A later change removed the local runner
+crate and the dependency on it. The comment no longer names that crate.
 
 `libc` supplies the loop's Unix calls and open flags. The contention probe in
 `task_tree` uses nonblocking `flock`, the lease uses locking and close-on-exec
@@ -140,8 +138,8 @@ names a module of this crate, so chapter 19 owns the name. The account of the
 library root's exports later in this chapter says so.
 
 *Reached by exactly one verb*, the old claim about the runner, is gone with the
-dependency. `record_teardown` still writes only Grove's record in the launch directory, and
-it reaches no runner.
+dependency. `record_teardown` still writes only Grove's record in the launch
+directory. The comment says that the verb surface writes no session result.
 
 **A clause that names one user is a class of defect rather than an accident
 here.** [Chapter 6](06-paths.md#canonicalise-to-compare) makes that case. It
@@ -275,12 +273,14 @@ opens on the grammar underneath it.
 
 The first fragment is the spine, and every chapter of this book is a reading of
 it. It states the permission: a domain-bound library alongside the read-only
-viewer. Then it states the boundary by enumeration. The other three crates have
-a tree, an argv and a job, and a workspace and a commit. None of them has a word
-for a kind, a brief chain, an outcome, a handle or finishing.
+viewer. Then it states the boundary by enumeration. The other two crates have a
+tree, and a workspace and a commit. Neither has a word for a kind, a brief chain,
+an outcome, a handle or finishing.
 
-The last clause is the crate's own count of its surface. Chapter 15 checks twelve
-against the thirteen functions that `verbs` declares.
+The next sentence names `ravel_job`, which launches `ravel` as an ordinary child,
+as a module of this crate. The last clause is the crate's own count of its
+surface. Chapter 15 checks twelve against the thirteen functions that `verbs`
+declares.
 
 <!-- fragment «library-root-thesis» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="1-9" parent="library-root" -->
 ````rust
@@ -288,11 +288,11 @@ against the thirteen functions that `verbs` declares.
 //! session invokes over it.**
 //!
 //! Grove vocabulary lives here and in the read-only `grove-tui` viewer.
-//! Its reusable seams are domain-free: `ordinal-fs-tree` has an ordered tree,
-//! `keyed-launch` has an argv and a job, `jj-workspace` has a workspace and a
-//! commit — and none of them has a word for a *kind*, a *brief chain*, an
-//! *outcome*, a *handle* or *finishing*. Those are here, and so are the twelve
-//! verbs stated in them.
+//! Its reusable seams are domain-free: `ordinal-fs-tree` has an ordered tree and
+//! `jj-workspace` has a workspace and a commit — and neither has a word for a
+//! *kind*, a *brief chain*, an *outcome*, a *handle* or *finishing*. Those are
+//! here, and so are the twelve verbs stated in them. `ravel_job`, which starts
+//! `ravel` as an ordinary child, is grove's own too.
 ````
 <!-- /fragment -->
 
@@ -381,7 +381,8 @@ it.
 `anyhow` lives inside the modules, where errors are prose with context stacked
 on them. It stops at this boundary. That is the dependency argument of the
 manifest, restated from the consumer's side. The obligation of the type is the
-runner's: every message names what is wrong **and** what fixes it.
+one that the errors of `jj-workspace` carry: every message names what is wrong
+**and** what fixes it.
 
 <!-- fragment «library-root-one-error» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="41-49" parent="library-root" -->
 ````rust
@@ -389,7 +390,7 @@ runner's: every message names what is wrong **and** what fixes it.
 //! # One error for the whole crate
 //!
 //! [`Error`] is opaque, implements `std::error::Error` and `Display`, and is
-//! under the same obligation as the runner's: every one names what is wrong
+//! under the same obligation as `jj-workspace`'s: every one names what is wrong
 //! **and what fixes it**. Inside, the modules carry `anyhow` — the crate's
 //! errors are prose with context stacked on them, which is what `anyhow` is for
 //! — and it stops at this boundary, so a consumer takes on no error library of
@@ -523,9 +524,9 @@ pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 <!-- /fragment -->
 
 The comment quantifies over the crates an operator installs rather than over the
-workspace's members. The two sets differ by one crate. Seven of the eight
+workspace's members. The two sets differ by one crate. Six of the seven
 workspace members take `version.workspace = true` — the two binaries and the
-five libraries that go into an operator's install. The eighth,
+four libraries that go into an operator's install. The seventh,
 `book-validation`, is the authoring tool behind this book.
 
 It carries a `version = "0.1.0"` of its own. Nothing an operator installs reads it.
@@ -1123,8 +1124,8 @@ that Grove caught before the error stopped the loop. Its comment states the
 obligation that replaces a taxonomy. Every message names what is wrong **and**
 what fixes it.
 
-The comment attributes the same rule to the errors of `keyed-launch` and
-`jj-workspace`, which is the workspace-wide form of it. `Error::msg` is
+The comment attributes the same rule to the errors of `jj-workspace` and
+`ordinal-fs-tree`, which is the workspace-wide form of it. `Error::msg` is
 `pub(crate)`. So this type can carry only the messages that a module of this
 crate wrote.
 
@@ -1139,7 +1140,7 @@ is `pub(crate)`. A caller reads it with `interrupted` and passes it to
 /// **One error for the whole crate**, opaque by construction.
 ///
 /// It carries the context stack the modules behind it built, and it is under the
-/// obligation `keyed-launch`'s and `jj-workspace`'s errors are under: a message
+/// obligation `jj-workspace`'s and `ordinal-fs-tree`'s errors are under: a message
 /// that only reports detection is unfinished, so every one of these names what
 /// is wrong **and** what fixes it (principle 2).
 ///

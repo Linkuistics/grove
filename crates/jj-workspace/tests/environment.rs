@@ -25,8 +25,7 @@
 //! `Command::env` writes the child's environment map and leaves this process
 //! alone, so there is no mutation, nothing to restore, and no `unsafe` — an
 //! edition-2024 migration has nothing to do to this file.
-//! `crates/keyed-launch/tests/reraise.rs` re-runs itself the same way, for the
-//! same reason: a property of a *process* can only be asserted by starting one.
+//! A property of a *process* can only be asserted by starting one.
 //!
 //! Passing the environment to the crate's own `jj` child instead is not
 //! available: `jj::raw_output` builds every `Command` behind a `pub(crate)`

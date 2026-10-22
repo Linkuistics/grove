@@ -1,5 +1,7 @@
 # grove
 
+<!-- tc: pending because the conversion has not reached this part of the document -->
+
 The grove CLI and methodology. This glossary holds terms specific to this codebase; general programming concepts are excluded by design.
 
 Definitions only. How a seam works belongs to `docs/ARCHITECTURE.md`, the
@@ -405,38 +407,46 @@ discard environment; epoch admission prevents ordinary stale-loop behavior.
 _Avoid_: treating redirected tests as proof of the inherited-authority guard;
 acceptance must exercise removal of actual ambient controls.
 
+<!-- tc: on -->
 <a id="exit-signal"></a>
 ### Exit signal / session completion
 
 The historical name for the session's completion publication. Current sessions
-execute their launch prompt's exact canonical `ravel end-session grove-continue`
-or `ravel end-session grove-force-stop` command. Ravel finds the enclosing session through inherited context,
-ends/reaps the managed group and returns the opaque argument. Grove supplies
-both instructions and result meanings; a completed finish writes its
-[[Teardown record]] before continuing. Ravel takes no session identifier or target path.
+execute the exact canonical `ravel end-session grove-continue` or
+`ravel end-session grove-force-stop` command from their launch prompt. Ravel
+finds the enclosing session through inherited context, ends and reaps the
+managed group, and returns the opaque argument. Grove supplies both
+instructions and result meanings. A completed finish writes its
+[[Teardown record]] before it continues. Ravel takes no session identifier or
+target path.
 
-Only original live-v22 launches use the empty-file signal created by
-`harness-dispatch exit` at `HARNESS_DISPATCH_EXIT_FILE`. Their installed driver,
-policy and ending channel remain in force until that driver ends.
+<!-- tc: depart synonym-rotation because `start-session` in the _Avoid_ line is the name of a Ravel command, not an action word -->
+Only original live-v22 launches use the empty-file signal that
+`harness-dispatch exit` creates at `HARNESS_DISPATCH_EXIT_FILE`. Their
+installed driver, policy and ending channel remain in force until that driver
+ends.
 _Avoid_: treating the old empty signal or `grove-llm complete` as a current
 Ravel command. Current Ravel has only start-session/end-session.
 
 <a id="run-ending"></a>
 ### Run ending / returned result
 
-The public completion argument Ravel returns after managed-process cleanup,
-opaque to Ravel and interpreted by its caller. Grove's lifecycle accepts exactly
-`grove-continue` and `grove-force-stop`, after its Ravel job is reaped and epoch
-admission invalidated. Driver interruption precedes all dispositions; a
-successful force-stop overrides [[Teardown record]] and exits 1 without
-completion. Teardown otherwise precedes group/status/continuation checks.
-Missing or unsupported results stop. Natural process exit supplies no completion
-acknowledgement. Standalone currently requires continuation before validating outputs.
-Contract: `docs/specs/harness-selection-and-execution.md`.
+The public completion argument that Ravel returns after managed-process
+cleanup. Ravel treats it as opaque, and its caller interprets it.
+
+Grove's lifecycle accepts exactly `grove-continue` and `grove-force-stop`,
+after its Ravel job is reaped and epoch admission is invalidated. Driver
+interruption precedes all dispositions. A successful force-stop overrides
+[[Teardown record]] and exits 1 without completion. Teardown otherwise
+precedes group/status/continuation checks.
+
+Missing or unsupported results stop. Natural process exit supplies no
+completion acknowledgement. Standalone currently requires continuation before
+it checks outputs. Contract: `docs/specs/harness-selection-and-execution.md`.
 
 Original live-v22 dispatch instead reports an exit-signal, harness-exit or
-cancellation ending through its old report protocol. That historical observation
-is neither a Ravel result nor a persistent Ravel record.
+cancellation ending through its old report protocol. That historical
+observation is neither a Ravel result nor a persistent Ravel record.
 _Avoid_: assigning continue/finish/force-stop meaning inside Ravel. Grove owns
 those conventions.
 
@@ -444,13 +454,17 @@ those conventions.
 ### Teardown record
 
 Grove's record, in the [[Launch directory]], that the finish session tore the
-grove down, written by `grove-llm record-teardown` once `.grove/` is gone and
-before the session's final [[Exit signal]]. The driver reads it after reaping
-the launch. It finishes the loop unless driver interruption or a successful
-explicit force-stop takes precedence; force-stop does not restore the removed tree.
+grove down. `grove-llm record-teardown` writes it once `.grove/` is gone and
+before the session's final [[Exit signal]]. The driver reads it after it reaps
+the launch.
+
+It finishes the loop unless driver interruption or a successful
+explicit force-stop takes precedence. Force-stop does not restore the removed
+tree.
 _Avoid_: a tombstone. It is read only by the driver that launched the session,
 and a replacement driver removes an abandoned one unread.
 
+<!-- tc: pending because the conversion has not reached this part of the document -->
 <a id="root-init"></a>
 ### root-init / fresh-grove start
 

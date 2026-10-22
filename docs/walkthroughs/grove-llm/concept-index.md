@@ -14,7 +14,7 @@
 - [The reachability clause, and the second dependency](01-orientation.md#the-package)
 - [The `grove` dependency that was removed](01-orientation.md#the-package)
 - [Two workspace dependencies, one of them reached through the other](01-orientation.md#the-package)
-- [Five dev-dependencies, and the test each one exists for](01-orientation.md#the-dev-dependencies)
+- [Four dev-dependencies, and the test each one exists for](01-orientation.md#the-dev-dependencies)
 - [Contention from outside, and the self-deadlock scan](01-orientation.md#the-dev-dependencies)
 - [`release = false`, and what it does not freeze](01-orientation.md#the-release-block)
 - [A library target that carries the CLI and no logic](01-orientation.md#the-library-root)

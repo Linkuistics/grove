@@ -206,11 +206,11 @@ jj-workspace = { path = "../jj-workspace" }
 <!-- /fragment -->
 
 <a id="the-dev-dependencies"></a>
-## Five dev-dependencies, and the test each exists for
+## Four dev-dependencies, and the test each exists for
 
 The dev-dependencies are the only trace inside the corpus of the test
-directory. This book cites that directory and never reproduces it. Three of the
-five carry a comment that says which test needs them and why. The table names the
+directory. This book cites that directory and never reproduces it. Two of the
+four carry a comment that says which test needs them and why. The table names the
 file behind each comment. So a reader can open the evidence that the manifest
 points at. The rows of the table come from the test directory at this checkout.
 

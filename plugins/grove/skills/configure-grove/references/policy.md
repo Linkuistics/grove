@@ -12,7 +12,7 @@ launch, confinement and the ending instructions of the prompt. Ravel need not sh
 prefix or the version of Grove.
 
 A missing Ravel names `brew install linkuistics/taps/ravel`. An unsupported version
-refuses with an upgrade remedy. Grove currently accepts stable 1.x.
+refuses with an upgrade remedy. Grove currently accepts stable Ravel 1.x from 1.1.0.
 
 For lifecycle work, in the working-tree root, the public request is:
 

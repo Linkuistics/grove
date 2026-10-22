@@ -807,7 +807,7 @@ verb suite has to test against*. One of those states is reached that way:
 `crates/grove-loop/tests/verbs.rs` calls `driver::materialize_finish` at lines 495
 and 516, in the two `finish_commit` tests, because nothing else may write a
 `finish` leaf. The other is not. `driver::transition_to_current` has one
-production call site, `crates/grove-loop/src/loop_driver.rs:243`, and this crate's
+production call site, `crates/grove-loop/src/loop_driver.rs:125`, and this crate's
 verb suite does not use it at all: `tests/verbs.rs` reaches a scaffolded grove
 through `verbs::root_init` over a `Vacancy` instead, in the `scaffold` helper at
 line 75. So the verb suite tests against one of the two states, not both, and the

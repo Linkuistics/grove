@@ -4,7 +4,8 @@
 
 Make every error that stops the loop keep a caught signal. Grove reports the
 error, and then `grove` dies of the signal. This closes the loss that the
-review `ravel-child-k3` found as F1.
+review `lifecycle-job-k22` found as F1. `lifecycle-job-k23` triaged that review
+and left this work here.
 
 ## Context
 
@@ -15,6 +16,28 @@ review `ravel-child-k3` found as F1.
   error before it reads the latch. The CLI in `crates/grove/src/cli.rs`
   propagates it, so `reraise` never runs.
 - The log of `ravel-child-k5` records the reason and the scope of the rule.
+- The finding F1 of `lifecycle-job-k22` lists three loss paths. A failed spawn
+  or wait carries the signal in `JobError::interrupted()`, and `drive` and the
+  CLI never use it. A successful reap can carry `JobEnd::interrupted`, and a
+  failed invalidation drops the whole end in the `(Ok(_), Err(_))` arm of
+  `complete_post_reap_epoch_handoff`. The latch is already empty by then, so a
+  final latch check cannot recover it. When launch and invalidation both fail,
+  the launch error survives only as text, so its typed signal is lost.
+- A signal can also stay in the latch. A `?` can return before the checks at the
+  top of the loop and after the reap consume it.
+- The places to change are `loop_driver::run`, `complete_post_reap_epoch_handoff`,
+  the error boundary in `lib.rs`, and the reporting and outcome handling in
+  `cli.rs`. The audit of the fallible paths covers these steps:
+  - lease revalidation, before the transition and before the launch
+  - the transition and the selection
+  - the construction of the ending commands
+  - the allocation of the launch directory and the capture
+  - the duplication of stdout
+  - the activation of the epoch, and the launch
+  - the return of the handoff
+- The unit cases of the handoff check diagnostic text and the suppression of
+  interpretation today. They do not check that the interruption survives, so
+  they do not cover F1.
 
 ## Done when
 

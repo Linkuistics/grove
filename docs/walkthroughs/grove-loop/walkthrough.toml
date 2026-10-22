@@ -234,7 +234,7 @@ lines = 59
 [[root]]
 id    = "source-driver-lease"
 path  = "crates/grove-loop/src/driver_lease.rs"
-lines = 2074
+lines = 2101
 
 [[root]]
 id    = "source-prompt"
@@ -460,7 +460,7 @@ lines = "1-958"
 id    = "lease-tests"
 root  = "source-driver-lease"
 owner = "which-calls-are-admitted"
-lines = "959-2074"
+lines = "959-2101"
 
 [[block]]
 id    = "the-prompt-core"

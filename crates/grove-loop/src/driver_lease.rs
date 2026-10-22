@@ -961,7 +961,9 @@ mod tests {
     /// Run `program` through the shared function in the foreground shape, as the
     /// loop driver does. Standard output goes to a scratch file, because the
     /// function takes a regular file. These tests check the order of the notices.
-    /// They run without a terminal, so they do not check job control.
+    /// They run without a terminal, so they do not check job control. The
+    /// assertion makes that a check: a caller outside the isolated child would
+    /// lend the developer's terminal to the shell.
     pub(super) fn launch_foreground(
         program: impl Into<OsString>,
         args: Vec<OsString>,
@@ -969,6 +971,10 @@ mod tests {
         launch_dir: &Path,
         observer: &mut dyn FnMut(crate::ravel_job::LaunchEvent),
     ) -> Result<crate::ravel_job::JobEnd, crate::ravel_job::JobError> {
+        assert!(
+            File::open("/dev/tty").is_err(),
+            "notice fixtures run without a controlling terminal"
+        );
         crate::ravel_job::launch(
             &crate::session_command::Argv::new(program.into(), args),
             cwd,
@@ -1109,6 +1115,9 @@ mod tests {
 
     #[test]
     fn paired_witness_failure_preserves_real_launch_and_admission() {
+        if !fork_sensitive_driver_lease_test_body_runs_here() {
+            return;
+        }
         let temp = TempDir::new().unwrap();
         fs::create_dir(temp.path().join(".jj")).unwrap();
         fs::create_dir(temp.path().join(".grove")).unwrap();
@@ -1499,6 +1508,7 @@ mod tests {
     use super::*;
     use crate::launch_directory::LaunchDirectory;
     use std::cell::{Cell, RefCell};
+    use std::os::unix::process::CommandExt as _;
     use std::process::Command;
     use std::sync::mpsc;
     use std::thread;
@@ -1538,9 +1548,26 @@ mod tests {
         // close-on-exec. Re-run only the fork-sensitive assertion in a child
         // test process with no parallel siblings; the production ordering and
         // lock assertions remain unchanged inside that process.
-        let output = Command::new(std::env::current_exe().expect("locating the unit-test binary"))
+        //
+        // The child also starts a session of its own. Capturing its streams does
+        // not remove its controlling terminal, and with one the shared function
+        // would open `/dev/tty` and lend the developer's terminal to `/bin/sh`.
+        let mut command =
+            Command::new(std::env::current_exe().expect("locating the unit-test binary"));
+        command
             .args(["--exact", test_name, "--nocapture"])
-            .env(FORK_SENSITIVE_TEST, test_name)
+            .env(FORK_SENSITIVE_TEST, test_name);
+        // SAFETY: the closure runs between `fork` and `exec` and calls only
+        // `setsid(2)`, which is async-signal-safe.
+        unsafe {
+            command.pre_exec(|| {
+                if libc::setsid() == -1 {
+                    return Err(std::io::Error::last_os_error());
+                }
+                Ok(())
+            });
+        }
+        let output = command
             .output()
             .expect("launching the isolated driver-lease test");
         assert!(

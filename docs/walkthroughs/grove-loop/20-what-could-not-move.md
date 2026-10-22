@@ -7,7 +7,7 @@
 
 <!-- rollup «owned-lines-total» -->
 <!-- rollup «ownership-blocks» -->
-This chapter owns none of the crate's 15,074 lines. The fragment graph spans
+This chapter owns none of the crate's 15,101 lines. The fragment graph spans
 [chapter 1](01-orientation.md) through [chapter 19](19-the-loop.md),
 including the captured observer in chapter 5. Its 45 ownership blocks are
 `resolved`. The [source index](source-index.md) records that graph in full. It
@@ -49,7 +49,7 @@ under their own headings, and the ten before them do not.
 
 | Ch | On the way in — the names | On the way through — the preconditions | On the way out — the policy |
 |---:|---|---|---|
-| [1](01-orientation.md) | The vocabulary itself — *kind*, *brief chain*, *outcome*, *handle*, *finishing* — named as the words no crate beneath has; and `VERSION`, one constant rather than several manifests kept in step | The lock is in the signature: `root_init` consumes a `Vacancy`, so it **cannot** run over a live grove. Compiler-enforced rather than checked | The permission itself: the manifest marks the crate *not domain-free* and uses seven dependencies |
+| [1](01-orientation.md) | The vocabulary itself — *kind*, *brief chain*, *outcome*, *handle*, *finishing* — named as the words no crate beneath has; and `VERSION`, one constant rather than several manifests kept in step | The lock is in the signature: `root_init` consumes a `Vacancy`, so it **cannot** run over a live grove. Compiler-enforced rather than checked | The permission itself: the manifest marks the crate *not domain-free* and uses six dependencies |
 | [2](02-the-tokens.md) | The whole of it. A task-shaped name that is wrong is `Malformed`, never `Foreign` — the store sees a species, never a spelling | None. `parse` takes a string and a `Found`, and there is no tree yet | Three of the store's four verdicts, and which of the three halts a walk rather than skipping a subtree |
 | [3](03-kind-slug-handle.md) | The handle is the identity and the position is not in it — a second grammar beside the filename's | None | A kind is an open token: open as to vocabulary, closed as to shape |
 | [4](04-the-name.md) | `format(parse(f)) == f`, or one entity occupies two files. The cost is a conformance kit | The species the stem declares, checked against what the listing found | Refuse rather than normalise — and hand back the spelling the name should have had, or say why there is none |
@@ -67,7 +67,7 @@ under their own headings, and the ten before them do not.
 | [16](16-the-lease.md) | Not a grammar but a **word**: the namespace `grove`, one string handed to a seam that could not have guessed it | The whole of the block — that the descriptor still names the path it opened, that the record belongs to the epoch it was admitted under | Six values nothing beneath could default: the namespace, two file names, a retry count, a handoff bound, a poll interval |
 | [17](17-the-epoch.md) | No grammar and no parsing; one naming *decision* — the ambient context is a path, and the empty string is not a degenerate one | The admitted guard holds its shared lock for the operation's whole life rather than checking and releasing | Where its own evidence stops: four of the ladder's seven refusal arms held, and the rest named |
 | [18](18-the-core.md) | Almost nothing. One name, `PLUGIN`, because one token appears twice in one sentence and both spellings must land on the same target | None — and it is earned: this is the only one of the crate's Rust roots with no fallible construct at all | A **test** rather than a value: a sentence rides `${prompt}` only if its failure mode is one the skill cannot repair |
-| [19](19-the-loop.md) | None of the grammar's, and one of its own — in the environment rather than in any grammar: `CHANNEL_VAR` | Placed rather than merely present: the lease revalidated twice an iteration, once before the tree transition and once before the launch | Three values a runner could not choose: whose directory, which variable publishes it, what a child may not inherit |
+| [19](19-the-loop.md) | None of the grammar's, and one of its own — in the environment rather than in any grammar: `GROVE_LAUNCH_DIR` | Placed rather than merely present: the lease revalidated twice an iteration, once before the tree transition and once before the launch | Three values a runner could not choose: whose directory, which variable publishes it, what a child may not inherit |
 
 **The structure brief's bands say where a question is paid for, not where it is
 asked.** The stated outcome assigns question 1 to chapters 2 to 5, question 2 to
@@ -118,7 +118,7 @@ crate reads names it owns a grammar; where it writes names *outside* the tree it
 owns single agreed strings, and the pattern is exact:
 [16](16-the-lease.md) owns the namespace `grove`;
 [18](18-the-core.md) owns `PLUGIN`;
-[19](19-the-loop.md) owns `CHANNEL_VAR`.
+[19](19-the-loop.md) owns `GROVE_LAUNCH_DIR`.
 [Chapter 17](17-the-epoch.md) is the fourth and owns no name at all — what it
 contributes is a decision *about* a name, that the ambient context is a path and
 the empty string is not a degenerate one, which had to be written into a filter
@@ -233,11 +233,11 @@ together.**
 |---|---|---|---|
 | The default root slug `plan` ([11](11-a-grove-begins.md)) | `DEFAULT_ROOT_SLUG` | a second crate's argument default | **One test**, and it postdates the reading |
 | `PLUGIN` ([18](18-the-core.md)) | the constant | a marketplace manifest in another directory | **One test** |
-| `CHANNEL_VAR` ([19](19-the-loop.md)) | this crate | the binary that reads it back, with no shared constant | Renaming it makes **nine tests** fail or hang |
+| `GROVE_LAUNCH_DIR` ([19](19-the-loop.md)) | `ravel_job`, which grants it | `grove-llm`, which reads it back, with no shared constant | **The fixtures** that set the real name on a real child |
 
 Read down the last column and the three are a range rather than three instances of
 one lapse: two values each held by a single test, and one
-held by nine. The range is the finding — the crate is not
+held by every fixture that sets the name on a real child. The range is the finding — the crate is not
 careless about restated values, it is *inconsistent* about them, and the
 inconsistency is invisible from any one page because each page has exactly one
 instance of it.
@@ -362,8 +362,8 @@ chapters 11 and 14's; the transition table is chapters 11 and 14's; the two kind
 tokens grove writes itself are chapters 3, 11 and 14's; the finish reservation,
 the finish flow and the four teardown steps with their two undo commands are
 chapter 14's; the core's three parts, what the core reads and the stated VCS in
-`${prompt}` are chapter 18's; and the watch and the escalation, and the scrub
-inside the seam with the loop's complementary list, are chapter 19's.
+`${prompt}` are chapter 18's; and the forwarded cancellation and the one scrub
+list inside the seam are chapter 19's.
 
 **One of those thirty-one reads that way only because the map was corrected, and
 how it got there is the finding.** As drafted, the map carried *the walk and the
@@ -431,7 +431,7 @@ this book established in its own chapter 2 and applied in every chapter after it
 
 <!-- rollup «owned-lines-sequence» -->
 <!-- rollup «source-owning-chapters» -->
-**Owned source.** 486 + 373 + 529 + 773 + 521 + 320 + 336 + 438 + 604 + 518 + 641 + 764 + 808 + 532 + 390 + 1,133 + 3,755 + 241 + 1,912 = 15,074 lines across
+**Owned source.** 486 + 373 + 529 + 773 + 521 + 320 + 336 + 438 + 604 + 518 + 641 + 764 + 808 + 532 + 390 + 1,133 + 3,782 + 241 + 1,912 = 15,101 lines across
 19 source-owning chapters. This closing chapter owns zero lines. The source
 index records the root sizes, block ranges and chapter totals.
 
@@ -574,7 +574,7 @@ tests, not this crate's.
 <!-- rollup «source-roots» -->
 <!-- rollup «owned-lines-total» -->
 <!-- rollup «chapters» -->
-The book is complete: 18 roots, 15,074 lines, 20 chapters, two
+The book is complete: 18 roots, 15,101 lines, 20 chapters, two
 lookup surfaces, zero deferred ranges. It argued that a layer which
 extracts a domain-free library from underneath itself keeps exactly what carries
 meaning. It also argued that meaning is expensive in three measurable places. It leaves

@@ -452,9 +452,10 @@ because the argument is about what the function does *not* do. Decision 5 of
 grove writes the leaf*, and this is the last place in the driver that had to be
 changed for that to be true.
 
-The claim generalises, and it holds under enumeration. `label()` is reached four
-times in `loop_driver.rs` — once to hand `Ravel` its `--kind`, and
-three times as a diagnostic's argument — and none of the four is a branch. Together with this module's zero conditionals, *the driver interprets a
+The claim generalises, and it holds under enumeration. `loop_driver.rs` calls
+`label()` three times, each time for a diagnostic's argument, and none of the
+three is a branch. The one other use hands `Ravel` its `--kind`. It sits in
+`session_command::lifecycle`, and it is not a branch either. Together with this module's zero conditionals, *the driver interprets a
 kind nowhere* is a statement about code that can be checked rather than a
 statement of intent. The crate does still know that two kind tokens are reserved,
 but that is chapter 4's grammar refusing a name, not the driver reading one.
@@ -650,8 +651,8 @@ commands subordinate to it. Grove supplies those instructions and meanings; Rave
 returns the argument unchanged after cleanup. A finish first records teardown
 with `grove-llm record-teardown`. Driver interruption takes precedence, then
 successful exact force-stop overrides teardown without restoring a removed tree.
-Teardown otherwise finishes regardless of supervisor result/status/group;
-successful exact continuation advances only with a gone group and no teardown.
+Teardown otherwise finishes regardless of the supervisor's result or status.
+A successful exact continuation advances only when no teardown is recorded.
 Original live-v22 sessions retain the ending named in their original prompt.
 
 The accepted residue remains a finish whose skill is unread and whose teardown

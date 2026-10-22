@@ -15,7 +15,7 @@ module kept when the others took the rest and on why that part could not move.
 
 Two files state that for the crate as a whole, and this chapter reconstructs
 both: `Cargo.toml`, whose comment marks the crate *not domain-free* and permits
-seven dependencies on that basis, and `src/lib.rs`, whose first
+six dependencies on that basis, and `src/lib.rs`, whose first
 paragraph is the claim and whose remaining lines are the crate's own map of
 itself.
 
@@ -34,7 +34,7 @@ store's *leaf* and *node* are not grove's, and the store's *ordinal* is grove's
 means in each sentence rather than relying on the word to carry it.
 
 <a id="the-package"></a>
-## The package: seven dependencies, and the set it imposes
+## The package: six dependencies, and the set it imposes
 
 The manifest is production source and this chapter reconstructs it in
 fragments that follow the file's own blocks. It is read
@@ -120,7 +120,8 @@ tempfile = "3.10"
 move.** Until `loop-crate-driver-k22` the lease and the loop were not in this
 crate. So the comment could name one user of `libc`, the contention probe. The
 driver's arrival widened the clause. The loop has since stopped depending on
-`keyed-launch`, so the comment no longer names that crate at all.
+`keyed-launch`, so the dependency is gone. The comment still names that crate
+once, in the comparison of error conventions.
 
 `libc` supplies the loop's Unix calls and open flags. The contention probe in
 `task_tree` uses nonblocking `flock`, the lease uses locking and close-on-exec
@@ -241,9 +242,9 @@ differently in that light.
 <a id="the-library-root"></a>
 ## The library root: five passages, and the chapters they name
 
-`src/lib.rs` is 418 lines. The first fifty are the module's own documentation, in
+`src/lib.rs` is 420 lines. The first 49 are the module's own documentation, in
 five passages — two opening paragraphs and three headed sections — and the
-remaining 327 are the crate's public surface: its modules, its version, its
+remaining 371 are the crate's public surface: its modules, its version, its
 exports, the two openings, the reference grammar and the one error. The book reads the whole file here, in nineteen
 fragments, and the five passages are read in the file's own order — which is not
 this book's chapter order, because the header opens on the crate and the book
@@ -433,7 +434,7 @@ The one other value fixed here is the root itself, `<worktree>/.grove`, which th
 join read later in this chapter builds.
 
 This chapter's step of the example is the smallest one: the two files just read
-go in, and what comes out is the crate's cast — seven dependencies, one error, and
+go in, and what comes out is the crate's cast — six dependencies, one error, and
 twelve verbs. The table names the twelve and the chapter that reads each, and it
 is the map the rest of the book fills in; nothing here says what any of them
 does beyond the name.

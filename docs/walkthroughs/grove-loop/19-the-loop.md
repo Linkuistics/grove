@@ -1179,7 +1179,8 @@ not conclusions drawn from missing grep matches.
 The loop's choices stay here: which leaf runs, what prompt it receives, where
 its launch identity lives, and which ending continues the tree. `ravel_job` has
 no task vocabulary. Ravel has no Grove vocabulary. A teardown remains
-Grove's deliberate record, interpreted before Ravel's opaque returned result.
+Grove's deliberate record. It outranks a returned continuation. A returned
+force-stop outranks it.
 
 <a id="launch-control-area"></a>
 ## The launch directory carries identity, ending and teardown
@@ -1760,8 +1761,7 @@ the launch directory of another session, and the launch directory is authority
 to end that session. So every spawn removes the ten names of `CONTROL_ENV`.
 
 `scrub` is the helper for that removal. The job calls it. The version probe and
-the terminal reset will call it when they move here. Until they move, the loop
-and `grove run` keep their own copies of the list.
+the terminal reset call it too, so no caller keeps a copy of the list.
 
 <!-- fragment «ravel-job-scrub» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/ravel_job.rs" lines="33-62" parent="ravel-job" -->
 ````rust

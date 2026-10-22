@@ -252,8 +252,12 @@ serve descriptors. `OsStrExt` and `OsStringExt` convert paths to bytes.
 `MetadataExt` reads the device and the inode. `OpenOptionsExt` sets a creation
 mode.
 
-Five of the six appear nowhere else in this crate. The exception is `AsRawFd`,
-which `task_tree.rs` also imports at its line 42, for the store's own locking.
+Two of the six appear nowhere else in this crate. They are `OsStrExt` and
+`OsStringExt`. `AsRawFd` is also imported by `task_tree.rs` at its line 43, for
+the store's own locking, and by `ravel_job.rs` and `witnesses.rs`. `RawFd` is
+also imported by `ravel_job.rs`. `MetadataExt` is also imported by
+`observation.rs` and `session_result.rs`. `OpenOptionsExt` is also imported by
+`launch_directory.rs`, `observation.rs` and `witnesses.rs`.
 
 Two crates besides `std` appear, and a reader might not expect either use.
 `anyhow` supplies `bail`, `Context` and `Result`, which is the crate-wide
@@ -693,23 +697,23 @@ which owns the tests that pass them.
 Fifty-three lines, and they are an **order** rather than a list. Six steps, and
 five of the six are wrong if moved.
 
-1. **Ask the seam for the control directory** (155). The header called this
+1. **Ask the seam for the control directory** (148). The header called this
    derivation *the one thing that is not a move*. It is first because everything
    else needs the directory. A working tree that is not jj-enabled stops here.
    So does a `.jj/` that cannot hold a directory. The record can therefore say
    that a `--help` or `--version` invocation returns without a workspace
    resolution or a lease. Those invocations never reach this function.
-2. **Open the working-tree root and pin its identity** (157–168). The function
+2. **Open the working-tree root and pin its identity** (150–161). The function
    opens the descriptor *before* it reads the identity. The identity comes from
    `worktree_directory.metadata()`, the descriptor's own.
    `fs::metadata(&worktree_root)` would have been a path lookup. It could have
    named a different directory by the time the answer came back. This is the difference between pinning a
    thing and pinning a name.
-3. **Take the lease lock** (171). One line, and everything about the retry
+3. **Take the lease lock** (164). One line, and everything about the retry
    protocol is behind it.
-4. **Draw the nonce** (172).
-5. **Revalidate** (184), then run the injected barrier, then **install the epoch
-   record** (186).
+4. **Draw the nonce** (165).
+5. **Revalidate** (178), then run the injected barrier, then **install the epoch
+   record** (180).
 6. **Discard abandoned launch directories** (182–189), last, and warn rather than fail.
 
 Step 6 carries the only comment in the function that argues rather than
@@ -1026,8 +1030,8 @@ The record fixes exactly when: *the driver holds both root and lock descriptors
 until the loop has stopped, and revalidates the lock path before every lifecycle
 transition and foreground launch.* That is two occasions, and there are two calls,
 both in `loop_driver.rs`, and each carries a context string naming its occasion —
-*revalidating driver lease before loop transition* at line 239 and *revalidating
-driver lease before foreground launch* at line 281. A reader can check the clause
+*revalidating driver lease before loop transition* at line 121 and *revalidating
+driver lease before foreground launch* at line 144. A reader can check the clause
 against the code by reading two strings.
 
 The two arms fail differently on purpose. A replaced **working-tree root** means

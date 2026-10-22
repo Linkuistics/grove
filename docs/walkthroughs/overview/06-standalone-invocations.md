@@ -16,18 +16,18 @@ Grove retains managed output on stderr in its transcript.
 ## Worked example: turn staged changes into release notes
 
 Run `grove run release-notes 'Draft notes from changes.txt' --input /work/release/changes.txt --output /work/release/notes.md --ui inline` with a regular input and
-absent destination. Grove copies the input to its private work directory,
-holds that directory open, and launches the once-selected Ravel with public
-`start-session --confine` inputs. The policy selects outside confinement; the
+absent destination. Grove copies the input to its private work directory and
+holds that directory open. Then Grove launches the once-selected Ravel with public
+`start-session --confine` inputs. The policy selects outside confinement. The
 harness receives its own ephemeral ending context and the exact
 `end-session grove-continue` and `end-session grove-force-stop` commands in the prompt.
 
 After Ravel reaps its managed group, Grove rejects a surviving supervisor group,
 cancellation or unsuccessful front status before reading the separate held,
-unlinked result file. Only exact `grove-continue` authorizes publication. Grove
+unlinked result file. Only exact `grove-continue` authorises publication. Grove
 reads output through the original directory descriptor, copies the whole set
 beside its destinations and publishes without replacement. Refusal, a missing
-or unsupported result, force-stop, or cancellation publishes nothing; a publication race
+or unsupported result, force-stop, or cancellation publishes nothing. A publication race
 reports any already published prefix. A continue result published before a later managed
 nonzero exit remains successful after cleanup, as Ravel's public contract states.
 
@@ -52,15 +52,19 @@ nonzero exit remains successful after cleanup, as Ravel's public contract states
 ## The invocation inputs
 
 `Args` carries the kind, one prompt source, transfer paths, runtime reads and
-display choice. `run` resolves/version-checks Ravel once and names the
-persistent logs. The version probe scrubs enclosing authority as well as launch. `CONTROL_ENV` removes enclosing Grove, dispatch and Ravel
-controls before selection, preserving the owner's other environment grants.
-It also removes retired completion channels, PID handles and inherited
-`GROVE_PROVIDER_EVIDENCE`, so a nested caller cannot borrow its parent's creator. The real-process
-fixture `standalone_scrubs_enclosing_ravel_and_retired_controls_before_selection`
-uses process-entry probes for all ten controls and allowed Grove/owner grants
-through actual selection. Every name is observed dirty independently; both
-callers scrub enclosing authority before delegation to installed Ravel.
+display choice. `run` resolves Ravel once, checks its version and names the
+persistent logs. The version probe scrubs enclosing authority as well as launch.
+
+`CONTROL_ENV` removes enclosing Grove, dispatch and Ravel controls before
+selection. It preserves the other environment grants of the owner. It also
+removes retired completion channels, PID handles and inherited
+`GROVE_PROVIDER_EVIDENCE`, so a nested caller cannot borrow the creator of its
+parent. The real-process fixture
+`standalone_scrubs_enclosing_ravel_and_retired_controls_before_selection` uses
+process-entry probes for all ten controls and for the allowed Grove and owner
+grants through actual selection. The fixture observes every name dirty
+independently. Both callers scrub enclosing authority before delegation to
+installed Ravel.
 
 <!-- fragment «standalone-interface» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="1-75" parent="standalone-invocation" -->
 ````rust
@@ -145,7 +149,7 @@ pub(crate) fn run(args: Args) -> Result<()> {
 <a id="standalone-staging"></a>
 ## Stage artifacts
 
-`execute` validates the prompt and creates separate work and control
+`execute` checks the prompt and creates separate work and control
 directories. Inputs are copied as regular files, names cannot collide, and every
 output destination must be absent. The control directory remains outside the
 harness's writable grants.
@@ -214,8 +218,8 @@ The prompt names exact canonical commands: `end-session grove-continue` after
 checking every output, and `end-session grove-force-stop` when unable to complete.
 It explains that continue publishes checked outputs and force-stop reports
 failure with no publication. The shared argv contains `start-session --confine`,
-the kind, literal prompt, writable exit directory and canonical runtime reads; it carries no task identity,
-task file or selection parameter. Grove holds the work directory before launch,
+the kind, literal prompt, writable exit directory and canonical runtime reads.
+It carries no task identity, task file or selection parameter. Grove holds the work directory before launch,
 opens the persistent transcript and retains display control.
 
 <!-- fragment «standalone-launch-context» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="128-176" parent="standalone-invocation" -->
@@ -277,15 +281,18 @@ opens the persistent transcript and retains display control.
 
 `NoninteractiveLaunch` carries no completion channel. The runner detaches
 Ravel into its own session with EOF stdin and captured output, forwarding
-cancellation and waiting through its kill grace. The relay sanitizes the log for
-display. After reap, Grove refuses a surviving supervisor group, cancellation
+cancellation and waiting through its kill grace. The relay sanitises the log for
+display.
+
+After reap, Grove refuses a surviving supervisor group, cancellation
 or unsuccessful Ravel status, then reads the held stdout result. Only exact
-`grove-continue` authorizes output publication. Exact `grove-force-stop` returns
-an error before output validation or publication, even for valid staged files.
+`grove-continue` authorises output publication. Exact `grove-force-stop` returns
+an error before the output check or publication, even for valid staged files.
+
 The status file records either completed or failed, including selection refusal.
-Relay failure prevents publication too, retaining the log even for an
+Relay failure prevents publication too, and it retains the log even for an
 acknowledged run. An uncatchable Grove death can orphan its detached Ravel
-and harness; that dead publisher exports nothing.
+and harness. That dead publisher exports nothing.
 
 <!-- fragment «standalone-supervision» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="177-249" parent="standalone-invocation" -->
 ````rust
@@ -366,7 +373,7 @@ and harness; that dead publisher exports nothing.
 <!-- /fragment -->
 
 <a id="standalone-artifact-checks"></a>
-## Validate transfer paths
+## Check transfer paths
 
 Basenames must name one artifact. Existing destinations are refused and input
 opens use `O_NOFOLLOW` and `O_NONBLOCK`, rejecting symlinks and non-regular files
@@ -418,9 +425,9 @@ fn regular_file(path: &Path) -> Result<File> {
 ## Publish without replacement
 
 `publish_outputs` reads each regular output through the original directory
-handle, validates and copies the whole set, then persists each staged copy
-without replacing a destination. Cancellation is checked before each publish;
-an error names the prefix already exported. `shell_word` quotes the canonical
+handle, checks and copies the whole set, then persists each staged copy
+without replacing a destination. Cancellation is checked before each publish.
+An error names the prefix already exported. `shell_word` quotes the canonical
 exit command and the parent's display commands for literal shell use.
 
 <!-- fragment «standalone-publication» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="286-321" parent="standalone-invocation" -->
@@ -486,33 +493,35 @@ pub(crate) use ravel::locate;
 
 The active `dispatch::ravel::locate` reads the launching process's PATH. Its
 `locate_on_path` helper examines only absolute directories, skips candidates
-that are not executable regular files, and canonicalizes the first candidate
+that are not executable regular files, and canonicalises the first candidate
 once. It returns that path only after `check_version` accepts its public
-`--version` response. An incompatible first executable refuses; a later
+`--version` response. An incompatible first executable refuses. A later
 installation cannot silently replace it. Missing Ravel reports an install
 command, while a malformed, unsuccessful or unsupported probe reports an
 upgrade command.
 
-The compatibility check accepts stable `ravel 1.x`, starting with the delivered
-1.0.0 two-verb contract. It validates stdout as UTF-8 and rejects extra output,
-prereleases, other CLI lines and a failed status. The
-caller ADR, `docs/adr/dispatch-supervises-the-harness.md`, records the PATH trust
-cost: this probe executes the owner's selected program, and neither version
-output nor canonicalization authenticates or pins its bytes. Both actual
-callers consume the selected executable; the old sibling locator is gone.
+The compatibility check accepts stable `ravel 1.x`, from the delivered
+1.0.0 two-verb contract. It checks that stdout is UTF-8 and rejects extra output,
+prereleases, other CLI lines and a failed status.
 
-The inline tests drive executable decoys and a subprocess with its own cwd/PATH;
-they do not mutate the test runner's environment. The installed-pair test copies
+The caller ADR, `docs/adr/dispatch-supervises-the-harness.md`, records the PATH trust
+cost. This probe executes the program that the owner selected. Neither version
+output nor canonicalisation authenticates or pins its bytes. Both actual
+callers consume the selected executable. The old sibling locator is gone.
+
+The inline tests drive executable decoys and a subprocess with its own cwd and PATH.
+They do not mutate the environment of the test runner. The installed-pair test copies
 an actual front and worker through the shared `testing/ravel.rs` fixture into a
 temporary independent prefix and routes a fake
 shell agent through `ravel/sdk`. With only that prefix on the child's PATH, the
 session's noise stays on stderr and stdout contains exactly its supplied result.
+
 `task ravel:resolution RAVEL=/absolute/path/to/ravel` runs this installed case as
-well as the ordinary resolver tests; the ignored subprocess role runs only as a
+well as the ordinary resolver tests. The ignored subprocess role runs only as a
 child of its cwd-decoy test. `task ravel:fixtures` combines this check with the
 shared-result runner checks. Its real-worker controls remove the copied worker
-and inject inherited authority into a re-executed entry probe; clean runs use
-the isolated pair without host Bun/Node or a Grove sibling installation.
+and inject inherited authority into a re-executed entry probe. Clean runs use
+the isolated pair without host Bun or Node and without a Grove sibling installation.
 
 <!-- fragment «ravel-resolution» owner="isolated-invocation" source="crates/grove/src/dispatch/ravel.rs" lines="1-313" parent="source-ravel-resolution" -->
 ````rust
@@ -902,9 +911,11 @@ fn render(bytes: &[u8], writer: &mut impl Write) -> Result<()> {
 `watch` is the hidden `run-log` viewer: it tails the same log and finishes when
 the separate status file appears. `open` creates a tmux or Zellij pane from the
 parent's environment. tmux receives `-d` and Zellij receives `--no-focus`, so
-opening the viewer leaves focus on the caller. Inline mode skips that request;
-auto mode falls back to inline when no supported connection succeeds, while an
-explicit pane request returns a diagnostic. The confined harness receives
+opening the viewer leaves focus on the caller. Inline mode skips that request.
+Auto mode falls back to inline when no supported connection succeeds. An
+explicit pane request returns a diagnostic instead.
+
+The confined harness receives
 neither the mux variables nor a command channel back to that pane.
 
 <!-- fragment «display-pane» owner="isolated-invocation" source="crates/grove/src/run_display.rs" lines="44-116" parent="standalone-display" -->
@@ -986,14 +997,14 @@ pub(crate) fn open(ui: Ui, kind: &str, log: &Path, status: &Path) -> Result<()> 
 <!-- /fragment -->
 
 <a id="display-control-test"></a>
-## Check display behavior without a real terminal
+## Check display behaviour without a real terminal
 
 The test-only module declaration loads `tests/internal/run_display.rs`, outside
 this book's source corpus. Its render test passes an OSC clipboard sequence and
 checks that displayed text contains neither ESC nor BEL. The pane test supplies
 fake mux commands in isolated subprocesses and checks quoting, focus-preserving
-flags, inline behavior and auto-versus-explicit failure handling. These are
-external evidence for the display boundary; only the declaration below belongs
+flags, inline behaviour and auto-versus-explicit failure handling. These are
+external evidence for the display boundary. Only the declaration below belongs
 to the reconstructed production file.
 
 <!-- fragment «display-control-test» owner="isolated-invocation" source="crates/grove/src/run_display.rs" lines="117-119" parent="standalone-display" -->

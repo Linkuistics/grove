@@ -30,6 +30,8 @@ Find the smallest increments that are useful on their own and keep
   function beside the crate. Then move the two callers and the tests of the
   driver lease. Then remove the crate, its tasks and its book.
 - The 1.1.0 floor of the resolver does not depend on the rest, so it can land
-  first.
+  first. The same leaf moves the release inputs to Ravel 1.1.0, as the root
+  brief lists in *The 1.1.0 floor in the release inputs*. A release on the old
+  pins fails, because Grove refuses their Ravel.
 - Each edited record needs a conversion first, as its own change. The root
   brief, in *Notes*, says which records already pass the checker.

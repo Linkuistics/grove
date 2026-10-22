@@ -27,7 +27,7 @@ asserts no private transport or escalation details.
 | [Nested jobs](http://127.0.0.1:8769/#diagram-chain) | Grove's foreground job for `ravel`, signal forwarding, Ravel's managed job and terminal recovery. |
 | [Result lifecycle](http://127.0.0.1:8769/#diagram-ending) | Successful publication against an absent result, cancellation or cleanup failure. |
 | [Two Grove callers](http://127.0.0.1:8769/#diagram-grove-launch) | The foreground and detached jobs, lifecycle admission and teardown, and confined standalone output publication. |
-| [Post-reap decision](http://127.0.0.1:8769/#diagram-loop-decision) | Epoch gate, interruption, successful force-stop, teardown and successful continuation. |
+| [Post-reap decision](http://127.0.0.1:8769/#diagram-loop-decision) | Epoch gate, failed spawn or wait, interruption, successful force-stop, teardown and successful continuation. Each error keeps a caught signal. |
 | [Creator alternatives](http://127.0.0.1:8769/#diagram-creator-options) | The inline receipt or declaration of the [Creator decision](../../adr/a-review-carries-its-creator-reference.md), and its rejected alternatives of a store or today's route. |
 | [Creator handoff](http://127.0.0.1:8769/#diagram-creator-flow) | Caller wrapper, finishing producer and the committed provider evidence of the review. |
 | [Configured review](http://127.0.0.1:8769/#diagram-creator) | Validation and routing to a different provider by opt-in Grove policy assets. |

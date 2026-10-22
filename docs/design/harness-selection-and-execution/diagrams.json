@@ -3,7 +3,7 @@
   "intro": "Current caller/process views of independently installed Ravel and Grove. The caller spec owns Grove interpretation; Ravel owns executable runtime behavior. Original live-v22 sessions retain their launch-prompt ending contract and are not depicted as new Ravel launches. Graphs begin at Start here, sequences at their first message, and the state view at its initial state.",
   "discussion": {
     "title": "Grove launches ravel as an ordinary child",
-    "status": "Proposed by design ravel-child-k2. Awaiting review-design, then planning.",
+    "status": "Proposed by design ravel-child-k2, reviewed by ravel-child-k3 and integrated by ravel-child-k5. Awaiting planning.",
     "summary": "The keyed-launch runner goes. One shared Grove function launches ravel as a foreground job for the lifecycle or a detached job for grove run. Grove forwards a caught signal to ravel alone, sends no KILL and checks no group. Ravel alone gives the cleanup assurance.",
     "diagramIds": [
       "packages",
@@ -27,7 +27,7 @@
       },
       {
         "id": "loop-decision",
-        "summary": "Removed the surviving-group decision, so a failed teardown check goes straight to the status check."
+        "summary": "Removed the surviving-group decision, so a failed teardown check goes straight to the status check. Added the branch for a failed spawn or wait, and a caught signal still decides the exit after an error."
       }
     ]
   },
@@ -94,7 +94,7 @@
       "group": "grove",
       "title": "Grove post-reap decision order",
       "source": "loop-decision.mmd",
-      "caption": "Epoch invalidation gates interpretation. Driver interruption precedes successful exact force-stop, then teardown, then successful exact continuation. Grove checks no process group after the reap. Force-stop exits 1 without undoing teardown."
+      "caption": "Epoch invalidation gates interpretation. A failed spawn or wait reads no disposition. After any error, Grove reports it and dies of a caught signal. Driver interruption precedes successful exact force-stop, then teardown, then successful exact continuation. Grove checks no process group after the reap. Force-stop exits 1 without undoing teardown."
     },
     {
       "id": "creator-options",

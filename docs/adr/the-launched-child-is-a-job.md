@@ -1,23 +1,17 @@
 # The launched child is a job
 
 Grove launches `ravel` as a **job**, as a job-control shell does. One function
-serves both callers, and Grove keeps no runner of its own. In the lifecycle,
-`ravel` leads a **process group of its own** in Grove's POSIX session. When
-Grove owns a controlling terminal and is its foreground group, Grove hands that
-terminal to the group of `ravel` with `tcsetpgrp`. The child does so before its
-exec. Grove does so after the spawn, and again at each poll while its own group
-holds the foreground.
+serves both callers. In the lifecycle, `ravel` leads a **process group of its
+own** in Grove's POSIX session. When Grove owns a controlling terminal and is
+its foreground group, Grove hands that terminal to the group of `ravel` with
+`tcsetpgrp`. After the reap, Grove takes the terminal back and restores the
+attributes that it saved. Across the spawn, Grove resets the dispositions of
+`ravel` for the job-control signals to their defaults.
 
-Grove reclaims the terminal once it reaps `ravel`. It takes the terminal from
-the group of `ravel`. When `ravel` died of a signal, Grove takes the terminal
-from whichever group then holds it. The two exceptions are Grove's own group
-and the session leader's group. Grove puts back the terminal attributes that it
-saved at the handover.
-
-Across the same spawn, Grove resets the dispositions of `ravel` for the
-job-control signals to their defaults. Grove catches INT, TERM and HUP, unless
-it ignores them, and sends each one to the `ravel` process. Grove never sends
-KILL and never signals a group. Ravel ends its own job and its managed job
+The caller contract states the procedures. These are the handover, the rules of
+the reclaim and the handling of signals
+([Jobs and authority](../specs/harness-selection-and-execution.md#execution-contract)).
+Ravel ends its own job and its managed job
 ([Ravel supervises the harness](dispatch-supervises-the-harness.md)).
 
 `grove run` runs `ravel` as a **detached job** instead. There `ravel` leads a new
@@ -32,9 +26,7 @@ harness's group alone.
 
 Each supervisor takes the terminal back from its own child. So a raw-mode
 harness that Ravel's escalation killed leaves Ravel a terminal to restore, and
-Ravel leaves Grove one. Grove takes the terminal from whichever group a `ravel`
-that died of a signal left holding it. So a Ravel killed while its orphaned
-harness held the terminal also leaves Grove a terminal.
+Ravel leaves Grove one.
 
 Two things follow, and each closes a defect that a plain spawn cannot close.
 First, the terminal delivers a signal that the human types to the foreground
@@ -49,11 +41,10 @@ reach the harness and everything that it spawns. It would also reach every login
 shell or `ssh` hop in between. The result is an interactive session that nobody
 can interrupt and that cannot say why.
 
-The trade-off settled is **which** identity of `ravel` changes, and **who ends
-its job**. To take the terminal, `ravel` must lead a group in Grove's session.
-If that goes wrong, Grove cannot hand `ravel` the terminal, and `ravel` reads the
-terminal in competition with Grove. Ending the job stays with Ravel, which alone
-gives the cleanup assurance.
+The trade-off settled is **which** identity of `ravel` changes. To take the
+terminal, `ravel` must lead a group in Grove's session. If that goes wrong,
+Grove cannot hand `ravel` the terminal, and `ravel` reads the terminal in
+competition with Grove.
 
 ## Considered options
 
@@ -85,14 +76,6 @@ gives the cleanup assurance.
   transcript to its terminal, and a background group that writes there can stop
   on SIGTTOU. The detached job keeps the terminal with `grove run`, so a typed
   Ctrl-C reaches the process that decides about cancellation and publication.
-- **Bound the wait with a KILL after a grace.** Rejected (owner, 2026-10-22). A
-  KILL to `ravel` cuts its cleanup short and orphans its managed job. That is the
-  outcome that the bound was there to prevent. Ravel bounds its own escalation.
-  Grove waits until `ravel` exits, however long that takes.
-- **Kill what remains of the group of `ravel` after it exits, and confirm that
-  the group is gone.** Rejected (owner, 2026-10-22). A successful Ravel status
-  with an exact result is the only evidence of cleanup
-  ([Ravel supervises the harness](dispatch-supervises-the-harness.md)).
 - **Reclaim the terminal only from the group of `ravel`, always.** Rejected. A
   supervisor that dies, as Ravel can under SIGKILL, leaves its own child's group
   holding the terminal. Grove would then never take the terminal back, and a

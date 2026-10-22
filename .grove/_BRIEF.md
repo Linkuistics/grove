@@ -94,6 +94,17 @@ section holds what the planning needs and what dies with `.grove/`.
   launch directory, and the detached shape carries the transcript file.
 - It returns the end of the job: the wait status of `ravel`, the interruption
   and the elapsed time. The end has no group field.
+- A failed spawn or a failed wait returns an error that carries the
+  interruption. The function takes the latch into that error, as it does at
+  the reap. A failed spawn sends no notice. A failed wait sends no Reaped and
+  no KILL.
+- The function installs the handlers at its first call. A signal that it
+  catches after that call belongs to the driver, even when the next spawn
+  fails.
+- Each error that stops the loop keeps a caught signal. The CLI of `grove`
+  reports the error, then dies of the signal from the launch error or the
+  latch. A failed invalidation follows the same rule. The section *Lifecycle
+  interpretation* of the caller contract states it.
 - It polls at a constant interval, as the runner does now. At each poll it passes
   the foreground on, sends each latched signal to `ravel` and checks for an
   exit without blocking. A stop is not an exit.
@@ -137,10 +148,10 @@ quotes.
 - The book structure specs `grove-loop-book-structure.md`,
   `overview-book-structure.md` and `grove-llm-book-structure.md`, and
   `user-guide-coverage.md`.
-- The books: chapters 01 and 16 to 20 of `docs/walkthroughs/grove-loop/` with
-  its concept index and README, chapters 01, 05 and 06 of
-  `docs/walkthroughs/overview/`, and chapter 07 of
-  `docs/walkthroughs/jj-workspace/`.
+- The book `docs/walkthroughs/grove-loop/`: chapters 01 and 16 to 20, with its
+  concept index, source index and README.
+- The other books: chapters 01, 05 and 06 of `docs/walkthroughs/overview/`, and
+  chapter 07 of `docs/walkthroughs/jj-workspace/`.
 - `docs/adr/one-live-driver-per-working-tree.md`. Its passage on orphaned
   processes credits Grove's job decision with the reap of the session's group,
   but Ravel's guarantee does that. Its "two generic runner events" become the
@@ -149,6 +160,12 @@ quotes.
   `CONTEXT-MAP.md` on the crate, and its "no surviving group".
 - `docs/ARCHITECTURE.md` and `docs/grove-delivery-contraction.md`.
 - `docs/RELEASING.md`: seven product packages become six. The anchor stays.
+- `docs/USAGE.md`. Its standalone section names the survivor group of
+  `grove run`, and its lifecycle section names a surviving supervisor group.
+  Its section on stopping the loop sends the forwarded signal to Ravel's
+  process group, but Grove sends it to the `ravel` process.
+- `plugins/grove/skills/grove/references/driver.md`. Its post-reap order names
+  a surviving supervisor group and a gone group.
 - The comments that cite the crate in `crates/grove-llm/tests/removed_surface.rs`,
   `crates/jj-workspace/tests/environment.rs`,
   `crates/grove/tests/reference_navigation.rs` and
@@ -164,6 +181,24 @@ Dated evidence of bounded runs stays unchanged, by
 `docs/grove-session-control-evidence.md`. Released entries of `CHANGELOG.md`
 stay too.
 
+### The 1.1.0 floor in the release inputs
+
+The release target tests pin the Ravel 1.0.0 archives, and Grove refuses 1.0.x.
+Move each pin to the Ravel 1.1.0 archives, with SHA-256 digests measured from
+the published release. That release has the same three targets.
+
+- `scripts/ravel_target_inputs.py` and `docs/ravel-target-inputs.md`, with its
+  table of digests and its consumer paths. Its dated measurement of a run
+  stays.
+- The archive names in `scripts/ravel-target-smoke.sh`,
+  `scripts/ravel-target-smoke-target.sh`,
+  `scripts/release-registration.test.sh`,
+  `scripts/release-floor-backend-probe-host.sh` and
+  `scripts/release-smoke-target.sh`.
+- The version check in `scripts/grove-installed-smoke.sh`.
+- The description of `ravel:targets:prepare` in `Taskfile.yml`, and the Ravel
+  inputs that `docs/RELEASING.md` names.
+
 ### Tests
 
 - Port `crates/grove-loop/tests/session_command.rs` and
@@ -172,6 +207,9 @@ stay too.
   check the order of the notices, not job control, and they run without a
   terminal. A launch directory replaces the `Channel` that named their path.
 - Rewrite the two interpretation tests in `loop_driver.rs` without `Group`.
+- Add unit cases at the post-reap seam for the errors. A launch error that
+  carries a signal keeps the error for the report and ends with the signal. A
+  failed invalidation after an interrupted job does the same.
 - Drop the `signal-` fixtures from the loop-driver case on housekeeping. The
   cases on abandoned launch directories keep that cleanup covered.
 - Add one standalone case under a pseudo-terminal. A Ctrl-C typed at
@@ -198,7 +236,9 @@ stay too.
 - `02` `ravel-child-k2` (design): the mechanics and the records that the design
   reworks.
 - `03` `ravel-child-k3` (review-design): an adversarial read of the design.
-- `04` `ravel-child-plan-k4` (planning): the leaves of the code, book and record
+- `04` `ravel-child-k5` (integrate-review-design): the findings of the review,
+  applied to the design records.
+- `05` `ravel-child-plan-k4` (planning): the leaves of the code, book and record
   changes.
 
 ## Pointers

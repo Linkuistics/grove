@@ -39,12 +39,9 @@ never falls through to another installation.
 
 Grove supports stable `ravel 1.x` from 1.1.0, and it refuses 1.0.x. An
 incompatible, malformed or unsuccessful probe refuses with an upgrade remedy that
-names the 1.1.0 floor. Grove relies on Ravel's failure paths for its cleanup
-assurance, and 1.1.0 changes the behaviour of five of them
-([Ravel 1.1.0 changes](https://github.com/Linkuistics/Ravel/blob/v1.1.0/CHANGELOG.md)).
-
-The probe trusts the program on the owner's PATH. A version string is not
-authentication. Canonicalisation fixes the path selection, not an inode.
+names the 1.1.0 floor. The
+[supervision decision](../adr/dispatch-supervises-the-harness.md) records the
+reason for the floor. It also records the trust in PATH that the probe costs.
 
 Grove keeps no runner of its own. It launches `ravel` as an ordinary child
 process, as a job-control shell launches a job (see [Jobs and
@@ -125,14 +122,17 @@ reservation or fallback selection takes part.
 Grove launches `ravel` through one function that the lifecycle and standalone
 callers share. Grove adds no completion channel, escalation, kill or group probe
 of its own. Ravel makes the selected process its own job. Ravel alone gives the
-cleanup assurance. A successful Ravel status with an exact result is the only
+cleanup assurance
+([supervision decision](../adr/dispatch-supervises-the-harness.md)). A
+successful Ravel status with an exact result is the only
 evidence of cleanup that Grove uses
 ([Ravel's jobs, signals and terminal](https://github.com/Linkuistics/Ravel/blob/v1.1.0/docs/book/src/09-jobs-signals-and-the-terminal.md)).
 
-Grove's [job decision](../adr/the-launched-child-is-a-job.md) owns the side of
-the caller. Ravel's
+Grove's [job decision](../adr/the-launched-child-is-a-job.md) records why the
+caller makes `ravel` a job, and the alternatives that it rejected. Ravel's
 [process decision](https://github.com/Linkuistics/Ravel/blob/v1.1.0/docs/adr/the-launched-child-is-a-job.md)
-owns its own side.
+does the same for Ravel's side. This section states the procedures of the
+caller.
 
 The function has two shapes. The lifecycle uses the **foreground job**, and
 `grove run` uses the **detached job**.
@@ -153,8 +153,14 @@ The function has two shapes. The lifecycle uses the **foreground job**, and
 While `ravel` runs, Grove catches INT, TERM and HUP in one latch. Grove leaves a
 signal alone when its disposition is already the ignore. The driver ignores
 SIGINT, so a typed Ctrl-C never ends the driver. `grove run` keeps the default
-for SIGINT, so a Ctrl-C cancels it. The handlers stay after the job ends, so the
-loop also sees a signal between sessions.
+for SIGINT, so a Ctrl-C cancels it.
+
+The function installs the handlers at its first call. They stay after the job
+ends, so the loop also sees a signal between sessions. Before the first call,
+each signal keeps the disposition that Grove inherited. So a TERM before the
+first session ends the driver by the default action. A signal that Grove
+catches after the first call belongs to the driver, even when the next spawn
+fails.
 
 Grove polls the job at a fixed interval. At each poll, Grove sends each caught
 signal to the `ravel` process alone. It never signals a process group and never
@@ -167,6 +173,12 @@ check of the loop and before the spawn goes to the new `ravel` at the first poll
 The first signal that Grove catches during the job is the interruption of that
 job. At the reap, Grove takes each signal that the latch still holds into that
 report. A later signal belongs to the caller.
+
+A failed spawn or a failed wait keeps the interruption. The error of the
+function carries it, as the end of a job does. At the failure, Grove takes each
+signal that the latch still holds into that error. So a signal that Grove
+caught before a failed spawn stays with the driver. A signal that Grove sent to
+`ravel` before a failed wait also stays with the driver.
 
 Between the fork and the exec, Grove sets INT, QUIT, TERM, HUP, TSTP, TTIN and
 TTOU to their default dispositions in the child. So the ignored SIGINT of the
@@ -283,6 +295,15 @@ Grove checks no process group after the reap. A surviving group of `ravel` is
 outside this order, because Ravel's successful status is the evidence of
 cleanup.
 
+**An error keeps a caught signal.** A failed spawn or a failed wait reads no
+disposition either. Grove still restores the terminal and invalidates the epoch
+after it, and then the loop stops with the error. A failed invalidation and each
+other error of the loop also stop it.
+
+In each case Grove reports the error first. When the launch error carries a
+signal, or the latch holds one, `grove` then dies of that signal. Otherwise
+`grove` exits with the error.
+
 Only a successful supervisor status permits Grove to read the result. A failed or
 interrupted supervisor cannot override teardown with bytes on stdout. A valid
 force-stop overrides the completion disposition. It does not restore a tree that
@@ -381,7 +402,7 @@ and its [published installation evidence](https://github.com/Linkuistics/Ravel/b
 | Absolute PATH resolution, the 1.1.0 floor, version refusal and independent prefixes | Resolver, activation and installed fixtures in `crates/grove/tests/` and `crates/grove/src/dispatch/ravel.rs`. |
 | Literal public arguments and exact ending path | `crates/grove-loop/tests/session_command.rs` and real installed command fixtures. |
 | Result capture and rejection | `crates/grove-loop/tests/session_result.rs` and installed result fixtures, through both job shapes. |
-| Post-reap precedence | Unit tests drive the lifecycle interpretation with an end value that Grove owns. They need no process. |
+| Post-reap precedence, and a caught signal that outlives an error | Unit tests drive the lifecycle interpretation with an end value or a launch error that Grove owns. They need no process. |
 | Lifecycle admission | Driver and epoch tests. |
 | Job control, cancellation and terminal recovery of the foreground job | Loop-driver tests with the installed Ravel and fake agents, several under a pseudo-terminal. |
 | Session isolation and cancellation of the detached job | Standalone tests with the installed Ravel and fake agents, including a Ctrl-C typed on a pseudo-terminal. |

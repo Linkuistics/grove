@@ -1,10 +1,12 @@
 flowchart TB
-  Start["Start here: Grove reaped Ravel"]:::start
+  Start["Start here: the shared job function returned"]:::start
   Restore["Restore/reset terminal;
 release session witness"]
   Epoch{"Epoch invalidated?"}
+  Failed{"Spawn or wait failed?"}
   Fatal["Error: read no disposition,
-launch no next session"]
+launch no next session;
+after the report, die of a caught signal"]
   Interrupt{"Driver interrupted?"}
   Interrupted["Interrupted with signal"]
   ForceStop{"Successful Ravel status and
@@ -22,15 +24,17 @@ remaining tree"]
   Start -->|"1"| Restore
   Restore -->|"2"| Epoch
   Epoch -->|"No"| Fatal
-  Epoch -->|"3. Yes"| Interrupt
+  Epoch -->|"3. Yes"| Failed
+  Failed -->|"Yes"| Fatal
+  Failed -->|"4. No"| Interrupt
   Interrupt -->|"Yes"| Interrupted
-  Interrupt -->|"4. No"| ForceStop
+  Interrupt -->|"5. No"| ForceStop
   ForceStop -->|"Yes"| ForceStopped
-  ForceStop -->|"5. No"| Teardown
+  ForceStop -->|"6. No"| Teardown
   Teardown -->|"Yes"| Finished
-  Teardown -->|"6. No"| Status
+  Teardown -->|"7. No"| Status
   Status -->|"No"| Stop
-  Status -->|"7. Yes"| Result
+  Status -->|"8. Yes"| Result
   Result -->|"Yes"| Continue
   Result -->|"No"| Stop
   classDef start fill:#163a57,color:#fff,stroke:#163a57,font-weight:bold

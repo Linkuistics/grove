@@ -301,53 +301,68 @@ Rerun `task release:smoke` after changing caller assets, either installed layout
 Grove native dependencies or admitted Ravel release inputs. Final all-target
 acceptance is required before publication.
 
+<!-- tc: on -->
+
 <a id="one-release-eight-packages-one-tag"></a>
 ## One release, seven product packages, one tag
 
-Grove's product crates take `version.workspace = true`: one workspace release
-version, changelog and tag (`docs/specs/module-decomposition.md`, decision 1).
-Only `crates/grove` is released; the other product packages carry
+Grove's product crates take `version.workspace = true`. They share one workspace release
+version, one changelog and one tag (`docs/specs/module-decomposition.md`, decision 1).
+Only `crates/grove` has a release. The other product packages carry
 `[package.metadata.release] release = false`. The separately versioned
-`book-validation` authoring tool also disables release. Ravel is outside this
-workspace, released independently, and is a Homebrew runtime dependency.
+`book-validation` authoring tool also disables release.
 
-**It does need a `release = false` line, and until v20.2.0 it did not have one.**
-This page used to say the opposite — that carrying its own version was enough to
-keep it out of a cut — and that was measured false while cutting v20.2.0.
-`publish = false` stops `cargo publish` and nothing else: left without the line,
-the crate is a released package like any other, so a cut bumps it `0.1.0` →
-`0.2.0`, tags against it, and runs `pre-release-replacements` a second time
-against the one `CHANGELOG.md`, writing a `## v0.2.0` heading into grove's
-changelog beside the real one. Its own version being unrelated to grove's is what
-makes that heading absurd rather than merely duplicated.
+Ravel is outside this workspace. The Ravel project releases it independently, and it is a Homebrew runtime dependency.
 
-Its exclusion is also what makes the cut *run at all*. cargo-release forces
-`consolidate-commits = true` on every package in a `shared-version` group, which
-the seven inheriting crates form and `book-validation` — carrying its own version —
-does not; a `release.toml` asking for `false` therefore reached only that one
-crate, and the cut refused with `error: inconsistent `consolidate-commits`
-setting` rather than releasing anything. `release.toml` records the measurement
-and the command that prints the resolved value per package.
+**The `book-validation` crate needs a `release = false` line, and until v20.2.0 it did not have one.**
+This page used to say the opposite. It said that a version of its own was enough to
+keep the crate out of a cut. The cut of v20.2.0 measured that claim as false.
 
-**That line is the answer to a question, not a deferral of one.** `release =
-false` means no tag, no changelog section and no publish of its own — it does
-**not** mean a frozen version. The question it settles is whether an extracted
-crate, `ordinal-fs-tree` most of all, is ever published on its own: it is not.
-The library crates ship inside grove's cut, wearing grove's version, and none has
-a release lane of its own. A crate published separately would owe consumers a
-version they can pin and a changelog they can read; consumed in-tree, a second
-lane is ceremony.
+`publish = false` stops `cargo publish` and nothing else. Without the line, the crate
+is a released package like any other. A cut bumps it from `0.1.0` to `0.2.0` and tags
+against it. The cut also runs `pre-release-replacements` a second time against the one
+`CHANGELOG.md`. That run writes a `## v0.2.0` heading into the changelog of Grove, beside
+the real one.
 
-Removing the line from a member is therefore not a way of *opening* the question
-— it corrupts the cut. Measured against cargo-release 1.1.2 in a throwaway
-workspace fixture, dropping it from `crates/ordinal-fs-tree` makes the cut
-release two packages, run `pre-release-replacements` **twice** against the one
-repository-wide `CHANGELOG.md` — leaving two `## v<version>` headings, the first
-of them empty and the release's actual entries under the second — and attempt the
-same `v<version>` tag twice. The `exactly = 1` guard does not catch it, because
-each replacement sees a freshly re-seeded `## Unreleased`. Giving a library crate
-its own lane means giving it its own tag shape and its own changelog first, which
-is what *published on its own* would actually cost.
+The version of `book-validation` has no relation to the version of Grove. That makes the
+second heading absurd, and not only a duplicate.
+
+The exclusion also lets the cut run at all. cargo-release forces
+`consolidate-commits = true` on every package in a `shared-version` group. The seven
+inheriting crates form that group. `book-validation` carries its own version, so it is
+not in the group.
+
+A `release.toml` that asked for `false` therefore reached only that one crate. The cut
+refused with `error: inconsistent `consolidate-commits` setting` and released nothing.
+`release.toml` records the measurement and the command that prints the resolved value
+per package.
+
+**That line answers a question. It does not defer one.** `release = false` means no tag,
+no changelog section and no publish of its own. It does **not** mean a frozen version.
+
+The line settles whether an extracted crate is ever published on its own.
+`ordinal-fs-tree` is the main case. It is not published on its own. The library crates
+ship inside the cut of Grove, with the version of Grove. None has a release lane of its
+own.
+
+A crate published separately owes consumers a version they can pin and a changelog they
+can read. A crate consumed in-tree gains nothing from a second lane. A second lane is
+ceremony.
+
+Removing the line from a member does not open the question. It corrupts the cut. A
+throwaway workspace fixture measured this against cargo-release 1.1.2. Dropping the line
+from `crates/ordinal-fs-tree` makes the cut release two packages.
+
+The cut then runs `pre-release-replacements` **twice** against the one repository-wide
+`CHANGELOG.md`. That leaves two `## v<version>` headings. The first heading is empty,
+and the entries of the release sit under the second. The cut also attempts the same
+`v<version>` tag twice.
+
+The `exactly = 1` guard does not catch this, because each replacement sees a freshly
+re-seeded `## Unreleased`. A library crate needs its own tag shape and its own changelog
+before it can have its own lane. Those are the real cost of *published on its own*.
+
+<!-- tc: pending because the conversion has not reached this part of the document -->
 
 ## 1. Prepare the release
 
@@ -395,10 +410,12 @@ jj bookmark set main -r @
 Inspect `jj status` and `jj log` before continuing. Keep unrelated working-copy
 changes out of the release.
 
+<!-- tc: on -->
+
 ## 2. Cut the version
 
-Start an empty change on `main` so `cargo-release`, which drives Git, commits on
-the intended parent:
+Start an empty change on `main`. `cargo-release` drives Git, so it must commit on the
+intended parent:
 
 ```sh
 jj new main
@@ -406,13 +423,18 @@ cargo release patch
 cargo release patch --execute
 ```
 
-The first `cargo release` is a dry run. The executed command bumps the root
-`Cargo.toml`'s `[workspace.package] version` — the one field all seven product crates inherit,
-so they move together — and `Cargo.lock`, closes the changelog's
-`## Unreleased` section, creates a `chore: release v<version>` commit, and
-creates the corresponding `v<version>` tag. Use `minor` or `major` instead of `patch` when appropriate.
+The first `cargo release` is a dry run. The executed command does these things:
 
-Inspect the imported release change, then move and push the bookmark:
+- It bumps `[workspace.package] version` in the root `Cargo.toml`. All seven product
+  crates inherit that one field, so they move together.
+- It updates `Cargo.lock`.
+- It closes the `## Unreleased` section of the changelog.
+- It creates a `chore: release v<version>` commit.
+- It creates the corresponding `v<version>` tag.
+
+Use `minor` or `major` instead of `patch` when appropriate.
+
+Inspect the imported release change. Then move and push the bookmark:
 
 ```sh
 jj log -r 'main::@'
@@ -420,8 +442,8 @@ jj bookmark set main -r <release-change>
 jj git push -b main
 ```
 
-Jujutsu does not push tags, so pushing the release tag is the repository's one
-intentional Git mutation:
+Jujutsu does not push tags, so pushing the release tag is the one intentional Git
+mutation of the repository:
 
 ```sh
 git push origin v<version>
@@ -431,14 +453,17 @@ Do not omit the tag. The GitHub Release created below is attached to it.
 
 ### If an agent session's classifier refuses `cargo release`
 
-`release.toml` records that refusal is not inherent to these invocations — it
-depends on the session's own harness and permission configuration — and says to
-fall back to the constituent commands. For the publish step those are named in
-§3; for the cut they are below. They were used for the v19.0.0 cut, when
-`cargo release major --execute --no-confirm` was refused.
+`release.toml` records that the refusal is not inherent to these invocations. It depends
+on the harness and the permission configuration of the session. `release.toml` says to
+fall back to the constituent commands.
 
-Do the three edits `cargo release` would have made, then let jj and git make the
-two artifacts it would have created:
+Step 3 names the commands for the publish step. The commands for the cut are below.
+They were used for the v19.0.0 cut, when `cargo release major --execute --no-confirm`
+was refused.
+
+Make the three edits that `cargo release` would have made. Then let jj and git make the
+two artifacts that it would have created:
+
 
 ```sh
 # 1. the version — ONE field, the workspace's. All seven product crates take
@@ -456,11 +481,13 @@ git tag -a v<new> -m "Release v<new>"
 git describe --tags --exact-match HEAD       # the precondition release-build.sh checks
 ```
 
-Verify the change is exactly the root `Cargo.toml`, `Cargo.lock`, and two added
-`CHANGELOG.md` lines before tagging — that is the whole of what the automated cut
-produces. The `jj new` is not optional: a colocated `HEAD` follows the working
-copy's **parent**, so without it the tag lands on the wrong commit and
-`release-build.sh` refuses.
+Before tagging, inspect the change. It must be exactly the root `Cargo.toml`, `Cargo.lock`
+and two added `CHANGELOG.md` lines. That is the whole of what the automated cut
+produces. The `jj new` is not optional. A colocated `HEAD` follows the **parent** of the
+working copy. Without `jj new`, the tag lands on the wrong commit and `release-build.sh`
+refuses.
+
+<!-- tc: pending because the conversion has not reached this part of the document -->
 
 ### A release that changes how a tree is read meets every grove on the machine
 

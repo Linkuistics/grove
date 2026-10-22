@@ -1,5 +1,7 @@
 # Grove Architecture
 
+<!-- tc: pending because the conversion has not reached this part of the document -->
+
 Grove is a small Rust launcher around a filesystem task tree, with the agent
 methodology authored as plugin files and delivered through each harness's
 installation path. Durable work stays in
@@ -310,124 +312,149 @@ Only surviving target lines retain their intra-line and transformed-event offset
 File errors retain the saved anchor and display a diagnostic separately.
 The renderer performs no I/O.
 
+<!-- tc: on -->
+
 ## Launching a session
 
 Grove reads no launch configuration file. Every selected harness comes from
 owner policy through independently installed Ravel ([below](#harness-dispatch)).
-Grove chooses the first executable regular `ravel` in an absolute PATH directory,
-canonicalizes it once and checks that path's stable 1.x CLI version. Relative
-and empty PATH entries supply no cwd fallback; an incompatible or failed probe
-refuses without trying another installation. Launch and the quoted ending
-command reuse that canonical path. This trusts the owner's PATH executable;
-a version string authenticates no program and canonicalization pins no inode.
+Grove chooses the first executable regular `ravel` in an absolute PATH
+directory. Grove canonicalises it once and checks that path's stable 1.x CLI
+version. Relative and empty PATH entries supply no cwd fallback.
+
+An incompatible or failed probe refuses without trying another installation.
+Launch and the quoted ending command reuse that canonical path. This trusts the
+owner's PATH executable. A version string authenticates no program, and
+canonicalisation pins no inode.
 
 The owner's `~/.config/ravel/policy.ts` selects a command. Adjacent
-`settings.json` bounds selection/context and grants policy environment names;
+`settings.json` bounds selection/context and grants policy environment names.
 `.ravel-choice` selects among options that policy offers when it calls the SDK
-helper. Neither file belongs to Grove. The owner explicitly reads and copies
-Grove's sample from `libexec/ravel-policy`, preserving any existing policy.
-Ravel has exactly `start-session` and `end-session RESULT`, plus help/version
-flags; it has no init or inspection verb. Refusal leaves the leaf live with a
-remedy ([usage](USAGE.md#usage-refused-launch)). Old `config.kdl` and `.grove.kdl`
+helper. Neither file belongs to Grove.
+
+The owner explicitly reads and copies Grove's sample from `libexec/ravel-policy`,
+and preserves any existing policy. Ravel has exactly `start-session` and
+`end-session RESULT`, plus help/version flags. It has no init or inspection
+verb. Refusal leaves the leaf live with a remedy
+([usage](USAGE.md#usage-refused-launch)). Old `config.kdl` and `.grove.kdl`
 files remain ignored.
 
-**`crates/keyed-launch` runs the command it is handed, and has never heard of a
-session.** It reads no configuration and resolves no name to a command. Grove
-uses this local runner to spawn Ravel directly and supervise its job. Ravel's
-independently owned runner supervises the selected harness; no shared Rust
-library crosses the project boundary. Each supervisor cleans up its direct
-child's group, reaps it and restores terminal modes. `Argv::new` preserves each
-string as one argument. Lifecycle uses stdout-capturing observed launch for
-Ravel's result and witness events; standalone captures that result separately
-from its managed-output transcript. The local runner's channel abstraction
-remains available but Grove grants it no session-completion channel.
+**`crates/keyed-launch` runs the command that its caller gives it, and knows
+nothing of a session.** It reads no configuration and resolves no name to a
+command. Grove uses this local runner to spawn Ravel directly and supervise its
+job. Ravel's independently owned runner supervises the selected harness. No
+shared Rust library crosses the project boundary.
+
+Each supervisor cleans up its direct child's group, reaps it and restores
+terminal modes. `Argv::new` preserves each string as one argument. Lifecycle
+uses stdout-capturing observed launch for Ravel's result and witness events.
+Standalone captures that result separately from its managed-output transcript.
+The local runner's channel abstraction remains available but Grove grants it no
+session-completion channel.
 
 The driver retains the selected task-root directory in a separate `TreeLifetime`
-pin, checked under the selection's tree guard. Finish materialization is followed
-by a fresh guarded selection. Launch preparation moves the pin into DriverLease,
-checks it before and after exclusive epoch acquisition, then invalidates the old
-epoch before preparing two exclusive nonblocking witnesses: the selected root's
-own directory descriptor and a freshly created private file. The private name
-uses an independent OS-random 128-bit suffix with eight collision retries.
-Both descriptors are close-on-exec. Observation setup failure releases partial
-locks and diagnoses the failure while mandatory epoch activation still proceeds.
-A missing or replaced root refuses the launch. No epoch or tree guard spans
-spawn. The runner's Reaped event closes the private witness before the directory
-pin, before terminal recovery. Failed spawn uses the same release order on
-return; an unconfirmed supervision error retains the pair until lease drop.
-Drop releases both before driver ownership, including on unwind. Witness cleanup
-follows epoch invalidation and skips a still-owned launch; replacement cleanup
-also follows initial epoch handoff. Cleanup errors are diagnostic only. The
-optional version-1 mandate extension binds the selected key, handle and kind to
-the open tree/private identities and witness basename in that same nonce/launch-directory
-epoch. Text is hex encoded and all extension fields use the `observation-`
-namespace; mandatory admission ignores malformed or unsupported extensions,
-including invalid UTF-8 there. A mandatory epoch-write failure prevents spawn;
-an extension append failure only diagnoses. Started attempts the sole eight-byte
-`started\n` publication once, without acquiring a tree or epoch guard. Marker
-failure preserves launch outcome and both witnesses until reap or lease drop.
-The production observer establishes Idle from a released private witness in
-a valid active record and verifies Running from the directory/private protocol.
-The viewer's same-tree binding and presentation consume that typed
-relation when attaching activity and excluding the running key from NEXT.
+pin. The driver checks the pin under the selection's tree guard. A fresh guarded
+selection follows finish materialisation. Launch preparation moves the pin into
+DriverLease and checks it before and after exclusive epoch acquisition. It then
+invalidates the old epoch before it prepares two exclusive nonblocking
+witnesses. The witnesses are the selected root's own directory descriptor and a
+freshly created private file.
+
+The private name uses an independent OS-random 128-bit suffix with eight
+collision retries. Both descriptors are close-on-exec. Observation setup failure
+releases partial locks and diagnoses the failure. Mandatory epoch activation
+still proceeds. A missing or replaced root refuses the launch. No epoch or tree
+guard spans spawn.
+
+The runner's `Reaped` event closes the private witness before the directory pin,
+before terminal recovery. Failed spawn uses the same release order on return. An
+unconfirmed supervision error retains the pair until lease drop. Drop releases
+both before driver ownership, including on unwind.
+
+Witness cleanup follows epoch invalidation and skips a still-owned launch.
+Replacement cleanup also follows initial epoch handoff. Cleanup errors are
+diagnostic only.
+
+The optional version-1 mandate extension binds the selected key, handle and kind
+to the open tree/private identities and witness basename in that same
+nonce/launch-directory epoch. Text is hex encoded. All extension fields use the
+`observation-` namespace. Mandatory admission ignores malformed or unsupported
+extensions, including invalid UTF-8 there. A mandatory epoch-write failure
+prevents spawn. An extension append failure only diagnoses.
+
+`Started` attempts the sole eight-byte `started\n` publication once, without
+acquiring a tree or epoch guard. Marker failure preserves launch outcome and
+both witnesses until reap or lease drop. The production observer establishes
+Idle from a released private witness in a valid active record. It verifies
+Running from the directory/private protocol. The viewer's same-tree binding and
+presentation consume that typed relation when attaching activity and excluding
+the running key from NEXT.
 
 Observer concurrency controls hold compatible shared probes over released
-Started bytes and check Idle through the public observer. Continuous viewers
-also span repeated real launches, checking the exact mandate at Started and
-Idle at Reaped without preventing subsequent witness preparation. Concurrent
+`Started` bytes and check Idle through the public observer. Continuous viewers
+also span repeated real launches. They check the exact mandate at `Started` and
+Idle at `Reaped`, without preventing subsequent witness preparation. Concurrent
 filesystem snapshots cover aliases, absent trees, non-jj locations and missing
-namespaces. A replacement paused before epoch handoff retains old lease bytes
-while concurrent viewers report released Started bytes as Idle. A separate
-forced numeric/key-reuse control challenges preparation ordering: moving
-preparation before epoch acquisition exposes a new directory witness under the
-old record and falsely attaches the old mandate. This deterministic model does
-not assert host inode reuse; native process-death evidence remains separate.
+namespaces.
+
+A replacement paused before epoch handoff retains old lease bytes while
+concurrent viewers report released `Started` bytes as Idle. A separate forced
+numeric/key-reuse control challenges preparation ordering. Moving preparation
+before epoch acquisition exposes a new directory witness under the old record
+and falsely attaches the old mandate. This deterministic model does not assert
+host inode reuse. Native process-death evidence remains separate.
 
 Separate self-exec shared holders cover each witness at preparation. Readiness
-acknowledges lock acquisition; independent shared probes succeed while exclusive
-preparation returns with observation unavailable. Real Started/Reaped launches
+acknowledges lock acquisition. Independent shared probes succeed while exclusive
+preparation returns with observation unavailable. Real `Started`/`Reaped` launches
 and admission still succeed while the foreign holder remains locked. Reap,
 exclusive reacquisition, partial-setup rollback and subsequent preparation check
 recovery. The private-file barrier also checks that the containing-directory
 mutation lock remains usable while the task-root witness is held.
 
-Native macOS/APFS and Linux/overlayfs subprocess controls exercise the production
-observer after a real launch. Independent shared probes contend on both witnesses
-after Started and exec-child readiness. SIGKILL and actual holder reap release
-both locks while the exec'd child still answers a socket ping; leftover Started
-bytes then yield Idle. Renaming/removing the held root and recreating it with a
-reused key yields PreviousTree to a fresh observation. Separate descriptor-leak
-mutations make the corresponding post-reap probe fail. These controls establish
-the tested native behavior, not host inode reuse or detection of silently
-ineffective backend locks; the ADR's native-locking and suspension limits remain.
-The [platform evidence record](item-status-verification.md) preserves the exact
-cases, frozen-source digests, commands and accepted review limitations.
+Native macOS/APFS and Linux/overlayfs subprocess controls exercise the
+production observer after a real launch. Independent shared probes contend on
+both witnesses after `Started` and exec-child readiness. SIGKILL and actual holder
+reap release both locks while the exec'd child still answers a socket ping.
+Leftover `Started` bytes then yield Idle. Renaming/removing the held root and
+recreating it with a reused key yields PreviousTree to a fresh observation.
+
+Separate descriptor-leak mutations make the corresponding post-reap probe fail.
+These controls establish the tested native behaviour, not host inode reuse or
+detection of silently ineffective backend locks. The ADR's native-locking and
+suspension limits remain. The [platform evidence record](item-status-verification.md)
+preserves the exact cases, frozen-source digests, commands and accepted review
+limitations.
 
 The runner also exposes `run_observed(Launch, callback)`. Its synchronous
-`LaunchEvent::Started` follows successful spawn; `Reaped` follows confirmed
-reap, including recovery from a wait error, before exit-channel inspection and terminal
-recovery. Failed spawn emits neither event and unconfirmed reap emits no
-`Reaped`. Callbacks return unit and must return promptly without panicking;
-consumers handle observational failures internally. Ordinary `run(Launch)`
-remains available. Grove uses these events for witness publication and release;
-the viewer consumes their verified same-tree evidence for RUNNING and NEXT.
+`LaunchEvent::Started` follows successful spawn. `Reaped` follows verified
+reap, including recovery from a wait error, before exit-channel inspection and
+terminal recovery. Failed spawn emits neither event and unverified reap emits
+no `Reaped`.
+
+Callbacks return unit and must return promptly without panicking. Consumers
+handle observational failures internally. Ordinary `run(Launch)` remains
+available. Grove uses these events for witness publication and release. The
+viewer consumes their verified same-tree evidence for RUNNING and NEXT.
 
 Grove spawns `ravel start-session` directly — no shell, no proxy, no router
 service, and no harness-specific argument or environment injection. The command
-the policy selects never passes through Grove, so Grove cannot identify the
-program a session runs, which is what removes harness detection, model routing,
-session-name arguments, Codex sandbox grants, and launch-target comparison from
-the binary altogether. Those choices are visible in the owner's policy instead.
+that the policy selects never passes through Grove. So Grove cannot identify the
+program that a session runs. That is what removes harness detection, model
+routing, session-name arguments, Codex sandbox grants, and launch-target
+comparison from the binary altogether. Those choices are visible in the owner's
+policy instead.
 
-Two environment rules follow from that. Immediately before spawning the
-child, Grove clears its own loop-control variables and grants only
-this launch's `GROVE_LAUNCH_DIR`; everything else the caller had, including Git
-repository selectors, is preserved for the harness. Ravel evaluates policy in
-a fresh explicitly granted environment instead ([below](#harness-dispatch)).
-Driver-internal VCS children follow the opposite rule — they scrub both the loop
-controls and the repository selectors and are pinned to the leased working tree
-by their working directory — so personal launch context cannot redirect a
-teardown commit.
+Two environment rules follow from that. Immediately before Grove spawns the
+child, it clears its own loop-control variables and grants only this launch's
+`GROVE_LAUNCH_DIR`. Grove preserves for the harness everything else that the
+caller had, including Git repository selectors. Ravel evaluates policy in a
+fresh explicitly granted environment instead ([below](#harness-dispatch)).
+
+Driver-internal VCS children follow the opposite rule. They clear both the loop
+controls and the repository selectors. Their working directory pins them to the
+leased working tree. So personal launch context cannot redirect a teardown
+commit.
 
 <a id="harness-dispatch"></a>
 ## Independent Ravel and Grove's caller boundary
@@ -454,99 +481,115 @@ Lifecycle launches carry `--kind`, unchanged `--prompt`, `--task-file`, stable
 `start-session --confine` in a staged directory with explicit runtime reads.
 Grove passes no selection parameter, configuration path or private ending-file
 argument. Exit-directory allocation is public mechanics and reaches no policy.
-Values are joined to their flags so leading dashes remain data.
+Grove joins each value to its flag, so leading dashes remain data.
 
 Grove removes inherited completion/admission/provider authority before probes
-and launches. It grants only this lifecycle launch's `GROVE_LAUNCH_DIR`;
-standalone helpers inherit no tree authority. Ravel gives its managed process
+and launches. It grants only this lifecycle launch's `GROVE_LAUNCH_DIR`.
+Standalone helpers inherit no tree authority. Ravel gives its managed process
 fresh enclosing ending context and isolates policy from completion controls.
+
 The prompt names the resolved executable's exact continue and force-stop
-commands. Ravel terminates and reaps the managed group before returning the
-argument; Grove reads the captured result after reaping its own Ravel job.
+commands. Ravel ends and reaps the managed group before returning the argument.
+Grove reads the captured result after reaping its own Ravel job.
 
 Grove's readable `grove.ts` adapter reads the supplied task's `**Reviews:**` and
 `**Creator:**` lines only when explicitly imported by owner policy. Grove's
-binaries parse neither relationship. The optional provenance wrapper preserves
-selected-provider evidence in `GROVE_PROVIDER_EVIDENCE`; a finishing session
-copies its canonical receipt inline as `**Creator:** recorded <JSON>`, or the
-owner supplies `declared <provider>`. There is no store lookup. Original live-v22
-sessions alone retain Creator-run references with their original policy
+binaries parse neither relationship.
+
+The optional provenance wrapper preserves
+selected-provider evidence in `GROVE_PROVIDER_EVIDENCE`. A finishing session
+copies its canonical receipt inline as `**Creator:** recorded <JSON>`.
+Alternatively, the owner supplies `declared <provider>`. There is no store
+lookup. Original live-v22 sessions alone retain Creator-run references with
+their original policy
 ([creator decision](adr/a-review-carries-its-creator-reference.md)).
 
-Grove's formula depends on Ravel; Grove archives ship only Grove executables and
-caller assets, so archive users install Ravel separately. No neighboring binary,
-equal version, shared Cellar path, private worker protocol or shared Rust
-library is assumed. Each project owns its build/release and runtime notices
+Grove's formula depends on Ravel. Grove archives ship only Grove executables and
+caller assets, so archive users install Ravel separately. Grove assumes no
+neighbouring binary, equal version, shared Cellar path, private worker protocol
+or shared Rust library. Each project owns its build/release and runtime notices
 ([delivery](grove-delivery-contraction.md)). The complete original 22.1.0
 installation remains available to this workstream's live driver through its
-last `harness-dispatch exit` ([transition](legacy-driver-transition.md)); that
-launch contract is not rewritten by installing the new pair.
+last `harness-dispatch exit` ([transition](legacy-driver-transition.md)).
+Installing the new pair does not rewrite that launch contract.
 
 ## Process ownership
 
-A working tree has at most one live driver. Before
-any `.grove/` observation, bare `grove` acquires a
-**driver lease**: a nonblocking exclusive advisory lock on a fixed file in a
-control directory grove does not derive. It asks the resolved workspace for one
-under the namespace `grove` and the VCS seam answers `<workspace>/.jj/grove/`,
-for native, secondary, and colocated Jujutsu alike — guaranteed inside that exact
-workspace, untracked, shared with no other namespace, and created if absent.
-Grove supplies the one word the seam cannot know, because *where a lease file may
-live* is not sayable without naming whose lease it is. The seam invokes no
-repository discovery and ignores `GIT_DIR` and its relatives, so controls live in
-the exact workspace's administration area rather than the tracked working copy or
-an ambient temporary directory. Symlink and relative-path aliases contend on one
-lease; separate workspaces stay independent.
+A working tree has at most one live driver. Before any `.grove/` observation,
+bare `grove` acquires a **driver lease**. The lease is a nonblocking exclusive
+advisory lock on a fixed file in a control directory that grove does not derive.
+It asks the resolved workspace for one under the namespace `grove`. The VCS seam
+answers `<workspace>/.jj/grove/`, for native, secondary, and colocated Jujutsu
+alike. That directory is guaranteed inside that exact workspace, untracked,
+shared with no other namespace, and created if absent.
 
-Acquisition creates that control directory. It used to prove one thing more —
-that the directory sits on the working tree's own filesystem — because teardown
-ended in an atomic same-device rename of the whole `.grove/` root into it. There
-is no rename: teardown deletes the tree and takes one path-scoped commit, so the
-layout preflight, its device measurement, and the record that specified them are
-all gone.
+Grove supplies the one word the seam cannot know, because *where a lease file
+may live* is not sayable without naming whose lease it is. The seam invokes no
+repository discovery and ignores `GIT_DIR` and its relatives. So controls live
+in the exact workspace's administration area rather than the tracked working
+copy or an ambient temporary directory. Symlink and relative-path aliases
+contend on one lease. Separate workspaces stay independent.
+
+Acquisition creates that control directory. It used to prove one thing more,
+that the directory sits on the working tree's own filesystem. That proof was
+needed because teardown ended in an atomic same-device rename of the whole
+`.grove/` root into the directory. There is no rename. Teardown removes the tree
+and takes one path-scoped commit. So the layout preflight, its device
+measurement, and the record that specified them are all gone.
 
 Every acquisition opens, locks, and then compares the locked descriptor's
-device/inode against the path's current identity, retrying a bounded number of
+device/inode against the path's current identity. It retries a bounded number of
 times on an open/lock replacement race. The driver holds the root and lease
-descriptors until the loop reaches a terminal disposition and revalidates before
-every lifecycle transition and launch. Kernel release on return, panic, or
-process death is what makes restarting after a crash ordinary continuation. A
-second driver fails immediately rather than queueing, because two drivers would
-issue two mandates for one task. Every descriptor is close-on-exec, so the
-launched command cannot pass ownership to a descendant.
+descriptors until the loop reaches a terminal disposition. The driver
+revalidates before every lifecycle transition and launch.
 
-The same control directory holds a **session epoch** binding the driver's
-fresh 128-bit OS-random nonce, working-tree identity and current launch
+Kernel release on
+return, panic, or process death is what makes restarting after a crash ordinary
+continuation. A second driver fails immediately rather than queueing, because
+two drivers would issue two mandates for one task. Every descriptor is
+close-on-exec, so the launched command cannot pass ownership to a descendant.
+
+The same control directory holds a **session epoch**. The epoch binds the
+driver's fresh 128-bit OS-random nonce, working-tree identity and current launch
 directory. Each launch creates an owner-only `launch-*` directory with an
-independent random suffix. Ravel uses it for ephemeral completion allocation, and a finish session records
-Grove teardown there. The public result travels through captured stdout. The driver
-rewrites the epoch under a scoped exclusive guard: inactive after lease
-acquisition, active before spawn, inactive after reap and before reading the
-result or teardown. Active epochs require `launch-dir-hex`; legacy signal-path
-records grant no admission. The driver removes the interpreted launch directory;
-a replacement invalidates the predecessor epoch and removes abandoned ones unread.
+independent random suffix. Ravel uses it for ephemeral completion allocation,
+and a finish session records Grove teardown there. The public result travels
+through captured stdout.
 
-An ambient `grove-llm` operation with `GROVE_LAUNCH_DIR` takes a shared
-epoch guard, checks the exact launch path, nonce and worktree, and probes lease
+The driver rewrites the epoch under a scoped exclusive guard. The epoch is
+inactive after lease acquisition, active before spawn, and inactive after reap
+and before reading the result or teardown. Active epochs require
+`launch-dir-hex`. Legacy signal-path records grant no admission. The driver
+removes the interpreted launch directory. A replacement invalidates the
+predecessor epoch and removes abandoned ones unread.
+
+An ambient `grove-llm` operation with `GROVE_LAUNCH_DIR` takes a shared epoch
+guard. It checks the exact launch path, nonce and worktree. It probes lease
 liveness through a separate nonblocking exclusive attempt. It retains the shared
 guard throughout the operation, so a replacement cannot install the next epoch
-until admitted work returns. Each epoch acquisition first tries without blocking,
-emits one diagnostic on contention, and waits a fixed internal 30-second bound.
-Timeout performs no tree access or epoch rewrite and stops the driver `blocked`.
-Ravel cleans up the managed group; Grove cleans up its Ravel job's
-group. Commands outside those groups, or a harness orphaned by Ravel's death,
-can still retain a guard. Manual commands without launch context keep ordinary
-behavior ([job ownership](adr/the-launched-child-is-a-job.md)).
+until admitted work returns.
 
-The lock order is fixed: lease, then a scoped exclusive epoch guard, released
-before any task-tree operation; an ambient `grove-llm` command takes its shared
-epoch guard before the Tree access lock. The driver never waits for an epoch
-guard while holding a tree guard. The lease serializes loop lifetimes, the epoch
-serializes launch authority, and the Tree access lock serializes individual tree
-observations and mutations. These are untracked coordination files whose bytes
-mean nothing once their locks release; `.grove/` remains the only durable
-workflow state. See [One live driver owns each working
+Each epoch acquisition first tries without blocking, emits one diagnostic on
+contention, and waits a fixed internal 30-second bound. Timeout performs no tree
+access or epoch rewrite and stops the driver `blocked`. Ravel cleans up the
+managed group. Grove cleans up its Ravel job's group. Commands outside those
+groups, or a harness orphaned by Ravel's death, can still retain a guard. Manual
+commands without launch context keep ordinary behaviour
+([job ownership](adr/the-launched-child-is-a-job.md)).
+
+The lock order is fixed: lease, then a scoped exclusive epoch guard. The guard
+releases before any task-tree operation. An ambient `grove-llm` command takes
+its shared epoch guard before the Tree access lock. The driver never waits for
+an epoch guard while holding a tree guard.
+
+The lease serialises loop lifetimes, the epoch serialises launch authority, and
+the Tree access lock serialises individual tree observations and mutations.
+These are untracked coordination files whose bytes mean nothing once their locks
+release. `.grove/` remains the only durable workflow state. See
+[One live driver owns each working
 tree](adr/one-live-driver-per-working-tree.md).
+
+<!-- tc: pending because the conversion has not reached this part of the document -->
 
 <a id="task-tree-scheme"></a>
 ## Task-tree data model
@@ -1268,31 +1311,35 @@ own**. Past that gate the guard is the authority and the removal is the store's,
 which is what lets the session name the paths that went in the commit message it
 writes by hand.
 
+<!-- tc: on -->
+
 <a id="self-driving-loop"></a>
 <a id="do-is-sole-lifecycle-verb"></a>
 <a id="fresh-grove-start-contract"></a>
 ## Lifecycle and resumption
 
+<!-- tc: depart synonym-rotation because "start" names the lifecycle transition of a fresh grove and "launch" names spawning a session -->
 Bare `grove` is the sole start/continue/finish entry. Each iteration performs at
-most one lifecycle transition, and none of them consults the owner's policy,
-which is evaluated only when the leaf launches. Which state maps to
+most one lifecycle transition. None of them consults the owner's policy. Only the
+launch of the leaf evaluates that policy. Which state maps to
 which transition is the [`grove-loop`
 walkthrough](walkthroughs/grove-loop/README.md)'s.
 
 A fresh grove creates its root node file and first *leaf* in one store operation,
 so the first session has work to select. The driver refuses a root holding only
-`_BRIEF.md` as taskless before selection; it does not finish that root.
-The helper verbs `grove-llm pick`, `kind` and untargeted `brief-chain` perform
-selection without that lifecycle classification: on a taskless root they report
+`_BRIEF.md` as taskless before selection. It does not finish that root.
+
+The helper verbs `grove-llm pick`, `kind` and untargeted `brief-chain` select
+without that lifecycle classification. On a taskless root they report
 "no live leaves; this grove is done". That helper result is not a driver finish
-decision. Creation is working-tree only; the first session's focused commit
+decision. Creation is working-tree only. The first session's focused commit
 folds in the scaffold.
 
 Task-root absence is the complete fresh-tree discriminator. Grove consults no VCS
 history, abandoned signal channel, or unlocked lease bytes to decide that a
-missing tree used to be a finished one: a teardown commit proves that Grove
-deleted an earlier tree but not whether the present invocation means "recover
-that" or "start another".
+missing tree used to be a finished one. A teardown commit proves that Grove
+removed an earlier tree. It does not prove whether the present invocation means
+"recover that" or "start another".
 
 **Ravel ends the managed process**, outside its sandbox. A session retires and
 commits, then executes the exact canonical `end-session grove-continue` command
@@ -1301,20 +1348,28 @@ and returns the opaque argument. Grove watches no completion channel. It waits
 for its Ravel job, invalidates the epoch, then interprets the captured stdout
 result and Grove's separate teardown record.
 
-After successful epoch invalidation the first-match precedence is driver
-interruption (including pending post-reap signals), successful exact
-`grove-force-stop`, this launch's teardown record, surviving Ravel group, then
-successful Ravel status with exactly `grove-continue`; anything else stops.
-Force-stop exits 1 without completion and leaves live work resumable. Teardown
-otherwise finishes irrespective of result/status/group, so task-root absence
-never substitutes for the record. An interactive harness returning to its prompt
-without publishing a result may leave Ravel and Grove waiting. Grove's lifecycle
-supports both exact opaque tokens; Ravel interprets neither. Force-stop does not
-restore a removed tree. Standalone currently requires continuation to publish.
+After successful epoch invalidation, the first-match precedence is, in order:
+
+1. driver interruption (including pending post-reap signals)
+2. successful exact `grove-force-stop`
+3. this launch's teardown record
+4. surviving Ravel group
+5. successful Ravel status with exactly `grove-continue`
+
+Anything else stops. Force-stop exits 1 without completion and leaves live work
+resumable. Teardown otherwise finishes irrespective of result/status/group, so
+task-root absence never substitutes for the record.
+
+An interactive harness returning to its prompt without publishing a result may
+leave Ravel and Grove waiting. Grove's lifecycle supports both exact opaque
+tokens. Ravel interprets neither. Force-stop does not restore a removed tree.
+Standalone currently requires continuation to publish.
 
 Original live-v22 sessions use the original `harness-dispatch exit`, ending-file
 and admission contract until that driver ends. New Ravel commands are never
 substituted into an already running session.
+
+<!-- tc: pending because the conversion has not reached this part of the document -->
 
 <a id="legacy-migration"></a>
 <a id="no-migration"></a>
@@ -1734,12 +1789,14 @@ running sessions use that same build. Diagnose binary versions with
 `grove --version` and `grove-llm --version`; update marketplace or manually
 installed skills through their own installation route.
 
+<!-- tc: on -->
+
 ## Main module seams
 
-The workspace map — the packages, what each is, and the responsibility of
-every `grove-loop` module — is the overview's
+The workspace map is the overview's
 [*What the call reaches*](walkthroughs/overview/05-what-the-call-reaches.md#the-package-map),
-from its package map onward.
+from its package map onward. The map lists the packages, what each is, and the
+responsibility of every `grove-loop` module.
 
 That map lists Grove's local `keyed-launch` runner and its caller modules.
 Ravel is outside the workspace, reached only through the public CLI boundary
@@ -1751,42 +1808,50 @@ identity (`docs/specs/module-decomposition.md`, decision 1).
 
 The human binary owns `provision`, a private adapter for Codex skill delivery.
 There is no harness-routing registry or methodology identity module. There is
-no `leaf` module: it held `Kind`, which is `task_name`'s since
-`open-kind-k20` made a kind an ordinary validated word of the filename grammar.
+no `leaf` module. It held `Kind`, which is `task_name`'s since
+`open-kind-k20` made a kind an ordinary checked word of the filename grammar.
 
 The modules are intentionally file-sized rather than wrapped in another
 service layer. The task tree, subprocess boundary, and VCS adapter are the
-important seams and are tested through public behavior. No harness abstraction
-replaces the removed routing registry: a launch has exactly one
+important seams, and tests cover them through public behaviour. No harness
+abstraction replaces the removed routing registry. A launch has exactly one
 production adapter — direct process execution — so another port would be
-hypothetical indirection. `ravel start-session` adds none: it is the program the
+hypothetical indirection. `ravel start-session` adds none. It is the program the
 loop spawns, on the far side of that one adapter.
 
-Module visibility is load-bearing rather than incidental: a `pub` item in a
-`pub` module is reachable by definition, so `dead_code` never reports one, and a
+Module visibility is load-bearing rather than incidental. A `pub` item in a
+`pub` module is reachable by definition, so `dead_code` never reports one. A
 module stays `pub` only while something outside the crate genuinely calls into
 it. A public item whose only callers are tests therefore stops being module
-API — deleted where a test can assert on what production reads, demoted into
-that module's `mod tests` where the test still needs the convenience. Two *kinds*
-of surface are exempt and every item the sweep reports falls under one of them,
-argued where it lives: a **seam**, where production reaches the same behaviour
-through a door a test cannot open (`grove_loop::driver::transition_to_current`),
-and nothing else — a second exemption for **a frozen grammar kept whole** covered
-`leaf_id`, the v1-flat parser, and retired with it when that layout stopped being
-read. The list is reproduced by copying a package's `src/` to a scratch crate,
-making every module private except its own entry surface — `cli` for
-`grove-llm`, and `verbs`, `prompt` and the crate root for
-`grove-loop` — and reading the compiler's reachability warnings. `crates/grove`
-needs no such copy: it is a binary with no library, so every item in it is
-already private to one target.
+API. The item is removed where a test can assert on what production reads. It is
+demoted into that module's `mod tests` where the test still needs the
+convenience.
+
+Two *kinds* of surface are exempt. Every item that the sweep reports falls under
+one of them, argued where it lives. The first is a **seam**, where production
+reaches the same behaviour through a door a test cannot open
+(`grove_loop::driver::transition_to_current`). Nothing else is exempt. A second
+exemption, for **a frozen grammar kept whole**, covered `leaf_id`, the v1-flat
+parser. That exemption retired with `leaf_id` when that layout stopped being
+read.
+
+Reproduce the list by copying a package's `src/` to a scratch crate. Make every
+module private except its own entry surface. That surface is `cli` for
+`grove-llm`, and `verbs`, `prompt` and the crate root for `grove-loop`. Then read
+the compiler's reachability warnings. `crates/grove` needs no such copy. It is a
+binary with no library, so every item in it is already private to one target.
 
 **Since `loop-crate-verbs-k21` the compiler does more of this on its own.** A
-module that moved into `crates/grove-loop` is private to *that* crate, so
-`dead_code` now reports an item whose only callers are another package's
-tests — which is how the four path-taking compositions (`task_tree::read`,
-`pick`, `select`, `kind`) turned out to be the tests' alone and moved into the
-module's own `mod tests`. A crate boundary is a reachability boundary, and that
-is a second thing the split bought besides the one decision 1 argues for.
+module that moved into `crates/grove-loop` is private to *that* crate. So
+`dead_code` now reports an item whose only callers are another package's tests.
+That is how the four path-taking compositions (`task_tree::read`, `pick`,
+`select`, `kind`) turned out to be the tests' alone. They moved into the
+module's own `mod tests`.
+
+A crate boundary is a reachability boundary. That is a second thing the split
+bought, besides the one that decision 1 argues for.
+
+<!-- tc: pending because the conversion has not reached this part of the document -->
 
 ## Verification
 

@@ -9,19 +9,19 @@ Grove keeps its local keyed-launch runner.
 
 ## Caller fixtures retained before package removal
 
-| Retired suite/asset | Applicable owner and coverage | Retired behavior |
+| Retired suite/asset | Applicable owner and coverage | Retired behaviour |
 |---|---|---|
-| worker/grove; tests/grove.rs | assets/ravel-policy/grove.ts; ravel_policy_assets measured task/marker/context cases; creator_lifecycle production/retirement/retry/node-close cases | Embedded module registry/version report and legacy store lookup |
-| worker/examples/review and grove-review; tests/review.rs | readable generic/Grove review examples; gateway/provider/evidence/refusal tests; strict type fixtures | Run/catalog lookup and record observations |
-| worker/examples/grove-static; tests/examples.rs | readable static example and all-kind literal command tests | Registered embedded Grove specifiers and worker-generated Grove declarations |
-| worker/sample; tests/sample.rs | caller sample; arrangement/modifier/default/all-kind and secondary jj grant tests | init/inspect and old installed sample location |
-| tests/choice_file.rs; generic SDK/examples | Independent Ravel choice admission, generic sample/runtime tests; Grove sample choices through installed public SDK | Old public verb/config names |
-| tests/hostile and process/worker/runtime suites | Independent Ravel runtime/admission/hostile checks and pinned target smoke; Grove command/result/authority and actual caller tests | Persistence/history/observations and obsolete worker probe identities |
-| removed_surface old-front helper | Explicit installed_ravel/ravel_path shared helper; current launch diversity/removal assertions retained | Building an unused old sibling front |
+| worker/grove and tests/grove.rs | assets/ravel-policy/grove.ts, with the ravel_policy_assets measured task/marker/context cases and the creator_lifecycle production/retirement/retry/node-close cases | Embedded module registry/version report and legacy store lookup |
+| worker/examples/review, grove-review and tests/review.rs | readable generic/Grove review examples, gateway/provider/evidence/refusal tests and strict type fixtures | Run/catalog lookup and record observations |
+| worker/examples/grove-static and tests/examples.rs | readable static example and all-kind literal command tests | Registered embedded Grove specifiers and worker-generated Grove declarations |
+| worker/sample and tests/sample.rs | caller sample, with arrangement/modifier/default/all-kind and secondary jj grant tests | init/inspect and old installed sample location |
+| tests/choice_file.rs and generic SDK/examples | Independent Ravel choice admission and generic sample/runtime tests. Grove sample choices go through the installed public SDK | Old public verb/config names |
+| tests/hostile and process/worker/runtime suites | Independent Ravel runtime/admission/hostile checks and pinned target smoke. Grove command/result/authority and actual caller tests | Persistence/history/observations and obsolete worker probe identities |
+| removed_surface old-front helper | Explicit installed_ravel/ravel_path shared helper. The current launch diversity/removal assertions stay | Building an unused old sibling front |
 
 The former package and its build/typecheck/probe/install/compatibility tasks are
-removed together. Compiler development dependencies belong to tools/ravel-policy;
-strict checking uses independently installed Ravel declarations. `task check`
+removed together. Compiler development dependencies belong to tools/ravel-policy.
+Strict checking uses independently installed Ravel declarations. `task check`
 resolves Ravel from PATH (GROVE_TEST_RAVEL overrides it) and explicitly runs the installed caller assets.
 
 ## Installed archive checks
@@ -33,28 +33,29 @@ separate prefix. For offline inputs, invoke `scripts/release-smoke.sh --archives
 DIR --ravel-archives RAVEL_DIR TARGET...`. Missing or mismatched inputs fail.
 
 Native, floor-container and QEMU routes use the same isolated caller cases.
-They check both Grove commands, every caller asset, ordinary imports through
-independent Ravel, lifecycle completion after reap and standalone output
-publication, direct and symlinked fronts, and distinct project versions. Child
+They check both Grove commands, every caller asset and ordinary imports through
+independent Ravel. They also check lifecycle completion after reap, standalone
+output publication, direct and symlinked fronts, and distinct project versions. Child
 PATH contains selected system tools and Ravel, with no host Bun/Node or dispatch.
+
 The lifecycle fixture supplies a filesystem workspace and a fake session's
-teardown marker; it does not test jj commit operations or retire actual work.
-Existing Rust jj/lifecycle suites own those behaviors.
+teardown marker. It does not test jj commit operations or retire actual work.
+Existing Rust jj/lifecycle suites own those behaviours.
 
 QEMU header admission includes every ELF from both projects before registering
 the CPU model. Existing glibc and above-CPU-floor controls remain shared with
 Ravel's independent target runner. `task release:registration:test ARCHIVES=... RAVEL_ARCHIVES=...` checks real
 combined ELF headers and missing/escape controls.
-`task release:formula:test ARCHIVE=...` runs Homebrew itself in a private prefix;
-its checksum fixtures are never publishable. The release formula test consumes installed
-caller imports and executes Grove's standalone public boundary.
+`task release:formula:test ARCHIVE=...` runs Homebrew itself in a private prefix.
+Its checksum fixtures are never publishable. The release formula test consumes
+installed caller imports and executes Grove's standalone public boundary.
 
 ## Live installation boundary
 
 The original installed 22.1.0 Grove/dispatch keg, personal policy and current
 ending channel remain preserved. Cargo and direct helpers keep all old/new
 authority scrubs. The [legacy transition](legacy-driver-transition.md) supplies
-the tested complete-keg upgrade/unlink procedure; the [Linux floor
+the tested complete-keg upgrade/unlink procedure. The [Linux floor
 environment](linux-floor-qemu.md) supplies real confinement in the CentOS
 userlands. Final independent-delivery acceptance below meets the preparation
 contract. Live application and publication remain k13's work.
@@ -63,6 +64,8 @@ Historical release notes, declared compatibility/authority fixtures, the origina
 live-driver contract and broader ownership prose assigned to k12 may retain old
 names. Current workspace, archive, build/gate/formula and smoke consumers must
 not depend on the removed source tree.
+
+<!-- tc: off because this is dated evidence of the k49 and k51 runs, and stays as measured -->
 
 ## Verified contraction boundary — k49
 
@@ -171,14 +174,16 @@ cleanup protections for every release/recovery shell and final finish. Keep
 the complete canonical keg, backup, plan and links through the original
 driver's last signal. Resume partial releases without a second version cut.
 
+<!-- tc: on -->
+
 ### Source surface reconciliation
 
 The inventory extracts every lexical token from the entire jj tracked tree,
-including root files and dotfiles, then classifies process/router/control/CLI
-candidates per file and exact line. Its full lexicon and location records are
-`target/k51/lexicon-final.json` and inventory-final.json. The tracked inventory
-is refreshed again after evidence promotion/retirement so its source pins name
-the final tree. Binary fixtures are identified separately.
+including root files and dotfiles. It then classifies each process/router/control/CLI
+candidate by file and exact line. Its full lexicon and location records are
+`target/k51/lexicon-final.json` and inventory-final.json. After evidence
+promotion and retirement, the inventory is refreshed again so that its source
+pins name the final tree. It lists binary fixtures separately.
 
 All retained old-name locations in the delivery surfaces have these meanings:
 
@@ -193,21 +198,23 @@ All retained old-name locations in the delivery surfaces have these meanings:
 | Other book dispatch wording | Local runner, jj or concept vocabulary, without a process-router dependency. |
 
 `delivery-old-names.txt` records every matching delivery location, not merely a
-count. removal-controls.json observes the same `rg --hidden -n` instrument
-clean on the current manifests/Taskfile/scripts, dirty against legitimate
-historical CHANGELOG references and a deliberately wrong recipe, then clean
-after correcting that recipe. The positive current-task search succeeds; its
-impossible mutation fails. The whole-tree inventory retains broader k12 prose
-and historical/coordination material with named ownership instead of claiming
-all old vocabulary is gone.
+count. In removal-controls.json, the same `rg --hidden -n` instrument reads
+clean on the current manifests/Taskfile/scripts. It reads dirty against
+legitimate historical CHANGELOG references and a deliberately wrong recipe,
+then clean after the recipe is corrected. The positive current-task search
+succeeds, and its impossible mutation fails. The whole-tree inventory keeps
+broader k12 prose and historical/coordination material with named ownership.
+It does not claim that all old vocabulary is gone.
 
 Graph evidence is Tier 2 at generation `2026-10-13T14:14:53Z`, best effort.
 Checked delivery and book scopes report only excluded generated/dependency
-state and the QEMU arithmetic line, read directly. The excluded Cargo guard,
-untracked graph metadata for Cargo.lock/inventory, generated evidence and
-compiler dependency tree were inspected or measured directly. Graph call
-edges around Python read/open include heuristic cross-language matches; exact
-source and executable admission/refusal tests establish the archive contract.
-No exhaustive conclusion relies on graph absence. CPU evidence measures
-trusted automatic kernel exec under the pinned models; raw explicit QEMU
-invocation and a kernel floor remain outside that claim.
+state and the QEMU arithmetic line, read directly. The session inspected or
+measured these directly: the excluded Cargo guard, the untracked graph metadata
+for Cargo.lock/inventory, the generated evidence and the compiler dependency
+tree.
+
+Graph call edges around Python read/open include heuristic cross-language
+matches. Exact source and executable admission/refusal tests establish the
+archive contract. No exhaustive conclusion relies on graph absence. CPU
+evidence measures trusted automatic kernel exec under the pinned models. Raw
+explicit QEMU invocation and a kernel floor remain outside that claim.

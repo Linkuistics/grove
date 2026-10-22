@@ -697,7 +697,7 @@ mod tests {
 The `include!` near the top is the runtime/build boundary. Runtime code never
 walks the repository and needs no network: it compares and writes the bytes
 compiled into `FILES`, then derives links from `SKILLS`. The authoritative
-plugin files remain under `plugins/`; `build.rs` converts them to Rust data
+plugin files remain under `plugins/`. `build.rs` converts them to Rust data
 for this binary.
 
 <a id="the-signal-path"></a>
@@ -705,10 +705,12 @@ for this binary.
 
 A driver killed by SIGTERM or SIGHUP must not report a clean finish. The loop
 cleans up its child, drops the lease as it returns, and reports
-`LoopOutcome::Interrupted(signal)`. The CLI then calls `reraise` so its parent
-observes termination by that signal. This is the lifecycle's contract; the
-viewer's current Ctrl-c handling is an ordinary quit through its own terminal
-lifetime, and full signal hardening is a later viewer increment.
+`LoopOutcome::Interrupted(signal)`. The CLI then calls `reraise`. Its parent
+then observes termination by that signal.
+
+This is the lifecycle's contract. The viewer's current Ctrl-c handling is an
+ordinary quit through its own terminal lifetime. Full signal hardening is a later
+viewer increment.
 
 <!-- fragment «run-signal-doc» owner="one-call" source="crates/grove/src/cli.rs" lines="72-80" parent="surface-resolve-lease-run" -->
 ````rust
@@ -769,30 +771,33 @@ grove view
   return: no workspace resolution, lease or dispatch lookup
 ```
 
-If that `.grove` is absent, view shows a Missing state and accepts `r` to retry.
+If that `.grove` is absent, view displays a Missing state and accepts `r` to retry.
 An explicit `grove view /work/atlas` observes the parent's tree without changing
 the command's no-upward-search rule.
 
-| Lifecycle outcome | Exit behavior |
+| Lifecycle outcome | Exit behaviour |
 |---|---|
 | `Finished` | `Ok(())`, process exits 0 |
-| `Stopped` | `Ok(())`, process exits 0; a later bare invocation resumes |
-| `Interrupted(15)` | Re-raise SIGTERM; shell convention reports 143 |
-| `Interrupted(1)` | Re-raise SIGHUP; shell convention reports 129 |
+| `Stopped` | `Ok(())`, process exits 0. A later bare invocation resumes |
+| `Interrupted(15)` | Re-raise SIGTERM. Shell convention reports 143 |
+| `Interrupted(1)` | Re-raise SIGHUP. Shell convention reports 129 |
 
-A session that ends without signalling stops the loop; it is different from a
-signal sent to the driver itself. The returned outcome preserves that distinction.
+A session that ends without signalling stops the loop. That differs from a
+signal sent to the driver itself. The returned outcome preserves that
+distinction.
 
 <a id="what-run-refuses"></a>
 ## Errors return through main
 
-Workspace, lease, provisioning and missing/incompatible-Ravel refusals stop the lifecycle
-before any session launch. Runtime failures can stop it later; a launch the
-owner's policy refuses is not one of them, since the loop stops on it and returns
-cleanly. A viewer can return a
-non-TTY refusal or a terminal setup/input/draw error; its terminal owner restores
-modes before that error reaches the reporting boundary. `execute` returns the error
-to `run`, which writes the error and returns exit 1 to main.
+Workspace, lease, provisioning and missing/incompatible-Ravel refusals stop the
+lifecycle before any session launch. Runtime failures can stop it later. A launch
+that the owner's policy refuses is not one of them, because the loop stops on it
+and returns cleanly.
+
+A viewer can return a non-TTY refusal or a terminal
+setup/input/draw error. Its terminal owner restores the modes before that error
+reaches the reporting boundary. `execute` returns the error to `run`. `run`
+writes the error and returns exit 1 to main.
 
 <!-- fragment «run-errors-doc» owner="one-call" source="crates/grove/src/cli.rs" lines="81-84" parent="surface-resolve-lease-run" -->
 ````rust

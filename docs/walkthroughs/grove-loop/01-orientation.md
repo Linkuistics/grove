@@ -1108,17 +1108,17 @@ pub fn select_snapshot(
 <a id="one-error"></a>
 ## One error for the whole crate
 
-The file ends with the type the module header promised, and reading it is how
-this chapter closes: the manifest bought `anyhow` for internal use, the header
-said the dependency stops at this boundary, and these forty-five lines are where
-it stops.
+The file ends with the type that the module header promised. Reading it closes
+this chapter. The manifest bought `anyhow` for internal use. The header said the
+dependency stops at this boundary. These forty-five lines are where it stops.
 
-`Error` is a newtype over an `anyhow::Error` and carries no variant, no code and
-no public accessor. Its comment states the obligation that replaces a taxonomy —
-every message names what is wrong **and** what fixes it — and attributes the same
-rule to `keyed-launch`'s and `jj-workspace`'s errors, which is the workspace-wide
-form of it. `Error::msg` is `pub(crate)`, so the only messages this type can
-carry are ones a module of this crate wrote.
+`Error` is a newtype over an `anyhow::Error`. It carries no variant, no code and
+no public accessor. Its comment states the obligation that replaces a taxonomy.
+Every message names what is wrong **and** what fixes it.
+
+The comment attributes the same rule to the errors of `keyed-launch` and `jj-workspace`, which is the
+workspace-wide form of it. `Error::msg` is `pub(crate)`. So this type can carry
+only the messages that a module of this crate wrote.
 
 <!-- fragment «library-root-error» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="376-394" parent="library-root" -->
 ````rust
@@ -1144,15 +1144,15 @@ impl Error {
 ````
 <!-- /fragment -->
 
-The four trait implementations are what make the opacity affordable for a
-consumer. `Display` and `Debug` both defer to the inner error, and `Debug`
-renders the whole chain the way `anyhow` does, because `Debug` is what a
-`Result`-returning `main` prints and is therefore the operator-facing form.
-`std::error::Error` keeps the cause chain intact, so a consumer using `anyhow`,
-`thiserror` or nothing at all renders this the way it renders any other error and
-takes on no dependency of grove's to do it. The `From<anyhow::Error>` is what
-lets every module inside the crate keep stacking context with `?` and have it
-arrive here as one type.
+The four trait implementations make the opacity affordable for a consumer.
+`Display` and `Debug` both defer to the inner error. `Debug` renders the whole
+chain the way `anyhow` does. A `Result`-returning `main` prints `Debug`, so it is
+the operator-facing form. `std::error::Error` keeps the cause chain intact.
+
+A consumer using `anyhow`, `thiserror` or nothing at all renders this type the way
+it renders any other error. That consumer takes on no dependency of grove's.
+The `From<anyhow::Error>` lets every module inside the crate keep stacking
+context with `?`. The context arrives here as one type.
 
 <!-- fragment «library-root-error-traits» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="395-420" parent="library-root" -->
 ````rust
@@ -1185,11 +1185,11 @@ impl From<anyhow::Error> for Error {
 ````
 <!-- /fragment -->
 
-Two files, then, and between them the crate's whole claim: a permission stated in
-a manifest, and a surface that spends it on a grammar, a walk, a lifecycle, a
-verb list and a loop. What could not move is named in each of the header's five
-passages and proved nowhere yet. Chapter 2 takes the first step, at the narrowest place the
-claim can be checked — a name on disk, and the four verdicts grove can reach
-about it.
+Two files, then, and between them the crate's whole claim. A manifest states a
+permission. A surface spends it on a grammar, a walk, a lifecycle, a verb list
+and a loop. Each of the header's five passages names what could not move, and
+nothing proves it yet. Chapter 2 takes the first step, at the narrowest place
+where the claim can be checked. That place is a name on disk, and the four
+verdicts that grove can reach about it.
 
 [Contents](README.md) | [Next: The tokens, and the four verdicts](02-the-tokens.md)

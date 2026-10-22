@@ -30,7 +30,7 @@ The caller acquires the workspace lease before entering `run`.
 
 The module header and inline tests are source fragments even though rustdoc
 cannot inspect those regions. The book validator reconstructs their bytes as
-well as the production functions. Process behavior is separate evidence: the
+well as the production functions. Process behaviour is separate evidence. The
 loop-driver PTY suite runs the real Grove binary, Ravel front and worker.
 
 <a id="the-harness-widened"></a>
@@ -39,9 +39,10 @@ loop-driver PTY suite runs the real Grove binary, Ravel front and worker.
 The fake harness can send Ravel's public result, exit by itself, or leave a
 raw-mode orphan after Ravel is killed. The PTY cases observe terminal recovery
 before `reset_terminal` changes the saved modes. A background driver is launched
-beneath a shell that retains the foreground. Creator lifecycle cases use an explicit caller-owned policy and retain
-retirement, reordering, cascade, missing-provenance refusal and declaration
-resume behavior without a Ravel store or embedded Grove adapter.
+beneath a shell that retains the foreground. Creator lifecycle cases use an
+explicit caller-owned policy. They retain retirement, reordering, cascade,
+missing-provenance refusal and declaration resume behaviour. They need no Ravel
+store and no embedded Grove adapter.
 
 <a id="the-block-declared"></a>
 ## The block, declared
@@ -330,14 +331,14 @@ Lease validation precedes transition and selection. The selected lifetime and ki
 <a id="no-kind-is-asked"></a>
 ## No kind is asked about before its leaf launches
 
-The tree can hold an unrouted kind. Grove asks the owner's policy only at launch;
-Ravel's refusal and remedy reach the terminal and the selected leaf remains
-live. No route table or owner configuration is read by this module.
+The tree can hold an unrouted kind. Grove asks the owner's policy only at launch.
+Ravel's refusal and remedy reach the terminal, and the selected leaf stays
+live. This module reads no route table and no owner configuration.
 
 <a id="the-selection"></a>
 ## What `Sought::Nothing` means here
 
-`Sought::Nothing` causes the driver to materialize a finish leaf and select again
+`Sought::Nothing` causes the driver to materialise a finish leaf and select again
 under a fresh guard. The retained `TreeLifetime` pins the selected root's
 identity without retaining its tree lock across a session.
 
@@ -635,11 +636,11 @@ observer of the lease as they are, with no conversion.
 <!-- /fragment -->
 
 <a id="the-handoff"></a>
-## The handoff: the one ordering the loop cannot get wrong
+## The handoff: the one ordering the loop must keep
 
 The handoff invalidates the epoch even when launch returned an error. Only a
 successful invalidation invokes the reading closure. If both fail, the error
-retains the launch failure beside the invalidation failure; nothing consumes the
+retains the launch failure beside the invalidation failure. Nothing consumes the
 ending beside an admitted orphan still holding the old epoch.
 
 <!-- fragment «loop-handoff» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="343-360" parent="loop-driver" -->
@@ -761,7 +762,7 @@ fn ignore_interrupts() {
 
 Selection opens the root identity before acquiring the read guard and checks
 it while the guard is held. `picked_after_finish` selects afresh after
-materialization. A concurrent root replacement cannot lend an old selection
+materialisation. A concurrent root replacement cannot lend an old selection
 the new root's identity.
 
 <!-- fragment «loop-picked» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="424-463" parent="loop-driver" -->
@@ -2222,7 +2223,7 @@ the driver. `grove run` keeps the default, so a Ctrl-C cancels it.
 The same first call repairs an inherited ignored SIGCHLD. An ignored SIGCHLD
 makes the kernel reap children unwatched, and then nothing is left to wait for.
 Grove restores the default for itself and never installs a handler. The child
-gets the ignore back across the exec.
+receives the ignore back across the exec.
 
 A job reports the first signal that Grove sent to `ravel`. At the reap and at a
 failure, `freeze` also drains the latch. It drains the latch even when Grove
@@ -2381,7 +2382,7 @@ pass it to the harness. Nothing in that session could then be interrupted, and
 nothing could say why.
 
 `Terminal` opens `/dev/tty`. A process with no controlling terminal cannot open
-it and gets no job control. That is the whole gate, and no caller can configure
+it and has no job control. That is the whole gate, and no caller can configure
 it wrongly. `tcsetpgrp` from a background group raises SIGTTOU, so every call
 ignores SIGTTOU and then restores the previous disposition.
 

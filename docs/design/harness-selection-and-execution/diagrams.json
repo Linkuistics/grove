@@ -1,36 +1,6 @@
 {
   "title": "Harness selection and execution — Grove caller views",
   "intro": "Current caller/process views of independently installed Ravel and Grove. The caller spec owns Grove interpretation; Ravel owns executable runtime behavior. Original live-v22 sessions retain their launch-prompt ending contract and are not depicted as new Ravel launches. Graphs begin at Start here, sequences at their first message, and the state view at its initial state.",
-  "discussion": {
-    "title": "Grove launches ravel as an ordinary child",
-    "status": "Proposed by design ravel-child-k2, reviewed by ravel-child-k3 and integrated by ravel-child-k5. Awaiting planning.",
-    "summary": "The keyed-launch runner goes. One shared Grove function launches ravel as a foreground job for the lifecycle or a detached job for grove run. Grove forwards a caught signal to ravel alone, sends no KILL and checks no group. Ravel alone gives the cleanup assurance.",
-    "diagramIds": [
-      "packages",
-      "chain",
-      "grove-launch",
-      "loop-decision",
-      "ending"
-    ],
-    "updatedDiagrams": [
-      {
-        "id": "packages",
-        "summary": "Replaced the local keyed-launch runner with Grove's shared job function, and named Ravel as the only cleanup owner."
-      },
-      {
-        "id": "chain",
-        "summary": "Showed the driver's signal policy and the forwarding of a caught TERM or HUP to ravel alone, with no KILL."
-      },
-      {
-        "id": "grove-launch",
-        "summary": "Named the foreground and detached job shapes, and removed the survivor check from both callers."
-      },
-      {
-        "id": "loop-decision",
-        "summary": "Removed the surviving-group decision, so a failed teardown check goes straight to the status check. Added the branch for a failed spawn or wait, and a caught signal still decides the exit after an error."
-      }
-    ]
-  },
   "groups": [
     {
       "id": "boundary",

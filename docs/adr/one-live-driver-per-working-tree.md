@@ -102,9 +102,12 @@ does not access the tree and does not rewrite the epoch.
 In particular, if an orphaned `grove-llm` process retains a shared guard,
 post-reap invalidation times out. The driver then stops `blocked`. It does not read
 the ending or teardown record of the launch, and it does not launch another
-session. *Orphaned* is narrower than it once was. The whole process group of the
-session ends with its run, whatever the ending. So a command that the session
-itself launched is reaped with it (*[the launched child is a job](./the-launched-child-is-a-job.md)*).
+session.
+
+*Orphaned* is narrower than it once was. Ravel ends and reaps the managed
+group of the session before it returns a result, whatever the ending. So a command
+that the session itself launched ends with it. The guarantee is Ravel's, not
+Grove's (*[Ravel supervises the harness](./dispatch-supervises-the-harness.md)*).
 
 Two kinds of process can still hold the guard:
 
@@ -112,8 +115,8 @@ Two kinds of process can still hold the guard:
   another session, another terminal or by hand. A command of a harness is among them,
   where the harness launches its commands in sessions of their own, as Claude Code
   does.
-- A process in the group of a harness orphaned by the death of its dispatch.
-  Nothing escalates such a harness.
+- A process in the group of a harness that an uncatchable death of `ravel`
+  orphaned. Grove then has no supported result, and nothing ends such a harness.
 
 A restart may continue once that already-admitted operation releases its guard.
 The bound, clock, control-path resolver and randomness source are internal test
@@ -199,7 +202,8 @@ both descriptors so helper return and supervision failure cannot release them
 early.
 
 Observation costs one ephemeral witness file and descriptor per launch, an
-exclusive lock on the already-retained root pin, and two generic runner events.
+exclusive lock on the already-retained root pin, and two notices. The `ravel_job`
+module sends them: `Started` and `Reaped`.
 The short shared epoch read gives a coherent record/witness binding while
 retaining admission's existing publication model. Tree capture and file I/O happen
 outside that guard.

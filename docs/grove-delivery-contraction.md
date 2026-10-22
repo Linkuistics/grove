@@ -5,7 +5,8 @@ and the complete readable `assets/ravel-policy` tree installed at
 `libexec/ravel-policy`. The formula depends on `linkuistics/taps/ravel`. Ravel
 provides its own public front, private worker, SDK, examples and runtime notices
 from its own prefix and release version. No Ravel Rust library crosses the seam.
-Grove keeps its local keyed-launch runner.
+Grove launches `ravel` as an ordinary child process. One shared function of
+`grove-loop` does it.
 
 ## Caller fixtures retained before package removal
 
@@ -195,7 +196,7 @@ All retained old-name locations in the delivery surfaces have these meanings:
 | Installed/floor smoke helpers | Assert that old fronts/host runtimes are absent from child layouts/PATH. |
 | release.test.sh and ravel-target-inputs.test.sh | Reject bundled old/new private payloads and mutated ELF registrations. |
 | Overview resolver fragments | Reject an old-tool version string and invoke the isolated resolver fixture. |
-| Other book dispatch wording | Local runner, jj or concept vocabulary, without a process-router dependency. |
+| Other book dispatch wording | Jj or concept vocabulary, without a process-router dependency. |
 
 `delivery-old-names.txt` records every matching delivery location, not merely a
 count. In removal-controls.json, the same `rg --hidden -n` instrument reads

@@ -438,7 +438,7 @@ Grove's lifecycle accepts exactly `grove-continue` and `grove-force-stop`,
 after its Ravel job is reaped and epoch admission is invalidated. Driver
 interruption precedes all dispositions. A successful force-stop overrides
 [[Teardown record]] and exits 1 without completion. Teardown otherwise
-precedes group/status/continuation checks.
+precedes the status and continuation checks.
 
 Missing or unsupported results stop. Natural process exit supplies no
 completion acknowledgement. Standalone currently requires continuation before

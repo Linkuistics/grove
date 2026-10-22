@@ -29,7 +29,8 @@ installed Ravel. Grove resolves it once from PATH and checks its version. Ravel
 needs no Grove installation. Its front and compiled worker ship independently,
 without host Bun/Node.
 
-Grove keeps its own local runner and caller-owned policy assets.
+Grove launches `ravel` as an ordinary child process and keeps its caller-owned
+policy assets.
 Grove archives contain its executables and caller assets. The Homebrew formula
 depends on separate Ravel. Grove bundles no executable worker and no shared Rust
 dependency ([delivery boundary](../grove-delivery-contraction.md)).

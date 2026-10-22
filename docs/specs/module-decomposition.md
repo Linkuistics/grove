@@ -3,7 +3,7 @@
 ## Solution
 
 Grove is **five modules with independent lifetimes** and the launcher that
-composes them. Three of the modules are reusable outside grove. Grove is a loop
+composes them. Two of the modules are reusable outside grove. Grove is a loop
 and a vocabulary, and nothing else.
 
 The version control system owns safety, history and transactionality. jj
@@ -33,7 +33,6 @@ cites it rather than restating it.
 | module | package | domain-free |
 |---|---|---|
 | tree store | `ordinal-fs-tree` | yes |
-| runner, optional synchronous spawn/reap notifications | `keyed-launch` | yes |
 | VCS seam | `jj-workspace` | yes |
 | loop | `grove-loop` | no |
 | read-only viewer | `grove-tui` | no |
@@ -87,7 +86,7 @@ increment.
 One workspace, one release version, one changelog, one tag. A module is a crate
 so that the compiler enforces *testable through its own interface without
 unrelated modules*. It is then a fact, not a discipline held by review. This
-holds because the three domain-free crates take no path dependency on the domain
+holds because the two domain-free crates take no path dependency on the domain
 crates. Each carries its own suites.
 
 The skills module has **no crate**. Its artifact is markdown that ships by an
@@ -124,12 +123,6 @@ another package's tests.
 jj workspace, refuse a tree that is not one, take a path-scoped commit*. The
 remedy that its refusal carries is jj's, `jj git init --colocate`, and not
 grove's.
-
-`keyed-launch` keeps the name it took when it also resolved a key to a command
-template. What remains is the supervision that sat behind the key. Its
-vocabulary is *argv*, *launch*, *child*, *channel*, *signal* and *escalation*.
-It deliberately avoids **session**, because that word would add a fourth row to
-the collision table in [`CONTEXT-MAP.md`](../../CONTEXT-MAP.md).
 
 <!-- tc: pending because the conversion has not reached this part of the document -->
 
@@ -332,19 +325,22 @@ literal that would silently produce a *wrong* leaf rather than an error.
 
 <!-- tc: on -->
 
-### 7 — The runner
+<a id="7--the-runner"></a>
+### 7 — The job function
 
-The runner takes a program and its arguments from its caller and launches them
-as a job it supervises to the end. It reads no configuration and resolves no
-name to a command, and it understands no task, kind or provider receipt.
-Grove's lifecycle and standalone callers build `ravel start-session` argv
-through the shared public-command adapter. Ravel independently retains its own
-runner for the selected process. No shared Rust dependency crosses that boundary
+One function starts `ravel` for every caller. It lives in the `ravel_job` module
+of `grove-loop` and starts `ravel` as a job, as a job-control shell does. It takes
+a program and its arguments from its caller. It reads no configuration and
+resolves no name to a command. It understands no task, kind or provider receipt.
+
+The lifecycle and standalone callers build the `ravel start-session` argv through
+the shared public-command adapter. Ravel supervises the managed process and ends
+its group. No shared Rust dependency crosses that boundary
 ([harness selection and execution](harness-selection-and-execution.md#grove-integration)).
 
 ```rust
 /// A program and its arguments, in order, ready to spawn: each string one
-/// whole word, with no shell and no second reading.
+/// whole word, with no shell and no second reading. It lives in `session_command`.
 pub struct Argv { /* program, args */ }
 impl Argv {
     pub fn new(program: OsString, args: Vec<OsString>) -> Self;
@@ -355,163 +351,107 @@ impl Argv {
     pub fn words(&self) -> Vec<OsString>;
 }
 
-/// The out-of-band exit channel: a fresh, collision-resistant path per
-/// launch, naming that launch alone. **Its appearance is the whole signal**:
-/// it carries nothing, and nothing reads its content.
-pub struct Channel;
-impl Channel {
-    pub fn allocate(dir: &Path) -> Result<Self, LaunchError>;
-    pub fn path(&self) -> &Path;
-    pub fn discard(self) -> Result<(), LaunchError>;
-}
-/// Send the exit signal: create the file at `path`. One that exists already
-/// is success.
-pub fn signal(path: &Path) -> Result<(), LaunchError>;
-
-pub struct Escalation { pub grace: Duration, pub kill_grace: Duration }
-
-pub struct Launch<'a> {
-    pub argv: &'a Argv,
-    /// The exit channel and the variable its path is published under. A launch
-    /// with none ends only when its child exits or its launcher is cancelled.
-    pub channel: Option<(&'a Channel, &'a str)>,
-    pub scrub: &'a [&'a OsStr],
-    /// Values set after the scrub: the caller's own control variables.
-    pub grant: &'a [(&'a OsStr, &'a OsStr)],
-    /// The child's working directory. `None` inherits the launcher's, which is
-    /// rarely what a launcher wants: it is wherever a human happened to be
-    /// standing.
-    pub cwd: Option<&'a Path>,
-    /// Pass the wrapper's captured entry signal mask and dispositions.
-    pub transparent: Option<&'a EntrySignals>,
-    pub escalation: Escalation,
+/// Which kind of job `ravel` is. The shape fixes the terminal, the streams and
+/// the one variable that Grove grants.
+pub enum Shape<'a> {
+    /// `ravel` leads a new process group in Grove's session, and takes the
+    /// foreground of the terminal when Grove holds it. Receives
+    /// `GROVE_LAUNCH_DIR` with `launch_dir`.
+    Foreground { launch_dir: &'a Path },
+    /// `ravel` leads a new POSIX session with no terminal, and its stdin is end of
+    /// file. Its standard error goes to `transcript`. Receives no variable that Grove grants.
+    Detached { transcript: File },
 }
 
-pub fn run(launch: Launch<'_>) -> Result<Ended, LaunchError>;
-/// As `run`, reporting successful spawn and confirmed reap to the caller.
-pub enum LaunchEvent { Started, Reaped }
-pub fn run_observed(launch: Launch<'_>, observer: &mut dyn FnMut(LaunchEvent))
-    -> Result<Ended, LaunchError>;
-/// A child in a new session, with no terminal or inherited input, whose output
-/// goes to a caller-owned regular file.
-pub struct NoninteractiveLaunch<'a> {
-    pub argv: &'a Argv,
-    pub scrub: &'a [&'a OsStr],
-    pub cwd: Option<&'a Path>,
-    pub escalation: Escalation,
+/// Evidence about one job, independent of any result that `ravel` returns.
+pub enum LaunchEvent {
+    /// The spawn succeeded.
+    Started,
+    /// A wait confirmed the reap. It comes before the terminal recovery.
+    Reaped,
 }
-pub fn run_noninteractive(launch: NoninteractiveLaunch<'_>, output: File)
-    -> Result<Ended, LaunchError>;
-/// A child in a new session with no terminal and null stdin, writing to the
-/// launcher's own output, under mandatory filesystem confinement. The program
-/// is an absolute path, and any other is refused.
-pub struct FilesystemGrants<'a> { pub writable: &'a [PathBuf], pub runtime_read: &'a [PathBuf] }
-pub fn run_confined_observed(
-    launch: Launch<'_>, policy: &FilesystemGrants<'_>,
+
+/// How a job ended. There is no group field: Ravel alone gives the cleanup
+/// assurance, so only a successful `status` with an exact result counts.
+pub struct JobEnd {
+    pub status: ExitStatus,
+    /// The first signal that Grove caught during the job.
+    pub interrupted: Option<i32>,
+    pub elapsed: Duration,
+}
+
+/// Opaque, implementing `Error + Display`. It names what is wrong, where, and
+/// what fixes it, and it **carries the interruption**.
+pub struct JobError;
+impl JobError {
+    pub fn interrupted(&self) -> Option<i32>;
+}
+
+/// Start `ravel` with `command` in `cwd` and wait until it exits. Standard
+/// output goes to `stdout`, a regular file that the caller holds.
+pub fn launch(
+    command: &Argv,
+    cwd: &Path,
+    stdout: File,
     observer: &mut dyn FnMut(LaunchEvent),
-)
-    -> Result<Ended, LaunchError>;
-/// Open one regular file in a directory held before untrusted work ran.
-pub fn regular_file_at(directory: &File, name: &OsStr) -> std::io::Result<File>;
+    shape: Shape<'_>,
+) -> Result<JobEnd, JobError>;
 
-/// `signalled` is whether the exit channel existed once the child was reaped,
-/// so a child that signals and exits at once has still signalled.
-pub struct Ended {
-    pub end: End, pub status: ExitStatus, pub elapsed: Duration,
-    pub signalled: bool, pub group: Group,
-}
-pub enum Group { Gone, Present { pgid: i32 } }
-/// A transparent wrapper captures ignored and blocked signals at entry.
-pub struct EntrySignals;
-impl EntrySignals {
-    pub fn new(ignored: impl IntoIterator<Item = i32>, blocked: impl IntoIterator<Item = i32>) -> Self;
-}
-pub fn confinement_available() -> Result<(), LaunchError>;
-pub fn confinement_system_reads() -> &'static [&'static str];
-/// `Interrupted` is the *launcher's* own process signalled during this launch.
-/// **The signal is carried rather than merely noted**, because a process that
-/// catches a termination signal, tidies up and exits 0 has told its parent it
-/// finished its work; the only way to say what actually happened is to die of
-/// the same signal, and that needs its number. `reraise` is that ending, and
-/// this field is its argument. `Escalated` is a child the escalation ended.
-pub enum End { Exited, Escalated, Interrupted { signal: i32 } }
+/// The loop control variables. Every spawn removes them.
+pub const CONTROL_ENV: [&str; 10];
+/// Remove every `CONTROL_ENV` name from `command`'s environment.
+pub fn scrub(command: &mut Command);
 
-/// Which signal, if any, was sent to this process *outside* a launch — clearing
-/// the latch. A signal arriving between two launches has no launch to be
-/// reported against, and `run` discards it rather than spending it on the next
-/// child, which has signalled nothing and done nothing wrong; a looping
-/// launcher calls this at the top of its loop to honour it instead.
+/// Which signal, if any, was caught since the last check, clearing the latch.
+/// A signal that arrives between two jobs has no job to be reported against.
+/// A looping driver calls this at the top of its loop to honour it instead.
 pub fn take_interrupt() -> Option<i32>;
-/// Die of the signal that ended this launcher, so **its** parent sees the
+/// Die of the signal that ended this process, so **its** parent sees the
 /// conventional `128 + N` in the wait status — which an exit *code* cannot
-/// express at all. **This crate owns the call because this crate installed the
+/// express at all. **This module owns the call because this module installed the
 /// handler**; what stays the consumer's is *whether* to re-raise.
 pub fn reraise(signal: i32) -> !;
-
-/// Opaque, implementing `Error + Display`. Its obligation is the design's, not
-/// a variant list: it names what is wrong, where, and what fixes it.
-pub struct LaunchError;
 ```
 
-<!-- tc: depart synonym-rotation because confirmed cleanup is the name of what Ended::group reports and differs from validation -->
-The block states the surface this decision settles and is not an inventory of
-it. The listing follows the shipped runner names. `NoninteractiveLaunch` carries
-no exit authority, and `Launch::transparent` supplies entry signals.
-`FilesystemGrants` names confinement grants, and `Ended::group` reports
-confirmed cleanup. Callers inspect that group before acting on an ending.
+The block states the surface this decision settles and is not an inventory of it.
+The two notices are the only events. A failed spawn sends neither notice, and a
+failed wait sends no `Reaped`. The observer must return promptly and must not
+panic.
 
-The runner spawns the argv directly, with no shell. The child's environment is
-the caller's, minus the scrubbed names, plus the granted values. With a channel,
-it also holds the channel's path under the caller's chosen variable name. The
-child is a job in a process group of its own.
+The function spawns the argv directly, with no shell. The child's environment is
+the caller's, minus the names in `CONTROL_ENV`. Only the foreground shape then adds
+`GROVE_LAUNCH_DIR`. Every other spawn of Grove, the version probe and the terminal
+reset among them, strips the same names. One list serves all of them.
 
-An interactive launch hands the child the terminal. Once the child is reaped,
-the launch takes the terminal back from the child's group. When the child died
-of a signal, the launch takes the terminal from whichever group then holds it.
-It takes the terminal from no group that is the launcher's own or the session
-leader's. The launch ignores SIGTTOU for that call and restores the attributes
-that it saved. A launch that never held the foreground takes nothing
+In the foreground shape, `ravel` leads a process group of its own. The group
+takes the terminal from Grove, and the child's job-control signal dispositions
+are the defaults. So the ignore of SIGINT by the driver cannot reach the harness
 ([`the-launched-child-is-a-job`](../adr/the-launched-child-is-a-job.md)).
 
-The child's terminal-generated signal dispositions are the defaults, unless its
-caller is a transparent wrapper. A transparent wrapper passes on its own entry
-signal mask and dispositions to the child instead, and its pending signals stay
-its own. The runner installs no handler over a disposition that its launcher
-ignores. A launcher that inherited SIGCHLD ignored has its default restored, and
-never a handler, so that its child is not reaped unwatched. The child still
-receives the entry disposition.
+Once the child is reaped, Grove takes the terminal back from the child's group.
+When the child died of a signal, Grove takes the terminal from whichever group
+then holds it. It takes the terminal from no group that is the launcher's own or
+the session leader's. Grove ignores SIGTTOU for that call and restores the
+attributes that it saved. A job that never held the foreground takes nothing.
 
-With a channel, the channel's appearance starts grace → SIGTERM → kill-grace →
-SIGKILL. This is because a child that returns to an interactive prompt is never
-reaped on its own. The runner sends the sequence to the child's **process group**, so
-a command that the child itself launched is reaped with the child.
+In the detached shape, `ravel` has no terminal and no input. Every descriptor
+above standard error closes at the exec. Grove keeps the terminal, so a typed
+Ctrl-C reaches the process that decides about cancellation and publication.
 
-Whatever ends the child, the runner observes its exit and never a stop, without
-reaping the child. Next, it kills what remains of the child's group, twice with a
-short pause, while the unreaped child still reserves the group's ID. Then it
-reaps the child. Then it queries only, to confirm within a bound that the group
-is gone. Only an answer of no such group confirms that.
+The function installs the INT, TERM and HUP handlers at its first call. It never
+replaces a disposition that Grove ignores. A caught signal belongs to the driver,
+even when the next spawn fails, so the function takes the latch into each error.
+A signal that arrives before the spawn goes to the new `ravel` at the first poll.
 
-The runner reports a group that is still present to the caller beside the
-child's status. The purpose is that nothing acts on the ending beside a survivor
-in the group.
-
-The launcher's own TERM or HUP cancels the launch. INT cancels the launch too,
-for a launch with no terminal or a transparent wrapper that receives it directly.
-The runner sends an interactive or noninteractive child's group the same signal
-and, after the kill-grace, SIGKILL. The runner kills a confined child's group at
-once, so that a cancellation nested inside another supervisor's grace finishes
-inside it.
-
-Grove launches Ravel interactively for lifecycle and noninteractively for
-standalone work, with no local completion channel. Lifecycle keeps a 10-second
-kill-grace. Standalone keeps five seconds. Its stdout-capturing runner entry
-points keep Ravel's public result separate from managed output and transcripts.
+The function polls `ravel` at a constant interval. At each poll it passes the
+foreground on, sends each latched signal to `ravel` alone, and looks for an exit
+without blocking. It sees an exit and never a stop. It sends no KILL, probes no
+process group and sets no bound on its wait.
 
 Ravel owns its selected process's confinement, completion channel, bounds and
-cleanup ([Ravel process decision](https://github.com/Linkuistics/Ravel/blob/v1.0.0/docs/adr/the-launched-child-is-a-job.md)).
-There is no store append or migration wait in that boundary. The nested grace is
-a scheduling budget, not a wall-clock guarantee under suspension or slow I/O.
+cleanup ([Ravel process decision](https://github.com/Linkuistics/Ravel/blob/v1.1.0/docs/adr/the-launched-child-is-a-job.md)).
+A successful `ravel` status with an exact result is the only evidence of cleanup
+that Grove uses. There is no store append or migration wait in that boundary.
 
 <!-- tc: pending because the conversion has not reached this part of the document -->
 
@@ -612,7 +552,7 @@ pub fn run(workspace: &Workspace, lease: DriverLease, ravel: &Path)
 pub enum LoopOutcome { Finished, ForceStopped, Stopped, Interrupted(i32) }
 
 /// One error for the whole crate. Opaque, `Error + Display`, and under the same
-/// obligation as the runner's: every one names what is wrong and what fixes it.
+/// obligation as the job function's: every one names what is wrong and what fixes it.
 pub struct Error;
 
 pub mod verbs {
@@ -890,7 +830,7 @@ Four.
 
 1. **Each crate's public interface**, exercised without the other three. This is
    the primary seam and the done-when made mechanical: every crate carries its own
-   suites, and the three domain-free ones compile and run with none of the rest of
+   suites, and the two domain-free ones compile and run with none of the rest of
    the workspace on their dependency list.
 2. **One composed-loop seam** — the loop driving a fake harness binary end to end.
    The driver, teardown and lease suites.
@@ -939,5 +879,5 @@ updated in the same accepted change. No additional test service is introduced.
   is no registry to hold a row. A row was only ever *a place to write files*, so a
   further harness is answered by that harness's own skill-install route.
 - **Invoking a harness plugin.** The command a Ravel policy returns expresses
-  this; if more is meant it is a new runner capability, belonging to decision
+  this; if more is meant it is a new capability of the job function, belonging to decision
   7's contract and not to any registry.

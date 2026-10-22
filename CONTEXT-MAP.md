@@ -36,7 +36,7 @@ release, installed prefix and executable documentation.
   files move with the crate only if someone extracts the crate to a repository of
   its own.
 
-**`crates/jj-workspace` is a fourth crate and deliberately not a fourth
+**`crates/jj-workspace` is another crate and deliberately not a fourth
 context.** A context is a language boundary, and there is none here. Every term
 in that crate — workspace, main repo, tracked, commit, change id — is Jujutsu's.
 Grove's own glossary already uses those words with Jujutsu's meanings
@@ -54,22 +54,8 @@ location and namespace, returns an existing path or absence, and invokes no jj
 command. Runtime record interpretation and descriptor identity validation
 remain Grove's responsibilities. Discovery grants no ownership or admission.
 
-**`crates/keyed-launch` is another crate and, for the same reason, not another
-context — but only because it was named to avoid being one.** Its vocabulary is
-*argv*, *launch*, *channel*, *escalation*. None of those
-words appears in grove's glossary meaning something else. The word it would have
-reached for is **session**. Using it would have put a third meaning beside
-grove's **Session** and the methodology's. It would have added a row to the
-collision table below for nothing, because the crate never learns what a launch is *for*.
-
-The crate's decisions live in the grove context that owns them.
-[decision 7](./docs/specs/module-decomposition.md) covers the interface.
-[*the launched child is a job*](./docs/adr/the-launched-child-is-a-job.md) covers
-what the child inherits, what the escalation reaps, and who owns the terminal
-while it runs.
-
 **`crates/grove-loop`, `crates/grove` and `crates/grove-llm` are three more
-crates and, unlike the two above, not even candidate contexts — they *are* the
+crates and, unlike the extractions above, not even candidate contexts — they *are* the
 grove context.** The other extractions each had to argue their way out of
 declaring one, because each took a vocabulary with it. These took grove's own.
 `grove-loop` is where *kind*, *handle*, *brief chain*, *outcome*, *selection* and
@@ -103,22 +89,21 @@ adapter. Retired store terms in Grove's glossary are historical locators, not
 active Ravel APIs. The [relationship below](#grove-and-harness-dispatch) keeps
 shared words distinct without duplicating Ravel's specification.
 
-**Where every term lives, one line per module.** Four of Grove's crates carry
-vocabulary, and the plugin carries a fifth. No two of them own the same word.
+**Where every term lives, one line per module.** Three of Grove's crates carry
+vocabulary, and the plugin carries a fourth. No two of them own the same word.
 The external Ravel boundary has the last row:
 
 | module | owns | glossary |
 |---|---|---|
 | `ordinal-fs-tree` | *entry*, *leaf*, *node*, *ordinal*, *key*, *distinguished child*, *snapshot*, *guard*, *refusal*, *sought*, *promote* | [`docs/ordinal-fs-tree/CONTEXT.md`](./docs/ordinal-fs-tree/CONTEXT.md) |
-| Grove's local `keyed-launch` | *argv*, *launch*, *channel*, *escalation* | none — its words are its own interface's, and none of them collides. Ravel maintains its own runner |
 | `jj-workspace` | *workspace*, *main repo*, *control directory*, *namespace*, *tracked*, *commit*, *change id* | none — the words are Jujutsu's, with Jujutsu's meanings |
 | `grove-loop`, with `grove`, `grove-llm` and the `grove-tui` reader over it | **Session kind**, **Work-item handle**, **Position**, **Permanent key**, **Leaf**, **Node directory**, **Node file**, **Brief chain**, **Selection**, **Driver lease**, **Session epoch**, **Launch directory**, **Teardown record**, **Guaranteed core**, **Stated VCS** | [`CONTEXT.md`](./CONTEXT.md) <!-- tc: depart long-sentence because the cell lists glossary terms and cannot split --> |
 | the `grove` plugin | **Spine skill**, **Kind skill**, **Composed loaded path**, **Condition** / **procedure**, **Loop-step reference file** | [`CONTEXT.md`](./CONTEXT.md) for the terms, [`plugins/CONTEXT.md`](./plugins/CONTEXT.md) for packaging and delivery |
 | Ravel (external) | *policy*, *selected command*, *parameter*, *owner settings*, *choice file*, *context*, opaque *result* | [Ravel specification](https://github.com/Linkuistics/Ravel/blob/v1.0.0/docs/specs/session-execution.md). Grove's **Original creator**, **Creator reference** and **Grove adapter** remain in [`CONTEXT.md`](./CONTEXT.md) |
 
-The `keyed-launch` and `jj-workspace` rows are the ones that had to be *bought*.
-The first avoids **session**, and the second refuses to name its consumer. Each is a
-naming decision argued above rather than an accident of scope.
+The `jj-workspace` row is the one that had to be *bought*. The crate refuses to
+name its consumer. That is a naming decision argued above rather than an accident
+of scope.
 
 ## Relationships
 
@@ -201,7 +186,8 @@ naming decision argued above rather than an accident of scope.
   PATH once and requires stable 1.x. Launch and ending instructions reuse
   that canonical path. There is no incompatible-install fallback. Grove supports separate
   prefixes and versions. Ravel links no Grove crate. Grove links
-  no Ravel crate. Each retains its own runner. Grove's Homebrew dependency and
+  no Ravel crate. Ravel supervises its managed process, and Grove launches
+  `ravel` as an ordinary child process. Grove's Homebrew dependency and
   readable `libexec/ravel-policy` assets describe installation, not shared
   release identity ([caller boundary](docs/ARCHITECTURE.md#harness-dispatch)).
 
@@ -212,7 +198,7 @@ naming decision argued above rather than an accident of scope.
   | *selection* — policy chooses argv | driver selects one leaf | the words collide |
   | *session* — supervised process lifetime | one mandated task attempt | Grove supplies the task discipline |
   | *context* — optional measured policy data | agent context or bounded context | the words collide |
-  | opaque *result* | Interruption, successful `grove-force-stop`, **Teardown record**, then successful `grove-continue` with no surviving group | Grove supplies meaning. Ravel returns the argument after cleanup |
+  | opaque *result* | Interruption, successful `grove-force-stop`, **Teardown record**, then successful `grove-continue` | Grove supplies meaning. Ravel returns the argument after cleanup |
 
   Grove supplies prompt and exact end-session instructions unchanged. Ravel
   injects nothing and interprets no continue/force-stop convention. Grove's

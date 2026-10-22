@@ -339,18 +339,20 @@ verb. Refusal leaves the leaf live with a remedy
 ([usage](USAGE.md#usage-refused-launch)). Old `config.kdl` and `.grove.kdl`
 files remain ignored.
 
-**`crates/keyed-launch` runs the command that its caller gives it, and knows
-nothing of a session.** It reads no configuration and resolves no name to a
-command. Grove uses this local runner to spawn Ravel directly and supervise its
-job. Ravel's independently owned runner supervises the selected harness. No
-shared Rust library crosses the project boundary.
+**One function, `ravel_job::launch` in `grove-loop`, launches `ravel` as an
+ordinary child process.** It runs the command that its caller gives it. It reads
+no configuration and resolves no name to a command. Ravel's independently owned
+runner supervises the selected harness. No shared Rust library crosses the
+project boundary.
 
-Each supervisor cleans up its direct child's group, reaps it and restores
-terminal modes. `Argv::new` preserves each string as one argument. Lifecycle
-uses stdout-capturing observed launch for Ravel's result and witness events.
-Standalone captures that result separately from its managed-output transcript.
-The local runner's channel abstraction remains available but Grove grants it no
-session-completion channel.
+Ravel ends the managed group, reaps it and restores terminal modes. Grove reaps
+`ravel` and takes the terminal back. Ravel alone gives the cleanup assurance, so
+Grove sends no KILL to `ravel` and probes no process group.
+
+`Argv::new` preserves each string as one argument. Lifecycle uses the foreground shape. It holds
+Ravel's result in a stdout file and receives witness events. Standalone uses the
+detached shape. It captures that result separately from its managed-output
+transcript. Grove grants no session-completion channel.
 
 The driver retains the selected task-root directory in a separate `TreeLifetime`
 pin. The driver checks the pin under the selection's tree guard. A fresh guarded
@@ -366,7 +368,7 @@ releases partial locks and diagnoses the failure. Mandatory epoch activation
 still proceeds. A missing or replaced root refuses the launch. No epoch or tree
 guard spans spawn.
 
-The runner's `Reaped` event closes the private witness before the directory pin,
+The `Reaped` event of `ravel_job` closes the private witness before the directory pin,
 before terminal recovery. Failed spawn uses the same release order on return. An
 unconfirmed supervision error retains the pair until lease drop. Drop releases
 both before driver ownership, including on unwind.
@@ -426,15 +428,13 @@ suspension limits remain. The [platform evidence record](item-status-verificatio
 preserves the exact cases, frozen-source digests, commands and accepted review
 limitations.
 
-The runner also exposes `run_observed(Launch, callback)`. Its synchronous
+`ravel_job::launch` takes an observer callback. Its synchronous
 `LaunchEvent::Started` follows successful spawn. `Reaped` follows verified
-reap, including recovery from a wait error, before exit-channel inspection and
-terminal recovery. Failed spawn emits neither event and unverified reap emits
-no `Reaped`.
+reap, before terminal recovery. Failed spawn emits neither event. A failed wait
+emits no `Reaped`.
 
 Callbacks return unit and must return promptly without panicking. Consumers
-handle observational failures internally. Ordinary `run(Launch)` remains
-available. Grove uses these events for witness publication and release. The
+handle observational failures internally. Grove uses these events for witness publication and release. The
 viewer consumes their verified same-tree evidence for RUNNING and NEXT.
 
 Grove spawns `ravel start-session` directly — no shell, no proxy, no router
@@ -472,7 +472,7 @@ with the old executable.
 | Owner | Boundary |
 |---|---|
 | Ravel | Routes through owner policy, confines/supervises the selected process, cleans up and returns the opaque published argument. Its front, compiled worker, SDK and local runner ship independently, without host Bun/Node or Grove. |
-| Grove | Selects a task, composes prompt/ending instructions, holds epoch admission, captures the public stdout result and decides continuation/teardown. Keeps its own local runner. |
+| Grove | Selects a task, composes prompt/ending instructions, holds epoch admission, captures the public stdout result and decides continuation/teardown. Launches `ravel` as an ordinary child process. |
 | Grove caller assets | Ordinary readable SDK policies, task/Creator adapters and optional provider-evidence wrapper under Grove's `libexec/ravel-policy`. |
 | Owner | Chooses commands, labels, grants, bounds and any review-provider rule in personal policy. |
 
@@ -572,10 +572,10 @@ until admitted work returns.
 Each epoch acquisition first tries without blocking, emits one diagnostic on
 contention, and waits a fixed internal 30-second bound. Timeout performs no tree
 access or epoch rewrite and stops the driver `blocked`. Ravel cleans up the
-managed group. Grove cleans up its Ravel job's group. Commands outside those
-groups, or a harness orphaned by Ravel's death, can still retain a guard. Manual
-commands without launch context keep ordinary behaviour
-([job ownership](adr/the-launched-child-is-a-job.md)).
+managed group before it returns a result. Commands outside that group, or a
+harness that an uncatchable death of Ravel orphaned, can still retain a guard.
+Manual commands without launch context keep ordinary behaviour
+([Ravel supervises the harness](adr/dispatch-supervises-the-harness.md)).
 
 The lock order is fixed: lease, then a scoped exclusive epoch guard. The guard
 releases before any task-tree operation. An ambient `grove-llm` command takes
@@ -1353,11 +1353,10 @@ After successful epoch invalidation, the first-match precedence is, in order:
 1. driver interruption (including pending post-reap signals)
 2. successful exact `grove-force-stop`
 3. this launch's teardown record
-4. surviving Ravel group
-5. successful Ravel status with exactly `grove-continue`
+4. successful Ravel status with exactly `grove-continue`
 
 Anything else stops. Force-stop exits 1 without completion and leaves live work
-resumable. Teardown otherwise finishes irrespective of result/status/group, so
+resumable. Teardown otherwise finishes irrespective of result and status, so
 task-root absence never substitutes for the record.
 
 An interactive harness returning to its prompt without publishing a result may
@@ -1798,7 +1797,7 @@ The workspace map is the overview's
 from its package map onward. The map lists the packages, what each is, and the
 responsibility of every `grove-loop` module.
 
-That map lists Grove's local `keyed-launch` runner and its caller modules.
+That map names `ravel_job`, the `grove-loop` module that launches Ravel.
 Ravel is outside the workspace, reached only through the public CLI boundary
 [above](#harness-dispatch). Its executable internals and runtime decisions live
 in its independent [specification](https://github.com/Linkuistics/Ravel/blob/v1.0.0/docs/specs/session-execution.md).

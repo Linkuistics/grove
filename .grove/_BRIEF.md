@@ -240,6 +240,25 @@ the published release. That release has the same three targets.
   applied to the design records.
 - `05` `ravel-child-plan-k4` (planning): the leaves of the code, book and record
   changes.
+- `06` `ravel-child-plan-k15` (review-planning): an adversarial read of the
+  plan below, before any leaf of code runs.
+- `07` `ravel-floor-k6` (impl): the Ravel 1.1.0 floor in the resolver and the
+  release inputs.
+- `08` `ravel-job-k7` (impl): the shared function and its book coverage, beside
+  `keyed-launch`.
+- `09` `grove-run-job-k8` (impl): `grove run` on the detached shape.
+- `10` `lifecycle-job-k9` (impl): the loop driver and the driver lease on the
+  foreground shape.
+- `11` `interrupted-errors-k10` (impl): every error that stops the loop keeps a
+  caught signal.
+- `12` `keyed-launch-removal-k11` (impl): the crate, its tasks, tests, book and
+  structure spec.
+- `13` `design-records-k12`, `14` `user-records-k13` and `15` `book-specs-k14`
+  (impl): the records that state the reversed decision.
+
+Each leaf from `08` to `12` carries the book edits for the code that it
+changes, because `book-check` gates the quotes. The order is expand (`08`),
+migrate (`09`, `10`, `11`) and contract (`12`). The records follow the code.
 
 ## Pointers
 

@@ -249,18 +249,21 @@ observable view behavior is checked separately by the application fixtures.
 <a id="three-mechanisms-complete"></a>
 ## Three different guarantees
 
-The compiler enforces public library access. The closed-set test constrains
-the declared CLI surface. The description test enforces help presence. None
-establishes all runtime behavior: the viewer fixtures and terminal smoke
+The compiler enforces public library access. The closed-set test constrains the
+declared CLI surface. The description test enforces help presence. None of them
+establishes all runtime behaviour. The viewer fixtures and the terminal smoke test
 exercise navigation, refresh and cleanup through the actual application.
 
-The lifecycle precedence is also checked at the real launch boundary in
-`a_driver_interrupt_overrides_a_recorded_teardown_under_a_terminal`: its fake
-harness records teardown, holds, and is reaped after the driver receives TERM.
-The driver must report interruption. The abandoned-directory case supplies both
-an `ending.json` FIFO and a supported exit-signal report in separate abandoned
-directories; neither changes the new launch's stopped outcome or launch count.
-The surviving Ravel-group combinations are deterministic runner-result
-cases in Grove Loop, where the returned group state is the contract input.
+A test also checks the lifecycle precedence at the real launch boundary. In
+`a_driver_interrupt_overrides_a_recorded_teardown_under_a_terminal`, a fake
+harness records teardown and then holds. The harness ends after the driver
+receives TERM. The driver must report interruption.
+
+The abandoned-directory case supplies two abandoned directories. One holds an
+`ending.json` FIFO. The other holds a supported exit-signal report. Neither
+changes the stopped outcome or the launch count of the new launch.
+
+The surviving Ravel-group combinations are deterministic runner-result cases in
+Grove Loop. In those cases, the returned group state is the contract input.
 
 [Previous: Lifecycle startup](03-three-steps.md) | [Contents](README.md) | [Next: What the call reaches](05-what-the-call-reaches.md)

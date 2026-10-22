@@ -130,49 +130,60 @@ at `{run, run-log, view}`, with `run-log` hidden from ordinary help.
 <a id="crate-not-a-bin"></a>
 ## A crate, not a `[[bin]]` target
 
-The second comment is the chapter's argument, and it names the alternative it
-rejects: a `[[bin]]` target declared inside `grove-loop`'s own manifest, with
-the same small `main` at `src/bin/grove.rs`. Cargo would accept that,
-and the binary would be one file shorter to describe. What it would cost is
-the thesis — but only for one of the two shapes such a target can take, which
-is why the comment names that shape rather than stating the clause of binary
-targets in general. Rust privacy is drawn at the crate. A binary target that
-lists the library's modules as its own — `#[path = "../driver_lease.rs"] mod
-driver_lease;` beside its `main` at `src/bin/grove.rs`, compiling the same
-files a second time — is the same crate as the code it includes and can name
-any `pub(crate)` item in it: `driver_lease`'s control-directory accessor, the
-loop's child-environment scrub, the tree operations no verb exposes. The
-attribute is not decoration: a bare `mod driver_lease;` in a file under
-`src/bin/` resolves against `src/bin/`, and is `E0583`. What such a target
-holds is its own second copy — a type it declares that way is distinct from
-the library's, `E0308` — so the discipline the shape defeats is the
-source-level one, which is the only one the thesis was ever about. A binary
-target that instead depends on the library sees only what the library
-publishes, exactly as a separate crate does; a `pub(crate)` item named through
-the library's path is refused with `E0603`, measured on a scratch package with
-one library and one binary beside it, and the same item reached by including
-its source file as a module compiles. That second shape is the ordinary one —
-it is what `src/bin/grove.rs` beside a `src/lib.rs` gets from Cargo without
-anyone asking for it — so a clause that did not name the first shape would be
-false of the arrangement a reader pictures. What the package boundary adds is
-not that the first shape becomes impossible — a `#[path]` can point outside a
-package, and three of this repository's test targets do exactly that — but
-that from here it has to, and the production modules do not include private library source. The test-only
-module in `run_display.rs` includes a fixture file from this package’s own tests. The
-move is made visible rather than unavailable. Inside `grove-loop`'s package,
-*the binary is thin* would be a fact about which of the two shapes the current
-commit uses, held by whoever reviews the next one. Through its loop dependency
-the entry point sees public items from `crates/grove-loop/src/lib.rs`; naming a
-private item is a compile error. That is
-the whole of the first mechanism: the boundary is the compiler's, and no test
-is needed to assert it, which is also why it is the mechanism a reader is most
-likely to take on trust. The check is one line: every `grove_loop::` path the
-Rust files name is a `pub` re-export in that library's root. The comment's
-own sentence, and decision 1 of `docs/specs/module-decomposition.md` which it
-cites, both name the shape the clause holds for. This section spells out the
-shape it excludes. The same public
-boundary holds for `keyed-launch`, while standalone artifact handling remains
-owned by the binary.
+The second comment is the chapter's argument. It names the alternative that it
+rejects. That alternative is a `[[bin]]` target in the manifest of `grove-loop`,
+with the same small `main` at `src/bin/grove.rs`. Cargo would accept it, and the
+binary would take one file less to describe. The cost is the thesis, but only
+for one of the two shapes that such a target can take. The comment therefore
+names that shape and does not state the clause for binary targets in general.
+
+Rust draws privacy at the crate. The first shape is a binary target that lists
+the library's modules as its own. An example is `#[path = "../driver_lease.rs"] mod driver_lease;`
+beside its `main` at `src/bin/grove.rs`. That target compiles the same files a
+second time. It is the same crate as the code that it includes, so it can name
+any `pub(crate)` item in that code. Examples are the control-directory accessor
+of `driver_lease`, the child-environment scrub of the loop, and the tree
+operations that no verb exposes.
+
+The attribute is not decoration. A bare `mod driver_lease;` in a file under
+`src/bin/` resolves against `src/bin/` and gives `E0583`. Such a target holds its
+own second copy. A type that it declares that way is distinct from the type of
+the library, and the compiler reports `E0308`. So the shape defeats the
+discipline at source level. That level is the only one that the thesis was ever
+about.
+
+The second shape is a binary target that depends on the library. It sees only
+what the library publishes, exactly as a separate crate does. A path through the
+library to a `pub(crate)` item gives `E0603`. A scratch package with one library
+and one binary beside it measured this. The same item compiles when the binary
+includes its source file as a module. The second shape is the ordinary one,
+because Cargo gives it to a `src/bin/grove.rs` beside a `src/lib.rs` without any
+request.
+
+A clause that did not name the first shape would be false of the arrangement
+that a reader pictures.
+
+The package boundary does not make the first shape impossible. A `#[path]` can
+point outside a package, and three test targets of this repository do exactly
+that. The boundary adds one thing. From here, the first shape has to reach
+outside the package. The production modules do not include private library
+source. The test-only module in `run_display.rs` includes a fixture file from
+the tests of this package, so the move is visible and not unavailable.
+
+Inside the package of `grove-loop`, *the binary is thin* would be a fact about
+the shape that the current commit uses. Whoever reviews the next commit would
+hold it. Through its loop dependency, the entry point sees the public items of
+`crates/grove-loop/src/lib.rs`, and naming a private item is a compile error.
+That is the whole of the first mechanism. The compiler holds the boundary, and no
+test needs to assert it. A reader is therefore most likely to take this mechanism
+on trust.
+
+The check is one line. Every `grove_loop::` path that the Rust files name is a
+`pub` re-export in the root of that library. The sentence of the comment and
+decision 1 of `docs/specs/module-decomposition.md` both name the shape that the
+clause holds for. This section spells out the shape that it excludes. The same
+public boundary holds for `keyed-launch`. The binary owns standalone artifact
+handling.
 
 <!-- fragment «manifest-crate-not-a-bin» owner="compiler-held" source="crates/grove/Cargo.toml" lines="14-20" parent="manifest-thin-by-construction" -->
 ````toml
@@ -186,17 +197,20 @@ owned by the binary.
 ````
 <!-- /fragment -->
 
-The third comment is the consequence the second one forces, and it connects the
-package boundary to *Proving a negative*. A package with a `[lib]` beside its
-`[[bin]]` can be imported by an integration test under `tests/`, so a test that
-inspects the clap model could live there. This package has no `[lib]`: it is one
-binary target, `cli.rs` is a module of that target, and a clap model declared
-inside a binary is reachable only from inside it. So the tests that hold the
-grammar closed are a `#[cfg(test)] mod tests` at the bottom of `cli.rs` — the
-same file as the production parser — rather than a file under `tests/`. The
-alternative, a `[lib]` that exists only so a test can reach the model, would
-give the binary a library to reach into, and that is the property the second
-comment made this a crate to keep. The `[[bin]]` table that follows is the one
+The third comment is the consequence of the second one. It connects the package
+boundary to *Proving a negative*. An integration test under `tests/` can import
+a package that has a `[lib]` beside its `[[bin]]`. A test that inspects the clap
+model could therefore live there.
+
+This package has no `[lib]`. It is one binary target, and `cli.rs` is a module of
+that target. Only code inside a binary can reach a clap model that the binary
+declares. So the tests that hold the grammar closed are a `#[cfg(test)] mod tests`
+at the bottom of `cli.rs`, in the same file as the production parser. They are
+not a file under `tests/`.
+
+The alternative is a `[lib]` that exists only so a test can reach the model. It
+would give the binary a library to reach into, and the second comment made this a
+crate to prevent exactly that. The `[[bin]]` table that follows is the one
 target: `grove`, at `src/main.rs`.
 
 <!-- fragment «manifest-no-lib-one-target» owner="compiler-held" source="crates/grove/Cargo.toml" lines="21-27" parent="manifest-thin-by-construction" -->
@@ -215,20 +229,21 @@ path = "src/main.rs"
 ## Public library seams and binary-owned transfers
 
 The binary depends on `anyhow` for returned errors and `clap` for parsing.
-Two domain libraries provide its entry paths: `grove-loop` owns the lifecycle,
+Two domain libraries provide its entry paths. `grove-loop` owns the lifecycle,
 and `grove-tui` owns observation. Only the viewer pulls in Ratatui and
-Crossterm. `Workspace` still arrives through the loop's re-export; the human
+Crossterm.
+
+`Workspace` still arrives through the re-export of the loop, and the human
 binary never opens a store lock itself. The manifest therefore records two
 public entry seams without importing their private implementation modules.
 `keyed-launch` supplies its argv and confinement APIs to standalone
-invocation, which loads no configuration and takes its command from
-`ravel`. `serde_json` serves integration fixtures,
-`tempfile` owns scratch storage and staged exports, and `libc` supplies the
-artifact-open flags used by that runner.
+invocation, which loads no configuration and takes its command from `ravel`.
+`serde_json` serves integration fixtures. `tempfile` owns scratch storage and
+staged exports. `libc` supplies the artifact-open flags that the runner uses.
 
 The dependency comment names the two public entry points and places terminal
-dependencies behind the viewer. That keeps display concerns out of the loop
-and agent binary; the exact manifest fragment below records those edges.
+dependencies behind the viewer. That keeps display concerns out of the loop and
+the agent binary. The exact manifest fragment below records those edges.
 
 <!-- fragment «manifest-dependencies» owner="compiler-held" source="crates/grove/Cargo.toml" lines="28-40" parent="manifest-thin-by-construction" -->
 ````toml

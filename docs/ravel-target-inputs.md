@@ -1,19 +1,20 @@
 # Independent Ravel inputs for Grove delivery tests
 
-Grove's target tests consume released **Ravel 1.0.0**, independently of Grove's
-version, archive manifest and source tree. No adjacent Ravel checkout, Homebrew,
-host Bun/Node, installed-front replacement or release operation is required.
-Grove's release smoke now admits these independent inputs before running its
-installed callers. No Ravel executable or worker is bundled in a Grove archive.
+Grove's target tests consume released **Ravel 1.0.0**. They do not depend on
+Grove's version, archive manifest or source tree. The tests need no adjacent
+Ravel checkout, no Homebrew, no host Bun or Node, no replacement of the
+installed front and no release operation. Grove's release smoke now admits these
+independent inputs before it runs its installed callers. No Grove archive
+bundles a Ravel executable or worker.
 
 ## Pinned public inputs
 
-The source/peeled tag is `bbab823803bd2f2796f8bd9570f732dce900efa2`.
+The source tag, peeled, is `bbab823803bd2f2796f8bd9570f732dce900efa2`.
 Each URL is under
 `https://github.com/Linkuistics/Ravel/releases/download/v1.0.0/`.
-GitHub permits asset replacement; the SHA-256 pins enforce the tested identity.
+GitHub permits asset replacement. The SHA-256 pins enforce the tested identity.
 The public [release](https://github.com/Linkuistics/Ravel/releases/tag/v1.0.0)
-and Ravel's `docs/publication-evidence.md` record publication provenance.
+and Ravel's `docs/publication-evidence.md` record the publication provenance.
 
 | Archive | SHA-256 |
 |---|---|
@@ -39,9 +40,10 @@ task ravel:targets:smoke ARCHIVES=target/ravel-archives
 
 `OUT` must not exist. The default target set is all three supported targets.
 `TARGETS='aarch64-unknown-linux-gnu x86_64-unknown-linux-gnu'` selects Linux.
+
 Preparation prints one tab-separated `TARGET<TAB>absolute-bin/ravel-path` line
-per target on stdout, and returns nonzero on any failure. The output is exposed
-only after all requested archives pass. Within `OUT`:
+per target on stdout. It returns a nonzero status on any failure. It exposes the
+output only after all requested archives pass. Within `OUT`:
 
 ```text
 archives/ravel-v1.0.0-TARGET.tar.xz
@@ -49,57 +51,79 @@ TARGET/ravel-v1.0.0-TARGET/bin/ravel
 TARGET/ravel-v1.0.0-TARGET/libexec/ravel/...
 ```
 
-The release smoke places Grove in a different installation prefix and supplies the matching
-Ravel `bin` on its test child's PATH, or passes the absolute public front where
-the caller fixture permits it. Ravel locates its own worker from its real front
-path. Retain its whole prefix; do not move only the front, compare its version to
-Grove, or use a shared Cellar. Use Ravel's `start-session`/`end-session` and opaque
-returned result; its inherited context is Ravel's own public session boundary.
+The release smoke places Grove in a different installation prefix. It puts the
+matching Ravel `bin` on the PATH of its test child. Where the caller fixture
+permits, it passes the absolute public front instead.
 
-Every cached or explicit archive is read into private bytes, SHA-256 checked,
-and parsed completely before any member is extracted. Exact top/version/target,
-all files/directories, uniqueness, regular-file types, executable modes and both
-programs' ELF/Mach-O architectures are checked. Missing/extra/traversal/AppleDouble
-members, links, special modes and wrong targets fail. Extraction writes only
-admitted regular files/directories. A corrupt cache fails rather than being
-refetched; remove or repair that explicitly before retrying. Missing explicit
-archives never fetch. There is no CLI digest/manifest override.
+Ravel locates its own worker from its real front path. Keep the whole Ravel prefix. Do not move only
+the front, compare its version to Grove, or use a shared Cellar. Use the
+`start-session` and `end-session` verbs of Ravel and the opaque result that they
+return. The inherited context is the public session boundary of Ravel.
 
-For installed smoke, prepare a new snapshot every run. The runner stages its
-validated archives read-only into Linux environments. These artifacts remain
-ordinary writable files on the host; an earlier successful preparation does not
-authorize invoking an archive later modified by another process.
+The preparation task reads every cached or explicit archive into private bytes.
+It checks the SHA-256 digest and parses the whole archive before it extracts any
+member. It checks these properties:
+
+- the exact top directory, version and target.
+- all files and directories, and their uniqueness.
+- regular-file types and executable modes.
+- the ELF or Mach-O architecture of both programs.
+
+A missing, extra, traversal or AppleDouble member fails. A link, a special mode
+or a wrong target also fails.
+
+Extraction writes only admitted regular files and
+directories. A corrupt cache fails and is not fetched again. Remove or repair
+that cache explicitly before you retry. A missing explicit archive never causes
+a fetch. No command-line option overrides the digest or the manifest.
+
+For installed smoke, prepare a new snapshot on every run. The runner stages its
+checked archives read-only into Linux environments. On the host, these
+artifacts stay ordinary writable files. An earlier successful preparation does
+not authorise the use of an archive that another process modified later.
 
 ## Reused execution seams
 
-Linux standalone confinement additionally requires the test environment's real
-bubblewrap backend. [Linux floor backend preparation](linux-floor-backend.md)
-provides pinned target builds and execution diagnostics; namespace availability
-and actual Grove standalone acceptance remain required separately.
+Linux standalone confinement also requires the real bubblewrap backend of the
+test environment. [Linux floor backend preparation](linux-floor-backend.md)
+provides pinned target builds and execution diagnostics. Namespace availability
+and the actual Grove standalone acceptance stay required separately.
 
-`ravel-target-smoke.sh` sources the existing release platform runner, substituting
-its target/case scripts while retaining the pinned images, QEMU emulators,
-Zig-built probes, native container and private binfmt namespace machinery.
-The shared environment helper supplies target/system and glibc-floor assertions.
-QEMU checks every archived ELF header against its registration and requires a
-complete front/worker pair, so neither executable escapes the CPU model.
+`ravel-target-smoke.sh` sources the existing release platform runner and
+substitutes its own target and case scripts. It keeps the pinned images, the QEMU
+emulators, the Zig-built probes, the native container and the private binfmt
+namespace machinery. The shared environment helper supplies the target, system
+and glibc-floor assertions. QEMU checks every archived ELF header against its
+registration. It also requires a complete front and worker pair, so neither
+executable escapes the CPU model.
 
-The Ravel installed cases were transferred from its MIT-licensed released source
-at the tag above. They cover direct and relative-symlink prefixes, the public
-SDK/sample/choice boundary, exact/empty/multiline/flag-like results, child-output
-separation, TypeScript relative/package imports, measured context and params,
-resource cleanup and missing/stale session context. Only shell fake agents run.
-The child PATH admits selected system utilities and excludes Grove, legacy
-dispatch, Bun and Node. Original and new session controls do not enter these
-`env -i` children.
+Grove took the Ravel installed cases from the MIT-licensed released source at the
+tag above. They cover these subjects:
+
+- direct and relative-symlink prefixes.
+- the public SDK, sample and choice boundary.
+- exact, empty, multiline and flag-like results.
+- the separation of child output.
+- TypeScript relative and package imports.
+- measured context and params.
+- resource cleanup.
+- missing and stale session context.
+
+Only shell fake agents run. The PATH of the child admits selected system
+utilities. It excludes Grove, legacy dispatch, Bun and Node. The original
+session controls and the new ones do not enter these `env -i` children.
 
 macOS arm64 runs natively. Linux arm64 runs natively in CentOS 7.9 and under
-QEMU 10.2.2 Cortex-A53; Linux x86-64 runs under QEMU 10.2.3 Nehalem. Linux uses
-glibc 2.17 with an observed GLIBC_2.25 refusal. CPU controls require SIGILL/132
-beyond the floor and success under the same emulator's `-cpu max`. These checks
-need arm64 Docker and Zig and fail if unavailable; they do not measure a kernel
-version floor. See [release prerequisites](RELEASING.md).
+QEMU 10.2.2 Cortex-A53. Linux x86-64 runs under QEMU 10.2.3 Nehalem.
 
+Linux uses
+glibc 2.17 with an observed GLIBC_2.25 refusal. The CPU controls require SIGILL
+(status 132) beyond the floor. They also require success under the same
+emulator with `-cpu max`. These checks need arm64 Docker and Zig, and they fail
+if either is unavailable. They do not measure a kernel version floor. See
+[release prerequisites](RELEASING.md).
+
+<!-- tc: off because dated evidence of a bounded run stays unchanged (docs/adr/evidence-outlives-the-instrument.md) -->
 ## Verified delivery input handoff — 2026-10-13
 
 The actual default prepare task downloaded all three public archives and matched

@@ -18,7 +18,7 @@ ravel_target_main() {
       ;;
     *-apple-darwin) note "$(uname -srm), macOS $(sw_vers -productVersion)" ;;
   esac
-  top="ravel-v1.0.0-$TARGET"
+  top="ravel-v1.1.0-$TARGET"
   [[ "$(basename "$archive")" == "$top.tar.xz" ]] || fail 'wrong pinned archive name'
   scratch="$(mktemp -d)"
   # shellcheck disable=SC2064 # capture this function-local path before it returns
@@ -28,6 +28,6 @@ ravel_target_main() {
   export HOME="$scratch/home" TMPDIR="$scratch/tmp"
   tar -xJf "$archive" -C "$scratch/prefix" || fail 'cannot extract validated archive'
   [[ "$(ls -A "$scratch/prefix")" == "$top" ]] || fail 'unexpected extracted top level'
-  "$BASH" "$cases" "$scratch/prefix/$top" 1.0.0
+  "$BASH" "$cases" "$scratch/prefix/$top" 1.1.0
 }
 ravel_target_main "$@"

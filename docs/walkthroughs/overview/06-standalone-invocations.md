@@ -500,9 +500,11 @@ installation cannot silently replace it. Missing Ravel reports an install
 command, while a malformed, unsuccessful or unsupported probe reports an
 upgrade command.
 
-The compatibility check accepts stable `ravel 1.x`, from the delivered
-1.0.0 two-verb contract. It checks that stdout is UTF-8 and rejects extra output,
-prereleases, other CLI lines and a failed status.
+The compatibility check accepts stable `ravel 1.x` from 1.1.0 and refuses
+1.0.x. Ravel 1.1.0 corrected the failure paths of the managed job. The check
+parses the minor and the patch as canonical numbers, and it treats a minor of
+exactly `0` as below the floor. It checks that stdout is UTF-8 and rejects extra
+output, prereleases, other CLI lines and a failed status.
 
 The caller ADR, `docs/adr/dispatch-supervises-the-harness.md`, records the PATH trust
 cost. This probe executes the program that the owner selected. Neither version
@@ -523,7 +525,7 @@ shared-result runner checks. Its real-worker controls remove the copied worker
 and inject inherited authority into a re-executed entry probe. Clean runs use
 the isolated pair without host Bun or Node and without a Grove sibling installation.
 
-<!-- fragment «ravel-resolution» owner="isolated-invocation" source="crates/grove/src/dispatch/ravel.rs" lines="1-313" parent="source-ravel-resolution" -->
+<!-- fragment «ravel-resolution» owner="isolated-invocation" source="crates/grove/src/dispatch/ravel.rs" lines="1-332" parent="source-ravel-resolution" -->
 ````rust
 //! PATH and CLI compatibility at Grove's independent Ravel boundary.
 use std::ffi::OsStr;
@@ -561,7 +563,7 @@ fn locate_on_path(path: Option<&OsStr>) -> Result<PathBuf> {
 fn check_version(executable: &std::path::Path) -> Result<()> {
     let remedy = || {
         format!(
-            "{} must report a supported stable Ravel 1.x CLI version. \
+            "{} must report a stable Ravel 1.x CLI version from 1.1.0. \
          Run `brew upgrade ravel` and select that installation on PATH.",
             executable.display()
         )
@@ -575,6 +577,9 @@ fn check_version(executable: &std::path::Path) -> Result<()> {
     let output = probe.arg("--version").output().with_context(remedy)?;
     // Ravel's public version flag identifies the two-verb CLI, not its worker protocol.
     // https://github.com/Linkuistics/Ravel/blob/v1.0.0/docs/session-cli.md
+    // 1.1.0 corrected the failure paths of the managed job that Grove relies on,
+    // so 1.0.x is refused. A canonical minor below the floor is exactly "0".
+    // https://github.com/Linkuistics/Ravel/blob/v1.1.0/CHANGELOG.md
     let supported = std::str::from_utf8(&output.stdout)
         .ok()
         .and_then(|text| text.trim().strip_prefix("ravel 1."))
@@ -584,11 +589,12 @@ fn check_version(executable: &std::path::Path) -> Result<()> {
             else {
                 return false;
             };
-            [minor, patch].into_iter().all(|part| {
-                !part.is_empty()
-                    && part.bytes().all(|byte| byte.is_ascii_digit())
-                    && (part == "0" || !part.starts_with('0'))
-            })
+            minor != "0"
+                && [minor, patch].into_iter().all(|part| {
+                    !part.is_empty()
+                        && part.bytes().all(|byte| byte.is_ascii_digit())
+                        && (part == "0" || !part.starts_with('0'))
+                })
         });
     ensure!(
         output.status.success() && supported,
@@ -634,7 +640,7 @@ mod tests {
         fs::create_dir(&links).unwrap();
         symlink(&real, links.join("ravel")).unwrap();
         let later = temp.path().join("later");
-        executable(&later, "echo 'ravel 1.0.0'");
+        executable(&later, "echo 'ravel 1.1.0'");
         assert_eq!(
             locate_on_path(Some(&path(&[&links, &later]))).unwrap(),
             fs::canonicalize(real).unwrap()
@@ -650,7 +656,7 @@ mod tests {
         let directory = temp.path().join("directory");
         fs::create_dir_all(directory.join("ravel")).unwrap();
         let valid = temp.path().join("valid");
-        let file = executable(&valid, "echo 'ravel 1.0.0'");
+        let file = executable(&valid, "echo 'ravel 1.1.0'");
         assert_eq!(
             locate_on_path(Some(&path(&[&nonexec, &directory, &valid]))).unwrap(),
             fs::canonicalize(file).unwrap()
@@ -679,20 +685,22 @@ mod tests {
         let temp = TempDir::new().unwrap();
         let selected = temp.path().join("selected");
         let later = temp.path().join("later");
-        executable(&later, "echo 'ravel 1.0.0'");
+        executable(&later, "echo 'ravel 1.1.0'");
         for version in [
             "ravel 0.1.0",
             "ravel 0.9.9",
+            "ravel 1.0.0",
+            "ravel 1.0.9",
             "ravel 2.0.0",
-            "ravel 1.0.0-beta",
-            "ravel 1.0",
+            "ravel 1.1.0-beta",
+            "ravel 1.1",
             "ravel 1",
-            "ravel 01.0.0",
-            "ravel 1.00.0",
-            "ravel 1.0.00",
-            "ravel 1.0.0.0",
-            "harness-dispatch 1.0.0",
-            "ravel 1.0.0 extra",
+            "ravel 01.1.0",
+            "ravel 1.01.0",
+            "ravel 1.1.00",
+            "ravel 1.1.0.0",
+            "harness-dispatch 1.1.0",
+            "ravel 1.1.0 extra",
         ] {
             executable(&selected, &format!("echo '{version}'"));
             let error = locate_on_path(Some(&path(&[&selected, &later])))
@@ -704,9 +712,22 @@ mod tests {
     }
 
     #[test]
+    fn accepts_stable_versions_from_the_1_1_0_floor() {
+        let temp = TempDir::new().unwrap();
+        for version in ["ravel 1.1.0", "ravel 1.1.9", "ravel 1.12.3"] {
+            let file = executable(temp.path(), &format!("echo '{version}'"));
+            assert_eq!(
+                locate_on_path(Some(temp.path().as_os_str())).unwrap(),
+                fs::canonicalize(file).unwrap(),
+                "{version}"
+            );
+        }
+    }
+
+    #[test]
     fn unsuccessful_version_probe_is_not_a_supported_installation() {
         let temp = TempDir::new().unwrap();
-        executable(temp.path(), "echo 'ravel 1.0.0'; exit 1");
+        executable(temp.path(), "echo 'ravel 1.1.0'; exit 1");
         let error = locate_on_path(Some(temp.path().as_os_str()))
             .unwrap_err()
             .to_string();
@@ -718,7 +739,7 @@ mod tests {
         let temp = TempDir::new().unwrap();
         executable(temp.path(), "exit 99");
         executable(&temp.path().join("bin"), "exit 99");
-        let selected = executable(&temp.path().join("selected"), "echo 'ravel 1.0.0'");
+        let selected = executable(&temp.path().join("selected"), "echo 'ravel 1.1.0'");
         let output = std::process::Command::new(std::env::current_exe().unwrap())
             .args([
                 "--exact",
@@ -754,7 +775,7 @@ mod tests {
         let checks: String = super::support::LOOP_CONTROL_ENV.iter().map(|name| format!(
             "if [ \"${{{name}-}}\" = /inert-enclosing-control ]; then printf 'version-observed:{name}\\n' >&2; exit 93; fi\n"
         )).collect();
-        let front = executable(temp.path(), &format!("{checks}echo 'ravel 1.0.0'"));
+        let front = executable(temp.path(), &format!("{checks}echo 'ravel 1.1.0'"));
         for name in super::support::LOOP_CONTROL_ENV {
             let output = Command::new(&front)
                 .env_clear()
@@ -800,7 +821,7 @@ mod tests {
     #[ignore = "requires installed Ravel: task ravel:resolution RAVEL=/absolute/path/to/ravel"]
     fn installed_front_and_worker_return_only_the_session_result() {
         let temp = TempDir::new().unwrap();
-        let prefix = temp.path().join("independent-ravel-1.0.0");
+        let prefix = temp.path().join("independent-ravel-1.1.0");
         let source = std::env::var_os("GROVE_TEST_RAVEL").expect("GROVE_TEST_RAVEL is required");
         let pair = super::support::ravel::InstalledRavel::copy_from(Path::new(&source), &prefix);
         let selected = locate_on_path(Some(pair.bin().as_os_str())).unwrap();

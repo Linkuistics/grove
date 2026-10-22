@@ -208,7 +208,7 @@ EOF
 smoke_native() {
   local target="$1" archive="$2"
   local dependency=()
-  [[ -z "$RAVEL_INPUTS" ]] || dependency=("RAVEL_TARGET_ARCHIVE=$RAVEL_INPUTS/archives/ravel-v1.0.0-$target.tar.xz")
+  [[ -z "$RAVEL_INPUTS" ]] || dependency=("RAVEL_TARGET_ARCHIVE=$RAVEL_INPUTS/archives/ravel-v1.1.0-$target.tar.xz")
   env -i PATH=/usr/bin:/bin "${dependency[@]+"${dependency[@]}"}" /bin/bash "$TARGET_SCRIPT" "$target" "$archive" "$CASES"
 }
 
@@ -341,7 +341,7 @@ stage_linux_inputs() {
   build_cpu_probe "$arch" "$mount/probes"
   cp "$archive" "$mount/" || return 1
   if [[ -n "$RAVEL_INPUTS" ]]; then
-    cp "$RAVEL_INPUTS/archives/ravel-v1.0.0-$target.tar.xz" "$mount/" || return 1
+    cp "$RAVEL_INPUTS/archives/ravel-v1.1.0-$target.tar.xz" "$mount/" || return 1
   fi
   cp "$TARGET_SCRIPT" "$mount/release-smoke-target.sh" || return 1
   cp "$REPO_ROOT/scripts/release-smoke-environment.sh" "$mount/" || return 1
@@ -391,7 +391,7 @@ smoke_under_qemu() {
   cpu="$(cpu_floor "$arch")" || return 1
   archive_elf_headers "$archive" "$mount/elf-headers" || return 1
   if [[ -n "$RAVEL_INPUTS" ]]; then
-    archive_elf_headers "$RAVEL_INPUTS/archives/ravel-v1.0.0-$target.tar.xz" "$mount/ravel-elf-headers" || return 1
+    archive_elf_headers "$RAVEL_INPUTS/archives/ravel-v1.1.0-$target.tar.xz" "$mount/ravel-elf-headers" || return 1
     cat "$mount/ravel-elf-headers" >>"$mount/elf-headers" || return 1
   fi
   copy_from_image "$platform" "$FLOOR_IMAGE" / "$mount/rootfs.tar" || return 1

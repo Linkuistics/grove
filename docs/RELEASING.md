@@ -247,7 +247,7 @@ as for `task release:archives`.
 <!-- tc: on -->
 
 Each Grove archive must match the exact manifest. Before any executable runs,
-the independent Ravel 1.0.0 inputs pass the public archive admission checks. The
+the independent Ravel 1.1.0 inputs pass the public archive admission checks. The
 two projects unpack into separate prefixes with different versions.
 
 The child PATH holds only selected system utilities and Ravel. The cases exercise

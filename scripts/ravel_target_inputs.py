@@ -16,13 +16,13 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
 
-# the published 1.0.0 contract, independent of Grove and of an adjacent checkout.
-# https://github.com/Linkuistics/Ravel/releases/tag/v1.0.0
-VERSION = "1.0.0"
+# the published 1.1.0 contract, independent of Grove and of an adjacent checkout.
+# https://github.com/Linkuistics/Ravel/releases/tag/v1.1.0
+VERSION = "1.1.0"
 PINS = {
-    "aarch64-apple-darwin": "d1f253db86cde3c625950cda2d8fa929ca4d1e4529ca6c3f223e138f9be9a922",
-    "aarch64-unknown-linux-gnu": "288158c1259667dbd11d9f71aa5d643b4da4e08ffc4402524f4852afb314f732",
-    "x86_64-unknown-linux-gnu": "1264ea0f3dd113f5dbb0914992ee9a7734285c0ddcc161e9acaffd83c037f9a9",
+    "aarch64-apple-darwin": "92ec94083495f536136a17310ce1624004d145569f6fbf92da978aee65e7c357",
+    "aarch64-unknown-linux-gnu": "4334bd0adfa97391925b44029e96ce70744ecf3d141a2b5bb21174fd7cfa9c60",
+    "x86_64-unknown-linux-gnu": "2a0f91c793069fa2dd8d73fcbe0fe383d383d029f60adc4a5b7f3726919b60fb",
 }
 MANIFEST = (
     "LICENSE",

@@ -17,7 +17,7 @@ trap 'rm -rf "$SCRATCH"' EXIT
 python3 "$REPO_ROOT/scripts/ravel_target_inputs.py" --output "$SCRATCH/ravel" \
   aarch64-unknown-linux-gnu x86_64-unknown-linux-gnu
 for target in aarch64-unknown-linux-gnu x86_64-unknown-linux-gnu; do
-  archive="$SCRATCH/ravel/archives/ravel-v1.0.0-$target.tar.xz"
+  archive="$SCRATCH/ravel/archives/ravel-v1.1.0-$target.tar.xz"
   mount="$SCRATCH/$target"
   platform="$(docker_platform "$target")"
   stage_linux_inputs "$target" "$archive" "$mount"

@@ -23,7 +23,7 @@ for TARGET in aarch64-unknown-linux-gnu x86_64-unknown-linux-gnu; do
   archive="$(find_archive "$1" "$TARGET")"
   assert_archive "$archive" "$(basename "$archive" .tar.xz)"
   archive_elf_headers "$archive" "$SCRATCH/grove-headers"
-  archive_elf_headers "$SCRATCH/ravel/archives/ravel-v1.0.0-$TARGET.tar.xz" "$SCRATCH/ravel-headers"
+  archive_elf_headers "$SCRATCH/ravel/archives/ravel-v1.1.0-$TARGET.tar.xz" "$SCRATCH/ravel-headers"
   cat "$SCRATCH/grove-headers" "$SCRATCH/ravel-headers" >"$SCRATCH/headers"
   { read -r magic && read -r mask && read -r _limit; } < <(guest "${TARGET%%-*}")
   check_registration "$SCRATCH/headers" "$magic" "$mask"

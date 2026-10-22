@@ -19,14 +19,14 @@ refused() {
 }
 # A full, independently versioned release must prepare all three layouts.
 python3 "$repo_root/scripts/ravel_target_inputs.py" --archives "$archives" --output "$scratch/valid"
-[[ -x "$scratch/valid/aarch64-apple-darwin/ravel-v1.0.0-aarch64-apple-darwin/bin/ravel" ]] || fail 'no macOS prefix'
+[[ -x "$scratch/valid/aarch64-apple-darwin/ravel-v1.1.0-aarch64-apple-darwin/bin/ravel" ]] || fail 'no macOS prefix'
 refused 'output already exists' python3 "$repo_root/scripts/ravel_target_inputs.py" \
   --archives "$archives" --output "$scratch/valid"
 mkdir "$scratch/missing" "$scratch/tampered" "$scratch/wrong"
 refused 'missing archive' python3 "$repo_root/scripts/ravel_target_inputs.py" \
   --archives "$scratch/missing" --output "$scratch/missing-layout"
-mac=ravel-v1.0.0-aarch64-apple-darwin.tar.xz
-linux=ravel-v1.0.0-aarch64-unknown-linux-gnu.tar.xz
+mac=ravel-v1.1.0-aarch64-apple-darwin.tar.xz
+linux=ravel-v1.1.0-aarch64-unknown-linux-gnu.tar.xz
 cp "$archives/$mac" "$scratch/tampered/$mac"
 printf 'tamper' >>"$scratch/tampered/$mac"
 refused 'SHA-256' python3 "$repo_root/scripts/ravel_target_inputs.py" \
@@ -65,10 +65,10 @@ refused 'SHA-256' env PATH="$scratch/tools:$PATH" python3 \
   # die exits its shell; contain each assertion so the refusal harness can read it.
   check_registration() (assert_archive_matches "$@")
   headers="$scratch/headers"
-  linux_prefix="$scratch/valid/aarch64-unknown-linux-gnu/ravel-v1.0.0-aarch64-unknown-linux-gnu"
+  linux_prefix="$scratch/valid/aarch64-unknown-linux-gnu/ravel-v1.1.0-aarch64-unknown-linux-gnu"
   for program in bin/ravel libexec/ravel/ravel-policy; do
     header="$(od -An -tx1 -N20 "$linux_prefix/$program" | tr -d ' \n')"
-    printf '%s\t%s\n' "$header" "ravel-v1.0.0-aarch64-unknown-linux-gnu/$program"
+    printf '%s\t%s\n' "$header" "ravel-v1.1.0-aarch64-unknown-linux-gnu/$program"
   done >"$headers"
   { read -r magic && read -r mask && read -r limit; } < <(guest aarch64)
   check_registration "$headers" "$magic" "$mask"

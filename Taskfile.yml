@@ -108,7 +108,7 @@ tasks:
       - python3 scripts/legacy_driver_rehearsal.py --keg "{{.KEG}}" --ravel "{{.RAVEL}}" --output "{{.OUT}}"
 
   ravel:targets:prepare:
-    desc: Fetch/validate pinned Ravel 1.0.0 archives and expose separate fresh target prefixes
+    desc: Fetch/validate pinned Ravel 1.1.0 archives and expose separate fresh target prefixes
     requires:
       vars: [OUT]
     cmds:

@@ -73,3 +73,33 @@ change.
   conversion.
 - This leaf may split at the seam between code and release inputs. The code half
   is small. The release half is mostly mechanical.
+
+## Decisions (running log)
+
+- Measured the digests of the three published Ravel 1.1.0 archives with
+  `shasum -a 256` after a `curl` download. They equal the digests that GitHub
+  reports. The peeled tag commit is `2095cbd879c968a26f322905422ddaff9348f6ca`.
+  The file manifest of `scripts/ravel_target_inputs.py` needed no change.
+- The floor check is `minor != "0"` beside the canonical-number checks. After
+  those checks, `"0"` is the only minor below 1.
+- Ravel 1.1.0 has no `docs/session-cli.md`. The citation in `ravel.rs` keeps the
+  v1.0.0 document for the version flag and adds the v1.1.0 `CHANGELOG.md` for
+  the floor.
+- Each edited record was converted as its own change before the edit. These are
+  `docs/ravel-target-inputs.md`, the installed-smoke paragraph of
+  `docs/RELEASING.md`, and overview chapters 05 and 06. The dated 2026-10-13
+  evidence sits under an `off` marker. The rest of the releasing record sits
+  under `pending`. Chapter 05 states the owned-line totals, which the longer
+  resolver moved from 1,428 to 1,447.
+- `walkthrough.toml` of the overview book also declares the resolver length.
+  Reconcile it with the fragment, the source index and chapter 05 when the file
+  changes again. `ravel-job-k7` and `grove-run-job-k8` meet this.
+- The `configure-grove` skill and its `policy.md` state the floor ("starting at
+  1.0.0", "currently accepts stable 1.x"). Their front matter blocks the
+  checker, so a marker cannot cover them. The skill files are not in this leaf.
+  Noted in `user-records-k13`.
+- Evidence: `ravel:resolution`, `ravel:fixtures` (with `ravel:result`) and
+  `ravel:targets:controls ARCHIVES=<dir of the 1.1.0 archives>` pass. A search of
+  `scripts/` and `Taskfile.yml` for the old pins finds nothing, and a seeded
+  `ravel-v1.0.0` file is found. `bash scripts/check.sh` passes all 20 checks with
+  `GROVE_TEST_RAVEL` set to the installed Ravel 1.1.0.

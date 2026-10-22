@@ -9,8 +9,8 @@ prefix="$(cd "$1" && pwd -P)"
 version="$2"
 ravel="$(cd "$3" && pwd -P)/bin/ravel"
 [[ "$prefix" != "${ravel%/bin/ravel}" ]] || fail 'Grove and Ravel need separate prefixes'
-[[ "$("$ravel" --version)" == 'ravel 1.0.0' ]] || fail 'not the pinned independent Ravel'
-[[ "$version" != 1.0.0 ]] || fail 'fixture must prove different project versions'
+[[ "$("$ravel" --version)" == 'ravel 1.1.0' ]] || fail 'not the pinned independent Ravel'
+[[ "$version" != 1.1.0 ]] || fail 'fixture must prove different project versions'
 for command in grove grove-llm; do
   [[ "$("$prefix/bin/$command" --version)" == "$command $version" ]] || fail "$command version mismatch"
 done

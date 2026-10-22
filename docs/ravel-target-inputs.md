@@ -1,6 +1,6 @@
 # Independent Ravel inputs for Grove delivery tests
 
-Grove's target tests consume released **Ravel 1.0.0**. They do not depend on
+Grove's target tests consume released **Ravel 1.1.0**. They do not depend on
 Grove's version, archive manifest or source tree. The tests need no adjacent
 Ravel checkout, no Homebrew, no host Bun or Node, no replacement of the
 installed front and no release operation. Grove's release smoke now admits these
@@ -9,18 +9,18 @@ bundles a Ravel executable or worker.
 
 ## Pinned public inputs
 
-The source tag, peeled, is `bbab823803bd2f2796f8bd9570f732dce900efa2`.
+The source tag, peeled, is `2095cbd879c968a26f322905422ddaff9348f6ca`.
 Each URL is under
-`https://github.com/Linkuistics/Ravel/releases/download/v1.0.0/`.
+`https://github.com/Linkuistics/Ravel/releases/download/v1.1.0/`.
 GitHub permits asset replacement. The SHA-256 pins enforce the tested identity.
-The public [release](https://github.com/Linkuistics/Ravel/releases/tag/v1.0.0)
+The public [release](https://github.com/Linkuistics/Ravel/releases/tag/v1.1.0)
 and Ravel's `docs/publication-evidence.md` record the publication provenance.
 
 | Archive | SHA-256 |
 |---|---|
-| ravel-v1.0.0-aarch64-apple-darwin.tar.xz | `d1f253db86cde3c625950cda2d8fa929ca4d1e4529ca6c3f223e138f9be9a922` |
-| ravel-v1.0.0-aarch64-unknown-linux-gnu.tar.xz | `288158c1259667dbd11d9f71aa5d643b4da4e08ffc4402524f4852afb314f732` |
-| ravel-v1.0.0-x86_64-unknown-linux-gnu.tar.xz | `1264ea0f3dd113f5dbb0914992ee9a7734285c0ddcc161e9acaffd83c037f9a9` |
+| ravel-v1.1.0-aarch64-apple-darwin.tar.xz | `92ec94083495f536136a17310ce1624004d145569f6fbf92da978aee65e7c357` |
+| ravel-v1.1.0-aarch64-unknown-linux-gnu.tar.xz | `4334bd0adfa97391925b44029e96ce70744ecf3d141a2b5bb21174fd7cfa9c60` |
+| ravel-v1.1.0-x86_64-unknown-linux-gnu.tar.xz | `2a0f91c793069fa2dd8d73fcbe0fe383d383d029f60adc4a5b7f3726919b60fb` |
 
 ## Consumer interface
 
@@ -46,9 +46,9 @@ per target on stdout. It returns a nonzero status on any failure. It exposes the
 output only after all requested archives pass. Within `OUT`:
 
 ```text
-archives/ravel-v1.0.0-TARGET.tar.xz
-TARGET/ravel-v1.0.0-TARGET/bin/ravel
-TARGET/ravel-v1.0.0-TARGET/libexec/ravel/...
+archives/ravel-v1.1.0-TARGET.tar.xz
+TARGET/ravel-v1.1.0-TARGET/bin/ravel
+TARGET/ravel-v1.1.0-TARGET/libexec/ravel/...
 ```
 
 The release smoke places Grove in a different installation prefix. It puts the
@@ -98,7 +98,7 @@ registration. It also requires a complete front and worker pair, so neither
 executable escapes the CPU model.
 
 Grove took the Ravel installed cases from the MIT-licensed released source at the
-tag above. They cover these subjects:
+v1.0.0 tag. They cover these subjects:
 
 - direct and relative-symlink prefixes.
 - the public SDK, sample and choice boundary.
@@ -122,6 +122,18 @@ glibc 2.17 with an observed GLIBC_2.25 refusal. The CPU controls require SIGILL
 emulator with `-cpu max`. These checks need arm64 Docker and Zig, and they fail
 if either is unavailable. They do not measure a kernel version floor. See
 [release prerequisites](RELEASING.md).
+
+## Measured digests of Ravel 1.1.0 — 2026-10-22
+
+Grove moved the pins from Ravel 1.0.0 to Ravel 1.1.0, because Grove now requires
+Ravel 1.1.0 or later in the stable 1.x line. The three archives came from the
+published release with `curl`, each from its URL above. `shasum -a 256` measured
+each digest. The digests equal the `digest` field that GitHub reports for each
+asset. The release has the same three targets as Ravel 1.0.0.
+
+The archive controls (`task ravel:targets:controls`) then passed against these
+three archives. The 27 stdlib cases passed, and the real-layout controls passed.
+The file manifest in `scripts/ravel_target_inputs.py` did not change.
 
 <!-- tc: off because dated evidence of a bounded run stays unchanged (docs/adr/evidence-outlives-the-instrument.md) -->
 ## Verified delivery input handoff — 2026-10-13

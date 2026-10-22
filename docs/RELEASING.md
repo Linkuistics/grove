@@ -1,3 +1,5 @@
+<!-- tc: pending because the conversion has not reached this part of the document -->
+
 # Releasing Grove
 
 Grove releases are published in two repositories:
@@ -242,16 +244,21 @@ same test on archives it rebuilds from the working copy, as a rehearsal or a
 regression check. `TARGETS=aarch64-unknown-linux-gnu` limits it to one target,
 as for `task release:archives`.
 
-Each Grove archive must match the exact manifest. Before any executable is
-invoked, independent Ravel 1.0.0 inputs pass the public archive admission checks.
-The two projects unpack into separate prefixes with different versions. With
-only selected system utilities and Ravel on child PATH, the cases exercise
-Grove lifecycle and standalone output publication, public result consumption,
-readable caller imports and direct/symlinked Grove fronts. There is no host
-Bun/Node, shared Cellar or equal-version assumption. The lifecycle fake supplies
-a teardown marker without retiring real work; Rust fixtures verify jj/lifecycle
-operations. [The delivery boundary](grove-delivery-contraction.md) names each
-retained caller fixture and the retired package behaviors.
+<!-- tc: on -->
+
+Each Grove archive must match the exact manifest. Before any executable runs,
+the independent Ravel 1.0.0 inputs pass the public archive admission checks. The
+two projects unpack into separate prefixes with different versions.
+
+The child PATH holds only selected system utilities and Ravel. The cases exercise
+these subjects: Grove lifecycle, standalone output publication, public result
+consumption, readable caller imports and direct or symlinked Grove fronts. The
+cases assume no host Bun or Node, no shared Cellar and no equal version. The
+lifecycle fake supplies a teardown marker and retires no real work. Rust fixtures
+check the jj and lifecycle operations. [The delivery boundary](grove-delivery-contraction.md)
+names each retained caller fixture and the retired package behaviours.
+
+<!-- tc: pending because the conversion has not reached the rest of this document -->
 
 - **macOS arm64** runs natively, so it needs an Apple silicon Mac.
 - **Each Linux target** runs in the CentOS 7 userland of its architecture, the

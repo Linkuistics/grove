@@ -2,26 +2,29 @@
 
 ## Solution
 
-Grove is **five modules with independent lifetimes**, three of them reusable
-outside grove, and the launcher that composes them: a loop and a vocabulary, and
-nothing else.
+Grove is **five modules with independent lifetimes** and the launcher that
+composes them. Three of the modules are reusable outside grove. Grove is a loop
+and a vocabulary, and nothing else.
 
-The version control system owns safety, history and transactionality — jj
-snapshots the working copy before every command and its operation log is the
-transaction record — so grove **takes** commits and implements no transaction.
-Anomalies stop with a message that names both what is wrong and how to fix it;
-recovery machinery is not written where a sentence and a human will do. A name is
-parsed and unparsed in exactly one type, the handle included. The skills drive
-and grove is ambient: grove keeps only what a session physically cannot do for
-itself — relaunch itself with fresh context, be killed under a sandbox, have its
-vendor chosen before it exists, and be told to load the methodology.
+The version control system owns safety, history and transactionality. jj
+snapshots the working copy before every command, and its operation log is the
+transaction record. Grove therefore **takes** commits and implements no
+transaction. Anomalies stop with a message that names both what is wrong and how
+to fix it. Grove does not write recovery machinery where a sentence and a human
+will do. Exactly one type parses and unparses a name, the handle included.
+
+The skills drive, and grove is ambient. Grove keeps only what a session
+physically cannot do for itself. A session cannot relaunch itself with fresh
+context or be killed under a sandbox. It cannot have its vendor chosen before it
+exists, and it cannot be told to load the methodology.
 
 This document describes how the module boundaries work. The decisions below are
-numbered, and the numbering is load-bearing: source comments, `Cargo.toml`
+numbered. The numbering is load-bearing, because source comments, `Cargo.toml`
 headers and tests across the shipped packages cite them as *decision N*. There
-is no decision 6: it was Grove's launch configuration, which is deleted, and the
-number is not reused. What each one *cost* is in [`docs/adr/`](../adr/), which describes the design's current
-state and is cited here rather than restated.
+is no decision 6, because it was Grove's launch configuration, which grove deleted,
+and the number is not reused. The directory [`docs/adr/`](../adr/) holds what
+each decision *cost*. It describes the design's current state, and this document
+cites it rather than restating it.
 
 ## Decisions
 
@@ -39,81 +42,96 @@ state and is cited here rather than restated.
 
 The domain-bound viewer consumes the loop's quiet `try_observe` capture and
 canonical `entry_path` helper. The loop captures validated names and selected-file
-bytes, retaining an opaque `TreeLifetime` after releasing the tree guard through
-`ReadGuard::into_snapshot`. Capture calls `select_snapshot` for whole-tree
-duplicate-key and live-finish validation. The viewer owns application state and
-terminal rendering; its Ratatui/Crossterm dependencies do not enter grove-loop
-or grove-llm. The human
-binary dispatches `view` before lifecycle setup. The loop owns the shared
-selection rule over an already-read snapshot, including optional permanent-key
-exclusion; the viewer does not reimplement it. See [Read-only viewer](../ARCHITECTURE.md#read-only-viewer).
+bytes. It retains an opaque `TreeLifetime` after it releases the tree guard
+through `ReadGuard::into_snapshot`. Capture calls `select_snapshot` for
+whole-tree duplicate-key and live-finish validation. The viewer owns application
+state and terminal rendering. Its Ratatui/Crossterm dependencies do not enter
+grove-loop or grove-llm.
+
+The human binary dispatches `view` before lifecycle setup. The loop owns the
+shared selection rule over an already-read snapshot, including optional
+permanent-key exclusion. The viewer does not reimplement it. See
+[Read-only viewer](../ARCHITECTURE.md#read-only-viewer).
+
 The [item-status design](./item-status.md) defines the combined typed
 tree/activity observation interface and full-width interaction. Runtime protocol
-knowledge belongs to the loop; row styling and viewport state belong to the
-viewer. The shipped capture returns independent tree and activity results. Its private
-`driver_lease::observation` module reuses mandatory parsers and identity logic,
-with read-only bounded acquisition and a runtime-only shared epoch guard.
+knowledge belongs to the loop. Row styling and viewport state belong to the
+viewer. The shipped capture returns independent tree and activity results. Its
+private `driver_lease::observation` module reuses mandatory parsers and identity
+logic, with read-only bounded acquisition and a runtime-only shared epoch guard.
+
+<!-- tc: depart synonym-rotation because Started is the name of a lease marker and cannot change -->
 The lease publishes a versioned mandate extension and exact Started marker via
-its private paired-witness owner; mandatory admission does not depend on those
+its private paired-witness owner. Mandatory admission does not depend on those
 observational fields. The reader probes the captured directory before the private
-witness and returns typed Running with a same-tree, previous-tree or no-readable-
-tree relation. A successful final private probe establishes Idle despite marker
-bytes or earlier directory errors. Unsupported active records remain Unavailable;
-missing controls or matching inactive records are Idle. The viewer compares tree and activity consistency separately,
-consuming consistent tree results even when activity changes or fails, and
-preserving compared activity when tree reading or root opening fails. Accepted
-Idle displays the shared selector's NEXT key in rows and persistent chrome;
-verified same-tree Running binds the current row by key and excludes that key
-before finish eligibility. Busy/Unavailable or failed tree acceptance clears old row activity and withholds
-NEXT. Tree failure leaves the independent RUNNING summary available. The loop owns selection, while the viewer owns freshness and
-label/key-preserving summary layout. The typed witnessed observer ships;
-the viewer displays same-tree RUNNING with independent lifecycle colors and
-key-preserving summaries. Running without a current matching item remains
-unavailable until the exceptional-tree summary increment.
+witness and returns typed Running with a same-tree, previous-tree or
+no-readable-tree relation. A successful final private probe establishes Idle
+despite marker bytes or earlier directory errors. Unsupported active records
+remain Unavailable. Missing controls or matching inactive records are Idle.
+
+The viewer compares tree and activity consistency separately. It consumes
+consistent tree results even when activity changes or fails. It preserves
+compared activity when tree reading or root opening fails. Accepted Idle displays
+the shared selector's NEXT key in rows and persistent chrome. Verified same-tree
+Running binds the current row by key and excludes that key before finish
+eligibility. Busy/Unavailable or failed tree acceptance clears old row activity
+and withholds NEXT.
+
+Tree failure leaves the independent RUNNING summary available. The loop owns
+selection, while the viewer owns freshness and label/key-preserving summary
+layout. The typed witnessed observer ships. The viewer displays same-tree RUNNING
+with independent lifecycle colours and key-preserving summaries. Running without
+a current matching item remains unavailable until the exceptional-tree summary
+increment.
 
 One workspace, one release version, one changelog, one tag. A module is a crate
-so that *testable through its own interface without unrelated modules* is not a
-discipline held by review but a fact the compiler enforces: the three domain-free
-crates take no path dependency on the domain crates, and each carries its own
-suites.
+so that the compiler enforces *testable through its own interface without
+unrelated modules*. It is then a fact, not a discipline held by review. This
+holds because the three domain-free crates take no path dependency on the domain
+crates. Each carries its own suites.
 
-The skills module has **no crate**: its artifact is markdown that ships by an
-entirely different path, and its half of that guarantee is met by its own
-conformance runner instead.
+The skills module has **no crate**. Its artifact is markdown that ships by an
+entirely different path. Its own conformance runner meets its half of that
+guarantee instead.
 
 The two binaries are separate crates rather than binary targets inside
-`grove-loop`, for the same reason: a binary target declared beside the library
-can compile the library's modules into itself — a `#[path]` attribute and a
-`mod` — and then name the items that library keeps private, so *the binary is
-thin* would stop being compiler-enforced for that shape.
+`grove-loop`, for the same reason. A binary target declared beside the library
+can compile the library's modules into itself with a `#[path]` attribute and a
+`mod`. It can then name the items that the library keeps private. For that shape,
+the compiler would stop enforcing *the binary is thin*.
 
 It is only that shape, and two measurements bound it. A target that merely
-depends on the library beside it sees what a separate crate sees: a `pub(crate)`
-item named through the library's path is refused with `E0603`. And the modules
-such a target compiles into itself land in **its own** crate rather than the
-library's, so what it reaches is a second instance of those items rather than
-the library's own — a type declared that way is distinct from the library's,
-`E0308`, and rustc names it *defined in the current crate*. What the shape
-defeats is therefore the source-level discipline, which is the only one *the
-binary is thin* was ever about.
+depends on the library beside it sees what a separate crate sees. The compiler
+refuses a `pub(crate)` item that the target names through the library's path,
+with `E0603`.
 
-What a separate crate adds is not that the shape becomes impossible — a `#[path]`
-can point outside a package, and three test targets in this workspace do exactly
-that — but that it has to, and a reader of the entry point's own two files can
-see whether it does. The boundary makes the move visible rather than
-unavailable. A crate boundary is also a
-reachability boundary, which is what lets `dead_code` report an item whose only
-callers are another package's tests.
+The modules that such a target compiles into itself land in **its own** crate
+rather than the library's. What the target reaches is therefore a second instance
+of those items, not the library's own. A type declared that way is distinct from
+the library's, with `E0308`, and rustc names it *defined in the current crate*.
+What the shape defeats is therefore the source-level discipline. That is the only
+discipline that *the binary is thin* was ever about.
+
+A separate crate does not make that shape impossible. A `#[path]` can point
+outside a package, and three test targets in this workspace do exactly that. A
+separate crate adds a requirement: the shape must do so. A reader of the entry
+point's own two files can see whether it does. The boundary makes the move
+visible rather than unavailable. A crate boundary is also a reachability
+boundary, which is what lets `dead_code` report an item whose only callers are
+another package's tests.
 
 `jj-workspace` is fully domain-free, not partly. Its whole surface is *resolve a
-jj workspace, refuse a tree that is not one, take a path-scoped commit*, and the
-remedy its refusal carries is jj's — `jj git init --colocate` — not grove's.
+jj workspace, refuse a tree that is not one, take a path-scoped commit*. The
+remedy that its refusal carries is jj's, `jj git init --colocate`, and not
+grove's.
 
 `keyed-launch` keeps the name it took when it also resolved a key to a command
-template. What is left is the supervision that sat behind the key. Its
-vocabulary is *argv*, *launch*, *child*, *channel*, *signal* and *escalation*,
-and it deliberately avoids **session**, which would add a fourth row to the collision
-table in [`CONTEXT-MAP.md`](../../CONTEXT-MAP.md).
+template. What remains is the supervision that sat behind the key. Its
+vocabulary is *argv*, *launch*, *child*, *channel*, *signal* and *escalation*.
+It deliberately avoids **session**, because that word would add a fourth row to
+the collision table in [`CONTEXT-MAP.md`](../../CONTEXT-MAP.md).
+
+<!-- tc: pending because the conversion has not reached this part of the document -->
 
 ### 2 — The tree store's surface
 
@@ -312,6 +330,8 @@ add. Twelve verbs, not thirteen. `--kind` is **required** on the add and insert
 verbs: a default is a literal under a friendlier name, and `impl` was the one kind
 literal that would silently produce a *wrong* leaf rather than an error.
 
+<!-- tc: on -->
+
 ### 7 — The runner
 
 The runner takes a program and its arguments from its caller and launches them
@@ -319,7 +339,7 @@ as a job it supervises to the end. It reads no configuration and resolves no
 name to a command, and it understands no task, kind or provider receipt.
 Grove's lifecycle and standalone callers build `ravel start-session` argv
 through the shared public-command adapter. Ravel independently retains its own
-runner for the selected process; no shared Rust dependency crosses that boundary
+runner for the selected process. No shared Rust dependency crosses that boundary
 ([harness selection and execution](harness-selection-and-execution.md#grove-integration)).
 
 ```rust
@@ -433,52 +453,67 @@ pub fn reraise(signal: i32) -> !;
 pub struct LaunchError;
 ```
 
+<!-- tc: depart synonym-rotation because confirmed cleanup is the name of what Ended::group reports and differs from validation -->
 The block states the surface this decision settles and is not an inventory of
-it. The listing follows the shipped runner names: `NoninteractiveLaunch`
-carries no exit authority, `Launch::transparent` supplies entry signals,
+it. The listing follows the shipped runner names. `NoninteractiveLaunch` carries
+no exit authority, and `Launch::transparent` supplies entry signals.
 `FilesystemGrants` names confinement grants, and `Ended::group` reports
 confirmed cleanup. Callers inspect that group before acting on an ending.
 
 The runner spawns the argv directly, with no shell. The child's environment is
-the caller's, minus the scrubbed names, plus the granted values and, with a
-channel, its path under the caller's chosen variable name. The child is a job
-in a process group of its own; an interactive launch hands it the terminal and,
-once the child is reaped, takes the terminal back from the child's group, or,
-when the child died of a signal, from whichever group then holds it unless that
-is the launcher's own or the session leader's, with SIGTTOU ignored for the call
-and the attributes it saved restored; a launch that never held the foreground
-takes nothing
+the caller's, minus the scrubbed names, plus the granted values. With a channel,
+it also holds the channel's path under the caller's chosen variable name. The
+child is a job in a process group of its own.
+
+An interactive launch hands the child the terminal. Once the child is reaped,
+the launch takes the terminal back from the child's group. When the child died
+of a signal, the launch takes the terminal from whichever group then holds it.
+It takes the terminal from no group that is the launcher's own or the session
+leader's. The launch ignores SIGTTOU for that call and restores the attributes
+that it saved. A launch that never held the foreground takes nothing
 ([`the-launched-child-is-a-job`](../adr/the-launched-child-is-a-job.md)).
-Its terminal-generated signal dispositions are the defaults, unless its caller
-is a transparent wrapper that passes on its own entry signal mask and
-dispositions instead, its pending signals staying its own; and
-the runner installs no handler over a disposition its launcher ignores. A
-launcher that inherited SIGCHLD ignored has its default restored, never a
-handler, so that its child is not reaped unwatched, while the child still
-receives the entry disposition. With a channel, the channel's appearance starts
-grace → SIGTERM → kill-grace → SIGKILL, because a child that returns to an
-interactive prompt is never reaped on its own; it is addressed to the child's **process group**, so a command the child
-itself launched is reaped with it. Whatever ends the child, the runner observes
-its exit, never a stop, without reaping it; kills what remains of its group,
-twice with a short pause, while the unreaped child still reserves the group's
-ID; reaps it; and then, querying only, confirms within a bound that the group is
-gone, which only an answer of no such group confirms. A group still present is
-reported to the caller beside the child's status, so that nothing acts on the
-ending beside a survivor in the group. The launcher's own TERM or HUP cancels
-the launch, as does INT for a launch with no terminal or a transparent wrapper
-that receives it directly: an interactive or
-noninteractive child's group is sent the same signal and, after the kill-grace,
-SIGKILL; a confined child's group is killed at once, so that a cancellation
-nested inside another supervisor's grace finishes inside it.
+
+The child's terminal-generated signal dispositions are the defaults, unless its
+caller is a transparent wrapper. A transparent wrapper passes on its own entry
+signal mask and dispositions to the child instead, and its pending signals stay
+its own. The runner installs no handler over a disposition that its launcher
+ignores. A launcher that inherited SIGCHLD ignored has its default restored, and
+never a handler, so that its child is not reaped unwatched. The child still
+receives the entry disposition.
+
+With a channel, the channel's appearance starts grace → SIGTERM → kill-grace →
+SIGKILL. This is because a child that returns to an interactive prompt is never
+reaped on its own. The runner sends the sequence to the child's **process group**, so
+a command that the child itself launched is reaped with the child.
+
+Whatever ends the child, the runner observes its exit and never a stop, without
+reaping the child. Next, it kills what remains of the child's group, twice with a
+short pause, while the unreaped child still reserves the group's ID. Then it
+reaps the child. Then it queries only, to confirm within a bound that the group
+is gone. Only an answer of no such group confirms that.
+
+The runner reports a group that is still present to the caller beside the
+child's status. The purpose is that nothing acts on the ending beside a survivor
+in the group.
+
+The launcher's own TERM or HUP cancels the launch. INT cancels the launch too,
+for a launch with no terminal or a transparent wrapper that receives it directly.
+The runner sends an interactive or noninteractive child's group the same signal
+and, after the kill-grace, SIGKILL. The runner kills a confined child's group at
+once, so that a cancellation nested inside another supervisor's grace finishes
+inside it.
 
 Grove launches Ravel interactively for lifecycle and noninteractively for
 standalone work, with no local completion channel. Lifecycle keeps a 10-second
-kill-grace; standalone keeps five seconds. Its stdout-capturing runner entry
+kill-grace. Standalone keeps five seconds. Its stdout-capturing runner entry
 points keep Ravel's public result separate from managed output and transcripts.
+
 Ravel owns its selected process's confinement, completion channel, bounds and
 cleanup ([Ravel process decision](https://github.com/Linkuistics/Ravel/blob/v1.0.0/docs/adr/the-launched-child-is-a-job.md)).
-There is no store append or migration wait in that boundary. The nested grace
-is a scheduling budget, not a wall-clock guarantee under suspension or slow I/O.
+There is no store append or migration wait in that boundary. The nested grace is
+a scheduling budget, not a wall-clock guarantee under suspension or slow I/O.
+
+<!-- tc: pending because the conversion has not reached this part of the document -->
 
 ### 8 — The VCS seam
 

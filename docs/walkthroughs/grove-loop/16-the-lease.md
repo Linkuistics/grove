@@ -247,22 +247,26 @@ use std::time::{Duration, Instant};
 <!-- /fragment -->
 
 Eleven `use` lines, and their shape is the chapter in miniature. Three of them
-reach into `std::os` and import six names between them: `AsRawFd` and `RawFd` for
-descriptors, `OsStrExt` and `OsStringExt` for byte-level path conversion,
-`MetadataExt` for device and inode, and `OpenOptionsExt` for a creation mode.
-Five of the six appear nowhere else in this crate; the exception is `AsRawFd`,
+reach into `std::os` and import six names between them. `AsRawFd` and `RawFd`
+serve descriptors. `OsStrExt` and `OsStringExt` convert paths to bytes.
+`MetadataExt` reads the device and the inode. `OpenOptionsExt` sets a creation
+mode.
+
+Five of the six appear nowhere else in this crate. The exception is `AsRawFd`,
 which `task_tree.rs` also imports at its line 42, for the store's own locking.
 
-Two crates besides `std` are reached, and neither is reached the way a reader
-might expect. `anyhow` supplies `bail`, `Context` and `Result`, which is the
-crate-wide convention. `jj_workspace::Workspace` appears in exactly two
-signatures — `acquire` and `acquire_with` — and once more as `Workspace::resolve`
-inside admission. `libc` is never imported at all and is always spelled in full:
-`c_int` in `LockMode`, `fcntl`, `flock`, and the lock and errno constants beside
-them. `keyed_launch` is reached the same way, once, at
-`keyed_launch::Channel::discard_abandoned`. And nothing from `ordinal-fs-tree`
-appears — which, in a crate that spends 7,496 of its lines on a task tree over
-exactly that store, is the most consequential thing these eleven lines say.
+Two crates besides `std` appear, and a reader might not expect either use.
+`anyhow` supplies `bail`, `Context` and `Result`, which is the crate-wide
+convention. `jj_workspace::Workspace` appears in exactly two signatures,
+`acquire` and `acquire_with`. It appears once more as `Workspace::resolve` inside
+admission.
+
+The file never imports `libc` and always spells it in full: `c_int` in
+`LockMode`, `fcntl`, `flock`, and the lock and errno constants beside them.
+`keyed_launch` appears the same way, once, at
+`keyed_launch::Channel::discard_abandoned`. Nothing from `ordinal-fs-tree`
+appears. This crate spends 7,496 of its lines on a task tree over exactly that
+store. So the absence is the most consequential thing these eleven lines say.
 
 <a id="the-names-on-disk"></a>
 ## The names on disk, and the two bounds
@@ -697,18 +701,18 @@ which owns the tests that pass them.
 Fifty-four lines, and they are an **order** rather than a list. Six steps, and
 five of the six are wrong if moved.
 
-1. **Ask the seam for the control directory** (155). This is the derivation the
-   header called *the one thing that is not a move*, and it is first because
-   everything else needs the directory. A working tree that is not jj-enabled and
-   a `.jj/` that cannot hold a directory both stop here, which is why the record
-   can say a `--help` or `--version` invocation returns without workspace
-   resolution or a lease at all: those never reach this function.
-2. **Open the working-tree root and pin its identity** (157–168). The descriptor
-   is opened *before* the identity is read from it, and the identity comes from
-   `worktree_directory.metadata()` — the descriptor's own — rather than from
-   `fs::metadata(&worktree_root)`, which would have been a path lookup and could
-   have named a different directory by the time the answer came back. This is the
-   difference between pinning a thing and pinning a name.
+1. **Ask the seam for the control directory** (155). The header called this
+   derivation *the one thing that is not a move*. It is first because everything
+   else needs the directory. A working tree that is not jj-enabled stops here.
+   So does a `.jj/` that cannot hold a directory. The record can therefore say
+   that a `--help` or `--version` invocation returns without a workspace
+   resolution or a lease. Those invocations never reach this function.
+2. **Open the working-tree root and pin its identity** (157–168). The function
+   opens the descriptor *before* it reads the identity. The identity comes from
+   `worktree_directory.metadata()`, the descriptor's own.
+   `fs::metadata(&worktree_root)` would have been a path lookup. It could have
+   named a different directory by the time the answer came back. This is the difference between pinning a
+   thing and pinning a name.
 3. **Take the lease lock** (171). One line, and everything about the retry
    protocol is behind it.
 4. **Draw the nonce** (172).

@@ -209,36 +209,42 @@ meet a function that appears to reference nothing.
 <a id="launch-owner-controls"></a>
 ## Launch ownership controls
 
+<!-- tc: depart synonym-rotation because Started and Reaped are the names of the two notices -->
 The real-runner control executes a configured shell command and a missing
-executable, then injects epoch acquisition and mandatory-write failures. Every
-unlaunched or reaped attempt must release both witnesses. The unwind control keeps the
-lease outside the panic boundary: Started-only unwind retains the pin, whereas
-Reaped releases it before a later panic. A replaced root cannot overwrite an
-unreaped pin on a second preparation attempt.
+executable. Then it injects epoch acquisition and mandatory-write failures. Every
+unlaunched or reaped attempt must release both witnesses.
+
+<!-- tc: depart synonym-rotation because Started and Reaped are the names of the two notices -->
+The unwind control keeps the lease outside the panic boundary. A Started-only
+unwind retains the pin. A Reaped unwind releases it before a later panic. A
+replaced root cannot overwrite an unreaped pin on a second preparation attempt.
 
 The wait control holds a real shared epoch guard and waits for the writer's
-contention notification. It replaces the task root before releasing that guard;
-the waiting preparation must refuse activation. This catches a check performed
-only before acquisition, without using elapsed time as proof of contention.
+contention notification. It replaces the task root before it releases that
+guard. The waiting preparation must refuse activation. This catches a check
+performed only before acquisition, without using elapsed time as proof of
+contention.
 The event table separately checks no events, Started only, and Started/Reaped,
 including an error return and subsequent epoch invalidation.
 
 Independent shared probes now check both witness descriptors at Started, Reaped,
 failed spawn and lease drop. Foreign directory contention leaves a real configured
-launch and admission usable. The wait barrier also proves neither witness is
-prepared while an old reader holds the epoch. The private-before-directory
-release operation is exercised in the paired-witness controls at the end of this
-chapter. Two-platform process-death and forced-reuse observation evidence remains
-owned by the later observer increment.
+launch and admission usable. The wait barrier also proves that the preparation
+prepares neither witness while an old reader holds the epoch. The paired-witness
+controls at the end of this chapter exercise the private-before-directory release
+operation. The later observer increment owns the two-platform process-death and
+forced-reuse observation evidence.
 
 The publication controls compare the epoch's tree and private identities with
 actual descriptor metadata, decode its namespace-local basename, and check the
 nonce/launch-directory binding. Admission accepts absent, unsupported and malformed
-extensions, including invalid UTF-8, while rejecting wrong launch directorys and
+extensions, including invalid UTF-8. It rejects wrong launch directories and
 corrupt mandatory path fields. A limited writer fails partway through the real
-extension serializer to prove mandatory activation survives. The real-run event
-control signals the local runner's generic test channel at Started and checks that both locks remain
-held until Reaped; successful spawn leaves exactly eight bytes, failed spawn none.
+extension serialiser to prove that mandatory activation survives.
+
+The real-run event control signals the local runner's generic test channel at
+Started. It checks that both locks remain held until Reaped. A successful spawn
+leaves exactly eight bytes, and a failed spawn leaves none.
 
 <!-- fragment «epoch-tests-launch-owner» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="969-1501" parent="lease-tests" -->
 ````rust
@@ -3145,7 +3151,7 @@ The shared fixture prepares a real lease-owned pair and publishes Started. The a
 ````
 <!-- /fragment -->
 
-The generic runner actually spawns and reaps a shell. Its parent callbacks first notify the lease and then sample the public observer: Started must report the prepared handle and SameTree, while Reaped must report Idle. Filesystem snapshots around each sample show that observing changes no bytes. This host control is not the cross-platform killed-holder and exec-survivor evidence owned by the later native-process leaf.
+The generic runner actually spawns and reaps a shell. Its parent callbacks first notify the lease and then sample the public observer. Started must report the prepared handle and SameTree. Reaped must report Idle. Filesystem snapshots around each sample show that observing changes no bytes. This host control is not the cross-platform killed-holder and exec-survivor evidence owned by the later native-process leaf.
 
 <!-- fragment «runtime-test-real-launch» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="890-952" parent="runtime-test-races" -->
 ````rust

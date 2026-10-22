@@ -257,21 +257,23 @@ the published release. That release has the same three targets.
   `keyed-launch`, with the overview edits of the `Argv` bridge.
 - `10` `ravel-job-k17` (review-impl): an adversarial read of the shared function
   before any caller moves onto it.
-- `11` `grove-run-job-k8` (impl): `grove run` on the detached shape.
-- `12` `lifecycle-job-k9` (impl): the loop driver and the driver lease on the
+- `11` `ravel-job-k18` (integrate-review-impl): triage the findings of
+  `ravel-job-k17` before either caller migrates.
+- `12` `grove-run-job-k8` (impl): `grove run` on the detached shape.
+- `13` `lifecycle-job-k9` (impl): the loop driver and the driver lease on the
   foreground shape, with the prose that described the removed interpretation.
-- `13` `interrupted-errors-k10` (impl): every error that stops the loop keeps a
+- `14` `interrupted-errors-k10` (impl): every error that stops the loop keeps a
   caught signal.
-- `14` `keyed-launch-removal-k11` (impl): the crate, its tasks, tests, book and
+- `15` `keyed-launch-removal-k11` (impl): the crate, its tasks, tests, book and
   structure spec, and the links that point at them.
-- `15` `design-records-k12`, `16` `user-records-k13` and `17` `book-specs-k14`
+- `16` `design-records-k12`, `17` `user-records-k13` and `18` `book-specs-k14`
   (impl): the records that state the reversed decision.
 
-Each leaf of code from `08` to `14` carries the book edits for the code that it
+Each leaf of code from `08` to `15` carries the book edits for the code that it
 changes, because `book-check` gates the quotes. The floor (`08`) comes first.
-The order is then expand (`09`), migrate (`11`, `12`, `13`) and contract (`14`).
-The review (`10`) stands between the expand and the migration. The records
-follow the code.
+The order is then expand (`09`), migrate (`12`, `13`, `14`) and contract (`15`).
+The review (`10`) and its integration (`11`) stand between the expand and the
+migration. The records follow the code.
 
 ## Pointers
 

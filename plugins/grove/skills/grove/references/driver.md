@@ -79,11 +79,11 @@ An exact `grove-force-stop` result from a successful Ravel invocation then stops
 loop without completion. This holds even if teardown was recorded. The CLI exits 1. It
 does not retire work, and it does not restore a removed tree.
 
-Teardown otherwise finishes the loop, whatever the status, the result or the group.
-Without teardown, a surviving supervisor group or an unsuccessful Ravel status stops
-the loop. Only a successful status and exact `grove-continue` bytes relaunch, with a
-gone group. A missing, unsupported or unreadable result stops the loop with the live
-leaf resumable. So do a refusal, a cancellation and the death of the supervisor.
+Teardown otherwise finishes the loop, whatever the status or the result. Without
+teardown, an unsuccessful Ravel status stops the loop. Only a successful status and
+exact `grove-continue` bytes relaunch. A missing, unsupported or unreadable result
+stops the loop with the live leaf resumable. So do a refusal, a cancellation and the
+death of the supervisor.
 
 A replacement driver invalidates the old epoch. Then it removes abandoned launch
 directories without interpreting their contents.

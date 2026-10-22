@@ -319,8 +319,8 @@ The renderer performs no I/O.
 Grove reads no launch configuration file. Every selected harness comes from
 owner policy through independently installed Ravel ([below](#harness-dispatch)).
 Grove chooses the first executable regular `ravel` in an absolute PATH
-directory. Grove canonicalises it once and checks that path's stable 1.x CLI
-version. Relative and empty PATH entries supply no cwd fallback.
+directory. Grove canonicalises it once and checks that path's CLI version. Grove
+accepts stable Ravel 1.x from 1.1.0. Relative and empty PATH entries supply no cwd fallback.
 
 An incompatible or failed probe refuses without trying another installation.
 Launch and the quoted ending command reuse that canonical path. This trusts the

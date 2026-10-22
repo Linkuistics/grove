@@ -183,7 +183,7 @@ of scope.
 
 - <a id="grove-and-harness-dispatch"></a>**grove → Ravel, a public CLI
   boundary.** Grove resolves the first executable regular Ravel on absolute
-  PATH once and requires stable 1.x. Launch and ending instructions reuse
+  PATH once and requires stable 1.x from 1.1.0. Launch and ending instructions reuse
   that canonical path. There is no incompatible-install fallback. Grove supports separate
   prefixes and versions. Ravel links no Grove crate. Grove links
   no Ravel crate. Ravel supervises its managed process, and Grove launches

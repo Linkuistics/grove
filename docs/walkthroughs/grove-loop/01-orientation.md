@@ -76,11 +76,13 @@ rust-version.workspace = true
 <!-- /fragment -->
 
 The dependency comment calls this crate and the viewer domain-bound. Grove
-composes `jj-workspace`, `keyed-launch` and `ordinal-fs-tree`; `anyhow` stays
-behind its opaque public error and `libc` supplies Unix calls. `serde_json` is an integration-fixture dev dependency. `tempfile` supplies
-the held-file public result capture and temporary test directories. The loop
-uses the local runner to spawn and reap independent Ravel, while
-the verb surface writes only Grove's teardown record in the launch directory.
+composes `jj-workspace`, `keyed-launch` and `ordinal-fs-tree`. `anyhow` stays
+behind its opaque public error, and `libc` supplies Unix calls. `serde_json` is
+an integration-fixture dev dependency. `tempfile` supplies the held-file public
+result capture and temporary test directories.
+
+The loop uses the local runner to spawn and reap independent Ravel. The verb
+surface writes only Grove's teardown record in the launch directory.
 
 <!-- fragment «manifest-dependencies» owner="allowed-to-mean" source="crates/grove-loop/Cargo.toml" lines="11-38" parent="manifest-domain-bound" -->
 ````toml
@@ -127,8 +129,8 @@ different ways, which is why the two clauses are not parallel.
 operations, and `loop_driver` uses terminal and signal operations. The captured
 observer adds directory-only, nonblocking and close-on-exec flags to a read-only
 open. [Chapter 5](05-opening.md#captured-observation) explains why this pin can
-outlive the tree lock. Tests also reach `libc` to exercise those guarantees;
-those calls do not add runtime dependencies to the viewer.
+outlive the tree lock. Tests also reach `libc` to exercise those guarantees.
+Those calls do not add runtime dependencies to the viewer.
 
 `keyed-launch` gained a **distinction**, and that is the more interesting half.
 *Reached by exactly one verb* was true when it was written and is still true —
@@ -146,21 +148,22 @@ lifts out of its dependencies into its own public surface, and the account of
 the library root's exports later in this chapter reads all four.
 
 **A clause that names one user is a class of defect rather than an accident
-here**, and [chapter 6](06-paths.md#canonicalise-to-compare) is where the book
-makes that case: it groups this clause with two others — *canonicalisation
-appears once* and *`<worktree>/.grove`, spelled in exactly one place* — as
-uniqueness claims written from the shape of the design rather than from an
-enumeration of the code, each true of the intent and false of the source. This
-one was found while this chapter was being drafted and corrected at
-`manifest-dependency-clauses-k133`, in the same commit as this paragraph, under
-the rule that a source change carries its ledger and its pages with it. The
-paragraph was rewritten rather than deleted, because the reason a sentence is
-worded oddly outlives the defect that forced it. The second member of that class
-is `src/lib.rs`'s and belongs to this chapter too: *[the two
-openings](#the-two-openings)* reads it, and `grove-root-join-clauses-k148`
-corrected it the same way. The third is `task_tree.rs`'s, reproduced by chapter 5
-and adjudicated by chapter 6, and `canonicalisation-sites-k149` corrected it
-last, so none of the three is still in the corpus.
+here.** [Chapter 6](06-paths.md#canonicalise-to-compare) makes that case. It
+groups this clause with two others. They are *canonicalisation appears once* and
+*`<worktree>/.grove`, spelled in exactly one place*. All three are uniqueness
+claims that the author wrote from the shape of the design rather than from an
+enumeration of the code. Each is true of the intent and false of the source.
+
+This chapter's drafting found this clause, and `manifest-dependency-clauses-k133`
+corrected it in the same commit as this paragraph. The rule is that a source
+change carries its ledger and its pages with it. The paragraph was rewritten
+rather than deleted, because the reason a sentence is worded oddly outlives the
+defect that forced it. The second member of that class is `src/lib.rs`'s and
+belongs to this chapter too. *[The two openings](#the-two-openings)* reads it,
+and `grove-root-join-clauses-k148` corrected it the same way. The third is
+`task_tree.rs`'s. Chapter 5 reproduces it and chapter 6 adjudicates it.
+`canonicalisation-sites-k149` corrected it last, so none of the three is still
+in the corpus.
 
 The third fragment is the fifth dependency and the file's most consequential
 claim.

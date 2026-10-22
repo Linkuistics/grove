@@ -5,11 +5,11 @@
 <a id="four-things-a-runner-cannot-choose"></a>
 ## The rule: Ravel owns the harness's end
 
-Grove owns the task tree and the loop decision. Ravel owns one harness run:
-it selects the command, spawns the harness as its own job, watches its exit
-channel, ends its group, and returns the opaque published argument. Grove's runner supervises
-Ravel as a channel-free job. This separation lets another caller use Ravel
-without implementing a harness watcher.
+Grove owns the task tree and the loop decision. Ravel owns one harness run.
+It selects the command and spawns the harness as its own job. It watches the
+exit channel, ends the group and returns the opaque published argument.
+Grove's runner supervises Ravel as a channel-free job. This separation lets
+another caller use Ravel without implementing a harness watcher.
 
 For a selected `impl` leaf, `drive` composes the prompt, allocates a launch
 directory, and captures Ravel's public stdout in a held unlinked file. The
@@ -83,7 +83,7 @@ interpretation. The root still includes the inline tests.
 ## The header, and the ownership boundary
 
 The header assigns each effect to its owner. The driver receives the workspace,
-lease and Ravel path; it derives the selection and allocates the control
+the lease and the Ravel path. It derives the selection and allocates the control
 area. A harness that exits by itself leaves its leaf live.
 
 <!-- fragment «loop-header» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="1-12" parent="loop-driver" -->
@@ -209,9 +209,10 @@ const LOOP_CONTROL_ENV: [&str; 10] = [
 ## The launch identity and Ravel's ephemeral context
 
 Grove publishes launch identity rather than an exit channel. The directory is
-bound into the session epoch before spawning, so only that launch's tree verbs
-are admitted. Ravel's `--exit-dir` chooses where its own fresh channel can be
-written; The public stdout descriptor returns the opaque result. Neither reaches policy.
+bound into the session epoch before the spawn. So the epoch admits only the tree
+verbs of that launch. Ravel's `--exit-dir` chooses where its own fresh channel
+can be written. The public stdout descriptor returns the opaque result. Neither
+reaches policy.
 
 <!-- fragment «loop-scrub-list» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="78-82" parent="loop-driver" -->
 ````rust
@@ -245,8 +246,8 @@ pub(crate) fn scrub_loop_control_env(cmd: &mut Command) {
 ## Three ways a loop ends, and why the third is not the second
 
 `LoopOutcome` distinguishes a recorded finish, a resumable stop, and the driver's
-own interruption. The signal number is retained so the human-facing binary can
-re-raise it and its parent can distinguish cancellation from success.
+own interruption. It keeps the signal number. So the human-facing binary can
+re-raise the signal, and its parent can distinguish cancellation from success.
 
 <!-- fragment «loop-outcome» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="94-125" parent="loop-driver" -->
 ````rust
@@ -342,19 +343,21 @@ pub fn run(
 `drive` revalidates the lease, transitions the tree, and obtains one selection.
 It then composes the prompt and allocates a fresh launch directory. The runner
 forwards driver TERM/HUP to Ravel and waits up to ten seconds before killing
-Ravel's group. The budget allows Ravel to cancel and reap its managed group;
-it promises no wall-clock bound under suspension or slow I/O.
+Ravel's group. The budget allows Ravel to cancel and reap its managed group.
+It promises no wall-clock bound under suspension or slow I/O.
 
 After the reap, terminal reset happens even on an error path. Epoch invalidation
-must then succeed before any launch record is interpreted. The directory is
-removed only after reading; removal failure reports a warning without changing
-the outcome. The driver checks for interruption again after reset and invalidation,
-because the runner's ending cannot include signals that arrived after reap.
+must then succeed. Only after that does the driver interpret a launch record.
+The driver removes the directory only after reading. If the removal fails, the
+driver reports a warning and keeps the outcome. The driver checks for
+interruption again after the reset and the invalidation, because the runner's
+ending cannot include signals that arrived after the reap.
+
 First match wins: driver interruption, successful exact force-stop, teardown,
-surviving group or failed front status, then exact continuation or stop.
-A surviving Ravel group prevents relaunch. A Ravel
-that died of a signal can have left its harness alive, so the stop identifies
-that possibility instead of treating missing output as completion.
+surviving group or failed front status, then exact continuation or stop. A
+surviving Ravel group prevents relaunch. A Ravel that died of a signal can have
+left its harness alive. So the stop names that possibility. It does not treat
+missing output as completion.
 
 <!-- fragment «loop-drive-open» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="164-173" parent="loop-driver" -->
 ````rust
@@ -371,7 +374,7 @@ fn drive(
 ````
 <!-- /fragment -->
 
-The top-of-loop interrupt check consumes cancellation that arrived between launches, before Grove mutates the tree or starts another session.
+The top-of-loop interrupt check consumes cancellation that arrived between launches, before Grove mutates the tree or launches another session.
 
 <!-- fragment «loop-drive-interrupt» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="174-188" parent="loop-driver" -->
 ````rust
@@ -476,14 +479,15 @@ The launch directory is allocated after lease validation. Its path becomes both 
 ````
 <!-- /fragment -->
 
-After runner recovery, reset happens unconditionally. Epoch invalidation gates the reading closure, and directory removal preserves
-the interpreted outcome even if cleanup fails. The driver then calls
-`interpret_launch`, whose first matching branch either returns a terminal
-outcome or returns `None` to relaunch. Interruption wins over every disposition;
-successful exact force-stop wins over teardown, which otherwise wins over a
-surviving Ravel group. The branch body is kept at the
-runner-result seam so the survivor precedence can be exercised without an
-unkillable process fixture.
+After runner recovery, reset happens unconditionally. Epoch invalidation gates
+the reading closure. Directory removal preserves the interpreted outcome even if
+cleanup fails. The driver then calls `interpret_launch`. Its first matching
+branch either returns a terminal outcome or returns `None` to relaunch.
+
+Interruption wins over every disposition. Successful exact force-stop wins over
+teardown, and teardown otherwise wins over a surviving Ravel group. The driver
+keeps the branch body at the runner-result seam. So a test can exercise the
+survivor precedence without an unkillable process fixture.
 
 <!-- fragment «loop-drive-discard» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="239-286" parent="loop-driver" -->
 ````rust
@@ -661,9 +665,10 @@ inputs and quotes the exact ending command for either caller.
 ## `launch_session`: a channel-free supervisor job
 
 `launch_session` activates the selected root and launch identity before the
-spawn. `supervise_launch` carries the witness across runner start and reap events.
-The runner receives `channel: None`, the scrub list and only the launch-directory
-grant. Ravel then makes the harness its own foreground job.
+spawn. `supervise_launch` carries the witness across the spawn and reap
+events of the runner. The runner receives `channel: None`, the scrub list and
+only the launch-directory grant. Ravel then makes the harness its own foreground
+job.
 
 <!-- fragment «loop-launch-contract» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="369-398" parent="loop-driver" -->
 ````rust
@@ -807,7 +812,7 @@ The runner restores the attributes saved when Grove handed over the terminal.
 After Ravel's signal death it can reclaim from the orphaned harness's group,
 not just Ravel's. `reset_terminal` then runs `stty sane`, leaves the alternate
 screen and shows the cursor. It runs only on tty stdin while the driver owns the
-foreground; otherwise an `stty` child could stop on SIGTTOU and hang the driver.
+foreground. Otherwise an `stty` child could stop on SIGTTOU and hang the driver.
 
 <!-- fragment «loop-reset-terminal» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="462-493" parent="loop-driver" -->
 ````rust
@@ -850,8 +855,9 @@ fn reset_terminal() {
 ## `ignore_interrupts`: one signal, and the reason it is only one
 
 The driver's SIGINT ignore covers gaps between launches. The runner resets the
-child's terminal-signal dispositions so Ravel and the harness receive typed
-Ctrl-C. TERM/HUP belong to runner cancellation and are forwarded to the job.
+child's terminal-signal dispositions, so Ravel and the harness receive a typed
+Ctrl-C. TERM and HUP belong to runner cancellation, and the runner forwards them
+to the job.
 
 <!-- fragment «loop-ignore-interrupts» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="494-524" parent="loop-driver" -->
 ````rust
@@ -945,14 +951,14 @@ fn picked_after_finish(worktree: &Path) -> Result<SelectedTask> {
 <a id="the-test-block"></a>
 ## The inline tests: root identity and handoff ordering
 
-The inline tests cover root pinning, finish materialization, admission before
-spawn, the launch reading table and the invalidation gate's error precedence.
-The reading-table cases combine teardown with TERM/HUP, and with a surviving
-Ravel group. Swapping interruption and teardown makes both that test and
-the real PTY interruption case fail; moving the group guard above teardown
-makes the runner-result test fail. They exercise the real
-Ravel front for the launch case. The process suite supplies the PTY ending,
-terminal, refusal, stale-session and cancellation cases.
+The inline tests cover root pinning, finish materialisation, admission before
+the spawn, the launch reading table and the error precedence of the invalidation
+gate. The reading-table cases combine teardown with TERM and HUP, and with a
+surviving Ravel group. Swapping interruption and teardown makes both that test
+and the real PTY interruption case fail. Moving the group guard above teardown
+makes the runner-result test fail. These tests use the real Ravel front for the
+launch case. The process suite supplies the PTY ending, terminal, refusal,
+stale-session and cancellation cases.
 
 <!-- fragment «loop-tests-open» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="565-859" parent="loop-driver" -->
 ````rust
@@ -1297,7 +1303,7 @@ This case supplies simultaneous launch and invalidation failures. It checks that
 ````
 <!-- /fragment -->
 
-This case isolates the invalidation gate. Even a successful reap cannot cause the reading closure to run before exclusive epoch admission is obtained.
+This case isolates the invalidation gate. Even a successful reap cannot cause the reading closure to run before the driver holds exclusive epoch admission.
 
 <!-- fragment «loop-test-ordering» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="896-918" parent="loop-driver" -->
 ````rust
@@ -1338,10 +1344,11 @@ while the harness performs its own mutations.
 <a id="what-holds-the-four-choices"></a>
 ## The executable seams
 
-The executable seams hold distinct obligations: the runner's job tests hold
-job control and recovery; Ravel's suite holds harness escalation and opaque
-result transport; Grove's PTY suite holds composition of those mechanisms and the loop's
-reading table. An exit status alone cannot replace the supported public result.
+The executable seams hold distinct obligations. The job tests of the runner
+hold job control and recovery. The suite of Ravel holds harness escalation and
+opaque result transport. The PTY suite of Grove holds the composition of those
+mechanisms and the reading table of the loop. An exit status alone cannot
+replace the supported public result.
 
 <a id="the-zeros"></a>
 ## The ownership boundaries
@@ -1522,18 +1529,20 @@ Both callers run their authority and supervision checks before calling its reade
 The supervisor writes its public stdout result into an unlinked regular file.
 The reader keeps the original descriptor rather than opening a pathname after
 a managed process could replace it. Allocation sets mode 0600 and checks that
-the file has no links because tempfile's Unix fallback can ignore an unlink
-failure. Ravel and policy retain the stdout authority granted to the supervisor;
-unlinking does not authenticate their bytes.
+the file has no links, because the Unix fallback of tempfile can ignore an unlink
+failure. Ravel and policy retain the stdout authority granted to the supervisor.
+Unlinking does not authenticate their bytes.
 
-The writer's cloned descriptor shares an offset with the reader. Once the
-supervisor is reaped and writers are closed, the reader rewinds and reads at
-most seventeen bytes: the longest accepted literal, `grove-force-stop`, plus
-one byte that rejects any tail. The shorter `grove-continue` is also exact.
-Empty, padded, binary, transcript-contaminated and unsupported values refuse.
-The typed disposition carries only Grove's meaning; it cannot establish
+The writer's cloned descriptor shares an offset with the reader. After
+the caller reaps the supervisor and every writer closes, the reader rewinds
+and reads at most seventeen bytes. That is the longest accepted literal,
+`grove-force-stop`, plus one byte that rejects any tail. The shorter
+`grove-continue` is also exact. Empty, padded, binary, transcript-contaminated
+and unsupported values refuse.
+
+The typed disposition carries only Grove's meaning. It cannot establish
 supervisor success, group cleanup or epoch invalidation. Lifecycle interprets
-force-stop before teardown; standalone reports force-stop as failure before
+force-stop before teardown. Standalone reports force-stop as failure before
 validating or publishing any outputs. Both callers consume the typed reader
 directly, with no continuation-only adapter.
 
@@ -1651,12 +1660,13 @@ The evidence lives outside this book's source corpus.
 `tests/session_result.rs` exercises the exact value, missing rewind, rejected
 tails and the bounded sparse-file read. `tests/session_result_installed.rs`
 uses installed Ravel 1.0.0 and its compiled worker from an independent prefix,
-with both keyed-launch stdout APIs and fake shell agents. Session stdout and
-stderr noise remain separate from the exact result; empty and unsupported
-values refuse, and a natural exit without a result fails. The fixture isolates
-PATH to the copied pair and scrubs old and new enclosing-session authority.
-`task ravel:result RAVEL=/absolute/path/to/ravel` runs these checks without a
-model launch or host runtime on the managed PATH.
+with both keyed-launch stdout APIs and fake shell agents.
+
+Session stdout and stderr noise remain separate from the exact result. Empty and
+unsupported values refuse, and a natural exit without a result fails. The
+fixture isolates PATH to the copied pair and scrubs old and new enclosing-session
+authority. `task ravel:result RAVEL=/absolute/path/to/ravel` runs these checks
+without a model launch or host runtime on the managed PATH.
 
 <a id="public-session-commands"></a>
 ## Shared public commands for the Ravel migration

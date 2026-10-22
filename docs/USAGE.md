@@ -38,15 +38,16 @@ policy.
 ## Launch policy
 
 Grove resolves the first executable `ravel` in an absolute PATH directory. It canonicalises
-the path once and checks the CLI version of that Ravel. Grove accepts a stable Ravel 1.x CLI.
+the path once and checks the CLI version of that Ravel. Grove accepts stable Ravel 1.x from 1.1.0.
 
 Install Ravel independently with `brew install linkuistics/taps/ravel`. Grove and Ravel can
 have different prefixes and different versions. A missing `ravel` names that install remedy.
-An unsupported or malformed version names `brew upgrade ravel`. Empty and relative PATH
+An unsupported or malformed version names `brew upgrade ravel`. Grove refuses Ravel 1.0.x. Empty and relative PATH
 entries, decoys in the working directory and Grove siblings cannot supply a fallback.
 
 Your `~/.config/ravel/policy.ts` exports a policy. The policy selects a command from the kind, the unchanged prompt, an optional task file and
-handle, and the working directory of the caller. Write or copy that policy yourself. Upgrades do not edit it.
+handle, and the working directory of the caller. Write or copy that policy yourself.
+Upgrades do not edit it.
 
 Ravel has exactly two commands, `start-session` and `end-session RESULT`, with the ordinary
 help and version flags. It has no init, inspect or record command. The public SDK is
@@ -137,8 +138,8 @@ After the harness checks the outputs, it executes the exact canonical
 It ends only its enclosing invocation. Ravel reaps the managed group before it returns the
 result.
 
-Grove checks its cancellation, the survivor group and the Ravel status before it accepts the
-result. It accepts exactly those bytes from a held unlinked stdout file. Managed output
+Grove checks its cancellation and for a successful Ravel status before it accepts the result.
+It accepts exactly the bytes of `grove-continue` from a held unlinked stdout file. Managed output
 cannot contaminate the result.
 
 Grove publishes the outputs through the original held work-directory descriptor. It does not
@@ -511,7 +512,7 @@ status of the *signal delivery*. It is `0` whenever the signal was sent. Only th
 of the `grove` process itself carries `128 + N`. A wrapper script that backgrounds Grove
 reads that status with `wait "$grove_pid"`.
 
-Grove forwards the signal to Ravel's process group. Ravel cancels and reaps the managed
+Grove forwards the signal to the `ravel` process. Ravel cancels and reaps the managed
 group. Grove waits for Ravel and restores your terminal. Then Grove **dies of the same
 signal**. A wrapper script, a `timeout` or a systemd unit reads `128 + N`, so it can tell an
 interrupted grove from a finished one.
@@ -973,8 +974,8 @@ A successful Ravel status with exactly `grove-force-stop` then stops the loop wi
 completion. Grove exits 1 and leaves the remaining live work resumable. The force-stop
 overrides teardown. It does not restore a removed tree, and it does not retire a leaf.
 
-A teardown record otherwise finishes the loop. Without a teardown record, a surviving
-supervisor group or an unsuccessful Ravel status stops the loop. Only an exact
+A teardown record otherwise finishes the loop. Without a teardown record, an
+unsuccessful Ravel status stops the loop. Only an exact
 `grove-continue` continues. A missing, unsupported or unreadable result stops the loop with
 the leaf live. If a session returns to an interactive prompt, the supervisor can wait until
 the harness ends.

@@ -1,3 +1,5 @@
+<!-- tc: pending because the conversion has not reached this part of the document -->
+
 # grove-llm — book structure brief
 
 ## Status and provenance
@@ -184,23 +186,31 @@ the book's boundary: it explains one module, `grove_llm::cli`, and stops at
 
 ### 1 · Orientation — one call plus rendering
 
-Owns `Cargo.toml`, `src/lib.rs` and `src/main.rs` whole, and `src/cli.rs` lines
-1–35: the header comment and the import block. Responsible for: what `grove-llm`
-is and who drives it — the LLM inside a session, deterministically, which is the
-audience-split decision the header cites; the manifest's crate-not-a-target
-argument, stated once as the ground every later chapter stands on; why there is
-a library target as well as the binary — the clap surface can be inspected by
-this crate's own tests, and the library costs the guarantee nothing because the
-code the binary must not reimplement is in another crate either way; the
-three-line `main`; the header's thesis — one call plus rendering, the two
-orders, and the launch question no verb asks — which is the book's map; the
-import block read as the evidence of what the binary reaches, thirteen
-`grove_loop` items and one `jj_workspace` type; the five dev-dependencies and
-which test needs each — `assert_cmd` and `tempfile` for driving the binary
-against a temporary tree, `keyed-launch` for generic runner channel
-framing, `libc` for holding the tree lock from outside the binary,
-`ordinal-fs-tree` for reading a filename back through the seam production uses;
-and `release = false` as an answered question.
+<!-- tc: on -->
+
+Owns `Cargo.toml`, `src/lib.rs` and `src/main.rs` whole. Also owns `src/cli.rs`
+lines 1–35, which hold the header comment and the import block. The chapter
+answers these questions:
+
+- What is `grove-llm`, and who drives it? The LLM inside a session drives it,
+  deterministically. This is the audience-split decision that the header cites.
+- What is the manifest's crate-not-a-target argument? The chapter states it
+  once, as the ground that every later chapter stands on.
+- Why is there a library target as well as the binary? This crate's own tests can
+  inspect the clap surface. The library costs the guarantee nothing, because the
+  code that the binary must not reimplement is in another crate either way.
+- What is the three-line `main`?
+- What is the header's thesis? It is one call plus rendering, the two orders, and
+  the launch question that no verb asks. It is the book's map.
+- What does the import block show? It is the evidence of what the binary reaches:
+  thirteen `grove_loop` items and one `jj_workspace` type.
+- Which test needs each of the five dev-dependencies? `assert_cmd` and `tempfile`
+  drive the binary against a temporary tree. `keyed-launch` supplies generic
+  runner channel framing. `libc` holds the tree lock from outside the binary.
+  `ordinal-fs-tree` reads a filename back through the seam that production uses.
+- Why is `release = false` an answered question?
+
+<!-- tc: pending because the conversion has not reached this part of the document -->
 
 This chapter reads the clauses recorded under *Known in advance* below — all
 of them corrected in the source since drafting — beside the fragments that

@@ -444,7 +444,7 @@
 - [Ownership released by the kernel, and bytes that carry none](16-the-lease.md#two-guards)
 - [A field with no local justification and a record that supplies it](16-the-lease.md#two-guards)
 - [Six steps in which five are wrong if moved](16-the-lease.md#acquisition-is-an-order)
-- [Cleanup ordered last so a live predecessor's channel survives](16-the-lease.md#acquisition-is-an-order)
+- [Cleanup ordered last so a live predecessor's launch directory survives](16-the-lease.md#acquisition-is-an-order)
 - [A housekeeping failure that warns rather than refuses](16-the-lease.md#acquisition-is-an-order)
 - [Eight operations, nine call sites, and no internal consumer](16-the-lease.md#what-the-lease-hands-out)
 - [An ADR clause checkable by reading two context strings](16-the-lease.md#what-the-lease-hands-out)

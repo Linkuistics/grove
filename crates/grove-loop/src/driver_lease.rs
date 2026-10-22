@@ -179,21 +179,13 @@ impl DriverLease {
         before_initial_epoch_handoff();
         lease.initialize_epoch_record()?;
         lease.clean_witnesses();
+        // Only after this lease owns the workspace, and after the replacement
+        // driver's inactive epoch record is installed: cleaning first would
+        // remove a live predecessor's launch directory.
         if let Err(error) =
             crate::launch_directory::LaunchDirectory::discard_abandoned(&lease.control_dir)
         {
             eprintln!("grove: warning: could not clean abandoned launch directories; continuing: {error:#}");
-        }
-        // Only after this lease owns the workspace, and after the replacement
-        // driver's inactive epoch record is installed: cleaning first would
-        // remove a live predecessor's channel. The grammar of an abandoned
-        // channel is the runner's, so the runner recognises them
-        // (`keyed_launch::Channel::discard_abandoned`); the lease supplies only
-        // the directory.
-        if let Err(error) = keyed_launch::Channel::discard_abandoned(&lease.control_dir) {
-            eprintln!(
-                "grove: warning: could not clean every signal channel abandoned by a previous driver; continuing because fresh channel allocation does not depend on an empty control directory: {error}"
-            );
         }
         Ok(lease)
     }
@@ -210,7 +202,7 @@ impl DriverLease {
     ///
     /// The launch directory's allocation and reading are Grove's; the lease
     /// supplies the namespace and cleans abandoned directories only after epoch
-    /// invalidation. The compatibility channel inside it remains keyed-launch's.
+    /// invalidation.
     pub(crate) fn control_dir(&self) -> &Path {
         &self.control_dir
     }
@@ -331,11 +323,11 @@ impl DriverLease {
     /// never releases it. The runner invokes Reaped before terminal recovery.
     pub(crate) fn supervise_launch<T>(
         &mut self,
-        run: impl FnOnce(&mut dyn FnMut(keyed_launch::LaunchEvent)) -> T,
+        run: impl FnOnce(&mut dyn FnMut(crate::ravel_job::LaunchEvent)) -> T,
     ) -> T {
         let mut started = false;
         let result = run(&mut |event| match event {
-            keyed_launch::LaunchEvent::Started => {
+            crate::ravel_job::LaunchEvent::Started => {
                 started = true;
                 if let Some(launch) = self.launch.as_mut() {
                     if let Err(error) = launch.started() {
@@ -343,7 +335,7 @@ impl DriverLease {
                     }
                 }
             }
-            keyed_launch::LaunchEvent::Reaped => {
+            crate::ravel_job::LaunchEvent::Reaped => {
                 self.launch.take();
             }
         });
@@ -966,6 +958,26 @@ fn write_record(
 
 #[cfg(test)]
 mod tests {
+    /// Run `program` through the shared function in the foreground shape, as the
+    /// loop driver does. Standard output goes to a scratch file, because the
+    /// function takes a regular file. These tests check the order of the notices.
+    /// They run without a terminal, so they do not check job control.
+    pub(super) fn launch_foreground(
+        program: impl Into<OsString>,
+        args: Vec<OsString>,
+        cwd: &Path,
+        launch_dir: &Path,
+        observer: &mut dyn FnMut(crate::ravel_job::LaunchEvent),
+    ) -> Result<crate::ravel_job::JobEnd, crate::ravel_job::JobError> {
+        crate::ravel_job::launch(
+            &crate::session_command::Argv::new(program.into(), args),
+            cwd,
+            tempfile::tempfile().unwrap(),
+            observer,
+            crate::ravel_job::Shape::Foreground { launch_dir },
+        )
+    }
+
     pub(super) fn witness_selection() -> crate::Selection {
         crate::Selection {
             path: PathBuf::from(".grove/01-impl--work-k1.md"),
@@ -1012,7 +1024,7 @@ mod tests {
         let mandatory = parse_epoch_record(&record).unwrap();
         assert_eq!(mandatory.process.nonce, lease.nonce);
         assert_eq!(mandatory.launch_dir.as_deref(), Some(signal.as_path()));
-        lease.supervise_launch(|event| event(keyed_launch::LaunchEvent::Started));
+        lease.supervise_launch(|event| event(crate::ravel_job::LaunchEvent::Started));
         assert!(matches!(
             crate::try_observe(temp.path(), &[None]).activity,
             crate::ActivityObservation::Running(_)
@@ -1087,8 +1099,8 @@ mod tests {
             "{record}"
         );
         let result = lease.supervise_launch(|event| {
-            event(keyed_launch::LaunchEvent::Started);
-            event(keyed_launch::LaunchEvent::Reaped);
+            event(crate::ravel_job::LaunchEvent::Started);
+            event(crate::ravel_job::LaunchEvent::Reaped);
             42
         });
         assert_eq!(result, 42);
@@ -1108,35 +1120,23 @@ mod tests {
             0
         );
         let root = crate::TreeLifetime::open(temp.path()).unwrap().unwrap();
-        let channel = keyed_launch::Channel::allocate(&lease.control_dir).unwrap();
+        let launch = LaunchDirectory::allocate(&lease.control_dir).unwrap();
         lease
-            .prepare_launch(root, &witness_selection(), channel.path())
+            .prepare_launch(root, &witness_selection(), launch.path())
             .unwrap();
         assert!(lease.launch.as_ref().unwrap().path().is_none());
-        assert!(admit_session(temp.path(), "test", ambient(channel.path())).is_ok());
+        assert!(admit_session(temp.path(), "test", ambient(launch.path())).is_ok());
         assert!(matches!(
             crate::try_observe(temp.path(), &[None]).activity,
             crate::ActivityObservation::Unavailable(_)
         ));
-        let argv = keyed_launch::Argv::new(
-            "/bin/sh".into(),
-            vec!["-c".into(), "echo launched > proof".into()],
-        );
         lease
             .supervise_launch(|observer| {
-                keyed_launch::run_observed(
-                    keyed_launch::Launch {
-                        argv: &argv,
-                        channel: Some((&channel, "TEST_EXIT_FILE")),
-                        scrub: &[],
-                        grant: &[],
-                        transparent: None,
-                        cwd: Some(temp.path()),
-                        escalation: keyed_launch::Escalation {
-                            grace: Duration::ZERO,
-                            kill_grace: Duration::ZERO,
-                        },
-                    },
+                launch_foreground(
+                    "/bin/sh",
+                    vec!["-c".into(), "echo launched > proof".into()],
+                    temp.path(),
+                    launch.path(),
                     observer,
                 )
             })
@@ -1144,7 +1144,7 @@ mod tests {
         assert_eq!(fs::read(temp.path().join("proof")).unwrap(), b"launched\n");
         assert!(lease.launch.is_none());
         lease.invalidate_session_epoch().unwrap();
-        channel.discard().unwrap();
+        launch.discard().unwrap();
     }
 
     #[test]
@@ -1165,7 +1165,7 @@ mod tests {
             let path = lease.launch.as_ref().unwrap().path().unwrap().to_path_buf();
             let directory = File::open(temp.path().join(".grove")).unwrap();
             let private = File::open(&path).unwrap();
-            lease.supervise_launch(|event| event(keyed_launch::LaunchEvent::Started));
+            lease.supervise_launch(|event| event(crate::ravel_job::LaunchEvent::Started));
             let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(move || {
                 let _lease = lease;
                 assert!(!unwind, "injected lease unwind");
@@ -1240,7 +1240,7 @@ mod tests {
             crate::try_read(temp.path()).unwrap(),
             crate::TryReading::Ready(_)
         ));
-        lease.supervise_launch(|event| event(keyed_launch::LaunchEvent::Started));
+        lease.supervise_launch(|event| event(crate::ravel_job::LaunchEvent::Started));
         lease.invalidate_session_epoch().unwrap();
         assert!(
             path.exists(),
@@ -1250,7 +1250,7 @@ mod tests {
             unsafe { libc::flock(private.as_raw_fd(), libc::LOCK_SH | libc::LOCK_NB) },
             0
         );
-        lease.supervise_launch(|event| event(keyed_launch::LaunchEvent::Reaped));
+        lease.supervise_launch(|event| event(crate::ravel_job::LaunchEvent::Reaped));
         assert_eq!(
             unsafe { libc::flock(private.as_raw_fd(), libc::LOCK_SH | libc::LOCK_NB) },
             0
@@ -1275,40 +1275,30 @@ mod tests {
             fs::create_dir(temp.path().join(".grove")).unwrap();
             let mut lease = DriverLease::acquire(&workspace_at(temp.path())).unwrap();
             let root = crate::TreeLifetime::open(temp.path()).unwrap().unwrap();
-            let channel = keyed_launch::Channel::allocate(&lease.control_dir).unwrap();
+            let launch = LaunchDirectory::allocate(&lease.control_dir).unwrap();
             lease
-                .prepare_launch(root, &witness_selection(), channel.path())
+                .prepare_launch(root, &witness_selection(), launch.path())
                 .unwrap();
             let directory = File::open(temp.path().join(".grove")).unwrap();
             let private_path = lease.launch.as_ref().unwrap().path().unwrap().to_path_buf();
             let private = File::open(&private_path).unwrap();
-            let argv = keyed_launch::Argv::new(program.into(), vec!["-c".into(), "true".into()]);
             let result = lease.supervise_launch(|observer| {
-                keyed_launch::run_observed(
-                    keyed_launch::Launch {
-                        argv: &argv,
-                        channel: Some((&channel, "TEST_EXIT_FILE")),
-                        scrub: &[],
-                        grant: &[],
-                        transparent: None,
-                        cwd: Some(temp.path()),
-                        escalation: keyed_launch::Escalation {
-                            grace: Duration::ZERO,
-                            kill_grace: Duration::ZERO,
-                        },
-                    },
+                launch_foreground(
+                    program,
+                    vec!["-c".into(), "true".into()],
+                    temp.path(),
+                    launch.path(),
                     &mut |event| {
                         observer(event);
                         assert_eq!(fs::read(&private_path).unwrap(), b"started\n");
-                        if event == keyed_launch::LaunchEvent::Started {
-                            keyed_launch::signal(channel.path()).unwrap();
-                            assert!(channel.path().exists());
+                        if event == crate::ravel_job::LaunchEvent::Started {
+                            assert!(launch.path().exists());
                         }
                         for file in [&directory, &private] {
                             let result = unsafe {
                                 libc::flock(file.as_raw_fd(), libc::LOCK_SH | libc::LOCK_NB)
                             };
-                            if event == keyed_launch::LaunchEvent::Started {
+                            if event == crate::ravel_job::LaunchEvent::Started {
                                 assert_ne!(result, 0);
                             } else {
                                 assert_eq!(result, 0, "Reaped releases before returning to runner");
@@ -1341,20 +1331,20 @@ mod tests {
 
             let root = crate::TreeLifetime::open(temp.path()).unwrap().unwrap();
             let result =
-                lease.prepare_launch_with(root, &witness_selection(), channel.path(), |_| {
+                lease.prepare_launch_with(root, &witness_selection(), launch.path(), |_| {
                     Err(anyhow::anyhow!("injected epoch acquisition failure"))
                 });
             assert!(result.is_err());
             assert!(lease.launch.is_none());
             let root = crate::TreeLifetime::open(temp.path()).unwrap().unwrap();
             let result =
-                lease.prepare_launch_with(root, &witness_selection(), channel.path(), |path| {
+                lease.prepare_launch_with(root, &witness_selection(), launch.path(), |path| {
                     // A read-only descriptor makes the mandatory epoch write fail.
                     Ok(File::open(path)?)
                 });
             assert!(result.is_err());
             assert!(lease.launch.is_none());
-            channel.discard().unwrap();
+            launch.discard().unwrap();
         }
     }
 
@@ -1375,7 +1365,7 @@ mod tests {
             .unwrap();
         let unwind = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
             lease.supervise_launch(|observer| {
-                observer(keyed_launch::LaunchEvent::Started);
+                observer(crate::ravel_job::LaunchEvent::Started);
                 panic!("injected runner unwind");
             });
         }));
@@ -1383,7 +1373,7 @@ mod tests {
         assert!(lease.launch.is_some());
         let unwind = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
             lease.supervise_launch(|observer| {
-                observer(keyed_launch::LaunchEvent::Reaped);
+                observer(crate::ravel_job::LaunchEvent::Reaped);
                 panic!("failure after confirmed reap, before helper return");
             });
         }));
@@ -1469,10 +1459,10 @@ mod tests {
     fn lease_root_owner_retains_unconfirmed_reap_and_releases_other_returns() {
         for events in [
             vec![],
-            vec![keyed_launch::LaunchEvent::Started],
+            vec![crate::ravel_job::LaunchEvent::Started],
             vec![
-                keyed_launch::LaunchEvent::Started,
-                keyed_launch::LaunchEvent::Reaped,
+                crate::ravel_job::LaunchEvent::Started,
+                crate::ravel_job::LaunchEvent::Reaped,
             ],
         ] {
             let temp = TempDir::new().unwrap();
@@ -1491,7 +1481,7 @@ mod tests {
                 Err(anyhow::anyhow!("injected supervisor failure"))
             });
             assert!(result.is_err());
-            let unconfirmed = events == [keyed_launch::LaunchEvent::Started];
+            let unconfirmed = events == [crate::ravel_job::LaunchEvent::Started];
             assert_eq!(lease.launch.is_some(), unconfirmed, "{events:?}");
             // Neither helper return nor epoch invalidation is evidence of reap.
             lease.invalidate_session_epoch().unwrap();
@@ -1507,6 +1497,7 @@ mod tests {
     }
 
     use super::*;
+    use crate::launch_directory::LaunchDirectory;
     use std::cell::{Cell, RefCell};
     use std::process::Command;
     use std::sync::mpsc;

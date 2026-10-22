@@ -16,12 +16,12 @@
 | `source-tree-lifecycle` | `crates/grove-loop/src/tree_lifecycle.rs` | 2,745 |
 | `source-verbs` | `crates/grove-loop/src/verbs.rs` | 331 |
 | `source-driver` | `crates/grove-loop/src/driver.rs` | 59 |
-| `source-driver-lease` | `crates/grove-loop/src/driver_lease.rs` | 2,083 |
+| `source-driver-lease` | `crates/grove-loop/src/driver_lease.rs` | 2,074 |
 | `source-prompt` | `crates/grove-loop/src/prompt.rs` | 241 |
-| `source-loop-driver` | `crates/grove-loop/src/loop_driver.rs` | 912 |
+| `source-loop-driver` | `crates/grove-loop/src/loop_driver.rs` | 918 |
 | `source-observation` | `crates/grove-loop/src/observation.rs` | 218 |
-| `source-runtime-observation` | `crates/grove-loop/src/driver_lease/observation.rs` | 2,146 |
-| `source-witnesses` | `crates/grove-loop/src/driver_lease/witnesses.rs` | 717 |
+| `source-runtime-observation` | `crates/grove-loop/src/driver_lease/observation.rs` | 2,117 |
+| `source-witnesses` | `crates/grove-loop/src/driver_lease/witnesses.rs` | 697 |
 | `source-launch-directory` | `crates/grove-loop/src/launch_directory.rs` | 134 |
 | `source-session-result` | `crates/grove-loop/src/session_result.rs` | 105 |
 | `source-session-command` | `crates/grove-loop/src/session_command.rs` | 143 |
@@ -77,25 +77,25 @@
 <!-- insert «driver-operations» -->
 <!-- /source-root -->
 
-<!-- source-root «source-driver-lease» source="crates/grove-loop/src/driver_lease.rs" lines="1-2083" -->
+<!-- source-root «source-driver-lease» source="crates/grove-loop/src/driver_lease.rs" lines="1-2074" -->
 <!-- insert «lease-and-epoch» -->
 <!-- insert «lease-tests» -->
 <!-- /source-root -->
 <!-- source-root «source-prompt» source="crates/grove-loop/src/prompt.rs" lines="1-241" -->
 <!-- insert «the-prompt-core» -->
 <!-- /source-root -->
-<!-- source-root «source-loop-driver» source="crates/grove-loop/src/loop_driver.rs" lines="1-912" -->
+<!-- source-root «source-loop-driver» source="crates/grove-loop/src/loop_driver.rs" lines="1-918" -->
 <!-- insert «loop-driver» -->
 <!-- /source-root -->
 
 <!-- source-root «source-observation» source="crates/grove-loop/src/observation.rs" lines="1-218" -->
 <!-- insert «observation-tree» -->
 <!-- /source-root -->
-<!-- source-root «source-runtime-observation» source="crates/grove-loop/src/driver_lease/observation.rs" lines="1-2146" -->
+<!-- source-root «source-runtime-observation» source="crates/grove-loop/src/driver_lease/observation.rs" lines="1-2117" -->
 <!-- insert «runtime-observer» -->
 <!-- /source-root -->
 
-<!-- source-root «source-witnesses» source="crates/grove-loop/src/driver_lease/witnesses.rs" lines="1-717" -->
+<!-- source-root «source-witnesses» source="crates/grove-loop/src/driver_lease/witnesses.rs" lines="1-697" -->
 <!-- insert «launch-witnesses-production» -->
 <!-- insert «witness-tests» -->
 <!-- /source-root -->
@@ -152,14 +152,14 @@
 | `retire-and-prune-tests` | `source-tree-lifecycle` | `marked-in-place` | `2255-2745` | 491 | `resolved` |
 | `the-twelve-verbs` | `source-verbs` | `twelve-not-fourteen` | `1-331` | 331 | `resolved` |
 | `driver-operations` | `source-driver` | `twelve-not-fourteen` | `1-59` | 59 | `resolved` |
-| `lease-and-epoch` | `source-driver-lease` | `one-per-working-tree` | `1-966` | 966 | `resolved` |
-| `lease-tests` | `source-driver-lease` | `which-calls-are-admitted` | `967-2083` | 1,117 | `resolved` |
+| `lease-and-epoch` | `source-driver-lease` | `one-per-working-tree` | `1-958` | 958 | `resolved` |
+| `lease-tests` | `source-driver-lease` | `which-calls-are-admitted` | `959-2074` | 1,116 | `resolved` |
 | `the-prompt-core` | `source-prompt` | `too-late-to-say-later` | `1-241` | 241 | `resolved` |
-| `loop-driver` | `source-loop-driver` | `four-things-a-runner-cannot-choose` | `1-912` | 912 | `resolved` |
+| `loop-driver` | `source-loop-driver` | `four-things-a-runner-cannot-choose` | `1-918` | 918 | `resolved` |
 | `observation-tree` | `source-observation` | `one-spelling-of-grove` | `1-218` | 218 | `resolved` |
-| `runtime-observer` | `source-runtime-observation` | `which-calls-are-admitted` | `1-2146` | 2,146 | `resolved` |
+| `runtime-observer` | `source-runtime-observation` | `which-calls-are-admitted` | `1-2117` | 2,117 | `resolved` |
 | `launch-witnesses-production` | `source-witnesses` | `one-per-working-tree` | `1-175` | 175 | `resolved` |
-| `witness-tests` | `source-witnesses` | `which-calls-are-admitted` | `176-717` | 542 | `resolved` |
+| `witness-tests` | `source-witnesses` | `which-calls-are-admitted` | `176-697` | 522 | `resolved` |
 | `launch-control-directory` | `source-launch-directory` | `four-things-a-runner-cannot-choose` | `1-134` | 134 | `resolved` |
 | `held-session-result` | `source-session-result` | `four-things-a-runner-cannot-choose` | `1-105` | 105 | `resolved` |
 | `public-session-commands` | `source-session-command` | `four-things-a-runner-cannot-choose` | `1-143` | 143 | `resolved` |
@@ -545,9 +545,9 @@
 | `driver-imports` | `the-verbs` | `source-driver` | `literal` | `twelve-not-fourteen` | `27-32` | `driver-operations` | `—` |
 | `driver-transition-to-current` | `the-verbs` | `source-driver` | `literal` | `twelve-not-fourteen` | `33-44` | `driver-operations` | `—` |
 | `driver-materialize-finish` | `the-verbs` | `source-driver` | `literal` | `twelve-not-fourteen` | `45-59` | `driver-operations` | `—` |
-| `source-driver-lease` | `source-index` | `source-driver-lease` | `root` | `—` | `1-2083` | `—` | `lease-and-epoch`, `lease-tests` |
+| `source-driver-lease` | `source-index` | `source-driver-lease` | `root` | `—` | `1-2074` | `—` | `lease-and-epoch`, `lease-tests` |
 | `lease-module-header` | `the-lease` | `source-driver-lease` | `literal` | `one-per-working-tree` | `1-9` | `lease-and-epoch` | `—` |
-| `lease-and-epoch` | `the-lease` | `source-driver-lease` | `composite` | `one-per-working-tree` | `1-966` | `source-driver-lease` | `lease-module-header`, `lease-imports`, `lease-namespace`, `lease-names-and-bounds`, `lease-file-identity`, `lease-process-record`, `lease-epoch-record`, `lease-lock-mode`, `lease-lock-mode-impl`, `lease-file-identity-impl`, `lease-driver-lease-type`, `lease-session-epoch-guard-type`, `lease-require-launch-dir`, `lease-acquire`, `lease-acquire-with`, `lease-worktree-root`, `lease-control-dir`, `lease-epoch-transitions`, `lease-launch-lifetime`, `lease-revalidate`, `lease-write-epoch-record`, `lease-initialize-epoch-record`, `lease-write-epoch-contents`, `lease-acquire-lease-file`, `lease-acquire-epoch-file`, `lease-contention-diagnostic`, `lease-acquire-epoch-file-with`, `lease-acquire-lease-file-with-hook`, `lease-lock-exclusively`, `lease-close-on-exec`, `lease-random-nonce`, `lease-hex-nonce`, `lease-encode-path`, `lease-decode-path`, `lease-record-field`, `lease-parse-process-record`, `lease-read-record`, `lease-read-epoch-record`, `lease-probe-live-lease`, `lease-probe-with-hook`, `lease-admit-ambient-session`, `lease-ambient-launch-dir`, `lease-launch-dir-from`, `lease-admit-session`, `lease-write-record` |
+| `lease-and-epoch` | `the-lease` | `source-driver-lease` | `composite` | `one-per-working-tree` | `1-958` | `source-driver-lease` | `lease-module-header`, `lease-imports`, `lease-namespace`, `lease-names-and-bounds`, `lease-file-identity`, `lease-process-record`, `lease-epoch-record`, `lease-lock-mode`, `lease-lock-mode-impl`, `lease-file-identity-impl`, `lease-driver-lease-type`, `lease-session-epoch-guard-type`, `lease-require-launch-dir`, `lease-acquire`, `lease-acquire-with`, `lease-worktree-root`, `lease-control-dir`, `lease-epoch-transitions`, `lease-launch-lifetime`, `lease-revalidate`, `lease-write-epoch-record`, `lease-initialize-epoch-record`, `lease-write-epoch-contents`, `lease-acquire-lease-file`, `lease-acquire-epoch-file`, `lease-contention-diagnostic`, `lease-acquire-epoch-file-with`, `lease-acquire-lease-file-with-hook`, `lease-lock-exclusively`, `lease-close-on-exec`, `lease-random-nonce`, `lease-hex-nonce`, `lease-encode-path`, `lease-decode-path`, `lease-record-field`, `lease-parse-process-record`, `lease-read-record`, `lease-read-epoch-record`, `lease-probe-live-lease`, `lease-probe-with-hook`, `lease-admit-ambient-session`, `lease-ambient-launch-dir`, `lease-launch-dir-from`, `lease-admit-session`, `lease-write-record` |
 | `lease-imports` | `the-lease` | `source-driver-lease` | `literal` | `one-per-working-tree` | `10-24` | `lease-and-epoch` | `—` |
 | `lease-namespace` | `the-lease` | `source-driver-lease` | `literal` | `one-per-working-tree` | `25-33` | `lease-and-epoch` | `—` |
 | `lease-names-and-bounds` | `the-lease` | `source-driver-lease` | `literal` | `one-per-working-tree` | `34-39` | `lease-and-epoch` | `—` |
@@ -561,63 +561,63 @@
 | `lease-session-epoch-guard-type` | `the-lease` | `source-driver-lease` | `literal` | `one-per-working-tree` | `108-113` | `lease-and-epoch` | `—` |
 | `lease-require-launch-dir` | `the-lease` | `source-driver-lease` | `literal` | `one-per-working-tree` | `114-126` | `lease-and-epoch` | `—` |
 | `lease-acquire` | `the-lease` | `source-driver-lease` | `literal` | `one-per-working-tree` | `127-138` | `lease-and-epoch` | `—` |
-| `lease-acquire-with` | `the-lease` | `source-driver-lease` | `literal` | `one-per-working-tree` | `139-199` | `lease-and-epoch` | `—` |
-| `lease-worktree-root` | `the-lease` | `source-driver-lease` | `literal` | `one-per-working-tree` | `200-206` | `lease-and-epoch` | `—` |
-| `lease-control-dir` | `the-lease` | `source-driver-lease` | `literal` | `one-per-working-tree` | `207-216` | `lease-and-epoch` | `—` |
-| `lease-epoch-transitions` | `the-lease` | `source-driver-lease` | `literal` | `one-per-working-tree` | `217-234` | `lease-and-epoch` | `—` |
-| `lease-launch-lifetime` | `the-lease` | `source-driver-lease` | `literal` | `one-per-working-tree` | `235-354` | `lease-and-epoch` | `—` |
-| `lease-revalidate` | `the-lease` | `source-driver-lease` | `literal` | `one-per-working-tree` | `355-395` | `lease-and-epoch` | `—` |
-| `lease-write-epoch-record` | `the-lease` | `source-driver-lease` | `literal` | `one-per-working-tree` | `396-407` | `lease-and-epoch` | `—` |
-| `lease-initialize-epoch-record` | `the-lease` | `source-driver-lease` | `literal` | `one-per-working-tree` | `408-436` | `lease-and-epoch` | `—` |
-| `lease-write-epoch-contents` | `the-lease` | `source-driver-lease` | `literal` | `one-per-working-tree` | `437-466` | `lease-and-epoch` | `—` |
-| `lease-acquire-lease-file` | `the-lease` | `source-driver-lease` | `literal` | `one-per-working-tree` | `467-470` | `lease-and-epoch` | `—` |
-| `lease-acquire-epoch-file` | `the-lease` | `source-driver-lease` | `literal` | `one-per-working-tree` | `471-486` | `lease-and-epoch` | `—` |
-| `lease-contention-diagnostic` | `the-lease` | `source-driver-lease` | `literal` | `one-per-working-tree` | `487-493` | `lease-and-epoch` | `—` |
-| `lease-acquire-epoch-file-with` | `the-lease` | `source-driver-lease` | `literal` | `one-per-working-tree` | `494-580` | `lease-and-epoch` | `—` |
-| `lease-acquire-lease-file-with-hook` | `the-lease` | `source-driver-lease` | `literal` | `one-per-working-tree` | `581-634` | `lease-and-epoch` | `—` |
-| `lease-lock-exclusively` | `the-lease` | `source-driver-lease` | `literal` | `one-per-working-tree` | `635-652` | `lease-and-epoch` | `—` |
-| `lease-close-on-exec` | `the-lease` | `source-driver-lease` | `literal` | `one-per-working-tree` | `653-667` | `lease-and-epoch` | `—` |
-| `lease-random-nonce` | `the-lease` | `source-driver-lease` | `literal` | `one-per-working-tree` | `668-676` | `lease-and-epoch` | `—` |
-| `lease-hex-nonce` | `the-lease` | `source-driver-lease` | `literal` | `one-per-working-tree` | `677-684` | `lease-and-epoch` | `—` |
-| `lease-encode-path` | `the-lease` | `source-driver-lease` | `literal` | `one-per-working-tree` | `685-692` | `lease-and-epoch` | `—` |
-| `lease-decode-path` | `the-lease` | `source-driver-lease` | `literal` | `one-per-working-tree` | `693-706` | `lease-and-epoch` | `—` |
-| `lease-record-field` | `the-lease` | `source-driver-lease` | `literal` | `one-per-working-tree` | `707-718` | `lease-and-epoch` | `—` |
-| `lease-parse-process-record` | `the-lease` | `source-driver-lease` | `literal` | `one-per-working-tree` | `719-741` | `lease-and-epoch` | `—` |
-| `lease-read-record` | `the-lease` | `source-driver-lease` | `literal` | `one-per-working-tree` | `742-750` | `lease-and-epoch` | `—` |
-| `lease-read-epoch-record` | `the-lease` | `source-driver-lease` | `literal` | `one-per-working-tree` | `751-782` | `lease-and-epoch` | `—` |
-| `lease-probe-live-lease` | `the-lease` | `source-driver-lease` | `literal` | `one-per-working-tree` | `783-786` | `lease-and-epoch` | `—` |
-| `lease-probe-with-hook` | `the-lease` | `source-driver-lease` | `literal` | `one-per-working-tree` | `787-850` | `lease-and-epoch` | `—` |
-| `lease-admit-ambient-session` | `the-lease` | `source-driver-lease` | `literal` | `one-per-working-tree` | `851-868` | `lease-and-epoch` | `—` |
-| `lease-ambient-launch-dir` | `the-lease` | `source-driver-lease` | `literal` | `one-per-working-tree` | `869-879` | `lease-and-epoch` | `—` |
-| `lease-launch-dir-from` | `the-lease` | `source-driver-lease` | `literal` | `one-per-working-tree` | `880-887` | `lease-and-epoch` | `—` |
-| `lease-admit-session` | `the-lease` | `source-driver-lease` | `literal` | `one-per-working-tree` | `888-943` | `lease-and-epoch` | `—` |
-| `lease-write-record` | `the-lease` | `source-driver-lease` | `literal` | `one-per-working-tree` | `944-966` | `lease-and-epoch` | `—` |
-| `epoch-tests-module-open` | `the-epoch` | `source-driver-lease` | `literal` | `which-calls-are-admitted` | `967-968` | `lease-tests` | `—` |
-| `lease-tests` | `the-epoch` | `source-driver-lease` | `composite` | `which-calls-are-admitted` | `967-2083` | `source-driver-lease` | `epoch-tests-module-open`, `epoch-tests-launch-owner`, `epoch-tests-workspace-fixture`, `epoch-tests-imports`, `epoch-tests-ambient-fixture`, `epoch-tests-fork-guard`, `epoch-tests-replace-locked`, `epoch-tests-retry-until-current`, `epoch-tests-fails-closed`, `epoch-tests-close-on-exec`, `epoch-tests-stable-record`, `epoch-tests-event-order`, `epoch-tests-orphaned-timeout`, `epoch-tests-contention-text`, `epoch-tests-manual-operations`, `epoch-tests-nonempty-ambient`, `epoch-tests-old-finishes`, `epoch-tests-record-until-handoff`, `epoch-tests-foreign-worktree`, `epoch-tests-inactive-reported`, `epoch-tests-rotated-signal`, `epoch-tests-separator-bytes`, `epoch-tests-probe-releases`, `epoch-tests-active-no-lease`, `epoch-tests-malformed` |
-| `epoch-tests-launch-owner` | `the-epoch` | `source-driver-lease` | `literal` | `which-calls-are-admitted` | `969-1501` | `lease-tests` | `—` |
-| `epoch-tests-workspace-fixture` | `the-epoch` | `source-driver-lease` | `literal` | `which-calls-are-admitted` | `1502-1508` | `lease-tests` | `—` |
-| `epoch-tests-imports` | `the-epoch` | `source-driver-lease` | `literal` | `which-calls-are-admitted` | `1509-1518` | `lease-tests` | `—` |
-| `epoch-tests-ambient-fixture` | `the-epoch` | `source-driver-lease` | `literal` | `which-calls-are-admitted` | `1519-1528` | `lease-tests` | `—` |
-| `epoch-tests-fork-guard` | `the-epoch` | `source-driver-lease` | `literal` | `which-calls-are-admitted` | `1529-1564` | `lease-tests` | `—` |
-| `epoch-tests-replace-locked` | `the-epoch` | `source-driver-lease` | `literal` | `which-calls-are-admitted` | `1565-1570` | `lease-tests` | `—` |
-| `epoch-tests-retry-until-current` | `the-epoch` | `source-driver-lease` | `literal` | `which-calls-are-admitted` | `1571-1595` | `lease-tests` | `—` |
-| `epoch-tests-fails-closed` | `the-epoch` | `source-driver-lease` | `literal` | `which-calls-are-admitted` | `1596-1619` | `lease-tests` | `—` |
-| `epoch-tests-close-on-exec` | `the-epoch` | `source-driver-lease` | `literal` | `which-calls-are-admitted` | `1620-1640` | `lease-tests` | `—` |
-| `epoch-tests-stable-record` | `the-epoch` | `source-driver-lease` | `literal` | `which-calls-are-admitted` | `1641-1700` | `lease-tests` | `—` |
-| `epoch-tests-event-order` | `the-epoch` | `source-driver-lease` | `literal` | `which-calls-are-admitted` | `1701-1741` | `lease-tests` | `—` |
-| `epoch-tests-orphaned-timeout` | `the-epoch` | `source-driver-lease` | `literal` | `which-calls-are-admitted` | `1742-1780` | `lease-tests` | `—` |
-| `epoch-tests-contention-text` | `the-epoch` | `source-driver-lease` | `literal` | `which-calls-are-admitted` | `1781-1791` | `lease-tests` | `—` |
-| `epoch-tests-manual-operations` | `the-epoch` | `source-driver-lease` | `literal` | `which-calls-are-admitted` | `1792-1799` | `lease-tests` | `—` |
-| `epoch-tests-nonempty-ambient` | `the-epoch` | `source-driver-lease` | `literal` | `which-calls-are-admitted` | `1800-1817` | `lease-tests` | `—` |
-| `epoch-tests-old-finishes` | `the-epoch` | `source-driver-lease` | `literal` | `which-calls-are-admitted` | `1818-1877` | `lease-tests` | `—` |
-| `epoch-tests-record-until-handoff` | `the-epoch` | `source-driver-lease` | `literal` | `which-calls-are-admitted` | `1878-1920` | `lease-tests` | `—` |
-| `epoch-tests-foreign-worktree` | `the-epoch` | `source-driver-lease` | `literal` | `which-calls-are-admitted` | `1921-1945` | `lease-tests` | `—` |
-| `epoch-tests-inactive-reported` | `the-epoch` | `source-driver-lease` | `literal` | `which-calls-are-admitted` | `1946-1960` | `lease-tests` | `—` |
-| `epoch-tests-rotated-signal` | `the-epoch` | `source-driver-lease` | `literal` | `which-calls-are-admitted` | `1961-1984` | `lease-tests` | `—` |
-| `epoch-tests-separator-bytes` | `the-epoch` | `source-driver-lease` | `literal` | `which-calls-are-admitted` | `1985-2004` | `lease-tests` | `—` |
-| `epoch-tests-probe-releases` | `the-epoch` | `source-driver-lease` | `literal` | `which-calls-are-admitted` | `2005-2046` | `lease-tests` | `—` |
-| `epoch-tests-active-no-lease` | `the-epoch` | `source-driver-lease` | `literal` | `which-calls-are-admitted` | `2047-2066` | `lease-tests` | `—` |
-| `epoch-tests-malformed` | `the-epoch` | `source-driver-lease` | `literal` | `which-calls-are-admitted` | `2067-2083` | `lease-tests` | `—` |
+| `lease-acquire-with` | `the-lease` | `source-driver-lease` | `literal` | `one-per-working-tree` | `139-191` | `lease-and-epoch` | `—` |
+| `lease-worktree-root` | `the-lease` | `source-driver-lease` | `literal` | `one-per-working-tree` | `192-198` | `lease-and-epoch` | `—` |
+| `lease-control-dir` | `the-lease` | `source-driver-lease` | `literal` | `one-per-working-tree` | `199-208` | `lease-and-epoch` | `—` |
+| `lease-epoch-transitions` | `the-lease` | `source-driver-lease` | `literal` | `one-per-working-tree` | `209-226` | `lease-and-epoch` | `—` |
+| `lease-launch-lifetime` | `the-lease` | `source-driver-lease` | `literal` | `one-per-working-tree` | `227-346` | `lease-and-epoch` | `—` |
+| `lease-revalidate` | `the-lease` | `source-driver-lease` | `literal` | `one-per-working-tree` | `347-387` | `lease-and-epoch` | `—` |
+| `lease-write-epoch-record` | `the-lease` | `source-driver-lease` | `literal` | `one-per-working-tree` | `388-399` | `lease-and-epoch` | `—` |
+| `lease-initialize-epoch-record` | `the-lease` | `source-driver-lease` | `literal` | `one-per-working-tree` | `400-428` | `lease-and-epoch` | `—` |
+| `lease-write-epoch-contents` | `the-lease` | `source-driver-lease` | `literal` | `one-per-working-tree` | `429-458` | `lease-and-epoch` | `—` |
+| `lease-acquire-lease-file` | `the-lease` | `source-driver-lease` | `literal` | `one-per-working-tree` | `459-462` | `lease-and-epoch` | `—` |
+| `lease-acquire-epoch-file` | `the-lease` | `source-driver-lease` | `literal` | `one-per-working-tree` | `463-478` | `lease-and-epoch` | `—` |
+| `lease-contention-diagnostic` | `the-lease` | `source-driver-lease` | `literal` | `one-per-working-tree` | `479-485` | `lease-and-epoch` | `—` |
+| `lease-acquire-epoch-file-with` | `the-lease` | `source-driver-lease` | `literal` | `one-per-working-tree` | `486-572` | `lease-and-epoch` | `—` |
+| `lease-acquire-lease-file-with-hook` | `the-lease` | `source-driver-lease` | `literal` | `one-per-working-tree` | `573-626` | `lease-and-epoch` | `—` |
+| `lease-lock-exclusively` | `the-lease` | `source-driver-lease` | `literal` | `one-per-working-tree` | `627-644` | `lease-and-epoch` | `—` |
+| `lease-close-on-exec` | `the-lease` | `source-driver-lease` | `literal` | `one-per-working-tree` | `645-659` | `lease-and-epoch` | `—` |
+| `lease-random-nonce` | `the-lease` | `source-driver-lease` | `literal` | `one-per-working-tree` | `660-668` | `lease-and-epoch` | `—` |
+| `lease-hex-nonce` | `the-lease` | `source-driver-lease` | `literal` | `one-per-working-tree` | `669-676` | `lease-and-epoch` | `—` |
+| `lease-encode-path` | `the-lease` | `source-driver-lease` | `literal` | `one-per-working-tree` | `677-684` | `lease-and-epoch` | `—` |
+| `lease-decode-path` | `the-lease` | `source-driver-lease` | `literal` | `one-per-working-tree` | `685-698` | `lease-and-epoch` | `—` |
+| `lease-record-field` | `the-lease` | `source-driver-lease` | `literal` | `one-per-working-tree` | `699-710` | `lease-and-epoch` | `—` |
+| `lease-parse-process-record` | `the-lease` | `source-driver-lease` | `literal` | `one-per-working-tree` | `711-733` | `lease-and-epoch` | `—` |
+| `lease-read-record` | `the-lease` | `source-driver-lease` | `literal` | `one-per-working-tree` | `734-742` | `lease-and-epoch` | `—` |
+| `lease-read-epoch-record` | `the-lease` | `source-driver-lease` | `literal` | `one-per-working-tree` | `743-774` | `lease-and-epoch` | `—` |
+| `lease-probe-live-lease` | `the-lease` | `source-driver-lease` | `literal` | `one-per-working-tree` | `775-778` | `lease-and-epoch` | `—` |
+| `lease-probe-with-hook` | `the-lease` | `source-driver-lease` | `literal` | `one-per-working-tree` | `779-842` | `lease-and-epoch` | `—` |
+| `lease-admit-ambient-session` | `the-lease` | `source-driver-lease` | `literal` | `one-per-working-tree` | `843-860` | `lease-and-epoch` | `—` |
+| `lease-ambient-launch-dir` | `the-lease` | `source-driver-lease` | `literal` | `one-per-working-tree` | `861-871` | `lease-and-epoch` | `—` |
+| `lease-launch-dir-from` | `the-lease` | `source-driver-lease` | `literal` | `one-per-working-tree` | `872-879` | `lease-and-epoch` | `—` |
+| `lease-admit-session` | `the-lease` | `source-driver-lease` | `literal` | `one-per-working-tree` | `880-935` | `lease-and-epoch` | `—` |
+| `lease-write-record` | `the-lease` | `source-driver-lease` | `literal` | `one-per-working-tree` | `936-958` | `lease-and-epoch` | `—` |
+| `epoch-tests-module-open` | `the-epoch` | `source-driver-lease` | `literal` | `which-calls-are-admitted` | `959-960` | `lease-tests` | `—` |
+| `lease-tests` | `the-epoch` | `source-driver-lease` | `composite` | `which-calls-are-admitted` | `959-2074` | `source-driver-lease` | `epoch-tests-module-open`, `epoch-tests-launch-owner`, `epoch-tests-workspace-fixture`, `epoch-tests-imports`, `epoch-tests-ambient-fixture`, `epoch-tests-fork-guard`, `epoch-tests-replace-locked`, `epoch-tests-retry-until-current`, `epoch-tests-fails-closed`, `epoch-tests-close-on-exec`, `epoch-tests-stable-record`, `epoch-tests-event-order`, `epoch-tests-orphaned-timeout`, `epoch-tests-contention-text`, `epoch-tests-manual-operations`, `epoch-tests-nonempty-ambient`, `epoch-tests-old-finishes`, `epoch-tests-record-until-handoff`, `epoch-tests-foreign-worktree`, `epoch-tests-inactive-reported`, `epoch-tests-rotated-signal`, `epoch-tests-separator-bytes`, `epoch-tests-probe-releases`, `epoch-tests-active-no-lease`, `epoch-tests-malformed` |
+| `epoch-tests-launch-owner` | `the-epoch` | `source-driver-lease` | `literal` | `which-calls-are-admitted` | `961-1491` | `lease-tests` | `—` |
+| `epoch-tests-workspace-fixture` | `the-epoch` | `source-driver-lease` | `literal` | `which-calls-are-admitted` | `1492-1498` | `lease-tests` | `—` |
+| `epoch-tests-imports` | `the-epoch` | `source-driver-lease` | `literal` | `which-calls-are-admitted` | `1499-1509` | `lease-tests` | `—` |
+| `epoch-tests-ambient-fixture` | `the-epoch` | `source-driver-lease` | `literal` | `which-calls-are-admitted` | `1510-1519` | `lease-tests` | `—` |
+| `epoch-tests-fork-guard` | `the-epoch` | `source-driver-lease` | `literal` | `which-calls-are-admitted` | `1520-1555` | `lease-tests` | `—` |
+| `epoch-tests-replace-locked` | `the-epoch` | `source-driver-lease` | `literal` | `which-calls-are-admitted` | `1556-1561` | `lease-tests` | `—` |
+| `epoch-tests-retry-until-current` | `the-epoch` | `source-driver-lease` | `literal` | `which-calls-are-admitted` | `1562-1586` | `lease-tests` | `—` |
+| `epoch-tests-fails-closed` | `the-epoch` | `source-driver-lease` | `literal` | `which-calls-are-admitted` | `1587-1610` | `lease-tests` | `—` |
+| `epoch-tests-close-on-exec` | `the-epoch` | `source-driver-lease` | `literal` | `which-calls-are-admitted` | `1611-1631` | `lease-tests` | `—` |
+| `epoch-tests-stable-record` | `the-epoch` | `source-driver-lease` | `literal` | `which-calls-are-admitted` | `1632-1691` | `lease-tests` | `—` |
+| `epoch-tests-event-order` | `the-epoch` | `source-driver-lease` | `literal` | `which-calls-are-admitted` | `1692-1732` | `lease-tests` | `—` |
+| `epoch-tests-orphaned-timeout` | `the-epoch` | `source-driver-lease` | `literal` | `which-calls-are-admitted` | `1733-1771` | `lease-tests` | `—` |
+| `epoch-tests-contention-text` | `the-epoch` | `source-driver-lease` | `literal` | `which-calls-are-admitted` | `1772-1782` | `lease-tests` | `—` |
+| `epoch-tests-manual-operations` | `the-epoch` | `source-driver-lease` | `literal` | `which-calls-are-admitted` | `1783-1790` | `lease-tests` | `—` |
+| `epoch-tests-nonempty-ambient` | `the-epoch` | `source-driver-lease` | `literal` | `which-calls-are-admitted` | `1791-1808` | `lease-tests` | `—` |
+| `epoch-tests-old-finishes` | `the-epoch` | `source-driver-lease` | `literal` | `which-calls-are-admitted` | `1809-1868` | `lease-tests` | `—` |
+| `epoch-tests-record-until-handoff` | `the-epoch` | `source-driver-lease` | `literal` | `which-calls-are-admitted` | `1869-1911` | `lease-tests` | `—` |
+| `epoch-tests-foreign-worktree` | `the-epoch` | `source-driver-lease` | `literal` | `which-calls-are-admitted` | `1912-1936` | `lease-tests` | `—` |
+| `epoch-tests-inactive-reported` | `the-epoch` | `source-driver-lease` | `literal` | `which-calls-are-admitted` | `1937-1951` | `lease-tests` | `—` |
+| `epoch-tests-rotated-signal` | `the-epoch` | `source-driver-lease` | `literal` | `which-calls-are-admitted` | `1952-1975` | `lease-tests` | `—` |
+| `epoch-tests-separator-bytes` | `the-epoch` | `source-driver-lease` | `literal` | `which-calls-are-admitted` | `1976-1995` | `lease-tests` | `—` |
+| `epoch-tests-probe-releases` | `the-epoch` | `source-driver-lease` | `literal` | `which-calls-are-admitted` | `1996-2037` | `lease-tests` | `—` |
+| `epoch-tests-active-no-lease` | `the-epoch` | `source-driver-lease` | `literal` | `which-calls-are-admitted` | `2038-2057` | `lease-tests` | `—` |
+| `epoch-tests-malformed` | `the-epoch` | `source-driver-lease` | `literal` | `which-calls-are-admitted` | `2058-2074` | `lease-tests` | `—` |
 | `source-prompt` | `source-index` | `source-prompt` | `root` | `—` | `1-241` | `—` | `the-prompt-core` |
 | `core-header` | `the-core` | `source-prompt` | `literal` | `too-late-to-say-later` | `1-41` | `the-prompt-core` | `—` |
 | `the-prompt-core` | `the-core` | `source-prompt` | `composite` | `too-late-to-say-later` | `1-241` | `source-prompt` | `core-header`, `core-imports`, `core-plugin`, `core-skill-name`, `core-load-instruction`, `core-runtime-facts`, `core-signalling-contract`, `core-mandate`, `core-compose`, `core-stated-vcs` |
@@ -630,9 +630,9 @@
 | `core-mandate` | `the-core` | `source-prompt` | `literal` | `too-late-to-say-later` | `161-187` | `the-prompt-core` | `—` |
 | `core-compose` | `the-core` | `source-prompt` | `literal` | `too-late-to-say-later` | `188-218` | `the-prompt-core` | `—` |
 | `core-stated-vcs` | `the-core` | `source-prompt` | `literal` | `too-late-to-say-later` | `219-241` | `the-prompt-core` | `—` |
-| `source-loop-driver` | `source-index` | `source-loop-driver` | `root` | `—` | `1-912` | `—` | `loop-driver` |
+| `source-loop-driver` | `source-index` | `source-loop-driver` | `root` | `—` | `1-918` | `—` | `loop-driver` |
 | `loop-header` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `1-12` | `loop-driver` | `—` |
-| `loop-driver` | `the-loop` | `source-loop-driver` | `composite` | `four-things-a-runner-cannot-choose` | `1-912` | `source-loop-driver` | `loop-header`, `loop-imports`, `loop-control-env`, `loop-scrub-list`, `loop-scrub-helper`, `loop-outcome`, `loop-run`, `loop-drive-open`, `loop-drive-interrupt`, `loop-drive-selection`, `loop-drive-invocation`, `loop-drive-launch`, `loop-drive-discard`, `loop-drive-survivor`, `loop-drive-endings`, `loop-session-prompt`, `loop-launch-contract`, `loop-launch-spawn`, `loop-handoff`, `loop-escalation`, `loop-reset-terminal`, `loop-ignore-interrupts`, `loop-picked`, `loop-tests-open`, `loop-test-handoff-preserves`, `loop-test-ordering` |
+| `loop-driver` | `the-loop` | `source-loop-driver` | `composite` | `four-things-a-runner-cannot-choose` | `1-918` | `source-loop-driver` | `loop-header`, `loop-imports`, `loop-control-env`, `loop-scrub-list`, `loop-scrub-helper`, `loop-outcome`, `loop-run`, `loop-drive-open`, `loop-drive-interrupt`, `loop-drive-selection`, `loop-drive-invocation`, `loop-drive-launch`, `loop-drive-discard`, `loop-drive-survivor`, `loop-drive-endings`, `loop-session-prompt`, `loop-launch-contract`, `loop-launch-spawn`, `loop-handoff`, `loop-escalation`, `loop-reset-terminal`, `loop-ignore-interrupts`, `loop-picked`, `loop-tests-open`, `loop-test-handoff-preserves`, `loop-test-ordering` |
 | `loop-imports` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `13-27` | `loop-driver` | `—` |
 | `loop-control-env` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `28-77` | `loop-driver` | `—` |
 | `loop-scrub-list` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `78-82` | `loop-driver` | `—` |
@@ -649,15 +649,15 @@
 | `loop-drive-endings` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `300-326` | `loop-driver` | `—` |
 | `loop-session-prompt` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `327-368` | `loop-driver` | `—` |
 | `loop-launch-contract` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `369-398` | `loop-driver` | `—` |
-| `loop-launch-spawn` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `399-429` | `loop-driver` | `—` |
-| `loop-handoff` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `430-447` | `loop-driver` | `—` |
-| `loop-escalation` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `448-455` | `loop-driver` | `—` |
-| `loop-reset-terminal` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `456-487` | `loop-driver` | `—` |
-| `loop-ignore-interrupts` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `488-518` | `loop-driver` | `—` |
-| `loop-picked` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `519-558` | `loop-driver` | `—` |
-| `loop-tests-open` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `559-853` | `loop-driver` | `—` |
-| `loop-test-handoff-preserves` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `854-889` | `loop-driver` | `—` |
-| `loop-test-ordering` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `890-912` | `loop-driver` | `—` |
+| `loop-launch-spawn` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `399-435` | `loop-driver` | `—` |
+| `loop-handoff` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `436-453` | `loop-driver` | `—` |
+| `loop-escalation` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `454-461` | `loop-driver` | `—` |
+| `loop-reset-terminal` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `462-493` | `loop-driver` | `—` |
+| `loop-ignore-interrupts` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `494-524` | `loop-driver` | `—` |
+| `loop-picked` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `525-564` | `loop-driver` | `—` |
+| `loop-tests-open` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `565-859` | `loop-driver` | `—` |
+| `loop-test-handoff-preserves` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `860-895` | `loop-driver` | `—` |
+| `loop-test-ordering` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `896-918` | `loop-driver` | `—` |
 | `source-observation` | `source-index` | `source-observation` | `root` | `—` | `1-218` | `—` | `observation-tree` |
 | `observation-imports` | `opening` | `source-observation` | `literal` | `one-spelling-of-grove` | `1-11` | `observation-tree` | `—` |
 | `observation-tree` | `opening` | `source-observation` | `composite` | `one-spelling-of-grove` | `1-218` | `source-observation` | `observation-imports`, `observation-lifetime`, `observation-values`, `observation-capture` |
@@ -666,9 +666,9 @@
 | `observation-activity` | `opening` | `source-observation` | `literal` | `one-spelling-of-grove` | `98-138` | `observation-capture` | `—` |
 | `observation-capture` | `opening` | `source-observation` | `composite` | `one-spelling-of-grove` | `98-218` | `observation-tree` | `observation-activity`, `observation-operation` |
 | `observation-operation` | `opening` | `source-observation` | `literal` | `one-spelling-of-grove` | `139-218` | `observation-capture` | `—` |
-| `source-runtime-observation` | `source-index` | `source-runtime-observation` | `root` | `—` | `1-2146` | `—` | `runtime-observer` |
+| `source-runtime-observation` | `source-index` | `source-runtime-observation` | `root` | `—` | `1-2117` | `—` | `runtime-observer` |
 | `runtime-entry` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `1-19` | `runtime-observer` | `—` |
-| `runtime-observer` | `the-epoch` | `source-runtime-observation` | `composite` | `which-calls-are-admitted` | `1-2146` | `source-runtime-observation` | `runtime-entry`, `runtime-read`, `runtime-extension`, `runtime-private-probe`, `runtime-files`, `runtime-test-fixture`, `runtime-test-release`, `runtime-test-legacy`, `runtime-test-extension`, `runtime-test-substitution`, `runtime-test-controls`, `runtime-test-guards`, `runtime-test-races` |
+| `runtime-observer` | `the-epoch` | `source-runtime-observation` | `composite` | `which-calls-are-admitted` | `1-2117` | `source-runtime-observation` | `runtime-entry`, `runtime-read`, `runtime-extension`, `runtime-private-probe`, `runtime-files`, `runtime-test-fixture`, `runtime-test-release`, `runtime-test-legacy`, `runtime-test-extension`, `runtime-test-substitution`, `runtime-test-controls`, `runtime-test-guards`, `runtime-test-races` |
 | `runtime-read` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `20-106` | `runtime-observer` | `—` |
 | `runtime-extension` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `107-168` | `runtime-observer` | `—` |
 | `runtime-witness-io` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `169-211` | `runtime-private-probe` | `—` |
@@ -676,45 +676,45 @@
 | `runtime-tree-relation` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `212-234` | `runtime-private-probe` | `—` |
 | `runtime-witness-verdict` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `235-287` | `runtime-private-probe` | `—` |
 | `runtime-files` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `288-335` | `runtime-observer` | `—` |
-| `runtime-test-fixture` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `336-360` | `runtime-observer` | `—` |
-| `runtime-test-release` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `361-428` | `runtime-observer` | `—` |
-| `runtime-test-legacy` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `429-463` | `runtime-observer` | `—` |
-| `runtime-test-extension` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `464-565` | `runtime-observer` | `—` |
-| `runtime-test-substitution` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `566-616` | `runtime-observer` | `—` |
-| `runtime-test-controls` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `617-736` | `runtime-observer` | `—` |
-| `runtime-test-guards` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `737-834` | `runtime-observer` | `—` |
-| `runtime-test-epoch-replacements` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `835-868` | `runtime-test-races` | `—` |
-| `runtime-test-races` | `the-epoch` | `source-runtime-observation` | `composite` | `which-calls-are-admitted` | `835-2146` | `runtime-observer` | `runtime-test-epoch-replacements`, `runtime-test-started-fixture`, `runtime-test-real-launch`, `runtime-test-io-errors`, `runtime-test-tree-binding`, `runtime-test-markers`, `runtime-test-probe-precedence`, `runtime-test-directory-release`, `runtime-test-private-replacements`, `runtime-test-release-orders`, `runtime-test-viewer-workers`, `runtime-test-shared-overlap`, `runtime-test-repeated-launches`, `runtime-test-concurrent-snapshots`, `runtime-test-delayed-replacement`, `runtime-test-preparation-order`, `runtime-test-filesystem-preservation`, `runtime-native-exec`, `runtime-native-holder`, `runtime-native-reap`, `runtime-native-scenarios` |
-| `runtime-test-started-fixture` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `869-889` | `runtime-test-races` | `—` |
-| `runtime-test-real-launch` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `890-952` | `runtime-test-races` | `—` |
-| `runtime-test-io-errors` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `953-1003` | `runtime-test-races` | `—` |
-| `runtime-test-tree-binding` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `1004-1060` | `runtime-test-races` | `—` |
-| `runtime-test-markers` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `1061-1108` | `runtime-test-races` | `—` |
-| `runtime-test-probe-precedence` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `1109-1190` | `runtime-test-races` | `—` |
-| `runtime-test-directory-release` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `1191-1226` | `runtime-test-races` | `—` |
-| `runtime-test-private-replacements` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `1227-1326` | `runtime-test-races` | `—` |
-| `runtime-test-release-orders` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `1327-1487` | `runtime-test-races` | `—` |
-| `runtime-test-viewer-workers` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `1488-1526` | `runtime-test-races` | `—` |
-| `runtime-test-shared-overlap` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `1527-1568` | `runtime-test-races` | `—` |
-| `runtime-test-repeated-launches` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `1569-1647` | `runtime-test-races` | `—` |
-| `runtime-test-concurrent-snapshots` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `1648-1677` | `runtime-test-races` | `—` |
-| `runtime-test-delayed-replacement` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `1678-1747` | `runtime-test-races` | `—` |
-| `runtime-test-preparation-order` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `1748-1832` | `runtime-test-races` | `—` |
-| `runtime-test-filesystem-preservation` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `1833-1899` | `runtime-test-races` | `—` |
-| `runtime-native-exec` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `1900-1919` | `runtime-test-races` | `—` |
-| `runtime-native-holder` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `1920-1970` | `runtime-test-races` | `—` |
-| `runtime-native-reap` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `1971-1995` | `runtime-test-races` | `—` |
-| `runtime-native-scenarios` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `1996-2146` | `runtime-test-races` | `—` |
-| `source-witnesses` | `source-index` | `source-witnesses` | `root` | `—` | `1-717` | `—` | `launch-witnesses-production`, `witness-tests` |
+| `runtime-test-fixture` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `336-361` | `runtime-observer` | `—` |
+| `runtime-test-release` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `362-429` | `runtime-observer` | `—` |
+| `runtime-test-legacy` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `430-464` | `runtime-observer` | `—` |
+| `runtime-test-extension` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `465-566` | `runtime-observer` | `—` |
+| `runtime-test-substitution` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `567-617` | `runtime-observer` | `—` |
+| `runtime-test-controls` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `618-737` | `runtime-observer` | `—` |
+| `runtime-test-guards` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `738-835` | `runtime-observer` | `—` |
+| `runtime-test-epoch-replacements` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `836-869` | `runtime-test-races` | `—` |
+| `runtime-test-races` | `the-epoch` | `source-runtime-observation` | `composite` | `which-calls-are-admitted` | `836-2117` | `runtime-observer` | `runtime-test-epoch-replacements`, `runtime-test-started-fixture`, `runtime-test-real-launch`, `runtime-test-io-errors`, `runtime-test-tree-binding`, `runtime-test-markers`, `runtime-test-probe-precedence`, `runtime-test-directory-release`, `runtime-test-private-replacements`, `runtime-test-release-orders`, `runtime-test-viewer-workers`, `runtime-test-shared-overlap`, `runtime-test-repeated-launches`, `runtime-test-concurrent-snapshots`, `runtime-test-delayed-replacement`, `runtime-test-preparation-order`, `runtime-test-filesystem-preservation`, `runtime-native-exec`, `runtime-native-holder`, `runtime-native-reap`, `runtime-native-scenarios` |
+| `runtime-test-started-fixture` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `870-890` | `runtime-test-races` | `—` |
+| `runtime-test-real-launch` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `891-944` | `runtime-test-races` | `—` |
+| `runtime-test-io-errors` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `945-995` | `runtime-test-races` | `—` |
+| `runtime-test-tree-binding` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `996-1052` | `runtime-test-races` | `—` |
+| `runtime-test-markers` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `1053-1100` | `runtime-test-races` | `—` |
+| `runtime-test-probe-precedence` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `1101-1182` | `runtime-test-races` | `—` |
+| `runtime-test-directory-release` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `1183-1218` | `runtime-test-races` | `—` |
+| `runtime-test-private-replacements` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `1219-1318` | `runtime-test-races` | `—` |
+| `runtime-test-release-orders` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `1319-1479` | `runtime-test-races` | `—` |
+| `runtime-test-viewer-workers` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `1480-1518` | `runtime-test-races` | `—` |
+| `runtime-test-shared-overlap` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `1519-1560` | `runtime-test-races` | `—` |
+| `runtime-test-repeated-launches` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `1561-1630` | `runtime-test-races` | `—` |
+| `runtime-test-concurrent-snapshots` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `1631-1660` | `runtime-test-races` | `—` |
+| `runtime-test-delayed-replacement` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `1661-1730` | `runtime-test-races` | `—` |
+| `runtime-test-preparation-order` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `1731-1815` | `runtime-test-races` | `—` |
+| `runtime-test-filesystem-preservation` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `1816-1882` | `runtime-test-races` | `—` |
+| `runtime-native-exec` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `1883-1902` | `runtime-test-races` | `—` |
+| `runtime-native-holder` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `1903-1941` | `runtime-test-races` | `—` |
+| `runtime-native-reap` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `1942-1966` | `runtime-test-races` | `—` |
+| `runtime-native-scenarios` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `1967-2117` | `runtime-test-races` | `—` |
+| `source-witnesses` | `source-index` | `source-witnesses` | `root` | `—` | `1-697` | `—` | `launch-witnesses-production`, `witness-tests` |
 | `witness-owner-type` | `the-lease` | `source-witnesses` | `literal` | `one-per-working-tree` | `1-22` | `launch-witnesses-production` | `—` |
 | `launch-witnesses-production` | `the-lease` | `source-witnesses` | `composite` | `one-per-working-tree` | `1-175` | `source-witnesses` | `witness-owner-type`, `witness-preparation`, `witness-release`, `witness-cleanup` |
 | `witness-preparation` | `the-lease` | `source-witnesses` | `literal` | `one-per-working-tree` | `23-139` | `launch-witnesses-production` | `—` |
 | `witness-release` | `the-lease` | `source-witnesses` | `literal` | `one-per-working-tree` | `140-155` | `launch-witnesses-production` | `—` |
 | `witness-cleanup` | `the-lease` | `source-witnesses` | `literal` | `one-per-working-tree` | `156-175` | `launch-witnesses-production` | `—` |
-| `witness-process-holder` | `the-epoch` | `source-witnesses` | `literal` | `which-calls-are-admitted` | `176-260` | `witness-tests` | `—` |
-| `witness-tests` | `the-epoch` | `source-witnesses` | `composite` | `which-calls-are-admitted` | `176-717` | `source-witnesses` | `witness-process-holder`, `witness-foreign-launch`, `witness-local-controls` |
-| `witness-foreign-launch` | `the-epoch` | `source-witnesses` | `literal` | `which-calls-are-admitted` | `261-440` | `witness-tests` | `—` |
-| `witness-local-controls` | `the-epoch` | `source-witnesses` | `literal` | `which-calls-are-admitted` | `441-717` | `witness-tests` | `—` |
+| `witness-process-holder` | `the-epoch` | `source-witnesses` | `literal` | `which-calls-are-admitted` | `176-261` | `witness-tests` | `—` |
+| `witness-tests` | `the-epoch` | `source-witnesses` | `composite` | `which-calls-are-admitted` | `176-697` | `source-witnesses` | `witness-process-holder`, `witness-foreign-launch`, `witness-local-controls` |
+| `witness-foreign-launch` | `the-epoch` | `source-witnesses` | `literal` | `which-calls-are-admitted` | `262-429` | `witness-tests` | `—` |
+| `witness-local-controls` | `the-epoch` | `source-witnesses` | `literal` | `which-calls-are-admitted` | `430-697` | `witness-tests` | `—` |
 | `source-launch-directory` | `source-index` | `source-launch-directory` | `root` | `—` | `1-134` | `—` | `launch-control-directory` |
 | `launch-control-directory` | `the-loop` | `source-launch-directory` | `literal` | `four-things-a-runner-cannot-choose` | `1-134` | `source-launch-directory` | `—` |
 | `source-session-result` | `source-index` | `source-session-result` | `root` | `—` | `1-105` | `—` | `held-session-result` |
@@ -813,10 +813,10 @@ the roots and fragment relationships; this rollup totals the lines across the de
 | `marked-in-place` | `13-outcomes.md` | 808 |
 | `the-tree-deletes-itself` | `14-finishing.md` | 532 |
 | `twelve-not-fourteen` | `15-the-verbs.md` | 390 |
-| `one-per-working-tree` | `16-the-lease.md` | 1,141 |
-| `which-calls-are-admitted` | `17-the-epoch.md` | 3,805 |
+| `one-per-working-tree` | `16-the-lease.md` | 1,133 |
+| `which-calls-are-admitted` | `17-the-epoch.md` | 3,755 |
 | `too-late-to-say-later` | `18-the-core.md` | 241 |
-| `four-things-a-runner-cannot-choose` | `19-the-loop.md` | 2,051 |
+| `four-things-a-runner-cannot-choose` | `19-the-loop.md` | 2,057 |
 | `assembly` | `20-what-could-not-move.md` | 0 |
-| **Total** | 18 source roots | **15,273** |
+| **Total** | 18 source roots | **15,221** |
 

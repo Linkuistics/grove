@@ -8,7 +8,7 @@ use std::os::fd::AsRawFd;
 use std::os::unix::fs::OpenOptionsExt;
 use std::path::{Path, PathBuf};
 
-// Same accepted collision bound as keyed-launch's completion channel.
+// Same accepted collision bound as the launch directory's random name.
 const DRAW_RETRY_LIMIT: usize = 8;
 const PREFIX: &str = "witness-";
 
@@ -176,6 +176,7 @@ pub(super) fn discard_abandoned(directory: &Path, retained: Option<&Path>) -> Re
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::launch_directory::LaunchDirectory;
     use std::io::{BufRead, BufReader, Read};
     use std::os::unix::fs::PermissionsExt;
     use std::process::{Child, Command, Stdio};
@@ -283,8 +284,8 @@ mod tests {
         let workspace = jj_workspace::Workspace::resolve(temp.path()).unwrap();
         let mut lease = DriverLease::acquire(&workspace).unwrap();
         let root = crate::TreeLifetime::open(temp.path()).unwrap().unwrap();
-        let channel = keyed_launch::Channel::allocate(lease.control_dir()).unwrap();
-        let signal = channel.path().to_path_buf();
+        let session = LaunchDirectory::allocate(lease.control_dir()).unwrap();
+        let signal = session.path().to_path_buf();
         let directory = temp.path().join(".grove");
         let mut holder = (!private).then(|| ForeignHolder::start(&directory));
         let (path_tx, path_rx) = mpsc::channel();
@@ -368,33 +369,21 @@ mod tests {
         );
         lock(&File::open(temp.path()).unwrap()).unwrap();
 
-        let argv = keyed_launch::Argv::new(
-            "/bin/sh".into(),
-            vec!["-c".into(), "echo launched > proof".into()],
-        );
         let mut events = Vec::new();
         lease
             .supervise_launch(|observer| {
-                keyed_launch::run_observed(
-                    keyed_launch::Launch {
-                        argv: &argv,
-                        channel: Some((&channel, "TEST_EXIT_FILE")),
-                        scrub: &[],
-                        grant: &[],
-                        transparent: None,
-                        cwd: Some(temp.path()),
-                        escalation: keyed_launch::Escalation {
-                            grace: Duration::ZERO,
-                            kill_grace: Duration::ZERO,
-                        },
-                    },
+                super::super::tests::launch_foreground(
+                    "/bin/sh",
+                    vec!["-c".into(), "echo launched > proof".into()],
+                    temp.path(),
+                    session.path(),
                     &mut |event| {
                         observer(event);
                         events.push(event);
                         assert!(admit_session(
                             temp.path(),
                             "test",
-                            Some(channel.path().to_path_buf())
+                            Some(session.path().to_path_buf())
                         )
                         .is_ok());
                         assert!(matches!(
@@ -410,8 +399,8 @@ mod tests {
         assert_eq!(
             events,
             [
-                keyed_launch::LaunchEvent::Started,
-                keyed_launch::LaunchEvent::Reaped
+                crate::ravel_job::LaunchEvent::Started,
+                crate::ravel_job::LaunchEvent::Reaped
             ]
         );
         assert_eq!(fs::read(temp.path().join("proof")).unwrap(), b"launched\n");
@@ -429,14 +418,14 @@ mod tests {
         }
         let root = crate::TreeLifetime::open(temp.path()).unwrap().unwrap();
         lease
-            .prepare_launch(root, &witness_selection(), channel.path())
+            .prepare_launch(root, &witness_selection(), session.path())
             .unwrap();
         assert!(
             lease.launch.as_ref().unwrap().private.is_some(),
             "preparation recovers after reap"
         );
         drop(lease);
-        channel.discard().unwrap();
+        session.discard().unwrap();
     }
 
     #[test]
@@ -472,10 +461,10 @@ mod tests {
         fs::create_dir(temp.path().join(".grove")).unwrap();
         let workspace = jj_workspace::Workspace::resolve(temp.path()).unwrap();
         let mut lease = DriverLease::acquire(&workspace).unwrap();
-        let channel = keyed_launch::Channel::allocate(lease.control_dir()).unwrap();
+        let launch = LaunchDirectory::allocate(lease.control_dir()).unwrap();
         let root = crate::TreeLifetime::open(temp.path()).unwrap().unwrap();
         lease
-            .prepare_launch(root, &witness_selection(), channel.path())
+            .prepare_launch(root, &witness_selection(), launch.path())
             .unwrap();
         let owner = lease.launch.as_mut().unwrap();
         let path = owner.path().unwrap().to_path_buf();
@@ -484,27 +473,18 @@ mod tests {
         let private = File::open(&path).unwrap();
         let directory = File::open(temp.path().join(".grove")).unwrap();
         let epoch_path = lease.control_dir().join(EPOCH_FILE_NAME);
-        let argv = keyed_launch::Argv::new("/bin/sh".into(), vec!["-c".into(), "true".into()]);
         let mut events = Vec::new();
         let result = lease.supervise_launch(|observer| {
-            keyed_launch::run_observed(
-                keyed_launch::Launch {
-                    argv: &argv,
-                    channel: Some((&channel, "TEST_EXIT_FILE")),
-                    scrub: &[],
-                    grant: &[],
-                    transparent: None,
-                    cwd: Some(temp.path()),
-                    escalation: keyed_launch::Escalation {
-                        grace: std::time::Duration::ZERO,
-                        kill_grace: std::time::Duration::ZERO,
-                    },
-                },
+            super::super::tests::launch_foreground(
+                "/bin/sh",
+                vec!["-c".into(), "true".into()],
+                temp.path(),
+                launch.path(),
                 &mut |event| {
                     observer(event);
                     events.push(event);
                     assert!(fs::read(&path).unwrap().is_empty());
-                    let reaped = event == keyed_launch::LaunchEvent::Reaped;
+                    let reaped = event == crate::ravel_job::LaunchEvent::Reaped;
                     assert_eq!(shared(&private), reaped);
                     assert_eq!(shared(&directory), reaped);
                     // Callbacks must have neither epoch nor containing-tree guard.
@@ -513,7 +493,7 @@ mod tests {
                     assert!(super::super::admit_session(
                         temp.path(),
                         "test",
-                        Some(channel.path().to_path_buf())
+                        Some(launch.path().to_path_buf())
                     )
                     .is_ok());
                 },
@@ -523,8 +503,8 @@ mod tests {
         assert_eq!(
             events,
             [
-                keyed_launch::LaunchEvent::Started,
-                keyed_launch::LaunchEvent::Reaped
+                crate::ravel_job::LaunchEvent::Started,
+                crate::ravel_job::LaunchEvent::Reaped
             ]
         );
         assert!(lease.launch.is_none());

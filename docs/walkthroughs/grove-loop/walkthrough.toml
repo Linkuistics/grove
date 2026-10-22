@@ -234,7 +234,7 @@ lines = 59
 [[root]]
 id    = "source-driver-lease"
 path  = "crates/grove-loop/src/driver_lease.rs"
-lines = 2083
+lines = 2074
 
 [[root]]
 id    = "source-prompt"
@@ -244,7 +244,7 @@ lines = 241
 [[root]]
 id    = "source-loop-driver"
 path  = "crates/grove-loop/src/loop_driver.rs"
-lines = 912
+lines = 918
 
 [[root]]
 id = "source-observation"
@@ -454,13 +454,13 @@ lines = "1-59"
 id    = "lease-and-epoch"
 root  = "source-driver-lease"
 owner = "one-per-working-tree"
-lines = "1-966"
+lines = "1-958"
 
 [[block]]
 id    = "lease-tests"
 root  = "source-driver-lease"
 owner = "which-calls-are-admitted"
-lines = "967-2083"
+lines = "959-2074"
 
 [[block]]
 id    = "the-prompt-core"
@@ -472,7 +472,7 @@ lines = "1-241"
 id    = "loop-driver"
 root  = "source-loop-driver"
 owner = "four-things-a-runner-cannot-choose"
-lines = "1-912"
+lines = "1-918"
 
 [[block]]
 id = "observation-tree"
@@ -524,18 +524,18 @@ anchors = [
 [[root]]
 id = "source-runtime-observation"
 path = "crates/grove-loop/src/driver_lease/observation.rs"
-lines = 2146
+lines = 2117
 
 [[block]]
 id = "runtime-observer"
 root = "source-runtime-observation"
 owner = "which-calls-are-admitted"
-lines = "1-2146"
+lines = "1-2117"
 
 [[root]]
 id = "source-witnesses"
 path = "crates/grove-loop/src/driver_lease/witnesses.rs"
-lines = 717
+lines = 697
 
 [[block]]
 id = "launch-witnesses-production"
@@ -547,7 +547,7 @@ lines = "1-175"
 id = "witness-tests"
 root = "source-witnesses"
 owner = "which-calls-are-admitted"
-lines = "176-717"
+lines = "176-697"
 
 [[root]]
 id = "source-launch-directory"

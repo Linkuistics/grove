@@ -1,4 +1,4 @@
-# lifecycle-job-k9
+# lifecycle-job-k9 — brief
 
 ## Goal
 
@@ -77,3 +77,17 @@ children, with no group and no KILL.
   rule that an error keeps a caught signal.
 - Cut a `review-impl` leaf at the end of this leaf. The terminal and signal
   contracts of the lifecycle change here.
+
+## Decomposition
+
+The leaf proved bigger than one session. The touched book chapters hold about
+950 hard findings of the prose checker. Three test files spawn `/bin/sh`
+through the old runner. Chapter 17 has more than 5,000 lines. The cut is the
+seam that the notes above name.
+
+- `01` `lease-job-k19` (impl): the driver lease and its tests move to
+  `LaunchEvent` of `ravel_job`, with a bridge at the call site of the loop driver.
+- `02` `driver-job-k20` (impl): the loop driver moves to the foreground shape. The
+  bridge, `Group`, `Escalation` and the dependency on `keyed-launch` go.
+- `03` `interpretation-prose-k21` (impl): chapters 03 and 04 of `overview`. It cuts
+  the `review-impl` leaf at the end.

@@ -336,6 +336,7 @@ fn bounded_record(file: &mut File) -> Result<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::launch_directory::LaunchDirectory;
     use std::sync::mpsc;
     use tempfile::TempDir;
 
@@ -893,33 +894,24 @@ mod tests {
             return;
         }
         let (work, mut lease) = fixture();
-        let channel = keyed_launch::Channel::allocate(&lease.control_dir).unwrap();
+        let launch = LaunchDirectory::allocate(&lease.control_dir).unwrap();
         let root = TreeLifetime::open(work.path()).unwrap().unwrap();
         lease
             .prepare_launch(
                 root,
                 &super::super::tests::witness_selection(),
-                channel.path(),
+                launch.path(),
             )
             .unwrap();
         assert!(matches!(sample(work.path()), ActivityObservation::Busy(_)));
-        let argv = keyed_launch::Argv::new("/bin/sh".into(), vec!["-c".into(), "true".into()]);
         let mut events = Vec::new();
         lease
             .supervise_launch(|notify| {
-                keyed_launch::run_observed(
-                    keyed_launch::Launch {
-                        argv: &argv,
-                        channel: Some((&channel, "TEST_EXIT_FILE")),
-                        scrub: &[],
-                        grant: &[],
-                        transparent: None,
-                        cwd: Some(work.path()),
-                        escalation: keyed_launch::Escalation {
-                            grace: Duration::ZERO,
-                            kill_grace: Duration::ZERO,
-                        },
-                    },
+                super::super::tests::launch_foreground(
+                    "/bin/sh",
+                    vec!["-c".into(), "true".into()],
+                    work.path(),
+                    launch.path(),
                     &mut |event| {
                         notify(event);
                         events.push(event);
@@ -927,13 +919,13 @@ mod tests {
                         let activity = sample(work.path());
                         assert_eq!(contents(work.path()), before);
                         match event {
-                            keyed_launch::LaunchEvent::Started => {
+                            crate::ravel_job::LaunchEvent::Started => {
                                 let mandate = running(activity);
                                 assert_eq!(mandate.handle.to_string(), "work-k1");
                                 assert_eq!(mandate.relation, TreeRelation::SameTree);
-                                assert_eq!(mandate.runtime.launch_dir, channel.path());
+                                assert_eq!(mandate.runtime.launch_dir, launch.path());
                             }
-                            keyed_launch::LaunchEvent::Reaped => {
+                            crate::ravel_job::LaunchEvent::Reaped => {
                                 assert_eq!(activity, ActivityObservation::Idle)
                             }
                         }
@@ -944,8 +936,8 @@ mod tests {
         assert_eq!(
             events,
             [
-                keyed_launch::LaunchEvent::Started,
-                keyed_launch::LaunchEvent::Reaped
+                crate::ravel_job::LaunchEvent::Started,
+                crate::ravel_job::LaunchEvent::Reaped
             ]
         );
     }
@@ -1572,17 +1564,16 @@ mod tests {
             return;
         }
         let (work, mut lease) = fixture();
-        let argv = keyed_launch::Argv::new("/bin/sh".into(), vec!["-c".into(), "true".into()]);
         with_continuous_viewers(&vec![work.path().to_path_buf(); 3], |sample_all| {
             assert_eq!(sample_all(), vec![ActivityObservation::Idle; 3]);
             for _ in 0..4 {
-                let channel = keyed_launch::Channel::allocate(&lease.control_dir).unwrap();
+                let launch = LaunchDirectory::allocate(&lease.control_dir).unwrap();
                 let root = TreeLifetime::open(work.path()).unwrap().unwrap();
                 lease
                     .prepare_launch(
                         root,
                         &super::super::tests::witness_selection(),
-                        channel.path(),
+                        launch.path(),
                     )
                     .unwrap();
                 let private = lease.launch.as_ref().unwrap().path().unwrap().to_path_buf();
@@ -1592,32 +1583,24 @@ mod tests {
                 let mut events = Vec::new();
                 lease
                     .supervise_launch(|notify| {
-                        keyed_launch::run_observed(
-                            keyed_launch::Launch {
-                                argv: &argv,
-                                channel: Some((&channel, "TEST_EXIT_FILE")),
-                                scrub: &[],
-                                grant: &[],
-                                transparent: None,
-                                cwd: Some(work.path()),
-                                escalation: keyed_launch::Escalation {
-                                    grace: Duration::ZERO,
-                                    kill_grace: Duration::ZERO,
-                                },
-                            },
+                        super::super::tests::launch_foreground(
+                            "/bin/sh",
+                            vec!["-c".into(), "true".into()],
+                            work.path(),
+                            launch.path(),
                             &mut |event| {
                                 notify(event);
                                 events.push(event);
                                 let before = contents(work.path());
                                 for activity in sample_all() {
                                     match event {
-                                        keyed_launch::LaunchEvent::Started => {
+                                        crate::ravel_job::LaunchEvent::Started => {
                                             let mandate = running(activity);
                                             assert_eq!(mandate.handle.to_string(), "work-k1");
                                             assert_eq!(mandate.relation, TreeRelation::SameTree);
-                                            assert_eq!(mandate.runtime.launch_dir, channel.path());
+                                            assert_eq!(mandate.runtime.launch_dir, launch.path());
                                         }
-                                        keyed_launch::LaunchEvent::Reaped => {
+                                        crate::ravel_job::LaunchEvent::Reaped => {
                                             assert_eq!(activity, ActivityObservation::Idle);
                                         }
                                     }
@@ -1630,8 +1613,8 @@ mod tests {
                 assert_eq!(
                     events,
                     [
-                        keyed_launch::LaunchEvent::Started,
-                        keyed_launch::LaunchEvent::Reaped
+                        crate::ravel_job::LaunchEvent::Started,
+                        crate::ravel_job::LaunchEvent::Reaped
                     ]
                 );
                 assert!(lease.launch.is_none());
@@ -1925,41 +1908,29 @@ mod tests {
         let work = Path::new(&work);
         let workspace = Workspace::resolve(work).unwrap();
         let mut lease = DriverLease::acquire(&workspace).unwrap();
-        let channel = keyed_launch::Channel::allocate(&lease.control_dir).unwrap();
+        let launch = LaunchDirectory::allocate(&lease.control_dir).unwrap();
         lease
             .prepare_launch(
                 TreeLifetime::open(work).unwrap().unwrap(),
                 &super::super::tests::witness_selection(),
-                channel.path(),
+                launch.path(),
             )
             .unwrap();
-        let argv = keyed_launch::Argv::new(
-            "/usr/bin/env".into(),
-            vec![
-                std::env::current_exe().unwrap().into_os_string(),
-                "--exact".into(),
-                "driver_lease::observation::tests::witness_native_exec_child".into(),
-                "--nocapture".into(),
-            ],
-        );
         lease
             .supervise_launch(|notify| {
-                keyed_launch::run_observed(
-                    keyed_launch::Launch {
-                        argv: &argv,
-                        channel: Some((&channel, "TEST_EXIT_FILE")),
-                        scrub: &[],
-                        grant: &[],
-                        transparent: None,
-                        cwd: Some(work),
-                        escalation: keyed_launch::Escalation {
-                            grace: Duration::ZERO,
-                            kill_grace: Duration::ZERO,
-                        },
-                    },
+                super::super::tests::launch_foreground(
+                    "/usr/bin/env",
+                    vec![
+                        std::env::current_exe().unwrap().into_os_string(),
+                        "--exact".into(),
+                        "driver_lease::observation::tests::witness_native_exec_child".into(),
+                        "--nocapture".into(),
+                    ],
+                    work,
+                    launch.path(),
                     &mut |event| {
                         notify(event);
-                        if event == keyed_launch::LaunchEvent::Started {
+                        if event == crate::ravel_job::LaunchEvent::Started {
                             println!("holder-ready");
                             std::io::stdout().flush().unwrap();
                         }

@@ -789,10 +789,10 @@ fn the_mandate_states_a_colocated_jj_workspace_and_its_root() {
 
 // A `done` signal — the finish cycle's last teardown action — must end the loop
 // exactly once, cleanly, and must not be confused with either a relaunch or the
-// no-signal stop. The abandoned-channel housekeeping a replacement driver does
-// on acquiring the lease rides along here, because its failure modes have to
-// stay advisory: a channel it cannot clean is reported and stepped over, never
-// a reason not to launch.
+// no-signal stop. The abandoned-launch-directory housekeeping a replacement
+// driver does on acquiring the lease rides along here, because its failure modes
+// have to stay advisory: a directory it cannot clean is reported and stepped
+// over, never a reason not to launch.
 #[test]
 fn a_done_signal_finishes_the_loop_once_and_housekeeping_stays_advisory() {
     let fixture = TempDir::new().unwrap();
@@ -803,11 +803,13 @@ fn a_done_signal_finishes_the_loop_once_and_housekeeping_stays_advisory() {
 
     let control_dir = worktree.join(".jj/grove");
     fs::create_dir_all(&control_dir).unwrap();
-    let abandoned_signal = control_dir.join("signal-00000000000000000000000000000000");
-    let blocked_signal = control_dir.join("signal-11111111111111111111111111111111");
-    let unrelated_control = control_dir.join("signal-not-a-grove-channel");
-    fs::write(&abandoned_signal, "old completion\n").unwrap();
-    fs::create_dir(&blocked_signal).unwrap();
+    let blocked_launch = control_dir.join("launch-11111111111111111111111111111111");
+    let unrelated_control = control_dir.join("launch-not-a-grove-directory");
+    // A directory that cannot lose its entries makes the removal fail. The
+    // permission is restored below, so the fixture can delete it.
+    fs::create_dir(&blocked_launch).unwrap();
+    fs::write(blocked_launch.join("teardown"), "old record\n").unwrap();
+    fs::set_permissions(&blocked_launch, fs::Permissions::from_mode(0o500)).unwrap();
     fs::write(&unrelated_control, "keep me\n").unwrap();
 
     let log = fixture.path().join("log");
@@ -823,14 +825,15 @@ fn a_done_signal_finishes_the_loop_once_and_housekeeping_stays_advisory() {
 
     let output = run_driver(&worktree, &home);
     let stderr = String::from_utf8_lossy(&output.stderr);
+    fs::set_permissions(&blocked_launch, fs::Permissions::from_mode(0o700)).unwrap();
 
     assert!(
         output.status.success(),
-        "abandoned-channel housekeeping must not prevent launch: {stderr}"
+        "abandoned-launch-directory housekeeping must not prevent launch: {stderr}"
     );
     assert!(
-        stderr.contains("could not clean every signal channel abandoned by a previous driver"),
-        "an abandoned-channel cleanup failure must remain visible: {stderr}"
+        stderr.contains("could not clean abandoned launch directories"),
+        "an abandoned-launch-directory cleanup failure must remain visible: {stderr}"
     );
     assert!(
         stderr.contains("grove finished — loop complete"),
@@ -844,17 +847,13 @@ fn a_done_signal_finishes_the_loop_once_and_housekeeping_stays_advisory() {
         "the loop must run exactly once then finish — no relaunch (log: {log:?})"
     );
     assert!(
-        !abandoned_signal.exists(),
-        "a replacement driver must clean abandoned signal channels after acquiring the lease"
-    );
-    assert!(
-        blocked_signal.is_dir(),
-        "an unremovable abandoned channel must remain inert while the loop continues"
+        blocked_launch.is_dir(),
+        "an unremovable abandoned launch directory must remain inert while the loop continues"
     );
     assert_eq!(
         fs::read_to_string(unrelated_control).unwrap(),
         "keep me\n",
-        "cleanup must ignore names outside Grove's exact channel grammar"
+        "cleanup must ignore names outside Grove's exact launch directory grammar"
     );
 }
 

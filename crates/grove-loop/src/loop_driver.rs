@@ -400,10 +400,16 @@ fn launch_session(
         .prepare_launch(selected.lifetime, selection, launch_dir)
         .context("activating the foreground session epoch before spawn")?;
 
-    // The runner takes its own value until the migration leaves delete this.
+    // The runner takes its own values until the next leaf deletes this bridge.
     let keyed_argv = keyed_launch::Argv::new(argv.program().to_owned(), argv.args().to_vec());
     driver_lease
         .supervise_launch(|observer| {
+            let mut bridge = |event: keyed_launch::LaunchEvent| {
+                observer(match event {
+                    keyed_launch::LaunchEvent::Started => crate::ravel_job::LaunchEvent::Started,
+                    keyed_launch::LaunchEvent::Reaped => crate::ravel_job::LaunchEvent::Reaped,
+                });
+            };
             keyed_launch::run_observed_with_stdout(
                 Launch {
                     argv: &keyed_argv,
@@ -415,7 +421,7 @@ fn launch_session(
                     escalation: ESCALATION,
                 },
                 stdout,
-                observer,
+                &mut bridge,
             )
         })
         .with_context(|| {

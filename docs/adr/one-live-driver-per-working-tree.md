@@ -1,162 +1,186 @@
 # One live driver owns each working tree
 
 Bare `grove` acquires one process-scoped **driver lease** for the working tree
-before it reads or mutates that grove. It does not
-derive where that lease lives. The **version control seam**
-(`crates/jj-workspace`) owns that: grove asks the resolved workspace for a
-control directory under the namespace `grove`, and what comes back is guaranteed
-to be inside that exact workspace, untracked, shared with no other namespace,
-and created if absent. Grove supplies only the namespace — the one thing the
-seam cannot know, because *where a lease file may live* is not sayable without
-naming whose lease it is.
+before it reads or mutates that grove. It does not derive where that lease lives.
+The **version control seam** (`crates/jj-workspace`) owns that. Grove asks the
+resolved workspace for a control directory under the namespace `grove`. The seam
+guarantees that the directory is inside that exact workspace, untracked, shared
+with no other namespace, and created if absent.
 
-**The lease is handed a resolved workspace; it does not resolve one.** Since
-`loop-crate-driver-k22` the binary resolves the working tree once and passes that
-value to both `DriverLease::acquire` and `grove_loop::run`, so there is one
-resolution behind the lease, the working-tree root the launch runs in and the
-prompt's stated version control — and no second derivation that could disagree
-with it. The lease is then moved into the loop, so it is released exactly when
-the loop that justified holding it returns.
+Grove supplies only the namespace. The seam cannot know it, because *where a lease
+file may live* is not sayable without naming whose lease it is.
+
+**The lease receives a resolved workspace. It does not resolve one.** Since
+`loop-crate-driver-k22`, the binary resolves the working tree once. It passes that
+value to both `DriverLease::acquire` and `grove_loop::run`. So there is one
+resolution behind the lease, the working-tree root that the launch runs in and the
+version control that the prompt states. There is no second derivation that could
+disagree with it.
+
+The binary then moves the lease into the loop, so the lease is released exactly
+when the loop that justified holding it returns.
 
 The seam resolves the workspace by walking the filesystem for the closest `.jj/`
-and canonicalising it. It invokes no repository discovery, does not follow a
-secondary workspace's repository link, and removes `GIT_DIR`, `GIT_WORK_TREE`
-and the other ambient selectors from every child it spawns. Controls therefore
-live in the exact workspace's administration area, never in the tracked working
-copy or an environment-selected temporary directory. Symlink and relative-path
-aliases reach one lease; separate workspaces remain independent. Resolution also
-creates the control directory, so a working tree that is not jj-enabled and a
-`.jj/` that cannot hold a directory both stop the invocation before it can
-create or drive a task tree; that the directory is *writable* is proved by the
-lease file itself, at the moment it is opened, rather than by a probe whose
-answer could already be stale. Standard `--help` and `--version` return without
-workspace resolution or a lease.
+and canonicalising it. It invokes no repository discovery and does not follow a
+secondary workspace's repository link. It removes `GIT_DIR`, `GIT_WORK_TREE` and
+the other ambient selectors from every child that it spawns. Controls therefore
+live in the administration area of the exact workspace, never in the tracked
+working copy or an environment-selected temporary directory. Symlink and
+relative-path aliases reach one lease. Separate workspaces remain independent.
+
+Resolution also creates the control directory. A working tree that is not
+jj-enabled stops the invocation before it can create or drive a task tree. A
+`.jj/` that cannot hold a directory also stops it before that point. The lease
+file itself proves that the directory is *writable*, at the moment the file opens.
+A probe would instead give an answer that could already be stale. Standard
+`--help` and `--version` return without workspace resolution or a lease.
 
 The lease is an exclusive, nonblocking advisory lock keyed by the filesystem
-device and inode of an already-open working-tree-root descriptor. Every lease
-and epoch acquisition opens and locks its control file, then compares the locked
-descriptor's identity with the path's current identity and retries a bounded
-number of times on an open/lock replacement race. The driver holds both root and
-lock descriptors until the loop has stopped, and revalidates the lock path
-before every lifecycle transition and foreground launch. A second driver
-fails immediately. Kernel release on return, panic, or process death makes
-restart ordinary continuation while `.grove/` still exists; after a successful
+device and inode of an already-open working-tree-root descriptor. Every lease and
+epoch acquisition opens and locks its control file. It then compares the identity
+of the locked descriptor with the current identity of the path. On an open/lock
+replacement race, it retries a bounded number of times.
+
+The driver holds both root and lock descriptors until the loop stops. It
+revalidates the lock path before every lifecycle transition and foreground launch.
+A second driver fails immediately.
+
+The kernel releases the lock on return, panic or process death. While `.grove/`
+still exists, restart is therefore ordinary continuation. After a successful
 finish deletion and epoch handoff, a later bare invocation is a fresh grove.
 Leftover bytes carry no ownership or cleanup obligation.
 
-Each driver writes a fresh 128-bit nonce from the operating system's
-cryptographic randomness source to the lease record. Each foreground launch
-also creates a **launch directory** with a fresh 128-bit random suffix in the
-same administration-owned control directory, exclusively and owner-only, and
-publishes its path as `GROVE_LAUNCH_DIR`. Neither value is derived from a PID,
-clock, address, iteration counter, or task key. Launch directories are not
-reused intentionally: an occupied draw is retried, the driver removes the
-current one after post-reap invalidation and interpretation, and a replacement
-driver removes abandoned ones, reading nothing in them, only after it owns the
-lease and has exclusively invalidated the old epoch. After
-cleanup there is no durable tombstone, so cross-restart nonce or path reuse is
-not literally impossible; the accepted probability is at most one in `2^128`
-per independent draw. This statistical freshness is the explicit cost of
-keeping grove generation out of durable workflow state.
+Each driver writes a fresh 128-bit nonce from the operating system's cryptographic
+randomness source to the lease record. Each foreground launch also creates a
+**launch directory** in the same administration-owned control directory. The
+directory has a fresh 128-bit random suffix. The launch creates it exclusively and
+owner-only. The launch publishes its path as `GROVE_LAUNCH_DIR`. Neither value
+derives from a PID, clock, address, iteration counter or task key.
+
+Grove never reuses a launch directory intentionally. The driver retries an
+occupied draw. The driver removes the current launch directory after post-reap
+invalidation and interpretation. A replacement driver removes abandoned launch
+directories and reads nothing in them. It does so only after it owns the lease and
+exclusively invalidates the old epoch.
+
+After cleanup there is no durable tombstone, so cross-restart nonce or path reuse
+is not literally impossible. The accepted probability is at most one in `2^128`
+per independent draw. This statistical freshness is the explicit cost of keeping
+grove generation out of durable workflow state.
 
 The stable per-workspace **session epoch** control file binds the lease nonce,
-working-tree identity, and current launch-directory path. The driver writes it
-at three points, each under a separately scoped exclusive guard: inactive
-immediately after lease acquisition, active immediately before spawn, and
-inactive after the child is reaped and before reading the launch's ending and
-teardown record. Every exclusive guard is
-released before another epoch or tree operation begins and before spawn. Every
-descriptor is close-on-exec.
+working-tree identity, and current launch-directory path. The driver writes it at
+three points, each under a separately scoped exclusive guard. First, it writes the
+epoch as inactive immediately after lease acquisition. Second, it writes the epoch
+as active immediately before spawn. Third, it writes the epoch as inactive after it
+reaps the child and before it reads the ending and teardown record of the launch.
 
-An ambient agent-side `grove-llm` tree operation takes a shared epoch guard,
-checks the exact worktree, launch directory, and nonce, and probes the lease with a
-separate nonblocking exclusive-lock attempt. A successful probe is closed and
-released immediately and means no driver is live; contention plus a matching
-lease record is the liveness hint. The operation retains its shared epoch guard
-through tree access, which closes the probe's race: if the driver dies just
-after the probe, a replacement driver cannot invalidate the epoch until the
-admitted operation finishes. A wrong worktree receives its own location
-diagnostic; inactive, malformed, unlocked, or mismatched epochs receive a stale-
-session diagnostic. Manual commands without loop-control context retain their
-ordinary behavior. Shared-guard acquisition is the admission boundary: an old
-call admitted before exclusive invalidation may finish and block handoff; calls
-beginning after invalidation fail against the inactive record or new nonce.
+The driver releases every exclusive guard before another epoch or tree operation,
+and before spawn. Every descriptor is close-on-exec.
 
-Every epoch acquisition first tries without blocking, emits one diagnostic on
-contention, and waits for a fixed internal 30-second handoff bound. A timeout
-performs no tree access or epoch rewrite. In particular, if an orphaned
-`grove-llm` process retains a shared guard, post-reap invalidation times out and
-the driver stops `blocked` without reading the launch's ending or teardown
-record, or launching another session. *Orphaned* is narrower than it once was: the
-session's whole process group ends with its run, whatever the ending, so a
-command the session itself launched is reaped with it (*[the launched child is a
-job](./the-launched-child-is-a-job.md)*). What can still hold the guard is a
-process that was never in that group — one started from another session, another
-terminal, or by hand, a harness's own command among them where the harness
-starts its commands in sessions of their own, as Claude Code does — or one in
-the group of a harness orphaned by its dispatch's death, which nothing
-escalates. A restart may
-continue once that already-admitted operation releases its guard. The bound,
-clock, control-path resolver, and randomness source are internal test seams, not
-user configuration. A test lock/filesystem backend with post-open/post-lock
-barriers and an event trace makes the protocol races and guard lifetimes
-deterministic without widening the production interface.
+An ambient agent-side `grove-llm` tree operation takes a shared epoch guard. It
+checks the exact worktree, launch directory and nonce. It then probes the lease
+with a separate nonblocking exclusive-lock attempt. The operation closes and
+releases a successful probe immediately. A successful probe means that no driver is
+live. Contention plus a matching lease record is the liveness hint.
 
-This protocol provides workflow consistency among cooperating Grove processes,
-not authentication. It prevents an old session from resolving, mutating, or
-recording a teardown through `grove-llm` after epoch rotation, including after
-finish deletion and handle reuse. It cannot prevent a stale process from
-directly editing files, committing, or writing into a known launch directory
-outside `grove-llm`. The session result channel is Ravel's and is outside
-this protocol: Ravel allocates a fresh exit channel for every session, inside the
-launch directory, so a stale session can publish only to its own enclosing session.
-Nor does Grove defend against another process deleting or replacing files in
-the VCS administration area; that is repository-control corruption, and no
-claim is made that open/lock identity revalidation survives unlink/recreate
-outside an acquisition window.
-The fixed lease and epoch files, the launch directories, and the session
-witnesses defined below, are untracked coordination locations whose bytes have
-meaning only with live lock evidence or to the driver that launched; `.grove/`
+The operation retains its shared epoch guard through tree access. This closes the
+probe's race. If the driver dies just after the probe, a replacement driver cannot
+invalidate the epoch until the admitted operation finishes.
+
+A wrong worktree receives its own location diagnostic. Inactive, malformed,
+unlocked or mismatched epochs receive a stale-session diagnostic. Manual commands
+without loop-control context retain their ordinary behaviour. Shared-guard
+acquisition is the admission boundary. An old call that the guard admitted before
+exclusive invalidation may finish and block handoff. Calls that arrive after
+invalidation fail against the inactive record or the new nonce.
+
+Every epoch acquisition first tries without blocking. It emits one diagnostic on
+contention. It then waits for a fixed internal 30-second handoff bound. A timeout
+does not access the tree and does not rewrite the epoch.
+
+In particular, if an orphaned `grove-llm` process retains a shared guard,
+post-reap invalidation times out. The driver then stops `blocked`. It does not read
+the ending or teardown record of the launch, and it does not launch another
+session. *Orphaned* is narrower than it once was. The whole process group of the
+session ends with its run, whatever the ending. So a command that the session
+itself launched is reaped with it (*[the launched child is a job](./the-launched-child-is-a-job.md)*).
+
+Two kinds of process can still hold the guard:
+
+- A process that was never in that group. Examples are a process launched from
+  another session, another terminal or by hand. A command of a harness is among them,
+  where the harness launches its commands in sessions of their own, as Claude Code
+  does.
+- A process in the group of a harness orphaned by the death of its dispatch.
+  Nothing escalates such a harness.
+
+A restart may continue once that already-admitted operation releases its guard.
+The bound, clock, control-path resolver and randomness source are internal test
+seams, not user configuration. A test lock/filesystem backend with
+post-open/post-lock barriers and an event trace makes the protocol races and guard
+lifetimes deterministic without widening the production interface.
+
+This protocol provides workflow consistency among cooperating Grove processes, not
+authentication. It prevents an old session from resolving, mutating, or recording
+a teardown through `grove-llm` after epoch rotation, including after finish
+deletion and handle reuse. It cannot prevent a stale process from directly editing
+files, committing, or writing into a known launch directory outside `grove-llm`.
+The session result channel is Ravel's and is outside this protocol. Ravel
+allocates a fresh exit channel for every session, inside the launch directory. So
+a stale session can publish only to its own enclosing session.
+
+Nor does Grove defend against another process that removes or replaces files in the
+VCS administration area. That is repository-control corruption. Grove makes no
+claim that open/lock identity revalidation survives unlink/recreate outside an
+acquisition window. The fixed lease and epoch files, the launch directories and the
+session witnesses defined below are untracked coordination locations. Their bytes
+have meaning only with live lock evidence or to the driver that launched. `.grove/`
 remains the only durable workflow state.
 
 Consequently, at a driver lifecycle transition an absent `.grove/` is always a
 fresh-tree fact, never an implicit finish receipt. If a finish session
-successfully commits deletion and the driver dies before reading its teardown
-record, the next bare invocation initializes a new grove. Neither a matching
-teardown commit nor an abandoned launch directory's teardown record can
-distinguish recovery intent from an intentional new workstream without adding a
-second user input or durable state, which is why a replacement driver removes
-the directory unread. A launch that ends without a teardown record likewise
-takes the ordinary ending; the driver does not infer a teardown from task-root
-absence. A `finish-commit` whose own result is lost recovers nothing
-here either: there is no attempt identity in the commit message, no proof that a
-given commit was this attempt's, and no retry path that reads one. The version
-control system owns the transaction, so a lost result is read from the operation
-log and rerun or undone there. Absence alone never licenses `done`. An operation
-already admitted under the crashed driver's epoch may also delay replacement
-invalidation; an orphan outside the dead session's process group that holds the
-shared guard to the handoff bound makes that replacement stop `blocked` without
-creating a new task tree. Once the guard
-releases, a later invocation can invalidate the epoch and initialize the fresh
-tree. That tree may reuse keys such as `plan-k1`; epoch rotation, rather than
-global key uniqueness, rejects the old cooperating session's `grove-llm`
-operations.
+successfully commits deletion and the driver dies before it reads its teardown
+record, the next bare invocation initialises a new grove. Neither a matching
+teardown commit nor the teardown record of an abandoned launch directory can
+distinguish recovery intent from an intentional new workstream. Such a distinction
+would need Grove to add a second user input or durable state. This is why a
+replacement driver removes the directory unread.
+
+A launch that ends without a teardown record likewise takes the ordinary ending.
+The driver does not infer a teardown from task-root absence. A `finish-commit`
+whose own result is lost recovers nothing here either. The commit message has no
+attempt identity. Nothing proves that a given commit belongs to this attempt. No
+retry path reads an attempt identity.
+
+The version control system owns the transaction, so a lost result is read from the
+operation log and rerun or undone there. Absence alone never licenses `done`. An
+operation already admitted under the crashed driver's epoch may also delay
+replacement invalidation. If an orphan outside the process group of the dead
+session holds the shared guard to the handoff bound, that replacement stops
+`blocked`. It creates no new task tree. Once the guard releases, a later
+invocation can invalidate the epoch and initialise the fresh tree.
+
+That tree may reuse keys such as `plan-k1`. Epoch rotation, rather than global key
+uniqueness, rejects the `grove-llm` operations of the old cooperating session.
 
 ## Read-only activity observation
 
-An observer reports a current mandate only with a **session witness** in
-addition to matching lease and epoch records. A matching active epoch plus a
-contended lease is an admission liveness hint, not enough to establish which
-launch is running: a replacement driver acquires the lease before it may invalidate the
-predecessor's epoch, and deliberately preserves the old lease bytes during that
-wait. A viewer must not describe that predecessor as RUNNING.
+An observer reports a current mandate only with a **session witness** in addition
+to matching lease and epoch records. A matching active epoch plus a contended lease
+is an admission liveness hint. It is not enough to establish which launch is
+running, because a replacement driver acquires the lease before it may invalidate
+the predecessor's epoch. That driver deliberately preserves the old lease bytes
+during that wait. A viewer must not describe that predecessor as RUNNING.
 
 The private launch witness and the directory witness add observation evidence
-without changing authority. The driver lease still serializes drivers; the epoch
-still admits agent operations using the worktree, lease nonce and launch directory.
-A viewer neither obtains an admission guard nor probes the driver lease lock.
-Its witness probes are shared, so concurrent observers cannot create exclusive
-contention. A successful probe is unlocked immediately, before validation or
+without changing authority. The driver lease still serialises drivers. The epoch
+still admits agent operations that use the worktree, lease nonce and launch
+directory.
+
+A viewer neither obtains an admission guard nor probes the driver lease lock. Its
+witness probes are shared, so concurrent observers cannot create exclusive
+contention. The viewer unlocks a successful probe immediately, before validation or
 other I/O. Agent admission retains its existing protocol.
 
 Shared probes rely on the compatible shared/incompatible exclusive semantics
@@ -177,16 +201,20 @@ early.
 Observation costs one ephemeral witness file and descriptor per launch, an
 exclusive lock on the already-retained root pin, and two generic runner events.
 The short shared epoch read gives a coherent record/witness binding while
-retaining admission's existing publication model.
-Tree capture and file I/O happen outside that guard. This reduces exposure to
-viewer stalls but does not bound lock ownership in wall-clock time: a viewer
-suspended even within the short runtime read can still delay epoch handoff to
-its 30-second failure bound, and ordinary overlap can emit a waiting diagnostic.
-As with the orphaned admitted operation above, a driver that timed out needs a
-restart after the holder releases its guard. The pre-existing tree read guard separately exposes
-tree mutations to a suspended reader. These are accepted liveness trade-offs;
-nonblocking acquisition guarantees that the viewer does not wait, not that a
-holder can never delay a writer.
+retaining admission's existing publication model. Tree capture and file I/O happen
+outside that guard.
+
+This reduces exposure to viewer stalls, but it does not bound lock ownership in
+wall-clock time. A viewer suspended even within the short runtime read can still
+delay epoch handoff to its 30-second failure bound. Ordinary overlap can emit a
+waiting diagnostic. As with the orphaned admitted operation above, a driver that
+timed out needs a restart after the holder releases its guard. The pre-existing
+tree read guard separately exposes tree mutations to a suspended reader.
+
+These are accepted liveness trade-offs. Nonblocking acquisition guarantees that the
+viewer does not wait. It does not guarantee that a holder can never delay a writer.
+
+<!-- tc: pending because the conversion has not reached this part of the document -->
 
 ## Why the directory witness survives process death
 

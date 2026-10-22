@@ -1,3 +1,5 @@
+<!-- tc: pending because the conversion has not reached this part of the document -->
+
 # System overview — book structure brief
 
 ## Status and provenance
@@ -195,14 +197,20 @@ reach the end state both the root brief and `crate-books-k14`'s brief state —
 that `ARCHITECTURE.md` carries decisions, constraints and measurement records
 only. It reaches that state for the three sections in play and no further.
 
+<!-- tc: on -->
+
 The mechanism for the rest is **deletion, not a second move**. The `grove-llm`,
-`keyed-launch` and `grove-loop` books re-derive their crates' accounts from the
-source they reconstruct; the surviving description in `ARCHITECTURE.md` becomes
-redundant rather than relocatable. `architecture-residue-k75` owns removing it,
-runs last in `crate-books-k14`, and is the leaf on which the campaign's
-decisions-only *Done when* actually falls due. `k31` marks each surviving
-descriptive passage with the book that will make it redundant, so that leaf
-inherits a list rather than a judgement.
+`keyed-launch` and `grove-loop` books re-derive the account of their crates from
+the source that they reconstruct. The description that survives in
+`ARCHITECTURE.md` becomes redundant rather than relocatable.
+
+`architecture-residue-k75` owns removing it. That leaf runs last in
+`crate-books-k14`. It is the leaf on which the decisions-only *Done when* of the
+campaign actually falls due. `k31` marks each surviving descriptive passage with
+the book that will make it redundant. That leaf therefore inherits a list rather
+than a judgement.
+
+<!-- tc: pending because the conversion has not reached this part of the document -->
 
 ## Chapter sequence
 

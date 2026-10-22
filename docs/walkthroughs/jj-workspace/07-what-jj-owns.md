@@ -588,13 +588,16 @@ check: all 8 principal checks pass
 ```
 
 The umbrella. It runs `book-check --final --check all` over every book root under
-`docs/walkthroughs/` **by discovery** rather than from a list, which is why this
-book has been inside the gate since chapter 1 created its directory and why every
-drafting session but this one left the script red on `book-check` alone. It also
-runs the repository's own tests, and two of those cover this book without naming
-it: `every_repository_markdown_reference_resolves` sweeps every Markdown file in
-the repository, and `crates/grove/tests/reference_navigation.rs` fails a book root
-that has no row in the *Documentation ownership* table of `docs/ARCHITECTURE.md`.
+`docs/walkthroughs/` **by discovery** rather than from a list. For that reason
+this book has been inside the gate since chapter 1 created its directory. For the
+same reason every drafting session but this one left the script red on
+`book-check` alone.
+
+The umbrella also runs the repository's own tests, and two of those cover this
+book without naming it. `every_repository_markdown_reference_resolves` sweeps
+every Markdown file in the repository. `crates/grove/tests/reference_navigation.rs`
+fails a book root that has no row in the *Documentation ownership* table of
+`docs/ARCHITECTURE.md`.
 
 ```console
 $ cargo test --locked -p jj-workspace

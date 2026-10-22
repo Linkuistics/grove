@@ -372,12 +372,13 @@ use jj_workspace::Workspace;
 ````
 <!-- /fragment -->
 
-Two of the three are chapter 3's, and the third is another crate's. What is
-absent is the striking part: `keyed_launch` appears nowhere in this module,
-though the string this module builds exists only to be handed to the command
-that crate launches.
-This module hands the runner nothing — it returns a `String` to its caller, and
-chapter 19's `session_prompt` is what passes it on.
+Two of the three are chapter 3's, and the third is another crate's. The absence
+is the striking part. `keyed_launch` appears nowhere in this module. Yet this
+module builds a string that exists only to be handed to the command that crate
+launches.
+
+This module hands the runner nothing. It returns a `String` to its caller.
+Chapter 19's `session_prompt` passes it on.
 
 <a id="one-name-twice"></a>
 ## One name, and why it is stated once
@@ -946,16 +947,19 @@ into a bare version string in part 2. Each of those is a sentence grove could ha
 written into every prompt and chose not to.
 
 **And the thing this chapter is really for.** The other three chapters of Part V
-are about a runner's authority — who holds the lease, which calls it admits, how
-a session is launched and ended. This one is about a **channel**, and about the only
-question a channel poses: what has to be said now because it cannot be said later.
-Nothing beneath this layer could answer it. `keyed-launch` runs a command and
-knows nothing about sessions; `jj-workspace` resolves a workspace and knows nothing
-about what the answer is for; the store has no word for a kind at all. The
-too-late test could not move because it is a judgement about a methodology the
-crate deliberately does not contain — and the module's answer to owning a judgement
-it cannot check is to write the judgement down, close it on a definition, and keep
-245 lines of prose arguing why each sentence that is not there has somewhere better
-to be.
+are about a runner's authority. They say who holds the lease, which calls it
+admits, and how a session is launched and ended. This one is about a **channel**.
+A channel poses one question: what has to be said now because it cannot be said
+later? Nothing beneath this layer could answer it.
+
+`keyed-launch` runs a command and knows nothing about sessions. `jj-workspace`
+resolves a workspace and knows nothing about what the answer is for. The store
+has no word for a kind at all.
+
+The too-late test could not move, because it is a judgement about a methodology
+that the crate deliberately does not contain. The module owns a judgement that it
+cannot check. So it writes the judgement down and
+closes it on a definition. It keeps 245 lines of prose that argue why each absent
+sentence has somewhere better to be.
 
 [Previous: Which calls the lease admits](17-the-epoch.md) | [Contents](README.md) | [Next: The loop](19-the-loop.md)

@@ -45,11 +45,13 @@ them to each of the nineteen source-owning chapters in turn.
 
 **The book's boundary is this crate's side of every seam it sits on.** Where
 `grove-loop` calls `ordinal-fs-tree`, `keyed-launch` or `jj-workspace`, the book
-says what grove asked for and what came back, names the crate in prose, and stops;
-each of those crates has a book of its own. The methodology is outside it too:
-what a `requirements` session is for, when a leaf should decompose and which
-kinds involve a human are the plugin's and the guide's, and the crate knows only
-that a kind is a token and that two of them are reserved.
+says what grove asked for and what came back. It names the crate in prose and
+stops. Each of those crates has a book of its own.
+
+The methodology is outside the book too. The plugin and the guide own what a
+`requirements` session is for, when a leaf should decompose and which kinds
+involve a human. The crate knows only that a kind is a token and that two of them
+are reserved.
 
 The corpus is the crate's own manifest and every Rust file under `src/`.
 **It includes the inline `#[cfg(test)] mod tests`,

@@ -6,12 +6,13 @@
 ## What this crate is allowed to mean
 
 `grove-loop` is the layer that stayed. Three domain-free crates sit underneath
-it — `ordinal-fs-tree` has an ordered filesystem tree, `keyed-launch` has an
-argv and a job, `jj-workspace` has a workspace and a commit — and none of them
-has a word for a *kind*, a *brief chain*, an *outcome*, a *handle* or
-*finishing*. Those words are here, because meaning is the one thing a
-domain-free crate cannot hold, and every chapter of this book opens on what this
-module kept when the others took the rest and on why that part could not move.
+it. `ordinal-fs-tree` has an ordered filesystem tree. `keyed-launch` has an argv
+and a job. `jj-workspace` has a workspace and a commit. None of them has a word
+for a *kind*, a *brief chain*, an *outcome*, a *handle* or *finishing*.
+
+Those words are here, because a domain-free crate cannot hold meaning. Every
+chapter of this book opens on what this module kept when the others took the
+rest. Each chapter also says why that part could not move.
 
 Two files state that for the crate as a whole, and this chapter reconstructs
 both: `Cargo.toml`, whose comment marks the crate *not domain-free* and permits
@@ -21,9 +22,9 @@ itself.
 
 **The comparison with the two books written before this one is made here and
 nowhere else.** The `jj-workspace` book opens each chapter on something that
-crate declines to own and names who owns it instead; the `keyed-launch` book
+crate declines to own. It names who owns it instead. The `keyed-launch` book
 opens each chapter on what a stage must not add and must not interpret. Every
-refusal in those two crates assigns work to this one: what arrives here is the
+refusal in those two crates assigns work to this one. What arrives here is the
 part nobody underneath could take.
 
 **One collision is worth naming before any code is read.** This crate takes the
@@ -273,11 +274,13 @@ opens on the grammar underneath it.
 <!-- /fragment -->
 
 The first fragment is the spine, and every chapter of this book is a reading of
-it. It states the permission — a domain-bound library alongside the read-only viewer — and then it states the boundary by enumeration: the other three
-crates have a tree, an argv and a job, and a workspace and a commit, and none
-of them has a word for a kind, a brief chain, an outcome, a handle or finishing.
-The last clause is the crate's own count of its surface, and chapter 15 is where
-twelve is checked against the thirteen functions `verbs` declares.
+it. It states the permission: a domain-bound library alongside the read-only
+viewer. Then it states the boundary by enumeration. The other three crates have
+a tree, an argv and a job, and a workspace and a commit. None of them has a word
+for a kind, a brief chain, an outcome, a handle or finishing.
+
+The last clause is the crate's own count of its surface. Chapter 15 checks twelve
+against the thirteen functions that `verbs` declares.
 
 <!-- fragment «library-root-thesis» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="1-9" parent="library-root" -->
 ````rust
@@ -371,12 +374,14 @@ caller is an LLM session, and the paths are what it has to name.
 ````
 <!-- /fragment -->
 
-The fifth fragment is the one-error rule, and this chapter owns both halves of
-it: the type is defined at the end of this same file, and the last section of
-this chapter reads it. `anyhow` lives inside the modules, where errors are prose
-with context stacked on them, and stops at this boundary — which is the manifest's
-dependency argument restated from the consumer's side. The obligation the type
-carries is the runner's: every message names what is wrong **and** what fixes it.
+The fifth fragment is the one-error rule. This chapter owns both halves of it.
+The file defines the type at its end, and the last section of this chapter reads
+it.
+
+`anyhow` lives inside the modules, where errors are prose with context stacked
+on them. It stops at this boundary. That is the dependency argument of the
+manifest, restated from the consumer's side. The obligation of the type is the
+runner's: every message names what is wrong **and** what fixes it.
 
 <!-- fragment «library-root-one-error» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="41-49" parent="library-root" -->
 ````rust

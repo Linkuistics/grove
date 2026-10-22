@@ -302,18 +302,20 @@ cost it pays for stating those choices is the one it pays least consistently, an
 the range above is the evidence.
 
 **And the thing the crate is really for.** Three domain-free crates sit
-underneath this one and none of them has a word for a kind, a brief chain, an
-outcome, a handle or finishing. Nineteen chapters have shown what that costs, and
-the sum of it is legible: **the layer that stayed is the layer that holds
-meaning, and meaning is expensive in exactly three places** — where a name must
-survive a round trip through a filesystem, where a check must see what the
-operation will act on, and where a value must be true in two places at once. A
-reader taking this test to a system of their own does not need to have read this
-crate. They need to ask, of the layer that stayed: *which of your names does
+underneath this one. None of them has a word for a kind, a brief chain, an
+outcome, a handle or finishing. Nineteen chapters have shown what that costs.
+
+The sum is legible: **the layer that stayed is the layer that holds meaning, and
+meaning is expensive in exactly three places**. A name must survive a round trip
+through a filesystem. A check must see what the operation will act on. A value
+must be true in two places at once.
+
+A reader who takes this test to a system of their own does not need to have read
+this crate. They need to ask, of the layer that stayed: *which of your names does
 something read back? which of your checks sees a different snapshot from the
-operation it guards? and which of your chosen values is written down twice?* The
-first two questions this crate answers well. The third is where it has three
-answers and no rule.
+operation it guards? and which of your chosen values is written down twice?* This
+crate answers the first two questions well. On the third it has three answers and
+no rule.
 
 The three questions have run down twenty chapters as three column headings
 and three recurring subheadings, and this is the one place they can be set out
@@ -336,13 +338,15 @@ each of the three is alone on its own page.
 <a id="what-the-book-made-redundant"></a>
 ## Thirty-one markers, and the one whose map was corrected
 
-The book neither cites nor edits `docs/ARCHITECTURE.md`. What it does is make
-that document's crate-internal description of `grove-loop` redundant, which is
-the condition under which a later leaf deletes it. Thirty-one of the document's
-forty-one residue markers name this crate — twenty-eight naming it alone, one
-joint with `keyed-launch`, one with `jj-workspace`, one with `none` — and every
-one of the thirty-one has been checked against the chapter the structure brief
-maps it to, by the marker's own subject rather than by its line number.
+The book neither cites nor edits `docs/ARCHITECTURE.md`. It makes the crate-internal
+description of `grove-loop` in that document redundant. A later leaf deletes a
+redundant description.
+
+Thirty-one of the forty-one residue markers of the
+document name this crate. Twenty-eight name it alone, one is joint with
+`keyed-launch`, one is joint with `jj-workspace`, and one is joint with `none`.
+The book checked each of the thirty-one against the chapter that the structure
+brief maps it to. It used the subject of the marker, not its line number.
 
 **All thirty-one are covered by the chapters the map names.** The grammar and
 its diagram, the kind token and the separator, malformed against foreign, and
@@ -478,9 +482,9 @@ from the inside — so no path could have resolved them, and the fourth named a
 module `prompt-names-the-kind-k18` had deleted. Only the fifth took a path:
 `Resolution` is public inside a private module and reaches the API as
 `verbs::Resolution`, so the re-export is the only spelling that resolves.
-`Cargo.toml`'s clauses locating `libc` in `task_tree` alone and `keyed-launch`
-behind one verb were found while chapter 1 was drafted and corrected at
-`manifest-dependency-clauses-k133`. `lib.rs`'s two claims that
+Chapter 1's drafting found two clauses of `Cargo.toml`. One located `libc` in
+`task_tree` alone. The other located `keyed-launch` behind one verb.
+`manifest-dependency-clauses-k133` corrected both. `lib.rs`'s two claims that
 `<worktree>/.grove` is spelled in exactly one place were found at
 [chapter 5](05-opening.md)'s drafting, which could stop repeating them but owned
 none of the bytes, and were corrected at `grove-root-join-clauses-k148` against

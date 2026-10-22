@@ -975,8 +975,8 @@ then matched against every page of every book, in digits and spelled in words.
   inherits this. What stands in their place is the assembly chapter's own marked
   paragraphs, which state `chapters` and `source-owning-chapters` in digits.
 - **An ordinal is outside the mechanism by construction**, by the matching rule
-  above, so `keyed-launch`'s *The sixth owned-source row that exists to be
-  zero* cannot be marked and is not a defect.
+  above. So `keyed-launch`'s *The sixth owned-source row that exists to be zero*
+  cannot be marked. It is not a defect.
 - **A roll-up restated in ordinary prose is the author's**, as this section
   already says. Every book's `README.md` and most of its chapters restate a
   corpus total; a directive is available at each of them and required at none.

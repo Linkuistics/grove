@@ -56,6 +56,26 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+- Grove launches `ravel` as a job, as a job-control shell does, and leaves the
+  job control to Ravel. The loop driver launches it in the foreground of the
+  terminal, and `grove run` launches it detached. Both use one function of the
+  `grove-loop` crate. Grove no longer uses its local copy of the `keyed-launch`
+  runner, and that crate is gone
+  ([#22](https://github.com/Linkuistics/grove/issues/22)). The decisions are in
+  `docs/adr/the-launched-child-is-a-job.md` and
+  `docs/adr/dispatch-supervises-the-harness.md`.
+- Grove requires Ravel 1.1.0 or a later stable 1.x release. It refuses Ravel
+  1.0.x and names `brew upgrade ravel` as the remedy. Upgrade Ravel with this
+  release.
+- After a session ends, Grove takes the status of Ravel as the only evidence of
+  cleanup. It no longer checks for a surviving process group of the child.
+- An error that stops the loop no longer hides a `TERM` or `HUP` signal that
+  Grove caught. The driver reports the error and then dies of that signal, so
+  its exit status is 128 plus the signal number, not 1.
+- `grove` / `configure-grove`: the skill states the Ravel 1.1.0 floor.
+- `grove` / `grove`: the driver reference no longer names a surviving group in
+  the order of events after a session ends.
+
 ## v22.5.0
 
 <!-- tc: off because released history is not converted -->

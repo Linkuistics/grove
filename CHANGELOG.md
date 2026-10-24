@@ -56,6 +56,8 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+## v22.6.0
+
 - Grove launches `ravel` as a job, as a job-control shell does, and leaves the
   job control to Ravel. The loop driver launches it in the foreground of the
   terminal, and `grove run` launches it detached. Both use one function of the

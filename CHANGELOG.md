@@ -1,3 +1,5 @@
+<!-- tc: pending because the conversion has not reached the header of this file -->
+
 # Changelog
 
 One file, one entry style, for everything this repo ships (*skills-monorepo*).
@@ -50,9 +52,13 @@ binary, so bundled skill changes also reach it through a Grove release.
 The section at the foot of this file is the `Linkuistics/skills` changelog as it
 stood at the graft — a closed record, not part of the versioned sequence above.
 
+<!-- tc: on -->
+
 ## Unreleased
 
 ## v22.5.0
+
+<!-- tc: off because released history is not converted -->
 
 - `linkuistics` / `technical-communication`: new skill, modelled on ASD-STE100
   Simplified Technical English, that keeps a model's replies, the documents it

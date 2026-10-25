@@ -56,6 +56,8 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+## v22.7.0
+
 - `linkuistics` / `machine-environment`: add Antony's Mac development and
   configuration contract. Agents use mise with existing project toolchain pins
   and Taskfiles, preserve lasting machine changes through chezmoi, and maintain

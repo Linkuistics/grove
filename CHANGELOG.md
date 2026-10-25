@@ -56,6 +56,10 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+- `testanyware` / `using-testanyware`: the workflow passes `--wait` to a macOS
+  `vm start`, runs a long wait in the background, and reads `vm slots` while a
+  start waits. The text matches `testanyware llm-instructions`.
+
 ## v22.7.0
 
 - `linkuistics` / `machine-environment`: add Antony's Mac development and

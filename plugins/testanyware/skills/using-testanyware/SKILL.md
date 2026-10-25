@@ -39,9 +39,11 @@ run those directly.
    `testanyware vm create-golden --platform <os>` (slow, one-time).
 3. Start the VM and pin its id so later commands need no connection flags:
    ```bash
-   vmid=$(testanyware vm start --platform macos)   # macos | linux | windows
+   vmid=$(testanyware vm start --platform macos --wait)   # macos | linux | windows
    export TESTANYWARE_VM_ID="$vmid"
    ```
+   Pass `--wait` to a macOS start only. It can wait a long time — see
+   **Waiting for a macOS slot** before you run it in a foreground tool call.
 4. Drive it — prefer the **agent** (semantic, survives layout changes) over
    pixel coordinates:
    ```bash
@@ -52,6 +54,28 @@ run those directly.
 5. Observe — `testanyware screen capture -o out.png`, `screen record -o out.mp4`,
    or `screen find-text "..."` for visual / OCR checks.
 6. `testanyware vm stop "$vmid"` — always stop the clone when finished.
+
+## Waiting for a macOS slot
+
+A Mac runs two macOS guests at most, and other agents and groves on the same Mac
+share those slots.
+
+- **Pass `--wait` to every macOS `vm start`.** Without it, a full limit fails at
+  once with `VM_LIMIT_REACHED` (exit 6).
+- **Run a long wait in the background.** A bare `--wait` gives up after 600 s,
+  and a shell tool call often ends sooner, which cancels the start. Start it in
+  the background, do the next step of your work, and read the result when the
+  start ends:
+  ```bash
+  testanyware vm start --platform macos --wait --json > start.json 2> start.err &
+  ```
+- **While a start waits, read `testanyware vm slots --json`.** It lists each
+  holder and each waiter, with who asked. An older release has no `vm slots`.
+  There, `start.err` names the holders.
+- **After a wait that ends with `VM_LIMIT_REACHED`, run `vm slots`.** A holder
+  with `kind` `external` is a guest that TestAnyware did not start.
+- A macOS `vm create-golden` also waits for a slot when the TestAnyware app runs.
+  Run it in the background too.
 
 ## Command detail
 

@@ -124,6 +124,11 @@ const CITATIONS: &[Citation] = &[
                 and it binds on its own",
     },
     Citation {
+        file: "grove/references/execute.md",
+        skill: "machine-environment",
+        binds: "the local task and environment rules below bind when the skill is absent",
+    },
+    Citation {
         file: "grove/references/grove.md",
         skill: "decision-records",
         binds: "what binds without it is adr-format.md",
@@ -142,6 +147,11 @@ const CITATIONS: &[Citation] = &[
         file: "grove/references/grove.md",
         skill: "technical-communication",
         binds: "it says what to explain and in what order, and it stands on its own",
+    },
+    Citation {
+        file: "grove/references/grove.md",
+        skill: "machine-environment",
+        binds: "what binds without it is references/execute.md",
     },
     Citation {
         file: "grove/SKILL.md",
@@ -241,8 +251,8 @@ fn the_citation_registry_is_exhaustive_over_the_corpus() {
     // broken-marker failure cannot pass as a clean audit.
     assert_eq!(
         found.len(),
-        10,
-        "the shipped skill set carries ten audited citations across seven files: {found:?}"
+        12,
+        "the shipped skill set carries twelve audited citations across eight files: {found:?}"
     );
 }
 

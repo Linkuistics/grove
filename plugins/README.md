@@ -36,6 +36,7 @@ task at hand — across Claude Code, Codex, and other agents supporting the
 
 | Skill | Loads when | Notes |
 |-------|-----------|-------|
+| `machine-environment` | project setup, development commands, toolchains, or persistent configuration on Antony's Mac | mise selects project tools, Taskfiles retain workflows, chezmoi owns machine configuration, and the Obsidian manual supplies current details; declares `assumes-personal-setup: true` |
 | `coding-style-rust` | `*.rs` | |
 | `coding-style-python` | `*.py` | |
 | `coding-style-elixir` | `*.ex`, `*.exs` | |

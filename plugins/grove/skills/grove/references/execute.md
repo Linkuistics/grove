@@ -1,5 +1,12 @@
 ## Reusable development tasks
 
+Use the repository and machine owner's documented environment to invoke
+reusable tasks. On Antony's Mac, use `linkuistics:machine-environment` for tool selection and
+machine configuration ownership before setup or development commands. Its
+personal paths apply when the documented local setup is present; elsewhere,
+follow the repository and machine owner's environment contract. The local task
+and environment rules below bind when the skill is absent.
+
 Check for a project Taskfile in **every new or existing project**. If it has
 none, always suggest adding a repository-root `Taskfile.yml`. If one exists,
 use and extend it. Carry forward a settled project choice rather than repeating

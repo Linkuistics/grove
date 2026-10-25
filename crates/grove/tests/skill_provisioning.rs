@@ -57,7 +57,12 @@ impl Fixture {
     }
 }
 fn assert_installed(skills: &Path) {
-    for name in ["grove", "coding-style-rust", "using-testanyware"] {
+    for name in [
+        "grove",
+        "machine-environment",
+        "coding-style-rust",
+        "using-testanyware",
+    ] {
         assert!(
             skills.join(name).join("SKILL.md").is_file(),
             "missing installed skill {name}"

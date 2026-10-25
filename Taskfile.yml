@@ -244,6 +244,14 @@ tasks:
     cmds:
       - bash scripts/check.sh
 
+  check:skills:
+    desc: Check bundled skill installation and Grove guidance conformance
+    cmds:
+      - bash plugins/install.test.sh
+      - bash plugins/grove/conformance.sh
+      - bash plugins/grove/conformance.test.sh
+      - GROVE_TEST_RAVEL="${GROVE_TEST_RAVEL:-$(command -v ravel)}" cargo nextest run --locked -p grove --test plugin_fallback --test skill_provisioning
+
   ravel:resolution:
     desc: Check PATH/version resolution and a real independently installed Ravel pair
     requires:

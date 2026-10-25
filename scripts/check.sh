@@ -17,21 +17,12 @@
 # a weaker claim than a server that refuses a push, and it is stated here rather
 # than implied so nobody reads a green tree as a guarded one.
 #
-# WHY NO rust-toolchain.toml. Measured, twice, rather than assumed:
-#   - `/opt/homebrew/bin/cargo` wins PATH on the development machine and is not
-#     a rustup proxy, so it ignores rust-toolchain.toml outright — a pin there
-#     would be inert on the very machine the drift happened on. (Verified with a
-#     throwaway crate naming a nonexistent channel: Homebrew's cargo formatted
-#     anyway; rustup's refused.)
-#   - The skew it would defend against is currently zero: rustfmt 1.9.0
-#     (Homebrew) and 1.8.0-stable (rustup) agree on this tree.
-# release-common.sh's `pin_rust_toolchain` is the repo's real answer to "which
-# toolchain", and this script deliberately does NOT call it. That pin exists for
-# the cross-compiled release build, which needs rustup's Linux `std`. These
-# checks run on the host, and pinning them would lint the source under rustup's
-# toolchain while the developer builds under whatever their PATH resolves —
-# making the check mean something different from the build. Instead the
-# resolved toolchain is announced, in release-common.sh's own idiom.
+# The caller selects the development environment. On the personal machine,
+# `mise exec -- task check` supplies the configured tools and honours project
+# version files. These checks announce the resolved Cargo and rustfmt and use
+# that same environment throughout. They do not replace its toolchain with
+# release-common.sh's `pin_rust_toolchain`: that separate pin owns cross-compiled
+# release builds, which need rustup's target standard libraries.
 
 set -euo pipefail
 IFS=$'\n\t'

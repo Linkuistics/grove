@@ -71,6 +71,11 @@ each citation states what binds in the plugin's absence:
   session writes in natural language. What binds without it is the "Human-facing
   communication" section of `SKILL.md`: it says what to explain and in what
   order, and it stands on its own. The skill adds rules for words and sentences.
+- **`linkuistics:machine-environment`** — the personal machine's tool selection,
+  configuration ownership, and operating-manual locations. What binds without
+  it is `references/execute.md`: use the documented project and machine
+  environment and retain the project's reusable task entry point. The skill
+  supplies the personal setup details when that setup is present.
 
 The dependency is documentation-level, not install-enforced: absence changes how
 *well* a session writes these artifacts, never *what* it is obliged to write

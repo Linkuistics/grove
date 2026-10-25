@@ -56,6 +56,16 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+- `linkuistics` / `machine-environment`: add Antony's Mac development and
+  configuration contract. Agents use mise with existing project toolchain pins
+  and Taskfiles, preserve lasting machine changes through chezmoi, and maintain
+  the operating manual in Obsidian. Grove's execution guidance links to the
+  skill and states what applies when it is absent. Other machines retain their
+  owner's environment.
+- Add `task check:skills` for skill installation, conformance, and bundled
+  delivery checks. Fresh application scenarios cover the local configuration
+  contract and its scope on another machine.
+
 ## v22.6.0
 
 - Grove launches `ravel` as a job, as a job-control shell does, and leaves the

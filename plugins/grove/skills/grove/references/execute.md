@@ -201,3 +201,24 @@ Three parts, and the third is what makes the escalation answerable:
    about the evidence rather than about whose preference wins.
 
 That turns an escalation into a decision instead of an open-ended handback.
+
+**Required unanswered input keeps the leaf live and the interactive harness
+session open.** Follow this handoff:
+
+1. Ask the question with the recommendation and evidence above. An asynchronous
+   tool's acknowledgement that it accepted the question is not the human's
+   answer.
+2. Complete useful work that is independent of the answer. Keep dependent work
+   pending until the human supplies the required input.
+3. When only the answer remains, state the pending decision and **finish the
+   agent turn**, yielding the interactive prompt to the human in the same
+   session. Waiting needs no invented deadline, polling, heartbeat or repeated
+   sleep. While only waiting, use neither `end-session grove-continue` nor
+   `end-session grove-force-stop`; both end the session that must receive the
+   answer.
+4. When the answer arrives, continue this session, record the settled decision
+   and complete the dependent work. Then follow the normal retirement, commit
+   and session-ending procedure.
+
+If the human explicitly requests termination, honour that request through the
+launch contract's stop procedure.

@@ -56,6 +56,13 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+- `grove`: keep required human questions pending in the same interactive
+  session. Agents yield the prompt while waiting, then resume after the answer;
+  an unanswered question does not call either session-ending command.
+- Launch interactive Codex in the sample policy with `--no-alt-screen`, keeping
+  session endings in terminal scrollback. Existing owner policies can add the
+  same argument; upgrades preserve their configuration.
+
 - `testanyware` / `using-testanyware`: the workflow passes `--wait` to a macOS
   `vm start`, runs a long wait in the background, and reads `vm slots` while a
   start waits. The text matches `testanyware llm-instructions`.

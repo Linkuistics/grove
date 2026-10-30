@@ -253,6 +253,7 @@ fn readable_sample_applies_arrangements_modifiers_and_refusals() {
         let expected = if agent == "codex" {
             vec![
                 agent,
+                "--no-alt-screen",
                 "--model",
                 model,
                 "-c",
@@ -269,7 +270,7 @@ fn readable_sample_applies_arrangements_modifiers_and_refusals() {
         let expected: Vec<String> = expected.into_iter().map(str::to_owned).collect();
         let mut expected = expected;
         if agent == "codex" {
-            expected[4] = format!("model_reasoning_effort={effort}");
+            expected[5] = format!("model_reasoning_effort={effort}");
         }
         assert_eq!(args, expected, "{choice:?}, {kind}");
     }
@@ -367,9 +368,9 @@ fn readable_sample_defaults_cover_every_session_kind() {
         assert_eq!(args[0], agent, "{kind}");
         assert_eq!(args.last().unwrap(), PROMPT);
         if agent == "codex" {
-            assert_eq!(args[2], "gpt-6.1-sol", "{kind}");
+            assert_eq!(args[3], "gpt-6.1-sol", "{kind}");
             assert_eq!(
-                args[4],
+                args[5],
                 format!("model_reasoning_effort={effort}"),
                 "{kind}"
             );

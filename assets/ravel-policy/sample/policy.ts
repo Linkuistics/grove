@@ -55,6 +55,7 @@ const HARNESSES = {
     effort: "medium",
     program: "codex",
     args: (model, effort, prompt, grants) => [
+      "--no-alt-screen",
       "--model",
       model,
       "-c",

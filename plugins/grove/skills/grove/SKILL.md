@@ -103,8 +103,8 @@ the brief chain root→leaf, and the task file. Nothing else by reflex.
 - When about to make a repo-wide claim, verify it as `references/execute.md`
   requires.
 - When a decision settles, record it as `references/execute.md` directs.
-- When handing a question back to a human, frame it as `references/execute.md`
-  directs.
+- When handing a question back to a human or awaiting required input, follow
+  `references/execute.md`.
 - When work surfaces that does not serve this leaf's goal, externalise it
   through `references/decompose.md`.
 - When this leaf proves bigger than its brief, decompose it through

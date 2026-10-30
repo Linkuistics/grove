@@ -32,6 +32,13 @@ secondary jj workspace. Its `release-notes` route expects Grove's staged
 origins. For creator-aware routing, import `examples/grove-review.ts` instead.
 Using these files does not install or overwrite a personal policy.
 
+The sample's interactive Codex command uses `--no-alt-screen`, so session
+endings remain in terminal scrollback after Ravel closes the session. Add that
+flag to an existing owner policy's interactive Codex arguments to use the same
+display behaviour. Grove's terminal recovery still returns from an alternate
+screen when a different harness leaves one active; launch arguments belong to
+the owner policy.
+
 `ravel start-session --config <file> --kind <kind> --prompt <text>` launches
 the selected command. The caller supplies ending instructions and result
 meaning; Ravel passes the prompt unchanged. For Grove, that includes invoking

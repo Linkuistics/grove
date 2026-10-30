@@ -56,6 +56,8 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+## v22.8.0
+
 - `grove`: keep required human questions pending in the same interactive
   session. Agents yield the prompt while waiting, then resume after the answer;
   an unanswered question does not call either session-ending command.

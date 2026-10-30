@@ -1403,8 +1403,10 @@ the CLI has two explicit authority boundaries:
   confirmation before the agent marks it `ABANDONED`.
 - Deleting the completed `.grove/` tree is the one routine finish confirmation.
 
-**Finishing happens inside a real, resumable session**: declining before
-teardown leaves the finish leaf for a later `grove`. A completed teardown is
+**Finishing happens inside a real, resumable session**: an unanswered or declined
+proposal keeps the finish leaf live and the current interactive session
+available. An explicit request to stop the run leaves that leaf for a later
+`grove`. A completed teardown is
 recorded with `grove-llm record-teardown` before the prompt's exact ending
 command (current Ravel: `end-session grove-continue`; original live v22:
 `harness-dispatch exit`). No commit is

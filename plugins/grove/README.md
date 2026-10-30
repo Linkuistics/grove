@@ -94,11 +94,13 @@ reference files — where the spine's `SKILL.md` is a *condition register*: it
 states that the driver already named your `grove-<kind>` skill, and names only
 files the spine carries. And `content/SIGNAL.md` and `content/SIGNAL-FINISH.md`
 became driver prose at `prompt-names-the-kind-k18`: `${prompt}` states grove's
-exit contract once for every kind, and `finish`'s three endings are inline in
+exit contract once for every kind, and `finish`'s endings are inline in
 `grove-finish/SKILL.md`: record a completed teardown with
 `grove-llm record-teardown`, then make the launch prompt's exact ending command the final action; signal
-externalised work with the launch prompt's exact ending command; decline or find no human and
-stop without a result. Ravel ends/reaps the managed process before returning.
+externalised work with the launch prompt's exact ending command; keep an
+unanswered confirmation in the same interactive session. An explicit human
+request to stop uses the launch prompt's stop command. Ravel ends/reaps the
+managed process before returning.
 Grove reads Ravel's public stdout result and its own launch teardown record to decide
 whether to relaunch, finish or stop. Grove passes no session-name or root
 parameter to policy; naming the session belongs to the methodology.

@@ -513,9 +513,10 @@ live work and creating the sentinel, and an existing sentinel is returned rather
 than duplicated.
 
 That second property is what makes the driver's finish **resumable**. A finish
-session that is declined, or that exits before teardown begins, writes no signal
-and leaves the leaf live; the next `grove` comes back through here and gets the
-same leaf rather than a second one. The
+session awaiting confirmation, or whose proposal is declined, retains the leaf
+and stays available for the human's response. If the run is explicitly stopped
+before teardown, the next `grove` comes back through here and gets the same leaf
+rather than a second one. The
 [guide's account of finishing](../../USAGE.md#usage-finish) states the operator's
 half of that contract.
 

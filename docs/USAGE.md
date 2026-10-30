@@ -1230,8 +1230,10 @@ grove: grove finished — loop complete.
 ```
 
 This is Grove's one routine human confirmation point, because it deletes the
-workstream tree. Declining, or exiting before teardown begins, writes no signal
-and leaves the finish leaf live for a later `grove`. If new work appears after
+workstream tree. An unanswered or declined proposal leaves the finish leaf live
+and the current interactive session available. The agent yields its turn while
+waiting for your response. If you explicitly stop the run before teardown,
+the next `grove` returns to that same leaf. If new work appears after
 the finish session launched, teardown refuses and names that work, leaving the
 tree untouched for the next iteration:
 

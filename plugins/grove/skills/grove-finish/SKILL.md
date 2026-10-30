@@ -14,8 +14,8 @@ stated nowhere else.
 
 **finish** (HITL, driver-reserved) — the whole-grove teardown session. It
 proposes the complete finish cycle and waits for explicit human confirmation
-before any teardown; declining leaves the leaf live for a later resume, and a
-`finish` leaf is never retired.
+before any teardown. An unanswered or declined proposal leaves the leaf live;
+a `finish` leaf is never retired.
 
 Your leaf is the driver-owned `finish` sentinel at the grove root, mandated under
 the `finish` session kind.
@@ -26,17 +26,20 @@ pass it over until that work is terminal, so the sentinel can neither starve nor
 preempt real work. The **complete finish cycle** itself is driven in-session by
 the LLM (no Rust automation): the session **proposes** it and **waits for
 explicit human confirmation before any teardown** — never run steps 2–3
-unprompted; with no human to ask, report the plan instead.
+unprompted.
 
-**How this session ends is decided by what it did**, and all three outcomes are
-open to you. In the two that signal, the exact ending command supplied by your launch prompt is your **last
-action — then do nothing else**; Ravel returns Grove's result after ending and reaping the harness.
+**How this session ends is decided by what it did.** An unanswered confirmation
+stays pending through the shared spine's human-input handoff; this session remains
+open. In the two outcomes that signal completion or continuation, the exact
+ending command supplied by your launch prompt is your **last action — then do
+nothing else**; Ravel returns Grove's result after ending and reaping the harness.
 
 | what the session did | ending |
 |---|---|
 | teardown completed | `grove-llm record-teardown`, then the exact ending command supplied by your launch prompt — the loop finishes |
 | externalised work instead | the exact ending command supplied by your launch prompt — the loop relaunches and picks the new leaf; the sentinel waits |
-| declined, or no human present | the launch prompt's exact force-stop command, when supplied — stops without completion with live work resumable; original dispatch launches use no signal and end the harness manually |
+| awaiting human confirmation | follow the shared spine's human-input handoff; the leaf and interactive session stay live |
+| the human declines the finish cycle and stops the run | the launch prompt's exact force-stop command, when supplied — stops without completion with live work resumable; original dispatch launches use no signal and end the harness manually |
 
 **Record the teardown before sending the exit signal.** Every prompt supplies
 its exact final command; current Ravel launches use `end-session grove-continue`. After teardown, the record tells
@@ -49,14 +52,15 @@ does not restore the deleted tree. Use the normal ending after completed,
 authorized finish work; use force-stop to stop the sequence. The launch prompt
 owns both exact commands and their result meanings; Ravel interprets neither.
 
-The middle outcome is the one worth holding on to. You are told, like every
+The externalised-work outcome is the one worth holding on to. You are told, like every
 session, to externalize surfaced work rather than absorb it, and a session that
 does so **cannot** tear down: ordinary work is live, and `pick` passes the
 sentinel over until it is terminal. That is a plain relaunch rather than a
 failure, and it banks no confirmation — the sentinel is never retired, so the
 next `finish` session proposes the cycle and waits for a confirmation of its
-own. Declining, or finding no human to ask, leaves the leaf live and next, so
-the following bare `grove` proposes the cycle again.
+own. After an explicit decision to stop, the leaf stays live and next, so the
+following bare `grove` proposes the cycle again. A confirmation that remains
+unanswered stays with the current session.
 
 On confirmation, run:
 

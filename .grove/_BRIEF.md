@@ -7,7 +7,8 @@ skill corpus into domain repositories and provide common skill discovery through
 Ravel. Consolidate the four named writing projects into
 `~/Development/AgenticOrchestration/`.
 
-The human's latest scope corrections in `plan-k1` govern this brief. The stop
+The human's scope corrections in `plan-k1` and delivery-boundary corrections in
+`grove-skill-delivery-k8` govern this brief. The stop
 command is separate [issue #26](https://github.com/Linkuistics/grove/issues/26).
 Review/integration simplification is separate
 [issue #27](https://github.com/Linkuistics/grove/issues/27), which investigates a
@@ -46,10 +47,12 @@ contract; design and implementation remain ahead.
 ### Ravel
 
 One owner configuration identifies local sources and exact pinned Git revisions.
-Ravel resolves the sources and generates an entry document containing skill
-names, trigger descriptions, and absolute paths. It automatically adds a loading
-instruction and the catalog location to the prompt before owner policy constructs
-the harness command. Every policy must not have to remember a separate helper.
+Ravel acquires configured sources and injects skill-directory paths into the
+prompt before owner policy constructs the harness command. The agent finds and
+reads applicable skills. Ravel does not resolve a skill named by Grove.
+The human clarified this boundary during grove-skill-delivery-k8; it replaces
+the earlier generated skill-catalog design. Reconcile the owning Ravel design
+before implementation. Every policy must not have to remember a separate helper.
 
 Preserve the caller's original task and exact ending commands intact in a
 separate block. This changes Ravel's current no-injection contract. Mandatory
@@ -63,13 +66,15 @@ it clearly and never substitute another revision.
 Account for compaction, delegates, source/resource lifetime, duplicate native
 copies, and actual launch permissions. The automatic contract covers launched
 sessions and their delegated agents. Independently started harness sessions can
-read the same entry document; automatically configuring them is outside scope.
+use the same supplied directories; automatically configuring them is outside scope.
 
 ### Grove
 
 Kinds remain open labels. Grove neither declares a kind set nor resolves the
 skill locations Ravel adds to the prompt. Its ordinary mandate continues to
-name the required kind skill. Preserve existing kind labels, leaf filenames,
+name the required kind skill. The user ensures skills are installed either
+within each selected harness or through Ravel's mechanism. Neither route is a
+Grove prerequisite; Grove is decoupled from skill delivery. Preserve kind labels, leaf filenames,
 handles, review/integration routes, and workflow behavior.
 
 Do not introduce declaration-based admission, a kind registry, generic review
@@ -80,7 +85,8 @@ Grove's current broad Codex snapshot provisioning, packaging, embedded resources
 and tests must be reconciled with the new delivery path and moved files. Keep
 any core-only fallback on the common path and replace obsolete automatic
 provisioning rather than maintaining a second competing mechanism. The marketplace
-remains a distribution option for standalone harness use.
+and manual native installations remain supported user choices, including for
+Grove-launched harnesses.
 
 Planning ships with core as the existing replaceable default skill. Retain the
 existing producer-specific review and integration entry skills for this move;
@@ -151,7 +157,7 @@ the missing implementation/acceptance work before allowing the node to close.
 Any earned producer review is cut lazily, placed before work that needs the
 settled artifact; an actionable review's integration runs next.
 
-Design must settle Ravel's source/configuration interface, catalog and source
+Design must settle Ravel's source/configuration interface, directory and source
 lifetime, duplicate handling, bootstrap with missing sources, compatibility
 checks, and confinement/delegation. Preserve one owner per normative rule and
 reachability across source locations. These are design questions within the

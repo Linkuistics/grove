@@ -217,6 +217,7 @@ of scope.
 
   A term's definition lives in the glossary of its owning
   context, never in both. The **grove** context owns
+  [`skill-sources-are-explicit`](docs/adr/skill-sources-are-explicit.md),
   [`harness-selection-is-owned-by-policy`](docs/adr/harness-selection-is-owned-by-policy.md),
   [`a-review-carries-its-creator-reference`](docs/adr/a-review-carries-its-creator-reference.md),
   [`policy-evaluation-precedes-the-launch`](docs/adr/policy-evaluation-precedes-the-launch.md),

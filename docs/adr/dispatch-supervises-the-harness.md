@@ -4,10 +4,11 @@ Grove launches the independently installed `ravel start-session` as a job.
 Ravel selects the command through the owner's policy and supervises its process
 group. It restores the terminal and reaps the group. Then it returns the opaque
 argument that `ravel end-session RESULT` published. The caller supplies the
-prompt and the ending instructions. Ravel injects none and gives the result no
-meaning.
+task and the ending instructions. In the Ravel 2 adoption design, Ravel adds
+configured skill-directory paths before policy selection while preserving caller
+bytes. It adds no caller ending instruction and gives the result no meaning.
 
-[Ravel's executable contract](https://github.com/Linkuistics/Ravel/blob/v1.1.0/docs/specs/session-execution.md)
+[Ravel's session contract](https://github.com/Linkuistics/Ravel/blob/v1.1.0/docs/specs/session-execution.md)
 owns selection, ephemeral transport, cleanup and confinement. Grove consumes
 only the public CLI and the stdout result. It never consumes a private worker or
 report protocol, a run record or a persistent store.
@@ -48,12 +49,14 @@ version. The caller contract states the procedure in
 [Independent packages](../specs/harness-selection-and-execution.md#package-boundary).
 Homebrew presence alone proves no runtime compatibility.
 
-The floor is 1.1.0 because Grove relies on Ravel's failure paths for its cleanup
-assurance.
-[Ravel 1.1.0](https://github.com/Linkuistics/Ravel/blob/v1.1.0/CHANGELOG.md)
-changes the behaviour of five of them. In one, Ravel stops a session when it
-cannot check that it reaped its policy worker. Grove's own survivor check of the
-group of `ravel` used to catch that case.
+The caller retains stable Ravel 1.x from the 1.1.0 cleanup floor and admits 2.x
+after public session compatibility is verified. Skills do not determine version
+admission: the user can supply them natively without directory injection.
+Shipped Grove 22.8 still refuses 2.x. The
+[delivery transition](../specs/codex-skill-provisioning.md#packaging-and-rollout)
+preserves live ending commands and tests new caller combinations separately.
+A publication is not permission to replace a shared installation before its
+callers and policies can migrate.
 
 This trusts the program that the owner's PATH selects, even during the probe.
 Version output is not authentication. Canonicalisation fixes the symlink

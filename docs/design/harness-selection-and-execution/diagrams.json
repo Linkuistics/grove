@@ -1,7 +1,12 @@
 {
-  "title": "Harness selection and execution — Grove caller views",
-  "intro": "Current caller/process views of independently installed Ravel and Grove. The caller spec owns Grove interpretation; Ravel owns executable runtime behavior. Original live-v22 sessions retain their launch-prompt ending contract and are not depicted as new Ravel launches. Graphs begin at Start here, sequences at their first message, and the state view at its initial state.",
+  "title": "Harness selection and execution \u2014 Grove caller views",
+  "intro": "Pending adoption design: the user supplies skills natively or through Ravel directory injection; Grove names a skill and the agent finds it. The earlier Ravel catalog design needs correction. Process/result behavior remains as specified. Graphs begin at Start here, sequences at the first message, and states at the initial state.",
   "groups": [
+    {
+      "id": "skills",
+      "title": "User-managed skill delivery",
+      "description": "Two supported delivery routes, no named-skill resolver in Grove or Ravel."
+    },
     {
       "id": "boundary",
       "title": "Independent ownership",
@@ -25,6 +30,20 @@
   ],
   "diagrams": [
     {
+      "id": "skill-delivery",
+      "group": "skills",
+      "title": "User-managed skill delivery",
+      "source": "skill-delivery.mmd",
+      "caption": "The user may choose either route or retain both. Directory readability does not prove skill presence or agent adherence. Ravel does not resolve a skill requested by Grove."
+    },
+    {
+      "id": "skill-transition",
+      "group": "skills",
+      "title": "Preserving readers through adoption",
+      "source": "skill-transition.mmd",
+      "caption": "Target design, not completed rollout. No automatic native cleanup. Existing session ending commands remain valid; old callers retain compatible prefixes and settings."
+    },
+    {
       "id": "packages",
       "group": "boundary",
       "title": "Independent caller and process-manager boundary",
@@ -36,7 +55,7 @@
       "group": "execution",
       "title": "Route, supervise and return an argument",
       "source": "handoff.mmd",
-      "caption": "The caller supplies instructions. Selection refusal launches nothing; only confirmed cleanup can return a successful opaque result."
+      "caption": "Optional directory injection precedes selection. The agent finds the named skill using the user-selected route. Refusal launches nothing; successful cleanup returns only the opaque result."
     },
     {
       "id": "chain",
@@ -57,7 +76,7 @@
       "group": "grove",
       "title": "Lifecycle and confined standalone callers",
       "source": "grove-launch.mmd",
-      "caption": "Both callers use one shared job function: a foreground job for the lifecycle, a detached job for grove run. Both supply canonical continue and force-stop commands through unchanged prompts. Lifecycle force-stop stops without completion. Standalone force-stop fails without publishing outputs."
+      "caption": "Both callers use one shared job function and may receive directory hints. Exact caller ending commands remain intact. Lifecycle and standalone result meanings stay unchanged."
     },
     {
       "id": "loop-decision",
@@ -87,5 +106,39 @@
       "source": "creator.mmd",
       "caption": "The configured-review branch of Grove's opt-in policy. Nonreview routing is outside this view. Missing/invalid/legacy evidence or a same-provider route refuses."
     }
-  ]
+  ],
+  "discussion": {
+    "title": "Grove names skills; the user supplies them",
+    "status": "Human-corrected boundary; detailed design pending review",
+    "summary": "Native installation and Ravel directory injection are alternative routes. The agent discovers and reads guidance. Reconcile the earlier upstream catalog design before implementation.",
+    "diagramIds": [
+      "skill-delivery",
+      "skill-transition",
+      "handoff",
+      "packages",
+      "grove-launch"
+    ],
+    "updatedDiagrams": [
+      {
+        "id": "skill-delivery",
+        "summary": "Added equal native and directory routes with discovery owned by the agent."
+      },
+      {
+        "id": "skill-transition",
+        "summary": "Added upstream correction, isolated acceptance and separate activation."
+      },
+      {
+        "id": "handoff",
+        "summary": "Added optional directory injection and preserved caller bytes."
+      },
+      {
+        "id": "packages",
+        "summary": "Placed directory hints before owner policy evaluation."
+      },
+      {
+        "id": "grove-launch",
+        "summary": "Applied optional directory delivery to both callers."
+      }
+    ]
+  }
 }

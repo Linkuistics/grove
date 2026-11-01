@@ -3,13 +3,18 @@ sequenceDiagram
   participant R as Independent Ravel
   participant P as Owner policy
   participant H as Managed process
-  G->>R: start-session: kind, unchanged prompt, public caller data
+  G->>R: start-session: kind, intact mandate, public caller data
+  opt Owner configured directory injection
+    R->>R: Acquire configured source directories and add their paths
+    Note over R,P: Source failure stops before selection, no named-skill lookup
+  end
   R->>P: Evaluate bounded selection without enclosing completion authority
   P-->>R: Selected command or refusal
   alt Refusal or selection failure
     R-->>G: Diagnostic and nonzero status, no managed process
   else Selected command
-    R->>H: Start and supervise with fresh enclosing ending context
+    R->>H: Start with launch prompt and fresh ending context
+    H->>H: Find and read named skill through native install or injected paths
     H->>R: Prompt's exact end-session RESULT command
     R->>H: End managed group, reap and restore terminal
     alt Cleanup succeeds and result published
@@ -18,4 +23,4 @@ sequenceDiagram
       R-->>G: No successful result
     end
   end
-  Note over G,R: No instruction injection, persistent record or caller result meaning in Ravel
+  Note over G,R: Grove knows no skill locations, Ravel preserves exact caller task and endings

@@ -12,6 +12,13 @@ Read ravel-skill-discovery-k7 and grove-skill-delivery-k8, their durable artifac
 and any integrated reviews. Recheck the owning repositories and available task
 entry points. Do not choose configuration/API details that the designs left open.
 
+The human's directory-injection correction in grove-skill-delivery-k8 governs
+the earlier Ravel catalog design. Consume the focused upstream correction and
+the adoption review before cutting implementation. Native harness installation
+and Ravel directory delivery remain alternative user choices; Grove only names
+the skill. The producer's evidence document maps inspected consumers to delivery
+work and source-exact documentation updates.
+
 ## Done when
 
 - Search again for the smallest working increments in the settled design. Give

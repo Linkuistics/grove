@@ -6,14 +6,14 @@ context and provider receipts"]
   Local["Grove shared job function
 ravel as a foreground or detached job"]
   Ravel["Independent Ravel installation
-public two-verb process boundary"]
+public session CLI boundary"]
   Policy["Owner policy and settings
 explicit SDK and caller imports"]
   Child["Selected managed process"]
   Caller -->|"1. Resolve absolute PATH and version"| Ravel
   Caller -->|"2. Spawn public start-session"| Local
   Local --> Ravel
-  Ravel -->|"3. Evaluate"| Policy
+  Ravel -->|"3. Add configured directory hints, then evaluate"| Policy
   Policy -.->|"Explicit ordinary imports"| Assets
   Ravel -->|"4. Supervise with Ravel's own runner; Ravel alone cleans up"| Child
   Child -.->|"5. end-session RESULT"| Ravel

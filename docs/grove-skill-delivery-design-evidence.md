@@ -1,0 +1,122 @@
+# Grove skill-delivery design evidence
+
+The [delivery specification](specs/codex-skill-provisioning.md) defines the
+adoption target. This document records inspected source, design evidence and
+verification limits. It does not claim implementation or acceptance of that
+target. Source observations below are against Grove parent `8d45d75e`.
+
+<a id="upstream-correction"></a>
+## The upstream correction
+
+The initial input was Ravel design commit
+`66aaec06f5c020215b9b0e4139c2ba2e0b969644`, read locally from the owning repository.
+That design enumerates skill metadata, generates catalogs, refuses duplicate
+names and exposes a catalog descriptor. It is historical input, not the final
+contract for this workstream after the human's corrections:
+
+> grove and ravel are decoupled with respect to skills - grove may name a skill,
+> but it is up to the user to ensure that the skill is installed either within
+> each harness, or via ravel's mechanism
+
+> Ravel doesn't resolve "a" skill - it simply injects the skill directory path(s)
+> into the prompt.
+
+Accordingly, Grove's design requires neither a catalog nor Ravel-based skill
+installation. The agent finds skills in its native installation or supplied
+paths. A focused Ravel design correction must reconcile the source configuration,
+prepared prompt, loading instructions, public setup seam, compatibility and
+acceptance with directory injection. Do not leave a second live catalog contract
+in its specs, ADRs, glossary or diagrams. Preserve the accepted source acquisition,
+exact pin/offline, resource lifetime and confinement requirements, distinguishing
+source-directory acquisition from named-skill resolution. Any necessary choice
+about how directory discovery exposes triggers or mandatory guidance belongs to
+that correction, not an invented Grove API.
+
+The Grove adoption review follows that correction and checks the two contracts
+before the existing implementation planner consumes them. No product code or
+owner configuration was changed by this leaf.
+
+## Source and coverage
+
+Tier 2 (Verify), project
+`Users-antony-Development-AgenticOrchestration-grove.gh-issue-25`, ready full
+index generation `2026-11-01T11:21:49Z`; coverage record
+`2026-11-01T11:24:11Z`, matching generation and source metadata at inspection.
+Targeted build/resolver searches were fully paginated. Broad exploratory searches
+were narrowed before reliance; their truncated results are not an inventory.
+
+`ensure_codex_skills` has one recorded inbound caller, `cli::execute`; its
+source and the call site were read. The trace also inferred common-method edges
+outside this subsystem, so no correctness claim relies on those inferred edges.
+Exact snippets established the provisioning entry point, generated inventory and
+version predicate. Coverage reported no recorded gap for the cited Rust/build
+paths. That is a best-effort signal, not proof of completeness.
+
+The installer has a recorded partial parse at lines 188–447. That entire range
+was read directly, including harness eligibility, link reconciliation and
+foreign-entry behavior. Configuration, release scripts and documentation were
+searched/read as non-code text. This is a bounded consumer audit, not a claim
+that every downstream reference has already been repaired.
+
+| Inspected source | Observation and implication |
+| --- | --- |
+| [CLI](../crates/grove/src/cli.rs), `execute`, lines 91–106 | Provisioning follows workspace/lease acquisition and precedes Ravel resolution. Remove this call without introducing skill preflight; standalone already bypasses it. |
+| [Provisioner](../crates/grove/src/provision.rs), lines 13–41, 98–132, 192–307 | Generated inventory drives native installation; the current pointer, retained snapshots and canonical/legacy links live under account-owned roots. Retiring the writer must not delete its output. |
+| [Build script](../crates/grove/build.rs), lines 42–88; [binary modules](../crates/grove/src/main.rs) | Build scans all plugin files, embeds bytes and modes, derives Codex eligibility and rejects duplicate directory names. Remove this build dependency with the private module. |
+| [Package manifest](../crates/grove/Cargo.toml) | Existing general dependencies also serve other code. Do not infer a dependency is removable merely because the provisioner used it. |
+| [Ravel resolver](../crates/grove/src/dispatch/ravel.rs), lines 34–76, 153–204 | Stable 1.x from 1.1.0 is admitted; 2.x is refused. Extend session compatibility deliberately and keep 1.1 for native-only users. The current undirected upgrade remedy must change. |
+| [Policy assets](../assets/ravel-policy/README.md) and [sample](../assets/ravel-policy/sample/policy.ts) | Shipped examples currently declare policy schema 2. New examples must identify their target SDK; context/receipt schema 1 is not a policy schema to bulk-replace. |
+| [Installer](../plugins/install.sh), lines 188–447 | Explicit native installation applies harness eligibility and reconciles links. Keep it as an owner-invoked route, never invoke it as startup/upgrade cleanup. |
+| [Conformance](../plugins/grove/conformance.sh), lines 305–430 | Loaded paths and owners currently use a shared skills directory and spine fallback. Cross-pack proof must exercise actual resource lookup and ownership beyond this layout. |
+| [Release builder](../scripts/release-build.sh), archive layout declaration; [formula](../scripts/templates/grove.rb.tmpl), lines 28–75, 106 | Archives carry executables/caller assets, while the binary hides skills internally. Layout need not gain a skill payload. Caveats/tests currently assume Codex provisioning, Ravel 1.x and schema 2. |
+| [Pinned inputs](../scripts/ravel_target_inputs.py); [installed smoke](../scripts/grove-installed-smoke.sh) | Fixtures hard-code Ravel 1.1.0 and package identities. Keep a 1.1 compatibility lane and add explicitly pinned new inputs rather than silently testing whatever PATH finds. |
+| [Provisioning tests](../crates/grove/tests/skill_provisioning.rs); [lifecycle tests](../crates/grove/tests/lifecycle_cutover.rs) | Existing tests positively assert automatic installation and embedded guidance. Replace obsolete assertions with no-native-mutation and actual delivery-route acceptance, preserving useful lifecycle coverage. |
+| [Fallback audit](../crates/grove/tests/plugin_fallback.rs) | Optional craft dependencies have independent coverage. Preserve this behavior under both delivery routes and across later pack moves. |
+
+## Interface and alternatives
+
+| Evidence | Caller obligation | Coupled concerns and consequence |
+| --- | --- | --- |
+| Current build/provisioner | Binary release must include a complete broad corpus | Corpus movement, binary compilation and shared native writes change together. Removing the adapter removes this coupling. |
+| Owner-managed delivery | User supplies skills for selected harnesses; Grove names a skill | Native installation and directory injection can vary without changing task-tree logic. Setup costs remain visible. |
+| Directory hints | Agent discovers and reads applicable guidance | Prompt delivery, actual reads and instruction adherence are distinct. Neither executable certifies the last two. |
+| Old native readers | Preserve links, pointers and resolved paths | Lazy/untracked readers prevent safe automatic cleanup. Keeping old content costs disk and owner administration. |
+| Existing public session CLI | Verify admitted major versions and explicit policy examples | Skill delivery does not justify a Ravel-2-only caller. A future session-CLI break would reverse dual-major admission. |
+
+The rejected fallback and native-writer alternatives are recorded once in
+[the delivery ADR](adr/skill-sources-are-explicit.md). No new formal model is
+claimed. Existing process, filesystem and conformance seams plus real harness
+trials answer the material doubts.
+
+## Documentation and delivery handoff
+
+This is a consumer map for planning, not an executable implementation plan or
+an exhaustive stale-string inventory. Each delivery increment updates the
+current documentation it makes true. Historical evidence retains its original
+version labels and measurements.
+
+| Delivered behavior | Documentation and checks to move with it |
+| --- | --- |
+| Remove automatic native writes | README installation, `plugins/README.md`, `plugins/CONTEXT.md`, `docs/USAGE.md`, architecture delivery/module sections, glossary Skill delivery and Spine skill, formula caveats and `check:skills`. Mark the old `docs/plans/codex-skill-provisioning.md` as historical or remove it when its implementation instructions cease to be useful. |
+| Caller/version adoption | Resolver diagnostics and fixtures, readable policy examples/typechecks, settings/configure guidance, caller spec/ADRs/views, `docs/specs/standalone-invocations.md`, `CONTEXT-MAP.md`, target fixtures and release instructions. Keep explicit old/new major combinations. |
+| Source-exact runtime books | Overview chapters `02-the-surface`, `03-three-steps`, `06-standalone-invocations`; grove-loop `19-the-loop` where launch/prompt boundaries appear; relevant source/concept indexes and manifests. Regenerate snippets against final code in the increment that changes it, not during this documentation-only design. Run the existing book checks. |
+| Common source delivery | Installation examples for native and Ravel routes; use complete plugin boundaries while sources remain here. `plugins/linkuistics/skills/guardrail` is Claude-only, while common directory injection does not filter installer metadata. Verify that its trigger/guidance does not claim unsupported behavior in Codex. |
+| First external research pack | Own and aggregate conformance, required cross-source loading, resource/provenance/licence preservation, native package references, pinned/offline/common-directory trials. Establish reusable tooling here before the remaining domain moves. |
+| Installed rollout | Archive/formula/native and Linux-floor checks with explicit Ravel inputs, compatible SDK examples and both setup routes. Preserve legacy-driver rehearsal and original endings. Ravel feature publication precedes Grove advertising it; shared activation waits for compatible callers/settings. |
+
+Relevant reusable entry points already exist in [Taskfile.yml](../Taskfile.yml):
+`check`, `check:skills`, `ravel:resolution`, `ravel:commands`, `ravel:policy`,
+`ravel:activation`, `ravel:fixtures`, installed release checks and
+`design:harness-selection`. Extend those from actual implementation needs.
+The integrated result still requires `bash scripts/check.sh`; a design validation
+is not that result. Native-installation and directory-injection harness trials
+need separate evidence, and an unavailable delegate or compaction case stays an
+explicit acceptance gap.
+
+## Design verification
+
+The design is subject to local-link/anchor, diagram manifest/source and
+served-resource validation. Actual browser rendering, checks performed and any
+remaining gaps are recorded on the producing task. Product tests, actual Ravel
+2 compatibility, new source acquisition and real harness compliance remain
+unmeasured by this design leaf.

@@ -25,6 +25,14 @@ silently.
 <a id="skill-delivery"></a>
 ### Skill delivery / the retired sweep
 
+The adoption design separates the named skill from its delivery: the user
+supplies native harness installations or Ravel-injected skill-directory paths,
+and the agent discovers and reads the skill Grove names. Neither executable
+resolves a requested skill. The
+[delivery specification](docs/specs/codex-skill-provisioning.md) owns that pending
+transition. The snapshot mechanism below is shipped Grove 22.8 behavior,
+retained here until its implementation and source books change.
+
 How the **`grove` plugin** reaches a session: a spine skill and one
 `grove-<kind>` skill per kind, delivered through the harness's installation
 route. Bare Grove embeds and provisions compatible Codex plugin snapshots at
@@ -100,7 +108,9 @@ saving.
 The prompt Grove composes for one selected session: an instruction to load its
 [[Kind skill]], the resolved [[Work-item handle]], [[Stated VCS]] and Grove
 version, followed by caller-owned ending instructions. Grove passes it unchanged
-through `ravel start-session --prompt`; Ravel injects nothing. `${prompt}` is the
+through `ravel start-session --prompt`. The shipped Ravel 1.1 path injects
+nothing; the adoption design permits directory hints around intact caller bytes.
+`${prompt}` is the
 retained name of the former template slot, not an expansion mechanism.
 
 The **too-late test** admits only a sentence whose failure the skill cannot

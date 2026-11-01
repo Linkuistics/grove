@@ -2,8 +2,9 @@
 
 One function the owner writes decides which harness, model and reasoning effort
 run a piece of work, and nothing else decides it. The `ravel`
-executable passes that `select` function what its caller passed, the prompt
-included. The executable acts on what the function returns: the command to run,
+executable passes that `select` function the caller's data and a launch prompt
+that may include configured directory instructions. The
+executable acts on what the function returns: the command to run,
 with its provider, model and effort labels, or a refusal. The executable holds no
 catalog of harnesses, no table of kinds and no rule about which choice is
 allowed. Grove runs it for every session it launches, lifecycle and standalone
@@ -11,14 +12,17 @@ alike, and carries no launch configuration of its own.
 
 The [supervision decision](dispatch-supervises-the-harness.md) owns the
 Grove caller boundary. The independent
-[Ravel specification](https://github.com/Linkuistics/Ravel/blob/v1.0.0/docs/specs/session-execution.md)
+[Ravel session specification](https://github.com/Linkuistics/Ravel/blob/v1.1.0/docs/specs/session-execution.md)
 owns executable/runtime behaviour. The
 [worker decision](policy-evaluation-precedes-the-launch.md) records the native
 selection boundary. [Supervision](dispatch-supervises-the-harness.md) records
 why the selected process remains a managed job.
 
-Grove supplies kind, task file, stable handle and unchanged prompt as ordinary
-caller data, with no parameter. Lifecycle work runs in the workspace root, and
+Grove supplies kind, task file, stable handle and unchanged mandate as ordinary
+caller data, with no parameter. Ravel may inject skill-directory paths; it does
+not resolve the skill Grove names. The policy forwards the launch prompt. Grove's
+[delivery contract](../specs/codex-skill-provisioning.md) separates that target
+from shipped 22.8 behavior. Lifecycle work runs in the workspace root, and
 standalone work runs in its staged cwd. An owner policy can derive workspace
 grants from `request.cwd` and `.jj/repo`. No jj/task convention belongs to Ravel.
 Grove's readable assets interpret task relationships and preserve inline creator

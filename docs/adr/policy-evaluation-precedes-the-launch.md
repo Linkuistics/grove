@@ -4,8 +4,14 @@ Independent Ravel uses a native front and a matching compiled TypeScript worker.
 The front retains launch environment/terminal, evaluates bounded owner selection
 without session authority, reaps the worker and then supervises the selected
 process. Grove relies on that public behavior; it never calls the private worker.
-[Ravel's executable specification](https://github.com/Linkuistics/Ravel/blob/v1.0.0/docs/specs/session-execution.md)
+[Ravel's session specification](https://github.com/Linkuistics/Ravel/blob/v1.1.0/docs/specs/session-execution.md)
 owns the detailed runtime/authority controls.
+
+Configured directory injection is Ravel's responsibility before policy builds
+the harness command. Grove does not resolve skills or interpret that directory
+configuration. The [delivery specification](../specs/codex-skill-provisioning.md)
+states the pending adoption and the upstream design correction. This does not
+move executable owner policy into the managed job.
 
 The separation keeps executable policy out of the process holding the enclosing
 session channel. Grove scrubs its enclosing launch and provider-evidence

@@ -8,7 +8,7 @@ sequenceDiagram
   G->>G: Allocate launch directory, epoch admission and stdout capture
   G->>L: Public lifecycle arguments, no named parameter
   L->>R: Spawn in working-tree root as a foreground job
-  R->>H: Select, then supervise with fresh ending context
+  R->>H: Optionally inject directories, select, then supervise
   opt Finish after confirmed teardown
     H->>G: grove-llm record-teardown in this launch directory
   end
@@ -20,7 +20,7 @@ sequenceDiagram
   G->>G: Stage private cwd, inputs and output instructions, scrub tree authority
   G->>L: start-session with --confine and explicit --runtime-read grants
   L->>R: Spawn as a detached job: own session, EOF stdin, no terminal
-  R->>H: Select outside confinement, supervise inside it
+  R->>H: Optionally inject directories, select outside confinement, supervise inside it
   H->>H: Write declared outputs
   H->>R: Exact canonical end-session grove-continue or grove-force-stop
   R-->>L: Result and status after cleanup

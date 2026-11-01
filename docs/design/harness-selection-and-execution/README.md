@@ -8,6 +8,12 @@ owns routing, the private runtime and transport, and the supervision mechanics.
 Grove keeps no runner and runs `ravel` as an ordinary child. Ravel keeps its
 own runner. Each project keeps its own version and complete installation prefix.
 
+The skill views describe the pending adoption design: the user supplies skills
+natively or through Ravel directory injection, Grove names them, and the agent
+finds and reads them. Ravel's earlier catalog design needs correction before
+implementation. Shipped Grove 22.8 still provisions Codex and accepts only Ravel
+1.x from 1.1.0. See [design evidence](../../grove-skill-delivery-design-evidence.md#upstream-correction).
+
 Run `task design:harness-selection` from the repository root, then open
 [the viewer](http://127.0.0.1:8769/). The server exposes only this presentation
 directory. `PORT=...` chooses another port. The `.mmd` files and `diagrams.json`
@@ -23,7 +29,9 @@ asserts no private transport or escalation details.
 | View | Contract illustrated |
 |---|---|
 | [Independent ownership](http://127.0.0.1:8769/#diagram-packages) | Public CLI between separate releases, caller imports, Grove's shared job function and Ravel's runner. |
-| [Route and return](http://127.0.0.1:8769/#diagram-handoff) | Unchanged caller prompt, refusal, supervision and opaque result after cleanup. |
+| [Route and return](http://127.0.0.1:8769/#diagram-handoff) | Intact caller task, optional directory injection, refusal, supervision and opaque result after cleanup. |
+| [User-managed skill delivery](http://127.0.0.1:8769/#diagram-skill-delivery) | Equal native and directory routes; the agent locates the skill Grove names. |
+| [Preserving readers through adoption](http://127.0.0.1:8769/#diagram-skill-transition) | Correct the upstream contract, verify isolated combinations, then publish and activate separately. |
 | [Nested jobs](http://127.0.0.1:8769/#diagram-chain) | Grove's foreground job for `ravel`, signal forwarding, Ravel's managed job and terminal recovery. |
 | [Result lifecycle](http://127.0.0.1:8769/#diagram-ending) | Successful publication against an absent result, cancellation or cleanup failure. |
 | [Two Grove callers](http://127.0.0.1:8769/#diagram-grove-launch) | The foreground and detached jobs, lifecycle admission and teardown, and confined standalone output publication. |
@@ -47,3 +55,11 @@ the executable owns and to immutable historical experiments for Ravel. Grove's
 [caller acceptance](../../ravel-caller-surface-audit.md) and
 [delivery acceptance](../../grove-delivery-contraction.md) establish its own
 public integration. Neither duplicates Ravel's private runtime contract.
+
+## Current changes
+
+- [User-managed skill delivery](http://127.0.0.1:8769/#diagram-skill-delivery) — Added both delivery routes and placed named-skill discovery with the agent.
+- [Preserving readers through adoption](http://127.0.0.1:8769/#diagram-skill-transition) — Added isolated acceptance and separate publication, activation and optional cleanup.
+- [Route and return](http://127.0.0.1:8769/#diagram-handoff) — Added optional directory injection without a named-skill resolver.
+- [Independent ownership](http://127.0.0.1:8769/#diagram-packages) — Included configured directory hints before policy builds the command.
+- [Two Grove callers](http://127.0.0.1:8769/#diagram-grove-launch) — Applied optional directory delivery to both lifecycle and standalone launches.

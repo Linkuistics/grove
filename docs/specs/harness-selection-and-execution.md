@@ -1,9 +1,16 @@
 # Harness selection and execution — Grove caller contract
 
-Grove launches independently installed Ravel through its public two-verb CLI.
+Grove launches independently installed Ravel through its public session CLI.
 Grove owns its task tree, prompts, ending instructions, result meanings, teardown
 and provider receipts. Ravel routes and supervises the selected process. Then it
 returns the opaque argument that `ravel end-session RESULT` published.
+
+This contract includes the skill-delivery adoption design, pending implementation
+and acceptance. Shipped Grove 22.8 admits Ravel 1.x from 1.1.0 and still
+provisions Codex skills. The [delivery design](codex-skill-provisioning.md) owns
+the transition; process and result contracts remain unchanged. Skill availability
+is the user's responsibility through native installation or Ravel directory
+injection, and is not part of Grove's version admission.
 
 The [Ravel CLI](https://github.com/Linkuistics/Ravel/blob/v1.0.0/docs/session-cli.md),
 [executable specification](https://github.com/Linkuistics/Ravel/blob/v1.1.0/docs/specs/session-execution.md),
@@ -11,8 +18,12 @@ The [Ravel CLI](https://github.com/Linkuistics/Ravel/blob/v1.0.0/docs/session-cl
 and [authority boundaries](https://github.com/Linkuistics/Ravel/blob/v1.0.0/docs/authority.md)
 own the executable behaviour. This document owns Grove's use of that interface.
 The [visual views](../design/harness-selection-and-execution/README.md) show the
-same caller boundary. Ravel injects no instructions and interprets no result
-token.
+same caller boundary. When configured, Ravel adds skill-directory paths and
+loading instructions while preserving the caller's task and ending commands.
+The agent locates skills; neither executable resolves the skill Grove names.
+Ravel interprets no result token. Its earlier catalog design requires the
+[focused correction](../grove-skill-delivery-design-evidence.md#upstream-correction)
+before that design can be used as an implementation contract.
 
 <a id="problem"></a>
 ## Ownership
@@ -28,7 +39,7 @@ releases ([policy ownership](../adr/harness-selection-is-owned-by-policy.md)).
 | Owner | Contract |
 |---|---|
 | Grove | Selects one leaf, composes its mandate and holds launch admission. Runs Ravel as a job, captures its stdout result and interprets it after the reap. |
-| Ravel | Evaluates owner policy, supervises the selected process and isolates the enclosing ending context. Returns a published argument after cleanup. |
+| Ravel | Adds configured skill-directory paths to the prompt, evaluates owner policy, supervises the selected process and isolates the enclosing ending context at launch. Returns a published argument after cleanup. |
 | Owner policy | Constructs every selected command and its provider, model and effort labels, with any caller-specific routing or review rules. |
 | Grove caller assets | Read the task and Creator conventions. Optionally wrap selection with caller-owned provider evidence through ordinary SDK imports. |
 
@@ -37,11 +48,14 @@ directory**. It canonicalises that path once and probes it with `--version`.
 A relative or empty PATH entry adds no fallback to the current directory. Grove
 never falls through to another installation.
 
-Grove supports stable `ravel 1.x` from 1.1.0, and it refuses 1.0.x. An
-incompatible, malformed or unsuccessful probe refuses with an upgrade remedy that
-names the 1.1.0 floor. The
+Grove retains stable `ravel 1.x` support from 1.1.0 and admits stable 2.x from
+2.0.0 after public session compatibility is verified. It refuses 1.0,
+prereleases, unknown majors, malformed output and unsuccessful probes without
+trying another installation. The remedy names compatible Grove, Ravel and
+policy versions; it must not blindly recommend a shared upgrade. Native skill
+delivery does not require Ravel 2. The
 [supervision decision](../adr/dispatch-supervises-the-harness.md) records the
-reason for the floor. It also records the trust in PATH that the probe costs.
+dependency and the trust in PATH that the probe costs.
 
 Grove keeps no runner of its own. It launches `ravel` as an ordinary child
 process, as a job-control shell launches a job (see [Jobs and
@@ -69,6 +83,10 @@ policy or configuration path, no record path and no private ending-file
 argument. Ravel's generic `--param NAME=VALUE` is available to other callers,
 without task-tree meaning.
 
+Grove calls no skill-resolution operation and parses no skill metadata or
+catalog. Both callers can receive configured directory injection automatically
+through `start-session`; native-only launches need no such configuration.
+
 Grove scaffolding and tree verbs consult no policy and
 admit any well-formed kind. An unrouted kind refuses only when its leaf
 launches.
@@ -81,7 +99,8 @@ launches.
 ## Owner policy and caller assets
 
 The personal `~/.config/ravel/policy.ts` selects the command. Ravel's settings at
-`~/.config/ravel/settings.json` supply bounds and explicit environment grants.
+`~/.config/ravel/settings.json` supply bounds, explicit environment grants and
+optional skill-directory delivery configuration in versions that support it.
 `.ravel-choice` selects among the options of the owner's policy, when that
 policy calls the SDK helper. Grove reads none of those files itself.
 
@@ -100,8 +119,13 @@ resolution.
 <a id="dynamic-dispatch"></a>
 ## Selection and context
 
-Ravel passes the supplied prompt unchanged to policy. Its request, parameters
-and optional measured context are generic caller data. There is no run lookup.
+Ravel owns the request schema its policy receives. Grove's caller assets and
+examples must be compatible with the SDK/schema of each admitted major and
+identify that target explicitly. The owner policy forwards the launch prompt,
+including any directory instructions. Task-only analysis uses the original-task
+view where Ravel exposes one. Grove depends on no skill descriptor or catalog.
+Context and caller provider receipts retain their independent meanings.
+There is no run lookup.
 Grove's adapter reads only the supplied task file through the public context
 host. It returns a refusal for invalid relationships.
 
@@ -111,7 +135,9 @@ agent. The owner constructs commands from choices that their code controls.
 
 Selection runs outside the confinement of the managed process, with owner grants
 and bounds. A refused selection launches no process and leaves the leaf live.
-Fix the named policy, choice or Creator evidence and rerun Grove. No inspection
+Fix the named policy, choice or Creator evidence and rerun Grove. Configured
+source acquisition may also fail before launch. Preserve Ravel's source,
+revision, limit or access remedy; the selected leaf remains live. No inspection
 reservation or fallback selection takes part.
 
 <a id="execution-contract"></a>
@@ -399,7 +425,7 @@ and its [published installation evidence](https://github.com/Linkuistics/Ravel/b
 
 | Claim | Witness |
 |---|---|
-| Absolute PATH resolution, the 1.1.0 floor, version refusal and independent prefixes | Resolver, activation and installed fixtures in `crates/grove/tests/` and `crates/grove/src/dispatch/ravel.rs`. |
+| Absolute PATH resolution, stable 1.x from 1.1.0 and 2.x, version refusal and independent prefixes | Resolver, activation and installed fixtures in `crates/grove/tests/` and `crates/grove/src/dispatch/ravel.rs`. |
 | Literal public arguments and exact ending path | `crates/grove-loop/tests/session_command.rs` and real installed command fixtures. |
 | Result capture and rejection | `crates/grove-loop/tests/session_result.rs` and installed result fixtures, through both job shapes. |
 | Post-reap precedence, and a caught signal that outlives an error | Unit tests drive the lifecycle interpretation with an end value or a launch error that Grove owns. They need no process. |
@@ -409,6 +435,7 @@ and its [published installation evidence](https://github.com/Linkuistics/Ravel/b
 | Caller policy, context and provider evidence | `task ravel:review`, `task ravel:provenance` and strict typechecking of the installed SDK. |
 | Confined staging and publication | Standalone tests and installed fixtures that use fake agents. |
 | Independent delivery | Acceptance of the archive, formula and target in the delivery handoff. |
+| Common skill delivery through both callers | The [delivery acceptance matrix](codex-skill-provisioning.md#test-seams), including source failures, intact caller bytes, no native writes and real confined reads. |
 
 Only the real Ravel checks job control. No test checks it with a stand-in child,
 so the default suite does not check job control. The tasks that need `RAVEL` run

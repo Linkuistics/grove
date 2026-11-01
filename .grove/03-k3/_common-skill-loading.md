@@ -8,15 +8,16 @@ external research-pack proof can build.
 
 ## Done when
 
-- Ravel resolves configured local sources and exact pinned Git revisions,
-  produces the discovery document, and automatically prepares the prompt before
+- Ravel acquires configured local sources and exact pinned Git revisions,
+  injects their skill-directory paths, and automatically prepares the prompt before
   owner policy constructs the command. The original task and ending commands
   remain intact in their separate block.
 - Exact cached revisions work offline; missing required revisions fail clearly
-  without substitution. Catalogs and resources remain readable for sessions and
+  without substitution. Directories and resources remain readable for sessions and
   delegates, including confined launches.
-- Grove uses this common delivery path with its obsolete automatic native
-  provisioning reconciled. Any core fallback uses the same path. No source
+- Grove removes obsolete automatic native provisioning. Users may supply skills
+  natively in each harness or through Ravel directory injection; Grove only names
+  the skill and imposes no delivery route. Any core fallback uses the common path. No source
   pack has moved yet and no kind registry or new workflow protocol exists.
 - Public fixture tests cover launch/resolution, failures, offline reuse,
   concurrency/lifetime and confinement. Existing Grove tree/launch behavior
@@ -51,6 +52,13 @@ follow their reviews before later consumers edit the same artifacts.
   selection, and Grove's CLI provisioning and public session command.
 
 ## Notes
+
+The human corrected the boundary during grove-skill-delivery-k8: Ravel injects
+directory locations and does not resolve a requested skill. The earlier
+ravel-skill-discovery-k7/k14 catalog design must be revised before planning.
+Retain local/pinned/offline/lifetime requirements; do not reintroduce a catalog
+dependency into Grove. Test native-only setup as well as isolated directory
+delivery. The adoption design's new review must consume that upstream correction.
 
 Keep one coordinated tree here. Work in other owning repositories must follow
 their instructions, preserve unrelated changes, and leave discoverable commits.

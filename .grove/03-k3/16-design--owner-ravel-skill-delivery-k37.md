@@ -7,11 +7,12 @@ the full collection through Ravel, explicitly including TestAnyware.
 
 ## Context
 
-The human authorized actual installation migration in common-skill-loading-k32.
-Read root destinations and the maintained machine setup before configuration
-work. Native delivery remains a product option, but the owner's target setup is
-Ravel insertion. Inventory before the pack moves, then give rollout a baseline
-against which it can reconcile the final installed set.
+The human authorised the actual installation migration in
+common-skill-loading-k32. Read root destinations and the maintained machine
+setup before configuration work. Native delivery remains a product option, but
+the owner's target setup is Ravel insertion. Inventory before the pack moves.
+Then give rollout a baseline against which it can reconcile the final
+installed set.
 
 ## Done when
 
@@ -32,18 +33,19 @@ against which it can reconcile the final installed set.
   implementation. Preserve platform-managed resources outside owner control.
 - Design backup, reversible activation and removal of superseded native
   installations after accepted replacement delivery. Ownership, content and
-  active-reader evidence govern removals; retain required snapshots outside
+  active-reader evidence govern removals. Retain required snapshots outside
   native discovery until their actual readers finish.
 - Account for this driver using a canonical Ravel 1.1.0 binary that cannot gain
   directory insertion by a PATH upgrade. State how the final session loads its
-  guidance, how lazy reads and live native paths remain valid, and when new
-  launches switch to the feature build and settings. The plan must not remove
-  the only source from which Grove's finish session can load its skill.
+  guidance. State how lazy reads and live native paths remain valid. State when
+  new launches switch to the feature build and settings. The plan must not
+  remove the only source from which Grove's finish session can load its skill.
 - Give owner-ravel-skill-inventory-k38 the baseline and a concrete ordered
-  cutover contract: replacement trials on both harnesses, TestAnyware resource
-  and tool use, ordinary implicit skill discovery, actual owner activation,
-  removal evidence, restart and rollback. Record persistent changes under the
-  current machine configuration contract and update its maintained manual.
+  cutover contract. The contract covers replacement trials on both harnesses,
+  TestAnyware resource and tool use, and ordinary implicit skill discovery. It
+  also covers actual owner activation, removal evidence, restart and rollback.
+  Record persistent changes under the current machine configuration contract
+  and update its maintained manual.
 - Commit durable design and inventory evidence, record exact inputs here and
   cut a focused review-design leaf before dependent changes. No installation,
   owner configuration or deletion is performed in this design session.
@@ -52,5 +54,5 @@ against which it can reconcile the final installed set.
 
 Do not stage another requirements interview over the human's settled target.
 The inventory establishes what work is needed, not whether the migration is
-authorized. Native plugin machinery can remain installed for tools or hooks
+authorised. Native plugin machinery can remain installed for tools or hooks
 only if guidance delivery and duplicate discovery are explicitly reconciled.

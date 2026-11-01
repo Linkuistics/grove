@@ -12,21 +12,21 @@ external research-pack proof can build.
   injects their skill-directory paths, and automatically prepares the prompt before
   owner policy constructs the command. The original task and ending commands
   remain intact in their separate block.
-- Exact cached revisions work offline; missing required revisions fail clearly
+- Exact cached revisions work offline. Missing required revisions fail clearly
   without substitution. Directories and resources remain readable for sessions and
   delegates, including confined launches.
 - Grove removes obsolete automatic native provisioning. Users may supply skills
-  natively in each harness or through Ravel directory injection; Grove only names
+  natively in each harness or through Ravel directory injection. Grove only names
   the skill and imposes no delivery route. Any core fallback uses the common path. No source
-  pack has moved yet and no kind registry or new workflow protocol exists.
+  pack has moved yet, and no kind registry or new workflow protocol exists.
 - Public fixture tests cover launch/resolution, failures, offline reuse,
-  concurrency/lifetime and confinement. Existing Grove tree/launch behavior
+  concurrency/lifetime and confinement. Existing Grove tree/launch behaviour
   remains green.
 - Real Claude Code and Codex trials activate a relevant craft skill without the
-  task naming it, record the read before the action, and use isolated homes or
-  equivalent isolation with native copies absent. Preserve the owner's installs.
+  task naming it, and record the read before the action. They use isolated homes
+  or equivalent isolation with native copies absent. Preserve the owner's installs.
 - The owning specifications, affected architecture/glossary/walkthrough and
-  installation documentation agree with delivered behavior. Applicable Ravel
+  installation documentation agree with delivered behaviour. Applicable Ravel
   checks and Grove's full check pass using an explicit compatible Ravel build.
 
 ## Decomposition
@@ -39,8 +39,8 @@ The staged route now includes design repairs for upstream Rhai changes:
    including TestAnyware, and design Ravel delivery and safe native removal.
 3. `grove-native-delivery-k20`: remove automatic native writes, keep native-only
    Ravel 1.1 launches working, supply the cleanup procedure, then repair the
-   mandate's loading/failure wording. Fixtures prove Grove's interpretation;
-   actual missing-kind agent behavior belongs to acceptance.
+   mandate's loading/failure wording. Fixtures prove Grove's interpretation.
+   Actual missing-kind agent behaviour belongs to acceptance.
 4. `ravel-rhai-skill-delivery-k34`: repair the directory contract against current
    Ravel main, then earn its focused design review before consumers run.
 5. `grove-rhai-skill-delivery-k35`: repair Grove's adoption contract against that
@@ -48,27 +48,28 @@ The staged route now includes design repairs for upstream Rhai changes:
 6. `ravel-local-delivery-k23`: deliver local capture, retained directories and
    automatic public launch preparation with its settled schema, Rhai host and grants.
 7. `ravel-pinned-delivery-k25`: extend the same route to exact Git acquisition,
-   verified offline reuse and mixed-source failure/lifetime behavior.
+   verified offline reuse and mixed-source failure/lifetime behaviour.
 8. `grove-dual-ravel-k27`: prove the supported native and directory releases,
    explicit configuration examples and installed layouts against independent builds.
-9. `common-loading-acceptance-k29`: measure actual Claude Code/Codex behavior
+9. `common-loading-acceptance-k29`: measure actual Claude Code/Codex behaviour
    and reconcile the integrated checks and reproducible handoff to research.
 
 Only the native stage has implementation detail now. The later planners consume
 actual preceding commits and grow focused leaves, carrying fixture checks and
-documentation with behavior. Do not split a schema or internal resolver from
+documentation with behaviour. Do not split a schema or internal resolver from
 its only usable public reader into separately dead halves. Temporary independent
 builds and isolated HOME settings supply acceptance before feature publication.
+
 Feature release/tap activation remains discovery-rollout-k6. Rhai 2.0 native
 compatibility and its release coordination are an earlier independent concern.
 The human directed this grove to own Ravel release execution as well as Grove's
-release; k36 settles the coordinated route before dependent work. The existing
-rollout brief's versioned-formula path is the starting strategy, not a claim
-that an external workstream has already paused its release.
+release. k36 settles the coordinated route before dependent work. The existing
+rollout brief's versioned-formula path is the initial strategy. It does not
+claim that an external workstream has already paused its release.
 
 This subtree must remain live until implementation and acceptance satisfy its
 Done when. Retiring its design and planning children alone does not close it.
-Design producers add any earned review ahead of dependent work; integrations
+Design producers add any earned review ahead of dependent work. Integrations
 follow their reviews before later consumers edit the same artifacts.
 
 ## Pointers
@@ -81,87 +82,96 @@ follow their reviews before later consumers edit the same artifacts.
 
 ## Notes
 
-The human corrected the boundary during grove-skill-delivery-k8: Ravel injects
+The human clarified the boundary during grove-skill-delivery-k8: Ravel injects
 directory locations and does not resolve a requested skill. The earlier
 ravel-skill-discovery-k7/k14 catalog design must be revised before planning.
-Retain local/pinned/offline/lifetime requirements; do not reintroduce a catalog
+Retain local/pinned/offline/lifetime requirements. Do not reintroduce a catalog
 dependency into Grove. Test native-only setup as well as isolated directory
-delivery. The adoption design's new review must consume that upstream correction.
+delivery. The adoption design's new review must consume that upstream clarification.
 
 The historical reviewed Ravel directory contract is committed as
 `b93bb927095ff09b91e9b78dc1ad05bdacfec649` by ravel-skill-directories-k18,
 integrating ravel-skill-directories-k17 after producer ravel-skill-directories-k15.
-It injects search directories and direct mandatory-file references, retaining a
-directory-only descriptor for recovery/delegation. The integration defines
+It injects search directories and direct mandatory-file references. It retains
+a directory-only descriptor for recovery/delegation. The integration defines
 name versus explicit-loader outcomes and mandatory-before-caller read order.
-Grove's mandate must qualify "first" with "after any mandatory guidance";
-its ordinary and plugin-qualified name requests must work with native copies
-absent. Shared settings remain a recorded trade-off: mixed-major enablement
-needs separate HOME settings, not just separate executable prefixes.
-Whole-preamble loss needs an unprompted recovery trial; a retained path alone
-does not satisfy it. Grove's adoption review consumes this corrected handoff.
+
+Grove's mandate must qualify "first" with "after any mandatory guidance".
+Its ordinary and plugin-qualified name requests must work with native copies
+absent. Concrete native tools and file paths follow the explicit-route rules.
+Shared settings remain a recorded trade-off. Mixed-major enablement needs
+separate HOME settings, not just separate executable prefixes.
+
+Whole-preamble loss needs an unprompted recovery trial. A retained path alone
+does not satisfy it. Grove's adoption review consumes this revised handoff.
 Ravel main `24a54523` now assigns 2.0.0 and schema 3 to Rhai native execution,
 with unchanged caller prompts and worker protocol 1. The historical directory
 contract's TypeScript SDK, schema and version assignments therefore cannot be
-implementation targets. ravel-rhai-skill-delivery-k34 settles the actual feature
-identity, request fields, Rhai host reads, settings and frame bounds;
-grove-rhai-skill-delivery-k35 repairs the consumer specification and evidence.
-Their reviews precede dependent work. Native-only Ravel 1.1 compatibility,
-Rhai 2.0 native compatibility and directory acceptance are distinct obligations.
+implementation targets.
+
+ravel-rhai-skill-delivery-k34 settles the actual feature identity, request
+fields, Rhai host reads, settings and frame bounds. grove-rhai-skill-delivery-k35
+repairs the consumer specification and evidence. Their reviews precede
+dependent work. Native-only Ravel 1.1 compatibility, Rhai 2.0 native
+compatibility and directory acceptance are distinct obligations.
 
 The adoption integration `grove-skill-delivery-k19` repairs the delivery spec,
 records and caller views. Its evidence document owns the consumer handoffs.
 Implementation supplies missing-skill force-stop and namespace-neutral mandate
-wording before packs move, plus optional manual-cleanup guidance with the removal
-of provisioning. Native-only lifecycle success and confined read access have
-separate acceptance cases. The first external pack proves its native namespace.
+wording before packs move. It also supplies optional manual-cleanup guidance
+with the removal of provisioning. Native-only lifecycle success and confined
+read access have separate acceptance cases. The first external pack proves its
+native namespace.
+
 Publication must preserve compatible tap dependencies at every intermediate state.
 
 Keep one coordinated tree here. Work in other owning repositories must follow
 their instructions, preserve unrelated changes, and leave discoverable commits.
 Use independent temporary installed prefixes for acceptance if releases are not
-yet available. Final publication belongs to discovery-rollout-k6; establish any
-required earlier dependency release explicitly rather than silently assuming it.
+yet available. Final publication belongs to discovery-rollout-k6. Establish any
+required earlier dependency release explicitly rather than silently assume it.
 Every session retains the ending command from its own launch prompt.
 
 ## Cross-repository handoffs
 
-The coordinated route is now in
-`docs/specs/coordinated-release.md`, with observed inputs and named owners in
-`docs/coordinated-release-evidence.md`. The human acknowledged that this is the
-sole live workstream through completion. The combined 2.0.0/schema-4 design
-receives its focused review before dependent work. Ravel's channel contract
-lives in the isolated `Ravel.coordinated-release-design` workspace from main
-`24a54523`; consume the exact commit in k36's handoff. This grove completes
-remaining Rhai release prerequisites itself, preserving the paused task tree.
+The coordinated route is now in `docs/specs/coordinated-release.md`, with
+observed inputs and named owners in `docs/coordinated-release-evidence.md`. The
+human acknowledged that this is the sole live workstream through completion. The
+combined 2.0.0/schema-4 design receives its focused review before dependent
+work. Ravel's channel contract lives in the isolated
+`Ravel.coordinated-release-design` workspace from main `24a54523`. Consume the
+exact commit in k36's handoff. This grove completes remaining Rhai release
+prerequisites itself, preserving the paused task tree.
 
 The Ravel feature producer owns work in a separate jj workspace on
 `skill-directory-delivery`, based on the exact main revision recorded by k34.
-The local and pinned stage owners each rebase and check at entry, record exact
-bases and output commits, and keep the incomplete local subset off main.
+The local and pinned stage owners each rebase and check at entry. Each records
+exact bases and output commits, and keeps the incomplete local subset off main.
 Rollout owns the final rebase, full checks, main landing and complete-feature
 release. The named Ravel owner must receive this integration contract before
 implementation. No work here edits the `Ravel.gh-issue-2` tree or signals it.
 
 This grove now owns Ravel release execution. coordinated-ravel-release-k36
 records the human's single-owner handoff covering the other workstream's
-`release-ravel-2-0-0-k37` and `homebrew-upgrade-k38`, and assigns tap changes to
+`release-ravel-2-0-0-k37` and `homebrew-upgrade-k38`. It assigns tap changes to
 the release stage that executes them. The human's instruction keeps all other
-workstreams paused through completion; no cross-repository notification or
-tree edit imposed that state. Preserve the original
-1.1.0 ending executable for every live driver that still uses it. Rollout grows
-concrete Ravel integration, release, installed verification and tap work under
-the reviewed plan; it is no longer merely a request to another workstream.
+workstreams paused through completion. No cross-repository notification or
+tree edit imposed that state.
+
+Preserve the original 1.1.0 ending executable for every live driver that still
+uses it. Rollout grows concrete Ravel integration, release, installed
+verification and tap work under the reviewed plan. It is no longer merely a
+request to another workstream.
 
 owner-ravel-skill-delivery-k37 supplies the baseline of all installed skills,
-resources, tools and hooks before moves. Repository moves preserve that set;
+resources, tools and hooks before moves. Repository moves preserve that set.
 owner-ravel-skill-inventory-k38 reconciles the final set and grows actual owner
 configuration, activation and native-removal leaves. TestAnyware is an explicit
-acceptance case. A disposable proof cannot replace the actual owner cutover,
-and old lazy readers and the final session's guidance must remain readable.
+acceptance case. A disposable proof cannot replace the actual owner cutover. Old lazy
+readers and the final session's guidance must remain readable.
 
 The directory feature stays unpublished through local, pinned and actual-harness
 acceptance. A local build refuses Git sources before configuration evaluation
-without a stable public error code; pinned delivery removes that temporary
+without a stable public error code. Pinned delivery removes that temporary
 refusal and its fixture. Exact feature version/schema values remain design
 outputs and must not be guessed from the Rhai 2.0 release number.

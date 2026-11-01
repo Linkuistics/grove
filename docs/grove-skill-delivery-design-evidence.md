@@ -23,18 +23,27 @@ contract for this workstream after the human's corrections:
 
 Accordingly, Grove's design requires neither a catalog nor Ravel-based skill
 installation. The agent finds skills in its native installation or supplied
-paths. A focused Ravel design correction must reconcile the source configuration,
-prepared prompt, loading instructions, public setup seam, compatibility and
-acceptance with directory injection. Do not leave a second live catalog contract
-in its specs, ADRs, glossary or diagrams. Preserve the accepted source acquisition,
-exact pin/offline, resource lifetime and confinement requirements, distinguishing
-source-directory acquisition from named-skill resolution. Any necessary choice
-about how directory discovery exposes triggers or mandatory guidance belongs to
-that correction, not an invented Grove API.
+paths. The correction delivered by `ravel-skill-directories-k15` replaces the
+owning Ravel spec, ADR, glossary and visual contract in place. It supplies search
+directories and direct mandatory-file references, with a retained directory-only
+descriptor for recovery and delegates. Ravel acquires local/exact pinned sources;
+it does not parse skill metadata, reject duplicate names or answer a skill lookup.
 
-The Grove adoption review follows that correction and checks the two contracts
-before the existing implementation planner consumes them. No product code or
-owner configuration was changed by this leaf.
+The owning Ravel commit is `4c16f8e09d58c8f649a375029c8e8fa2933de2b4`.
+Its `docs/specs/skill-discovery.md` defines the corrected interface and its
+`docs/skill-discovery-design-evidence.md` records source evidence and limitations.
+
+The corrected Ravel design retains Ravel 2 and policy/request schema 3 because
+prepared-prompt semantics change. Grove's existing source still refuses major 2.
+The adoption therefore keeps native-only 1.1 support and adds 2.x only through
+explicit caller acceptance and versioned policy examples. This does not require
+Grove to read a directory descriptor or run source setup. No session-interface
+assumption in the corrected Grove caller spec needs to change.
+
+A focused Ravel design review runs before this adoption's review; its integrated
+result, followed by Grove's review, is the input to implementation planning.
+The producing task records the owning-repository commit and validation. Product
+code and owner configuration remain unchanged by these design sessions.
 
 ## Source and coverage
 

@@ -60,6 +60,14 @@ Retain local/pinned/offline/lifetime requirements; do not reintroduce a catalog
 dependency into Grove. Test native-only setup as well as isolated directory
 delivery. The adoption design's new review must consume that upstream correction.
 
+The corrected Ravel directory contract is committed as
+`4c16f8e09d58c8f649a375029c8e8fa2933de2b4` by ravel-skill-directories-k15.
+It injects search directories and direct mandatory-file references, retaining a
+directory-only descriptor for recovery/delegation. Its focused review precedes
+grove-skill-delivery-k16. Ravel 2/schema 3 remains the feature target; Grove's
+native-only Ravel 1.1 compatibility and explicit dual-major caller acceptance
+remain independent. Consume the reviewed correction before planning implementation.
+
 Keep one coordinated tree here. Work in other owning repositories must follow
 their instructions, preserve unrelated changes, and leave discoverable commits.
 Use independent temporary installed prefixes for acceptance if releases are not

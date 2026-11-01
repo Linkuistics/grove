@@ -60,9 +60,9 @@ For Ravel delivery, accepted source requirements still include local sources
 and exact pinned Git sources, offline reuse of warmed exact revisions, clear
 failure for unavailable required revisions and readable resources throughout
 reader lifetimes. Those are source-directory obligations, not resolution of a
-skill requested by Grove. The earlier Ravel catalog design must be reconciled
-with directory injection before implementation; the [design evidence](../grove-skill-delivery-design-evidence.md)
-identifies that dependency and the user correction that governs it.
+skill requested by Grove. Ravel’s corrected directory-injection design preserves those requirements;
+the [design evidence](../grove-skill-delivery-design-evidence.md#upstream-correction)
+identifies its review dependency and the human correction that governs it.
 
 ## Launch and compatibility
 
@@ -214,9 +214,9 @@ ship. The [evidence and handoff](../grove-skill-delivery-design-evidence.md)
 identify inspected consumers. Research remains the first external-pack proof
 and settles reusable pack tooling before later moves.
 
-Ravel's earlier generated-catalog design is not a settled prerequisite after
-the user's directory-injection correction. Reconcile it before dependent
-planning and review this adoption against that revision. Internal test wiring,
+Ravel's corrected directory-injection design must pass its focused review
+before adoption review and dependent planning. The earlier generated-catalog
+proposal is historical input. Internal test wiring,
 aggregate conformance tooling and measured harness delegate behavior remain
 implementation questions. No kind redesign, stop command, review simplification,
 repository relocation or native cleanup occurs here.

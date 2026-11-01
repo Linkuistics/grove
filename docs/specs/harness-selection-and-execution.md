@@ -462,7 +462,7 @@ and its [published installation evidence](https://github.com/Linkuistics/Ravel/b
 | Lifecycle admission | Driver and epoch tests. |
 | Job control, cancellation and terminal recovery of the foreground job | Loop-driver tests with the installed Ravel and fake agents, several under a pseudo-terminal. |
 | Session isolation and cancellation of the detached job | Standalone tests with the installed Ravel and fake agents, including a Ctrl-C typed on a pseudo-terminal. |
-| Caller policy, context and provider evidence | `task ravel:review`, `task ravel:provenance` and strict typechecking against an installed 1.1 SDK. For 2.x, public launches of the Rhai assets against an installed 2.0 build, driven by the same cases. |
+| Caller policy, context and provider evidence | `task ravel:review`, `task ravel:provenance` and strict typechecking against an installed 1.1 SDK. For 2.x, public launches of the Rhai assets against an installed 2.0 build. One case table drives both, with the expected outcome for each runtime. |
 | Confined staging and publication | Standalone tests and installed fixtures that use fake agents. |
 | Independent delivery | Acceptance of the archive, formula and target in the delivery handoff. |
 | Common skill delivery through both callers | The [delivery acceptance matrix](codex-skill-provisioning.md#test-seams), including source failures, intact caller bytes, no native writes and real confined reads. |

@@ -221,7 +221,17 @@ owner.
 
 The dual-Ravel stage ports every Grove caller asset to Rhai, which is the scope
 of Grove issue 24. A build of the feature line reports `ravel 1.1.0` until the
-cut, so each stage records its Ravel builds by commit and build identity. The
-focused review grove-rhai-skill-delivery-k51 precedes local planning. The
-reviewed Grove contract is the k35 commit, with any change that the
-integration of that review records.
+cut, so each stage records its Ravel builds by commit and build identity.
+
+The focused review grove-rhai-skill-delivery-k51 found one defect. The design
+promised identical refusals, but Ravel's frozen comparison keeps three runtime
+differences. grove-rhai-skill-delivery-k52 integrated it as the Runtime parity
+section of the delivery specification. Grove accepts those differences for the
+choice file and the jj store path. Receipt bytes and provider-safety checks
+stay identical, and an unpaired surrogate in a receipt is an accepted
+difference.
+
+The reviewed Grove contract is the k35 commit with the k52 change. The shared
+case table states the expected outcome for each runtime. The dual-Ravel stage
+moves the runtime-neutral definition of a blank label into
+`docs/grove-provider-evidence.md`.

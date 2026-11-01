@@ -23,7 +23,9 @@ implementation here.
   diagnostics and controls for refusal and the absence of fallback. Use the
   reviewed identities: Ravel 2.0.0, `config.rhai`, schema 4 and worker
   protocol 1. Schema 3 refuses. Cut the Rhai port of every caller asset, with
-  the case table that drives both asset sets. Keep independent front, worker
+  the case table that drives both asset sets. The table states the expected
+  outcome for each runtime, as the runtime parity of the delivery specification
+  requires. Keep independent front, worker
   and package identities and isolated HOME settings.
 - Cover native-only lifecycle success and common-directory launches with local,
   exact Git and offline sources. Keep confined standalone native readability

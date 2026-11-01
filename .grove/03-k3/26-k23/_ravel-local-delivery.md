@@ -43,8 +43,9 @@ worker interpretation and required read grants must have a green handoff.
   `docs/specs/skill-discovery.md` and `docs/skill-discovery-design-evidence.md`.
   Read its changes to `docs/specs/configuration-evaluation.md` and
   `docs/specs/session-execution.md`.
-- Then read Grove's adoption contract from grove-rhai-skill-delivery-k35 and
-  its review grove-rhai-skill-delivery-k51. It asks this stage for no behaviour that is specific to Grove.
+- Then read Grove's adoption contract from grove-rhai-skill-delivery-k35, its
+  review grove-rhai-skill-delivery-k51 and the integration
+  grove-rhai-skill-delivery-k52. It asks this stage for no behaviour that is specific to Grove.
   Grove needs neither `RAVEL_SKILL_DIRECTORIES` nor `skills resolve`. The
   historical design `b93bb927` supplies intent only.
 - ADRs `skill-preparation-precedes-evaluation`,

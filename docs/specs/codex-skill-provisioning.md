@@ -160,11 +160,48 @@ sample configuration, the static and review examples, the review adapter and
 the provider-evidence wrapper. Grove issue 24 asks for this port, and the
 dual-Ravel stage delivers it.
 
-Each Rhai asset keeps the refusals and the receipt format of its TypeScript
-counterpart, and each asset names its runtime and schema. A Rhai asset imports
-another by path, because Ravel 2.0.0 embeds no module. The provider-evidence
-wrapper keeps the constant member order of the receipt. It joins members that
-`json_encode` writes.
+Each asset names its runtime and schema. A Rhai asset imports another by path,
+because Ravel 2.0.0 embeds no module. Each Rhai asset keeps the refusals and the
+receipt format of its TypeScript counterpart, except for the differences that
+[runtime parity](#runtime-parity) accepts.
+
+#### Runtime parity
+
+Ravel's frozen comparison at `822c0ed2` keeps three intentional differences
+between the runtimes. Grove's sample meets them through its choice file and its
+jj store path. Grove accepts them for that local input of the owner. It also
+accepts the same read-bound rule for the jj store path:
+
+- The Rhai sample reads the choice file with the 4,096-byte bound of the 1.1
+  helper. A larger file ends the evaluation as Ravel's `source_too_large`, exit
+  3, instead of `choice_unreadable`. A catch cannot recover a breach of a read bound.
+- The Rhai sample also reads the jj store path through a measured read. A file
+  beyond its read bound ends the evaluation in the same way. The 1.1 sample read
+  that file without a bound.
+- The names in the choice file and the jj store path use the splitting and
+  trimming of Rhai. Rhai and JavaScript classify U+FEFF and U+0085 differently.
+- A jj store path that is not UTF-8 refuses as `jj_store_unreadable`. The 1.1
+  sample decoded it with replacement characters.
+
+The provider receipt crosses runtimes, so Grove keeps its rules deliberately. A
+review adapter on one route can check a receipt that a wrapper on the other
+route recorded. These obligations are separate:
+
+- **Receipt bytes.** The Rhai wrapper writes the bytes of the TypeScript wrapper
+  for each receipt. It keeps the constant member order, and it joins members
+  that `json_encode` writes.
+- **Provider safety.** The receipt, label and command checks of the wrapper, the
+  review loader and the review example give the same outcome in both runtimes.
+  A label is blank when ECMAScript's `String.prototype.trim` empties it. The
+  Rhai helpers test that whitespace set explicitly, because the trimming of Rhai
+  disagrees for U+FEFF and U+0085.
+
+One difference remains in the receipt. A JavaScript string can hold an unpaired
+surrogate, and a Rhai string cannot. The TypeScript review loader accepts a
+receipt that escapes one, and the Rhai review loader refuses it as
+`creator_line_malformed`. The TypeScript wrapper records such a receipt only
+from an owner label that holds an unpaired surrogate. The remedy is the declaration of the
+provider by the owner.
 
 The Rhai sample passes `request.prompt` to each harness. Where the sandbox of a
 harness needs explicit directories, the sample adds one read grant for each
@@ -179,7 +216,14 @@ the mandate byte for byte. The provider receipt reaches the managed process
 through `GROVE_PROVIDER_EVIDENCE`, never through a prompt.
 
 One case table drives the checks of both asset sets, so the two sets cannot
-drift apart. The TypeScript checks keep their strict typecheck against an
+drift apart. Each case states the expected outcome for each runtime. A case
+that proves an accepted difference states both outcomes and keeps its reason
+beside it. The table compares routing choices, fake-harness argument vectors,
+delivered context values, receipt bytes and refusal codes, stages, exit statuses
+and remedies. Messages from a decoder or the system can differ. The table
+excludes fields that only Rhai reports, such as measured reads.
+
+The TypeScript checks keep their strict typecheck against an
 explicitly selected installed 1.1. Ravel 2.0.0 has no typechecker and no
 inspection verb. The Rhai checks therefore launch the assets through public
 `start-session` of an explicitly selected 2.0 build, with fake agents.
@@ -394,7 +438,7 @@ acquisition tests. Grove checks the observable caller behaviour.
 | Acceptance | Observation |
 | --- | --- |
 | Native-only bootstrap on 1.1 | With Ravel 1.1.0 and `policy.ts`, launch the lifecycle caller using complete native skills. Grove does not demand source configuration. Any claimed native-only standalone setup separately proves discovery and every required read under actual confinement. Installing under HOME alone is insufficient. |
-| Native route on 2.0 | With Ravel 2.0.0, `config.rhai` at schema 4 and delivery disabled, launch the lifecycle and standalone callers using complete native skills. `request.prompt` equals `request.originalPrompt` byte for byte, and both equal the mandate. The Rhai assets route, refuse and record receipts as the TypeScript cases do. This row proves Rhai native compatibility, not directory delivery. |
+| Native route on 2.0 | With Ravel 2.0.0, `config.rhai` at schema 4 and delivery disabled, launch the lifecycle and standalone callers using complete native skills. `request.prompt` equals `request.originalPrompt` byte for byte, and both equal the mandate. The Rhai assets give the 2.0 outcome of each case in the shared table. They differ from the TypeScript outcomes only where [runtime parity](#runtime-parity) accepts it, and their receipts match byte for byte. This row proves Rhai native compatibility, not directory delivery. |
 | Directory bootstrap | Use Ravel 2.0.0 with the `skills` key, in a HOME separate from any 1.1 reader. With native copies absent, inject complete source directories outside cwd and read the spine, named kind and supporting resources. Exercise local and exact Git sources, Grove's bare-name mandate and an explicit plugin-qualified name request. Neither name request requires a native loader. |
 | Offline and failures | Warm the exact source, remove transport access and launch. Missing cold revisions fail clearly. For a missing or unreadable mandated skill, the agent reports and uses the prompt's exact force-stop command. The leaf remains live, no teardown is recorded and the loop does not relaunch. Grove's kind parser does not reject it. |
 | Original mandate | The mandate qualifies "first" with "after any mandatory guidance". Observe mandatory reads before the named-kind read. Compare exact caller bytes and ending commands before/after Ravel preparation. `originalPrompt` and the caller block of the prepared prompt each equal the composed mandate byte for byte. The selected command receives the intended launch prompt. |
@@ -433,8 +477,8 @@ behaviour they ship. The [evidence and handoff](../grove-skill-delivery-design-e
 identify inspected consumers. Research remains the first external-pack proof
 and settles reusable pack tooling before later moves.
 
-Ravel's reviewed contract at `822c0ed2`, this adoption and its focused review
-supply dependent planning. The TypeScript contract at `b93bb927` supplies
+Ravel's reviewed contract at `822c0ed2`, this adoption and its integrated
+focused review supply dependent planning. The TypeScript contract at `b93bb927` supplies
 intent only, and the generated-catalogue proposal is historical input. Internal test wiring,
 aggregate conformance tooling and measured harness delegate behaviour remain
 implementation questions. No kind redesign, stop command, review simplification,

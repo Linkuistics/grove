@@ -18,10 +18,11 @@ not establish directory delivery.
   first PATH entry.
 - Shipped examples, typechecks, caller assets, fixtures and installed checks
   explicitly identify each supported runtime and schema. Port every caller
-  asset to Rhai with the same refusals and receipt format, which satisfies Grove
-  issue 24. Keep the TypeScript assets at their installed paths for 1.x. One
-  case table drives the checks of both sets. No owner configuration is
-  overwritten.
+  asset to Rhai, which satisfies Grove issue 24. Keep receipt bytes and
+  provider-safety checks identical, and keep the accepted runtime differences
+  of the delivery specification visible. Keep the TypeScript assets at their
+  installed paths for 1.x. One case table drives the checks of both sets, with
+  the expected outcome for each runtime. No owner configuration is overwritten.
 - Local, pinned and warmed offline directory launches preserve the mandate, the
   endings, the mandatory order and resource access. Native-only lifecycle needs
   no sources. Confined native access is measured separately, without a
@@ -47,8 +48,12 @@ grove-rhai-skill-delivery-k35.
 
 The reviewed Ravel contract is commit `822c0ed2f67d` on the bookmark
 `skill-directory-delivery`. Grove's adoption contract is the commit that
-retires grove-rhai-skill-delivery-k35, with any change that the integration
-of its review grove-rhai-skill-delivery-k51 records.
+retires grove-rhai-skill-delivery-k35, with the change that
+grove-rhai-skill-delivery-k52 made. That integration of the review
+grove-rhai-skill-delivery-k51 added the Runtime parity section of the delivery
+specification. It accepts Ravel's three runtime differences, the same read
+bound for the jj store path and one receipt difference. It keeps receipt bytes
+and provider-safety checks identical.
 
 ## Notes
 

@@ -34,6 +34,33 @@ actually delivers reusable complete resources and instructions. Do not split a
 schema or internal resolver from its only usable reader. Launch preparation,
 worker interpretation and required read grants must have a green handoff.
 
+`ravel-local-delivery-k24` grew these ordered children. Each one leaves the
+line green with useful public behaviour.
+
+1. `ravel-schema-four-k53`: schema 4 with delivery disabled, the frame bound
+   and its check. This is the native-only 2.0 contract.
+2. `ravel-skills-resolve-k54`: the `skills` settings object, local capture,
+   publication, the descriptor and the policy-free `skills resolve`.
+3. `ravel-skill-launch-k55`: automatic preparation in `start-session`, the
+   request fields, the notice and `RAVEL_SKILL_DIRECTORIES`. A confined launch
+   with delivery enabled refuses until the confinement leaf.
+4. `ravel-skill-publication-k56`: change detection, path identity,
+   concurrent publication and cache safety.
+5. `ravel-skill-bounds-k57`: the bounds, the deadline and cancellation.
+6. `ravel-skill-lifetime-k58`: lifetime, nested sessions and the recovery
+   environment.
+7. `ravel-skill-confinement-k59`: read grants on both real backends.
+8. `ravel-smoke-sandbox-home-k60`: the narrow sandbox home of the smoke tasks.
+9. `ravel-local-handoff-k61`: the final rebase check, documentation, a
+   temporary installed pair and the recorded commits.
+
+Every child works in the workspace `Ravel.skill-directory-delivery`. It
+advances the bookmark `skill-directory-delivery` by jj and never pushes it. It
+records its Ravel output commit in its running log and its Grove commit
+message. It runs the Ravel tasks that its change touches. It moves the book,
+the examples and `CHANGELOG.md` with its behaviour. A producer that earns a
+`review-impl` inserts it before `ravel-local-handoff-k61`.
+
 ## Pointers
 
 - Owning repository: `/Users/antony/Development/AgenticOrchestration/Ravel`.

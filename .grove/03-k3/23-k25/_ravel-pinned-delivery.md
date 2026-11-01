@@ -2,46 +2,51 @@
 
 ## Goal
 
-Extend the working local route to exact pinned Git sources, completing Ravel's
-generic source contract before Grove adopts directory delivery. Rhai native
-compatibility is independent of this feature.
+Extend the working local route to exact pinned Git sources, completing the
+generic source contract of Ravel before Grove adopts directory delivery. Rhai
+native compatibility is independent of this feature.
 
 ## Done when
 
-- Public resolution and launch acquire exactly the configured commit/subdir,
-  with object-format/filesystem validation, noninteractive bounded transport
-  and no hook/filter/submodule execution or inherited completion authority.
-- Verified exact cache hits require neither network nor Git. Missing cold pins,
-  corrupt cache, object/subdir errors and timeouts retain distinct remedies;
-  no nearby revision, branch or source is substituted.
-- Pin changes, concurrent publication, mixed required local/Git sources and
-  retained readers satisfy the same descriptor/resource and confinement contract.
-- Ravel's full discovery acceptance fixtures, applicable repository/book checks,
-  installed layout and Git transport dependency checks pass against a reproducible
-  matched independent build. Owning documentation and commits record the handoff.
+- Public resolution and launch acquire exactly the configured commit and
+  subdir. They check the object format and the filesystem, and they use
+  noninteractive bounded transport. They execute no hook, filter or submodule,
+  and no inherited completion authority reaches them.
+- Checked exact cache hits require neither network nor Git. Missing cold pins,
+  corrupt cache, object and subdir errors and timeouts keep distinct remedies.
+  No nearby revision, branch or source is substituted.
+- Pin changes, concurrent publication, mixed required local and Git sources and
+  retained readers satisfy the same descriptor, resource and confinement
+  contract.
+- The full discovery acceptance fixtures of Ravel pass against a reproducible
+  matched independent build. So do the applicable repository and book checks,
+  the installed layout and the Git transport dependency checks. Owning
+  documentation and commits record the handoff.
 
 ## Decomposition
 
 The child planner consumes actual local-delivery implementation. Git transport
-and extraction must reach existing public readers in each working increment;
-private acquisition machinery alone does not close this node.
+and extraction must reach existing public readers in each working increment.
+Private acquisition machinery alone does not close this node.
 
 ## Pointers
 
-Ravel's reviewed `docs/specs/skill-discovery.md`, its exact-Git, publication,
-failure and acceptance sections; the preceding local node's owning commits and
-recorded installed-pair inputs. Use the repaired contract from
-ravel-rhai-skill-delivery-k34, not the historical TypeScript/schema-3 design.
-Follow Ravel's repository instructions.
+Use the reviewed `docs/specs/skill-discovery.md` of Ravel, with its exact-Git,
+publication, failure and acceptance sections. Use the owning commits and
+recorded installed-pair inputs of the preceding local node. Use the repaired
+contract from ravel-rhai-skill-delivery-k34, not the historical TypeScript and
+schema-3 design. Follow the repository instructions of Ravel.
 
 ## Notes
 
-Only source acquisition extends here. No skill catalog, Grove dependency,
-native installer or garbage collector is introduced. Final publication belongs
-to discovery-rollout-k6; use isolated temporary installs for acceptance.
+Only source acquisition extends here. This stage introduces no skill catalogue,
+Grove dependency, native installer or garbage collector. Final publication
+belongs to discovery-rollout-k6. Use isolated temporary installs for
+acceptance.
+
 At entry the owning pinned implementation session rebases the recorded local
-commits onto current Ravel main, checks the integrated local path and records
-the exact base. Keep all work on `skill-directory-delivery`, outside main,
-through acceptance. Rollout owns final rebase, checks and landing of the complete
-feature. Remove the local subset's temporary Git refusal and its fixture when
-the public Git path works; neither may survive into publication.
+commits onto current Ravel main. It checks the integrated local path and
+records the exact base. Keep all work on `skill-directory-delivery`, outside
+main, through acceptance. Rollout owns final rebase, checks and landing of the
+complete feature. Remove the temporary Git refusal of the local subset and its
+fixture when the public Git path works. Neither may survive into publication.

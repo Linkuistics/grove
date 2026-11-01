@@ -14,8 +14,8 @@ finds and reads them. Ravel's corrected directory contract is integrated at
 `b93bb927`; implementation and acceptance remain ahead. Shipped Grove 22.8 still provisions Codex and accepts only Ravel
 1.x from 1.1.0. See [design evidence](../../grove-skill-delivery-design-evidence.md#upstream-correction).
 
-Run `task design:harness-selection` from the repository root, then open
-[the viewer](http://127.0.0.1:8769/). The server exposes only this presentation
+Run `task design:harness-selection PORT=52710` from the repository root, then open
+[the viewer](http://127.0.0.1:52710/). The server exposes only this presentation
 directory. `PORT=...` chooses another port. The `.mmd` files and `diagrams.json`
 are editable source artifacts. The viewer uses pinned Mermaid 12.0.0 from
 jsDelivr and needs network access. Nobody maintains generated image exports.
@@ -28,17 +28,17 @@ asserts no private transport or escalation details.
 
 | View | Contract illustrated |
 |---|---|
-| [Independent ownership](http://127.0.0.1:8769/#diagram-packages) | Public CLI between separate releases, caller imports, Grove's shared job function and Ravel's runner. |
-| [Route and return](http://127.0.0.1:8769/#diagram-handoff) | Intact caller task, optional directory injection, refusal, supervision and opaque result after cleanup. |
-| [User-managed skill delivery](http://127.0.0.1:8769/#diagram-skill-delivery) | User choice subject to actual read access; the agent locates the named skill or reports and force-stops. |
-| [Preserving readers through adoption](http://127.0.0.1:8769/#diagram-skill-transition) | Use the integrated upstream contract, verify isolated combinations and intermediate tap states, then activate separately. |
-| [Nested jobs](http://127.0.0.1:8769/#diagram-chain) | Grove's foreground job for `ravel`, signal forwarding, Ravel's managed job and terminal recovery. |
-| [Result lifecycle](http://127.0.0.1:8769/#diagram-ending) | Successful publication against an absent result, cancellation or cleanup failure. |
-| [Two Grove callers](http://127.0.0.1:8769/#diagram-grove-launch) | The foreground and detached jobs, lifecycle admission and teardown, and confined standalone output publication. |
-| [Post-reap decision](http://127.0.0.1:8769/#diagram-loop-decision) | Epoch gate, failed spawn or wait, interruption, successful force-stop, teardown and successful continuation. Each error keeps a caught signal. |
-| [Creator alternatives](http://127.0.0.1:8769/#diagram-creator-options) | The inline receipt or declaration of the [Creator decision](../../adr/a-review-carries-its-creator-reference.md), and its rejected alternatives of a store or today's route. |
-| [Creator handoff](http://127.0.0.1:8769/#diagram-creator-flow) | Caller wrapper, finishing producer and the committed provider evidence of the review. |
-| [Configured review](http://127.0.0.1:8769/#diagram-creator) | Validation and routing to a different provider by opt-in Grove policy assets. |
+| [Independent ownership](http://127.0.0.1:52710/#diagram-packages) | Public CLI between separate releases, caller imports, Grove's shared job function and Ravel's runner. |
+| [Route and return](http://127.0.0.1:52710/#diagram-handoff) | Intact caller task, optional directory injection, refusal, supervision and opaque result after cleanup. |
+| [User-managed skill delivery](http://127.0.0.1:52710/#diagram-skill-delivery) | User choice subject to actual read access; the agent locates the named skill or reports and force-stops. |
+| [Preserving readers through adoption](http://127.0.0.1:52710/#diagram-skill-transition) | Use the integrated upstream contract, verify isolated combinations and intermediate tap states, then activate separately. |
+| [Nested jobs](http://127.0.0.1:52710/#diagram-chain) | Grove's foreground job for `ravel`, signal forwarding, Ravel's managed job and terminal recovery. |
+| [Result lifecycle](http://127.0.0.1:52710/#diagram-ending) | Successful publication against an absent result, cancellation or cleanup failure. |
+| [Two Grove callers](http://127.0.0.1:52710/#diagram-grove-launch) | The foreground and detached jobs, lifecycle admission and teardown, and confined standalone output publication. |
+| [Post-reap decision](http://127.0.0.1:52710/#diagram-loop-decision) | Epoch gate, failed spawn or wait, interruption, successful force-stop, teardown and successful continuation. Each error keeps a caught signal. |
+| [Creator alternatives](http://127.0.0.1:52710/#diagram-creator-options) | The inline receipt or declaration of the [Creator decision](../../adr/a-review-carries-its-creator-reference.md), and its rejected alternatives of a store or today's route. |
+| [Creator handoff](http://127.0.0.1:52710/#diagram-creator-flow) | Caller wrapper, finishing producer and the committed provider evidence of the review. |
+| [Configured review](http://127.0.0.1:52710/#diagram-creator) | Validation and routing to a different provider by opt-in Grove policy assets. |
 
 Ravel injects no ending instruction and gives result tokens no meaning. Current
 Grove prompts name the canonical `end-session grove-continue` and
@@ -58,8 +58,20 @@ public integration. Neither duplicates Ravel's private runtime contract.
 
 ## Current changes
 
-- [User-managed skill delivery](http://127.0.0.1:8769/#diagram-skill-delivery) — Clarified confined native access and the missing-skill ending.
-- [Preserving readers through adoption](http://127.0.0.1:8769/#diagram-skill-transition) — Recorded the integrated upstream contract, compatible tap ordering and optional manual cleanup.
-- [Route and return](http://127.0.0.1:8769/#diagram-handoff) — Added optional directory injection without a named-skill resolver.
-- [Independent ownership](http://127.0.0.1:8769/#diagram-packages) — Included configured directory hints before policy builds the command.
-- [Two Grove callers](http://127.0.0.1:8769/#diagram-grove-launch) — Applied optional directory delivery to both lifecycle and standalone launches.
+The current discussion is the coordinated release design, awaiting focused
+review. The owner confirmed that this is the only live workstream through
+completion; the design selects combined 2.0.0. See the
+[release specification](../../specs/coordinated-release.md) and
+[evidence](../../coordinated-release-evidence.md). Earlier skill views remain
+context for k34/k35's Rhai reconciliation; they are not current schema evidence.
+
+- [Compatible tap states](http://127.0.0.1:52710/#diagram-release-tap) — Added the versioned-first publication route and delayed unversioned promotion.
+- [Publication and finish ownership](http://127.0.0.1:52710/#diagram-release-order) — Added release dependencies, the finish extension and original-ending preservation.
+
+## Earlier skill-delivery changes
+
+- [User-managed skill delivery](http://127.0.0.1:52710/#diagram-skill-delivery) — Clarified confined native access and the missing-skill ending.
+- [Preserving readers through adoption](http://127.0.0.1:52710/#diagram-skill-transition) — Recorded the integrated upstream contract, compatible tap ordering and optional manual cleanup.
+- [Route and return](http://127.0.0.1:52710/#diagram-handoff) — Added optional directory injection without a named-skill resolver.
+- [Independent ownership](http://127.0.0.1:52710/#diagram-packages) — Included configured directory hints before policy builds the command.
+- [Two Grove callers](http://127.0.0.1:52710/#diagram-grove-launch) — Applied optional directory delivery to both lifecycle and standalone launches.

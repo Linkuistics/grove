@@ -126,6 +126,15 @@ Every session retains the ending command from its own launch prompt.
 
 ## Cross-repository handoffs
 
+The coordinated route is now in
+`docs/specs/coordinated-release.md`, with observed inputs and named owners in
+`docs/coordinated-release-evidence.md`. The human acknowledged that this is the
+sole live workstream through completion. The combined 2.0.0/schema-4 design
+receives its focused review before dependent work. Ravel's channel contract
+lives in the isolated `Ravel.coordinated-release-design` workspace from main
+`24a54523`; consume the exact commit in k36's handoff. This grove completes
+remaining Rhai release prerequisites itself, preserving the paused task tree.
+
 The Ravel feature producer owns work in a separate jj workspace on
 `skill-directory-delivery`, based on the exact main revision recorded by k34.
 The local and pinned stage owners each rebase and check at entry, record exact
@@ -135,10 +144,11 @@ release. The named Ravel owner must receive this integration contract before
 implementation. No work here edits the `Ravel.gh-issue-2` tree or signals it.
 
 This grove now owns Ravel release execution. coordinated-ravel-release-k36
-records a single-owner handoff with the human and the other workstream's
+records the human's single-owner handoff covering the other workstream's
 `release-ravel-2-0-0-k37` and `homebrew-upgrade-k38`, and assigns tap changes to
-the release stage that executes them. No release hold or cross-repository
-notification has been enacted by editing this tree. Preserve the original
+the release stage that executes them. The human's instruction keeps all other
+workstreams paused through completion; no cross-repository notification or
+tree edit imposed that state. Preserve the original
 1.1.0 ending executable for every live driver that still uses it. Rollout grows
 concrete Ravel integration, release, installed verification and tap work under
 the reviewed plan; it is no longer merely a request to another workstream.

@@ -12,6 +12,13 @@ Grove releases are published in two repositories:
 The release scripts build and connect those pieces. Run them from Grove's
 default, colocated Jujutsu workspace, where both `.jj/` and `.git/` exist.
 
+For the planned Rhai and skill-directory cutover, the
+[coordinated release contract](specs/coordinated-release.md) owns cross-product
+publication order and the finish handoff. It requires versioned Ravel delivery
+before compatible Grove and unversioned promotion afterwards. Its new Ravel
+channel/promotion tasks are design requirements, not currently available
+commands. The procedures below describe the existing release machinery.
+
 ## Release tasks
 
 Use [Task](https://taskfile.dev/) to run the complete release:

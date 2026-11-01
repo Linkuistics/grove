@@ -1,0 +1,18 @@
+flowchart TD
+    A["Start here · One workstream"]
+    B["Rollout: complete release prerequisites"]
+    C["Integrate and check Ravel"]
+    D["Publish and verify ravel@2"]
+    E["Prepare owner cutover and finish"]
+    F["Finish: confirm and release Grove"]
+    G["Promote Ravel and activate"]
+    H["End through original Ravel"]
+    A -->|1| B
+    B -->|2| C
+    C -->|3| D
+    D -->|4| E
+    E -->|5| F
+    F -->|6| G
+    G -->|7| H
+    classDef start fill:#16354a,color:#fff,stroke:#16354a,font-weight:bold
+    class A start

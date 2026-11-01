@@ -58,6 +58,28 @@ The existing isolated test cases remain required before the actual owner
 cutover. Ravel publication, owner activation and removal are now deliverables,
 not handoffs left for the human to perform outside this grove.
 
+During coordinated-ravel-release-k36 the human confirmed that this is the only
+live workstream and that all others remain paused until completion. This grove
+is the sole release and owner-cutover executor. It completes any unfinished
+Rhai documentation or acceptance prerequisite needed for Ravel publication in
+its own Ravel workspace; it neither waits for the other grove to resume nor
+edits that grove's task tree. The paused workstream later consumes actual
+release and activation receipts rather than repeating its old release tasks.
+
+The coordinated release design is `docs/specs/coordinated-release.md`, subject
+to its focused review before dependent work. Ravel 2.0.0 combines Rhai and
+complete directory delivery, with a distinct script/request schema 4, and
+publishes first through keg-only `ravel@2`. Rollout prepares and rehearses the
+release-channel and promotion tooling, and releases/verifies the versioned
+dependency. Grove's driver-created finish retains its normal one confirmation,
+teardown helper, main integration, full check and minor release. Its concrete
+whole-sequence proposal must additionally include promotion of the same Ravel
+archives to unversioned `ravel` after compatible Grove publication and installed
+verification, plus any final owner activation explicitly assigned by the
+owner-delivery design. These steps occur before the finish signal. Incomplete
+promotion or assigned activation is incomplete finish; never signal success.
+Preserve the original full 1.1.0 keg and ending command through the final signal.
+
 ## Ownership boundaries
 
 ### Ravel

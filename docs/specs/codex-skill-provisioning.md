@@ -231,6 +231,10 @@ The source split later updates native packages and injected directory sources
 with the same resource-preservation checks. No owner installation is changed by
 this design.
 
+The [coordinated release contract](coordinated-release.md) supplies the concrete
+combined-release identities, tap sequence, owner handoff and finish extension.
+Its focused review precedes the Rhai contract repair and dependent implementation.
+
 ## Test seams
 
 Use existing Grove lifecycle, standalone and public session-command seams with

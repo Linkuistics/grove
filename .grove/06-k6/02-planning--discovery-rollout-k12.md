@@ -40,6 +40,14 @@ owner-ravel-skill-inventory-k38's concrete all-skill cutover work.
 
 ## Notes
 
+The k36 design and `docs/coordinated-release-evidence.md` identify missing Ravel
+channel/promotion tooling, the actual tap clone, unfinished Rhai book inputs,
+and upgrade rehearsal obligations. The human confirmed that this grove alone
+remains live until completion. Grow the remaining release prerequisites here;
+do not wait for the paused Rhai workstream or edit its task tree. Consume the reviewed form
+before cutting implementation work. Assign the prepared post-Grove promotion
+to finish explicitly; do not leave an ordinary task after the finish sentinel.
+
 A request to plan is not the finish confirmation. The finish session proposes
 the concrete whole sequence and obtains its one explicit confirmation under
 the repository rules. Do not ask again for already authorized individual moves.

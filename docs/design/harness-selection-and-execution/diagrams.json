@@ -1,7 +1,12 @@
 {
   "title": "Harness selection and execution \u2014 Grove caller views",
-  "intro": "Target adoption design, pending implementation and acceptance: Ravel's corrected directory contract is integrated at b93bb927. The user supplies skills natively or through directory injection, subject to actual read access. Grove names a skill and the agent finds it. Process/result behavior remains as specified. Graphs begin at Start here, sequences at the first message, and states at the initial state.",
+  "intro": "Coordinated release design, pending focused review: one complete Ravel 2.0.0, first through ravel@2, followed by compatible Grove and unversioned promotion. The owner confirmed this is the sole live workstream through completion. Earlier skill views await Rhai contract repair. Graphs begin at Start here; sequences at their first message; states at their initial state.",
   "groups": [
+    {
+      "id": "release",
+      "title": "Coordinated release",
+      "description": "Publication order owned by this grove; implementation and release remain ahead."
+    },
     {
       "id": "skills",
       "title": "User-managed skill delivery",
@@ -29,6 +34,20 @@
     }
   ],
   "diagrams": [
+    {
+      "id": "release-tap",
+      "group": "release",
+      "title": "Compatible tap states",
+      "source": "release-tap.mmd",
+      "caption": "Designed A\u2013D states; implementation and acceptance remain ahead. Installing keg-only ravel@2 changes no default command. Promotion requires compatible published Grove and verified fresh-install and upgrade paths. Retained old callers keep complete prefixes and settings."
+    },
+    {
+      "id": "release-order",
+      "group": "release",
+      "title": "Publication and finish ownership",
+      "source": "release-order.mmd",
+      "caption": "This grove owns the release prerequisites while other workstreams stay paused. Cut Ravel once; validate its tagged book and all archives before publishing tag/assets, book, then ravel@2. Finish confirms its full sequence, releases Grove, then promotes Ravel and completes assigned activation. Each failure stops at its recovery boundary. Record teardown and use the original 1.1.0 ending command; retain old resources until readers end."
+    },
     {
       "id": "skill-delivery",
       "group": "skills",
@@ -108,36 +127,22 @@
     }
   ],
   "discussion": {
-    "title": "Grove names skills; the user supplies them",
-    "status": "Integrated directory contract; adoption implementation and acceptance pending",
-    "summary": "Ravel's corrected contract is integrated at b93bb927. Native installation and directory injection remain user choices with distinct access obligations. Adoption adds missing-skill force-stop, namespace-neutral requests and compatible intermediate tap states.",
+    "title": "Release Ravel without breaking released Grove",
+    "status": "Owner handoff acknowledged \u2014 focused review next",
+    "summary": "Combine Rhai and directory delivery as 2.0.0; publish ravel@2 first, then compatible Grove, then promote identical archives. This grove completes all release prerequisites while other workstreams remain paused. Keep current drivers and settings usable.",
     "diagramIds": [
-      "skill-delivery",
-      "skill-transition",
-      "handoff",
-      "packages",
-      "grove-launch"
+      "release-tap",
+      "release-order",
+      "skill-transition"
     ],
     "updatedDiagrams": [
       {
-        "id": "skill-delivery",
-        "summary": "Clarified confined native access and missing-skill force-stop, with discovery owned by the agent."
+        "id": "release-tap",
+        "summary": "Defined four compatible tap states and delayed default promotion."
       },
       {
-        "id": "skill-transition",
-        "summary": "Recorded the integrated upstream contract, compatible tap ordering and manual cleanup."
-      },
-      {
-        "id": "handoff",
-        "summary": "Added optional directory injection and preserved caller bytes."
-      },
-      {
-        "id": "packages",
-        "summary": "Placed directory hints before owner policy evaluation."
-      },
-      {
-        "id": "grove-launch",
-        "summary": "Applied optional directory delivery to both callers."
+        "id": "release-order",
+        "summary": "Assigned all release prerequisites here and added finish promotion with original-ending preservation."
       }
     ]
   }

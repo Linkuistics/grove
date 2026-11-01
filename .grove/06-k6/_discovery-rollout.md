@@ -59,6 +59,19 @@ never run two release sequences or bump again after a partial publication.
 
 ## Notes
 
+Consume `docs/specs/coordinated-release.md` and its evidence document after
+k36's focused review. The human confirmed sole execution in this workstream
+through completion. This grove must deliver remaining Rhai release prerequisites,
+including required book reconciliation and acceptance, without waiting for the
+paused workstream. The release design requires Ravel
+release tooling to carry an explicit versioned channel, including baseline
+validation and every recovery step. Prepare and rehearse promotion without
+another cut before Grove finish; the root-chartered finish extension promotes the
+same Ravel archives only after compatible Grove publication and verification.
+These are design inputs, not evidence of an implemented release task. The
+root charter assigns the extension; finish's concrete whole-sequence confirmation
+still applies before it executes integration and release.
+
 Ravel compatibility may require an earlier dependency release; consume its
 recorded result and resume incomplete work rather than bumping it again.
 The finished Grove minor release must follow its final main integration.

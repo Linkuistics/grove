@@ -15,6 +15,14 @@ the `Ravel.gh-issue-2` tree. Work belongs in a separate Ravel jj workspace.
 Consume coordinated-ravel-release-k36's reviewed publication constraints and
 owner-ravel-skill-delivery-k37's complete source/resource requirements first.
 
+k36's route is `docs/specs/coordinated-release.md`: combined Ravel
+2.0.0 and script/request schema 4, first through keg-only `ravel@2`. The human
+confirmed sole execution here until completion. Use the producer and its
+review/integration result for final identities. Ravel's release-channel contract
+is in `Ravel.coordinated-release-design`, separately based on main `24a54523`.
+Reconcile that contract into the owning feature line without editing the active
+Rhai task tree or assuming its unfinished book work is complete.
+
 ## Done when
 
 - Record an exact current-main base and any intervening upstream changes.

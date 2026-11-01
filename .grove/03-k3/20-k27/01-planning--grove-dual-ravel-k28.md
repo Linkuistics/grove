@@ -3,7 +3,8 @@
 ## Goal
 
 Grow concrete Grove caller and installed-distribution leaves using the now
-working Ravel 2 source route and a preserved independent Ravel 1.1 build.
+working directory-feature build and a preserved independent Ravel 1.1 build.
+Consume prior Rhai-native compatibility independently of the directory feature.
 
 ## Context
 
@@ -14,8 +15,10 @@ exhaustive stale-string inventory. No implementation here.
 
 ## Done when
 
-- Schedule complete dual-major caller behavior, explicit schema-2/schema-3 SDK
-  examples/typechecks, useful diagnostics and no-fallback/refusal controls.
+- Schedule complete caller behavior for the reviewed supported releases,
+  explicit runtime/schema examples and applicable checks, useful diagnostics
+  and no-fallback/refusal controls. Use the repaired feature identities and
+  Rhai host/assets rather than assuming Ravel 2.0/schema 3 supplies directories.
   Keep independent front/worker/package identities and isolated HOME settings.
 - Cover lifecycle native-only success and common-directory launches with local,
   exact Git and offline sources. Keep confined standalone native readability

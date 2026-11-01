@@ -10,12 +10,17 @@ from the delivered repository moves, leaving Grove's finish procedure intact.
 Read the completed increment briefs and owning-repository commits. Inspect
 current release procedures and any already completed dependency releases.
 The root brief and CLAUDE.md govern the final integration/release sequence.
+Consume coordinated-ravel-release-k36's reviewed publication plan and
+owner-ravel-skill-inventory-k38's concrete all-skill cutover work.
 
 ## Done when
 
 - Grow concrete leaves for remaining final checks, documentation reconciliation,
   paused-grove brief-update text, and Ravel integration/release or recovery.
   Preserve the required dependency order and exact configured source revisions.
+  Ravel integration, publication and installed verification are executed by
+  this grove. Reconcile already completed release steps and the acknowledged
+  handoff from the other workstream; do not duplicate its release or version cut.
 - Validation names core and every external pack, affected repository checks,
   staged installed split discovery on both harnesses and Grove's full check on
   the working result. Final main integration, the repeated integrated check and
@@ -27,6 +32,11 @@ The root brief and CLAUDE.md govern the final integration/release sequence.
 - No ordinary leaf duplicates finish-only teardown or sends an ending signal
   for another session. Every remaining root outcome has an owner in live work
   or concrete delivered evidence.
+- Reconcile every inventory entry with accepted Ravel delivery, including
+  TestAnyware, before actual owner configuration activation and native-removal
+  work completes. Preserve tool/hook dependencies and lazy readers. Use the
+  reviewed driver-transition contract so finish can load its own guidance and
+  end through this driver's original executable after installation changes.
 
 ## Notes
 

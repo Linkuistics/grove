@@ -20,15 +20,13 @@ dependency is dead merely because the provisioner used it.
 - Replace obsolete installation assertions with behavioral no-mutation checks
   covering fresh, owned and foreign entries, aliases, modes, current pointers,
   failure and an active old reader. Verify a native-only lifecycle with complete
-  explicit skills and directory injection disabled against actual Ravel 1.1.
+  explicit skills and directory injection disabled against actual Ravel 1.1,
+  using a managed fixture. This proves caller/lifecycle behavior, not an LLM's
+  adherence to the mandate.
 - Update installation/plugin guidance, architecture/glossary, relevant
   source-exact overview books/indexes and formula caveats/checks alongside code.
   Reconcile the old provisioning plan. Preserve the archive's executable/assets
   boundary; startup and package upgrade leave old installations untouched.
-- Supply optional manual cleanup in `docs/USAGE.md`, linked from plugin guidance.
-  Exercise it in disposable legacy layouts with stopped writers/readers,
-  owned/foreign links, aliases, uncertain provenance and retained references.
-  Path shape alone never authorizes removal.
 - Run relevant tasks (`check:skills`, affected book and installed-layout checks)
   and the full `check`/`bash scripts/check.sh` with explicit compatible Ravel
   inputs. Record exact build identities and limits on this task. Decompose if
@@ -36,6 +34,8 @@ dependency is dead merely because the provisioner used it.
 
 ## Notes
 
-This is the whole writer-removal increment, not a preparatory dead layer.
+This removes the writer and all consumers made false by its removal.
+The following grove-native-cleanup-k33 supplies the optional cleanup procedure
+and its disposable-layout exercise before this native increment can close.
 No owner settings, shared native links or installed binaries are changed.
 Mandate wording and real implicit-discovery trials have separate later work.

@@ -5,6 +5,8 @@
 Prepare the complete discovery and repository split for Grove's final release,
 with current documentation, its independent Ravel dependency released, and
 usable paused-grove handoffs.
+Execute the coordinated Ravel release in this grove and complete the owner's
+all-skill Ravel setup and removal of superseded native installations.
 
 ## Done when
 
@@ -25,6 +27,14 @@ usable paused-grove handoffs.
   version and remaining final integration, checks, minor release and installed
   verification. Those Grove operations are root outcomes owned by finish.
   Record recovery obligations; never rerun a partially cut release as a new bump.
+- The owner's full installed set is reconciled against the early and final
+  inventories, supplied by configured Ravel sources and verified in both
+  harnesses. TestAnyware's guidance, resources and required tools work through
+  that route. Hooks and plugin capabilities remain usable where required.
+  The accepted cutover is actually activated and superseded native installations
+  are removed with ownership and active-reader evidence. Preserve needed legacy
+  resources outside discovery until their readers finish; document remaining
+  cleanup precisely rather than treating a staged recipe as completion.
 - Durable contracts and decisions are in their owning repositories, and
   brief-update text is supplied for the paused editorial and design/decomposition
   groves, keeping craft guidance distinct from kind charters.
@@ -35,11 +45,17 @@ usable paused-grove handoffs.
 
 ## Decomposition
 
+First owner-ravel-skill-inventory-k38 reconciles the final installed set with
+owner-ravel-skill-delivery-k37 and grows concrete cutover work. The rollout
+planner consumes that work and coordinated-ravel-release-k36's reviewed plan.
 Plan from the delivered migration state. Grow concrete final verification,
 documentation/handoff and independent Ravel integration/release work before
 Grove finish. Grove's final main integration and minor release remain owned by
 its driver-created finish session under CLAUDE.md; do not create a competing
 manual finish leaf or pre-complete that sentinel's work.
+Ravel's release is executed by this grove's ordinary release leaves. Reconcile
+the other workstream's release state through the acknowledged owner handoff;
+never run two release sequences or bump again after a partial publication.
 
 ## Notes
 
@@ -53,5 +69,13 @@ versioned formula while the unversioned dependency remains compatible with
 released Grove, unless an earlier verified Grove compatibility release has
 explicitly been scheduled. Coordinate the tap and Ravel release instructions
 before publication; a separate executable prefix alone does not fix the tap.
+The coordinated release design settles actual version identities and can
+combine Rhai and directory delivery where valid; "Ravel 2" here must not be
+assumed to identify the directory feature. Its reviewed plan owns final order.
 Do not upgrade away any running driver's required binaries, replace its ending
 command, signal paused groves, edit their trees or delete this workspace.
+The owner-delivery design must make the final session's own guidance readable
+through native removal and the switch away from the current fixed 1.1.0 driver.
+If a final cutover step must occur inside finish, name it explicitly in the
+finish handoff and root charter before that session; no ordinary leaf may
+claim the actual cutover happened merely because it supplied instructions.

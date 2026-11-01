@@ -38,9 +38,25 @@ skills-only approach first. Neither is a prerequisite for this work.
   Complete the independent Ravel/Grove integration and releases through the
   repository procedures, preserving every running session's original ending
   command.
+- The owner's full installed skill collection, including TestAnyware, is
+  supplied through Ravel's common insertion route. Inventory current sources,
+  resources, hooks and plugin/tool dependencies; preserve them through the
+  repository moves. Verify replacement discovery and reads before removing
+  superseded native installations. Record the actual owner cutover and any
+  retained resources needed by active readers; a disposable trial alone does
+  not satisfy this outcome.
 
 These are whole-workstream outcomes. This requirements session records the
 contract; design and implementation remain ahead.
+
+During common-skill-loading-k32 the human additionally directed this grove to
+do Ravel's release work and coordinate both releases, and to remove current
+skill installations after setting up all the owner's skills through Ravel,
+explicitly including TestAnyware. The new owner setup uses common delivery;
+native installation remains a supported product choice for other users.
+The existing isolated test cases remain required before the actual owner
+cutover. Ravel publication, owner activation and removal are now deliverables,
+not handoffs left for the human to perform outside this grove.
 
 ## Ownership boundaries
 
@@ -149,6 +165,11 @@ deferred issues as prerequisites or recreate the removed kind machinery.
    configuration and paused-grove handoff text; verify all repositories and
    coordinate independent releases. Ravel release work precedes Grove's
    driver-owned finish, which performs final integration and minor release.
+   This grove also executes the coordinated Ravel release and owner skill
+   cutover, including removal of superseded installations. Consume the early
+   coordinated-release and owner-delivery designs. Preserve a working published
+   Grove/Ravel pair at every step, and account for the current driver's fixed
+   Ravel 1.1.0 executable before changing native discovery or shared settings.
 
 These are subtrees within this one coordinated workstream. Later planners grow
 their current implementation detail from delivered evidence. A node's design

@@ -7,8 +7,10 @@ native namespaces and a missing skill, using the existing Ravel 1.1 lifecycle.
 
 ## Context
 
-Read the delivery specification's launch/bootstrap contract and the integrated
-Ravel loading rules in that repository's `docs/specs/skill-discovery.md`.
+Read the delivery specification's launch/bootstrap contract. Its reference to
+the directory design at Ravel `b93bb927` is historical until
+ravel-rhai-skill-delivery-k34 and grove-rhai-skill-delivery-k35 repair it.
+This leaf implements only the route-independent mandate and Ravel 1.1 fixtures.
 Recheck `grove-loop` prompt composition, tests, lifecycle/result/epoch fixtures
 and source-exact launch/prompt excerpts named by the delivery evidence map.
 
@@ -21,9 +23,12 @@ and source-exact launch/prompt excerpts named by the delivery evidence map.
   unreadable skill outcome in the mandate itself: report it, keep the task live,
   record no teardown, and run this launch's exact force-stop command last.
 - Verify caller text and canonical ending commands, open custom kinds, stable
-  handles and normal continuation. In disposable lifecycle sessions verify a
-  missing/unreadable-guidance report plus force-stop leaves the leaf live,
+  handles and normal continuation. In disposable lifecycle sessions use a
+  managed fixture to supply the missing/unreadable-guidance report and exact
+  force-stop result. Verify this leaves the leaf live,
   records no teardown and does not relaunch or publish successful work.
+  This proves Grove's interpretation only. common-loading-acceptance-k30 owns
+  actual Claude Code and Codex native-only missing-kind observations.
 - Keep native-only success independent of configured Ravel sources. Treat a
   plugin-qualified name as a name request, not an asserted native tool call.
   Actual directory name/mandatory-order trials remain scheduled later.

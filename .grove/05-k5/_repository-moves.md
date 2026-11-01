@@ -25,6 +25,11 @@ and relocate the four writing projects, using the proven external-pack contract.
   paths. No product behavior changes are included.
 - Owning-repository commits and migration verification are recorded durably
   enough for discovery-rollout-k6 to integrate and release independent products.
+- Reconcile each moved skill/resource/tool/hook with the baseline from
+  owner-ravel-skill-delivery-k37. Preserve third-party and other installed
+  skills outside this repository's packs. Give rollout exact source roots and
+  revisions for the owner's full Ravel collection, including TestAnyware.
+  Actual native-installation removal follows replacement acceptance in rollout.
 
 ## Decomposition
 

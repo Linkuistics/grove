@@ -3,7 +3,8 @@
 ## Goal
 
 Extend the working local route to exact pinned Git sources, completing Ravel's
-generic source contract before Grove adopts its new major.
+generic source contract before Grove adopts directory delivery. Rhai native
+compatibility is independent of this feature.
 
 ## Done when
 
@@ -29,10 +30,18 @@ private acquisition machinery alone does not close this node.
 
 Ravel's reviewed `docs/specs/skill-discovery.md`, its exact-Git, publication,
 failure and acceptance sections; the preceding local node's owning commits and
-recorded installed-pair inputs. Follow Ravel's repository instructions.
+recorded installed-pair inputs. Use the repaired contract from
+ravel-rhai-skill-delivery-k34, not the historical TypeScript/schema-3 design.
+Follow Ravel's repository instructions.
 
 ## Notes
 
 Only source acquisition extends here. No skill catalog, Grove dependency,
 native installer or garbage collector is introduced. Final publication belongs
 to discovery-rollout-k6; use isolated temporary installs for acceptance.
+At entry the owning pinned implementation session rebases the recorded local
+commits onto current Ravel main, checks the integrated local path and records
+the exact base. Keep all work on `skill-directory-delivery`, outside main,
+through acceptance. Rollout owns final rebase, checks and landing of the complete
+feature. Remove the local subset's temporary Git refusal and its fixture when
+the public Git path works; neither may survive into publication.

@@ -10,6 +10,8 @@ delivered local route, without repeating or redesigning its public API.
 Inspect Ravel's current implementation, tests, Taskfile, package/install inputs
 and accepted specification under that repository's instructions. Consume the
 local node's owning commits and measured limits. No implementation here.
+Use the reviewed Rhai contract repair and the parent's exact-base, named-bookmark
+and rebase handoff before cutting implementation.
 
 ## Done when
 
@@ -29,6 +31,9 @@ local node's owning commits and measured limits. No implementation here.
 - End with exact owning commits and reproducible independent installed-pair
   inputs for Grove's dual-major work. Add actual implementation and acceptance
   leaves before retiring; a plan is not this node's delivered behavior.
+- Assign removal of the local build's temporary unsupported-Git refusal and
+  its fixture to the public Git increment. Preserve before-configuration
+  failure ordering for actual acquisition errors under the settled contract.
 
 ## Notes
 

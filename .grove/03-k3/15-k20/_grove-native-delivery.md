@@ -23,7 +23,9 @@ writes and make the mandate safe when guidance is missing or shipped elsewhere.
 ## Decomposition
 
 First remove the automatic writer with its build, packaging, documentation and
-nonmutation checks. This leaves a useful native-only product. Then improve the
+nonmutation checks. This leaves a useful native-only product. Next,
+grove-native-cleanup-k33 supplies optional manual cleanup and exercises it in
+disposable layouts. Then improve the
 mandate and prove its ordinary and missing-guidance lifecycle behavior. Neither
 requires Ravel 2. Directory delivery and dual-major admission come later.
 

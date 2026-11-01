@@ -27,6 +27,12 @@ claiming compaction, delegation or confinement support. No trials here.
   variable alone is not recovery evidence. Include a real delegate and retained
   reads after source/config changes; distinguish reads, adherence and ending
   authority. Use only disposable sessions for early-result attempts.
+- In each actual harness, add a separate native-only missing-kind case with
+  directory injection disabled and the required kind absent from isolated
+  native roots. Observe the agent's report and its exact launch force-stop
+  command; verify the leaf remains live, no teardown or output is published,
+  and the loop does not relaunch. Do not credit the native-stage fixture as
+  this observation. Keep the unreadable confined case separately identified.
 - Cut an installed/integrated handoff leaf after both harnesses: reconcile
   actual macOS/Linux confinement, native-only lifecycle versus native standalone
   access, fresh/upgrade no-mutation and explicit dual-major archive/formula/floor

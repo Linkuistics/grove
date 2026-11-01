@@ -61,7 +61,9 @@ stood at the graft — a closed record, not part of the versioned sequence above
   marketplace for Claude Code, and `plugins/install.sh` for Codex, Gemini CLI
   and Pi. Startup and upgrades leave the links in `~/.agents/skills` and the
   snapshots in `~/.agents/.grove` that earlier releases wrote unchanged, and a
-  same-name entry no longer prevents launch.
+  same-name entry no longer prevents launch. `docs/USAGE.md` describes an
+  optional manual procedure that removes those entries only on evidence of
+  ownership.
 
 - `linkuistics` / `machine-environment`: describe `mise bootstrap` as the owner of
   Antony's machine setup. Packages are in `[bootstrap.packages]`, and dotfiles are

@@ -692,15 +692,239 @@ Independently authored session-kind skills remain their author's
 responsibility.
 
 <a id="usage-earlier-codex-installations"></a>
-**Codex skills installed by earlier Grove releases.** Grove 22.8 and earlier
-installed Codex skills automatically at bare startup: links in
-`~/.agents/skills` pointed through `~/.agents/.grove/current` into snapshots
-under `~/.agents/.grove/snapshots`. Later releases never adopt, repair, repoint
-or delete those entries, and an upgrade leaves them too. The links keep working
-while their snapshots remain, but they no longer follow Grove upgrades. Keep
-them, or replace them through the manual installer. Remove an entry only after
-every driver, harness and other process that can read it has stopped. Its path
-or name alone does not show that Grove wrote it.
+**Codex skills installed by earlier Grove releases.** Grove 21.11 to 22.8
+installed Codex skills automatically at bare startup. Links in `~/.agents/skills`
+and in the Codex skill directory pointed through `~/.agents/.grove/current` into
+snapshots under `~/.agents/.grove/snapshots`. Later releases never adopt,
+repair, repoint or remove those entries, and an upgrade leaves them too. The
+links keep working while their snapshots remain, but they no longer follow Grove
+upgrades.
+
+Keep them, or replace them with links that you choose. To remove them, follow
+the [optional cleanup procedure](#usage-codex-cleanup). Its path or name alone
+does not show that Grove wrote an entry.
+
+<a id="usage-codex-cleanup"></a>
+### Optional cleanup of earlier Codex installations
+
+You can keep the old entries indefinitely. They use disk space, and a harness
+can see an old copy of a skill beside a new one. This procedure removes only the
+entries that you can show the old provisioner wrote and that nothing still
+needs. Grove supplies no command for it, and no Grove release runs it.
+
+Each startup of Grove 21.11 to 22.8 wrote this layout when `CODEX_HOME` had a value
+or `~/.codex` existed. The Codex skill directory is `$CODEX_HOME/skills`, and
+the default of `CODEX_HOME` is `~/.codex`.
+
+| Entry | What the provisioner wrote |
+|---|---|
+| `~/.agents/.grove/install.lock` | An empty lock file. |
+| `~/.agents/.grove/snapshots/bundle-XXXXXX` | A copy of every regular file in the `plugins` tree of that Grove build. The snapshot holds only `plugins`. A refresh added a snapshot and kept the earlier ones. |
+| `~/.agents/.grove/current` | A link to one snapshot, by absolute path. |
+| `~/.agents/skills/NAME` | A link to `~/.agents/.grove/current/plugins/PLUGIN/skills/NAME`, by absolute path. If a link was already at NAME, the provisioner replaced it. It did so when that link pointed into the Grove root or to a skill of a Grove plugin. Thus you or the manual installer can have made the original link. |
+| Codex skill directory, `NAME` | A link of the same form. Here the provisioner replaced only a link that already pointed into the Grove root or to a skill of a Grove plugin. You or the manual installer made the original link. |
+| A `link-XXXXXX` directory | A directory with one link named `link`. A startup that stopped before it published that link left it. It can be in each skill directory and in the Grove root. |
+
+A skill of a Grove plugin is a path of the form `.../plugins/PLUGIN/skills/SKILL`
+for a plugin of the Grove repository. The provisioner also removed links of
+these forms at the names that it did not ship.
+
+The provisioner kept no record of what it wrote. Thus the layout alone is not
+evidence of ownership. The manual installer, another tool or you can make an
+entry of the same form.
+
+#### 1. Stop every writer and reader
+
+1. Stop every Grove driver and every session that it started. Include
+   `grove run` tasks and sessions in detached terminals.
+2. Stop every Codex session and every other harness that reads these skill
+   directories.
+3. Make sure that no Grove 22.8 or earlier executable can start again. Include
+   Homebrew kegs, builds in old checkouts and copies elsewhere on `PATH`. Each
+   startup of one writes the layout again.
+4. List the remaining processes with `pgrep -fl 'grove|codex|ravel|claude|gemini'`.
+   On Linux, use `pgrep -af` with the same pattern.
+5. Add the name of each other harness that you use to the pattern.
+6. Stop each listed process that can read a skill.
+
+A list of open files cannot find every reader. `lsof +D ~/.agents/.grove` shows
+only the files that are open now. A session that read a skill can open the
+resources of that skill later.
+
+#### 2. Make an inventory
+
+These commands only read. Run them in a POSIX shell. They need `realpath`, which
+macOS 13 and later and Linux supply. If `command -v realpath` prints nothing,
+install GNU coreutils and put its `realpath` on `PATH` before you continue.
+
+```sh
+codex_skills="${CODEX_HOME:-$HOME/.codex}/skills"
+realpath ~/.agents/skills "$codex_skills"
+ls -la ~/.agents/.grove ~/.agents/.grove/snapshots
+for dir in ~/.agents/skills "$codex_skills"; do
+  for entry in "$dir"/* "$dir"/.[!.]*; do
+    [ -L "$entry" ] || [ -e "$entry" ] || continue
+    if [ -L "$entry" ]; then
+      printf '%s -> %s\n' "$entry" "$(readlink "$entry")"
+    else
+      printf '%s (not a link)\n' "$entry"
+    fi
+  done
+done
+```
+
+<!-- tc: depart synonym-rotation because launch policy is the name of the owner's policy file -->
+If the two `realpath` lines are equal, the two skill directories are one
+directory. Inspect and change that directory once. Repeat the inventory for each
+other value of `CODEX_HOME` that you use. Look for such values in your shell
+profile, your launch policy and the environments of your services. For each
+`link-XXXXXX` directory, run `ls -la` on it and `readlink` on its `link`.
+
+If the Codex skill directory does not exist, `realpath` reports an error for it.
+Then the provisioner wrote no links there.
+
+Then find the retained references and the aliases. A retained reference is a
+link or a text outside `~/.agents` that names an entry of the layout. An alias
+is a link to `~/.agents`, to a skill directory or to the Codex home. A reader can
+reach every entry of that directory through an alias.
+
+```sh
+agents="$(realpath ~/.agents)"
+codex_home="$(realpath "${CODEX_HOME:-$HOME/.codex}" 2>/dev/null)"
+find ~ -xdev -type l ! -path "$HOME/.agents/*" ! -path "$agents/*" -exec sh -c '
+  r="$(realpath "$1" 2>/dev/null)" || exit 0
+  case "$r" in "$2" | "$2"/*) echo "$1 -> $r"; exit 0 ;; esac
+  [ -n "$3" ] || exit 0
+  case "$r" in "$3" | "$3"/skills | "$3"/skills/*) echo "$1 -> $r" ;; esac
+' sh {} "$agents" "$codex_home" \; 2>/dev/null
+grep -rlF '.agents/' ~/.config "${CODEX_HOME:-$HOME/.codex}" 2>/dev/null
+```
+
+The `find` command shows each link that resolves to `~/.agents` or into it. It
+also shows each link to the Codex home, to its skill directory or into that
+directory. It follows a chain of links. The search visits every link in your
+home directory, so it can take a long time.
+
+The output includes the links in the Codex skill directory itself. Each other
+line is a retained reference or an alias. A link of the inventory that stays is
+also a reference to each entry through which it resolves. The `grep` command
+shows the files that name such a path.
+
+Extend both searches to each other location that can hold links or settings.
+Examples are a Codex home outside your home directory, project skill
+directories and other file systems. Add each directory that holds your harness
+settings, launch policies or scripts to the `grep` command.
+
+#### 3. Classify each entry
+
+Give each entry one of three classes. An owned and unneeded entry is removable.
+An owned entry that something still needs stays. An entry that is foreign or
+uncertain stays.
+
+A link is removable only when all these conditions are true:
+
+- Your own setup records, such as dotfiles and bootstrap scripts, show that
+  neither you nor another tool made a link at this path. The table above shows
+  why: the provisioner replaced links that you made.
+- `readlink` shows exactly `$HOME/.agents/.grove/current/plugins/PLUGIN/skills/NAME`,
+  with your actual home directory. NAME is the name of the link itself.
+- `~/.agents/.grove` is a real directory. It holds only `install.lock`,
+  `snapshots`, `current` and `link-XXXXXX` directories.
+- No retained reference names the link.
+- You need that skill neither in that directory nor through an alias of it. If
+  you do not know whether a reader uses an alias, you cannot show this.
+
+The `link` in a `link-XXXXXX` directory is removable under the same conditions.
+For it, NAME can be any skill name, or `readlink` names a snapshot. When its
+`link` is removable, the directory is removable too.
+
+If you need a skill, keep its link. Alternatively, replace the link yourself
+with a link to a copy that you choose.
+
+The manual installer writes only
+`~/.codex/skills`, `~/.gemini/skills` and `~/.pi/agent/skills`. It ignores
+`CODEX_HOME`. In each directory, it replaces every link at the name of a skill
+that it ships. It also removes links to skills of Grove plugins that it does not
+ship there, also links that you made. Run it only if you accept these changes.
+
+A snapshot is removable only when all these conditions are true:
+
+- Its directory is directly in `~/.agents/.grove/snapshots`, and its name starts
+  with `bundle-`.
+- It holds only `plugins`, and that tree holds only directories and regular
+  files.
+- Its `plugins` tree is equal to the `plugins` tree of a Grove release from
+  21.11 to 22.8. A checkout from which you know that you built Grove is also
+  sufficient. The commands below make this comparison.
+- No link that stays and no retained reference resolves into it, directly or
+  through `current`.
+
+```sh
+release="$(mktemp -d)"
+curl -fsSL https://github.com/Linkuistics/grove/archive/refs/tags/v22.8.0.tar.gz |
+  tar -xz -C "$release" --strip-components=1
+diff -r -x __pycache__ "$release/plugins" ~/.agents/.grove/snapshots/bundle-XXXXXX/plugins
+```
+
+Use the release that you ran when Grove wrote the snapshot. The `ls -la` output
+of the inventory shows the date of each snapshot.
+
+If the trees are equal, `diff` prints nothing. The release checks write Python
+`__pycache__` directories into the build tree, and a release snapshot can
+contain them. Thus the comparison ignores them. If no release or known checkout
+is equal, the snapshot is uncertain. A partial copy is also uncertain.
+
+`current` is removable only when no link that stays resolves through it.
+`install.lock`, `snapshots` and `~/.agents/.grove` are removable last.
+
+These entries are always foreign or uncertain. Keep them:
+
+- A real directory or file in a skill directory, except a `link-XXXXXX`
+  directory. An example is Codex's own `.system`. Grove builds before
+  `delete-provisioning-k19` also wrote real directories, and their provenance
+  is uncertain.
+- A link to a checkout or to another location outside the Grove root.
+- A link directly to a snapshot. The provisioner did not write such links. Such
+  a link is a retained reference, and its snapshot stays too.
+- A link with a different text form, also when its target is missing.
+
+#### 4. Move the removable entries
+
+Move each removable entry into a holding directory outside every skill
+directory. Move the links and `link-XXXXXX` directories first. Then move
+`current`, and after it the snapshots.
+
+```sh
+hold=~/grove-codex-cleanup
+mkdir "$hold" "$hold/agents-skills" "$hold/codex-skills" "$hold/snapshots"
+mv ~/.agents/skills/NAME "$hold/agents-skills/"
+mv "$codex_skills/NAME" "$hold/codex-skills/"
+mv ~/.agents/.grove/current "$hold/"
+mv ~/.agents/.grove/snapshots/bundle-XXXXXX "$hold/snapshots/"
+```
+
+Name a link without a slash at its end. With the slash, `mv` and `rm -r`
+operate on the target directory and not on the link.
+
+#### 5. Check the result
+
+1. Start a new session of each harness that reads these skill directories.
+2. Make sure that each session loads each skill that you need.
+3. If a skill is missing, move the snapshots back first.
+4. Then move `current` back, and after it the links.
+
+#### 6. Remove the holding directory
+
+When the new sessions work, remove the holding directory. Then examine the Grove
+root. If it holds only `install.lock` and an empty `snapshots`, remove them:
+
+```sh
+rm ~/.agents/.grove/install.lock
+rmdir ~/.agents/.grove/snapshots ~/.agents/.grove
+```
+
+`rmdir` refuses a directory that is not empty. That refusal shows an entry that
+you did not classify.
 
 <a id="usage-tree-verbs"></a>
 ## The `grove-llm` verbs over the tree

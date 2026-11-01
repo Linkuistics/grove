@@ -146,14 +146,16 @@ usable where their contents and resource paths are still valid.
 
 The user can keep native installations indefinitely. Cleanup, if requested, is
 a manual procedure performed by the user after all affected readers and old
-provisioning writers have stopped. Include drivers, lazy link readers, independent harnesses and
-detached readers. A lexical path shape or skill name is insufficient deletion
-evidence. Inspect each link and actual target, account for aliases and recorded
-installation provenance, and preserve uncertain or foreign entries. Only then
-remove identified links and complete owned snapshots no reader or retained link
-needs. The increment that removes provisioning supplies the procedure in the
-installation guidance in `docs/USAGE.md`, with a link from plugin installation
-guidance. It explains how to inspect the legacy pointer and snapshot layout
+provisioning writers stop. Include drivers, lazy link readers, independent
+harnesses and detached readers.
+
+A lexical path shape or skill name is insufficient deletion evidence. Inspect
+each link and actual target, account for aliases and recorded installation
+provenance, and preserve uncertain or foreign entries. Only then remove
+identified links and complete owned snapshots no reader or retained link needs.
+The [cleanup procedure](../USAGE.md#usage-codex-cleanup) in the
+installation guidance supplies these steps, and plugin installation guidance
+links to it. It explains how to inspect the legacy pointer and snapshot layout
 without treating that layout alone as ownership evidence. No automatic
 migration or owner-invoked cleanup command is introduced.
 

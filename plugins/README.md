@@ -106,7 +106,7 @@ the move. Only where you add the marketplace *from* changed.
 
 ## Install — Codex
 
-Grove names the skill each session must load; it does not install skills. Run
+Grove names the skill each session must load. It does not install skills. Run
 the manual installer below for Codex. It links each eligible skill into
 `~/.codex/skills`, one of the user skill roots that Codex reads. Codex 0.166.0
 also reads `~/.agents/skills`.
@@ -114,15 +114,20 @@ also reads `~/.agents/skills`.
 Grove releases up to 22.8 installed every bundled Codex-compatible skill in
 `~/.agents/skills` at bare startup. Those links point through
 `~/.agents/.grove/current` into complete snapshots under
-`~/.agents/.grove/snapshots`. Later releases leave all of that unchanged. They
-do not adopt, repair, repoint or delete it, and no upgrade does either. The
+`~/.agents/.grove/snapshots`. In `~/.codex/skills`, those releases also
+repointed existing links to Grove plugin skills in the same way.
+
+Later releases leave all of that unchanged. They do not adopt, repair, repoint
+or remove it, and no upgrade does either. The
 links keep working while their snapshots remain, but they no longer follow a
 Grove upgrade. Readers that already resolved an old snapshot keep their files.
 
 When both a provisioned link and a manually installed link supply one skill,
 the harness can see both copies. Keep the old installation, or remove it by
-hand after every process that can read it has stopped. Path shape alone does
-not show that Grove wrote an entry.
+hand under the
+[optional cleanup procedure](../docs/USAGE.md#usage-codex-cleanup). That
+procedure first stops every process that can read the entries.
+Path shape alone does not show that Grove wrote an entry.
 
 Ravel skill-directory delivery is a planned alternative route that will need no
 native copy. No released Ravel supplies it yet.

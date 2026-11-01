@@ -105,8 +105,11 @@ Claude-only `guardrail` is excluded from Codex.
 Grove releases up to 22.8 installed Codex skills automatically in
 `~/.agents/skills` at startup. Later releases do not. They leave those links and
 the snapshots under `~/.agents/.grove` unchanged, and the links keep working
-while their targets exist. Ravel skill-directory delivery is a planned
-alternative route; no released Ravel supplies it yet. See [`plugins/README.md`](plugins/README.md)
+while their targets exist. To remove them, follow the
+[optional cleanup procedure](docs/USAGE.md#usage-codex-cleanup).
+
+Ravel skill-directory delivery is a planned alternative route. No released Ravel
+supplies it yet. See [`plugins/README.md`](plugins/README.md)
 for the catalogue, ownership rules and installation paths.
 
 ## Documentation

@@ -123,10 +123,11 @@ links keep working while their snapshots remain, but they no longer follow a
 Grove upgrade. Readers that already resolved an old snapshot keep their files.
 
 When both a provisioned link and a manually installed link supply one skill,
-the harness can see both copies. Keep the old installation, or remove it by
-hand under the
+the harness can see both copies. Keep the old installation, or remove its links
+by hand under the
 [optional cleanup procedure](../docs/USAGE.md#usage-codex-cleanup). That
-procedure first stops every process that can read the entries.
+procedure first stops every process that can read the entries. It keeps the
+snapshots.
 Path shape alone does not show that Grove wrote an entry.
 
 Ravel skill-directory delivery is a planned alternative route that will need no

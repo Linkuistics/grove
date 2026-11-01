@@ -152,11 +152,15 @@ harnesses and detached readers.
 A lexical path shape or skill name is insufficient deletion evidence. Inspect
 each link and actual target, account for aliases and recorded installation
 provenance, and preserve uncertain or foreign entries. Only then remove
-identified links and complete owned snapshots no reader or retained link needs.
+identified links in the skill directories that no reader, retained link or
+retained text needs. A retained link needs every entry its resolution passes,
+including entries reached through intermediate links outside the searched
+locations.
+
 A search shows only what it reaches in the searched locations, and it cannot
-prove that nothing needs an entry. Where a search shows a dependency that the
-procedure cannot limit to known entries, keep the current-snapshot pointer and
-every snapshot.
+prove that nothing needs an entry. The cleanup therefore keeps the legacy root,
+with its current-snapshot pointer, every snapshot and its lock file. The root is
+small, and the duplicate copies that cleanup addresses come from the links.
 
 The [cleanup procedure](../USAGE.md#usage-codex-cleanup) in the
 installation guidance supplies these steps, and plugin installation guidance
@@ -260,7 +264,7 @@ Grove verifies the observable caller behavior.
 | Explicit loading mechanism | Exercise a native loader with a match, absent-match directory fallback with disclosure, an express native-only restriction and a concrete path. Observe the specified route or a report before dependent work; do not silently substitute. |
 | Compatibility | Verify stable 1.x from 1.1.0 and 2.x, respective policy examples, refused versions and no fallback to another PATH entry. |
 | No native mutation | Compare owned/foreign files, links, modes, pointers and bytes before/after startup, failure and installed upgrade. Include legacy homes, aliases and an active old reader. |
-| Manual cleanup guidance | Exercise the documented procedure in disposable legacy layouts with stopped readers/writers, owned and foreign links, aliases, uncertain provenance and retained snapshot references. Only evidenced, unneeded owned entries are removable; the owner's installation is untouched by the trial. |
+| Manual cleanup guidance | Exercise the documented procedure in disposable legacy layouts with stopped readers/writers, owned and foreign links, aliases, uncertain provenance, and retained links that reach a skill entry through intermediate links or `..`. Only evidenced, unneeded owned skill-directory links are removable; the legacy root stays unchanged, and the owner's installation is untouched by the trial. |
 | Resource lifetime | A reader keeps its original resolved directories while sources/configuration change; subsequent launches can receive the new source view. |
 | Confined standalone | Ravel 2 directory delivery makes required resources outside cwd readable, while writes and protected configuration reads fail on actual supported backends. With injection disabled and native trees outside all grants, observe a missing/unreadable-guidance report and force-stop with no output publication. Grove adds no directory-grant bypass. |
 | Open tree behavior | Existing custom-kind, handle, review/integration, result and epoch tests pass. No availability check enters tree verbs or launch admission. |

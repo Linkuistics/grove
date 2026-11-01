@@ -56,6 +56,11 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+- `linkuistics` / `machine-environment`: describe `mise bootstrap` as the owner of
+  Antony's machine setup. Packages are in `[bootstrap.packages]`, and dotfiles are
+  tracked in place by mise history. The chezmoi source and the Brewfile are
+  retired.
+
 ## v22.8.0
 
 - `grove`: keep required human questions pending in the same interactive

@@ -1,6 +1,6 @@
 ---
 name: machine-environment
-description: Antony's macOS development and configuration contract — mise tool selection, Taskfile workflows, chezmoi ownership, and the Obsidian operating manual. Use when setting up projects, running development commands, adding toolchains, or changing persistent configuration on this machine.
+description: Antony's macOS development and configuration contract — mise tool selection, Taskfile workflows, mise bootstrap ownership of machine setup, and the Obsidian operating manual. Use when setting up projects, running development commands, adding toolchains, or changing persistent configuration on this machine.
 harnesses: [any]
 assumes-personal-setup: true
 ---
@@ -19,10 +19,10 @@ Read it when working on persistent machine configuration or recovery. Its linked
 Development Environment, Maintenance and Recovery, Application Recovery, and
 Machine Status notes provide the relevant detail.
 
-The chezmoi source is `$HOME/.local/share/chezmoi`; global tool defaults are in
-`$HOME/.config/mise/config.toml`, and the software manifest is
-`$HOME/.config/homebrew/Brewfile`. Read their current contents and the project's
-requirements rather than copying a version from this skill.
+`$HOME/.config/mise/config.toml` declares the machine setup. It holds the global
+tool defaults, the Homebrew and App Store packages, the macOS defaults, and the
+dotfiles that mise tracks. Read its current contents and the project's
+requirements. Do not copy a version from this skill.
 
 ## Run project tools through mise
 
@@ -52,12 +52,18 @@ user-selected environment instead of replacing it with the personal default.
 
 ## Preserve persistent changes
 
-Project requirements and tasks belong in the project. Machine packages and
-selected shell, editor, and application settings belong in chezmoi. Review
-`chezmoi status` and the relevant diff; edit managed files with
-`chezmoi edit --apply <path>` or deliberately capture direct edits. Reconcile live
-changes before applying an older source. Keep credentials and application data
-with their private recovery owners.
+Project requirements and tasks belong in the project. Machine packages belong in
+`[bootstrap.packages]` of the global mise config. Selected shell, editor, and
+application settings are dotfiles that mise tracks in place. Keep credentials and
+application data with their private recovery owners.
+
+- Edit a tracked file where it is. The history watcher saves each edit.
+- Run `mise dot status` to see the tracked state.
+- Track a new file with `mise dot track <path>`.
+- Add a package with `mise bootstrap packages use <manager:package>`.
+- Preview a change with `mise bootstrap plan`.
+- Do not run `mise bootstrap packages prune`. It uninstalls undeclared packages.
+- Leave `mise dot sync` to the owner. It publishes the history.
 
 After a machine change, update the affected Obsidian note and run `mac-check`.
 It is read-only: exit 10 includes manual review, especially CCC backup verification

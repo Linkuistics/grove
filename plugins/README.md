@@ -5,7 +5,8 @@ published through the marketplace declared in
 [`../.claude-plugin/marketplace.json`](../.claude-plugin/marketplace.json). They
 share this repo with the Grove CLI because the two change in lockstep
 ([architecture](../docs/ARCHITECTURE.md#skills-monorepo)); they ship by their own
-path for Claude Code, while the Grove binary embeds their snapshot for Codex.
+path for Claude Code and through [`install.sh`](install.sh) for Codex, Gemini CLI
+and Pi. The Grove binary embeds and installs none of them.
 
 The vocabulary of authoring, packaging, triggering and installing a skill is in
 [`CONTEXT.md`](CONTEXT.md).
@@ -14,14 +15,14 @@ The vocabulary of authoring, packaging, triggering and installing a skill is in
 
 Grove's own methodology: one shared `grove` spine skill, with one
 `grove-<kind>` skill per session kind beside it. The plugin tree is the
-authoritative copy: Claude Code loads it through the marketplace, and Grove
-embeds it for Codex startup provisioning. Its own
+authoritative copy: Claude Code loads it through the marketplace, and the manual
+installer links it for the other harnesses. Its own
 [`grove/README.md`](grove/README.md) carries the fatness rule, the migration
 ledger, and the dependency-free conformance runner that asserts delivery over the
 shipped skill set.
 
-Grove skills declare `harnesses: [any]`. Both automatic Codex provisioning and
-the manual installer select skills through this metadata.
+Grove skills declare `harnesses: [any]`. The manual installer selects skills
+through this metadata.
 
 The `configure-grove` operator skill installs, inspects and edits the owner's
 Ravel policy, which selects the harness, model and effort for each
@@ -105,32 +106,28 @@ the move. Only where you add the marketplace *from* changed.
 
 ## Install — Codex
 
-Bare `grove` checks for an existing `~/.codex` directory or an explicit
-`CODEX_HOME`, then installs every bundled Codex-compatible skill in
-`~/.agents/skills` before launching a child. That includes Grove, Linkuistics
-and Testanyware; Claude-only `guardrail` is excluded. The binary contains a
-complete plugin snapshot, including supporting resources and executable scripts,
-so startup needs no checkout or network access.
+Grove names the skill each session must load; it does not install skills. Run
+the manual installer below for Codex. It links each eligible skill into
+`~/.codex/skills`, one of the user skill roots that Codex reads. Codex 0.166.0
+also reads `~/.agents/skills`.
 
-The snapshot and installation lock live under `~/.agents/.grove`, shared across
-Codex homes using that user's skill directory. Grove compares the installed
-snapshot with its embedded files, publishes a replacement when needed, and
-repairs its links. Correct installations are left untouched and produce no
-message. Old snapshots remain available to readers already using them.
+Grove releases up to 22.8 installed every bundled Codex-compatible skill in
+`~/.agents/skills` at bare startup. Those links point through
+`~/.agents/.grove/current` into complete snapshots under
+`~/.agents/.grove/snapshots`. Later releases leave all of that unchanged. They
+do not adopt, repair, repoint or delete it, and no upgrade does either. The
+links keep working while their snapshots remain, but they no longer follow a
+Grove upgrade. Readers that already resolved an old snapshot keep their files.
 
-Missing links and recognized Grove links are managed automatically. Existing
-manual-installer links into this repository's plugin layout may be adopted;
-Grove-owned links already in `$CODEX_HOME/skills` keep working too. A fresh
-install only creates links in `~/.agents/skills`. Real files, directories and
-unrelated symlinks with a bundled skill's name are preserved: Grove reports the
-collision and stops before launch. Move the reported entry aside, then retry.
+When both a provisioned link and a manually installed link supply one skill,
+the harness can see both copies. Keep the old installation, or remove it by
+hand after every process that can read it has stopped. Path shape alone does
+not show that Grove wrote an entry.
 
-Automatic installations follow the **installed binary's** snapshot. Rebuild and
-install Grove to use edited skill bytes; marketplace and manual-checkout updates
-have their own lifetimes. Help, version, viewing and standalone invocations do
-not install skills.
+Ravel skill-directory delivery is a planned alternative route that will need no
+native copy. No released Ravel supplies it yet.
 
-## Manual install — Gemini CLI, Pi and checkout-based Codex
+## Manual install — Codex, Gemini CLI and Pi
 
 ```
 git clone https://github.com/Linkuistics/grove.git
@@ -196,9 +193,8 @@ it untouched, installs the other skills, and exits non-zero naming what was not
 installed. If an older installation left a real directory there, preserve any
 files you need, then move it aside or remove it and rerun the installer.
 
-Bare `grove` can adopt these Codex links at its next startup, replacing them
-with links to its bundled snapshot. Gemini CLI and Pi links remain managed by
-this script.
+Grove itself never adopts, repairs or removes these links. They remain managed
+by this script.
 
 ## Versioning
 

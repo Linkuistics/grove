@@ -4,6 +4,8 @@ The [delivery specification](specs/codex-skill-provisioning.md) defines the
 adoption target. This document records inspected source, design evidence and
 verification limits. It does not claim implementation or acceptance of that
 target. Source observations below are against Grove parent `8d45d75e`.
+`grove-native-provisioning-k21` later removed the provisioner, its build script
+and its tests, so those paths are named without links.
 
 <a id="upstream-correction"></a>
 ## The upstream correction
@@ -86,8 +88,8 @@ that every downstream reference has already been repaired.
 | Inspected source | Observation and implication |
 | --- | --- |
 | [CLI](../crates/grove/src/cli.rs), `execute`, lines 91–106 | Provisioning follows workspace/lease acquisition and precedes Ravel resolution. Remove this call without introducing skill preflight; standalone already bypasses it. |
-| [Provisioner](../crates/grove/src/provision.rs), lines 13–41, 98–132, 192–307 | Generated inventory drives native installation; the current pointer, retained snapshots and canonical/legacy links live under account-owned roots. Retiring the writer must not delete its output. |
-| [Build script](../crates/grove/build.rs), lines 42–88; [binary modules](../crates/grove/src/main.rs) | Build scans all plugin files, embeds bytes and modes, derives Codex eligibility and rejects duplicate directory names. Remove this build dependency with the private module. |
+| Provisioner `crates/grove/src/provision.rs` (removed), lines 13–41, 98–132, 192–307 | Generated inventory drives native installation; the current pointer, retained snapshots and canonical/legacy links live under account-owned roots. Retiring the writer must not delete its output. |
+| Build script `crates/grove/build.rs` (removed), lines 42–88; [binary modules](../crates/grove/src/main.rs) | Build scans all plugin files, embeds bytes and modes, derives Codex eligibility and rejects duplicate directory names. Remove this build dependency with the private module. |
 | [Package manifest](../crates/grove/Cargo.toml) | Existing general dependencies also serve other code. Do not infer a dependency is removable merely because the provisioner used it. |
 | [Ravel resolver](../crates/grove/src/dispatch/ravel.rs), lines 34–76, 153–204 | Stable 1.x from 1.1.0 is admitted; 2.x is refused. Extend session compatibility deliberately and keep 1.1 for native-only users. The current undirected upgrade remedy must change. |
 | [Policy assets](../assets/ravel-policy/README.md) and [sample](../assets/ravel-policy/sample/policy.ts) | Shipped examples currently declare policy schema 2. New examples must identify their target SDK; context/receipt schema 1 is not a policy schema to bulk-replace. |
@@ -95,7 +97,7 @@ that every downstream reference has already been repaired.
 | [Conformance](../plugins/grove/conformance.sh), lines 305–430 | Loaded paths and owners currently use a shared skills directory and spine fallback. Cross-pack proof must exercise actual resource lookup and ownership beyond this layout. |
 | [Release builder](../scripts/release-build.sh), archive layout declaration; [formula](../scripts/templates/grove.rb.tmpl), lines 28–75, 106 | Archives carry executables/caller assets, while the binary hides skills internally. Layout need not gain a skill payload. Caveats/tests currently assume Codex provisioning, Ravel 1.x and schema 2. |
 | [Pinned inputs](../scripts/ravel_target_inputs.py); [installed smoke](../scripts/grove-installed-smoke.sh) | Fixtures hard-code Ravel 1.1.0 and package identities. Keep a 1.1 compatibility lane and add explicitly pinned new inputs rather than silently testing whatever PATH finds. |
-| [Provisioning tests](../crates/grove/tests/skill_provisioning.rs); [lifecycle tests](../crates/grove/tests/lifecycle_cutover.rs) | Existing tests positively assert automatic installation and embedded guidance. Replace obsolete assertions with no-native-mutation and actual delivery-route acceptance, preserving useful lifecycle coverage. |
+| Provisioning tests `crates/grove/tests/skill_provisioning.rs` (removed); [lifecycle tests](../crates/grove/tests/lifecycle_cutover.rs) | Existing tests positively assert automatic installation and embedded guidance. Replace obsolete assertions with no-native-mutation and actual delivery-route acceptance, preserving useful lifecycle coverage. |
 | [Fallback audit](../crates/grove/tests/plugin_fallback.rs) | Optional craft dependencies have independent coverage. Preserve this behavior under both delivery routes and across later pack moves. |
 
 ## Interface and alternatives

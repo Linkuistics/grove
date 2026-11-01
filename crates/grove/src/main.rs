@@ -8,7 +8,6 @@
 
 mod cli;
 mod dispatch;
-mod provision;
 mod run_display;
 mod standalone;
 

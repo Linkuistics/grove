@@ -531,9 +531,9 @@ govern the words inside them, and nothing in that plugin changes.
 - **`plugins/install.sh` also links the Pi extension** into
   `~/.pi/agent/extensions/`. It makes the link with the same ownership and
   reconciliation rules as its skill links, and it runs no Codex command.
-  Grove's startup provisioning places skill links only and stays as it is. Its
-  snapshot carries the hook scripts as supporting files, and nothing reads them
-  there.
+  Grove's startup writes no skill or hook links. Snapshots that Grove 22.8 and
+  earlier provisioned carry the hook scripts as supporting files, and nothing
+  reads them there.
 
 ### Restatement discipline
 

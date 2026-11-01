@@ -3,9 +3,8 @@
 A skill that cites another skill must state what binds in that skill's absence.
 Grove's methodology is itself a skill set now — the `grove` plugin, a shared
 spine and one `grove-<kind>` skill per kind — and it cites `linkuistics` skills
-from a separate plugin. Codex startup provisions both, but marketplace users
-can install them independently, and manually maintained installations may omit
-one. Every `linkuistics:` citation must therefore remain meaningful when its
+from a separate plugin. Users install the two independently, through the
+marketplace or manually, and an installation may omit one. Every `linkuistics:` citation must therefore remain meaningful when its
 target skill is absent.
 
 **A skill's dependency on its own spine is a different relation and is not

@@ -673,19 +673,34 @@ harness's own skill-loading affordance. **A kind exists iff a skill of that name
 exists** — adding one is authoring a skill and routing the kind in your policy,
 never editing or rebuilding a binary.
 
-For Codex, bare `grove` installs and repairs every bundled compatible skill
-before launching the first child. It detects `~/.codex` or an explicit
-`CODEX_HOME`, and publishes skills in `~/.agents/skills` from the binary's
-embedded snapshot. An installation error prevents launch. Existing unrelated
-skills are preserved; a same-name collision reports the path to move aside.
-Claude Code uses the marketplace with auto-update enabled, and other harnesses
-use the manual installer. See
-[Install the skill plugins](../README.md#install-the-skill-plugins).
+<a id="usage-skill-delivery"></a>
+**You supply the skills; Grove installs none.** Grove names the skill and
+leaves its availability to you
+([decision](adr/skill-delivery-is-the-users-choice.md)). Choose a route for
+every harness your policy can select:
 
-A checkout edit reaches marketplace and manual-install users through their
-respective update route. Codex auto-provisioning uses the installed binary's
-snapshot, so those edits require rebuilding and installing Grove. Independently
-authored session-kind skills remain their author's responsibility.
+| Route | What you do |
+|---|---|
+| Native harness installation | Claude Code: the marketplace with auto-update enabled. Codex, Gemini CLI and Pi: the checkout's manual installer. See [Install the skill plugins](../README.md#install-the-skill-plugins). Repeat for each harness. |
+| Ravel skill-directory delivery | A later Ravel release will inject configured skill directories into each launch prompt, so native copies become unnecessary. No released Ravel supplies it yet. |
+
+Native-only installation is a complete setup, not a fallback. Grove checks no
+skill before launch. A session that cannot find its named skill reports that;
+repair the route you chose and rerun. A checkout edit reaches your
+installations through their own update route, not through a Grove rebuild.
+Independently authored session-kind skills remain their author's
+responsibility.
+
+<a id="usage-earlier-codex-installations"></a>
+**Codex skills installed by earlier Grove releases.** Grove 22.8 and earlier
+installed Codex skills automatically at bare startup: links in
+`~/.agents/skills` pointed through `~/.agents/.grove/current` into snapshots
+under `~/.agents/.grove/snapshots`. Later releases never adopt, repair, repoint
+or delete those entries, and an upgrade leaves them too. The links keep working
+while their snapshots remain, but they no longer follow Grove upgrades. Keep
+them, or replace them through the manual installer. Remove an entry only after
+every driver, harness and other process that can read it has stopped. Its path
+or name alone does not show that Grove wrote it.
 
 <a id="usage-tree-verbs"></a>
 ## The `grove-llm` verbs over the tree

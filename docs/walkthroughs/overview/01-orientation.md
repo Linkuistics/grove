@@ -37,14 +37,13 @@ that phrase has a referent.
 | Product | Source | What installs it |
 |---|---|---|
 | The Grove command-line tool: `grove` and `grove-llm` | `crates/` | Homebrew, or `cargo install` from the workspace |
-| The agent skill plugins, `grove` among them | `plugins/` | Claude marketplace, bare Grove startup for Codex, or `plugins/install.sh` |
+| The agent skill plugins, `grove` among them | `plugins/` | Claude marketplace, or `plugins/install.sh` for Codex, Gemini CLI and Pi |
 
-The binary names the `grove-<kind>` skill a session must load. Bare startup
-provisions all bundled Codex-compatible skills before the loop begins; Claude
+The binary names the `grove-<kind>` skill a session must load. It installs no
+skill: the user supplies skills through each harness's own route, and Claude
 Code uses marketplace delivery and auto-update. The plugin files stay the
-authoritative source, and build-time discovery embeds them in the human binary.
-This book explains the delivery adapter; it does not reconstruct the plugin
-content itself.
+authoritative source, and no binary embeds them. This book does not reconstruct
+the plugin content.
 
 <a id="package-identity"></a>
 ## The package, and what it inherits
@@ -398,8 +397,7 @@ The setup lines establish facts the loop consumes. *Resolve* is a filesystem wal
 it refuses a tree with none. *Lease* takes the
 [driver lease](../../../CONTEXT.md#driver-lease) — the one-driver-per-working-tree
 claim, held for the life of the process, so a second `grove` typed in the same
-tree is refused rather than run beside this one. *Provision* makes bundled
-Codex skills available, refusing foreign collisions before launch. *Run* is the
+tree is refused rather than run beside this one. *Run* is the
 call, and the
 lines indented under it are what the loop prints, not what the binary does: the
 binary has no line of its own between the call and the exit.

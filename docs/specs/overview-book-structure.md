@@ -62,38 +62,36 @@ function of `grove-loop`, in the detached shape. It publishes the outputs only
 after a successful result. The chapter owns four blocks.
 
 The `assembly` slice owns no block, and it stays final-only. Chapter 6 follows
-it. Chapters 1 to 4 own the three original roots and the Codex provisioning
-module.
+it. Chapters 1 to 4 own the three original roots. The removal of the Codex
+provisioning module after Grove 22.8 also removed its root.
 
 ### Roots and blocks
 
-Eight roots, in the order that the source index presents. Together they hold
-1,472 lines.
+Seven roots, in the order that the source index presents. Together they hold
+1,069 lines.
 
 | Root ID | Source path | Lines |
 |---|---|---:|
 | `source-crate-manifest` | `crates/grove/Cargo.toml` | 59 |
-| `source-entry-point` | `crates/grove/src/main.rs` | 17 |
-| `source-command-surface` | `crates/grove/src/cli.rs` | 209 |
-| `source-codex-provisioning` | `crates/grove/src/provision.rs` | 401 |
+| `source-entry-point` | `crates/grove/src/main.rs` | 16 |
+| `source-command-surface` | `crates/grove/src/cli.rs` | 208 |
 | `source-standalone` | `crates/grove/src/standalone.rs` | 332 |
 | `source-run-display` | `crates/grove/src/run_display.rs` | 119 |
 | `source-dispatch-lookup` | `crates/grove/src/dispatch.rs` | 5 |
 | `source-ravel-resolution` | `crates/grove/src/dispatch/ravel.rs` | 330 |
-| **total** | | **1,472** |
+| **total** | | **1,069** |
 
 The corpus rule is unchanged. It includes `crates/grove/Cargo.toml` and
-`crates/grove/src/**/*.rs`, and it declares no exception. Ten blocks cover the
+`crates/grove/src/**/*.rs`, and it declares no exception. Nine blocks cover the
 roots. Only `cli.rs` has more than one owner.
 
 | Block ID | Root ID | Owner | Source lines |
 |---|---|---|---|
 | `manifest-thin-by-construction` | `source-crate-manifest` | `compiler-held` | `1-59` |
-| `entry-point-three-steps` | `source-entry-point` | `one-call` | `1-17` |
+| `entry-point-three-steps` | `source-entry-point` | `one-call` | `1-16` |
 | `surface-grammar` | `source-command-surface` | `no-arguments` | `1-66` |
-| `surface-resolve-lease-run` | `source-command-surface` | `one-call` | `67-126` |
-| `surface-closure-tests` | `source-command-surface` | `closure-proved` | `127-209` |
-| `codex-provisioning` | `source-codex-provisioning` | `one-call` | `1-401` |
+| `surface-resolve-lease-run` | `source-command-surface` | `one-call` | `67-125` |
+| `surface-closure-tests` | `source-command-surface` | `closure-proved` | `126-208` |
 | `standalone-invocation` | `source-standalone` | `isolated-invocation` | `1-332` |
 | `standalone-display` | `source-run-display` | `isolated-invocation` | `1-119` |
 | `dispatch-lookup` | `source-dispatch-lookup` | `isolated-invocation` | `1-5` |
@@ -105,11 +103,11 @@ roots. Only `cli.rs` has more than one owner.
 |---|---|---:|
 | `compiler-held` | `01-orientation.md` | 59 |
 | `no-arguments` | `02-the-surface.md` | 66 |
-| `one-call` | `03-three-steps.md` | 478 |
+| `one-call` | `03-three-steps.md` | 75 |
 | `closure-proved` | `04-proving-a-negative.md` | 83 |
 | `assembly` | `05-what-the-call-reaches.md` | 0 |
 | `isolated-invocation` | `06-standalone-invocations.md` | 786 |
-| **Total** | 8 source roots | **1,472** |
+| **Total** | 7 source roots | **1,069** |
 
 Five slices own blocks, so five values are accepted for `--through`:
 `compiler-held`, `no-arguments`, `one-call`, `closure-proved` and
@@ -117,10 +115,10 @@ Five slices own blocks, so five values are accepted for `--through`:
 
 ### Early uses, links and indexes
 
-The manifest records five early-use rows. Four are the rows of *Early uses the
-order forces*: `grove_loop::run`, `Workspace`, `DriverLease` and `LoopOutcome`.
-The fifth is Codex provisioning. Chapter 1 names it in the two-products
-section, and chapter 3 owns it.
+The manifest records four early-use rows, the rows of *Early uses the order
+forces*: `grove_loop::run`, `Workspace`, `DriverLease` and `LoopOutcome`.
+Chapter 3 keeps the `codex-provisioning` anchor for its account of startup
+installing no skills.
 
 The book declares five guide anchors: `usage-viewing-tree`,
 `usage-running-grove`, `usage-tree-verbs`, `usage-driver-lease` and

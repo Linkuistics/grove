@@ -6,7 +6,7 @@
 ## Observation and lifecycle have separate lifetimes
 
 <!-- rollup «owned-lines-total» -->
-The book reconstructs 1,472 source lines. The preceding chapters explain parsing,
+The book reconstructs 1,069 source lines. The preceding chapters explain parsing,
 dispatch and their tests. This chapter
 connects the public library calls and owns no source of its own.
 
@@ -114,17 +114,17 @@ proves reproduction and ownership, not the truth of explanatory claims.
 <!-- rollup «ownership-blocks» -->
 <!-- rollup «source-roots» -->
 <!-- rollup «ownership-blocks-not-owned-by» of="compiler-held" -->
-There are 10 ownership blocks over 8 source roots. 9 blocks belong to chapters
+There are 9 ownership blocks over 7 source roots. 8 blocks belong to chapters
 after Orientation. Each is resolved in the source index.
 
 <!-- rollup «early-use-rows» -->
-The 5 early-use rows name loop and generated-inventory items before their full
+The 4 early-use rows name loop items before their full
 explanation in Lifecycle startup. The grammar explains its own path and command
 types at first use.
 
 <!-- rollup «owned-lines-sequence» -->
 <!-- rollup «source-owning-chapters» -->
-Owned source is 59 + 66 + 478 + 83 + 786 = 1,472 lines across 5 source-owning chapters.
+Owned source is 59 + 66 + 75 + 83 + 786 = 1,069 lines across 5 source-owning chapters.
 Assembly owns none. The ledgers are maintained with source changes.
 Production files remain authoritative.
 
@@ -144,7 +144,7 @@ terminal smoke. The task's verification record states their observed results.
 <!-- rollup «source-roots» -->
 <!-- rollup «owned-lines-total» -->
 <!-- rollup «chapters» -->
-The corpus contains 8 roots and 1,472 lines, explained across 6 chapters and two
+The corpus contains 7 roots and 1,069 lines, explained across 6 chapters and two
 lookup pages. No deferred source range belongs in the final book.
 
 [Previous: Proving a negative](04-proving-a-negative.md) | [Contents](README.md) | [Next: One isolated invocation](06-standalone-invocations.md)

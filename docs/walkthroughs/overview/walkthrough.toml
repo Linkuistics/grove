@@ -86,17 +86,12 @@ lines = 59
 [[root]]
 id    = "source-entry-point"
 path  = "crates/grove/src/main.rs"
-lines = 17
+lines = 16
 
 [[root]]
 id    = "source-command-surface"
 path  = "crates/grove/src/cli.rs"
-lines = 209
-
-[[root]]
-id    = "source-codex-provisioning"
-path  = "crates/grove/src/provision.rs"
-lines = 401
+lines = 208
 
 [[block]]
 id    = "manifest-thin-by-construction"
@@ -108,7 +103,7 @@ lines = "1-59"
 id    = "entry-point-three-steps"
 root  = "source-entry-point"
 owner = "one-call"
-lines = "1-17"
+lines = "1-16"
 
 [[block]]
 id    = "surface-grammar"
@@ -120,25 +115,13 @@ lines = "1-66"
 id    = "surface-resolve-lease-run"
 root  = "source-command-surface"
 owner = "one-call"
-lines = "67-126"
+lines = "67-125"
 
 [[block]]
 id    = "surface-closure-tests"
 root  = "source-command-surface"
 owner = "closure-proved"
-lines = "127-209"
-
-[[block]]
-id    = "codex-provisioning"
-root  = "source-codex-provisioning"
-owner = "one-call"
-lines = "1-401"
-
-[[early-use]]
-symbols   = "`Codex provisioning`"
-first-use = "01-orientation.md#two-products"
-owner     = "one-call"
-statement = "Bare startup delivers every bundled Codex-compatible skill from an embedded build-time inventory before the loop can launch a child."
+lines = "126-208"
 
 [[early-use]]
 symbols   = "`grove_loop::run`"

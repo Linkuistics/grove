@@ -678,9 +678,8 @@ stated version control, and grove's published version; and grove's own signallin
 contract. Its first part reproduces the element measured as load-bearing in
 [the wording micro-test](../research/wording-micro-test.md) — one imperative
 naming one target, so the session performs no selection and has nothing to defer.
-The prompt does not enumerate skill directories. The human binary provisions
-bundled Codex-compatible skills before entering the loop; other harnesses use
-their own installation route. A session still needs its harness's skill-loading
+The prompt does not enumerate skill directories. Grove installs no skills;
+every harness uses the installation route its user chose. A session still needs its harness's skill-loading
 affordance, and independently authored kinds need separately installed skills.
 
 **The signalling contract's own gap.** One contract for every kind replaces two
@@ -718,19 +717,19 @@ binary remains as a fallback, not as the mechanism. There is no methodology
 content hash and no build-pairing report: a release version orders and means
 something to a human, which a content hash never did.
 
-**The remaining delivery limit:** bare startup verifies the bundled Codex
-snapshot, but does not inspect Claude marketplace state, validate independently
-authored skills or pair every `grove-llm` on PATH with that snapshot. The prompt
+**The remaining delivery limit:** startup inspects no skill installation. It
+does not validate marketplace state, native installations or independently
+authored skills, and it pairs no `grove-llm` on PATH with them. The prompt
 states the driver version; each harness must still load its named skill.
 
 ### 11 — The methodology ships as a plugin, and how fat each skill is
 
 The plugin tree is the authoritative methodology source. Claude Code uses the
-marketplace with auto-update; bare `grove` installs its embedded snapshot of
-Codex-compatible skills before launch. The manual installer remains available
-for checkout delivery. Each skill declares its own harness eligibility. See
-[codex-skill-provisioning](codex-skill-provisioning.md) for the binary adapter's
-ownership and repair contract. A kind exists **iff** a skill of that name exists.
+marketplace with auto-update; the manual installer links checkout skills for
+Codex, Gemini CLI and Pi. Each skill declares its own harness eligibility.
+Neither binary embeds the tree. See
+[the delivery contract](codex-skill-provisioning.md) for the user's routes and
+the treatment of earlier provisioned installations. A kind exists **iff** a skill of that name exists.
 
 The plugin ships one `grove-<kind>` skill per kind over a shared `grove` spine.
 The fatness rule:

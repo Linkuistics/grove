@@ -222,8 +222,7 @@ money* above is a judgement rather than a division.
 
 ## Part 2 — What binds: three rules, shipped
 
-Grove's methodology is a corpus of markdown that the CLI embeds and provisions
-into each model harness. A lesson that *binds* is one that was written into that
+Grove's methodology is a corpus of markdown delivered into each model harness. A lesson that *binds* is one that was written into that
 corpus, so the next session reads it whether or not anyone remembers this
 campaign. Three were, and each is recorded in the corpus's own rule inventory
 (`docs/specs/corpus-rule-ownership.md`) with a phrase-level sweep — in

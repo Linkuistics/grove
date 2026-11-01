@@ -13,8 +13,8 @@ natively or through Ravel directory injection. Grove names them, and the agent
 finds and reads them.
 
 Ravel's corrected directory contract is integrated at `b93bb927`.
-Implementation and acceptance remain ahead. Shipped Grove 22.8 still provisions
-Codex and accepts only Ravel 1.x from 1.1.0. See
+Grove no longer provisions Codex skills. Directory delivery and its acceptance
+remain ahead, and Grove accepts only Ravel 1.x from 1.1.0. See
 [design evidence](../../grove-skill-delivery-design-evidence.md#upstream-correction).
 
 Run `task design:harness-selection PORT=52710` from the repository root, then open

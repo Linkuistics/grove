@@ -14,8 +14,9 @@ also contains the agent skills used by those sessions.
 | Grove caller policies | [`assets/ravel-policy/`](assets/ravel-policy/) | Readable owner-editable policies and adapters for independent Ravel. |
 | Skill plugins | [`plugins/`](plugins/) | Grove's own methodology, the Linkuistics coding/design skills, and the Testanyware GUI-testing skill. |
 
-Grove and its skills share a release snapshot; [Ravel](https://github.com/Linkuistics/Ravel) is independently released. Bare `grove` installs
-and repairs the bundled Codex-compatible skills before launching a session.
+Grove and its skills share a repository; [Ravel](https://github.com/Linkuistics/Ravel) is independently released.
+Grove names the skill each session must load, and you supply that skill to
+every harness your policy selects. Grove does not install skills.
 Claude Code uses the plugin marketplace with auto-update enabled.
 
 ## Install Grove
@@ -29,8 +30,8 @@ There is no per-project installation step. `grove --version` reports the
 installed binary version. Homebrew installs independently versioned Ravel as a
 runtime dependency. Grove archives ship only Grove executables and its readable
 caller assets at `libexec/ravel-policy`; archive users install Ravel separately.
-The first bare `grove` run provisions Codex skills when `~/.codex` is a directory
-or `CODEX_HOME` is nonempty. Other harnesses need the setup below.
+Install the skills separately, as [the skill plugins](#install-the-skill-plugins)
+describe, for each harness your policy can select.
 
 Grove has no launch configuration of its own. Independent Ravel reads your
 owner policy at `~/.config/ravel/policy.ts` and returns the selected command.
@@ -53,8 +54,7 @@ policy offers. [Launch policy](docs/USAGE.md#usage-launch-policy) has the rest.
 
 Grove's methodology uses Linkuistics' `decision-records` for ADR discipline and
 `codebase-design` for module design, structural simplicity, and test seams.
-Codex receives those skills automatically; install the Linkuistics plugin for
-Claude Code using the instructions below.
+Install the Linkuistics skills with Grove's skills, using the instructions below.
 
 ## Browse a task tree
 
@@ -92,22 +92,21 @@ Enable marketplace auto-update (`/plugin` → Marketplaces → Enable auto-updat
 so Claude Code keeps all three plugins current. `grove@linkuistics` supplies
 Grove's methodology; see [`plugins/grove/README.md`](plugins/grove/README.md).
 
-For Codex, bare `grove` automatically installs every bundled compatible skill
-from Grove, Linkuistics and Testanyware into `~/.agents/skills`. It detects
-`~/.codex` or an explicit `CODEX_HOME`, uses the snapshot embedded in the binary,
-and repairs missing or outdated Grove-managed installations before launch. No
-checkout or network access is needed. Foreign entries with the same name are
-preserved and reported as an error; move those entries aside before retrying.
-
-For Gemini CLI and Pi, clone this repository and run:
+For Codex, Gemini CLI and Pi, clone this repository and run:
 
 ```sh
 ./plugins/install.sh
 ```
 
-That script also remains available for checkout-based Codex installations. Both
-routes filter on each skill's `harnesses:` declaration, so Claude-only
-`guardrail` is excluded from Codex. See [`plugins/README.md`](plugins/README.md)
+The script links each eligible skill into the personal skill directory of each
+harness that is present. It filters on each skill's `harnesses:` declaration, so
+Claude-only `guardrail` is excluded from Codex.
+
+Grove releases up to 22.8 installed Codex skills automatically in
+`~/.agents/skills` at startup. Later releases do not. They leave those links and
+the snapshots under `~/.agents/.grove` unchanged, and the links keep working
+while their targets exist. Ravel skill-directory delivery is a planned
+alternative route; no released Ravel supplies it yet. See [`plugins/README.md`](plugins/README.md)
 for the catalogue, ownership rules and installation paths.
 
 ## Documentation

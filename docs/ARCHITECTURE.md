@@ -108,12 +108,12 @@ plugins. Ravel is an independently delivered runtime dependency:
 |---|---|---|
 | Grove CLI | `crates/` | Homebrew and the release archives install `grove` and `grove-llm`. |
 | Grove caller assets | `assets/ravel-policy/` | Grove archives/formula install `libexec/ravel-policy`; the formula depends on separately versioned Ravel. [Delivery boundary](grove-delivery-contraction.md). |
-| Agent skill plugins | `plugins/grove/`, `plugins/linkuistics/`, `plugins/testanyware/` | Claude marketplace, automatic Codex provisioning by bare `grove`, or `plugins/install.sh` for manual checkout delivery. |
+| Agent skill plugins | `plugins/grove/`, `plugins/linkuistics/`, `plugins/testanyware/` | Claude marketplace, or `plugins/install.sh` for Codex, Gemini CLI and Pi. The user chooses and maintains the route. |
 
 Their documented interfaces evolve together. `plugins/` is the authoritative
-skill source; the human binary embeds its snapshot and provisions all skills
-whose `harnesses:` metadata permits Codex. Claude Code retains marketplace
-installation and auto-update. No harness is inferred from the command a policy
+skill source. Neither binary embeds or installs it
+([skill-delivery decision](adr/skill-delivery-is-the-users-choice.md)). Claude
+Code retains marketplace installation and auto-update. No harness is inferred from the command a policy
 selects, which Grove never sees.
 
 ## Runtime flow
@@ -129,8 +129,9 @@ identity — a mid-loop `brew upgrade` being exactly the skew a start-time check
 misses. Both had the same subject, the embedded corpus, and both went with it at
 `delete-provisioning-k19`. Nothing in the iteration is advisory now:
 the lease, workspace layout and supported Ravel resolved from absolute PATH
-directories are facts established at startup. Codex provisioning happens once before
-the loop begins; it fails startup on an installation error.
+directories are facts established at startup. Startup writes no skill
+installation; the Codex provisioning that Grove 22.8 and earlier ran here is
+removed.
 
 <a id="cli-binary-split"></a>
 <a id="command-surfaces"></a>
@@ -1514,51 +1515,43 @@ The methodology is the `grove` plugin: a shared spine plus one `grove-<kind>`
 skill per bundled session kind. The prompt Grove composes names the skill a
 session must load. Whoever authors an independent kind supplies its skill.
 
-For Codex, the human binary owns delivery before entering `grove_loop::run`.
-After workspace resolution and the driver lease, `provision` detects an existing
-Codex installation and reconciles every bundled compatible skill. Build-time
-discovery embeds plugin files and preserves their layout and executable flags.
-The adapter compares complete snapshots, stages changes, and atomically switches
-a current-snapshot link. User skill links in `~/.agents/skills` point through
-that link. A shared lock under `~/.agents/.grove` serializes installers even
-when they use different `CODEX_HOME` values.
+The user supplies that skill to every harness the policy can select. Claude
+Code receives the three plugins through its marketplace with auto-update
+enabled. Codex, Gemini CLI and Pi users can use `plugins/install.sh`. Grove
+installs no skill and alters no harness's skill directories or plugin
+configuration. The [delivery contract](specs/codex-skill-provisioning.md) owns
+the routes, the later Ravel directory route and the missing-skill outcome.
 
-Only missing destinations and recognized Grove-managed links are changed.
-Foreign same-name entries cause an actionable refusal before a child launches.
-Existing Grove-owned legacy links stay usable, and old snapshots are retained
-for readers already using resolved paths. The next startup repairs interrupted
-work. See [the provisioning contract](specs/codex-skill-provisioning.md) for
-ownership and failure semantics.
-
-Claude Code receives the three plugins through its marketplace with auto-update
-enabled. Gemini CLI, Pi and manual Codex checkout users can use
-`plugins/install.sh`. Grove does not alter Claude's skill directories or plugin
-configuration.
+Grove 22.8 and earlier embedded a plugin snapshot in `grove` and provisioned
+Codex links in `~/.agents/skills` at startup, through snapshots under
+`~/.agents/.grove`. That writer is removed. Startup and upgrade leave its links,
+`current` pointer and snapshots unchanged, because old drivers and lazy readers
+can still resolve them. `crates/grove/tests/native_skill_delivery.rs` compares
+every such entry before and after startup.
 
 ### Delivery and build boundaries
 
 A running driver is the binary already in memory. Changes to the loop, verbs or
 prompt require rebuilding and installing before a new driver can use them.
-Codex auto-provisioning follows that binary's embedded snapshot, so source skill
-edits also require a rebuild. Marketplace and manual-checkout users instead
-receive changes through their own update route.
+Skills reach users through their own update route: the marketplace or the
+checkout behind the manual installer. A rebuild does not change them.
 
-Provisioning establishes bundled Codex bytes at startup. It does not pin them
-for the lifetime of every running session: another Grove build can publish its
-snapshot later, and the `grove-llm` a session resolves can still come from another build.
+Nothing pins skills and binaries together for the lifetime of a running
+session: an installation can change after startup, and the `grove-llm` a
+session resolves can come from another build.
 `crates/grove-llm/tests/instructed_verbs.rs` verifies that this checkout's skills
 instruct only verbs its CLI exposes. Keep the two halves in one release.
 
 The earlier `content/` implementation embedded methodology in both binaries,
 swept several harness directories, and added hashes, pairing probes and
-per-iteration repair. `delete-provisioning-k19` removed that system. The Codex
-adapter embeds the plugin sources in `grove` alone; it restores startup delivery
-without restoring the old harness registry or per-verb warnings.
+per-iteration repair. `delete-provisioning-k19` removed that system. A later
+Codex adapter embedded the plugin sources in `grove` alone. It was removed after
+Grove 22.8, when skill delivery became the user's choice.
 
 **Behavioural coverage remains the plugin's own assertion.**
 `plugins/grove/conformance.sh` checks the loaded path of every kind, rule
-ownership and referenced files. Rust provisioning tests separately check which
-bytes and links are installed, repaired or refused.
+ownership and referenced files. Rust delivery tests separately check that
+startup writes no native skill entry and that a native-only lifecycle completes.
 
 ### The seven constraints, argued
 
@@ -1784,9 +1777,8 @@ second driver can update the shared Codex skill links after the first started.
 | Skill **older** than binary | It may instruct verbs removed since that build. |
 
 `crates/grove-llm/tests/instructed_verbs.rs` checks the source pair this
-repository publishes. Startup provisioning aligns bundled Codex skills with the
-launching Grove binary; it does not prove that all executables and already
-running sessions use that same build. Diagnose binary versions with
+repository publishes. It does not prove that installed skills, executables and
+already running sessions use one build. Diagnose binary versions with
 `grove --version` and `grove-llm --version`; update marketplace or manually
 installed skills through their own installation route.
 
@@ -1807,8 +1799,7 @@ in its independent [specification](https://github.com/Linkuistics/Ravel/blob/v1.
 **The workspace root is not a package**, so a module's package is part of its
 identity (`docs/specs/module-decomposition.md`, decision 1).
 
-The human binary owns `provision`, a private adapter for Codex skill delivery.
-There is no harness-routing registry or methodology identity module. There is
+The human binary has no skill-delivery module. There is no harness-routing registry or methodology identity module. There is
 no `leaf` module. It held `Kind`, which is `task_name`'s since
 `open-kind-k20` made a kind an ordinary checked word of the filename grammar.
 

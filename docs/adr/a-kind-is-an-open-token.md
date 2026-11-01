@@ -7,8 +7,8 @@ of kinds, no enum of them, and no count of them.
 
 The set of kinds that *exist* is the set of `grove-<kind>` skills the installed
 methodology ships. Tree parsing and launch never read that set: they render a
-kind's token into a skill name and pass it to the launch policy. Codex provisioning
-discovers bundled skills for delivery, without using them to restrict kinds.
+kind's token into a skill name and pass it to the launch policy. Skill delivery
+is the user's, and no installation inventory restricts kinds.
 
 **Grove spells exactly two kind tokens**, and only where it writes the leaf
 itself with no session to delegate to:
@@ -82,9 +82,8 @@ consolation:
   the machine, so a leaf that parses on one machine is malformed on another and
   a whole subtree disappears from `pick` because a skill was not installed —
   precisely the silent loss the `Malformed`/`Foreign` split exists to prevent.
-  Codex provisioning can inspect its bundled snapshot, but that snapshot does
-  not enumerate custom or marketplace-installed skills. Delivery inventory is
-  therefore not a grammar boundary.
+  No installation inventory enumerates custom or independently installed
+  skills. Delivery inventory is therefore not a grammar boundary.
 - **Keep the enum and add kinds by release.** Rejected: it is the status quo
   whose price this record states. It also does not survive the plugin — the
   methodology can also be installed independently of the binary, so a fixed

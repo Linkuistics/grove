@@ -61,10 +61,11 @@ owner-selected skill. Four facts constrain the transition:
    failure.
 6. Purge retained bytes only after this driver's reap, on reader evidence.
 
-The [classification view](../design/harness-selection-and-execution/index.html#diagram-owner-classes),
-the [cutover view](../design/harness-selection-and-execution/index.html#diagram-owner-cutover)
-and the [final-session view](../design/harness-selection-and-execution/index.html#diagram-owner-final-session)
-show the same design.
+The classification view (`#diagram-owner-classes`), the cutover view
+(`#diagram-owner-cutover`) and the final-session view
+(`#diagram-owner-final-session`) in the
+[visual views](../design/harness-selection-and-execution/README.md) show the
+same design.
 
 ## Decisions
 

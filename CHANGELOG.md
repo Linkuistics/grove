@@ -56,6 +56,13 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+- `grove`: stop installing Codex skills at startup. The binary no longer embeds
+  the plugin tree. Install skills for every harness your policy selects: the
+  marketplace for Claude Code, and `plugins/install.sh` for Codex, Gemini CLI
+  and Pi. Startup and upgrades leave the links in `~/.agents/skills` and the
+  snapshots in `~/.agents/.grove` that earlier releases wrote unchanged, and a
+  same-name entry no longer prevents launch.
+
 - `linkuistics` / `machine-environment`: describe `mise bootstrap` as the owner of
   Antony's machine setup. Packages are in `[bootstrap.packages]`, and dotfiles are
   tracked in place by mise history. The chezmoi source and the Brewfile are

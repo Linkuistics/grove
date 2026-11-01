@@ -5,9 +5,9 @@ Grove owns its task tree, prompts, ending instructions, result meanings, teardow
 and provider receipts. Ravel routes and supervises the selected process. Then it
 returns the opaque argument that `ravel end-session RESULT` published.
 
-This contract includes the skill-delivery adoption design, pending implementation
-and acceptance. Shipped Grove 22.8 admits Ravel 1.x from 1.1.0 and still
-provisions Codex skills. The [delivery design](codex-skill-provisioning.md) owns
+This contract includes the skill-delivery adoption design. Grove admits Ravel
+1.x from 1.1.0 and no longer provisions Codex skills. Ravel directory delivery
+remains ahead. The [delivery design](codex-skill-provisioning.md) owns
 the transition; process and result contracts remain unchanged. Skill availability
 is the user's responsibility through native installation or Ravel directory
 injection, and is not part of Grove's version admission.

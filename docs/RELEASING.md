@@ -565,8 +565,10 @@ running in memory does not acquire the new contract when PATH changes.
 3. Rehearse with the candidate binaries and matching skills in a scratch prefix,
    a scratch grove and a **temporary HOME and CODEX_HOME**. Copy only the owner
    policy and the harness configuration/credentials the trial needs, with private
-   permissions. Bare Grove provisions its bundled Codex skills: a scratch binary
-   prefix alone does not isolate that write from live v22 sessions. Scrub
+   permissions. A candidate writes no skills, but Grove 22.8 and earlier
+   provision Codex skills on bare launch, and the trial harness reads its skills
+   and configuration from HOME. A scratch binary prefix alone isolates neither
+   from live sessions. Scrub
    `GROVE_SIGNAL_FILE`, `GROVE_RUN_SIGNAL_FILE`, `GROVE_LAUNCH_DIR` and
    `HARNESS_DISPATCH_EXIT_FILE` before launching the scratch driver, and place the
    scratch `bin` first on its PATH. Offer an attended real-harness trial and
@@ -593,8 +595,8 @@ running in memory does not acquire the new contract when PATH changes.
 5. Integrate and verify the intended change, then run `task release:major` from
    the default colocated workspace under the authorized finish sequence.
    Complete publication, installation and the release's verification before
-   signalling success. Grove's installed Codex bundle is provisioned on bare
-   launch; update other installed plugin copies to the same release. Keep other
+   signalling success. Grove installs no skills: update the owner's marketplace
+   plugins and native installations to the same release. Keep other
    groves stopped until their binaries, skills and policy agree. After a partial
    release, resume the unfinished step rather than cutting another version.
 6. Return to the original finish workspace. A finish launched under v22 ends
@@ -636,14 +638,15 @@ formula:
 scripts/release-build.sh
 ```
 
-The human-facing `grove` binary embeds the repository's plugin snapshot at
-build time. Bare startup provisions its Codex-compatible skills, so archive
-and Homebrew users receive matching bundled bytes without another download.
-The `grove-llm` binary does not embed or install skills.
+Neither binary embeds or installs skills, and the archives carry no skill
+payload. Archive and Homebrew users supply skills through their chosen route,
+as the formula caveats describe. Startup and upgrade leave existing native
+installations, including snapshots written by Grove 22.8 and earlier, unchanged.
 
 Claude Code still receives the three plugins through the marketplace, versioned
 by the repository commit SHA; its setup instructions must retain marketplace
-auto-update. Manual `plugins/install.sh` users follow their checkout. A release
+auto-update. Manual `plugins/install.sh` users, including Codex users, follow
+their checkout. A release
 that changes an instructed verb must land the methodology and CLI together —
 `crates/grove-llm/tests/instructed_verbs.rs` checks that contract. Marketplace or
 manually installed skills can still differ from the installed CLI; describe

@@ -25,20 +25,18 @@ silently.
 <a id="skill-delivery"></a>
 ### Skill delivery / the retired sweep
 
-The adoption design separates the named skill from its delivery: the user
-supplies native harness installations or Ravel-injected skill-directory paths,
-and the agent discovers and reads the skill Grove names. Neither executable
-resolves a requested skill. The
-[delivery specification](docs/specs/codex-skill-provisioning.md) owns that pending
-transition. The snapshot mechanism below is shipped Grove 22.8 behavior,
-retained here until its implementation and source books change.
+Delivery is separate from the named skill. The user supplies native harness
+installations, or later Ravel-injected skill-directory paths, and the agent
+discovers and reads the skill Grove names. Neither executable resolves a
+requested skill. The [delivery specification](docs/specs/codex-skill-provisioning.md)
+owns the contract and its remaining Ravel stages.
 
 How the **`grove` plugin** reaches a session: a spine skill and one
-`grove-<kind>` skill per kind, delivered through the harness's installation
-route. Bare Grove embeds and provisions compatible Codex plugin snapshots at
-startup. Claude Code uses the marketplace; manual Codex, Gemini and Pi users
-can use the checkout installer. `${prompt}` names the skill this session needs
-([[Guaranteed core]]). Contract: `docs/specs/codex-skill-provisioning.md`.
+`grove-<kind>` skill per kind, delivered through the route the user chose for
+each harness. Claude Code uses the marketplace; Codex, Gemini and Pi users can
+use the checkout installer. Grove installs no skills. Grove 22.8 and earlier
+also provisioned Codex snapshots at startup; later releases leave that output
+unchanged. `${prompt}` names the skill this session needs ([[Guaranteed core]]).
 
 **What this replaces, and why the arguments are kept.** The binary used to embed
 its whole methodology as a `content/` tree and sweep it, on every invocation,
@@ -49,13 +47,14 @@ provisioning* (the sweep), *embedded methodology* (the `include_dir!` tree fixed
 at build time), *methodology identity* (its content hash, written as the
 directory's stamp), and *build pairing* (the report comparing that hash against
 the `grove-llm` a session's `PATH` resolved). All four existed to make one
-mechanism safe. The current Codex snapshot adapter has its own ownership checks;
-it does not restore that multi-harness sweep or its build-pairing probes.
+mechanism safe. A later Codex snapshot adapter, removed after Grove 22.8, wrote
+only Codex links and did not restore that sweep or its build-pairing probes.
 
-**The remaining cost.** Startup provisioning covers bundled compatible Codex
-skills, not independently authored kinds or another harness's installation.
-Another build can update shared links after startup; an already running session
-can still meet a mismatched helper. Grove states its version and names the skill;
+**The remaining cost.** A Grove binary alone gives no harness its skills: the
+user installs them for every harness the policy can select
+([skill-delivery decision](docs/adr/skill-delivery-is-the-users-choice.md)). A
+separately updated installation can differ from the installed helper, so a
+session can meet a mismatched verb. Grove states its version and names the skill;
 the session must load it. **The reopen condition is a session that cannot reach
 the methodology through its installation/loading route** — an observation, not
 a suspicion.
@@ -240,7 +239,7 @@ change is judged on.
 ### Spine skill / kind skill
 
 The two species of the methodology's skill plugin, whose source is authoritative
-for both marketplace/manual delivery and Grove's Codex snapshot adapter
+for marketplace and manual delivery
 ([`plugins/CONTEXT.md`](./plugins/CONTEXT.md)
 owns that delivery vocabulary). The **spine** is one skill, `grove`,
 carrying every rule shared across families — the numbered constraints, the

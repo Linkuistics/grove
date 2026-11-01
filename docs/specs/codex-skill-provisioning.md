@@ -1,8 +1,11 @@
 # Grove skill delivery
 
-This is the adoption design, pending implementation and acceptance. Shipped
-Grove 22.8 still provisions Codex snapshots and admits stable Ravel 1.x from
-1.1.0. The document location remains stable for existing citations.
+This is the adoption design. Grove implements its native-only route: Grove no
+longer embeds or provisions Codex snapshots, and startup leaves earlier
+installations unchanged. Grove 22.8 and earlier still provision them. The
+mandate wording, Ravel directory delivery and its acceptance remain ahead, and
+Grove admits stable Ravel 1.x from 1.1.0. The document location remains stable
+for existing citations.
 
 ## Ownership
 

@@ -48,8 +48,9 @@
 # stops itself after one iteration.
 #
 # What that shows: Grove finding independent Ravel and the policy's command
-# reaching the real foreground child. It shows nothing about the methodology delivery: that needs an isolated
-# Codex installation and is covered by skill_provisioning.rs. Point `HOME` at a
+# reaching the real foreground child. It shows nothing about skill delivery,
+# which the owner supplies; crates/grove/tests/native_skill_delivery.rs covers
+# the native-only lifecycle and the absence of native writes. Point `HOME` at a
 # directory with no policy for the other half: the `policy_missing` refusal,
 # whose remedy names the missing owner policy, with the leaf left live.
 #

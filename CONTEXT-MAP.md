@@ -110,8 +110,8 @@ of scope.
 - **grove → skills, a documentation-level prerequisite that binds without the
   install.** grove's methodology cites `linkuistics:decision-records` for ADR
   philosophy and `linkuistics:codebase-design` for seam judgement. Installation does
-  not enforce the dependency for marketplace/manual users. Current
-  Grove embeds and provisions compatible Codex skills. The methodological
+  not enforce the dependency for marketplace or manual users, and Grove
+  installs no skills. The methodological
   prerequisite still binds without the dependency installed. Every citation states what binds in the plugin's absence.
 
   Grove owns locally the part whose absence would change *what* a session
@@ -128,15 +128,14 @@ of scope.
   Decision: `docs/adr/a-skill-states-what-binds-without-its-dependencies.md`.
   Enforcement: `crates/grove/tests/plugin_fallback.rs`.
 
-- **Shared target: personal skill directories.** Current Grove embeds the
-  compatible plugin snapshot and automatically provisions Codex links in
-  `~/.agents/skills` through its staged snapshot and shared installation lock.
-  Foreign entries refuse rather than being overwritten. Claude Code uses its
-  marketplace. `plugins/install.sh` supports manual Codex, Gemini and Pi links.
-  These are separate delivery routes for the same plugin source
-  ([provisioning contract](docs/specs/codex-skill-provisioning.md)). The old
-  multi-harness `content/` sweep remains retired. Startup alignment does not pin
-  the lifetime of an already running session against another build's updates.
+- **Shared target: personal skill directories.** The user installs skills.
+  Claude Code uses its marketplace. `plugins/install.sh` supports Codex, Gemini
+  and Pi links. These are separate delivery routes for the same plugin source
+  ([delivery contract](docs/specs/codex-skill-provisioning.md)). Grove writes
+  into no personal skill directory. The old multi-harness `content/` sweep and
+  the later Codex snapshot provisioning are both retired. Grove 22.8 and earlier
+  left links in `~/.agents/skills` and snapshots in `~/.agents/.grove`. Later
+  releases leave them unchanged for the readers that still use them.
 
 - **grove → ordinal-fs-tree, a vocabulary boundary held by hand.** grove is the
   library's first and so far only consumer. It supplies a domain implementation

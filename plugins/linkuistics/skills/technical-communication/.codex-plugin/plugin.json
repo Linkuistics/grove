@@ -1,6 +1,6 @@
 {
   "name": "technical-communication",
-  "description": "Always-on hooks for the technical-communication skill: the instruction, the reminder, the document gate and the reply log. The skill itself reaches Codex through Grove's provisioning or plugins/install.sh.",
+  "description": "Always-on hooks for the technical-communication skill: the instruction, the reminder, the document gate and the reply log. The skill itself reaches Codex through plugins/install.sh or another installation the user chooses.",
   "author": {
     "name": "Antony Blakey",
     "email": "antony.blakey@gmail.com"

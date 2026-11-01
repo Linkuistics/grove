@@ -42,7 +42,7 @@ readable. Additional runtime files, such as harness credentials, need explicit
 read-only grants. Grove passes these on as `--runtime-read`. The parent project
 is not a runtime resource.
 
-The pending [skill-delivery design](codex-skill-provisioning.md#installation-and-bootstrap)
+The [skill-delivery design](codex-skill-provisioning.md#installation-and-bootstrap)
 uses Ravel 2's captured-directory grants for complete external skill trees.
 A native installation under HOME alone grants no read access. Any native-only
 standalone setup must separately prove its loader and all required resources

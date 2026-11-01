@@ -7,8 +7,8 @@ and has driven a grove. Grove vocabulary is linked to the glossary. The
 provides the product entry point; this book explains the code that implements
 its human command surface.
 
-Bare invocation resolves a working tree, takes a driver lease, provisions
-bundled Codex-compatible skills when Codex is present, and calls the loop.
+Bare invocation resolves a working tree, takes a driver lease, resolves Ravel
+and calls the loop. It installs no skills.
 Viewing returns before
 that lifecycle. `grove run` adds a separate lifetime: one kind, with the command
 the owner's Ravel policy selects for it, in confined temporary storage, with staged inputs, checked output publication

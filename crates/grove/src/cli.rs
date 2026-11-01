@@ -101,7 +101,6 @@ fn execute(cli: Cli) -> anyhow::Result<()> {
     }
     let workspace = Workspace::resolve(&cwd)?;
     let lease = DriverLease::acquire(&workspace)?;
-    crate::provision::ensure_codex_skills()?;
     let ravel = crate::dispatch::locate()?;
     let outcome = match grove_loop::run(&workspace, lease, &ravel) {
         Ok(outcome) => outcome,

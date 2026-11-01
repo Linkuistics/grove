@@ -321,9 +321,9 @@ exit 0
     assert!(log.contains("model=<unset>\n"), "{log:?}");
     assert!(log.contains("skill=<unset>\n"), "{log:?}");
     assert!(log.contains("llm=<unset>\n"), "{log:?}");
-    // Bare startup provisions canonical `.agents/skills` for this Codex home.
-    // A fresh legacy `.codex/skills` installation is deliberately not created.
-    assert!(!home.join(".codex/skills/grove").exists());
+    // Startup installs no skill for this Codex home, canonical or legacy.
+    assert!(!home.join(".agents").exists());
+    assert!(!home.join(".codex/skills").exists());
 }
 
 fn assert_bare_grove_launches_a_session_in_a_jj_worktree(colocate: bool) {
@@ -1083,9 +1083,9 @@ fn cli_metadata_exposes_view_and_writes_no_skill_directory() {
         format!("grove {}\n", env!("CARGO_PKG_VERSION"))
     );
     assert!(!obsolete.status.success());
-    // Metadata paths and refused verbs bypass provisioning, even with a Codex
+    // Metadata paths and refused verbs write no skills, even with a Codex
     // marker. They create neither canonical skills nor a legacy installation.
-    assert!(!home.join(".agents/skills").exists());
+    assert!(!home.join(".agents").exists());
     assert!(!home.join(".codex/skills/grove").exists());
 }
 

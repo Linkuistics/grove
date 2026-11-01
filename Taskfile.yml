@@ -245,12 +245,12 @@ tasks:
       - bash scripts/check.sh
 
   check:skills:
-    desc: Check bundled skill installation and Grove guidance conformance
+    desc: Check the manual installer, Grove guidance conformance and that startup writes no native skills
     cmds:
       - bash plugins/install.test.sh
       - bash plugins/grove/conformance.sh
       - bash plugins/grove/conformance.test.sh
-      - GROVE_TEST_RAVEL="${GROVE_TEST_RAVEL:-$(command -v ravel)}" cargo nextest run --locked -p grove --test plugin_fallback --test skill_provisioning
+      - GROVE_TEST_RAVEL="${GROVE_TEST_RAVEL:-$(command -v ravel)}" cargo nextest run --locked -p grove --test plugin_fallback --test native_skill_delivery
 
   ravel:resolution:
     desc: Check PATH/version resolution and a real independently installed Ravel pair

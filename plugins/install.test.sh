@@ -199,9 +199,9 @@ record "absent metadata skips rather than installs, and says so" "${problem}" "$
 
 # --- a real file or directory already at a target path -----------------------
 
-# The live case is the `grove` binary, which provisions its own methodology into
-# ~/.codex/skills/grove and ~/.pi/agent/skills/grove — a real directory at
-# exactly a path this script installs to. Nothing there is this script's to
+# The live case was the `grove` binary, which once provisioned its own methodology
+# into ~/.codex/skills/grove and ~/.pi/agent/skills/grove — a real directory at
+# exactly a path this script installs to. Older builds can leave one behind. Nothing there is this script's to
 # replace, so it must leave it alone; and leaving it alone silently is the
 # failure mode the workspace guard already refuses, because the skill is then
 # uninstalled with nothing in the harness saying so.

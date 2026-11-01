@@ -25,8 +25,9 @@ class Grove < Formula
   depends_on "linkuistics/taps/ravel"
 
   def install
-    # Codex skill snapshots are embedded in grove and provisioned at startup.
-    # Claude Code retains marketplace delivery; no separate payload is fetched.
+    # The archive carries executables and caller assets only. Skills reach each
+    # harness through the owner's chosen route; no install or upgrade step here
+    # writes, repairs or removes a native skill installation.
     #
     # Readable caller assets retain ordinary relative imports. Ravel owns its
     # own front, private worker, SDK and notices in its independently sized keg.
@@ -36,10 +37,10 @@ class Grove < Formula
 
   def caveats
     <<~EOS
-      Codex: when ~/.codex is a directory or CODEX_HOME is nonempty, bare grove
-      installs and repairs all bundled compatible skills in ~/.agents/skills before
-      launching a session. No separate checkout or download is needed;
-      the skills update with the installed binary.
+      Skills: Grove names the skill each session loads, and you supply it.
+      Install the skills natively in every harness your Ravel policy selects.
+      Grove does not install skills. Startup and upgrades leave any existing
+      skill installation, including one written by an earlier Grove, unchanged.
 
       Claude Code: install the plugins and enable marketplace auto-update:
 
@@ -50,7 +51,7 @@ class Grove < Formula
 
         /plugin -> Marketplaces -> Enable auto-update
 
-      Gemini CLI and Pi: clone the repository and run its installer:
+      Codex, Gemini CLI and Pi: clone the repository and run its installer:
 
         git clone https://github.com/Linkuistics/grove
         ./grove/plugins/install.sh
@@ -85,6 +86,8 @@ class Grove < Formula
     # Exercise lifecycle here; release verification separately runs confined
     # standalone publication through scripts/grove-installed-smoke.sh.
     (testpath/"home/.config/ravel").mkpath
+    # A Codex home is present, and startup still writes no skill installation.
+    (testpath/"home/.codex").mkpath
     (testpath/".jj/repo").mkpath
     (testpath/".grove").mkpath
     (testpath/".grove/_BRIEF.md").write "# fixture\n"
@@ -112,5 +115,7 @@ class Grove < Formula
     assert_match "loop complete", shell_output("#{bin}/grove 2>&1")
     assert_equal "launched", (testpath/"launched.txt").read
     assert_path_exists leaf
+    refute_path_exists testpath/"home/.agents"
+    assert_empty (testpath/"home/.codex").children
   end
 end

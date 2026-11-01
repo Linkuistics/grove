@@ -375,7 +375,7 @@ pub fn grove_env_names() -> Vec<String> {
     }
     names.extend(REMOVED_LAUNCH_POLICY_ENV.iter().map(|n| n.to_string()));
     names.extend(LOOP_CONTROL_ENV.iter().map(|n| n.to_string()));
-    // A temporary HOME must never reconcile links in the developer's Codex home.
+    // A temporary HOME must never read or name the developer's Codex home.
     names.push("CODEX_HOME".to_owned());
     names
 }

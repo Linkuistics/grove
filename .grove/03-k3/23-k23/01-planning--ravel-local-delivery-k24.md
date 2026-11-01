@@ -11,7 +11,8 @@ Recheck the owning repository, its instructions and its Taskfile. Recheck the
 exact preparation, settings, Rhai worker and host, confinement and public CLI
 test seams. Read the reviewed ravel-rhai-skill-delivery-k34 and
 grove-rhai-skill-delivery-k35 handoffs, including exact base and contract
-commits. The parent supplies the behavioural contract. No implementation
+commits. The Settled inputs of the parent give the identity and the Ravel task
+names at k34. The parent supplies the behavioural contract. No implementation
 belongs to this planning session.
 
 ## Done when

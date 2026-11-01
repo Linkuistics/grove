@@ -14,6 +14,30 @@ delivery to Ravel 2.0, schema 3 and TypeScript SDKs. Those assignments predate
 Rhai main and are not settled feature identities. Native removal and the
 route-independent mandate remain separate work.
 
+## Consumer handoff
+
+ravel-rhai-skill-delivery-k34 supplies the upstream facts. They are in the
+"Consumer handoff" section of `docs/skill-discovery-design-evidence.md` at
+Ravel commit `fc87cb41a422`, on the bookmark `skill-directory-delivery`. Use
+the later commit that its review integration records, when one exists. In
+summary:
+
+- Directory delivery needs Ravel 2.0.0, with `config.rhai` and
+  `SCHEMA_VERSION` 4. The `check_version` of Grove admits only stable 1.x
+  today.
+- The native route stays Ravel 1.1.0, `policy.ts` with schema 2 and settings
+  without 2.0 keys.
+- Ravel 1.1.0 refuses settings that hold `skills`, `configEnv`, `harnesses` or
+  `budgets`, at stage `cli` with exit 2. While a 1.1 reader remains, the
+  directory route uses a separate `HOME`.
+- Examples for the directory route put `request.prompt` into the harness
+  arguments. They read task data, such as the handle and the provider receipt,
+  from `request.originalPrompt`.
+- The ending command stays in the caller block, byte for byte. Grove needs
+  neither `RAVEL_SKILL_DIRECTORIES` nor `skills resolve`.
+- Until promotion, the directory route selects the keg-only `ravel@2` by its
+  prefix.
+
 ## Done when
 
 - Repair the delivery specification, evidence, caller specification and any

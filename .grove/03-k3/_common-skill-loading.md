@@ -189,5 +189,17 @@ must remain readable.
 The directory feature stays unpublished through local, pinned and actual-harness
 acceptance. A local build refuses Git sources before configuration evaluation
 without a stable public error code. Pinned delivery removes that temporary
-refusal and its fixture. Exact feature version/schema values remain design
-outputs and must not be guessed from the Rhai 2.0 release number.
+refusal and its fixture.
+
+ravel-rhai-skill-delivery-k34 settled the feature identity. The feature ships
+in the combined Ravel 2.0.0, with script and request schema 4. A schema-3
+script refuses, also with delivery disabled. Worker protocol 1,
+selection-context schema 1 and the notice and failure schemas 2 keep their
+numbers. The repaired Ravel contract is commit
+`fc87cb41a422bf2623ce362ef689c38ddf98a506` on the local bookmark
+`skill-directory-delivery`, in the jj workspace `Ravel.skill-directory-delivery`.
+Its parent is the channel contract `2a77ffbd`, above main `24a54523`.
+
+Nobody pushed that line. Its `docs/skill-discovery-design-evidence.md` holds the
+stage handoff for the Ravel owner and the consumer handoff for k35. The focused
+`review-design` leaf of k34 runs before k35 and before local planning.

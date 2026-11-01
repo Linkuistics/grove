@@ -10,8 +10,10 @@ delivered local route, without repeating or redesigning its public API.
 Inspect the current implementation, tests and Taskfile of Ravel. Inspect its
 package and install inputs and its accepted specification. Follow the
 instructions of that repository.
-Consume the owning commits and measured limits of the local node. No
-implementation belongs here. Use the reviewed Rhai contract repair and the
+Consume the owning commits and measured limits of the local node. The Settled
+inputs of the parent give the identity and the Ravel task names.
+
+No implementation belongs here. Use the reviewed Rhai contract repair and the
 exact-base, named-bookmark and rebase handoff of the parent before you cut
 implementation.
 

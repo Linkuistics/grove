@@ -32,10 +32,24 @@ Private acquisition machinery alone does not close this node.
 ## Pointers
 
 Use the reviewed `docs/specs/skill-discovery.md` of Ravel, with its exact-Git,
-publication, failure and acceptance sections. Use the owning commits and
+publication, failure and acceptance sections. Its repaired form is commit
+`fc87cb41a422` on `skill-directory-delivery`, or the later commit that its
+review integration records. Use the owning commits and
 recorded installed-pair inputs of the preceding local node. Use the repaired
 contract from ravel-rhai-skill-delivery-k34, not the historical TypeScript and
 schema-3 design. Follow the repository instructions of Ravel.
+
+## Settled inputs
+
+- The identity is that of the local stage: the combined Ravel 2.0.0, script and
+  request schema 4 and worker protocol 1.
+- Item 5 of the stage handoff in the Ravel evidence document lists the work of
+  this stage. A cache miss needs Git on the `PATH` of the Ravel CLI. This
+  stage decides whether the Homebrew formula declares Git.
+- The installed and release preparation tasks are `task smoke`,
+  `task install PREFIX=<prefix>`, `task release:test`, `task release:formula`,
+  `task release:archives` and `task release:smoke`. The repository and book
+  tasks are those of the local stage.
 
 ## Notes
 

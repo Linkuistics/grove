@@ -37,12 +37,37 @@ worker interpretation and required read grants must have a green handoff.
 ## Pointers
 
 - Owning repository: `/Users/antony/Development/AgenticOrchestration/Ravel`.
-- Reviewed repair ravel-rhai-skill-delivery-k34, then its Grove consumer repair
-  grove-rhai-skill-delivery-k35. Historical design `b93bb927` supplies intent,
-  not current version, schema or runtime assignments:
-  `docs/specs/skill-discovery.md`, `docs/specs/session-execution.md`,
-  `docs/skill-discovery-design-evidence.md`.
-- ADRs `skill-preparation-precedes-policy` and `skill-resources-outlive-sessions`.
+- The repaired Ravel contract of ravel-rhai-skill-delivery-k34 is commit
+  `fc87cb41a422`, on the bookmark `skill-directory-delivery`. Read its
+  `docs/specs/skill-discovery.md` and `docs/skill-discovery-design-evidence.md`.
+  Read its changes to `docs/specs/configuration-evaluation.md` and
+  `docs/specs/session-execution.md`. Use the later commit that its review
+  integration records, when one exists.
+- Then read the Grove consumer repair grove-rhai-skill-delivery-k35. The
+  historical design `b93bb927` supplies intent only.
+- ADRs `skill-preparation-precedes-evaluation`,
+  `skill-resources-outlive-sessions` and `ravel-supervises-the-session`.
+
+## Settled inputs
+
+- The feature ships in the combined Ravel 2.0.0. The script and request
+  `SCHEMA_VERSION` is 4, and a schema-3 script refuses as
+  `unsupported_version`, also with delivery disabled. The worker protocol
+  stays 1.
+- The `skills` settings object, the descriptor and `skills resolve --json` each
+  have schema 1. The cache root is `$HOME/.cache/ravel/skills/v1`.
+- Item 3 of the stage handoff in the Ravel evidence document lists the work of
+  this stage. It includes the evaluate-frame bound of 38,541,312 bytes and the
+  check of that bound before the worker receives the frame. It also includes
+  the narrow sandbox home of the smoke tasks.
+- The Ravel tasks are `task setup`, `task check`, `task test:cli`,
+  `task smoke` and `task install PREFIX=<prefix>`. The book tasks are
+  `task docs:book:build`, `task docs:examples:test`, `task docs:excerpts:test`,
+  `task docs:figures:test`, `task docs:ste:test`, `task docs:breaks:test` and
+  `task book:integrity`.
+- `task harness:smoke:test` checks the smoke script. `task docs:skills` serves
+  the design views on port 8778. No TypeScript SDK, typecheck or worker-build
+  task exists on main.
 
 ## Notes
 

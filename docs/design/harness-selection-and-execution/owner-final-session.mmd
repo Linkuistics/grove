@@ -1,0 +1,19 @@
+sequenceDiagram
+    participant D as Grove 22.8 driver
+    participant R1 as Ravel 1.1.0 keg
+    participant F as Finish in Claude Code
+    participant N as Native plugin cache
+    participant H as Real HOME settings
+    participant R2 as Promoted Ravel 2.0.0
+    participant P as Probe sessions
+    D->>R1: Launch finish through policy.ts
+    R1->>F: Start Claude Code with the mandate
+    F->>N: Read grove-finish and the spine by absolute path
+    F->>F: Release Grove and promote Ravel
+    F->>H: Switch: skill settings, plugins, moved entries
+    Note over N: Bytes stay, so finish's lazy reads still resolve
+    F->>R2: Resolve the pinned sources
+    R2->>P: Launch Claude Code and Codex with directories
+    P-->>F: Observed reads and hook runs
+    F->>R1: Original end-session command
+    Note over D,R2: After the reap, new drivers use compatible Grove and Ravel 2.0.0

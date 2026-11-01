@@ -1,0 +1,34 @@
+flowchart LR
+    subgraph prep["Ordinary leaves"]
+        direction TB
+        A["Start here · Baseline and design"]
+        B["Pack moves keep every entry<br/>Two skill-free plugins added"]
+        C["Re-inventory per entry"]
+        D["Draft config.rhai<br/>and skill settings"]
+        E["Staging-HOME trials<br/>on both harnesses"]
+        F["Prepare real HOME<br/>Rehearse switch and inverse"]
+        A -->|1| B
+        B -->|2| C
+        C -->|3| D
+        D -->|4| E
+        E -->|5| F
+    end
+    subgraph fin["Finish"]
+        direction TB
+        G["Release Grove<br/>Promote Ravel"]
+        H{"Only finish and<br/>its driver chain alive?"}
+        I["Ask the owner<br/>Signal nobody"]
+        J["Switch: settings,<br/>plugins, moved entries"]
+        K{"Both probes pass?"}
+        L["Inverse operation<br/>No success signal"]
+        M["Receipt in the manual<br/>Original ending command"]
+        G -->|7| H
+        H -->|"8 no"| I
+        H -->|"8 yes"| J
+        J -->|9| K
+        K -->|"10 no"| L
+        K -->|"10 yes"| M
+    end
+    prep -->|"6 after acceptance"| fin
+    classDef start fill:#16354a,color:#fff,stroke:#16354a,font-weight:bold
+    class A start

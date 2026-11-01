@@ -1,11 +1,16 @@
 {
-  "title": "Harness selection and execution \u2014 Grove caller views",
-  "intro": "Coordinated release design, reviewed and integrated: one complete Ravel 2.0.0, first through ravel@2, followed by compatible Grove and unversioned promotion. The owner confirmed this is the sole live workstream through completion. Earlier skill views await Rhai contract repair. Graphs begin at Start here; sequences at their first message; states at their initial state.",
+  "title": "Harness selection and execution — Grove caller views",
+  "intro": "Owner skill delivery is proposed and awaits its focused review. The coordinated release design is reviewed and integrated: one complete Ravel 2.0.0, first through ravel@2, followed by compatible Grove and unversioned promotion. Graphs begin at Start here; sequences at their first message; states at their initial state.",
   "groups": [
     {
       "id": "release",
       "title": "Coordinated release",
       "description": "Publication order owned by this grove; implementation and release remain ahead."
+    },
+    {
+      "id": "owner",
+      "title": "Owner skill cutover",
+      "description": "Proposed: move the owner's installed skills to Ravel sources, keep native capabilities, switch inside finish."
     },
     {
       "id": "skills",
@@ -35,11 +40,32 @@
   ],
   "diagrams": [
     {
+      "id": "owner-classes",
+      "group": "owner",
+      "title": "Where each installed entry goes",
+      "source": "owner-classes.mmd",
+      "caption": "Proposed. Only native copies of owner-selected guidance move to Ravel; a skill that needs a hook keeps a native route for that part."
+    },
+    {
+      "id": "owner-cutover",
+      "group": "owner",
+      "title": "Ordered owner cutover",
+      "source": "owner-cutover.mmd",
+      "caption": "Proposed. Ordinary leaves prepare and rehearse; only finish runs the switch against the real HOME. The owner purges retained bytes later, after this driver's reap."
+    },
+    {
+      "id": "owner-final-session",
+      "group": "owner",
+      "title": "Finish keeps its guidance through the switch",
+      "source": "owner-final-session.mmd",
+      "caption": "Proposed. Disabling a plugin keeps its cache, so finish's absolute-path reads survive. Probe launches use the promoted Ravel."
+    },
+    {
       "id": "release-tap",
       "group": "release",
       "title": "Compatible tap states",
       "source": "release-tap.mmd",
-      "caption": "Designed A\u2013D states; implementation and acceptance remain ahead. Installing keg-only ravel@2 changes no default command. Promotion requires compatible published Grove and verified fresh-install and upgrade paths. It moves default users from policy.ts to config.rhai and deprecates ravel@2 at the promoted version. Retained old callers keep complete prefixes and settings."
+      "caption": "Designed A–D states; implementation and acceptance remain ahead. Installing keg-only ravel@2 changes no default command. Promotion requires compatible published Grove and verified fresh-install and upgrade paths. It moves default users from policy.ts to config.rhai and deprecates ravel@2 at the promoted version. Retained old callers keep complete prefixes and settings."
     },
     {
       "id": "release-order",
@@ -127,22 +153,28 @@
     }
   ],
   "discussion": {
-    "title": "Release Ravel without breaking released Grove",
-    "status": "Focused review integrated \u2014 implementation next",
-    "summary": "Combine Rhai and directory delivery as 2.0.0; publish ravel@2 first, then compatible Grove, then promote identical archives. This grove completes all release prerequisites while other workstreams remain paused. Keep current drivers and settings usable.",
+    "title": "Move the owner's skills to Ravel without stranding finish",
+    "status": "Proposed — focused design review next",
+    "summary": "Ten pinned Ravel sources and one mandatory file replace native skill copies. Hooks, commands, tools and platform skills stay native. Every remaining session of this driver loads natively, so the switch runs inside finish after promotion, keeps every byte and has a rehearsed inverse.",
     "diagramIds": [
-      "release-tap",
+      "owner-classes",
+      "owner-cutover",
+      "owner-final-session",
       "release-order",
       "skill-transition"
     ],
     "updatedDiagrams": [
       {
-        "id": "release-tap",
-        "summary": "Defined four compatible tap states and delayed default promotion. Promotion deprecates ravel@2 and changes the default configuration format."
+        "id": "owner-classes",
+        "summary": "Added the per-entry rule that routes each baseline entry to a Ravel source, a native route or no change."
       },
       {
-        "id": "release-order",
-        "summary": "Assigned all release prerequisites here and added finish promotion with original-ending preservation."
+        "id": "owner-cutover",
+        "summary": "Added the ordered cutover and the switch inside finish, with its probes and inverse."
+      },
+      {
+        "id": "owner-final-session",
+        "summary": "Added how finish keeps its native guidance through the switch. Later sessions move to Ravel 2.0.0."
       }
     ]
   }

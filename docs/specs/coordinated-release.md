@@ -154,8 +154,9 @@ Homebrew invocation on the machine reads it, such as Homebrew's user `brew.env`.
 Keep legacy settings usable for every remaining 1.1 driver launch. Different
 binary prefixes or configuration filenames do not isolate a shared settings
 file. Prepare the Rhai environment in a separate HOME until no remaining old
-launch depends on shared settings. The owner-delivery design accounts for
-credentials, hooks and other settings. This design implies no credential copy.
+launch depends on shared settings. The
+[owner-delivery design](owner-skill-delivery.md) accounts for credentials,
+hooks and other settings. This design implies no credential copy.
 
 Activate new launches only after the selected pair and full skill collection
 pass the owner trial. Remove native discovery entries only after replacement
@@ -163,7 +164,8 @@ reads pass, retaining resources for lazy readers, including finish. A recipe
 is not actual cutover: record the activated default launch path and remaining
 readers. The owner's `config.rhai` must exist and pass before any owner default
 launch reaches 2.0. Keep `policy.ts` while any 1.1 launch remains. The
-owner-delivery design settles how these requirements are met.
+[owner-delivery design](owner-skill-delivery.md#the-switch-inside-finish)
+settles how these requirements are met.
 
 A running driver retains its resolved executable. This driver keeps its 1.1.0
 ending command. Restart means a new driver after the old driver and managed

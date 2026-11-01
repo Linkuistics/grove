@@ -170,6 +170,11 @@ owner-ravel-skill-inventory-k38 reconciles the final set and grows actual owner
 configuration, activation and native-removal leaves. The owner's `policy.ts`
 to `config.rhai` conversion precedes any owner default launch on 2.0.
 
+The owner-delivery design is `docs/specs/owner-skill-delivery.md`. Its
+evidence is `docs/owner-skill-delivery-evidence.md`, and the per-entry baseline
+is `docs/owner-skill-inventory.tsv`. Its requirements section lists what k34
+must preserve or settle. Its focused design review precedes k34.
+
 TestAnyware is an explicit acceptance case. A disposable proof cannot replace
 the actual owner cutover. Old lazy readers and the final session's guidance
 must remain readable.

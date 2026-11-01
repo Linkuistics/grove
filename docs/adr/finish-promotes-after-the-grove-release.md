@@ -1,11 +1,11 @@
 # Finish promotes after the Grove release
 
-A dependency promotion that needs the published compatible Grove runs inside
-the driver-created finish session. Finish runs it after Grove's minor release
-and installed verification, and before its final signal. The operation is
-prepared and rehearsed in ordinary leaves before finish. Finish's one
-confirmation covers it as part of the concrete whole sequence. An incomplete
-promotion is an incomplete finish, so the session never signals success.
+A cutover operation that needs the published compatible Grove runs inside the
+driver-created finish session. Finish runs it after Grove's minor release and
+installed verification, and before its final signal. The operation is prepared
+and rehearsed in ordinary leaves before finish. Finish's one confirmation
+covers it as part of the concrete whole sequence. An incomplete operation is an
+incomplete finish, so the session never signals success.
 
 The first case is the promotion of Ravel 2.0.0 to unversioned `ravel`. The
 [coordinated release specification](../specs/coordinated-release.md) owns its
@@ -13,18 +13,28 @@ order, its handoff and its recovery rows.
 Ravel's decision record `a-caller-transition-publishes-a-versioned-formula-first`
 explains why the promotion must follow the compatible Grove release.
 
-The trade-off is a longer finish session against a promotion with no owner.
-Finish grows by one rehearsed public operation. That operation runs after
-`finish-commit` removes `.grove/`, so no leaf can carry a repair. Only resume
-rows apply there, and a failure ends without a successful signal.
+The second case is the owner's skill-delivery switch. It activates Ravel's
+directory delivery in the owner's real HOME and deactivates superseded native
+skills. It needs the promoted Ravel and the compatible Grove. It also needs
+the end of the driver's last Ravel 1.1 launch, which is finish's own launch.
+The [owner skill delivery specification](../specs/owner-skill-delivery.md) owns
+its steps, probes and rollback. The switch follows the promotion.
 
-The design rejected three alternatives. An ordinary leaf cannot follow Grove's
+The trade-off is a longer finish session against operations with no owner.
+Finish grows by two rehearsed operations. They run after `finish-commit`
+removes `.grove/`, so no leaf can carry a repair. Only resume rows and the
+switch's inverse apply there, and a failure ends without a successful signal.
+
+The design rejected four alternatives. An ordinary leaf cannot follow Grove's
 release, because that release belongs to finish and no leaf follows the finish
 sentinel. Promotion before Grove's release would give fresh installations a
-Ravel major that released Grove refuses. A promotion left to the owner after
-the grove ends would let finish signal success while the default channel still
-lacks the release.
+Ravel major that released Grove refuses. An operation left to the owner after
+the grove ends would let finish signal success while the cutover is still
+incomplete. A switch in an ordinary leaf before finish would deactivate native
+skills too early. Every later session of the old driver still loads them,
+including finish itself.
 
-Reopen this decision if Grove's release leaves finish. Reopen it also if a
-compatible Grove that accepts both majors is public before the dependency cut.
-Then the promotion needs no finish extension.
+Reopen this decision if Grove's release leaves finish. Reopen the first case
+if a compatible Grove that accepts both majors is public before the dependency
+cut. Reopen the second case if the driver that runs finish can deliver skill
+directories. Then that case needs no finish extension.

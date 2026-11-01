@@ -117,3 +117,8 @@ A final cutover step may have to occur inside finish. If so, name it explicitly
 in the finish handoff and root charter before that session. No ordinary leaf
 may claim that the actual cutover happened merely because it supplied
 instructions.
+
+The owner-delivery design assigns the owner skill switch to finish, after
+promotion. Rollout names the prepared switch, its probes and its inverse in the
+finish handoff and the root charter before that session. The root brief does
+not yet follow the writing rules, so convert it first as its own change.

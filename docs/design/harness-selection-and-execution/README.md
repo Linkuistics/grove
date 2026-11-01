@@ -31,6 +31,9 @@ asserts no private transport or escalation details.
 
 | View | Contract illustrated |
 |---|---|
+| [Where each installed entry goes](http://127.0.0.1:52710/#diagram-owner-classes) | The per-entry rule of the owner cutover: a Ravel source, a native route for hooks, or no change. |
+| [Ordered owner cutover](http://127.0.0.1:52710/#diagram-owner-cutover) | Preparation in ordinary leaves, then the switch inside finish with its reader gate, probes and inverse. |
+| [Finish keeps its guidance through the switch](http://127.0.0.1:52710/#diagram-owner-final-session) | Finish reads native guidance by absolute path. Later sessions move to Ravel 2.0.0. |
 | [Compatible tap states](http://127.0.0.1:52710/#diagram-release-tap) | Four tap states: keg-only `ravel@2` first, compatible Grove, then promotion of identical archives with `ravel@2` deprecated. |
 | [Publication and finish ownership](http://127.0.0.1:52710/#diagram-release-order) | Release prerequisites, Ravel publication, finish's Grove release and promotion, and the original ending. |
 | [Independent ownership](http://127.0.0.1:52710/#diagram-packages) | Public CLI between separate releases, caller imports, Grove's shared job function and Ravel's runner. |
@@ -63,9 +66,19 @@ public integration. Neither duplicates Ravel's private runtime contract.
 
 ## Current changes
 
-The current discussion is the coordinated release design. Its focused review
-is integrated. The owner acknowledged that this is the only live workstream through
-completion. The design selects combined 2.0.0. See the
+The current discussion is the owner skill cutover. It is proposed and awaits
+its focused review. See the [owner delivery specification](../../specs/owner-skill-delivery.md)
+and [evidence](../../owner-skill-delivery-evidence.md).
+
+- [Where each installed entry goes](http://127.0.0.1:52710/#diagram-owner-classes) — Added the per-entry rule that routes each baseline entry to a Ravel source, a native route or no change.
+- [Ordered owner cutover](http://127.0.0.1:52710/#diagram-owner-cutover) — Added the ordered cutover and the switch inside finish, with its probes and inverse.
+- [Finish keeps its guidance through the switch](http://127.0.0.1:52710/#diagram-owner-final-session) — Added how finish keeps its native guidance through the switch. Later sessions move to Ravel 2.0.0.
+
+## Earlier release changes
+
+The coordinated release design has its focused review integrated. The owner
+acknowledged that this is the only live workstream through completion. The
+design selects combined 2.0.0. See the
 [release specification](../../specs/coordinated-release.md) and
 [evidence](../../coordinated-release-evidence.md).
 

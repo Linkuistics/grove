@@ -1,0 +1,20 @@
+flowchart TD
+    A["Start here · One baseline entry"]
+    B{"Native copy of<br/>owner-selected guidance?"}
+    C{"What can a read<br/>not supply?"}
+    G{"Dangling link?"}
+    D["Ravel source<br/>Native copy deactivated"]
+    E["Guidance from Ravel<br/>Hooks in skill-free plugin"]
+    F["Native-only plugin<br/>Outside Ravel roots"]
+    H["Deactivated<br/>No reader possible"]
+    I["Unchanged residue<br/>Platform, tool, capability"]
+    A -->|1| B
+    B -->|"2 yes"| C
+    B -->|"2 no"| G
+    C -->|"3 nothing"| D
+    C -->|"3 hooks"| E
+    C -->|"3 hook and command"| F
+    G -->|"3 yes"| H
+    G -->|"3 no"| I
+    classDef start fill:#16354a,color:#fff,stroke:#16354a,font-weight:bold
+    class A start

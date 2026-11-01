@@ -2,9 +2,11 @@
 
 This is the adoption design. Grove implements its native-only route: Grove no
 longer embeds or provisions Codex snapshots, and startup leaves earlier
-installations unchanged. Grove 22.8 and earlier still provision them. The
-mandate wording, Ravel directory delivery and its acceptance remain ahead, and
-Grove admits stable Ravel 1.x from 1.1.0. The document location remains stable
+installations unchanged. Grove 22.8 and earlier still provision them. Grove
+also implements the route-independent mandate: a bare skill name, "first" after
+any mandatory guidance, and the missing-skill force-stop rule. Ravel directory
+delivery and its acceptance remain ahead, and Grove admits stable Ravel 1.x from
+1.1.0. The document location remains stable
 for existing citations.
 
 ## Ownership

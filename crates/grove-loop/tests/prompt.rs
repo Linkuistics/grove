@@ -15,11 +15,12 @@
 //! corpus: a skill name and nineteen reference paths, both asserted against
 //! `content/`. Composition reads nothing now, so what is left to hold in step is
 //! the prompt against the **shipped plugin** — every `grove-<kind>` the prompt
-//! can name has to be a skill the plugin ships, under the plugin the prompt
-//! namespaces it with. That is asserted here over the working tree's own
-//! `plugins/grove`, which is the closest thing to the installed set a `cargo
-//! test` can reach; what a *machine* has installed is outside any suite, and the
-//! methodology answers it by stating the version grove is.
+//! can name has to be a skill the plugin ships. That is asserted here over the
+//! working tree's own `plugins/grove`, which is the closest thing to the
+//! installed set a `cargo test` can reach. What a *machine* supplies is outside
+//! any suite. The prompt answers that residue with its missing-guidance rule,
+//! and `crates/grove/tests/native_skill_delivery.rs` drives that rule through a
+//! real lifecycle.
 //!
 //! **Every generated claim carries a control.** A sweep that cannot fail is
 //! worth nothing, so the skill-set claim is shown failing on a kind the plugin
@@ -136,20 +137,24 @@ fn the_prompt_is_three_parts_in_the_sessions_own_timeline_order() {
         let (load, rest) = prompt.split_at(load_ends + 1);
 
         assert!(
-            load.starts_with(&format!("**Load the `{skill}` skill now**")),
+            load.starts_with(&format!("**Load the `{skill}` skill now.**")),
             "`{}`'s prompt must open with the imperative naming its one target, not with \
              anything else:\n{load}",
             kind.label()
         );
         assert!(
-            load.contains(&format!("that is `{}:{skill}`", prompt::PLUGIN)),
-            "and it must give the namespaced spelling of the same target in the same \
-             imperative, which is what lets grove branch on no harness:\n{load}"
+            load.contains(&format!(
+                "If your harness requires a plugin namespace, use\nthe namespace under which \
+                 `{skill}` is actually installed. Do not assume one."
+            )),
+            "and it must defer the native namespace to the plugin that actually supplies \
+             the same target, so a moved pack keeps working:\n{load}"
         );
         assert!(
-            load.contains("Do this **first**, before anything else you might reach for: before reading the\ntask file, before running any `grove-llm` verb, before looking at `.grove/`,\nbefore inspecting the working tree, and before answering a question."),
-            "the ordering clause must enumerate the tempting alternatives — without the \
-             enumeration it is advice, and the enumeration is what the micro-test measured"
+            load.contains("Do this **first**, after any mandatory guidance and before anything else you\nmight reach for: before reading the task file, before running any `grove-llm`\nverb, before looking at `.grove/`, before inspecting the working tree, and\nbefore answering a question."),
+            "the ordering clause must qualify \"first\" with mandatory guidance and enumerate \
+             the tempting alternatives — without the enumeration it is advice, and the \
+             enumeration is what the micro-test measured"
         );
 
         let expected_facts = format!(
@@ -220,6 +225,60 @@ fn the_load_instruction_says_the_kind_was_already_resolved() {
             kind.label()
         );
     }
+}
+
+/// **The load instruction states the missing-guidance outcome itself.**
+///
+/// A missing skill cannot state what to do when it is missing, so the rule
+/// rides the prompt (`docs/specs/codex-skill-provisioning.md`, *Installation
+/// and bootstrap*). It names the same target, keeps the leaf live, forbids a
+/// teardown record and the continue command, and gives the launch's exact
+/// force-stop command. That command comes before the signalling contract,
+/// because a load can fail before the session reads that far.
+#[test]
+fn the_load_instruction_states_the_missing_guidance_force_stop() {
+    for kind in shipped_kinds() {
+        let prompt = compose(&kind);
+        let skill = prompt::skill_name(&kind);
+        let expected = format!(
+            "If you cannot find or read `{skill}`, report that its guidance is missing or\n\
+             unreadable. Leave the task live: do not retire the leaf, record a teardown or\n\
+             run the continue command below. Run this exact force-stop command as your last\n\
+             action instead:\n\
+             `'/fixture/ravel' end-session grove-force-stop`\n"
+        );
+        let at = prompt.find(&expected).unwrap_or_else(|| {
+            panic!(
+                "`{}`'s prompt does not state the missing-guidance rule with its exact \
+                 force-stop command:\n{prompt}",
+                kind.label()
+            )
+        });
+        assert!(
+            at < prompt.find("\nGrove mandate: ").unwrap(),
+            "the rule must ride the load instruction, before any load can fail"
+        );
+    }
+}
+
+/// **The control on that claim.** The same search must fail when the command
+/// differs, so the check reads the supplied command rather than a constant.
+#[test]
+fn the_missing_guidance_rule_carries_this_launchs_command() {
+    let handle = Handle::parse(FIXTURE_HANDLE).unwrap();
+    let prompt = prompt::compose(&Mandate {
+        handle: &handle,
+        kind: &a_kind("impl"),
+        workspace: &workspace(),
+        version: FIXTURE_VERSION,
+        ending_command: "'/other/ravel' end-session grove-continue",
+        force_stop_command: "'/other/ravel' end-session grove-force-stop",
+    });
+    assert!(!prompt.contains("'/fixture/ravel'"), "{prompt}");
+    assert!(
+        prompt.contains("action instead:\n`'/other/ravel' end-session grove-force-stop`\n"),
+        "{prompt}"
+    );
 }
 
 /// **The signalling contract's load-bearing clauses, pinned.**
@@ -476,7 +535,7 @@ fn every_kind_names_a_skill_the_plugin_ships() {
         "the plugin must ship task-kind skills for this sweep to exercise prompts"
     );
     assert!(
-        shipped.contains(prompt::PLUGIN),
+        shipped.contains(prompt::SKILL_PREFIX),
         "the plugin must ship the shared spine"
     );
     for kind in kinds {
@@ -496,42 +555,47 @@ fn every_kind_names_a_skill_the_plugin_ships() {
 #[test]
 fn the_skill_set_claim_fails_on_a_kind_the_plugin_does_not_ship() {
     assert!(
-        !shipped_skills().contains(&format!("{}-no-such-kind", prompt::PLUGIN)),
+        !shipped_skills().contains(&format!("{}-no-such-kind", prompt::SKILL_PREFIX)),
         "the predicate the sweep uses must be able to say no"
     );
 }
 
-/// **The namespace the prompt spells is the plugin entry's declared `name`.**
+/// **The prompt spells no plugin namespace for its target.**
 ///
-/// `grove:grove-<kind>` is one target spelled twice, and the left half is the
-/// **name** a harness registers the plugin under, not the directory it was
-/// sourced from. Asserting the `source` path instead would pass unchanged the
-/// day the entry is renamed, leaving every prompt's namespaced spelling pointing
-/// at nothing — so the claim is made against the field the harness actually
-/// reads, and the source path is checked alongside it because the two must agree
-/// for the entry to describe this plugin at all.
+/// The skill's native namespace belongs to the plugin that actually supplies
+/// it, and a pack move can change that plugin without changing the kind
+/// (`docs/specs/codex-skill-provisioning.md`, *Launch and compatibility*). A
+/// qualified alias such as `grove:grove-<kind>` would then address nothing.
+/// The claim is over every shipped kind and two spellings of an alias: the
+/// colon-qualified one and the shipped plugin name followed by a colon.
 #[test]
-fn the_namespace_is_the_shipped_plugin_entrys_declared_name() {
-    let manifest =
-        std::fs::read_to_string(support::repo_root().join(".claude-plugin/marketplace.json"))
-            .expect("the marketplace manifest must be readable");
-    let entry = manifest
-        .split("{")
-        .find(|block| block.contains(&format!("\"source\": \"./plugins/{}\"", prompt::PLUGIN)))
-        .unwrap_or_else(|| {
-            panic!(
-                "the marketplace registers no plugin sourced from `./plugins/{}`",
-                prompt::PLUGIN
-            )
-        });
-    assert!(
-        entry.contains(&format!("\"name\": \"{}\"", prompt::PLUGIN)),
-        "the marketplace entry for `./plugins/{}` declares a different `name`, and the name \
-         is what a harness namespaces its skills under — so `{}:grove-<kind>`, which every \
-         prompt spells, addresses nothing:\n{entry}",
-        prompt::PLUGIN,
-        prompt::PLUGIN
-    );
+fn the_prompt_names_no_fixed_plugin_namespace() {
+    for kind in shipped_kinds() {
+        let prompt = compose(&kind);
+        assert!(
+            !names_a_qualified_alias(&prompt, &prompt::skill_name(&kind)),
+            "`{}`'s prompt names its skill under a fixed plugin namespace:\n{prompt}",
+            kind.label()
+        );
+    }
+}
+
+/// **The control on that claim.** The predicate must find the alias the prompt
+/// used to spell, or a green sweep says nothing.
+#[test]
+fn the_namespace_claim_finds_a_qualified_alias() {
+    let skill = prompt::skill_name(&a_kind("impl"));
+    let old =
+        format!("on Claude Code, where plugin skills are\nnamespaced, that is `grove:{skill}`.");
+    assert!(names_a_qualified_alias(&old, &skill));
+    assert!(names_a_qualified_alias("use `other:grove-impl`", &skill));
+    assert!(!names_a_qualified_alias("load `grove-impl`", &skill));
+}
+
+/// Whether `text` names `skill` with any `<plugin>:` qualifier, or names the
+/// shipped plugin as a namespace at all.
+fn names_a_qualified_alias(text: &str, skill: &str) -> bool {
+    text.contains(&format!(":{skill}`")) || text.contains("`grove:")
 }
 
 /// **A skill's directory name is the name it declares.**
@@ -583,7 +647,7 @@ fn every_shipped_skill_declares_the_name_of_its_own_directory() {
 /// skipped: the prompt would spell it into a skill name either way, and a
 /// silently dropped kind is a sweep that shrinks without saying so.
 fn shipped_kinds() -> Vec<Kind> {
-    let prefix = format!("{}-", prompt::PLUGIN);
+    let prefix = format!("{}-", prompt::SKILL_PREFIX);
     shipped_skills()
         .iter()
         .filter_map(|directory| directory.strip_prefix(&prefix))

@@ -1513,7 +1513,10 @@ the methodology derives from the working tree. Grove passes it to no one.
 
 The methodology is the `grove` plugin: a shared spine plus one `grove-<kind>`
 skill per bundled session kind. The prompt Grove composes names the skill a
-session must load. Whoever authors an independent kind supplies its skill.
+session must load by its bare name. The plugin that supplies the skill decides
+any native namespace. The prompt also tells a session that cannot find or read
+the skill to force-stop with its leaf live. Whoever authors an independent kind
+supplies its skill.
 
 The user supplies that skill to every harness the policy can select. Claude
 Code receives the three plugins through its marketplace with auto-update

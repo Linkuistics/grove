@@ -30,37 +30,38 @@
 //! skill name and stops.
 //!
 //! **One coupling remains, and it is not closeable from here.** The prompt names
-//! a `grove-<kind>` skill, and that skill has to exist in the installed plugin.
-//! Nothing in this workspace can check the *installed* set — a plugin is
-//! installed per machine, by a marketplace the binary does not read — so the
-//! assertion available is over the shipped set, and it lives in
-//! `tests/prompt.rs`. The methodology's own answer to the residue is stated
-//! where the cost falls: a kind exists **iff** a skill of that name exists
-//! (`plugins/grove/skills/grove/SKILL.md`), and grove states the version it is
-//! so a session can see which plugin it needs.
+//! a `grove-<kind>` skill, and the user's chosen delivery route has to supply
+//! it (`docs/adr/skill-delivery-is-the-users-choice.md`). Nothing in this
+//! workspace can check what a machine supplies, so the assertion available is
+//! over the shipped set, and it lives in `tests/prompt.rs`. The residue is
+//! answered in the prompt itself, because a missing skill cannot state it: the
+//! load instruction says what to do when the named skill cannot be found or
+//! read (`docs/specs/codex-skill-provisioning.md`, *Installation and
+//! bootstrap*). Grove also states its version, so a session can see which
+//! guidance it needs.
 
 use crate::{Handle, Kind};
 
 use jj_workspace::Workspace;
 
-/// The plugin the kind skills ship in, and the namespace a harness that
-/// namespaces plugin components registers them under.
+/// The prefix every kind skill's name carries.
 ///
-/// Stated once here because it appears twice in one sentence — bare and
-/// namespaced — and the two spellings must name the same target.
-/// `plugins/grove/README.md`, *The token a prompt names*, is the decision;
-/// `tests/prompt.rs` holds this against the shipped plugin's own manifest.
-pub const PLUGIN: &str = "grove";
+/// This is a convention of skill names, not a plugin namespace. A kind skill
+/// can ship in any plugin or skill directory, and the plugin that supplies it
+/// decides its native namespace (`docs/specs/codex-skill-provisioning.md`,
+/// *Launch and compatibility*). The prompt therefore names only the bare skill.
+/// `tests/prompt.rs` holds this prefix against the shipped skill directories.
+pub const SKILL_PREFIX: &str = "grove";
 
-/// The skill a session of `kind` is told to load: the plugin's per-kind skill,
-/// named for the kind's own label.
+/// The skill a session of `kind` is told to load: the per-kind skill, named for
+/// the kind's own label.
 ///
 /// **This is a rendering, not an interpretation.** Nothing here branches on
 /// which kind it is, which is the whole of what decision 5 asked for: grove
 /// names a kind only where grove writes the leaf, and the last two places that
 /// *interpreted* one were the two `match`es this replaces.
 pub fn skill_name(kind: &Kind) -> String {
-    format!("{PLUGIN}-{}", kind.label())
+    format!("{SKILL_PREFIX}-{}", kind.label())
 }
 
 /// **Part 1 — the load instruction.** First, because it is the first action.
@@ -81,12 +82,24 @@ pub fn skill_name(kind: &Kind) -> String {
 ///   enumeration is what makes an ordering clause bite; "read this first"
 ///   without it is advice.
 ///
-/// **Both spellings of the one target, in one imperative** — bare, and
-/// namespaced for a harness that namespaces plugin components. That is
-/// `plugins/grove/README.md`'s decision, taken so grove branches on no harness
-/// and grows no registry to branch on; a session reads one line and uses
-/// whichever spelling its harness offers. Naming two *spellings* is not naming
-/// two *targets*: there is still nothing to select.
+/// **The target is the bare skill name, with no namespace.** The prompt once
+/// spelled a fixed `grove:` namespace beside it. A pack move can change the
+/// plugin that supplies a kind skill without changing the kind, so a fixed
+/// alias would point at nothing. The instruction tells the session to use the
+/// namespace under which the skill is actually installed, and Grove keeps no
+/// kind-to-plugin map. A name with "load" is a name request: with no native
+/// copy, the agent can find the same name in directories Ravel supplies.
+///
+/// **"First" is qualified with "after any mandatory guidance".** Ravel's
+/// directory delivery can place mandatory reads before the caller's block, and
+/// an unqualified "first" would contradict that order.
+///
+/// **The missing-guidance rule rides here, because the missing skill cannot
+/// state it.** A session that cannot find or read its skill reports that,
+/// leaves the leaf live, records no teardown and runs the launch's exact
+/// force-stop command. A report with no defined ending could otherwise relaunch
+/// the same live leaf indefinitely. Part 3 keeps the force-stop mechanism and
+/// its result meaning, so this part states only when to use it.
 ///
 /// **The third measured element is gone with the thing it described.** The
 /// provisioned directories rode this instruction by absolute path, and no
@@ -96,13 +109,21 @@ pub fn skill_name(kind: &Kind) -> String {
 /// the reopen condition is a session that cannot reach the methodology by the
 /// affordance alone.
 const LOAD_INSTRUCTION: &str = "\
-**Load the `{skill}` skill now** — on Claude Code, where plugin skills are
-namespaced, that is `{plugin}:{skill}`. Your kind is `{kind}`; Grove resolved
+**Load the `{skill}` skill now.** Your kind is `{kind}`; Grove resolved
 that before this session existed, so there is no selection for you to make.
+This is the bare skill name. If your harness requires a plugin namespace, use
+the namespace under which `{skill}` is actually installed. Do not assume one.
 
-Do this **first**, before anything else you might reach for: before reading the
-task file, before running any `grove-llm` verb, before looking at `.grove/`,
-before inspecting the working tree, and before answering a question.
+Do this **first**, after any mandatory guidance and before anything else you
+might reach for: before reading the task file, before running any `grove-llm`
+verb, before looking at `.grove/`, before inspecting the working tree, and
+before answering a question.
+
+If you cannot find or read `{skill}`, report that its guidance is missing or
+unreadable. Leave the task live: do not retire the leaf, record a teardown or
+run the continue command below. Run this exact force-stop command as your last
+action instead:
+`{force_stop_command}`
 ";
 
 /// **Part 2 — the runtime facts.** Three launch-varying values and no normative
@@ -194,10 +215,12 @@ pub struct Mandate<'a> {
 /// composition used to read the embed and could fail on a path the corpus did
 /// not carry. It reads nothing now, so there is no launch left to fail.
 pub fn compose(mandate: &Mandate<'_>) -> String {
+    // The command is substituted last, so a path that contains a template
+    // token is not expanded again.
     let load = LOAD_INSTRUCTION
         .replace("{skill}", &skill_name(mandate.kind))
-        .replace("{plugin}", PLUGIN)
-        .replace("{kind}", mandate.kind.label());
+        .replace("{kind}", mandate.kind.label())
+        .replace("{force_stop_command}", mandate.force_stop_command);
     let facts = RUNTIME_FACTS
         .replace("{handle}", &mandate.handle.to_string())
         .replace("{stated_vcs}", &stated_vcs(mandate.workspace))

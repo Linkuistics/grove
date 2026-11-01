@@ -7,7 +7,7 @@
 
 Chapters 16 and 17 read the lease that admits a driver and the calls its
 sessions make. This one reads what a launch is handed. `${prompt}` is the
-source's own name for that prompt, and this 245-line module is the whole of what
+source's own name for that prompt, and this 264-line module is the whole of what
 goes in it.
 
 > **A sentence rides `${prompt}` only if its failure mode is one the skill cannot
@@ -35,11 +35,11 @@ The carried example reaches the point where a selected leaf becomes a session.
 
   compose(Mandate { handle, kind, workspace, version, ending_command, force_stop_command })
 
-    part 1  load `grove-impl`, bare and namespaced   -> the first action
+    part 1  load bare `grove-impl`, or force-stop    -> the first action
     part 2  handle, stated VCS, version              -> three launch-varying values
     part 3  caller ending instructions with canonical path -> the last action
 
-  -> one String, ~1.9 KiB, and the driver never looks inside it again
+  -> one String, ~2.7 KiB, and the driver never looks inside it again
 ```
 
 Three parts in the session's own timeline order — what to do first, what is true
@@ -57,26 +57,24 @@ test beside it rather than as a principle. The pin is
 <a id="what-the-instruments-see"></a>
 ## What the instruments see here, and the one thing they do not
 
-**171 of the 245 lines are comment prose**, counting lines whose first non-space
-characters are `//`. That is 69.8%, and counting all thirteen roots whole under
-the same rule it is the **second densest in the crate**, behind `driver.rs` at
-73.7% in the original corpus — an enumeration rather than a reading
-of the brief's table, which splits the five roots that carry inline tests and so
-ranks a different set of things. The structure brief's table says 69% here; the
-count is given here rather than the percentage, because the rule behind the
-brief's figures is not stated: chapter 15 gave its three roots' counts rather
-than their percentages, and chapter 16 is the page that records why — two of the
-brief's figures, `verbs.rs` and `driver.rs`, come out a point away under this
-rule and a rounding difference is not a defect in either. Here the figure rounds
-to 70 and truncates to 69, and nothing turns on which.
+**165 of the 264 lines are comment prose**, counting lines whose first non-space
+characters are `//`. That is 62.5%, and counting every root whole under the same
+rule it is still the **second densest in the crate**, behind `driver.rs` — an
+enumeration rather than a reading of the brief's table, which splits the roots
+that carry inline tests and so ranks a different set of things. The structure
+brief's table says 69% here, which was this rule's reading before
+`grove-skill-mandate-k22` added the missing-guidance rule. The count is given
+here rather than the percentage, because the rule behind the brief's figures is
+not stated: chapter 15 gave its three roots' counts rather than their
+percentages, and chapter 16 is the page that records why.
 
-**All 171 are `///` or `//!`. The root has no plain `//` comment, and no
-`#[cfg(test)]` module.** Both of the blind spots this book has been working
-around are therefore absent — which is worth stating
-plainly, because the general case is the other way. `loop_driver.rs` carries an
-inline test module `cargo doc` cannot see at all, and that
-holds for chapter 19. It does not hold here, and only the measurement
-settles which.
+**162 of the 165 are `///` or `//!`, and the root has no `#[cfg(test)]`
+module.** The other three are plain `//` comments inside `compose`, and they
+explain the order of its substitutions. `cargo doc` cannot see those three, so
+they are the one blind spot here, and the composition section reads them in
+full. The general case is worse: `loop_driver.rs` carries an inline test module
+`cargo doc` cannot see at all, and that holds for chapter 19. Only the
+measurement settles which case a root is in.
 
 So the reading here means something in both directions. `cargo doc --no-deps
 --document-private-items -p grove-loop` reports twenty-six warnings over the crate
@@ -85,7 +83,7 @@ and names this file in **none** of them. It named it in exactly one until
 which the section below reads. That the instrument reaches this file is a
 measurement rather than an assumption: planting a broken link inside a `///`
 docblock in it takes the crate to twenty-seven and names the new line, so the
-silence over all 171 comment lines is silence about links that resolve.
+silence over the 162 doc-comment lines is silence about links that resolve.
 
 **One thing it still cannot see, and this root has none of them.**
 `cargo doc` says nothing at all about a Markdown link with
@@ -96,14 +94,14 @@ other kinds — one the instrument reports, and one no instrument in this reposi
 looks for at all.
 
 **The block holds no test, and that is why it takes *do not restate*.** There is
-no `#[cfg(test)]` module and no `#[test]` function in the 245 lines, so the book's
+no `#[cfg(test)]` module and no `#[test]` function in the 264 lines, so the book's
 *supply the claim* obligation has nothing here to attach to; chapter 18 is not on
-the structure brief's list for it. At 69% comment prose the instruction is the
+the structure brief's list for it. At 62% comment prose the instruction is the
 third one — the comments already argue, the fragment graph quotes them verbatim,
 and prose here connects arguments, names the test, and stops.
 
-**The evidence is sixteen tests, and the brief pins four of them.**
-`crates/grove-loop/tests/prompt.rs` is 614 lines and sixteen `#[test]` functions;
+**The evidence is twenty-one tests, and the brief pins four of them.**
+`crates/grove-loop/tests/prompt.rs` is 720 lines and twenty-one `#[test]` functions;
 it is `tests/`, so it is evidence and not a root, cited by name here and
 reproduced nowhere. The count is taken from the file rather than from any prose
 list of it. Chapter 17's block turned out to hold eighteen tests where the
@@ -162,6 +160,16 @@ here rather than in the copy. Re-deriving them against a ten would change what
 each of those paragraphs is *about* on top of changing its number, which is why
 the eleven stands in all seven and the clean ten stays a recommendation.
 
+**The eleventh test no longer exists.** `grove-skill-mandate-k22` removed the
+prompt's fixed `grove:` namespace, and with it the marketplace test that held
+that namespace against `.claude-plugin/marketplace.json`. Its replacement,
+`the_prompt_names_no_fixed_plugin_namespace`, composes prompts and dies in the
+fixture in a copy like the other ten. The file now holds twenty-one tests:
+fifteen reach `compose`, and the six that do not read only the shipped plugin.
+So a copy without jj now fails one cause, and copying `.claude-plugin/` no
+longer changes this file's result. The counts above stay as chapters 11 to 17
+took them.
+
 **And the recommendation does not retire the discipline it sits beside: a
 control is a set, not a count.** Two copies can agree on eleven and disagree
 about which eleven, so each mutant is read as the difference against those
@@ -218,10 +226,10 @@ names it needs, then the three parts **in the order they appear in the prompt**,
 then the values one launch varies, then the composition that joins them, and last
 the one derived value the module computes for itself.
 
-<!-- fragment «the-prompt-core» owner="too-late-to-say-later" source="crates/grove-loop/src/prompt.rs" lines="1-241" parent="source-prompt" -->
+<!-- fragment «the-prompt-core» owner="too-late-to-say-later" source="crates/grove-loop/src/prompt.rs" lines="1-264" parent="source-prompt" -->
 <!-- insert «core-header» -->
 <!-- insert «core-imports» -->
-<!-- insert «core-plugin» -->
+<!-- insert «core-prefix» -->
 <!-- insert «core-skill-name» -->
 <!-- insert «core-load-instruction» -->
 <!-- insert «core-runtime-facts» -->
@@ -237,7 +245,7 @@ the one derived value the module computes for itself.
 Forty lines, and they are the chapter. The module states its rule, closes it,
 says what the closure costs, and names the one coupling it cannot close.
 
-<!-- fragment «core-header» owner="too-late-to-say-later" source="crates/grove-loop/src/prompt.rs" lines="1-41" parent="the-prompt-core" -->
+<!-- fragment «core-header» owner="too-late-to-say-later" source="crates/grove-loop/src/prompt.rs" lines="1-42" parent="the-prompt-core" -->
 ````rust
 //! The **guaranteed core** — the whole of `${prompt}`.
 //!
@@ -271,14 +279,15 @@ says what the closure costs, and names the one coupling it cannot close.
 //! skill name and stops.
 //!
 //! **One coupling remains, and it is not closeable from here.** The prompt names
-//! a `grove-<kind>` skill, and that skill has to exist in the installed plugin.
-//! Nothing in this workspace can check the *installed* set — a plugin is
-//! installed per machine, by a marketplace the binary does not read — so the
-//! assertion available is over the shipped set, and it lives in
-//! `tests/prompt.rs`. The methodology's own answer to the residue is stated
-//! where the cost falls: a kind exists **iff** a skill of that name exists
-//! (`plugins/grove/skills/grove/SKILL.md`), and grove states the version it is
-//! so a session can see which plugin it needs.
+//! a `grove-<kind>` skill, and the user's chosen delivery route has to supply
+//! it (`docs/adr/skill-delivery-is-the-users-choice.md`). Nothing in this
+//! workspace can check what a machine supplies, so the assertion available is
+//! over the shipped set, and it lives in `tests/prompt.rs`. The residue is
+//! answered in the prompt itself, because a missing skill cannot state it: the
+//! load instruction says what to do when the named skill cannot be found or
+//! read (`docs/specs/codex-skill-provisioning.md`, *Installation and
+//! bootstrap*). Grove also states its version, so a session can see which
+//! guidance it needs.
 
 ````
 <!-- /fragment -->
@@ -288,9 +297,9 @@ other statement in the file follows from it, and two of them are worth checking
 rather than reading.
 
 **"This module reads nothing" is structural, and it is stronger than it looks.**
-There is no `fs`, no `include_str!`, no path and no I/O anywhere in the 245
-lines — and, enumerated, there is also **not one conditional**. The words `if`,
-`else` and `match` occur twice each and **all six are prose**: `if` and `else` in
+There is no `fs`, no `include_str!`, no path and no I/O anywhere in the 264
+lines — and, enumerated, there is also **not one conditional**. The word `if`
+occurs three times, `else` and `match` twice each, and **all seven are prose**: `if` and `else` in
 comment text and inside the prompt's own wording, and the two `match`es only in
 the header sentence naming the two this module no longer has. A module with no
 branch
@@ -307,20 +316,24 @@ of the six tests in the file that never compose anything — which is why it is
 also one that passes in a workspace copy with no jj repository in it.
 
 **What this block cites, it cites correctly on all but one count — and only the
-enumeration shows which.** Counted across all 245 lines, the block carries
+enumeration shows which.** Counted across all 264 lines, the block carries
 **eighteen** citations to a document or an anchored record: seven to
 `docs/specs/module-decomposition.md`, naming four distinct decisions (4, 5, 9 and
-10); three to `plugins/grove/skills/grove/SKILL.md`; two each to
-`plugins/grove/README.md`, `crates/grove-loop/tests/prompt.rs` and
-`docs/ARCHITECTURE.md` anchors; one to `docs/research/wording-micro-test.md`; and
-one to a methodology rule id. Two grove task keys — `prompt-names-the-kind-k18`
+10); two each to `plugins/grove/skills/grove/SKILL.md`,
+`docs/specs/codex-skill-provisioning.md`, `crates/grove-loop/tests/prompt.rs`
+and `docs/ARCHITECTURE.md` anchors; one each to
+`docs/adr/skill-delivery-is-the-users-choice.md` and
+`docs/research/wording-micro-test.md`; and one to a methodology rule id. The
+count is the same as before `grove-skill-mandate-k22`, but three citations
+changed. The two to `plugins/grove/README.md` and one to the spine went with the
+fixed namespace, and the delivery decision and specification replaced them. Two grove task keys — `prompt-names-the-kind-k18`
 and `open-kind-k20` — date changes rather than cite arguments, and one code span
 names a module this workspace no longer has; both fall outside that count and are
 read below.
 **Seventeen of the eighteen resolve and support the sentence that cites them** —
 decision 9 carries `Mandate`'s four fields and `compose`'s signature as
 written source, and its own paragraph on the provisioning gap is nearly this
-header's wording. The one that does not is at line 234, and the last section of
+header's wording. The one that did not is at line 253, and the last section of
 this chapter reads it. That census is worth taking because chapter 16 found a name that
 resolved to nothing, and because this file cites more heavily than that one.
 
@@ -341,21 +354,25 @@ doc`, so nothing failed either way — the warning was the whole of the report, 
 it is gone.
 
 **The coupling the header ends on is the one it cannot close, and the honesty is
-the point.** The prompt names a `grove-<kind>` skill; whether that skill is
-*installed* is a property of a machine and a marketplace the binary never reads.
-What a `cargo test` can reach is the *shipped* set — this working tree's own
-`plugins/grove` — and that is where the assertion lives:
+the point.** The prompt names a `grove-<kind>` skill, and whether a machine
+supplies it depends on the delivery route the user chose. The binary reads
+neither route. What a `cargo test` can reach is the *shipped* set — this working
+tree's own `plugins/grove` — and that is where the assertion lives:
 `every_kind_names_a_skill_the_plugin_ships` walks the plugin's own skill
 directories, asserts that every one but the bare `grove` spine is a
 `grove-<kind>`, and then checks that the name `skill_name` renders for each of
 those kinds is a directory that exists. It composes nothing — the coupling is
 between the renderer and the directory listing, not between a prompt and a file —
 and `the_skill_set_claim_fails_on_a_kind_the_plugin_does_not_ship` is its
-control, so the sweep is shown capable of failing. Neither test can say anything about an
-installed set, and the header does not pretend otherwise: it points at the
-methodology's own answer — a kind exists **iff** a skill of that name exists — and
-at grove stating its version so a session can see which plugin it needs, which is
-decision 10's inversion arriving one paragraph early.
+control, so the sweep is shown capable of failing.
+
+Neither test can say anything about what a machine supplies. The header answers
+that residue in the prompt itself: the load instruction says what a session does
+when it cannot find or read the named skill. That sentence passes the too-late
+test more plainly than any other, because the skill it would otherwise live in
+is the thing that is missing. The header also points at grove stating its
+version, so a session can see which guidance it needs, which is decision 10's
+inversion arriving one paragraph early.
 
 <a id="what-it-imports"></a>
 ## Three types, and no runner
@@ -363,7 +380,7 @@ decision 10's inversion arriving one paragraph early.
 Two `use` lines, three types, and the module's whole outward dependence is in
 them.
 
-<!-- fragment «core-imports» owner="too-late-to-say-later" source="crates/grove-loop/src/prompt.rs" lines="42-45" parent="the-prompt-core" -->
+<!-- fragment «core-imports» owner="too-late-to-say-later" source="crates/grove-loop/src/prompt.rs" lines="43-46" parent="the-prompt-core" -->
 ````rust
 use crate::{Handle, Kind};
 
@@ -380,50 +397,53 @@ module builds a string that exists only to be handed to the command that
 This module hands the runner nothing. It returns a `String` to its caller.
 Chapter 19's `session_prompt` passes it on.
 
-<a id="one-name-twice"></a>
-## One name, and why it is stated once
+<a id="one-prefix"></a>
+## One prefix, and the namespace it no longer spells
 
 The first of the module's two names, and the only `const` here that is not one
 of the prompt's three parts.
 
-<!-- fragment «core-plugin» owner="too-late-to-say-later" source="crates/grove-loop/src/prompt.rs" lines="46-54" parent="the-prompt-core" -->
+<!-- fragment «core-prefix» owner="too-late-to-say-later" source="crates/grove-loop/src/prompt.rs" lines="47-55" parent="the-prompt-core" -->
 ````rust
-/// The plugin the kind skills ship in, and the namespace a harness that
-/// namespaces plugin components registers them under.
+/// The prefix every kind skill's name carries.
 ///
-/// Stated once here because it appears twice in one sentence — bare and
-/// namespaced — and the two spellings must name the same target.
-/// `plugins/grove/README.md`, *The token a prompt names*, is the decision;
-/// `tests/prompt.rs` holds this against the shipped plugin's own manifest.
-pub const PLUGIN: &str = "grove";
+/// This is a convention of skill names, not a plugin namespace. A kind skill
+/// can ship in any plugin or skill directory, and the plugin that supplies it
+/// decides its native namespace (`docs/specs/codex-skill-provisioning.md`,
+/// *Launch and compatibility*). The prompt therefore names only the bare skill.
+/// `tests/prompt.rs` holds this prefix against the shipped skill directories.
+pub const SKILL_PREFIX: &str = "grove";
 
 ````
 <!-- /fragment -->
 
-The justification is a count, and the count is checkable at `compose`: `PLUGIN`
-is reached twice on the way to the load instruction — once through `skill_name`,
-which builds `grove-<kind>`, and once as the `{plugin}` substitution that spells
-the namespace. Two reads of one constant in one rendered sentence is exactly the
-case a named constant is for, and the comment states the reason as *the two
-spellings must name the same target* rather than as tidiness.
+The constant was once `PLUGIN`, and it had a second use. The load instruction
+spelled the skill twice — bare, and as `grove:grove-<kind>` for a harness that
+namespaces plugin components — and one constant held both halves to one target.
+That justification ended with the namespaced spelling. A kind skill can move to
+another pack, and the plugin that supplies it then decides its namespace. A
+fixed `grove:` alias would address nothing after such a move, so the prompt now
+names only the bare skill. It tells the session to use whatever namespace its
+harness actually installed the skill under.
+
+What is left is a naming convention: every kind skill's name starts with
+`grove-`. `SKILL_PREFIX` names that convention and nothing else. The rename
+matters because the old name claimed a plugin, and the prompt no longer refers
+to one.
 
 **`pub`, and reached from nowhere in production.** Enumerated across the
-workspace, `PLUGIN` and `skill_name` have no consumer outside this file except
-`crates/grove-loop/tests/prompt.rs`, which reaches them nine and two times; and
-`lib.rs` re-exports only `compose` and `Mandate` from this module, not these two.
-What makes the tests' access legal is `pub mod prompt` in the library root. This
-is public surface with no production
-caller, and what the `pub` buys is an out-of-process suite's ability to
-name the plugin without hard-coding it.
+workspace, `SKILL_PREFIX` and `skill_name` have no consumer outside this file
+except `crates/grove-loop/tests/prompt.rs`; and `lib.rs` re-exports only
+`compose` and `Mandate` from this module, not these two. What makes the tests'
+access legal is `pub mod prompt` in the library root. What the `pub` buys is an
+out-of-process suite's ability to name the convention without hard-coding it.
 
-That matters more than it sounds, because one of those tests,
-`the_namespace_is_the_shipped_plugin_entrys_declared_name`, reads
-`.claude-plugin/marketplace.json` and asserts the registered plugin's declared
-`name` is this same constant. The namespaced spelling every prompt writes is
-`<name>:grove-<kind>`, so if the marketplace entry declared a different name the
-namespaced half of every load instruction would address nothing — and no
-composition test would notice, because composition would still render the
-constant it was given.
+The suite once held this constant against the marketplace entry's declared
+`name`, because the namespaced half of every load instruction used it. That test
+went with the namespaced half. `the_prompt_names_no_fixed_plugin_namespace`
+replaces it with the opposite claim: no composed prompt names its skill under any
+`<plugin>:` qualifier. `the_namespace_claim_finds_a_qualified_alias` is its
+control, and it finds the alias the old instruction spelled.
 
 <a id="a-rendering-not-an-interpretation"></a>
 ## A rendering, not an interpretation
@@ -431,17 +451,17 @@ constant it was given.
 The second name, and the only function in the file besides `compose` and the
 value it computes at the end.
 
-<!-- fragment «core-skill-name» owner="too-late-to-say-later" source="crates/grove-loop/src/prompt.rs" lines="55-65" parent="the-prompt-core" -->
+<!-- fragment «core-skill-name» owner="too-late-to-say-later" source="crates/grove-loop/src/prompt.rs" lines="56-66" parent="the-prompt-core" -->
 ````rust
-/// The skill a session of `kind` is told to load: the plugin's per-kind skill,
-/// named for the kind's own label.
+/// The skill a session of `kind` is told to load: the per-kind skill, named for
+/// the kind's own label.
 ///
 /// **This is a rendering, not an interpretation.** Nothing here branches on
 /// which kind it is, which is the whole of what decision 5 asked for: grove
 /// names a kind only where grove writes the leaf, and the last two places that
 /// *interpreted* one were the two `match`es this replaces.
 pub fn skill_name(kind: &Kind) -> String {
-    format!("{PLUGIN}-{}", kind.label())
+    format!("{SKILL_PREFIX}-{}", kind.label())
 }
 
 ````
@@ -464,12 +484,12 @@ but that is chapter 4's grammar refusing a name, not the driver reading one.
 <a id="part-one"></a>
 ## Part 1 — the load instruction, and the element that was measured
 
-Part 1 is thirty-two lines of doc comment over a nine-line constant — the third
-longest argument in the file, behind the module header's forty and part 3's
-thirty-four — because it is the one part of the prompt whose wording was tested
-rather than reasoned.
+Part 1 is forty-four lines of doc comment over a seventeen-line constant — the
+longest argument in the file, ahead of the module header's forty-one — because
+its wording was partly tested rather than reasoned, and because the rest of it
+answers what the test could not.
 
-<!-- fragment «core-load-instruction» owner="too-late-to-say-later" source="crates/grove-loop/src/prompt.rs" lines="66-107" parent="the-prompt-core" -->
+<!-- fragment «core-load-instruction» owner="too-late-to-say-later" source="crates/grove-loop/src/prompt.rs" lines="67-128" parent="the-prompt-core" -->
 ````rust
 /// **Part 1 — the load instruction.** First, because it is the first action.
 ///
@@ -489,12 +509,24 @@ rather than reasoned.
 ///   enumeration is what makes an ordering clause bite; "read this first"
 ///   without it is advice.
 ///
-/// **Both spellings of the one target, in one imperative** — bare, and
-/// namespaced for a harness that namespaces plugin components. That is
-/// `plugins/grove/README.md`'s decision, taken so grove branches on no harness
-/// and grows no registry to branch on; a session reads one line and uses
-/// whichever spelling its harness offers. Naming two *spellings* is not naming
-/// two *targets*: there is still nothing to select.
+/// **The target is the bare skill name, with no namespace.** The prompt once
+/// spelled a fixed `grove:` namespace beside it. A pack move can change the
+/// plugin that supplies a kind skill without changing the kind, so a fixed
+/// alias would point at nothing. The instruction tells the session to use the
+/// namespace under which the skill is actually installed, and Grove keeps no
+/// kind-to-plugin map. A name with "load" is a name request: with no native
+/// copy, the agent can find the same name in directories Ravel supplies.
+///
+/// **"First" is qualified with "after any mandatory guidance".** Ravel's
+/// directory delivery can place mandatory reads before the caller's block, and
+/// an unqualified "first" would contradict that order.
+///
+/// **The missing-guidance rule rides here, because the missing skill cannot
+/// state it.** A session that cannot find or read its skill reports that,
+/// leaves the leaf live, records no teardown and runs the launch's exact
+/// force-stop command. A report with no defined ending could otherwise relaunch
+/// the same live leaf indefinitely. Part 3 keeps the force-stop mechanism and
+/// its result meaning, so this part states only when to use it.
 ///
 /// **The third measured element is gone with the thing it described.** The
 /// provisioned directories rode this instruction by absolute path, and no
@@ -504,13 +536,21 @@ rather than reasoned.
 /// the reopen condition is a session that cannot reach the methodology by the
 /// affordance alone.
 const LOAD_INSTRUCTION: &str = "\
-**Load the `{skill}` skill now** — on Claude Code, where plugin skills are
-namespaced, that is `{plugin}:{skill}`. Your kind is `{kind}`; Grove resolved
+**Load the `{skill}` skill now.** Your kind is `{kind}`; Grove resolved
 that before this session existed, so there is no selection for you to make.
+This is the bare skill name. If your harness requires a plugin namespace, use
+the namespace under which `{skill}` is actually installed. Do not assume one.
 
-Do this **first**, before anything else you might reach for: before reading the
-task file, before running any `grove-llm` verb, before looking at `.grove/`,
-before inspecting the working tree, and before answering a question.
+Do this **first**, after any mandatory guidance and before anything else you
+might reach for: before reading the task file, before running any `grove-llm`
+verb, before looking at `.grove/`, before inspecting the working tree, and
+before answering a question.
+
+If you cannot find or read `{skill}`, report that its guidance is missing or
+unreadable. Leave the task live: do not retire the leaf, record a teardown or
+run the continue command below. Run this exact force-stop command as your last
+action instead:
+`{force_stop_command}`
 ";
 
 ````
@@ -526,7 +566,7 @@ shell call as a `grove-llm` verb or a `.grove/` read. So the defect was deferral
 not omission, and one imperative naming one target is what removes the thing to
 defer.
 
-Two of the three measured elements survive in the 456 bytes above, and the
+Two of the three measured elements survive in the 838 bytes above, and the
 comment is careful about what changed under the third. The micro-test's winning
 wording named *two* targets — the skill and its reference file — because the
 methodology was then one skill with a routing table; the plugin gives each kind
@@ -547,12 +587,34 @@ comment cites and does not re-argue.
 `the_load_instruction_says_the_kind_was_already_resolved` is the test, and it
 asserts on the rendered instruction per shipped kind rather than on the template.
 
+**Three clauses were added after the measurement, and each answers a delivery
+change rather than a wording question.** The first names the bare skill and
+leaves the native namespace to the plugin that supplies it, as the previous
+section reads. The second qualifies *first* with *after any mandatory guidance*.
+Ravel's directory delivery can order mandatory reads before the caller's block,
+and an unqualified *first* would contradict that order. The ordering clause
+still enumerates the same tempting alternatives, and the enumeration is the
+element the micro-test measured.
+
+The third is the missing-guidance paragraph, and it is the one sentence here
+that no skill could carry. A session that cannot find or read its skill reports
+that, leaves the leaf live, records no teardown and runs the launch's exact
+force-stop command. Without that rule, a session could end on the ordinary
+continue command, and the driver would relaunch the same live leaf without end.
+The fixture in `crates/grove/tests/native_skill_delivery.rs` drives this through a
+real loop with actual Ravel. It shows one launch, a force-stop and a live leaf,
+and then a repaired rerun of the same handle.
+`the_load_instruction_states_the_missing_guidance_force_stop` pins the
+paragraph per shipped kind, and
+`the_missing_guidance_rule_carries_this_launchs_command` is its control. The
+paragraph names when to force-stop. Part 3 still owns what a force-stop means.
+
 <a id="part-two"></a>
 ## Part 2 — three values, and the tail that left
 
 Part 2 is the shortest of the three, and the closure on *fact* is why.
 
-<!-- fragment «core-runtime-facts» owner="too-late-to-say-later" source="crates/grove-loop/src/prompt.rs" lines="108-125" parent="the-prompt-core" -->
+<!-- fragment «core-runtime-facts» owner="too-late-to-say-later" source="crates/grove-loop/src/prompt.rs" lines="129-146" parent="the-prompt-core" -->
 ````rust
 /// **Part 2 — the runtime facts.** Three launch-varying values and no normative
 /// tail; see this module's header for why the tail left.
@@ -601,7 +663,7 @@ explicitly not as the mechanism.
 Part 3 supplies the ending mechanism and caller-owned result meanings for
 every kind. The kind's skill decides which ending its work calls for.
 
-<!-- fragment «core-signalling-contract» owner="too-late-to-say-later" source="crates/grove-loop/src/prompt.rs" lines="126-160" parent="the-prompt-core" -->
+<!-- fragment «core-signalling-contract» owner="too-late-to-say-later" source="crates/grove-loop/src/prompt.rs" lines="147-181" parent="the-prompt-core" -->
 ````rust
 /// **Part 3 — grove's own signalling contract.** Last, because it describes the
 /// last action.
@@ -669,7 +731,7 @@ Grove's CLI exposes the separate teardown record operation.
 The mandate fields, and the doc comment on each names the owner of the thing rather
 than explaining it.
 
-<!-- fragment «core-mandate» owner="too-late-to-say-later" source="crates/grove-loop/src/prompt.rs" lines="161-187" parent="the-prompt-core" -->
+<!-- fragment «core-mandate» owner="too-late-to-say-later" source="crates/grove-loop/src/prompt.rs" lines="182-208" parent="the-prompt-core" -->
 ````rust
 /// Everything one launch varies, and the whole of what composition reads.
 ///
@@ -723,7 +785,7 @@ dropped.
 The function the whole module exists for, and the only place its three parts
 meet.
 
-<!-- fragment «core-compose» owner="too-late-to-say-later" source="crates/grove-loop/src/prompt.rs" lines="188-218" parent="the-prompt-core" -->
+<!-- fragment «core-compose» owner="too-late-to-say-later" source="crates/grove-loop/src/prompt.rs" lines="209-241" parent="the-prompt-core" -->
 ````rust
 /// Compose the whole of `${prompt}` for one launch.
 ///
@@ -734,10 +796,12 @@ meet.
 /// composition used to read the embed and could fail on a path the corpus did
 /// not carry. It reads nothing now, so there is no launch left to fail.
 pub fn compose(mandate: &Mandate<'_>) -> String {
+    // The command is substituted last, so a path that contains a template
+    // token is not expanded again.
     let load = LOAD_INSTRUCTION
         .replace("{skill}", &skill_name(mandate.kind))
-        .replace("{plugin}", PLUGIN)
-        .replace("{kind}", mandate.kind.label());
+        .replace("{kind}", mandate.kind.label())
+        .replace("{force_stop_command}", mandate.force_stop_command);
     let facts = RUNTIME_FACTS
         .replace("{handle}", &mandate.handle.to_string())
         .replace("{stated_vcs}", &stated_vcs(mandate.workspace))
@@ -759,9 +823,14 @@ pub fn compose(mandate: &Mandate<'_>) -> String {
 ````
 <!-- /fragment -->
 
-Twelve lines, three substitutions on the load instruction, three on the runtime
-facts, and the contract joined verbatim. **Infallible is checkable and it is
-absolute**: enumerated, the whole 245-line root contains no `Result`, no `?`, no
+Three substitutions on the load instruction, three on the runtime facts, and the
+contract joined around its two commands. The three plain `//` lines are the only
+comments `cargo doc` cannot see in this root. They record one ordering rule
+twice: a launch's commands are substituted after the template's own tokens, so
+an executable path that happens to contain a token is not expanded again.
+`ending_commands_preserve_template_tokens_in_the_selected_path` holds that for
+both commands. **Infallible is checkable and it is
+absolute**: enumerated, the whole 264-line root contains no `Result`, no `?`, no
 `unwrap`, no `expect`, no `panic!` and no `bail!`. There is no error type here and
 no failure path to test, which is why this chapter has no refusal arms to
 attribute and no mutation to run over them — the two instruments Part V has leaned
@@ -782,22 +851,19 @@ output, and a prompt with a literal brace in it would state a fact no one
 resolved.
 
 The sizes are worth a paragraph, because the module is judged against a number
-and because what moves the number is instructive. Composed for all twenty-three
-kinds the plugin ships, with the suite's own fixture handle and version, a prompt
-runs 1,843 to 1,921 bytes against a workspace root of
-`/Users/antony/Development/grove` — 45.0% to 46.9% of the suite's 4 KiB alarm.
-**The spread across kinds is exactly 78 bytes and does not depend on the root
-path**: the kind's label is substituted three times per prompt, twice inside the
-skill name and once on its own, and the shipped labels run from three characters
-to twenty-nine. What *does* move the absolute figure is the workspace root, which
-the stated VCS renders in full — checked out at a longer path the same
-twenty-three prompts run 1,894 to 1,972. So the one launch-varying value that can
-push this module toward its alarm is not a kind at all but where the repository
-happens to live. Either way the reading is *well over half of it free*, which is
-what the alarm's own comment claims; and the alarm
-lives in the suite rather than the build deliberately, because it measures a
-judgement against an admittedly arbitrary number and failing a contributor's
-build on that is a gate this design declines to erect.
+and because what moves the number is instructive. With the kind `impl`, a
+handle of `plan-k1`, Homebrew's Ravel path and this checkout's root, a composed
+prompt runs about 2,700 bytes, roughly two thirds of the suite's 4 KiB alarm.
+The missing-guidance paragraph and the longer signalling contract account for
+most of the growth since this chapter first measured it. **The kind's label
+appears four times per prompt**: three times inside the skill name and once on
+its own. What
+moves the absolute figure most is the workspace root, which the stated VCS
+renders in full, and the Ravel path, which both commands render twice. So the
+launch-varying values that push this module toward its alarm are paths, not
+kinds. The alarm lives in the suite rather than the build deliberately, because
+it measures a judgement against an admittedly arbitrary number and failing a
+contributor's build on that is a gate this design declines to erect.
 `every_kinds_prompt_stays_under_the_size_alarm` is the sweep and
 `the_size_alarm_fires_on_an_oversized_prompt` is its control.
 
@@ -806,7 +872,7 @@ build on that is a gate this design declines to erect.
 
 The last item, and the only value this module computes rather than receives.
 
-<!-- fragment «core-stated-vcs» owner="too-late-to-say-later" source="crates/grove-loop/src/prompt.rs" lines="219-241" parent="the-prompt-core" -->
+<!-- fragment «core-stated-vcs» owner="too-late-to-say-later" source="crates/grove-loop/src/prompt.rs" lines="242-264" parent="the-prompt-core" -->
 ````rust
 /// The **value** that states this working tree's VCS to the session.
 ///
@@ -860,8 +926,9 @@ read it the comment spelled it `skill-stated-vcs-is-definitive`, and no id in th
 inventory begins with `skill-`. So the claim was true twice over — the rule
 exists, and the spine's own text states it — and only the identifier was wrong,
 by one prefix. `prompt-rule-id-prefix-k174` dropped the prefix, and because
-removing six characters cannot lengthen a line the file is still 245 lines: no
-ownership range, manifest `lines` value or fragment range on this page moved.
+removing six characters cannot lengthen a line the file stayed at 245 lines: no
+ownership range, manifest `lines` value or fragment range on this page moved
+then.
 
 **The prefix was not the inventory's own earlier grain, which is the first thing
 a repair here has to rule out.** That file's header does record a regrading — but
@@ -906,20 +973,20 @@ those terms. That citation holds.
 The book's three questions, asked of the smallest root in Part V. That ranking
 is an enumeration rather than an impression, and it is worth writing down because
 the unit is the trap that caught chapter 16: Part V's roots run `driver_lease.rs`
-1,383, `loop_driver.rs` 742 and `prompt.rs` **245**,
-and its owned blocks run 819, 615, 564 and 245. `prompt.rs` is last in both
+1,383, `loop_driver.rs` 742 and `prompt.rs` **264**,
+and its owned blocks run 819, 615, 564 and 264. `prompt.rs` is last in both
 lists, and because this chapter owns a whole unsplit root there is no
 unit under which that changes.
 
 **On the way in — the names.** Almost nothing, and the almost is the interesting
 part. This module spells no grammar: it takes a `Handle` and a `Kind` already
 parsed, renders the handle through the type that owns it, and turns a kind's label
-into a skill name with a `format!`. The one name it does own is `PLUGIN`, and it
-owns it because the same token has to appear twice in one sentence — bare inside
-the skill name and again as the namespace — and the two spellings must land on the
-same target. The cost is the outcome's: a chosen value stated where a reader can
-find it, and here the reader who most needs it is a marketplace manifest in
-another directory, held in step by one test and nothing else.
+into a skill name with a `format!`. The one name it does own is `SKILL_PREFIX`,
+the `grove-` convention every kind skill's name follows. It once owned a plugin
+namespace as well, and gave it up because a namespace belongs to whichever plugin
+supplies the skill. The cost is the outcome's: a chosen value stated where a
+reader can find it, held against the shipped skill directories by the suite and
+by nothing else.
 
 **On the way through — the preconditions.** None. Enumerated across the crate's
 Rust roots — counting the lines that match `Result`, `?`, `bail!`,

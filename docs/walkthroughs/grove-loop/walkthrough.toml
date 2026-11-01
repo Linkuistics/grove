@@ -239,7 +239,7 @@ lines = 2101
 [[root]]
 id    = "source-prompt"
 path  = "crates/grove-loop/src/prompt.rs"
-lines = 241
+lines = 264
 
 [[root]]
 id    = "source-loop-driver"
@@ -466,7 +466,7 @@ lines = "959-2101"
 id    = "the-prompt-core"
 root  = "source-prompt"
 owner = "too-late-to-say-later"
-lines = "1-241"
+lines = "1-264"
 
 [[block]]
 id    = "loop-driver"

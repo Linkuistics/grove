@@ -155,22 +155,31 @@ build.
 
 ## The token a prompt names
 
-**Settled here, and `prompt-names-the-kind-k18` uses it rather than re-deriving
-it.** On Claude Code a plugin skill is invoked as `<plugin>:<skill>`
+**The prompt names the bare `grove-<kind>` skill and no plugin namespace.** On
+Claude Code a plugin skill is invoked as `<plugin>:<skill>`
 ([plugins reference](https://code.claude.com/docs/en/plugins-reference), *plugin
-name* — namespacing is stated there for every plugin component); through the
-symlink farm it is the bare directory name. The prompt therefore names both
-spellings of the **one** target, in one imperative:
+name*). Through the symlink farm or a supplied directory it is the bare
+directory name. The plugin that actually supplies a skill decides its
+namespace. A pack move can change that plugin without changing the kind. The
+prompt therefore names one bare target in one imperative:
 
-> **Load the `grove-<kind>` skill now** — on Claude Code, where plugin skills are
-> namespaced, that is `grove:grove-<kind>`.
+> **Load the `grove-<kind>` skill now.** [...] This is the bare skill name. If
+> your harness requires a plugin namespace, use the namespace under which
+> `grove-<kind>` is actually installed. Do not assume one.
 
 That keeps the element
 [`../../docs/research/wording-micro-test.md`](../../docs/research/wording-micro-test.md)
-measured as load-bearing — one imperative naming one target, so the session
-performs no selection and has nothing to defer — while leaving grove with no
-branch on the harness and no registry to hold one. A session reads one line and
-uses whichever spelling its harness offers.
+measured as load-bearing: one imperative names one target, so the session
+performs no selection and has nothing to defer. Grove has no branch on the
+harness and no kind-to-plugin map. Before the first pack move, the prompt also
+spelled `grove:grove-<kind>`. That fixed alias would name nothing after a move,
+so the [delivery contract](../../docs/specs/codex-skill-provisioning.md#launch-and-compatibility)
+removed it.
+
+The same instruction loads the skill first after any mandatory guidance. It
+also states what to do when the skill cannot be found or read, because a
+missing skill cannot state that itself. `crates/grove-loop/src/prompt.rs`
+holds the wording.
 
 ## Conformance
 

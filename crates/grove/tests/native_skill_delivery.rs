@@ -23,6 +23,11 @@
 //! injection. A managed fixture stands in for the agent. It proves that the
 //! complete native installation is readable to each session, not that an LLM
 //! follows the mandate.
+//!
+//! The missing-guidance test proves Grove's interpretation of the mandate's
+//! missing-skill rule. A managed session reads its skill name and both ending
+//! commands from the mandate text, reports, and force-stops. Actual Claude Code
+//! and Codex behaviour with a missing kind skill belongs to acceptance.
 
 mod support;
 
@@ -193,6 +198,34 @@ impl Fixture {
 
     fn run(&self) -> Output {
         self.command(support::ravel_path()).output().unwrap()
+    }
+
+    /// Route every kind to `/bin/sh script prompt args...` through actual Ravel.
+    fn route_to_script(&self, script: &Path, args: &[&Path]) {
+        let args: String = args
+            .iter()
+            .map(|arg| format!(", {:?}", arg.to_str().unwrap()))
+            .collect();
+        support::write_policy(
+            &self.home,
+            &format!(
+                r#"export const policy = {{
+  schemaVersion: 2,
+  version: "native-only-1",
+  select: (request) => ({{
+    status: "selected",
+    program: "/bin/sh",
+    args: [{script:?}, request.prompt{args}],
+    provider: "fixture",
+    model: "none",
+    effort: "none",
+    reason: "a managed fixture stands in for the agent",
+  }}),
+}};
+"#,
+                script = script.to_str().unwrap(),
+            ),
+        );
     }
 }
 
@@ -456,29 +489,7 @@ fn a_native_only_lifecycle_completes_with_explicitly_installed_skills() {
         ),
     );
     let ravel = support::installed_ravel();
-    support::write_policy(
-        &f.home,
-        &format!(
-            r#"export const policy = {{
-  schemaVersion: 2,
-  version: "native-only-1",
-  select: (request) => ({{
-    status: "selected",
-    program: "/bin/sh",
-    args: [{script:?}, request.prompt, {llm:?}, {ravel:?}, {log:?}],
-    provider: "fixture",
-    model: "none",
-    effort: "none",
-    reason: "a managed fixture reads native skills",
-  }}),
-}};
-"#,
-            script = script.to_str().unwrap(),
-            llm = support::grove_llm().to_str().unwrap(),
-            ravel = ravel.to_str().unwrap(),
-            log = log.to_str().unwrap(),
-        ),
-    );
+    f.route_to_script(&script, &[&support::grove_llm(), &ravel, &log]);
 
     let output = f.run();
 
@@ -515,4 +526,169 @@ fn a_native_only_lifecycle_completes_with_explicitly_installed_skills() {
     assert!(!f.work.join(".grove").exists());
     assert!(!f.home.join(".agents").exists());
     assert_eq!(capture(&f.home.join(".codex")), installed);
+}
+
+/// A managed session that follows the mandate text rather than fixture
+/// knowledge. It reads the skill name from the load instruction, the ending
+/// command from the signalling contract and the force-stop command from the
+/// missing-guidance rule. A skill it cannot read produces a report and that
+/// force-stop. Otherwise it retires the leaf, or finishes, and continues.
+const MANDATE_SESSION: &str = r#"set -eu
+prompt=$1 llm=$2 skills=$3 log=$4
+handle=${prompt#*'Grove mandate: the leaf selected for this session is `'}
+handle=${handle%%'`'*}
+skill=${prompt#'**Load the `'}
+skill=${skill%%'`'*}
+ending=$(printf '%s\n' "$prompt" | sed -n '/then do nothing else\*\*:$/{n;s/^`\(.*\)`$/\1/p;}')
+stop=$(printf '%s\n' "$prompt" | sed -n '/^action instead:$/{n;s/^`\(.*\)`$/\1/p;}')
+test -n "$ending"
+test -n "$stop"
+leaf=$(cd .grove && ls | grep -e "--$handle\.md\$")
+# A relaunch of the same live leaf repeats without end. Bound it, so a broken
+# interpretation fails the test instead of hanging it.
+test "$(cat "$log" 2>/dev/null | grep -c '^mandate ')" -lt 4 || exit 93
+printf 'mandate %s %s\n' "$handle" "$skill" >> "$log"
+if ! cat "$skills/$skill/SKILL.md" > /dev/null 2>&1; then
+  printf 'report %s guidance is missing or unreadable\n' "$skill" >> "$log"
+  test ! -e "$GROVE_LAUNCH_DIR/teardown"
+  printf 'stop %s\n' "$stop" >> "$log"
+  eval "exec $stop"
+fi
+case $leaf in
+*-finish--*)
+  "$llm" finish-commit "$handle"
+  "$llm" record-teardown
+  ;;
+*)
+  "$llm" leaf-retire ".grove/$leaf"
+  jj describe -m "$handle"
+  jj new
+  ;;
+esac
+printf 'end %s\n' "$ending" >> "$log"
+eval "exec $ending"
+"#;
+
+/// **A missing or unreadable kind skill force-stops with the leaf live.**
+///
+/// The leaf has a custom kind, so the open-kind path and the missing skill
+/// share one case: no tree verb or launch admission checks for the skill. The
+/// first run must stop on the mandate's exact force-stop command, leave both
+/// leaves live, record no teardown, commit nothing and launch once. After the
+/// owner repairs delivery, a rerun mandates the same handle and the same skill,
+/// and the loop continues normally to completion.
+#[test]
+fn missing_or_unreadable_kind_guidance_force_stops_with_the_leaf_live() {
+    let ravel = support::installed_ravel();
+    let force_stop = grove_loop::session_command::force_stop(&ravel).unwrap();
+    let continue_command = grove_loop::session_command::end_session(&ravel).unwrap();
+    for case in ["missing", "unreadable"] {
+        let f = Fixture::new();
+        let skills = f.path("skills");
+        write_mode(&skills.join("grove-impl/SKILL.md"), "impl\n", 0o644);
+        write_mode(&skills.join("grove-finish/SKILL.md"), "finish\n", 0o644);
+        let widget = skills.join("grove-widget/SKILL.md");
+        if case == "unreadable" {
+            write_mode(&widget, "widget\n", 0o000);
+            assert!(
+                fs::read(&widget).is_err(),
+                "the unreadable case needs a file this user cannot read"
+            );
+        }
+        let grove = f.work.join(".grove");
+        fs::create_dir(&grove).unwrap();
+        fs::write(grove.join("_BRIEF.md"), "# mandate — brief\n").unwrap();
+        fs::write(grove.join("01-widget--subject-k1.md"), "# subject-k1\n").unwrap();
+        fs::write(grove.join("02-impl--remaining-k2.md"), "# remaining-k2\n").unwrap();
+        // Snapshot the planted tree first, so the comparison sees only session work.
+        jj_snapshot(&f.work);
+        let tree = capture(&grove);
+        let operations = jj_operations(&f.work);
+        let script = f.path("session.sh");
+        write_executable(&script, &format!("#!/bin/sh\n{MANDATE_SESSION}"));
+        let log = f.path("session.log");
+        f.route_to_script(&script, &[&support::grove_llm(), &skills, &log]);
+
+        let output = f.run();
+
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert_eq!(output.status.code(), Some(1), "{case}: {stderr}");
+        assert!(stderr.contains("force-stop requested"), "{case}: {stderr}");
+        assert!(!stderr.contains("grove finished"), "{case}: {stderr}");
+        assert_eq!(
+            fs::read_to_string(&log).unwrap(),
+            format!(
+                "mandate subject-k1 grove-widget\n\
+                 report grove-widget guidance is missing or unreadable\n\
+                 stop {force_stop}\n"
+            ),
+            "{case}: one launch, stopped by the mandate's exact command"
+        );
+        assert_eq!(capture(&grove), tree, "{case}: the tree changed");
+        assert_eq!(
+            jj_operations(&f.work),
+            operations,
+            "{case}: work was committed"
+        );
+
+        // The owner repairs the chosen delivery route and reruns.
+        if case == "missing" {
+            write_mode(&widget, "widget\n", 0o644);
+        } else {
+            fs::set_permissions(&widget, fs::Permissions::from_mode(0o644)).unwrap();
+        }
+        fs::remove_file(&log).unwrap();
+
+        let output = f.run();
+
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert!(
+            output.status.success() && stderr.contains("loop complete"),
+            "{case}: {stderr}"
+        );
+        let log = fs::read_to_string(&log).unwrap();
+        let mandates: Vec<&str> = log
+            .lines()
+            .filter_map(|line| line.strip_prefix("mandate "))
+            .collect();
+        assert_eq!(mandates.len(), 3, "{case}: {log}");
+        assert_eq!(mandates[0], "subject-k1 grove-widget", "{case}: {log}");
+        assert_eq!(mandates[1], "remaining-k2 grove-impl", "{case}: {log}");
+        assert!(mandates[2].ends_with(" grove-finish"), "{case}: {log}");
+        assert!(!log.contains("report "), "{case}: {log}");
+        assert_eq!(
+            log.lines().filter(|line| line.starts_with("end ")).count(),
+            3,
+            "{case}: {log}"
+        );
+        assert!(
+            log.lines()
+                .filter_map(|line| line.strip_prefix("end "))
+                .all(|ending| ending == continue_command),
+            "{case}: {log}"
+        );
+        assert!(!grove.exists(), "{case}: the finish did not tear down");
+    }
+}
+
+/// The jj operation log's identifiers, newest first.
+fn jj_operations(work: &Path) -> String {
+    let output = Command::new("jj")
+        .args(["op", "log", "--no-graph", "-T", "id ++ \"\\n\""])
+        .current_dir(work)
+        .output()
+        .unwrap();
+    assert!(output.status.success());
+    String::from_utf8(output.stdout).unwrap()
+}
+
+/// Record the working copy in jj, as any jj command would before it reads.
+fn jj_snapshot(work: &Path) {
+    let status = Command::new("jj")
+        .arg("status")
+        .current_dir(work)
+        .stdout(Stdio::null())
+        .status()
+        .unwrap();
+    assert!(status.success());
 }

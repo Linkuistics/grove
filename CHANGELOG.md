@@ -65,6 +65,15 @@ stood at the graft — a closed record, not part of the versioned sequence above
   optional manual procedure that removes those entries only on evidence of
   ownership.
 
+- `grove`: the session mandate names only the bare `grove-<kind>` skill. It no
+  longer spells a fixed `grove:` namespace. A harness that requires one uses the
+  namespace of the plugin that actually supplies the skill. The mandate loads
+  that skill first after any mandatory guidance. It also states the outcome
+  when a session cannot find or read the skill. The session reports the problem
+  and leaves the leaf live. It records no teardown and runs the launch's exact
+  force-stop command. The loop then stops without relaunching the leaf. Fix the
+  skill delivery and run `grove` again.
+
 - `linkuistics` / `machine-environment`: describe `mise bootstrap` as the owner of
   Antony's machine setup. Packages are in `[bootstrap.packages]`, and dotfiles are
   tracked in place by mise history. The chezmoi source and the Brewfile are

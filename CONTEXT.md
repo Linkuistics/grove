@@ -105,8 +105,11 @@ saving.
 ### Guaranteed core / the too-late test
 
 The prompt Grove composes for one selected session: an instruction to load its
-[[Kind skill]], the resolved [[Work-item handle]], [[Stated VCS]] and Grove
-version, followed by caller-owned ending instructions. Grove passes it unchanged
+[[Kind skill]] by its bare name, the resolved [[Work-item handle]], [[Stated VCS]]
+and Grove version, followed by caller-owned ending instructions. The load
+instruction also states the outcome when the skill cannot be found or read:
+report it, leave the leaf live and run the launch's exact force-stop command.
+That rule rides the prompt because the missing skill cannot state it. Grove passes it unchanged
 through `ravel start-session --prompt`. The shipped Ravel 1.1 path injects
 nothing; the adoption design permits directory hints around intact caller bytes.
 `${prompt}` is the

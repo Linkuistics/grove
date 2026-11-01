@@ -17,7 +17,7 @@
 | `source-verbs` | `crates/grove-loop/src/verbs.rs` | 331 |
 | `source-driver` | `crates/grove-loop/src/driver.rs` | 59 |
 | `source-driver-lease` | `crates/grove-loop/src/driver_lease.rs` | 2,101 |
-| `source-prompt` | `crates/grove-loop/src/prompt.rs` | 241 |
+| `source-prompt` | `crates/grove-loop/src/prompt.rs` | 264 |
 | `source-loop-driver` | `crates/grove-loop/src/loop_driver.rs` | 886 |
 | `source-observation` | `crates/grove-loop/src/observation.rs` | 218 |
 | `source-runtime-observation` | `crates/grove-loop/src/driver_lease/observation.rs` | 2,117 |
@@ -81,7 +81,7 @@
 <!-- insert «lease-and-epoch» -->
 <!-- insert «lease-tests» -->
 <!-- /source-root -->
-<!-- source-root «source-prompt» source="crates/grove-loop/src/prompt.rs" lines="1-241" -->
+<!-- source-root «source-prompt» source="crates/grove-loop/src/prompt.rs" lines="1-264" -->
 <!-- insert «the-prompt-core» -->
 <!-- /source-root -->
 <!-- source-root «source-loop-driver» source="crates/grove-loop/src/loop_driver.rs" lines="1-886" -->
@@ -154,7 +154,7 @@
 | `driver-operations` | `source-driver` | `twelve-not-fourteen` | `1-59` | 59 | `resolved` |
 | `lease-and-epoch` | `source-driver-lease` | `one-per-working-tree` | `1-958` | 958 | `resolved` |
 | `lease-tests` | `source-driver-lease` | `which-calls-are-admitted` | `959-2101` | 1,143 | `resolved` |
-| `the-prompt-core` | `source-prompt` | `too-late-to-say-later` | `1-241` | 241 | `resolved` |
+| `the-prompt-core` | `source-prompt` | `too-late-to-say-later` | `1-264` | 264 | `resolved` |
 | `loop-driver` | `source-loop-driver` | `four-things-a-runner-cannot-choose` | `1-886` | 886 | `resolved` |
 | `observation-tree` | `source-observation` | `one-spelling-of-grove` | `1-218` | 218 | `resolved` |
 | `runtime-observer` | `source-runtime-observation` | `which-calls-are-admitted` | `1-2117` | 2,117 | `resolved` |
@@ -618,18 +618,18 @@
 | `epoch-tests-probe-releases` | `the-epoch` | `source-driver-lease` | `literal` | `which-calls-are-admitted` | `2023-2064` | `lease-tests` | `—` |
 | `epoch-tests-active-no-lease` | `the-epoch` | `source-driver-lease` | `literal` | `which-calls-are-admitted` | `2065-2084` | `lease-tests` | `—` |
 | `epoch-tests-malformed` | `the-epoch` | `source-driver-lease` | `literal` | `which-calls-are-admitted` | `2085-2101` | `lease-tests` | `—` |
-| `source-prompt` | `source-index` | `source-prompt` | `root` | `—` | `1-241` | `—` | `the-prompt-core` |
-| `core-header` | `the-core` | `source-prompt` | `literal` | `too-late-to-say-later` | `1-41` | `the-prompt-core` | `—` |
-| `the-prompt-core` | `the-core` | `source-prompt` | `composite` | `too-late-to-say-later` | `1-241` | `source-prompt` | `core-header`, `core-imports`, `core-plugin`, `core-skill-name`, `core-load-instruction`, `core-runtime-facts`, `core-signalling-contract`, `core-mandate`, `core-compose`, `core-stated-vcs` |
-| `core-imports` | `the-core` | `source-prompt` | `literal` | `too-late-to-say-later` | `42-45` | `the-prompt-core` | `—` |
-| `core-plugin` | `the-core` | `source-prompt` | `literal` | `too-late-to-say-later` | `46-54` | `the-prompt-core` | `—` |
-| `core-skill-name` | `the-core` | `source-prompt` | `literal` | `too-late-to-say-later` | `55-65` | `the-prompt-core` | `—` |
-| `core-load-instruction` | `the-core` | `source-prompt` | `literal` | `too-late-to-say-later` | `66-107` | `the-prompt-core` | `—` |
-| `core-runtime-facts` | `the-core` | `source-prompt` | `literal` | `too-late-to-say-later` | `108-125` | `the-prompt-core` | `—` |
-| `core-signalling-contract` | `the-core` | `source-prompt` | `literal` | `too-late-to-say-later` | `126-160` | `the-prompt-core` | `—` |
-| `core-mandate` | `the-core` | `source-prompt` | `literal` | `too-late-to-say-later` | `161-187` | `the-prompt-core` | `—` |
-| `core-compose` | `the-core` | `source-prompt` | `literal` | `too-late-to-say-later` | `188-218` | `the-prompt-core` | `—` |
-| `core-stated-vcs` | `the-core` | `source-prompt` | `literal` | `too-late-to-say-later` | `219-241` | `the-prompt-core` | `—` |
+| `source-prompt` | `source-index` | `source-prompt` | `root` | `—` | `1-264` | `—` | `the-prompt-core` |
+| `core-header` | `the-core` | `source-prompt` | `literal` | `too-late-to-say-later` | `1-42` | `the-prompt-core` | `—` |
+| `the-prompt-core` | `the-core` | `source-prompt` | `composite` | `too-late-to-say-later` | `1-264` | `source-prompt` | `core-header`, `core-imports`, `core-prefix`, `core-skill-name`, `core-load-instruction`, `core-runtime-facts`, `core-signalling-contract`, `core-mandate`, `core-compose`, `core-stated-vcs` |
+| `core-imports` | `the-core` | `source-prompt` | `literal` | `too-late-to-say-later` | `43-46` | `the-prompt-core` | `—` |
+| `core-prefix` | `the-core` | `source-prompt` | `literal` | `too-late-to-say-later` | `47-55` | `the-prompt-core` | `—` |
+| `core-skill-name` | `the-core` | `source-prompt` | `literal` | `too-late-to-say-later` | `56-66` | `the-prompt-core` | `—` |
+| `core-load-instruction` | `the-core` | `source-prompt` | `literal` | `too-late-to-say-later` | `67-128` | `the-prompt-core` | `—` |
+| `core-runtime-facts` | `the-core` | `source-prompt` | `literal` | `too-late-to-say-later` | `129-146` | `the-prompt-core` | `—` |
+| `core-signalling-contract` | `the-core` | `source-prompt` | `literal` | `too-late-to-say-later` | `147-181` | `the-prompt-core` | `—` |
+| `core-mandate` | `the-core` | `source-prompt` | `literal` | `too-late-to-say-later` | `182-208` | `the-prompt-core` | `—` |
+| `core-compose` | `the-core` | `source-prompt` | `literal` | `too-late-to-say-later` | `209-241` | `the-prompt-core` | `—` |
+| `core-stated-vcs` | `the-core` | `source-prompt` | `literal` | `too-late-to-say-later` | `242-264` | `the-prompt-core` | `—` |
 | `source-loop-driver` | `source-index` | `source-loop-driver` | `root` | `—` | `1-886` | `—` | `loop-driver` |
 | `loop-header` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `1-13` | `loop-driver` | `—` |
 | `loop-driver` | `the-loop` | `source-loop-driver` | `composite` | `four-things-a-runner-cannot-choose` | `1-886` | `source-loop-driver` | `loop-header`, `loop-imports`, `loop-outcome`, `loop-run`, `loop-drive-open`, `loop-drive-interrupt`, `loop-drive-selection`, `loop-drive-invocation`, `loop-drive-launch`, `loop-drive-discard`, `loop-drive-endings`, `loop-session-prompt`, `loop-launch-contract`, `loop-launch-spawn`, `loop-handoff`, `loop-reset-terminal`, `loop-ignore-interrupts`, `loop-picked`, `loop-tests-open`, `loop-test-handoff-preserves`, `loop-test-ordering` |
@@ -810,8 +810,8 @@ the roots and fragment relationships; this rollup totals the lines across the de
 | `twelve-not-fourteen` | `15-the-verbs.md` | 390 |
 | `one-per-working-tree` | `16-the-lease.md` | 1,133 |
 | `which-calls-are-admitted` | `17-the-epoch.md` | 3,782 |
-| `too-late-to-say-later` | `18-the-core.md` | 241 |
+| `too-late-to-say-later` | `18-the-core.md` | 264 |
 | `four-things-a-runner-cannot-choose` | `19-the-loop.md` | 2,033 |
 | `assembly` | `20-what-could-not-move.md` | 0 |
-| **Total** | 18 source roots | **15,245** |
+| **Total** | 18 source roots | **15,268** |
 

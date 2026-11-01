@@ -718,6 +718,9 @@ the default of `CODEX_HOME` is `~/.codex`. If `CODEX_HOME` was a relative path,
 Grove resolved it against the directory in which Grove started. Repeat the
 inventory in each such directory.
 
+Grove resolved a relative `HOME` in the same way. Each `HOME` under which Grove ran, such as that of a service or of `sudo`,
+can hold its own layout. Repeat this procedure for each.
+
 | Entry | What the provisioner wrote |
 |---|---|
 | `~/.agents/.grove/install.lock` | An empty lock file. |
@@ -766,7 +769,7 @@ for dir in ~/.agents/skills "$codex_skills"; do
 done
 ls -la ~/.agents/.grove ~/.agents/.grove/snapshots
 for dir in ~/.agents/skills "$codex_skills"; do
-  for entry in "$dir"/* "$dir"/.[!.]*; do
+  for entry in "$dir"/* "$dir"/.[!.]* "$dir"/..?*; do
     [ -L "$entry" ] || [ -e "$entry" ] || continue
     if [ -L "$entry" ]; then
       printf '%s -> %s\n' "$entry" "$(readlink "$entry")"
@@ -789,59 +792,95 @@ provisioner wrote no links there.
 
 Then find the retained references and the aliases. A retained reference is a
 link or a text outside the Grove root `~/.agents/.grove` that names an entry of
-the layout or a path below it. An alias is a link to `~/.agents`, to the Grove
-root, to `snapshots`, to a skill directory or to the Codex home. A link to a
-directory that contains one of them, such as your home directory, is also an
-alias. A reader can reach every entry below an alias.
+the layout or a path below it. An alias is a link to the Grove root, to
+`snapshots` or to a skill directory. A link to a directory that contains one of
+them, such as your home directory, is also an alias. A mount of such a directory
+in a container, in a virtual machine or on another host is also an alias. A
+reader can reach every entry below an alias.
 
 Run the two blocks below in one shell, in order.
 
 ```sh
 codex_skills="${CODEX_HOME:-$HOME/.codex}/skills"
 agents="$(realpath ~/.agents)"
+skills_real="$(realpath ~/.agents/skills 2>/dev/null)"
 codex_home="$(realpath "${CODEX_HOME:-$HOME/.codex}" 2>/dev/null)"
 codex_real="$(realpath "$codex_skills" 2>/dev/null)"
-set -- "$(realpath ~)" "$agents"
+home_real="$(realpath ~)"
+set -- "$home_real" "$agents"
 [ -z "$codex_home" ] || set -- "$@" "$codex_home"
 find "$@" -path "$agents/.grove" -prune -o -type l -exec sh -c '
+  root="$2/.grove"
   t="$(readlink "$1")"
-  if r="$(realpath "$1" 2>/dev/null)"; then
-    for p in "$2" "$3" "$4"; do
-      [ -n "$p" ] && case "$p/" in "${r%/}"/*) printf "%s -> %s (real path %s)\n" "$1" "$t" "$r"; exit 0 ;; esac
-    done
-    for p in "$2" "$4"; do
-      [ -n "$p" ] && case "$r" in "$p"/*) printf "%s -> %s (real path %s)\n" "$1" "$t" "$r"; exit 0 ;; esac
-    done
-  else
-    case "$t" in *.agents* | *.codex* | *"$2"*) printf "%s -> %s (unresolved)\n" "$1" "$t" ;; esac
+  show() { printf "%s -> %s (%s)\n" "$1" "$t" "$2"; exit 0; }
+  if ! r="$(realpath "$1" 2>/dev/null)"; then
+    e="$(LC_ALL=C realpath "$1" 2>&1 >/dev/null)"
+    case "$e" in
+      *"No such file or directory"* | *"Not a directory"* | *"Too many levels of symbolic links"*) exit 0 ;;
+    esac
+    show "$1" "unresolved: $e"
   fi
-' sh {} "$agents" "$codex_home" "$codex_real" \; | sort -u
+  [ -e "$1" ] || exit 0
+  case "$r/" in "$root"/*) show "$1" "real path $r" ;; esac
+  for p in "$root" "$3" "$4"; do
+    [ -n "$p" ] && case "$p/" in "${r%/}"/*) show "$1" "alias, real path $r" ;; esac
+  done
+  case "/$t/" in
+    */../*)
+      case "$t" in /*) q="" ;; *) q="$(dirname "$1")" ;; esac
+      rest="$t/"
+      while [ -n "$rest" ]; do
+        c="${rest%%/*}"
+        rest="${rest#*/}"
+        [ -n "$c" ] || continue
+        q="$q/$c"
+        s="$(realpath "$q" 2>/dev/null)" || show "$1" "unresolved at $q"
+        case "$s/" in "$root"/*) show "$1" "passes $q" ;; esac
+      done ;;
+  esac
+  [ -d "$1" ] || exit 0
+  for p in "$5" "$2" "$6"; do
+    [ -n "$p" ] && case "$r/" in "${p%/}"/*) exit 0 ;; esac
+  done
+  show "$1" "leaves the search, real path $r"
+' sh {} "$agents" "$skills_real" "$codex_real" "$home_real" "$codex_home" \; | sort -u
 ```
 
-The `find` command starts at the real paths of your home directory, of
+The `find` command searches from the real paths of your home directory, of
 `~/.agents` and of the Codex home. It visits each link below them, also on other
-file systems, except in the Grove root. It shows each link that resolves into
-`~/.agents` or into the Codex skill directory. It also shows each link to one of
-these directories, to the Codex home or to a directory that contains one of
-them. Each line shows the text of the link and the real path at the end of its
-chain. The search can take a long time, and longer on a network file system.
+file systems, except in the Grove root. The end of each line shows why the
+command shows that link:
 
-A line that ends with `(unresolved)` is a link that `realpath` cannot follow,
-and its text names `.agents`, `.codex` or the real path of `~/.agents`. It can be
-a loop, a link through a directory that you cannot read, or a link to a missing
-path. Treat it as a retained reference until you show otherwise.
+| Line ends with | Meaning |
+|---|---|
+| `(real path R)` | The link resolves into the Grove root, or to the Grove root itself. |
+| `(alias, real path R)` | The link resolves to a skill directory or to a directory that contains the Grove root or a skill directory. |
+| `(passes Q)` | The text of the link goes through Q, which resolves into the Grove root, and then leaves it with `..`. The link needs Q. |
+| `(unresolved: REASON)` | `realpath` cannot follow the link, for example through a directory that you cannot read. What the link needs is unknown. |
+| `(leaves the search, real path R)` | The link resolves to a directory outside your home directory, `~/.agents` and the Codex home. The command does not enter R. |
 
-The output includes the links of the inventory. Each other line is a retained
-reference or an alias. A link inside an entry that stays is a retained
-reference, for example a link in a real directory of a skill directory. A link
-of the inventory that stays is also a reference to each entry through which it
-resolves.
+When `~/.agents`, `~/.agents/skills`, the Codex home or the Codex skill
+directory is itself a link and its line ends with `(alias, real path R)`, ignore
+that line in the rules below. It is the usual path of the layout. A line of such
+a link that ends in another way stays in the rules.
 
-The real path shows only the end of a chain. For each other line, follow the
-chain from the text of the link with `readlink`, one link at a time. The link
-needs each entry of the layout through which its chain passes, such as `current`
-or a link of a skill directory. If you cannot follow a chain, the link needs
-`current` and each snapshot.
+For each line that ends with `(leaves the search, real path R)`, search R too.
+After the line that starts with `[ -z "$codex_home" ]`, add the line
+`set -- "$@" R`, with the path R in quotes. Then run the block again. Repeat
+until the R of each such line is in a directory that you search. If you cannot
+search an R, keep every entry.
+
+The command does not show a link that fails for every reader now. Such a link
+goes to a missing path or through a file, or it is a loop. A removal cannot
+break it further for a reader that sees the same paths. A reader in a
+container, in a virtual machine or on another host that mounts the layout sees
+other paths. There the link can work. Such a mount is an alias.
+
+A volume that is not mounted makes its paths missing. Thus mount each volume that can hold links or settings before you search. The search
+can take a long time, and longer on a network file system.
+
+The output includes the links of the inventory. A link in a skill directory
+also has a line when it resolves into the Grove root.
 
 Then find the texts that name such a path:
 
@@ -849,18 +888,27 @@ Then find the texts that name such a path:
 set -- -e .agents -e .codex -e CODEX_HOME -e "$agents"
 for p in "$codex_home" "$codex_real"; do [ -z "$p" ] || set -- "$@" -e "$p"; done
 find -L ~/.config "$agents" ${codex_home:+"$codex_home"} -path "$agents/.grove" -prune \
-  -o -type f -exec grep -lF "$@" {} +
+  -o -type f -exec grep -liF "$@" {} +
 ```
 
 This search follows links, also links below its start directories. It shows each
-file that names `.agents`, `.codex`, `CODEX_HOME` or one of the real paths. A
+file that names `.agents`, `.codex`, `CODEX_HOME` or one of the real paths, in
+any mix of upper and lower case. A
 settings file, a script or a skill that names an entry is a retained reference.
-A transcript or a log that names one is not a reader. A file below a link of the
-inventory is a file of that skill. It is a reference only while that link stays.
+A file below a link of the inventory is a file of that skill. It is a reference
+only while that link stays.
 
-For each other line of the `find` output, add the path of its link to the
-patterns with `-e`. Then run the search for texts again. This finds a text that
-reaches an entry through an alias, such as a setting of `HOME` to that alias.
+A transcript or a log is a retained reference while a tool can resume or replay
+it. Codex keeps resumable transcripts below the Codex home. If you will not
+resume a session, its transcript is not a reader.
+
+For each line of the `find` output that is not a link of the inventory, add the
+path of its link to the patterns with `-e`. For a link in your home directory,
+add the part of its path after the home directory instead. For example, add
+`-e /myskills` for `~/myskills`. That pattern also finds `$HOME/myskills`. Then
+run the search for texts again.
+This finds a text that reaches an entry through such a link, such as a setting
+of `HOME` to an alias.
 
 Extend both searches to each other location that can hold links or settings.
 Examples are a Codex home outside your home directory and project skill
@@ -879,33 +927,63 @@ to a large tree, such as `/`, makes it search that tree too.
 
 #### 3. Classify each entry
 
+The searches cannot prove that nothing needs an entry. They find only the links
+and the texts in the locations that you give them. Thus the rules below keep
+`current` and every snapshot when a line shows a dependency that the rules
+cannot limit. The Grove root is small. In one installation of Grove 22.8, 15
+snapshots used 13 MB.
+
 Give each entry one of three classes. An owned and unneeded entry is removable.
 An owned entry that something still needs stays. An entry that is foreign or
 uncertain stays.
+
+A link has the provisioner form when `readlink` shows exactly
+`$HOME/.agents/.grove/current/plugins/PLUGIN/skills/NAME`, with your actual home
+directory. NAME is the name of the link itself. The `link` in a `link-XXXXXX`
+directory also has the provisioner form when NAME is any skill name, or when
+`readlink` shows exactly `$HOME/.agents/.grove/snapshots/bundle-XXXXXX`.
+
+Each line of the link search keeps links by the first rule that applies. In
+these rules, `$HOME` is your actual home directory.
+
+1. A link of the inventory in the provisioner form keeps no other link.
+2. An alias keeps the links that its readers need. The last condition below
+   covers it.
+3. A line that ends with `(leaves the search, real path R)` keeps no link when
+   you search R. Until then, it keeps every link.
+4. A line keeps the link NAME when its text is exactly
+   `$HOME/.agents/skills/NAME`. The same applies when a `/` and a path without
+   a `..` component follow that text. NAME must be exactly the name of a link
+   of the inventory.
+5. A line keeps no link when its text is `$HOME/.agents/.grove/` and a path
+   without a `..` component.
+6. Each other line keeps every link. Unresolved links and links that pass
+   through the Grove root are examples.
 
 A link is removable only when all these conditions are true:
 
 - Your own setup records, such as dotfiles and bootstrap scripts, show that
   neither you nor another tool made a link at this path. The table above shows
   why: the provisioner replaced links that you made.
-- `readlink` shows exactly `$HOME/.agents/.grove/current/plugins/PLUGIN/skills/NAME`,
-  with your actual home directory. NAME is the name of the link itself.
+- The link has the provisioner form.
 - `~/.agents/.grove` is a real directory. It holds only `install.lock`,
   `snapshots`, `current` and `link-XXXXXX` directories.
-- No retained reference names the link or a path below it.
+- No line of the link search keeps the link.
+- No retained reference that the search for texts shows names the link or a
+  path below it.
 - You need that skill neither in that directory nor through an alias. If you do
   not know whether a reader uses an alias, you cannot show this.
 
-A link in a separate Codex skill directory fails the first condition, because
-the provisioner made no new links there. Keep it, or replace it yourself.
+Keep each link in a separate Codex skill directory, or replace it yourself.
+You cannot show that the provisioner made such a link. In a Codex skill
+directory, the provisioner replaced only links that already existed. A directory
+that was the agents skill directory under an earlier `HOME` looks the same.
 
-The `link` in a `link-XXXXXX` directory is removable under the same conditions.
-For it, NAME can be any skill name, or `readlink` names a snapshot. Some
-harnesses also search the directories inside a skill directory. Such a harness
-can load the skill of a staged `link`, so treat that skill as a skill of that
-skill directory. A `link-XXXXXX` directory is removable only when its `link` is
-removable and `ls -A` shows only `link` in it. Otherwise keep the whole
-directory.
+Some harnesses also search the directories inside a skill directory. Such a
+harness can load the skill of a staged `link`, so treat that skill as a skill of
+that skill directory. A `link-XXXXXX` directory is removable only when its
+`link` is removable and `ls -A` shows only `link` in it. Otherwise keep the
+whole directory.
 
 If you need a skill, keep its link. Alternatively, replace the link yourself
 with a link to a copy that you choose.
@@ -915,42 +993,87 @@ The manual installer writes only `~/.codex/skills`, `~/.gemini/skills`,
 that it ships. It also removes links to skills of Grove plugins that it does not
 ship there, also links that you made. Run it only if you accept these changes.
 
-A snapshot is removable only when all these conditions are true:
+A snapshot is complete and owned only when all these conditions are true:
 
 - Its directory is directly in `~/.agents/.grove/snapshots`, and its name starts
   with `bundle-`.
 - It holds only `plugins`, and that tree holds only directories and regular
   files.
 - Its `plugins` tree is equal to the `plugins` tree of a Grove release from
-  21.11 to 22.8. A checkout from which you know that you built Grove is also
-  sufficient. The commands below make these two checks.
-- No link that stays resolves into it, directly or through `current`. No
-  retained reference names a path in it, directly or through `current`.
+  21.11 to 22.8, apart from Python bytecode caches. A checkout from which you
+  know that you built Grove is also sufficient. The commands below make these
+  checks.
 
 ```sh
-find ~/.agents/.grove/snapshots/bundle-XXXXXX ! -type d ! -type f
+snap=~/.agents/.grove/snapshots/bundle-XXXXXX
+find "$snap" ! -type d ! -type f
 release="$(mktemp -d)"
 curl -fsSL https://github.com/Linkuistics/grove/archive/refs/tags/v22.8.0.tar.gz |
   tar -xz -C "$release" --strip-components=1
-diff -r -x __pycache__ "$release/plugins" ~/.agents/.grove/snapshots/bundle-XXXXXX/plugins
+diff -r "$release/plugins" "$snap/plugins"
+find "$snap/plugins" -name __pycache__ ! -type d -print -o \
+  -path '*/__pycache__/*' -exec sh -c '
+  d="${1%/__pycache__/*}"
+  b="${1##*/}"
+  s="${b%%.cpython-*}"
+  if [ -f "$1" ] && [ "$d/__pycache__/$b" = "$1" ] && [ -f "$d/$s.py" ]; then
+    case "${b#"$s".}" in
+      cpython-[0-9][0-9].pyc | cpython-[0-9][0-9][0-9].pyc) exit 0 ;;
+      cpython-[0-9][0-9].opt-[12].pyc | cpython-[0-9][0-9][0-9].opt-[12].pyc) exit 0 ;;
+    esac
+  fi
+  printf "%s\n" "$1"
+' sh {} \;
 ```
 
-Use the release that you ran when Grove wrote the snapshot. The `ls -la` output
-of the inventory shows the date of each snapshot.
+Use the release that you ran when Grove wrote the snapshot, and replace
+`v22.8.0` with its tag. The `ls -la` output of the inventory shows the date of
+each snapshot.
 
-The `find` command prints each entry that is not a directory or a regular file.
-If it prints an entry, the snapshot is uncertain.
+The first `find` command prints each entry that is not a directory or a regular
+file. If it prints an entry, the snapshot is uncertain.
 
-If the trees are equal, `diff` prints nothing. The release checks write Python
-`__pycache__` directories into the build tree, and a release snapshot can
-contain them. Thus the comparison ignores them. If no release or known checkout
-is equal, the snapshot is uncertain. A partial copy is also uncertain.
+The release checks write Python `__pycache__` directories into the build tree,
+and a release snapshot can contain them. For such a directory, `diff` prints a
+line of the form `Only in .../bundle-XXXXXX/plugins/...: __pycache__`. The last
+`find` command prints each `__pycache__` that is not a directory. It also prints
+each other entry in a `__pycache__` directory, unless the entry is a file
+`STEM.cpython-NNN.pyc` beside a `STEM.py` file. NNN has two or three digits, and
+`.opt-1` or `.opt-2` can come before `.pyc`. Such a file is a bytecode cache of
+that source.
 
-`current` is removable only when nothing that stays needs a path through it.
-Check each link and `link-XXXXXX` directory that stays, each retained reference
-and the readers of each alias. A retained reference that names a path below
-`current` keeps `current` and the snapshot to which it resolves.
-`install.lock`, `snapshots` and `~/.agents/.grove` are removable last.
+If `diff` prints another line, or the last `find` command prints a file, the
+snapshot is uncertain. If no release or known checkout is equal, the snapshot is
+uncertain. A partial copy is also uncertain. A foreign file with exactly the
+name of such a cache cannot be told apart from the cache.
+
+Keep `current` and every snapshot when one of these conditions is true:
+
+- A line of the link search is not a link of the inventory in the provisioner
+  form. Aliases, unresolved links and links that pass through the Grove root
+  are examples. A line that ends with `(leaves the search, real path R)` is an
+  exception when you search R.
+- A container, a virtual machine or another host mounts `~/.agents`, the Grove
+  root or a directory that contains one of them.
+- A retained reference that the search for texts shows names a path in the
+  Grove root that is neither `current` nor below `current`.
+- The Grove root holds an entry other than `install.lock`, `snapshots`,
+  `current` and `link-XXXXXX` directories that hold only `link`.
+- `snapshots` holds an entry that is not a complete and owned snapshot.
+- `readlink` on `current` does not show exactly
+  `$HOME/.agents/.grove/snapshots/bundle-XXXXXX`.
+
+When no condition is true, each link of the inventory that stays keeps only the
+entries that its text names:
+
+- A link in the provisioner form that stays keeps `current` and the snapshot
+  that `current` names. A retained reference that names `current` or a path
+  below it also keeps them.
+- A staged `link` that stays and names a snapshot keeps that snapshot.
+
+Each other complete and owned snapshot is removable. `current` is removable
+when nothing keeps it. `install.lock`, `snapshots` and `~/.agents/.grove` are
+removable last.
 
 These entries are always foreign or uncertain. Keep them:
 
@@ -959,23 +1082,32 @@ These entries are always foreign or uncertain. Keep them:
   `delete-provisioning-k19` also wrote real directories, and their provenance
   is uncertain.
 - A link to a checkout or to another location outside the Grove root.
-- A link directly to a snapshot. The provisioner did not write such links. Such
-  a link is a retained reference, and its snapshot stays too.
+- A link directly to a snapshot, other than a staged `link`. The provisioner
+  did not write such links. Such a link also keeps `current` and every
+  snapshot.
 - A link with a different text form, also when its target is missing.
 
 #### 4. Move the removable entries
 
-Move each removable entry into a holding directory outside every skill
+Move each removable entry into a new holding directory outside every skill
 directory. Move the links and `link-XXXXXX` directories first. Then move
 `current`, and after it the snapshots.
 
 ```sh
-hold=~/grove-codex-cleanup
-mkdir "$hold" "$hold/agents-skills" "$hold/snapshots"
-mv ~/.agents/skills/NAME "$hold/agents-skills/"
-mv ~/.agents/.grove/current "$hold/"
-mv ~/.agents/.grove/snapshots/bundle-XXXXXX "$hold/snapshots/"
+hold="$(mktemp -d "$HOME/grove-codex-cleanup.XXXXXX")" && echo "$hold"
+mkdir "${hold:?}/agents-skills" "${hold:?}/grove-root" "${hold:?}/snapshots"
+mv ~/.agents/skills/NAME "${hold:?}/agents-skills/"
+mv ~/.agents/skills/link-XXXXXX "${hold:?}/agents-skills/"
+mv ~/.agents/.grove/link-XXXXXX "${hold:?}/grove-root/"
+mv ~/.agents/.grove/current "${hold:?}/grove-root/"
+mv ~/.agents/.grove/snapshots/bundle-XXXXXX "${hold:?}/snapshots/"
 ```
+
+`mktemp` makes a new directory with a unique name, so no move can replace an
+entry that was already there. If `mktemp` prints an error, stop. If `hold` is
+empty, `${hold:?}` stops each command before it runs. Write down the
+path that `echo` prints. In a new shell, set `hold` to that path before steps 5
+and 6.
 
 Name a link without a slash at its end. With the slash, `mv` and `rm -r`
 operate on the target directory and not on the link.
@@ -984,13 +1116,16 @@ operate on the target directory and not on the link.
 
 1. Start a new session of each harness that reads these skill directories.
 2. Make sure that each session loads each skill that you need.
-3. If a skill is missing, move the snapshots back first.
-4. Then move `current` back, and after it the links.
+3. If a skill is missing, move every held entry back. Move the snapshots
+   first.
+4. Then move `current` back, and after it the links and `link-XXXXXX`
+   directories.
 
 #### 6. Remove the holding directory
 
-When the new sessions work, remove the holding directory. Then examine the Grove
-root. If it holds only `install.lock` and an empty `snapshots`, remove them:
+When the new sessions work, remove the holding directory with `rm -r "${hold:?}"`.
+It holds only the entries that you moved. Then examine the Grove root. If it
+holds only `install.lock` and an empty `snapshots`, remove them:
 
 ```sh
 rm ~/.agents/.grove/install.lock

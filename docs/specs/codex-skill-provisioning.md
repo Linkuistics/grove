@@ -153,6 +153,11 @@ A lexical path shape or skill name is insufficient deletion evidence. Inspect
 each link and actual target, account for aliases and recorded installation
 provenance, and preserve uncertain or foreign entries. Only then remove
 identified links and complete owned snapshots no reader or retained link needs.
+A search shows only what it reaches in the searched locations, and it cannot
+prove that nothing needs an entry. Where a search shows a dependency that the
+procedure cannot limit to known entries, keep the current-snapshot pointer and
+every snapshot.
+
 The [cleanup procedure](../USAGE.md#usage-codex-cleanup) in the
 installation guidance supplies these steps, and plugin installation guidance
 links to it. It explains how to inspect the legacy pointer and snapshot layout

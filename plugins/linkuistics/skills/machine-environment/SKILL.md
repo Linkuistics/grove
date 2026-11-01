@@ -9,7 +9,7 @@ assumes-personal-setup: true
 
 This is Antony's personal setup. On another machine, follow its owner's project
 and environment configuration. The paths below identify the maintained local
-contract; they are not directories to recreate on unrelated machines.
+contract. Do not recreate them on unrelated machines.
 
 ## Find the maintained setup
 
@@ -40,13 +40,13 @@ mise exec -- task check
 ```
 
 Use the repository's actual task name and entry point. The Taskfile owns reusable
-recipes; mise supplies tool selection. Keep project libraries with their language
-package manager and lockfile. Verify selected versions when diagnosing a mismatch.
+recipes. mise supplies tool selection. Keep project libraries with their language
+package manager and lockfile. When you diagnose a mismatch, check the selected versions.
 Use `mise use <tool>@<version>` for an intentional project requirement change,
 then preserve that change in the project repository.
 
 This applies across languages. Retain a documented native manager or SDK when
-mise cannot provide the required tool; language servers, coupled runtimes, and
+mise cannot provide the required tool. Language servers, coupled runtimes, and
 native libraries need compatible versions too. Follow an explicit project or
 user-selected environment instead of replacing it with the personal default.
 
@@ -67,7 +67,7 @@ application data with their private recovery owners.
 
 After a machine change, update the affected Obsidian note and run `mac-check`.
 It is read-only: exit 10 includes manual review, especially CCC backup verification
-with the separate disk connected. It does not authorize installations or establish
+with the separate disk connected. It does not authorise installations or establish
 that a backup is current. `mac-bootstrap` is an explicit, broader setup action.
 
 The local manual and repository instructions govern exceptions. Mise command

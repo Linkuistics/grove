@@ -195,11 +195,19 @@ ravel-rhai-skill-delivery-k34 settled the feature identity. The feature ships
 in the combined Ravel 2.0.0, with script and request schema 4. A schema-3
 script refuses, also with delivery disabled. Worker protocol 1,
 selection-context schema 1 and the notice and failure schemas 2 keep their
-numbers. The repaired Ravel contract is commit
-`fc87cb41a422bf2623ce362ef689c38ddf98a506` on the local bookmark
+numbers.
+
+k34 committed the repaired Ravel contract as `fc87cb41a422`.
+ravel-rhai-skill-delivery-k49 reviewed it, and ravel-rhai-skill-delivery-k50
+integrated both findings. The reviewed contract is commit
+`822c0ed2f67d9a446b74476fdad7d05922552b87` on the local bookmark
 `skill-directory-delivery`, in the jj workspace `Ravel.skill-directory-delivery`.
-Its parent is the channel contract `2a77ffbd`, above main `24a54523`.
+Its parent is `fc87cb41`, above the channel contract `2a77ffbd` and main
+`24a54523`.
 
 Nobody pushed that line. Its `docs/skill-discovery-design-evidence.md` holds the
-stage handoff for the Ravel owner and the consumer handoff for k35. The focused
-`review-design` leaf of k34 runs before k35 and before local planning.
+stage handoff for the Ravel owner and the consumer handoff for k35. The
+integration changed two rules. The sandbox home for real harness runs refuses
+an inherited `CLAUDE_CONFIG_DIR` and three Claude Code plugin-location
+variables. Three frame-bound tests replace the one-byte control. The consumer
+handoff for k35 did not change.

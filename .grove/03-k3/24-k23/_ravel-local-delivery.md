@@ -37,12 +37,12 @@ worker interpretation and required read grants must have a green handoff.
 ## Pointers
 
 - Owning repository: `/Users/antony/Development/AgenticOrchestration/Ravel`.
-- The repaired Ravel contract of ravel-rhai-skill-delivery-k34 is commit
-  `fc87cb41a422`, on the bookmark `skill-directory-delivery`. Read its
+- The reviewed Ravel contract is commit `822c0ed2f67d`, on the bookmark
+  `skill-directory-delivery`. ravel-rhai-skill-delivery-k50 integrated the
+  review of the k34 commit `fc87cb41a422` there. Read its
   `docs/specs/skill-discovery.md` and `docs/skill-discovery-design-evidence.md`.
   Read its changes to `docs/specs/configuration-evaluation.md` and
-  `docs/specs/session-execution.md`. Use the later commit that its review
-  integration records, when one exists.
+  `docs/specs/session-execution.md`.
 - Then read the Grove consumer repair grove-rhai-skill-delivery-k35. The
   historical design `b93bb927` supplies intent only.
 - ADRs `skill-preparation-precedes-evaluation`,
@@ -58,8 +58,13 @@ worker interpretation and required read grants must have a green handoff.
   have schema 1. The cache root is `$HOME/.cache/ravel/skills/v1`.
 - Item 3 of the stage handoff in the Ravel evidence document lists the work of
   this stage. It includes the evaluate-frame bound of 38,541,312 bytes and the
-  check of that bound before the worker receives the frame. It also includes
-  the narrow sandbox home of the smoke tasks.
+  check of that bound before the worker receives the frame. The check receives
+  its limit as an argument for the three frame-bound tests. The stage
+  establishes on which release platforms a request can pass the bound.
+- Item 3 also includes the narrow sandbox home of the smoke tasks. It refuses
+  an inherited `CLAUDE_CONFIG_DIR` and the three Claude Code plugin-location
+  variables. Fake-harness controls in `task harness:smoke:test` prove each
+  refusal.
 - The Ravel tasks are `task setup`, `task check`, `task test:cli`,
   `task smoke` and `task install PREFIX=<prefix>`. The book tasks are
   `task docs:book:build`, `task docs:examples:test`, `task docs:excerpts:test`,

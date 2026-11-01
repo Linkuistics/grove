@@ -32,9 +32,9 @@ Private acquisition machinery alone does not close this node.
 ## Pointers
 
 Use the reviewed `docs/specs/skill-discovery.md` of Ravel, with its exact-Git,
-publication, failure and acceptance sections. Its repaired form is commit
-`fc87cb41a422` on `skill-directory-delivery`, or the later commit that its
-review integration records. Use the owning commits and
+publication, failure and acceptance sections. Its reviewed form is commit
+`822c0ed2f67d` on `skill-directory-delivery`, which
+ravel-rhai-skill-delivery-k50 recorded. Use the owning commits and
 recorded installed-pair inputs of the preceding local node. Use the repaired
 contract from ravel-rhai-skill-delivery-k34, not the historical TypeScript and
 schema-3 design. Follow the repository instructions of Ravel.

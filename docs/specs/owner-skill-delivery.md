@@ -263,7 +263,11 @@ harness configuration have different owners, so no link may join them.
 
 - **Claude Code** on macOS finds its sign-in in the login keychain through
   `HOME`. The staging HOME links `Library/Keychains` only. Its `.claude`
-  directory and `.claude.json` belong to the staging HOME.
+  directory and `.claude.json` belong to the staging HOME. This holds only for
+  the default locations. `CLAUDE_CONFIG_DIR` moves the configuration, the
+  plugins and the Keychain entry of the sign-in. `CLAUDE_CODE_PLUGIN_CACHE_DIR`,
+  `CLAUDE_CODE_PLUGIN_DIRS` and `CLAUDE_CODE_PLUGIN_SEED_DIR` add plugin
+  locations. A staging launch inherits none of these four variables.
 - **Codex** keeps its configuration, hooks, agents, plugins, skills and sign-in
   file in one `.codex` tree. Ravel's smoke recipe links that whole tree. That
   link exposes the real configuration, hooks, plugins and superseded skills,
@@ -278,8 +282,10 @@ The first staging trial proves this isolation before any other trial runs:
    `.codex/auth.json` only.
 2. Show that `$CODEX_HOME/skills` and the staging `~/.agents/skills` hold no
    superseded entry, and that neither harness lists a superseded skill.
-3. Record the effective Codex home and every `-c` override of the staging
-   launches. No inherited `CODEX_HOME` may point into the real HOME.
+3. Record the effective configuration directory of each harness and every
+   `-c` override of the staging launches. No inherited `CODEX_HOME` may point
+   into the real HOME. Show that a staging launch refuses each of the four
+   Claude Code variables above when the environment holds it.
 4. Write the staging harness configuration and run one session on each
    harness. Digest the real configuration files, hook files, plugin registries
    and skill roots before and after. No digest may change.

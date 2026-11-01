@@ -18,9 +18,9 @@ route-independent mandate remain separate work.
 
 ravel-rhai-skill-delivery-k34 supplies the upstream facts. They are in the
 "Consumer handoff" section of `docs/skill-discovery-design-evidence.md` at
-Ravel commit `fc87cb41a422`, on the bookmark `skill-directory-delivery`. Use
-the later commit that its review integration records, when one exists. In
-summary:
+Ravel commit `822c0ed2f67d`, on the bookmark `skill-directory-delivery`.
+ravel-rhai-skill-delivery-k50 recorded that reviewed commit. It changed the
+sandbox home and the frame-bound tests, not this handoff. In summary:
 
 - Directory delivery needs Ravel 2.0.0, with `config.rhai` and
   `SCHEMA_VERSION` 4. The `check_version` of Grove admits only stable 1.x

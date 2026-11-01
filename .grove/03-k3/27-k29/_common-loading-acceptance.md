@@ -51,3 +51,10 @@ Unavailable compaction, delegate or backend mechanisms are unmeasured gaps.
 Directory injection does not filter Claude-only craft metadata or suppress
 already injected native hooks. Do not exercise parent-result attempts in this
 live session. Publication and shared activation remain discovery-rollout-k6.
+
+Run the real trials in the sandbox home of Ravel's configuration specification,
+as ravel-rhai-skill-delivery-k50 repaired it at Ravel commit `822c0ed2f67d`.
+Its wrapper refuses an inherited `CLAUDE_CONFIG_DIR` and the three Claude Code
+plugin-location variables. It records the effective configuration directory
+of each harness. A claude.ai sign-in also syncs the account's skills into the
+sandbox. Record them as platform-managed residue, not as native copies.

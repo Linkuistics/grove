@@ -31,12 +31,26 @@ external research-pack proof can build.
 
 ## Decomposition
 
-First settle Ravel's generic contract, then Grove's adoption and compatibility
-contract. The next planner consumes both and grows the smallest working
-implementation increments, including actual harness acceptance. Do not split a
-resolver from its only usable launch reader into separately dead halves.
-Local-only and pinned-source delivery may be separate working increments if
-the settled design supports each as useful behavior; make that judgment then.
+The reviewed directory and adoption contracts now feed five working increments:
+
+1. `grove-native-delivery-k20`: remove automatic native writes, keep native-only
+   Ravel 1.1 launches working, then repair the mandate's loading/failure wording.
+2. `ravel-local-delivery-k23`: deliver local capture, retained directories and
+   automatic public launch preparation with its matching schema/SDK and grants.
+3. `ravel-pinned-delivery-k25`: extend the same route to exact Git acquisition,
+   verified offline reuse and mixed-source failure/lifetime behavior.
+4. `grove-dual-ravel-k27`: prove both public caller majors, explicit policy
+   examples and installed layouts against independent actual builds.
+5. `common-loading-acceptance-k29`: measure actual Claude Code/Codex behavior
+   and reconcile the integrated checks and reproducible handoff to research.
+
+Only the native stage has implementation detail now. The later planners consume
+actual preceding commits and grow focused leaves, carrying fixture checks and
+documentation with behavior. Do not split a schema or internal resolver from
+its only usable public reader into separately dead halves. Temporary independent
+builds and isolated HOME settings supply acceptance before publication; final
+release/tap activation remains discovery-rollout-k6. Review this decomposition
+before implementation because the staged cross-repository handoffs depend on it.
 
 This subtree must remain live until implementation and acceptance satisfy its
 Done when. Retiring its design and planning children alone does not close it.

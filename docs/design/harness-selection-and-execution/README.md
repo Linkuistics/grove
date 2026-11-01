@@ -31,6 +31,8 @@ asserts no private transport or escalation details.
 
 | View | Contract illustrated |
 |---|---|
+| [Compatible tap states](http://127.0.0.1:52710/#diagram-release-tap) | Four tap states: keg-only `ravel@2` first, compatible Grove, then promotion of identical archives with `ravel@2` deprecated. |
+| [Publication and finish ownership](http://127.0.0.1:52710/#diagram-release-order) | Release prerequisites, Ravel publication, finish's Grove release and promotion, and the original ending. |
 | [Independent ownership](http://127.0.0.1:52710/#diagram-packages) | Public CLI between separate releases, caller imports, Grove's shared job function and Ravel's runner. |
 | [Route and return](http://127.0.0.1:52710/#diagram-handoff) | Intact caller task, optional directory injection, refusal, supervision and opaque result after cleanup. |
 | [User-managed skill delivery](http://127.0.0.1:52710/#diagram-skill-delivery) | User choice subject to actual read access. The agent locates the named skill or reports and force-stops. |
@@ -61,14 +63,15 @@ public integration. Neither duplicates Ravel's private runtime contract.
 
 ## Current changes
 
-The current discussion is the coordinated release design, awaiting focused
-review. The owner acknowledged that this is the only live workstream through
+The current discussion is the coordinated release design. Its focused review
+is integrated. The owner acknowledged that this is the only live workstream through
 completion. The design selects combined 2.0.0. See the
 [release specification](../../specs/coordinated-release.md) and
-[evidence](../../coordinated-release-evidence.md). Earlier skill views remain
-context for k34/k35's Rhai reconciliation. They are not current schema evidence.
+[evidence](../../coordinated-release-evidence.md).
 
-- [Compatible tap states](http://127.0.0.1:52710/#diagram-release-tap) — Added the versioned-first publication route and delayed unversioned promotion.
+Earlier skill views remain context for k34/k35's Rhai reconciliation. They are not current schema evidence.
+
+- [Compatible tap states](http://127.0.0.1:52710/#diagram-release-tap) — Added the versioned-first publication route and delayed unversioned promotion. Promotion deprecates `ravel@2` and moves default users to `config.rhai`.
 - [Publication and finish ownership](http://127.0.0.1:52710/#diagram-release-order) — Added release dependencies, the finish extension and original-ending preservation.
 
 ## Earlier skill-delivery changes

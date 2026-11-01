@@ -39,6 +39,11 @@ all-skill Ravel setup and the removal of superseded native installations.
 - Durable contracts and decisions are in their owning repositories.
   Brief-update text is supplied for the paused editorial and
   design/decomposition groves, keeping craft guidance distinct from kind charters.
+- The paused Rhai workstream in `Ravel.gh-issue-2` also receives brief-update
+  text. It carries the 2.0.0 release, promotion and owner-conversion receipts.
+  It directs that workstream to prune or retarget `release-ravel-2-0-0-k37`,
+  `homebrew-upgrade-k38` and `owner-policy-conversion-k39`. A resumed k37 would
+  otherwise cut 3.0.0.
 - All ordinary work required for the root outcomes is delivered. Any missing
   ordinary work remains in explicit leaves. Final Grove integration/release
   remains with the driver-owned finish session. That session retains its
@@ -62,8 +67,8 @@ again after a partial publication.
 
 ## Notes
 
-Consume `docs/specs/coordinated-release.md` and its evidence document after
-k36's focused review. The human acknowledged sole execution in this workstream
+Consume `docs/specs/coordinated-release.md`, its evidence document and the two
+decision records as coordinated-ravel-release-k40 integrated them. The human acknowledged sole execution in this workstream
 through completion. This grove must deliver remaining Rhai release
 prerequisites without waiting for the paused workstream. They include the
 required book reconciliation and acceptance.
@@ -74,6 +79,13 @@ Prepare and rehearse promotion without another cut before Grove finish. The
 root-chartered finish extension promotes the same Ravel archives. It does so
 only after compatible Grove publication and verification. These are design
 inputs, not evidence of an implemented release task.
+
+The review integration added rollout obligations. Pin the published 2.0.0
+archives into Grove's independent Ravel inputs before Grove's release. Name the
+configuration-format change in the 2.0.0 changelog, and rehearse upgrades with
+a HOME that holds only `policy.ts`. Put machine-wide cleanup protection for
+`ravel` in place before finish. Keep the 22.8.0 launch-directory contract in
+compatible Grove, or deliver helper preservation.
 
 The root charter assigns the extension. Finish's concrete whole-sequence
 confirmation still applies before it executes integration and release.

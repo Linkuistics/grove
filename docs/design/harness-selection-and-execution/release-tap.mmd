@@ -2,7 +2,7 @@ flowchart LR
     A["Start here · Existing pair<br/>Grove 22.8 + Ravel 1.1"]
     B["Add keg-only ravel@2<br/>Default Ravel stays 1.1"]
     C["Publish compatible Grove<br/>Verify native 1.1 and directory 2.0"]
-    D["Promote the same 2.0 archives<br/>Keep ravel@2 available"]
+    D["Promote the same 2.0 archives<br/>Deprecate ravel@2, keep it installable"]
     A -->|"1 · Ravel release"| B
     B -->|"2 · Grove release"| C
     C -->|"3 · Verified upgrade"| D

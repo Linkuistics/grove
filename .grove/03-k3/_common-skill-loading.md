@@ -136,11 +136,12 @@ Every session retains the ending command from its own launch prompt.
 
 The coordinated route is now in `docs/specs/coordinated-release.md`, with
 observed inputs and named owners in `docs/coordinated-release-evidence.md`. The
-human acknowledged that this is the sole live workstream through completion. The
-combined 2.0.0/schema-4 design receives its focused review before dependent
-work. Ravel's channel contract lives in the isolated
-`Ravel.coordinated-release-design` workspace from main `24a54523`. Consume the
-exact commit in k36's handoff. This grove completes remaining Rhai release
+human acknowledged that this is the sole live workstream through completion.
+coordinated-ravel-release-k39 reviewed the combined 2.0.0/schema-4 design, and
+coordinated-ravel-release-k40 integrated the findings. Ravel's channel contract
+and its decision record live in the isolated `Ravel.coordinated-release-design`
+workspace from main `24a54523`. Consume the exact commit
+`2a77ffbda3b2510f0997c740c0642b18afaeece7`, which k40 records. This grove completes remaining Rhai release
 prerequisites itself, preserving the paused task tree.
 
 The Ravel feature producer owns work in a separate jj workspace on
@@ -166,9 +167,12 @@ request to another workstream.
 owner-ravel-skill-delivery-k37 supplies the baseline of all installed skills,
 resources, tools and hooks before moves. Repository moves preserve that set.
 owner-ravel-skill-inventory-k38 reconciles the final set and grows actual owner
-configuration, activation and native-removal leaves. TestAnyware is an explicit
-acceptance case. A disposable proof cannot replace the actual owner cutover. Old lazy
-readers and the final session's guidance must remain readable.
+configuration, activation and native-removal leaves. The owner's `policy.ts`
+to `config.rhai` conversion precedes any owner default launch on 2.0.
+
+TestAnyware is an explicit acceptance case. A disposable proof cannot replace
+the actual owner cutover. Old lazy readers and the final session's guidance
+must remain readable.
 
 The directory feature stays unpublished through local, pinned and actual-harness
 acceptance. A local build refuses Git sources before configuration evaluation

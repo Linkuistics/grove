@@ -2,13 +2,13 @@ flowchart TB
   Caller["Start here: Grove caller
 leaf, mandate and result meanings"]:::start
   Assets["Grove readable caller assets
-context and provider receipts"]
+TypeScript for 1.x, Rhai for 2.x"]
   Local["Grove shared job function
 ravel as a foreground or detached job"]
   Ravel["Independent Ravel installation
 public session CLI boundary"]
-  Policy["Owner policy and settings
-explicit SDK and caller imports"]
+  Policy["Owner configuration and settings
+policy.ts on 1.x, config.rhai on 2.x"]
   Child["Selected managed process"]
   Caller -->|"1. Resolve absolute PATH and version"| Ravel
   Caller -->|"2. Spawn public start-session"| Local

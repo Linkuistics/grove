@@ -18,6 +18,8 @@ hand a reproducible working source path to external-research-pack-k4.
 - Native-only lifecycle, local/pinned/offline directory delivery, resource
   lifetime and actual supported confinement/installed layouts have evidence
   against identified independent builds. No fixture is credited as LLM adherence.
+  Each case names its Ravel route: native 1.1, native 2.0 with delivery
+  disabled, or directory 2.0, as the delivery specification defines them.
   Each real harness also reports and force-stops when directory injection is
   disabled and its isolated native roots lack the required kind. This case
   leaves the leaf live without teardown, publication or automatic relaunch.

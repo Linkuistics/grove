@@ -31,9 +31,9 @@ confinement. No trials here.
   evidence. Include a real delegate and retained reads after source and
   configuration changes. Distinguish reads, adherence and ending authority.
   Use only disposable sessions for early-result attempts.
-- In each actual harness, add a separate native-only missing-kind case. Disable
-  directory injection, and leave the required kind absent from isolated native
-  roots. Observe the report of the agent and its exact launch force-stop
+- In each actual harness, add a separate native-only missing-kind case on a
+  named route. Disable directory injection, and leave the required kind absent
+  from isolated native roots. Observe the report of the agent and its exact launch force-stop
   command. Then observe that the leaf remains live, that no teardown or output
   is published and that the loop does not relaunch. Do not credit the fixture
   of the native stage as this observation. Keep the unreadable confined case

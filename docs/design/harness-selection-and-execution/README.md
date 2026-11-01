@@ -12,9 +12,11 @@ The skill views describe the pending adoption design. The user supplies skills
 natively or through Ravel directory injection. Grove names them, and the agent
 finds and reads them.
 
-Ravel's corrected directory contract is integrated at `b93bb927`.
-Grove no longer provisions Codex skills. Directory delivery and its acceptance
-remain ahead, and Grove accepts only Ravel 1.x from 1.1.0. See
+Ravel's reviewed directory contract is commit `822c0ed2` on its unpublished
+`skill-directory-delivery` line. The historical `b93bb927` contract supplies
+intent only. Grove no longer provisions Codex skills. Grove accepts only Ravel
+1.x from 1.1.0 today. The admission of 2.0.0, its Rhai caller assets and
+directory delivery remain ahead. See
 [design evidence](../../grove-skill-delivery-design-evidence.md#upstream-correction).
 
 Run `task design:harness-selection PORT=52710` from the repository root, then open
@@ -38,6 +40,7 @@ asserts no private transport or escalation details.
 | [Publication and finish ownership](http://127.0.0.1:52710/#diagram-release-order) | Release prerequisites, Ravel publication, finish's Grove release and promotion, and the original ending. |
 | [Independent ownership](http://127.0.0.1:52710/#diagram-packages) | Public CLI between separate releases, caller imports, Grove's shared job function and Ravel's runner. |
 | [Route and return](http://127.0.0.1:52710/#diagram-handoff) | Intact caller task, optional directory injection, refusal, supervision and opaque result after cleanup. |
+| [Supported Ravel routes](http://127.0.0.1:52710/#diagram-routes) | Native 1.1, native 2.0 and directory 2.0. The version probe decides admission only, and the configuration and settings select the route. |
 | [User-managed skill delivery](http://127.0.0.1:52710/#diagram-skill-delivery) | User choice subject to actual read access. The agent locates the named skill or reports and force-stops. |
 | [Preserving readers through adoption](http://127.0.0.1:52710/#diagram-skill-transition) | Use the integrated upstream contract, verify isolated combinations and intermediate tap states, then activate separately. |
 | [Nested jobs](http://127.0.0.1:52710/#diagram-chain) | Grove's foreground job for `ravel`, signal forwarding, Ravel's managed job and terminal recovery. |
@@ -66,8 +69,20 @@ public integration. Neither duplicates Ravel's private runtime contract.
 
 ## Current changes
 
-The current discussion is the owner skill cutover. The design is a proposal,
-and the integration of its focused review is complete. See the [owner delivery specification](../../specs/owner-skill-delivery.md)
+The current discussion maps Ravel's reviewed Rhai directory contract into
+Grove's routes. The design is a proposal, and its focused review is next. See
+the [delivery specification](../../specs/codex-skill-provisioning.md#supported-routes)
+and the [contract mapping](../../grove-skill-delivery-design-evidence.md#rhai-mapping).
+
+- [Supported Ravel routes](http://127.0.0.1:52710/#diagram-routes) — Added the three supported routes, the admission probe and the refusals of a mismatched configuration.
+- [Preserving readers through adoption](http://127.0.0.1:52710/#diagram-skill-transition) — Replaced the historical `b93bb927` contract and the open tap choice with the reviewed `822c0ed2` contract and the route that publishes `ravel@2` first.
+- [Independent ownership](http://127.0.0.1:52710/#diagram-packages) — Named the configuration file and the caller-asset runtime of each major instead of an SDK.
+- [Route and return](http://127.0.0.1:52710/#diagram-handoff) — Showed that 2.0.0 wraps the intact mandate after its preamble and keeps its bytes in `originalPrompt`. Renamed the owner policy to the owner configuration.
+
+## Earlier owner changes
+
+The owner skill cutover is a proposal, and the integration of its focused
+review is complete. See the [owner delivery specification](../../specs/owner-skill-delivery.md)
 and [evidence](../../owner-skill-delivery-evidence.md).
 
 - [Where each installed entry goes](http://127.0.0.1:52710/#diagram-owner-classes) — Added the per-entry rule that routes each baseline entry to a Ravel source, a native route or no change.
@@ -81,8 +96,6 @@ acknowledged that this is the only live workstream through completion. The
 design selects combined 2.0.0. See the
 [release specification](../../specs/coordinated-release.md) and
 [evidence](../../coordinated-release-evidence.md).
-
-Earlier skill views remain context for k34/k35's Rhai reconciliation. They are not current schema evidence.
 
 - [Compatible tap states](http://127.0.0.1:52710/#diagram-release-tap) — Added the versioned-first publication route and delayed unversioned promotion. Promotion deprecates `ravel@2` and moves default users to `config.rhai`.
 - [Publication and finish ownership](http://127.0.0.1:52710/#diagram-release-order) — Added release dependencies, the finish extension and original-ending preservation.

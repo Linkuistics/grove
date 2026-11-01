@@ -43,6 +43,9 @@ schema-3 design. Follow the repository instructions of Ravel.
 
 - The identity is that of the local stage: the combined Ravel 2.0.0, script and
   request schema 4 and worker protocol 1.
+- The build of this stage also reports `ravel 1.1.0` until the cut. Its
+  installed-pair inputs for Grove carry the commit and build identity, as in
+  the local stage.
 - Item 5 of the stage handoff in the Ravel evidence document lists the work of
   this stage. A cache miss needs Git on the `PATH` of the Ravel CLI. This
   stage decides whether the Homebrew formula declares Git.

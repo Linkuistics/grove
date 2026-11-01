@@ -43,7 +43,9 @@ worker interpretation and required read grants must have a green handoff.
   `docs/specs/skill-discovery.md` and `docs/skill-discovery-design-evidence.md`.
   Read its changes to `docs/specs/configuration-evaluation.md` and
   `docs/specs/session-execution.md`.
-- Then read the Grove consumer repair grove-rhai-skill-delivery-k35. The
+- Then read Grove's adoption contract from grove-rhai-skill-delivery-k35 and
+  its review grove-rhai-skill-delivery-k51. It asks this stage for no behaviour that is specific to Grove.
+  Grove needs neither `RAVEL_SKILL_DIRECTORIES` nor `skills resolve`. The
   historical design `b93bb927` supplies intent only.
 - ADRs `skill-preparation-precedes-evaluation`,
   `skill-resources-outlive-sessions` and `ravel-supervises-the-session`.
@@ -73,6 +75,10 @@ worker interpretation and required read grants must have a green handoff.
 - `task harness:smoke:test` checks the smoke script. `task docs:skills` serves
   the design views on port 8778. No TypeScript SDK, typecheck or worker-build
   task exists on main.
+- The manifest of the line says 1.1.0 until the cut of rollout, so the build of
+  this stage reports `ravel 1.1.0`. Grove admits that output as 1.x. Record
+  each installed-pair input by its commit and build identity, not by its
+  version output.
 
 ## Notes
 

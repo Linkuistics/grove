@@ -6,9 +6,11 @@ and provider receipts. Ravel routes and supervises the selected process. Then it
 returns the opaque argument that `ravel end-session RESULT` published.
 
 This contract includes the skill-delivery adoption design. Grove admits Ravel
-1.x from 1.1.0 and no longer provisions Codex skills. Ravel directory delivery
-remains ahead. The [delivery design](codex-skill-provisioning.md) owns
-the transition. Process and result contracts remain unchanged. Skill availability
+1.x from 1.1.0 and no longer provisions Codex skills. The admission of Ravel
+2.0.0, its Rhai caller assets and directory delivery remain ahead. The
+[delivery design](codex-skill-provisioning.md) owns the transition and its
+[supported routes](codex-skill-provisioning.md#supported-routes). Process and
+result contracts remain unchanged. Skill availability
 is the user's responsibility through native installation or Ravel directory
 injection, and is not part of Grove's version admission.
 
@@ -41,9 +43,9 @@ releases ([policy ownership](../adr/harness-selection-is-owned-by-policy.md)).
 | Owner | Contract |
 |---|---|
 | Grove | Selects one leaf, composes its mandate and holds launch admission. Runs Ravel as a job, captures its stdout result and interprets it after the reap. |
-| Ravel | Adds configured skill-directory paths to the prompt, evaluates owner policy, supervises the selected process and isolates the enclosing ending context at launch. Returns a published argument after cleanup. |
+| Ravel | Adds configured skill-directory paths to the prompt on 2.0.0, evaluates the owner's configuration, supervises the selected process and isolates the enclosing ending context at launch. Returns a published argument after cleanup. |
 | Owner policy | Constructs every selected command and its provider, model and effort labels, with any caller-specific routing or review rules. |
-| Grove caller assets | Read the task and Creator conventions. Optionally wrap selection with caller-owned provider evidence through ordinary SDK imports. |
+| Grove caller assets | Read the task and Creator conventions. Optionally wrap selection with caller-owned provider evidence through ordinary imports: TypeScript with `ravel/sdk` for 1.x, and Rhai modules by path for 2.x. |
 
 Grove resolves the first executable regular `ravel` in an **absolute PATH
 directory**. It canonicalises that path once and probes it with `--version`.
@@ -54,8 +56,10 @@ Grove retains stable `ravel 1.x` support from 1.1.0 and admits stable 2.x from
 2.0.0 after public session compatibility is verified. It refuses 1.0,
 prereleases, unknown majors, malformed output and unsuccessful probes without
 trying another installation. The remedy names compatible Grove, Ravel and
-policy versions. It must not blindly recommend a shared upgrade. Native skill
-delivery does not require Ravel 2. The
+configuration versions. It must not blindly recommend a shared upgrade.
+
+The probe decides admission only, and it selects no route. Native skill
+delivery does not require Ravel 2.0.0. The
 [supervision decision](../adr/dispatch-supervises-the-harness.md) records the
 dependency and the trust in PATH that the probe costs.
 
@@ -112,15 +116,21 @@ launches.
 <a id="imports-alias"></a>
 ## Owner policy and caller assets
 
-The personal `~/.config/ravel/policy.ts` selects the command. Ravel's settings at
-`~/.config/ravel/settings.json` supply bounds, explicit environment grants and
-optional skill-directory delivery configuration in versions that support it.
-`.ravel-choice` selects among the options of the owner's policy, when that
-policy calls the SDK helper. Grove reads none of those files itself.
+The personal configuration selects the command. Ravel 1.x reads
+`~/.config/ravel/policy.ts`, and Ravel 2.x reads `~/.config/ravel/config.rhai`.
+Ravel's settings at `~/.config/ravel/settings.json` supply bounds and explicit
+environment grants. On 2.0.0 they also supply optional skill-directory delivery.
 
-The public SDK is `ravel/sdk`. Grove's [readable caller assets](../../assets/ravel-policy/README.md)
-ship under its own `libexec/ravel-policy`. Personal policy imports them
-explicitly. They are ordinary files, not embedded Ravel modules.
+Each release accepts only its own settings keys, as the
+[delivery design](codex-skill-provisioning.md#settings-and-home) states.
+`.ravel-choice` selects among the options of the owner's configuration when
+that configuration reads it. Grove reads none of those files itself.
+
+Ravel 1.x supplies the public TypeScript SDK `ravel/sdk`. Ravel 2.x has
+built-in host functions and no SDK. Grove's [readable caller assets](../../assets/ravel-policy/README.md)
+ship under its own `libexec/ravel-policy`, for each admitted major. Personal
+configuration imports them explicitly. They are ordinary files, not embedded
+Ravel modules.
 
 The owner reads
 and copies the sample explicitly and keeps an existing policy. Neither Grove nor
@@ -133,11 +143,14 @@ resolution.
 <a id="dynamic-dispatch"></a>
 ## Selection and context
 
-Ravel owns the request schema its policy receives. Grove's caller assets and
-examples must be compatible with the SDK/schema of each admitted major and
-identify that target explicitly. The owner policy forwards the launch prompt,
-including any directory instructions. Task-only analysis uses the original-task
-view where Ravel exposes one.
+Ravel owns the request schema its configuration receives. Grove's caller
+assets and examples must be compatible with each admitted major. Each
+identifies its target explicitly: schema 2 TypeScript for 1.x and schema 4 Rhai
+for 2.x.
+The owner's configuration forwards the launch prompt, including any directory
+instructions. On 2.x, task-only analysis reads `request.originalPrompt`.
+Grove's adapter reads task identity from `taskId`, `taskFile` and `context`,
+which schema 4 leaves unchanged.
 
 Grove depends on no skill descriptor or catalog.
 Context and caller provider receipts retain their independent meanings.
@@ -442,14 +455,14 @@ and its [published installation evidence](https://github.com/Linkuistics/Ravel/b
 
 | Claim | Witness |
 |---|---|
-| Absolute PATH resolution, stable 1.x from 1.1.0 and 2.x, version refusal and independent prefixes | Resolver, activation and installed fixtures in `crates/grove/tests/` and `crates/grove/src/dispatch/ravel.rs`. |
+| Absolute PATH resolution, stable 1.x from 1.1.0 and 2.x from 2.0.0, version refusal and independent prefixes | Resolver, activation and installed fixtures in `crates/grove/tests/` and `crates/grove/src/dispatch/ravel.rs`. |
 | Literal public arguments and exact ending path | `crates/grove-loop/tests/session_command.rs` and real installed command fixtures. |
 | Result capture and rejection | `crates/grove-loop/tests/session_result.rs` and installed result fixtures, through both job shapes. |
 | Post-reap precedence, and a caught signal that outlives an error | Unit tests drive the lifecycle interpretation with an end value or a launch error that Grove owns. They need no process. |
 | Lifecycle admission | Driver and epoch tests. |
 | Job control, cancellation and terminal recovery of the foreground job | Loop-driver tests with the installed Ravel and fake agents, several under a pseudo-terminal. |
 | Session isolation and cancellation of the detached job | Standalone tests with the installed Ravel and fake agents, including a Ctrl-C typed on a pseudo-terminal. |
-| Caller policy, context and provider evidence | `task ravel:review`, `task ravel:provenance` and strict typechecking of the installed SDK. |
+| Caller policy, context and provider evidence | `task ravel:review`, `task ravel:provenance` and strict typechecking against an installed 1.1 SDK. For 2.x, public launches of the Rhai assets against an installed 2.0 build, driven by the same cases. |
 | Confined staging and publication | Standalone tests and installed fixtures that use fake agents. |
 | Independent delivery | Acceptance of the archive, formula and target in the delivery handoff. |
 | Common skill delivery through both callers | The [delivery acceptance matrix](codex-skill-provisioning.md#test-seams), including source failures, intact caller bytes, no native writes and real confined reads. |

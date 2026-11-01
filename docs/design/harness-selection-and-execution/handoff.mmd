@@ -1,12 +1,12 @@
 sequenceDiagram
   participant G as Grove caller
   participant R as Independent Ravel
-  participant P as Owner policy
+  participant P as Owner configuration
   participant H as Managed process
   G->>R: start-session: kind, intact mandate, public caller data
-  opt Owner configured directory injection
-    R->>R: Acquire configured source directories and add their paths
-    Note over R,P: Source failure stops before selection, no named-skill lookup
+  opt Ravel 2.0.0 with configured directory injection
+    R->>R: Acquire sources, then wrap the intact mandate after the preamble
+    Note over R,P: originalPrompt keeps the mandate. Source failure stops before selection. No named-skill lookup
   end
   R->>P: Evaluate bounded selection without enclosing completion authority
   P-->>R: Selected command or refusal

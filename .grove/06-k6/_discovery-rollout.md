@@ -96,15 +96,19 @@ finished Grove minor release must follow its final main integration. The
 [delivery design](../../docs/specs/codex-skill-provisioning.md#packaging-and-rollout)
 requires compatible tap dependencies throughout publication.
 
-This tree's Ravel-first release sequence therefore publishes Ravel 2 under a
-separate versioned formula. The unversioned dependency remains compatible with
-released Grove, unless an earlier verified Grove compatibility release is
-explicitly scheduled. Coordinate the tap and Ravel release instructions before
-publication. A separate executable prefix alone does not fix the tap.
+The coordinated release design settled the identities. One combined Ravel
+2.0.0 holds Rhai, directory delivery and schema 4. It publishes first as
+keg-only `ravel@2`. The unversioned dependency stays 1.1.0 until finish
+promotes the same archives.
 
-The coordinated release design settles actual version identities. It can
-combine Rhai and directory delivery where valid. "Ravel 2" here must not be
-assumed to identify the directory feature. Its reviewed plan owns final order.
+Coordinate the tap and Ravel release instructions
+before publication. A separate executable prefix alone does not fix the tap.
+The reviewed plan of that design owns the final order.
+
+Grove's dual-Ravel stage identifies each build before the cut by its commit,
+because such a build reports `ravel 1.1.0`. After the cut, run Grove's
+admission and installed checks again against the published `ravel 2.0.0`
+archives, before Grove's release.
 
 <!-- tc: depart synonym-rotation because "delete this workspace" names the workspace deletion that CLAUDE.md forbids, which differs from removing a skill installation -->
 Do not upgrade away any running driver's required binaries. Do not replace its

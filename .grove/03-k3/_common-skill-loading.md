@@ -211,3 +211,17 @@ integration changed two rules. The sandbox home for real harness runs refuses
 an inherited `CLAUDE_CONFIG_DIR` and three Claude Code plugin-location
 variables. Three frame-bound tests replace the one-byte control. The consumer
 handoff for k35 did not change.
+
+grove-rhai-skill-delivery-k35 repaired Grove's adoption contract against
+`822c0ed2`. The Supported routes section of the delivery specification states
+three routes: native on 1.1, native on 2.0 and directory on 2.0. Directory
+delivery needs 2.0.0, and the two routes on 2.0 have separate proofs. The Rhai
+contract mapping in the delivery evidence gives each upstream fact its Grove
+owner.
+
+The dual-Ravel stage ports every Grove caller asset to Rhai, which is the scope
+of Grove issue 24. A build of the feature line reports `ravel 1.1.0` until the
+cut, so each stage records its Ravel builds by commit and build identity. The
+focused review grove-rhai-skill-delivery-k51 precedes local planning. The
+reviewed Grove contract is the k35 commit, with any change that the
+integration of that review records.

@@ -51,9 +51,15 @@ version. The caller contract states the procedure in
 Homebrew presence alone proves no runtime compatibility.
 
 The caller retains stable Ravel 1.x from the 1.1.0 cleanup floor and admits 2.x
-after public session compatibility is verified. Version admission follows that
-interface, independently of the [delivery choice](skill-delivery-is-the-users-choice.md).
-Shipped Grove 22.8 still refuses 2.x. The
+from 2.0.0 after public session compatibility is verified. Version admission
+follows that interface, independently of the
+[delivery choice](skill-delivery-is-the-users-choice.md). Admission selects no
+route. Shipped Grove 22.8 still refuses 2.x.
+
+Ravel 2.0.0 reads only `config.rhai` and has no TypeScript SDK. Dual-major
+admission therefore needs Grove caller assets for both runtimes. While a 1.1
+reader remains, a 2.0 route with a 2.0-only settings key also needs a separate
+HOME. The
 [delivery transition](../specs/codex-skill-provisioning.md#packaging-and-rollout)
 preserves live ending commands and tests new caller combinations separately.
 A publication is not permission to replace a shared installation before its
@@ -72,8 +78,8 @@ provider receipts
 
 - **Require Ravel 2 for every Grove launch.** Rejected because the existing
   public session interface remains usable on 1.1 and skill delivery does not
-  require all users to migrate. Dual-major admission costs separate policy
-  examples and acceptance lanes. Reopen when a required public session-CLI
+  require all users to migrate. Dual-major admission costs TypeScript and Rhai
+  caller assets, a separate HOME for 2.0-only settings and acceptance lanes. Reopen when a required public session-CLI
   change cannot be supported across both majors.
 - **Find Ravel beside Grove, or bind versions or Cellar paths.** Rejected,
   because independently released packages need not share a prefix or a

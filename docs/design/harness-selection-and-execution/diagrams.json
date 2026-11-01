@@ -1,6 +1,6 @@
 {
   "title": "Harness selection and execution — Grove caller views",
-  "intro": "Owner skill delivery is proposed and awaits its focused review. The coordinated release design is reviewed and integrated: one complete Ravel 2.0.0, first through ravel@2, followed by compatible Grove and unversioned promotion. Graphs begin at Start here; sequences at their first message; states at their initial state.",
+  "intro": "The Rhai adoption of skill delivery is proposed and awaits its focused review. Owner skill delivery and the coordinated release are reviewed and integrated: one complete Ravel 2.0.0, first through ravel@2, followed by compatible Grove and unversioned promotion. Graphs begin at Start here; sequences at their first message; states at their initial state.",
   "groups": [
     {
       "id": "release",
@@ -15,7 +15,7 @@
     {
       "id": "skills",
       "title": "User-managed skill delivery",
-      "description": "User choice of delivery, subject to actual read access; no named-skill resolver in Grove or Ravel."
+      "description": "User choice of delivery on three supported Ravel routes, subject to actual read access; no named-skill resolver in Grove or Ravel."
     },
     {
       "id": "boundary",
@@ -75,6 +75,13 @@
       "caption": "This grove owns the release prerequisites while other workstreams stay paused. Cut Ravel once; validate its tagged book and all archives before publishing tag/assets, book, then ravel@2. Finish confirms its full sequence, releases Grove, then promotes Ravel and completes assigned activation. Each failure stops at its recovery boundary. Record teardown and use the original 1.1.0 ending command; retain old resources until readers end."
     },
     {
+      "id": "routes",
+      "group": "skills",
+      "title": "Supported Ravel routes",
+      "source": "routes.mmd",
+      "caption": "Proposed. Grove's version probe decides admission only. The configuration file and the skills settings key select the route, and Grove reads neither. Directory delivery needs 2.0.0, its actual minimum. Native 2.0 and directory 2.0 are separate proofs over the same executable. Until promotion, 2.0.0 is the keg-only ravel@2, which the PATH of the invocation selects. While a 1.1 reader remains, a 2.0 route with a 2.0-only settings key needs a separate HOME."
+    },
+    {
       "id": "skill-delivery",
       "group": "skills",
       "title": "User-managed skill delivery",
@@ -86,21 +93,21 @@
       "group": "skills",
       "title": "Preserving readers through adoption",
       "source": "skill-transition.mmd",
-      "caption": "Target design, not completed rollout. Every intermediate tap dependency remains compatible. Cleanup is optional and manual. Existing session ending commands remain valid; old callers retain compatible prefixes and settings."
+      "caption": "Target design, not completed rollout. Ravel 2.0.0 publishes first as ravel@2, compatible Grove follows, and finish promotes the same archives. Every intermediate tap dependency remains compatible. Cleanup is optional and manual. Existing session ending commands remain valid; old callers retain compatible prefixes and settings."
     },
     {
       "id": "packages",
       "group": "boundary",
       "title": "Independent caller and process-manager boundary",
       "source": "packages.mmd",
-      "caption": "Separate prefixes and versions, ordinary caller imports, Grove's shared job function and Ravel's own runner. No shared Rust library or bundled Ravel worker. Ravel alone gives the cleanup assurance."
+      "caption": "Separate prefixes and versions, ordinary caller imports, Grove's shared job function and Ravel's own runner. Grove ships TypeScript caller assets for 1.x and Rhai caller assets for 2.x. No shared Rust library or bundled Ravel worker. Ravel alone gives the cleanup assurance."
     },
     {
       "id": "handoff",
       "group": "execution",
       "title": "Route, supervise and return an argument",
       "source": "handoff.mmd",
-      "caption": "Optional directory injection precedes selection. The agent finds the named skill using the user-selected route. Refusal launches nothing; successful cleanup returns only the opaque result."
+      "caption": "Optional directory injection on 2.0.0 precedes selection. The prepared prompt wraps the intact mandate once, and originalPrompt holds its exact bytes. The agent finds the named skill using the user-selected route. Refusal launches nothing; successful cleanup returns only the opaque result."
     },
     {
       "id": "chain",
@@ -153,28 +160,33 @@
     }
   ],
   "discussion": {
-    "title": "Move the owner's skills to Ravel without stranding finish",
+    "title": "Map the reviewed Rhai directory contract into Grove's routes",
     "status": "Proposed — focused design review next",
-    "summary": "Ten pinned Ravel sources and one mandatory file replace native skill copies. Hooks, commands, tools and platform skills stay native. Every remaining session of this driver loads natively, so the switch runs inside finish after promotion, keeps every byte and has a rehearsed inverse.",
+    "summary": "Ravel 2.0.0 reads only config.rhai at schema 4 and first ships directory delivery. Grove admits 2.x from 2.0.0 beside 1.x, ships Rhai caller assets for it and proves three routes separately: native 1.1, native 2.0 with delivery disabled, and directory 2.0. The version probe selects no route; the configuration file, the settings and the PATH prefix do.",
     "diagramIds": [
-      "owner-classes",
-      "owner-cutover",
-      "owner-final-session",
-      "release-order",
-      "skill-transition"
+      "routes",
+      "skill-transition",
+      "packages",
+      "handoff",
+      "skill-delivery",
+      "release-tap"
     ],
     "updatedDiagrams": [
       {
-        "id": "owner-classes",
-        "summary": "Added the per-entry rule that routes each baseline entry to a Ravel source, a native route or no change."
+        "id": "routes",
+        "summary": "Added the three supported routes, the admission probe and the refusals of a mismatched configuration."
       },
       {
-        "id": "owner-cutover",
-        "summary": "Added the ordered cutover and the switch inside finish, with its probes and inverse."
+        "id": "skill-transition",
+        "summary": "Replaced the historical b93bb927 contract and the open tap choice with the reviewed 822c0ed2 contract and the ravel@2-first route."
       },
       {
-        "id": "owner-final-session",
-        "summary": "Added how finish keeps its native guidance through the switch. Later sessions move to Ravel 2.0.0."
+        "id": "packages",
+        "summary": "Named the configuration file and the caller-asset runtime of each major instead of an SDK."
+      },
+      {
+        "id": "handoff",
+        "summary": "Showed that 2.0.0 wraps the intact mandate after its preamble and keeps its bytes in originalPrompt. Renamed the owner policy to the owner configuration."
       }
     ]
   }

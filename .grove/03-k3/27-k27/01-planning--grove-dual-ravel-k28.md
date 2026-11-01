@@ -11,16 +11,19 @@ Consume prior Rhai-native compatibility independently of the directory feature.
 Recheck the resolver, the public command, lifecycle and standalone tests, and
 the versioned policy assets and their tooling. Recheck the pinned target
 inputs, the archive, formula, installed and floor tasks, and the source-exact
-books. Use the consumer map of the delivery evidence. It is not an exhaustive
-inventory of stale strings. No implementation here.
+books. Use the consumer map and the Rhai contract mapping of the delivery
+evidence. The consumer map is not an exhaustive inventory of stale strings.
+Read the Supported routes section of the delivery specification. No
+implementation here.
 
 ## Done when
 
 - Schedule complete caller behaviour for the reviewed supported releases. It
   includes explicit runtime and schema examples, applicable checks, useful
   diagnostics and controls for refusal and the absence of fallback. Use the
-  repaired feature identities and the Rhai host and assets. Do not assume that
-  Ravel 2.0 with schema 3 supplies directories. Keep independent front, worker
+  reviewed identities: Ravel 2.0.0, `config.rhai`, schema 4 and worker
+  protocol 1. Schema 3 refuses. Cut the Rhai port of every caller asset, with
+  the case table that drives both asset sets. Keep independent front, worker
   and package identities and isolated HOME settings.
 - Cover native-only lifecycle success and common-directory launches with local,
   exact Git and offline sources. Keep confined standalone native readability

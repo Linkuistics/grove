@@ -5,7 +5,9 @@ adoption target. This document records inspected source, design evidence and
 verification limits. It does not claim implementation or acceptance of that
 target. The source observations below are against Grove parent `8d45d75e`.
 `grove-native-provisioning-k21` later removed the provisioner, its build script
-and its tests, so this document names those paths without links.
+and its tests, so this document names those paths without links. The
+[Rhai contract mapping](#rhai-mapping) records later observations against Grove
+`314d464e` and Ravel `822c0ed2`.
 
 <a id="upstream-correction"></a>
 ## The upstream correction
@@ -40,11 +42,10 @@ The producer's Ravel commit is `4c16f8e09d58c8f649a375029c8e8fa2933de2b4`.
 Its `docs/specs/skill-discovery.md` defines the corrected interface. Its
 `docs/skill-discovery-design-evidence.md` records source evidence and limitations.
 
-The corrected Ravel design retains Ravel 2 and policy/request schema 3 because
-prepared-prompt semantics change. Grove's existing source still refuses major 2.
-The adoption therefore keeps native-only 1.1 support and adds 2.x only through
-explicit caller acceptance and versioned policy examples. This does not require
-Grove to read a directory descriptor or run source setup.
+That TypeScript design assigned the feature to Ravel 2 and a policy/request
+schema 3, because prepared-prompt semantics change. Ravel main later gave 2.0.0
+and schema 3 to Rhai native execution. Those assignments therefore supply
+intent only. The reviewed Rhai contract below replaces them.
 
 The directory review in Grove commit `ec3b0700e29c`, integrated by
 `ravel-skill-directories-k18`, identified a caller-wording obligation. The
@@ -66,10 +67,56 @@ ADR records that trade-off. Compaction acceptance separately removes the whole
 preamble and observes unprompted recovery. A retained descriptor path is not
 evidence that an agent remembers the recovery instruction.
 
-The integrated Ravel review, followed by Grove's adoption review, is the input
-to implementation planning.
-The producing task records the owning-repository commit and validation. These
+`ravel-rhai-skill-delivery-k34` corrected the contract for Rhai main as Ravel
+commit `fc87cb41a422`. `ravel-rhai-skill-delivery-k49` reviewed it, and
+`ravel-rhai-skill-delivery-k50` integrated both findings. The reviewed contract
+is `822c0ed2f67d9a446b74476fdad7d05922552b87` on the unpublished bookmark
+`skill-directory-delivery`. That commit, this adoption and the review of this
+adoption are the input to implementation planning. The historical `b93bb927`
+contract supplies intent only.
+
+The producing tasks record the owning-repository commits and validation. These
 design sessions leave product code and owner configuration unchanged.
+
+<a id="rhai-mapping"></a>
+## Rhai contract mapping
+
+The consumer handoff of Ravel's `docs/skill-discovery-design-evidence.md` at
+`822c0ed2` names the facts below. `grove-rhai-skill-delivery-k35` read the
+Ravel files with `jj file show` and changed none. It read Grove at `314d464e`.
+The [delivery specification](specs/codex-skill-provisioning.md#supported-routes)
+states the resulting routes.
+
+| Upstream fact | Grove obligation | Owner |
+| --- | --- | --- |
+| Directory delivery needs Ravel 2.0.0, `config.rhai` and `SCHEMA_VERSION` 4. Grove admits only stable 1.x | Admit stable 2.x from 2.0.0 beside 1.x. The admission selects no route. The 2.0 route needs Rhai caller assets | `grove-dual-ravel-k27` |
+| The native route stays Ravel 1.1.0, `policy.ts` with schema 2, and settings without 2.0 keys | Keep the TypeScript assets at their installed paths for 1.x. Keep the 1.1 pinned inputs and the legacy-driver fixtures | `grove-dual-ravel-k27` |
+| Ravel 1.1.0 refuses settings that hold `skills`, `configEnv`, `harnesses` or `budgets`. While a 1.1 reader remains, the directory route uses a separate `HOME` | Grove sets no HOME. That HOME also holds Grove's standalone run logs and the HOME-based configuration of the harnesses and the VCS. Acceptance runs each route in its own HOME | `grove-dual-ravel-k27`. The owner-delivery design owns the links of the owner's HOME |
+| Examples put `request.prompt` into the harness arguments. They read task data, such as the handle and the receipt, from `request.originalPrompt` | The Rhai sample and examples pass `request.prompt`. Grove's assets read task identity from `taskId`, `taskFile` and `context`, as the observations below show. The example of a handle and a receipt does not match Grove | `grove-dual-ravel-k27` |
+| The mandate qualifies "first". The ending command stays in the caller block, byte for byte | `grove-skill-mandate-k22` delivered the mandate. Acceptance compares `originalPrompt` and the caller block with the composed mandate | `grove-dual-ravel-k27` and `common-loading-acceptance-k29` |
+| Grove needs neither `RAVEL_SKILL_DIRECTORIES` nor `skills resolve` | No Grove change. The variable grants no authority, and Ravel replaces or removes it, so Grove's scrub list and the cargo guard need no new name | None |
+| Grove parses neither the routing notice nor the failure document. Both keep `schemaVersion` 2 | Grove reports Ravel's diagnostics without parsing them, as before | None |
+| Until promotion, the directory route selects the keg-only `ravel@2` by its prefix | The PATH of the Grove invocation selects that prefix. Grove's formula keeps its unversioned dependency through promotion | `grove-dual-ravel-k27` and `discovery-rollout-k6` |
+
+The fourth row is the one inexact mapping. Ravel's normative rule binds a
+script that analyses the task: it reads `request.originalPrompt`. No Grove
+asset analyses prompt text. An owner script that does so, such as a policy
+with a deciding agent, follows that rule. No Ravel correction is necessary, because
+the inexact text is an example in an evidence record.
+
+| Observation | Source | Consequence |
+| --- | --- | --- |
+| `check_version` admits only output with the prefix `ravel 1.` and a nonzero minor. Its remedy says to run `brew upgrade ravel` | Grove `crates/grove/src/dispatch/ravel.rs` | After promotion, that remedy moves the default command to 2.0.0. The new remedy names both majors and their configuration files |
+| Every file under `assets/ravel-policy/` is TypeScript and imports `ravel/sdk`, directly or through another asset | Grove `assets/ravel-policy/` | No asset runs under Ravel 2.0.0. Grove issue 24 asks for Rhai equivalents with the same refusals and the same receipt format |
+| The sample and the examples pass `request.prompt` to the harness. `grove.ts` reads `request.taskFile` through `host.readText`. `provenance.ts` reads `request.kind` and `request.taskId` | Grove `assets/ravel-policy/` | The prompt-field mapping above |
+| `task ravel:review` and `task ravel:provenance` need `RAVEL` and typecheck the assets against the installed SDK | Grove `Taskfile.yml` | Ravel 2.0.0 has no SDK and no inspection verb. Checks of the Rhai assets launch them through public `start-session` with fake agents |
+| `CONTROL_ENV` holds ten names, and `RAVEL_SKILL_DIRECTORIES` is not one of them | Grove `crates/grove-loop/src/ravel_job.rs` | No change, as the mapping states |
+| `standalone` reads `HOME` to locate personal run logs | Grove `crates/grove/src/standalone.rs` | A separate HOME moves the standalone run logs of the 2.0 route |
+| The owner's `~/.config/ravel/policy.ts` imports `ravel/sdk` and Node modules, and no Grove caller asset | Owner configuration, read only | The owner's conversion to `config.rhai` does not wait for the Rhai port of Grove's assets |
+| `[workspace.package]` says `version = "1.1.0"` | Ravel `Cargo.toml` at `822c0ed2` | A build of the line reports `ravel 1.1.0`, and Grove admits it as 1.x. Acceptance identifies each build by commit and build identity |
+| Ravel 2.0.0 embeds no module, and a script imports a module by path. A caller that needs a constant member order, such as Grove's receipt, joins members that `json_encode` wrote | Ravel `docs/specs/configuration-evaluation.md` at `822c0ed2` | The Rhai port needs no Ravel change. That specification lists the capabilities that Grove's helpers need and names Grove issue 24 |
+| Caller migration step 4 builds each read grant of a harness from `request.skills`, for example one argument for each `snapshotRoot` | Ravel `docs/specs/skill-discovery.md` at `822c0ed2` | The Rhai sample builds those grants where the sandbox of a harness needs explicit directories |
+| The `ravel@2` formula is keg-only, and its `bin/ravel` is never the default PATH command | Ravel `docs/specs/release-channels.md` at `822c0ed2` | The owner selects the prefix explicitly |
 
 ## Source and coverage
 
@@ -101,8 +148,8 @@ audit. It is not a claim that every downstream reference is already corrected.
 | Provisioner `crates/grove/src/provision.rs` (removed), lines 13–41, 98–132, 192–307 | Generated inventory drives native installation. The current pointer, retained snapshots and canonical/legacy links live under account-owned roots. Retiring the writer must not remove its output. |
 | Build script `crates/grove/build.rs` (removed), lines 42–88, and [binary modules](../crates/grove/src/main.rs) | Build scans all plugin files, embeds bytes and modes, derives Codex eligibility and rejects duplicate directory names. Remove this build dependency with the private module. |
 | [Package manifest](../crates/grove/Cargo.toml) | Existing general dependencies also serve other code. Do not infer that a dependency is removable merely because the provisioner used it. |
-| [Ravel resolver](../crates/grove/src/dispatch/ravel.rs), lines 34–76, 153–204 | The resolver admits stable 1.x from 1.1.0 and refuses 2.x. Extend session compatibility deliberately and keep 1.1 for native-only users. The current undirected upgrade remedy must change. |
-| [Policy assets](../assets/ravel-policy/README.md) and [sample](../assets/ravel-policy/sample/policy.ts) | Shipped examples currently declare policy schema 2. New examples must identify their target SDK. Context/receipt schema 1 is not a policy schema to bulk-replace. |
+| [Ravel resolver](../crates/grove/src/dispatch/ravel.rs), lines 34–76, 153–204 | The resolver admits stable 1.x from 1.1.0 and refuses 2.x. Extend session compatibility deliberately to 2.0.0 and keep 1.1 for native-only users. The current undirected upgrade remedy must change. |
+| [Policy assets](../assets/ravel-policy/README.md) and [sample](../assets/ravel-policy/sample/policy.ts) | Shipped examples currently declare policy schema 2. New examples must identify their target runtime and schema. Ravel 2.0.0 has no SDK, so its route needs Rhai assets, as the [mapping](#rhai-mapping) states. Context/receipt schema 1 is not a policy schema to bulk-replace. |
 | [Installer](../plugins/install.sh), lines 188–447 | Explicit native installation applies harness eligibility and reconciles links. Keep it as an owner-invoked route. Never invoke it as startup/upgrade cleanup. |
 | [Conformance](../plugins/grove/conformance.sh), lines 305–430 | Loaded paths and owners currently use a shared skills directory and spine fallback. Cross-pack proof must exercise actual resource lookup and ownership beyond this layout. |
 | [Release builder](../scripts/release-build.sh), archive layout declaration, and [formula](../scripts/templates/grove.rb.tmpl), lines 28–75, 106 | Archives carry executables/caller assets, while the binary hides skills internally. Layout need not gain a skill payload. Caveats/tests currently assume Codex provisioning, Ravel 1.x and schema 2. |
@@ -122,7 +169,7 @@ audit. It is not a claim that every downstream reference is already corrected.
 | Confined native delivery | Prove all native loader/resource reads separately from installation | HOME does not grant skill-tree access. Existing file grants and system paths prevent a universal impossibility claim, but establish no working harness setup. |
 | Native plugin namespace | The mandate names the bare skill and does not assert its shipping plugin | The first external pack and subsequent moves must prove actual native names and directory loading without native copies. |
 | Old native readers | Preserve links, pointers and resolved paths | Lazy/untracked readers prevent safe automatic cleanup. Keeping old content costs disk and owner administration. |
-| Existing public session CLI | Check admitted major versions and explicit policy examples | The [supervision record](adr/dispatch-supervises-the-harness.md#considered-options) owns dual-major admission, its alternative and reopen condition. |
+| Existing public session CLI | Check admitted majors, with TypeScript assets for 1.x and Rhai assets for 2.x | The [supervision record](adr/dispatch-supervises-the-harness.md#considered-options) owns dual-major admission, its alternative and reopen condition. |
 
 The rejected fallback and native-writer alternatives are recorded once in
 [the delivery ADR](adr/skill-delivery-is-the-users-choice.md). This design claims
@@ -139,19 +186,21 @@ original version labels and measurements.
 | Delivered behaviour | Documentation and checks to move with it |
 | --- | --- |
 | Remove automatic native writes | README installation, `plugins/README.md`, `plugins/CONTEXT.md`, `docs/USAGE.md`, architecture delivery/module sections, glossary Skill delivery and Spine skill, formula caveats and `check:skills`. Supply the optional manual cleanup procedure in `docs/USAGE.md`. Link it from plugin installation guidance. Exercise ownership cases in disposable layouts. Mark the old `docs/plans/codex-skill-provisioning.md` as historical or remove it when its implementation instructions cease to be useful. |
-| Caller/version adoption | Resolver diagnostics and fixtures, readable policy examples/typechecks, settings/configure guidance, caller spec/ADRs/views, `docs/specs/standalone-invocations.md`, `CONTEXT-MAP.md`, target fixtures and release instructions. Qualify "first", define missing-skill force-stop, and replace the constant native namespace with a bare-name target before packs move. Preserve explicit old/new major combinations. Separate lifecycle native acceptance from confined access proof. |
+| Caller/version adoption | Admission of 2.x from 2.0.0, its remedy and fixtures. Rhai caller assets with the same refusals and receipt format, as Grove issue 24 asks, and the TypeScript assets kept for 1.x. `docs/grove-provider-evidence.md`, the assets README, the configure-grove skill, the policy example in `docs/USAGE.md` and settings guidance. Caller spec/ADRs/views, `docs/specs/standalone-invocations.md`, `CONTEXT-MAP.md`, target fixtures, the asset gate in `docs/RELEASING.md` and release instructions. The glossary entries Delivered context, Owner settings, Choice file, Sample policy and Static dispatch. On 2.x, prompt analysis reads `originalPrompt`. The architecture rows for Ravel and the caller assets. `grove-skill-mandate-k22` delivered the qualified "first", the missing-skill force-stop and the bare-name target. Preserve explicit old/new major combinations. Separate lifecycle native acceptance from confined access proof. |
 | Source-exact runtime books | Overview chapters `02-the-surface`, `03-three-steps` and `06-standalone-invocations`. The grove-loop chapter `19-the-loop` where launch/prompt boundaries appear. Relevant source/concept indexes and manifests. Regenerate snippets against final code in the increment that changes it, not during this documentation-only design. Run the existing book checks. |
 | Common source delivery | Installation examples for native and Ravel routes. Use complete plugin boundaries while sources remain here. `plugins/linkuistics/skills/guardrail` is Claude-only, but common directory injection does not filter installer metadata. Check that its trigger/guidance does not claim unsupported behaviour in Codex. |
 | First external research pack and later moves | Own and aggregate conformance, required cross-source loading, resource/provenance/licence preservation, native package references, pinned/offline/common-directory trials. Prove a moved kind loads in native Claude Code under its real plugin namespace, and through directories with native copies absent. Establish reusable tooling in the research proof before the remaining domain moves. |
-| Installed rollout | Archive/formula/native and Linux-floor checks with explicit Ravel inputs, compatible SDK examples and both setup routes. Preserve legacy-driver rehearsal and original endings. Prove every intermediate tap dependency is compatible. Grove dual-major support precedes unversioned Ravel 2 activation, or Ravel 2 initially uses a separate versioned formula. Feature publication precedes Grove advertising it. Shared settings wait for compatible readers. |
+| Installed rollout | Archive/formula/native and Linux-floor checks with explicit Ravel inputs, both caller-asset sets and both setup routes. Formula caveats show both configuration formats, and the `ravel@2` prefix until promotion. Preserve legacy-driver rehearsal and original endings. Every intermediate tap state follows states A to D of the [coordinated release](specs/coordinated-release.md#compatible-tap-states). After the cut, repeat the admission and installed checks against the published `ravel 2.0.0` archives. Shared settings wait for compatible readers. |
 
 The adoption integration leaves Ravel and tap repositories unchanged. The
 common-loading planner owns caller corrections and manual-cleanup documentation.
 The research-pack and repository-move planners own native namespace trials.
 The rollout planner coordinates the tap dependency transition and any Ravel
-release-document correction with those repositories' owners. Read Ravel's
-integrated `b93bb927` contract, not the discarded catalog design. These handoffs
-do not authorise a shared installation or settings change during design.
+release-document correction with those repositories' owners.
+
+Read Ravel's reviewed `822c0ed2` contract. The `b93bb927` contract supplies intent only, and
+the catalog design is discarded. These handoffs do not authorise a shared
+installation or settings change during design.
 
 Relevant reusable entry points already exist in [Taskfile.yml](../Taskfile.yml):
 `check`, `check:skills`, `ravel:resolution`, `ravel:commands`, `ravel:policy`,
@@ -166,6 +215,6 @@ case stays an explicit acceptance gap.
 
 The design is subject to local-link/anchor, diagram manifest/source and
 served-resource validation. The producing task records actual browser
-rendering, the checks performed and any remaining gaps. This design leaf does
-not measure product tests, actual Ravel 2 compatibility, new source acquisition
-or real harness compliance.
+rendering, the checks performed and any remaining gaps. These design leaves do
+not measure product tests, actual Ravel 2.0.0 compatibility, new source
+acquisition or real harness compliance.

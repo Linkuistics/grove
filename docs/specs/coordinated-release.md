@@ -36,9 +36,9 @@ release.
 | --- | --- |
 | Released TypeScript route | Ravel 1.1.0 with request/policy schema 2. Preserve its complete installation and settings for old callers. |
 | Landed, unreleased Rhai route | Script/request schema 3, worker protocol 1, selection-context schema 1, and routing and failure schemas 2. Its manifest still says 1.1.0. That does not make its changed behaviour a released 1.1.0 contract. |
-| Combined release | Ravel 2.0.0, script/request schema 4. The directory design owns exact fields and rejection or explicit compatibility for schema-3 scripts, including delivery disabled. |
-| Other schema families | Do not change protocol, context, routing or failure versions to match the product major. The directory design owns any justified change and encoded-frame bounds. |
-| Compatible Grove | Next minor after the version on integrated main at the cut. Do not reserve 22.9.0 while main can advance. Verify native 1.1 and combined 2.0 routes independently. |
+| Combined release | Ravel 2.0.0, script/request schema 4. The reviewed directory design at Ravel `822c0ed2` adds `originalPrompt` and `skills`. A schema-3 script refuses as `unsupported_version`, also with delivery disabled. |
+| Other schema families | Do not change protocol, context, routing or failure versions to match the product major. The reviewed directory design keeps worker protocol 1, selection-context schema 1 and routing and failure schemas 2. It sets the evaluate-frame bound. |
+| Compatible Grove | Next minor after the version on integrated main at the cut. Do not reserve 22.9.0 while main can advance. Verify three routes independently: native 1.1, native 2.0.0 with delivery disabled, and 2.0.0 directory delivery. The [delivery design](codex-skill-provisioning.md#supported-routes) states each route. |
 
 The historical TypeScript directory proposal's schema 3 is not an implementation
 target. No local-only or native-only subset publishes as combined 2.0.0. If a
@@ -47,11 +47,12 @@ directory release needs a reviewed identity decision. Do not assume that it is a
 compatible minor increment.
 
 Schema 4 exists because a prepared prompt changes what `request.prompt` means
-to a script. The directory design decides schema-3 compatibility by that test.
-The test includes the case with delivery disabled, where the prompt does not
-change. The new number has a cost: every `SCHEMA_VERSION = 3` example, fixture
-and book page on Ravel main moves to 4. The owner's `config.rhai` conversion
-target moves with them.
+to a script. The directory design applied that test to schema 3, including the
+case with delivery disabled, where the prompt does not change. Schema 3
+refuses, because a settings edit must not change what an unchanged script
+receives. The new number has a cost: every `SCHEMA_VERSION = 3` example,
+fixture and book page on Ravel main moves to 4. The owner's `config.rhai`
+conversion target moves with them.
 
 ## Compatible tap states
 

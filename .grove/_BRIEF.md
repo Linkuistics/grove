@@ -125,18 +125,31 @@ of chezmoi. Do not recreate that source or put personal skill sources in
 
 ## Decomposition
 
-The next session should plan the working increments and necessary design leaves
-from this narrowed scope. Do not implement the two deferred issues as
-prerequisites or recreate the removed kind machinery.
+The ordered subtrees deliver working increments. Do not implement the two
+deferred issues as prerequisites or recreate the removed kind machinery.
 
-1. Establish Ravel's generic discovery/loading contract and the necessary Grove
-   delivery adjustments while the skills still live in this repository.
-2. Move research first and prove loading and conformance from another repository.
-   Then move the remaining skills, personal source, TestAnyware skill, marketplace,
-   and the four writing projects.
-3. Reconcile documentation, configuration, obsolete managed provisioning, and
-   independent releases; supply paused-grove brief-update text and finish through
-   the repository procedure.
+1. `common-skill-loading-k3`: settle Ravel's generic discovery contract and
+   Grove's delivery transition, then plan and implement the common launch path
+   while sources remain here. Public local/Git/offline/lifetime fixtures and
+   real Claude Code/Codex implicit-discovery trials prove this handoff.
+2. `external-research-pack-k4`: move research and prove external resource
+   reachability, own/aggregate conformance and common local/pinned/offline
+   loading. Its durable external-pack contract informs all remaining moves.
+3. `repository-moves-k5`: plan separate working increments for the remaining
+   domains, personal source/hooks, TestAnyware skill, marketplace and four
+   writing projects. Each move owns its preservation checks, affected consumers
+   and references; detailed layout follows the research proof.
+4. `discovery-rollout-k6`: reconcile the final installed split, documentation,
+   configuration and paused-grove handoff text; verify all repositories and
+   coordinate independent releases. Ravel release work precedes Grove's
+   driver-owned finish, which performs final integration and minor release.
+
+These are subtrees within this one coordinated workstream. Later planners grow
+their current implementation detail from delivered evidence. A node's design
+and planning leaves do not satisfy its behavioral Done when: its sessions add
+the missing implementation/acceptance work before allowing the node to close.
+Any earned producer review is cut lazily, placed before work that needs the
+settled artifact; an actionable review's integration runs next.
 
 Design must settle Ravel's source/configuration interface, catalog and source
 lifetime, duplicate handling, bootstrap with missing sources, compatibility

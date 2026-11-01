@@ -46,7 +46,7 @@ The [skill-delivery design](codex-skill-provisioning.md#installation-and-bootstr
 uses Ravel 2's captured-directory grants for complete external skill trees.
 A native installation under HOME alone grants no read access. Any native-only
 standalone setup must separately prove its loader and all required resources
-work within the existing grants; this spec adds no native-directory bypass.
+work within the existing grants. This spec adds no native-directory bypass.
 
 Ravel confines writes to the working directory and to the private run directory.
 Ravel keeps that directory for the temporary files of the harness and for its

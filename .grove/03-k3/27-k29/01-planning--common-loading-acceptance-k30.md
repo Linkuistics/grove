@@ -8,44 +8,52 @@ integrated handoff leaves using the available measured mechanisms.
 ## Context
 
 Consume preceding owning commits, temporary installed builds and fixture
-results. Read both specifications' full acceptance tables and Grove's root and
-common-loading Done when. Inspect available harness/trial tooling before
-claiming compaction, delegation or confinement support. No trials here.
+results. Read the full acceptance tables of both specifications and the Done
+when of Grove's root and of common-loading. Inspect the available harness and
+trial tooling before you claim support for compaction, delegation or
+confinement. No trials here.
 
 ## Done when
 
 - Cut separate concrete Claude Code and Codex implicit-discovery trial leaves.
-  Each records harness/model/version, isolation, exact source provenance,
-  mandatory/supporting read and action order, and native startup text. Task
-  activity must trigger craft guidance without naming the skill.
-- Assign local/pinned/offline sources, bare/plugin-qualified requests with
-  native copies absent, concrete loader match/absent fallback/other error,
-  express native-only restriction, concrete path, ambiguity, missing guidance
-  and stale-native coexistence to explicit cases in those leaves.
-- Schedule continuation, loss of path with instructions retained, and loss of
-  the entire preamble with no recovery reminder as separate trials. A retained
-  variable alone is not recovery evidence. Include a real delegate and retained
-  reads after source/config changes; distinguish reads, adherence and ending
-  authority. Use only disposable sessions for early-result attempts.
-- In each actual harness, add a separate native-only missing-kind case with
-  directory injection disabled and the required kind absent from isolated
-  native roots. Observe the agent's report and its exact launch force-stop
-  command; verify the leaf remains live, no teardown or output is published,
-  and the loop does not relaunch. Do not credit the native-stage fixture as
-  this observation. Keep the unreadable confined case separately identified.
-- Cut an installed/integrated handoff leaf after both harnesses: reconcile
-  actual macOS/Linux confinement, native-only lifecycle versus native standalone
-  access, fresh/upgrade no-mutation and explicit dual-major archive/formula/floor
-  evidence; run applicable Ravel checks and Grove core conformance/full check.
-  Review preceding evidence before deciding which checks need rerunning.
-- Give the handoff leaf the whole parent completion audit, exact owning commits
-  and reproducible temporary install/settings/policy/source recipes for research.
-  Every named gap becomes precise repair work before research, or a scope
-  question that leaves this subtree live. Do not replace required behavior with
-  transcript availability, prompted retries or fixture totals.
+  Each records the harness, model and version, the isolation and the exact
+  source provenance. Each also records the order of mandatory reads,
+  supporting reads and actions, and the native startup text. Task activity
+  must trigger craft guidance without naming the skill.
+- Assign explicit cases in those leaves to local, pinned and offline sources.
+  Also assign bare and plugin-qualified requests with native copies absent,
+  and a concrete loader with a match, an absent-match fallback and another
+  error. Add an express native-only restriction, a concrete path, ambiguity,
+  missing guidance and coexistence with a stale native copy.
+- Schedule continuation as one trial. Schedule loss of the path with the
+  instructions retained, and loss of the entire preamble with no recovery
+  reminder, as separate trials. A retained variable alone is not recovery
+  evidence. Include a real delegate and retained reads after source and
+  configuration changes. Distinguish reads, adherence and ending authority.
+  Use only disposable sessions for early-result attempts.
+- In each actual harness, add a separate native-only missing-kind case. Disable
+  directory injection, and leave the required kind absent from isolated native
+  roots. Observe the report of the agent and its exact launch force-stop
+  command. Then observe that the leaf remains live, that no teardown or output
+  is published and that the loop does not relaunch. Do not credit the fixture
+  of the native stage as this observation. Keep the unreadable confined case
+  separately identified.
+- Cut an installed and integrated handoff leaf after both harnesses. It
+  reconciles actual macOS and Linux confinement. It also compares native-only
+  lifecycle with native standalone access. It also reconciles the absence of mutation
+  on fresh install and upgrade, and explicit dual-major archive, formula and
+  floor evidence. It runs the applicable Ravel checks and Grove core
+  conformance and full check. Review preceding evidence before you decide which
+  checks need another run.
+- Give the handoff leaf the whole parent completion audit and the exact owning
+  commits. Give it reproducible temporary recipes for research: install,
+  settings, policy and sources. Every named gap becomes precise repair work before
+  research, or a scope question that leaves this subtree live. Do not replace
+  required behaviour with transcript availability, prompted retries or fixture
+  totals.
 
 ## Notes
 
-Do not repeat a requirements interview, alter shared owner configuration or
+Do not repeat a requirements interview, change shared owner configuration or
 publish releases. Feature publication follows the compatible tap sequence in
-discovery-rollout-k6; a staged build must remain reproducible until then.
+discovery-rollout-k6. A staged build must remain reproducible until then.

@@ -8,7 +8,7 @@ returns the opaque argument that `ravel end-session RESULT` published.
 This contract includes the skill-delivery adoption design. Grove admits Ravel
 1.x from 1.1.0 and no longer provisions Codex skills. Ravel directory delivery
 remains ahead. The [delivery design](codex-skill-provisioning.md) owns
-the transition; process and result contracts remain unchanged. Skill availability
+the transition. Process and result contracts remain unchanged. Skill availability
 is the user's responsibility through native installation or Ravel directory
 injection, and is not part of Grove's version admission.
 
@@ -18,9 +18,11 @@ The [Ravel CLI](https://github.com/Linkuistics/Ravel/blob/v1.0.0/docs/session-cl
 and [authority boundaries](https://github.com/Linkuistics/Ravel/blob/v1.0.0/docs/authority.md)
 own the executable behaviour. This document owns Grove's use of that interface.
 The [visual views](../design/harness-selection-and-execution/README.md) show the
-same caller boundary. When configured, Ravel adds skill-directory paths and
+same caller boundary.
+
+When configured, Ravel adds skill-directory paths and
 loading instructions while preserving the caller's task and ending commands.
-The agent locates skills; neither executable resolves the skill Grove names.
+The agent locates skills. Neither executable resolves the skill Grove names.
 Ravel interprets no result token. The
 [integrated directory contract](../grove-skill-delivery-design-evidence.md#upstream-correction)
 supplies the design input for caller adoption.
@@ -52,7 +54,7 @@ Grove retains stable `ravel 1.x` support from 1.1.0 and admits stable 2.x from
 2.0.0 after public session compatibility is verified. It refuses 1.0,
 prereleases, unknown majors, malformed output and unsuccessful probes without
 trying another installation. The remedy names compatible Grove, Ravel and
-policy versions; it must not blindly recommend a shared upgrade. Native skill
+policy versions. It must not blindly recommend a shared upgrade. Native skill
 delivery does not require Ravel 2. The
 [supervision decision](../adr/dispatch-supervises-the-harness.md) records the
 dependency and the trust in PATH that the probe costs.
@@ -85,7 +87,7 @@ without task-tree meaning.
 
 Grove calls no skill-resolution operation and parses no skill metadata or
 catalog. Both callers can receive configured directory injection automatically
-through `start-session`; native-only launches need no such configuration.
+through `start-session`. Native-only launches need no such configuration.
 That does not grant native filesystem reads. The
 [delivery contract](codex-skill-provisioning.md#installation-and-bootstrap)
 distinguishes native-only lifecycle acceptance from the additional read-access
@@ -135,7 +137,9 @@ Ravel owns the request schema its policy receives. Grove's caller assets and
 examples must be compatible with the SDK/schema of each admitted major and
 identify that target explicitly. The owner policy forwards the launch prompt,
 including any directory instructions. Task-only analysis uses the original-task
-view where Ravel exposes one. Grove depends on no skill descriptor or catalog.
+view where Ravel exposes one.
+
+Grove depends on no skill descriptor or catalog.
 Context and caller provider receipts retain their independent meanings.
 There is no run lookup.
 Grove's adapter reads only the supplied task file through the public context
@@ -147,10 +151,11 @@ agent. The owner constructs commands from choices that their code controls.
 
 Selection runs outside the confinement of the managed process, with owner grants
 and bounds. A refused selection launches no process and leaves the leaf live.
-Fix the named policy, choice or Creator evidence and rerun Grove. Configured
-source acquisition may also fail before launch. Preserve Ravel's source,
-revision, limit or access remedy; the selected leaf remains live. No inspection
-reservation or fallback selection takes part.
+Fix the named policy, choice or Creator evidence and rerun Grove.
+
+Configured source acquisition may also fail before launch. Preserve Ravel's
+source, revision, limit or access remedy. The selected leaf remains live. No
+inspection reservation or fallback selection takes part.
 
 <a id="execution-contract"></a>
 <a id="supervision"></a>

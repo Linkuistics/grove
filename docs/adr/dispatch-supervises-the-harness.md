@@ -3,8 +3,9 @@
 Grove launches the independently installed `ravel start-session` as a job.
 Ravel selects the command through the owner's policy and supervises its process
 group. It restores the terminal and reaps the group. Then it returns the opaque
-argument that `ravel end-session RESULT` published. The caller supplies the
-task and the ending instructions. The
+argument that `ravel end-session RESULT` published.
+
+The caller supplies the task and the ending instructions. The
 [delivery decision](skill-delivery-is-the-users-choice.md) owns skill delivery.
 Ravel adds no caller ending instruction and gives the result no meaning.
 

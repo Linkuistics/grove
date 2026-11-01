@@ -4,15 +4,16 @@ This is the adoption design. Grove implements its native-only route: Grove no
 longer embeds or provisions Codex snapshots, and startup leaves earlier
 installations unchanged. Grove 22.8 and earlier still provision them. Grove
 also implements the route-independent mandate: a bare skill name, "first" after
-any mandatory guidance, and the missing-skill force-stop rule. Ravel directory
-delivery and its acceptance remain ahead, and Grove admits stable Ravel 1.x from
-1.1.0. The document location remains stable
-for existing citations.
+any mandatory guidance, and the missing-skill force-stop rule.
+
+Ravel directory delivery and its acceptance remain ahead. Grove admits stable
+Ravel 1.x from 1.1.0. The document location remains stable for existing
+citations.
 
 ## Ownership
 
-Grove names the skill its session must load. **The user ensures that skill is
-available**, either through each harness's native installation or through
+Grove names the skill that its session must load. **The user ensures that skill
+is available**, either through each harness's native installation or through
 Ravel's mechanism. Grove and Ravel are decoupled with respect to skills. Grove
 neither installs skills nor asks Ravel to resolve a named skill.
 
@@ -25,14 +26,14 @@ The [owner-managed delivery decision](../adr/skill-delivery-is-the-users-choice.
 records the removal of automatic provisioning and the bootstrap trade-off.
 The [caller contract](harness-selection-and-execution.md) owns the public
 session interface. Ravel owns source acquisition, directory delivery, prompt
-preparation and resource access. Pack authors own their content and references;
-the agent owns loading and following that guidance.
+preparation and resource access. Pack authors own their content and references.
+The agent owns loading and following that guidance.
 
 Grove's mandate continues to name one required skill. Open kind labels, task
 filenames, handles, review and integration routes, tree verbs and result
-meanings remain unchanged. Grove adds
-no catalog reader, kind registry, presence check or discovery command. No skill
-location crosses from Ravel back into Grove's task loop.
+meanings remain unchanged. Grove adds no catalogue reader, kind registry,
+presence check or discovery command. No skill location crosses from Ravel back
+into Grove's task loop.
 
 ## Installation and bootstrap
 
@@ -42,23 +43,25 @@ assets. The user also chooses a delivery route for the skills their work needs:
 | Route | Setup obligation |
 | --- | --- |
 | Native harness installation | Install the spine, required kind skills and resources through that harness's supported plugin or manual installation route. Repeat for each harness that policy may select. |
-| Ravel directory injection | Configure the desired source directories through Ravel; verify that the launched agent can discover and read the required skills and supporting resources there. Native copies are unnecessary. |
+| Ravel directory injection | Configure the desired source directories through Ravel. Check that the launched agent can discover and read the required skills and supporting resources there. Native copies are unnecessary. |
 
 These routes are alternatives. Grove does not require Ravel discovery to be
 enabled or a source-resolution command to have been run. No-source Ravel
 launches remain valid. A native-only installation is a supported setup, not a
-degraded fallback. Independently started harnesses can continue using their
+degraded fallback. Independently launched harnesses can continue using their
 native installations.
 
 The choice of route does not grant filesystem access. Lifecycle acceptance
 proves the native-only route. Standalone `grove run` always confines its managed
-process; HOME in its environment does not make native skill trees readable.
+process. HOME in its environment does not make native skill trees readable.
 Ravel 2's snapshot grants provide the common route for complete external skill
-trees in that caller. A native setup under confinement needs separate proof
+trees in that caller.
+
+A native setup under confinement needs separate proof. This proof must show
 that its entry skill, required resources and loader prerequisites are reachable
-through existing permitted paths or explicit regular-file grants. Grove adds
-no recursive native-directory grant and never retries unconfined. No working
-native-only standalone configuration is established by this design.
+through existing permitted paths or explicit regular-file grants. Grove adds no
+recursive native-directory grant and never retries unconfined. This design
+establishes no working native-only standalone configuration.
 
 There is no embedded core-only fallback. Planning remains part of the core
 skill pack as the replaceable default, but installing the Grove binary alone
@@ -67,61 +70,66 @@ existing owner policy, settings and installations. Neither route silently
 activates personal guidance or copies a sample policy over an existing one.
 
 If the agent cannot find or read the mandated skill, it reports the missing
-guidance, leaves the task live, and runs the exact force-stop command supplied
-by its launch prompt as its last action. It does not retire the leaf, record
-teardown or send continuation. The mandate must state this rule: the missing
-skill cannot supply it. The loop stops without relaunching the leaf. The user
-repairs the selected delivery route and reruns. Grove does not turn that failure
-into declaration-based kind admission. A configured source that Ravel cannot
-acquire is instead a Ravel prelaunch failure, with its source-specific remedy.
+guidance and leaves the task live. As its last action, the agent runs the exact
+force-stop command that its launch prompt supplies. It does not retire the leaf,
+record teardown or send continuation. The mandate must state this rule, because
+the missing skill cannot supply it.
 
-For Ravel delivery, accepted source requirements still include local sources
-and exact pinned Git sources, offline reuse of warmed exact revisions, clear
-failure for unavailable required revisions and readable resources throughout
-reader lifetimes. Those are source-directory obligations, not resolution of a
-skill requested by Grove. Ravel’s corrected directory-injection design preserves those requirements;
-the [design evidence](../grove-skill-delivery-design-evidence.md#upstream-correction)
+The loop stops without relaunching the leaf. The user repairs the selected
+delivery route and reruns. Grove does not turn that failure into
+declaration-based kind admission. A configured source that Ravel cannot acquire
+is instead a Ravel prelaunch failure, with its source-specific remedy.
+
+For Ravel delivery, the accepted source requirements still include local sources
+and exact pinned Git sources. They also include offline reuse of warmed exact
+revisions, clear failure for unavailable required revisions and readable
+resources throughout reader lifetimes. Those are source-directory obligations,
+not resolution of a skill that Grove requests. Ravel's directory-injection
+design, after its correction, preserves those requirements. The
+[design evidence](../grove-skill-delivery-design-evidence.md#upstream-correction)
 identifies its review dependency and the human correction that governs it.
 
 ## Launch and compatibility
 
 Grove passes the ordinary mandate and exact ending commands through the public
-session CLI. Ravel may add directory-discovery instructions; it preserves the
+session CLI. Ravel may add directory-discovery instructions. Ravel preserves the
 caller task and endings intact. The agent discovers and loads the named skill.
 Owner policy must pass the intended launch prompt to the harness. Grove neither
 rewrites the selected command nor repairs a policy that drops the prompt.
 
 The mandate must qualify its instruction to load the kind skill "first" with
 "after any mandatory guidance". Ravel's loading preamble orders mandatory reads
-before caller-block actions, subject to higher-priority harness instructions;
-it grants configured content no other priority over the caller. A name with
-"load", including a plugin-qualified name, does not select a native tool.
+before caller-block actions, subject to higher-priority harness instructions.
+The preamble grants configured content no other priority over the caller. A name
+with "load", including a plugin-qualified name, does not select a native tool.
 With native copies absent, the agent searches the supplied directories for that
 name under Ravel's loading contract. Grove neither parses those directories nor
 changes the launch's ending instructions.
 
 The required target remains the bare `grove-<kind>` skill. A native namespace
-comes from the plugin that actually supplies it; moving the skill can change
-that namespace without changing the kind. Before the first pack moves, the
-mandate must stop asserting that every kind belongs to the `grove` plugin.
-It names one target and tells the agent to use that skill's installed namespace
-where required, without inventing a qualified alias. This adds no kind-to-plugin
-map or lookup to Grove. Each moved pack proves its actual native spelling and
-the same bare-name request through directory delivery.
+comes from the plugin that actually supplies it. Moving the skill can change
+that namespace without changing the kind.
+
+Before the first pack moves, the mandate must stop asserting that every kind
+belongs to the `grove` plugin. The mandate names one target and tells the agent
+to use that skill's installed namespace where required, without inventing a
+qualified alias. This adds no kind-to-plugin map or lookup to Grove. Each moved
+pack proves its actual native spelling and the same bare-name request through
+directory delivery.
 
 Both lifecycle and standalone callers use that same session boundary. A
-standalone runtime-file argument retains its existing meaning; Grove does not
-translate skill directories into it or expand access itself.
+standalone runtime-file argument retains its existing meaning. Grove does not
+translate skill directories into that argument or expand access itself.
 
 Compatibility is about the public session interface, not skill delivery. Retain
-stable Ravel 1.x support from 1.1.0, and admit stable 2.x from 2.0.0 after the
-same caller contract has passed acceptance. Refuse 1.0, prereleases, unknown
-majors, malformed version output and failed probes. Preserve absolute-PATH
-selection, canonicalization and refusal without falling through.
+stable Ravel 1.x support from 1.1.0. Admit stable 2.x from 2.0.0 after the same
+caller contract passes acceptance. Refuse 1.0, prereleases, unknown majors,
+malformed version output and failed probes. Preserve absolute-PATH selection,
+canonicalisation and refusal without falling through.
 
 Native-only users do not need Ravel 2 for skills. Ravel's directory-injection
 feature requires the version that implements it. Policy examples and installed
-checks must identify the Ravel SDK/schema they target; provide explicit
+checks must identify the Ravel SDK/schema that they target. Provide explicit
 compatible examples for each admitted major rather than silently rewriting an
 owner's policy. Grove does not parse policy/request schemas or private worker
 protocols. Context and provider receipts retain their independent contracts.
@@ -130,9 +138,9 @@ protocols. Context and provider receipts retain their independent contracts.
 | --- | --- |
 | Missing or incompatible Ravel | Select an installation supporting Grove's public session interface and a policy compatible with that installation. Avoid an undirected shared upgrade. |
 | Missing named skill | Repair native installation or the configured directory set. Do not require switching routes. |
-| Unavailable configured source/revision | Preserve Ravel's source-specific diagnostic; restore the source or deliberately amend owner configuration. |
-| Read access, capture, cache, timeout or limit failure | Preserve Ravel's precise remedy; do not silently substitute another revision, skip guidance or retry unconfined. |
-| Unsupported delegate access | Report that adapter's limitation before dependent work; do not imply that prompt text grants filesystem access. |
+| Unavailable configured source/revision | Preserve Ravel's source-specific diagnostic. Restore the source or deliberately amend owner configuration. |
+| Read access, capture, cache, timeout or limit failure | Preserve Ravel's precise remedy. Do not silently substitute another revision, skip guidance or retry unconfined. |
+| Unsupported delegate access | Report that adapter's limitation before dependent work. Do not imply that prompt text grants filesystem access. |
 
 Prelaunch failures yield no successful session result. Grove keeps its normal
 interruption and result interpretation and leaves selected work live. Lifecycle
@@ -143,7 +151,7 @@ scaffolding performed before launch is not promised a rollback.
 Remove automatic native provisioning and its embedded broad snapshot from
 Grove's build and startup. Startup and package upgrade leave old native links,
 current-snapshot pointers, snapshots, and foreign entries untouched. They do
-not adopt, repair, repoint or delete them. Existing native installations remain
+not adopt, repair, repoint or remove them. Existing native installations remain
 usable where their contents and resource paths are still valid.
 
 The user can keep native installations indefinitely. Cleanup, if requested, is
@@ -151,13 +159,13 @@ a manual procedure performed by the user after all affected readers and old
 provisioning writers stop. Include drivers, lazy link readers, independent
 harnesses and detached readers.
 
-A lexical path shape or skill name is insufficient deletion evidence. Inspect
-each link and actual target, account for aliases and recorded installation
-provenance, and preserve uncertain or foreign entries. Only then remove
-identified links in the skill directories that no reader, retained link or
-retained text needs. A retained link needs every entry its resolution passes,
-including entries reached through intermediate links outside the searched
-locations.
+A lexical path shape or skill name is insufficient evidence for removal.
+Inspect each link and its actual target. Account for aliases and recorded
+installation provenance. Preserve uncertain or foreign entries. Only then
+remove identified links in the skill directories that no reader, retained link
+or retained text needs. A retained link needs every entry that its resolution
+passes, including entries reached through intermediate links outside the
+searched locations.
 
 A search shows only what it reaches in the searched locations, and it cannot
 prove that nothing needs an entry. The cleanup therefore keeps the legacy root,
@@ -166,51 +174,53 @@ small, and the duplicate copies that cleanup addresses come from the links.
 
 The [cleanup procedure](../USAGE.md#usage-codex-cleanup) in the
 installation guidance supplies these steps, and plugin installation guidance
-links to it. It explains how to inspect the legacy pointer and snapshot layout
-without treating that layout alone as ownership evidence. No automatic
-migration or owner-invoked cleanup command is introduced.
+links to it. The procedure explains how to inspect the legacy pointer and
+snapshot layout without treating that layout alone as ownership evidence. This
+design introduces no automatic migration or owner-invoked cleanup command.
 
 If both routes supply a skill, native hooks or previously injected guidance may
 still run. Directory injection does not suppress them. Document their coexistence
-and use isolated native roots when proving Ravel-only delivery. An explicit
-native loader or path requested by the user must not be silently replaced.
-Ravel's contract distinguishes a concrete loader from a name request: an absent
-native match permits a disclosed directory fallback for the same guidance,
-unless the caller expressly restricts the load to that mechanism. A concrete
-path has no substitute, and other loader failures are reported before dependent
-work. These rules are exercised by the agent, not a Grove lookup protocol.
+and use isolated native roots when proving Ravel-only delivery.
+
+An explicit native loader or path requested by the user must not be silently
+replaced. Ravel's contract distinguishes a concrete loader from a name request.
+Under that contract, an absent native match permits a disclosed directory
+fallback for the same guidance. This fallback is not permitted when the caller
+expressly restricts the load to that mechanism. A concrete path has no
+substitute, and other loader failures are reported before dependent work. The
+agent, not a Grove lookup protocol, exercises these rules.
 
 Every live session keeps its original ending executable and command. Preserve
 its compatible executable/worker pair and any legacy dispatcher resources until
-its readers and drivers have ended. Installing a new version, moving a source
-or cleaning native links cannot change a live launch's ending contract.
+its readers and drivers end. Installing a new version, moving a source or
+cleaning native links cannot change a live launch's ending contract.
 
 ## Resources and conformance
 
 Packs contain their required procedures, templates, provenance and licences.
 Directory delivery preserves the resource layout. A relative supporting-resource
 reference resolves against the skill that owns it. A reference to another pack
-names its skill and resource; the agent locates that skill through the active
+names its skill and resource. The agent locates that skill through the active
 delivery route and resolves the resource from that skill's directory. No sibling
 checkout, native directory or Grove cache layout is assumed.
 
 The [single-owner](../adr/corpus-rules-have-one-owner.md) and
 [restatement](../adr/restatement-declares-its-class.md) decisions still govern
-normative prose. Required dependencies must be reachable; optional craft
+normative prose. Required dependencies must be reachable. Optional craft
 citations state what binds when absent. A move changes ownership and references
 together, without duplicating a family procedure or redesigning kinds.
 
 Each pack checks its own rules and resources. Aggregate conformance checks the
 composed loaded paths across the supplied core and external packs, required
 cross-pack edges and duplicate normative owners. These are content checks over
-actual supplied artifacts, not a registry used by either executable to admit a
+actual supplied artefacts, not a registry used by either executable to admit a
 kind. Ravel delivering readable directories is not proof that prose references
 work or that an agent follows them.
 
 Native installer eligibility metadata retains its installer meaning. Directory
 injection does not imply harness filtering or installation of native hooks.
-Pack descriptions and guidance must make harness-specific requirements clear;
-acceptance cannot treat a readable native-only integration as working elsewhere.
+Pack descriptions and guidance must make harness-specific requirements clear.
+Acceptance cannot treat a readable native-only integration as working elsewhere.
 
 ## Packaging and rollout
 
@@ -223,29 +233,29 @@ Prepare Ravel's new feature and compatible Grove caller assets in separate
 prefixes and isolated homes. Check the existing 1.1 native route as well as the
 new directory route before claiming compatibility. Publish Ravel's feature
 release before a Grove release that advertises its use. A Grove release that
-adds verified dual-major compatibility may precede that feature publication.
+adds checked dual-major compatibility may precede that feature publication.
 
 Every published tap state must pair its Grove formula with a compatible Ravel
 dependency, including fresh installs and upgrades between releases. Before the
 unversioned `ravel` formula advances to major 2, publish Grove's dual-major
 admission, compatible caller assets and formula tests. If Ravel 2 must publish
-first, expose it under a separate versioned formula and keep Grove's existing
-dependency on compatible 1.x until that Grove release is available. Do not
-advance the unversioned dependency first and rely on users to time or pin an
+first, expose it under a separate versioned formula. In that case, keep Grove's
+existing dependency on compatible 1.x until that Grove release is available. Do
+not advance the unversioned dependency first and rely on users to time or pin an
 upgrade. Resolver remedies name compatible executable and policy versions.
 
-Publication and shared activation remain separate: preserve old installations
+Publication and shared activation remain separate. Preserve old installations
 and settings while their callers still need them. An alternate policy path
 alone does not isolate settings that Ravel reads from the same HOME. Tap
 publication and any corresponding Ravel release-document changes belong to
-their owners; the rollout must verify their order before publishing.
+their owners. The rollout must check their order before publishing.
 
-Release fixtures explicitly select their dependency builds, verify matching
-independent package identities and test each admitted caller combination. Update
-pinned archive identities deliberately; retain separate legacy-driver fixtures.
-The source split later updates native packages and injected directory sources
-with the same resource-preservation checks. No owner installation is changed by
-this design.
+Release fixtures explicitly select their dependency builds, check matching
+independent package identities and test each admitted caller combination.
+Update pinned archive identities deliberately. Retain separate legacy-driver
+fixtures. The source split later updates native packages and injected directory
+sources with the same resource-preservation checks. This design changes no
+owner installation.
 
 The [coordinated release contract](coordinated-release.md) supplies the concrete
 combined-release identities, tap sequence, owner handoff and finish extension.
@@ -254,50 +264,51 @@ Its focused review precedes the Rhai contract repair and dependent implementatio
 ## Test seams
 
 Use existing Grove lifecycle, standalone and public session-command seams with
-isolated homes and actual installed Ravel. Ravel owns source acquisition tests;
-Grove verifies the observable caller behavior.
+isolated homes and actual installed Ravel. Ravel owns source acquisition tests.
+Grove checks the observable caller behaviour.
 
 | Acceptance | Observation |
 | --- | --- |
-| Native-only bootstrap | With Ravel directory injection disabled, launch the lifecycle caller using complete native skills. Grove does not demand source configuration. Any claimed native-only standalone setup separately proves discovery and every required read under actual confinement; installing under HOME alone is insufficient. |
-| Directory bootstrap | With native copies absent, inject complete source directories outside cwd and read the spine, named kind and supporting resources. Exercise local and exact Git sources, Grove's bare-name mandate and an explicit plugin-qualified name request; neither name request requires a native loader. |
+| Native-only bootstrap | With Ravel directory injection disabled, launch the lifecycle caller using complete native skills. Grove does not demand source configuration. Any claimed native-only standalone setup separately proves discovery and every required read under actual confinement. Installing under HOME alone is insufficient. |
+| Directory bootstrap | With native copies absent, inject complete source directories outside cwd and read the spine, named kind and supporting resources. Exercise local and exact Git sources, Grove's bare-name mandate and an explicit plugin-qualified name request. Neither name request requires a native loader. |
 | Offline and failures | Warm the exact source, remove transport access and launch. Missing cold revisions fail clearly. For a missing or unreadable mandated skill, the agent reports and uses the prompt's exact force-stop command. The leaf remains live, no teardown is recorded and the loop does not relaunch. Grove's kind parser does not reject it. |
-| Original mandate | The mandate qualifies "first" with "after any mandatory guidance". Observe mandatory reads before the named-kind read. Compare exact caller bytes and ending commands before/after Ravel preparation; the selected command receives the intended launch prompt. |
-| Explicit loading mechanism | Exercise a native loader with a match, absent-match directory fallback with disclosure, an express native-only restriction and a concrete path. Observe the specified route or a report before dependent work; do not silently substitute. |
-| Compatibility | Verify stable 1.x from 1.1.0 and 2.x, respective policy examples, refused versions and no fallback to another PATH entry. |
+| Original mandate | The mandate qualifies "first" with "after any mandatory guidance". Observe mandatory reads before the named-kind read. Compare exact caller bytes and ending commands before/after Ravel preparation. The selected command receives the intended launch prompt. |
+| Explicit loading mechanism | Exercise a native loader with a match, absent-match directory fallback with disclosure, an express native-only restriction and a concrete path. Observe the specified route or a report before dependent work. Do not silently substitute. |
+| Compatibility | Check stable 1.x from 1.1.0 and 2.x, respective policy examples, refused versions and no fallback to another PATH entry. |
 | No native mutation | Compare owned/foreign files, links, modes, pointers and bytes before/after startup, failure and installed upgrade. Include legacy homes, aliases and an active old reader. |
-| Manual cleanup guidance | Exercise the documented procedure in disposable legacy layouts with stopped readers/writers, owned and foreign links, aliases, uncertain provenance, and retained links that reach a skill entry through intermediate links or `..`. Only evidenced, unneeded owned skill-directory links are removable; the legacy root stays unchanged, and the owner's installation is untouched by the trial. |
-| Resource lifetime | A reader keeps its original resolved directories while sources/configuration change; subsequent launches can receive the new source view. |
+| Manual cleanup guidance | Exercise the documented procedure in disposable legacy layouts. These layouts include stopped readers/writers, owned and foreign links, aliases and uncertain provenance. They also include retained links that reach a skill entry through intermediate links or `..`. Only evidenced, unneeded owned skill-directory links are removable. The legacy root stays unchanged, and the trial leaves the owner's installation untouched. |
+| Resource lifetime | A reader keeps its original resolved directories while sources/configuration change. Subsequent launches can receive the new source view. |
 | Confined standalone | Ravel 2 directory delivery makes required resources outside cwd readable, while writes and protected configuration reads fail on actual supported backends. With injection disabled and native trees outside all grants, observe a missing/unreadable-guidance report and force-stop with no output publication. Grove adds no directory-grant bypass. |
-| Open tree behavior | Existing custom-kind, handle, review/integration, result and epoch tests pass. No availability check enters tree verbs or launch admission. |
-| Conformance | Core, external-pack and aggregate checks use exact supplied artifacts. Removed required resources/edges and duplicate owners fail deliberate controls. |
-| Installed distribution | Archives and formula tests verify separate packages, explicit versioned policy examples, both setup routes and no automatic native mutation. Exercise fresh install and upgrade at each intermediate tap state: Grove's dependency always resolves to an admitted Ravel major, and feature advertising follows its publication. |
-| Native names after a pack move | From the first external pack onward, native Claude Code loads a moved kind under the plugin's actual namespace from Grove's bare-name mandate. Repeat directory loading with native copies absent. The mandate asserts no fixed plugin namespace and adds no kind registry. |
-| Actual harness behavior | Claude Code and Codex each discover an applicable craft skill from a task that does not name it, and read it before the governed action. |
+| Open tree behaviour | Existing custom-kind, handle, review/integration, result and epoch tests pass. No availability check enters tree verbs or launch admission. |
+| Conformance | Core, external-pack and aggregate checks use exact supplied artefacts. Removed required resources/edges and duplicate owners fail deliberate controls. |
+| Installed distribution | Archives and formula tests check separate packages, explicit versioned policy examples, both setup routes and no automatic native mutation. Exercise fresh install and upgrade at each intermediate tap state. At each state, Grove's dependency always resolves to an admitted Ravel major, and feature advertising follows its publication. |
+| Native names after a pack move | From the first external pack onward, native Claude Code loads a moved kind under the plugin's actual namespace from Grove's bare-name mandate. Repeat directory loading with native copies absent. The mandate asserts no predetermined plugin namespace and adds no kind registry. |
+| Actual harness behaviour | Claude Code and Codex each discover an applicable craft skill from a task that does not name it, and read it before the governed action. |
 
 Directory-route harness trials include supporting reads, continuation/compaction,
-one delegate, and coexistence with a stale native copy. Record harness/model/
-version, isolation, confinement, directory identity and observed ordering.
-Compaction trials separately remove the prompt path and the entire preamble.
-For the latter, give no new recovery reminder and observe descriptor recovery
-and mandatory rereads before actions. A retained variable alone proves no such
-behavior; a failed unprompted recovery remains an acceptance gap.
+one delegate, and coexistence with a stale native copy. Record
+harness/model/version, isolation, confinement, directory identity and observed
+ordering. Compaction trials separately remove the prompt path and the entire
+preamble. For the latter, give no new recovery reminder and observe descriptor
+recovery and mandatory rereads before actions. A retained variable alone proves
+no such behaviour. A failed unprompted recovery remains an acceptance gap.
+
 Separate resource readability, instruction adherence and ending-authority
-isolation. A prompt path grants no permission; ordinary delegates may inherit
-ending authority. Test result attempts only in disposable sessions. An unavailable
-mechanism is an unmeasured gap, never a pass.
+isolation. A prompt path grants no permission. Ordinary delegates may inherit
+ending authority. Test result attempts only in disposable sessions. An
+unavailable mechanism is an unmeasured gap, never a pass.
 
 ## Scope and remaining work
 
-Implementation updates installation guidance, architecture, glossary, source-
-exact books, release checks and policy examples alongside the behavior they
-ship. The [evidence and handoff](../grove-skill-delivery-design-evidence.md)
+Implementation updates installation guidance, architecture, glossary,
+source-exact books, release checks and policy examples alongside the behaviour
+they ship. The [evidence and handoff](../grove-skill-delivery-design-evidence.md)
 identify inspected consumers. Research remains the first external-pack proof
 and settles reusable pack tooling before later moves.
 
-Ravel's directory review and integration supply the corrected contract to
-adoption review and dependent planning. The earlier generated-catalog
-proposal is historical input. Internal test wiring,
-aggregate conformance tooling and measured harness delegate behavior remain
+Ravel's directory review and integration supply the contract, after its
+correction, to adoption review and dependent planning. The earlier
+generated-catalogue proposal is historical input. Internal test wiring,
+aggregate conformance tooling and measured harness delegate behaviour remain
 implementation questions. No kind redesign, stop command, review simplification,
 repository relocation or native cleanup occurs here.

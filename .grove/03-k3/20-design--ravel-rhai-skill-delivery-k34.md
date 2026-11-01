@@ -15,6 +15,10 @@ the `Ravel.gh-issue-2` tree. Work belongs in a separate Ravel jj workspace.
 Consume coordinated-ravel-release-k36's reviewed publication constraints and
 owner-ravel-skill-delivery-k37's complete source/resource requirements first.
 
+owner-ravel-skill-delivery-k48 integrated that design's review. Its item 8 now
+requires a sandbox home that links only each sign-in store. The existing
+smoke recipe links the whole `.codex` tree and does not satisfy the item.
+
 k36's route is `docs/specs/coordinated-release.md`: combined Ravel
 2.0.0 and script/request schema 4, first through keg-only `ravel@2`. The human
 confirmed sole execution here until completion. Use the producer and its

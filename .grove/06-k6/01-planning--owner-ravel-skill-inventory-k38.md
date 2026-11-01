@@ -10,6 +10,12 @@ the owner's complete Ravel delivery cutover and removal of old installations.
 Consume the reviewed owner-ravel-skill-delivery-k37 design, the complete pack
 moves and common-loading evidence. Re-inventory actual installations and compare
 each entry with the baseline; account for skills installed since that inventory.
+
+owner-ravel-skill-delivery-k48 repaired the instrument and regenerated the
+baseline. Compare by each entry's change identity and run the fixture controls.
+The first staging trial proves the authentication-only isolation. The finish
+switch records reader evidence, including orphan markers, before it disables
+any plugin.
 Use coordinated-ravel-release-k36 for available builds and publication order.
 
 ## Done when

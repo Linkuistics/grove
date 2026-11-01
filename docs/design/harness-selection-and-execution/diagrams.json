@@ -58,7 +58,7 @@
       "group": "owner",
       "title": "Finish keeps its guidance through the switch",
       "source": "owner-final-session.mmd",
-      "caption": "Proposed. Disabling a plugin keeps its cache, so finish's absolute-path reads survive. Probe launches use the promoted Ravel."
+      "caption": "Proposed. Disabling neither updates nor uninstalls a plugin, so its cache version receives no orphan marker and finish's absolute-path reads survive. Probe launches use the promoted Ravel."
     },
     {
       "id": "release-tap",

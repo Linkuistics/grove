@@ -173,7 +173,14 @@ to `config.rhai` conversion precedes any owner default launch on 2.0.
 The owner-delivery design is `docs/specs/owner-skill-delivery.md`. Its
 evidence is `docs/owner-skill-delivery-evidence.md`, and the per-entry baseline
 is `docs/owner-skill-inventory.tsv`. Its requirements section lists what k34
-must preserve or settle. Its focused design review precedes k34.
+must preserve or settle.
+
+owner-ravel-skill-delivery-k41 reviewed the design, and
+owner-ravel-skill-delivery-k48 integrated the findings before k34. Item 8 now
+requires an authentication-only sandbox home, with a separate `CODEX_HOME`.
+The repaired instrument records a change identity for each entry, Codex's
+installed plugin cache and a coverage sweep. Its fixture controls are in
+`docs/evaluations/owner-skill-delivery/controls.py`.
 
 TestAnyware is an explicit acceptance case. A disposable proof cannot replace
 the actual owner cutover. Old lazy readers and the final session's guidance

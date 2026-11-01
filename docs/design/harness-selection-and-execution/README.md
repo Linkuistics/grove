@@ -66,13 +66,13 @@ public integration. Neither duplicates Ravel's private runtime contract.
 
 ## Current changes
 
-The current discussion is the owner skill cutover. It is proposed and awaits
-its focused review. See the [owner delivery specification](../../specs/owner-skill-delivery.md)
+The current discussion is the owner skill cutover. The design is a proposal,
+and the integration of its focused review is complete. See the [owner delivery specification](../../specs/owner-skill-delivery.md)
 and [evidence](../../owner-skill-delivery-evidence.md).
 
 - [Where each installed entry goes](http://127.0.0.1:52710/#diagram-owner-classes) — Added the per-entry rule that routes each baseline entry to a Ravel source, a native route or no change.
 - [Ordered owner cutover](http://127.0.0.1:52710/#diagram-owner-cutover) — Added the ordered cutover and the switch inside finish, with its probes and inverse.
-- [Finish keeps its guidance through the switch](http://127.0.0.1:52710/#diagram-owner-final-session) — Added how finish keeps its native guidance through the switch. Later sessions move to Ravel 2.0.0.
+- [Finish keeps its guidance through the switch](http://127.0.0.1:52710/#diagram-owner-final-session) — Added how finish keeps its native guidance through the switch. Later sessions move to Ravel 2.0.0. Changed by the review integration: the cache version survives because disabling writes no orphan marker, not because a reader protects it.
 
 ## Earlier release changes
 

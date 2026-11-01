@@ -343,6 +343,16 @@ tasks:
       - for: sources
         cmd: d2 --layout=elk --theme=0 --dark-theme=200 '{{.ITEM}}' '{{trimSuffix ".d2" .ITEM}}.svg'
 
+  owner:inventory:
+    desc: Print the owner's skill-installation inventory as TSV, reading only; compare it per entry with docs/owner-skill-inventory.tsv
+    cmds:
+      - python3 -I docs/evaluations/owner-skill-delivery/inventory.py
+
+  owner:inventory:controls:
+    desc: Check in a fixture HOME that the owner inventory sees each class of change
+    cmds:
+      - python3 -I docs/evaluations/owner-skill-delivery/controls.py
+
   release:patch:
     desc: Publish and install the next patch release
     cmds:

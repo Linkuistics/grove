@@ -1,8 +1,8 @@
 # Owner skill delivery through Ravel
 
 This design moves the owner's installed skill collection from native harness
-installations to Ravel's directory delivery. It awaits its focused design
-review. It changes no installation, setting or file on the owner's machine.
+installations to Ravel's directory delivery. Its focused design review is
+integrated. It changes no installation, setting or file on the owner's machine.
 The [evidence document](../owner-skill-delivery-evidence.md) records the
 inputs, and [the baseline](../owner-skill-inventory.tsv) classifies each
 installed entry.
@@ -90,7 +90,7 @@ same design.
 | Dangling entry | `terminal-browser` links in three roots. The Pi skill links and the Pi technical-communication extension link. | Deactivate in the switch. No reader can read through them. |
 | Tool-managed | codebase-memory skill copies, agent definitions and hooks. herdr and Orca hooks. The `testanyware`, `quint` and `codebase-memory-mcp` executables. | Unchanged. Their installers own them. |
 | Capability-only | Enabled plugins without skills: Context7, Playwright, commit-commands, feature-dev, the explanatory output style and Swift LSP. All MCP entries. | Unchanged. |
-| Platform-managed | Claude Code built-in skills, account-synced skills, Codex system skills and Codex bundled plugin skills | Unchanged. They are outside the owner's control and are no Ravel source. |
+| Platform-managed | Claude Code built-in skills, account-synced skills, Codex system skills, and the skills of Codex's bundled, runtime and remote-installed plugins | Unchanged. They are outside the owner's control and are no Ravel source. |
 | Disabled third-party | Claude Code plugins that the owner disabled, with their skills | Outside the active collection. Unchanged. |
 
 Two owner-pack skills have their own route:
@@ -236,18 +236,60 @@ A Claude Code session reads absolute plugin-cache paths, so disabling a plugin
 leaves its reads intact. A Codex or Pi session reads through link paths, and
 the switch moves those links. Each such session must end before the switch.
 
-Claude Code can sweep cached plugin versions that no session uses. That is
-platform behaviour, and the cutover neither relies on it nor prevents it. A
-late rollback therefore installs from the marketplace rather than from a cache.
+Claude Code's cleanup rule is time-based, not reader-based. An update or an
+uninstall writes `.orphaned_at` into the earlier version directory. A background
+cleanup erases that directory 14 days later and ignores readers. Disabling a
+plugin is neither an update nor an uninstall, so it writes no marker. A running
+session also keeps the plugin set that it loaded until a reload.
+
+The cutover therefore keeps each version that a live reader uses registered
+and current. Automatic updates of the earlier marketplace stay frozen from the
+preparation step onward. Nothing updates or uninstalls a superseded plugin
+before purge. The official marketplace updates automatically by default, so
+this rule covers every plugin that finish loaded, not only Grove's. A backup
+copy elsewhere does not protect an orphaned absolute path. A late rollback
+installs from the marketplace when a needed version directory is gone.
 
 ### Settings isolation and the staging HOME
 
 All trials before finish run in a staging HOME. It holds its own Ravel
 configuration and settings with the ten sources and the mandatory file. Its
 harness configuration is a prototype of the native residue: the skill-free
-plugins are enabled, and no superseded skill is installed. The harnesses sign
-in through links into the real HOME, by Ravel's documented sandbox-home
-technique. The staging HOME copies no credential.
+plugins are enabled, and no superseded skill is installed. The staging HOME
+copies no credential.
+
+Each harness reuses only its sign-in store from the real HOME. Sign-in and
+harness configuration have different owners, so no link may join them.
+
+- **Claude Code** on macOS finds its sign-in in the login keychain through
+  `HOME`. The staging HOME links `Library/Keychains` only. Its `.claude`
+  directory and `.claude.json` belong to the staging HOME.
+- **Codex** keeps its configuration, hooks, agents, plugins, skills and sign-in
+  file in one `.codex` tree. Ravel's smoke recipe links that whole tree. That
+  link exposes the real configuration, hooks, plugins and superseded skills,
+  and a staging configuration write would change the real files. The staging
+  HOME therefore holds its own `.codex` tree, and each staging launch sets
+  `CODEX_HOME` to it. Only the sign-in file `auth.json` comes from the real
+  HOME, through a link to that one file.
+
+The first staging trial proves this isolation before any other trial runs:
+
+1. List every link in the staging HOME. The list holds `Library/Keychains` and
+   `.codex/auth.json` only.
+2. Show that `$CODEX_HOME/skills` and the staging `~/.agents/skills` hold no
+   superseded entry, and that neither harness lists a superseded skill.
+3. Record the effective Codex home and every `-c` override of the staging
+   launches. No inherited `CODEX_HOME` may point into the real HOME.
+4. Write the staging harness configuration and run one session on each
+   harness. Digest the real configuration files, hook files, plugin registries
+   and skill roots before and after. No digest may change.
+5. Run one Codex session that refreshes its token. Then show that the real
+   HOME's `codex login status` still succeeds and that `auth.json` is still a
+   link.
+
+If a refresh replaces the link with a file, the trial stops. A replaced link
+could leave the real sign-in with a revoked token. The owner then chooses a
+separate sign-in inside the staging `CODEX_HOME` instead of the reused file.
 
 The real HOME's Ravel settings gain the skill configuration only inside the
 switch. By then, finish's own launch was this driver's last 1.1 settings read.
@@ -262,7 +304,9 @@ The switch also requires evidence that no other 1.1 driver can launch.
   Claude Code. It loads `grove-finish` and the spine from the enabled Grove
   plugin's cache path. Its lazy reads use that absolute path.
 - **The switch** runs inside finish, after promotion. It disables the Grove
-  plugin but keeps its cache, so finish can still read its own guidance.
+  plugin but neither updates nor uninstalls it. The version directory keeps
+  its registration and receives no orphan marker, so finish can still read its
+  own guidance.
 - **After the switch**, a session that the owner opens directly sees only the
   native residue.
 - **After this driver's reap**, a new driver resolves compatible Grove and the
@@ -282,20 +326,26 @@ Grove/Ravel pair. Its steps are:
    descendants and the driver chain that launched it.
 2. If any other listed process remains, stop and ask the owner. Do not signal
    another session.
-3. Rerun the baseline instrument. Compare each entry with the prepared
-   manifest. Stop for classification on any new or changed entry.
-4. Write the backup: copies of the affected settings and registry files, the
+3. Rerun the baseline instrument. Compare each entry's change identity with
+   the prepared manifest. Stop for classification on any new, missing or
+   changed entry. Also stop on any `UNCLASSIFIED`, `UNASSIGNED`, `UNCOVERED` or
+   `NEEDS-REVIEW` row. Compare the built-in rows, whose digest says
+   `unverified`, with finish's own skill listing.
+4. Record the reader evidence. Name each plugin cache version directory that
+   finish loaded and its registration in `installed_plugins.json`. Stop if any
+   of those directories holds `.orphaned_at`.
+5. Write the backup: copies of the affected settings and registry files, the
    manifest and the inverse operation.
-5. Apply the switch as one operation. Write the real-HOME Ravel skill
+6. Apply the switch as one operation. Write the real-HOME Ravel skill
    settings. Disable the superseded plugins and enable the two skill-free
    plugins. Move each superseded file-system entry into the backup's retained
    tree at its original relative path.
-6. Verify with the rehearsed probes. They resolve the sources through the
+7. Verify with the rehearsed probes. They resolve the sources through the
    promoted `ravel` and the real HOME's configuration. Then they launch one
    Claude Code session and one Codex session by that route.
-7. On any failed probe, apply the inverse operation and verify the native
+8. On any failed probe, apply the inverse operation and verify the native
    route. Then end without a success signal.
-8. Write the receipt into the maintained manual and run `mac-check`.
+9. Write the receipt into the maintained manual and run `mac-check`.
 
 Each probe must observe these results:
 
@@ -306,10 +356,13 @@ Each probe must observe these results:
 - On Claude Code, the technical-communication hooks run.
 - Native discovery lists no superseded skill.
 
+After the probes launch, finish reads one of its own guidance files again by
+its recorded cache path.
+
 The receipt records the activated default path: the Grove version, the Ravel
 path and version, and the digests of `config.rhai` and the settings. It also
-records each source pin, the backup location and each retained byte set with its
-purge condition. The [finish decision](../adr/finish-promotes-after-the-grove-release.md)
+records each source pin, the reader evidence, the backup location and each
+retained byte set with its purge condition. The [finish decision](../adr/finish-promotes-after-the-grove-release.md)
 records why this runs inside finish.
 
 ### Rollback
@@ -336,7 +389,8 @@ registration. Purge requires three conditions:
 Purge is outside this grove's success condition, as the 1.1.0 keg cleanup is.
 The receipt lists each item with its condition. The maintained manual carries
 the procedure. The owner uninstalls platform registrations only through the
-platform's own commands. Nobody erases a cache directory by hand.
+platform's own commands. Nobody erases a cache directory by hand. A Claude Code
+uninstall marks the version orphaned, and the platform erases it 14 days later.
 
 ### Independent sessions
 
@@ -366,7 +420,12 @@ historical contract `b93bb927` already satisfies the first five items.
    names it. `authoring-conventions` is the owner's case.
 7. State exactly how Ravel 1.1 treats a settings file that holds 2.0 keys. The
    switch's timing assumes that 1.1 refuses such a file.
-8. Keep the staging-HOME technique documented for actual harness trials.
+8. Document a sandbox-home technique for actual harness trials that links
+   only each harness's sign-in store. For Codex, it sets a separate
+   `CODEX_HOME` and reuses only the sign-in file, never the whole `.codex`
+   tree. It lists every linked path. The existing smoke recipe links the whole
+   tree. That recipe does not satisfy this item, and k34 decides whether the
+   smoke task adopts the narrower route.
 
 ## Cutover contract
 
@@ -384,12 +443,17 @@ with the coordinated release work.
 | 7 | Finish | Run the switch after promotion | The probes pass and the receipt is in the manual |
 | 8 | Owner | Purge retained bytes | The purge conditions hold |
 
-The staging trials cover implicit craft discovery and the mandatory read
-order. They cover a TestAnyware resource read and real VM tool use. They also
+The isolation trial in
+[Settings isolation and the staging HOME](#settings-isolation-and-the-staging-home)
+runs first. The staging trials then cover implicit craft discovery and the
+mandatory read order. They cover a TestAnyware resource read and real VM tool use. They also
 cover the Quint and codebase-memory MCP servers, the Claude Code hooks and
 `/guardrail`. Each harness also runs one delegate, one compaction and one
 stale-copy coexistence case. A trial fails if native discovery lists a
 superseded skill.
+
+One Claude Code trial disables the plugin that holds its own guidance and
+launches a nested probe. It then reads its guidance by absolute path again.
 
 Persistent setting changes follow the machine configuration contract. mise
 tracks `~/.claude/settings.json`, `~/.codex/config.toml`, `~/.codex/hooks.json`
@@ -399,8 +463,10 @@ It still names the earlier `~/Development/grove` checkout.
 
 ## Test seams
 
-- The baseline instrument, rerun, compares entries one by one. Its control root
-  must show one unclassified entry and one dangling entry.
+- The baseline instrument, rerun, compares entries one by one by their change
+  identity. Its control root must show one unclassified entry and one dangling
+  entry. Its fixture controls must show that each class of change changes its
+  entry, and that a rotated credential does not.
 - Staging trials use Ravel's public `start-session` and `skills resolve` with
   the actual harnesses.
 - The switch and its inverse have a dry run against the manifest. Rehearsals

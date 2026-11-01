@@ -1,9 +1,32 @@
 """Print the owner's skill-installation baseline as TSV on standard output.
 
 The script only reads. It walks the Claude Code, Codex and Pi discovery
-roots, both plugin registries, the user hook and MCP files and the known tool
-installations. It writes paths with ~ for HOME and prints no file content
-except SKILL.md frontmatter names.
+roots, both Claude Code plugin registries and Codex's installed plugin cache.
+It also reads the user hook and MCP files, the agent definitions and the tool
+installations that skills need. A final sweep finds every SKILL.md under the four harness homes
+and reports each one that no walked root or classified container holds. Paths
+use ~ for HOME. The script prints no file content except SKILL.md frontmatter
+names.
+
+Change identity. The digest16 column holds the first 16 hexadecimal digits of
+a SHA-256 over the state that defines the entry:
+
+- A skill tree: each sorted relative path, the executable bit and content of
+  each file, and the target of each file or directory link.
+- A Claude Code plugin or Codex installed plugin: its whole version directory.
+- A user hook: its matcher, its definition and each file under HOME that its
+  command names. One row exists for each hook.
+- An MCP server: its definition. The script replaces values under env and
+  header tables, and values of keys that name a token, secret, password or
+  key, with their names. A credential rotation is therefore not a capability
+  change.
+- An agent definition, a Pi extension or a skill override: its content.
+- A tool: its resolved executable, bundle metadata or clone revision.
+- A coverage row: the sorted SKILL.md paths of its container.
+
+A row that the script cannot observe says NEEDS-REVIEW. Built-in Claude Code
+skills have no files, so their digest says "unverified" and the session's own
+skill listing is their only evidence. No row holds a raw configuration value.
 
 The design in docs/specs/owner-skill-delivery.md owns each classification and
 destination. This script encodes them so that a later inventory can compare
@@ -12,14 +35,20 @@ entries one by one with docs/owner-skill-inventory.tsv.
 Usage:
     python3 -I inventory.py > inventory.tsv
 
-Control: set CONTROL_ROOT to a scratch directory that holds an unknown skill
-directory and a dangling link. The output must then show one UNCLASSIFIED
-row and one dangling row under the harness "control". Without CONTROL_ROOT,
-no row may say UNCLASSIFIED or UNASSIGNED.
+Controls: controls.py beside this script builds a fixture HOME and checks that
+each class of change changes its entry. Set CONTROL_ROOT to a scratch directory
+that holds an unknown skill directory and a dangling link. The output must then
+show one UNCLASSIFIED row and one dangling row under the harness "control".
+Without CONTROL_ROOT, no row may say UNCLASSIFIED, UNASSIGNED, UNCOVERED or
+NEEDS-REVIEW.
 """
-import hashlib, json, os, re, sys
+import hashlib, json, os, plistlib, re, subprocess, sys, tomllib
 H = os.path.expanduser("~")
 def t(p): return p.replace(H, "~", 1) if p.startswith(H) else p
+def h16(b): return hashlib.sha256(b).hexdigest()[:16]
+def canon(o): return json.dumps(o, sort_keys=True, separators=(",", ":")).encode()
+def ls(p): return sorted(os.listdir(p)) if os.path.isdir(p) else []
+def xbit(p): return b"x" if os.stat(p).st_mode & 0o111 else b"-"
 def fm(path):
     try: txt = open(path, encoding="utf-8").read()
     except Exception: return {}
@@ -34,14 +63,16 @@ def digest(d):
     h = hashlib.sha256(); n = 0
     for root, dirs, files in os.walk(d):
         dirs.sort()
-        for f in sorted(files):
-            p = os.path.join(root, f); rel = os.path.relpath(p, d)
-            if os.path.islink(p): h.update(b"L" + rel.encode() + os.readlink(p).encode())
+        links = [x for x in dirs if os.path.islink(os.path.join(root, x))]
+        for f in sorted(files + links):
+            p = os.path.join(root, f); rel = os.path.relpath(p, d).encode()
+            if os.path.islink(p): h.update(b"L" + rel + b"\0" + os.readlink(p).encode() + b"\0")
             else:
-                h.update(b"F" + rel.encode())
-                with open(p, "rb") as fh: h.update(hashlib.sha256(fh.read()).digest())
+                with open(p, "rb") as fh: h.update(b"F" + xbit(p) + rel + b"\0" + hashlib.sha256(fh.read()).digest())
             n += 1
     return h.hexdigest()[:16], n
+def filedigest(p):
+    with open(p, "rb") as fh: return h16(xbit(p) + fh.read())
 
 DEST = {}
 for s in "grove configure-grove grove-finish grove-planning grove-review-planning grove-integrate-review-planning".split(): DEST[s] = "grove-core"
@@ -53,11 +84,11 @@ for s in "grove-draft grove-copy-edit grove-art grove-proof technical-communicat
 for s in "machine-environment using-jujutsu guardrail authoring-conventions".split(): DEST[s] = "personal"
 DEST["using-testanyware"] = "testanyware"
 CAPS = {
-    "using-testanyware": "testanyware CLI 2.7.0, TestAnyware.app, ~/.config/testanyware/config.rhai, VM data/state dirs",
-    "quint-lang": "quint CLI 0.33.1; quint-kb MCP from ~/.quint-llm-kit/repo",
-    "quint-modeling": "quint CLI 0.33.1; quint-kb MCP from ~/.quint-llm-kit/repo",
-    "quint-execute-spec": "quint CLI 0.33.1; quint-kb MCP from ~/.quint-llm-kit/repo",
-    "using-codebase-memory": "codebase-memory-mcp 0.10.6 MCP and CLI",
+    "using-testanyware": "testanyware CLI, TestAnyware.app, ~/.config/testanyware/config.rhai, VM data/state dirs (see tool rows)",
+    "quint-lang": "quint CLI; quint-kb MCP from ~/.quint-llm-kit/repo (see tool rows)",
+    "quint-modeling": "quint CLI; quint-kb MCP from ~/.quint-llm-kit/repo (see tool rows)",
+    "quint-execute-spec": "quint CLI; quint-kb MCP from ~/.quint-llm-kit/repo (see tool rows)",
+    "using-codebase-memory": "codebase-memory-mcp MCP and CLI (see tool rows)",
     "technical-communication": "python3; scripts/ste-lint.py; always-on hooks (Claude only)",
     "guardrail": "Claude Code frontmatter PreToolUse hook and /guardrail command",
     "machine-environment": "mise, task, Obsidian manual",
@@ -67,20 +98,35 @@ CAPS = {
 rows = []
 def row(harness, location, entry, form, ident, dg, files, cls, owner, caps, dispo, note=""):
     rows.append([harness, t(location), entry, form, ident or "-", dg, str(files), cls, owner, caps or "-", dispo, note or "-"])
+def need_json(path):
+    try:
+        with open(path, encoding="utf-8") as fh: return json.load(fh)
+    except FileNotFoundError:
+        row("input", os.path.dirname(path), os.path.basename(path), "required input absent", "-", "-", 0, "input", "-", "-", "NEEDS-REVIEW")
+        return {}
+def need_toml(path):
+    try:
+        with open(path, "rb") as fh: return tomllib.load(fh)
+    except FileNotFoundError:
+        row("input", os.path.dirname(path), os.path.basename(path), "required input absent", "-", "-", 0, "input", "-", "-", "NEEDS-REVIEW")
+        return {}
+walked = []
 
 # --- Claude Code plugins
-inst = json.load(open(f"{H}/.claude/plugins/installed_plugins.json"))
-enabled = json.load(open(f"{H}/.claude/settings.json")).get("enabledPlugins", {})
-for key, entries in sorted(inst["plugins"].items()):
+inst = need_json(f"{H}/.claude/plugins/installed_plugins.json")
+claude_settings = need_json(f"{H}/.claude/settings.json")
+enabled = claude_settings.get("enabledPlugins", {})
+active_claude = set()
+for key, entries in sorted(inst.get("plugins", {}).items()):
     for e in entries:
         p = e["installPath"]; plugin, market = key.split("@")
+        active_claude.add(os.path.realpath(p)); walked.append(p)
         en = enabled.get(key)
         comps = []
         for k in ("skills", "commands", "agents"):
             if os.path.isdir(os.path.join(p, k)): comps.append(k)
         if os.path.isfile(os.path.join(p, "hooks", "hooks.json")): comps.append("hooks")
         if os.path.isfile(os.path.join(p, ".mcp.json")): comps.append("mcp")
-        lsp = ""
         if market == "claude-plugins-official" and plugin.endswith("-lsp"): comps.append("lsp(marketplace entry)")
         if market == "linkuistics": cls, owner = "owner-pack", "Linkuistics/grove marketplace"
         elif plugin in ("superpowers", "quint-llm-kit"): cls, owner = "third-party-pack", market
@@ -93,29 +139,34 @@ for key, entries in sorted(inst["plugins"].items()):
         elif plugin == "quint-llm-kit": dispo = "disable"
         elif not en: dispo = "outside (unchanged)"
         else: dispo = "native-keep"
-        row("claude", os.path.dirname(os.path.dirname(p)), key, f"plugin v{e['version']} sha {(e.get('gitCommitSha') or '-')[:12]} enabled={en}", plugin, "-", 0, cls, owner, "+".join(comps), dispo)
+        orphan = "yes" if os.path.exists(os.path.join(p, ".orphaned_at")) else "no"
+        if os.path.isdir(p): pdg, pn = digest(p)
+        else: pdg, pn, dispo = "-", 0, "NEEDS-REVIEW"
+        row("claude", os.path.dirname(os.path.dirname(p)), key, f"plugin v{e['version']} sha {(e.get('gitCommitSha') or '-')[:12]} enabled={en} orphan={orphan}", plugin, pdg, pn, cls, owner, "+".join(comps), dispo)
         sk = os.path.join(p, "skills")
-        if os.path.isdir(sk):
-            for d in sorted(os.listdir(sk)):
-                sd = os.path.join(sk, d)
-                if not os.path.isfile(os.path.join(sd, "SKILL.md")): continue
-                f = fm(os.path.join(sd, "SKILL.md")); dg, n = digest(sd)
-                if market == "linkuistics":
-                    tgt = DEST.get(d, "UNASSIGNED")
-                    if d == "guardrail": dsp = "native-only (PersonalSkills Claude plugin; outside Ravel roots)"
-                    elif d == "technical-communication": dsp = f"ravel:{tgt}; hooks via skill-free plugin"
-                    else: dsp = f"ravel:{tgt}"
-                elif plugin == "superpowers": dsp = "ravel:superpowers" + ("; mandatory file" if d == "using-superpowers" else "")
-                elif plugin == "quint-llm-kit": dsp = "ravel:quint"
-                elif not en: dsp = "outside (plugin disabled)"
-                else: dsp = "UNCLASSIFIED"
-                note = "; ".join(x for x in [("harnesses=" + f["harnesses"]) if f.get("harnesses") not in (None, "[any]") else "", "user-invoked only" if f.get("disable-model-invocation") == "true" else ""] if x)
-                row("claude", sd.rsplit("/skills/", 1)[0] + "/skills", f"{plugin}:{d}", "plugin skill", f.get("name"), dg, n, cls if en else "disabled-third-party", owner, CAPS.get(d), dsp, note)
+        for d in ls(sk):
+            sd = os.path.join(sk, d)
+            if not os.path.isfile(os.path.join(sd, "SKILL.md")): continue
+            f = fm(os.path.join(sd, "SKILL.md")); dg, n = digest(sd)
+            if market == "linkuistics":
+                tgt = DEST.get(d, "UNASSIGNED")
+                if d == "guardrail": dsp = "native-only (PersonalSkills Claude plugin; outside Ravel roots)"
+                elif d == "technical-communication": dsp = f"ravel:{tgt}; hooks via skill-free plugin"
+                else: dsp = f"ravel:{tgt}"
+            elif plugin == "superpowers": dsp = "ravel:superpowers" + ("; mandatory file" if d == "using-superpowers" else "")
+            elif plugin == "quint-llm-kit": dsp = "ravel:quint"
+            elif not en: dsp = "outside (plugin disabled)"
+            else: dsp = "UNCLASSIFIED"
+            note = "; ".join(x for x in [("harnesses=" + f["harnesses"]) if f.get("harnesses") not in (None, "[any]") else "", "user-invoked only" if f.get("disable-model-invocation") == "true" else ""] if x)
+            row("claude", sd.rsplit("/skills/", 1)[0] + "/skills", f"{plugin}:{d}", "plugin skill", f.get("name"), dg, n, cls if en else "disabled-third-party", owner, CAPS.get(d), dsp, note)
+for name, value in sorted(claude_settings.get("skillOverrides", {}).items()):
+    row("claude", "~/.claude/settings.json skillOverrides", name, f"skill override {value}", name, h16(canon([name, value])), 0, "tool-managed" if name == "codebase-memory" else "unknown", "owner configuration", "-", "native-keep" if name == "codebase-memory" else "UNCLASSIFIED")
 
 # --- filesystem discovery roots
 def walk_root(harness, root, cls_fn):
     rp = os.path.expanduser(root)
     if not os.path.isdir(rp): return
+    walked.append(rp)
     for e in sorted(os.listdir(rp)):
         p = os.path.join(rp, e)
         if e.startswith(".") and e != ".system": continue
@@ -167,75 +218,174 @@ walk_root("codex", "~/.agents/skills", codex_cls)
 walk_root("pi", "~/.pi/agent/skills", pi_cls)
 if os.environ.get("CONTROL_ROOT"): walk_root("control", os.environ["CONTROL_ROOT"], claude_cls)
 
-# --- Codex bundled/runtime plugin skills (platform-managed)
+# --- Codex marketplace sources (catalogs of bundled and runtime plugins)
 for base, label in ((f"{H}/.codex/.tmp/bundled-marketplaces/openai-bundled", "openai-bundled"), (f"{H}/.cache/codex-runtimes/codex-primary-runtime/plugins/openai-primary-runtime", "openai-primary-runtime")):
     pl = os.path.join(base, "plugins")
     if not os.path.isdir(pl): continue
-    for plug in sorted(os.listdir(pl)):
+    walked.append(pl)
+    for plug in ls(pl):
         sk = os.path.join(pl, plug, "skills")
-        if not os.path.isdir(sk): continue
-        for s in sorted(os.listdir(sk)):
+        for s in ls(sk):
             sp = os.path.join(sk, s)
             if os.path.isfile(os.path.join(sp, "SKILL.md")):
                 dg, n = digest(sp)
-                row("codex", base, f"{plug}@{label}:{s}", "bundled plugin skill", fm(os.path.join(sp, "SKILL.md")).get("name"), dg, n, "platform-managed", "Codex " + label, "-", "native-keep")
+                row("codex", base, f"{plug}@{label}:{s}", "marketplace source skill", fm(os.path.join(sp, "SKILL.md")).get("name"), dg, n, "platform-managed", "Codex " + label, "-", "native-keep")
+
+# --- Codex installed plugin cache: every marketplace, plugin and cached version
+codex_cfg = need_toml(f"{H}/.codex/config.toml")
+pstate = {k: v.get("enabled") for k, v in codex_cfg.get("plugins", {}).items() if isinstance(v, dict)}
+CODEX_MARKETS = {"openai-bundled": "Codex openai-bundled", "openai-primary-runtime": "Codex openai-primary-runtime", "openai-curated-remote": "Codex remote install (ChatGPT account)"}
+pc = f"{H}/.codex/plugins/cache"
+for market in ls(pc):
+    if market.startswith(".") or not os.path.isdir(os.path.join(pc, market)): continue
+    known = market in CODEX_MARKETS
+    cls, owner = ("platform-managed", CODEX_MARKETS[market]) if known else ("unknown", "unknown")
+    for plug in ls(os.path.join(pc, market)):
+        pd = os.path.join(pc, market, plug)
+        if plug.startswith(".") or not os.path.isdir(pd): continue
+        key = f"{plug}@{market}"
+        if key in pstate: state = "enabled=" + str(pstate[key]).lower()
+        elif os.path.isfile(os.path.join(pd, ".codex-remote-plugin-install.json")): state = "remote install record; no config.toml entry"
+        else: state = "no local record"
+        names = [v for v in ls(pd) if not v.startswith(".")]
+        vers = [v for v in names if os.path.isdir(os.path.join(pd, v)) and not os.path.islink(os.path.join(pd, v))]
+        links = "".join(f"; link {v} -> {os.path.basename(os.readlink(os.path.join(pd, v)))}" for v in names if os.path.islink(os.path.join(pd, v)))
+        for v in vers:
+            vd = os.path.join(pd, v); walked.append(vd)
+            dg, n = digest(vd)
+            comps = "+".join(k for k in ("skills", "assets", "scripts", ".mcp.json", "hooks") if os.path.exists(os.path.join(vd, k))) or "-"
+            row("codex", vd, key, f"installed plugin v{v} {state}; cached versions={len(vers)}{links}", plug, dg, n, cls, owner, comps, "native-keep" if known else "UNCLASSIFIED")
+            sk = os.path.join(vd, "skills")
+            for s in ls(sk):
+                sp = os.path.join(sk, s)
+                if os.path.isfile(os.path.join(sp, "SKILL.md")):
+                    sdg, sn = digest(sp)
+                    row("codex", sk, f"{key}:{s}", f"installed plugin skill {state}", fm(os.path.join(sp, "SKILL.md")).get("name"), sdg, sn, cls, owner, "-", "native-keep" if known else "UNCLASSIFIED")
 
 # --- Pi extensions
 pe = f"{H}/.pi/agent/extensions"
-for e in sorted(os.listdir(pe)):
+for e in ls(pe):
     p = os.path.join(pe, e); ok = os.path.exists(p)
     form = (f"link -> {t(os.readlink(p))}" + ("" if ok else " (DANGLING)")) if os.path.islink(p) else "file"
+    dg = (filedigest(p) if os.path.isfile(p) else digest(p)[0]) if ok else "-"
     cls = "dangling" if not ok else "tool-managed"
     owner = {"cbmem.ts": "codebase-memory-mcp", "herdr-agent-state.ts": "herdr", "technical-communication.ts": "plugins/install.sh"}.get(e, "Orca")
-    row("pi", pe, e, form, "-", "-", 0, cls, owner, "Pi extension", "deactivate (dangling; no reader)" if not ok else "native-keep")
+    row("pi", pe, e, form, "-", dg, 0, cls, owner, "Pi extension", "deactivate (dangling; no reader)" if not ok else "native-keep")
 
-# --- hooks, agents, MCP (names only)
-st = json.load(open(f"{H}/.claude/settings.json"))
-seen = set()
-for ev, groups in st.get("hooks", {}).items():
-    for g in groups:
-        for hk in g.get("hooks", []):
-            c = hk.get("command", "")
-            owner = "Orca" if "ORCA_AGENT_HOOK" in c else ("herdr" if "herdr" in c else ("codebase-memory-mcp" if "cbm-" in c else "unknown"))
-            k = (ev, owner)
-            if k in seen: continue
-            seen.add(k)
-            row("claude", "~/.claude/settings.json hooks", f"{ev}:{owner}", "user hook", "-", "-", 0, "tool-managed", owner, "native hook", "native-keep")
-for a in sorted(os.listdir(f"{H}/.claude/agents")):
-    row("claude", "~/.claude/agents", a, "subagent definition", "-", "-", 0, "tool-managed", "codebase-memory-mcp installer", "agent", "native-keep")
-for n in sorted(json.load(open(f"{H}/.claude.json")).get("mcpServers", {})):
-    row("claude", "~/.claude.json mcpServers", n, "MCP server", "-", "-", 0, "capability-only", "owner configuration", "MCP", "native-keep")
-cj = json.load(open(f"{H}/.codex/hooks.json")).get("hooks", {})
-seen = set()
-for ev, groups in cj.items():
-    for g in groups:
-        for hk in g.get("hooks", []):
-            c = hk.get("command", "")
-            owner = "Orca" if "orca-agent-hook" in c else ("herdr" if "herdr" in c else ("codebase-memory-mcp" if "codebase-memory-mcp" in c else "unknown"))
-            if (ev, owner) in seen: continue
-            seen.add((ev, owner))
-            row("codex", "~/.codex/hooks.json", f"{ev}:{owner}", "user hook", "-", "-", 0, "tool-managed", owner, "native hook", "native-keep")
-for a in sorted(os.listdir(f"{H}/.codex/agents")):
-    row("codex", "~/.codex/agents", a, "agent definition", "-", "-", 0, "tool-managed", "codebase-memory-mcp installer", "agent", "native-keep")
-txt = open(f"{H}/.codex/config.toml").read()
-for n in sorted(set(re.findall(r'^\[mcp_servers\.([A-Za-z0-9_-]+)\]', txt, re.M))):
-    row("codex", "~/.codex/config.toml mcp_servers", n, "MCP server", "-", "-", 0, "capability-only", "owner configuration", "MCP", "native-keep")
-for n, en in re.findall(r'^\[plugins\."([^"]+)"\]\nenabled = (true|false)', txt, re.M):
-    row("codex", "~/.codex/config.toml plugins", n, f"plugin enabled={en}", "-", "-", 0, "platform-managed", "Codex bundled marketplaces", "plugin", "native-keep")
+# --- user hooks: one row per hook, with the files under HOME that it names
+PATHTOK = re.compile(r"""(?:\$\{HOME-?\}|\$HOME|~)(/[^\s"';|&)]+)""")
+def hook_rows(harness, label, hooks, owner_of):
+    ordinal = {}
+    for ev, groups in hooks.items():
+        for g in groups:
+            for hk in g.get("hooks", []):
+                c = hk.get("command", "")
+                owner = owner_of(c)
+                ordinal[(ev, owner)] = ordinal.get((ev, owner), 0) + 1
+                h = hashlib.sha256(canon({"matcher": g.get("matcher"), "hook": hk}))
+                owned = sorted({H + m for m in PATHTOK.findall(c) if os.path.isfile(H + m)})
+                for s in owned: h.update(t(s).encode() + b"\0" + filedigest(s).encode())
+                row(harness, label, f"{ev}:{owner}:{ordinal[(ev, owner)]}", f"user hook; owned files={len(owned)}", "-", h.hexdigest()[:16], len(owned), "tool-managed" if owner != "unknown" else "unknown", owner, "native hook", "native-keep" if owner != "unknown" else "UNCLASSIFIED")
+hook_rows("claude", "~/.claude/settings.json hooks", claude_settings.get("hooks", {}),
+          lambda c: "Orca" if "ORCA_AGENT_HOOK" in c else ("herdr" if "herdr" in c else ("codebase-memory-mcp" if "cbm-" in c else "unknown")))
+hook_rows("codex", "~/.codex/hooks.json", need_json(f"{H}/.codex/hooks.json").get("hooks", {}),
+          lambda c: "Orca" if "orca-agent-hook" in c else ("herdr" if "herdr" in c else ("codebase-memory-mcp" if "codebase-memory-mcp" in c else "unknown")))
 
-# --- retained storage and tools
-snaps = sorted(os.listdir(f"{H}/.agents/.grove/snapshots"))
-row("codex", "~/.agents/.grove", "snapshots", f"{len(snaps)} snapshot directories; current -> {os.path.basename(os.path.realpath(H + '/.agents/.grove/current'))}", "-", "-", len(snaps), "owner-pack", "Grove 22.8 provisioning", "lazy-read targets", "retain until readers and writer stop")
-row("tool", "/opt/homebrew/bin", "testanyware", "Homebrew linkuistics/taps/testanyware 2.7.0", "-", "-", 0, "tool-managed", "Homebrew tap", "required by using-testanyware", "native-keep")
-row("tool", "/Applications", "TestAnyware.app", "app 2.7.0", "-", "-", 0, "tool-managed", "TestAnyware installer", "required by using-testanyware", "native-keep")
-row("tool", "/opt/homebrew/bin", "quint", "quint 0.33.1", "-", "-", 0, "tool-managed", "Homebrew", "required by quint skills", "native-keep")
-row("tool", "~/.local/bin", "codebase-memory-mcp", "codebase-memory-mcp 0.10.6", "-", "-", 0, "tool-managed", "its self-updater", "MCP, hooks and skill installer", "native-keep")
-row("tool", "~/.quint-llm-kit", "repo", "git clone of quint-co/quint-llm-kit at cc75369f741af7d490936f82002c2d28e3b3d78d (dirty package-lock)", "-", "-", 0, "third-party-pack", "quint-llm-kit installer", "quint-kb MCP server and Codex skill links", "native-keep (MCP); skills via ravel:quint")
+# --- agent definitions and MCP servers
+def agent_rows(harness, d, form):
+    for a in ls(d):
+        p = os.path.join(d, a)
+        dg = filedigest(p) if os.path.isfile(p) else digest(p)[0]
+        row(harness, d, a, form, "-", dg, 1, "tool-managed", "codebase-memory-mcp installer", "agent", "native-keep")
+agent_rows("claude", f"{H}/.claude/agents", "subagent definition")
+agent_rows("codex", f"{H}/.codex/agents", "agent definition")
+SECRET_TABLES = {"env", "headers", "http_headers", "env_http_headers"}
+def mcp_identity(d):
+    clean = {}
+    for k, v in d.items():
+        if k in SECRET_TABLES and isinstance(v, dict): clean[k] = sorted(v)
+        elif re.search(r"token|secret|password|key", k, re.I): clean[k] = "<present>"
+        else: clean[k] = v
+    return h16(canon(clean))
+for n, d in sorted(need_json(f"{H}/.claude.json").get("mcpServers", {}).items()):
+    row("claude", "~/.claude.json mcpServers", n, "MCP server", "-", mcp_identity(d), 0, "capability-only", "owner configuration", "MCP", "native-keep")
+for n, d in sorted(codex_cfg.get("mcp_servers", {}).items()):
+    row("codex", "~/.codex/config.toml mcp_servers", n, "MCP server", "-", mcp_identity(d), 0, "capability-only", "owner configuration", "MCP", "native-keep")
+for n, d in codex_cfg.get("plugins", {}).items():
+    en = str(d.get("enabled")).lower() if isinstance(d, dict) else "-"
+    row("codex", "~/.codex/config.toml plugins", n, f"plugin enabled={en}", "-", h16(canon(d)), 0, "platform-managed", "Codex bundled marketplaces", "plugin", "native-keep")
 
+# --- retained storage and tools, observed now
+snapdir = f"{H}/.agents/.grove/snapshots"
+snaps = ls(snapdir)
+cur = os.path.basename(os.path.realpath(H + "/.agents/.grove/current"))
+row("codex", "~/.agents/.grove", "snapshots", f"{len(snaps)} snapshot directories; current -> {cur}", "-", h16(canon([snaps, cur])), len(snaps), "owner-pack", "Grove 22.8 provisioning", "lazy-read targets", "retain until readers and writer stop")
+def tool_row(path, label, owner, caps):
+    p = os.path.expanduser(path)
+    if not os.path.exists(p):
+        row("tool", os.path.dirname(path), label, "absent", "-", "-", 0, "tool-managed", owner, caps, "NEEDS-REVIEW", "executable not found"); return
+    real = os.path.realpath(p)
+    m = re.search(r"/Cellar/([^/]+)/([^/]+)/", real)
+    ver = f"Homebrew {m.group(1)} {m.group(2)}" if m else "version not recorded; identity by digest"
+    row("tool", os.path.dirname(path), label, f"{ver}; resolves to {t(real)}", "-", filedigest(real), 1, "tool-managed", owner, caps, "native-keep")
+tool_row("/opt/homebrew/bin/testanyware", "testanyware", "Homebrew tap", "required by using-testanyware")
+app = "/Applications/TestAnyware.app/Contents/Info.plist"
+if os.path.isfile(app):
+    with open(app, "rb") as fh: raw = fh.read()
+    info = plistlib.loads(raw)
+    row("tool", "/Applications", "TestAnyware.app", f"app {info.get('CFBundleShortVersionString')} build {info.get('CFBundleVersion')}", "-", h16(raw), 1, "tool-managed", "TestAnyware installer", "required by using-testanyware", "native-keep")
+else:
+    row("tool", "/Applications", "TestAnyware.app", "absent", "-", "-", 0, "tool-managed", "TestAnyware installer", "required by using-testanyware", "NEEDS-REVIEW", "bundle not found")
+tool_row("/opt/homebrew/bin/quint", "quint", "Homebrew", "required by quint skills")
+tool_row("~/.local/bin/codebase-memory-mcp", "codebase-memory-mcp", "its self-updater", "MCP, hooks and skill installer")
+clone = f"{H}/.quint-llm-kit/repo"
+try:
+    git = ["git", "--no-optional-locks", "-C", clone]
+    head = subprocess.run(git + ["rev-parse", "HEAD"], capture_output=True, text=True, check=True).stdout.strip()
+    dirty = subprocess.run(git + ["status", "--porcelain"], capture_output=True, text=True, check=True).stdout
+    changed = sorted(line[3:] for line in dirty.splitlines())
+    row("tool", "~/.quint-llm-kit", "repo", f"git clone of quint-co/quint-llm-kit at {head}; changed paths: {', '.join(changed) or 'none'}", "-", h16(canon([head, dirty])), 0, "third-party-pack", "quint-llm-kit installer", "quint-kb MCP server and Codex skill links", "native-keep (MCP); skills via ravel:quint")
+except (OSError, subprocess.CalledProcessError):
+    row("tool", "~/.quint-llm-kit", "repo", "clone not readable", "-", "-", 0, "third-party-pack", "quint-llm-kit installer", "quint-kb MCP server and Codex skill links", "NEEDS-REVIEW")
 
-# --- Claude Code built-in skills: no files on disk; observed in this session's skill listing
+# --- Claude Code built-in skills: no files on disk; observed in a session's skill listing
 for s in "artifact-capabilities artifact-design artifact-diagramming claude-api claude-in-chrome code-review dataviz fewer-permission-prompts init keybindings-help loop plugin-authoring run schedule security-review simplify update-config workflow-authoring".split():
-    row("claude", "Claude Code 2.1.316 built-in", s, "built-in skill (session listing)", s, "-", 0, "platform-managed", "Claude Code", "-", "native-keep")
+    row("claude", "Claude Code 2.1.316 built-in", s, "built-in skill (session listing)", s, "unverified", 0, "platform-managed", "Claude Code", "-", "native-keep")
+
+# --- coverage: every SKILL.md under the four harness homes, by container
+CONTAINERS = (
+    (f"{H}/.claude/plugins/marketplaces/", "Claude Code marketplace clones (install sources)"),
+    (f"{H}/.agents/.grove/snapshots/", "Grove 22.8 snapshot store (targets of Codex links)"),
+    (f"{H}/.codex/.tmp/plugins/", "openai-curated marketplace clone (install source)"),
+    (f"{H}/.codex/vendor_imports/", "Codex curated skill catalog (skill-installer source)"),
+    (f"{H}/.codex/plugins/.remote-plugin-install-staging/", "Codex remote-install staging bundle"),
+)
+cover = {}
+roots = [r.rstrip("/") + "/" for r in walked]
+ccache = f"{H}/.claude/plugins/cache/"
+for home in (".claude", ".codex", ".agents", ".pi"):
+    for root, dirs, files in os.walk(os.path.join(H, home)):
+        dirs[:] = sorted(d for d in dirs if d != "node_modules")
+        if "SKILL.md" not in files: continue
+        p = os.path.join(root, "SKILL.md")
+        if any(p.startswith(r) for r in roots): continue
+        if p.startswith(ccache):
+            parts = p[len(ccache):].split("/")
+            key = ("inactive", ccache + "/".join(parts[:2]))
+        else:
+            key = next((("container", c, why) for c, why in CONTAINERS if p.startswith(c)), ("uncovered", root))
+        cover.setdefault(key, []).append(t(p))
+for key, paths in sorted(cover.items()):
+    paths.sort(); dg = h16("\n".join(paths).encode())
+    if key[0] == "inactive":
+        pd = key[1]
+        vers = [v for v in ls(pd) if os.path.isdir(os.path.join(pd, v)) and os.path.realpath(os.path.join(pd, v)) not in active_claude]
+        orph = sum(os.path.exists(os.path.join(pd, v, ".orphaned_at")) for v in vers)
+        row("coverage", pd, "inactive cached versions", f"{len(vers)} versions outside installed_plugins.json; orphaned={orph}", "-", dg, len(paths), "not-a-discovery-root", "Claude Code plugin cache", "-", "outside (lazy-read targets until removed)")
+    elif key[0] == "container":
+        row("coverage", key[1], os.path.basename(key[1].rstrip("/")), key[2], "-", dg, len(paths), "not-a-discovery-root", "platform or installer", "-", "outside (not a discovery root)")
+    else:
+        row("coverage", key[1], os.path.basename(key[1]), "SKILL.md outside every walked root and container", fm(os.path.join(key[1], "SKILL.md")).get("name"), dg, len(paths), "unknown", "unknown", "-", "UNCOVERED")
 
 hdr = ["harness", "location", "entry", "form", "identity", "digest16", "files", "class", "source_owner", "capabilities", "disposition", "note"]
 w = sys.stdout

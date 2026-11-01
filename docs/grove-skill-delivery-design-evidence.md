@@ -29,7 +29,7 @@ directories and direct mandatory-file references, with a retained directory-only
 descriptor for recovery and delegates. Ravel acquires local/exact pinned sources;
 it does not parse skill metadata, reject duplicate names or answer a skill lookup.
 
-The owning Ravel commit is `4c16f8e09d58c8f649a375029c8e8fa2933de2b4`.
+The producer's Ravel commit is `4c16f8e09d58c8f649a375029c8e8fa2933de2b4`.
 Its `docs/specs/skill-discovery.md` defines the corrected interface and its
 `docs/skill-discovery-design-evidence.md` records source evidence and limitations.
 
@@ -37,11 +37,27 @@ The corrected Ravel design retains Ravel 2 and policy/request schema 3 because
 prepared-prompt semantics change. Grove's existing source still refuses major 2.
 The adoption therefore keeps native-only 1.1 support and adds 2.x only through
 explicit caller acceptance and versioned policy examples. This does not require
-Grove to read a directory descriptor or run source setup. No session-interface
-assumption in the corrected Grove caller spec needs to change.
+Grove to read a directory descriptor or run source setup.
 
-A focused Ravel design review runs before this adoption's review; its integrated
-result, followed by Grove's review, is the input to implementation planning.
+The directory review in Grove commit `ec3b0700e29c`, integrated by
+`ravel-skill-directories-k18`, identified a caller-wording obligation. The
+resulting Ravel commit is `b93bb927095ff09b91e9b78dc1ad05bdacfec649`.
+Grove's mandate must qualify "first" with "after any mandatory guidance". A name plus
+"load", including the plugin-qualified spelling, remains a name request;
+it must work through supplied directories with native copies absent. Concrete
+native tools and file paths follow the explicit-route rules. The delivery spec
+now carries these acceptance cases. The earlier claim that no session-interface
+assumption needed correction was too broad: the CLI stays the same, but the
+mandate wording changes before directory delivery is accepted.
+
+The integrated Ravel contract keeps shared owner settings, so separate prefixes
+alone cannot enable skills alongside 1.1 under the same HOME. The preparation
+ADR records that trade-off. Compaction acceptance separately removes the whole
+preamble and observes unprompted recovery; retaining a descriptor path is not
+evidence that an agent remembers the recovery instruction.
+
+The integrated Ravel review, followed by Grove's adoption review, is the input
+to implementation planning.
 The producing task records the owning-repository commit and validation. Product
 code and owner configuration remain unchanged by these design sessions.
 
@@ -89,6 +105,7 @@ that every downstream reference has already been repaired.
 | Current build/provisioner | Binary release must include a complete broad corpus | Corpus movement, binary compilation and shared native writes change together. Removing the adapter removes this coupling. |
 | Owner-managed delivery | User supplies skills for selected harnesses; Grove names a skill | Native installation and directory injection can vary without changing task-tree logic. Setup costs remain visible. |
 | Directory hints | Agent discovers and reads applicable guidance | Prompt delivery, actual reads and instruction adherence are distinct. Neither executable certifies the last two. |
+| Mandatory bootstrap | Grove qualifies "first" and keeps skill names independent of tools | The injected preamble and the caller agree on read order; an absent native copy must not defeat a name-only mandate. |
 | Old native readers | Preserve links, pointers and resolved paths | Lazy/untracked readers prevent safe automatic cleanup. Keeping old content costs disk and owner administration. |
 | Existing public session CLI | Verify admitted major versions and explicit policy examples | Skill delivery does not justify a Ravel-2-only caller. A future session-CLI break would reverse dual-major admission. |
 
@@ -107,7 +124,7 @@ version labels and measurements.
 | Delivered behavior | Documentation and checks to move with it |
 | --- | --- |
 | Remove automatic native writes | README installation, `plugins/README.md`, `plugins/CONTEXT.md`, `docs/USAGE.md`, architecture delivery/module sections, glossary Skill delivery and Spine skill, formula caveats and `check:skills`. Mark the old `docs/plans/codex-skill-provisioning.md` as historical or remove it when its implementation instructions cease to be useful. |
-| Caller/version adoption | Resolver diagnostics and fixtures, readable policy examples/typechecks, settings/configure guidance, caller spec/ADRs/views, `docs/specs/standalone-invocations.md`, `CONTEXT-MAP.md`, target fixtures and release instructions. Keep explicit old/new major combinations. |
+| Caller/version adoption | Resolver diagnostics and fixtures, readable policy examples/typechecks, settings/configure guidance, caller spec/ADRs/views, `docs/specs/standalone-invocations.md`, `CONTEXT-MAP.md`, target fixtures and release instructions. Qualify the mandate's "first" instruction and test name-only directory loading. Keep explicit old/new major combinations. |
 | Source-exact runtime books | Overview chapters `02-the-surface`, `03-three-steps`, `06-standalone-invocations`; grove-loop `19-the-loop` where launch/prompt boundaries appear; relevant source/concept indexes and manifests. Regenerate snippets against final code in the increment that changes it, not during this documentation-only design. Run the existing book checks. |
 | Common source delivery | Installation examples for native and Ravel routes; use complete plugin boundaries while sources remain here. `plugins/linkuistics/skills/guardrail` is Claude-only, while common directory injection does not filter installer metadata. Verify that its trigger/guidance does not claim unsupported behavior in Codex. |
 | First external research pack | Own and aggregate conformance, required cross-source loading, resource/provenance/licence preservation, native package references, pinned/offline/common-directory trials. Establish reusable tooling here before the remaining domain moves. |

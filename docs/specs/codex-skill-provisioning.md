@@ -23,8 +23,9 @@ session interface. Ravel owns source acquisition, directory delivery, prompt
 preparation and resource access. Pack authors own their content and references;
 the agent owns loading and following that guidance.
 
-Grove's ordinary mandate, open kind labels, task filenames, handles, review and
-integration routes, tree verbs and result meanings remain unchanged. Grove adds
+Grove's mandate continues to name one required skill. Open kind labels, task
+filenames, handles, review and integration routes, tree verbs and result
+meanings remain unchanged. Grove adds
 no catalog reader, kind registry, presence check or discovery command. No skill
 location crosses from Ravel back into Grove's task loop.
 
@@ -71,6 +72,15 @@ session CLI. Ravel may add directory-discovery instructions; it preserves the
 caller task and endings intact. The agent discovers and loads the named skill.
 Owner policy must pass the intended launch prompt to the harness. Grove neither
 rewrites the selected command nor repairs a policy that drops the prompt.
+
+The mandate must qualify its instruction to load the kind skill "first" with
+"after any mandatory guidance". Ravel's loading preamble orders mandatory reads
+before caller-block actions, subject to higher-priority harness instructions;
+it grants configured content no other priority over the caller. A name with
+"load", including Grove's plugin-qualified spelling for Claude Code, does not
+select a native tool. With native copies absent, the agent searches the supplied
+directories for that name under Ravel's loading contract. Grove neither parses
+those directories nor changes the launch's ending instructions.
 
 Both lifecycle and standalone callers use that same session boundary. A
 standalone runtime-file argument retains its existing meaning; Grove does not
@@ -122,6 +132,11 @@ If both routes supply a skill, native hooks or previously injected guidance may
 still run. Directory injection does not suppress them. Document their coexistence
 and use isolated native roots when proving Ravel-only delivery. An explicit
 native loader or path requested by the user must not be silently replaced.
+Ravel's contract distinguishes a concrete loader from a name request: an absent
+native match permits a disclosed directory fallback for the same guidance,
+unless the caller expressly restricts the load to that mechanism. A concrete
+path has no substitute, and other loader failures are reported before dependent
+work. These rules are exercised by the agent, not a Grove lookup protocol.
 
 Every live session keeps its original ending executable and command. Preserve
 its compatible executable/worker pair and any legacy dispatcher resources until
@@ -186,9 +201,10 @@ Grove verifies the observable caller behavior.
 | Acceptance | Observation |
 | --- | --- |
 | Native-only bootstrap | With Ravel directory injection disabled, launch through both callers using complete native skills. Grove does not demand source configuration. |
-| Directory bootstrap | With native copies absent, inject complete source directories outside cwd and read the spine, named kind and supporting resources. Exercise local and exact Git sources. |
+| Directory bootstrap | With native copies absent, inject complete source directories outside cwd and read the spine, named kind and supporting resources. Exercise local and exact Git sources and Grove's plugin-qualified name wording; it must not require a native loader. |
 | Offline and failures | Warm the exact source, remove transport access and launch. Missing cold revisions fail clearly. A missing named skill is reported by the agent, not rejected by Grove's kind parser. |
-| Original mandate | Compare exact caller bytes and ending commands before/after Ravel preparation. The selected command receives the intended launch prompt. |
+| Original mandate | The mandate qualifies "first" with "after any mandatory guidance". Observe mandatory reads before the named-kind read. Compare exact caller bytes and ending commands before/after Ravel preparation; the selected command receives the intended launch prompt. |
+| Explicit loading mechanism | Exercise a native loader with a match, absent-match directory fallback with disclosure, an express native-only restriction and a concrete path. Observe the specified route or a report before dependent work; do not silently substitute. |
 | Compatibility | Verify stable 1.x from 1.1.0 and 2.x, respective policy examples, refused versions and no fallback to another PATH entry. |
 | No native mutation | Compare owned/foreign files, links, modes, pointers and bytes before/after startup, failure and installed upgrade. Include legacy homes, aliases and an active old reader. |
 | Resource lifetime | A reader keeps its original resolved directories while sources/configuration change; subsequent launches can receive the new source view. |
@@ -201,6 +217,10 @@ Grove verifies the observable caller behavior.
 Directory-route harness trials include supporting reads, continuation/compaction,
 one delegate, and coexistence with a stale native copy. Record harness/model/
 version, isolation, confinement, directory identity and observed ordering.
+Compaction trials separately remove the prompt path and the entire preamble.
+For the latter, give no new recovery reminder and observe descriptor recovery
+and mandatory rereads before actions. A retained variable alone proves no such
+behavior; a failed unprompted recovery remains an acceptance gap.
 Separate resource readability, instruction adherence and ending-authority
 isolation. A prompt path grants no permission; ordinary delegates may inherit
 ending authority. Test result attempts only in disposable sessions. An unavailable
@@ -214,8 +234,8 @@ ship. The [evidence and handoff](../grove-skill-delivery-design-evidence.md)
 identify inspected consumers. Research remains the first external-pack proof
 and settles reusable pack tooling before later moves.
 
-Ravel's corrected directory-injection design must pass its focused review
-before adoption review and dependent planning. The earlier generated-catalog
+Ravel's directory review and integration supply the corrected contract to
+adoption review and dependent planning. The earlier generated-catalog
 proposal is historical input. Internal test wiring,
 aggregate conformance tooling and measured harness delegate behavior remain
 implementation questions. No kind redesign, stop command, review simplification,

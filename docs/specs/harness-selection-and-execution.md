@@ -21,9 +21,9 @@ The [visual views](../design/harness-selection-and-execution/README.md) show the
 same caller boundary. When configured, Ravel adds skill-directory paths and
 loading instructions while preserving the caller's task and ending commands.
 The agent locates skills; neither executable resolves the skill Grove names.
-Ravel interprets no result token. Its earlier catalog design requires the
-[focused correction](../grove-skill-delivery-design-evidence.md#upstream-correction)
-before that design can be used as an implementation contract.
+Ravel interprets no result token. The
+[integrated directory contract](../grove-skill-delivery-design-evidence.md#upstream-correction)
+supplies the design input for caller adoption.
 
 <a id="problem"></a>
 ## Ownership
@@ -86,6 +86,12 @@ without task-tree meaning.
 Grove calls no skill-resolution operation and parses no skill metadata or
 catalog. Both callers can receive configured directory injection automatically
 through `start-session`; native-only launches need no such configuration.
+
+The mandate qualifies its "first" skill read with "after any mandatory
+guidance", following Ravel's mandatory-before-caller read order. Its ordinary
+and plugin-qualified skill spellings name guidance; they do not select a native
+tool. The [delivery contract](codex-skill-provisioning.md#launch-and-compatibility)
+owns this wording and its acceptance cases. Ending commands remain exact.
 
 Grove scaffolding and tree verbs consult no policy and
 admit any well-formed kind. An unrouted kind refuses only when its leaf

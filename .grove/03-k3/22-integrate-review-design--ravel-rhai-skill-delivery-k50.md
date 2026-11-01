@@ -27,8 +27,9 @@ pinned and adoption task handles remain stable after this insertion.
   trade-off or noise, with evidence for the classification.
 - Apply accepted corrections to the owning Ravel design, evidence and views.
   Reconcile their summaries and affected consumer handoffs.
+<!-- tc: depart synonym-rotation because "checks" names the document check runs, not a second verb for verify -->
 - Verify the changed design and its relevant observations. Distinguish
-  document checks from product behavior that implementation and actual
+  document checks from product behaviour that implementation and actual
   harness acceptance must still establish.
 - Record the exact Ravel output commit and give the adoption and local/pinned
   consumers that revised input before they run. Keep the feature line off

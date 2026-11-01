@@ -1,16 +1,16 @@
 flowchart TB
   Owner["Start here: user supplies skills"]:::start
-  Native["Native installation<br/>in each harness"]
+  Native["Native installation<br/>with proven read access"]
   Sources["Configured local or<br/>pinned source directories"]
   Ravel["Ravel injects directory<br/>paths into prompt"]
   Grove["Grove names the skill<br/>in its mandate"]
   Agent["Agent locates and reads<br/>skill and resources"]
-  Missing["Agent reports missing guidance<br/>Work stays live"]
+  Missing["Report missing guidance<br/>Force-stop; work stays live"]
   Work["Agent performs the task"]
   Owner -->|"1. Choose native route"| Native
   Owner -->|"1. Choose directory route"| Sources
   Sources -->|"2. Source acquisition and readable lifetime"| Ravel
-  Native --> Agent
+  Native -->|"Confined native setup needs separate proof"| Agent
   Ravel --> Agent
   Grove -->|"3. Required name, no location lookup"| Agent
   Agent -->|"4. Available"| Work

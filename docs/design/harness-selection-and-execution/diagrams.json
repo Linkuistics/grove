@@ -1,11 +1,11 @@
 {
   "title": "Harness selection and execution \u2014 Grove caller views",
-  "intro": "Pending adoption design: the user supplies skills natively or through Ravel directory injection; Grove names a skill and the agent finds it. The earlier Ravel catalog design needs correction. Process/result behavior remains as specified. Graphs begin at Start here, sequences at the first message, and states at the initial state.",
+  "intro": "Target adoption design, pending implementation and acceptance: Ravel's corrected directory contract is integrated at b93bb927. The user supplies skills natively or through directory injection, subject to actual read access. Grove names a skill and the agent finds it. Process/result behavior remains as specified. Graphs begin at Start here, sequences at the first message, and states at the initial state.",
   "groups": [
     {
       "id": "skills",
       "title": "User-managed skill delivery",
-      "description": "Two supported delivery routes, no named-skill resolver in Grove or Ravel."
+      "description": "User choice of delivery, subject to actual read access; no named-skill resolver in Grove or Ravel."
     },
     {
       "id": "boundary",
@@ -34,14 +34,14 @@
       "group": "skills",
       "title": "User-managed skill delivery",
       "source": "skill-delivery.mmd",
-      "caption": "The user may choose either route or retain both. Directory readability does not prove skill presence or agent adherence. Ravel does not resolve a skill requested by Grove."
+      "caption": "The user may choose either route or retain both. Confined native access needs separate proof; installation under HOME grants no reads. Directory readability proves neither skill presence nor adherence. Missing mandated guidance ends with force-stop."
     },
     {
       "id": "skill-transition",
       "group": "skills",
       "title": "Preserving readers through adoption",
       "source": "skill-transition.mmd",
-      "caption": "Target design, not completed rollout. No automatic native cleanup. Existing session ending commands remain valid; old callers retain compatible prefixes and settings."
+      "caption": "Target design, not completed rollout. Every intermediate tap dependency remains compatible. Cleanup is optional and manual. Existing session ending commands remain valid; old callers retain compatible prefixes and settings."
     },
     {
       "id": "packages",
@@ -109,8 +109,8 @@
   ],
   "discussion": {
     "title": "Grove names skills; the user supplies them",
-    "status": "Human-corrected boundary; detailed design pending review",
-    "summary": "Native installation and Ravel directory injection are alternative routes. The agent discovers and reads guidance. Reconcile the earlier upstream catalog design before implementation.",
+    "status": "Integrated directory contract; adoption implementation and acceptance pending",
+    "summary": "Ravel's corrected contract is integrated at b93bb927. Native installation and directory injection remain user choices with distinct access obligations. Adoption adds missing-skill force-stop, namespace-neutral requests and compatible intermediate tap states.",
     "diagramIds": [
       "skill-delivery",
       "skill-transition",
@@ -121,11 +121,11 @@
     "updatedDiagrams": [
       {
         "id": "skill-delivery",
-        "summary": "Added equal native and directory routes with discovery owned by the agent."
+        "summary": "Clarified confined native access and missing-skill force-stop, with discovery owned by the agent."
       },
       {
         "id": "skill-transition",
-        "summary": "Added upstream correction, isolated acceptance and separate activation."
+        "summary": "Recorded the integrated upstream contract, compatible tap ordering and manual cleanup."
       },
       {
         "id": "handoff",

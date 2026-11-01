@@ -76,6 +76,14 @@ Ravel 2/schema 3 remains the feature target; Grove's
 native-only Ravel 1.1 compatibility and explicit dual-major caller acceptance
 remain independent. Consume the reviewed correction before planning implementation.
 
+The adoption integration `grove-skill-delivery-k19` repairs the delivery spec,
+records and caller views. Its evidence document owns the consumer handoffs.
+Implementation supplies missing-skill force-stop and namespace-neutral mandate
+wording before packs move, plus optional manual-cleanup guidance with the removal
+of provisioning. Native-only lifecycle success and confined read access have
+separate acceptance cases. The first external pack proves its native namespace.
+Publication must preserve compatible tap dependencies at every intermediate state.
+
 Keep one coordinated tree here. Work in other owning repositories must follow
 their instructions, preserve unrelated changes, and leave discoverable commits.
 Use independent temporary installed prefixes for acceptance if releases are not

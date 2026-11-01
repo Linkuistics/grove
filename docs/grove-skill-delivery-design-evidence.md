@@ -106,11 +106,14 @@ that every downstream reference has already been repaired.
 | Owner-managed delivery | User supplies skills for selected harnesses; Grove names a skill | Native installation and directory injection can vary without changing task-tree logic. Setup costs remain visible. |
 | Directory hints | Agent discovers and reads applicable guidance | Prompt delivery, actual reads and instruction adherence are distinct. Neither executable certifies the last two. |
 | Mandatory bootstrap | Grove qualifies "first" and keeps skill names independent of tools | The injected preamble and the caller agree on read order; an absent native copy must not defeat a name-only mandate. |
+| Missing mandated guidance | The mandate supplies the force-stop rule before any skill loads | A report without a defined ending can relaunch the same live leaf indefinitely. Acceptance must observe the stopped loop. |
+| Confined native delivery | Prove all native loader/resource reads separately from installation | HOME does not grant skill-tree access. Existing file grants and system paths prevent a universal impossibility claim, but establish no working harness setup. |
+| Native plugin namespace | The mandate names the bare skill without fixing its shipping plugin | The first external pack and subsequent moves must prove actual native names and directory loading without native copies. |
 | Old native readers | Preserve links, pointers and resolved paths | Lazy/untracked readers prevent safe automatic cleanup. Keeping old content costs disk and owner administration. |
-| Existing public session CLI | Verify admitted major versions and explicit policy examples | Skill delivery does not justify a Ravel-2-only caller. A future session-CLI break would reverse dual-major admission. |
+| Existing public session CLI | Verify admitted major versions and explicit policy examples | The [supervision record](adr/dispatch-supervises-the-harness.md#considered-options) owns dual-major admission, its alternative and reopen condition. |
 
 The rejected fallback and native-writer alternatives are recorded once in
-[the delivery ADR](adr/skill-sources-are-explicit.md). No new formal model is
+[the delivery ADR](adr/skill-delivery-is-the-users-choice.md). No new formal model is
 claimed. Existing process, filesystem and conformance seams plus real harness
 trials answer the material doubts.
 
@@ -123,12 +126,20 @@ version labels and measurements.
 
 | Delivered behavior | Documentation and checks to move with it |
 | --- | --- |
-| Remove automatic native writes | README installation, `plugins/README.md`, `plugins/CONTEXT.md`, `docs/USAGE.md`, architecture delivery/module sections, glossary Skill delivery and Spine skill, formula caveats and `check:skills`. Mark the old `docs/plans/codex-skill-provisioning.md` as historical or remove it when its implementation instructions cease to be useful. |
-| Caller/version adoption | Resolver diagnostics and fixtures, readable policy examples/typechecks, settings/configure guidance, caller spec/ADRs/views, `docs/specs/standalone-invocations.md`, `CONTEXT-MAP.md`, target fixtures and release instructions. Qualify the mandate's "first" instruction and test name-only directory loading. Keep explicit old/new major combinations. |
+| Remove automatic native writes | README installation, `plugins/README.md`, `plugins/CONTEXT.md`, `docs/USAGE.md`, architecture delivery/module sections, glossary Skill delivery and Spine skill, formula caveats and `check:skills`. Supply the optional manual cleanup procedure in `docs/USAGE.md`, link it from plugin installation guidance and exercise ownership cases in disposable layouts. Mark the old `docs/plans/codex-skill-provisioning.md` as historical or remove it when its implementation instructions cease to be useful. |
+| Caller/version adoption | Resolver diagnostics and fixtures, readable policy examples/typechecks, settings/configure guidance, caller spec/ADRs/views, `docs/specs/standalone-invocations.md`, `CONTEXT-MAP.md`, target fixtures and release instructions. Qualify "first", define missing-skill force-stop, and replace the fixed native namespace with a bare-name target before packs move. Preserve explicit old/new major combinations and separate lifecycle native acceptance from confined access proof. |
 | Source-exact runtime books | Overview chapters `02-the-surface`, `03-three-steps`, `06-standalone-invocations`; grove-loop `19-the-loop` where launch/prompt boundaries appear; relevant source/concept indexes and manifests. Regenerate snippets against final code in the increment that changes it, not during this documentation-only design. Run the existing book checks. |
 | Common source delivery | Installation examples for native and Ravel routes; use complete plugin boundaries while sources remain here. `plugins/linkuistics/skills/guardrail` is Claude-only, while common directory injection does not filter installer metadata. Verify that its trigger/guidance does not claim unsupported behavior in Codex. |
-| First external research pack | Own and aggregate conformance, required cross-source loading, resource/provenance/licence preservation, native package references, pinned/offline/common-directory trials. Establish reusable tooling here before the remaining domain moves. |
-| Installed rollout | Archive/formula/native and Linux-floor checks with explicit Ravel inputs, compatible SDK examples and both setup routes. Preserve legacy-driver rehearsal and original endings. Ravel feature publication precedes Grove advertising it; shared activation waits for compatible callers/settings. |
+| First external research pack and later moves | Own and aggregate conformance, required cross-source loading, resource/provenance/licence preservation, native package references, pinned/offline/common-directory trials. Prove a moved kind loads in native Claude Code under its real plugin namespace, and through directories with native copies absent. Establish reusable tooling in the research proof before the remaining domain moves. |
+| Installed rollout | Archive/formula/native and Linux-floor checks with explicit Ravel inputs, compatible SDK examples and both setup routes. Preserve legacy-driver rehearsal and original endings. Prove every intermediate tap dependency is compatible. Grove dual-major support precedes unversioned Ravel 2 activation, or Ravel 2 initially uses a separate versioned formula. Feature publication precedes Grove advertising it; shared settings wait for compatible readers. |
+
+The adoption integration leaves Ravel and tap repositories unchanged. The
+common-loading planner owns caller fixes and manual-cleanup documentation;
+the research-pack and repository-move planners own native namespace trials.
+The rollout planner coordinates the tap dependency transition and any Ravel
+release-document repair with those repositories' owners. Read Ravel's integrated
+`b93bb927` contract, not the discarded catalog design. These handoffs do not
+authorize a shared installation or settings change during design.
 
 Relevant reusable entry points already exist in [Taskfile.yml](../Taskfile.yml):
 `check`, `check:skills`, `ravel:resolution`, `ravel:commands`, `ravel:policy`,

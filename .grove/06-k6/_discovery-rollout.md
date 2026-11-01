@@ -46,5 +46,12 @@ manual finish leaf or pre-complete that sentinel's work.
 Ravel compatibility may require an earlier dependency release; consume its
 recorded result and resume incomplete work rather than bumping it again.
 The finished Grove minor release must follow its final main integration.
+The [delivery design](../../docs/specs/codex-skill-provisioning.md#packaging-and-rollout)
+requires compatible tap dependencies throughout publication. This tree's
+Ravel-first release sequence therefore publishes Ravel 2 under a separate
+versioned formula while the unversioned dependency remains compatible with
+released Grove, unless an earlier verified Grove compatibility release has
+explicitly been scheduled. Coordinate the tap and Ravel release instructions
+before publication; a separate executable prefix alone does not fix the tap.
 Do not upgrade away any running driver's required binaries, replace its ending
 command, signal paused groves, edit their trees or delete this workspace.

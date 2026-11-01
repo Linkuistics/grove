@@ -10,8 +10,8 @@ cross-repository loading contract before the remaining migrations.
 - Research kind skills and their family procedure live in the accepted
   colocated Git/Jujutsu ResearchSkills repository, with complete resources,
   provenance/licenses and their own repeatable checks.
-- Resolved research kinds can reach the core and their own resources through
-  Ravel's common catalog. Conformance passes for core and the external pack
+- Agents can find the research kind skills, core and supporting resources through
+  Ravel's supplied directories. Conformance passes for core and the external pack
   without requiring source files left behind in Grove to make it pass.
 - Local and exact pinned Git sources work, cached pins work offline, and
   unavailable required revisions fail clearly. Test from outside both source
@@ -19,6 +19,9 @@ cross-repository loading contract before the remaining migrations.
 - Existing research labels and routing remain compatible. Marketplace/source
   references and any packaging/build consumers affected by this move are
   reconciled in the same working increment.
+- A native Claude Code installation loads a moved kind under its actual plugin
+  namespace from Grove's bare-name mandate. Directory loading also succeeds
+  with native copies absent, under the delivery specification's acceptance cases.
 - Applicable repository checks pass; Grove's full check uses the independent
   compatible Ravel build. The durable external-pack contract records the proven
   layout, resource and conformance boundary for later migration planners.

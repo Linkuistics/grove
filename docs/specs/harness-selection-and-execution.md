@@ -86,12 +86,18 @@ without task-tree meaning.
 Grove calls no skill-resolution operation and parses no skill metadata or
 catalog. Both callers can receive configured directory injection automatically
 through `start-session`; native-only launches need no such configuration.
+That does not grant native filesystem reads. The
+[delivery contract](codex-skill-provisioning.md#installation-and-bootstrap)
+distinguishes native-only lifecycle acceptance from the additional read-access
+proof needed by confined standalone setups.
 
 The mandate qualifies its "first" skill read with "after any mandatory
-guidance", following Ravel's mandatory-before-caller read order. Its ordinary
-and plugin-qualified skill spellings name guidance; they do not select a native
-tool. The [delivery contract](codex-skill-provisioning.md#launch-and-compatibility)
-owns this wording and its acceptance cases. Ending commands remain exact.
+guidance", following Ravel's mandatory-before-caller read order. Its bare skill
+target, or a caller's explicit plugin-qualified request, names guidance rather
+than a native tool. The [delivery contract](codex-skill-provisioning.md#launch-and-compatibility)
+owns namespace-neutral wording before packs move and its acceptance cases.
+It also owns the mandate's explicit missing-skill rule: report, leave the leaf
+live and use the launch's exact force-stop command. Ending commands remain exact.
 
 Grove scaffolding and tree verbs consult no policy and
 admit any well-formed kind. An unrouted kind refuses only when its leaf

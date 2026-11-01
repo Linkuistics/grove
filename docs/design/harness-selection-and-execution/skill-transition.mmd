@@ -1,16 +1,18 @@
 flowchart TB
   Start["Start here: preserve readers<br/>and installations"]:::start
   Old["Old sessions keep original<br/>executable, policy and ending"]
-  Design["Correct Ravel design<br/>to directory injection"]
+  Design["Use integrated Ravel contract<br/>b93bb927"]
   Verify["Verify session compatibility<br/>and both delivery routes"]
-  Publish["Publish compatible<br/>independent releases"]
+  Tap["Dual-major Grove before unversioned Ravel 2<br/>or separate versioned Ravel formula"]
+  Publish["Publish feature before<br/>Grove advertises it"]
   Choose["User selects compatible<br/>caller, Ravel and policy"]
   Keep["Keep native skills or<br/>configure directory delivery"]
-  Cleanup["Optional explicit cleanup<br/>after readers and writers stop"]
+  Cleanup["Optional manual cleanup by user<br/>after readers and writers stop"]
   Start --> Old
-  Start -->|"1. Reconcile contract"| Design
+  Start -->|"1. Settled design"| Design
   Design -->|"2. Implement and accept"| Verify
-  Verify -->|"3. Ravel feature before dependent advertising"| Publish
+  Verify -->|"3. Preserve compatible tap dependencies"| Tap
+  Tap --> Publish
   Publish -->|"4. Activate separately from publication"| Choose
   Choose -->|"5. User choice; no Grove route gate"| Keep
   Old -.->|"Retain paths throughout lifetime"| Keep

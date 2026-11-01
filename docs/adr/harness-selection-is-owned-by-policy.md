@@ -2,8 +2,7 @@
 
 One function the owner writes decides which harness, model and reasoning effort
 run a piece of work, and nothing else decides it. The `ravel`
-executable passes that `select` function the caller's data and a launch prompt
-that may include configured directory instructions. The
+executable passes that `select` function the caller's data and launch prompt. The
 executable acts on what the function returns: the command to run,
 with its provider, model and effort labels, or a refusal. The executable holds no
 catalog of harnesses, no table of kinds and no rule about which choice is
@@ -19,10 +18,9 @@ selection boundary. [Supervision](dispatch-supervises-the-harness.md) records
 why the selected process remains a managed job.
 
 Grove supplies kind, task file, stable handle and unchanged mandate as ordinary
-caller data, with no parameter. Ravel may inject skill-directory paths; it does
-not resolve the skill Grove names. The policy forwards the launch prompt. Grove's
-[delivery contract](../specs/codex-skill-provisioning.md) separates that target
-from shipped 22.8 behavior. Lifecycle work runs in the workspace root, and
+caller data, with no parameter. The policy forwards the launch prompt under the
+[delivery decision](skill-delivery-is-the-users-choice.md) and its specification.
+Lifecycle work runs in the workspace root, and
 standalone work runs in its staged cwd. An owner policy can derive workspace
 grants from `request.cwd` and `.jj/repo`. No jj/task convention belongs to Ravel.
 Grove's readable assets interpret task relationships and preserve inline creator

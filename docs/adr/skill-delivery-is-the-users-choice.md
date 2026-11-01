@@ -25,5 +25,6 @@ Retaining the broad Codex snapshot installer would preserve convenience but
 keep an automatic writer and embedded inventory coupled to moved skills.
 Deleting its existing output would break readers whose lifetime Grove cannot
 establish. The writer is removed; existing native installations and snapshots
-remain. Explicit quiescent cleanup, if desired by the user, is the accepted
-administration and storage cost.
+remain. Optional manual cleanup by the user, under the procedure owned by the
+[delivery specification](../specs/codex-skill-provisioning.md#existing-installations-and-active-readers),
+is the accepted administration and storage cost.

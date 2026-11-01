@@ -4,9 +4,9 @@ Grove launches the independently installed `ravel start-session` as a job.
 Ravel selects the command through the owner's policy and supervises its process
 group. It restores the terminal and reaps the group. Then it returns the opaque
 argument that `ravel end-session RESULT` published. The caller supplies the
-task and the ending instructions. In the Ravel 2 adoption design, Ravel adds
-configured skill-directory paths before policy selection while preserving caller
-bytes. It adds no caller ending instruction and gives the result no meaning.
+task and the ending instructions. The
+[delivery decision](skill-delivery-is-the-users-choice.md) owns skill delivery.
+Ravel adds no caller ending instruction and gives the result no meaning.
 
 [Ravel's session contract](https://github.com/Linkuistics/Ravel/blob/v1.1.0/docs/specs/session-execution.md)
 owns selection, ephemeral transport, cleanup and confinement. Grove consumes
@@ -50,8 +50,8 @@ version. The caller contract states the procedure in
 Homebrew presence alone proves no runtime compatibility.
 
 The caller retains stable Ravel 1.x from the 1.1.0 cleanup floor and admits 2.x
-after public session compatibility is verified. Skills do not determine version
-admission: the user can supply them natively without directory injection.
+after public session compatibility is verified. Version admission follows that
+interface, independently of the [delivery choice](skill-delivery-is-the-users-choice.md).
 Shipped Grove 22.8 still refuses 2.x. The
 [delivery transition](../specs/codex-skill-provisioning.md#packaging-and-rollout)
 preserves live ending commands and tests new caller combinations separately.
@@ -69,6 +69,11 @@ provider receipts
 
 ## Considered options
 
+- **Require Ravel 2 for every Grove launch.** Rejected because the existing
+  public session interface remains usable on 1.1 and skill delivery does not
+  require all users to migrate. Dual-major admission costs separate policy
+  examples and acceptance lanes. Reopen when a required public session-CLI
+  change cannot be supported across both majors.
 - **Find Ravel beside Grove, or bind versions or Cellar paths.** Rejected,
   because independently released packages need not share a prefix or a
   version. Reopen only if Ravel becomes part of Grove's package.

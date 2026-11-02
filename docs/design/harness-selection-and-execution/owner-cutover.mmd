@@ -18,21 +18,32 @@ flowchart LR
         G["Release Grove<br/>Promote Ravel"]
         H{"Only finish and<br/>its driver chain alive?"}
         I["Ask the owner<br/>Signal nobody"]
-        P["Compare core tree ID<br/>Advance grove-core pin<br/>Clean status required"]
+        S{"State of the switch set<br/>from the layout and<br/>latest complete backup"}
+        R["Resume the inverse<br/>from the latest backup"]
+        P["Compare core tree ID<br/>Advance grove-core pin<br/>Clean status, accepted digests"]
         Q["Pending-activation record<br/>No success signal<br/>Switch runs again"]
         J["Switch: settings,<br/>plugins, moved entries"]
         K{"Both probes pass?"}
-        L["Inverse operation<br/>Native route restored"]
+        L["Inverse operation<br/>then native probe"]
         M["Receipt in the manual<br/>Original ending command"]
         G -->|7| H
         H -->|"8 no"| I
-        H -->|"8 yes"| P
-        P -->|"8a"| J
-        P -.->|"8a stops"| Q
+        H -->|"8 yes"| S
+        S -->|"8a native, probe passes"| P
+        S -.->|"8a partial"| R
+        S -->|"8a active: step 6, then probes"| K
+        S -.->|"8a drifted: inverse,<br/>then classification"| I
+        S -->|"8a complete"| M
+        R -.->|"state again"| S
+        P -->|"8b"| J
+        P -.->|"8b stops"| Q
         J -->|9| K
+        J -.->|"9 fails"| L
         K -->|"10 no"| L
         L -.->|"pending record"| Q
         K -->|"10 yes"| M
+        M -.->|"receipt not written"| Q
+        Q -.->|"run again from step 1"| H
     end
     prep -->|"6 after acceptance"| fin
     classDef start fill:#16354a,color:#fff,stroke:#16354a,font-weight:bold

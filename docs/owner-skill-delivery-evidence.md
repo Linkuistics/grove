@@ -307,6 +307,32 @@ tree ID of the `grove-core` source directory therefore changes between the
 candidate and the released commit only if the integration of `main` changes
 that directory.
 
+### Checkout configuration and the tree ID
+
+On 2026-11-02, `owner-pack-checkouts-k84` built a scratch repository with Git
+2.56.0. Its `skills` directory held a text `SKILL.md`, a relative link and an
+executable script. Two clones ran with the isolated configuration of the
+fixture. The second clone added `core.autocrlf=true` and
+`core.symlinks=false`:
+
+| Clone | Tree ID of `skills` | `git status --porcelain --ignored` | Written files | Ravel `resourceDigest` |
+| --- | --- | --- | --- | --- |
+| Plain | `3a94b4217e46` | Empty | LF line ends, the link is a link | `f7a0ae858b65` |
+| Converted | `3a94b4217e46` | Empty | CRLF line ends, the link is a regular file | `4eca6b6d32f7` |
+| Plain, at another path | `3a94b4217e46` | Empty | As the first clone | `f7a0ae858b65` |
+
+The digests came from `ravel skills resolve --json` of the local feature build
+in `Ravel.skill-directory-delivery`, with a scratch HOME and an empty
+environment. The build reports `ravel 1.1.0`. The first digits of its SHA-256
+are `68297a769cd9`. The tree ID and the status therefore cannot tell the two
+clones apart. The digest can, and it does not depend on the checkout path.
+
+A read-only query of the owner's effective Git configuration found no
+`core.autocrlf`, `core.eol`, `core.symlinks`, `core.attributesFile` or
+`core.sparseCheckout`. The global file `~/.config/git/config` sets the LFS
+filters. Today's owner checkouts are therefore not known to differ. The
+design's check needs the digest, because the configuration can change.
+
 ## Not measured
 
 - Claude Code's treatment of a root-level `SKILL.md` inside a skill-free
@@ -415,3 +441,41 @@ The integration repaired each of them:
 - Smaller repairs define the owner-run switch and compare every pin with its
   accepted pin. They also move the draft check after the clones and forbid Git
   attributes that change the bytes of a checkout.
+
+The focused review `owner-pack-checkouts-k83` found three P2 defects in that
+repair. Its integration `owner-pack-checkouts-k84` repaired the specification
+and its views:
+
+- **An inverse that could not fail.** A rerun of the switch now reads the
+  state of the switch set from the layout and the latest backup. A partial
+  state resumes the inverse, and the native probe must pass before a retry.
+  Each backup is new, and the pending-activation record names each backup.
+- **Activation without its receipt.** The active state reruns the checks,
+  the probes and the receipt, and it changes no item. The owner's run after
+  finish is now named beside finish as a run against the real HOME.
+- **A tree ID taken as the captured files.** The accepted identity of each
+  source is its Ravel `resourceDigest`. The section
+  [Checkout configuration and the tree ID](#checkout-configuration-and-the-tree-id)
+  records why. Step 6 compares each real checkout with its accepted digest
+  in a disposable HOME, and a probe compares it again.
+
+One in-session reviewer then read the repaired resumption and found two P1,
+seven P2 and two P3 defects. The integration repaired each of them:
+
+- A backup is complete only after its final rename. Step 3 keeps an
+  incomplete backup aside.
+- A file that other programs also write is compared only at the keys that the
+  switch changes. A drifted item goes to the owner's classification, then to
+  a new native backup.
+- Step 9 writes each file once by a rename, after a comparison with its copy.
+  Step 1 also lists the programs that write those files.
+- The absence of the Ravel settings file is its earlier state. An entry at
+  both paths is in neither state.
+- Step 4 reads the latest Grove release, so a repair's patch release reaches
+  the next run.
+- In the active state, a stop in step 6 counts as a failed probe.
+- The section "Rollback" defines the native probe.
+- `mac-check` runs before the receipt, which goes into the backup first. The
+  backup lies outside each tree that the instrument sweeps.
+- The coordinated recovery rows name each state and keep a Grove patch
+  release apart from a Ravel cut.

@@ -120,7 +120,10 @@ failure there ends without a successful finish signal.
    Grove's release. For that source, rollout verifies the accepted candidate.
    It shows that the final line has the same tree ID in the source directory.
    A committed document records that ID. Finish's owner switch compares
-   the ID at the released commit before any change. Rollout admits
+   the ID at the released commit before any change. With the published
+   archives, rollout also records each source's accepted `resourceDigest`.
+   The switch compares each real checkout with its digest before any change.
+   Rollout admits
    the archives into Grove's pinned independent Ravel inputs by SHA-256,
    beside the retained 1.1.0 pins, before Grove's release. Complete owner delivery under its separate design,
    preserving this driver's readers. Supply finish with exact receipts and any
@@ -204,8 +207,8 @@ selected formula channel on every retry. Never bump again to finish a cut.
 | Installation/live-book failure | Retry that step only, retaining published identities and old binaries. |
 | Grove release partial | Follow Grove recovery, without another minor bump. Keep unversioned Ravel at 1.1.0. |
 | Promotion partial | Resume its formula/installation operation. Cut neither Ravel nor Grove again. |
-| Promotion complete, owner switch stopped or reversed by its inverse | Keep the pending-activation record. Run the prepared switch again from its first step. Cut, promote and tear down nothing again. |
-| Promotion complete, a core trial of the switch failed on the released Grove | Repair `main` and publish a Grove patch release through its owning procedure. Then run the switch again from its first step. Cut and promote no Ravel again. |
+| Promotion complete, owner switch native, partial, active or drifted, or complete before finish's signal | Keep every backup and any pending-activation record. Run the prepared switch again from its first step. Its third step finds the state from the layout and the latest complete backup. [Resuming the switch](owner-skill-delivery.md#resuming-the-switch) states each continuation. Cut and promote no Ravel again, and tear down nothing again. A Grove patch release follows only the next row. |
+| Promotion complete, a core trial or a probe of a Grove kind skill failed on the released Grove | Repair `main` and publish a Grove patch release through its owning procedure. Then run the switch again from its first step. Its fourth step reads that release. Cut and promote no Ravel again. |
 
 ## Acceptance and limits
 

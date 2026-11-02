@@ -58,7 +58,7 @@
       "group": "owner",
       "title": "Ordered owner cutover",
       "source": "owner-cutover.mmd",
-      "caption": "Proposed. Ordinary leaves prepare and rehearse; only finish runs the switch against the real HOME. A stop before the native change, or an inverse after it, leaves native delivery working, and the same switch runs again. The owner purges retained bytes later, after this driver's reap."
+      "caption": "Proposed. Ordinary leaves prepare and rehearse; only finish, or the owner after an unsuccessful finish, runs the switch against the real HOME. Each run first reads the state of the switch set from the layout and the latest backup. A native state switches again after a native probe, a partial state resumes the inverse, and an active state completes its probes and receipt. A drifted item stops for the owner's classification. The owner purges retained bytes later, after this driver's reap."
     },
     {
       "id": "owner-final-session",

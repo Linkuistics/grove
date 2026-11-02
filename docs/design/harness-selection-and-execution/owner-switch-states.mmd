@@ -1,0 +1,17 @@
+stateDiagram-v2
+    direction LR
+    [*] --> Native: no open run, layout matches the plan
+    Native --> Changed: outside write or new entry
+    Changed --> Native: new plan, rehearsed
+    Native --> Interrupted: switch begun, then a crash
+    Native --> Active: switch begun, each part switched
+    Interrupted --> Native: resumed inverse ends
+    Interrupted --> Drifted: outside write breaks the prefix
+    Active --> Complete: probes pass, receipt
+    Active --> Interrupted: failed probe, crash in the inverse
+    Active --> Native: failed probe, inverse ends
+    Complete --> Drifted: outside write to a cell
+    Drifted --> Complete: the cell is switched again
+    Drifted --> Native: owner's inverse ends
+    Drifted --> Changed: owner's inverse leaves a third value
+    Complete --> Native: owner's inverse ends

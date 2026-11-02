@@ -1,6 +1,6 @@
 {
   "title": "Harness selection and execution — Grove caller views",
-  "intro": "The Rhai adoption of skill delivery is proposed and awaits its focused review. Owner skill delivery and the coordinated release are reviewed and integrated: one complete Ravel 2.0.0, first through ravel@2, followed by compatible Grove and unversioned promotion. Graphs begin at Start here; sequences at their first message; states at their initial state.",
+  "intro": "The Rhai adoption of skill delivery is proposed and awaits its focused review. Owner skill delivery and the coordinated release are reviewed and integrated: one complete Ravel 2.0.0, first through ravel@2, followed by compatible Grove and unversioned promotion. The owner switch's recovery is rebuilt on cells, a run record and detection of outside writes, with a Quint model, and awaits its focused review. Graphs begin at Start here; sequences at their first message; states at their initial state.",
   "groups": [
     {
       "id": "release",
@@ -58,7 +58,14 @@
       "group": "owner",
       "title": "Ordered owner cutover",
       "source": "owner-cutover.mmd",
-      "caption": "Proposed. Ordinary leaves prepare and rehearse; only finish, or the owner after an unsuccessful finish, runs the switch against the real HOME. Each run first reads the state of the switch set from the layout and the latest backup. A native state switches again after a native probe, a partial state resumes the inverse, and an active state completes its probes and receipt. A drifted item stops for the owner's classification. A receipt counts only while every item is switched. The switch publishes each shared file by an atomic exchange, applies only a rehearsed plan and runs while no other writer can act. The owner purges retained bytes later, after this driver's reap."
+      "caption": "Proposed. Ordinary leaves prepare and rehearse; only finish, or the owner after an unsuccessful finish, runs the switch against the real HOME. Each run first reads the state from the layout, the run record of the latest backup and the plan. A native state switches after a native probe, an interrupted state resumes the inverse, and an active state completes its probes and receipt. A drifted or changed state changes nothing and stops for the owner. One program applies the parts; each exchange records what its displaced copy must hold, so an outside write is kept and reported. A receipt counts only while each cell is switched. The owner purges retained bytes later, after this driver's reap."
+    },
+    {
+      "id": "owner-switch-states",
+      "group": "owner",
+      "title": "States of the owner switch",
+      "source": "owner-switch-states.mmd",
+      "caption": "Proposed, before its focused review. Step 3 reads exactly one state from the layout, the run record and the plan. Only an open run whose switched parts form a prefix of the plan's order is interrupted, and only it resumes without the owner. A drifted or changed state changes nothing. The Quint model docs/models/owner-switch.qnt checks the rows; the arrows are a reading aid, not the checked relation."
     },
     {
       "id": "owner-final-session",
@@ -167,27 +174,23 @@
     }
   ],
   "discussion": {
-    "title": "Who installs the pack checkouts and keeps them current",
-    "status": "Approved by the human on 2026-11-02 — focused design review integrated",
-    "summary": "Ravel reads local directories only. On the owner's machine, mise's [bootstrap.repos] part owns the pack checkouts, each at a published commit that the owner advances by an edit. mise is the owner's instance, not a requirement: Ravel and Grove name no checkout tool. Ravel's missing-source refusal and retained snapshots stay unchanged.",
+    "title": "How the owner switch recovers from interruptions and outside writes",
+    "status": "Proposed by owner-switch-recovery-k87 on 2026-11-02, before its focused design review",
+    "summary": "The switch changes cells: one key of a shared file or one entry. Detection, not exclusion, protects each write by another program: each exchange records what its displaced copy must hold, and every later reading reports a copy that holds anything else. A run record in the backup tells an interruption from an outside write. The layout decides the state, and a receipt only records the probed layout. A plan runs only with the program that a passing rehearsal names. The Quint model in docs/models checks four properties and one mutant for each mechanism.",
     "diagramIds": [
-      "owner-pack-checkouts",
+      "owner-switch-states",
       "owner-cutover",
       "owner-final-session",
-      "owner-classes"
+      "owner-pack-checkouts"
     ],
     "updatedDiagrams": [
       {
-        "id": "owner-pack-checkouts",
-        "summary": "Added the owner's checkout tool, the pin advance, the offline fetch failure and the missing-source refusal, and marked mise as the owner's choice rather than a requirement. An advance runs only while nothing captures the checkout."
+        "id": "owner-switch-states",
+        "summary": "Added the six states that step 3 reads and the events between them. Only an open run with a prefix of switched parts resumes automatically; a drifted or changed state waits for the owner."
       },
       {
         "id": "owner-cutover",
-        "summary": "Added pack publication, the drafted checkout entries, the credential control and staging clones before the trials, and the checkout clone in preparation. Inside finish, the core tree comparison precedes the grove-core pin advance. A stop before the native switch and an inverse after a failed probe both leave a pending-activation record, and the switch runs again. The writer check covers jobs and finish's descendants, the plan check needs a covering rehearsal, the switch publishes files by atomic exchange, and only a switched layout is complete."
-      },
-      {
-        "id": "owner-final-session",
-        "summary": "Finish compares the core tree ID and advances the grove-core pin before the probes, and the probes capture the pack checkouts instead of resolving pinned Git sources."
+        "summary": "Replaced the partial state with interrupted, drifted and changed states read from the run record. The process listing excludes the run's own tree and repeats before each write interval. The switch is one program that stages, exchanges and compares each part. A conflict inverts the run's own parts. The receipt records the probed cells, and the manual entry applies only while mac-check reports the switch complete."
       }
     ]
   }

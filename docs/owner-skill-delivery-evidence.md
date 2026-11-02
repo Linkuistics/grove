@@ -348,6 +348,73 @@ One call can therefore publish a file of the switch set and keep the content
 that it replaced. The section "Concurrent writers" of the design uses both
 calls. The measurement used no file of the owner's HOME.
 
+On the same day, `owner-switch-recovery-k87` repeated the setup with these
+calls:
+
+| Call | Result |
+| --- | --- |
+| A write through a descriptor that a writer opened before `RENAME_SWAP` | The write landed under the displaced name. The path did not receive it. |
+| `RENAME_SWAP` of files with different modes and extended attributes | The path took the prepared file's mode and attributes. The displaced name kept the old ones. |
+| `RENAME_EXCL` of a directory and of a dangling link into another directory | Exit 0 for each. The link kept its target. |
+| `RENAME_EXCL` of a directory onto an existing directory | Refused with `EEXIST`. |
+| `RENAME_SWAP` of two directories | Exit 0. Each name held the other directory. |
+
+A late write therefore reaches a kept copy, and the design flags that copy.
+The stage file must take the live file's metadata before the exchange.
+
+### The recovery model
+
+`owner-switch-recovery-k87` wrote the Quint model
+[`models/owner-switch.qnt`](models/owner-switch.qnt) and its runner
+[`models/run-owner-switch.sh`](models/run-owner-switch.sh). On 2026-11-02,
+`task model:owner-switch` ran them with Quint 0.33.1 and its Rust evaluator
+0.7.1:
+
+| Subject | SHA-256 |
+| --- | --- |
+| `docs/models/owner-switch.qnt` | `793ef9ef86a4678008c7cc8c8796acd319e5d01e1351409297410624370f93d4` |
+| `docs/models/run-owner-switch.sh` | `5b75f97aa9bb1810103f13fca1314691b1b5ccfeea0753f17ed923b371279cd4` |
+
+Each world ran 4,000 samples of up to 60 steps. The classification world ran
+12,000, and the unchecked-receipt mutant ran 20,000. All nine invariants held
+in each of the seven design worlds. Each mutant witness stayed unreached
+there. These are the witness counts:
+
+| World | Witness | Traces |
+| --- | --- | --- |
+| `crashes` | A complete switch, each after a crash | 1,761 |
+| `crashes` | An interruption resumed to native | 3,052 |
+| `crashes` | A failed probe inverted to native | 586 |
+| `crashes` | The owner's inverse to native | 2,099 |
+| `writers` | A complete switch with no crash | 1,246 |
+| `writers` | An exchange conflict in a flagged copy | 130 |
+| `writers` | A late write in a flagged copy | 149 |
+| `writers` | A merged copy, then a complete switch | 134 |
+| `classify_world` | A second plan switched to complete | 6,127 |
+| `coincidence` | A resumed inverse resets an outside switched value | 165 |
+| `after_receipt` | Drift after a receipt | 1,448 |
+| `during_run` | A conflict at a cell | 42 |
+
+Each mutant reached its violation:
+
+| Mutant | Traces |
+| --- | --- |
+| No recorded digest of the displaced content | 168 of 4,000 |
+| No run record in the state | 859 of 4,000 |
+| "Inverse ended" before the inverse | 4,000 of 4,000 |
+| No cell reading before the receipt | 135 of 20,000 |
+| No rehearsal check | 1,321 of 4,000 |
+| An inverse that resets a third value | 81 of 4,000 |
+
+The sweep of every invariant against every mutant found violations only of
+the properties that the table in the design names. The mutant without a run
+record also broke the state table, because it reads states by another rule.
+
+The results are sampled, not proved. The shortest path to a receipt has 15
+steps, inside the 60-step bound. The first run had two instrument defects.
+A phase dial now reaches drift after a receipt. A ghost set now separates
+late writes from exchange conflicts.
+
 ## Not measured
 
 - Claude Code's treatment of a root-level `SKILL.md` inside a skill-free
@@ -372,6 +439,13 @@ calls. The measurement used no file of the owner's HOME.
 
 The staging trials in the design's cutover contract own each of these
 measurements before the switch.
+
+The rehearsal of order 6 owns two more:
+
+- Ravel 1.1 and Ravel 2.0 with a settings file that holds no key. The
+  inverse leaves that file when the switch created it.
+- An exchange and an exclusive rename between each live path of the switch
+  set and the backup. Both calls need one volume.
 
 Two measurements need the real HOME or a new machine, so no staging trial can
 own them:
@@ -517,3 +591,31 @@ the specification and its views:
   of its manifest and inverse. A changed plan reuses that evidence only for
   items of a rehearsed kind. Any other change needs a new rehearsal before
   step 8.
+
+The in-session reviewer of `owner-pack-checkouts-k86` found three P1 and nine
+P2 defects, R1 to R12, and eight P3 items. k86 judged them a redesign, and
+`owner-switch-recovery-k87` rebuilt the recovery model with the model above.
+Each item has this disposition:
+
+| Item | Disposition |
+| --- | --- |
+| R1: one process check before the probes | Closed. The program lists the processes before each write interval, and no probe session may still run. Detection protects writes in any case. |
+| R2: an exemption by absence | Closed. No exemption remains. The run's own process tree may write, and detection covers it. The staging descendant trial is gone. |
+| R3: no exclusion for the owner's inverse | Closed. The owner's inverse runs the program copy, with the same listing and detection. |
+| R4: a drifted file blocks the native return | Closed. The inverse resets each switched cell and leaves only third values. |
+| R5: the Ravel settings compared whole | Closed. Only the `skills` key is a cell. |
+| R6: a receipt without a second layout check | Closed. Step 13 reads each cell again and records the probed values. "Complete" also needs them now. |
+| R7: states ignore a changed manifest | Closed. The state uses the open run's plan or the prepared plan. A changed entry stops the active state before its receipt. |
+| R8: a classification leaves no record | Closed. A classification makes a new plan with the accepted values. |
+| R9: an interruption looks like an outside write | Closed, with one accepted case. The run record and the prefix rule separate them. An outside write of a switched value during an open run is reset and reported. |
+| R10: a digest record cannot decide reuse | Closed. A rehearsal names the plan and the program, and any change needs a new rehearsal. |
+| R11: a rehearsal inside finish | Kept from k86. Finish stops on an unrehearsed plan, and the owner rehearses after finish. |
+| R12: no withdrawal after a successful finish | Closed. No withdrawal record exists. The layout decides the state, and `mac-check` reports it. The manual's receipt applies only while `mac-check` reports the switch complete. |
+| P3: mode and attributes lost | Closed. The stage file takes the live metadata, and the digest covers it. |
+| P3: a stage file under the displaced name | Closed. A copy that holds its stage content holds no outside write. |
+| P3: a failed verification | Closed. A failed final reading is a conflict, and the run inverts its parts. |
+| P3: "steps 1 to 8 change nothing" | Closed. The text names the resumed inverse and the pin advance. |
+| P3: "byte for byte" against the fault points | Closed. Order 6 now requires each cell value and each outside write to survive. |
+| P3: step 1 or step 2 stops | Closed. The seams say step 2. |
+| P3: drift seams need a backup | Closed. Before the switch, a changed entry gives the changed state. |
+| P3: the switch's own shell | Closed. The run's own process tree includes the program's shell. |

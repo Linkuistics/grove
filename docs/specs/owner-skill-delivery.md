@@ -4,7 +4,11 @@ This design moves the owner's installed skill collection from native harness
 installations to Ravel's directory delivery. Its focused design review is
 integrated. Ravel later narrowed delivery to local directories, and the section
 [Pack checkouts](#pack-checkouts) replaced the earlier policy of Git sources.
-Three focused reviews of that change are also integrated. The design changes no
+Three focused reviews of that change are also integrated.
+
+The leaf `owner-switch-recovery-k87` then rebuilt the switch's recovery on
+cells, a run record and detection of outside writes. A Quint model supports
+that recovery, and its focused review is ahead. The design changes no
 installation, setting or file on the owner's machine.
 The [evidence document](../owner-skill-delivery-evidence.md) records the
 inputs, and [the baseline](../owner-skill-inventory.tsv) classifies each
@@ -82,8 +86,18 @@ same design.
 - **The switch** is the one operation that activates directory delivery in the
   real HOME and deactivates every superseded entry.
 - **The switch set** is each item that the switch changes. That is each moved
-  file-system entry, each plugin whose state changes, and each changed
-  settings or registry file. The Ravel settings file is in it.
+  file-system entry, each plugin whose state changes, and the `skills` key of
+  the Ravel settings.
+- **A cell** is one value that the switch changes: one key of a shared file,
+  or one file-system entry. The plan records its earlier and switched values.
+- **A part** is one atomic step of the switch. A file part exchanges one file
+  and changes each of its cells together. An entry part renames one entry.
+- **The plan** is the prepared manifest, the ordered parts with the values of
+  each cell, and the inverse that follows from them. Its digest identifies it.
+- **The program** is the prepared command that runs a plan: its switch, its
+  inverse and the reading of its state.
+- **A kept copy** is the content that an exchange displaced. It stays in the
+  backup under the name of its stage file.
 - **Native residue** is the set of native entries that stay after the switch.
 - **A pack checkout** is the local clone of one source repository. Ravel
   captures it as a `local` source.
@@ -555,27 +569,25 @@ coordinated release design.
 ### The switch inside finish
 
 Finish runs the prepared and rehearsed switch after promotion and the verified
-Grove/Ravel pair. Its steps are:
+Grove/Ravel pair. One program runs each step that reads or changes the switch
+set. Its steps are:
 
 1. List live Claude Code, Codex, Pi, Grove and Ravel processes. Include
    desktop applications and their background servers. Also include each
    program that writes a file of the switch set, such as herdr, Orca, mise
    and `codebase-memory-mcp`. List each enabled launchd job, login item and
-   schedule that can launch one of these programs. Exclude only finish's
-   harness process and the driver chain that launched it. Count each other
-   descendant of finish, such as an MCP server, as another process. The
-   exception is a descendant that writes no file of the switch set in the
-   staging evidence.
+   schedule that can launch one of these programs. Exclude only the run's own
+   process tree. That tree is the session that runs the switch, with its
+   descendants. They include its MCP servers and the program's shell.
 2. If any other listed process or job remains, stop and ask the owner. Do not
    signal another session.
-3. Rerun the baseline instrument. Then look for a complete backup of an
-   earlier run. If one exists, find the state of its switch set first, as
-   [Resuming the switch](#resuming-the-switch) states. Compare the change
-   identity of each entry outside that switch set with the prepared manifest.
-   Without a backup, that is every entry. Stop for classification on any new,
-   missing or changed entry. Also stop on any `UNCLASSIFIED`,
-   `UNASSIGNED`, `UNCOVERED` or `NEEDS-REVIEW` row. Compare the built-in rows,
-   whose digest says `unverified`, with finish's own skill listing.
+3. Rerun the baseline instrument. Find the state of the switch set, as
+   [Resuming the switch](#resuming-the-switch) states, and continue as its
+   table states. The instrument's `UNCLASSIFIED`, `UNASSIGNED`, `UNCOVERED`
+   and `NEEDS-REVIEW` rows count as changed entries. Compare the built-in
+   rows, whose digest says `unverified`, with finish's own skill listing.
+   Report each flagged kept copy, as
+   [Concurrent writers](#concurrent-writers) states.
 4. Read the Git tree ID of the `grove-core` source directory at the commit of
    the latest published Grove release. That is finish's release, or a later
    patch release that a repair needed. Compare the ID with the candidate's ID
@@ -599,25 +611,35 @@ Grove/Ravel pair. Its steps are:
 7. Record the reader evidence. Name each plugin cache version directory that
    finish loaded and its registration in `installed_plugins.json`. Stop if any
    of those directories holds `.orphaned_at`.
-8. Stop unless the rehearsal evidence covers the prepared manifest and its
-   inverse, as [The rehearsed plan](#the-rehearsed-plan) states. Then write a
-   new backup on the volume of the real HOME, outside each tree that
-   the baseline instrument sweeps. It holds copies of the switch set's files,
-   the prepared manifest and the inverse operation. It also holds the switched
-   state of each item, as the dry run computes it. The evidence of steps 4, 6
-   and 7 goes into it too. Write it under a temporary name, and rename it into
-   place as the last action. Only that rename makes the backup complete. No
+8. Stop unless a passing rehearsal record names the prepared plan and the
+   program, as [The rehearsed plan](#the-rehearsed-plan) states. Stop while a
+   kept copy is flagged. Then write a new backup on the volume of the real
+   HOME, outside each tree that the baseline instrument sweeps. It holds the
+   plan, a copy of the program and the evidence of steps 4, 6 and 7. Write it
+   under a temporary name, and rename it into place as the last action. That
+   rename makes the backup complete, and it is the record "switch begun". No
    backup replaces an earlier one.
-9. Apply the switch as one prepared command, inside the exclusion of step 1.
-   Write the real-HOME Ravel skill settings. Disable the superseded plugins
-   and enable the two skill-free plugins. Move each superseded file-system
-   entry into the backup's retained tree at its original relative path.
-   Publish each changed file once, by an atomic exchange of its new content
-   with the live file. Then compare the displaced content with the file's
-   copy. A difference is a failed part, and the backup keeps the displaced
-   content. After the last part, verify that each item is in its switched
-   state. If any part fails, apply the inverse operation.
-   [Concurrent writers](#concurrent-writers) states why.
+9. Apply the parts of the plan in their order, in one write interval of the
+   program. The parts move each superseded file-system entry and add the
+   Ravel `skills` key. They also disable the superseded plugins and enable the
+   two skill-free plugins. The entries come first, then the Claude Code settings, then
+   the Ravel settings. For each part, the program does these four actions:
+   1. Read the part. Each of its cells must hold its earlier value.
+   2. For a file, write a stage file in the backup. It holds the live
+      content with the switched cells, and the live file's mode, ACL and
+      extended attributes. Record the digest of what the run read and the
+      digest of the stage file.
+   3. Exchange the stage file with the live file. Move an entry into the
+      backup's retained tree at its original relative path. Create an absent
+      Ravel settings file by an exclusive rename.
+   4. Compare the displaced content with its recorded digest. For an entry,
+      compare the moved entry with its earlier identity.
+
+   After the last part, read each cell again. Each must hold its switched
+   value, and no kept copy may be flagged. A failed read, comparison or final
+   reading is a conflict. On a conflict, the program applies the inverse to the
+   parts that it changed. [Concurrent writers](#concurrent-writers) states
+   why this detects each write by another program.
 10. Verify with the rehearsed probes. They resolve the sources through the
    promoted `ravel` and the real HOME's configuration. Then they launch one
    Claude Code session and one Codex session by that route. Each probe runs
@@ -628,21 +650,28 @@ Grove/Ravel pair. Its steps are:
 11. On any failed probe, apply the inverse operation. Then verify the native
    route with the native probe of [Rollback](#rollback).
 12. Run `mac-check`.
-13. Write the receipt into the backup, with the result of `mac-check`. Write
-   it under a temporary name, then rename it into place.
-14. Copy the receipt into the maintained manual.
+13. Read each cell again. Each must hold its switched value, and each must
+   hold the value that it held before the probes. A changed cell counts
+   as a failed probe. A flagged kept copy is a stop. Then add the receipt to
+   the run record, with the result of `mac-check` and the cell values that
+   this step read.
+14. Copy the receipt into the maintained manual. The entry says that the
+   receipt describes the layout only while `mac-check` reports the switch
+   complete.
 
-Steps 1 to 8 change no native entry and no Ravel setting. A stop in those
-steps therefore leaves native delivery working with the published Grove and
-the promoted Ravel. A failed `apply` keeps the edited pin. The tracked file
-then names the released commit, and the status command reports `differs`. No
-launch captures the checkout, because the real HOME's settings name no skill
-source then.
+Steps 1 to 8 change no cell of the plan, except an inverse that step 3
+resumes. Step 5 changes the `grove-core` checkout and its pin in the tracked
+file. No launch captures that checkout, because the real HOME's settings name
+no skill source until step 9. A stop in steps 1 to 8 therefore leaves native
+delivery working with the published Grove and the promoted Ravel. A failed
+`apply` keeps the edited pin. The tracked file then names the released
+commit, and the status command reports `differs`.
 
-A complete inverse of step 9 or step 11 restores the same state, and the
-native probe verifies it. The inverse can also fail part of the way. A session
+A complete inverse of step 9 or step 11 restores the native layout, and the
+native probe verifies it. An inverse can also stop part of the way. A session
 can also end inside any of steps 8 to 14. In each case the next run finds the
-state from the layout, as [Resuming the switch](#resuming-the-switch) states.
+state from the layout and the run record, as
+[Resuming the switch](#resuming-the-switch) states.
 
 When a step stops or an inverse runs, finish continues as follows. A failed
 write of the receipt is a stop.
@@ -653,7 +682,8 @@ write of the receipt is a stop.
    and version. Add the edited pin, the output of `status --json` and the
    output of the failed step or probe.
 3. In the record, name each backup and the state of the switch set. For a
-   partial or drifted state, list each item with its state.
+   drifted or changed state, list each cell with its value. List each flagged
+   kept copy.
 4. Report the failure, and ask the owner to repair its cause.
 5. Run the switch again from step 1.
 6. If the session must end before the switch succeeds, end it with the stop
@@ -663,8 +693,9 @@ After such an end, or after finish ends without a result, the owner runs the
 same prepared switch from step 1. The owner runs it outside any Grove session.
 That run tears down and promotes nothing, and it releases nothing except a
 patch release that a repair needs. One Claude Code session runs it and takes
-finish's place in steps 1, 3 and 7. The receipt replaces the
-pending-activation record.
+finish's place in steps 1, 3 and 7. A continuation of an open backup runs the
+program copy in that backup. The receipt replaces the pending-activation
+record.
 
 A failed trial in step 4, or a failed probe of a Grove kind skill, can need a
 change to the released core skills. The owner then publishes a Grove patch
@@ -694,163 +725,195 @@ The receipt records the activated default path: the Grove version, the Ravel
 path and version, and the digests of `config.rhai` and the settings. It also
 records each source's checkout path, pin and snapshot digest. For `grove-core`,
 it records both tree IDs and each trial that step 4 ran again. It records the
-reader evidence, each backup location and each retained byte set with its purge
-condition. The [finish decision](../adr/finish-promotes-after-the-grove-release.md)
-records why this runs inside finish.
+digests of the plan and the program, the cell values of step 13 and the
+reader evidence. It names each backup location and each retained byte set
+with its purge condition. The
+[finish decision](../adr/finish-promotes-after-the-grove-release.md) records
+why this runs inside finish.
 
 ### Concurrent writers
 
-No file-system call compares a file and replaces it in one step. A comparison
-before a rename therefore cannot stop a write between the two, and the rename
-discards that write. Two rules protect each file of the switch set.
+No file-system call compares a file and replaces it in one step. Two
+mechanisms therefore protect the switch set. Detection protects each write by
+another program. The exclusion protects readers, captures and progress.
 
-**Exclusion.** A write interval runs from the copy of step 8 to the last
-verification of step 9. Each inverse has its own interval, from its first
-read to its last verification. Inside an interval, no other program writes a
-file of the switch set:
+**Cells.** The switch reads and changes cells only. A write to another key of
+a shared file is not a conflict, because the exchange keeps that key. The
+switch changes a cell only from its earlier value. The inverse changes a cell
+only from its switched value. Each run lists every value that it replaces.
 
-- Step 1 shows that no other writer runs, and that no job can launch one.
-- One prepared command runs each interval. No agent action, harness hook or
-  probe of finish runs inside it.
-- Each probe session ends, with its descendants, before an inverse runs.
+**Detection.** Each changed file is published by an atomic exchange. One call
+puts the stage file at the path and keeps the displaced content under the
+stage name. On macOS, that call is `renamex_np` with `RENAME_SWAP`. The
+displaced content becomes a kept copy.
 
-If step 1 cannot show the exclusion, the switch stops before step 8, as any
-other stop in those steps does.
+- Before the exchange, the run records the digest of what it read. That
+  digest covers the content, the mode, the ACL and the extended attributes.
+  The run also records the digest of the stage file.
+- A kept copy is flagged when it holds neither recorded content. A write
+  before the exchange is in the displaced content, so it flags the copy.
+- A writer can hold a descriptor that it opened before the exchange. Its
+  later write lands in the kept copy and flags it then.
+- A write after the exchange reaches the live file and stays there.
+- Each run reports every flagged kept copy in step 3, at the final reading of
+  step 9 and in step 13. `mac-check` reports them too.
+- The owner merges a flagged copy into the live file. The owner then records
+  the merge with the digest that the copy holds. A copy that changes after
+  its merge is flagged again.
+- No run erases a kept copy before purge. A copy that holds its stage
+  content was never exchanged, and it holds no outside write.
+- The exchange gives the path the stage file's metadata. The stage file
+  therefore takes the live file's mode, ACL and extended attributes.
+- An exclusive rename moves an entry and overwrites nothing. A changed
+  identity after the move is a conflict, and the inverse moves the entry back.
+- An exclusive rename creates an absent Ravel settings file. It fails if
+  another program created the file first, and that failure is a conflict.
 
-**Detection.** An atomic exchange publishes each changed file. One call puts
-the new content at the path and keeps the replaced content under the other
-name. On macOS, that call is `renamex_np` with `RENAME_SWAP`.
+One case stays outside detection. Another program can write a cell's earlier
+or switched value, and a run cannot tell that write from its own. The switch
+can then replace an earlier value, or a resumed inverse a switched value.
+The run's list reports each replaced value. The design accepts this case.
 
-The run then compares the displaced content with the content that it
-expected. For step 9, that is the copy. For an inverse, it is the content that
-the inverse read.
+[The recovery model](#the-recovery-model) finds no other lost
+write. It lets outside programs write at every step, with no exclusion.
 
-- A write before the exchange is in the displaced content. The comparison
-  finds it. The part fails, and the backup keeps the displaced content.
-- A write after the exchange changes the published file, so the write stays.
-  The verification finds a write that changed a key of the switch.
-- An exclusive rename creates a Ravel settings file that did not exist. The
-  rename fails if another program created the file first.
+**Exclusion.** The switch still needs an interval without other actors:
 
-Displaced content that differs makes its file drifted, as
-[Resuming the switch](#resuming-the-switch) states. The owner classifies the
-file and restores the update that the displaced content holds. No run
-discards displaced content.
+- Codex and Pi sessions read through the link paths that the switch moves.
+- A session that launches inside a write interval sees neither delivery.
+- Grove 22.8 rewrites its Codex links at each Codex launch.
+- A pin advance needs an interval in which nothing captures a checkout.
+- A running writer makes a conflict likely, and a conflict stops the switch.
 
-The exclusion admits finish's harness process and the descendants that the
-staging evidence cleared. One of them can write through a descriptor that it
-opened before an exchange. That write can land in the displaced content after
-the comparison. The backup then holds the update, and nothing reports it.
-The design accepts this case, because finish cannot end its own harness or
-its servers.
+A write interval is one run of step 9 or of one inverse. The program lists
+the processes of step 1 before each interval. A remaining process or job
+keeps the interval closed. The run's own process tree may run, and detection
+covers its writes. No probe session may still run when an interval opens.
+One program command runs each interval, so no agent action, harness hook or
+probe runs inside it.
+
+The design rejected three alternatives:
+
+- **An exemption by staging evidence.** A descendant of finish that wrote no
+  switch-set file in staging was cleared. A descendant that never ran there
+  passed by its absence.
+- **A swap back of displaced content.** A second exchange could restore an
+  outside write at once. A crash between its two renames can leave the write
+  in a copy that records it as stage content. No run would then report it.
+- **A comparison of whole shared files.** An owner edit or a tool's hook
+  update would make a file drifted. `configure-grove` also edits the Ravel
+  settings.
 
 ### Resuming the switch
 
-A run can stop, apply its inverse or end before its receipt. A session can also
-end before it writes the pending-activation record. Step 3 of each later run
-therefore reads the state from the layout and the latest complete backup, not
-from that record. It keeps an incomplete backup aside and reads nothing from
-it. Each complete backup holds the same earlier state, because step 8 runs only
-when the switch set is native.
+Step 3 of each run finds the state from three inputs: the layout, the run
+record of the latest complete backup and a plan. It keeps an incomplete
+backup aside and reads nothing from it. It never reads the pending-activation
+record.
 
-Each item of the switch set has an earlier state and a switched state:
+The run record holds four records, each a file that the program creates by
+an exclusive rename:
 
-- A moved entry is at its original path only, or at its retained path only.
-  Its change identity also equals the identity that the latest complete
-  backup records for it. That identity covers its form, its link target and
-  its content.
-- A plugin's enablement key in its harness settings holds its earlier value or
-  its switched value.
-- In a file that other programs also write, step 3 compares only the keys that
-  the switch changes. A hook update by a tool therefore changes no state.
-- The Ravel settings file holds its copied content or the switched content.
-  When no such file existed before the switch, its absence is the earlier
-  state.
+- "Switch begun" is the completion of the backup in step 8.
+- "Receipt" follows step 13.
+- "Inverse begun" precedes the first change of an inverse.
+- "Inverse ended" follows an inverse after which no cell holds its switched
+  value.
 
-An item in any other condition is in neither state. These are examples:
+A backup's run is open until its last record is "inverse ended". While the
+latest complete backup's run is open, its plan applies. Otherwise the
+prepared plan applies, and step 3 also compares each entry outside its switch
+set with its manifest.
 
-- An entry at both paths.
-- An entry with another identity at either path, such as a changed skill tree
-  or a retargeted link.
-- A file whose backup keeps displaced content that differs, until the owner
-  classifies it.
+A part is switched when each of its cells holds its switched value. It is
+earlier when each holds its earlier value. Any other value of a cell is a
+third value. Each part is atomic, and the inverse takes the parts in reverse
+order. An interruption therefore leaves the switched parts as a prefix of the
+plan's order.
 
-Step 9 and the inverse change each item in one atomic step. An interruption
-alone therefore leaves each item in one of its two states. Step 3 compares
-each entry of the switch set through these states, and each other entry
-through the manifest. A changed entry therefore stops for classification on
-every run.
-
-The layout decides the state. A receipt only tells the complete state from
-the active one, so exactly one state holds. A receipt applies only while each
-item is in its switched state.
-
-In each other state, step 3 withdraws a receipt that the latest complete
-backup holds. It writes a withdrawal into the backup, under a temporary name
-and then a rename, before the run changes anything. The pending-activation
-record names the withdrawn receipt. A withdrawn receipt never reaches the
-manual as the current result.
-
-| State of the switch set | Evidence | Next steps |
+| State | Run record and layout | Next steps |
 | --- | --- | --- |
-| Complete | Each item is in its switched state, and the latest complete backup holds a receipt without a withdrawal | Copy the receipt into the maintained manual if the manual lacks it. Change nothing else |
-| Active | Each item is in its switched state, and the backup holds no receipt, or only a withdrawn one | Do not run steps 4, 5, 7, 8 or 9 again. Run step 6, the probes of step 10 and steps 12 to 14. A stop in step 6 counts as a failed probe. The receipt uses the evidence in the backup |
-| Native | Each item is in its earlier state | Run the native probe of [Rollback](#rollback). Stop if it fails. Otherwise the run goes on as without a backup |
-| Partial | Each item is in one of its states, and the states differ | Resume the inverse from the latest complete backup. Then find the state again |
-| Drifted | An item is in neither state | Resume the inverse for each item in its switched state. Then stop for classification |
+| Complete | An open run whose last record is "receipt", and each cell switched | Copy the receipt into the maintained manual if the manual lacks it. Change nothing else |
+| Active | An open run whose last record is "switch begun", and each cell switched | Run step 6, the probes of step 10 and steps 12 to 14. A stop in step 6 or a changed entry outside the switch set counts as a failed probe. The receipt uses the evidence in the backup |
+| Interrupted | An open run whose last record is "switch begun" or "inverse begun", the switched parts a prefix and the other parts earlier, the active state excepted | Add "inverse begun" if it is not the last record. Resume the inverse. Then find the state again |
+| Drifted | An open run with a third value, with switched parts that are not a prefix, or with a receipt while a cell is not switched | Change nothing. Stop and report each cell with its value |
+| Native | No open run, and each cell and entry matches the prepared plan | If a backup exists, run the native probe of [Rollback](#rollback), and stop if it fails. Then go on with step 4 |
+| Changed | No open run, and a cell or entry differs from the prepared plan | Stop for classification |
 
-After the owner classifies each drifted item, the native probe must pass. The
-owner then prepares the manifest and the dry run again. A changed plan needs
-the rehearsal that [The rehearsed plan](#the-rehearsed-plan) states. A new
-complete backup records the new earlier state, and the switch runs again from
-step 1. No item is in its switched state then, so that backup holds a native
-state. Each earlier backup and its inverse stay.
+Exactly one row holds for each layout and run record. The recovery model
+shows it.
+
+The layout decides the state. A receipt only records the switched layout that
+the probes saw. "Complete" also needs that layout now, so an outside write
+after the receipt changes the state without any withdrawal record. No receipt
+therefore certifies a layout that is not switched.
+
+The run record tells an interruption from an outside write. Only an open run
+can read as interrupted, and only a prefix pattern. One ambiguity remains.
+While a run is open, another program can give a cell the value that an
+interruption would leave. The resumed inverse then resets that cell, and its
+list reports it.
+
+From a drifted state, the owner runs the inverse of
+[Rollback](#rollback) or restores a cell by hand. The inverse resets each
+switched cell and leaves each third value. After it, no run is open.
+
+A changed state stops for the owner's classification. The owner prepares a
+new plan, which records each accepted value as an earlier value. A cell never
+accepts its switched value. The new plan needs its own rehearsal, as
+[The rehearsed plan](#the-rehearsed-plan) states. In finish, a classification
+is a stop.
+
+A prepared plan that differs from an open run's plan is reported. The owner
+applies it only after the inverse of the open run.
 
 In the active state, a failed probe leads to the inverse of step 11. Release,
 promotion and teardown are outside each of these continuations.
 
 ### The rehearsed plan
 
-The real HOME receives only a rehearsed switch. Each rehearsal of order 6
-records the digests of the manifest and of the inverse that it exercised.
-Step 8 compares the prepared manifest and its inverse with that record.
+The real HOME receives only a rehearsed switch. Each rehearsal of order 6 runs
+one program on one plan in disposable layouts. Its record names the digests
+of the plan and of the program. It also records the result of each control
+of the [test seams](#test-seams). Step 8 stops unless a passing record names
+the prepared plan and the program.
 
-A changed plan can reuse the evidence only when each changed item is of a
-rehearsed kind. A kind is one operation on one file or in one root, for an
-entry of one form. A link moved out of `~/.codex/skills` is a kind, and so is
-a plugin key in `~/.claude/settings.json`. An item that leaves the switch set
-also reuses the evidence. Any other change needs a new rehearsal of the
-changed plan in disposable layouts, with the interruption controls of the
-[test seams](#test-seams). The record of that rehearsal then names the new
-manifest.
+A backup keeps a copy of the program that wrote it. Each later continuation
+of that backup runs that copy: the active continuation, a resumed inverse and
+the owner's inverse. A changed program therefore applies only to a new
+backup.
 
-The same rule covers a first-run classification in step 3 and the
-classification of a drifted item. It binds finish and the owner's run after
-finish alike. Inside finish, a plan that needs a new rehearsal ends finish
-without success, because the
+A changed plan or a changed program needs a new rehearsal. The design keeps
+no reuse by kind of change, because a record of digests cannot decide such a
+reuse. A rehearsal is a reproducible task in disposable layouts.
+
+The same rule binds finish and the owner's run after finish. Inside finish, a
+plan without a passing record ends finish without success, because the
 [finish decision](../adr/finish-promotes-after-the-grove-release.md) lets
 finish run only a rehearsed operation. The owner rehearses the plan after
 finish and then runs the switch from step 1. A rehearsal runs outside the
-real HOME and changes no backup. The
-native probe tests native delivery only, so it never admits a changed plan.
+real HOME and changes no backup. The native probe tests native delivery only,
+so it never admits a plan.
 
 ### Rollback
 
-Inside finish, rollback is the inverse of the switch. It runs in its own write
-interval, as [Concurrent writers](#concurrent-writers) states:
+Inside finish, rollback is the inverse of the switch. The program runs it in
+its own write interval, as [Concurrent writers](#concurrent-writers) states:
 
-- Before it changes an item, it withdraws a receipt that the backup holds, as
-  [Resuming the switch](#resuming-the-switch) states.
-- It sets each changed key back to its earlier value in the content that it
-  reads. It publishes each file once by the atomic exchange. Then it compares
-  the displaced content with the content that it read.
-- It restores the copied Ravel settings. When no such file existed before the
-  switch, it moves the file into the backup and compares it with the switched
-  content. No Ravel settings file then stays.
-- It moves each entry back.
-- It changes only an item in its switched state, so a second run resumes an
-  incomplete one. At its end, it verifies that each item that it changed is in
-  its earlier state.
+- It adds "inverse begun" to the run record before it changes a cell.
+- It takes the parts in reverse order. After a conflict or a failed probe,
+  it inverts only the parts that its run changed.
+- In each file, it sets each cell that holds its switched value back to its
+  earlier value and keeps every other key. It publishes the file by the
+  atomic exchange and compares the displaced content.
+- It leaves each cell that holds a third value, and it reports that cell.
+- It takes the `skills` key out of the Ravel settings. A settings file that
+  the switch created then holds no key, and that file stays.
+- It moves each entry at its retained path back by an exclusive rename. It
+  moves an entry of any identity. A changed identity is then a third value.
+- A conflict stops the inverse and leaves the run record as it is. The next
+  run resumes the inverse.
+- It adds "inverse ended" only when no cell holds its switched value.
 
 The native probe verifies the result on both harnesses. It observes these
 results:
@@ -863,21 +926,62 @@ results:
 - Inside finish, finish reads one of its own guidance files again by its
   recorded cache path.
 
-After finish, the owner can apply the same inverse operation while the backup
-and the plugin caches exist. The owner also copies its withdrawal of the
-receipt into the maintained manual. Otherwise, the supported return to native delivery
-installs the current marketplace plugins. No rollback erases Ravel snapshots.
+After finish, the owner can apply the same inverse while the backup and the
+plugin caches exist. The owner runs the program copy of the latest backup,
+which lists the processes of step 1 first. The owner also adds a line to the
+maintained manual.
+
+Otherwise, the supported return to native delivery installs the current
+marketplace plugins. No rollback erases Ravel snapshots.
 Rollback keeps the pack checkouts, their mise entries and the advanced
 `grove-core` pin. No harness discovers skills in them.
 
+### The recovery model
+
+The Quint model [`owner-switch.qnt`](../models/owner-switch.qnt) covers the
+switch, the inverse, interruptions, outside writes, classifications and
+receipts. `task model:owner-switch` runs each of its claims. Its worlds let
+outside programs write cells, other keys and kept copies at every step. They
+also let a crash end a run at every step. No world has an exclusion.
+
+Four properties hold in each of the seven design worlds:
+
+1. No write by another program is lost without a report. The accepted case
+   is a cell write of the cell's earlier or switched value.
+2. Exactly one row of the state table holds. A run reads an interruption only
+   while a run is open, and a settled state only while none is.
+3. No receipt records a cell that is not switched. Each receipt records the
+   cells that the probes saw, and "complete" needs each cell switched now.
+4. No exchange applies a plan that has no rehearsal record.
+
+Each of six mutant worlds lacks one mechanism, and it reaches the violation
+that the mechanism prevents. The same violation stays unreached in each
+design world.
+
+| Missing mechanism | Violated property |
+| --- | --- |
+| The recorded digest of the displaced content | 1 |
+| The run record in the state | 2 |
+| "Inverse ended" only after the inverse | 2 |
+| The cell reading before the receipt | 3 |
+| The rehearsal condition of step 8 | 4 |
+| The inverse's rule that leaves a third value | 1 |
+
+The results are sampled, not proved. Each world ran 4,000 samples of up to
+60 steps, and a switch of three parts reaches its receipt in 15 steps. The
+model file lists what the model does not establish. Entry parts, metadata,
+the program copy, the probes, the manual and readers belong to the rehearsal
+controls.
+
 ### Purge
 
-Purge covers each backup's retained tree, Grove's Codex snapshot store, the
-superseded Claude Code plugin registrations and the earlier marketplace
-registration. Purge requires three conditions:
+Purge covers each backup's retained tree and kept copies, Grove's Codex
+snapshot store, the superseded Claude Code plugin registrations and the
+earlier marketplace registration. Purge requires four conditions:
 
 - No session that ran during the switch remains.
 - This driver's group is reaped.
+- No kept copy is flagged.
 - The owner decides that the rollback window is closed.
 
 Purge is outside this grove's success condition, as the 1.1.0 keg cleanup is.
@@ -936,7 +1040,7 @@ with the coordinated release work.
 | 3 | k38 | Re-inventory, compare per entry, classify each new entry | No entry stays unassigned |
 | 4 | k38 leaves | Convert `policy.ts` to `config.rhai`. Draft the Ravel skill settings, the `[bootstrap.repos]` entries and the residue plan. | The drafts are committed. No draft launches a session before the clones of order 5 |
 | 5 | k38 leaves | Run the staging trials on both harnesses with the accepted feature build | The drafts pass under the staging HOME. Each trial below passes or carries a recorded scope decision. The evidence names each accepted pin, each accepted `resourceDigest` and the tree ID of the `grove-core` candidate |
-| 6 | k38 leaves | Prepare the real HOME without changing discovery. Add the `[bootstrap.repos]` entries, clone the pack checkouts with `mise -C "$HOME" bootstrap repos apply` and add the status command to `mac-check`. Freeze automatic updates of the earlier marketplace. Rehearse the switch, the probes and the inverse in disposable layouts. Interrupt the switch, the inverse and the receipt write in some of them. | The status command exits 0. The rehearsal restores every rehearsed layout byte for byte. After each interruption, the next run finds the state and reaches the native or the complete state. The rehearsal record names the manifest and the inverse that the switch applies |
+| 6 | k38 leaves | Prepare the real HOME without changing discovery. Add the `[bootstrap.repos]` entries, clone the pack checkouts with `mise -C "$HOME" bootstrap repos apply` and add the status command to `mac-check`. Freeze automatic updates of the earlier marketplace. Rehearse the program on the plan in disposable layouts, with the switch, the probes, the inverse and the controls of the test seams. | The status command exits 0. After each control, each cell holds its earlier or switched value, or the run reports it. Each outside write stays in the live file or in a flagged kept copy. After each interruption, the next run finds the state and reaches the native or the complete state. The rehearsal record names the plan, the program and the result of each control |
 | 7 | Finish | Run the switch after promotion | The probes pass and the receipt is in the manual |
 | 8 | Owner | Purge retained bytes | The purge conditions hold |
 
@@ -959,10 +1063,6 @@ TestAnyware resource read and real VM tool use. They also
 cover the Quint and codebase-memory MCP servers, the Claude Code hooks and
 `/guardrail`. Each harness also runs one delegate, one compaction and one
 stale-copy coexistence case.
-
-One trial on each harness digests the staging files of the switch set before
-and after a session. It names each descendant of the session, such as an MCP
-server, that wrote one of them. Step 1 of the switch reads that evidence.
 
 One trial moves a pack checkout away and observes `skill_source_missing` before
 any worker. One trial launches without a network and observes the same
@@ -991,27 +1091,44 @@ Obsidian `AI Dev Tooling` note. It still names the earlier
   the actual harnesses. They clone the pack checkouts from the real remotes.
   A decoy-helper control must show a helper call through each inherited
   route, and none through the allowlist, before the first such clone.
-- The switch and its inverse have a dry run against the manifest. Rehearsals
-  use disposable layouts. Their controls stop a run inside step 8, inside step
-  9, inside the inverse and before the receipt. The next run must find the
-  native, partial and active states. It must keep the incomplete backup aside.
-  Each rehearsal records the digests of the manifest and the inverse that it
-  exercised.
-- Other rehearsal controls change a hook in a file of the switch set, and put
-  an entry at both paths. A hook change between steps 8 and 9 must stop step 9.
-  A hook change at another time must change no state. An entry at both paths
-  must give the drifted state.
-- Fault points write an unrelated update just before and just after each
-  exchange, in step 9 and in the inverse. The update must stay in the live
-  file, or the part must fail with the update kept in the backup. A writer
-  that runs, or that a job can launch, must stop the run at step 2.
-- Controls change the content of a moved entry and retarget a moved link.
-  Each runs at the original path before the switch and at the retained path
-  after it. Each must give the drifted state.
-- One control stops a run between steps 13 and 14 and then applies the
-  inverse. Another changes an item after the receipt. The next run must
-  withdraw the receipt and must not copy it into the manual.
-- A changed manifest with an item of an unrehearsed kind must stop step 8.
+- `task model:owner-switch` runs the recovery model. Each claim must
+  hold, each witness must be reached, and each mutant must reach its
+  violation.
+- The switch and its inverse have a dry run against the plan. Rehearsals use
+  disposable layouts, and each rehearsal record names the plan, the program
+  and the result of each control.
+- Interruption controls stop the program before and after each part, between
+  each exchange and its comparison, beside each record and inside the probes.
+  The next run must find the interrupted, active or native state, and it must
+  keep an incomplete backup aside.
+- Fault points write an unrelated key just before and just after each
+  exchange, in step 9 and in the inverse. A write before an exchange must
+  leave a flagged kept copy and stop the run. A write after it must stay in
+  the live file. A descriptor opened before an exchange must flag the kept
+  copy when it writes.
+- A control merges a flagged copy and then changes that copy. The next run
+  must flag it again. Step 8 and step 13 must stop while a copy is flagged.
+- A control changes the mode and an extended attribute of a file between the
+  read and the exchange. The comparison must find it. The published file must
+  keep the live file's metadata.
+- Cell controls give a switched cell a third value, before and after the
+  receipt. The next run must find the drifted state and change nothing. The
+  owner's inverse must reset the other cells and leave that cell.
+- A control writes a cell's switched value while a run is open. The resumed
+  inverse must reset it and list it. Another writes it after "inverse ended",
+  and the next run must find the changed state.
+- Controls change the content of a moved entry, retarget a moved link and put
+  an entry at both paths. Each runs before the switch and after it. Before
+  the switch, the run must find the changed state. After it, the run must
+  find the drifted state, and the owner's inverse must move the entry back.
+- One control stops a run between steps 13 and 14, and the next run must copy
+  the receipt. Another changes a cell after the receipt. `mac-check` must
+  report the drifted state, and no run may copy the receipt into the manual.
+- A changed plan or a changed program without a passing rehearsal record must
+  stop step 8. A continuation must run the program copy of its backup.
+- A writer outside the run's own process tree, or a job that can launch one,
+  must stop the run at step 2. The same writer, launched later, must stop the
+  next write interval before its first change.
 - A control clone with `core.autocrlf=true` keeps the tree ID of its pin. The
   digest comparison of step 6 must stop on it.
 - Only finish runs the switch against the real HOME, or the owner after a

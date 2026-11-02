@@ -358,6 +358,11 @@ tasks:
     cmds:
       - python3 -I docs/evaluations/owner-skill-delivery/checkouts.py
 
+  model:owner-switch:
+    desc: Run every claim of the Quint model of the owner switch's recovery (SAMPLES, STEPS and SWEEP adjust the run)
+    cmds:
+      - bash docs/models/run-owner-switch.sh
+
   release:patch:
     desc: Publish and install the next patch release
     cmds:

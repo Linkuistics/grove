@@ -70,7 +70,21 @@ public integration. Neither duplicates Ravel's private runtime contract.
 
 ## Current changes
 
-The current discussion settles who installs the pack checkouts and keeps them
+The current discussion rebuilds how the owner switch recovers from
+interruptions and outside writes. The switch changes cells, and detection of
+outside writes replaces the earlier exemptions. A run record tells an
+interruption from an outside write, and the layout decides the state. The
+proposal awaits its focused review. See the
+[recovery sections](../../specs/owner-skill-delivery.md#the-switch-inside-finish),
+the [recovery model](../../specs/owner-skill-delivery.md#the-recovery-model)
+and its [evidence](../../owner-skill-delivery-evidence.md#the-recovery-model).
+
+- [States of the owner switch](http://127.0.0.1:52710/#diagram-owner-switch-states) — Added the six states that step 3 reads and the events between them. Only an open run with a prefix of switched parts resumes without the owner.
+- [Ordered owner cutover](http://127.0.0.1:52710/#diagram-owner-cutover) — Replaced the partial state with interrupted, drifted and changed states. The process listing excludes the run's own tree and repeats before each write interval. One program stages, exchanges and compares each part, and a conflict inverts the run's own parts. The receipt records the probed cells.
+
+## Earlier checkout changes
+
+This discussion settled who installs the pack checkouts and keeps them
 current, now that Ravel reads local directories only. The human approved the
 owner's tool and the pin policy. mise is the owner's choice, and Ravel and
 Grove name no checkout tool. Three focused reviews of this design are

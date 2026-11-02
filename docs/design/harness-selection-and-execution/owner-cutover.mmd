@@ -6,7 +6,7 @@ flowchart LR
         C["Re-inventory per entry"]
         D["Draft config.rhai, skill settings<br/>and checkout entries"]
         E["Credential control, staging clones<br/>then staging-HOME trials<br/>on both harnesses"]
-        F["Prepare real HOME, clone checkouts<br/>Rehearse switch and inverse"]
+        F["Prepare real HOME, clone checkouts<br/>Rehearse the program on the plan<br/>with every control"]
         A -->|1| B
         B -->|2| C
         C -->|3| D
@@ -16,32 +16,37 @@ flowchart LR
     subgraph fin["Finish"]
         direction TB
         G["Release Grove<br/>Promote Ravel"]
-        H{"No other writer runs<br/>and no job can launch one?"}
+        H{"No other session, driver,<br/>writer or job outside<br/>the run's own tree?"}
         I["Ask the owner<br/>Signal nobody"]
-        S{"State of the switch set<br/>from the layout and<br/>latest complete backup"}
-        R["Resume the inverse<br/>from the latest backup"]
-        P["Compare core tree ID<br/>Advance grove-core pin<br/>Clean status, accepted digests<br/>Rehearsal covers the plan"]
+        S{"State from the layout,<br/>the run record of the<br/>latest backup and the plan"}
+        R["Resume the inverse<br/>of the open run"]
+        D["Drifted: change nothing<br/>Report each cell"]
+        C["Changed: stop for<br/>classification and a<br/>new rehearsed plan"]
+        P["Compare core tree ID<br/>Advance grove-core pin<br/>Clean status, accepted digests<br/>Rehearsal names plan and program<br/>No flagged kept copy"]
         Q["Pending-activation record<br/>No success signal<br/>Switch runs again"]
-        J["Switch in one command:<br/>files by atomic exchange,<br/>plugins, moved entries"]
-        K{"Both probes pass?"}
-        L["Inverse operation<br/>then native probe"]
-        M["Receipt in the manual<br/>Original ending command"]
+        J["One program, parts in order:<br/>read, stage, exchange or<br/>exclusive rename, compare"]
+        K{"Both probes pass and<br/>each cell still as probed?"}
+        L["Inverse of the run's parts<br/>then native probe"]
+        M["Receipt records the probed cells<br/>Manual entry valid while<br/>mac-check reports complete"]
         G -->|7| H
         H -->|"8 no"| I
         H -->|"8 yes"| S
         S -->|"8a native, probe passes"| P
-        S -.->|"8a partial"| R
+        S -.->|"8a interrupted"| R
         S -->|"8a active: step 6, then probes"| K
-        S -.->|"8a drifted: inverse,<br/>then classification"| I
-        S -->|"8a complete: switched,<br/>receipt applies"| M
+        S -.->|"8a drifted"| D
+        S -.->|"8a changed"| C
+        S -->|"8a complete"| M
         R -.->|"state again"| S
         P -->|"8b"| J
         P -.->|"8b stops"| Q
         J -->|9| K
-        J -.->|"9 fails"| L
+        J -.->|"9 conflict"| L
         K -->|"10 no"| L
         L -.->|"pending record"| Q
         K -->|"10 yes"| M
+        D -.->|"pending record"| Q
+        C -.->|"pending record"| Q
         M -.->|"receipt not written"| Q
         Q -.->|"run again from step 1"| H
     end

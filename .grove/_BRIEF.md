@@ -16,9 +16,10 @@ skills-only approach first. Neither is a prerequisite for this work.
 
 ## Done when
 
-- Ravel resolves configured local and pinned Git skill sources and automatically
-  adds discovery instructions and absolute locations to launch prompts. Cached
-  exact revisions work offline; unavailable required revisions fail clearly.
+- Ravel resolves configured local skill sources and automatically adds
+  discovery instructions and absolute locations to launch prompts. A missing
+  required source fails clearly. Ravel does not fetch, install or update a
+  source.
 - The same discovery contract works in real Claude Code and Codex sessions
   without native copies of the skills. Launched sessions and their delegates
   can read the required skill resources.
@@ -84,8 +85,8 @@ Preserve the original full 1.1.0 keg and ending command through the final signal
 
 ### Ravel
 
-One owner configuration identifies local sources and exact pinned Git revisions.
-Ravel acquires configured sources and injects skill-directory paths into the
+One owner configuration identifies local source directories.
+Ravel captures configured sources and injects skill-directory paths into the
 prompt before owner policy constructs the harness command. The agent finds and
 reads applicable skills. Ravel does not resolve a skill named by Grove.
 The human clarified this boundary during grove-skill-delivery-k8; it replaces
@@ -97,9 +98,13 @@ separate block. This changes Ravel's current no-injection contract. Mandatory
 guidance loads first; other skills and supporting resources load when needed.
 Resolve relative resources against their own skill directory.
 
-After the first fetch, reuse exact cached Git revisions offline without network
-access. Fetch missing revisions; if the required revision is unavailable, report
-it clearly and never substitute another revision.
+During ravel-git-acquire-k77 the human removed pinned Git sources from the
+scope of Ravel. The process of installing skills and keeping them up to date is
+not part of Ravel. Ravel reads local directories only. The pack checkouts that
+those directories hold get their revisions from a mechanism outside Ravel. A
+design leaf after the pinned node settles which owner supplies that mechanism.
+This paragraph supersedes each pinned-Git requirement in a brief below, until
+the replanning leaf reconciles those briefs.
 
 Account for compaction, delegates, source/resource lifetime, duplicate native
 copies, and actual launch permissions. The automatic contract covers launched
@@ -174,10 +179,10 @@ deferred issues as prerequisites or recreate the removed kind machinery.
 
 1. `common-skill-loading-k3`: settle Ravel's generic discovery contract and
    Grove's delivery transition, then plan and implement the common launch path
-   while sources remain here. Public local/Git/offline/lifetime fixtures and
+   while sources remain here. Public local-source and lifetime fixtures and
    real Claude Code/Codex implicit-discovery trials prove this handoff.
 2. `external-research-pack-k4`: move research and prove external resource
-   reachability, own/aggregate conformance and common local/pinned/offline
+   reachability, own/aggregate conformance and common local-source
    loading. Its durable external-pack contract informs all remaining moves.
 3. `repository-moves-k5`: plan separate working increments for the remaining
    domains, personal source/hooks, TestAnyware skill, marketplace and four
@@ -209,8 +214,8 @@ requirements, not a reason to repeat the interview.
 ## Agreed test seams
 
 - Ravel's public launch/resolution boundary with temporary homes/workspaces and
-  local Git fixtures: sources, exact revisions, offline reuse, missing-revision
-  failure, readable resources, prepared prompts, and intact task/ending commands.
+  local source fixtures: sources, missing-source failure, readable resources,
+  prepared prompts, and intact task/ending commands.
   Include session/delegate lifetime and confinement.
 - Grove's existing tree/launch checks and conformance over core and every
   external pack. Preserve current kind labels and policy routing.

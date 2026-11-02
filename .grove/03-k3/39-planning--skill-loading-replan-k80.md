@@ -45,4 +45,6 @@ owner-pack-checkouts-k86 integrated the third review. Its in-session reviewer
 then found defects that need a new recovery model for the switch. The design
 leaf owner-switch-recovery-k87 and its review now come before this leaf.
 Take the switch's resumption, rollback and rehearsal contract from that
-chain, not from the handoffs of k84 or k86.
+chain, not from the handoffs of k84 or k86. owner-switch-recovery-k89
+integrated the review of k87. Its handoff amends the obligations in the
+handoff of k87.

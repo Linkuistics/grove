@@ -366,54 +366,81 @@ The stage file must take the live file's metadata before the exchange.
 
 `owner-switch-recovery-k87` wrote the Quint model
 [`models/owner-switch.qnt`](models/owner-switch.qnt) and its runner
-[`models/run-owner-switch.sh`](models/run-owner-switch.sh). On 2026-11-02,
-`task model:owner-switch` ran them with Quint 0.33.1 and its Rust evaluator
-0.7.1:
+[`models/run-owner-switch.sh`](models/run-owner-switch.sh). Its run of
+2026-11-02 had the model digest `793ef9ef86a4`.
+
+`owner-switch-recovery-k89` then changed the model for the findings of
+`owner-switch-recovery-k88`. Outside programs and late descriptors now remove
+keys, and a merged copy keeps only its merge digest as recorded content. One
+layout flag stands for a changed entry outside the switch set, and step 14
+compares it before the manual copy. The model has a fifth property and two
+more mutants.
+
+Three instrument changes came with it:
+
+- A step picks a kept copy only from the copies that exist. Before, it picked
+  an index from 0 to 40, and no merge happened while outside budget remained.
+- The outside phase `idle` and the crash phase `receipt` serve two focused
+  worlds. They hunt witnesses only.
+- Two witnesses ignore a key that a later removal superseded. Without that,
+  a legitimate removal would read as a loss.
+
+The sampling therefore differs from k87's run, and no witness count compares
+across the two runs.
+
+On 2026-11-02, `task model:owner-switch` ran the changed files with Quint
+0.33.1. The three subjects had the same digests before and after the run:
 
 | Subject | SHA-256 |
 | --- | --- |
-| `docs/models/owner-switch.qnt` | `793ef9ef86a4678008c7cc8c8796acd319e5d01e1351409297410624370f93d4` |
-| `docs/models/run-owner-switch.sh` | `5b75f97aa9bb1810103f13fca1314691b1b5ccfeea0753f17ed923b371279cd4` |
+| `docs/models/owner-switch.qnt` | `4b3002d9d23d0ecd59202a7ed04e532c90dfd384d45d8055724305bea6b39840` |
+| `docs/models/run-owner-switch.sh` | `66c9fcfb6065e602ba5e523f86eabc37937c226543e425f4896a214973c7596d` |
+| `Taskfile.yml` | `2aec4fba957f23f586498606734917daa4c12410dedc788010f3023b9c65b69a` |
 
 Each world ran 4,000 samples of up to 60 steps. The classification world ran
-12,000, and the unchecked-receipt mutant ran 20,000. All nine invariants held
-in each of the seven design worlds. Each mutant witness stayed unreached
+12,000, and the unchecked-receipt mutant ran 20,000. All ten invariants held
+in each of the nine design worlds. Each mutant witness stayed unreached
 there. These are the witness counts:
 
 | World | Witness | Traces |
 | --- | --- | --- |
-| `crashes` | A complete switch, each after a crash | 1,761 |
-| `crashes` | An interruption resumed to native | 3,052 |
-| `crashes` | A failed probe inverted to native | 586 |
-| `crashes` | The owner's inverse to native | 2,099 |
-| `writers` | A complete switch with no crash | 1,246 |
-| `writers` | An exchange conflict in a flagged copy | 130 |
-| `writers` | A late write in a flagged copy | 149 |
-| `writers` | A merged copy, then a complete switch | 134 |
-| `classify_world` | A second plan switched to complete | 6,127 |
-| `coincidence` | A resumed inverse resets an outside switched value | 165 |
-| `after_receipt` | Drift after a receipt | 1,448 |
-| `during_run` | A conflict at a cell | 42 |
+| `crashes` | A complete switch, each after a crash | 1,778 |
+| `crashes` | An interruption resumed to native | 2,962 |
+| `crashes` | A failed probe inverted to native | 536 |
+| `crashes` | The owner's inverse to native | 2,135 |
+| `writers` | A complete switch with no crash | 1,585 |
+| `writers` | An exchange conflict in a flagged copy | 92 |
+| `writers` | A late write in a flagged copy | 113 |
+| `writers` | A merged copy, then a complete switch | 96 |
+| `writers` | A removal displaced into a flagged copy | 18 |
+| `classify_world` | A second plan switched to complete | 6,176 |
+| `coincidence` | A resumed inverse resets an outside switched value | 187 |
+| `after_receipt` | Drift after a receipt | 1,859 |
+| `during_run` | A conflict at a cell | 58 |
+| `merge_return` | A merged copy returned to the content that the run read, and flagged | 48 |
+| `entries` | The complete continuation copied its receipt | 523 |
+| `entries` | The complete continuation found an outside entry, inverted, and stopped for classification | 448 |
 
 Each mutant reached its violation:
 
 | Mutant | Traces |
 | --- | --- |
-| No recorded digest of the displaced content | 168 of 4,000 |
-| No run record in the state | 859 of 4,000 |
+| No recorded digest of the displaced content | 175 of 4,000 |
+| No run record in the state | 1,327 of 4,000 |
 | "Inverse ended" before the inverse | 4,000 of 4,000 |
-| No cell reading before the receipt | 135 of 20,000 |
-| No rehearsal check | 1,321 of 4,000 |
-| An inverse that resets a third value | 81 of 4,000 |
+| No cell reading before the receipt | 155 of 20,000 |
+| No rehearsal check | 1,234 of 4,000 |
+| An inverse that resets a third value | 91 of 4,000 |
+| No merge authority over a merged copy | 44 of 4,000 |
+| No comparison in step 14 | 61 of 4,000 |
 
 The sweep of every invariant against every mutant found violations only of
 the properties that the table in the design names. The mutant without a run
-record also broke the state table, because it reads states by another rule.
+record also broke the state table and the settled-state property, because it
+reads states by another rule.
 
 The results are sampled, not proved. The shortest path to a receipt has 15
-steps, inside the 60-step bound. The first run had two instrument defects.
-A phase dial now reaches drift after a receipt. A ghost set now separates
-late writes from exchange conflicts.
+steps, and the manual copy is the 16th, inside the 60-step bound.
 
 ## Not measured
 
@@ -619,3 +646,54 @@ Each item has this disposition:
 | P3: step 1 or step 2 stops | Closed. The seams say step 2. |
 | P3: drift seams need a backup | Closed. Before the switch, a changed entry gives the changed state. |
 | P3: the switch's own shell | Closed. The run's own process tree includes the program's shell. |
+
+The focused review `owner-switch-recovery-k88` found one P1, three P2 and
+one P3 defect in that redesign. Its integration `owner-switch-recovery-k89`
+repaired the specification, the model and the views:
+
+- **A merged copy that returned to older content.** The reviewed predicate
+  tested the content that the run read before the merge record. A copy that
+  a descriptor returned to that content was not flagged. The merge digest is
+  now the only recorded content of a merged copy, and the owner's merge
+  applies the copy's difference, a removed key included. The model reaches
+  the trace, and its mutant without the rule loses the removal.
+- **Descendant readers inside the exclusion.** Step 1 exempted the whole
+  descendant tree, so a delegate session could read a moved path. Step 1 now
+  excludes only the kept processes: the harness process, its driver chain,
+  its MCP servers and the program. Each other descendant counts as another
+  process. The k87 text had also dropped the driver chain, which k86 named.
+  A reader control tests the exclusion apart from detection.
+- **A complete continuation without the outside comparison.** A run that
+  stopped between steps 13 and 14 copied its receipt without a comparison
+  of the entries outside the switch set. Step 14 now compares them first,
+  and a changed entry counts as a failed probe. The model's fifth property
+  and its mutant cover the rule.
+- **An inverse onto an occupied path.** An exclusive rename cannot move a
+  retained entry onto an occupied original path. The inverse now moves an
+  entry only to an absent path. An occupied path is a third value, and the
+  inverse leaves both entries. The design argues the entry case in full in
+  place of a model extension.
+- **Shared node identities in the cutover view.** The recovery nodes reused
+  two identities of preparation nodes. They now have their own identities.
+
+One in-session reviewer then read the argument for entry parts and found
+four P1, two P2 and three P3 items. The integration repaired five of them:
+
+- The inverse moves an entry of any change identity back. The inverse
+  changes no other third value, and the cell rules now name that exception.
+- The switch compares a moved entry with its recorded change identity, which
+  the baseline instrument defines.
+- Purge requires each retained entry to keep that change identity.
+- The retained path belongs to the open run's backup. While no run is open,
+  an entry cell is the original path alone.
+- The drifted row names a receipt as the last record, as the model does.
+
+The claim that an occupied path cannot repeat a failure is now limited to
+that case. Another failed rename stops each run until the owner repairs it.
+A parent path that another program replaced with a link was noise, because
+the entry still lands at its original path. The resume rule for a moved-back
+entry is the design's stated trade-off: a third value waits for the owner.
+
+Row R2 of the table above records the whole process tree as exempt. The
+repair of the descendant readers narrows that exemption to the kept
+processes.

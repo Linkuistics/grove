@@ -98,6 +98,9 @@ same design.
   inverse and the reading of its state.
 - **A kept copy** is the content that an exchange displaced. It stays in the
   backup under the name of its stage file.
+- **A kept process** is a process that the session which runs the switch
+  cannot end without ending itself. The process listing of step 1 excludes
+  only kept processes.
 - **Native residue** is the set of native entries that stay after the switch.
 - **A pack checkout** is the local clone of one source repository. Ravel
   captures it as a `local` source.
@@ -576,9 +579,10 @@ set. Its steps are:
    desktop applications and their background servers. Also include each
    program that writes a file of the switch set, such as herdr, Orca, mise
    and `codebase-memory-mcp`. List each enabled launchd job, login item and
-   schedule that can launch one of these programs. Exclude only the run's own
-   process tree. That tree is the session that runs the switch, with its
-   descendants. They include its MCP servers and the program's shell.
+   schedule that can launch one of these programs. Exclude only the kept
+   processes that [Concurrent writers](#concurrent-writers) names. Count
+   each other descendant of the session that runs the switch as another
+   process.
 2. If any other listed process or job remains, stop and ask the owner. Do not
    signal another session.
 3. Rerun the baseline instrument. Find the state of the switch set, as
@@ -633,7 +637,7 @@ set. Its steps are:
       backup's retained tree at its original relative path. Create an absent
       Ravel settings file by an exclusive rename.
    4. Compare the displaced content with its recorded digest. For an entry,
-      compare the moved entry with its earlier identity.
+      compare the moved entry with its recorded change identity.
 
    After the last part, read each cell again. Each must hold its switched
    value, and no kept copy may be flagged. A failed read, comparison or final
@@ -655,9 +659,11 @@ set. Its steps are:
    as a failed probe. A flagged kept copy is a stop. Then add the receipt to
    the run record, with the result of `mac-check` and the cell values that
    this step read.
-14. Copy the receipt into the maintained manual. The entry says that the
-   receipt describes the layout only while `mac-check` reports the switch
-   complete.
+14. Compare each entry outside the switch set with the manifest of the
+   backup's plan. A changed entry counts as a failed probe, and the run does
+   not copy the receipt. Otherwise copy the receipt into the maintained
+   manual. The entry says that the receipt describes the layout only while
+   `mac-check` reports the switch complete.
 
 Steps 1 to 8 change no cell of the plan, except an inverse that step 3
 resumes. Step 5 changes the `grove-core` checkout and its pin in the tracked
@@ -682,8 +688,8 @@ write of the receipt is a stop.
    and version. Add the edited pin, the output of `status --json` and the
    output of the failed step or probe.
 3. In the record, name each backup and the state of the switch set. For a
-   drifted or changed state, list each cell with its value. List each flagged
-   kept copy.
+   drifted or changed state, list each cell with its value. Also list each
+   changed entry outside the switch set and each flagged kept copy.
 4. Report the failure, and ask the owner to repair its cause.
 5. Run the switch again from step 1.
 6. If the session must end before the switch succeeds, end it with the stop
@@ -740,7 +746,8 @@ another program. The exclusion protects readers, captures and progress.
 **Cells.** The switch reads and changes cells only. A write to another key of
 a shared file is not a conflict, because the exchange keeps that key. The
 switch changes a cell only from its earlier value. The inverse changes a cell
-only from its switched value. Each run lists every value that it replaces.
+only from its switched value, except for the entry case that
+[Rollback](#rollback) states. Each run lists every value that it replaces.
 
 **Detection.** Each changed file is published by an atomic exchange. One call
 puts the stage file at the path and keeps the displaced content under the
@@ -750,22 +757,28 @@ displaced content becomes a kept copy.
 - Before the exchange, the run records the digest of what it read. That
   digest covers the content, the mode, the ACL and the extended attributes.
   The run also records the digest of the stage file.
-- A kept copy is flagged when it holds neither recorded content. A write
-  before the exchange is in the displaced content, so it flags the copy.
+- Until its merge, a kept copy is flagged when it holds neither recorded
+  content. A write before the exchange is in the displaced content, so it
+  flags the copy.
 - A writer can hold a descriptor that it opened before the exchange. Its
   later write lands in the kept copy and flags it then.
 - A write after the exchange reaches the live file and stays there.
 - Each run reports every flagged kept copy in step 3, at the final reading of
   step 9 and in step 13. `mac-check` reports them too.
-- The owner merges a flagged copy into the live file. The owner then records
-  the merge with the digest that the copy holds. A copy that changes after
-  its merge is flagged again.
+- The owner merges a flagged copy into the live file. The merge applies the
+  difference between the copy and its last recorded content. An erased key
+  is part of that difference. The owner then records the merge with the
+  digest that the copy holds. From then on, that digest is the only recorded
+  content of the copy. Any other content flags the copy again, also a return
+  to the content that the run read or to the stage content.
 - No run erases a kept copy before purge. A copy that holds its stage
   content was never exchanged, and it holds no outside write.
 - The exchange gives the path the stage file's metadata. The stage file
   therefore takes the live file's mode, ACL and extended attributes.
 - An exclusive rename moves an entry and overwrites nothing. A changed
   identity after the move is a conflict, and the inverse moves the entry back.
+  The inverse moves an entry only to an absent original path, as
+  [Rollback](#rollback) states.
 - An exclusive rename creates an absent Ravel settings file. It fails if
   another program created the file first, and that failure is a conflict.
 
@@ -787,10 +800,32 @@ write. It lets outside programs write at every step, with no exclusion.
 
 A write interval is one run of step 9 or of one inverse. The program lists
 the processes of step 1 before each interval. A remaining process or job
-keeps the interval closed. The run's own process tree may run, and detection
-covers its writes. No probe session may still run when an interval opens.
-One program command runs each interval, so no agent action, harness hook or
-probe runs inside it.
+keeps the interval closed.
+
+The exclusion keeps only the processes that the session cannot end without
+ending itself. These are the **kept processes**:
+
+- The harness process of the session that runs the switch.
+- The driver chain that launched that session. Inside finish, that chain is
+  this driver and its Ravel 1.1.0 process.
+- The MCP servers of that harness process.
+- The program and its shell.
+
+Each other descendant of the session counts as another process. Examples are
+a delegate harness session, a background command, a probe session and a
+Ravel or Grove command. Before the session runs the program, it ends each
+delegate and background task of its own. That rule includes a delegate
+inside the harness process, which no process listing shows. One program
+command then runs each interval, so no agent action, harness hook or probe
+runs inside it. The listing of step 1 also stops a descendant that could
+capture a checkout during the advance of step 5.
+
+Detection covers the writes of each kept process. Exclusion does not protect
+a kept process that reads. The harness process reads its own guidance by the
+cache path that step 7 records. A kept MCP server that read a moved entry
+would lose that read. The design accepts this case, because the session
+cannot end its servers. The reader control of the [test seams](#test-seams)
+tests the exclusion apart from detection.
 
 The design rejected three alternatives:
 
@@ -822,8 +857,10 @@ an exclusive rename:
 
 A backup's run is open until its last record is "inverse ended". While the
 latest complete backup's run is open, its plan applies. Otherwise the
-prepared plan applies, and step 3 also compares each entry outside its switch
-set with its manifest.
+prepared plan applies. In every state, step 3 also compares each entry
+outside the switch set with the manifest of the plan that applies. The table
+states what a changed entry does. Step 14 compares the entries again before
+it copies a receipt.
 
 A part is switched when each of its cells holds its switched value. It is
 earlier when each holds its earlier value. Any other value of a cell is a
@@ -833,10 +870,10 @@ plan's order.
 
 | State | Run record and layout | Next steps |
 | --- | --- | --- |
-| Complete | An open run whose last record is "receipt", and each cell switched | Copy the receipt into the maintained manual if the manual lacks it. Change nothing else |
+| Complete | An open run whose last record is "receipt", and each cell switched | If the maintained manual lacks the receipt, run step 14. A changed entry outside the switch set then counts as a failed probe. Change nothing else |
 | Active | An open run whose last record is "switch begun", and each cell switched | Run step 6, the probes of step 10 and steps 12 to 14. A stop in step 6 or a changed entry outside the switch set counts as a failed probe. The receipt uses the evidence in the backup |
 | Interrupted | An open run whose last record is "switch begun" or "inverse begun", the switched parts a prefix and the other parts earlier, the active state excepted | Add "inverse begun" if it is not the last record. Resume the inverse. Then find the state again |
-| Drifted | An open run with a third value, with switched parts that are not a prefix, or with a receipt while a cell is not switched | Change nothing. Stop and report each cell with its value |
+| Drifted | An open run with a third value or with switched parts that are not a prefix. Also an open run whose last record is "receipt" while a cell is not switched | Change nothing. Stop and report each cell with its value, and each changed entry outside the switch set |
 | Native | No open run, and each cell and entry matches the prepared plan | If a backup exists, run the native probe of [Rollback](#rollback), and stop if it fails. Then go on with step 4 |
 | Changed | No open run, and a cell or entry differs from the prepared plan | Stop for classification |
 
@@ -856,7 +893,8 @@ list reports it.
 
 From a drifted state, the owner runs the inverse of
 [Rollback](#rollback) or restores a cell by hand. The inverse resets each
-switched cell and leaves each third value. After it, no run is open.
+switched cell and leaves each third value, except for the entry case of
+[Rollback](#rollback). After it, no run is open.
 
 A changed state stops for the owner's classification. The owner prepares a
 new plan, which records each accepted value as an earlier value. A cell never
@@ -909,10 +947,23 @@ its own write interval, as [Concurrent writers](#concurrent-writers) states:
 - It leaves each cell that holds a third value, and it reports that cell.
 - It takes the `skills` key out of the Ravel settings. A settings file that
   the switch created then holds no key, and that file stays.
-- It moves each entry at its retained path back by an exclusive rename. It
-  moves an entry of any identity. A changed identity is then a third value.
+- It moves each entry at its retained path back by an exclusive rename, if
+  the original path is absent. It moves an entry of any change identity.
+  That entry is the only third value that the inverse changes. A rename
+  keeps the entry whole, so the move loses no write. A changed identity is
+  then a third value at the original path.
+- An entry at the original path is a third value of that cell, also while
+  the retained entry exists. The inverse leaves both entries and reports the
+  cell. The owner then keeps one of the two entries at the original path
+  and moves the other outside native discovery. An entry that stays in the
+  backup stays there until purge.
+- Another program can create the original path after the inverse reads it.
+  The rename then fails and changes neither path. The inverse stops as at a
+  conflict, and the next run reads the occupied path as a third value.
 - A conflict stops the inverse and leaves the run record as it is. The next
-  run resumes the inverse.
+  run resumes the inverse. A rename that fails for another cause, such as a
+  missing parent directory, is a conflict too. Each later run stops at it
+  until the owner repairs that cause.
 - It adds "inverse ended" only when no cell holds its switched value.
 
 The native probe verifies the result on both harnesses. It observes these
@@ -941,10 +992,12 @@ Rollback keeps the pack checkouts, their mise entries and the advanced
 The Quint model [`owner-switch.qnt`](../models/owner-switch.qnt) covers the
 switch, the inverse, interruptions, outside writes, classifications and
 receipts. `task model:owner-switch` runs each of its claims. Its worlds let
-outside programs write cells, other keys and kept copies at every step. They
-also let a crash end a run at every step. No world has an exclusion.
+outside programs set cells, add and erase other keys and write into kept
+copies at every step. They also let a program change an entry outside the
+switch set, and they let a crash end a run at every step. No world has an
+exclusion.
 
-Four properties hold in each of the seven design worlds:
+Five properties hold in each of the nine design worlds:
 
 1. No write by another program is lost without a report. The accepted case
    is a cell write of the cell's earlier or switched value.
@@ -953,8 +1006,10 @@ Four properties hold in each of the seven design worlds:
 3. No receipt records a cell that is not switched. Each receipt records the
    cells that the probes saw, and "complete" needs each cell switched now.
 4. No exchange applies a plan that has no rehearsal record.
+5. No run copies a receipt into the maintained manual with a changed entry
+   outside the switch set.
 
-Each of six mutant worlds lacks one mechanism, and it reaches the violation
+Each of eight mutant worlds lacks one mechanism, and it reaches the violation
 that the mechanism prevents. The same violation stays unreached in each
 design world.
 
@@ -966,22 +1021,62 @@ design world.
 | The cell reading before the receipt | 3 |
 | The rehearsal condition of step 8 | 4 |
 | The inverse's rule that leaves a third value | 1 |
+| The merge digest as the only recorded content of a merged copy | 1 |
+| The comparison of step 14 | 5 |
 
 The results are sampled, not proved. Each world ran 4,000 samples of up to
-60 steps, and a switch of three parts reaches its receipt in 15 steps. The
-model file lists what the model does not establish. Entry parts, metadata,
-the program copy, the probes, the manual and readers belong to the rehearsal
-controls.
+60 steps, and a switch of three parts reaches its receipt in 15 steps. Two
+focused worlds narrow when outside writes or crashes act. One reaches a merged
+copy that returns to older content. The other reaches the complete
+continuation.
+
+The model file lists what the model does not establish. Metadata, the
+program copy, the probes and readers belong to the rehearsal controls.
+
+**Entry parts.** The model treats each part as a file. Two rules settle an
+entry part without a model:
+
+- The program moves an entry only by an exclusive rename, and only to an
+  absent path. No move overwrites an entry, and the program erases none.
+- The cell of an entry part is the pair of its original and retained paths.
+  Its earlier value is the entry with its recorded change identity at the
+  original path, and nothing at the retained path. Its switched value is
+  the reverse. Each other pair is a third value.
+- The retained path lies in the backup of the open run. While no run is
+  open, the cell is the original path alone. Its earlier value is then the
+  entry that the plan records there.
+
+Properties 1 to 4 then hold for entries:
+
+1. No write is lost. An entry that another program creates stays at its
+   path, because no rename overwrites it. A write into a moved entry moves
+   with it and changes its change identity. Each later reading then
+   reports a third value. The inverse moves a changed entry back. It leaves
+   an entry whose original path is occupied. Purge requires each retained
+   entry to keep its recorded change identity.
+2. Each pair has exactly one value, so the state table applies unchanged.
+   The entries come first in the plan, and each rename is atomic. An
+   interruption therefore still leaves a prefix of switched parts.
+3. A receipt reads each pair as it reads each cell.
+4. No rename runs outside a rehearsed plan.
+
+An occupied original path cannot make the inverse fail again and again. The
+inverse renames only onto an absent original path. If another program
+occupies that path first, the rename fails and changes neither path. The
+next run reads the occupied path as a third value and leaves it. A rename
+that fails for another cause stops each run until the owner repairs that
+cause, as at any stopped step.
 
 ### Purge
 
 Purge covers each backup's retained tree and kept copies, Grove's Codex
 snapshot store, the superseded Claude Code plugin registrations and the
-earlier marketplace registration. Purge requires four conditions:
+earlier marketplace registration. Purge requires five conditions:
 
 - No session that ran during the switch remains.
 - This driver's group is reaped.
 - No kept copy is flagged.
+- Each retained entry keeps the change identity that its move recorded.
 - The owner decides that the rollback window is closed.
 
 Purge is outside this grove's success condition, as the 1.1.0 keg cleanup is.
@@ -1101,13 +1196,15 @@ Obsidian `AI Dev Tooling` note. It still names the earlier
   each exchange and its comparison, beside each record and inside the probes.
   The next run must find the interrupted, active or native state, and it must
   keep an incomplete backup aside.
-- Fault points write an unrelated key just before and just after each
-  exchange, in step 9 and in the inverse. A write before an exchange must
+- Fault points write or erase an unrelated key just before and just after
+  each exchange, in step 9 and in the inverse. A write before an exchange must
   leave a flagged kept copy and stop the run. A write after it must stay in
   the live file. A descriptor opened before an exchange must flag the kept
   copy when it writes.
 - A control merges a flagged copy and then changes that copy. The next run
-  must flag it again. Step 8 and step 13 must stop while a copy is flagged.
+  must flag it again. Another control merges a copy and then returns it,
+  through a descriptor, to the content that the run read. The next run must
+  flag that copy too. Step 8 and step 13 must stop while a copy is flagged.
 - A control changes the mode and an extended attribute of a file between the
   read and the exchange. The comparison must find it. The published file must
   keep the live file's metadata.
@@ -1117,18 +1214,31 @@ Obsidian `AI Dev Tooling` note. It still names the earlier
 - A control writes a cell's switched value while a run is open. The resumed
   inverse must reset it and list it. Another writes it after "inverse ended",
   and the next run must find the changed state.
-- Controls change the content of a moved entry, retarget a moved link and put
-  an entry at both paths. Each runs before the switch and after it. Before
-  the switch, the run must find the changed state. After it, the run must
-  find the drifted state, and the owner's inverse must move the entry back.
+- Controls change the content of a moved entry and retarget a moved link.
+  Each runs before the switch and after it. Before the switch, the run must
+  find the changed state. After it, the run must find the drifted state, and
+  the owner's inverse must move the entry back.
+- A control puts a new entry at the original path of a moved entry. The run
+  must find the drifted state. The owner's inverse must leave both entries,
+  report that cell and reset the other cells. The next run must find the
+  changed state. Another control creates the original path after the
+  inverse reads it. The rename must fail and change neither path, and the
+  next run must find the drifted state.
 - One control stops a run between steps 13 and 14, and the next run must copy
-  the receipt. Another changes a cell after the receipt. `mac-check` must
+  the receipt. Two controls add an entry outside the switch set before step
+  14: one inside a run, and one after such a stop. Each run must count the
+  entry as a failed probe and apply the inverse. It must not copy the
+  receipt. Another changes a cell after the receipt. `mac-check` must
   report the drifted state, and no run may copy the receipt into the manual.
 - A changed plan or a changed program without a passing rehearsal record must
   stop step 8. A continuation must run the program copy of its backup.
-- A writer outside the run's own process tree, or a job that can launch one,
-  must stop the run at step 2. The same writer, launched later, must stop the
+- A writer that is not a kept process, or a job that can launch one, must
+  stop the run at step 2. The same writer, launched later, must stop the
   next write interval before its first change.
+- A reader control launches a delegate harness session and a background
+  command from the session that runs the switch. Each reads a path that the
+  plan moves, and neither writes. Each must stop the run at step 2. Each,
+  launched later, must keep the next write interval closed.
 - A control clone with `core.autocrlf=true` keeps the tree ID of its pin. The
   digest comparison of step 6 must stop on it.
 - Only finish runs the switch against the real HOME, or the owner after a

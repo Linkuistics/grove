@@ -58,14 +58,14 @@
       "group": "owner",
       "title": "Ordered owner cutover",
       "source": "owner-cutover.mmd",
-      "caption": "Proposed. Ordinary leaves prepare and rehearse; only finish, or the owner after an unsuccessful finish, runs the switch against the real HOME. Each run first reads the state from the layout, the run record of the latest backup and the plan. A native state switches after a native probe, an interrupted state resumes the inverse, and an active state completes its probes and receipt. A drifted or changed state changes nothing and stops for the owner. One program applies the parts; each exchange records what its displaced copy must hold, so an outside write is kept and reported. A receipt counts only while each cell is switched. The owner purges retained bytes later, after this driver's reap."
+      "caption": "Proposed. Ordinary leaves prepare and rehearse; only finish, or the owner after an unsuccessful finish, runs the switch against the real HOME. Each run first reads the state from the layout, the run record of the latest backup and the plan. A native state switches after a native probe, an interrupted state resumes the inverse, and an active state completes its probes and receipt. A drifted or changed state changes nothing and stops for the owner. One program applies the parts; each exchange records what its displaced copy must hold, so an outside write is kept and reported. A receipt counts only while each cell is switched, and step 14 copies it into the manual only while each entry outside the switch set matches the plan. The owner purges retained bytes later, after this driver's reap."
     },
     {
       "id": "owner-switch-states",
       "group": "owner",
       "title": "States of the owner switch",
       "source": "owner-switch-states.mmd",
-      "caption": "Proposed, before its focused review. Step 3 reads exactly one state from the layout, the run record and the plan. Only an open run whose switched parts form a prefix of the plan's order is interrupted, and only it resumes without the owner. A drifted or changed state changes nothing. The Quint model docs/models/owner-switch.qnt checks the rows; the arrows are a reading aid, not the checked relation."
+      "caption": "Proposed, with its focused review integrated. Step 3 reads exactly one state from the layout, the run record and the plan. Only an open run whose switched parts form a prefix of the plan's order is interrupted, and only it resumes without the owner. A drifted or changed state changes nothing. The Quint model docs/models/owner-switch.qnt checks the rows; the arrows are a reading aid, not the checked relation."
     },
     {
       "id": "owner-final-session",
@@ -175,8 +175,8 @@
   ],
   "discussion": {
     "title": "How the owner switch recovers from interruptions and outside writes",
-    "status": "Proposed by owner-switch-recovery-k87 on 2026-11-02, before its focused design review",
-    "summary": "The switch changes cells: one key of a shared file or one entry. Detection, not exclusion, protects each write by another program: each exchange records what its displaced copy must hold, and every later reading reports a copy that holds anything else. A run record in the backup tells an interruption from an outside write. The layout decides the state, and a receipt only records the probed layout. A plan runs only with the program that a passing rehearsal names. The Quint model in docs/models checks four properties and one mutant for each mechanism.",
+    "status": "Proposed by owner-switch-recovery-k87 on 2026-11-02 — focused design review integrated by owner-switch-recovery-k89",
+    "summary": "The switch changes cells: one key of a shared file or one entry. Detection, not exclusion, protects each write by another program: each exchange records what its displaced copy must hold, and every later reading reports a copy that holds anything else. A run record in the backup tells an interruption from an outside write. The layout decides the state, and a receipt only records the probed layout. A plan runs only with the program that a passing rehearsal names. The Quint model in docs/models checks five properties and one mutant for each mechanism.",
     "diagramIds": [
       "owner-switch-states",
       "owner-cutover",
@@ -186,11 +186,11 @@
     "updatedDiagrams": [
       {
         "id": "owner-switch-states",
-        "summary": "Added the six states that step 3 reads and the events between them. Only an open run with a prefix of switched parts resumes automatically; a drifted or changed state waits for the owner."
+        "summary": "Added the six states that step 3 reads and the events between them. Only an open run with a prefix of switched parts resumes automatically; a drifted or changed state waits for the owner. Changed by the review integration: a complete switch whose step 14 finds a changed entry outside the switch set inverts to the changed state."
       },
       {
         "id": "owner-cutover",
-        "summary": "Replaced the partial state with interrupted, drifted and changed states read from the run record. The process listing excludes the run's own tree and repeats before each write interval. The switch is one program that stages, exchanges and compares each part. A conflict inverts the run's own parts. The receipt records the probed cells, and the manual entry applies only while mac-check reports the switch complete."
+        "summary": "Replaced the partial state with interrupted, drifted and changed states read from the run record. The process listing repeats before each write interval. The switch is one program that stages, exchanges and compares each part. A conflict inverts the run's own parts. The receipt records the probed cells, and the manual entry applies only while mac-check reports the switch complete. Changed by the review integration: the listing excludes only the kept processes, step 14 compares the entries outside the switch set before the manual copy, and the recovery nodes have their own identities."
       }
     ]
   }

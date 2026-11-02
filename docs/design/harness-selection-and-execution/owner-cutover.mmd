@@ -16,27 +16,29 @@ flowchart LR
     subgraph fin["Finish"]
         direction TB
         G["Release Grove<br/>Promote Ravel"]
-        H{"No other session, driver,<br/>writer or job outside<br/>the run's own tree?"}
+        H{"No listed process or job<br/>beyond the kept processes:<br/>harness, its driver chain,<br/>MCP servers, program?"}
         I["Ask the owner<br/>Signal nobody"]
         S{"State from the layout,<br/>the run record of the<br/>latest backup and the plan"}
         R["Resume the inverse<br/>of the open run"]
-        D["Drifted: change nothing<br/>Report each cell"]
-        C["Changed: stop for<br/>classification and a<br/>new rehearsed plan"]
+        DR["Drifted: change nothing<br/>Report each cell"]
+        CH["Changed: stop for<br/>classification and a<br/>new rehearsed plan"]
         P["Compare core tree ID<br/>Advance grove-core pin<br/>Clean status, accepted digests<br/>Rehearsal names plan and program<br/>No flagged kept copy"]
         Q["Pending-activation record<br/>No success signal<br/>Switch runs again"]
         J["One program, parts in order:<br/>read, stage, exchange or<br/>exclusive rename, compare"]
         K{"Both probes pass and<br/>each cell still as probed?"}
         L["Inverse of the run's parts<br/>then native probe"]
-        M["Receipt records the probed cells<br/>Manual entry valid while<br/>mac-check reports complete"]
+        M["Receipt records the probed cells"]
+        N{"14: entries outside the<br/>switch set match the plan?"}
+        O["Copy the receipt to the manual<br/>Entry valid while<br/>mac-check reports complete"]
         G -->|7| H
         H -->|"8 no"| I
         H -->|"8 yes"| S
         S -->|"8a native, probe passes"| P
         S -.->|"8a interrupted"| R
         S -->|"8a active: step 6, then probes"| K
-        S -.->|"8a drifted"| D
-        S -.->|"8a changed"| C
-        S -->|"8a complete"| M
+        S -.->|"8a drifted"| DR
+        S -.->|"8a changed"| CH
+        S -->|"8a complete, manual lacks receipt"| N
         R -.->|"state again"| S
         P -->|"8b"| J
         P -.->|"8b stops"| Q
@@ -45,8 +47,11 @@ flowchart LR
         K -->|"10 no"| L
         L -.->|"pending record"| Q
         K -->|"10 yes"| M
-        D -.->|"pending record"| Q
-        C -.->|"pending record"| Q
+        M -->|13| N
+        N -->|"14 yes"| O
+        N -.->|"14 no: failed probe"| L
+        DR -.->|"pending record"| Q
+        CH -.->|"pending record"| Q
         M -.->|"receipt not written"| Q
         Q -.->|"run again from step 1"| H
     end

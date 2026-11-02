@@ -37,6 +37,7 @@ ALWAYS=(
   inv_receiptMatchesProbes
   inv_completeOnlySwitched
   inv_onlyRehearsedApplied
+  inv_acceptedOnlyClassified
 )
 
 MUTANT_WITNESSES=(
@@ -46,11 +47,15 @@ MUTANT_WITNESSES=(
   wit_m_receiptOnUnswitched
   wit_m_unrehearsedApplied
   wit_m_thirdValueLost
+  wit_m_mergedDeleteLost
+  wit_m_acceptedUnclassified
 )
 
-CORRECTED=(crashes writers both classify_world coincidence after_receipt during_run)
+CORRECTED=(crashes writers both classify_world coincidence after_receipt during_run
+           merge_return entries)
 MUTANTS=(m_no_expect m_no_run_record m_early_end m_receipt_no_recheck
-         m_no_rehearsal_check m_inverse_resets_third)
+         m_no_rehearsal_check m_inverse_resets_third m_merge_no_authority
+         m_accept_unchecked)
 
 witnesses() {
   case "$1" in
@@ -58,7 +63,7 @@ witnesses() {
                          wit_probeFailedToNative wit_ownerInverseToNative wit_activeAfterCrash ;;
     writers)        echo wit_complete wit_conflictFlagged wit_lateWriteFlagged \
                          wit_cellConflictFlagged wit_mergedAndComplete \
-                         wit_driftedDuringRun wit_changedNeedsPlan ;;
+                         wit_driftedDuringRun wit_changedNeedsPlan wit_deleteFlagged ;;
     both)           echo wit_complete wit_completeAfterCrash wit_conflictFlagged \
                          wit_resumedToNative ;;
     classify_world) echo wit_changedNeedsPlan wit_secondPlanComplete ;;
@@ -66,12 +71,17 @@ witnesses() {
     after_receipt)  echo wit_driftedAfterReceipt wit_ownerInverseToNative ;;
     during_run)     echo wit_conflictFlagged wit_cellConflictFlagged \
                          wit_lateWriteFlagged wit_driftedDuringRun ;;
+    merge_return)   echo wit_mergedReturnFlagged wit_mergedAndComplete ;;
+    entries)        echo wit_resumedCopied wit_resumedStoppedChanged \
+                         wit_secondPlanComplete ;;
     m_no_expect)            echo wit_m_writeLostSilently ;;
     m_no_run_record)        echo wit_m_interruptionWithoutRun ;;
     m_early_end)            echo wit_m_settledWhileOpen ;;
     m_receipt_no_recheck)   echo wit_m_receiptOnUnswitched ;;
     m_no_rehearsal_check)   echo wit_m_unrehearsedApplied ;;
     m_inverse_resets_third) echo wit_m_thirdValueLost ;;
+    m_merge_no_authority)   echo wit_m_mergedDeleteLost ;;
+    m_accept_unchecked)     echo wit_m_acceptedUnclassified ;;
   esac
 }
 

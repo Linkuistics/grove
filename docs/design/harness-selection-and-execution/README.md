@@ -73,14 +73,14 @@ public integration. Neither duplicates Ravel's private runtime contract.
 The current discussion rebuilds how the owner switch recovers from
 interruptions and outside writes. The switch changes cells, and detection of
 outside writes replaces the earlier exemptions. A run record tells an
-interruption from an outside write, and the layout decides the state. The
-proposal awaits its focused review. See the
+interruption from an outside write, and the layout decides the state. Its
+focused review is integrated. See the
 [recovery sections](../../specs/owner-skill-delivery.md#the-switch-inside-finish),
 the [recovery model](../../specs/owner-skill-delivery.md#the-recovery-model)
 and its [evidence](../../owner-skill-delivery-evidence.md#the-recovery-model).
 
-- [States of the owner switch](http://127.0.0.1:52710/#diagram-owner-switch-states) — Added the six states that step 3 reads and the events between them. Only an open run with a prefix of switched parts resumes without the owner.
-- [Ordered owner cutover](http://127.0.0.1:52710/#diagram-owner-cutover) — Replaced the partial state with interrupted, drifted and changed states. The process listing excludes the run's own tree and repeats before each write interval. One program stages, exchanges and compares each part, and a conflict inverts the run's own parts. The receipt records the probed cells.
+- [States of the owner switch](http://127.0.0.1:52710/#diagram-owner-switch-states) — Added the six states that step 3 reads and the events between them. Only an open run with a prefix of switched parts resumes without the owner. Changed by the review integration: a complete switch whose step 14 finds a changed entry outside the switch set inverts to the changed state.
+- [Ordered owner cutover](http://127.0.0.1:52710/#diagram-owner-cutover) — Replaced the partial state with interrupted, drifted and changed states. The process listing repeats before each write interval. One program stages, exchanges and compares each part, and a conflict inverts the run's own parts. The receipt records the probed cells. Changed by the review integration: the listing excludes only the kept processes. Step 14 compares the entries outside the switch set before the manual copy, also in the complete continuation. The recovery nodes no longer share identities with preparation nodes.
 
 ## Earlier checkout changes
 

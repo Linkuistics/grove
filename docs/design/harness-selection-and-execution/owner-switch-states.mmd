@@ -11,6 +11,7 @@ stateDiagram-v2
     Active --> Interrupted: failed probe, crash in the inverse
     Active --> Native: failed probe, inverse ends
     Complete --> Drifted: outside write to a cell
+    Complete --> Changed: step 14 finds an outside entry, inverse ends
     Drifted --> Complete: the cell is switched again
     Drifted --> Native: owner's inverse ends
     Drifted --> Changed: owner's inverse leaves a third value

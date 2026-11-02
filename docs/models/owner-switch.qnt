@@ -5,7 +5,7 @@
 // The subject is `docs/specs/owner-skill-delivery.md`, the sections "The
 // switch inside finish", "Concurrent writers", "Resuming the switch", "The
 // rehearsed plan" and "Rollback".  The model is a design artifact: it asks
-// whether the recovery rules keep four properties when interruptions, outside
+// whether the recovery rules keep five properties when interruptions, outside
 // writers, inverses, classifications and receipts interleave.  The executable
 // rehearsal of order 6 stays with the cutover contract.
 //
@@ -18,13 +18,15 @@
 //   writes the violated conjuncts out inline, so it keeps its meaning if an
 //   invariant's definition changes.
 //
-// THE FOUR PROPERTIES
+// THE FIVE PROPERTIES
 //
 //   P1 inv_noSilentLoss            No write by another program is lost
-//                                  without a report.  The accepted case is a
-//                                  cell write of the cell's earlier or
-//                                  switched value; the run's change list
-//                                  reports every value that it replaces.
+//                                  without a report.  A write adds or
+//                                  deletes another key, or sets a cell.
+//                                  The accepted case is a cell write of the
+//                                  cell's earlier or switched value; the
+//                                  run's change list reports every value
+//                                  that it replaces.
 //   P2 inv_exactlyOneState         Exactly one row of the state table holds.
 //      inv_stateMatchesTable       The run's decision equals that row.
 //      inv_interruptedOnlyWhenOpen An interruption is read only while a run
@@ -35,6 +37,9 @@
 //      inv_completeOnlySwitched    that the probes saw.
 //   P4 inv_onlyRehearsedApplied    The real HOME applies only a rehearsed
 //                                  plan.
+//   P5 inv_acceptedOnlyClassified  No run copies a receipt into the manual
+//                                  while an entry outside the switch set
+//                                  differs from the plan's manifest.
 //
 // WHAT IS MODELLED
 //
@@ -45,35 +50,49 @@
 //     the file, as the set of outside writes that reached them.
 //   * An exchange puts the prepared content at the path and the displaced
 //     content under the stage name, which becomes a KEPT COPY.  Before the
-//     exchange, the run records the content that the copy must hold.  A copy
-//     is FLAGGED when it holds neither that content nor the prepared one, and
-//     every later check reports a flagged copy.
-//   * Outside programs write cells and rest at any step, and a descriptor
-//     opened before an exchange writes into a kept copy.  No exclusion is
-//     modelled: P1 must hold without one.
+//     exchange, the run records the content that the copy must hold.  Before
+//     a merge, a copy is FLAGGED when it holds neither that content nor the
+//     prepared one.  The owner's merge records the content that the copy
+//     holds, and from then on any other content flags it.  Every later check
+//     reports a flagged copy.
+//   * The owner's merge applies the copy's difference from its last recorded
+//     content: the keys that the copy gained, and the deletion of the keys
+//     that it lost.
+//   * Outside programs set cells and add or delete other keys at any step.
+//     A descriptor opened before an exchange adds or deletes keys in a kept
+//     copy.  No exclusion is modelled: P1 must hold without one.
+//   * OUTSIDE ENTRY: one layout flag says that an entry outside the switch
+//     set differs from the plan's manifest.  A program sets it at any step,
+//     and a classification records the entries in the new plan.
 //   * A crash ends the run at any step.  Only the layout, the kept copies,
-//     the backups, the plans and the rehearsal records survive it.
+//     the backups, the plans, the manual and the rehearsal records survive
+//     it.
 //   * The backup's run record is `begun`, `receipt`, `invBegun`, `invEnded`.
+//     The MANUAL holds the receipts that step 14 copied.
 //
 // WHAT IS NOT MODELLED — the worklist for the rehearsal
 //
-//   * Entry parts.  The model treats every part as a file.  An entry moves by
-//     an exclusive rename, so a move overwrites nothing.  The inverse moves
-//     back an entry of any identity, and a changed identity is a third value
-//     afterwards.  The rehearsal controls own that rule.
+//   * Entry parts.  The model treats every part as a file.  The section "The
+//     recovery model" of the specification argues the entry case in full: an
+//     entry moves only by an exclusive rename, and only to an absent path,
+//     so no move overwrites or deletes an entry.  An entry at the original
+//     path is a third value, and the inverse leaves both entries.  The
+//     rehearsal controls test that argument.
 //   * Bytes, digests, metadata and names.  "Same content" is equality of the
 //     cell and the rest.  The prepared file's mode, ACL and extended
 //     attributes, and the digest names of kept copies, are prose.
 //   * The program.  The model has one program.  The rule that a backup keeps
 //     the program that began it, and that its continuations run that copy,
 //     is prose.
-//   * The probes, the native probe, `mac-check` and the manual.  A probe
-//     passes or fails.  That the manual never presents a receipt as current
-//     is prose.
-//   * The manifest of entries outside the switch set.  A changed entry there
-//     behaves as a third value in a native state.
+//   * The probes, the native probe and `mac-check`.  A probe passes or fails.
+//     That the manual never presents a receipt as current is prose.
+//   * Which entry outside the switch set changed, and how.  One flag stands
+//     for every such change.  Step 14 compares and copies in one step here;
+//     a change after that comparison is a change after acceptance, as a cell
+//     write after the receipt is.
 //   * Readers.  The exclusion protects readers, captures and progress, and no
-//     property here depends on it.
+//     property here depends on it.  Which processes may stay is prose, and
+//     the reader control of the rehearsal owns it.
 //   * Results under `quint run` are sampled, not proved.  The runner quotes
 //     the step bound and the sample count beside each result.
 //
@@ -92,12 +111,18 @@ module switch {
   const OUTSIDE_CELLS: bool
   const OUTSIDE_REST: bool
   const LATE_WRITES: bool
+  const OUTSIDE_DELETES: bool  // outside programs also delete other keys
+  const OUTSIDE_ENTRIES: bool  // outside programs change an entry outside the switch set
   const PROBES_CAN_FAIL: bool
-  // When outside writes may act: "any" step, only while a "run" is live, or
-  // only after a "receipt".  The unfocused worlds use "any".  A focused
-  // world is a strict subset that still reaches its subject, and it only
-  // hunts witnesses: a green there says nothing about the wide world.
+  // When outside writes may act: "any" step, only while a "run" is live,
+  // only while no run is live ("idle"), or only after a "receipt".  The
+  // unfocused worlds use "any".  A focused world is a strict subset that
+  // still reaches its subject, and it only hunts witnesses: a green there
+  // says nothing about the wide world.
   const OUTSIDE_PHASE: str
+  // When a crash may end a run: at "any" step, or only after a "receipt".
+  // Only a focused world narrows it.
+  const CRASH_PHASE: str
 
   // Mechanisms.  The corrected design sets each one as its comment says; a
   // mutant instance flips exactly one.
@@ -107,11 +132,12 @@ module switch {
   const RECEIPT_RECHECK: bool     // true: re-read the layout before a receipt
   const REHEARSAL_CHECK: bool     // true: refuse an unrehearsed plan
   const INVERSE_SKIPS_THIRD: bool // true: the inverse leaves a third value
+  const MERGE_AUTHORITY: bool     // true: a merged copy is compared with its merge only
+  const ACCEPT_CHECK: bool        // true: step 14 compares the outside manifest
 
   pure val PARTS: Set[int] = 0.to(N - 1)
   pure val SW: int = 1
   pure val FRESH: int = -1
-  pure val MAX_KEPT: int = 40
 
   // -------------------------------------------------------------------------
   // State.  One record, so that every action assigns the whole world.
@@ -135,8 +161,9 @@ module switch {
     receiptProbe: int -> int
   }
   type Run = {
-    mode: str,             // idle | fwd | inv | probe | receipt
+    mode: str,             // idle | fwd | inv | probe | receipt | manual
     owner: bool,           // the owner's inverse
+    resumed: bool,         // the complete continuation of an earlier run
     fromFwd: bool,         // an inverse that a live forward run started
     plan: int,
     idx: int,
@@ -156,6 +183,8 @@ module switch {
     plans: List[int -> int],
     prepared: int,
     rehearsed: Set[int],
+    outsideEntry: bool,    // an entry outside the switch set differs from the plan
+    manual: Set[int],      // the backups whose receipt the manual holds
     proc: Run,
     // ghost
     writes: Set[Write],
@@ -169,7 +198,11 @@ module switch {
     resets: Set[Reset],
     sawInterrupted: bool,
     ownerInvDone: bool,
-    probeFailed: bool
+    probeFailed: bool,
+    acceptedDirty: bool,   // a receipt reached the manual with an outside entry
+    outsideStopped: bool,  // step 14 found an outside entry and inverted
+    resumedStopped: bool,  // ... in the complete continuation of an earlier run
+    resumedCopied: bool    // the complete continuation copied a receipt
   }
 
   var st: World
@@ -185,27 +218,41 @@ module switch {
     receiptProbe: Map()
   }
   pure val IDLE: Run = {
-    mode: "idle", owner: false, fromFwd: false, plan: 0, idx: 0, step: "",
-    k: -1, snap: NO_CONTENT, changed: Set(), probe: Map(), check: Map()
+    mode: "idle", owner: false, resumed: false, fromFwd: false, plan: 0,
+    idx: 0, step: "", k: -1, snap: NO_CONTENT, changed: Set(), probe: Map(),
+    check: Map()
   }
 
   pure def same(a: Content, b: Content): bool =
     a.cell == b.cell and a.rest == b.rest
 
-  // A check reports a copy that holds neither its recorded nor its prepared
-  // content, unless the owner merged it and it has not changed since.
-  pure def flagged(c: Kept): bool = and {
-    c.hasExpect,
-    not(same(c.holds, c.expect)),
-    not(same(c.holds, c.prepared)),
-    not(c.resolved and same(c.holds, c.resolvedHolds))
-  }
+  // A check reports a copy that differs from its last recorded content.
+  // Before a merge, that is the content that the run read or the prepared
+  // one.  After a merge, the content that the merge recorded is the only
+  // one: a return to an earlier content is a change, too.  The mutant
+  // without merge authority keeps the earlier rule, which tests the two
+  // first contents before the merge.
+  pure def flagged(c: Kept): bool = c.hasExpect and (
+    if (MERGE_AUTHORITY and c.resolved) not(same(c.holds, c.resolvedHolds))
+    else and {
+      not(same(c.holds, c.expect)),
+      not(same(c.holds, c.prepared)),
+      not(c.resolved and same(c.holds, c.resolvedHolds))
+    })
+
+  // The content that a check compares a copy with, and that the owner's
+  // merge takes the difference from.
+  pure def base(c: Kept): Content = if (c.resolved) c.resolvedHolds else c.expect
 
   // -------------------------------------------------------------------------
   // Reading the world
   // -------------------------------------------------------------------------
   def keptAt(j: int): Kept =
     if (j >= 0 and j < st.kept.length()) st.kept[j] else NO_KEPT
+  // The indices that a step can pick a kept copy from.  Index 0 stands in
+  // when no copy exists, and every action that takes a copy then refuses.
+  val keptPick: Set[int] =
+    if (st.kept.length() > 0) 0.to(st.kept.length() - 1) else Set(0)
   val hasBackup: bool = st.backups.length() > 0
   val latestB: Backup =
     if (hasBackup) st.backups[st.backups.length() - 1] else NO_BACKUP
@@ -242,7 +289,7 @@ module switch {
         else if (PARTS.forall(p => isEa(pl, p))) "native"
         else "interrupted"
       }
-    } else if (PARTS.forall(p => isEa(st.prepared, p))) "native"
+    } else if (PARTS.forall(p => isEa(st.prepared, p)) and not(st.outsideEntry)) "native"
     else "changed"
 
   // The state table of the specification, row by row, written independently
@@ -260,8 +307,15 @@ module switch {
     not(prefix(latestB.plan)),
     latestB.last == "receipt" and not(allSw)
   }
-  val tNative: bool = not(open) and PARTS.forall(p => isEa(st.prepared, p))
-  val tChanged: bool = not(open) and PARTS.exists(p => not(isEa(st.prepared, p)))
+  val tNative: bool = and {
+    not(open),
+    PARTS.forall(p => isEa(st.prepared, p)),
+    not(st.outsideEntry)
+  }
+  val tChanged: bool = not(open) and or {
+    PARTS.exists(p => not(isEa(st.prepared, p))),
+    st.outsideEntry
+  }
 
   // -------------------------------------------------------------------------
   // World transformers
@@ -329,6 +383,16 @@ module switch {
     state == "active",
     st' = st.with("proc", IDLE.with("mode", "probe").with("plan", latestB.plan)
                              .with("step", "start"))
+  }
+
+  // Step 3 reads a complete switch whose receipt the manual lacks: run
+  // step 14.
+  action resumeComplete = all {
+    st.proc.mode == "idle",
+    state == "complete",
+    not(st.manual.contains(st.backups.length() - 1)),
+    st' = st.with("proc", IDLE.with("mode", "manual").with("plan", latestB.plan)
+                             .with("step", "copy").with("resumed", true))
   }
 
   action fwdRead = all {
@@ -435,7 +499,7 @@ module switch {
   }
 
   // Step 13, second half: append the receipt.  Outside writes can land
-  // between the two halves.
+  // between the two halves.  The run goes on to step 14.
   action receiptWrite = all {
     st.proc.mode == "receipt",
     st.proc.step == "write",
@@ -446,7 +510,26 @@ module switch {
       .with("backups", st.backups.replaceAt(i, b.with("last", "receipt")
               .with("hasReceipt", true).with("receiptCells", recorded)
               .with("receiptProbe", st.proc.probe)))
-      .with("proc", IDLE).with("gOpen", false)
+      .with("proc", st.proc.with("mode", "manual").with("step", "copy"))
+      .with("gOpen", false)
+  }
+
+  // Step 14: compare each entry outside the switch set with the plan's
+  // manifest, then copy the receipt into the manual.  A difference counts as
+  // a failed probe, so the run inverts.  A continuation changed no part, so
+  // its inverse ends at once and the next step 3 resumes the whole inverse.
+  action copyReceipt = all {
+    st.proc.mode == "manual",
+    st.proc.step == "copy",
+    val i = st.backups.length() - 1
+    st' = if (ACCEPT_CHECK and st.outsideEntry)
+            toInverse(st).with("gOpen", true).with("outsideStopped", true)
+              .with("resumedStopped", st.resumedStopped or st.proc.resumed)
+          else
+            st.with("manual", st.manual.union(Set(i)))
+              .with("proc", IDLE)
+              .with("acceptedDirty", st.acceptedDirty or st.outsideEntry)
+              .with("resumedCopied", st.resumedCopied or st.proc.resumed)
   }
 
   // -------------------------------------------------------------------------
@@ -465,18 +548,23 @@ module switch {
       .with("gOpen", true)
   }
 
-  // The owner merges a flagged copy into the live file and records it.
+  // The owner merges a flagged copy into the live file and records it.  The
+  // merge applies the copy's difference from its last recorded content: the
+  // keys that the copy gained, and the deletion of the keys that it lost.
   action ownerMerge(j: int): bool = all {
     st.proc.mode == "idle",
     j < st.kept.length(),
     flagged(keptAt(j)),
     val c = keptAt(j)
     val cur = st.live.get(c.part)
+    val gained = c.holds.rest.exclude(base(c).rest)
+    val lost = base(c).rest.exclude(c.holds.rest)
+    val rest = cur.rest.union(gained).exclude(lost)
     val takeCell = c.holds.by != 0 and c.holds.cell != SW
                    and c.holds.cell != earlierOf(st.prepared, c.part)
     val merged = if (takeCell)
-                   { cell: c.holds.cell, by: c.holds.by, rest: cur.rest.union(c.holds.rest) }
-                 else cur.with("rest", cur.rest.union(c.holds.rest))
+                   { cell: c.holds.cell, by: c.holds.by, rest: rest }
+                 else cur.with("rest", rest)
     st' = st
       .with("live", st.live.set(c.part, merged))
       .with("kept", st.kept.replaceAt(j, c.with("resolved", true)
@@ -487,6 +575,7 @@ module switch {
   }
 
   // A classification makes a new plan from a layout with no switched cell.
+  // The new plan's manifest also records the entries outside the switch set.
   action classify = all {
     st.proc.mode == "idle",
     state == "changed",
@@ -494,6 +583,7 @@ module switch {
     PARTS.forall(p => not(isSw(p))),
     st' = st.with("plans", st.plans.append(cells))
             .with("prepared", st.plans.length())
+            .with("outsideEntry", false)
   }
 
   action rehearse = all {
@@ -510,6 +600,7 @@ module switch {
     or {
       OUTSIDE_PHASE == "any",
       OUTSIDE_PHASE == "run" and st.proc.mode != "idle",
+      OUTSIDE_PHASE == "idle" and st.proc.mode == "idle",
       OUTSIDE_PHASE == "receipt" and latestB.hasReceipt
     }
   }
@@ -557,9 +648,59 @@ module switch {
       .with("nextId", id + 1).with("outside", st.outside + 1)
   }
 
+  // A program deletes another key of a live file.  The deletion supersedes
+  // the write that added the key.
+  action outsideDelete(p: int): bool = all {
+    OUTSIDE_DELETES,
+    outsideMayAct,
+    val id = st.nextId
+    val cur = st.live.get(p)
+    all {
+      cur.rest.size() > 0,
+      nondet t = cur.rest.oneOf()
+      st' = st
+        .with("live", st.live.set(p, cur.with("rest", cur.rest.exclude(Set(t)))))
+        .with("writes", st.writes.union(Set({ id: id, part: p, kind: "del", value: t })))
+        .with("superseded", st.superseded.union(Set(t)))
+        .with("nextId", id + 1).with("outside", st.outside + 1)
+    }
+  }
+
+  // A descriptor opened before an exchange deletes a key of the displaced
+  // inode.  With one earlier write, this returns a copy to older content.
+  action lateDelete(j: int): bool = all {
+    LATE_WRITES,
+    OUTSIDE_DELETES,
+    outsideMayAct,
+    j < st.kept.length(),
+    keptAt(j).exchanged,
+    val id = st.nextId
+    val c = keptAt(j)
+    all {
+      c.holds.rest.size() > 0,
+      nondet t = c.holds.rest.oneOf()
+      st' = st
+        .with("kept", st.kept.replaceAt(j, c.with("holds",
+                c.holds.with("rest", c.holds.rest.exclude(Set(t))))))
+        .with("writes", st.writes.union(Set({ id: id, part: c.part, kind: "del", value: t })))
+        .with("late", st.late.union(Set(id)))
+        .with("superseded", st.superseded.union(Set(t)))
+        .with("nextId", id + 1).with("outside", st.outside + 1)
+    }
+  }
+
+  // A program adds or changes an entry outside the switch set.
+  action outsideEntryWrite = all {
+    OUTSIDE_ENTRIES,
+    outsideMayAct,
+    not(st.outsideEntry),
+    st' = st.with("outsideEntry", true).with("outside", st.outside + 1)
+  }
+
   action crash = all {
     st.proc.mode != "idle",
     st.crashes < MAX_CRASH,
+    CRASH_PHASE == "any" or latestB.hasReceipt,
     st' = st.with("proc", IDLE).with("crashes", st.crashes + 1)
   }
 
@@ -572,6 +713,8 @@ module switch {
     plans: List(PARTS.mapBy(p => 0)),
     prepared: 0,
     rehearsed: Set(0),
+    outsideEntry: false,
+    manual: Set(),
     proc: IDLE,
     writes: Set(),
     late: Set(),
@@ -584,19 +727,26 @@ module switch {
     resets: Set(),
     sawInterrupted: false,
     ownerInvDone: false,
-    probeFailed: false
+    probeFailed: false,
+    acceptedDirty: false,
+    outsideStopped: false,
+    resumedStopped: false,
+    resumedCopied: false
   }
 
   action step = any {
-    beginForward, resumeInverse, resumeActive,
+    beginForward, resumeInverse, resumeActive, resumeComplete,
     fwdRead, invRead, exchange, compare, fwdVerify, invVerify,
     probeStart, nondet pass = Set(true, false).oneOf() probeEnd(pass),
-    receiptCheck, receiptWrite,
+    receiptCheck, receiptWrite, copyReceipt,
     ownerInverse, classify, rehearse,
-    nondet j = 0.to(MAX_KEPT).oneOf() ownerMerge(j),
+    nondet j = keptPick.oneOf() ownerMerge(j),
     nondet p = PARTS.oneOf() nondet v = Set(0, SW, FRESH).oneOf() outsideCell(p, v),
     nondet p = PARTS.oneOf() outsideRest(p),
-    nondet j = 0.to(MAX_KEPT).oneOf() lateWrite(j),
+    nondet p = PARTS.oneOf() outsideDelete(p),
+    nondet j = keptPick.oneOf() lateWrite(j),
+    nondet j = keptPick.oneOf() lateDelete(j),
+    outsideEntryWrite,
     crash,
     stutter
   }
@@ -604,11 +754,17 @@ module switch {
   // -------------------------------------------------------------------------
   // P1 — no write is lost without a report
   // -------------------------------------------------------------------------
+  // A flagged copy reports an addition that it holds, and a deletion of a
+  // key that its last recorded content held.
   def inFlaggedCopy(w: Write): bool =
     st.kept.indices().exists(j => and {
       st.kept[j].part == w.part,
       flagged(st.kept[j]),
       if (w.kind == "rest") st.kept[j].holds.rest.contains(w.id)
+      else if (w.kind == "del") and {
+        not(st.kept[j].holds.rest.contains(w.value)),
+        base(st.kept[j]).rest.contains(w.value)
+      }
       else st.kept[j].holds.by == w.id
     })
   // The accepted case: a cell write of a plan's earlier value or of the
@@ -616,10 +772,13 @@ module switch {
   def absorbed(w: Write): bool =
     w.kind == "cell" and
       (w.value == SW or st.plans.indices().exists(pl => st.plans[pl].get(w.part) == w.value))
+  // A later write of the same key supersedes a write: a cell write, or the
+  // deletion of an added key.
   val inv_noSilentLoss: bool = st.writes.forall(w => or {
     w.kind == "rest" and st.live.get(w.part).rest.contains(w.id),
+    w.kind == "del" and not(st.live.get(w.part).rest.contains(w.value)),
     w.kind == "cell" and st.live.get(w.part).by == w.id,
-    w.kind == "cell" and st.superseded.contains(w.id),
+    st.superseded.contains(w.id),
     absorbed(w),
     inFlaggedCopy(w)
   })
@@ -659,6 +818,11 @@ module switch {
   val inv_onlyRehearsedApplied: bool = not(st.unrehearsed)
 
   // -------------------------------------------------------------------------
+  // P5 — no acceptance with an unclassified entry outside the switch set
+  // -------------------------------------------------------------------------
+  val inv_acceptedOnlyClassified: bool = not(st.acceptedDirty)
+
+  // -------------------------------------------------------------------------
   // Witnesses — each case that the specification says is live
   // -------------------------------------------------------------------------
   val wit_complete: bool = state == "complete"
@@ -669,8 +833,11 @@ module switch {
   // An exchange displaced a write that the live file then lacked.
   val wit_conflictFlagged: bool = st.kept.indices().exists(j => and {
     flagged(st.kept[j]),
-    st.kept[j].holds.rest.exists(id =>
-      not(st.late.contains(id)) and not(st.live.get(st.kept[j].part).rest.contains(id)))
+    st.kept[j].holds.rest.exists(id => and {
+      not(st.late.contains(id)),
+      not(st.superseded.contains(id)),
+      not(st.live.get(st.kept[j].part).rest.contains(id))
+    })
   })
   // A descriptor wrote into a kept copy, and a check can report it.
   val wit_lateWriteFlagged: bool = st.kept.indices().exists(j =>
@@ -690,6 +857,26 @@ module switch {
   val wit_changedNeedsPlan: bool = state == "changed"
   val wit_secondPlanComplete: bool = state == "complete" and latestB.plan > 0
   val wit_activeAfterCrash: bool = state == "active" and st.crashes > 0
+  // A merged copy returned to the content that the run read, and a check
+  // reports it.
+  val wit_mergedReturnFlagged: bool = st.kept.indices().exists(j => and {
+    st.kept[j].resolved,
+    same(st.kept[j].holds, st.kept[j].expect),
+    flagged(st.kept[j])
+  })
+  // A deletion displaced by an exchange sits in a flagged copy.
+  val wit_deleteFlagged: bool = st.writes.exists(w => and {
+    w.kind == "del",
+    not(st.late.contains(w.id)),
+    st.live.get(w.part).rest.contains(w.value),
+    inFlaggedCopy(w)
+  })
+  // A run stopped between steps 13 and 14, and the complete continuation
+  // copied its receipt.
+  val wit_resumedCopied: bool = st.resumedCopied
+  // The complete continuation found an entry outside the switch set and
+  // inverted, and the next state stops for classification.
+  val wit_resumedStoppedChanged: bool = st.resumedStopped and state == "changed"
 
   // -------------------------------------------------------------------------
   // Mutant witnesses — each reaches the violation that its mechanism
@@ -701,6 +888,7 @@ module switch {
   val wit_m_writeLostSilently: bool = st.writes.exists(w => and {
     w.kind == "rest",
     not(st.live.get(w.part).rest.contains(w.id)),
+    not(st.superseded.contains(w.id)),
     st.kept.indices().forall(j => not(and {
       st.kept[j].hasExpect,
       st.kept[j].holds.rest.contains(w.id),
@@ -738,11 +926,29 @@ module switch {
       not(same(st.kept[j].holds, st.kept[j].expect))
     }))
   })
+
+  // Without merge authority, a merged copy that returns to the content that
+  // the run read is not flagged.  A deletion in it is then in no live file
+  // and in no flagged copy.
+  val wit_m_mergedDeleteLost: bool = st.writes.exists(w => and {
+    w.kind == "del",
+    st.live.get(w.part).rest.contains(w.value),
+    not(st.superseded.contains(w.id)),
+    st.kept.indices().forall(j => not(and {
+      st.kept[j].part == w.part,
+      flagged(st.kept[j]),
+      not(st.kept[j].holds.rest.contains(w.value))
+    }))
+  })
+
+  // Without the comparison of step 14, a receipt reaches the manual while an
+  // entry outside the switch set differs from the plan.
+  val wit_m_acceptedUnclassified: bool = st.acceptedDirty
 }
 
 // ===========================================================================
-// Instances.  Each fixes one world.  The corrected design sets the six
-// mechanisms to true, true, false, true, true, true.
+// Instances.  Each fixes one world.  The corrected design sets the eight
+// mechanisms to true, true, false, true, true, true, true, true.
 // ===========================================================================
 
 /// Interruptions only, at any step, with failing probes and the owner's
@@ -751,33 +957,39 @@ module crashes {
   import switch(
     N = 3, MAX_OUTSIDE = 0, MAX_CRASH = 2, MAX_PLANS = 1,
     OUTSIDE_CELLS = false, OUTSIDE_REST = false, LATE_WRITES = false,
-    PROBES_CAN_FAIL = true, OUTSIDE_PHASE = "any",
+    OUTSIDE_DELETES = false, OUTSIDE_ENTRIES = false,
+    PROBES_CAN_FAIL = true, OUTSIDE_PHASE = "any", CRASH_PHASE = "any",
     RECORD_EXPECT = true, RUN_RECORD = true, EARLY_END = false,
-    RECEIPT_RECHECK = true, REHEARSAL_CHECK = true, INVERSE_SKIPS_THIRD = true
+    RECEIPT_RECHECK = true, REHEARSAL_CHECK = true, INVERSE_SKIPS_THIRD = true,
+    MERGE_AUTHORITY = true, ACCEPT_CHECK = true
   ).*
 }
 
 /// Outside writes to cells, to the rest of files and into kept copies, with
-/// no interruption.
+/// deletions and no interruption.
 module writers {
   import switch(
     N = 3, MAX_OUTSIDE = 2, MAX_CRASH = 0, MAX_PLANS = 1,
     OUTSIDE_CELLS = true, OUTSIDE_REST = true, LATE_WRITES = true,
-    PROBES_CAN_FAIL = false, OUTSIDE_PHASE = "any",
+    OUTSIDE_DELETES = true, OUTSIDE_ENTRIES = false,
+    PROBES_CAN_FAIL = false, OUTSIDE_PHASE = "any", CRASH_PHASE = "any",
     RECORD_EXPECT = true, RUN_RECORD = true, EARLY_END = false,
-    RECEIPT_RECHECK = true, REHEARSAL_CHECK = true, INVERSE_SKIPS_THIRD = true
+    RECEIPT_RECHECK = true, REHEARSAL_CHECK = true, INVERSE_SKIPS_THIRD = true,
+    MERGE_AUTHORITY = true, ACCEPT_CHECK = true
   ).*
 }
 
-/// Outside writes and interruptions together, with classification into a
-/// second plan.
+/// Outside writes, deletions, entries outside the switch set and
+/// interruptions together, with classification into a second plan.
 module both {
   import switch(
     N = 3, MAX_OUTSIDE = 2, MAX_CRASH = 1, MAX_PLANS = 2,
     OUTSIDE_CELLS = true, OUTSIDE_REST = true, LATE_WRITES = true,
-    PROBES_CAN_FAIL = true, OUTSIDE_PHASE = "any",
+    OUTSIDE_DELETES = true, OUTSIDE_ENTRIES = true,
+    PROBES_CAN_FAIL = true, OUTSIDE_PHASE = "any", CRASH_PHASE = "any",
     RECORD_EXPECT = true, RUN_RECORD = true, EARLY_END = false,
-    RECEIPT_RECHECK = true, REHEARSAL_CHECK = true, INVERSE_SKIPS_THIRD = true
+    RECEIPT_RECHECK = true, REHEARSAL_CHECK = true, INVERSE_SKIPS_THIRD = true,
+    MERGE_AUTHORITY = true, ACCEPT_CHECK = true
   ).*
 }
 
@@ -786,9 +998,11 @@ module classify_world {
   import switch(
     N = 3, MAX_OUTSIDE = 1, MAX_CRASH = 0, MAX_PLANS = 2,
     OUTSIDE_CELLS = true, OUTSIDE_REST = false, LATE_WRITES = false,
-    PROBES_CAN_FAIL = false, OUTSIDE_PHASE = "any",
+    OUTSIDE_DELETES = false, OUTSIDE_ENTRIES = false,
+    PROBES_CAN_FAIL = false, OUTSIDE_PHASE = "any", CRASH_PHASE = "any",
     RECORD_EXPECT = true, RUN_RECORD = true, EARLY_END = false,
-    RECEIPT_RECHECK = true, REHEARSAL_CHECK = true, INVERSE_SKIPS_THIRD = true
+    RECEIPT_RECHECK = true, REHEARSAL_CHECK = true, INVERSE_SKIPS_THIRD = true,
+    MERGE_AUTHORITY = true, ACCEPT_CHECK = true
   ).*
 }
 
@@ -797,9 +1011,11 @@ module coincidence {
   import switch(
     N = 2, MAX_OUTSIDE = 1, MAX_CRASH = 1, MAX_PLANS = 1,
     OUTSIDE_CELLS = true, OUTSIDE_REST = false, LATE_WRITES = false,
-    PROBES_CAN_FAIL = false, OUTSIDE_PHASE = "any",
+    OUTSIDE_DELETES = false, OUTSIDE_ENTRIES = false,
+    PROBES_CAN_FAIL = false, OUTSIDE_PHASE = "any", CRASH_PHASE = "any",
     RECORD_EXPECT = true, RUN_RECORD = true, EARLY_END = false,
-    RECEIPT_RECHECK = true, REHEARSAL_CHECK = true, INVERSE_SKIPS_THIRD = true
+    RECEIPT_RECHECK = true, REHEARSAL_CHECK = true, INVERSE_SKIPS_THIRD = true,
+    MERGE_AUTHORITY = true, ACCEPT_CHECK = true
   ).*
 }
 
@@ -809,9 +1025,11 @@ module m_no_expect {
   import switch(
     N = 2, MAX_OUTSIDE = 1, MAX_CRASH = 1, MAX_PLANS = 1,
     OUTSIDE_CELLS = false, OUTSIDE_REST = true, LATE_WRITES = true,
-    PROBES_CAN_FAIL = false, OUTSIDE_PHASE = "any",
+    OUTSIDE_DELETES = false, OUTSIDE_ENTRIES = false,
+    PROBES_CAN_FAIL = false, OUTSIDE_PHASE = "any", CRASH_PHASE = "any",
     RECORD_EXPECT = false, RUN_RECORD = true, EARLY_END = false,
-    RECEIPT_RECHECK = true, REHEARSAL_CHECK = true, INVERSE_SKIPS_THIRD = true
+    RECEIPT_RECHECK = true, REHEARSAL_CHECK = true, INVERSE_SKIPS_THIRD = true,
+    MERGE_AUTHORITY = true, ACCEPT_CHECK = true
   ).*
 }
 
@@ -819,9 +1037,11 @@ module m_no_run_record {
   import switch(
     N = 2, MAX_OUTSIDE = 1, MAX_CRASH = 0, MAX_PLANS = 1,
     OUTSIDE_CELLS = true, OUTSIDE_REST = false, LATE_WRITES = false,
-    PROBES_CAN_FAIL = true, OUTSIDE_PHASE = "receipt",
+    OUTSIDE_DELETES = false, OUTSIDE_ENTRIES = false,
+    PROBES_CAN_FAIL = true, OUTSIDE_PHASE = "receipt", CRASH_PHASE = "any",
     RECORD_EXPECT = true, RUN_RECORD = false, EARLY_END = false,
-    RECEIPT_RECHECK = true, REHEARSAL_CHECK = true, INVERSE_SKIPS_THIRD = true
+    RECEIPT_RECHECK = true, REHEARSAL_CHECK = true, INVERSE_SKIPS_THIRD = true,
+    MERGE_AUTHORITY = true, ACCEPT_CHECK = true
   ).*
 }
 
@@ -829,9 +1049,11 @@ module m_early_end {
   import switch(
     N = 2, MAX_OUTSIDE = 0, MAX_CRASH = 1, MAX_PLANS = 1,
     OUTSIDE_CELLS = false, OUTSIDE_REST = false, LATE_WRITES = false,
-    PROBES_CAN_FAIL = true, OUTSIDE_PHASE = "any",
+    OUTSIDE_DELETES = false, OUTSIDE_ENTRIES = false,
+    PROBES_CAN_FAIL = true, OUTSIDE_PHASE = "any", CRASH_PHASE = "any",
     RECORD_EXPECT = true, RUN_RECORD = true, EARLY_END = true,
-    RECEIPT_RECHECK = true, REHEARSAL_CHECK = true, INVERSE_SKIPS_THIRD = true
+    RECEIPT_RECHECK = true, REHEARSAL_CHECK = true, INVERSE_SKIPS_THIRD = true,
+    MERGE_AUTHORITY = true, ACCEPT_CHECK = true
   ).*
 }
 
@@ -839,9 +1061,11 @@ module m_receipt_no_recheck {
   import switch(
     N = 2, MAX_OUTSIDE = 1, MAX_CRASH = 0, MAX_PLANS = 1,
     OUTSIDE_CELLS = true, OUTSIDE_REST = false, LATE_WRITES = false,
-    PROBES_CAN_FAIL = false, OUTSIDE_PHASE = "run",
+    OUTSIDE_DELETES = false, OUTSIDE_ENTRIES = false,
+    PROBES_CAN_FAIL = false, OUTSIDE_PHASE = "run", CRASH_PHASE = "any",
     RECORD_EXPECT = true, RUN_RECORD = true, EARLY_END = false,
-    RECEIPT_RECHECK = false, REHEARSAL_CHECK = true, INVERSE_SKIPS_THIRD = true
+    RECEIPT_RECHECK = false, REHEARSAL_CHECK = true, INVERSE_SKIPS_THIRD = true,
+    MERGE_AUTHORITY = true, ACCEPT_CHECK = true
   ).*
 }
 
@@ -849,9 +1073,11 @@ module m_no_rehearsal_check {
   import switch(
     N = 2, MAX_OUTSIDE = 1, MAX_CRASH = 0, MAX_PLANS = 2,
     OUTSIDE_CELLS = true, OUTSIDE_REST = false, LATE_WRITES = false,
-    PROBES_CAN_FAIL = false, OUTSIDE_PHASE = "any",
+    OUTSIDE_DELETES = false, OUTSIDE_ENTRIES = false,
+    PROBES_CAN_FAIL = false, OUTSIDE_PHASE = "any", CRASH_PHASE = "any",
     RECORD_EXPECT = true, RUN_RECORD = true, EARLY_END = false,
-    RECEIPT_RECHECK = true, REHEARSAL_CHECK = false, INVERSE_SKIPS_THIRD = true
+    RECEIPT_RECHECK = true, REHEARSAL_CHECK = false, INVERSE_SKIPS_THIRD = true,
+    MERGE_AUTHORITY = true, ACCEPT_CHECK = true
   ).*
 }
 
@@ -859,9 +1085,35 @@ module m_inverse_resets_third {
   import switch(
     N = 2, MAX_OUTSIDE = 1, MAX_CRASH = 0, MAX_PLANS = 1,
     OUTSIDE_CELLS = true, OUTSIDE_REST = false, LATE_WRITES = false,
-    PROBES_CAN_FAIL = false, OUTSIDE_PHASE = "any",
+    OUTSIDE_DELETES = false, OUTSIDE_ENTRIES = false,
+    PROBES_CAN_FAIL = false, OUTSIDE_PHASE = "any", CRASH_PHASE = "any",
     RECORD_EXPECT = true, RUN_RECORD = true, EARLY_END = false,
-    RECEIPT_RECHECK = true, REHEARSAL_CHECK = true, INVERSE_SKIPS_THIRD = false
+    RECEIPT_RECHECK = true, REHEARSAL_CHECK = true, INVERSE_SKIPS_THIRD = false,
+    MERGE_AUTHORITY = true, ACCEPT_CHECK = true
+  ).*
+}
+
+module m_merge_no_authority {
+  import switch(
+    N = 2, MAX_OUTSIDE = 2, MAX_CRASH = 0, MAX_PLANS = 1,
+    OUTSIDE_CELLS = false, OUTSIDE_REST = true, LATE_WRITES = true,
+    OUTSIDE_DELETES = true, OUTSIDE_ENTRIES = false,
+    PROBES_CAN_FAIL = false, OUTSIDE_PHASE = "idle", CRASH_PHASE = "any",
+    RECORD_EXPECT = true, RUN_RECORD = true, EARLY_END = false,
+    RECEIPT_RECHECK = true, REHEARSAL_CHECK = true, INVERSE_SKIPS_THIRD = true,
+    MERGE_AUTHORITY = false, ACCEPT_CHECK = true
+  ).*
+}
+
+module m_accept_unchecked {
+  import switch(
+    N = 2, MAX_OUTSIDE = 1, MAX_CRASH = 1, MAX_PLANS = 2,
+    OUTSIDE_CELLS = false, OUTSIDE_REST = false, LATE_WRITES = false,
+    OUTSIDE_DELETES = false, OUTSIDE_ENTRIES = true,
+    PROBES_CAN_FAIL = false, OUTSIDE_PHASE = "any", CRASH_PHASE = "any",
+    RECORD_EXPECT = true, RUN_RECORD = true, EARLY_END = false,
+    RECEIPT_RECHECK = true, REHEARSAL_CHECK = true, INVERSE_SKIPS_THIRD = true,
+    MERGE_AUTHORITY = true, ACCEPT_CHECK = false
   ).*
 }
 
@@ -873,9 +1125,11 @@ module after_receipt {
   import switch(
     N = 3, MAX_OUTSIDE = 2, MAX_CRASH = 1, MAX_PLANS = 1,
     OUTSIDE_CELLS = true, OUTSIDE_REST = true, LATE_WRITES = true,
-    PROBES_CAN_FAIL = false, OUTSIDE_PHASE = "receipt",
+    OUTSIDE_DELETES = false, OUTSIDE_ENTRIES = false,
+    PROBES_CAN_FAIL = false, OUTSIDE_PHASE = "receipt", CRASH_PHASE = "any",
     RECORD_EXPECT = true, RUN_RECORD = true, EARLY_END = false,
-    RECEIPT_RECHECK = true, REHEARSAL_CHECK = true, INVERSE_SKIPS_THIRD = true
+    RECEIPT_RECHECK = true, REHEARSAL_CHECK = true, INVERSE_SKIPS_THIRD = true,
+    MERGE_AUTHORITY = true, ACCEPT_CHECK = true
   ).*
 }
 
@@ -884,8 +1138,38 @@ module during_run {
   import switch(
     N = 3, MAX_OUTSIDE = 2, MAX_CRASH = 1, MAX_PLANS = 1,
     OUTSIDE_CELLS = true, OUTSIDE_REST = true, LATE_WRITES = true,
-    PROBES_CAN_FAIL = true, OUTSIDE_PHASE = "run",
+    OUTSIDE_DELETES = false, OUTSIDE_ENTRIES = false,
+    PROBES_CAN_FAIL = true, OUTSIDE_PHASE = "run", CRASH_PHASE = "any",
     RECORD_EXPECT = true, RUN_RECORD = true, EARLY_END = false,
-    RECEIPT_RECHECK = true, REHEARSAL_CHECK = true, INVERSE_SKIPS_THIRD = true
+    RECEIPT_RECHECK = true, REHEARSAL_CHECK = true, INVERSE_SKIPS_THIRD = true,
+    MERGE_AUTHORITY = true, ACCEPT_CHECK = true
+  ).*
+}
+
+/// Additions and deletions of other keys, also through a descriptor, only
+/// between runs: a merged copy that returns to older content.
+module merge_return {
+  import switch(
+    N = 2, MAX_OUTSIDE = 2, MAX_CRASH = 0, MAX_PLANS = 1,
+    OUTSIDE_CELLS = false, OUTSIDE_REST = true, LATE_WRITES = true,
+    OUTSIDE_DELETES = true, OUTSIDE_ENTRIES = false,
+    PROBES_CAN_FAIL = false, OUTSIDE_PHASE = "idle", CRASH_PHASE = "any",
+    RECORD_EXPECT = true, RUN_RECORD = true, EARLY_END = false,
+    RECEIPT_RECHECK = true, REHEARSAL_CHECK = true, INVERSE_SKIPS_THIRD = true,
+    MERGE_AUTHORITY = true, ACCEPT_CHECK = true
+  ).*
+}
+
+/// Entries outside the switch set and one interruption: the complete
+/// continuation and step 14.
+module entries {
+  import switch(
+    N = 2, MAX_OUTSIDE = 1, MAX_CRASH = 1, MAX_PLANS = 2,
+    OUTSIDE_CELLS = false, OUTSIDE_REST = false, LATE_WRITES = false,
+    OUTSIDE_DELETES = false, OUTSIDE_ENTRIES = true,
+    PROBES_CAN_FAIL = false, OUTSIDE_PHASE = "any", CRASH_PHASE = "receipt",
+    RECORD_EXPECT = true, RUN_RECORD = true, EARLY_END = false,
+    RECEIPT_RECHECK = true, REHEARSAL_CHECK = true, INVERSE_SKIPS_THIRD = true,
+    MERGE_AUTHORITY = true, ACCEPT_CHECK = true
   ).*
 }

@@ -537,7 +537,9 @@ no such behaviour. A failed unprompted recovery remains an acceptance gap.
 Separate resource readability, instruction adherence and ending-authority
 isolation. A prompt path grants no permission. Ordinary delegates may inherit
 ending authority. Test result attempts only in disposable sessions. An
-unavailable mechanism is an unmeasured gap, never a pass.
+unavailable mechanism is an unmeasured gap, never a pass. The
+[common loading acceptance record](../common-loading-acceptance-record.md)
+holds the trials and describes their runner.
 
 ## Scope and remaining work
 

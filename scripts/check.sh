@@ -116,7 +116,7 @@ run_check "shellcheck" shellcheck \
   scripts/ravel-target-inputs.test.sh scripts/grove-installed-smoke.sh \
   scripts/grove-installed-upgrade.sh \
   plugins/linkuistics/skills/technical-communication/scripts/tc-hook \
-  scripts/pi-extension-load.test.sh
+  scripts/pi-extension-load.test.sh scripts/harness-trials/trial-launch.sh
 run_check "cargo clippy" cargo clippy --workspace --all-targets
 run_check "plugin install" bash plugins/install.test.sh
 run_check "conformance" bash plugins/grove/conformance.sh
@@ -134,6 +134,7 @@ run_check "Linux floor backend admission" task release:floor:controls
 run_check "native floor seccomp admission" task release:floor:seccomp:controls
 run_check "QEMU floor admission" task release:floor:qemu:controls
 run_check "legacy driver preservation controls" task legacy:controls
+run_check "harness trial runner controls" task trial:controls
 run_check "release Codex helper" bash scripts/release-notes/codex-headless.test.sh
 # The ignored public caller fixtures exercise the independently installed SDK
 # and worker explicitly; the workspace runtime run does not include them.

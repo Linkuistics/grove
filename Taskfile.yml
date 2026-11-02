@@ -278,6 +278,31 @@ tasks:
       - cargo nextest run --locked -p grove --test directory_route --run-ignored only {{.CLI_ARGS}}
       - cargo nextest run --locked -p grove --test standalone -E 'test(native_guidance_outside_every_grant)'
 
+  # Real harness trials of the common loading route
+  # (docs/common-loading-acceptance-record.md). A trial spends subscription
+  # usage, so only trial:controls joins scripts/check.sh. OUT is a scratch
+  # directory outside every working copy. COMMIT is the recorded Grove commit
+  # that supplies the driver and the skill sources. RAVEL is the 2.0 front from
+  # the stage record's recipe, which builds.json pins.
+  trial:prepare:
+    desc: Build Grove at COMMIT into OUT and check the Ravel 2.0 front RAVEL, for real harness trials
+    requires:
+      vars: [OUT, COMMIT, RAVEL]
+    cmds:
+      - python3 scripts/harness_trial.py prepare --out "{{.OUT}}" --commit "{{.COMMIT}}" --ravel "{{.RAVEL}}"
+
+  trial:claude:
+    desc: Run one real Claude Code trial CASE from the prepared OUT (spends subscription usage; MODEL and EFFORT override the case)
+    requires:
+      vars: [OUT, CASE]
+    cmds:
+      - python3 scripts/harness_trial.py run --prepared "{{.OUT}}" --case "{{.CASE}}" {{if .MODEL}}--model "{{.MODEL}}"{{end}} {{if .EFFORT}}--effort "{{.EFFORT}}"{{end}}
+
+  trial:controls:
+    desc: Test the harness trial runner against fake harnesses, each check also against a broken runner
+    cmds:
+      - python3 -I scripts/test_harness_trial.py
+
   ravel:fixtures:
     desc: Check shared installed-Ravel fixtures through the resolver and Grove's shared result reader
     requires:

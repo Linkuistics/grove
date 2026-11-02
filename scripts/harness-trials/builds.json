@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "source": "docs/grove-dual-ravel-stage-record.md#ravel-builds",
+  "ravel2": {
+    "line": "skill-directory-delivery",
+    "buildCommit": "23e50ce90037",
+    "outputCommit": "1ca4aecbeae1",
+    "buildIdentity": "ef5857e989e6d99da51631ae0295685c8961c1b01bac58d865e6fb789ae71deb",
+    "binRavelSha256": {
+      "Darwin-arm64": "8e10e311c50c81ca60ac4f393d17408982d0aafcfe46cccfbc46130465290ae2"
+    }
+  }
+}

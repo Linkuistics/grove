@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "name": "smoke",
+  "purpose": "Reach Claude Code through the trial runner with native copies absent. Record the configuration directory, the synced claude.ai skills and the native startup text.",
+  "credits": [],
+  "harness": "claude",
+  "route": "directory-2.0",
+  "model": "claude-opus-5-5",
+  "effort": "medium",
+  "kinds": ["impl"],
+  "sources": [
+    { "id": "grove", "plugin": "plugins/grove", "roots": ["skills"] }
+  ],
+  "mandatory": [],
+  "timeoutMinutes": 30
+}

@@ -62,3 +62,43 @@ Ravel confinement. Record the choice and the model.
 The Claude Code session file under the sandbox `.claude/projects` is the
 likely source of the ordered events. Check that each read and each tool
 action appears there with its absolute path.
+
+## Decisions (running log)
+
+- The runner is Python, `scripts/harness_trial.py`, with subcommands
+  `prepare` and `run`. A case is a directory under `scripts/harness-trials/cases/`
+  with a `case.json` and the `tree/` that becomes `.grove/`. Later leaves add
+  cases, not runner code.
+- `prepare` fetches the Grove commit by its full hash into a plain Git
+  checkout. It builds `grove` and `grove-llm` from it into a scratch prefix.
+  It checks the 2.0 front against the pins in `scripts/harness-trials/builds.json`.
+  The same checkout supplies the skill sources.
+- The configuration script routes only the case's kinds, to a wrapper
+  `trial-launch`. The wrapper records the launch, the request view and the
+  environment, then execs `claude -p --output-format stream-json --verbose`.
+  Any other kind refuses as `trial_kind_unrouted`, so a continued loop stops
+  without a second harness launch.
+- Permission mode `bypassPermissions`. No read or tool call prompts or is
+  denied, so the transcript shows what the agent chose. It is Claude Code's own
+  permission layer. Ravel's confinement is an operating-system sandbox outside
+  the harness and stays in force. The snapshot roots also go to `--add-dir`, as
+  in the Rhai sample.
+- Model `claude-opus-5-5`, effort `medium`, unless a case states others.
+- The authority control compares name and value. A live control name may
+  reach the child only with the trial's own value, and no `CLAUDECODE` or
+  `CLAUDE_*` name reaches it at all.
+- The fake-harness tests call the runner in process, so each control can patch
+  one runner function with a broken version and see its test fail.
+- The first real smoke failed before a session began. `--add-dir` takes
+  several values, so the prompt after the last root became another directory.
+  The configuration now puts the `--add-dir` roots before the fixed flags.
+  That first run also passed the runner, so a launch without the stream's init
+  event now fails the run, with its own control.
+- The runner supports native on 2.0 and directory on 2.0. A native 1.1 case
+  needs a `policy.ts` adapter, which no leaf builds yet. The record states
+  this limit.
+- The claude.ai skill sync is not deterministic. One run received 13 synced
+  skills and the next received none, so each discovery trial records its own
+  residue and listing.
+- No in-session reviewer. Each isolation claim has an executable control that
+  fails against a broken runner, and the real smoke repeated them.

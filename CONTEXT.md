@@ -983,10 +983,12 @@ Grove preserves only the selected-provider evidence it needs in caller-owned
 ### Delivered context
 
 Generic data Ravel supplies to the owner's selection function: optional loaded
-context and measured file sources through its public SDK. Grove's adapter uses
-those reads for task relationships and inline creator evidence. Context is
-bounded by owner settings; there is no run lookup, inspection or stored context
-history. Ravel's [specification](https://github.com/Linkuistics/Ravel/blob/v1.0.0/docs/specs/session-execution.md)
+context and measured file sources. Ravel 1.x supplies them through its public
+SDK. Ravel 2.x supplies them through the `context` argument of `select`, the
+`request.taskFile` field and measured reads such as `ravel::read_text`. Grove's
+adapter of each major uses those reads for task relationships and inline creator
+evidence. Context is bounded by owner settings; there is no run lookup,
+inspection or stored context history. Ravel's [specification](https://github.com/Linkuistics/Ravel/blob/v1.0.0/docs/specs/session-execution.md)
 owns its shape; `docs/grove-provider-evidence.md` owns Grove's receipt facts.
 _Avoid_: treating measured bytes as authenticated provider identity.
 
@@ -994,7 +996,8 @@ _Avoid_: treating measured bytes as authenticated provider identity.
 ### Static dispatch / dynamic dispatch
 
 Two descriptions of what an owner's Ravel `select` function consults,
-a distinction that exists only inside the policy file. **Static** is driven by
+a distinction that exists only inside the configuration file, `policy.ts` on
+1.x or `config.rhai` on 2.x. **Static** is driven by
 the kind, without reference to the prompt or any content. **Dynamic** is
 everything else: it consults the session's prompt (the [[Guaranteed core]]) or
 the task's content, up to handing that prompt to a [[Deciding agent]] that
@@ -1038,25 +1041,33 @@ _Avoid_: *slot*, a position the retired command-template mechanism filled.
 <a id="owner-settings"></a>
 ### Owner settings (`~/.config/ravel/settings.json`)
 
-The owner's selection time bound, context budget and explicit policy environment
+The owner's selection time bound, context budget and explicit environment
 grants, read with personal policy authority. One set applies to every kind.
-There is no record directory or store. Ravel owns this format; Grove reads no
-personal launch configuration.
+Both admitted majors read the same file from HOME, with different keys. Ravel
+1.x grants environment names through `policyEnv`. Ravel 2.x grants them through
+`configEnv`, and it adds `harnesses`, `budgets` and `skills`. Each major refuses
+a key of the other, so a file that both accept holds only `timeoutMs` and
+`contextBytes`. There is no record directory or store. Ravel owns this format;
+Grove reads no personal launch configuration.
 _Avoid_: granting completion/admission authority to selection helpers.
 
 <a id="choice-file"></a>
 ### Choice file (`.ravel-choice`)
 
-A checkout file read only when owner policy calls the public SDK helper. It
-chooses among options that policy offers and introduces no program or argument.
+A checkout file read only when the owner's configuration reads it. On 1.x
+that is the public SDK helper. On 2.x Grove's Rhai sample reads it with the same
+4,096-byte bound. It chooses among options that policy offers and introduces no
+program or argument.
 _Avoid_: treating it as executable repository configuration or automatic trust.
 
 <a id="sample-policy"></a>
 ### Sample policy
 
-Grove's readable `assets/ravel-policy/sample/policy.ts`, installed with its
-caller assets, which the owner reads and explicitly copies into an absent
-personal Ravel policy. It carries actual command choices and checkout
+Grove's readable owner configuration for one admitted major, installed with
+its caller assets: `assets/ravel-policy/sample/policy.ts` for 1.x and
+`assets/ravel-policy/sample/config.rhai` for 2.x. The owner reads one and
+explicitly copies it into an absent personal Ravel configuration of that major.
+Grove converts no configuration from one major to the other. It carries actual command choices and checkout
 arrangements; upgrades preserve owner edits. Ravel has no init verb and neither
 executable installs personal policy automatically.
 _Avoid_: importing a retired Ravel-embedded Grove sample. Creator-aware examples

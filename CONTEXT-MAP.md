@@ -182,13 +182,14 @@ of scope.
 
 - <a id="grove-and-harness-dispatch"></a>**grove → Ravel, a public CLI
   boundary.** Grove resolves the first executable regular Ravel on absolute
-  PATH once and requires stable 1.x from 1.1.0. Launch and ending instructions reuse
-  that canonical path. There is no incompatible-install fallback. Grove supports separate
+  PATH once and admits stable 1.x from 1.1.0 and stable 2.x from 2.0.0. The admission
+  selects no route. Launch and ending instructions reuse that canonical path. There is
+  no incompatible-install fallback. Grove supports separate
   prefixes and versions. Ravel links no Grove crate. Grove links
   no Ravel crate. Ravel supervises its managed process, and Grove launches
   `ravel` as an ordinary child process. Grove's Homebrew dependency and
-  readable `libexec/ravel-policy` assets describe installation, not shared
-  release identity ([caller boundary](docs/ARCHITECTURE.md#harness-dispatch)).
+  readable `libexec/ravel-policy` assets, one set for each admitted major, describe
+  installation, not shared release identity ([caller boundary](docs/ARCHITECTURE.md#harness-dispatch)).
 
   | Ravel says | Grove says | class |
   |---|---|---|
@@ -199,9 +200,11 @@ of scope.
   | *context* — optional measured policy data | agent context or bounded context | the words collide |
   | opaque *result* | Interruption, successful `grove-force-stop`, **Teardown record**, then successful `grove-continue` | Grove supplies meaning. Ravel returns the argument after cleanup |
 
-  Grove supplies prompt and exact end-session instructions unchanged. Ravel
-  injects nothing and interprets no continue/force-stop convention. Grove's
-  optional provider wrapper and task adapter are ordinary SDK imports. Creator
+  Grove supplies prompt and exact end-session instructions unchanged. On both
+  native routes, Ravel injects nothing. Ravel interprets no continue/force-stop
+  convention. Grove's optional provider wrapper and task adapter are ordinary
+  imports: TypeScript imports beside `ravel/sdk` on 1.x, and Rhai imports by path
+  on 2.x. Creator
   receipts stay caller-owned and require no run store. Original live-v22
   launches alone retain dispatch's old empty signal, report and Creator-run
   contract through their last inherited `harness-dispatch exit`.

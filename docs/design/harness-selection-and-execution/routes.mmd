@@ -1,7 +1,7 @@
 flowchart TB
   Start["Start here: the PATH of this<br/>Grove invocation selects one ravel"]:::start
   Probe{"Grove probes<br/>ravel --version"}
-  Refuse["Grove refuses: 1.0, prerelease,<br/>unknown major, malformed or failed probe<br/>No other PATH entry is tried"]
+  Refuse["Grove refuses: 1.0, prerelease,<br/>unknown major such as 3.x,<br/>malformed or failed probe<br/>No other PATH entry is tried"]
   V1["Ravel 1.x from 1.1.0<br/>policy.ts, schemaVersion 2<br/>Grove's TypeScript assets"]
   V2["Ravel 2.x from 2.0.0<br/>config.rhai, SCHEMA_VERSION 4<br/>Grove's Rhai assets"]
   Skills{"Ravel reads settings:<br/>skills with<br/>configured sources?"}

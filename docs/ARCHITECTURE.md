@@ -107,7 +107,7 @@ plugins. Ravel is an independently delivered runtime dependency:
 | Product | Source | Delivery |
 |---|---|---|
 | Grove CLI | `crates/` | Homebrew and the release archives install `grove` and `grove-llm`. |
-| Grove caller assets | `assets/ravel-policy/` | Grove archives/formula install `libexec/ravel-policy`; the formula depends on separately versioned Ravel. [Delivery boundary](grove-delivery-contraction.md). |
+| Grove caller assets | `assets/ravel-policy/` | One set for each admitted Ravel major: TypeScript for 1.x and Rhai for 2.x. Grove archives/formula install `libexec/ravel-policy`; the formula depends on separately versioned Ravel. [Delivery boundary](grove-delivery-contraction.md). |
 | Agent skill plugins | `plugins/grove/`, `plugins/linkuistics/`, `plugins/testanyware/` | Claude marketplace, or `plugins/install.sh` for Codex, Gemini CLI and Pi. The user chooses and maintains the route. |
 
 Their documented interfaces evolve together. `plugins/` is the authoritative
@@ -320,21 +320,28 @@ The renderer performs no I/O.
 Grove reads no launch configuration file. Every selected harness comes from
 owner policy through independently installed Ravel ([below](#harness-dispatch)).
 Grove chooses the first executable regular `ravel` in an absolute PATH
-directory. Grove canonicalises it once and checks that path's CLI version. Grove
-accepts stable Ravel 1.x from 1.1.0. Relative and empty PATH entries supply no cwd fallback.
+directory. Grove canonicalises it once and checks that path's CLI version.
+Relative and empty PATH entries supply no cwd fallback.
+
+Grove admits stable Ravel 1.x from 1.1.0 and stable 2.x from 2.0.0. The
+admission selects no route.
 
 An incompatible or failed probe refuses without trying another installation.
+Its remedy names both admitted majors with their configuration files and the
+keg-only `ravel@2` directory, and it recommends no shared upgrade.
 Launch and the quoted ending command reuse that canonical path. This trusts the
 owner's PATH executable. A version string authenticates no program, and
 canonicalisation pins no inode.
 
-The owner's `~/.config/ravel/policy.ts` selects a command. Adjacent
-`settings.json` bounds selection/context and grants policy environment names.
-`.ravel-choice` selects among options that policy offers when it calls the SDK
-helper. Neither file belongs to Grove.
+The owner's configuration selects a command: `~/.config/ravel/policy.ts` for
+Ravel 1.x, or `~/.config/ravel/config.rhai` for Ravel 2.x. These are the native
+routes on 1.1 and on 2.0. Adjacent `settings.json` bounds selection/context and
+grants environment names. Its keys differ by major, so each major refuses a key
+of the other. `.ravel-choice` selects among options that the configuration
+offers when it reads that file. None of these files belongs to Grove.
 
-The owner explicitly reads and copies Grove's sample from `libexec/ravel-policy`,
-and preserves any existing policy. Ravel has exactly `start-session` and
+The owner explicitly reads and copies Grove's sample for the selected major
+from `libexec/ravel-policy`, and preserves any existing policy. Ravel has exactly `start-session` and
 `end-session RESULT`, plus help/version flags. It has no init or inspection
 verb. Refusal leaves the leaf live with a remedy
 ([usage](USAGE.md#usage-refused-launch)). Old `config.kdl` and `.grove.kdl`
@@ -472,9 +479,9 @@ with the old executable.
 
 | Owner | Boundary |
 |---|---|
-| Ravel | Routes through owner policy, confines/supervises the selected process, cleans up and returns the opaque published argument. Its front, compiled worker, SDK and local runner ship independently, without host Bun/Node or Grove. |
+| Ravel | Routes through owner policy, confines/supervises the selected process, cleans up and returns the opaque published argument. Ravel 1.x ships a front, a compiled worker, an SDK and a local runner. Ravel 2.x installs one executable and has no SDK. Each ships independently, without host Bun/Node or Grove. |
 | Grove | Selects a task, composes prompt/ending instructions, holds epoch admission, captures the public stdout result and decides continuation/teardown. Launches `ravel` as an ordinary child process. |
-| Grove caller assets | Ordinary readable SDK policies, task/Creator adapters and optional provider-evidence wrapper under Grove's `libexec/ravel-policy`. |
+| Grove caller assets | Ordinary readable configurations, task/Creator adapters and optional provider-evidence wrappers under Grove's `libexec/ravel-policy`: TypeScript with `ravel/sdk` for 1.x, and Rhai imported by path for 2.x. |
 | Owner | Chooses commands, labels, grants, bounds and any review-provider rule in personal policy. |
 
 Lifecycle launches carry `--kind`, unchanged `--prompt`, `--task-file`, stable

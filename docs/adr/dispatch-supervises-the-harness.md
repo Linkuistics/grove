@@ -50,11 +50,13 @@ version. The caller contract states the procedure in
 [Independent packages](../specs/harness-selection-and-execution.md#package-boundary).
 Homebrew presence alone proves no runtime compatibility.
 
-The caller retains stable Ravel 1.x from the 1.1.0 cleanup floor and admits 2.x
-from 2.0.0 after public session compatibility is verified. Version admission
-follows that interface, independently of the
+The caller retains stable Ravel 1.x from the 1.1.0 cleanup floor. It admits
+stable 2.x from 2.0.0, because the native route on 2.0 passes the same public
+session acceptance with the Rhai caller assets. Version admission follows that
+interface, independently of the
 [delivery choice](skill-delivery-is-the-users-choice.md). Admission selects no
-route. Shipped Grove 22.8 still refuses 2.x.
+route. The owner selects a route through the PATH, the configuration file and
+the settings. Grove 22.8 and earlier refuse 2.x.
 
 Ravel 2.0.0 reads only `config.rhai` and has no TypeScript SDK. Dual-major
 admission therefore needs Grove caller assets for both runtimes. While a 1.1

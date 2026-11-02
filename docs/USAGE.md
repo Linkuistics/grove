@@ -38,22 +38,48 @@ policy.
 ## Launch policy
 
 Grove resolves the first executable `ravel` in an absolute PATH directory. It canonicalises
-the path once and checks the CLI version of that Ravel. Grove accepts stable Ravel 1.x from 1.1.0.
+the path once and checks the CLI version of that Ravel. Grove admits stable Ravel 1.x from
+1.1.0 and stable 2.x from 2.0.0. The version decides admission only. The PATH of the Grove
+invocation selects the Ravel, and its configuration file and settings select the route.
+
+Grove supports two native routes. On each, every harness supplies its skills through its
+own native installation.
+
+| Route | Ravel | Configuration | Settings | Grove caller assets |
+| --- | --- | --- | --- | --- |
+| Native on 1.1 | 1.x from 1.1.0, Homebrew's `ravel` | `~/.config/ravel/policy.ts`, schema 2 | `~/.config/ravel/settings.json` with only `timeoutMs`, `contextBytes` and `policyEnv` | The TypeScript set |
+| Native on 2.0 | 2.x from 2.0.0, Homebrew's keg-only `ravel@2` | `~/.config/ravel/config.rhai`, `SCHEMA_VERSION` 4 | `~/.config/ravel/settings.json` with the keys of 2.0.0 and no `skills` | The Rhai set |
 
 Install Ravel independently with `brew install linkuistics/taps/ravel`. Grove and Ravel can
 have different prefixes and different versions. A missing `ravel` names that install remedy.
-An unsupported or malformed version names `brew upgrade ravel`. Grove refuses Ravel 1.0.x. Empty and relative PATH
-entries, decoys in the working directory and Grove siblings cannot supply a fallback.
+Homebrew installs Ravel 2.x as the keg-only `ravel@2`, so its `ravel` is never the default
+command. To use it, put `$(brew --prefix ravel@2)/bin` first on the PATH of the Grove
+invocation. The ending commands in the prompt then name that installation.
 
-Your `~/.config/ravel/policy.ts` exports a policy. The policy selects a command from the kind, the unchanged prompt, an optional task file and
-handle, and the working directory of the caller. Write or copy that policy yourself.
-Upgrades do not edit it.
+An unsupported or malformed version names both admitted majors with their configuration
+files, and the `ravel@2` directory. Grove refuses Ravel 1.0.x, prereleases and unknown majors
+such as 3.x. Empty and relative PATH entries, decoys in the working directory and Grove
+siblings cannot supply a fallback. Do not upgrade a shared installation that a running
+session or another configuration still uses.
+
+Both configuration files can exist under one HOME. The settings file cannot serve both
+majors with every key. Ravel 1.1.0 refuses the keys of 2.0, such as `configEnv`, and
+Ravel 2.0.0 refuses `policyEnv`. A settings file that both accept holds only `timeoutMs` and
+`contextBytes`. While a 1.1 launch still reads the settings under a HOME, run a 2.0 route
+that needs another key under a separate HOME.
+
+On 1.x, your `policy.ts` exports a policy. On 2.x, your `config.rhai` exports
+`SCHEMA_VERSION` 4 and defines `select(request, context)`. The selection uses the kind, the
+prompt, an optional task file and handle, and the working directory of the caller. Write or
+copy the configuration yourself. Upgrades do not edit it, and Grove converts no
+configuration from one major to the other.
 
 Ravel has exactly two commands, `start-session` and `end-session RESULT`, with the ordinary
-help and version flags. It has no init, inspect or record command. The public SDK is
-`ravel/sdk`. Owner settings live in `~/.config/ravel/settings.json`.
+help and version flags. It has no init, inspect or record command. Ravel 1.x supplies the
+public SDK `ravel/sdk`. Ravel 2.x has no SDK, and a Rhai script imports another by its path.
+Owner settings live in `~/.config/ravel/settings.json`.
 
-For example, an owner's deterministic fixture policy is:
+For example, an owner's deterministic fixture policy for 1.x is:
 
 ```ts
 export const policy = {
@@ -67,11 +93,25 @@ export const policy = {
 };
 ```
 
+The same route in `config.rhai` for 2.x is:
+
+```rhai
+export const SCHEMA_VERSION = 4;
+export const VERSION = "owner-1";
+
+fn select(request, context) {
+    #{ status: "selected", program: "/bin/sh",
+       args: ["/absolute/path/to/your-harness.sh", request.prompt],
+       provider: "fixture", model: "none", effort: "none", reason: "owner route" }
+}
+```
+
 Your real routes choose your harness, model, effort and approvals. The generic
-[Ravel CLI contract](https://github.com/Linkuistics/Ravel/blob/v1.0.0/docs/session-cli.md)
+[Ravel 1.x CLI contract](https://github.com/Linkuistics/Ravel/blob/v1.0.0/docs/session-cli.md)
 describes the SDK, the bounds, the environment grants and the `.ravel-choice` helper. The
-adapter, the examples and the provenance conventions of Grove are caller assets. Policy
-imports load them. Ravel does not embed them as modules.
+adapter, the examples and the provenance conventions of Grove are caller assets, with one
+set for each major. [The assets guide](../assets/ravel-policy/README.md) says how to copy
+each sample. Configuration imports load them. Ravel does not embed them as modules.
 
 The lifecycle command is:
 

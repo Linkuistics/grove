@@ -6,8 +6,9 @@ and provider receipts. Ravel routes and supervises the selected process. Then it
 returns the opaque argument that `ravel end-session RESULT` published.
 
 This contract includes the skill-delivery adoption design. Grove admits Ravel
-1.x from 1.1.0 and no longer provisions Codex skills. The admission of Ravel
-2.0.0, its Rhai caller assets and directory delivery remain ahead. The
+1.x from 1.1.0 and 2.x from 2.0.0, and it no longer provisions Codex skills.
+Grove supports the native routes on 1.1 and on 2.0. Directory delivery remains
+ahead. The
 [delivery design](codex-skill-provisioning.md) owns the transition and its
 [supported routes](codex-skill-provisioning.md#supported-routes). Process and
 result contracts remain unchanged. Skill availability
@@ -52,11 +53,14 @@ directory**. It canonicalises that path once and probes it with `--version`.
 A relative or empty PATH entry adds no fallback to the current directory. Grove
 never falls through to another installation.
 
-Grove retains stable `ravel 1.x` support from 1.1.0 and admits stable 2.x from
-2.0.0 after public session compatibility is verified. It refuses 1.0,
-prereleases, unknown majors, malformed output and unsuccessful probes without
-trying another installation. The remedy names compatible Grove, Ravel and
-configuration versions. It must not blindly recommend a shared upgrade.
+Grove admits stable `ravel 1.x` from 1.1.0 and stable 2.x from 2.0.0. The
+native route on 2.0 passes the same caller acceptance as 1.1, with the Rhai
+assets. Grove refuses 1.0, prereleases, unknown majors such as 3.x, malformed
+output and unsuccessful probes without trying another installation. The remedy
+names both admitted majors with their configuration files, `policy.ts` and
+`config.rhai`. It names the keg-only `ravel@2` prefix until promotion. It tells
+the owner to put the matching `bin` directory first on the PATH of the
+invocation, and it recommends no shared upgrade.
 
 The probe decides admission only, and it selects no route. Native skill
 delivery does not require Ravel 2.0.0. The

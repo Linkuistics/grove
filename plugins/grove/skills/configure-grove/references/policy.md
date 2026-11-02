@@ -1,6 +1,7 @@
 # Policy mechanics
 
-Sources: [Ravel 1.0.0 session CLI](https://github.com/Linkuistics/Ravel/blob/v1.0.0/docs/session-cli.md)
+Sources: [Ravel 1.0.0 session CLI](https://github.com/Linkuistics/Ravel/blob/v1.0.0/docs/session-cli.md),
+[Grove's supported routes](../../../../../docs/specs/codex-skill-provisioning.md#supported-routes)
 and [readable policy assets of Grove](../../../../../assets/ravel-policy/README.md).
 Run `ravel --version` and `ravel start-session --help` before you rely on flags.
 
@@ -11,8 +12,14 @@ canonicalises the path and verifies the version once. Then it uses that exact pa
 launch, confinement and the ending instructions of the prompt. Ravel need not share the
 prefix or the version of Grove.
 
-A missing Ravel names `brew install linkuistics/taps/ravel`. An unsupported version
-refuses with an upgrade remedy. Grove currently accepts stable Ravel 1.x from 1.1.0.
+A missing Ravel names `brew install linkuistics/taps/ravel`. Grove admits stable Ravel
+1.x from 1.1.0 and stable 2.x from 2.0.0. An unsupported version refuses with a remedy
+that names both majors, their configuration files and the `ravel@2` directory. Homebrew
+installs 2.x as the keg-only `ravel@2`. It runs only when `$(brew --prefix ravel@2)/bin`
+is first on the PATH of the Grove invocation.
+
+Both majors receive the same public
+request. The admission selects no route.
 
 For lifecycle work, in the working-tree root, the public request is:
 
@@ -21,7 +28,8 @@ ravel start-session --kind=KIND --task-file=TASK_FILE --task-id=HANDLE --prompt=
 ```
 
 `select` receives the kind, the task file, the task identity, the unchanged prompt and
-`request.cwd`. Grove passes no parameter, no settings override and no record path. The
+`request.cwd`. On 2.x, `request.prompt` is the prompt to pass to the harness, and
+analysis of the task reads `request.originalPrompt`. Grove passes no parameter, no settings override and no record path. The
 exit directory is supervision machinery, and it reaches no policy.
 
 `grove run KIND` uses the same public verb with `--confine` in its staged cwd. It has no
@@ -41,13 +49,17 @@ running mandate.
 
 ## Installing and selecting a policy
 
-The personal entry is `~/.config/ravel/policy.ts`. Ravel discovers no repository
-policy. Explicit `--config` or personal imports execute that code with the authority of
+The personal entry is `~/.config/ravel/policy.ts` for Ravel 1.x and
+`~/.config/ravel/config.rhai` for Ravel 2.x. Both files can exist under one HOME, and
+each major reads only its own. Ravel 2.0.0 refuses a lone `policy.ts` as
+`config_format_retired`. Ravel discovers no repository policy. Explicit `--config` or personal imports execute that code with the authority of
 the owner. Authorise the imported code before you activate it.
 
-Ravel has no `init` or `inspect`. When asked to install, copy the readable
-`assets/ravel-policy/sample/policy.ts` of Grove to an absent personal entry. Then edit
-the copy. Preserve an existing policy. Installing or upgrading Grove writes none.
+Ravel has no `init` or `inspect`. When asked to install, copy Grove's readable sample
+for the selected major to an absent personal entry. The samples are in
+`assets/ravel-policy`: `sample/policy.ts` for 1.x and `sample/config.rhai` for 2.x. Then edit the copy. Preserve
+an existing policy. Installing or upgrading Grove writes none, and Grove converts no
+configuration from one major to the other.
 
 The sample disables approvals and enables full access for its concrete harness
 commands. Configure those arguments according to the request of the owner.
@@ -59,7 +71,9 @@ A missing route refuses. A wrapper must exec its harness.
 
 The readable `examples/grove-static.ts` and `examples/grove-review.ts` import caller
 files normally. They also import the generic `ravel/sdk` and `ravel/examples/static`.
-Ravel embeds no Grove module. Copy the required directory structure, or import an
+Their Rhai equivalents `examples/grove-static.rhai` and `examples/grove-review.rhai`
+import other assets by path, including Grove's copy `examples/static.rhai`. Ravel
+embeds no Grove module. Copy the required directory structure, or import an
 explicitly authorised absolute file.
 
 `.ravel-choice` in the launch cwd names offered options. Whitespace separates the names:
@@ -69,20 +83,29 @@ printf '%s\n' 'codex-led high-effort' > .ravel-choice
 ```
 
 It replaces the sample default whole and must contain exactly one arrangement. It
-introduces no program or argument. The generic `readChoice` helper reads it only when
-the policy opts in. There is no parent search. Standalone work selects in its staged
+introduces no program or argument. On 1.x, the generic `readChoice` helper reads it
+only when the policy opts in. The Rhai sample reads it with the same 4,096-byte
+bound. There is no parent search. Standalone work selects in its staged
 cwd, so it sees no checkout choice file.
 
 ## Owner settings
 
-`~/.config/ravel/settings.json` is optional. Its keys are `timeoutMs` (1000–600000),
-`contextBytes` and `policyEnv` (environment names). Flags override bounds, and
-`--policy-env` adds grants. Grove supplies none.
+`~/.config/ravel/settings.json` is optional, and both majors read it from HOME. On
+1.x its keys are `timeoutMs` (1000–600000), `contextBytes` and `policyEnv`
+(environment names), and `--policy-env` adds grants. On 2.x its keys are `timeoutMs`,
+`contextBytes`, `configEnv`, `harnesses`, `budgets` and `skills`, and `--config-env`
+adds grants. Flags override bounds. Grove supplies none.
+
+Each major refuses a key of the other as `settings_invalid`, exit 2. A
+file that both accept holds only `timeoutMs` and `contextBytes`. While a 1.1 launch
+still reads the settings under a HOME, run a 2.0 route that needs another key under a
+separate HOME.
 
 `stateDir` is an obsolete unknown key, not a Ravel store location. Raise the 30-second
 default only when selection needs it.
 
-Never grant `GROVE_LAUNCH_DIR`, because it carries session authority. Policy evaluation
+Never grant `GROVE_LAUNCH_DIR` through `policyEnv` or `configEnv`, because it carries
+session authority. Policy evaluation
 runs with a minimal environment. It does not inherit the Grove, Ravel or legacy
 controls. Grant only names that the selection code actually reads. Trusted policy code
 is not a sandbox against a hostile same-user script.
@@ -92,10 +115,12 @@ is not a sandbox against a hostile same-user script.
 Read the selection code and its actual wrapper and profile settings first. There is no
 selection-only command. `start-session` executes its selected command.
 
-For shipped assets, run `task ravel:review RAVEL=/absolute/installed/ravel`. It
-typechecks the public SDK imports. It runs temporary policies and fake agents through a
-copied independent front and worker on a child PATH without Bun, Node or Grove. It
-overwrites no personal policy, and it runs no model.
+For shipped assets, run `task ravel:review RAVEL=/absolute/installed/ravel`. For a 1.x
+build, it typechecks the public SDK imports. It runs temporary policies and fake agents
+through a copied independent installation on a child PATH without Bun, Node or Grove.
+For a 2.x build, add `RAVEL_RUNTIME=2.0`. Ravel 2.x has no typechecker, so only those
+launches verify the Rhai assets. The task overwrites no personal policy, and
+it runs no model.
 
 For an owner policy, build an isolated temporary HOME. Copy the complete policy and the
 authorised imports, settings and choice file. Put executable fake agents on a private

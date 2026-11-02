@@ -208,14 +208,95 @@ fn both_actual_callers_refuse_missing_old_and_malformed_path_selections() {
             let output = command.output().unwrap();
             assert!(!output.status.success(), "{response:?}: {output:?}");
             let stderr = String::from_utf8_lossy(&output.stderr);
-            let remedy = if response.is_some() {
-                "brew upgrade ravel"
+            let remedies: &[&str] = if response.is_some() {
+                &["policy.ts", "config.rhai", "ravel@2"]
             } else {
-                "brew install linkuistics/taps/ravel"
+                &["brew install linkuistics/taps/ravel"]
             };
-            assert!(stderr.contains(remedy), "{response:?}: {output:?}");
+            for remedy in remedies {
+                assert!(stderr.contains(remedy), "{response:?}: {output:?}");
+            }
+            assert!(!stderr.contains("brew upgrade"), "{output:?}");
             assert!(!stderr.contains("grove: launching"), "{output:?}");
             assert!(work.join(".grove/01-impl--work-k1.md").is_file());
         }
+    }
+}
+
+/// Before the cut, a stub proves the admission of `ravel 2.0.0` output. It is
+/// the keg-only `ravel@2`, reached through Homebrew's `opt` link, and it records
+/// the prompt that each caller passes. Both callers quote its keg path in the
+/// ending commands. The unversioned 1.1 stub later on PATH never runs.
+#[test]
+fn both_actual_callers_quote_a_keg_only_ravel_2_selected_first_on_path() {
+    use std::os::unix::fs::{symlink, PermissionsExt};
+    let temp = tempfile::tempdir().unwrap();
+    let work = temp.path().join("work");
+    fs::create_dir(&work).unwrap();
+    support::init_jj_repo(&work);
+    fs::create_dir(work.join(".grove")).unwrap();
+    fs::write(work.join(".grove/_BRIEF.md"), "# fixture\n").unwrap();
+    let leaf = work.join(".grove/01-impl--work-k1.md");
+    fs::write(&leaf, "# work\n").unwrap();
+    let prompt = temp.path().join("prompt");
+    let stub = |dir: &Path, version: &str| {
+        fs::create_dir_all(dir).unwrap();
+        let file = dir.join("ravel");
+        fs::write(
+            &file,
+            format!(
+                "#!/bin/sh\nif [ \"$1\" = --version ]; then echo '{version}'; exit 0; fi\n\
+                 for arg; do case \"$arg\" in --prompt=*) printf '%s' \"${{arg#--prompt=}}\" > '{}';; esac; done\n\
+                 exit 1\n",
+                prompt.with_extension(version.replace(' ', "-")).display()
+            ),
+        )
+        .unwrap();
+        fs::set_permissions(&file, fs::Permissions::from_mode(0o755)).unwrap();
+        file
+    };
+    let cellar = temp.path().join("Cellar");
+    let two = stub(&cellar.join("ravel@2/2.0.0/bin"), "ravel 2.0.0");
+    let one = stub(&cellar.join("ravel/1.1.0/bin"), "ravel 1.1.0");
+    let opt = temp.path().join("opt");
+    fs::create_dir(&opt).unwrap();
+    symlink(cellar.join("ravel@2/2.0.0"), opt.join("ravel@2")).unwrap();
+    let default_bin = temp.path().join("bin");
+    fs::create_dir(&default_bin).unwrap();
+    symlink(&one, default_bin.join("ravel")).unwrap();
+    // The host PATH follows, for jj. The resolver never reaches its `ravel`.
+    let path = std::env::join_paths(
+        [opt.join("ravel@2/bin"), default_bin]
+            .into_iter()
+            .chain(std::env::split_paths(&std::env::var_os("PATH").unwrap())),
+    )
+    .unwrap();
+    let keg = fs::canonicalize(&two).unwrap();
+    let selected = prompt.with_extension("ravel-2.0.0");
+    let decoy = prompt.with_extension("ravel-1.1.0");
+    for standalone in [false, true] {
+        let _ = fs::remove_file(&selected);
+        let mut command = Command::new(env!("CARGO_BIN_EXE_grove"));
+        for name in support::grove_env_names() {
+            command.env_remove(name);
+        }
+        command
+            .env("HOME", temp.path())
+            .env("PATH", &path)
+            .current_dir(&work);
+        if standalone {
+            command.args(["run", "fixture", "Write", "--ui=inline"]);
+        }
+        let output = command.output().unwrap();
+        assert!(!output.status.success() || !standalone, "{output:?}");
+        let recorded = fs::read_to_string(&selected)
+            .unwrap_or_else(|error| panic!("{standalone}: {error}: {output:?}"));
+        for result in ["grove-continue", "grove-force-stop"] {
+            let ending = format!("'{}' end-session {result}", keg.display());
+            assert!(recorded.contains(&ending), "{standalone}: {recorded}");
+        }
+        assert!(!recorded.contains("opt/ravel@2"), "{recorded}");
+        assert!(!decoy.exists(), "the 1.1 stub ran");
+        assert!(leaf.is_file());
     }
 }

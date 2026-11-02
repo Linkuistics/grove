@@ -74,6 +74,19 @@ stood at the graft — a closed record, not part of the versioned sequence above
   force-stop command. The loop then stops without relaunching the leaf. Fix the
   skill delivery and run `grove` again.
 
+- `grove`: admit stable Ravel 2.x from 2.0.0 beside stable 1.x from 1.1.0. The
+  version decides admission only. The PATH of the invocation selects the Ravel,
+  and its configuration file and settings select the route. Ravel 1.x reads
+  `~/.config/ravel/policy.ts`, and Ravel 2.x reads `~/.config/ravel/config.rhai`.
+  Grove's caller assets in `libexec/ravel-policy` now hold a Rhai set for 2.x
+  beside the unchanged TypeScript set. The Rhai set has `sample/config.rhai`,
+  the static and review examples, the review adapter and the provider-evidence
+  wrapper. Grove converts no configuration. To use 2.x, install the keg-only `ravel@2` and put
+  `$(brew --prefix ravel@2)/bin` first on the PATH of the Grove invocation. The
+  remedy for an unsupported Ravel now names both majors with their
+  configuration files, and it no longer recommends `brew upgrade ravel`. Grove
+  still refuses 1.0.x, prereleases and other majors such as 3.x.
+
 - `linkuistics` / `machine-environment`: describe `mise bootstrap` as the owner of
   Antony's machine setup. Packages are in `[bootstrap.packages]`, and dotfiles are
   tracked in place by mise history. The chezmoi source and the Brewfile are

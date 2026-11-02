@@ -6,9 +6,10 @@ installations unchanged. Grove 22.8 and earlier still provision them. Grove
 also implements the route-independent mandate: a bare skill name, "first" after
 any mandatory guidance, and the missing-skill force-stop rule.
 
-Grove admits stable Ravel 1.x from 1.1.0 today. The admission of Ravel 2.0.0,
-Grove's Rhai caller assets, directory delivery and their acceptance remain
-ahead. The reviewed upstream contract is Ravel commit `822c0ed2`, as the
+Grove admits stable Ravel 1.x from 1.1.0 and stable 2.x from 2.0.0. Grove
+ships TypeScript caller assets for 1.x and Rhai caller assets for 2.x. Grove
+supports the native routes on 1.1 and on 2.0. Directory delivery and its
+acceptance remain ahead. The reviewed upstream contract is Ravel commit `822c0ed2`, as the
 [contract mapping](../grove-skill-delivery-design-evidence.md#rhai-mapping)
 records. The document location remains stable for existing citations.
 

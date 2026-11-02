@@ -14,9 +14,12 @@ finds and reads them.
 
 Ravel's reviewed directory contract is commit `822c0ed2` on its unpublished
 `skill-directory-delivery` line. The historical `b93bb927` contract supplies
-intent only. Grove no longer provisions Codex skills. Grove accepts only Ravel
-1.x from 1.1.0 today. The admission of 2.0.0, its Rhai caller assets and
-directory delivery remain ahead. See
+intent only.
+
+Grove no longer provisions Codex skills. Grove admits Ravel 1.x
+from 1.1.0 and 2.x from 2.0.0. It supports the native routes on 1.1 and on 2.0,
+with its TypeScript and Rhai caller assets. Directory delivery remains ahead.
+See
 [design evidence](../../grove-skill-delivery-design-evidence.md#upstream-correction).
 
 Run `task design:harness-selection PORT=52710` from the repository root, then open

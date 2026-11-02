@@ -527,17 +527,25 @@ The active `dispatch::ravel::locate` reads the PATH of the invoking process. Its
 that are not executable regular files, and canonicalises the first candidate
 once. It returns that path only after `check_version` accepts its public
 `--version` response. An incompatible first executable refuses. A later
-installation cannot silently replace it. Missing Ravel reports an install
-command, while a malformed, unsuccessful or unsupported probe reports an
-upgrade command.
+installation cannot silently replace it.
 
-The compatibility check accepts stable `ravel 1.x` from 1.1.0 and refuses
-1.0.x. Ravel 1.1.0 corrected the failure paths of the managed job. The check
-parses the minor and the patch as canonical numbers, and it treats a minor of
-exactly `0` as below the floor. It checks that stdout is UTF-8 and rejects extra
-output, prereleases, other CLI lines and a failed status. The probe removes the
-loop control variables with `ravel_job::scrub`, because a version probe is not an
-admitted session.
+Missing Ravel reports an install command. A malformed, unsuccessful or unsupported probe reports the admitted
+majors with their configuration files and the keg-only `ravel@2` directory. That
+remedy tells the owner to put the matching installation first on PATH, and it
+recommends no shared upgrade.
+
+The compatibility check admits stable `ravel 1.x` from 1.1.0 and stable
+`ravel 2.x` from 2.0.0. It refuses 1.0.x, because Ravel 1.1.0 corrected the
+failure paths of the managed job. It refuses every other major, such as 3.x.
+
+The check parses the major, the minor and the patch, and it requires canonical
+numbers for the minor and the patch. For major 1 it treats a minor of exactly `0`
+as below the floor. For major 2 it admits every minor. It checks that stdout is
+UTF-8 and rejects extra output, prereleases, other CLI lines and a failed status.
+
+The result is admission only. The PATH, the configuration file and the settings
+select the route. The probe removes the loop control variables with
+`ravel_job::scrub`, because a version probe is not an admitted session.
 
 The caller ADR, `docs/adr/dispatch-supervises-the-harness.md`, records the PATH trust
 cost. This probe executes the program that the owner selected. Neither version
@@ -545,20 +553,31 @@ output nor canonicalisation authenticates or pins its bytes. Both actual
 callers consume the selected executable. The old sibling locator is gone.
 
 The inline tests drive executable decoys and a subprocess with its own cwd and PATH.
-They do not mutate the environment of the test runner. The installed-pair test copies
-an actual front and worker through the shared `testing/ravel.rs` fixture into a
-temporary independent prefix and routes a fake
-shell agent through `ravel/sdk`. With only that prefix on the child's PATH, the
-session's noise stays on stderr and stdout contains exactly its supplied result.
+They do not mutate the environment of the test runner. One test builds Homebrew's
+layout, with an unversioned link into a 1.1.0 keg and an `opt/ravel@2` link into a
+2.0.0 keg. The default order selects 1.1.0. With the `ravel@2` directory first, the
+resolver returns the 2.0.0 keg path, and the ending command quotes that path.
+
+The installed-pair test copies an actual build through the shared `testing/ravel.rs`
+fixture into a temporary independent prefix. `GROVE_TEST_RAVEL_RUNTIME` names its
+runtime. A 1.x build is a front and a worker, and the test routes a fake shell agent
+through a `policy.ts` that imports `ravel/sdk`. A 2.x build is one executable, and the
+test routes the same agent through a `config.rhai` with `SCHEMA_VERSION` 4. With only
+that prefix on the child's PATH, the session's noise stays on stderr and stdout
+contains exactly its supplied result.
 
 `task ravel:resolution RAVEL=/absolute/path/to/ravel` runs this installed case as
 well as the ordinary resolver tests. The ignored subprocess role runs only as a
-child of its cwd-decoy test. `task ravel:fixtures` combines this check with the
-shared-result runner checks. Its real-worker controls remove the copied worker
-and inject inherited authority into a re-executed entry probe. Clean runs use
-the isolated pair without host Bun or Node and without a Grove sibling installation.
+child of its cwd-decoy test.
 
-<!-- fragment «ravel-resolution» owner="isolated-invocation" source="crates/grove/src/dispatch/ravel.rs" lines="1-351" parent="source-ravel-resolution" -->
+`task ravel:fixtures` combines this check with the shared-result runner checks.
+Pass `RAVEL_RUNTIME=2.0` for a 2.x build. On a 1.x
+build, its real-worker controls remove the copied worker. On a 2.x build, they
+check that the copy holds no worker. Both inject inherited authority into a
+re-executed entry probe. Clean runs use the isolated copy without host Bun or Node
+and without a Grove sibling installation.
+
+<!-- fragment «ravel-resolution» owner="isolated-invocation" source="crates/grove/src/dispatch/ravel.rs" lines="1-434" parent="source-ravel-resolution" -->
 ````rust
 //! PATH and CLI compatibility at Grove's independent Ravel boundary.
 use std::ffi::OsStr;
@@ -596,8 +615,13 @@ fn locate_on_path(path: Option<&OsStr>) -> Result<PathBuf> {
 fn check_version(executable: &std::path::Path) -> Result<()> {
     let remedy = || {
         format!(
-            "{} must report a stable Ravel 1.x CLI version from 1.1.0. \
-         Run `brew upgrade ravel` and select that installation on PATH.",
+            "{} must report an admitted stable Ravel CLI version. Grove admits \
+             1.x from 1.1.0, which reads `~/.config/ravel/policy.ts`, and 2.x from \
+             2.0.0, which reads `~/.config/ravel/config.rhai`. Put the bin directory \
+             of the installation that matches your configuration first on the PATH \
+             of this invocation. Homebrew installs 2.x as the keg-only `ravel@2`, \
+             in `$(brew --prefix ravel@2)/bin`. Do not upgrade a shared installation \
+             that other sessions or configurations still use.",
             executable.display()
         )
     };
@@ -611,16 +635,25 @@ fn check_version(executable: &std::path::Path) -> Result<()> {
     // 1.1.0 corrected the failure paths of the managed job that Grove relies on,
     // so 1.0.x is refused. A canonical minor below the floor is exactly "0".
     // https://github.com/Linkuistics/Ravel/blob/v1.1.0/CHANGELOG.md
+    // 2.0.0 keeps the public session CLI and replaces policy.ts with config.rhai.
+    // Admission selects no route: the PATH, configuration and settings do.
+    // docs/specs/codex-skill-provisioning.md#launch-and-compatibility
     let supported = std::str::from_utf8(&output.stdout)
         .ok()
-        .and_then(|text| text.trim().strip_prefix("ravel 1."))
-        .is_some_and(|rest| {
-            let mut parts = rest.split('.');
-            let (Some(minor), Some(patch), None) = (parts.next(), parts.next(), parts.next())
+        .and_then(|text| text.trim().strip_prefix("ravel "))
+        .is_some_and(|version| {
+            let mut parts = version.split('.');
+            let (Some(major), Some(minor), Some(patch), None) =
+                (parts.next(), parts.next(), parts.next(), parts.next())
             else {
                 return false;
             };
-            minor != "0"
+            let admitted = match major {
+                "1" => minor != "0",
+                "2" => true,
+                _ => false,
+            };
+            admitted
                 && [minor, patch].into_iter().all(|part| {
                     !part.is_empty()
                         && part.bytes().all(|byte| byte.is_ascii_digit())
@@ -722,7 +755,6 @@ mod tests {
             "ravel 0.9.9",
             "ravel 1.0.0",
             "ravel 1.0.9",
-            "ravel 2.0.0",
             "ravel 1.1.0-beta",
             "ravel 1.1",
             "ravel 1",
@@ -730,22 +762,60 @@ mod tests {
             "ravel 1.01.0",
             "ravel 1.1.00",
             "ravel 1.1.0.0",
+            "ravel 2.0.0-rc.1",
+            "ravel 2.0.0-beta",
+            "ravel 2.0",
+            "ravel 2",
+            "ravel 02.0.0",
+            "ravel 2.00.0",
+            "ravel 2.0.01",
+            "ravel 2.0.0.0",
+            "ravel 2.0.0 extra",
+            "ravel 3.0.0",
+            "ravel 3.1.0",
+            "ravel 10.0.0",
+            "ravel 0.0.0",
             "harness-dispatch 1.1.0",
+            "harness-dispatch 2.0.0",
             "ravel 1.1.0 extra",
         ] {
             executable(&selected, &format!("echo '{version}'"));
             let error = locate_on_path(Some(&path(&[&selected, &later])))
                 .unwrap_err()
                 .to_string();
-            assert!(error.contains("brew upgrade ravel"), "{version}: {error}");
+            assert_admission_remedy(&error);
             assert!(error.contains(&selected.display().to_string()), "{error}");
         }
     }
 
+    /// The remedy names both admitted majors with their configuration files and
+    /// the keg-only 2.x prefix, and recommends no undirected shared upgrade.
+    fn assert_admission_remedy(error: &str) {
+        for part in [
+            "1.x from 1.1.0",
+            "policy.ts",
+            "2.x from 2.0.0",
+            "config.rhai",
+            "ravel@2",
+            "first on the PATH",
+        ] {
+            assert!(error.contains(part), "missing {part:?}: {error}");
+        }
+        assert!(!error.contains("brew upgrade"), "{error}");
+    }
+
     #[test]
-    fn accepts_stable_versions_from_the_1_1_0_floor() {
+    fn accepts_stable_versions_from_the_1_1_0_and_2_0_0_floors() {
         let temp = TempDir::new().unwrap();
-        for version in ["ravel 1.1.0", "ravel 1.1.9", "ravel 1.12.3"] {
+        for version in [
+            "ravel 1.1.0",
+            "ravel 1.1.9",
+            "ravel 1.12.3",
+            "ravel 2.0.0",
+            "ravel 2.0.7",
+            "ravel 2.3.0",
+            "ravel 2.10.12",
+        ] {
             let file = executable(temp.path(), &format!("echo '{version}'"));
             assert_eq!(
                 locate_on_path(Some(temp.path().as_os_str())).unwrap(),
@@ -758,11 +828,43 @@ mod tests {
     #[test]
     fn unsuccessful_version_probe_is_not_a_supported_installation() {
         let temp = TempDir::new().unwrap();
-        executable(temp.path(), "echo 'ravel 1.1.0'; exit 1");
-        let error = locate_on_path(Some(temp.path().as_os_str()))
-            .unwrap_err()
-            .to_string();
-        assert!(error.contains("brew upgrade ravel"), "{error}");
+        for version in ["ravel 1.1.0", "ravel 2.0.0"] {
+            executable(temp.path(), &format!("echo '{version}'; exit 1"));
+            let error = locate_on_path(Some(temp.path().as_os_str()))
+                .unwrap_err()
+                .to_string();
+            assert_admission_remedy(&error);
+        }
+    }
+
+    /// Homebrew's layout until promotion: the unversioned `ravel` links into the
+    /// 1.1.0 keg, and the keg-only `ravel@2` has only its `opt` link. The first
+    /// PATH entry selects the installation, and the resolver returns its real
+    /// keg path, which the ending commands quote.
+    #[test]
+    fn a_keg_only_ravel_2_first_on_path_is_selected_by_its_keg_path() {
+        let temp = TempDir::new().unwrap();
+        let cellar = temp.path().join("Cellar");
+        let one = executable(&cellar.join("ravel/1.1.0/bin"), "echo 'ravel 1.1.0'");
+        let two = executable(&cellar.join("ravel@2/2.0.0/bin"), "echo 'ravel 2.0.0'");
+        let default_bin = temp.path().join("bin");
+        fs::create_dir(&default_bin).unwrap();
+        symlink(&one, default_bin.join("ravel")).unwrap();
+        let opt = temp.path().join("opt");
+        fs::create_dir(&opt).unwrap();
+        symlink(cellar.join("ravel@2/2.0.0"), opt.join("ravel@2")).unwrap();
+        let keg_bin = opt.join("ravel@2/bin");
+
+        assert_eq!(
+            locate_on_path(Some(&path(&[&default_bin, &keg_bin]))).unwrap(),
+            fs::canonicalize(&one).unwrap()
+        );
+        let selected = locate_on_path(Some(&path(&[&keg_bin, &default_bin]))).unwrap();
+        assert_eq!(selected, fs::canonicalize(&two).unwrap());
+        assert_eq!(
+            grove_loop::session_command::end_session(&selected).unwrap(),
+            format!("'{}' end-session grove-continue", selected.display())
+        );
     }
 
     #[test]

@@ -23,6 +23,13 @@ owns confinement and cleanup. Ravel returns only an opaque stdout result after
 the reap. It supplies no private ending report, persistent store or run
 identity.
 
+The version admission is that of the
+[caller contract](harness-selection-and-execution.md#package-boundary): stable
+1.x from 1.1.0 and stable 2.x from 2.0.0. On the native route on 1.1, Ravel
+reads the owner's `~/.config/ravel/policy.ts`. On the native route on 2.0, it
+reads `~/.config/ravel/config.rhai`. The standalone caller sends the same
+public verbs and flags to both majors. The admission selects no route.
+
 Selection keeps the owner's bounds and grants. A refused, cancelled or
 timed-out selection launches no managed process and publishes no outputs.
 

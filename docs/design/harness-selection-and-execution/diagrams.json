@@ -93,7 +93,7 @@
       "group": "skills",
       "title": "Supported Ravel routes",
       "source": "routes.mmd",
-      "caption": "Proposed. Grove's version probe decides admission only. The configuration file and the skills settings key select the route, and Grove reads neither. Directory delivery needs 2.0.0, its actual minimum. Native 2.0 and directory 2.0 are separate proofs over the same executable. Until promotion, 2.0.0 is the keg-only ravel@2, which the PATH of the invocation selects. While a 1.1 reader remains, a 2.0 route with a 2.0-only settings key needs a separate HOME."
+      "caption": "Grove implements the admission and both native routes. The directory route is proposed. Grove's version probe decides admission only. The configuration file and the skills settings key select the route, and Grove reads neither. Directory delivery needs 2.0.0, its actual minimum. Native 2.0 and directory 2.0 are separate proofs over the same executable. Until promotion, 2.0.0 is the keg-only ravel@2, which the PATH of the invocation selects. While a 1.1 reader remains, a 2.0 route with a 2.0-only settings key needs a separate HOME."
     },
     {
       "id": "skill-delivery",

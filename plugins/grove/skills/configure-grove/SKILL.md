@@ -14,24 +14,41 @@ open, retire or complete a Grove session.
 
 Grove has no launch configuration. It resolves the independently installed `ravel`
 on PATH. It runs `start-session` for every session, lifecycle and `grove run KIND`
-alike. Three files decide the rest. [policy.md](references/policy.md) has the
-mechanics of each.
+alike. The major of that Ravel decides which configuration file it reads. Three
+files decide the rest. [policy.md](references/policy.md) has the mechanics of each.
 
 | File | Decides | Scope |
 |---|---|---|
-| `~/.config/ravel/policy.ts` | The command for each kind: program, arguments, and its provider, model and effort labels | Every checkout |
+| `~/.config/ravel/policy.ts` on Ravel 1.x, or `~/.config/ravel/config.rhai` on Ravel 2.x | The command for each kind: program, arguments, and its provider, model and effort labels | Every checkout |
 | `.ravel-choice` in a working-tree root | Which of the options the policy offers that checkout uses | One checkout's lifecycle sessions, and only under a policy that reads it. Never `grove run` |
-| `~/.config/ravel/settings.json` | The selection time bound, the context budget, the environment granted to the policy | Every launch of every kind |
+| `~/.config/ravel/settings.json` | The selection time bound, the context budget, the environment granted to the configuration. The keys differ by major | Every launch of every kind, of both majors under one HOME |
 
 A `config.kdl` or `.grove.kdl` from an earlier release is never read. Do not
 edit one, and do not expect a converter.
 
 ## Establish the effective policy
 
-Run `ravel --version` and `ravel start-session --help` for the installed
-contract. Then read `~/.config/ravel/policy.ts` and its imports. Grove accepts
-stable Ravel 1.x from 1.1.0. An incompatible first executable on PATH
-refuses with an upgrade remedy. Grove does not fall through to another copy.
+Run `ravel --version` and `ravel start-session --help` with the PATH of the
+Grove invocation, for the installed contract. Grove admits stable Ravel 1.x from
+1.1.0 and stable 2.x from 2.0.0. The admission selects no route:
+
+| Route | Ravel | Configuration | Settings |
+|---|---|---|---|
+| Native on 1.1 | 1.x from 1.1.0, Homebrew's `ravel` | `policy.ts`, schema 2, with Grove's TypeScript assets | Only `timeoutMs`, `contextBytes` and `policyEnv` |
+| Native on 2.0 | 2.x from 2.0.0, the keg-only `ravel@2` | `config.rhai`, `SCHEMA_VERSION` 4, with Grove's Rhai assets | The keys of 2.0.0, without `skills` |
+
+On both routes, each harness supplies its skills natively. Then read the
+configuration file of the selected major and its imports. A 2.x installation
+runs only when `$(brew --prefix ravel@2)/bin` is first on the PATH of the
+invocation. An incompatible first executable on PATH refuses with a remedy that
+names both majors. Grove does not fall through to another copy. Never recommend
+an upgrade of a shared installation that another session or configuration still
+uses.
+
+Ravel 1.1.0 refuses the settings keys of 2.0, and 2.0.0 refuses `policyEnv`.
+While a 1.1 launch still reads the settings under a HOME, put a 2.0 route that
+needs another key under a separate HOME. Grove converts no configuration from one
+major to the other.
 
 Ravel has no inspection or installation verb. Establish effective routing by
 reading the owner's selection code, settings, wrappers and `.ravel-choice` from
@@ -39,10 +56,13 @@ the relevant checkout. For execution evidence without a paid model, use temporar
 fake agents on an isolated PATH, following [policy.md](references/policy.md).
 `start-session` launches the selected process. It is never a dry run.
 
-A request to install a missing policy authorises copying the readable
-`assets/ravel-policy/sample/policy.ts` of Grove into the personal path and editing
-the copy. Preserve existing policy bytes. Do not overwrite an existing policy with
-the sample. The commands of the sample disable approvals and enable full access.
+A request to install a missing policy authorises two steps. Copy Grove's readable
+sample for the selected major into the personal path, then edit the copy. The
+sample is `assets/ravel-policy/sample/policy.ts` for 1.x and
+`assets/ravel-policy/sample/config.rhai` for 2.x. Preserve existing policy bytes.
+Do not overwrite an existing policy with the sample.
+
+The commands of the sample disable approvals and enable full access.
 Explain those actual arguments when you configure a first launch. Preserve the
 permission choices that the owner intends.
 
@@ -121,14 +141,18 @@ it names.
 Keep provider-pair changes together. A running loop evaluates the policy afresh at
 its next launch. A half-published change can therefore launch.
 
-After you edit, typecheck the complete candidate. Exercise every affected kind and
-checkout through the real installed Ravel worker with temporary fake agents. Compare
+After you edit a 1.x `policy.ts`, typecheck the complete candidate. Ravel 2.x has
+no typechecker, so only launches verify a `config.rhai` candidate. Exercise
+every affected kind and checkout through the real installed Ravel of that major
+with temporary fake agents. Compare
 the actual argv and the chosen route with the intended mapping, including the origins
 of producers and reviewers. [policy.md](references/policy.md) describes that seam.
 
 Use `task ravel:review RAVEL=/absolute/installed/ravel` for the shipped assets of
-Grove. An arbitrary owner policy needs fixtures for its own imports and wrappers.
-Selection runs trusted TypeScript, and it may have side effects. These fixtures
+Grove, with `RAVEL_RUNTIME=2.0` for a 2.x build. An arbitrary owner policy needs fixtures for its own imports and wrappers.
+
+Selection runs trusted code. A TypeScript selection may have side effects. A Rhai
+selection can read files but writes none and launches no process. These fixtures
 observe the supplied inputs. The next real launch evaluates afresh. Tree verbs
 consult no policy, so a clean tree does not prove that a kind has a route.
 

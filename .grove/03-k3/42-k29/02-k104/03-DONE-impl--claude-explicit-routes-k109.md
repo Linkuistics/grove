@@ -67,3 +67,21 @@ If no such error can be caused, record that row as an unmeasured gap.
 - The concrete path is `{{TRIAL}}/guidance/decision-records/SKILL.md`, outside
   the repository and outside every snapshot. Its missing form keeps the skill's
   directory name, so a snapshot copy is a tempting substitute.
+- The 2.0 prefix is a byte copy of the k108 prefix, whose `bin/ravel` digest
+  `8e10e311…` the preparation checked again. The Ravel workspace stayed
+  untouched. The preparation built Grove at `b63ca828d3ef`, with the same
+  executable digests as k107 and k108.
+- Each case ran once, with no retry. Six rows pass. `explicit-native-error`
+  and `explicit-native-only` are gaps: no bypass and no fallback, but the agent
+  ran the force-stop command with no report text. Obligation 4 of Ravel's
+  preamble says only "Another native error is a report", which may cause the
+  first gap. Obligation 6 does ask for a report, so the second gap is an
+  adherence failure. `acceptance-handoff-k106` resolves both.
+- `explicit-path-missing` reported before dependent work and used no other
+  location, then ran no ending command. The record states that ending as
+  outside the row, for k106 to decide.
+- Several calls failed because zsh reads `=====` as an `=command` expansion.
+  The configured mandatory order held in each case. The runner stays
+  unchanged for this: it records what the agent ran.
+- No in-session reviewer. The results are observations of transcripts, and
+  each new runner path has a broken-runner control.

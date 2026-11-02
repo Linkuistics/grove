@@ -58,3 +58,39 @@ confinement. No trials here.
 Do not repeat a requirements interview, change shared owner configuration or
 publish releases. Feature publication follows the compatible tap sequence in
 discovery-rollout-k6. A staged build must remain reproducible until then.
+
+## Decisions (running log)
+
+**Inputs.** On 2026-11-03 this session read the acceptance table and the
+harness-trial section of Ravel's `docs/specs/skill-discovery.md` at bookmark
+`skill-directory-delivery`, output commit `1ca4aecbeae1`. It read the Test
+seams of Grove's delivery specification and the dual-Ravel stage record at
+Grove `7bff9d4bf67`. No trial ran.
+
+**Tooling.** Ravel's `scripts/harness-smoke.sh` builds the sandbox home of the
+configuration specification for one LLM call inside a configuration script. It
+is not a session-trial runner. Grove has no trial runner. The first leaf of
+the Claude Code node therefore builds a reusable runner before any credited
+observation.
+
+**Mechanisms seen, not measured.** Claude Code 2.1.316 marks `/compact` as
+supported in non-interactive use and has `--resume`. Codex 0.166.0 has
+`exec resume`, `debug prompt-input` and the stable `multi_agent` feature. A
+trial leaf establishes each mechanism before it credits a result. An
+unavailable mechanism is a gap.
+
+**Live authority.** This session's environment holds `RAVEL_EXIT_FILE`,
+`GROVE_LAUNCH_DIR` and `CLAUDE_CODE_*` names. A trial runner launches
+each harness from an allow-listed environment, with a control.
+
+**Shape.** Two harness nodes and one handoff leaf, in that order. The Codex
+node reuses the runner of the Claude Code node. Each node has one leaf for the
+runner or its adapter and one leaf for each group of trials.
+
+The two compaction
+trials share one leaf, with separate records, because they share the
+mechanism. The positive confined read joins the discovery trial. The unreadable
+confined case joins the missing-kind leaf as a separate observation.
+
+**No planning review.** The children map a reviewed Done when one to one. Each
+trial leaf checks its own mechanism first. No review-planning leaf is cut.

@@ -39,6 +39,62 @@ installed/checks handoff after them. Earlier implementation stages own fixture
 and source-exact documentation work. Reconcile their evidence here. Do not
 postpone those obligations to a final cleanup leaf.
 
+common-loading-acceptance-k30 cut the children:
+
+1. `claude-code-trials-k104`: build the trial runner, then run every Claude
+   Code trial group.
+2. `codex-trials-k105`: add the Codex adapter to that runner, then run the
+   same trial groups in Codex.
+3. `acceptance-handoff-k106`: review the trial and stage evidence, run the
+   integrated checks, audit both parents and give research its recipes.
+
+The Codex node follows the Claude Code node because it reuses the runner. Each
+trial group is a leaf, so a failed group stays live without blocking the
+record of the others. The handoff runs last, because it reconciles both
+harnesses.
+
+## Trial conventions
+
+These rules hold for every trial leaf of both harness nodes.
+
+- **Record.** Each trial adds a section to
+  `docs/common-loading-acceptance-record.md`. The first runner leaf creates
+  that record. A section names its case, its route, its result and its limit.
+- **Route.** Each case names one route of the delivery specification: native
+  on 1.1, native on 2.0 with delivery disabled, or directory on 2.0. Most
+  cases use directory on 2.0.
+- **Builds.** Each trial names the Ravel 2.0 build by commit, build identity
+  and `bin/ravel` SHA-256. It names the Grove build by commit and executable
+  SHA-256. If the bookmark `skill-directory-delivery` moves, record the new
+  build before any result.
+- **Harness.** Each trial records the harness, the model, the harness version
+  and the effort setting. It records the effective configuration directory,
+  the native startup text and any platform-managed residue, such as synced
+  claude.ai skills.
+- **Sources.** Each source is a plugin directory of a plain Git checkout of
+  this repository, at a recorded commit, outside every working directory of
+  the trial. Never name a development working copy. Each trial records the
+  checkout commit, the `resourceDigest` of each source and the descriptor
+  identity.
+- **Order.** Each trial records the ordered reads of mandatory files, the reads
+  of kind and craft skills, the supporting reads and the governed actions. It
+  takes them from the harness transcript, not from the final answer of the
+  agent.
+- **Authority.** Launch each harness from an allow-listed environment. The live
+  session's `RAVEL_EXIT_FILE`, `GROVE_LAUNCH_DIR`, `CLAUDECODE` and
+  `CLAUDE_CODE_*` names never reach a trial. A control shows that a trial child
+  sees none of them. Early-result attempts use only disposable trial sessions.
+- **Credit.** A fixture, a prompted retry, a retained variable alone, a
+  transcript alone or a pass total is no credit for agent behaviour. An
+  unavailable mechanism is an unmeasured gap, never a pass. A failed required
+  case stays a gap for the handoff leaf to resolve.
+- **Spend.** A real trial spends subscription usage. A trial task is opt-in and
+  stays out of `scripts/check.sh`. A test of the runner against a fake harness
+  can join the gate.
+- **Transcripts.** Commit the extracted event order and the native startup
+  text. Keep a raw transcript out of the repository unless a reader has
+  checked it for account data. Record the digest of each raw transcript.
+
 ## Pointers
 
 Both delivery specifications' acceptance tables, their design evidence and

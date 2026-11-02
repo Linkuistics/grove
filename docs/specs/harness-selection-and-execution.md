@@ -7,9 +7,11 @@ returns the opaque argument that `ravel end-session RESULT` published.
 
 This contract includes the skill-delivery adoption design. Grove admits Ravel
 1.x from 1.1.0 and 2.x from 2.0.0, and it no longer provisions Codex skills.
-Grove supports the native routes on 1.1 and on 2.0. Directory delivery remains
-ahead. The
-[delivery design](codex-skill-provisioning.md) owns the transition and its
+Grove supports the native routes on 1.1 and on 2.0. It supports the directory
+route on 2.0 through the lifecycle caller, and the confined standalone proof
+remains ahead.
+
+The [delivery design](codex-skill-provisioning.md) owns the transition and its
 [supported routes](codex-skill-provisioning.md#supported-routes). Process and
 result contracts remain unchanged. Skill availability
 is the user's responsibility through native installation or Ravel directory

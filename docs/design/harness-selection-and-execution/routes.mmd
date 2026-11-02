@@ -10,6 +10,7 @@ flowchart TB
   D2["Directory route on 2.0<br/>Prepared prompt and snapshot reads<br/>Native copies unnecessary"]
   M1["Ravel 1.1 refuses a 2.0 settings key<br/>before launch. Leaf stays live"]
   M2["Ravel 2.0 refuses a lone policy.ts,<br/>schema 3 or policyEnv before launch<br/>Leaf stays live"]
+  M3["Ravel 2.0 refuses a missing source<br/>as skill_source_missing before any worker<br/>Leaf stays live"]
   Start -->|"1. First absolute PATH entry"| Probe
   Probe -->|"2. Admitted 1.x"| V1
   Probe -->|"2. Admitted 2.x"| V2
@@ -20,4 +21,5 @@ flowchart TB
   Skills -->|"4. Yes"| D2
   V1 -.->|"Mismatched settings"| M1
   V2 -.->|"Mismatched configuration"| M2
+  Skills -.->|"Missing source"| M3
   classDef start fill:#163a57,color:#fff,stroke:#163a57,font-weight:bold

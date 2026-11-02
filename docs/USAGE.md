@@ -42,13 +42,15 @@ the path once and checks the CLI version of that Ravel. Grove admits stable Rave
 1.1.0 and stable 2.x from 2.0.0. The version decides admission only. The PATH of the Grove
 invocation selects the Ravel, and its configuration file and settings select the route.
 
-Grove supports two native routes. On each, every harness supplies its skills through its
-own native installation.
+Grove supports three routes. On the two native routes, each harness supplies its skills
+through its own native installation. On the [directory route](#usage-directory-route),
+Ravel 2.0 supplies them from local source directories that you configure.
 
 | Route | Ravel | Configuration | Settings | Grove caller assets |
 | --- | --- | --- | --- | --- |
 | Native on 1.1 | 1.x from 1.1.0, Homebrew's `ravel` | `~/.config/ravel/policy.ts`, schema 2 | `~/.config/ravel/settings.json` with only `timeoutMs`, `contextBytes` and `policyEnv` | The TypeScript set |
 | Native on 2.0 | 2.x from 2.0.0, Homebrew's keg-only `ravel@2` | `~/.config/ravel/config.rhai`, `SCHEMA_VERSION` 4 | `~/.config/ravel/settings.json` with the keys of 2.0.0 and no `skills` | The Rhai set |
+| Directory on 2.0 | As native on 2.0 | As native on 2.0 | `~/.config/ravel/settings.json` with a `skills` object that names local sources | The Rhai set |
 
 Install Ravel independently with `brew install linkuistics/taps/ravel`. Grove and Ravel can
 have different prefixes and different versions. A missing `ravel` names that install remedy.
@@ -125,6 +127,59 @@ config path, no record path and no named parameter.
 
 Scaffolding verbs and tree verbs consult no policy. An unrouted kind refuses only at its
 launch. The leaf stays live, and Grove resumes it after you correct the owner's route.
+
+<a id="usage-directory-route"></a>
+### The directory route
+
+On the directory route, Ravel 2.0.0 adds the locations of your skill sources to each
+launch prompt. The agent finds and reads its skills there, so no harness needs a native
+copy. Grove sends the same mandate on every route, and it reads none of these settings.
+The bare `grove` lifecycle supports the route. The confined `grove run` has its own proof.
+
+Add a `skills` object to the settings of the 2.0 HOME. Each source is a local directory,
+named by an absolute path:
+
+```json
+{
+  "skills": {
+    "schemaVersion": 1,
+    "sources": [
+      { "id": "grove", "type": "local", "path": "/absolute/path/to/grove-checkout/plugins/grove", "roots": ["skills"] }
+    ],
+    "mandatory": []
+  }
+}
+```
+
+A `mandatory` entry names a file that the agent reads before your task. No Grove skill
+must be mandatory, because the mandate names the kind skill. Your configuration must pass
+`request.prompt` to the harness, as the example above does. `request.prompt` holds Ravel's
+preamble and then your mandate in a delimited block. `request.originalPrompt` holds the
+mandate alone.
+
+**Ravel reads local directories only.** It runs no `git` command and makes no network
+request for a source. It does not fetch, install or update a source. Make each checkout of
+a skill repository with a tool outside Ravel. A source `type` other than `local` refuses as
+`settings_invalid`.
+
+Ravel captures the files of the checkout, with uncommitted changes, and it leaves out `.git`
+and `.jj`. A dedicated checkout at a recorded commit therefore suits delivery better than a
+development working copy.
+
+**Use a separate HOME while a 1.1 launch remains.** Ravel 1.1.0 refuses a settings file
+that holds `skills`, and a separate installation prefix cannot prevent that. Run the
+directory route under its own HOME while a 1.1 launch still reads the settings of your
+usual HOME. A separate HOME also moves Ravel's skill cache, the run logs of `grove run` and
+the HOME-based configuration of your harnesses and VCS. A native launch on 1.1 and a
+directory launch on 2.0 can then run at the same time.
+
+If a configured source or root is missing, Ravel refuses as `skill_source_missing` before
+any configuration code runs. Grove reports Ravel's statement and remedy and stops. The leaf
+stays live. Restore the checkout, or change the settings deliberately, then rerun `grove`.
+
+Each launch captures the current contents of its sources. A running session keeps the
+snapshot it received, also when you change a source or the settings. The next launch
+receives the new contents.
 
 <a id="usage-standalone"></a>
 ## Running a standalone task
@@ -722,7 +777,7 @@ every harness your policy can select:
 | Route | What you do |
 |---|---|
 | Native harness installation | Claude Code: the marketplace with auto-update enabled. Codex, Gemini CLI and Pi: the checkout's manual installer. See [Install the skill plugins](../README.md#install-the-skill-plugins). Repeat for each harness. |
-| Ravel skill-directory delivery | A later Ravel release will inject configured skill directories into each launch prompt, so native copies become unnecessary. No released Ravel supplies it yet. |
+| Ravel skill-directory delivery | Configure local skill sources for Ravel 2.0.0 under a HOME of their own. Ravel adds their locations to each launch prompt, so native copies are unnecessary. See [the directory route](#usage-directory-route). |
 
 Native-only installation is a complete setup, not a fallback. Grove checks no
 skill before launch. A session that cannot find its named skill reports that;

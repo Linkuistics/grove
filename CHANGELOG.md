@@ -87,6 +87,16 @@ stood at the graft — a closed record, not part of the versioned sequence above
   configuration files, and it no longer recommends `brew upgrade ravel`. Grove
   still refuses 1.0.x, prereleases and other majors such as 3.x.
 
+- `grove`: support the directory route on Ravel 2.0.0 through the lifecycle
+  caller. Ravel adds the locations of local skill sources from the `skills`
+  settings to each launch prompt, so no harness needs a native copy. Grove sends
+  the same mandate and reads none of these settings. Ravel reads local
+  directories only and runs no `git` command, so a tool outside Ravel makes each
+  checkout. Use a HOME of its own while a 1.1 launch remains, because Ravel
+  1.1.0 refuses `skills`. A missing source refuses before launch, and the leaf
+  stays live. `docs/USAGE.md` gives the settings. `task ravel:directory` checks
+  the route against a 2.0 build and a 1.1 build.
+
 - `linkuistics` / `machine-environment`: describe `mise bootstrap` as the owner of
   Antony's machine setup. Packages are in `[bootstrap.packages]`, and dotfiles are
   tracked in place by mise history. The chezmoi source and the Brewfile are

@@ -8,8 +8,11 @@ any mandatory guidance, and the missing-skill force-stop rule.
 
 Grove admits stable Ravel 1.x from 1.1.0 and stable 2.x from 2.0.0. Grove
 ships TypeScript caller assets for 1.x and Rhai caller assets for 2.x. Grove
-supports the native routes on 1.1 and on 2.0. Directory delivery and its
-acceptance remain ahead. The reviewed upstream contract is Ravel commit `822c0ed2`, as the
+supports the native routes on 1.1 and on 2.0. Grove supports the directory
+route on 2.0 through the lifecycle caller, which passed its acceptance. The
+confined standalone acceptance remains ahead.
+
+The reviewed upstream contract is Ravel commit `822c0ed2`, as the
 [contract mapping](../grove-skill-delivery-design-evidence.md#rhai-mapping)
 records. The document location remains stable for existing citations.
 
@@ -470,6 +473,14 @@ Use existing Grove lifecycle, standalone and public session-command seams with
 isolated homes and actual installed Ravel. Each case names its route and
 identifies its Ravel build by commit and build identity. Ravel owns source
 resolution tests. Grove checks the observable caller behaviour.
+
+`crates/grove/tests/directory_route.rs` proves the lifecycle part of five rows
+below: Directory bootstrap, Source and skill failures, Original mandate,
+Settings isolation and Resource lifetime. `task ravel:directory` runs it, with
+`RAVEL` as the 2.0 front and `OLD` as the 1.1 front. Its fake agents read the
+paths that the prepared prompt names, and they prove delivery rather than LLM
+behaviour. The explicit plugin-qualified name request, the missing-skill report
+of a real agent and actual harness behaviour belong to acceptance.
 
 | Acceptance | Observation |
 | --- | --- |

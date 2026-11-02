@@ -109,8 +109,10 @@ while their targets exist. To remove the links, follow the
 [optional cleanup procedure](docs/USAGE.md#usage-codex-cleanup). It keeps
 `~/.agents/.grove`.
 
-Ravel skill-directory delivery is a planned alternative route. No released Ravel
-supplies it yet. See [`plugins/README.md`](plugins/README.md)
+Ravel skill-directory delivery is the alternative route. Ravel 2.0.0 reads the
+skills from local checkouts that its settings name, under a HOME separate from
+any 1.1 launch. The [directory route](docs/USAGE.md#usage-directory-route)
+gives the settings. See [`plugins/README.md`](plugins/README.md)
 for the catalogue, ownership rules and installation paths.
 
 ## Documentation

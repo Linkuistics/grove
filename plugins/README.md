@@ -130,8 +130,13 @@ procedure first stops every process that can read the entries. It keeps the
 snapshots.
 Path shape alone does not show that Grove wrote an entry.
 
-Ravel skill-directory delivery is a planned alternative route that will need no
-native copy. No released Ravel supplies it yet.
+Ravel skill-directory delivery is the alternative route, and it needs no native
+copy. Ravel 2.0.0 reads skill sources from local directories that its settings
+name. Make each checkout of this repository with a tool outside Ravel, because
+Ravel downloads and updates nothing. Point a source at the `plugins/grove`
+directory of that checkout, with the root `skills`. Ravel 1.1.0 refuses those
+settings, so use a separate HOME while a 1.1 launch remains. The
+[directory route](../docs/USAGE.md#usage-directory-route) gives the settings.
 
 ## Manual install — Codex, Gemini CLI and Pi
 

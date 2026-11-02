@@ -247,6 +247,17 @@ tasks:
       - task: test:authority
         vars: {RAVEL: '{{.RAVEL}}', RAVEL_RUNTIME: '{{.RAVEL_RUNTIME}}'}
 
+  ravel:directory:
+    desc: "Check the directory route on Ravel 2.0 through the lifecycle caller: RAVEL is the 2.0 front, OLD the 1.1 front of the pair case"
+    requires:
+      vars: [RAVEL, OLD]
+    env:
+      GROVE_TEST_RAVEL: '{{.RAVEL}}'
+      GROVE_TEST_RAVEL_RUNTIME: '2.0'
+      GROVE_TEST_RAVEL_OLD: '{{.OLD}}'
+    cmds:
+      - cargo nextest run --locked -p grove --test directory_route --run-ignored only {{.CLI_ARGS}}
+
   ravel:fixtures:
     desc: Check shared installed-Ravel fixtures through the resolver and Grove's shared result reader
     requires:

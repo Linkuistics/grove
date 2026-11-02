@@ -36,9 +36,13 @@ Grove invocation, for the installed contract. Grove admits stable Ravel 1.x from
 |---|---|---|---|
 | Native on 1.1 | 1.x from 1.1.0, Homebrew's `ravel` | `policy.ts`, schema 2, with Grove's TypeScript assets | Only `timeoutMs`, `contextBytes` and `policyEnv` |
 | Native on 2.0 | 2.x from 2.0.0, the keg-only `ravel@2` | `config.rhai`, `SCHEMA_VERSION` 4, with Grove's Rhai assets | The keys of 2.0.0, without `skills` |
+| Directory on 2.0 | As native on 2.0 | As native on 2.0 | The keys of 2.0.0, with a `skills` object that names local sources |
 
-On both routes, each harness supplies its skills natively. Then read the
-configuration file of the selected major and its imports. A 2.x installation
+On the native routes, each harness supplies its skills natively. On the
+directory route, Ravel adds the locations of the configured sources to each
+launch prompt, and no native copy is necessary.
+
+Then read the configuration file of the selected major and its imports. A 2.x installation
 runs only when `$(brew --prefix ravel@2)/bin` is first on the PATH of the
 invocation. An incompatible first executable on PATH refuses with a remedy that
 names both majors. Grove does not fall through to another copy. Never recommend
@@ -47,8 +51,17 @@ uses.
 
 Ravel 1.1.0 refuses the settings keys of 2.0, and 2.0.0 refuses `policyEnv`.
 While a 1.1 launch still reads the settings under a HOME, put a 2.0 route that
-needs another key under a separate HOME. Grove converts no configuration from one
-major to the other.
+needs another key under a separate HOME. The directory route needs `skills`, so
+it needs that separate HOME. Grove converts no configuration from one major to
+the other.
+
+Each directory source is a local directory with `type` `local` and an absolute
+`path`. Ravel runs no `git` command and makes no network request for a source.
+A tool outside Ravel makes each checkout, preferably a dedicated one at a
+recorded commit. A missing source refuses as `skill_source_missing` before any
+configuration code runs, and the leaf stays live. The configuration must pass
+`request.prompt`, which holds Ravel's preamble and the mandate. The
+[usage guide](../../../../docs/USAGE.md#usage-directory-route) gives an example.
 
 Ravel has no inspection or installation verb. Establish effective routing by
 reading the owner's selection code, settings, wrappers and `.ravel-choice` from

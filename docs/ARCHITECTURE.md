@@ -1530,7 +1530,7 @@ Code receives the three plugins through its marketplace with auto-update
 enabled. Codex, Gemini CLI and Pi users can use `plugins/install.sh`. Grove
 installs no skill and alters no harness's skill directories or plugin
 configuration. The [delivery contract](specs/codex-skill-provisioning.md) owns
-the routes, the later Ravel directory route and the missing-skill outcome.
+the routes, the Ravel directory route on 2.0 and the missing-skill outcome.
 
 Grove 22.8 and earlier embedded a plugin snapshot in `grove` and provisioned
 Codex links in `~/.agents/skills` at startup, through snapshots under

@@ -36,15 +36,22 @@ impl Runtime {
     /// front is `front`. A selection that the layout of the build cannot
     /// satisfy fails here, before any fixture runs.
     pub fn for_build(front: &Path) -> Self {
+        let selected = std::env::var(RUNTIME_VAR).unwrap_or_default();
+        Self::named(front, RUNTIME_VAR, &selected)
+    }
+
+    /// The runtime that `selected` names for the build whose front is `front`,
+    /// as the variable `variable` gives it. The layout check and the remedies
+    /// are those of [`Runtime::for_build`].
+    pub fn named(front: &Path, variable: &str, selected: &str) -> Self {
         let prefix = prefix_of(front);
         let worker = prefix.join(WORKER).is_file();
-        let selected = std::env::var(RUNTIME_VAR).unwrap_or_default();
-        match selected.as_str() {
+        match selected {
             "1.1" => {
                 assert!(
                     worker,
-                    "{RUNTIME_VAR}=1.1 selects the 1.x layout, but {} has no {WORKER} worker. \
-                     A 2.x build installs one executable: set {RUNTIME_VAR}=2.0 for it.",
+                    "{variable}=1.1 selects the 1.x layout, but {} has no {WORKER} worker. \
+                     A 2.x build installs one executable: set {variable}=2.0 for it.",
                     prefix.display()
                 );
                 Runtime::V1_1
@@ -52,8 +59,8 @@ impl Runtime {
             "2.0" => {
                 assert!(
                     !worker,
-                    "{RUNTIME_VAR}=2.0 selects the 2.x layout, but {} holds the 1.x worker \
-                     {WORKER}. Set {RUNTIME_VAR}=1.1 for a 1.x build.",
+                    "{variable}=2.0 selects the 2.x layout, but {} holds the 1.x worker \
+                     {WORKER}. Set {variable}=1.1 for a 1.x build.",
                     prefix.display()
                 );
                 Runtime::V2_0
@@ -61,14 +68,14 @@ impl Runtime {
             "" => {
                 assert!(
                     worker,
-                    "{RUNTIME_VAR} is unset, and {} has no {WORKER} worker, so it is no 1.x \
-                     build. Set {RUNTIME_VAR}=2.0 for a 2.x build. The support never reads \
+                    "{variable} is unset, and {} has no {WORKER} worker, so it is no 1.x \
+                     build. Set {variable}=2.0 for a 2.x build. The support never reads \
                      the runtime from the version output.",
                     prefix.display()
                 );
                 Runtime::V1_1
             }
-            other => panic!("{RUNTIME_VAR}={other:?} names no runtime: use 1.1 or 2.0"),
+            other => panic!("{variable}={other:?} names no runtime: use 1.1 or 2.0"),
         }
     }
 
@@ -342,7 +349,12 @@ impl InstalledRavel {
     /// comes from `GROVE_TEST_RAVEL_RUNTIME`. The caller owns the
     /// destination's temporary-directory lifetime.
     pub fn copy_from(source: &Path, prefix: &Path) -> Self {
-        let runtime = Runtime::for_build(source);
+        Self::copy_as(source, prefix, Runtime::for_build(source))
+    }
+
+    /// [`InstalledRavel::copy_from`] for a build whose runtime the caller has
+    /// already established, such as the second build of a pair case.
+    pub fn copy_as(source: &Path, prefix: &Path, runtime: Runtime) -> Self {
         let source = fs::canonicalize(source).expect("explicit installed Ravel front");
         let source_prefix = prefix_of(&source);
         let bin = prefix.join("bin");

@@ -26,10 +26,10 @@ silently.
 ### Skill delivery / the retired sweep
 
 Delivery is separate from the named skill. The user supplies native harness
-installations, or later Ravel-injected skill-directory paths, and the agent
+installations, or skill-directory paths that Ravel 2.0 injects, and the agent
 discovers and reads the skill Grove names. Neither executable resolves a
 requested skill. The [delivery specification](docs/specs/codex-skill-provisioning.md)
-owns the contract and its remaining Ravel stages.
+owns the contract and its supported routes.
 
 How the **`grove` plugin** reaches a session: a spine skill and one
 `grove-<kind>` skill per kind, delivered through the route the user chose for

@@ -16,13 +16,13 @@ flowchart LR
     subgraph fin["Finish"]
         direction TB
         G["Release Grove<br/>Promote Ravel"]
-        H{"Only finish and<br/>its driver chain alive?"}
+        H{"No other writer runs<br/>and no job can launch one?"}
         I["Ask the owner<br/>Signal nobody"]
         S{"State of the switch set<br/>from the layout and<br/>latest complete backup"}
         R["Resume the inverse<br/>from the latest backup"]
-        P["Compare core tree ID<br/>Advance grove-core pin<br/>Clean status, accepted digests"]
+        P["Compare core tree ID<br/>Advance grove-core pin<br/>Clean status, accepted digests<br/>Rehearsal covers the plan"]
         Q["Pending-activation record<br/>No success signal<br/>Switch runs again"]
-        J["Switch: settings,<br/>plugins, moved entries"]
+        J["Switch in one command:<br/>files by atomic exchange,<br/>plugins, moved entries"]
         K{"Both probes pass?"}
         L["Inverse operation<br/>then native probe"]
         M["Receipt in the manual<br/>Original ending command"]
@@ -33,7 +33,7 @@ flowchart LR
         S -.->|"8a partial"| R
         S -->|"8a active: step 6, then probes"| K
         S -.->|"8a drifted: inverse,<br/>then classification"| I
-        S -->|"8a complete"| M
+        S -->|"8a complete: switched,<br/>receipt applies"| M
         R -.->|"state again"| S
         P -->|"8b"| J
         P -.->|"8b stops"| Q

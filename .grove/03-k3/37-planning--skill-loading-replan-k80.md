@@ -40,3 +40,9 @@ owner-pack-checkouts-k84 integrated the second review. Its handoff adds
 obligations to the list in k82 and replaces k82's item about the
 continuation. The focused review owner-pack-checkouts-k85 reads that repair
 before this leaf. Read any integration it cuts before this leaf too.
+
+owner-pack-checkouts-k86 integrated the third review. Its in-session reviewer
+then found defects that need a new recovery model for the switch. The design
+leaf owner-switch-recovery-k87 and its review now come before this leaf.
+Take the switch's resumption, rollback and rehearsal contract from that
+chain, not from the handoffs of k84 or k86.

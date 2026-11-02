@@ -333,6 +333,21 @@ A read-only query of the owner's effective Git configuration found no
 filters. Today's owner checkouts are therefore not known to differ. The
 design's check needs the digest, because the configuration can change.
 
+### Publication by atomic exchange
+
+On 2026-11-02, `owner-pack-checkouts-k86` called `renamex_np` through Python
+on macOS 27.0.1, on an APFS volume, in a scratch directory:
+
+| Call | Result |
+| --- | --- |
+| `RENAME_SWAP` of a live file and a prepared file | Exit 0. The path held the new content. The other name held the replaced content, with its original inode. |
+| `RENAME_EXCL` onto an existing file | Refused with `EEXIST`. Neither file changed. |
+| `RENAME_EXCL` onto an absent name | Exit 0. The file was created. |
+
+One call can therefore publish a file of the switch set and keep the content
+that it replaced. The section "Concurrent writers" of the design uses both
+calls. The measurement used no file of the owner's HOME.
+
 ## Not measured
 
 - Claude Code's treatment of a root-level `SKILL.md` inside a skill-free
@@ -479,3 +494,26 @@ seven P2 and two P3 defects. The integration repaired each of them:
   backup lies outside each tree that the instrument sweeps.
 - The coordinated recovery rows name each state and keep a Grove patch
   release apart from a Ravel cut.
+
+The focused review `owner-pack-checkouts-k85` found one P1 and three P2
+defects in that repair. Its integration `owner-pack-checkouts-k86` repaired
+the specification and its views:
+
+- **A comparison that cannot stop a writer.** Step 9 compared a file and
+  then renamed it, so a write between the two was lost. Step 1 now lists the
+  jobs that can launch a writer and counts the descendants of finish. One
+  prepared command runs each write interval. An atomic exchange publishes
+  each file, and the run compares the displaced content. A difference fails
+  the part and keeps the update in the backup. The section
+  [Publication by atomic exchange](#publication-by-atomic-exchange) records
+  the call.
+- **A receipt that outlived its layout.** The layout now decides the state,
+  and a receipt only tells the complete state from the active one. Step 3
+  and the inverse withdraw a receipt that no longer applies.
+- **A moved entry identified by its path.** The state of a moved entry now
+  also needs its recorded change identity. A changed entry or a retargeted
+  link at either path is drifted.
+- **A changed plan without a rehearsal.** Each rehearsal records the digests
+  of its manifest and inverse. A changed plan reuses that evidence only for
+  items of a rehearsed kind. Any other change needs a new rehearsal before
+  step 8.

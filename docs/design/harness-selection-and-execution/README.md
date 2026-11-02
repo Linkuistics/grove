@@ -73,13 +73,13 @@ public integration. Neither duplicates Ravel's private runtime contract.
 The current discussion settles who installs the pack checkouts and keeps them
 current, now that Ravel reads local directories only. The human approved the
 owner's tool and the pin policy. mise is the owner's choice, and Ravel and
-Grove name no checkout tool. Two focused reviews of this design are
+Grove name no checkout tool. Three focused reviews of this design are
 integrated. See the
 [owner delivery specification](../../specs/owner-skill-delivery.md#pack-checkouts)
 and its [evidence](../../owner-skill-delivery-evidence.md#pack-checkouts).
 
 - [Pack checkouts outside Ravel](http://127.0.0.1:52710/#diagram-owner-pack-checkouts) — Added the owner's checkout tool, the pin advance, the offline fetch failure and the missing-source refusal. An advance runs only while nothing captures the checkout.
-- [Ordered owner cutover](http://127.0.0.1:52710/#diagram-owner-cutover) — Added pack publication, the drafted checkout entries, the credential control and staging clones before the trials, and the checkout clone in preparation. Inside finish, the core tree comparison precedes the `grove-core` pin advance. Each run first reads the state of the switch set. After a native probe, a native state switches. A partial state resumes the inverse. An active state goes to the probes and the receipt. A drifted item stops for the owner's classification. Every stop, inverse or missing receipt leaves a pending-activation record, and the switch runs again.
+- [Ordered owner cutover](http://127.0.0.1:52710/#diagram-owner-cutover) — Added pack publication, the drafted checkout entries, the credential control and staging clones before the trials, and the checkout clone in preparation. Inside finish, the core tree comparison precedes the `grove-core` pin advance. Each run first reads the state of the switch set. After a native probe, a native state switches. A partial state resumes the inverse. An active state goes to the probes and the receipt. A drifted item stops for the owner's classification. Every stop, inverse or missing receipt leaves a pending-activation record, and the switch runs again. Step 1 also lists scheduled jobs and finish's descendants. Step 8 needs a rehearsal that covers the plan. The switch publishes each shared file by an atomic exchange. Only a switched layout with its receipt is complete.
 - [Finish keeps its guidance through the switch](http://127.0.0.1:52710/#diagram-owner-final-session) — Added the core tree comparison and the `grove-core` pin advance before the probes. A comparison of accepted digests follows the advance. The probes capture the pack checkouts.
 
 ## Earlier delivery changes

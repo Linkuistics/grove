@@ -58,7 +58,7 @@
       "group": "owner",
       "title": "Ordered owner cutover",
       "source": "owner-cutover.mmd",
-      "caption": "Proposed. Ordinary leaves prepare and rehearse; only finish, or the owner after an unsuccessful finish, runs the switch against the real HOME. Each run first reads the state of the switch set from the layout and the latest backup. A native state switches again after a native probe, a partial state resumes the inverse, and an active state completes its probes and receipt. A drifted item stops for the owner's classification. The owner purges retained bytes later, after this driver's reap."
+      "caption": "Proposed. Ordinary leaves prepare and rehearse; only finish, or the owner after an unsuccessful finish, runs the switch against the real HOME. Each run first reads the state of the switch set from the layout and the latest backup. A native state switches again after a native probe, a partial state resumes the inverse, and an active state completes its probes and receipt. A drifted item stops for the owner's classification. A receipt counts only while every item is switched. The switch publishes each shared file by an atomic exchange, applies only a rehearsed plan and runs while no other writer can act. The owner purges retained bytes later, after this driver's reap."
     },
     {
       "id": "owner-final-session",
@@ -183,7 +183,7 @@
       },
       {
         "id": "owner-cutover",
-        "summary": "Added pack publication, the drafted checkout entries, the credential control and staging clones before the trials, and the checkout clone in preparation. Inside finish, the core tree comparison precedes the grove-core pin advance. A stop before the native switch and an inverse after a failed probe both leave a pending-activation record, and the switch runs again."
+        "summary": "Added pack publication, the drafted checkout entries, the credential control and staging clones before the trials, and the checkout clone in preparation. Inside finish, the core tree comparison precedes the grove-core pin advance. A stop before the native switch and an inverse after a failed probe both leave a pending-activation record, and the switch runs again. The writer check covers jobs and finish's descendants, the plan check needs a covering rehearsal, the switch publishes files by atomic exchange, and only a switched layout is complete."
       },
       {
         "id": "owner-final-session",

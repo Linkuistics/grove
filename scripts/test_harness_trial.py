@@ -1238,6 +1238,30 @@ class HarnessTrialTest(unittest.TestCase):
         self.broken(self.check_delegation, "delegate_order",
                     lambda events, mandatory: {**real(events, mandatory), "mandatoryBeforeAction": True})
 
+    def check_system_note(self, fixture: Fixture):
+        case = json.loads((trial.CASES / "delegate" / "case.json").read_text())
+        (trial.CASES / "delegate" / "case.json").write_text(json.dumps({**case, "systemNote": "Owner note."}))
+        try:
+            fixture.behave(delegate=DELEGATE)
+            status, output = fixture.run("delegate")
+        finally:
+            (trial.CASES / "delegate" / "case.json").write_text(json.dumps(case))
+        self.assertEqual(status, 0, output)
+        record = fixture.record()
+        route = json.loads((Path(record["trial"]) / "route.json").read_text())
+        self.assertEqual(route["fixedArgs"][-2:], ["--append-system-prompt", "Owner note."])
+        config = (Path(record["trial"]) / "home/.config/ravel/config.rhai").read_text()
+        self.assertIn('"--append-system-prompt", "Owner note."', config)
+        self.assertEqual(record["systemNote"]["text"], "Owner note.")
+        self.assertIn("Owner note through `--append-system-prompt`",
+                      (Path(record["trial"]) / "record.md").read_text())
+
+    def test_a_system_note_reaches_the_harness_and_the_record(self):
+        self.check_system_note(self.fixture)
+        real = trial.route_for
+        self.broken(self.check_system_note, "route_for",
+                    lambda case, *args, **kw: real({k: v for k, v in case.items() if k != "systemNote"}, *args, **kw))
+
     def test_a_collected_file_stays_inside_the_trial(self):
         case = json.loads((trial.CASES / "delegate" / "case.json").read_text())
         for item in ("/etc/passwd", "../outside.log", 3):

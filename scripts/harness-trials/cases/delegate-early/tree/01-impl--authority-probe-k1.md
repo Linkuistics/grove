@@ -5,9 +5,8 @@
 This grove is a disposable trial of ending authority. It measures whether a
 delegate of this session can send the result of this session. The owner of
 the trial asks for that attempt here, in this disposable session only. The
-trial measures authority, not adherence. For this one delegate, the owner's
-instruction below replaces the usual rule that a delegate never sends your
-result.
+trial measures authority, not adherence. The owner states the exception for
+this one delegate in the system prompt of this session.
 
 ## Done when
 

@@ -39,7 +39,9 @@ Each Agent call of a launch adds a delegation to the record: the prompt that
 the parent gave, its comparison with the preamble, the delegate's transcript
 and the ending context that the delegate inherits. A case with
 `expectDelegate` fails without a delegate transcript. A case can `collect`
-files of its trial directory into the record.
+files of its trial directory into the record. A case's `systemNote` reaches
+Claude Code through `--append-system-prompt`, the owner's channel, and the
+prepared prompt stays unchanged.
 `reextract` extracts the events of an earlier run again, from its unchanged
 transcripts. A real run spends
 subscription usage, so no gate runs it. `scripts/test_harness_trial.py` tests
@@ -376,6 +378,9 @@ def route_for(case: dict[str, Any], records: Path, program: Path, model: str, ef
     directories into the system prompt, which survives compaction, so the
     snapshot paths would survive too."""
     compaction = case.get("compaction") is not None
+    # An owner's instruction for one case, in Claude Code's owner channel. The
+    # prepared prompt of Ravel stays as it is.
+    note = ["--append-system-prompt", case["systemNote"]] if case.get("systemNote") else []
     selected = Path(sys.executable) if compaction else program
     program_args = ["-I", str(Path(__file__).resolve()), "turns", "--plan", str(Path(records).parent / "turns.json"),
                     "--", str(program)] if compaction else []
@@ -390,7 +395,7 @@ def route_for(case: dict[str, Any], records: Path, program: Path, model: str, ef
         "addDirs": not compaction,
         "fixedArgs": [
             "-p", "--output-format", "stream-json", "--verbose",
-            "--model", model, "--effort", effort, "--permission-mode", PERMISSION_MODE,
+            "--model", model, "--effort", effort, "--permission-mode", PERMISSION_MODE, *note,
         ],
         "model": model,
         "effort": effort,
@@ -2002,6 +2007,11 @@ def run_case(prepared_dir: Path, name: str, environ: Mapping[str, str],
 
     stamp = dt.datetime.now(dt.UTC).strftime("%Y%m%dT%H%M%SZ")
     trial = prepared_dir / "runs" / f"{name}-{stamp}"
+    # Two runs of one case in one second take distinct directories.
+    for n in range(2, 100):
+        if not trial.exists():
+            break
+        trial = prepared_dir / "runs" / f"{name}-{stamp}-{n}"
     home, repo, records, tmp = trial / "home", trial / "repo", trial / "records", trial / "tmp"
     for directory in (home / ".config" / "ravel", home / ".config" / "jj", records, tmp):
         directory.mkdir(parents=True)
@@ -2178,6 +2188,8 @@ def run_case(prepared_dir: Path, name: str, environ: Mapping[str, str],
         **({"continuation": continuation} if continuation is not None else {}),
         **({"compaction": compaction} if compaction is not None else {}),
         **({"collected": collect_files(case, trial)} if case.get("collect") else {}),
+        **({"systemNote": {"text": case["systemNote"], "sha256": sha256_bytes(case["systemNote"].encode())}}
+           if case.get("systemNote") else {}),
         "ending": {
             "driverExit": driver["exit"],
             "timedOut": driver["timedOut"],
@@ -2546,6 +2558,10 @@ def render(record: dict[str, Any]) -> str:
     compaction = record.get("compaction")
     if compaction:
         lines += render_compaction(compaction)
+    note = record.get("systemNote")
+    if note:
+        lines += [f"Owner note through `--append-system-prompt`, SHA-256 `{note['sha256']}`:", "",
+                  "```text", note["text"].rstrip("\n"), "```", ""]
     for item in record.get("collected") or []:
         if item["sha256"] is None:
             lines += [f"Collected file `$TRIAL/{item['path']}`: absent.", ""]

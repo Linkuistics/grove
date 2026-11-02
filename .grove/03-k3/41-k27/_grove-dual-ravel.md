@@ -40,6 +40,54 @@ The planner consumes delivered Ravel builds before it cuts caller, version and
 installed-distribution increments. A version predicate change alone cannot
 establish compatibility or justify publication.
 
+grove-dual-ravel-k28 cut these increments. Each leaves Grove green and the
+TypeScript route unchanged:
+
+1. `grove-ravel-runtime-fixtures-k94`: the test seam selects the runtime
+   explicitly. Fixture configurations prove the native route on 2.0 for both
+   callers.
+2. `grove-rhai-static-assets-k95`: the shared case table, the Rhai sample and
+   the Rhai static example.
+3. `grove-rhai-review-assets-k96`: the Rhai review adapter, review examples and
+   provider-evidence wrapper, with cross-runtime receipts.
+4. `grove-ravel-two-admission-k97`: admission of 2.x from 2.0.0, its remedy,
+   the native-route documentation and the books.
+5. `grove-directory-lifecycle-k98`: the directory route through the lifecycle
+   caller, settings isolation and lifetime. It then advertises the route.
+6. `grove-directory-confinement-k99`: the confined standalone route, and the
+   unreadable native case measured separately.
+7. `grove-dual-archive-k100`: both asset sets in the archives, formula and
+   installed smoke.
+8. `grove-dual-target-inputs-k101`: the 2.0 lane of the pinned inputs, target
+   and floor smoke, and legacy-driver continuity.
+9. `grove-dual-ravel-handoff-k102`: full checks with each explicit build, and
+   the stage record for k29 and k6.
+
+Admission follows both asset leaves, because the delivery specification admits
+2.x only after the Rhai assets pass. The directory leaves follow admission, so
+the route is advertised last.
+
+## Builds and homes
+
+- **The 1.1 build.** The Homebrew keg `/opt/homebrew/Cellar/ravel/1.1.0`. Its
+  `bin/ravel` SHA-256 is `c52f990b2059c8bbe8efba10a741d3a0311000ac1712d71e882638f54c3ac1ed`, and its worker build identity is
+  `fa130cc262cfb22541798debe937ecd9e81488ebef494d873d377978808c9d9c`. It is also the ending executable of the live driver.
+  Read it, and copy it into fixture prefixes. Never upgrade, unlink or change it.
+- **The 2.0 build.** The directory build of ravel-local-sources-k90: build
+  commit `78332fcc367d`, output commit `4f831feb4d0f` and build identity
+  `9feb86b7982a3920f738b96ffd2d6e6bc1744d6345b87451196e9299721fb234`. Install it with `task install PREFIX=<scratch prefix>`
+  from the workspace `Ravel.skill-directory-delivery` with an empty working
+  copy. k90 recorded the `bin/ravel` SHA-256 `151635d25169e6a76c7eed0a1de64af661b3d77554c9bbef88ab85a59afb823d`. The build
+  reports `ravel 1.1.0`, so identify it by commit and build identity. It
+  installs one executable and no `libexec/ravel` worker.
+- **A changed line.** If rollout rebases the bookmark before this node closes,
+  record the new commits and identity. Do not move the bookmark here.
+- **Homes.** Each route runs in its own temporary HOME, never the real one. The
+  1.1 HOME holds `policy.ts` with schema 2 and settings with only `timeoutMs`,
+  `contextBytes` and `policyEnv`. The native 2.0 HOME holds `config.rhai` with
+  `SCHEMA_VERSION` 4 and no `skills`. The directory HOME adds a `skills` object
+  whose sources have `type` `local`.
+
 ## Pointers
 
 `docs/specs/codex-skill-provisioning.md`, especially Supported routes,

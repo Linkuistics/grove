@@ -39,6 +39,19 @@ recorded installed-pair inputs of the preceding local node. Use the repaired
 contract from ravel-rhai-skill-delivery-k34, not the historical TypeScript and
 schema-3 design. Follow the repository instructions of Ravel.
 
+ravel-local-handoff-k61 closed the local node. Its output commit is
+`1d50dae5d29ee5f54e00a2259d392b407ec6509d` on the local bookmark
+`skill-directory-delivery`, in the workspace `Ravel.skill-directory-delivery`.
+That commit changes only the evidence record. Its parent
+`6436e66fdb308e1c06ee683b6e1b7bc341fabe8b` is the build commit, with the build
+identity `2ee59f33657690da4facfb7d055527cd3fd12268494dc03bb48e7c0e954bf312`.
+The base is `main` `24a545236185`.
+
+The "Local stage record" section of the
+Ravel design evidence holds the build inputs, the checks and the installed-pair
+smoke. Rerun that smoke with `task smoke:pair OLD=<1.1 executable> NEW=<prefix>`
+on macOS.
+
 ## Settled inputs
 
 - The identity is that of the local stage: the combined Ravel 2.0.0, script and

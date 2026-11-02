@@ -235,3 +235,16 @@ The reviewed Grove contract is the k35 commit with the k52 change. The shared
 case table states the expected outcome for each runtime. The dual-Ravel stage
 moves the runtime-neutral definition of a blank label into
 `docs/grove-provider-evidence.md`.
+
+ravel-local-handoff-k61 closed the local node ravel-local-delivery-k23. The
+local stage output is Ravel commit `1d50dae5d29e`, on the unpushed bookmark
+`skill-directory-delivery`, above `main` `24a545236185`. Its parent
+`6436e66fdb30` is the build commit, with the build identity `2ee59f33657690da`.
+The build reports `ravel 1.1.0`. A valid Git source refuses with status 3 until
+the pinned stage.
+
+The "Local stage record" section of the Ravel design evidence holds the build
+inputs and checks. On macOS, `task smoke:pair OLD=<1.1 executable>
+NEW=<prefix>` runs the Homebrew 1.1.0 release and a directory build at the same
+time. Each run has its own temporary home, and a guard denies both the real
+home. The dual-Ravel stage can reuse that task for its installed pair.

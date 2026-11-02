@@ -29,6 +29,29 @@ The child planner consumes actual local-delivery implementation. Git transport
 and extraction must reach existing public readers in each working increment.
 Private acquisition machinery alone does not close this node.
 
+`ravel-pinned-delivery-k26` grew these ordered children. Each one leaves the
+line green with useful public behaviour at both seams.
+
+1. `ravel-git-acquire-k70`: online exact acquisition, extraction, transport
+   hygiene and the Git source record. It removes the temporary refusal.
+2. `ravel-git-offline-k71`: the acquisition key record, the checked cache hit
+   with no network or Git, corruption, pin changes and key-record races.
+3. `ravel-git-bounds-k72`: the deadline, cancellation, child reaping, bounded
+   redacted diagnostics and size bounds before extraction.
+4. `ravel-git-confinement-k73`: confined reads, harness runs, lifetime and
+   nested sessions with Git and mixed sources, on both backends.
+5. `ravel-git-install-k74`: the formula decision, the installation
+   documentation and installed checks of a miss with Git and a hit without it.
+6. `ravel-pinned-handoff-k75`: the final rebase check, the acceptance row
+   record, documentation, a temporary installed pair and the recorded commits.
+
+Every child works in the workspace `Ravel.skill-directory-delivery`. It
+advances the bookmark `skill-directory-delivery` by jj and never pushes it. It
+records its Ravel output commit in its running log and its Grove commit
+message. It runs the Ravel tasks that its change touches. It moves the book,
+the examples and `CHANGELOG.md` with its behaviour. A producer that earns a
+`review-impl` inserts it before `ravel-pinned-handoff-k75`.
+
 ## Pointers
 
 Use the reviewed `docs/specs/skill-discovery.md` of Ravel, with its exact-Git,

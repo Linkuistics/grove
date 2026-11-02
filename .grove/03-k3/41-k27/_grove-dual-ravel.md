@@ -51,7 +51,8 @@ grove-rhai-skill-delivery-k35.
 The reviewed Ravel contract is commit `822c0ed2f67d` on the bookmark
 `skill-directory-delivery`, narrowed to local sources at `7a894c782037` by
 ravel-local-sources-k78. The directory build is the output of
-ravel-local-sources-k90. Grove's adoption contract is the commit that
+ravel-local-sources-k90: output commit `4f831feb4d0f`, build commit
+`78332fcc367d` and build identity `9feb86b7982a3920`. Grove's adoption contract is the commit that
 retires grove-rhai-skill-delivery-k35, with the change that
 grove-rhai-skill-delivery-k52 made. That integration of the review
 grove-rhai-skill-delivery-k51 added the Runtime parity section of the delivery

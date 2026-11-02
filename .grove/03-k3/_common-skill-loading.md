@@ -205,9 +205,10 @@ the actual owner cutover. Old lazy readers and the final session's guidance
 must remain readable.
 
 The directory feature stays unpublished through local, dual-Ravel and
-actual-harness acceptance. The local build refuses a Git source with status 3
-and no stable public code. ravel-local-sources-k90 replaces that temporary
-refusal with the permanent refusal of k78 and removes its fixture.
+actual-harness acceptance. ravel-local-sources-k90 replaced the temporary Git
+refusal of the local build with the permanent refusal of k78. A `type` other
+than `local` now refuses as `settings_invalid`, exit 2, with the checkout
+remedy.
 
 ravel-rhai-skill-delivery-k34 settled the feature identity. The feature ships
 in the combined Ravel 2.0.0, with script and request schema 4. A schema-3
@@ -258,8 +259,15 @@ ravel-local-handoff-k61 closed the local node ravel-local-delivery-k23. The
 local stage output is Ravel commit `1d50dae5d29e`, on the unpushed bookmark
 `skill-directory-delivery`, above `main` `24a545236185`. Its parent
 `6436e66fdb30` is the build commit, with the build identity `2ee59f33657690da`.
-The build reports `ravel 1.1.0`. A valid Git source refuses with status 3 until
-ravel-local-sources-k90.
+The build reports `ravel 1.1.0`.
+
+ravel-local-sources-k90 found Ravel `main` still at `24a545236185` and needed
+no rebase. Its build commit is `78332fcc367d`, above `7a894c782037`. Its output
+commit `4f831feb4d0f` is now the tip of the unpushed bookmark
+`skill-directory-delivery`. The build identity is `9feb86b7982a3920`, and the
+build reports `ravel 1.1.0`. The "Local-sources stage record" section of the
+Ravel design evidence holds its inputs and checks. This build is the directory
+build of grove-dual-ravel-k27.
 
 The "Local stage record" section of the Ravel design evidence holds the build
 inputs and checks. On macOS, `task smoke:pair OLD=<1.1 executable>

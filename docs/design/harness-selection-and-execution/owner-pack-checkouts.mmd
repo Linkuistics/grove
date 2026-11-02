@@ -3,7 +3,7 @@ flowchart TB
         direction TB
         A["Start here · Pack commit<br/>published on its remote"]
         B["Owner edits the ref<br/>in [bootstrap.repos]"]
-        C["mise -C HOME bootstrap repos apply<br/>only while no launch runs<br/>fetches, then checks out the ref"]
+        C["mise -C HOME bootstrap repos apply<br/>only while nothing captures it<br/>fetches, then checks out the ref"]
         E{"Fetch succeeds?"}
         D[("Pack checkout<br/>~/.local/share/skill-packs/ID")]
         F["Checkout unchanged<br/>status reports differs"]

@@ -73,13 +73,14 @@ public integration. Neither duplicates Ravel's private runtime contract.
 The current discussion settles who installs the pack checkouts and keeps them
 current, now that Ravel reads local directories only. The human approved the
 owner's tool and the pin policy. mise is the owner's choice, and Ravel and
-Grove name no checkout tool. See the
+Grove name no checkout tool. The focused review of this design is
+integrated. See the
 [owner delivery specification](../../specs/owner-skill-delivery.md#pack-checkouts)
 and its [evidence](../../owner-skill-delivery-evidence.md#pack-checkouts).
 
-- [Pack checkouts outside Ravel](http://127.0.0.1:52710/#diagram-owner-pack-checkouts) — Added the owner's checkout tool, the pin advance, the offline fetch failure and the missing-source refusal.
-- [Ordered owner cutover](http://127.0.0.1:52710/#diagram-owner-cutover) — Added pack publication, the drafted checkout entries, the checkout clone in preparation, and the `grove-core` pin advance with a clean status inside finish.
-- [Finish keeps its guidance through the switch](http://127.0.0.1:52710/#diagram-owner-final-session) — Added the `grove-core` pin advance before the probes. The probes capture the pack checkouts.
+- [Pack checkouts outside Ravel](http://127.0.0.1:52710/#diagram-owner-pack-checkouts) — Added the owner's checkout tool, the pin advance, the offline fetch failure and the missing-source refusal. An advance runs only while nothing captures the checkout.
+- [Ordered owner cutover](http://127.0.0.1:52710/#diagram-owner-cutover) — Added pack publication, the drafted checkout entries, the credential control and staging clones before the trials, and the checkout clone in preparation. Inside finish, the core tree comparison precedes the `grove-core` pin advance. A stop before the native switch and an inverse after a failed probe both leave a pending-activation record, and the switch runs again.
+- [Finish keeps its guidance through the switch](http://127.0.0.1:52710/#diagram-owner-final-session) — Added the core tree comparison and the `grove-core` pin advance before the probes. The probes capture the pack checkouts.
 
 ## Earlier delivery changes
 

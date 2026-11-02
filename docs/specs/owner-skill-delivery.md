@@ -4,7 +4,8 @@ This design moves the owner's installed skill collection from native harness
 installations to Ravel's directory delivery. Its focused design review is
 integrated. Ravel later narrowed delivery to local directories, and the section
 [Pack checkouts](#pack-checkouts) replaced the earlier policy of Git sources.
-The design changes no installation, setting or file on the owner's machine.
+The focused review of that change is also integrated. The design changes no
+installation, setting or file on the owner's machine.
 The [evidence document](../owner-skill-delivery-evidence.md) records the
 inputs, and [the baseline](../owner-skill-inventory.tsv) classifies each
 installed entry.
@@ -136,6 +137,9 @@ These rules bind the layout. The research-pack proof settles the exact paths.
   skills and plugin-only trees outside every root.
 - Keep each relative symlink inside its source. Ravel refuses absolute and
   escaping links. The baseline found no link in any delivered skill.
+- Use no Git attribute that changes the bytes of a checkout, such as a filter
+  or an end-of-line conversion. The tree ID of a source directory then identifies the
+  bytes that Ravel captures from a clean checkout.
 
 The first pins are known: superpowers
 `bb92a77741419a4ab5f06e711a283343f1ada0c3` and quint-llm-kit
@@ -202,6 +206,19 @@ The `grove-core` pin follows Grove's releases. After each Grove release, the
 owner advances it to the released commit. Without that advance, the installed
 Grove and the delivered spine can differ.
 
+During this cutover, the staging trials accept a candidate pin for
+`grove-core`. The core layout reaches `main` only in finish, so the candidate
+is a published commit of this workstream's line. Later leaves can still change
+the core skills. The candidate is therefore the last commit of the line that
+changes the `grove-core` source directory. A later change needs a new
+candidate and a rerun of the trials that read `grove-core`.
+
+A committed evidence document records the Git tree ID of the `grove-core`
+source directory at the candidate, from `git rev-parse <commit>:<path>`. The
+tree ID covers the bytes, the executable bits and the links. A clean checkout
+holds no other file. Before finish, rollout shows that the final line has the
+same ID. The switch compares the ID again at the released commit.
+
 Nobody edits a pack checkout or runs a tool inside it. Development happens in
 the working copy of each pack under `~/Development/AgenticOrchestration`.
 `apply` refuses a checkout with local changes, and Ravel would capture those
@@ -209,9 +226,33 @@ changes. The status command does not see a file that Git ignores, such as
 `__pycache__`, but Ravel captures it. In a clean checkout,
 `git status --porcelain --ignored` prints nothing.
 
-An advance runs only while no Ravel launch runs. A capture during the change of
-a checkout refuses as `skill_source_changed`. Ravel's capture is not atomic, so
-it can also retain a mix of two commits.
+An advance needs an interval in which nothing captures the checkouts that it
+changes. A capture during the change of a checkout refuses as
+`skill_source_changed`. Ravel's capture is not atomic, so it can also retain a
+mix of two commits.
+
+Ravel captures a checkout at each `ravel start-session` and each
+`ravel skills resolve` whose settings name it. A Grove launch, `grove run` and
+the release notes of a release task reach Ravel through `start-session`. Any
+harness session can run either command, also a session that Ravel launched. A
+Ravel 1.1 launch captures nothing. Settings without a `skills` key capture
+nothing either. A running session reads its retained snapshot until it runs
+Ravel again.
+
+Every `apply` and every complete `mise bootstrap` counts as an advance. A pin
+that `mise dot sync` brought from another machine moves a checkout without a
+local edit.
+
+Before an advance, the owner lists the live Claude Code, Codex, Pi, Grove and
+Ravel processes, as switch step 1 does. The owner ends each other harness
+session and each Grove driver, or waits for it to end. Until `apply` ends, the
+owner runs no Ravel command and no release task. A session can do the advance
+and keep its own driver. That driver launches the next session only after this
+session ends. The session runs no Ravel command until `apply` ends.
+
+Preparation and the switch need no stop. The real HOME's settings name no skill
+source until the switch writes them. Switch step 1 finds no other Ravel or
+Grove process, and finish's own launch is a Ravel 1.1 launch.
 
 An unpublished edit reaches a launch only through trial settings in a staging
 HOME. Those settings can name a development working copy as a `local` source.
@@ -374,12 +415,52 @@ copies no credential.
 The staging checkouts lie outside the staging HOME. A trial clones them with
 the drafted `[bootstrap.repos]` entries under a separate checkout HOME. mise's
 state and the symbolic links inside a pack repository therefore add no link to
-the staging HOME. The checkout run sets `GIT_CONFIG_NOSYSTEM=1` and
-`GIT_TERMINAL_PROMPT=0`, and its HOME holds no Git configuration. A remote that
-needs a credential then fails the trial without a read of the real keychain.
+the staging HOME.
+
+The environment of the checkout run holds only these variables, as the
+environment of the `task owner:checkouts` fixture does:
+
+| Variable | Value |
+| --- | --- |
+| `PATH` | The directories of the selected `git` and `mise`, then `/usr/bin` and `/bin` |
+| `HOME` | The checkout HOME |
+| `XDG_CONFIG_HOME`, `XDG_DATA_HOME`, `XDG_STATE_HOME` and `XDG_CACHE_HOME` | Directories inside the checkout HOME |
+| `MISE_CONFIG_DIR`, `MISE_DATA_DIR`, `MISE_STATE_DIR` and `MISE_CACHE_DIR` | Directories inside the checkout HOME |
+| `GIT_CONFIG_NOSYSTEM` | `1` |
+| `GIT_CONFIG_GLOBAL` | The null device |
+| `GIT_TERMINAL_PROMPT` | `0` |
+
+No inherited Git configuration, credential program or SSH agent reaches the
+run. The system configuration of both installed Git builds names
+`osxkeychain`. The owner's global configuration is on the XDG path and names
+Git Credential Manager. Each of these inherited variables would expose a
+helper: `XDG_CONFIG_HOME`, `GIT_CONFIG_GLOBAL`, `GIT_CONFIG_COUNT`,
+`GIT_CONFIG_PARAMETERS` and, without `GIT_CONFIG_NOSYSTEM`,
+`GIT_CONFIG_SYSTEM`. `GIT_ASKPASS` and `SSH_ASKPASS` name further credential
+programs, and `GIT_TERMINAL_PROMPT` does not disable them. These seven
+variables are the credential routes.
+
+A fixture control proves the allowlist before the first clone from a real
+remote. It runs in a fixture HOME, and it never uses the real keychain:
+
+1. Serve a local remote that asks for a credential.
+2. Give a decoy helper that writes a marker file and returns no credential.
+3. Build one case for each route. Its environment is the allowlist without
+   the entry that blocks the route, with the route added.
+4. Clone in each case through `mise -C <fixture HOME> bootstrap repos apply`.
+   The marker must appear in each case.
+5. Put every route into the parent environment, and build the allowlist from
+   that environment.
+6. Clone through that allowlist with the same command. The clone must fail,
+   and no marker may appear.
+
+A remote that needs a credential then fails the trial without a read of the
+real keychain.
 
 The staging settings name the staging checkouts by absolute path. They differ
-from the drafted real settings only in those paths.
+from the drafted real settings only in those paths. The staging HOME and the
+checkout HOME stay until the switch writes its receipt, because step 4 of the
+switch can need them.
 
 Each harness reuses only its sign-in store from the real HOME. Sign-in and
 harness configuration have different owners, so no link may join them.
@@ -463,42 +544,92 @@ Grove/Ravel pair. Its steps are:
    changed entry. Also stop on any `UNCLASSIFIED`, `UNASSIGNED`, `UNCOVERED` or
    `NEEDS-REVIEW` row. Compare the built-in rows, whose digest says
    `unverified`, with finish's own skill listing.
-4. Advance the `grove-core` pin to the commit of the Grove release that finish
-   published. Run `mise -C "$HOME" bootstrap repos apply`.
-5. Run `mise -C "$HOME" bootstrap repos status --missing`, and stop unless it
+4. Read the Git tree ID of the `grove-core` source directory at the commit of
+   the Grove release that finish published. Compare it with the candidate's
+   ID in the committed staging evidence. If the IDs differ, rerun the staging
+   trials that read `grove-core` with the released commit. They run in the
+   retained staging HOME, under the environment rule of step 10. Stop if one
+   fails.
+5. Advance the `grove-core` pin to the released commit. Run
+   `mise -C "$HOME" bootstrap repos apply`. Nothing captures a checkout
+   meanwhile, as [Pack checkouts](#pack-checkouts) states.
+6. Run `mise -C "$HOME" bootstrap repos status --missing`, and stop unless it
    exits 0. In each pack checkout, `git status --porcelain --ignored` must
-   print nothing.
-6. Record the reader evidence. Name each plugin cache version directory that
+   print nothing. Each pin in the tracked file must equal its accepted pin in
+   the staging evidence. For `grove-core`, the accepted pin is the released
+   commit that step 4 admitted.
+7. Record the reader evidence. Name each plugin cache version directory that
    finish loaded and its registration in `installed_plugins.json`. Stop if any
    of those directories holds `.orphaned_at`.
-7. Write the backup: copies of the affected settings and registry files, the
+8. Write the backup: copies of the affected settings and registry files, the
    manifest and the inverse operation.
-8. Apply the switch as one operation. Write the real-HOME Ravel skill
+9. Apply the switch as one operation. Write the real-HOME Ravel skill
    settings. Disable the superseded plugins and enable the two skill-free
    plugins. Move each superseded file-system entry into the backup's retained
-   tree at its original relative path.
-9. Verify with the rehearsed probes. They resolve the sources through the
+   tree at its original relative path. If any part fails, apply the inverse
+   operation.
+10. Verify with the rehearsed probes. They resolve the sources through the
    promoted `ravel` and the real HOME's configuration. Then they launch one
-   Claude Code session and one Codex session by that route.
-10. On any failed probe, apply the inverse operation and verify the native
-   route. Then end without a success signal.
-11. Write the receipt into the maintained manual and run `mac-check`.
+   Claude Code session and one Codex session by that route. Each probe runs
+   outside every Grove workspace. Its environment holds none of Grove's loop
+   control variables, which the
+   [harness specification](harness-selection-and-execution.md#environment)
+   lists.
+11. On any failed probe, apply the inverse operation and verify the native
+   route.
+12. Write the receipt into the maintained manual and run `mac-check`.
+
+Steps 1 to 8 change no native entry and no Ravel setting. A stop in those
+steps therefore leaves native delivery working with the published Grove and
+the promoted Ravel. The inverse operation of step 9 or step 11 restores the
+same state. A failed `apply` keeps the edited pin. The tracked file then names
+the released commit, and the status command reports `differs`. No launch
+captures the checkout, because the real HOME's settings name no skill source
+then.
+
+After a stop or an inverse, finish continues as follows:
+
+1. Write a pending-activation record into the maintained manual. Name the
+   published Grove version and its release commit, and the promoted Ravel path
+   and version. Add the edited pin, the output of `status --json` and the
+   output of the failed step or probe.
+2. Report the failure, and ask the owner to repair its cause.
+3. Run the switch again from step 1.
+4. If the session must end before the switch succeeds, end it with the stop
+   command of its launch prompt. Never send the success signal.
+
+After such an end, the owner runs the same prepared switch from step 1, outside
+any Grove session. That run tears down and promotes nothing, and it releases
+nothing except a patch release that a repair needs. One Claude Code session
+runs it and takes finish's place in steps 1, 3 and 7. The receipt replaces the
+pending-activation record.
+
+A failed trial in step 4 can need a change to the released core skills. The
+owner then publishes a Grove patch release through `task release:patch`, and
+the switch uses that release. No repair cuts or promotes Ravel again.
 
 Each probe must observe these results:
 
 - The mandatory file is read before the task's first action.
 - A craft skill is read before the action it governs, although the task does
   not name it.
+- A Grove kind skill that the task names is read from the `grove-core`
+  snapshot. The kind is not `finish`, and the task asks only for one quoted
+  line.
 - A TestAnyware resource is read, and `testanyware doctor` runs.
 - On Claude Code, the technical-communication hooks run.
 - Native discovery lists no superseded skill.
 
 After the probes launch, finish reads one of its own guidance files again by
-its recorded cache path.
+its recorded cache path. A failed read counts as a failed probe. The receipt
+records the result of `mac-check`. A failure there does not reverse a switch
+whose probes passed. Finish reports it, and the owner repairs it under the
+machine contract.
 
 The receipt records the activated default path: the Grove version, the Ravel
 path and version, and the digests of `config.rhai` and the settings. It also
-records each source's checkout path, pin and snapshot digest. It records the
+records each source's checkout path, pin and snapshot digest. For `grove-core`,
+it records both tree IDs and each trial that step 4 ran again. It records the
 reader evidence, the backup location and each retained byte set with its purge
 condition. The [finish decision](../adr/finish-promotes-after-the-grove-release.md)
 records why this runs inside finish.
@@ -513,8 +644,8 @@ native probe on both harnesses verifies the result.
 After finish, the owner can apply the same inverse operation while the backup
 and the plugin caches exist. Otherwise, the supported return to native delivery
 installs the current marketplace plugins. No rollback erases Ravel snapshots.
-Rollback keeps the pack checkouts and their mise entries. No harness discovers
-skills in them.
+Rollback keeps the pack checkouts, their mise entries and the advanced
+`grove-core` pin. No harness discovers skills in them.
 
 ### Purge
 
@@ -578,19 +709,30 @@ with the coordinated release work.
 | Order | Owner | Step | Done when |
 | --- | --- | --- | --- |
 | 1 | This design | Baseline, classification and contract | The baseline and this design are committed and reviewed |
-| 2 | Repository moves | Move every owner-pack and selected third-party entry with its resources. Supply the three packaging changes. Publish each pack repository on its remote. | Each moved skill's content and resources match the baseline or a recorded change. Each pack has a published commit for its pin |
+| 2 | Repository moves | Move every owner-pack and selected third-party entry with its resources. Supply the three packaging changes. Publish each pack repository on its remote. Publish this workstream's line, which holds the `grove-core` candidate. | Each moved skill's content and resources match the baseline or a recorded change. Each pack has a published commit for its pin |
 | 3 | k38 | Re-inventory, compare per entry, classify each new entry | No entry stays unassigned |
-| 4 | k38 leaves | Convert `policy.ts` to `config.rhai`. Draft the Ravel skill settings, the `[bootstrap.repos]` entries and the residue plan. | The drafts pass under the staging HOME |
-| 5 | k38 leaves | Run the staging trials on both harnesses with the accepted feature build | Each trial below passes or carries a recorded scope decision |
+| 4 | k38 leaves | Convert `policy.ts` to `config.rhai`. Draft the Ravel skill settings, the `[bootstrap.repos]` entries and the residue plan. | The drafts are committed. No draft launches a session before the clones of order 5 |
+| 5 | k38 leaves | Run the staging trials on both harnesses with the accepted feature build | The drafts pass under the staging HOME. Each trial below passes or carries a recorded scope decision. The evidence names each accepted pin and the tree ID of the `grove-core` candidate |
 | 6 | k38 leaves | Prepare the real HOME without changing discovery. Add the `[bootstrap.repos]` entries, clone the pack checkouts with `mise -C "$HOME" bootstrap repos apply` and add the status command to `mac-check`. Freeze automatic updates of the earlier marketplace. Rehearse the switch, the probes and the inverse in disposable layouts. | The status command exits 0. The rehearsal restores every rehearsed layout byte for byte |
 | 7 | Finish | Run the switch after promotion | The probes pass and the receipt is in the manual |
 | 8 | Owner | Purge retained bytes | The purge conditions hold |
 
-The isolation trial in
-[Settings isolation and the staging HOME](#settings-isolation-and-the-staging-home)
-runs first. The staging trials then clone the pack checkouts from the remotes
-with the drafted entries. They cover implicit craft discovery and the
-mandatory read order. They cover a TestAnyware resource read and real VM tool use. They also
+The staging trials run three steps first, in this order:
+
+1. Run the credential control of
+   [Settings isolation and the staging HOME](#settings-isolation-and-the-staging-home).
+2. Clone the pack checkouts from the remotes into the checkout HOME, with the
+   drafted entries. Write the staging settings with those paths.
+3. Run the isolation trial of that section.
+
+The clones launch no harness, so the isolation trial is still the first trial
+that launches a session. The trials use the accepted feature build. After the
+Ravel cut, rollout verifies the pins again against the published archives, as
+step 5 of the [coordinated release design](coordinated-release.md) states.
+
+The other trials cover implicit craft discovery and
+the mandatory read order. They cover a Grove kind skill that the task names, a
+TestAnyware resource read and real VM tool use. They also
 cover the Quint and codebase-memory MCP servers, the Claude Code hooks and
 `/guardrail`. Each harness also runs one delegate, one compaction and one
 stale-copy coexistence case.
@@ -620,6 +762,8 @@ Obsidian `AI Dev Tooling` note. It still names the earlier
   with a fixture origin. Its `--mutate` run must fail.
 - Staging trials use Ravel's public `start-session` and `skills resolve` with
   the actual harnesses. They clone the pack checkouts from the real remotes.
+  A decoy-helper control must show a helper call through each inherited
+  route, and none through the allowlist, before the first such clone.
 - The switch and its inverse have a dry run against the manifest. Rehearsals
   use disposable layouts. Only finish runs the switch against the real HOME.
 - After the switch, the real-HOME probes, `mac-check` and the AI tooling status

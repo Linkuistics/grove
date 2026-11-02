@@ -32,3 +32,6 @@ ravel-local-sources-k78 and owner-pack-checkouts-k79.
 ## Notes
 
 Use the committed outputs of k78 and k79. Do not repeat their design work.
+owner-pack-checkouts-k82 integrated the review of k79. Take the root-brief
+text from the handoff in k82, not from k79. That handoff also lists the
+obligations that the integration added.

@@ -116,9 +116,13 @@ failure there ends without a successful finish signal.
    behaviour and live book. A tag alone is not completion.
 5. Rollout verifies the final
    [source-pack pins](owner-skill-delivery.md#pack-checkouts) and working Grove against the
-   published Ravel archives. It admits those archives into Grove's pinned
-   independent Ravel inputs by SHA-256, beside the retained 1.1.0 pins, before
-   Grove's release. Complete owner delivery under its separate design,
+   published Ravel archives. The `grove-core` pin can be final only after
+   Grove's release. For that source, rollout verifies the accepted candidate.
+   It shows that the final line has the same tree ID in the source directory.
+   A committed document records that ID. Finish's owner switch compares
+   the ID at the released commit before any change. Rollout admits
+   the archives into Grove's pinned independent Ravel inputs by SHA-256,
+   beside the retained 1.1.0 pins, before Grove's release. Complete owner delivery under its separate design,
    preserving this driver's readers. Supply finish with exact receipts and any
    expressly assigned final activation steps.
 6. Finish receives its one confirmation for the concrete whole sequence. It
@@ -200,6 +204,8 @@ selected formula channel on every retry. Never bump again to finish a cut.
 | Installation/live-book failure | Retry that step only, retaining published identities and old binaries. |
 | Grove release partial | Follow Grove recovery, without another minor bump. Keep unversioned Ravel at 1.1.0. |
 | Promotion partial | Resume its formula/installation operation. Cut neither Ravel nor Grove again. |
+| Promotion complete, owner switch stopped or reversed by its inverse | Keep the pending-activation record. Run the prepared switch again from its first step. Cut, promote and tear down nothing again. |
+| Promotion complete, a core trial of the switch failed on the released Grove | Repair `main` and publish a Grove patch release through its owning procedure. Then run the switch again from its first step. Cut and promote no Ravel again. |
 
 ## Acceptance and limits
 

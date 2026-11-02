@@ -51,14 +51,14 @@
       "group": "owner",
       "title": "Pack checkouts outside Ravel",
       "source": "owner-pack-checkouts.mmd",
-      "caption": "Approved for the owner's machine. The repository part of mise holds each pack checkout at a published commit, the pin. The owner advances a pin by an edit and an apply. Ravel and Grove require no particular tool. Ravel only reads the directory at each launch. A failed offline fetch leaves the previous pin in place. A missing checkout refuses before Ravel launches any worker."
+      "caption": "Approved for the owner's machine. The repository part of mise holds each pack checkout at a published commit, the pin. The owner advances a pin by an edit and an apply. Ravel and Grove require no particular tool. Ravel only reads the directory at each launch. An advance runs only while nothing captures the checkout. A failed offline fetch leaves the previous pin in place. A missing checkout refuses before Ravel launches any worker."
     },
     {
       "id": "owner-cutover",
       "group": "owner",
       "title": "Ordered owner cutover",
       "source": "owner-cutover.mmd",
-      "caption": "Proposed. Ordinary leaves prepare and rehearse; only finish runs the switch against the real HOME. The owner purges retained bytes later, after this driver's reap."
+      "caption": "Proposed. Ordinary leaves prepare and rehearse; only finish runs the switch against the real HOME. A stop before the native change, or an inverse after it, leaves native delivery working, and the same switch runs again. The owner purges retained bytes later, after this driver's reap."
     },
     {
       "id": "owner-final-session",
@@ -168,7 +168,7 @@
   ],
   "discussion": {
     "title": "Who installs the pack checkouts and keeps them current",
-    "status": "Approved by the human on 2026-11-02 — in-session review integrated, design review leaf next",
+    "status": "Approved by the human on 2026-11-02 — focused design review integrated",
     "summary": "Ravel reads local directories only. On the owner's machine, mise's [bootstrap.repos] part owns the pack checkouts, each at a published commit that the owner advances by an edit. mise is the owner's instance, not a requirement: Ravel and Grove name no checkout tool. Ravel's missing-source refusal and retained snapshots stay unchanged.",
     "diagramIds": [
       "owner-pack-checkouts",
@@ -179,15 +179,15 @@
     "updatedDiagrams": [
       {
         "id": "owner-pack-checkouts",
-        "summary": "Added the owner's checkout tool, the pin advance, the offline fetch failure and the missing-source refusal, and marked mise as the owner's choice rather than a requirement. An advance runs only while no launch runs."
+        "summary": "Added the owner's checkout tool, the pin advance, the offline fetch failure and the missing-source refusal, and marked mise as the owner's choice rather than a requirement. An advance runs only while nothing captures the checkout."
       },
       {
         "id": "owner-cutover",
-        "summary": "Added pack publication, the drafted checkout entries, the checkout clone in preparation, and the grove-core pin advance with a clean status inside finish."
+        "summary": "Added pack publication, the drafted checkout entries, the credential control and staging clones before the trials, and the checkout clone in preparation. Inside finish, the core tree comparison precedes the grove-core pin advance. A stop before the native switch and an inverse after a failed probe both leave a pending-activation record, and the switch runs again."
       },
       {
         "id": "owner-final-session",
-        "summary": "Finish advances the grove-core pin before the probes, and the probes capture the pack checkouts instead of resolving pinned Git sources."
+        "summary": "Finish compares the core tree ID and advances the grove-core pin before the probes, and the probes capture the pack checkouts instead of resolving pinned Git sources."
       }
     ]
   }

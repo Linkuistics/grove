@@ -275,6 +275,38 @@ Two further observations used the same fixture without the script:
 The `plan` case shows that the plan that `mac-check` runs cannot report a
 missing checkout.
 
+### Credential routes of a clone
+
+On 2026-11-02, read-only `git config --show-origin --get-all credential.helper`
+queries tested the clone environment of the staging trials. They used
+Homebrew Git 2.56.0 and Apple Git 2.54.0, with an empty HOME and decoy files in
+the scratch directory:
+
+| Environment | Helper that Git reports |
+| --- | --- |
+| No `GIT_CONFIG_NOSYSTEM` | `osxkeychain`, from `/opt/homebrew/etc/gitconfig` or the Xcode `gitconfig` |
+| `GIT_CONFIG_NOSYSTEM=1` and `GIT_TERMINAL_PROMPT=0`, with an inherited `XDG_CONFIG_HOME` | The decoy from `$XDG_CONFIG_HOME/git/config` |
+| The same, with an inherited `GIT_CONFIG_GLOBAL` | The decoy from that file |
+| The same, with an inherited `GIT_CONFIG_COUNT` | The decoy, with the origin `command line` |
+| The allowlist of the fixture, with `GIT_CONFIG_PARAMETERS` added | The decoy, with the origin `command line` |
+| The allowlist of the fixture, with `GIT_CONFIG_SYSTEM` added | None, because `GIT_CONFIG_NOSYSTEM=1` blocks it |
+| The allowlist without `GIT_CONFIG_NOSYSTEM`, with `GIT_CONFIG_SYSTEM` added | The decoy from that file |
+| The allowlist of the fixture | None, with exit 1 |
+
+Both builds gave the same results. The owner's global configuration is
+`~/.config/git/config`, on the XDG path, and names Git Credential Manager. The
+current environment sets neither `XDG_CONFIG_HOME` nor `GIT_CONFIG_GLOBAL`.
+These queries read configuration only. They show which helper Git would call,
+not a call. The decoy-helper control of the staging trials observes the call.
+
+### The released commit of `grove-core`
+
+The v22.8.0 release commit `bacb255aba8` changed only `CHANGELOG.md`,
+`Cargo.lock` and `Cargo.toml`. No release file is in a skill directory. The
+tree ID of the `grove-core` source directory therefore changes between the
+candidate and the released commit only if the integration of `main` changes
+that directory.
+
 ## Not measured
 
 - Claude Code's treatment of a root-level `SKILL.md` inside a skill-free
@@ -293,6 +325,7 @@ missing checkout.
 - Built-in Claude Code skills on disk. The baseline lists them from the
   session's skill listing.
 - `mise bootstrap repos apply` against the real remotes.
+- A decoy credential helper against a remote that asks for a credential.
 - The size and capture time of a TestAnyware checkout subdirectory.
 - Ravel's capture of a pack checkout that mise wrote.
 
@@ -339,3 +372,46 @@ changes are the `orphan=no` mark and a file count on 26 Claude Code plugin rows,
 and the renamed form of 15 marketplace-source rows. Six agent rows and four
 tool rows gained a file count. Five tool rows and 14 capability notes have
 fresh text.
+
+The focused review `owner-pack-checkouts-k81` found one P1 and five P2 defects
+in the pack-checkout revision. Its integration `owner-pack-checkouts-k82`
+repaired the specification and its views:
+
+- **An advance rule that excluded the switch.** The rule now forbids a capture
+  of a changing checkout, not a running launch. `ravel skills resolve` is also
+  a capture. A Ravel 1.1 launch and settings without a `skills` key capture
+  nothing.
+- **A weak clone environment.** The specification now gives the allowlist of
+  the fixture and requires a decoy-helper control. The table under
+  [Credential routes of a clone](#credential-routes-of-a-clone) records the
+  routes.
+- **No continuation after a failed apply.** Every stop before the native
+  change keeps native delivery working. Finish writes a pending-activation
+  record and runs the switch again. The owner can run it again after finish,
+  with no release, promotion or teardown.
+- **A core pin chosen after its verification.** Staging records the tree ID of
+  the accepted `grove-core` candidate. The switch compares it with the released
+  commit before any change. A probe and a staging trial read a Grove kind
+  skill.
+- **Clones after the isolation trial.** The credential control and the clones
+  now precede the first harness launch.
+- **A root-brief handoff that named a tool.** The integration leaf holds the
+  repaired text for the replanning leaf.
+
+One in-session reviewer then read the repaired text and found nine defects.
+The integration repaired each of them:
+
+- The `grove-core` candidate is the last core change of the line, and rollout
+  verifies its tree ID before finish. A failed core trial after the release
+  leads to a Grove patch release.
+- A failure in the native change and an inverse after a failed probe share
+  the continuation of a stop.
+- Probes and core trials run outside every Grove workspace, without Grove's
+  loop control variables. They cannot record finish's teardown.
+- Every `apply` and every complete `mise bootstrap` counts as an advance. A
+  process check precedes it.
+- Each case of the credential control uses the allowlist of a fixture HOME as
+  its base, adds one route and clones through mise.
+- Smaller repairs define the owner-run switch and compare every pin with its
+  accepted pin. They also move the draft check after the clones and forbid Git
+  attributes that change the bytes of a checkout.

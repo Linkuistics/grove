@@ -54,13 +54,28 @@ A run that passes only after a prompted retry is a failure of this case.
   differs from the order the kind skill would suggest, so a matching read
   order shows the configured order. Both files have relative references.
 - The runner gains a `standalone` mode. A confined launch can write only in its
-  invocation directory, so the wrapper prints its record and the stream to
-  Grove's run log in the sandbox home. The events then come from the stream.
-- The wrapper probes reads and writes inside the launch, before the harness
-  starts. The runner repeats the same probes unconfined. Ravel seals snapshots
-  read-only by mode, so a failed snapshot write is no sandbox evidence alone.
+  invocation directory. The wrapper therefore prints its record and the stream
+  to Grove's run log in the sandbox home. The events then come from the stream.
+- The wrapper probes reads and writes inside the launch, before it executes
+  the harness. The runner repeats the same probes unconfined. Ravel seals
+  snapshots read-only by mode, so a failed snapshot write is no sandbox
+  evidence alone.
 - The harness program is outside every grant, so the standalone case grants it
   with `--runtime-read`, as an owner grants a credential.
 - The offline resolution runs after the lifecycle launch, with the same HOME,
   under the fixture's network-denying profile and with only the front on PATH.
   A network control and a git control must each be seen to differ.
+- The first record of `discovery` classified most reads as commands, because
+  the agent named the snapshot paths through shell variables. The classifier
+  now resolves plain `NAME=value` assignments, with a broken-runner control. A
+  new `reextract` command extracted the events again from the same
+  transcript. The transcript digest did not change, so the case needed no rerun.
+- Claude Code 2.1.316 exits before its session under Ravel's macOS
+  confinement, because it cannot open `/tmp/claude-<uid>`. As the brief
+  directs, the record states this as a gap, with no unconfined retry. This session
+  tried no in-sandbox workaround. The Keychain lookup of the sign-in would
+  probably fail next, so a temporary-directory workaround would only move the
+  gap. `acceptance-handoff-k106` resolves it.
+- No in-session reviewer. The runner's new paths each have a fake-harness
+  check that fails against a broken runner, and the trial evidence is the
+  transcript itself.

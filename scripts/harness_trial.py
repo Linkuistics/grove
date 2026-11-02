@@ -9,6 +9,7 @@ differs. The trial conventions live in that node's brief and in
 
     harness_trial.py prepare --out DIR --commit COMMIT --ravel FRONT
     harness_trial.py run --prepared DIR --case NAME [--model M] [--effort E]
+    harness_trial.py reextract --trial RUN
 
 `prepare` makes a plain Git checkout of this repository at COMMIT, builds
 `grove` and `grove-llm` from it into a scratch prefix, and checks the Ravel 2.0
@@ -19,9 +20,12 @@ the skill sources, outside every working directory of a trial.
 ("Sandbox home for real harness runs"), a disposable jj repository with the
 case's Grove tree, and the settings of the case's route. It then runs the
 scratch Grove driver with the 2.0 front first on PATH, from an allow-listed
-environment, and writes the case record. A real run spends subscription usage,
-so no gate runs it. `scripts/test_harness_trial.py` tests the runner against
-fake harnesses.
+environment, and writes the case record. A standalone case runs `grove run`
+instead, which Ravel confines. A case can add access probes inside the launch
+and an offline `ravel skills resolve`. `reextract` extracts the events of an
+earlier run again, from its unchanged transcripts. A real run spends
+subscription usage, so no gate runs it. `scripts/test_harness_trial.py` tests
+the runner against fake harnesses.
 
 One test seam exists. HARNESS_TRIAL_PROGRAM names the harness program instead
 of the one on PATH. The fake-harness tests set it, and an owner never does.
@@ -403,11 +407,28 @@ READ_CLASSES = (
 SEPARATORS = {"&&", "||", ";", "|", "&", "\n", "(", ")"}
 
 
+ASSIGNMENT = re.compile(r"^([A-Za-z_][A-Za-z0-9_]*)=(.*)$", re.S)
+VARIABLE = re.compile(r"\$(?:\{([A-Za-z_][A-Za-z0-9_]*)\}|([A-Za-z_][A-Za-z0-9_]*))")
+
+
+def expand(token: str, variables: dict[str, str]) -> str | None:
+    """The token with each `$NAME` or `${NAME}` that the command assigned
+    replaced, or None when another expansion remains."""
+    def value(match: re.Match[str]) -> str:
+        name = match.group(1) or match.group(2)
+        return variables[name] if name in variables else match.group(0)
+
+    expanded = VARIABLE.sub(value, token)
+    return None if "$" in expanded or "~" in expanded else expanded
+
+
 def bash_paths(command: str, cwd: str) -> list[str]:
     """The paths that a Bash command names, in order. A `cd` changes the
-    directory against which later relative paths resolve. A relative token
-    counts when it exists and is `.`, `..`, holds a slash or ends in `.md`. A
-    token with a shell expansion counts not at all."""
+    directory against which later relative paths resolve. A plain assignment
+    `NAME=value` at the start of a command sets a variable, and a later
+    `$NAME` or `${NAME}` takes its value. A relative token counts when it
+    exists and is `.`, `..`, holds a slash or ends in `.md`. A token with any
+    other shell expansion counts not at all."""
     import shlex
 
     try:
@@ -417,18 +438,28 @@ def bash_paths(command: str, cwd: str) -> list[str]:
     except ValueError:
         return PATH_TOKEN.findall(command)
     paths: list[str] = []
+    variables: dict[str, str] = {}
     here = cwd
     first = True
     pending_cd = False
-    for token in tokens:
-        if token in SEPARATORS or set(token) <= set("<>&|;"):
+    for raw in tokens:
+        if raw in SEPARATORS or set(raw) <= set("<>&|;"):
             first, pending_cd = True, False
             continue
+        assignment = ASSIGNMENT.match(raw) if first else None
+        if assignment:
+            value = expand(assignment.group(2), variables)
+            if value is None:
+                variables.pop(assignment.group(1), None)
+            else:
+                variables[assignment.group(1)] = value
+            continue
+        token = expand(raw, variables)
         if first:
             first = False
             pending_cd = token == "cd"
             continue
-        if "$" in token or "~" in token or token.startswith("-"):
+        if token is None or token.startswith("-"):
             continue
         if pending_cd:
             pending_cd = False
@@ -1103,6 +1134,38 @@ def run_case(prepared_dir: Path, name: str, environ: Mapping[str, str],
     return record
 
 
+def reextract(trial: Path) -> dict[str, Any]:
+    """Extract the events of an earlier run again, from its unchanged
+    transcripts, with the current classifier. Every other fact of the record
+    stays as the run wrote it. The record names the time of the extraction."""
+    trial = trial.resolve()
+    record = json.loads((trial / "record.json").read_text())
+    home, repo = trial / "home", trial / "repo"
+    fresh: list[dict[str, Any]] = []
+    if record.get("mode", "lifecycle") == "standalone":
+        for log in sorted((home / ".local" / "state" / "grove" / "runs").glob("*.log")):
+            for n, part in enumerate(split_log(log.read_text(errors="replace"))):
+                stream_text = "".join(line + "\n" for line in part["streamLines"]).encode()
+                fresh.append(describe(f"{log.relative_to(home)}#{n}", part["view"], part["env"], part["stream"],
+                                      sha256_bytes(stream_text), part["probes"], home, trial / "unknown", {}))
+    else:
+        fresh = [describe_launch(path, home, repo, {}) for path in launch_records(trial / "records")]
+    if len(fresh) != len(record["launches"]):
+        raise TrialError(f"{trial} now shows {len(fresh)} launches, and its record holds {len(record['launches'])}")
+    for launch, again in zip(record["launches"], fresh):
+        for old, new in zip(launch["transcripts"], again["transcripts"]):
+            if old["sha256"] != new["sha256"]:
+                raise TrialError(f"the transcript {old['file']} of {trial} changed since the run")
+        launch["transcripts"] = again["transcripts"]
+    record["ending"]["endingCommands"] = [e.get("result") for l in record["launches"] for t in l["transcripts"]
+                                          for e in t["events"] if e["class"] == "ending"]
+    record["reextracted"] = dt.datetime.now(dt.UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+    (trial / "record.json").write_text(json.dumps(record, indent=2) + "\n")
+    (trial / "record.md").write_text(render(record))
+    say(f"record {trial}/record.md")
+    return record
+
+
 # --- The record ----------------------------------------------------------------
 
 
@@ -1132,6 +1195,8 @@ def render(record: dict[str, Any]) -> str:
         f"| Route | {record['route']} |",
         f"| Mode | {record.get('mode', 'lifecycle')} |",
         f"| Credits | {', '.join(record['credits']) or 'none'} |",
+        *([f"| Events extracted again | {record['reextracted']}, from the same transcripts |"]
+          if record.get("reextracted") else []),
         f"| Grove build | commit `{g['commit'][:12]}`, `grove` SHA-256 `{g['sha256']['grove']}`, `grove-llm` SHA-256 `{g['sha256']['grove-llm']}` |",
         f"| Ravel build | commit `{r['buildCommit']}` (line `{r['line']}` at `{r['outputCommit']}`), identity `{r['buildIdentity']}`, `bin/ravel` SHA-256 `{r['binRavelSha256']}` |",
         f"| Harness | {cell(h['version'])}, model `{h['model']}`, effort `{h['effort']}`, permission mode `{h['permissionMode']}` |",
@@ -1240,10 +1305,14 @@ def main(argv: list[str] | None = None, environ: Mapping[str, str] | None = None
     r.add_argument("--case", required=True)
     r.add_argument("--model")
     r.add_argument("--effort")
+    x = commands.add_parser("reextract", help="extract the events of an earlier run again, from its transcripts")
+    x.add_argument("--trial", required=True, type=Path)
     args = parser.parse_args(argv)
     try:
         if args.command == "prepare":
             prepare(args.out, args.commit, args.ravel, environ)
+        elif args.command == "reextract":
+            reextract(args.trial)
         else:
             run_case(args.prepared, args.case, environ, args.model, args.effort)
     except TrialError as error:

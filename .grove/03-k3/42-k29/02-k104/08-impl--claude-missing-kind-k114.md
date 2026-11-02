@@ -31,3 +31,9 @@ If Claude Code cannot run under Ravel confinement, record the unreadable
 confined case as a gap with the refusal.
 
 The force-stop command reaches only the trial's own Ravel channel.
+
+claude-discovery-trial-k108 measured that Claude Code 2.1.316 exits before its
+session exists under Ravel's macOS confinement. It cannot open its temporary
+directory `/tmp/claude-<uid>`. The `discovery-confined` section of
+`docs/common-loading-acceptance-record.md` holds the run. The runner's
+`standalone` mode and its probes are reusable for the unreadable confined case.

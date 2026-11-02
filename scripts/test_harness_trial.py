@@ -182,6 +182,8 @@ TOOLS = [
     ("Bash", "command", "cd \"{SNAP}/skills\" && find . -name SKILL.md | while read f; do head -8 \"$f\"; done", False),
     ("Bash", "command", "cd \"{SNAP}/skills\" && cat grove-impl/SKILL.md; ls grove-impl", False),
     ("Read", "file_path", "{SNAP}/skills/craft/SKILL.md", False),
+    # A path in a variable that the same command assigns.
+    ("Bash", "command", "S=\"{SNAP}/skills/grove\"; cat \"$S/references/execute.md\"; ls -R \"${{S}}\"", False),
     ("Read", "file_path", "{DESC}", False),
     ("Read", "file_path", "{HOME}/.claude/skills/old/SKILL.md", True),
     ("Skill", "skill", "grove-impl", True),
@@ -195,6 +197,7 @@ EXPECTED = [
     ("Bash", "listing", None, False),
     ("Bash", "kind-skill", "grove-impl", False),
     ("Read", "skill", "craft", False),
+    ("Bash", "supporting", "grove", False),
     ("Read", "descriptor", None, False),
     ("Read", "native", "old", True),
     ("Skill", "native-skill-tool", None, True),
@@ -439,6 +442,28 @@ class HarnessTrialTest(unittest.TestCase):
                     lambda entries, c: [e for e in real(entries, c) if e["tool"] != "Bash"])
         # A runner that ignores `cd` resolves relative reads against the wrong directory.
         self.broken(self.check_events, "bash_paths", lambda command, cwd: trial.PATH_TOKEN.findall(command))
+        # A runner that expands no assigned variable misses the read in it.
+        self.broken(self.check_events, "expand", lambda token, variables: None if "$" in token else token)
+
+    def check_reextract(self, fixture: Fixture):
+        status, output = fixture.run()
+        self.assertEqual(status, 0, output)
+        trial_dir = Path(fixture.record()["trial"])
+        record = json.loads((trial_dir / "record.json").read_text())
+        record["launches"][0]["transcripts"][0]["events"] = []
+        (trial_dir / "record.json").write_text(json.dumps(record))
+        with contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(trial.main(["reextract", "--trial", str(trial_dir)], fixture.environ()), 0)
+        again = json.loads((trial_dir / "record.json").read_text())
+        events = [(e["tool"], e["class"], e.get("skill"), e["error"]) for e in again["launches"][0]["transcripts"][0]["events"]]
+        self.assertEqual(events, EXPECTED)
+        self.assertEqual(again["launches"][0]["control"], record["launches"][0]["control"])
+        self.assertIn("| Events extracted again |", (trial_dir / "record.md").read_text())
+
+    def test_a_run_can_be_extracted_again_from_its_transcripts(self):
+        self.check_reextract(self.fixture)
+        # A command that rewrites nothing leaves the emptied events empty.
+        self.broken(self.check_reextract, "reextract", lambda trial_dir: {})
 
     def test_the_record_names_builds_harness_and_ending(self):
         status, output = self.fixture.run()

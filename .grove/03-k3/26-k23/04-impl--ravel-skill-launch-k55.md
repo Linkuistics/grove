@@ -69,3 +69,12 @@ directories with no helper and no change to its policy.
 The interim confined refusal is a running-log decision of
 `ravel-local-delivery-k24`. It uses an existing contract code and must not
 reach a release. The confinement leaf removes it and its fixture.
+
+## Handoff from ravel-skills-resolve-k54
+
+Ravel commit `777e609f` adds a temporary refusal, `skill_launch_unsupported`,
+in `crates/ravel/src/choice.rs` (`refuse_enabled_delivery`). It keeps
+`start-session` from silently dropping guidance while delivery is enabled.
+Remove it, its fixture
+`start_session_refuses_enabled_delivery_until_the_launch_stage` in
+`crates/ravel/tests/skills_resolve.rs` and its note in the book reference.

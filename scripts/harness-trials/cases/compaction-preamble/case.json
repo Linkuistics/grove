@@ -40,7 +40,7 @@
   "timeoutMinutes": 30,
   "compaction": {
     "mode": "preamble",
-    "instructions": "Summarise only the instruction to load the grove-impl skill and everything after it: the leaf, the work done, the open question for the human and the exact ending commands.",
+    "instructions": "Summarise only the instruction to load the grove-impl skill and everything after it: the leaf, the work done, the open question for the human and the exact ending commands. Leave out everything before that instruction, also where an earlier rule asks a summary to keep it. Write no other absolute path and no hexadecimal digest.",
     "answer": "answer.md"
   }
 }

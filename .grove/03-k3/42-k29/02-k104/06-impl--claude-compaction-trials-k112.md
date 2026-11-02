@@ -67,3 +67,53 @@ A retained variable alone proves nothing for the second case.
   lines after the boundary. If a preamble path or digest remains, or the
   path-loss case lost the variable's name, it sends no answer. A failed gate
   is a failed precondition, not an observation of the agent.
+- Both cases reuse the continuation tree and answer: one `impl` leaf writes
+  `stamp.sh`, then asks the human about a label argument. The handback ends
+  the first turn, so the compaction falls between a real handback and the
+  human's answer. The answer names no guidance.
+- Path-loss instructions: "Keep the numbered obligations of the first message
+  word for word. Write no absolute path and no hexadecimal digest anywhere in
+  the summary." The case intends the instructions to remain, so the gate
+  requires the name `RAVEL_SKILL_DIRECTORIES` after the boundary.
+- Preamble-loss instructions: "Summarise only the instruction to load the
+  grove-impl skill and everything after it: the leaf, the work done, the open
+  question for the human and the exact ending commands." They keep the caller
+  block, name no preamble term and give no recovery reminder. The loader
+  refuses preamble-mode instructions that name a term or the variable.
+- The gate searches preamble terms in user messages only. Claude Code's own
+  attachments, such as the skill listing, hold no preamble text, and a term
+  in them would be a false match. Paths, digests, long preamble lines and the
+  variable's name are searched everywhere after the boundary.
+- Build: Grove commit `fb6df03aeb98`, prepared into this session's scratch
+  directory. The Ravel 2.0 prefix is a byte copy of the continuation prefix,
+  `bin/ravel` SHA-256 `8e10e311c50c…`. The bookmark `skill-directory-delivery`
+  is still at `1ca4aecbeae1`.
+- Result of `compaction-path-20261102T231252Z`, one run with no retry: pass.
+  The gate passed, and the first model request after the boundary held no
+  preamble path or digest. It kept `RAVEL_SKILL_DIRECTORIES`. Call 22 read the
+  variable and the descriptor `a18cd9d1…`, the launch's own. Call 23 read both
+  mandatory files in the configured order, with `grove-impl`. The first edit
+  came at call 26. The agent ended with `grove-continue`.
+- Limit of the path case: the summarising model wrote its own recovery note.
+  The instructions forbade the path, and obligation 10 asked to keep it, so
+  the summary named the variable and said to re-read the descriptor, both
+  mandatory files and `grove-impl`. The answer gave no reminder. The re-read
+  therefore follows the retained instructions, as the case intends, and it is
+  not evidence for the preamble case.
+- First attempt of the preamble case, `compaction-preamble-20261102T231613Z`:
+  failed precondition, no observation. The gate sent no answer. Two channels
+  kept preamble paths. The summary kept the descriptor path "per obligation
+  10", against the instructions. Claude Code also restored both mandatory
+  `SKILL.md` files as attachments with their snapshot paths. The first turn
+  had read each with a plain `cat "<path>"`, and the path run's compound
+  reads restored nothing. The documentation names no setting that turns off
+  that restoration.
+- Runner fix from that attempt: the scan after the boundary covers only
+  `user`, `assistant` and `attachment` entries. A `last-prompt` entry holds the
+  first prompt, but it is Claude Code's record keeping and never reaches the
+  model. The record now lists each restored file.
+- Second and last attempt of the preamble precondition. The instructions add
+  "Leave out everything before that instruction, also where an earlier rule
+  asks a summary to keep it. Write no other absolute path and no hexadecimal
+  digest." They still name no preamble term. A repeated restoration or a
+  retained path makes the case an unmeasured gap, not a third attempt.

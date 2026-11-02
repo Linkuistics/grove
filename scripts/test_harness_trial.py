@@ -210,6 +210,7 @@ if "--input-format" in sys.argv:
         text = json.loads(raw)["message"]["content"]
         if turn == 0:
             names["SNAP"] = re.search(r'- "(.+)/skills"', text).group(1)
+            first = text
         if text.startswith("/compact "):
             summary = behaviour.get("summary", "The leaf asks for one file.").format(**names)
             append([{{"type": "system", "subtype": "compact_boundary"}},
@@ -219,7 +220,9 @@ if "--input-format" in sys.argv:
                         "<command-name>/compact</command-name>\n<command-args>" + text[9:] + "</command-args>"}}}},
                     {{"type": "user", "message": {{"role": "user", "content": "<local-command-stdout>Compacted </local-command-stdout>"}}}},
                     *[{{"type": "attachment", "attachment": {{"type": "file", "filename": item.format(**names)}}}}
-                      for item in behaviour.get("restored", [])]])
+                      for item in behaviour.get("restored", [])],
+                    # Bookkeeping that holds the first prompt and never reaches the model.
+                    {{"type": "last-prompt", "lastPrompt": first}}])
             print(json.dumps({{"type": "system", "subtype": "compact_boundary", "session_id": session}}))
         else:
             found = [{{"type": "user", "message": {{"role": "user", "content": text}}}}]
@@ -1037,7 +1040,8 @@ class HarnessTrialTest(unittest.TestCase):
             self.assertTrue(compaction["gate"]["ok"], compaction["gate"])
             self.assertEqual([turn["turn"] for turn in compaction["turns"]], [0, 1, 2])
             self.assertEqual((compaction["api"]["keep"], compaction["api"]["missingBlobs"]), (0, 0))
-            self.assertEqual(compaction["afterBoundary"]["paths"], [])
+            self.assertEqual((compaction["afterBoundary"]["paths"], compaction["afterBoundary"]["lines"]), ([], []))
+            self.assertEqual(compaction["restored"], [])
             self.assertEqual(compaction["afterBoundary"]["variable"], mode == "path")
             self.assertEqual(compaction["variable"], {"set": True, "descriptor": True})
             self.assertGreater(compaction["preamble"]["paths"], 0)
@@ -1062,6 +1066,7 @@ class HarnessTrialTest(unittest.TestCase):
     def test_a_compaction_case_compacts_in_one_launch_and_reads_the_context(self):
         self.check_compaction(self.fixture)
         self.broken(self.check_compaction, "turn_event", lambda entry: None)
+        self.broken(self.check_compaction, "MESSAGE_TYPES", ("user", "assistant", "attachment", "last-prompt"))
         self.broken(self.check_compaction, "api_context", lambda entries, marks: {"found": False})
         self.broken(self.check_compaction, "write_turns", lambda case, case_dir, trial: (trial / "turns.json")
                     .write_text(json.dumps({"turns": [{"text": "/compact x"}]})))
@@ -1083,6 +1088,7 @@ class HarnessTrialTest(unittest.TestCase):
         status, output, record = self.compact(fixture, "preamble", restored=["{SNAP}/skills/grove/SKILL.md"])
         self.assertEqual(status, 1, output)
         self.assertTrue(record["compaction"]["afterBoundary"]["paths"])
+        self.assertTrue(record["compaction"]["restored"][0].endswith("/skills/grove/SKILL.md"))
 
     def test_the_gate_withholds_the_answer_when_the_preamble_remains(self):
         self.check_gate(self.fixture)

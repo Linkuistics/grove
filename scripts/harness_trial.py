@@ -132,6 +132,9 @@ PREAMBLE_TERMS = (
 PREAMBLE_LINE_CHARS = 40
 # The characters on each side of a term that the record shows.
 SNIPPET_CHARS = 60
+# The session-file entries that reach the model. Every other entry type is
+# Claude Code's own record keeping.
+MESSAGE_TYPES = ("user", "assistant", "attachment")
 
 
 class TrialError(Exception):
@@ -1567,7 +1570,10 @@ def after_boundary(entries: list[dict[str, Any]], marks: dict[str, Any]) -> dict
         turn = turn_event(entry)
         if turn and turn["class"] == "prompt" and not turn["target"].startswith("/compact"):
             break
-        rest.append(entry)
+        # Claude Code's own bookkeeping, such as `last-prompt`, which holds the
+        # first prompt, never reaches the model.
+        if entry.get("type") in MESSAGE_TYPES:
+            rest.append(entry)
     text = "\n".join(s for e in rest for s in strings(e))
     words = "\n".join(s for e in rest if e.get("type") == "user" for s in strings(e.get("message")))
     return context_findings(text, words, marks)
@@ -1742,6 +1748,9 @@ def compaction_report(case: dict[str, Any], record: Path, launch: dict[str, Any]
                       len(entries))
     report["attachments"] = [(e.get("attachment") or {}).get("type") for e in entries[start + 1:request_at]
                              if e.get("type") == "attachment"]
+    # A file that Claude Code restored after the boundary, with its path.
+    report["restored"] = [(e.get("attachment") or {}).get("filename") for e in entries[start + 1:request_at]
+                          if e.get("type") == "attachment" and (e.get("attachment") or {}).get("filename")]
     report["api"] = api_context(entries, marks)
     gate = report["gate"]
     if not gate or not gate.get("ok"):
@@ -2139,6 +2148,8 @@ def render_compaction(compaction: dict[str, Any]) -> list[str]:
         *([f"- Attachments after the boundary, before the first request: "
            f"{cell(', '.join(str(a) for a in compaction.get('attachments', [])) or 'none')}."]
           if "attachments" in compaction else []),
+        *[f"- File that Claude Code restored after the boundary: `{cell(path)}`."
+          for path in compaction.get("restored", [])],
     ]
     if api.get("found"):
         lines += [

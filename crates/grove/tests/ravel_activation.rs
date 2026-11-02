@@ -19,19 +19,37 @@ fn both_actual_callers_use_installed_ravel_and_separate_its_result() {
     fs::create_dir(tree.join(".grove")).unwrap();
     fs::write(tree.join(".grove/_BRIEF.md"), "# fixture\n").unwrap();
     fs::write(tree.join(".grove/01-impl--work-k1.md"), "# work\n").unwrap();
-    let policy = home.join(".config/ravel/policy.ts");
-    fs::create_dir_all(policy.parent().unwrap()).unwrap();
-    let ending = serde_json::to_string(pair.executable()).unwrap();
-    fs::write(&policy, format!(r#"export const policy = {{
+    let ending = support::ravel::quote(pair.executable().to_str().unwrap());
+    let lifecycle = support::ravel::quote(
+        r#"printf managed-noise; touch "$GROVE_LAUNCH_DIR/teardown"; "$1" end-session grove-continue"#,
+    );
+    let standalone = support::ravel::quote(
+        r#"printf managed-noise; printf published > result.txt; "$1" end-session grove-continue"#,
+    );
+    let source = match pair.runtime() {
+        support::ravel::Runtime::V1_1 => format!(
+            r#"export const policy = {{
       schemaVersion: 2, version: 'activation', select: request => ({{
         status: 'selected', program: '/bin/sh',
-        args: ['-c', request.kind === 'impl'
-          ? 'printf managed-noise; touch "$GROVE_LAUNCH_DIR/teardown"; "$1" end-session grove-continue'
-          : 'printf managed-noise; printf published > result.txt; "$1" end-session grove-continue',
+        args: ['-c', request.kind === 'impl' ? {lifecycle} : {standalone},
           'fixture', {ending}], provider: 'fixture', model: 'none', effort: 'none', reason: 'public boundary'
       }})
     }};
-    "#)).unwrap();
+    "#
+        ),
+        support::ravel::Runtime::V2_0 => format!(
+            r#"export const SCHEMA_VERSION = 4;
+export const VERSION = "activation";
+
+fn select(request, context) {{
+    let script = if request.kind == "impl" {{ {lifecycle} }} else {{ {standalone} }};
+    #{{ status: "selected", program: "/bin/sh", args: ["-c", script, "fixture", {ending}],
+        provider: "fixture", model: "none", effort: "none", reason: "public boundary" }}
+}}
+"#
+        ),
+    };
+    support::write_config(&home, &source);
     // Grove's version/prefix differs; a decoy old sibling must never launch.
     let bin = root.path().join("grove-22.1.0/bin");
     fs::create_dir_all(&bin).unwrap();
@@ -84,8 +102,6 @@ fn both_actual_readers_reject_missing_and_unsupported_results() {
     fs::write(work.join(".grove/_BRIEF.md"), "# fixture\n").unwrap();
     let leaf = work.join(".grove/01-impl--work-k1.md");
     fs::write(&leaf, "# work\n").unwrap();
-    let policy = home.join(".config/ravel/policy.ts");
-    fs::create_dir_all(policy.parent().unwrap()).unwrap();
     for result in [
         None,
         Some(""),
@@ -96,15 +112,19 @@ fn both_actual_readers_reject_missing_and_unsupported_results() {
         let ending = result.map_or("exit 0".to_owned(), |value| {
             format!("\"$1\" end-session '{}'", value.replace('\'', "'\\''"))
         });
-        let body = serde_json::to_string(&format!(
-            "printf staged > output.txt; printf managed-noise; {ending}"
-        ))
-        .unwrap();
-        let front = serde_json::to_string(pair.executable()).unwrap();
-        fs::write(&policy, format!(r#"export const policy = {{ schemaVersion: 2, version: 'result-fixture',
-          select: () => ({{ status: 'selected', program: '/bin/sh', args: ['-c', {body}, 'fixture', {front}],
-            provider: 'fixture', model: 'none', effort: 'none', reason: 'result fixture' }}) }};
-        "#)).unwrap();
+        let body = format!("printf staged > output.txt; printf managed-noise; {ending}");
+        let mut route = support::ravel::Route::new(
+            "result-fixture",
+            "/bin/sh",
+            vec![
+                support::ravel::Arg::Text("-c"),
+                support::ravel::Arg::Text(&body),
+                support::ravel::Arg::Text("fixture"),
+                support::ravel::Arg::Text(pair.executable().to_str().unwrap()),
+            ],
+        );
+        route.reason = "result fixture";
+        support::write_config(&home, &route.source(pair.runtime()));
         for standalone in [false, true] {
             let mut command = Command::new(env!("CARGO_BIN_EXE_grove"));
             pair.isolate(&mut command);

@@ -90,34 +90,16 @@ const PROMPT: &str = "${prompt}";
 /// A personal dispatch policy under `home` that runs `program` for every kind,
 /// with `args` as its arguments and the mandate in place of each [`PROMPT`].
 fn route_every_kind(home: &Path, program: &Path, args: &[&str]) {
-    let args: Vec<String> = args
+    let args = args
         .iter()
         .map(|arg| match *arg {
-            PROMPT => "request.prompt".to_owned(),
-            literal => format!("{literal:?}"),
+            PROMPT => support::ravel::Arg::Prompt,
+            literal => support::ravel::Arg::Text(literal),
         })
         .collect();
-    support::write_policy(
-        home,
-        &format!(
-            r#"export const policy = {{
-  schemaVersion: 2,
-  version: "cutover-1",
-  select: (request) => ({{
-    status: "selected",
-    program: {program:?},
-    args: [{args}],
-    provider: "fixture",
-    model: "none",
-    effort: "none",
-    reason: "every kind runs the fixture's command",
-  }}),
-}};
-"#,
-            program = program.to_str().unwrap(),
-            args = args.join(", "),
-        ),
-    );
+    let mut route = support::ravel::Route::new("cutover-1", program.to_str().unwrap(), args);
+    route.reason = "every kind runs the fixture's command";
+    support::write_config(home, &route.source(support::runtime()));
 }
 
 /// The driver-authored sentence naming the leaf selected for one session.
@@ -519,8 +501,10 @@ fn relaunch_selects_afresh_from_the_policy_and_uses_the_new_filename_kind() {
     fs::write(grove.join("01-impl--first-k1.md"), "# first-k1\n").unwrap();
 
     let log = fixture.path().join("reload.log");
-    let next_policy = fixture.path().join("next-policy.ts");
-    let active_policy = home.join(".config/ravel/policy.ts");
+    let next_policy = fixture
+        .path()
+        .join(format!("next-{}", support::runtime().config_file()));
+    let active_policy = support::config_entry(&home);
     let fake = fixture.path().join("reload-command.sh");
     write_executable(
         &fake,
@@ -910,9 +894,11 @@ fn a_finish_leaf_is_written_though_the_policy_refuses_its_kind() {
     let fixture = TempDir::new().unwrap();
     let home = fixture.path().join("home");
     fs::create_dir_all(home.join(".codex")).unwrap();
-    support::write_policy(
+    let runtime = support::runtime();
+    support::write_config(
         &home,
-        r#"export const policy = {
+        runtime.pick(
+            r#"export const policy = {
   schemaVersion: 2,
   version: "cutover-1",
   select: (request) => ({
@@ -923,6 +909,19 @@ fn a_finish_leaf_is_written_though_the_policy_refuses_its_kind() {
   }),
 };
 "#,
+            r#"export const SCHEMA_VERSION = 4;
+export const VERSION = "cutover-1";
+
+fn select(request, context) {
+    #{
+        status: "refused",
+        code: "unrouted_kind",
+        message: `no command for ${request.kind}`,
+        remedy: "route the kind in the fixture policy",
+    }
+}
+"#,
+        ),
     );
     let worktree = fixture.path().join("no-finish-route");
     init_worktree(&worktree);
@@ -944,8 +943,8 @@ fn a_finish_leaf_is_written_though_the_policy_refuses_its_kind() {
         "the finish leaf is written before any policy is asked: {stderr}"
     );
     for said in [
-        "refused (policy_refused, stage selection)",
-        "  policy code: unrouted_kind",
+        &format!("refused ({}, stage selection)", runtime.code("refused")),
+        &format!("  {} code: unrouted_kind", runtime.prefix()),
         "session kind `finish` for `finish-k2` failed",
     ] {
         assert!(stderr.contains(said), "no {said:?} in: {stderr}");

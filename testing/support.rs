@@ -431,40 +431,29 @@ pub fn fixture_home() -> &'static Path {
         .path()
 }
 
-/// Write `source` as the personal Ravel policy under `home`, at
-/// the default entry path. A test that launches a session puts its policy here:
-/// the real front and its compiled worker select from it, and Grove reads
-/// nothing.
-pub fn write_policy(home: &Path, source: &str) {
-    let entry = home.join(".config/ravel/policy.ts");
-    fs::create_dir_all(entry.parent().expect("a policy path has a parent"))
-        .expect("fixture policy dir");
-    fs::write(entry, source).expect("fixture policy");
+/// Write `source` as the personal Ravel configuration under `home`, at the
+/// default entry of the runtime under test: `policy.ts` on 1.1 and
+/// `config.rhai` on 2.0. A test that launches a session puts its configuration
+/// here: the real build selects from it, and Grove reads nothing.
+pub fn write_config(home: &Path, source: &str) {
+    let entry = config_entry(home);
+    fs::create_dir_all(entry.parent().expect("a configuration path has a parent"))
+        .expect("fixture configuration dir");
+    fs::write(entry, source).expect("fixture configuration");
 }
 
-/// A personal policy under `home` that runs `program` for every kind, with the
-/// prompt as its one argument.
+/// The default configuration entry under `home` for the runtime under test.
+pub fn config_entry(home: &Path) -> PathBuf {
+    home.join(".config/ravel").join(runtime().config_file())
+}
+
+/// A personal configuration under `home` that runs `program` for every kind,
+/// with the prompt as its one argument.
 pub fn route_every_kind_to(home: &Path, program: &Path) {
-    write_policy(
-        home,
-        &format!(
-            r#"export const policy = {{
-  schemaVersion: 2,
-  version: "fixture-1",
-  select: (request) => ({{
-    status: "selected",
-    program: {program:?},
-    args: [request.prompt],
-    provider: "fixture",
-    model: "none",
-    effort: "none",
-    reason: "every kind runs the fixture's command",
-  }}),
-}};
-"#,
-            program = program.to_str().expect("a UTF-8 fixture path")
-        ),
-    );
+    let program = program.to_str().expect("a UTF-8 fixture path");
+    let mut route = ravel::Route::new("fixture-1", program, vec![ravel::Arg::Prompt]);
+    route.reason = "every kind runs the fixture's command";
+    write_config(home, &route.source(runtime()));
 }
 
 /// The repository root, found by walking up from this file's own package.
@@ -508,21 +497,88 @@ pub fn grove_bin() -> PathBuf {
     workspace_binary("grove")
 }
 
-/// An explicit installed public pair, copied once per test process.
+/// An explicit installed public build, copied once per test process.
 pub fn installed_ravel() -> PathBuf {
-    static PAIR: std::sync::OnceLock<(tempfile::TempDir, ravel::InstalledRavel)> =
+    installed().executable().to_path_buf()
+}
+
+/// The configuration runtime of the build under test, from
+/// `GROVE_TEST_RAVEL_RUNTIME`.
+pub fn runtime() -> ravel::Runtime {
+    installed().runtime()
+}
+
+fn installed() -> &'static ravel::InstalledRavel {
+    static BUILD: std::sync::OnceLock<(tempfile::TempDir, ravel::InstalledRavel)> =
         std::sync::OnceLock::new();
-    PAIR.get_or_init(|| {
-        let source = std::env::var_os("GROVE_TEST_RAVEL")
-            .expect("consumer tests require GROVE_TEST_RAVEL=/absolute/installed/ravel");
-        let temp = tempfile::tempdir().expect("Ravel fixture prefix");
-        let pair =
-            ravel::InstalledRavel::copy_from(Path::new(&source), &temp.path().join("ravel-1.1.0"));
-        (temp, pair)
-    })
-    .1
-    .executable()
-    .to_path_buf()
+    &BUILD
+        .get_or_init(|| {
+            let source = std::env::var_os("GROVE_TEST_RAVEL")
+                .expect("consumer tests require GROVE_TEST_RAVEL=/absolute/installed/ravel");
+            let temp = tempfile::tempdir().expect("Ravel fixture prefix");
+            let build = ravel::InstalledRavel::copy_from(
+                Path::new(&source),
+                &temp.path().join("ravel-prefix"),
+            );
+            (temp, build)
+        })
+        .1
+}
+
+/// The argument vector of the 2.0 Rhai worker. Ravel 2.0 re-executes its own
+/// binary in that internal role, as a child of the front.
+pub const RHAI_WORKER: &str = "ravel-rhai-config-worker";
+
+/// The PID of a 2.0 Rhai worker that descends from `ancestor`, if one is
+/// running now. A Rhai script writes no file, so a 2.0 case that must know
+/// selection has started looks for its worker in the process table.
+pub fn rhai_worker_under(ancestor: u32) -> Option<u32> {
+    let output = std::process::Command::new("/bin/ps")
+        .args(["-A", "-o", "pid=,ppid=,command="])
+        .output()
+        .expect("reading the process table");
+    let table: Vec<(u32, u32, String)> = String::from_utf8_lossy(&output.stdout)
+        .lines()
+        .filter_map(|line| {
+            let mut words = line.split_whitespace();
+            let pid = words.next()?.parse().ok()?;
+            let parent = words.next()?.parse().ok()?;
+            Some((pid, parent, words.collect::<Vec<_>>().join(" ")))
+        })
+        .collect();
+    let parent_of = |pid: u32| table.iter().find(|row| row.0 == pid).map(|row| row.1);
+    table
+        .iter()
+        .filter(|(_, _, command)| command == RHAI_WORKER)
+        .map(|(pid, _, _)| *pid)
+        .find(|&pid| {
+            let mut current = pid;
+            while let Some(parent) = parent_of(current) {
+                if parent == ancestor {
+                    return true;
+                }
+                if parent <= 1 {
+                    return false;
+                }
+                current = parent;
+            }
+            false
+        })
+}
+
+/// Wait until a 2.0 Rhai worker under `ancestor` runs, and return its PID.
+pub fn wait_for_rhai_worker(ancestor: u32, limit: Duration) -> u32 {
+    let deadline = Instant::now() + limit;
+    loop {
+        if let Some(pid) = rhai_worker_under(ancestor) {
+            return pid;
+        }
+        assert!(
+            Instant::now() < deadline,
+            "no {RHAI_WORKER} under process {ancestor} within {limit:?}"
+        );
+        thread::sleep(READINESS_POLL);
+    }
 }
 
 pub fn ravel_path() -> std::ffi::OsString {

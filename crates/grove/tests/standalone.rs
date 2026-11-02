@@ -1,11 +1,14 @@
 //! `grove run` under real confinement: the real `grove`, the real
-//! independent Ravel front and its compiled worker, a policy in a temporary
-//! HOME, and a deterministic shell harness. Nothing here calls a model.
+//! independent Ravel build, a configuration in a temporary HOME, and a
+//! deterministic shell harness. Nothing here calls a model.
 //!
-//! The pair is supplied explicitly by GROVE_TEST_RAVEL and copied to an
-//! independent prefix. Missing front/worker files fail rather than skip.
+//! The build is supplied explicitly by GROVE_TEST_RAVEL, with its runtime in
+//! GROVE_TEST_RAVEL_RUNTIME, and copied to an independent prefix. Missing
+//! files of its layout fail rather than skip.
 
 mod support;
+
+use support::ravel::{quote, Runtime, RHAI_GRANTED};
 
 use std::fs;
 use std::os::unix::fs::PermissionsExt as _;
@@ -31,21 +34,13 @@ fn standalone_scrubs_enclosing_ravel_and_retired_controls_before_selection() {
         "GROVE_CLAUDE_PID",
         "GROVE_PROVIDER_EVIDENCE",
     ];
-    let source = fs::read_to_string(fixture.dispatch_file("policy.ts")).unwrap();
-    fixture.policy(&source.replace(
-        "select(request) {",
-        &format!(
-            "select(request) {{\n\
-             if (process.env.OWNER_GRANT !== 'granted' || \
-             {}.some(name => process.env[name] !== undefined)) \
-             return {{ status: 'refused', code: 'enclosing_authority', \
-             message: 'enclosing authority reached selection', remedy: 'scrub before selection' }};",
-            serde_json::to_string(&controls).unwrap(),
-        ),
-    ));
+    fixture.configure(&Hooks {
+        guard: Some(&controls),
+        ..Hooks::default()
+    });
     fs::write(
         fixture.dispatch_file("settings.json"),
-        serde_json::json!({"policyEnv": ["OWNER_GRANT", "GROVE_SIGNAL_FILE", "GROVE_RUN_SIGNAL_FILE", "GROVE_HARNESS_PID", "GROVE_CLAUDE_PID", "GROVE_PROVIDER_EVIDENCE"]}).to_string(),
+        serde_json::json!({support::runtime().grant_key(): ["OWNER_GRANT", "GROVE_SIGNAL_FILE", "GROVE_RUN_SIGNAL_FILE", "GROVE_HARNESS_PID", "GROVE_CLAUDE_PID", "GROVE_PROVIDER_EVIDENCE"]}).to_string(),
     ).unwrap();
 
     // Dirty control: the same policy sees the granted controls when Grove is
@@ -115,20 +110,7 @@ impl Fixture {
              acknowledge() {{ eval \"$dispatch_exit\"; }}\n\
              stop_work() {{ test -n \"$force_stop\"; eval \"$force_stop\"; }}\n{harness}"
         )).unwrap();
-        fixture.policy(&format!(
-            r#"export const policy = {{
-  schemaVersion: 2,
-  version: "standalone-1",
-  select(request) {{
-    if (request.kind !== "release-notes") {{
-      return {{ status: "refused", code: "unrouted_kind", message: `no command for ${{request.kind}}`, remedy: "route the kind in the fixture policy" }};
-    }}
-    return {{ status: "selected", program: "/bin/sh", args: [{script:?}, request.prompt, JSON.stringify(request.params), request.cwd], provider: "fixture", model: "none", effort: "none", reason: "the deterministic harness" }};
-  }},
-}};
-"#,
-            script = fixture.script.to_str().unwrap()
-        ));
+        fixture.configure(&Hooks::default());
         fixture
     }
 
@@ -136,10 +118,22 @@ impl Fixture {
         self.home.join(".config/ravel").join(name)
     }
 
+    /// Replace the configuration with `source`, at the default entry of the
+    /// runtime under test.
     fn policy(&self, source: &str) {
-        let entry = self.dispatch_file("policy.ts");
-        fs::create_dir_all(entry.parent().unwrap()).unwrap();
-        fs::write(entry, source).unwrap();
+        support::write_config(&self.home, source);
+    }
+
+    /// The default entry of the runtime under test.
+    fn config_file(&self) -> PathBuf {
+        support::config_entry(&self.home)
+    }
+
+    /// The default configuration with what a case adds. It routes
+    /// `release-notes` to `/bin/sh <script>` with the prompt, any extra
+    /// arguments, the parameter object and cwd, and refuses every other kind.
+    fn configure(&self, hooks: &Hooks) {
+        self.policy(&hooks.source(support::runtime(), &self.script));
     }
 
     fn notes(&self) -> PathBuf {
@@ -179,6 +173,121 @@ impl Fixture {
     /// leaves a log and a failure status.
     fn transcripts(&self) -> usize {
         fs::read_dir(self.home.join(".local/state/grove/runs")).map_or(0, Iterator::count)
+    }
+}
+
+/// What a case adds to the fixture's default configuration.
+#[derive(Default)]
+struct Hooks<'a> {
+    /// Refuse as `enclosing_authority` unless the granted `OWNER_GRANT` is
+    /// `granted` and none of these names reaches selection.
+    guard: Option<&'a [&'a str]>,
+    /// Arguments between the prompt and the parameter object.
+    after_prompt: Vec<Extra<'a>>,
+    /// Route the kind `enclosing` to `/bin/sh` with this script.
+    enclosing: Option<&'a Path>,
+}
+
+/// One argument that [`Hooks`] adds after the prompt.
+enum Extra<'a> {
+    /// The value of a granted name, or `<unset>`.
+    Env(&'a str),
+    Text(&'a str),
+}
+
+impl Hooks<'_> {
+    fn source(&self, runtime: Runtime, script: &Path) -> String {
+        let script = quote(script.to_str().unwrap());
+        let names = |names: &[&str]| {
+            names
+                .iter()
+                .map(|name| quote(name))
+                .collect::<Vec<_>>()
+                .join(", ")
+        };
+        let enclosing = self.enclosing.map(|outer| quote(outer.to_str().unwrap()));
+        match runtime {
+            Runtime::V1_1 => {
+                let guard = self.guard.map_or(String::new(), |controls| {
+                    format!(
+                        "    if (process.env.OWNER_GRANT !== 'granted' || \
+                         [{}].some(name => process.env[name] !== undefined)) \
+                         return {{ status: 'refused', code: 'enclosing_authority', \
+                         message: 'enclosing authority reached selection', remedy: 'scrub before selection' }};\n",
+                        names(controls)
+                    )
+                });
+                let enclosing = enclosing.map_or(String::new(), |outer| {
+                    format!(
+                        "    if (request.kind === 'enclosing') return {{ status: 'selected', program: '/bin/sh', \
+                         args: [{outer}], provider: 'fixture', model: 'none', effort: 'none', reason: 'outer supervisor' }};\n"
+                    )
+                });
+                let extras: String = self
+                    .after_prompt
+                    .iter()
+                    .map(|extra| match extra {
+                        Extra::Env(name) => format!("process.env.{name} ?? \"<unset>\", "),
+                        Extra::Text(text) => format!("{}, ", quote(text)),
+                    })
+                    .collect();
+                format!(
+                    r#"export const policy = {{
+  schemaVersion: 2,
+  version: "standalone-1",
+  select(request) {{
+{guard}{enclosing}    if (request.kind !== "release-notes") {{
+      return {{ status: "refused", code: "unrouted_kind", message: `no command for ${{request.kind}}`, remedy: "route the kind in the fixture policy" }};
+    }}
+    return {{ status: "selected", program: "/bin/sh", args: [{script}, request.prompt, {extras}JSON.stringify(request.params), request.cwd], provider: "fixture", model: "none", effort: "none", reason: "the deterministic harness" }};
+  }},
+}};
+"#
+                )
+            }
+            Runtime::V2_0 => {
+                let guard = self.guard.map_or(String::new(), |controls| {
+                    format!(
+                        "    let reached = or_unset(granted(\"OWNER_GRANT\")) != \"granted\";\n\
+                         \x20   for name in [{}] {{ if type_of(granted(name)) != \"()\" {{ reached = true; }} }}\n\
+                         \x20   if reached {{\n\
+                         \x20       return #{{ status: \"refused\", code: \"enclosing_authority\", \
+                         message: \"enclosing authority reached selection\", remedy: \"scrub before selection\" }};\n\
+                         \x20   }}\n",
+                        names(controls)
+                    )
+                });
+                let enclosing = enclosing.map_or(String::new(), |outer| {
+                    format!(
+                        "    if request.kind == \"enclosing\" {{\n\
+                         \x20       return #{{ status: \"selected\", program: \"/bin/sh\", args: [{outer}], \
+                         provider: \"fixture\", model: \"none\", effort: \"none\", reason: \"outer supervisor\" }};\n\
+                         \x20   }}\n"
+                    )
+                });
+                let extras: String = self
+                    .after_prompt
+                    .iter()
+                    .map(|extra| match extra {
+                        Extra::Env(name) => format!("or_unset(granted({})), ", quote(name)),
+                        Extra::Text(text) => format!("{}, ", quote(text)),
+                    })
+                    .collect();
+                format!(
+                    r#"export const SCHEMA_VERSION = 4;
+export const VERSION = "standalone-1";
+
+{RHAI_GRANTED}
+fn select(request, context) {{
+{guard}{enclosing}    if request.kind != "release-notes" {{
+        return #{{ status: "refused", code: "unrouted_kind", message: `no command for ${{request.kind}}`, remedy: "route the kind in the fixture policy" }};
+    }}
+    #{{ status: "selected", program: "/bin/sh", args: [{script}, request.prompt, {extras}ravel::json_encode(request.params), request.cwd], provider: "fixture", model: "none", effort: "none", reason: "the deterministic harness" }}
+}}
+"#
+                )
+            }
+        }
     }
 }
 
@@ -277,47 +386,46 @@ fn named_harness(word: &str) -> String {
     )
 }
 
-/// A policy that returns the bare program name `fake-harness`.
-const NAMED: &str = r#"export const policy = {
-  schemaVersion: 2,
-  version: "standalone-1",
-  select: () => ({ status: "selected", program: "fake-harness", args: [], provider: "fixture", model: "none", effort: "none", reason: "a program found on PATH" }),
-};
-"#;
+/// A configuration that returns the bare program name `fake-harness`.
+fn named() -> String {
+    let mut route = support::ravel::Route::new("standalone-1", "fake-harness", vec![]);
+    route.reason = "a program found on PATH";
+    route.source(support::runtime())
+}
 
 // The policy selects outside the sandbox, with what the owner granted it, in
 // the staged directory and with no parameter. The harness runs inside, with the
 // invocation's prompt and none of the owner's personal files. Old Grove configuration files change nothing.
 #[test]
 fn the_policy_selects_outside_the_sandbox_and_the_harness_runs_inside_it() {
-    let fixture = Fixture::new(
+    let fixture = Fixture::new(&format!(
         "set -eu\n\
-         for file in \"$HOME/.config/ravel/policy.ts\" \
+         for file in \"$HOME/.config/ravel/{config}\" \
          \"$HOME/.config/ravel/settings.json\" \
          \"$HOME/.local/state/harness-dispatch/records.sqlite3\"; do\n\
          if cat \"$file\" > /dev/null 2>&1; then exit 41; fi\n\
          done\n\
-         test -z \"${GROVE_SIGNAL_FILE-}\"\n\
-         test -z \"${GROVE_LAUNCH_DIR-}\"\n\
-         test -z \"${TMUX-}\"\n\
+         test -z \"${{GROVE_SIGNAL_FILE-}}\"\n\
+         test -z \"${{GROVE_LAUNCH_DIR-}}\"\n\
+         test -z \"${{TMUX-}}\"\n\
          case \"$1\" in 'Produce notes.'*) ;; *) exit 9 ;; esac\n\
-         printf '%s\\n' \"${RAVEL_EXIT_FILE-<unset>}\" \"${OWNER_GRANT-<unset>}\" \
+         printf '%s\\n' \"${{RAVEL_EXIT_FILE-<unset>}}\" \"${{OWNER_GRANT-<unset>}}\" \
          \"$2\" \"$3\" \"$4\" \"$5\" \"$(pwd -P)\" > notes.md\n\
          cat message.txt >> notes.md\n\
          acknowledge\n",
-    );
+        config = support::runtime().config_file(),
+    ));
     // The policy reports two variables its owner granted, as two more
     // arguments. One of them is the channel of a session this invocation runs
     // inside, which the owner should never grant and here has.
-    let source = fs::read_to_string(fixture.dispatch_file("policy.ts")).unwrap();
-    fixture.policy(&source.replace(
-        "request.prompt,",
-        "request.prompt, process.env.OWNER_GRANT ?? \"<unset>\", \
-         process.env.GROVE_SIGNAL_FILE ?? \"<unset>\",",
-    ));
+    fixture.configure(&Hooks {
+        after_prompt: vec![Extra::Env("OWNER_GRANT"), Extra::Env("GROVE_SIGNAL_FILE")],
+        ..Hooks::default()
+    });
     fs::write(
         fixture.dispatch_file("settings.json"),
-        r#"{ "policyEnv": ["OWNER_GRANT", "GROVE_SIGNAL_FILE"] }"#,
+        serde_json::json!({support::runtime().grant_key(): ["OWNER_GRANT", "GROVE_SIGNAL_FILE"]})
+            .to_string(),
     )
     .unwrap();
     let store = fixture
@@ -386,7 +494,7 @@ fn the_policy_selects_outside_the_sandbox_and_the_harness_runs_inside_it() {
     fs::remove_file(fixture.notes()).unwrap();
     let granted = run()
         .arg("--runtime-read")
-        .arg(fixture.dispatch_file("policy.ts"))
+        .arg(fixture.config_file())
         .output()
         .unwrap();
     assert_nothing_published(&fixture, &granted);
@@ -402,7 +510,7 @@ fn the_policy_selects_outside_the_sandbox_and_the_harness_runs_inside_it() {
 #[test]
 fn an_unexecutable_file_earlier_on_path_does_not_shadow_the_reported_program() {
     let fixture = Fixture::new("");
-    fixture.policy(NAMED);
+    fixture.policy(&named());
     let (first, second) = (fixture.root.join("first"), fixture.root.join("second"));
     write_executable(&first.join("fake-harness"), &named_harness("shadow"), 0o644);
     write_executable(
@@ -434,7 +542,7 @@ fn an_unexecutable_file_earlier_on_path_does_not_shadow_the_reported_program() {
 #[test]
 fn a_relative_path_entry_is_resolved_where_dispatch_selected() {
     let fixture = Fixture::new("");
-    fixture.policy(NAMED);
+    fixture.policy(&named());
     let second = fixture.root.join("second");
     write_executable(
         &fixture.cwd.join("bin/fake-harness"),
@@ -473,8 +581,9 @@ fn a_refused_selection_reports_its_code_message_and_remedy_and_publishes_nothing
 
     assert_nothing_published(&fixture, &output);
     let report = stderr(&output);
+    let runtime = support::runtime();
     for stated in [
-        "policy_refused",
+        &runtime.code("refused"),
         "unrouted_kind",
         "no command for summarise",
         "route the kind in the fixture policy",
@@ -484,17 +593,30 @@ fn a_refused_selection_reports_its_code_message_and_remedy_and_publishes_nothing
     assert_eq!(fixture.transcripts(), 2, "{report}");
 
     // No policy at all refuses the same way, with dispatch's own remedy.
-    fs::remove_file(fixture.dispatch_file("policy.ts")).unwrap();
+    fs::remove_file(fixture.config_file()).unwrap();
     let output = fixture.run();
     assert_nothing_published(&fixture, &output);
     let report = stderr(&output);
-    assert!(report.contains("policy_missing"), "{report}");
-    assert!(report.contains("exporting a `policy`"), "{report}");
+    assert!(report.contains(&runtime.code("missing")), "{report}");
+    assert!(report.contains(runtime.missing_remedy()), "{report}");
     assert_eq!(fixture.transcripts(), 4, "{report}");
 }
 
-/// A policy whose `select` marks that it started and then outlasts the test.
+/// A configuration whose `select` outlasts the test. The 1.1 policy marks
+/// that it started. A Rhai script writes no file, so a 2.0 case finds its
+/// worker instead.
 fn stalled(marker: &Path) -> String {
+    if support::runtime() == Runtime::V2_0 {
+        return r#"export const SCHEMA_VERSION = 4;
+export const VERSION = "standalone-1";
+
+fn select(request, context) {
+    sleep(25);
+    #{ status: "selected", program: "/bin/sh", args: ["-c", "printf late > notes.md"], provider: "fixture", model: "none", effort: "none", reason: "too late" }
+}
+"#
+        .to_owned();
+    }
     format!(
         r#"import {{ writeFileSync }} from "node:fs";
 export const policy = {{
@@ -524,7 +646,9 @@ fn a_timed_out_selection_launches_nothing_and_publishes_nothing() {
     let output = fixture.run();
 
     assert_nothing_published(&fixture, &output);
-    assert!(fixture.root.join("selecting").exists(), "select never ran");
+    if support::runtime() == Runtime::V1_1 {
+        assert!(fixture.root.join("selecting").exists(), "select never ran");
+    }
     assert!(
         stderr(&output).contains("selection_timeout"),
         "{}",
@@ -546,10 +670,14 @@ fn a_signal_during_selection_launches_nothing_and_publishes_nothing() {
         .spawn()
         .unwrap();
     let group = -i32::try_from(grove.id()).unwrap();
-    let deadline = Instant::now() + Duration::from_secs(20);
-    while !marker.exists() {
-        assert!(Instant::now() < deadline, "selection never started");
-        std::thread::sleep(Duration::from_millis(20));
+    if support::runtime() == Runtime::V2_0 {
+        support::wait_for_rhai_worker(grove.id(), Duration::from_secs(20));
+    } else {
+        let deadline = Instant::now() + Duration::from_secs(20);
+        while !marker.exists() {
+            assert!(Instant::now() < deadline, "selection never started");
+            std::thread::sleep(Duration::from_millis(20));
+        }
     }
 
     // SAFETY: kill(2) on the group this test created, with a valid signal.
@@ -1055,8 +1183,10 @@ fn confined_harness_cannot_consume_stdin_or_parent_handles_but_can_read_runtime_
     let runtime = fixture.root.join("credential.txt");
     fs::write(&runtime, "runtime grant").unwrap();
     // Pass the credential's path through the policy, without exposing it as input.
-    let source = fs::read_to_string(fixture.dispatch_file("policy.ts")).unwrap();
-    fixture.policy(&source.replace("request.prompt,", &format!("request.prompt, {runtime:?},")));
+    fixture.configure(&Hooks {
+        after_prompt: vec![Extra::Text(runtime.to_str().unwrap())],
+        ..Hooks::default()
+    });
     let body = fs::read_to_string(&fixture.script)
         .unwrap()
         .replace("cat credential.txt", "cat \"$2\"");
@@ -1109,10 +1239,10 @@ fn nested_exit_and_cancellation_leave_the_enclosing_dispatched_run_intact() {
             fixture.cwd.join("outer-survived").display(), dispatch.display()
         );
         fs::write(&outer, body).unwrap();
-        let source = fs::read_to_string(fixture.dispatch_file("policy.ts")).unwrap();
-        fixture.policy(&source.replace("if (request.kind !==", &format!(
-            "if (request.kind === 'enclosing') return {{ status: 'selected', program: '/bin/sh', args: [{outer:?}], provider: 'fixture', model: 'none', effort: 'none', reason: 'outer supervisor' }};\n    if (request.kind !=="
-        )));
+        fixture.configure(&Hooks {
+            enclosing: Some(&outer),
+            ..Hooks::default()
+        });
         let output = fixture
             .grove(&dispatch)
             .args([

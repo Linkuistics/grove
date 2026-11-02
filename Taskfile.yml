@@ -1,5 +1,14 @@
 version: '3'
 
+# Tasks that run installed-Ravel fixtures take RAVEL, the absolute front of one
+# build, and RAVEL_RUNTIME, its configuration runtime: 1.1 for policy.ts with
+# schema 2, or 2.0 for config.rhai with SCHEMA_VERSION 4. Each passes them on as
+# GROVE_TEST_RAVEL and GROVE_TEST_RAVEL_RUNTIME. An exported
+# GROVE_TEST_RAVEL_RUNTIME takes precedence. An unset runtime means 1.1, and
+# the test support refuses it for a build without the 1.x worker
+# (testing/ravel.rs). For example:
+#   task ravel:activation RAVEL=/opt/ravel-2/bin/ravel RAVEL_RUNTIME=2.0
+
 set: [errexit, nounset, pipefail]
 
 tasks:
@@ -133,7 +142,7 @@ tasks:
       vars: [RAVEL]
     cmds:
       - task: ravel:provenance
-        vars: {RAVEL: '{{.RAVEL}}'}
+        vars: {RAVEL: '{{.RAVEL}}', RAVEL_RUNTIME: '{{.RAVEL_RUNTIME}}'}
 
   ravel:provenance:
     desc: Check Grove-owned selected-provider evidence, retirement and inherited-evidence isolation
@@ -141,10 +150,11 @@ tasks:
       vars: [RAVEL]
     env:
       GROVE_TEST_RAVEL: '{{.RAVEL}}'
+      GROVE_TEST_RAVEL_RUNTIME: '{{.RAVEL_RUNTIME}}'
       GROVE_PROVIDER_EVIDENCE: /inert-enclosing-evidence
     cmds:
       - task: ravel:policy
-        vars: {RAVEL: '{{.RAVEL}}'}
+        vars: {RAVEL: '{{.RAVEL}}', RAVEL_RUNTIME: '{{.RAVEL_RUNTIME}}'}
       - cargo nextest run --locked -p grove --test creator_lifecycle --test env_hygiene
       - cargo nextest run --locked -p grove -E 'test(enclosing_ravel_and_retired_controls)'
       - cargo nextest run --locked -p grove-llm --test composition_guidance
@@ -156,11 +166,11 @@ tasks:
       vars: [RAVEL]
     cmds:
       - task: ravel:policy:typecheck
-        vars: {RAVEL: '{{.RAVEL}}'}
+        vars: {RAVEL: '{{.RAVEL}}', RAVEL_RUNTIME: '{{.RAVEL_RUNTIME}}'}
       - task: ravel:policy:compiler-test
-        vars: {RAVEL: '{{.RAVEL}}'}
+        vars: {RAVEL: '{{.RAVEL}}', RAVEL_RUNTIME: '{{.RAVEL_RUNTIME}}'}
       - task: ravel:policy:runtime
-        vars: {RAVEL: '{{.RAVEL}}'}
+        vars: {RAVEL: '{{.RAVEL}}', RAVEL_RUNTIME: '{{.RAVEL_RUNTIME}}'}
 
   ravel:policy:deps:
     desc: Install Grove's pinned development compiler for its caller-owned policy assets
@@ -174,6 +184,7 @@ tasks:
       vars: [RAVEL]
     env:
       GROVE_TEST_RAVEL: '{{.RAVEL}}'
+      GROVE_TEST_RAVEL_RUNTIME: '{{.RAVEL_RUNTIME}}'
     cmds:
       - bash scripts/ravel-policy-typecheck.test.sh
 
@@ -191,6 +202,7 @@ tasks:
       vars: [RAVEL]
     env:
       GROVE_TEST_RAVEL: '{{.RAVEL}}'
+      GROVE_TEST_RAVEL_RUNTIME: '{{.RAVEL_RUNTIME}}'
     cmds:
       - cargo nextest run --locked -p grove --test ravel_policy_assets --run-ignored only {{.CLI_ARGS}}
 
@@ -200,6 +212,7 @@ tasks:
       vars: [RAVEL]
     env:
       GROVE_TEST_RAVEL: '{{.RAVEL}}'
+      GROVE_TEST_RAVEL_RUNTIME: '{{.RAVEL_RUNTIME}}'
     cmds:
       - cargo nextest run --locked -p grove-loop --test session_command
       - cargo nextest run --locked -p grove-loop --test session_command --run-ignored only
@@ -210,6 +223,7 @@ tasks:
       vars: [RAVEL]
     env:
       GROVE_TEST_RAVEL: '{{.RAVEL}}'
+      GROVE_TEST_RAVEL_RUNTIME: '{{.RAVEL_RUNTIME}}'
     cmds:
       - cargo nextest run --locked -p grove-loop --test ravel_job_terminal --run-ignored only
 
@@ -219,15 +233,15 @@ tasks:
       vars: [RAVEL]
     cmds:
       - task: test:grove
-        vars: {RAVEL: '{{.RAVEL}}'}
+        vars: {RAVEL: '{{.RAVEL}}', RAVEL_RUNTIME: '{{.RAVEL_RUNTIME}}'}
       - task: test:grove-loop
-        vars: {RAVEL: '{{.RAVEL}}'}
+        vars: {RAVEL: '{{.RAVEL}}', RAVEL_RUNTIME: '{{.RAVEL_RUNTIME}}'}
       - task: ravel:job
-        vars: {RAVEL: '{{.RAVEL}}'}
+        vars: {RAVEL: '{{.RAVEL}}', RAVEL_RUNTIME: '{{.RAVEL_RUNTIME}}'}
       - task: test:grove-llm
-        vars: {RAVEL: '{{.RAVEL}}'}
+        vars: {RAVEL: '{{.RAVEL}}', RAVEL_RUNTIME: '{{.RAVEL_RUNTIME}}'}
       - task: test:authority
-        vars: {RAVEL: '{{.RAVEL}}'}
+        vars: {RAVEL: '{{.RAVEL}}', RAVEL_RUNTIME: '{{.RAVEL_RUNTIME}}'}
 
   ravel:fixtures:
     desc: Check shared installed-Ravel fixtures through the resolver and Grove's shared result reader
@@ -235,9 +249,9 @@ tasks:
       vars: [RAVEL]
     cmds:
       - task: ravel:resolution
-        vars: {RAVEL: '{{.RAVEL}}'}
+        vars: {RAVEL: '{{.RAVEL}}', RAVEL_RUNTIME: '{{.RAVEL_RUNTIME}}'}
       - task: ravel:result
-        vars: {RAVEL: '{{.RAVEL}}'}
+        vars: {RAVEL: '{{.RAVEL}}', RAVEL_RUNTIME: '{{.RAVEL_RUNTIME}}'}
 
   check:
     desc: Run the repository's reusable checks
@@ -246,6 +260,8 @@ tasks:
 
   check:skills:
     desc: Check the manual installer, Grove guidance conformance and that startup writes no native skills
+    env:
+      GROVE_TEST_RAVEL_RUNTIME: '{{.RAVEL_RUNTIME}}'
     cmds:
       - bash plugins/install.test.sh
       - bash plugins/grove/conformance.sh
@@ -258,6 +274,7 @@ tasks:
       vars: [RAVEL]
     env:
       GROVE_TEST_RAVEL: '{{.RAVEL}}'
+      GROVE_TEST_RAVEL_RUNTIME: '{{.RAVEL_RUNTIME}}'
     cmds:
       - cargo nextest run --locked -p grove -E 'test(dispatch::ravel::tests::)'
       - cargo nextest run --locked -p grove -E 'test(installed_front_and_worker_return_only_the_session_result)' --run-ignored only
@@ -268,6 +285,7 @@ tasks:
     desc: Run Grove's caller and repository-surface regression suite with nextest
     env:
       GROVE_TEST_RAVEL: '{{.RAVEL}}'
+      GROVE_TEST_RAVEL_RUNTIME: '{{.RAVEL_RUNTIME}}'
     cmds:
       - cargo nextest run --locked -p grove {{.CLI_ARGS}}
 
@@ -277,6 +295,7 @@ tasks:
     desc: Prove Cargo and both callers remove inherited old/new session controls
     env:
       GROVE_TEST_RAVEL: '{{.RAVEL}}'
+      GROVE_TEST_RAVEL_RUNTIME: '{{.RAVEL_RUNTIME}}'
       GROVE_SIGNAL_FILE: /inert-authority-control
       GROVE_RUN_SIGNAL_FILE: /inert-authority-control
       GROVE_LAUNCH_DIR: /inert-authority-control
@@ -295,6 +314,7 @@ tasks:
       vars: [RAVEL]
     env:
       GROVE_TEST_RAVEL: '{{.RAVEL}}'
+      GROVE_TEST_RAVEL_RUNTIME: '{{.RAVEL_RUNTIME}}'
     cmds:
       - cargo nextest run --locked -p grove-loop --test session_result
       - cargo nextest run --locked -p grove-loop --test session_result_installed --run-ignored only
@@ -305,6 +325,7 @@ tasks:
     desc: Check Grove's task tree, driver, authority and result transport with nextest
     env:
       GROVE_TEST_RAVEL: '{{.RAVEL}}'
+      GROVE_TEST_RAVEL_RUNTIME: '{{.RAVEL_RUNTIME}}'
     cmds:
       - cargo nextest run --locked -p grove-loop {{.CLI_ARGS}}
       - cargo test --locked -p grove-loop --doc
@@ -315,6 +336,7 @@ tasks:
     desc: Check the agent CLI, retirement guidance and tree verbs with nextest
     env:
       GROVE_TEST_RAVEL: '{{.RAVEL}}'
+      GROVE_TEST_RAVEL_RUNTIME: '{{.RAVEL_RUNTIME}}'
     cmds:
       - cargo nextest run --locked -p grove-llm {{.CLI_ARGS}}
 

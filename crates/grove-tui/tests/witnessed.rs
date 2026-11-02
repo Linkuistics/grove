@@ -22,18 +22,17 @@ mod shared;
 
 const LIMIT: Duration = Duration::from_secs(10);
 
-/// A personal Ravel policy under `root/config`, the helper driver's HOME,
-/// that runs `program` with `args` and then the prompt, for every kind.
+/// A personal Ravel configuration under `root/config`, the helper driver's
+/// HOME, that runs `program` with `args` and then the prompt, for every kind.
 fn route(root: &Path, program: &str, args: &[&str]) {
-    shared::write_policy(
-        &root.join("config"),
-        &format!(
-            "export const policy = {{ schemaVersion: 2, version: \"viewer-1\", \
-             select: (request) => ({{ status: \"selected\", program: {program:?}, \
-             args: [...{args:?}, request.prompt], provider: \"fixture\", model: \"none\", \
-             effort: \"none\", reason: \"every kind runs the fixture's command\" }}) }};\n"
-        ),
-    );
+    let mut words: Vec<_> = args
+        .iter()
+        .map(|arg| shared::ravel::Arg::Text(arg))
+        .collect();
+    words.push(shared::ravel::Arg::Prompt);
+    let mut route = shared::ravel::Route::new("viewer-1", program, words);
+    route.reason = "every kind runs the fixture's command";
+    shared::write_config(&root.join("config"), &route.source(shared::runtime()));
 }
 
 fn put(root: &Path, name: &str, text: &str) {

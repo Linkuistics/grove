@@ -85,17 +85,37 @@ fn lifecycle_request_preserves_public_inputs_and_uses_the_selected_ending_path()
         let temp = tempfile::tempdir().unwrap();
         let pair = installed(temp.path());
         let home = temp.path().join("home");
-        let policy = home.join(".config/ravel/policy.ts");
+        let runtime = pair.runtime();
+        let policy = home.join(".config/ravel").join(runtime.config_file());
         fs::create_dir_all(policy.parent().unwrap()).unwrap();
         let observed = temp.path().join("observed.json");
-        fs::write(&policy, format!(
-        "import {{writeFileSync}} from 'node:fs';\n\
-         export const policy = {{schemaVersion: 2, version: 'caller-commands', select(request) {{\n\
-         writeFileSync({observed:?}, JSON.stringify(request));\n\
-         return {{status: 'selected', program: '/bin/sh',\n\
-         args: ['-c', 'printf managed-stdout; printf managed-stderr >&2; eval \"$1\"', 'fixture', request.prompt],\n\
-         provider: 'fixture', model: 'none', effort: 'none', reason: 'public inputs'}}; }} }};\n"
-    )).unwrap();
+        // The 1.1 policy writes the request it received. A Rhai script writes
+        // no file, so the 2.0 script hands the encoded request to the fake
+        // agent, which writes it before it ends the session.
+        let source = match runtime {
+            support::ravel::Runtime::V1_1 => format!(
+                "import {{writeFileSync}} from 'node:fs';\n\
+                 export const policy = {{schemaVersion: 2, version: 'caller-commands', select(request) {{\n\
+                 writeFileSync({observed:?}, JSON.stringify(request));\n\
+                 return {{status: 'selected', program: '/bin/sh',\n\
+                 args: ['-c', 'printf managed-stdout; printf managed-stderr >&2; eval \"$1\"', 'fixture', request.prompt],\n\
+                 provider: 'fixture', model: 'none', effort: 'none', reason: 'public inputs'}}; }} }};\n"
+            ),
+            support::ravel::Runtime::V2_0 => format!(
+                "export const SCHEMA_VERSION = 4;\n\
+                 export const VERSION = \"caller-commands\";\n\
+                 fn select(request, context) {{\n\
+                 \x20   #{{ status: \"selected\", program: \"/bin/sh\",\n\
+                 \x20       args: [\"-c\", {script}, \"fixture\", request.prompt, ravel::json_encode(request), {observed}],\n\
+                 \x20       provider: \"fixture\", model: \"none\", effort: \"none\", reason: \"public inputs\" }}\n\
+                 }}\n",
+                script = support::ravel::quote(
+                    r#"printf '%s' "$2" > "$3"; printf managed-stdout; printf managed-stderr >&2; eval "$1""#
+                ),
+                observed = support::ravel::quote(observed.to_str().unwrap()),
+            ),
+        };
+        fs::write(&policy, source).unwrap();
         let task = Selection {
             path: temp
                 .path()
@@ -151,6 +171,14 @@ fn lifecycle_request_preserves_public_inputs_and_uses_the_selected_ending_path()
         assert_eq!(request["taskFile"], task.path.to_str().unwrap());
         assert_eq!(request["taskId"], "subject-k12");
         assert_eq!(request["prompt"], prompt);
+        if runtime == support::ravel::Runtime::V2_0 {
+            assert_eq!(request["originalPrompt"], prompt);
+            assert_eq!(
+                request["skills"],
+                serde_json::Value::Null,
+                "delivery is disabled"
+            );
+        }
         assert_eq!(request["params"], serde_json::json!({}));
     }
 }
@@ -164,7 +192,8 @@ fn confined_request_grants_only_the_named_runtime_file_and_isolates_the_result()
     let temp = tempfile::tempdir_in(&caller_dir).unwrap();
     let pair = installed(temp.path());
     let home = temp.path().join("home");
-    let policy = home.join(".config/ravel/policy.ts");
+    let runtime = pair.runtime();
+    let policy = home.join(".config/ravel").join(runtime.config_file());
     fs::create_dir_all(policy.parent().unwrap()).unwrap();
     let work = temp.path().join("staged work");
     fs::create_dir(&work).unwrap();
@@ -182,12 +211,30 @@ fn confined_request_grants_only_the_named_runtime_file_and_isolates_the_result()
         "status": "selected", "program": "/bin/sh", "args": ["-c", script, "fixture"],
         "provider": "fixture", "model": "none", "effort": "none", "reason": "confined command"
     });
-    fs::write(&policy, format!(
-        "export const policy = {{schemaVersion: 2, version: 'confined-caller', select(request) {{\n\
-         if (request.kind !== 'release-notes' || request.taskFile !== undefined || request.taskId !== undefined) \
-         return {{status:'refused', code:'wrong_inputs', message:'unexpected task data', remedy:'fix the caller'}};\n\
-         const selected = {selected}; selected.args.push(request.prompt); return selected; }} }};"
-    )).unwrap();
+    let source = match runtime {
+        support::ravel::Runtime::V1_1 => format!(
+            "export const policy = {{schemaVersion: 2, version: 'confined-caller', select(request) {{\n\
+             if (request.kind !== 'release-notes' || request.taskFile !== undefined || request.taskId !== undefined) \
+             return {{status:'refused', code:'wrong_inputs', message:'unexpected task data', remedy:'fix the caller'}};\n\
+             const selected = {selected}; selected.args.push(request.prompt); return selected; }} }};"
+        ),
+        support::ravel::Runtime::V2_0 => format!(
+            "export const SCHEMA_VERSION = 4;\n\
+             export const VERSION = \"confined-caller\";\n\
+             fn select(request, context) {{\n\
+             \x20   if request.kind != \"release-notes\" || type_of(request.taskFile) != \"()\" \
+             || type_of(request.taskId) != \"()\" {{\n\
+             \x20       return #{{ status: \"refused\", code: \"wrong_inputs\", \
+             message: \"unexpected task data\", remedy: \"fix the caller\" }};\n\
+             \x20   }}\n\
+             \x20   #{{ status: \"selected\", program: \"/bin/sh\", \
+             args: [\"-c\", {script}, \"fixture\", request.prompt], provider: \"fixture\", \
+             model: \"none\", effort: \"none\", reason: \"confined command\" }}\n\
+             }}\n",
+            script = support::ravel::quote(&script),
+        ),
+    };
+    fs::write(&policy, source).unwrap();
     for granted in [false, true] {
         let reads = if granted {
             vec![credential.strip_prefix(&caller_dir).unwrap().to_owned()]

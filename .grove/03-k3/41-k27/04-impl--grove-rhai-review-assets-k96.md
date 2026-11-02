@@ -42,3 +42,9 @@ with Rhai's own `trim` must fail a U+FEFF or U+0085 case. Watch each fail once.
 
 This port carries provider-diversity enforcement. Earn a `review-impl` unless
 the cross-runtime receipt and safety cases cover every changed branch.
+
+grove-ravel-runtime-fixtures-k94 left the six cases of
+`crates/grove/tests/creator_lifecycle.rs` behind the guard
+`review_assets_unported`. Under the 2.0 runtime they report that and run
+nothing. Give them Rhai review policies and remove the guard, so that
+`ravel:provenance` runs them against each build.

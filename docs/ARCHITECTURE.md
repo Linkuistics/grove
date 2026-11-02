@@ -1864,6 +1864,11 @@ and runs real-worker/fake-agent caller/provenance fixtures. The gate resolves Ra
 public front. No bundled dispatch worker or probes are built.
 The script announces the resolved toolchain and reports each failed check.
 
+GROVE_TEST_RAVEL_RUNTIME names the configuration runtime of the Ravel build
+under test: `1.1` for `policy.ts` or `2.0` for `config.rhai`. An unset runtime
+means 1.1, and the fixtures refuse it for a build without the 1.x worker
+(`testing/ravel.rs`).
+
 The two conformance scripts are the methodology's own, and they are shell rather
 than Rust because the thing they assert about — the composed loaded path of an
 installed skill set — is a property of plugin content rather than its delivery

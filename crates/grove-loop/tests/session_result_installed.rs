@@ -8,6 +8,30 @@ use grove_loop::session_result::SessionResult;
 
 mod support;
 
+/// A configuration beside the copied build that ends its session through
+/// `front`, written for the runtime of that build.
+fn ending_config(
+    dir: &std::path::Path,
+    pair: &support::ravel::InstalledRavel,
+    reason: &str,
+) -> std::path::PathBuf {
+    let config = dir.join(pair.runtime().config_file());
+    let front = pair.executable().to_str().unwrap();
+    let mut route = support::ravel::Route::new(
+        "fixture",
+        "/bin/sh",
+        ["-c", "\"$1\" end-session grove-continue", "fixture", front]
+            .map(support::ravel::Arg::Text)
+            .to_vec(),
+    );
+    route.reason = reason;
+    fs::write(&config, route.source(pair.runtime())).unwrap();
+    config
+}
+
+// A 1.1 build runs its policy in the separate worker, so the copy must carry
+// it and a missing worker must refuse. A 2.0 build is one executable, so its
+// copy holds no worker and completes without one.
 #[test]
 #[ignore = "requires installed Ravel: task ravel:fixtures RAVEL=/absolute/path/to/ravel"]
 fn copied_pair_refuses_a_missing_worker_without_host_fallback() {
@@ -15,13 +39,7 @@ fn copied_pair_refuses_a_missing_worker_without_host_fallback() {
     let prefix = temp.path().join("ravel-prefix");
     let source = std::env::var_os("GROVE_TEST_RAVEL").expect("GROVE_TEST_RAVEL is required");
     let pair = support::ravel::InstalledRavel::copy_from(std::path::Path::new(&source), &prefix);
-    let policy = temp.path().join("policy.ts");
-    let selected = serde_json::json!({
-        "status": "selected", "program": "/bin/sh",
-        "args": ["-c", "\"$1\" end-session grove-continue", "fixture", pair.executable()],
-        "provider": "fixture", "model": "none", "effort": "none", "reason": "copied pair"
-    });
-    fs::write(&policy, format!("export const policy = {{schemaVersion: 2, version: 'fixture', select: () => ({selected})}};")).unwrap();
+    let policy = ending_config(temp.path(), &pair, "copied pair");
     let invoke = || {
         pair.command()
             .args([
@@ -36,6 +54,16 @@ fn copied_pair_refuses_a_missing_worker_without_host_fallback() {
             .output()
             .unwrap()
     };
+    if pair.runtime() == support::ravel::Runtime::V2_0 {
+        assert!(
+            !prefix.join("libexec").exists(),
+            "a 2.0 copy holds no worker"
+        );
+        let complete = invoke();
+        assert!(complete.status.success(), "{complete:?}");
+        assert_eq!(complete.stdout, b"grove-continue");
+        return;
+    }
     let worker = prefix.join("libexec/ravel/ravel-policy");
     let held = prefix.join("held-worker");
     fs::rename(&worker, &held).unwrap();
@@ -96,13 +124,7 @@ fn copied_pair_scrubs_inherited_authority_before_the_front() {
         std::path::Path::new(&source),
         &temp.path().join("ravel-prefix"),
     );
-    let policy = temp.path().join("policy.ts");
-    let selected = serde_json::json!({
-        "status": "selected", "program": "/bin/sh",
-        "args": ["-c", "\"$1\" end-session grove-continue", "fixture", pair.executable()],
-        "provider": "fixture", "model": "none", "effort": "none", "reason": "scrubbed pair"
-    });
-    fs::write(&policy, format!("export const policy = {{schemaVersion: 2, version: 'fixture', select: () => ({selected})}};")).unwrap();
+    let policy = ending_config(temp.path(), &pair, "scrubbed pair");
     // Observe the environment at process entry, then exec the real installed
     // front. Ravel itself forbids owner grants for RAVEL_* and legacy dispatch
     // controls, so a policy-env probe could not measure their upstream scrub.
@@ -176,16 +198,33 @@ fn both_shapes_read_only_the_installed_session_result() {
                 "provider": "fixture", "model": "fixture", "effort": "low",
                 "reason": "installed public result boundary"
             });
-            let policy = temp.path().join("policy.ts");
-            fs::write(
-                &policy,
-                format!(
+            let policy = temp.path().join(pair.runtime().config_file());
+            let source = match pair.runtime() {
+                support::ravel::Runtime::V1_1 => format!(
                     "import {{ definePolicy }} from 'ravel/sdk';\n\
                      export const policy = definePolicy({{schemaVersion: 2, \
                      version: 'grove-result-fixture', select: () => ({selected})}});\n"
                 ),
-            )
-            .unwrap();
+                support::ravel::Runtime::V2_0 => {
+                    use support::ravel::{Arg, Route};
+                    let words = [
+                        "-c",
+                        script,
+                        "fixture",
+                        ravel.to_str().unwrap(),
+                        supplied.unwrap_or(""),
+                    ];
+                    let mut route = Route::new(
+                        "grove-result-fixture",
+                        "/bin/sh",
+                        words.map(Arg::Text).to_vec(),
+                    );
+                    (route.model, route.effort) = ("fixture", "low");
+                    route.reason = "installed public result boundary";
+                    route.source(pair.runtime())
+                }
+            };
+            fs::write(&policy, source).unwrap();
             // env execs the same public front, supplying an isolated PATH even
             // for the detached shape, which deliberately has no env grants.
             let argv = Argv::new(

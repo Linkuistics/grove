@@ -598,16 +598,13 @@ fn shell_quote(path: &Path) -> String {
 /// A personal dispatch policy that runs `command` for every kind, with `flag`
 /// and then the prompt as its arguments.
 fn route_every_kind(home: &Path, command: &Path, flag: &str) {
-    support::write_policy(
-        home,
-        &format!(
-            "export const policy = {{ schemaVersion: 2, version: \"removed-surface-1\", \
-             select: (request) => ({{ status: \"selected\", program: {command:?}, \
-             args: [{flag:?}, request.prompt], provider: \"fixture\", model: \"none\", \
-             effort: \"none\", reason: \"every kind runs the fixture's command\" }}) }};\n",
-            command = command.to_str().unwrap()
-        ),
+    let mut route = support::ravel::Route::new(
+        "removed-surface-1",
+        command.to_str().unwrap(),
+        vec![support::ravel::Arg::Text(flag), support::ravel::Arg::Prompt],
     );
+    route.reason = "every kind runs the fixture's command";
+    support::write_config(home, &route.source(support::runtime()));
 }
 
 /// One fixture: a working tree of the given VCS holding a single live `impl`

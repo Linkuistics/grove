@@ -1,13 +1,16 @@
 // Integration tests for the self-driving loop (src/loop_driver.rs).
 //
 // Every case drives the real Grove process with a temporary HOME and personal
-// Ravel policy. The independently installed front and worker select fake agents
-// through an isolated PATH; GROVE_TEST_RAVEL names the test installation.
+// Ravel configuration. The independently installed build selects fake agents
+// through an isolated PATH; GROVE_TEST_RAVEL names the test installation, and
+// GROVE_TEST_RAVEL_RUNTIME its runtime.
 // There is no Grove launch configuration or in-process driver shortcut.
 // These cases observe epoch admission, stderr, cancellation and terminal recovery.
 // Ravel owns harness supervision; Grove interprets its opaque result after reap.
 
 mod support;
+
+use support::ravel::{quote, Runtime, RHAI_GRANTED};
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::ffi::OsString;
@@ -103,19 +106,36 @@ fn lifecycle_scrubs_enclosing_ravel_and_retired_controls_before_selection() {
         "GROVE_CLAUDE_PID",
         "GROVE_PROVIDER_EVIDENCE",
     ];
-    dispatch.policy(&format!(
-        "export const policy = {{ schemaVersion: 2, version: 'authority-probe', \
-         select: () => {{\n\
-         if (process.env.OWNER_GRANT !== 'granted' || \
-         {}.some(name => process.env[name] !== undefined)) \
-         return {{ status: 'refused', code: 'enclosing_authority', \
-         message: 'enclosing authority reached selection', remedy: 'scrub before selection' }};\n\
-         return {{ status: 'selected', program: {:?}, args: [], provider: 'fixture', \
-         model: 'none', effort: 'none', reason: 'scrubbed controls' }}; }} }};\n",
-        serde_json::to_string(&controls).unwrap(),
-        dispatch.harness.to_str().unwrap(),
-    ));
-    dispatch.settings(&serde_json::json!({"policyEnv": ["OWNER_GRANT", "GROVE_SIGNAL_FILE", "GROVE_RUN_SIGNAL_FILE", "GROVE_HARNESS_PID", "GROVE_CLAUDE_PID", "GROVE_PROVIDER_EVIDENCE"]}).to_string());
+    let names = controls.map(quote).join(", ");
+    let harness = quote(dispatch.harness.to_str().unwrap());
+    dispatch.policy(&match support::runtime() {
+        Runtime::V1_1 => format!(
+            "export const policy = {{ schemaVersion: 2, version: 'authority-probe', \
+             select: () => {{\n\
+             if (process.env.OWNER_GRANT !== 'granted' || \
+             [{names}].some(name => process.env[name] !== undefined)) \
+             return {{ status: 'refused', code: 'enclosing_authority', \
+             message: 'enclosing authority reached selection', remedy: 'scrub before selection' }};\n\
+             return {{ status: 'selected', program: {harness}, args: [], provider: 'fixture', \
+             model: 'none', effort: 'none', reason: 'scrubbed controls' }}; }} }};\n"
+        ),
+        Runtime::V2_0 => format!(
+            "export const SCHEMA_VERSION = 4;\n\
+             export const VERSION = \"authority-probe\";\n\
+             {RHAI_GRANTED}\n\
+             fn select(request, context) {{\n\
+             \x20   let reached = granted(\"OWNER_GRANT\") != \"granted\";\n\
+             \x20   for name in [{names}] {{ if type_of(granted(name)) != \"()\" {{ reached = true; }} }}\n\
+             \x20   if reached {{\n\
+             \x20       return #{{ status: \"refused\", code: \"enclosing_authority\", \
+             message: \"enclosing authority reached selection\", remedy: \"scrub before selection\" }};\n\
+             \x20   }}\n\
+             \x20   #{{ status: \"selected\", program: {harness}, args: [], provider: \"fixture\", \
+             model: \"none\", effort: \"none\", reason: \"scrubbed controls\" }}\n\
+             }}\n"
+        ),
+    });
+    dispatch.settings(&serde_json::json!({support::runtime().grant_key(): ["OWNER_GRANT", "GROVE_SIGNAL_FILE", "GROVE_RUN_SIGNAL_FILE", "GROVE_HARNESS_PID", "GROVE_CLAUDE_PID", "GROVE_PROVIDER_EVIDENCE"]}).to_string());
 
     let mut direct = Command::new(support::installed_ravel());
     for name in support::grove_env_names() {
@@ -1561,7 +1581,7 @@ impl Dispatch {
 
     /// Replace the personal dispatch policy, at the default entry path.
     fn policy(&self, source: &str) {
-        support::write_policy(&self.home, source);
+        support::write_config(&self.home, source);
     }
 
     /// Replace the owner settings, beside the policy. Grove passes dispatch no
@@ -1633,6 +1653,15 @@ const RECORD_START: &str = "\
     printf '%s' \"$GROVE_LAUNCH_DIR\" > \"$record/launch-dir\"\n\
     cp .jj/grove/session.epoch \"$record/epoch\"\n";
 
+/// Owner settings that grant the launch directory to selection, which no owner
+/// should do. Cases use it as the control on a probe that reads nothing.
+fn grant_launch_dir() -> String {
+    format!(
+        r#"{{ "{}": ["GROVE_LAUNCH_DIR"] }}"#,
+        support::runtime().grant_key()
+    )
+}
+
 /// Mark teardown directly in this fixture so cases can inspect the retained
 /// task tree, then publish the real Ravel result. The teardown-verb case
 /// below exercises the real finish-commit/record-teardown precondition.
@@ -1654,6 +1683,9 @@ fn complete_done() -> String {
 /// `RAVEL_EXIT_FILE`, so that what selection code can reach is observed
 /// where it runs.
 fn probing_policy(view: &Path, harness: &Path, kinds: &[&str]) -> String {
+    if support::runtime() == Runtime::V2_0 {
+        return probing_config(view, harness, kinds);
+    }
     let kinds = kinds
         .iter()
         .map(|kind| format!("{kind:?}"))
@@ -1695,6 +1727,63 @@ export const policy = {{
 "#,
         view = view.to_str().unwrap(),
         harness = harness.to_str().unwrap(),
+    )
+}
+
+/// The `/bin/sh -c` script of a 2.0 probe: write the view in `$1` to the file
+/// `$2`, then exec the program in `$0` with the remaining arguments.
+const WRITE_VIEW: &str = r#"printf '%s' "$1" > "$2"; shift 2; exec "$0" "$@""#;
+
+/// The 2.0 form of [`probing_policy`], with the same arguments for the fake
+/// harness and the same refusal.
+///
+/// A Rhai script writes no file and spawns no process, and Ravel gives its
+/// worker an empty environment. So the script reads what it can: `HOME`, which
+/// every script may read, and the channel when a grant names it. It also reads
+/// `request.originalPrompt`. It hands that view to `/bin/sh`, which writes it
+/// to `view` and then execs the fake harness.
+fn probing_config(view: &Path, harness: &Path, kinds: &[&str]) -> String {
+    let kinds = kinds
+        .iter()
+        .map(|kind| quote(kind))
+        .collect::<Vec<_>>()
+        .join(", ");
+    format!(
+        r#"export const SCHEMA_VERSION = 4;
+export const VERSION = "grove-seam-1";
+
+{RHAI_GRANTED}
+fn select(request, context) {{
+    if ![{kinds}].contains(request.kind) {{
+        return #{{
+            status: "refused",
+            code: "incomplete_mapping",
+            message: `this policy names no command for kind ${{ravel::json_encode(request.kind)}}`,
+            remedy: "add the kind to the policy",
+        }};
+    }}
+    let view = #{{
+        home: ravel::env("HOME"),
+        channel: granted("GROVE_LAUNCH_DIR"),
+        launchDir: granted("GROVE_LAUNCH_DIR"),
+        originalPrompt: request.originalPrompt,
+    }};
+    #{{
+        status: "selected",
+        program: "/bin/sh",
+        args: ["-c", {write}, {harness}, ravel::json_encode(view), {view},
+            request.kind, request.taskFile, request.taskId, request.prompt,
+            ravel::json_encode(request.params), request.cwd],
+        provider: "origin-a",
+        model: "model-a",
+        effort: "high",
+        reason: `kind ${{request.kind}} runs the fake harness`,
+    }}
+}}
+"#,
+        write = quote(WRITE_VIEW),
+        harness = quote(harness.to_str().unwrap()),
+        view = quote(view.to_str().unwrap()),
     )
 }
 
@@ -1809,24 +1898,39 @@ fn a_session_s_task_reaches_select_as_native_data_and_only_its_harness_holds_the
         view["launchDir"].is_null(),
         "worker received launch authority: {view}"
     );
-    for place in ["worker", "child"] {
-        let names: Vec<&str> = view[place]
-            .as_array()
-            .unwrap()
-            .iter()
-            .map(|name| name.as_str().unwrap())
-            .collect();
-        assert!(names.contains(&"HOME"), "the probe read nothing: {view}");
-        assert!(
-            !names.iter().any(|name| name.starts_with("GROVE_")),
-            "the policy's {place} holds a Grove variable: {view}"
-        );
+    match support::runtime() {
+        Runtime::V1_1 => {
+            for place in ["worker", "child"] {
+                let names: Vec<&str> = view[place]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .map(|name| name.as_str().unwrap())
+                    .collect();
+                assert!(names.contains(&"HOME"), "the probe read nothing: {view}");
+                assert!(
+                    !names.iter().any(|name| name.starts_with("GROVE_")),
+                    "the policy's {place} holds a Grove variable: {view}"
+                );
+            }
+        }
+        // The 2.0 worker has an empty environment and spawns nothing, by
+        // Ravel's contract. Its script reads HOME and granted names only.
+        Runtime::V2_0 => {
+            assert!(view["home"].is_string(), "the probe read nothing: {view}");
+            assert_eq!(
+                view["originalPrompt"].as_str(),
+                Some(mandate.as_str()),
+                "with delivery disabled, request.prompt, request.originalPrompt \
+                 and the mandate are the same bytes: {view}"
+            );
+        }
     }
     assert_eq!(view["channel"], serde_json::Value::Null, "{view}");
 
     // The control: granted, the channel reaches the same probe, and it is the
     // harness's own, fresh for that launch.
-    dispatch.settings(r#"{ "policyEnv": ["GROVE_LAUNCH_DIR"] }"#);
+    dispatch.settings(&grant_launch_dir());
     dispatch.drive_to_completion();
     let granted = dispatch.launch(1);
     assert_eq!(dispatch.view()["channel"], granted.launch_dir.as_str());
@@ -1882,9 +1986,10 @@ fn a_kind_the_policy_refuses_leaves_its_leaf_live_and_launches_once_the_policy_r
         1,
         "the refused launch must reach no harness: {stderr}"
     );
+    let runtime = support::runtime();
     for said in [
-        "refused (policy_refused, stage selection)",
-        "  policy code: incomplete_mapping",
+        &format!("refused ({}, stage selection)", runtime.code("refused")),
+        &format!("  {} code: incomplete_mapping", runtime.prefix()),
         "  remedy: add the kind to the policy",
         "session ended without a supported Grove result — status exit status: 3",
         "session kind `design` for `follow-up-k2` failed",
@@ -1927,6 +2032,106 @@ fn a_kind_the_policy_refuses_leaves_its_leaf_live_and_launches_once_the_policy_r
             OsString::from("follow-up-k2"),
         ]
     );
+}
+
+// A configuration or setting of the other major refuses when the leaf
+// launches, and Ravel's statement reaches the user unchanged: its first line
+// and its remedy, as the same build states them when run directly under the
+// same HOME. No harness starts and the leaf stays live. On 2.0 the three states
+// are a schema-3 script, a lone `policy.ts` and the 1.x settings key
+// `policyEnv`. On 1.1 they are a schema-3 policy, a lone `config.rhai` and the
+// 2.0 key `configEnv`.
+#[test]
+fn a_foreign_configuration_refuses_unchanged_and_leaves_the_leaf_live() {
+    let runtime = support::runtime();
+    let schema_three = match runtime {
+        Runtime::V1_1 => {
+            "export const policy = { schemaVersion: 3, version: \"foreign\", \
+                          select: () => undefined };\n"
+        }
+        Runtime::V2_0 => {
+            "export const SCHEMA_VERSION = 3;\nexport const VERSION = \"foreign\";\n\
+                          fn select(request, context) { () }\n"
+        }
+    };
+    // 1.1 never opens `config.rhai`, so it reports its own entry missing. 2.0
+    // probes `policy.ts` only to refuse the retired format.
+    let other = match runtime {
+        Runtime::V1_1 => (
+            "config.rhai",
+            "export const SCHEMA_VERSION = 4;\n",
+            "policy_missing",
+        ),
+        Runtime::V2_0 => (
+            "policy.ts",
+            "export const policy = {};\n",
+            "config_format_retired",
+        ),
+    };
+    let foreign_key = match runtime {
+        Runtime::V1_1 => r#"{ "configEnv": ["HOME"] }"#,
+        Runtime::V2_0 => r#"{ "policyEnv": ["HOME"] }"#,
+    };
+    for (state, code) in [
+        ("schema 3", "unsupported_version"),
+        ("other major's entry", other.2),
+        ("other major's settings key", "settings_invalid"),
+    ] {
+        let dispatch = Dispatch::new("worktree");
+        plant_tree(&dispatch.worktree, "01-impl--subject-k1.md");
+        match state {
+            "schema 3" => dispatch.policy(schema_three),
+            "other major's entry" => {
+                let entry = dispatch.home.join(".config/ravel").join(other.0);
+                fs::create_dir_all(entry.parent().unwrap()).unwrap();
+                fs::write(entry, other.1).unwrap();
+            }
+            _ => {
+                dispatch.policy(&probing_policy(
+                    &dispatch.view,
+                    &dispatch.harness,
+                    &["impl"],
+                ));
+                dispatch.settings(foreign_key);
+            }
+        }
+        let direct = Command::new(ravel())
+            .args(["start-session", "--kind=impl", "--prompt=control"])
+            .env_clear()
+            .env("HOME", &dispatch.home)
+            .env("PATH", support::ravel_path())
+            .current_dir(&dispatch.worktree)
+            .output()
+            .unwrap();
+        let stated = String::from_utf8_lossy(&direct.stderr).into_owned();
+        assert!(!direct.status.success(), "{state}: {stated}");
+        let first = stated.lines().next().unwrap();
+        assert!(
+            first.starts_with(&format!("ravel: refused ({code}, ")),
+            "{state}: {stated}"
+        );
+        let remedy = stated
+            .lines()
+            .find(|line| line.starts_with("  remedy: "))
+            .unwrap_or_else(|| panic!("{state}: no remedy in {stated}"));
+
+        let output = run_driver(&dispatch.worktree, &dispatch.home);
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert!(output.status.success(), "{state}: {stderr}");
+        for said in [
+            first,
+            remedy,
+            "session kind `impl` for `subject-k1` failed",
+            "rerun `grove` to continue",
+        ] {
+            assert!(stderr.contains(said), "{state}: no {said:?} in: {stderr}");
+        }
+        assert_eq!(dispatch.launch_count(), 0, "{state}: {stderr}");
+        assert!(
+            dispatch.task_file("01-impl--subject-k1.md").is_file(),
+            "{state}: the leaf stays live"
+        );
+    }
 }
 
 // A `config.kdl` and a `.grove.kdl` left on disk are never read and refuse
@@ -2009,9 +2214,10 @@ fn a_fresh_tree_is_scaffolded_with_no_policy_and_its_first_launch_requests_a_pol
         leaf.is_file() && dispatch.task_file("_BRIEF.md").is_file(),
         "the root and its first leaf must be written with no policy: {stderr}"
     );
+    let runtime = support::runtime();
     for said in [
-        "refused (policy_missing",
-        "exporting a `policy`",
+        &format!("refused ({}", runtime.code("missing")),
+        runtime.missing_remedy(),
         "session ended without a supported Grove result",
         "session kind `requirements` for `plan-k1` failed",
     ] {
@@ -2409,6 +2615,11 @@ impl Dispatch {
     /// a descriptor on the controlling terminal as one measurement reads them,
     /// `/dev/null`'s device, the names in its environment, and the channel's
     /// value if it has one. `prelude` runs next.
+    ///
+    /// On 2.0 the script writes no file and its worker has no descriptor or
+    /// environment that a script can measure. The 2.0 view therefore holds
+    /// `HOME` and the channel when a grant names it, and `/bin/sh` writes it
+    /// before it execs the probe, as [`probing_config`] does.
     fn terminal_policy(&self, alter: bool, prelude: &str) -> String {
         let args: String = [alter.then_some("--alter")]
             .into_iter()
@@ -2417,8 +2628,33 @@ impl Dispatch {
                 self.launches.to_str().unwrap(),
                 self.after_probe().to_str().unwrap(),
             ])
-            .map(|arg| format!("{arg:?}, "))
+            .map(|arg| format!("{}, ", quote(arg)))
             .collect();
+        if support::runtime() == Runtime::V2_0 {
+            return format!(
+                r#"export const SCHEMA_VERSION = 4;
+export const VERSION = "grove-terminal-1";
+
+{RHAI_GRANTED}
+{prelude}
+fn select(request, context) {{
+    let view = #{{ home: ravel::env("HOME"), channel: granted("GROVE_LAUNCH_DIR") }};
+    #{{
+        status: "selected",
+        program: "/bin/sh",
+        args: ["-c", {write}, {probe}, ravel::json_encode(view), {view}, {args}request.prompt],
+        provider: "origin-a",
+        model: "model-a",
+        effort: "high",
+        reason: "every kind runs the probe",
+    }}
+}}
+"#,
+                write = quote(WRITE_VIEW),
+                probe = quote(session_probe().to_str().unwrap()),
+                view = quote(self.view.to_str().unwrap()),
+            );
+        }
         format!(
             r#"import {{ closeSync, fstatSync, openSync, renameSync, statSync, writeFileSync }} from "node:fs";
 import {{ isatty }} from "node:tty";
@@ -2546,7 +2782,15 @@ fn held_then_done() -> String {
 /// The file is renamed into place whole. A case interrupts the selection as
 /// soon as the file exists, and a file created and then written could be seen
 /// empty by a worker stopped between the two.
+///
+/// A Rhai script writes no file, so the 2.0 prelude only holds, with a `sleep`
+/// that only the death of the worker ends. A 2.0 case finds the worker in the
+/// process table instead: [`support::wait_for_rhai_worker`].
 fn holding(pid_file: &Path, ms: Option<u64>) -> String {
+    if support::runtime() == Runtime::V2_0 {
+        let seconds = ms.map_or("3600.0".to_owned(), |ms| format!("{}", ms as f64 / 1000.0));
+        return format!("sleep({seconds});\n");
+    }
     let settle = match ms {
         Some(ms) => format!("setTimeout(resolve, {ms})"),
         None => "setInterval(() => {}, 1000)".to_owned(),
@@ -2647,6 +2891,42 @@ fn the_harness_is_the_foreground_job_grove_launched() {
     );
 
     let view = dispatch.view();
+    if support::runtime() == Runtime::V1_1 {
+        assert_worker_measurements(&view);
+    } else {
+        assert!(view["home"].is_string(), "the probe read nothing: {view}");
+    }
+    assert_eq!(view["channel"], serde_json::Value::Null, "{view}");
+
+    // The controls.
+    dispatch.policy(&dispatch.terminal_policy(true, ""));
+    dispatch.settings(&grant_launch_dir());
+    let held = dispatch.drive_held(PLAIN, 1);
+    let altered = dispatch.probed(1);
+    assert_ne!(altered.parent, held.pid, "{altered:?}");
+    assert_ne!(altered.group, held.group, "{altered:?}");
+    assert_ne!(altered.foreground, altered.group, "{altered:?}");
+    assert_eq!(altered.stdin, "-", "{altered:?}");
+    assert_eq!(altered.cwd, Path::new("/"), "{altered:?}");
+    let signals = &altered.signals;
+    assert!(!signals.ignored.contains(&libc::SIGUSR1), "{altered:?}");
+    assert!(!signals.blocked.contains(&libc::SIGUSR2), "{altered:?}");
+    assert!(signals.ignored.contains(&libc::SIGPIPE), "{altered:?}");
+    assert!(signals.blocked.contains(&libc::SIGALRM), "{altered:?}");
+    let granted = dispatch.launch(1);
+    assert_eq!(dispatch.view()["channel"], granted.launch_dir.as_str());
+    assert_ne!(
+        granted.channel, launch.channel,
+        "each launch gets a fresh channel"
+    );
+}
+
+/// What the 1.1 terminal policy measured of its worker at import: `/dev/null`
+/// as its stdin, the same measurement reading the controlling terminal as one,
+/// and no control variable in its environment. The 2.0 worker gets null stdin
+/// and an empty environment by Ravel's contract, and a script can measure
+/// neither.
+fn assert_worker_measurements(view: &serde_json::Value) {
     assert!(
         view["null"].as_u64().is_some_and(|rdev| rdev != 0),
         "{view}"
@@ -2672,29 +2952,6 @@ fn the_harness_is_the_foreground_job_grove_launched() {
             || name.starts_with("HARNESS_DISPATCH_")
             || name.starts_with("RAVEL_")),
         "the worker holds a control variable: {view}"
-    );
-    assert_eq!(view["channel"], serde_json::Value::Null, "{view}");
-
-    // The controls.
-    dispatch.policy(&dispatch.terminal_policy(true, ""));
-    dispatch.settings(r#"{ "policyEnv": ["GROVE_LAUNCH_DIR"] }"#);
-    let held = dispatch.drive_held(PLAIN, 1);
-    let altered = dispatch.probed(1);
-    assert_ne!(altered.parent, held.pid, "{altered:?}");
-    assert_ne!(altered.group, held.group, "{altered:?}");
-    assert_ne!(altered.foreground, altered.group, "{altered:?}");
-    assert_eq!(altered.stdin, "-", "{altered:?}");
-    assert_eq!(altered.cwd, Path::new("/"), "{altered:?}");
-    let signals = &altered.signals;
-    assert!(!signals.ignored.contains(&libc::SIGUSR1), "{altered:?}");
-    assert!(!signals.blocked.contains(&libc::SIGUSR2), "{altered:?}");
-    assert!(signals.ignored.contains(&libc::SIGPIPE), "{altered:?}");
-    assert!(signals.blocked.contains(&libc::SIGALRM), "{altered:?}");
-    let granted = dispatch.launch(1);
-    assert_eq!(dispatch.view()["channel"], granted.launch_dir.as_str());
-    assert_ne!(
-        granted.channel, launch.channel,
-        "each launch gets a fresh channel"
     );
 }
 
@@ -2772,9 +3029,13 @@ fn a_refused_launch_s_diagnostic_reaches_the_terminal() {
             .find(said)
             .unwrap_or_else(|| panic!("no {said:?} on the terminal: {shown}"))
     };
-    let refusal = at("ravel: refused (policy_refused, stage selection)");
+    let runtime = support::runtime();
+    let refusal = at(&format!(
+        "ravel: refused ({}, stage selection)",
+        runtime.code("refused")
+    ));
     for said in [
-        "  policy code: incomplete_mapping",
+        &format!("  {} code: incomplete_mapping", runtime.prefix()),
         "  remedy: add the kind to the policy",
     ] {
         assert!(at(said) > refusal, "{shown}");
@@ -2811,8 +3072,15 @@ fn an_interrupt_typed_at_the_terminal_ends_the_job_during_selection_and_during_e
     dispatch.policy(&dispatch.terminal_policy(false, &holding(&worker, None)));
     // A selection bound far past the case, so the refusal cannot be a timeout.
     dispatch.settings(r#"{ "timeoutMs": 60000 }"#);
+    let rhai_worker = std::cell::Cell::new(None);
     let (status, stderr) = dispatch.drive_to_stop(|driver, terminal| {
-        driver.wait_for_ready(&worker);
+        match support::runtime() {
+            Runtime::V1_1 => driver.wait_for_ready(&worker),
+            Runtime::V2_0 => rhai_worker.set(Some(support::wait_for_rhai_worker(
+                u32::try_from(driver.id()).unwrap(),
+                SESSION_LIMIT,
+            ))),
+        }
         terminal.interrupt();
     });
     assert_eq!(status, interrupted, "{stderr}");
@@ -2824,7 +3092,10 @@ fn an_interrupt_typed_at_the_terminal_ends_the_job_during_selection_and_during_e
         assert!(stderr.contains(said), "no {said:?} in: {stderr}");
     }
     assert_eq!(dispatch.launch_count(), 0, "a harness launched: {stderr}");
-    let pid: libc::pid_t = fs::read_to_string(&worker).unwrap().trim().parse().unwrap();
+    let pid: libc::pid_t = match rhai_worker.get() {
+        Some(pid) => libc::pid_t::try_from(pid).unwrap(),
+        None => fs::read_to_string(&worker).unwrap().trim().parse().unwrap(),
+    };
     assert!(!exists(pid), "worker {pid} outlived its selection");
 
     dispatch.policy(&dispatch.terminal_policy(false, &holding(&worker, Some(300))));
@@ -3259,8 +3530,10 @@ fn hold_terminal_reset(dispatch: &Dispatch) -> (OsString, PathBuf, PathBuf) {
             after = shell_quote(&after)
         ),
     );
+    // The build under test, not the host's: `ravel_path` puts the copied
+    // build first, as every other launch of this binary does.
     let path = std::env::join_paths(
-        std::iter::once(bin).chain(std::env::split_paths(&std::env::var_os("PATH").unwrap())),
+        std::iter::once(bin).chain(std::env::split_paths(&support::ravel_path())),
     )
     .unwrap();
     (path, ready, go)

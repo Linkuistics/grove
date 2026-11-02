@@ -295,16 +295,37 @@ mod tests {
         let pair = super::support::ravel::InstalledRavel::copy_from(Path::new(&source), &prefix);
         let selected = locate_on_path(Some(pair.bin().as_os_str())).unwrap();
         assert_eq!(selected, pair.executable());
-        let policy = temp.path().join("policy.ts");
+        let runtime = pair.runtime();
+        let policy = temp.path().join(runtime.config_file());
         let selected_json = serde_json::to_string(&selected).unwrap();
-        fs::write(&policy, format!(r#"import {{ definePolicy }} from 'ravel/sdk';
+        let source = match runtime {
+            super::support::ravel::Runtime::V1_1 => format!(
+                r#"import {{ definePolicy }} from 'ravel/sdk';
 export const policy = definePolicy({{
   schemaVersion: 2, version: 'grove-resolver-fixture',
   select: () => ({{ status: 'selected', program: '/bin/sh',
     args: ['-c', 'printf session-noise; "$1" end-session grove-continue', 'fixture', {selected_json}],
     provider: 'fixture', model: 'fixture', effort: 'low', reason: 'installed pair' }})
 }});
-"#)).unwrap();
+"#
+            ),
+            super::support::ravel::Runtime::V2_0 => {
+                use super::support::ravel::{Arg, Route};
+                let mut route = Route::new(
+                    "grove-resolver-fixture",
+                    "/bin/sh",
+                    vec![
+                        Arg::Text("-c"),
+                        Arg::Text(r#"printf session-noise; "$1" end-session grove-continue"#),
+                        Arg::Text("fixture"),
+                        Arg::Text(selected.to_str().unwrap()),
+                    ],
+                );
+                (route.model, route.effort, route.reason) = ("fixture", "low", "installed pair");
+                route.source(runtime)
+            }
+        };
+        fs::write(&policy, source).unwrap();
         let mut command = pair.command();
         command
             .args([

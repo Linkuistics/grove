@@ -226,8 +226,10 @@ The doctor checks the pinned Rust toolchain, all release targets, Zig,
 `cargo-zigbuild`, GitHub authentication, and development Bun pinned by
 `tools/ravel-policy/package.json`. `task check` checks Grove's readable caller
 assets against the installed Ravel SDK using Grove's locked compiler. The gate resolves Ravel from PATH;
-`GROVE_TEST_RAVEL=/absolute/path/to/ravel` overrides that installation. Host Bun/Node are not
-runtime dependencies of either installed project.
+`GROVE_TEST_RAVEL=/absolute/path/to/ravel` overrides that installation.
+`GROVE_TEST_RAVEL_RUNTIME` names its runtime, `1.1` or `2.0`, and an unset
+runtime means 1.1. Host Bun/Node are not runtime dependencies of either
+installed project.
 
 The doctor also checks an Apple silicon Mac and running arm64 Docker with a
 kernel of 6.7 or later, before cutting a version. It installs nothing.

@@ -66,7 +66,7 @@ fn launcher() {
             "--kind=fixture".into(),
             "--prompt=unchanged".into(),
             "--config".into(),
-            work.join("policy.ts").into_os_string(),
+            var("JOB_CONFIG").into(),
         ],
     );
     // SAFETY: `getpgrp(2)` takes no argument and cannot fail.
@@ -199,22 +199,40 @@ fn the_foreground_shape_hands_the_harness_the_terminal_and_takes_it_back() {
         "provider": "fixture", "model": "fixture", "effort": "low",
         "reason": "foreground handover"
     });
-    fs::write(
-        temp.path().join("policy.ts"),
-        format!(
+    let config = temp.path().join(pair.runtime().config_file());
+    let source = match pair.runtime() {
+        support::ravel::Runtime::V1_1 => format!(
             "import {{ definePolicy }} from 'ravel/sdk';\n\
              export const policy = definePolicy({{schemaVersion: 2, \
              version: 'grove-terminal-fixture', select: () => ({selected})}});\n"
         ),
-    )
-    .unwrap();
+        support::ravel::Runtime::V2_0 => {
+            use support::ravel::{Arg, Route};
+            let words = [
+                "-c",
+                "/bin/ps -o pgid= -o tpgid= -p \"$$\" > \"$2\"; \"$1\" end-session grove-continue",
+                "fixture",
+                pair.executable().to_str().unwrap(),
+                observed.to_str().unwrap(),
+            ];
+            let mut route = Route::new(
+                "grove-terminal-fixture",
+                "/bin/sh",
+                words.map(Arg::Text).to_vec(),
+            );
+            (route.model, route.effort, route.reason) = ("fixture", "low", "foreground handover");
+            route.source(pair.runtime())
+        }
+    };
+    fs::write(&config, source).unwrap();
 
     let mut role = Command::new(std::env::current_exe().unwrap());
     role.args(["--exact", "launcher", "--ignored", "--nocapture"])
         .env("JOB_ROLE", "launcher")
         .env("JOB_WORK", temp.path())
         .env("JOB_BIN", pair.bin())
-        .env("JOB_RAVEL", pair.executable());
+        .env("JOB_RAVEL", pair.executable())
+        .env("JOB_CONFIG", &config);
     let terminal = in_pty(role, Duration::from_secs(60));
 
     let launcher = report(&temp.path().join("launcher"));

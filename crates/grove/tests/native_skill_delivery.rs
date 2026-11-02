@@ -202,30 +202,17 @@ impl Fixture {
 
     /// Route every kind to `/bin/sh script prompt args...` through actual Ravel.
     fn route_to_script(&self, script: &Path, args: &[&Path]) {
-        let args: String = args
-            .iter()
-            .map(|arg| format!(", {:?}", arg.to_str().unwrap()))
-            .collect();
-        support::write_policy(
-            &self.home,
-            &format!(
-                r#"export const policy = {{
-  schemaVersion: 2,
-  version: "native-only-1",
-  select: (request) => ({{
-    status: "selected",
-    program: "/bin/sh",
-    args: [{script:?}, request.prompt{args}],
-    provider: "fixture",
-    model: "none",
-    effort: "none",
-    reason: "a managed fixture stands in for the agent",
-  }}),
-}};
-"#,
-                script = script.to_str().unwrap(),
-            ),
+        let mut words = vec![
+            support::ravel::Arg::Text(script.to_str().unwrap()),
+            support::ravel::Arg::Prompt,
+        ];
+        words.extend(
+            args.iter()
+                .map(|arg| support::ravel::Arg::Text(arg.to_str().unwrap())),
         );
+        let mut route = support::ravel::Route::new("native-only-1", "/bin/sh", words);
+        route.reason = "a managed fixture stands in for the agent";
+        support::write_config(&self.home, &route.source(support::runtime()));
     }
 }
 

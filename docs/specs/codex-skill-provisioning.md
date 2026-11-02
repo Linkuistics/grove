@@ -187,7 +187,9 @@ closure only while a function of the module that made it runs. A script that
 composes these routes therefore selects through `select_route` of
 `grove-static.rhai`, not through the starter's own function. The review
 example `grove-review.rhai` runs its selector inside `within` of
-`grove-static.rhai` for the same reason. `review.rhai` calls each route through
+`grove-static.rhai` for the same reason.
+
+`review.rhai` calls each route through
 the starter's `select_route`, so routes of the starter, of the review example
 and of the owner's script resolve there. A script that passes routes of
 another module to `select_with` of `review.rhai` calls it from a function of
@@ -496,9 +498,12 @@ publishes nothing and launches the agent once. A regular-file grant of each copy
 makes the same check fail. `task ravel:directory` runs both parts on the 2.0
 build.
 
-The Linux floor cases run the native part on 1.1 under bubblewrap. The
-directory part on Linux stays unmeasured until the floor tooling has a 2.0
-lane.
+The Linux floor cases run the native part on each runtime under bubblewrap.
+They run the directory part on the 2.0 lane in the supported environment. The
+floor userland has no Git, so the two sources of that case are plain local
+directories. [Runtime lanes](../linux-floor-native.md#runtime-lanes) states each case.
+The [dual-Ravel stage record](../grove-dual-ravel-stage-record.md) names the
+builds and the results.
 
 | Acceptance | Observation |
 | --- | --- |

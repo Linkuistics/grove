@@ -122,6 +122,13 @@ because such a build reports `ravel 1.1.0`. After the cut, run Grove's
 admission and installed checks again against the published `ravel 2.0.0`
 archives, before Grove's release.
 
+The dual-Ravel stage record `docs/grove-dual-ravel-stage-record.md` names the
+local 2.0 build that Grove measured, its archives and the results. Its section
+"Publication order" states the order for acceptance and rollout. Publish
+`ravel@2` first. Replace the local 2.0 lane with the published archives, as
+`docs/ravel-target-inputs.md` directs. Repeat Grove's admission and installed
+checks against them before Grove's release. Promotion comes last, in finish.
+
 <!-- tc: depart synonym-rotation because "delete this workspace" names the workspace deletion that CLAUDE.md forbids, which differs from removing a skill installation -->
 Do not upgrade away any running driver's required binaries. Do not replace its
 ending command, signal paused groves, edit their trees or delete this workspace.

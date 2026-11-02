@@ -270,7 +270,19 @@ completion=$(printf '%s\n' "$1" | sed -n '/exact command as your final action:/{
 case "$completion" in *"ravel' end-session grove-continue") ;; *) exit 41 ;; esac
 eval "$completion"
 EOF_HARNESS
-cat >"$scratch/real-home/.config/ravel/policy.ts" <<EOF_POLICY
+# GROVE_TEST_RAVEL_RUNTIME names the configuration runtime of the build, as in
+# testing/ravel.rs: 1.1 (or unset) for policy.ts, 2.0 for config.rhai. A build
+# of the 2.0 feature line reports `ravel 1.1.0` until the cut, so the layout,
+# not the version output, refuses a mismatch: only a 1.x build has the worker.
+ravel_prefix="$(cd "$(dirname "$(realpath "$ravel_source")")/.." && pwd)"
+ravel_runtime="${GROVE_TEST_RAVEL_RUNTIME:-1.1}"
+case "$ravel_runtime" in
+  1.1)
+    if [[ ! -x "$ravel_prefix/libexec/ravel/ravel-policy" ]]; then
+      echo "FAIL: $ravel_source has no 1.x worker; set GROVE_TEST_RAVEL_RUNTIME=2.0 for a 2.0 build" >&2
+      exit 1
+    fi
+    cat >"$scratch/real-home/.config/ravel/policy.ts" <<EOF_POLICY
 export const policy = {
   schemaVersion: 2,
   version: "release-test",
@@ -279,6 +291,28 @@ export const policy = {
     model: "none", effort: "none", reason: "deterministic release notes" }),
 };
 EOF_POLICY
+    ;;
+  2.0)
+    if [[ -e "$ravel_prefix/libexec/ravel" ]]; then
+      echo "FAIL: $ravel_source has the 1.x worker; set GROVE_TEST_RAVEL_RUNTIME=1.1 for a 1.1 build" >&2
+      exit 1
+    fi
+    cat >"$scratch/real-home/.config/ravel/config.rhai" <<EOF_CONFIG
+export const SCHEMA_VERSION = 4;
+export const VERSION = "release-test";
+
+fn select(request, context) {
+    #{ status: "selected", program: "/bin/sh",
+       args: ["$scratch/real-harness.sh", request.prompt], provider: "fixture",
+       model: "none", effort: "none", reason: "deterministic release notes" }
+}
+EOF_CONFIG
+    ;;
+  *)
+    echo "FAIL: GROVE_TEST_RAVEL_RUNTIME must be 1.1 or 2.0, not '$ravel_runtime'" >&2
+    exit 1
+    ;;
+esac
 mkdir -p "$scratch/real-notes"
 real_inputs=()
 for input in changes.txt changes.diff current-unreleased.md previous-changelog.md SKILL.md codex-headless.sh; do

@@ -61,3 +61,10 @@ Its wrapper refuses an inherited `CLAUDE_CONFIG_DIR` and the three Claude Code
 plugin-location variables. It records the effective configuration directory
 of each harness. A claude.ai sign-in also syncs the account's skills into the
 sandbox. Record them as platform-managed residue, not as native copies.
+
+The dual-Ravel stage record is `docs/grove-dual-ravel-stage-record.md`. It
+names the Grove commits, the 1.1 keg and the 2.0 build by commit, identity and
+`bin/ravel` SHA-256. It gives the recipes for each prefix, HOME, configuration
+and local source. Measure that unpublished 2.0 build from a scratch prefix.
+Do not install `ravel@2` or change the owner's settings. If the bookmark
+`skill-directory-delivery` moves, record the new build before any result.

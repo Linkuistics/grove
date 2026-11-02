@@ -280,3 +280,6 @@ inputs and checks. On macOS, `task smoke:pair OLD=<1.1 executable>
 NEW=<prefix>` runs the Homebrew 1.1.0 release and a directory build at the same
 time. Each run has its own temporary home, and a guard denies both the real
 home. The dual-Ravel stage can reuse that task for its installed pair.
+
+grove-dual-ravel-handoff-k102 closed grove-dual-ravel-k27. Its stage record is
+`docs/grove-dual-ravel-stage-record.md`, which the briefs of k29 and k6 name.

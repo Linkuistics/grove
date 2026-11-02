@@ -122,4 +122,60 @@ else
 fi
 [[ "$(cat "$work/secret")" == owner-secret ]] || fail 'owner secret changed'
 [[ "$(cat "$work/project/existing.txt")" == sentinel ]] || fail 'adjacent existing output changed'
+if [[ "$mode" == supported ]]; then
+  # Native guidance outside every grant. No skill is injected, and native
+  # copies lie under HOME. The confined agent cannot read them. It reports
+  # the missing guidance and force-stops, and Grove publishes nothing and
+  # launches once. The control grants each copy as a regular file. The same
+  # agent then reads them and Grove publishes.
+  native=()
+  for tree in .claude/skills .codex/skills .agents/skills; do
+    mkdir -p "$work/home/$tree/grove"
+    printf '# grove spine (native copy)\n' >"$work/home/$tree/grove/SKILL.md"
+    cat "$work/home/$tree/grove/SKILL.md" >/dev/null || fail 'unreadable native copy outside the sandbox'
+    native+=("$work/home/$tree/grove/SKILL.md")
+  done
+  cat >"$work/native.sh" <<'EOF'
+#!/bin/sh
+tool="$1"
+shift
+printf 'fake agent: started\n' >&2
+unreadable=
+for file in "$@"; do
+  if /bin/cat "$file" >/dev/null 2>&1; then printf 'fake agent: read %s\n' "$file" >&2
+  else printf 'fake agent: cannot read guidance %s\n' "$file" >&2; unreadable=yes; fi
+done
+printf valid >native.txt
+if [ -n "$unreadable" ]; then
+  printf 'fake agent: the mandated guidance is missing or unreadable\n' >&2
+  exec "$tool" end-session grove-force-stop
+fi
+exec "$tool" end-session grove-continue
+EOF
+  cat >"$work/home/.config/ravel/policy.ts" <<EOF
+export const policy = { schemaVersion: 2, version: "native-guidance",
+  select() { return { status: "selected", program: "/bin/sh", args: ["native.sh", "$ravel", "${native[0]}", "${native[1]}", "${native[2]}"], provider: "fixture", model: "none", effort: "none", reason: "native guidance" }; } };
+EOF
+  native_run() {
+    (cd "$work/project" && env -i HOME="$work/home" TMPDIR="$work/tmp" PATH="$work/tools" \
+      "$prefix/bin/grove" run check Read --ui=inline --input "$work/native.sh" \
+      --output "$work/project/native.txt" "$@") >"$work/native.stdout" 2>"$work/native.stderr"
+  }
+  status=0
+  native_run || status=$?
+  cat "$work/native.stderr"
+  ((status != 0)) || fail 'unreadable native guidance published'
+  [[ ! -e "$work/project/native.txt" ]] || fail 'force-stopped native case published its output'
+  grep -q 'Grove force-stop requested; outputs were not published' "$work/native.stderr" ||
+    fail 'Grove did not report the force-stop'
+  [[ "$(grep -c 'fake agent: started' "$work/native.stderr")" == 1 ]] || fail 'the agent started more than once'
+  for copy in "${native[@]}"; do
+    grep -qF "fake agent: cannot read guidance $copy" "$work/native.stderr" || fail "no unreadable report for $copy"
+  done
+  ! grep -q 'fake agent: read ' "$work/native.stderr" || fail 'the confined agent read native guidance'
+  native_run --runtime-read "${native[0]}" --runtime-read "${native[1]}" --runtime-read "${native[2]}" ||
+    fail 'granted native control failed'
+  [[ "$(cat "$work/project/native.txt")" == valid ]] || fail 'granted native control did not publish'
+  echo 'grove-floor-native: unreadable native guidance force-stopped without publication; granted control published'
+fi
 echo "grove-floor-native: $mode actual caller/selection/publication controls passed"

@@ -248,7 +248,7 @@ tasks:
         vars: {RAVEL: '{{.RAVEL}}', RAVEL_RUNTIME: '{{.RAVEL_RUNTIME}}'}
 
   ravel:directory:
-    desc: "Check the directory route on Ravel 2.0 through the lifecycle caller: RAVEL is the 2.0 front, OLD the 1.1 front of the pair case"
+    desc: "Check the directory route on Ravel 2.0 through the lifecycle and confined standalone callers, and the unreadable native case on 2.0: RAVEL is the 2.0 front, OLD the 1.1 front of the pair case"
     requires:
       vars: [RAVEL, OLD]
     env:
@@ -257,6 +257,7 @@ tasks:
       GROVE_TEST_RAVEL_OLD: '{{.OLD}}'
     cmds:
       - cargo nextest run --locked -p grove --test directory_route --run-ignored only {{.CLI_ARGS}}
+      - cargo nextest run --locked -p grove --test standalone -E 'test(native_guidance_outside_every_grant)'
 
   ravel:fixtures:
     desc: Check shared installed-Ravel fixtures through the resolver and Grove's shared result reader

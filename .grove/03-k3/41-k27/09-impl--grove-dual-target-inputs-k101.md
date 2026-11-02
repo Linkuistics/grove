@@ -35,3 +35,15 @@ of the live driver. Build archives in scratch directories.
 
 Controls: an archive with one changed byte must refuse. A 2.0 lane that writes
 `policy.ts` must fail its smoke. Watch each fail once.
+
+From grove-directory-confinement-k99: the floor cases now hold an
+unreadable-native-guidance case for 1.1.0. Run it on the 2.0 lane with
+`config.rhai`. No floor measures the confined directory case on Linux until
+that lane exists. Port the macOS case in `crates/grove/tests/directory_route.rs`
+to the 2.0 lane, or name it as unmeasured.
+
+On 2026-11-03,
+`release:floor:native:run` refused a freshly prepared aarch64 bubblewrap,
+SHA-256 `d35694e8915a70cf6ef403639c4d6c78c82c5cf0d1cc32ea6f1c6e93ca026cca`. The
+recorded value in `docs/linux-floor-backend.md` is `21ad63fa…`. The QEMU floor
+passed with its own prepared backends.

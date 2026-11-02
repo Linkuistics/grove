@@ -209,6 +209,11 @@ It carries no task identity, task file or selection parameter. Grove holds the w
 directory before it starts Ravel, opens the persistent transcript and retains
 display control.
 
+The argv grants no skill directory. On the directory route of Ravel 2.0.0, Ravel
+itself grants the captured skills read-only inside the sandbox. Native skill trees
+under HOME stay outside every grant. A harness that cannot read its guidance there
+force-stops. Grove then publishes nothing and launches no second, unconfined run.
+
 <!-- fragment «standalone-launch-context» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="112-160" parent="standalone-invocation" -->
 ````rust
     let instructions = format!(

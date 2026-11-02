@@ -1040,3 +1040,255 @@ fn a_running_session_keeps_its_directories_and_the_next_launch_sees_the_new_view
         "the first descriptor is retained unchanged"
     );
 }
+
+/// The evidence files that the confined standalone agent writes in its
+/// working directory. Grove publishes each one as an output.
+const EVIDENCE: [&str; 9] = [
+    "prompt",
+    "view.json",
+    "cwd",
+    "reads",
+    "spine",
+    "resource",
+    "kind",
+    "probes",
+    "started",
+];
+
+/// The probes of the confined standalone case. Each line is `name=ok` when
+/// the operation succeeds and `name=denied` when it fails. The arguments are
+/// the directory to write in, the snapshot spine, the snapshot kind and the
+/// descriptor. The other paths are fixed when the case writes the script.
+fn probe_script(lane: &Lane, sources: &Sources) -> String {
+    let protected = lane.home.join(".config/ravel");
+    format!(
+        "probe() {{ name=$1; shift; if \"$@\" > /dev/null 2>&1; then echo \"$name=ok\"; else echo \"$name=denied\"; fi; }}\n\
+         append() {{ printf x >> \"$1\"; }}\n\
+         probe descriptor-read cat \"$4\"\n\
+         probe cwd-write touch \"$1/probe\"\n\
+         probe snapshot-write touch \"$(dirname \"$2\")/probe\"\n\
+         probe snapshot-append append \"$3\"\n\
+         probe source-read cat {source_file}\n\
+         probe source-write touch {source_dir}/probe\n\
+         probe outside-write touch {outside}\n\
+         probe config-read cat {config}\n\
+         probe settings-read cat {settings}\n",
+        source_file = shell_quote(&sources.core.join("skills/grove/SKILL.md")),
+        source_dir = shell_quote(&sources.core),
+        outside = shell_quote(&lane.root.join("outside")),
+        config = shell_quote(&protected.join("config.rhai")),
+        settings = shell_quote(&protected.join("settings.json")),
+    )
+}
+
+impl Lane {
+    /// The confined standalone agent. Its records go to its working
+    /// directory, the only place it can write. It loads the skills as the
+    /// lifecycle agent does, runs the probes and acknowledges with the exact
+    /// command of the standalone instructions.
+    fn standalone_agent(&self, probes: &Path) {
+        write_exec(
+            &self.harness,
+            &format!(
+                "#!/bin/sh\n\
+                 record=$(pwd -P)\n\
+                 printf 'fake agent: started\\n' >&2\n\
+                 printf started > \"$record/started\"\n\
+                 printf '%s' \"$record\" > \"$record/cwd\"\n\
+                 printf '%s' \"$1\" > \"$record/prompt\"\n\
+                 printf '%s' \"$2\" > \"$record/view.json\"\n\
+                 {AGENT}\
+                 load\n\
+                 /bin/sh {probes} \"$record\" \"$spine\" \"$kind\" \"$RAVEL_SKILL_DIRECTORIES\" > \"$record/probes\"\n\
+                 eval \"$(printf '%s\\n' \"$1\" | sed -n '/exact command as your final action:/{{n;p;}}')\"\n",
+                probes = shell_quote(probes),
+            ),
+        );
+    }
+
+    /// The 2.0 configuration of the confined standalone case. The agent
+    /// receives `request.prompt`, then `request.originalPrompt` and
+    /// `request.skills` as one JSON text, since a confined agent cannot write
+    /// a view outside its working directory.
+    fn standalone_config(&self) {
+        self.config(&format!(
+            "export const SCHEMA_VERSION = 4;\n\
+             export const VERSION = \"directory-standalone-1\";\n\
+             \n\
+             fn select(request, context) {{\n\
+             \x20   let view = #{{ originalPrompt: request.originalPrompt, skills: request.skills }};\n\
+             \x20   #{{\n\
+             \x20       status: \"selected\",\n\
+             \x20       program: {harness},\n\
+             \x20       args: [request.prompt, ravel::json_encode(view)],\n\
+             \x20       provider: \"fixture\",\n\
+             \x20       model: \"none\",\n\
+             \x20       effort: \"none\",\n\
+             \x20       reason: \"the confined standalone fake agent\",\n\
+             \x20   }}\n\
+             }}\n",
+            harness = quote(self.harness.to_str().unwrap()),
+        ));
+    }
+
+    /// `grove run impl` in `cwd`, which is no project, with each evidence
+    /// file as an output in `out` and each of `grants` as a runtime read.
+    fn standalone(&self, cwd: &Path, out: &Path, grants: &[&Path]) -> Command {
+        let mut command = self.driver(None, None);
+        command.current_dir(cwd).args([
+            "run",
+            "impl",
+            "**Load the `grove-impl` skill now.** Then write the evidence files.",
+            "--ui",
+            "inline",
+        ]);
+        for name in EVIDENCE {
+            command.arg("--output").arg(out.join(name));
+        }
+        for grant in grants {
+            command.arg("--runtime-read").arg(grant);
+        }
+        command
+    }
+}
+
+/// The probe results of one run, by name.
+fn probe_results(text: &str) -> std::collections::BTreeMap<String, String> {
+    text.lines()
+        .filter_map(|line| line.split_once('='))
+        .map(|(name, result)| (name.to_owned(), result.to_owned()))
+        .collect()
+}
+
+// A confined standalone `grove run` on the 2.0 build with directory delivery.
+// The sources lie outside cwd, and no native copy exists. The confined agent
+// reads the spine, its resource and the named kind from the retained
+// snapshots, and reads the descriptor. It cannot write to a snapshot, a
+// source or a path outside its working directory. It cannot read a source
+// directly or the protected configuration. Grove publishes the evidence only
+// after the exact acknowledgement, and the caller block equals
+// `request.originalPrompt`.
+//
+// The control runs the same probe script unconfined after the run. Each
+// denied read and each denied write outside the snapshots then succeeds, so
+// those denials are the sandbox's and not a wrong path. The snapshot write
+// probes are denied unconfined too, because Ravel publishes each snapshot
+// read-only. They show that the writes fail, not which layer refuses them.
+#[test]
+#[ignore = "needs the Ravel 2.0 directory build: task ravel:directory"]
+fn a_confined_standalone_run_reads_injected_skills_but_cannot_write_them_or_read_configuration() {
+    let lane = Lane::new(&build());
+    let sources = Sources::plant(&lane);
+    lane.settings(&sources.settings());
+    lane.standalone_config();
+    let probes = lane.root.join("probes.sh");
+    fs::write(&probes, probe_script(&lane, &sources)).unwrap();
+    lane.standalone_agent(&probes);
+    let cwd = lane.root.join("cwd");
+    let out = lane.root.join("out");
+    fs::create_dir(&cwd).unwrap();
+    fs::create_dir(&out).unwrap();
+
+    let output = lane
+        .spawn(lane.standalone(&cwd, &out, &[&lane.harness, &probes]))
+        .finish();
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(output.status.success(), "{stderr}");
+    assert!(stderr.contains("grove run [impl]: completed"), "{stderr}");
+    let read = |name: &str| fs::read_to_string(out.join(name)).unwrap();
+    assert_eq!(read("started"), "started");
+
+    let prompt = read("prompt");
+    let view: serde_json::Value = serde_json::from_str(&read("view.json")).unwrap();
+    let skills = &view["skills"];
+    let block = caller_block(&prompt).unwrap();
+    assert_eq!(
+        view["originalPrompt"].as_str(),
+        Some(block),
+        "the caller block is request.originalPrompt byte for byte"
+    );
+    for command in [
+        grove_loop::session_command::end_session(&lane.ravel).unwrap(),
+        grove_loop::session_command::force_stop(&lane.ravel).unwrap(),
+    ] {
+        assert!(
+            block.contains(&format!("\n{command}\n")),
+            "the caller block holds the exact ending {command}: {block}"
+        );
+    }
+    assert!(block.contains("Standalone invocation: work only on the staged files"));
+
+    let mandatory = skills["mandatory"][0]["path"].as_str().unwrap();
+    let reads = read("reads");
+    assert_eq!(reads.lines().next(), Some(mandatory));
+    reads_from_snapshots(&reads, skills).unwrap();
+    let work = PathBuf::from(read("cwd"));
+    for path in
+        reads.lines().chain(
+            skills["sources"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .flat_map(|source| {
+                    [
+                        source["originPath"].as_str().unwrap(),
+                        source["snapshotRoot"].as_str().unwrap(),
+                    ]
+                }),
+        )
+    {
+        assert!(
+            !fs::canonicalize(path).unwrap().starts_with(&work),
+            "{path} is outside the working directory {work:?}"
+        );
+    }
+    assert_eq!(read("spine"), SPINE);
+    assert_eq!(read("resource"), RESOURCE_V1);
+    assert_eq!(read("kind"), KIND_V1);
+    no_native_copy(&lane.home).unwrap();
+
+    let confined = probe_results(&read("probes"));
+    let expected = [
+        ("descriptor-read", "ok"),
+        ("cwd-write", "ok"),
+        ("snapshot-write", "denied"),
+        ("snapshot-append", "denied"),
+        ("source-read", "denied"),
+        ("source-write", "denied"),
+        ("outside-write", "denied"),
+        ("config-read", "denied"),
+        ("settings-read", "denied"),
+    ];
+    assert_eq!(
+        confined,
+        expected
+            .iter()
+            .map(|(name, result)| ((*name).to_owned(), (*result).to_owned()))
+            .collect(),
+        "the confined probes"
+    );
+
+    // The control: the same probes, unconfined, on the same paths.
+    let spine = reads.lines().next().unwrap();
+    let kind = reads.lines().nth(2).unwrap();
+    let scratch = lane.root.join("unconfined");
+    fs::create_dir(&scratch).unwrap();
+    let unconfined = Command::new("/bin/sh")
+        .arg(&probes)
+        .arg(&scratch)
+        .arg(spine)
+        .arg(kind)
+        .arg(skills["descriptorPath"].as_str().unwrap())
+        .output()
+        .unwrap();
+    let unconfined = probe_results(&String::from_utf8(unconfined.stdout).unwrap());
+    eprintln!("unconfined probes: {unconfined:?}");
+    for (name, result) in &confined {
+        if result == "denied" && !name.starts_with("snapshot-") {
+            assert_eq!(
+                unconfined[name], "ok",
+                "{name} succeeds unconfined, so its confined denial is the sandbox's"
+            );
+        }
+    }
+}

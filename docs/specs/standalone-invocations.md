@@ -51,9 +51,16 @@ is not a runtime resource.
 
 The [skill-delivery design](codex-skill-provisioning.md#installation-and-bootstrap)
 uses the snapshot read grants of Ravel 2.0.0 for complete external skill trees.
-A native installation under HOME alone grants no read access. Any native-only
-standalone setup must separately prove its loader and all required resources
-work within the existing grants. This spec adds no native-directory bypass.
+On the directory route, Ravel grants the descriptor and the snapshots
+read-only inside the sandbox. The agent reads its skills there. It cannot
+write them, read their source directories or read the protected configuration.
+
+A native installation under HOME alone grants no read access. With injection
+disabled, the agent cannot read native guidance under HOME. It reports the
+missing guidance and runs the force-stop command, and Grove publishes nothing.
+Grove adds no native-directory grant and never retries without confinement.
+Any native-only standalone setup must separately prove its loader and all
+required resources work within the existing grants.
 
 Ravel confines writes to the working directory and to the private run directory.
 Ravel keeps that directory for the temporary files of the harness and for its
@@ -142,6 +149,12 @@ must never depend on paid LLM calls.
   multiplexer handles.
 - Real sandbox probes deny reads and writes to an unrelated project. They permit
   the staged artifacts and the explicitly granted runtime reads.
+- On the directory route of 2.0, the agent reads the injected skills outside
+  cwd. Writes to the snapshots and sources and reads of the protected
+  configuration fail.
+- On 1.1 and on 2.0 with injection disabled, native guidance under HOME is
+  unreadable. The agent force-stops, nothing publishes and Grove launches the
+  agent once. A regular-file grant of each copy makes the guidance readable.
 - Force-stop, a harness exit without a result, malformed or unsupported results,
   a supervision failure, cancellation, output symlinks, missing outputs and
   destination races fail visibly.

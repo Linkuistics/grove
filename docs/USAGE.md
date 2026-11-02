@@ -134,7 +134,7 @@ launch. The leaf stays live, and Grove resumes it after you correct the owner's 
 On the directory route, Ravel 2.0.0 adds the locations of your skill sources to each
 launch prompt. The agent finds and reads its skills there, so no harness needs a native
 copy. Grove sends the same mandate on every route, and it reads none of these settings.
-The bare `grove` lifecycle supports the route. The confined `grove run` has its own proof.
+The bare `grove` lifecycle and the confined `grove run` both support the route.
 
 Add a `skills` object to the settings of the 2.0 HOME. Each source is a local directory,
 named by an absolute path:
@@ -214,6 +214,13 @@ such as credentials, with explicit read-only `--runtime-read` grants. Writable h
 must stay in the temporary directory. macOS requires its native sandbox. Linux requires
 bubblewrap. An unavailable sandbox fails the invocation before any unconfined command can
 run.
+
+The sandbox does not grant your native skill installations under HOME. On the
+[directory route](#usage-directory-route), Ravel 2.0.0 grants read access to the captured
+skills, so the harness can read them. It cannot write them or read their source
+directories. On a native route, the harness cannot read native skills under HOME. It
+reports the missing guidance and runs the force-stop command, and Grove publishes nothing.
+Grove does not retry without the sandbox.
 
 Every invocation that launches announces its task kind and the location of its transcript
 under `~/.local/state/grove/runs/`. It streams the sanitised output through its caller. It

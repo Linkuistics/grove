@@ -1212,6 +1212,143 @@ fn confined_harness_cannot_consume_stdin_or_parent_handles_but_can_read_runtime_
     );
 }
 
+/// A fake agent that must read the native guidance its prompt names. The
+/// prompt names each native copy on a line `Native guidance: <path>`. The
+/// agent reports each read or failed read on stderr, which goes to the
+/// transcript. It writes a valid output either way. When any copy is
+/// unreadable, it reports the missing guidance and runs the force-stop
+/// command of its prompt. Otherwise it acknowledges.
+const NATIVE_GUIDANCE: &str = "printf 'fake agent: started\\n' >&2\n\
+     unreadable=\n\
+     for file in $(printf '%s\\n' \"$1\" | sed -n 's/^Native guidance: //p'); do\n\
+     if cat \"$file\" > /dev/null 2>&1; then printf 'fake agent: read %s\\n' \"$file\" >&2\n\
+     else printf 'fake agent: cannot read guidance %s\\n' \"$file\" >&2; unreadable=yes; fi\n\
+     done\n\
+     printf valid > notes.md\n\
+     if [ -n \"$unreadable\" ]; then\n\
+     printf 'fake agent: the mandated guidance is missing or unreadable\\n' >&2\n\
+     stop_work\n\
+     fi\n\
+     acknowledge\n";
+
+impl Fixture {
+    /// Native copies of the spine in the usual harness locations under HOME.
+    /// The test process reads each one, so each copy exists and is readable
+    /// outside the sandbox.
+    fn native_copies(&self) -> Vec<PathBuf> {
+        [".claude/skills", ".codex/skills", ".agents/skills"]
+            .iter()
+            .map(|tree| {
+                let copy = self.home.join(tree).join("grove/SKILL.md");
+                fs::create_dir_all(copy.parent().unwrap()).unwrap();
+                fs::write(&copy, "# grove spine (native copy)\n").unwrap();
+                assert_eq!(
+                    fs::read_to_string(&copy).unwrap(),
+                    "# grove spine (native copy)\n"
+                );
+                copy
+            })
+            .collect()
+    }
+
+    /// `grove run` with a prompt that names `native`, and `grants` as
+    /// additional regular-file grants.
+    fn run_guided(&self, native: &[PathBuf], grants: &[PathBuf]) -> Output {
+        let mut prompt = String::from("Produce notes after you read the native guidance.\n");
+        for copy in native {
+            prompt.push_str(&format!("Native guidance: {}\n", copy.display()));
+        }
+        let mut command = self.grove(Path::new(env!("CARGO_BIN_EXE_grove")));
+        command
+            .args(["run", "release-notes", &prompt, "--ui", "inline"])
+            .arg("--output")
+            .arg(self.notes())
+            .arg("--runtime-read")
+            .arg(&self.script);
+        for grant in grants {
+            command.arg("--runtime-read").arg(grant);
+        }
+        command.output().unwrap()
+    }
+
+    /// The text of every transcript, in no particular order.
+    fn transcript_text(&self) -> String {
+        let Ok(files) = fs::read_dir(self.home.join(".local/state/grove/runs")) else {
+            return String::new();
+        };
+        files
+            .flatten()
+            .filter(|file| file.path().extension().is_some_and(|ext| ext == "log"))
+            .map(|file| fs::read_to_string(file.path()).unwrap())
+            .collect()
+    }
+}
+
+/// The outcome that unreadable native guidance requires. The one confined
+/// agent fails to read each copy and reports it, Grove reports the
+/// force-stop, and nothing is published. A second start of the agent, which
+/// an unconfined retry would cause, fails the check.
+fn guidance_unreadable(
+    fixture: &Fixture,
+    output: &Output,
+    native: &[PathBuf],
+) -> Result<(), String> {
+    let said = stderr(output);
+    let transcript = fixture.transcript_text();
+    if output.status.success() {
+        return Err(format!("grove run succeeded: {said}"));
+    }
+    if !said.contains("Grove force-stop requested; outputs were not published") {
+        return Err(format!("Grove did not report the force-stop: {said}"));
+    }
+    if fixture.notes().exists() {
+        return Err("Grove published the output".into());
+    }
+    let starts = transcript.matches("fake agent: started").count();
+    if starts != 1 {
+        return Err(format!("the agent started {starts} times: {transcript}"));
+    }
+    for copy in native {
+        let report = format!("fake agent: cannot read guidance {}", copy.display());
+        if !transcript.contains(&report) {
+            return Err(format!("no {report:?} in: {transcript}"));
+        }
+    }
+    if transcript.contains("fake agent: read ")
+        || !transcript.contains("fake agent: the mandated guidance is missing or unreadable")
+    {
+        return Err(format!(
+            "the agent did not report the missing guidance: {transcript}"
+        ));
+    }
+    Ok(())
+}
+
+// With skill injection disabled, native skill trees under HOME lie outside
+// every grant of the confined invocation. The fake agent cannot read the
+// guidance, reports it and runs the exact force-stop command of its prompt.
+// Grove publishes nothing, although the output is valid, and it does not
+// launch the agent again. The case runs on each runtime: the 2.0 fixture
+// HOME holds no `skills` settings.
+//
+// The control grants each native copy as a regular file. The agent then reads
+// the guidance and acknowledges, so the same check fails.
+#[test]
+fn native_guidance_outside_every_grant_is_reported_and_force_stops_without_publication() {
+    let fixture = Fixture::new(NATIVE_GUIDANCE);
+    assert!(!fixture.dispatch_file("settings.json").exists());
+    let native = fixture.native_copies();
+    let output = fixture.run_guided(&native, &[]);
+    guidance_unreadable(&fixture, &output, &native).unwrap();
+
+    let granted = Fixture::new(NATIVE_GUIDANCE);
+    let native = granted.native_copies();
+    let output = granted.run_guided(&native, &native);
+    let refused = guidance_unreadable(&granted, &output, &native).unwrap_err();
+    assert!(refused.contains("grove run succeeded"), "{refused}");
+    assert_published(&granted, &output, "valid");
+}
+
 /// Nested completion, force-stop or cancellation finishes only the inner
 /// invocation. The real enclosing Ravel then acknowledges independently.
 #[test]

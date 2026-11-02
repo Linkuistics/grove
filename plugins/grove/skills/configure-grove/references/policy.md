@@ -36,6 +36,10 @@ exit directory is supervision machinery, and it reaches no policy.
 task file and no task identity. Its selected command must be noninteractive. Grove
 grants documented runtime reads. It grants no private worker protocol.
 
+Inside that sandbox, the directory route of 2.0 gives read access to the captured skills.
+A native route does not, because native skill trees under HOME stay outside every grant.
+Recommend the directory route for a kind that `grove run` launches and that needs a skill.
+
 The caller prompt supplies canonical `ravel end-session grove-continue` and
 `ravel end-session grove-force-stop` commands. Neither takes a session ID. Grove
 interprets continue as completion. Grove interprets force-stop as stopping without

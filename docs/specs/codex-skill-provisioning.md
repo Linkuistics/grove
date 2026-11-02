@@ -9,8 +9,8 @@ any mandatory guidance, and the missing-skill force-stop rule.
 Grove admits stable Ravel 1.x from 1.1.0 and stable 2.x from 2.0.0. Grove
 ships TypeScript caller assets for 1.x and Rhai caller assets for 2.x. Grove
 supports the native routes on 1.1 and on 2.0. Grove supports the directory
-route on 2.0 through the lifecycle caller, which passed its acceptance. The
-confined standalone acceptance remains ahead.
+route on 2.0 through the lifecycle caller and the confined standalone caller.
+Each passed its acceptance on macOS.
 
 The reviewed upstream contract is Ravel commit `822c0ed2`, as the
 [contract mapping](../grove-skill-delivery-design-evidence.md#rhai-mapping)
@@ -481,6 +481,24 @@ Settings isolation and Resource lifetime. `task ravel:directory` runs it, with
 paths that the prepared prompt names, and they prove delivery rather than LLM
 behaviour. The explicit plugin-qualified name request, the missing-skill report
 of a real agent and actual harness behaviour belong to acceptance.
+
+The same file proves the directory part of the Confined standalone row. A
+confined `grove run` on 2.0 reads the spine, a resource and the named kind from
+the snapshots. It cannot write a snapshot, a source or a path outside its
+working directory. It cannot read a source directly or the protected
+configuration. The same probes, run unconfined, succeed for each source,
+configuration and outside path, so those denials belong to the sandbox.
+
+`crates/grove/tests/standalone.rs` proves the native part on each runtime. With
+injection disabled, native copies under HOME stay unreadable to the confined
+agent. The agent reports the missing guidance and force-stops, and Grove
+publishes nothing and launches the agent once. A regular-file grant of each copy
+makes the same check fail. `task ravel:directory` runs both parts on the 2.0
+build.
+
+The Linux floor cases run the native part on 1.1 under bubblewrap. The
+directory part on Linux stays unmeasured until the floor tooling has a 2.0
+lane.
 
 | Acceptance | Observation |
 | --- | --- |

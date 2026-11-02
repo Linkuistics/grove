@@ -19,7 +19,7 @@ intent only.
 Grove no longer provisions Codex skills. Grove admits Ravel 1.x
 from 1.1.0 and 2.x from 2.0.0. It supports the native routes on 1.1 and on 2.0,
 with its TypeScript and Rhai caller assets. It supports the directory route on 2.0
-through the lifecycle caller. The confined standalone proof remains ahead.
+through the lifecycle caller and the confined standalone caller.
 See
 [design evidence](../../grove-skill-delivery-design-evidence.md#upstream-correction).
 

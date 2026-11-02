@@ -79,7 +79,7 @@ refused 'SHA-256' env PATH="$scratch/tools:$PATH" python3 \
   refused 'escape the CPU model' check_registration "$headers" "$magic" "$mask"
   sed 's|libexec/ravel/ravel-policy|libexec/harness-dispatch/harness-dispatch-policy|' "$headers" >"$scratch/mixed"
   { read -r magic && read -r mask && read -r limit; } < <(guest aarch64)
-  refused 'lacks the complete Ravel pair' check_registration "$scratch/mixed" "$magic" "$mask"
+  refused 'incomplete Ravel 1.1 pair' check_registration "$scratch/mixed" "$magic" "$mask"
 )
 printf 'ravel-inputs-test: cache and QEMU-registration controls passed\n'
 
@@ -87,8 +87,9 @@ printf 'ravel-inputs-test: cache and QEMU-registration controls passed\n'
 # names until Ravel's cut, so each must refuse the other's bytes by digest.
 inputs() { python3 "$repo_root/scripts/ravel_target_inputs.py" "$@"; }
 recorded=()
+unrecorded=()
 while IFS=$'\t' read -r target state _; do
-  [[ "$state" != recorded ]] || recorded+=("$target")
+  if [[ "$state" == recorded ]]; then recorded+=("$target"); else unrecorded+=("$target"); fi
 done < <(inputs --lane 2.0 --status)
 ((${#recorded[@]} > 0)) || fail 'the 2.0 lane records no archive'
 inputs --lane 2.0 --archives "$archives_2" --output "$scratch/lane-2" "${recorded[@]}"
@@ -97,26 +98,41 @@ for target in "${recorded[@]}"; do
   [[ -x "$prefix/bin/ravel" && -f "$prefix/share/ravel/examples/sample.rhai" ]] || fail "no 2.0 prefix for $target"
   [[ ! -e "$prefix/libexec/ravel" ]] || fail "the 2.0 prefix for $target holds a 1.x worker"
 done
-mkdir "$scratch/changed-2" "$scratch/swapped-2" "$scratch/swapped-1"
-name="$(basename "$(find "$scratch/lane-2/archives" -name '*.tar.xz' | head -n 1)")"
-# One changed byte, in the middle of the archive.
-python3 - "$archives_2/$name" "$scratch/changed-2/$name" <<'PY'
+mkdir "$scratch/swapped-2" "$scratch/swapped-1"
+# One changed byte, in the middle of each recorded archive, Linux included.
+for target in "${recorded[@]}"; do
+  name="ravel-v1.1.0-$target.tar.xz"
+  mkdir "$scratch/changed-2-$target"
+  python3 - "$archives_2/$name" "$scratch/changed-2-$target/$name" <<'PY'
 import sys
 from pathlib import Path
 data = bytearray(Path(sys.argv[1]).read_bytes())
 data[len(data) // 2] ^= 0x01
 Path(sys.argv[2]).write_bytes(bytes(data))
 PY
-refused 'SHA-256' inputs --lane 2.0 --archives "$scratch/changed-2" --output "$scratch/changed-2-layout" "${recorded[0]}"
+  refused 'SHA-256' inputs --lane 2.0 --archives "$scratch/changed-2-$target" \
+    --output "$scratch/changed-2-$target-layout" "$target"
+  [[ ! -e "$scratch/changed-2-$target-layout" ]] || fail "exposed a changed $target archive"
+done
+name="ravel-v1.1.0-${recorded[0]}.tar.xz"
 cp "$archives/$name" "$scratch/swapped-2/$name"
 refused 'SHA-256' inputs --lane 2.0 --archives "$scratch/swapped-2" --output "$scratch/swapped-2-layout" "${recorded[0]}"
 cp "$archives_2/$name" "$scratch/swapped-1/$name"
 refused 'SHA-256' inputs --archives "$scratch/swapped-1" --output "$scratch/swapped-1-layout" "${recorded[0]}"
-for output in changed-2-layout swapped-2-layout swapped-1-layout; do
+for output in swapped-2-layout swapped-1-layout; do
   [[ ! -e "$scratch/$output" ]] || fail "exposed refused $output"
 done
-refused 'records no archive' inputs --lane 2.0 --archives "$archives_2" --output "$scratch/unrecorded-layout"
-[[ ! -e "$scratch/unrecorded-layout" ]] || fail 'exposed a layout for an unrecorded target'
-refused 'SHA-256' bash "$repo_root/scripts/ravel-target-smoke.sh" \
-  --archives-2.0 "$scratch/changed-2" "${recorded[0]}"
+# The unit cases of scripts/test_ravel_target_inputs.py refuse an unrecorded
+# target with a synthetic lane. This control uses the real record while it
+# still leaves a target unrecorded.
+if ((${#unrecorded[@]} > 0)); then
+  refused 'records no archive' inputs --lane 2.0 --archives "$archives_2" --output "$scratch/unrecorded-layout"
+  [[ ! -e "$scratch/unrecorded-layout" ]] || fail 'exposed a layout for an unrecorded target'
+else
+  printf 'ravel-inputs-test: the 2.0 lane records every target, so no real unrecorded target exists\n'
+fi
+for target in "${recorded[@]}"; do
+  refused 'SHA-256' bash "$repo_root/scripts/ravel-target-smoke.sh" \
+    --archives-2.0 "$scratch/changed-2-$target" "$target"
+done
 printf 'ravel-inputs-test: 2.0 lane admission, changed-byte, cross-lane and unrecorded-target controls passed\n'

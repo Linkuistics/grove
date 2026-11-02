@@ -76,20 +76,18 @@ LANES = {
         default_archives="target/ravel-archives",
     ),
     # The unpublished directory build of Ravel 2.0, from `task release:archives`
-    # in the workspace Ravel.skill-directory-delivery at the output commit below.
+    # in the workspace Ravel.skill-directory-delivery at the build commit below.
     # docs/ravel-target-inputs.md states how rollout replaces this record with
     # the published 2.0.0 archives before Grove's release.
     "2.0": Lane(
         runtime="2.0",
         stem="1.1.0",
         pins={
-            "aarch64-apple-darwin": "0bd671231b4dbfda83cb2b751b810cd54b94059caf336fecd77097bff67b379b",
+            "aarch64-apple-darwin": "6fd7e44ac0a1d345456faef2aeeede2bb695944098dc5f42b7ade52944b0d928",
+            "aarch64-unknown-linux-gnu": "331008d4c2aa005061b6e61d505bac131d4f4473cc9520eeba765e089b1cb32d",
+            "x86_64-unknown-linux-gnu": "2a7e62f78a5a6600e6d4d2186bc2cbf11db7edae57ef4176f06623ceddad3b04",
         },
-        unrecorded={
-            target: "the directory build does not link at glibc 2.17: "
-            "ravel::skills::dir::Dir::rename_noreplace calls renameat2, which glibc 2.28 added"
-            for target in ("aarch64-unknown-linux-gnu", "x86_64-unknown-linux-gnu")
-        },
+        unrecorded={},
         manifest=(
             "LICENSE",
             "README.md",
@@ -102,8 +100,8 @@ LANES = {
         executables=frozenset({"bin/ravel"}),
         release=None,
         default_archives="target/ravel-archives-2.0",
-        source_commit="4f831feb4d0f288f9699b1a4b02fc24cda9843c5",
-        build_identity="9feb86b7982a3920f738b96ffd2d6e6bc1744d6345b87451196e9299721fb234",
+        source_commit="23e50ce9003740f573e9e997a74bba180b303405",
+        build_identity="ef5857e989e6d99da51631ae0295685c8961c1b01bac58d865e6fb789ae71deb",
     ),
 }
 # The 1.1 lane's names, kept for callers that predate the lanes.

@@ -1,12 +1,18 @@
 #!/usr/bin/env bash
 # Actual separate-prefix callers, mandatory-backend refusals and filesystem denials.
+#
+#   grove-floor-native-cases.sh grove-prefix version ravel-1.1-prefix [ravel-2.0-prefix]
+#
+# Each Ravel prefix is one runtime lane in its own HOME. The 1.1 lane writes
+# `policy.ts` with schema 2. The 2.0 lane writes `config.rhai` with
+# SCHEMA_VERSION 4, and in the supported environment it also runs the
+# confined directory case.
 set -euo pipefail
 IFS=$'\n\t'
 fail() { echo "grove-floor-native: $*" >&2; exit 1; }
-[[ $# == 3 ]] || fail 'expected Grove prefix/version and independent Ravel prefix'
+[[ $# == 3 || $# == 4 ]] || fail 'expected Grove prefix/version, the Ravel 1.1 prefix and an optional Ravel 2.0 prefix'
 prefix="$1"
 version="$2"
-ravel="$3/bin/ravel"
 mode="${FLOOR_MODE:?native runner must name its environment}"
 if [[ "${FLOOR_KIND:-native}" == qemu ]]; then
   /usr/libexec/floor-security || fail 'outer QEMU kernel security contract failed'
@@ -29,10 +35,18 @@ else
   [[ ! -e /usr/bin/bwrap && ! -e /bin/bwrap ]] || fail 'missing-backend control has a backend'
 fi
 if [[ "$mode" == supported ]]; then
-  /bin/bash /smoke/grove-installed-smoke.sh "$prefix" "$version" "$3"
+  /bin/bash /smoke/grove-installed-smoke.sh "$prefix" "$version" "$3" ${4:+"$4"}
 fi
-work="$(mktemp -d)"
-trap 'rm -rf "$work"' EXIT
+scratch="$(mktemp -d)"
+trap 'rm -rf "$scratch"' EXIT
+
+# The denial task and the native guidance case of RUNTIME, in a HOME of its
+# own, through the Ravel prefix RAVEL_PREFIX. The body keeps column 0, because
+# its here-documents are written at column 0.
+run_lane() {
+lane_runtime="$1"
+ravel="$2/bin/ravel"
+work="$scratch/ravel-$lane_runtime"
 mkdir -p "$work/home/.config/ravel" "$work/tmp" "$work/tools" "$work/project"
 for utility in cat chmod cmp cp dirname env grep ln ls mkdir rm touch; do
   resolved="$(PATH=/usr/bin:/bin command -v "$utility")" || fail "missing utility $utility"
@@ -85,6 +99,17 @@ printf denied-and-published >published.txt
 exec "$tool" end-session grove-continue
 EOF
 chmod +x "$work/agent.sh"
+# The positive selection control: the 1.1 policy writes a file when it loads,
+# and the 2.0 configuration, which cannot write a file, prints a marker from
+# select() to stderr.
+selected() {
+  if [[ "$lane_runtime" == 1.1 ]]; then
+    [[ -f "$work/selected" ]]
+  else
+    grep -q 'floor selection: selected' "$work/stderr"
+  fi
+}
+if [[ "$lane_runtime" == 1.1 ]]; then
 cat >"$work/home/.config/ravel/policy.ts" <<EOF
 import { definePolicy } from "ravel/sdk";
 import { writeFileSync } from "node:fs";
@@ -94,6 +119,24 @@ writeFileSync("$work/selected", "selected");
 export const policy = withProvenance(definePolicy({ schemaVersion: 2, version: "native-denials",
   ...groveReviewSelector({ routes: { check: () => ({ program: "/bin/sh", args: ["agent.sh", "$ravel", "$work/secret", "${FLOOR_KIND:-native}"], provider: "fixture", model: "none", effort: "none" }) }, reviews: {} }) }));
 EOF
+else
+cat >"$work/home/.config/ravel/config.rhai" <<EOF
+import "$prefix/libexec/ravel-policy/examples/grove-review" as grove_review;
+import "$prefix/libexec/ravel-policy/provenance" as provenance;
+export const SCHEMA_VERSION = 4;
+export const VERSION = "native-denials";
+fn route() {
+    |request| #{ program: "/bin/sh", args: ["agent.sh", "$ravel", "$work/secret", "${FLOOR_KIND:-native}"],
+        provider: "fixture", model: "none", effort: "none" }
+}
+const RULES = #{ routes: #{ check: route() }, reviews: #{} };
+fn load_context(request) { grove_review::load_context_with(global::RULES, request) }
+fn select(request, context) {
+    print("floor selection: selected");
+    provenance::with_provenance(grove_review::select_with(global::RULES, request, context), global::VERSION, request)
+}
+EOF
+fi
 status=0
 (cd "$work/project" && env -i HOME="$work/home" TMPDIR="$work/tmp" PATH="$work/tools" \
   "$prefix/bin/grove" run check Write --ui=inline --input "$work/agent.sh" \
@@ -101,15 +144,15 @@ status=0
   >"$work/stdout" 2>"$work/stderr" || status=$?
 cat "$work/stderr"
 if [[ "$mode" == supported ]]; then
-  ((status == 0)) || fail "actual denial task failed ($status)"
-  [[ -f "$work/selected" ]] || fail 'positive policy-selection control did not fire'
+  ((status == 0)) || fail "$lane_runtime actual denial task failed ($status)"
+  selected || fail "$lane_runtime positive policy-selection control did not fire"
   [[ "$(cat "$work/project/published.txt")" == denied-and-published ]] || fail 'output not published'
   grep -q 'payload capability denials passed' "$work/stderr" || fail 'lost agent denial evidence'
   ! grep -q grove-continue "$work/stdout" || fail 'leaked lifecycle result'
 else
   ((status != 0)) || fail "$mode unexpectedly succeeded"
-  grep -q confinement_unusable "$work/stderr" || fail 'wrong refusal reason'
-  [[ ! -e "$work/selected" ]] || fail 'refused backend reached policy selection'
+  grep -q confinement_unusable "$work/stderr" || fail "$lane_runtime wrong refusal reason"
+  ! selected || fail "$lane_runtime refused backend reached policy selection"
   [[ ! -e "$work/project/published.txt" ]] || fail 'refused backend published new output'
   [[ "$(cat "$work/project/existing.txt")" == sentinel ]] || fail 'refused backend changed existing output'
   case "$mode" in
@@ -152,10 +195,21 @@ if [ -n "$unreadable" ]; then
 fi
 exec "$tool" end-session grove-continue
 EOF
+  if [[ "$lane_runtime" == 1.1 ]]; then
   cat >"$work/home/.config/ravel/policy.ts" <<EOF
 export const policy = { schemaVersion: 2, version: "native-guidance",
   select() { return { status: "selected", program: "/bin/sh", args: ["native.sh", "$ravel", "${native[0]}", "${native[1]}", "${native[2]}"], provider: "fixture", model: "none", effort: "none", reason: "native guidance" }; } };
 EOF
+  else
+  cat >"$work/home/.config/ravel/config.rhai" <<EOF
+export const SCHEMA_VERSION = 4;
+export const VERSION = "native-guidance";
+fn select(request, context) {
+    #{ status: "selected", program: "/bin/sh", args: ["native.sh", "$ravel", "${native[0]}", "${native[1]}", "${native[2]}"],
+        provider: "fixture", model: "none", effort: "none", reason: "native guidance" }
+}
+EOF
+  fi
   native_run() {
     (cd "$work/project" && env -i HOME="$work/home" TMPDIR="$work/tmp" PATH="$work/tools" \
       "$prefix/bin/grove" run check Read --ui=inline --input "$work/native.sh" \
@@ -176,6 +230,15 @@ EOF
   native_run --runtime-read "${native[0]}" --runtime-read "${native[1]}" --runtime-read "${native[2]}" ||
     fail 'granted native control failed'
   [[ "$(cat "$work/project/native.txt")" == valid ]] || fail 'granted native control did not publish'
-  echo 'grove-floor-native: unreadable native guidance force-stopped without publication; granted control published'
+  echo "grove-floor-native: $lane_runtime unreadable native guidance force-stopped without publication; granted control published"
 fi
-echo "grove-floor-native: $mode actual caller/selection/publication controls passed"
+echo "grove-floor-native: $lane_runtime $mode actual caller/selection/publication controls passed"
+}
+
+run_lane 1.1 "$3"
+if [[ $# == 4 ]]; then
+  run_lane 2.0 "$4"
+  if [[ "$mode" == supported ]]; then
+    /bin/bash /smoke/grove-floor-directory-case.sh "$prefix" "$4"
+  fi
+fi

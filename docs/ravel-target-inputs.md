@@ -36,16 +36,21 @@ That task builds exact target archives with no version cut.
 
 | Subject | Record |
 |---|---|
-| Source commit | `4f831feb4d0f288f9699b1a4b02fc24cda9843c5`, the output commit of `ravel-local-sources-k90`. Its parent `78332fcc367d` is the build commit, and the two have the same build inputs |
-| Build identity | `9feb86b7982a3920f738b96ffd2d6e6bc1744d6345b87451196e9299721fb234` |
+| Source commit | `23e50ce9003740f573e9e997a74bba180b303405`, the build commit of `grove-linux-two-lane-k103`. It enters the `renameat2` system call directly, so the directory build links at glibc 2.17. Its parent is `4f831feb4d0f`, the output commit of `ravel-local-sources-k90` |
+| Build identity | `ef5857e989e6d99da51631ae0295685c8961c1b01bac58d865e6fb789ae71deb` |
 | Archive name | `ravel-v1.1.0-TARGET.tar.xz`. The workspace version stays 1.1.0 until Ravel's cut, so the name does not tell the lanes apart |
 | Default directory | `target/ravel-archives-2.0`. Admission never downloads this lane |
 
-| Target | SHA-256 of the archive, or the reason that the lane does not run |
+| Target | SHA-256 of the archive |
 |---|---|
-| aarch64-apple-darwin | `0bd671231b4dbfda83cb2b751b810cd54b94059caf336fecd77097bff67b379b` |
-| aarch64-unknown-linux-gnu | Not run. The build does not link at glibc 2.17, because `ravel::skills::dir::Dir::rename_noreplace` calls `renameat2`. glibc added `renameat2` in 2.28 |
-| x86_64-unknown-linux-gnu | Not run, for the same reason |
+| aarch64-apple-darwin | `6fd7e44ac0a1d345456faef2aeeede2bb695944098dc5f42b7ade52944b0d928` |
+| aarch64-unknown-linux-gnu | `331008d4c2aa005061b6e61d505bac131d4f4473cc9520eeba765e089b1cb32d` |
+| x86_64-unknown-linux-gnu | `2a7e62f78a5a6600e6d4d2186bc2cbf11db7edae57ef4176f06623ceddad3b04` |
+
+The lane records every target, so `unrecorded` is empty. The build of
+`ravel-local-sources-k90` did not link at glibc 2.17, because
+`ravel::skills::dir::Dir::rename_noreplace` called the glibc `renameat2`
+wrapper, which glibc added in 2.28.
 
 The 2.0 manifest is `LICENSE`, `README.md`, `bin/ravel` and
 `share/ravel/examples/{llm,sample,static}.rhai`, with
@@ -58,7 +63,8 @@ Admission checks the digest of the archive first. It then reads the bytes of
 identity. Admission runs no program, as for the 1.1 lane.
 
 A target without a record refuses before admission reads any archive. The
-refusal states the reason in the record. `--status` prints one line for each
+refusal states the reason in the record. A unit case proves this refusal with a
+synthetic lane, because the real record now covers every target. `--status` prints one line for each
 target: `recorded` with the archive name, or `not recorded` with the reason.
 Each runner that uses the 2.0 lane names each target that it did not run.
 
@@ -69,11 +75,17 @@ The 2.0 lane runs these checks:
   copy `sample.rhai` and `static.rhai` into `config.rhai`. They check Rhai
   imports, measured context, params and the four result shapes. They also check
   the `config_format_retired` refusal of a TypeScript entry.
-- Grove's release smoke gives the macOS caller cases a 2.0 prefix as their
-  fourth argument. `grove-installed-smoke.sh` then checks the Rhai caller set
-  with `config.rhai`, in a HOME of its own.
-- The Linux floor routes run the 1.1 lane only. The release smoke names each
-  Linux target as not run on the 2.0 lane.
+  On Linux they run natively in the floor container and under QEMU.
+- Grove's release smoke gives the caller cases a 2.0 prefix as their fourth
+  argument, on every target. `grove-installed-smoke.sh` then checks the Rhai
+  caller set with `config.rhai`, in a HOME of its own.
+- On Linux, the native and QEMU floor routes stage the 2.0 archive in
+  `ravel-2.0/` of their mount, apart from the 1.1 archive of the same name.
+  `grove-floor-native-cases.sh` runs the denial task and the unreadable
+  native guidance case once for each lane. In the supported environment,
+  `grove-floor-directory-case.sh` runs the confined directory case on the 2.0
+  lane. [linux-floor-native.md](linux-floor-native.md#runtime-lanes) states
+  what these cases measure.
 
 ## Rollout handoff: replace the local 2.0 record
 
@@ -87,7 +99,7 @@ publishes 2.0.0, and before `task release:minor` in Grove:
 3. Compare each value with the `digest` field that GitHub reports for the asset.
 4. In the `"2.0"` lane of `scripts/ravel_target_inputs.py`, set `stem` to
    `2.0.0`.
-5. Put the three measured digests in `pins`, and make `unrecorded` empty.
+5. Put the three measured digests in `pins`. `unrecorded` stays empty.
 6. Set `release` to the download directory of the 2.0.0 release. Admission then
    fetches missing archives into `target/ravel-archives-2.0`, as the 1.1 lane does.
 7. Set `source_commit` to the peeled commit of the `v2.0.0` tag.
@@ -102,10 +114,8 @@ publishes 2.0.0, and before `task release:minor` in Grove:
 Grove's release task runs `scripts/release-smoke.sh --archives target/dist`.
 That smoke admits the 2.0 lane from its default directory. With the local
 record, a release on a host without `target/ravel-archives-2.0` refuses before
-any publication. That refusal is the intended gate. The Linux targets join the
-2.0 lane only after Ravel links its directory build at glibc 2.17. The
-published archives must therefore include both Linux targets before step 5 can
-make `unrecorded` empty.
+any publication. That refusal is the intended gate. The published archives must include both
+Linux targets, built at glibc 2.17, as the recorded build does.
 
 ## Consumer interface
 
@@ -184,8 +194,11 @@ substitutes its own target and case scripts. It keeps the pinned images, the QEM
 emulators, the Zig-built probes, the native container and the private binfmt
 namespace machinery. The shared environment helper supplies the target, system
 and glibc-floor assertions. QEMU checks every archived ELF header against its
-registration. It also requires a complete front and worker pair, so neither
-executable escapes the CPU model.
+registration, so no executable escapes the CPU model. A 1.1 prefix must hold
+both the front and the worker. A 2.0 prefix must hold its front and no worker.
+The two lanes' archives have the same names before Ravel's cut, so the runner
+labels each path of a 2.0 archive with `ravel-2.0/` and the check reads that
+label.
 
 Grove took the Ravel installed cases from the MIT-licensed released source at the
 v1.0.0 tag. They cover these subjects:

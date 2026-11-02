@@ -266,8 +266,14 @@ no rebase. Its build commit is `78332fcc367d`, above `7a894c782037`. Its output
 commit `4f831feb4d0f` is now the tip of the unpushed bookmark
 `skill-directory-delivery`. The build identity is `9feb86b7982a3920`, and the
 build reports `ravel 1.1.0`. The "Local-sources stage record" section of the
-Ravel design evidence holds its inputs and checks. This build is the directory
-build of grove-dual-ravel-k27.
+Ravel design evidence holds its inputs and checks. That build did not link at
+glibc 2.17.
+
+grove-linux-two-lane-k103 repaired the Linux link. Its build commit is
+`23e50ce90037`, above `4f831feb`, and its output commit `1ca4aecbeae1` is now
+the tip of the unpushed bookmark. The build identity is `ef5857e989e6d99d`.
+The "Linux floor repair record" section of the Ravel design evidence holds its
+inputs and checks. This build is the directory build of grove-dual-ravel-k27.
 
 The "Local stage record" section of the Ravel design evidence holds the build
 inputs and checks. On macOS, `task smoke:pair OLD=<1.1 executable>

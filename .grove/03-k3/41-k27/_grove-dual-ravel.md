@@ -77,13 +77,18 @@ the route is advertised last.
   `bin/ravel` SHA-256 is `c52f990b2059c8bbe8efba10a741d3a0311000ac1712d71e882638f54c3ac1ed`, and its worker build identity is
   `fa130cc262cfb22541798debe937ecd9e81488ebef494d873d377978808c9d9c`. It is also the ending executable of the live driver.
   Read it, and copy it into fixture prefixes. Never upgrade, unlink or change it.
-- **The 2.0 build.** The directory build of ravel-local-sources-k90: build
-  commit `78332fcc367d`, output commit `4f831feb4d0f` and build identity
-  `9feb86b7982a3920f738b96ffd2d6e6bc1744d6345b87451196e9299721fb234`. Install it with `task install PREFIX=<scratch prefix>`
-  from the workspace `Ravel.skill-directory-delivery` with an empty working
-  copy. k90 recorded the `bin/ravel` SHA-256 `151635d25169e6a76c7eed0a1de64af661b3d77554c9bbef88ab85a59afb823d`. The build
-  reports `ravel 1.1.0`, so identify it by commit and build identity. It
-  installs one executable and no `libexec/ravel` worker.
+- **The 2.0 build.** The glibc 2.17 repair of grove-linux-two-lane-k103:
+  build commit `23e50ce90037`, with the parent `4f831feb4d0f`, output commit
+  `1ca4aecbeae1` at the tip of the bookmark, and build identity `ef5857e989e6d99da51631ae0295685c8961c1b01bac58d865e6fb789ae71deb`. Its three archives are the 2.0 lane of
+  `scripts/ravel_target_inputs.py`, and Grove's ignored
+  `target/ravel-archives-2.0/` holds a copy. Install it with `task install
+  PREFIX=<scratch prefix>` from the workspace `Ravel.skill-directory-delivery`
+  with an empty working copy above the bookmark `skill-directory-delivery`.
+  The installed `bin/ravel` SHA-256 on macOS is `8e10e311c50c81ca60ac4f393d17408982d0aafcfe46cccfbc46130465290ae2`. The
+  build reports `ravel 1.1.0`, so identify it by commit and build identity. It
+  installs one executable and no `libexec/ravel` worker. The earlier directory
+  build of ravel-local-sources-k90, identity `9feb86b7…`, did not link on
+  Linux.
 - **A changed line.** If rollout rebases the bookmark before this node closes,
   record the new commits and identity. Do not move the bookmark here, except
   in grove-linux-two-lane-k103. That leaf adds the glibc 2.17 repair above
@@ -104,9 +109,10 @@ grove-rhai-skill-delivery-k35.
 
 The reviewed Ravel contract is commit `822c0ed2f67d` on the bookmark
 `skill-directory-delivery`, narrowed to local sources at `7a894c782037` by
-ravel-local-sources-k78. The directory build is the output of
-ravel-local-sources-k90: output commit `4f831feb4d0f`, build commit
-`78332fcc367d` and build identity `9feb86b7982a3920`. Grove's adoption contract is the commit that
+ravel-local-sources-k78. ravel-local-sources-k90 made the local-source
+build: output commit `4f831feb4d0f`, build commit `78332fcc367d` and build
+identity `9feb86b7982a3920`. The directory build is now its glibc 2.17
+repair: build commit `23e50ce90037` and build identity `ef5857e989e6d99d`. Grove's adoption contract is the commit that
 retires grove-rhai-skill-delivery-k35, with the change that
 grove-rhai-skill-delivery-k52 made. That integration of the review
 grove-rhai-skill-delivery-k51 added the Runtime parity section of the delivery

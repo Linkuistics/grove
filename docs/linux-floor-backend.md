@@ -106,8 +106,8 @@ whole input manifest byte for byte. Final executable SHA-256 values are:
 
 | Target | SHA-256 |
 |---|---|
-| aarch64-unknown-linux-gnu | `21ad63faa809f91a95a036edcac5e9d35547616c90d56013992e988a4844b561` |
-| x86_64-unknown-linux-gnu | `4cbf65c81477e5bfb4fa679937db54ba24ac01ba8204797fce69cac4bd06231d` |
+| aarch64-unknown-linux-gnu | `d35694e8915a70cf6ef403639c4d6c78c82c5cf0d1cc32ea6f1c6e93ca026cca` |
+| x86_64-unknown-linux-gnu | `64bdc5fcfc4014e7d4dcb6bd8eaaef9297663bb25e62553c409ff355e270828f` |
 
 **Re-measured 2026-10-18.** A release smoke test refused the aarch64 backend
 because the build no longer reproduced the 2026-10-13 hash. The values above are
@@ -117,6 +117,13 @@ digest and Zig 0.17.0. Repeat builds into different output paths agree byte for
 byte. The cause of the drift is not known, and the earlier binaries are not
 kept, so the old and new executables were not compared. The backend is a
 test-only helper and ships in no archive.
+
+**Re-measured 2026-11-03.** The native floor refused the aarch64 backend
+again, and the x86_64 build changed too. The values in the table are the
+current ones, and every recorded input is unchanged. Two builds into
+different paths with mise's Zig 0.17.0 agree byte for byte. A third build with
+Homebrew's Zig 0.17.0 gives the same bytes, so the choice between the two Zig
+installations is not the cause. The cause of the drift is still not known.
 
 `probe-final.log` verifies both real backends' versions and floor libcap bytes.
 Native arm64 returns bubblewrap's EPERM namespace diagnostic; Cortex-A53 and

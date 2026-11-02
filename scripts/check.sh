@@ -110,6 +110,7 @@ run_check "shellcheck" shellcheck \
   scripts/atomic-directory-publish.test.sh \
   scripts/release-floor-backend-probe.sh scripts/release-floor-backend-probe-host.sh \
   scripts/floor-seccomp.test.sh scripts/release-floor-native.sh scripts/grove-floor-native-cases.sh \
+  scripts/grove-floor-directory-case.sh \
   scripts/release-floor-qemu.sh scripts/release-floor-qemu-backend.sh scripts/release-floor-qemu.test.sh \
   scripts/ravel-target-smoke-target.sh scripts/ravel-installed-smoke.sh scripts/ravel-installed-smoke-rhai.sh \
   scripts/ravel-target-inputs.test.sh scripts/grove-installed-smoke.sh \

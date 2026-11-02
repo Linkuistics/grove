@@ -117,8 +117,9 @@ stood at the graft — a closed record, not part of the versioned sequence above
   `bin/ravel`, and it never downloads them. `task ravel:targets:smoke` runs each
   lane with the configuration format of its runtime. The macOS release smoke
   checks the Rhai caller set against the 2.0 build. Each runner names each
-  target that a lane did not run. The Linux targets of the 2.0 lane do not run
-  yet, because Ravel's directory build does not link at glibc 2.17. `task
+  target that a lane did not run. The 2.0 lane records all three targets: its
+  build links at glibc 2.17. On Linux, the native and QEMU floors run both
+  lanes, and the 2.0 lane adds the confined directory case. `task
   legacy:rehearsal ALSO=<prefix>` checks the Ravel 1.1.0 ending executable after
   each package step while a 2.0 prefix is installed.
 

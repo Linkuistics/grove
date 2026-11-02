@@ -4,7 +4,14 @@ set -euo pipefail
 IFS=$'\n\t'
 # shellcheck source=scripts/release-floor-qemu-backend.sh
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/release-floor-qemu-backend.sh"
-[[ $# -ge 2 ]] || die 'usage: release-floor-qemu.sh ARCHIVES RAVEL_ARCHIVES [LINUX_TARGET...]'
+# --ravel-archives-2.0 DIR holds the recorded archives of the 2.0 lane. With
+# it, the floor cases also run the 2.0 lane with config.rhai.
+ravel_2_archive_dir=""
+if [[ "${1:-}" == --ravel-archives-2.0 ]]; then
+  ravel_2_archive_dir="$(cd "${2:?--ravel-archives-2.0 needs a directory}" && pwd)"
+  shift 2
+fi
+[[ $# -ge 2 ]] || die 'usage: release-floor-qemu.sh [--ravel-archives-2.0 DIR] ARCHIVES RAVEL_ARCHIVES [LINUX_TARGET...]'
 archives="$(cd "$1" && pwd)"
 ravel_archive_dir="$(cd "$2" && pwd)"
 shift 2
@@ -22,6 +29,12 @@ python3 "$REPO_ROOT/scripts/ravel_target_inputs.py" --archives "$ravel_archive_d
   --output "$SCRATCH/ravel" "${targets[@]}"
 # shellcheck disable=SC2034 # sourced runner reads these globals
 RAVEL_INPUTS="$SCRATCH/ravel"
+if [[ -n "$ravel_2_archive_dir" ]]; then
+  python3 "$REPO_ROOT/scripts/ravel_target_inputs.py" --lane 2.0 --archives "$ravel_2_archive_dir" \
+    --output "$SCRATCH/ravel-2.0" "${targets[@]}"
+  # shellcheck disable=SC2034
+  RAVEL_2_INPUTS="$SCRATCH/ravel-2.0"
+fi
 # shellcheck disable=SC2034
 CASES="$REPO_ROOT/scripts/grove-floor-native-cases.sh"
 prepare_qemu_backend "$SCRATCH/native"
@@ -32,7 +45,7 @@ for target in "${targets[@]}"; do
   assert_archive "$archive" "$(basename "$archive" .tar.xz)" || die "invalid Grove archive $archive"
   mount="$SCRATCH/$target"
   stage_linux_inputs "$target" "$archive" "$mount"
-  cp "$REPO_ROOT/scripts/grove-installed-smoke.sh" "$mount/"
+  cp "$REPO_ROOT/scripts/grove-installed-smoke.sh" "$REPO_ROOT/scripts/grove-floor-directory-case.sh" "$mount/"
   cp -a "$SCRATCH/native" "$mount/"
   cp "$SCRATCH/backends/$target/bwrap" "$mount/bwrap"
   cp "$SCRATCH/backends/$target/libcap.so.2" "$mount/libcap.so.2"
@@ -45,4 +58,6 @@ for target in "${targets[@]}"; do
     smoke_under_qemu "$target" "$archive" "$(docker_platform "$target")" "$mount"
   done
 done
-echo "floor-qemu: actual caller lifecycle/imports/publication/denials and two backend refusal controls passed: $(IFS=' ' && echo "${targets[*]}")"
+lanes='Ravel 1.1'
+[[ -z "$ravel_2_archive_dir" ]] || lanes='Ravel 1.1 and 2.0, with the 2.0 confined directory case'
+echo "floor-qemu: actual caller lifecycle/imports/publication/denials and two backend refusal controls passed for $lanes: $(IFS=' ' && echo "${targets[*]}")"

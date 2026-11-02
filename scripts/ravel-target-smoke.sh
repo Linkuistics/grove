@@ -69,8 +69,10 @@ ravel_smoke_main() {
       lane_targets=("${run_2[@]+"${run_2[@]}"}")
     fi
     # The sourced runner reads CASES and stages under SCRATCH, one tree a lane.
+    # SUBJECT_LANE labels the archive for the QEMU registration check.
     CASES="$(lane_cases "$lane")"
     SCRATCH="$root/lane-$lane"
+    SUBJECT_LANE="$lane"
     for target in "${lane_targets[@]+"${lane_targets[@]}"}"; do
       archive="$(find "$SCRATCH/inputs/archives" -name "ravel-v*-$target.tar.xz")"
       echo "ravel-smoke: lane $lane: $target: $(basename "$archive") with $(basename "$CASES")"

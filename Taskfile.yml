@@ -12,12 +12,15 @@ version: '3'
 set: [errexit, nounset, pipefail]
 
 tasks:
+  # RAVEL_ARCHIVES_2 names the recorded archives of the 2.0 lane, such as
+  # target/ravel-archives-2.0. With it, the floor cases also run the 2.0 lane
+  # with config.rhai and the confined directory case.
   release:floor:qemu:
     desc: Prove actual separately admitted callers and backend refusals at both pinned QEMU floors
     requires:
       vars: [ARCHIVES, RAVEL_ARCHIVES]
     cmds:
-      - bash scripts/release-floor-qemu.sh "{{.ARCHIVES}}" "{{.RAVEL_ARCHIVES}}" {{.TARGETS}}
+      - bash scripts/release-floor-qemu.sh {{if .RAVEL_ARCHIVES_2}}--ravel-archives-2.0 "{{.RAVEL_ARCHIVES_2}}"{{end}} "{{.ARCHIVES}}" "{{.RAVEL_ARCHIVES}}" {{.TARGETS}}
 
   release:floor:qemu:prepare:
     desc: Prepare test-only host-native bubblewrap with its isolated glibc 2.17 dependency closure
@@ -39,14 +42,17 @@ tasks:
       - task: release:archives
         vars: {TARGETS: aarch64-unknown-linux-gnu}
       - task: release:floor:native:run
-        vars: {BACKENDS: '{{.BACKENDS}}', ARCHIVES: target/archives, RAVEL_ARCHIVES: '{{.RAVEL_ARCHIVES}}'}
+        vars: {BACKENDS: '{{.BACKENDS}}', ARCHIVES: target/archives, RAVEL_ARCHIVES: '{{.RAVEL_ARCHIVES}}', RAVEL_ARCHIVES_2: '{{.RAVEL_ARCHIVES_2}}'}
 
   release:floor:native:run:
     desc: Run native floor acceptance over explicit already-built archives (no QEMU or rebuild)
     requires:
       vars: [BACKENDS, ARCHIVES]
+    preconditions:
+      - sh: test -z "{{.RAVEL_ARCHIVES_2}}" || test -n "{{.RAVEL_ARCHIVES}}"
+        msg: RAVEL_ARCHIVES_2 needs RAVEL_ARCHIVES, the 1.1 lane's archives, too.
     cmds:
-      - bash scripts/release-floor-native.sh "{{.BACKENDS}}" "{{.ARCHIVES}}" {{if .RAVEL_ARCHIVES}}"{{.RAVEL_ARCHIVES}}"{{end}}
+      - bash scripts/release-floor-native.sh "{{.BACKENDS}}" "{{.ARCHIVES}}" {{if .RAVEL_ARCHIVES}}"{{.RAVEL_ARCHIVES}}"{{end}} {{if .RAVEL_ARCHIVES_2}}"{{.RAVEL_ARCHIVES_2}}"{{end}}
 
   release:floor:seccomp:controls:
     desc: Check pinned native seccomp derivation and changed/missing source refusals
@@ -445,7 +451,7 @@ tasks:
     requires:
       vars: [ARCHIVES, RAVEL_ARCHIVES]
     cmds:
-      - bash scripts/release-registration.test.sh "{{.ARCHIVES}}" "{{.RAVEL_ARCHIVES}}"
+      - bash scripts/release-registration.test.sh "{{.ARCHIVES}}" "{{.RAVEL_ARCHIVES}}" {{if .RAVEL_ARCHIVES_2}}"{{.RAVEL_ARCHIVES_2}}"{{end}}
 
   # RAVEL_1_1_PREFIX and RAVEL_2_0_PREFIX are installation prefixes, not
   # fronts. The 1.1 build checks the TypeScript set and the 2.0 build the Rhai

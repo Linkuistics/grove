@@ -87,6 +87,11 @@ QEMU_SCRIPT="$REPO_ROOT/scripts/release-smoke-qemu.sh"
 CASES="$REPO_ROOT/scripts/grove-installed-smoke.sh"
 RAVEL_INPUTS=""
 RAVEL_2_INPUTS=""
+# The runtime lane of the archive under test when it is itself a Ravel archive:
+# 1.1, or 2.0 for the recorded 2.0 build. The two lanes' archives have the same
+# file names before the cut, so the QEMU registration check reads the lane from
+# this label, never from a name.
+SUBJECT_LANE=1.1
 
 # TARGETS, the release target list, and assert_archive, the manifest check.
 # shellcheck source=scripts/release-common.sh
@@ -343,10 +348,18 @@ copy_from_image() {
 # main calls the routes below on the left of `||`, where errexit does not
 # reach, so every step before the run returns its own failure.
 
+# The admitted 2.0 archive of TARGET, or nothing when the 2.0 lane does not
+# run for it.
+ravel_2_archive() {
+  [[ -n "$RAVEL_2_INPUTS" && -d "$RAVEL_2_INPUTS/$1" ]] || return 0
+  find "$RAVEL_2_INPUTS/archives" -name "ravel-v*-$1.tar.xz"
+}
+
 # The inputs every Linux route reads, in MOUNT: the archive, the two
-# in-environment scripts, and the glibc and CPU probes.
+# in-environment scripts, and the glibc and CPU probes. The 2.0 lane's
+# archive goes into MOUNT/ravel-2.0, because its name equals the 1.1 name.
 stage_linux_inputs() {
-  local target="$1" archive="$2" mount="$3" arch="${1%%-*}"
+  local target="$1" archive="$2" mount="$3" arch="${1%%-*}" archive_2
   mkdir -p "$mount/probes" || return 1
   build_glibc_probes "$arch" "$mount/probes"
   build_cpu_probe "$arch" "$mount/probes"
@@ -354,34 +367,51 @@ stage_linux_inputs() {
   if [[ -n "$RAVEL_INPUTS" ]]; then
     cp "$RAVEL_INPUTS/archives/ravel-v1.1.0-$target.tar.xz" "$mount/" || return 1
   fi
+  archive_2="$(ravel_2_archive "$target")" || return 1
+  if [[ -n "$archive_2" ]]; then
+    mkdir "$mount/ravel-2.0" || return 1
+    cp "$archive_2" "$mount/ravel-2.0/" || return 1
+  fi
   cp "$TARGET_SCRIPT" "$mount/release-smoke-target.sh" || return 1
   cp "$REPO_ROOT/scripts/release-smoke-environment.sh" "$mount/" || return 1
   cp "$CASES" "$mount/installed-smoke.sh"
 }
 
+# The in-environment variable that names the staged 2.0 archive in MOUNT, or
+# nothing.
+ravel_2_variable() {
+  local staged
+  [[ -d "$1/ravel-2.0" ]] || return 0
+  staged="$(find "$1/ravel-2.0" -name 'ravel-v*.tar.xz')"
+  echo "RAVEL_2_TARGET_ARCHIVE=/smoke/ravel-2.0/$(basename "$staged")"
+}
+
 smoke_in_floor_container() {
-  local target="$1" archive="$2" platform="$3" mount="$4"
+  local target="$1" archive="$2" platform="$3" mount="$4" lane_2=() line
   echo "release-smoke: $target: $platform container, native to Docker's $DOCKER_PLATFORM"
+  while IFS= read -r line; do lane_2+=("$line"); done < <(ravel_2_variable "$mount")
   docker run --rm --network none --user 1000:1000 \
     --platform "$platform" \
     --volume "$mount:/smoke:ro" \
     "$FLOOR_IMAGE" \
-    /usr/bin/env -i PATH=/usr/bin:/bin /bin/bash /smoke/release-smoke-target.sh \
+    /usr/bin/env -i PATH=/usr/bin:/bin "${lane_2[@]+"${lane_2[@]}"}" /bin/bash /smoke/release-smoke-target.sh \
     "$target" "/smoke/$(basename "$archive")" /smoke/installed-smoke.sh /smoke/probes
 }
 
 # Every ELF file in ARCHIVE, as the hex of its first 20 bytes, a tab and its
 # path, one per line, in OUT. release-smoke-qemu.sh holds each against its
 # registration, so that no executable escapes the CPU model; its helper
-# container has no xz to read the archive itself.
+# container has no xz to read the archive itself. LANE 2.0 puts `ravel-2.0/`
+# before each path of a Ravel 2.0 archive, which has no 1.x worker.
 archive_elf_headers() {
-  local archive="$1" out="$2" dir file header
+  local archive="$1" out="$2" lane="${3:-}" dir file header label=""
+  [[ "$lane" != 2.0 ]] || label="ravel-2.0/"
   dir="$(mktemp -d "$SCRATCH/elf.XXXXXX")" || return 1
   tar -xJf "$archive" -C "$dir" || return 1
   while IFS= read -r file; do
     header="$(od -An -tx1 -N20 "$file" | tr -d ' \n')"
     if [[ "$header" == 7f454c46* ]]; then
-      printf '%s\t%s\n' "$header" "${file#"$dir"/}"
+      printf '%s\t%s%s\n' "$header" "$label" "${file#"$dir"/}"
     fi
   done < <(find "$dir" -type f) >"$out"
   rm -rf "$dir"
@@ -400,10 +430,15 @@ archive_elf_headers() {
 smoke_under_qemu() {
   local target="$1" archive="$2" platform="$3" mount="$4" arch="${1%%-*}" cpu
   cpu="$(cpu_floor "$arch")" || return 1
-  archive_elf_headers "$archive" "$mount/elf-headers" || return 1
+  archive_elf_headers "$archive" "$mount/elf-headers" "$SUBJECT_LANE" || return 1
   if [[ -n "$RAVEL_INPUTS" ]]; then
     archive_elf_headers "$RAVEL_INPUTS/archives/ravel-v1.1.0-$target.tar.xz" "$mount/ravel-elf-headers" || return 1
     cat "$mount/ravel-elf-headers" >>"$mount/elf-headers" || return 1
+  fi
+  if [[ -d "$mount/ravel-2.0" ]]; then
+    archive_elf_headers "$(find "$mount/ravel-2.0" -name 'ravel-v*.tar.xz')" "$mount/ravel-2.0-elf-headers" 2.0 ||
+      return 1
+    cat "$mount/ravel-2.0-elf-headers" >>"$mount/elf-headers" || return 1
   fi
   copy_from_image "$platform" "$FLOOR_IMAGE" / "$mount/rootfs.tar" || return 1
   pinned_qemu "$arch" "$mount/qemu" || return 1
@@ -438,13 +473,19 @@ smoke_linux() {
   if [[ "$CASES" == "$REPO_ROOT/scripts/grove-installed-smoke.sh" ]]; then
     # Actual Grove standalone requires the prepared real namespace environments.
     # Separate scripts preserve the Ravel-only and backend-diagnostic consumers.
+    # The 2.0 lane runs where it records this target's archive.
+    local lane_2=() option_2=()
+    if [[ -n "$(ravel_2_archive "$target")" ]]; then
+      lane_2=("$RAVEL_2_INPUTS/archives")
+      option_2=(--ravel-archives-2.0 "$RAVEL_2_INPUTS/archives")
+    fi
     if [[ "$platform" == "$DOCKER_PLATFORM" ]]; then
       bash "$REPO_ROOT/scripts/release-floor-backend.sh" "$mount-backends" "$target" || return 1
       bash "$REPO_ROOT/scripts/release-floor-native.sh" "$mount-backends" \
-        "$(dirname "$archive")" "$RAVEL_INPUTS/archives" || return 1
+        "$(dirname "$archive")" "$RAVEL_INPUTS/archives" "${lane_2[@]+"${lane_2[@]}"}" || return 1
     fi
-    bash "$REPO_ROOT/scripts/release-floor-qemu.sh" "$(dirname "$archive")" \
-      "$RAVEL_INPUTS/archives" "$target"
+    bash "$REPO_ROOT/scripts/release-floor-qemu.sh" "${option_2[@]+"${option_2[@]}"}" \
+      "$(dirname "$archive")" "$RAVEL_INPUTS/archives" "$target"
     return "$?"
   fi
   stage_linux_inputs "$target" "$archive" "$mount" || return 1
@@ -483,13 +524,10 @@ main() {
   python3 "$REPO_ROOT/scripts/ravel_target_inputs.py" "${ravel_archives[@]+"${ravel_archives[@]}"}" \
     --output "$SCRATCH/ravel" "${targets[@]}" || die 'independent Ravel admission failed'
   RAVEL_INPUTS="$SCRATCH/ravel"
-  # The 2.0 lane runs where it records an archive and the target is native.
-  # The Linux floor routes of the 2.0 lane belong to its Linux archives.
+  # The 2.0 lane runs on each target where it records an archive.
   while IFS=$'\t' read -r target state reason; do
     if [[ "$state" != recorded ]]; then
       not_run+=("lane 2.0 $target: $reason")
-    elif [[ "$target" != *-apple-darwin ]]; then
-      not_run+=("lane 2.0 $target: the Linux floor routes run the 1.1 lane only")
     else
       lane_2+=("$target")
     fi

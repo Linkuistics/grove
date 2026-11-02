@@ -142,9 +142,13 @@ outside() {
 
 # Every ELF file in the archive must match MAGIC under MASK, or it would run
 # on the helper's own CPU, out of the model's reach, and pass untested. HEADERS
-# lists each file's first 20 bytes; it must include the front and the worker.
+# lists each file's first 20 bytes. A Ravel 1.1 prefix must hold the front and
+# the worker. A Ravel 2.0 prefix, whose paths release-smoke.sh labels
+# `ravel-2.0/`, must hold the front and no worker. At least one Ravel prefix
+# must be present, and Grove is complete or absent.
 assert_archive_matches() {
   local headers="$1" magic mask header path i count=0 grove=0 llm=0 ravel_front=0 ravel_worker=0
+  local ravel_2=0 ravel_2_front=0 ravel_2_worker=0
   # A registration's escapes as hex; a pipe carries their NUL bytes.
   magic="$(printf '%b' "$2" | od -An -tx1 | tr -d ' \n')"
   mask="$(printf '%b' "$3" | od -An -tx1 | tr -d ' \n')"
@@ -156,15 +160,22 @@ assert_archive_matches() {
       fi
     done
     count=$((count + 1))
+    [[ "$path" != ravel-2.0/* ]] || ravel_2=1
     case "$path" in
+      ravel-2.0/*/bin/ravel) ravel_2_front=1 ;;
+      ravel-2.0/*/libexec/ravel/ravel-policy) ravel_2_worker=1 ;;
       */bin/grove) grove=1 ;;
       */bin/grove-llm) llm=1 ;;
       */bin/ravel) ravel_front=1 ;;
       */libexec/ravel/ravel-policy) ravel_worker=1 ;;
     esac
   done <"$headers"
-  ((ravel_front && ravel_worker && ((grove && llm) || (!grove && !llm)))) ||
-    die "$headers lacks the complete Ravel pair or lists an incomplete Grove pair: $(cat "$headers")"
+  ((ravel_front == ravel_worker)) ||
+    die "$headers lists an incomplete Ravel 1.1 pair: $(cat "$headers")"
+  ((ravel_2 == ravel_2_front && !ravel_2_worker)) ||
+    die "$headers lists a Ravel 2.0 prefix with a 1.x worker or without its front: $(cat "$headers")"
+  ((ravel_front || ravel_2_front)) || die "$headers lists no Ravel prefix: $(cat "$headers")"
+  ((grove == llm)) || die "$headers lists an incomplete Grove pair: $(cat "$headers")"
   note "all $count ELF files in the archive match the registration, so they run under the model"
 }
 
@@ -229,8 +240,14 @@ in_namespace() {
 
   # The max control is not a payload resource. Only the pinned interpreter stays.
   rm "$FLOOR$EMULATOR/interpreter-max"
+  # The 2.0 lane's archive, when release-smoke.sh staged one.
+  local lane_2=() staged
+  if [[ -d "$inputs/ravel-2.0" ]]; then
+    staged="$(find "$inputs/ravel-2.0" -name 'ravel-v*.tar.xz')"
+    lane_2=("RAVEL_2_TARGET_ARCHIVE=/smoke/ravel-2.0/$(basename "$staged")")
+  fi
   exec /floor-enter "$FLOOR" \
-    /usr/bin/env -i PATH=/usr/bin:/bin "FLOOR_MODE=${FLOOR_MODE:-supported}" \
+    /usr/bin/env -i PATH=/usr/bin:/bin "FLOOR_MODE=${FLOOR_MODE:-supported}" "${lane_2[@]+"${lane_2[@]}"}" \
     "FLOOR_KIND=qemu" /bin/bash /smoke/release-smoke-target.sh \
     "$TARGET" "/smoke/$archive" /smoke/installed-smoke.sh /smoke/probes
 }

@@ -107,20 +107,38 @@ owner policies, adjacent checkouts and production release state are preserved.
 
 ## Runtime lanes
 
-The native and QEMU floor routes run Grove's callers against the 1.1 lane only.
-That lane is Ravel 1.1.0 with `policy.ts`. The 2.0 lane records no Linux
-archive, because Ravel's directory build does not link at glibc 2.17.
-[ravel-target-inputs.md](ravel-target-inputs.md#the-20-lane) gives the reason.
+The native and QEMU floor routes run Grove's callers against two lanes. The
+1.1 lane is Ravel 1.1.0 with `policy.ts`. The 2.0 lane is the recorded 2.0
+build with `config.rhai`, from
+[ravel-target-inputs.md](ravel-target-inputs.md#the-20-lane). Each lane runs in
+a HOME of its own. Both archives have the name `ravel-v1.1.0-TARGET.tar.xz`
+before Ravel's cut. The mount therefore holds the 2.0 archive in `ravel-2.0/`.
 
-No floor run measures these cases on the 2.0 lane with `config.rhai`:
+`grove-floor-native-cases.sh` receives the 2.0 prefix as its fourth argument.
+For each lane it runs these cases:
 
-- the caller lifecycle, standalone output and caller imports.
-- the sandbox denial task.
-- the unreadable native guidance case.
-- the confined directory case of `crates/grove/tests/directory_route.rs`. That
-  case runs on macOS only.
+- the caller lifecycle, standalone output and caller imports, through
+  `grove-installed-smoke.sh`.
+- the sandbox denial task, in each backend environment.
+- the unreadable native guidance case, with its granted control.
 
-The leaf grove-linux-two-lane-k103 owns the Ravel repair and these cases.
+The 1.1 policy proves selection with a file that it writes when it loads. A
+Rhai configuration cannot write a file. The 2.0 configuration therefore prints
+`floor selection: selected` from `select()`, and Ravel sends the print to
+stderr. A refused backend must not reach that line.
+
+In the supported environment, `grove-floor-directory-case.sh` runs the
+confined directory case on the 2.0 lane. It is a port of the confined
+standalone case of `crates/grove/tests/directory_route.rs`. The confined agent
+reads the mandatory spine, its resource and the named kind from Ravel's
+snapshots. It cannot write a snapshot, a source or a path outside its working
+directory. It cannot read a source or the protected configuration. The
+unconfined control runs the same probes and must succeed where the sandbox
+denied, except for the read-only snapshots.
+
+The floor userland has no Git. Its two sources are therefore plain local
+directories. The plain Git checkout source of the macOS case is not measured
+at the floor.
 
 ## Completed native handoff — 2026-10-14
 

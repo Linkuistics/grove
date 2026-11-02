@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import contextlib
+import dataclasses
 import hashlib
 import io
 import subprocess
@@ -247,31 +249,32 @@ def test_lane_2_refuses_the_1_1_layout(tmp_path: Path) -> None:
     assert list(tmp_path.iterdir()) == []
 
 
+def unrecorded_lane() -> inputs.Lane:
+    """The 2.0 lane with TARGET unrecorded, as before its Linux archives existed."""
+    lane = inputs.LANES["2.0"]
+    return dataclasses.replace(
+        lane,
+        pins={MAC: lane.pins[MAC]},
+        unrecorded={
+            target: "the fixture reason" for target in inputs.TARGETS if target != MAC
+        },
+    )
+
+
 def test_lane_2_refuses_a_target_it_does_not_record(tmp_path: Path) -> None:
     archive_dir = tmp_path / "archives"
     archive_dir.mkdir()
     output = tmp_path / "output"
-    result = subprocess.run(
-        [
-            sys.executable,
-            str(Path(inputs.__file__)),
-            "--lane",
-            "2.0",
-            "--archives",
-            str(archive_dir),
-            "--output",
-            str(output),
-            MAC,
-            TARGET,
-        ],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    assert result.returncode != 0
-    assert f"lane 2.0 records no archive for {TARGET}" in result.stderr
-    assert "renameat2" in result.stderr
+    with refused(f"lane 2.0 records no archive for {TARGET}: the fixture reason"):
+        inputs.prepare([MAC, TARGET], archive_dir, output, False, unrecorded_lane())
     assert not output.exists()
+
+
+def test_the_2_0_record_covers_every_target(tmp_path: Path) -> None:
+    del tmp_path
+    lane = inputs.LANES["2.0"]
+    assert lane.unrecorded == {}, lane.unrecorded
+    assert set(lane.pins) == set(inputs.TARGETS), lane.pins
 
 
 def test_lane_2_never_downloads_its_default_archives(tmp_path: Path) -> None:
@@ -308,16 +311,22 @@ def test_lane_2_never_downloads_its_default_archives(tmp_path: Path) -> None:
 
 def test_status_names_each_target_the_lane_does_not_run(tmp_path: Path) -> None:
     del tmp_path
+    printed = io.StringIO()
+    with contextlib.redirect_stdout(printed):
+        inputs.status(list(inputs.TARGETS), unrecorded_lane())
+    lines = dict(line.split("\t", 1) for line in printed.getvalue().splitlines())
+    assert lines[MAC].startswith("recorded\t")
+    for target in ("aarch64-unknown-linux-gnu", "x86_64-unknown-linux-gnu"):
+        assert lines[target] == "not recorded\tthe fixture reason", lines
+    # The real record runs the 2.0 lane on every target.
     result = subprocess.run(
         [sys.executable, str(Path(inputs.__file__)), "--lane", "2.0", "--status"],
         capture_output=True,
         text=True,
         check=True,
     )
-    lines = dict(line.split("\t", 1) for line in result.stdout.splitlines())
-    assert lines[MAC].startswith("recorded\t")
-    for target in ("aarch64-unknown-linux-gnu", "x86_64-unknown-linux-gnu"):
-        assert lines[target].startswith("not recorded\t"), lines
+    for line in result.stdout.splitlines():
+        assert line.split("\t")[1] == "recorded", line
 
 
 @contextmanager
@@ -340,6 +349,7 @@ def main() -> None:
         (test_lane_2_refuses_another_build_identity, ()),
         (test_lane_2_refuses_the_1_1_layout, ()),
         (test_lane_2_refuses_a_target_it_does_not_record, ()),
+        (test_the_2_0_record_covers_every_target, ()),
         (test_lane_2_never_downloads_its_default_archives, ()),
         (test_status_names_each_target_the_lane_does_not_run, ()),
     ]

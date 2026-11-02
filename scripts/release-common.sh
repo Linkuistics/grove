@@ -34,10 +34,13 @@ bin/grove
 bin/grove-llm
 libexec/ravel-policy/README.md
 libexec/ravel-policy/examples/grove-review.ts
+libexec/ravel-policy/examples/grove-static.rhai
 libexec/ravel-policy/examples/grove-static.ts
 libexec/ravel-policy/examples/review.ts
+libexec/ravel-policy/examples/static.rhai
 libexec/ravel-policy/grove.ts
 libexec/ravel-policy/provenance.ts
+libexec/ravel-policy/sample/config.rhai
 libexec/ravel-policy/sample/policy.ts
 libexec/ravel-policy/typecheck/review.ts
 libexec/ravel-policy/typecheck/static.ts

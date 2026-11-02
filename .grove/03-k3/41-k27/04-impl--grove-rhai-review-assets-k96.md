@@ -48,3 +48,11 @@ grove-ravel-runtime-fixtures-k94 left the six cases of
 `review_assets_unported`. Under the 2.0 runtime they report that and run
 nothing. Give them Rhai review policies and remove the guard, so that
 `ravel:provenance` runs them against each build.
+
+grove-rhai-static-assets-k95 leaves three handoffs. A Rhai script that composes
+the routes of `grove-static.rhai` selects through its `select_route`. Rhai
+finds the function of a closure only while a function of its module runs. The
+review and provenance tests of `ravel_policy_assets.rs` carry the guard
+`review_assets_unported`, which this leaf removes. Under 2.0 the case table runs the
+Rhai static example and sample without a wrapper. Wrap them in the Rhai
+provenance wrapper, as the table wraps the TypeScript set.

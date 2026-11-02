@@ -1,4 +1,6 @@
-//! Grove-readable policies through the independent installed Ravel worker.
+//! Grove's TypeScript review and provenance assets through the independent
+//! installed Ravel 1.1 worker. The static example and the sample share the case
+//! table of `ravel_asset_cases` with their Rhai counterparts.
 use std::fs;
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
@@ -13,6 +15,17 @@ struct Fixture {
     pair: support::ravel::InstalledRavel,
     policy: PathBuf,
     capture: PathBuf,
+}
+
+/// The review adapter, the review examples and the provenance wrapper are
+/// TypeScript only until grove-rhai-review-assets-k96 ports them. The static
+/// example and the sample have their Rhai checks in `ravel_asset_cases`.
+fn review_assets_unported() -> bool {
+    let unported = support::runtime() == support::ravel::Runtime::V2_0;
+    if unported {
+        eprintln!("not run: the Rhai review assets arrive with grove-rhai-review-assets-k96");
+    }
+    unported
 }
 
 impl Fixture {
@@ -114,271 +127,6 @@ impl Fixture {
             .map(|arg| String::from_utf8(arg.to_vec()).unwrap())
             .collect()
     }
-
-    fn choice(&self, choice: Option<&str>) {
-        let path = self.temp.path().join(".ravel-choice");
-        if let Some(text) = choice {
-            fs::write(path, text).unwrap();
-        } else if path.exists() {
-            fs::remove_file(path).unwrap();
-        }
-    }
-
-    fn selected(&self, kind: &str) -> Vec<String> {
-        let output = self.run(kind);
-        assert!(output.status.success(), "{kind}: {output:?}");
-        assert_eq!(output.stdout, b"grove-continue", "{kind}: {output:?}");
-        let arguments = self.arguments();
-        let provider = match arguments[0].as_str() {
-            "my-codex-wrapper" | "codex" | "codex-headless.sh" => "openai",
-            "my-claude-wrapper" | "claude" => "anthropic",
-            other => panic!("unexpected fake agent {other}"),
-        };
-        let notice = String::from_utf8_lossy(&output.stderr)
-            .lines()
-            .filter_map(|line| serde_json::from_str::<serde_json::Value>(line).ok())
-            .find(|value| value.get("selection").is_some())
-            .expect("public routing notice on stderr");
-        assert_eq!(
-            notice["selection"]["provider"], provider,
-            "{kind}: {notice}"
-        );
-        arguments
-    }
-}
-
-// Removing a kind or routing it to the wrong harness/effort must fail against
-// these literal expectations, through the shipped worker rather than a mock.
-#[test]
-#[ignore = "requires installed Ravel: task ravel:policy RAVEL=/absolute/path/to/ravel"]
-fn readable_static_routes_preserve_all_kinds_and_prompt_arguments() {
-    let fixture = Fixture::new("examples/grove-static.ts");
-    fixture.wrap();
-    for (kind, reviewer, effort) in [
-        ("requirements", false, "max"),
-        ("review-requirements", true, "xhigh"),
-        ("integrate-review-requirements", false, "xhigh"),
-        ("design", false, "xhigh"),
-        ("review-design", true, "xhigh"),
-        ("integrate-review-design", false, "xhigh"),
-        ("planning", false, "xhigh"),
-        ("review-planning", true, "xhigh"),
-        ("integrate-review-planning", false, "xhigh"),
-        ("prototype", false, "medium"),
-        ("review-prototype", true, "medium"),
-        ("integrate-review-prototype", false, "medium"),
-        ("impl", false, "high"),
-        ("review-impl", true, "high"),
-        ("integrate-review-impl", false, "medium"),
-        ("research-a", false, "high"),
-        ("research-b", true, "high"),
-        ("combine-research", false, "xhigh"),
-        ("draft", false, "high"),
-        ("copy-edit", true, "medium"),
-        ("art", false, "medium"),
-        ("proof", true, "high"),
-        ("finish", false, "medium"),
-    ] {
-        let (agent, model) = if reviewer {
-            ("my-claude-wrapper", "your-claude-model")
-        } else {
-            ("my-codex-wrapper", "your-codex-model")
-        };
-        assert_eq!(
-            fixture.selected(kind),
-            [agent, "--model", model, "--effort", effort, PROMPT]
-        );
-    }
-    let output = fixture.run("unmapped");
-    assert_eq!(output.status.code(), Some(3), "{output:?}");
-    assert!(output.stdout.is_empty());
-    assert!(!fixture.capture.exists());
-}
-
-// The sample must retain its choices, precedence and real harness arguments.
-#[test]
-#[ignore = "requires installed Ravel: task ravel:policy RAVEL=/absolute/path/to/ravel"]
-fn readable_sample_applies_arrangements_modifiers_and_refusals() {
-    let fixture = Fixture::new("sample/policy.ts");
-    fixture.wrap();
-    for (choice, kind, agent, model, effort) in [
-        (None, "impl", "claude", "claude-opus-5-5", "high"),
-        (None, "review-design", "codex", "gpt-6.1-sol", "high"),
-        (Some("codex-led"), "impl", "codex", "gpt-6.1-sol", "high"),
-        (
-            Some("claude-led"),
-            "review-design",
-            "codex",
-            "gpt-6.1-sol",
-            "xhigh",
-        ),
-        (
-            Some("codex-design-claude-impl"),
-            "impl",
-            "claude",
-            "claude-sonnet-5-5",
-            "high",
-        ),
-        (
-            Some("claude-design-codex-impl"),
-            "review-prototype",
-            "claude",
-            "claude-sonnet-5-5",
-            "medium",
-        ),
-        (
-            Some("codex-led high-effort"),
-            "prototype",
-            "codex",
-            "gpt-6.1-sol",
-            "high",
-        ),
-        (
-            Some("claude-led codex-sol"),
-            "review-design",
-            "codex",
-            "gpt-6.1-sol",
-            "high",
-        ),
-        (
-            Some("codex-design-claude-impl high-effort"),
-            "copy-edit",
-            "claude",
-            "claude-sonnet-5-5",
-            "medium",
-        ),
-    ] {
-        fixture.choice(choice);
-        let args = fixture.selected(kind);
-        let expected = if agent == "codex" {
-            vec![
-                agent,
-                "--no-alt-screen",
-                "--model",
-                model,
-                "-c",
-                "unused",
-                "-c",
-                "default_permissions=:danger-full-access",
-                "--ask-for-approval",
-                "never",
-                PROMPT,
-            ]
-        } else {
-            vec![agent, "--model", model, "--effort", effort, PROMPT]
-        };
-        let expected: Vec<String> = expected.into_iter().map(str::to_owned).collect();
-        let mut expected = expected;
-        if agent == "codex" {
-            expected[5] = format!("model_reasoning_effort={effort}");
-        }
-        assert_eq!(args, expected, "{choice:?}, {kind}");
-    }
-    fixture.choice(None);
-    assert_eq!(
-        fixture.selected("release-notes"),
-        ["codex-headless.sh", "gpt-6.1-sol", "medium", PROMPT]
-    );
-    for (choice, code) in [
-        (Some("unknown"), "choice_unoffered"),
-        (Some(""), "choice_arrangement"),
-        (Some("high-effort"), "choice_arrangement"),
-        (Some("codex-led claude-led"), "choice_arrangement"),
-        (None, "incomplete_mapping"),
-    ] {
-        fixture.choice(choice);
-        let output = fixture.run(if choice.is_none() { "unmapped" } else { "impl" });
-        assert_eq!(output.status.code(), Some(3), "{output:?}");
-        assert!(
-            String::from_utf8_lossy(&output.stderr).contains(code),
-            "{output:?}"
-        );
-        assert!(output.stdout.is_empty());
-        assert!(!fixture.capture.exists());
-    }
-}
-
-// Losing the secondary-workspace --add-dir grant strands shared jj/git objects.
-#[test]
-#[ignore = "requires installed Ravel: task ravel:policy RAVEL=/absolute/path/to/ravel"]
-fn readable_sample_keeps_secondary_jj_grants_and_refuses_unreadable_stores() {
-    let fixture = Fixture::new("sample/policy.ts");
-    fixture.wrap();
-    let main = fixture.temp.path().join("main-repository");
-    fs::create_dir_all(main.join(".jj/repo")).unwrap();
-    fs::create_dir_all(fixture.temp.path().join(".jj")).unwrap();
-    fs::write(
-        fixture.temp.path().join(".jj/repo"),
-        "../main-repository/.jj/repo",
-    )
-    .unwrap();
-    for (choice, agent) in [("codex-led", "codex"), ("claude-led", "claude")] {
-        fixture.choice(Some(choice));
-        let args = fixture.selected("impl");
-        let grant = args.iter().position(|arg| arg == "--add-dir").unwrap();
-        assert_eq!(args[0], agent);
-        assert_eq!(
-            args[grant + 1],
-            fs::canonicalize(&main).unwrap().to_str().unwrap()
-        );
-        assert_eq!(args.last().unwrap(), PROMPT);
-    }
-    fs::write(fixture.temp.path().join(".jj/repo"), "").unwrap();
-    let output = fixture.run("impl");
-    assert_eq!(output.status.code(), Some(3), "{output:?}");
-    assert!(
-        String::from_utf8_lossy(&output.stderr).contains("jj_store_unreadable"),
-        "{output:?}"
-    );
-    assert!(!fixture.capture.exists());
-}
-
-// A dropped sample route must fail independently of the static example table.
-#[test]
-#[ignore = "requires installed Ravel: task ravel:policy RAVEL=/absolute/path/to/ravel"]
-fn readable_sample_defaults_cover_every_session_kind() {
-    let fixture = Fixture::new("sample/policy.ts");
-    fixture.wrap();
-    for (kind, agent, effort) in [
-        ("requirements", "claude", "max"),
-        ("review-requirements", "codex", "high"),
-        ("integrate-review-requirements", "claude", "xhigh"),
-        ("design", "claude", "xhigh"),
-        ("review-design", "codex", "high"),
-        ("integrate-review-design", "claude", "xhigh"),
-        ("planning", "claude", "xhigh"),
-        ("review-planning", "codex", "high"),
-        ("integrate-review-planning", "claude", "xhigh"),
-        ("prototype", "claude", "medium"),
-        ("review-prototype", "codex", "medium"),
-        ("integrate-review-prototype", "claude", "medium"),
-        ("impl", "claude", "high"),
-        ("review-impl", "codex", "high"),
-        ("integrate-review-impl", "claude", "medium"),
-        ("research-a", "claude", "high"),
-        ("research-b", "codex", "high"),
-        ("combine-research", "claude", "xhigh"),
-        ("draft", "claude", "high"),
-        ("copy-edit", "codex", "medium"),
-        ("art", "claude", "high"),
-        ("proof", "codex", "medium"),
-        ("finish", "claude", "medium"),
-    ] {
-        let args = fixture.selected(kind);
-        assert_eq!(args[0], agent, "{kind}");
-        assert_eq!(args.last().unwrap(), PROMPT);
-        if agent == "codex" {
-            assert_eq!(args[3], "gpt-6.1-sol", "{kind}");
-            assert_eq!(
-                args[5],
-                format!("model_reasoning_effort={effort}"),
-                "{kind}"
-            );
-        } else {
-            assert_eq!(args[2], "claude-opus-5-5", "{kind}");
-            assert_eq!(args[4], effort, "{kind}");
-        }
-    }
 }
 
 // Provider evidence follows the selected label, even when program/model labels
@@ -387,6 +135,9 @@ fn readable_sample_defaults_cover_every_session_kind() {
 #[test]
 #[ignore = "requires installed Ravel: task ravel:provenance RAVEL=/absolute/path/to/ravel"]
 fn provenance_wrapper_delivers_selection_labels_and_preserves_context_and_argv() {
+    if review_assets_unported() {
+        return;
+    }
     let fixture = Fixture::new("examples/grove-static.ts");
     fixture.wrap();
     let wrapper =
@@ -472,6 +223,9 @@ export const policy = withProvenance({{
 #[test]
 #[ignore = "requires installed Ravel: task ravel:provenance RAVEL=/absolute/path/to/ravel"]
 fn recorded_evidence_is_validated_before_becoming_measured_caller_context() {
+    if review_assets_unported() {
+        return;
+    }
     let fixture = Fixture::new("examples/grove-static.ts");
     fixture.wrap();
     let wrapper =
@@ -535,6 +289,9 @@ export const policy = {{ schemaVersion: 2, version: 'measured-receipt-consumer',
 #[test]
 #[ignore = "requires installed Ravel: task ravel:policy RAVEL=/absolute/path/to/ravel"]
 fn readable_grove_review_parses_measured_evidence_and_refuses_bad_relationships() {
+    if review_assets_unported() {
+        return;
+    }
     let fixture = Fixture::new("examples/grove-static.ts");
     let adapter = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../../assets/ravel-policy/examples/grove-review.ts");
@@ -768,6 +525,9 @@ export const policy = {{ ...owner,
 #[test]
 #[ignore = "requires installed Ravel: task ravel:policy RAVEL=/absolute/path/to/ravel"]
 fn readable_review_rule_keeps_gateway_origin_and_validates_generic_caller_facts() {
+    if review_assets_unported() {
+        return;
+    }
     let fixture = Fixture::new("examples/grove-static.ts");
     let selector =
         Path::new(env!("CARGO_MANIFEST_DIR")).join("../../assets/ravel-policy/examples/review.ts");
@@ -833,6 +593,9 @@ export const policy = {{ schemaVersion: 2, version: 'gateway-fixture', ...review
 #[test]
 #[ignore = "requires installed Ravel: task ravel:policy RAVEL=/absolute/path/to/ravel"]
 fn readable_generic_review_example_accepts_both_evidence_forms_and_preserves_effort() {
+    if review_assets_unported() {
+        return;
+    }
     let fixture = Fixture::new("examples/review.ts");
     let context = fixture.temp.path().join("context.json");
     let receipt = r#"{"schemaVersion":1,"attemptId":"12345678-1234-4123-8123-123456789abc","provider":"your-provider","policyVersion":"original-owner","kind":"feature"}"#;

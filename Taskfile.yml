@@ -161,13 +161,17 @@ tasks:
       - bash plugins/grove/conformance.sh
 
   ravel:policy:
-    desc: Check Grove-readable static and review assets through the independent installed Ravel SDK and worker
+    desc: Check Grove's caller assets of the selected runtime through the independent installed Ravel build
     requires:
       vars: [RAVEL]
     cmds:
+      # Ravel 2.0 has no SDK or typechecker. Its Rhai assets run through public
+      # start-session in ravel:policy:runtime instead.
       - task: ravel:policy:typecheck
+        if: '[ "{{.RAVEL_RUNTIME}}" != 2.0 ]'
         vars: {RAVEL: '{{.RAVEL}}', RAVEL_RUNTIME: '{{.RAVEL_RUNTIME}}'}
       - task: ravel:policy:compiler-test
+        if: '[ "{{.RAVEL_RUNTIME}}" != 2.0 ]'
         vars: {RAVEL: '{{.RAVEL}}', RAVEL_RUNTIME: '{{.RAVEL_RUNTIME}}'}
       - task: ravel:policy:runtime
         vars: {RAVEL: '{{.RAVEL}}', RAVEL_RUNTIME: '{{.RAVEL_RUNTIME}}'}
@@ -197,14 +201,14 @@ tasks:
       - bash scripts/ravel-policy-typecheck.sh "{{.RAVEL}}"
 
   ravel:policy:runtime:
-    desc: Run Grove-readable policies through copied installed Ravel with fake agents and isolated PATH
+    desc: Run the shared case table and the TypeScript review assets through copied installed Ravel with fake agents and isolated PATH
     requires:
       vars: [RAVEL]
     env:
       GROVE_TEST_RAVEL: '{{.RAVEL}}'
       GROVE_TEST_RAVEL_RUNTIME: '{{.RAVEL_RUNTIME}}'
     cmds:
-      - cargo nextest run --locked -p grove --test ravel_policy_assets --run-ignored only {{.CLI_ARGS}}
+      - cargo nextest run --locked -p grove --test ravel_asset_cases --test ravel_policy_assets --run-ignored only {{.CLI_ARGS}}
 
   ravel:commands:
     desc: Check shared public lifecycle and confined commands against installed Ravel

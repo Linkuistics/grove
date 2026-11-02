@@ -1,10 +1,36 @@
 # Grove policy assets for Ravel
 
-These readable TypeScript files belong to Grove. Ravel 1.0.0 supplies the
-generic `ravel/sdk` and `ravel/examples/static` modules; it embeds no Grove
-adapter or example. Grove ships this complete tree at `libexec/ravel-policy` in its own installation.
-The same files can be used directly from this checkout.
+These readable caller assets belong to Grove. Grove ships this complete tree at
+`libexec/ravel-policy` in its own installation. The same files can be used
+directly from this checkout. Ravel embeds no Grove adapter or example.
 
+The tree holds one asset set for each admitted major of Ravel:
+
+| Set | Runtime | Files | Owner configuration |
+| --- | --- | --- | --- |
+| TypeScript | Ravel 1.x from 1.1.0, request and policy schema 2 | `*.ts` | `~/.config/ravel/policy.ts` |
+| Rhai | Ravel 2.x from 2.0.0, `SCHEMA_VERSION` 4 | `*.rhai` | `~/.config/ravel/config.rhai` |
+
+Each file names its runtime and schema. The layout is the same for both sets:
+
+- `sample/policy.ts` and `sample/config.rhai` are one owner's complete
+  configuration.
+- `examples/grove-static.ts` and `examples/grove-static.rhai` are the starter
+  route table for Grove's session kinds.
+- `examples/static.rhai` is Grove's copy of Ravel's Rhai starter. Ravel 2.0.0
+  embeds no module, so `grove-static.rhai` imports it by its path. Its header
+  records its one change from Ravel's copy.
+- `grove.ts`, `provenance.ts`, `examples/grove-review.ts`, `examples/review.ts`
+  and `typecheck/` are TypeScript only. The Rhai review adapter, review examples
+  and provider-evidence wrapper are not yet in this tree.
+
+Grove's [delivery specification](../../docs/specs/codex-skill-provisioning.md#caller-assets)
+owns the contract of both sets. Using these files does not install or overwrite
+a personal configuration.
+
+## The TypeScript set, for Ravel 1.x
+
+Ravel 1.x supplies the generic `ravel/sdk` and `ravel/examples/static` modules.
 Copy `sample/policy.ts` to `~/.config/ravel/policy.ts` and edit the copy, or
 copy `examples/grove-static.ts` beside a personal policy and import it normally:
 
@@ -14,43 +40,93 @@ export { policy } from "./grove-static.ts";
 
 An absolute file import works too. Paths name readable caller files, not an
 embedded `grove/*` module registry. Keep imports of generic modules spelled
-`ravel/sdk` and `ravel/examples/static`; the installed worker resolves those.
+`ravel/sdk` and `ravel/examples/static`. The installed worker resolves those.
 
-The static example uses illustrative `my-codex-wrapper` and
-`my-claude-wrapper` commands. The sample has concrete harness command lines,
-four arrangements and two modifiers. Its checkout choice is `.ravel-choice`;
-with no file it uses `claude-led codex-sol`. A file replaces the default whole
+## The Rhai set, for Ravel 2.x
+
+Copy `sample/config.rhai` to `~/.config/ravel/config.rhai` and edit the copy.
+The sample imports nothing, so it works alone.
+
+To use the static example, keep `examples/grove-static.rhai` and
+`examples/static.rhai` together, in this tree or as copies. Then import the
+example by its path from your own `config.rhai`:
+
+```rhai
+import "/absolute/path/to/examples/grove-static" as grove;
+export const SCHEMA_VERSION = 4;
+export const VERSION = "my-config 1";
+fn select(request, context) { grove::select(request, context) }
+```
+
+A relative path resolves from the directory of the importing file. To add kinds
+of your own, extend `grove::ROUTES` and select through `grove::select_route`.
+The header of `grove-static.rhai` gives the form and the reason.
+
+Each Rhai asset passes `request.prompt` to its harness. With skill delivery
+enabled, that is the prompt that Ravel prepared. The sample then grants Claude
+a read of each `snapshotRoot` in `request.skills`. Codex runs with full access
+and needs no grant. With delivery disabled, `request.skills` is `()` and the
+sample grants nothing for skills.
+
+## Choices, workspaces and launches
+
+The static examples use illustrative `my-codex-wrapper` and
+`my-claude-wrapper` commands. The samples have concrete harness command lines,
+four arrangements and two modifiers. Their checkout choice is `.ravel-choice`.
+With no file they use `claude-led codex-sol`. A file replaces the default whole
 and must name exactly one arrangement plus any desired modifiers. For example:
 
 ```text
 codex-design-claude-impl high-effort
 ```
 
-The sample grants the main repository to both harnesses when running in a
-secondary jj workspace. Its `release-notes` route expects Grove's staged
+The samples grant the main repository to both harnesses when they run in a
+secondary jj workspace. Their `release-notes` route expects Grove's staged
 `codex-headless.sh` in the caller's cwd. These static routes compare no creator
-origins. For creator-aware routing, import `examples/grove-review.ts` instead.
-Using these files does not install or overwrite a personal policy.
+origins. For creator-aware routing on Ravel 1.x, import
+`examples/grove-review.ts` instead.
+
+The two samples refuse alike, with three exceptions that the specification
+accepts in [Runtime parity](../../docs/specs/codex-skill-provisioning.md#runtime-parity).
+Ravel 2.x measures each read. A choice file beyond 4,096 bytes, or a jj store
+file beyond Ravel's source bound, therefore ends the evaluation as
+`source_too_large`. Rhai and JavaScript split and trim U+FEFF and U+0085
+differently. A jj store file that is not UTF-8 refuses on Ravel 2.x.
 
 The sample's interactive Codex command uses `--no-alt-screen`, so session
 endings remain in terminal scrollback after Ravel closes the session. Add that
-flag to an existing owner policy's interactive Codex arguments to use the same
-display behaviour. Grove's terminal recovery still returns from an alternate
-screen when a different harness leaves one active; launch arguments belong to
-the owner policy.
+flag to an existing owner configuration's interactive Codex arguments to use the
+same display behaviour. Grove's terminal recovery still returns from an
+alternate screen when a different harness leaves one active. Launch arguments
+belong to the owner configuration.
 
 `ravel start-session --config <file> --kind <kind> --prompt <text>` launches
 the selected command. The caller supplies ending instructions and result
-meaning; Ravel passes the prompt unchanged. For Grove, that includes invoking
-the resolved Ravel path with `end-session grove-continue`. Ravel has no
-inspection verb. Validate choices with temporary fake agents on a private PATH.
+meaning. For Grove, that includes invoking the resolved Ravel path with
+`end-session grove-continue`. Ravel has no inspection verb. Check choices
+with temporary fake agents on a private PATH.
 
-Run `task ravel:policy RAVEL=/absolute/path/to/ravel` for strict typechecks
-against that installed pair's declarations and real-worker/fake-agent sessions.
-Development typechecking reuses the repository's pinned Bun 1.4.2 and TypeScript
-7.0.2. Runtime tests copy the independent installed front and worker, with no
-Bun/Node on the child PATH and no model launches. The complete logs can be saved
-with `set -o pipefail; task ravel:policy RAVEL=... 2>&1 | tee <log>`.
+## Checks
+
+Run `task ravel:policy RAVEL=/absolute/path/to/ravel RAVEL_RUNTIME=<1.1|2.0>`
+against an explicit installed build. One case table in
+`crates/grove/tests/ravel_asset_cases.rs` drives the static and sample checks
+of both sets. Each case states the expected outcome for each runtime, and an
+accepted difference keeps its reason beside its case.
+
+- With `RAVEL_RUNTIME=1.1`, or with it unset, the task typechecks the
+  TypeScript set strictly against that installed pair's declarations. It reuses
+  the repository's pinned Bun 1.4.3 and TypeScript 7.0.2. It then runs the
+  table and the review assets through the real worker with fake agents.
+- With `RAVEL_RUNTIME=2.0`, the task runs the table through public
+  `start-session` of the 2.0 build with fake agents. Ravel 2.0 has no
+  typechecker. The TypeScript review checks report that they did not run.
+
+Runtime tests copy the independent installed build, with no Bun or Node on the
+child PATH and no model launches. The complete logs can be saved with
+`set -o pipefail; task ravel:policy RAVEL=... 2>&1 | tee <log>`.
+
+## Provider evidence and reviews, on Ravel 1.x
 
 For selected-provider evidence, opt in around the final owner policy with
 `withProvenance` from `provenance.ts`. This wrapper supplies

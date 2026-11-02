@@ -172,9 +172,16 @@ the provider-evidence wrapper. Grove issue 24 asks for this port, and the
 dual-Ravel stage delivers it.
 
 Each asset names its runtime and schema. A Rhai asset imports another by path,
-because Ravel 2.0.0 embeds no module. Each Rhai asset keeps the refusals and the
-receipt format of its TypeScript counterpart, except for the differences that
-[runtime parity](#runtime-parity) accepts.
+because Ravel 2.0.0 embeds no module. Grove therefore ships its own copy of
+Ravel's static example as `examples/static.rhai`. Each Rhai asset keeps the
+refusals and the receipt format of its TypeScript counterpart, except for the
+differences that [runtime parity](#runtime-parity) accepts. The copy keeps the
+remedy words of the 1.x static example for that reason.
+
+A route of `grove-static.rhai` is a closure. Rhai finds the function of a
+closure only while a function of the module that made it runs. A script that
+composes these routes therefore selects through `select_route` of
+`grove-static.rhai`, not through the starter's own function.
 
 #### Runtime parity
 

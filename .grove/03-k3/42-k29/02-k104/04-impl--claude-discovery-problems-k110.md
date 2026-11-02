@@ -68,3 +68,32 @@ checkout. Check that before you use it.
 - The runner gains three things: `native[].commit` copies a skill directory
   from an older commit of the checkout, `moveAway` with `expectRefusal`
   records a refusal case, and each snapshot read names its source.
+- `problem-ambiguity` did not measure its row. Grove's `ADR-FORMAT.md` names
+  `linkuistics:decision-records`, and the agent read that file before the
+  record. It matched the namespace to the source id `linkuistics`, checked
+  that source's `plugin.json` name, disclosed the conflict and the resolution,
+  and wrote under `docs/adr/`. Ravel's rule lets an explicit reference from the
+  pack choose. The record keeps this launch as an observation of a
+  pack-referenced choice, not as a result of the row.
+- A new case `problem-ambiguity-unreferenced` measures the row. Its task is
+  the `stamp.sh` task of `discovery`. A third source,
+  `scripts/harness-trials/sources/rival-style`, holds a different
+  `coding-style-bash`. No Grove skill and no mandatory file names any
+  `coding-style` skill: a grep of `plugins/grove/skills` for each craft skill
+  name found `decision-records` as its positive control and no
+  `coding-style` name. The rival asks for `#!/bin/bash`, the long `set -o`
+  options and a `main` function, so the script shows which copy governed it.
+  This is a new case, not a retry: the first launch stays in the record.
+- `problem-stale-native` read neither copy of `decision-records`. The agent
+  followed Grove's `ADR-FORMAT.md` for the record. "Not both" therefore held
+  only because it loaded none, and the launch did not exercise a choice
+  between the copies. The record keeps it as an observation.
+- A new case `problem-stale-native-cli` measures the choice. Its native copy is
+  `cli-tool-design` at `9a35d526f33`, which has no `paths` metadata, so
+  Claude Code lists it at startup. No Grove skill names `cli-tool-design`. The
+  task asks for a CLI design document only, so no other craft skill matches.
+  An older `coding-style-bash` was rejected: every revision carries `paths`,
+  so Claude Code could withhold the native copy until a `.sh` file is touched.
+- The two user-invoked cases pass. In the activity case, call 16 prints lines 1
+  to 8 of `authoring-conventions`, which are its front matter, and the agent
+  cites the metadata as its reason not to load it.

@@ -71,12 +71,26 @@ trial directory, never the owner's home:
 
 | Field | Effect |
 | --- | --- |
-| `native` | Copies a skill directory of the checkout into the sandbox `.claude/skills/<name>`. The record names each copy and the SHA-256 of its `SKILL.md` |
+| `native` | Copies a skill directory of the checkout into the sandbox `.claude/skills/<name>`. The record names each copy and the SHA-256 of its `SKILL.md`. With `commit`, the copy holds the directory as that older commit of the checkout held it. The record then also names the commit and the SHA-256 of the current `SKILL.md` |
 | `claudeSettings` | Writes the sandbox `.claude/settings.json`, such as a deny rule for one skill |
 | `plant` | Copies a file of the checkout under the trial's `guidance/`, outside the repository and every snapshot |
 
 The native copies in the sandbox home must equal the copies that the case
 declares. Any other native copy fails the run.
+
+A case can also expect a refusal before any launch. It names `moveAway` with a
+source and `expectRefusal` with Ravel's code. The runner fetches the prepared
+commit into a plain Git checkout under the trial's `sources/`. The settings
+name that checkout for the source, so the move changes no checkout that
+another case reads. The runner moves the checkout away before the driver and
+restores it after the driver.
+
+A direct `ravel skills resolve --json` runs with the source moved away and
+again with the source restored. Neither launches a worker. The run fails when
+a harness launched or wrote a session file, or when the driver does not report
+the code. It also fails when the moved resolution does not give the code or the
+restored resolution does not resolve, or when the tree changed. The restored
+resolution shows that the move caused the refusal.
 
 The runner supports the routes native on 2.0 and directory on 2.0, and the
 harness Claude Code. A case on native 1.1 needs a `policy.ts`
@@ -180,6 +194,10 @@ The extraction gives each tool call one class:
 | `other` | Any other call |
 | `text` | A text block of the agent, such as a disclosure or a report |
 
+A read in a snapshot or in a source origin also names its source by the id of
+the settings. Two sources can hold skills of one name, and the source shows
+which copy a read opened.
+
 A Bash call takes the class of the first path in its command that a read class
 covers. A `cd` in the command changes the directory against which later
 relative paths resolve. A plain assignment `NAME=value` as the first word of
@@ -200,7 +218,10 @@ changed. On success, the record names the time of the extraction.
 and Claude Code. The tests prove the refusals, the allow-list, the link list,
 the authority control and the event extraction. Other tests prove the
 standalone mode, the probes, the offline resolution and the second
-extraction. Each check also runs once
+extraction. Further tests prove the source of each read, a native copy from
+an older commit and a refusal case with a moved source.
+
+Each check also runs once
 against a runner with one function broken, and the check must fail there. A
 planted `CLAUDE_CODE_PLANTED` name that a broken runner passes to the driver
 fails the authority control.

@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "name": "problem-stale-native-cli",
+  "purpose": "A discovery problem of Ravel's agent discovery rules (claude-discovery-problems-k110). An older native copy of cli-tool-design, which has no paths metadata, sits in the sandbox .claude/skills beside the directory copy. The task asks for a CLI design by activity alone. Record which copy the agent reads; expect not both only because both exist.",
+  "credits": [],
+  "harness": "claude",
+  "route": "directory-2.0",
+  "mode": "lifecycle",
+  "model": "claude-opus-5-5",
+  "effort": "medium",
+  "kinds": [
+    "impl"
+  ],
+  "sources": [
+    {
+      "id": "grove",
+      "plugin": "plugins/grove",
+      "roots": [
+        "skills"
+      ]
+    },
+    {
+      "id": "linkuistics",
+      "plugin": "plugins/linkuistics",
+      "roots": [
+        "skills"
+      ]
+    }
+  ],
+  "mandatory": [
+    {
+      "source": "linkuistics",
+      "path": "skills/using-jujutsu/SKILL.md"
+    },
+    {
+      "source": "grove",
+      "path": "skills/grove/SKILL.md"
+    }
+  ],
+  "native": [
+    {
+      "name": "cli-tool-design",
+      "from": "plugins/linkuistics/skills/cli-tool-design",
+      "commit": "9a35d526f334c3621e6cda6807a85faffeefbcda"
+    }
+  ],
+  "timeoutMinutes": 30
+}

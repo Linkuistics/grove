@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "name": "problem-ambiguity-unreferenced",
+  "purpose": "A discovery problem of Ravel's agent discovery rules (claude-discovery-problems-k110). Two sources hold different coding-style-bash skills, the task asks for a Bash script by activity alone, and no Grove skill or mandatory file names a coding-style skill. Expect a report of the ambiguity before the script is written, and no winner by source order.",
+  "credits": [],
+  "harness": "claude",
+  "route": "directory-2.0",
+  "mode": "lifecycle",
+  "model": "claude-opus-5-5",
+  "effort": "medium",
+  "kinds": [
+    "impl"
+  ],
+  "sources": [
+    {
+      "id": "grove",
+      "plugin": "plugins/grove",
+      "roots": [
+        "skills"
+      ]
+    },
+    {
+      "id": "linkuistics",
+      "plugin": "plugins/linkuistics",
+      "roots": [
+        "skills"
+      ]
+    },
+    {
+      "id": "style",
+      "plugin": "scripts/harness-trials/sources/rival-style",
+      "roots": [
+        "skills"
+      ]
+    }
+  ],
+  "mandatory": [
+    {
+      "source": "linkuistics",
+      "path": "skills/using-jujutsu/SKILL.md"
+    },
+    {
+      "source": "grove",
+      "path": "skills/grove/SKILL.md"
+    }
+  ],
+  "timeoutMinutes": 30
+}

@@ -28,6 +28,8 @@ sandbox `.claude/settings.json` and plant files under the trial's `guidance/`.
 A native copy can come from an older commit of the checkout, as a stale copy.
 A case with `moveAway` and `expectRefusal` moves a clone of one source away
 before the driver, and expects Ravel's refusal before any harness launch.
+A case with `continuation` resumes the first session outside Ravel after a
+source commit and a settings change, then launches a fresh session.
 `reextract` extracts the events of an earlier run again, from its unchanged
 transcripts. A real run spends
 subscription usage, so no gate runs it. `scripts/test_harness_trial.py` tests
@@ -235,11 +237,38 @@ def load_case(name: str) -> tuple[dict[str, Any], Path]:
         raise TrialError(f"case {name}: no tree/ directory")
     if bool(case.get("moveAway")) != bool(case.get("expectRefusal")) or (case.get("moveAway") and mode != "lifecycle"):
         raise TrialError(f"case {name}: a lifecycle case names moveAway and expectRefusal together")
+    if case.get("continuation") is not None:
+        check_continuation(case, directory)
     if mode == "standalone":
         standalone = case.get("standalone") or {}
         if not (directory / standalone.get("prompt", "prompt.md")).is_file() or not standalone.get("outputs"):
             raise TrialError(f"case {name}: a standalone case names a prompt file and its outputs")
     return case, directory
+
+
+def check_continuation(case: dict[str, Any], directory: Path) -> None:
+    """A continuation case names the answer of the resumed turn, a marker,
+    the edits that hold it, the changed mandatory files and the fresh tree."""
+    spec = case["continuation"]
+    name = case["name"]
+    if case.get("mode") != "lifecycle" or case.get("moveAway"):
+        raise TrialError(f"case {name}: a continuation case is a lifecycle case without moveAway")
+    marker = spec.get("marker")
+    if not marker:
+        raise TrialError(f"case {name}: a continuation case names its marker")
+    if not (directory / spec.get("answer", "answer.md")).is_file():
+        raise TrialError(f"case {name}: no answer file for the resumed turn")
+    if not (directory / spec.get("freshTree", "fresh-tree")).is_dir():
+        raise TrialError(f"case {name}: no fresh-tree/ directory for the fresh launch")
+    edits = spec.get("edits") or []
+    if not edits or any(marker not in edit.get("insert", "") for edit in edits):
+        raise TrialError(f"case {name}: each edit inserts text that holds the marker {marker}")
+    plugins = [source["plugin"] for source in case.get("sources", [])]
+    for edit in edits:
+        if not any(edit["path"].startswith(plugin + "/") for plugin in plugins):
+            raise TrialError(f"case {name}: the edit {edit['path']} lies in no source of the case")
+    if "mandatory" not in spec:
+        raise TrialError(f"case {name}: a continuation case names the mandatory files of the changed settings")
 
 
 def fixed_probes(case: dict[str, Any], home: Path, checkout: Path) -> list[list[str]]:
@@ -349,9 +378,19 @@ fn select(request, context) {{
 
 
 def read_jsonl(path: Path) -> list[dict[str, Any]]:
+    return read_jsonl_bytes(path.read_bytes())
+
+
+def jsonl_lines(raw: bytes) -> list[bytes]:
+    """The lines of a JSONL file, each with its newline. Only a newline ends a
+    line: a JSON string can hold a raw U+2028, which str.splitlines splits."""
+    return [line for line in re.split(rb"(?<=\n)", raw) if line]
+
+
+def read_jsonl_bytes(raw: bytes) -> list[dict[str, Any]]:
     entries = []
-    for line in path.read_text(errors="replace").splitlines():
-        line = line.strip()
+    for raw_line in jsonl_lines(raw):
+        line = raw_line.decode(errors="replace").strip()
         if not line:
             continue
         try:
@@ -366,8 +405,10 @@ def read_jsonl(path: Path) -> list[dict[str, Any]]:
 class Classifier:
     """Names what a path is, from the request view of the launch."""
 
-    def __init__(self, view: dict[str, Any], home: Path, repo: Path):
+    def __init__(self, view: dict[str, Any], home: Path, repo: Path, marker: str | None = None):
         skills = view.get("skills") or {}
+        # The text that only the changed bytes of a continuation case hold.
+        self.marker = marker
         self.kind_skill = f"grove-{view.get('kind', '')}"
         self.mandatory = {self._norm(item["path"]) for item in skills.get("mandatory", [])}
         self.descriptor = self._norm(skills["descriptorPath"]) if skills.get("descriptorPath") else None
@@ -542,11 +583,25 @@ def result_text(content: Any) -> str:
     return ""
 
 
+def marker_places(marker: str | None, tool_input: dict[str, Any], result: str) -> list[str]:
+    """Where a tool call holds the marker: `input` for what the agent wrote or
+    ran, `result` for the bytes that the call returned."""
+    if not marker:
+        return []
+    places = []
+    if marker in json.dumps(tool_input, ensure_ascii=False):
+        places.append("input")
+    if marker in result:
+        places.append("result")
+    return places
+
+
 def extract_events(entries: list[dict[str, Any]], classifier: Classifier) -> list[dict[str, Any]]:
     """The ordered tool calls and text blocks of one transcript, each with its
     class. A disclosure or a report is text, so its order against the tool
     calls needs the text blocks. A Skill call keeps its result text, which
-    says whether the native loader matched."""
+    says whether the native loader matched. With a marker, each tool call
+    names where it holds the marker, so a read shows which bytes it got."""
     errors: dict[str, bool] = {}
     results: dict[str, str] = {}
     for entry in entries:
@@ -581,6 +636,8 @@ def extract_events(entries: list[dict[str, Any]], classifier: Classifier) -> lis
                 "error": errors.get(block.get("id", "")),
                 "sidechain": bool(entry.get("isSidechain")),
             }
+            if classifier.marker:
+                event["marker"] = marker_places(classifier.marker, tool_input, results.get(block.get("id", ""), ""))
             reads = [item for item in classes if item[0] in READ_CLASSES]
             if reads and name not in ("Edit", "Write", "MultiEdit", "NotebookEdit"):
                 event["class"], event["skill"], event["path"] = reads[0]
@@ -840,10 +897,12 @@ def tree_state(repo: Path) -> list[str]:
     return sorted(str(path.relative_to(grove)) for path in grove.rglob("*.md"))
 
 
-def run_driver(argv: list[str], cwd: Path, env: dict[str, str], out: Path, timeout_s: float) -> dict[str, Any]:
-    """Run the driver in a session of its own, and stop it at the deadline."""
+def run_driver(argv: list[str], cwd: Path, env: dict[str, str], out: Path, timeout_s: float,
+               name: str = "driver") -> dict[str, Any]:
+    """Run the driver in a session of its own, and stop it at the deadline.
+    Its output goes to `NAME.stdout` and `NAME.stderr` in `out`."""
     started = time.monotonic()
-    with (out / "driver.stdout").open("wb") as stdout, (out / "driver.stderr").open("wb") as stderr:
+    with (out / f"{name}.stdout").open("wb") as stdout, (out / f"{name}.stderr").open("wb") as stderr:
         child = subprocess.Popen(
             argv, cwd=cwd, env=env, stdin=subprocess.DEVNULL, stdout=stdout, stderr=stderr,
             start_new_session=True,
@@ -882,7 +941,19 @@ def parse_probes(text: str) -> list[dict[str, str]]:
     return probes
 
 
-def describe_launch(record: Path, home: Path, repo: Path, live: Mapping[str, str]) -> dict[str, Any]:
+def read_window(record: Path) -> tuple[int, int] | None:
+    """The lines of the session file that belong to this launch. A resumed
+    turn appends to the session file of the first turn, so a continuation
+    case writes `lines` into each turn's record."""
+    file = record / "lines"
+    if not file.exists():
+        return None
+    start, end = (int(part) for part in file.read_text().split())
+    return start, end
+
+
+def describe_launch(record: Path, home: Path, repo: Path, live: Mapping[str, str],
+                    marker: str | None = None) -> dict[str, Any]:
     """One launch of a lifecycle case, from its record directory."""
     stream_file = record / "stream.jsonl"
     probes = record / "probes"
@@ -891,7 +962,7 @@ def describe_launch(record: Path, home: Path, repo: Path, live: Mapping[str, str
         read_jsonl(stream_file) if stream_file.exists() else [],
         sha256_file(stream_file) if stream_file.exists() else None,
         parse_probes(probes.read_text()) if probes.exists() else [],
-        home, repo, live,
+        home, repo, live, marker, read_window(record),
     )
 
 
@@ -941,26 +1012,33 @@ def log_lines(text: str) -> list[str]:
 
 def describe(label: str, view: dict[str, Any], child: dict[str, str], stream: list[dict[str, Any]],
              stream_sha: str | None, probes: list[dict[str, str]], home: Path, repo: Path,
-             live: Mapping[str, str]) -> dict[str, Any]:
+             live: Mapping[str, str], marker: str | None = None,
+             window: tuple[int, int] | None = None) -> dict[str, Any]:
     """One launch: its request view, the environment of its harness, its
     probes and its ordered events. The events come from the session file of
     the harness. When the harness wrote none, as a confined harness cannot,
-    they come from its stream, which holds the same tool calls."""
+    they come from its stream, which holds the same tool calls. A window
+    limits the main session file to the lines of this launch, and the digest
+    then covers those lines only."""
     init = next((e for e in stream if e.get("type") == "system" and e.get("subtype") == "init"), {})
     session_id = init.get("session_id")
-    classifier = Classifier(view, home, Path(init.get("cwd") or repo))
+    classifier = Classifier(view, home, Path(init.get("cwd") or repo), marker)
     transcripts = []
     for path in session_files(home):
         if session_id and session_id not in str(path):
             continue
+        main = path.stem == session_id
         raw = path.read_bytes()
-        entries = read_jsonl(path)
+        if main and window:
+            raw = b"".join(jsonl_lines(raw)[window[0]:window[1]])
+        entries = read_jsonl_bytes(raw)
         transcripts.append({
             "file": str(path.relative_to(home)),
             "sha256": sha256_bytes(raw),
-            "main": path.stem == session_id,
+            **({"lines": list(window)} if main and window else {}),
+            "main": main,
             "events": extract_events(entries, classifier),
-            "startup": native_startup(stream, entries) if path.stem == session_id else None,
+            "startup": native_startup(stream, entries) if main else None,
         })
     if session_id and not any(t["main"] for t in transcripts):
         transcripts.append({
@@ -1116,6 +1194,186 @@ def resolve_direct(front: Path, env: dict[str, str], cwd: Path) -> dict[str, Any
             "remedy": next((line.strip() for line in lines if line.strip().startswith("remedy:")), None)}
 
 
+# --- Continuation ------------------------------------------------------------
+
+
+def insert_after_front_matter(text: str, addition: str) -> str:
+    """`addition` as its own paragraph directly after the front matter, so a
+    read of the first lines of the file also returns it."""
+    lines = text.splitlines(keepends=True)
+    if lines and lines[0].strip() == "---":
+        for index in range(1, len(lines)):
+            if lines[index].strip() == "---":
+                return "".join(lines[:index + 1]) + "\n" + addition.rstrip("\n") + "\n" + "".join(lines[index + 1:])
+    return addition.rstrip("\n") + "\n\n" + text
+
+
+def commit_edits(clone: Path, edits: list[dict[str, str]]) -> dict[str, Any]:
+    """One new commit in the source clone that inserts each edit's text. The
+    snapshots of earlier launches keep the bytes they captured."""
+    env = {**git_env(os.environ), "GIT_AUTHOR_NAME": "Grove Trial", "GIT_AUTHOR_EMAIL": "grove-trial@example.com",
+           "GIT_COMMITTER_NAME": "Grove Trial", "GIT_COMMITTER_EMAIL": "grove-trial@example.com"}
+    before = run_checked(["git", "rev-parse", "HEAD"], cwd=clone, env=env)
+    files = []
+    for edit in edits:
+        path = clone / edit["path"]
+        old = path.read_bytes()
+        path.write_text(insert_after_front_matter(old.decode(), edit["insert"]))
+        files.append({"path": edit["path"], "sha256Before": sha256_bytes(old), "sha256After": sha256_file(path)})
+    run_checked(["git", "add", "--all"], cwd=clone, env=env)
+    run_checked(["git", "commit", "--quiet", "-m", "trial: change the read files between the turns"], cwd=clone, env=env)
+    after = run_checked(["git", "rev-parse", "HEAD"], cwd=clone, env=env)
+    return {"checkout": str(clone), "commitBefore": before, "commitAfter": after, "files": files}
+
+
+def stream_init(record: Path) -> tuple[str | None, str | None]:
+    """The session ID and the working directory of one launch, from its stream."""
+    stream = record / "stream.jsonl"
+    entries = read_jsonl(stream) if stream.exists() else []
+    init = next((e for e in entries if e.get("type") == "system" and e.get("subtype") == "init"), {})
+    return init.get("session_id"), init.get("cwd")
+
+
+def session_file(home: Path, session_id: str) -> Path | None:
+    return next((path for path in session_files(home) if path.stem == session_id), None)
+
+
+def write_window(record: Path, start: int, end: int) -> None:
+    (record / "lines").write_text(f"{start} {end}\n")
+
+
+def resume_turn(records: Path, view: dict[str, Any], program: Path, route: dict[str, Any], session_id: str,
+                answer: str, cwd: Path, env: dict[str, str], out: Path, timeout_s: float) -> dict[str, Any]:
+    """The resumed turn: the harness alone, outside Ravel, through the launch
+    wrapper, which records its view, its prompt and its environment. The
+    arguments are the fixed arguments of the route, `--resume` and the answer,
+    without `--add-dir`, as an owner's manual resume gives them."""
+    args = [*route["fixedArgs"], "--resume", session_id]
+    argv = [str(WRAPPER), str(records), json.dumps(view), str(program), *args, answer]
+    driver = run_driver(argv, cwd, env, out, timeout_s, name="resume")
+    return {"args": args, "cwd": str(cwd), "answerSha256": sha256_bytes(answer.encode()), **driver}
+
+
+def add_fresh_tree(repo: Path, tree: Path, env: dict[str, str]) -> dict[str, Any]:
+    """The fresh-launch leaf, committed into the trial tree in a change of its
+    own, as the owner adds work. An existing file is never replaced."""
+    run_checked(["jj", "new", "--quiet"], cwd=repo, env=env)
+    added = []
+    for path in sorted(tree.rglob("*.md")):
+        target = repo / ".grove" / path.relative_to(tree)
+        if target.exists():
+            raise TrialError(f"the fresh tree would replace {target}")
+        target.parent.mkdir(parents=True, exist_ok=True)
+        text = path.read_text()
+        target.write_text(text.replace(TRIAL_TOKEN, str(repo.parent)))
+        added.append(str(target.relative_to(repo / ".grove")))
+    run_checked(["jj", "commit", "--quiet", "--message", "trial: add the fresh-launch leaf"], cwd=repo, env=env)
+    commit = run_checked(["jj", "log", "--no-graph", "-r", "@-", "-T", "commit_id"], cwd=repo, env=env)
+    return {"added": added, "commit": commit}
+
+
+def marker_files(repo: Path, marker: str) -> list[str]:
+    """The files of the trial repository, outside `.grove/` and the VCS
+    stores, that hold the marker: what the agent wrote under the new bytes."""
+    found = []
+    for directory, subdirs, files in os.walk(repo):
+        subdirs[:] = [d for d in subdirs if not (Path(directory) == repo and d in (".jj", ".git", ".grove"))]
+        for name in files:
+            path = Path(directory) / name
+            try:
+                if marker in path.read_text(errors="replace"):
+                    found.append(str(path.relative_to(repo)))
+            except OSError:
+                continue
+    return sorted(found)
+
+
+def snapshot_markers(case: dict[str, Any], launch: dict[str, Any]) -> dict[str, bool | None]:
+    """For each edited file, whether this launch's snapshot copy holds the
+    marker. None when the launch has no copy of the file."""
+    spec = case.get("continuation") or {}
+    plugins = {source["id"]: source["plugin"] for source in case.get("sources", [])}
+    roots = {source["id"]: source.get("snapshotRoot") for source in launch.get("sources", [])}
+    found: dict[str, bool | None] = {}
+    for edit in spec.get("edits", []):
+        found[edit["path"]] = None
+        for source, plugin in plugins.items():
+            if edit["path"].startswith(plugin + "/") and roots.get(source):
+                copy = Path(roots[source]) / edit["path"][len(plugin) + 1:]
+                if copy.is_file():
+                    found[edit["path"]] = spec["marker"] in copy.read_text(errors="replace")
+    return found
+
+
+def continue_case(case: dict[str, Any], case_dir: Path, trial: Path, home: Path, repo: Path, records: Path,
+                  env: dict[str, str], route: dict[str, Any], program: Path, settings: dict[str, Any],
+                  source_clone: Path, driver_argv: list[str], timeout_s: float) -> dict[str, Any]:
+    """After the first turn: one commit in the source clone and a settings
+    change, then the resumed turn, then a fresh launch on a new leaf."""
+    spec = case["continuation"]
+    marker = spec["marker"]
+    result: dict[str, Any] = {
+        "mechanism": "claude -p --resume <session id>, without --fork-session, outside Ravel's managed process",
+        "marker": marker, "failures": [],
+    }
+    first = launch_records(records)
+    if len(first) != 1:
+        result["failures"].append(f"the first driver run made {len(first)} launches, and a continuation resumes one")
+        return result
+    session_id, cwd = stream_init(first[0])
+    transcript = session_file(home, session_id) if session_id else None
+    if not transcript:
+        result["failures"].append("the first turn wrote no session file to resume")
+        return result
+    first_end = len(jsonl_lines(transcript.read_bytes()))
+    write_window(first[0], 0, first_end)
+    result["sessionId"] = session_id
+
+    result["edit"] = commit_edits(source_clone, spec["edits"])
+    changed = json.loads(json.dumps(settings))
+    changed["skills"]["mandatory"] = spec["mandatory"]
+    (home / ".config" / "ravel" / "settings.json").write_text(json.dumps(changed, indent=2) + "\n")
+    result["settings"] = {"mandatoryBefore": settings["skills"]["mandatory"], "mandatoryAfter": spec["mandatory"]}
+    say(f"{case['name']}: committed {result['edit']['commitAfter'][:12]} in the source clone and changed the settings")
+
+    view = json.loads((first[0] / "view.json").read_text())
+    view["continuation"] = {"resumes": session_id,
+                            "note": "no configuration script ran; the skills fields are those of the first turn"}
+    answer = (case_dir / spec.get("answer", "answer.md")).read_text()
+    say(f"{case['name']}: resuming session {session_id} outside Ravel")
+    result["resume"] = resume_turn(records, view, program, route, session_id, answer,
+                                   Path(cwd or repo), env, trial, timeout_s)
+    resumed = [record for record in launch_records(records) if record != first[0]]
+    if len(resumed) != 1:
+        result["failures"].append(f"the resumed turn left {len(resumed)} launch records, not one")
+        return result
+    resumed_id, _ = stream_init(resumed[0])
+    if resumed_id != session_id:
+        result["failures"].append(f"the resumed turn reports the session {resumed_id}, not {session_id}")
+    else:
+        write_window(resumed[0], first_end, len(jsonl_lines(transcript.read_bytes())))
+    result["markerFilesAfterResume"] = marker_files(repo, marker)
+
+    result["freshTree"] = add_fresh_tree(repo, case_dir / spec.get("freshTree", "fresh-tree"), env)
+    say(f"{case['name']}: fresh launch on {', '.join(result['freshTree']['added'])}")
+    fresh = run_driver(driver_argv, repo, env, trial, timeout_s, name="driver-fresh")
+    stderr = (trial / "driver-fresh.stderr").read_text(errors="replace")
+    result["freshDriver"] = {**fresh, "lines": [line for line in stderr.splitlines()
+                                                 if line.startswith(("grove", "ravel:", "Error", "  remedy:"))]}
+    result["markerFilesAfterFresh"] = marker_files(repo, marker)
+    if len(launch_records(records)) < 3:
+        result["failures"].append("the fresh driver run launched no harness; read driver-fresh.stderr of the trial")
+    return result
+
+
+def launch_role(case: dict[str, Any], index: int, launch: dict[str, Any], view: dict[str, Any]) -> str | None:
+    if not case.get("continuation"):
+        return None
+    if view.get("continuation"):
+        return "resumed turn"
+    return "first turn" if index == 0 else "fresh launch"
+
+
 def refusal_failures(case: dict[str, Any], refusal: dict[str, Any], launches: list[dict[str, Any]],
                      stderr: str, sessions: list[Path], tree_before: list[str], tree_after: list[str]) -> list[str]:
     """Each way a case that expects a refusal before any launch did not show
@@ -1186,7 +1444,16 @@ def run_case(prepared_dir: Path, name: str, environ: Mapping[str, str],
         'user.name = "Grove Trial"\nuser.email = "grove-trial@example.com"\n'
     )
     clone = clone_source(case, trial, checkout, prepared["source"]["commit"])
-    settings = settings_for(case, checkout, {clone["source"]: Path(clone["checkout"])} if clone else None)
+    clones = {clone["source"]: Path(clone["checkout"])} if clone else {}
+    source_clone = None
+    if case.get("continuation"):
+        # A continuation commits into its sources between the turns, so one
+        # clone of its own supplies every source and no other case sees it.
+        source_clone = trial / "sources" / "checkout"
+        source_clone.parent.mkdir()
+        fetch_checkout(checkout, prepared["source"]["commit"], source_clone, git_env(os.environ))
+        clones = {source["id"]: source_clone for source in case["sources"]}
+    settings = settings_for(case, checkout, clones)
     if settings:
         (home / ".config" / "ravel" / "settings.json").write_text(json.dumps(settings, indent=2) + "\n")
     installed = install_native(case, home, checkout)
@@ -1253,6 +1520,10 @@ def run_case(prepared_dir: Path, name: str, environ: Mapping[str, str],
         if clone and refusal:
             restore(clone)
             refusal["restored"] = resolve_direct(front, env, tmp)
+        continuation = None
+        if source_clone:
+            continuation = continue_case(case, case_dir, trial, home, repo, records, env, route, program,
+                                         settings, source_clone, [str(grove_bin / "grove")], deadline)
 
     links_after = list_links(home)
     for link, target in links_after:
@@ -1283,13 +1554,22 @@ def run_case(prepared_dir: Path, name: str, environ: Mapping[str, str],
             contrast = contrast_probes(probes, trial / "contrast")
         tree_before = tree_after = []
         refusal = None
+        continuation = None
         published = "\n".join(
             f"{path.name} {sha256_file(path)}" for path in sorted(outputs.iterdir()) if path.is_file()
         )
         changed = ""
     else:
         run_log = []
-        launches = [describe_launch(record, home, repo, environ) for record in launch_records(records)]
+        marker = (case.get("continuation") or {}).get("marker")
+        launches = []
+        for index, path in enumerate(launch_records(records)):
+            launch = describe_launch(path, home, repo, environ, marker)
+            role = launch_role(case, index, launch, json.loads((path / "view.json").read_text()))
+            if role:
+                launch["role"] = role
+                launch["snapshotMarkers"] = snapshot_markers(case, launch)
+            launches.append(launch)
         tree_after = tree_state(repo)
         published = run_checked(
             ["jj", "log", "--no-graph", "-r", f"{base}..@ ~ empty()", "-T", 'commit_id.short(12) ++ " " ++ if(description, description.first_line(), "(no description)") ++ "\\n"'],
@@ -1322,6 +1602,7 @@ def run_case(prepared_dir: Path, name: str, environ: Mapping[str, str],
         "contrast": contrast,
         "resolve": resolve,
         "refusal": refusal,
+        **({"continuation": continuation} if continuation is not None else {}),
         "ending": {
             "driverExit": driver["exit"],
             "timedOut": driver["timedOut"],
@@ -1353,6 +1634,8 @@ def run_case(prepared_dir: Path, name: str, environ: Mapping[str, str],
         failures.append("the driver launched no harness; read driver.stderr of the trial")
     if link_failure:
         failures.append(link_failure)
+    if continuation:
+        failures += continuation["failures"]
     failures += native_failures(native, expected_native(case))
     if resolve:
         failures += resolve_failures(resolve, launches)
@@ -1377,7 +1660,8 @@ def reextract(trial: Path) -> dict[str, Any]:
                 fresh.append(describe(f"{log.relative_to(home)}#{n}", part["view"], part["env"], part["stream"],
                                       sha256_bytes(stream_text), part["probes"], home, trial / "unknown", {}))
     else:
-        fresh = [describe_launch(path, home, repo, {}) for path in launch_records(trial / "records")]
+        marker = (record.get("continuation") or {}).get("marker")
+        fresh = [describe_launch(path, home, repo, {}, marker) for path in launch_records(trial / "records")]
     if len(fresh) != len(record["launches"]):
         raise TrialError(f"{trial} now shows {len(fresh)} launches, and its record holds {len(record['launches'])}")
     for launch, again in zip(record["launches"], fresh):
@@ -1452,8 +1736,10 @@ def render(record: dict[str, Any]) -> str:
         f"| Synced claude.ai skills (residue) | {cell(', '.join(record['skills']['residue']) or 'none')} |",
         "",
     ]
+    marked = bool(record.get("continuation"))
     for number, launch in enumerate(record["launches"]):
-        lines += [f"#### Launch {number}: kind `{launch['kind']}`", ""]
+        role = f", {launch['role']}" if launch.get("role") else ""
+        lines += [f"#### Launch {number}: kind `{launch['kind']}`{role}", ""]
         identity = launch["descriptorIdentity"] or {}
         lines += [
             f"- Descriptor identity: `{identity.get('directory')}` (file SHA-256 `{identity.get('sha256')}`).",
@@ -1462,8 +1748,13 @@ def render(record: dict[str, Any]) -> str:
             f"- Child environment names: {cell(', '.join(launch['envNames']))}.",
         ]
         for transcript in launch["transcripts"]:
-            lines += [f"- Transcript `{transcript['file']}`: SHA-256 `{transcript['sha256']}`, {sum(e['tool'] != 'text' for e in transcript['events'])} tool calls, "
+            window = (f", lines {transcript['lines'][0] + 1} to {transcript['lines'][1]} of the session file"
+                      if transcript.get("lines") else "")
+            lines += [f"- Transcript `{transcript['file']}`{window}: SHA-256 `{transcript['sha256']}`, {sum(e['tool'] != 'text' for e in transcript['events'])} tool calls, "
                       f"{sum(e['tool'] == 'text' for e in transcript['events'])} text blocks."]
+        for path, holds in (launch.get("snapshotMarkers") or {}).items():
+            state = "no copy" if holds is None else ("holds the marker" if holds else "does not hold the marker")
+            lines.append(f"- Snapshot copy of `{path}`: {state}.")
         startup = next((t["startup"] for t in launch["transcripts"] if t["startup"]), launch["startup"]) or {}
         init = startup.get("init", {})
         lines += [
@@ -1479,13 +1770,14 @@ def render(record: dict[str, Any]) -> str:
             lines += [
                 f"Ordered events of `{Path(transcript['file']).name}`:",
                 "",
-                "| # | Tool | Class | Skill | Source | Target | Error |",
-                "| --- | --- | --- | --- | --- | --- | --- |",
+                "| # | Tool | Class | Skill | Source | Target | Error |" + (" Marker |" if marked else ""),
+                "| --- | --- | --- | --- | --- | --- | --- |" + (" --- |" if marked else ""),
             ]
             for event in transcript["events"]:
                 lines.append(
                     f"| {event['seq']} | {event['tool']} | {event['class']} | {event.get('skill') or ''} "
                     f"| {event.get('source') or ''} | {shown(event)} | {'yes' if event['error'] else ''} |"
+                    + (f" {', '.join(event.get('marker') or [])} |" if marked else "")
                 )
             lines.append("")
     contrast = {(item["op"], item["path"]): item["status"] for item in record.get("contrast") or []}
@@ -1536,6 +1828,41 @@ def render(record: dict[str, Any]) -> str:
             *([f"  - `{cell(refusal['moved']['remedy'])}`"] if refusal['moved'].get('remedy') else []),
             (f"- The same resolution, source restored: exit {refusal['restored']['exit']}, "
              f"status `{refusal['restored']['status']}`."),
+            "",
+        ]
+    continuation = record.get("continuation")
+    if continuation:
+        edit = continuation.get("edit") or {}
+        resume = continuation.get("resume") or {}
+        fresh = continuation.get("freshDriver") or {}
+        settings = continuation.get("settings") or {}
+        lines += [
+            "Continuation:",
+            "",
+            f"- Mechanism: {continuation['mechanism']}. Marker: `{continuation['marker']}`.",
+            *([f"- Session: `{continuation['sessionId']}`."] if continuation.get("sessionId") else []),
+            *([f"- Source commit: `{edit['commitBefore'][:12]}` to `{edit['commitAfter'][:12]}` in "
+               f"`$TRIAL/{Path(edit['checkout']).relative_to(record['trial'])}`."] if edit else []),
+            *[f"  - `{f['path']}`: SHA-256 `{f['sha256Before']}` to `{f['sha256After']}`." for f in edit.get("files", [])],
+            *([f"- Mandatory files before: {cell(', '.join(m['source'] + ':' + m['path'] for m in settings['mandatoryBefore']))}; "
+               f"after: {cell(', '.join(m['source'] + ':' + m['path'] for m in settings['mandatoryAfter']))}."]
+              if settings else []),
+            *([f"- Resumed turn: arguments `{cell(' '.join(resume['args']))}` and the answer "
+               f"(SHA-256 `{resume['answerSha256']}`), working directory `{cell(resume['cwd'])}`; "
+               f"exit {resume['exit']}{', timed out' if resume['timedOut'] else ''}, {resume['elapsedS']} s."]
+              if resume else []),
+            *([f"- Repository files with the marker after the resumed turn: "
+               f"{cell(', '.join(continuation['markerFilesAfterResume']) or 'none')}."]
+              if "markerFilesAfterResume" in continuation else []),
+            *([f"- Fresh-launch leaf: {cell(', '.join(continuation['freshTree']['added']))}, "
+               f"commit `{continuation['freshTree']['commit'][:12]}`."] if continuation.get("freshTree") else []),
+            *([f"- Fresh driver: exit {fresh['exit']}{', timed out' if fresh['timedOut'] else ''}, {fresh['elapsedS']} s."]
+              if fresh else []),
+            *[f"  - `{cell(line)}`" for line in fresh.get("lines", [])],
+            *([f"- Repository files with the marker after the fresh launch: "
+               f"{cell(', '.join(continuation['markerFilesAfterFresh']) or 'none')}."]
+              if "markerFilesAfterFresh" in continuation else []),
+            *[f"- Failure: {cell(failure)}." for failure in continuation.get("failures", [])],
             "",
         ]
     lines += [

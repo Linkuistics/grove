@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "name": "continuation",
+  "purpose": "Observe continuation on the directory route. A first turn reads the mandatory and relevant guidance, writes a Bash script and stops for required input from the human. One commit then changes four read files in the source clone, and the settings reverse the mandatory order. The session resumes outside Ravel with the human's answer only. A fresh launch on a new leaf follows.",
+  "credits": [],
+  "harness": "claude",
+  "route": "directory-2.0",
+  "mode": "lifecycle",
+  "model": "claude-opus-5-5",
+  "effort": "medium",
+  "kinds": ["impl"],
+  "sources": [
+    { "id": "grove", "plugin": "plugins/grove", "roots": ["skills"] },
+    { "id": "linkuistics", "plugin": "plugins/linkuistics", "roots": ["skills"] }
+  ],
+  "mandatory": [
+    { "source": "linkuistics", "path": "skills/using-jujutsu/SKILL.md" },
+    { "source": "grove", "path": "skills/grove/SKILL.md" }
+  ],
+  "continuation": {
+    "marker": "k111-revision-2",
+    "answer": "answer.md",
+    "freshTree": "fresh-tree",
+    "edits": [
+      { "path": "plugins/linkuistics/skills/using-jujutsu/SKILL.md", "insert": "<!-- k111-revision-2 -->" },
+      { "path": "plugins/grove/skills/grove/SKILL.md", "insert": "<!-- k111-revision-2 -->" },
+      { "path": "plugins/grove/skills/grove-impl/SKILL.md", "insert": "<!-- k111-revision-2 -->" },
+      { "path": "plugins/linkuistics/skills/coding-style-bash/SKILL.md", "insert": "**Revision k111-revision-2.** Every Bash script carries the comment `# k111-revision-2` on the line after its shebang." }
+    ],
+    "mandatory": [
+      { "source": "grove", "path": "skills/grove/SKILL.md" },
+      { "source": "linkuistics", "path": "skills/using-jujutsu/SKILL.md" }
+    ]
+  },
+  "timeoutMinutes": 30
+}

@@ -65,25 +65,38 @@ for source in (json.loads(settings.read_text())["skills"]["sources"] if settings
         print("grove: session kind `impl` for `smoke-file-k1` failed; rerun `grove` to continue", file=sys.stderr)
         sys.exit(0)
 route = json.loads((trial / "route.json").read_text())
-snap = home / ".cache/ravel/skills/objects/grove-snapshot"
-(snap / "skills/grove-impl").mkdir(parents=True)
-(snap / "skills/grove-impl/SKILL.md").write_text("kind\n")
-(snap / "skills/grove/references").mkdir(parents=True)
-(snap / "skills/grove/SKILL.md").write_text("spine\n")
-(snap / "skills/grove/references/execute.md").write_text("resource\n")
-(snap / "skills/craft").mkdir(parents=True)
-(snap / "skills/craft/SKILL.md").write_text("craft\n")
-descriptor_text = b'{{"schemaVersion":1}}'
+# The snapshot captures the configured source's craft skill, as Ravel captures
+# the current bytes. Changed bytes give a new snapshot and a new descriptor;
+# the snapshot of an earlier launch stays as it was.
+config = (json.loads(settings.read_text()) if settings.exists() else {{}}).get("skills", {{}})
+origin = config["sources"][0]["path"] if config.get("sources") else "/origin/grove"
+craft_origin = Path(origin) / "skills/craft/SKILL.md"
+craft = craft_origin.read_text() if craft_origin.is_file() else "craft\n"
+content = hashlib.sha256(craft.encode()).hexdigest()
+unchanged = craft == "craft\n"
+snap = home / ".cache/ravel/skills/objects" / ("grove-snapshot" if unchanged else "grove-" + content[:12])
+if not snap.exists():
+    (snap / "skills/grove-impl").mkdir(parents=True)
+    (snap / "skills/grove-impl/SKILL.md").write_text("kind\n")
+    (snap / "skills/grove/references").mkdir(parents=True)
+    (snap / "skills/grove/SKILL.md").write_text("spine\n")
+    (snap / "skills/grove/references/execute.md").write_text("resource\n")
+    (snap / "skills/craft").mkdir(parents=True)
+    (snap / "skills/craft/SKILL.md").write_text(craft)
+mandatory = [{{"source": "grove", "path": str(snap / item["path"])}} for item in config.get("mandatory", [])]
+mandatory = mandatory or [{{"source": "grove", "path": str(snap / "skills/grove/SKILL.md")}}]
+descriptor_text = (b'{{"schemaVersion":1}}' if unchanged and not config.get("mandatory")
+                   else json.dumps({{"content": content, "mandatory": mandatory}}).encode())
 digest = hashlib.sha256(descriptor_text).hexdigest()
 descriptor = home / ".cache/ravel/descriptors" / digest / "directories.json"
-descriptor.parent.mkdir(parents=True)
+descriptor.parent.mkdir(parents=True, exist_ok=True)
 descriptor.write_bytes(descriptor_text)
 view = {{"kind": "impl", "originalPrompt": "mandate", "skills": {{
     "descriptorPath": str(descriptor),
-    "sources": [{{"id": "grove", "type": "local", "resourceDigest": "ab" * 32,
-                 "snapshotRoot": str(snap), "originPath": "/origin/grove"}}],
+    "sources": [{{"id": "grove", "type": "local", "resourceDigest": "ab" * 32 if unchanged else content,
+                 "snapshotRoot": str(snap), "originPath": origin}}],
     "directories": [{{"source": "grove", "path": str(snap / "skills")}}],
-    "mandatory": [{{"source": "grove", "path": str(snap / "skills/grove/SKILL.md")}}]}}}}
+    "mandatory": mandatory}}}}
 if sys.argv[1:2] == ["run"]:
     # A fake `grove run`: the wrapper writes to the run log, as a confined
     # launch does. The fake adds the probes that the configuration script adds.
@@ -107,7 +120,7 @@ if sys.argv[1:2] == ["run"]:
     Path(output).write_text("#!/usr/bin/env bash\n")
     sys.exit(status)
 launch = trial / "tmp/launch"
-launch.mkdir()
+launch.mkdir(exist_ok=True)
 env = dict(os.environ, GROVE_LAUNCH_DIR=str(launch), RAVEL_EXIT_FILE=str(trial / "tmp/exit"),
            RAVEL_SKILL_DIRECTORIES=str(descriptor))
 print("grove: launching impl through Ravel — smoke-file-k1", file=sys.stderr, flush=True)
@@ -133,10 +146,22 @@ if sys.argv[1:3] == ["auth", "status"]:
     print(json.dumps({{"loggedIn": True, "authMethod": "claude.ai",
                       "configDirectory": behaviour.get("configDirectory") or str(home / ".claude")}}))
     sys.exit(0)
-snap = sys.argv[sys.argv.index("--add-dir") + 1]
+# A resumed turn has no --add-dir, and it reads the first turn's snapshot.
+saved = home / ".fake-claude-snap"
+if "--add-dir" in sys.argv:
+    snap = sys.argv[sys.argv.index("--add-dir") + 1]
+    saved.write_text(snap)
+else:
+    snap = saved.read_text()
 names = {{"SNAP": snap, "HOME": str(home), "DESC": os.environ.get("RAVEL_SKILL_DIRECTORIES", ""),
          "CWD": os.getcwd(), "TRIAL": str(home.parent)}}
-session = "11111111-2222-3333-4444-555555555555"
+project = home / ".claude/projects/-fake"
+resume = sys.argv[sys.argv.index("--resume") + 1] if "--resume" in sys.argv else None
+# A resumed turn keeps the session ID, as Claude Code does without
+# --fork-session. Each new session has an ID of its own.
+count = len(list(project.glob("*.jsonl"))) if project.is_dir() else 0
+session = resume or f"{{count + 1:08d}}-2222-3333-4444-555555555555"
+tools = behaviour.get("resumeTools", behaviour["tools"]) if resume else behaviour["tools"]
 if behaviour.get("noInit"):
     print("Error: Input must be provided", file=sys.stderr)
     sys.exit(1)
@@ -145,25 +170,28 @@ print(json.dumps({{"type": "system", "subtype": "init", "session_id": session, "
                   "claude_code_version": "9.9.9"}}))
 entries = [{{"type": "attachment", "attachment": {{"type": "skill_listing", "skillCount": 0, "names": []}}}},
            {{"type": "attachment", "attachment": {{"type": "credential_org", "org": "secret-org"}}}}]
-for n, (tool, field, value, error) in enumerate(behaviour["tools"]):
+for n, (tool, field, value, error) in enumerate(tools):
     if tool == "text":
         entries.append({{"type": "assistant", "message": {{"content": [{{"type": "text", "text": value}}]}}}})
         continue
     tid = f"toolu_{{n}}"
+    target = value.format(**names)
     entries.append({{"type": "assistant", "message": {{"content": [
-        {{"type": "tool_use", "id": tid, "name": tool, "input": {{field: value.format(**names)}}}}]}}}})
+        {{"type": "tool_use", "id": tid, "name": tool, "input": {{field: target}}}}]}}}})
+    # A read returns the bytes of the file, so a marker in them reaches the result.
+    text = Path(target).read_text() if tool == "Read" and Path(target).is_file() else f"{{tool}} result"
     entries.append({{"type": "user", "message": {{"content": [
         {{"type": "tool_result", "tool_use_id": tid, "is_error": error,
-          "content": [{{"type": "text", "text": f"{{tool}} result"}}]}}]}}}})
+          "content": [{{"type": "text", "text": text}}]}}]}}}})
 if behaviour.get("noSession"):
     # A confined harness cannot write its session file. Its stream holds the
     # same tool calls.
     for entry in entries:
         print(json.dumps(entry))
 else:
-    project = home / ".claude/projects/-fake"
     project.mkdir(parents=True, exist_ok=True)
-    (project / f"{{session}}.jsonl").write_text("".join(json.dumps(e) + "\n" for e in entries))
+    with (project / f"{{session}}.jsonl").open("a" if resume else "w") as transcript:
+        transcript.write("".join(json.dumps(e) + "\n" for e in entries))
 store = home / {store!r}
 if behaviour.get("replaceLink"):
     store.unlink()
@@ -230,6 +258,16 @@ EXPECTED = [
     ("Bash", "command", None, False),
     ("Bash", "ending", None, False),
 ]
+
+# The resumed turn of the continuation case: a mandatory read and a craft read
+# in the first turn's snapshot, then a read of the changed source itself.
+RESUME_TOOLS = [
+    ("Read", "file_path", "{SNAP}/skills/grove/SKILL.md", False),
+    ("Read", "file_path", "{SNAP}/skills/craft/SKILL.md", False),
+    ("Read", "file_path", "{TRIAL}/sources/checkout/plugins/grove/skills/craft/SKILL.md", False),
+]
+MARKER = "k111-test-marker"
+CRAFT = "plugins/grove/skills/craft/SKILL.md"
 
 
 class Fixture:
@@ -358,6 +396,23 @@ def plant_cases(root: Path) -> Path:
     shutil.copytree(cases / "smoke", missing)
     (missing / "case.json").write_text(json.dumps({
         **smoke, "name": "missing", "moveAway": "grove", "expectRefusal": "skill_source_missing",
+    }))
+    # A continuation: a source commit and a settings change between a first
+    # turn and a resumed turn, then a fresh launch on a new leaf.
+    continuation = cases / "continuation"
+    shutil.copytree(cases / "smoke", continuation)
+    (continuation / "answer.md").write_text("Yes, add the label.\n")
+    (continuation / "fresh-tree").mkdir()
+    (continuation / "fresh-tree" / "02-impl--fresh-k2.md").write_text("# fresh-k2\n")
+    (continuation / "case.json").write_text(json.dumps({
+        **smoke, "name": "continuation",
+        "mandatory": [{"source": "grove", "path": "skills/grove/SKILL.md"}],
+        "continuation": {
+            "marker": MARKER, "answer": "answer.md", "freshTree": "fresh-tree",
+            "edits": [{"path": CRAFT, "insert": f"Rule {MARKER}."}],
+            "mandatory": [{"source": "grove", "path": "skills/grove-impl/SKILL.md"},
+                          {"source": "grove", "path": "skills/grove/SKILL.md"}],
+        },
     }))
     return cases
 
@@ -784,6 +839,101 @@ class HarnessTrialTest(unittest.TestCase):
         ], directory)
         self.assertEqual([p["status"] for p in result], ["ok", "failed", "failed", "ok"])
         self.assertFalse((directory / "probe").exists())
+
+    # --- Continuation ----------------------------------------------------------
+
+    def check_continuation(self, fixture: Fixture):
+        fixture.behave(resumeTools=RESUME_TOOLS)
+        status, output = fixture.run("continuation")
+        self.assertEqual(status, 0, output)
+        record = fixture.record()
+        launches = record["launches"]
+        self.assertEqual([launch.get("role") for launch in launches], ["first turn", "resumed turn", "fresh launch"])
+        first, resumed, fresh = launches
+
+        def main(launch):
+            return next(t for t in launch["transcripts"] if t["main"])
+
+        # The resumed turn appends to the first turn's session file, and each
+        # turn holds only its own lines.
+        self.assertEqual(first["sessionId"], resumed["sessionId"])
+        self.assertNotEqual(fresh["sessionId"], first["sessionId"])
+        self.assertIn("lines", main(first), "the first turn has no window")
+        self.assertIn("lines", main(resumed), "the resumed turn has no window")
+        self.assertEqual(main(first)["lines"][1], main(resumed)["lines"][0])
+        self.assertEqual([(e["tool"], e["class"], e.get("skill"), e["error"]) for e in main(first)["events"]], EXPECTED)
+        # The first turn's snapshot gives the original bytes, and the source
+        # origin gives the changed bytes.
+        self.assertEqual([(e["class"], e.get("skill"), e["marker"]) for e in main(resumed)["events"]],
+                         [("mandatory", "grove", []), ("skill", "craft", []), ("source-origin", "craft", ["result"])])
+        crafts = {name: [e["marker"] for e in main(launch)["events"] if e["class"] == "skill"]
+                  for name, launch in (("first", first), ("fresh", fresh))}
+        self.assertEqual(crafts, {"first": [[]], "fresh": [["result"]]})
+        self.assertEqual(resumed["descriptorIdentity"], first["descriptorIdentity"])
+        self.assertNotEqual(fresh["descriptorIdentity"], first["descriptorIdentity"])
+        self.assertEqual(first["snapshotMarkers"], {CRAFT: False})
+        self.assertEqual(fresh["snapshotMarkers"], {CRAFT: True})
+        # The resumed turn runs outside Ravel, so it has no descriptor variable.
+        self.assertIn("RAVEL_SKILL_DIRECTORIES", first["envNames"])
+        self.assertNotIn("RAVEL_SKILL_DIRECTORIES", resumed["envNames"])
+        self.assertEqual(resumed["control"], [])
+        continuation = record["continuation"]
+        self.assertEqual(continuation["failures"], [])
+        self.assertEqual(continuation["resume"]["args"][-2:], ["--resume", first["sessionId"]])
+        self.assertNotIn("--add-dir", continuation["resume"]["args"])
+        self.assertNotEqual(continuation["edit"]["commitBefore"], continuation["edit"]["commitAfter"])
+        trial_dir = Path(record["trial"])
+        settings = json.loads((trial_dir / "home/.config/ravel/settings.json").read_text())["skills"]
+        self.assertEqual(settings["mandatory"], continuation["settings"]["mandatoryAfter"])
+        self.assertEqual(settings["sources"][0]["path"], str(trial_dir / "sources/checkout/plugins/grove"))
+        self.assertIn("02-impl--fresh-k2.md", record["ending"]["treeAfter"])
+        self.assertTrue((fixture.root / "source" / CRAFT).read_text() == "craft\n", "the prepared checkout changed")
+        markdown = (trial_dir / "record.md").read_text()
+        for needle in ("Continuation:", "#### Launch 1: kind `impl`, resumed turn", " Marker |",
+                       f"- Snapshot copy of `{CRAFT}`: holds the marker."):
+            self.assertIn(needle, markdown)
+        # A second extraction keeps each turn's window.
+        with contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(trial.main(["reextract", "--trial", str(trial_dir)], fixture.environ()), 0)
+        again = json.loads((trial_dir / "record.json").read_text())
+        self.assertEqual([main(launch)["events"] for launch in again["launches"]],
+                         [main(launch)["events"] for launch in launches])
+
+    def test_a_continuation_resumes_after_a_source_commit_and_launches_fresh(self):
+        self.check_continuation(self.fixture)
+        self.broken(self.check_continuation, "resume_turn", lambda *args, **kwargs: {
+            "args": [], "cwd": "", "answerSha256": "", "exit": 0, "timedOut": False, "elapsedS": 0})
+        self.broken(self.check_continuation, "commit_edits", lambda clone, edits: {
+            "checkout": str(clone), "commitBefore": "x", "commitAfter": "x", "files": []})
+        self.broken(self.check_continuation, "write_window", lambda record, start, end: None)
+        self.broken(self.check_continuation, "read_window", lambda record: None)
+        self.broken(self.check_continuation, "marker_places", lambda marker, tool_input, result: [])
+        self.broken(self.check_continuation, "snapshot_markers", lambda case, launch: {})
+        self.broken(self.check_continuation, "add_fresh_tree", lambda repo, tree, env: {"added": [], "commit": "x" * 12})
+
+    def test_a_continuation_case_needs_its_parts(self):
+        case = json.loads((trial.CASES / "continuation" / "case.json").read_text())
+        for change in ({"marker": ""}, {"edits": []}, {"edits": [{"path": CRAFT, "insert": "no marker"}]},
+                       {"edits": [{"path": "elsewhere/SKILL.md", "insert": MARKER}]}, {"freshTree": "absent"}):
+            name = "broken-" + "-".join(change)
+            shutil.copytree(trial.CASES / "continuation", trial.CASES / name, dirs_exist_ok=True)
+            (trial.CASES / name / "case.json").write_text(json.dumps(
+                {**case, "name": name, "continuation": {**case["continuation"], **change}}))
+            with self.assertRaises(trial.TrialError, msg=f"{change} loaded"):
+                trial.load_case(name)
+        trial.load_case("continuation")
+
+    def test_an_insertion_follows_the_front_matter(self):
+        self.assertEqual(trial.insert_after_front_matter("---\nname: x\n---\n\n# X\n", "M."),
+                         "---\nname: x\n---\n\nM.\n\n# X\n")
+        self.assertEqual(trial.insert_after_front_matter("# X\n", "M."), "M.\n\n# X\n")
+
+    def test_marker_files_skip_the_tree_and_the_stores(self):
+        repo = Path(tempfile.mkdtemp(dir=self.temp.name))
+        for name in ("stamp.sh", ".grove/leaf.md", ".jj/x", "tools/count.sh", "plain.txt"):
+            (repo / name).parent.mkdir(parents=True, exist_ok=True)
+            (repo / name).write_text(f"# {MARKER}\n" if name != "plain.txt" else "plain\n")
+        self.assertEqual(trial.marker_files(repo, MARKER), ["stamp.sh", "tools/count.sh"])
 
     def test_the_configuration_routes_only_the_case_kinds(self):
         route = trial.route_for({"kinds": ["impl"], "name": "x"}, Path("/r"), Path("/c"), "m", "e")

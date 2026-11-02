@@ -434,17 +434,60 @@ tasks:
     cmds:
       - bash scripts/release-registration.test.sh "{{.ARCHIVES}}" "{{.RAVEL_ARCHIVES}}"
 
+  # RAVEL_1_1_PREFIX and RAVEL_2_0_PREFIX are installation prefixes, not
+  # fronts. The 1.1 build checks the TypeScript set and the 2.0 build the Rhai
+  # set. For example:
+  #   task release:formula:test ARCHIVE=target/archives/grove-v<ver>-aarch64-apple-darwin.tar.xz \
+  #     RAVEL_1_1_PREFIX=/opt/homebrew/Cellar/ravel/1.1.0 RAVEL_2_0_PREFIX=/opt/ravel-2
   release:formula:test:
-    desc: Exercise the real Homebrew install/test methods with a private native archive prefix
+    desc: Exercise the real Homebrew install/test methods with a private native archive prefix and both Ravel builds
     requires:
-      vars: [ARCHIVE]
+      vars: [ARCHIVE, RAVEL_1_1_PREFIX, RAVEL_2_0_PREFIX]
     cmds:
-      - bash scripts/release-formula.test.sh "{{.ARCHIVE}}"
+      - bash scripts/release-formula.test.sh "{{.ARCHIVE}}" "{{.RAVEL_1_1_PREFIX}}" "{{.RAVEL_2_0_PREFIX}}"
 
   release:archives:
     desc: Build release archives of the working copy into target/archives, without a tag or publication
     cmds:
       - scripts/release-build.sh --unreleased {{.TARGETS}}
+
+  # The installed callers of one native archive against both explicit Ravel
+  # builds, each in its own HOME: the TypeScript set against RAVEL_1_1_PREFIX
+  # and the Rhai set against RAVEL_2_0_PREFIX. For example:
+  #   task release:installed ARCHIVE=target/archives/grove-v<ver>-aarch64-apple-darwin.tar.xz \
+  #     RAVEL_1_1_PREFIX=/opt/homebrew/Cellar/ravel/1.1.0 RAVEL_2_0_PREFIX=/opt/ravel-2
+  release:installed:
+    desc: Run the installed caller smoke of one native archive against explicit Ravel 1.1 and 2.0 prefixes
+    requires:
+      vars: [ARCHIVE, RAVEL_1_1_PREFIX, RAVEL_2_0_PREFIX]
+    cmds:
+      - |
+        scratch="$(mktemp -d)"
+        trap 'rm -rf "$scratch"' EXIT
+        top="$(basename "{{.ARCHIVE}}" .tar.xz)"
+        version="${top#grove-v}"
+        version="${version%-aarch64-apple-darwin}"
+        tar -xJf "{{.ARCHIVE}}" -C "$scratch"
+        bash scripts/grove-installed-smoke.sh "$scratch/$top" "$version" "{{.RAVEL_1_1_PREFIX}}" "{{.RAVEL_2_0_PREFIX}}"
+
+  # An installed upgrade from a Grove 22.8 layout, such as its Homebrew keg,
+  # which the check only copies. It runs natively with the 1.1 build. For example:
+  #   task release:upgrade OLD=/opt/homebrew/Cellar/grove/22.8.0 \
+  #     ARCHIVE=target/archives/grove-v<ver>-aarch64-apple-darwin.tar.xz \
+  #     RAVEL_1_1_PREFIX=/opt/homebrew/Cellar/ravel/1.1.0
+  release:upgrade:
+    desc: Upgrade a scratch copy of a Grove 22.8 installation; no native entry changes and an active 22.8 reader completes
+    requires:
+      vars: [OLD, ARCHIVE, RAVEL_1_1_PREFIX]
+    cmds:
+      - |
+        scratch="$(mktemp -d)"
+        trap 'rm -rf "$scratch"' EXIT
+        top="$(basename "{{.ARCHIVE}}" .tar.xz)"
+        version="${top#grove-v}"
+        version="${version%-aarch64-apple-darwin}"
+        tar -xJf "{{.ARCHIVE}}" -C "$scratch"
+        bash scripts/grove-installed-upgrade.sh "{{.OLD}}" "$scratch/$top" "$version" "{{.RAVEL_1_1_PREFIX}}"
 
   # The installed-layout smoke test, rebuilding the archives first so it never
   # reads a stale one. `task release:smoke TARGETS=x86_64-unknown-linux-gnu`
@@ -522,7 +565,15 @@ tasks:
         "$brew_bin/ravel" --version
         "$brew_bin/grove" view --help
         # Homebrew tests lifecycle inside its own sandbox; exercise Ravel's
-        # actual confinement outside that non-nestable outer sandbox too.
-        bash scripts/grove-installed-smoke.sh "$(brew --prefix grove)" "$version" "$(brew --prefix ravel)"
+        # actual confinement outside that non-nestable outer sandbox too. The
+        # dependency's major names its lane. While it is 1.x, an installed
+        # keg-only ravel@2 adds the 2.0 lane through its explicit prefix.
+        dependency="$(brew --prefix ravel)"
+        ravel_two="$(brew --prefix --installed ravel@2 2>/dev/null || true)"
+        case "$("$dependency/bin/ravel" --version)" in
+          'ravel 2.'*) set -- - "$dependency" ;;
+          *) set -- "$dependency" ${ravel_two:+"$ravel_two"} ;;
+        esac
+        bash scripts/grove-installed-smoke.sh "$(brew --prefix grove)" "$version" "$@"
         gh release view "$tag" --repo Linkuistics/grove --json url,assets
         test "$(gh release view "$tag" --repo Linkuistics/grove --json assets --jq '.assets | length')" = 3

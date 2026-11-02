@@ -4,8 +4,8 @@
 require "formula"
 require "formula_assertions"
 
-formula_path, source, prefix_path, test_path = ARGV
-raise "expected FORMULA SOURCE PREFIX TESTPATH" unless ARGV.length == 4
+formula_path, source, prefix_path, test_path, ravel_1_1, ravel_2_0 = ARGV
+raise "expected FORMULA SOURCE PREFIX TESTPATH RAVEL_1_1 RAVEL_2_0" unless ARGV.length == 6
 prefix_path = Pathname(prefix_path)
 load formula_path
 # https://docs.brew.sh/rubydoc/Formula.html#initialize-instance_method
@@ -16,6 +16,34 @@ expected = (["bin", "libexec"] + Dir.glob("{bin,libexec}/**/*", base: source)).s
 Dir.chdir(source) { formula.install }
 actual = Dir.glob("**/*", base: prefix_path).sort
 raise "formula installation differs from archive: #{actual.inspect}" unless actual == expected
+# The caveats show both configuration formats, both setup routes and the
+# explicit ravel@2 prefix, and each sample they copy is installed.
+# https://docs.brew.sh/rubydoc/Formula.html#caveats-instance_method
+caveats = formula.caveats.to_s
+{
+  "the policy.ts sample" => "ravel-policy/sample/policy.ts ~/.config/ravel/policy.ts",
+  "the config.rhai sample" => "ravel-policy/sample/config.rhai ~/.config/ravel/config.rhai",
+  "the native installation route" => "/plugin install grove@linkuistics",
+  "the native installer" => "./grove/plugins/install.sh",
+  "the directory delivery route" => "`skills` object of ~/.config/ravel/settings.json",
+  "the ravel@2 prefix" => 'PATH="$(brew --prefix ravel@2)/bin:$PATH" grove',
+}.each do |subject, text|
+  raise "the caveats do not show #{subject}: #{text}" unless caveats.include?(text)
+end
+copied = caveats.scan(%r{^\s*cp (\S+) }).flatten
+raise "the caveats copy #{copied.inspect}, not both samples" unless copied.length == 2
+copied.each { |sample| raise "the caveats copy an absent #{sample}" unless File.file?(sample) }
+# The production list of installed builds runs as `brew test` would. Its first
+# entry is the dependency, and each runtime is one the test knows.
+default = formula.ravel_builds
+dependency = Formula["linkuistics/taps/ravel"].opt_bin/"ravel"
+raise "the dependency is not the first build: #{default.inspect}" unless default.first&.first == dependency
+raise "a build has an unknown runtime: #{default.inspect}" unless default.all? { |_, runtime| %w[1.1 2.0].include?(runtime) }
+puts "release-formula: this host's installed builds: #{default.map { |ravel, runtime| "#{runtime} #{ravel}" }.join(", ")}"
+# The explicit builds replace that list: the TypeScript set against the 1.1
+# build and the Rhai set against the 2.0 build.
+builds = [[Pathname(ravel_1_1), "1.1"], [Pathname(ravel_2_0), "2.0"]]
+formula.define_singleton_method(:ravel_builds) { builds }
 formula.instance_variable_set(:@testpath, Pathname(test_path))
 Dir.chdir(test_path) { formula.test }
-puts "release-formula: production Homebrew install/test passed with independent installed Ravel"
+puts "release-formula: production Homebrew install/test passed with independent Ravel 1.1 and 2.0 builds"

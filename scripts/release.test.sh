@@ -77,12 +77,17 @@ refused_archive() {
     fail "the manifest check did not report '$2': $(cat "$scratch/archive/output")"
 }
 
-# Caller assets ship independently of Ravel's SDK and runtime.
-for required in bin/grove bin/grove-llm libexec/ravel-policy/grove.ts \
-  libexec/ravel-policy/provenance.ts libexec/ravel-policy/examples/grove-review.ts \
-  libexec/ravel-policy/examples/grove-static.ts libexec/ravel-policy/examples/review.ts \
-  libexec/ravel-policy/sample/policy.ts libexec/ravel-policy/README.md \
-  libexec/ravel-policy/typecheck/review.ts libexec/ravel-policy/typecheck/static.ts; do
+# Caller assets ship independently of Ravel's SDK and runtime: the TypeScript
+# set for Ravel 1.x and the Rhai set for Ravel 2.x.
+typescript_set=(libexec/ravel-policy/grove.ts libexec/ravel-policy/provenance.ts
+  libexec/ravel-policy/examples/grove-review.ts libexec/ravel-policy/examples/grove-static.ts
+  libexec/ravel-policy/examples/review.ts libexec/ravel-policy/sample/policy.ts
+  libexec/ravel-policy/typecheck/review.ts libexec/ravel-policy/typecheck/static.ts)
+rhai_set=(libexec/ravel-policy/grove.rhai libexec/ravel-policy/provenance.rhai
+  libexec/ravel-policy/examples/grove-review.rhai libexec/ravel-policy/examples/grove-static.rhai
+  libexec/ravel-policy/examples/review.rhai libexec/ravel-policy/examples/static.rhai
+  libexec/ravel-policy/sample/config.rhai)
+for required in bin/grove bin/grove-llm libexec/ravel-policy/README.md "${typescript_set[@]}" "${rhai_set[@]}"; do
   archive_manifest | grep -Fxq -- "$required" || fail "the archive manifest omits $required"
 done
 archive_executables | while IFS= read -r entry; do
@@ -101,6 +106,9 @@ grep -Fxq '    libexec.install "libexec/ravel-policy"' "$template" ||
   fail 'the formula does not install libexec/ravel-policy'
 grep -Fxq '  depends_on "linkuistics/taps/ravel"' "$template" ||
   fail 'the formula does not depend on independent Ravel'
+# The dependency stays unversioned through promotion; ravel@2 is an opt-in prefix.
+[[ "$(grep -c '^ *depends_on ' "$template")" == 1 ]] ||
+  fail 'the formula has a dependency other than unversioned Ravel'
 if archive_manifest | grep -v -e '^bin/' -e '^libexec/ravel-policy/' | grep -q /; then
   fail 'the manifest ships a directory the formula does not install'
 fi
@@ -123,10 +131,23 @@ while IFS= read -r entry; do
   refused_archive "$top" "missing $top/$entry"
 done < <(archive_manifest)
 
-# Runtime, SDK, probes and notices from another project must never ship.
+# An archive without the Rhai set fails, naming each Rhai file.
+stage_archive "$top"
+for entry in "${rhai_set[@]}"; do
+  rm "$scratch/archive/stage/$top/$entry"
+done
+pack_fixture "$top"
+for entry in "${rhai_set[@]}"; do
+  refused_archive "$top" "missing $top/$entry"
+done
+
+# Runtime, SDK, probes and notices from another project must never ship, nor
+# a skill payload or a skill resolver.
 for extra in bin/harness-dispatch bin/ravel libexec/ravel/ravel-policy \
   libexec/harness-dispatch/harness-dispatch-policy libexec/ravel/sdk/index.ts \
-  libexec/ravel-policy/node_modules/cache libexec/ravel-policy/notices/NOTICES.md; do
+  libexec/ravel-policy/node_modules/cache libexec/ravel-policy/notices/NOTICES.md \
+  plugins/grove/skills/grove/SKILL.md libexec/skills/grove/SKILL.md \
+  libexec/ravel-policy/skills/grove/SKILL.md bin/grove-skills; do
   stage_archive "$top"
   mkdir -p "$(dirname "$scratch/archive/stage/$top/$extra")"
   touch "$scratch/archive/stage/$top/$extra"

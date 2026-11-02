@@ -102,6 +102,15 @@ stood at the graft — a closed record, not part of the versioned sequence above
   force-stops, and Grove publishes nothing. Grove adds no native-directory
   grant and does not retry without the sandbox.
 
+- `grove` formula: the caveats show both setup routes, native installation and
+  Ravel directory delivery. They show both configuration samples, `policy.ts`
+  for Ravel 1.x and `config.rhai` for Ravel 2.x, and the explicit `ravel@2`
+  prefix. They also say that a 2.x `ravel` refuses a HOME with only `policy.ts`.
+  The formula still depends on the unversioned `ravel`. `brew test grove`
+  checks the TypeScript set against a 1.x `ravel` and the Rhai set against a
+  2.x `ravel`, and against an installed `ravel@2`. An upgrade changes no native
+  skill entry, and a running 22.8 session completes.
+
 - `linkuistics` / `machine-environment`: describe `mise bootstrap` as the owner of
   Antony's machine setup. Packages are in `[bootstrap.packages]`, and dotfiles are
   tracked in place by mise history. The chezmoi source and the Brewfile are

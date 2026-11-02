@@ -37,10 +37,13 @@ class Grove < Formula
 
   def caveats
     <<~EOS
-      Skills: Grove names the skill each session loads, and you supply it.
-      Install the skills natively in every harness your Ravel policy selects.
-      Grove does not install skills. Startup and upgrades leave any existing
-      skill installation, including one written by an earlier Grove, unchanged.
+      Skills: Grove names the skill each session loads, and you supply it
+      through one of two routes. Grove does not install skills. Startup and
+      upgrades leave any existing skill installation, including one written by
+      an earlier Grove, unchanged.
+
+      Native installation, with any Ravel: install the skills in every harness
+      your Ravel configuration selects.
 
       Claude Code: install the plugins and enable marketplace auto-update:
 
@@ -56,38 +59,73 @@ class Grove < Formula
         git clone https://github.com/Linkuistics/grove
         ./grove/plugins/install.sh
 
-      Grove launches sessions through the independent Ravel dependency.
-      Copy the readable sample and edit your owner policy before the first run:
+      Ravel directory delivery, with Ravel 2.0.0 or later: name local skill
+      checkouts in the `skills` object of ~/.config/ravel/settings.json.
+      Native copies are then unnecessary. Ravel 1.x refuses that key, so
+      run a 2.0 route under a separate HOME while a 1.x session still runs.
+
+      Grove launches sessions through the independent Ravel dependency. Each
+      Ravel major reads its own configuration file. Copy the readable sample
+      for your Ravel and edit it before the first run:
 
         mkdir -p ~/.config/ravel
+        # Ravel 1.x reads policy.ts:
         cp #{libexec}/ravel-policy/sample/policy.ts ~/.config/ravel/policy.ts
+        # Ravel 2.x reads config.rhai, with SCHEMA_VERSION 4:
+        cp #{libexec}/ravel-policy/sample/config.rhai ~/.config/ravel/config.rhai
 
-      The sample launches codex with approvals off and full access. Copy only
-      into an absent policy; preserve an existing policy and its relative helpers.
-      Creator-aware examples live in #{libexec}/ravel-policy/examples;
-      keep the whole caller asset tree together when copying their imports.
-      Earlier config.kdl or .grove.kdl files are no longer read.
+      The samples launch codex with approvals off and full access. Copy only
+      into an absent file; preserve an existing configuration and its helpers.
+      Creator-aware examples live in #{libexec}/ravel-policy/examples:
+      the *.ts files for Ravel 1.x and the *.rhai files for Ravel 2.x.
+      Keep the whole caller asset tree together when you import them.
+
+      While the unversioned ravel formula is Ravel 1.x, Ravel 2 is the
+      keg-only ravel@2. Select it for one Grove invocation by putting its bin
+      first on PATH:
+
+        brew install linkuistics/taps/ravel@2
+        PATH="$(brew --prefix ravel@2)/bin:$PATH" grove
+
+      When the unversioned ravel moves to 2.x, it reads only config.rhai and
+      refuses a HOME that holds only policy.ts. Write and check config.rhai
+      first. Earlier config.kdl or .grove.kdl files are no longer read.
     EOS
+  end
+
+  # Each installed Ravel that the test checks, with the runtime of its
+  # configuration: "1.1" reads policy.ts and the TypeScript assets, and "2.0"
+  # reads config.rhai and the Rhai assets. The dependency's version output
+  # names its runtime. The keg-only ravel@2 is checked too when the tap has it
+  # and it is installed. scripts/release-formula.test.rb passes explicit builds.
+  # https://docs.brew.sh/rubydoc/Formula.html#any_version_installed%3F-instance_method
+  def ravel_builds
+    ravel = Formula["linkuistics/taps/ravel"].opt_bin/"ravel"
+    builds = [[ravel, shell_output("#{ravel} --version").start_with?("ravel 2.") ? "2.0" : "1.1"]]
+    begin
+      versioned = Formula["linkuistics/taps/ravel@2"]
+      builds << [versioned.opt_bin/"ravel", "2.0"] if versioned.any_version_installed?
+    rescue FormulaUnavailableError
+      # The tap has no ravel@2 before Ravel 2.0.0 publishes.
+    end
+    builds
   end
 
   test do
     assert_equal "grove @VERSION@\n", shell_output("#{bin}/grove --version")
     assert_equal "grove-llm @VERSION@\n", shell_output("#{bin}/grove-llm --version")
-    ravel = Formula["ravel"].opt_bin/"ravel"
-    assert_match(/^ravel 1\./, shell_output("#{ravel} --version"))
     assets = libexec/"ravel-policy"
     %w[README.md grove.ts provenance.ts examples/grove-static.ts
        examples/grove-review.ts examples/review.ts sample/policy.ts
-       typecheck/static.ts typecheck/review.ts].each do |asset|
+       typecheck/static.ts typecheck/review.ts grove.rhai provenance.rhai
+       examples/grove-static.rhai examples/grove-review.rhai
+       examples/review.rhai examples/static.rhai sample/config.rhai].each do |asset|
       assert_path_exists assets/asset
     end
     # Homebrew's test sandbox cannot nest Ravel's macOS confinement sandbox.
     # https://raw.githubusercontent.com/Homebrew/brew/eb56e2b1f7/Library/Homebrew/dev-cmd/test.rb
     # Exercise lifecycle here; release verification separately runs confined
     # standalone publication through scripts/grove-installed-smoke.sh.
-    (testpath/"home/.config/ravel").mkpath
-    # A Codex home is present, and startup still writes no skill installation.
-    (testpath/"home/.codex").mkpath
     (testpath/".jj/repo").mkpath
     (testpath/".grove").mkpath
     (testpath/".grove/_BRIEF.md").write "# fixture\n"
@@ -100,22 +138,52 @@ class Grove < Formula
       touch "$GROVE_LAUNCH_DIR/teardown"
       exec "$1" end-session grove-continue
     SH
-    (testpath/"home/.config/ravel/policy.ts").write <<~TS
-      import { definePolicy } from "ravel/sdk";
-      import { withProvenance } from "#{assets}/provenance.ts";
-      import { groveReviewSelector } from "#{assets}/examples/grove-review.ts";
-      const route = request => ({ program: "/bin/sh", args: [#{agent.to_s.to_json},
-        #{ravel.to_s.to_json}], provider: "fixture", model: "none", effort: "none" });
-      export const policy = withProvenance(definePolicy({ schemaVersion: 2,
-        version: "brew-test", ...groveReviewSelector({ routes: { impl: route }, reviews: {} }) }));
-    TS
-    ENV["HOME"] = (testpath/"home").to_s
-    ENV.delete("CODEX_HOME")
-    ENV["PATH"] = "#{Formula["ravel"].opt_bin}:/usr/bin:/bin"
-    assert_match "loop complete", shell_output("#{bin}/grove 2>&1")
-    assert_equal "launched", (testpath/"launched.txt").read
-    assert_path_exists leaf
-    refute_path_exists testpath/"home/.agents"
-    assert_empty (testpath/"home/.codex").children
+    ravel_builds.each_with_index do |(ravel, runtime), index|
+      # Each Ravel reads its own HOME, because the two majors refuse each
+      # other's settings keys. A Codex home is present, and startup still
+      # writes no skill installation.
+      home = testpath/"home-#{index}"
+      (home/".config/ravel").mkpath
+      (home/".codex").mkpath
+      if runtime == "1.1"
+        assert_match(/^ravel 1\./, shell_output("#{ravel} --version"))
+        (home/".config/ravel/policy.ts").write <<~TS
+          import { definePolicy } from "ravel/sdk";
+          import { withProvenance } from "#{assets}/provenance.ts";
+          import { groveReviewSelector } from "#{assets}/examples/grove-review.ts";
+          const route = request => ({ program: "/bin/sh", args: [#{agent.to_s.to_json},
+            #{ravel.to_s.to_json}], provider: "fixture", model: "none", effort: "none" });
+          export const policy = withProvenance(definePolicy({ schemaVersion: 2,
+            version: "brew-test", ...groveReviewSelector({ routes: { impl: route }, reviews: {} }) }));
+        TS
+      else
+        # A Rhai route is a closure, so a function of the script makes it.
+        (home/".config/ravel/config.rhai").write <<~RHAI
+          import #{(assets/"examples/grove-review").to_s.to_json} as grove_review;
+          import #{(assets/"provenance").to_s.to_json} as provenance;
+          export const SCHEMA_VERSION = 4;
+          export const VERSION = "brew-test";
+          fn route() {
+              |request| \#{ program: "/bin/sh", args: [#{agent.to_s.to_json}, #{ravel.to_s.to_json}],
+                  provider: "fixture", model: "none", effort: "none" }
+          }
+          const RULES = \#{ routes: \#{ impl: route() }, reviews: \#{} };
+          fn load_context(request) { grove_review::load_context_with(global::RULES, request) }
+          fn select(request, context) {
+              provenance::with_provenance(grove_review::select_with(global::RULES, request, context),
+                  global::VERSION, request)
+          }
+        RHAI
+      end
+      FileUtils.rm_f testpath/"launched.txt"
+      ENV["HOME"] = home.to_s
+      ENV.delete("CODEX_HOME")
+      ENV["PATH"] = "#{ravel.dirname}:/usr/bin:/bin"
+      assert_match "loop complete", shell_output("#{bin}/grove 2>&1")
+      assert_equal "launched", (testpath/"launched.txt").read
+      assert_path_exists leaf
+      refute_path_exists home/".agents"
+      assert_empty (home/".codex").children
+    end
   end
 end

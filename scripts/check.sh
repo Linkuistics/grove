@@ -112,6 +112,7 @@ run_check "shellcheck" shellcheck \
   scripts/floor-seccomp.test.sh scripts/release-floor-native.sh scripts/grove-floor-native-cases.sh \
   scripts/release-floor-qemu.sh scripts/release-floor-qemu-backend.sh scripts/release-floor-qemu.test.sh \
   scripts/ravel-target-smoke-target.sh scripts/ravel-installed-smoke.sh scripts/ravel-target-inputs.test.sh scripts/grove-installed-smoke.sh \
+  scripts/grove-installed-upgrade.sh \
   plugins/linkuistics/skills/technical-communication/scripts/tc-hook \
   scripts/pi-extension-load.test.sh
 run_check "cargo clippy" cargo clippy --workspace --all-targets

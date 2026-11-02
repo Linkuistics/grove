@@ -47,7 +47,9 @@ QEMU header admission includes every ELF from both projects before registering
 the CPU model. Existing glibc and above-CPU-floor controls remain shared with
 Ravel's independent target runner. `task release:registration:test ARCHIVES=... RAVEL_ARCHIVES=...` checks real
 combined ELF headers and missing/escape controls.
-`task release:formula:test ARCHIVE=...` runs Homebrew itself in a private prefix.
+`task release:formula:test ARCHIVE=... RAVEL_1_1_PREFIX=... RAVEL_2_0_PREFIX=...`
+runs Homebrew itself in a private prefix, with the TypeScript set against the
+1.1 build and the Rhai set against the 2.0 build.
 Its checksum fixtures are never publishable. The release formula test consumes
 installed caller imports and executes Grove's standalone public boundary.
 

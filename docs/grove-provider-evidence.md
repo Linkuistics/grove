@@ -4,6 +4,8 @@ Grove's optional `assets/ravel-policy/provenance.ts` wraps the owner's final
 policy using Ravel 0.1.0's public `Policy`/`Selected` API. It uses no Ravel store,
 record verb, private protocol or run lookup. Ravel supplies only routing and
 process supervision. The readable Grove review adapter consumes this contract for creator-aware routing.
+On Ravel 2.x, `provenance.rhai` wraps the owner's final selection in the same
+way. [Runtimes](#runtimes) states what the two sets share.
 
 ```typescript
 import { policy as owner } from "./owner-policy.ts";
@@ -28,9 +30,49 @@ runtime files it needs. Bash must exist at `/bin/bash`. Settings, bounds and
 owner environment grants remain in Ravel's configuration; the wrapper raises
 none. Its extra argv consumes the existing message/OS argument budget, so a
 selection already near those limits can refuse. Receipts have a separate 8192
-UTF-8-byte bound. Nonblank labels must be single-line and NUL-free. These are
+UTF-8-byte bound. Nonblank labels must be single-line and NUL-free, as
+[Runtimes](#runtimes) defines them. These are
 explicit costs of the opt-in wrapper; the owner's personal routes and grants
 are not automatically edited. Nonwrapped policies supply no recorded evidence.
+
+## Runtimes
+
+Grove ships the wrapper and the review loaders for both admitted majors of
+Ravel. `provenance.ts`, `grove.ts` and the TypeScript examples run on Ravel 1.x.
+`provenance.rhai`, `grove.rhai`, `examples/review.rhai` and
+`examples/grove-review.rhai` run on Ravel 2.x. A receipt that one runtime's
+wrapper records reaches a review that the other runtime may load. Both sets
+therefore keep these rules:
+
+- **Receipt bytes.** Both wrappers write the same bytes for a selection. The
+  members keep the constant order below. The Rhai wrapper joins members that
+  `ravel::json_encode` wrote, and that encoder writes the text of
+  `JSON.stringify` for every string that Rhai can hold.
+- **A blank label.** A label is blank when ECMAScript's
+  `String.prototype.trim` empties it. That trim removes 25 characters: U+0009
+  to U+000D, U+0020, U+00A0, U+1680, U+2000 to U+200A, U+2028, U+2029, U+202F,
+  U+205F, U+3000 and U+FEFF. U+0085 and U+180E are not in the set. The Rhai
+  helpers test this set themselves, because the `trim` of Rhai removes U+0085
+  and keeps U+FEFF.
+- **The checks.** The receipt, label and command checks of the wrapper, the
+  review loader and the review examples give the same outcome in both
+  runtimes.
+
+One difference remains. A JavaScript string can hold an unpaired surrogate, and
+a Rhai string cannot. A receipt can escape one as `\ud800`. The TypeScript
+loader accepts that receipt, and Ravel 1.x then refuses the delivered context
+as `context_invalid`, because JSON cannot carry the string. The Rhai loader
+refuses the receipt itself as `creator_line_malformed`. Neither runtime
+launches a reviewer, and the owner's declaration of the provider is the
+remedy.
+
+Ravel's own checks apply after the wrapper. Ravel of both majors checks that an
+owner version and a selected provider are nonblank by Rust's whitespace, which
+counts U+0085. So no wrapper records a version or a provider of U+0085 alone.
+
+`crates/grove/tests/ravel_asset_cases.rs` holds one case table for both sets.
+Its wrapper cases state the receipt bytes, and its loader cases read the same
+bytes, so each runtime reads what the other writes.
 
 ## The record and its lifetime
 
@@ -74,7 +116,9 @@ reconstruct it from current routing, other tasks, version history or an old stor
 
 ## Consumption contract for the Grove review adapter
 
-Use public `loadContext(request, host)` and `host.readText(request.taskFile)`.
+Use public `loadContext(request, host)` and `host.readText(request.taskFile)`
+on Ravel 1.x. On Ravel 2.x, use `fn load_context(request)` and
+`ravel::read_text(request.taskFile, request.limits.contextBytes)`.
 Parse exactly one whole-line `**Reviews:**` relationship and at most one Creator
 line directly beneath it. For `recorded`, call `parseEvidence` on the suffix.
 It accepts only the canonical record above, required nonblank fields, UUID v4,
@@ -97,6 +141,9 @@ The provider must be an exact own key in the review kind's origin table and the
 selected reviewer must have another provider. A gateway keeps its model origin.
 Unknown origins refuse without guessing or choosing a fallback.
 
+On Ravel 2.x, `grove.rhai` implements the loader and `examples/review.rhai`
+validates the facts.
+
 Missing Creator is unknown: refuse with an owner-declaration remedy. Duplicate,
 malformed, noncanonical, unsupported or oversized records refuse with a repair
 remedy; never silently reinterpret them as declared or use stale evidence.
@@ -118,7 +165,7 @@ Nothing in this document changes a running session's ending binary/channel.
 
 ## Using the review policy
 
-Import `assets/ravel-policy/examples/grove-review.ts` normally. Its final policy
+On Ravel 1.x, import `assets/ravel-policy/examples/grove-review.ts` normally. Its final policy
 uses `withProvenance`, so creator receipt production and review consumption work
 together. Owners can compose `groveReviewSelector({ routes, reviews })` with
 custom routes and wrap their final policy once. The illustrative routes/models
@@ -130,11 +177,21 @@ facts refuse. JSON transport may reorder object keys, so this path reconstructs
 canonical order before shared validation. Canonical input encoding and duplicate
 JSON keys are checked on raw Grove task lines, not already-parsed generic objects. No executable data is accepted in this context.
 
+On Ravel 2.x, import `examples/grove-review.rhai` by its path, and delegate
+`load_context` and `select` to it. Owners pass custom tables to
+`load_context_with(rules, request)` and `select_with(rules, request, context)`.
+They wrap the final selection once with
+`provenance::with_provenance(selection, VERSION, request)`. Ravel 2.x gives
+Rhai a JSON number such as `1.0` as a float. The Rhai selector therefore reads
+a schema version equal to 1 as the integer 1, as Ravel 1.x does.
+`assets/ravel-policy/README.md` shows the form.
+
 ## Verification
 
-`task ravel:review RAVEL=/absolute/installed/ravel` checks strict installed-SDK
-types, real installed-worker production/parser fixtures, actual Grove lifecycle
-sessions with fake agents, and inherited-evidence isolation. Save complete logs
+`task ravel:review RAVEL=/absolute/installed/ravel RAVEL_RUNTIME=<1.1|2.0>`
+checks strict installed-SDK types on 1.1 and the case table of both sets. It
+also checks actual Grove lifecycle sessions with fake agents, and
+inherited-evidence isolation. Save complete logs
 with `set -o pipefail; task ... 2>&1 | tee target/k42/review.log`.
 The old bundled dispatch package and its compatibility task were removed at
 Grove's delivery contraction. Current checks consume the independent installed

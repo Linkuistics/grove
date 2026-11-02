@@ -1,4 +1,6 @@
-//! One case table for Grove's static example and sample in both runtimes.
+//! One case table for Grove's caller assets in both runtimes: the static
+//! example, the sample, the review adapter, the two review examples and the
+//! provider-evidence wrapper.
 //!
 //! Each case states the expected outcome on Ravel 1.1, which runs the
 //! TypeScript assets, and on Ravel 2.0, which runs the Rhai assets. A run
@@ -9,17 +11,25 @@
 //! which only 2.0 has.
 //!
 //! The comparison covers the routing choice (provider, model, effort and
-//! reason), the fake-harness argument vector, the delivered context, and the
-//! refusal code, stage, exit status and remedy. It covers the message of an
-//! owner refusal too, except where a decoder or the system writes part of it.
-//! It excludes fields that only one runtime reports, such as measured reads.
-//! Paths of the case directory read as `<tmp>`, and the snapshot root of the
-//! configured skill source reads as `<snapshot>`.
+//! reason), the fake-harness argument vector, the delivered context, the
+//! receipt bytes in `GROVE_PROVIDER_EVIDENCE`, and the refusal code, stage,
+//! exit status and remedy. It covers the message of an owner refusal too,
+//! except where a decoder or the system writes part of it. It excludes fields
+//! that only one runtime reports, such as measured reads. Paths of the case
+//! directory read as `<tmp>`, and the snapshot root of the configured skill
+//! source reads as `<snapshot>`. A receipt's fresh attempt reads as
+//! `<attempt>` once it is a UUID v4. Ravel computes each source digest, so a
+//! source record's `sha256` reads as `<sha256>`, and its name and bytes stay.
+//!
+//! The review cases live in `ravel_asset_cases/review.rs`.
 use std::fs;
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 
 mod support;
+
+#[path = "ravel_asset_cases/review.rs"]
+mod review;
 
 use support::ravel::{InstalledRavel, Runtime};
 
@@ -46,6 +56,17 @@ enum Asset {
     Extended,
     /// `sample/policy.ts` or `sample/config.rhai`, copied whole.
     Sample,
+    /// `examples/grove-review`, used whole: the task-file adapter, Grove's
+    /// review tables and the provider-evidence wrapper.
+    GroveReview,
+    /// `examples/review`, used whole, with caller facts in `--context`.
+    Review,
+    /// The review selector of `examples/review` with owner tables whose one
+    /// route is a gateway of origin `openai`.
+    Gateway,
+    /// The provider-evidence wrapper around an owner whose selection a
+    /// `Setup::Owner` states.
+    Provenance,
 }
 
 /// What a case puts in its directory before the launch.
@@ -64,6 +85,18 @@ enum Setup {
     UnreadableStore,
     /// Owner settings that enable skill delivery from one local source.
     Skills,
+    /// `task.md` with these bytes, passed as `--task-file`.
+    Task(Vec<u8>),
+    /// `context.json` with this text, passed as `--context`.
+    Context(String),
+    /// `--task-id` with this value.
+    TaskId(String),
+    /// The owner of `Asset::Provenance`: its selection as JSON, where an
+    /// argument `<prompt>` stands for `request.prompt`, and its version.
+    Owner {
+        selection: serde_json::Value,
+        version: String,
+    },
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -83,6 +116,12 @@ enum Outcome {
         model: String,
         effort: String,
         reason: String,
+        /// The delivered context without `measured`, or `None` when the
+        /// notice reports no context.
+        context: Option<serde_json::Value>,
+        /// The receipt in `GROVE_PROVIDER_EVIDENCE`, or `None` when the agent
+        /// received none.
+        receipt: Option<String>,
     },
     Refused {
         code: Code,
@@ -103,14 +142,16 @@ enum Accepted {
     Whitespace,
     StoreUtf8,
     StoreBound,
+    Surrogate,
 }
 
 impl Accepted {
-    const ALL: [Accepted; 4] = [
+    const ALL: [Accepted; 5] = [
         Accepted::ChoiceBound,
         Accepted::Whitespace,
         Accepted::StoreUtf8,
         Accepted::StoreBound,
+        Accepted::Surrogate,
     ];
 
     fn reason(self) -> &'static str {
@@ -132,6 +173,13 @@ impl Accepted {
                 "Rhai reads the jj store path through a measured read, so a file beyond \
                  Ravel's source bound ends the evaluation as source_too_large. The 1.1 sample \
                  read it without a bound."
+            }
+            Accepted::Surrogate => {
+                "A JavaScript string can hold an unpaired surrogate, and a Rhai string cannot. \
+                 The TypeScript review loader accepts a receipt that escapes one, and Ravel 1.1 \
+                 then refuses the context that carries it as context_invalid. The Rhai loader \
+                 refuses the receipt as creator_line_malformed. Neither launches a reviewer, and \
+                 the owner's declaration of the provider is the remedy."
             }
         }
     }
@@ -210,6 +258,8 @@ fn wrapper(reviewer: bool, kind: &str, effort: &str, prompt: &str) -> Outcome {
             "routes[{}] gives {program} with model {model} at effort {effort}",
             json(kind)
         ),
+        context: None,
+        receipt: None,
     }
 }
 
@@ -339,6 +389,8 @@ impl<'a> Route<'a> {
                 self.model,
                 self.effort
             ),
+            context: None,
+            receipt: None,
         }
     }
 }
@@ -469,7 +521,61 @@ const SAMPLE_DEFAULTS: [(&str, bool, &str); 23] = [
     ("finish", false, "medium"),
 ];
 
+/// The canonical receipt of one selection, as both wrappers write it, with
+/// its attempt as `<attempt>`. The members keep their constant order.
+fn receipt(provider: &str, version: &str, kind: &str, task: Option<&str>) -> String {
+    let task = task
+        .map(|task| format!(",\"taskId\":{}", json(task)))
+        .unwrap_or_default();
+    format!(
+        "{{\"schemaVersion\":1,\"attemptId\":\"<attempt>\",\"provider\":{},\"policyVersion\":{},\"kind\":{}{task}}}",
+        json(provider),
+        json(version),
+        json(kind)
+    )
+}
+
+/// Every case of the table.
 fn cases() -> Vec<Case> {
+    let mut cases = route_cases();
+    cases.extend(review::cases());
+    cases
+}
+
+/// The cases of the static example and the sample. Each runtime wraps both in
+/// its provider-evidence wrapper, so each selection carries the receipt of
+/// the asset's version.
+fn route_cases() -> Vec<Case> {
+    let mut cases = static_and_sample_cases();
+    for case in &mut cases {
+        let version = match case.asset {
+            Asset::Static => "grove-static 3",
+            Asset::Sample => "grove sample 3",
+            _ => continue,
+        };
+        let kind = case.kind;
+        let stamp = |outcome: &mut Outcome| {
+            if let Outcome::Selected {
+                provider,
+                receipt: slot,
+                ..
+            } = outcome
+            {
+                *slot = Some(receipt(provider, version, kind, None));
+            }
+        };
+        match &mut case.expect {
+            Expect::Both(outcome) => stamp(outcome),
+            Expect::Differs { v1_1, v2_0, .. } | Expect::Directory { v1_1, v2_0 } => {
+                stamp(v1_1);
+                stamp(v2_0);
+            }
+        }
+    }
+    cases
+}
+
+fn static_and_sample_cases() -> Vec<Case> {
     let mut cases = Vec::new();
 
     // The static example routes every kind exactly and refuses another.
@@ -875,6 +981,8 @@ fn cases() -> Vec<Case> {
         effort: "high".into(),
         reason: r#"claude-led codex-sol (the default) routes "impl" to claude with model claude-opus-5-5 at effort high"#
             .into(),
+        context: None,
+        receipt: None,
     };
     cases.push(
         case(
@@ -976,7 +1084,23 @@ struct Fixture {
     temp: tempfile::TempDir,
     pair: InstalledRavel,
     capture: PathBuf,
+    evidence: PathBuf,
+    /// The asset tree that the cases import: this checkout's, or a mutated
+    /// copy for a control.
+    assets: PathBuf,
 }
+
+/// The fake agents. `agent=fixture` has `=` in its name, which the wrapper's
+/// shell must keep.
+const AGENTS: [&str; 7] = [
+    "my-codex-wrapper",
+    "my-claude-wrapper",
+    "my-agent-wrapper",
+    "my-other-agent-wrapper",
+    "agent=fixture",
+    "codex",
+    "claude",
+];
 
 impl Fixture {
     fn new() -> Self {
@@ -986,16 +1110,29 @@ impl Fixture {
         let pair =
             InstalledRavel::copy_from(Path::new(&source), &temp.path().join("independent-ravel"));
         let capture = temp.path().join("arguments");
-        for name in ["my-codex-wrapper", "my-claude-wrapper", "codex", "claude"] {
+        let evidence = temp.path().join("evidence");
+        for name in AGENTS {
             let file = pair.bin().join(name);
-            fs::write(&file, agent_script(&capture, &pair)).unwrap();
+            fs::write(&file, agent_script(&capture, &evidence, &pair)).unwrap();
             fs::set_permissions(file, fs::Permissions::from_mode(0o755)).unwrap();
         }
         Self {
             temp,
             pair,
             capture,
+            evidence,
+            assets: fs::canonicalize(ASSETS).unwrap(),
         }
+    }
+
+    /// The same build, importing a copy of the asset tree that `mutate`
+    /// changes.
+    fn with_mutated_assets(mut self, mutate: impl FnOnce(&Path)) -> Self {
+        let copy = self.temp.path().join("mutated-assets");
+        copy_tree(&self.assets, &copy);
+        mutate(&copy);
+        self.assets = fs::canonicalize(copy).unwrap();
+        self
     }
 
     fn runtime(&self) -> Runtime {
@@ -1011,15 +1148,17 @@ impl Fixture {
         // the cwd, as `grove run release-notes` stages it.
         fs::write(
             cwd.join("codex-headless.sh"),
-            agent_script(&self.capture, &self.pair),
+            agent_script(&self.capture, &self.evidence, &self.pair),
         )
         .unwrap();
-        let config = self.install(&cwd, case.asset, sample);
+        let config = self.install(&cwd, case, sample);
         for setup in &case.setup {
             apply(&cwd, setup);
         }
-        if self.capture.exists() {
-            fs::remove_file(&self.capture).unwrap();
+        for file in [&self.capture, &self.evidence] {
+            if file.exists() {
+                fs::remove_file(file).unwrap();
+            }
         }
         let mut command = self.pair.command();
         command
@@ -1032,7 +1171,23 @@ impl Fixture {
                 PROMPT,
             ])
             .env("HOME", &cwd)
+            // A receipt reaches the agent only from a wrapper of the case.
+            .env_remove("GROVE_PROVIDER_EVIDENCE")
             .current_dir(&cwd);
+        for setup in &case.setup {
+            match setup {
+                Setup::Task(_) => {
+                    command.arg("--task-file").arg(cwd.join("task.md"));
+                }
+                Setup::Context(_) => {
+                    command.arg("--context").arg(cwd.join("context.json"));
+                }
+                Setup::TaskId(id) => {
+                    command.args(["--task-id", id]);
+                }
+                _ => {}
+            }
+        }
         if let Some(config) = config {
             command.arg("--config").arg(config);
         }
@@ -1052,7 +1207,7 @@ impl Fixture {
 
         if let Some(error) = lines.iter().find_map(|line| line.get("error")) {
             assert!(
-                !self.capture.exists(),
+                !self.capture.exists() && !self.evidence.exists(),
                 "{}: a refusal launched an agent",
                 case.name
             );
@@ -1060,8 +1215,12 @@ impl Fixture {
             let owner_code = format!("{}Code", self.runtime().prefix());
             let (code, message) = if ravel_code == self.runtime().code("refused") {
                 let message = error["message"].as_str().unwrap();
-                let (_, owner) = message
-                    .split_once("refused the selection: ")
+                // A refusal of `load_context` names the phase before the
+                // owner's message; the stage records it.
+                let owner = message
+                    .split_once("refused the selection")
+                    .and_then(|(_, rest)| rest.split_once(": "))
+                    .map(|(_, owner)| owner)
                     .unwrap_or_else(|| {
                         panic!("{}: owner refusal without its message: {error}", case.name)
                     });
@@ -1100,17 +1259,17 @@ impl Fixture {
             .iter()
             .find(|line| line.get("selection").is_some())
             .unwrap_or_else(|| panic!("{}: no routing notice: {stderr}", case.name));
-        // Neither asset loads a context, and Grove supplied none.
-        assert_eq!(
-            notice["context"],
-            serde_json::Value::Null,
-            "{}: {notice}",
-            case.name
-        );
-        let mut argv: Vec<String> = fs::read(&self.capture)
-            .unwrap()
+        let context = match &notice["context"] {
+            serde_json::Value::Null => None,
+            reported => Some(comparable_context(&reported["value"], &normal)),
+        };
+        // Each argument ends with a NUL, so the last piece is empty. An empty
+        // argument stays.
+        let captured = fs::read(&self.capture).unwrap();
+        let mut argv: Vec<String> = captured
+            .strip_suffix(b"\0")
+            .unwrap_or(&captured)
             .split(|byte| *byte == 0)
-            .filter(|arg| !arg.is_empty())
             .map(|arg| String::from_utf8(arg.to_vec()).unwrap())
             .collect();
         let last = argv.pop().expect("the prompt argument");
@@ -1122,6 +1281,10 @@ impl Fixture {
         } else {
             normal(&last)
         });
+        let receipt = self
+            .evidence
+            .exists()
+            .then(|| fresh_attempt(&fs::read_to_string(&self.evidence).unwrap()));
         let selection = &notice["selection"];
         Outcome::Selected {
             argv,
@@ -1129,80 +1292,216 @@ impl Fixture {
             model: selection["model"].as_str().unwrap().into(),
             effort: selection["effort"].as_str().unwrap().into(),
             reason: normal(selection["reason"].as_str().unwrap()),
+            context,
+            receipt,
         }
     }
 
-    /// Write the configuration of `asset` for this runtime. The 1.1 policy is
+    /// Write the configuration of `case` for this runtime. The 1.1 policy is
     /// named by `--config`, which this returns. The 2.0 script is the default
     /// entry, as an owner copies it.
-    fn install(&self, cwd: &Path, asset: Asset, sample: Option<&str>) -> Option<PathBuf> {
-        let assets = fs::canonicalize(ASSETS).unwrap();
+    fn install(&self, cwd: &Path, case: &Case, sample: Option<&str>) -> Option<PathBuf> {
+        let source = match self.runtime() {
+            Runtime::V1_1 => self.typescript(case),
+            Runtime::V2_0 => self.rhai(cwd, case, sample),
+        };
         match self.runtime() {
             Runtime::V1_1 => {
-                let provenance = assets.join("provenance.ts");
-                let source = match asset {
-                    // The provenance wrapper must preserve these selections.
-                    Asset::Static | Asset::Sample => {
-                        let file = if asset == Asset::Static {
-                            "examples/grove-static.ts"
-                        } else {
-                            "sample/policy.ts"
-                        };
-                        format!(
-                            "import {{ withProvenance }} from {provenance:?};\n\
-                             import {{ policy as owner }} from {:?};\n\
-                             export const policy = withProvenance(owner);\n",
-                            assets.join(file)
-                        )
-                    }
-                    Asset::Extended => format!(
-                        "import {{ definePolicy }} from \"ravel/sdk\";\n\
-                         import {{ selectRoute }} from \"ravel/examples/static\";\n\
-                         import {{ lead, review, routes }} from {:?};\n\
-                         export const policy = definePolicy({{\n\
-                         \x20 schemaVersion: 2,\n\
-                         \x20 version: \"ordinary-import-fixture\",\n\
-                         \x20 select: (request) => selectRoute(\n\
-                         \x20   {{ ...routes, \"my-implementation\": lead(\"high\"), \"my-review\": review(\"high\") }},\n\
-                         \x20   request,\n\
-                         \x20 ),\n\
-                         }});\n",
-                        assets.join("examples/grove-static.ts")
-                    ),
-                };
                 let policy = cwd.join("policy.ts");
                 fs::write(&policy, source).unwrap();
                 Some(policy)
             }
             Runtime::V2_0 => {
-                let grove_static = assets.join("examples/grove-static");
-                let source = match asset {
-                    Asset::Static => format!(
-                        "import {:?} as grove;\n\
-                         export const SCHEMA_VERSION = 4;\n\
-                         export const VERSION = \"grove-static owner\";\n\
-                         fn select(request, context) {{ grove::select(request, context) }}\n",
-                        grove_static
-                    ),
-                    Asset::Extended => format!(
-                        "import {:?} as grove;\n\
-                         export const SCHEMA_VERSION = 4;\n\
-                         export const VERSION = \"ordinary-import-fixture\";\n\
-                         const ROUTES = grove::ROUTES + #{{\n\
-                         \x20   \"my-implementation\": grove::lead(\"high\"),\n\
-                         \x20   \"my-review\": grove::review(\"high\"),\n\
-                         }};\n\
-                         fn select(request, context) {{ grove::select_route(global::ROUTES, request) }}\n",
-                        grove_static
-                    ),
-                    Asset::Sample => sample.map(str::to_owned).unwrap_or_else(|| {
-                        fs::read_to_string(assets.join("sample/config.rhai")).unwrap()
-                    }),
-                };
                 let dir = cwd.join(".config/ravel");
                 fs::create_dir_all(&dir).unwrap();
                 fs::write(dir.join("config.rhai"), source).unwrap();
                 None
+            }
+        }
+    }
+
+    /// The 1.1 policy of `case`.
+    fn typescript(&self, case: &Case) -> String {
+        let assets = &self.assets;
+        let provenance = assets.join("provenance.ts");
+        match case.asset {
+            // The provenance wrapper must preserve these selections.
+            Asset::Static | Asset::Sample => {
+                let file = if case.asset == Asset::Static {
+                    "examples/grove-static.ts"
+                } else {
+                    "sample/policy.ts"
+                };
+                format!(
+                    "import {{ withProvenance }} from {provenance:?};\n\
+                     import {{ policy as owner }} from {:?};\n\
+                     export const policy = withProvenance(owner);\n",
+                    assets.join(file)
+                )
+            }
+            Asset::Extended => format!(
+                "import {{ definePolicy }} from \"ravel/sdk\";\n\
+                 import {{ selectRoute }} from \"ravel/examples/static\";\n\
+                 import {{ lead, review, routes }} from {:?};\n\
+                 export const policy = definePolicy({{\n\
+                 \x20 schemaVersion: 2,\n\
+                 \x20 version: \"ordinary-import-fixture\",\n\
+                 \x20 select: (request) => selectRoute(\n\
+                 \x20   {{ ...routes, \"my-implementation\": lead(\"high\"), \"my-review\": review(\"high\") }},\n\
+                 \x20   request,\n\
+                 \x20 ),\n\
+                 }});\n",
+                assets.join("examples/grove-static.ts")
+            ),
+            // `grove-review.ts` wraps its own policy in the wrapper.
+            Asset::GroveReview => format!(
+                "export {{ policy }} from {:?};\n",
+                assets.join("examples/grove-review.ts")
+            ),
+            Asset::Review => format!(
+                "export {{ policy }} from {:?};\n",
+                assets.join("examples/review.ts")
+            ),
+            Asset::Gateway => format!(
+                "import {{ reviewSelector }} from {:?};\n\
+                 const route = (request) => ({{ program: \"my-codex-wrapper\", args: [request.prompt],\n\
+                 \x20 provider: \"openai\", model: \"gateway\", effort: \"high\" }});\n\
+                 export const policy = {{ schemaVersion: 2, version: \"gateway-fixture\", ...reviewSelector({{\n\
+                 \x20 routes: {{ impl: route }}, reviews: {{ \"review-impl\": {{ openai: route, anthropic: route }} }},\n\
+                 }}) }};\n",
+                assets.join("examples/review.ts")
+            ),
+            Asset::Provenance => {
+                let (selection, version) = owner(case);
+                format!(
+                    "import {{ withProvenance }} from {provenance:?};\n\
+                     const selection = JSON.parse({});\n\
+                     export const policy = withProvenance({{\n\
+                     \x20 schemaVersion: 2,\n\
+                     \x20 version: {},\n\
+                     \x20 loadContext(request, host) {{\n\
+                     \x20   if (request.taskFile === undefined) return request.context ?? {{ schemaVersion: 1 }};\n\
+                     \x20   const read = host.readText(request.taskFile);\n\
+                     \x20   return {{ schemaVersion: 1, facts: {{ marker: read.text }}, sources: [read.source] }};\n\
+                     \x20 }},\n\
+                     \x20 select(request) {{\n\
+                     \x20   const chosen = JSON.parse(JSON.stringify(selection));\n\
+                     \x20   if (Array.isArray(chosen?.args)) chosen.args = chosen.args.map((arg) => arg === \"<prompt>\" ? request.prompt : arg);\n\
+                     \x20   return chosen;\n\
+                     \x20 }},\n\
+                     }});\n",
+                    support::ravel::quote(&selection.to_string()),
+                    support::ravel::quote(&version),
+                )
+            }
+        }
+    }
+
+    /// The 2.0 configuration script of `case`.
+    fn rhai(&self, cwd: &Path, case: &Case, sample: Option<&str>) -> String {
+        let assets = &self.assets;
+        let provenance = assets.join("provenance");
+        let grove_static = assets.join("examples/grove-static");
+        let header = "export const SCHEMA_VERSION = 4;\n";
+        match case.asset {
+            // The provenance wrapper must preserve these selections.
+            Asset::Static => format!(
+                "import {grove_static:?} as grove;\n\
+                 import {provenance:?} as provenance;\n\
+                 {header}\
+                 export const VERSION = grove::VERSION;\n\
+                 fn select(request, context) {{\n\
+                 \x20   provenance::with_provenance(grove::select(request, context), grove::VERSION, request)\n\
+                 }}\n"
+            ),
+            // The owner's copy of the sample is a module beside the script.
+            Asset::Sample => {
+                let copy = cwd.join(".config/ravel/sample.rhai");
+                fs::create_dir_all(copy.parent().unwrap()).unwrap();
+                let source = sample.map(str::to_owned).unwrap_or_else(|| {
+                    fs::read_to_string(assets.join("sample/config.rhai")).unwrap()
+                });
+                fs::write(&copy, source).unwrap();
+                format!(
+                    "import {:?} as owner;\n\
+                     import {provenance:?} as provenance;\n\
+                     {header}\
+                     export const VERSION = owner::VERSION;\n\
+                     fn select(request, context) {{\n\
+                     \x20   provenance::with_provenance(owner::select(request, context), owner::VERSION, request)\n\
+                     }}\n",
+                    copy.with_extension("")
+                )
+            }
+            Asset::Extended => format!(
+                "import {grove_static:?} as grove;\n\
+                 {header}\
+                 export const VERSION = \"ordinary-import-fixture\";\n\
+                 const ROUTES = grove::ROUTES + #{{\n\
+                 \x20   \"my-implementation\": grove::lead(\"high\"),\n\
+                 \x20   \"my-review\": grove::review(\"high\"),\n\
+                 }};\n\
+                 fn select(request, context) {{ grove::select_route(global::ROUTES, request) }}\n"
+            ),
+            Asset::GroveReview => format!(
+                "import {:?} as grove_review;\n\
+                 {header}\
+                 export const VERSION = grove_review::VERSION;\n\
+                 fn load_context(request) {{ grove_review::load_context(request) }}\n\
+                 fn select(request, context) {{ grove_review::select(request, context) }}\n",
+                assets.join("examples/grove-review")
+            ),
+            Asset::Review => format!(
+                "import {:?} as review;\n\
+                 {header}\
+                 export const VERSION = review::VERSION;\n\
+                 fn load_context(request) {{ review::load_context(request) }}\n\
+                 fn select(request, context) {{ review::select(request, context) }}\n",
+                assets.join("examples/review")
+            ),
+            Asset::Gateway => format!(
+                "import {:?} as review;\n\
+                 {header}\
+                 export const VERSION = \"gateway-fixture\";\n\
+                 fn route() {{ |request| #{{ program: \"my-codex-wrapper\", args: [request.prompt],\n\
+                 \x20   provider: \"openai\", model: \"gateway\", effort: \"high\" }} }}\n\
+                 const RULES = #{{ routes: #{{ impl: route() }},\n\
+                 \x20   reviews: #{{ \"review-impl\": #{{ openai: route(), anthropic: route() }} }} }};\n\
+                 fn load_context(request) {{ review::load_context(request) }}\n\
+                 fn select(request, context) {{ review::select_with(global::RULES, request, context) }}\n",
+                assets.join("examples/review")
+            ),
+            Asset::Provenance => {
+                let (selection, version) = owner(case);
+                format!(
+                    "import {provenance:?} as provenance;\n\
+                     {header}\
+                     export const VERSION = {};\n\
+                     const SELECTION = ravel::json_parse({});\n\
+                     fn load_context(request) {{\n\
+                     \x20   if request.taskFile == () {{\n\
+                     \x20       return if request.context == () {{ #{{ schemaVersion: 1 }} }} else {{ request.context }};\n\
+                     \x20   }}\n\
+                     \x20   let read = ravel::read_text(request.taskFile);\n\
+                     \x20   #{{ schemaVersion: 1, facts: #{{ marker: read.text }}, sources: [read.source] }}\n\
+                     }}\n\
+                     fn owner(request) {{\n\
+                     \x20   let chosen = global::SELECTION;\n\
+                     \x20   if type_of(chosen) == \"map\" && type_of(chosen.get(\"args\")) == \"array\" {{\n\
+                     \x20       let args = [];\n\
+                     \x20       for arg in chosen.args {{\n\
+                     \x20           args.push(if type_of(arg) == \"string\" && arg == \"<prompt>\" {{ request.prompt }} else {{ arg }});\n\
+                     \x20       }}\n\
+                     \x20       chosen.args = args;\n\
+                     \x20   }}\n\
+                     \x20   chosen\n\
+                     }}\n\
+                     fn select(request, context) {{\n\
+                     \x20   provenance::with_provenance(owner(request), global::VERSION, request)\n\
+                     }}\n",
+                    support::ravel::quote(&version),
+                    support::ravel::quote(&selection.to_string()),
+                )
             }
         }
     }
@@ -1231,8 +1530,8 @@ impl Fixture {
         )
     }
 
-    /// Every case of the table for `assets`, checked against this runtime.
-    /// Returns one line for each case that differs.
+    /// Every case of `cases`, checked against this runtime. Returns one line
+    /// for each case that differs.
     fn check(&self, cases: &[Case], sample: Option<&str>) -> Vec<String> {
         let runtime = self.runtime();
         cases
@@ -1252,12 +1551,109 @@ impl Fixture {
     }
 }
 
-fn agent_script(capture: &Path, pair: &InstalledRavel) -> String {
+/// The owner selection and version of an `Asset::Provenance` case.
+fn owner(case: &Case) -> (serde_json::Value, String) {
+    case.setup
+        .iter()
+        .find_map(|setup| match setup {
+            Setup::Owner { selection, version } => Some((selection.clone(), version.clone())),
+            _ => None,
+        })
+        .unwrap_or_else(|| panic!("{}: a provenance case states its owner", case.name))
+}
+
+/// A fake agent: it writes its name and arguments, each ending with a NUL, and
+/// any receipt that it received, then ends the session.
+fn agent_script(capture: &Path, evidence: &Path, pair: &InstalledRavel) -> String {
     format!(
-        "#!/bin/sh\nprintf '%s\\0' \"${{0##*/}}\" \"$@\" > '{}'\n'{}' end-session grove-continue\n",
+        "#!/bin/sh\nprintf '%s\\0' \"${{0##*/}}\" \"$@\" > '{}'\n\
+         if [ \"${{GROVE_PROVIDER_EVIDENCE+set}}\" = set ]; then printf '%s' \"$GROVE_PROVIDER_EVIDENCE\" > '{}'; fi\n\
+         '{}' end-session grove-continue\n",
         capture.display(),
+        evidence.display(),
         pair.executable().display(),
     )
+}
+
+fn copy_tree(from: &Path, to: &Path) {
+    fs::create_dir_all(to).unwrap();
+    for entry in fs::read_dir(from).unwrap() {
+        let entry = entry.unwrap();
+        let target = to.join(entry.file_name());
+        if entry.file_type().unwrap().is_dir() {
+            copy_tree(&entry.path(), &target);
+        } else {
+            fs::copy(entry.path(), target).unwrap();
+        }
+    }
+}
+
+/// `receipt` with its attempt as `<attempt>` when the attempt is a lowercase
+/// UUID v4. Another attempt stays, so that the comparison shows it.
+fn fresh_attempt(receipt: &str) -> String {
+    const KEY: &str = "\"attemptId\":\"";
+    let Some(start) = receipt.find(KEY).map(|at| at + KEY.len()) else {
+        return receipt.to_owned();
+    };
+    let Some(id) = receipt.get(start..start + 36) else {
+        return receipt.to_owned();
+    };
+    let valid = id.char_indices().all(|(index, character)| match index {
+        8 | 13 | 18 | 23 => character == '-',
+        14 => character == '4',
+        19 => "89ab".contains(character),
+        _ => character.is_ascii_hexdigit() && !character.is_ascii_uppercase(),
+    });
+    if valid {
+        format!("{}<attempt>{}", &receipt[..start], &receipt[start + 36..])
+    } else {
+        receipt.to_owned()
+    }
+}
+
+/// A number without a fraction as an integer. Ravel 2.0 writes a JSON float
+/// of the caller's document as a float, such as `1.0`, and Ravel 1.1 writes it
+/// as `1`.
+fn integral(value: &mut serde_json::Value) {
+    match value {
+        serde_json::Value::Number(number) => {
+            if let Some(float) = number
+                .as_f64()
+                .filter(|_| !number.is_i64() && !number.is_u64())
+            {
+                if float.fract() == 0.0 && float.abs() < 9.0e15 {
+                    *value = (float as i64).into();
+                }
+            }
+        }
+        serde_json::Value::Array(items) => items.iter_mut().for_each(integral),
+        serde_json::Value::Object(fields) => fields.values_mut().for_each(integral),
+        _ => {}
+    }
+}
+
+/// The delivered context `value` without `measured`, its source digests as
+/// `<sha256>`, its integral numbers as integers and its paths normalised.
+fn comparable_context(
+    value: &serde_json::Value,
+    normal: &dyn Fn(&str) -> String,
+) -> serde_json::Value {
+    let mut value: serde_json::Value = serde_json::from_str(&normal(&value.to_string())).unwrap();
+    integral(&mut value);
+    if let Some(fields) = value.as_object_mut() {
+        fields.remove("measured");
+        if let Some(sources) = fields
+            .get_mut("sources")
+            .and_then(|sources| sources.as_array_mut())
+        {
+            for source in sources {
+                if let Some(digest) = source.get_mut("sha256") {
+                    *digest = "<sha256>".into();
+                }
+            }
+        }
+    }
+    value
 }
 
 fn apply(cwd: &Path, setup: &Setup) {
@@ -1293,6 +1689,9 @@ fn apply(cwd: &Path, setup: &Setup) {
             fs::create_dir_all(&dir).unwrap();
             fs::write(dir.join("settings.json"), settings.to_string()).unwrap();
         }
+        Setup::Task(bytes) => fs::write(cwd.join("task.md"), bytes).unwrap(),
+        Setup::Context(text) => fs::write(cwd.join("context.json"), text).unwrap(),
+        Setup::TaskId(_) | Setup::Owner { .. } => {}
     }
 }
 
@@ -1375,6 +1774,85 @@ fn static_example_matches_the_case_table() {
 fn sample_matches_the_case_table() {
     let fixture = Fixture::new();
     report(fixture.check(&assets(cases(), &[Asset::Sample]), None));
+}
+
+#[test]
+#[ignore = "requires installed Ravel: task ravel:policy RAVEL=/absolute/path/to/ravel"]
+fn review_assets_match_the_case_table() {
+    let fixture = Fixture::new();
+    report(fixture.check(
+        &assets(
+            cases(),
+            &[
+                Asset::GroveReview,
+                Asset::Review,
+                Asset::Gateway,
+                Asset::Provenance,
+            ],
+        ),
+        None,
+    ));
+}
+
+/// The controls of the Rhai review assets: a wrapper whose receipt has another
+/// member order, and helpers that trim with Rhai's own `trim`.
+#[test]
+#[ignore = "requires installed Ravel: task ravel:policy RAVEL=/absolute/path/to/ravel"]
+fn rhai_review_controls_fail() {
+    if Fixture::new().runtime() != Runtime::V2_0 {
+        eprintln!("not run: the Rhai review assets need the 2.0 runtime");
+        return;
+    }
+    let all = cases();
+    let named = |names: &[&str]| -> Vec<Case> {
+        let chosen: Vec<Case> = all
+            .iter()
+            .filter(|case| names.contains(&case.name.as_str()))
+            .cloned()
+            .collect();
+        assert_eq!(chosen.len(), names.len(), "{names:?}");
+        chosen
+    };
+
+    // Each receipt that the wrapper records, and the loader's reading of one,
+    // must fail when the member order changes.
+    let order = named(&[
+        "provenance records recording 0",
+        "provenance records recording 1",
+        "grove review reads recording 1",
+    ]);
+    let reordered = Fixture::new().with_mutated_assets(|assets| {
+        let file = assets.join("provenance.rhai");
+        let source = fs::read_to_string(&file).unwrap();
+        let changed = source.replace(
+            r#"const MEMBERS = ["schemaVersion", "attemptId", "provider","#,
+            r#"const MEMBERS = ["schemaVersion", "provider", "attemptId","#,
+        );
+        assert_ne!(changed, source, "the order control must change the wrapper");
+        fs::write(file, changed).unwrap();
+    });
+    assert_eq!(reordered.check(&order, None).len(), order.len());
+    assert!(Fixture::new().check(&order, None).is_empty());
+
+    // Rhai's `trim` keeps U+FEFF and removes U+0085.
+    let blank = named(&[
+        "grove review declared U+FEFF is blank",
+        "grove review declared U+0085 is a label",
+        "provenance refuses a blank provider U+FEFF",
+        "grove review receipt version U+FEFF is blank",
+    ]);
+    let trimmed = Fixture::new().with_mutated_assets(|assets| {
+        let file = assets.join("provenance.rhai");
+        let source = fs::read_to_string(&file).unwrap();
+        let changed = source.replace(
+            "fn blank(text) {",
+            "fn blank(text) {\n    let trimmed = text;\n    trimmed.trim();\n    return trimmed == \"\";",
+        );
+        assert_ne!(changed, source, "the trim control must change the helpers");
+        fs::write(file, changed).unwrap();
+    });
+    assert_eq!(trimmed.check(&blank, None).len(), blank.len());
+    assert!(Fixture::new().check(&blank, None).is_empty());
 }
 
 // A changed expectation in the table must fail against the same build.

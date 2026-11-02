@@ -201,14 +201,14 @@ tasks:
       - bash scripts/ravel-policy-typecheck.sh "{{.RAVEL}}"
 
   ravel:policy:runtime:
-    desc: Run the shared case table and the TypeScript review assets through copied installed Ravel with fake agents and isolated PATH
+    desc: Run the shared case table of both asset sets through copied installed Ravel with fake agents and isolated PATH
     requires:
       vars: [RAVEL]
     env:
       GROVE_TEST_RAVEL: '{{.RAVEL}}'
       GROVE_TEST_RAVEL_RUNTIME: '{{.RAVEL_RUNTIME}}'
     cmds:
-      - cargo nextest run --locked -p grove --test ravel_asset_cases --test ravel_policy_assets --run-ignored only {{.CLI_ARGS}}
+      - cargo nextest run --locked -p grove --test ravel_asset_cases --run-ignored only {{.CLI_ARGS}}
 
   ravel:commands:
     desc: Check shared public lifecycle and confined commands against installed Ravel

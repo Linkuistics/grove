@@ -1,5 +1,7 @@
 //! Grove review conventions through installed Ravel, without a Ravel store or
 //! embedded adapter. The policy is a caller-owned fixture; provenance is explicit.
+//! On 1.1 the fixture composes the TypeScript review assets, and on 2.0 their
+//! Rhai counterparts, with the same tables.
 mod support;
 
 use std::fs;
@@ -114,9 +116,8 @@ esac
 
     fn review_policy(&self, origin: &str, recorded: bool) {
         let assets = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../assets/ravel-policy");
-        support::write_config(
-            &self.home,
-            &format!(
+        let source = match support::runtime() {
+            support::ravel::Runtime::V1_1 => format!(
                 r#"
 import {{ withProvenance }} from {wrapper:?};
 import {{ groveReviewSelector }} from {adapter:?};
@@ -142,20 +143,42 @@ export const policy = {selected};
                 adapter = assets.join("examples/grove-review.ts").to_str().unwrap(),
                 script = self.script.to_str().unwrap()
             ),
-        );
+            support::ravel::Runtime::V2_0 => format!(
+                r#"
+import {wrapper} as provenance;
+import {adapter} as grove_review;
+export const SCHEMA_VERSION = 4;
+export const VERSION = "actual-caller-fixture";
+fn route(origin) {{
+    |request| #{{
+        program: "/bin/sh", args: [{script}, request.prompt, origin],
+        provider: origin, model: "irrelevant-label", effort: "none"
+    }}
+}}
+const RULES = #{{
+    routes: #{{ impl: route({origin}) }},
+    reviews: #{{ "review-impl": #{{ "origin-a": route("origin-b"), "origin-b": route("origin-a") }} }},
+}};
+fn load_context(request) {{ grove_review::load_context_with(global::RULES, request) }}
+fn select(request, context) {{
+    let selection = grove_review::select_with(global::RULES, request, context);
+    {selected}
+}}
+"#,
+                selected = if recorded {
+                    "provenance::with_provenance(selection, global::VERSION, request)"
+                } else {
+                    "selection"
+                },
+                wrapper = support::ravel::quote(assets.join("provenance").to_str().unwrap()),
+                adapter =
+                    support::ravel::quote(assets.join("examples/grove-review").to_str().unwrap()),
+                script = support::ravel::quote(self.script.to_str().unwrap()),
+                origin = support::ravel::quote(origin),
+            ),
+        };
+        support::write_config(&self.home, &source);
     }
-}
-
-/// Whether this run lacks the review assets of its runtime. The review adapter
-/// and the provenance wrapper exist only as TypeScript assets until
-/// grove-rhai-review-assets-k96 ports them to Rhai. Under the 2.0 runtime each
-/// case says so and runs nothing. That leaf removes this guard.
-fn review_assets_unported() -> bool {
-    let unported = support::runtime() == support::ravel::Runtime::V2_0;
-    if unported {
-        eprintln!("not run: the Rhai review assets arrive with grove-rhai-review-assets-k96");
-    }
-    unported
 }
 
 fn review(creator: &str, producer: &str) -> String {
@@ -171,9 +194,6 @@ fn review(creator: &str, producer: &str) -> String {
 
 #[test]
 fn retirement_clears_an_attempt_then_owner_declaration_survives_reordering_and_remapping() {
-    if review_assets_unported() {
-        return;
-    }
     let fixture = Fixture::new();
     fixture.file("01-impl--parser-k1.md", "# producer\n");
     fixture.file(
@@ -213,9 +233,6 @@ fn retirement_clears_an_attempt_then_owner_declaration_survives_reordering_and_r
 
 #[test]
 fn a_node_cascade_clears_all_live_reviews_of_finished_producers_only() {
-    if review_assets_unported() {
-        return;
-    }
     let fixture = Fixture::new();
     fixture.file("01-k1/_parser.md", "# parser\n");
     fixture.file("01-k1/01-k2/_piece.md", "# piece\n");
@@ -262,9 +279,6 @@ fn a_node_cascade_clears_all_live_reviews_of_finished_producers_only() {
 
 #[test]
 fn a_review_without_provenance_refuses_then_resumes_after_an_owner_declaration() {
-    if review_assets_unported() {
-        return;
-    }
     let fixture = Fixture::new();
     fixture.file("01-review-impl--review-k1.md", &review("", "producer-k99"));
     fixture.provenance_policy("origin-a");
@@ -288,9 +302,6 @@ fn a_review_without_provenance_refuses_then_resumes_after_an_owner_declaration()
 
 #[test]
 fn recorded_finishing_attempt_survives_remapping_and_review_retry() {
-    if review_assets_unported() {
-        return;
-    }
     let fixture = Fixture::new();
     fixture.file("01-impl--producer-k1.md", "# producer\n");
     fixture.file(
@@ -341,9 +352,6 @@ fn recorded_finishing_attempt_survives_remapping_and_review_retry() {
 
 #[test]
 fn recorded_node_close_attributes_every_finished_producer_to_closing_child_only() {
-    if review_assets_unported() {
-        return;
-    }
     let fixture = Fixture::new();
     fixture.file("01-k1/_producer.md", "# producer\n");
     fixture.file("01-k1/01-k2/_piece.md", "# piece\n");
@@ -403,9 +411,6 @@ fn recorded_node_close_attributes_every_finished_producer_to_closing_child_only(
 // an owner declaration must resume it through the shipped adapter.
 #[test]
 fn invalid_creator_refusals_leave_the_review_live_and_resume_after_repair() {
-    if review_assets_unported() {
-        return;
-    }
     for (creator, code) in [
         ("**Creator:** recorded {}", "creator_line_malformed"),
         (

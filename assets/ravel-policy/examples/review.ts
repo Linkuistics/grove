@@ -76,7 +76,7 @@ export function reviewSelector(rules: ReviewRules): ReviewSelector {
         : `creator origin ${JSON.stringify(origin)} declared by the owner`;
       const route = Object.hasOwn(entry, origin) ? entry[origin] : undefined;
       if (route === undefined) return refuse("creator_origin_unlisted",
-        `${description}; reviews[${JSON.stringify(kind)}] lists ${Object.keys(entry).map((key) => JSON.stringify(key)).join(", ") || "no origins"}. Origins match exactly`,
+        `${description}; reviews[${JSON.stringify(kind)}] lists ${Object.keys(entry).sort(byCodePoint).map((key) => JSON.stringify(key)).join(", ") || "no origins"}. Origins match exactly`,
         "correct the declaration or list the recorded origin in the review table; a relabelled provider is still the same provider");
       const reviewer = route(request);
       if (reviewer.provider === origin) return refuse("same_origin",
@@ -98,6 +98,13 @@ export const reviews = {
 } as const satisfies Readonly<Record<string, ReviewEntry>>;
 export const policy = definePolicy({ schemaVersion: 2, version: "grove/examples/review 1", ...reviewSelector({ routes, reviews }) });
 
+// List origins in code point order, as the Rhai counterpart's map does.
+function byCodePoint(left: string, right: string): number {
+  const a = Array.from(left, (character) => character.codePointAt(0)!);
+  const b = Array.from(right, (character) => character.codePointAt(0)!);
+  for (let index = 0; index < Math.min(a.length, b.length); index++) if (a[index] !== b[index]) return a[index]! - b[index]!;
+  return a.length - b.length;
+}
 function refuse(code: string, message: string, remedy: string): Refused {
   return { status: "refused", code, message, remedy };
 }

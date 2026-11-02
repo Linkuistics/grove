@@ -20,9 +20,16 @@ Each file names its runtime and schema. The layout is the same for both sets:
 - `examples/static.rhai` is Grove's copy of Ravel's Rhai starter. Ravel 2.0.0
   embeds no module, so `grove-static.rhai` imports it by its path. Its header
   records its one change from Ravel's copy.
-- `grove.ts`, `provenance.ts`, `examples/grove-review.ts`, `examples/review.ts`
-  and `typecheck/` are TypeScript only. The Rhai review adapter, review examples
-  and provider-evidence wrapper are not yet in this tree.
+- `grove.ts` and `grove.rhai` are the review adapter, which reads the
+  relationship and the creator from a Grove task file.
+- `provenance.ts` and `provenance.rhai` are the provider-evidence wrapper and
+  the receipt parser.
+- `examples/review.ts` and `examples/review.rhai` are the generic
+  creator-aware review selector. `examples/grove-review.ts` and
+  `examples/grove-review.rhai` compose it with the adapter, the static routes
+  and the wrapper.
+- `typecheck/` is TypeScript only. It holds strict development fixtures for
+  the 1.x set.
 
 Grove's [delivery specification](../../docs/specs/codex-skill-provisioning.md#caller-assets)
 owns the contract of both sets. Using these files does not install or overwrite
@@ -83,8 +90,8 @@ codex-design-claude-impl high-effort
 The samples grant the main repository to both harnesses when they run in a
 secondary jj workspace. Their `release-notes` route expects Grove's staged
 `codex-headless.sh` in the caller's cwd. These static routes compare no creator
-origins. For creator-aware routing on Ravel 1.x, import
-`examples/grove-review.ts` instead.
+origins. For creator-aware routing, import `examples/grove-review.ts` on Ravel
+1.x or `examples/grove-review.rhai` on Ravel 2.x instead.
 
 The two samples refuse alike, with three exceptions that the specification
 accepts in [Runtime parity](../../docs/specs/codex-skill-provisioning.md#runtime-parity).
@@ -110,26 +117,28 @@ with temporary fake agents on a private PATH.
 
 Run `task ravel:policy RAVEL=/absolute/path/to/ravel RAVEL_RUNTIME=<1.1|2.0>`
 against an explicit installed build. One case table in
-`crates/grove/tests/ravel_asset_cases.rs` drives the static and sample checks
-of both sets. Each case states the expected outcome for each runtime, and an
-accepted difference keeps its reason beside its case.
+`crates/grove/tests/ravel_asset_cases.rs` drives the checks of every asset in
+both sets. These are the static example, the sample, the adapter, the review
+examples and the wrapper. Each case states the expected outcome for each runtime, and an
+accepted difference keeps its reason beside its case. The table compares the
+receipt bytes too.
 
 - With `RAVEL_RUNTIME=1.1`, or with it unset, the task typechecks the
   TypeScript set strictly against that installed pair's declarations. It reuses
   the repository's pinned Bun 1.4.3 and TypeScript 7.0.2. It then runs the
-  table and the review assets through the real worker with fake agents.
+  table through the real worker with fake agents.
 - With `RAVEL_RUNTIME=2.0`, the task runs the table through public
   `start-session` of the 2.0 build with fake agents. Ravel 2.0 has no
-  typechecker. The TypeScript review checks report that they did not run.
+  typechecker.
 
 Runtime tests copy the independent installed build, with no Bun or Node on the
 child PATH and no model launches. The complete logs can be saved with
 `set -o pipefail; task ravel:policy RAVEL=... 2>&1 | tee <log>`.
 
-## Provider evidence and reviews, on Ravel 1.x
+## Provider evidence and reviews
 
-For selected-provider evidence, opt in around the final owner policy with
-`withProvenance` from `provenance.ts`. This wrapper supplies
+For selected-provider evidence on Ravel 1.x, opt in around the final owner
+policy with `withProvenance` from `provenance.ts`. This wrapper supplies
 `GROVE_PROVIDER_EVIDENCE` to the managed process while preserving the original
 argv and labels. The `examples/grove-review.ts` policy already wraps its final selection.
 When editing its composition, wrap the final policy only once. The [caller-owned record/context contract](../../docs/grove-provider-evidence.md)
@@ -174,7 +183,50 @@ receipt objects are validated by fields and values independent of key order.
 Raw JSON encoding and duplicate keys are no longer available after transport;
 use a Grove task receipt when canonical input bytes are required.
 
-Run `task ravel:review RAVEL=/absolute/installed/ravel` for public-SDK typechecks,
-installed-worker adapter/selection cases, actual Grove retirement/retry/refusal
-sessions. Grove owns these caller checks; executable/runtime controls run in
-Ravel. No model is launched.
+### The Rhai review composition, on Ravel 2.x
+
+The Rhai set has the same tables, refusals and receipts. Import
+`examples/grove-review.rhai` by its path, and keep the tree together, because
+it imports `grove-static.rhai`, `static.rhai`, `review.rhai`, `grove.rhai` and
+`provenance.rhai` by their paths:
+
+```rhai
+import "/absolute/path/to/examples/grove-review" as grove_review;
+export const SCHEMA_VERSION = 4;
+export const VERSION = grove_review::VERSION;
+fn load_context(request) { grove_review::load_context(request) }
+fn select(request, context) { grove_review::select(request, context) }
+```
+
+Its `select` already wraps the final selection with `with_provenance`. For
+your own tables, pass `#{ routes, reviews }` to `load_context_with` and
+`select_with`. Then wrap the final selection once:
+
+```rhai
+provenance::with_provenance(selection, global::VERSION, request)
+```
+
+A Rhai route is a closure. Rhai finds the function of a closure only while a
+function of the module that made it runs. `select_with` of `grove-review.rhai`
+therefore runs the selector inside `within` of `grove-static.rhai`. Make your
+own routes in a function of your configuration script, as `route(origin)`
+below does. A closure that one top-level constant holds and another names does
+not load.
+
+```rhai
+fn route(origin) { |request| #{ program: "my-agent", args: [request.prompt], provider: origin, model: "m", effort: "high" } }
+const RULES = #{ routes: grove_review::ROUTES, reviews: #{ "review-impl": #{ openai: route("anthropic") } } };
+```
+
+The Rhai helpers class a blank label by the whitespace set of ECMAScript's
+`trim`, so a label checks alike in both runtimes. Rhai lists the origins of a
+refusal in code point order, and `review.ts` sorts them the same way. One
+difference remains: a receipt that escapes an unpaired surrogate. The
+[provider evidence contract](../../docs/grove-provider-evidence.md#runtimes)
+gives its outcome on each runtime.
+
+`task ravel:review RAVEL=/absolute/installed/ravel RAVEL_RUNTIME=<1.1|2.0>`
+runs the typechecks of the 1.x set and the case table. It also runs actual
+Grove retirement, retry and refusal sessions with fake agents. Grove owns these
+caller checks; executable/runtime controls run in Ravel. No model is
+launched.

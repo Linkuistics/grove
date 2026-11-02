@@ -158,6 +158,13 @@ fn select_route(routes, request) {
     starter::select_route(routes, request)
 }
 
+/// Call `selection`, a closure without arguments, while a function of this
+/// module runs. A route of this file then resolves inside it, at any depth.
+/// `grove-review.rhai` runs its review selector this way.
+fn within(selection) {
+    selection.call()
+}
+
 /// The whole starter configuration: `ROUTES`, selected by kind.
 fn select(request, context) {
     select_route(global::ROUTES, request)

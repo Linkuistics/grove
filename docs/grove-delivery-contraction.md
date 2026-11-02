@@ -12,7 +12,7 @@ Grove launches `ravel` as an ordinary child process. One shared function of
 
 | Retired suite/asset | Applicable owner and coverage | Retired behaviour |
 |---|---|---|
-| worker/grove and tests/grove.rs | assets/ravel-policy/grove.ts, with the ravel_policy_assets measured task/marker/context cases and the creator_lifecycle production/retirement/retry/node-close cases | Embedded module registry/version report and legacy store lookup |
+| worker/grove and tests/grove.rs | assets/ravel-policy/grove.ts, with the ravel_asset_cases measured task/marker/context cases and the creator_lifecycle production/retirement/retry/node-close cases | Embedded module registry/version report and legacy store lookup |
 | worker/examples/review, grove-review and tests/review.rs | readable generic/Grove review examples, gateway/provider/evidence/refusal tests and strict type fixtures | Run/catalog lookup and record observations |
 | worker/examples/grove-static and tests/examples.rs | readable static example and all-kind literal command tests | Registered embedded Grove specifiers and worker-generated Grove declarations |
 | worker/sample and tests/sample.rs | caller sample, with arrangement/modifier/default/all-kind and secondary jj grant tests | init/inspect and old installed sample location |

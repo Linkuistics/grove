@@ -181,7 +181,14 @@ remedy words of the 1.x static example for that reason.
 A route of `grove-static.rhai` is a closure. Rhai finds the function of a
 closure only while a function of the module that made it runs. A script that
 composes these routes therefore selects through `select_route` of
-`grove-static.rhai`, not through the starter's own function.
+`grove-static.rhai`, not through the starter's own function. The review
+example `grove-review.rhai` runs its selector inside `within` of
+`grove-static.rhai` for the same reason. `review.rhai` calls each route through
+the starter's `select_route`, so routes of the starter, of the review example
+and of the owner's script resolve there. A script that passes routes of
+another module to `select_with` of `review.rhai` calls it from a function of
+that module. Otherwise the evaluation ends with an error, and nothing
+launches.
 
 #### Runtime parity
 
@@ -217,9 +224,19 @@ route recorded. These obligations are separate:
 One difference remains in the receipt. A JavaScript string can hold an unpaired
 surrogate, and a Rhai string cannot. The TypeScript review loader accepts a
 receipt that escapes one, and the Rhai review loader refuses it as
-`creator_line_malformed`. The TypeScript wrapper records such a receipt only
-from an owner label that holds an unpaired surrogate. The remedy is the declaration of the
-provider by the owner.
+`creator_line_malformed`. Ravel 1.x then refuses the context that carries the
+accepted receipt as `context_invalid`, because JSON cannot carry the string. So
+neither runtime launches a reviewer.
+
+The TypeScript wrapper records such a receipt only from an owner label that
+holds an unpaired surrogate. The remedy is the declaration of the provider by
+the owner.
+
+Ravel's own checks of a selection follow the wrapper. Ravel of both majors
+counts U+0085 as whitespace when it checks an owner version and a provider. No
+wrapper therefore records a version or a provider of U+0085 alone. Rhai keeps
+the keys of a map in code point order. The review examples of both runtimes
+therefore list the origins of a refusal in that order.
 
 The Rhai sample passes `request.prompt` to each harness. Where the sandbox of a
 harness needs explicit directories, the sample adds one read grant for each

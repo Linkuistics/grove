@@ -8,19 +8,24 @@ external research-pack proof can build.
 
 ## Done when
 
-- Ravel acquires configured local sources and exact pinned Git revisions,
-  injects their skill-directory paths, and automatically prepares the prompt before
-  owner policy constructs the command. The original task and ending commands
-  remain intact in their separate block.
-- Exact cached revisions work offline. Missing required revisions fail clearly
-  without substitution. Directories and resources remain readable for sessions and
-  delegates, including confined launches.
+- Ravel captures configured local sources, injects their skill-directory paths
+  and prepares the prompt automatically before owner policy constructs the
+  command. The original task and ending commands remain intact in their
+  separate block.
+- Ravel runs no VCS command and makes no network request for a source. A
+  missing required source or root refuses as `skill_source_missing` before any
+  worker, without substitution. A record of another `type` refuses as
+  `settings_invalid` with the checkout remedy. Directories and resources
+  remain readable for sessions and delegates, including confined launches.
+- A checkout that a tool outside Ravel makes works as an ordinary local
+  source. Acceptance uses a plain Git checkout at a commit and requires no
+  checkout tool.
 - Grove removes obsolete automatic native provisioning. Users may supply skills
   natively in each harness or through Ravel directory injection. Grove only names
   the skill and imposes no delivery route. Any core fallback uses the common path. No source
   pack has moved yet, and no kind registry or new workflow protocol exists.
-- Public fixture tests cover launch/resolution, failures, offline reuse,
-  concurrency/lifetime and confinement. Existing Grove tree/launch behaviour
+- Public fixture tests cover launch/resolution, failures, launches without a
+  network, concurrency/lifetime and confinement. Existing Grove tree/launch behaviour
   remains green.
 - Real Claude Code and Codex trials activate a relevant craft skill without the
   task naming it, and record the read before the action. They use isolated homes
@@ -47,12 +52,24 @@ The staged route now includes design repairs for upstream Rhai changes:
    reviewed upstream artifact, then earn its design review before local planning.
 6. `ravel-local-delivery-k23`: deliver local capture, retained directories and
    automatic public launch preparation with its settled schema, Rhai host and grants.
-7. `ravel-pinned-delivery-k25`: extend the same route to exact Git acquisition,
-   verified offline reuse and mixed-source failure/lifetime behaviour.
-8. `grove-dual-ravel-k27`: prove the supported native and directory releases,
-   explicit configuration examples and installed layouts against independent builds.
-9. `common-loading-acceptance-k29`: measure actual Claude Code/Codex behaviour
-   and reconcile the integrated checks and reproducible handoff to research.
+7. `ravel-pinned-delivery-k25`: withdrawn. During ravel-git-acquire-k77 the
+   human removed Git sources from Ravel, and its remaining leaves are abandoned.
+8. `ravel-local-sources-k78`: narrow Ravel's contract to local sources.
+9. `owner-pack-checkouts-k79`: settle the owner's checkout tool outside Ravel.
+   Three review chains followed, and `owner-switch-recovery-k87` rebuilt the
+   switch's recovery with its own review chain.
+10. `skill-loading-replan-k80`: reconcile the briefs with the local-source
+    decision and grow the implementation leaves.
+11. `ravel-local-sources-k90`: replace the temporary Git refusal with the
+    permanent `type` refusal and remove the remaining Git code.
+12. `grove-dual-ravel-k27`: prove the supported native and directory releases,
+    explicit configuration examples and installed layouts against independent
+    builds.
+13. `common-loading-acceptance-k29`: measure actual Claude Code/Codex behaviour
+    and reconcile the integrated checks and reproducible handoff to research.
+
+The owner's checkout and switch implementation is in discovery-rollout-k6,
+which owns the owner cutover.
 
 Only the native stage has implementation detail now. The later planners consume
 actual preceding commits and grow focused leaves, carrying fixture checks and
@@ -85,7 +102,7 @@ follow their reviews before later consumers edit the same artifacts.
 The human clarified the boundary during grove-skill-delivery-k8: Ravel injects
 directory locations and does not resolve a requested skill. The earlier
 ravel-skill-discovery-k7/k14 catalog design must be revised before planning.
-Retain local/pinned/offline/lifetime requirements. Do not reintroduce a catalog
+Retain the local-source and lifetime requirements. Do not reintroduce a catalog
 dependency into Grove. Test native-only setup as well as isolated directory
 delivery. The adoption design's new review must consume that upstream clarification.
 
@@ -146,7 +163,8 @@ prerequisites itself, preserving the paused task tree.
 
 The Ravel feature producer owns work in a separate jj workspace on
 `skill-directory-delivery`, based on the exact main revision recorded by k34.
-The local and pinned stage owners each rebase and check at entry. Each records
+The local stage owner and ravel-local-sources-k90 each rebase and check at
+entry. Each records
 exact bases and output commits, and keeps the incomplete local subset off main.
 Rollout owns the final rebase, full checks, main landing and complete-feature
 release. The named Ravel owner must receive this integration contract before
@@ -186,10 +204,10 @@ TestAnyware is an explicit acceptance case. A disposable proof cannot replace
 the actual owner cutover. Old lazy readers and the final session's guidance
 must remain readable.
 
-The directory feature stays unpublished through local, pinned and actual-harness
-acceptance. A local build refuses Git sources before configuration evaluation
-without a stable public error code. Pinned delivery removes that temporary
-refusal and its fixture.
+The directory feature stays unpublished through local, dual-Ravel and
+actual-harness acceptance. The local build refuses a Git source with status 3
+and no stable public code. ravel-local-sources-k90 replaces that temporary
+refusal with the permanent refusal of k78 and removes its fixture.
 
 ravel-rhai-skill-delivery-k34 settled the feature identity. The feature ships
 in the combined Ravel 2.0.0, with script and request schema 4. A schema-3
@@ -241,7 +259,7 @@ local stage output is Ravel commit `1d50dae5d29e`, on the unpushed bookmark
 `skill-directory-delivery`, above `main` `24a545236185`. Its parent
 `6436e66fdb30` is the build commit, with the build identity `2ee59f33657690da`.
 The build reports `ravel 1.1.0`. A valid Git source refuses with status 3 until
-the pinned stage.
+ravel-local-sources-k90.
 
 The "Local stage record" section of the Ravel design evidence holds the build
 inputs and checks. On macOS, `task smoke:pair OLD=<1.1 executable>

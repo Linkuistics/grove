@@ -1,5 +1,12 @@
 # ravel-pinned-delivery-k25 — brief
 
+## Outcome
+
+During ravel-git-acquire-k77 the human removed Git sources from the scope of
+Ravel. This node's goal is withdrawn, and its remaining leaves are abandoned.
+Its Done when is history, not a requirement. ravel-local-sources-k78 records
+the decision, and ravel-local-sources-k90 removes the Git code.
+
 ## Goal
 
 Extend the working local route to exact pinned Git sources, completing the

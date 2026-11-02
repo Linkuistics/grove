@@ -27,8 +27,9 @@ with existing native installations removed after accepted replacement delivery.
   before/after content, edits, history and workspace-registration checks.
 - The created work covers every remaining root obligation; the final rollout
   consumes concrete results rather than inheriting unspecified migration work.
-- Each move gives owner-ravel-skill-inventory-k38 exact final roots, revisions,
-  preserved resources and tool/hook requirements. Account explicitly for any
+- Each move gives owner-ravel-skill-inventory-k38 exact final roots, the
+  published commit for each pin, preserved resources and tool/hook
+  requirements. Account explicitly for any
   baseline skill outside the domain-pack table; none can disappear in a move.
 
 ## Notes

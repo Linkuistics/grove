@@ -15,9 +15,10 @@ hand a reproducible working source path to external-research-pack-k4.
   whole preamble without a new recovery reminder. A real delegate reads retained
   resources. Disposable sessions measure inherited ending authority and
   adapter isolation separately.
-- Native-only lifecycle, local/pinned/offline directory delivery, resource
-  lifetime and actual supported confinement/installed layouts have evidence
-  against identified independent builds. No fixture is credited as LLM adherence.
+- Native-only lifecycle, local directory delivery, resource lifetime and
+  actual supported confinement/installed layouts have evidence against
+  identified independent builds. Directory delivery includes a plain Git
+  checkout at a commit, a missing checkout and a launch without a network. No fixture is credited as LLM adherence.
   Each case names its Ravel route: native 1.1, native 2.0 with delivery
   disabled, or directory 2.0, as the delivery specification defines them.
   Each real harness also reports and force-stops when directory injection is

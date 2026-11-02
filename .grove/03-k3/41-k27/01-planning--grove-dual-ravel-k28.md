@@ -2,8 +2,9 @@
 
 ## Goal
 
-Grow concrete Grove caller and installed-distribution leaves using the now
-working directory-feature build and a preserved independent Ravel 1.1 build.
+Grow concrete Grove caller and installed-distribution leaves. Use the
+directory-feature build of ravel-local-sources-k90 and a preserved independent
+Ravel 1.1 build.
 Consume prior Rhai-native compatibility independently of the directory feature.
 
 ## Context
@@ -27,8 +28,9 @@ implementation here.
   outcome for each runtime, as the runtime parity of the delivery specification
   requires. Keep independent front, worker
   and package identities and isolated HOME settings.
-- Cover native-only lifecycle success and common-directory launches with local,
-  exact Git and offline sources. Keep confined standalone native readability
+- Cover native-only lifecycle success and common-directory launches with local
+  sources. Include a plain Git checkout at a commit, a missing checkout and a
+  launch without a network. Keep confined standalone native readability
   separate from native installation. When guidance is outside every permitted
   path, check the failure and the force-stop with no output publication.
 - Carry release fixtures, installed archive, formula and floor checks into

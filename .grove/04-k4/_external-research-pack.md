@@ -13,9 +13,13 @@ cross-repository loading contract before the remaining migrations.
 - Agents can find the research kind skills, core and supporting resources through
   Ravel's supplied directories. Conformance passes for core and the external pack
   without requiring source files left behind in Grove to make it pass.
-- Local and exact pinned Git sources work, cached pins work offline, and
-  unavailable required revisions fail clearly. Test from outside both source
-  checkouts and under the actual session/delegate read permissions.
+- ResearchSkills is published on its remote. A checkout of a published
+  commit, which a tool outside Ravel makes, works as a local source. The
+  proof uses a plain Git checkout and requires no particular checkout tool.
+  A missing checkout or root refuses as `skill_source_missing` before any
+  worker. Run each test from a directory outside the Grove working copy, the
+  ResearchSkills working copy and the checkout. Use the actual session and
+  delegate read permissions.
 - Existing research labels and routing remain compatible. Marketplace/source
   references and any packaging/build consumers affected by this move are
   reconciled in the same working increment.
@@ -24,7 +28,9 @@ cross-repository loading contract before the remaining migrations.
   with native copies absent, under the delivery specification's acceptance cases.
 - Applicable repository checks pass; Grove's full check uses the independent
   compatible Ravel build. The durable external-pack contract records the proven
-  layout, resource and conformance boundary for later migration planners.
+  layout, resource, checkout and conformance boundary for later migration
+  planners. The checkout boundary names the source directory and roots inside
+  any checkout of the pack.
 
 ## Decomposition
 

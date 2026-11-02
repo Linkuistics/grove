@@ -100,11 +100,15 @@ Resolve relative resources against their own skill directory.
 
 During ravel-git-acquire-k77 the human removed pinned Git sources from the
 scope of Ravel. The process of installing skills and keeping them up to date is
-not part of Ravel. Ravel reads local directories only. The pack checkouts that
-those directories hold get their revisions from a mechanism outside Ravel. A
-design leaf after the pinned node settles which owner supplies that mechanism.
-This paragraph supersedes each pinned-Git requirement in a brief below, until
-the replanning leaf reconciles those briefs.
+not part of Ravel. Ravel reads local directories only. A mechanism outside
+Ravel sets the revision of each pack checkout in those directories.
+
+owner-pack-checkouts-k79 settled the mechanism, and owner-pack-checkouts-k82
+integrated its review. Ravel and Grove require no checkout tool. A tool
+outside Ravel holds each of the owner's pack checkouts at a published commit.
+`docs/specs/owner-skill-delivery.md` names the owner's tool. It also states
+the commands, the missing-checkout behaviour and the behaviour without a
+network.
 
 Account for compaction, delegates, source/resource lifetime, duplicate native
 copies, and actual launch permissions. The automatic contract covers launched

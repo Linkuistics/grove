@@ -20,7 +20,8 @@ confinement. No trials here.
   source provenance. Each also records the order of mandatory reads,
   supporting reads and actions, and the native startup text. Task activity
   must trigger craft guidance without naming the skill.
-- Assign explicit cases in those leaves to local, pinned and offline sources.
+- Assign explicit cases in those leaves to local sources. Assign cases to a
+  plain Git checkout at a commit and to a launch without a network.
   Also assign bare and plugin-qualified requests with native copies absent,
   and a concrete loader with a match, an absent-match fallback and another
   error. Add an express native-only restriction, a concrete path, ambiguity,

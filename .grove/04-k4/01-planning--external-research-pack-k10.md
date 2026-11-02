@@ -16,8 +16,9 @@ and distribution consumers. Requirements and destinations are in the root brief.
 - Identify a complete research-pack slice, including its core references,
   resources, provenance, own checks and the consumers that otherwise break.
 - Cut focused design or implementation leaves for that slice and its external
-  local/pinned/offline loading and conformance proof, using the parent's public
-  seams. Put dependency decisions before migration.
+  loading and conformance proof, using the parent's public seams. The loading
+  proof covers the working copy as a local source and a checkout of a
+  published commit. Put dependency decisions before migration.
 - Define the durable external-pack contract artifact and the evidence needed
   before repository-moves-k5 may start.
 - Preserve a working core and keep the parent live until its proof is delivered.

@@ -23,8 +23,10 @@ not establish directory delivery.
   of the delivery specification visible. Keep the TypeScript assets at their
   installed paths for 1.x. One case table drives the checks of both sets, with
   the expected outcome for each runtime. No owner configuration is overwritten.
-- Local, pinned and warmed offline directory launches preserve the mandate, the
-  endings, the mandatory order and resource access. Native-only lifecycle needs
+- Directory launches from local sources preserve the mandate, the endings,
+  the mandatory order and resource access. One source is a plain Git checkout
+  at a commit, and one launch runs without a network. A missing checkout
+  refuses as `skill_source_missing` before any worker. Native-only lifecycle needs
   no sources. Confined native access is measured separately, without a
   directory-grant bypass.
 - Caller specifications, ADRs and views, the glossary, source-exact books and
@@ -47,7 +49,9 @@ and the reviewed repairs ravel-rhai-skill-delivery-k34 and
 grove-rhai-skill-delivery-k35.
 
 The reviewed Ravel contract is commit `822c0ed2f67d` on the bookmark
-`skill-directory-delivery`. Grove's adoption contract is the commit that
+`skill-directory-delivery`, narrowed to local sources at `7a894c782037` by
+ravel-local-sources-k78. The directory build is the output of
+ravel-local-sources-k90. Grove's adoption contract is the commit that
 retires grove-rhai-skill-delivery-k35, with the change that
 grove-rhai-skill-delivery-k52 made. That integration of the review
 grove-rhai-skill-delivery-k51 added the Runtime parity section of the delivery

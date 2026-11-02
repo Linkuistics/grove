@@ -41,4 +41,9 @@ Use coordinated-ravel-release-k36 for available builds and publication order.
 ## Notes
 
 This leaf plans; its generated implementation leaves perform the authorized
-owner changes. Preserve the real current setup until its replacement is accepted.
+owner changes. owner-switch-program-k91 and owner-switch-entries-k92 deliver
+the switch program before this leaf. owner-pack-checkouts-k93 puts the
+real-HOME checkouts in place after it. Insert the drafts of order 4 and the
+staging trials of order 5 before k93. Put the marketplace freeze and the
+rehearsal on the real plan after k93. Consume the "Owner-delivery handoff"
+of the parent brief. Preserve the real current setup until its replacement is accepted.

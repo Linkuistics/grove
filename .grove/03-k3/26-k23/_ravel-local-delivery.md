@@ -110,12 +110,11 @@ the examples and `CHANGELOG.md` with its behaviour. A producer that earns a
 
 ## Notes
 
-Use local-only settings for the acceptance of this stage. Refuse a valid
-required Git source before configuration import or evaluation, with a remedy
-that names the unfinished pinned stage. Do not label valid settings invalid or
-assign a stable published code. Pinned delivery removes this temporary refusal
-and its fixture. Do not claim the full discovery contract or publish the local
-subset.
+Use local-only settings for the acceptance of this stage. This stage refused
+a valid Git source temporarily, with status 3 and no stable code. Ravel later
+withdrew Git sources. ravel-local-sources-k90 replaces that refusal with the
+permanent `settings_invalid` refusal of ravel-local-sources-k78 and removes
+its fixture. Do not publish the local subset.
 
 Keep the repaired configuration and API shapes intact. An unclosed public
 decision earns a design leaf before dependent work. Use independent temporary
@@ -126,12 +125,12 @@ common-loading-acceptance-k29 owns real LLM adherence.
 
 Ravel main was `24a54523` at this integration. The design repair records the
 exact current-main base before implementation. Work stays on the Ravel bookmark
-`skill-directory-delivery`, outside main, through pinned delivery and
+`skill-directory-delivery`, outside main, through ravel-local-sources-k90 and
 acceptance. The owning local implementation session rebases onto the
 then-current main at entry. It reconciles upstream changes and reruns affected
 checks before it records its exact base and output commits.
 
-The pinned stage repeats that procedure. Rollout owns the final rebase, full
+ravel-local-sources-k90 repeats that procedure. Rollout owns the final rebase, full
 checks, landing of the complete feature on main and release. No incomplete
 local build may enter an unrelated release. Hand this contract to the Ravel
 owner before cross-repository implementation. Do not edit the tree of the other

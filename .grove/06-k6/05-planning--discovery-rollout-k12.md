@@ -48,6 +48,9 @@ do not wait for the paused Rhai workstream or edit its task tree. Consume the re
 before cutting implementation work. Assign the prepared post-Grove promotion
 to finish explicitly; do not leave an ordinary task after the finish sentinel.
 
+Consume the "Owner-delivery handoff" of the parent brief for the digest,
+tree-ID and recovery-table obligations.
+
 A request to plan is not the finish confirmation. The finish session proposes
 the concrete whole sequence and obtains its one explicit confirmation under
 the repository rules. Do not ask again for already authorized individual moves.

@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "name": "explicit-native-match",
+  "purpose": "An explicit request row of Ravel's agent discovery rules (claude-explicit-routes-k109). A native loader request with a native copy in the sandbox .claude/skills. Expect the Skill tool first, and no directory copy loaded only because it exists.",
+  "credits": [],
+  "harness": "claude",
+  "route": "directory-2.0",
+  "mode": "lifecycle",
+  "model": "claude-opus-5-5",
+  "effort": "medium",
+  "kinds": [
+    "impl"
+  ],
+  "sources": [
+    {
+      "id": "grove",
+      "plugin": "plugins/grove",
+      "roots": [
+        "skills"
+      ]
+    },
+    {
+      "id": "linkuistics",
+      "plugin": "plugins/linkuistics",
+      "roots": [
+        "skills"
+      ]
+    }
+  ],
+  "mandatory": [
+    {
+      "source": "linkuistics",
+      "path": "skills/using-jujutsu/SKILL.md"
+    },
+    {
+      "source": "grove",
+      "path": "skills/grove/SKILL.md"
+    }
+  ],
+  "native": [
+    {
+      "name": "decision-records",
+      "from": "plugins/linkuistics/skills/decision-records"
+    }
+  ],
+  "timeoutMinutes": 30
+}

@@ -22,7 +22,9 @@ case's Grove tree, and the settings of the case's route. It then runs the
 scratch Grove driver with the 2.0 front first on PATH, from an allow-listed
 environment, and writes the case record. A standalone case runs `grove run`
 instead, which Ravel confines. A case can add access probes inside the launch
-and an offline `ravel skills resolve`. `reextract` extracts the events of an
+and an offline `ravel skills resolve`. For an explicit-route request, a case
+can also copy native skills into the sandbox `.claude/skills`, write the
+sandbox `.claude/settings.json` and plant files under the trial's `guidance/`. `reextract` extracts the events of an
 earlier run again, from its unchanged transcripts. A real run spends
 subscription usage, so no gate runs it. `scripts/test_harness_trial.py` tests
 the runner against fake harnesses.
@@ -91,8 +93,16 @@ DEFAULT_EFFORT = "medium"
 # transcript shows what the agent chose to read. Ravel's confinement is an
 # operating-system sandbox outside the harness, and this mode leaves it in force.
 PERMISSION_MODE = "bypassPermissions"
-# The longest Bash command a committed record holds.
+# The longest Bash command or text block a committed record holds.
 COMMAND_CHARS = 160
+# The longest Skill result a record holds. A successful load returns the
+# skill's text, and its start is enough to name the skill.
+SKILL_RESULT_CHARS = 300
+# The directory of a trial that holds the files a case plants for a
+# concrete-path request, outside the repository and every snapshot.
+PLANTED = "guidance"
+# A tree file's placeholder for the trial directory.
+TRIAL_TOKEN = "{{TRIAL}}"
 
 
 class TrialError(Exception):
@@ -355,6 +365,8 @@ class Classifier:
         self.snapshots = [(source["id"], self._norm(source["snapshotRoot"])) for source in skills.get("sources", [])]
         self.origins = [(source["id"], self._norm(source["originPath"])) for source in skills.get("sources", [])]
         self.native = [self._norm(str(home / ".claude")), self._norm(str(home / ".codex"))]
+        # The files that a case plants for a concrete-path request.
+        self.planted = self._norm(str(home.parent / PLANTED))
         self.repo = self._norm(str(repo))
 
     @staticmethod
@@ -386,6 +398,9 @@ class Classifier:
         for root in self.native:
             if self._inside(path, root):
                 return "native", self._skill(path)
+        if self._inside(path, self.planted):
+            # A planted skill file names its skill by its own directory.
+            return "planted", Path(path).parent.name if path.endswith("/SKILL.md") else None
         if self._inside(path, self.repo):
             return "work", None
         return "other", None
@@ -403,6 +418,7 @@ class Classifier:
 PATH_TOKEN = re.compile(r"""(?<![\w.])(/[^\s'"`;|&<>()]+)""")
 READ_CLASSES = (
     "mandatory", "descriptor", "kind-skill", "skill", "supporting", "listing", "source-origin", "native",
+    "planted",
 )
 SEPARATORS = {"&&", "||", ";", "|", "&", "\n", "(", ")"}
 
@@ -498,15 +514,29 @@ def tool_target(name: str, tool_input: dict[str, Any], cwd: str = "/") -> tuple[
     return ",".join(sorted(tool_input)), []
 
 
+def result_text(content: Any) -> str:
+    """The text of one tool result, which is a string or a list of blocks."""
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        return "\n".join(b.get("text", "") for b in content if isinstance(b, dict) and b.get("type") == "text")
+    return ""
+
+
 def extract_events(entries: list[dict[str, Any]], classifier: Classifier) -> list[dict[str, Any]]:
-    """The ordered tool calls of one transcript, each with its class."""
+    """The ordered tool calls and text blocks of one transcript, each with its
+    class. A disclosure or a report is text, so its order against the tool
+    calls needs the text blocks. A Skill call keeps its result text, which
+    says whether the native loader matched."""
     errors: dict[str, bool] = {}
+    results: dict[str, str] = {}
     for entry in entries:
         content = (entry.get("message") or {}).get("content")
         if isinstance(content, list):
             for block in content:
                 if isinstance(block, dict) and block.get("type") == "tool_result":
                     errors[block.get("tool_use_id", "")] = bool(block.get("is_error"))
+                    results[block.get("tool_use_id", "")] = result_text(block.get("content"))
     events = []
     for entry in entries:
         if entry.get("type") != "assistant":
@@ -515,6 +545,10 @@ def extract_events(entries: list[dict[str, Any]], classifier: Classifier) -> lis
         if not isinstance(content, list):
             continue
         for block in content:
+            if isinstance(block, dict) and block.get("type") == "text" and block.get("text", "").strip():
+                events.append({"seq": len(events) + 1, "tool": "text", "target": block["text"].strip(),
+                               "error": None, "sidechain": bool(entry.get("isSidechain")), "class": "text"})
+                continue
             if not (isinstance(block, dict) and block.get("type") == "tool_use"):
                 continue
             name = block.get("name", "")
@@ -537,6 +571,7 @@ def extract_events(entries: list[dict[str, Any]], classifier: Classifier) -> lis
                 event["class"], event["path"] = "action", target
             elif name == "Skill":
                 event["class"] = "native-skill-tool"
+                event["resultText"] = results.get(block.get("id", ""), "")[:SKILL_RESULT_CHARS]
             elif name in ("Task", "Agent"):
                 event["class"] = "delegate"
             elif name == "Bash":
@@ -679,11 +714,69 @@ def harness_program(environ: Mapping[str, str]) -> Path:
 
 
 def plant_repo(repo: Path, tree: Path, env: dict[str, str]) -> str:
+    """The case's tree as `.grove/` of a new jj repository. A task can name a
+    concrete path of the trial, so `{{TRIAL}}` in a tree file becomes the
+    trial directory."""
     repo.mkdir()
     run_checked(["jj", "--config", "git.colocate=false", "git", "init", "."], cwd=repo, env=env)
     shutil.copytree(tree, repo / ".grove")
+    for path in (repo / ".grove").rglob("*.md"):
+        text = path.read_text()
+        if TRIAL_TOKEN in text:
+            path.write_text(text.replace(TRIAL_TOKEN, str(repo.parent)))
     run_checked(["jj", "commit", "--quiet", "--message", "trial tree"], cwd=repo, env=env)
     return run_checked(["jj", "log", "--no-graph", "-r", "@-", "-T", "commit_id"], cwd=repo, env=env)
+
+
+def install_native(case: dict[str, Any], home: Path, checkout: Path) -> list[dict[str, str]]:
+    """The case's native copies, each a skill directory of the checkout copied
+    into the sandbox `.claude/skills`, never into the owner's home."""
+    installed = []
+    for item in case.get("native", []):
+        source = checkout / item["from"]
+        target = home / ".claude" / "skills" / item["name"]
+        shutil.copytree(source, target)
+        installed.append({"name": item["name"], "from": item["from"],
+                          "path": str(target.relative_to(home)),
+                          "skillSha256": sha256_file(target / "SKILL.md")})
+    return installed
+
+
+def expected_native(case: dict[str, Any]) -> list[str]:
+    """The native copies that the case declares, as `skill_files` names them."""
+    return sorted(f".claude/skills/{item['name']}/SKILL.md" for item in case.get("native", []))
+
+
+def native_failures(native: list[str], expected: list[str]) -> list[str]:
+    if native == expected:
+        return []
+    return [f"the sandbox home holds the native copies {native}, and the case declares {expected}"]
+
+
+def write_claude_settings(case: dict[str, Any], home: Path) -> dict[str, Any] | None:
+    """The case's `.claude/settings.json` in the sandbox home, such as a deny
+    rule that makes the native loader refuse a skill it holds."""
+    settings = case.get("claudeSettings")
+    if settings is None:
+        return None
+    path = home / ".claude" / "settings.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(settings, indent=2) + "\n")
+    return settings
+
+
+def plant_files(case: dict[str, Any], trial: Path, checkout: Path) -> list[dict[str, str]]:
+    """The case's planted files: checkout files copied under the trial's
+    `guidance/`, for a concrete-path request."""
+    planted = []
+    for item in case.get("plant", []):
+        target = trial / item["to"]
+        if Path(item["to"]).parts[:1] != (PLANTED,) or ".." in Path(item["to"]).parts:
+            raise TrialError(f"case {case['name']}: a planted file must lie under {PLANTED}/, not {item['to']}")
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(checkout / item["from"], target)
+        planted.append({"from": item["from"], "path": item["to"], "sha256": sha256_file(target)})
+    return planted
 
 
 def tree_state(repo: Path) -> list[str]:
@@ -978,6 +1071,9 @@ def run_case(prepared_dir: Path, name: str, environ: Mapping[str, str],
     settings = settings_for(case, checkout)
     if settings:
         (home / ".config" / "ravel" / "settings.json").write_text(json.dumps(settings, indent=2) + "\n")
+    installed = install_native(case, home, checkout)
+    claude_settings = write_claude_settings(case, home)
+    planted = plant_files(case, trial, checkout)
     route = route_for(case, records, program, model, effort, fixed_probes(case, home, checkout))
     (trial / "route.json").write_text(json.dumps(route, indent=2) + "\n")
     (home / ".config" / "ravel" / "config.rhai").write_text(config_for(case, route))
@@ -1092,7 +1188,8 @@ def run_case(prepared_dir: Path, name: str, environ: Mapping[str, str],
                     "settings": settings},
         "environment": sorted(env),
         "links": {"before": links_before, "after": links_after, "failure": link_failure},
-        "skills": {"nativeCopies": native, "residue": residue},
+        "skills": {"nativeCopies": native, "residue": residue, "installed": installed,
+                   "claudeSettings": claude_settings, "planted": planted},
         "launches": launches,
         "contrast": contrast,
         "resolve": resolve,
@@ -1124,8 +1221,7 @@ def run_case(prepared_dir: Path, name: str, environ: Mapping[str, str],
         failures.append("the driver launched no harness; read driver.stderr of the trial")
     if link_failure:
         failures.append(link_failure)
-    if native:
-        failures.append(f"native copies exist in the sandbox home: {native}")
+    failures += native_failures(native, expected_native(case))
     if resolve:
         failures += resolve_failures(resolve, launches)
     say(f"record {trial}/record.md")
@@ -1175,8 +1271,14 @@ def cell(text: Any) -> str:
 
 def shown(event: dict[str, Any]) -> str:
     target = event["target"]
-    if event["tool"] == "Bash" and len(target) > COMMAND_CHARS:
+    if event["tool"] in ("Bash", "text") and len(target) > COMMAND_CHARS:
         target = target[:COMMAND_CHARS] + "…"
+    if event["tool"] == "text":
+        return cell(target)
+    if event["tool"] == "Skill" and event.get("resultText"):
+        result = event["resultText"]
+        result = result[:COMMAND_CHARS] + "…" if len(result) > COMMAND_CHARS else result
+        return f"`{cell(target)}`: {cell(result)}"
     return f"`{cell(target)}`" if target else ""
 
 
@@ -1205,6 +1307,12 @@ def render(record: dict[str, Any]) -> str:
         f"| Links before and after | {cell(record['links']['before'] and record['links']['before'][0][0])} only; after: {cell(', '.join(link for link, _ in record['links']['after']) or 'none')} |",
         f"| Driver environment | {cell(', '.join(record['environment']))} |",
         f"| Native copies | {cell(', '.join(record['skills']['nativeCopies']) or 'none')} |",
+        *[f"| Installed native copy | `{i['path']}` from `{i['from']}`, `SKILL.md` SHA-256 `{i['skillSha256']}` |"
+          for i in record['skills'].get('installed', [])],
+        *([f"| Sandbox `.claude/settings.json` | `{cell(json.dumps(record['skills']['claudeSettings']))}` |"]
+          if record['skills'].get('claudeSettings') is not None else []),
+        *[f"| Planted file | `$TRIAL/{p['path']}` from `{p['from']}`, SHA-256 `{p['sha256']}` |"
+          for p in record['skills'].get('planted', [])],
         f"| Synced claude.ai skills (residue) | {cell(', '.join(record['skills']['residue']) or 'none')} |",
         "",
     ]
@@ -1218,7 +1326,8 @@ def render(record: dict[str, Any]) -> str:
             f"- Child environment names: {cell(', '.join(launch['envNames']))}.",
         ]
         for transcript in launch["transcripts"]:
-            lines += [f"- Transcript `{transcript['file']}`: SHA-256 `{transcript['sha256']}`, {len(transcript['events'])} tool calls."]
+            lines += [f"- Transcript `{transcript['file']}`: SHA-256 `{transcript['sha256']}`, {sum(e['tool'] != 'text' for e in transcript['events'])} tool calls, "
+                      f"{sum(e['tool'] == 'text' for e in transcript['events'])} text blocks."]
         startup = next((t["startup"] for t in launch["transcripts"] if t["startup"]), launch["startup"]) or {}
         init = startup.get("init", {})
         lines += [

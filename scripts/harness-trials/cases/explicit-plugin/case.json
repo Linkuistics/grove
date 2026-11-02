@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "name": "explicit-plugin",
+  "purpose": "An explicit request row of Ravel's agent discovery rules (claude-explicit-routes-k109). A plugin-qualified name request with native copies absent. Expect a search of the supplied directories; the namespace selects no native loader.",
+  "credits": [],
+  "harness": "claude",
+  "route": "directory-2.0",
+  "mode": "lifecycle",
+  "model": "claude-opus-5-5",
+  "effort": "medium",
+  "kinds": [
+    "impl"
+  ],
+  "sources": [
+    {
+      "id": "grove",
+      "plugin": "plugins/grove",
+      "roots": [
+        "skills"
+      ]
+    },
+    {
+      "id": "linkuistics",
+      "plugin": "plugins/linkuistics",
+      "roots": [
+        "skills"
+      ]
+    }
+  ],
+  "mandatory": [
+    {
+      "source": "linkuistics",
+      "path": "skills/using-jujutsu/SKILL.md"
+    },
+    {
+      "source": "grove",
+      "path": "skills/grove/SKILL.md"
+    }
+  ],
+  "timeoutMinutes": 30
+}

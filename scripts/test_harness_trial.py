@@ -125,7 +125,7 @@ if sys.argv[1:3] == ["auth", "status"]:
     sys.exit(0)
 snap = sys.argv[sys.argv.index("--add-dir") + 1]
 names = {{"SNAP": snap, "HOME": str(home), "DESC": os.environ.get("RAVEL_SKILL_DIRECTORIES", ""),
-         "CWD": os.getcwd()}}
+         "CWD": os.getcwd(), "TRIAL": str(home.parent)}}
 session = "11111111-2222-3333-4444-555555555555"
 if behaviour.get("noInit"):
     print("Error: Input must be provided", file=sys.stderr)
@@ -136,11 +136,15 @@ print(json.dumps({{"type": "system", "subtype": "init", "session_id": session, "
 entries = [{{"type": "attachment", "attachment": {{"type": "skill_listing", "skillCount": 0, "names": []}}}},
            {{"type": "attachment", "attachment": {{"type": "credential_org", "org": "secret-org"}}}}]
 for n, (tool, field, value, error) in enumerate(behaviour["tools"]):
+    if tool == "text":
+        entries.append({{"type": "assistant", "message": {{"content": [{{"type": "text", "text": value}}]}}}})
+        continue
     tid = f"toolu_{{n}}"
     entries.append({{"type": "assistant", "message": {{"content": [
         {{"type": "tool_use", "id": tid, "name": tool, "input": {{field: value.format(**names)}}}}]}}}})
     entries.append({{"type": "user", "message": {{"content": [
-        {{"type": "tool_result", "tool_use_id": tid, "is_error": error, "content": "x"}}]}}}})
+        {{"type": "tool_result", "tool_use_id": tid, "is_error": error,
+          "content": [{{"type": "text", "text": f"{{tool}} result"}}]}}]}}}})
 if behaviour.get("noSession"):
     # A confined harness cannot write its session file. Its stream holds the
     # same tool calls.
@@ -156,6 +160,9 @@ if behaviour.get("replaceLink"):
     store.mkdir()
 if behaviour.get("extraLink"):
     os.symlink("/", home / ".claude/extra")
+if behaviour.get("strayNative"):
+    (home / ".claude/skills/stray").mkdir(parents=True)
+    (home / ".claude/skills/stray/SKILL.md").write_text("stray\n")
 print(json.dumps({{"type": "result", "subtype": "success"}}))
 '''
 
@@ -186,7 +193,10 @@ TOOLS = [
     ("Bash", "command", "S=\"{SNAP}/skills/grove\"; cat \"$S/references/execute.md\"; ls -R \"${{S}}\"", False),
     ("Read", "file_path", "{DESC}", False),
     ("Read", "file_path", "{HOME}/.claude/skills/old/SKILL.md", True),
+    ("text", "text", "The native loader has no match, so I search the directories.", False),
     ("Skill", "skill", "grove-impl", True),
+    # A concrete path that the case planted outside the repository.
+    ("Read", "file_path", "{TRIAL}/guidance/craft/SKILL.md", True),
     ("Write", "file_path", "{CWD}/smoke.txt", False),
     ("Bash", "command", "jj commit -m smoke", False),
     ("Bash", "command", "'/x/bin/ravel' end-session grove-continue", False),
@@ -200,7 +210,9 @@ EXPECTED = [
     ("Bash", "supporting", "grove", False),
     ("Read", "descriptor", None, False),
     ("Read", "native", "old", True),
+    ("text", "text", None, None),
     ("Skill", "native-skill-tool", None, True),
+    ("Read", "planted", "craft", True),
     ("Write", "action", None, False),
     ("Bash", "command", None, False),
     ("Bash", "ending", None, False),
@@ -233,7 +245,8 @@ class Fixture:
         front.parent.mkdir(parents=True)
         self._exec(front, FAKE_FRONT.format(python=sys.executable))
         checkout = root / "source"
-        (checkout / "plugins/grove/skills").mkdir(parents=True)
+        (checkout / "plugins/grove/skills/craft").mkdir(parents=True)
+        (checkout / "plugins/grove/skills/craft/SKILL.md").write_text("craft\n")
         (self.prepared / "prepared.json").write_text(json.dumps({
             "grove": {"commit": "c" * 40, "prefix": str(grove_bin.parent),
                       "sha256": {name: trial.sha256_file(grove_bin / name) for name in ("grove", "grove-llm")}},
@@ -294,6 +307,17 @@ def plant_cases(root: Path) -> Path:
         **smoke, "name": "confined", "mode": "standalone", "probes": True,
         "standalone": {"kind": "impl", "prompt": "prompt.md", "outputs": ["stamp.sh"]},
         "mandatory": [{"source": "grove", "path": "skills/grove/SKILL.md"}],
+    }))
+    # A case with a native copy, a sandbox deny rule, a planted file and a task
+    # that names the planted path.
+    explicit = cases / "explicit"
+    shutil.copytree(cases / "smoke", explicit)
+    (explicit / "tree" / "02-impl--path-k2.md").write_text("Read `{{TRIAL}}/guidance/craft/SKILL.md`.\n")
+    (explicit / "case.json").write_text(json.dumps({
+        **smoke, "name": "explicit",
+        "native": [{"name": "craft", "from": "plugins/grove/skills/craft"}],
+        "claudeSettings": {"permissions": {"deny": ["Skill(craft)"]}},
+        "plant": [{"from": "plugins/grove/skills/craft/SKILL.md", "to": "guidance/craft/SKILL.md"}],
     }))
     return cases
 
@@ -426,6 +450,9 @@ class HarnessTrialTest(unittest.TestCase):
         self.assertEqual(events, EXPECTED)
         self.assertEqual([e["seq"] for e in main[0]["events"]], list(range(1, len(EXPECTED) + 1)))
         self.assertEqual(fixture.record()["ending"]["endingCommands"], ["grove-continue"])
+        by_tool = {e["tool"]: e for e in main[0]["events"]}
+        self.assertEqual(by_tool["text"]["target"], "The native loader has no match, so I search the directories.")
+        self.assertEqual(by_tool["Skill"]["resultText"], "Skill result")
         startup = main[0]["startup"]
         self.assertEqual(startup["init"]["permissionMode"], "bypassPermissions")
         self.assertNotIn("session_id", startup["init"])
@@ -444,6 +471,8 @@ class HarnessTrialTest(unittest.TestCase):
         self.broken(self.check_events, "bash_paths", lambda command, cwd: trial.PATH_TOKEN.findall(command))
         # A runner that expands no assigned variable misses the read in it.
         self.broken(self.check_events, "expand", lambda token, variables: None if "$" in token else token)
+        # A runner that drops the result text loses what the native loader said.
+        self.broken(self.check_events, "result_text", lambda content: "")
 
     def check_reextract(self, fixture: Fixture):
         status, output = fixture.run()
@@ -474,11 +503,66 @@ class HarnessTrialTest(unittest.TestCase):
         self.assertEqual(record["ending"]["launches"], 1)
         self.assertFalse(record["ending"]["teardownRecorded"])
         self.assertEqual(record["ending"]["treeBefore"], record["ending"]["treeAfter"])
-        self.assertEqual(record["skills"], {"nativeCopies": [], "residue": []})
+        self.assertEqual(record["skills"], {"nativeCopies": [], "residue": [], "installed": [],
+                                            "claudeSettings": None, "planted": []})
         markdown = (Path(record["trial"]) / "record.md").read_text()
         for needle in ("| Route | directory-2.0 |", "Native startup text:", "| 4 | Bash | kind-skill | grove-impl |",
                        "Harness launches: 1."):
             self.assertIn(needle, markdown)
+
+    # --- Native copies, sandbox settings and planted files ---------------------
+
+    def check_explicit(self, fixture: Fixture):
+        owner_before = sorted(str(p) for p in fixture.owner.rglob("*"))
+        status, output = fixture.run("explicit")
+        self.assertEqual(status, 0, output)
+        record = fixture.record()
+        trial_dir = Path(record["trial"])
+        home = trial_dir / "home"
+        self.assertEqual(record["skills"]["nativeCopies"], [".claude/skills/craft/SKILL.md"])
+        self.assertEqual(record["skills"]["installed"][0]["skillSha256"],
+                         trial.sha256_bytes(b"craft\n"))
+        self.assertTrue((home / ".claude/settings.json").is_file(), "the case's settings were not written")
+        self.assertEqual(json.loads((home / ".claude/settings.json").read_text()),
+                         {"permissions": {"deny": ["Skill(craft)"]}})
+        self.assertTrue((trial_dir / "guidance/craft/SKILL.md").is_file(), "the case's file was not planted")
+        self.assertEqual((trial_dir / "guidance/craft/SKILL.md").read_text(), "craft\n")
+        task = (trial_dir / "repo/.grove/02-impl--path-k2.md").read_text()
+        self.assertEqual(task, f"Read `{trial_dir}/guidance/craft/SKILL.md`.\n")
+        self.assertEqual(sorted(str(p) for p in fixture.owner.rglob("*")), owner_before,
+                         "a native copy or a setting reached the owner's home")
+        markdown = (trial_dir / "record.md").read_text()
+        for needle in ("| Installed native copy | `.claude/skills/craft` from", "| Planted file | `$TRIAL/guidance/craft/SKILL.md`",
+                       "| Sandbox `.claude/settings.json` |"):
+            self.assertIn(needle, markdown)
+
+    def test_a_case_installs_native_copies_settings_and_planted_files(self):
+        self.check_explicit(self.fixture)
+        self.broken(self.check_explicit, "install_native", lambda case, home, checkout: [])
+        self.broken(self.check_explicit, "write_claude_settings", lambda case, home: None)
+        self.broken(self.check_explicit, "plant_files", lambda case, trial_dir, checkout: [])
+        real_plant = trial.plant_repo
+
+        def unsubstituted(repo, tree, env):
+            with mock.patch.object(trial, "TRIAL_TOKEN", "{{NOT-A-TOKEN}}"):
+                return real_plant(repo, tree, env)
+
+        self.broken(self.check_explicit, "plant_repo", unsubstituted)
+
+    def test_a_planted_file_outside_the_guidance_directory_refuses(self):
+        case = {"name": "x", "plant": [{"from": "plugins/grove/skills/craft/SKILL.md", "to": "../escape"}]}
+        with self.assertRaises(trial.TrialError):
+            trial.plant_files(case, self.fixture.root, self.fixture.root / "source")
+
+    def check_stray_native(self, fixture: Fixture):
+        fixture.behave(strayNative=True)
+        status, output = fixture.run()
+        self.assertEqual(status, 1, output)
+        self.assertIn("holds the native copies ['.claude/skills/stray/SKILL.md']", output)
+
+    def test_an_undeclared_native_copy_fails_the_run(self):
+        self.check_stray_native(self.fixture)
+        self.broken(self.check_stray_native, "native_failures", lambda native, expected: [])
 
     def check_unstarted(self, fixture: Fixture):
         fixture.behave(noInit=True)

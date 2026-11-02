@@ -67,8 +67,21 @@ main() {
   [[ -f "$dependency" ]] || fail "missing admitted separate Ravel archive: $dependency"
   tar -xJf "$dependency" -C "$scratch/ravel" || fail 'cannot extract admitted Ravel archive'
   [[ "$(ls -A "$scratch/ravel")" == "ravel-v1.1.0-$TARGET" ]] || fail 'wrong Ravel target prefix'
-  note "extracted Grove $version and independent Ravel 1.1.0 into separate prefixes"
-  "$BASH" "$cases" "$scratch/prefix/$top" "$version" "$scratch/ravel/ravel-v1.1.0-$TARGET"
+  # The 2.0 lane's admitted archive, when the host names one. Its name keeps
+  # the version of the build, so its prefix is told apart by directory.
+  local lane_2=() dependency_2="${RAVEL_2_TARGET_ARCHIVE:-}" top_2
+  if [[ -n "$dependency_2" ]]; then
+    [[ -f "$dependency_2" ]] || fail "missing admitted Ravel 2.0 archive: $dependency_2"
+    mkdir "$scratch/ravel-2.0"
+    tar -xJf "$dependency_2" -C "$scratch/ravel-2.0" || fail 'cannot extract admitted Ravel 2.0 archive'
+    top_2="$(basename "$dependency_2" .tar.xz)"
+    [[ "$(ls -A "$scratch/ravel-2.0")" == "$top_2" ]] || fail 'wrong Ravel 2.0 target prefix'
+    lane_2=("$scratch/ravel-2.0/$top_2")
+    note "extracted Grove $version, independent Ravel 1.1.0 and the recorded Ravel 2.0 build into separate prefixes"
+  else
+    note "extracted Grove $version and independent Ravel 1.1.0 into separate prefixes"
+  fi
+  "$BASH" "$cases" "$scratch/prefix/$top" "$version" "$scratch/ravel/ravel-v1.1.0-$TARGET" "${lane_2[@]+"${lane_2[@]}"}"
 
 }
 

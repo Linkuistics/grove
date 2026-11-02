@@ -182,6 +182,144 @@ def test_cli_unpinned_archive_cannot_publish_partial_layout(tmp_path: Path) -> N
     assert not output.exists()
 
 
+LANE_2 = inputs.LANES["2.0"]
+MAC = "aarch64-apple-darwin"
+
+
+def lane_2_archive(
+    identity: str | None = None, manifest: tuple[str, ...] | None = None
+) -> bytes:
+    """A 2.0-lane macOS layout whose front embeds IDENTITY, as Ravel's build.rs does."""
+    top = inputs.archive_name(MAC, LANE_2).removesuffix(".tar.xz")
+    identity = LANE_2.build_identity if identity is None else identity
+    assert identity is not None
+    buffer = io.BytesIO()
+    names = manifest or LANE_2.manifest
+    directories = {top}
+    for name in names:
+        directories.update(
+            str(parent)
+            for parent in Path(f"{top}/{name}").parents
+            if str(parent) != "."
+        )
+    with tarfile.open(fileobj=buffer, mode="w:xz") as archive:
+        for directory in sorted(directories):
+            member = tarfile.TarInfo(directory)
+            member.type, member.mode = tarfile.DIRTYPE, 0o755
+            archive.addfile(member)
+        for name in names:
+            data = b"fixture"
+            mode = 0o644
+            if name == "bin/ravel":
+                data = bytes.fromhex("cffaedfe0c000001") + bytes(12) + identity.encode()
+                mode = 0o755
+            member = tarfile.TarInfo(f"{top}/{name}")
+            member.mode, member.size = mode, len(data)
+            archive.addfile(member, io.BytesIO(data))
+    return buffer.getvalue()
+
+
+def test_lane_2_admits_the_recorded_identity(tmp_path: Path) -> None:
+    data = lane_2_archive()
+    inputs.validate_and_extract(
+        data, MAC, hashlib.sha256(data).hexdigest(), tmp_path, LANE_2
+    )
+    top = tmp_path / inputs.archive_name(MAC, LANE_2).removesuffix(".tar.xz")
+    assert (top / "share/ravel/examples/sample.rhai").is_file()
+    assert not (top / "libexec").exists()
+
+
+def test_lane_2_refuses_another_build_identity(tmp_path: Path) -> None:
+    data = lane_2_archive(identity="0" * 64)
+    with refused("build identity"):
+        inputs.validate_and_extract(
+            data, MAC, hashlib.sha256(data).hexdigest(), tmp_path, LANE_2
+        )
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_lane_2_refuses_the_1_1_layout(tmp_path: Path) -> None:
+    data = lane_2_archive(manifest=inputs.LANES["1.1"].manifest)
+    with refused("manifest"):
+        inputs.validate_and_extract(
+            data, MAC, hashlib.sha256(data).hexdigest(), tmp_path, LANE_2
+        )
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_lane_2_refuses_a_target_it_does_not_record(tmp_path: Path) -> None:
+    archive_dir = tmp_path / "archives"
+    archive_dir.mkdir()
+    output = tmp_path / "output"
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(Path(inputs.__file__)),
+            "--lane",
+            "2.0",
+            "--archives",
+            str(archive_dir),
+            "--output",
+            str(output),
+            MAC,
+            TARGET,
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode != 0
+    assert f"lane 2.0 records no archive for {TARGET}" in result.stderr
+    assert "renameat2" in result.stderr
+    assert not output.exists()
+
+
+def test_lane_2_never_downloads_its_default_archives(tmp_path: Path) -> None:
+    consumer = tmp_path / "consumer/scripts"
+    consumer.mkdir(parents=True)
+    (consumer / "ravel_target_inputs.py").write_bytes(
+        Path(inputs.__file__).read_bytes()
+    )
+    tools = tmp_path / "tools"
+    tools.mkdir()
+    (tools / "curl").write_text("#!/bin/sh\necho unexpected-download >&2\nexit 91\n")
+    (tools / "curl").chmod(0o755)
+    output = tmp_path / "output"
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(consumer / "ravel_target_inputs.py"),
+            "--lane",
+            "2.0",
+            "--output",
+            str(output),
+            MAC,
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+        env={"PATH": f"{tools}:/usr/bin:/bin"},
+    )
+    assert result.returncode != 0
+    assert "never downloaded" in result.stderr, result.stderr
+    assert "unexpected-download" not in result.stderr
+    assert not output.exists()
+
+
+def test_status_names_each_target_the_lane_does_not_run(tmp_path: Path) -> None:
+    del tmp_path
+    result = subprocess.run(
+        [sys.executable, str(Path(inputs.__file__)), "--lane", "2.0", "--status"],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    lines = dict(line.split("\t", 1) for line in result.stdout.splitlines())
+    assert lines[MAC].startswith("recorded\t")
+    for target in ("aarch64-unknown-linux-gnu", "x86_64-unknown-linux-gnu"):
+        assert lines[target].startswith("not recorded\t"), lines
+
+
 @contextmanager
 def refused(message: str = "") -> Iterator[None]:
     try:
@@ -198,6 +336,12 @@ def main() -> None:
         (test_digest_is_checked_before_parsing_or_extracting, ()),
         (test_cli_missing_archive_does_not_download_or_create_layout, ()),
         (test_cli_unpinned_archive_cannot_publish_partial_layout, ()),
+        (test_lane_2_admits_the_recorded_identity, ()),
+        (test_lane_2_refuses_another_build_identity, ()),
+        (test_lane_2_refuses_the_1_1_layout, ()),
+        (test_lane_2_refuses_a_target_it_does_not_record, ()),
+        (test_lane_2_never_downloads_its_default_archives, ()),
+        (test_status_names_each_target_the_lane_does_not_run, ()),
     ]
     cases += [
         (test_each_missing_member_is_refused_before_extraction, (name,))

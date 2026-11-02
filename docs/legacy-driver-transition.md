@@ -182,6 +182,35 @@ installation works, it may remove the original keg. The preservation tool
 never removes a keg. Remove the recovery directory only
 when it is no longer needed. No original history import or catch-up work occurs.
 
+## Rehearsal beside a Ravel 2.0 prefix
+
+The live driver of this workstream ends through
+`/opt/homebrew/Cellar/ravel/1.1.0/bin/ravel`. A Ravel 2.0 prefix can be
+installed beside that keg, for example as the keg-only `ravel@2`. The
+rehearsal proves that this second prefix changes nothing for the old ending
+executable:
+
+```sh
+task legacy:rehearsal KEG=<22.1.0 keg> \
+  RAVEL=/opt/homebrew/Cellar/ravel/1.1.0/bin/ravel \
+  ALSO=<Ravel 2.0 prefix> OUT=<new directory>
+```
+
+`ALSO` puts the 2.0 front first on the PATH of the rehearsal. After each
+package step, the rehearsal runs the 1.1 front with `--version` and with
+`end-session` outside a session. The version must not change, and the ending
+must refuse with no result. The inventories of the 1.1 keg and of the 2.0
+prefix must also stay the same. The steps are prepare, apply, upgrade, verify,
+the legacy launch and cleanup. The nested launch uses `policy.ts` with schema 2,
+so a launch through the 2.0 front on PATH would fail.
+
+Homebrew no longer holds Grove 22.1.0 on this host. The published
+`grove-v22.1.0-aarch64-apple-darwin.tar.xz` has the SHA-256
+`b45a030cd280d3265e7a5857342e3cfe54ca6d2569f49892addb96d82cca3add`. Its
+four executables have the digests of the recorded inventory above. Extract it
+into a scratch directory, and give that directory as `KEG`. The rehearsal
+copies the keg and does not need the Homebrew receipt.
+
 ## k50 evidence
 
 The preparation-only run saved `target/k50/original-plan` without applying it.

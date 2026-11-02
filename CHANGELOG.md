@@ -111,6 +111,17 @@ stood at the graft — a closed record, not part of the versioned sequence above
   2.x `ravel`, and against an installed `ravel@2`. An upgrade changes no native
   skill entry, and a running 22.8 session completes.
 
+- Release checks: the independent Ravel inputs have two lanes. The 1.1 lane is
+  the published Ravel 1.1.0. The 2.0 lane admits only the recorded archives of
+  the Ravel 2.0 build. Admission checks their digests and the build identity in
+  `bin/ravel`, and it never downloads them. `task ravel:targets:smoke` runs each
+  lane with the configuration format of its runtime. The macOS release smoke
+  checks the Rhai caller set against the 2.0 build. Each runner names each
+  target that a lane did not run. The Linux targets of the 2.0 lane do not run
+  yet, because Ravel's directory build does not link at glibc 2.17. `task
+  legacy:rehearsal ALSO=<prefix>` checks the Ravel 1.1.0 ending executable after
+  each package step while a 2.0 prefix is installed.
+
 - `linkuistics` / `machine-environment`: describe `mise bootstrap` as the owner of
   Antony's machine setup. Packages are in `[bootstrap.packages]`, and dotfiles are
   tracked in place by mise history. The chezmoi source and the Brewfile are

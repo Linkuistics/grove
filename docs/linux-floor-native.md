@@ -105,6 +105,23 @@ live; linux-standalone-floor-k52 and grove-delivery-acceptance-k51 remain open.
 The original installed Grove 22.1.0 driver, complete keg and exit channel,
 owner policies, adjacent checkouts and production release state are preserved.
 
+## Runtime lanes
+
+The native and QEMU floor routes run Grove's callers against the 1.1 lane only.
+That lane is Ravel 1.1.0 with `policy.ts`. The 2.0 lane records no Linux
+archive, because Ravel's directory build does not link at glibc 2.17.
+[ravel-target-inputs.md](ravel-target-inputs.md#the-20-lane) gives the reason.
+
+No floor run measures these cases on the 2.0 lane with `config.rhai`:
+
+- the caller lifecycle, standalone output and caller imports.
+- the sandbox denial task.
+- the unreadable native guidance case.
+- the confined directory case of `crates/grove/tests/directory_route.rs`. That
+  case runs on macOS only.
+
+The leaf grove-linux-two-lane-k103 owns the Ravel repair and these cases.
+
 ## Completed native handoff — 2026-10-14
 
 `target/k54/native-rebuild.log` records the reusable native rebuild/acceptance

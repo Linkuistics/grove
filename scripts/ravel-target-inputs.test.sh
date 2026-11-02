@@ -1,9 +1,12 @@
 #!/usr/bin/env bash
 # Real CLI controls use pinned public archives; no archive authenticity seam.
+# ARCHIVES holds the 1.1 lane's published archives. ARCHIVES_2 holds the
+# recorded archives of the 2.0 lane (default target/ravel-archives-2.0).
 set -euo pipefail
 IFS=$'\n\t'
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-archives="${1:?usage: ravel-target-inputs.test.sh ARCHIVES}"
+archives="${1:?usage: ravel-target-inputs.test.sh ARCHIVES [ARCHIVES_2]}"
+archives_2="${2:-$repo_root/target/ravel-archives-2.0}"
 scratch="$(mktemp -d)"
 trap 'rm -rf "$scratch"' EXIT
 fail() {
@@ -79,3 +82,41 @@ refused 'SHA-256' env PATH="$scratch/tools:$PATH" python3 \
   refused 'lacks the complete Ravel pair' check_registration "$scratch/mixed" "$magic" "$mask"
 )
 printf 'ravel-inputs-test: cache and QEMU-registration controls passed\n'
+
+# The 2.0 lane admits only its recorded archives. The two lanes share archive
+# names until Ravel's cut, so each must refuse the other's bytes by digest.
+inputs() { python3 "$repo_root/scripts/ravel_target_inputs.py" "$@"; }
+recorded=()
+while IFS=$'\t' read -r target state _; do
+  [[ "$state" != recorded ]] || recorded+=("$target")
+done < <(inputs --lane 2.0 --status)
+((${#recorded[@]} > 0)) || fail 'the 2.0 lane records no archive'
+inputs --lane 2.0 --archives "$archives_2" --output "$scratch/lane-2" "${recorded[@]}"
+for target in "${recorded[@]}"; do
+  prefix="$(find "$scratch/lane-2/$target" -mindepth 1 -maxdepth 1 -type d)"
+  [[ -x "$prefix/bin/ravel" && -f "$prefix/share/ravel/examples/sample.rhai" ]] || fail "no 2.0 prefix for $target"
+  [[ ! -e "$prefix/libexec/ravel" ]] || fail "the 2.0 prefix for $target holds a 1.x worker"
+done
+mkdir "$scratch/changed-2" "$scratch/swapped-2" "$scratch/swapped-1"
+name="$(basename "$(find "$scratch/lane-2/archives" -name '*.tar.xz' | head -n 1)")"
+# One changed byte, in the middle of the archive.
+python3 - "$archives_2/$name" "$scratch/changed-2/$name" <<'PY'
+import sys
+from pathlib import Path
+data = bytearray(Path(sys.argv[1]).read_bytes())
+data[len(data) // 2] ^= 0x01
+Path(sys.argv[2]).write_bytes(bytes(data))
+PY
+refused 'SHA-256' inputs --lane 2.0 --archives "$scratch/changed-2" --output "$scratch/changed-2-layout" "${recorded[0]}"
+cp "$archives/$name" "$scratch/swapped-2/$name"
+refused 'SHA-256' inputs --lane 2.0 --archives "$scratch/swapped-2" --output "$scratch/swapped-2-layout" "${recorded[0]}"
+cp "$archives_2/$name" "$scratch/swapped-1/$name"
+refused 'SHA-256' inputs --archives "$scratch/swapped-1" --output "$scratch/swapped-1-layout" "${recorded[0]}"
+for output in changed-2-layout swapped-2-layout swapped-1-layout; do
+  [[ ! -e "$scratch/$output" ]] || fail "exposed refused $output"
+done
+refused 'records no archive' inputs --lane 2.0 --archives "$archives_2" --output "$scratch/unrecorded-layout"
+[[ ! -e "$scratch/unrecorded-layout" ]] || fail 'exposed a layout for an unrecorded target'
+refused 'SHA-256' bash "$repo_root/scripts/ravel-target-smoke.sh" \
+  --archives-2.0 "$scratch/changed-2" "${recorded[0]}"
+printf 'ravel-inputs-test: 2.0 lane admission, changed-byte, cross-lane and unrecorded-target controls passed\n'

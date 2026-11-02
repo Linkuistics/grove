@@ -95,7 +95,65 @@ def absent(pid: int) -> None:
     raise AssertionError(f"managed process still exists after reap: {pid}")
 
 
-def rehearse(original: Path, ravel: Path, output: Path) -> None:
+class Continuity:
+    """The ending executable of the old driver, checked after each package step.
+
+    The 1.1 front must still report its version and refuse an ending outside a
+    session. Neither Ravel installation may change. When a 2.0 prefix is also
+    installed, its front is first on the rehearsal PATH, so a step that found
+    Ravel by PATH would reach the wrong build.
+    """
+
+    def __init__(self, ravel: Path, also: Path | None) -> None:
+        self.ravel = ravel
+        self.keg = ravel.parent.parent
+        self.keg_before = transition.inventory(self.keg)
+        self.version = subprocess.run(
+            [str(ravel), "--version"],
+            env=transition.clean_environment(),
+            capture_output=True,
+            text=True,
+            timeout=15,
+            check=True,
+        ).stdout.strip()
+        self.also = also
+        self.also_before = transition.inventory(also) if also else None
+        self.steps: list[str] = []
+
+    def check(self, step: str, env: dict[str, str]) -> None:
+        clean = transition.clean_environment()
+        version = subprocess.run(
+            [str(self.ravel), "--version"],
+            env=clean,
+            capture_output=True,
+            text=True,
+            timeout=15,
+            check=False,
+        )
+        assert version.returncode == 0 and version.stdout.strip() == self.version, (step, version)
+        ending = subprocess.run(
+            [str(self.ravel), "end-session", "grove-continue"],
+            env=clean,
+            capture_output=True,
+            text=True,
+            timeout=15,
+            check=False,
+        )
+        assert ending.returncode != 0 and ending.stdout == "", (step, ending)
+        assert transition.inventory(self.keg) == self.keg_before, step
+        if self.also is not None:
+            assert transition.inventory(self.also) == self.also_before, step
+            found = shutil.which("ravel", path=env["PATH"])
+            assert (
+                found is not None and Path(found).resolve() == (self.also / "bin/ravel").resolve()
+            ), (
+                step,
+                found,
+            )
+        self.steps.append(step)
+
+
+def rehearse(original: Path, ravel: Path, output: Path, also: Path | None = None) -> None:
     if output.exists() or output.is_symlink():
         raise transition.TransitionError(f"rehearsal output exists: {output}")
     before = transition.inventory(original.resolve())
@@ -103,9 +161,11 @@ def rehearse(original: Path, ravel: Path, output: Path) -> None:
     output = output.resolve()
     original = original.resolve()
     ravel = ravel.resolve(strict=True)
+    also = also.resolve(strict=True) if also is not None else None
     # Independent Ravel remains at its actual separate installation/version.
     ravel_keg = ravel.parent.parent
     ravel_before = transition.inventory(ravel_keg)
+    continuity = Continuity(ravel, also)
     keg = output / "prefix/Cellar/grove/22.1.0"
     shutil.copytree(original, keg, symlinks=True)
     assert transition.inventory(keg) == before
@@ -122,6 +182,13 @@ def rehearse(original: Path, ravel: Path, output: Path) -> None:
         (prefix_bin / name).symlink_to(keg / "bin" / name)
     for name in ("home", "tmp", "legacy-channel", "ravel-channel", "store", "project"):
         (output / name).mkdir()
+    # A second Ravel installed beside the 1.1 keg, first on PATH.
+    path_head = ""
+    if also is not None:
+        also_bin = output / "ravel-2-bin"
+        also_bin.mkdir()
+        (also_bin / "ravel").symlink_to(also / "bin/ravel")
+        path_head = f"{also_bin}:"
     env = transition.clean_environment()
     env.update(
         HOME=str(output / "home"),
@@ -131,7 +198,7 @@ def rehearse(original: Path, ravel: Path, output: Path) -> None:
         TMPDIR=str(output / "tmp"),
         TMP=str(output / "tmp"),
         TEMP=str(output / "tmp"),
-        PATH=f"{stable}:{prefix_bin}:{tools}:/usr/bin:/bin",
+        PATH=f"{path_head}{stable}:{prefix_bin}:{tools}:/usr/bin:/bin",
         HOMEBREW_NO_INSTALL_CLEANUP="1",
         HOMEBREW_NO_CLEANUP_FORMULAE="grove",
     )
@@ -153,10 +220,12 @@ def rehearse(original: Path, ravel: Path, output: Path) -> None:
         "prepare",
     )
     assert result.returncode == 0, result.stderr
+    continuity.check("prepare", env)
     result = command(
         [sys.executable, script, "apply", "--plan", str(output / "plan")], env, output, "apply"
     )
     assert result.returncode == 0, result.stderr
+    continuity.check("apply", env)
     # Homebrew upgrade removes public old links and adds the new two-front layout.
     # It does not alter the complete canonical old keg while cleanup is suppressed.
     for name in ("grove", "grove-llm", "harness-dispatch"):
@@ -168,6 +237,7 @@ def rehearse(original: Path, ravel: Path, output: Path) -> None:
         (new_keg / name).chmod(0o755)
         (prefix_bin / name).symlink_to(new_keg / name)
     assert not (prefix_bin / "harness-dispatch").exists()
+    continuity.check("upgrade", env)
     result = command(
         [sys.executable, script, "verify", "--plan", str(output / "plan")],
         env,
@@ -175,6 +245,7 @@ def rehearse(original: Path, ravel: Path, output: Path) -> None:
         "verify-after-upgrade",
     )
     assert result.returncode == 0, result.stderr
+    continuity.check("verify", env)
     (output / "agent.py").write_text(AGENT)
     policy(output / "legacy-policy.ts", "harness-dispatch/sdk", "legacy", output, ravel)
     policy(output / "nested-policy.ts", "ravel/sdk", "nested", output, ravel)
@@ -218,6 +289,7 @@ def rehearse(original: Path, ravel: Path, output: Path) -> None:
     assert result.returncode == 0, result.stderr
     ending = json.loads(ended.read_text())
     assert ending["measurements"]["ending"]["value"] == "exit_signal", ending
+    continuity.check("legacy launch", env)
     assert (output / "legacy-signalled").exists()
     for name in ("legacy", "nested"):
         record = json.loads((output / f"{name}.json").read_text())
@@ -296,6 +368,7 @@ def rehearse(original: Path, ravel: Path, output: Path) -> None:
         "cleanup-after-reap",
     )
     assert result.returncode == 0 and not (stable / "harness-dispatch").exists()
+    continuity.check("cleanup", env)
     assert transition.inventory(keg) == before
     assert transition.inventory(original) == before
     assert transition.inventory(ravel_keg) == ravel_before
@@ -315,6 +388,12 @@ def rehearse(original: Path, ravel: Path, output: Path) -> None:
     print(
         "PASS original helper/version/no-op/stale refusal; worker/keg refusals; post-reap cleanup"
     )
+    print(
+        f"PASS {continuity.version} ending executable usable after each package step: "
+        + ", ".join(continuity.steps)
+    )
+    if also is not None:
+        print(f"PASS a second Ravel prefix first on PATH stayed unused and unchanged: {also}")
     print(f"PASS complete original and Ravel inventories unchanged; logs: {output}")
 
 
@@ -323,8 +402,13 @@ def main() -> None:
     parser.add_argument("--keg", type=Path, required=True)
     parser.add_argument("--ravel", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument(
+        "--also-installed",
+        type=Path,
+        help="another Ravel prefix, such as a 2.0 build, installed beside the 1.1 keg",
+    )
     args = parser.parse_args()
-    rehearse(args.keg, args.ravel, args.output)
+    rehearse(args.keg, args.ravel, args.output, args.also_installed)
 
 
 if __name__ == "__main__":

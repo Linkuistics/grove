@@ -60,8 +60,12 @@ TypeScript route unchanged:
    installed smoke.
 8. `grove-dual-target-inputs-k101`: the 2.0 lane of the pinned inputs, target
    and floor smoke, and legacy-driver continuity.
-9. `grove-dual-ravel-handoff-k102`: full checks with each explicit build, and
-   the stage record for k29 and k6.
+9. `grove-linux-two-lane-k103`: k101 found that the directory build does not
+   link at glibc 2.17, because it calls `renameat2`. This leaf repairs Ravel,
+   records the Linux 2.0 archives and runs the 2.0 lane on the Linux floors.
+   Ravel 2.0.0 cannot be cut before this repair.
+10. `grove-dual-ravel-handoff-k102`: full checks with each explicit build, and
+    the stage record for k29 and k6.
 
 Admission follows both asset leaves, because the delivery specification admits
 2.x only after the Rhai assets pass. The directory leaves follow admission, so
@@ -81,7 +85,9 @@ the route is advertised last.
   reports `ravel 1.1.0`, so identify it by commit and build identity. It
   installs one executable and no `libexec/ravel` worker.
 - **A changed line.** If rollout rebases the bookmark before this node closes,
-  record the new commits and identity. Do not move the bookmark here.
+  record the new commits and identity. Do not move the bookmark here, except
+  in grove-linux-two-lane-k103. That leaf adds the glibc 2.17 repair above
+  `4f831feb` as a Ravel stage, and it records the new build here.
 - **Homes.** Each route runs in its own temporary HOME, never the real one. The
   1.1 HOME holds `policy.ts` with schema 2 and settings with only `timeoutMs`,
   `contextBytes` and `policyEnv`. The native 2.0 HOME holds `config.rhai` with

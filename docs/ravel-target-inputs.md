@@ -1,6 +1,12 @@
 # Independent Ravel inputs for Grove delivery tests
 
-Grove's target tests consume released **Ravel 1.1.0**. They do not depend on
+Grove's target tests consume two **lanes** of independent Ravel archives. The
+1.1 lane is the released **Ravel 1.1.0**, with `policy.ts`. The 2.0 lane is a
+recorded build of **Ravel 2.0**, with `config.rhai`. Each lane has a record in
+`scripts/ravel_target_inputs.py`, and admission accepts only the archives of
+that record. No lane tests a Ravel that the PATH finds.
+
+The tests do not depend on
 Grove's version, archive manifest or source tree. The tests need no adjacent
 Ravel checkout, no Homebrew, no host Bun or Node, no replacement of the
 installed front and no release operation. Grove's release smoke now admits these
@@ -22,6 +28,85 @@ and Ravel's `docs/publication-evidence.md` record the publication provenance.
 | ravel-v1.1.0-aarch64-unknown-linux-gnu.tar.xz | `4334bd0adfa97391925b44029e96ce70744ecf3d141a2b5bb21174fd7cfa9c60` |
 | ravel-v1.1.0-x86_64-unknown-linux-gnu.tar.xz | `2a0f91c793069fa2dd8d73fcbe0fe383d383d029f60adc4a5b7f3726919b60fb` |
 
+## The 2.0 lane
+
+The 2.0 lane records the unpublished directory build of Ravel 2.0. Its archives
+come from `task release:archives` in the workspace `Ravel.skill-directory-delivery`.
+That task builds exact target archives with no version cut.
+
+| Subject | Record |
+|---|---|
+| Source commit | `4f831feb4d0f288f9699b1a4b02fc24cda9843c5`, the output commit of `ravel-local-sources-k90`. Its parent `78332fcc367d` is the build commit, and the two have the same build inputs |
+| Build identity | `9feb86b7982a3920f738b96ffd2d6e6bc1744d6345b87451196e9299721fb234` |
+| Archive name | `ravel-v1.1.0-TARGET.tar.xz`. The workspace version stays 1.1.0 until Ravel's cut, so the name does not tell the lanes apart |
+| Default directory | `target/ravel-archives-2.0`. Admission never downloads this lane |
+
+| Target | SHA-256 of the archive, or the reason that the lane does not run |
+|---|---|
+| aarch64-apple-darwin | `0bd671231b4dbfda83cb2b751b810cd54b94059caf336fecd77097bff67b379b` |
+| aarch64-unknown-linux-gnu | Not run. The build does not link at glibc 2.17, because `ravel::skills::dir::Dir::rename_noreplace` calls `renameat2`. glibc added `renameat2` in 2.28 |
+| x86_64-unknown-linux-gnu | Not run, for the same reason |
+
+The 2.0 manifest is `LICENSE`, `README.md`, `bin/ravel` and
+`share/ravel/examples/{llm,sample,static}.rhai`, with
+`share/ravel/notices/THIRD-PARTY-NOTICES.md`. Only `bin/ravel` is executable.
+A 2.0 prefix has no `libexec/ravel`. The front is also the Rhai worker.
+
+Ravel's `build.rs` embeds the build identity in `bin/ravel` as ASCII text.
+Admission checks the digest of the archive first. It then reads the bytes of
+`bin/ravel` and refuses an executable that does not hold the recorded
+identity. Admission runs no program, as for the 1.1 lane.
+
+A target without a record refuses before admission reads any archive. The
+refusal states the reason in the record. `--status` prints one line for each
+target: `recorded` with the archive name, or `not recorded` with the reason.
+Each runner that uses the 2.0 lane names each target that it did not run.
+
+The 2.0 lane runs these checks:
+
+- `ravel-target-smoke.sh` runs `scripts/ravel-installed-smoke-rhai.sh`. These
+  cases are a port of Ravel's own installed smoke at the source commit. They
+  copy `sample.rhai` and `static.rhai` into `config.rhai`. They check Rhai
+  imports, measured context, params and the four result shapes. They also check
+  the `config_format_retired` refusal of a TypeScript entry.
+- Grove's release smoke gives the macOS caller cases a 2.0 prefix as their
+  fourth argument. `grove-installed-smoke.sh` then checks the Rhai caller set
+  with `config.rhai`, in a HOME of its own.
+- The Linux floor routes run the 1.1 lane only. The release smoke names each
+  Linux target as not run on the 2.0 lane.
+
+## Rollout handoff: replace the local 2.0 record
+
+The 2.0 record holds local identities. Before Grove's release, rollout replaces
+the record with the published Ravel 2.0.0 archives. Do these steps after Ravel
+publishes 2.0.0, and before `task release:minor` in Grove:
+
+1. Download the three published archives of the release into a new empty
+   directory.
+2. Measure the SHA-256 of each archive with `shasum -a 256`.
+3. Compare each value with the `digest` field that GitHub reports for the asset.
+4. In the `"2.0"` lane of `scripts/ravel_target_inputs.py`, set `stem` to
+   `2.0.0`.
+5. Put the three measured digests in `pins`, and make `unrecorded` empty.
+6. Set `release` to the download directory of the 2.0.0 release. Admission then
+   fetches missing archives into `target/ravel-archives-2.0`, as the 1.1 lane does.
+7. Set `source_commit` to the peeled commit of the `v2.0.0` tag.
+8. Set `build_identity` to the identity of the published build. Read it from the
+   routing notice of a launch, or from the `RAVEL_BUILD_ID` that `build.rs`
+   prints for that commit.
+9. Replace the two tables above with the published values.
+10. Run `task ravel:targets:controls` and `task ravel:targets:smoke`.
+11. Run `task release:smoke`, so that each lane runs on each target that it
+    records.
+
+Grove's release task runs `scripts/release-smoke.sh --archives target/dist`.
+That smoke admits the 2.0 lane from its default directory. With the local
+record, a release on a host without `target/ravel-archives-2.0` refuses before
+any publication. That refusal is the intended gate. The Linux targets join the
+2.0 lane only after Ravel links its directory build at glibc 2.17. The
+published archives must therefore include both Linux targets before step 5 can
+make `unrecorded` empty.
+
 ## Consumer interface
 
 ```sh
@@ -34,8 +119,13 @@ task ravel:targets:prepare ARCHIVES=target/ravel-archives OUT=target/my-other-in
 # Full manifest/target/digest and real-input refusal controls.
 task ravel:targets:controls ARCHIVES=target/ravel-archives
 
-# All native/container/QEMU routes; TARGETS may select supported targets.
+# All native/container/QEMU routes of both lanes; TARGETS may select targets.
 task ravel:targets:smoke ARCHIVES=target/ravel-archives
+
+# The 2.0 lane: admission, its status, and an explicit archive directory.
+task ravel:targets:prepare LANE=2.0 OUT=target/my-ravel-2-inputs
+task ravel:targets:status
+task ravel:targets:smoke ARCHIVES_2=target/ravel-archives-2.0
 ```
 
 `OUT` must not exist. The default target set is all three supported targets.

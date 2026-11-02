@@ -4,7 +4,8 @@
 # archive, extracted where that target runs and exercised with no Bun or Node
 # on PATH.
 #
-#   scripts/release-smoke.sh [--archives DIR] [--ravel-archives DIR] [TARGET...]
+#   scripts/release-smoke.sh [--archives DIR] [--ravel-archives DIR]
+#                            [--ravel-archives-2.0 DIR] [TARGET...]
 #
 # DIR holds one grove-v<version>-<target>.tar.xz per target; the default is
 # target/archives, which `task release:archives` fills. The default targets are
@@ -27,6 +28,12 @@
 # environment, extracts the archive with that environment's tar into a fresh
 # prefix, checks the versions, and runs Grove's installed-layout
 # cases, scripts/grove-installed-smoke.sh.
+#
+# Each target runs Grove's callers against both recorded Ravel lanes
+# (scripts/ravel_target_inputs.py): the 1.1 lane with `policy.ts` and the 2.0
+# lane with `config.rhai`, each in its own HOME. Only macOS runs the 2.0 lane
+# today. A target that the 2.0 lane does not record, and every Linux target, is
+# named as not run on that lane at the end of the run.
 #
 # WHY A CONTROL. A userland that is not really at the floor passes everything a
 # floor userland passes. So each Linux run also executes a pair of probes built
@@ -79,6 +86,7 @@ TARGET_SCRIPT="$REPO_ROOT/scripts/release-smoke-target.sh"
 QEMU_SCRIPT="$REPO_ROOT/scripts/release-smoke-qemu.sh"
 CASES="$REPO_ROOT/scripts/grove-installed-smoke.sh"
 RAVEL_INPUTS=""
+RAVEL_2_INPUTS=""
 
 # TARGETS, the release target list, and assert_archive, the manifest check.
 # shellcheck source=scripts/release-common.sh
@@ -209,6 +217,9 @@ smoke_native() {
   local target="$1" archive="$2"
   local dependency=()
   [[ -z "$RAVEL_INPUTS" ]] || dependency=("RAVEL_TARGET_ARCHIVE=$RAVEL_INPUTS/archives/ravel-v1.1.0-$target.tar.xz")
+  if [[ -n "$RAVEL_2_INPUTS" && -d "$RAVEL_2_INPUTS/$target" ]]; then
+    dependency+=("RAVEL_2_TARGET_ARCHIVE=$(find "$RAVEL_2_INPUTS/archives" -name "ravel-v*-$target.tar.xz")")
+  fi
   env -i PATH=/usr/bin:/bin "${dependency[@]+"${dependency[@]}"}" /bin/bash "$TARGET_SCRIPT" "$target" "$archive" "$CASES"
 }
 
@@ -444,13 +455,18 @@ smoke_linux() {
 }
 
 main() {
-  local archives="$REPO_ROOT/target/archives" ravel_archives=() targets=() target known
+  local archives="$REPO_ROOT/target/archives" ravel_archives=() ravel_archives_2=() targets=() target known
+  local lane_2=() not_run=() state reason
   if [[ "${1:-}" == "--archives" ]]; then
     archives="${2:?--archives needs a directory}"
     shift 2
   fi
   if [[ "${1:-}" == --ravel-archives ]]; then
     ravel_archives=(--archives "${2:?--ravel-archives needs a directory}")
+    shift 2
+  fi
+  if [[ "${1:-}" == --ravel-archives-2.0 ]]; then
+    ravel_archives_2=(--archives "${2:?--ravel-archives-2.0 needs a directory}")
     shift 2
   fi
   targets=("$@")
@@ -467,6 +483,23 @@ main() {
   python3 "$REPO_ROOT/scripts/ravel_target_inputs.py" "${ravel_archives[@]+"${ravel_archives[@]}"}" \
     --output "$SCRATCH/ravel" "${targets[@]}" || die 'independent Ravel admission failed'
   RAVEL_INPUTS="$SCRATCH/ravel"
+  # The 2.0 lane runs where it records an archive and the target is native.
+  # The Linux floor routes of the 2.0 lane belong to its Linux archives.
+  while IFS=$'\t' read -r target state reason; do
+    if [[ "$state" != recorded ]]; then
+      not_run+=("lane 2.0 $target: $reason")
+    elif [[ "$target" != *-apple-darwin ]]; then
+      not_run+=("lane 2.0 $target: the Linux floor routes run the 1.1 lane only")
+    else
+      lane_2+=("$target")
+    fi
+  done < <(python3 "$REPO_ROOT/scripts/ravel_target_inputs.py" --lane 2.0 --status "${targets[@]}")
+  if ((${#lane_2[@]} > 0)); then
+    python3 "$REPO_ROOT/scripts/ravel_target_inputs.py" --lane 2.0 \
+      "${ravel_archives_2[@]+"${ravel_archives_2[@]}"}" --output "$SCRATCH/ravel-2.0" "${lane_2[@]}" ||
+      die 'independent Ravel 2.0 admission failed'
+    RAVEL_2_INPUTS="$SCRATCH/ravel-2.0"
+  fi
   for target in "${targets[@]}"; do
     [[ "$target" == *-linux-gnu ]] || continue
     command -v zig >/dev/null 2>&1 || die "zig is required for the glibc control's probes; see docs/RELEASING.md"
@@ -490,6 +523,9 @@ main() {
     esac || die "$target: the installed smoke test failed; see above"
   done
   echo "release-smoke: passed: $(IFS=' ' && echo "${targets[*]}")"
+  for reason in "${not_run[@]+"${not_run[@]}"}"; do
+    echo "release-smoke: not run: $reason"
+  done
 }
 
 if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then

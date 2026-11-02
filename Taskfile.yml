@@ -109,32 +109,45 @@ tasks:
     cmds:
       - python3 scripts/test_legacy_driver_transition.py
 
+  # ALSO names another Ravel prefix, such as a 2.0 build, installed beside the
+  # 1.1 keg. The rehearsal puts it first on PATH and checks after each package
+  # step that the 1.1 ending executable still works and that neither changed.
   legacy:rehearsal:
     desc: Rehearse scratch upgrade/unlink with the actual old front/worker and independent Ravel
     requires:
       vars: [KEG, RAVEL, OUT]
     cmds:
-      - python3 scripts/legacy_driver_rehearsal.py --keg "{{.KEG}}" --ravel "{{.RAVEL}}" --output "{{.OUT}}"
+      - python3 scripts/legacy_driver_rehearsal.py --keg "{{.KEG}}" --ravel "{{.RAVEL}}" --output "{{.OUT}}" {{if .ALSO}}--also-installed "{{.ALSO}}"{{end}}
 
+  # LANE selects the recorded Ravel archives: 1.1 (default), the published
+  # 1.1.0 release, or 2.0, the recorded 2.0 build. ARCHIVES_2 is the 2.0 lane's
+  # directory, by default target/ravel-archives-2.0, which is never downloaded.
+  # See docs/ravel-target-inputs.md.
   ravel:targets:prepare:
-    desc: Fetch/validate pinned Ravel 1.1.0 archives and expose separate fresh target prefixes
+    desc: Validate one lane's recorded Ravel archives (1.1 fetches its pins) and expose separate fresh target prefixes
     requires:
       vars: [OUT]
     cmds:
-      - python3 scripts/ravel_target_inputs.py {{if .ARCHIVES}}--archives "{{.ARCHIVES}}"{{end}} --output "{{.OUT}}" {{.TARGETS}}
+      - python3 scripts/ravel_target_inputs.py --lane "{{.LANE | default "1.1"}}" {{if .ARCHIVES}}--archives "{{.ARCHIVES}}"{{end}} --output "{{.OUT}}" {{.TARGETS}}
+
+  ravel:targets:status:
+    desc: Name the targets each lane records, and why the others do not run
+    cmds:
+      - python3 scripts/ravel_target_inputs.py --lane 1.1 --status
+      - python3 scripts/ravel_target_inputs.py --lane 2.0 --status
 
   ravel:targets:controls:
-    desc: Check archive admission and real pinned-layout refusals without a host runtime
+    desc: Check archive admission and real recorded-layout refusals of both lanes without a host runtime
     requires:
       vars: [ARCHIVES]
     cmds:
       - python3 scripts/test_ravel_target_inputs.py
-      - bash scripts/ravel-target-inputs.test.sh "{{.ARCHIVES}}"
+      - bash scripts/ravel-target-inputs.test.sh "{{.ARCHIVES}}" {{if .ARCHIVES_2}}"{{.ARCHIVES_2}}"{{end}}
 
   ravel:targets:smoke:
-    desc: Run pinned separate Ravel layouts natively and at Linux glibc/CPU floors with fake agents
+    desc: Run both lanes' recorded Ravel layouts natively and at Linux glibc/CPU floors with fake agents
     cmds:
-      - bash scripts/ravel-target-smoke.sh {{if .ARCHIVES}}--archives "{{.ARCHIVES}}"{{end}} {{.TARGETS}}
+      - bash scripts/ravel-target-smoke.sh {{if .ARCHIVES}}--archives "{{.ARCHIVES}}"{{end}} {{if .ARCHIVES_2}}--archives-2.0 "{{.ARCHIVES_2}}"{{end}} {{.TARGETS}}
 
   ravel:review:
     desc: Check creator-aware Grove review assets, launch/retirement provenance

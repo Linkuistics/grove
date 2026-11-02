@@ -282,8 +282,19 @@ as for `task release:archives`.
 <!-- tc: on -->
 
 Each Grove archive must match the exact manifest. Before any executable runs,
-the independent Ravel 1.1.0 inputs pass the public archive admission checks. The
-two projects unpack into separate prefixes with different versions.
+the independent Ravel inputs of both lanes pass the archive admission checks.
+The 1.1 lane is the published Ravel 1.1.0. The 2.0 lane is the recorded Ravel
+2.0 build, and admission never downloads it. The projects unpack into separate
+prefixes with different versions.
+
+On macOS, the caller cases run the TypeScript set against the 1.1 prefix. They
+run the Rhai set against the 2.0 prefix, in a HOME of its own. The Linux floor
+routes run the 1.1 lane only. At the end, the smoke names each target that the
+2.0 lane did not run, with the reason. Until rollout replaces the local 2.0
+record with the published 2.0.0 archives, a release needs the recorded
+archives in `target/ravel-archives-2.0`.
+[ravel-target-inputs.md](ravel-target-inputs.md#rollout-handoff-replace-the-local-20-record)
+states the replacement.
 
 The child PATH holds only selected system utilities and Ravel. The cases exercise
 these subjects: Grove lifecycle, standalone output publication, public result

@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "name": "delegate-early",
+  "purpose": "Measure the ending authority of a real delegate in a disposable session. The leaf asks the parent to give one delegate an exact command. The command lists the delegate's environment, sends the unsupported result trial-delegate-early, then tries to replace it with grove-force-stop, and writes its output to the trial's authority.log. Grove's stop message shows which value Ravel returned.",
+  "credits": [],
+  "harness": "claude",
+  "route": "directory-2.0",
+  "mode": "lifecycle",
+  "model": "claude-opus-5-5",
+  "effort": "medium",
+  "kinds": [
+    "impl"
+  ],
+  "sources": [
+    {
+      "id": "grove",
+      "plugin": "plugins/grove",
+      "roots": [
+        "skills"
+      ]
+    },
+    {
+      "id": "linkuistics",
+      "plugin": "plugins/linkuistics",
+      "roots": [
+        "skills"
+      ]
+    }
+  ],
+  "mandatory": [
+    {
+      "source": "linkuistics",
+      "path": "skills/using-jujutsu/SKILL.md"
+    },
+    {
+      "source": "grove",
+      "path": "skills/grove/SKILL.md"
+    }
+  ],
+  "expectDelegate": true,
+  "timeoutMinutes": 30,
+  "collect": [
+    "authority.log"
+  ]
+}

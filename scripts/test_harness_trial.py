@@ -124,14 +124,16 @@ launch.mkdir(exist_ok=True)
 env = dict(os.environ, GROVE_LAUNCH_DIR=str(launch), RAVEL_EXIT_FILE=str(trial / "tmp/exit"),
            RAVEL_SKILL_DIRECTORIES=str(descriptor))
 print("grove: launching impl through Ravel — smoke-file-k1", file=sys.stderr, flush=True)
-prompt = "Grove mandate: the leaf"
-if not route.get("addDirs", True):
-    # A compaction case reads the preamble of the prepared prompt.
+# The prepared prompt: the preamble, then the caller block. A compaction case
+# and a delegation read the preamble.
+if True:
     prompt = ("Ravel skill directories\n\nSearch directories:\n- " + json.dumps(str(snap / "skills"))
               + "\n\nMandatory files, in order:\n1. " + json.dumps(mandatory[0]["path"])
               + "\n\nDescriptor: " + json.dumps(str(descriptor))
               + "\n\nObligations:\n10. Keep the descriptor path in each continuation or compaction summary, "
-              + "and read RAVEL_SKILL_DIRECTORIES when the path is lost.\n\nCaller task\n"
+              + "and read RAVEL_SKILL_DIRECTORIES when the path is lost.\n"
+              + "11. Give each delegate the descriptor path, these obligations and read access to these files.\n"
+              + "\nCaller task\n"
               + "BEGIN RAVEL CALLER TASK 0123\nGrove mandate: the leaf\nEND RAVEL CALLER TASK 0123")
 args = [route["wrapper"], route["records"], json.dumps(view), route["program"], *route.get("programArgs", []),
         *(["--add-dir", str(snap)] if route.get("addDirs", True) else []), *route["fixedArgs"], prompt]
@@ -240,6 +242,26 @@ if "--input-format" in sys.argv:
         print(json.dumps({{"type": "result", "subtype": "success"}}), flush=True)
     sys.exit(0)
 entries += tool_entries(tools, 0)
+delegate = behaviour.get("delegate")
+if delegate and not resume:
+    # One Agent call. Claude Code writes the delegate's transcript beside the
+    # session, with a meta file that names the call.
+    text = delegate["prompt"].format(**names)
+    entries += [
+        {{"type": "assistant", "message": {{"content": [{{"type": "tool_use", "id": "toolu_agent", "name": "Agent",
+            "input": {{"description": "Write the check", "prompt": text, "subagent_type": "general-purpose"}}}}]}}}},
+        {{"type": "user", "toolUseResult": {{"status": "completed", "agentId": "a1"}}, "message": {{"content": [
+            {{"type": "tool_result", "tool_use_id": "toolu_agent", "content": [{{"type": "text", "text": "Check written."}}]}}]}}}},
+    ]
+    sub = project / session / "subagents"
+    sub.mkdir(parents=True, exist_ok=True)
+    found = [{{"type": "user", "isSidechain": True, "message": {{"role": "user", "content": text}}}}]
+    found += [dict(e, isSidechain=True) for e in tool_entries(delegate["tools"], 500)]
+    (sub / "agent-a1.jsonl").write_text("".join(json.dumps(e) + "\n" for e in found))
+    (sub / "agent-a1.meta.json").write_text(json.dumps({{"agentType": "general-purpose", "toolUseId": "toolu_agent",
+                                                        "spawnDepth": 1, "finished": True}}))
+for item in behaviour.get("writeFiles", []):
+    Path(item["path"].format(**names)).write_text(item["text"])
 if behaviour.get("noSession"):
     # A confined harness cannot write its session file. Its stream holds the
     # same tool calls.
@@ -347,6 +369,22 @@ SUMMARIES = {
     "preamble": "The leaf asks for one file, and the human has a question to answer.",
 }
 CRAFT = "plugins/grove/skills/craft/SKILL.md"
+
+# A delegation: the parent gives the descriptor path, obligation 11 and a
+# prohibition. The delegate reads the mandatory file, then a craft skill, then
+# writes, then tries an ending of its own.
+DELEGATE = {
+    "prompt": ("Descriptor: {DESC}\n"
+               "11. Give each delegate the descriptor path, these obligations and read access to these files.\n"
+               "Do not run end-session.\nWrite check.sh."),
+    "tools": [
+        ("Read", "file_path", "{SNAP}/skills/grove/SKILL.md", False),
+        ("Read", "file_path", "{SNAP}/skills/craft/SKILL.md", False),
+        ("Write", "file_path", "{CWD}/check.sh", False),
+        ("Bash", "command", "ravel end-session trial-delegate-early", False),
+    ],
+}
+AUTHORITY_LOG = "first exit 0\nsecond exit 0\n"
 
 
 class Fixture:
@@ -492,6 +530,12 @@ def plant_cases(root: Path) -> Path:
             "mandatory": [{"source": "grove", "path": "skills/grove-impl/SKILL.md"},
                           {"source": "grove", "path": "skills/grove/SKILL.md"}],
         },
+    }))
+    delegate = cases / "delegate"
+    shutil.copytree(cases / "smoke", delegate)
+    (delegate / "case.json").write_text(json.dumps({
+        **smoke, "name": "delegate", "expectDelegate": True, "collect": ["authority.log"],
+        "mandatory": [{"source": "grove", "path": "skills/grove/SKILL.md"}],
     }))
     for mode, instructions in (("path", "Keep the obligations word for word, and write no absolute path."),
                                ("preamble", "Summarise only the Grove mandate and what followed it.")):
@@ -1136,6 +1180,73 @@ class HarnessTrialTest(unittest.TestCase):
                 {"type": "tool_use", "id": "t", "name": "Bash", "input": {"command": command}}]}}
             classifier = trial.Classifier({}, Path("/h"), Path("/r"))
             self.assertEqual(trial.extract_events([entry], classifier)[0]["class"], expected, command)
+
+    # --- Delegation -------------------------------------------------------------
+
+    def check_delegation(self, fixture: Fixture):
+        fixture.behave(delegate=DELEGATE, writeFiles=[{"path": "{TRIAL}/authority.log", "text": AUTHORITY_LOG}])
+        status, output = fixture.run("delegate")
+        self.assertEqual(status, 0, output)
+        record = fixture.record()
+        found = record["launches"][0]["delegations"]
+        self.assertEqual(len(found), 1)
+        item = found[0]
+        self.assertTrue(item["givesDescriptorPath"])
+        self.assertFalse(item["namesVariable"])
+        self.assertEqual((item["obligations"], item["obligationCount"]), (["11"], 2))
+        self.assertEqual(item["endingLines"], ["Do not run end-session."])
+        self.assertTrue(item["transcript"].endswith("/subagents/agent-a1.jsonl"))
+        self.assertEqual(item["status"], "completed")
+        self.assertEqual(item["result"], "Check written.")
+        self.assertEqual(item["inherited"], ["RAVEL_EXIT_FILE", "GROVE_LAUNCH_DIR"])
+        order = item["order"]
+        self.assertEqual(order["firstRead"], {"seq": 1, "class": "mandatory"})
+        self.assertEqual(order["firstAction"], 3)
+        self.assertTrue(order["mandatoryBeforeAction"])
+        self.assertEqual(len(order["mandatoryOrder"]), 1)
+        # The delegate's ending shows apart from the parent's.
+        calls = {(c["main"], c["result"]) for c in record["ending"]["endingCalls"]}
+        self.assertEqual(calls, {(True, "grove-continue"), (False, "trial-delegate-early")})
+        self.assertEqual([c["text"] for c in record["collected"]], [AUTHORITY_LOG])
+        markdown = (Path(record["trial"]) / "record.md").read_text()
+        for needle in ("Delegation 0: `general-purpose`", "Obligations word for word: 1 of 2 (11).",
+                       "`trial-delegate-early` at call 4 of `agent-a1.jsonl`, a delegate",
+                       "Collected file `$TRIAL/authority.log`", "first exit 0"):
+            self.assertIn(needle, markdown)
+        # A delegate that acts before it reads the mandatory file shows so.
+        late = dict(DELEGATE, tools=[DELEGATE["tools"][2], *DELEGATE["tools"][:2]])
+        fixture = self.fresh()
+        fixture.behave(delegate=late)
+        status, output = fixture.run("delegate")
+        self.assertEqual(status, 0, output)
+        self.assertFalse(fixture.record()["launches"][0]["delegations"][0]["order"]["mandatoryBeforeAction"])
+        self.assertEqual([c["sha256"] for c in fixture.record()["collected"]], [None])
+        # A run without a delegate fails a case that expects one.
+        fixture = self.fresh()
+        status, output = fixture.run("delegate")
+        self.assertEqual(status, 1, output)
+        self.assertIn("expects a delegate", output)
+
+    def test_a_delegation_records_the_prompt_the_reads_and_the_ending(self):
+        self.check_delegation(self.fixture)
+        self.broken(self.check_delegation, "delegations", lambda *args: [])
+        self.broken(self.check_delegation, "obligation_lines", lambda prompt: [])
+        self.broken(self.check_delegation, "collect_files", lambda case, trial_dir: [])
+        self.broken(self.check_delegation, "delegate_failures", lambda case, launches: [])
+        self.broken(self.check_delegation, "ending_calls", lambda launches: [])
+        real = trial.delegate_order
+        self.broken(self.check_delegation, "delegate_order",
+                    lambda events, mandatory: {**real(events, mandatory), "mandatoryBeforeAction": True})
+
+    def test_a_collected_file_stays_inside_the_trial(self):
+        case = json.loads((trial.CASES / "delegate" / "case.json").read_text())
+        for item in ("/etc/passwd", "../outside.log", 3):
+            name = f"broken-collect-{abs(hash(str(item)))}"
+            shutil.copytree(trial.CASES / "delegate", trial.CASES / name)
+            (trial.CASES / name / "case.json").write_text(json.dumps({**case, "name": name, "collect": [item]}))
+            with self.assertRaises(trial.TrialError, msg=f"{item!r} loaded"):
+                trial.load_case(name)
+        trial.load_case("delegate")
 
     def test_the_configuration_routes_only_the_case_kinds(self):
         route = trial.route_for({"kinds": ["impl"], "name": "x"}, Path("/r"), Path("/c"), "m", "e")

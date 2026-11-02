@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "name": "delegate",
+  "purpose": "Observe one real delegate on the directory route. A Grove impl leaf asks for two Bash scripts and asks the parent to delegate one of them through the harness's agent tool. The leaf names no skill, no obligation and no ending rule. The record shows what the parent gave the delegate, the delegate's reads and its inherited ending context.",
+  "credits": [],
+  "harness": "claude",
+  "route": "directory-2.0",
+  "mode": "lifecycle",
+  "model": "claude-opus-5-5",
+  "effort": "medium",
+  "kinds": ["impl"],
+  "sources": [
+    { "id": "grove", "plugin": "plugins/grove", "roots": ["skills"] },
+    { "id": "linkuistics", "plugin": "plugins/linkuistics", "roots": ["skills"] }
+  ],
+  "mandatory": [
+    { "source": "linkuistics", "path": "skills/using-jujutsu/SKILL.md" },
+    { "source": "grove", "path": "skills/grove/SKILL.md" }
+  ],
+  "expectDelegate": true,
+  "timeoutMinutes": 30
+}

@@ -35,6 +35,11 @@ with `compaction` runs three turns in one managed process: the prompt,
 `/compact` with the case's instructions, then the case's answer. The feeder
 `harness_trial.py turns` sends them, and it sends the answer only when the
 context after compaction holds no preamble path.
+Each Agent call of a launch adds a delegation to the record: the prompt that
+the parent gave, its comparison with the preamble, the delegate's transcript
+and the ending context that the delegate inherits. A case with
+`expectDelegate` fails without a delegate transcript. A case can `collect`
+files of its trial directory into the record.
 `reextract` extracts the events of an earlier run again, from its unchanged
 transcripts. A real run spends
 subscription usage, so no gate runs it. `scripts/test_harness_trial.py` tests
@@ -263,6 +268,9 @@ def load_case(name: str) -> tuple[dict[str, Any], Path]:
         raise TrialError(f"case {name}: no tree/ directory")
     if bool(case.get("moveAway")) != bool(case.get("expectRefusal")) or (case.get("moveAway") and mode != "lifecycle"):
         raise TrialError(f"case {name}: a lifecycle case names moveAway and expectRefusal together")
+    for item in case.get("collect", []):
+        if not isinstance(item, str) or Path(item).is_absolute() or ".." in Path(item).parts:
+            raise TrialError(f"case {name}: a collected file is a path inside the trial directory, not {item!r}")
     if case.get("continuation") is not None:
         check_continuation(case, directory)
     if case.get("compaction") is not None:
@@ -770,6 +778,8 @@ def extract_events(entries: list[dict[str, Any]], classifier: Classifier) -> lis
                 event["class"] = "ending" if ending else "command"
                 if ending:
                     event["result"] = ending.group(1)
+                    # What the call printed, such as a refusal without context.
+                    event["resultText"] = results.get(block.get("id", ""), "")[:SKILL_RESULT_CHARS]
                 elif DESCRIPTOR_VARIABLE in target or ENVIRONMENT_READ.search(target):
                     event["class"] = "variable"
             elif classes:
@@ -778,6 +788,109 @@ def extract_events(entries: list[dict[str, Any]], classifier: Classifier) -> lis
                 event["class"] = "other"
             events.append(event)
     return events
+
+
+# A delegate prompt names these when it carries ending instructions. A
+# prohibition names them too, so the record shows each line for the reader.
+ENDING_TERMS = ("end-session", "grove-continue", "grove-force-stop", "record-teardown",
+                "RAVEL_EXIT_FILE", "GROVE_LAUNCH_DIR")
+# The ending context that a delegate inside the harness process inherits.
+ENDING_NAMES = ("RAVEL_EXIT_FILE", "GROVE_LAUNCH_DIR")
+DELEGATE_RESULT_CHARS = 600
+DELEGATE_MECHANISM = ("Claude Code's Agent tool, in process: the delegate's tool calls run in children of "
+                      "the harness process, with its environment")
+
+
+def obligation_lines(prompt: str) -> list[str]:
+    """The numbered obligation lines of a prepared prompt's preamble."""
+    end = prompt.find(CALLER_LABEL)
+    preamble = prompt[:end] if end >= 0 else ""
+    start = preamble.find("\nObligations:\n")
+    if start < 0:
+        return []
+    return [line.strip() for line in preamble[start:].splitlines() if re.match(r"\s*\d+\. ", line)]
+
+
+def delegate_order(events: list[dict[str, Any]], mandatory: list[str]) -> dict[str, Any]:
+    """The order of a delegate's reads: the mandatory files by first read, the
+    class of its first guidance read, its first action, and whether it read
+    every mandatory file, in the configured order, before that action."""
+    first_seen: dict[str, int] = {}
+    first_read = first_action = None
+    for event in events:
+        reads = [(event.get("class"), event.get("path"))] + [(m["class"], m["path"]) for m in event.get("more", [])]
+        for cls, path in reads:
+            if cls in READ_CLASSES and first_read is None:
+                first_read = {"seq": event["seq"], "class": cls}
+            if cls == "mandatory" and path and os.path.realpath(path) in mandatory:
+                first_seen.setdefault(os.path.realpath(path), event["seq"])
+        if event.get("class") == "action" and first_action is None:
+            first_action = event["seq"]
+    order = sorted(first_seen, key=lambda path: first_seen[path])
+    return {
+        "mandatoryOrder": order,
+        "firstRead": first_read,
+        "firstAction": first_action,
+        "mandatoryBeforeAction": order == mandatory and (
+            first_action is None or all(seq < first_action for seq in first_seen.values())),
+    }
+
+
+def delegations(entries: list[dict[str, Any]], session_dir: Path, home: Path, prompt: str | None,
+                descriptor: str | None, child: Mapping[str, str],
+                transcripts: list[dict[str, Any]], mandatory: list[str]) -> list[dict[str, Any]]:
+    """Each Agent call of the parent: what the parent gave the delegate, the
+    delegate's transcript and the ending context that it inherited. Claude
+    Code links a delegate's transcript to the call through the `toolUseId` of
+    `subagents/agent-<id>.meta.json` beside the transcript."""
+    metas = {}
+    for meta in sorted((session_dir / "subagents").glob("agent-*.meta.json")) if session_dir.is_dir() else []:
+        data = json.loads(meta.read_text())
+        metas[data.get("toolUseId")] = (meta, data)
+    results = {}
+    for entry in entries:
+        content = (entry.get("message") or {}).get("content")
+        for block in content if isinstance(content, list) else []:
+            if isinstance(block, dict) and block.get("type") == "tool_result":
+                results[block.get("tool_use_id")] = (result_text(block.get("content")), entry.get("toolUseResult"))
+    obligations = obligation_lines(prompt or "")
+    found = []
+    for entry in entries:
+        content = (entry.get("message") or {}).get("content")
+        for block in content if isinstance(content, list) else []:
+            if not (isinstance(block, dict) and block.get("type") == "tool_use" and block.get("name") in ("Task", "Agent")):
+                continue
+            tool_input = block.get("input") or {}
+            text = tool_input.get("prompt", "")
+            meta, data = metas.get(block.get("id"), (None, {}))
+            transcript = None
+            if meta:
+                file = str(meta.with_name(meta.name.replace(".meta.json", ".jsonl")).relative_to(home))
+                transcript = next((t for t in transcripts if t["file"] == file), None)
+            result, tool_result = results.get(block.get("id"), ("", None))
+            found.append({
+                "toolUseId": block.get("id"),
+                "description": tool_input.get("description"),
+                "subagentType": tool_input.get("subagent_type"),
+                "background": tool_input.get("run_in_background"),
+                "prompt": text,
+                "promptSha256": sha256_bytes(text.encode()),
+                "givesDescriptorPath": bool(descriptor) and descriptor in text,
+                "namesVariable": DESCRIPTOR_VARIABLE in text,
+                "obligations": [line.split(".", 1)[0] for line in obligations if line in text],
+                "obligationCount": len(obligations),
+                "endingLines": [line.strip()[:COMMAND_CHARS] for line in text.splitlines()
+                                if any(term in line for term in ENDING_TERMS)],
+                "meta": {key: data.get(key) for key in ("agentType", "requestShape", "spawnDepth", "finished")
+                         if key in data},
+                "status": (tool_result or {}).get("status") if isinstance(tool_result, dict) else None,
+                "result": result[:DELEGATE_RESULT_CHARS],
+                "transcript": transcript["file"] if transcript else None,
+                "order": delegate_order(transcript["events"], mandatory) if transcript else None,
+                "mechanism": DELEGATE_MECHANISM,
+                "inherited": [name for name in ENDING_NAMES if name in child],
+            })
+    return found
 
 
 INIT_KEYS = (
@@ -1070,12 +1183,14 @@ def describe_launch(record: Path, home: Path, repo: Path, live: Mapping[str, str
     """One launch of a lifecycle case, from its record directory."""
     stream_file = record / "stream.jsonl"
     probes = record / "probes"
+    prompt = record / "prompt"
     return describe(
         str(record), json.loads((record / "view.json").read_text()), parse_env((record / "env").read_text()),
         read_jsonl(stream_file) if stream_file.exists() else [],
         sha256_file(stream_file) if stream_file.exists() else None,
         parse_probes(probes.read_text()) if probes.exists() else [],
         home, repo, live, marker, read_window(record), turns,
+        prompt.read_text() if prompt.exists() else None,
     )
 
 
@@ -1126,17 +1241,22 @@ def log_lines(text: str) -> list[str]:
 def describe(label: str, view: dict[str, Any], child: dict[str, str], stream: list[dict[str, Any]],
              stream_sha: str | None, probes: list[dict[str, str]], home: Path, repo: Path,
              live: Mapping[str, str], marker: str | None = None,
-             window: tuple[int, int] | None = None, turns: bool = False) -> dict[str, Any]:
+             window: tuple[int, int] | None = None, turns: bool = False,
+             prompt: str | None = None) -> dict[str, Any]:
     """One launch: its request view, the environment of its harness, its
     probes and its ordered events. The events come from the session file of
     the harness. When the harness wrote none, as a confined harness cannot,
     they come from its stream, which holds the same tool calls. A window
     limits the main session file to the lines of this launch, and the digest
-    then covers those lines only."""
+    then covers those lines only. Each Agent call of the main transcript adds
+    a delegation, which the prompt of the launch lets the record compare with
+    the obligations of the preamble."""
     init = next((e for e in stream if e.get("type") == "system" and e.get("subtype") == "init"), {})
     session_id = init.get("session_id")
     classifier = Classifier(view, home, Path(init.get("cwd") or repo), marker, turns)
     transcripts = []
+    main_entries: list[dict[str, Any]] = []
+    session_dir = None
     for path in session_files(home):
         if session_id and session_id not in str(path):
             continue
@@ -1145,6 +1265,8 @@ def describe(label: str, view: dict[str, Any], child: dict[str, str], stream: li
         if main and window:
             raw = b"".join(jsonl_lines(raw)[window[0]:window[1]])
         entries = read_jsonl_bytes(raw)
+        if main:
+            main_entries, session_dir = entries, path.parent / path.stem
         transcripts.append({
             "file": str(path.relative_to(home)),
             "sha256": sha256_bytes(raw),
@@ -1160,6 +1282,9 @@ def describe(label: str, view: dict[str, Any], child: dict[str, str], stream: li
         })
     skills = view.get("skills") or {}
     descriptor = skills.get("descriptorPath")
+    mandatory = [os.path.realpath(item["path"]) for item in skills.get("mandatory", [])]
+    delegated = delegations(main_entries, session_dir, home, prompt, descriptor, child, transcripts,
+                            mandatory) if session_dir else []
     descriptor_identity = None
     if descriptor and Path(descriptor).is_file():
         descriptor_identity = {
@@ -1183,6 +1308,7 @@ def describe(label: str, view: dict[str, Any], child: dict[str, str], stream: li
         "streamSha256": stream_sha,
         "startup": native_startup(stream, []) if not transcripts else None,
         "transcripts": transcripts,
+        "delegations": delegated,
         # The last result event of the stream, absent when Ravel ended the
         # harness before it wrote one.
         "streamResult": next((e.get("subtype") for e in reversed(stream) if e.get("type") == "result"), None),
@@ -1814,6 +1940,43 @@ def started(launch: dict[str, Any]) -> bool:
     return launch["sessionId"] is not None
 
 
+COLLECT_CHARS = 4000
+
+
+def ending_calls(launches: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Each ending call of every transcript, with the transcript that made it,
+    so a delegate's ending shows apart from the parent's."""
+    return [{"file": t["file"], "main": t["main"], "seq": e["seq"], "result": e.get("result"),
+             "resultText": e.get("resultText"), "error": e.get("error")}
+            for l in launches for t in l["transcripts"] for e in t["events"] if e["class"] == "ending"]
+
+
+def collect_files(case: dict[str, Any], trial: Path) -> list[dict[str, Any]]:
+    """The trial files that a case names in `collect`, such as a log that a
+    delegate writes. Ravel can end the group before a tool result reaches the
+    session file, and a file outlives that."""
+    found = []
+    for item in case.get("collect", []):
+        path = trial / item
+        if path.is_file():
+            data = path.read_bytes()
+            found.append({"path": item, "sha256": sha256_bytes(data),
+                          "text": data.decode(errors="replace")[:COLLECT_CHARS]})
+        else:
+            found.append({"path": item, "sha256": None, "text": None})
+    return found
+
+
+def delegate_failures(case: dict[str, Any], launches: list[dict[str, Any]]) -> list[str]:
+    """A case that expects a delegate fails when no Agent call of any launch
+    has a delegate transcript."""
+    if not case.get("expectDelegate"):
+        return []
+    if any(d["transcript"] for launch in launches for d in launch.get("delegations", [])):
+        return []
+    return ["the case expects a delegate, and no Agent call has a delegate transcript"]
+
+
 def run_case(prepared_dir: Path, name: str, environ: Mapping[str, str],
              model: str | None = None, effort: str | None = None) -> dict[str, Any]:
     # Nothing launches before these refusals, including `claude --version`.
@@ -2014,6 +2177,7 @@ def run_case(prepared_dir: Path, name: str, environ: Mapping[str, str],
         "refusal": refusal,
         **({"continuation": continuation} if continuation is not None else {}),
         **({"compaction": compaction} if compaction is not None else {}),
+        **({"collected": collect_files(case, trial)} if case.get("collect") else {}),
         "ending": {
             "driverExit": driver["exit"],
             "timedOut": driver["timedOut"],
@@ -2023,6 +2187,7 @@ def run_case(prepared_dir: Path, name: str, environ: Mapping[str, str],
             "runLog": run_log[-60:],
             "endingCommands": [e.get("result") for l in launches for t in l["transcripts"]
                                for e in t["events"] if e["class"] == "ending"],
+            "endingCalls": ending_calls(launches),
             "teardownRecorded": "grove finished — loop complete" in stderr,
             "treeBefore": tree_before,
             "treeAfter": tree_after,
@@ -2052,6 +2217,7 @@ def run_case(prepared_dir: Path, name: str, environ: Mapping[str, str],
     elif case.get("compaction") is not None:
         failures.append("the case compacted no launch; read driver.stderr of the trial")
     failures += native_failures(native, expected_native(case))
+    failures += delegate_failures(case, launches)
     if resolve:
         failures += resolve_failures(resolve, launches)
     say(f"record {trial}/record.md")
@@ -2085,8 +2251,10 @@ def reextract(trial: Path) -> dict[str, Any]:
             if old["sha256"] != new["sha256"]:
                 raise TrialError(f"the transcript {old['file']} of {trial} changed since the run")
         launch["transcripts"] = again["transcripts"]
+        launch["delegations"] = again["delegations"]
     record["ending"]["endingCommands"] = [e.get("result") for l in record["launches"] for t in l["transcripts"]
                                           for e in t["events"] if e["class"] == "ending"]
+    record["ending"]["endingCalls"] = ending_calls(record["launches"])
     record["reextracted"] = dt.datetime.now(dt.UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
     (trial / "record.json").write_text(json.dumps(record, indent=2) + "\n")
     (trial / "record.md").write_text(render(record))
@@ -2167,6 +2335,43 @@ def render_compaction(compaction: dict[str, Any]) -> list[str]:
         *[f"- Failure: {cell(failure)}." for failure in compaction.get("failures", [])],
         "",
     ]
+    return lines
+
+
+def render_delegations(found: list[dict[str, Any]]) -> list[str]:
+    """What the parent gave each delegate, and how the delegate read."""
+    lines = []
+    for number, item in enumerate(found):
+        order = item.get("order") or {}
+        first = order.get("firstRead") or {}
+        lines += [
+            f"Delegation {number}: `{cell(item['subagentType'])}`, \"{cell(item['description'])}\"",
+            "",
+            f"- Mechanism: {item['mechanism']}. Status `{item['status']}`, meta `{cell(json.dumps(item['meta']))}`.",
+            f"- Inherited ending context: {cell(', '.join(item['inherited']) or 'none')}.",
+            f"- Prompt SHA-256 `{item['promptSha256']}`. Descriptor path: {'given' if item['givesDescriptorPath'] else 'not given'}. "
+            f"Variable named: {'yes' if item['namesVariable'] else 'no'}. Obligations word for word: "
+            f"{len(item['obligations'])} of {item['obligationCount']}"
+            + (f" ({', '.join(item['obligations'])})" if item['obligations'] else "") + ".",
+            f"- Lines with an ending term: {cell('; '.join(item['endingLines']) or 'none')}.",
+            f"- Transcript: {cell(item['transcript'] or 'none')}. Mandatory files by first read: "
+            f"{len(order.get('mandatoryOrder', []))}; first guidance read: {first.get('class')} at call {first.get('seq')}; "
+            f"first action at call {order.get('firstAction')}; all mandatory files in order before it: "
+            f"{'yes' if order.get('mandatoryBeforeAction') else 'no'}.",
+            "",
+            "Prompt that the parent gave:",
+            "",
+            "```text",
+            item["prompt"].rstrip("\n"),
+            "```",
+            "",
+            "Result that the parent received:",
+            "",
+            "```text",
+            item["result"].rstrip("\n"),
+            "```",
+            "",
+        ]
     return lines
 
 
@@ -2252,6 +2457,7 @@ def render(record: dict[str, Any]) -> str:
                     + (f" {', '.join(event.get('marker') or [])} |" if marked else "")
                 )
             lines.append("")
+        lines += render_delegations(launch.get("delegations") or [])
     contrast = {(item["op"], item["path"]): item["status"] for item in record.get("contrast") or []}
     probes = [probe for launch in record["launches"] for probe in launch.get("probes", [])]
     if probes:
@@ -2340,10 +2546,20 @@ def render(record: dict[str, Any]) -> str:
     compaction = record.get("compaction")
     if compaction:
         lines += render_compaction(compaction)
+    for item in record.get("collected") or []:
+        if item["sha256"] is None:
+            lines += [f"Collected file `$TRIAL/{item['path']}`: absent.", ""]
+        else:
+            lines += [f"Collected file `$TRIAL/{item['path']}`, SHA-256 `{item['sha256']}`:", "",
+                      "```text", item["text"].rstrip("\n"), "```", ""]
     lines += [
         "Ending outcome:",
         "",
         f"- Ending commands that the agent ran: {cell(', '.join(str(x) for x in e['endingCommands']) or 'none')}.",
+        *[f"  - `{c['result']}` at call {c['seq']} of `{Path(c['file']).name}`"
+          f"{'' if c['main'] else ', a delegate'}{', error' if c['error'] else ''}: "
+          f"`{cell((c['resultText'] or '').strip()[:160]) or 'no result text'}`."
+          for c in e.get("endingCalls", [])],
         f"- Driver: exit {e['driverExit']}{', timed out' if e['timedOut'] else ''}, {e['elapsedS']} s.",
         *[f"  - `{cell(line)}`" for line in e["driverLines"]],
         f"- Teardown recorded: {'yes' if e['teardownRecorded'] else 'no'}.",

@@ -65,9 +65,9 @@ checkout. Check that before you use it.
   after. A direct `ravel skills resolve --json` runs before and after the
   restoration, and the restored one must resolve. No harness launch, no
   session file and an unchanged tree are required.
-- The runner gains three things: `native[].commit` copies a skill directory
-  from an older commit of the checkout, `moveAway` with `expectRefusal`
-  records a refusal case, and each snapshot read names its source.
+- The runner gains three things. `native[].commit` copies a skill directory
+  from an older commit of the checkout. `moveAway` with `expectRefusal`
+  records a refusal case. Each snapshot read names its source.
 - `problem-ambiguity` did not measure its row. Grove's `ADR-FORMAT.md` names
   `linkuistics:decision-records`, and the agent read that file before the
   record. It matched the namespace to the source id `linkuistics`, checked
@@ -79,21 +79,36 @@ checkout. Check that before you use it.
   the `stamp.sh` task of `discovery`. A third source,
   `scripts/harness-trials/sources/rival-style`, holds a different
   `coding-style-bash`. No Grove skill and no mandatory file names any
-  `coding-style` skill: a grep of `plugins/grove/skills` for each craft skill
-  name found `decision-records` as its positive control and no
+  `coding-style` skill. A grep of `plugins/grove/skills` for each craft skill
+  name found `decision-records`, its positive control. It found no
   `coding-style` name. The rival asks for `#!/bin/bash`, the long `set -o`
   options and a `main` function, so the script shows which copy governed it.
   This is a new case, not a retry: the first launch stays in the record.
-- `problem-stale-native` read neither copy of `decision-records`. The agent
-  followed Grove's `ADR-FORMAT.md` for the record. "Not both" therefore held
-  only because it loaded none, and the launch did not exercise a choice
-  between the copies. The record keeps it as an observation.
-- A new case `problem-stale-native-cli` measures the choice. Its native copy is
+- Correction: `problem-stale-native` did read one copy. Call 11 prints
+  Grove's `ADR-FORMAT.md` first, so the classifier named the call
+  `supporting`. The same command then prints the directory copy of
+  `decision-records/SKILL.md`. No call reads the native copy or uses the Skill
+  tool. A first reading of the table took the class for the whole call and
+  missed this. The pack's `ADR-FORMAT.md` names
+  `linkuistics:decision-records`, so this choice also had a pack reference.
+- A new case `problem-stale-native-cli` measures the choice without a pack
+  reference. It was cut before the correction above, and it stays as a second
+  observation. Its native copy is
   `cli-tool-design` at `9a35d526f33`, which has no `paths` metadata, so
   Claude Code lists it at startup. No Grove skill names `cli-tool-design`. The
   task asks for a CLI design document only, so no other craft skill matches.
   An older `coding-style-bash` was rejected: every revision carries `paths`,
   so Claude Code could withhold the native copy until a `.sh` file is touched.
 - The two user-invoked cases pass. In the activity case, call 16 prints lines 1
-  to 8 of `authoring-conventions`, which are its front matter, and the agent
-  cites the metadata as its reason not to load it.
+  to 8 of `authoring-conventions`, which are its front matter. The agent
+  cites the metadata as its reason not to load the skill.
+- Results: seven passes and one case not measured. `problem-ambiguity` is the
+  case not measured, because the pack's reference chose. The two reports kept
+  the leaf live: Ravel refused as `session_result_missing`, and Grove stopped
+  the loop.
+- For `codex-discovery-problems-k118`: a case about `decision-records` meets
+  the reference in Grove's `ADR-FORMAT.md`. Use the cases
+  `problem-ambiguity-unreferenced` and `problem-stale-native-cli` for the
+  rows without a reference.
+- No in-session reviewer. The results are observations of transcripts. Each
+  new runner path has a fake-harness check that fails against a broken runner.

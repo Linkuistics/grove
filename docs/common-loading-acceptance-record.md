@@ -1248,3 +1248,523 @@ Ordered events:
 | 12 | text | text |  | `I couldn't write the decision record. The guidance file the task tells me to read first doesn't exist, so I've stopped before any dependent work. The leaf is st…` |
 
 Ending outcome: The leaf stayed live. The agent ran no ending command, so Ravel refused as `session_result_missing`, and Grove stopped the loop. The driver exited 0. Grove recorded no teardown and published nothing. One harness launch occurred, and the driver ran 43.5 seconds.
+
+### Discovery problems
+
+**Cases.** Eight cases measure the discovery problems that the "Agent
+discovery and native installations" section of Ravel's
+`docs/specs/skill-discovery.md` gives to the agent, for
+`claude-discovery-problems-k110`. They also measure the Source and skill
+failures row of the
+[delivery specification](specs/codex-skill-provisioning.md#test-seams).
+
+Each case is one launch, or one refused launch. Each case ran once on
+2026-11-03 local time, with no retry and no further prompt. Two cases,
+`problem-ambiguity` and `problem-stale-native`, met a reference in the Grove
+pack itself. Two more cases, `problem-ambiguity-unreferenced` and
+`problem-stale-native-cli`, therefore measure the same rows without that
+reference. The first two stay in the record as observations.
+
+**Route.** Directory on 2.0 for each case. The settings name the mandatory
+files of [discovery](#discovery), in the same order: `using-jujutsu`, then the
+Grove spine. Two preparations supplied the cases:
+
+| Preparation | Grove and source commit | Cases |
+| --- | --- | --- |
+| First | `a76bedff0a25` | `problem-source-missing`, `problem-ambiguity`, `problem-missing`, `problem-stale-native`, `problem-user-invoked`, `problem-user-invoked-named` |
+| Second | `87eacc81df99` | `problem-ambiguity-unreferenced`, `problem-stale-native-cli` |
+
+Each preparation is one plain Git checkout that supplies the sources `grove`
+and `linkuistics`, each with the root `skills`. The ambiguity cases add a third
+source from the same checkout, with the root `skills`.
+`scripts/harness-trials/sources/README.md` describes both rival sources.
+
+| Source id | Plugin directory | Rival skill |
+| --- | --- | --- |
+| `records` | `scripts/harness-trials/sources/rival-records` | `decision-records`: numbered records under `docs/decisions/` |
+| `style` | `scripts/harness-trials/sources/rival-style` | `coding-style-bash`: `#!/bin/bash`, the long `set -o` options and a `main` function |
+
+**Pack references.** Grove's `ADR-FORMAT.md` names
+`linkuistics:decision-records`, and `references/grove.md` names it too. A
+grep of `plugins/grove/skills` for each skill name of `plugins/linkuistics`
+found these references, which served as its positive control. The same grep
+found no reference to `cli-tool-design`, `coding-style-bash` or
+`authoring-conventions`.
+
+Ravel's rule lets an explicit reference from the pack choose between two
+matching files. A case about `decision-records` therefore cannot measure the
+row "no explicit reference" while the Grove pack is a source.
+
+**Results.**
+
+| Case | Situation | Rule | Result |
+| --- | --- | --- | --- |
+| `problem-source-missing` | The checkout of `linkuistics` moved away | `skill_source_missing` before any launch, and no model call | **Pass** |
+| `problem-ambiguity-unreferenced` | Two different `coding-style-bash` skills, the task is a Bash script, and nothing names either | Obligation 8: a report before dependent work, and no winner by source order | **Pass** |
+| `problem-ambiguity` | Two different `decision-records` skills, the task is a decision record | The same | **Not measured.** The pack's reference chose, with disclosure |
+| `problem-missing` | The task names `changelog-conventions`, which nothing holds | Obligation 9: a report before dependent work | **Pass** |
+| `problem-stale-native-cli` | An older native `cli-tool-design` beside the directory copy, the task is a CLI design | Obligation 8: not both only because both exist | **Pass.** The directory copy only |
+| `problem-stale-native` | An older native `decision-records` beside the directory copy, the task is a decision record | The same | **Pass**, with a pack reference. The directory copy only |
+| `problem-user-invoked` | The task writes a `SKILL.md`, which matches `authoring-conventions`, and nothing names it | Obligation 7: the skill stays unread | **Pass.** Its front matter only |
+| `problem-user-invoked-named` | The same task, and the task names `authoring-conventions` | Obligation 7: the skill loads when the caller names it | **Pass** |
+
+**Limit.** Each case is one observation, not a rate. The description of
+`authoring-conventions` itself ends with "user-invoked, run it by hand". The
+unread result can therefore come from that text as well as from obligation 7.
+The agent cited the metadata line `disable-model-invocation: true` as its
+reason, which favours obligation 7. A skill whose description does not say this
+would separate the two causes.
+
+Facts that hold for all eight cases:
+
+| Subject | Value |
+| --- | --- |
+| Grove build | Commits `a76bedff0a25` and `87eacc81df99`. In both, `grove` SHA-256 `5900ff3c08f16439f2d57af2a553b209ffd77527c17e883e6b6c0ee742b2ca94` and `grove-llm` SHA-256 `56f6815a290441d2498b1af4431923d73983459619d5e7eea633f34fad1264b7`. Both equal the smoke build |
+| Ravel build | Build commit `23e50ce90037`, bookmark `skill-directory-delivery` at `1ca4aecbeae1`. Identity `ef5857e989e6d99da51631ae0295685c8961c1b01bac58d865e6fb789ae71deb`. `bin/ravel` SHA-256 `8e10e311c50c81ca60ac4f393d17408982d0aafcfe46cccfbc46130465290ae2`. The prefix is a byte copy of the [explicit request rows](#explicit-request-rows) prefix, and each preparation checked its digest |
+| Harness | Claude Code 2.1.316, model `claude-opus-5-5`, effort `medium`, permission mode `bypassPermissions` |
+| Configuration directory | The sandbox `$TRIAL/home/.claude`. `claude auth status` reported the same directory |
+| Sources | `resourceDigest` of `grove`: `88f68c31337536efb0d4fb388543c0ca1abf9a9fed0ce0ccac3888e933df5a67`. Of `linkuistics`: `820fe28234c98fe59286c3788eac561dead174770bd50560393d697788446b22`. Both equal the `discovery` values, at both commits. Of `records`: `f336a2d803277552e06971c15a31c1b007576f7e61dcfc3b825cf6f8febe5d5c`. Of `style`: `a615f6c0f983ebe8116f771649118691492eaf68960165273c7129754b332d9e` |
+| Links | Before and after: `Library/Keychains` only |
+| Driver environment | `HOME`, `LANG`, `LOGNAME`, `PATH`, `SHELL`, `TERM`, `TMPDIR`, `USER` |
+| Harness environment | The driver's names, `PWD`, `SHLVL`, `_`, and the trial's own `GROVE_LAUNCH_DIR`, `RAVEL_EXIT_FILE` and `RAVEL_SKILL_DIRECTORIES`. No live value and no `CLAUDE*` name. `problem-source-missing` launched no harness |
+| Native copies | Only in the two stale-native cases. Each case section names its copy |
+| Synced claude.ai skills | 13 `anthropic-skills:*` skills in `problem-ambiguity`, `problem-missing`, `problem-user-invoked` and `problem-stale-native-cli`, none in the others. No synced skill has the name of a skill that a case concerns |
+
+Native startup text: equal to the text of the [smoke](#smoke) section, except
+in the fields that the [explicit request rows](#explicit-request-rows) name.
+`cwd` names each trial's repository. A native copy adds its name to `skills`,
+`slash_commands` and the skill listing, and the synced skills add their 13
+names. Apart from the native copy of each stale case, no startup text holds
+the name of a skill of `plugins/grove` or `plugins/linkuistics`, or
+`changelog-conventions`.
+
+The tables below use the abbreviations of [discovery](#discovery). `$G` is the
+`grove` snapshot, `$L` the `linkuistics` snapshot, `$D` the `records` snapshot
+and `$S` the `style` snapshot, each up to its `tree`. A snapshot that a command
+names through its own variable keeps its digest. A text row is a text block of
+the agent, shortened to 160 characters. The Source column names the source of
+the first path of a call.
+
+Observations that hold for several cases:
+
+- **A call can read more than its class.** A call takes the class and the
+  source of its first path. `record.json` lists each further path with its
+  class and source. Each result below checks those further paths, and a
+  result names the call that reads the governing skill.
+- **A report keeps the leaf live.** In `problem-ambiguity-unreferenced` and
+  `problem-missing`, the agent reported, recommended an answer and ran no
+  ending command. The `-p` session then ended. Ravel refused as
+  `session_result_missing`, and Grove stopped the loop with the leaf live.
+  That is the handoff of Grove's `execute.md` for required input, in a
+  harness that cannot wait for an answer.
+- **The shell stops at `=====`.** As in the
+  [explicit request rows](#explicit-request-rows), zsh stopped several calls
+  at a separator such as `======`. The next call repeated the stopped read, so
+  the configured mandatory order holds in each case.
+- **Ravel reports a failed stop.** Ravel again wrote two lines
+  `stop attempt … signal 9: Operation not permitted (os error 1)` in each
+  launched run, as in [smoke](#smoke).
+
+#### problem-source-missing
+
+**Case.** A source checkout moved away. The run is
+`problem-source-missing-20261102T220950Z`. The runner fetched commit
+`a76bedff0a25` into the plain Git checkout `$TRIAL/sources/linkuistics-checkout`.
+The settings named that checkout's `plugins/linkuistics` for `linkuistics`.
+The runner moved the checkout to `$TRIAL/sources/linkuistics-moved` before the
+driver, and restored it after the driver.
+
+**Result.** **Pass.** Grove asked Ravel for the `impl` launch, and Ravel
+refused it in the skills stage. Grove reported Ravel's line and remedy and
+stopped the loop with the leaf live.
+
+The records directory holds no launch, and the sandbox `.claude` holds no
+`projects` directory. The runner's own `claude --version` and
+`claude auth status` make no model call.
+
+A direct `ravel skills resolve --json` with the source moved away gave exit 3
+and the same code, with the location `skills.sources[1].path`. The same
+resolution with the source restored gave exit 0 and the status `resolved`.
+The move therefore caused the refusal.
+
+The driver's standard error, with the trial directory shortened:
+
+```text
+grove: launching impl through Ravel — utc-record-k1
+ravel: refused (skill_source_missing, stage skills): the source "linkuistics" at $TRIAL/sources/linkuistics-checkout/plugins/linkuistics does not exist
+  source: $TRIAL/sources/linkuistics-checkout/plugins/linkuistics
+  location: skills.sources[1].path
+  remedy: restore the source directory, or change the settings deliberately
+grove: session ended without a supported Grove result — status exit status: 3, elapsed 0.510s; loop stopped.
+       session kind `impl` for `utc-record-k1` failed; if Ravel refused the launch, its diagnostic and remedy are above and the leaf is still live. Either way, rerun `grove` to continue.
+```
+
+Ending outcome: The driver exited 0 after 0.8 seconds. No harness launched.
+Grove recorded no teardown, and the tree and the repository did not change.
+
+#### problem-ambiguity-unreferenced
+
+**Case.** Two different matching skills with no reference. The run is
+`problem-ambiguity-unreferenced-20261102T221935Z`. The leaf is the
+`stamp-script-k1` task of [discovery](#discovery), which matches
+`coding-style-bash` by activity alone.
+
+**Result.** **Pass.** Text 12 states that `coding-style-bash` governs a Bash
+script and that two search directories each hold a copy. Call 13 hashes both
+copies and compares them with `diff -r`. Text 14 then stops before any write:
+
+> I've stopped before writing the script, because two different style guides
+> both claim this work and nothing tells me which one to follow.
+
+The report gives a table of the conflicting rules. It states that the order of
+the directories does not decide, and it asks the human to choose. It
+recommends the `style` copy, from the layout of the directories, and calls
+that recommendation a guess. No call writes `stamp.sh`, and no call uses the
+Skill tool.
+
+| Subject | Value |
+| --- | --- |
+| Descriptor identity | `dcd94139c0102c0e7b449c86b28373fe03b6e22d4f3a0346865f624d30876efa`, equal to the SHA-256 of `directories.json` |
+| Raw transcript | SHA-256 `5b2b5917e4e7cd97a77b803aaffde4b02bc9fcab83526e4c5922000275d57820`. Stream SHA-256 `6c00edade505fd3f611efa45e8538ef8982b2db7bf0c90881730740490612111` |
+| Skill listing at startup | 14 names |
+
+Ordered events:
+
+| # | Tool | Class | Skill | Source | Command, path or text |
+| --- | --- | --- | --- | --- | --- |
+| 1 | Bash | mandatory (error) | using-jujutsu | linkuistics | `B=$SNAPS; cat $B/820fe28234c98fe59286c3788eac561dead174770bd50560393d697788446b22/tree/skills/using-jujutsu/SKILL.md; echo ======; cat $B/88f68c31337536efb0d4fb…` |
+| 2 | Bash | supporting | using-jujutsu | linkuistics | `B=$SNAPS; cd $B/820fe28234c98fe59286c3788eac561dead174770bd50560393d697788446b22/tree/skills/using-jujutsu && cat references/jj-commands.md references/git-to-jj…` |
+| 3 | text | text |  |  | `` Mandatory files read. Now locating the `grove-impl` skill across the search directories. `` |
+| 4 | Bash | mandatory | using-jujutsu | linkuistics | `B=$SNAPS; for d in 88f68c31337536efb0d4fb388543c0ca1abf9a9fed0ce0ccac3888e933df5a67 820fe28234c98fe59286c3788eac561dead174770bd50560393d697788446b22 a615f6c0f98…` |
+| 5 | text | text |  |  | `` Exactly one `grove-impl` exists. Reading it. `` |
+| 6 | Bash | kind-skill | grove-impl | grove | `cd $G/skills; cat grove-impl/SKILL.md; ls grove-impl grove/references` |
+| 7 | text | text |  |  | `Grove spine already loaded. Now the procedures it points to: bootstrap and execute.` |
+| 8 | Bash | supporting | grove | grove | `cd $G/skills/grove; cat references/bootstrap.md references/execute.md` |
+| 9 | text | text |  |  | `Now resolving the mandated leaf.` |
+| 10 | Bash | command (error) |  |  | `cd $TRIAL/repo && P=$(grove-llm resolve stamp-script-k1); echo "RESOLVED: $P"; grove-llm brief-chain "$P"; jj st --no-pager; ls -la; ls Taskfile* 2>/dev/null` |
+| 11 | Bash | command |  |  | `cd $TRIAL/repo && ls -la .grove; for f in .grove/*; do echo "=== $f"; cat "$f"; done` |
+| 12 | text | text |  |  | `` The work is a Bash script, so the `coding-style-bash` skill governs it — but two search directories each hold a copy. Checking whether they differ. `` |
+| 13 | Bash | listing | coding-style-bash | linkuistics | `B=$SNAPS; A=$B/820fe28234c98fe59286c3788eac561dead174770bd50560393d697788446b22/tree/skills/coding-style-bash; C=$B/a615f6c0f983ebe8116f771649118691492eaf689601…` |
+| 14 | text | text |  |  | `I've stopped before writing the script, because two different style guides both claim this work and nothing tells me which one to follow.  **What I did.** I rea…` |
+
+Ending outcome: The agent ran no ending command, and the leaf stayed live with
+an empty working copy. One harness launch occurred, and the driver ran 64.6
+seconds.
+
+#### problem-ambiguity
+
+**Case.** Two different matching skills, with a reference in the pack. The
+run is `problem-ambiguity-20261102T221003Z`. The leaf asks for a decision
+record and names no directory.
+
+**Result.** **Not measured.** Call 15 prints the front matter of both
+`decision-records` copies and their checksums. Text 16 states that the two
+copies disagree and that the agent checks whether Grove's ADR format names
+one. Call 17 reads Grove's `ADR-FORMAT.md`, which names
+`linkuistics:decision-records`. Call 19 reads the `plugin.json` name of the
+`linkuistics` source and its `decision-records/SKILL.md`.
+
+Call 22 then writes `docs/adr/utc-iso-8601-timestamps.md`.
+
+The decisions log of the leaf and text 25 disclose the conflict and the
+resolution through the pack's reference. Ravel's rule allows that choice, so
+the case does not measure the row "no explicit reference". The case does show
+that the agent took no winner from the order of the directories: it named its
+reason.
+
+| Subject | Value |
+| --- | --- |
+| Descriptor identity | `4ad194350302e407550aac47d38d6c8f9afbeb59aaecbada051d512f262e7e3a`, equal to the SHA-256 of `directories.json` |
+| Raw transcript | SHA-256 `4334975831bd76d0d8d2157820002eddd75c7137d022df942c4b5c356261a416`. Stream SHA-256 `b890632070902b5b35d8c602e6a849532b0cf970d31a353e6e285223e8aac4d3` |
+| Skill listing at startup | 27 names |
+
+Ordered events:
+
+| # | Tool | Class | Skill | Source | Command, path or text |
+| --- | --- | --- | --- | --- | --- |
+| 1 | text | text |  |  | `I'll start by reading the mandatory files in order.` |
+| 2 | Bash | mandatory (error) | using-jujutsu | linkuistics | `B=$SNAPS; cat $B/820fe28234c98fe59286c3788eac561dead174770bd50560393d697788446b22/tree/skills/using-jujutsu/SKILL.md; echo ======; cat $B/88f68c31337536efb0d4fb…` |
+| 3 | text | text |  |  | `The separator broke under zsh, so the second file wasn't read. I'll read it now, along with the jj references.` |
+| 4 | Bash | mandatory | grove | grove | `B=$SNAPS; cat $B/88f68c31337536efb0d4fb388543c0ca1abf9a9fed0ce0ccac3888e933df5a67/tree/skills/grove/SKILL.md; ls $B/88f68c31337536efb0d4fb388543c0ca1abf9a9fed0c…` |
+| 5 | Bash | supporting | using-jujutsu | linkuistics | `B=$L/skills/using-jujutsu/references; cat $B/jj-commands.md; echo; echo -----; cat $B/git-to-jj-mapping.md` |
+| 6 | text | text |  |  | `` Mandatory files are read. Next I'm finding the `grove-impl` skill across the search directories. `` |
+| 7 | Bash | command |  |  | `B=$SNAPS; find $B -name SKILL.md \| sed "s\|$B/\|\|"; echo; grep -rl "^name: grove-impl" $B --include=SKILL.md` |
+| 8 | text | text |  |  | `` There is exactly one `grove-impl`. I'll read it. `` |
+| 9 | Bash | kind-skill | grove-impl | grove | `cat $G/skills/grove-impl/SKILL.md; ls $G/skills/grove/references` |
+| 10 | text | text |  |  | `` I've loaded `grove-impl` and the `grove` spine. Next I'll read the bootstrap and execute procedures. `` |
+| 11 | Bash | supporting | grove | grove | `R=$G/skills/grove/references; cat $R/bootstrap.md; echo -----; cat $R/execute.md` |
+| 12 | text | text |  |  | `Now I'll resolve the mandated leaf.` |
+| 13 | Bash | command |  |  | `grove-llm resolve utc-record-k1; echo "exit=$?"` |
+| 14 | Bash | command |  |  | `P=.grove/01-impl--utc-record-k1.md; grove-llm brief-chain $P; echo "exit=$?"; echo -----; cat $P; echo -----; ls -la .grove; ls -la` |
+| 15 | Bash | listing | decision-records | linkuistics | `cd $TRIAL && cat repo/.grove/_BRIEF.md; echo -----; B=home/.cache/ravel/skills/v1/snapshots; A=$B/820fe28234c98fe59286c3788eac561dead174770bd50560393d697788446b…` |
+| 16 | text | text |  |  | `` Two different `decision-records` skills exist, and they disagree on location and naming. Before deciding anything, I'll check whether grove's own ADR format nam… `` |
+| 17 | Bash | supporting | grove | grove | `G=$G/skills/grove; cat $G/ADR-FORMAT.md; echo -----; grep -n -i -B2 -A8 "linkuistics\\|decision-records" $G/references/grove.md` |
+| 18 | Bash | descriptor |  |  | `B=$TRIAL/home/.cache/ravel/skills/v1; for s in 820fe28234c98fe59286c3788eac561dead174770bd50560393d697788446b22 f336a2d803277552e06971c15a31c1b007576f7e61dcfc3b…` |
+| 19 | Bash | supporting | v1 | linkuistics | `L=$L; grep -m1 '"name"' $L/.claude-plugin/plugin.json; cat $L/skills/decision-records/SKILL.md` |
+| 20 | Bash | supporting | grove | grove | `G=$G/skills/grove; cat $G/TASK-FORMAT.md; echo -----; cat $G/references/retire.md; echo -----; cat $G/references/commit.md` |
+| 21 | Bash | command |  |  | `jj st --no-pager && jj log --no-pager -n 5; env \| grep -E '^GROVE_PROVIDER_EVIDENCE\|^HARNESS_DISPATCH' \| cut -c1-80` |
+| 22 | Write | action |  |  | `$TRIAL/repo/docs/adr/utc-iso-8601-timestamps.md` |
+| 23 | Bash | command |  |  | `` cat >> .grove/01-impl--utc-record-k1.md <<'EOF'  ## Decisions (running log)  Which decision-record guidance governs. The skill directories hold two different `d… `` |
+| 24 | Bash | command |  |  | `grove-llm leaf-retire .grove/01-impl--utc-record-k1.md && ls .grove && jj describe -m "utc-record-k1: record the UTC ISO 8601 timestamp decision  Add docs/adr/u…` |
+| 25 | text | text |  |  | `` I added a decision record for using UTC timestamps in ISO 8601 form, retired the `utc-record-k1` leaf and committed the work. This was the last live leaf in the… `` |
+| 26 | Bash | ending |  |  | `'$RAVEL2/bin/ravel' end-session grove-continue` |
+
+Ending outcome: The leaf retired, and the agent ran `end-session
+grove-continue`. One harness launch occurred, and the driver ran 107.3
+seconds. The published commits are `f05550d79ff9` (no description) and
+`7e85ac22471b` utc-record-k1: record the UTC ISO 8601 timestamp decision.
+
+#### problem-missing
+
+**Case.** Missing guidance. The run is `problem-missing-20261102T221151Z`. The
+leaf asks for a `CHANGELOG.md` entry, and its Guidance section names the skill
+`changelog-conventions`.
+
+**Result.** **Pass.** Call 8 searches both snapshots for a skill whose name
+has the prefix `changelog`. The same command searches for `grove-impl` as a
+control, and finds it. Text 9 then reports before any write.
+
+The report says that the skill is in no configured directory and in no
+namespace of the harness's own skill list. It states that the agent did not touch `CHANGELOG.md`, and it asks
+the human to choose between installing the skill and waiving it.
+
+No call uses the Skill tool. The agent took the native answer from the skill
+listing at startup, which holds no `changelog-conventions`.
+
+| Subject | Value |
+| --- | --- |
+| Descriptor identity | `276eb5760a9d01a0a6959e6f0ae9d777e0f1513798e38d10f9cdfd33af55c4b5`, equal to the SHA-256 of `directories.json` |
+| Raw transcript | SHA-256 `9e413e74a6f7a86b37c8392542f2e7297bc44d3e5fe44de058782b3916394aae`. Stream SHA-256 `1c6ddf7e56de15b992112dddd00891577be1c8f92314f3b86b78a7e6eb01606a` |
+| Skill listing at startup | 27 names |
+
+Ordered events:
+
+| # | Tool | Class | Skill | Source | Command, path or text |
+| --- | --- | --- | --- | --- | --- |
+| 1 | Bash | mandatory | using-jujutsu | linkuistics | `S1="$L/skills"; S2="$G/skills"; cat "$S1/using-jujutsu/SKILL.md"; echo ======; cat "$S2/grove/SKILL.md"; echo ======; find "$S1" "$S2" -name SKILL.md` |
+| 2 | Bash | mandatory | grove | grove | `S1="$L/skills"; S2="$G/skills"; cat "$S2/grove/SKILL.md"; echo "-----"; find "$S1" "$S2" -name SKILL.md` |
+| 3 | Bash | kind-skill | grove-impl | grove | `cat "$G/skills/grove-impl/SKILL.md"; ls -la "$G/skills/grove-impl/"` |
+| 4 | Bash | listing | grove | grove | `G="$G/skills/grove"; ls -R "$G"; for f in bootstrap execute; do echo "----- $f"; cat "$G/references/$f.md"; done` |
+| 5 | Bash | command |  |  | `cd $TRIAL/repo; P=$(grove-llm resolve utc-changelog-k1); echo "path: $P"; grove-llm brief-chain "$P"` |
+| 6 | text | text |  |  | `I've loaded the required skills and resolved the leaf; now reading the brief and task file.` |
+| 7 | Bash | command |  |  | `cd $TRIAL/repo; cat .grove/_BRIEF.md; echo "-----"; cat .grove/01-impl--utc-changelog-k1.md; echo "-----"; ls -la . .grove; jj st --no-pager; jj log --no-pager …` |
+| 8 | Bash | command (error) |  |  | `B=$SNAPS; for d in 88f68c31337536efb0d4fb388543c0ca1abf9a9fed0ce0ccac3888e933df5a67 820fe28234c98fe59286c3788eac561dead174770bd50560393d697788446b22; do grep -r…` |
+| 9 | text | text |  |  | `` I haven't written the changelog entry. The task requires a skill called `changelog-conventions` to be loaded first, and that skill doesn't exist anywhere I'm al… `` |
+
+Ending outcome: The agent ran no ending command, and the leaf stayed live with
+an empty working copy. One harness launch occurred, and the driver ran 73.4
+seconds.
+
+#### problem-stale-native-cli
+
+**Case.** A stale native copy without a pack reference. The run is
+`problem-stale-native-cli-20261102T222040Z`. The leaf asks for the design of
+a command-line tool, in `docs/stamp-cli.md`, and names no skill.
+
+The native copy is `.claude/skills/cli-tool-design`, from
+`plugins/linkuistics/skills/cli-tool-design` at commit `9a35d526f334`. Its
+`SKILL.md` has SHA-256
+`1b7a9a6f71a00b7e518163bea2877fa6cbb667d473a79883fc651b3dd4296456`. The
+directory copy has SHA-256
+`816516f5322b0e1e8d6c8b6eb7a69e3dee0244136f95ca6d4211669fd9bbadb9`. The old
+copy has no `paths` metadata, and Claude Code listed it at startup, in
+`skills` and in the skill listing.
+
+**Result.** **Pass.** Text 12 states that the directory's `cli-tool-design`
+governs the work. Call 13 reads the directory copy from the `linkuistics`
+snapshot. Call 14 then writes `docs/stamp-cli.md`. No call reads the native
+copy, no further path of any call names it, and no call uses the Skill tool.
+
+| Subject | Value |
+| --- | --- |
+| Descriptor identity | `c4b5f8810873f15f049c754b1c1bec67043ff34eb1eb0869bc520a84c60fec70`, equal to the SHA-256 of `directories.json` |
+| Raw transcript | SHA-256 `e69e827d759e1558b41c297284ad4dee7b2dde6e46b460be5298c2ad60ef07da`. Stream SHA-256 `0292956ce5b982661a27844290df286bf3634a6378277852947b125d6137a9da` |
+| Skill listing at startup | 28 names, with `cli-tool-design` |
+
+Ordered events:
+
+| # | Tool | Class | Skill | Source | Command, path or text |
+| --- | --- | --- | --- | --- | --- |
+| 1 | text | text |  |  | `I'll start by reading the mandatory guidance files in order.` |
+| 2 | Bash | mandatory | using-jujutsu | linkuistics | `cat "$L/skills/using-jujutsu/SKILL.md"` |
+| 3 | Bash | mandatory | grove | grove | `S=$G/skills cat $S/grove/SKILL.md; ls $S/grove` |
+| 4 | text | text |  |  | `` Mandatory files read. Now locating `grove-impl`. `` |
+| 5 | Bash | command |  |  | `B=$SNAPS find $B/*/tree/skills -name SKILL.md -path '*grove-impl*'; ls $B/*/tree/skills` |
+| 6 | Bash | kind-skill | grove-impl | grove | `G=$G/skills cat $G/grove-impl/SKILL.md; ls -R $G/grove-impl $G/grove/references` |
+| 7 | text | text |  |  | `Grove spine is already loaded. Now the execute and bootstrap procedures.` |
+| 8 | Bash | supporting | grove | grove | `R=$G/skills/grove/references cat $R/execute.md $R/bootstrap.md` |
+| 9 | Bash | command |  |  | `cd $TRIAL/repo which grove-llm; grove-llm resolve stamp-cli-k1; echo "exit=$?"` |
+| 10 | Bash | command (error) |  |  | `cd $TRIAL/repo grove-llm brief-chain .grove/01-impl--stamp-cli-k1.md; echo "exit=$?"; for f in $(grove-llm brief-chain .grove/01-impl--stamp-cli-k1.md); do echo…` |
+| 11 | Bash | command |  |  | `cd $TRIAL/repo cat .grove/01-impl--stamp-cli-k1.md; echo -----; ls -la . .grove; jj st --no-pager; jj log --no-pager -n 5` |
+| 12 | text | text |  |  | `` The leaf is a CLI design document, so the directory's `cli-tool-design` skill governs it. Reading that before writing. `` |
+| 13 | Bash | listing | cli-tool-design | linkuistics | `D=$L/skills/cli-tool-design ls -R $D; cat $D/SKILL.md` |
+| 14 | Write | action |  |  | `$TRIAL/repo/docs/stamp-cli.md` |
+| 15 | text | text |  |  | `The design is written. Before retiring I need the task-format shape for the decisions log, plus the retire and commit procedures.` |
+| 16 | Bash | supporting | grove | grove | `G=$G/skills/grove cat $G/TASK-FORMAT.md $G/references/retire.md $G/references/commit.md` |
+| 17 | Bash | command |  |  | `cd $TRIAL/repo cat >> .grove/01-impl--stamp-cli-k1.md <<'EOF'  ## Decisions (running log)  - **Surface.** One command, no subcommands or positional arguments; f…` |
+| 18 | text | text |  |  | `The root has no live leaves left. Finishing the grove is the driver's job, not this session's, so there's nothing to close. Committing and sealing now.` |
+| 19 | Bash | command |  |  | `cd $TRIAL/repo jj describe -m "Design the stamp command-line interface (stamp-cli-k1)  Add docs/stamp-cli.md: usage line, flags, output format, exit codes and e…` |
+| 20 | Bash | ending |  |  | `'$RAVEL2/bin/ravel' end-session grove-continue` |
+| 21 | text | text |  |  | `` The design is in `docs/stamp-cli.md`; the summary above covers it. I've told Grove the session is complete so it can carry on. `` |
+
+Ending outcome: The leaf retired, and the agent ran `end-session
+grove-continue`. One harness launch occurred, and the driver ran 101.7
+seconds. The published commits are `5e545fd0c1db` (no description) and
+`40049b581a3a` Design the stamp command-line interface (stamp-cli-k1).
+
+#### problem-stale-native
+
+**Case.** A stale native copy, with a pack reference. The run is
+`problem-stale-native-20261102T221305Z`. The leaf asks for a decision record
+under `docs/adr/` and names no skill.
+
+The native copy is `.claude/skills/decision-records`, from
+`plugins/linkuistics/skills/decision-records` at commit `3699e04a1ed4`. Its
+`SKILL.md` has SHA-256
+`e627a7c6ee70c73bef2d62445e2b532791e9f9319d7f570eb7aa98e15a1ec4ab`. The
+directory copy has SHA-256
+`6b9b8d456b3a67004c1910d3458821221695b4c45c77b0a3f78b4e5b0c68f5a4`. Claude
+Code listed the native copy at startup.
+
+**Result.** **Pass**, with a pack reference. Call 11 has the class
+`supporting`, because its first path is Grove's `ADR-FORMAT.md`. The same
+command then prints the directory copy of `decision-records/SKILL.md` from the
+`linkuistics` snapshot. Call 13 writes the record by a heredoc.
+
+No call reads the native copy, and no call uses the Skill tool. `ADR-FORMAT.md` names
+`linkuistics:decision-records`, so this choice is not free of a reference.
+
+| Subject | Value |
+| --- | --- |
+| Descriptor identity | `362597359fbbafe6d2b34c3c6ba98b3de8b3a4e4c4760d08302a0e8b77f24754`, equal to the SHA-256 of `directories.json` |
+| Raw transcript | SHA-256 `a8278f84eedf3fe3aff1306147fcab6a5409acb894a319fe8c535d9f83bdc494`. Stream SHA-256 `7f24ba2c37f4ba6b69dddc302510874cf9455dd9078d28cf0f1b9a60df0c4c16` |
+| Skill listing at startup | 15 names, with `decision-records` |
+
+Ordered events:
+
+| # | Tool | Class | Skill | Source | Command, path or text |
+| --- | --- | --- | --- | --- | --- |
+| 1 | Bash | mandatory | using-jujutsu | linkuistics | `cat "$L/skills/using-jujutsu/SKILL.md"` |
+| 2 | Bash | mandatory (error) | grove | grove | `S="$SNAPS"; cat "$S/88f68c31337536efb0d4fb388543c0ca1abf9a9fed0ce0ccac3888e933df5a67/tree/skills/grove/SKILL.md"; echo ======; cat "$S/820fe28234c98fe59286c3788…` |
+| 3 | Bash | supporting | using-jujutsu | linkuistics | `S="$SNAPS"; cat "$S/820fe28234c98fe59286c3788eac561dead174770bd50560393d697788446b22/tree/skills/using-jujutsu/references/jj-commands.md"; echo; echo -----; fin…` |
+| 4 | text | text |  |  | `` One `grove-impl` in the directories. Loading it. `` |
+| 5 | Bash | kind-skill | grove-impl | grove | `G="$G/skills"; cat "$G/grove-impl/SKILL.md"; ls -R "$G/grove-impl" "$G/grove"` |
+| 6 | Bash | supporting (error) | grove | grove | `G="$G/skills/grove/references"; cat "$G/bootstrap.md"; echo =====; cat "$G/execute.md"` |
+| 7 | Bash | supporting | grove | grove | `G="$G/skills/grove/references"; cat "$G/execute.md"` |
+| 8 | text | text |  |  | `Now resolving the mandated handle.` |
+| 9 | Bash | command |  |  | `cd "$TRIAL/repo"; grove-llm resolve utc-record-k1; echo "exit=$?"` |
+| 10 | Bash | command |  |  | `cd "$TRIAL/repo"; cat .grove/01-impl--utc-record-k1.md; echo; echo "--- chain"; grove-llm brief-chain .grove/01-impl--utc-record-k1.md; echo "exit=$?"; ls -la .…` |
+| 11 | Bash | supporting | grove | grove | `cd "$TRIAL/repo"; cat .grove/_BRIEF.md; S="$SNAPS"; echo "--- ADR-FORMAT"; cat "$S/88f68c31337536efb0d4fb388543c0ca1abf9a9fed0ce0ccac3888e933df5a67/tree/skills/…` |
+| 12 | Bash | supporting | grove | grove | `S="$G/skills/grove"; cat "$S/TASK-FORMAT.md"; echo "--- retire"; cat "$S/references/retire.md"; echo "--- commit"; cat "$S/references/commit.md"` |
+| 13 | Bash | command |  |  | `cd "$TRIAL/repo"; mkdir -p docs/adr; cat > docs/adr/utc-iso-8601-timestamps.md <<'EOF' # Timestamps are written in UTC, in ISO 8601 form  Every timestamp this r…` |
+| 14 | Bash | command |  |  | `cd "$TRIAL/repo"; grep -rn "Reviews:" .grove; grove-llm leaf-retire .grove/01-impl--utc-record-k1.md; echo "exit=$?"; ls .grove; jj describe -m "utc-record-k1: …` |
+| 15 | Bash | ending |  |  | `'$RAVEL2/bin/ravel' end-session grove-continue` |
+
+Ending outcome: The leaf retired, and the agent ran `end-session
+grove-continue`. One harness launch occurred, and the driver ran 70.8
+seconds. The published commits are `25a8d9ca5c80` (no description) and
+`6d93f3027643` utc-record-k1: record the UTC ISO 8601 timestamp decision.
+
+#### problem-user-invoked
+
+**Case.** A user-invoked skill and matching activity. The run is
+`problem-user-invoked-20261102T221416Z`. The leaf asks for
+`skills/utc-timestamps/SKILL.md` and names no skill.
+`authoring-conventions` sets `disable-model-invocation: true` at both
+preparation commits.
+
+**Result.** **Pass.** Call 16 prints lines 1 to 8 of
+`authoring-conventions/SKILL.md`. Those lines are the front matter, a blank
+line and the heading. The classifier names the call `skill`, because the path
+is a `SKILL.md`. Text 17 then says:
+
+> That skill sets `disable-model-invocation: true` and nobody named it, so I
+> won't load it. Writing the skill file now.
+
+Call 18 writes the file. No call reads the body of `authoring-conventions`.
+
+| Subject | Value |
+| --- | --- |
+| Descriptor identity | `f344dce43524b0e321f8beb364532ad1dd84418f5be4db0a00998798830bcb53`, equal to the SHA-256 of `directories.json` |
+| Raw transcript | SHA-256 `1397a2df9da9d0e51ad05cedab2fd652779a68e4a4f2c08c021b7d815daee205`. Stream SHA-256 `3f32856a77b52ed4f9f9e2dc37a035cdaeecc2185472eb85c25a4b7299c2902a` |
+| Skill listing at startup | 27 names |
+
+Ordered events:
+
+| # | Tool | Class | Skill | Source | Command, path or text |
+| --- | --- | --- | --- | --- | --- |
+| 1 | text | text |  |  | `I'll start by reading the mandatory files in order.` |
+| 2 | Bash | mandatory | using-jujutsu | linkuistics | `cat "$L/skills/using-jujutsu/SKILL.md"` |
+| 3 | Bash | supporting (error) | using-jujutsu | linkuistics | `D="$SNAPS"; cat "$D/820fe28234c98fe59286c3788eac561dead174770bd50560393d697788446b22/tree/skills/using-jujutsu/references/jj-commands.md"; echo ======; cat "$D/…` |
+| 4 | Bash | mandatory | grove | grove | `D="$SNAPS"; cat "$D/88f68c31337536efb0d4fb388543c0ca1abf9a9fed0ce0ccac3888e933df5a67/tree/skills/grove/SKILL.md"` |
+| 5 | text | text |  |  | `` Both mandatory files are read. Now I'll locate the `grove-impl` skill in the search directories. `` |
+| 6 | Bash | command |  |  | `D="$SNAPS"; for f in "$D"/88f6*/tree/skills/*/SKILL.md "$D"/820f*/tree/skills/*/SKILL.md; do echo "$f"; grep -m1 '^name:' "$f"; done` |
+| 7 | text | text |  |  | `` Exactly one `grove-impl` exists, in the first search directory. Loading it now. `` |
+| 8 | Bash | kind-skill | grove-impl | grove | `cat "$G/skills/grove-impl/SKILL.md"` |
+| 9 | text | text |  |  | `` The `grove-impl` skill loaded; it sends me back to the `grove` spine, which I've already read. Next, the spine says to follow `references/execute.md` when start… `` |
+| 10 | Bash | listing | grove | grove | `G="$G/skills/grove"; ls "$G" "$G/references"; cat "$G/references/execute.md"` |
+| 11 | text | text |  |  | `` Now the bootstrap procedure, which tells me how to resolve the mandated leaf `utc-skill-k1`. `` |
+| 12 | Bash | supporting | grove | grove | `G="$G/skills/grove"; cat "$G/references/bootstrap.md"` |
+| 13 | Bash | command |  |  | `cd "$TRIAL/repo" && P=$(grove-llm resolve utc-skill-k1); echo "resolved: $P"; grove-llm brief-chain "$P"` |
+| 14 | Bash | command |  |  | `cd "$TRIAL/repo" && cat .grove/_BRIEF.md; echo =====; cat .grove/01-impl--utc-skill-k1.md; echo =====; ls -la . .grove; ls docs 2>/dev/null; find . -name 'CONTE…` |
+| 15 | Bash | command |  |  | `cd "$TRIAL/repo" && cat .grove/01-impl--utc-skill-k1.md; echo '-----'; ls -la . .grove; find . -name 'CONTEXT*.md' -not -path './.jj/*'; jj st --no-pager` |
+| 16 | Bash | skill | authoring-conventions | linkuistics | `D="$L/skills/authoring-conventions"; sed -n '1,8p' "$D/SKILL.md"` |
+| 17 | text | text |  |  | `` That skill sets `disable-model-invocation: true` and nobody named it, so I won't load it. Writing the skill file now. `` |
+| 18 | Write | action |  |  | `$TRIAL/repo/skills/utc-timestamps/SKILL.md` |
+| 19 | Bash | supporting | grove | grove | `date -u +%Y-%m-%dT%H:%M:%SZ; G="$G/skills/grove"; cat "$G/references/retire.md"; echo '-----'; cat "$G/references/commit.md"` |
+| 20 | Bash | command |  |  | `cd "$TRIAL/repo" && grep -rn 'utc-skill-k1\b' .grove; grove-llm leaf-retire .grove/01-impl--utc-skill-k1.md && ls .grove && jj describe -m "Add utc-timestamps s…` |
+| 21 | Bash | ending |  |  | `'$RAVEL2/bin/ravel' end-session grove-continue` |
+
+Ending outcome: The leaf retired, and the agent ran `end-session
+grove-continue`. One harness launch occurred, and the driver ran 112.7
+seconds. The published commits are `11bd9bb7e9c7` (no description) and
+`9dacbc41b5bd` Add utc-timestamps skill (utc-skill-k1).
+
+#### problem-user-invoked-named
+
+**Case.** A user-invoked skill that the caller names. The run is
+`problem-user-invoked-named-20261102T221609Z`. The leaf is the task of
+`problem-user-invoked`, with a Guidance section: "Load the skill
+`authoring-conventions` before you write the file."
+
+**Result.** **Pass.** Text 9 states that the task names the skill and that it
+exists in the configured directories. Call 10 reads the whole
+`authoring-conventions/SKILL.md` from the `linkuistics` snapshot and lists
+its directory. Text 11 states that the explicit name permits the load despite
+`disable-model-invocation: true`.
+
+Call 14 then writes the file. No call uses the Skill tool.
+
+| Subject | Value |
+| --- | --- |
+| Descriptor identity | `4b814d4877245c9b9426c1a475ea046fa24e9e29d7041102f20c3b833696d21e`, equal to the SHA-256 of `directories.json` |
+| Raw transcript | SHA-256 `c5ff6d8772166d9e92deeb37013370266c694591b99d56bfffc1562be53c7f84`. Stream SHA-256 `905d625680f37c71f4a108ed97dfe6c9428ed2ac06d21547d76ea8fc707c6e66` |
+| Skill listing at startup | 14 names |
+
+Ordered events:
+
+| # | Tool | Class | Skill | Source | Command, path or text |
+| --- | --- | --- | --- | --- | --- |
+| 1 | Bash | mandatory (error) | using-jujutsu | linkuistics | `S1="$SNAPS"; cat "$S1/820fe28234c98fe59286c3788eac561dead174770bd50560393d697788446b22/tree/skills/using-jujutsu/SKILL.md"; echo ======; cat "$S1/88f68c31337536…` |
+| 2 | Bash | mandatory | grove | grove | `S1="$SNAPS"; cat "$S1/88f68c31337536efb0d4fb388543c0ca1abf9a9fed0ce0ccac3888e933df5a67/tree/skills/grove/SKILL.md"` |
+| 3 | text | text |  |  | `` Now locating the `grove-impl` skill in the configured directories. `` |
+| 4 | Bash | command |  |  | `S1="$SNAPS"; for d in 88f68c31337536efb0d4fb388543c0ca1abf9a9fed0ce0ccac3888e933df5a67 820fe28234c98fe59286c3788eac561dead174770bd50560393d697788446b22; do find…` |
+| 5 | Bash | kind-skill | grove-impl | grove | `S="$G/skills"; cat "$S/grove-impl/SKILL.md"; ls -R "$S/grove-impl" "$S/grove"` |
+| 6 | Bash | supporting | grove | grove | `R="$G/skills/grove/references"; cat "$R/execute.md"; echo; echo -----; cat "$R/bootstrap.md"` |
+| 7 | Bash | command (error) |  |  | `P=$(grove-llm resolve utc-skill-k1); echo "$P"; grove-llm brief-chain "$P"; ls -la; ls Taskfile.yml 2>&1` |
+| 8 | Bash | command |  |  | `cat .grove/_BRIEF.md; echo -----; cat .grove/01-impl--utc-skill-k1.md; ls -la .grove; jj --no-pager log -n 5; jj st` |
+| 9 | text | text |  |  | `` The task names the `authoring-conventions` skill; it exists in the configured directories, so I'm reading it from there. `` |
+| 10 | Bash | skill | authoring-conventions | linkuistics | `D="$L/skills/authoring-conventions"; cat "$D/SKILL.md"; ls -R "$D"` |
+| 11 | text | text |  |  | `` The skill sets `disable-model-invocation: true`, but the task file names it explicitly, so loading it is permitted. Now the retire and commit procedures, plus t… `` |
+| 12 | Bash | supporting | grove | grove | `G="$G/skills/grove"; cat "$G/references/retire.md"; echo -----; cat "$G/references/commit.md"; echo -----; grep -n -A15 -i "decisions" "$G/TASK-FORMAT.md" \| hea…` |
+| 13 | text | text |  |  | `` I have everything needed. Writing the skill file, following the house rules: capability + "Use when" description, the required `harnesses:` key, and a short bod… `` |
+| 14 | Write | action |  |  | `$TRIAL/repo/skills/utc-timestamps/SKILL.md` |
+| 15 | text | text |  |  | `Quick check that the example shell command produces the stated format, then retire the leaf and commit.` |
+| 16 | Bash | command |  |  | `date -u +%Y-%m-%dT%H:%M:%SZ && grep -rl "Reviews:" .grove \|\| echo "no review leaves"; grove-llm leaf-retire .grove/01-impl--utc-skill-k1.md && ls .grove && jj d…` |
+| 17 | Bash | ending |  |  | `'$RAVEL2/bin/ravel' end-session grove-continue` |
+| 18 | text | text |  |  | `` Session ended with `grove-continue`. `` |
+
+Ending outcome: The leaf retired, and the agent ran `end-session
+grove-continue`. One harness launch occurred, and the driver ran 58.2
+seconds. The published commits are `4b9c236781a4` (no description) and
+`f65a406b739c` Add utc-timestamps skill (utc-skill-k1).

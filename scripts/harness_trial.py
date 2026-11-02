@@ -10,6 +10,7 @@ differs. The trial conventions live in that node's brief and in
     harness_trial.py prepare --out DIR --commit COMMIT --ravel FRONT
     harness_trial.py run --prepared DIR --case NAME [--model M] [--effort E]
     harness_trial.py reextract --trial RUN
+    harness_trial.py turns --plan PLAN -- PROGRAM ARG... PROMPT
 
 `prepare` makes a plain Git checkout of this repository at COMMIT, builds
 `grove` and `grove-llm` from it into a scratch prefix, and checks the Ravel 2.0
@@ -29,7 +30,11 @@ A native copy can come from an older commit of the checkout, as a stale copy.
 A case with `moveAway` and `expectRefusal` moves a clone of one source away
 before the driver, and expects Ravel's refusal before any harness launch.
 A case with `continuation` resumes the first session outside Ravel after a
-source commit and a settings change, then launches a fresh session.
+source commit and a settings change, then launches a fresh session. A case
+with `compaction` runs three turns in one managed process: the prompt,
+`/compact` with the case's instructions, then the case's answer. The feeder
+`harness_trial.py turns` sends them, and it sends the answer only when the
+context after compaction holds no preamble path.
 `reextract` extracts the events of an earlier run again, from its unchanged
 transcripts. A real run spends
 subscription usage, so no gate runs it. `scripts/test_harness_trial.py` tests
@@ -109,6 +114,24 @@ SKILL_RESULT_CHARS = 300
 PLANTED = "guidance"
 # A tree file's placeholder for the trial directory.
 TRIAL_TOKEN = "{{TRIAL}}"
+# The two compaction cases: the path is lost and the instructions remain, or
+# the whole preamble is lost.
+COMPACTION_MODES = ("path", "preamble")
+# The descriptor variable of Ravel's skill-discovery specification.
+DESCRIPTOR_VARIABLE = "RAVEL_SKILL_DIRECTORIES"
+# The line that ends Ravel's preamble and opens the caller block.
+CALLER_LABEL = "\nCaller task\nBEGIN RAVEL CALLER TASK "
+# Terms of the preamble, in lower case. A summary that lost the whole preamble
+# holds none of them, and the instructions of that case name none of them.
+PREAMBLE_TERMS = (
+    "skill director", "search director", "descriptor", "mandatory file", "obligation",
+    "directories.json", ".cache/ravel", "ravel_skill",
+)
+# A preamble line this long or longer counts as preamble text when a context
+# holds it word for word.
+PREAMBLE_LINE_CHARS = 40
+# The characters on each side of a term that the record shows.
+SNIPPET_CHARS = 60
 
 
 class TrialError(Exception):
@@ -239,6 +262,8 @@ def load_case(name: str) -> tuple[dict[str, Any], Path]:
         raise TrialError(f"case {name}: a lifecycle case names moveAway and expectRefusal together")
     if case.get("continuation") is not None:
         check_continuation(case, directory)
+    if case.get("compaction") is not None:
+        check_compaction(case, directory)
     if mode == "standalone":
         standalone = case.get("standalone") or {}
         if not (directory / standalone.get("prompt", "prompt.md")).is_file() or not standalone.get("outputs"):
@@ -269,6 +294,31 @@ def check_continuation(case: dict[str, Any], directory: Path) -> None:
             raise TrialError(f"case {name}: the edit {edit['path']} lies in no source of the case")
     if "mandatory" not in spec:
         raise TrialError(f"case {name}: a continuation case names the mandatory files of the changed settings")
+
+
+def check_compaction(case: dict[str, Any], directory: Path) -> None:
+    """A compaction case is a lifecycle case on the directory route. It names
+    its mode, the summary instructions and the answer of the turn after
+    compaction. The agent sees the instructions after the boundary, so the
+    instructions of the preamble case name no term of the preamble."""
+    spec = case["compaction"]
+    name = case["name"]
+    if case.get("mode") != "lifecycle" or case.get("moveAway") or case.get("continuation") is not None:
+        raise TrialError(f"case {name}: a compaction case is a lifecycle case without moveAway or continuation")
+    if case.get("route") != "directory-2.0":
+        raise TrialError(f"case {name}: a compaction case uses the route directory-2.0")
+    if spec.get("mode") not in COMPACTION_MODES:
+        raise TrialError(f"case {name}: the compaction mode is one of {', '.join(COMPACTION_MODES)}")
+    instructions = spec.get("instructions", "")
+    if not instructions.strip() or "\n" in instructions:
+        raise TrialError(f"case {name}: a compaction case names one line of summary instructions")
+    if spec["mode"] == "preamble":
+        named = [term for term in PREAMBLE_TERMS if term in instructions.lower()]
+        if named or DESCRIPTOR_VARIABLE in instructions:
+            raise TrialError(f"case {name}: the instructions name {named or [DESCRIPTOR_VARIABLE]}, "
+                             "which would remind the agent of the preamble")
+    if not (directory / spec.get("answer", "answer.md")).is_file():
+        raise TrialError(f"case {name}: no answer file for the turn after compaction")
 
 
 def fixed_probes(case: dict[str, Any], home: Path, checkout: Path) -> list[list[str]]:
@@ -308,14 +358,25 @@ def route_for(case: dict[str, Any], records: Path, program: Path, model: str, ef
               probes: list[list[str]] | None = None) -> dict[str, Any]:
     """The route as data. The configuration script and the fake driver of the
     tests both take it from here. A standalone launch is confined, so its
-    wrapper writes its record to standard output, `-`."""
+    wrapper writes its record to standard output, `-`.
+
+    A compaction case selects the feeder as its program, with the harness as
+    the feeder's command. It gives no --add-dir: Claude Code writes additional
+    directories into the system prompt, which survives compaction, so the
+    snapshot paths would survive too."""
+    compaction = case.get("compaction") is not None
+    selected = Path(sys.executable) if compaction else program
+    program_args = ["-I", str(Path(__file__).resolve()), "turns", "--plan", str(Path(records).parent / "turns.json"),
+                    "--", str(program)] if compaction else []
     return {
         "kinds": case["kinds"],
         "wrapper": str(WRAPPER),
         "records": "-" if case.get("mode") == "standalone" else str(records),
         "probes": probes or [],
         "probeRequest": bool(case.get("probes")),
-        "program": str(program),
+        "program": str(selected),
+        "programArgs": program_args,
+        "addDirs": not compaction,
         "fixedArgs": [
             "-p", "--output-format", "stream-json", "--verbose",
             "--model", model, "--effort", effort, "--permission-mode", PERMISSION_MODE,
@@ -345,6 +406,19 @@ def config_for(case: dict[str, Any], route: dict[str, Any]) -> str:
         probes = "\n".join(lines)
     fixed = route["fixedArgs"]
     records, program, model, effort = route["records"], route["program"], route["model"], route["effort"]
+    program_args = ""
+    if route.get("programArgs"):
+        program_args = f"\n    args += [{', '.join(rhai_string(arg) for arg in route['programArgs'])}];"
+    add_dirs = ""
+    if route.get("addDirs", True):
+        add_dirs = "\n".join([
+            "",
+            "    // --add-dir takes several values, so a fixed flag must follow the last",
+            "    // root. Otherwise the prompt would become one more directory.",
+            "    if request.skills != () {",
+            '        for source in request.skills.sources { args += ["--add-dir", source.snapshotRoot]; }',
+            "    }",
+        ])
     return f"""// Written by scripts/harness_trial.py for the case {case['name']}.
 export const SCHEMA_VERSION = 4;
 export const VERSION = {rhai_string('harness-trial-' + case['name'])};
@@ -359,12 +433,7 @@ fn select(request, context) {{
     }}
     let view = #{{ kind: request.kind, originalPrompt: request.originalPrompt, skills: request.skills }};
     let args = [{rhai_string(str(records))}, ravel::json_encode(view), {rhai_string(str(program))}];
-{probes}
-    // --add-dir takes several values, so a fixed flag must follow the last
-    // root. Otherwise the prompt would become one more directory.
-    if request.skills != () {{
-        for source in request.skills.sources {{ args += ["--add-dir", source.snapshotRoot]; }}
-    }}
+{probes}{program_args}{add_dirs}
     args += [{', '.join(rhai_string(arg) for arg in fixed)}];
     args.push(request.prompt);
     #{{ status: "selected", program: {rhai_string(route["wrapper"])}, args: args,
@@ -405,15 +474,22 @@ def read_jsonl_bytes(raw: bytes) -> list[dict[str, Any]]:
 class Classifier:
     """Names what a path is, from the request view of the launch."""
 
-    def __init__(self, view: dict[str, Any], home: Path, repo: Path, marker: str | None = None):
+    def __init__(self, view: dict[str, Any], home: Path, repo: Path, marker: str | None = None,
+                 turns: bool = False):
         skills = view.get("skills") or {}
         # The text that only the changed bytes of a continuation case hold.
         self.marker = marker
+        # A compaction case shows each user turn and the compaction boundary
+        # among the events.
+        self.turns = turns
         self.kind_skill = f"grove-{view.get('kind', '')}"
         self.mandatory = {self._norm(item["path"]) for item in skills.get("mandatory", [])}
         self.descriptor = self._norm(skills["descriptorPath"]) if skills.get("descriptorPath") else None
         self.snapshots = [(source["id"], self._norm(source["snapshotRoot"])) for source in skills.get("sources", [])]
         self.origins = [(source["id"], self._norm(source["originPath"])) for source in skills.get("sources", [])]
+        # Claude Code's session files. After compaction the summary names the
+        # full transcript, which holds the preamble.
+        self.transcripts = self._norm(str(home / ".claude" / "projects"))
         self.native = [self._norm(str(home / ".claude")), self._norm(str(home / ".codex"))]
         # The files that a case plants for a concrete-path request.
         self.planted = self._norm(str(home.parent / PLANTED))
@@ -445,6 +521,8 @@ class Classifier:
         for source, root in self.origins:
             if self._inside(path, root):
                 return "source-origin", self._skill(path)
+        if self._inside(path, self.transcripts):
+            return "transcript", None
         for root in self.native:
             if self._inside(path, root):
                 return "native", self._skill(path)
@@ -478,8 +556,11 @@ class Classifier:
 PATH_TOKEN = re.compile(r"""(?<![\w.])(/[^\s'"`;|&<>()]+)""")
 READ_CLASSES = (
     "mandatory", "descriptor", "kind-skill", "skill", "supporting", "listing", "source-origin", "native",
-    "planted",
+    "planted", "transcript",
 )
+# A Bash command that reads the environment: the descriptor variable by name,
+# or `env` or `printenv` as a command word.
+ENVIRONMENT_READ = re.compile(r"(?:^|[\s;&|(`$])(?:env|printenv)(?=$|[\s;&|)`])")
 SEPARATORS = {"&&", "||", ";", "|", "&", "\n", "(", ")"}
 
 
@@ -596,6 +677,29 @@ def marker_places(marker: str | None, tool_input: dict[str, Any], result: str) -
     return places
 
 
+def turn_event(entry: dict[str, Any]) -> dict[str, Any] | None:
+    """A user turn or the compaction boundary, as an event, or None. A turn is
+    a user message of text that is neither a tool result, a meta message, the
+    compaction summary nor the output of a local command. The `/compact`
+    command shows as `/compact` and its arguments."""
+    if entry.get("type") == "system" and entry.get("subtype") == "compact_boundary":
+        return {"tool": "compaction", "class": "compaction", "target": "compact boundary"}
+    if entry.get("type") != "user" or entry.get("isMeta") or entry.get("isCompactSummary"):
+        return None
+    content = (entry.get("message") or {}).get("content")
+    if isinstance(content, list):
+        if any(isinstance(b, dict) and b.get("type") == "tool_result" for b in content):
+            return None
+        content = result_text(content)
+    if not isinstance(content, str) or not content.strip() or content.startswith("<local-command"):
+        return None
+    command = re.search(r"<command-name>(/[\w-]+)</command-name>", content)
+    if command:
+        args = re.search(r"<command-args>(.*?)</command-args>", content, re.S)
+        content = command.group(1) + (" " + args.group(1).strip() if args and args.group(1).strip() else "")
+    return {"tool": "prompt", "class": "prompt", "target": content.strip()}
+
+
 def extract_events(entries: list[dict[str, Any]], classifier: Classifier) -> list[dict[str, Any]]:
     """The ordered tool calls and text blocks of one transcript, each with its
     class. A disclosure or a report is text, so its order against the tool
@@ -613,6 +717,10 @@ def extract_events(entries: list[dict[str, Any]], classifier: Classifier) -> lis
                     results[block.get("tool_use_id", "")] = result_text(block.get("content"))
     events = []
     for entry in entries:
+        turn = turn_event(entry) if classifier.turns else None
+        if turn:
+            events.append({"seq": len(events) + 1, "error": None, "sidechain": bool(entry.get("isSidechain")), **turn})
+            continue
         if entry.get("type") != "assistant":
             continue
         content = (entry.get("message") or {}).get("content")
@@ -659,6 +767,8 @@ def extract_events(entries: list[dict[str, Any]], classifier: Classifier) -> lis
                 event["class"] = "ending" if ending else "command"
                 if ending:
                     event["result"] = ending.group(1)
+                elif DESCRIPTOR_VARIABLE in target or ENVIRONMENT_READ.search(target):
+                    event["class"] = "variable"
             elif classes:
                 event["class"], event["skill"], event["path"] = classes[0]
             else:
@@ -953,7 +1063,7 @@ def read_window(record: Path) -> tuple[int, int] | None:
 
 
 def describe_launch(record: Path, home: Path, repo: Path, live: Mapping[str, str],
-                    marker: str | None = None) -> dict[str, Any]:
+                    marker: str | None = None, turns: bool = False) -> dict[str, Any]:
     """One launch of a lifecycle case, from its record directory."""
     stream_file = record / "stream.jsonl"
     probes = record / "probes"
@@ -962,7 +1072,7 @@ def describe_launch(record: Path, home: Path, repo: Path, live: Mapping[str, str
         read_jsonl(stream_file) if stream_file.exists() else [],
         sha256_file(stream_file) if stream_file.exists() else None,
         parse_probes(probes.read_text()) if probes.exists() else [],
-        home, repo, live, marker, read_window(record),
+        home, repo, live, marker, read_window(record), turns,
     )
 
 
@@ -1013,7 +1123,7 @@ def log_lines(text: str) -> list[str]:
 def describe(label: str, view: dict[str, Any], child: dict[str, str], stream: list[dict[str, Any]],
              stream_sha: str | None, probes: list[dict[str, str]], home: Path, repo: Path,
              live: Mapping[str, str], marker: str | None = None,
-             window: tuple[int, int] | None = None) -> dict[str, Any]:
+             window: tuple[int, int] | None = None, turns: bool = False) -> dict[str, Any]:
     """One launch: its request view, the environment of its harness, its
     probes and its ordered events. The events come from the session file of
     the harness. When the harness wrote none, as a confined harness cannot,
@@ -1022,7 +1132,7 @@ def describe(label: str, view: dict[str, Any], child: dict[str, str], stream: li
     then covers those lines only."""
     init = next((e for e in stream if e.get("type") == "system" and e.get("subtype") == "init"), {})
     session_id = init.get("session_id")
-    classifier = Classifier(view, home, Path(init.get("cwd") or repo), marker)
+    classifier = Classifier(view, home, Path(init.get("cwd") or repo), marker, turns)
     transcripts = []
     for path in session_files(home):
         if session_id and session_id not in str(path):
@@ -1366,6 +1476,291 @@ def continue_case(case: dict[str, Any], case_dir: Path, trial: Path, home: Path,
     return result
 
 
+# --- Compaction ----------------------------------------------------------------
+
+
+def preamble_marks(prompt: str) -> dict[str, Any]:
+    """What identifies the preamble of a prepared prompt: its absolute paths,
+    the 64-digit digests in them, its long lines and the descriptor variable.
+    The preamble is the text before Ravel's caller label."""
+    end = prompt.find(CALLER_LABEL)
+    if end < 0:
+        raise TrialError("the prompt has no Ravel caller block, so it has no preamble to lose")
+    preamble = prompt[:end]
+    paths = sorted(set(re.findall(r'"(/[^"]+)"', preamble)))
+    return {
+        "paths": paths,
+        "digests": sorted(set(re.findall(r"[0-9a-f]{64}", preamble))),
+        "lines": sorted({line.strip() for line in preamble.splitlines() if len(line.strip()) >= PREAMBLE_LINE_CHARS}),
+        "sha256": sha256_bytes(preamble.encode()),
+    }
+
+
+def strings(value: Any) -> list[str]:
+    """Every string in a JSON value, in order."""
+    if isinstance(value, str):
+        return [value]
+    if isinstance(value, dict):
+        return [text for item in value.values() for text in strings(item)]
+    if isinstance(value, list):
+        return [text for item in value for text in strings(item)]
+    return []
+
+
+def context_findings(text: str, words: str, marks: dict[str, Any]) -> dict[str, Any]:
+    """The preamble text that a context holds. `text` is all of it. `words`
+    is the part that Claude Code did not add itself, such as a skill listing,
+    and only that part is searched for the terms of the preamble."""
+    lowered = words.lower()
+    snippets = []
+    for term in PREAMBLE_TERMS:
+        for match in re.finditer(re.escape(term), lowered):
+            start, end = max(0, match.start() - SNIPPET_CHARS), match.end() + SNIPPET_CHARS
+            snippets.append(words[start:end].replace("\n", " "))
+    return {
+        "paths": [path for path in marks["paths"] if path in text],
+        "digests": [digest[:12] for digest in marks["digests"] if digest in text],
+        "lines": [line[:PREAMBLE_LINE_CHARS] for line in marks["lines"] if line in text],
+        "terms": [term for term in PREAMBLE_TERMS if term in lowered],
+        "variable": DESCRIPTOR_VARIABLE in text,
+        "snippets": snippets[:8],
+    }
+
+
+def compaction_problems(findings: dict[str, Any], mode: str, terms: bool = True) -> list[str]:
+    """Each way a context after compaction does not show the case's loss.
+    Path loss: no path or digest of the preamble remains, and the instruction
+    to read the variable does. Preamble loss: no text of the preamble remains."""
+    problems = []
+    if findings["paths"] or findings["digests"]:
+        problems.append(f"the context still holds the preamble paths {findings['paths']} "
+                        f"or digests {findings['digests']}")
+    if mode == "path" and not findings["variable"]:
+        problems.append(f"the context no longer names {DESCRIPTOR_VARIABLE}, so the instructions did not remain")
+    if mode == "preamble":
+        if findings["lines"]:
+            problems.append(f"the context holds preamble lines {findings['lines']}")
+        if findings["variable"]:
+            problems.append(f"the context names {DESCRIPTOR_VARIABLE}")
+        if terms and findings["terms"]:
+            problems.append(f"the context holds preamble terms {findings['terms']}")
+    return problems
+
+
+def boundary_index(entries: list[dict[str, Any]]) -> int | None:
+    """The index of the last compaction boundary of a session, or None."""
+    found = [n for n, e in enumerate(entries) if e.get("type") == "system" and e.get("subtype") == "compact_boundary"]
+    return found[-1] if found else None
+
+
+def after_boundary(entries: list[dict[str, Any]], marks: dict[str, Any]) -> dict[str, Any] | None:
+    """The findings in the session lines after the last boundary and before
+    the next turn: the summary, the command, its output and the attachments.
+    That is what the feeder's gate reads. The terms are searched in the user
+    messages only, because a native attachment such as the skill listing is no
+    text of the preamble."""
+    start = boundary_index(entries)
+    if start is None:
+        return None
+    rest = []
+    for entry in entries[start + 1:]:
+        turn = turn_event(entry)
+        if turn and turn["class"] == "prompt" and not turn["target"].startswith("/compact"):
+            break
+        rest.append(entry)
+    text = "\n".join(s for e in rest for s in strings(e))
+    words = "\n".join(s for e in rest if e.get("type") == "user" for s in strings(e.get("message")))
+    return context_findings(text, words, marks)
+
+
+def api_context(entries: list[dict[str, Any]], marks: dict[str, Any]) -> dict[str, Any]:
+    """The context of the first model request after the last boundary, from
+    the request records of the session file. The request names its message
+    blobs by hash, `keep` messages of the request before it, and the shape that
+    holds the system prompt. With `keep` 0 the blobs and the system prompt are
+    the whole context that the model received."""
+    start = boundary_index(entries)
+    request = next((e for e in entries[(start or 0) + 1:] if e.get("type") == "api-request"), None) \
+        if start is not None else None
+    if request is None:
+        return {"found": False}
+    blobs = {e.get("hash"): e for e in entries if e.get("type") == "api-request-blob"}
+    shapes = {e.get("shapeHash"): e for e in entries if e.get("type") == "api-request-shape"}
+    tail = request.get("tail") or []
+    texts = [s for h in tail if h in blobs for s in strings(blobs[h].get("message"))]
+    shape = shapes.get(request.get("shapeHash"))
+    system = strings((shape or {}).get("shape", {}).get("system")) if shape else []
+    text = "\n".join(texts + system)
+    return {
+        "found": True,
+        "keep": request.get("keep"),
+        "blobs": len(tail),
+        "missingBlobs": sum(h not in blobs for h in tail),
+        "system": shape is not None,
+        "requestDigest": request.get("requestDigest"),
+        "findings": context_findings(text, text, marks),
+    }
+
+
+def gate_session(home: Path, session: str | None, marks: dict[str, Any], mode: str) -> dict[str, Any]:
+    """The feeder's check before the answer turn: the session lines after the
+    boundary show the case's loss."""
+    path = session_file(home, session) if session else None
+    if not path:
+        return {"ok": False, "problems": ["no session file to check"]}
+    findings = after_boundary(read_jsonl(path), marks)
+    if findings is None:
+        return {"ok": False, "problems": ["the session file holds no compaction boundary"]}
+    problems = compaction_problems(findings, mode)
+    return {"ok": not problems, "problems": problems, "findings": findings}
+
+
+def run_turns(plan: Path, command: list[str]) -> int:
+    """The feeder of a compaction case. It runs the harness with stream-json
+    input and passes the stream through. It sends the prompt, which is the last
+    argument, then each turn of the plan after the result of the turn before.
+    Before a gated turn it checks the session file, and a failed check ends
+    the input with no further turn. Each step is a `trial-*` line on stderr."""
+    spec = json.loads(plan.read_text())
+    if not command:
+        raise TrialError("the feeder needs a harness command")
+    *argv, prompt = command
+    marks = preamble_marks(prompt)
+    home = Path(os.environ["HOME"])
+    child = subprocess.Popen([*argv, "--input-format", "stream-json"], stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+    assert child.stdin is not None and child.stdout is not None
+    pending = list(spec["turns"])
+
+    def log(kind: str, data: dict[str, Any]) -> None:
+        stamp = dt.datetime.now(dt.UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+        sys.stderr.write(f"trial-{kind} {json.dumps({'at': stamp, **data})}\n")
+        sys.stderr.flush()
+
+    def send(text: str, number: int) -> None:
+        message = {"type": "user", "message": {"role": "user", "content": text}}
+        child.stdin.write((json.dumps(message) + "\n").encode())
+        child.stdin.flush()
+        log("turn", {"turn": number, "sha256": sha256_bytes(text.encode())})
+
+    def close() -> None:
+        if not child.stdin.closed:
+            child.stdin.close()
+
+    send(prompt, 0)
+    session = None
+    sent = 1
+    for line in child.stdout:
+        sys.stdout.buffer.write(line)
+        sys.stdout.buffer.flush()
+        try:
+            event = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if not isinstance(event, dict):
+            continue
+        if event.get("type") == "system" and event.get("subtype") == "init":
+            session = session or event.get("session_id")
+        if event.get("type") != "result":
+            continue
+        if not pending:
+            close()
+            continue
+        turn = pending.pop(0)
+        if turn.get("gate"):
+            verdict = gate_session(home, session, marks, turn["gate"])
+            log("gate", {"mode": turn["gate"], "ok": verdict["ok"], "problems": verdict["problems"]})
+            if not verdict["ok"]:
+                pending.clear()
+                close()
+                continue
+        send(turn["text"], sent)
+        sent += 1
+    close()
+    return child.wait()
+
+
+def write_turns(case: dict[str, Any], case_dir: Path, trial: Path) -> dict[str, Any]:
+    """The feeder's plan: `/compact` with the case's instructions, then the
+    answer, gated by the case's mode."""
+    spec = case["compaction"]
+    answer = (case_dir / spec.get("answer", "answer.md")).read_text()
+    plan = {"turns": [{"text": f"/compact {spec['instructions']}"}, {"text": answer, "gate": spec["mode"]}]}
+    (trial / "turns.json").write_text(json.dumps(plan, indent=2) + "\n")
+    return plan
+
+
+def trial_lines(text: str, kind: str) -> list[dict[str, Any]]:
+    """The feeder's `trial-KIND` lines of a launch's stderr."""
+    found = []
+    for line in text.splitlines():
+        head, _, rest = line.partition(" ")
+        if head == f"trial-{kind}":
+            try:
+                found.append(json.loads(rest))
+            except json.JSONDecodeError:
+                continue
+    return found
+
+
+def compaction_report(case: dict[str, Any], record: Path, launch: dict[str, Any], home: Path) -> dict[str, Any]:
+    """The compaction of one launch: the turns that the feeder sent, its gate,
+    the summary, what Claude Code added after the boundary, the context of the
+    first request after it, and the variable in the harness environment."""
+    spec = case["compaction"]
+    prompt = (record / "prompt").read_text()
+    marks = preamble_marks(prompt)
+    stderr = (record / "stderr").read_text(errors="replace") if (record / "stderr").exists() else ""
+    env = parse_env((record / "env").read_text())
+    report: dict[str, Any] = {
+        "mode": spec["mode"],
+        "mechanism": "claude -p --input-format stream-json in Ravel's managed process; the feeder sends the "
+                     "prompt, then /compact with the instructions, then the answer",
+        "instructions": spec["instructions"],
+        "preamble": {"sha256": marks["sha256"], "paths": len(marks["paths"]), "digests": len(marks["digests"]),
+                     "lines": len(marks["lines"])},
+        "turns": trial_lines(stderr, "turn"),
+        "gate": next(iter(trial_lines(stderr, "gate")), None),
+        "variable": {"set": DESCRIPTOR_VARIABLE in env,
+                     "descriptor": env.get(DESCRIPTOR_VARIABLE) == launch.get("descriptorPath")},
+        "failures": [],
+    }
+    path = session_file(home, launch["sessionId"]) if launch.get("sessionId") else None
+    entries = read_jsonl(path) if path else []
+    start = boundary_index(entries)
+    if start is None:
+        report["failures"].append("the session holds no compaction boundary")
+        return report
+    summary = next((e for e in entries[start + 1:] if e.get("isCompactSummary")), None)
+    summary_text = "\n".join(strings((summary or {}).get("message")))
+    report["summary"] = {"chars": len(summary_text), "sha256": sha256_bytes(summary_text.encode()),
+                         "findings": context_findings(summary_text, summary_text, marks)}
+    report["afterBoundary"] = after_boundary(entries, marks)
+    report["failures"] += [f"after the boundary: {problem}"
+                           for problem in compaction_problems(report["afterBoundary"] or {}, spec["mode"])] \
+        if report["afterBoundary"] else []
+    request_at = next((n for n in range(start + 1, len(entries)) if entries[n].get("type") == "api-request"),
+                      len(entries))
+    report["attachments"] = [(e.get("attachment") or {}).get("type") for e in entries[start + 1:request_at]
+                             if e.get("type") == "attachment"]
+    report["api"] = api_context(entries, marks)
+    gate = report["gate"]
+    if not gate or not gate.get("ok"):
+        report["failures"].append(f"the gate before the answer did not pass: {gate}")
+    api = report["api"]
+    if not api["found"]:
+        report["failures"].append("the session file holds no model request after the boundary")
+    else:
+        if api["keep"] != 0 or api["missingBlobs"] or not api["system"]:
+            report["failures"].append(f"the request after the boundary is not complete in the session file: "
+                                      f"keep {api['keep']}, {api['missingBlobs']} blobs missing, "
+                                      f"system prompt {'found' if api['system'] else 'missing'}")
+        report["failures"] += [f"model context: {problem}"
+                               for problem in compaction_problems(api["findings"], spec["mode"], terms=False)]
+    if not (report["variable"]["set"] and report["variable"]["descriptor"]):
+        report["failures"].append(f"the harness environment does not hold {DESCRIPTOR_VARIABLE} with the descriptor")
+    return report
+
+
 def launch_role(case: dict[str, Any], index: int, launch: dict[str, Any], view: dict[str, Any]) -> str | None:
     if not case.get("continuation"):
         return None
@@ -1461,6 +1856,8 @@ def run_case(prepared_dir: Path, name: str, environ: Mapping[str, str],
     planted = plant_files(case, trial, checkout)
     route = route_for(case, records, program, model, effort, fixed_probes(case, home, checkout))
     (trial / "route.json").write_text(json.dumps(route, indent=2) + "\n")
+    if case.get("compaction") is not None:
+        write_turns(case, case_dir, trial)
     (home / ".config" / "ravel" / "config.rhai").write_text(config_for(case, route))
 
     links_before = list_links(home)
@@ -1490,6 +1887,7 @@ def run_case(prepared_dir: Path, name: str, environ: Mapping[str, str],
     check_links(list_links(home), store, owner_home, "after the probes and before")
 
     standalone = case["mode"] == "standalone"
+    compaction = None
     deadline = case.get("timeoutMinutes", 30) * 60
     if standalone:
         # `grove run` confines the harness. Its program is a regular file
@@ -1562,15 +1960,18 @@ def run_case(prepared_dir: Path, name: str, environ: Mapping[str, str],
     else:
         run_log = []
         marker = (case.get("continuation") or {}).get("marker")
+        turns = case.get("compaction") is not None
         launches = []
         for index, path in enumerate(launch_records(records)):
-            launch = describe_launch(path, home, repo, environ, marker)
+            launch = describe_launch(path, home, repo, environ, marker, turns)
             role = launch_role(case, index, launch, json.loads((path / "view.json").read_text()))
             if role:
                 launch["role"] = role
                 launch["snapshotMarkers"] = snapshot_markers(case, launch)
             launches.append(launch)
         tree_after = tree_state(repo)
+        if turns and launches:
+            compaction = compaction_report(case, launch_records(records)[0], launches[0], home)
         published = run_checked(
             ["jj", "log", "--no-graph", "-r", f"{base}..@ ~ empty()", "-T", 'commit_id.short(12) ++ " " ++ if(description, description.first_line(), "(no description)") ++ "\\n"'],
             cwd=repo, env=env,
@@ -1603,6 +2004,7 @@ def run_case(prepared_dir: Path, name: str, environ: Mapping[str, str],
         "resolve": resolve,
         "refusal": refusal,
         **({"continuation": continuation} if continuation is not None else {}),
+        **({"compaction": compaction} if compaction is not None else {}),
         "ending": {
             "driverExit": driver["exit"],
             "timedOut": driver["timedOut"],
@@ -1636,6 +2038,10 @@ def run_case(prepared_dir: Path, name: str, environ: Mapping[str, str],
         failures.append(link_failure)
     if continuation:
         failures += continuation["failures"]
+    if compaction:
+        failures += compaction["failures"]
+    elif case.get("compaction") is not None:
+        failures.append("the case compacted no launch; read driver.stderr of the trial")
     failures += native_failures(native, expected_native(case))
     if resolve:
         failures += resolve_failures(resolve, launches)
@@ -1661,7 +2067,8 @@ def reextract(trial: Path) -> dict[str, Any]:
                                       sha256_bytes(stream_text), part["probes"], home, trial / "unknown", {}))
     else:
         marker = (record.get("continuation") or {}).get("marker")
-        fresh = [describe_launch(path, home, repo, {}, marker) for path in launch_records(trial / "records")]
+        turns = record.get("compaction") is not None
+        fresh = [describe_launch(path, home, repo, {}, marker, turns) for path in launch_records(trial / "records")]
     if len(fresh) != len(record["launches"]):
         raise TrialError(f"{trial} now shows {len(fresh)} launches, and its record holds {len(record['launches'])}")
     for launch, again in zip(record["launches"], fresh):
@@ -1687,15 +2094,69 @@ def cell(text: Any) -> str:
 
 def shown(event: dict[str, Any]) -> str:
     target = event["target"]
-    if event["tool"] in ("Bash", "text") and len(target) > COMMAND_CHARS:
+    if event["tool"] in ("Bash", "text", "prompt") and len(target) > COMMAND_CHARS:
         target = target[:COMMAND_CHARS] + "…"
-    if event["tool"] == "text":
+    if event["tool"] in ("text", "prompt", "compaction"):
         return cell(target)
     if event["tool"] == "Skill" and event.get("resultText"):
         result = event["resultText"]
         result = result[:COMMAND_CHARS] + "…" if len(result) > COMMAND_CHARS else result
         return f"`{cell(target)}`: {cell(result)}"
     return f"`{cell(target)}`" if target else ""
+
+
+def render_findings(label: str, findings: dict[str, Any] | None) -> list[str]:
+    if findings is None:
+        return [f"- {label}: not read."]
+    lines = [
+        f"- {label}: {len(findings['paths'])} preamble paths, {len(findings['digests'])} digests, "
+        f"{len(findings['lines'])} preamble lines, terms {cell(', '.join(findings['terms']) or 'none')}, "
+        f"`{DESCRIPTOR_VARIABLE}` {'named' if findings['variable'] else 'not named'}."
+    ]
+    lines += [f"  - Term in context: `…{cell(snippet)}…`" for snippet in findings.get("snippets", [])]
+    return lines
+
+
+def render_compaction(compaction: dict[str, Any]) -> list[str]:
+    preamble = compaction["preamble"]
+    gate = compaction.get("gate") or {}
+    api = compaction.get("api") or {}
+    summary = compaction.get("summary") or {}
+    lines = [
+        "Compaction:",
+        "",
+        f"- Mode: {compaction['mode']} loss. Mechanism: {compaction['mechanism']}.",
+        f"- Summary instructions, which the agent sees after the boundary: `{cell(compaction['instructions'])}`.",
+        f"- Preamble: SHA-256 `{preamble['sha256']}`, {preamble['paths']} paths, {preamble['digests']} digests, "
+        f"{preamble['lines']} lines of at least {PREAMBLE_LINE_CHARS} characters.",
+        *[f"- Turn {t['turn']} sent at {t['at']}, SHA-256 `{t['sha256']}`." for t in compaction.get("turns", [])],
+        (f"- Gate before the answer: {'passed' if gate.get('ok') else 'failed'}"
+         + (f": {cell('; '.join(gate.get('problems', [])))}" if gate.get("problems") else "") + "."
+         if gate else "- Gate before the answer: no gate ran."),
+        *([f"- Summary: {summary['chars']} characters, SHA-256 `{summary['sha256']}`."] if summary else []),
+        *(render_findings("Summary", summary.get("findings")) if summary else []),
+        *render_findings("Session lines after the boundary", compaction.get("afterBoundary")),
+        *([f"- Attachments after the boundary, before the first request: "
+           f"{cell(', '.join(str(a) for a in compaction.get('attachments', [])) or 'none')}."]
+          if "attachments" in compaction else []),
+    ]
+    if api.get("found"):
+        lines += [
+            f"- First model request after the boundary: `keep` {api['keep']}, {api['blobs']} blobs, "
+            f"{api['missingBlobs']} missing, system prompt {'found' if api['system'] else 'missing'}, "
+            f"request digest `{api['requestDigest']}`.",
+            *render_findings("Model context of that request", api["findings"]),
+        ]
+    elif api:
+        lines.append("- First model request after the boundary: none in the session file.")
+    variable = compaction["variable"]
+    lines += [
+        f"- Harness environment: `{DESCRIPTOR_VARIABLE}` {'set' if variable['set'] else 'unset'}"
+        f"{', equal to the descriptor path' if variable['descriptor'] else ''}.",
+        *[f"- Failure: {cell(failure)}." for failure in compaction.get("failures", [])],
+        "",
+    ]
+    return lines
 
 
 def render(record: dict[str, Any]) -> str:
@@ -1865,6 +2326,9 @@ def render(record: dict[str, Any]) -> str:
             *[f"- Failure: {cell(failure)}." for failure in continuation.get("failures", [])],
             "",
         ]
+    compaction = record.get("compaction")
+    if compaction:
+        lines += render_compaction(compaction)
     lines += [
         "Ending outcome:",
         "",
@@ -1897,12 +2361,18 @@ def main(argv: list[str] | None = None, environ: Mapping[str, str] | None = None
     r.add_argument("--effort")
     x = commands.add_parser("reextract", help="extract the events of an earlier run again, from its transcripts")
     x.add_argument("--trial", required=True, type=Path)
+    t = commands.add_parser("turns", help="the feeder of a compaction case, which the trial configuration runs")
+    t.add_argument("--plan", required=True, type=Path)
+    t.add_argument("harness", nargs=argparse.REMAINDER, help="-- PROGRAM ARG... PROMPT")
     args = parser.parse_args(argv)
     try:
         if args.command == "prepare":
             prepare(args.out, args.commit, args.ravel, environ)
         elif args.command == "reextract":
             reextract(args.trial)
+        elif args.command == "turns":
+            harness = args.harness[1:] if args.harness[:1] == ["--"] else args.harness
+            return run_turns(args.plan, harness)
         else:
             run_case(args.prepared, args.case, environ, args.model, args.effort)
     except TrialError as error:

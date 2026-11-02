@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "name": "compaction-path",
+  "purpose": "Measure compaction that loses the path and keeps the instructions, on the directory route. A first turn reads the mandatory and relevant guidance, writes a Bash script and stops for required input from the human. The same managed process then compacts with instructions that keep the obligations and remove every path and digest. The answer of the human follows, and it names no guidance.",
+  "credits": [],
+  "harness": "claude",
+  "route": "directory-2.0",
+  "mode": "lifecycle",
+  "model": "claude-opus-5-5",
+  "effort": "medium",
+  "kinds": [
+    "impl"
+  ],
+  "sources": [
+    {
+      "id": "grove",
+      "plugin": "plugins/grove",
+      "roots": [
+        "skills"
+      ]
+    },
+    {
+      "id": "linkuistics",
+      "plugin": "plugins/linkuistics",
+      "roots": [
+        "skills"
+      ]
+    }
+  ],
+  "mandatory": [
+    {
+      "source": "linkuistics",
+      "path": "skills/using-jujutsu/SKILL.md"
+    },
+    {
+      "source": "grove",
+      "path": "skills/grove/SKILL.md"
+    }
+  ],
+  "timeoutMinutes": 30,
+  "compaction": {
+    "mode": "path",
+    "instructions": "Keep the numbered obligations of the first message word for word. Write no absolute path and no hexadecimal digest anywhere in the summary.",
+    "answer": "answer.md"
+  }
+}

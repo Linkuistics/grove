@@ -118,6 +118,42 @@ tool call names where it holds the marker: `input` for what the agent wrote or
 ran, `result` for the bytes that it got. The record also states whether each
 launch's snapshot copy of each edited file holds the marker.
 
+A lifecycle case on the directory route can name `compaction`, with a `mode`,
+one line of summary `instructions` and an `answer` file. The mode `path` loses
+the paths of the preamble and keeps its instructions. The mode `preamble` loses
+the whole preamble. The case then runs three turns in one launch, inside
+Ravel's managed process:
+
+1. The configuration script selects the feeder, `harness_trial.py turns`, as
+   the program, and Claude Code as the feeder's command. The feeder adds
+   `--input-format stream-json` and sends the prompt as the first turn.
+2. After the result of the first turn, the feeder sends `/compact` with the
+   case's instructions.
+3. After the result of the compaction, the feeder checks the session lines
+   after the compaction boundary. That check is the gate. When it passes, the
+   feeder sends the answer.
+
+The gate fails when a path or a digest of the preamble remains. In the mode
+`path`, it also fails when the context no longer names
+`RAVEL_SKILL_DIRECTORIES`. In the mode `preamble`, it also fails on a preamble
+line, the variable's name or a preamble term in a user message. A failed gate
+sends no answer, and the run fails as a failed precondition.
+
+A compaction case gives no `--add-dir`. Claude Code writes additional
+directories into its system prompt, and the system prompt survives compaction.
+The permission mode admits reads outside the working directory without it.
+Claude Code records the `/compact` command and its arguments after the
+boundary, so the agent sees the instructions. The loader therefore refuses
+instructions of the mode `preamble` that name a preamble term or the variable.
+
+After the run, the runner reads the context that the model received after
+compaction. The session file holds a record of each model request. The first
+request after the boundary must keep 0 earlier messages. The session file must
+hold each message blob and the system prompt of that request. The runner searches
+that context for the preamble as the gate does, without the terms, because
+Claude Code's own attachments are part of it. The runner also checks that the
+harness environment holds `RAVEL_SKILL_DIRECTORIES` with the descriptor path.
+
 The runner supports the routes native on 2.0 and directory on 2.0, and the
 harness Claude Code. A case on native 1.1 needs a `policy.ts`
 adapter, and a Codex case needs the Codex adapter of `codex-trial-adapter-k115`.
@@ -212,6 +248,10 @@ The extraction gives each tool call one class:
 | `source-origin` | A file in a configured source directory, not in its snapshot |
 | `native` | A file in the sandbox `.claude` or `.codex` |
 | `planted` | A file under the trial's `guidance/`, which a case plants for a concrete path |
+| `transcript` | A session file of the sandbox `.claude/projects`. After compaction, Claude Code names the full transcript in its summary |
+| `variable` | A Bash call that names `RAVEL_SKILL_DIRECTORIES`, or runs `env` or `printenv` |
+| `prompt` | A user turn of a compaction case, or its `/compact` command with the arguments |
+| `compaction` | The compaction boundary of a compaction case |
 | `native-skill-tool` | A call of the harness's own Skill tool. The event keeps the first 300 characters of the result |
 | `action` | An edit or a write |
 | `delegate` | A delegated agent |
@@ -248,6 +288,10 @@ extraction. Further tests prove the source of each read, a native copy from
 an older commit and a refusal case with a moved source. A continuation test
 proves the source commit, the changed settings, the resumed turn and its
 environment, the line windows, the marker and the fresh launch.
+
+Compaction tests prove the three turns in one launch without `--add-dir`, the
+gate and the check of the model context. They also prove that the loader
+refuses instructions that name the preamble.
 
 Each check also runs once
 against a runner with one function broken, and the check must fail there. A

@@ -124,8 +124,17 @@ launch.mkdir(exist_ok=True)
 env = dict(os.environ, GROVE_LAUNCH_DIR=str(launch), RAVEL_EXIT_FILE=str(trial / "tmp/exit"),
            RAVEL_SKILL_DIRECTORIES=str(descriptor))
 print("grove: launching impl through Ravel — smoke-file-k1", file=sys.stderr, flush=True)
-args = [route["wrapper"], route["records"], json.dumps(view), route["program"],
-        "--add-dir", str(snap), *route["fixedArgs"], "Grove mandate: the leaf"]
+prompt = "Grove mandate: the leaf"
+if not route.get("addDirs", True):
+    # A compaction case reads the preamble of the prepared prompt.
+    prompt = ("Ravel skill directories\n\nSearch directories:\n- " + json.dumps(str(snap / "skills"))
+              + "\n\nMandatory files, in order:\n1. " + json.dumps(mandatory[0]["path"])
+              + "\n\nDescriptor: " + json.dumps(str(descriptor))
+              + "\n\nObligations:\n10. Keep the descriptor path in each continuation or compaction summary, "
+              + "and read RAVEL_SKILL_DIRECTORIES when the path is lost.\n\nCaller task\n"
+              + "BEGIN RAVEL CALLER TASK 0123\nGrove mandate: the leaf\nEND RAVEL CALLER TASK 0123")
+args = [route["wrapper"], route["records"], json.dumps(view), route["program"], *route.get("programArgs", []),
+        *(["--add-dir", str(snap)] if route.get("addDirs", True) else []), *route["fixedArgs"], prompt]
 status = subprocess.run(args, env=env, stdin=subprocess.DEVNULL).returncode
 print(f"grove: session ended without a supported Grove result — status {{status}}; loop stopped.", file=sys.stderr)
 sys.exit(1)
@@ -152,7 +161,7 @@ if "--add-dir" in sys.argv:
     snap = sys.argv[sys.argv.index("--add-dir") + 1]
     saved.write_text(snap)
 else:
-    snap = saved.read_text()
+    snap = saved.read_text() if saved.exists() else ""
 names = {{"SNAP": snap, "HOME": str(home), "DESC": os.environ.get("RAVEL_SKILL_DIRECTORIES", ""),
          "CWD": os.getcwd(), "TRIAL": str(home.parent)}}
 project = home / ".claude/projects/-fake"
@@ -170,19 +179,64 @@ print(json.dumps({{"type": "system", "subtype": "init", "session_id": session, "
                   "claude_code_version": "9.9.9"}}))
 entries = [{{"type": "attachment", "attachment": {{"type": "skill_listing", "skillCount": 0, "names": []}}}},
            {{"type": "attachment", "attachment": {{"type": "credential_org", "org": "secret-org"}}}}]
-for n, (tool, field, value, error) in enumerate(tools):
-    if tool == "text":
-        entries.append({{"type": "assistant", "message": {{"content": [{{"type": "text", "text": value}}]}}}})
-        continue
-    tid = f"toolu_{{n}}"
-    target = value.format(**names)
-    entries.append({{"type": "assistant", "message": {{"content": [
-        {{"type": "tool_use", "id": tid, "name": tool, "input": {{field: target}}}}]}}}})
-    # A read returns the bytes of the file, so a marker in them reaches the result.
-    text = Path(target).read_text() if tool == "Read" and Path(target).is_file() else f"{{tool}} result"
-    entries.append({{"type": "user", "message": {{"content": [
-        {{"type": "tool_result", "tool_use_id": tid, "is_error": error,
-          "content": [{{"type": "text", "text": text}}]}}]}}}})
+def tool_entries(tools, first):
+    found = []
+    for n, (tool, field, value, error) in enumerate(tools):
+        if tool == "text":
+            found.append({{"type": "assistant", "message": {{"content": [{{"type": "text", "text": value}}]}}}})
+            continue
+        tid = f"toolu_{{first + n}}"
+        target = value.format(**names)
+        found.append({{"type": "assistant", "message": {{"content": [
+            {{"type": "tool_use", "id": tid, "name": tool, "input": {{field: target}}}}]}}}})
+        # A read returns the bytes of the file, so a marker in them reaches the result.
+        text = Path(target).read_text() if tool == "Read" and Path(target).is_file() else f"{{tool}} result"
+        found.append({{"type": "user", "message": {{"content": [
+            {{"type": "tool_result", "tool_use_id": tid, "is_error": error,
+              "content": [{{"type": "text", "text": text}}]}}]}}}})
+    return found
+if "--input-format" in sys.argv:
+    # Stream-json turns: the prompt, `/compact`, then the answer. Each turn
+    # appends to the session file before its result, as Claude Code does.
+    import re
+    project.mkdir(parents=True, exist_ok=True)
+    path = project / f"{{session}}.jsonl"
+    def append(found):
+        with path.open("a") as transcript:
+            transcript.write("".join(json.dumps(e) + "\n" for e in found))
+    append(entries)
+    summary = None
+    for turn, raw in enumerate(sys.stdin):
+        text = json.loads(raw)["message"]["content"]
+        if turn == 0:
+            names["SNAP"] = re.search(r'- "(.+)/skills"', text).group(1)
+        if text.startswith("/compact "):
+            summary = behaviour.get("summary", "The leaf asks for one file.").format(**names)
+            append([{{"type": "system", "subtype": "compact_boundary"}},
+                    {{"type": "user", "isCompactSummary": True, "message": {{"role": "user", "content": summary}}}},
+                    {{"type": "user", "isMeta": True, "message": {{"role": "user", "content": "<local-command-caveat>c</local-command-caveat>"}}}},
+                    {{"type": "user", "message": {{"role": "user", "content":
+                        "<command-name>/compact</command-name>\n<command-args>" + text[9:] + "</command-args>"}}}},
+                    {{"type": "user", "message": {{"role": "user", "content": "<local-command-stdout>Compacted </local-command-stdout>"}}}},
+                    *[{{"type": "attachment", "attachment": {{"type": "file", "filename": item.format(**names)}}}}
+                      for item in behaviour.get("restored", [])]])
+            print(json.dumps({{"type": "system", "subtype": "compact_boundary", "session_id": session}}))
+        else:
+            found = [{{"type": "user", "message": {{"role": "user", "content": text}}}}]
+            if summary is not None:
+                # The request record of the first model request after compaction.
+                found += [
+                    {{"type": "api-request-shape", "shapeHash": "s1", "shape": {{"system": [
+                        {{"type": "text", "text": behaviour.get("system", "You are a fake.").format(**names)}}]}}}},
+                    {{"type": "api-request-blob", "hash": "b1", "message": {{"role": "user", "content": [
+                        {{"type": "text", "text": summary}}, {{"type": "text", "text": text}}]}}}},
+                    {{"type": "api-request", "keep": behaviour.get("keep", 0), "tail": ["b1"], "shapeHash": "s1",
+                      "requestDigest": "d1"}}]
+            found += tool_entries(behaviour["tools"] if turn == 0 else behaviour.get("afterTools", []), 100 * turn)
+            append(found)
+        print(json.dumps({{"type": "result", "subtype": "success"}}), flush=True)
+    sys.exit(0)
+entries += tool_entries(tools, 0)
 if behaviour.get("noSession"):
     # A confined harness cannot write its session file. Its stream holds the
     # same tool calls.
@@ -267,6 +321,28 @@ RESUME_TOOLS = [
     ("Read", "file_path", "{TRIAL}/sources/checkout/plugins/grove/skills/craft/SKILL.md", False),
 ]
 MARKER = "k111-test-marker"
+
+# The compaction cases: the first turn reads the spine and asks the human. The
+# turn after compaction reads the variable, the spine again, the transcript and
+# the environment.
+FIRST_TOOLS = [
+    ("Read", "file_path", "{SNAP}/skills/grove/SKILL.md", False),
+    ("text", "text", "Which label do you want?", False),
+]
+AFTER_TOOLS = [
+    ("Bash", "command", "cat \"$RAVEL_SKILL_DIRECTORIES\"", False),
+    ("Read", "file_path", "{SNAP}/skills/grove/SKILL.md", False),
+    ("Read", "file_path", "{HOME}/.claude/projects/-fake/00000001-2222-3333-4444-555555555555.jsonl", False),
+    ("Bash", "command", "env | sort", False),
+]
+AFTER_EXPECTED = [
+    ("prompt", None), ("mandatory", "grove"), ("text", None), ("compaction", None), ("prompt", None),
+    ("prompt", None), ("variable", None), ("mandatory", "grove"), ("transcript", None), ("variable", None),
+]
+SUMMARIES = {
+    "path": "Obligation 10: read RAVEL_SKILL_DIRECTORIES when the path is lost. The leaf asks for one file.",
+    "preamble": "The leaf asks for one file, and the human has a question to answer.",
+}
 CRAFT = "plugins/grove/skills/craft/SKILL.md"
 
 
@@ -414,6 +490,16 @@ def plant_cases(root: Path) -> Path:
                           {"source": "grove", "path": "skills/grove/SKILL.md"}],
         },
     }))
+    for mode, instructions in (("path", "Keep the obligations word for word, and write no absolute path."),
+                               ("preamble", "Summarise only the Grove mandate and what followed it.")):
+        compaction = cases / f"compaction-{mode}"
+        shutil.copytree(cases / "smoke", compaction)
+        (compaction / "answer.md").write_text("Yes, add the label.\n")
+        (compaction / "case.json").write_text(json.dumps({
+            **smoke, "name": f"compaction-{mode}",
+            "mandatory": [{"source": "grove", "path": "skills/grove/SKILL.md"}],
+            "compaction": {"mode": mode, "instructions": instructions, "answer": "answer.md"},
+        }))
     return cases
 
 
@@ -935,6 +1021,116 @@ class HarnessTrialTest(unittest.TestCase):
             (repo / name).write_text(f"# {MARKER}\n" if name != "plain.txt" else "plain\n")
         self.assertEqual(trial.marker_files(repo, MARKER), ["stamp.sh", "tools/count.sh"])
 
+    # --- Compaction --------------------------------------------------------------
+
+    def compact(self, fixture: Fixture, mode: str, **behaviour) -> tuple[int, str, dict]:
+        fixture.behave(**{"tools": FIRST_TOOLS, "afterTools": AFTER_TOOLS, "summary": SUMMARIES[mode], **behaviour})
+        status, output = fixture.run(f"compaction-{mode}")
+        return status, output, fixture.record()
+
+    def check_compaction(self, fixture: Fixture):
+        for mode in ("path", "preamble"):
+            status, output, record = self.compact(fixture, mode)
+            self.assertEqual(status, 0, output)
+            compaction = record["compaction"]
+            self.assertEqual(compaction["failures"], [])
+            self.assertTrue(compaction["gate"]["ok"], compaction["gate"])
+            self.assertEqual([turn["turn"] for turn in compaction["turns"]], [0, 1, 2])
+            self.assertEqual((compaction["api"]["keep"], compaction["api"]["missingBlobs"]), (0, 0))
+            self.assertEqual(compaction["afterBoundary"]["paths"], [])
+            self.assertEqual(compaction["afterBoundary"]["variable"], mode == "path")
+            self.assertEqual(compaction["variable"], {"set": True, "descriptor": True})
+            self.assertGreater(compaction["preamble"]["paths"], 0)
+            launch = record["launches"][0]
+            events = next(t for t in launch["transcripts"] if t["main"])["events"]
+            self.assertEqual([(e["class"], e.get("skill")) for e in events], AFTER_EXPECTED)
+            self.assertTrue(events[4]["target"].startswith("/compact "), events[4])
+            # The feeder ran the harness in one launch, with no --add-dir.
+            self.assertEqual(len(record["launches"]), 1)
+            trial_dir = Path(record["trial"])
+            self.assertFalse((trial_dir / "home/.fake-claude-snap").exists(), "the launch had --add-dir")
+            route = json.loads((trial_dir / "route.json").read_text())
+            self.assertEqual((route["addDirs"], route["programArgs"][2]), (False, "turns"))
+            markdown = (trial_dir / "record.md").read_text()
+            for needle in ("Compaction:", "Gate before the answer: passed", "`keep` 0"):
+                self.assertIn(needle, markdown)
+            with contextlib.redirect_stdout(io.StringIO()):
+                self.assertEqual(trial.main(["reextract", "--trial", str(trial_dir)], fixture.environ()), 0)
+            again = json.loads((trial_dir / "record.json").read_text())
+            self.assertEqual(next(t for t in again["launches"][0]["transcripts"] if t["main"])["events"], events)
+
+    def test_a_compaction_case_compacts_in_one_launch_and_reads_the_context(self):
+        self.check_compaction(self.fixture)
+        self.broken(self.check_compaction, "turn_event", lambda entry: None)
+        self.broken(self.check_compaction, "api_context", lambda entries, marks: {"found": False})
+        self.broken(self.check_compaction, "write_turns", lambda case, case_dir, trial: (trial / "turns.json")
+                    .write_text(json.dumps({"turns": [{"text": "/compact x"}]})))
+
+    def check_gate(self, fixture: Fixture):
+        # A summary that keeps a snapshot path ends the input before the answer.
+        status, output, record = self.compact(fixture, "preamble", summary="Read {SNAP}/skills/grove/SKILL.md.")
+        self.assertEqual(status, 1, output)
+        compaction = record["compaction"]
+        self.assertFalse(compaction["gate"]["ok"])
+        self.assertTrue(compaction["afterBoundary"]["paths"], "the in-process scan missed the path")
+        self.assertEqual([turn["turn"] for turn in compaction["turns"]], [0, 1])
+        self.assertIn("the gate before the answer did not pass", output)
+        # A summary of the path case that lost the variable's name fails too.
+        status, output, record = self.compact(fixture, "path", summary="The leaf asks for one file.")
+        self.assertEqual(status, 1, output)
+        self.assertIn("no longer names RAVEL_SKILL_DIRECTORIES", output)
+        # A restored file attachment that names a preamble path fails the gate.
+        status, output, record = self.compact(fixture, "preamble", restored=["{SNAP}/skills/grove/SKILL.md"])
+        self.assertEqual(status, 1, output)
+        self.assertTrue(record["compaction"]["afterBoundary"]["paths"])
+
+    def test_the_gate_withholds_the_answer_when_the_preamble_remains(self):
+        self.check_gate(self.fixture)
+        self.broken(self.check_gate, "after_boundary", lambda entries, marks: trial.context_findings("", "", {
+            "paths": [], "digests": [], "lines": []}))
+        self.broken(self.check_gate, "preamble_marks", lambda prompt: {
+            "paths": [], "digests": [], "lines": [], "sha256": ""})
+
+    def check_model_context(self, fixture: Fixture):
+        # The system prompt of the first request after compaction keeps a path,
+        # which the session lines after the boundary do not show.
+        status, output, record = self.compact(fixture, "preamble", system="Additional directory: {SNAP}/skills")
+        self.assertEqual(status, 1, output)
+        self.assertTrue(record["compaction"]["gate"]["ok"])
+        self.assertIn("model context: the context still holds the preamble paths", output)
+        # A request that keeps earlier messages is not the whole context.
+        status, output, record = self.compact(fixture, "preamble", keep=2)
+        self.assertEqual(status, 1, output)
+        self.assertIn("keep 2", output)
+
+    def test_the_model_context_of_the_first_request_must_lack_the_preamble(self):
+        self.check_model_context(self.fixture)
+        self.broken(self.check_model_context, "context_findings", lambda text, words, marks: {
+            "paths": [], "digests": [], "lines": [], "terms": [], "variable": False, "snippets": []})
+
+    def test_a_compaction_case_needs_its_parts(self):
+        case = json.loads((trial.CASES / "compaction-preamble" / "case.json").read_text())
+        for change, top in (({"mode": "other"}, {}), ({"instructions": ""}, {}),
+                            ({"instructions": "Drop the descriptor."}, {}),
+                            ({"instructions": "Drop RAVEL_SKILL_DIRECTORIES."}, {}),
+                            ({"answer": "absent.md"}, {}), ({}, {"route": "native-2.0"})):
+            name = "broken-compaction-" + "-".join([*change, *top])
+            shutil.copytree(trial.CASES / "compaction-preamble", trial.CASES / name, dirs_exist_ok=True)
+            (trial.CASES / name / "case.json").write_text(json.dumps(
+                {**case, **top, "name": name, "compaction": {**case["compaction"], **change}}))
+            with self.assertRaises(trial.TrialError, msg=f"{change} {top} loaded"):
+                trial.load_case(name)
+        trial.load_case("compaction-preamble")
+
+    def test_the_extraction_names_a_read_of_the_variable(self):
+        for command, expected in (("cat \"$RAVEL_SKILL_DIRECTORIES\"", "variable"), ("env", "variable"),
+                                  ("printenv HOME", "variable"), ("echo envoy", "command"),
+                                  ("ls environment", "command")):
+            entry = {"type": "assistant", "message": {"content": [
+                {"type": "tool_use", "id": "t", "name": "Bash", "input": {"command": command}}]}}
+            classifier = trial.Classifier({}, Path("/h"), Path("/r"))
+            self.assertEqual(trial.extract_events([entry], classifier)[0]["class"], expected, command)
+
     def test_the_configuration_routes_only_the_case_kinds(self):
         route = trial.route_for({"kinds": ["impl"], "name": "x"}, Path("/r"), Path("/c"), "m", "e")
         config = trial.config_for({"kinds": ["impl"], "name": "x"}, route)
@@ -944,6 +1140,15 @@ class HarnessTrialTest(unittest.TestCase):
         self.assertIn('"--permission-mode", "bypassPermissions"', config)
         # The variadic --add-dir comes before the fixed flags, never before the prompt.
         self.assertLess(config.index('"--add-dir"'), config.index('"-p"'))
+        # A compaction case runs the feeder, with the harness as its command, and
+        # gives no --add-dir.
+        case = {"kinds": ["impl"], "name": "x", "compaction": {"mode": "path"}}
+        route = trial.route_for(case, Path("/t/records"), Path("/c"), "m", "e")
+        config = trial.config_for(case, route)
+        self.assertNotIn('"--add-dir"', config)
+        self.assertEqual(route["program"], sys.executable)
+        self.assertIn('"turns", "--plan", "/t/turns.json", "--", "/c"', config)
+        self.assertLess(config.index('"turns"'), config.index('"-p"'))
 
 
 if __name__ == "__main__":

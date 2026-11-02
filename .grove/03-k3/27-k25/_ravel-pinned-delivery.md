@@ -52,6 +52,10 @@ message. It runs the Ravel tasks that its change touches. It moves the book,
 the examples and `CHANGELOG.md` with its behaviour. A producer that earns a
 `review-impl` inserts it before `ravel-pinned-handoff-k75`.
 
+`ravel-git-acquire-k70` earned the review `ravel-git-acquire-k76`. It sits
+before `ravel-git-offline-k71`, so that any integration lands before the next
+leaf edits `skills/git.rs`.
+
 ## Pointers
 
 Use the reviewed `docs/specs/skill-discovery.md` of Ravel, with its exact-Git,

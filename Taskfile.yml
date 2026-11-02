@@ -353,6 +353,11 @@ tasks:
     cmds:
       - python3 -I docs/evaluations/owner-skill-delivery/controls.py
 
+  owner:checkouts:
+    desc: Measure mise's repository part as the owner of pack checkouts, in a fixture HOME with a fixture origin
+    cmds:
+      - python3 -I docs/evaluations/owner-skill-delivery/checkouts.py
+
   release:patch:
     desc: Publish and install the next patch release
     cmds:

@@ -114,7 +114,8 @@ failure there ends without a successful finish signal.
    target smoke tests, before pushes. Publish source/tag, GitHub assets,
    versioned book, then only `ravel@2`. Verify its installed prefix, formula
    behaviour and live book. A tag alone is not completion.
-5. Rollout verifies the final source-pack pins and working Grove against the
+5. Rollout verifies the final
+   [source-pack pins](owner-skill-delivery.md#pack-checkouts) and working Grove against the
    published Ravel archives. It admits those archives into Grove's pinned
    independent Ravel inputs by SHA-256, beside the retained 1.1.0 pins, before
    Grove's release. Complete owner delivery under its separate design,

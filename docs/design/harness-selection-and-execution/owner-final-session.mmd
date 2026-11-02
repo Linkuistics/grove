@@ -10,9 +10,10 @@ sequenceDiagram
     R1->>F: Start Claude Code with the mandate
     F->>N: Read grove-finish and the spine by absolute path
     F->>F: Release Grove and promote Ravel
+    F->>F: Advance the grove-core pin, apply, require a clean status
     F->>H: Switch: skill settings, plugins, moved entries
     Note over N: Disabling writes no orphan marker, so finish's lazy reads still resolve
-    F->>R2: Resolve the pinned sources
+    F->>R2: Capture the pack checkouts
     R2->>P: Launch Claude Code and Codex with directories
     P-->>F: Observed reads and hook runs
     F->>R1: Original end-session command

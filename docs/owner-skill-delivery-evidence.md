@@ -8,6 +8,10 @@ The integration of the design's focused review repaired the instrument and
 regenerated the baseline on the same day. It also only read the machine. The
 section [Review corrections](#review-corrections) records what changed.
 
+After Ravel narrowed delivery to local directories, `owner-pack-checkouts-k79`
+measured the owner's checkout tool in a fixture HOME. The section
+[Pack checkouts](#pack-checkouts) records that measurement.
+
 ## Method
 
 On 2026-11-02, the session walked every skill discovery root of Claude Code,
@@ -97,12 +101,14 @@ runs the change controls.
 | Quint | Plugin 1.0.0 at `cc75369f741af7d490936f82002c2d28e3b3d78d`. The clone `~/.quint-llm-kit/repo` is at the same commit, with a modified `package-lock.json`. `quint` 0.33.1. |
 | TestAnyware | Homebrew `linkuistics/taps/testanyware` 2.7.0 and `/Applications/TestAnyware.app` 2.7.0. `testanyware doctor --json` passed its installation, configuration, directory and local-network checks. Its login-item check failed, which does not affect a skill read. |
 | codebase-memory | `codebase-memory-mcp` 0.10.6. Its installer wrote skill copies, agent definitions, hooks and MCP entries in both harnesses. |
+| mise | 2026.10.25. The owner's configuration has no `[bootstrap.repos]` entry. `mac-check` runs `mise bootstrap plan --detailed-exitcode`. |
+| Remotes | On 2026-11-02, `gh repo view` reported `Linkuistics/grove`, `Linkuistics/TestAnyware`, `obra/superpowers` and `quint-co/quint-llm-kit` as public. The pack repositories that the moves create do not exist yet. |
 | Owner policy | `~/.config/ravel/policy.ts` routes each kind to `claude` or `codex`. `finish` goes to Claude Code with `claude-opus-5-5`. No route selects Pi. |
 | Ravel settings | `~/.config/ravel` holds only `policy.ts`. No `settings.json` exists. |
-| Ravel contracts | The historical directory contract `docs/specs/skill-discovery.md` at `b93bb927`. Ravel main's `docs/specs/configuration-evaluation.md` at `24a54523`. The sandbox-home recipe in `docs/specs/configuration-evaluation.md` and `scripts/harness-smoke.sh` at `2a77ffbda3b2510f0997c740c0642b18afaeece7` in `Ravel.coordinated-release-design`. |
+| Ravel contracts | The local-source contract `docs/specs/skill-discovery.md` at `7a894c78`, on the unpushed bookmark `skill-directory-delivery`. The historical directory contract at `b93bb927`. Ravel main's `docs/specs/configuration-evaluation.md` at `24a54523`. The sandbox-home recipe in `docs/specs/configuration-evaluation.md` and `scripts/harness-smoke.sh` at `2a77ffbda3b2510f0997c740c0642b18afaeece7` in `Ravel.coordinated-release-design`. |
 | Codex home | The Codex 0.166.0 executable reads `CODEX_HOME` and canonicalises it. It names `.codex/config.toml`, `.codex/agents`, `.codex/hooks` and `.agents/skills` as user paths, and `auth.json` as its file sign-in store. The owner policy passes `-c` overrides only and sets no `CODEX_HOME`. |
 | Claude Code plugin cache | The [plugin loading reference](https://code.claude.com/docs/en/plugins/loading#cleanup-of-previous-versions), read on 2026-11-02. An update or uninstall writes `.orphaned_at` into the earlier version directory, and a background cleanup removes it 14 days later. A running session keeps the plugin set that it loaded until `/reload-plugins` or a new session. |
-| Claude Code configuration directory | The [environment reference](https://code.claude.com/docs/en/env-vars) and the [credential management section](https://code.claude.com/docs/en/authentication#credential-management), read on 2026-11-02 by `ravel-rhai-skill-delivery-k50`. `CLAUDE_CONFIG_DIR` replaces `~/.claude` for settings, history and plugins. It also moves the sign-in file and keys the macOS Keychain entry to that directory. Three `CLAUDE_CODE_PLUGIN_*` variables add plugin locations. No trial measured these statements. |
+| Claude Code configuration directory | The [environment reference](https://code.claude.com/docs/en/env-vars) and the [credential management section](https://code.claude.com/docs/en/authentication#credential-management), read on 2026-11-02 by `ravel-rhai-skill-delivery-k50`. `CLAUDE_CONFIG_DIR` replaces `~/.claude` for settings, history and plugins. It also moves the sign-in file and keys the macOS Keychain entry to that directory. Three `CLAUDE_CODE_PLUGIN_*` variables add plugin locations. No trial measured these statements. Ravel's sandbox recipe at `7a894c78` also names `CLAUDE_SECURESTORAGE_CONFIG_DIR`, which moves only the sign-in store. |
 
 Ravel main keeps settings at `$HOME/.config/ravel/settings.json` for 2.0.0.
 Its keys are `timeoutMs`, `contextBytes`, `configEnv`, `harnesses` and
@@ -206,6 +212,69 @@ maintained manual for this area is the Obsidian `Configuration/AI Dev Tooling`
 note and its maintenance script. That note still names `~/Development/grove` as
 the live Grove source.
 
+## Pack checkouts
+
+The design gives the pack checkouts to the `[bootstrap.repos]` part of mise.
+The [mise repository reference](https://mise.jdx.dev/bootstrap/repos.html),
+read on 2026-11-02, states these facts:
+
+- Each entry is keyed by its checkout path, with a required `url` and an
+  optional `ref`. A `ref` is a branch, a tag or a full commit ID.
+- `filter`, `depth` and `submodules` apply only to the first clone. `depth`
+  cannot be combined with a full commit ID.
+- A branch or tag `ref` makes the status command run `git ls-remote`. A commit
+  `ref` is examined locally.
+- mise never removes a checkout. `unapply` leaves the directories.
+- The reference does not mention jj.
+
+[`evaluations/owner-skill-delivery/checkouts.py`](evaluations/owner-skill-delivery/checkouts.py)
+measures the behaviour that the design states. It builds a fixture origin and
+a fixture HOME, and it runs the installed mise with only isolated paths in its
+environment. It moves the origin away to stand in for a machine without a
+network. Each mise call names the fixture HOME with `-C`. The fixture hides
+the owner's global and system Git configuration. `task owner:checkouts` runs
+it.
+
+| Artifact | SHA-256 |
+| --- | --- |
+| `docs/evaluations/owner-skill-delivery/checkouts.py` | `349e2e233c3967f370c39174034a019cf84f2980758f4098c2827bc819cd3244` |
+
+With mise 2026.10.25 and Git 2.56.0, all 33 cases matched. The script asserts
+each observation in this table:
+
+| Case | Observation |
+| --- | --- |
+| No checkout | The state is `missing`, and `status --missing` exits 1. `bootstrap plan --detailed-exitcode` exits 0 |
+| `apply` with a commit `ref` | Clones the repository and checks out that commit with a detached HEAD. The state is `current`, and `status --missing` exits 0 |
+| No network, `ref` unchanged | The state stays `current`. `apply` exits 0, and its verbose output shows no fetch |
+| No network, `ref` moved to a commit that the clone holds | The state is `differs`, and `status --missing` exits 1. `apply` fetches first, exits 1 and leaves the checkout at its earlier commit |
+| No network, `ref` moved to a commit that the clone lacks | The same result |
+| Network again | `apply` moves the checkout to the new commit |
+| Untracked file | The state is `dirty`. `status --missing` and `apply` exit 1 |
+| File that `.gitignore` names | The state stays `current`, and `status --missing` exits 0. `git status --porcelain --ignored` lists the file |
+| Another origin URL | The state is `conflict`. `status --missing` and `apply` exit 1 |
+| No `ref` | `apply` clones the default branch. After the remote moves ahead, the state stays `current`. `update` moves the checkout forward |
+
+A manual verbose run named the fetch command `git fetch --prune --tags origin`.
+
+The `--mutate` run expects `apply` to succeed for the offline move to a held
+commit. That run failed exactly that case, which shows that the comparison can
+fail. The script digest was the same before and after both runs. Each run
+removed its temporary directory.
+
+Two further observations used the same fixture without the script:
+
+- In a checkout that holds a colocated jj repository, the state stayed
+  `current` and `apply` succeeded.
+- The fixture configuration held two entries and a `bootstrap` task. One
+  checkout had an untracked file, and the other was missing.
+  `mise -C <home> bootstrap --only repos,task` exited 1 and named the local
+  changes. It cloned neither checkout and ran no task. After the file was
+  removed, the same run cloned the missing checkout and ran the task.
+
+The `plan` case shows that the plan that `mac-check` runs cannot report a
+missing checkout.
+
 ## Not measured
 
 - Claude Code's treatment of a root-level `SKILL.md` inside a skill-free
@@ -223,9 +292,20 @@ the live Grove source.
 - Pi's startup with a dangling extension link.
 - Built-in Claude Code skills on disk. The baseline lists them from the
   session's skill listing.
+- `mise bootstrap repos apply` against the real remotes.
+- The size and capture time of a TestAnyware checkout subdirectory.
+- Ravel's capture of a pack checkout that mise wrote.
 
 The staging trials in the design's cutover contract own each of these
 measurements before the switch.
+
+Two measurements need the real HOME or a new machine, so no staging trial can
+own them:
+
+- A complete `mise bootstrap` run with repository entries. Packages and
+  launchd agents act for the whole machine or account, not for one HOME.
+- An adoption with repository entries on a new machine. The new-machine
+  runbook in the maintained manual owns it.
 
 ## Review corrections
 

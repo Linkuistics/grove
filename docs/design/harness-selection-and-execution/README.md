@@ -34,6 +34,7 @@ asserts no private transport or escalation details.
 | View | Contract illustrated |
 |---|---|
 | [Where each installed entry goes](http://127.0.0.1:52710/#diagram-owner-classes) | The per-entry rule of the owner cutover: a Ravel source, a native route for hooks, or no change. |
+| [Pack checkouts outside Ravel](http://127.0.0.1:52710/#diagram-owner-pack-checkouts) | The owner's tool holds each pack checkout at its pin. Ravel only reads the directory, and a missing checkout refuses before any worker. |
 | [Ordered owner cutover](http://127.0.0.1:52710/#diagram-owner-cutover) | Preparation in ordinary leaves, then the switch inside finish with its reader gate, probes and inverse. |
 | [Finish keeps its guidance through the switch](http://127.0.0.1:52710/#diagram-owner-final-session) | Finish reads native guidance by absolute path. Later sessions move to Ravel 2.0.0. |
 | [Compatible tap states](http://127.0.0.1:52710/#diagram-release-tap) | Four tap states: keg-only `ravel@2` first, compatible Grove, then promotion of identical archives with `ravel@2` deprecated. |
@@ -69,8 +70,21 @@ public integration. Neither duplicates Ravel's private runtime contract.
 
 ## Current changes
 
-The current discussion maps Ravel's reviewed Rhai directory contract into
-Grove's routes. The design is a proposal, and its focused review is next. See
+The current discussion settles who installs the pack checkouts and keeps them
+current, now that Ravel reads local directories only. The human approved the
+owner's tool and the pin policy. mise is the owner's choice, and Ravel and
+Grove name no checkout tool. See the
+[owner delivery specification](../../specs/owner-skill-delivery.md#pack-checkouts)
+and its [evidence](../../owner-skill-delivery-evidence.md#pack-checkouts).
+
+- [Pack checkouts outside Ravel](http://127.0.0.1:52710/#diagram-owner-pack-checkouts) — Added the owner's checkout tool, the pin advance, the offline fetch failure and the missing-source refusal.
+- [Ordered owner cutover](http://127.0.0.1:52710/#diagram-owner-cutover) — Added pack publication, the drafted checkout entries, the checkout clone in preparation, and the `grove-core` pin advance with a clean status inside finish.
+- [Finish keeps its guidance through the switch](http://127.0.0.1:52710/#diagram-owner-final-session) — Added the `grove-core` pin advance before the probes. The probes capture the pack checkouts.
+
+## Earlier delivery changes
+
+This discussion mapped Ravel's reviewed Rhai directory contract into Grove's
+routes. Its focused review is integrated. See
 the [delivery specification](../../specs/codex-skill-provisioning.md#supported-routes)
 and the [contract mapping](../../grove-skill-delivery-design-evidence.md#rhai-mapping).
 

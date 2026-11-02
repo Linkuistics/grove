@@ -96,6 +96,12 @@ source, so delivery needs no network. A tool outside Ravel puts each pack
 checkout in place. Ravel's decision record "Skill sources are local
 directories" removed the earlier exact Git sources and their offline reuse.
 
+Grove requires no particular checkout tool. A dedicated checkout at a recorded
+revision suits delivery better than a development working copy. Ravel captures
+uncommitted changes, and it retains each distinct capture. The
+[owner delivery design](owner-skill-delivery.md#pack-checkouts) records the
+tool and the pin policy of one owner.
+
 ## Supported routes
 
 Grove supports three Ravel routes. The owner selects one for each Grove

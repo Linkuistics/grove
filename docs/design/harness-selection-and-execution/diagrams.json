@@ -47,6 +47,13 @@
       "caption": "Proposed. Only native copies of owner-selected guidance move to Ravel; a skill that needs a hook keeps a native route for that part."
     },
     {
+      "id": "owner-pack-checkouts",
+      "group": "owner",
+      "title": "Pack checkouts outside Ravel",
+      "source": "owner-pack-checkouts.mmd",
+      "caption": "Approved for the owner's machine. The repository part of mise holds each pack checkout at a published commit, the pin. The owner advances a pin by an edit and an apply. Ravel and Grove require no particular tool. Ravel only reads the directory at each launch. A failed offline fetch leaves the previous pin in place. A missing checkout refuses before Ravel launches any worker."
+    },
+    {
       "id": "owner-cutover",
       "group": "owner",
       "title": "Ordered owner cutover",
@@ -160,33 +167,27 @@
     }
   ],
   "discussion": {
-    "title": "Map the reviewed Rhai directory contract into Grove's routes",
-    "status": "Proposed — focused design review next",
-    "summary": "Ravel 2.0.0 reads only config.rhai at schema 4 and first ships directory delivery. Grove admits 2.x from 2.0.0 beside 1.x, ships Rhai caller assets for it and proves three routes separately: native 1.1, native 2.0 with delivery disabled, and directory 2.0. The version probe selects no route; the configuration file, the settings and the PATH prefix do.",
+    "title": "Who installs the pack checkouts and keeps them current",
+    "status": "Approved by the human on 2026-11-02 — in-session review integrated, design review leaf next",
+    "summary": "Ravel reads local directories only. On the owner's machine, mise's [bootstrap.repos] part owns the pack checkouts, each at a published commit that the owner advances by an edit. mise is the owner's instance, not a requirement: Ravel and Grove name no checkout tool. Ravel's missing-source refusal and retained snapshots stay unchanged.",
     "diagramIds": [
-      "routes",
-      "skill-transition",
-      "packages",
-      "handoff",
-      "skill-delivery",
-      "release-tap"
+      "owner-pack-checkouts",
+      "owner-cutover",
+      "owner-final-session",
+      "owner-classes"
     ],
     "updatedDiagrams": [
       {
-        "id": "routes",
-        "summary": "Added the three supported routes, the admission probe and the refusals of a mismatched configuration."
+        "id": "owner-pack-checkouts",
+        "summary": "Added the owner's checkout tool, the pin advance, the offline fetch failure and the missing-source refusal, and marked mise as the owner's choice rather than a requirement. An advance runs only while no launch runs."
       },
       {
-        "id": "skill-transition",
-        "summary": "Replaced the historical b93bb927 contract and the open tap choice with the reviewed 822c0ed2 contract and the ravel@2-first route."
+        "id": "owner-cutover",
+        "summary": "Added pack publication, the drafted checkout entries, the checkout clone in preparation, and the grove-core pin advance with a clean status inside finish."
       },
       {
-        "id": "packages",
-        "summary": "Named the configuration file and the caller-asset runtime of each major instead of an SDK."
-      },
-      {
-        "id": "handoff",
-        "summary": "Showed that 2.0.0 wraps the intact mandate after its preamble and keeps its bytes in originalPrompt. Renamed the owner policy to the owner configuration."
+        "id": "owner-final-session",
+        "summary": "Finish advances the grove-core pin before the probes, and the probes capture the pack checkouts instead of resolving pinned Git sources."
       }
     ]
   }

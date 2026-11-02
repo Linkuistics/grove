@@ -117,3 +117,27 @@ A retained variable alone proves nothing for the second case.
   asks a summary to keep it. Write no other absolute path and no hexadecimal
   digest." They still name no preamble term. A repeated restoration or a
   retained path makes the case an unmeasured gap, not a third attempt.
+- Result of `compaction-preamble-20261102T232104Z`, the second attempt: failed
+  precondition again. The summary now held no preamble text and did not name
+  the variable. Claude Code still restored `grove-impl/SKILL.md` and
+  `grove/TASK-FORMAT.md` from the snapshot, with their paths. By the rule above,
+  the preamble case is an unmeasured gap, and there is no third attempt.
+- Gap for `acceptance-handoff-k106`: whole-preamble loss was not produced, so
+  no observation shows whether the agent recovers through the variable alone.
+  Claude Code keeps discovery context by two native channels: obligation 10 in
+  the summary, and restored files with snapshot paths. Repair candidate, not
+  tested: a first turn that writes five or more work files after its guidance
+  reads, because Claude Code restores at most five recent files.
+- No in-session reviewer. The results are observations of transcripts, and
+  each new runner path has a fake-harness check that fails against a broken
+  runner.
+- Verification: `bash scripts/check.sh` passed 20 of 21 checks, including the
+  32 trial controls. "Ravel caller assets and provenance" refused again,
+  because Homebrew's `bun` is 1.4.4 and the typecheck pins 1.4.3. With mise's
+  1.4.3 first on `PATH`, `task ravel:review RAVEL=/opt/homebrew/bin/ravel`
+  passed. This leaf changed no Ravel caller asset.
+- For `codex-compaction-trials-k120`: the feeder `harness_trial.py turns`
+  speaks Claude Code's stream-json input, and the gate and the model-context
+  read parse Claude Code's session file. The Codex adapter needs its own
+  compaction command, its own turn input and its own record of the model
+  context. The preamble marks and the gate rules are harness-neutral.

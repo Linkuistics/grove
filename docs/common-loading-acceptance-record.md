@@ -2093,3 +2093,264 @@ Ordered events of launch 2, the fresh launch:
 | 18 | Bash | command |  |  |  | `jj describe -m "count.sh: print the number of regular files under a directory (count-script-k2) Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>" && jj n…` |
 | 19 | Bash | ending |  |  |  | `'$RAVEL2/bin/ravel' end-session grove-continue` |
 | 20 | text | text |  |  |  | `The script is done and committed, and the session has ended.` |
+
+### Compaction
+
+`claude-compaction-trials-k112` measures the two compaction cases of the
+"`RAVEL_SKILL_DIRECTORIES`" section and of "Actual harness trials" in Ravel's
+`docs/specs/skill-discovery.md`. It also covers the compaction paragraph after
+the acceptance table of the
+[delivery specification](specs/codex-skill-provisioning.md#test-seams). Each
+case has its own section below.
+
+**Mechanism.** Claude Code 2.1.316 runs `/compact <instructions>` as one user
+turn of `claude -p --input-format stream-json`. A probe in a sandbox home
+checked it before the trials. The probe compacted on its second turn with
+`claude-haiku-5-5`, and its third turn did not know a fact that the
+instructions removed. Each trial runs three turns in one launch, inside Ravel's
+managed process:
+
+1. The prompt. The one `impl` leaf of the [continuation](#continuation) tree
+   writes `stamp.sh`, then asks the human about a label argument. That handback
+   ends the first turn.
+2. `/compact` with the case's instructions.
+3. The answer of the continuation case, which names no guidance.
+
+The feeder sends each turn after the `result` event of the turn before. The
+harness therefore keeps Ravel's own `RAVEL_SKILL_DIRECTORIES` and result
+channel through all three turns. The launch gives no `--add-dir`, because the
+system prompt survives compaction and would keep the snapshot paths.
+
+**How the trial reads the context after compaction.** Claude Code writes a
+`compact_boundary` entry and then the summary. Three more entries follow: a
+caveat, the `/compact` command with its arguments, and the output `Compacted`.
+The agent therefore sees the instructions.
+
+The summary ends with Claude Code's
+own line that names the full transcript file, and its own instruction to resume
+directly. Claude Code then attaches the skill listing and other native context.
+It can also restore recently read files, each with its absolute path.
+
+The session file also records each model request. The first request after the
+boundary keeps 0 earlier messages, and its message blobs and system prompt are
+in the file. That request is the exact context that the model received after
+compaction. The runner searches it for the paths, the digests and the long
+lines of the preamble, and for the name of the variable.
+
+**Gate.** Before it sends the answer, the feeder searches the session lines
+after the boundary in the same way. A failed gate sends no answer. The run then
+ends as a failed precondition, and it observes no agent behaviour.
+
+#### compaction-path
+
+**Case.** `compaction-path` loses the path and keeps the instructions. The
+summary instructions are "Keep the numbered obligations of the first message
+word for word. Write no absolute path and no hexadecimal digest anywhere in the
+summary." The run is `compaction-path-20261102T231252Z`, on 2026-11-03 local
+time. It was the first and only run of the case, with no retry.
+
+**Route.** Directory on 2.0. The sources and the mandatory files are those of
+[continuation](#continuation): `using-jujutsu`, then the Grove spine. The
+sources come from the prepared checkout at commit `fb6df03aeb98`, with no
+clone.
+
+**Precondition: met.**
+
+- The gate passed. The summary has 11,265 characters and holds no preamble
+  path and no digest. It holds 11 preamble lines word for word, which are the
+  obligations, and it names `RAVEL_SKILL_DIRECTORIES`.
+- Claude Code restored no file after the boundary. Its attachments were native
+  listings and context only.
+- The first model request after the boundary kept 0 earlier messages. All 5 of
+  its message blobs and its system prompt were in the session file. Its context
+  held no preamble path and no digest, and it named the variable.
+- The harness environment held `RAVEL_SKILL_DIRECTORIES`, equal to the
+  descriptor path of the launch.
+
+**Result: pass.** The agent recovered the same descriptor through the variable,
+and it read the mandatory guidance again before it acted.
+
+- Call 22, the first call after the answer, printed the variable and read the
+  descriptor `a18cd9d1…`. That is the descriptor that the launch received.
+- Call 23 read `using-jujutsu`, then the Grove spine, then `grove-impl`. Each
+  path came from the descriptor, in the configured order.
+- Call 24 read the retire and commit procedures. Call 26 then rewrote
+  `stamp.sh` with the label argument. That was the first action after the
+  compaction.
+- The agent retired the leaf and published `437569acb5b4`. It ended with the
+  exact `end-session grove-continue` command. The driver then stopped at
+  `finish`, which the trial does not route.
+
+**Limit.** The summarising model wrote its own recovery note into the summary.
+Obligation 10 asked it to keep the descriptor path, and the instructions
+forbade any path. The note says: "Recover it from the environment variable
+RAVEL_SKILL_DIRECTORIES." It then says: "After compaction, re-read the
+descriptor, the two mandatory files, and the grove-impl skill
+(`skills/grove-impl/SKILL.md`) before continuing."
+
+The answer gave no reminder. The re-read therefore follows the instructions
+that remained, as this case intends. It is not evidence of recovery without
+them, which is the [preamble case](#compaction-preamble). The instructions are
+artificial: a compaction without them would keep the path. One run is one
+observation, not a rate.
+
+The first turn did not read `coding-style-bash` before it wrote `stamp.sh`.
+"Relevant guidance" here is therefore the mandatory files and the kind skill,
+which the first turn read.
+
+| Subject | Value |
+| --- | --- |
+| Grove build | Commit `fb6df03aeb98`. `grove` SHA-256 `5900ff3c08f16439f2d57af2a553b209ffd77527c17e883e6b6c0ee742b2ca94`. `grove-llm` SHA-256 `56f6815a290441d2498b1af4431923d73983459619d5e7eea633f34fad1264b7`. Both equal the [continuation](#continuation) build |
+| Ravel build | Build commit `23e50ce90037`, bookmark `skill-directory-delivery` at `1ca4aecbeae1`. Identity `ef5857e989e6d99da51631ae0295685c8961c1b01bac58d865e6fb789ae71deb`. `bin/ravel` SHA-256 `8e10e311c50c81ca60ac4f393d17408982d0aafcfe46cccfbc46130465290ae2`. The prefix is a byte copy of the continuation prefix |
+| Harness | Claude Code 2.1.316, model `claude-opus-5-5`, effort `medium`, permission mode `bypassPermissions` |
+| Configuration directory | The sandbox `$TRIAL/home/.claude`. `claude auth status` reported the same directory |
+| Sources | Checkout commit `fb6df03aeb98`. `resourceDigest` of `grove`: `88f68c31337536efb0d4fb388543c0ca1abf9a9fed0ce0ccac3888e933df5a67`. `resourceDigest` of `linkuistics`: `820fe28234c98fe59286c3788eac561dead174770bd50560393d697788446b22` |
+| Descriptor | `a18cd9d128427decc966d6bbf3b2a734470605b187f001139f53c345f1bb42e0`, equal to the SHA-256 of `directories.json` |
+| Links | Before and after: `Library/Keychains` only |
+| Driver environment | `HOME`, `LANG`, `LOGNAME`, `PATH`, `SHELL`, `TERM`, `TMPDIR`, `USER` |
+| Harness environment | The driver's names, `PWD`, `SHLVL`, `_`, and the trial's own `GROVE_LAUNCH_DIR`, `RAVEL_EXIT_FILE` and `RAVEL_SKILL_DIRECTORIES`. No live value and no `CLAUDE*` name reached it |
+| Native copies | None |
+| Synced claude.ai skills | None in this run |
+| Preamble | SHA-256 `0c9d0c5a8c2c634afcb732ebd89cbac2faf715a14b72bafbbe191e13ab928e7b`. 5 paths, 3 digests, 17 lines of at least 40 characters |
+| Summary | 11,265 characters, SHA-256 `a12abb67a4145d5b2617c612e81c63fef63594836e204cc2a46dadc41daaf3da` |
+| First request after the boundary | Request digest `1704b8c37add4bf8fa136bdd03ba0333d20e1e7042d8936ae5e6aabf9e46e452`, `keep` 0, 5 blobs |
+| Session file | `5e7f9500-c515-47cf-bd7a-40200eb8014a.jsonl`, SHA-256 `97c3767732dc547b11f9b0ceb994526c2f176e58c5a07503c9725bc522ea31c1`. Stream SHA-256 `6f85e5ecfb109552f78039824cccd3d421bc1f657a665cf95c689b9f8307ba3f` |
+| Turns | The prompt at 23:12:53Z, `/compact` at 23:13:58Z and the answer at 23:14:32Z, UTC. The answer has SHA-256 `f56b1e08f1dc19beaddce97f1fc1524ed14921bf617daf2255456b4bc68bbd50`, which equals the continuation answer |
+| Driver | Exit 0 after 150.3 seconds |
+
+Native startup text: the text of the [smoke](#smoke) section, with these
+differences. The skill listing held 14 names and no synced skill. The init
+event listed the four claude.ai connectors of the
+[continuation](#continuation) section.
+
+Ordered events. `$TRIAL` is the trial directory and `$RAVEL2` the 2.0 prefix.
+`$G` and `$L` are the snapshots of `grove` and `linkuistics`, and `$SNAPS` is
+the snapshot directory of the cache.
+
+| # | Tool | Class | Skill | Source | Command, path or text |
+| --- | --- | --- | --- | --- | --- |
+| 1 | prompt | prompt |  |  | `Ravel skill directories  The owner configured skill directories for this session. Each path below is a JSON string literal.  Search directories: - "$G/skills" -…` |
+| 2 | text | text |  |  | `I'll start by reading the mandatory files in order.` |
+| 3 | Bash | mandatory, then listing | using-jujutsu | linkuistics | `cat "$L/skills/using-jujutsu/SKILL.md"; ls "$L/skills/using-jujutsu/"` |
+| 4 | Bash | supporting (error), then mandatory, listing | using-jujutsu | linkuistics | `S="$SNAPS"; cat "$S/820fe28234c98fe59286c3788eac561dead174770bd50560393d697788446b22/tree/skills/using-jujutsu/references/jj-commands.md"; echo ======; cat "$S/…` |
+| 5 | Bash | mandatory, then listing | grove | grove | `S="$SNAPS"; cat "$S/88f68c31337536efb0d4fb388543c0ca1abf9a9fed0ce0ccac3888e933df5a67/tree/skills/grove/SKILL.md"; echo; echo -----; ls -R "$S/88f68c31337536efb0…` |
+| 6 | text | text |  |  | `Mandatory files are read. Now I'll locate the 'grove-impl' skill in the search directories.` |
+| 7 | Bash | command |  |  | `S="$SNAPS"; for d in 88f68c31337536efb0d4fb388543c0ca1abf9a9fed0ce0ccac3888e933df5a67 820fe28234c98fe59286c3788eac561dead174770bd50560393d697788446b22; do find …` |
+| 8 | text | text |  |  | `One unambiguous match. Loading it.` |
+| 9 | Bash | kind-skill, then listing | grove-impl | grove | `G="$G/skills"; cat "$G/grove-impl/SKILL.md"; ls -R "$G/grove-impl"` |
+| 10 | text | text |  |  | `Both skills are loaded. Now the spine's bootstrap and execute procedures.` |
+| 11 | Bash | supporting (error), then supporting | grove | grove | `R="$G/skills/grove/references"; cat "$R/bootstrap.md"; echo =====; cat "$R/execute.md"` |
+| 12 | Bash | supporting | grove | grove | `R="$G/skills/grove/references"; cat "$R/execute.md"` |
+| 13 | text | text |  |  | `Now the bootstrap: resolve the mandated handle and walk the brief chain.` |
+| 14 | Bash | command (error) |  |  | `P=$(grove-llm resolve stamp-script-k1); echo "resolved: $P"; grove-llm brief-chain "$P"; ls -la; ls Taskfile.yml 2>&1` |
+| 15 | Bash | command |  |  | `ls -la .grove; cat .grove/_BRIEF.md; echo '---'; cat .grove/01-impl--stamp-script-k1.md; echo '---'; jj st --no-pager; jj log --no-pager -n 5` |
+| 16 | Bash | command |  |  | `cat > stamp.sh <<'EOF' #!/usr/bin/env bash # Write the current UTC time in ISO 8601 form (e.g. 2026-11-03T04:05:06Z) # to the file STAMP in the current working …` |
+| 17 | Bash | command |  |  | `cat >> .grove/01-impl--stamp-script-k1.md <<'EOF'  ## Decisions (running log)  - 2026-11-03 — 'stamp.sh' uses 'date -u +%Y-%m-%dT%H:%M:%SZ', a portable format  …` |
+| 18 | text | text |  |  | `I need your answer on one question before this task can finish.  **Where things stand.** 'stamp.sh' is at the repository root and is executable. Each run writes…` |
+| 19 | compaction | compaction |  |  | `compact boundary` |
+| 20 | prompt | prompt |  |  | `/compact Keep the numbered obligations of the first message word for word. Write no absolute path and no hexadecimal digest anywhere in the summary.` |
+| 21 | prompt | prompt |  |  | `The answer to the label question is yes. 'stamp.sh' takes one optional label argument. With a label, the line in 'STAMP' is the label, one space, then the time.…` |
+| 22 | Bash | variable |  |  | `echo "$RAVEL_SKILL_DIRECTORIES"; test -n "$RAVEL_SKILL_DIRECTORIES" && cat "$RAVEL_SKILL_DIRECTORIES"` |
+| 23 | Bash | mandatory, then mandatory, kind-skill | using-jujutsu | linkuistics | `L=$L/skills G=$G/skills cat $L/using-jujutsu/SKILL.md; echo '---'; cat $G/grove/SKILL.md; echo '---'; cat $G/grove-impl/SKILL.md` |
+| 24 | Bash | supporting, then supporting | grove | grove | `G=$G/skills/grove/references cat $G/retire.md; echo '---'; cat $G/commit.md` |
+| 25 | text | text |  |  | `Now implementing the label.` |
+| 26 | Bash | command |  |  | `cd $TRIAL/repo cat > stamp.sh <<'EOF' #!/usr/bin/env bash # Write the current UTC time in ISO 8601 form (e.g. 2026-11-03T04:05:06Z) # to the file STAMP in the c…` |
+| 27 | Bash | command |  |  | `ls STAMP 2>&1; ls -R .grove; grep -rn "stamp-script-k1" .grove; echo "EVID=${GROVE_PROVIDER_EVIDENCE:-<unset>}"; tail -8 .grove/01-impl--stamp-script-k1.md` |
+| 28 | Edit | action |  |  | `$TRIAL/repo/.grove/01-impl--stamp-script-k1.md` |
+| 29 | Bash | command |  |  | `grove-llm leaf-retire .grove/01-impl--stamp-script-k1.md && ls .grove && jj --no-pager st` |
+| 30 | Bash | command |  |  | `jj --no-pager describe -m "Add stamp.sh with an optional label; retire stamp-script-k1  stamp.sh writes the current UTC time (ISO 8601) to STAMP in the working …` |
+| 31 | Bash | ending |  |  | `$RAVEL2/bin/ravel end-session grove-continue` |
+
+#### compaction-preamble
+
+**Case.** `compaction-preamble` loses the whole preamble, with its instruction
+to read the variable. The answer gives no recovery reminder, and the variable
+stays set. The case had two attempts, and neither met the precondition.
+
+**Route.** Directory on 2.0, with the sources and the mandatory files of
+[compaction-path](#compaction-path).
+
+**Result: unmeasured gap.** Both attempts stopped at the gate, before the
+answer. No observation of the agent exists, so this record cannot state whether
+the agent recovers the descriptor through the variable alone.
+`acceptance-handoff-k106` resolves the gap through repair work or an explicit
+scope escalation.
+
+**First attempt.** The run is `compaction-preamble-20261102T231613Z`, at Grove
+commit `fb6df03aeb98`. Its summary instructions were these:
+
+<!-- tc: depart long-sentence because the quotation reproduces the case's summary instructions word for word -->
+> Summarise only the instruction to load the grove-impl skill and everything
+> after it: the leaf, the work done, the open question for the human and the
+> exact ending commands.
+
+Two channels kept preamble paths:
+
+- **Summary.** The summary kept the descriptor path, "kept here per obligation
+  10". Obligation 10 outranked the instructions. The summary also described the
+  preamble under "All user messages".
+- **Restored files.** Claude Code restored `stamp.sh` and both mandatory
+  `SKILL.md` files as attachments, each with its absolute path. The first turn
+  read each mandatory file with a plain `cat "<path>"`.
+
+The first runner also counted a preamble line in a `last-prompt` entry. That
+entry is Claude Code's own record keeping and never reaches the model. Commit
+`72dce7b8d721` limits the search to user, assistant and attachment entries.
+
+**Second attempt.** The run is `compaction-preamble-20261102T232104Z`, at Grove
+commit `72dce7b8d721`. The instructions added "Leave out everything before that
+instruction, also where an earlier rule asks a summary to keep it. Write no
+other absolute path and no hexadecimal digest." They name no preamble term.
+
+The summary now held no preamble path, digest, line or term, and it did not
+name the variable. Claude Code still restored three files after the boundary:
+
+- `$TRIAL/repo/stamp.sh`
+- `$G/skills/grove-impl/SKILL.md`
+- `$G/skills/grove/TASK-FORMAT.md`
+
+The two snapshot paths hold the search directory `$G/skills` and its digest,
+so the gate failed. The task file recorded beforehand that a repeated
+restoration ends the case as a gap, so there was no third attempt.
+
+**What the attempts show.** Claude Code keeps discovery context through
+compaction by two native channels:
+
+1. The summarising model follows obligation 10 and keeps the descriptor path,
+   unless explicit instructions forbid it.
+2. Claude Code restores recently read files after the boundary, with their
+   absolute paths. Snapshot files of the kind skill and the spine are among
+   them.
+
+After recent guidance reads, Claude Code therefore does not produce the loss of
+the whole preamble that Ravel's specification describes. A real loss of that
+kind needs a session in which no restored file lies in a snapshot.
+
+**Repair candidate.** Claude Code's documentation says that it restores up to
+five files that the agent read or edited, the most recently modified first. A
+first turn that writes five or more work files after its guidance reads might
+leave every snapshot file out of the restoration. This record has not tested
+that. The restoration rule and its effect on snapshot files are unverified for
+this version.
+
+**Limit.** In both attempts the first turn read the mandatory files, the kind
+skill and the spine's procedures, then wrote `stamp.sh` and asked the human.
+The second attempt also read `coding-style-bash` before it wrote `stamp.sh`.
+The agent ran no ending command, so Ravel refused as `session_result_missing`,
+and Grove stopped the loop with the leaf live.
+
+| Subject | First attempt | Second attempt |
+| --- | --- | --- |
+| Grove build | Commit `fb6df03aeb98` | Commit `72dce7b8d721` |
+| `grove` and `grove-llm` | The digests of [compaction-path](#compaction-path) | The same digests |
+| Ravel build, harness, links, driver environment | As [compaction-path](#compaction-path) | As [compaction-path](#compaction-path) |
+| Sources | `resourceDigest` `88f68c31…` and `820fe282…`, as compaction-path | The same digests |
+| Descriptor | `2513c3725c14b12798864719bc976023e9aef91292b4f21dfde88c2c20412484` | `f118afbc4e25d0e2b2ded9dd67e7639dde75c722d4d2f2d1282fff6bf2a2f754` |
+| Synced claude.ai skills | 13, with the prefix `anthropic-skills:`, as in [continuation](#continuation) | None |
+| Preamble | SHA-256 `87d0e812d1bed631a9e323bd93e662c292d1847133d0dcb3d4c1a4b925ce6b70` | SHA-256 `1c0d0389a40d5d4bc6548474935601d9cae0ccf3bcfca7758da246f6b0ee6f5d` |
+| Summary | 8,499 characters, SHA-256 `ca4ff602a5a796017429a1566d9dbcfe34ff14f1e04455b90a4d326ac88ffe31`. 1 preamble path, 1 digest | 10,452 characters, SHA-256 `636fb41adadb4977c76dafd910748dfdc0b17eabb0d7e085f77bb5ab31e7ac21`. No preamble text |
+| Restored files | `stamp.sh`, `using-jujutsu/SKILL.md` and `grove/SKILL.md` | `stamp.sh`, `grove-impl/SKILL.md` and `grove/TASK-FORMAT.md` |
+| Gate | Failed: 5 preamble paths and 3 digests after the boundary | Failed: 1 preamble path and 1 digest after the boundary |
+| Session file | `4f4e45ed-fb0b-4161-b1ef-b1c02ed32c0f.jsonl`, SHA-256 `6014a0b7aadab8be13552934811d760ec47ebe4e8b95504da4662c75ec65137e` | `ebbd032f-b867-4c0b-a98b-8e7d5227b245.jsonl`, SHA-256 `f1fe63eb850f68747fd21ba4b833ad59b08e04e704a7034d7aeb5ace30018ece` |
+| Stream | SHA-256 `becdec59eeffede91f79026c42b39aac3727eff2ea3a3467f50fafd62b92c5cd` | SHA-256 `b63f5c7bb64f7a0f34a8d851bf2a6af821d72a69fdfe1c53dccb926451a57bb9` |
+| Driver | Exit 0 after 86.0 seconds | Exit 0 after 115.1 seconds |

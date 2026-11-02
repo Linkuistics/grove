@@ -35,3 +35,36 @@ Each case below is a separate launch with its own record.
 
 `authoring-conventions` sets `disable-model-invocation: true` in this
 checkout. Check that before you use it.
+
+## Decisions (running log)
+
+- Six cases, one launch each: `problem-ambiguity`, `problem-missing`,
+  `problem-stale-native`, `problem-user-invoked`, `problem-user-invoked-named`
+  and `problem-source-missing`. The user-invoked bullet asks for two
+  observations, so it has two cases. Each lifecycle case is a Grove `impl` leaf
+  on directory 2.0, with the mandatory files of `discovery`.
+- Ambiguity: a third source, `scripts/harness-trials/sources/rival-records`,
+  is a plugin directory of the same checkout. Its `decision-records` has the
+  same name and a different convention: numbered files under
+  `docs/decisions/`. The task asks for a decision record by activity alone and
+  names no directory, so the written file shows which copy the agent followed.
+- Missing guidance: the task names `changelog-conventions`. No source, no
+  native root and no synced claude.ai skill holds that name.
+- Stale native copy: `decision-records` at `3699e04a1ed`, before the current
+  revision, in the sandbox `.claude/skills`. Its description equals the
+  current one. The task asks for the record by activity alone, under
+  `docs/adr/`.
+- User-invoked: `authoring-conventions`, which sets
+  `disable-model-invocation: true` at the checkout commit. The activity is a
+  new `SKILL.md`. Its description itself says "user-invoked, run it by hand",
+  so an unread result may come from that text as well as from obligation 7.
+  The record states this limit.
+- Missing source: the runner makes a plain Git clone of the prepared checkout
+  at the same commit in the trial directory. The settings name that clone for
+  `linkuistics`. The runner moves it away before the driver, and restores it
+  after. A direct `ravel skills resolve --json` runs before and after the
+  restoration, and the restored one must resolve. No harness launch, no
+  session file and an unchanged tree are required.
+- The runner gains three things: `native[].commit` copies a skill directory
+  from an older commit of the checkout, `moveAway` with `expectRefusal`
+  records a refusal case, and each snapshot read names its source.

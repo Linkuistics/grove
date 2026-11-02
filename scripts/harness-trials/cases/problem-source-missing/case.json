@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "name": "problem-source-missing",
+  "purpose": "A discovery problem of Ravel's agent discovery rules (claude-discovery-problems-k110). A plain Git checkout of the linkuistics source is moved away before the driver. Expect skill_source_missing before any harness launch, and no model call.",
+  "credits": [],
+  "harness": "claude",
+  "route": "directory-2.0",
+  "mode": "lifecycle",
+  "model": "claude-opus-5-5",
+  "effort": "medium",
+  "kinds": [
+    "impl"
+  ],
+  "sources": [
+    {
+      "id": "grove",
+      "plugin": "plugins/grove",
+      "roots": [
+        "skills"
+      ]
+    },
+    {
+      "id": "linkuistics",
+      "plugin": "plugins/linkuistics",
+      "roots": [
+        "skills"
+      ]
+    }
+  ],
+  "mandatory": [
+    {
+      "source": "linkuistics",
+      "path": "skills/using-jujutsu/SKILL.md"
+    },
+    {
+      "source": "grove",
+      "path": "skills/grove/SKILL.md"
+    }
+  ],
+  "moveAway": "linkuistics",
+  "expectRefusal": "skill_source_missing",
+  "timeoutMinutes": 30
+}

@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "name": "problem-user-invoked",
+  "purpose": "A discovery problem of Ravel's agent discovery rules (claude-discovery-problems-k110). The task authors a SKILL.md, which matches the description of authoring-conventions, a skill with disable-model-invocation: true. Expect that skill unread.",
+  "credits": [],
+  "harness": "claude",
+  "route": "directory-2.0",
+  "mode": "lifecycle",
+  "model": "claude-opus-5-5",
+  "effort": "medium",
+  "kinds": [
+    "impl"
+  ],
+  "sources": [
+    {
+      "id": "grove",
+      "plugin": "plugins/grove",
+      "roots": [
+        "skills"
+      ]
+    },
+    {
+      "id": "linkuistics",
+      "plugin": "plugins/linkuistics",
+      "roots": [
+        "skills"
+      ]
+    }
+  ],
+  "mandatory": [
+    {
+      "source": "linkuistics",
+      "path": "skills/using-jujutsu/SKILL.md"
+    },
+    {
+      "source": "grove",
+      "path": "skills/grove/SKILL.md"
+    }
+  ],
+  "timeoutMinutes": 30
+}

@@ -54,6 +54,16 @@ from pathlib import Path
 home = Path(os.environ["HOME"])
 trial = home.parent
 Path({env_file!r}).write_text(json.dumps(dict(os.environ)))
+settings = home / ".config/ravel/settings.json"
+for source in (json.loads(settings.read_text())["skills"]["sources"] if settings.exists() else []):
+    if not Path(source["path"]).is_dir():
+        # Ravel refuses a missing source before any worker, and Grove's loop
+        # stops without a relaunch.
+        print(f"ravel: refused (skill_source_missing, stage skills): the source {{source['id']!r}} at "
+              f"{{source['path']}} does not exist", file=sys.stderr)
+        print("  remedy: restore the source directory, or change the settings deliberately", file=sys.stderr)
+        print("grove: session kind `impl` for `smoke-file-k1` failed; rerun `grove` to continue", file=sys.stderr)
+        sys.exit(0)
 route = json.loads((trial / "route.json").read_text())
 snap = home / ".cache/ravel/skills/objects/grove-snapshot"
 (snap / "skills/grove-impl").mkdir(parents=True)
@@ -173,11 +183,14 @@ import json, os, sys
 from pathlib import Path
 if sys.argv[1:] != ["skills", "resolve", "--json"]:
     sys.exit(0)
+settings = Path(os.environ["HOME"]) / ".config/ravel/settings.json"
+for source in json.loads(settings.read_text())["skills"]["sources"]:
+    if not Path(source["path"]).is_dir():
+        print(f"ravel: refused (skill_source_missing, stage skills): {{source['path']}} does not exist", file=sys.stderr)
+        print("  remedy: restore the source directory, or change the settings deliberately", file=sys.stderr)
+        sys.exit(3)
 found = sorted(Path(os.environ["HOME"]).glob(".cache/ravel/descriptors/*/directories.json"))
-if not found:
-    print("no descriptor", file=sys.stderr)
-    sys.exit(3)
-print(json.dumps({{"schemaVersion": 1, "status": "resolved", "descriptorPath": str(found[0]),
+print(json.dumps({{"schemaVersion": 1, "status": "resolved", "descriptorPath": str(found[0]) if found else None,
                   "sources": [{{"id": "grove", "resourceDigest": "ab" * 32}}]}}))
 '''
 
@@ -244,13 +257,16 @@ class Fixture:
         front = root / "ravel/bin/ravel"
         front.parent.mkdir(parents=True)
         self._exec(front, FAKE_FRONT.format(python=sys.executable))
+        # The checkout is a Git repository with two commits, so that a case can
+        # copy the older revision of a skill as a stale native copy.
         checkout = root / "source"
         (checkout / "plugins/grove/skills/craft").mkdir(parents=True)
-        (checkout / "plugins/grove/skills/craft/SKILL.md").write_text("craft\n")
+        self.old_commit = self._commit(checkout, "craft old\n", init=True)
+        head = self._commit(checkout, "craft\n")
         (self.prepared / "prepared.json").write_text(json.dumps({
             "grove": {"commit": "c" * 40, "prefix": str(grove_bin.parent),
                       "sha256": {name: trial.sha256_file(grove_bin / name) for name in ("grove", "grove-llm")}},
-            "source": {"checkout": str(checkout), "commit": "c" * 40},
+            "source": {"checkout": str(checkout), "commit": head},
             "ravel": {"front": str(front), "binRavelSha256": trial.sha256_file(front),
                       "buildIdentity": "i" * 64, "buildCommit": "b" * 12, "outputCommit": "o" * 12,
                       "line": "skill-directory-delivery"},
@@ -263,6 +279,17 @@ class Fixture:
         self._exec(self.claude, FAKE_CLAUDE.format(
             python=sys.executable, behaviour=str(self.behaviour), launched=str(self.launched), store=self.store))
         self.behave()
+
+    @staticmethod
+    def _commit(checkout: Path, text: str, init: bool = False) -> str:
+        env = {**trial.git_env(os.environ), "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@example.com",
+               "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@example.com"}
+        if init:
+            trial.run_checked(["git", "init", "--quiet", str(checkout)], env=env)
+        (checkout / "plugins/grove/skills/craft/SKILL.md").write_text(text)
+        trial.run_checked(["git", "add", "--all"], cwd=checkout, env=env)
+        trial.run_checked(["git", "commit", "--quiet", "-m", text.strip()], cwd=checkout, env=env)
+        return trial.run_checked(["git", "rev-parse", "HEAD"], cwd=checkout, env=env)
 
     @staticmethod
     def _exec(path: Path, text: str) -> None:
@@ -318,6 +345,19 @@ def plant_cases(root: Path) -> Path:
         "native": [{"name": "craft", "from": "plugins/grove/skills/craft"}],
         "claudeSettings": {"permissions": {"deny": ["Skill(craft)"]}},
         "plant": [{"from": "plugins/grove/skills/craft/SKILL.md", "to": "guidance/craft/SKILL.md"}],
+    }))
+    # A stale native copy: the skill as the commit before the checkout's head held it.
+    stale = cases / "stale"
+    shutil.copytree(cases / "smoke", stale)
+    (stale / "case.json").write_text(json.dumps({
+        **smoke, "name": "stale",
+        "native": [{"name": "craft", "from": "plugins/grove/skills/craft", "commit": "HEAD~1"}],
+    }))
+    # A source moved away before the driver, which expects Ravel's refusal.
+    missing = cases / "missing"
+    shutil.copytree(cases / "smoke", missing)
+    (missing / "case.json").write_text(json.dumps({
+        **smoke, "name": "missing", "moveAway": "grove", "expectRefusal": "skill_source_missing",
     }))
     return cases
 
@@ -460,9 +500,20 @@ class HarnessTrialTest(unittest.TestCase):
         identity = launch["descriptorIdentity"]
         self.assertEqual(identity["directory"], identity["sha256"])
         self.assertEqual(launch["sources"][0]["resourceDigest"], "ab" * 32)
+        # Each snapshot read names its source, and a read outside every source names none.
+        sources = {(e["class"], e.get("skill")): e.get("source") for e in main[0]["events"]}
+        self.assertEqual(sources[("skill", "craft")], "grove")
+        self.assertEqual(sources[("kind-skill", "grove-impl")], "grove")
+        self.assertIsNone(sources[("native", "old")])
+        markdown = (Path(fixture.record()["trial"]) / "record.md").read_text()
+        self.assertIn("| 5 | Read | skill | craft | grove |", markdown)
 
     def test_extraction_orders_and_classifies_every_tool_call(self):
         self.check_events(self.fixture)
+        # A runner that names no source loses which copy a read opened.
+        with (mock.patch.object(trial.Classifier, "source_of", lambda self, raw: None),
+              self.assertRaises(AssertionError, msg="the check passed with a broken source_of")):
+            self.check_events(self.fresh())
         real = trial.extract_events
         self.broken(self.check_events, "extract_events", lambda entries, c: list(reversed(real(entries, c))))
         self.broken(self.check_events, "extract_events",
@@ -549,6 +600,28 @@ class HarnessTrialTest(unittest.TestCase):
 
         self.broken(self.check_explicit, "plant_repo", unsubstituted)
 
+    def check_stale(self, fixture: Fixture):
+        status, output = fixture.run("stale")
+        self.assertEqual(status, 0, output)
+        record = fixture.record()
+        installed = record["skills"]["installed"][0]
+        self.assertEqual(installed.get("commit"), fixture.old_commit)
+        self.assertEqual(installed["skillSha256"], trial.sha256_bytes(b"craft old\n"))
+        self.assertEqual(installed["currentSha256"], trial.sha256_bytes(b"craft\n"))
+        home = Path(record["trial"]) / "home"
+        self.assertEqual((home / ".claude/skills/craft/SKILL.md").read_text(), "craft old\n")
+        self.assertIn(f"at commit `{fixture.old_commit[:12]}`", (Path(record["trial"]) / "record.md").read_text())
+
+    def test_a_native_copy_can_come_from_an_older_commit(self):
+        self.check_stale(self.fixture)
+        real = trial.install_native
+
+        def current_only(case, home, checkout):
+            plain = {**case, "native": [{k: v for k, v in item.items() if k != "commit"} for item in case["native"]]}
+            return real(plain, home, checkout)
+
+        self.broken(self.check_stale, "install_native", current_only)
+
     def test_a_planted_file_outside_the_guidance_directory_refuses(self):
         case = {"name": "x", "plant": [{"from": "plugins/grove/skills/craft/SKILL.md", "to": "../escape"}]}
         with self.assertRaises(trial.TrialError):
@@ -573,6 +646,55 @@ class HarnessTrialTest(unittest.TestCase):
     def test_a_harness_that_starts_no_session_fails_the_run(self):
         self.check_unstarted(self.fixture)
         self.broken(self.check_unstarted, "started", lambda launch: True)
+
+    # --- A source moved away -----------------------------------------------------
+
+    def check_source_missing(self, fixture: Fixture):
+        status, output = fixture.run("missing")
+        self.assertEqual(status, 0, output)
+        record = fixture.record()
+        self.assertEqual(record["launches"], [])
+        refusal = record["refusal"]
+        self.assertEqual(refusal["moved"]["exit"], 3)
+        self.assertIn("skill_source_missing", refusal["moved"]["firstLine"])
+        self.assertEqual(refusal["restored"]["status"], "resolved")
+        self.assertTrue(Path(refusal["clone"]["checkout"]).is_dir(), "the clone was not restored")
+        self.assertEqual(refusal["clone"]["commit"], json.loads(
+            (fixture.prepared / "prepared.json").read_text())["source"]["commit"])
+        self.assertEqual(record["sources"]["settings"]["skills"]["sources"][0]["path"],
+                         str(Path(refusal["clone"]["checkout"]) / "plugins/grove"))
+        # The harness answered only the version and sign-in questions.
+        self.assertEqual(fixture.launched.read_text().split(), ["--version", "auth"])
+        self.assertTrue(any("ravel: refused (skill_source_missing" in line for line in record["ending"]["driverLines"]))
+        self.assertIn("Expected refusal:", (Path(record["trial"]) / "record.md").read_text())
+
+    def test_a_moved_source_refuses_before_any_launch(self):
+        self.check_source_missing(self.fixture)
+        self.broken(self.check_source_missing, "move_away", lambda moved: None)
+        self.broken(self.check_source_missing, "restore", lambda moved: None)
+        # A runner whose settings ignore the clone moves a directory that no launch reads.
+        real_settings = trial.settings_for
+        self.broken(self.check_source_missing, "settings_for",
+                    lambda case, checkout, clones=None: real_settings(case, checkout))
+
+    def check_refusal_needs_no_launch(self, fixture: Fixture):
+        with mock.patch.object(trial, "move_away", lambda moved: None):
+            status, output = fixture.run("missing")
+        self.assertEqual(status, 1, output)
+        self.assertIn("the driver launched a harness", output)
+        self.assertIn("the driver did not report Ravel's refusal", output)
+
+    def test_a_refusal_case_fails_when_the_harness_launches(self):
+        self.check_refusal_needs_no_launch(self.fixture)
+        self.broken(self.check_refusal_needs_no_launch, "refusal_failures", lambda *args: [])
+
+    def test_move_away_needs_an_expected_refusal(self):
+        case = json.loads((trial.CASES / "missing" / "case.json").read_text())
+        (trial.CASES / "half").mkdir()
+        shutil.copytree(trial.CASES / "smoke" / "tree", trial.CASES / "half" / "tree")
+        (trial.CASES / "half" / "case.json").write_text(json.dumps({**case, "expectRefusal": None}))
+        with self.assertRaises(trial.TrialError):
+            trial.load_case("half")
 
     # --- The offline resolution ------------------------------------------------
 

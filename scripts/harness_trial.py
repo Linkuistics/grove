@@ -24,8 +24,12 @@ environment, and writes the case record. A standalone case runs `grove run`
 instead, which Ravel confines. A case can add access probes inside the launch
 and an offline `ravel skills resolve`. For an explicit-route request, a case
 can also copy native skills into the sandbox `.claude/skills`, write the
-sandbox `.claude/settings.json` and plant files under the trial's `guidance/`. `reextract` extracts the events of an
-earlier run again, from its unchanged transcripts. A real run spends
+sandbox `.claude/settings.json` and plant files under the trial's `guidance/`.
+A native copy can come from an older commit of the checkout, as a stale copy.
+A case with `moveAway` and `expectRefusal` moves a clone of one source away
+before the driver, and expects Ravel's refusal before any harness launch.
+`reextract` extracts the events of an earlier run again, from its unchanged
+transcripts. A real run spends
 subscription usage, so no gate runs it. `scripts/test_harness_trial.py` tests
 the runner against fake harnesses.
 
@@ -229,6 +233,8 @@ def load_case(name: str) -> tuple[dict[str, Any], Path]:
         raise TrialError(f"case {name}: the mode '{mode}' is not one of {', '.join(MODES)}")
     if mode == "lifecycle" and not (directory / "tree").is_dir():
         raise TrialError(f"case {name}: no tree/ directory")
+    if bool(case.get("moveAway")) != bool(case.get("expectRefusal")) or (case.get("moveAway") and mode != "lifecycle"):
+        raise TrialError(f"case {name}: a lifecycle case names moveAway and expectRefusal together")
     if mode == "standalone":
         standalone = case.get("standalone") or {}
         if not (directory / standalone.get("prompt", "prompt.md")).is_file() or not standalone.get("outputs"):
@@ -251,12 +257,15 @@ def fixed_probes(case: dict[str, Any], home: Path, checkout: Path) -> list[list[
     return probes
 
 
-def settings_for(case: dict[str, Any], checkout: Path) -> dict[str, Any]:
-    """Ravel's owner settings of the case's route."""
+def settings_for(case: dict[str, Any], checkout: Path, clones: Mapping[str, Path] | None = None) -> dict[str, Any]:
+    """Ravel's owner settings of the case's route. A source in `clones` comes
+    from that checkout instead of the prepared one."""
     if case["route"] == "native-2.0":
         return {}
+    clones = clones or {}
     sources = [
-        {"id": source["id"], "type": "local", "path": str(checkout / source["plugin"]), "roots": source["roots"]}
+        {"id": source["id"], "type": "local", "path": str(clones.get(source["id"], checkout) / source["plugin"]),
+         "roots": source["roots"]}
         for source in case["sources"]
     ]
     return {"skills": {"schemaVersion": 1, "sources": sources, "mandatory": case.get("mandatory", [])}}
@@ -404,6 +413,16 @@ class Classifier:
         if self._inside(path, self.repo):
             return "work", None
         return "other", None
+
+    def source_of(self, raw: str) -> str | None:
+        """The id of the source whose snapshot or origin holds the path. Two
+        sources can hold skills of one name, so the class alone cannot show
+        which copy a read opened."""
+        path = self._norm(raw)
+        for source, root in self.snapshots + self.origins:
+            if self._inside(path, root):
+                return source
+        return None
 
     @staticmethod
     def _skill(path: str) -> str | None:
@@ -565,8 +584,12 @@ def extract_events(entries: list[dict[str, Any]], classifier: Classifier) -> lis
             reads = [item for item in classes if item[0] in READ_CLASSES]
             if reads and name not in ("Edit", "Write", "MultiEdit", "NotebookEdit"):
                 event["class"], event["skill"], event["path"] = reads[0]
+                source = classifier.source_of(event["path"])
+                if source:
+                    event["source"] = source
                 if len(reads) > 1:
-                    event["more"] = [{"class": c, "skill": s, "path": p} for c, s, p in reads[1:]]
+                    event["more"] = [{"class": c, "skill": s, "path": p, "source": classifier.source_of(p)}
+                                     for c, s, p in reads[1:]]
             elif name in ("Edit", "Write", "MultiEdit", "NotebookEdit"):
                 event["class"], event["path"] = "action", target
             elif name == "Skill":
@@ -670,12 +693,7 @@ def prepare(out: Path, commit: str, front: Path, environ: Mapping[str, str]) -> 
     if checkout.exists():
         raise TrialError(f"{checkout} exists; name an empty OUT for a new preparation")
     out.mkdir(parents=True, exist_ok=True)
-    git_env = {**environ, "GIT_CONFIG_GLOBAL": "/dev/null", "GIT_CONFIG_NOSYSTEM": "1"}
-    run_checked(["git", "init", "--quiet", str(checkout)], env=git_env)
-    run_checked(["git", "fetch", "--quiet", common, full], cwd=checkout, env=git_env)
-    run_checked(["git", "checkout", "--quiet", "--detach", "FETCH_HEAD"], cwd=checkout, env=git_env)
-    if run_checked(["git", "status", "--porcelain"], cwd=checkout, env=git_env):
-        raise TrialError(f"the checkout {checkout} is not clean")
+    fetch_checkout(common, full, checkout, git_env(environ))
 
     say(f"building grove and grove-llm at {full[:12]} into {out}")
     build_env = {name: value for name, value in environ.items() if not CONTROL_PATTERN.match(name)}
@@ -728,17 +746,53 @@ def plant_repo(repo: Path, tree: Path, env: dict[str, str]) -> str:
     return run_checked(["jj", "log", "--no-graph", "-r", "@-", "-T", "commit_id"], cwd=repo, env=env)
 
 
+def git_env(environ: Mapping[str, str]) -> dict[str, str]:
+    """Git without the owner's global or system configuration."""
+    return {**environ, "GIT_CONFIG_GLOBAL": "/dev/null", "GIT_CONFIG_NOSYSTEM": "1"}
+
+
+def fetch_checkout(repository: str | Path, commit: str, target: Path, env: dict[str, str]) -> None:
+    """A plain Git checkout of `commit` at `target`, fetched by its hash."""
+    run_checked(["git", "init", "--quiet", str(target)], env=env)
+    run_checked(["git", "fetch", "--quiet", str(repository), commit], cwd=target, env=env)
+    run_checked(["git", "checkout", "--quiet", "--detach", "FETCH_HEAD"], cwd=target, env=env)
+    if run_checked(["git", "status", "--porcelain"], cwd=target, env=env):
+        raise TrialError(f"the checkout {target} is not clean")
+
+
+def copy_from_commit(checkout: Path, commit: str, directory: str, target: Path) -> None:
+    """The files of `directory` as the commit holds them, written to `target`."""
+    env = git_env(os.environ)
+    files = run_checked(["git", "ls-tree", "-r", "--name-only", commit, "--", directory], cwd=checkout, env=env)
+    if not files:
+        raise TrialError(f"the commit {commit} of {checkout} holds no files under {directory}")
+    for name in files.splitlines():
+        data = subprocess.run(["git", "show", f"{commit}:{name}"], cwd=checkout, env=env,
+                              capture_output=True, check=True).stdout
+        path = target / Path(name).relative_to(directory)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(data)
+
+
 def install_native(case: dict[str, Any], home: Path, checkout: Path) -> list[dict[str, str]]:
     """The case's native copies, each a skill directory of the checkout copied
-    into the sandbox `.claude/skills`, never into the owner's home."""
+    into the sandbox `.claude/skills`, never into the owner's home. With a
+    `commit`, the copy holds the directory as that older commit held it, such
+    as a stale native copy beside the current directory copy."""
     installed = []
     for item in case.get("native", []):
-        source = checkout / item["from"]
         target = home / ".claude" / "skills" / item["name"]
-        shutil.copytree(source, target)
-        installed.append({"name": item["name"], "from": item["from"],
-                          "path": str(target.relative_to(home)),
-                          "skillSha256": sha256_file(target / "SKILL.md")})
+        entry = {"name": item["name"], "from": item["from"], "path": str(target.relative_to(home))}
+        if item.get("commit"):
+            commit = run_checked(["git", "rev-parse", "--verify", f"{item['commit']}^{{commit}}"],
+                                 cwd=checkout, env=git_env(os.environ))
+            copy_from_commit(checkout, commit, item["from"], target)
+            current = checkout / item["from"] / "SKILL.md"
+            entry.update(commit=commit, currentSha256=sha256_file(current) if current.is_file() else None)
+        else:
+            shutil.copytree(checkout / item["from"], target)
+        entry["skillSha256"] = sha256_file(target / "SKILL.md")
+        installed.append(entry)
     return installed
 
 
@@ -1020,6 +1074,69 @@ def resolve_failures(resolve: dict[str, Any], launches: list[dict[str, Any]]) ->
     return failures
 
 
+def clone_source(case: dict[str, Any], trial: Path, checkout: Path, commit: str) -> dict[str, Any] | None:
+    """For a case with `moveAway`, a plain Git checkout of the prepared commit
+    in the trial directory. The settings name it for that source, so that the
+    move changes no checkout that another case reads."""
+    source = case.get("moveAway")
+    if not source:
+        return None
+    if source not in {item["id"] for item in case.get("sources", [])}:
+        raise TrialError(f"case {case['name']}: moveAway names '{source}', which is not one of its sources")
+    clone = trial / "sources" / f"{source}-checkout"
+    clone.parent.mkdir()
+    fetch_checkout(checkout, commit, clone, git_env(os.environ))
+    head = run_checked(["git", "rev-parse", "HEAD"], cwd=clone, env=git_env(os.environ))
+    return {"source": source, "checkout": str(clone), "commit": head,
+            "movedTo": str(trial / "sources" / f"{source}-moved")}
+
+
+def move_away(moved: dict[str, Any]) -> None:
+    os.rename(moved["checkout"], moved["movedTo"])
+
+
+def restore(moved: dict[str, Any]) -> None:
+    if os.path.lexists(moved["movedTo"]):
+        os.rename(moved["movedTo"], moved["checkout"])
+
+
+def resolve_direct(front: Path, env: dict[str, str], cwd: Path) -> dict[str, Any]:
+    """`ravel skills resolve --json` with the settings of the launch. It
+    resolves and publishes sources, and it launches no worker or harness."""
+    result = subprocess.run([str(front), "skills", "resolve", "--json"], env=env, cwd=cwd,
+                            capture_output=True, text=True, check=False)
+    document: dict[str, Any] = {}
+    try:
+        document = json.loads(result.stdout)
+    except json.JSONDecodeError:
+        pass
+    lines = result.stderr.strip().splitlines()
+    return {"exit": result.returncode, "status": document.get("status"),
+            "firstLine": lines[0] if lines else "",
+            "remedy": next((line.strip() for line in lines if line.strip().startswith("remedy:")), None)}
+
+
+def refusal_failures(case: dict[str, Any], refusal: dict[str, Any], launches: list[dict[str, Any]],
+                     stderr: str, sessions: list[Path], tree_before: list[str], tree_after: list[str]) -> list[str]:
+    """Each way a case that expects a refusal before any launch did not show
+    it. A restored source must resolve, so that the move is the cause."""
+    code = case["expectRefusal"]
+    failures = []
+    if launches or sessions:
+        failures.append(f"the driver launched a harness, and the case expects {code} before any launch")
+    if f"ravel: refused ({code}" not in stderr:
+        failures.append(f"the driver did not report Ravel's refusal {code}; read driver.stderr of the trial")
+    moved = refusal["moved"]
+    if moved["exit"] == 0 or code not in moved["firstLine"]:
+        failures.append(f"the direct resolution with the source moved away gave {moved}, not the refusal {code}")
+    if refusal["restored"]["exit"] != 0 or refusal["restored"]["status"] != "resolved":
+        failures.append(f"the direct resolution with the source restored gave {refusal['restored']}; "
+                        "the refusal may have another cause")
+    if tree_before != tree_after:
+        failures.append(f"the tree changed from {tree_before} to {tree_after}")
+    return failures
+
+
 def contrast_probes(probes: list[dict[str, str]], cwd: Path) -> list[dict[str, str]]:
     """The same probes, run unconfined by the same wrapper. A confined failure
     belongs to the sandbox only where this run succeeds."""
@@ -1068,7 +1185,8 @@ def run_case(prepared_dir: Path, name: str, environ: Mapping[str, str],
     (home / ".config" / "jj" / "config.toml").write_text(
         'user.name = "Grove Trial"\nuser.email = "grove-trial@example.com"\n'
     )
-    settings = settings_for(case, checkout)
+    clone = clone_source(case, trial, checkout, prepared["source"]["commit"])
+    settings = settings_for(case, checkout, {clone["source"]: Path(clone["checkout"])} if clone else None)
     if settings:
         (home / ".config" / "ravel" / "settings.json").write_text(json.dumps(settings, indent=2) + "\n")
     installed = install_native(case, home, checkout)
@@ -1124,8 +1242,17 @@ def run_case(prepared_dir: Path, name: str, environ: Mapping[str, str],
     else:
         base = plant_repo(repo, case_dir / "tree", env)
         tree_before = tree_state(repo)
+        refusal = None
+        if clone:
+            move_away(clone)
+            say(f"{name}: moved the checkout of {clone['source']} to {clone['movedTo']}")
+            refusal = {"expected": case["expectRefusal"], "clone": clone,
+                       "moved": resolve_direct(front, env, tmp)}
         say(f"{name}: {version}, model {model}, effort {effort}, route {case['route']}, trial {trial}")
         driver = run_driver([str(grove_bin / "grove")], repo, env, trial, deadline)
+        if clone and refusal:
+            restore(clone)
+            refusal["restored"] = resolve_direct(front, env, tmp)
 
     links_after = list_links(home)
     for link, target in links_after:
@@ -1155,6 +1282,7 @@ def run_case(prepared_dir: Path, name: str, environ: Mapping[str, str],
             (trial / "contrast").mkdir()
             contrast = contrast_probes(probes, trial / "contrast")
         tree_before = tree_after = []
+        refusal = None
         published = "\n".join(
             f"{path.name} {sha256_file(path)}" for path in sorted(outputs.iterdir()) if path.is_file()
         )
@@ -1193,11 +1321,13 @@ def run_case(prepared_dir: Path, name: str, environ: Mapping[str, str],
         "launches": launches,
         "contrast": contrast,
         "resolve": resolve,
+        "refusal": refusal,
         "ending": {
             "driverExit": driver["exit"],
             "timedOut": driver["timedOut"],
             "elapsedS": driver["elapsedS"],
-            "driverLines": [line for line in stderr.splitlines() if line.startswith(("grove", "ravel:", "Error"))],
+            "driverLines": [line for line in stderr.splitlines()
+                            if line.startswith(("grove", "ravel:", "Error", "  remedy:"))],
             "runLog": run_log[-60:],
             "endingCommands": [e.get("result") for l in launches for t in l["transcripts"]
                                for e in t["events"] if e["class"] == "ending"],
@@ -1217,7 +1347,9 @@ def run_case(prepared_dir: Path, name: str, environ: Mapping[str, str],
     failures = [leak for launch in launches for leak in launch["control"]]
     failures += [f"launch {n}: the harness wrote no startup event; read {launch['record']} and its stderr"
                  for n, launch in enumerate(launches) if not started(launch)]
-    if not launches:
+    if refusal:
+        failures += refusal_failures(case, refusal, launches, stderr, session_files(home), tree_before, tree_after)
+    elif not launches:
         failures.append("the driver launched no harness; read driver.stderr of the trial")
     if link_failure:
         failures.append(link_failure)
@@ -1307,7 +1439,11 @@ def render(record: dict[str, Any]) -> str:
         f"| Links before and after | {cell(record['links']['before'] and record['links']['before'][0][0])} only; after: {cell(', '.join(link for link, _ in record['links']['after']) or 'none')} |",
         f"| Driver environment | {cell(', '.join(record['environment']))} |",
         f"| Native copies | {cell(', '.join(record['skills']['nativeCopies']) or 'none')} |",
-        *[f"| Installed native copy | `{i['path']}` from `{i['from']}`, `SKILL.md` SHA-256 `{i['skillSha256']}` |"
+        *[f"| Installed native copy | `{i['path']}` from `{i['from']}`"
+          + (f" at commit `{i['commit'][:12]}`" if i.get("commit") else "")
+          + f", `SKILL.md` SHA-256 `{i['skillSha256']}`"
+          + (f"; the checkout's current `SKILL.md` has SHA-256 `{i['currentSha256']}`" if i.get("commit") else "")
+          + " |"
           for i in record['skills'].get('installed', [])],
         *([f"| Sandbox `.claude/settings.json` | `{cell(json.dumps(record['skills']['claudeSettings']))}` |"]
           if record['skills'].get('claudeSettings') is not None else []),
@@ -1343,13 +1479,13 @@ def render(record: dict[str, Any]) -> str:
             lines += [
                 f"Ordered events of `{Path(transcript['file']).name}`:",
                 "",
-                "| # | Tool | Class | Skill | Target | Error |",
-                "| --- | --- | --- | --- | --- | --- |",
+                "| # | Tool | Class | Skill | Source | Target | Error |",
+                "| --- | --- | --- | --- | --- | --- | --- |",
             ]
             for event in transcript["events"]:
                 lines.append(
                     f"| {event['seq']} | {event['tool']} | {event['class']} | {event.get('skill') or ''} "
-                    f"| {shown(event)} | {'yes' if event['error'] else ''} |"
+                    f"| {event.get('source') or ''} | {shown(event)} | {'yes' if event['error'] else ''} |"
                 )
             lines.append("")
     contrast = {(item["op"], item["path"]): item["status"] for item in record.get("contrast") or []}
@@ -1382,6 +1518,24 @@ def render(record: dict[str, Any]) -> str:
             f"- Exit {resolve['exit']}, status `{resolve['status']}`.",
             f"- Descriptor identity: `{identity.get('directory')}` (file SHA-256 `{identity.get('sha256')}`).",
             *[f"- Source `{s['id']}`: `resourceDigest` `{s['resourceDigest']}`." for s in resolve["sources"]],
+            "",
+        ]
+    refusal = record.get("refusal")
+    if refusal:
+        clone = refusal["clone"]
+        lines += [
+            "Expected refusal:",
+            "",
+            f"- Expected code: `{refusal['expected']}`, before any harness launch.",
+            (f"- Source `{clone['source']}`: a plain Git checkout at commit `{clone['commit'][:12]}`, "
+             f"moved from `$TRIAL/{Path(clone['checkout']).relative_to(record['trial'])}` "
+             f"to `$TRIAL/{Path(clone['movedTo']).relative_to(record['trial'])}` before the driver, "
+             "and restored after it."),
+            (f"- Direct `ravel skills resolve --json`, source moved away: exit {refusal['moved']['exit']}, "
+             f"`{cell(refusal['moved']['firstLine'])}`."),
+            *([f"  - `{cell(refusal['moved']['remedy'])}`"] if refusal['moved'].get('remedy') else []),
+            (f"- The same resolution, source restored: exit {refusal['restored']['exit']}, "
+             f"status `{refusal['restored']['status']}`."),
             "",
         ]
     lines += [

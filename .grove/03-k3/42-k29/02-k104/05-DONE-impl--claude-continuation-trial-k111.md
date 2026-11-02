@@ -39,8 +39,8 @@ variable, so record the environment of each turn.
   one line window for each turn.
 - The resumed turn runs outside Ravel's managed process, as an owner's manual
   resume does. It runs from the working directory of the first turn, with the
-  sandbox home and the allow-list of the driver, through the same launch
-  wrapper, which records its environment. It has no `--add-dir`, no
+  sandbox home and the allow-list of the driver. The same launch wrapper
+  records its environment. It has no `--add-dir`, no
   `RAVEL_SKILL_DIRECTORIES` and no result channel.
 - The first turn stops at a real handback. The leaf asks for a script, then
   for required input from the human, as Grove's handback procedure directs.
@@ -62,3 +62,33 @@ variable, so record the environment of each turn.
   tree after the resumed turn, then runs the driver again. One leaf in the
   first tree keeps the first driver run to one launch, even if the agent does
   not stop.
+- The JSONL reader now splits only on a newline. `str.splitlines` also split
+  on a raw U+2028 inside a JSON string, and it then dropped that entry
+  silently. The line windows use the same splitter.
+- Results of `continuation-20261102T223923Z`, one run with no retry. The
+  first turn read both mandatory files, the kind skill, the supporting
+  procedures and `coding-style-bash`. It then wrote `stamp.sh` and stopped
+  at the handback. The resumed turn kept the original descriptor and got the
+  original bytes. The fresh launch received a new descriptor and the new
+  bytes, in the new mandatory order.
+- Gap: the resumed turn did not read the mandatory or relevant guidance again
+  before it edited the script. Its only guidance read was the retire and
+  commit procedures, a procedure step. The record names three candidate
+  causes: the agent, the scope of Ravel's obligation 4 for a resume with the
+  full history, and Grove's handback wording. `acceptance-handoff-k106`
+  chooses between them. The case is not retried, because a second
+  run would be a sample, not a repair.
+- Observation for `acceptance-handoff-k106`: the fresh launch did not read
+  `coding-style-bash`. It copied the style of the existing `stamp.sh`.
+- For `codex-continuation-trial-k119`: the runner's resumed turn builds
+  Claude Code's `--resume` arguments. The Codex adapter must supply its own
+  resume command and its own session-file window.
+- No in-session reviewer. The results are observations of transcripts. Each
+  new runner path has a fake-harness check that fails against a broken
+  runner.
+- Verification: `bash scripts/check.sh` passed 20 of 21 checks. "Ravel
+  caller assets and provenance" refused, because Homebrew's `bun` is now
+  1.4.4 and the typecheck pins 1.4.3. mise holds 1.4.3, but no project mise
+  configuration activates it. With that 1.4.3 first on `PATH`, `task
+  ravel:review RAVEL=/opt/homebrew/bin/ravel` passed. The integrated checks
+  of `acceptance-handoff-k106` meet the same environment.

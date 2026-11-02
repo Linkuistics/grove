@@ -27,7 +27,7 @@ that a named skill exists, applies, or has been read.
 The [owner-managed delivery decision](../adr/skill-delivery-is-the-users-choice.md)
 records the removal of automatic provisioning and the bootstrap trade-off.
 The [caller contract](harness-selection-and-execution.md) owns the public
-session interface. Ravel owns source acquisition, directory delivery, prompt
+session interface. Ravel owns source resolution, directory delivery, prompt
 preparation and resource access. Pack authors own their content and references.
 The agent owns loading and following that guidance.
 
@@ -79,17 +79,22 @@ the missing skill cannot supply it.
 
 The loop stops without relaunching the leaf. The user repairs the selected
 delivery route and reruns. Grove does not turn that failure into
-declaration-based kind admission. A configured source that Ravel cannot acquire
+declaration-based kind admission. A configured source that Ravel cannot capture
 is instead a Ravel prelaunch failure, with its source-specific remedy.
 
-For Ravel delivery, the accepted source requirements still include local sources
-and exact pinned Git sources. They also include offline reuse of warmed exact
-revisions, clear failure for unavailable required revisions and readable
+For Ravel delivery, the accepted source requirements are local source
+directories, clear failure for a missing required source and readable
 resources throughout reader lifetimes. Those are source-directory obligations,
 not resolution of a skill that Grove requests. Ravel's reviewed directory
-contract at `822c0ed2` preserves those requirements. The
+contract at `822c0ed2` set them, together with exact Git sources that Ravel
+later withdrew. The
 [design evidence](../grove-skill-delivery-design-evidence.md#upstream-correction)
 identifies that contract, its review and the human correction that governs it.
+
+Ravel reads local directories only. It does not fetch, install or update a
+source, so delivery needs no network. A tool outside Ravel puts each pack
+checkout in place. Ravel's decision record "Skill sources are local
+directories" removed the earlier exact Git sources and their offline reuse.
 
 ## Supported routes
 
@@ -299,8 +304,8 @@ environment that it builds. Grove's environment scrub therefore gains no name.
 | Missing or incompatible Ravel | Select an admitted installation on the PATH of the invocation: 1.x from 1.1.0 with `policy.ts`, or 2.x from 2.0.0 with `config.rhai`. Avoid an undirected shared upgrade. |
 | Configuration does not match the selected Ravel | Preserve Ravel's refusal: `config_format_retired` for a lone `policy.ts` on 2.0.0, `unsupported_version` for schema 3, or `settings_invalid` for a key of the other major. Select the matching installation, convert the configuration deliberately or use a separate HOME. Grove rewrites no configuration. |
 | Missing named skill | Repair native installation or the configured directory set. Do not require switching routes. |
-| Unavailable configured source/revision | Preserve Ravel's source-specific diagnostic. Restore the source or deliberately amend owner configuration. |
-| Read access, capture, cache, timeout or limit failure | Preserve Ravel's precise remedy. Do not silently substitute another revision, skip guidance or retry unconfined. |
+| Unavailable configured source | Preserve Ravel's source-specific diagnostic. Restore the source or deliberately amend owner configuration. |
+| Read access, capture, cache, timeout or limit failure | Preserve Ravel's precise remedy. Do not silently substitute another source, skip guidance or retry unconfined. |
 | Unsupported delegate access | Report that adapter's limitation before dependent work. Do not imply that prompt text grants filesystem access. |
 
 Prelaunch failures yield no successful session result. Grove keeps its normal
@@ -433,14 +438,14 @@ Its focused review is integrated.
 Use existing Grove lifecycle, standalone and public session-command seams with
 isolated homes and actual installed Ravel. Each case names its route and
 identifies its Ravel build by commit and build identity. Ravel owns source
-acquisition tests. Grove checks the observable caller behaviour.
+resolution tests. Grove checks the observable caller behaviour.
 
 | Acceptance | Observation |
 | --- | --- |
 | Native-only bootstrap on 1.1 | With Ravel 1.1.0 and `policy.ts`, launch the lifecycle caller using complete native skills. Grove does not demand source configuration. Any claimed native-only standalone setup separately proves discovery and every required read under actual confinement. Installing under HOME alone is insufficient. |
 | Native route on 2.0 | With Ravel 2.0.0, `config.rhai` at schema 4 and delivery disabled, launch the lifecycle and standalone callers using complete native skills. `request.prompt` equals `request.originalPrompt` byte for byte, and both equal the mandate. The Rhai assets give the 2.0 outcome of each case in the shared table. They differ from the TypeScript outcomes only where [runtime parity](#runtime-parity) accepts it, and their receipts match byte for byte. This row proves Rhai native compatibility, not directory delivery. |
-| Directory bootstrap | Use Ravel 2.0.0 with the `skills` key, in a HOME separate from any 1.1 reader. With native copies absent, inject complete source directories outside cwd and read the spine, named kind and supporting resources. Exercise local and exact Git sources, Grove's bare-name mandate and an explicit plugin-qualified name request. Neither name request requires a native loader. |
-| Offline and failures | Warm the exact source, remove transport access and launch. Missing cold revisions fail clearly. For a missing or unreadable mandated skill, the agent reports and uses the prompt's exact force-stop command. The leaf remains live, no teardown is recorded and the loop does not relaunch. Grove's kind parser does not reject it. |
+| Directory bootstrap | Use Ravel 2.0.0 with the `skills` key, in a HOME separate from any 1.1 reader. With native copies absent, inject complete source directories outside cwd and read the spine, named kind and supporting resources. Exercise local sources, Grove's bare-name mandate and an explicit plugin-qualified name request. Neither name request requires a native loader. |
+| Source and skill failures | A missing configured source directory refuses before launch, with Ravel's remedy. For a missing or unreadable mandated skill, the agent reports and uses the prompt's exact force-stop command. The leaf remains live, no teardown is recorded and the loop does not relaunch. Grove's kind parser does not reject it. |
 | Original mandate | The mandate qualifies "first" with "after any mandatory guidance". Observe mandatory reads before the named-kind read. Compare exact caller bytes and ending commands before/after Ravel preparation. `originalPrompt` and the caller block of the prepared prompt each equal the composed mandate byte for byte. The selected command receives the intended launch prompt. |
 | Explicit loading mechanism | Exercise a native loader with a match, absent-match directory fallback with disclosure, an express native-only restriction and a concrete path. Observe the specified route or a report before dependent work. Do not silently substitute. |
 | Compatibility | Check the admission of stable 1.x from 1.1.0 with `policy.ts` and the TypeScript assets. Check the admission of 2.x from 2.0.0 with `config.rhai` and the Rhai assets. Refuse 1.0, prereleases, 3.x and malformed output, with no fallback to another PATH entry. Before the cut, stub executables prove the admission of `ravel 2.0.0` output. |

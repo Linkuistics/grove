@@ -116,7 +116,7 @@ The integration verified each review finding against source on 2026-11-02.
 | Rollout, for the paused Rhai workstream | Supply brief-update text that carries the 2.0.0 release, promotion and owner-conversion receipts. It directs that workstream to prune or retarget k37, k38 and k39. A resumed k37 would otherwise cut 3.0.0. |
 | `ravel-rhai-skill-delivery-k34` | Consume the reviewed release choice. Settle schema-4 fields, native/schema-3 compatibility, Rhai host reads, settings and frame bounds against exact current main. |
 | `grove-rhai-skill-delivery-k35` | Map reviewed upstream behaviour into Grove assets and acceptance. Reconcile obsolete schema/runtime claims. |
-| Local/pinned and acceptance stages | Complete feature and actual-harness evidence on a separate Ravel line, with no partial publication. |
+| Local and acceptance stages | Complete feature and actual-harness evidence on a separate Ravel line, with no partial publication. |
 | Owner-delivery k37 and final inventory k38 | Actual owner activation, settings isolation, native removal, TestAnyware, final-session guidance and retained readers. The owner's `config.rhai` conversion precedes any owner default launch on 2.0. |
 | `grove-dual-ravel-k27` and rollout | k27 makes Grove's release and installed smoke admit a second independent Ravel beside 1.1.0. Rollout pins the published 2.0.0 archives by SHA-256 from the publication receipt before Grove's release. |
 | Rollout planner k12 under k6 | Grow remaining Rhai release prerequisites, release-tool implementation/rehearsal, Ravel integration/publication/verification and owner cutover. Supply working promotion tooling and the exact finish handoff. |

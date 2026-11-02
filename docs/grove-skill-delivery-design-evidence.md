@@ -34,9 +34,12 @@ installation. The agent finds skills in its native installation or supplied
 paths. The correction delivered by `ravel-skill-directories-k15` replaces the
 owning Ravel spec, ADR, glossary and visual contract in place. It supplies search
 directories and direct mandatory-file references, with a retained directory-only
-descriptor for recovery and delegates. Ravel acquires local/exact pinned sources.
-Ravel does not parse skill metadata, reject duplicate names or answer a skill
-lookup.
+descriptor for recovery and delegates. Ravel does not parse skill metadata,
+reject duplicate names or answer a skill lookup.
+
+That correction kept local and exact pinned Git sources. Ravel's later
+decision record "Skill sources are local directories" narrowed them to local
+directories.
 
 The producer's Ravel commit is `4c16f8e09d58c8f649a375029c8e8fa2933de2b4`.
 Its `docs/specs/skill-discovery.md` defines the corrected interface. Its
@@ -194,7 +197,7 @@ original version labels and measurements.
 | Caller/version adoption | Admission of 2.x from 2.0.0, its remedy and fixtures. Rhai caller assets, as Grove issue 24 asks, with the runtime parity of the delivery specification, and the TypeScript assets kept for 1.x. `docs/grove-provider-evidence.md`, with the definition of a blank label for both runtimes. The assets README, the configure-grove skill, the policy example in `docs/USAGE.md` and settings guidance. Caller spec/ADRs/views, `docs/specs/standalone-invocations.md`, `CONTEXT-MAP.md`, target fixtures, the asset gate in `docs/RELEASING.md` and release instructions. The glossary entries Delivered context, Owner settings, Choice file, Sample policy and Static dispatch. On 2.x, prompt analysis reads `originalPrompt`. The architecture rows for Ravel and the caller assets. `grove-skill-mandate-k22` delivered the qualified "first", the missing-skill force-stop and the bare-name target. Preserve explicit old/new major combinations. Separate lifecycle native acceptance from confined access proof. |
 | Source-exact runtime books | Overview chapters `02-the-surface`, `03-three-steps` and `06-standalone-invocations`. The grove-loop chapter `19-the-loop` where launch/prompt boundaries appear. Relevant source/concept indexes and manifests. Regenerate snippets against final code in the increment that changes it, not during this documentation-only design. Run the existing book checks. |
 | Common source delivery | Installation examples for native and Ravel routes. Use complete plugin boundaries while sources remain here. `plugins/linkuistics/skills/guardrail` is Claude-only, but common directory injection does not filter installer metadata. Check that its trigger/guidance does not claim unsupported behaviour in Codex. |
-| First external research pack and later moves | Own and aggregate conformance, required cross-source loading, resource/provenance/licence preservation, native package references, pinned/offline/common-directory trials. Prove a moved kind loads in native Claude Code under its real plugin namespace, and through directories with native copies absent. Establish reusable tooling in the research proof before the remaining domain moves. |
+| First external research pack and later moves | Own and aggregate conformance, required cross-source loading, resource/provenance/licence preservation, native package references, common-directory trials. Prove a moved kind loads in native Claude Code under its real plugin namespace, and through directories with native copies absent. Establish reusable tooling in the research proof before the remaining domain moves. |
 | Installed rollout | Archive/formula/native and Linux-floor checks with explicit Ravel inputs, both caller-asset sets and both setup routes. Formula caveats show both configuration formats, and the `ravel@2` prefix until promotion. Preserve legacy-driver rehearsal and original endings. Every intermediate tap state follows states A to D of the [coordinated release](specs/coordinated-release.md#compatible-tap-states). After the cut, repeat the admission and installed checks against the published `ravel 2.0.0` archives. Shared settings wait for compatible readers. |
 
 The adoption integration leaves Ravel and tap repositories unchanged. The

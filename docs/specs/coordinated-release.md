@@ -99,8 +99,8 @@ failure there ends without a successful finish signal.
    paused through completion. No session edits their task trees. When they
    resume, they must consume the actual release receipts. They must not repeat
    publication or owner conversion.
-2. Keep directory development on its separate jj line through local, pinned,
-   offline, lifetime, confinement and actual-harness acceptance. Inspect the
+2. Keep directory development on its separate jj line through local, lifetime,
+   confinement and actual-harness acceptance. Inspect the
    exact Rhai book/read state. In a separate Ravel workspace, this grove
    completes every outstanding documentation or acceptance prerequisite for the
    release. It reconciles that work with the directory documentation. It does

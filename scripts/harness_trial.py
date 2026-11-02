@@ -76,6 +76,11 @@ CONTROL_PATTERN = re.compile(r"^(RAVEL_|GROVE_|HARNESS_DISPATCH_|CLAUDE)")
 HARNESS_PATTERN = re.compile(r"^(CLAUDECODE$|CLAUDE_|ANTHROPIC_|OPENAI_|CODEX_API_KEY$)")
 
 ROUTES = ("native-2.0", "directory-2.0")
+# A lifecycle case runs the bare Grove driver in a jj repository. A standalone
+# case runs `grove run`, which Ravel confines.
+MODES = ("lifecycle", "standalone")
+# The network-denying profile of crates/grove/tests/directory_route.rs.
+NO_NETWORK = "(version 1)(allow default)(deny network*)"
 DEFAULT_MODEL = "claude-opus-5-5"
 DEFAULT_EFFORT = "medium"
 # Claude Code's own permission layer. No call prompts or is denied, so the
@@ -205,9 +210,31 @@ def load_case(name: str) -> tuple[dict[str, Any], Path]:
         raise TrialError(f"case {name}: the route '{case.get('route')}' is not one of {', '.join(ROUTES)}")
     if case.get("harness") != "claude":
         raise TrialError(f"case {name}: this runner has an adapter for claude only")
-    if not (directory / "tree").is_dir():
+    mode = case.setdefault("mode", "lifecycle")
+    if mode not in MODES:
+        raise TrialError(f"case {name}: the mode '{mode}' is not one of {', '.join(MODES)}")
+    if mode == "lifecycle" and not (directory / "tree").is_dir():
         raise TrialError(f"case {name}: no tree/ directory")
+    if mode == "standalone":
+        standalone = case.get("standalone") or {}
+        if not (directory / standalone.get("prompt", "prompt.md")).is_file() or not standalone.get("outputs"):
+            raise TrialError(f"case {name}: a standalone case names a prompt file and its outputs")
     return case, directory
+
+
+def fixed_probes(case: dict[str, Any], home: Path, checkout: Path) -> list[list[str]]:
+    """The probes that the runner knows before the launch: the protected
+    configuration, each mandatory file at its origin and a write outside the
+    working directory. The configuration script adds the probes of the
+    request's own paths, and a write inside the working directory."""
+    if not case.get("probes"):
+        return []
+    config = home / ".config" / "ravel"
+    probes = [["read", str(config / "settings.json")], ["read", str(config / "config.rhai")]]
+    plugins = {source["id"]: source["plugin"] for source in case.get("sources", [])}
+    probes += [["read", str(checkout / plugins[item["source"]] / item["path"])] for item in case.get("mandatory", [])]
+    probes.append(["write", str(home / "trial-probe-outside")])
+    return probes
 
 
 def settings_for(case: dict[str, Any], checkout: Path) -> dict[str, Any]:
@@ -225,13 +252,17 @@ def rhai_string(text: str) -> str:
     return json.dumps(text)
 
 
-def route_for(case: dict[str, Any], records: Path, program: Path, model: str, effort: str) -> dict[str, Any]:
+def route_for(case: dict[str, Any], records: Path, program: Path, model: str, effort: str,
+              probes: list[list[str]] | None = None) -> dict[str, Any]:
     """The route as data. The configuration script and the fake driver of the
-    tests both take it from here."""
+    tests both take it from here. A standalone launch is confined, so its
+    wrapper writes its record to standard output, `-`."""
     return {
         "kinds": case["kinds"],
         "wrapper": str(WRAPPER),
-        "records": str(records),
+        "records": "-" if case.get("mode") == "standalone" else str(records),
+        "probes": probes or [],
+        "probeRequest": bool(case.get("probes")),
         "program": str(program),
         "fixedArgs": [
             "-p", "--output-format", "stream-json", "--verbose",
@@ -246,6 +277,20 @@ def config_for(case: dict[str, Any], route: dict[str, Any]) -> str:
     """The configuration script: the case's kinds to the wrapper, any other refuses.
     Each snapshot root also goes to --add-dir, as in the Rhai sample."""
     kinds = ", ".join(f"{rhai_string(kind)}: true" for kind in route["kinds"])
+    probes = ""
+    if route.get("probeRequest"):
+        # The probes of the request's own paths come first, then the runner's.
+        # The last probe writes inside the working directory of the launch.
+        lines = [
+            "    if request.skills != () {",
+            '        args += ["--probe", "read", request.skills.descriptorPath];',
+            '        for item in request.skills.mandatory { args += ["--probe", "read", item.path]; }',
+            '        for source in request.skills.sources { args += ["--probe", "write", source.snapshotRoot + "/trial-probe"]; }',
+            "    }",
+        ]
+        lines += [f'    args += ["--probe", {rhai_string(op)}, {rhai_string(path)}];' for op, path in route["probes"]]
+        lines.append('    args += ["--probe", "write", "trial-probe-inside"];')
+        probes = "\n".join(lines)
     fixed = route["fixedArgs"]
     records, program, model, effort = route["records"], route["program"], route["model"], route["effort"]
     return f"""// Written by scripts/harness_trial.py for the case {case['name']}.
@@ -262,6 +307,7 @@ fn select(request, context) {{
     }}
     let view = #{{ kind: request.kind, originalPrompt: request.originalPrompt, skills: request.skills }};
     let args = [{rhai_string(str(records))}, ravel::json_encode(view), {rhai_string(str(program))}];
+{probes}
     // --add-dir takes several values, so a fixed flag must follow the last
     // root. Otherwise the prompt would become one more directory.
     if request.skills != () {{
@@ -648,13 +694,83 @@ def session_files(home: Path) -> list[Path]:
     return sorted(projects.rglob("*.jsonl")) if projects.is_dir() else []
 
 
+def parse_probes(text: str) -> list[dict[str, str]]:
+    """The `trial-probe OP STATUS PATH` lines of the wrapper, in order."""
+    probes = []
+    for line in text.splitlines():
+        parts = line.split(" ", 3)
+        if len(parts) == 4 and parts[0] == "trial-probe":
+            probes.append({"op": parts[1], "status": parts[2], "path": parts[3]})
+    return probes
+
+
 def describe_launch(record: Path, home: Path, repo: Path, live: Mapping[str, str]) -> dict[str, Any]:
-    view = json.loads((record / "view.json").read_text())
-    child = parse_env((record / "env").read_text())
-    stream = read_jsonl(record / "stream.jsonl") if (record / "stream.jsonl").exists() else []
+    """One launch of a lifecycle case, from its record directory."""
+    stream_file = record / "stream.jsonl"
+    probes = record / "probes"
+    return describe(
+        str(record), json.loads((record / "view.json").read_text()), parse_env((record / "env").read_text()),
+        read_jsonl(stream_file) if stream_file.exists() else [],
+        sha256_file(stream_file) if stream_file.exists() else None,
+        parse_probes(probes.read_text()) if probes.exists() else [],
+        home, repo, live,
+    )
+
+
+def split_log(text: str) -> list[dict[str, Any]]:
+    """The launches of a confined standalone run, from Grove's run log. The
+    wrapper begins each launch with its `trial-view-b64` line. The JSON lines
+    after it are the stream of the harness, and other lines stay as text."""
+    import base64
+
+    launches: list[dict[str, Any]] = []
+    for line in text.splitlines():
+        head, _, rest = line.partition(" ")
+        if head == "trial-view-b64":
+            launches.append({"view": json.loads(base64.b64decode(rest)), "env": {}, "probes": [],
+                             "stream": [], "streamLines": []})
+        elif not launches:
+            continue
+        elif head == "trial-env-b64":
+            launches[-1]["env"] = parse_env(base64.b64decode(rest).decode(errors="replace"))
+        elif head == "trial-probe":
+            launches[-1]["probes"] += parse_probes(line)
+        elif head == "trial-started":
+            continue
+        else:
+            stripped = line.strip()
+            try:
+                value = json.loads(stripped) if stripped.startswith("{") else None
+            except json.JSONDecodeError:
+                value = None
+            if isinstance(value, dict):
+                launches[-1]["stream"].append(value)
+                launches[-1]["streamLines"].append(stripped)
+    return launches
+
+
+def log_lines(text: str) -> list[str]:
+    """The lines of a run log that are neither the wrapper's record nor the
+    stream: Grove's and Ravel's own diagnostics, also of a refused launch."""
+    lines = []
+    for line in text.splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith(("trial-", "{")):
+            continue
+        lines.append(stripped)
+    return lines
+
+
+def describe(label: str, view: dict[str, Any], child: dict[str, str], stream: list[dict[str, Any]],
+             stream_sha: str | None, probes: list[dict[str, str]], home: Path, repo: Path,
+             live: Mapping[str, str]) -> dict[str, Any]:
+    """One launch: its request view, the environment of its harness, its
+    probes and its ordered events. The events come from the session file of
+    the harness. When the harness wrote none, as a confined harness cannot,
+    they come from its stream, which holds the same tool calls."""
     init = next((e for e in stream if e.get("type") == "system" and e.get("subtype") == "init"), {})
     session_id = init.get("session_id")
-    classifier = Classifier(view, home, repo)
+    classifier = Classifier(view, home, Path(init.get("cwd") or repo))
     transcripts = []
     for path in session_files(home):
         if session_id and session_id not in str(path):
@@ -668,6 +784,11 @@ def describe_launch(record: Path, home: Path, repo: Path, live: Mapping[str, str
             "events": extract_events(entries, classifier),
             "startup": native_startup(stream, entries) if path.stem == session_id else None,
         })
+    if session_id and not any(t["main"] for t in transcripts):
+        transcripts.append({
+            "file": "stream", "sha256": stream_sha, "main": True,
+            "events": extract_events(stream, classifier), "startup": native_startup(stream, []),
+        })
     skills = view.get("skills") or {}
     descriptor = skills.get("descriptorPath")
     descriptor_identity = None
@@ -677,7 +798,7 @@ def describe_launch(record: Path, home: Path, repo: Path, live: Mapping[str, str
             "sha256": sha256_file(Path(descriptor)),
         }
     return {
-        "record": str(record),
+        "record": label,
         "kind": view.get("kind"),
         "sessionId": session_id,
         "descriptorPath": descriptor,
@@ -689,13 +810,100 @@ def describe_launch(record: Path, home: Path, repo: Path, live: Mapping[str, str
         "mandatory": skills.get("mandatory", []),
         "envNames": sorted(child),
         "control": child_control(child, live),
-        "streamSha256": sha256_file(record / "stream.jsonl") if (record / "stream.jsonl").exists() else None,
+        "probes": probes,
+        "streamSha256": stream_sha,
         "startup": native_startup(stream, []) if not transcripts else None,
         "transcripts": transcripts,
         # The last result event of the stream, absent when Ravel ended the
         # harness before it wrote one.
         "streamResult": next((e.get("subtype") for e in reversed(stream) if e.get("type") == "result"), None),
     }
+
+
+def resolution_path(front: Path) -> str:
+    """The PATH of the offline resolution: the 2.0 front alone, with no `git`."""
+    return str(front.parent)
+
+
+def resolve_offline(front: Path, env: dict[str, str], out: Path) -> dict[str, Any]:
+    """`ravel skills resolve --json` with the settings of the launch, under a
+    profile that denies the network and with no `git` on PATH. Two controls
+    run first, and each must be seen to differ: an unguarded probe reaches a
+    local listener that the guarded probe cannot reach, and `git` is on the
+    usual PATH but not on the PATH of the resolution."""
+    import socket
+
+    listener = socket.socket()
+    listener.bind(("127.0.0.1", 0))
+    listener.listen(4)
+    port = str(listener.getsockname()[1])
+    try:
+        probe = ["/usr/bin/nc", "-z", "-w", "2", "127.0.0.1", port]
+        unguarded = subprocess.run(probe, capture_output=True).returncode
+        guarded = subprocess.run(["/usr/bin/sandbox-exec", "-p", NO_NETWORK, *probe], capture_output=True).returncode
+    finally:
+        listener.close()
+    path = resolution_path(front)
+    git_usual = shutil.which("git", path=env["PATH"])
+    git_resolution = shutil.which("git", path=path)
+    result = subprocess.run(
+        ["/usr/bin/sandbox-exec", "-p", NO_NETWORK, str(front), "skills", "resolve", "--json"],
+        env={**env, "PATH": path}, cwd=out, capture_output=True, text=True,
+    )
+    (out / "resolve.json").write_text(result.stdout)
+    (out / "resolve.stderr").write_text(result.stderr)
+    document: dict[str, Any] = {}
+    try:
+        document = json.loads(result.stdout)
+    except json.JSONDecodeError:
+        pass
+    descriptor = document.get("descriptorPath")
+    identity = None
+    if descriptor and Path(descriptor).is_file():
+        identity = {"directory": Path(descriptor).parent.name, "sha256": sha256_file(Path(descriptor))}
+    return {
+        "profile": NO_NETWORK,
+        "path": path,
+        "networkControl": {"unguardedExit": unguarded, "guardedExit": guarded},
+        "gitControl": {"usualPath": git_usual, "resolutionPath": git_resolution},
+        "exit": result.returncode,
+        "status": document.get("status"),
+        "descriptorPath": descriptor,
+        "descriptorIdentity": identity,
+        "sources": [
+            {key: source.get(key) for key in ("id", "resourceDigest")} for source in document.get("sources", [])
+        ],
+        "stderr": result.stderr.strip()[-2000:],
+    }
+
+
+def resolve_failures(resolve: dict[str, Any], launches: list[dict[str, Any]]) -> list[str]:
+    """Each way the offline resolution does not prove its claim."""
+    failures = []
+    network = resolve["networkControl"]
+    if network["unguardedExit"] != 0 or network["guardedExit"] == 0:
+        failures.append(f"the network control did not differ: {network}")
+    if not resolve["gitControl"]["usualPath"] or resolve["gitControl"]["resolutionPath"]:
+        failures.append(f"the git control did not differ: {resolve['gitControl']}")
+    if resolve["exit"] != 0 or resolve["status"] != "resolved":
+        failures.append(f"the offline resolution failed with {resolve['exit']}: {resolve['stderr']}")
+    identities = {json.dumps(launch["descriptorIdentity"], sort_keys=True) for launch in launches}
+    if identities != {json.dumps(resolve["descriptorIdentity"], sort_keys=True)}:
+        failures.append(
+            f"the offline resolution gave the descriptor {resolve['descriptorIdentity']}, "
+            f"and the launches received {sorted(identities)}"
+        )
+    return failures
+
+
+def contrast_probes(probes: list[dict[str, str]], cwd: Path) -> list[dict[str, str]]:
+    """The same probes, run unconfined by the same wrapper. A confined failure
+    belongs to the sandbox only where this run succeeds."""
+    argv = [str(WRAPPER), "--probes-only"]
+    for item in probes:
+        argv += ["--probe", item["op"], item["path"]]
+    result = subprocess.run(argv, cwd=cwd, capture_output=True, text=True, check=True)
+    return parse_probes(result.stdout)
 
 
 def started(launch: dict[str, Any]) -> bool:
@@ -739,7 +947,7 @@ def run_case(prepared_dir: Path, name: str, environ: Mapping[str, str],
     settings = settings_for(case, checkout)
     if settings:
         (home / ".config" / "ravel" / "settings.json").write_text(json.dumps(settings, indent=2) + "\n")
-    route = route_for(case, records, program, model, effort)
+    route = route_for(case, records, program, model, effort, fixed_probes(case, home, checkout))
     (trial / "route.json").write_text(json.dumps(route, indent=2) + "\n")
     (home / ".config" / "ravel" / "config.rhai").write_text(config_for(case, route))
 
@@ -769,10 +977,28 @@ def run_case(prepared_dir: Path, name: str, environ: Mapping[str, str],
         raise TrialError(f"Claude Code reports the configuration directory '{reported}', not the sandbox {config_dir}")
     check_links(list_links(home), store, owner_home, "after the probes and before")
 
-    base = plant_repo(repo, case_dir / "tree", env)
-    tree_before = tree_state(repo)
-    say(f"{name}: {version}, model {model}, effort {effort}, route {case['route']}, trial {trial}")
-    driver = run_driver([str(grove_bin / "grove")], repo, env, trial, case.get("timeoutMinutes", 30) * 60)
+    standalone = case["mode"] == "standalone"
+    deadline = case.get("timeoutMinutes", 30) * 60
+    if standalone:
+        # `grove run` confines the harness. Its program is a regular file
+        # outside every grant, so the runner grants it read-only, as an owner
+        # grants a credential. The wrapper itself is the selected program,
+        # which Ravel admits.
+        spec = case["standalone"]
+        outputs = trial / "out"
+        outputs.mkdir()
+        prompt = trial / "prompt.md"
+        shutil.copyfile(case_dir / spec.get("prompt", "prompt.md"), prompt)
+        argv = [str(grove_bin / "grove"), "run", spec.get("kind", case["kinds"][0]), "--prompt-file", str(prompt),
+                *[arg for output in spec["outputs"] for arg in ("--output", str(outputs / output))],
+                "--runtime-read", str(program), "--ui", "inline"]
+        say(f"{name}: {version}, model {model}, effort {effort}, route {case['route']}, confined, trial {trial}")
+        driver = run_driver(argv, tmp, env, trial, deadline)
+    else:
+        base = plant_repo(repo, case_dir / "tree", env)
+        tree_before = tree_state(repo)
+        say(f"{name}: {version}, model {model}, effort {effort}, route {case['route']}, trial {trial}")
+        driver = run_driver([str(grove_bin / "grove")], repo, env, trial, deadline)
 
     links_after = list_links(home)
     for link, target in links_after:
@@ -784,19 +1010,45 @@ def run_case(prepared_dir: Path, name: str, environ: Mapping[str, str],
         link_failure = str(error)
 
     stderr = (trial / "driver.stderr").read_text(errors="replace")
-    launches = [describe_launch(record, home, repo, environ) for record in launch_records(records)]
     native, residue = skill_files(home)
-    published = run_checked(
-        ["jj", "log", "--no-graph", "-r", f"{base}..@ ~ empty()", "-T", 'commit_id.short(12) ++ " " ++ if(description, description.first_line(), "(no description)") ++ "\\n"'],
-        cwd=repo, env=env,
-    )
-    changed = run_checked(["jj", "diff", "--summary", "--from", base, "--to", "@"], cwd=repo, env=env)
+    contrast: list[dict[str, str]] = []
+    if standalone:
+        logs = sorted((home / ".local" / "state" / "grove" / "runs").glob("*.log"))
+        launches = []
+        run_log: list[str] = []
+        for log in logs:
+            for n, part in enumerate(split_log(log.read_text(errors="replace"))):
+                stream_text = "".join(line + "\n" for line in part["streamLines"]).encode()
+                launch = describe(f"{log.relative_to(home)}#{n}", part["view"], part["env"], part["stream"],
+                                  sha256_bytes(stream_text), part["probes"], home, trial / "unknown", environ)
+                launches.append(launch)
+            run_log += log_lines(log.read_text(errors="replace"))
+        probes = [probe for launch in launches for probe in launch["probes"]]
+        if probes:
+            (trial / "contrast").mkdir()
+            contrast = contrast_probes(probes, trial / "contrast")
+        tree_before = tree_after = []
+        published = "\n".join(
+            f"{path.name} {sha256_file(path)}" for path in sorted(outputs.iterdir()) if path.is_file()
+        )
+        changed = ""
+    else:
+        run_log = []
+        launches = [describe_launch(record, home, repo, environ) for record in launch_records(records)]
+        tree_after = tree_state(repo)
+        published = run_checked(
+            ["jj", "log", "--no-graph", "-r", f"{base}..@ ~ empty()", "-T", 'commit_id.short(12) ++ " " ++ if(description, description.first_line(), "(no description)") ++ "\\n"'],
+            cwd=repo, env=env,
+        )
+        changed = run_checked(["jj", "diff", "--summary", "--from", base, "--to", "@"], cwd=repo, env=env)
+    resolve = resolve_offline(front, env, trial) if case.get("resolveOffline") else None
     record = {
         "schemaVersion": 1,
         "case": name,
         "purpose": case.get("purpose"),
         "credits": case.get("credits", []),
         "route": case["route"],
+        "mode": case["mode"],
         "trial": str(trial),
         "builds": {"grove": prepared["grove"], "ravel": prepared["ravel"]},
         "harness": {
@@ -811,16 +1063,19 @@ def run_case(prepared_dir: Path, name: str, environ: Mapping[str, str],
         "links": {"before": links_before, "after": links_after, "failure": link_failure},
         "skills": {"nativeCopies": native, "residue": residue},
         "launches": launches,
+        "contrast": contrast,
+        "resolve": resolve,
         "ending": {
             "driverExit": driver["exit"],
             "timedOut": driver["timedOut"],
             "elapsedS": driver["elapsedS"],
-            "driverLines": [line for line in stderr.splitlines() if line.startswith(("grove:", "ravel:", "Error"))],
+            "driverLines": [line for line in stderr.splitlines() if line.startswith(("grove", "ravel:", "Error"))],
+            "runLog": run_log[-60:],
             "endingCommands": [e.get("result") for l in launches for t in l["transcripts"]
                                for e in t["events"] if e["class"] == "ending"],
             "teardownRecorded": "grove finished — loop complete" in stderr,
             "treeBefore": tree_before,
-            "treeAfter": tree_state(repo),
+            "treeAfter": tree_after,
             "published": published.splitlines(),
             "changed": changed.splitlines(),
             "launches": len(launches),
@@ -832,7 +1087,7 @@ def run_case(prepared_dir: Path, name: str, environ: Mapping[str, str],
     if (home / store).is_symlink():
         (home / store).unlink()
     failures = [leak for launch in launches for leak in launch["control"]]
-    failures += [f"launch {n}: the harness wrote no startup event; read {launch['record']}/stderr"
+    failures += [f"launch {n}: the harness wrote no startup event; read {launch['record']} and its stderr"
                  for n, launch in enumerate(launches) if not started(launch)]
     if not launches:
         failures.append("the driver launched no harness; read driver.stderr of the trial")
@@ -840,6 +1095,8 @@ def run_case(prepared_dir: Path, name: str, environ: Mapping[str, str],
         failures.append(link_failure)
     if native:
         failures.append(f"native copies exist in the sandbox home: {native}")
+    if resolve:
+        failures += resolve_failures(resolve, launches)
     say(f"record {trial}/record.md")
     if failures:
         raise TrialError("; ".join(failures))
@@ -873,6 +1130,7 @@ def render(record: dict[str, Any]) -> str:
         "| Subject | Value |",
         "| --- | --- |",
         f"| Route | {record['route']} |",
+        f"| Mode | {record.get('mode', 'lifecycle')} |",
         f"| Credits | {', '.join(record['credits']) or 'none'} |",
         f"| Grove build | commit `{g['commit'][:12]}`, `grove` SHA-256 `{g['sha256']['grove']}`, `grove-llm` SHA-256 `{g['sha256']['grove-llm']}` |",
         f"| Ravel build | commit `{r['buildCommit']}` (line `{r['line']}` at `{r['outputCommit']}`), identity `{r['buildIdentity']}`, `bin/ravel` SHA-256 `{r['binRavelSha256']}` |",
@@ -920,6 +1178,38 @@ def render(record: dict[str, Any]) -> str:
                     f"| {shown(event)} | {'yes' if event['error'] else ''} |"
                 )
             lines.append("")
+    contrast = {(item["op"], item["path"]): item["status"] for item in record.get("contrast") or []}
+    probes = [probe for launch in record["launches"] for probe in launch.get("probes", [])]
+    if probes:
+        lines += [
+            "Probes inside the launch, and the same probes unconfined:",
+            "",
+            "| Access | Path | Inside | Unconfined |",
+            "| --- | --- | --- | --- |",
+        ]
+        for probe in probes:
+            lines.append(f"| {probe['op']} | `{cell(probe['path'])}` | {probe['status']} "
+                         f"| {contrast.get((probe['op'], probe['path']), '')} |")
+        lines.append("")
+    if record["ending"].get("runLog"):
+        lines += ["Grove's run log, without the stream and the wrapper's lines:", "", "```text",
+                  *record["ending"]["runLog"], "```", ""]
+    resolve = record.get("resolve")
+    if resolve:
+        identity = resolve["descriptorIdentity"] or {}
+        lines += [
+            "Offline resolution:",
+            "",
+            f"- Command: `ravel skills resolve --json` under `sandbox-exec -p '{resolve['profile']}'`, PATH `{resolve['path']}`.",
+            f"- Network control: unguarded `nc` exit {resolve['networkControl']['unguardedExit']}, "
+            f"guarded exit {resolve['networkControl']['guardedExit']}.",
+            f"- Git control: usual PATH `{resolve['gitControl']['usualPath']}`, resolution PATH "
+            f"`{resolve['gitControl']['resolutionPath']}`.",
+            f"- Exit {resolve['exit']}, status `{resolve['status']}`.",
+            f"- Descriptor identity: `{identity.get('directory')}` (file SHA-256 `{identity.get('sha256')}`).",
+            *[f"- Source `{s['id']}`: `resourceDigest` `{s['resourceDigest']}`." for s in resolve["sources"]],
+            "",
+        ]
     lines += [
         "Ending outcome:",
         "",

@@ -42,3 +42,25 @@ If Claude Code cannot run under Ravel confinement, record the refusal as a
 gap. Do not retry unconfined to get a pass.
 
 A run that passes only after a prompted retry is a failure of this case.
+
+## Decisions (running log)
+
+- Two cases share one task: `discovery` runs it as a Grove `impl` leaf, and
+  `discovery-confined` runs it through `grove run`. The task asks for a Bash
+  script `stamp.sh` with no arguments, so `coding-style-bash` is the one
+  activity match. A script with arguments could also match `cli-tool-design`.
+- The sources are `plugins/grove` and `plugins/linkuistics` of one checkout.
+  The mandatory order is `using-jujutsu`, then the `grove` spine. That order
+  differs from the order the kind skill would suggest, so a matching read
+  order shows the configured order. Both files have relative references.
+- The runner gains a `standalone` mode. A confined launch can write only in its
+  invocation directory, so the wrapper prints its record and the stream to
+  Grove's run log in the sandbox home. The events then come from the stream.
+- The wrapper probes reads and writes inside the launch, before the harness
+  starts. The runner repeats the same probes unconfined. Ravel seals snapshots
+  read-only by mode, so a failed snapshot write is no sandbox evidence alone.
+- The harness program is outside every grant, so the standalone case grants it
+  with `--runtime-read`, as an owner grants a credential.
+- The offline resolution runs after the lifecycle launch, with the same HOME,
+  under the fixture's network-denying profile and with only the front on PATH.
+  A network control and a git control must each be seen to differ.

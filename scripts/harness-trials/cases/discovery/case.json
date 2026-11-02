@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "name": "discovery",
+  "purpose": "Observe implicit craft discovery and the read order on the directory route. A Grove impl leaf asks for a Bash script and names no skill. Two sources come from one plain Git checkout, with two mandatory files in a configured order. The offline resolution then gives the descriptor identity of the launch.",
+  "credits": [],
+  "harness": "claude",
+  "route": "directory-2.0",
+  "mode": "lifecycle",
+  "model": "claude-opus-5-5",
+  "effort": "medium",
+  "kinds": ["impl"],
+  "sources": [
+    { "id": "grove", "plugin": "plugins/grove", "roots": ["skills"] },
+    { "id": "linkuistics", "plugin": "plugins/linkuistics", "roots": ["skills"] }
+  ],
+  "mandatory": [
+    { "source": "linkuistics", "path": "skills/using-jujutsu/SKILL.md" },
+    { "source": "grove", "path": "skills/grove/SKILL.md" }
+  ],
+  "resolveOffline": true,
+  "timeoutMinutes": 30
+}

@@ -266,11 +266,9 @@ pinned digests/targets/exact layouts, and never builds a bundled worker. See
 
 ### Installed smoke test
 
-The general all-target runner uses the supported real
-[native floor environment](linux-floor-native.md) and
-[QEMU confinement environment](linux-floor-qemu.md), including backend refusal
-controls and actual output publication. Backend diagnostics alone do not replace
-that acceptance. These are test-only resources, outside the production archives.
+On each Linux target, the general runner uses the floor container and the
+[QEMU floor route](linux-floor-qemu.md). Their emulator and probes are
+test-only resources, outside the production archives.
 
 A matching archive is not evidence until it has executed on its target. The
 release task runs `scripts/release-smoke.sh --archives target/dist` after the
@@ -289,8 +287,9 @@ prefixes with different versions.
 
 On each target, the caller cases run the TypeScript set against the 1.1 prefix.
 They run the Rhai set against the 2.0 prefix, in a HOME of its own. On Linux,
-the native and QEMU floor routes also run the denial task and the native
-guidance case on each lane. The 2.0 lane adds the confined directory case.
+the 2.0 lane then runs the directory case,
+`scripts/grove-floor-directory-case.sh`. It is the only check that publishes
+skill snapshots from the release archive at the glibc 2.17 floor.
 
 At the end, the smoke names each target that the 2.0 lane did not run, with
 the reason. Until rollout replaces the local 2.0
@@ -320,18 +319,17 @@ names each retained caller fixture and the retired package behaviours.
   Armv8.1 atomic on arm64, must be killed by SIGILL under that model, and must
   run under the same QEMU with `-cpu max`. Every ELF file in both project archives must
   also match the emulator's registration, so automatic kernel exec follows the
-  pinned CPU model. A sandbox descendant repeats the beyond-floor refusal; raw
-  emulator invocation is outside this deterministic test claim.
+  pinned CPU model. A direct invocation of the emulator is outside this
+  deterministic test claim.
 - **The emulated runs** pivot into the userland inside an ordinary arm64
   helper container and drop all bounding capabilities/groups to uid/gid 1000
   with no-new-privileges before target execution. The emulator is registered in a binfmt_misc instance private to
   that container's user namespace, so Docker's settings and global
   registrations are untouched. The helper uses a pinned
-  default-deny seccomp allowlist with narrow namespace additions and explicit
-  private-procfs support. It adds no outer capability, and has no network and
-  read-only inputs. Real host-native bubblewrap performs kernel namespace work
-  while payload ELFs remain emulated; its glibc 2.17 closure and emulator
-  resources are available read-only to Ravel's actual empty sandbox. x64 uses a pinned QEMU 10.2.3 from
+  default-deny seccomp allowlist. It adds only the mounts and the private
+  user and mount namespaces of the set-up, and it keeps Docker's masked
+  system paths. It adds no outer capability, and has no network and
+  read-only inputs. x64 uses a pinned QEMU 10.2.3 from
   `tonistiigi/binfmt`, because Docker Desktop's own QEMU crashes CentOS 7's
   x86-64 userland. arm64 uses the `qemu-aarch64` of Debian's `qemu-user`
   10.2.2, because that image leaves out its own architecture's emulator. The

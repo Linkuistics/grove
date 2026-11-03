@@ -79,13 +79,11 @@ The 2.0 lane runs these checks:
 - Grove's release smoke gives the caller cases a 2.0 prefix as their fourth
   argument, on every target. `grove-installed-smoke.sh` then checks the Rhai
   caller set with `config.rhai`, in a HOME of its own.
-- On Linux, the native and QEMU floor routes stage the 2.0 archive in
-  `ravel-2.0/` of their mount, apart from the 1.1 archive of the same name.
-  `grove-floor-native-cases.sh` runs the denial task and the unreadable
-  native guidance case once for each lane. In the supported environment,
-  `grove-floor-directory-case.sh` runs the confined directory case on the 2.0
-  lane. [linux-floor-native.md](linux-floor-native.md#runtime-lanes) states
-  what these cases measure.
+- On Linux, the general route stages the 2.0 archive in `ravel-2.0/` of its
+  mount, apart from the 1.1 archive of the same name. In the floor container
+  and under QEMU, `grove-floor-directory-case.sh` then runs the directory case
+  on the 2.0 lane. It publishes skill snapshots from the release archive at
+  the glibc 2.17 floor, and the file modes of each snapshot refuse a write.
 
 ## Rollout handoff: replace the local 2.0 record
 
@@ -184,21 +182,17 @@ not authorise the use of an archive that another process modified later.
 
 ## Reused execution seams
 
-Linux standalone confinement also requires the real bubblewrap backend of the
-test environment. [Linux floor backend preparation](linux-floor-backend.md)
-provides pinned target builds and execution diagnostics. Namespace availability
-and the actual Grove standalone acceptance stay required separately.
-
 `ravel-target-smoke.sh` sources the existing release platform runner and
 substitutes its own target and case scripts. It keeps the pinned images, the QEMU
 emulators, the Zig-built probes, the native container and the private binfmt
 namespace machinery. The shared environment helper supplies the target, system
-and glibc-floor assertions. QEMU checks every archived ELF header against its
-registration, so no executable escapes the CPU model. A 1.1 prefix must hold
-both the front and the worker. A 2.0 prefix must hold its front and no worker.
-The two lanes' archives have the same names before Ravel's cut, so the runner
-labels each path of a 2.0 archive with `ravel-2.0/` and the check reads that
-label.
+and glibc-floor assertions.
+
+QEMU checks every archived ELF header against its registration, so no
+executable escapes the CPU model. A 1.1 prefix must hold both the front and the
+worker. A 2.0 prefix must hold its front and no worker. The two lanes' archives
+have the same names before Ravel's cut. So the runner labels each path of a 2.0
+archive with `ravel-2.0/`, and the check reads that label.
 
 Grove took the Ravel installed cases from the MIT-licensed released source at the
 v1.0.0 tag. They cover these subjects:

@@ -27,13 +27,14 @@
 # scripts/release-smoke-target.sh runs inside each environment: it asserts the
 # environment, extracts the archive with that environment's tar into a fresh
 # prefix, checks the versions, and runs Grove's installed-layout
-# cases, scripts/grove-installed-smoke.sh.
+# cases, scripts/grove-installed-smoke.sh. On a Linux target with the 2.0
+# lane it then runs the directory case, scripts/grove-floor-directory-case.sh,
+# which publishes skill snapshots from the archive at the glibc 2.17 floor.
 #
 # Each target runs Grove's callers against both recorded Ravel lanes
 # (scripts/ravel_target_inputs.py): the 1.1 lane with `policy.ts` and the 2.0
-# lane with `config.rhai`, each in its own HOME. Only macOS runs the 2.0 lane
-# today. A target that the 2.0 lane does not record, and every Linux target, is
-# named as not run on that lane at the end of the run.
+# lane with `config.rhai`, each in its own HOME. A target that the 2.0 lane
+# does not record is named as not run on that lane at the end of the run.
 #
 # WHY A CONTROL. A userland that is not really at the floor passes everything a
 # floor userland passes. So each Linux run also executes a pair of probes built
@@ -358,6 +359,7 @@ ravel_2_archive() {
 # The inputs every Linux route reads, in MOUNT: the archive, the two
 # in-environment scripts, and the glibc and CPU probes. The 2.0 lane's
 # archive goes into MOUNT/ravel-2.0, because its name equals the 1.1 name.
+# With the 2.0 lane, Grove's cases also stage the directory case.
 stage_linux_inputs() {
   local target="$1" archive="$2" mount="$3" arch="${1%%-*}" archive_2
   mkdir -p "$mount/probes" || return 1
@@ -371,6 +373,9 @@ stage_linux_inputs() {
   if [[ -n "$archive_2" ]]; then
     mkdir "$mount/ravel-2.0" || return 1
     cp "$archive_2" "$mount/ravel-2.0/" || return 1
+  fi
+  if [[ -n "$archive_2" && "$CASES" == "$REPO_ROOT/scripts/grove-installed-smoke.sh" ]]; then
+    cp "$REPO_ROOT/scripts/grove-floor-directory-case.sh" "$mount/directory-case.sh" || return 1
   fi
   cp "$TARGET_SCRIPT" "$mount/release-smoke-target.sh" || return 1
   cp "$REPO_ROOT/scripts/release-smoke-environment.sh" "$mount/" || return 1
@@ -421,12 +426,14 @@ archive_elf_headers() {
 # target's CPU floor, in a helper container of Docker's own architecture (WHY
 # OUR OWN QEMU, WHY A CPU MODEL).
 #
-# The pinned default-deny native profile adds helper unshare(NEWUSER|NEWNS).
-# Private setup retains Docker's default capabilities, then the native entry
-# launcher pivots root and drops every bounding cap/group and uid/gid to 1000,
-# setting no-new-privileges before any target smoke. systempaths admits private
-# procfs exactly as in the native instrument; no outer SYS_ADMIN is added.
-# See docs/linux-floor-qemu.md for the supported test-only boundary and limits.
+# The pinned default-deny profile (scripts/floor_seccomp.py) adds the mounts
+# and unshare(NEWUSER|NEWNS) of the helper's private set-up. That set-up keeps
+# Docker's default capabilities. Then the entry launcher pivots root, drops
+# every bounding capability and supplementary group, sets no-new-privileges
+# and drops uid and gid to 1000 before the smoke test. No outer SYS_ADMIN is
+# added. Docker's masked system paths stay, because the helper binds /proc
+# and mounts no procfs of its own. See docs/linux-floor-qemu.md for the route
+# and its limits.
 smoke_under_qemu() {
   local target="$1" archive="$2" platform="$3" mount="$4" arch="${1%%-*}" cpu
   cpu="$(cpu_floor "$arch")" || return 1
@@ -446,18 +453,16 @@ smoke_under_qemu() {
   cp "$QEMU_SCRIPT" "$mount/release-smoke-qemu.sh" || return 1
   zig cc -target aarch64-linux-musl -static -O2 -Wall -Wextra -Werror \
     "$REPO_ROOT/scripts/floor-qemu-enter.c" -o "$mount/enter" || return 1
-  python3 "$REPO_ROOT/scripts/floor_seccomp.py" --qemu >"$mount/seccomp.json" || return 1
+  python3 "$REPO_ROOT/scripts/floor_seccomp.py" >"$mount/seccomp.json" || return 1
   local before="$mount.inputs-before" after="$mount.inputs-after" status=0
   find "$mount" -type f -exec shasum -a 256 {} \; | LC_ALL=C sort >"$before" || return 1
   cat "$before"
   echo "release-smoke: $target: $platform userland under the pinned QEMU with -cpu $cpu, in a $DOCKER_PLATFORM $HELPER_IMAGE container"
   docker run --rm --network none \
     --security-opt "seccomp=$mount/seccomp.json" \
-    --security-opt systempaths=unconfined \
     --platform "$DOCKER_PLATFORM" \
     --volume "$mount:/smoke:ro" \
     "$HELPER_IMAGE" \
-    /usr/bin/env "FLOOR_MODE=${FLOOR_MODE:-supported}" \
     /bin/bash /smoke/release-smoke-qemu.sh /smoke "$target" "$(basename "$archive")" "$cpu" || status=$?
   find "$mount" -type f -exec shasum -a 256 {} \; | LC_ALL=C sort >"$after" || return 1
   cmp "$before" "$after" || die 'QEMU staged inputs changed during execution'
@@ -470,24 +475,6 @@ smoke_under_qemu() {
 smoke_linux() {
   local target="$1" archive="$2" mount="$SCRATCH/$1" platform
   platform="$(docker_platform "$target")" || return 1
-  if [[ "$CASES" == "$REPO_ROOT/scripts/grove-installed-smoke.sh" ]]; then
-    # Actual Grove standalone requires the prepared real namespace environments.
-    # Separate scripts preserve the Ravel-only and backend-diagnostic consumers.
-    # The 2.0 lane runs where it records this target's archive.
-    local lane_2=() option_2=()
-    if [[ -n "$(ravel_2_archive "$target")" ]]; then
-      lane_2=("$RAVEL_2_INPUTS/archives")
-      option_2=(--ravel-archives-2.0 "$RAVEL_2_INPUTS/archives")
-    fi
-    if [[ "$platform" == "$DOCKER_PLATFORM" ]]; then
-      bash "$REPO_ROOT/scripts/release-floor-backend.sh" "$mount-backends" "$target" || return 1
-      bash "$REPO_ROOT/scripts/release-floor-native.sh" "$mount-backends" \
-        "$(dirname "$archive")" "$RAVEL_INPUTS/archives" "${lane_2[@]+"${lane_2[@]}"}" || return 1
-    fi
-    bash "$REPO_ROOT/scripts/release-floor-qemu.sh" "${option_2[@]+"${option_2[@]}"}" \
-      "$(dirname "$archive")" "$RAVEL_INPUTS/archives" "$target"
-    return "$?"
-  fi
   stage_linux_inputs "$target" "$archive" "$mount" || return 1
   if [[ "$platform" == "$DOCKER_PLATFORM" ]]; then
     smoke_in_floor_container "$target" "$archive" "$platform" "$mount" || return 1

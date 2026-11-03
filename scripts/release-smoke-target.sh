@@ -11,9 +11,11 @@
 # probes release-smoke.sh builds into PROBES). Then it extracts ARCHIVE, named
 # grove-v<version>-<target>.tar.xz, into a fresh prefix with this environment's
 # own tar, checks Grove versions, extracts the host-admitted independent Ravel
-# archive into a separate prefix, and invokes Grove caller cases. Like those cases,
-# it needs only bash 3.2, coreutils, grep and cmp, because macOS's /bin/bash
-# and CentOS 7's both run it.
+# archive into a separate prefix, and invokes Grove caller cases. On Linux, when
+# the host stages the 2.0 lane and directory-case.sh beside CASES, it then runs
+# that directory case against the 2.0 prefix. Like those cases, it needs only
+# bash 3.2, coreutils, grep and cmp, because macOS's /bin/bash and CentOS 7's
+# both run it.
 
 set -euo pipefail
 IFS=$'\n\t'
@@ -82,6 +84,14 @@ main() {
     note "extracted Grove $version and independent Ravel 1.1.0 into separate prefixes"
   fi
   "$BASH" "$cases" "$scratch/prefix/$top" "$version" "$scratch/ravel/ravel-v1.1.0-$TARGET" "${lane_2[@]+"${lane_2[@]}"}"
+  # The directory case: skill delivery from the archive at the glibc floor.
+  local directory_case
+  directory_case="$(dirname "$cases")/directory-case.sh"
+  if [[ "$TARGET" == *-linux-gnu && -f "$directory_case" ]]; then
+    ((${#lane_2[@]})) || fail 'the directory case needs the 2.0 lane'
+    "$BASH" "$directory_case" "$scratch/prefix/$top" "${lane_2[0]}"
+    note 'the 2.0 lane passed the directory case'
+  fi
 
 }
 

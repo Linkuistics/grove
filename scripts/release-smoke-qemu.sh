@@ -11,9 +11,10 @@
 # image's filesystem for TARGET's architecture; qemu, the pinned emulator;
 # interpreter, the binfmt_misc interpreter release-smoke.sh builds, which runs
 # qemu with the options this target needs and -cpu CPU, and interpreter-max,
-# its twin with -cpu max; release-smoke-target.sh, installed-smoke.sh, the
-# glibc and CPU probes in probes/, ARCHIVE, and elf-headers, the first 20
-# bytes of each ELF file in ARCHIVE.
+# its twin with -cpu max; enter, the entry launcher; release-smoke-target.sh,
+# installed-smoke.sh, the glibc and CPU probes in probes/, ARCHIVE, and
+# elf-headers, the first 20 bytes of each ELF file in ARCHIVE. With the 2.0
+# lane it also holds ravel-2.0/ and, for Grove's cases, directory-case.sh.
 #
 # The userland is the same image the container route runs, unpacked into
 # /floor and entered by native pivot_root and authority drop as uid 1000. Its executables reach qemu
@@ -106,21 +107,6 @@ outside() {
   ln -s "$FLOOR$EMULATOR" "$EMULATOR"
   cp "$inputs/enter" /floor-enter
   exempt /floor-enter
-  if [[ -d "$inputs/native" ]]; then
-    cp -a "$inputs/native" "$FLOOR/usr/libexec/floor-backend"
-    case "${FLOOR_MODE:?caller runner must name the backend mode}" in
-      supported)
-        cp "$inputs/native/bwrap" "$FLOOR/usr/bin/bwrap"
-        exempt "$FLOOR/usr/bin/bwrap"
-        ;;
-      qemu-unusable) cp "$inputs/bwrap" "$FLOOR/usr/bin/bwrap" ;;
-      missing) ;;
-      *) die "unknown backend mode $FLOOR_MODE" ;;
-    esac
-    cp "$inputs/security" "$FLOOR/usr/libexec/floor-security"
-    exempt "$FLOOR/usr/libexec/floor-security"
-    cp "$inputs/probes/cpu-$arch" "$FLOOR/usr/libexec/floor-cpu-probe"
-  fi
   note "userland unpacked; $("$FLOOR$EMULATOR/qemu" --version | head -n 1), -cpu $cpu"
 
   local sync own pid status=0
@@ -247,8 +233,7 @@ in_namespace() {
     lane_2=("RAVEL_2_TARGET_ARCHIVE=/smoke/ravel-2.0/$(basename "$staged")")
   fi
   exec /floor-enter "$FLOOR" \
-    /usr/bin/env -i PATH=/usr/bin:/bin "FLOOR_MODE=${FLOOR_MODE:-supported}" "${lane_2[@]+"${lane_2[@]}"}" \
-    "FLOOR_KIND=qemu" /bin/bash /smoke/release-smoke-target.sh \
+    /usr/bin/env -i PATH=/usr/bin:/bin "${lane_2[@]+"${lane_2[@]}"}" /bin/bash /smoke/release-smoke-target.sh \
     "$TARGET" "/smoke/$archive" /smoke/installed-smoke.sh /smoke/probes
 }
 

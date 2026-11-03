@@ -1,99 +1,81 @@
-# Actual Linux confinement under the pinned QEMU CPU floors
+# The QEMU floor route of the Linux release smoke
 
-Grove's ordinary `release:smoke` now uses actual namespace environments for its
-Linux standalone cases. The test-only backend and emulator resources stay out
-of production archives. The same independently admitted public Ravel 0.1.0
-runs alongside Grove's complete, differently versioned archive in separate
-prefixes, without host Bun/Node.
+`task release:smoke` runs each Linux archive in the CentOS 7 userland, the
+glibc 2.17 floor. A pinned user-mode QEMU emulates the CPU floor of the target. `scripts/release-smoke.sh` stages the inputs, and
+`scripts/release-smoke-qemu.sh` runs inside a helper container. The emulator,
+its interpreters and the probes are test-only resources. They stay out of the
+production archives.
 
 ```sh
-# Complete working-copy build followed by native/macOS and both Linux CPU floors:
+# Build the archives of the working copy, then run every target:
 task release:smoke
-# Explicit complete archive inputs, without replacing their directory:
-task release:floor:qemu ARCHIVES=target/archives RAVEL_ARCHIVES=target/ravel-archives
-# Inspect the real native backend and isolated dependency closure independently:
-task release:floor:qemu:prepare OUT=target/my-qemu-backend
+# One target only:
+task release:smoke TARGETS=x86_64-unknown-linux-gnu
 ```
 
-`TARGETS=aarch64-unknown-linux-gnu` or `TARGETS=x86_64-unknown-linux-gnu`
-restricts the QEMU task; its default is both. The general release runner also
-repeats the [native environment](linux-floor-native.md) on arm64 Docker, and
-macOS installed caller cases. Admission still precedes target invocation and
-refuses missing, changed, mismatched or incomplete independent archives.
+On arm64 Docker, Linux arm64 first runs natively in a container of the floor
+image. Then it runs again under QEMU. Linux x86-64 runs under QEMU only, and
+that one run covers both floors. Archive admission precedes every target
+invocation. It refuses a missing, changed, mismatched or incomplete Ravel
+archive.
 
-## Kernel namespaces and emulated execution
+## Namespaces and emulated execution
 
-[QEMU 10.2.3's user-mode clone implementation](https://raw.githubusercontent.com/qemu/qemu/v10.2.3/linux-user/syscall.c)
-rejects the namespace flags required by real bubblewrap. The supported boundary
-runs upstream bubblewrap 0.11.0 as a host-native arm64 executable, with its own
-relocated arm64 glibc 2.17, libcap 2.22 and libattr closure extracted from the
-same digest-pinned CentOS image. Sources, compiler and source digests match the
-[backend preparation](linux-floor-backend.md). The real unpatched backend gets
-every Ravel sandbox argument and performs actual kernel namespace/mount work.
-Its relocated loader and library search path prevent x86 target libraries from
-being used for the native backend. The actual loader lists the resolved closure
-in each supported environment.
+The helper runs as the root of the container. It creates a private user and
+mount namespace with identity uid and gid maps, and mounts a private
+binfmt_misc instance there. So no registration of the Docker host changes.
 
-The setup helper uses a private user/mount namespace with identity uid/gid maps
-and a private binfmt_misc instance. It switches to the target mount root through
-[`pivot_root`](https://man7.org/linux/man-pages/man2/pivot_root.2.html), preserving
-submounts and detaching the old root. A chroot cannot create unprivileged user
-namespaces. The binfmt mount lives inside the new root: losing it would cause
-x86 exec-format refusal and silent native arm64 execution. No host registration
-is changed. The interpreter remains pinned through binfmt's
-[`F` flag](https://docs.kernel.org/admin-guide/binfmt-misc.html), including when
-bubblewrap enters its own empty filesystem and descendant user namespace.
+The entry launcher `scripts/floor-qemu-enter.c` switches to the userland through
+[`pivot_root`](https://man7.org/linux/man-pages/man2/pivot_root.2.html). It
+keeps the submounts and detaches the old root. The binfmt_misc mount stays
+inside the new root. If the mount went, x86-64 executables would fail to start
+and arm64 executables would run natively, outside the CPU model. The
+[`F` flag](https://docs.kernel.org/admin-guide/binfmt-misc.html) of the
+registration opens the interpreter when the helper registers it.
 
-Every Grove/Ravel archive ELF remains unchanged and must match the target
-registration. Only named native test infrastructure (QEMU, interpreter, real
-bubblewrap, entry launcher and kernel security probe) uses the existing ELF
-ABI-padding exemption. Cortex-A53 and Nehalem, the exact glibc 2.17 success /
-2.25 refusal pair, guest vDSO/address ceiling and beyond-floor SIGILL / same-QEMU
-`-cpu max` controls remain mandatory. Emulator resources reside under
-`/usr/libexec/floor-qemu`, within Ravel's existing read-only system grants. The
-max interpreter is removed after its positive control. An actual sandbox
-shell descendant also must die with 132 at the beyond-floor instruction.
+Each ELF file of each archive stays unchanged and must match the registration
+of the target. Only named test infrastructure, such as QEMU, the interpreters
+and the entry launcher, uses the ELF padding exemption. These checks are
+mandatory:
 
-These CPU/address claims cover the deterministic tests' automatic kernel exec
-paths. Raw QEMU is necessarily available read-only to the interpreter, and an
-agent explicitly invoking it could choose another CPU or guest-base option.
-This is a test instrument, not adversarial prevention of emulator invocation;
-no malicious CPU-enforcement claim follows from the archive header assertion.
-The real filesystem denials are tested independently of that limit.
+- The CPU model is the Cortex-A53 for arm64 and Nehalem for x86-64.
+- A probe built against glibc 2.17 runs, and the userland refuses its glibc
+  2.25 twin.
+- The guest has a vDSO, and no mapping above its address limit.
+- A probe that executes one instruction beyond the floor dies of SIGILL. The
+  same probe runs under the same QEMU with `-cpu max`.
 
-## Security and refusal contract
+The emulator is at `/usr/libexec/floor-qemu` in the userland. The helper
+removes the `-cpu max` interpreter after its control. These CPU and address
+claims cover the automatic exec paths of the kernel. An agent that invokes the
+emulator directly can choose another CPU or guest base. The route is a test
+instrument. It does not prevent a direct invocation of the emulator.
 
-The helper keeps the existing Docker default capabilities for private setup,
-never adds outer SYS_ADMIN, and runs with no network and read-only input binds.
-It uses the pinned default-deny Moby seccomp derivation from the native
-instrument, adding only `unshare(NEWUSER|NEWNS)` for private binfmt setup.
-`systempaths=unconfined` admits the private procfs mount, as in the native task.
-No daemon/sysctl/LSM setting changes. The root setup re-exec must regain its
-namespace capabilities after mapping, so the native entry launcher sets
-no-new-privileges after pivot and before target exec. It clears supplementary
-groups and the entire bounding set, then drops gid/uid to 1000. The native
-kernel probe checks those actual properties, seccomp filtering, and outer
-mount/network-namespace/keyring refusal.
+## Security of the helper
 
-Each CPU floor runs three real cases: missing backend, the real target backend
-under QEMU (namespace-unusable), and the real native backend. Both negative
-cases must refuse `confinement_unusable` before policy selection, publish no
-output and preserve the existing sentinel. The positive case runs direct and
-symlink lifecycle/result/standalone/import cases and actual read/write,
-descendant/symlink, root/system/runtime/proc/dev denials. The only writable
-task output is published after successful cleanup. No fake backend, stripped
-sandbox options or unconfined fallback is used. Independent Ravel-only smoke
-continues through the same pinned CPU/glibc machinery.
+The helper keeps the default Docker capabilities for its private set-up. It
+adds no outer SYS_ADMIN. It runs with no network, and its inputs are bound
+read-only. Its seccomp profile is the pinned default-deny Moby allowlist of
+`scripts/floor_seccomp.py`. The profile adds only `mount`, `pivot_root`,
+`umount2` and `unshare(NEWUSER|NEWNS)`.
 
-## Acceptance evidence
+The helper keeps the masked system paths of Docker, because it binds `/proc`
+and mounts no procfs of its own. No daemon, sysctl or LSM setting changes. `task release:floor:seccomp:controls`
+checks the derivation and its refusal of a changed or missing source.
 
-The complete measured logs and per-file comparison are retained under
-`target/k55/`. Final target acceptance and input preservation are recorded
-below after measurement. k51 must freshly rebuild every archive before its
-final complete delivery acceptance; this instrument neither installs nor
-publishes Grove/Ravel and preserves the original Grove 22.1.0 driver contract.
+After the pivot, the entry launcher sets no-new-privileges. It clears the
+supplementary groups and the whole bounding set. Then it drops gid and uid to
+1000 and runs the smoke test of the target. On the 2.0 lane that smoke test
+includes the directory case, `scripts/grove-floor-directory-case.sh`.
 
 ## Verified handoff — 2026-10-14
+
+This section records a run of the earlier confinement route. Bubblewrap and
+its route left Grove after the withdrawal of confinement, which
+[the withdrawal record](confinement-withdrawal-evidence.md#linux-floor-evidence)
+states. No build after the withdrawal can repeat these results.
+
+<!-- tc: pending because this dated record predates the conversion -->
 
 `all-target-complete.log` passes the normal release runner for all three freshly
 built Grove 22.1.0 archives against admitted public Ravel 0.1.0. It includes

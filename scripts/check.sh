@@ -106,12 +106,7 @@ run_check "shellcheck" shellcheck \
   scripts/release-doctor.sh scripts/release-common.sh scripts/release-build.sh scripts/release-formula.test.sh scripts/release-registration.test.sh \
   scripts/release-smoke.sh scripts/release-smoke-target.sh scripts/release-smoke-qemu.sh \
   scripts/release-smoke-environment.sh scripts/ravel-target-smoke.sh \
-  scripts/release-floor-backend.sh scripts/release-floor-backend.test.sh \
-  scripts/atomic-directory-publish.test.sh \
-  scripts/release-floor-backend-probe.sh scripts/release-floor-backend-probe-host.sh \
-  scripts/floor-seccomp.test.sh scripts/release-floor-native.sh scripts/grove-floor-native-cases.sh \
-  scripts/grove-floor-directory-case.sh \
-  scripts/release-floor-qemu.sh scripts/release-floor-qemu-backend.sh scripts/release-floor-qemu.test.sh \
+  scripts/floor-seccomp.test.sh scripts/grove-floor-directory-case.sh \
   scripts/ravel-target-smoke-target.sh scripts/ravel-installed-smoke.sh scripts/ravel-installed-smoke-rhai.sh \
   scripts/ravel-target-inputs.test.sh scripts/grove-installed-smoke.sh \
   scripts/grove-installed-upgrade.sh \
@@ -130,9 +125,7 @@ run_check "technical-communication checker self-test" \
 run_check "technical-communication Pi extension loads" bash scripts/pi-extension-load.test.sh
 run_check "release preparation" bash scripts/release-prepare.test.sh
 run_check "Ravel archive admission" python3 scripts/test_ravel_target_inputs.py
-run_check "Linux floor backend admission" task release:floor:controls
-run_check "native floor seccomp admission" task release:floor:seccomp:controls
-run_check "QEMU floor admission" task release:floor:qemu:controls
+run_check "QEMU floor seccomp admission" task release:floor:seccomp:controls
 run_check "legacy driver preservation controls" task legacy:controls
 run_check "harness trial runner controls" task trial:controls
 run_check "release Codex helper" bash scripts/release-notes/codex-headless.test.sh

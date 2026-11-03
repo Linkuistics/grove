@@ -58,9 +58,8 @@ installed caller imports and executes Grove's standalone public boundary.
 The original installed 22.1.0 Grove/dispatch keg, personal policy and current
 ending channel remain preserved. Cargo and direct helpers keep all old/new
 authority scrubs. The [legacy transition](legacy-driver-transition.md) supplies
-the tested complete-keg upgrade/unlink procedure. The [Linux floor
-environment](linux-floor-qemu.md) supplies real confinement in the CentOS
-userlands. Final independent-delivery acceptance below meets the preparation
+the tested complete-keg upgrade/unlink procedure. The [QEMU floor
+route](linux-floor-qemu.md) runs the release smoke in the CentOS userlands. Final independent-delivery acceptance below meets the preparation
 contract. Live application and publication remain k13's work.
 
 Historical release notes, declared compatibility/authority fixtures, the original

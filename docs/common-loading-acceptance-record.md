@@ -7190,13 +7190,14 @@ owner's decision to use a minted token through a socket remains settled.
 
 The overlap check resolves a path before the worker starts. The file checks
 and read happen after selection, and symbolic links are allowed. The contract
-does not hold the checked object or require another overlap check. For
-example, a token link can first name a file outside the grants, then name a
+does not hold the checked object or require another overlap check.
+
+For example, a token link can first name a file outside the grants, then name a
 mode-0600 file in the working directory after selection. The later checks all
 pass, but the confined agent can read the file that supplied its token. A
 replacement between the metadata checks and the open can also invalidate the
 owner, type or size checks. This can happen during an owner's token-file
-replacement; it needs no hostile configuration script.
+replacement. It needs no hostile configuration script.
 
 The current launch prepares confinement before selection and uses that
 prepared grant set afterward (`crates/ravel/src/run.rs:72–99,252–259`).
@@ -7213,15 +7214,16 @@ a retargeted link, replacement and growth between checks and read.
 
 ### F2 — Protect token files before skill-source capture (P1)
 
-**Location:** `docs/specs/token-handoff.md:149–159,342–351`; compare
+**Location:** `docs/specs/token-handoff.md:149–159,342–351`. Compare
 `docs/specs/skill-discovery.md:753–769`.
 
 The new rule covers grants, including skill directories, in confined
 launches. It does not state a refusal of a skill source that contains a
 declared token file. These are different paths: source resolution copies the
 whole source into a retained snapshot, and confinement grants that snapshot.
-A token at `/packs/example/token` can therefore be copied into the cache;
-checking a grant over the cache against `/packs/example/token` finds no
+
+A token at `/packs/example/token` can therefore be copied into the cache.
+A check of a grant over the cache against `/packs/example/token` finds no
 overlap. Mode 0600 does not prevent the same-user agent from reading the copy.
 The token can persist in the cache even if a later launch refuses.
 
@@ -7229,7 +7231,7 @@ Ravel already protects settings at the acquisition boundary:
 `Protected::new` and `origin` reject overlapping sources before
 `snapshot::capture` (`crates/ravel/src/skills/mod.rs:155–164,192–200,328–364,399–413`).
 The skill specification separately owns that rule for both launches and
-`skills resolve`; its protected list has not gained token files.
+`skills resolve`. Its protected list has not gained token files.
 
 **Smallest useful correction:** Explicitly add every declared token path to
 the pre-capture protected set and reconcile the owning skill specification.
@@ -7239,8 +7241,8 @@ its content is copied or published, whether or not a selection names it.
 
 ### F3 — Specify the runner's descriptor inheritance exception (P2)
 
-**Location:** `docs/specs/token-handoff.md:193–203,254–262`; missing contract
-at `crates/keyed-launch/src/run.rs:1267–1298,1411–1426`.
+**Location:** `docs/specs/token-handoff.md:193–203,254–262`. The missing contract
+is at `crates/keyed-launch/src/run.rs:1267–1298,1411–1426`.
 
 The design sends a socket through the confinement backend, but Ravel's runner
 deliberately marks every descriptor above stderr close-on-exec in every
@@ -7255,12 +7257,12 @@ endpoints permitted to survive that launch. State ownership through spawn and
 failure, and keep every other inherited descriptor excluded. Apply it to the
 confined managed and captured harness-run paths. The public fixtures should
 prove both socket delivery and closure of an unrelated sentinel descriptor.
-This is a narrow addition to the existing runner seam; it needs no separate
+This is a narrow addition to the existing runner seam. It needs no separate
 credential-aware launcher.
 
 ### F4 — Scope the output promise to Ravel's handoff handling (P2)
 
-**Location:** `docs/specs/token-handoff.md:205–207,330–340,366–370`; compare
+**Location:** `docs/specs/token-handoff.md:205–207,330–340,366–370`. Compare
 `docs/specs/configuration-evaluation.md:1493–1497`.
 
 The new requirement forbids token bytes in any output or worker message.
@@ -7275,8 +7277,8 @@ the unconditional requirement false and make the fixture contradict it.
 **Smallest useful correction:** Distinguish bytes that Ravel itself adds
 while handling a token from text a trusted script or harness returns. Keep the
 existing output contract unless a deliberate redaction design replaces it.
-Use a digest or equality result for the public fixture's token assertion, and
-state the deliberate echo case as outside the handoff's secrecy guarantee.
+Use a digest or equality result for the public fixture's token assertion.
+State the deliberate echo case as outside the handoff's secrecy guarantee.
 
 ### F5 — Limit the claims about sign-in stores to the actual grants (P2)
 
@@ -7289,13 +7291,13 @@ the same specification's supported Codex route: a runtime read of `auth.json`
 and neither the current grant code nor this feature classifies sign-in stores
 for denial. On Linux, a granted `.credentials.json` is also an ordinary file.
 Adding no Keychain grant does not establish the wider prohibition. The ADR
-repeats that wider promise, so correcting the detailed section alone leaves
+repeats that wider promise, so a change to the detailed section alone leaves
 the decision's stated benefit false.
 
 **Smallest useful correction:** State that this feature opens no sign-in store
 and adds no Keychain or sign-in-store grant. Make read access conditional on
 the complete grant set, and retain the separate Codex runtime-read route.
-Keep the stated memory-access limit; the socket does not establish protection
+Keep the stated memory-access limit. The socket does not establish protection
 from inspection of the harness's memory.
 
 ### Disposition of the producer's other doubts
@@ -7310,7 +7312,7 @@ is edited in place and links to it. No additional ADR is indicated.
   [bubblewrap source](https://github.com/containers/bubblewrap/blob/main/bubblewrap.c)
   passes inherited descriptors to the payload and closes surplus copies in
   its monitor and namespace-init processes. The runner's earlier close-on-exec
-  rule is F3. No Linux run was performed; the specified Linux fixture remains
+  rule is F3. No Linux run was performed. The specified Linux fixture remains
   necessary.
 - **Claude Code: the reader branch is supported by static inspection.** The
   inspected file is `~/.local/share/claude/versions/2.1.317`, SHA-256
@@ -7322,7 +7324,7 @@ is edited in place and links to it. No additional ADR is indicated.
   descriptor, including when a newline ends the read. A later descendant
   normally has no such descriptor, rather than an inherited EOF descriptor.
   Remote/IPC modes take another branch. The real-profile opt-in check remains
-  unmeasured; static inspection is not its replacement.
+  unmeasured. Static inspection is not its replacement.
 - **Unconfined omission: accepted trade-off.** The design explicitly delivers
   nothing and reports an empty delivered list. It preserves the harness's
   existing sign-in rather than promising that every named handoff is used.
@@ -7331,7 +7333,7 @@ is edited in place and links to it. No additional ADR is indicated.
   writable/runtime/system grants, and `skill_access_unavailable`, stage
   `skills`, exit 3 for skill-source or snapshot overlaps. These follow
   `crates/ravel/src/confinement.rs:193–205,270–281,331–340` and
-  `crates/ravel/src/skills/mod.rs:399–413`; there is no single shared code.
+  `crates/ravel/src/skills/mod.rs:399–413`. There is no single shared code.
 - **Schema numbers: no incompatibility demonstrated.** The optional selection
   and harness-run fields extend the same unpublished 2.0/schema-4 line. Old
   selections can omit them. Additive delivered-name lists do not by themselves
@@ -7342,10 +7344,12 @@ is edited in place and links to it. No additional ADR is indicated.
 ### Evidence limits and handoff
 
 The graph review used Tier 2. Ravel's graph generation was
-`2026-11-02T05:30:19Z`; the current confinement, main launch and skill-source
+`2026-11-02T05:30:19Z`. The current confinement, main launch and skill-source
 files had changed metadata, and `docs/` was excluded. Their cited ranges were
 read directly. The keyed-launch runner and harness-run source matched graph
-metadata. Grove's graph generation was `2026-11-03T10:39:41Z`; its brief chain,
+metadata.
+
+Grove's graph generation was `2026-11-03T10:39:41Z`. Its brief chain,
 producer task and acceptance record had no recorded coverage gap. These are
 best-effort coverage observations, not completeness guarantees.
 
@@ -7353,6 +7357,6 @@ The review inspected the committed specification/ADR changes, the four Mermaid
 sources and their manifest. It did not render the viewer or repeat the
 producer's descriptor probe. The
 [Anthropic authentication documentation](https://code.claude.com/docs/en/authentication#generate-a-long-lived-token)
-supports the chosen owner-minted token route; the review does not reopen it.
+supports the chosen owner-minted token route. The review does not reopen it.
 The integration task must triage these findings before
 `ravel-token-handoff-k133` implements the resulting contract.

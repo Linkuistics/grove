@@ -64,3 +64,10 @@ a read of a path in the sandbox `.codex/skills`, of the class `native`.
 Five cases pass, including the express restriction. In the failed concrete
 path case, Codex ran the force-stop command, and Claude Code ran no ending
 command.
+
+codex-discovery-problems-k118 recorded "Discovery problems in Codex". Six
+cases pass, and the two cases with a pack reference did not run. Codex
+force-stopped after two of its three reports. In the named user-invoked case,
+it stopped before the write, because `authoring-conventions` requires
+`writing-skills`, which no source holds. A `python3` heredoc read has the
+class `command`, so a section names such reads by hand.

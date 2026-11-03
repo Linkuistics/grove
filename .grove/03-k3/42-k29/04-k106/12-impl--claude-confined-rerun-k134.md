@@ -30,3 +30,9 @@ with Ravel's sign-in handoff.
 
 An unconfined retry gives no credit to a confined row. Do not change the
 owner's settings.
+
+The handoff needs two declarations, as Ravel's token handoff specification
+states. The trial's sandbox settings declare the token file. The trial's
+configuration script names the handoff in its selection. The declared variable
+holds a descriptor number, and Claude Code removes it after it reads the
+socket. The token comes from `claude setup-token`, which the human runs.

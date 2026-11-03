@@ -89,7 +89,7 @@ decisions on its two scope questions:
   `standalone` outside an active grove. The kind requires no skill. Remove the
   missing-guidance promise of a standalone run.
 - `ravel-token-handoff-k132`: design how Ravel hands a confined Claude Code
-  its access token, with no Keychain grant.
+  a token, with no Keychain grant.
 - `ravel-token-handoff-k133`: implement that handoff on the Ravel bookmark.
 - `claude-confined-rerun-k134`: run both Claude Code confined cases again with
   the handoff.
@@ -135,6 +135,16 @@ guidance through the transcript path and a search of the home directory, not
 through the variable. The Claude Code `compaction-preamble` row is now an
 explicit gap, with no further repair, as the human decided in
 claude-preamble-loss-trial-k130.
+
+ravel-token-handoff-k132 found that its first route conflicts with Ravel's
+credential rule and with Anthropic's terms. Ravel would have read the owner's
+sign-in. On 2026-11-03 the human chose another route.
+
+The owner mints a token with `claude setup-token` and names its file in
+Ravel's settings. Ravel sends the token through a socket to a confined harness
+that the configuration script names. The specification is Ravel's `docs/specs/token-handoff.md`, in commit
+`7c5b6cdd3842` on the bookmark. A review chain checks it before
+`ravel-token-handoff-k133`.
 
 standalone-default-kind-k131 gave `grove run` the default kind `standalone`
 outside an active grove. Inside one, a run without a kind takes the next live

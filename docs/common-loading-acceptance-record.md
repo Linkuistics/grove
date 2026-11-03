@@ -6418,7 +6418,7 @@ signed-in run measured it.
 | Codex sign-in | The owner's `--runtime-read` grant | Grove passes each grant to Ravel. The selected command links or copies the granted file into `CODEX_HOME` |
 | Codex TLS roots | The owner's policy | The selected command sets `CODEX_CA_CERTIFICATE` or `SSL_CERT_FILE` to a system bundle |
 | Codex sandbox mode | The owner's policy | The selected command gives `--sandbox danger-full-access`, because Seatbelt cannot nest |
-| Claude Code sign-in | Ravel's profile, or a new owner credential | The profile must allow two Mach services and the Keychain reads. Otherwise the owner must supply a token or a plaintext sign-in file |
+| Claude Code sign-in | A token handoff of Ravel, with a token that the owner mints | The profile would need two Mach services and the Keychain reads. The owner chose a token from `claude setup-token`, which Ravel sends through a socket, as the [token handoff design](#token-handoff-design) states |
 | Missing guidance in a standalone run | Grove's `grove run` | The standalone prompt must state which guidance is required and what to do when it is missing |
 
 Grove already ships the Codex part of this repair for one kind.
@@ -6450,10 +6450,12 @@ the human's decision below.
 
 The human answered the two scope questions of this repair on 2026-11-03:
 
-- **Claude Code sign-in.** Ravel reads the owner's sign-in before
-  confinement and hands only the access token to the confined harness. The
-  profile gains no Keychain grant. Claude Code 2.1.317 accepts a token through
-  `CLAUDE_CODE_OAUTH_TOKEN` or `CLAUDE_CODE_OAUTH_TOKEN_FILE_DESCRIPTOR`.
+- **Claude Code sign-in.** The owner mints a token with `claude setup-token`
+  and saves it in a file that Ravel's settings name. Ravel sends that token
+  through a socket to a confined harness. The profile gains no Keychain grant.
+  The human first chose a route in which Ravel reads the owner's sign-in. The
+  human replaced that route during `ravel-token-handoff-k132`, as the
+  [token handoff design](#token-handoff-design) records.
   `ravel-token-handoff-k132` designs the handoff, `ravel-token-handoff-k133`
   implements it, and `claude-confined-rerun-k134` runs both Claude Code cases
   again.
@@ -7116,3 +7118,58 @@ bypass" part passes, and its "report" part fails. The human decided on
 makes the gap explicit, with no further repair. Grove's force-stop wording
 stays, because it serves every Grove session and its tests pin it. The
 completion audit of `acceptance-completion-audit-k127` names this gap.
+
+## Token handoff design
+
+`ravel-token-handoff-k132` designed how a confined Claude Code signs in. It
+read no credential and made no model call. Its specification is Ravel's
+`docs/specs/token-handoff.md`, with the decision record
+`a-confined-harness-receives-an-owner-minted-token`. Both are in Ravel commit
+`7c5b6cdd3842` on the unpushed bookmark `skill-directory-delivery`.
+
+### The changed route
+
+The leaf started from the human's first route: Ravel reads the owner's sign-in
+and hands on the access token. Two Ravel records forbade that route. The
+decision record `a-configuration-script-asks-a-model-through-a-harness-run`
+and the "Credentials" section of Ravel's configuration specification said that
+Ravel reads no sign-in. Their reason is Anthropic's terms.
+
+<!-- tc: depart long-sentence because the sentence quotes Anthropic's terms verbatim -->
+The current
+[legal and compliance](https://code.claude.com/docs/en/legal-and-compliance#authentication-and-credential-use)
+page states: "developers may not collect, store, or intermediate Claude.ai
+credentials or session tokens — sign-in to a Claude account must complete
+through Anthropic's own flow."
+
+The leaf stopped and asked the human. On 2026-11-03 the human chose the
+recommended route. The owner mints a token with `claude setup-token`, which
+Anthropic documents for scripts. Ravel sends that token through a socket to a
+confined launch that the configuration script names. Ravel never opens a
+harness's sign-in store.
+
+### Descriptor diagnostics
+
+`scripts/harness-trials/descriptor-probe.py` writes dummy text into a pipe and
+into a socket pair. A shell reads descriptor 3 by its path and directly, both
+unconfined and under a copy of Ravel's profile from `profile-copy.py`:
+
+```sh
+python3 -I scripts/harness-trials/descriptor-probe.py scripts/harness-trials/profile-copy.py \
+  "$RAVEL/crates/keyed-launch/src/confinement.rs" "$SCRATCH"
+```
+
+| Descriptor | Read | Unconfined | Under the profile copy |
+| --- | --- | --- | --- |
+| Pipe | `cat /dev/fd/3` | Reads the text | `No such file or directory`, exit 1 |
+| Pipe | `cat <&3` | Reads the text | Reads the text |
+| Socket | `cat /dev/fd/3` | Reads the text | `No such file or directory`, exit 1 |
+| Socket | `cat <&3` | Reads the text | Reads the text |
+
+The profile copy took the profile of Ravel commit `0d60cb531240`. The
+executable of Claude Code 2.1.317 reads a socket descriptor directly, and then
+it removes `CLAUDE_CODE_OAUTH_TOKEN_FILE_DESCRIPTOR`. It opens any other
+descriptor as `/dev/fd/N`, and it reads directly only after `EACCES` or
+`EPERM`. A pipe would therefore leave a confined Claude Code without a sign-in.
+That branch comes from minified code. The real-profile check of
+`ravel-token-handoff-k133` measures it or names the gap.

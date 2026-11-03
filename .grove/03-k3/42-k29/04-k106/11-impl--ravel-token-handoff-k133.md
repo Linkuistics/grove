@@ -26,3 +26,13 @@ unpushed Ravel bookmark `skill-directory-delivery`.
 Do not publish a release, install `ravel@2` or change the owner's settings.
 loader-report-wording-k129 also moves the bookmark. Build on the bookmark as
 it then stands.
+
+The specification is Ravel's `docs/specs/token-handoff.md`, first committed
+as `7c5b6cdd3842`. Implement it as its review chain leaves it. The route uses
+a token from `claude setup-token`, not the owner's Keychain sign-in. The human
+mints that token and saves it with mode `0600`. No session runs
+`claude setup-token` or reads the token file.
+
+The book still states that Ravel holds no model credential, in
+`01-what-ravel-is-for.md` and `06-reference.md`. Correct both with the
+implementation. Add the owner's recipe and the reference of `tokenHandoffs`.

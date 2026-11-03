@@ -7,7 +7,7 @@
 
 `grove run` stages inputs and exports declared outputs without a workspace or
 lease. Grove resolves/version-checks an independent installed Ravel, supplies
-its prompt and exact canonical continue and force-stop commands, and starts it through
+its prompt and exact canonical continue and force-stop commands, and launches it through
 `ravel_job::launch` in the detached shape. Ravel selects and confines the
 managed command, reaps its group, and returns only its public result on stdout.
 Grove retains managed output on stderr in its transcript.
@@ -17,7 +17,7 @@ Grove retains managed output on stderr in its transcript.
 
 Run `grove run release-notes 'Draft notes from changes.txt' --input /work/release/changes.txt --output /work/release/notes.md --ui inline` with a regular input and
 absent destination. Grove copies the input to its private work directory and
-holds that directory open. Then Grove starts the once-selected Ravel with public
+holds that directory open. Then Grove launches the once-selected Ravel with public
 `start-session --confine` inputs. The policy selects outside confinement. The
 harness receives its own ephemeral ending context and the exact
 `end-session grove-continue` and `end-session grove-force-stop` commands in the prompt.
@@ -211,8 +211,8 @@ pub(crate) fn default_kind(directory: &Path) -> Result<String> {
 ## Stage artifacts
 
 `execute` checks the prompt and creates separate work and control
-directories. Inputs are copied as regular files, names cannot collide, and every
-output destination must be absent. The control directory remains outside the
+directories. `execute` copies inputs as regular files. Their names cannot
+collide, and every output destination must be absent. The control directory remains outside the
 harness's writable grants.
 
 <!-- fragment «standalone-staging» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="103-166" parent="standalone-invocation" -->
@@ -293,7 +293,7 @@ It explains that continue publishes checked outputs and force-stop reports
 failure with no publication. The shared argv contains `start-session --confine`,
 the kind, literal prompt, writable exit directory and canonical runtime reads.
 It carries no task identity, task file or selection parameter. Grove holds the work
-directory before it starts Ravel, opens the persistent transcript and retains
+directory before it launches Ravel, opens the persistent transcript and retains
 display control.
 
 The argv grants no skill directory. On the directory route of Ravel 2.0.0, Ravel
@@ -354,7 +354,7 @@ force-stops. Grove then publishes nothing and launches no second, unconfined run
 ## Supervise before accepting outputs
 
 `ravel_job::launch` carries no completion channel. In the detached shape it
-starts Ravel in a new session. Standard input is end of file, and standard error
+launches Ravel in a new session. Standard input is end of file, and standard error
 goes to the transcript. The held stdout file receives the result.
 
 The function polls Ravel and sends each caught INT, TERM or HUP to `ravel` alone. It waits
@@ -448,9 +448,9 @@ and harness. That dead publisher exports nothing.
 <a id="standalone-artifact-checks"></a>
 ## Check transfer paths
 
-Basenames must name one artifact. Existing destinations are refused and input
-opens use `O_NOFOLLOW` and `O_NONBLOCK`, rejecting symlinks and non-regular files
-without hanging on a FIFO. These checks protect the transfer before Ravel
+Basenames must name one artifact. Grove refuses existing destinations. Input
+opens use `O_NOFOLLOW` and `O_NONBLOCK`, so they reject symlinks and non-regular
+files without hanging on a FIFO. These checks protect the transfer before Ravel
 selects anything.
 
 `regular_file_at` reads a staged output. It is a private function of this
@@ -593,8 +593,8 @@ pub(crate) fn shell_word(word: &OsStr) -> Result<String> {
 ## Delegate to independent Ravel resolution
 
 The dispatch module delegates both actual callers to the PATH/version resolver.
-Grove and Ravel may live in different versioned prefixes. No sibling, cwd or
-repository fallback is used, and no staged dead-code suppression remains.
+Grove and Ravel may live in different versioned prefixes. The resolver uses no sibling,
+cwd or repository fallback. No staged dead-code suppression remains.
 
 <!-- fragment «dispatch-lookup» owner="isolated-invocation" source="crates/grove/src/dispatch.rs" lines="1-5" parent="source-dispatch-lookup" -->
 ````rust

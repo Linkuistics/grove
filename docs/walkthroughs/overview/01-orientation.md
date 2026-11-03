@@ -9,9 +9,9 @@
 resolves that tree, takes its driver lease and calls the loop. The loop chooses
 the next task and launches it through `ravel`, which selects the
 command. Viewing has a separate early-return path. `grove run` names
-one kind explicitly, asks the owner's Ravel policy for its command,
-and orchestrates its confined temporary files,
-completion and output transfer without entering a task-tree lifecycle.
+one kind explicitly and asks the owner's Ravel policy for its command.
+It orchestrates its confined temporary files, completion and output transfer,
+and it does not enter a task-tree lifecycle.
 
 This book's corpus is `crates/grove`: its manifest and all production modules.
 The first chapters explain the package boundary, parser, lifecycle dispatch and
@@ -22,17 +22,17 @@ private loop implementation available to the binary.
 
 The compiler enforces that public-interface boundary. It does not enforce a
 particular amount of binary code. The lifecycle entry is small because the loop
-owns lifecycle decisions; standalone artifact transfer belongs here because the
+owns lifecycle decisions. Standalone artifact transfer belongs here because the
 human command owns its inputs and destinations. Tests separately hold the
 parser's command set and help coverage.
 
 <a id="two-products"></a>
 ## Two products, and which one `grove` enters
 
-The repository that holds this crate ships two products, and the manifest's own
-phrase — *the package that is grove-the-product*, in the test commentary below —
-needs the distinction stated before it is read. The table names both so
-that phrase has a referent.
+The repository that holds this crate ships two products. The manifest's own
+phrase *the package that is grove-the-product* appears in the test commentary
+below. A reader needs the distinction before reading that phrase. The table
+names both products so that the phrase has a referent.
 
 | Product | Source | What installs it |
 |---|---|---|
@@ -48,10 +48,11 @@ the plugin content.
 <a id="package-identity"></a>
 ## The package, and what it inherits
 
-The manifest is production source and this chapter reconstructs all
-lines of it, in eight fragments that follow the file's own order. It is read
-first because the first mechanism is declared there rather than argued anywhere
-else: the package is a crate, and the crate has no library.
+The manifest is production source, and this chapter reconstructs all lines of
+it in eight fragments. The fragments follow the file's own order. This chapter
+reads the manifest first because the manifest declares the first mechanism, and
+no other place argues it. The mechanism is that the package is a crate, and the
+crate has no library.
 
 <!-- fragment «manifest-thin-by-construction» owner="compiler-held" source="crates/grove/Cargo.toml" lines="1-59" parent="source-crate-manifest" -->
 <!-- insert «manifest-package-identity» -->
@@ -64,15 +65,17 @@ else: the package is a crate, and the crate has no library.
 <!-- insert «manifest-lints» -->
 <!-- /fragment -->
 
-The first fragment is the package block. Five of its fields are inherited from
-the workspace root rather than stated, and one of those five matters to a later
-page: `version`. Every crate on the path from this binary to the loop takes
-`version.workspace = true`, so there is one release version, and *The surface*
-reads it as the constant both binaries report — the input is a `cargo release`
-cut, the output is one number in every crate an operator installs, and the
-invariant is that `grove --version` and `grove-llm --version` cannot disagree.
-In the invocation this chapter carries, that number is what a reader sees first
-if they type `grove --version` before typing `grove`.
+The first fragment is the package block. The block inherits five of its fields
+from the workspace root and does not state them. One of those five matters to a
+later page: `version`. Every crate on the path from this binary to the loop takes
+`version.workspace = true`, so there is one release version.
+
+*The surface* reads that version as the constant that both binaries report. The
+input is a `cargo release` cut, and the output is one number in every crate that
+an operator installs. The invariant is that `grove --version` and
+`grove-llm --version` cannot disagree. In the invocation that this chapter
+carries, a reader sees that number first if they type `grove --version` before
+they type `grove`.
 
 <!-- fragment «manifest-package-identity» owner="compiler-held" source="crates/grove/Cargo.toml" lines="1-8" parent="manifest-thin-by-construction" -->
 ````toml
@@ -90,18 +93,18 @@ rust-version.workspace = true
 <a id="the-binary"></a>
 ## The human's binary, and nothing else
 
-The first comment states the crate's shape in one sentence, and it is read here
-rather than paraphrased because every later page is a longer reading of one
-clause of it. Bare `grove` parses no argument that selects anything,
-acquires the driver lease, and calls `grove_loop::run`. That call is the
-loop's single entry
-point, and the bare lifecycle after its startup checks is behind it — the
-loop's own pages are another book's, and this page names the call so the reader
-can see where the book stops. The comment cites decision 9 of
-`docs/specs/module-decomposition.md`, which is the design record that put the
-whole loop behind one function; that record is evidence for the author, and the
-fact the reader needs is on the page — one call, nothing before it that
-chooses.
+The first comment states the crate's shape in one sentence. This page reads that
+sentence and does not paraphrase it, because every later page is a longer
+reading of one clause of it. Bare `grove` parses no argument that selects
+anything, acquires the driver lease, and calls `grove_loop::run`. That call is
+the loop's single entry point, and the bare lifecycle after its startup checks
+is behind it. The loop's own pages belong to another book, and this page names
+the call so the reader can see where the book stops.
+
+The comment cites decision 9 of `docs/specs/module-decomposition.md`, the design
+record that put the whole loop behind one function. That record is evidence for
+the author. The fact that the reader needs is on the page: one call, and nothing
+before it that chooses.
 
 <!-- fragment «manifest-human-binary» owner="compiler-held" source="crates/grove/Cargo.toml" lines="9-13" parent="manifest-thin-by-construction" -->
 ````toml
@@ -116,15 +119,19 @@ chooses.
 The relevant clause is *parses no argument that selects anything*. A launcher
 ordinarily selects at least two things on its command line: what to run, and
 how to run it. Here both were moved out of the binary before the binary was
-written. What to run is read from the
-[task tree](../../../CONTEXT.md#task-tree-scheme) in the working tree, which the
-loop walks for its next live leaf; how to run it is decided by the human's
-personal `ravel` policy, `~/.config/ravel/policy.ts`, whose
-`select` function returns the command for each launch. With both facts on disk, an argument
-that selected either would be a second source for a fact that already has one.
-*The surface* reads the grammar that results, and *Proving a negative* reads the
-test that keeps the bare lifecycle free of selectors and the subcommand set
-at `{run, run-log, view}`, with `run-log` hidden from ordinary help.
+written.
+
+What to run comes from the [task tree](../../../CONTEXT.md#task-tree-scheme) in
+the working tree. The loop walks that tree for its next live leaf. The human's
+personal `ravel` policy, `~/.config/ravel/policy.ts`, decides how to run it. Its
+`select` function returns the command for each launch. With both facts on disk,
+an argument that selected either would be a second source for a fact that
+already has one.
+
+*The surface* reads the grammar that results. *Proving a negative* reads the
+test that keeps the bare lifecycle free of selectors. The same test keeps the
+subcommand set at `{run, run-log, view}`, with `run-log` hidden from ordinary
+help.
 
 <a id="crate-not-a-bin"></a>
 ## A crate, not a `[[bin]]` target
@@ -234,8 +241,9 @@ Crossterm.
 `Workspace` still arrives through the re-export of the loop, and the human
 binary never opens a store lock itself. The manifest therefore records two
 public entry seams without importing their private implementation modules.
-Standalone invocation starts `ravel` through the `ravel_job` module of
+Standalone invocation launches `ravel` through the `ravel_job` module of
 `grove-loop`. It loads no configuration and takes its command from `ravel`.
+
 `serde_json` serves integration fixtures. `tempfile` owns scratch storage and
 staged exports. `libc` supplies the artifact-open flags of the standalone module.
 
@@ -262,28 +270,32 @@ libc = "0.2"
 <a id="tests-live-here"></a>
 ## Where the repository-surface tests live
 
-The longest comment in the manifest is about files this book does not
-reconstruct, and it is owned here because it is where a reader first meets the
-sentence *this is the package that is grove-the-product*. The four tests it
-names — `tests/reference_navigation.rs`, `tests/plugin_fallback.rs`,
-`tests/commit_guidance.rs` and `tests/retire_guidance.rs` — make claims about
-the repository: that every Markdown reference resolves, that the methodology
-plugin installs, that the guidance a skill gives about committing and retiring
-matches what the verbs do. None of those is a claim about this crate's code, and
-the comment records why they are here anyway. They lived at the workspace root
-while the root was a package; `loop-crate-driver-k22` made the root a bare
-workspace, and a test has to belong to some package. This is the package that is
-the product, so they came here rather than into a library with no reason to
-know a README exists. Their paths are spelled `../../` relative to this
-manifest, which is the one visible cost of the move. The last two lines are
-about a different set of tests for a different reason: the loop fixtures in
-`tests/loop_driver.rs` and `tests/lifecycle_cutover.rs` drive `grove` as a
-spawned process against a temporary tree, which is the only harness a binary
-with no library can offer them.
+The longest comment in the manifest is about files that this book does not
+reconstruct. This chapter owns the comment because here a reader first meets
+the sentence *this is the package that is grove-the-product*. The comment names
+four tests: `tests/reference_navigation.rs`, `tests/plugin_fallback.rs`,
+`tests/commit_guidance.rs` and `tests/retire_guidance.rs`. They make claims
+about the repository. They claim that every Markdown reference resolves and that
+the methodology plugin installs. They also claim that the guidance a skill gives
+about committing and retiring matches what the verbs do.
+
+None of those is a claim about the code of this crate, and the comment records
+why the tests are here anyway. They lived at the workspace root while the root
+was a package. `loop-crate-driver-k22` made the root a bare workspace, and a test
+has to belong to some package. This is the package that is the product, so the
+tests came here. They did not go into a library, which has no reason to know that
+a README exists.
+
+The paths of the tests use `../../` relative to this manifest. That is
+the one visible cost of the move. The last two lines are about a different set
+of tests for a different reason. The loop fixtures in `tests/loop_driver.rs` and
+`tests/lifecycle_cutover.rs` drive `grove` as a spawned process against a
+temporary tree. That is the only harness that a binary with no library can give
+them.
 
 The comment names the original repository-surface tests. Later tests include
-viewer and standalone fixtures. All are evidence for this book
-rather than corpus: `tests/` directories are cited and never reproduced.
+viewer and standalone fixtures. All of them are evidence for this book, not
+corpus. The book cites `tests/` directories and never reproduces them.
 
 <!-- fragment «manifest-tests-live-here» owner="compiler-held" source="crates/grove/Cargo.toml" lines="39-50" parent="manifest-thin-by-construction" -->
 ````toml
@@ -302,16 +314,17 @@ rather than corpus: `tests/` directories are cited and never reproduced.
 ````
 <!-- /fragment -->
 
-The dev-dependencies are the three the tests above need and no consumer
-inherits, since nothing depends on a binary. `book-validation` is this book's
-own validator, read as a library by the two tests that check the walkthroughs
-against the repository. `libc` is for `kill(2)`: the loop fixture sends the
-driver `SIGTERM` to drive its interrupt path — the handler catches `SIGHUP`
-too, and no fixture sends it — and `std::process::Child::kill` sends
-only `SIGKILL`, which is exactly the signal the driver cannot answer. That
-path — the driver dying of the signal it was sent — is *Lifecycle startup*'s second
-ending, and this line is the first trace of it in the corpus. `tempfile`
-supplies the temporary trees.
+The dev-dependencies are the three that the tests above need. No consumer
+inherits them, since nothing depends on a binary. `book-validation` is this
+book's own validator. The two tests that check the walkthroughs against the
+repository read it as a library.
+
+`libc` is for `kill(2)`: the loop fixture sends the driver `SIGTERM` to drive its
+interrupt path. The handler catches `SIGHUP` too, and no fixture sends it.
+`std::process::Child::kill` sends only `SIGKILL`, which is exactly the signal
+that the driver cannot answer. That path, in which the driver dies of the signal
+that it received, is the second ending in *Lifecycle startup*. This line is the
+first trace of that path in the corpus. `tempfile` supplies the temporary trees.
 
 <!-- fragment «manifest-dev-dependencies» owner="compiler-held" source="crates/grove/Cargo.toml" lines="51-56" parent="manifest-thin-by-construction" -->
 ````toml
@@ -324,8 +337,8 @@ tempfile = "3.10"
 ````
 <!-- /fragment -->
 
-The lint configuration is inherited for the same reason `version` is: one
-workspace, one standard, and nothing crate-specific to add.
+The package inherits the lint configuration for the same reason that it inherits
+`version`: one workspace, one standard, and nothing crate-specific to add.
 
 <!-- fragment «manifest-lints» owner="compiler-held" source="crates/grove/Cargo.toml" lines="57-59" parent="manifest-thin-by-construction" -->
 ````toml
@@ -338,13 +351,13 @@ workspace = true
 <a id="one-invocation"></a>
 ## One invocation, end to end
 
-This is the invocation the book carries. It appears at low resolution here, as
-its argv in *The surface*, at full resolution in *Lifecycle startup* with every call
-and both endings, and in *Proving a negative* as the guard that keeps the argv
-from growing. The tree, the leaf and the policy below are fixed here and
-reused unchanged by all three.
+This is the invocation that the book carries. It appears at low resolution here,
+and as its argv in *The surface*. It appears at full resolution in *Lifecycle
+startup*, with every call and both endings. In *Proving a negative*, it appears
+as the guard that keeps the argv from growing. This page fixes the tree, the leaf
+and the policy below, and all three chapters reuse them unchanged.
 
-The starting tree is a Jujutsu workspace holding a grove with one live leaf,
+The initial tree is a Jujutsu workspace holding a grove with one live leaf,
 and the human's policy returns one command for every kind:
 
 ```text
@@ -372,8 +385,9 @@ and the human's policy returns one command for every kind:
 ```
 
 The human is somewhere inside the tree, not at its root, which is the ordinary
-case. Here is what happens, step by step, with the values this tree produces;
-setup is the binary's responsibility and each iteration is behind the call.
+case. Here is what happens, step by step, with the values that this tree
+produces. Setup is the binary's responsibility, and each iteration is behind the
+call.
 
 ```text
 $ grove
@@ -393,30 +407,34 @@ $ grove
   -> run returns Ok(()); the process exits 0
 ```
 
-The setup lines establish facts the loop consumes. *Resolve* is a filesystem walk that ends at the nearest `.jj/`, and
-it refuses a tree with none. *Lease* takes the
-[driver lease](../../../CONTEXT.md#driver-lease) — the one-driver-per-working-tree
-claim, held for the life of the process, so a second `grove` typed in the same
-tree is refused rather than run beside this one. *Run* is the
-call, and the
-lines indented under it are what the loop prints, not what the binary does: the
-binary has no line of its own between the call and the exit.
+The setup lines establish facts that the loop consumes. *Resolve* is a
+filesystem walk that ends at the nearest `.jj/`, and it refuses a tree with none.
+*Lease* takes the [driver lease](../../../CONTEXT.md#driver-lease), the
+one-driver-per-working-tree claim. The process holds that lease for its whole
+life. A second `grove` typed in the same tree is therefore refused, and it does
+not run beside this one.
 
-The ending shown is one of two. Every reason the loop was designed to stop —
-the grove finished, or a session ended without signalling — comes back as a
-value and the process exits 0. The other ending is the driver being sent
-`SIGTERM` or `SIGHUP` mid-grove, and a driver that was killed does not exit 0:
-after the loop has cleaned up, the process dies of the same signal, so whoever
-started it reads `128 + N` instead of success. That ending is the most argued
-claim in the corpus and *Lifecycle startup* owns it.
+The *run* line is the call. The lines indented under it are what the loop
+prints, not what the binary does. The binary has no line of its own between the
+call and the exit.
+
+The ending above is one of two. By design, the loop stops when the grove
+finishes or when a session ends without signalling. Each of those reasons comes
+back as a value, and the process exits 0.
+
+The other ending occurs when the driver receives `SIGTERM` or `SIGHUP`
+mid-grove. A killed driver does not exit 0. After the loop cleans up, the process
+dies of the same signal, so whoever launched it reads `128 + N` instead of
+success. That ending is the most argued claim in the corpus, and *Lifecycle
+startup* owns it.
 
 <a id="three-mechanisms"></a>
 ## Entry boundaries and their checks
 
-Now that one invocation has been seen end to end, the map. The three mechanisms
-describe the lifecycle entry; the chapter map shows where each is read. The
-table says which page holds which, and which pages hold neither because their
-job is the invocation itself.
+The reader now knows one invocation end to end, so the map follows. The three
+mechanisms describe the lifecycle entry. The chapter map gives the chapter that
+reads each one. The table says which page holds which, and which pages hold
+neither because their job is the invocation itself.
 
 | # | Mechanism | Held by | Chapter |
 |---:|---|---|---|
@@ -428,10 +446,10 @@ job is the invocation itself.
 | — | The module map | — | What the call reaches |
 | — | Confined scratch state, checked export and parent-owned display | Native policy and artifact checks | One isolated invocation |
 
-Mechanism 1 is this chapter's, and it is now fully read: a separate crate, no
-`[lib]`, one target, public library dependencies, and a manifest whose comments state
-each of those as a decision rather than a default. The remaining two are
-asserted by tests in the file the grammar lives in, and the grammar is read
-next.
+Mechanism 1 belongs to this chapter, and this chapter now covers all of it. Its
+parts are a separate crate, no `[lib]`, one target and public library
+dependencies. They also include a manifest whose comments state each of those
+parts as a decision, not a default. Tests in the file that holds the grammar
+assert the remaining two mechanisms. The next chapter reads that grammar.
 
 [Contents](README.md) | [Next: The surface](02-the-surface.md)

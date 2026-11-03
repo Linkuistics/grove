@@ -6,17 +6,18 @@
 ## Lifecycle and observation
 
 The human binary has lifecycle, standalone invocation and tree-viewing
-paths. Bare `grove` starts, resumes or finishes
+paths. Bare `grove` launches, resumes or finishes
 the lifecycle in the enclosing jj workspace. `grove view [WORKTREE]` opens an
 inert, read-only browser at one directory's `.grove`. Its path selects what to
-observe; it does not select a session, a kind or launch policy. `grove-llm`
+observe. The path does not select a session, a kind or launch policy. `grove-llm`
 remains the separate flat command surface a running session uses.
 
 The parser turns the shell's argument vector into `Cli`. An absent command
-means lifecycle dispatch; a `View` variant carries an optional path. Help and
-version exit during parsing, before application dispatch. `Run` carries one
-kind, prompt and artifact contract; the hidden `RunLog` command tails a log for a
-parent-created pane. Neither starts the lifecycle.
+means lifecycle dispatch. A `View` variant carries an optional path. Help and
+version exit during parsing, before application dispatch.
+
+`Run` carries one kind, prompt and artifact contract. The hidden `RunLog`
+command tails a log for a parent-created pane. Neither launches the lifecycle.
 
 <a id="the-grammar"></a>
 ## The grammar and process reporting
@@ -24,8 +25,8 @@ parent-created pane. Neither starts the lifecycle.
 The grammar owns the imports, its stated contract, clap metadata and the
 command declarations. Their source-order concatenation is independent of the
 reader order below. The `Command` enum belongs here alongside `Cli`, because
-its job is parsing the requested operation. Standalone mode names a kind;
-the owner's Ravel policy selects the command that implements it.
+its job is parsing the requested operation. Standalone mode names a kind.
+The owner's Ravel policy selects the command that implements that kind.
 
 <!-- fragment «surface-grammar» owner="no-arguments" source="crates/grove/src/cli.rs" lines="1-66" parent="source-command-surface" -->
 <!-- insert «surface-imports» -->
@@ -39,8 +40,8 @@ the owner's Ravel policy selects the command that implements it.
 ## The names used by the parser and dispatch
 
 `PathBuf` retains an operating-system path without imposing UTF-8.
-`Parser` derives the outer parser; `Subcommand` derives the `Command` grammar.
-The loop imports are used by the next chapter's lifecycle path:
+`Parser` derives the outer parser. `Subcommand` derives the `Command` grammar.
+The next chapter's lifecycle path uses the loop imports:
 
 | Type | Meaning held until dispatch |
 |---|---|
@@ -48,7 +49,7 @@ The loop imports are used by the next chapter's lifecycle path:
 | `DriverLease` | The one-driver claim held while the loop runs |
 | `LoopOutcome` | Why the loop stopped, including interruption by a signal |
 
-The viewer returns before any of those three is constructed or used.
+The viewer returns before any code constructs or uses one of those three.
 
 <!-- fragment «surface-imports» owner="no-arguments" source="crates/grove/src/cli.rs" lines="1-5" parent="surface-grammar" -->
 ````rust
@@ -81,12 +82,12 @@ Adding the browser does not give the launcher a second source of policy.
 ## One version, read through the loop
 
 The clap attributes retain the product name, description and shared release
-version. Both binaries read `grove_loop::VERSION`; their manifests and the
+version. Both binaries read `grove_loop::VERSION`. Their manifests and the
 libraries shipped with them inherit the workspace version. `book-validation`
 is an authoring tool with its own version and is outside that release set.
 
 `disable_help_subcommand` avoids an extra help verb. The subcommand set is
-`{run, run-log, view}`; `run-log` is hidden from ordinary help.
+`{run, run-log, view}`. `run-log` is hidden from ordinary help.
 The normal `--help` option still describes every command and argument.
 
 <!-- fragment «surface-clap-attributes» owner="no-arguments" source="crates/grove/src/cli.rs" lines="10-21" parent="surface-grammar" -->
@@ -113,9 +114,10 @@ The normal `--help` option still describes every command and argument.
 optional `PathBuf`, defaulted by dispatch to the current directory. The view
 help states no upward search, explains the subdirectory case, and gives
 examples for both current and explicit worktrees. Parsing accepts a path even
-when that directory is absent; absence is a visible state of the viewer.
+when that directory is absent. Absence is a visible state of the viewer.
+
 `Run` delegates its argument model to the standalone module. `RunLog` carries
-the exact log and status paths used by the separate display process.
+the exact log and status paths that the separate display process uses.
 
 <!-- fragment «surface-empty-struct» owner="no-arguments" source="crates/grove/src/cli.rs" lines="22-51" parent="surface-grammar" -->
 ````rust
@@ -157,11 +159,11 @@ enum Command {
 
 | Argument vector | Parser result and next effect |
 |---|---|
-| `grove` | `command: None`; resolve workspace, acquire lease, run lifecycle |
+| `grove` | `command: None`. Resolve workspace, acquire lease, run lifecycle |
 | `grove run review "Review input.txt" --input input.txt` | Ask the owner's policy for the command and run it once in confined scratch storage |
 | `grove run --prompt-file prompt.md` | Route `standalone` outside an active grove, or the next live leaf's kind inside one |
-| `grove view` | `View { worktree: None }`; observe current directory's `.grove` |
-| `grove view /tmp/tasks` | `View` with `/tmp/tasks`; observe `/tmp/tasks/.grove` |
+| `grove view` | `View { worktree: None }`. Observe current directory's `.grove` |
+| `grove view /tmp/tasks` | `View` with `/tmp/tasks`. Observe `/tmp/tasks/.grove` |
 | `grove view --help` | Print observation help and exit before terminal setup |
 | `grove --version` | Print the shared release version and exit |
 | `grove --harness claude` | Clap refuses the unknown lifecycle flag |
@@ -182,7 +184,7 @@ epoch checks. A standalone harness acknowledges through the launch prompt's exac
 outputs through its `ravel end-session grove-force-stop` command. Grove grants it
 no tree authority. The human binary delegates observation to
 `grove-tui` and lifecycle execution to `grove-loop`. [Lifecycle startup](03-three-steps.md)
-shows the branch that separates these paths.
+explains the branch that separates these paths.
 
 
 <a id="process-reporting"></a>

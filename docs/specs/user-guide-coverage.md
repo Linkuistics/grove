@@ -56,30 +56,29 @@ owner's Ravel policy, and Ravel's executable documentation. Installation is the
 review procedures — belongs to the `grove` plugin skills. The guide may *link*
 each; it may not restate any.
 
+<!-- tc: on -->
+
 ## The command inventory
 
-The inventory originated from `--help` output at grove 20.1.0 (`grove --help`,
-`grove-llm --help`, and each verb's own `--help`), and follows the current
-source surface. The supervised-dispatch cutover replaces L12's retired
-`complete` with `record-teardown` and updates G9's run contract. *Worked* means
-the guide must show a real invocation, not merely name the command.
+The inventory comes from the `--help` output of grove 20.1.0: `grove --help`,
+`grove-llm --help` and the `--help` of each verb. It follows the current source
+surface. The supervised-dispatch cutover replaces the retired `complete` of L12
+with `record-teardown`, and it changes the run contract of G9. *Worked* means
+that the guide must show a real invocation, not only name the command.
 
 ### `grove` — the human binary
 
-`Usage: grove [COMMAND]` — bare lifecycle plus `run KIND [PROMPT]` and `view [WORKTREE]`.
+`Usage: grove [COMMAND]`: the bare lifecycle, `run KIND [PROMPT]` and `view [WORKTREE]`.
 
 | Row | Surface | Obligation |
 |---|---|---|
-| G1 | `grove` (no arguments) | Worked. All three dispatch outcomes: no `.grove/` ⇒ `root-init` plus a first `requirements` leaf; live leaves ⇒ launch the first in tree order; no live leaves ⇒ materialize the `finish` leaf. |
-| G9 | `grove run KIND [PROMPT]` | Prompt/file choice; repeatable inputs, outputs and runtime grants; owner policy selection and no project/jj; mandatory Ravel confinement/supervision; caller-owned transcript and opaque completion result; artifact validation and no overwrite; inline/mux visibility, persistent logs, cancellation and exit codes. |
-| G2 | `-h`, `--help` | Named, with the fact that it stops before touching a repository. |
-| G3 | `-V`, `--version` | Named, same stop-before-touching guarantee. |
-| G4 | Bare lifecycle has no launch-policy selectors | Stated: bare `grove` takes no tree argument and no confirmation step; its enclosing working tree selects the workstream. The viewer path only selects an observation location. |
-| G5 | Exit status | Stated: `0` for a clean finish or a session that ended without signalling; `128 + N` when killed, because the driver dies of the same signal. |
-
-| G6 | `grove view [WORKTREE]` | Current and explicit worktree; no upward search, read-only Markdown, automatic/manual refresh, full-width Tree/File switching with active-view and Tab cues, leading lifecycle glyphs/words/colors with an independent cursor and fold markers, whole-subtree totals, bounded indentation and key-preserving elision at 60 × 10, tree/parent navigation, File-only line/page/Unicode horizontal scrolling, help, independent viewport and resize state retention, responsive contention/retry, error recovery and non-TTY refusal. Shared snapshot validation gives the viewer, driver and `pick` consistent duplicate-key and multiple-live-finish refusal, with identity-preserving repair guidance. Persistent RUNNING/NEXT summaries show idle NEXT and witnessed same-tree RUNNING with exclusion-aware NEXT, including finish after the last running ordinary leaf. RUNNING uses bold yellow activity/item text while lifecycle colors remain independent; rename/move/retirement/decomposition follow the key and branch children remain eligible. Labels and keys survive folded/File summaries at 60 × 10. Real launch application controls cover those behaviors, read-only multiple viewers and stale-row clearing. Independent tree/activity consistency, unavailable legacy active epochs, Idle after a validated private witness releases despite an active epoch, and bounded contention/recovery remain. Viewing guidance explains runtime waiting and the suspended-reader 30-second handoff bound and restart. Witnessed summaries retain launch handles with item absent, tree absent, tree unavailable or previous tree qualifiers; qualifiers and keys survive minimum-width clipping. Previous-tree mandates attach to no row and exclude no reused key; same-tree item absence still permits NEXT. Real-launch controls cover absence, replacement and first arrivals, saved-state reset versus same-root brief edits, aliases, failed/immediate spawn, signal-before-reap, handoff and killed drivers with surviving sessions. Full signal/panic restoration evidence follows separately. |
-
-<!-- tc: on -->
+| G1 | `grove` (no arguments) | Worked. All three dispatch outcomes. No `.grove/` ⇒ `root-init` and a first `requirements` leaf. Live leaves ⇒ launch the first in tree order. No live leaves ⇒ materialise the `finish` leaf. |
+| G9 | `grove run KIND [PROMPT]` | The choice of prompt or prompt file. Repeatable inputs, outputs and runtime grants. Selection by the owner policy, with no project and no jj. Mandatory confinement and supervision by Ravel. The transcript that the caller owns, and the opaque completion result. Validation of the artifacts, and no overwrite. Inline or multiplexer visibility, persistent logs, cancellation and exit codes. |
+| G2 | `-h`, `--help` | Named, with the fact that it stops before it touches a repository. |
+| G3 | `-V`, `--version` | Named, with the same guarantee. |
+| G4 | Bare lifecycle has no launch-policy selectors | Stated. Bare `grove` takes no tree argument and no confirmation step. Its enclosing working tree selects the workstream. The viewer path selects only an observation location. |
+| G5 | Exit status | Stated. `0` for a clean finish or for a session that ended without a signal. `128 + N` when a signal kills it, because the driver dies of the same signal. |
+| G6 | `grove view [WORKTREE]` | The current worktree and an explicit worktree. No upward search, read-only Markdown, and automatic and manual refresh. Full-width Tree and File switching, with active-view and Tab cues. Leading lifecycle glyphs, words and colours, with an independent cursor and fold markers. Whole-subtree totals, bounded indentation, and key-preserving elision at 60 × 10. Tree and parent navigation. In File only, line, page and Unicode horizontal scrolling. Help, independent viewport state, state retention on resize, responsive contention and retry, error recovery, and refusal without a TTY. Shared snapshot validation gives the viewer, the driver and `pick` the same refusals of a duplicate key and of multiple live finish leaves. Each refusal gives repair guidance that keeps identity. Persistent RUNNING and NEXT summaries show an idle NEXT. They show a witnessed RUNNING of the same tree, with a NEXT that knows its exclusions. That NEXT includes finish after the last running ordinary leaf. RUNNING uses bold yellow activity and item text, and the lifecycle colours stay independent. Rename, move, retirement and decomposition follow the key. Branch children stay eligible. Labels and keys survive folded summaries and File summaries at 60 × 10. Real launch-application controls cover those behaviours, multiple read-only viewers and the clearing of stale rows. These items remain: independent tree and activity consistency, and legacy active epochs that are unavailable. Idle after a validated private witness releases, despite an active epoch, remains too. Bounded contention and recovery remain as well. The viewing guidance explains runtime waiting, the 30-second handoff bound of a suspended reader, and restart. Witnessed summaries keep launch handles with one of four qualifiers: item absent, tree absent, tree unavailable or previous tree. Qualifiers and keys survive clipping at the minimum width. A mandate of a previous tree attaches to no row and excludes no reused key. Item absence in the same tree still permits NEXT. Real-launch controls cover absence, replacement and first arrivals. They also cover a reset of saved state against an edit of the brief of the same root, and aliases. They also cover a spawn that fails or ends at once, a signal before reap, handoff, and killed drivers with surviving sessions. The evidence of full restoration after a signal or a panic follows separately. |
 
 Rows G1–G3 come from `grove --help`. G4 and G5 are behaviours that no help text
 states. G4 is the absence of lifecycle selector arguments. G5 comes from the

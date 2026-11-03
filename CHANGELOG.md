@@ -128,6 +128,8 @@ stood at the graft — a closed record, not part of the versioned sequence above
   tracked in place by mise history. The chezmoi source and the Brewfile are
   retired.
 
+<!-- tc: off because released history is not converted -->
+
 ## v22.8.0
 
 - `grove`: keep required human questions pending in the same interactive
@@ -176,8 +178,6 @@ stood at the graft — a closed record, not part of the versioned sequence above
   the order of events after a session ends.
 
 ## v22.5.0
-
-<!-- tc: off because released history is not converted -->
 
 - `linkuistics` / `technical-communication`: new skill, modelled on ASD-STE100
   Simplified Technical English, that keeps a model's replies, the documents it

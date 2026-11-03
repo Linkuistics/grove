@@ -39,7 +39,7 @@ and readable caller policy assets. Grove callers resolve the
 independently released Ravel CLI on PATH, regardless of Grove's prefix/version.
 
 Ravel is outside this workspace and supplies no shared Rust dependency. Grove
-starts `ravel` as an ordinary child process through `grove_loop::ravel_job`.
+launches `ravel` as an ordinary child process through `grove_loop::ravel_job`.
 Ravel keeps job control of its managed process.
 
 <a id="the-seven-names"></a>
@@ -91,7 +91,7 @@ contract. `docs/ARCHITECTURE.md` names the seams.
 The viewer renders Markdown and observes changes automatically, with terminal
 restoration on handled exits. Source-offset reading positions survive unchanged
 refreshes. Mapping anchors across content edits remains a subsequent increment.
-Those internals are owned by the viewer crate, not reconstructed in this book.
+The viewer crate owns those internals. This book does not reconstruct them.
 
 <a id="the-test-applied-back"></a>
 ## Apply the thin-entry-point test
@@ -115,7 +115,7 @@ proves reproduction and ownership, not the truth of explanatory claims.
 <!-- rollup «source-roots» -->
 <!-- rollup «ownership-blocks-not-owned-by» of="compiler-held" -->
 There are 9 ownership blocks over 7 source roots. 8 blocks belong to chapters
-after Orientation. Each is resolved in the source index.
+after Orientation. The source index resolves each one.
 
 <!-- rollup «early-use-rows» -->
 The 4 early-use rows name loop items before their full

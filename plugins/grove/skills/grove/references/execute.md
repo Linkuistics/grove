@@ -1,3 +1,5 @@
+<!-- tc: pending because the conversion has not reached this part of the document -->
+
 ## Reusable development tasks
 
 Use the repository and machine owner's documented environment to invoke
@@ -26,16 +28,24 @@ judgment itself is deterministic.
 This executable task file belongs to the project and survives the grove; it is
 distinct from the markdown task notes under `.grove/`.
 
+<!-- tc: on -->
+
 ## Visible delegated work
 
-Keep background, delegated and spawned tasks visible. Announce each task's
-purpose, expose its progress through the current harness's nested-task UI when
-available, and report its outcome. For external one-shot work, use a
-`grove run` kind the owner's policy routes: its live transcript and persistent log provide a baseline,
-and `--ui auto` can add a view in a supported active multiplexer. Keep display
-control with the supervisor; a confined child must not inherit the parent's
-terminal, mux connection or completion authority. If an embedded UI or pane is
-unavailable, retain inline progress and a log rather than silently detaching.
+Keep background, delegated and spawned tasks visible. Announce the purpose of
+each task. When the current harness has a nested-task UI, show the progress of
+each task there. Report the outcome of each task.
+
+For external one-shot work, use a `grove run` kind that the owner's policy
+routes. Its live transcript and its persistent log are the baseline. In a
+supported active multiplexer, `--ui auto` can add a view.
+
+Keep control of the terminal and its panes with the supervisor. A confined child must not inherit the
+terminal, the multiplexer connection or the completion authority of its parent.
+If no embedded UI or pane is available, keep inline progress and a log. Do not
+detach silently.
+
+<!-- tc: pending because the conversion has not reached this part of the document -->
 
 ## Review ownership inside a picked leaf
 

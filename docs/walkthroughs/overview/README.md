@@ -2,26 +2,29 @@
 <!-- book-page id="contents" role="contents" -->
 
 This book explains the `grove` binary to a reader who knows Rust and Jujutsu
-and has driven a grove. Grove vocabulary is linked to the glossary. The
+and has driven a grove. The book links Grove vocabulary to the glossary. The
 [user guide's account of running Grove](../../USAGE.md#usage-running-grove)
-provides the product entry point; this book explains the code that implements
+provides the product entry point. This book explains the code that implements
 its human command surface.
 
 Bare invocation resolves a working tree, takes a driver lease, resolves Ravel
 and calls the loop. It installs no skills.
 Viewing returns before
-that lifecycle. `grove run` adds a separate lifetime: one kind, with the command
-the owner's Ravel policy selects for it, in confined temporary storage, with staged inputs, checked output publication
-and a parent-owned transcript. It needs no workspace or task tree.
+that lifecycle.
+
+`grove run` adds a separate lifetime. It has one kind and the command that the
+owner's Ravel policy selects for that kind. It runs in confined temporary
+storage, with staged inputs, checked output publication and a parent-owned
+transcript. It needs no workspace or task tree.
 
 The corpus is every production source file and the manifest of `crates/grove`.
 The book explains the parser, dispatch, standalone orchestration and display. Library internals remain behind
 their public seams: the book supplies the local contract needed to understand
 each call, while their own books explain their implementation.
 
-The organizing question is which boundary holds each behavior: a public library
+The organising question is which boundary holds each behaviour: a public library
 interface, a closed parser surface, an operating-system policy or a checked file
-transfer. The lifecycle entry is small; standalone invocation deliberately owns
+transfer. The lifecycle entry is small. Standalone invocation deliberately owns
 artifact and transcript orchestration in this binary. A package boundary limits
 access to private library items, but does not by itself prove that a binary
 contains no application logic.
@@ -29,7 +32,7 @@ contains no application logic.
 The book assumes Rust, clap and ordinary operating-system APIs. It explains the
 codebase-specific order of setup, supervision and publication. Tests under
 `crates/grove/tests/` are evidence, outside the reconstructed corpus. Literal
-fragments quote authoritative production bytes; final validation checks their
+fragments quote authoritative production bytes. Final validation checks their
 coverage, ownership, reconstruction and links.
 
 <a id="reading-fragments"></a>
@@ -37,7 +40,7 @@ coverage, ownership, reconstruction and links.
 
 A declaration such as `«manifest-thin-by-construction»` names one globally
 unique fragment. A **literal fragment** carries exact source bytes inside a
-four-backtick fence; nothing in it is trimmed, reindented or normalised. A
+four-backtick fence. The book does not trim, reindent or normalise anything in it. A
 **composite fragment** contains only whole-line `insert` references and expands
 them in order. Each **source root** in the source index expands to one complete
 production file. A **`defer` line** reserves an exact source range for a later

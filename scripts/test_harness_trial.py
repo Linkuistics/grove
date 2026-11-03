@@ -104,22 +104,14 @@ view = {{"kind": "impl", "originalPrompt": "mandate", "skills": {{
     "directories": [{{"source": "grove", "path": str(snap / "skills")}}],
     "mandatory": mandatory}}}}
 if sys.argv[1:2] == ["run"]:
-    # A fake `grove run`: the wrapper writes to the run log, as a confined
-    # launch does. The fake adds the probes that the configuration script adds.
-    probes = [["read", str(descriptor)]]
-    probes += [["read", item["path"]] for item in view["skills"]["mandatory"]]
-    probes += [["write", str(snap) + "/trial-probe"]]
-    probes += route["probes"] + [["write", "trial-probe-inside"]]
+    # A fake `grove run`: the wrapper writes to the run log, as a standalone
+    # launch does.
     work = trial / "tmp/work"
     work.mkdir()
     logs = home / ".local/state/grove/runs"
     logs.mkdir(parents=True)
     env = dict(os.environ, RAVEL_EXIT_FILE=str(trial / "tmp/exit"), RAVEL_SKILL_DIRECTORIES=str(descriptor))
     args = [route["wrapper"], route["records"], json.dumps(view), route["program"]]
-    for op, path in probes:
-        args += ["--probe", op, path]
-    for option, first, second in route.get("setup", []):
-        args += [option, first, second]
     args += [*(["--add-dir", str(snap)] if route.get("addDirs", True) else []), *route["fixedArgs"], "standalone task"]
     with (logs / "grove-run-fake.log").open("w") as log:
         print("ravel: a line of the run log", file=log, flush=True)
@@ -271,8 +263,8 @@ if delegate and not resume:
 for item in behaviour.get("writeFiles", []):
     Path(item["path"].format(**names)).write_text(item["text"])
 if behaviour.get("noSession"):
-    # A confined harness cannot write its session file. Its stream holds the
-    # same tool calls.
+    # A harness that writes no session file. Its stream holds the same tool
+    # calls.
     for entry in entries:
         print(json.dumps(entry))
 else:
@@ -873,30 +865,20 @@ class Fixture:
 
 def plant_cases(root: Path) -> Path:
     """The smoke case, and two cases of the same shape for the offline
-    resolution and the confined standalone mode."""
+    resolution and the standalone mode."""
     cases = root / "cases"
     shutil.copytree(trial.CASES / "smoke", cases / "smoke")
     smoke = json.loads((cases / "smoke" / "case.json").read_text())
     resolve = cases / "resolve"
     shutil.copytree(cases / "smoke", resolve)
     (resolve / "case.json").write_text(json.dumps({**smoke, "name": "resolve", "resolveOffline": True}))
-    confined = cases / "confined"
-    confined.mkdir()
-    (confined / "prompt.md").write_text("Write stamp.sh.\n")
-    (confined / "case.json").write_text(json.dumps({
-        **smoke, "name": "confined", "mode": "standalone", "probes": True,
+    standalone = cases / "standalone"
+    standalone.mkdir()
+    (standalone / "prompt.md").write_text("Write stamp.sh.\n")
+    (standalone / "case.json").write_text(json.dumps({
+        **smoke, "name": "standalone", "mode": "standalone",
         "standalone": {"kind": "impl", "prompt": "prompt.md", "outputs": ["stamp.sh"]},
         "mandatory": [{"source": "grove", "path": "skills/grove/SKILL.md"}],
-    }))
-    # The same confined run on the native route: no settings, and native
-    # copies in the sandbox home, outside every grant.
-    confined_native = cases / "confined-native"
-    shutil.copytree(confined, confined_native)
-    (confined_native / "case.json").write_text(json.dumps({
-        **smoke, "name": "confined-native", "route": "native-2.0", "mode": "standalone", "probes": True,
-        "standalone": {"kind": "impl", "prompt": "prompt.md", "outputs": ["stamp.sh"]},
-        "native": [{"name": "grove", "from": "plugins/grove/skills/craft"},
-                   {"name": "grove-impl", "from": "plugins/grove/skills/craft"}],
     }))
     # A case with a native copy, a sandbox deny rule, a planted file and a task
     # that names the planted path.
@@ -1333,151 +1315,64 @@ class HarnessTrialTest(unittest.TestCase):
         self.assertEqual(trial.resolve_failures({**resolve, "descriptorIdentity": launch["descriptorIdentity"]},
                                                 [launch]), [])
 
-    # --- The confined standalone mode ----------------------------------------
+    # --- The standalone mode --------------------------------------------------
 
-    def check_confined(self, fixture: Fixture):
+    def runtime_reads(self, fixture: Fixture) -> list[str]:
+        argv = json.loads(Path(str(fixture.grove_env) + ".argv").read_text())
+        return [argv[n + 1] for n, arg in enumerate(argv) if arg == "--runtime-read"]
+
+    def check_standalone(self, fixture: Fixture):
+        """A standalone run sends no `--runtime-read`, and its record comes
+        from Grove's run log."""
         fixture.behave(noSession=True)
-        status, output = fixture.run("confined")
+        status, output = fixture.run("standalone")
         self.assertEqual(status, 0, output)
         record = fixture.record()
         self.assertEqual(record["mode"], "standalone")
+        self.assertEqual(self.runtime_reads(fixture), [])
         self.assertEqual(len(record["launches"]), 1)
         launch = record["launches"][0]
         self.assertEqual(launch["control"], [])
         main = [t for t in launch["transcripts"] if t["main"]]
         self.assertEqual([t["file"] for t in main], ["stream"])
         self.assertEqual([(e["tool"], e["class"], e.get("skill"), e["error"]) for e in main[0]["events"]], EXPECTED)
-        trial_dir = Path(record["trial"])
-        home = trial_dir / "home"
-        checkout = fixture.root / "source"
-        expected = [
-            ("read", "descriptor"), ("read", "mandatory"), ("write", "snapshot"),
-            ("read", str(home / ".config/ravel/settings.json")), ("read", str(home / ".config/ravel/config.rhai")),
-            ("read", str(checkout / "plugins/grove/skills/grove/SKILL.md")),
-            ("write", str(home / "trial-probe-outside")), ("write", "trial-probe-inside"),
-        ]
-        probes = launch["probes"]
-        self.assertEqual([p["op"] for p in probes], [op for op, _ in expected])
-        for probe, (_, path) in list(zip(probes, expected))[3:]:
-            self.assertEqual(probe["path"], path)
-        self.assertEqual([(p["op"], p["path"]) for p in record["contrast"]], [(p["op"], p["path"]) for p in probes])
-        self.assertFalse((home / "trial-probe-outside").exists(), "a write probe left its file")
         self.assertEqual([line.split()[0] for line in record["ending"]["published"]], ["stamp.sh"])
         self.assertIn("ravel: a line of the run log", record["ending"]["runLog"])
-        markdown = (trial_dir / "record.md").read_text()
+        markdown = (Path(record["trial"]) / "record.md").read_text()
         self.assertIn("| Mode | standalone |", markdown)
-        self.assertIn("| write | `trial-probe-inside` | ok | ok |", markdown)
 
-    def test_a_confined_run_records_its_probes_and_its_stream(self):
-        self.check_confined(self.fixture)
-        self.broken(self.check_confined, "split_log", lambda text: [])
-        self.broken(self.check_confined, "contrast_probes", lambda probes, cwd: [])
-        self.broken(self.check_confined, "fixed_probes", lambda case, home, checkout: [])
+    def test_a_standalone_run_records_its_stream_from_the_run_log(self):
+        self.check_standalone(self.fixture)
+        self.broken(self.check_standalone, "split_log", lambda text: [])
+        real = trial.run_driver
+        self.broken(self.check_standalone, "run_driver",
+                    lambda argv, *rest: real([*argv, "--runtime-read", "/granted"], *rest))
 
-    def check_confined_native(self, fixture: Fixture):
-        status, output = fixture.run("confined-native")
+    def check_standalone_codex(self, fixture: Fixture):
+        """A standalone Codex launch runs in the Codex sandbox
+        `workspace-write`, with the sandbox `.codex` of a lifecycle launch."""
+        status, output = fixture.run_codex("standalone")
         self.assertEqual(status, 0, output)
         record = fixture.record()
-        self.assertEqual(record["sources"]["settings"], {})
-        home = Path(record["trial"]) / "home"
-        self.assertFalse((home / ".config/ravel/settings.json").exists())
-        native = [str(home / f".claude/skills/{name}/SKILL.md") for name in ("grove", "grove-impl")]
-        probes = record["launches"][0]["probes"]
-        self.assertEqual([p["path"] for p in probes if p["path"] in native], native)
-        contrast = {p["path"]: p["status"] for p in record["contrast"]}
-        self.assertEqual([contrast[path] for path in native], ["ok", "ok"])
-
-    def test_a_confined_native_run_probes_its_native_copies(self):
-        self.check_confined_native(self.fixture)
-        real = trial.fixed_probes
-        self.broken(self.check_confined_native, "fixed_probes",
-                    lambda case, home, checkout: real({**case, "native": []}, home, checkout))
-
-    def grove_argv(self, fixture: Fixture) -> list[str]:
-        return json.loads(Path(str(fixture.grove_env) + ".argv").read_text())
-
-    def runtime_reads(self, fixture: Fixture) -> list[str]:
-        argv = self.grove_argv(fixture)
-        return [argv[n + 1] for n, arg in enumerate(argv) if arg == "--runtime-read"]
-
-    def check_confined_claude_setup(self, fixture: Fixture):
-        """A confined Claude Code launch gets CLAUDE_CODE_TMPDIR, which names
-        the launch's own TMPDIR, and the control admits it."""
-        fixture.behave(noSession=True)
-        status, output = fixture.run("confined")
-        self.assertEqual(status, 0, output)
-        launch = fixture.record()["launches"][0]
-        self.assertEqual(launch["trialOwned"], {"CLAUDE_CODE_TMPDIR": "."})
-        self.assertEqual(launch["control"], [])
-        self.assertEqual(self.runtime_reads(fixture), [str(fixture.claude)])
-
-    def test_a_confined_claude_launch_names_its_own_temporary_directory(self):
-        self.check_confined_claude_setup(self.fixture)
-        self.broken(self.check_confined_claude_setup, "CLAUDE.confined_setup", lambda home: [])
-        self.broken(self.check_confined_claude_setup, "trial_owned", lambda name, value, child: False)
-
-    def check_confined_codex_setup(self, fixture: Fixture):
-        """A confined Codex launch gets a CODEX_HOME in its TMPDIR with a link
-        to the real sign-in, which a runtime grant admits, and runs without
-        the Codex sandbox."""
-        fixture.behave(noSession=True)
-        status, output = fixture.run_codex("confined")
-        self.assertEqual(status, 0, output)
-        record = fixture.record()
+        self.assertEqual(self.runtime_reads(fixture), [])
         launch = record["launches"][0]
-        self.assertEqual(launch["trialOwned"], {"CODEX_HOME": "codex-home"})
-        self.assertIn(trial.CODEX_CA_VARIABLE, launch["envNames"])
         self.assertEqual(launch["control"], [])
-        home = Path(record["trial"]) / "home"
-        self.assertEqual(self.runtime_reads(fixture), [str(fixture.codex), str(home / trial.CODEX.store)])
-        link = Path(record["trial"]) / "tmp/codex-home/auth.json"
-        self.assertEqual(os.readlink(link), os.path.realpath(fixture.owner / trial.CODEX.store))
+        self.assertNotEqual(launch["transcripts"][0]["file"], "stream")
         route = json.loads((Path(record["trial"]) / "route.json").read_text())
-        self.assertEqual(route["fixedArgs"][route["fixedArgs"].index("--sandbox") + 1], "danger-full-access")
-        self.assertEqual(record["harness"]["sandboxMode"], "danger-full-access")
+        self.assertEqual(route["fixedArgs"][route["fixedArgs"].index("--sandbox") + 1], "workspace-write")
+        self.assertEqual(record["harness"]["sandboxMode"], "workspace-write")
+        self.assertIn("| Codex sandbox | `workspace-write`, approval `never` |",
+                      (Path(record["trial"]) / "record.md").read_text())
 
-    def test_a_confined_codex_launch_has_a_writable_home_and_a_granted_sign_in(self):
-        self.check_confined_codex_setup(self.fixture)
-        self.broken(self.check_confined_codex_setup, "CODEX.confined_setup", lambda home: [])
-        self.broken(self.check_confined_codex_setup, "CODEX.confined_reads", lambda home: [])
-        self.broken(self.check_confined_codex_setup, "CODEX.sandbox", lambda case: trial.CODEX_SANDBOX)
+    def test_a_standalone_codex_launch_keeps_its_own_sandbox(self):
+        self.check_standalone_codex(self.fixture)
+        self.broken(self.check_standalone_codex, "CODEX_SANDBOX", "danger-full-access")
 
-    def test_a_lifecycle_codex_launch_keeps_its_own_sandbox(self):
-        case = {"kinds": ["impl"], "name": "x", "harness": "codex"}
-        route = trial.route_for(case, Path("/r"), Path("/c"), "m", "e", home=Path("/h"))
-        self.assertEqual(route["fixedArgs"][route["fixedArgs"].index("--sandbox") + 1], trial.CODEX_SANDBOX)
-        self.assertEqual(route["setup"], [])
-
-    def check_trial_owned_control(self, fixture: Fixture):
-        child = {"TMPDIR": "/run/private/tmp"}
-        control = trial.child_control
-        self.assertEqual(control({**child, "CLAUDE_CODE_TMPDIR": "/run/private/tmp"}, {}), [])
-        self.assertEqual(control({**child, "CODEX_HOME": "/run/private/tmp/codex-home"}, {}), [])
-        self.assertEqual(control({**child, "CLAUDE_CODE_TMPDIR": "/tmp"}, {}),
-                         ["CLAUDE_CODE_TMPDIR reached the trial child"])
-        self.assertEqual(control({**child, "CLAUDE_CODE_TMPDIR": "/run/private/tmpx"}, {}),
-                         ["CLAUDE_CODE_TMPDIR reached the trial child"])
-        self.assertEqual(control({**child, "CLAUDE_CODE_OTHER": "/run/private/tmp"}, {}),
-                         ["CLAUDE_CODE_OTHER reached the trial child"])
-        self.assertEqual(control({"CLAUDE_CODE_TMPDIR": "/run/private/tmp"}, {}),
-                         ["CLAUDE_CODE_TMPDIR reached the trial child"])
-
-    def test_the_control_admits_a_trial_owned_name_only_inside_tmpdir(self):
-        self.check_trial_owned_control(self.fixture)
-        self.broken(self.check_trial_owned_control, "trial_owned", lambda name, value, child: True)
-
-    def test_the_wrapper_reports_a_failed_access(self):
-        directory = Path(tempfile.mkdtemp(dir=self.temp.name))
-        readable = directory / "readable"
-        readable.write_text("x\n")
-        locked = directory / "locked"
-        locked.mkdir(mode=0o500)
-        result = trial.contrast_probes([
-            {"op": "read", "path": str(readable)}, {"op": "read", "path": str(directory / "absent")},
-            {"op": "write", "path": str(locked / "probe")}, {"op": "write", "path": str(directory / "probe")},
-        ], directory)
-        self.assertEqual([p["status"] for p in result], ["ok", "failed", "failed", "ok"])
-        self.assertFalse((directory / "probe").exists())
+    def test_every_codex_route_keeps_its_own_sandbox(self):
+        for mode in trial.MODES:
+            case = {"kinds": ["impl"], "name": "x", "harness": "codex", "mode": mode}
+            route = trial.route_for(case, Path("/r"), Path("/c"), "m", "e")
+            self.assertEqual(route["fixedArgs"][route["fixedArgs"].index("--sandbox") + 1], trial.CODEX_SANDBOX)
 
     # --- Continuation ----------------------------------------------------------
 

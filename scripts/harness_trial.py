@@ -22,12 +22,9 @@ the skill sources, outside every working directory of a trial.
 case's Grove tree, and the settings of the case's route. It then runs the
 scratch Grove driver with the 2.0 front first on PATH, from an allow-listed
 environment, and writes the case record. A standalone case runs `grove run`
-instead, which Ravel confines. The wrapper then gives the harness a writable
-directory in Ravel's private run directory: CLAUDE_CODE_TMPDIR for Claude
-Code, and a CODEX_HOME that links the sign-in, which a `--runtime-read` grant
-admits, and the system TLS bundle, for Codex. Codex runs without its own
-sandbox there, because Seatbelt cannot nest. A case can add access probes
-inside the launch and an offline `ravel skills resolve`. For an
+instead, and Grove's run log keeps the record of its launch. Codex runs in
+its own sandbox `workspace-write` on every route. A case can add an offline
+`ravel skills resolve`. For an
 explicit-route request, a case can also copy native skills into the sandbox
 `.claude/skills`, write the
 sandbox `.claude/settings.json` and plant files under the trial's `guidance/`.
@@ -103,14 +100,10 @@ SYSTEM_PATH = ("/usr/bin", "/bin", "/usr/sbin", "/sbin")
 CONTROL_PATTERN = re.compile(r"^(RAVEL_|GROVE_|HARNESS_DISPATCH_|CLAUDE|CODEX_)")
 # Names that no trial child may hold at all, with any value.
 HARNESS_PATTERN = re.compile(r"^(CLAUDECODE$|CLAUDE_|ANTHROPIC_|OPENAI_|CODEX_API_KEY$)")
-# The names that the wrapper's set-up gives a confined harness. Each names a
-# directory inside the private run directory of the launch, which is the
-# child's own TMPDIR. With any other value, the name is a leak.
-TRIAL_OWNED = ("CLAUDE_CODE_TMPDIR", "CODEX_HOME")
 
 ROUTES = ("native-2.0", "directory-2.0")
 # A lifecycle case runs the bare Grove driver in a jj repository. A standalone
-# case runs `grove run`, which Ravel confines.
+# case runs `grove run`.
 MODES = ("lifecycle", "standalone")
 # The network-denying profile of crates/grove/tests/directory_route.rs.
 NO_NETWORK = "(version 1)(allow default)(deny network*)"
@@ -231,18 +224,11 @@ def parse_env(text: str) -> dict[str, str]:
     return env
 
 
-def trial_owned(name: str, value: str, child: Mapping[str, str]) -> bool:
-    """Whether the wrapper's set-up gave the name: a name of TRIAL_OWNED whose
-    value is the child's TMPDIR or lies inside it."""
-    tmp = child.get("TMPDIR", "")
-    return name in TRIAL_OWNED and bool(tmp) and (value == tmp or value.startswith(tmp.rstrip("/") + "/"))
-
-
 def child_control(child: Mapping[str, str], live: Mapping[str, str]) -> list[str]:
     """Each way the live session's authority reached a trial child."""
     leaks = []
     for name, value in sorted(child.items()):
-        if HARNESS_PATTERN.match(name) and not trial_owned(name, value, child):
+        if HARNESS_PATTERN.match(name):
             leaks.append(f"{name} reached the trial child")
         elif CONTROL_PATTERN.match(name) and live.get(name) == value:
             leaks.append(f"{name} reached the trial child with the live session's value")
@@ -342,25 +328,6 @@ def check_compaction(case: dict[str, Any], directory: Path) -> None:
         raise TrialError(f"case {name}: no answer file for the turn after compaction")
 
 
-def fixed_probes(case: dict[str, Any], home: Path, checkout: Path) -> list[list[str]]:
-    """The probes that the runner knows before the launch: the protected
-    configuration, each mandatory file at its origin, each native copy and a
-    write outside the working directory. The configuration script adds the
-    probes of the request's own paths, and a write inside the working
-    directory. A native copy lies in the sandbox home, outside every grant of
-    a confined launch, so its probe shows whether the agent could read it."""
-    if not case.get("probes"):
-        return []
-    config = home / ".config" / "ravel"
-    probes = [["read", str(config / "settings.json")], ["read", str(config / "config.rhai")]]
-    plugins = {source["id"]: source["plugin"] for source in case.get("sources", [])}
-    probes += [["read", str(checkout / plugins[item["source"]] / item["path"])] for item in case.get("mandatory", [])]
-    root = adapter_of(case).native_root
-    probes += [["read", str(home / root / item["name"] / "SKILL.md")] for item in case.get("native", [])]
-    probes.append(["write", str(home / "trial-probe-outside")])
-    return probes
-
-
 def settings_for(case: dict[str, Any], checkout: Path, clones: Mapping[str, Path] | None = None) -> dict[str, Any]:
     """Ravel's owner settings of the case's route. A source in `clones` comes
     from that checkout instead of the prepared one."""
@@ -379,21 +346,16 @@ def rhai_string(text: str) -> str:
     return json.dumps(text)
 
 
-def route_for(case: dict[str, Any], records: Path, program: Path, model: str, effort: str,
-              probes: list[list[str]] | None = None, home: Path | None = None) -> dict[str, Any]:
+def route_for(case: dict[str, Any], records: Path, program: Path, model: str, effort: str) -> dict[str, Any]:
     """The route as data. The configuration script and the fake driver of the
-    tests both take it from here. A standalone launch is confined, so its
-    wrapper writes its record to standard output, `-`, and runs the adapter's
-    set-up for the sandbox home `home`. The adapter gives the program, its
-    arguments and the provider."""
+    tests both take it from here. The wrapper of a standalone launch writes
+    its record to standard output, `-`, which Grove's run log keeps. The
+    adapter gives the program, its arguments and the provider."""
     standalone = case.get("mode") == "standalone"
     return {
         "kinds": case["kinds"],
         "wrapper": str(WRAPPER),
         "records": "-" if standalone else str(records),
-        "probes": probes or [],
-        "setup": adapter_of(case).confined_setup(home) if standalone and home else [],
-        "probeRequest": bool(case.get("probes")),
         **adapter_of(case).launch(case, records, program, model, effort),
         "model": model,
         "effort": effort,
@@ -404,23 +366,6 @@ def config_for(case: dict[str, Any], route: dict[str, Any]) -> str:
     """The configuration script: the case's kinds to the wrapper, any other refuses.
     Each snapshot root also goes to --add-dir, as in the Rhai sample."""
     kinds = ", ".join(f"{rhai_string(kind)}: true" for kind in route["kinds"])
-    probes = ""
-    if route.get("probeRequest"):
-        # The probes of the request's own paths come first, then the runner's.
-        # The last probe writes inside the working directory of the launch.
-        lines = [
-            "    if request.skills != () {",
-            '        args += ["--probe", "read", request.skills.descriptorPath];',
-            '        for item in request.skills.mandatory { args += ["--probe", "read", item.path]; }',
-            '        for source in request.skills.sources { args += ["--probe", "write", source.snapshotRoot + "/trial-probe"]; }',
-            "    }",
-        ]
-        lines += [f'    args += ["--probe", {rhai_string(op)}, {rhai_string(path)}];' for op, path in route["probes"]]
-        lines.append('    args += ["--probe", "write", "trial-probe-inside"];')
-        probes = "\n".join(lines)
-    # The wrapper's set-up of a confined harness, after the probes.
-    for option, first, second in route.get("setup", []):
-        probes += f'\n    args += [{rhai_string(option)}, {rhai_string(first)}, {rhai_string(second)}];'
     fixed = route["fixedArgs"]
     records, program, model, effort = route["records"], route["program"], route["model"], route["effort"]
     program_args = ""
@@ -450,7 +395,7 @@ fn select(request, context) {{
     }}
     let view = #{{ kind: request.kind, originalPrompt: request.originalPrompt, skills: request.skills }};
     let args = [{rhai_string(str(records))}, ravel::json_encode(view), {rhai_string(str(program))}];
-{probes}{program_args}{add_dirs}
+{program_args}{add_dirs}
     args += [{', '.join(rhai_string(arg) for arg in fixed)}];
     args.push(request.prompt);
     #{{ status: "selected", program: {rhai_string(route["wrapper"])}, args: args,
@@ -972,17 +917,6 @@ class HarnessAdapter:
         """The names that the harness needs beyond the allow-list."""
         return {}
 
-    def confined_setup(self, home: Path) -> list[list[str]]:
-        """The wrapper's set-up of a confined launch, as `--tmp-env` and
-        `--tmp-link` triples. Ravel scrubs the environment of a confined
-        harness, so the wrapper gives these names inside the launch."""
-        return []
-
-    def confined_reads(self, home: Path) -> list[Path]:
-        """The `--runtime-read` grants of a confined launch beyond the
-        harness program, such as a sign-in that a file holds."""
-        return []
-
     def program(self, environ: Mapping[str, str]) -> Path:
         named = environ.get("HARNESS_TRIAL_PROGRAM") or shutil.which(self.name, path=environ.get("PATH"))
         if not named or not os.access(named, os.X_OK):
@@ -1012,7 +946,7 @@ class HarnessAdapter:
         arguments of the route, then the harness's own resume."""
         raise NotImplementedError
 
-    def record_extras(self, standalone: bool, auth: dict[str, Any], replaced: str | None,
+    def record_extras(self, auth: dict[str, Any], replaced: str | None,
                       prelaunch: dict[str, Any] | None) -> dict[str, Any]:
         """The facts that only this harness adds to the record's harness."""
         return {}
@@ -1047,11 +981,11 @@ class HarnessAdapter:
         return None
 
     def describe(self, label: str, view: dict[str, Any], child: dict[str, str], stream: list[dict[str, Any]],
-                 stream_sha: str | None, probes: list[dict[str, str]], home: Path, repo: Path,
+                 stream_sha: str | None, home: Path, repo: Path,
                  live: Mapping[str, str], marker: str | None = None, window: tuple[int, int] | None = None,
                  turns: bool = False, prompt: str | None = None) -> dict[str, Any]:
-        """One launch: its request view, the environment of its harness, its
-        probes and its ordered events. A window limits the main session file
+        """One launch: its request view, the environment of its harness and
+        its ordered events. A window limits the main session file
         to the lines of this launch, and the digest then covers those lines
         only."""
         raise NotImplementedError
@@ -1111,8 +1045,7 @@ LOCATION_NAMES = (
 DEFAULT_MODEL = "claude-opus-5-5"
 DEFAULT_EFFORT = "medium"
 # Claude Code's own permission layer. No call prompts or is denied, so the
-# transcript shows what the agent chose to read. Ravel's confinement is an
-# operating-system sandbox outside the harness, and this mode leaves it in force.
+# transcript shows what the agent chose to read. Ravel confines no launch.
 PERMISSION_MODE = "bypassPermissions"
 INIT_KEYS = (
     "claude_code_version", "model", "permissionMode", "cwd", "tools", "mcp_servers",
@@ -1154,13 +1087,6 @@ class ClaudeAdapter(HarnessAdapter):
                     f"configuration, plugin tree or sign-in; run the trial again without {name}"
                 )
         return None
-
-    def confined_setup(self, home: Path) -> list[list[str]]:
-        """Claude Code takes its temporary directory from CLAUDE_CODE_TMPDIR,
-        else `/tmp`, and ignores TMPDIR (`function Gf(){let
-        e=i.CLAUDE_CODE_TMPDIR;if(e)return e;return"/tmp"}` in the 2.1.317
-        executable). Seatbelt denies `/tmp`, so the wrapper names TMPDIR."""
-        return [["--tmp-env", "CLAUDE_CODE_TMPDIR", "."]]
 
     def prelaunch(self, program: Path, env: dict[str, str], tmp: Path, trial: Path,
                   config_dir: Path) -> tuple[dict[str, Any], str | None, dict[str, Any] | None]:
@@ -1356,12 +1282,11 @@ class ClaudeAdapter(HarnessAdapter):
         return startup
 
     def describe(self, label: str, view: dict[str, Any], child: dict[str, str], stream: list[dict[str, Any]],
-                 stream_sha: str | None, probes: list[dict[str, str]], home: Path, repo: Path,
+                 stream_sha: str | None, home: Path, repo: Path,
                  live: Mapping[str, str], marker: str | None = None, window: tuple[int, int] | None = None,
                  turns: bool = False, prompt: str | None = None) -> dict[str, Any]:
         """The events come from the session file of the launch. When the
-        harness wrote none, as a confined harness cannot, they come from its
-        stream, which holds the same tool calls. Each Agent call of the main
+        harness wrote none, they come from its stream, which holds the same tool calls. Each Agent call of the main
         transcript adds a delegation, which the prompt of the launch lets the
         record compare with the obligations of the preamble."""
         session_id, cwd = self.stream_ids(stream)
@@ -1398,7 +1323,7 @@ class ClaudeAdapter(HarnessAdapter):
         delegated = self.delegations(main_entries, session_dir, home, prompt, descriptor, child, transcripts,
                                      mandatory) if session_dir else []
         return {
-            **launch_facts(label, view, session_id, child, live, probes, stream_sha),
+            **launch_facts(label, view, session_id, child, live, stream_sha),
             "startup": self.startup(stream, []) if not transcripts else None,
             "transcripts": transcripts,
             "delegations": delegated,
@@ -1472,31 +1397,11 @@ class ClaudeAdapter(HarnessAdapter):
 CODEX_HOME = "CODEX_HOME"
 CODEX_MODEL = "gpt-6.1-sol"
 CODEX_EFFORT = "medium"
-# Codex's own sandbox. Reads are unrestricted, and writes reach the working
-# directory, TMPDIR and /tmp, with no network. Ravel allocates the session
-# channel under TMPDIR, so `end-session` reaches it. A lifecycle launch has no
-# Ravel confinement, so this sandbox runs in its place. A standalone launch
-# uses CODEX_CONFINED_SANDBOX instead.
+# Codex's own sandbox, on every route. Reads are unrestricted, and writes
+# reach the working directory, TMPDIR and /tmp, with no network. Ravel
+# allocates the session channel under TMPDIR, so `end-session` reaches it.
+# Ravel confines no launch, so this sandbox is the only one.
 CODEX_SANDBOX = "workspace-write"
-# Codex's sandbox inside Ravel confinement. Codex applies its own sandbox with
-# /usr/bin/sandbox-exec, and Seatbelt refuses a profile inside a sandboxed
-# process: `sandbox-exec: sandbox_apply: Operation not permitted` under a copy
-# of Ravel's profile (docs/common-loading-acceptance-record.md, "Confined
-# harness repair"). Under workspace-write every command of the agent would
-# fail, so a confined launch disables the inner sandbox, and Ravel's
-# confinement is the only one.
-CODEX_CONFINED_SANDBOX = "danger-full-access"
-# The CODEX_HOME of a confined launch, inside Ravel's private run directory.
-CONFINED_CODEX_HOME = "codex-home"
-# The TLS roots of a confined Codex launch. Codex loads the platform roots
-# through the Security framework, which needs the Mach service
-# com.apple.SecurityServer, and Ravel's profile denies it: every request then
-# fails. CODEX_CA_CERTIFICATE adds a PEM bundle to the root store
-# (`build_rustls_root_store` in
-# https://github.com/openai/codex/blob/rust-v0.166.0/codex-rs/http-client/src/custom_ca.rs).
-# The system bundle is one of Ravel's system reads.
-CODEX_CA_VARIABLE = "CODEX_CA_CERTIFICATE"
-CONFINED_CA_BUNDLE = "/private/etc/ssl/cert.pem"
 CODEX_APPROVAL = "never"
 # The bundled system skills that Codex installs at startup, and the curated
 # plugins that a ChatGPT sign-in downloads. Both are platform-managed residue.
@@ -1590,22 +1495,6 @@ class CodexAdapter(HarnessAdapter):
     def env(self, home: Path) -> dict[str, str]:
         return {CODEX_HOME: str(home / self.config_root)}
 
-    def confined_setup(self, home: Path) -> list[list[str]]:
-        """Codex writes in its configuration directory before its session, and
-        Seatbelt denies the sandbox `.codex`. The wrapper therefore makes a
-        fresh CODEX_HOME in the private run directory, with a link to the
-        real sign-in. That file is the target of the sandbox link, and its
-        `--runtime-read` grant admits it read-only. The native roots of this
-        CODEX_HOME hold no native copy, and the sandbox `.codex/skills` stays
-        outside every grant. CODEX_CA_CERTIFICATE gives Codex TLS roots that
-        the sandbox can read."""
-        return [["--tmp-env", CODEX_HOME, CONFINED_CODEX_HOME],
-                ["--tmp-link", f"{CONFINED_CODEX_HOME}/auth.json", os.path.realpath(home / self.store)],
-                ["--env", CODEX_CA_VARIABLE, CONFINED_CA_BUNDLE]]
-
-    def confined_reads(self, home: Path) -> list[Path]:
-        return [home / self.store]
-
     def prelaunch(self, program: Path, env: dict[str, str], tmp: Path, trial: Path,
                   config_dir: Path) -> tuple[dict[str, Any], str | None, dict[str, Any] | None]:
         """`codex login status` reads the linked sign-in. `codex debug
@@ -1679,7 +1568,7 @@ class CodexAdapter(HarnessAdapter):
             "fixedArgs": [
                 "exec", "--json", "--skip-git-repo-check", "--color", "never",
                 "--model", model, "-c", f'model_reasoning_effort="{effort}"',
-                "--sandbox", self.sandbox(case), "-c", f'approval_policy="{CODEX_APPROVAL}"', *note,
+                "--sandbox", CODEX_SANDBOX, "-c", f'approval_policy="{CODEX_APPROVAL}"', *note,
             ],
             "provider": "openai",
         }
@@ -1687,19 +1576,11 @@ class CodexAdapter(HarnessAdapter):
     def resume_args(self, route: dict[str, Any], session_id: str) -> list[str]:
         return [*route["fixedArgs"], "resume", session_id]
 
-    @staticmethod
-    def sandbox(case: Mapping[str, Any]) -> str:
-        """The Codex sandbox of a case: none inside Ravel confinement."""
-        return CODEX_CONFINED_SANDBOX if case.get("mode") == "standalone" else CODEX_SANDBOX
-
-    def record_extras(self, standalone: bool, auth: dict[str, Any], replaced: str | None,
+    def record_extras(self, auth: dict[str, Any], replaced: str | None,
                       prelaunch: dict[str, Any] | None) -> dict[str, Any]:
-        sandbox = self.sandbox({"mode": "standalone" if standalone else "lifecycle"})
         return {
-            "permissionMode": f"sandbox {sandbox}, approval {CODEX_APPROVAL}",
-            "sandboxMode": sandbox, "approvalPolicy": CODEX_APPROVAL,
-            "confinement": "Ravel confinement alone, with the Codex sandbox off" if standalone
-            else "in place of Ravel confinement, which a lifecycle launch does not have",
+            "permissionMode": f"sandbox {CODEX_SANDBOX}, approval {CODEX_APPROVAL}",
+            "sandboxMode": CODEX_SANDBOX, "approvalPolicy": CODEX_APPROVAL,
             "loginStatus": auth.get("status"), "codexHome": replaced or f"unset; this run sets {CODEX_HOME}",
             "prelaunch": prelaunch,
         }
@@ -1727,7 +1608,7 @@ class CodexAdapter(HarnessAdapter):
         return meta.get("cwd")
 
     def describe(self, label: str, view: dict[str, Any], child: dict[str, str], stream: list[dict[str, Any]],
-                 stream_sha: str | None, probes: list[dict[str, str]], home: Path, repo: Path,
+                 stream_sha: str | None, home: Path, repo: Path,
                  live: Mapping[str, str], marker: str | None = None, window: tuple[int, int] | None = None,
                  turns: bool = False, prompt: str | None = None) -> dict[str, Any]:
         """The stream's `thread.started` names the thread, and its session
@@ -1773,7 +1654,7 @@ class CodexAdapter(HarnessAdapter):
         delegated = self.delegations(main_records, children, home, prompt, skills.get("descriptorPath"), child,
                                      transcripts, mandatory)
         return {
-            **launch_facts(label, view, session_id, child, live, probes, stream_sha),
+            **launch_facts(label, view, session_id, child, live, stream_sha),
             "startup": None,
             "transcripts": transcripts,
             "delegations": delegated,
@@ -2068,7 +1949,7 @@ class CodexAdapter(HarnessAdapter):
         return [
             f"| Configuration directory | sandbox `.codex`, as `{CODEX_HOME}`; the skill roots of "
             f"`codex debug prompt-input` name its `skills/.system` |",
-            f"| Codex sandbox | `{h['sandboxMode']}`, approval `{h['approvalPolicy']}`, {h['confinement']} |",
+            f"| Codex sandbox | `{h['sandboxMode']}`, approval `{h['approvalPolicy']}` |",
             f"| `{CODEX_HOME}` | {cell(h['codexHome'])} |",
             f"| Sign-in | `codex login status`: {cell(h['loginStatus'])} |",
         ]
@@ -2521,16 +2402,6 @@ def launch_records(records: Path) -> list[Path]:
     return sorted((p for p in records.iterdir() if p.is_dir()), key=lambda p: int(p.name))
 
 
-def parse_probes(text: str) -> list[dict[str, str]]:
-    """The `trial-probe OP STATUS PATH` lines of the wrapper, in order."""
-    probes = []
-    for line in text.splitlines():
-        parts = line.split(" ", 3)
-        if len(parts) == 4 and parts[0] == "trial-probe":
-            probes.append({"op": parts[1], "status": parts[2], "path": parts[3]})
-    return probes
-
-
 def read_window(record: Path) -> tuple[int, int] | None:
     """The lines of the session file that belong to this launch. A resumed
     turn appends to the session file of the first turn, so a continuation
@@ -2546,20 +2417,18 @@ def describe_launch(adapter: HarnessAdapter, record: Path, home: Path, repo: Pat
                     marker: str | None = None, turns: bool = False) -> dict[str, Any]:
     """One launch of a lifecycle case, from its record directory."""
     stream_file = record / "stream.jsonl"
-    probes = record / "probes"
     prompt = record / "prompt"
     return adapter.describe(
         str(record), json.loads((record / "view.json").read_text()), parse_env((record / "env").read_text()),
         read_jsonl(stream_file) if stream_file.exists() else [],
         sha256_file(stream_file) if stream_file.exists() else None,
-        parse_probes(probes.read_text()) if probes.exists() else [],
         home, repo, live, marker, read_window(record), turns,
         prompt.read_text() if prompt.exists() else None,
     )
 
 
 def split_log(text: str) -> list[dict[str, Any]]:
-    """The launches of a confined standalone run, from Grove's run log. The
+    """The launches of a standalone run, from Grove's run log. The
     wrapper begins each launch with its `trial-view-b64` line. The JSON lines
     after it are the stream of the harness, and other lines stay as text."""
     import base64
@@ -2568,14 +2437,12 @@ def split_log(text: str) -> list[dict[str, Any]]:
     for line in text.splitlines():
         head, _, rest = line.partition(" ")
         if head == "trial-view-b64":
-            launches.append({"view": json.loads(base64.b64decode(rest)), "env": {}, "probes": [],
+            launches.append({"view": json.loads(base64.b64decode(rest)), "env": {},
                              "stream": [], "streamLines": []})
         elif not launches:
             continue
         elif head == "trial-env-b64":
             launches[-1]["env"] = parse_env(base64.b64decode(rest).decode(errors="replace"))
-        elif head == "trial-probe":
-            launches[-1]["probes"] += parse_probes(line)
         elif head == "trial-started":
             continue
         else:
@@ -2603,7 +2470,7 @@ def log_lines(text: str) -> list[str]:
 
 
 def launch_facts(label: str, view: dict[str, Any], session_id: str | None, child: dict[str, str],
-                 live: Mapping[str, str], probes: list[dict[str, str]], stream_sha: str | None) -> dict[str, Any]:
+                 live: Mapping[str, str], stream_sha: str | None) -> dict[str, Any]:
     """The facts of one launch that do not depend on the harness."""
     skills = view.get("skills") or {}
     descriptor = skills.get("descriptorPath")
@@ -2625,11 +2492,7 @@ def launch_facts(label: str, view: dict[str, Any], session_id: str | None, child
         ],
         "mandatory": skills.get("mandatory", []),
         "envNames": sorted(child),
-        # Each name of the wrapper's set-up, relative to the child's TMPDIR.
-        "trialOwned": {name: os.path.relpath(child[name], child["TMPDIR"]) for name in TRIAL_OWNED
-                       if name in child and trial_owned(name, child[name], child)},
         "control": child_control(child, live),
-        "probes": probes,
         "streamSha256": stream_sha,
     }
 
@@ -3185,16 +3048,6 @@ def refusal_failures(case: dict[str, Any], refusal: dict[str, Any], launches: li
     return failures
 
 
-def contrast_probes(probes: list[dict[str, str]], cwd: Path) -> list[dict[str, str]]:
-    """The same probes, run unconfined by the same wrapper. A confined failure
-    belongs to the sandbox only where this run succeeds."""
-    argv = [str(WRAPPER), "--probes-only"]
-    for item in probes:
-        argv += ["--probe", item["op"], item["path"]]
-    result = subprocess.run(argv, cwd=cwd, capture_output=True, text=True, check=True)
-    return parse_probes(result.stdout)
-
-
 def started(launch: dict[str, Any]) -> bool:
     """The harness began a session: its stream holds the init event."""
     return launch["sessionId"] is not None
@@ -3295,7 +3148,7 @@ def run_case(prepared_dir: Path, name: str, environ: Mapping[str, str],
     installed = install_native(case, home, checkout)
     claude_settings = adapter.write_settings(case, home)
     planted = plant_files(case, trial, checkout)
-    route = route_for(case, records, program, model, effort, fixed_probes(case, home, checkout), home)
+    route = route_for(case, records, program, model, effort)
     (trial / "route.json").write_text(json.dumps(route, indent=2) + "\n")
     if case.get("compaction") is not None:
         write_turns(case, case_dir, trial)
@@ -3324,10 +3177,8 @@ def run_case(prepared_dir: Path, name: str, environ: Mapping[str, str],
     compaction = None
     deadline = case.get("timeoutMinutes", 30) * 60
     if standalone:
-        # `grove run` confines the harness. Its program is a regular file
-        # outside every grant, so the runner grants it read-only, as an owner
-        # grants a credential. The adapter adds the sign-in file it needs. The
-        # wrapper itself is the selected program, which Ravel admits.
+        # `grove run` stages the prompt, launches the case's kind through
+        # Ravel and publishes the declared outputs after a successful end.
         spec = case["standalone"]
         outputs = trial / "out"
         outputs.mkdir()
@@ -3335,10 +3186,8 @@ def run_case(prepared_dir: Path, name: str, environ: Mapping[str, str],
         shutil.copyfile(case_dir / spec.get("prompt", "prompt.md"), prompt)
         argv = [str(grove_bin / "grove"), "run", spec.get("kind", case["kinds"][0]), "--prompt-file", str(prompt),
                 *[arg for output in spec["outputs"] for arg in ("--output", str(outputs / output))],
-                "--runtime-read", str(program),
-                *[arg for path in adapter.confined_reads(home) for arg in ("--runtime-read", str(path))],
                 "--ui", "inline"]
-        say(f"{name}: {version}, model {model}, effort {effort}, route {case['route']}, confined, trial {trial}")
+        say(f"{name}: {version}, model {model}, effort {effort}, route {case['route']}, standalone, trial {trial}")
         driver = run_driver(argv, tmp, env, trial, deadline)
     else:
         base = plant_repo(repo, case_dir / "tree", env)
@@ -3371,7 +3220,6 @@ def run_case(prepared_dir: Path, name: str, environ: Mapping[str, str],
 
     stderr = (trial / "driver.stderr").read_text(errors="replace")
     native, residue = skill_files(home)
-    contrast: list[dict[str, str]] = []
     if standalone:
         logs = sorted((home / ".local" / "state" / "grove" / "runs").glob("*.log"))
         launches = []
@@ -3380,13 +3228,9 @@ def run_case(prepared_dir: Path, name: str, environ: Mapping[str, str],
             for n, part in enumerate(split_log(log.read_text(errors="replace"))):
                 stream_text = "".join(line + "\n" for line in part["streamLines"]).encode()
                 launch = adapter.describe(f"{log.relative_to(home)}#{n}", part["view"], part["env"], part["stream"],
-                                          sha256_bytes(stream_text), part["probes"], home, trial / "unknown", environ)
+                                          sha256_bytes(stream_text), home, trial / "unknown", environ)
                 launches.append(launch)
             run_log += log_lines(log.read_text(errors="replace"))
-        probes = [probe for launch in launches for probe in launch["probes"]]
-        if probes:
-            (trial / "contrast").mkdir()
-            contrast = contrast_probes(probes, trial / "contrast")
         tree_before = tree_after = []
         refusal = None
         continuation = None
@@ -3430,7 +3274,7 @@ def run_case(prepared_dir: Path, name: str, environ: Mapping[str, str],
             "configDirectory": str(config_dir), "authConfigDirectory": reported,
             "loggedIn": auth.get("loggedIn"),
             **({"caseHarness": case["caseHarness"]} if case.get("caseHarness") else {}),
-            **adapter.record_extras(standalone, auth, replaced, prelaunch),
+            **adapter.record_extras(auth, replaced, prelaunch),
         },
         "sources": {"checkout": prepared["source"]["checkout"], "commit": prepared["source"]["commit"],
                     "settings": settings},
@@ -3439,7 +3283,6 @@ def run_case(prepared_dir: Path, name: str, environ: Mapping[str, str],
         "skills": {"nativeCopies": native, "residue": residue, "installed": installed,
                    "claudeSettings": claude_settings, "planted": planted},
         "launches": launches,
-        "contrast": contrast,
         "resolve": resolve,
         "refusal": refusal,
         **({"continuation": continuation} if continuation is not None else {}),
@@ -3509,7 +3352,7 @@ def reextract(trial: Path) -> dict[str, Any]:
             for n, part in enumerate(split_log(log.read_text(errors="replace"))):
                 stream_text = "".join(line + "\n" for line in part["streamLines"]).encode()
                 fresh.append(adapter.describe(f"{log.relative_to(home)}#{n}", part["view"], part["env"],
-                                              part["stream"], sha256_bytes(stream_text), part["probes"], home,
+                                              part["stream"], sha256_bytes(stream_text), home,
                                               trial / "unknown", {}))
     else:
         marker = (record.get("continuation") or {}).get("marker")
@@ -3729,19 +3572,6 @@ def render(record: dict[str, Any]) -> str:
             lines.append("")
         lines += render_delegations(launch.get("delegations") or [])
     lines += adapter.render_prelaunch(h)
-    contrast = {(item["op"], item["path"]): item["status"] for item in record.get("contrast") or []}
-    probes = [probe for launch in record["launches"] for probe in launch.get("probes", [])]
-    if probes:
-        lines += [
-            "Probes inside the launch, and the same probes unconfined:",
-            "",
-            "| Access | Path | Inside | Unconfined |",
-            "| --- | --- | --- | --- |",
-        ]
-        for probe in probes:
-            lines.append(f"| {probe['op']} | `{cell(probe['path'])}` | {probe['status']} "
-                         f"| {contrast.get((probe['op'], probe['path']), '')} |")
-        lines.append("")
     if record["ending"].get("runLog"):
         lines += ["Grove's run log, without the stream and the wrapper's lines:", "", "```text",
                   *record["ending"]["runLog"], "```", ""]

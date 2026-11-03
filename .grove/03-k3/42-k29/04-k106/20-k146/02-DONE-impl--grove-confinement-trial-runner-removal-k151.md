@@ -27,3 +27,22 @@ cases.
 
 stage-evidence-reconciliation-k125 marks the confined results as historical.
 Do not change the recorded results here.
+
+## Decisions (running log)
+
+- The standalone mode stays, as the handoff states. It loses only its
+  confined parts. No case uses it after the two confined cases go, and the
+  fake-harness tests keep it working.
+- The access probes go with the wrapper options `--probe` and
+  `--probes-only`. Only the two confined cases set `probes`, and the probes
+  measured the confinement profile. The record loses `contrast` and each
+  launch loses `probes`.
+- `TRIAL_OWNED` and its exemption in the control go. Only the confined
+  set-up gave those names.
+- The Codex record loses `confinement`. It names the sandbox mode, as the
+  delivery specification states.
+- A standalone launch keeps its record on standard output, `-`, in Grove's
+  run log. That path works without confinement and stays tested.
+- `reextract` of a historical confined run keeps its JSON probes, and a
+  new `record.md` of that run omits them. The committed record does not
+  change.

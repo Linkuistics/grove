@@ -28,8 +28,10 @@ These rules hold for every section of this record.
   before any result.
 - **Harness.** Each section names the harness, the model, the harness version,
   the effort and the permission mode. For Codex, the permission mode is the
-  sandbox mode of Codex. The section also states whether that sandbox runs
-  inside Ravel confinement or in its place. It records the effective
+  sandbox mode of Codex. Ravel confines no launch, so that sandbox is the
+  only sandbox of the session. A historical section of a confined case also
+  states whether its sandbox ran inside Ravel confinement. A section records
+  the effective
   configuration directory, the native startup text and the platform-managed
   residue, such as the claude.ai skills that a sign-in synchronises.
 - **Sources.** Each source is a plugin directory of a plain Git checkout of
@@ -255,35 +257,17 @@ the driver also holds `CODEX_HOME`. At step 5, the runner runs `codex login
 status` and `codex debug prompt-input` in place of `claude auth status`.
 
 A standalone case replaces steps 6 and 7. The runner runs `grove run` with
-the case's prompt file and outputs, and with `--ui inline`. Ravel confines
-that launch. The harness program is outside every grant of the sandbox, so
-the runner grants it read-only with `--runtime-read`.
+the case's prompt file and outputs, and with `--ui inline`. It gives no
+`--runtime-read`. Grove sends Ravel no `--confine`, so the harness receives
+the environment of a lifecycle launch, and Codex keeps its own sandbox.
 
-Ravel removes every name of the harness environment outside an allow-list,
-and it sets `TMPDIR` to a private run directory. The wrapper therefore gives
-each harness its writable directories inside the launch. Claude Code receives
-`CLAUDE_CODE_TMPDIR`. Codex receives a `CODEX_HOME` in `TMPDIR` with a link to its
-sign-in, a second `--runtime-read` grant of that sign-in and
-`CODEX_CA_CERTIFICATE`. [Confined harness repair](#confined-harness-repair)
-gives the reasons and the evidence.
-
-A confined launch can
-write only in its invocation directory. The wrapper therefore prints its
-record and the stream of the harness into Grove's run log, under
-`.local/state/grove/runs/` of the sandbox home. The runner reads the launch
-from that log.
-
-A case with `"probes": true` adds probes to the launch. The wrapper runs its
-probes first, and then executes the harness. The wrapper tries to read the
-descriptor, each mandatory file, the settings, `config.rhai` and each
-mandatory file at its source origin. It also tries to read the `SKILL.md` of
-each native copy of the case, in the sandbox `.claude/skills`. It tries
-to write into each snapshot, into the sandbox home and into its working
-directory. Each probe reports `ok` or `failed`.
-
-After the run, the runner
-repeats the same probes unconfined, with the same wrapper. A confined failure
-belongs to the sandbox only where the unconfined probe succeeds.
+The configuration script gives the wrapper `-` as its record directory. The
+wrapper then prints its record and the stream of the harness into Grove's run
+log, under `.local/state/grove/runs/` of the sandbox home. The runner reads
+the launch from that log. No case uses the standalone mode now. The runner
+lost the cases `discovery-confined` and `missing-kind-confined` when the
+human withdrew confinement, and their sections under [Cases](#cases) are
+historical.
 
 A case with `"resolveOffline": true` runs `ravel skills resolve --json` after
 the launch, with the same HOME and settings. The resolution runs under the
@@ -349,9 +333,8 @@ sandbox `.claude/projects`. Each tool call there carries its absolute paths.
 
 The permission mode is `bypassPermissions`. No read outside the working
 directory prompts, and Claude Code denies no tool call, so the transcript shows what
-the agent chose to do. This mode is Claude Code's own permission layer. Ravel's
-confinement is an operating-system sandbox outside the harness, and this mode
-leaves it in force. The default model is `claude-opus-5-5` at effort `medium`.
+the agent chose to do. This mode is Claude Code's own permission layer, and
+Ravel confines no launch. The default model is `claude-opus-5-5` at effort `medium`.
 
 The extraction gives each tool call one class:
 
@@ -395,8 +378,7 @@ variable, and a later `$NAME` or `${NAME}` in the same command takes its
 value. A token with any other expansion names no path. The record shows a long
 command shortened.
 
-When the harness writes no session file, as a confined harness cannot, the
-events come from its stream. The stream holds the same tool calls.
+When the harness writes no session file, the events come from its stream. The stream holds the same tool calls.
 `task trial:reextract TRIAL=<run directory>` extracts the events of an earlier
 run again, with the current classifier. It refuses when a transcript digest
 changed. On success, the record names the time of the extraction.
@@ -415,12 +397,12 @@ in the working directory, in `TMPDIR` and in `/tmp`, and it denies the
 network. Ravel allocates its session channel under `TMPDIR`, so the agent's
 `end-session` reaches Ravel.
 
-A lifecycle launch has no Ravel confinement, so this sandbox runs in its
-place. A standalone launch gives `--sandbox danger-full-access` instead,
-because Codex's own Seatbelt sandbox cannot run inside Ravel's. Ravel's
-confinement is then the only sandbox of the session.
-[Confined harness repair](#confined-harness-repair) records the evidence. The
-permission classifier of the session that built the adapter refused an
+Every route of the runner, lifecycle and standalone, gives this sandbox mode.
+Ravel confines no launch, so this sandbox is the only sandbox of the session.
+Before the withdrawal of confinement, a standalone launch gave `--sandbox
+danger-full-access`, because Codex's own Seatbelt sandbox cannot run inside
+Ravel's. [Confined harness repair](#confined-harness-repair) records that
+historical evidence. The permission classifier of the session that built the adapter refused an
 unconfined Codex launch with `danger-full-access`, which Grove's Rhai sample
 uses. No lifecycle case measures that mode.
 
@@ -497,7 +479,7 @@ compaction boundary of the ordered events.
 `scripts/check.sh`. A fake driver and a fake harness stand in for Grove, Ravel
 and Claude Code. The tests prove the refusals, the allow-list, the link list,
 the authority control and the event extraction. Other tests prove the
-standalone mode, the probes, the offline resolution and the second
+standalone mode, the offline resolution and the second
 extraction. Further tests prove the source of each read, a native copy from
 an older commit and a refusal case with a moved source. A continuation test
 proves the source commit, the changed settings, the resumed turn and its
@@ -509,11 +491,10 @@ refuses instructions that name the preamble.
 
 Delegation tests prove the delegation and its comparison with the preamble.
 They also prove the delegate's read order, the ending calls of each
-transcript, the collected files and the owner note. A confined test on the
-native route proves that the run writes no Ravel settings and probes each
-native copy. Confined tests also prove the set-up and the runtime grants of
-each harness. They prove the Codex sandbox mode and the control of the names
-of the set-up.
+transcript, the collected files and the owner note. Standalone tests prove
+that a run sends no `--runtime-read` and reads its launch from Grove's run
+log. They also prove that Codex keeps the sandbox `workspace-write` on every
+route.
 
 A Codex delegation test proves the link from the `spawn_agent` call to the
 delegate's session file. It proves a direct call with a plaintext message and

@@ -71,3 +71,20 @@ Ravel's confinement is then the only sandbox of a confined Codex launch.
 sandbox link admits that file read-only. `codex login status` reported the
 ChatGPT sign-in under the profile copy. Codex warns that it does not make its
 helper links under `TMPDIR`, and continues.
+
+**Codex TLS roots: a runner repair.** The first repaired Codex launch,
+`discovery-confined-20261103T062127Z`, started and then failed every request.
+The diagnostic showed that Codex loads its TLS roots through the Security
+framework, which needs `com.apple.SecurityServer`. `CODEX_CA_CERTIFICATE`
+with the system bundle removes that need under the unchanged profile. Runner
+commit `e5d57a7409d2`. Grove's staged release-notes helper already makes the
+same three Codex choices.
+
+**Results.** `discovery-confined` in Codex passes the confined observation.
+`missing-kind-confined` in Codex is a gap with a new cause: Grove's standalone
+prompt holds no kind load and no missing-guidance rule, so the agent completed
+and Grove published. Both Claude Code runs start and stop at "Not logged in".
+
+**Scope questions to the human.** The Claude Code sign-in under confinement,
+and the missing-guidance rule of a standalone run. Each needs a decision
+outside this leaf. The leaf stays live until the human answers.

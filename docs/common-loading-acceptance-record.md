@@ -259,6 +259,14 @@ the case's prompt file and outputs, and with `--ui inline`. Ravel confines
 that launch. The harness program is outside every grant of the sandbox, so
 the runner grants it read-only with `--runtime-read`.
 
+Ravel removes every name of the harness environment outside an allow-list,
+and it sets `TMPDIR` to a private run directory. The wrapper therefore gives
+each harness its writable directories inside the launch. Claude Code receives
+`CLAUDE_CODE_TMPDIR`. Codex receives a `CODEX_HOME` in `TMPDIR` with a link to its
+sign-in, a second `--runtime-read` grant of that sign-in and
+`CODEX_CA_CERTIFICATE`. [Confined harness repair](#confined-harness-repair)
+gives the reasons and the evidence.
+
 A confined launch can
 write only in its invocation directory. The wrapper therefore prints its
 record and the stream of the harness into Grove's run log, under
@@ -408,10 +416,13 @@ network. Ravel allocates its session channel under `TMPDIR`, so the agent's
 `end-session` reaches Ravel.
 
 A lifecycle launch has no Ravel confinement, so this sandbox runs in its
-place. A standalone launch runs it inside Ravel confinement. The permission
-classifier of the session that built the adapter
-refused a Codex launch with `danger-full-access`, which Grove's Rhai sample
-uses. This record does not measure that mode.
+place. A standalone launch gives `--sandbox danger-full-access` instead,
+because Codex's own Seatbelt sandbox cannot run inside Ravel's. Ravel's
+confinement is then the only sandbox of the session.
+[Confined harness repair](#confined-harness-repair) records the evidence. The
+permission classifier of the session that built the adapter refused an
+unconfined Codex launch with `danger-full-access`, which Grove's Rhai sample
+uses. No lifecycle case measures that mode.
 
 The runner treats `CODEX_HOME` as the configuration specification of Ravel
 states. An inherited value in the real home refuses before any launch. The
@@ -500,7 +511,9 @@ Delegation tests prove the delegation and its comparison with the preamble.
 They also prove the delegate's read order, the ending calls of each
 transcript, the collected files and the owner note. A confined test on the
 native route proves that the run writes no Ravel settings and probes each
-native copy.
+native copy. Confined tests also prove the set-up and the runtime grants of
+each harness. They prove the Codex sandbox mode and the control of the names
+of the set-up.
 
 A Codex delegation test proves the link from the `spawn_agent` call to the
 delegate's session file. It proves a direct call with a plaintext message and
@@ -1276,6 +1289,9 @@ calls. They prove permissions only. The case leaves the leaf's confined
 observation of agent reads unmet, and `acceptance-handoff-k106` resolves the
 gap.
 
+**Repair.** [discovery-confined, repaired](#discovery-confined-repaired) ran the case
+again with the temporary directory repaired.
+
 A second blocker probably follows the temporary directory. The Seatbelt
 profile grants no Mach lookup of the Keychain service, so Claude Code probably
 cannot read its claude.ai sign-in. That is an inference from the profile text
@@ -1563,6 +1579,9 @@ calls. They prove permissions only. The case leaves the leaf's confined
 observation of agent reads unmet, and `acceptance-handoff-k106` resolves the
 gap. A grant of `$HOME/.codex` would probably only move the gap. The
 sign-in of Codex is a link to the real `auth.json`, outside every grant.
+
+**Repair.** [discovery-confined in Codex, repaired](#discovery-confined-in-codex-repaired)
+ran the case again with a writable `CODEX_HOME`.
 
 | Subject | Value |
 | --- | --- |
@@ -5381,6 +5400,9 @@ gap for `acceptance-handoff-k106`, with the refusal above. The
 `CLAUDE_CODE_TMPDIR` lead is for that leaf to decide. Grove adds no grant for
 it.
 
+**Repair.** [missing-kind-confined, repaired](#missing-kind-confined-repaired) ran the
+case again with that variable.
+
 | Subject | Value |
 | --- | --- |
 | Builds | As in [missing-kind](#missing-kind-1): Grove `eec04bbb04ca`, Ravel build `23e50ce90037`, `bin/ravel` SHA-256 `8e10e311…` |
@@ -5611,6 +5633,9 @@ gap for `acceptance-handoff-k106`, with the refusal above. A native copy in
 `$HOME/.agents/skills` is the only Codex layout in which the native guidance
 and the configuration directory are separate. No run measured it.
 
+**Repair.** [missing-kind-confined in Codex, repaired](#missing-kind-confined-in-codex-repaired)
+ran the case again with a `CODEX_HOME` inside the grants.
+
 | Subject | Value |
 | --- | --- |
 | Builds | As in [missing-kind in Codex](#missing-kind-in-codex): Grove `a20c09778bae`, Ravel build `23e50ce90037`, `bin/ravel` SHA-256 `8e10e311…` |
@@ -5671,6 +5696,8 @@ Both confined runs are gaps with one shared cause: each harness needs to
 write outside the grants of Ravel's sandbox. Codex has a second cause. Its
 default native roots lie inside its configuration directory, so a sandbox
 cannot hide the native guidance without also hiding the configuration.
+[Confined harness repair](#confined-harness-repair) removes both causes in
+Codex. Both repaired runs are still gaps, for other causes.
 
 ## Handoff triage
 
@@ -5725,4 +5752,364 @@ The human answered the three scope questions on 2026-11-03:
 under a confined `grove run`. The trial wrapper added no restriction of its
 own, so a confined `grove run` of a real harness probably fails in the same
 way for the owner. `confined-harness-trials-k128` states where a durable
-repair belongs.
+repair belongs, in [Where a durable repair
+belongs](#where-a-durable-repair-belongs).
+
+## Confined harness repair
+
+`confined-harness-trials-k128` repaired the runner for a confined `grove run`
+and ran `discovery-confined` and `missing-kind-confined` again in each
+harness. Each case ran once per harness after its repair. A Codex launch that
+found a third blocker ran again after a runner commit. That launch is
+[recorded](#the-codex-tls-blocker) with its result. No unconfined run replaced
+a confined one.
+
+<!-- tc: depart synonym-rotation because a launch is Ravel's, and the start is the harness's own start-up -->
+The repair answers three questions of the triage. First, can each harness
+start under Ravel's confinement? Second, what does each harness need that the
+profile denies? Third, where does a durable repair belong?
+
+Each harness now starts. Codex completes a confined session. Claude Code stops
+at its sign-in, because the sign-in needs a change to Ravel's profile. That
+change is a scope question to the human.
+
+### The runner change
+
+Ravel removes every name of the harness environment outside an allow-list,
+after selection. It then sets `TMPDIR`, `TMP` and `TEMP` to `tmp` in a private
+run directory. That directory is writable, and Ravel removes it after the run.
+A name that the harness needs must therefore come from the selected program.
+The trial wrapper `scripts/harness-trials/trial-launch.sh` sets these names
+inside the launch:
+
+| Option | Effect |
+| --- | --- |
+| `--tmp-env NAME SUB` | Makes the directory `$TMPDIR/SUB` and exports NAME with its path. SUB `.` names `TMPDIR` itself |
+| `--tmp-link SUB TARGET` | Makes `$TMPDIR/SUB` a symbolic link to TARGET |
+| `--env NAME VALUE` | Exports NAME with the literal VALUE |
+
+Each harness adapter gives its own set-up:
+
+- **Claude Code.** `CLAUDE_CODE_TMPDIR` names `TMPDIR`. The 2.1.317
+  executable still holds the function that
+  [missing-kind-confined](#missing-kind-confined) quotes, now named `Gf`. Claude
+  Code therefore ignores `TMPDIR`.
+- **Codex.** `CODEX_HOME` names `$TMPDIR/codex-home`, a writable directory
+  inside the grants. Its `auth.json` is a link to the owner's real sign-in
+  file. A `--runtime-read` grant of the sandbox link admits that file
+  read-only, because Grove canonicalises each grant. `CODEX_CA_CERTIFICATE`
+  names `/private/etc/ssl/cert.pem`, which is one of Ravel's system reads.
+  Codex runs with `--sandbox danger-full-access`.
+
+The authority control admits `CLAUDE_CODE_TMPDIR` and `CODEX_HOME` only with a
+value inside the child's own `TMPDIR`. Any other value of either name is a
+leak, as is any other `CLAUDE_*` name. Each record lists these names in its
+launch facts, relative to `TMPDIR`. The fake-harness tests check each part
+against a broken runner.
+
+The runner commits are `e4dda1043365`, for the temporary directory and the
+Codex home, and `e5d57a7409d2`, for the TLS roots of Codex. Both builds of
+`grove` have the SHA-256 `5900ff3c08f16439f2d57af2a553b209ffd77527c17e883e6b6c0ee742b2ca94`,
+because only the runner changed between them.
+
+### Diagnostics under a copy of the profile
+
+This leaf found each blocker under a copy of Ravel's profile, before any model call.
+`scripts/harness-trials/profile-copy.py` takes the base profile and the system
+reads from `crates/keyed-launch/src/confinement.rs` of the Ravel line at
+`1ca4aecbeae1`. It adds the writable directories and the read-only files as
+Ravel does, and it can add one rule for each test:
+
+```sh
+python3 scripts/harness-trials/profile-copy.py "$RAVEL/crates/keyed-launch/src/confinement.rs" \
+  --writable "$CWD" --writable "$PRIVATE" --read "$PROGRAM" [--allow RULE]... -- PROGRAM ARG...
+```
+
+The diagnostics give no credit to a trial. Each one is a control for the
+trial result that follows it.
+
+| Command | Profile | Result |
+| --- | --- | --- |
+| `claude auth status`, with the sandbox Keychain link | Unconfined | Signed in, `claude.ai` |
+| The same | Unchanged | Not signed in |
+| The same | With the Mach services `com.apple.SecurityServer` and `com.apple.securityd.xpc` | Not signed in |
+| The same | With reads of `~/Library/Keychains` | Not signed in |
+| The same | With both additions | Signed in |
+| `security find-generic-password -s "Claude Code-credentials"`, attributes only | Unchanged, Mach only, reads only | Exit 44 |
+| The same | With both additions | Exit 0 |
+| `codex login status`, `CODEX_HOME` in the grants with the linked sign-in | Unchanged | `Logged in using ChatGPT` |
+| `codex sandbox -- /bin/echo hi` | Unchanged | `sandbox-exec: sandbox_apply: Operation not permitted` |
+| `curl https://chatgpt.com/backend-api/codex/models` | Unchanged | HTTP 401, so the network grant works |
+| `codex debug models`, with no catalogue cache | Unchanged | No fetch |
+| The same | With the Mach service `com.apple.SecurityServer` only | Fetch |
+| The same | With `com.apple.securityd.xpc` or `com.apple.ocspd` only | No fetch |
+| The same | Unchanged, with `CODEX_CA_CERTIFICATE` or `SSL_CERT_FILE` set to `/private/etc/ssl/cert.pem` | Fetch |
+
+A fetch writes `models_cache.json` in `CODEX_HOME`. Without a fetch, Codex
+falls back to its bundled catalogue, exits 0 and writes no cache. Each
+confined `claude auth status` took about 90 seconds.
+
+These results give three facts:
+
+- The claude.ai sign-in of Claude Code needs two additions to Ravel's
+  profile: the two Mach services and reads of the owner's Keychain files.
+  Neither addition works alone.
+- Codex loads its TLS roots through the Security framework, which needs
+  `com.apple.SecurityServer`. A PEM bundle in `CODEX_CA_CERTIFICATE` adds roots
+  to that store (`build_rustls_root_store` in
+  [`custom_ca.rs`](https://github.com/openai/codex/blob/rust-v0.166.0/codex-rs/http-client/src/custom_ca.rs)).
+  The system bundle therefore removes the need for the Mach service.
+- Codex's own sandbox cannot run inside Ravel's. Under `workspace-write`,
+  every command of the agent would fail.
+
+### discovery-confined, repaired
+
+**Case.** [discovery-confined](#discovery-confined) ran again in Claude Code
+with `CLAUDE_CODE_TMPDIR`. The run is `discovery-confined-20261103T062142Z`,
+on 2026-11-03 local time.
+
+**Route.** Directory on 2.0, through `grove run impl --prompt-file … --output
+OUT/…/out/stamp.sh --runtime-read <claude> --ui inline`. Ravel 2.0 confined the
+launch with its macOS Seatbelt backend. The `--runtime-read` grant is
+`~/.local/share/claude/versions/2.1.317`.
+
+**Result: gap, with an exact blocker.** Claude Code started under Ravel's
+confinement. It wrote its init event, with the working directory in the
+invocation directory and `apiKeySource` `none`. Its only output was the
+synthetic text "Not logged in · Please run /login". It made no tool call and
+no model request, and its result reports a cost of 0. Ravel then refused as
+`session_result_missing`, and Grove published no output after 4.7 seconds.
+
+The temporary-directory blocker is gone. The sign-in blocker remains, and the
+diagnostics above name it exactly. The claude.ai sign-in does not work under a
+profile with no Keychain Mach lookup. No runner change removes it with the
+owner's present sign-in. Two other routes need a new owner credential instead:
+
+- A token from `claude setup-token` in `CLAUDE_CODE_OAUTH_TOKEN`, from a file
+  that a `--runtime-read` grant admits.
+- A plaintext `.credentials.json` in a configuration directory inside the
+  grants. The 2.1.317 executable holds a plaintext store of that name beside
+  its Keychain store. No run tested that store.
+
+Each route copies or mints an owner secret, so each is a decision for the
+human. This leaf tried neither.
+
+**Probes.** The probes give the same result as in the original run, row for
+row. The required snapshot reads succeed inside. The protected configuration,
+the source origins and a write outside the working directory fail inside, and
+each succeeds unconfined.
+
+**Limit.** The agent read nothing, so this run gives no evidence of agent
+behaviour under confinement.
+
+| Subject | Value |
+| --- | --- |
+| Builds | Grove `e4dda1043365`, `grove` SHA-256 `5900ff3c08f16439f2d57af2a553b209ffd77527c17e883e6b6c0ee742b2ca94`. Ravel build `23e50ce90037`, `bin/ravel` SHA-256 `8e10e311…` |
+| Harness | Claude Code 2.1.317, model `claude-opus-5-5`, effort `medium`, permission mode `bypassPermissions`. `claude auth status`, unconfined, reported the sandbox `.claude` and a sign-in |
+| Sources | Checkout `e4dda1043365`. `grove` `resourceDigest` `88f68c31…`, `linkuistics` `820fe282…` |
+| Descriptor identity | `1afc1ed732b56e86486a232ca995075d2c8193b2ddaab2ecfbe9381f9917e6a7` |
+| Harness environment | `CLAUDE_CODE_TMPDIR`, `HOME`, `LANG`, `LOGNAME`, `PATH`, `PWD`, `RAVEL_EXIT_FILE`, `RAVEL_SKILL_DIRECTORIES`, `SHLVL`, `TEMP`, `TMP`, `TMPDIR`, `USER`, `_`. `CLAUDE_CODE_TMPDIR` equals `TMPDIR`. No live value |
+| Native copies | None |
+| Stream | SHA-256 `b53247ce48ca3b3b74162cb6f928ab14a88eab9a570ab084126016b7e5d6df78` |
+| Run log | `grove-run-Pi8DXX.log`, SHA-256 `48c2ea680e2bd55955b3d33df9f084dd1e6e8e83f7ce5f62a0b97840aa8d06f8` |
+
+### missing-kind-confined, repaired
+
+**Case.** [missing-kind-confined](#missing-kind-confined) ran again in Claude
+Code with `CLAUDE_CODE_TMPDIR`. The sandbox `.claude/skills` holds complete
+native copies of `grove` and `grove-impl`, outside every grant. The run is
+`missing-kind-confined-20261103T062948Z`, on 2026-11-03 local time.
+
+**Route.** Native on 2.0, with delivery disabled, through the same `grove run`
+command as above.
+
+**Result: gap, with the same blocker.** Claude Code started, wrote its init
+event and gave only "Not logged in · Please run /login". It made no tool call.
+Ravel refused as `session_result_missing`, and Grove published no output after
+4.7 seconds. The run therefore gives no evidence of the report or the
+force-stop that the row asks for. Even with a sign-in, the row has a second
+gap, which [missing-kind-confined in Codex,
+repaired](#missing-kind-confined-in-codex-repaired) shows.
+
+**Probes.** Both native copies failed inside the sandbox and were readable
+unconfined. The settings probe failed in both places, because the native
+route writes no settings file.
+
+| Subject | Value |
+| --- | --- |
+| Builds | Grove `e5d57a7409d2`, `grove` SHA-256 `5900ff3c…`. Ravel build `23e50ce90037`, `bin/ravel` SHA-256 `8e10e311…` |
+| Harness | Claude Code 2.1.317, model `claude-opus-5-5`, effort `medium`, permission mode `bypassPermissions` |
+| Native copies | `.claude/skills/grove` and `.claude/skills/grove-impl`, as in the original run |
+| Harness environment | `CLAUDE_CODE_TMPDIR`, `HOME`, `LANG`, `LOGNAME`, `PATH`, `PWD`, `RAVEL_EXIT_FILE`, `SHLVL`, `TEMP`, `TMP`, `TMPDIR`, `USER`, `_`. No `RAVEL_SKILL_DIRECTORIES` and no live value |
+| Stream | SHA-256 `c9fdb520301172e6c858d4846e6d41b58858762cb83e54125c828470e71cca0f` |
+| Run log | `grove-run-EIxwaz.log`, SHA-256 `49b612d4725a69b60edf793ea1695e1dda9eabcf5f83e8bc288d993c9db2c9d3` |
+
+### The Codex TLS blocker
+
+The first repaired Codex launch, `discovery-confined-20261103T062127Z`, ran at
+Grove `e4dda1043365`, with `CODEX_HOME` and the sign-in but without the TLS
+bundle. Codex started under confinement. Its stream wrote `thread.started` and
+`turn.started`. Each request then failed with "workspace routing discovery
+failed", and the run log shows "failed to refresh available models:
+Connection failed". The turn failed before any tool call. Ravel refused as
+`session_result_missing`, and Grove published no output after 20.9 seconds.
+
+That result led to the diagnostics of `codex debug models` above. The runner
+commit `e5d57a7409d2` added `CODEX_CA_CERTIFICATE`. The next run is a new
+launch of a changed runner, not a prompted retry. The stream of the first run
+has SHA-256 `9375ce3fe56ccf76b8bc712816148894da8ddf446490e574f52e267099f8141c`.
+
+### discovery-confined in Codex, repaired
+
+**Case.** [discovery-confined in Codex](#discovery-confined-in-codex) ran
+again with the full repair. The run is `discovery-confined-20261103T062714Z`,
+on 2026-11-03 local time.
+
+**Route.** Directory on 2.0, through `grove run impl --prompt-file … --output
+OUT/…/out/stamp.sh --runtime-read <codex> --runtime-read
+$TRIAL/home/.codex/auth.json --ui inline`. Ravel 2.0 confined the launch with
+its macOS Seatbelt backend. The Codex sandbox mode is `danger-full-access`,
+inside Ravel confinement. Ravel's confinement is therefore the only sandbox of
+the session.
+
+**Result: pass of the confined observation.** Codex completed the session
+under Ravel's confinement. The ordered events of the stream:
+
+| # | Tool | Class | Skill | Target |
+| --- | --- | --- | --- | --- |
+| 1 | text | text | | "I'll read the required skill guidance, then create and check `stamp.sh`…" |
+| 2 | exec_command | mandatory | `using-jujutsu` | `cat` of its snapshot `SKILL.md` |
+| 3 | exec_command | mandatory | `grove` | `cat` of its snapshot `SKILL.md` |
+| 4 | text | text | | "I've read the required `using-jujutsu` and `grove` guidance…" |
+| 5 | apply_patch | action | | `stamp.sh` in the invocation directory |
+| 6 | exec_command | command | | `chmod +x stamp.sh`, a run and a check of `STAMP` |
+| 7 | exec_command | command | | A second check of `STAMP` |
+| 8 | text | text | | "`stamp.sh` is executable and produced one line…" |
+| 9 | exec_command | ending | | The exact `end-session grove-continue` command |
+
+- **Required reads.** Calls 2 and 3 read the two mandatory files from their
+  snapshots, in the configured order, before the governed action in call 5.
+  The confined observation of `claude-discovery-trial-k108` asks for this
+  read of the required resources outside the working directory.
+- **Denials.** Inside the launch, a read of the protected configuration, a
+  read of each source origin and a write outside the working directory fail.
+  Each of them succeeds unconfined. A snapshot write fails in both places,
+  because Ravel seals each snapshot read-only by file mode.
+- **Ending.** Grove published `stamp.sh`, SHA-256 `536f2ef7…`, after 31.3
+  seconds.
+
+**Comparison with the lifecycle case.** The standalone prompt names no kind
+skill, so the agent read none. The agent also listed no directory and read no
+craft skill. Its script has `set -euo pipefail` and lacks the `IFS` setting
+and the `ERR` trap of `coding-style-bash`.
+
+This run therefore gives no evidence about the craft row under confinement.
+The unconfined
+[discovery in Codex](#discovery-in-codex) holds that evidence. Grove's
+standalone caller has no Grove mandate, so its design predicts this difference. It is
+not a failure of the confined row.
+
+**Limit.** Codex warned that it does not make its helper links under a
+temporary directory, and it continued. The agent wrote with the `apply_patch`
+tool, which needs no helper link. A shell call of `apply_patch` would fail.
+
+| Subject | Value |
+| --- | --- |
+| Builds | Grove `e5d57a7409d2`, `grove` SHA-256 `5900ff3c…`. Ravel build `23e50ce90037`, `bin/ravel` SHA-256 `8e10e311…` |
+| Harness | Codex `codex-cli 0.166.0`, model `gpt-6.1-sol`, effort `medium`, sandbox `danger-full-access`, approval `never`. `codex login status`, unconfined, reported `Logged in using ChatGPT` |
+| Confinement | Ravel confinement alone, with the Codex sandbox off |
+| Configuration directory | Inside the launch: `CODEX_HOME` is `$TMPDIR/codex-home`, with `auth.json` linked to the owner's sign-in file |
+| Sources | Checkout `e5d57a7409d2`. `grove` `resourceDigest` `88f68c31…`, `linkuistics` `820fe282…` |
+| Descriptor identity | `266e4996e77b86c86d509a628ff0d65ee09b34e6ba082b3af8ddd0055fb8dc58` |
+| Harness environment | `CODEX_CA_CERTIFICATE`, `CODEX_HOME`, `HOME`, `LANG`, `LOGNAME`, `PATH`, `PWD`, `RAVEL_EXIT_FILE`, `RAVEL_SKILL_DIRECTORIES`, `SHLVL`, `TEMP`, `TMP`, `TMPDIR`, `USER`, `_`. No live value |
+| Native copies | None |
+| Stream | SHA-256 `4d5fad8ec406e39fd18e27fdde802358f26afadfe891ec7d8a516187e5b1dcd4` |
+| Run log | `grove-run-NL5wbn.log`, SHA-256 `c642317db0b284c013f4653fa9fb71b5b94db6f3931a8a26b05b6b5045991a3c` |
+
+### missing-kind-confined in Codex, repaired
+
+**Case.** [missing-kind-confined in Codex](#missing-kind-confined-in-codex)
+ran again with the full repair. The sandbox `.codex/skills` holds complete
+native copies of `grove` and `grove-impl`. The run is
+`missing-kind-confined-20261103T062817Z`, on 2026-11-03 local time.
+
+**Route.** Native on 2.0, with delivery disabled, through the same `grove run`
+command as the Codex discovery run. The Codex sandbox mode is
+`danger-full-access`, inside Ravel confinement.
+
+**How the native copies stay outside the grants.** Inside the launch,
+`CODEX_HOME` names `$TMPDIR/codex-home`. Ravel makes that directory empty for
+each run, so the native roots of Codex inside the launch hold no native copy.
+Codex installs only its bundled system skills there. The native copies stay in
+the sandbox `$HOME/.codex/skills`, which no grant covers.
+
+The probes show that both copies are unreadable inside and readable
+unconfined. `$HOME/.agents/skills` is also outside every grant. An owner with a
+native-only Codex installation has the same state. The installed guidance is
+absent from the native roots and unreadable where it lies.
+
+**Result: gap, with a new cause in Grove.** Codex completed the session, and
+the row fails. The agent did not look for any guidance and did not report
+missing guidance. It wrote `stamp.sh` with shell commands, checked it and ran
+the exact `end-session grove-continue` command. Grove published `stamp.sh`,
+SHA-256 `5f70c77f…`, after 22.4 seconds. The row asks for a report, a
+force-stop and no publication.
+
+The cause is the prompt of Grove's standalone caller, not the harness.
+`crates/grove/src/standalone.rs` sends the task, the staged-file rule and the
+two ending commands. It names no kind skill and does not hold the
+missing-guidance rule. Only the lifecycle mandate holds that rule
+(`LOAD_INSTRUCTION` in `crates/grove-loop/src/prompt.rs`). On the native route
+with delivery disabled, Ravel adds no preamble either. The agent therefore has
+no instruction that makes guidance required, and so nothing tells it that
+guidance is missing.
+
+The fixture of `crates/grove/tests/standalone.rs` gives a fake agent that
+looks for its native copies by itself. That fixture proves Grove's
+interpretation of a force-stop. It does not prove that a real agent has a
+reason to force-stop. The same gap probably holds in Claude Code, but no
+signed-in run measured it.
+
+| Subject | Value |
+| --- | --- |
+| Builds | Grove `e5d57a7409d2`, `grove` SHA-256 `5900ff3c…`. Ravel build `23e50ce90037`, `bin/ravel` SHA-256 `8e10e311…` |
+| Harness | Codex `codex-cli 0.166.0`, model `gpt-6.1-sol`, effort `medium`, sandbox `danger-full-access`, approval `never` |
+| Native copies | `.codex/skills/grove` and `.codex/skills/grove-impl` in the sandbox home, as in the original run |
+| Harness environment | `CODEX_CA_CERTIFICATE`, `CODEX_HOME`, `HOME`, `LANG`, `LOGNAME`, `PATH`, `PWD`, `RAVEL_EXIT_FILE`, `SHLVL`, `TEMP`, `TMP`, `TMPDIR`, `USER`, `_`. No `RAVEL_SKILL_DIRECTORIES` and no live value |
+| Stream | SHA-256 `710293827aefff635295306ce433acb6211139c8c1a1e2128b3c6362f0a39ea4` |
+| Run log | `grove-run-vdEEiI.log`, SHA-256 `4f00bfeb8f5be63cbe81c05fdb56f1a8b92b4992f4c110ccbdda4ce64d1a7764` |
+
+### Where a durable repair belongs
+
+| Need | Durable place | Reason |
+| --- | --- | --- |
+| Claude Code temporary directory | The owner's policy | Ravel replaces the environment after selection, so the selected command must set `CLAUDE_CODE_TMPDIR` from `TMPDIR`. Grove's `grove run` cannot reach the harness environment |
+| Codex configuration directory | The owner's policy | The selected command sets `CODEX_HOME` beneath a writable grant |
+| Codex sign-in | The owner's `--runtime-read` grant | Grove passes each grant to Ravel. The selected command links or copies the granted file into `CODEX_HOME` |
+| Codex TLS roots | The owner's policy | The selected command sets `CODEX_CA_CERTIFICATE` or `SSL_CERT_FILE` to a system bundle |
+| Codex sandbox mode | The owner's policy | The selected command gives `--sandbox danger-full-access`, because Seatbelt cannot nest |
+| Claude Code sign-in | Ravel's profile, or a new owner credential | The profile must allow two Mach services and the Keychain reads. Otherwise the owner must supply a token or a plaintext sign-in file |
+| Missing guidance in a standalone run | Grove's `grove run` | The standalone prompt must state which guidance is required and what to do when it is missing |
+
+Grove already ships the Codex part of this repair for one kind.
+`scripts/release-notes/codex-headless.sh` is the staged Codex helper of the
+`release-notes` route. It sets `CODEX_HOME` beneath the invocation directory,
+copies the granted `auth.json` there, sets `SSL_CERT_FILE` to `/etc/ssl/cert.pem`
+and runs Codex with `--sandbox danger-full-access`. These trials support each
+of those choices independently. The trial wrapper links the sign-in instead of
+a copy, so no copy of the owner's secret stays in the run directory.
+
+### Confinement in production
+
+A confined `grove run` of a real harness fails for the owner unless the
+selected command is a wrapper like the trial's. A policy that selects
+`claude` or `codex` directly fails at start-up in the same way as the original
+runs. With a wrapper, Codex completes a confined session. Claude Code cannot
+sign in under the present profile with any wrapper, so the confined standalone
+route does not work for Claude Code in production.
+
+On the native route, a confined standalone run also publishes its outputs
+when its guidance is unreadable. The agent has no instruction that makes
+guidance required. The documented promise in `docs/USAGE.md` and
+`docs/specs/standalone-invocations.md`, "It reports the missing guidance and
+runs the force-stop command", does not hold for a real agent.

@@ -5671,3 +5671,58 @@ Both confined runs are gaps with one shared cause: each harness needs to
 write outside the grants of Ravel's sandbox. Codex has a second cause. Its
 default native roots lie inside its configuration directory, so a sandbox
 cannot hide the native guidance without also hiding the configuration.
+
+## Handoff triage
+
+`acceptance-gap-triage-k124` classified each gap and each unmeasured result
+of the trial sections above. Each one has one of three decisions:
+
+- **Repair.** A named leaf changes the runner, the recipe or the preamble, and
+  runs the case again. The leaf states the observation that closes the gap.
+- **Covered.** Another case measured the same row in the same harness.
+- **Scope.** No runner change can produce the measurement. The human decides
+  whether the gap stays an explicit unmeasured gap.
+
+No decision credits a gap as a pass. A repair that fails again stays a gap and
+becomes a scope question in its own leaf.
+
+The human answered the three scope questions on 2026-11-03:
+
+- **Continuation.** A resume that keeps the whole earlier conversation is not
+  a re-entry. The guidance text stays in the context, so a re-read adds only
+  cost. A re-read follows a compaction or a fresh context.
+- **No mechanism.** The rows that no mechanism of these harness versions can
+  produce stay explicit unmeasured gaps. Ravel's specification already states
+  that an unavailable compaction, delegate or confinement mechanism is an
+  explicit gap. The completion audit lists each one, and research inherits
+  the list.
+- **Codex loss of the whole conversation.** `token_budget` is a development
+  feature and not the default of Codex. Its loss is wider than the loss of the
+  preamble alone. The gap stays a recorded gap, and the audit and the rollout
+  documentation name it. Developer instructions survive that loss, which a
+  later design can use.
+
+| Harness | Case | Cause in the record | Decision |
+| --- | --- | --- | --- |
+| Claude Code | `discovery-confined` | Claude Code cannot open `/tmp/claude-<uid>` under Seatbelt. The profile probably also blocks the Keychain sign-in | Repair: `confined-harness-trials-k128` |
+| Claude Code | `missing-kind-confined` | The same | Repair: `confined-harness-trials-k128` |
+| Codex | `discovery-confined` | Codex cannot write its configuration directory under Seatbelt | Repair: `confined-harness-trials-k128` |
+| Codex | `missing-kind-confined` | The same. The native roots also lie inside the configuration directory | Repair: `confined-harness-trials-k128` |
+| Claude Code | `explicit-native-error` | No report before the force-stop. Obligation 4 gives the report no order | Repair: `loader-report-wording-k129` |
+| Claude Code | `explicit-native-only` | No report before the force-stop | Repair: `loader-report-wording-k129` |
+| Claude Code | `compaction-preamble` | Claude Code restored snapshot files after the boundary, so the gate failed twice | Repair: `claude-preamble-loss-trial-k130` |
+| Claude Code | `problem-ambiguity` | A pack reference chose between the two copies | Covered: `problem-ambiguity-unreferenced` passed |
+| Codex | `problem-ambiguity` | Not run, for the same reason | Covered: `problem-ambiguity-unreferenced in Codex` passed |
+| Codex | `problem-stale-native` | Not run, because of the pack reference | Covered: `problem-stale-native-cli in Codex` passed |
+| Claude Code and Codex | `continuation`, the re-read | No re-read after a resume with the whole history. Three candidate causes | Scope: the human clarified that this resume is not a re-entry. `loader-report-wording-k129` states the rule, and the row then holds under it |
+| Codex | `explicit-native-match`, `explicit-native-absent`, `explicit-native-error` | Codex 0.166.0 has no native skill loader | Scope: explicit unmeasured gap |
+| Codex | `compaction-path` | The default compaction keeps the whole prompt, so the path is never lost | Scope: explicit unmeasured gap |
+| Codex | `compaction-preamble` | `token_budget` lost the whole conversation, and the agent did not use the variable | Scope: a known limit of a development feature. The gap stays a gap |
+| Claude Code and Codex | Delegation, the scrubbing adapter | No adapter scrubs a delegate inside the harness process | Scope: explicit unmeasured gap |
+| Codex | Delegation, what the parent gave | Codex encrypts the `spawn_agent` message in every transcript | Scope: explicit unmeasured gap |
+
+**Confinement in production.** Both harnesses exited before their sessions
+under a confined `grove run`. The trial wrapper added no restriction of its
+own, so a confined `grove run` of a real harness probably fails in the same
+way for the owner. `confined-harness-trials-k128` states where a durable
+repair belongs.

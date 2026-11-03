@@ -1,4 +1,4 @@
-# acceptance-handoff-k106
+# acceptance-handoff-k106 — brief
 
 ## Goal
 
@@ -52,3 +52,32 @@ discovery-rollout-k6. The staged build must stay reproducible until then.
 A real Claude Code or Codex call on Linux needs a Linux sign-in. If none
 exists, the record states the Linux real-harness results as gaps, separately
 from the Linux fixture results.
+
+## Decomposition
+
+acceptance-handoff-k106 was too big for one session, so it became this node.
+The children run in this order:
+
+1. `acceptance-gap-triage-k124`: classify each named gap of the trial record.
+   Record the decision for each gap. Cut each repair leaf, or ask the human a
+   scope question.
+2. `stage-evidence-reconciliation-k125`: reconcile the stage evidence of
+   confinement, the native-only lifecycle, native mutation and the dual-major
+   archives. Decide which stage checks need another run.
+3. `integrated-acceptance-checks-k126`: run the applicable Ravel checks, core
+   conformance and Grove's full check against identified subjects.
+4. `acceptance-completion-audit-k127`: audit k29 and k3 criterion by
+   criterion, and write the research recipes.
+
+A repair leaf goes before `stage-evidence-reconciliation-k125`. Then the
+checks and the audit measure the repaired state. A scope question that the
+human has not answered keeps this node live.
+
+The triage cut three repair leaves:
+
+- `confined-harness-trials-k128`: start both harnesses under Ravel's
+  confinement, and run the two confined cases again.
+- `loader-report-wording-k129`: make the preamble require a report after a
+  native loader error, and run the two explicit cases again.
+- `claude-preamble-loss-trial-k130`: produce the loss of the whole preamble in
+  Claude Code, and observe recovery.

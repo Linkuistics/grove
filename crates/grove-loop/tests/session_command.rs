@@ -183,13 +183,42 @@ fn lifecycle_request_preserves_public_inputs_and_uses_the_selected_ending_path()
     }
 }
 
-// Omitting --confine lets the denied control read the credential; omitting the
-// grant prevents the clean case from completing. Stderr must stay a transcript.
+// A confinement flag in the standalone request makes Ravel 2.0 refuse, and a
+// task identity or a missing exit directory changes what the policy receives.
+#[test]
+fn standalone_request_holds_the_exit_directory_and_neither_removed_flag() {
+    let exit_dir = Path::new("/private exit ' dir");
+    let request = session_command::standalone(
+        Path::new("/selected/ravel"),
+        "release-notes",
+        "-Produce notes.",
+        exit_dir,
+    );
+    assert_eq!(request.program(), "/selected/ravel");
+    assert_eq!(
+        request.args(),
+        [
+            "start-session",
+            "--kind=release-notes",
+            "--prompt=-Produce notes.",
+            "--exit-dir=/private exit ' dir",
+        ]
+    );
+    for word in request.args() {
+        let word = word.to_string_lossy();
+        assert!(
+            !word.starts_with("--confine") && !word.starts_with("--runtime-read"),
+            "{word}"
+        );
+    }
+}
+
+// The real front accepts the standalone request on each major. Stderr must stay
+// a transcript, and stdout must hold only the result.
 #[test]
 #[ignore = "requires installed Ravel: task ravel:commands RAVEL=/absolute/path/to/ravel"]
-fn confined_request_grants_only_the_named_runtime_file_and_isolates_the_result() {
-    let caller_dir = std::env::current_dir().unwrap().canonicalize().unwrap();
-    let temp = tempfile::tempdir_in(&caller_dir).unwrap();
+fn standalone_request_reaches_the_policy_without_task_data_and_isolates_the_result() {
+    let temp = tempfile::tempdir().unwrap();
     let pair = installed(temp.path());
     let home = temp.path().join("home");
     let runtime = pair.runtime();
@@ -199,28 +228,21 @@ fn confined_request_grants_only_the_named_runtime_file_and_isolates_the_result()
     fs::create_dir(&work).unwrap();
     let exit_dir = temp.path().join("control");
     fs::create_dir(&exit_dir).unwrap();
-    let credential = temp.path().join("runtime credential");
-    fs::write(&credential, "granted\n").unwrap();
-    let script = format!(
-        "set -eu\nif IFS= read -r word < {credential:?}; then \
-         printf 'runtime:%s' \"$word\"; else printf runtime-denied; exit 41; fi\n\
-         if test -r {policy:?}; then printf policy-leaked; exit 42; fi\n\
-         printf managed-stderr >&2\neval \"$1\""
-    );
+    let script = "set -eu\nprintf managed-stdout\nprintf managed-stderr >&2\neval \"$1\"";
     let selected = serde_json::json!({
         "status": "selected", "program": "/bin/sh", "args": ["-c", script, "fixture"],
-        "provider": "fixture", "model": "none", "effort": "none", "reason": "confined command"
+        "provider": "fixture", "model": "none", "effort": "none", "reason": "standalone command"
     });
     let source = match runtime {
         support::ravel::Runtime::V1_1 => format!(
-            "export const policy = {{schemaVersion: 2, version: 'confined-caller', select(request) {{\n\
+            "export const policy = {{schemaVersion: 2, version: 'standalone-caller', select(request) {{\n\
              if (request.kind !== 'release-notes' || request.taskFile !== undefined || request.taskId !== undefined) \
              return {{status:'refused', code:'wrong_inputs', message:'unexpected task data', remedy:'fix the caller'}};\n\
              const selected = {selected}; selected.args.push(request.prompt); return selected; }} }};"
         ),
         support::ravel::Runtime::V2_0 => format!(
             "export const SCHEMA_VERSION = 4;\n\
-             export const VERSION = \"confined-caller\";\n\
+             export const VERSION = \"standalone-caller\";\n\
              fn select(request, context) {{\n\
              \x20   if request.kind != \"release-notes\" || type_of(request.taskFile) != \"()\" \
              || type_of(request.taskId) != \"()\" {{\n\
@@ -229,51 +251,36 @@ fn confined_request_grants_only_the_named_runtime_file_and_isolates_the_result()
              \x20   }}\n\
              \x20   #{{ status: \"selected\", program: \"/bin/sh\", \
              args: [\"-c\", {script}, \"fixture\", request.prompt], provider: \"fixture\", \
-             model: \"none\", effort: \"none\", reason: \"confined command\" }}\n\
+             model: \"none\", effort: \"none\", reason: \"standalone command\" }}\n\
              }}\n",
-            script = support::ravel::quote(&script),
+            script = support::ravel::quote(script),
         ),
     };
     fs::write(&policy, source).unwrap();
-    for granted in [false, true] {
-        let reads = if granted {
-            vec![credential.strip_prefix(&caller_dir).unwrap().to_owned()]
-        } else {
-            vec![]
-        };
-        let prompt = session_command::end_session(pair.executable()).unwrap();
-        let request = session_command::confined(
-            pair.executable(),
-            "release-notes",
-            &prompt,
-            &exit_dir,
-            &reads,
-        )
-        .unwrap();
-        let argv = invocation(&home, pair.bin(), request);
-        let capture = SessionResult::allocate().unwrap();
-        let mut transcript = tempfile::tempfile().unwrap();
-        let ended = ravel_job::launch(
-            &argv,
-            &work,
-            capture.stdout().unwrap(),
-            &mut |_| {},
-            Shape::Detached {
-                transcript: transcript.try_clone().unwrap(),
-            },
-        )
-        .unwrap();
-        assert_eq!(ended.status.success(), granted, "{ended:?}");
-        assert_eq!(capture.read().is_ok(), granted);
-        transcript.rewind().unwrap();
-        let mut text = String::new();
-        transcript.read_to_string(&mut text).unwrap();
-        if granted {
-            assert!(text.contains("runtime:granted"), "{text}");
-            assert!(text.contains("managed-stderr"), "{text}");
-            assert!(!text.contains("policy-leaked"), "{text}");
-        } else {
-            assert!(text.contains("runtime-denied"), "{text}");
-        }
-    }
+    let prompt = session_command::end_session(pair.executable()).unwrap();
+    let request =
+        session_command::standalone(pair.executable(), "release-notes", &prompt, &exit_dir);
+    let argv = invocation(&home, pair.bin(), request);
+    let capture = SessionResult::allocate().unwrap();
+    let mut transcript = tempfile::tempfile().unwrap();
+    let ended = ravel_job::launch(
+        &argv,
+        &work,
+        capture.stdout().unwrap(),
+        &mut |_| {},
+        Shape::Detached {
+            transcript: transcript.try_clone().unwrap(),
+        },
+    )
+    .unwrap();
+    transcript.rewind().unwrap();
+    let mut text = String::new();
+    transcript.read_to_string(&mut text).unwrap();
+    assert!(ended.status.success(), "{ended:?}: {text}");
+    assert_eq!(
+        capture.read().unwrap(),
+        grove_loop::session_result::SessionDisposition::Continue
+    );
+    assert!(text.contains("managed-stdout"), "{text}");
+    assert!(text.contains("managed-stderr"), "{text}");
 }

@@ -158,13 +158,13 @@ anchors = ["driver-lease", "stated-vcs", "loop-control-channel", "guaranteed-cor
 [[root]]
 id = "source-standalone"
 path = "crates/grove/src/standalone.rs"
-lines = 374
+lines = 382
 
 [[block]]
 id = "standalone-invocation"
 root = "source-standalone"
 owner = "isolated-invocation"
-lines = "1-374"
+lines = "1-382"
 
 [[root]]
 id = "source-run-display"

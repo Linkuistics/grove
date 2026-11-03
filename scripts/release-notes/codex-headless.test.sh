@@ -7,51 +7,52 @@ scratch="$(mktemp -d)"
 trap 'rm -rf "$scratch"' EXIT
 mkdir -p "$scratch/bin" "$scratch/work"
 export RELEASE_CODEX_TEST_CALLS="$scratch/calls"
-cat >"$scratch/bin/codex" <<'EOF'
+export RELEASE_CODEX_TEST_STATUS="$scratch/status"
+# The fake Codex answers `login status` from a fixture file and records the
+# arguments of `exec`. It fails if the helper replaced the owner's Codex home
+# or set a certificate bundle.
+cat >"$scratch/bin/codex" <<'FAKE'
 #!/usr/bin/env bash
 set -euo pipefail
 IFS=$'\n\t'
+[[ "${CODEX_HOME-}" == "${RELEASE_CODEX_TEST_HOME-}" && -z "${SSL_CERT_FILE-}" ]]
+if [[ "$1" == login && "$2" == status ]]; then
+  [[ "$(cat "$RELEASE_CODEX_TEST_STATUS")" == signed-in ]]
+  exit
+fi
 printf '%s\n' "$@" >"$RELEASE_CODEX_TEST_CALLS"
-[[ "$CODEX_HOME" == "$PWD/.codex-home" && -r "$CODEX_HOME/auth.json" ]]
-EOF
+FAKE
 chmod +x "$scratch/bin/codex"
 export PATH="$scratch/bin:$PATH"
 cd "$scratch/work"
 
-# Missing credentials must give the task-level remedy before creating state
-# or launching the (stubbed) paid model boundary.
-export CODEX_AUTH_FILE="$scratch/credentials with spaces.json"
-if bash "$helper" fixture-model medium 'fixture prompt' >"$scratch/output" 2>&1; then
-  echo 'FAIL: the Codex helper accepted missing credentials' >&2
-  exit 1
-fi
-grep -Fq "$CODEX_AUTH_FILE" "$scratch/output"
-grep -Fq 'GROVE_RELEASE_RUNTIME_READ' "$scratch/output"
-grep -Fq -- '--runtime-read' "$scratch/output"
-grep -Fq 'docs/RELEASING.md#runtime-access' "$scratch/output"
-[[ ! -e "$RELEASE_CODEX_TEST_CALLS" && ! -e .codex-home ]]
+# The owner's Codex home passes through unchanged, set or unset.
+for home in "" "$scratch/owner codex home"; do
+  export RELEASE_CODEX_TEST_HOME="$home"
+  if [[ -n "$home" ]]; then export CODEX_HOME="$home"; else unset CODEX_HOME; fi
+  rm -f "$RELEASE_CODEX_TEST_CALLS"
 
-# A directory cannot be used as a credential file, even though it is readable.
-mkdir "$CODEX_AUTH_FILE"
-if bash "$helper" fixture-model medium 'fixture prompt' >"$scratch/output" 2>&1; then
-  echo 'FAIL: the Codex helper accepted a directory as credentials' >&2
-  exit 1
-fi
-grep -Fq 'GROVE_RELEASE_RUNTIME_READ' "$scratch/output"
-[[ ! -e "$RELEASE_CODEX_TEST_CALLS" && ! -e .codex-home ]]
-rmdir "$CODEX_AUTH_FILE"
+  # A missing sign-in gives the remedy before Codex runs the paid model.
+  printf signed-out >"$RELEASE_CODEX_TEST_STATUS"
+  if bash "$helper" fixture-model medium 'fixture prompt' >"$scratch/output" 2>&1; then
+    echo 'FAIL: the Codex helper accepted a missing sign-in' >&2
+    exit 1
+  fi
+  grep -Fq 'codex login' "$scratch/output"
+  if grep -Eq 'runtime-read|RUNTIME_READ|grant' "$scratch/output"; then
+    echo 'FAIL: the sign-in remedy names a grant' >&2
+    exit 1
+  fi
+  [[ ! -e "$RELEASE_CODEX_TEST_CALLS" ]]
 
-# Successful startup still copies credentials privately and passes the selected
-# model, effort and prompt through to Codex without printing credentials.
-printf '{"fixture":"private-test-token"}\n' >"$CODEX_AUTH_FILE"
-bash "$helper" fixture-model medium 'fixture prompt' >"$scratch/output" 2>&1
-cmp "$CODEX_AUTH_FILE" .codex-home/auth.json
-printf '%s\n' exec --ephemeral --ignore-user-config --ignore-rules --skip-git-repo-check \
-  --sandbox danger-full-access --model fixture-model -c model_reasoning_effort=medium \
-  'fixture prompt' >"$scratch/expected"
-cmp "$scratch/expected" "$RELEASE_CODEX_TEST_CALLS"
-if grep -Fq 'private-test-token' "$scratch/output"; then
-  echo 'FAIL: the Codex helper printed credentials' >&2
-  exit 1
-fi
+  # With a sign-in, the helper runs Codex under its own workspace-write
+  # sandbox, with the selected model, effort and prompt. It stages no state.
+  printf signed-in >"$RELEASE_CODEX_TEST_STATUS"
+  bash "$helper" fixture-model medium 'fixture prompt' >"$scratch/output" 2>&1
+  printf '%s\n' exec --ephemeral --ignore-user-config --ignore-rules --skip-git-repo-check \
+    --sandbox workspace-write --model fixture-model -c model_reasoning_effort=medium \
+    'fixture prompt' >"$scratch/expected"
+  cmp "$scratch/expected" "$RELEASE_CODEX_TEST_CALLS"
+  [[ -z "$(ls -A .)" ]]
+done
 echo 'release Codex helper tests: all passed'

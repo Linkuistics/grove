@@ -42,7 +42,6 @@ export function parseEvidence(text: string): ProviderEvidence | undefined {
  * Opt in around the final owner policy; its loader, routes and labels stay intact.
  * Ravel grants ending authority to the selected process. This shell execs the
  * original command in the same group, carrying that authority and fresh evidence.
- * Confined callers must explicitly grant the original executable as runtime-read.
  */
 export function withProvenance(owner: Policy): Policy {
   return definePolicy({

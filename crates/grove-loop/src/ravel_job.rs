@@ -60,6 +60,26 @@ pub fn scrub(command: &mut Command) {
     }
 }
 
+/// The variables that the detached job loses beyond [`CONTROL_ENV`].
+///
+/// Ravel no longer confines a standalone run, so its environment reaches the
+/// harness. These four repository selectors would point the harness at the
+/// caller's repository. These five multiplexer variables would hand it the
+/// caller's multiplexer session. Removing a multiplexer variable removes a
+/// pointer, not a capability: the socket stays reachable at its default path
+/// unless the harness sandbox denies it.
+pub const DETACHED_ENV: [&str; 9] = [
+    "GIT_DIR",
+    "GIT_WORK_TREE",
+    "GIT_COMMON_DIR",
+    "GIT_INDEX_FILE",
+    "TMUX",
+    "TMUX_PANE",
+    "ZELLIJ",
+    "ZELLIJ_SESSION_NAME",
+    "ZELLIJ_PANE_ID",
+];
+
 /// Which kind of job `ravel` is. The shape fixes the terminal, the streams and
 /// the one variable that Grove grants.
 pub enum Shape<'a> {
@@ -71,7 +91,7 @@ pub enum Shape<'a> {
     /// `ravel` leads a new POSIX session with no terminal. Standard input is
     /// end of file, and standard error goes to `transcript`. Every descriptor
     /// above standard error closes at the exec. The job receives no variable
-    /// that Grove grants.
+    /// that Grove grants, and loses each [`DETACHED_ENV`] name.
     Detached { transcript: File },
 }
 
@@ -167,7 +187,8 @@ impl Failure {
 /// return promptly and must not panic.
 ///
 /// **The environment is Grove's minus [`CONTROL_ENV`].** Only [`Shape::Foreground`]
-/// then adds `GROVE_LAUNCH_DIR`.
+/// then adds `GROVE_LAUNCH_DIR`, and only [`Shape::Detached`] also removes
+/// [`DETACHED_ENV`].
 ///
 /// **The latch catches INT, TERM and HUP from the first call on.** A signal
 /// that Grove ignores stays ignored. The function never clears the latch before
@@ -224,6 +245,9 @@ fn start_and_watch(
         }
         Shape::Detached { transcript } => {
             ensure_regular(&transcript, "transcript")?;
+            for name in DETACHED_ENV {
+                job.env_remove(name);
+            }
             job.stdin(Stdio::null()).stderr(transcript);
             None
         }

@@ -53,6 +53,8 @@ mkdir -p target/debug
 cp "$RELEASE_TEST_SCRATCH/grove-fixture" target/debug/grove
 chmod +x target/debug/grove
 EOF
+# The fake runner refuses each flag it does not name, --runtime-read among them,
+# so every run below also proves that the notes task sends no grant.
 cat >"$scratch/grove-fixture" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
@@ -63,13 +65,11 @@ prompt=''
 output=''
 ui=''
 inputs=()
-runtime_reads=()
 while (($#)); do
   case "$1" in
     --prompt-file) prompt="$2" ;;
     --input) inputs+=("$2") ;;
     --output) output="$2" ;;
-    --runtime-read) runtime_reads+=("$2") ;;
     --ui) ui="$2" ;;
     *) exit 2 ;;
   esac
@@ -77,13 +77,6 @@ while (($#)); do
 done
 [[ -f "$prompt" && ! -e "$output" && "$ui" == auto ]]
 [[ ${#inputs[@]} == 6 ]]
-if [[ "${RELEASE_TEST_MODE:-success}" == no-grants ]]; then
-  [[ ${#runtime_reads[@]} == 0 ]]
-else
-  [[ ${#runtime_reads[@]} == 2 ]]
-  [[ "${runtime_reads[0]}" == "$RELEASE_TEST_SCRATCH/auth one.json" ]]
-  [[ "${runtime_reads[1]}" == "$RELEASE_TEST_SCRATCH/auth-two.json" ]]
-fi
 rm -rf "$RELEASE_TEST_SCRATCH/observed"
 mkdir -p "$RELEASE_TEST_SCRATCH/observed"
 cp "$prompt" "$RELEASE_TEST_SCRATCH/observed/prompt"
@@ -99,17 +92,13 @@ case "${RELEASE_TEST_MODE:-success}" in
   heading) printf '## v99.0.0\n\n- Unexpected version.\n' >"$output" ;;
   indented-heading) printf '  ## Unreleased\n\n- Unexpected section.\n' >"$output" ;;
   success) printf '### Changed\n\n- The fixture now prints an improvement.\n' >"$output" ;;
-  refresh | no-grants) printf '\n- Refreshed notes covering every change.\n\n' >"$output" ;;
+  refresh) printf '\n- Refreshed notes covering every change.\n\n' >"$output" ;;
   *) exit 2 ;;
 esac
 EOF
 chmod +x "$scratch/bin/cargo"
 original_path="$PATH"
 export PATH="$scratch/bin:$PATH"
-printf '{}\n' >"$scratch/auth one.json"
-printf '{}\n' >"$scratch/auth-two.json"
-export GROVE_RELEASE_RUNTIME_READ
-GROVE_RELEASE_RUNTIME_READ="$(printf '%s\n%s' "$scratch/auth one.json" "$scratch/auth-two.json")"
 
 # Standalone notes run from a secondary workspace holding several unreleased
 # changes: two described ancestors of @ plus the undescribed working copy.
@@ -127,21 +116,7 @@ workspace_state() {
 }
 ws_before="$(workspace_state)"
 
-# Invalid grants are diagnosed before either the build or the selected harness.
-# No real agent credentials are inspected: grants can belong to any harness.
 : >"$scratch/calls"
-for invalid_grant in "$scratch/missing credentials.json" "$scratch/bin"; do
-  if GROVE_RELEASE_RUNTIME_READ="$invalid_grant" task --dir "$scratch/ws" release:notes >"$scratch/output" 2>&1; then
-    echo 'FAIL: release:notes accepted an invalid runtime grant' >&2
-    exit 1
-  fi
-  grep -Fq 'GROVE_RELEASE_RUNTIME_READ' "$scratch/output"
-  grep -Fq "$invalid_grant" "$scratch/output"
-  grep -Fq 'docs/RELEASING.md#runtime-access' "$scratch/output"
-  [[ ! -s "$scratch/calls" ]]
-  cmp "$scratch/ws-notes" "$scratch/ws/CHANGELOG.md"
-done
-
 for mode in build-failure runner-failure missing empty whitespace heading indented-heading; do
   if RELEASE_TEST_MODE="$mode" task --dir "$scratch/ws" release:notes >"$scratch/output" 2>&1; then
     echo "FAIL: release:notes accepted $mode" >&2
@@ -149,9 +124,8 @@ for mode in build-failure runner-failure missing empty whitespace heading indent
   fi
   cmp "$scratch/ws-notes" "$scratch/ws/CHANGELOG.md"
   if [[ "$mode" == runner-failure ]]; then
-    grep -Fq 'GROVE_RELEASE_RUNTIME_READ' "$scratch/output"
-    grep -Fq 'docs/RELEASING.md#runtime-access' "$scratch/output"
-    if grep -Fq '.codex' "$scratch/output"; then
+    grep -Fq 'docs/specs/standalone-invocations.md#the-harness-sandbox' "$scratch/output"
+    if grep -Eq 'RUNTIME_READ|runtime-read|[Cc]odex' "$scratch/output"; then
       echo 'FAIL: shared release-notes diagnostics assumed Codex' >&2
       exit 1
     fi
@@ -197,11 +171,6 @@ fi
 cmp "$repo_root/scripts/release-notes/SKILL.md" "$scratch/observed/SKILL.md"
 cmp "$repo_root/scripts/release-notes/codex-headless.sh" "$scratch/observed/codex-headless.sh"
 grep -Fq 'SKILL.md' "$scratch/observed/prompt"
-[[ "$(workspace_state)" == "$ws_before" ]]
-
-# A selected harness may use only resources already readable in the sandbox.
-GROVE_RELEASE_RUNTIME_READ='' RELEASE_TEST_MODE=no-grants task --dir "$scratch/ws" release:notes
-cmp "$scratch/expected" "$scratch/ws/CHANGELOG.md"
 [[ "$(workspace_state)" == "$ws_before" ]]
 
 # Failed builds, runner failures, and invalid bodies leave main and notes intact.
@@ -251,7 +220,7 @@ if (cd "$scratch/repo" && bash scripts/release-prepare.sh) >"$scratch/output" 2>
   exit 1
 fi
 grep -Fq 'No changes since v1.2.3' "$scratch/output"
-# Exercise the staged release inputs through the real confined boundary too.
+# Exercise the staged release inputs through the real Ravel front too.
 # This deterministic harness follows the prompt's canonical Ravel ending command.
 ravel_source="${GROVE_TEST_RAVEL:?Set GROVE_TEST_RAVEL to an installed Ravel front}"
 mkdir -p "$scratch/real-bin"
@@ -320,6 +289,6 @@ for input in changes.txt changes.diff current-unreleased.md previous-changelog.m
 done
 HOME="$scratch/real-home" PATH="$scratch/real-bin:$original_path" "$repo_root/target/debug/grove" run release-notes \
   --prompt-file "$scratch/observed/prompt" "${real_inputs[@]}" \
-  --runtime-read "$scratch/real-harness.sh" --output "$scratch/real-notes/release-notes.md" --ui inline
+  --output "$scratch/real-notes/release-notes.md" --ui inline
 grep -Fxq -- '- Deterministic notes from staged release evidence.' "$scratch/real-notes/release-notes.md"
 echo 'release preparation tests: all passed' 

@@ -1664,7 +1664,7 @@ A correctly built command alone proves neither successful cleanup nor a result.
 Grove's exact `grove-continue` result. Quotes, spaces and newlines in the path
 remain literal. A non-UTF-8 path refuses before it can become prompt text.
 
-<!-- fragment «public-session-commands» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/session_command.rs" lines="1-143" parent="source-session-command" -->
+<!-- fragment «public-session-commands» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/session_command.rs" lines="1-126" parent="source-session-command" -->
 ````rust
 //! Grove's public Ravel invocation and exact ending command.
 //!
@@ -1673,7 +1673,7 @@ remain literal. A non-UTF-8 path refuses before it can become prompt text.
 //! Both callers share these public launch and ending commands.
 
 use std::ffi::{OsStr, OsString};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use anyhow::Context;
 
@@ -1732,34 +1732,17 @@ pub fn lifecycle(ravel: &Path, task: &Selection, prompt: &str, exit_dir: &Path) 
     Argv::new(ravel.into(), args)
 }
 
-/// A standalone request whose managed process is confined to the staged cwd.
+/// The standalone request: the common `start-session` arguments alone.
 ///
-/// Runtime files are canonicalized now, before the runner changes cwd. Ravel
-/// admits the real front itself; no policy directory or worker grant is added.
-/// Owner routing settings, bounds and environment grants remain owner inputs.
-///
-/// # Errors
-/// A runtime-file path cannot be resolved in the caller's current directory.
-pub fn confined(
-    ravel: &Path,
-    kind: &str,
-    prompt: &str,
-    exit_dir: &Path,
-    runtime_read: &[PathBuf],
-) -> Result<Argv, Error> {
-    // https://github.com/Linkuistics/Ravel/blob/v1.0.0/docs/specs/session-execution.md
-    let mut args = start(kind, prompt, exit_dir);
-    args.push("--confine".into());
-    for path in runtime_read {
-        let canonical = path.canonicalize().with_context(|| {
-            format!(
-                "resolving runtime file {} before staging cwd",
-                path.display()
-            )
-        })?;
-        args.push(value("--runtime-read=", canonical.as_os_str()));
-    }
-    Ok(Argv::new(ravel.into(), args))
+/// Grove sends no `--confine` and no `--runtime-read`. Ravel 1.1 keeps
+/// `--confine` and Ravel 2.0 refuses it, so a request without either flag is
+/// the same for both majors. The harness sandbox that the owner's configuration
+/// selects is the only boundary. Owner routing settings, bounds and environment
+/// grants remain owner inputs.
+#[must_use]
+pub fn standalone(ravel: &Path, kind: &str, prompt: &str, exit_dir: &Path) -> Argv {
+    // https://github.com/Linkuistics/Ravel/blob/v1.1.0/docs/specs/session-execution.md
+    Argv::new(ravel.into(), start(kind, prompt, exit_dir))
 }
 
 /// The prompt's exact ending command, using the already selected executable.
@@ -1842,7 +1825,7 @@ Both production callers use the function. The loop driver calls it through
 converts its `Argv`. The function takes two shapes. The foreground shape serves
 the lifecycle, and the detached shape serves `grove run`.
 
-<!-- fragment «ravel-job» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/ravel_job.rs" lines="1-765" parent="source-ravel-job" -->
+<!-- fragment «ravel-job» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/ravel_job.rs" lines="1-789" parent="source-ravel-job" -->
 <!-- insert «ravel-job-header» -->
 <!-- insert «ravel-job-scrub» -->
 <!-- insert «ravel-job-vocabulary» -->
@@ -1914,7 +1897,7 @@ to end that session. So every spawn removes the ten names of `CONTROL_ENV`.
 `scrub` is the helper for that removal. The job calls it. The version probe and
 the terminal reset call it too, so no caller keeps a copy of the list.
 
-<!-- fragment «ravel-job-scrub» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/ravel_job.rs" lines="33-62" parent="ravel-job" -->
+<!-- fragment «ravel-job-scrub» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/ravel_job.rs" lines="33-82" parent="ravel-job" -->
 ````rust
 /// The loop control variables. Every spawn removes them.
 ///
@@ -1946,6 +1929,26 @@ pub fn scrub(command: &mut Command) {
     }
 }
 
+/// The variables that the detached job loses beyond [`CONTROL_ENV`].
+///
+/// Ravel no longer confines a standalone run, so its environment reaches the
+/// harness. These four repository selectors would point the harness at the
+/// caller's repository. These five multiplexer variables would hand it the
+/// caller's multiplexer session. Removing a multiplexer variable removes a
+/// pointer, not a capability: the socket stays reachable at its default path
+/// unless the harness sandbox denies it.
+pub const DETACHED_ENV: [&str; 9] = [
+    "GIT_DIR",
+    "GIT_WORK_TREE",
+    "GIT_COMMON_DIR",
+    "GIT_INDEX_FILE",
+    "TMUX",
+    "TMUX_PANE",
+    "ZELLIJ",
+    "ZELLIJ_SESSION_NAME",
+    "ZELLIJ_PANE_ID",
+];
+
 ````
 <!-- /fragment -->
 
@@ -1967,7 +1970,7 @@ would turn a Ctrl-C into an ordinary error, and the driver would carry on.
 the signal with `JobError::interrupted`. The `cfg(test)` constructor `for_test`
 lets the tests of the loop build an error with a chosen signal.
 
-<!-- fragment «ravel-job-vocabulary» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/ravel_job.rs" lines="63-157" parent="ravel-job" -->
+<!-- fragment «ravel-job-vocabulary» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/ravel_job.rs" lines="83-177" parent="ravel-job" -->
 ````rust
 /// Which kind of job `ravel` is. The shape fixes the terminal, the streams and
 /// the one variable that Grove grants.
@@ -1980,7 +1983,7 @@ pub enum Shape<'a> {
     /// `ravel` leads a new POSIX session with no terminal. Standard input is
     /// end of file, and standard error goes to `transcript`. Every descriptor
     /// above standard error closes at the exec. The job receives no variable
-    /// that Grove grants.
+    /// that Grove grants, and loses each [`DETACHED_ENV`] name.
     Detached { transcript: File },
 }
 
@@ -2085,7 +2088,7 @@ exec and leads a new session. Both jobs set the seven job-control signals to
 their defaults between the fork and the exec. The function never clears the latch
 before the spawn.
 
-<!-- fragment «ravel-job-launch» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/ravel_job.rs" lines="158-309" parent="ravel-job" -->
+<!-- fragment «ravel-job-launch» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/ravel_job.rs" lines="178-333" parent="ravel-job" -->
 ````rust
 /// Start `ravel` with `command` in `cwd` and wait until it exits.
 ///
@@ -2099,7 +2102,8 @@ before the spawn.
 /// return promptly and must not panic.
 ///
 /// **The environment is Grove's minus [`CONTROL_ENV`].** Only [`Shape::Foreground`]
-/// then adds `GROVE_LAUNCH_DIR`.
+/// then adds `GROVE_LAUNCH_DIR`, and only [`Shape::Detached`] also removes
+/// [`DETACHED_ENV`].
 ///
 /// **The latch catches INT, TERM and HUP from the first call on.** A signal
 /// that Grove ignores stays ignored. The function never clears the latch before
@@ -2156,6 +2160,9 @@ fn start_and_watch(
         }
         Shape::Detached { transcript } => {
             ensure_regular(&transcript, "transcript")?;
+            for name in DETACHED_ENV {
+                job.env_remove(name);
+            }
             job.stdin(Stdio::null()).stderr(transcript);
             None
         }
@@ -2258,7 +2265,7 @@ the signal that Grove already sent stays with the driver. The descriptor scan fo
 the detached shape sits here too. It includes descriptors that a caller opened
 before it lowered its soft limit.
 
-<!-- fragment «ravel-job-watch» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/ravel_job.rs" lines="310-417" parent="ravel-job" -->
+<!-- fragment «ravel-job-watch» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/ravel_job.rs" lines="334-441" parent="ravel-job" -->
 ````rust
 /// Watch `ravel` to its exit.
 fn watch(
@@ -2394,7 +2401,7 @@ caller to mistake for one that came after the job.
 dies of the signal, so that the parent of Grove sees `128 + N` and not a normal
 exit. This module owns that call because this module installed the handler.
 
-<!-- fragment «ravel-job-latch» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/ravel_job.rs" lines="418-551" parent="ravel-job" -->
+<!-- fragment «ravel-job-latch» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/ravel_job.rs" lines="442-575" parent="ravel-job" -->
 ````rust
 /// The signal that the handler last received, or `0`.
 ///
@@ -2546,7 +2553,7 @@ it and has no job control. That is the whole gate, and no caller can configure
 it wrongly. `tcsetpgrp` from a background group raises SIGTTOU, so every call
 ignores SIGTTOU and then restores the previous disposition.
 
-<!-- fragment «ravel-job-terminal» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/ravel_job.rs" lines="552-660" parent="ravel-job" -->
+<!-- fragment «ravel-job-terminal» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/ravel_job.rs" lines="576-684" parent="ravel-job" -->
 ````rust
 /// The signals that the child gets at their **default** disposition.
 ///
@@ -2675,7 +2682,7 @@ leader's. After a failed wait it behaves as after an ordinary exit.
 The attributes return whenever Grove ends in the foreground. So a raw-mode
 harness that was killed still leaves cooked mode behind.
 
-<!-- fragment «ravel-job-lease» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/ravel_job.rs" lines="661-748" parent="ravel-job" -->
+<!-- fragment «ravel-job-lease» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/ravel_job.rs" lines="685-772" parent="ravel-job" -->
 ````rust
 /// The share of the terminal that one foreground job holds: when it was held,
 /// what it looked like then, and how it returns.
@@ -2794,7 +2801,7 @@ No caller can time the window between the last check of the latch and the reap.
 So one unit test drives `freeze` with a signal stored in the latch. The test
 fails when `freeze` skips the drain.
 
-<!-- fragment «ravel-job-tests» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/ravel_job.rs" lines="749-765" parent="ravel-job" -->
+<!-- fragment «ravel-job-tests» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/ravel_job.rs" lines="773-789" parent="ravel-job" -->
 ````rust
 #[cfg(test)]
 mod tests {

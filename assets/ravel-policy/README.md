@@ -143,7 +143,7 @@ policy with `withProvenance` from `provenance.ts`. This wrapper supplies
 argv and labels. The `examples/grove-review.ts` policy already wraps its final selection.
 When editing its composition, wrap the final policy only once. The [caller-owned record/context contract](../../docs/grove-provider-evidence.md)
 explains retirement, attempts/node closes, missing/invalid evidence, the explicit
-original-v22 exception, Bash/argv budgets and confined executable grants.
+original-v22 exception and Bash/argv budgets.
 `task ravel:provenance RAVEL=...` exercises production through installed Ravel and
 actual Grove lifecycle sessions with fake agents. Personal policy files are never
 automatically rewritten.

@@ -40,9 +40,10 @@
 // the skill directories, and `request.skills` names their retained snapshots.
 // Claude reads only its cwd and the directories that `--add-dir` names, so it
 // is given each snapshot root. Codex runs with full access and reads every
-// path, so it needs no grant, and neither does the notes writer, which runs
-// Codex with full access. With delivery disabled, `request.skills` is `()`,
-// and the sample grants nothing for skills.
+// path, so it needs no grant. Neither does the notes writer: its helper runs
+// Codex in `--sandbox workspace-write`, which reads every path and writes in
+// the cwd and the temporary directory. With delivery disabled,
+// `request.skills` is `()`, and the sample grants nothing for skills.
 //
 // HOW IT DIFFERS FROM `policy.ts`. Ravel measures each read. A choice file
 // beyond 4,096 bytes, or a jj store file beyond Ravel's source bound, ends the
@@ -62,7 +63,8 @@ const HARNESSES = #{
     claude: #{ provider: "anthropic", model: "claude-opus-5-5", effort: "medium", program: "claude" },
     // The headless one-shot writer for `grove run release-notes`. The release
     // task stages codex-headless.sh beside its inputs, in the directory it
-    // runs, and the writer needs no grant beyond it.
+    // runs. The helper runs Codex in `--sandbox workspace-write`, the only
+    // boundary of the writer, and the writer needs no grant beyond it.
     notes: #{ provider: "openai", model: "gpt-6.1-sol", effort: "medium", program: "/bin/bash" },
 };
 

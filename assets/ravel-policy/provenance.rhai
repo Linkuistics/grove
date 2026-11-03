@@ -156,8 +156,7 @@ fn valid_command(selection) {
 ///
 /// Ravel grants ending authority to the selected process. This shell execs the
 /// original command in the same group, carrying that authority and fresh
-/// evidence. Confined callers must explicitly grant the original executable as
-/// runtime-read.
+/// evidence.
 fn with_provenance(selection, version, request) {
     if type_of(selection) == "map" && selection.get("status") == "refused" {
         return selection;

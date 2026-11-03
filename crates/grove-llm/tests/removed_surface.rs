@@ -102,7 +102,6 @@ const ROLES: &[(&str, Role)] = &[
     ("GROVE_LAUNCH_DIR", Role::LoopControlChannel),
     ("GROVE_PROVIDER_EVIDENCE", Role::CallerEvidence),
     ("GROVE_RUN_SIGNAL_FILE", Role::RetiredControlGuard),
-    ("GROVE_RELEASE_RUNTIME_READ", Role::ReleaseTooling),
     // Absolute original fronts exported only by the legacy release preparation
     // shell; these do not configure Grove's caller or running driver.
     ("GROVE_ORIGINAL_DISPATCH", Role::ReleaseTooling),

@@ -122,10 +122,11 @@ class Grove < Formula
        examples/review.rhai examples/static.rhai sample/config.rhai].each do |asset|
       assert_path_exists assets/asset
     end
-    # Homebrew's test sandbox cannot nest Ravel's macOS confinement sandbox.
+    # Homebrew runs this test inside its own sandbox.
     # https://raw.githubusercontent.com/Homebrew/brew/eb56e2b1f7/Library/Homebrew/dev-cmd/test.rb
-    # Exercise lifecycle here; release verification separately runs confined
-    # standalone publication through scripts/grove-installed-smoke.sh.
+    # Ravel confines nothing, so no nested sandbox meets it. Exercise the
+    # lifecycle here; release verification runs standalone publication through
+    # scripts/grove-installed-smoke.sh.
     (testpath/".jj/repo").mkpath
     (testpath/".grove").mkpath
     (testpath/".grove/_BRIEF.md").write "# fixture\n"

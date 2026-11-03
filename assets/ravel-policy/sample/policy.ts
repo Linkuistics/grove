@@ -83,8 +83,9 @@ const HARNESSES = {
     ],
   },
   // The headless one-shot writer for `grove run release-notes`. The release
-  // task stages codex-headless.sh beside its inputs, in the directory it runs,
-  // and the writer needs no grant beyond it.
+  // task stages codex-headless.sh beside its inputs, in the directory it runs.
+  // The helper runs Codex in `--sandbox workspace-write`, the only boundary of
+  // the writer, and the writer needs no grant beyond it.
   notes: {
     provider: "openai",
     model: "gpt-6.1-sol",

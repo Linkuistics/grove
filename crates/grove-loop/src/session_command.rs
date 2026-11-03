@@ -5,7 +5,7 @@
 //! Both callers share these public launch and ending commands.
 
 use std::ffi::{OsStr, OsString};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use anyhow::Context;
 
@@ -64,34 +64,17 @@ pub fn lifecycle(ravel: &Path, task: &Selection, prompt: &str, exit_dir: &Path) 
     Argv::new(ravel.into(), args)
 }
 
-/// A standalone request whose managed process is confined to the staged cwd.
+/// The standalone request: the common `start-session` arguments alone.
 ///
-/// Runtime files are canonicalized now, before the runner changes cwd. Ravel
-/// admits the real front itself; no policy directory or worker grant is added.
-/// Owner routing settings, bounds and environment grants remain owner inputs.
-///
-/// # Errors
-/// A runtime-file path cannot be resolved in the caller's current directory.
-pub fn confined(
-    ravel: &Path,
-    kind: &str,
-    prompt: &str,
-    exit_dir: &Path,
-    runtime_read: &[PathBuf],
-) -> Result<Argv, Error> {
-    // https://github.com/Linkuistics/Ravel/blob/v1.0.0/docs/specs/session-execution.md
-    let mut args = start(kind, prompt, exit_dir);
-    args.push("--confine".into());
-    for path in runtime_read {
-        let canonical = path.canonicalize().with_context(|| {
-            format!(
-                "resolving runtime file {} before staging cwd",
-                path.display()
-            )
-        })?;
-        args.push(value("--runtime-read=", canonical.as_os_str()));
-    }
-    Ok(Argv::new(ravel.into(), args))
+/// Grove sends no `--confine` and no `--runtime-read`. Ravel 1.1 keeps
+/// `--confine` and Ravel 2.0 refuses it, so a request without either flag is
+/// the same for both majors. The harness sandbox that the owner's configuration
+/// selects is the only boundary. Owner routing settings, bounds and environment
+/// grants remain owner inputs.
+#[must_use]
+pub fn standalone(ravel: &Path, kind: &str, prompt: &str, exit_dir: &Path) -> Argv {
+    // https://github.com/Linkuistics/Ravel/blob/v1.1.0/docs/specs/session-execution.md
+    Argv::new(ravel.into(), start(kind, prompt, exit_dir))
 }
 
 /// The prompt's exact ending command, using the already selected executable.

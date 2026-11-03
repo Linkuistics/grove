@@ -39,7 +39,7 @@ nonzero exit remains successful after cleanup, as Ravel's public contract states
 | Managed harness | Scratch writes and explicit runtime reads | Outputs and opaque result |
 | Grove | Held output directory, result descriptor and destinations | Checked publication |
 
-<!-- fragment «standalone-invocation» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="1-374" parent="source-standalone" -->
+<!-- fragment «standalone-invocation» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="1-382" parent="source-standalone" -->
 <!-- insert «standalone-interface» -->
 <!-- insert «standalone-default-kind» -->
 <!-- insert «standalone-staging» -->
@@ -116,7 +116,7 @@ pub(crate) struct Args {
     /// Export a regular file of this basename to a new destination (repeatable).
     #[arg(long, value_name = "FILE")]
     pub output: Vec<PathBuf>,
-    /// Grant read-only access to a runtime file, such as credentials (repeatable).
+    /// No effect: Grove no longer confines a standalone run (repeatable).
     #[arg(long, value_name = "FILE")]
     pub runtime_read: Vec<PathBuf>,
     /// Display inline, or in an existing supported mux; auto falls back inline.
@@ -215,7 +215,7 @@ directories. Inputs are copied as regular files, names cannot collide, and every
 output destination must be absent. The control directory remains outside the
 harness's writable grants.
 
-<!-- fragment «standalone-staging» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="103-158" parent="standalone-invocation" -->
+<!-- fragment «standalone-staging» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="103-166" parent="standalone-invocation" -->
 ````rust
 fn execute(args: Args, ravel: &Path, logs: &Path) -> Result<()> {
     let kind = match &args.kind {
@@ -232,6 +232,14 @@ fn execute(args: Args, ravel: &Path, logs: &Path) -> Result<()> {
         !prompt.trim().is_empty(),
         "the standalone prompt must not be empty"
     );
+    // The flag stays so that existing commands keep working. Grove sends
+    // nothing for it and does not check the file.
+    if !args.runtime_read.is_empty() {
+        eprintln!(
+            "grove run: --runtime-read has no effect; Grove no longer confines a standalone run, \
+             so the harness sandbox alone decides what the harness reads"
+        );
+    }
     let temporary = tempfile::Builder::new().prefix("grove-run-").tempdir()?;
     let root = temporary.path().canonicalize()?;
     let work = root.join("work");
@@ -293,7 +301,7 @@ itself grants the captured skills read-only inside the sandbox. Native skill tre
 under HOME stay outside every grant. A harness that cannot read its guidance there
 force-stops. Grove then publishes nothing and launches no second, unconfined run.
 
-<!-- fragment «standalone-launch-context» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="159-202" parent="standalone-invocation" -->
+<!-- fragment «standalone-launch-context» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="167-210" parent="standalone-invocation" -->
 ````rust
     let instructions = format!(
         "{prompt}\n\nStandalone invocation: work only on the staged files in the current directory. \
@@ -310,10 +318,9 @@ force-stops. Grove then publishes nothing and launches no second, unconfined run
         session_command::end_session(ravel)?,
         session_command::force_stop(ravel)?
     );
-    let argv =
-        session_command::confined(ravel, &kind, &instructions, &control, &args.runtime_read)?;
+    let argv = session_command::standalone(ravel, &kind, &instructions, &control);
     // Hold the original directory, since the harness can rename paths inside
-    // its scratch root. Output reads must never follow a substituted parent.
+    // the working directory. Output reads must never follow a substituted parent.
     let artifacts = File::open(&work)?;
     fs::create_dir_all(logs)?;
     let log_path = logs
@@ -337,8 +344,9 @@ force-stops. Grove then publishes nothing and launches no second, unconfined run
     crate::run_display::open(args.ui, &kind, &log_path, &status_path)?;
 
     // Selection inherits the owner's grants. The shared function scrubs the
-    // loop control variables, so enclosing control authority stops here. Ravel
-    // scrubs its confined child's environment after selection.
+    // loop control variables, so enclosing control authority stops here. The
+    // detached shape also removes the repository selectors and the multiplexer
+    // variables. Otherwise the harness receives the caller's environment.
 ````
 <!-- /fragment -->
 
@@ -371,7 +379,7 @@ Relay failure prevents publication too, and it retains the log even for an
 acknowledged run. An uncatchable Grove death can orphan its detached Ravel
 and harness. That dead publisher exports nothing.
 
-<!-- fragment «standalone-supervision» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="203-263" parent="standalone-invocation" -->
+<!-- fragment «standalone-supervision» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="211-271" parent="standalone-invocation" -->
 ````rust
     let finished = AtomicBool::new(false);
     let outcome = std::thread::scope(|scope| {
@@ -450,7 +458,7 @@ module. It opens the name with `openat` under the held work directory, so a
 renamed parent cannot redirect the read. It refuses a name of more than one
 component, a symlink and anything but a regular file.
 
-<!-- fragment «standalone-artifact-checks» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="264-338" parent="standalone-invocation" -->
+<!-- fragment «standalone-artifact-checks» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="272-346" parent="standalone-invocation" -->
 ````rust
 fn basename(path: &Path) -> Result<&OsStr> {
     path.file_name()
@@ -490,8 +498,8 @@ fn regular_file(path: &Path) -> Result<File> {
 
 /// Open `name` under the held `directory` as a regular file, following no link.
 ///
-/// The harness can rename paths inside its scratch root, so a read by path could
-/// follow a substituted parent. `openat` on the held descriptor cannot.
+/// The harness can rename paths inside the working directory, so a read by
+/// path could follow a substituted parent. `openat` on the held descriptor cannot.
 /// `O_NONBLOCK` keeps a FIFO from hanging the open.
 fn regular_file_at(directory: &File, name: &OsStr) -> std::io::Result<File> {
     let mut components = Path::new(name).components();
@@ -540,7 +548,7 @@ cancellation before each publish.
 An error names the prefix already exported. `shell_word` quotes the canonical
 exit command and the parent's display commands for literal shell use.
 
-<!-- fragment «standalone-publication» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="339-374" parent="standalone-invocation" -->
+<!-- fragment «standalone-publication» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="347-382" parent="standalone-invocation" -->
 ````rust
 fn publish_outputs(work: &File, destinations: &[PathBuf]) -> Result<()> {
     let mut staged = Vec::new();

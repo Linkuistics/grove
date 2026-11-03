@@ -42,7 +42,7 @@ pub(crate) struct Args {
     /// Export a regular file of this basename to a new destination (repeatable).
     #[arg(long, value_name = "FILE")]
     pub output: Vec<PathBuf>,
-    /// Grant read-only access to a runtime file, such as credentials (repeatable).
+    /// No effect: Grove no longer confines a standalone run (repeatable).
     #[arg(long, value_name = "FILE")]
     pub runtime_read: Vec<PathBuf>,
     /// Display inline, or in an existing supported mux; auto falls back inline.
@@ -115,6 +115,14 @@ fn execute(args: Args, ravel: &Path, logs: &Path) -> Result<()> {
         !prompt.trim().is_empty(),
         "the standalone prompt must not be empty"
     );
+    // The flag stays so that existing commands keep working. Grove sends
+    // nothing for it and does not check the file.
+    if !args.runtime_read.is_empty() {
+        eprintln!(
+            "grove run: --runtime-read has no effect; Grove no longer confines a standalone run, \
+             so the harness sandbox alone decides what the harness reads"
+        );
+    }
     let temporary = tempfile::Builder::new().prefix("grove-run-").tempdir()?;
     let root = temporary.path().canonicalize()?;
     let work = root.join("work");
@@ -171,10 +179,9 @@ fn execute(args: Args, ravel: &Path, logs: &Path) -> Result<()> {
         session_command::end_session(ravel)?,
         session_command::force_stop(ravel)?
     );
-    let argv =
-        session_command::confined(ravel, &kind, &instructions, &control, &args.runtime_read)?;
+    let argv = session_command::standalone(ravel, &kind, &instructions, &control);
     // Hold the original directory, since the harness can rename paths inside
-    // its scratch root. Output reads must never follow a substituted parent.
+    // the working directory. Output reads must never follow a substituted parent.
     let artifacts = File::open(&work)?;
     fs::create_dir_all(logs)?;
     let log_path = logs
@@ -198,8 +205,9 @@ fn execute(args: Args, ravel: &Path, logs: &Path) -> Result<()> {
     crate::run_display::open(args.ui, &kind, &log_path, &status_path)?;
 
     // Selection inherits the owner's grants. The shared function scrubs the
-    // loop control variables, so enclosing control authority stops here. Ravel
-    // scrubs its confined child's environment after selection.
+    // loop control variables, so enclosing control authority stops here. The
+    // detached shape also removes the repository selectors and the multiplexer
+    // variables. Otherwise the harness receives the caller's environment.
     let finished = AtomicBool::new(false);
     let outcome = std::thread::scope(|scope| {
         let relay = scope.spawn(|| crate::run_display::relay(reader, &finished));
@@ -299,8 +307,8 @@ fn regular_file(path: &Path) -> Result<File> {
 
 /// Open `name` under the held `directory` as a regular file, following no link.
 ///
-/// The harness can rename paths inside its scratch root, so a read by path could
-/// follow a substituted parent. `openat` on the held descriptor cannot.
+/// The harness can rename paths inside the working directory, so a read by
+/// path could follow a substituted parent. `openat` on the held descriptor cannot.
 /// `O_NONBLOCK` keeps a FIFO from hanging the open.
 fn regular_file_at(directory: &File, name: &OsStr) -> std::io::Result<File> {
     let mut components = Path::new(name).components();

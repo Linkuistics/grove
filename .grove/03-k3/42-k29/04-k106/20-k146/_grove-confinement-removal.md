@@ -1,4 +1,4 @@
-# grove-confinement-removal-k146
+# grove-confinement-removal-k146 — brief
 
 ## Goal
 
@@ -37,3 +37,27 @@ changes are a natural second child.
 
 Do not publish a release or change the owner's settings. Keep the 1.1.0 keg
 and its ending command unchanged.
+
+## Decomposition
+
+grove-confinement-removal-k146 was too big for one session, so it became this
+node. The design handoff is the "Handoff to `grove-confinement-removal-k146`"
+section of `docs/confinement-withdrawal-evidence.md`. Its sections divide the
+work. The children run in this order:
+
+1. `grove-confinement-caller-removal-k150`: the standalone caller, its tests,
+   the policy assets and the release-notes route.
+2. `grove-confinement-trial-runner-removal-k151`: the confined set-up of the
+   harness trial runner, its two confined cases and the runner sections of the
+   acceptance record.
+3. `grove-confinement-floor-removal-k152`: the bubblewrap and confinement floor
+   route, its Taskfile tasks and each consumer, with the directory case on the
+   general route.
+4. `grove-confinement-docs-removal-k153`: the remaining documents, the prose of
+   the walkthrough books and the changelog.
+5. `grove-confinement-removal-checks-k154`: the full checks with both Ravel
+   builds, one real release-notes run and one `task release:smoke` run.
+
+`bash scripts/check.sh` runs the final book check. So the first child
+regenerates the book fragments of each source file that it changes, and the
+fourth child changes only the prose.

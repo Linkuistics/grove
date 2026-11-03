@@ -2283,7 +2283,6 @@ fn installed_ravel_help_exposes_only_the_public_launch_boundary() {
         "--task-file",
         "--task-id",
         "--exit-dir",
-        "--runtime-read",
     ] {
         assert!(help.contains(flag), "{help}");
     }

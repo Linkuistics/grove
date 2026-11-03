@@ -205,6 +205,7 @@ The function has two shapes. The lifecycle uses the **foreground job**, and
 | Standard error | Inherited | The transcript of the invocation |
 | Inherited descriptors above standard error | Open, as the caller of Grove left them | Closed at the exec |
 | `GROVE_LAUNCH_DIR` | The launch directory, granted after the scrub | Never granted |
+| Repository selectors and multiplexer variables | Inherited | Removed after the scrub |
 
 <a id="interruption"></a>
 ### Signals and interruption
@@ -292,6 +293,15 @@ the version probe and of the terminal reset. These are `GROVE_SIGNAL_FILE`,
 names them for every one of these spawns. After the scrub, the foreground job
 alone receives `GROVE_LAUNCH_DIR` with its launch directory. So standalone
 helpers inherit no tree authority.
+
+The detached job also loses the repository selectors `GIT_DIR`,
+`GIT_WORK_TREE`, `GIT_COMMON_DIR` and `GIT_INDEX_FILE`. It loses the
+multiplexer variables `TMUX`, `TMUX_PANE`, `ZELLIJ`, `ZELLIJ_SESSION_NAME`
+and `ZELLIJ_PANE_ID` too. Ravel confines no standalone run, so the caller's
+environment reaches the harness, and these names would point it at the
+caller's repository or multiplexer. The
+[standalone contract](standalone-invocations.md#isolation-contract) states
+the limit of that removal.
 
 Ravel isolates policy from completion controls and gives the managed process a
 fresh enclosing context. Neither inherited context nor same-user receipts

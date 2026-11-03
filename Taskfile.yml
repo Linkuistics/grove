@@ -230,7 +230,7 @@ tasks:
       - cargo nextest run --locked -p grove --test ravel_asset_cases --run-ignored only {{.CLI_ARGS}}
 
   ravel:commands:
-    desc: Check shared public lifecycle and confined commands against installed Ravel
+    desc: Check shared public lifecycle and standalone commands against installed Ravel
     requires:
       vars: [RAVEL]
     env:
@@ -267,7 +267,7 @@ tasks:
         vars: {RAVEL: '{{.RAVEL}}', RAVEL_RUNTIME: '{{.RAVEL_RUNTIME}}'}
 
   ravel:directory:
-    desc: "Check the directory route on Ravel 2.0 through the lifecycle and confined standalone callers, and the unreadable native case on 2.0: RAVEL is the 2.0 front, OLD the 1.1 front of the pair case"
+    desc: "Check the directory route on Ravel 2.0 through the lifecycle and standalone callers: RAVEL is the 2.0 front, OLD the 1.1 front of the pair case"
     requires:
       vars: [RAVEL, OLD]
     env:
@@ -276,7 +276,6 @@ tasks:
       GROVE_TEST_RAVEL_OLD: '{{.OLD}}'
     cmds:
       - cargo nextest run --locked -p grove --test directory_route --run-ignored only {{.CLI_ARGS}}
-      - cargo nextest run --locked -p grove --test standalone -E 'test(native_copies_outside_every_grant)'
 
   # Real harness trials of the common loading route
   # (docs/common-loading-acceptance-record.md). A trial spends subscription
@@ -622,8 +621,8 @@ tasks:
         test "$("$brew_bin/grove-llm" --version)" = "grove-llm $version"
         "$brew_bin/ravel" --version
         "$brew_bin/grove" view --help
-        # Homebrew tests lifecycle inside its own sandbox; exercise Ravel's
-        # actual confinement outside that non-nestable outer sandbox too. The
+        # Homebrew tests the lifecycle inside its own sandbox. The installed
+        # smoke runs standalone publication outside it. The
         # dependency's major names its lane. While it is 1.x, an installed
         # keg-only ravel@2 adds the 2.0 lane through its explicit prefix.
         dependency="$(brew --prefix ravel)"

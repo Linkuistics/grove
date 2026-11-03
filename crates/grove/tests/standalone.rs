@@ -1,6 +1,6 @@
-//! `grove run` under real confinement: the real `grove`, the real
-//! independent Ravel build, a configuration in a temporary HOME, and a
-//! deterministic shell harness. Nothing here calls a model.
+//! `grove run` end to end: the real `grove`, the real independent Ravel
+//! build, a configuration in a temporary HOME, and a deterministic shell
+//! harness. Nothing here calls a model, and nothing here is confined.
 //!
 //! The build is supplied explicitly by GROVE_TEST_RAVEL, with its runtime in
 //! GROVE_TEST_RAVEL_RUNTIME, and copied to an independent prefix. Missing
@@ -64,9 +64,7 @@ fn standalone_scrubs_enclosing_ravel_and_retired_controls_before_selection() {
     let mut grove = fixture.run_kind("release-notes");
     grove
         .env("OWNER_GRANT", "granted")
-        .env("PATH", support::path_with_entry(probe.parent().unwrap()))
-        .arg("--runtime-read")
-        .arg(&probe);
+        .env("PATH", support::path_with_entry(probe.parent().unwrap()));
     for name in support::LOOP_CONTROL_ENV {
         grove.env(name, "/inert-enclosing-control");
     }
@@ -153,15 +151,13 @@ impl Fixture {
         command
     }
 
-    /// `grove run KIND` for one `notes.md`, with the harness script granted.
+    /// `grove run KIND` for one `notes.md`.
     fn run_kind(&self, kind: &str) -> Command {
         let mut command = self.grove(Path::new(env!("CARGO_BIN_EXE_grove")));
         command
             .args(["run", kind, "Produce notes.", "--ui", "inline"])
             .arg("--output")
-            .arg(self.notes())
-            .arg("--runtime-read")
-            .arg(&self.script);
+            .arg(self.notes());
         command
     }
 
@@ -192,7 +188,6 @@ struct Hooks<'a> {
 enum Extra<'a> {
     /// The value of a granted name, or `<unset>`.
     Env(&'a str),
-    Text(&'a str),
 }
 
 impl Hooks<'_> {
@@ -228,7 +223,6 @@ impl Hooks<'_> {
                     .iter()
                     .map(|extra| match extra {
                         Extra::Env(name) => format!("process.env.{name} ?? \"<unset>\", "),
-                        Extra::Text(text) => format!("{}, ", quote(text)),
                     })
                     .collect();
                 format!(
@@ -270,7 +264,6 @@ impl Hooks<'_> {
                     .iter()
                     .map(|extra| match extra {
                         Extra::Env(name) => format!("or_unset(granted({})), ", quote(name)),
-                        Extra::Text(text) => format!("{}, ", quote(text)),
                     })
                     .collect();
                 format!(
@@ -336,7 +329,7 @@ fn prompt_commands_complete_or_force_stop_without_touching_enclosing_channels() 
             .unwrap()
             .parse()
             .unwrap();
-        // SAFETY: signal 0 only queries the reported confined descendant PID.
+        // SAFETY: signal 0 only queries the reported descendant PID.
         assert_eq!(unsafe { libc::kill(writer, 0) }, -1);
         if stop {
             assert_eq!(output.status.code(), Some(1), "{output:?}");
@@ -393,28 +386,22 @@ fn named() -> String {
     route.source(support::runtime())
 }
 
-// The policy selects outside the sandbox, with what the owner granted it, in
-// the staged directory and with no parameter. The harness runs inside, with the
-// invocation's prompt and none of the owner's personal files. Old Grove configuration files change nothing.
+// The policy selects with what the owner granted it, in the staged directory
+// and with no parameter. The harness runs with the invocation's prompt and the
+// caller's environment, minus the controls that Grove scrubs. Old Grove
+// configuration files change nothing.
 #[test]
-fn the_policy_selects_outside_the_sandbox_and_the_harness_runs_inside_it() {
-    let fixture = Fixture::new(&format!(
+fn the_policy_selects_with_its_grants_and_the_harness_receives_the_caller_environment() {
+    let fixture = Fixture::new(
         "set -eu\n\
-         for file in \"$HOME/.config/ravel/{config}\" \
-         \"$HOME/.config/ravel/settings.json\" \
-         \"$HOME/.local/state/harness-dispatch/records.sqlite3\"; do\n\
-         if cat \"$file\" > /dev/null 2>&1; then exit 41; fi\n\
-         done\n\
-         test -z \"${{GROVE_SIGNAL_FILE-}}\"\n\
-         test -z \"${{GROVE_LAUNCH_DIR-}}\"\n\
-         test -z \"${{TMUX-}}\"\n\
+         test -z \"${GROVE_SIGNAL_FILE-}\"\n\
+         test -z \"${GROVE_LAUNCH_DIR-}\"\n\
          case \"$1\" in 'Produce notes.'*) ;; *) exit 9 ;; esac\n\
-         printf '%s\\n' \"${{RAVEL_EXIT_FILE-<unset>}}\" \"${{OWNER_GRANT-<unset>}}\" \
+         printf '%s\\n' \"${RAVEL_EXIT_FILE-<unset>}\" \"${CALLER_KEY-<unset>}\" \
          \"$2\" \"$3\" \"$4\" \"$5\" \"$(pwd -P)\" > notes.md\n\
          cat message.txt >> notes.md\n\
          acknowledge\n",
-        config = support::runtime().config_file(),
-    ));
+    );
     // The policy reports two variables its owner granted, as two more
     // arguments. One of them is the channel of a session this invocation runs
     // inside, which the owner should never grant and here has.
@@ -444,6 +431,9 @@ fn the_policy_selects_outside_the_sandbox_and_the_harness_runs_inside_it() {
         let mut command = fixture.run_kind("release-notes");
         command
             .env("OWNER_GRANT", "granted")
+            // A variable that no owner granted, such as an API key. Nothing
+            // confines the harness, so it receives it.
+            .env("CALLER_KEY", "caller")
             // A dispatched session this invocation runs inside. Its channel
             // reaches neither the policy nor the harness, and its run
             // identity is not the harness's.
@@ -471,7 +461,10 @@ fn the_policy_selects_outside_the_sandbox_and_the_harness_runs_inside_it() {
         !Path::new(lines[0]).exists(),
         "the session context is stale after reap"
     );
-    assert_eq!(lines[1], "<unset>", "the grant is the policy's alone");
+    assert_eq!(
+        lines[1], "caller",
+        "the harness receives the caller's environment"
+    );
     assert_eq!(lines[2], "granted", "the policy saw what its owner granted");
     assert_eq!(
         lines[3], "<unset>",
@@ -488,21 +481,6 @@ fn the_policy_selects_outside_the_sandbox_and_the_harness_runs_inside_it() {
     assert!(!fixture.cwd.join(".jj").exists());
     assert!(!fixture.root.join("outer-signal").exists());
     assert!(!fixture.root.join("outer-exit").exists());
-
-    // Even an explicit runtime grant cannot expose protected owner files:
-    // dispatch refuses this overlap before selecting or launching a harness.
-    fs::remove_file(fixture.notes()).unwrap();
-    let granted = run()
-        .arg("--runtime-read")
-        .arg(fixture.config_file())
-        .output()
-        .unwrap();
-    assert_nothing_published(&fixture, &granted);
-    assert!(
-        stderr(&granted).contains("confinement_overlap"),
-        "{}",
-        stderr(&granted)
-    );
 }
 
 // The file that runs is the one dispatch resolved. An unexecutable file
@@ -738,9 +716,7 @@ fn ravel_is_found_on_path_independently_of_groves_real_path() {
     command
         .args(["run", "release-notes", "Produce notes.", "--ui", "inline"])
         .arg("--output")
-        .arg(fixture.notes())
-        .arg("--runtime-read")
-        .arg(&fixture.script);
+        .arg(fixture.notes());
 
     let output = command.output().unwrap();
 
@@ -952,7 +928,7 @@ fn acknowledged_writer_is_stopped_before_publication() {
         .unwrap();
     assert_published(&fixture, &output, "writer");
     let pid: i32 = fs::read_to_string(pid_file).unwrap().parse().unwrap();
-    // SAFETY: signal 0 queries the PID the confined harness reported.
+    // SAFETY: signal 0 queries the PID the harness reported.
     assert_eq!(unsafe { libc::kill(pid, 0) }, -1);
     std::thread::sleep(Duration::from_millis(150));
     assert_eq!(fs::read_to_string(fixture.notes()).unwrap(), "writer");
@@ -976,7 +952,7 @@ fn wait_for_transcript(fixture: &Fixture, marker: &str) -> String {
     }
 }
 
-/// Forgetting to forward cancellation would leave the confined run alive and
+/// Forgetting to forward cancellation would leave the run alive and
 /// could publish after its eventual acknowledgement.
 #[test]
 fn cancellation_during_run_reaps_the_harness_and_preserves_enclosing_controls() {
@@ -1006,7 +982,12 @@ fn cancellation_during_run_reaps_the_harness_and_preserves_enclosing_controls() 
         0
     );
     assert!(!grove.wait().unwrap().success());
-    assert!(started.elapsed() < Duration::from_secs(5));
+    // The harness ignores TERM, and nothing confines it. Ravel forwards the
+    // signal and sends KILL after its kill-grace of 5 seconds, so the run ends
+    // inside that grace plus a margin for a loaded machine.
+    let elapsed = started.elapsed();
+    eprintln!("cancellation took {elapsed:?}");
+    assert!(elapsed < Duration::from_secs(15), "{elapsed:?}");
     // SAFETY: signal 0 queries the reported harness PID.
     assert_eq!(unsafe { libc::kill(pid, 0) }, -1);
     assert!(!fixture.notes().exists());
@@ -1172,189 +1153,125 @@ fn destination_created_during_run_is_never_overwritten() {
     assert_eq!(fs::read_to_string(fixture.notes()).unwrap(), "preserved");
 }
 
+/// The variables that the detached job removes beyond the loop controls.
+const DETACHED: [&str; 9] = [
+    "GIT_DIR",
+    "GIT_WORK_TREE",
+    "GIT_COMMON_DIR",
+    "GIT_INDEX_FILE",
+    "TMUX",
+    "TMUX_PANE",
+    "ZELLIJ",
+    "ZELLIJ_SESSION_NAME",
+    "ZELLIJ_PANE_ID",
+];
+
+// Nothing confines the harness, so Grove's detached job is the whole defence
+// here. `test -r /dev/tty` passes on its mode 0666 without a sandbox, so the
+// probe opens the device. The variable that no list names is the control: the
+// harness receives the caller's environment, so it must see that one.
 #[test]
-fn confined_harness_cannot_consume_stdin_or_parent_handles_but_can_read_runtime_grants() {
-    let fixture = Fixture::new(
-        "set -eu\nif read word; then exit 41; fi\nif test -r /dev/tty; then exit 42; fi\n\
-         test -z \"${TMUX-}\"\ntest -z \"${ZELLIJ-}\"\n\
-         test -z \"${JJ_REPO-}\"\ntest -z \"${GIT_DIR-}\"\n\
-         cat credential.txt > notes.md\nacknowledge\n",
-    );
-    let runtime = fixture.root.join("credential.txt");
-    fs::write(&runtime, "runtime grant").unwrap();
-    // Pass the credential's path through the policy, without exposing it as input.
-    fixture.configure(&Hooks {
-        after_prompt: vec![Extra::Text(runtime.to_str().unwrap())],
-        ..Hooks::default()
-    });
-    let body = fs::read_to_string(&fixture.script)
-        .unwrap()
-        .replace("cat credential.txt", "cat \"$2\"");
-    fs::write(&fixture.script, body).unwrap();
-    let mut grove = fixture
-        .run_kind("release-notes")
-        .env("JJ_REPO", fixture.root.join("not-a-repository"))
-        .env("GIT_DIR", fixture.root.join("not-a-repository"))
-        .env("TMUX", "parent-socket")
-        .env("ZELLIJ", "parent-pane")
-        .arg("--runtime-read")
-        .arg(runtime)
+fn the_harness_cannot_consume_stdin_or_the_terminal_and_loses_repository_and_multiplexer_variables()
+{
+    let fixture = Fixture::new(&format!(
+        "set -eu\nif read word; then exit 41; fi\n\
+         if (: < /dev/tty) 2>/dev/null; then exit 42; fi\n\
+         if env | grep -E '^({})=' >&2; then exit 43; fi\n\
+         test \"${{CALLER_KEY-}}\" = caller\n\
+         printf isolated > notes.md\nacknowledge\n",
+        DETACHED.join("|")
+    ));
+    let mut command = fixture.run_kind("release-notes");
+    command.env("CALLER_KEY", "caller");
+    for name in DETACHED {
+        command.env(name, fixture.root.join("caller-handle"));
+    }
+    let mut grove = command
         .stdin(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
         .unwrap();
     use std::io::Write as _;
     let _ = grove.stdin.take().unwrap().write_all(b"caller input\n");
-    assert_published(
-        &fixture,
-        &grove.wait_with_output().unwrap(),
-        "runtime grant",
+    assert_published(&fixture, &grove.wait_with_output().unwrap(), "isolated");
+}
+
+// The interpretation of a force-stop, without a sandbox. With skill injection
+// disabled, a scripted agent looks for the native spine under HOME, finds no
+// copy, writes a valid output and force-stops. Grove publishes nothing and does
+// not launch the agent again. The script decides to stop, not a real agent:
+// a standalone prompt names no guidance, and Grove promises no report.
+#[test]
+fn an_agent_that_finds_no_native_guidance_force_stops_and_nothing_is_published() {
+    let fixture = Fixture::new(
+        "printf 'fake agent: started\\n' >&2\n\
+         for tree in .claude/skills .codex/skills .agents/skills; do\n\
+         if test -e \"$HOME/$tree/grove/SKILL.md\"; then printf valid > notes.md; acknowledge; exit 0; fi\n\
+         done\n\
+         printf valid > notes.md\n\
+         printf 'fake agent: no native guidance\\n' >&2\n\
+         stop_work\n",
+    );
+    assert!(!fixture.dispatch_file("settings.json").exists());
+    let output = fixture.run();
+    assert_eq!(output.status.code(), Some(1), "{}", stderr(&output));
+    assert!(
+        stderr(&output).contains("Grove force-stop requested; outputs were not published"),
+        "{}",
+        stderr(&output)
+    );
+    assert!(!fixture.notes().exists());
+    let transcript = wait_for_transcript(&fixture, "fake agent: no native guidance");
+    assert_eq!(
+        transcript.matches("fake agent: started").count(),
+        1,
+        "{transcript}"
     );
 }
 
-/// A scripted agent that tries to read each native copy that its prompt
-/// names, on a line `Native guidance: <path>`. It reports each read or failed
-/// read on stderr, which goes to the transcript, and it writes a valid output
-/// either way. When any copy is unreadable, the script runs the force-stop
-/// command of its prompt. Otherwise it acknowledges.
-///
-/// The decision to stop is this script's, not a property of a real agent.
-/// Grove's standalone prompt names no guidance and holds no missing-guidance
-/// rule, so nothing here is evidence of what a real agent does.
-const READS_NATIVE_COPIES: &str = "printf 'fake agent: started\\n' >&2\n\
-     unreadable=\n\
-     for file in $(printf '%s\\n' \"$1\" | sed -n 's/^Native guidance: //p'); do\n\
-     if cat \"$file\" > /dev/null 2>&1; then printf 'fake agent: read %s\\n' \"$file\" >&2\n\
-     else printf 'fake agent: cannot read guidance %s\\n' \"$file\" >&2; unreadable=yes; fi\n\
-     done\n\
-     printf valid > notes.md\n\
-     if [ -n \"$unreadable\" ]; then\n\
-     printf 'fake agent: a native copy is unreadable\\n' >&2\n\
-     stop_work\n\
-     fi\n\
-     acknowledge\n";
-
-impl Fixture {
-    /// Native copies of the spine in the usual harness locations under HOME.
-    /// The test process reads each one, so each copy exists and is readable
-    /// outside the sandbox.
-    fn native_copies(&self) -> Vec<PathBuf> {
-        [".claude/skills", ".codex/skills", ".agents/skills"]
-            .iter()
-            .map(|tree| {
-                let copy = self.home.join(tree).join("grove/SKILL.md");
-                fs::create_dir_all(copy.parent().unwrap()).unwrap();
-                fs::write(&copy, "# grove spine (native copy)\n").unwrap();
-                assert_eq!(
-                    fs::read_to_string(&copy).unwrap(),
-                    "# grove spine (native copy)\n"
-                );
-                copy
-            })
-            .collect()
-    }
-
-    /// `grove run` with a prompt that names `native`, and `grants` as
-    /// additional regular-file grants.
-    fn run_guided(&self, native: &[PathBuf], grants: &[PathBuf]) -> Output {
-        let mut prompt = String::from("Produce notes after you read the native copies.\n");
-        for copy in native {
-            prompt.push_str(&format!("Native guidance: {}\n", copy.display()));
-        }
-        let mut command = self.grove(Path::new(env!("CARGO_BIN_EXE_grove")));
-        command
-            .args(["run", "release-notes", &prompt, "--ui", "inline"])
-            .arg("--output")
-            .arg(self.notes())
-            .arg("--runtime-read")
-            .arg(&self.script);
-        for grant in grants {
-            command.arg("--runtime-read").arg(grant);
-        }
-        command.output().unwrap()
-    }
-
-    /// The text of every transcript, in no particular order.
-    fn transcript_text(&self) -> String {
-        let Ok(files) = fs::read_dir(self.home.join(".local/state/grove/runs")) else {
-            return String::new();
-        };
-        files
-            .flatten()
-            .filter(|file| file.path().extension().is_some_and(|ext| ext == "log"))
-            .map(|file| fs::read_to_string(file.path()).unwrap())
-            .collect()
-    }
-}
-
-/// The outcome of a force-stop after unreadable native copies. The one
-/// confined agent fails to read each copy, Grove reports the force-stop, and
-/// nothing is published. A second start of the agent, which an unconfined
-/// retry would cause, fails the check.
-fn force_stopped_after_unreadable_copies(
-    fixture: &Fixture,
-    output: &Output,
-    native: &[PathBuf],
-) -> Result<(), String> {
-    let said = stderr(output);
-    let transcript = fixture.transcript_text();
-    if output.status.success() {
-        return Err(format!("grove run succeeded: {said}"));
-    }
-    if !said.contains("Grove force-stop requested; outputs were not published") {
-        return Err(format!("Grove did not report the force-stop: {said}"));
-    }
-    if fixture.notes().exists() {
-        return Err("Grove published the output".into());
-    }
-    let starts = transcript.matches("fake agent: started").count();
-    if starts != 1 {
-        return Err(format!("the agent started {starts} times: {transcript}"));
-    }
-    for copy in native {
-        let report = format!("fake agent: cannot read guidance {}", copy.display());
-        if !transcript.contains(&report) {
-            return Err(format!("no {report:?} in: {transcript}"));
-        }
-    }
-    if transcript.contains("fake agent: read ")
-        || !transcript.contains("fake agent: a native copy is unreadable")
-    {
-        return Err(format!(
-            "the agent did not report the unreadable copy: {transcript}"
-        ));
-    }
-    Ok(())
-}
-
-// This case proves two facts of Grove and its sandbox. With skill injection
-// disabled, native skill trees under HOME lie outside every grant of the
-// confined invocation, and Grove adds no grant for them. Grove interprets the
-// exact force-stop command as failure: it publishes nothing, although the
-// output is valid, and it does not launch the agent again. The case runs on
-// each runtime: the 2.0 fixture HOME holds no `skills` settings.
-//
-// The scripted agent stops because its script says so. That a real agent
-// stops is not proved here, and Grove does not promise it: a standalone
-// prompt names no guidance. The record holds the real-agent result as an
-// explicit gap.
-//
-// The control grants each native copy as a regular file. The agent then reads
-// each copy and acknowledges, so the same check fails.
+// The flag stays so that existing commands keep working. Grove prints one
+// notice, does not check the file, and sends Ravel the request that it sends
+// without the flag.
 #[test]
-fn native_copies_outside_every_grant_stay_unreadable_and_a_force_stop_publishes_nothing() {
-    let fixture = Fixture::new(READS_NATIVE_COPIES);
-    assert!(!fixture.dispatch_file("settings.json").exists());
-    let native = fixture.native_copies();
-    let output = fixture.run_guided(&native, &[]);
-    force_stopped_after_unreadable_copies(&fixture, &output, &native).unwrap();
-
-    let granted = Fixture::new(READS_NATIVE_COPIES);
-    let native = granted.native_copies();
-    let output = granted.run_guided(&native, &native);
-    let refused = force_stopped_after_unreadable_copies(&granted, &output, &native).unwrap_err();
-    assert!(refused.contains("grove run succeeded"), "{refused}");
-    assert_published(&granted, &output, "valid");
+fn runtime_read_has_no_effect_beyond_one_notice() {
+    let fixture = Fixture::new(WRITES_NOTES);
+    let bin = fixture.root.join("recording-bin");
+    let request = fixture.root.join("request");
+    write_executable(
+        &bin.join("ravel"),
+        &format!(
+            "#!/bin/sh\nif [ \"${{1-}}\" = start-session ]; then printf '%s\\0' \"$@\" > '{}'; fi\n\
+             exec '{}' \"$@\"\n",
+            request.display(),
+            support::installed_ravel().display()
+        ),
+        0o755,
+    );
+    let output = fixture
+        .run_kind("release-notes")
+        .env("PATH", support::path_with_entry(&bin))
+        .arg("--runtime-read")
+        .arg(fixture.root.join("absent credential"))
+        .arg("--runtime-read")
+        .arg(&fixture.script)
+        .output()
+        .unwrap();
+    assert_published(&fixture, &output, "ok");
+    assert_eq!(
+        stderr(&output)
+            .matches("--runtime-read has no effect")
+            .count(),
+        1,
+        "{}",
+        stderr(&output)
+    );
+    let words = fs::read_to_string(&request).unwrap();
+    let words: Vec<&str> = words.trim_end_matches('\0').split('\0').collect();
+    assert_eq!(words.len(), 4, "{words:?}");
+    assert_eq!(words[0], "start-session");
+    assert_eq!(words[1], "--kind=release-notes");
+    assert!(words[2].starts_with("--prompt=Produce notes."), "{words:?}");
+    assert!(words[3].starts_with("--exit-dir="), "{words:?}");
 }
 
 /// Nested completion, force-stop or cancellation finishes only the inner
@@ -1372,16 +1289,20 @@ fn nested_exit_and_cancellation_leave_the_enclosing_dispatched_run_intact() {
         let dispatch = support::installed_ravel().canonicalize().unwrap();
         let body = format!(
             "set -eu\nouter_exit=$RAVEL_EXIT_FILE\n\
-             '{}' run release-notes 'Produce notes.' --ui inline --runtime-read '{}' --output '{}' &\ninner=$!\n{}\n\
+             '{}' run release-notes 'Produce notes.' --ui inline --output '{}' &\ninner=$!\n{}\n\
              test ! -e \"$outer_exit\"\n\
              printf survived > '{}'\n'{}' end-session grove-continue\n",
-            grove.display(), fixture.script.display(), fixture.notes().display(),
+            grove.display(),
+            fixture.notes().display(),
             if ending == "cancel" {
                 format!("while ! grep -q nested-ready '{}'/runs/*.log 2>/dev/null; do sleep 0.02; done\nkill -TERM \"$inner\"\nif wait \"$inner\"; then exit 41; fi", fixture.home.join(".local/state/grove").display())
             } else if ending == "force-stop" {
                 "if wait \"$inner\"; then exit 41; fi".to_owned()
-            } else { "wait \"$inner\"".to_owned() },
-            fixture.cwd.join("outer-survived").display(), dispatch.display()
+            } else {
+                "wait \"$inner\"".to_owned()
+            },
+            fixture.cwd.join("outer-survived").display(),
+            dispatch.display()
         );
         fs::write(&outer, body).unwrap();
         fixture.configure(&Hooks {
@@ -1422,8 +1343,6 @@ fn acknowledgement_names_the_canonical_dispatch_path_when_the_sibling_is_a_symli
     let output = fixture
         .grove(&bin.join("grove"))
         .args(["run", "release-notes", "Produce notes.", "--ui", "inline"])
-        .arg("--runtime-read")
-        .arg(&fixture.script)
         .arg("--output")
         .arg(fixture.notes())
         .output()
@@ -1452,9 +1371,7 @@ impl Fixture {
             .arg("--prompt-file")
             .arg(&prompt)
             .args(["--ui", "inline", "--output"])
-            .arg(self.notes())
-            .arg("--runtime-read")
-            .arg(&self.script);
+            .arg(self.notes());
         command.output().unwrap()
     }
 

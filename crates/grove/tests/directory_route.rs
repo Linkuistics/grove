@@ -1041,8 +1041,8 @@ fn a_running_session_keeps_its_directories_and_the_next_launch_sees_the_new_view
     );
 }
 
-/// The evidence files that the confined standalone agent writes in its
-/// working directory. Grove publishes each one as an output.
+/// The evidence files that the standalone agent writes in its working
+/// directory. Grove publishes each one as an output.
 const EVIDENCE: [&str; 9] = [
     "prompt",
     "view.json",
@@ -1055,35 +1055,21 @@ const EVIDENCE: [&str; 9] = [
     "started",
 ];
 
-/// The probes of the confined standalone case. Each line is `name=ok` when
-/// the operation succeeds and `name=denied` when it fails. The arguments are
-/// the directory to write in, the snapshot spine, the snapshot kind and the
-/// descriptor. The other paths are fixed when the case writes the script.
-fn probe_script(lane: &Lane, sources: &Sources) -> String {
-    let protected = lane.home.join(".config/ravel");
-    format!(
-        "probe() {{ name=$1; shift; if \"$@\" > /dev/null 2>&1; then echo \"$name=ok\"; else echo \"$name=denied\"; fi; }}\n\
-         append() {{ printf x >> \"$1\"; }}\n\
-         probe descriptor-read cat \"$4\"\n\
-         probe cwd-write touch \"$1/probe\"\n\
-         probe snapshot-write touch \"$(dirname \"$2\")/probe\"\n\
-         probe snapshot-append append \"$3\"\n\
-         probe source-read cat {source_file}\n\
-         probe source-write touch {source_dir}/probe\n\
-         probe outside-write touch {outside}\n\
-         probe config-read cat {config}\n\
-         probe settings-read cat {settings}\n",
-        source_file = shell_quote(&sources.core.join("skills/grove/SKILL.md")),
-        source_dir = shell_quote(&sources.core),
-        outside = shell_quote(&lane.root.join("outside")),
-        config = shell_quote(&protected.join("config.rhai")),
-        settings = shell_quote(&protected.join("settings.json")),
-    )
-}
+/// The probes of the standalone case. Each line is `name=ok` when the
+/// operation succeeds and `name=denied` when it fails. The arguments are the
+/// directory to write in, the snapshot spine, the snapshot kind and the
+/// descriptor. Nothing confines the agent, so the snapshot writes fail only by
+/// the file modes that Ravel publishes.
+const PROBES: &str = "probe() { name=$1; shift; if \"$@\" > /dev/null 2>&1; then echo \"$name=ok\"; else echo \"$name=denied\"; fi; }\n\
+     append() { printf x >> \"$1\"; }\n\
+     probe descriptor-read cat \"$4\"\n\
+     probe cwd-write touch \"$1/probe\"\n\
+     probe snapshot-write touch \"$(dirname \"$2\")/probe\"\n\
+     probe snapshot-append append \"$3\"\n";
 
 impl Lane {
-    /// The confined standalone agent. Its records go to its working
-    /// directory, the only place it can write. It loads the skills as the
+    /// The standalone agent. Its records go to its working directory, which
+    /// Grove exports. It loads the skills as the
     /// lifecycle agent does, runs the probes and acknowledges with the exact
     /// command of the standalone instructions.
     fn standalone_agent(&self, probes: &Path) {
@@ -1106,10 +1092,9 @@ impl Lane {
         );
     }
 
-    /// The 2.0 configuration of the confined standalone case. The agent
-    /// receives `request.prompt`, then `request.originalPrompt` and
-    /// `request.skills` as one JSON text, since a confined agent cannot write
-    /// a view outside its working directory.
+    /// The 2.0 configuration of the standalone case. The agent receives
+    /// `request.prompt`, then `request.originalPrompt` and `request.skills` as
+    /// one JSON text.
     fn standalone_config(&self) {
         self.config(&format!(
             "export const SCHEMA_VERSION = 4;\n\
@@ -1124,7 +1109,7 @@ impl Lane {
              \x20       provider: \"fixture\",\n\
              \x20       model: \"none\",\n\
              \x20       effort: \"none\",\n\
-             \x20       reason: \"the confined standalone fake agent\",\n\
+             \x20       reason: \"the standalone fake agent\",\n\
              \x20   }}\n\
              }}\n",
             harness = quote(self.harness.to_str().unwrap()),
@@ -1132,8 +1117,8 @@ impl Lane {
     }
 
     /// `grove run impl` in `cwd`, which is no project, with each evidence
-    /// file as an output in `out` and each of `grants` as a runtime read.
-    fn standalone(&self, cwd: &Path, out: &Path, grants: &[&Path]) -> Command {
+    /// file as an output in `out`.
+    fn standalone(&self, cwd: &Path, out: &Path) -> Command {
         let mut command = self.driver(None, None);
         command.current_dir(cwd).args([
             "run",
@@ -1144,9 +1129,6 @@ impl Lane {
         ]);
         for name in EVIDENCE {
             command.arg("--output").arg(out.join(name));
-        }
-        for grant in grants {
-            command.arg("--runtime-read").arg(grant);
         }
         command
     }
@@ -1160,38 +1142,28 @@ fn probe_results(text: &str) -> std::collections::BTreeMap<String, String> {
         .collect()
 }
 
-// A confined standalone `grove run` on the 2.0 build with directory delivery.
-// The sources lie outside cwd, and no native copy exists. The confined agent
-// reads the spine, its resource and the named kind from the retained
-// snapshots, and reads the descriptor. It cannot write to a snapshot, a
-// source or a path outside its working directory. It cannot read a source
-// directly or the protected configuration. Grove publishes the evidence only
-// after the exact acknowledgement, and the caller block equals
-// `request.originalPrompt`.
-//
-// The control runs the same probe script unconfined after the run. Each
-// denied read and each denied write outside the snapshots then succeeds, so
-// those denials are the sandbox's and not a wrong path. The snapshot write
-// probes are denied unconfined too, because Ravel publishes each snapshot
-// read-only. They show that the writes fail, not which layer refuses them.
+// A standalone `grove run` on the 2.0 build with directory delivery. The
+// sources lie outside cwd, and no native copy exists. The agent reads the
+// spine, its resource and the named kind from the retained snapshots, and
+// reads the descriptor. Its writes to a snapshot fail by the file modes of the
+// snapshot. Grove publishes the evidence only after the exact acknowledgement,
+// and the caller block equals `request.originalPrompt`.
 #[test]
 #[ignore = "needs the Ravel 2.0 directory build: task ravel:directory"]
-fn a_confined_standalone_run_reads_injected_skills_but_cannot_write_them_or_read_configuration() {
+fn a_standalone_run_reads_injected_skills_from_read_only_snapshots() {
     let lane = Lane::new(&build());
     let sources = Sources::plant(&lane);
     lane.settings(&sources.settings());
     lane.standalone_config();
     let probes = lane.root.join("probes.sh");
-    fs::write(&probes, probe_script(&lane, &sources)).unwrap();
+    fs::write(&probes, PROBES).unwrap();
     lane.standalone_agent(&probes);
     let cwd = lane.root.join("cwd");
     let out = lane.root.join("out");
     fs::create_dir(&cwd).unwrap();
     fs::create_dir(&out).unwrap();
 
-    let output = lane
-        .spawn(lane.standalone(&cwd, &out, &[&lane.harness, &probes]))
-        .finish();
+    let output = lane.spawn(lane.standalone(&cwd, &out)).finish();
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(output.status.success(), "{stderr}");
     assert!(stderr.contains("grove run [impl]: completed"), "{stderr}");
@@ -1247,48 +1219,19 @@ fn a_confined_standalone_run_reads_injected_skills_but_cannot_write_them_or_read
     assert_eq!(read("kind"), KIND_V1);
     no_native_copy(&lane.home).unwrap();
 
-    let confined = probe_results(&read("probes"));
+    let probes = probe_results(&read("probes"));
     let expected = [
         ("descriptor-read", "ok"),
         ("cwd-write", "ok"),
         ("snapshot-write", "denied"),
         ("snapshot-append", "denied"),
-        ("source-read", "denied"),
-        ("source-write", "denied"),
-        ("outside-write", "denied"),
-        ("config-read", "denied"),
-        ("settings-read", "denied"),
     ];
     assert_eq!(
-        confined,
+        probes,
         expected
             .iter()
             .map(|(name, result)| ((*name).to_owned(), (*result).to_owned()))
             .collect(),
-        "the confined probes"
+        "the probes"
     );
-
-    // The control: the same probes, unconfined, on the same paths.
-    let spine = reads.lines().next().unwrap();
-    let kind = reads.lines().nth(2).unwrap();
-    let scratch = lane.root.join("unconfined");
-    fs::create_dir(&scratch).unwrap();
-    let unconfined = Command::new("/bin/sh")
-        .arg(&probes)
-        .arg(&scratch)
-        .arg(spine)
-        .arg(kind)
-        .arg(skills["descriptorPath"].as_str().unwrap())
-        .output()
-        .unwrap();
-    let unconfined = probe_results(&String::from_utf8(unconfined.stdout).unwrap());
-    eprintln!("unconfined probes: {unconfined:?}");
-    for (name, result) in &confined {
-        if result == "denied" && !name.starts_with("snapshot-") {
-            assert_eq!(
-                unconfined[name], "ok",
-                "{name} succeeds unconfined, so its confined denial is the sandbox's"
-            );
-        }
-    }
 }

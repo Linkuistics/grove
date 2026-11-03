@@ -26,9 +26,8 @@ Options:
   --to <revset>  Endpoint revision (default: @, snapshotted when the run starts)
   -h, --help     Print this help
 
-Environment:
-  GROVE_RELEASE_RUNTIME_READ  Runtime files granted read-only, one path per line
-                             See docs/RELEASING.md#runtime-access for setup
+The harness sandbox that the owner's Ravel configuration selects is the only
+boundary of the writer; see docs/specs/standalone-invocations.md.
 
 Examples:
   task release:notes
@@ -102,24 +101,15 @@ PROMPT
     --input "$notes_dir/current-unreleased.md" --input "$notes_dir/changes.txt"
     --input "$notes_dir/changes.diff" --input "$notes_dir/codex-headless.sh"
     --output "$notes_dir/release-notes.md" --ui auto)
-  local runtime_read
-  while IFS= read -r runtime_read; do
-    [[ -n "$runtime_read" ]] || continue
-    [[ -f "$runtime_read" && -r "$runtime_read" ]] \
-      || die "GROVE_RELEASE_RUNTIME_READ entry is not a readable regular file: $runtime_read
-Update the grant to an existing file required by the harness your policy selects.
-Use one literal file path per line; see docs/RELEASING.md#runtime-access."
-    run_args+=(--runtime-read "$runtime_read")
-  done <<<"${GROVE_RELEASE_RUNTIME_READ:-}"
 
   # `grove run` resolves/version-checks the independently installed Ravel on PATH.
   cargo build --locked -p grove -p grove-llm
   if ! ./target/debug/grove "${run_args[@]}"; then
     die "the release-notes writer your policy selects failed; CHANGELOG.md was left unchanged.
-Read the error and any transcript above. If a credential or runtime file was
-denied, export GROVE_RELEASE_RUNTIME_READ with the files your harness needs,
-one literal file path per line, in the shell launching the task.
-Setup and retry instructions: docs/RELEASING.md#runtime-access."
+Read the error and any transcript above. If the harness has no sign-in, sign it
+in and run the task again. If its sandbox denied an operation, change the
+sandbox that your Ravel configuration selects for the release-notes kind:
+docs/specs/standalone-invocations.md#the-harness-sandbox."
   fi
   if [[ ! -f "$notes_dir/release-notes.md" ]] \
     || ! awk '/[^[:space:]]/ { found=1 } END { exit !found }' "$notes_dir/release-notes.md"; then

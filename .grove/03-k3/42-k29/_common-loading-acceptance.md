@@ -137,3 +137,21 @@ Claude Code 2.1.316 takes its temporary directory from `CLAUDE_CODE_TMPDIR` or
 The runner now runs the native route on 2.0 for real. The `missing-kind` and
 `missing-kind-confined` cases are its examples, and a probe case probes each
 native copy. The Codex node can reuse both cases.
+
+codex-missing-kind-k122 closed codex-trials-k105. Each Codex case has its own
+"in Codex" section in the record. `task trial:codex` runs any case in Codex. `scripts/harness_trial.py`
+keeps each harness difference behind one adapter. These Codex results are gaps
+or unmeasured for acceptance-handoff-k106:
+
+- `discovery-confined` and `missing-kind-confined`: Codex exits before its
+  session under Ravel confinement. Its native roots lie inside its
+  configuration directory, so a sandbox cannot hide them alone.
+- The three explicit rows of a native tool do not apply, because Codex 0.166.0
+  has no native skill loader. `problem-ambiguity` and `problem-stale-native` did
+  not run, because their pack reference cannot measure the row.
+- The re-read of `continuation`, `compaction-path`, which is unmeasured, and
+  `compaction-preamble`, whose agent did not recover.
+- In delegation, the encrypted `spawn_agent` message and the scrubbing adapter.
+
+`missing-kind` passed in Codex. Codex searched its native roots with shell
+commands, reported the missing kind skill and ran the exact force-stop command.

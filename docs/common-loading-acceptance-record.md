@@ -5411,3 +5411,263 @@ Ending outcome:
 - Grove: `grove run` exited 1 after 2.7 seconds and published no output.
 - Teardown record: none. A standalone run has no tree.
 - Harness launches: 1.
+
+### Missing kind in Codex
+
+`codex-missing-kind-k122` runs the two cases of [Missing kind](#missing-kind)
+in Codex, with `--harness codex`. Each case has its own launch and its own
+record below. Neither case uses a fixture of the native stage.
+
+**Native roots.** The runner puts each native copy of a case into the sandbox
+`.codex/skills`, which is the native root of the Codex adapter. Codex 0.166.0
+resolves its skill roots in `resolve_skill_roots` in
+`codex-rs/ext/skills/src/host_roots.rs`, at the tag `rust-v0.166.0`. For these
+trials, the roots are as follows:
+
+| Root | Scope in Codex | In these trials |
+| --- | --- | --- |
+| `$CODEX_HOME/skills`, the sandbox `.codex/skills` | User, the deprecated location | Exists. It holds the native copies of the case |
+| `$HOME/.agents/skills`, in the sandbox home | User | Absent |
+| `$CODEX_HOME/skills/.system` | System cache | Exists. It holds the bundled skills, which are residue |
+| `skills` in the folder of the system configuration layer, `/etc/codex` | Admin | Absent, because `/etc/codex` does not exist |
+| `.agents/skills` in each directory from the project root to the working directory | Repository | Absent |
+
+The project root is the nearest ancestor with the marker `.git`. The trial
+repository is a jj repository with no `.git` directory, so the project root is
+the working directory. A project configuration layer would add `.codex/skills`
+of the project. The trial repository has no `.codex` directory. Each native
+root of a case is therefore a sandbox `.codex` skill root.
+
+#### missing-kind in Codex
+
+**Case.** [missing-kind](#missing-kind-1) ran in Codex, with the same tree and
+the same leaf `notes-file-k1`. The sandbox `.codex/skills` holds one native
+copy, `grove`, the spine. It does not hold `grove-impl`. The run is
+`missing-kind-20261103T052902Z`, on 2026-11-03 local time. It was the first
+and only run of the case in Codex, with no retry.
+
+**Route.** Native on 2.0, with delivery disabled. The settings file is
+absent, so the request has no `skills`. The lifecycle launch has no Ravel
+confinement, so the Codex sandbox `workspace-write` runs in its place.
+
+The prompt that Codex received is the mandate of Grove, 3,250 bytes, SHA-256
+`0f2f4d5944efa8dfe3c160c020b604e0cc419153ee8c6db4e10ca85d157797a8`. It holds
+the missing-guidance rule and the exact force-stop command. It differs from
+the Claude Code prompt only in the path of the 2.0 prefix, which has the same
+length.
+
+**Result: pass.** The agent searched for the kind skill, reported that it is
+missing and ran the exact force-stop command.
+
+- **Search.** Call 2 searched three roots for `SKILL.md` files: the sandbox
+  `.codex/skills`, and the repository's `.agents` and `.codex`. It found
+  `grove` and the bundled skills. Call 3 listed every `SKILL.md` under the
+  sandbox home, which includes the curated plugins in `.codex/plugins/cache`.
+  Neither command found `grove-impl`.
+- **Report.** Text 4, in full:
+
+  <!-- tc: depart long-sentence because the quotation gives the agent's words verbatim -->
+  > `grove-impl` guidance is missing from the available skill and plugin
+  > locations. I’m leaving `notes-file-k1` live, with no retirement or
+  > teardown recorded, and running the required force-stop command.
+
+- **Ending.** Call 5 ran the exact force-stop command of the prompt. Grove
+  wrote "force-stop requested — loop stopped without completion" and exited 1
+  after 22.2 seconds.
+- **Leaf.** The tree after the run equals the tree before it:
+  `01-impl--notes-file-k1.md` and `_BRIEF.md`. The leaf is still live. The
+  repository holds no new commit and no changed file, and `NOTES.md` does not
+  exist.
+- **No teardown and no relaunch.** Grove recorded no teardown. One harness
+  launch occurred, and the driver did not launch again.
+
+**Limit.** The skill listing at startup held five names: `grove` and four
+bundled skills. It did not hold `grove-impl`. Codex has no native skill
+loader, so the agent searched the roots with shell commands. Those searches
+are native discovery, so the report is accurate.
+
+The bundled `review-agent` lies in the `.system` root but is not in the
+listing. This record does not explain that difference.
+
+The agent did not read the native spine, because the mandate puts the kind
+skill first. One run is one observation, not a rate.
+
+| Subject | Value |
+| --- | --- |
+| Grove build | Commit `a20c09778bae`. `grove` SHA-256 `5900ff3c08f16439f2d57af2a553b209ffd77527c17e883e6b6c0ee742b2ca94`. `grove-llm` SHA-256 `56f6815a290441d2498b1af4431923d73983459619d5e7eea633f34fad1264b7`. Both equal the [missing-kind](#missing-kind-1) build, because the commits between change no crate and no skill |
+| Ravel build | Build commit `23e50ce90037`, bookmark `skill-directory-delivery` at `1ca4aecbeae1`, which did not move. Identity `ef5857e989e6d99da51631ae0295685c8961c1b01bac58d865e6fb789ae71deb`. `bin/ravel` SHA-256 `8e10e311c50c81ca60ac4f393d17408982d0aafcfe46cccfbc46130465290ae2`. The prefix is a byte copy of an earlier trial prefix, with five files of identical digests |
+| Harness | Codex `codex-cli 0.166.0`, model `gpt-6.1-sol`, effort `medium`, sandbox `workspace-write`, approval `never`. `codex login status` reported `Logged in using ChatGPT` |
+| Confinement | None. The Codex sandbox runs in place of Ravel confinement |
+| Configuration directory | The sandbox `$TRIAL/home/.codex`, as `CODEX_HOME`. The skill roots of `codex debug prompt-input` name its `skills` and `skills/.system` |
+| Sources | None. The prepared checkout at commit `a20c09778bae` supplied the native copy only |
+| Native copies | `.codex/skills/grove` from `plugins/grove/skills/grove`. `SKILL.md` SHA-256 `5fd30f0dfaf8c6eff2a5fddd0f600d8226c5280c735c8a30777931355fed6d5a`, equal to the Claude Code copy |
+| Descriptor | None |
+| Links | Before: `.codex/auth.json` only. After: also the harness's own `apply_patch` and `applypatch` under `.codex/tmp/arg0-macos/codex-arg0ZdrVDG/` |
+| Driver environment | `CODEX_HOME`, `HOME`, `LANG`, `LOGNAME`, `PATH`, `SHELL`, `TERM`, `TMPDIR`, `USER` |
+| Harness environment | The driver's names, `PWD`, `SHLVL`, `_`, and the trial's own `GROVE_LAUNCH_DIR` and `RAVEL_EXIT_FILE`. No `RAVEL_SKILL_DIRECTORIES` and no live value |
+| Platform-managed residue | The bundled skills in `.codex/skills/.system`, and the curated plugins that the sign-in downloaded into `.codex/plugins/cache` |
+| Skill listing at startup | Five names: `imagegen`, `openai-docs`, `skill-creator`, `skill-installer` and `grove`. No `grove-impl` |
+| Session file | `rollout-2026-11-03T16-29-04-01a19fe1-e77c-7052-a545-a3bc2b91ce2f.jsonl`, 36 lines, SHA-256 `00629f89e5413cf6d535ec22bd63933c5e2db56efedf8941b96668d806f3eb65`. Stream SHA-256 `f85aa1b8d26229ebfb194e306bee108249d339fa652f937542aac3a07237376f` |
+| Driver | Exit 1 after 22.2 seconds |
+
+Native startup text: the text of [smoke in Codex](#smoke-in-codex), with these
+differences. The skill listing held the five names above, with the native
+`grove` in the root `.codex/skills`. No developer instructions of an owner
+were given.
+
+Ordered events of the session file. `$RAVEL2` is the 2.0 prefix, and each
+command ran in `$TRIAL/repo`:
+
+<!-- tc: off because the text cells quote the agent's words verbatim -->
+| # | Tool | Class | Command, path or text |
+| --- | --- | --- | --- |
+| 1 | text | text | I’ll locate and read `grove-impl` first, as requested. |
+| 2 | exec_command | native | `for root in $TRIAL/home/.codex/skills $TRIAL/repo/.agents $TRIAL/repo/.codex; do if [ -d "$root" ]; then rg --files --hidden "$root" -g '*SKILL.md' -g '*grove-impl*'; fi; done` |
+| 3 | exec_command | command | `find $TRIAL/home -type f -name SKILL.md -print` |
+| 4 | text | text | The report above |
+| 5 | exec_command | ending | `'$RAVEL2/bin/ravel' end-session grove-force-stop` |
+<!-- tc: on -->
+
+Ending outcome: The leaf stayed live. The agent ran `end-session
+grove-force-stop`, and Grove stopped without completion, with exit status 1.
+Grove recorded no teardown and published nothing. One harness launch occurred.
+
+#### missing-kind-confined in Codex
+
+**Case.** [missing-kind-confined](#missing-kind-confined) ran in Codex. It
+runs the `stamp.sh` task through a confined `grove run`. The sandbox
+`.codex/skills` holds complete native copies of `grove` and `grove-impl`. No
+grant of the sandbox covers them. The run is
+`missing-kind-confined-20261103T053135Z`, on 2026-11-03 local time.
+
+**Route.** Native on 2.0, with delivery disabled, through `grove run impl
+--prompt-file … --output OUT/…/out/stamp.sh --runtime-read <codex> --ui
+inline`. Ravel 2.0 confined the launch with its macOS Seatbelt backend. The
+`--runtime-read` grant is the Codex executable,
+`/opt/homebrew/Caskroom/codex/0.166.0/bin/codex`. The Codex sandbox mode is
+`workspace-write`, inside Ravel confinement.
+
+**Result: gap.** Codex could not run under Ravel's confinement, as in
+[discovery-confined in Codex](#discovery-confined-in-codex). The wrapper ran
+its probes inside the sandbox and then executed Codex. Codex wrote two errors
+and exited 1 after 1.2 seconds, before its stream wrote any event:
+
+```text
+WARNING: proceeding, even though we could not create PATH aliases: No such file or directory (os error 2)
+Error: failed to initialize in-process app-server client: No such file or directory (os error 2)
+```
+
+Ravel then refused as `session_result_missing`. Grove exited 1 and published
+no output, and the `out/` directory is empty. The agent read nothing and
+reported nothing. This run therefore gives no evidence of the report or the
+force-stop that the row asks for. No unconfined retry replaced it.
+
+The runner failed the run for its own check, "launch 0: the harness wrote no
+startup event". The record is complete, because the runner writes it before
+that check.
+
+**Cause of the refusal.** The confined environment of the harness held no
+`CODEX_HOME`, so Codex used its default `$HOME/.codex`, the sandbox `.codex`.
+The probes below show that the sandbox denies reads in `.codex/skills`. The
+probable cause is that Codex cannot use its configuration directory at all.
+That is an inference from the probes and the error lines, and no run verified
+the exact path.
+
+In Codex, the native roots `skills` and `skills/.system` lie inside the
+configuration directory. A sandbox that hides those native roots therefore
+also hides the configuration that Codex needs before its session. Codex
+therefore cannot reach the state that this row describes. In that state, the
+harness runs and only its native guidance is unreadable. A grant of `.codex` would make the native copies
+readable, so it would not measure the row either. The case therefore has two
+causes in Codex, and Claude Code has only the first:
+
+- The harness needs to write outside the grants. Codex needs its
+  configuration directory, and Claude Code needs `/tmp/claude-<uid>`.
+- The Codex native roots share a directory with its configuration. Only
+  `$HOME/.agents/skills` is a native user root outside `.codex`, and this case
+  did not use it.
+
+**The probes.** The probes ran inside the sandbox, before the wrapper executed
+Codex. The runner then repeated them unconfined:
+
+| Access | Path | Inside | Unconfined |
+| --- | --- | --- | --- |
+| read | `$TRIAL/home/.config/ravel/settings.json` | failed | failed |
+| read | `$TRIAL/home/.config/ravel/config.rhai` | failed | ok |
+| read | Native `grove/SKILL.md` in the sandbox `.codex/skills` | failed | ok |
+| read | Native `grove-impl/SKILL.md` in the sandbox `.codex/skills` | failed | ok |
+| write | `$TRIAL/home/trial-probe-outside` | failed | ok |
+| write | `trial-probe-inside` in the working directory | ok | ok |
+
+Both native copies failed inside the sandbox and were readable unconfined.
+The sandbox therefore makes the native trees unreadable, as the row expects.
+The settings probe failed in both places, because the native route writes no
+settings file. That row is therefore no evidence about the sandbox. The
+results equal those of the Claude Code run, row for row.
+
+**Limit.** The probes are the wrapper's shell accesses, not the agent's tool
+calls. They prove permissions only. The agent part of the row is an unmeasured
+gap for `acceptance-handoff-k106`, with the refusal above. A native copy in
+`$HOME/.agents/skills` is the only Codex layout in which the native guidance
+and the configuration directory are separate. No run measured it.
+
+| Subject | Value |
+| --- | --- |
+| Builds | As in [missing-kind in Codex](#missing-kind-in-codex): Grove `a20c09778bae`, Ravel build `23e50ce90037`, `bin/ravel` SHA-256 `8e10e311…` |
+| Harness | Codex `codex-cli 0.166.0`, model `gpt-6.1-sol`, effort `medium`, sandbox `workspace-write`, approval `never`. `codex login status`, unconfined, reported `Logged in using ChatGPT` |
+| Confinement | The Codex sandbox runs inside Ravel confinement |
+| Configuration directory | Before the launch, unconfined: the sandbox `$TRIAL/home/.codex`, as `CODEX_HOME`. Its skill roots, from `codex debug prompt-input`, are `.codex/skills` and `.codex/skills/.system`. Inside the launch: no `CODEX_HOME`, so the default `$HOME/.codex`, which is the same directory |
+| Sources | None |
+| Native copies | `.codex/skills/grove`, `SKILL.md` SHA-256 `5fd30f0dfaf8c6eff2a5fddd0f600d8226c5280c735c8a30777931355fed6d5a`. `.codex/skills/grove-impl`, `SKILL.md` SHA-256 `b4a48917e05015832867950c0e83787cf9e4e9206e6498ada98927c26b5a5d6d`. Both equal the Claude Code copies |
+| Skill listing before the launch | Six names, from `codex debug prompt-input` unconfined: the four bundled skills, `grove` and `grove-impl` |
+| Descriptor | None |
+| Links | Before and after: `.codex/auth.json` only |
+| Driver environment | `CODEX_HOME`, `HOME`, `LANG`, `LOGNAME`, `PATH`, `SHELL`, `TERM`, `TMPDIR`, `USER` |
+| Harness environment | `HOME`, `LANG`, `LOGNAME`, `PATH`, `PWD`, `SHLVL`, `TEMP`, `TMP`, `TMPDIR`, `USER`, `_`, and the trial's own `RAVEL_EXIT_FILE`. `TMPDIR` names Ravel's private run directory. No `RAVEL_SKILL_DIRECTORIES`, no live value and no `CODEX_HOME` |
+| Platform-managed residue | The bundled skills in `.codex/skills/.system`, which the unconfined `codex debug prompt-input` installed. No curated plugin, because Codex exited before its session |
+| Stream | Empty. SHA-256 `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` |
+| Run log | `grove-run-79poxb.log`, SHA-256 `4e50b3d079a88b18448539f3e6decadf91000ab3370dd790c3715a7fb37b879d` |
+
+Grove's run log, without the wrapper's lines:
+
+```text
+ravel: starting provider openai, model gpt-6.1-sol, effort medium for kind "impl"
+WARNING: proceeding, even though we could not create PATH aliases: No such file or directory (os error 2)
+Reading additional input from stdin...
+Error: failed to initialize in-process app-server client: No such file or directory (os error 2)
+ravel: stop attempt 1 target -71365 signal 9: Operation not permitted (os error 1)
+ravel: stop attempt 2 target -71365 signal 9: Operation not permitted (os error 1)
+ravel: refused (session_result_missing, stage exec): the managed process ended without a result (exit status: 1)
+  remedy: have the managed process call ravel end-session RESULT before it exits
+```
+
+Ending outcome:
+
+- Ravel result: none. Ravel refused as `session_result_missing`.
+- Grove: `grove run` exited 1 after 1.2 seconds and published no output.
+- Teardown record: none. A standalone run has no tree.
+- Harness launches: 1.
+
+#### Missing kind: Codex and Claude Code
+
+| Subject | Codex | Claude Code |
+| --- | --- | --- |
+| Native root of the case | The sandbox `.codex/skills`, inside the configuration directory | The sandbox `.claude/skills` |
+| `missing-kind`: how the agent decided | Two shell searches of the native roots and the sandbox home | The skill listing at startup alone, with no tool call |
+| `missing-kind`: report | Pass. "`grove-impl` guidance is missing" | Pass. "The `grove-impl` skill isn't installed here" |
+| `missing-kind`: ending | Pass. The exact force-stop command, as the last call | Pass. The exact force-stop command, as the only call |
+| `missing-kind`: leaf, teardown, launches | Live, none, one | Live, none, one |
+| `missing-kind`: read of the native spine | None | None |
+| `missing-kind-confined`: result | **Gap.** Codex exited before its session: "failed to initialize in-process app-server client" | **Gap.** Claude Code exited before its session: `ENOENT` on `/tmp/claude-501` |
+| `missing-kind-confined`: probes | The native copies are unreadable inside and readable unconfined | The same |
+| `missing-kind-confined`: Grove | `session_result_missing`, no output | The same |
+
+Both harnesses passed the native missing-kind case. Each reported the missing
+kind skill, ran the exact force-stop command and left the leaf live. They
+differ in how they decided. Claude Code read its skill listing. Codex searched
+the files, because it has no native skill loader.
+
+Both confined runs are gaps with one shared cause: each harness needs to
+write outside the grants of Ravel's sandbox. Codex has a second cause. Its
+default native roots lie inside its configuration directory, so a sandbox
+cannot hide the native guidance without also hiding the configuration.

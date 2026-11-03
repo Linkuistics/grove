@@ -53,3 +53,18 @@ specification states it.
 
 Read no credential. A check that needs the owner's token waits for the
 human's approval in ravel-token-handoff-k133.
+
+## Decisions (running log)
+
+**Review evidence.** The review uses Ravel commit
+`7c5b6cdd38427b21dac8a5307dadeac3cebace1a`, the current launch source and the
+installed Claude Code 2.1.317 executable. It reads no credential and runs no
+test, build, lint, formatter or harness. The graph locates the launch seams;
+direct source supplies the evidence where the graph is stale or excludes docs.
+
+**Actionable findings.** The findings are recorded in
+`docs/common-loading-acceptance-record.md`, under "Token handoff design
+review". The handoff needs a stable file identity, protection before skill
+capture and an explicit runner contract for the socket descriptors. Two
+security statements also need their scope corrected. The owner's chosen route
+remains settled. An integration follows this review before implementation.

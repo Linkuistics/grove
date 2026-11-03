@@ -1,10 +1,41 @@
 # Standalone invocations
 
-`grove run` runs one task kind without creating or discovering a grove,
-project, jj workspace or driver lease. A task inside a running grove can call
-it. The owner's Ravel policy selects the command for the kind, as it does for a
-lifecycle session, and Grove reads no configuration of its own. It does not
-integrate AgentAnyware.
+`grove run` runs one task kind without creating a grove, project, jj
+workspace or driver lease. It gives the invocation none of them. A task inside a
+running grove can call it. The owner's Ravel policy selects the command for the
+kind, as it does for a lifecycle session, and Grove reads no configuration of
+its own. It does not integrate AgentAnyware.
+
+## The kind
+
+An explicit kind is the first positional argument. Grove sends it to the policy
+unchanged, inside a grove and outside one. One positional argument is always
+the kind. A run without a kind therefore takes its prompt from `--prompt-file`.
+
+A run without a kind takes its kind from the directory that it runs in. A grove
+is active when the closest ancestor of that directory that holds `.jj/` also
+holds `.grove/`. The lifecycle `grove` drives that tree from the same
+directory. The walk reads the filesystem only. It runs no jj command and does
+not follow the repository pointer of a secondary workspace. The human chose
+this test in `standalone-default-kind-k131`.
+
+- **Outside an active grove**, the kind is `standalone`. This includes a
+  directory with no `.jj/` above it, and a workspace with no `.grove/`.
+- **Inside an active grove**, the kind is that of the next live leaf, in the
+  pre-order walk of `grove-llm pick`. The run gains no mandate and no tree
+  authority. The human chose this outcome in `standalone-default-kind-k131`.
+- **An active grove with no live leaf**, or a tree that the reader refuses,
+  gives no kind. Grove refuses before selection. The refusal names the grove
+  root and tells the caller to give an explicit kind.
+
+The kind `standalone` requires no skill. It exists so that the owner's policy
+can select a harness, a model and an effort for standalone work. The owner's
+policy must route `standalone` before a run without a kind can launch outside a
+grove. An unrouted kind is Ravel's refusal, and nothing launches.
+
+The prompt is the same for every kind. It holds the caller's task, the staged
+files and the two ending commands. It holds no load instruction and no
+missing-guidance rule.
 
 ## Selection and launch
 
@@ -56,9 +87,10 @@ read-only inside the sandbox. The agent reads its skills there. It cannot
 write them, read their source directories or read the protected configuration.
 
 A native installation under HOME alone grants no read access. With injection
-disabled, the agent cannot read native guidance under HOME. It reports the
-missing guidance and runs the force-stop command, and Grove publishes nothing.
-Grove adds no native-directory grant and never retries without confinement.
+disabled, the agent cannot read native guidance under HOME. Grove adds no
+native-directory grant and never retries without confinement. The prompt names
+no guidance, so Grove makes no promise that the agent reports guidance that it
+cannot read. If the agent runs the force-stop command, Grove publishes nothing.
 Any native-only standalone setup must separately prove its loader and all
 required resources work within the existing grants.
 
@@ -139,6 +171,13 @@ must never depend on paid LLM calls.
 
 - No jj invocation, including from a directory that holds repository selector
   variables. A `.grove.kdl` or `config.kdl` there or in HOME changes nothing.
+- A run without a kind routes `standalone` outside an active grove. The cases
+  are a directory with no `.jj/` above it, a `.grove/` with no `.jj/` above
+  it, and a workspace with no `.grove/`.
+- A run without a kind, from a subdirectory of an active grove, routes the next
+  live leaf's kind. An explicit kind there keeps its route.
+- A run without a kind in an active grove with no live leaf refuses before
+  selection, names the remedy and launches nothing.
 - The policy selects outside the sandbox. The harness inside it receives its own
   enclosing context and cannot read the personal policy or the owner settings.
 - The file that runs is the one that Ravel resolved, whatever else of that name
@@ -153,8 +192,10 @@ must never depend on paid LLM calls.
   cwd. Writes to the snapshots and sources and reads of the protected
   configuration fail.
 - On 1.1 and on 2.0 with injection disabled, native guidance under HOME is
-  unreadable. The agent force-stops, nothing publishes and Grove launches the
-  agent once. A regular-file grant of each copy makes the guidance readable.
+  unreadable, and Grove adds no grant. After the force-stop of a scripted
+  agent, nothing publishes and Grove launches the agent once. A regular-file
+  grant of each copy makes the guidance readable. The fixture proves Grove's
+  interpretation of a force-stop, not the behaviour of a real agent.
 - Force-stop, a harness exit without a result, malformed or unsupported results,
   a supervision failure, cancellation, output symlinks, missing outputs and
   destination races fail visibly.

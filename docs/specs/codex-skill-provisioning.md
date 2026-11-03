@@ -491,12 +491,15 @@ working directory. It cannot read a source directly or the protected
 configuration. The same probes, run unconfined, succeed for each source,
 configuration and outside path, so those denials belong to the sandbox.
 
-`crates/grove/tests/standalone.rs` proves the native part on each runtime. With
-injection disabled, native copies under HOME stay unreadable to the confined
-agent. The agent reports the missing guidance and force-stops, and Grove
-publishes nothing and launches the agent once. A regular-file grant of each copy
-makes the same check fail. `task ravel:directory` runs both parts on the 2.0
-build.
+`crates/grove/tests/standalone.rs` proves the sandbox part of the native case
+on each runtime. With injection disabled, native copies under HOME stay
+unreadable to the confined agent, and Grove adds no grant.
+
+The fixture also proves Grove's interpretation of a force-stop. After its scripted agent
+force-stops, Grove publishes nothing and launches the agent once. A
+regular-file grant of each copy makes the same check fail. The fixture is not
+evidence of agent behaviour, because its script decides to stop.
+`task ravel:directory` runs both parts on the 2.0 build.
 
 The Linux floor cases run the native part on each runtime under bubblewrap.
 They run the directory part on the 2.0 lane in the supported environment. The
@@ -519,7 +522,7 @@ builds and the results.
 | No native mutation | Compare owned/foreign files, links, modes, pointers and bytes before/after startup, failure and installed upgrade. Include legacy homes, aliases and an active old reader. |
 | Manual cleanup guidance | Exercise the documented procedure in disposable legacy layouts. These layouts include stopped readers/writers, owned and foreign links, aliases and uncertain provenance. They also include retained links that reach a skill entry through intermediate links or `..`. Only evidenced, unneeded owned skill-directory links are removable. The legacy root stays unchanged, and the trial leaves the owner's installation untouched. |
 | Resource lifetime | A reader keeps its original resolved directories while sources/configuration change. Subsequent launches can receive the new source view. |
-| Confined standalone | Ravel 2.0.0 directory delivery makes required resources outside cwd readable, while writes and protected configuration reads fail on actual supported backends. With injection disabled and native trees outside all grants, observe a missing/unreadable-guidance report and force-stop with no output publication. Grove adds no directory-grant bypass. |
+| Confined standalone | Ravel 2.0.0 directory delivery makes required resources outside cwd readable, while writes and protected configuration reads fail on actual supported backends. With injection disabled, native trees stay unreadable outside all grants, and Grove adds no directory-grant bypass. A force-stop publishes no output. The agent part is an explicit gap by the human's decision. A standalone prompt names no guidance, so Grove does not require a report or a force-stop. The evidence is `missing-kind-confined-20261103T062817Z`. |
 | Open tree behaviour | Existing custom-kind, handle, review/integration, result and epoch tests pass. No availability check enters tree verbs or launch admission. |
 | Conformance | Core, external-pack and aggregate checks use exact supplied artefacts. Removed required resources/edges and duplicate owners fail deliberate controls. |
 | Installed distribution | Archives and formula tests check separate packages, both caller-asset sets with their runtimes, both configuration formats, both setup routes and no automatic native mutation. Exercise fresh install and upgrade at each tap state A to D of the coordinated release. At each state, Grove's dependency always resolves to an admitted Ravel major, and feature advertising follows its publication. |

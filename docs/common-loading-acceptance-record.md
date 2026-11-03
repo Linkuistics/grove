@@ -6062,9 +6062,9 @@ The human answered the three scope questions on 2026-11-03:
 | Harness | Case | Cause in the record | Decision |
 | --- | --- | --- | --- |
 | Claude Code | `discovery-confined` | Claude Code cannot open `/tmp/claude-<uid>` under Seatbelt. The profile probably also blocks the Keychain sign-in | Repair: `confined-harness-trials-k128` |
-| Claude Code | `missing-kind-confined` | The same | Repair: `confined-harness-trials-k128` |
+| Claude Code | `missing-kind-confined` | The same | Repair: `confined-harness-trials-k128`. Claude Code then stopped at its sign-in. The sandbox part stays a row obligation. The agent part is an explicit gap, by the human's decision in k128, with `missing-kind-confined-20261103T062817Z` as its evidence. `standalone-default-kind-k131` removed the promise |
 | Codex | `discovery-confined` | Codex cannot write its configuration directory under Seatbelt | Repair: `confined-harness-trials-k128` |
-| Codex | `missing-kind-confined` | The same. The native roots also lie inside the configuration directory | Repair: `confined-harness-trials-k128` |
+| Codex | `missing-kind-confined` | The same. The native roots also lie inside the configuration directory | Repair: `confined-harness-trials-k128`. The native copies stayed unreadable, and the agent published without a report. The agent part is an explicit gap, by the human's decision in k128, with `missing-kind-confined-20261103T062817Z` as its evidence. `standalone-default-kind-k131` removed the promise |
 | Claude Code | `explicit-native-error` | No report before the force-stop. Obligation 4 gives the report no order | Repair: `loader-report-wording-k129` |
 | Claude Code | `explicit-native-only` | No report before the force-stop | Repair: `loader-report-wording-k129` |
 | Claude Code | `compaction-preamble` | Claude Code restored snapshot files after the boundary, so the gate failed twice | Repair: `claude-preamble-loss-trial-k130`. The gate failed again. The human chose one more repair: `claude-preamble-write-tool-trial-k137`. Its gate passed, and the agent did not use the variable. Explicit gap, by the human's decision in k130 |
@@ -6443,6 +6443,8 @@ when its guidance is unreadable. The agent has no instruction that makes
 guidance required. The documented promise in `docs/USAGE.md` and
 `docs/specs/standalone-invocations.md`, "It reports the missing guidance and
 runs the force-stop command", does not hold for a real agent.
+`standalone-default-kind-k131` removed that promise from both documents, by
+the human's decision below.
 
 ### The human's decisions
 

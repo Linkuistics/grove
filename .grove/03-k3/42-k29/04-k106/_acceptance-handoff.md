@@ -135,3 +135,9 @@ guidance through the transcript path and a search of the home directory, not
 through the variable. The Claude Code `compaction-preamble` row is now an
 explicit gap, with no further repair, as the human decided in
 claude-preamble-loss-trial-k130.
+
+standalone-default-kind-k131 gave `grove run` the default kind `standalone`
+outside an active grove. Inside one, a run without a kind takes the next live
+leaf's kind, by the human's decision. The Confined standalone row keeps its
+sandbox part as an obligation. Its agent part is an explicit gap, with
+`missing-kind-confined-20261103T062817Z` as its evidence.

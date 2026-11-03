@@ -276,7 +276,7 @@ tasks:
       GROVE_TEST_RAVEL_OLD: '{{.OLD}}'
     cmds:
       - cargo nextest run --locked -p grove --test directory_route --run-ignored only {{.CLI_ARGS}}
-      - cargo nextest run --locked -p grove --test standalone -E 'test(native_guidance_outside_every_grant)'
+      - cargo nextest run --locked -p grove --test standalone -E 'test(native_copies_outside_every_grant)'
 
   # Real harness trials of the common loading route
   # (docs/common-loading-acceptance-record.md). A trial spends subscription

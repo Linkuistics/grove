@@ -198,11 +198,11 @@ borrowed repository is the one case the filesystem cannot answer for.
 <a id="the-value-and-the-gate"></a>
 ## The value, and the gate that constructs it
 
-This chapter owns the `Workspace` value, its one constructor and its two
-accessors: forty-seven lines that open the `impl` block *Scope and commit* and
+This chapter owns the `Workspace` value, its one constructor, the walk that the
+constructor uses and its two accessors: fifty-seven lines that open the `impl` block *Scope and commit* and
 *The namespace it will not name* continue.
 
-<!-- fragment «workspace-value-and-gate» owner="one-lane" source="crates/jj-workspace/src/lib.rs" lines="72-118" parent="source-library" -->
+<!-- fragment «workspace-value-and-gate» owner="one-lane" source="crates/jj-workspace/src/lib.rs" lines="72-128" parent="source-library" -->
 <!-- insert «gate-workspace-value» -->
 <!-- insert «gate-resolve-contract» -->
 <!-- insert «gate-resolve-walk» -->
@@ -260,30 +260,54 @@ impl Workspace {
 ````
 <!-- /fragment -->
 
-The whole function is nine lines and its body is seven, and one line of that
-body stands behind each of the three claims: the `find` predicate is the filesystem walk, the `ok_or_else` is the
-refusal that replaces a dispatch, and the `canonical` call is the canonical root.
-The input is a path that may be anywhere inside a workspace or nowhere near one;
-the output is a `Workspace` or the first refusal that stops the sequence.
-`Path::ancestors` yields the path and each of its parents, so `find` takes the
-closest ancestor whose `.jj` is a directory and `ok_or_else` turns the empty case
-into the refusal the second ending printed. The invariant established by the last
-two lines is that both stored paths are canonical: `canonical` normalises the
-found root, and `main_repo_of` returns a canonical path in both of its cases.
+The constructor is five lines, and it delegates the walk to `find_root`, which
+follows it. Each of the three claims has one line behind it. The `find` predicate
+in `find_root` is the filesystem walk. The `ok_or_else` in `resolve` is the
+refusal that replaces a dispatch. The `canonical` call in `find_root` is the
+canonical root.
+
+The input is a path that may be anywhere inside a workspace or
+nowhere near one. The output is a `Workspace` or the first refusal that stops the
+sequence.
+
+`Path::ancestors` yields the path and each of its parents, so `find`
+takes the closest ancestor whose `.jj` is a directory. `find_root` answers `None`
+for the empty case, and `ok_or_else` turns that `None` into the refusal that the
+second ending printed. The invariant established by `resolve` is that both stored
+paths are canonical: `canonical` normalises the found root, and `main_repo_of`
+returns a canonical path in both of its cases.
+
+`find_root` is public for a consumer to which absence is an answer, not a
+refusal. Grove's `grove run` is that consumer: a directory with no workspace
+above it holds no active grove. The function stops before `main_repo_of`, so it
+spawns no jj binary, even for a secondary workspace. It returns a path and not a
+`Workspace`, so `resolve` stays the only way to obtain the value.
+`find_root_does_not_follow_the_repository_pointer` proves the stop with a
+pointer that jj cannot follow.
 `a_symlinked_alias_resolves_to_the_same_workspace` and
 `a_workspace_resolves_from_a_subdirectory`
 (`crates/jj-workspace/tests/workspace.rs`) are the two ends of that claim.
 
-<!-- fragment «gate-resolve-walk» owner="one-lane" source="crates/jj-workspace/src/lib.rs" lines="97-105" parent="workspace-value-and-gate" -->
+<!-- fragment «gate-resolve-walk» owner="one-lane" source="crates/jj-workspace/src/lib.rs" lines="97-115" parent="workspace-value-and-gate" -->
 ````rust
     pub fn resolve(path: &Path) -> Result<Self, Refusal> {
-        let candidate = path
-            .ancestors()
-            .find(|dir| dir.join(".jj").is_dir())
-            .ok_or_else(|| Refusal::not_a_workspace(path))?;
-        let root = canonical(candidate)?;
+        let root = Self::find_root(path)?.ok_or_else(|| Refusal::not_a_workspace(path))?;
         let main_repo = main_repo_of(&root)?;
         Ok(Self { root, main_repo })
+    }
+
+    /// The canonical root that [`resolve`](Self::resolve) finds, for a caller
+    /// to which absence is an answer rather than a refusal: `None` when no
+    /// ancestor of `path` holds `.jj/`.
+    ///
+    /// Only the filesystem walk runs. The main repository is not resolved, so
+    /// no jj binary is spawned, even for a secondary workspace. A `.jj/` that is
+    /// found but cannot be made canonical is still a refusal.
+    pub fn find_root(path: &Path) -> Result<Option<PathBuf>, Refusal> {
+        path.ancestors()
+            .find(|dir| dir.join(".jj").is_dir())
+            .map(canonical)
+            .transpose()
     }
 ````
 <!-- /fragment -->
@@ -293,7 +317,7 @@ what a reader would otherwise have to check: no jj binary is spawned to answer
 it. That is a property of the gate rather than of the getter — the walk found the
 directory, so the value is known before any operation asks for it.
 
-<!-- fragment «gate-root-accessor» owner="one-lane" source="crates/jj-workspace/src/lib.rs" lines="106-111" parent="workspace-value-and-gate" -->
+<!-- fragment «gate-root-accessor» owner="one-lane" source="crates/jj-workspace/src/lib.rs" lines="116-121" parent="workspace-value-and-gate" -->
 ````rust
 
     /// The workspace root — the directory holding `.jj/`, already found by the
@@ -311,7 +335,7 @@ loop spawns nothing. Its comment states which workspace the value names — the
 default one, which holds the repository every other workspace borrows — and that
 a native or colocated checkout is its own.
 
-<!-- fragment «gate-main-repo-accessor» owner="one-lane" source="crates/jj-workspace/src/lib.rs" lines="112-118" parent="workspace-value-and-gate" -->
+<!-- fragment «gate-main-repo-accessor» owner="one-lane" source="crates/jj-workspace/src/lib.rs" lines="122-128" parent="workspace-value-and-gate" -->
 ````rust
 
     /// The root of the **default** workspace: the one that holds the
@@ -331,7 +355,7 @@ ahead of the namespace validation *The namespace it will not name* owns. They ar
 forty-five lines, and between them they carry the premise stated above and the
 one refusal the gate has left.
 
-<!-- fragment «gate-main-repo-and-canonical» owner="one-lane" source="crates/jj-workspace/src/lib.rs" lines="314-358" parent="source-library" -->
+<!-- fragment «gate-main-repo-and-canonical» owner="one-lane" source="crates/jj-workspace/src/lib.rs" lines="324-368" parent="source-library" -->
 <!-- insert «gate-main-repo-premise» -->
 <!-- insert «gate-main-repo-probe» -->
 <!-- insert «gate-canonical» -->
@@ -345,7 +369,7 @@ followed by jj rather than parsed here, which keeps the format jj's to change.
 The third is the scope of the test, and it is the one a reader is most likely to
 argue with.
 
-<!-- fragment «gate-main-repo-premise» owner="one-lane" source="crates/jj-workspace/src/lib.rs" lines="314-336" parent="gate-main-repo-and-canonical" -->
+<!-- fragment «gate-main-repo-premise» owner="one-lane" source="crates/jj-workspace/src/lib.rs" lines="324-346" parent="gate-main-repo-and-canonical" -->
 ````rust
 
 /// The default workspace's root, from a workspace root that is already
@@ -387,7 +411,7 @@ choice is also stated: a damaged repository is reported by jj at the first
 command that needs one, not here, and a consumer that wants an earlier answer
 runs its own jj command for it.
 
-<!-- fragment «gate-main-repo-probe» owner="one-lane" source="crates/jj-workspace/src/lib.rs" lines="337-352" parent="gate-main-repo-and-canonical" -->
+<!-- fragment «gate-main-repo-probe» owner="one-lane" source="crates/jj-workspace/src/lib.rs" lines="347-362" parent="gate-main-repo-and-canonical" -->
 ````rust
 fn main_repo_of(root: &Path) -> Result<PathBuf, Refusal> {
     if !root.join(".jj").join("repo").is_file() {
@@ -418,7 +442,7 @@ is a broken symlink or a directory removed underneath the process, and the
 refusal says so. The `io::Error` is kept as the refusal's `source()`, so a
 consumer that walks the chain sees what the operating system said.
 
-<!-- fragment «gate-canonical» owner="one-lane" source="crates/jj-workspace/src/lib.rs" lines="353-358" parent="gate-main-repo-and-canonical" -->
+<!-- fragment «gate-canonical» owner="one-lane" source="crates/jj-workspace/src/lib.rs" lines="363-368" parent="gate-main-repo-and-canonical" -->
 ````rust
 
 fn canonical(path: &Path) -> Result<PathBuf, Refusal> {

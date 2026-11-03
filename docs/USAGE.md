@@ -188,6 +188,7 @@ receives the new contents.
 grove run --help
 grove run release-notes --prompt-file prompt.md \
   --input changes.txt --output release-notes.md --ui auto
+grove run --prompt-file prompt.md --input input.txt --output summary.md
 ```
 
 Route the kind to a noninteractive command in your [launch policy](#usage-launch-policy).
@@ -205,7 +206,21 @@ launched. It creates a private temporary directory and copies the inputs into it
 basename. It passes your prompt, the output instructions and the completion instructions to
 the harness that your policy selects.
 
-You can supply the prompt as a positional argument instead of `--prompt-file`. Repeat
+A run without a kind takes the kind `standalone` outside an active grove. A grove is active
+when the closest ancestor of the current directory that holds `.jj/` also holds `.grove/`.
+That is the tree that bare `grove` drives from the same directory. Grove finds it from the
+filesystem and runs no jj command. Inside an active grove, a run without a kind takes the
+kind of the next live leaf. It gains no mandate and no tree authority. An active grove with
+no live leaf gives a run without a kind no kind, so Grove refuses before it launches.
+
+The kind `standalone` requires no skill. It lets your policy select a harness, a model and
+an effort for standalone work. Your policy must route `standalone` before a run without a
+kind can launch outside a grove. Otherwise, Ravel refuses the selection and nothing
+launches. An explicit kind keeps its own route everywhere, inside a grove too.
+
+You can supply the prompt as a positional argument instead of `--prompt-file`. One
+positional argument is always the kind, so a run without a kind takes its prompt from
+`--prompt-file`. Repeat
 `--input`, `--output` or `--runtime-read` for multiple files. The basenames of the inputs and
 outputs must all be distinct. Grove refuses symlink inputs and existing output destinations.
 
@@ -218,9 +233,11 @@ run.
 The sandbox does not grant your native skill installations under HOME. On the
 [directory route](#usage-directory-route), Ravel 2.0.0 grants read access to the captured
 skills, so the harness can read them. It cannot write them or read their source
-directories. On a native route, the harness cannot read native skills under HOME. It
-reports the missing guidance and runs the force-stop command, and Grove publishes nothing.
-Grove does not retry without the sandbox.
+directories. On a native route, the harness cannot read native skills under HOME. Grove
+adds no grant for them and does not retry without the sandbox. The prompt of a standalone
+run names no skill and makes no guidance required. Grove therefore does not promise that the
+agent reports guidance that it cannot read. If the agent runs the force-stop command, Grove
+publishes nothing.
 
 Every invocation that launches announces its task kind and the location of its transcript
 under `~/.local/state/grove/runs/`. It streams the sanitised output through its caller. It

@@ -128,7 +128,7 @@ pub struct Cli {
 enum Command {
     /// Run one task kind in a confined temporary directory, without a grove.
     #[command(
-        after_help = "Examples:\n  grove run release-notes --prompt-file prompt.md --input changes.txt --output notes.md\n  grove run summarise 'Summarise input.txt into summary.md' --input input.txt --output summary.md --ui inline\n\nThe owner's Ravel policy selects the command for the kind; no jj or project discovery. Requires OS confinement and a noninteractive harness command. Exit codes: 0 completed and outputs published, 1 failure/cancellation, 2 invalid usage. Existing output files are never overwritten. Runtime credentials need explicit --runtime-read grants."
+        after_help = "Examples:\n  grove run release-notes --prompt-file prompt.md --input changes.txt --output notes.md\n  grove run summarise 'Summarise input.txt into summary.md' --input input.txt --output summary.md --ui inline\n  grove run --prompt-file prompt.md --input input.txt --output summary.md\n\nThe owner's Ravel policy selects the command for the kind, and must route `standalone` before a bare run outside a grove launches. Without a kind, the kind is `standalone`, unless the closest ancestor holding .jj/ also holds .grove/. Inside that active grove, the kind is the next live leaf's kind. A bare run reads its prompt from --prompt-file, because one positional argument is the kind. The kind `standalone` requires no skill. No jj command runs and the invocation gets no project. Requires OS confinement and a noninteractive harness command. Exit codes: 0 completed and outputs published, 1 failure/cancellation, 2 invalid usage. Existing output files are never overwritten. Runtime credentials need explicit --runtime-read grants."
     )]
     Run(crate::standalone::Args),
     /// Display a standalone transcript in a supervisor-owned pane.
@@ -159,6 +159,7 @@ enum Command {
 |---|---|
 | `grove` | `command: None`; resolve workspace, acquire lease, run lifecycle |
 | `grove run review "Review input.txt" --input input.txt` | Ask the owner's policy for the command and run it once in confined scratch storage |
+| `grove run --prompt-file prompt.md` | Route `standalone` outside an active grove, or the next live leaf's kind inside one |
 | `grove view` | `View { worktree: None }`; observe current directory's `.grove` |
 | `grove view /tmp/tasks` | `View` with `/tmp/tasks`; observe `/tmp/tasks/.grove` |
 | `grove view --help` | Print observation help and exit before terminal setup |

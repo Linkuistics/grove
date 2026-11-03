@@ -39,8 +39,9 @@ nonzero exit remains successful after cleanup, as Ravel's public contract states
 | Managed harness | Scratch writes and explicit runtime reads | Outputs and opaque result |
 | Grove | Held output directory, result descriptor and destinations | Checked publication |
 
-<!-- fragment «standalone-invocation» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="1-332" parent="source-standalone" -->
+<!-- fragment «standalone-invocation» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="1-374" parent="source-standalone" -->
 <!-- insert «standalone-interface» -->
+<!-- insert «standalone-default-kind» -->
 <!-- insert «standalone-staging» -->
 <!-- insert «standalone-launch-context» -->
 <!-- insert «standalone-supervision» -->
@@ -51,8 +52,9 @@ nonzero exit remains successful after cleanup, as Ravel's public contract states
 <a id="standalone-interface"></a>
 ## The invocation inputs
 
-`Args` carries the kind, one prompt source, transfer paths, runtime reads and
-display choice. `run` resolves Ravel once, checks its version and names the
+`Args` carries an optional kind, one prompt source, transfer paths, runtime
+reads and display choice. `STANDALONE` names the kind of a run without one
+outside an active grove. `run` resolves Ravel once, checks its version and names the
 persistent logs. The version probe scrubs enclosing authority too.
 
 `ravel_job::CONTROL_ENV` lists ten names, and `ravel_job::launch` removes them
@@ -68,7 +70,7 @@ grants through actual selection. The fixture observes every name dirty
 independently. Both callers scrub enclosing authority before delegation to
 installed Ravel.
 
-<!-- fragment «standalone-interface» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="1-59" parent="standalone-invocation" -->
+<!-- fragment «standalone-interface» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="1-67" parent="standalone-invocation" -->
 ````rust
 //! One invocation of a kind, with no workspace or task-tree authority.
 use std::collections::HashSet;
@@ -85,12 +87,20 @@ use grove_loop::{
     ravel_job::{self, LaunchEvent, Shape},
     session_command,
     session_result::{SessionDisposition, SessionResult},
+    Sought,
 };
+
+/// The kind of a bare invocation outside an active grove. It needs no skill:
+/// it exists so that the owner's policy can select a harness, a model and an
+/// effort for standalone work.
+pub(crate) const STANDALONE: &str = "standalone";
 
 #[derive(clap::Args)]
 pub(crate) struct Args {
-    /// Task kind, which the owner's Ravel policy routes to a command.
-    pub kind: String,
+    /// Task kind, which the owner's Ravel policy routes to a command. Without
+    /// it, the kind is `standalone` outside an active grove, and the next live
+    /// leaf's kind inside one.
+    pub kind: Option<String>,
     /// Task instructions, delivered as one literal prompt argument.
     #[arg(
         required_unless_present = "prompt_file",
@@ -132,6 +142,71 @@ pub(crate) fn run(args: Args) -> Result<()> {
 ````
 <!-- /fragment -->
 
+<a id="standalone-default-kind"></a>
+## The kind of a run without one
+
+`default_kind` answers which kind a run without a kind routes. The caller
+omitted the kind, so the directory decides. The input is that directory, and
+the output is a kind label or a refusal. A grove is active when the closest
+ancestor that holds `.jj/` also holds `.grove/`. That is the tree that bare
+`grove` drives from the same place. `Workspace::find_root` does the walk, so
+no jj binary runs.
+
+Outside an active grove, the kind is `standalone`. That kind requires no
+skill. It lets the owner's policy select a harness, a model and an effort for
+standalone work.
+
+Inside an active grove, the kind is that of the next live
+leaf, as `grove-llm pick` finds it. The run still gains no mandate and no tree
+authority. The shared read of the tree ends when the function returns, before
+selection. A grove with no live leaf, or a tree that the reader
+refuses, gives no kind. The function then refuses, and the refusal names the
+remedy: an explicit kind.
+
+The three `a_bare_run_*` fixtures of `crates/grove/tests/standalone.rs`
+observe each outcome through the fixture policy, which names the kind that it
+refuses.
+
+<!-- fragment «standalone-default-kind» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="68-102" parent="standalone-invocation" -->
+````rust
+/// The kind a bare `grove run` routes, from the directory it runs in.
+///
+/// A grove is active when the closest ancestor that holds `.jj/` also holds
+/// `.grove/`: the tree that bare `grove` drives from the same directory. The
+/// walk reads the filesystem only. Inside an active grove the kind is the next
+/// live leaf's, which gives the run no mandate and no tree authority. Outside
+/// one it is [`STANDALONE`].
+///
+/// # Errors
+///
+/// A tree that the reader refuses, or one with no live leaf. There is then no
+/// kind to route, and nothing has launched.
+pub(crate) fn default_kind(directory: &Path) -> Result<String> {
+    let Some(worktree) = grove_loop::Workspace::find_root(directory)? else {
+        return Ok(STANDALONE.to_owned());
+    };
+    let grove = worktree.join(".grove");
+    let tree = match grove_loop::read(&worktree)
+        .with_context(|| format!("reading the active grove {}", grove.display()))?
+    {
+        grove_loop::Reading::Vacant => return Ok(STANDALONE.to_owned()),
+        grove_loop::Reading::Tree(tree) => tree,
+    };
+    match grove_loop::verbs::kind(&tree, None)
+        .with_context(|| format!("reading the next leaf of {}", grove.display()))?
+    {
+        Sought::Match(kind) => Ok(kind.label().to_owned()),
+        Sought::Nothing => bail!(
+            "the active grove {} has no live leaf, so a bare `grove run` has no kind to route; \
+             give an explicit kind, such as `grove run standalone --prompt-file FILE`",
+            grove.display()
+        ),
+    }
+}
+
+````
+<!-- /fragment -->
+
 <a id="standalone-staging"></a>
 ## Stage artifacts
 
@@ -140,9 +215,13 @@ directories. Inputs are copied as regular files, names cannot collide, and every
 output destination must be absent. The control directory remains outside the
 harness's writable grants.
 
-<!-- fragment «standalone-staging» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="60-111" parent="standalone-invocation" -->
+<!-- fragment «standalone-staging» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="103-158" parent="standalone-invocation" -->
 ````rust
 fn execute(args: Args, ravel: &Path, logs: &Path) -> Result<()> {
+    let kind = match &args.kind {
+        Some(kind) => kind.clone(),
+        None => default_kind(&std::env::current_dir().context("getting cwd")?)?,
+    };
     let prompt = match (&args.prompt, &args.prompt_file) {
         (Some(prompt), None) => prompt.clone(),
         (None, Some(path)) => fs::read_to_string(path)
@@ -214,7 +293,7 @@ itself grants the captured skills read-only inside the sandbox. Native skill tre
 under HOME stay outside every grant. A harness that cannot read its guidance there
 force-stops. Grove then publishes nothing and launches no second, unconfined run.
 
-<!-- fragment «standalone-launch-context» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="112-160" parent="standalone-invocation" -->
+<!-- fragment «standalone-launch-context» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="159-202" parent="standalone-invocation" -->
 ````rust
     let instructions = format!(
         "{prompt}\n\nStandalone invocation: work only on the staged files in the current directory. \
@@ -231,13 +310,8 @@ force-stops. Grove then publishes nothing and launches no second, unconfined run
         session_command::end_session(ravel)?,
         session_command::force_stop(ravel)?
     );
-    let argv = session_command::confined(
-        ravel,
-        &args.kind,
-        &instructions,
-        &control,
-        &args.runtime_read,
-    )?;
+    let argv =
+        session_command::confined(ravel, &kind, &instructions, &control, &args.runtime_read)?;
     // Hold the original directory, since the harness can rename paths inside
     // its scratch root. Output reads must never follow a substituted parent.
     let artifacts = File::open(&work)?;
@@ -257,10 +331,10 @@ force-stops. Grove then publishes nothing and launches no second, unconfined run
     let reader = File::open(&log_path)?;
     eprintln!(
         "grove run [{}]: starting; transcript {}",
-        args.kind,
+        kind,
         log_path.display()
     );
-    crate::run_display::open(args.ui, &args.kind, &log_path, &status_path)?;
+    crate::run_display::open(args.ui, &kind, &log_path, &status_path)?;
 
     // Selection inherits the owner's grants. The shared function scrubs the
     // loop control variables, so enclosing control authority stops here. Ravel
@@ -297,7 +371,7 @@ Relay failure prevents publication too, and it retains the log even for an
 acknowledged run. An uncatchable Grove death can orphan its detached Ravel
 and harness. That dead publisher exports nothing.
 
-<!-- fragment «standalone-supervision» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="161-221" parent="standalone-invocation" -->
+<!-- fragment «standalone-supervision» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="203-263" parent="standalone-invocation" -->
 ````rust
     let finished = AtomicBool::new(false);
     let outcome = std::thread::scope(|scope| {
@@ -354,7 +428,7 @@ and harness. That dead publisher exports nothing.
     fs::write(&status_path, status)?;
     eprintln!(
         "grove run [{}]: {status}; transcript {}",
-        args.kind,
+        kind,
         log_path.display()
     );
     result
@@ -376,7 +450,7 @@ module. It opens the name with `openat` under the held work directory, so a
 renamed parent cannot redirect the read. It refuses a name of more than one
 component, a symlink and anything but a regular file.
 
-<!-- fragment «standalone-artifact-checks» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="222-296" parent="standalone-invocation" -->
+<!-- fragment «standalone-artifact-checks» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="264-338" parent="standalone-invocation" -->
 ````rust
 fn basename(path: &Path) -> Result<&OsStr> {
     path.file_name()
@@ -466,7 +540,7 @@ cancellation before each publish.
 An error names the prefix already exported. `shell_word` quotes the canonical
 exit command and the parent's display commands for literal shell use.
 
-<!-- fragment «standalone-publication» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="297-332" parent="standalone-invocation" -->
+<!-- fragment «standalone-publication» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="339-374" parent="standalone-invocation" -->
 ````rust
 fn publish_outputs(work: &File, destinations: &[PathBuf]) -> Result<()> {
     let mut staged = Vec::new();

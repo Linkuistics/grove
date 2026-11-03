@@ -1212,13 +1212,16 @@ fn confined_harness_cannot_consume_stdin_or_parent_handles_but_can_read_runtime_
     );
 }
 
-/// A fake agent that must read the native guidance its prompt names. The
-/// prompt names each native copy on a line `Native guidance: <path>`. The
-/// agent reports each read or failed read on stderr, which goes to the
-/// transcript. It writes a valid output either way. When any copy is
-/// unreadable, it reports the missing guidance and runs the force-stop
+/// A scripted agent that tries to read each native copy that its prompt
+/// names, on a line `Native guidance: <path>`. It reports each read or failed
+/// read on stderr, which goes to the transcript, and it writes a valid output
+/// either way. When any copy is unreadable, the script runs the force-stop
 /// command of its prompt. Otherwise it acknowledges.
-const NATIVE_GUIDANCE: &str = "printf 'fake agent: started\\n' >&2\n\
+///
+/// The decision to stop is this script's, not a property of a real agent.
+/// Grove's standalone prompt names no guidance and holds no missing-guidance
+/// rule, so nothing here is evidence of what a real agent does.
+const READS_NATIVE_COPIES: &str = "printf 'fake agent: started\\n' >&2\n\
      unreadable=\n\
      for file in $(printf '%s\\n' \"$1\" | sed -n 's/^Native guidance: //p'); do\n\
      if cat \"$file\" > /dev/null 2>&1; then printf 'fake agent: read %s\\n' \"$file\" >&2\n\
@@ -1226,7 +1229,7 @@ const NATIVE_GUIDANCE: &str = "printf 'fake agent: started\\n' >&2\n\
      done\n\
      printf valid > notes.md\n\
      if [ -n \"$unreadable\" ]; then\n\
-     printf 'fake agent: the mandated guidance is missing or unreadable\\n' >&2\n\
+     printf 'fake agent: a native copy is unreadable\\n' >&2\n\
      stop_work\n\
      fi\n\
      acknowledge\n";
@@ -1254,7 +1257,7 @@ impl Fixture {
     /// `grove run` with a prompt that names `native`, and `grants` as
     /// additional regular-file grants.
     fn run_guided(&self, native: &[PathBuf], grants: &[PathBuf]) -> Output {
-        let mut prompt = String::from("Produce notes after you read the native guidance.\n");
+        let mut prompt = String::from("Produce notes after you read the native copies.\n");
         for copy in native {
             prompt.push_str(&format!("Native guidance: {}\n", copy.display()));
         }
@@ -1284,11 +1287,11 @@ impl Fixture {
     }
 }
 
-/// The outcome that unreadable native guidance requires. The one confined
-/// agent fails to read each copy and reports it, Grove reports the
-/// force-stop, and nothing is published. A second start of the agent, which
-/// an unconfined retry would cause, fails the check.
-fn guidance_unreadable(
+/// The outcome of a force-stop after unreadable native copies. The one
+/// confined agent fails to read each copy, Grove reports the force-stop, and
+/// nothing is published. A second start of the agent, which an unconfined
+/// retry would cause, fails the check.
+fn force_stopped_after_unreadable_copies(
     fixture: &Fixture,
     output: &Output,
     native: &[PathBuf],
@@ -1315,36 +1318,41 @@ fn guidance_unreadable(
         }
     }
     if transcript.contains("fake agent: read ")
-        || !transcript.contains("fake agent: the mandated guidance is missing or unreadable")
+        || !transcript.contains("fake agent: a native copy is unreadable")
     {
         return Err(format!(
-            "the agent did not report the missing guidance: {transcript}"
+            "the agent did not report the unreadable copy: {transcript}"
         ));
     }
     Ok(())
 }
 
-// With skill injection disabled, native skill trees under HOME lie outside
-// every grant of the confined invocation. The fake agent cannot read the
-// guidance, reports it and runs the exact force-stop command of its prompt.
-// Grove publishes nothing, although the output is valid, and it does not
-// launch the agent again. The case runs on each runtime: the 2.0 fixture
-// HOME holds no `skills` settings.
+// This case proves two facts of Grove and its sandbox. With skill injection
+// disabled, native skill trees under HOME lie outside every grant of the
+// confined invocation, and Grove adds no grant for them. Grove interprets the
+// exact force-stop command as failure: it publishes nothing, although the
+// output is valid, and it does not launch the agent again. The case runs on
+// each runtime: the 2.0 fixture HOME holds no `skills` settings.
+//
+// The scripted agent stops because its script says so. That a real agent
+// stops is not proved here, and Grove does not promise it: a standalone
+// prompt names no guidance. The record holds the real-agent result as an
+// explicit gap.
 //
 // The control grants each native copy as a regular file. The agent then reads
-// the guidance and acknowledges, so the same check fails.
+// each copy and acknowledges, so the same check fails.
 #[test]
-fn native_guidance_outside_every_grant_is_reported_and_force_stops_without_publication() {
-    let fixture = Fixture::new(NATIVE_GUIDANCE);
+fn native_copies_outside_every_grant_stay_unreadable_and_a_force_stop_publishes_nothing() {
+    let fixture = Fixture::new(READS_NATIVE_COPIES);
     assert!(!fixture.dispatch_file("settings.json").exists());
     let native = fixture.native_copies();
     let output = fixture.run_guided(&native, &[]);
-    guidance_unreadable(&fixture, &output, &native).unwrap();
+    force_stopped_after_unreadable_copies(&fixture, &output, &native).unwrap();
 
-    let granted = Fixture::new(NATIVE_GUIDANCE);
+    let granted = Fixture::new(READS_NATIVE_COPIES);
     let native = granted.native_copies();
     let output = granted.run_guided(&native, &native);
-    let refused = guidance_unreadable(&granted, &output, &native).unwrap_err();
+    let refused = force_stopped_after_unreadable_copies(&granted, &output, &native).unwrap_err();
     assert!(refused.contains("grove run succeeded"), "{refused}");
     assert_published(&granted, &output, "valid");
 }
@@ -1429,4 +1437,101 @@ fn acknowledgement_names_the_canonical_dispatch_path_when_the_sibling_is_a_symli
             dispatch.display()
         ),
     );
+}
+
+impl Fixture {
+    /// A bare `grove run`, with no kind, from `directory`. The prompt comes
+    /// from a file, because one positional argument is the kind.
+    fn run_bare(&self, directory: &Path) -> Output {
+        let prompt = self.root.join("prompt.md");
+        fs::write(&prompt, "Produce notes.\n").unwrap();
+        let mut command = self.grove(Path::new(env!("CARGO_BIN_EXE_grove")));
+        command
+            .current_dir(directory)
+            .arg("run")
+            .arg("--prompt-file")
+            .arg(&prompt)
+            .args(["--ui", "inline", "--output"])
+            .arg(self.notes())
+            .arg("--runtime-read")
+            .arg(&self.script);
+        command.output().unwrap()
+    }
+
+    /// A grove at `worktree`, which holds `.jj/`, with these leaf files.
+    fn grove_tree(&self, worktree: &Path, leaves: &[&str]) {
+        fs::create_dir_all(worktree.join(".jj")).unwrap();
+        fs::create_dir_all(worktree.join(".grove")).unwrap();
+        fs::write(worktree.join(".grove/_BRIEF.md"), "# brief\n").unwrap();
+        for leaf in leaves {
+            let handle = leaf.rsplit("--").next().unwrap().trim_end_matches(".md");
+            fs::write(worktree.join(".grove").join(leaf), format!("# {handle}\n")).unwrap();
+        }
+    }
+}
+
+/// The fixture policy refuses each kind except `release-notes`, and names the
+/// refused kind. The refusal therefore shows which kind `grove run` routed.
+fn assert_routed(fixture: &Fixture, output: &Output, kind: &str) {
+    assert_nothing_published(fixture, output);
+    let said = stderr(output);
+    assert!(said.contains(&format!("no command for {kind}")), "{said}");
+}
+
+// Outside an active grove, a bare run routes `standalone`. A `.grove/` with
+// no `.jj/` above it, and a `.jj/` with no `.grove/`, are both outside one.
+#[test]
+fn a_bare_run_outside_an_active_grove_routes_standalone() {
+    let fixture = Fixture::new(WRITES_NOTES);
+    assert!(
+        !fixture.cwd.ancestors().any(|dir| dir.join(".jj").exists()),
+        "the fixture lies inside a jj workspace"
+    );
+    assert_routed(&fixture, &fixture.run_bare(&fixture.cwd), "standalone");
+
+    let stray = fixture.cwd.join("stray");
+    fs::create_dir_all(stray.join(".grove")).unwrap();
+    assert_routed(&fixture, &fixture.run_bare(&stray), "standalone");
+
+    let workspace = fixture.cwd.join("workspace");
+    fs::create_dir_all(workspace.join(".jj")).unwrap();
+    assert_routed(&fixture, &fixture.run_bare(&workspace), "standalone");
+}
+
+// Inside an active grove, a bare run routes the next live leaf's kind, from
+// any directory of the workspace. An explicit kind keeps its route there.
+#[test]
+fn a_bare_run_inside_an_active_grove_routes_the_next_live_leaf_kind() {
+    let fixture = Fixture::new(WRITES_NOTES);
+    let worktree = fixture.cwd.join("worktree");
+    fixture.grove_tree(
+        &worktree,
+        &["01-DONE-impl--first-k1.md", "02-draft--second-k2.md"],
+    );
+    let deep = worktree.join("a/b");
+    fs::create_dir_all(&deep).unwrap();
+    assert_routed(&fixture, &fixture.run_bare(&deep), "draft");
+
+    let output = fixture
+        .run_kind("release-notes")
+        .current_dir(&deep)
+        .output()
+        .unwrap();
+    assert_published(&fixture, &output, "ok");
+}
+
+// An active grove with no live leaf gives a bare run no kind. It refuses
+// before selection and names the remedy, and nothing launches.
+#[test]
+fn a_bare_run_in_a_grove_without_a_live_leaf_refuses_before_launch() {
+    let fixture = Fixture::new(WRITES_NOTES);
+    let worktree = fixture.cwd.join("worktree");
+    fixture.grove_tree(&worktree, &["01-DONE-impl--first-k1.md"]);
+    let output = fixture.run_bare(&worktree);
+    assert_nothing_published(&fixture, &output);
+    let said = stderr(&output);
+    assert!(said.contains("has no live leaf"), "{said}");
+    assert!(said.contains("give an explicit kind"), "{said}");
+    assert!(!said.contains("no command for"), "{said}");
+    assert_eq!(fixture.transcripts(), 0, "{said}");
 }

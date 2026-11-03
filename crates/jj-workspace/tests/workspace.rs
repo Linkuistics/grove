@@ -203,6 +203,34 @@ fn a_symlinked_alias_resolves_to_the_same_workspace() {
     );
 }
 
+// ---- find_root: the walk alone ----------------------------------------------
+
+#[test]
+fn find_root_answers_absence_and_the_same_root_as_resolve() {
+    let tmp = TempDir::new().unwrap();
+    assert_eq!(Workspace::find_root(tmp.path()).unwrap(), None);
+
+    let root = native(&tmp.path().join("repo"));
+    let deep = root.join("a/b");
+    fs::create_dir_all(&deep).unwrap();
+    assert_eq!(Workspace::find_root(&deep).unwrap(), Some(root.clone()));
+    assert_eq!(Workspace::resolve(&deep).unwrap().root(), root);
+}
+
+// The pointer of a secondary workspace is the one thing that resolve asks jj
+// about. A pointer that jj cannot follow makes resolve refuse, so find_root
+// answers this root only because it never asks.
+#[test]
+fn find_root_does_not_follow_the_repository_pointer() {
+    let tmp = TempDir::new().unwrap();
+    let root = tmp.path().join("secondary");
+    write(&root.join(".jj/repo"), "/nonexistent/repository");
+    let root = canon(&root);
+
+    assert!(Workspace::resolve(&root).is_err());
+    assert_eq!(Workspace::find_root(&root).unwrap(), Some(root));
+}
+
 // ---- main_repo: the workspace that holds the repository --------------------
 
 #[test]

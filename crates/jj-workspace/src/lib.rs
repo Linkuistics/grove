@@ -95,13 +95,23 @@ impl Workspace {
     /// canonical, so symlink and relative-path aliases of one workspace resolve
     /// to one [`Workspace`] rather than to several that disagree.
     pub fn resolve(path: &Path) -> Result<Self, Refusal> {
-        let candidate = path
-            .ancestors()
-            .find(|dir| dir.join(".jj").is_dir())
-            .ok_or_else(|| Refusal::not_a_workspace(path))?;
-        let root = canonical(candidate)?;
+        let root = Self::find_root(path)?.ok_or_else(|| Refusal::not_a_workspace(path))?;
         let main_repo = main_repo_of(&root)?;
         Ok(Self { root, main_repo })
+    }
+
+    /// The canonical root that [`resolve`](Self::resolve) finds, for a caller
+    /// to which absence is an answer rather than a refusal: `None` when no
+    /// ancestor of `path` holds `.jj/`.
+    ///
+    /// Only the filesystem walk runs. The main repository is not resolved, so
+    /// no jj binary is spawned, even for a secondary workspace. A `.jj/` that is
+    /// found but cannot be made canonical is still a refusal.
+    pub fn find_root(path: &Path) -> Result<Option<PathBuf>, Refusal> {
+        path.ancestors()
+            .find(|dir| dir.join(".jj").is_dir())
+            .map(canonical)
+            .transpose()
     }
 
     /// The workspace root — the directory holding `.jj/`, already found by the

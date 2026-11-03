@@ -13,12 +13,20 @@ use grove_loop::{
     ravel_job::{self, LaunchEvent, Shape},
     session_command,
     session_result::{SessionDisposition, SessionResult},
+    Sought,
 };
+
+/// The kind of a bare invocation outside an active grove. It needs no skill:
+/// it exists so that the owner's policy can select a harness, a model and an
+/// effort for standalone work.
+pub(crate) const STANDALONE: &str = "standalone";
 
 #[derive(clap::Args)]
 pub(crate) struct Args {
-    /// Task kind, which the owner's Ravel policy routes to a command.
-    pub kind: String,
+    /// Task kind, which the owner's Ravel policy routes to a command. Without
+    /// it, the kind is `standalone` outside an active grove, and the next live
+    /// leaf's kind inside one.
+    pub kind: Option<String>,
     /// Task instructions, delivered as one literal prompt argument.
     #[arg(
         required_unless_present = "prompt_file",
@@ -57,7 +65,46 @@ pub(crate) fn run(args: Args) -> Result<()> {
     execute(args, &ravel, &logs)
 }
 
+/// The kind a bare `grove run` routes, from the directory it runs in.
+///
+/// A grove is active when the closest ancestor that holds `.jj/` also holds
+/// `.grove/`: the tree that bare `grove` drives from the same directory. The
+/// walk reads the filesystem only. Inside an active grove the kind is the next
+/// live leaf's, which gives the run no mandate and no tree authority. Outside
+/// one it is [`STANDALONE`].
+///
+/// # Errors
+///
+/// A tree that the reader refuses, or one with no live leaf. There is then no
+/// kind to route, and nothing has launched.
+pub(crate) fn default_kind(directory: &Path) -> Result<String> {
+    let Some(worktree) = grove_loop::Workspace::find_root(directory)? else {
+        return Ok(STANDALONE.to_owned());
+    };
+    let grove = worktree.join(".grove");
+    let tree = match grove_loop::read(&worktree)
+        .with_context(|| format!("reading the active grove {}", grove.display()))?
+    {
+        grove_loop::Reading::Vacant => return Ok(STANDALONE.to_owned()),
+        grove_loop::Reading::Tree(tree) => tree,
+    };
+    match grove_loop::verbs::kind(&tree, None)
+        .with_context(|| format!("reading the next leaf of {}", grove.display()))?
+    {
+        Sought::Match(kind) => Ok(kind.label().to_owned()),
+        Sought::Nothing => bail!(
+            "the active grove {} has no live leaf, so a bare `grove run` has no kind to route; \
+             give an explicit kind, such as `grove run standalone --prompt-file FILE`",
+            grove.display()
+        ),
+    }
+}
+
 fn execute(args: Args, ravel: &Path, logs: &Path) -> Result<()> {
+    let kind = match &args.kind {
+        Some(kind) => kind.clone(),
+        None => default_kind(&std::env::current_dir().context("getting cwd")?)?,
+    };
     let prompt = match (&args.prompt, &args.prompt_file) {
         (Some(prompt), None) => prompt.clone(),
         (None, Some(path)) => fs::read_to_string(path)
@@ -124,13 +171,8 @@ fn execute(args: Args, ravel: &Path, logs: &Path) -> Result<()> {
         session_command::end_session(ravel)?,
         session_command::force_stop(ravel)?
     );
-    let argv = session_command::confined(
-        ravel,
-        &args.kind,
-        &instructions,
-        &control,
-        &args.runtime_read,
-    )?;
+    let argv =
+        session_command::confined(ravel, &kind, &instructions, &control, &args.runtime_read)?;
     // Hold the original directory, since the harness can rename paths inside
     // its scratch root. Output reads must never follow a substituted parent.
     let artifacts = File::open(&work)?;
@@ -150,10 +192,10 @@ fn execute(args: Args, ravel: &Path, logs: &Path) -> Result<()> {
     let reader = File::open(&log_path)?;
     eprintln!(
         "grove run [{}]: starting; transcript {}",
-        args.kind,
+        kind,
         log_path.display()
     );
-    crate::run_display::open(args.ui, &args.kind, &log_path, &status_path)?;
+    crate::run_display::open(args.ui, &kind, &log_path, &status_path)?;
 
     // Selection inherits the owner's grants. The shared function scrubs the
     // loop control variables, so enclosing control authority stops here. Ravel
@@ -213,7 +255,7 @@ fn execute(args: Args, ravel: &Path, logs: &Path) -> Result<()> {
     fs::write(&status_path, status)?;
     eprintln!(
         "grove run [{}]: {status}; transcript {}",
-        args.kind,
+        kind,
         log_path.display()
     );
     result

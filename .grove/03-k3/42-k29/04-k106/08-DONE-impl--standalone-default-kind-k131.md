@@ -51,3 +51,30 @@ there is no active grove."
 The owner's Ravel policy needs a route for `standalone` before a bare
 `grove run` launches. Say so in the documentation. Do not change the owner's
 settings.
+
+## Decisions (running log)
+
+- **Detection of an active grove.** The human chose the lifecycle's tree
+  walk. A grove is active when the closest ancestor of the current directory
+  that holds `.jj/` also holds `.grove/`. The walk reads the filesystem only
+  and starts no jj process. Outside a jj workspace, no grove is active.
+- **A bare `grove run` inside an active grove.** The human chose the kind of
+  the next live leaf, as `grove-llm pick` finds it. The run gains no mandate
+  and no tree authority.
+- **Positional arguments.** The human chose the default only when no
+  positional argument is given. One positional argument stays the kind, so a
+  bare run takes its prompt from `--prompt-file`. Each present command line
+  keeps its present parse.
+- **Edge cases of the leaf kind.** A grove with no live leaf, or a tree that
+  the reader refuses, makes a bare `grove run` refuse before any launch. The
+  error names the grove root and tells the caller to give an explicit kind.
+  The model decided this, because no leaf kind exists to route.
+- **The walk without jj.** `Workspace::resolve` starts jj for a secondary
+  workspace, so `jj-workspace` gained `Workspace::find_root`, the walk alone.
+  `resolve` is now built on it and keeps its refusal.
+- **The caller-surface inventory stays frozen.** 144 of its 441 rows were
+  already stale before this leaf, and no check keeps it current. This leaf
+  does not refresh it.
+- **Verification.** `bash scripts/check.sh` ran under
+  `mise exec bun@1.4.3`, because the policy typecheck pins Bun 1.4.3. All 21
+  principal checks passed.

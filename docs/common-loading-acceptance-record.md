@@ -6133,3 +6133,52 @@ The human answered the two scope questions of this repair on 2026-11-03:
   repaired](#missing-kind-confined-in-codex-repaired) as its evidence.
   `standalone-default-kind-k131` makes the change and updates the
   documentation.
+
+## Loader report repair
+
+`loader-report-wording-k129` changed three obligations of Ravel's preamble.
+It then ran [explicit-native-error](#explicit-native-error) and
+[explicit-native-only](#explicit-native-only) again in Claude Code, and
+[explicit-native-only in Codex](#explicit-native-only-in-codex) again in
+Codex. Each case ran once after the change. A case passes when the agent
+states the error or the limit in text before dependent work and before the
+force-stop command.
+
+### The preamble change
+
+The two original Claude Code runs ran the force-stop command with no text.
+The loader error reached the transcript only as a tool result. In a headless
+run, the text before the ending command is the only report that the human
+sees.
+
+| Obligation | Before | After |
+| --- | --- | --- |
+| 4, another native error | "Another native error is a report. It does not permit you to go around that mechanism." | "When it reports another error, report that error in text before dependent work and before any ending command. Do not go around that mechanism." |
+| 6, a blocked restriction | "… report the limit before dependent work. Do not use another mechanism." | "… report the limit in text before dependent work and before any ending command. Do not use another mechanism." |
+| 10, re-entry | "After a compaction or a re-entry, recover …" | "A re-entry is a compaction or a fresh context. A resume that keeps the whole earlier conversation is not a re-entry, and it needs no re-read. After a re-entry, recover …" |
+
+The request table, the loader-error rule and item 4 of "The preamble" in
+Ravel's `docs/specs/skill-discovery.md` state the same rules. The
+specification also says that a tool result alone is not a report. Obligations
+5, 8 and 9 keep their text, because their rows passed under it. The human
+chose the re-entry rule in the [handoff triage](#handoff-triage).
+
+### The build
+
+The bookmark `skill-directory-delivery` moved. This build replaces the
+earlier one in `scripts/harness-trials/builds.json`, before any result below.
+
+| Subject | Value |
+| --- | --- |
+| Base | Ravel `main` and `main@origin` at `24a545236185`. `jj git fetch` reported no change, so the line needed no rebase |
+| Build commit | `0fb12d5f308b2e09237f9c6d1b6d9f84134219b3`, with the parent `1ca4aecbeae1` |
+| Output commit | `e0fe5631fb0e`, the tip of the unpushed bookmark. It adds the "Loader report wording record" section to Ravel's design evidence |
+| Build identity | `45eea2204becf405f441f8ec2167336a0fa4cad738f6aa47e8168e9117720b37`, twice in the executable. A script that applies the rule of Ravel's `build.rs` computed it. The same script gives `ef5857e9…` for `1ca4aecb` |
+| `bin/ravel` SHA-256 | `7ab96d9ebdac1d9e4f7334464b4c0052dc2314abbf9b573d10a3fc6193d3a93f`, from `task install` into a scratch prefix. The prefix has no `libexec` |
+| Version output | `ravel 1.1.0` |
+| Ravel checks | `task check` exit 0 on the build commit: 732 of 732 run tests passed, and 48 were skipped. Two new unit tests pin the new sentences. Both failed against the earlier text |
+| Text control | The new executable holds each new sentence and not the earlier sentence of obligation 4. The macOS archive `8e10e311…` holds the earlier sentence and no new one |
+
+The [dual-Ravel stage record](grove-dual-ravel-stage-record.md) and the
+Linux floor evidence still name the build `23e50ce90037`.
+`stage-evidence-reconciliation-k125` reconciles them with this build.

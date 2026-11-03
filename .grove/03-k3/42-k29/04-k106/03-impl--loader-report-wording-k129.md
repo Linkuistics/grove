@@ -47,3 +47,21 @@ before the ending command is the only report the human sees.
 
 This change moves the bookmark. The Linux floor and dual-Ravel evidence then
 names an older build. `stage-evidence-reconciliation-k125` reconciles that.
+
+## Decisions (running log)
+
+- **Base.** Ravel `main` and `main@origin` are both `24a545236185`. `jj git
+  fetch` reported no change, so the bookmark needs no rebase. The change goes
+  above `1ca4aecbeae1`.
+- **Report wording.** Obligations 4 and 6 say "report … in text before
+  dependent work and before any ending command". "In text" names the channel,
+  because the original runs had the error only in a tool result. "Report"
+  stays the verb, as in obligations 5, 8 and 9.
+- **Scope of the wording.** Obligations 5, 8 and 9 keep their text. Their rows
+  passed under it, and the Done when names only 4 and 6.
+- **Re-entry rule.** Obligation 10 defines a re-entry as a compaction or a
+  fresh context. A resume with the whole earlier conversation is not a
+  re-entry and needs no re-read.
+- **Build record.** `builds.json` takes the new build and points its `source`
+  at the record section of this leaf. The dual-Ravel stage record keeps its
+  older build for `stage-evidence-reconciliation-k125`.

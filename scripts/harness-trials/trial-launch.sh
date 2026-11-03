@@ -3,7 +3,7 @@
 # configuration script of the trial selects this wrapper with these arguments:
 #
 #   trial-launch.sh RECORDS VIEW PROGRAM [--probe OP PATH | --tmp-env NAME SUB |
-#                   --tmp-link SUB TARGET]... ARG... PROMPT
+#                   --tmp-link SUB TARGET | --env NAME VALUE]... ARG... PROMPT
 #
 # RECORDS is the launch-record directory of the trial, VIEW the JSON of the
 # request fields that the script observed, and PROGRAM the harness. The wrapper
@@ -27,7 +27,8 @@
 # makes the directory `$TMPDIR/SUB` and exports NAME with its path, and SUB
 # `.` names TMPDIR itself. `--tmp-link SUB TARGET` makes `$TMPDIR/SUB` a
 # symbolic link to TARGET, such as a sign-in that a `--runtime-read` grant
-# admits read-only. Ravel removes the private run directory after the run.
+# admits read-only. `--env NAME VALUE` exports NAME with a fixed VALUE. Ravel
+# removes the private run directory after the run.
 # The configuration script gives the set-up after the probes, and the wrapper
 # runs both in order, before it records the environment.
 set -eu
@@ -76,6 +77,9 @@ while [ "$#" -ge 3 ]; do
     ;;
   --tmp-link)
     ln -s -- "$3" "$TMPDIR/$2"
+    ;;
+  --env)
+    export "$2=$3"
     ;;
   *) break ;;
   esac

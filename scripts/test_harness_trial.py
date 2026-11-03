@@ -1426,6 +1426,7 @@ class HarnessTrialTest(unittest.TestCase):
         record = fixture.record()
         launch = record["launches"][0]
         self.assertEqual(launch["trialOwned"], {"CODEX_HOME": "codex-home"})
+        self.assertIn(trial.CODEX_CA_VARIABLE, launch["envNames"])
         self.assertEqual(launch["control"], [])
         home = Path(record["trial"]) / "home"
         self.assertEqual(self.runtime_reads(fixture), [str(fixture.codex), str(home / trial.CODEX.store)])

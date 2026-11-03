@@ -25,10 +25,11 @@ environment, and writes the case record. A standalone case runs `grove run`
 instead, which Ravel confines. The wrapper then gives the harness a writable
 directory in Ravel's private run directory: CLAUDE_CODE_TMPDIR for Claude
 Code, and a CODEX_HOME that links the sign-in, which a `--runtime-read` grant
-admits, for Codex. Codex runs without its own sandbox there, because Seatbelt
-cannot nest. A case can add access probes inside the launch
-and an offline `ravel skills resolve`. For an explicit-route request, a case
-can also copy native skills into the sandbox `.claude/skills`, write the
+admits, and the system TLS bundle, for Codex. Codex runs without its own
+sandbox there, because Seatbelt cannot nest. A case can add access probes
+inside the launch and an offline `ravel skills resolve`. For an
+explicit-route request, a case can also copy native skills into the sandbox
+`.claude/skills`, write the
 sandbox `.claude/settings.json` and plant files under the trial's `guidance/`.
 A native copy can come from an older commit of the checkout, as a stale copy.
 A case with `moveAway` and `expectRefusal` moves a clone of one source away
@@ -1487,6 +1488,15 @@ CODEX_SANDBOX = "workspace-write"
 CODEX_CONFINED_SANDBOX = "danger-full-access"
 # The CODEX_HOME of a confined launch, inside Ravel's private run directory.
 CONFINED_CODEX_HOME = "codex-home"
+# The TLS roots of a confined Codex launch. Codex loads the platform roots
+# through the Security framework, which needs the Mach service
+# com.apple.SecurityServer, and Ravel's profile denies it: every request then
+# fails. CODEX_CA_CERTIFICATE adds a PEM bundle to the root store
+# (`build_rustls_root_store` in
+# https://github.com/openai/codex/blob/rust-v0.166.0/codex-rs/http-client/src/custom_ca.rs).
+# The system bundle is one of Ravel's system reads.
+CODEX_CA_VARIABLE = "CODEX_CA_CERTIFICATE"
+CONFINED_CA_BUNDLE = "/private/etc/ssl/cert.pem"
 CODEX_APPROVAL = "never"
 # The bundled system skills that Codex installs at startup, and the curated
 # plugins that a ChatGPT sign-in downloads. Both are platform-managed residue.
@@ -1587,9 +1597,11 @@ class CodexAdapter(HarnessAdapter):
         real sign-in. That file is the target of the sandbox link, and its
         `--runtime-read` grant admits it read-only. The native roots of this
         CODEX_HOME hold no native copy, and the sandbox `.codex/skills` stays
-        outside every grant."""
+        outside every grant. CODEX_CA_CERTIFICATE gives Codex TLS roots that
+        the sandbox can read."""
         return [["--tmp-env", CODEX_HOME, CONFINED_CODEX_HOME],
-                ["--tmp-link", f"{CONFINED_CODEX_HOME}/auth.json", os.path.realpath(home / self.store)]]
+                ["--tmp-link", f"{CONFINED_CODEX_HOME}/auth.json", os.path.realpath(home / self.store)],
+                ["--env", CODEX_CA_VARIABLE, CONFINED_CA_BUNDLE]]
 
     def confined_reads(self, home: Path) -> list[Path]:
         return [home / self.store]

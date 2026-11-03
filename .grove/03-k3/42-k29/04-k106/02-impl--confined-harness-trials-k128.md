@@ -44,3 +44,30 @@ A blocker that needs a change to Ravel's profile, such as a Keychain Mach
 lookup, becomes a scope question to the human. Do not change the profile here.
 An unconfined retry gives no credit to a confined row. Do not change the
 owner's settings.
+
+## Decisions (running log)
+
+**Runner seam.** Ravel scrubs a confined harness's environment, so the
+wrapper sets the names inside the launch. `--tmp-env NAME SUB` and
+`--tmp-link SUB TARGET` act under Ravel's `TMPDIR`, which lies in the private
+run directory that Ravel removes after the run. The authority control admits
+`CLAUDE_CODE_TMPDIR` and `CODEX_HOME` only with a value inside the child's
+own `TMPDIR`. Runner commit `e4dda1043365`.
+
+**Claude Code sign-in: a profile blocker.** A diagnostic under a copy of
+Ravel's profile, with no model call, showed the claude.ai sign-in only when
+the profile allows both the Mach services `com.apple.SecurityServer` and
+`com.apple.securityd.xpc` and reads of `~/Library/Keychains`. Either one
+alone fails. The same home unconfined is signed in. This is a scope question
+to the human. The profile stays unchanged.
+
+**Codex sandbox inside Ravel: `danger-full-access`.** The diagnostic showed
+`sandbox-exec: sandbox_apply: Operation not permitted` for Codex's own
+Seatbelt inside Ravel's. Under `workspace-write`, every command would fail.
+Ravel's confinement is then the only sandbox of a confined Codex launch.
+
+**Codex home inside the grants.** `CODEX_HOME` is `$TMPDIR/codex-home`, with
+`auth.json` a link to the owner's sign-in. The `--runtime-read` grant of the
+sandbox link admits that file read-only. `codex login status` reported the
+ChatGPT sign-in under the profile copy. Codex warns that it does not make its
+helper links under `TMPDIR`, and continues.

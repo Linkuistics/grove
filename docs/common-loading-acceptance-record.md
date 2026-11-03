@@ -138,19 +138,25 @@ the whole preamble. The case then runs three turns in one launch, inside
 Ravel's managed process:
 
 1. The configuration script selects the feeder, `harness_trial.py turns`, as
-   the program, and Claude Code as the feeder's command. The feeder adds
-   `--input-format stream-json` and sends the prompt as the first turn.
-2. After the result of the first turn, the feeder sends `/compact` with the
-   case's instructions.
-3. After the result of the compaction, the feeder checks the session lines
-   after the compaction boundary. That check is the gate. When it passes, the
-   feeder sends the answer.
+   the program, and the harness as the feeder's command. The feeder sends the
+   prompt as the first turn.
+2. After the end of the first turn, the feeder sends the harness's compaction.
+3. After the end of the compaction, the feeder checks the session lines
+   after the compaction. That check is the gate. When it passes, the feeder
+   sends the answer.
 
 The gate fails when a path or a digest of the preamble remains. In the mode
 `path`, it also fails when the context no longer names
 `RAVEL_SKILL_DIRECTORIES`. In the mode `preamble`, it also fails on a preamble
-line, the variable's name or a preamble term in a user message. A failed gate
+line, the variable's name or a preamble term in a user message. It also fails
+on an encrypted item, because the runner cannot read its text. A failed gate
 sends no answer, and the run fails as a failed precondition.
+
+The feeder of Claude Code adds `--input-format stream-json`. A turn ends with
+the `result` event, and the compaction is `/compact` with the case's
+instructions. The feeder of Codex runs `codex app-server` over stdio, as
+[Compaction in Codex](#compaction-in-codex) states. A turn ends with
+`turn/completed`, and the compaction is the request `thread/compact/start`.
 
 A compaction case gives no `--add-dir`. Claude Code writes additional
 directories into its system prompt, and the system prompt survives compaction.
@@ -160,7 +166,10 @@ boundary, so the agent sees the instructions. The loader therefore refuses
 instructions of the mode `preamble` that name a preamble term or the variable.
 
 After the run, the runner reads the context that the model received after
-compaction. The session file holds a record of each model request. The first
+compaction. The Codex form of this read is in
+[Compaction in Codex](#compaction-in-codex).
+
+The Claude Code session file holds a record of each model request. The first
 request after the boundary must keep 0 earlier messages. The session file must
 hold each message blob and the system prompt of that request. The runner searches
 that context for the preamble as the gate does, without the terms, because
@@ -199,8 +208,8 @@ the note.
 The runner supports the routes native on 2.0 and directory on 2.0, and the
 harnesses Claude Code and Codex. A case on native 1.1 needs a `policy.ts`
 adapter, which no leaf builds. The Codex adapter has no mechanism yet for
-`compaction`, `expectDelegate` or `systemNote`. A case with one of these
-fields refuses for Codex and names the leaf that adds the mechanism.
+`expectDelegate` or `systemNote`. A case with one of these fields refuses for
+Codex and names the leaf that adds the mechanism.
 `claudeSettings` refuses for Codex too, because it is a Claude Code setting.
 
 ### What one run does
@@ -294,14 +303,19 @@ difference between the harnesses:
 - the pre-launch probes, and the harness's own links
 - the arguments of a launch and of a resume
 - the session-file lookup, the stream fields and the startup text
+- the feeder's conversation, the compaction turn and the reads of the context
+  after compaction
 - the harness's rows of the record
 
 The registry `ADAPTERS` maps a harness name to its adapter. No code outside
 the registry and the adapters tests a harness name. The classifier asks every
 adapter for its directories. A read of the other harness's configuration
-therefore keeps its class, whichever harness ran. The compaction readers read
-Claude Code's session format, and they find the session file through the
-adapter.
+therefore keeps its class, whichever harness ran.
+
+The feeder's plan names the harness, and the feeder takes the adapter from the
+registry. The gate, the
+report and the record lines of a compaction are shared code. Each asks the
+adapter for the facts of its own session format.
 
 To add a mechanism for one harness, add it to that harness's adapter. If the
 mechanism is new to the interface, add it to `HarnessAdapter` first.
@@ -446,6 +460,15 @@ after the launch admits only those links, and only when they point at the
 resolved Codex program. The record lists them as the harness's own links. Any
 other new link fails the run.
 
+A compaction case runs Codex as `codex app-server` over stdio, with the model,
+the effort, the sandbox and the approval policy of the route as `-c` options.
+The preamble case also gives `--enable token_budget`.
+[Compaction in Codex](#compaction-in-codex) states the mechanism and why each
+case takes its form. The feeder records the stream of the server, and its
+`thread/started` notification names the thread. The session file is the same
+rollout file as in `codex exec`. A `ContextCompaction` item becomes the
+compaction boundary of the ordered events.
+
 ### The controls
 
 `task trial:controls` runs `scripts/test_harness_trial.py`, which joins
@@ -479,6 +502,17 @@ data. Further tests
 prove the harness's own links. They also prove the refusal of the fields that
 later leaves add. A Codex continuation test proves the resume arguments, the
 thread, the working directory, the line windows and the marker.
+
+A fake `codex app-server` writes a `compacted` entry as the real server does.
+With `token_budget` it keeps no user message. Without it, it keeps the prompt
+and adds an encrypted item. The Codex compaction test proves the three turns in
+one launch, the route of each mode and the replacement history in the record.
+It also proves that the gate withholds the answer when the prompt or an
+encrypted item remains.
+
+The feeder runs in a process of its own, so a control cannot break the
+feeder's gate. A control of a reader breaks the runner's own read of the same
+session lines instead, and the check of that read fails.
 
 Each check also runs once
 against a runner with one function broken, and the check must fail there. A
@@ -4182,6 +4216,316 @@ and Grove stopped the loop with the leaf live.
 | Session file | `4f4e45ed-fb0b-4161-b1ef-b1c02ed32c0f.jsonl`, SHA-256 `6014a0b7aadab8be13552934811d760ec47ebe4e8b95504da4662c75ec65137e` | `ebbd032f-b867-4c0b-a98b-8e7d5227b245.jsonl`, SHA-256 `f1fe63eb850f68747fd21ba4b833ad59b08e04e704a7034d7aeb5ace30018ece` |
 | Stream | SHA-256 `becdec59eeffede91f79026c42b39aac3727eff2ea3a3467f50fafd62b92c5cd` | SHA-256 `b63f5c7bb64f7a0f34a8d851bf2a6af821d72a69fdfe1c53dccb926451a57bb9` |
 | Driver | Exit 0 after 86.0 seconds | Exit 0 after 115.1 seconds |
+
+### Compaction in Codex
+
+`codex-compaction-trials-k120` measures the two cases of
+[Compaction](#compaction) in Codex. Each case has its own launch and its own
+section below. The tree, the answer and the summary instructions are those of
+the Claude Code cases.
+
+**Mechanism.** `codex exec` of Codex 0.166.0 has no compaction command. Its
+app server has the request `thread/compact/start`, which takes only the
+thread. The facts below come from Codex's source at the tag `rust-v0.166.0`.
+Two probes checked them.
+
+- **Remote compaction, the default.** The OpenAI provider compacts on the
+  server, by `RemoteCompactionSupport::V2` in
+  `codex-rs/model-provider/src/provider.rs`. The new history keeps each user
+  message word for word, the newest first, up to 64,000 tokens. One encrypted
+  `compaction` item follows them. `build_v2_compacted_history` in
+  `codex-rs/core/src/compact_remote_v2.rs` builds this history.
+- **Local compaction.** A provider without remote support summarises in
+  the client, with the setting `compact_prompt` as its instructions. It also
+  keeps user messages, up to 20,000 tokens. The trial's provider does not use
+  it.
+- **A fresh context window.** With the development feature `token_budget`, a
+  manual compaction installs a fresh window, by
+  `codex-rs/core/src/compact_token_budget.rs`. The window keeps the developer
+  messages and the environment context, and no user message. Codex adds a
+  `<context_window>` message, which names the previous window. It also adds
+  `<context_window_guidance>`, which tells the agent to recover from its
+  `notes` and with the `history` tool after a reset.
+
+Ravel puts the preamble into the prompt, which is the first user message. The
+default therefore keeps the whole preamble, and no Codex mechanism loses the
+path alone. Only `token_budget` loses the preamble. It also loses every later
+message: the mandate, the work and the ending commands. The case's summary
+instructions reach neither mechanism.
+
+**Probes.** Two probes in a sandbox home checked the mechanism before the
+trials. Each ran `codex app-server` with `gpt-6.1-sol` at effort `low`. The
+first turn gave a fact with a path. After `thread/compact/start`, the second
+turn asked for the path.
+
+With the default, the replacement history kept the
+first message and one encrypted item, and the answer gave the path. With
+`token_budget`, the history held no user message, and the answer was
+"UNKNOWN".
+
+**The form of each case.** `compaction-path` uses the default, because no
+Codex mechanism produces its loss. Its run measures what the default keeps of
+Ravel's real preamble. `compaction-preamble` uses `token_budget`, the only
+mechanism that produces its loss.
+
+**How the trial reads the context after compaction.** Codex writes a
+`compacted` entry into the session file. Its `replacement_history` is the
+history that Codex installs. Codex records no model request. The record
+therefore builds the input of the first request after compaction. It is that
+history, then the messages that Codex records before the model's first output.
+
+The runner searches both for the preamble as for Claude Code, with the
+terms in user messages only. An encrypted item is opaque, so it fails the
+check: the runner cannot read its text.
+
+**Gate.** Before the answer, the feeder runs the same check on the history and
+on the messages of the compaction turn. A failed gate sends no answer.
+
+#### compaction-path in Codex
+
+**Case.** [compaction-path](#compaction-path) ran in Codex with
+`--harness codex`. The run is `compaction-path-20261103T043647Z`, on
+2026-11-03 local time. It was the first and only run of the case in Codex,
+with no retry.
+
+**Route.** Directory on 2.0. The sources and the mandatory files are those of
+[compaction-path](#compaction-path). The sources come from the prepared
+checkout at commit `221d9891dc13`, with no clone. The mechanism is remote
+compaction, the default.
+
+**Precondition: not met.**
+
+- The replacement history held 8 items: the tools, 4 developer messages, the
+  environment context, the prompt and one encrypted `compaction` item of
+  27,768 characters.
+- The prompt was word for word the first message. It held all 5 preamble
+  paths, the 3 digests and the 17 preamble lines.
+- The gate therefore failed, and the feeder sent no answer.
+- The harness environment held `RAVEL_SKILL_DIRECTORIES`, equal to the
+  descriptor path of the launch.
+
+**Result: unmeasured gap.** No observation of the agent after compaction
+exists. In Codex the case's loss does not occur, because the default keeps the
+paths with the instructions. An agent that keeps the paths has no path to
+recover. `acceptance-handoff-k106` decides whether that settles the case for
+Codex or needs a scope escalation.
+
+**First turn.** Calls 3 and 5 read the two mandatory files in the configured
+order. Call 4 read two supporting files of `using-jujutsu` between them. Call 7
+read `grove-impl`, and call 9 read the spine's `bootstrap.md` and
+`execute.md`. Call 15 read `coding-style-bash` and `machine-environment`.
+
+Call 18 then wrote `stamp.sh`, and call 21 added a decision to the task file. Text
+23 asked the human the label question, and the turn ended. The app server
+offers the tool `request_user_input`, but the agent asked in text.
+
+**Ending.** The agent ran no ending command. After the failed gate, the feeder
+closed the input of the server, and the server exited. Ravel refused as
+`session_result_missing`, and Grove stopped the loop with the leaf live.
+
+**Limit.** One run is one observation, not a rate. The runner cannot read the
+encrypted item, so this record cannot state what the server's summary holds.
+The retained prompt fails the gate in any case.
+
+| Subject | Value |
+| --- | --- |
+| Grove build | Commit `221d9891dc13`, which adds the Codex compaction to the runner. `grove` SHA-256 `5900ff3c08f16439f2d57af2a553b209ffd77527c17e883e6b6c0ee742b2ca94`. `grove-llm` SHA-256 `56f6815a290441d2498b1af4431923d73983459619d5e7eea633f34fad1264b7`. Both equal the builds of [compaction-path](#compaction-path) |
+| Ravel build | Build commit `23e50ce90037`, bookmark `skill-directory-delivery` at `1ca4aecbeae1`. Identity `ef5857e989e6d99da51631ae0295685c8961c1b01bac58d865e6fb789ae71deb`. `bin/ravel` SHA-256 `8e10e311c50c81ca60ac4f393d17408982d0aafcfe46cccfbc46130465290ae2`. The prefix is a byte copy of an earlier trial prefix, compared file for file, and the preparation checked its digest |
+| Harness | Codex `codex-cli 0.166.0` as `codex app-server`, model `gpt-6.1-sol`, effort `medium`, sandbox `workspace-write`, approval `never` |
+| Confinement | The Codex sandbox runs in place of Ravel confinement, because a lifecycle launch has none |
+| Configuration directory | The sandbox `$TRIAL/home/.codex`, as `CODEX_HOME`. The skill roots of `codex debug prompt-input` named its `skills/.system` |
+| Sources | Checkout commit `221d9891dc13`. `resourceDigest` of `grove`: `88f68c31337536efb0d4fb388543c0ca1abf9a9fed0ce0ccac3888e933df5a67`. `resourceDigest` of `linkuistics`: `820fe28234c98fe59286c3788eac561dead174770bd50560393d697788446b22` |
+| Descriptor | `7409aa51179b1adf82b641892ea081c2b5cabb0cdfed4982a0536f9af1ed86b7`, equal to the SHA-256 of `directories.json` |
+| Links | Before and after: `.codex/auth.json` only |
+| Driver environment | `CODEX_HOME`, `HOME`, `LANG`, `LOGNAME`, `PATH`, `SHELL`, `TERM`, `TMPDIR`, `USER` |
+| Harness environment | The driver's names, `PWD`, `SHLVL`, `_`, and the trial's own `GROVE_LAUNCH_DIR`, `RAVEL_EXIT_FILE` and `RAVEL_SKILL_DIRECTORIES`. No live value reached it |
+| Native copies | None. The 35 residue files of [discovery in Codex](#discovery-in-codex), which no call read |
+| Preamble | SHA-256 `069ee43ce1e04d509c43d9c047d4048385b9dea1e5cfab132c5084a9744c6c47`. 5 paths, 3 digests, 17 lines of at least 40 characters |
+| Session file | `rollout-2026-11-03T15-36-50-01a19fb2-15a5-7193-bde2-fbe7d812117d.jsonl`, 109 lines, SHA-256 `385b30d94b2de19830218a9b0f63c3a0e0067111cd5f56c8a214a9b3412a2aaf`. Stream SHA-256 `f833f3ba265492e4dd5b2c12ea0634ca00fa73b6d311cb03ea31c56d57dccf28` |
+| Turns | The prompt at 04:36:50Z and `thread/compact/start` at 04:38:06Z, UTC. The gate failed at 04:38:57Z |
+| Driver | Exit 0 after 127.8 seconds |
+
+Native startup text: the text of [smoke in Codex](#smoke-in-codex), with these
+differences. The originator is `grove-trial-feeder` and the source `vscode`,
+which name the app server's client. The developer message that holds the skill
+listing has 4927 characters.
+
+Ordered events. `$TRIAL` is the trial directory. `$G` and `$L` are the
+snapshots of `grove` and `linkuistics`, each up to its `tree`. Each command ran
+in `$TRIAL/repo`, and the record shortens each text row.
+
+| # | Tool | Class | Skill | Source | Command, path or text |
+| --- | --- | --- | --- | --- | --- |
+| 1 | prompt | prompt |  |  | `Ravel skill directories  The owner configured skill directories for this session.…` |
+| 2 | text | text |  |  | `I'll read the mandatory guidance in order, then load 'grove-impl' before inspecting the task or working tree.` |
+| 3 | exec_command | mandatory | using-jujutsu | linkuistics | `cat '$L/skills/using-jujutsu/SKILL.md'` |
+| 4 | exec_command | supporting, two files | using-jujutsu | linkuistics | `cat '$L/skills/using-jujutsu/references/jj-commands.md' '$L/skills/using-jujutsu/references/git-to-jj-mapping.md'` |
+| 5 | exec_command | mandatory | grove | grove | `cat '$G/skills/grove/SKILL.md'` |
+| 6 | exec_command | listing |  | grove | `rg --files '$G/skills' '$L/skills' -g SKILL.md` |
+| 7 | exec_command | kind-skill | grove-impl | grove | `cat '$G/skills/grove-impl/SKILL.md'` |
+| 8 | text | text |  |  | `I've loaded 'grove-impl' and will follow its implementation procedure, using Jujutsu for version control.` |
+| 9 | exec_command | supporting, two files | grove | grove | `cat '$G/skills/grove/references/bootstrap.md' '$G/skills/grove/references/execute.md'` |
+| 10 | exec_command | command |  |  | `grove-llm resolve stamp-script-k1` |
+| 11 | exec_command | command |  |  | `grove-llm brief-chain .grove/01-impl--stamp-script-k1.md` |
+| 12 | exec_command | command (error) |  |  | `rg --files --hidden -g AGENTS.md -g '*CONTEXT*' -g '*GLOSSARY*' -g 'Taskfile*' …` |
+| 13 | exec_command | command |  |  | `cat .grove/_BRIEF.md .grove/01-impl--stamp-script-k1.md` |
+| 14 | exec_command | command |  |  | `jj st` |
+| 15 | exec_command | skill, then skill | coding-style-bash | linkuistics | `cat '$L/skills/coding-style-bash/SKILL.md' '$L/skills/machine-environment/SKILL.md'` |
+| 16 | exec_command | command |  |  | `rg --files --hidden -g '!.git/**' -g '!.jj/**'` |
+| 17 | text | text |  |  | `The leaf asks for a timestamp script, with the label argument left for your decision.…` |
+| 18 | apply_patch | action |  |  | `$TRIAL/repo/stamp.sh` |
+| 19 | exec_command | command |  |  | `chmod +x stamp.sh` |
+| 20 | exec_command | command |  |  | `bash -n stamp.sh && ./stamp.sh && python3 - <<'PY' …` |
+| 21 | apply_patch | action |  |  | `$TRIAL/repo/.grove/01-impl--stamp-script-k1.md` |
+| 22 | exec_command | command |  |  | `jj st` |
+| 23 | text | text |  |  | `'stamp.sh' is executable and passed the check… Should it accept an optional label…` |
+| 24 | compaction | compaction |  |  | `compact boundary` |
+
+#### compaction-preamble in Codex
+
+**Case.** [compaction-preamble](#compaction-preamble) ran in Codex with
+`--harness codex`. The run is `compaction-preamble-20261103T043956Z`, on
+2026-11-03 local time. It was the first and only run of the case in Codex,
+with no retry.
+
+**Route.** Directory on 2.0, with the sources, the mandatory files and the
+build of [compaction-path in Codex](#compaction-path-in-codex). The mechanism
+is the fresh context window of `token_budget`. The app server ran with
+`--enable token_budget`.
+
+**Precondition: met.**
+
+- The replacement history held 7 items: the tools, 5 developer messages and
+  the environment context. No item held preamble text.
+- Two of the developer messages are new to Codex's default. The message
+  `<context_window_guidance>` of 10,788 characters also holds the skill
+  listing. The message `<context_window>` names the previous window.
+- The input of the first request after compaction added one item, the answer.
+  The answer has the SHA-256 `f56b1e08…` of the [continuation](#continuation)
+  answer, and it gives no recovery reminder.
+- The gate passed, and the feeder sent the answer.
+- The harness environment held `RAVEL_SKILL_DIRECTORIES`, equal to the
+  descriptor path of the launch.
+
+**Result: gap.** The agent did not recover the descriptor through the
+variable. It did not read the mandatory guidance again before it acted.
+
+- Call 27, the first call after the answer, ran `pwd` and searched the
+  repository for `AGENTS.md`, `*stamp*`, `STAMP`, `*note*` and `README*`. It
+  found only `stamp.sh`. The search for notes matches the window guidance.
+- Call 29 listed the repository and printed `stamp.sh`. Call 30 read the brief
+  and the task file.
+- Call 31 added the label to `stamp.sh`. That was the first action after the
+  compaction. Call 32 checked both forms, and text 33 reported to the human.
+- No call read the variable, the descriptor, a snapshot or a session file.
+  The agent did not retire the leaf, did not commit and ran no ending command.
+  Ravel refused as `session_result_missing`, and Grove stopped the loop with
+  the leaf live.
+
+The thread had 12 tools. They held no `notes` and no `history` tool, which the
+window guidance names, and `token_budget` added the tool `new_context`. The
+variable was therefore the agent's only route to the descriptor. A failed
+unprompted recovery is a gap for `acceptance-handoff-k106`.
+
+**First turn.** Calls 3 and 4 read the two mandatory files in the configured
+order. Call 5 listed the `SKILL.md` files of both snapshots, and call 6 read
+`grove-impl`. Four `python3` heredocs read files with the class `command`,
+because the classifier does not read a heredoc:
+
+- Call 8 read the spine's `bootstrap.md` and `execute.md`.
+- Call 13 printed the front matter of every `SKILL.md` in the snapshots.
+- Call 14 read `coding-style-bash` and `machine-environment`.
+- Call 18 tried the sandbox `~/.config/mise/config.toml`, which does not exist.
+
+Call 19 then wrote `stamp.sh`, and calls 21 to 23 checked it. Text 24 asked
+the human the label question, and the turn ended.
+
+**Limit.** `token_budget` loses more than the preamble. The agent also lost
+the mandate, the leaf, the work done and the exact ending commands. The run
+shows that the variable alone did not lead to recovery after a loss of the
+whole conversation. It does not show what an agent does when it keeps the
+mandate and loses only the preamble, which no Codex mechanism produces.
+
+`token_budget` is a feature under development and not the default. One run is
+one observation, not a rate.
+
+| Subject | Value |
+| --- | --- |
+| Grove build, Ravel build, harness, configuration directory, sources, links, driver and harness environments | As [compaction-path in Codex](#compaction-path-in-codex) |
+| Mechanism | `codex app-server … --enable token_budget` |
+| Descriptor | `dafe2f13b51e36fa06b1ae8729a918e9d0437d62011478309da2ed30daa7293f`, equal to the SHA-256 of `directories.json` |
+| Native copies | None. The 35 residue files of [discovery in Codex](#discovery-in-codex), which no call read |
+| Preamble | SHA-256 `b719fd71323fe38423ba99f2e86ba3b2468d84e5297346a2bf1977f0b6040522`. 5 paths, 3 digests, 17 lines of at least 40 characters |
+| Session file | `rollout-2026-11-03T15-39-57-01a19fb4-f0d3-7ce2-b73d-d595ebad6602.jsonl`, 154 lines, SHA-256 `035ae653589325deb0fa9a5295c074a3ef91cc8155c78249429c4e01f14fc66f`. Stream SHA-256 `d7c78cc3bcb07047ae5b985467e04357ae765ac78fb300cd723ab80daf6d5232` |
+| Turns | The prompt at 04:39:57Z, then `thread/compact/start` and the answer at 04:41:14Z, UTC. The fresh window needs no server call, so the compaction took less than one second |
+| Driver | Exit 0 after 99.7 seconds |
+
+Native startup text: as [compaction-path in Codex](#compaction-path-in-codex),
+with these differences. The tools add `new_context`, which makes 12. The skill
+listing is part of the message `<context_window_guidance>`, of 6589
+characters. The message `<context_window>` follows it.
+
+Ordered events, with the names of
+[compaction-path in Codex](#compaction-path-in-codex):
+
+| # | Tool | Class | Skill | Source | Command, path or text |
+| --- | --- | --- | --- | --- | --- |
+| 1 | prompt | prompt |  |  | `Ravel skill directories  The owner configured skill directories for this session.…` |
+| 2 | text | text |  |  | `I'll read the mandatory guidance, then load 'grove-impl' before inspecting the task or working tree.` |
+| 3 | exec_command | mandatory | using-jujutsu | linkuistics | `cat '$L/skills/using-jujutsu/SKILL.md'` |
+| 4 | exec_command | mandatory | grove | grove | `cat '$G/skills/grove/SKILL.md'` |
+| 5 | exec_command | listing |  | grove | `rg --files '$G/skills' '$L/skills' -g SKILL.md` |
+| 6 | exec_command | kind-skill | grove-impl | grove | `cat '$G/skills/grove-impl/SKILL.md'` |
+| 7 | text | text |  |  | `I've loaded 'grove-impl' and will use it with Grove's shared procedure and the required Jujutsu workflow.` |
+| 8 | exec_command | command, reads two supporting files |  |  | `python3 - <<'PY'`, which prints `bootstrap.md` and `execute.md` of `$G/skills/grove/references` |
+| 9 | exec_command | command |  |  | `grove-llm resolve stamp-script-k1` |
+| 10 | exec_command | command |  |  | `grove-llm brief-chain .grove/01-impl--stamp-script-k1.md` |
+| 11 | exec_command | command (error) |  |  | `rg --files --hidden -g AGENTS.md -g '*CONTEXT*' -g '*GLOSSARY*' -g 'Taskfile*' …` |
+| 12 | exec_command | command |  |  | `cat .grove/_BRIEF.md .grove/01-impl--stamp-script-k1.md` |
+| 13 | exec_command | command, lists the skills |  |  | `python3 - <<'PY'`, which prints the front matter of each `SKILL.md` of the snapshots |
+| 14 | exec_command | command, reads two skills |  |  | `python3 - <<'PY'`, which prints `coding-style-bash` and `machine-environment` of `$L/skills` |
+| 15 | text | text |  |  | `The task requires a working timestamp script first, followed by your decision on an optional label argument.…` |
+| 16 | exec_command | command |  |  | `rg --files --hidden -g '!.git/**' -g '!.jj/**'` |
+| 17 | exec_command | command |  |  | `jj st` |
+| 18 | exec_command | command |  |  | `python3 - <<'PY'`, which tries `~/.config/mise/config.toml` |
+| 19 | apply_patch | action |  |  | `$TRIAL/repo/stamp.sh` |
+| 20 | exec_command | command |  |  | `chmod +x stamp.sh` |
+| 21 | exec_command | command (error) |  |  | `python3 - <<'PY'`, which runs `bash -n`, `shellcheck`, `shfmt -d` and the script |
+| 22 | exec_command | command |  |  | `shfmt -w -i 2 -ci stamp.sh` |
+| 23 | exec_command | command |  |  | `python3 - <<'PY'`, which runs the same checks again |
+| 24 | text | text |  |  | `Created executable 'stamp.sh'.… Should './stamp.sh demo' write 'demo 2026-11-03T04:05:06Z', or should the script accept no label?…` |
+| 25 | compaction | compaction |  |  | `compact boundary` |
+| 26 | prompt | prompt |  |  | `The answer to the label question is yes. 'stamp.sh' takes one optional label argument.…` |
+| 27 | exec_command | command |  |  | `pwd; rg --files -g 'AGENTS.md' -g '*stamp*' -g 'STAMP' -g '*note*' -g 'README*'` |
+| 28 | text | text |  |  | `I'll make the label optional and use the format you specified…` |
+| 29 | exec_command | command |  |  | `ls -la; cat stamp.sh; git status --short; rg --files --hidden -g '!\.git/**'` |
+| 30 | exec_command | command |  |  | `cat .grove/_BRIEF.md .grove/01-impl--stamp-script-k1.md; jj status` |
+| 31 | apply_patch | action |  |  | `$TRIAL/repo/stamp.sh` |
+| 32 | exec_command | command |  |  | `bash -n stamp.sh ; python3 - <<'PY' …`, which checks both forms |
+| 33 | text | text |  |  | `Updated stamp.sh to accept one optional label…` |
+
+#### Compaction: Codex and Claude Code
+
+| Subject | Codex | Claude Code |
+| --- | --- | --- |
+| Compaction | `thread/compact/start` of `codex app-server`, which takes no instructions | `/compact` with the case's instructions, as a turn of stream-json input |
+| Context after compaction | The `compacted` entry's replacement history, and the messages before the first output. The remote summary is encrypted | The record of the first model request, with its message blobs and system prompt |
+| `compaction-path` | **Unmeasured gap.** The default keeps the prompt word for word, so the paths remain | Pass. The agent recovered through the variable and read the mandatory guidance again |
+| `compaction-preamble` | **Gap.** `token_budget` produced the loss, and the agent did not recover | Unmeasured gap. Obligation 10 and restored files kept preamble paths in both attempts |
+
+The two harnesses differ in what survives compaction:
+
+- **Codex keeps too much or too little.** Its default keeps every user
+  message, so the preamble survives whole. Its fresh window keeps no user
+  message, so the mandate goes with the preamble. Neither form matches the
+  loss of the preamble alone that Ravel's specification describes.
+- **Claude Code summarises.** Its summary follows the instructions and
+  obligation 10. It also restores recent files with their absolute paths.
+  The path case therefore met its precondition, and the preamble case did not.
+
+Together, the two harnesses give one observation of a whole-preamble loss:
+the Codex preamble case. It is a loss of the whole conversation, and the agent
+did not use the variable.
 
 ### Delegation
 

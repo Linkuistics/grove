@@ -49,9 +49,10 @@ codex-trial-adapter-k115 delivered `task trial:codex OUT=… CASE=…`, which ru
 any case in Codex through its own tree, with `--harness codex`. "The Codex
 adapter" in `docs/common-loading-acceptance-record.md` states the route, the
 `workspace-write` sandbox and its reason, the residue and the helper links.
-The fields `compaction`, `expectDelegate` and `systemNote` refuse for Codex
-until k120 and k121 add their mechanisms. k119 added the Codex continuation. The delegate
-leaf also adds Codex delegations, which the extraction does not yet link.
+The fields `expectDelegate` and `systemNote` refuse for Codex until k121 adds
+their mechanisms. k119 added the Codex continuation, and k120 the Codex
+compaction. The delegate leaf also adds Codex delegations, which the
+extraction does not yet link.
 
 codex-discovery-trial-k116 recorded "discovery in Codex", which passes, and
 "discovery-confined in Codex", which is a gap. Codex exits before its session
@@ -94,10 +95,26 @@ interface `HarnessAdapter`, and the registry `ADAPTERS` maps a name to its
 adapter. No code outside them tests a harness name. "The harness seam" in the
 acceptance record states the layers.
 
-k120 adds the Codex compaction to `CodexAdapter`. It removes `compaction`
-from `CodexAdapter.unsupported` and sets `compaction_mechanism`. The feeder
-`harness_trial.py turns` speaks Claude Code's stream-json protocol, and the
-compaction readers read Claude Code's session format. k121 adds the Codex
-delegation link to `CodexAdapter.describe`, which now returns no
-delegations. `ClaudeAdapter.delegations` is the Claude Code form. A control of
-a harness difference breaks one adapter method, such as `CODEX.resume_args`.
+k121 adds the Codex delegation link to `CodexAdapter.describe`, which now
+returns no delegations. `ClaudeAdapter.delegations` is the Claude Code form. A
+control of a harness difference breaks one adapter method, such as
+`CODEX.resume_args`.
+
+codex-compaction-trials-k120 recorded "Compaction in Codex". The feeder runs
+`codex app-server` over stdio and compacts with `thread/compact/start`, which
+takes no instructions. Codex's default compacts on the server and keeps each
+user message word for word, so the prompt keeps the whole preamble.
+`compaction-path` is therefore an unmeasured gap: the gate failed on the
+retained paths and on one encrypted item.
+
+`compaction-preamble` ran with
+`--enable token_budget`, whose fresh window keeps no user message. The gate
+passed, and the agent did not recover: it read neither the variable nor a
+mandatory file, and it ran no ending command. That is a gap for
+acceptance-handoff-k106. It lost the mandate too, so no Codex mechanism
+loses the preamble alone.
+
+The feeder, the compaction turn and the readers of the context after
+compaction are adapter methods. `CodexAdapter.after_compaction` reads the
+`compacted` entry. A control of a feeder-side method must break the
+runner's in-process read, because the feeder runs in its own process.

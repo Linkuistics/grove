@@ -93,3 +93,11 @@ decisions on its two scope questions:
 - `ravel-token-handoff-k133`: implement that handoff on the Ravel bookmark.
 - `claude-confined-rerun-k134`: run both Claude Code confined cases again with
   the handoff.
+
+loader-report-wording-k129 changed the preamble's report wording and cut one
+more leaf, after the human's decision on its scope question:
+
+- `claude-visible-report-k135`: make Claude Code show the loader report as
+  visible text before the force-stop command. Then run both Claude Code
+  explicit cases again. In k129 each agent wrote its report only in a thinking
+  block.

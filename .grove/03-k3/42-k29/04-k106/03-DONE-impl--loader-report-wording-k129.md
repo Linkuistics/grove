@@ -53,8 +53,8 @@ names an older build. `stage-evidence-reconciliation-k125` reconciles that.
 - **Base.** Ravel `main` and `main@origin` are both `24a545236185`. `jj git
   fetch` reported no change, so the bookmark needs no rebase. The change goes
   above `1ca4aecbeae1`.
-- **Report wording.** Obligations 4 and 6 say "report … in text before
-  dependent work and before any ending command". "In text" names the channel,
+- **Report wording.** Obligations 4 and 6 now require a report in text,
+  before dependent work and before any ending command. "In text" names the channel,
   because the original runs had the error only in a tool result. "Report"
   stays the verb, as in obligations 5, 8 and 9.
 - **Scope of the wording.** Obligations 5, 8 and 9 keep their text. Their rows
@@ -69,7 +69,7 @@ names an older build. `stage-evidence-reconciliation-k125` reconciles that.
   `bin/ravel` `7ab96d9e…`. `task check` passed 732 of 732. Output commit
   `e0fe5631fb0e` is the tip of the unpushed bookmark.
 - **Trial results.** `explicit-native-only` in Codex passes. Both Claude Code
-  cases stay gaps: each agent wrote a correct report, but in a thinking block
+  cases stay gaps: each agent wrote an accurate report, but in a thinking block
   directly before the force-stop call. Claude Code itself then flagged "no
   visible output". The record holds the evidence under "Loader report repair".
 - **Continuation.** Both `continuation` sections now state that the re-read
@@ -77,3 +77,14 @@ names an older build. `stage-evidence-reconciliation-k125` reconciles that.
   measured result keeps its label as measured under the earlier wording.
 - **Pending: scope question.** The human decides what happens to the two
   Claude Code gaps. The leaf stays live until the answer.
+- **Scope answer.** On 2026-11-03 the human chose one more repair over
+  accepting the two Claude Code rows as explicit gaps. The human did not
+  accept a report in a thinking block as a pass. `claude-visible-report-k135`
+  goes directly after this leaf, so that the later trials run on the newest
+  preamble.
+- **Grove check.** `bash scripts/check.sh` passed 20 of 21 steps on
+  `ab3088f1`, with 1333 of 1333 nextest tests. "Ravel caller assets and
+  provenance" failed only because the owner's global mise configuration now
+  selects Homebrew Bun 1.4.4, and the policy typecheck pins 1.4.3. The same
+  step passed with mise's installed Bun 1.4.3 first on `PATH`. This leaf
+  changed no part of that step's subject.

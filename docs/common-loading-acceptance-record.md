@@ -6436,3 +6436,6 @@ both repaired runs, the report follows a tool error, in the same turn as the
 ending call.
 
 Both Claude Code cases stay gaps. Each run is one observation, not a rate.
+The human chose one more repair over accepting the two rows as explicit
+gaps. `claude-visible-report-k135` makes that repair. A report in a thinking
+block does not count as a pass.

@@ -1745,7 +1745,10 @@ class CodexAdapter(HarnessAdapter):
         and the record then holds the JavaScript of that call."""
         calls: dict[str, dict[str, Any]] = {}
         cells: list[tuple[int, str]] = []
-        answers: dict[str, str] = {}
+        # The messages of each delegate to the parent, in order, and the
+        # targets of the parent's `send_message` calls.
+        answers: dict[str, list[str]] = {}
+        sent: list[str] = []
         started = []
         for n, record in enumerate(records):
             payload = record.get("payload") if isinstance(record.get("payload"), dict) else {}
@@ -1757,12 +1760,18 @@ class CodexAdapter(HarnessAdapter):
                 except json.JSONDecodeError:
                     arguments = {}
                 calls[payload.get("call_id")] = arguments if isinstance(arguments, dict) else {}
+            elif record.get("type") == "response_item" and kind == "function_call" \
+                    and payload.get("name") == "send_message":
+                try:
+                    sent.append(str(json.loads(payload.get("arguments") or "{}").get("target")))
+                except (json.JSONDecodeError, AttributeError):
+                    sent.append("")
             elif record.get("type") == "response_item" and kind == "custom_tool_call" \
                     and "spawn_agent" in str(payload.get("input")):
                 cells.append((n, str(payload.get("input"))))
             elif record.get("type") == "response_item" and kind == "agent_message":
                 text = "".join(part.get("text", "") for part in payload.get("content") or [] if isinstance(part, dict))
-                answers.setdefault(str(payload.get("author")), text)
+                answers.setdefault(str(payload.get("author")), []).append(text)
             elif record.get("type") == "event_msg" and kind == "item_completed":
                 item = payload.get("item") or {}
                 if item.get("type") == "SubAgentActivity" and item.get("kind") == "started":
@@ -1784,6 +1793,12 @@ class CodexAdapter(HarnessAdapter):
             transcript = next((t for t in transcripts if t.get("thread") == thread), None)
             source = ((self.meta(child_records).get("source") or {}).get("subagent") or {}).get("thread_spawn") or {}
             turn = next((r.get("payload") or {} for r in reversed(child_records) if r.get("type") == "turn_context"), {})
+            path_name = str(item.get("agent_path"))
+            replies = answers.get(path_name, [])
+            # The delegate's last report is its `FINAL_ANSWER` message.
+            final = next((text for text in reversed(replies) if "Message Type: FINAL_ANSWER" in text),
+                         replies[-1] if replies else "")
+            names = {path_name, str(arguments.get("task_name")), path_name.rsplit("/", 1)[-1]}
             history = [r.get("payload") or {} for r in child_records if r.get("type") == "response_item"
                        and (r.get("payload") or {}).get("type") == "message"
                        and (r.get("payload") or {}).get("role") == "user"]
@@ -1807,7 +1822,8 @@ class CodexAdapter(HarnessAdapter):
                 "meta": {key: source.get(key) for key in ("depth", "agent_path", "agent_role") if key in source},
                 "sandbox": {key: turn.get(key) for key in ("sandbox_policy", "approval_policy", "cwd") if key in turn},
                 "status": "started",
-                "result": answers.get(str(item.get("agent_path")), "")[:DELEGATE_RESULT_CHARS],
+                "messages": {"toDelegate": sum(target in names for target in sent), "fromDelegate": len(replies)},
+                "result": final[:DELEGATE_RESULT_CHARS],
                 "transcript": transcript["file"] if transcript else None,
                 "order": delegate_order(transcript["events"], mandatory) if transcript else None,
                 "mechanism": self.delegate_mechanism,
@@ -3506,7 +3522,9 @@ def render_delegations(found: list[dict[str, Any]]) -> list[str]:
             f"- Inherited ending context: {cell(', '.join(item['inherited']) or 'none')}.",
             *([f"- Call: {item['form']}. Fork: {cell(item.get('forkTurns') or 'not named')}. "
                f"The delegate's history holds the descriptor path: {'yes' if item.get('historyHoldsDescriptor') else 'no'}. "
-               f"Delegate's turn: `{cell(json.dumps(item.get('sandbox') or {}))}`."] if "form" in item else []),
+               f"Delegate's turn: `{cell(json.dumps(item.get('sandbox') or {}))}`. Messages: "
+               f"{(item.get('messages') or {}).get('toDelegate')} from the parent by `send_message`, "
+               f"{(item.get('messages') or {}).get('fromDelegate')} from the delegate."] if "form" in item else []),
             (f"- Prompt: encrypted in every transcript, so what the parent gave is unknown." if item["promptSha256"] is None
              and item.get("form") == "direct, encrypted" else
              f"- Prompt SHA-256 `{item['promptSha256']}`. Descriptor path: {'given' if item['givesDescriptorPath'] else 'not given'}. "

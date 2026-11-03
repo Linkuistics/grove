@@ -49,10 +49,9 @@ codex-trial-adapter-k115 delivered `task trial:codex OUT=… CASE=…`, which ru
 any case in Codex through its own tree, with `--harness codex`. "The Codex
 adapter" in `docs/common-loading-acceptance-record.md` states the route, the
 `workspace-write` sandbox and its reason, the residue and the helper links.
-The fields `expectDelegate` and `systemNote` refuse for Codex until k121 adds
-their mechanisms. k119 added the Codex continuation, and k120 the Codex
-compaction. The delegate leaf also adds Codex delegations, which the
-extraction does not yet link.
+k119 added the Codex continuation, k120 the Codex compaction and k121 the
+Codex delegations and owner note. Only `claudeSettings` still refuses for
+Codex.
 
 codex-discovery-trial-k116 recorded "discovery in Codex", which passes, and
 "discovery-confined in Codex", which is a gap. Codex exits before its session
@@ -95,10 +94,9 @@ interface `HarnessAdapter`, and the registry `ADAPTERS` maps a name to its
 adapter. No code outside them tests a harness name. "The harness seam" in the
 acceptance record states the layers.
 
-k121 adds the Codex delegation link to `CodexAdapter.describe`, which now
-returns no delegations. `ClaudeAdapter.delegations` is the Claude Code form. A
-control of a harness difference breaks one adapter method, such as
-`CODEX.resume_args`.
+`CodexAdapter.delegations` and `ClaudeAdapter.delegations` hold the two
+delegation forms. A control of a harness difference breaks one adapter
+method, such as `CODEX.resume_args`.
 
 codex-compaction-trials-k120 recorded "Compaction in Codex". The feeder runs
 `codex app-server` over stdio and compacts with `thread/compact/start`, which
@@ -118,3 +116,19 @@ The feeder, the compaction turn and the readers of the context after
 compaction are adapter methods. `CodexAdapter.after_compaction` reads the
 `compacted` entry. A control of a feeder-side method must break the
 runner's in-process read, because the feeder runs in its own process.
+
+codex-delegate-trial-k121 recorded "Delegation in Codex". The mechanism is
+`spawn_agent` of multi-agent v2. The delegate is a thread of the same
+process, with the parent's environment, sandbox and approval policy. It
+writes its own session file, which names the parent thread. A case's
+`systemNote` reaches Codex as `-c developer_instructions`, which a delegate
+inherits.
+
+`delegate` passes on every observable row. The delegate read the mandatory
+files first and ran no ending command. `delegate-early` gives the Claude Code
+result: the delegate sent an early result, and the first writer won.
+
+Two gaps remain for acceptance-handoff-k106. Codex encrypts the message of a direct
+`spawn_agent` call, so what the parent gave is unmeasured. No adapter scrubs
+a delegate's environment. The default `fork_turns="all"` gives a delegate the
+parent's whole history, preamble included.

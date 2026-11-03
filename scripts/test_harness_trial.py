@@ -418,8 +418,13 @@ if delegate and not resume:
     records += [
         {{"type": "event_msg", "payload": {{"type": "item_completed", "item": {{"type": "SubAgentActivity", "id": call,
             "kind": "started", "agent_thread_id": child, "agent_path": "/root/check"}}}}}},
+        {{"type": "response_item", "payload": {{"type": "function_call", "name": "send_message",
+            "namespace": "collaboration", "call_id": "call_send", "arguments": json.dumps({{"target": "check", "message": "gAAAAABqFake"}})}}}},
         {{"type": "response_item", "payload": {{"type": "agent_message", "author": "/root/check", "recipient": "/root",
-            "content": [{{"type": "input_text", "text": "Check written."}}]}}}},
+            "content": [{{"type": "input_text", "text": "Message Type: MESSAGE\nPayload:\n"}},
+                        {{"type": "encrypted_content", "encrypted_content": "gAAAAABqFake"}}]}}}},
+        {{"type": "response_item", "payload": {{"type": "agent_message", "author": "/root/check", "recipient": "/root",
+            "content": [{{"type": "input_text", "text": "Message Type: FINAL_ANSWER\nPayload:\nCheck written."}}]}}}},
         {{"type": "event_msg", "payload": {{"type": "item_completed", "item": {{"type": "SubAgentActivity",
             "id": "subagent-completed", "kind": "completed", "agent_thread_id": child, "agent_path": "/root/check"}}}}}},
     ]
@@ -1764,7 +1769,8 @@ class HarnessTrialTest(unittest.TestCase):
         self.assertEqual(item["endingLines"], ["Do not run end-session."])
         self.assertFalse(item["historyHoldsDescriptor"])
         self.assertRegex(item["transcript"], r"^\.codex/sessions/2026/11/03/rollout-.*-01a19ed6-5e40-.*\.jsonl$")
-        self.assertEqual(item["result"], "Check written.")
+        self.assertEqual(item["result"], "Message Type: FINAL_ANSWER\nPayload:\nCheck written.")
+        self.assertEqual(item["messages"], {"toDelegate": 1, "fromDelegate": 2})
         self.assertEqual(item["inherited"], ["RAVEL_EXIT_FILE", "GROVE_LAUNCH_DIR"])
         self.assertEqual(item["meta"], {"depth": 1, "agent_path": "/root/check", "agent_role": None})
         self.assertEqual(item["sandbox"]["sandbox_policy"]["type"], "workspace-write")

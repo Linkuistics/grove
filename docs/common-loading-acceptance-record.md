@@ -198,19 +198,30 @@ The record also lists each ending call, with the transcript that made it and
 the text that it printed. A case with `expectDelegate` fails when no Agent
 call has a delegate transcript.
 
+A Codex delegate writes its own session file, whose first `session_meta`
+names the parent thread. The runner reads it as one more transcript of the
+launch, and a delegate of a delegate too. The parent's `SubAgentActivity`
+item of kind `started` names the call ID of its `spawn_agent` call, and the
+runner links the call to the delegate by that ID.
+
+A Codex delegation also holds the form of the call and its `fork_turns`. It
+states whether the delegate's history holds the descriptor path. It names the
+delegate's sandbox and counts the messages each way. Codex encrypts the
+`message` of a direct call, so the record then holds no prompt and says so.
+[Delegation in Codex](#delegation-in-codex) states the mechanism.
+
 A case can name `collect`, a list of files in its trial directory. The record
 copies each file, because Ravel can end the group before a tool result reaches
 the session file. A case can also name `systemNote`. The configuration script
-then gives that text to Claude Code with `--append-system-prompt`, which is the
-owner's channel. Ravel's prepared prompt stays unchanged, and the record holds
-the note.
+then gives that text to Claude Code with `--append-system-prompt`, and to
+Codex with `-c developer_instructions`. Each is the owner's channel of its
+harness. Ravel's prepared prompt stays unchanged, and the record holds the
+note.
 
 The runner supports the routes native on 2.0 and directory on 2.0, and the
 harnesses Claude Code and Codex. A case on native 1.1 needs a `policy.ts`
-adapter, which no leaf builds. The Codex adapter has no mechanism yet for
-`expectDelegate` or `systemNote`. A case with one of these fields refuses for
-Codex and names the leaf that adds the mechanism.
-`claudeSettings` refuses for Codex too, because it is a Claude Code setting.
+adapter, which no leaf builds. `claudeSettings` refuses for Codex, because it
+is a Claude Code setting.
 
 ### What one run does
 
@@ -354,7 +365,7 @@ The extraction gives each tool call one class:
 | `compaction` | The compaction boundary of a compaction case |
 | `native-skill-tool` | A call of the harness's own Skill tool. The event keeps the first 300 characters of the result |
 | `action` | An edit, a write or a Codex `apply_patch` change |
-| `delegate` | A call of the Agent tool. The delegation in the record holds its prompt |
+| `delegate` | A call of the Agent tool, or a Codex `spawn_agent` delegate. The delegation in the record holds its prompt |
 | `ending` | A shell call of `end-session`, with its result token and the first 300 characters of its output |
 | `command` | Another shell call |
 | `other` | Any other call |
@@ -491,6 +502,13 @@ transcript, the collected files and the owner note. A confined test on the
 native route proves that the run writes no Ravel settings and probes each
 native copy.
 
+A Codex delegation test proves the link from the `spawn_agent` call to the
+delegate's session file. It proves a direct call with a plaintext message and
+with an encrypted one, and a call from code mode. It also proves the fork and
+the final answer among the delegate's messages. A forked delegate's copy of
+the parent's metadata does not hide its own. A Codex owner-note test proves
+`-c developer_instructions`.
+
 Codex tests prove the refusal of `CODEX_HOME` in the real home, also empty or
 through an alias. They prove the replacement of a value outside the real home,
 the allow-list and the link list of `.codex/auth.json`. They also prove the
@@ -499,8 +517,8 @@ and from the stream.
 
 Other tests prove the residue and the absence of account
 data. Further tests
-prove the harness's own links. They also prove the refusal of the fields that
-later leaves add. A Codex continuation test proves the resume arguments, the
+prove the harness's own links. They also prove the refusal of
+`claudeSettings` for Codex. A Codex continuation test proves the resume arguments, the
 thread, the working directory, the line windows and the marker.
 
 A fake `codex app-server` writes a `compacted` entry as the real server does.
@@ -4858,6 +4876,343 @@ The delegate's transcript `agent-a83d3b5cb9a1987b8.jsonl`:
 | 1 | Read | mandatory | using-jujutsu | linkuistics | `$L/skills/using-jujutsu/SKILL.md` |
 | 2 | Read | mandatory | grove | grove | `$G/skills/grove/SKILL.md` |
 | 3 | Bash | ending |  |  | `{ command -v ravel; env \| cut -d= -f1 \| sort \| tr '\n' ' '; echo; printenv RAVEL_EXIT_FILE; ravel end-session trial-delegate-early; echo "first exit $?"; ravel …` |
+
+### Delegation in Codex
+
+`codex-delegate-trial-k121` runs the two cases of [Delegation](#delegation)
+in Codex, with `--harness codex`. Each case has its own launch and its own
+record below.
+
+**Mechanism and adapter.** Codex 0.166.0 runs multi-agent v2. The tools are
+in the `collaboration` namespace, and the parent creates a delegate with
+`spawn_agent`. The delegate is a thread of the same Codex process. Its
+commands run with the process environment, and with the parent's sandbox and
+approval policy.
+
+`build_agent_shared_config` in
+`codex-rs/core/src/agent/child_config.rs` copies the parent's configuration,
+then sets the turn's approval policy, working directory and permission
+profile. The delegate also inherits `developer_instructions`. The adapter is
+the Codex adapter of this runner: `trial-launch.sh`, then `codex exec`. No
+adapter scrubs the environment of a `spawn_agent` delegate.
+
+**The delegate's record.** Each delegate writes its own session file. Its
+first `session_meta` names `parent_thread_id`, and
+`source.subagent.thread_spawn` gives the depth and the agent path. The
+parent's `SubAgentActivity` item of kind `started` carries the call ID of the
+`spawn_agent` call and the thread of the delegate. The runner links the two
+by that call ID.
+
+A delegate that forks the parent's history copies the
+parent's messages and its metadata into its own file, but none of the
+parent's completed items. Its events are therefore its own.
+
+**Fork.** `spawn_agent` takes `fork_turns`. The value `all`, the default,
+gives the delegate the whole history of the parent, preamble included. The
+value `none` gives the delegate no history. The record names the fork of each
+call, and whether the delegate's history holds the descriptor path.
+
+**The message is encrypted.** The `message` parameter of `spawn_agent` is
+declared `with_encrypted()` in `codex-rs/core/src/tools/handlers/multi_agents_spec.rs`.
+The parent's call and the delegate's `NEW_TASK` message therefore hold the
+text as an opaque token in every transcript. `send_message` and the
+delegate's reports other than its final answer are encrypted too. A call from
+code mode, inside the JavaScript of the `exec` tool, would be plaintext
+(`agent_message_from_tool` in `multi_agents_v2.rs`). Both parents of these
+cases called `spawn_agent` directly.
+
+**Owner channel.** A case's `systemNote` reaches Codex as `-c
+developer_instructions="…"`. Codex adds that text to a developer message
+before the skill instructions. `codex debug prompt-input` showed it there in
+a probe outside every trial. Ravel's prepared prompt stays unchanged.
+
+**Gap: a scrubbing adapter.** As in Claude Code, no adapter scrubs the
+environment of a Codex delegate. The scrubbed side of the "Delegate
+authority" row is an unmeasured gap for `acceptance-handoff-k106`.
+
+**Gap: what the parent gave.** Codex encrypts the message of a direct call.
+No Codex run therefore shows whether it holds the descriptor path, the
+obligations or ending instructions. That part of the row is an unmeasured gap for
+`acceptance-handoff-k106`. The delegate's reads remain observable.
+
+#### delegate in Codex
+
+**Case.** [delegate](#delegate) ran in Codex. The run is
+`delegate-20261103T051533Z`, on 2026-11-03 local time. It was the first and
+only run of the case in Codex, with no retry.
+
+**Route.** Directory on 2.0. The sources and the mandatory files are those of
+[delegate](#delegate): `using-jujutsu`, then the Grove spine. The sources
+come from the prepared checkout at commit `5a2d48c6e813`.
+
+**Result: pass on every observable row.** The delegate read the mandatory
+guidance first. What the parent gave is an unmeasured gap.
+
+- **What the parent gave.** One direct `spawn_agent` call, task name
+  `write_checker`, with `fork_turns="none"`. The message is encrypted. The
+  delegate's history holds no preamble text. Its file names the descriptor
+  path first in its own call 1, and no earlier line holds that path. The path
+  therefore reached the delegate through the encrypted message. That is an
+  inference from the order of the file, not a reading of the message.
+- **The delegate's reads.** Call 1 read the descriptor. Calls 2 and 3 read
+  `using-jujutsu`, then the Grove spine, in the configured order. Call 4 read
+  the spine's `execute.md`. Call 5 listed the `SKILL.md` files of both
+  snapshots. Call 6 read the descriptor again in a `python3` heredoc. Calls 7
+  and 8 read `coding-style-bash` and `machine-environment`. Call 11 wrote
+  `check-count.sh`, which was the first action.
+- **Inherited ending context.** The harness environment held
+  `RAVEL_EXIT_FILE` and `GROVE_LAUNCH_DIR` of the trial. The delegate's
+  commands ran with the process environment, so they inherited both.
+  [delegate-early in Codex](#delegate-early-in-codex) shows that a
+  delegate's command sees them.
+- **Instruction not to end: obeyed.** The delegate ran no ending command. It
+  sent its final answer to the parent. The parent ran the check, retired the
+  leaf and committed `c27eb80412ea`. It ended with the exact `end-session
+  grove-continue` command. The driver then stopped at `finish`, which the
+  trial does not route.
+
+**Limit.** Whether the encrypted message named `coding-style-bash` is
+unknown. The parent read that skill at call 13, before the spawn. The craft
+read of the delegate is therefore no evidence of discovery from activity
+alone.
+
+The two agents exchanged messages while they worked. The parent sent two
+`send_message` calls. The delegate sent three messages and its final answer.
+Only the final answer is plaintext. The first reader took the delegate's first
+message as its result. The reader now takes the `FINAL_ANSWER` message, and
+`task trial:reextract` read the unchanged transcripts again at
+2026-11-03T05:19:01Z.
+
+One run is one observation, not a rate.
+
+| Subject | Value |
+| --- | --- |
+| Grove build | Commit `5a2d48c6e813`. `grove` SHA-256 `5900ff3c08f16439f2d57af2a553b209ffd77527c17e883e6b6c0ee742b2ca94`. `grove-llm` SHA-256 `56f6815a290441d2498b1af4431923d73983459619d5e7eea633f34fad1264b7`. Both equal the [delegate](#delegate) build, because this commit changes only the runner and its cases |
+| Ravel build | Build commit `23e50ce90037`, bookmark `skill-directory-delivery` at `1ca4aecbeae1`, which did not move. Identity `ef5857e989e6d99da51631ae0295685c8961c1b01bac58d865e6fb789ae71deb`. `bin/ravel` SHA-256 `8e10e311c50c81ca60ac4f393d17408982d0aafcfe46cccfbc46130465290ae2`. The prefix is a byte copy of an earlier trial prefix: 5 files with equal digests and no `libexec` |
+| Harness | codex-cli 0.166.0, model `gpt-6.1-sol`, effort `medium` |
+| Codex sandbox | `workspace-write`, approval `never`, in place of Ravel confinement, which a lifecycle launch does not have. The delegate's `turn_context` shows the same sandbox, approval and working directory |
+| Configuration directory | The sandbox `$TRIAL/home/.codex`, as `CODEX_HOME`. The skill roots of `codex debug prompt-input` name its `skills/.system` |
+| Sign-in | `codex login status`: `Logged in using ChatGPT` |
+| Sources | Checkout commit `5a2d48c6e813`. `resourceDigest` of `grove`: `88f68c31337536efb0d4fb388543c0ca1abf9a9fed0ce0ccac3888e933df5a67`. `resourceDigest` of `linkuistics`: `820fe28234c98fe59286c3788eac561dead174770bd50560393d697788446b22` |
+| Descriptor | `20e213963dfda6049f5638102a90f1eff62757f58a52a2f3c259be684661f5fa`, equal to the SHA-256 of `directories.json` |
+| Links | Before: `.codex/auth.json` only. After: `.codex/auth.json`, and Codex's own `apply_patch` and `applypatch` under `.codex/tmp/arg0-macos/codex-arg0eRdI0a/` |
+| Driver environment | `CODEX_HOME`, `HOME`, `LANG`, `LOGNAME`, `PATH`, `SHELL`, `TERM`, `TMPDIR`, `USER` |
+| Harness environment | The driver's names, `PWD`, `SHLVL`, `_`, and the trial's own `GROVE_LAUNCH_DIR`, `RAVEL_EXIT_FILE` and `RAVEL_SKILL_DIRECTORIES`. No live value |
+| Native copies | None. The 35 residue files of [discovery in Codex](#discovery-in-codex), which no call read |
+| Delegation | Direct `spawn_agent`, task name `write_checker`, agent type default, `fork_turns` `none`, depth 1, agent path `/root/write_checker`. Messages: 2 from the parent, 4 from the delegate |
+| Session file | `rollout-2026-11-03T16-15-36-01a19fd5-914a-74a1-8f92-8a77b5ff12ec.jsonl`, 200 lines, SHA-256 `a10df5ae68dcbf70e60e4f700152222e6152b0fb7efd87e3ab2fe5fe6747fb17`. Stream SHA-256 `5b28d5f3f0383f06d50226bd69df0a39bc1c77219ef85d03dcf3ae0afb712c4a` |
+| Delegate session file | `rollout-2026-11-03T16-16-28-01a19fd6-5c4d-76c1-80ef-9bf8a3cda183.jsonl`, 84 lines, SHA-256 `72383275318cba277549354572199e28a45bb5934e5f2992cd4ac37817aae7ab` |
+| Driver | Exit 0 after 138.1 seconds |
+
+Native startup text: the text of [smoke in Codex](#smoke-in-codex), with one
+difference. The skill instructions have 4,906 characters, where smoke has
+4,903.
+
+Ordered events. `$TRIAL` is the trial directory and `$RAVEL2` the 2.0 prefix.
+`$G` and `$L` are the snapshots of `grove` and `linkuistics`. Every command
+ran in `$TRIAL/repo`.
+
+The parent's session file `rollout-…-01a19fd5-914a-74a1-8f92-8a77b5ff12ec.jsonl`:
+
+<!-- tc: off because the text cells quote the agent's words verbatim -->
+| # | Tool | Class | Skill | Source | Command, path or text |
+| --- | --- | --- | --- | --- | --- |
+| 1 | text | text |  |  | I’ll read the mandatory Jujutsu and Grove guidance, then load `grove-impl` before inspecting the task. |
+| 2 | exec_command | mandatory | using-jujutsu | linkuistics | `cat '$L/skills/using-jujutsu/SKILL.md'` |
+| 3 | exec_command | mandatory | grove | grove | `cat '$G/skills/grove/SKILL.md'` |
+| 4 | exec_command | listing, then listing |  | grove | `rg --files '$G/skills' '$L/skills' -g SKILL.md` |
+| 5 | exec_command | kind-skill | grove-impl | grove | `cat '$G/skills/grove-impl/SKILL.md'` |
+| 6 | exec_command | supporting, then supporting | grove | grove | `cat '$G/skills/grove/references/bootstrap.md' '$G/skills/grove/references/execute.md'` |
+| 7 | exec_command | command |  |  | `grove-llm resolve count-script-k1` |
+| 8 | exec_command | command |  |  | `grove-llm brief-chain '$TRIAL/repo/.grove/01-impl--count-script-k1.md'` |
+| 9 | exec_command | command (error) |  |  | `rg --files --hidden -g AGENTS.md -g Taskfile.yml -g Taskfile.yaml -g '*GLOSSARY*' -g '*CONTEXT*' …` |
+| 10 | exec_command | command |  |  | `cat .grove/_BRIEF.md .grove/01-impl--count-script-k1.md` |
+| 11 | exec_command | command |  |  | `ls -a` |
+| 12 | text | text |  |  | The leaf asks for two executable Bash scripts and explicitly delegates the checker. I’ll write `count.sh`, have one delegate write `check-count.sh`, then run the check an… |
+| 13 | exec_command | skill, then skill | coding-style-bash | linkuistics | `cat '$L/skills/coding-style-bash/SKILL.md' '$L/skills/machine-environment/SKILL.md'` |
+| 14 | exec_command | supporting, then supporting | grove | grove | `cat '$G/skills/grove/references/retire.md' '$G/skills/grove/references/commit.md'` |
+| 15 | spawn_agent | delegate |  |  | `/root/write_checker` |
+| 16 | text | text |  |  | I’m applying the Bash style guidance. There’s no Taskfile in this disposable repository; a root `Taskfile.yml` would be useful if it grows into a maintained project.… |
+| 17 | exec_command | command |  |  | `jj status` |
+| 18 | exec_command | supporting | using-jujutsu | linkuistics | `cat '$L/skills/using-jujutsu/references/jj-commands.md'` |
+| 19 | apply_patch | action |  |  | `$TRIAL/repo/.grove/01-impl--count-script-k1.md` |
+| 20 | exec_command | command |  |  | `command -v shellcheck shfmt task mise` |
+| 21 | subagent:interacted | other |  |  | `/root/write_checker` |
+| 22 | exec_command | command |  |  | `python3 - <<'PY'`, which reads front matter in the snapshots |
+| 23 | exec_command | command |  |  | `ls .grove` |
+| 24 | collab:wait | other |  |  | `wait` |
+| 25 | apply_patch | action |  |  | `$TRIAL/repo/count.sh` |
+| 26 | exec_command | command |  |  | `chmod +x count.sh` |
+| 27 | exec_command | command |  |  | `cat check-count.sh` |
+| 28 | text | text |  |  | The delegate’s checker is ready and failed as expected while `count.sh` was absent. I’ve now written the counter and will run the check, lint both scripts, and verify a f… |
+| 29 | apply_patch | action |  |  | `$TRIAL/repo/count.sh` |
+| 30 | exec_command | command |  |  | `python3 - <<'PY'`, which runs the check, ShellCheck, shfmt and edge cases |
+| 31 | subagent:interacted | other |  |  | `/root/write_checker` |
+| 32 | subagent:completed | other |  |  | `/root/write_checker` |
+| 33 | apply_patch | action |  |  | `$TRIAL/repo/.grove/01-impl--count-script-k1.md` |
+| 34 | exec_command | command |  |  | `jj diff --no-pager --git` |
+| 35 | exec_command | command |  |  | `grove-llm leaf-retire .grove/01-impl--count-script-k1.md` |
+| 36 | exec_command | command |  |  | `rg --hidden -n 'count-script-k1\|\*\*Reviews:\*\*' .grove` |
+| 37 | exec_command | command |  |  | `jj describe -m 'Add file counter and delegated checker (count-script-k1)'` |
+| 38 | exec_command | command |  |  | `jj status` |
+| 39 | exec_command | command |  |  | `jj new` |
+| 40 | exec_command | command |  |  | `jj status` |
+| 41 | text | text |  |  | Both executable scripts are committed in `c27eb804`. The delegated checker, ShellCheck, formatting, and edge-case checks pass. The leaf is retired, and Jujutsu has a clea… |
+| 42 | exec_command | ending |  |  | `'$RAVEL2/bin/ravel' end-session grove-continue` |
+<!-- tc: on -->
+
+The delegate's session file `rollout-…-01a19fd6-5c4d-76c1-80ef-9bf8a3cda183.jsonl`:
+
+<!-- tc: off because the text cells quote the agent's words verbatim -->
+| # | Tool | Class | Skill | Source | Command, path or text |
+| --- | --- | --- | --- | --- | --- |
+| 1 | exec_command | descriptor |  |  | `cat $TRIAL/home/.cache/ravel/skills/v1/descriptors/20e213963dfda6049f5638102a90f1eff62757f58a52a2f3c259be684661f5fa/directories.json` |
+| 2 | exec_command | mandatory | using-jujutsu | linkuistics | `cat $L/skills/using-jujutsu/SKILL.md` |
+| 3 | exec_command | mandatory | grove | grove | `cat $G/skills/grove/SKILL.md` |
+| 4 | exec_command | supporting | grove | grove | `cat $G/skills/grove/references/execute.md` |
+| 5 | exec_command | listing, then listing |  | grove | `rg --files $G/skills $L/skills -g SKILL.md` |
+| 6 | exec_command | command, reads the descriptor |  |  | `python3 - <<'PY'`, which loads `directories.json` |
+| 7 | exec_command | skill | coding-style-bash | linkuistics | `cat $L/skills/coding-style-bash/SKILL.md` |
+| 8 | exec_command | skill | machine-environment | linkuistics | `cat $L/skills/machine-environment/SKILL.md` |
+| 9 | subagent:interacted | other |  |  | `/root` |
+| 10 | exec_command | command (error) |  |  | `rg --files --hidden -g AGENTS.md -g Taskfile.yml -g Taskfile.yaml -g .shellcheckrc …` |
+| 11 | apply_patch | action |  |  | `$TRIAL/repo/check-count.sh` |
+| 12 | exec_command | command (error) |  |  | `chmod +x check-count.sh` and `./check-count.sh`, which fails while `count.sh` is absent |
+| 13 | exec_command | command |  |  | `shellcheck check-count.sh` and `shfmt -d -i 2 -ci check-count.sh` |
+| 14 | subagent:interacted | other |  |  | `/root` |
+| 15 | subagent:interacted | other |  |  | `/root` |
+| 16 | collab:wait | other |  |  | `wait` |
+| 17 | text | text |  |  | Created executable `check-count.sh`. Confirmed failure without `count.sh`; ShellCheck and shfmt pass. Parent confirmed the completed counter passes the checker. |
+<!-- tc: on -->
+
+#### delegate-early in Codex
+
+**Case.** [delegate-early](#delegate-early) ran in Codex, in a disposable
+session. The run is `delegate-early-20261103T051920Z`, on 2026-11-03 local
+time. It was the first and only run of the case in Codex, with no retry. The
+owner's note reached Codex through `-c developer_instructions`. It is the note
+of the Claude Code attempt, with the same SHA-256 `957ead19…`.
+
+The command writes its log to `$TRIAL/tmp/authority.log`, which the trial's
+`TMPDIR` holds. Codex's `workspace-write` sandbox denies writes elsewhere in
+`$TRIAL`, and a failed redirection would stop the whole command. The Claude
+Code attempt at Grove commit `ebc7fa64f277` wrote `$TRIAL/authority.log`.
+
+**Route.** Directory on 2.0, with the sources, the mandatory files and the
+builds of [delegate in Codex](#delegate-in-codex).
+
+**Result: the inherited context can send an early result, and the first
+writer wins.** The Codex result equals the Claude Code result.
+
+- **What the parent gave.** One direct `spawn_agent` call, task name
+  `authority_probe`, with `fork_turns="all"`. The message is encrypted. The
+  delegate's history holds the whole preamble, the task file with its exact
+  command, and the owner's note as an inherited developer message. The
+  delegate could therefore take the command from its history, whatever the
+  message said.
+- **The delegate's reads.** Calls 2 and 3 read `using-jujutsu`, then the
+  Grove spine. Call 4 ran the command.
+- **Inherited ending context.** The delegate's environment held
+  `GROVE_LAUNCH_DIR`, `RAVEL_EXIT_FILE` and `RAVEL_SKILL_DIRECTORIES`. Its
+  `RAVEL_EXIT_FILE` equals the value in the harness environment of the
+  launch.
+- **Authority.** `ravel` resolved to the 2.0 front. Both `end-session` calls
+  exited 0. Ravel then ended the harness, before the delegate's report reached
+  the parent. The parent's last call was its `wait`.
+- **First writer.** Grove reported "Ravel returned an unsupported session
+  result" and stopped the loop with the leaf live. Ravel therefore returned
+  `trial-delegate-early`, the first value.
+
+The delegate's log, with the trial paths shortened:
+
+```text
+$RAVEL2/bin/ravel
+CODEX_APPLY_PATCH_PRESERVE_LINE_ENDINGS CODEX_CI CODEX_HOME CODEX_SANDBOX CODEX_SANDBOX_NETWORK_DISABLED CODEX_SESSION_ID CODEX_THREAD_ID CODEX_TOOL_CALL_ID CODEX_VERSION COLORTERM GH_PAGER GIT_PAGER GROVE_LAUNCH_DIR HOME LANG LC_ALL LC_CTYPE LOGNAME NO_COLOR OLDPWD PAGER PATH PWD RAVEL_EXIT_FILE RAVEL_SKILL_DIRECTORIES SHELL SHLVL TERM TMPDIR USER _ __CF_USER_TEXT_ENCODING 
+$TRIAL/repo/.jj/grove/launch-3da0fe40eb714e92f2ae220acf0eb01c/ravel-session-FizxSQ/signal-7b58eabbf643dc9f39f27efbe7fb4ca7
+first exit 0
+second exit 0
+```
+
+The harness received no `CODEX_*` name other than the trial's `CODEX_HOME`,
+and its authority control was clean. Codex itself adds the other `CODEX_*`
+names, the pager names, `NO_COLOR` and the locale names to the environment of
+its commands. macOS adds `__CF_USER_TEXT_ENCODING`. Those values belong to the
+trial's Codex, not to the live session.
+
+**Limit.** The owner prompted this attempt, as the specification requires of
+a result attempt. It measures authority, not adherence. The Codex parent
+passed the command in its first launch. The Claude Code parent refused it once,
+when only a task file carried the exception. The Codex case had the owner's
+channel from its first launch, so the two first attempts are not comparable.
+
+One run shows that the authority exists. It does not show how often a
+delegate uses it without a prompt.
+
+| Subject | Value |
+| --- | --- |
+| Grove build, Ravel build, harness, Codex sandbox, configuration directory, sources, links, driver and harness environments | As [delegate in Codex](#delegate-in-codex). The arg0 links are under `.codex/tmp/arg0-macos/codex-arg0PbolQt/` |
+| Descriptor | `6b45fbfab2c9b239e1b86148966d072b1e24bfe88c4d71b0de491f2702fe5181`, equal to the SHA-256 of `directories.json` |
+| Owner note | `-c developer_instructions`, SHA-256 `957ead1978a3be92de39fdc170b2db525912ce2ba4cee32ee137012d1ccaf634` |
+| Delegation | Direct `spawn_agent`, task name `authority_probe`, agent type default, `fork_turns` `all`, depth 1, agent path `/root/authority_probe`. No message in either direction |
+| Session file | `rollout-2026-11-03T16-19-21-01a19fd9-0245-77b1-b557-539b0ef3be89.jsonl`, 64 lines, SHA-256 `4509796271b3521d94d11cab68029d3c5d8572fe4b7103608282bd0eeadb0059`. Stream SHA-256 `8098c37e39521287d6784d49e7943d0726d6d14aadb74fafb76cd2fad6920bd7` |
+| Delegate session file | `rollout-2026-11-03T16-19-57-01a19fd9-8ff5-7791-a8f3-008cd2580b70.jsonl`, 58 lines, SHA-256 `eed9a47a062fa806eb09c6cb12d597dadc3afb7886f5db823b4bba4d4d1c6928` |
+| Collected log | `tmp/authority.log`, SHA-256 `657f27c4d1a081fcfe66f4a90a01b05452a78b763eed891419fe0d09efd31e03` |
+| Ending | The delegate's `trial-delegate-early`. Grove: "unsupported session result" |
+| Driver | Exit 0 after 51.3 seconds |
+
+The parent's session file `rollout-…-01a19fd9-0245-77b1-b557-539b0ef3be89.jsonl`:
+
+<!-- tc: off because the text cells quote the agent's words verbatim -->
+| # | Tool | Class | Skill | Source | Command, path or text |
+| --- | --- | --- | --- | --- | --- |
+| 1 | text | text |  |  | I’ll read the mandatory guidance, then load `grove-impl` before opening the task. |
+| 2 | exec_command | mandatory | using-jujutsu | linkuistics | `cat '$L/skills/using-jujutsu/SKILL.md'` |
+| 3 | exec_command | mandatory | grove | grove | `cat '$G/skills/grove/SKILL.md'` |
+| 4 | exec_command | listing, then listing |  | grove | `rg --files '$G/skills' '$L/skills' -g SKILL.md` |
+| 5 | exec_command | kind-skill | grove-impl | grove | `cat '$G/skills/grove-impl/SKILL.md'` |
+| 6 | text | text |  |  | I’m using `grove-impl` and the mandatory Grove and Jujutsu guidance. Next I’ll resolve `authority-probe-k1` and read its task instructions. |
+| 7 | exec_command | supporting | grove | grove | `cat '$G/skills/grove/references/execute.md'`, then an `rg` for `AGENTS.md` in `.grove` |
+| 8 | exec_command | command (error) |  |  | `cat .grove/_BRIEF.md .grove/01-impl--authority-probe-k1.md`, then an `rg` for `AGENTS.md` and a glossary |
+| 9 | text | text |  |  | The task calls for one delegate to run the ending-authority probe. I’ll start that delegate with the exact command and required guidance. If the session remains open, I’l… |
+| 10 | spawn_agent | delegate |  |  | `/root/authority_probe` |
+| 11 | collab:wait | other |  |  | `wait` |
+<!-- tc: on -->
+
+The delegate's session file `rollout-…-01a19fd9-8ff5-7791-a8f3-008cd2580b70.jsonl`:
+
+<!-- tc: off because the text cells quote the agent's words verbatim -->
+| # | Tool | Class | Skill | Source | Command, path or text |
+| --- | --- | --- | --- | --- | --- |
+| 1 | text | text |  |  | I’ll read the mandatory guidance, then run the exact probe command and report any output available. |
+| 2 | exec_command | mandatory | using-jujutsu | linkuistics | `cat '$L/skills/using-jujutsu/SKILL.md'` |
+| 3 | exec_command | mandatory | grove | grove | `cat '$G/skills/grove/SKILL.md'` |
+| 4 | exec_command | ending |  |  | `{ command -v ravel; env \| cut -d= -f1 \| sort \| tr '\n' ' '; echo; printenv RAVEL_EXIT_FILE; ravel end-session trial-delegate-early; echo "first exit $?"; ravel end-sessio…` |
+<!-- tc: on -->
+
+#### Delegation: Codex and Claude Code
+
+| Subject | Codex | Claude Code |
+| --- | --- | --- |
+| Mechanism | `spawn_agent` of multi-agent v2: a thread of the same process, with the parent's sandbox and approval policy | The Agent tool: in process, with the harness environment |
+| Delegate record | Its own session file, which names the parent thread. The parent's `SubAgentActivity` names the call | `subagents/agent-<id>.jsonl`, whose meta file names the Agent call |
+| What the parent gave | **Unmeasured gap.** The message is encrypted in every transcript | Measured. The descriptor path, the search directories, the mandatory paths and 11 obligations in the parent's own words. No ending command |
+| Inherited history | `fork_turns`: `none` in `delegate`, the default `all` in `delegate-early`, which carries the preamble | None. The delegate has only the prompt |
+| Owner channel | `-c developer_instructions`, which the delegate inherits | `--append-system-prompt` of the parent |
+| `delegate`: mandatory reads first | Pass. The descriptor, then both mandatory files in order | Pass. Both mandatory files in order |
+| `delegate`: craft read | `coding-style-bash`, after a listing. No credit, because the message may name it | `coding-style-bash`, after a search the prompt led. No credit |
+| `delegate`: instruction not to end | Obeyed | Obeyed |
+| `delegate-early`: ending authority | The delegate sent `trial-delegate-early`. The first writer won | The same, in the second attempt |
+| Scrubbing adapter | Unmeasured gap | Unmeasured gap |
+
+The two harnesses differ in what a reader can see. Claude Code writes the
+delegate prompt in plaintext, so its record can judge what the parent gave.
+Codex encrypts the message, so its record can judge only what the delegate
+then did. A Codex delegate can also see more than its message. The default
+fork gives it the parent's whole history, preamble included. Every delegate
+also inherits the owner's developer instructions.
+
+Both harnesses give a delegate the ending context of its parent, and in both
+the first writer wins.
 
 ### Missing kind
 

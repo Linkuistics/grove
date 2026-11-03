@@ -6655,5 +6655,7 @@ closing reply. Each run is one observation, not a rate. The codex control
 did not run again, because the change is in wording only and Codex passed the
 row under the k129 wording.
 
-`explicit-native-error` stays a gap in Claude Code. The leaf asks the human a
-scope question about it.
+`explicit-native-error` stays a gap in Claude Code. The human chose one more
+repair, at Grove's force-stop wording, on 2026-11-03.
+`claude-force-stop-report-k136` makes it. If that repair fails, the gap stays
+an explicit gap in Claude Code, with no further repair.

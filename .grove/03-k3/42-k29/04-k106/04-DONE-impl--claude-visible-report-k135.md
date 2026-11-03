@@ -63,9 +63,9 @@ reconciles the stage evidence with the newest build.
   Ravel serves callers other than Grove, so it names "any ending command".
   Under Grove's unchanged ending wording, `missing-kind` reported in visible
   text. The defect is the channel of a Ravel report, not the ending.
-- **Wording.** Obligations 4 and 6 put the report "in a visible reply to the
-  human". They add "Reasoning alone is not a report, because the human may not
-  see it", which gives the agent the reason. "Give that reply as its own step,
+- **Wording.** Obligations 4 and 6 put the report in a visible reply to the
+  human. A new sentence gives the agent the reason: reasoning alone is not a
+  report, because the human may not see it. "Give that reply as its own step,
   before dependent work and before any ending command call" sets the order.
   Obligations 5, 8, 9 and 10 keep their text. The specification states the
   same rule, and its history stays in Ravel's design evidence.
@@ -96,3 +96,7 @@ reconciles the stage evidence with the newest build.
 - **Pending: scope question.** The human decides what happens to the
   `explicit-native-error` gap in Claude Code. The leaf stays live until the
   answer.
+- **Scope answer.** On 2026-11-03 the human chose one more repair, at Grove's
+  force-stop wording, over accepting the gap or a structural force-stop
+  reason. If that repair fails, the gap stays an explicit gap with no further
+  repair. `claude-force-stop-report-k136` goes directly after this leaf.

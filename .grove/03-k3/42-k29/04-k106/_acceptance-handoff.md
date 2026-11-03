@@ -101,3 +101,13 @@ more leaf, after the human's decision on its scope question:
   visible text before the force-stop command. Then run both Claude Code
   explicit cases again. In k129 each agent wrote its report only in a thinking
   block.
+
+claude-visible-report-k135 changed Ravel's report wording again. Then
+`explicit-native-only` passed for the row in Claude Code, and
+`explicit-native-error` stayed a gap. After the human's decision on its scope
+question, it cut one more leaf:
+
+- `claude-force-stop-report-k136`: make Grove's force-stop instruction require
+  a visible reply that states the reason, before the force-stop call. Then run
+  `explicit-native-error` in Claude Code again. A failure stays an explicit
+  gap, with no further repair.

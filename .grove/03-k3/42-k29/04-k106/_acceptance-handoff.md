@@ -19,8 +19,9 @@ source path.
 
 ## Done when
 
-- The record reconciles actual confinement on macOS and Linux. It states
-  which backend each result used and which result came from a real harness.
+- The record states that the human withdrew confinement from both products.
+  It marks each earlier confinement result as historical, and it states which
+  backend each result used and which result came from a real harness.
 - The record compares the native-only lifecycle with native standalone access
   on each route.
 - The record reconciles the absence of native mutation on fresh install and
@@ -182,3 +183,21 @@ outside an active grove. Inside one, a run without a kind takes the next live
 leaf's kind, by the human's decision. The Confined standalone row keeps its
 sandbox part as an obligation. Its agent part is an explicit gap, with
 `missing-kind-confined-20261103T062817Z` as its evidence.
+
+While stage-evidence-reconciliation-k125 read the stage evidence, the human
+withdrew OS confinement from both products on 2026-11-03. Ravel removes
+`--confine` and its backends before the 2.0.0 cut, and Grove stops requesting
+confinement. The harness's own sandbox is then the only boundary. The leaf
+cut five leaves before itself, and it stays live:
+
+- `confinement-withdrawal-k142`: design the removal in both products.
+- `confinement-withdrawal-k143`: review that design.
+- `confinement-withdrawal-k144`: integrate the review.
+- `ravel-confinement-removal-k145`: remove confinement from Ravel on the
+  bookmark, and record the new build.
+- `grove-confinement-removal-k146`: remove confinement from Grove's
+  standalone caller, scripts, checks and documents.
+
+The reconciliation, the checks and the audit then measure the state after the
+removal. The running log of stage-evidence-reconciliation-k125 holds the
+options and the evidence of the decision.

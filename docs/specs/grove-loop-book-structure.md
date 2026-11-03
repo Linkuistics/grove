@@ -682,7 +682,7 @@ The chapter owns five blocks.
   teardown.
 - `session_result.rs`, whole. It holds the stdout capture and the bounded reading
   of the result.
-- `session_command.rs`, whole. It holds the public lifecycle and confinement
+- `session_command.rs`, whole. It holds the public lifecycle and standalone
   commands.
 - `ravel_job.rs`, whole. It holds the function and its one scrub list. It also
   holds the shape, the notices, the end and the error, the poll, the latch, the

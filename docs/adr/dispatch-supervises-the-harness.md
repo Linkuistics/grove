@@ -10,7 +10,7 @@ The caller supplies the task and the ending instructions. The
 Ravel adds no caller ending instruction and gives the result no meaning.
 
 [Ravel's session contract](https://github.com/Linkuistics/Ravel/blob/v1.1.0/docs/specs/session-execution.md)
-owns selection, ephemeral transport, cleanup and confinement. Grove consumes
+owns selection, ephemeral transport and cleanup. Grove consumes
 only the public CLI and the stdout result. It never consumes a private worker or
 report protocol, a run record or a persistent store.
 
@@ -39,7 +39,7 @@ them only after it reaps `ravel` and invalidates the epoch.
 The caller contract states the order of that interpretation, the publication
 rule of `grove run` and the ending commands of the prompt. Its sections are
 [Lifecycle interpretation](../specs/harness-selection-and-execution.md#grove-integration),
-[Standalone interpretation](../specs/harness-selection-and-execution.md#confinement)
+[Standalone interpretation](../specs/harness-selection-and-execution.md#standalone-interpretation)
 and
 [Ending and returned result](../specs/harness-selection-and-execution.md#run-ending).
 

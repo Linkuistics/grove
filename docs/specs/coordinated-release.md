@@ -18,8 +18,8 @@ that session's explicit confirmation.
 Ravel's release-channel contract owns publication mechanics. This document owns
 ordering between products. The [delivery design](codex-skill-provisioning.md)
 owns Grove's behaviour. A version predicate alone proves no compatibility:
-caller assets, settings, installed layouts, confinement, results and skill
-reads must work together.
+caller assets, settings, installed layouts, results and skill reads must work
+together.
 
 Combining the changes makes Rhai publication wait for directory acceptance and
 unfinished Rhai book work. Separate releases reduce that wait but add another
@@ -99,8 +99,8 @@ failure there ends without a successful finish signal.
    paused through completion. No session edits their task trees. When they
    resume, they must consume the actual release receipts. They must not repeat
    publication or owner conversion.
-2. Keep directory development on its separate jj line through local, lifetime,
-   confinement and actual-harness acceptance. Inspect the
+2. Keep directory development on its separate jj line through local, lifetime
+   and actual-harness acceptance. Inspect the
    exact Rhai book/read state. In a separate Ravel workspace, this grove
    completes every outstanding documentation or acceptance prerequisite for the
    release. It reconciles that work with the directory documentation. It does
@@ -214,7 +214,7 @@ selected formula channel on every retry. Never bump again to finish a cut.
 
 Extend the agreed public-launch, release-lifecycle and real formula seams.
 Controlled remotes prove channel selection and retry ordering. Installed
-prefixes prove lifecycle and confined standalone behaviour. Actual Claude Code
+prefixes prove lifecycle and standalone behaviour. Actual Claude Code
 and Codex trials prove discovery and reads. Fixtures do not prove public
 publication or owner activation.
 

@@ -9,7 +9,7 @@ any mandatory guidance, and the missing-skill force-stop rule.
 Grove admits stable Ravel 1.x from 1.1.0 and stable 2.x from 2.0.0. Grove
 ships TypeScript caller assets for 1.x and Rhai caller assets for 2.x. Grove
 supports the native routes on 1.1 and on 2.0. Grove supports the directory
-route on 2.0 through the lifecycle caller and the confined standalone caller.
+route on 2.0 through the lifecycle caller and the standalone caller.
 Each passed its acceptance on macOS.
 
 The reviewed upstream contract is Ravel commit `822c0ed2`, as the
@@ -57,17 +57,11 @@ launches remain valid. A native-only installation is a supported setup, not a
 degraded fallback. Independently launched harnesses can continue using their
 native installations.
 
-The choice of route does not grant filesystem access. Lifecycle acceptance
-proves the native-only route. Standalone `grove run` always confines its managed
-process. HOME in its environment does not make native skill trees readable.
-The snapshot read grants of Ravel 2.0.0 provide the common route for complete
-external skill trees in that caller.
-
-A native setup under confinement needs separate proof. This proof must show
-that its entry skill, required resources and loader prerequisites are reachable
-through existing permitted paths or explicit regular-file grants. Grove adds no
-recursive native-directory grant and never retries unconfined. This design
-establishes no working native-only standalone configuration.
+The choice of route grants no filesystem access. Neither caller requests
+confinement, and Ravel 2.0.0 applies none. On both callers, the harness reads
+its native roots and the retained snapshots under its own sandbox. Lifecycle
+acceptance proves the native-only route, and the standalone caller reads the
+same roots.
 
 There is no embedded core-only fallback. Planning remains part of the core
 skill pack as the replaceable default, but installing the Grove binary alone
@@ -341,7 +335,7 @@ environment that it builds. Grove's environment scrub therefore gains no name.
 | Configuration does not match the selected Ravel | Preserve Ravel's refusal: `config_format_retired` for a lone `policy.ts` on 2.0.0, `unsupported_version` for schema 3, or `settings_invalid` for a key of the other major. Select the matching installation, convert the configuration deliberately or use a separate HOME. Grove rewrites no configuration. |
 | Missing named skill | Repair native installation or the configured directory set. Do not require switching routes. |
 | Unavailable configured source | Preserve Ravel's source-specific diagnostic. Restore the source or deliberately amend owner configuration. |
-| Read access, capture, cache, timeout or limit failure | Preserve Ravel's precise remedy. Do not silently substitute another source, skip guidance or retry unconfined. |
+| Read access, capture, cache, timeout or limit failure | Preserve Ravel's precise remedy. Do not silently substitute another source or skip guidance. |
 | Unsupported delegate access | Report that adapter's limitation before dependent work. Do not imply that prompt text grants filesystem access. |
 
 Prelaunch failures yield no successful session result. Grove keeps its normal
@@ -484,25 +478,22 @@ paths that the prepared prompt names, and they prove delivery rather than LLM
 behaviour. The explicit plugin-qualified name request, the missing-skill report
 of a real agent and actual harness behaviour belong to acceptance.
 
-The same file proves the directory part of the Confined standalone row. A
-confined `grove run` on 2.0 reads the spine, a resource and the named kind from
-the snapshots. It cannot write a snapshot, a source or a path outside its
-working directory. It cannot read a source directly or the protected
-configuration. The same probes, run unconfined, succeed for each source,
-configuration and outside path, so those denials belong to the sandbox.
+The same file proves the directory part of the Standalone row. A `grove run`
+on 2.0 reads the spine, a resource and the named kind from the snapshots. A
+write to a snapshot file fails by its file mode.
 
-`crates/grove/tests/standalone.rs` proves the sandbox part of the native case
-on each runtime. With injection disabled, native copies under HOME stay
-unreadable to the confined agent, and Grove adds no grant.
+`crates/grove/tests/standalone.rs` proves the native part of the Standalone row
+on each runtime. With injection disabled, the scripted agent reads its native
+copies under HOME.
 
-The fixture also proves Grove's interpretation of a force-stop. After its scripted agent
-force-stops, Grove publishes nothing and launches the agent once. A
-regular-file grant of each copy makes the same check fail. The fixture is not
-evidence of agent behaviour, because its script decides to stop.
-`task ravel:directory` runs both parts on the 2.0 build.
+The fixture also proves Grove's interpretation of a force-stop. When its
+scripted agent finds no native copy and force-stops, Grove publishes nothing
+and launches the agent once. The fixture is not evidence of agent behaviour,
+because its script decides to stop. `task ravel:directory` runs both parts on
+the 2.0 build.
 
-The Linux floor cases run the native part on each runtime under bubblewrap.
-They run the directory part on the 2.0 lane in the supported environment. The
+The Linux floor cases run the native part on each runtime. They run the
+directory part on the 2.0 lane in the supported environment. The
 floor userland has no Git, so the two sources of that case are plain local
 directories. [Runtime lanes](../linux-floor-native.md#runtime-lanes) states each case.
 The [dual-Ravel stage record](../grove-dual-ravel-stage-record.md) names the
@@ -510,7 +501,7 @@ builds and the results.
 
 | Acceptance | Observation |
 | --- | --- |
-| Native-only bootstrap on 1.1 | With Ravel 1.1.0 and `policy.ts`, launch the lifecycle caller using complete native skills. Grove does not demand source configuration. Any claimed native-only standalone setup separately proves discovery and every required read under actual confinement. Installing under HOME alone is insufficient. |
+| Native-only bootstrap on 1.1 | With Ravel 1.1.0 and `policy.ts`, launch the lifecycle caller using complete native skills. Grove does not demand source configuration. The standalone caller reads the same native roots under the harness sandbox. |
 | Native route on 2.0 | With Ravel 2.0.0, `config.rhai` at schema 4 and delivery disabled, launch the lifecycle and standalone callers using complete native skills. `request.prompt` equals `request.originalPrompt` byte for byte, and both equal the mandate. The Rhai assets give the 2.0 outcome of each case in the shared table. They differ from the TypeScript outcomes only where [runtime parity](#runtime-parity) accepts it, and their receipts match byte for byte. This row proves Rhai native compatibility, not directory delivery. |
 | Directory bootstrap | Use Ravel 2.0.0 with the `skills` key, in a HOME separate from any 1.1 reader. With native copies absent, inject complete source directories outside cwd and read the spine, named kind and supporting resources. Exercise local sources, Grove's bare-name mandate and an explicit plugin-qualified name request. Neither name request requires a native loader. |
 | Source and skill failures | A missing configured source directory refuses before launch, with Ravel's remedy. For a missing or unreadable mandated skill, the agent reports and uses the prompt's exact force-stop command. The leaf remains live, no teardown is recorded and the loop does not relaunch. Grove's kind parser does not reject it. |
@@ -522,7 +513,7 @@ builds and the results.
 | No native mutation | Compare owned/foreign files, links, modes, pointers and bytes before/after startup, failure and installed upgrade. Include legacy homes, aliases and an active old reader. |
 | Manual cleanup guidance | Exercise the documented procedure in disposable legacy layouts. These layouts include stopped readers/writers, owned and foreign links, aliases and uncertain provenance. They also include retained links that reach a skill entry through intermediate links or `..`. Only evidenced, unneeded owned skill-directory links are removable. The legacy root stays unchanged, and the trial leaves the owner's installation untouched. |
 | Resource lifetime | A reader keeps its original resolved directories while sources/configuration change. Subsequent launches can receive the new source view. |
-| Confined standalone | Ravel 2.0.0 directory delivery makes required resources outside cwd readable, while writes and protected configuration reads fail on actual supported backends. With injection disabled, native trees stay unreadable outside all grants, and Grove adds no directory-grant bypass. A force-stop publishes no output. The agent part is an explicit gap by the human's decision. A standalone prompt names no guidance, so Grove does not require a report or a force-stop. The evidence is `missing-kind-confined-20261103T062817Z`. |
+| Standalone | Grove sends neither `--confine` nor `--runtime-read` to Ravel 1.1 or 2.0. On the directory route of 2.0, the agent reads the required resources outside cwd. A write to a snapshot file fails by its file mode. With injection disabled, the agent reads its native roots. A force-stop publishes no output. A standalone prompt names no guidance, so Grove does not require a report or a force-stop. The confined results of 2026-11-03 and earlier, such as `missing-kind-confined-20261103T062817Z`, are historical, because the human withdrew confinement on that day. |
 | Open tree behaviour | Existing custom-kind, handle, review/integration, result and epoch tests pass. No availability check enters tree verbs or launch admission. |
 | Conformance | Core, external-pack and aggregate checks use exact supplied artefacts. Removed required resources/edges and duplicate owners fail deliberate controls. |
 | Installed distribution | Archives and formula tests check separate packages, both caller-asset sets with their runtimes, both configuration formats, both setup routes and no automatic native mutation. Exercise fresh install and upgrade at each tap state A to D of the coordinated release. At each state, Grove's dependency always resolves to an admitted Ravel major, and feature advertising follows its publication. |
@@ -531,7 +522,7 @@ builds and the results.
 
 Directory-route harness trials include supporting reads, continuation/compaction,
 one delegate, and coexistence with a stale native copy. Record
-harness/model/version, isolation, confinement, directory identity and observed
+harness/model/version, isolation, harness sandbox mode, directory identity and observed
 ordering. Compaction trials separately remove the prompt path and the entire
 preamble. For the latter, give no new recovery reminder and observe descriptor
 recovery and mandatory rereads before actions. A retained variable alone proves

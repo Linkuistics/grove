@@ -201,3 +201,11 @@ cut five leaves before itself, and it stays live:
 The reconciliation, the checks and the audit then measure the state after the
 removal. The running log of stage-evidence-reconciliation-k125 holds the
 options and the evidence of the decision.
+
+confinement-withdrawal-k142 designed the removal. Ravel commit
+`3642a5d628fdc9c53db2f46837ccf8f719242f04`, the tip of the bookmark, holds the
+decision record "Ravel does not confine a session", the specification changes
+and the Ravel handoff. Grove's `docs/confinement-withdrawal-evidence.md` holds
+the guarantees of a standalone run, the version consequence, the dispositions
+of the acceptance criteria and the Grove handoff. `grove run --runtime-read`
+stays and has no effect, so Grove's next release stays a minor release.

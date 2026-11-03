@@ -87,3 +87,77 @@ standalone request without `--confine` works on both majors, so state that
 Grove's request is the same for both.
 
 The live driver's ending executable is the 1.1.0 keg. Do not change it.
+
+## Decisions (running log)
+
+**A 2.0 front refuses the removed flags with a remedy.** `--confine` and
+`--runtime-read` refuse as `confinement_withdrawn`, stage `cli`, exit 2. The
+check runs after the command line parses and before every other check, so
+nothing is read or launched. The remedy names the harness's own sandbox and
+Ravel 1.1. A plain unknown-flag error was rejected, because it gives no
+remedy. Acceptance without effect was rejected, because it would launch a
+caller's request for a boundary without that boundary.
+
+**`grove run --runtime-read` stays accepted and has no effect.** Grove
+prints one notice and passes nothing to Ravel. Without confinement every file
+that the owner can read is readable, so the flag loses no meaning. The
+change breaks no command, so it fits the project's default minor release, and
+the design asks the human no version question. Removal of the flag was
+rejected, because it breaks existing commands and so needs a major release.
+
+**Grove moves two environment guarantees into its own scrub.** Ravel's
+confined environment kept only seven names, so a standalone harness received
+no repository selector and no multiplexer variable. Grove now removes the
+four repository selectors of `jj-workspace` and the multiplexer variables
+from the standalone job. The removal of the multiplexer variables removes a
+pointer, not a capability, and the specification states that limit.
+
+**The design artifacts are edited now, and the book changes with the code.**
+The Ravel decision record, the four Ravel specifications and the skill
+discovery views state the 2.0.0 contract in this leaf. The book stays for
+ravel-confinement-removal-k145, because `task docs:examples` runs each book
+example against the built CLI and `task docs:excerpts` checks each quoted
+line against the source. A book that stated the 2.0.0 refusal before the
+code would fail both checks on the design commit. The design lists each book
+change for k145.
+
+**The skill delivery guarantees each have one disposition.** The source
+overlap refusal and the read-only seal by file mode stay, because they govern
+what Ravel publishes, not what a sandbox denies. The snapshot read grants and
+the write protection of the configuration move to the harness sandbox. The
+protected configuration reads, the writable-grant overlap, the backend
+listing probe and the held identity of a granted tree are withdrawn.
+
+**A configuration script's harness run loses Ravel's confinement too.** A
+harness run is never confined by Ravel. The script chooses the sandbox of
+each harness run through its arguments, such as `codex exec --sandbox
+read-only` for an LLM call.
+
+**The release-notes route runs Codex under `--sandbox workspace-write`.** It
+uses the owner's own Codex home. It copies no sign-in file and sets no
+certificate bundle, because both existed only for Ravel's sandbox.
+
+**A nested standalone cancellation no longer ends at once.** A confined
+managed process ran detached, and its group took KILL at once on
+cancellation. After the removal, Ravel forwards the signal and sends KILL
+after its kill-grace of 5 seconds. The standalone specification states that
+a nested run can outlast a shorter grace of an outer supervisor.
+
+**Four passages stay with the removal leaves.** The confined directory of
+Ravel's `result-job-completion.md` and the row G9 of Grove's
+`user-guide-coverage.md` lie in `pending` regions of the controlled-English
+conversion. Grove's decision record `a-review-carries-its-creator-reference`
+has ten checker findings. Each describes code or a user guide that changes
+with the removal, so k145 and k146 convert and change them.
+
+**The measurement instruments stay.** `profile-copy.py` and
+`descriptor-probe.py` read the Ravel source of a recorded commit, so they
+still reproduce the record's measurements. This follows the decision of
+ravel-token-handoff-k141. The two confined trial cases go, because no build
+after the removal can run them.
+
+**The design commits.** Ravel commit `74885e37` converts the design evidence,
+and Ravel commit `3642a5d628fdc9c53db2f46837ccf8f719242f04` holds the design.
+The bookmark `skill-directory-delivery` points at the design commit, and
+nobody pushed it. Grove's conversion of `harness-selection-is-owned-by-policy`
+precedes this leaf's commit.

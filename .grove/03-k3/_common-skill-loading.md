@@ -16,7 +16,7 @@ external research-pack proof can build.
   missing required source or root refuses as `skill_source_missing` before any
   worker, without substitution. A record of another `type` refuses as
   `settings_invalid` with the checkout remedy. Directories and resources
-  remain readable for sessions and delegates, including confined launches.
+  remain readable for sessions and delegates.
 - A checkout that a tool outside Ravel makes works as an ordinary local
   source. Acceptance uses a plain Git checkout at a commit and requires no
   checkout tool.
@@ -25,7 +25,7 @@ external research-pack proof can build.
   the skill and imposes no delivery route. Any core fallback uses the common path. No source
   pack has moved yet, and no kind registry or new workflow protocol exists.
 - Public fixture tests cover launch/resolution, failures, launches without a
-  network, concurrency/lifetime and confinement. Existing Grove tree/launch behaviour
+  network and concurrency/lifetime. Existing Grove tree/launch behaviour
   remains green.
 - Real Claude Code and Codex trials activate a relevant craft skill without the
   task naming it, and record the read before the action. They use isolated homes
@@ -283,3 +283,9 @@ home. The dual-Ravel stage can reuse that task for its installed pair.
 
 grove-dual-ravel-handoff-k102 closed grove-dual-ravel-k27. Its stage record is
 `docs/grove-dual-ravel-stage-record.md`, which the briefs of k29 and k6 name.
+
+On 2026-11-03, during stage-evidence-reconciliation-k125, the human withdrew
+OS confinement from Ravel and Grove. The criteria above therefore name no
+confined launch and no confinement fixture. confinement-withdrawal-k142
+designed the removal. `docs/confinement-withdrawal-evidence.md` holds the
+disposition of each criterion.

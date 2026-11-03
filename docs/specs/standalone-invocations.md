@@ -39,20 +39,28 @@ missing-guidance rule.
 
 ## Selection and launch
 
-The owner policy and settings are personal files that the confined process
-cannot read. Before staging, Grove resolves independent Ravel once from absolute
-PATH entries and checks its version. The public `start-session --confine`
-selects outside the sandbox and supervises inside it. The unchanged caller
-prompt supplies the exact canonical `end-session grove-continue` and
-`end-session grove-force-stop` commands and explains their meanings.
+Before staging, Grove resolves independent Ravel once from absolute PATH
+entries and checks its version. The public `start-session` selects the command
+and supervises it. The unchanged caller prompt supplies the exact canonical
+`end-session grove-continue` and `end-session grove-force-stop` commands and
+explains their meanings.
 
-Grove sends the kind, the prompt, the exit directory and the canonical
-`--runtime-read` grants. It sends no task identity and no settings override.
+Grove sends the kind, the prompt and the exit directory. It sends no
+`--confine`, no `--runtime-read`, no task identity and no settings override.
+Ravel 1.1 keeps `--confine`, and Ravel 2.0 refuses it. Grove's request works on
+both majors, because it holds neither flag. The request is the same for both.
+
 Ravel's
 [public execution contract](https://github.com/Linkuistics/Ravel/blob/v1.1.0/docs/specs/session-execution.md)
-owns confinement and cleanup. Ravel returns only an opaque stdout result after
-the reap. It supplies no private ending report, persistent store or run
-identity.
+owns cleanup. Ravel returns only an opaque stdout result after the reap. It
+supplies no private ending report, persistent store or run identity.
+
+`grove run` still accepts `--runtime-read FILE`, repeatable, and gives it no
+effect. Grove prints one notice on stderr that names the flag, and it sends
+nothing to Ravel for it. Grove does not check the file. The harness reads each
+file that the account of the owner and the harness sandbox permit. The flag
+stays so that existing commands keep working, and its help states that it has
+no effect.
 
 The version admission is that of the
 [caller contract](harness-selection-and-execution.md#package-boundary): stable
@@ -74,35 +82,45 @@ existing output destinations. It checks all outputs before it publishes any.
 Publication must not overwrite a destination that something created while the
 task ran. Grove reports any partial publication explicitly.
 
-Filesystem confinement is mandatory and belongs to Ravel. The installed system
-runtime resources, the selected executable and Ravel's own executable are
-readable. Additional runtime files, such as harness credentials, need explicit
-read-only grants. Grove passes these on as `--runtime-read`. The parent project
-is not a runtime resource.
+Grove applies no filesystem confinement and requests none from Ravel. The
+[harness sandbox](#the-harness-sandbox) is the only boundary of the agent.
+Grove's prompt tells the agent to work only on the staged files. That
+instruction is not a boundary. With its sandbox off, a harness can read and
+write whatever the account of the owner can, the parent project included.
 
-The [skill-delivery design](codex-skill-provisioning.md#installation-and-bootstrap)
-uses the snapshot read grants of Ravel 2.0.0 for complete external skill trees.
-On the directory route, Ravel grants the descriptor and the snapshots
-read-only inside the sandbox. The agent reads its skills there. It cannot
-write them, read their source directories or read the protected configuration.
+On the directory route, the agent reads the descriptor and the snapshots at
+their absolute paths, as the
+[skill-delivery design](codex-skill-provisioning.md#installation-and-bootstrap)
+states. Ravel keeps each snapshot read-only by its file modes. Nothing stops
+the agent from reading the source directories or the configuration of the
+owner.
 
-A native installation under HOME alone grants no read access. With injection
-disabled, the agent cannot read native guidance under HOME. Grove adds no
-native-directory grant and never retries without confinement. The prompt names
-no guidance, so Grove makes no promise that the agent reports guidance that it
-cannot read. If the agent runs the force-stop command, Grove publishes nothing.
-Any native-only standalone setup must separately prove its loader and all
-required resources work within the existing grants.
+With injection disabled, the harness loads native guidance from its own roots
+under HOME, as a lifecycle session does. The prompt names no guidance, so Grove
+makes no promise that the agent reports missing guidance. If the agent runs the
+force-stop command, Grove publishes nothing.
 
-Ravel confines writes to the working directory and to the private run directory.
-Ravel keeps that directory for the temporary files of the harness and for its
-exit channel. A failure to establish confinement prevents the launch. The
-permission flags of the selected harness cannot disable this outer boundary.
+Grove passes the private `control` directory as `--exit-dir`. That directory
+lies beside the working directory, inside the system temporary directory, and
+Ravel allocates the exit channel beneath it. The harness sandbox must let the
+ending command write there. Codex in `--sandbox workspace-write` writes in
+`TMPDIR`, so its ending command reaches Ravel. The harness keeps its own
+temporary files in the `TMPDIR` of the caller.
 
-The invocation receives neither its parent's launch directory nor repository
-selectors, nor terminal or multiplexer capabilities. Its exit channel belongs to
-its own run and is distinct from the channel of any enclosing session. The
-harness acknowledges its work with the canonical
+The invocation receives neither its parent's launch directory nor its terminal.
+Grove removes the loop control variables from the environment of the job. It
+also removes the four repository selectors `GIT_DIR`, `GIT_WORK_TREE`,
+`GIT_COMMON_DIR` and `GIT_INDEX_FILE`. It removes the multiplexer variables
+`TMUX`, `TMUX_PANE`, `ZELLIJ`, `ZELLIJ_SESSION_NAME` and `ZELLIJ_PANE_ID` too.
+Otherwise the harness receives the environment of the caller, as a lifecycle
+session does.
+
+The removal of a multiplexer variable removes a pointer, not a capability. The
+socket of a multiplexer stays reachable at its default path, unless the
+harness sandbox denies it.
+
+Its exit channel belongs to its own run and is distinct from the channel of
+any enclosing session. The harness acknowledges its work with the canonical
 `ravel end-session grove-continue` command in its prompt. That command ends only this invocation
 and takes no session ID. Tree verbs are unavailable.
 
@@ -122,9 +140,13 @@ stderr go to the transcript of the invocation. `grove run` keeps the terminal, s
 its relay writes from the foreground group and a typed Ctrl-C reaches Grove.
 
 Grove sends a caught INT, TERM or HUP on to the `ravel` process and waits for it
-to exit. Grove sends no KILL. Ravel owns the cancellation of the harness and
-kills its process group at once. So a nested cancellation can finish inside the
-grace of an outer supervisor. The caller contract states the
+to exit. Grove sends no KILL.
+
+Ravel owns the cancellation of the harness. It sends the signal on to the process group of the harness, and it sends KILL
+after its kill-grace of 5 seconds. A nested cancellation can therefore outlast
+a shorter grace of an outer supervisor. Grove then publishes nothing, and the
+nested Ravel finishes its cleanup after the outer supervisor returns. The
+caller contract states the
 [detached job](harness-selection-and-execution.md#execution-contract) and its
 [signals](harness-selection-and-execution.md#interruption).
 
@@ -145,12 +167,30 @@ within that grace. A failure of the
 transcript relay also prevents publication and keeps the log for inspection,
 even when the harness acknowledged successfully.
 
+## The harness sandbox
+
+The configuration script of the owner selects the harness sandbox of each
+standalone kind. It selects the harness, the model and the effort in the same
+way. The sandbox is part of the arguments of the selected command. Grove builds
+no harness argument and reads no configuration of its own.
+
+A standalone kind needs writes in the working directory and in the temporary
+directory, and reads of its skill directories. Codex with `--sandbox
+workspace-write` gives that. Claude Code gives it with its own sandbox
+settings, its working directories and `--add-dir` for each snapshot root. A
+selected command with its sandbox off gives no boundary, and Grove neither
+detects nor refuses it.
+
+Grove's own Codex helper for the `release-notes` kind runs Codex with
+`--sandbox workspace-write`. It uses the Codex home of the owner, so it copies
+no sign-in file.
+
 ## Visibility
 
 Every invocation announces its kind and log location, streams a readable
 transcript through its caller and reports its final status. The supervisor owns
-the display connection. The confined child cannot control the parent terminal
-or multiplexer. A supported existing multiplexer can provide a dedicated view. A
+the display connection. The child has no terminal of the parent and no
+multiplexer variable. A supported existing multiplexer can provide a dedicated view. A
 full interactive interface embedded in another harness needs the integration API
 of that harness. It is outside the initial interface of this command.
 
@@ -178,24 +218,22 @@ must never depend on paid LLM calls.
   live leaf's kind. An explicit kind there keeps its route.
 - A run without a kind in an active grove with no live leaf refuses before
   selection, names the remedy and launches nothing.
-- The policy selects outside the sandbox. The harness inside it receives its own
-  enclosing context and cannot read the personal policy or the owner settings.
+- The policy selects the command. The harness receives its own enclosing
+  context and no control variable of an enclosing session.
+- Grove sends neither `--confine` nor `--runtime-read` to Ravel 1.1 or 2.0. A
+  `--runtime-read` of `grove run` prints its notice and changes no request.
 - The file that runs is the one that Ravel resolved, whatever else of that name
   PATH or Grove's own directory holds.
 - Nested completion, force-stop and cancellation leave the run of the enclosing
   session intact.
-- The harness cannot consume the caller's stdin or obtain its terminal or
-  multiplexer handles.
-- Real sandbox probes deny reads and writes to an unrelated project. They permit
-  the staged artifacts and the explicitly granted runtime reads.
+- The harness cannot consume the caller's stdin or open its terminal. It
+  receives no repository selector and no multiplexer variable.
 - On the directory route of 2.0, the agent reads the injected skills outside
-  cwd. Writes to the snapshots and sources and reads of the protected
-  configuration fail.
-- On 1.1 and on 2.0 with injection disabled, native guidance under HOME is
-  unreadable, and Grove adds no grant. After the force-stop of a scripted
-  agent, nothing publishes and Grove launches the agent once. A regular-file
-  grant of each copy makes the guidance readable. The fixture proves Grove's
-  interpretation of a force-stop, not the behaviour of a real agent.
+  cwd. A write to a snapshot file fails by its file mode.
+- On 1.1 and on 2.0 with injection disabled, a scripted agent reads its native
+  guidance under HOME. After its force-stop, nothing publishes and Grove
+  launches the agent once. The fixture proves Grove's interpretation of a
+  force-stop, not the behaviour of a real agent.
 - Force-stop, a harness exit without a result, malformed or unsupported results,
   a supervision failure, cancellation, output symlinks, missing outputs and
   destination races fail visibly.

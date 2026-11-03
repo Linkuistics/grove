@@ -126,16 +126,15 @@ specification owns the bounds, cancellation and authority contracts that
 preserve this. Trusted TypeScript is executable configuration, not a sandbox
 against a hostile local owner.
 
-Grove's confined standalone invocation uses
-`ravel start-session --confine`. In that mode, Ravel selects outside the
-sandbox, with the owner's grants and bounds, and confines only the managed
-process. That process receives its own ephemeral ending context, with no run ID
-or persistent record. Grove scrubs enclosing session authority before invoking
+Grove's standalone invocation uses `ravel start-session` without confinement.
+Ravel selects with the owner's grants and bounds. The managed process receives
+its own ephemeral ending context, with no run ID or persistent record. The
+harness sandbox that the policy selects is its only boundary. Grove scrubs enclosing session authority before invoking
 Ravel. Ravel isolates policy evaluation and supplies fresh ending context to the
 managed process.
 
 Grove's optional wrapper supplies caller-owned provider receipts separately.
-The public CLI carries confinement and result transport, so Grove needs no
+The public CLI carries the result transport, so Grove needs no
 private worker protocol or launch hook.
 
 ## Considered options

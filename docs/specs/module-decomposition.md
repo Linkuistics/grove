@@ -448,8 +448,8 @@ foreground on, sends each latched signal to `ravel` alone, and looks for an exit
 without blocking. It sees an exit and never a stop. It sends no KILL, probes no
 process group and sets no bound on its wait.
 
-Ravel owns its selected process's confinement, completion channel, bounds and
-cleanup ([Ravel process decision](https://github.com/Linkuistics/Ravel/blob/v1.1.0/docs/adr/the-launched-child-is-a-job.md)).
+Ravel owns its selected process's completion channel, bounds and cleanup
+([Ravel process decision](https://github.com/Linkuistics/Ravel/blob/v1.1.0/docs/adr/the-launched-child-is-a-job.md)).
 A successful `ravel` status with an exact result is the only evidence of cleanup
 that Grove uses. There is no store append or migration wait in that boundary.
 

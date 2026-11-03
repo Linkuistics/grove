@@ -8,7 +8,7 @@ returns the opaque argument that `ravel end-session RESULT` published.
 This contract includes the skill-delivery adoption design. Grove admits Ravel
 1.x from 1.1.0 and 2.x from 2.0.0, and it no longer provisions Codex skills.
 Grove supports the native routes on 1.1 and on 2.0. It supports the directory
-route on 2.0 through the lifecycle caller and the confined standalone caller.
+route on 2.0 through the lifecycle caller and the standalone caller.
 
 The [delivery design](codex-skill-provisioning.md) owns the transition and its
 [supported routes](codex-skill-provisioning.md#supported-routes). Process and
@@ -79,16 +79,16 @@ installation prefix crosses the project boundary
 ## Public invocation
 
 Grove builds an argument vector directly. It joins each value to its flag, so a
-leading dash stays data. It uses the already resolved Ravel path for the launch,
-for confinement and for the quoted ending command in the prompt.
+leading dash stays data. It uses the already resolved Ravel path for the launch
+and for the quoted ending command in the prompt.
 
 | Caller | Public inputs |
 |---|---|
 | Lifecycle | `start-session --kind=KIND --prompt=MANDATE --exit-dir=LAUNCH_DIR --task-file=TASK_FILE --task-id=HANDLE` in the working-tree root. |
-| Standalone | `start-session --kind=KIND --prompt=PROMPT --exit-dir=WORK_DIR --confine`, plus explicit repeated `--runtime-read=FILE`, in a private staged directory. |
+| Standalone | `start-session --kind=KIND --prompt=PROMPT --exit-dir=WORK_DIR`, in a private staged directory. It holds no `--confine` and no `--runtime-read`, and it is the same for Ravel 1.1 and 2.0. |
 | Managed session | The exact canonical command of the launch prompt, equivalent to `ravel end-session grove-continue` or `ravel end-session grove-force-stop`. It has no session ID or target path. |
 
-`--exit-dir` belongs to the mechanics of channel allocation and confinement. It
+`--exit-dir` belongs to the mechanics of channel allocation. It
 reaches no policy. Task identity is caller data. Grove supplies no `--param`, no
 policy or configuration path, no record path and no private ending-file
 argument. Ravel's generic `--param NAME=VALUE` is available to other callers,
@@ -96,11 +96,10 @@ without task-tree meaning.
 
 Grove calls no skill-resolution operation and parses no skill metadata or
 catalog. Both callers can receive configured directory injection automatically
-through `start-session`. Native-only launches need no such configuration.
-That does not grant native filesystem reads. The
+through `start-session`. Native-only launches need no such configuration. On
+both callers, the harness reads its native roots under its own sandbox, as the
 [delivery contract](codex-skill-provisioning.md#installation-and-bootstrap)
-distinguishes native-only lifecycle acceptance from the additional read-access
-proof needed by confined standalone setups.
+states.
 
 The mandate qualifies its "first" skill read with "after any mandatory
 guidance", following Ravel's mandatory-before-caller read order. Its bare skill
@@ -167,8 +166,7 @@ An owner's policy can
 compute from kind, prompt or context, but Grove ships no route to a deciding
 agent. The owner constructs commands from choices that their code controls.
 
-Selection runs outside the confinement of the managed process, with owner grants
-and bounds. A refused selection launches no process and leaves the leaf live.
+Selection runs before the launch, with owner grants and bounds. A refused selection launches no process and leaves the leaf live.
 Fix the named policy, choice or Creator evidence and rerun Grove.
 
 Configured source acquisition may also fail before launch. Preserve Ravel's
@@ -386,14 +384,12 @@ Never put a new Ravel command into a session that is already running. The
 [legacy-driver transition](../legacy-driver-transition.md) keeps that complete
 installation through the final finish signal.
 
-<a id="confinement"></a>
 ## Standalone interpretation
 
 `grove run KIND` stages the inputs. Its prompt supplies the output and
-completion instructions. Ravel evaluates policy outside confinement and confines
-only the managed process. Explicit runtime files are read-only. Policy and
-settings stay outside the managed reads. A missing sandbox refuses, with no
-unconfined fallback.
+completion instructions. Grove requests no confinement. The harness sandbox
+that the configuration of the owner selects is the only boundary, as the
+[standalone contract](standalone-invocations.md#the-harness-sandbox) states.
 
 Grove runs `ravel` as a detached job, so `grove run` keeps the terminal and a
 typed Ctrl-C reaches Grove. Grove logs and streams the sanitised managed output.
@@ -468,9 +464,9 @@ and its [published installation evidence](https://github.com/Linkuistics/Ravel/b
 | Job control, cancellation and terminal recovery of the foreground job | Loop-driver tests with the installed Ravel and fake agents, several under a pseudo-terminal. |
 | Session isolation and cancellation of the detached job | Standalone tests with the installed Ravel and fake agents, including a Ctrl-C typed on a pseudo-terminal. |
 | Caller policy, context and provider evidence | `task ravel:review`, `task ravel:provenance` and strict typechecking against an installed 1.1 SDK. For 2.x, public launches of the Rhai assets against an installed 2.0 build. One case table drives both, with the expected outcome for each runtime. |
-| Confined staging and publication | Standalone tests and installed fixtures that use fake agents. |
+| Staging and publication | Standalone tests and installed fixtures that use fake agents. |
 | Independent delivery | Acceptance of the archive, formula and target in the delivery handoff. |
-| Common skill delivery through both callers | The [delivery acceptance matrix](codex-skill-provisioning.md#test-seams), including source failures, intact caller bytes, no native writes and real confined reads. |
+| Common skill delivery through both callers | The [delivery acceptance matrix](codex-skill-provisioning.md#test-seams), including source failures, intact caller bytes, no native writes and reads of retained resources outside cwd. |
 
 Only the real Ravel checks job control. No test checks it with a stand-in child,
 so the default suite does not check job control. The tasks that need `RAVEL` run

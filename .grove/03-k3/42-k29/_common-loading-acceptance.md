@@ -16,8 +16,8 @@ hand a reproducible working source path to external-research-pack-k4.
   resources. Disposable sessions measure inherited ending authority and
   adapter isolation separately.
 - Native-only lifecycle, local directory delivery, resource lifetime and
-  actual supported confinement/installed layouts have evidence against
-  identified independent builds. Directory delivery includes a plain Git
+  actual supported installed layouts have evidence against identified
+  independent builds. Directory delivery includes a plain Git
   checkout at a commit, a missing checkout and a launch without a network. No fixture is credited as LLM adherence.
   Each case names its Ravel route: native 1.1, native 2.0 with delivery
   disabled, or directory 2.0, as the delivery specification defines them.
@@ -155,3 +155,10 @@ or unmeasured for acceptance-handoff-k106:
 
 `missing-kind` passed in Codex. Codex searched its native roots with shell
 commands, reported the missing kind skill and ran the exact force-stop command.
+
+On 2026-11-03 the human withdrew OS confinement from Ravel and Grove. The
+evidence criterion above therefore covers the installed layouts and no
+confinement. No build after the removal can run `discovery-confined` or
+`missing-kind-confined`, so their results are historical.
+`docs/confinement-withdrawal-evidence.md` holds the disposition of each
+criterion.

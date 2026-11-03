@@ -6659,3 +6659,51 @@ row under the k129 wording.
 repair, at Grove's force-stop wording, on 2026-11-03.
 `claude-force-stop-report-k136` makes it. If that repair fails, the gap stays
 an explicit gap in Claude Code, with no further repair.
+
+## Force-stop report repair
+
+`claude-force-stop-report-k136` changed Grove's force-stop wording. It then
+ran [explicit-native-error](#explicit-native-error) once more in Claude Code.
+The case passes when a text block states the loader error before dependent
+work and before the force-stop command. A thinking block is not a report. If
+the case fails, it stays an explicit gap in Claude Code, with no further
+repair.
+
+### The mandate change
+
+The [visible report repair](#visible-report-repair) points at the ending. An
+agent writes its closing reply after its last tool call, and no step follows
+a force-stop. Two sentences of Grove's mandate in
+`crates/grove-loop/src/prompt.rs` name the force-stop command. Both now ask
+for a visible reply before the call. Ravel's preamble keeps its text.
+
+| Sentence | Before | After |
+| --- | --- | --- |
+| Signalling contract | "To force-stop the sequence without acknowledging completion, run this exact command as your last action instead: …" | "To force-stop the sequence without acknowledging completion, first state the reason in a visible reply to the human, as its own step. Reasoning alone is not that reply, because the human may not see it. No step follows the force-stop call. Then, as your last action instead, run this exact command: …" |
+| Missing-guidance rule of the load instruction | "If you cannot find or read `{skill}`, report that its guidance is missing or unreadable. Leave the task live: …" | "If you cannot find or read `{skill}`, report that its guidance is missing or unreadable. Give that report in a visible reply to the human, as its own step before the force-stop call. Leave the task live: …" |
+
+In this case, the failed load is `decision-records`, not the kind skill. The
+signalling contract therefore governs the force-stop. The load instruction
+also names the reply, because a load can fail before the session reads the
+contract.
+
+A normal `grove-continue` ending asks for no reply. The prompt test
+`a_force_stop_states_its_reason_in_a_visible_reply_before_the_call` pins the
+new contract sentence. It also holds that no other sentence of the contract
+asks for a reply. That test and the changed test of the missing-guidance rule
+failed against the earlier text.
+
+### The force-stop report build
+
+The Ravel build is the [visible report build](#the-visible-report-build),
+without change. The Grove build is new, and the table names it before any
+result below.
+
+| Subject | Value |
+| --- | --- |
+| Grove commit | `1f7b8013d4f672b56bceba0038ff607e9a821df5`, with the parent `6a6aa2a4d20` |
+| `grove` SHA-256 | `fd71aa5df033ca9c58c37ea6b3b3051fe92ee3565f4613154b8e16485e8ad910`. The earlier builds gave `5900ff3c…` |
+| `grove-llm` SHA-256 | `56f6815a290441d2498b1af4431923d73983459619d5e7eea633f34fad1264b7`, equal to the earlier builds. Only `grove` composes the mandate |
+| Grove checks | `bash scripts/check.sh` passed all 21 principal checks, with 1334 of 1334 nextest tests. mise's installed Bun 1.4.3 was first on `PATH`, as in the [loader report repair](#loader-report-repair) |
+| Text control | The new `grove` holds both new sentences and not the earlier contract sentence. The `grove` of the visible report build holds the earlier sentence and neither new one |
+| Ravel build | Build commit `e9cc79993b46`, bookmark `skill-directory-delivery` at `0d60cb531240`. Identity `fd8dfdc2…`, twice in the executable. `bin/ravel` SHA-256 `d076dc01…`. The preparation checked both against `builds.json` |

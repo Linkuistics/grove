@@ -238,3 +238,19 @@ evidence holds each check result. `scripts/harness-trials/builds.json` pins
 this build, and the "Confinement removal build" section of
 `docs/common-loading-acceptance-record.md` records it. The stage ran no
 archive, amd64 campaign, `release:smoke` or `smoke:pair`.
+
+grove-confinement-removal-k146 removed confinement from Grove in five
+children, k150 to k154. `grove run` sends no `--confine`, and
+`--runtime-read` has no effect. The release-notes helper runs Codex under
+`--sandbox workspace-write`. The bubblewrap floor route is gone, and the
+directory case runs on the general route. The "Removal checks" section of
+`docs/confinement-withdrawal-evidence.md` names each subject and result.
+
+Both gates passed on Grove `9b8b69244125`, with the 1.1 keg and with the
+k145 build. One real release-notes run completed, and one
+`task release:smoke` on `aarch64-unknown-linux-gnu` passed.
+
+The release smoke could use only the pinned 2.0 archives of build
+`23e50ce90037`, which predate Ravel's removal. The reconciliation and the
+checks must state that limit. The two stop-attempt lines of Ravel on macOS
+come from every end of a session, confined or not. They are not a fault.

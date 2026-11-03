@@ -10,7 +10,8 @@ the only boundary of a managed process.
 Grove's part of that design. It covers the guarantees of a standalone run, the
 release-notes route and the version consequence. It also covers the
 dispositions of the acceptance criteria and the handoff to
-`grove-confinement-removal-k146`.
+`grove-confinement-removal-k146`. The
+[removal checks](#removal-checks) give the results after the removal.
 
 Ravel's part is the "Withdrawal of confinement" section of Ravel's
 `docs/skill-discovery-design-evidence.md`. It is in Ravel commit
@@ -394,10 +395,115 @@ and accepted each one as a real issue:
   protection as conditional on the harness sandbox. Ravel commit
   `2df9dd0558248404da48842499b9dcd03a605fec` holds that change.
 
+## Removal checks
+
+`grove-confinement-removal-checks-k154` ran the [checks](#checks) of the
+handoff after the four removal leaves. Each run was on macOS arm64 on
+2026-11-03, in UTC. The tables name each subject by commit and build identity.
+
+| Subject | Identity |
+| --- | --- |
+| Grove | Commit `9b8b69244125`, the last removal commit, with an empty working copy above it |
+| Ravel 1.1 | The Homebrew keg `/opt/homebrew/Cellar/ravel/1.1.0`, from tag `v1.1.0`. The `bin/ravel` SHA-256 is `c52f990b2059c8bbe8efba10a741d3a0311000ac1712d71e882638f54c3ac1ed` |
+| Ravel 2.0 | `task install` from the output commit `71f70fcd3f92` into a scratch prefix, with no `libexec`. The build commit is `d324668b86ca` |
+| Ravel 2.0 identity | `a4f55d04b2d19a9948f2bcdcb3f305ee20ae80fae7f9011ec878f117d98e6519`, twice in the executable. The `bin/ravel` SHA-256 is `26b487afb957c233848e8e360e29c73539a33ba89fc3444b26ad13a2eb4bf0a3` |
+| Ravel 2.0 Linux archive | `ravel-v1.1.0-aarch64-unknown-linux-gnu.tar.xz`, SHA-256 `331008d4c2aa005061b6e61d505bac131d4f4473cc9520eeba765e089b1cb32d`, of build `23e50ce90037` with identity `ef5857e9…` |
+| Grove Linux archive | `grove-v22.8.0-aarch64-unknown-linux-gnu.tar.xz` from the subject commit, SHA-256 `81da48ef1a0ad1e294654b29f82e04ec28271bd2bb40949b58cf5b228a0454d7` |
+
+| Check | Result |
+| --- | --- |
+| `bash scripts/check.sh` with the 1.1 keg | Passed 19 of 19, from 15:12Z to 15:21Z |
+| `bash scripts/check.sh` with the 2.0 build | Passed 19 of 19, from 15:21Z to 15:30Z |
+| One real `grove run release-notes` | Completed, from 15:32Z to 15:33Z. Codex ran under `workspace-write`, and the ending command reached Ravel |
+| `task release:smoke TARGETS=aarch64-unknown-linux-gnu` | Passed, from 15:34Z to 15:35Z. The floor container and QEMU each passed both lanes and the directory case |
+
+### The two gates
+
+Each gate followed the [HOME of each run](grove-dual-ravel-stage-record.md#the-home-of-each-run)
+recipe, with its own scratch HOME. Each gate called
+`mise exec bun@1.4.3 -- bash scripts/check.sh`. The 2.0 gate put the guard
+`ravel` first on PATH, and no check reached it. The gates ran one after the
+other.
+
+Both gates passed the same set of 1,379 test names. A copy of the 2.0 set
+with one name removed made the comparison fail. So the comparison can detect
+a difference. Each gate recorded a digest of every tracked file outside
+`.grove/` and of both `bin/ravel` files. Each digest was the same before and
+after its gate.
+
+### The release-notes run
+
+The owner's Ravel configuration routes `release-notes` to Claude Code. This
+leaf did not change it. The run therefore used a scratch HOME with Grove's
+sample `policy.ts`, the 1.1 keg on PATH and `CODEX_HOME` at the owner's
+Codex home. `task release:notes` then called the changed helper once.
+
+The transcript gives `sandbox: workspace-write [workdir, /tmp, $TMPDIR]`.
+The work directory was the private `work` directory of the run, beneath the
+system temporary directory. The agent ran
+`ravel end-session grove-continue` there, and the command succeeded. Grove
+reported `completed` and published `release-notes.md`.
+
+The run gives these further results:
+
+- The owner's `auth.json` kept its modification time.
+- The environment held `GROVE_RELEASE_RUNTIME_READ`, and the run sent no
+  `--runtime-read`.
+- The agent read a native skill under `~/.codex/skills`. The withdrawal
+  permits that read.
+- The wrapper of the run removed `GROVE_LAUNCH_DIR` and `RAVEL_EXIT_FILE` of
+  the enclosing session first. This protected the session. The test suite checks Grove's
+  removal of those names.
+
+The writer changed entries of `## Unreleased` that a human reviewed. Some of
+those changes gave an entry a different meaning. So this leaf restored the
+reviewed `CHANGELOG.md`, and the generated text is not in the repository.
+
+### The release smoke
+
+Admission of the 2.0 lane accepts only the pinned archives. The run
+therefore used the archive of build `23e50ce90037`, which still has
+`--confine`. Grove sends no `--confine`, so the directory case measured
+Grove's unconfined caller at the floor. The build of
+`ravel-confinement-removal-k145` has no admitted Linux archive. Rollout
+replaces the pins with the published archives.
+
+The floor container ran glibc 2.17, and its loader refused a glibc 2.25 probe.
+QEMU with `-cpu cortex-a53` killed the CPU probe at its instruction.
+The QEMU route ran without `systempaths=unconfined`. Every staged QEMU input
+kept its SHA-256.
+
+### Stop-attempt lines
+
+Unconfined runs of `scripts/release-prepare.test.sh` print two lines such as
+`ravel: stop attempt 1 target -2447 signal 9: Operation not permitted`. A
+confined run prints them too, and a normal end of the harness causes them.
+
+Ravel ends each session in a fixed order. It kills the process group twice
+while the unreaped child still holds the group ID. Then it reaps the child
+and checks that the group is gone. On macOS, a group that holds only a
+zombie answers SIGKILL with EPERM. Ravel accepts EPERM when it then finds
+the group gone. `supervise_reported` in Ravel's
+`crates/keyed-launch/src/run.rs` holds this rule.
+
+A probe with a fake `/bin/sh` harness printed two lines in each of nine runs.
+Each run exited 0 or 1, as its case requires:
+
+| Harness | 1.1 unconfined | 1.1 `--confine` | 2.0 |
+| --- | --- | --- | --- |
+| Exits at once with no result | Two lines, status 1 | Two lines, status 1 | Two lines, status 1 |
+| Runs `end-session` and exits at once | Two lines, status 0 | Two lines, status 0 | Two lines, status 0 |
+| Runs `end-session` and waits for TERM | Two lines, status 0 | Two lines, status 0 | Two lines, status 0 |
+
+Each gate printed the two lines once, in the real `grove run` case of
+release preparation. The real release-notes run printed attempts 3 and 4
+only. The Linux release smoke printed none.
+
 ## Limits
 
-This record states a design. No product code changed, and no test, build or
-harness ran in its leaf. The behaviour of Codex in `--sandbox workspace-write`
-with a standalone channel is a measurement for the removal leaf. The sandbox
+This record states a design, and its first leaf changed no product code. The
+[removal checks](#removal-checks) give the measurements after the removal.
+They include the behaviour of Codex in `--sandbox workspace-write` with a
+standalone channel. The sandbox
 settings of Claude Code come from the names in the 2.1.317 executable, such as
 `sandbox.enabled` and `sandbox.failIfUnavailable`. No run measured them.

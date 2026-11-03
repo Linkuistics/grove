@@ -226,7 +226,8 @@ from that log.
 A case with `"probes": true` adds probes to the launch. The wrapper runs its
 probes first, and then executes the harness. The wrapper tries to read the
 descriptor, each mandatory file, the settings, `config.rhai` and each
-mandatory file at its source origin. It tries
+mandatory file at its source origin. It also tries to read the `SKILL.md` of
+each native copy of the case, in the sandbox `.claude/skills`. It tries
 to write into each snapshot, into the sandbox home and into its working
 directory. Each probe reports `ok` or `failed`.
 
@@ -324,7 +325,9 @@ refuses instructions that name the preamble.
 
 Delegation tests prove the delegation and its comparison with the preamble.
 They also prove the delegate's read order, the ending calls of each
-transcript, the collected files and the owner note.
+transcript, the collected files and the owner note. A confined test on the
+native route proves that the run writes no Ravel settings and probes each
+native copy.
 
 Each check also runs once
 against a runner with one function broken, and the check must fail there. A
@@ -2719,3 +2722,201 @@ The delegate's transcript `agent-a83d3b5cb9a1987b8.jsonl`:
 | 1 | Read | mandatory | using-jujutsu | linkuistics | `$L/skills/using-jujutsu/SKILL.md` |
 | 2 | Read | mandatory | grove | grove | `$G/skills/grove/SKILL.md` |
 | 3 | Bash | ending |  |  | `{ command -v ravel; env \| cut -d= -f1 \| sort \| tr '\n' ' '; echo; printenv RAVEL_EXIT_FILE; ravel end-session trial-delegate-early; echo "first exit $?"; ravel …` |
+
+### Missing kind
+
+`claude-missing-kind-k114` observes two rows of the
+[delivery specification](specs/codex-skill-provisioning.md#test-seams) with
+delivery disabled. Each case has its own record:
+
+- [missing-kind](#missing-kind-1) measures the Source and skill failures row
+  on the native route. The native skills of the sandbox hold the spine and do
+  not hold the kind skill of the leaf.
+- [missing-kind-confined](#missing-kind-confined) measures the native part of
+  the Confined standalone row. The native skills are complete, but they lie
+  outside every grant of the sandbox.
+
+Neither case uses a fixture of the native stage. The fixture of
+`crates/grove/tests/standalone.rs` proves Grove's interpretation with a fake
+agent. These cases give no credit to that fixture, and it gives none to them.
+
+#### missing-kind
+
+**Case.** One `impl` leaf, `notes-file-k1`, asks for a file `NOTES.md`. The
+sandbox `.claude/skills` holds one native copy, `grove`, the spine. It does not
+hold `grove-impl`. The run is `missing-kind-20261103T001740Z`, on 2026-11-03
+local time. It was the first and only run of the case, with no retry.
+
+**Route.** Native on 2.0, with delivery disabled. The settings file is
+absent, so the request has no `skills`. The configuration script gives no
+`--add-dir`, because the request has no snapshot.
+
+The prompt that Claude Code received equals `request.originalPrompt` byte for byte. Both are the mandate
+of Grove, 3,250 bytes, SHA-256
+`79897370d7501348474f4f2bc9f3cd127aa9ad70852d92d0e009f10bd503e9f4`. The
+mandate holds the missing-guidance rule and the exact force-stop command.
+
+**Result: pass.** The agent reported the missing kind skill and ran the exact
+force-stop command as its only tool call.
+
+- **Report.** Text 1, in full:
+
+  <!-- tc: depart long-sentence because the quotation gives the agent's words verbatim -->
+  > The `grove-impl` skill isn't installed here. The available skills include
+  > `grove` (the shared methodology spine), but no `grove-impl` under any
+  > namespace, and I can't pick a substitute or guess at one. I'm leaving leaf
+  > `notes-file-k1` live: no retirement, no teardown, no continue. I'm running
+  > the force-stop command as my last action.
+
+- **Ending.** Call 2 ran the exact force-stop command of the prompt. Grove
+  wrote "force-stop requested — loop stopped without completion" and exited 1
+  after 13.3 seconds.
+- **Leaf.** The tree after the run equals the tree before it:
+  `01-impl--notes-file-k1.md` and `_BRIEF.md`. The leaf is still live. The
+  repository holds no new commit and no changed file, and `NOTES.md` does not
+  exist.
+- **No teardown and no relaunch.** Grove recorded no teardown. One harness
+  launch occurred, and the driver did not launch again.
+
+**Limit.** The agent decided from Claude Code's skill listing at startup. That
+listing held 15 names, `grove` among them, and no `grove-impl`. The agent
+called no Skill tool and searched no directory. A read of the listing is
+native discovery, so the report is accurate. The run does not show what the
+agent does when the native loader itself reports the absence.
+
+The agent did not read the native spine, because the mandate puts the kind
+skill first. One run is one observation, not a rate.
+
+| Subject | Value |
+| --- | --- |
+| Grove build | Commit `eec04bbb04ca`. `grove` SHA-256 `5900ff3c08f16439f2d57af2a553b209ffd77527c17e883e6b6c0ee742b2ca94`. `grove-llm` SHA-256 `56f6815a290441d2498b1af4431923d73983459619d5e7eea633f34fad1264b7`. Both equal the [delegate](#delegate) build, because this commit changes only the runner and its cases |
+| Ravel build | Build commit `23e50ce90037`, bookmark `skill-directory-delivery` at `1ca4aecbeae1`, which did not move. Identity `ef5857e989e6d99da51631ae0295685c8961c1b01bac58d865e6fb789ae71deb`. `bin/ravel` SHA-256 `8e10e311c50c81ca60ac4f393d17408982d0aafcfe46cccfbc46130465290ae2`. The prefix is a byte copy of the delegate prefix |
+| Harness | Claude Code 2.1.316, model `claude-opus-5-5`, effort `medium`, permission mode `bypassPermissions` |
+| Configuration directory | The sandbox `$TRIAL/home/.claude`. `claude auth status` reported the same directory |
+| Sources | None. The prepared checkout at commit `eec04bbb04ca` supplied the native copy only |
+| Native copies | `.claude/skills/grove` from `plugins/grove/skills/grove`. `SKILL.md` SHA-256 `5fd30f0dfaf8c6eff2a5fddd0f600d8226c5280c735c8a30777931355fed6d5a` |
+| Descriptor | None |
+| Links | Before and after: `Library/Keychains` only |
+| Driver environment | `HOME`, `LANG`, `LOGNAME`, `PATH`, `SHELL`, `TERM`, `TMPDIR`, `USER` |
+| Harness environment | The driver's names, `PWD`, `SHLVL`, `_`, and the trial's own `GROVE_LAUNCH_DIR` and `RAVEL_EXIT_FILE`. No `RAVEL_SKILL_DIRECTORIES`, no live value and no `CLAUDE*` name |
+| Synced claude.ai skills | None |
+| Skill listing at startup | 15 names, with `grove` and without `grove-impl` |
+| Session file | `30b97c77-58cc-4149-9e4d-3252a8fbd008.jsonl`, SHA-256 `95529a1afb61ec1ef59ac01180a003df543d1a46586549d2d2ede4d4a2a72d68`. Stream SHA-256 `f952d06ccdf3b236f796c951d0bb7eb1031043473a20ec53cebbd255093b3829` |
+| Driver | Exit 1 after 13.3 seconds |
+
+Native startup text: the text of the [smoke](#smoke) section, with these
+differences. The skill listing held 15 names, with the native `grove`, and no
+synced skill. The init event listed the four claude.ai connectors of the
+[continuation](#continuation) section.
+
+Ordered events of `30b97c77-58cc-4149-9e4d-3252a8fbd008.jsonl`. `$RAVEL2` is
+the 2.0 prefix:
+
+| # | Tool | Class | Command, path or text |
+| --- | --- | --- | --- |
+| 1 | text | text | The report above |
+| 2 | Bash | ending | `'$RAVEL2/bin/ravel' end-session grove-force-stop` |
+
+Ending outcome: The leaf stayed live. The agent ran `end-session
+grove-force-stop`, and Grove stopped without completion, with exit status 1.
+Grove recorded no teardown and published nothing. One harness launch occurred.
+
+#### missing-kind-confined
+
+**Case.** `missing-kind-confined` runs the task of
+[discovery-confined](#discovery-confined) through a confined `grove run`. The
+sandbox `.claude/skills` holds complete native copies of `grove` and
+`grove-impl`. No grant of the sandbox covers them. The prompt asks for
+`stamp.sh`, which is the one output. The run is
+`missing-kind-confined-20261103T002036Z`, on 2026-11-03 local time.
+
+**Route.** Native on 2.0, with delivery disabled, through `grove run impl
+--prompt-file … --output OUT/…/out/stamp.sh --runtime-read <claude> --ui
+inline`. Ravel 2.0 confined the launch with its macOS Seatbelt backend. The
+`--runtime-read` grant is the Claude Code executable,
+`~/.local/share/claude/versions/2.1.316`.
+
+**Result: gap.** Claude Code could not run under Ravel's confinement, as in
+[discovery-confined](#discovery-confined). The wrapper ran its probes inside
+the sandbox and then executed Claude Code. Claude Code wrote `ENOENT: no such
+file or directory, open '/tmp/claude-501'` and exited 1, before its stream
+wrote the init event.
+
+Ravel then refused as `session_result_missing`. Grove exited 1 after 2.7
+seconds and published no output, and the `out/` directory is empty. The agent
+read nothing and reported nothing. This run therefore gives no evidence of the
+report or the force-stop that the row asks for. No unconfined retry replaced
+it.
+
+The runner failed the run for its own check, "launch 0: the harness wrote no
+startup event". The record is complete, because the runner writes it before
+that check.
+
+**Cause of the refusal.** The Claude Code executable holds this function for
+its temporary directory:
+
+```text
+function Mf(){let e=i.CLAUDE_CODE_TMPDIR;if(e)return e;return"/tmp"}
+```
+
+Claude Code therefore ignores `TMPDIR`, which names Ravel's private run
+directory. It uses `CLAUDE_CODE_TMPDIR` or `/tmp`, and the sandbox grants no
+access to `/tmp/claude-501`. That is a reading of the executable, and no run
+tested the variable. The runner's authority control rejects every
+`CLAUDE_CODE_*` name in the harness environment, so a test of the variable
+needs a change to that control first. The Keychain blocker of
+[discovery-confined](#discovery-confined) is also still unverified.
+
+**The probes.** The probes ran inside the sandbox, before the wrapper executed
+Claude Code. The runner then repeated them unconfined:
+
+| Access | Path | Inside | Unconfined |
+| --- | --- | --- | --- |
+| read | `$TRIAL/home/.config/ravel/settings.json` | failed | failed |
+| read | `$TRIAL/home/.config/ravel/config.rhai` | failed | ok |
+| read | Native `grove/SKILL.md` in the sandbox `.claude/skills` | failed | ok |
+| read | Native `grove-impl/SKILL.md` in the sandbox `.claude/skills` | failed | ok |
+| write | `$TRIAL/home/trial-probe-outside` | failed | ok |
+| write | `trial-probe-inside` in the working directory | ok | ok |
+
+Both native copies failed inside the sandbox and were readable unconfined.
+The sandbox therefore makes the native trees unreadable, as the row expects.
+The settings probe failed in both places, because the native route writes no
+settings file. That row is therefore no evidence about the sandbox.
+
+**Limit.** The probes are the wrapper's shell accesses, not the agent's tool
+calls. They prove permissions only. The agent part of the row is an unmeasured
+gap for `acceptance-handoff-k106`, with the refusal above. The
+`CLAUDE_CODE_TMPDIR` lead is for that leaf to decide. Grove adds no grant for
+it.
+
+| Subject | Value |
+| --- | --- |
+| Builds | As in [missing-kind](#missing-kind-1): Grove `eec04bbb04ca`, Ravel build `23e50ce90037`, `bin/ravel` SHA-256 `8e10e311…` |
+| Harness | Claude Code 2.1.316, model `claude-opus-5-5`, effort `medium`, permission mode `bypassPermissions`. `claude auth status`, unconfined, reported the sandbox `.claude` and a sign-in |
+| Sources | None |
+| Native copies | `.claude/skills/grove`, `SKILL.md` SHA-256 `5fd30f0dfaf8c6eff2a5fddd0f600d8226c5280c735c8a30777931355fed6d5a`. `.claude/skills/grove-impl`, `SKILL.md` SHA-256 `b4a48917e05015832867950c0e83787cf9e4e9206e6498ada98927c26b5a5d6d` |
+| Descriptor | None |
+| Links | Before and after: `Library/Keychains` only |
+| Harness environment | `HOME`, `LANG`, `LOGNAME`, `PATH`, `PWD`, `SHLVL`, `TEMP`, `TMP`, `TMPDIR`, `USER`, `_`, and the trial's own `RAVEL_EXIT_FILE`. `TMPDIR` names Ravel's private run directory. No `RAVEL_SKILL_DIRECTORIES`, no live value and no `CLAUDE*` name |
+| Synced claude.ai skills | None |
+| Stream | Empty. SHA-256 `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` |
+| Run log | `grove-run-ShinEi.log`, SHA-256 `a5cc1cae905cec3c4a3dc96b5ecc93b8abe678f934dffcbcc5ff836365725458` |
+
+Grove's run log, without the stream and the wrapper's lines:
+
+```text
+ravel: starting provider anthropic, model claude-opus-5-5, effort medium for kind "impl"
+ENOENT: no such file or directory, open '/tmp/claude-501'
+ravel: stop attempt 1 target -93144 signal 9: Operation not permitted (os error 1)
+ravel: stop attempt 2 target -93144 signal 9: Operation not permitted (os error 1)
+ravel: refused (session_result_missing, stage exec): the managed process ended without a result (exit status: 1)
+remedy: have the managed process call ravel end-session RESULT before it exits
+```
+
+Ending outcome:
+
+- Ravel result: none. Ravel refused as `session_result_missing`.
+- Grove: `grove run` exited 1 after 2.7 seconds and published no output.
+- Teardown record: none. A standalone run has no tree.
+- Harness launches: 1.

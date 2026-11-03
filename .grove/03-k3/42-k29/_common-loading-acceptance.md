@@ -124,3 +124,16 @@ names the Grove commits, the 1.1 keg and the 2.0 build by commit, identity and
 and local source. Measure that unpublished 2.0 build from a scratch prefix.
 Do not install `ravel@2` or change the owner's settings. If the bookmark
 `skill-directory-delivery` moves, record the new build before any result.
+
+claude-missing-kind-k114 closed claude-code-trials-k104. Each Claude Code case
+has its own section in the record. These sections state a gap or an unmeasured
+result for acceptance-handoff-k106: `discovery-confined`,
+`explicit-native-error`, `explicit-native-only`, `problem-ambiguity`, the
+re-read of `continuation`, `compaction-preamble`, the scrubbing adapter of
+"Delegation" and `missing-kind-confined`. Both confined gaps have one cause.
+Claude Code 2.1.316 takes its temporary directory from `CLAUDE_CODE_TMPDIR` or
+`/tmp` and ignores `TMPDIR`. No run tested that variable.
+
+The runner now runs the native route on 2.0 for real. The `missing-kind` and
+`missing-kind-confined` cases are its examples, and a probe case probes each
+native copy. The Codex node can reuse both cases.

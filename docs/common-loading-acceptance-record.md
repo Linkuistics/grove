@@ -6458,7 +6458,8 @@ The human answered the two scope questions of this repair on 2026-11-03:
   [token handoff design](#token-handoff-design) records.
   `ravel-token-handoff-k132` designs the handoff, `ravel-token-handoff-k133`
   implements it, and `claude-confined-rerun-k134` runs both Claude Code cases
-  again.
+  again. Later on 2026-11-03 the human withdrew this route, as the
+  [token handoff withdrawal](#token-handoff-withdrawal) records.
 - **Standalone guidance.** Outside an active grove, `grove run` takes a
   default kind `standalone`. That kind lets the owner's policy select a
   harness, a model and an effort, and it requires no skill. A standalone run therefore makes no missing-guidance
@@ -7531,3 +7532,86 @@ changed sections of the other specifications. It did not render the viewer
 or repeat the earlier probes. No new runtime result is credited. A design
 integration follows this review before `ravel-token-handoff-k133`. It must
 triage F1 and leave a coherent contract for implementation.
+
+## Token handoff withdrawal
+
+`ravel-token-handoff-k141` verified F1 of the integrated design review
+against the source. Then the human asked why the work spent this effort on
+containment, because the harnesses contain themselves. The session offered
+three directions on 2026-11-03:
+
+1. Accept F1 as a stated Linux limit, and implement the design.
+2. Repair F1 with descriptor mounts, which need bubblewrap 0.10.0 or later.
+3. Remove the confined Claude Code cases from the acceptance contract.
+
+The human chose the third. Only those two cases needed the token handoff, so
+the handoff is withdrawn. Its implementation and the confined rerun are
+pruned.
+
+### The confined rows of Claude Code
+
+The Claude Code rows of [discovery-confined](#discovery-confined-repaired) and
+[missing-kind-confined](#missing-kind-confined-repaired) are explicit gaps, by
+the human's decision. Their cause stays the measured blocker. Claude Code
+2.1.317 has no sign-in under Ravel's macOS profile, so it made no tool call
+and no model request. No later leaf repairs or runs these rows again.
+
+The Codex rows keep their repaired evidence. The agent part of the Confined
+standalone row stays the explicit gap that `standalone-default-kind-k131`
+recorded. Its evidence remains [missing-kind-confined in Codex,
+repaired](#missing-kind-confined-in-codex-repaired).
+
+[Confinement in production](#confinement-in-production) still holds. A
+confined Claude Code cannot sign in under the present profile.
+
+### Ravel changes
+
+All commits are in `Ravel.skill-directory-delivery`. The bookmark
+`skill-directory-delivery` moved to the last of them, and nobody pushed it.
+
+| Commit | Change |
+| --- | --- |
+| `bb0699dc0189303639840d9e9464766d5c436968` | Reverts the design integration `9084e0dcfcd7` |
+| `7f4093832f33194470f4f59865593500494fd566` | Reverts the design `7c5b6cdd3842`. Its tree equals the tree of `0d60cb531240` |
+| `d16976730248df53f1a4d56ace19809bfe7e0e61` | Adds two limits to the book's `09-jobs-signals-and-the-terminal.md` |
+
+The first limit is in the confinement section. The macOS profile gives no
+access to the Keychain, so a harness that keeps its sign-in there has no
+sign-in under confinement. The second limit is a row of the chapter's
+guarantees table. Ravel checks each grant by path before the backend applies
+it. A process outside the launch, also another confined launch, can replace
+a granted path in that interval.
+
+The trial build stays current. After the build commit `e9cc79993b46`, only
+the book chapter and `docs/skill-discovery-design-evidence.md` changed. No
+crate embeds either file. `scripts/harness-trials/builds.json` therefore
+keeps its pins, which the runner checks by digest and build identity.
+
+### Dispositions
+
+| Finding | Disposition |
+| --- | --- |
+| F1, the Linux grant interval | Real issue, verified against the source. The design that it reviewed is withdrawn. The race is older than that design and also reaches the owner settings. By the human's decision, Ravel does not repair it. The book states it as a limit |
+| R1 of `ravel-token-handoff-k139`, a grant resolved again at spawn | The checked-form rule left with the design, and no code implemented it. The same limit row states it |
+
+### Facts behind the options
+
+| Fact | Evidence |
+| --- | --- |
+| The runner binds each writable root, runtime read and read tree by path | `platform_command` and `command_with_grants` in `crates/keyed-launch/src/confinement.rs` |
+| Bubblewrap resolves a bind source again with `realpath` after it starts | `resolve_symlinks_in_ops` in bubblewrap 0.11.0, SHA-256 `7e972f61…` of `bubblewrap.c` |
+| Bubblewrap 0.10.0 added `--bind-fd` and `--ro-bind-fd` | Release of 2024-08-14. After the mount, bubblewrap compares the mount with the descriptor and stops on a difference. Releases 0.8.0 and 0.9.0 lack the option, and 0.13.1 keeps the check |
+| Supported distributions | Ubuntu 24.04 ships 0.9.0 and Debian 12 ships 0.8.0. Ubuntu 26.04 ships 0.11.1 and Debian 13 ships 0.12.0 |
+
+### Limits
+
+The session read no credential and made no model call. It ran no Ravel test,
+build or harness. In the Ravel workspace, `task docs:ste -- --strict` and
+`task docs:breaks -- --strict` passed on the changed chapter, and
+`task docs:excerpts` and `task docs:book:build` passed. The distribution
+versions come from the Debian sources API and the Launchpad API on
+2026-11-03.
+
+`scripts/harness-trials/descriptor-probe.py` stays. It records the
+measurement that `ravel-token-handoff-k132` made, and it describes no
+delivered feature.

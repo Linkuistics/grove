@@ -164,6 +164,19 @@ ravel-token-handoff-k133 implements the design. The "Token handoff integrated
 design review" section of `docs/common-loading-acceptance-record.md` holds
 the finding, the other dispositions and the evidence limits.
 
+ravel-token-handoff-k141 verified that finding. Then the human removed the
+confined Claude Code cases from the acceptance contract, because the harnesses
+contain themselves. Only those cases needed the token handoff, so Ravel
+commits `bb0699dc0189` and `7f4093832f33` revert its design. Ravel commit
+`d16976730248` states two confinement limits in the book, and the bookmark
+`skill-directory-delivery` is now at that commit. The trial build stays current.
+
+ravel-token-handoff-k141 pruned `ravel-token-handoff-k133` and
+`claude-confined-rerun-k134`. The Claude Code rows of `discovery-confined` and
+`missing-kind-confined` are explicit gaps, by the human's decision. The "Token
+handoff withdrawal" section of `docs/common-loading-acceptance-record.md`
+holds the decision, the Ravel commits and the evidence.
+
 standalone-default-kind-k131 gave `grove run` the default kind `standalone`
 outside an active grove. Inside one, a run without a kind takes the next live
 leaf's kind, by the human's decision. The Confined standalone row keeps its

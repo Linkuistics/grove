@@ -76,3 +76,23 @@ reconciles the stage evidence with the newest build.
   `0d60cb531240` is the tip of the unpushed bookmark.
 - **Build record.** `builds.json` takes the new build and points its `source`
   at the record section "Visible report repair".
+- **Trial preparation.** Grove commit `5d5405b042fd`. The executables equal
+  the earlier builds. Each run's prompt file held the new sentences of
+  obligations 4 and 6, and not the k129 sentence.
+- **explicit-native-error: gap.** The agent went from the blocked Skill call
+  to the force-stop call. A thinking block held an accurate report, and no
+  text block held it, for the third time.
+- **explicit-native-only: pass for the row.** A visible text block reported
+  the limit after the loader error, with no fallback. The agent ran no ending
+  command. It followed the spine's handback procedure and ended its turn with
+  a question. That ending matches `explicit-path-missing`, which the record
+  keeps outside the row.
+- **Codex control.** Not run. The change is in wording only, and Codex passed
+  the row under the k129 wording. The leaf's Notes make the control optional.
+- **Diagnosis.** A report reaches text when the agent ends its turn, or when
+  no tool error precedes the force-stop. It stays in reasoning when the agent
+  goes from a tool error to the force-stop call. That points at Grove's ending
+  wording, "last action — then do nothing else", not at the loader rule.
+- **Pending: scope question.** The human decides what happens to the
+  `explicit-native-error` gap in Claude Code. The leaf stays live until the
+  answer.

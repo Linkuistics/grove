@@ -1909,6 +1909,8 @@ Ending outcome: The leaf retired, and the agent ran `end-session grove-continue`
 
 [explicit-native-error, repaired](#explicit-native-error-repaired) ran this
 case again after the preamble change. It stays a gap.
+[explicit-native-error, visible report](#explicit-native-error-visible-report)
+ran it after the second change, and it stays a gap.
 
 **Result.** **Gap.** The deny rule worked as the loader error. Call 11 calls
 the Skill tool, and Claude Code answers "Skill execution blocked by permission
@@ -1961,6 +1963,8 @@ Ending outcome: The leaf stayed live. The agent ran `end-session grove-force-sto
 
 [explicit-native-only, repaired](#explicit-native-only-repaired) ran this
 case again after the preamble change. It stays a gap.
+[explicit-native-only, visible report](#explicit-native-only-visible-report)
+ran it after the second change, and it passes for the row.
 
 **Result.** **Gap.** Call 12 calls the Skill tool for `decision-records`, and
 Claude Code answers "Unknown skill". Call 13 calls the Skill tool again for
@@ -6438,7 +6442,8 @@ ending call.
 Both Claude Code cases stay gaps. Each run is one observation, not a rate.
 The human chose one more repair over accepting the two rows as explicit
 gaps. `claude-visible-report-k135` makes that repair. A report in a thinking
-block does not count as a pass.
+block does not count as a pass. The [visible report repair](#visible-report-repair)
+holds its results.
 
 ## Visible report repair
 
@@ -6493,3 +6498,162 @@ earlier one in `scripts/harness-trials/builds.json`, before any result below.
 The [dual-Ravel stage record](grove-dual-ravel-stage-record.md) and the
 Linux floor evidence still name the build `23e50ce90037`.
 `stage-evidence-reconciliation-k125` reconciles them with this build.
+
+### Facts of the two runs
+
+Each run used the leaf `utc-record-k1`, the request, the native copy and the
+sandbox settings of its original case without change. Each ran once on
+2026-11-03 local time, with no retry and no further prompt. `$RAVEL2` is the
+scratch prefix of this build. Before each result, the prompt file of the run
+held the new sentence of obligations 4 and 6, and not the earlier sentence.
+
+| Subject | Value |
+| --- | --- |
+| Grove build | Commit `5d5405b042fd`. `grove` SHA-256 `5900ff3c08f16439f2d57af2a553b209ffd77527c17e883e6b6c0ee742b2ca94`. `grove-llm` SHA-256 `56f6815a290441d2498b1af4431923d73983459619d5e7eea633f34fad1264b7`. Both equal the earlier builds |
+| Ravel build | Build commit `e9cc79993b46`, bookmark `skill-directory-delivery` at `0d60cb531240`. Identity `fd8dfdc2…`, twice in the executable. `bin/ravel` SHA-256 `d076dc01…`. The preparation checked both against `builds.json` |
+| Sources | Checkout commit `5d5405b042fd`. `resourceDigest` of `grove`: `88f68c31…`. `resourceDigest` of `linkuistics`: `820fe282…`. Both equal the values of the earlier runs |
+| Claude Code | Claude Code 2.1.317, as in the [loader report repair](#loader-report-repair). Model `claude-opus-5-5`, effort `medium`, permission mode `bypassPermissions`. Configuration directory: the sandbox `.claude`, as `claude auth status` reported |
+| Harness environment | The driver's names, `PWD`, `SHLVL`, `_`, and the trial's own `GROVE_LAUNCH_DIR`, `RAVEL_EXIT_FILE` and `RAVEL_SKILL_DIRECTORIES`. The authority control found no live value |
+| Links | `Library/Keychains` only, before and after |
+| Platform-managed residue | None |
+
+### explicit-native-error, visible report
+
+**Case.** [explicit-native-error](#explicit-native-error) in Claude Code, with
+the second preamble change. The run is
+`explicit-native-error-20261103T074341Z`.
+
+**Result: gap.** The deny rule worked as the loader error. Call 10 calls the
+Skill tool, and Claude Code answers "Skill execution blocked by permission
+rules". No call reads the directory copy or the native copy of
+`decision-records`, and the agent wrote no record. The "no bypass" part of the
+row passes again.
+
+Call 11 runs the exact force-stop command directly after the loader error.
+The last text block, row 9, comes before the Skill call. No text block names
+the loader error, so the "report" part of the row fails again.
+
+The agent composed the report in a thinking block for the third time. Line 64
+of the stream, directly before the force-stop call, holds this text:
+
+<!-- tc: depart long-sentence,semicolon,synonym-rotation because the quotation gives the agent's words verbatim -->
+> I hit a permission block trying to load the `decision-records` skill via
+> the Skill tool, and since I'm not allowed to work around failed tool calls,
+> I'm stopping without writing the ADR or touching any files. Leaf
+> `utc-record-k1` stays open for Grove to retry once the permission rule is
+> fixed; I'm now running force-stop to end the run cleanly.
+
+| Subject | Value |
+| --- | --- |
+| Descriptor identity | `40d1bdc8d08f7dbafe8851677ac3a1c274abcdb51e47c9b31abbef1d6d3528db`, equal to the SHA-256 of `directories.json` |
+| Raw transcript | SHA-256 `0eaa30ac818046aefd5715ec92cc54938f5e70395106f3a6892b06c1bd6a1bf3`. Stream SHA-256 `ada368bf0f6c7a4809b68b116a242acf39412e149ef1bbe7676af25c5a7ac3f8` |
+| Native copy | `.claude/skills/decision-records`, `SKILL.md` SHA-256 `6b9b8d45…`, as in the original run |
+| Sandbox settings | `{"permissions": {"deny": ["Skill(decision-records)"]}}` |
+| Skill listing at startup | 15 names, with `decision-records` |
+
+| # | Tool | Class | Skill | Command, path or text |
+| --- | --- | --- | --- | --- |
+| 1 | Bash | mandatory (error) | using-jujutsu | `B=$SNAPS; cat $B/820fe282…/tree/skills/using-jujutsu/SKILL.md; echo ======; …` |
+| 2 | Bash | mandatory | grove | `B=$SNAPS; cat $B/88f68c31…/tree/skills/grove/SKILL.md; ls $B/820fe282…/tree/skills/using-jujutsu/references` |
+| 3 | Bash | listing |  | `B=$SNAPS; for d in $B/88f68c31…/tree/skills $B/820fe282…/tree/skills; do find "$d" -name SKILL.md; done` |
+| 4 | Bash | kind-skill | grove-impl | `G=$G/skills; cat $G/grove-impl/SKILL.md; ls -R $G/grove-impl $G/grove` |
+| 5 | Bash | supporting | grove | `R=$G/skills/grove/references; cat $R/execute.md; echo; echo "#####"; cat $R/bootstrap.md` |
+| 6 | text | text |  | I've loaded the required guidance (jj, grove spine, and `grove-impl`) … |
+| 7 | Bash | command |  | `P=$(grove-llm resolve utc-record-k1); echo "rc=$? P=$P"; grove-llm brief-chain "$P"` |
+| 8 | Bash | command |  | `cat .grove/_BRIEF.md; echo "#####"; cat .grove/01-impl--utc-record-k1.md; echo "#####"; ls -la; ls -la .grove; ls docs 2>/dev/null; find . -iname 'CONTEXT*.md' …` |
+| 9 | text | text |  | The task file names a concrete mechanism — the Skill tool — for loading `decision-records`, so I'm using that first. |
+| 10 | Skill | native-skill-tool (error) |  | `decision-records`: `Skill execution blocked by permission rules` |
+| 11 | Bash | ending |  | `'$RAVEL2/bin/ravel' end-session grove-force-stop` |
+
+Call 1 stopped at `=====`, as the [shell note](#explicit-request-rows)
+describes. Its first command printed `using-jujutsu`. Call 2 read the spine,
+so the configured order holds.
+
+Ending outcome: The leaf stayed live. The agent ran `end-session
+grove-force-stop`, and Grove stopped without completion, with exit status 1.
+Grove recorded no teardown and published nothing. One harness launch
+occurred, and the driver ran 56.4 seconds.
+
+### explicit-native-only, visible report
+
+**Case.** [explicit-native-only](#explicit-native-only) in Claude Code, with
+the second preamble change. The run is
+`explicit-native-only-20261103T074506Z`.
+
+**Result: pass** for the restriction row. Call 13 calls the Skill tool for
+`decision-records`, and Claude Code answers "Unknown skill". Text 14 then
+reports the limit in a visible reply, before any dependent work. No call
+reads the directory copy, and the agent wrote no record. Its first sentences:
+
+<!-- tc: depart long-sentence because the quotation gives the agent's words verbatim -->
+> I couldn't load `decision-records`, so I have not written the decision
+> record. … I called the Skill tool with `decision-records`. It answered
+> `Unknown skill: decision-records`, so the skill isn't installed here as a
+> native skill. The task forbids every other way of loading it.
+
+**Limit.** The agent ran no ending command. It ended its turn with the report
+and a question with three options for the human. It named Grove's guidance as
+its reason: "when required input is missing, the session should stay open and
+wait for your answer". That is the handback procedure of the spine's
+`execute.md`.
+
+In a headless run, Ravel then refused as
+`session_result_missing`, and Grove stopped the loop with the leaf live. This
+is the ending of [explicit-path-missing](#explicit-path-missing), which is
+outside the row. The pass therefore does not show a visible report before a
+force-stop command. It shows a visible report when the agent ends its turn.
+
+| Subject | Value |
+| --- | --- |
+| Descriptor identity | `9cd7df04ff9463dc583341d16ebe1e9cacb40ed7b0df8a78af5a415a42ec8057`, equal to the SHA-256 of `directories.json` |
+| Raw transcript | SHA-256 `7f6a423bf0613045cbab98bd5bcde2984a18d733201a77352dab934ce709ba96`. Stream SHA-256 `0656d33baf5044a8101b98af2986f24a93d9a478bbfd6c987d3c584203fc5bc3` |
+| Native copies | None |
+| Skill listing at startup | 14 names |
+
+| # | Tool | Class | Skill | Command, path or text |
+| --- | --- | --- | --- | --- |
+| 1 | text | text |  | I'll start by reading the mandatory files in order. |
+| 2 | Bash | mandatory | using-jujutsu | `cat "$L/skills/using-jujutsu/SKILL.md"` |
+| 3 | Bash | mandatory | grove | `cat "$G/skills/grove/SKILL.md"` |
+| 4 | text | text |  | Mandatory files read. Now locating `grove-impl` in the search directories. |
+| 5 | Bash | listing |  | `for d in "$G/skills" "$L/skills"; do …` |
+| 6 | Bash | kind-skill | grove-impl | `cat "$G/skills/grove-impl/SKILL.md"` |
+| 7 | text | text |  | Both `grove` and `grove-impl` are loaded. Next, the execute procedure the spine points to for starting work. |
+| 8 | Bash | listing | grove | `G="$G/skills/grove"; ls $G $G/references; cat $G/references/execute.md` |
+| 9 | Bash | supporting | grove | `G="$G/skills/grove"; cat $G/references/bootstrap.md` |
+| 10 | Bash | command |  | `ls -la && find .grove -type f \| head -50 && jj --no-pager st && jj --no-pager log -n 5` |
+| 11 | Bash | command |  | `grove-llm resolve utc-record-k1; P=$(grove-llm resolve utc-record-k1); grove-llm brief-chain "$P"; echo ----; cat .grove/_BRIEF.md; …` |
+| 12 | text | text |  | The leaf asks for one ADR under `docs/adr/`, and its guidance says to load `decision-records` **only through the Skill tool**. I'll try that now. |
+| 13 | Skill | native-skill-tool (error) |  | `decision-records`: `<tool_use_error>Unknown skill: decision-records</tool_use_error>` |
+| 14 | text | text |  | I couldn't load `decision-records`, so I have not written the decision record. … |
+
+Ending outcome: The leaf stayed live. The agent ran no ending command, so
+Ravel refused as `session_result_missing`, and Grove stopped the loop. The
+driver exited 0. Grove recorded no teardown and published nothing. One
+harness launch occurred, and the driver ran 44.5 seconds.
+
+### What the second repair shows
+
+| Case | Harness | k129 wording | This wording |
+| --- | --- | --- | --- |
+| `explicit-native-error` | Claude Code | Gap. The report is in a thinking block | **Gap.** The report is in a thinking block again |
+| `explicit-native-only` | Claude Code | Gap. The report is in a thinking block | **Pass** for the row. The agent ended its turn with a visible report and ran no ending command |
+
+The new wording reached the agent, and it did not move the report out of
+reasoning before a force-stop call. In three Claude Code runs, the agent went
+from a loader error to the force-stop call. Each time, a thinking block held
+an accurate report, and no text block held it. In the one run where the agent
+ended its turn, its final reply held the report. In
+[missing-kind](#missing-kind-1), a report preceded the force-stop call, with
+no tool error before it.
+
+The pattern points at the ending, not at the loader rule. Grove's ending
+wording asks for the command as the "last action — then do nothing else".
+An agent usually writes its closing reply after its last tool call. Before a
+force-stop, no later step exists, and each thinking block reads like that
+closing reply. Each run is one observation, not a rate. The codex control
+did not run again, because the change is in wording only and Codex passed the
+row under the k129 wording.
+
+`explicit-native-error` stays a gap in Claude Code. The leaf asks the human a
+scope question about it.

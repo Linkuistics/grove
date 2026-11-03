@@ -456,8 +456,10 @@ policy instead.
 Two environment rules follow from that. Immediately before Grove spawns the
 child, it clears its own loop-control variables and grants only this launch's
 `GROVE_LAUNCH_DIR`. Grove preserves for the harness everything else that the
-caller had, including Git repository selectors. Ravel evaluates policy in a
-fresh explicitly granted environment instead ([below](#harness-dispatch)).
+caller had, including Git repository selectors. The detached job of `grove run`
+is the exception. It also loses the four repository selectors and the five
+multiplexer variables. Ravel evaluates policy in a fresh explicitly granted
+environment ([below](#harness-dispatch)).
 
 Driver-internal VCS children follow the opposite rule. They clear both the loop
 controls and the repository selectors. Their working directory pins them to the
@@ -479,14 +481,17 @@ with the old executable.
 
 | Owner | Boundary |
 |---|---|
-| Ravel | Routes through owner policy, confines/supervises the selected process, cleans up and returns the opaque published argument. Ravel 1.x ships a front, a compiled worker, an SDK and a local runner. Ravel 2.x installs one executable and has no SDK. Each ships independently, without host Bun/Node or Grove. |
+| Ravel | Routes through owner policy, supervises the selected process, cleans up and returns the opaque published argument. Ravel 1.x ships a front, a compiled worker, an SDK and a local runner. Ravel 2.x installs one executable and has no SDK. Each ships independently, without host Bun/Node or Grove. |
 | Grove | Selects a task, composes prompt/ending instructions, holds epoch admission, captures the public stdout result and decides continuation/teardown. Launches `ravel` as an ordinary child process. |
 | Grove caller assets | Ordinary readable configurations, task/Creator adapters and optional provider-evidence wrappers under Grove's `libexec/ravel-policy`: TypeScript with `ravel/sdk` for 1.x, and Rhai imported by path for 2.x. |
 | Owner | Chooses commands, labels, grants, bounds and any review-provider rule in personal policy. |
 
 Lifecycle launches carry `--kind`, unchanged `--prompt`, `--task-file`, stable
 `--task-id` and `--exit-dir`, in the working-tree root. Standalone work uses
-`start-session --confine` in a staged directory with explicit runtime reads.
+`start-session` with `--kind`, `--prompt` and `--exit-dir` in a private staged
+directory. It sends no `--confine` and no `--runtime-read`. The harness sandbox
+that the owner's configuration selects is its only boundary.
+
 Grove passes no selection parameter, configuration path or private ending-file
 argument. Exit-directory allocation is public mechanics and reaches no policy.
 Grove joins each value to its flag, so leading dashes remain data.

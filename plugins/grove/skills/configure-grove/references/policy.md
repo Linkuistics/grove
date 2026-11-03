@@ -9,7 +9,7 @@ Run `ravel --version` and `ravel start-session --help` before you rely on flags.
 
 Grove resolves the first executable regular `ravel` in an absolute PATH entry. It
 canonicalises the path and verifies the version once. Then it uses that exact path for
-launch, confinement and the ending instructions of the prompt. Ravel need not share the
+launch and for the ending instructions of the prompt. Ravel need not share the
 prefix or the version of Grove.
 
 A missing Ravel names `brew install linkuistics/taps/ravel`. Grove admits stable Ravel
@@ -32,13 +32,19 @@ ravel start-session --kind=KIND --task-file=TASK_FILE --task-id=HANDLE --prompt=
 analysis of the task reads `request.originalPrompt`. Grove passes no parameter, no settings override and no record path. The
 exit directory is supervision machinery, and it reaches no policy.
 
-`grove run KIND` uses the same public verb with `--confine` in its staged cwd. It has no
-task file and no task identity. Its selected command must be noninteractive. Grove
-grants documented runtime reads. It grants no private worker protocol.
+`grove run KIND` uses the same public verb in its staged cwd, with `--kind`, `--prompt`
+and `--exit-dir`. It has no task file and no task identity. It sends no `--confine` and no
+`--runtime-read`. Its selected command must be noninteractive. Grove grants no private
+worker protocol.
 
-Inside that sandbox, the directory route of 2.0 gives read access to the captured skills.
-A native route does not, because native skill trees under HOME stay outside every grant.
-Recommend the directory route for a kind that `grove run` launches and that needs a skill.
+Nothing confines a `grove run` harness. The harness sandbox in the selected arguments is
+the only boundary, so choose it in the configuration for each standalone kind. The sample
+runs the `release-notes` writer as Codex with `--sandbox workspace-write`. That sandbox must
+permit writes in the system temporary directory, because the exit channel of Ravel is
+there.
+
+Both routes work for `grove run`. The directory route gives the agent the captured
+skills at absolute paths. A native route reads the native skill roots under HOME.
 
 The caller prompt supplies canonical `ravel end-session grove-continue` and
 `ravel end-session grove-force-stop` commands. Neither takes a session ID. Grove

@@ -23,8 +23,8 @@ evidence stops for repair. An artifact without evidence needs the owner's
 invalid and legacy run references with explicit remedies.
 
 [The production and consumption contract](../grove-provider-evidence.md) owns
-the exact schema, canonical validation, generic measured context shape, budgets,
-confinement grants and refusal rules. Ravel's public SDK supplies ordinary
+the exact schema, canonical validation, generic measured context shape, budgets
+and refusal rules. Ravel's public SDK supplies ordinary
 policy selection and measured reads. The design needs no Ravel feature or
 store. The readable `grove.ts` loader supplies measured `facts.creator` and
 `facts.reviewedArtifact`. `examples/grove-review.ts` composes that loader with
@@ -47,8 +47,7 @@ receipt's association with the artifact. Same-user code can forge either.
 Measured sources establish which bytes a policy read, not authenticated backend
 identity.
 
-The wrapper adds Bash and argv overhead. Confined callers must grant the
-original executable. The wrapper preserves the actual arguments, labels,
+The wrapper adds Bash and argv overhead. The wrapper preserves the actual arguments, labels,
 settings and grants. It does not infer an origin or change routing choices.
 
 Sessions explicitly still launched by the original installed-v22 driver retain

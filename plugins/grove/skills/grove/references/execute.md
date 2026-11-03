@@ -40,10 +40,12 @@ For external one-shot work, use a `grove run` kind that the owner's policy
 routes. Its live transcript and its persistent log are the baseline. In a
 supported active multiplexer, `--ui auto` can add a view.
 
-Keep control of the terminal and its panes with the supervisor. A confined child must not inherit the
-terminal, the multiplexer connection or the completion authority of its parent.
-If no embedded UI or pane is available, keep inline progress and a log. Do not
-detach silently.
+Keep control of the terminal and its panes with the supervisor. A child must
+not inherit the terminal, the multiplexer connection or the completion
+authority of its parent. For a `grove run` child, Grove enforces this rule.
+Grove runs the child as a detached job and removes the multiplexer variables
+and the loop controls from its environment. If no embedded UI or pane is
+available, keep inline progress and a log. Do not detach silently.
 
 <!-- tc: pending because the conversion has not reached this part of the document -->
 

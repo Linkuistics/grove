@@ -623,7 +623,7 @@ in [the guarded selection](19-the-loop.md#picked) and exercised through the
 
 
 - [Held stdout capture and bounded result interpretation](19-the-loop.md#held-session-result)
-- [Public lifecycle and confined commands, with a quoted ending path](19-the-loop.md#public-session-commands)
+- [Public lifecycle and standalone commands, with a quoted ending path](19-the-loop.md#public-session-commands)
 - [One function launches Ravel as an ordinary child, in two shapes](19-the-loop.md#ravel-job)
 - [One scrub list of ten names, and the order of scrub and grant](19-the-loop.md#the-ravel-job-scrub)
 - [An error that carries the caught signal](19-the-loop.md#the-ravel-job-vocabulary)

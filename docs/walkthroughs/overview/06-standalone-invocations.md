@@ -8,8 +8,9 @@
 `grove run` stages inputs and exports declared outputs without a workspace or
 lease. Grove resolves/version-checks an independent installed Ravel, supplies
 its prompt and exact canonical continue and force-stop commands, and launches it through
-`ravel_job::launch` in the detached shape. Ravel selects and confines the
+`ravel_job::launch` in the detached shape. Ravel selects and supervises the
 managed command, reaps its group, and returns only its public result on stdout.
+Nothing confines the harness. Its own sandbox is the only boundary.
 Grove retains managed output on stderr in its transcript.
 
 <a id="worked-standalone"></a>
@@ -18,7 +19,7 @@ Grove retains managed output on stderr in its transcript.
 Run `grove run release-notes 'Draft notes from changes.txt' --input /work/release/changes.txt --output /work/release/notes.md --ui inline` with a regular input and
 absent destination. Grove copies the input to its private work directory and
 holds that directory open. Then Grove launches the once-selected Ravel with public
-`start-session --confine` inputs. The policy selects outside confinement. The
+`start-session` inputs. The policy selects the command and its sandbox. The
 harness receives its own ephemeral ending context and the exact
 `end-session grove-continue` and `end-session grove-force-stop` commands in the prompt.
 
@@ -33,10 +34,10 @@ nonzero exit remains successful after cleanup, as Ravel's public contract states
 
 | Actor | Authority | Result |
 |---|---|---|
-| Caller | Kind, input/output paths and runtime reads | One invocation |
-| Owner policy | Personal grants outside confinement | Command or refusal |
+| Caller | Kind and input/output paths | One invocation |
+| Owner policy | Personal grants and the harness sandbox | Command or refusal |
 | Ravel | Managed group and ephemeral ending context | Public stdout after cleanup |
-| Managed harness | Scratch writes and explicit runtime reads | Outputs and opaque result |
+| Managed harness | What its own sandbox permits | Outputs and opaque result |
 | Grove | Held output directory, result descriptor and destinations | Checked publication |
 
 <!-- fragment «standalone-invocation» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="1-382" parent="source-standalone" -->
@@ -52,8 +53,9 @@ nonzero exit remains successful after cleanup, as Ravel's public contract states
 <a id="standalone-interface"></a>
 ## The invocation inputs
 
-`Args` carries an optional kind, one prompt source, transfer paths, runtime
-reads and display choice. `STANDALONE` names the kind of a run without one
+`Args` carries an optional kind, one prompt source, transfer paths, display
+choice and the `--runtime-read` flag. That flag has no effect, and `run` prints
+one notice when it is present. `STANDALONE` names the kind of a run without one
 outside an active grove. `run` resolves Ravel once, checks its version and names the
 persistent logs. The version probe scrubs enclosing authority too.
 
@@ -212,8 +214,9 @@ pub(crate) fn default_kind(directory: &Path) -> Result<String> {
 
 `execute` checks the prompt and creates separate work and control
 directories. `execute` copies inputs as regular files. Their names cannot
-collide, and every output destination must be absent. The control directory remains outside the
-harness's writable grants.
+collide, and every output destination must be absent. The control directory
+lies beside the work directory. The harness sandbox must permit the write of
+the ending command there.
 
 <!-- fragment «standalone-staging» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="103-166" parent="standalone-invocation" -->
 ````rust
@@ -290,16 +293,22 @@ fn execute(args: Args, ravel: &Path, logs: &Path) -> Result<()> {
 The prompt names exact canonical commands: `end-session grove-continue` after
 checking every output, and `end-session grove-force-stop` when unable to complete.
 It explains that continue publishes checked outputs and force-stop reports
-failure with no publication. The shared argv contains `start-session --confine`,
-the kind, literal prompt, writable exit directory and canonical runtime reads.
+failure with no publication. The shared argv contains `start-session`, the
+kind, the literal prompt and the exit directory. It holds no `--confine` and no
+`--runtime-read`, so it is the same for Ravel 1.1 and 2.0.
 It carries no task identity, task file or selection parameter. Grove holds the work
 directory before it launches Ravel, opens the persistent transcript and retains
 display control.
 
-The argv grants no skill directory. On the directory route of Ravel 2.0.0, Ravel
-itself grants the captured skills read-only inside the sandbox. Native skill trees
-under HOME stay outside every grant. A harness that cannot read its guidance there
-force-stops. Grove then publishes nothing and launches no second, unconfined run.
+The argv names no skill directory. On the directory route of Ravel 2.0.0, the
+agent reads the captured skills at their absolute paths. The file modes keep
+each snapshot read-only. On a native route, the harness reads native guidance
+from its own roots under HOME, as a lifecycle session does. If the agent
+force-stops, Grove publishes nothing.
+
+The detached shape removes the four repository selectors and the five
+multiplexer variables, in addition to the ten control names. The harness
+receives every other variable of the caller.
 
 <!-- fragment «standalone-launch-context» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="167-210" parent="standalone-invocation" -->
 ````rust
@@ -1177,8 +1186,9 @@ opening the viewer leaves focus on the caller. Inline mode skips that request.
 Auto mode falls back to inline when no supported connection succeeds. An
 explicit pane request returns a diagnostic instead.
 
-The confined harness receives
-neither the mux variables nor a command channel back to that pane.
+The harness receives neither the mux variables nor a command channel back to
+that pane. The socket of the multiplexer stays reachable at its default path,
+unless the harness sandbox denies it.
 
 <!-- fragment «display-pane» owner="isolated-invocation" source="crates/grove/src/run_display.rs" lines="44-116" parent="standalone-display" -->
 ````rust

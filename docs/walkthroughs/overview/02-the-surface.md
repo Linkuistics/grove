@@ -160,7 +160,7 @@ enum Command {
 | Argument vector | Parser result and next effect |
 |---|---|
 | `grove` | `command: None`. Resolve workspace, acquire lease, run lifecycle |
-| `grove run review "Review input.txt" --input input.txt` | Ask the owner's policy for the command and run it once in confined scratch storage |
+| `grove run review "Review input.txt" --input input.txt` | Ask the owner's policy for the command and run it once in private scratch storage |
 | `grove run --prompt-file prompt.md` | Route `standalone` outside an active grove, or the next live leaf's kind inside one |
 | `grove view` | `View { worktree: None }`. Observe current directory's `.grove` |
 | `grove view /tmp/tasks` | `View` with `/tmp/tasks`. Observe `/tmp/tasks/.grove` |

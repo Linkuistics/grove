@@ -55,7 +55,7 @@ Ravel keeps job control of its managed process.
 | `grove_loop::LoopOutcome` | Distinguish clean stops and interruption |
 | `grove_loop::reraise` | Preserve an interrupted driver's signal exit |
 | `grove_tui::run` | Own the interactive observation session |
-| `grove_loop::ravel_job::launch` | Launch and reap Ravel as an ordinary child, with result stdout separate from the transcript. Ravel confines its managed process |
+| `grove_loop::ravel_job::launch` | Launch and reap Ravel as an ordinary child, with result stdout separate from the transcript. Ravel supervises its managed process |
 | `grove_loop::ravel_job::scrub` | Remove the loop control variables from the environment of the version probe |
 
 All are public library items. The package boundary makes accidental access to

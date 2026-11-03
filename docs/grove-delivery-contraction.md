@@ -82,8 +82,10 @@ route with CPU/glibc controls. Missing/tampered independent inputs were refused
 before the Grove consumer invoked any archive executable.
 
 At k49, Grove's Linux standalone run failed closed because the CentOS floor
-image lacked `/usr/bin/bwrap`. k52 subsequently supplied the real confinement
-environment, accepted below. k49 itself established no Linux standalone pass.
+image lacked `/usr/bin/bwrap`. k52 later supplied the real confinement
+environment. The withdrawal of confinement then removed that route, as
+[its record](confinement-withdrawal-evidence.md#linux-floor-evidence) states.
+k49 itself established no Linux standalone pass.
 All 15,780 frozen subjects matched individually, and 2,076 protected
 installation/config/adjacent-checkout subjects matched k48. Complete measurement,
 case comparison, negative controls and coverage limitations are in `target/k49/`.

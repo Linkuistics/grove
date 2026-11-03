@@ -93,14 +93,14 @@
       "group": "skills",
       "title": "Supported Ravel routes",
       "source": "routes.mmd",
-      "caption": "Grove implements the admission and both native routes. It supports the directory route through the lifecycle caller and the confined standalone caller. A missing source refuses before any worker, and the leaf stays live. Grove's version probe decides admission only. The configuration file and the skills settings key select the route, and Grove reads neither. Directory delivery needs 2.0.0, its actual minimum. Native 2.0 and directory 2.0 are separate proofs over the same executable. Until promotion, 2.0.0 is the keg-only ravel@2, which the PATH of the invocation selects. While a 1.1 reader remains, a 2.0 route with a 2.0-only settings key needs a separate HOME."
+      "caption": "Grove implements the admission and both native routes. It supports the directory route through the lifecycle caller and the standalone caller. A missing source refuses before any worker, and the leaf stays live. Grove's version probe decides admission only. The configuration file and the skills settings key select the route, and Grove reads neither. Directory delivery needs 2.0.0, its actual minimum. Native 2.0 and directory 2.0 are separate proofs over the same executable. Until promotion, 2.0.0 is the keg-only ravel@2, which the PATH of the invocation selects. While a 1.1 reader remains, a 2.0 route with a 2.0-only settings key needs a separate HOME."
     },
     {
       "id": "skill-delivery",
       "group": "skills",
       "title": "User-managed skill delivery",
       "source": "skill-delivery.mmd",
-      "caption": "The user may choose either route or retain both. Confined native access needs separate proof; installation under HOME grants no reads. Directory readability proves neither skill presence nor adherence. Missing mandated guidance ends with force-stop."
+      "caption": "The user may choose either route or retain both. The harness reads native skills from its own roots under HOME, as a lifecycle session does. Directory readability proves neither skill presence nor adherence. Missing mandated guidance ends with force-stop."
     },
     {
       "id": "skill-transition",
@@ -140,7 +140,7 @@
     {
       "id": "grove-launch",
       "group": "grove",
-      "title": "Lifecycle and confined standalone callers",
+      "title": "Lifecycle and standalone callers",
       "source": "grove-launch.mmd",
       "caption": "Both callers use one shared job function and may receive directory hints. Exact caller ending commands remain intact. Lifecycle and standalone result meanings stay unchanged."
     },

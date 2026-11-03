@@ -28,9 +28,9 @@ shell options from running before the exec. The wrapper rewrites no prompt,
 original argument, working directory or environment grant. A refusal produces
 no managed process and no evidence.
 
-The wrapper changes the selected executable to Bash. Confined callers must
-explicitly supply `--runtime-read` for the original executable and any existing
-runtime files it needs. Bash must exist at `/bin/bash`.
+The wrapper changes the selected executable to Bash. Bash must exist at
+`/bin/bash`. No caller grants the original executable, because Grove confines
+no launch.
 
 Settings, bounds and owner environment grants remain in Ravel's configuration.
 The wrapper raises none of them. Its extra argv consumes the existing

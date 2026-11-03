@@ -88,7 +88,7 @@ stood at the graft — a closed record, not part of the versioned sequence above
   still refuses 1.0.x, prereleases and other majors such as 3.x.
 
 - `grove`: support the directory route on Ravel 2.0.0 through the lifecycle
-  caller and the confined `grove run`. Ravel adds the locations of local skill
+  caller and `grove run`. Ravel adds the locations of local skill
   sources from the `skills` settings to each launch prompt, so no harness needs
   a native copy. Grove sends the same mandate and reads none of these settings.
   Ravel reads local directories only and runs no `git` command, so a tool
@@ -97,10 +97,28 @@ stood at the graft — a closed record, not part of the versioned sequence above
   before launch, and the leaf stays live. `docs/USAGE.md` gives the settings.
   `task ravel:directory` checks the route against a 2.0 build and a 1.1 build.
 
-- `grove`: inside the sandbox of `grove run`, native skills under HOME stay
-  unreadable on each route. A harness that cannot read its guidance
-  force-stops, and Grove publishes nothing. Grove adds no native-directory
-  grant and does not retry without the sandbox.
+- `grove run`: Grove no longer confines a standalone run, and it sends no
+  `--confine` to Ravel. The harness sandbox that your Ravel configuration
+  selects is now the only boundary. This weakens documented guarantees:
+  - A standalone harness can read your Ravel configuration and settings, the
+    parent project and other projects, unless its own sandbox denies the read.
+  - Writes outside the private directory are limited only by the harness
+    sandbox.
+  - The harness reads native skills under HOME, as a lifecycle session does.
+  - The harness receives your environment, such as an API key. Grove removes
+    only the loop controls, the four repository selectors and the five
+    multiplexer variables. A multiplexer socket stays reachable at its
+    default path.
+  - Ravel sends KILL to a cancelled run after its kill-grace of 5 seconds. A
+    nested run can outlast a shorter grace of an outer supervisor, and Grove
+    then publishes nothing.
+
+  `--runtime-read` stays accepted, has no effect and prints one notice.
+  `GROVE_RELEASE_RUNTIME_READ` has no effect. The request is the same for Ravel
+  1.1 and 2.0. The sample runs the `release-notes` writer as Codex with
+  `--sandbox workspace-write`. The helper uses your own Codex home and names
+  `codex login` when Codex has no sign-in. The human decided this trade-off,
+  and `docs/confinement-withdrawal-evidence.md` records it.
 
 - `grove` formula: the caveats show both setup routes, native installation and
   Ravel directory delivery. They show both configuration samples, `policy.ts`
@@ -118,8 +136,9 @@ stood at the graft — a closed record, not part of the versioned sequence above
   lane with the configuration format of its runtime. The macOS release smoke
   checks the Rhai caller set against the 2.0 build. Each runner names each
   target that a lane did not run. The 2.0 lane records all three targets: its
-  build links at glibc 2.17. On Linux, the native and QEMU floors run both
-  lanes, and the 2.0 lane adds the confined directory case. `task
+  build links at glibc 2.17. On Linux, the floor container and QEMU run both
+  lanes, and the 2.0 lane adds the directory case. The floor needs no
+  bubblewrap. `task
   legacy:rehearsal ALSO=<prefix>` checks the Ravel 1.1.0 ending executable after
   each package step while a 2.0 prefix is installed.
 

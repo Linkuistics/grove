@@ -134,7 +134,7 @@ launch. The leaf stays live, and Grove resumes it after you correct the owner's 
 On the directory route, Ravel 2.0.0 adds the locations of your skill sources to each
 launch prompt. The agent finds and reads its skills there, so no harness needs a native
 copy. Grove sends the same mandate on every route, and it reads none of these settings.
-The bare `grove` lifecycle and the confined `grove run` both support the route.
+The bare `grove` lifecycle and `grove run` both support the route.
 
 Add a `skills` object to the settings of the 2.0 HOME. Each source is a local directory,
 named by an absolute path:
@@ -193,11 +193,10 @@ grove run --prompt-file prompt.md --input input.txt --output summary.md
 
 Route the kind to a noninteractive command in your [launch policy](#usage-launch-policy).
 The `release-notes` kind must run the headless helper that the release task stages
-([Releasing](RELEASING.md#release-notes)). Grove runs `ravel start-session --confine` in the
-staged directory. Ravel selects outside confinement and supervises inside it.
+([Releasing](RELEASING.md#release-notes)). Grove runs `ravel start-session` in the staged
+directory. Ravel selects the command and supervises it.
 
-Owner policy and settings stay outside the managed reads. The invocation has no task
-identity and no persistent Ravel record. It receives only its own ephemeral ending context.
+The invocation has no task identity and no persistent Ravel record. It receives only its own ephemeral ending context.
 A refusal launches nothing and publishes nothing. The diagnostics stay in the transcript of
 Grove.
 
@@ -209,8 +208,9 @@ the harness that your policy selects.
 A run without a kind takes the kind `standalone` outside an active grove. A grove is active
 when the closest ancestor of the current directory that holds `.jj/` also holds `.grove/`.
 That is the tree that bare `grove` drives from the same directory. Grove finds it from the
-filesystem and runs no jj command. Inside an active grove, a run without a kind takes the
-kind of the next live leaf. It gains no mandate and no tree authority. An active grove with
+filesystem and runs no jj command.
+
+Inside an active grove, a run without a kind takes the kind of the next live leaf. It gains no mandate and no tree authority. An active grove with
 no live leaf gives a run without a kind no kind, so Grove refuses before it launches.
 
 The kind `standalone` requires no skill. It lets your policy select a harness, a model and
@@ -221,23 +221,35 @@ launches. An explicit kind keeps its own route everywhere, inside a grove too.
 You can supply the prompt as a positional argument instead of `--prompt-file`. One
 positional argument is always the kind, so a run without a kind takes its prompt from
 `--prompt-file`. Repeat
-`--input`, `--output` or `--runtime-read` for multiple files. The basenames of the inputs and
+`--input` or `--output` for multiple files. The basenames of the inputs and
 outputs must all be distinct. Grove refuses symlink inputs and existing output destinations.
 
-The harness can write only inside its invocation directory. Supply private runtime files,
-such as credentials, with explicit read-only `--runtime-read` grants. Writable harness state
-must stay in the temporary directory. macOS requires its native sandbox. Linux requires
-bubblewrap. An unavailable sandbox fails the invocation before any unconfined command can
-run.
+Grove does not confine the harness, and it asks Ravel for no confinement. The sandbox of the
+harness is the only boundary. Your configuration selects that sandbox in the arguments of
+the command, as it selects the harness, the model and the effort. The prompt tells the agent
+to work only on the staged files, but that instruction is not a boundary. With its sandbox
+off, a harness can read and write everything that your account can, the parent project
+included.
 
-The sandbox does not grant your native skill installations under HOME. On the
-[directory route](#usage-directory-route), Ravel 2.0.0 grants read access to the captured
-skills, so the harness can read them. It cannot write them or read their source
-directories. On a native route, the harness cannot read native skills under HOME. Grove
-adds no grant for them and does not retry without the sandbox. The prompt of a standalone
-run names no skill and makes no guidance required. Grove therefore does not promise that the
-agent reports guidance that it cannot read. If the agent runs the force-stop command, Grove
-publishes nothing.
+The ending command of the agent writes beneath the private `control` directory, inside the
+system temporary directory. So the harness sandbox must permit writes there. Codex in
+`--sandbox workspace-write` writes in `TMPDIR`, and its ending command reaches Ravel.
+
+`grove run` still accepts `--runtime-read FILE` and gives it no effect. Grove prints one
+notice on stderr and sends nothing to Ravel for the flag. The harness reads each file that
+your account and the harness sandbox permit.
+
+Grove removes the loop control variables, the four repository selectors such as `GIT_DIR`,
+and the multiplexer variables such as `TMUX` from the environment of the job. The harness
+receives every other variable of your environment, as a lifecycle session does. The socket
+of a multiplexer stays reachable at its default path, unless the harness sandbox denies it.
+
+On the [directory route](#usage-directory-route), the agent reads the captured skills at
+their absolute paths. Ravel keeps each snapshot read-only by its file modes. On a native
+route, the harness loads native guidance from its own roots under HOME, as a lifecycle
+session does. The prompt of a standalone run names no skill and makes no guidance required.
+Grove therefore does not promise that the agent reports missing guidance. If the agent runs
+the force-stop command, Grove publishes nothing.
 
 Every invocation that launches announces its task kind and the location of its transcript
 under `~/.local/state/grove/runs/`. It streams the sanitised output through its caller. It
@@ -462,7 +474,7 @@ Grove: hierarchical workstream tool for AI agents
 Usage: grove [COMMAND]
 
 Commands:
-  run   Run one task kind in a confined temporary directory, without a grove
+  run   Run one task kind in a private temporary directory, without a grove
   view  Browse a .grove task tree read-only with automatic refresh
 
 Options:

@@ -58,5 +58,5 @@
 - [Staged inputs and checked output publication](06-standalone-invocations.md#worked-standalone)
 - [Resolving independent Ravel on PATH](06-standalone-invocations.md#dispatch-lookup)
 - [Independent Ravel PATH and version checks](06-standalone-invocations.md#ravel-resolution)
-- [Dispatched selection and confined launch](06-standalone-invocations.md#standalone-launch-context)
+- [Dispatched selection and the public launch](06-standalone-invocations.md#standalone-launch-context)
 - [Parent-owned transcript and mux display](06-standalone-invocations.md#display-relay)

@@ -18,9 +18,9 @@ sequenceDiagram
   G->>G: Invalidate epoch then apply interruption, successful force-stop, teardown, continuation
   Note over G,H: Standalone: grove run KIND
   G->>G: Stage private cwd, inputs and output instructions, scrub tree authority
-  G->>L: start-session with --confine and explicit --runtime-read grants
+  G->>L: start-session with kind, prompt and exit directory, no --confine
   L->>R: Spawn as a detached job: own session, EOF stdin, no terminal
-  R->>H: Optionally inject directories, select outside confinement, supervise inside it
+  R->>H: Optionally inject directories, select, then supervise. The harness sandbox is the only boundary
   H->>H: Write declared outputs
   H->>R: Exact canonical end-session grove-continue or grove-force-stop
   R-->>L: Result and status after cleanup

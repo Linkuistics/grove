@@ -73,7 +73,7 @@ that the guide must show a real invocation, not only name the command.
 | Row | Surface | Obligation |
 |---|---|---|
 | G1 | `grove` (no arguments) | Worked. All three dispatch outcomes. No `.grove/` ⇒ `root-init` and a first `requirements` leaf. Live leaves ⇒ launch the first in tree order. No live leaves ⇒ materialise the `finish` leaf. |
-| G9 | `grove run KIND [PROMPT]` | The choice of prompt or prompt file. Repeatable inputs, outputs and runtime grants. Selection by the owner policy, with no project and no jj. Mandatory confinement and supervision by Ravel. The transcript that the caller owns, and the opaque completion result. Validation of the artifacts, and no overwrite. Inline or multiplexer visibility, persistent logs, cancellation and exit codes. |
+| G9 | `grove run KIND [PROMPT]` | The choice of prompt or prompt file. Repeatable inputs and outputs. The accepted `--runtime-read` flag, which has no effect and prints one notice. Selection by the owner policy, with no project and no jj. Supervision by Ravel, with no confinement, and the harness sandbox as the only boundary. The transcript that the caller owns, and the opaque completion result. Validation of the artifacts, and no overwrite. Inline or multiplexer visibility, persistent logs, cancellation and exit codes. |
 | G2 | `-h`, `--help` | Named, with the fact that it stops before it touches a repository. |
 | G3 | `-V`, `--version` | Named, with the same guarantee. |
 | G4 | Bare lifecycle has no launch-policy selectors | Stated. Bare `grove` takes no tree argument and no confirmation step. Its enclosing working tree selects the workstream. The viewer path selects only an observation location. |

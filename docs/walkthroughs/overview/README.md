@@ -13,7 +13,7 @@ Viewing returns before
 that lifecycle.
 
 `grove run` adds a separate lifetime. It has one kind and the command that the
-owner's Ravel policy selects for that kind. It runs in confined temporary
+owner's Ravel policy selects for that kind. It runs in private temporary
 storage, with staged inputs, checked output publication and a parent-owned
 transcript. It needs no workspace or task tree.
 

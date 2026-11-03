@@ -19,7 +19,7 @@ intent only.
 Grove no longer provisions Codex skills. Grove admits Ravel 1.x
 from 1.1.0 and 2.x from 2.0.0. It supports the native routes on 1.1 and on 2.0,
 with its TypeScript and Rhai caller assets. It supports the directory route on 2.0
-through the lifecycle caller and the confined standalone caller.
+through the lifecycle caller and the standalone caller.
 See
 [design evidence](../../grove-skill-delivery-design-evidence.md#upstream-correction).
 
@@ -50,7 +50,7 @@ asserts no private transport or escalation details.
 | [Preserving readers through adoption](http://127.0.0.1:52710/#diagram-skill-transition) | Use the integrated upstream contract, verify isolated combinations and intermediate tap states, then activate separately. |
 | [Nested jobs](http://127.0.0.1:52710/#diagram-chain) | Grove's foreground job for `ravel`, signal forwarding, Ravel's managed job and terminal recovery. |
 | [Result lifecycle](http://127.0.0.1:52710/#diagram-ending) | Successful publication against an absent result, cancellation or cleanup failure. |
-| [Two Grove callers](http://127.0.0.1:52710/#diagram-grove-launch) | The foreground and detached jobs, lifecycle admission and teardown, and confined standalone output publication. |
+| [Two Grove callers](http://127.0.0.1:52710/#diagram-grove-launch) | The foreground and detached jobs, lifecycle admission and teardown, and standalone output publication. |
 | [Post-reap decision](http://127.0.0.1:52710/#diagram-loop-decision) | Epoch gate, failed spawn or wait, interruption, successful force-stop, teardown and successful continuation. Each error keeps a caught signal. |
 | [Creator alternatives](http://127.0.0.1:52710/#diagram-creator-options) | The inline receipt or declaration of the [Creator decision](../../adr/a-review-carries-its-creator-reference.md), and its rejected alternatives of a store or today's route. |
 | [Creator handoff](http://127.0.0.1:52710/#diagram-creator-flow) | Caller wrapper, finishing producer and the committed provider evidence of the review. |
@@ -74,7 +74,19 @@ public integration. Neither duplicates Ravel's private runtime contract.
 
 ## Current changes
 
-The current discussion rebuilds how the owner switch recovers from
+The withdrawal of confinement removes the confined standalone caller. Grove
+sends no `--confine` and no `--runtime-read`, and the harness sandbox is the
+only boundary of a standalone run. See the
+[withdrawal record](../../confinement-withdrawal-evidence.md) and the
+[standalone contract](../../specs/standalone-invocations.md#the-harness-sandbox).
+
+- [Two Grove callers](http://127.0.0.1:52710/#diagram-grove-launch) — The standalone request holds the kind, the prompt and the exit directory. Ravel selects and supervises, and the harness sandbox is the only boundary.
+- [User-managed skill delivery](http://127.0.0.1:52710/#diagram-skill-delivery) — A native route reads the native roots of the harness. No sandbox of Ravel hides them.
+- [Supported Ravel routes](http://127.0.0.1:52710/#diagram-routes) — The caption names the standalone caller without confinement.
+
+## Earlier recovery changes
+
+The discussion before it rebuilt how the owner switch recovers from
 interruptions and outside writes. The switch changes cells, and detection of
 outside writes replaces the earlier exemptions. A run record tells an
 interruption from an outside write, and the layout decides the state. Its

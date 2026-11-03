@@ -606,8 +606,8 @@ fn session_prompt(
 The loop calls `session_command::lifecycle` with the same selection that
 composed its prompt and the once-selected executable. Kind, prompt, writable
 exit directory and task data are public inputs. It passes no private report flag.
-The shared module, explained below, also constructs standalone confinement
-inputs and quotes the exact ending command for either caller.
+The shared module, explained below, also constructs the standalone request
+and quotes the exact ending command for either caller.
 
 <a id="launch"></a>
 ## `launch_session`: a foreground job
@@ -1649,16 +1649,18 @@ shell and no second reading of any word. `ravel_job::launch` takes this value
 as it is, so no caller converts it.
 
 `lifecycle` sends the selection's kind, task path and handle together with the
-literal prompt and writable exit directory. `confined` sends the standalone
-kind and prompt with `--confine` and canonical runtime-file grants, without task
-data. Each value joins its flag in one argv word, so a leading dash cannot become
-an option. These are public Ravel inputs. The call sends no private ending-report
-flag.
+literal prompt and writable exit directory. `standalone` sends the common
+`start` arguments alone: the kind, the prompt and the exit directory, without
+task data. Each value joins its flag in one argv word, so a leading dash cannot
+become an option. These are public Ravel inputs. The call sends no private
+ending-report flag.
 
-Runtime-file paths resolve before the runner changes to the staged cwd. Ravel's
-public confinement contract admits its own real front, so Grove adds no worker
-or policy-directory grant. The caller still owns supervision and result capture.
-A correctly built command alone proves neither successful cleanup nor a result.
+The standalone request holds no `--confine` and no `--runtime-read`. Ravel 1.1
+keeps `--confine` and Ravel 2.0 refuses it, so a request without either flag is
+the same for both majors. The harness sandbox that the owner's configuration
+selects is the only boundary. The caller still owns supervision and result
+capture. A correctly built command alone proves neither successful cleanup nor
+a result.
 
 `end_session` quotes the selected UTF-8 executable as one shell word and passes
 Grove's exact `grove-continue` result. Quotes, spaces and newlines in the path
@@ -1799,16 +1801,16 @@ The evidence is `tests/session_command.rs`. Its shell test executes a path with
 quotes, newlines and shell punctuation on an unusable PATH. Installed Ravel
 fixtures observe the lifecycle inputs through the actual policy. They launch
 through [`ravel_job::launch`](#ravel-job), the lifecycle case in the foreground
-shape and the confined case in the detached shape. They execute the
+shape and the standalone case in the detached shape. They execute the
 quoted ending from a separate prefix. They keep managed output separate from the
 result.
 
 The lifecycle's lookup PATH contains an executable decoy after selection. So
 launching or ending through a bare name fails the same real-front check.
 
-The confined case first observes a denied credential read. It then grants the
-same relative path before staging. It verifies that the path can be read while
-the policy stays unreadable. `task ravel:commands RAVEL=/absolute/path/to/ravel`
+A unit test checks that the standalone request holds the exit directory and
+neither removed flag. The installed standalone case checks that the policy
+receives no task data. `task ravel:commands RAVEL=/absolute/path/to/ravel`
 runs the shell and installed checks. It needs no model and no host runtime on the
 managed PATH.
 

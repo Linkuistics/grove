@@ -10,7 +10,7 @@ resolves that tree, takes its driver lease and calls the loop. The loop chooses
 the next task and launches it through `ravel`, which selects the
 command. Viewing has a separate early-return path. `grove run` names
 one kind explicitly and asks the owner's Ravel policy for its command.
-It orchestrates its confined temporary files, completion and output transfer,
+It orchestrates its private temporary files, completion and output transfer,
 and it does not enter a task-tree lifecycle.
 
 This book's corpus is `crates/grove`: its manifest and all production modules.
@@ -444,7 +444,7 @@ neither because their job is the invocation itself.
 | 2 | A closure property: bare lifecycle selectors are absent and the top-level command set is run, run-log and view | `the_human_command_surface_has_nothing_left_to_select` | Proving a negative |
 | 3 | A convention, checked: every option the binary lists is described | `the_human_facing_binary_describes_every_option_it_lists` | Proving a negative |
 | — | The module map | — | What the call reaches |
-| — | Confined scratch state, checked export and parent-owned display | Native policy and artifact checks | One isolated invocation |
+| — | Private scratch state, checked export and parent-owned display | Native policy and artifact checks | One isolated invocation |
 
 Mechanism 1 belongs to this chapter, and this chapter now covers all of it. Its
 parts are a separate crate, no `[lib]`, one target and public library

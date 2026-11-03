@@ -23,6 +23,7 @@ caller data, with no parameter. The policy forwards the launch prompt under the
 Lifecycle work runs in the workspace root, and
 standalone work runs in its staged cwd. An owner policy can derive workspace
 grants from `request.cwd` and `.jj/repo`. No jj/task convention belongs to Ravel.
+
 Grove's readable assets interpret task relationships and preserve inline creator
 receipts. Ravel supplies no run lookup, persistent records or historical API.
 

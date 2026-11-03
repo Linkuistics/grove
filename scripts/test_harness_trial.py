@@ -6,12 +6,14 @@ The tests call the runner in process, with a fake real home, a fake prepared
 directory and a fake environment. A fake `grove` driver stands in for Grove and
 Ravel: it reads the route that the runner wrote, gives the trial its own
 channel and launch directory, and starts the real launch wrapper. A fake
-`claude` answers the probes and writes a stream and a session transcript.
+`claude` answers the probes and writes a stream and a session transcript. A
+fake `codex` writes its session file and its stream in the shapes of Codex
+0.166, with the account data of a real session file.
 
 Each check also runs once against a deliberately broken runner: one runner
 function replaced by a broken version. The check must fail there, so a check
 that reads clean for every runner fails this file. The real trials are the
-opt-in task `trial:claude`.
+opt-in tasks `trial:claude` and `trial:codex`.
 """
 
 from __future__ import annotations
@@ -40,6 +42,9 @@ LIVE = {
     "CLAUDE_CODE_SESSION_ID": "live-session",
     "CLAUDE_CODE_ENTRYPOINT": "cli",
     "ANTHROPIC_API_KEY": "sk-live",
+    # A live Codex session's names, as a runner inside Codex inherits them.
+    "CODEX_THREAD_ID": "live-thread",
+    "CODEX_SANDBOX": "seatbelt",
 }
 
 # macOS adds __CF_USER_TEXT_ENCODING to the environment of every process, so
@@ -283,6 +288,136 @@ if behaviour.get("strayNative"):
 print(json.dumps({{"type": "result", "subtype": "success"}}))
 '''
 
+FAKE_CODEX = r'''#!{python}
+# A fake Codex 0.166. Its behaviour file says what it does. It writes its
+# session file and its --json stream in the shapes of a real run, with the
+# account data that a real session file holds.
+import json, os, re, shlex, sys
+from pathlib import Path
+from urllib.parse import quote
+behaviour = json.loads(Path({behaviour!r}).read_text())
+with open({launched!r}, "a") as log:
+    log.write(" ".join(sys.argv[1:2]) + "\n")
+home = Path(os.environ["HOME"])
+codex_home = Path(os.environ.get("CODEX_HOME") or home / ".codex")
+args = sys.argv[1:]
+if args[:1] == ["--version"]:
+    print("codex-cli 9.9.9")
+    sys.exit(0)
+def residue():
+    # The bundled system skills, and a curated plugin that a ChatGPT sign-in downloads.
+    for name in ("imagegen", "openai-docs"):
+        (codex_home / "skills/.system" / name).mkdir(parents=True, exist_ok=True)
+        (codex_home / "skills/.system" / name / "SKILL.md").write_text(name + "\n")
+    page = codex_home / "plugins/cache/openai-curated-remote/pages/0.1.26/skills/write-page"
+    page.mkdir(parents=True, exist_ok=True)
+    (page / "SKILL.md").write_text("page\n")
+if args[:2] == ["login", "status"]:
+    if behaviour.get("loggedOut"):
+        print("Not logged in", file=sys.stderr)
+        sys.exit(1)
+    print("Logged in using ChatGPT")
+    sys.exit(0)
+root = behaviour.get("skillRoot") or str(codex_home / "skills/.system")
+skills = ("<skills_instructions>\n## Skills\n### Skill roots\n- `r0` = `" + root + "`\n### Available skills\n"
+          "- imagegen: Make images. (file: r0/imagegen/SKILL.md)\n</skills_instructions>")
+items = [
+    {{"type": "additional_tools", "role": "developer", "tools": [
+        {{"type": "namespace", "name": "functions", "tools": [{{"type": "custom", "name": "exec"}}]}}]}},
+    {{"type": "message", "role": "developer", "content": [{{"type": "input_text", "text": "You are a fake Codex."}}]}},
+    {{"type": "message", "role": "developer", "content": [{{"type": "input_text", "text": skills}}]}},
+    {{"type": "message", "role": "user", "content": [{{"type": "input_text",
+        "text": "<environment_context>\n  <cwd>" + os.getcwd() + "</cwd>\n</environment_context>"}}]}},
+]
+if args[:2] == ["debug", "prompt-input"]:
+    residue()
+    print(json.dumps(items))
+    sys.exit(0)
+assert args[0] == "exec", args
+prompt = args[-1]
+snap = re.search(r'- "(.+)/skills"', prompt)
+names = {{"SNAP": snap.group(1) if snap else "", "HOME": str(home), "CWD": os.getcwd(), "TRIAL": str(home.parent)}}
+residue()
+sessions = codex_home / "sessions/2026/11/03"
+count = len(list(sessions.glob("*.jsonl"))) if sessions.is_dir() else 0
+thread = f"01a19ed6-091b-71d1-8857-{{count + 1:012d}}"
+print(json.dumps({{"type": "thread.started", "thread_id": thread}}), flush=True)
+print(json.dumps({{"type": "turn.started"}}), flush=True)
+records = [
+    {{"type": "session_meta", "payload": {{"id": thread, "session_id": thread, "cwd": os.getcwd(), "cli_version": "9.9.9",
+        "originator": "codex_exec", "source": "exec", "model_provider": "openai", "creator_account_id": "secret-account",
+        "creator_user_id": "secret-user", "base_instructions": "You are a fake Codex."}}}},
+    {{"type": "turn_context", "payload": {{"cwd": os.getcwd(), "model": args[args.index("--model") + 1], "effort": "medium",
+        "approval_policy": "never", "sandbox_policy": {{"type": "workspace-write", "network_access": False}}}}}},
+    *[{{"type": "response_item", "payload": item}} for item in items],
+    {{"type": "event_msg", "payload": {{"type": "token_count", "rate_limits": {{"credits": {{"balance": "secret-balance"}}}}}}}},
+]
+stream = []
+for n, (kind, value, cwd, code) in enumerate(behaviour["codexItems"]):
+    value = value.format(**names)
+    where = cwd.format(**names) if cwd else os.getcwd()
+    if kind == "text":
+        item = {{"type": "AgentMessage", "id": f"m{{n}}", "content": [{{"type": "Text", "text": value}}]}}
+        shown = {{"id": f"item_{{n}}", "type": "agent_message", "text": value}}
+    elif kind == "patch":
+        Path(value).write_text("smoke\n")
+        item = {{"type": "FileChange", "id": f"p{{n}}", "status": "completed", "changes": {{value: {{"type": "add"}}}}}}
+        shown = {{"id": f"item_{{n}}", "type": "file_change", "status": "completed", "changes": [{{"path": value, "kind": "add"}}]}}
+    else:
+        item = {{"type": "CommandExecution", "id": f"c{{n}}", "command": ["/bin/zsh", "-lc", value],
+                "cwd": "file://" + quote(where), "status": "completed", "exit_code": code, "aggregated_output": "out"}}
+        shown = {{"id": f"item_{{n}}", "type": "command_execution", "command": "/bin/zsh -lc " + shlex.quote(value),
+                 "aggregated_output": "out", "exit_code": code, "status": "completed"}}
+    records.append({{"type": "event_msg", "payload": {{"type": "item_completed", "item": item}}}})
+    stream.append({{"type": "item.completed", "item": shown}})
+if not behaviour.get("noSession"):
+    sessions.mkdir(parents=True, exist_ok=True)
+    (sessions / f"rollout-2026-11-03T00-00-0{{count}}-{{thread}}.jsonl").write_text(
+        "".join(json.dumps(r) + "\n" for r in records))
+for event in stream:
+    print(json.dumps(event))
+store = home / ".codex/auth.json"
+if behaviour.get("replaceLink"):
+    store.unlink()
+    store.write_text("{{}}\n")
+if behaviour.get("extraLink"):
+    os.symlink("/", codex_home / "extra")
+if behaviour.get("strayNative"):
+    (codex_home / "skills/stray").mkdir(parents=True)
+    (codex_home / "skills/stray/SKILL.md").write_text("stray\n")
+print(json.dumps({{"type": "turn.completed", "usage": {{"input_tokens": 1}}}}))
+'''
+
+# The items of the fake Codex session: (kind, value, working directory,
+# exit code). Each command names its working directory, and a relative read
+# resolves against it.
+CODEX_ITEMS = [
+    ("command", "cat \"{SNAP}/skills/grove/SKILL.md\"", None, 0),
+    ("command", "sed -n 1,80p skills/grove/references/execute.md", "{SNAP}", 0),
+    ("command", "cd skills && cat grove-impl/SKILL.md", "{SNAP}", 0),
+    ("command", "cat \"{SNAP}/skills/craft/SKILL.md\"", None, 0),
+    ("command", "cat \"$RAVEL_SKILL_DIRECTORIES\"", None, 0),
+    ("command", "cat {HOME}/.codex/skills/.system/imagegen/SKILL.md", None, 0),
+    ("command", "cat {HOME}/.codex/skills/old/SKILL.md", None, 1),
+    ("text", "I read the craft skill.", None, None),
+    ("patch", "{CWD}/smoke.txt", None, None),
+    ("command", "jj commit -m smoke", None, 0),
+    ("command", "'/x/bin/ravel' end-session grove-continue", None, 0),
+]
+CODEX_EXPECTED = [
+    ("exec_command", "mandatory", "grove", False),
+    ("exec_command", "supporting", "grove", False),
+    ("exec_command", "kind-skill", "grove-impl", False),
+    ("exec_command", "skill", "craft", False),
+    ("exec_command", "variable", None, False),
+    ("exec_command", "residue", "imagegen", False),
+    ("exec_command", "native", "old", True),
+    ("text", "text", None, None),
+    ("apply_patch", "action", None, False),
+    ("exec_command", "command", None, False),
+    ("exec_command", "ending", None, False),
+]
+
 FAKE_FRONT = r'''#!{python}
 # A fake 2.0 front. `skills resolve --json` names the descriptor that the fake
 # driver published, as a real resolution of the same settings does.
@@ -402,6 +537,10 @@ class Fixture:
             (self.owner / self.store).write_text("{}\n")
         (self.owner / ".claude/skills/real").mkdir(parents=True)
         (self.owner / ".claude/skills/real/SKILL.md").write_text("real\n")
+        # The owner's real Codex home: the sign-in file and a real skill.
+        (self.owner / ".codex/skills/real").mkdir(parents=True)
+        (self.owner / ".codex/skills/real/SKILL.md").write_text("real\n")
+        (self.owner / trial.sign_in_store("codex")).write_text("{}\n")
 
         self.prepared = root / "prepared"
         grove_bin = self.prepared / "grove/bin"
@@ -433,6 +572,11 @@ class Fixture:
         self.claude.parent.mkdir()
         self._exec(self.claude, FAKE_CLAUDE.format(
             python=sys.executable, behaviour=str(self.behaviour), launched=str(self.launched), store=self.store))
+        self.codex_launched = root / "codex.launched"
+        self.codex = root / "codex-bin/codex"
+        self.codex.parent.mkdir()
+        self._exec(self.codex, FAKE_CODEX.format(
+            python=sys.executable, behaviour=str(self.behaviour), launched=str(self.codex_launched)))
         self.behave()
 
     @staticmethod
@@ -452,7 +596,7 @@ class Fixture:
         path.chmod(0o755)
 
     def behave(self, **changes) -> None:
-        self.behaviour.write_text(json.dumps({"tools": TOOLS, **changes}))
+        self.behaviour.write_text(json.dumps({"tools": TOOLS, "codexItems": CODEX_ITEMS, **changes}))
 
     def environ(self, **extra) -> dict[str, str]:
         return {"HOME": str(self.owner), "PATH": os.environ["PATH"], "USER": "owner",
@@ -465,8 +609,17 @@ class Fixture:
             status = trial.main(["run", "--prepared", str(self.prepared), "--case", case], self.environ(**extra))
         return status, output.getvalue()
 
+    def run_codex(self, case: str = "smoke", **extra) -> tuple[int, str]:
+        """Run a case in the fake Codex; return the status and everything it printed."""
+        output = io.StringIO()
+        environ = self.environ(HARNESS_TRIAL_PROGRAM=str(self.codex), **extra)
+        with contextlib.redirect_stdout(output), contextlib.redirect_stderr(output):
+            status = trial.main(["run", "--prepared", str(self.prepared), "--case", case, "--harness", "codex"],
+                                environ)
+        return status, output.getvalue()
+
     def launched_any(self) -> bool:
-        return self.launched.exists() or self.grove_env.exists()
+        return self.launched.exists() or self.codex_launched.exists() or self.grove_env.exists()
 
     def record(self) -> dict:
         runs = sorted((self.prepared / "runs").iterdir())
@@ -1319,6 +1472,242 @@ class HarnessTrialTest(unittest.TestCase):
         self.assertEqual(route["program"], sys.executable)
         self.assertIn('"turns", "--plan", "/t/turns.json", "--", "/c"', config)
         self.assertLess(config.index('"turns"'), config.index('"-p"'))
+
+    # --- The Codex adapter ----------------------------------------------------
+
+    def check_codex_home_refusals(self, fixture: Fixture):
+        """An inherited CODEX_HOME in the real home refuses before any launch:
+        the default directory, the home itself, an empty value and an alias
+        of the real home."""
+        alias = fixture.root / "alias"
+        if not alias.exists():
+            alias.symlink_to(fixture.owner)
+        for value in (str(fixture.owner / ".codex"), str(fixture.owner), "", str(alias / ".codex")):
+            status, output = fixture.run_codex(CODEX_HOME=value)
+            self.assertEqual(status, 1, f"CODEX_HOME={value!r} did not refuse: {output}")
+            self.assertIn("the environment holds CODEX_HOME", output)
+            self.assertFalse(fixture.launched_any(), f"CODEX_HOME={value!r}: a harness or driver launched")
+
+    def test_codex_home_in_the_real_home_refuses_before_any_launch(self):
+        self.check_codex_home_refusals(self.fixture)
+        self.broken(self.check_codex_home_refusals, "refuse_codex_home", lambda environ, owner, cwd: None)
+
+    def check_codex_home_replaced(self, fixture: Fixture):
+        elsewhere = fixture.root / "elsewhere" / ".codex"
+        status, output = fixture.run_codex(CODEX_HOME=str(elsewhere))
+        self.assertEqual(status, 0, output)
+        self.assertIn(f"the inherited CODEX_HOME {elsewhere} is outside the real home; this run uses the sandbox .codex",
+                      output)
+        record = fixture.record()
+        sandbox = str(Path(record["trial"]) / "home/.codex")
+        self.assertEqual(json.loads(fixture.grove_env.read_text()).get("CODEX_HOME"), sandbox)
+        self.assertIn("outside the real home", record["harness"]["codexHome"])
+        self.assertFalse(elsewhere.exists(), "Codex wrote into the inherited CODEX_HOME")
+        self.assertTrue(record["launches"][0]["transcripts"][0]["file"].startswith(".codex/sessions/"))
+
+    def test_codex_home_outside_the_real_home_is_replaced_and_reported(self):
+        self.check_codex_home_replaced(self.fixture)
+        self.broken(self.check_codex_home_replaced, "harness_env", lambda harness, home: {})
+
+    def check_codex_allow_list(self, fixture: Fixture):
+        status, output = fixture.run_codex(CODEX_PLANTED="planted")
+        self.assertEqual(status, 0, output)
+        driver = json.loads(fixture.grove_env.read_text())
+        self.assertLessEqual(set(driver), ALLOWED | {"CODEX_HOME"}, "the driver received a name outside the allow-list")
+        launch = fixture.record()["launches"][0]
+        self.assertEqual(launch["control"], [])
+        self.assertNotIn("CODEX_PLANTED", launch["envNames"])
+        self.assertNotIn("CODEX_THREAD_ID", launch["envNames"])
+
+    def test_the_codex_driver_receives_only_the_allow_list(self):
+        self.check_codex_allow_list(self.fixture)
+
+        def leaky(environ, home, tmp, path_dirs):
+            return {**environ, "HOME": str(home), "TMPDIR": str(tmp), "PATH": ":".join(path_dirs)}
+
+        self.broken(self.check_codex_allow_list, "allowed_env", leaky)
+
+    def check_codex_control_fires(self, fixture: Fixture):
+        """A runner that passes the live session's CODEX_THREAD_ID: the name
+        reaches the child with the live value, and the control fails the run."""
+        real = trial.allowed_env
+
+        def planting(environ, home, tmp, path_dirs):
+            return {**real(environ, home, tmp, path_dirs), "CODEX_THREAD_ID": LIVE["CODEX_THREAD_ID"]}
+
+        with mock.patch.object(trial, "allowed_env", planting):
+            status, output = fixture.run_codex()
+        self.assertEqual(status, 1, output)
+        self.assertIn("CODEX_THREAD_ID reached the trial child with the live session's value", output)
+
+    def test_a_planted_codex_name_fails_the_control_once(self):
+        self.check_codex_control_fires(self.fixture)
+        self.broken(self.check_codex_control_fires, "child_control", lambda child, live: [])
+
+    def check_codex_links(self, fixture: Fixture):
+        status, output = fixture.run_codex()
+        self.assertEqual(status, 0, output)
+        store = trial.sign_in_store("codex")
+        links = [line for line in output.splitlines()
+                 if line.startswith("harness-trial: link ") and not line.startswith("harness-trial: link after")]
+        self.assertEqual(links, [f"harness-trial: link {store} -> {fixture.owner / store}"])
+        self.assertEqual([line for line in output.splitlines() if "link after" in line],
+                         [f"harness-trial: link after {store} -> {fixture.owner / store}"])
+        for change in ({"replaceLink": True}, {"extraLink": True}):
+            other = self.fresh()
+            other.behave(**change)
+            status, output = other.run_codex()
+            self.assertEqual(status, 1, f"{change}: the run passed: {output}")
+            self.assertIn("the sandbox home holds the links", output)
+            self.assertEqual((other.owner / store).read_text(), "{}\n", "the real sign-in changed")
+
+    def test_the_codex_link_list_holds_only_auth_json_before_and_after(self):
+        self.check_codex_links(self.fixture)
+        self.broken(self.check_codex_links, "check_links", lambda links, store, owner, when: None)
+
+    def check_codex_events(self, fixture: Fixture):
+        status, output = fixture.run_codex()
+        self.assertEqual(status, 0, output)
+        record = fixture.record()
+        launch = record["launches"][0]
+        self.assertEqual(launch["sessionId"][:8], "01a19ed6")
+        self.assertEqual(len(launch["transcripts"]), 1)
+        transcript = launch["transcripts"][0]
+        self.assertRegex(transcript["file"], r"^\.codex/sessions/2026/11/03/rollout-.*-01a19ed6-.*\.jsonl$")
+        events = transcript["events"]
+        self.assertEqual([(e["tool"], e["class"], e.get("skill"), e["error"]) for e in events], CODEX_EXPECTED)
+        snap = launch["sources"][0]["snapshotRoot"]
+        # Each read names its absolute path, also a relative read in the
+        # command's own working directory, and each command names both.
+        self.assertEqual(events[1]["path"], os.path.join(snap, "skills/grove/references/execute.md"))
+        self.assertEqual(events[1]["cwd"], snap)
+        self.assertEqual(events[2]["path"], os.path.join(snap, "skills/grove-impl/SKILL.md"))
+        for event in events:
+            if event["tool"] == "exec_command":
+                self.assertTrue(event["cwd"].startswith("/"), event)
+                self.assertTrue(all(path.startswith("/") for path in event["paths"]), event)
+        self.assertEqual(events[8]["path"], str(Path(record["trial"]) / "repo/smoke.txt"))
+        self.assertEqual(record["ending"]["endingCommands"], ["grove-continue"])
+        self.assertEqual(launch["streamResult"], "turn.completed")
+        startup = transcript["startup"]
+        self.assertEqual(startup["init"]["cli_version"], "9.9.9")
+        self.assertEqual(startup["init"]["sandbox_policy"]["type"], "workspace-write")
+        self.assertEqual(startup["tools"], ["functions.exec"])
+        self.assertEqual(startup["skillListing"]["names"], ["imagegen"])
+        markdown = (Path(record["trial"]) / "record.md").read_text()
+        self.assertIn(f"in `{snap}`", markdown)
+
+    def test_codex_extraction_orders_every_command_with_absolute_paths(self):
+        self.check_codex_events(self.fixture)
+        real = trial.codex_item
+        self.broken(self.check_codex_events, "codex_item",
+                    lambda item, n: [{k: v for k, v in e.items() if k != "cwd"} for e in real(item, n)])
+
+    def check_codex_stream(self, fixture: Fixture):
+        """Without a session file, the events come from the stream."""
+        fixture.behave(noSession=True)
+        status, output = fixture.run_codex()
+        self.assertEqual(status, 0, output)
+        transcript = fixture.record()["launches"][0]["transcripts"][0]
+        self.assertEqual(transcript["file"], "stream")
+        classes = [e["class"] for e in transcript["events"]]
+        self.assertEqual(classes[:1], ["mandatory"])
+        self.assertIn("ending", classes)
+
+    def test_codex_extraction_falls_back_to_the_stream(self):
+        self.check_codex_stream(self.fixture)
+        self.broken(self.check_codex_stream, "codex_entries", lambda records: [])
+
+    def check_codex_config_directory(self, fixture: Fixture):
+        fixture.behave(skillRoot=str(fixture.owner / ".codex/skills/.system"))
+        status, output = fixture.run_codex()
+        self.assertEqual(status, 1, output)
+        self.assertIn("Codex reports the skill roots", output)
+        self.assertFalse(fixture.grove_env.exists(), "the driver launched after the failed check")
+
+    def test_a_codex_configuration_directory_elsewhere_refuses(self):
+        self.check_codex_config_directory(self.fixture)
+        self.broken(self.check_codex_config_directory, "codex_config_check", lambda rendered, config: "unchecked")
+
+    def check_codex_residue(self, fixture: Fixture):
+        status, output = fixture.run_codex()
+        self.assertEqual(status, 0, output)
+        skills = fixture.record()["skills"]
+        self.assertEqual(skills["nativeCopies"], [])
+        self.assertIn(".codex/skills/.system/imagegen/SKILL.md", skills["residue"])
+        self.assertIn(".codex/plugins/cache/openai-curated-remote/pages/0.1.26/skills/write-page/SKILL.md",
+                      skills["residue"])
+        stray = self.fresh()
+        stray.behave(strayNative=True)
+        status, output = stray.run_codex()
+        self.assertEqual(status, 1, output)
+        self.assertIn(".codex/skills/stray/SKILL.md", output)
+        # A declared native copy lies in the sandbox .codex/skills.
+        stale = self.fresh()
+        status, output = stale.run_codex("stale")
+        self.assertEqual(status, 0, output)
+        self.assertEqual(stale.record()["skills"]["nativeCopies"], [".codex/skills/craft/SKILL.md"])
+
+    def test_codex_residue_is_no_native_copy(self):
+        self.check_codex_residue(self.fixture)
+
+        def claude_only(home):
+            native, residue = [], []
+            for path in sorted(home.rglob("SKILL.md")):
+                relative = str(path.relative_to(home))
+                if ".cache/ravel" not in relative:
+                    (residue if "skills/synced" in relative else native).append(relative)
+            return native, residue
+
+        self.broken(self.check_codex_residue, "skill_files", claude_only)
+
+    def check_codex_account_data(self, fixture: Fixture):
+        status, output = fixture.run_codex()
+        self.assertEqual(status, 0, output)
+        trial_dir = Path(fixture.record()["trial"])
+        for name in ("record.json", "record.md"):
+            text = (trial_dir / name).read_text()
+            for secret in ("secret-account", "secret-user", "secret-balance"):
+                self.assertNotIn(secret, text, f"{secret} reached {name}")
+        harness = fixture.record()["harness"]
+        self.assertEqual(harness["name"], "codex")
+        self.assertEqual(harness["caseHarness"], "claude")
+        self.assertEqual(harness["model"], trial.CODEX_MODEL)
+        self.assertEqual(harness["sandboxMode"], "workspace-write")
+        self.assertEqual(harness["loginStatus"], "Logged in using ChatGPT")
+        self.assertEqual(harness["authConfigDirectory"], str(trial_dir / "home/.codex/skills/.system"))
+        self.assertEqual(harness["prelaunch"]["skillListing"]["roots"], {"r0": harness["authConfigDirectory"]})
+        self.assertIn("Codex input before the launch", (trial_dir / "record.md").read_text())
+
+    def test_the_codex_record_keeps_no_account_data(self):
+        self.check_codex_account_data(self.fixture)
+        self.broken(self.check_codex_account_data, "codex_startup",
+                    lambda records: {"init": next(r["payload"] for r in records if r["type"] == "session_meta")})
+
+    def check_codex_later_fields(self, fixture: Fixture):
+        for case, field in (("continuation", "continuation"), ("compaction-path", "compaction"),
+                            ("delegate", "expectDelegate"), ("explicit", "claudeSettings")):
+            with self.assertRaises(trial.TrialError, msg=f"{case} loaded for Codex") as caught:
+                trial.load_case(case, "codex")
+            self.assertIn(f"'{field}'", str(caught.exception))
+        trial.load_case("continuation", "claude")
+
+    def test_codex_refuses_the_fields_of_later_leaves(self):
+        self.check_codex_later_fields(self.fixture)
+        self.broken(self.check_codex_later_fields, "CODEX_LATER", {})
+
+    def test_the_codex_configuration_selects_codex_exec(self):
+        case = {"kinds": ["impl"], "name": "x", "harness": "codex"}
+        route = trial.route_for(case, Path("/r"), Path("/c"), "gpt-x", "low")
+        config = trial.config_for(case, route)
+        self.assertIn('"exec", "--json", "--skip-git-repo-check"', config)
+        self.assertIn('"--sandbox", "workspace-write", "-c", "approval_policy=\\"never\\""', config)
+        self.assertIn('"-c", "model_reasoning_effort=\\"low\\""', config)
+        self.assertIn('provider: "openai"', config)
+        self.assertNotIn('"--add-dir"', config)
+        self.assertIn("args.push(request.prompt);", config)
+        with self.assertRaises(trial.TrialError):
+            trial.load_case("smoke", "gemini")
 
 
 if __name__ == "__main__":

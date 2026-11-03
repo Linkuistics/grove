@@ -298,6 +298,13 @@ tasks:
     cmds:
       - python3 scripts/harness_trial.py run --prepared "{{.OUT}}" --case "{{.CASE}}" {{if .MODEL}}--model "{{.MODEL}}"{{end}} {{if .EFFORT}}--effort "{{.EFFORT}}"{{end}}
 
+  trial:codex:
+    desc: Run one real Codex trial CASE from the prepared OUT, in the case's tree (spends subscription usage; MODEL and EFFORT override the Codex defaults)
+    requires:
+      vars: [OUT, CASE]
+    cmds:
+      - python3 scripts/harness_trial.py run --prepared "{{.OUT}}" --case "{{.CASE}}" --harness codex {{if .MODEL}}--model "{{.MODEL}}"{{end}} {{if .EFFORT}}--effort "{{.EFFORT}}"{{end}}
+
   trial:reextract:
     desc: Extract the events of the earlier trial run TRIAL again from its transcripts, with the current classifier
     requires:

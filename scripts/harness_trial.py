@@ -32,10 +32,12 @@ before the driver, and expects Ravel's refusal before any harness launch.
 A case with `continuation` resumes the first session outside Ravel after a
 source commit and a settings change, then launches a fresh session. Claude
 Code resumes with `--resume`, and Codex with `codex exec resume`. A case
-with `compaction` runs three turns in one managed process: the prompt,
-`/compact` with the case's instructions, then the case's answer. The feeder
-`harness_trial.py turns` sends them, and it sends the answer only when the
-context after compaction holds no preamble path.
+with `compaction` runs three turns in one managed process: the prompt, a
+compaction, then the case's answer. The feeder `harness_trial.py turns` sends
+them, and it sends the answer only when the context after compaction holds no
+preamble path. Claude Code compacts with `/compact` and the case's
+instructions. Codex runs as `codex app-server`, and the feeder sends
+`thread/compact/start`.
 Each Agent call of a launch adds a delegation to the record: the prompt that
 the parent gave, its comparison with the preamble, the delegate's transcript
 and the ending context that the delegate inherits. A case with
@@ -69,9 +71,10 @@ import shutil
 import signal
 import subprocess
 import sys
+import threading
 import time
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any, Callable, Mapping
 
 ROOT = Path(__file__).resolve().parent.parent
 TRIALS = ROOT / "scripts" / "harness-trials"
@@ -917,10 +920,8 @@ class HarnessAdapter:
     read_residue: tuple[str, ...] = ()
     # The harness's own permission layer, as the record names it.
     permission_mode = ""
-    # How a continuation resumes the first session, and how a compaction case
-    # compacts in one managed process.
+    # How a continuation resumes the first session.
     resume_mechanism = ""
-    compaction_mechanism: str | None = None
     # The case fields that the adapter has no mechanism for yet, each with the
     # leaf that adds it.
     unsupported: dict[str, str] = {}
@@ -1022,6 +1023,38 @@ class HarnessAdapter:
         """The rows of the facts table that only this harness has."""
         raise NotImplementedError
 
+    def compaction_mechanism(self, mode: str) -> str:
+        """How a compaction case of this mode compacts in one managed process."""
+        raise NotImplementedError
+
+    def compact_turn(self, spec: dict[str, Any]) -> dict[str, Any]:
+        """The feeder's turn that compacts, from the case's compaction."""
+        raise NotImplementedError
+
+    def feed(self, argv: list[str], prompt: str, turns: list[dict[str, Any]],
+             gate: Callable[[str | None, str], bool], log: Callable[[str, dict[str, Any]], None]) -> int:
+        """The feeder's conversation. Run the harness with `argv`, pass its
+        output through, send the prompt, then each turn after the end of the
+        turn before. Before a turn with a gate, `gate(session, mode)` decides,
+        and a failed gate ends the input. Return the harness's status."""
+        raise NotImplementedError
+
+    def after_compaction(self, records: list[dict[str, Any]], marks: dict[str, Any]) -> dict[str, Any] | None:
+        """The preamble findings in what a session file shows after its last
+        compaction and before the next turn, or None without a compaction.
+        The feeder's gate reads them."""
+        raise NotImplementedError
+
+    def compaction_facts(self, records: list[dict[str, Any]], marks: dict[str, Any],
+                         mode: str) -> tuple[dict[str, Any], list[str]]:
+        """The record's facts of the last compaction of a session file, and
+        each failure that they show. Without a compaction the facts are empty."""
+        raise NotImplementedError
+
+    def render_compaction(self, compaction: dict[str, Any]) -> list[str]:
+        """The record's lines on this harness's own compaction facts."""
+        raise NotImplementedError
+
     def render_prelaunch(self, h: dict[str, Any]) -> list[str]:
         """The record's lines on the harness's input before the launch."""
         return []
@@ -1067,8 +1100,6 @@ class ClaudeAdapter(HarnessAdapter):
     # Claude Code keeps the session ID without --fork-session and appends to
     # the session file.
     resume_mechanism = "claude -p --resume <session id>, without --fork-session, outside Ravel's managed process"
-    compaction_mechanism = ("claude -p --input-format stream-json in Ravel's managed process; the feeder sends the "
-                            "prompt, then /compact with the instructions, then the answer")
     delegate_mechanism = ("Claude Code's Agent tool, in process: the delegate's tool calls run in children of "
                           "the harness process, with its environment")
 
@@ -1109,12 +1140,8 @@ class ClaudeAdapter(HarnessAdapter):
         # An owner's instruction for one case, in Claude Code's owner channel.
         # The prepared prompt of Ravel stays as it is.
         note = ["--append-system-prompt", case["systemNote"]] if case.get("systemNote") else []
-        selected = Path(sys.executable) if compaction else program
-        program_args = ["-I", str(Path(__file__).resolve()), "turns", "--plan",
-                        str(Path(records).parent / "turns.json"), "--", str(program)] if compaction else []
         return {
-            "program": str(selected),
-            "programArgs": program_args,
+            **(feeder_route(records, program) if compaction else {"program": str(program), "programArgs": []}),
             "addDirs": not compaction,
             "fixedArgs": [
                 "-p", "--output-format", "stream-json", "--verbose",
@@ -1136,6 +1163,125 @@ class ClaudeAdapter(HarnessAdapter):
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(json.dumps(settings, indent=2) + "\n")
         return settings
+
+    def compaction_mechanism(self, mode: str) -> str:
+        return ("claude -p --input-format stream-json in Ravel's managed process; the feeder sends the "
+                "prompt, then /compact with the instructions, then the answer")
+
+    def compact_turn(self, spec: dict[str, Any]) -> dict[str, Any]:
+        return {"text": f"/compact {spec['instructions']}"}
+
+    def feed(self, argv: list[str], prompt: str, turns: list[dict[str, Any]],
+             gate: Callable[[str | None, str], bool], log: Callable[[str, dict[str, Any]], None]) -> int:
+        """Claude Code with stream-json input. A turn ends with the `result`
+        event, and the `init` event names the session."""
+        child = subprocess.Popen([*argv, "--input-format", "stream-json"], stdin=subprocess.PIPE,
+                                 stdout=subprocess.PIPE)
+        assert child.stdin is not None and child.stdout is not None
+
+        def send(text: str, number: int) -> None:
+            message = {"type": "user", "message": {"role": "user", "content": text}}
+            child.stdin.write((json.dumps(message) + "\n").encode())
+            child.stdin.flush()
+            log("turn", {"turn": number, "sha256": sha256_bytes(text.encode())})
+
+        def close() -> None:
+            if not child.stdin.closed:
+                child.stdin.close()
+
+        send(prompt, 0)
+        session = None
+        sent = 1
+        for line in child.stdout:
+            sys.stdout.buffer.write(line)
+            sys.stdout.buffer.flush()
+            try:
+                event = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if not isinstance(event, dict):
+                continue
+            if event.get("type") == "system" and event.get("subtype") == "init":
+                session = session or event.get("session_id")
+            if event.get("type") != "result":
+                continue
+            if not turns:
+                close()
+                continue
+            turn = turns.pop(0)
+            if turn.get("gate") and not gate(session, turn["gate"]):
+                turns.clear()
+                close()
+                continue
+            send(turn["text"], sent)
+            sent += 1
+        close()
+        return child.wait()
+
+    def after_compaction(self, records: list[dict[str, Any]], marks: dict[str, Any]) -> dict[str, Any] | None:
+        return after_boundary(records, marks)
+
+    def compaction_facts(self, records: list[dict[str, Any]], marks: dict[str, Any],
+                         mode: str) -> tuple[dict[str, Any], list[str]]:
+        """The summary, what Claude Code added after the boundary and the
+        context of the first model request after it."""
+        start = boundary_index(records)
+        if start is None:
+            return {}, ["the session holds no compaction boundary"]
+        failures = []
+        summary = next((e for e in records[start + 1:] if e.get("isCompactSummary")), None)
+        summary_text = "\n".join(strings((summary or {}).get("message")))
+        facts: dict[str, Any] = {
+            "summary": {"chars": len(summary_text), "sha256": sha256_bytes(summary_text.encode()),
+                        "findings": context_findings(summary_text, summary_text, marks)},
+            "afterBoundary": after_boundary(records, marks),
+        }
+        failures += [f"after the boundary: {problem}"
+                     for problem in compaction_problems(facts["afterBoundary"] or {}, mode)] \
+            if facts["afterBoundary"] else []
+        request_at = next((n for n in range(start + 1, len(records)) if records[n].get("type") == "api-request"),
+                          len(records))
+        facts["attachments"] = [(e.get("attachment") or {}).get("type") for e in records[start + 1:request_at]
+                                if e.get("type") == "attachment"]
+        # A file that Claude Code restored after the boundary, with its path.
+        facts["restored"] = [(e.get("attachment") or {}).get("filename") for e in records[start + 1:request_at]
+                             if e.get("type") == "attachment" and (e.get("attachment") or {}).get("filename")]
+        facts["api"] = api = api_context(records, marks)
+        if not api["found"]:
+            failures.append("the session file holds no model request after the boundary")
+        else:
+            if api["keep"] != 0 or api["missingBlobs"] or not api["system"]:
+                failures.append(f"the request after the boundary is not complete in the session file: "
+                                f"keep {api['keep']}, {api['missingBlobs']} blobs missing, "
+                                f"system prompt {'found' if api['system'] else 'missing'}")
+            failures += [f"model context: {problem}"
+                         for problem in compaction_problems(api["findings"], mode, terms=False)]
+        return facts, failures
+
+    def render_compaction(self, compaction: dict[str, Any]) -> list[str]:
+        api = compaction.get("api") or {}
+        summary = compaction.get("summary") or {}
+        lines = [
+            f"- Summary instructions, which the agent sees after the boundary: `{cell(compaction['instructions'])}`.",
+            *([f"- Summary: {summary['chars']} characters, SHA-256 `{summary['sha256']}`."] if summary else []),
+            *(render_findings("Summary", summary.get("findings")) if summary else []),
+            *render_findings("Session lines after the boundary", compaction.get("afterBoundary")),
+            *([f"- Attachments after the boundary, before the first request: "
+               f"{cell(', '.join(str(a) for a in compaction.get('attachments', [])) or 'none')}."]
+              if "attachments" in compaction else []),
+            *[f"- File that Claude Code restored after the boundary: `{cell(path)}`."
+              for path in compaction.get("restored", [])],
+        ]
+        if api.get("found"):
+            lines += [
+                f"- First model request after the boundary: `keep` {api['keep']}, {api['blobs']} blobs, "
+                f"{api['missingBlobs']} missing, system prompt {'found' if api['system'] else 'missing'}, "
+                f"request digest `{api['requestDigest']}`.",
+                *render_findings("Model context of that request", api["findings"]),
+            ]
+        elif api:
+            lines.append("- First model request after the boundary: none in the session file.")
+        return lines
 
     def stream_ids(self, stream: list[dict[str, Any]]) -> tuple[str | None, str | None]:
         init = next((e for e in stream if e.get("type") == "system" and e.get("subtype") == "init"), {})
@@ -1293,12 +1439,31 @@ CODEX_APPROVAL = "never"
 CODEX_RESIDUE = (".codex/skills/.system", ".codex/plugins/cache")
 # The case fields whose Codex mechanism a later leaf adds.
 CODEX_LATER = {
-    "compaction": "codex-compaction-trials-k120",
     "expectDelegate": "codex-delegate-trial-k121",
     "systemNote": "codex-delegate-trial-k121",
     "claudeSettings": "no Codex leaf; it is a Claude Code setting",
 }
 SHELLS = ("bash", "zsh", "sh", "dash", "ksh", "fish")
+# How Codex 0.166.0 compacts each loss mode, as extra options of `codex
+# app-server` and a description. `thread/compact/start` takes only the thread,
+# so no summary instructions reach Codex. The OpenAI provider compacts on the
+# server (`RemoteCompactionSupport::V2`,
+# https://github.com/openai/codex/blob/rust-v0.166.0/codex-rs/model-provider/src/provider.rs).
+# That keeps each user message word for word, newest first, up to 64,000
+# tokens, then one encrypted compaction item (`build_v2_compacted_history`,
+# https://github.com/openai/codex/blob/rust-v0.166.0/codex-rs/core/src/compact_remote_v2.rs).
+# The prompt holds the preamble, so no Codex mechanism loses the path alone.
+# The development feature `token_budget` makes a manual compaction install a
+# fresh context window that keeps no user message (`run_manual_compact_task`,
+# https://github.com/openai/codex/blob/rust-v0.166.0/codex-rs/core/src/compact_token_budget.rs),
+# which loses the whole preamble.
+CODEX_COMPACTION = {
+    "path": ([], "remote compaction v2, the default, which keeps each user message word for word"),
+    "preamble": (["--enable", "token_budget"],
+                 "the development feature token_budget, whose fresh context window keeps no user message"),
+}
+# The client name of the feeder. Codex records it as the session's originator.
+CODEX_CLIENT = "grove-trial-feeder"
 # The fields of Codex's session metadata and turn context that a record keeps.
 # The metadata also holds the account and user identifiers, which it drops.
 CODEX_META_KEYS = ("cli_version", "originator", "source", "thread_source", "model_provider", "cwd", "history_mode")
@@ -1400,7 +1565,21 @@ class CodexAdapter(HarnessAdapter):
 
     def launch(self, case: dict[str, Any], records: Path, program: Path, model: str,
                effort: str) -> dict[str, Any]:
-        """Codex reads every path under its sandbox, so it needs no --add-dir."""
+        """Codex reads every path under its sandbox, so it needs no --add-dir.
+        A compaction case runs the feeder, which runs `codex app-server` with
+        the same model, effort, sandbox and approval policy."""
+        compaction = case.get("compaction")
+        if compaction is not None:
+            return {
+                **feeder_route(records, program),
+                "addDirs": False,
+                "fixedArgs": [
+                    "app-server", "-c", f'model="{model}"', "-c", f'model_reasoning_effort="{effort}"',
+                    "-c", f'sandbox_mode="{CODEX_SANDBOX}"', "-c", f'approval_policy="{CODEX_APPROVAL}"',
+                    *CODEX_COMPACTION[compaction["mode"]][0],
+                ],
+                "provider": "openai",
+            }
         return {
             "program": str(program),
             "programArgs": [],
@@ -1429,8 +1608,12 @@ class CodexAdapter(HarnessAdapter):
     def stream_ids(self, stream: list[dict[str, Any]]) -> tuple[str | None, str | None]:
         """Codex names its thread in `thread.started` and no working
         directory, so the caller takes that from the session file."""
-        started = next((e for e in stream if e.get("type") == "thread.started"), {})
-        return started.get("thread_id"), None
+        started = next((e for e in stream if e.get("type") == "thread.started"), None)
+        if started is not None:
+            return started.get("thread_id"), None
+        # The app-server stream of a compaction case names it in `thread/started`.
+        started = next((e for e in stream if e.get("method") == "thread/started"), {})
+        return ((started.get("params") or {}).get("thread") or {}).get("id"), None
 
     def session_files(self, home: Path) -> list[Path]:
         sessions = home / self.transcript_root
@@ -1461,7 +1644,7 @@ class CodexAdapter(HarnessAdapter):
                 raw = b"".join(jsonl_lines(raw)[window[0]:window[1]])
             records = read_jsonl_bytes(raw)
             startup = self.startup(records)
-            classifier = Classifier(view, home, Path(startup["init"].get("cwd") or repo), marker)
+            classifier = Classifier(view, home, Path(startup["init"].get("cwd") or repo), marker, turns)
             transcripts.append({
                 "file": str(path.relative_to(home)), "sha256": sha256_bytes(raw),
                 **({"lines": list(window)} if window else {}), "main": True,
@@ -1470,7 +1653,8 @@ class CodexAdapter(HarnessAdapter):
         if session_id and not transcripts:
             transcripts.append({
                 "file": "stream", "sha256": stream_sha, "main": True,
-                "events": extract_events(self.entries(stream), Classifier(view, home, repo, marker)), "startup": None,
+                "events": extract_events(self.entries(stream), Classifier(view, home, repo, marker, turns)),
+                "startup": None,
             })
         return {
             **launch_facts(label, view, session_id, child, live, probes, stream_sha),
@@ -1478,9 +1662,11 @@ class CodexAdapter(HarnessAdapter):
             "transcripts": transcripts,
             "delegations": [],
             # The last turn event of the stream, absent when Ravel ended the
-            # harness before it wrote one.
-            "streamResult": next((e.get("type") for e in reversed(stream)
-                                  if e.get("type") in ("turn.completed", "turn.failed", "error")), None),
+            # harness before it wrote one. An app-server stream names it as a
+            # method.
+            "streamResult": next((e.get("type") or e.get("method") for e in reversed(stream)
+                                  if e.get("type") in ("turn.completed", "turn.failed", "error")
+                                  or e.get("method") in ("turn/completed", "error")), None),
         }
 
     @staticmethod
@@ -1525,6 +1711,8 @@ class CodexAdapter(HarnessAdapter):
         kind = re.sub(r"[_\s]", "", str(item.get("type", ""))).lower()
         if kind == "reasoning":
             return []
+        if kind == "contextcompaction":
+            return [{"type": "system", "subtype": "compact_boundary"}]
         if kind == "usermessage":
             return [{"type": "user", "message": {"role": "user", "content": self.text(item)}}]
         if kind == "agentmessage":
@@ -1568,6 +1756,8 @@ class CodexAdapter(HarnessAdapter):
                 item = payload.get("item")
             elif record.get("type") == "item.completed":
                 item = record.get("item")
+            elif record.get("method") == "item/completed":
+                item = (record.get("params") or {}).get("item")
             if isinstance(item, dict):
                 entries += self.item(item, len(entries))
         return entries
@@ -1630,6 +1820,209 @@ class CodexAdapter(HarnessAdapter):
             f"| `{CODEX_HOME}` | {cell(h['codexHome'])} |",
             f"| Sign-in | `codex login status`: {cell(h['loginStatus'])} |",
         ]
+
+    def compaction_mechanism(self, mode: str) -> str:
+        return ("codex app-server in Ravel's managed process; the feeder sends the prompt, then "
+                f"thread/compact/start, then the answer. Compaction: {CODEX_COMPACTION[mode][1]}")
+
+    def compact_turn(self, spec: dict[str, Any]) -> dict[str, Any]:
+        return {"compact": True}
+
+    def feed(self, argv: list[str], prompt: str, turns: list[dict[str, Any]],
+             gate: Callable[[str | None, str], bool], log: Callable[[str, dict[str, Any]], None]) -> int:
+        """`codex app-server` over stdio: JSON-RPC, one message to a line.
+        The methods are those of `codex app-server generate-json-schema` of
+        0.166.0. The feeder starts a thread in its working directory, then
+        sends each turn after `turn/completed` of that thread. A compaction is
+        `thread/compact/start`, which runs as a turn of its own. The feeder
+        refuses each request of the server, because the approval policy is
+        `never`. The server exits when its input closes."""
+        child = subprocess.Popen(argv, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+        assert child.stdin is not None and child.stdout is not None
+        numbers = iter(range(1, 1 << 30))
+
+        def write(message: dict[str, Any]) -> None:
+            if not child.stdin.closed:
+                child.stdin.write((json.dumps({"jsonrpc": "2.0", **message}) + "\n").encode())
+                child.stdin.flush()
+
+        def request(method: str, params: dict[str, Any]) -> int:
+            number = next(numbers)
+            write({"id": number, "method": method, "params": params})
+            return number
+
+        def close() -> None:
+            if not child.stdin.closed:
+                child.stdin.close()
+                # A server that outlives its input is ended, so the feeder ends.
+                timer = threading.Timer(60, child.kill)
+                timer.daemon = True
+                timer.start()
+
+        def send(turn: dict[str, Any], number: int) -> None:
+            if turn.get("compact"):
+                request("thread/compact/start", {"threadId": thread})
+                log("turn", {"turn": number, "request": "thread/compact/start"})
+                return
+            request("turn/start", {"threadId": thread, "input": [{"type": "text", "text": turn["text"]}]})
+            log("turn", {"turn": number, "sha256": sha256_bytes(turn["text"].encode())})
+
+        initialize = request("initialize", {"clientInfo": {"name": CODEX_CLIENT, "version": "1"}})
+        started = None
+        thread = None
+        sent = 0
+        for line in child.stdout:
+            sys.stdout.buffer.write(line)
+            sys.stdout.buffer.flush()
+            try:
+                message = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if not isinstance(message, dict):
+                continue
+            if "method" in message and "id" in message:
+                write({"id": message["id"], "error": {"code": -32601, "message": "the trial feeder answers no request"}})
+                log("request", {"method": message["method"]})
+                continue
+            if "error" in message and "id" in message:
+                log("error", {"id": message["id"], "error": message["error"]})
+                turns.clear()
+                close()
+                continue
+            if message.get("id") == initialize:
+                write({"method": "initialized"})
+                started = request("thread/start", {"cwd": os.getcwd()})
+                continue
+            if message.get("id") == started and started is not None:
+                thread = ((message.get("result") or {}).get("thread") or {}).get("id")
+                send({"text": prompt}, sent)
+                sent += 1
+                continue
+            if message.get("method") != "turn/completed" or (message.get("params") or {}).get("threadId") != thread:
+                continue
+            if not turns:
+                close()
+                continue
+            turn = turns.pop(0)
+            if turn.get("gate") and not gate(thread, turn["gate"]):
+                turns.clear()
+                close()
+                continue
+            send(turn, sent)
+            sent += 1
+        close()
+        return child.wait()
+
+    @staticmethod
+    def compaction_index(records: list[dict[str, Any]]) -> int | None:
+        """The index of the last `compacted` entry of a session file, or None."""
+        found = [n for n, r in enumerate(records) if r.get("type") == "compacted"]
+        return found[-1] if found else None
+
+    @staticmethod
+    def model_items(records: list[dict[str, Any]], start: int, answer: bool) -> list[dict[str, Any]]:
+        """The model-visible items after the compaction at `start`. Codex
+        installs the `replacement_history` of the `compacted` entry, and the
+        messages that it records later follow. Without `answer`, the items
+        stop at the next turn, as the gate sees them. With `answer`, they run
+        through the next turn's messages up to the model's first output: the
+        input of the first request after compaction."""
+        items = list((records[start].get("payload") or {}).get("replacement_history") or [])
+        for record in records[start + 1:]:
+            payload = record.get("payload") if isinstance(record.get("payload"), dict) else {}
+            if record.get("type") == "event_msg" and payload.get("type") == "task_started":
+                if not answer:
+                    break
+                continue
+            if record.get("type") != "response_item":
+                continue
+            if payload.get("type") == "message" and payload.get("role") in ("developer", "user"):
+                items.append(payload)
+                continue
+            break
+        return items
+
+    def findings(self, items: list[dict[str, Any]], marks: dict[str, Any]) -> dict[str, Any]:
+        """The preamble text that model-visible items hold. The terms are
+        searched in user messages only. An encrypted item, such as the item of
+        remote compaction, is opaque, and the findings count it."""
+        visible = [{key: value for key, value in item.items() if key != "encrypted_content"} for item in items]
+        words = "\n".join(self.text(item) for item in items
+                          if item.get("type") == "message" and item.get("role") == "user")
+        found = context_findings("\n".join(strings(visible)), words, marks)
+        found["opaque"] = sum(bool(item.get("encrypted_content")) for item in items)
+        return found
+
+    def history_item(self, item: dict[str, Any], marks: dict[str, Any]) -> dict[str, Any]:
+        """One model-visible item, by its type, its role, its first line, its
+        length and its digest, and whether it holds preamble text."""
+        text = self.text(item) if item.get("type") == "message" else ""
+        entry: dict[str, Any] = {"type": item.get("type"), **({"role": item["role"]} if item.get("role") else {})}
+        if item.get("encrypted_content"):
+            entry["encryptedChars"] = len(str(item["encrypted_content"]))
+        elif item.get("type") == "additional_tools":
+            entry["tools"] = sum(len(space.get("tools", [])) for space in item.get("tools", []))
+        else:
+            entry.update({"firstLine": text.splitlines()[0][:COMMAND_CHARS] if text else "", "chars": len(text),
+                          "sha256": sha256_bytes(text.encode())})
+        found = context_findings(text, text, marks)
+        entry["preamble"] = bool(found["paths"] or found["digests"] or found["lines"])
+        return entry
+
+    def after_compaction(self, records: list[dict[str, Any]], marks: dict[str, Any]) -> dict[str, Any] | None:
+        start = self.compaction_index(records)
+        return None if start is None else self.findings(self.model_items(records, start, False), marks)
+
+    def compaction_facts(self, records: list[dict[str, Any]], marks: dict[str, Any],
+                         mode: str) -> tuple[dict[str, Any], list[str]]:
+        """The replacement history of the last compaction, and the input of
+        the first model request after it. Codex records no request, so that
+        input is the history and the messages that Codex records before the
+        model's first output."""
+        start = self.compaction_index(records)
+        if start is None:
+            return {}, ["the session holds no compaction boundary"]
+        payload = records[start].get("payload") or {}
+        history = payload.get("replacement_history") or []
+        context = self.model_items(records, start, True)
+        facts = {
+            "window": payload.get("window_number"),
+            "history": [self.history_item(item, marks) for item in history],
+            "afterBoundary": self.after_compaction(records, marks),
+            "context": {"items": len(context), "added": [self.history_item(item, marks) for item in context[len(history):]],
+                        "findings": self.findings(context, marks)},
+        }
+        failures = [f"after the boundary: {problem}" for problem in compaction_problems(facts["afterBoundary"], mode)]
+        failures += [f"model context: {problem}"
+                     for problem in compaction_problems(facts["context"]["findings"], mode)]
+        return facts, failures
+
+    @staticmethod
+    def render_item(item: dict[str, Any]) -> str:
+        head = f"`{item.get('type')}`" + (f" `{item['role']}`" if item.get("role") else "")
+        if "encryptedChars" in item:
+            body = f", encrypted, {item['encryptedChars']} characters"
+        elif "tools" in item:
+            body = f", {item['tools']} tools"
+        else:
+            body = f", {item['chars']} characters, SHA-256 `{item['sha256'][:12]}…`: `{cell(item['firstLine'])}`"
+        return head + body + (". Holds preamble text." if item.get("preamble") else ".")
+
+    def render_compaction(self, compaction: dict[str, Any]) -> list[str]:
+        lines = [f"- Summary instructions of the case: `{cell(compaction['instructions'])}`. They do not reach "
+                 f"Codex, because `thread/compact/start` takes only the thread."]
+        if "history" in compaction:
+            lines.append(f"- Replacement history of the `compacted` entry, window {compaction.get('window')}: "
+                         f"{len(compaction['history'])} items.")
+            lines += ["  - " + self.render_item(item) for item in compaction["history"]]
+        lines += render_findings("Session lines after the boundary", compaction.get("afterBoundary"))
+        context = compaction.get("context")
+        if context:
+            lines.append(f"- Input of the first model request after the boundary: the replacement history, then "
+                         f"{len(context['added'])} items that Codex recorded before the model's first output.")
+            lines += ["  - " + self.render_item(item) for item in context["added"]]
+            lines += render_findings("Model context of that request", context.get("findings"))
+        return lines
 
     def render_prelaunch(self, h: dict[str, Any]) -> list[str]:
         prelaunch = h.get("prelaunch")
@@ -2325,6 +2718,9 @@ def compaction_problems(findings: dict[str, Any], mode: str, terms: bool = True)
     if findings["paths"] or findings["digests"]:
         problems.append(f"the context still holds the preamble paths {findings['paths']} "
                         f"or digests {findings['digests']}")
+    if findings.get("opaque"):
+        problems.append(f"the context holds {findings['opaque']} encrypted items, whose text the trial cannot "
+                        f"read, so it cannot show the loss")
     if mode == "path" and not findings["variable"]:
         problems.append(f"the context no longer names {DESCRIPTOR_VARIABLE}, so the instructions did not remain")
     if mode == "preamble":
@@ -2395,15 +2791,15 @@ def api_context(entries: list[dict[str, Any]], marks: dict[str, Any]) -> dict[st
     }
 
 
-def gate_session(home: Path, session: str | None, marks: dict[str, Any], mode: str) -> dict[str, Any]:
+def gate_session(adapter: HarnessAdapter, home: Path, session: str | None, marks: dict[str, Any],
+                 mode: str) -> dict[str, Any]:
     """The feeder's check before the answer turn: the session lines after the
-    boundary show the case's loss. The feeder knows the session ID alone, so
-    it asks each adapter for the session file."""
-    found = (adapter.session_file(home, session) for adapter in ADAPTERS.values()) if session else iter(())
-    path = next(filter(None, found), None)
+    compaction show the case's loss. The adapter finds the session file and
+    reads it in its harness's format."""
+    path = adapter.session_file(home, session) if session else None
     if not path:
         return {"ok": False, "problems": ["no session file to check"]}
-    findings = after_boundary(read_jsonl(path), marks)
+    findings = adapter.after_compaction(read_jsonl(path), marks)
     if findings is None:
         return {"ok": False, "problems": ["the session file holds no compaction boundary"]}
     problems = compaction_problems(findings, mode)
@@ -2411,75 +2807,47 @@ def gate_session(home: Path, session: str | None, marks: dict[str, Any], mode: s
 
 
 def run_turns(plan: Path, command: list[str]) -> int:
-    """The feeder of a compaction case. It runs the harness with stream-json
-    input and passes the stream through. It sends the prompt, which is the last
-    argument, then each turn of the plan after the result of the turn before.
-    Before a gated turn it checks the session file, and a failed check ends
-    the input with no further turn. Each step is a `trial-*` line on stderr."""
+    """The feeder of a compaction case. The plan names the harness, whose
+    adapter runs the conversation. The prompt is the last argument. Before a
+    gated turn the feeder checks the session file, and a failed check ends the
+    input with no further turn. Each step is a `trial-*` line on stderr."""
     spec = json.loads(plan.read_text())
     if not command:
         raise TrialError("the feeder needs a harness command")
+    adapter = ADAPTERS[spec["harness"]]
     *argv, prompt = command
     marks = preamble_marks(prompt)
     home = Path(os.environ["HOME"])
-    child = subprocess.Popen([*argv, "--input-format", "stream-json"], stdin=subprocess.PIPE, stdout=subprocess.PIPE)
-    assert child.stdin is not None and child.stdout is not None
-    pending = list(spec["turns"])
 
     def log(kind: str, data: dict[str, Any]) -> None:
         stamp = dt.datetime.now(dt.UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
         sys.stderr.write(f"trial-{kind} {json.dumps({'at': stamp, **data})}\n")
         sys.stderr.flush()
 
-    def send(text: str, number: int) -> None:
-        message = {"type": "user", "message": {"role": "user", "content": text}}
-        child.stdin.write((json.dumps(message) + "\n").encode())
-        child.stdin.flush()
-        log("turn", {"turn": number, "sha256": sha256_bytes(text.encode())})
+    def gate(session: str | None, mode: str) -> bool:
+        verdict = gate_session(adapter, home, session, marks, mode)
+        log("gate", {"mode": mode, "ok": verdict["ok"], "problems": verdict["problems"]})
+        return verdict["ok"]
 
-    def close() -> None:
-        if not child.stdin.closed:
-            child.stdin.close()
+    return adapter.feed(argv, prompt, list(spec["turns"]), gate, log)
 
-    send(prompt, 0)
-    session = None
-    sent = 1
-    for line in child.stdout:
-        sys.stdout.buffer.write(line)
-        sys.stdout.buffer.flush()
-        try:
-            event = json.loads(line)
-        except json.JSONDecodeError:
-            continue
-        if not isinstance(event, dict):
-            continue
-        if event.get("type") == "system" and event.get("subtype") == "init":
-            session = session or event.get("session_id")
-        if event.get("type") != "result":
-            continue
-        if not pending:
-            close()
-            continue
-        turn = pending.pop(0)
-        if turn.get("gate"):
-            verdict = gate_session(home, session, marks, turn["gate"])
-            log("gate", {"mode": turn["gate"], "ok": verdict["ok"], "problems": verdict["problems"]})
-            if not verdict["ok"]:
-                pending.clear()
-                close()
-                continue
-        send(turn["text"], sent)
-        sent += 1
-    close()
-    return child.wait()
+
+def feeder_route(records: Path, program: Path) -> dict[str, Any]:
+    """The program of a compaction case: the feeder, with the harness program
+    as its command."""
+    return {"program": sys.executable,
+            "programArgs": ["-I", str(Path(__file__).resolve()), "turns", "--plan",
+                            str(Path(records).parent / "turns.json"), "--", str(program)]}
 
 
 def write_turns(case: dict[str, Any], case_dir: Path, trial: Path) -> dict[str, Any]:
-    """The feeder's plan: `/compact` with the case's instructions, then the
-    answer, gated by the case's mode."""
+    """The feeder's plan: the harness, its compaction turn, then the answer,
+    gated by the case's mode."""
     spec = case["compaction"]
+    adapter = adapter_of(case)
     answer = (case_dir / spec.get("answer", "answer.md")).read_text()
-    plan = {"turns": [{"text": f"/compact {spec['instructions']}"}, {"text": answer, "gate": spec["mode"]}]}
+    plan = {"harness": adapter.name,
+            "turns": [adapter.compact_turn(spec), {"text": answer, "gate": spec["mode"]}]}
     (trial / "turns.json").write_text(json.dumps(plan, indent=2) + "\n")
     return plan
 
@@ -2499,8 +2867,8 @@ def trial_lines(text: str, kind: str) -> list[dict[str, Any]]:
 
 def compaction_report(case: dict[str, Any], record: Path, launch: dict[str, Any], home: Path) -> dict[str, Any]:
     """The compaction of one launch: the turns that the feeder sent, its gate,
-    the summary, what Claude Code added after the boundary, the context of the
-    first request after it, and the variable in the harness environment."""
+    the harness's own facts of the context after compaction, and the variable
+    in the harness environment."""
     spec = case["compaction"]
     adapter = adapter_of(case)
     prompt = (record / "prompt").read_text()
@@ -2509,7 +2877,7 @@ def compaction_report(case: dict[str, Any], record: Path, launch: dict[str, Any]
     env = parse_env((record / "env").read_text())
     report: dict[str, Any] = {
         "mode": spec["mode"],
-        "mechanism": adapter.compaction_mechanism,
+        "mechanism": adapter.compaction_mechanism(spec["mode"]),
         "instructions": spec["instructions"],
         "preamble": {"sha256": marks["sha256"], "paths": len(marks["paths"]), "digests": len(marks["digests"]),
                      "lines": len(marks["lines"])},
@@ -2520,40 +2888,14 @@ def compaction_report(case: dict[str, Any], record: Path, launch: dict[str, Any]
         "failures": [],
     }
     path = adapter.session_file(home, launch["sessionId"]) if launch.get("sessionId") else None
-    entries = read_jsonl(path) if path else []
-    start = boundary_index(entries)
-    if start is None:
-        report["failures"].append("the session holds no compaction boundary")
+    facts, failures = adapter.compaction_facts(read_jsonl(path) if path else [], marks, spec["mode"])
+    report.update(facts)
+    report["failures"] += failures
+    if not facts:
         return report
-    summary = next((e for e in entries[start + 1:] if e.get("isCompactSummary")), None)
-    summary_text = "\n".join(strings((summary or {}).get("message")))
-    report["summary"] = {"chars": len(summary_text), "sha256": sha256_bytes(summary_text.encode()),
-                         "findings": context_findings(summary_text, summary_text, marks)}
-    report["afterBoundary"] = after_boundary(entries, marks)
-    report["failures"] += [f"after the boundary: {problem}"
-                           for problem in compaction_problems(report["afterBoundary"] or {}, spec["mode"])] \
-        if report["afterBoundary"] else []
-    request_at = next((n for n in range(start + 1, len(entries)) if entries[n].get("type") == "api-request"),
-                      len(entries))
-    report["attachments"] = [(e.get("attachment") or {}).get("type") for e in entries[start + 1:request_at]
-                             if e.get("type") == "attachment"]
-    # A file that Claude Code restored after the boundary, with its path.
-    report["restored"] = [(e.get("attachment") or {}).get("filename") for e in entries[start + 1:request_at]
-                          if e.get("type") == "attachment" and (e.get("attachment") or {}).get("filename")]
-    report["api"] = api_context(entries, marks)
     gate = report["gate"]
     if not gate or not gate.get("ok"):
         report["failures"].append(f"the gate before the answer did not pass: {gate}")
-    api = report["api"]
-    if not api["found"]:
-        report["failures"].append("the session file holds no model request after the boundary")
-    else:
-        if api["keep"] != 0 or api["missingBlobs"] or not api["system"]:
-            report["failures"].append(f"the request after the boundary is not complete in the session file: "
-                                      f"keep {api['keep']}, {api['missingBlobs']} blobs missing, "
-                                      f"system prompt {'found' if api['system'] else 'missing'}")
-        report["failures"] += [f"model context: {problem}"
-                               for problem in compaction_problems(api["findings"], spec["mode"], terms=False)]
     if not (report["variable"]["set"] and report["variable"]["descriptor"]):
         report["failures"].append(f"the harness environment does not hold {DESCRIPTOR_VARIABLE} with the descriptor")
     return report
@@ -2963,46 +3305,30 @@ def render_findings(label: str, findings: dict[str, Any] | None) -> list[str]:
     lines = [
         f"- {label}: {len(findings['paths'])} preamble paths, {len(findings['digests'])} digests, "
         f"{len(findings['lines'])} preamble lines, terms {cell(', '.join(findings['terms']) or 'none')}, "
-        f"`{DESCRIPTOR_VARIABLE}` {'named' if findings['variable'] else 'not named'}."
+        f"`{DESCRIPTOR_VARIABLE}` {'named' if findings['variable'] else 'not named'}"
+        + (f", {findings['opaque']} encrypted items." if findings.get("opaque") else ".")
     ]
     lines += [f"  - Term in context: `…{cell(snippet)}…`" for snippet in findings.get("snippets", [])]
     return lines
 
 
-def render_compaction(compaction: dict[str, Any]) -> list[str]:
+def render_compaction(adapter: HarnessAdapter, compaction: dict[str, Any]) -> list[str]:
     preamble = compaction["preamble"]
     gate = compaction.get("gate") or {}
-    api = compaction.get("api") or {}
-    summary = compaction.get("summary") or {}
     lines = [
         "Compaction:",
         "",
         f"- Mode: {compaction['mode']} loss. Mechanism: {compaction['mechanism']}.",
-        f"- Summary instructions, which the agent sees after the boundary: `{cell(compaction['instructions'])}`.",
         f"- Preamble: SHA-256 `{preamble['sha256']}`, {preamble['paths']} paths, {preamble['digests']} digests, "
         f"{preamble['lines']} lines of at least {PREAMBLE_LINE_CHARS} characters.",
-        *[f"- Turn {t['turn']} sent at {t['at']}, SHA-256 `{t['sha256']}`." for t in compaction.get("turns", [])],
+        *[f"- Turn {t['turn']} sent at {t['at']}, "
+          + (f"SHA-256 `{t['sha256']}`." if t.get("sha256") else f"request `{t.get('request')}`.")
+          for t in compaction.get("turns", [])],
         (f"- Gate before the answer: {'passed' if gate.get('ok') else 'failed'}"
          + (f": {cell('; '.join(gate.get('problems', [])))}" if gate.get("problems") else "") + "."
          if gate else "- Gate before the answer: no gate ran."),
-        *([f"- Summary: {summary['chars']} characters, SHA-256 `{summary['sha256']}`."] if summary else []),
-        *(render_findings("Summary", summary.get("findings")) if summary else []),
-        *render_findings("Session lines after the boundary", compaction.get("afterBoundary")),
-        *([f"- Attachments after the boundary, before the first request: "
-           f"{cell(', '.join(str(a) for a in compaction.get('attachments', [])) or 'none')}."]
-          if "attachments" in compaction else []),
-        *[f"- File that Claude Code restored after the boundary: `{cell(path)}`."
-          for path in compaction.get("restored", [])],
+        *adapter.render_compaction(compaction),
     ]
-    if api.get("found"):
-        lines += [
-            f"- First model request after the boundary: `keep` {api['keep']}, {api['blobs']} blobs, "
-            f"{api['missingBlobs']} missing, system prompt {'found' if api['system'] else 'missing'}, "
-            f"request digest `{api['requestDigest']}`.",
-            *render_findings("Model context of that request", api["findings"]),
-        ]
-    elif api:
-        lines.append("- First model request after the boundary: none in the session file.")
     variable = compaction["variable"]
     lines += [
         f"- Harness environment: `{DESCRIPTOR_VARIABLE}` {'set' if variable['set'] else 'unset'}"
@@ -3226,7 +3552,7 @@ def render(record: dict[str, Any]) -> str:
         ]
     compaction = record.get("compaction")
     if compaction:
-        lines += render_compaction(compaction)
+        lines += render_compaction(adapter, compaction)
     note = record.get("systemNote")
     if note:
         lines += [f"Owner note through `--append-system-prompt`, SHA-256 `{note['sha256']}`:", "",

@@ -333,6 +333,12 @@ if args[:2] == ["debug", "prompt-input"]:
     residue()
     print(json.dumps(items))
     sys.exit(0)
+if args[:1] == ["app-server"]:
+    # A compaction case runs the app-server, which the fake of its own serves.
+    import runpy
+    sys.argv = [{server!r}, {behaviour!r}, *args]
+    runpy.run_path({server!r}, run_name="__main__")
+    sys.exit(0)
 assert args[0] == "exec", args
 prompt = args[-1]
 # `codex exec ... resume <thread> <prompt>` keeps the thread and appends to
@@ -449,6 +455,126 @@ CODEX_EXPECTED = [
     ("exec_command", "ending", None, False),
 ]
 
+FAKE_CODEX_SERVER = r'''
+# A fake `codex app-server` of 0.166 over stdio: one JSON-RPC message to a line.
+# It writes its session file as a real app-server does. A manual compaction
+# writes a `compacted` entry: with `--enable token_budget`, a fresh window that
+# keeps no user message; without it, the remote form, which keeps the prompt
+# word for word and adds one encrypted item.
+import json, os, re, shlex, sys
+from pathlib import Path
+from urllib.parse import quote
+behaviour = json.loads(Path(sys.argv[1]).read_text())
+args = sys.argv[2:]
+home = Path(os.environ["HOME"])
+codex_home = Path(os.environ.get("CODEX_HOME") or home / ".codex")
+budget = "--enable" in args and args[args.index("--enable") + 1] == "token_budget"
+thread = "01a19fa3-a888-73f0-82ab-000000000001"
+sessions = codex_home / "sessions/2026/11/03"
+sessions.mkdir(parents=True, exist_ok=True)
+path = sessions / f"rollout-2026-11-03T00-00-00-{thread}.jsonl"
+model = next(arg.split("=", 1)[1].strip('"') for arg in args if arg.startswith("model="))
+skills = ("<skills_instructions>\n## Skills\n### Skill roots\n- `r0` = `" + str(codex_home / "skills/.system")
+          + "`\n### Available skills\n- imagegen: Make images. (file: r0/imagegen/SKILL.md)\n</skills_instructions>")
+developer = [
+    {"type": "additional_tools", "role": "developer", "tools": [
+        {"type": "namespace", "name": "functions", "tools": [{"type": "custom", "name": "exec"}]}]},
+    {"type": "message", "role": "developer", "content": [{"type": "input_text", "text": "You are a fake Codex."}]},
+    {"type": "message", "role": "developer", "content": [{"type": "input_text", "text": skills}]},
+]
+state = {"turn": 0, "prompt": None, "snap": "", "cwd": os.getcwd()}
+
+
+def out(message):
+    print(json.dumps({"jsonrpc": "2.0", **message}), flush=True)
+
+
+def record(*entries):
+    with path.open("a") as transcript:
+        transcript.write("".join(json.dumps(entry) + "\n" for entry in entries))
+
+
+def message(role, text):
+    return {"type": "message", "role": role, "content": [{"type": "input_text", "text": text}]}
+
+
+def environment():
+    return message("user", "<environment_context>\n  <cwd>" + state["cwd"] + "</cwd>\n</environment_context>")
+
+
+def complete(item, shown):
+    record({"type": "event_msg", "payload": {"type": "item_completed", "item": item}})
+    out({"method": "item/completed", "params": {"threadId": thread, "item": shown}})
+
+
+def run_items(items):
+    names = {"SNAP": state["snap"], "HOME": str(home), "CWD": state["cwd"], "TRIAL": str(home.parent)}
+    for n, (kind, value, cwd, code) in enumerate(items):
+        value = value.format(**names)
+        if kind == "text":
+            complete({"type": "AgentMessage", "id": f"m{n}", "content": [{"type": "Text", "text": value}]},
+                     {"type": "agentMessage", "id": f"m{n}", "text": value})
+            record({"type": "response_item", "payload": {"type": "message", "role": "assistant",
+                                                         "content": [{"type": "output_text", "text": value}]}})
+        else:
+            where = cwd.format(**names) if cwd else state["cwd"]
+            complete({"type": "CommandExecution", "id": f"c{n}", "command": ["/bin/zsh", "-lc", value],
+                      "cwd": "file://" + quote(where), "status": "completed", "exit_code": code,
+                      "aggregated_output": "out"},
+                     {"type": "commandExecution", "id": f"c{n}", "command": "/bin/zsh -lc " + shlex.quote(value)})
+
+
+for line in sys.stdin:
+    request = json.loads(line)
+    method, number = request.get("method"), request.get("id")
+    params = request.get("params") or {}
+    if method == "initialize":
+        out({"id": number, "result": {"userAgent": "fake"}})
+    elif method == "initialized":
+        continue
+    elif method == "thread/start":
+        state["cwd"] = params.get("cwd") or state["cwd"]
+        record({"type": "session_meta", "payload": {"id": thread, "session_id": thread, "cwd": state["cwd"],
+                                                   "cli_version": "9.9.9", "originator": "grove-trial-feeder",
+                                                   "source": "vscode", "model_provider": "openai",
+                                                   "creator_account_id": "secret-account"}},
+               {"type": "turn_context", "payload": {"cwd": state["cwd"], "model": model, "approval_policy": "never",
+                                                    "sandbox_policy": {"type": "workspace-write"}}},
+               *[{"type": "response_item", "payload": item} for item in [*developer, environment()]])
+        out({"id": number, "result": {"thread": {"id": thread}}})
+        out({"method": "thread/started", "params": {"thread": {"id": thread}}})
+    elif method == "turn/start":
+        text = params["input"][0]["text"]
+        out({"id": number, "result": {"turn": {"id": f"t{state['turn']}"}}})
+        if state["prompt"] is None:
+            state["prompt"] = text
+            found = re.search(r'- "(.+)/skills"', text)
+            state["snap"] = found.group(1) if found else ""
+        record({"type": "event_msg", "payload": {"type": "task_started"}},
+               {"type": "response_item", "payload": message("developer", skills)},
+               {"type": "response_item", "payload": message("user", text)})
+        complete({"type": "UserMessage", "id": f"u{state['turn']}", "content": [{"type": "text", "text": text}]},
+                 {"type": "userMessage", "id": f"u{state['turn']}"})
+        run_items(behaviour["codexFirst"] if state["turn"] == 0 else behaviour["codexAfter"])
+        record({"type": "event_msg", "payload": {"type": "task_complete"}})
+        state["turn"] += 1
+        out({"method": "turn/completed", "params": {"threadId": thread, "turn": {"status": "completed"}}})
+    elif method == "thread/compact/start":
+        out({"id": number, "result": {}})
+        history = [*developer, environment()]
+        if not budget or behaviour.get("keepPrompt"):
+            history.append(message("user", state["prompt"]))
+        if not budget:
+            history.append({"type": "compaction", "encrypted_content": "gAAAA" + "x" * 40})
+        record({"type": "event_msg", "payload": {"type": "task_started"}},
+               {"type": "compacted", "payload": {"message": "", "replacement_history": history, "window_number": 1}})
+        complete({"type": "ContextCompaction", "id": "cc"}, {"type": "contextCompaction", "id": "cc"})
+        record({"type": "event_msg", "payload": {"type": "task_complete"}})
+        out({"method": "turn/completed", "params": {"threadId": thread, "turn": {"status": "completed"}}})
+    elif number is not None:
+        out({"id": number, "error": {"code": -32601, "message": f"no method {method}"}})
+'''
+
 FAKE_FRONT = r'''#!{python}
 # A fake 2.0 front. `skills resolve --json` names the descriptor that the fake
 # driver published, as a real resolution of the same settings does.
@@ -537,6 +663,22 @@ AFTER_EXPECTED = [
     ("prompt", None), ("mandatory", "grove"), ("text", None), ("compaction", None), ("prompt", None),
     ("prompt", None), ("variable", None), ("mandatory", "grove"), ("transcript", None), ("variable", None),
 ]
+# The Codex compaction cases: the first turn reads the spine and asks the
+# human. The turn after compaction reads the variable and the spine again, then
+# ends the session.
+CODEX_FIRST = [
+    ("command", "cat \"{SNAP}/skills/grove/SKILL.md\"", None, 0),
+    ("text", "Which label do you want?", None, None),
+]
+CODEX_AFTER = [
+    ("command", "cat \"$RAVEL_SKILL_DIRECTORIES\"", None, 0),
+    ("command", "cat \"{SNAP}/skills/grove/SKILL.md\"", None, 0),
+    ("command", "'/x/bin/ravel' end-session grove-continue", None, 0),
+]
+CODEX_COMPACTION_EXPECTED = [
+    ("prompt", None), ("mandatory", "grove"), ("text", None), ("compaction", None), ("prompt", None),
+    ("variable", None), ("mandatory", "grove"), ("ending", None),
+]
 SUMMARIES = {
     "path": "Obligation 10: read RAVEL_SKILL_DIRECTORIES when the path is lost. The leaf asks for one file.",
     "preamble": "The leaf asks for one file, and the human has a question to answer.",
@@ -613,8 +755,11 @@ class Fixture:
         self.codex_launched = root / "codex.launched"
         self.codex = root / "codex-bin/codex"
         self.codex.parent.mkdir()
+        server = root / "codex-bin/app_server.py"
+        server.write_text(FAKE_CODEX_SERVER)
         self._exec(self.codex, FAKE_CODEX.format(
-            python=sys.executable, behaviour=str(self.behaviour), launched=str(self.codex_launched)))
+            python=sys.executable, behaviour=str(self.behaviour), launched=str(self.codex_launched),
+            server=str(server)))
         self.behave()
 
     @staticmethod
@@ -1812,12 +1957,12 @@ class HarnessTrialTest(unittest.TestCase):
                     lambda records: {"init": next(r["payload"] for r in records if r["type"] == "session_meta")})
 
     def check_codex_later_fields(self, fixture: Fixture):
-        for case, field in (("compaction-path", "compaction"), ("delegate", "expectDelegate"),
-                            ("explicit", "claudeSettings")):
+        for case, field in (("delegate", "expectDelegate"), ("explicit", "claudeSettings")):
             with self.assertRaises(trial.TrialError, msg=f"{case} loaded for Codex") as caught:
                 trial.load_case(case, "codex")
             self.assertIn(f"'{field}'", str(caught.exception))
         trial.load_case("compaction-path", "claude")
+        trial.load_case("compaction-path", "codex")
         trial.load_case("continuation", "codex")
 
     def test_codex_refuses_the_fields_of_later_leaves(self):
@@ -1836,6 +1981,82 @@ class HarnessTrialTest(unittest.TestCase):
         self.assertIn("args.push(request.prompt);", config)
         with self.assertRaises(trial.TrialError):
             trial.load_case("smoke", "gemini")
+        # A compaction case runs the feeder, with `codex app-server` as its
+        # command. Only the preamble case enables token_budget.
+        for mode in ("path", "preamble"):
+            case = {"kinds": ["impl"], "name": "x", "harness": "codex", "compaction": {"mode": mode}}
+            route = trial.route_for(case, Path("/t/records"), Path("/c"), "gpt-x", "low")
+            config = trial.config_for(case, route)
+            self.assertEqual(route["program"], sys.executable)
+            self.assertIn('"turns", "--plan", "/t/turns.json", "--", "/c"', config)
+            self.assertIn('"app-server", "-c", "model=\\"gpt-x\\""', config)
+            self.assertIn('"-c", "sandbox_mode=\\"workspace-write\\""', config)
+            self.assertNotIn('"--add-dir"', config)
+            self.assertEqual('"--enable", "token_budget"' in config, mode == "preamble")
+
+    # --- Codex compaction ---------------------------------------------------------
+
+    def codex_compact(self, fixture: Fixture, mode: str, **behaviour) -> tuple[int, str, dict]:
+        fixture.behave(codexFirst=CODEX_FIRST, codexAfter=CODEX_AFTER, **behaviour)
+        status, output = fixture.run_codex(f"compaction-{mode}")
+        return status, output, fixture.record()
+
+    def check_codex_compaction(self, fixture: Fixture):
+        # The path case: the default mechanism keeps the prompt and adds an
+        # encrypted item, so the gate withholds the answer. It runs first,
+        # because the fixture reads the record of the last run by name.
+        status, output, record = self.codex_compact(fixture, "path")
+        self.assertEqual(status, 1, output)
+        compaction = record["compaction"]
+        self.assertFalse(compaction["gate"]["ok"])
+        self.assertEqual([turn["turn"] for turn in compaction["turns"]], [0, 1])
+        self.assertTrue([item for item in compaction.get("history", []) if item.get("role") == "user" and item["preamble"]])
+        self.assertTrue([item for item in compaction.get("history", []) if "encryptedChars" in item])
+        self.assertEqual((compaction.get("afterBoundary") or {}).get("opaque"), 1)
+        self.assertIn("encrypted items", output)
+        # The preamble case: token_budget keeps no user message, so the gate
+        # passes, and the answer follows in the same launch.
+        status, output, record = self.codex_compact(fixture, "preamble")
+        self.assertEqual(status, 0, output)
+        compaction = record["compaction"]
+        self.assertEqual(compaction["failures"], [])
+        self.assertTrue(compaction["gate"]["ok"], compaction["gate"])
+        self.assertEqual([turn["turn"] for turn in compaction["turns"]], [0, 1, 2])
+        self.assertEqual(compaction["turns"][1]["request"], "thread/compact/start")
+        self.assertIn("token_budget", compaction["mechanism"])
+        self.assertFalse(any(item["preamble"] for item in compaction.get("history", [None])))
+        context = compaction.get("context") or {"findings": {}, "added": [{}]}
+        self.assertEqual(context["findings"].get("opaque"), 0)
+        self.assertEqual((context["added"] or [{}])[-1].get("firstLine"), "Yes, add the label.")
+        self.assertEqual(compaction["variable"], {"set": True, "descriptor": True})
+        self.assertEqual(len(record["launches"]), 1)
+        events = next(t for t in record["launches"][0]["transcripts"] if t["main"])["events"]
+        self.assertEqual([(e["class"], e.get("skill")) for e in events], CODEX_COMPACTION_EXPECTED)
+        trial_dir = Path(record["trial"])
+        route = json.loads((trial_dir / "route.json").read_text())
+        self.assertEqual((route["fixedArgs"][0], route["fixedArgs"][-2:]), ("app-server", ["--enable", "token_budget"]))
+        self.assertEqual(json.loads((trial_dir / "turns.json").read_text())["harness"], "codex")
+        markdown = (trial_dir / "record.md").read_text()
+        for needle in ("Compaction:", "Gate before the answer: passed", "Replacement history", "do not reach Codex"):
+            self.assertIn(needle, markdown)
+        # A retained prompt fails the gate, and no answer follows.
+        status, output, record = self.codex_compact(fixture, "preamble", keepPrompt=True)
+        self.assertEqual(status, 1, output)
+        self.assertFalse(record["compaction"]["gate"]["ok"])
+        self.assertEqual([turn["turn"] for turn in record["compaction"]["turns"]], [0, 1])
+        self.assertTrue((record["compaction"].get("afterBoundary") or {}).get("paths"), "the in-process scan missed the path")
+
+    def test_a_codex_compaction_runs_the_app_server_and_reads_the_replacement_history(self):
+        self.check_codex_compaction(self.fixture)
+        self.broken(self.check_codex_compaction, "CODEX.compact_turn", lambda spec: {"text": "/compact x"})
+        real_launch = trial.CODEX.launch
+        self.broken(self.check_codex_compaction, "CODEX.launch",
+                    lambda case, records, program, model, effort: real_launch(
+                        {**case, "compaction": {**case["compaction"], "mode": "path"}}, records, program, model, effort))
+        self.broken(self.check_codex_compaction, "CODEX.after_compaction",
+                    lambda records, marks: trial.context_findings("", "", {"paths": [], "digests": [], "lines": []}))
+        self.broken(self.check_codex_compaction, "CODEX.model_items", lambda records, start, answer: [])
+        self.broken(self.check_codex_compaction, "CODEX.stream_ids", lambda stream: (None, None))
 
 
 if __name__ == "__main__":

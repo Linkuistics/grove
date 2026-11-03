@@ -47,3 +47,28 @@ with no further repair leaf.
 A prompted retry is no credit, and the retained variable alone is no
 evidence. A case that directs the tool is artificial. The record states that
 limit beside the result.
+
+## Decisions (running log)
+
+- **The new case is `compaction-preamble-write`.** It is a copy of
+  `compaction-preamble-five`. Only the name, the purpose and the Notes of its
+  leaf differ. The Notes tell the agent to write each work file with the
+  Write tool, one file in each call, and not through a shell command. The
+  summary instructions, the answer, the sources and the mandatory files are
+  unchanged. The runner's term check passes for the instructions, because
+  they are the earlier instructions word for word.
+- **The copied Goal keeps its long sentence.**
+  <!-- tc: depart long-sentence because the decision names the linter's finding on a trial input -->
+  The linter finds one sentence of 22 words in the copied item for `stamp.sh`.
+  The tree file is a trial input, and the agent reads its bytes. The copy
+  therefore keeps the sentence and carries no marker.
+- **The case gets one counted attempt.** One further run is allowed only if
+  the first turn writes fewer than five work files with the Write tool after
+  its last guidance read. That run did not test the variant. A gate failure
+  after five such writes ends the case, with no further run. A failure makes
+  the Claude Code `compaction-preamble` row an explicit gap.
+- **The run reuses the preparation at Grove commit `1f7b8013d4f6`.** Before
+  the run, `grove` is `fd71aa5d…`, `grove-llm` is `56f6815a…` and Ravel's
+  `bin/ravel` is `d076dc01…`. Each digest equals the record. Claude Code is
+  still 2.1.317. Cases come from this working tree, so a new case needs no
+  new preparation.

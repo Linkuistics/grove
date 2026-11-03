@@ -4366,9 +4366,10 @@ form.
 **What the run shows.** In Claude Code 2.1.317, the whole preamble is lost
 only when five files in the set are newer than the snapshot files. Bash writes
 do not count. A first turn that writes through the Write or Edit tool could
-meet that condition. No run of this record produced it, and the leaf
-records no further run. The case stays an unmeasured gap in Claude Code until
-a scope decision.
+meet that condition. No run of this record produced it.
+
+The human chose one more repair, with the Write tool.
+`claude-preamble-write-tool-trial-k137` owns it.
 
 **Limit.** The documentation does not say which Bash calls enter the set. The
 table above infers it from three runs, and the second attempt's run directory
@@ -5903,7 +5904,7 @@ The human answered the three scope questions on 2026-11-03:
 | Codex | `missing-kind-confined` | The same. The native roots also lie inside the configuration directory | Repair: `confined-harness-trials-k128` |
 | Claude Code | `explicit-native-error` | No report before the force-stop. Obligation 4 gives the report no order | Repair: `loader-report-wording-k129` |
 | Claude Code | `explicit-native-only` | No report before the force-stop | Repair: `loader-report-wording-k129` |
-| Claude Code | `compaction-preamble` | Claude Code restored snapshot files after the boundary, so the gate failed twice | Repair: `claude-preamble-loss-trial-k130`. The gate failed again, and the leaf asks a scope question |
+| Claude Code | `compaction-preamble` | Claude Code restored snapshot files after the boundary, so the gate failed twice | Repair: `claude-preamble-loss-trial-k130`. The gate failed again. The human chose one more repair: `claude-preamble-write-tool-trial-k137` |
 | Claude Code | `problem-ambiguity` | A pack reference chose between the two copies | Covered: `problem-ambiguity-unreferenced` passed |
 | Codex | `problem-ambiguity` | Not run, for the same reason | Covered: `problem-ambiguity-unreferenced in Codex` passed |
 | Codex | `problem-stale-native` | Not run, because of the pack reference | Covered: `problem-stale-native-cli in Codex` passed |

@@ -33,8 +33,9 @@ A prompted retry is no credit, and the retained variable alone is no evidence.
 ## Decisions (running log)
 
 - **The restoration rule is documented for this version.** Claude Code's
-  page "Explore the context window" says that after compaction, Claude Code
-  "re-reads up to five of the files Claude has read or edited in the session,
+  page "Explore the context window" states the rule.
+  <!-- tc: depart long-sentence because the sentence quotes Claude Code's documentation word for word -->
+  After compaction, Claude Code "re-reads up to five of the files Claude has read or edited in the session,
   choosing the ones modified most recently"
   (https://code.claude.com/docs/en/context-window#what-survives-compaction).
   The order is by modification time, not by read time.
@@ -68,6 +69,12 @@ A prompted retry is no credit, and the retained variable alone is no evidence.
   Claude Code restored it. A Bash call that is only `cat "<path>"` puts the
   file in the set. A compound Bash read does not. The record section
   "compaction-preamble-five" holds the table and its limit.
-- **The leaf asks the human a scope question.** The question: accept the
-  Claude Code `compaction-preamble` row as an explicit unmeasured gap, or cut
-  one more repair whose leaf directs the Write tool for the work files.
+- **The leaf asks the human a scope question.** One option accepts the
+  Claude Code `compaction-preamble` row as an explicit unmeasured gap. The
+  other cuts one more repair, whose leaf directs the Write tool for the work
+  files.
+- **The human chose one more repair.** On 2026-11-03 the human chose a
+  variant whose leaf directs the Write tool for the five work files, over
+  accepting the gap. `claude-preamble-write-tool-trial-k137` owns it, ahead
+  of `standalone-default-kind-k131`. A failure of that repair becomes an
+  explicit gap with no further repair leaf.

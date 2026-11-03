@@ -117,3 +117,13 @@ ran `explicit-native-error` once more in Claude Code. The agent again wrote
 its report in a thinking block, directly before the force-stop call. The
 case is now an explicit gap in Claude Code, with no further repair, as the
 human decided in claude-visible-report-k135.
+
+claude-preamble-loss-trial-k130 ran the five-file variant
+`compaction-preamble-five`. The gate failed again. Claude Code restored both
+mandatory snapshot files, and none of the five work files, which the agent
+wrote through Bash heredocs. After the human's decision on its scope question,
+it cut one more leaf:
+
+- `claude-preamble-write-tool-trial-k137`: run the variant again, with the
+  five work files written by the Write tool. A failure makes the Claude Code
+  `compaction-preamble` row an explicit gap, with no further repair.

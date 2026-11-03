@@ -81,3 +81,15 @@ The triage cut three repair leaves:
   native loader error, and run the two explicit cases again.
 - `claude-preamble-loss-trial-k130`: produce the loss of the whole preamble in
   Claude Code, and observe recovery.
+
+confined-harness-trials-k128 cut four more leaves, after the human's
+decisions on its two scope questions:
+
+- `standalone-default-kind-k131`: give `grove run` a default kind
+  `standalone` outside an active grove. The kind requires no skill. Remove the
+  missing-guidance promise of a standalone run.
+- `ravel-token-handoff-k132`: design how Ravel hands a confined Claude Code
+  its access token, with no Keychain grant.
+- `ravel-token-handoff-k133`: implement that handoff on the Ravel bookmark.
+- `claude-confined-rerun-k134`: run both Claude Code confined cases again with
+  the handoff.

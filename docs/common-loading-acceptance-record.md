@@ -6113,3 +6113,23 @@ when its guidance is unreadable. The agent has no instruction that makes
 guidance required. The documented promise in `docs/USAGE.md` and
 `docs/specs/standalone-invocations.md`, "It reports the missing guidance and
 runs the force-stop command", does not hold for a real agent.
+
+### The human's decisions
+
+The human answered the two scope questions of this repair on 2026-11-03:
+
+- **Claude Code sign-in.** Ravel reads the owner's sign-in before
+  confinement and hands only the access token to the confined harness. The
+  profile gains no Keychain grant. Claude Code 2.1.317 accepts a token through
+  `CLAUDE_CODE_OAUTH_TOKEN` or `CLAUDE_CODE_OAUTH_TOKEN_FILE_DESCRIPTOR`.
+  `ravel-token-handoff-k132` designs the handoff, `ravel-token-handoff-k133`
+  implements it, and `claude-confined-rerun-k134` runs both Claude Code cases
+  again.
+- **Standalone guidance.** Outside an active grove, `grove run` takes a
+  default kind `standalone`. That kind lets the owner's policy select a
+  harness, a model and an effort, and it requires no skill. A standalone run therefore makes no missing-guidance
+  promise. The agent part of the Confined standalone row becomes an explicit
+  gap, with [missing-kind-confined in Codex,
+  repaired](#missing-kind-confined-in-codex-repaired) as its evidence.
+  `standalone-default-kind-k131` makes the change and updates the
+  documentation.

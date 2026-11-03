@@ -47,6 +47,7 @@ owner's settings.
 
 ## Decisions (running log)
 
+<!-- tc: depart synonym-rotation because a launch is Ravel's and a start is the harness's own -->
 **Runner seam.** Ravel scrubs a confined harness's environment, so the
 wrapper sets the names inside the launch. `--tmp-env NAME SUB` and
 `--tmp-link SUB TARGET` act under Ravel's `TMPDIR`, which lies in the private
@@ -55,11 +56,13 @@ run directory that Ravel removes after the run. The authority control admits
 own `TMPDIR`. Runner commit `e4dda1043365`.
 
 **Claude Code sign-in: a profile blocker.** A diagnostic under a copy of
-Ravel's profile, with no model call, showed the claude.ai sign-in only when
-the profile allows both the Mach services `com.apple.SecurityServer` and
-`com.apple.securityd.xpc` and reads of `~/Library/Keychains`. Either one
-alone fails. The same home unconfined is signed in. This is a scope question
-to the human. The profile stays unchanged.
+Ravel's profile ran with no model call. It showed the claude.ai sign-in only
+when the profile allows two additions. One is the Mach services
+`com.apple.SecurityServer` and `com.apple.securityd.xpc`. The other is reads
+of `~/Library/Keychains`.
+
+Either one alone fails. The same home unconfined is signed in. This is a
+scope question to the human. The profile stays unchanged.
 
 **Codex sandbox inside Ravel: `danger-full-access`.** The diagnostic showed
 `sandbox-exec: sandbox_apply: Operation not permitted` for Codex's own
@@ -72,7 +75,8 @@ sandbox link admits that file read-only. `codex login status` reported the
 ChatGPT sign-in under the profile copy. Codex warns that it does not make its
 helper links under `TMPDIR`, and continues.
 
-**Codex TLS roots: a runner repair.** The first repaired Codex launch,
+<!-- tc: depart synonym-rotation because "durable fix" in Done when is the triage leaf's wording -->
+**Codex TLS roots: a runner change.** The first repaired Codex launch,
 `discovery-confined-20261103T062127Z`, started and then failed every request.
 The diagnostic showed that Codex loads its TLS roots through the Security
 framework, which needs `com.apple.SecurityServer`. `CODEX_CA_CERTIFICATE`
@@ -81,10 +85,20 @@ commit `e5d57a7409d2`. Grove's staged release-notes helper already makes the
 same three Codex choices.
 
 **Results.** `discovery-confined` in Codex passes the confined observation.
-`missing-kind-confined` in Codex is a gap with a new cause: Grove's standalone
-prompt holds no kind load and no missing-guidance rule, so the agent completed
-and Grove published. Both Claude Code runs start and stop at "Not logged in".
+`missing-kind-confined` in Codex is a gap with a new cause. Grove's standalone
+prompt holds no kind load and no missing-guidance rule. The agent therefore
+completed, and Grove published. Both Claude Code runs start and stop at "Not logged in".
 
 **Scope questions to the human.** The Claude Code sign-in under confinement,
 and the missing-guidance rule of a standalone run. Each needs a decision
 outside this leaf. The leaf stays live until the human answers.
+
+**The human's answers.** Claude Code sign-in: Ravel reads the Keychain before
+confinement and hands only the access token to the harness. This leaf cut
+`ravel-token-handoff-k132` (design), `ravel-token-handoff-k133` (impl) and
+`claude-confined-rerun-k134`. Standalone guidance: a default kind `standalone`
+for routing that requires no skill, so a standalone run promises no
+missing-guidance report. This leaf cut `standalone-default-kind-k131`.
+
+All four sit before `stage-evidence-reconciliation-k125`. This session could
+not read the Keychain item, because the permission layer refused it.

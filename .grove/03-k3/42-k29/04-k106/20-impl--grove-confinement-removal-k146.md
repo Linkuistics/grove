@@ -27,6 +27,8 @@ as the integrated design of confinement-withdrawal-k144 states.
 - `bash scripts/check.sh` passes with the 1.1 keg and with the new 2.0 build,
   as the "HOME of each run" recipe of
   `docs/grove-dual-ravel-stage-record.md` states.
+- One `task release:smoke` run on `aarch64-unknown-linux-gnu` passes the
+  retained directory case, as the checks of the design state.
 
 ## Notes
 

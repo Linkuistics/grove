@@ -203,9 +203,25 @@ removal. The running log of stage-evidence-reconciliation-k125 holds the
 options and the evidence of the decision.
 
 confinement-withdrawal-k142 designed the removal. Ravel commit
-`3642a5d628fdc9c53db2f46837ccf8f719242f04`, the tip of the bookmark, holds the
+`3642a5d628fdc9c53db2f46837ccf8f719242f04` holds the
 decision record "Ravel does not confine a session", the specification changes
 and the Ravel handoff. Grove's `docs/confinement-withdrawal-evidence.md` holds
 the guarantees of a standalone run, the version consequence, the dispositions
 of the acceptance criteria and the Grove handoff. `grove run --runtime-read`
 stays and has no effect, so Grove's next release stays a minor release.
+
+confinement-withdrawal-k143 reviewed the design and recorded three findings.
+confinement-withdrawal-k144 accepted all three as real issues:
+
+- Grove's handoff now names each consumer of the removed floor route,
+  including `scripts/check.sh`.
+- The Linux directory case stays on the general floor route, without its
+  confinement probes. grove-confinement-removal-k146 runs it once with
+  `task release:smoke`.
+- Ravel's evidence record states the write protection of the configuration as
+  conditional on the harness sandbox. Ravel commit
+  `2df9dd0558248404da48842499b9dcd03a605fec`, the tip of the bookmark, holds
+  that change.
+
+The "Review integration" section of `docs/confinement-withdrawal-evidence.md`
+holds the dispositions.

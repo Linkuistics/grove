@@ -492,10 +492,15 @@ and launches the agent once. The fixture is not evidence of agent behaviour,
 because its script decides to stop. `task ravel:directory` runs both parts on
 the 2.0 build.
 
-The Linux floor cases run the native part on each runtime. They run the
-directory part on the 2.0 lane in the supported environment. The
+On each Linux target, the general floor route runs the directory part on the
+2.0 lane. It runs the case at the glibc 2.17 floor and at the emulated CPU
+floor, as uid 1000. A snapshot therefore refuses a write by its file modes. The
 floor userland has no Git, so the two sources of that case are plain local
-directories. [Runtime lanes](../linux-floor-native.md#runtime-lanes) states each case.
+directories. The [installed smoke test](../RELEASING.md#installed-smoke-test)
+states the route.
+
+The native part has no floor case. Its earlier floor case needed the sandbox
+to make the native copies unreadable.
 The [dual-Ravel stage record](../grove-dual-ravel-stage-record.md) names the
 builds and the results.
 

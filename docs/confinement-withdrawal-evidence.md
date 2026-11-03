@@ -10,12 +10,14 @@ the only boundary of a managed process.
 Grove's part of that design. It covers the guarantees of a standalone run, the
 release-notes route and the version consequence. It also covers the
 dispositions of the acceptance criteria and the handoff to
-`grove-confinement-removal-k146`. Ravel's part is the
-"Withdrawal of confinement" section of Ravel's
+`grove-confinement-removal-k146`.
+
+Ravel's part is the "Withdrawal of confinement" section of Ravel's
 `docs/skill-discovery-design-evidence.md`. It is in Ravel commit
-`3642a5d628fdc9c53db2f46837ccf8f719242f04`, the tip of the unpushed bookmark
-`skill-directory-delivery`. Its parent `74885e37` converts that record to
-controlled English.
+`3642a5d628fdc9c53db2f46837ccf8f719242f04`. Its parent `74885e37` converts
+that record to controlled English. Its child `2df9dd055824` integrates the
+review, and that child is the tip of the unpushed bookmark
+`skill-directory-delivery`.
 
 ## The design
 
@@ -122,6 +124,8 @@ needs a major release, and this design does not propose it.
 | "Confined standalone" | Delivery specification | Replaced by the row "Standalone". The confined results of 2026-11-03 and earlier are historical |
 | "Native-only bootstrap on 1.1", its sentence on standalone proof under actual confinement | Delivery specification | Withdrawn. The standalone caller reads the same native roots |
 | The trial record names the confinement mode | Delivery specification | Changed to the harness sandbox mode |
+| The Linux floor runs the directory part of "Standalone" on the 2.0 lane | Delivery specification | Kept on the general floor route, without the confinement probes. See [Linux floor evidence](#linux-floor-evidence) |
+| The Linux floor runs the native part of "Standalone" on each runtime | Delivery specification | Withdrawn. Its floor case needed the sandbox to make the native copies unreadable |
 | "Real confinement" | Ravel's acceptance table | Replaced by "Read access" and "Removed confinement flags" |
 | "Harness runs", under `--confine` | Ravel's acceptance table | The fake harness reads the resources outside its working directory |
 | "Nested sessions", confinement refusals | Ravel's acceptance table | Withdrawn |
@@ -268,6 +272,9 @@ Elsewhere:
 - One real `grove run release-notes` through the changed helper. It spends one
   Codex call. It records that Codex runs under `workspace-write` and that the
   ending command reaches Ravel from the staged directory.
+- One run of `task release:smoke` with `TARGETS=aarch64-unknown-linux-gnu`.
+  It runs the directory case on the general route, in the floor container and
+  under QEMU. The record names the 2.0 archive that the run used.
 
 ## Linux floor evidence
 
@@ -278,18 +285,53 @@ and `smoke_under_qemu` of `scripts/release-smoke.sh`,
 `release-smoke-qemu.sh`. The QEMU helper keeps its own private namespaces,
 its `pivot_root` and its seccomp profile, which do not depend on bubblewrap.
 
+The proof of skill delivery at the floor stays too. The directory case is the
+only check that publishes skill snapshots from the release archive at the
+glibc 2.17 floor. Ravel's release smoke publishes no snapshot.
+`grove-floor-directory-case.sh` therefore becomes a delivery case on the 2.0
+lane of the general route, on each Linux target. Both general routes run their
+cases as uid 1000, so a snapshot still refuses a write by its file modes.
+
+The case keeps these checks:
+
+- The run completes. Grove reports the completion and publishes the evidence
+  files.
+- The first read is the mandatory spine in a snapshot. Every read is a snapshot
+  path, and the spine, the resource and the kind have their expected contents.
+- `request.skills` names the mandatory file. The caller block keeps the
+  standalone instructions, and no native copy exists under HOME.
+- The probes `descriptor-read` and `cwd-write` succeed. The probes
+  `snapshot-write` and `snapshot-append` fail.
+
+The case loses the probes `source-read`, `source-write`, `outside-write`,
+`config-read` and `settings-read`. It also loses its two `--runtime-read`
+grants and its unconfined control. Its comments and messages stop naming
+confinement. The general route stages the script with the cases, in the floor
+container and under QEMU. The implementation chooses the call site, such as
+`release-smoke-target.sh` or the 2.0 lane of `grove-installed-smoke.sh`.
+
+The native part of the Standalone row has no floor case. The earlier native
+case needed the sandbox to make the native copies unreadable, so that the
+agent force-stopped. Without a sandbox the copies are readable.
+`grove-installed-smoke.sh` still runs the standalone caller and its output
+publication on each lane. The scripted agent of
+`crates/grove/tests/standalone.rs` checks the interpretation of a force-stop,
+as [Tests](#tests) states.
+
 The proof of bubblewrap and confinement goes:
 
 - The scripts `release-floor-backend.sh`, `release-floor-qemu-backend.sh`,
   `release-floor-qemu.sh`, `release-floor-native.sh`,
-  `grove-floor-native-cases.sh`, `grove-floor-directory-case.sh`,
-  `release-floor-backend-probe.sh` and `release-floor-backend-probe-host.sh`,
-  with their tests. `atomic_directory_publish.py` and its test go too, because
-  only the backend preparers use them.
+  `grove-floor-native-cases.sh`, `release-floor-backend-probe.sh` and
+  `release-floor-backend-probe-host.sh`, with their tests.
+  `atomic_directory_publish.py` and its test go too, because only the backend
+  preparers use them.
 - `scripts/floor-native-security.c`, and the two bubblewrap rules of
   `scripts/floor_seccomp.py`, with the matching assertions of
   `floor-seccomp.test.sh`.
-- The staging of `bwrap` and of the floor cases in `release-smoke-qemu.sh`.
+- The block of `release-smoke-qemu.sh` that stages the backend inputs. These
+  are `bwrap`, its libraries, the security probe and the CPU probe of the
+  sandbox.
 - The Taskfile tasks `release:floor:qemu`, `release:floor:qemu:prepare`,
   `release:floor:qemu:controls`, `release:floor:native`,
   `release:floor:native:run`, `release:floor:prepare`,
@@ -300,14 +342,57 @@ The proof of bubblewrap and confinement goes:
   backend cases go. A dated handoff section that another document cites stays
   as a historical record.
 
-`smoke_linux` of `release-smoke.sh` then runs `grove-installed-smoke.sh`
-through the general route, as the Ravel consumers do. Check once whether the
-QEMU route still needs `systempaths=unconfined`.
+`smoke_linux` of `release-smoke.sh` then runs `grove-installed-smoke.sh` and
+the directory case through the general route, as the Ravel consumers do. Check
+once whether the QEMU route still needs `systempaths=unconfined`.
+
+These consumers of the removed route change in the same commit. The test
+`every_repository_markdown_reference_resolves` reads every Markdown file, so a
+link to a removed document fails `cargo nextest`.
+
+- `scripts/check.sh`: remove the scripts above and their tests from the
+  ShellCheck list, and keep `floor-seccomp.test.sh`. Remove the runs of
+  `release:floor:controls` and `release:floor:qemu:controls`. Keep the run of
+  `release:floor:seccomp:controls`, because `smoke_under_qemu` uses the
+  `--qemu` profile.
+- `docs/RELEASING.md`, "Installed smoke test": the general route replaces the
+  native floor environment and the QEMU confinement environment. The denial
+  task and the native guidance case go, and the directory case stays on the 2.0
+  lane. The item on each Linux target loses the sandbox descendant of its CPU
+  control.
+- `docs/ravel-target-inputs.md`: the item on the 2.0 lane names the directory
+  case of the general route. "Reused execution seams" loses its paragraph on
+  the bubblewrap backend.
+- `docs/linux-floor-qemu.md`: its links to `linux-floor-native.md` and
+  `linux-floor-backend.md` go with its backend cases.
+- `scripts/floor-seccomp/README.md`: it names `docs/linux-floor-native.md` and
+  the native profile. Name the QEMU route and its profile instead.
+
+`docs/ravel-caller-surface-inventory.tsv` and
+`docs/grove-ravel-docs-evidence.md` are dated audits. They stay, as the dated
+floor records do.
 
 The dated floor records stay as records of earlier runs. They include the
 handoffs of 2026-10-13 and 2026-10-14 and the floor rows of
 `docs/grove-dual-ravel-stage-record.md`. No build after the removal can
 repeat a bubblewrap result.
+
+## Review integration
+
+`confinement-withdrawal-k143` reviewed this design and recorded three
+findings. `confinement-withdrawal-k144` verified each one against the source
+and accepted each one as a real issue:
+
+- **F1, the check script.** The handoff omitted `scripts/check.sh`. An
+  enumeration of the removed floor names found four more consumers. The list
+  in [Linux floor evidence](#linux-floor-evidence) now names each one.
+- **F2, directory delivery at the floor.** The handoff removed the only floor
+  check of snapshot publication. The directory case now stays on the general
+  route, and the delivery specification states that route.
+- **F3, write protection of the configuration.** Ravel's table gave a reason
+  that does not always hold. Ravel's evidence record now states the
+  protection as conditional on the harness sandbox. Ravel commit
+  `2df9dd0558248404da48842499b9dcd03a605fec` holds that change.
 
 ## Limits
 

@@ -56,3 +56,18 @@ A prompted retry is no credit, and the retained variable alone is no evidence.
   the preparation of `claude-force-stop-report-k136`, and its digests are in
   the record. Cases come from this working tree, so a new case needs no new
   preparation. Claude Code is now 2.1.317. The earlier attempts ran 2.1.316.
+- **The variant met its precondition, and the gate failed.** The run is
+  `compaction-preamble-five-20261103T085255Z`. The first turn wrote the five
+  work files after its last guidance read, in three Bash calls. The summary
+  held no preamble text. Claude Code restored only the two mandatory
+  `SKILL.md` files, both in a snapshot. By the attempt rule, no further run
+  follows.
+- **Bash heredoc writes do not enter the restoration set.** The agent wrote
+  every work file through `cat > <file> <<'EOF'`, and Claude Code restored
+  none of them. In the first attempt, the Write tool wrote `stamp.sh`, and
+  Claude Code restored it. A Bash call that is only `cat "<path>"` puts the
+  file in the set. A compound Bash read does not. The record section
+  "compaction-preamble-five" holds the table and its limit.
+- **The leaf asks the human a scope question.** The question: accept the
+  Claude Code `compaction-preamble` row as an explicit unmeasured gap, or cut
+  one more repair whose leaf directs the Write tool for the work files.

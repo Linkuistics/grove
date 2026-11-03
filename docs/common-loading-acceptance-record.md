@@ -4214,7 +4214,8 @@ stays set. The case had two attempts, and neither met the precondition.
 answer. No observation of the agent exists, so this record cannot state whether
 the agent recovers the descriptor through the variable alone.
 `acceptance-handoff-k106` resolves the gap through repair work or an explicit
-scope escalation.
+scope escalation. The repair variant
+[compaction-preamble-five](#compaction-preamble-five) also stopped at the gate.
 
 **First attempt.** The run is `compaction-preamble-20261102T231613Z`, at Grove
 commit `fb6df03aeb98`. Its summary instructions were these:
@@ -4269,9 +4270,9 @@ kind needs a session in which no restored file lies in a snapshot.
 **Repair candidate.** Claude Code's documentation says that it restores up to
 five files that the agent read or edited, the most recently modified first. A
 first turn that writes five or more work files after its guidance reads might
-leave every snapshot file out of the restoration. This record has not tested
-that. The restoration rule and its effect on snapshot files are unverified for
-this version.
+leave every snapshot file out of the restoration.
+[compaction-preamble-five](#compaction-preamble-five) tested that, and it
+found a narrower rule.
 
 **Limit.** In both attempts the first turn read the mandatory files, the kind
 skill and the spine's procedures, then wrote `stamp.sh` and asked the human.
@@ -4294,6 +4295,130 @@ and Grove stopped the loop with the leaf live.
 | Session file | `4f4e45ed-fb0b-4161-b1ef-b1c02ed32c0f.jsonl`, SHA-256 `6014a0b7aadab8be13552934811d760ec47ebe4e8b95504da4662c75ec65137e` | `ebbd032f-b867-4c0b-a98b-8e7d5227b245.jsonl`, SHA-256 `f1fe63eb850f68747fd21ba4b833ad59b08e04e704a7034d7aeb5ace30018ece` |
 | Stream | SHA-256 `becdec59eeffede91f79026c42b39aac3727eff2ea3a3467f50fafd62b92c5cd` | SHA-256 `b63f5c7bb64f7a0f34a8d851bf2a6af821d72a69fdfe1c53dccb926451a57bb9` |
 | Driver | Exit 0 after 86.0 seconds | Exit 0 after 115.1 seconds |
+
+#### compaction-preamble-five
+
+**Case.** `compaction-preamble-five` is the repair variant of
+[compaction-preamble](#compaction-preamble), from
+`claude-preamble-loss-trial-k130`. Its leaf asks for five work files before the
+label question: `stamp.sh`, `check-stamp.sh`, `README.md`, `.gitignore` and
+`CHANGELOG.md`. Its Notes ask for one file in each step. The case is at commit
+`03db497a2271`.
+
+The summary instructions are those of the second attempt, word for word. The
+answer is the answer of `compaction-preamble`.
+
+**Restoration rule.** Claude Code's page
+[Explore the context window](https://code.claude.com/docs/en/context-window#what-survives-compaction)
+states the rule. After compaction, Claude Code "re-reads up to five of the
+files Claude has read or edited in the session, choosing the ones modified
+most recently". The first attempt agrees with the order. Claude Code restored
+`stamp.sh`, modified at 23:16:50Z, before the two snapshot files. Ravel wrote
+those at the launch, 23:16:13Z.
+
+**Attempts.** The task file recorded one counted attempt before the run. It
+allowed a further run only if the first turn wrote fewer than five work files
+after its last guidance read. The run is
+`compaction-preamble-five-20261103T085255Z`, at Grove commit `1f7b8013d4f6`,
+with Claude Code 2.1.317. It is the only run, with no retry.
+
+**Precondition of the variant: met.** The last guidance read of the first turn
+was `machine-environment`, at 08:53:35Z. The agent then wrote the five work
+files between 08:53:42Z and 08:53:57Z, and it appended to the task file at
+08:54:12Z. All five work files are newer than the snapshot files, which Ravel
+wrote at 08:52:55Z.
+
+The agent used three Bash calls, not five. One call wrote `README.md`,
+`.gitignore` and `CHANGELOG.md`. `check-stamp.sh` passed, and the agent asked
+the label question.
+
+**Gate: failed.** The summary held no preamble path, digest, line or term,
+and it did not name the variable. Claude Code restored two files after the
+boundary, and both lie in a snapshot:
+
+- `$L/skills/using-jujutsu/SKILL.md`
+- `$G/skills/grove/SKILL.md`
+
+The session lines after the boundary therefore held 4 preamble paths and 2
+digests. The feeder sent no answer, and no model request followed the
+boundary.
+
+**Result: unmeasured gap.** No observation of the agent exists. Restored
+files alone kept the preamble paths, because the summary was clean.
+
+**Mechanism.** Claude Code restored no work file. The agent wrote every work
+file through a Bash heredoc, `cat > <file> <<'EOF'`. The three runs show
+which calls put a file in the read and edited set:
+
+| Call | First attempt | Five-file run | In the set |
+| --- | --- | --- | --- |
+| One Bash call that is only `cat "<path>"` | Both mandatory files | Both mandatory files | Yes: Claude Code restored each |
+| The Write tool | `stamp.sh` | None | Yes: Claude Code restored `stamp.sh` |
+| A Bash heredoc write | The append to the task file | The five work files and the task file | No: Claude Code restored none |
+| A compound Bash read, such as `S=…; cat "$S/…"` | The kind skill and the spine's procedures | The kind skill, the procedures and two skills | No: Claude Code restored none |
+
+The modification time ranks only the files in that set. A work file that
+Bash wrote is not a candidate, however recent it is. The mandatory files are
+candidates whenever the agent reads each one with its own plain `cat`. The
+mandate of the preamble names each mandatory path, so that read is the common
+form.
+
+**What the run shows.** In Claude Code 2.1.317, the whole preamble is lost
+only when five files in the set are newer than the snapshot files. Bash writes
+do not count. A first turn that writes through the Write or Edit tool could
+meet that condition. No run of this record produced it, and the leaf
+records no further run. The case stays an unmeasured gap in Claude Code until
+a scope decision.
+
+**Limit.** The documentation does not say which Bash calls enter the set. The
+table above infers it from three runs, and the second attempt's run directory
+no longer exists. One run is one observation, not a rate. Ravel again wrote two
+`stop attempt … Operation not permitted` lines, as in the earlier runs. The
+agent ran no ending command, so Ravel refused as `session_result_missing`.
+
+| Subject | Value |
+| --- | --- |
+| Grove build | Commit `1f7b8013d4f6`. `grove` SHA-256 `fd71aa5df033ca9c58c37ea6b3b3051fe92ee3565f4613154b8e16485e8ad910`. `grove-llm` SHA-256 `56f6815a290441d2498b1af4431923d73983459619d5e7eea633f34fad1264b7` |
+| Ravel build | Build commit `e9cc79993b46`, bookmark `skill-directory-delivery` at `0d60cb531240`. Identity `fd8dfdc28aec1a63f292a7f2ab2ce6c0789f74232a02b39b5b8f6693b7ba7bc9`. `bin/ravel` SHA-256 `d076dc01fe3166ddd512f9b739ba81ad598a0cc0e03f2b552681b97387abfe06` |
+| Harness | Claude Code 2.1.317, model `claude-opus-5-5`, effort `medium`, permission mode `bypassPermissions` |
+| Sources | Checkout commit `1f7b8013d4f6`. `resourceDigest` `88f68c31…` for `grove` and `820fe282…` for `linkuistics`, as compaction-path |
+| Descriptor | `59308eb251b3a374c0f7e227f422b4fcc53a73afe17108aa98765065b30e8e7a`, equal to the SHA-256 of `directories.json` |
+| Links, driver environment | As [compaction-path](#compaction-path) |
+| Harness environment | As compaction-path. `RAVEL_SKILL_DIRECTORIES` equal to the descriptor path |
+| Native copies | None |
+| Synced claude.ai skills | None in this run |
+| Preamble | SHA-256 `dafb45f4c084395cdfe3ca2468d4273d5b1dc9e9afb4778ace29e47c03b1d12e`. 5 paths, 3 digests, 17 lines of at least 40 characters |
+| Summary | 10,674 characters, SHA-256 `7c405b9e92f47c86020b4d37b66c24d8a1077464254398f2211699435da5cc1a`. No preamble text |
+| Restored files | `using-jujutsu/SKILL.md` and `grove/SKILL.md`, both in a snapshot |
+| Gate | Failed at 08:55:02Z: 4 preamble paths and 2 digests after the boundary |
+| Session file | `cdccc827-40e1-46cb-bec4-f8756cf7a856.jsonl`, SHA-256 `0f4aeeda521603eff410ffe1f38be38aa8d5222d4cbf09380d9559142dd154aa`. Stream SHA-256 `8b68374c7bb5fc076ef15953e8850a290d49429730f4f8dfe743acfe7fc615dd` |
+| Turns | The prompt at 08:52:55Z and `/compact` at 08:54:21Z, UTC. No answer |
+| Driver | Exit 0 after 127.8 seconds |
+
+Ordered events of the first turn. `$TRIAL` is the trial directory. `$G` and
+`$L` are the snapshots of `grove` and `linkuistics`.
+
+| # | Time | Tool | Class | Command or text |
+| --- | --- | --- | --- | --- |
+| 3 | 08:53:00 | Bash | mandatory | `cat "$L/skills/using-jujutsu/SKILL.md"` |
+| 4 | 08:53:04 | Bash | mandatory | `cat "$G/skills/grove/SKILL.md"` |
+| 6 | 08:53:08 | Bash | listing | A search of both search directories for `grove-impl` |
+| 7 | 08:53:11 | Bash | kind-skill | A compound read of `grove-impl/SKILL.md` |
+| 9 | 08:53:15 | Bash | supporting (error) | A compound read of the spine's procedures |
+| 10 | 08:53:18 | Bash | supporting | A compound read of the spine's procedures |
+| 12 | 08:53:21 | Bash | command | `grove-llm resolve` and `brief-chain` |
+| 13 | 08:53:23 | Bash | command | The brief and the task file |
+| 14 | 08:53:28 | Bash | skill | A compound read of `coding-style-bash` |
+| 15 | 08:53:31 | Bash | supporting | A compound read of the spine's procedures |
+| 17 | 08:53:35 | Bash | skill | A compound read of `machine-environment`, the last guidance read |
+| 19 | 08:53:42 | Bash | command | `stamp.sh` by heredoc, then a jj commit |
+| 21 | 08:53:50 | Bash | command | `check-stamp.sh` by heredoc, then a jj commit |
+| 22 | 08:53:57 | Bash | command | `README.md`, `.gitignore` and `CHANGELOG.md`, with three jj commits |
+| 23 | 08:54:03 | Bash | command | `./check-stamp.sh`, which passed |
+| 24 | 08:54:12 | Bash | command | An append to the task file by heredoc, then a jj commit |
+| 25 | 08:54:21 | text | text | The label question |
+| 26 |  | compaction | compaction | Compact boundary |
+| 27 | 08:54:21 | prompt | prompt | `/compact` with the instructions of the second attempt |
 
 ### Compaction in Codex
 
@@ -4589,7 +4714,7 @@ Ordered events, with the names of
 | Compaction | `thread/compact/start` of `codex app-server`, which takes no instructions | `/compact` with the case's instructions, as a turn of stream-json input |
 | Context after compaction | The `compacted` entry's replacement history, and the messages before the first output. The remote summary is encrypted | The record of the first model request, with its message blobs and system prompt |
 | `compaction-path` | **Unmeasured gap.** The default keeps the prompt word for word, so the paths remain | Pass. The agent recovered through the variable and read the mandatory guidance again |
-| `compaction-preamble` | **Gap.** `token_budget` produced the loss, and the agent did not recover | Unmeasured gap. Obligation 10 and restored files kept preamble paths in both attempts |
+| `compaction-preamble` | **Gap.** `token_budget` produced the loss, and the agent did not recover | Unmeasured gap. Obligation 10 and restored files kept preamble paths in both attempts. In the five-file variant, restored files alone kept them |
 
 The two harnesses differ in what survives compaction:
 
@@ -5778,7 +5903,7 @@ The human answered the three scope questions on 2026-11-03:
 | Codex | `missing-kind-confined` | The same. The native roots also lie inside the configuration directory | Repair: `confined-harness-trials-k128` |
 | Claude Code | `explicit-native-error` | No report before the force-stop. Obligation 4 gives the report no order | Repair: `loader-report-wording-k129` |
 | Claude Code | `explicit-native-only` | No report before the force-stop | Repair: `loader-report-wording-k129` |
-| Claude Code | `compaction-preamble` | Claude Code restored snapshot files after the boundary, so the gate failed twice | Repair: `claude-preamble-loss-trial-k130` |
+| Claude Code | `compaction-preamble` | Claude Code restored snapshot files after the boundary, so the gate failed twice | Repair: `claude-preamble-loss-trial-k130`. The gate failed again, and the leaf asks a scope question |
 | Claude Code | `problem-ambiguity` | A pack reference chose between the two copies | Covered: `problem-ambiguity-unreferenced` passed |
 | Codex | `problem-ambiguity` | Not run, for the same reason | Covered: `problem-ambiguity-unreferenced in Codex` passed |
 | Codex | `problem-stale-native` | Not run, because of the pack reference | Covered: `problem-stale-native-cli in Codex` passed |

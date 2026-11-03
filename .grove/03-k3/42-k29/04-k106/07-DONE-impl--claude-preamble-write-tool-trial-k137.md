@@ -72,3 +72,20 @@ limit beside the result.
   `bin/ravel` is `d076dc01…`. Each digest equals the record. Claude Code is
   still 2.1.317. Cases come from this working tree, so a new case needs no
   new preparation.
+- **The precondition held, and the gate passed.** The run is
+  `compaction-preamble-write-20261103T090719Z`. The agent wrote the five work
+  files in five Write calls after its last guidance read. Claude Code
+  restored exactly those five files, and none lies in a snapshot. The
+  summary and the first model context after the boundary held no preamble
+  text. By the attempt rule, no further run follows.
+- **The result is a gap.** After the answer, no call read the variable or the
+  mandatory files. The summary's closing sentence names the transcript file,
+  in the sandbox home. The agent searched the transcript, then ran `find` in
+  the home directory, and read the spine's `retire.md` and `commit.md` from
+  the snapshot that it found. Call 31 is in the class `variable` only
+  because it runs `env`, and it filters out the variable.
+- **The gap is explicit, with no scope question.** The human decided in
+  claude-preamble-loss-trial-k130 that a failure of this repair becomes an
+  explicit gap with no further repair leaf. The record, the node brief and
+  the note of acceptance-completion-audit-k127 name it with its mechanism.
+  The note also hands the cross-harness finding to discovery-rollout-k6.

@@ -127,3 +127,11 @@ it cut one more leaf:
 - `claude-preamble-write-tool-trial-k137`: run the variant again, with the
   five work files written by the Write tool. A failure makes the Claude Code
   `compaction-preamble` row an explicit gap, with no further repair.
+
+claude-preamble-write-tool-trial-k137 ran the variant
+`compaction-preamble-write`. Its gate passed, because Claude Code restored
+the five work files that the Write tool wrote. The agent then found its
+guidance through the transcript path and a search of the home directory, not
+through the variable. The Claude Code `compaction-preamble` row is now an
+explicit gap, with no further repair, as the human decided in
+claude-preamble-loss-trial-k130.

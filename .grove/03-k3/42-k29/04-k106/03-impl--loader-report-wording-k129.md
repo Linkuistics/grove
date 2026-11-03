@@ -65,3 +65,15 @@ names an older build. `stage-evidence-reconciliation-k125` reconciles that.
 - **Build record.** `builds.json` takes the new build and points its `source`
   at the record section of this leaf. The dual-Ravel stage record keeps its
   older build for `stage-evidence-reconciliation-k125`.
+- **Ravel output.** Build commit `0fb12d5f308b`, identity `45eea220…`,
+  `bin/ravel` `7ab96d9e…`. `task check` passed 732 of 732. Output commit
+  `e0fe5631fb0e` is the tip of the unpushed bookmark.
+- **Trial results.** `explicit-native-only` in Codex passes. Both Claude Code
+  cases stay gaps: each agent wrote a correct report, but in a thinking block
+  directly before the force-stop call. Claude Code itself then flagged "no
+  visible output". The record holds the evidence under "Loader report repair".
+- **Continuation.** Both `continuation` sections now state that the re-read
+  row holds under the clarified rule, with the build that states it. The
+  measured result keeps its label as measured under the earlier wording.
+- **Pending: scope question.** The human decides what happens to the two
+  Claude Code gaps. The leaf stays live until the answer.

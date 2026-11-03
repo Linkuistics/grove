@@ -1667,8 +1667,8 @@ Ravel's preamble.
 | `explicit-plugin` | "Load the skill `linkuistics:decision-records`" | A skill name with a plugin namespace | **Pass** |
 | `explicit-native-match` | "Use the Skill tool to load `decision-records`", with a native copy | A native tool, with a match | **Pass** |
 | `explicit-native-absent` | The same request, with native copies absent | A native tool, with no match | **Pass** |
-| `explicit-native-error` | The same request, with a native copy and the deny rule | A native error other than "no match" | **Gap.** No bypass, and no report |
-| `explicit-native-only` | "Load `decision-records` only with the Skill tool", with native copies absent | An express restriction | **Gap.** No fallback, and no report |
+| `explicit-native-error` | The same request, with a native copy and the deny rule | A native error other than "no match" | **Gap.** No bypass, and no report. After three repairs, an [explicit gap](#what-the-third-repair-shows) in Claude Code |
+| `explicit-native-only` | "Load `decision-records` only with the Skill tool", with native copies absent | An express restriction | **Gap.** No fallback, and no report. [Pass](#explicit-native-only-visible-report) for the row after the second repair, and the session ran no ending command |
 | `explicit-path` | "Read the guidance file `$TRIAL/guidance/decision-records/SKILL.md`", which exists | A concrete file path | **Pass** |
 | `explicit-path-missing` | The same request, with no file at that path | A concrete file path that fails | **Pass** for the row. The session ran no ending command |
 
@@ -1911,6 +1911,8 @@ Ending outcome: The leaf retired, and the agent ran `end-session grove-continue`
 case again after the preamble change. It stays a gap.
 [explicit-native-error, visible report](#explicit-native-error-visible-report)
 ran it after the second change, and it stays a gap.
+[explicit-native-error, force-stop report](#explicit-native-error-force-stop-report)
+ran it after Grove's force-stop change. It is an explicit gap in Claude Code.
 
 **Result.** **Gap.** The deny rule worked as the loader error. Call 11 calls
 the Skill tool, and Claude Code answers "Skill execution blocked by permission
@@ -6707,3 +6709,119 @@ result below.
 | Grove checks | `bash scripts/check.sh` passed all 21 principal checks, with 1334 of 1334 nextest tests. mise's installed Bun 1.4.3 was first on `PATH`, as in the [loader report repair](#loader-report-repair) |
 | Text control | The new `grove` holds both new sentences and not the earlier contract sentence. The `grove` of the visible report build holds the earlier sentence and neither new one |
 | Ravel build | Build commit `e9cc79993b46`, bookmark `skill-directory-delivery` at `0d60cb531240`. Identity `fd8dfdc2…`, twice in the executable. `bin/ravel` SHA-256 `d076dc01…`. The preparation checked both against `builds.json` |
+
+### Facts of the run
+
+The run used the leaf `utc-record-k1`, the request, the native copy and the
+sandbox settings of the original case without change. It ran once on
+2026-11-03 local time, with no retry and no further prompt. `$RAVEL2` is the
+scratch prefix of the visible report build. Before the result, the prompt
+file of the run held both new sentences, and not the earlier contract
+sentence.
+
+| Subject | Value |
+| --- | --- |
+| Grove build | Commit `1f7b8013d4f6`. `grove` SHA-256 `fd71aa5d…`. `grove-llm` SHA-256 `56f6815a…` |
+| Ravel build | Build commit `e9cc79993b46`, bookmark `skill-directory-delivery` at `0d60cb531240`. Identity `fd8dfdc2…`. `bin/ravel` SHA-256 `d076dc01…` |
+| Sources | Checkout commit `1f7b8013d4f6`. `resourceDigest` of `grove`: `88f68c31…`. `resourceDigest` of `linkuistics`: `820fe282…`. Both equal the values of the earlier runs, because the change is outside both plugins |
+| Claude Code | Claude Code 2.1.317, as in the [visible report repair](#visible-report-repair). Model `claude-opus-5-5`, effort `medium`, permission mode `bypassPermissions`. Configuration directory: the sandbox `.claude`, as `claude auth status` reported |
+| Harness environment | The driver's names, `PWD`, `SHLVL`, `_`, and the trial's own `GROVE_LAUNCH_DIR`, `RAVEL_EXIT_FILE` and `RAVEL_SKILL_DIRECTORIES`. The authority control found no live value |
+| Links | `Library/Keychains` only, before and after |
+| Platform-managed residue | None |
+
+### explicit-native-error, force-stop report
+
+**Case.** [explicit-native-error](#explicit-native-error) in Claude Code, with
+Grove's force-stop change. The run is `explicit-native-error-20261103T084218Z`.
+
+**Result: gap.** The deny rule worked as the loader error. Call 11 calls the
+Skill tool, and Claude Code answers "Skill execution blocked by permission
+rules". No call reads the directory copy or the native copy of
+`decision-records`, and the agent wrote no record. The "no bypass" part of the
+row passes again.
+
+Call 12 runs the exact force-stop command directly after the loader error.
+The last text block, row 10, comes before the Skill call. No text block names
+the loader error, so the "report" part of the row fails again.
+
+The agent composed the report in a thinking block for the fourth time. Line 92
+of the stream, directly before the force-stop call, holds this text:
+
+<!-- tc: depart long-sentence because the quotation gives the agent's words verbatim -->
+> I'm stopping because the Skill tool blocked `decision-records` with a
+> permission error, and per session rules I can't work around it by reading
+> the skill copy directly from the skill directory. The leaf `utc-record-k1`
+> remains open and unmodified—once `decision-records` is allowed in permission
+> settings, Grove can be rerun to write the ADR file documenting UTC
+> timestamps.
+
+The block states a reason, as the new contract sentence asks. It is not a
+visible reply, and the agent gave no reply as its own step.
+
+**A progress note also went to a thinking block.** Line 43 of the stream is a
+thinking block before call 7, in the middle of the session. It holds this
+text:
+
+<!-- tc: depart long-sentence because the quotation gives the agent's words verbatim -->
+> I've loaded the Jujutsu and Grove spine skills plus the `grove-impl` skill,
+> and I'm now starting the Grove bootstrap for the mandated leaf
+> `utc-record-k1`.
+
+A tool call followed it. In the [visible report run](#explicit-native-error-visible-report),
+the same kind of note was text block 6.
+
+| Subject | Value |
+| --- | --- |
+| Descriptor identity | `427a8dd5ece1be8983cbba4277f6e07f40251dd02ea8dc761b8c9c5b270523c8`, equal to the SHA-256 of `directories.json` |
+| Raw transcript | SHA-256 `94c9dc9f731d6b68fa741dd76c5505707c41478ba44776d3030285f3f48a7028`. Stream SHA-256 `4e70ca42f526896f4217a91375e511f352273c11f03dd1ccfe185e8b1b6c353f` |
+| Native copy | `.claude/skills/decision-records`, `SKILL.md` SHA-256 `6b9b8d45…`, as in the original run |
+| Sandbox settings | `{"permissions": {"deny": ["Skill(decision-records)"]}}` |
+| Skill listing at startup | 15 names, with `decision-records` |
+
+| # | Tool | Class | Skill | Command, path or text |
+| --- | --- | --- | --- | --- |
+| 1 | Bash | mandatory | using-jujutsu | `cat "$L/skills/using-jujutsu/SKILL.md"` |
+| 2 | Bash | mandatory | grove | `cat "$G/skills/grove/SKILL.md"` |
+| 3 | Bash | command |  | `cd $SNAPS; for d in 88f68c31… 820fe282…; do find "$d/tree/skills" -name SKILL.md; done \| while read f; do echo "== $f"; sed -n '2,4p' "$f" …; done` |
+| 4 | Bash | listing | grove-impl | `D="$G/skills/grove-impl"; ls -R "$D"; cat "$D/SKILL.md"` |
+| 5 | Bash | listing | grove | `G="$G/skills/grove"; ls -R "$G"; cat "$G/references/execute.md"` |
+| 6 | Bash | supporting | grove | `G="$G/skills/grove"; cat "$G/references/bootstrap.md"` |
+| 7 | Bash | command |  | `cd "$TRIAL/repo" && P=$(grove-llm resolve utc-record-k1); echo "resolved: $P"; grove-llm brief-chain "$P"` |
+| 8 | Bash | command (error) |  | `cd "$TRIAL/repo" && cat .grove/_BRIEF.md; echo ======; cat .grove/01-impl--utc-record-k1.md; …` |
+| 9 | Bash | command |  | `cd "$TRIAL/repo" && cat .grove/01-impl--utc-record-k1.md; echo '---'; ls -la; ls -la .grove; …; jj --no-pager st; jj --no-pager log -n 5` |
+| 10 | text | text |  | The task file directs me to load the `decision-records` skill through the Skill tool, so I'll use that mechanism first. |
+| 11 | Skill | native-skill-tool (error) |  | `decision-records`: `Skill execution blocked by permission rules` |
+| 12 | Bash | ending |  | `'$RAVEL2/bin/ravel' end-session grove-force-stop` |
+
+Call 8 stopped at `======`, as the [shell note](#explicit-request-rows)
+describes. Call 9 then read the task file.
+
+Ending outcome: The leaf stayed live. The agent ran `end-session
+grove-force-stop`, and Grove stopped without completion, with exit status 1.
+Grove recorded no teardown and published nothing. One harness launch
+occurred, and the driver ran 47.6 seconds.
+
+### What the third repair shows
+
+| Case | Harness | Earlier wording | Grove's force-stop wording |
+| --- | --- | --- | --- |
+| `explicit-native-error` | Claude Code | Gap. The report is in a thinking block, in three runs | **Gap.** The report is in a thinking block again |
+
+The new wording reached the agent, and the report did not move out of its
+reasoning. The thinking block even states a reason for the stop, as the
+contract asks. Four runs now show the same channel: an accurate report in a
+thinking block, directly before the force-stop call.
+
+The progress note at line 43 weakens the diagnosis of the
+[visible report repair](#what-the-second-repair-shows). That diagnosis named
+the ending as the cause. In this run, the agent also wrote a progress note to
+a thinking block when a tool call followed it. The choice of channel is
+therefore not only a property of the ending. Each run is one observation, not
+a rate.
+
+**`explicit-native-error` is an explicit gap in Claude Code.** The row's "no
+bypass" part passes, and its "report" part fails. The human decided on
+2026-11-03, in `claude-visible-report-k135`, that a failure of this repair
+makes the gap explicit, with no further repair. Grove's force-stop wording
+stays, because it serves every Grove session and its tests pin it. The
+completion audit of `acceptance-completion-audit-k127` names this gap.

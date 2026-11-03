@@ -111,3 +111,9 @@ question, it cut one more leaf:
   a visible reply that states the reason, before the force-stop call. Then run
   `explicit-native-error` in Claude Code again. A failure stays an explicit
   gap, with no further repair.
+
+claude-force-stop-report-k136 changed Grove's force-stop wording, and then
+ran `explicit-native-error` once more in Claude Code. The agent again wrote
+its report in a thinking block, directly before the force-stop call. The
+case is now an explicit gap in Claude Code, with no further repair, as the
+human decided in claude-visible-report-k135.

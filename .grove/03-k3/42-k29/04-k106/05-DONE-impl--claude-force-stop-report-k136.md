@@ -100,3 +100,16 @@ sentence does not ask for a report before a normal `grove-continue` ending.
   provenance" fails, because the owner's global mise configuration selects
   Bun 1.4.4 and the policy typecheck pins 1.4.3. `loader-report-wording-k129`
   recorded the same failure. This leaf changed no part of that step's subject.
+- **The case failed, and it is an explicit gap.** The run
+  `explicit-native-error-20261103T084218Z` used Grove commit `1f7b8013d4f6`.
+  The record named its `grove` and `grove-llm` SHA-256 values in commit
+  `bdb1d81c`, before the run. The prompt file held both new sentences. The
+  agent again wrote an accurate report, with a reason, in a thinking block
+  directly before the force-stop call. No text block named the loader error.
+  As the human decided in k135, the case is an explicit gap in Claude Code,
+  with no further repair. The record says so, and the note of
+  `acceptance-completion-audit-k127` tells the audit to name it.
+- **The ending diagnosis is weaker now.** In the same run, the agent also
+  wrote a progress note in a thinking block, with a tool call after it. The
+  record states that the channel is not only a property of the ending. The
+  force-stop wording stays, because it serves every Grove session.

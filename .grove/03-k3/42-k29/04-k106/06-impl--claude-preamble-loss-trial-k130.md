@@ -29,3 +29,30 @@ agent recovers the descriptor through `RAVEL_SKILL_DIRECTORIES`.
 
 Record in the task file, before the run, how many attempts the case gets.
 A prompted retry is no credit, and the retained variable alone is no evidence.
+
+## Decisions (running log)
+
+- **The restoration rule is documented for this version.** Claude Code's
+  page "Explore the context window" says that after compaction, Claude Code
+  "re-reads up to five of the files Claude has read or edited in the session,
+  choosing the ones modified most recently"
+  (https://code.claude.com/docs/en/context-window#what-survives-compaction).
+  The order is by modification time, not by read time.
+- **The first attempt agrees with the rule.** Its run directory still exists.
+  Claude Code restored `stamp.sh` first, then the two mandatory `SKILL.md`
+  files. Both snapshot files have the launch time 23:16:13Z as their
+  modification time. `stamp.sh` has 23:16:50Z. Only three files were
+  restored, so only three files were in the read and edited set. The run
+  directory of the second attempt no longer exists.
+- **The variant is a new case, `compaction-preamble-five`.** Its leaf asks
+  for five work files, each written in its own step, before the label
+  question. Its summary instructions are those of the second attempt, word
+  for word. Its answer is the answer of `compaction-preamble`.
+- **The case gets one counted attempt.** One further run is allowed only if
+  the first turn of the first run writes fewer than five work files after its
+  last guidance read. That run did not test the variant. A gate failure after
+  five such writes ends the case, with no further run.
+- **The run reuses the preparation at Grove commit `1f7b8013d4f6`.** It is
+  the preparation of `claude-force-stop-report-k136`, and its digests are in
+  the record. Cases come from this working tree, so a new case needs no new
+  preparation. Claude Code is now 2.1.317. The earlier attempts ran 2.1.316.

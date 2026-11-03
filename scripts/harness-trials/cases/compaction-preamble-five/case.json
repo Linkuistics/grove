@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "name": "compaction-preamble-five",
+  "purpose": "Measure compaction that loses the whole preamble, on the directory route, without restored snapshot files. A first turn reads the mandatory and relevant guidance, then writes five work files, each in its own step, and stops for required input from the human. Claude Code restores up to five read or edited files after compaction, the most recently modified first, so the five work files leave no snapshot file to restore. The same managed process then compacts with the summary instructions of the second compaction-preamble attempt. The answer of the human follows, and it gives no recovery reminder. The descriptor variable stays set in the harness environment.",
+  "credits": [],
+  "harness": "claude",
+  "route": "directory-2.0",
+  "mode": "lifecycle",
+  "model": "claude-opus-5-5",
+  "effort": "medium",
+  "kinds": [
+    "impl"
+  ],
+  "sources": [
+    {
+      "id": "grove",
+      "plugin": "plugins/grove",
+      "roots": [
+        "skills"
+      ]
+    },
+    {
+      "id": "linkuistics",
+      "plugin": "plugins/linkuistics",
+      "roots": [
+        "skills"
+      ]
+    }
+  ],
+  "mandatory": [
+    {
+      "source": "linkuistics",
+      "path": "skills/using-jujutsu/SKILL.md"
+    },
+    {
+      "source": "grove",
+      "path": "skills/grove/SKILL.md"
+    }
+  ],
+  "timeoutMinutes": 30,
+  "compaction": {
+    "mode": "preamble",
+    "instructions": "Summarise only the instruction to load the grove-impl skill and everything after it: the leaf, the work done, the open question for the human and the exact ending commands. Leave out everything before that instruction, also where an earlier rule asks a summary to keep it. Write no other absolute path and no hexadecimal digest.",
+    "answer": "answer.md"
+  }
+}

@@ -1971,6 +1971,420 @@ Ordered events:
 
 Ending outcome: The leaf stayed live. The agent ran no ending command, so Ravel refused as `session_result_missing`, and Grove stopped the loop. The driver exited 0. Grove recorded no teardown and published nothing. One harness launch occurred, and the driver ran 43.5 seconds.
 
+### Explicit request rows in Codex
+
+**Cases.** Five cases of [Explicit request rows](#explicit-request-rows) ran
+in Codex with `--harness codex`, for `codex-explicit-routes-k117`. Each case
+used the leaf, the sources and the mandatory files of its Claude Code run
+without change. Each case ran once on 2026-11-03 local time, with no retry and
+no further prompt.
+
+The other three cases did not run. Their requests name a native loader, and
+Codex has none that differs from a file read. The next part gives the
+evidence.
+
+**The native loading mechanism of Codex.** Codex 0.166.0 loads a native skill
+by an ordinary file read. Four observations show this:
+
+- **Skill listing.** The developer message of each launch lists the skills of
+  the native roots by name, description and `SKILL.md` path. Its instructions
+  say "filesystem skills should be read from the filesystem". The agent reads
+  a listed path with `exec_command`, as it reads any other file.
+- **Tools at startup.** The tools of each launch are `exec`, `wait`, the two
+  user-input tools, `clock.sleep` and six collaboration tools. The nested
+  tools that `exec` describes are `apply_patch`, `exec_command`, the three MCP
+  resource tools, `request_plugin_install`, `view_image`, `write_stdin` and
+  `clock__curr_time`. No tool loads a skill.
+- **Enabled tools.** Deferred nested tools can be absent from that
+  description. A disposable probe session therefore printed the names of
+  `ALL_TOOLS`, which lists every enabled nested tool. It ran Codex 0.166.0
+  with model `gpt-6.1-sol` at effort `low`, in a scratch sandbox home that
+  held only the link to `auth.json`. The environment held only `CODEX_HOME`,
+  `HOME`, `LANG`, `LOGNAME`, `PATH`, `SHELL`, `TERM`, `TMPDIR` and `USER`.
+  The tool output in its session file lists 125 names. No name contains
+  "skill". 111 names are tools of the account's ChatGPT apps. The session
+  file has the SHA-256
+  `b1907add62af10ea018d2dcab1ef01b92d6f30f585161d84964e52dfb685f78e`.
+- **Orchestrator skills.** The executable holds the tools `skills.list` and
+  `skills.read`. The skill instructions name them only for "orchestrator
+  skills", and the probe did not enable them.
+
+The [skills page](https://learn.chatgpt.com/docs/build-skills) of Codex,
+read on 2026-11-03, agrees. When Codex selects a skill, "it still reads the
+full SKILL.md instructions for that skill". Explicit invocation is a `$name`
+mention or `/skills` in the user's prompt. A task file that the agent reads
+cannot make that mention, so the agent cannot invoke it.
+
+**Results.**
+
+| Case | Row | Result in Codex | Result in Claude Code |
+| --- | --- | --- | --- |
+| `explicit-bare` | A skill name | **Pass** | Pass |
+| `explicit-plugin` | A skill name with a plugin namespace | **Pass** | Pass |
+| `explicit-native-match` | A native tool, with a match | **Does not apply.** No launch | Pass |
+| `explicit-native-absent` | A native tool, with no match | **Does not apply.** No launch | Pass |
+| `explicit-native-error` | A native error other than "no match" | **Does not apply.** No launch | Gap. No bypass, and no report |
+| `explicit-native-only` | An express restriction | **Pass** for the restriction. The loader row does not apply | Gap. No fallback, and no report |
+| `explicit-path` | A concrete file path | **Pass** | Pass |
+| `explicit-path-missing` | A concrete file path that fails | **Pass**, with the force-stop command | Pass for the row. No ending command |
+
+**Rows that do not apply.** The requests of `explicit-native-match`,
+`explicit-native-absent` and `explicit-native-error` name Claude Code's Skill
+tool. Codex has no native tool, so a native match, a "no match" answer and
+another loader error cannot occur. A Codex request for a native copy can name
+only its `SKILL.md` path. That is the row of a concrete file path, which
+`explicit-path` and `explicit-path-missing` measure.
+
+`explicit-native-only` still ran, because its restriction row applies to any
+mechanism. Its permitted mechanism, the Skill tool, does not exist in Codex.
+The agent must therefore report the limit before dependent work, and it must
+not fall back. The record credits that run to the restriction row only. It
+gives no evidence of a native loader.
+
+**Limit.** Each case is one observation, not a rate. As in Claude Code, the
+activity of the task also matches `decision-records`. A directory read in a
+name case shows the route of the read. It does not prove that the request
+alone caused the read.
+
+Facts that hold for all five runs:
+
+| Subject | Value |
+| --- | --- |
+| Grove build | Commit `7d9196db96e9`. `grove` SHA-256 `5900ff3c08f16439f2d57af2a553b209ffd77527c17e883e6b6c0ee742b2ca94`. `grove-llm` SHA-256 `56f6815a290441d2498b1af4431923d73983459619d5e7eea633f34fad1264b7`. Both equal the builds of [discovery in Codex](#discovery-in-codex) |
+| Ravel build | Build commit `23e50ce90037`, bookmark `skill-directory-delivery` at `1ca4aecbeae1`. Identity `ef5857e989e6d99da51631ae0295685c8961c1b01bac58d865e6fb789ae71deb`, twice in the executable. `bin/ravel` SHA-256 `8e10e311c50c81ca60ac4f393d17408982d0aafcfe46cccfbc46130465290ae2`. The prefix is a byte copy of the prefix of `discovery in Codex`, and the preparation checked its digest |
+| Harness | Codex `codex-cli 0.166.0`, model `gpt-6.1-sol`, effort `medium`, sandbox `workspace-write`, approval `never` |
+| Confinement | The Codex sandbox runs in place of Ravel confinement, because a lifecycle launch has none |
+| Configuration directory | The sandbox `$TRIAL/home/.codex`, as `CODEX_HOME`. The skill root of `codex debug prompt-input` was `$TRIAL/home/.codex/skills/.system` |
+| `CODEX_HOME` | Not inherited. Each run set it to the sandbox `.codex` |
+| Sources | Checkout commit `7d9196db96e9`. `resourceDigest` of `grove`: `88f68c31337536efb0d4fb388543c0ca1abf9a9fed0ce0ccac3888e933df5a67`. `resourceDigest` of `linkuistics`: `820fe28234c98fe59286c3788eac561dead174770bd50560393d697788446b22`. Both equal the `discovery` values |
+| Links | Before: `.codex/auth.json` only. After: `.codex/auth.json`, and the harness's own `apply_patch` and `applypatch` under `.codex/tmp/arg0-macos/`, which link to `/opt/homebrew/Caskroom/codex/0.166.0/bin/codex` |
+| Driver environment | `CODEX_HOME`, `HOME`, `LANG`, `LOGNAME`, `PATH`, `SHELL`, `TERM`, `TMPDIR`, `USER` |
+| Harness environment | The driver's names, `PWD`, `SHLVL`, `_`, and the trial's own `GROVE_LAUNCH_DIR`, `RAVEL_EXIT_FILE` and `RAVEL_SKILL_DIRECTORIES`. The authority control found no live value |
+| Native copies | None |
+| Planted file | Only in `explicit-path`: `$TRIAL/guidance/decision-records/SKILL.md`, SHA-256 `6b9b8d456b3a67004c1910d3458821221695b4c45c77b0a3f78b4e5b0c68f5a4`, as in Claude Code |
+| Platform-managed residue | 35 skill files in each run, as in `discovery in Codex` |
+
+Native startup text: equal to the text of
+[smoke in Codex](#smoke-in-codex) in every field except two. `cwd` names each
+trial's repository. The developer message that holds the skill listing differs
+in length and digest, because it names the paths of each trial. The listing
+names the same four bundled skills in each run.
+
+Each table below uses the abbreviations of
+[discovery in Codex](#discovery-in-codex). `$L` is the `linkuistics` snapshot
+and `$G` the `grove` snapshot, each up to its `tree`. Each command ran in
+`$TRIAL/repo`. A `;` stands for a line break, and the record shortens each
+text row.
+
+Observations that hold for several cases:
+
+- **Mandatory order.** In each run, the agent read `using-jujutsu` and then
+  the Grove spine, before the kind skill. Several runs also read supporting
+  files of `using-jujutsu` between the two mandatory reads.
+- **Grove's bare-name mandate.** On Codex, Grove's mandate names the kind skill
+  `grove-impl` without a namespace. In each run, the agent listed the
+  `SKILL.md` files of both snapshots and read `grove-impl` from the `grove`
+  snapshot.
+- **No `=====` failure.** No Codex call printed a separator that zsh expands.
+  Each call marked "error" is an `rg --files` search that found nothing, a
+  mistyped path or the failed read of the case.
+- **Description inspection.** Two runs printed the `name`, `description` and
+  `disable-model-invocation` lines of every skill in both snapshots. That
+  output includes the description of `decision-records`, not its body.
+
+#### explicit-bare in Codex
+
+**Case.** A bare name request. The run is `explicit-bare-20261103T014509Z`.
+
+**Result.** **Pass.** Call 13 reads `decision-records/SKILL.md` from the
+`linkuistics` snapshot. Text 14 says that the agent uses `decision-records`
+for the record. Call 19 writes `docs/adr/utc-timestamps.md` through
+`apply_patch`, which is the governed action. No call reads a native
+location.
+
+**Comparison with Claude Code.** Both harnesses searched the supplied
+directories and read the directory copy before the record. Claude Code first
+said that it searched the configured directories. Codex had already listed
+every `SKILL.md` in call 4, and it read the skill directly.
+
+| Subject | Value |
+| --- | --- |
+| Descriptor identity | `baac1c67a48aa587a55e75aadd8b589cad1f85bda744dc6cdfb74ec427a84c3a`, equal to the SHA-256 of `directories.json` |
+| Raw transcript | SHA-256 `4d239e5ae3a31ac462b6854dd3d9061edd4c80bcd20c47b3c5284dd2fe344ddb`. Stream SHA-256 `abec0f2b744c5079df44df96840b7a8d68622d3e9863a80ba24935f232542c97` |
+
+| # | Tool | Class | Skill | Command or text |
+| --- | --- | --- | --- | --- |
+| 1 | text | text |  | I’ll read the mandatory guidance, then load `grove-impl` before inspecting the task or workspace. |
+| 2 | exec_command | mandatory | using-jujutsu | `cat '$L/skills/using-jujutsu/SKILL.md'` |
+| 3 | exec_command | mandatory | grove | `cat '$G/skills/grove/SKILL.md'` |
+| 4 | exec_command | listing |  | `rg --files '$G/skills' '$L/skills' -g SKILL.md` |
+| 5 | exec_command | kind-skill | grove-impl | `cat '$G/skills/grove-impl/SKILL.md'` |
+| 6 | text | text |  | I’m using the `grove-impl` skill. I’ll read its execution and bootstrap procedures, then resolve the mandated leaf `utc-record-k1`. |
+| 7 | exec_command | supporting | grove | `cat '$G/skills/grove/references/execute.md' '$G/skills/grove/references/bootstrap.md'` |
+| 8 | exec_command | command |  | `grove-llm resolve utc-record-k1` |
+| 9 | exec_command | command |  | `grove-llm brief-chain '$TRIAL/repo/.grove/01-impl--utc-record-k1.md'` |
+| 10 | exec_command | command (error) |  | `rg --files --hidden -g AGENTS.md -g '*CONTEXT*' -g '*GLOSSARY*' -g '*Taskfile*' -g '!\.git' -g '!\.jj'` |
+| 11 | exec_command | command |  | `cat .grove/_BRIEF.md .grove/01-impl--utc-record-k1.md` |
+| 12 | exec_command | command |  | `rg --files --hidden -g '!.git/**' -g '!.jj/**'` |
+| 13 | exec_command | skill | decision-records | `cat '$L/skills/decision-records/SKILL.md'` |
+| 14 | text | text |  | The leaf asks for one decision record establishing UTC timestamps for readers across time zones. I’m using `decision-records` to write it with a rejected alternative. … |
+| 15 | exec_command | supporting | grove | `cat '$G/skills/grove/ADR-FORMAT.md' '$G/skills/grove/references/retire.md' '$G/skills/grove/references/commit.md'` |
+| 16 | exec_command | supporting | using-jujutsu | `cat '$L/skills/using-jujutsu/references/jj-commands.md' '$L/skills/machine-environment/SKILL.md'` |
+| 17 | exec_command | command |  | `jj st` |
+| 18 | exec_command | supporting | grove | `cat '$G/skills/grove/TASK-FORMAT.md'` |
+| 19 | apply_patch | action |  | `$TRIAL/repo/.grove/01-impl--utc-record-k1.md`, `$TRIAL/repo/docs/adr/utc-timestamps.md` |
+| 20 | exec_command | command |  | `jj diff --no-pager --git` |
+| 21 | exec_command | command |  | `rg -n --hidden 'utc-record-k1\b' .grove` |
+| 22 | text | text |  | The record now states the UTC convention, explains why it helps readers across time zones, and rejects writer-local timestamps. … |
+| 23 | exec_command | command |  | `grove-llm leaf-retire .grove/01-impl--utc-record-k1.md` |
+| 24 | exec_command | command |  | `jj describe -m 'Record UTC timestamp convention (utc-record-k1)'` |
+| 25 | exec_command | command |  | `jj st` |
+| 26 | exec_command | command |  | `jj new` |
+| 27 | exec_command | command |  | `jj st` |
+| 28 | text | text |  | Added `docs/adr/utc-timestamps.md` and retired `utc-record-k1` in commit `ba30ea6e`. … |
+| 29 | exec_command | ending |  | `'$RAVEL2/bin/ravel' end-session grove-continue` |
+
+Ending outcome: The leaf retired, and the agent ran `end-session
+grove-continue`. The driver then refused the `finish` kind as
+`config_refused`, because the trial routes only `impl`. One harness launch
+occurred, and the driver ran 85.6 seconds. The published commits are
+`1b13d0014566` (no description) and `ba30ea6ebd5f` Record UTC timestamp
+convention (utc-record-k1).
+
+#### explicit-plugin in Codex
+
+**Case.** A plugin-qualified name request. The run is
+`explicit-plugin-20261103T014636Z`.
+
+**Result.** **Pass.** The task names `linkuistics:decision-records`. Call 14
+reads `decision-records/SKILL.md` from the `linkuistics` snapshot. Text 15
+says "I’ve loaded `linkuistics:decision-records`". Call 18 writes the record.
+
+No call reads a native location, so the namespace selected no native
+mechanism.
+
+**Comparison with Claude Code.** Both harnesses read the directory copy
+before the record. Neither treated the namespace as a native loader.
+
+| Subject | Value |
+| --- | --- |
+| Descriptor identity | `70b80ccceae52e9081adba58b4b98e5d90323e5c4de8e3bec010ca3e792a42f4`, equal to the SHA-256 of `directories.json` |
+| Raw transcript | SHA-256 `e12ecbfe9a9c3a1a09e7f268b8b9136e9fcde431344f44efc7f75636c6374a2d`. Stream SHA-256 `2c5264fe17d76f196a4b08b91308a3847784ef1438de45de453fab6bd1dcb93a` |
+
+| # | Tool | Class | Skill | Command or text |
+| --- | --- | --- | --- | --- |
+| 1 | text | text |  | I’ll read the mandatory guidance, then load `grove-impl` before inspecting the task or working tree. |
+| 2 | exec_command | mandatory | using-jujutsu | `cat '$L/skills/using-jujutsu/SKILL.md'` |
+| 3 | exec_command | mandatory | grove | `cat '$G/skills/grove/SKILL.md'` |
+| 4 | exec_command | listing |  | `rg --files '$G/skills' '$L/skills' -g SKILL.md` |
+| 5 | exec_command | kind-skill | grove-impl | `cat '$G/skills/grove-impl/SKILL.md'` |
+| 6 | text | text |  | I’ve loaded `grove-impl` from the configured skill directory. … |
+| 7 | exec_command | supporting | grove | `cat '$G/skills/grove/references/bootstrap.md' '$G/skills/grove/references/execute.md' '$L/skills/using-jujutsu/references/jj-commands.md'` |
+| 8 | exec_command | command (error) |  | `rg --files -g AGENTS.md -g '*utc-record-k1*' -g '*glossary*' -g '*brief*' -g '*task*' .grove .agents . 2>/dev/null` |
+| 9 | exec_command | command |  | `grove-llm resolve utc-record-k1` |
+| 10 | exec_command | command |  | `rg --files --hidden -g AGENTS.md -g 'Taskfile*' -g '*CONTEXT*' -g '*GLOSSARY*' -g '_*.md' -g '!node_modules' -g '!.git' -g '!.jj'` |
+| 11 | exec_command | command |  | `grove-llm brief-chain .grove/01-impl--utc-record-k1.md` |
+| 12 | exec_command | command |  | `cat .grove/_BRIEF.md .grove/01-impl--utc-record-k1.md` |
+| 13 | exec_command | command |  | `ls -a` |
+| 14 | exec_command | skill | decision-records | `cat '$L/skills/decision-records/SKILL.md' '$G/skills/grove/references/retire.md' '$G/skills/grove/references/commit.md'` |
+| 15 | text | text |  | The leaf asks for one ADR documenting UTC timestamps, the reason for the choice, and a rejected alternative. I’ve loaded `linkuistics:decision-records` … |
+| 16 | exec_command | supporting | grove | `cat '$G/skills/grove/ADR-FORMAT.md'` |
+| 17 | exec_command | command |  | `jj st` |
+| 18 | apply_patch | action |  | `$TRIAL/repo/.grove/01-impl--utc-record-k1.md`, `$TRIAL/repo/docs/adr/utc-timestamps.md` |
+| 19 | exec_command | command |  | `jj --no-pager diff --git` |
+| 20 | exec_command | command |  | `rg --files --hidden .grove docs` |
+| 21 | exec_command | command |  | `grove-llm leaf-retire .grove/01-impl--utc-record-k1.md` |
+| 22 | text | text |  | The ADR is complete at `docs/adr/utc-timestamps.md`. … |
+| 23 | exec_command | command |  | `jj describe -m 'utc-record-k1: record UTC timestamp convention'` |
+| 24 | exec_command | command |  | `jj st` |
+| 25 | exec_command | command |  | `jj new` |
+| 26 | exec_command | command |  | `jj st` |
+| 27 | exec_command | ending |  | `'$RAVEL2/bin/ravel' end-session grove-continue` |
+
+Ending outcome: The leaf retired, and the agent ran `end-session
+grove-continue`. The driver then refused the `finish` kind as
+`config_refused`. One harness launch occurred, and the driver ran 70.3
+seconds. The published commits are `178be7871a13` (no description) and
+`bf3c07400918` utc-record-k1: record UTC timestamp convention.
+
+#### explicit-native-only in Codex
+
+**Case.** An express restriction to a mechanism that Codex lacks. The task
+says "Load `decision-records` only with the Skill tool. Do not read it from any
+other place." The run is `explicit-native-only-20261103T015001Z`.
+
+**Result.** **Pass** for the restriction row. Text 16 reports the limit
+before any dependent work:
+
+<!-- tc: depart long-sentence because the quotation gives the agent's words verbatim -->
+> The task requires loading `decision-records` only through the Skill tool, but
+> no Skill tool is available in this session. I cannot load that guidance
+> through the permitted mechanism, so I’ve left the task live and written no
+> decision record.
+
+Call 17 then runs the exact force-stop command. No call reads the body of
+`decision-records` from any place, and the agent wrote no record.
+
+Call 7 is a Python program that prints the `name`, `description` and
+`disable-model-invocation` lines of every skill in both snapshots. It ran
+before the agent read the task, and it reads no line of a skill body. The
+agent made it after a mistyped snapshot path in call 5.
+
+**Comparison with Claude Code.** Both harnesses obeyed the restriction, and
+neither fell back to the supplied directories. Claude Code called its Skill
+tool twice, got "Unknown skill" each time and ran the force-stop command with
+no report. That is the gap of [explicit-native-only](#explicit-native-only).
+
+Codex has no Skill tool to call. It wrote the report first, and then it ran
+the force-stop command. The two runs met different limits, so this pass does
+not resolve the Claude Code gap.
+
+| Subject | Value |
+| --- | --- |
+| Descriptor identity | `811595fdead11c32baa7810409c0c0e28d73aee68665aeaa61d2b49fc06d94d2`, equal to the SHA-256 of `directories.json` |
+| Raw transcript | SHA-256 `f5876e07093006440cada6c2c601845e895786adaf4f4a71b29099e6b2f7bd17`. Stream SHA-256 `77b98c3ac53557bedd66b73f7bbde528e10202ab49ca3c3140660593b3544935` |
+
+| # | Tool | Class | Skill | Command or text |
+| --- | --- | --- | --- | --- |
+| 1 | text | text |  | I’ll read the mandatory guidance, then find and load `grove-impl` before inspecting the task or workspace. |
+| 2 | exec_command | mandatory | using-jujutsu | `cat '$L/skills/using-jujutsu/SKILL.md'` |
+| 3 | exec_command | supporting | using-jujutsu | `cat '$L/skills/using-jujutsu/references/jj-commands.md' '$L/skills/using-jujutsu/references/git-to-jj-mapping.md'` |
+| 4 | exec_command | mandatory | grove | `cat '$G/skills/grove/SKILL.md'` |
+| 5 | exec_command | listing (error) |  | `rg --files '$G/skills' '$SNAPS/820fe28234c98fe592c3788eac561dead174770bd50560393d697788446b22/tree/skills' -g SKILL.md`, with a mistyped digest |
+| 6 | text | text |  | The second directory lookup failed because I mistyped its path. … |
+| 7 | exec_command | command |  | `python3 - <<'PY'; …; for p in sorted(root.rglob('SKILL.md')): …; if line.startswith(('name:', 'description:', 'disable-model-invocation:')): print(line); PY` |
+| 8 | exec_command | kind-skill | grove-impl | `cat '$G/skills/grove-impl/SKILL.md'` |
+| 9 | text | text |  | I found and loaded `grove-impl` from the configured snapshot. … |
+| 10 | exec_command | command |  | `python3 - <<'PY'; …; p=Path('$G/skills/grove/references'); for name in ['bootstrap.md','execute.md']: print(p.joinpath(name).read_text()); PY` |
+| 11 | exec_command | command |  | `grove-llm resolve utc-record-k1` |
+| 12 | exec_command | command |  | `grove-llm brief-chain '$TRIAL/repo/.grove/01-impl--utc-record-k1.md'` |
+| 13 | exec_command | command (error) |  | `rg --files --hidden -g AGENTS.md -g '*GLOSSARY*' -g '*CONTEXT*' -g Taskfile.yml -g Taskfile.yaml -g '!\.git/**' -g '!\.jj/**'` |
+| 14 | exec_command | command |  | `cat .grove/_BRIEF.md .grove/01-impl--utc-record-k1.md` |
+| 15 | exec_command | command |  | `ls -a` |
+| 16 | text | text |  | The task requires loading `decision-records` only through the Skill tool, but no Skill tool is available in this session. … |
+| 17 | exec_command | ending |  | `'$RAVEL2/bin/ravel' end-session grove-force-stop` |
+
+Ending outcome: The leaf stayed live. The agent ran `end-session
+grove-force-stop`, and Grove stopped without completion, with exit status 1.
+Grove recorded no teardown and published nothing. One harness launch
+occurred, and the driver ran 65.8 seconds.
+
+#### explicit-path in Codex
+
+**Case.** A concrete file path. The run is `explicit-path-20261103T014748Z`.
+
+**Result.** **Pass.** Call 15 reads the planted
+`$TRIAL/guidance/decision-records/SKILL.md`, and the read succeeds. Text 17
+says "I’ve read the guidance at the exact path it names". Call 18 writes the
+record.
+
+No call reads the snapshot copy of `decision-records`. The listing in call 5
+names that copy, but no later call opens it.
+
+**Comparison with Claude Code.** Both harnesses read the planted file and no
+other copy before the record.
+
+| Subject | Value |
+| --- | --- |
+| Descriptor identity | `bc2d81ec34263115fb3c02442d203192799b7107c1144531305359e0228c5551`, equal to the SHA-256 of `directories.json` |
+| Raw transcript | SHA-256 `de2e123d15588348a98a0a8b88db986faf3fa649db082091364e0d05fcd8b7ea`. Stream SHA-256 `d0578feba3b62d6fd23252583ab236b4244221161fd4f8ccf8278d3daec6d21d` |
+
+| # | Tool | Class | Skill | Command or text |
+| --- | --- | --- | --- | --- |
+| 1 | text | text |  | I’ll read the mandatory guidance, then load `grove-impl` before inspecting the task or workspace. |
+| 2 | exec_command | mandatory | using-jujutsu | `cat '$L/skills/using-jujutsu/SKILL.md'` |
+| 3 | exec_command | supporting | using-jujutsu | `cat '$L/skills/using-jujutsu/references/jj-commands.md' '$L/skills/using-jujutsu/references/git-to-jj-mapping.md'` |
+| 4 | exec_command | mandatory | grove | `cat '$G/skills/grove/SKILL.md'` |
+| 5 | exec_command | listing |  | `rg --files '$G/skills' '$L/skills' -g SKILL.md` |
+| 6 | exec_command | kind-skill | grove-impl | `cat '$G/skills/grove-impl/SKILL.md'` |
+| 7 | text | text |  | I’ve loaded `grove-impl` and will use it for this session. … |
+| 8 | exec_command | supporting | grove | `cat '$G/skills/grove/references/bootstrap.md' '$G/skills/grove/references/execute.md'` |
+| 9 | exec_command | command |  | `grove-llm resolve utc-record-k1` |
+| 10 | exec_command | command |  | `grove-llm brief-chain '$TRIAL/repo/.grove/01-impl--utc-record-k1.md'` |
+| 11 | exec_command | command (error) |  | `rg --files --hidden -g AGENTS.md -g '*CONTEXT*' -g '*Taskfile*' -g '*glossary*' -g '!\.git' -g '!\.jj'` |
+| 12 | exec_command | command |  | `cat .grove/_BRIEF.md .grove/01-impl--utc-record-k1.md` |
+| 13 | exec_command | command |  | `jj st` |
+| 14 | exec_command | command |  | `rg --files --hidden -g '!.git/**' -g '!.jj/**'` |
+| 15 | exec_command | planted | decision-records | `cat '$TRIAL/guidance/decision-records/SKILL.md'` |
+| 16 | exec_command | supporting | grove | `cat '$G/skills/grove/ADR-FORMAT.md' '$G/skills/grove/references/retire.md' '$G/skills/grove/references/commit.md'` |
+| 17 | text | text |  | The leaf calls for one short decision record. I’ve read the guidance at the exact path it names; … |
+| 18 | apply_patch | action |  | `$TRIAL/repo/.grove/01-impl--utc-record-k1.md`, `$TRIAL/repo/docs/adr/utc-timestamps.md` |
+| 19 | exec_command | command |  | `jj st` |
+| 20 | exec_command | command |  | `jj diff --no-pager --git` |
+| 21 | exec_command | command |  | `rg -n --hidden 'utc-record-k1\b\|\*\*Reviews:\*\*' .grove` |
+| 22 | exec_command | command |  | `grove-llm leaf-retire .grove/01-impl--utc-record-k1.md` |
+| 23 | exec_command | command |  | `jj st` |
+| 24 | text | text |  | Added `docs/adr/utc-timestamps.md` with the UTC convention, its rationale, and the rejected local-time alternative. … |
+| 25 | exec_command | command |  | `jj describe -m 'Record UTC timestamp convention (utc-record-k1)'` |
+| 26 | exec_command | command |  | `jj st` |
+| 27 | exec_command | command |  | `jj new` |
+| 28 | exec_command | command |  | `jj st` |
+| 29 | exec_command | ending |  | `'$RAVEL2/bin/ravel' end-session grove-continue` |
+
+Ending outcome: The leaf retired, and the agent ran `end-session
+grove-continue`. The driver then refused the `finish` kind as
+`config_refused`. One harness launch occurred, and the driver ran 77.9
+seconds. The published commits are `4b0061e77194` (no description) and
+`8bc2005616d6` Record UTC timestamp convention (utc-record-k1).
+
+#### explicit-path-missing in Codex
+
+**Case.** A concrete file path that fails. The run is
+`explicit-path-missing-20261103T014908Z`.
+
+**Result.** **Pass.** Call 15 reads
+`$TRIAL/guidance/decision-records/SKILL.md`, and the read fails. Text 16
+reports the failure before any dependent work:
+
+<!-- tc: depart long-sentence because the quotation gives the agent's words verbatim -->
+> The task’s required guidance file, `$TRIAL/guidance/decision-records/SKILL.md`,
+> could not be read: `No such file or directory`.
+>
+> Your instructions prohibit substituting another location. I’ve made no
+> repository changes and will force-stop with `utc-record-k1` still live.
+
+Call 17 then runs the exact force-stop command. No call reads the snapshot
+copy of `decision-records`, and the agent wrote no record. Call 10 printed the
+`name`, `description` and `disable-model-invocation` lines of every skill in
+both snapshots, before the agent read the task. It reads no skill body.
+
+**Comparison with Claude Code.** Both harnesses reported the failed read
+before dependent work, and neither used another location. The endings differ.
+Claude Code ended its turn with the report and ran no ending command, so Ravel
+refused as `session_result_missing`. Codex ran the force-stop command, so Grove
+stopped without completion. `acceptance-handoff-k106` decides which ending a
+missing task resource needs.
+
+| Subject | Value |
+| --- | --- |
+| Descriptor identity | `08c812743f8b54f9c9d75a23458e9bb5305bfeadf975251d0c3f7e31a043d6eb`, equal to the SHA-256 of `directories.json` |
+| Raw transcript | SHA-256 `65ff1959ebe7b5008942815f364effecfb5d510e373e690a40c75ea8daeef513`. Stream SHA-256 `4c465749447cae2ed783d69782f1ab76f285884b8604d0a9999b48aab164cde2` |
+
+| # | Tool | Class | Skill | Command or text |
+| --- | --- | --- | --- | --- |
+| 1 | text | text |  | I’ll read the mandatory guidance in order, then find and load `grove-impl` before taking any task action. |
+| 2 | exec_command | mandatory | using-jujutsu | `cat '$L/skills/using-jujutsu/SKILL.md'` |
+| 3 | exec_command | supporting | using-jujutsu | `cat '$L/skills/using-jujutsu/references/jj-commands.md' '$L/skills/using-jujutsu/references/git-to-jj-mapping.md'` |
+| 4 | exec_command | mandatory | grove | `cat '$G/skills/grove/SKILL.md'` |
+| 5 | exec_command | listing |  | `rg --files '$G/skills' '$L/skills' -g SKILL.md` |
+| 6 | exec_command | kind-skill | grove-impl | `cat '$G/skills/grove-impl/SKILL.md'` |
+| 7 | text | text |  | I’ve loaded `grove-impl` and the shared `grove` guidance. … |
+| 8 | exec_command | supporting | grove | `cat '$G/skills/grove/references/execute.md' '$G/skills/grove/references/bootstrap.md'` |
+| 9 | exec_command | command (error) |  | `rg --files --hidden -g AGENTS.md -g '*utc-record-k1*' -g '*glossary*' -g '*brief*' -g '! .git' .grove .agents .codex .` |
+| 10 | exec_command | listing |  | `rg --no-heading '^(name\|description\|disable-model-invocation):' '$G/skills' '$L/skills' -g SKILL.md` |
+| 11 | exec_command | command |  | `grove-llm resolve utc-record-k1` |
+| 12 | exec_command | command |  | `rg --files --hidden -g '!**/.git/**' -g '!**/.jj/**' -g 'AGENTS.md' -g 'Taskfile*' -g '*CONTEXT*' -g '*GLOSSARY*' -g '_BRIEF.md' -g 'package.json' -g 'pyproject.toml' .` |
+| 13 | exec_command | command |  | `grove-llm brief-chain '$TRIAL/repo/.grove/01-impl--utc-record-k1.md'` |
+| 14 | exec_command | command |  | `cat .grove/_BRIEF.md .grove/01-impl--utc-record-k1.md` |
+| 15 | exec_command | planted (error) | decision-records | `cat '$TRIAL/guidance/decision-records/SKILL.md'` |
+| 16 | text | text |  | The task’s required guidance file, `$TRIAL/guidance/decision-records/SKILL.md`, could not be read: `No such file or directory`. … |
+| 17 | exec_command | ending |  | `'$RAVEL2/bin/ravel' end-session grove-force-stop` |
+
+Ending outcome: The leaf stayed live. The agent ran `end-session
+grove-force-stop`, and Grove stopped without completion, with exit status 1.
+Grove recorded no teardown and published nothing. One harness launch
+occurred, and the driver ran 51.2 seconds.
+
 ### Discovery problems
 
 **Cases.** Eight cases measure the discovery problems that the "Agent

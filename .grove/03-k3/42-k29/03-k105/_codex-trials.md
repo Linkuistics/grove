@@ -54,3 +54,13 @@ codex-discovery-trial-k116 recorded "discovery in Codex", which passes, and
 under Ravel confinement. The confined environment holds no `CODEX_HOME`, and
 the sandbox denies writes in `$HOME/.codex`. The confined case of
 codex-missing-kind-k122 probably meets the same gap.
+
+codex-explicit-routes-k117 recorded "Explicit request rows in Codex". Codex
+0.166.0 has no native skill loader. It lists native skills by `SKILL.md`
+path, and the agent reads that path with `exec_command`. The three rows of a
+native tool therefore do not apply. A native copy in Codex is visible only as
+a read of a path in the sandbox `.codex/skills`, of the class `native`.
+
+Five cases pass, including the express restriction. In the failed concrete
+path case, Codex ran the force-stop command, and Claude Code ran no ending
+command.

@@ -7360,3 +7360,65 @@ producer's descriptor probe. The
 supports the chosen owner-minted token route. The review does not reopen it.
 The integration task must triage these findings before
 `ravel-token-handoff-k133` implements the resulting contract.
+
+## Token handoff design integration
+
+`ravel-token-handoff-k139` triaged the five findings of
+`ravel-token-handoff-k138` and applied all five. It then spent its one
+in-session reviewer on the repaired protection, read and runner sections, and
+applied the real findings of that pass too. It read no credential and made no
+model call. The integrated design is Ravel commit
+`9084e0dcfcd733a1185ca1bb26a312b53fb25549` on the unpushed bookmark
+`skill-directory-delivery`. Several fixes are new rules, so
+`ravel-token-handoff-k140` reviews that commit before
+`ravel-token-handoff-k133` implements it.
+
+### Dispositions of the review findings
+
+| Finding | Disposition | Change in Ravel |
+| --- | --- | --- |
+| F1, bind the protection and the read to one file | Real issue | The declared path and the real path are both protected. Each delivery resolves the declared path again and opens the protected real path with no link in the last component. It checks the open descriptor and reads at most 4,097 bytes from it. The specification states the interval that stays open |
+| F2, protect token files before skill capture | Real issue | The protected paths join the pre-capture source check of `skills resolve` and of every launch, with or without `--confine`. `skill-discovery.md` names them |
+| F3, the runner's descriptor exception | Real issue | A runner-owned list of socket descriptors stays open across the exec of a confined managed launch and a confined harness run. The runner owns the receiving ends through the spawn and its failure |
+| F4, the output promise | Contract stated unclearly | The promise covers what Ravel adds. A trusted program that prints the token, and a measured read of the file, are outside it. The fixture reports a digest |
+| F5, the sign-in store claims | Real issue | The specification and the decision record claim only what this feature adds. A grant that the caller names can still give access to a sign-in file |
+
+The refusal table now names both overlap codes, `confinement_overlap` and
+`skill_access_unavailable`, as the review showed. The socket bullets follow the
+review's static reading: Claude Code closes the descriptor after its read.
+
+### Findings of the in-session reviewer
+
+The reviewer read the repaired sections against the current code, with the
+threat model and without the decision log. Two findings were measured with
+dummy files under `scripts/harness-trials/profile-copy.py` and the profile of
+Ravel commit `7c5b6cdd3842`:
+
+| Probe | Result under the profile copy |
+| --- | --- |
+| `cat` of a dummy outside the grants, by its real path | `No such file or directory` |
+| The same `cat` through `/System/Volumes/Data`, for a scratch file and for a file under `/Users` | `No such file or directory` |
+| `ln` of that dummy into the writable directory, by both paths | `Operation not permitted` |
+| `cat` of a file in the writable directory, the positive control | Reads the text |
+
+| Finding | Disposition | Change in Ravel |
+| --- | --- | --- |
+| R1, a grant resolved again at spawn | Real issue, older than this feature | `session-execution.md` now states that the runner grants each writable root and runtime read in its checked form, and refuses one that resolves elsewhere |
+| R2, a hard link made by a confined process | Measured, refused | The specification states the result, and a fixture case keeps it |
+| R3, a second link inside a skill source | Real issue | Both protection checks refuse a declared file with more than one link |
+| R4, the read order of Claude Code | Verification limit | The specification states that no run measured the order against hooks and MCP servers |
+| R5, a dangling declared link | Real gap | The real path is the prospective path of the link's target |
+| R6, the `/System/Volumes/Data` path | Measured, refused | A fixture case keeps it |
+| R7, the program and executable reads | Accepted trade-off | The specification names both reads outside the overlap check |
+| R8, the comparison of step 2 | Contract stated unclearly | Each launch resolves the protected paths once, and every check uses that resolution |
+| R9 to R12 | Contracts stated unclearly | The UTC expiry, the complete read, the measured-read exception and the socket ownership before the runner |
+
+### Handoff to the implementation
+
+`ravel-token-handoff-k133` implements commit `9084e0dcfcd7` as
+`ravel-token-handoff-k140` and any integration leave it. The specification
+lists its verification limits: the bubblewrap descriptor pass-through, the
+reader of Claude Code and the probes of a profile copy. The implementation
+also updates the descriptor-isolation rows of the book's
+`09-jobs-signals-and-the-terminal.md`, because a confined launch now keeps
+the listed sockets.

@@ -146,6 +146,18 @@ that the configuration script names. The specification is Ravel's `docs/specs/to
 `7c5b6cdd3842` on the bookmark. A review chain checks it before
 `ravel-token-handoff-k133`.
 
+ravel-token-handoff-k138 reviewed that design and recorded five findings.
+ravel-token-handoff-k139 applied them, with the real findings of its
+in-session reviewer. The integrated design is Ravel commit `9084e0dcfcd7` on
+the bookmark. Several of its changes are new rules, so it cut one more leaf:
+
+- `ravel-token-handoff-k140`: review the integrated design before
+  `ravel-token-handoff-k133` implements it.
+
+The "Token handoff design integration" section of
+`docs/common-loading-acceptance-record.md` holds each disposition and the
+verification limits.
+
 standalone-default-kind-k131 gave `grove run` the default kind `standalone`
 outside an active grove. Inside one, a run without a kind takes the next live
 leaf's kind, by the human's decision. The Confined standalone row keeps its

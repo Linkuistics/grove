@@ -65,3 +65,25 @@ Read no credential, and make no model call. A probe with dummy files under a
 copy of the Seatbelt profile is allowed, as ravel-token-handoff-k139 used
 `scripts/harness-trials/profile-copy.py`. A check that needs the owner's
 token waits for the human's approval in ravel-token-handoff-k133.
+
+## Decisions (running log)
+
+**Review evidence.** The review reads Ravel commit
+`9084e0dcfcd733a1185ca1bb26a312b53fb25549`, including its diff from
+`7c5b6cdd3842`. It uses Tier 2 graph discovery and direct source where the
+graph is stale or excludes documents. It reads no credential, makes no model
+call and runs no test, build, lint, formatter or harness.
+
+**The Linux grant interval is actionable.** The runner's last comparison
+precedes bubblewrap's resolution and bind of a source path. Another confined
+process can replace a runtime file inside its own writable root in that
+interval. Its link can name a protected token file that it cannot read.
+Bubblewrap can then grant that file to the new launch. This differs from the
+accepted interval in a cache that no confined process can write. The review
+records the counterexample and cuts an integration before implementation.
+
+**Result.** The "Token handoff integrated design review" section of
+`docs/common-loading-acceptance-record.md` holds F1, the dispositions of all
+other mandated doubts and the evidence limits. ravel-token-handoff-k141
+integrates this review before ravel-token-handoff-k133. No Ravel design or
+implementation was changed.

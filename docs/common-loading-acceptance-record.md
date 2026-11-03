@@ -7422,3 +7422,110 @@ reader of Claude Code and the probes of a profile copy. The implementation
 also updates the descriptor-isolation rows of the book's
 `09-jobs-signals-and-the-terminal.md`, because a confined launch now keeps
 the listed sockets.
+
+## Token handoff integrated design review
+
+`ravel-token-handoff-k140` reviewed Ravel commit
+`9084e0dcfcd733a1185ca1bb26a312b53fb25549`, including the diff from
+`7c5b6cdd3842`, in `Ravel.skill-directory-delivery`. All Ravel locations
+below name the reviewed commit. The review changes no Ravel artifact. It
+reads no credential, makes no model call and runs no test, build, lint,
+formatter, harness or sandbox probe. The owner-minted token and socket route
+remains settled.
+
+### F1 — A confined process can exploit the Linux grant interval (P1)
+
+**Location:** `docs/specs/session-execution.md:110–115` and
+`docs/specs/token-handoff.md:194–197,354–360,560–566`.
+
+The new rule compares each grant with its checked canonical path before the
+launch. It then lets bubblewrap bind that path. The specification names the
+interval between these operations, but the token contract still promises
+that no runtime-read grant reaches a protected token file. The comparison
+does not establish that promise on Linux.
+
+Consider two concurrent confined launches of the same user:
+
+1. Launch A can write `/shared`, with no runtime-read grant of
+   `/shared/runtime`. Its grants cannot reach `/private-token/token`.
+2. Launch B works elsewhere and grants the ordinary file `/shared/runtime`
+   read-only. Its protection and the runner's last comparison both pass.
+3. After that comparison, A replaces `/shared/runtime` with a symbolic link
+   to `/private-token/token`. Creating this link needs no read of its target.
+4. Bubblewrap resolves the bind source again. It can mount the protected
+   token at B's runtime-read path. No replacement of the token file, second
+   hard link or change of the declared token path is needed.
+
+The current runner constructs path-based binds for runtime reads
+(`crates/keyed-launch/src/confinement.rs:261–269,441–446`). Upstream
+[bubblewrap v0.11.0 source](https://github.com/containers/bubblewrap/blob/v0.11.0/bubblewrap.c#L1497-L1527)
+resolves each bind source with `realpath` in `resolve_symlinks_in_ops`, after
+the backend starts. The counterexample is an inference from those two
+operations and the proposed comparison. It was not executed in this review.
+
+Unlike a skill-cache replacement, this replacement needs only access that a
+confined process can have. The cache rule excludes every writable grant over
+the cache. There is no corresponding cross-launch exclusion for a runtime
+file's parent. Treating all processes outside B's own sandbox as trusted
+would therefore also trust another confined agent that cannot yet read the
+token. The stated trust of unconfined processes does not cover that case.
+
+The new retargeting scenario injects the change before the spawn. It can pass
+with the added runner comparison while missing this later interval. The same
+path-based bind is used for a confined harness run.
+
+**Smallest useful correction:** Define a Linux grant rule that binds the
+checked object, or otherwise prevents a confined process from substituting a
+protected target before the bind. Specify how the rule applies to managed
+launches and harness runs. Add a dummy-file case that changes the source
+after the runner's final comparison and before the backend consumes it.
+The payload must receive no token-file grant. Reconcile the unconditional
+token-protection claims and the launch view with the resulting guarantee.
+Another comparison before the backend starts leaves the same interval.
+
+### Disposition of the other mandated doubts
+
+The review used `linkuistics:codebase-design` for the state owners, ordering
+and seams. Settings own token-file policy, the script names recipients and
+the runner owns descriptor inheritance. This remains a coherent division.
+The ADR records the independent token trade-off; the review found no need
+for another ADR.
+
+| Doubt | Disposition and evidence |
+| --- | --- |
+| Checked grants on Seatbelt | Supported at the design level. The proposed backend uses the checked canonical literal, and Seatbelt checks the resolved access path. Retargeting a runtime path does not add a literal grant for its new target. Linux is F1 |
+| Selected-program and Ravel-executable exceptions | Accepted trade-off. `token-handoff.md:199–201` names both exceptions and the trusted script that selects the program. This is no claim of protection from that script |
+| A second hard link and its refusal | Supported. `token-handoff.md:169–178,223,258` states the restriction, the two existing per-check codes and the copy remedy. A normal mode-0600 file and replacement by rename need no hard link. Workflows that deliberately keep hard links must use a copy |
+| One resolution per launch and per harness run | Supported as a contract. `token-handoff.md:164–167,215–217` shares the launch resolution across capture, confinement and read, and gives each harness run a new one. Current `run.rs` prepares before selection; `harness::execute` calls `Confined::prepare_for` for each run. Implementation must carry the resolution through those seams |
+| A dangling declared link | Supported as a contract. `token-handoff.md:156–162,553–558` protects the prospective target. Current `confinement::prospective` refuses a dangling link, so implementation must change or replace that resolver for token paths |
+| The nine read steps | Supported within the stated trust boundary. `token-handoff.md:214–242` checks the open descriptor, bounds the complete read and preserves replacement by rename. The remaining parent-directory race requires authority over a token-path ancestor, which the grant check excludes from confined writable roots. This is distinct from F1's replacement of a grant source elsewhere |
+| Socket ownership and descriptor isolation | Supported as a contract. `token-handoff.md:267–280,310–323` assigns both endpoints before transfer, closes the writing end, transfers the receiving ends to the runner and closes its parent copies after either spawn outcome. The child restores inheritance only for that launch's list. The unrelated-sentinel case tests the exception's boundary |
+| Claude Code, hooks and MCP servers | Explicit verification limit. Static inspection supports the early synchronous socket read in the local 2.1.317 startup path. It does not establish all startup orders or other modes. The design makes no measured-order claim, restricts recipients to programs that read first and requires the record to retain the gap. This is sufficient to implement the generic handoff; it is not evidence that the real-harness isolation gap has passed |
+
+### Evidence limits and handoff
+
+Ravel's graph generation was `2026-11-02T05:30:19Z`, in fast mode. Graph
+discovery located the main launch, confinement, skill-capture and harness-run
+seams. Coverage reported changed metadata for the main launch, confinement
+and skill-capture files, and excluded `docs/`. Their relevant source and the
+design artifacts were read directly. The keyed-launch runner and harness-run
+source matched graph metadata. Coverage is a best-effort observation, not
+proof of completeness.
+
+Grove's coverage generation was `2026-11-03T11:26:50Z`. The brief chain,
+previous review and integration, and acceptance record had matching metadata
+with no recorded coverage gap. This task's running-log edit explains its
+changed metadata.
+
+The inspected Claude Code file was
+`~/.local/share/claude/versions/2.1.317`, SHA-256
+`09f153b46b5df9e8b3454716d682a91901de020cbca630f61dec1a015b32b5e9`.
+The static read followed the local startup's call to the credential reader,
+its socket branch and its remote-only persistence guard. It did not execute
+Claude Code or prove the complete order against hooks and MCP servers.
+
+The review read the four Mermaid sources, their manifest, the ADR and the
+changed sections of the other specifications. It did not render the viewer
+or repeat the earlier probes. No new runtime result is credited. A design
+integration follows this review before `ravel-token-handoff-k133`; it must
+triage F1 and leave a coherent contract for implementation.

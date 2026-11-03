@@ -158,6 +158,12 @@ The "Token handoff design integration" section of
 `docs/common-loading-acceptance-record.md` holds each disposition and the
 verification limits.
 
+ravel-token-handoff-k140 reviewed the integrated design and recorded one
+actionable finding. ravel-token-handoff-k141 integrates that review before
+ravel-token-handoff-k133 implements the design. The "Token handoff integrated
+design review" section of `docs/common-loading-acceptance-record.md` holds
+the finding, the other dispositions and the evidence limits.
+
 standalone-default-kind-k131 gave `grove run` the default kind `standalone`
 outside an active grove. Inside one, a run without a kind takes the next live
 leaf's kind, by the human's decision. The Confined standalone row keeps its

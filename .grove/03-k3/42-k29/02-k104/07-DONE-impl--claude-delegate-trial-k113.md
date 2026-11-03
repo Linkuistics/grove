@@ -82,7 +82,7 @@ Prompt it only in a disposable trial session, never in this live session.
   became "If you delegate further, pass on the descriptor path and these
   obligations", which keeps the rule for a further delegate. The parent waited
   for the background delegate with `ScheduleWakeup`.
-- First attempt of `delegate-early`, `delegate-early-20261102T235507Z`: no
+- First attempt of `delegate-early`, `delegate-early-20261102T235124Z`: no
   measurement of authority. The parent read the mandatory files and
   `grove-impl`, then refused the leaf's step. It held that a repository file
   cannot lift obligation 11 of its launch prompt. It started no delegate and
@@ -94,3 +94,28 @@ Prompt it only in a disposable trial session, never in this live session.
   unchanged, and the record holds the note. The note is open about the trial:
   it names the delegate's command and says the owner lifts the ban for that
   one delegate. A second refusal makes the authority row an unmeasured gap.
+- Result of `delegate-early-20261102T235731Z`, the second attempt, at Grove
+  commit `ebc7fa64f277`: authority measured. The parent passed the exact
+  command with an exception limited to it. The foreground delegate read both
+  mandatory files, then ran the command. Its environment held the harness's
+  own `RAVEL_EXIT_FILE`, `GROVE_LAUNCH_DIR` and `RAVEL_SKILL_DIRECTORIES`.
+  Both `end-session` calls exited 0. Grove reported an unsupported result, so
+  Ravel returned `trial-delegate-early`: the delegate's early result ended the
+  parent's session, and the first writer won. Ravel ended the harness before
+  the delegate's report reached the parent.
+- Claude Code adds `CLAUDECODE`, `CLAUDE_CODE_*`, `CLAUDE_PID`,
+  `CLAUDE_EFFORT` and `AI_AGENT` to the environment of its own tool children.
+  The harness received none of them, so they are the trial instance's own,
+  not live values.
+- Gap for `acceptance-handoff-k106`: no scrubbing adapter exists for Claude
+  Code's in-process Agent delegate, so the scrubbed side of the Delegate
+  authority row is unmeasured.
+- For the Codex delegate trial: `delegations` reads Claude Code's
+  `subagents/agent-<id>.jsonl` and `.meta.json`. The Codex adapter needs its
+  own delegate record and its own link from a delegate to the parent's call.
+  `ENDING_TERMS`, `collect`, `expectDelegate` and the first-writer order are
+  harness-neutral. `systemNote` uses Claude Code's `--append-system-prompt`.
+  This leaf did not check which owner channel Codex offers for that note.
+- No in-session reviewer. The results are observations of transcripts, and
+  each new runner path has a fake-harness check that fails against a broken
+  runner.

@@ -2,7 +2,8 @@
 # The route program of a harness trial (scripts/harness_trial.py). The
 # configuration script of the trial selects this wrapper with these arguments:
 #
-#   trial-launch.sh RECORDS VIEW PROGRAM [--probe OP PATH]... ARG... PROMPT
+#   trial-launch.sh RECORDS VIEW PROGRAM [--probe OP PATH | --tmp-env NAME SUB |
+#                   --tmp-link SUB TARGET]... ARG... PROMPT
 #
 # RECORDS is the launch-record directory of the trial, VIEW the JSON of the
 # request fields that the script observed, and PROGRAM the harness. The wrapper
@@ -20,6 +21,15 @@
 # the launch, before the harness starts, and reports `ok` or `failed`. A write
 # probe removes the file that it made. `trial-launch.sh --probes-only` followed
 # by probes runs the same probes, unconfined, for the runner's contrast.
+#
+# A confined harness can write only in the working directory and in the
+# private run directory that Ravel names in TMPDIR. `--tmp-env NAME SUB`
+# makes the directory `$TMPDIR/SUB` and exports NAME with its path, and SUB
+# `.` names TMPDIR itself. `--tmp-link SUB TARGET` makes `$TMPDIR/SUB` a
+# symbolic link to TARGET, such as a sign-in that a `--runtime-read` grant
+# admits read-only. Ravel removes the private run directory after the run.
+# The configuration script gives the set-up after the probes, and the wrapper
+# runs both in order, before it records the environment.
 set -eu
 
 probe() {
@@ -53,9 +63,22 @@ program=$3
 shift 3
 
 probes=
-while [ "$#" -ge 3 ] && [ "$1" = --probe ]; do
-  probes="${probes}$(probe "$2" "$3")
+while [ "$#" -ge 3 ]; do
+  case $1 in
+  --probe)
+    probes="${probes}$(probe "$2" "$3")
 "
+    ;;
+  --tmp-env)
+    if [ "$3" = . ]; then value=$TMPDIR; else value=$TMPDIR/$3; fi
+    mkdir -p -- "$value"
+    export "$2=$value"
+    ;;
+  --tmp-link)
+    ln -s -- "$3" "$TMPDIR/$2"
+    ;;
+  *) break ;;
+  esac
   shift 3
 done
 for argument in "$@"; do prompt=$argument; done

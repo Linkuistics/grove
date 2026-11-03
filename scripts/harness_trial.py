@@ -22,7 +22,11 @@ the skill sources, outside every working directory of a trial.
 case's Grove tree, and the settings of the case's route. It then runs the
 scratch Grove driver with the 2.0 front first on PATH, from an allow-listed
 environment, and writes the case record. A standalone case runs `grove run`
-instead, which Ravel confines. A case can add access probes inside the launch
+instead, which Ravel confines. The wrapper then gives the harness a writable
+directory in Ravel's private run directory: CLAUDE_CODE_TMPDIR for Claude
+Code, and a CODEX_HOME that links the sign-in, which a `--runtime-read` grant
+admits, for Codex. Codex runs without its own sandbox there, because Seatbelt
+cannot nest. A case can add access probes inside the launch
 and an offline `ravel skills resolve`. For an explicit-route request, a case
 can also copy native skills into the sandbox `.claude/skills`, write the
 sandbox `.claude/settings.json` and plant files under the trial's `guidance/`.
@@ -98,6 +102,10 @@ SYSTEM_PATH = ("/usr/bin", "/bin", "/usr/sbin", "/sbin")
 CONTROL_PATTERN = re.compile(r"^(RAVEL_|GROVE_|HARNESS_DISPATCH_|CLAUDE|CODEX_)")
 # Names that no trial child may hold at all, with any value.
 HARNESS_PATTERN = re.compile(r"^(CLAUDECODE$|CLAUDE_|ANTHROPIC_|OPENAI_|CODEX_API_KEY$)")
+# The names that the wrapper's set-up gives a confined harness. Each names a
+# directory inside the private run directory of the launch, which is the
+# child's own TMPDIR. With any other value, the name is a leak.
+TRIAL_OWNED = ("CLAUDE_CODE_TMPDIR", "CODEX_HOME")
 
 ROUTES = ("native-2.0", "directory-2.0")
 # A lifecycle case runs the bare Grove driver in a jj repository. A standalone
@@ -222,11 +230,18 @@ def parse_env(text: str) -> dict[str, str]:
     return env
 
 
+def trial_owned(name: str, value: str, child: Mapping[str, str]) -> bool:
+    """Whether the wrapper's set-up gave the name: a name of TRIAL_OWNED whose
+    value is the child's TMPDIR or lies inside it."""
+    tmp = child.get("TMPDIR", "")
+    return name in TRIAL_OWNED and bool(tmp) and (value == tmp or value.startswith(tmp.rstrip("/") + "/"))
+
+
 def child_control(child: Mapping[str, str], live: Mapping[str, str]) -> list[str]:
     """Each way the live session's authority reached a trial child."""
     leaks = []
     for name, value in sorted(child.items()):
-        if HARNESS_PATTERN.match(name):
+        if HARNESS_PATTERN.match(name) and not trial_owned(name, value, child):
             leaks.append(f"{name} reached the trial child")
         elif CONTROL_PATTERN.match(name) and live.get(name) == value:
             leaks.append(f"{name} reached the trial child with the live session's value")
@@ -364,16 +379,19 @@ def rhai_string(text: str) -> str:
 
 
 def route_for(case: dict[str, Any], records: Path, program: Path, model: str, effort: str,
-              probes: list[list[str]] | None = None) -> dict[str, Any]:
+              probes: list[list[str]] | None = None, home: Path | None = None) -> dict[str, Any]:
     """The route as data. The configuration script and the fake driver of the
     tests both take it from here. A standalone launch is confined, so its
-    wrapper writes its record to standard output, `-`. The adapter gives the
-    program, its arguments and the provider."""
+    wrapper writes its record to standard output, `-`, and runs the adapter's
+    set-up for the sandbox home `home`. The adapter gives the program, its
+    arguments and the provider."""
+    standalone = case.get("mode") == "standalone"
     return {
         "kinds": case["kinds"],
         "wrapper": str(WRAPPER),
-        "records": "-" if case.get("mode") == "standalone" else str(records),
+        "records": "-" if standalone else str(records),
         "probes": probes or [],
+        "setup": adapter_of(case).confined_setup(home) if standalone and home else [],
         "probeRequest": bool(case.get("probes")),
         **adapter_of(case).launch(case, records, program, model, effort),
         "model": model,
@@ -399,6 +417,9 @@ def config_for(case: dict[str, Any], route: dict[str, Any]) -> str:
         lines += [f'    args += ["--probe", {rhai_string(op)}, {rhai_string(path)}];' for op, path in route["probes"]]
         lines.append('    args += ["--probe", "write", "trial-probe-inside"];')
         probes = "\n".join(lines)
+    # The wrapper's set-up of a confined harness, after the probes.
+    for option, first, second in route.get("setup", []):
+        probes += f'\n    args += [{rhai_string(option)}, {rhai_string(first)}, {rhai_string(second)}];'
     fixed = route["fixedArgs"]
     records, program, model, effort = route["records"], route["program"], route["model"], route["effort"]
     program_args = ""
@@ -950,6 +971,17 @@ class HarnessAdapter:
         """The names that the harness needs beyond the allow-list."""
         return {}
 
+    def confined_setup(self, home: Path) -> list[list[str]]:
+        """The wrapper's set-up of a confined launch, as `--tmp-env` and
+        `--tmp-link` triples. Ravel scrubs the environment of a confined
+        harness, so the wrapper gives these names inside the launch."""
+        return []
+
+    def confined_reads(self, home: Path) -> list[Path]:
+        """The `--runtime-read` grants of a confined launch beyond the
+        harness program, such as a sign-in that a file holds."""
+        return []
+
     def program(self, environ: Mapping[str, str]) -> Path:
         named = environ.get("HARNESS_TRIAL_PROGRAM") or shutil.which(self.name, path=environ.get("PATH"))
         if not named or not os.access(named, os.X_OK):
@@ -1121,6 +1153,13 @@ class ClaudeAdapter(HarnessAdapter):
                     f"configuration, plugin tree or sign-in; run the trial again without {name}"
                 )
         return None
+
+    def confined_setup(self, home: Path) -> list[list[str]]:
+        """Claude Code takes its temporary directory from CLAUDE_CODE_TMPDIR,
+        else `/tmp`, and ignores TMPDIR (`function Gf(){let
+        e=i.CLAUDE_CODE_TMPDIR;if(e)return e;return"/tmp"}` in the 2.1.317
+        executable). Seatbelt denies `/tmp`, so the wrapper names TMPDIR."""
+        return [["--tmp-env", "CLAUDE_CODE_TMPDIR", "."]]
 
     def prelaunch(self, program: Path, env: dict[str, str], tmp: Path, trial: Path,
                   config_dir: Path) -> tuple[dict[str, Any], str | None, dict[str, Any] | None]:
@@ -1436,8 +1475,18 @@ CODEX_EFFORT = "medium"
 # directory, TMPDIR and /tmp, with no network. Ravel allocates the session
 # channel under TMPDIR, so `end-session` reaches it. A lifecycle launch has no
 # Ravel confinement, so this sandbox runs in its place. A standalone launch
-# runs it inside Ravel confinement.
+# uses CODEX_CONFINED_SANDBOX instead.
 CODEX_SANDBOX = "workspace-write"
+# Codex's sandbox inside Ravel confinement. Codex applies its own sandbox with
+# /usr/bin/sandbox-exec, and Seatbelt refuses a profile inside a sandboxed
+# process: `sandbox-exec: sandbox_apply: Operation not permitted` under a copy
+# of Ravel's profile (docs/common-loading-acceptance-record.md, "Confined
+# harness repair"). Under workspace-write every command of the agent would
+# fail, so a confined launch disables the inner sandbox, and Ravel's
+# confinement is the only one.
+CODEX_CONFINED_SANDBOX = "danger-full-access"
+# The CODEX_HOME of a confined launch, inside Ravel's private run directory.
+CONFINED_CODEX_HOME = "codex-home"
 CODEX_APPROVAL = "never"
 # The bundled system skills that Codex installs at startup, and the curated
 # plugins that a ChatGPT sign-in downloads. Both are platform-managed residue.
@@ -1531,6 +1580,20 @@ class CodexAdapter(HarnessAdapter):
     def env(self, home: Path) -> dict[str, str]:
         return {CODEX_HOME: str(home / self.config_root)}
 
+    def confined_setup(self, home: Path) -> list[list[str]]:
+        """Codex writes in its configuration directory before its session, and
+        Seatbelt denies the sandbox `.codex`. The wrapper therefore makes a
+        fresh CODEX_HOME in the private run directory, with a link to the
+        real sign-in. That file is the target of the sandbox link, and its
+        `--runtime-read` grant admits it read-only. The native roots of this
+        CODEX_HOME hold no native copy, and the sandbox `.codex/skills` stays
+        outside every grant."""
+        return [["--tmp-env", CODEX_HOME, CONFINED_CODEX_HOME],
+                ["--tmp-link", f"{CONFINED_CODEX_HOME}/auth.json", os.path.realpath(home / self.store)]]
+
+    def confined_reads(self, home: Path) -> list[Path]:
+        return [home / self.store]
+
     def prelaunch(self, program: Path, env: dict[str, str], tmp: Path, trial: Path,
                   config_dir: Path) -> tuple[dict[str, Any], str | None, dict[str, Any] | None]:
         """`codex login status` reads the linked sign-in. `codex debug
@@ -1604,7 +1667,7 @@ class CodexAdapter(HarnessAdapter):
             "fixedArgs": [
                 "exec", "--json", "--skip-git-repo-check", "--color", "never",
                 "--model", model, "-c", f'model_reasoning_effort="{effort}"',
-                "--sandbox", CODEX_SANDBOX, "-c", f'approval_policy="{CODEX_APPROVAL}"', *note,
+                "--sandbox", self.sandbox(case), "-c", f'approval_policy="{CODEX_APPROVAL}"', *note,
             ],
             "provider": "openai",
         }
@@ -1612,11 +1675,18 @@ class CodexAdapter(HarnessAdapter):
     def resume_args(self, route: dict[str, Any], session_id: str) -> list[str]:
         return [*route["fixedArgs"], "resume", session_id]
 
+    @staticmethod
+    def sandbox(case: Mapping[str, Any]) -> str:
+        """The Codex sandbox of a case: none inside Ravel confinement."""
+        return CODEX_CONFINED_SANDBOX if case.get("mode") == "standalone" else CODEX_SANDBOX
+
     def record_extras(self, standalone: bool, auth: dict[str, Any], replaced: str | None,
                       prelaunch: dict[str, Any] | None) -> dict[str, Any]:
+        sandbox = self.sandbox({"mode": "standalone" if standalone else "lifecycle"})
         return {
-            "sandboxMode": CODEX_SANDBOX, "approvalPolicy": CODEX_APPROVAL,
-            "confinement": "inside Ravel confinement" if standalone
+            "permissionMode": f"sandbox {sandbox}, approval {CODEX_APPROVAL}",
+            "sandboxMode": sandbox, "approvalPolicy": CODEX_APPROVAL,
+            "confinement": "Ravel confinement alone, with the Codex sandbox off" if standalone
             else "in place of Ravel confinement, which a lifecycle launch does not have",
             "loginStatus": auth.get("status"), "codexHome": replaced or f"unset; this run sets {CODEX_HOME}",
             "prelaunch": prelaunch,
@@ -2543,6 +2613,9 @@ def launch_facts(label: str, view: dict[str, Any], session_id: str | None, child
         ],
         "mandatory": skills.get("mandatory", []),
         "envNames": sorted(child),
+        # Each name of the wrapper's set-up, relative to the child's TMPDIR.
+        "trialOwned": {name: os.path.relpath(child[name], child["TMPDIR"]) for name in TRIAL_OWNED
+                       if name in child and trial_owned(name, child[name], child)},
         "control": child_control(child, live),
         "probes": probes,
         "streamSha256": stream_sha,
@@ -3210,7 +3283,7 @@ def run_case(prepared_dir: Path, name: str, environ: Mapping[str, str],
     installed = install_native(case, home, checkout)
     claude_settings = adapter.write_settings(case, home)
     planted = plant_files(case, trial, checkout)
-    route = route_for(case, records, program, model, effort, fixed_probes(case, home, checkout))
+    route = route_for(case, records, program, model, effort, fixed_probes(case, home, checkout), home)
     (trial / "route.json").write_text(json.dumps(route, indent=2) + "\n")
     if case.get("compaction") is not None:
         write_turns(case, case_dir, trial)
@@ -3241,8 +3314,8 @@ def run_case(prepared_dir: Path, name: str, environ: Mapping[str, str],
     if standalone:
         # `grove run` confines the harness. Its program is a regular file
         # outside every grant, so the runner grants it read-only, as an owner
-        # grants a credential. The wrapper itself is the selected program,
-        # which Ravel admits.
+        # grants a credential. The adapter adds the sign-in file it needs. The
+        # wrapper itself is the selected program, which Ravel admits.
         spec = case["standalone"]
         outputs = trial / "out"
         outputs.mkdir()
@@ -3250,7 +3323,9 @@ def run_case(prepared_dir: Path, name: str, environ: Mapping[str, str],
         shutil.copyfile(case_dir / spec.get("prompt", "prompt.md"), prompt)
         argv = [str(grove_bin / "grove"), "run", spec.get("kind", case["kinds"][0]), "--prompt-file", str(prompt),
                 *[arg for output in spec["outputs"] for arg in ("--output", str(outputs / output))],
-                "--runtime-read", str(program), "--ui", "inline"]
+                "--runtime-read", str(program),
+                *[arg for path in adapter.confined_reads(home) for arg in ("--runtime-read", str(path))],
+                "--ui", "inline"]
         say(f"{name}: {version}, model {model}, effort {effort}, route {case['route']}, confined, trial {trial}")
         driver = run_driver(argv, tmp, env, trial, deadline)
     else:

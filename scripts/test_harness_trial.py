@@ -59,6 +59,7 @@ from pathlib import Path
 home = Path(os.environ["HOME"])
 trial = home.parent
 Path({env_file!r}).write_text(json.dumps(dict(os.environ)))
+Path({env_file!r} + ".argv").write_text(json.dumps(sys.argv))
 settings = home / ".config/ravel/settings.json"
 for source in (json.loads(settings.read_text())["skills"]["sources"] if settings.exists() else []):
     if not Path(source["path"]).is_dir():
@@ -117,7 +118,9 @@ if sys.argv[1:2] == ["run"]:
     args = [route["wrapper"], route["records"], json.dumps(view), route["program"]]
     for op, path in probes:
         args += ["--probe", op, path]
-    args += ["--add-dir", str(snap), *route["fixedArgs"], "standalone task"]
+    for option, first, second in route.get("setup", []):
+        args += [option, first, second]
+    args += [*(["--add-dir", str(snap)] if route.get("addDirs", True) else []), *route["fixedArgs"], "standalone task"]
     with (logs / "grove-run-fake.log").open("w") as log:
         print("ravel: a line of the run log", file=log, flush=True)
         status = subprocess.run(args, env=env, cwd=work, stdin=subprocess.DEVNULL, stdout=log, stderr=log).returncode
@@ -1389,6 +1392,78 @@ class HarnessTrialTest(unittest.TestCase):
         real = trial.fixed_probes
         self.broken(self.check_confined_native, "fixed_probes",
                     lambda case, home, checkout: real({**case, "native": []}, home, checkout))
+
+    def grove_argv(self, fixture: Fixture) -> list[str]:
+        return json.loads(Path(str(fixture.grove_env) + ".argv").read_text())
+
+    def runtime_reads(self, fixture: Fixture) -> list[str]:
+        argv = self.grove_argv(fixture)
+        return [argv[n + 1] for n, arg in enumerate(argv) if arg == "--runtime-read"]
+
+    def check_confined_claude_setup(self, fixture: Fixture):
+        """A confined Claude Code launch gets CLAUDE_CODE_TMPDIR, which names
+        the launch's own TMPDIR, and the control admits it."""
+        fixture.behave(noSession=True)
+        status, output = fixture.run("confined")
+        self.assertEqual(status, 0, output)
+        launch = fixture.record()["launches"][0]
+        self.assertEqual(launch["trialOwned"], {"CLAUDE_CODE_TMPDIR": "."})
+        self.assertEqual(launch["control"], [])
+        self.assertEqual(self.runtime_reads(fixture), [str(fixture.claude)])
+
+    def test_a_confined_claude_launch_names_its_own_temporary_directory(self):
+        self.check_confined_claude_setup(self.fixture)
+        self.broken(self.check_confined_claude_setup, "CLAUDE.confined_setup", lambda home: [])
+        self.broken(self.check_confined_claude_setup, "trial_owned", lambda name, value, child: False)
+
+    def check_confined_codex_setup(self, fixture: Fixture):
+        """A confined Codex launch gets a CODEX_HOME in its TMPDIR with a link
+        to the real sign-in, which a runtime grant admits, and runs without
+        the Codex sandbox."""
+        fixture.behave(noSession=True)
+        status, output = fixture.run_codex("confined")
+        self.assertEqual(status, 0, output)
+        record = fixture.record()
+        launch = record["launches"][0]
+        self.assertEqual(launch["trialOwned"], {"CODEX_HOME": "codex-home"})
+        self.assertEqual(launch["control"], [])
+        home = Path(record["trial"]) / "home"
+        self.assertEqual(self.runtime_reads(fixture), [str(fixture.codex), str(home / trial.CODEX.store)])
+        link = Path(record["trial"]) / "tmp/codex-home/auth.json"
+        self.assertEqual(os.readlink(link), os.path.realpath(fixture.owner / trial.CODEX.store))
+        route = json.loads((Path(record["trial"]) / "route.json").read_text())
+        self.assertEqual(route["fixedArgs"][route["fixedArgs"].index("--sandbox") + 1], "danger-full-access")
+        self.assertEqual(record["harness"]["sandboxMode"], "danger-full-access")
+
+    def test_a_confined_codex_launch_has_a_writable_home_and_a_granted_sign_in(self):
+        self.check_confined_codex_setup(self.fixture)
+        self.broken(self.check_confined_codex_setup, "CODEX.confined_setup", lambda home: [])
+        self.broken(self.check_confined_codex_setup, "CODEX.confined_reads", lambda home: [])
+        self.broken(self.check_confined_codex_setup, "CODEX.sandbox", lambda case: trial.CODEX_SANDBOX)
+
+    def test_a_lifecycle_codex_launch_keeps_its_own_sandbox(self):
+        case = {"kinds": ["impl"], "name": "x", "harness": "codex"}
+        route = trial.route_for(case, Path("/r"), Path("/c"), "m", "e", home=Path("/h"))
+        self.assertEqual(route["fixedArgs"][route["fixedArgs"].index("--sandbox") + 1], trial.CODEX_SANDBOX)
+        self.assertEqual(route["setup"], [])
+
+    def check_trial_owned_control(self, fixture: Fixture):
+        child = {"TMPDIR": "/run/private/tmp"}
+        control = trial.child_control
+        self.assertEqual(control({**child, "CLAUDE_CODE_TMPDIR": "/run/private/tmp"}, {}), [])
+        self.assertEqual(control({**child, "CODEX_HOME": "/run/private/tmp/codex-home"}, {}), [])
+        self.assertEqual(control({**child, "CLAUDE_CODE_TMPDIR": "/tmp"}, {}),
+                         ["CLAUDE_CODE_TMPDIR reached the trial child"])
+        self.assertEqual(control({**child, "CLAUDE_CODE_TMPDIR": "/run/private/tmpx"}, {}),
+                         ["CLAUDE_CODE_TMPDIR reached the trial child"])
+        self.assertEqual(control({**child, "CLAUDE_CODE_OTHER": "/run/private/tmp"}, {}),
+                         ["CLAUDE_CODE_OTHER reached the trial child"])
+        self.assertEqual(control({"CLAUDE_CODE_TMPDIR": "/run/private/tmp"}, {}),
+                         ["CLAUDE_CODE_TMPDIR reached the trial child"])
+
+    def test_the_control_admits_a_trial_owned_name_only_inside_tmpdir(self):
+        self.check_trial_owned_control(self.fixture)
+        self.broken(self.check_trial_owned_control, "trial_owned", lambda name, value, child: True)
 
     def test_the_wrapper_reports_a_failed_access(self):
         directory = Path(tempfile.mkdtemp(dir=self.temp.name))

@@ -527,7 +527,7 @@ handle=${handle%%'`'*}
 skill=${prompt#'**Load the `'}
 skill=${skill%%'`'*}
 ending=$(printf '%s\n' "$prompt" | sed -n '/then do nothing else\*\*:$/{n;s/^`\(.*\)`$/\1/p;}')
-stop=$(printf '%s\n' "$prompt" | sed -n '/^action instead:$/{n;s/^`\(.*\)`$/\1/p;}')
+stop=$(printf '%s\n' "$prompt" | sed -n '/last action instead:$/{n;s/^`\(.*\)`$/\1/p;}')
 test -n "$ending"
 test -n "$stop"
 leaf=$(cd .grove && ls | grep -e "--$handle\.md\$")

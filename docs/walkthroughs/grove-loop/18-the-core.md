@@ -7,7 +7,7 @@
 
 Chapters 16 and 17 read the lease that admits a driver and the calls its
 sessions make. This one reads what a launch is handed. `${prompt}` is the
-source's own name for that prompt, and this 264-line module is the whole of what
+source's own name for that prompt, and this 279-line module is the whole of what
 goes in it.
 
 > **A sentence rides `${prompt}` only if its failure mode is one the skill cannot
@@ -57,8 +57,8 @@ test beside it rather than as a principle. The pin is
 <a id="what-the-instruments-see"></a>
 ## What the instruments see here, and the one thing they do not
 
-**165 of the 264 lines are comment prose**, counting lines whose first non-space
-characters are `//`. That is 62.5%, and counting every root whole under the same
+**176 of the 279 lines are comment prose**, counting lines whose first non-space
+characters are `//`. That is 63.1%, and counting every root whole under the same
 rule it is still the **second densest in the crate**, behind `driver.rs` — an
 enumeration rather than a reading of the brief's table, which splits the roots
 that carry inline tests and so ranks a different set of things. The structure
@@ -68,7 +68,7 @@ here rather than the percentage, because the rule behind the brief's figures is
 not stated: chapter 15 gave its three roots' counts rather than their
 percentages, and chapter 16 is the page that records why.
 
-**162 of the 165 are `///` or `//!`, and the root has no `#[cfg(test)]`
+**173 of the 176 are `///` or `//!`, and the root has no `#[cfg(test)]`
 module.** The other three are plain `//` comments inside `compose`, and they
 explain the order of its substitutions. `cargo doc` cannot see those three, so
 they are the one blind spot here, and the composition section reads them in
@@ -83,7 +83,7 @@ and names this file in **none** of them. It named it in exactly one until
 which the section below reads. That the instrument reaches this file is a
 measurement rather than an assumption: planting a broken link inside a `///`
 docblock in it takes the crate to twenty-seven and names the new line, so the
-silence over the 162 doc-comment lines is silence about links that resolve.
+silence over the 173 doc-comment lines is silence about links that resolve.
 
 **One thing it still cannot see, and this root has none of them.**
 `cargo doc` says nothing at all about a Markdown link with
@@ -94,9 +94,9 @@ other kinds — one the instrument reports, and one no instrument in this reposi
 looks for at all.
 
 **The block holds no test, and that is why it takes *do not restate*.** There is
-no `#[cfg(test)]` module and no `#[test]` function in the 264 lines, so the book's
+no `#[cfg(test)]` module and no `#[test]` function in the 279 lines, so the book's
 *supply the claim* obligation has nothing here to attach to; chapter 18 is not on
-the structure brief's list for it. At 62% comment prose the instruction is the
+the structure brief's list for it. At 63% comment prose the instruction is the
 third one — the comments already argue, the fragment graph quotes them verbatim,
 and prose here connects arguments, names the test, and stops.
 
@@ -220,13 +220,13 @@ they say what it says they say. That reading is what this section rests on.
 <a id="the-block-declared"></a>
 ## The block, declared
 
-The 245 lines are one composite whose children are the file's own items in file
+The 279 lines are one composite whose children are the file's own items in file
 order. The order is already the argument: the header states the rule, the two
 names it needs, then the three parts **in the order they appear in the prompt**,
 then the values one launch varies, then the composition that joins them, and last
 the one derived value the module computes for itself.
 
-<!-- fragment «the-prompt-core» owner="too-late-to-say-later" source="crates/grove-loop/src/prompt.rs" lines="1-264" parent="source-prompt" -->
+<!-- fragment «the-prompt-core» owner="too-late-to-say-later" source="crates/grove-loop/src/prompt.rs" lines="1-279" parent="source-prompt" -->
 <!-- insert «core-header» -->
 <!-- insert «core-imports» -->
 <!-- insert «core-prefix» -->
@@ -297,7 +297,7 @@ other statement in the file follows from it, and two of them are worth checking
 rather than reading.
 
 **"This module reads nothing" is structural, and it is stronger than it looks.**
-There is no `fs`, no `include_str!`, no path and no I/O anywhere in the 264
+There is no `fs`, no `include_str!`, no path and no I/O anywhere in the 279
 lines — and, enumerated, there is also **not one conditional**. The word `if`
 occurs three times, `else` and `match` twice each, and **all seven are prose**: `if` and `else` in
 comment text and inside the prompt's own wording, and the two `match`es only in
@@ -316,24 +316,26 @@ of the six tests in the file that never compose anything — which is why it is
 also one that passes in a workspace copy with no jj repository in it.
 
 **What this block cites, it cites correctly on all but one count — and only the
-enumeration shows which.** Counted across all 264 lines, the block carries
-**eighteen** citations to a document or an anchored record: seven to
+enumeration shows which.** Counted across all 279 lines, the block carries
+**nineteen** citations to a document or an anchored record: seven to
 `docs/specs/module-decomposition.md`, naming four distinct decisions (4, 5, 9 and
 10); two each to `plugins/grove/skills/grove/SKILL.md`,
 `docs/specs/codex-skill-provisioning.md`, `crates/grove-loop/tests/prompt.rs`
 and `docs/ARCHITECTURE.md` anchors; one each to
 `docs/adr/skill-delivery-is-the-users-choice.md` and
-`docs/research/wording-micro-test.md`; and one to a methodology rule id. The
-count is the same as before `grove-skill-mandate-k22`, but three citations
-changed. The two to `plugins/grove/README.md` and one to the spine went with the
+`docs/research/wording-micro-test.md`; one to
+`docs/common-loading-acceptance-record.md`; and one to a methodology rule id.
+`claude-force-stop-report-k136` added the record citation to a count of
+eighteen. `grove-skill-mandate-k22` kept that count, but changed three
+citations. The two to `plugins/grove/README.md` and one to the spine went with the
 fixed namespace, and the delivery decision and specification replaced them. Two grove task keys — `prompt-names-the-kind-k18`
 and `open-kind-k20` — date changes rather than cite arguments, and one code span
 names a module this workspace no longer has; both fall outside that count and are
 read below.
-**Seventeen of the eighteen resolve and support the sentence that cites them** —
+**Eighteen of the nineteen resolve and support the sentence that cites them** —
 decision 9 carries `Mandate`'s four fields and `compose`'s signature as
 written source, and its own paragraph on the provisioning gap is nearly this
-header's wording. The one that did not is at line 253, and the last section of
+header's wording. The one that did not is at line 268, and the last section of
 this chapter reads it. That census is worth taking because chapter 16 found a name that
 resolved to nothing, and because this file cites more heavily than that one.
 
@@ -484,12 +486,12 @@ but that is chapter 4's grammar refusing a name, not the driver reading one.
 <a id="part-one"></a>
 ## Part 1 — the load instruction, and the element that was measured
 
-Part 1 is forty-four lines of doc comment over a seventeen-line constant — the
+Part 1 is forty-six lines of doc comment over an eighteen-line constant — the
 longest argument in the file, ahead of the module header's forty-one — because
 its wording was partly tested rather than reasoned, and because the rest of it
 answers what the test could not.
 
-<!-- fragment «core-load-instruction» owner="too-late-to-say-later" source="crates/grove-loop/src/prompt.rs" lines="67-128" parent="the-prompt-core" -->
+<!-- fragment «core-load-instruction» owner="too-late-to-say-later" source="crates/grove-loop/src/prompt.rs" lines="67-131" parent="the-prompt-core" -->
 ````rust
 /// **Part 1 — the load instruction.** First, because it is the first action.
 ///
@@ -522,11 +524,13 @@ answers what the test could not.
 /// an unqualified "first" would contradict that order.
 ///
 /// **The missing-guidance rule rides here, because the missing skill cannot
-/// state it.** A session that cannot find or read its skill reports that,
-/// leaves the leaf live, records no teardown and runs the launch's exact
-/// force-stop command. A report with no defined ending could otherwise relaunch
-/// the same live leaf indefinitely. Part 3 keeps the force-stop mechanism and
-/// its result meaning, so this part states only when to use it.
+/// state it.** A session that cannot find or read its skill reports that in a
+/// visible reply, leaves the leaf live, records no teardown and runs the
+/// launch's exact force-stop command. A report with no defined ending could
+/// otherwise relaunch the same live leaf indefinitely. Part 3 keeps the
+/// force-stop mechanism and its result meaning, so this part states only when
+/// to use it. It still names the visible reply, because a load can fail before
+/// the session reads part 3.
 ///
 /// **The third measured element is gone with the thing it described.** The
 /// provisioned directories rode this instruction by absolute path, and no
@@ -547,9 +551,10 @@ verb, before looking at `.grove/`, before inspecting the working tree, and
 before answering a question.
 
 If you cannot find or read `{skill}`, report that its guidance is missing or
-unreadable. Leave the task live: do not retire the leaf, record a teardown or
-run the continue command below. Run this exact force-stop command as your last
-action instead:
+unreadable. Give that report in a visible reply to the human, as its own step
+before the force-stop call. Leave the task live: do not retire the leaf, record
+a teardown or run the continue command below. Run this exact force-stop command
+as your last action instead:
 `{force_stop_command}`
 ";
 
@@ -566,7 +571,7 @@ shell call as a `grove-llm` verb or a `.grove/` read. So the defect was deferral
 not omission, and one imperative naming one target is what removes the thing to
 defer.
 
-Two of the three measured elements survive in the 838 bytes above, and the
+Two of the three measured elements survive in the 932 bytes above, and the
 comment is careful about what changed under the third. The micro-test's winning
 wording named *two* targets — the skill and its reference file — because the
 methodology was then one skill with a routing table; the plugin gives each kind
@@ -598,8 +603,11 @@ element the micro-test measured.
 
 The third is the missing-guidance paragraph, and it is the one sentence here
 that no skill could carry. A session that cannot find or read its skill reports
-that, leaves the leaf live, records no teardown and runs the launch's exact
-force-stop command. Without that rule, a session could end on the ordinary
+that in a visible reply. It then leaves the leaf live, records no teardown and
+runs the launch's exact force-stop command. The paragraph names the visible
+reply itself, because a load can fail before the session reads part 3.
+
+Without that rule, a session could end on the ordinary
 continue command, and the driver would relaunch the same live leaf without end.
 The fixture in `crates/grove/tests/native_skill_delivery.rs` drives this through a
 real loop with actual Ravel. It shows one launch, a force-stop and a live leaf,
@@ -614,7 +622,7 @@ paragraph names when to force-stop. Part 3 still owns what a force-stop means.
 
 Part 2 is the shortest of the three, and the closure on *fact* is why.
 
-<!-- fragment «core-runtime-facts» owner="too-late-to-say-later" source="crates/grove-loop/src/prompt.rs" lines="129-146" parent="the-prompt-core" -->
+<!-- fragment «core-runtime-facts» owner="too-late-to-say-later" source="crates/grove-loop/src/prompt.rs" lines="132-149" parent="the-prompt-core" -->
 ````rust
 /// **Part 2 — the runtime facts.** Three launch-varying values and no normative
 /// tail; see this module's header for why the tail left.
@@ -663,7 +671,7 @@ explicitly not as the mechanism.
 Part 3 supplies the ending mechanism and caller-owned result meanings for
 every kind. The kind's skill decides which ending its work calls for.
 
-<!-- fragment «core-signalling-contract» owner="too-late-to-say-later" source="crates/grove-loop/src/prompt.rs" lines="147-181" parent="the-prompt-core" -->
+<!-- fragment «core-signalling-contract» owner="too-late-to-say-later" source="crates/grove-loop/src/prompt.rs" lines="150-196" parent="the-prompt-core" -->
 ````rust
 /// **Part 3 — grove's own signalling contract.** Last, because it describes the
 /// last action.
@@ -675,15 +683,27 @@ every kind. The kind's skill decides which ending its work calls for.
 /// A finish whose skill is unread can publish only that result after deleting
 /// the tree, causing a relaunch. Decision 9 records that residue and its reopen
 /// condition: a continue result after an unrecorded teardown.
+///
+/// **A force-stop states its reason in a visible reply, before the call.** An
+/// agent writes its closing reply after its last tool call, and no step follows
+/// a force-stop. In three trial runs, Claude Code therefore put an accurate
+/// report in a thinking block, directly before the force-stop call
+/// (`docs/common-loading-acceptance-record.md`). The rule passes the too-late
+/// test, because it governs the mechanism of the last action. Only this
+/// contract states that mechanism, and a session whose skill is missing can
+/// read no other source. A normal ending asks for no reply.
 const SIGNALLING_CONTRACT: &str = "\
 **Signal.** Your kind's skill states how this session ends. After retirement and
 commit (including any settled parent cascade), run this exact command as your
 **last action — then do nothing else**:
 `{ending_command}`
 A finish session first runs `grove-llm record-teardown`, then the same command.
-To force-stop the sequence without acknowledging completion, run this exact
-command as your last action instead: `{force_stop_command}`. Remaining live
-work is resumable by rerunning Grove; force-stop does not retire a leaf.
+To force-stop the sequence without acknowledging completion, first state the
+reason in a visible reply to the human, as its own step. Reasoning alone is not
+that reply, because the human may not see it. No step follows the force-stop
+call. Then, as your last action instead, run this exact command:
+`{force_stop_command}`. Remaining live work is resumable by rerunning Grove;
+force-stop does not retire a leaf.
 Ravel finds the enclosing session from inherited process context, terminates and
 reaps its managed group, and returns Grove's opaque result unchanged.
 Grove interprets it only after reap and epoch invalidation. Driver interruption
@@ -718,6 +738,18 @@ Teardown otherwise finishes regardless of the supervisor's result or status.
 A successful exact continuation advances only when no teardown is recorded.
 Original live-v22 sessions retain the ending named in their original prompt.
 
+**A force-stop states its reason in a visible reply, before the call.** The
+continue path needs no report, because the work is the evidence. A force-stop
+leaves work undone, so the human needs the reason. An agent usually writes its
+closing reply after its last tool call, but no step follows a force-stop. In
+three Claude Code trials, the agent therefore wrote an accurate report in a
+thinking block, directly before the call. The human saw no reply.
+
+The contract now orders the reply first, as its own step, and says why reasoning
+is not that reply. `a_force_stop_states_its_reason_in_a_visible_reply_before_the_call`
+pins the sentence, and it also holds that no other sentence of the contract
+asks for a reply.
+
 The accepted residue remains a finish whose skill is unread and whose teardown
 is not recorded before the exit signal. The loop cannot infer confirmation from
 `.grove/` being absent. Grove's prompt tests pin its supplied ending command and
@@ -731,7 +763,7 @@ Grove's CLI exposes the separate teardown record operation.
 The mandate fields, and the doc comment on each names the owner of the thing rather
 than explaining it.
 
-<!-- fragment «core-mandate» owner="too-late-to-say-later" source="crates/grove-loop/src/prompt.rs" lines="182-208" parent="the-prompt-core" -->
+<!-- fragment «core-mandate» owner="too-late-to-say-later" source="crates/grove-loop/src/prompt.rs" lines="197-223" parent="the-prompt-core" -->
 ````rust
 /// Everything one launch varies, and the whole of what composition reads.
 ///
@@ -785,7 +817,7 @@ dropped.
 The function the whole module exists for, and the only place its three parts
 meet.
 
-<!-- fragment «core-compose» owner="too-late-to-say-later" source="crates/grove-loop/src/prompt.rs" lines="209-241" parent="the-prompt-core" -->
+<!-- fragment «core-compose» owner="too-late-to-say-later" source="crates/grove-loop/src/prompt.rs" lines="224-256" parent="the-prompt-core" -->
 ````rust
 /// Compose the whole of `${prompt}` for one launch.
 ///
@@ -830,7 +862,7 @@ twice: a launch's commands are substituted after the template's own tokens, so
 an executable path that happens to contain a token is not expanded again.
 `ending_commands_preserve_template_tokens_in_the_selected_path` holds that for
 both commands. **Infallible is checkable and it is
-absolute**: enumerated, the whole 264-line root contains no `Result`, no `?`, no
+absolute**: enumerated, the whole 279-line root contains no `Result`, no `?`, no
 `unwrap`, no `expect`, no `panic!` and no `bail!`. There is no error type here and
 no failure path to test, which is why this chapter has no refusal arms to
 attribute and no mutation to run over them — the two instruments Part V has leaned
@@ -853,10 +885,12 @@ resolved.
 The sizes are worth a paragraph, because the module is judged against a number
 and because what moves the number is instructive. With the kind `impl`, a
 handle of `plan-k1`, Homebrew's Ravel path and this checkout's root, a composed
-prompt runs about 2,700 bytes, roughly two thirds of the suite's 4 KiB alarm.
-The missing-guidance paragraph and the longer signalling contract account for
-most of the growth since this chapter first measured it. **The kind's label
-appears four times per prompt**: three times inside the skill name and once on
+prompt runs about 3,000 bytes. That is roughly three quarters of the suite's
+4 KiB alarm. The growth since this chapter first measured it comes mostly from
+the missing-guidance paragraph, the longer signalling contract and the
+force-stop reply rule.
+
+**The kind's label appears four times per prompt**: three times inside the skill name and once on
 its own. What
 moves the absolute figure most is the workspace root, which the stated VCS
 renders in full, and the Ravel path, which both commands render twice. So the
@@ -872,7 +906,7 @@ contributor's build on that is a gate this design declines to erect.
 
 The last item, and the only value this module computes rather than receives.
 
-<!-- fragment «core-stated-vcs» owner="too-late-to-say-later" source="crates/grove-loop/src/prompt.rs" lines="242-264" parent="the-prompt-core" -->
+<!-- fragment «core-stated-vcs» owner="too-late-to-say-later" source="crates/grove-loop/src/prompt.rs" lines="257-279" parent="the-prompt-core" -->
 ````rust
 /// The **value** that states this working tree's VCS to the session.
 ///
@@ -973,8 +1007,8 @@ those terms. That citation holds.
 The book's three questions, asked of the smallest root in Part V. That ranking
 is an enumeration rather than an impression, and it is worth writing down because
 the unit is the trap that caught chapter 16: Part V's roots run `driver_lease.rs`
-1,383, `loop_driver.rs` 742 and `prompt.rs` **264**,
-and its owned blocks run 819, 615, 564 and 264. `prompt.rs` is last in both
+1,383, `loop_driver.rs` 742 and `prompt.rs` **279**,
+and its owned blocks run 819, 615, 564 and 279. `prompt.rs` is last in both
 lists, and because this chapter owns a whole unsplit root there is no
 unit under which that changes.
 
@@ -1026,7 +1060,7 @@ has no word for a kind at all.
 The too-late test could not move, because it is a judgement about a methodology
 that the crate deliberately does not contain. The module owns a judgement that it
 cannot check. So it writes the judgement down and
-closes it on a definition. It keeps 245 lines of prose that argue why each absent
+closes it on a definition. It keeps 176 lines of comment prose that argue why each absent
 sentence has somewhere better to be.
 
 [Previous: Which calls the lease admits](17-the-epoch.md) | [Contents](README.md) | [Next: The loop](19-the-loop.md)

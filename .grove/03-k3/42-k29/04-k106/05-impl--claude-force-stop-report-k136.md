@@ -57,3 +57,46 @@ optional, and it is a control only.
 
 The change applies to the mandate of every Grove session. Check that the new
 sentence does not ask for a report before a normal `grove-continue` ending.
+
+## Decisions (running log)
+
+- **Both force-stop sentences carry the rule.** The signalling contract
+  states it in full: state the reason in a visible reply, as its own step,
+  before the call. It also says why. Reasoning alone is not that reply,
+  because the human may not see it, and no step follows the force-stop call.
+  The missing-guidance rule of the load instruction also names the visible
+  reply, before the call. A load can fail before the session reads the
+  contract. `explicit-native-error` force-stops for a failed
+  `decision-records` load, so only the contract sentence governs that case.
+- **The rule passes the too-late test.** It governs the mechanism of the last
+  action, and only the contract states that mechanism. A session whose skill
+  is missing can read no other source. The `prompt.rs` doc comments state
+  this.
+- **A normal ending asks for no reply.** The new test
+  `a_force_stop_states_its_reason_in_a_visible_reply_before_the_call` pins
+  the force-stop sentence whole. It also holds that no other sentence of the
+  contract contains "reply". The continue sentence keeps its text.
+- **The tests failed against the earlier text.** Before the source change,
+  `the_load_instruction_states_the_missing_guidance_force_stop` and the new
+  test failed. The other 20 tests of `crates/grove-loop/tests/prompt.rs`
+  passed. After the change, all 22 passed.
+- **The fake session finds the command by the end of a line.** The fake
+  session of `crates/grove/tests/native_skill_delivery.rs` found the
+  force-stop command after a line that was exactly `action instead:`. The new
+  wrap gives `as your last action instead:`, and the full check failed
+  `missing_or_unreadable_kind_guidance_force_stops_with_the_leaf_live`. The
+  pattern now matches a line that ends with `last action instead:`, so a
+  rewrap does not break it. No contract line ends with `instead:`.
+- **The walkthrough follows the source.** Chapter 18 quotes the changed
+  blocks, and the book's counts move with the file: 279 lines, 176 comment
+  lines, nineteen citations and 15,283 book lines. The new source comment
+  cites the acceptance record and names no task key, so the task-key census
+  keeps its text. `book-check --final` passes. The chapter was never
+  converted to controlled English. This leaf cleared the lint findings in its
+  own sentences only, and a conversion stays a separate change.
+- **The full check passes.** `bash scripts/check.sh` passed all 21
+  principal checks, with 1334 of 1334 nextest tests, and with mise's
+  installed Bun 1.4.3 first on `PATH`. Without it, "Ravel caller assets and
+  provenance" fails, because the owner's global mise configuration selects
+  Bun 1.4.4 and the policy typecheck pins 1.4.3. `loader-report-wording-k129`
+  recorded the same failure. This leaf changed no part of that step's subject.

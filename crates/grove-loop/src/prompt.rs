@@ -95,11 +95,13 @@ pub fn skill_name(kind: &Kind) -> String {
 /// an unqualified "first" would contradict that order.
 ///
 /// **The missing-guidance rule rides here, because the missing skill cannot
-/// state it.** A session that cannot find or read its skill reports that,
-/// leaves the leaf live, records no teardown and runs the launch's exact
-/// force-stop command. A report with no defined ending could otherwise relaunch
-/// the same live leaf indefinitely. Part 3 keeps the force-stop mechanism and
-/// its result meaning, so this part states only when to use it.
+/// state it.** A session that cannot find or read its skill reports that in a
+/// visible reply, leaves the leaf live, records no teardown and runs the
+/// launch's exact force-stop command. A report with no defined ending could
+/// otherwise relaunch the same live leaf indefinitely. Part 3 keeps the
+/// force-stop mechanism and its result meaning, so this part states only when
+/// to use it. It still names the visible reply, because a load can fail before
+/// the session reads part 3.
 ///
 /// **The third measured element is gone with the thing it described.** The
 /// provisioned directories rode this instruction by absolute path, and no
@@ -120,9 +122,10 @@ verb, before looking at `.grove/`, before inspecting the working tree, and
 before answering a question.
 
 If you cannot find or read `{skill}`, report that its guidance is missing or
-unreadable. Leave the task live: do not retire the leaf, record a teardown or
-run the continue command below. Run this exact force-stop command as your last
-action instead:
+unreadable. Give that report in a visible reply to the human, as its own step
+before the force-stop call. Leave the task live: do not retire the leaf, record
+a teardown or run the continue command below. Run this exact force-stop command
+as your last action instead:
 `{force_stop_command}`
 ";
 
@@ -154,15 +157,27 @@ Grove version: {version}.
 /// A finish whose skill is unread can publish only that result after deleting
 /// the tree, causing a relaunch. Decision 9 records that residue and its reopen
 /// condition: a continue result after an unrecorded teardown.
+///
+/// **A force-stop states its reason in a visible reply, before the call.** An
+/// agent writes its closing reply after its last tool call, and no step follows
+/// a force-stop. In three trial runs, Claude Code therefore put an accurate
+/// report in a thinking block, directly before the force-stop call
+/// (`docs/common-loading-acceptance-record.md`). The rule passes the too-late
+/// test, because it governs the mechanism of the last action. Only this
+/// contract states that mechanism, and a session whose skill is missing can
+/// read no other source. A normal ending asks for no reply.
 const SIGNALLING_CONTRACT: &str = "\
 **Signal.** Your kind's skill states how this session ends. After retirement and
 commit (including any settled parent cascade), run this exact command as your
 **last action — then do nothing else**:
 `{ending_command}`
 A finish session first runs `grove-llm record-teardown`, then the same command.
-To force-stop the sequence without acknowledging completion, run this exact
-command as your last action instead: `{force_stop_command}`. Remaining live
-work is resumable by rerunning Grove; force-stop does not retire a leaf.
+To force-stop the sequence without acknowledging completion, first state the
+reason in a visible reply to the human, as its own step. Reasoning alone is not
+that reply, because the human may not see it. No step follows the force-stop
+call. Then, as your last action instead, run this exact command:
+`{force_stop_command}`. Remaining live work is resumable by rerunning Grove;
+force-stop does not retire a leaf.
 Ravel finds the enclosing session from inherited process context, terminates and
 reaps its managed group, and returns Grove's opaque result unchanged.
 Grove interprets it only after reap and epoch invalidation. Driver interruption

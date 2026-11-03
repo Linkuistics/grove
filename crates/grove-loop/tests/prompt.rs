@@ -231,10 +231,11 @@ fn the_load_instruction_says_the_kind_was_already_resolved() {
 ///
 /// A missing skill cannot state what to do when it is missing, so the rule
 /// rides the prompt (`docs/specs/codex-skill-provisioning.md`, *Installation
-/// and bootstrap*). It names the same target, keeps the leaf live, forbids a
-/// teardown record and the continue command, and gives the launch's exact
-/// force-stop command. That command comes before the signalling contract,
-/// because a load can fail before the session reads that far.
+/// and bootstrap*). It names the same target, asks for the report in a visible
+/// reply before the force-stop call, keeps the leaf live, forbids a teardown
+/// record and the continue command, and gives the launch's exact force-stop
+/// command. That command comes before the signalling contract, because a load
+/// can fail before the session reads that far.
 #[test]
 fn the_load_instruction_states_the_missing_guidance_force_stop() {
     for kind in shipped_kinds() {
@@ -242,9 +243,10 @@ fn the_load_instruction_states_the_missing_guidance_force_stop() {
         let skill = prompt::skill_name(&kind);
         let expected = format!(
             "If you cannot find or read `{skill}`, report that its guidance is missing or\n\
-             unreadable. Leave the task live: do not retire the leaf, record a teardown or\n\
-             run the continue command below. Run this exact force-stop command as your last\n\
-             action instead:\n\
+             unreadable. Give that report in a visible reply to the human, as its own step\n\
+             before the force-stop call. Leave the task live: do not retire the leaf, record\n\
+             a teardown or run the continue command below. Run this exact force-stop command\n\
+             as your last action instead:\n\
              `'/fixture/ravel' end-session grove-force-stop`\n"
         );
         let at = prompt.find(&expected).unwrap_or_else(|| {
@@ -320,6 +322,42 @@ fn the_signalling_contract_states_the_mechanism_and_defers_the_ending() {
              is.\n---\n{contract}\n---"
         );
     }
+}
+
+/// **A force-stop states its reason in a visible reply, before the call.**
+///
+/// In `claude-visible-report-k135`, Claude Code went from a loader error to the
+/// force-stop call in three runs. Each time a thinking block held an accurate
+/// report, and no text block held it
+/// (`docs/common-loading-acceptance-record.md`, *What the second repair
+/// shows*). An agent writes its closing reply after its last tool call, and no
+/// step follows a force-stop. The contract therefore orders the reply before
+/// the call, and says why reasoning is not that reply.
+///
+/// The requirement is the force-stop's only. A normal `grove-continue` ending
+/// asks for no reply, so no other sentence of the contract names one.
+#[test]
+fn a_force_stop_states_its_reason_in_a_visible_reply_before_the_call() {
+    let contract = signalling_contract();
+    let expected = "To force-stop the sequence without acknowledging completion, first state the\n\
+                    reason in a visible reply to the human, as its own step. Reasoning alone is not\n\
+                    that reply, because the human may not see it. No step follows the force-stop\n\
+                    call. Then, as your last action instead, run this exact command:\n\
+                    `'/fixture/ravel' end-session grove-force-stop`. Remaining live work is \
+                    resumable by rerunning Grove;\n\
+                    force-stop does not retire a leaf.\n";
+    let opens = contract.find(expected).unwrap_or_else(|| {
+        panic!(
+            "the signalling contract does not ask for the force-stop reason in a visible \
+             reply before the call:\n---\n{contract}\n---"
+        )
+    });
+    let closes = opens + expected.len();
+    assert!(
+        !contract[..opens].contains("reply") && !contract[closes..].contains("reply"),
+        "only the force-stop sentence may ask for a reply. The normal ending must not \
+         ask for a report:\n---\n{contract}\n---"
+    );
 }
 
 /// The third part, sliced off a composed prompt rather than re-declared, so a

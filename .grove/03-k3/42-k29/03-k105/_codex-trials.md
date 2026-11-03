@@ -48,3 +48,9 @@ adapter" in `docs/common-loading-acceptance-record.md` states the route, the
 The fields `continuation`, `compaction`, `expectDelegate` and `systemNote`
 refuse for Codex until k119, k120 and k121 add their mechanisms. The delegate
 leaf also adds Codex delegations, which the extraction does not yet link.
+
+codex-discovery-trial-k116 recorded "discovery in Codex", which passes, and
+"discovery-confined in Codex", which is a gap. Codex exits before its session
+under Ravel confinement. The confined environment holds no `CODEX_HOME`, and
+the sandbox denies writes in `$HOME/.codex`. The confined case of
+codex-missing-kind-k122 probably meets the same gap.

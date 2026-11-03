@@ -1209,6 +1209,295 @@ Ending outcome:
 - Teardown record: none. A standalone run has no tree.
 - Harness launches: 1.
 
+### discovery in Codex
+
+**Case.** `discovery`, run with `--harness codex`, repeats the case of
+[discovery](#discovery) in Codex. It uses the same leaf, the same two sources
+and the same two mandatory files. The leaf asks for a Bash script `stamp.sh`
+and names no skill. Grove sends its bare-name mandate.
+
+The run is `discovery-20261103T012450Z`, on 2026-11-03 local time. It was the
+first and only run of the case in Codex, with no retry and no further prompt.
+
+**Route.** Directory on 2.0. One plain Git checkout at commit `ec2f1973f1d0`
+supplies the sources `grove` and `linkuistics`, as in `discovery`. No checkout
+tool made the checkout. The settings name the same mandatory files in the same
+order: `using-jujutsu` first, then the Grove spine.
+
+**Result.** The case passes each observation of the leaf, with one second
+craft read that the comparison below explains.
+
+- **Mandatory order.** Call 2 read `using-jujutsu/SKILL.md`, and call 4 read
+  the spine `grove/SKILL.md`, each from its snapshot. That is the configured
+  order. Both reads came before the kind-skill read in call 6, which is the
+  caller's "first" action.
+- **Supporting read.** Call 3 read `references/jj-commands.md` of
+  `using-jujutsu`, relative to that skill's own snapshot directory.
+  `using-jujutsu/SKILL.md` names this file as the relative link
+  `references/jj-commands.md`. Calls 8 and 9 read `references/bootstrap.md` and
+  `references/execute.md` of the spine in the same way.
+- **Listing and descriptions.** Call 5 listed every `SKILL.md` path in both
+  snapshots with `rg --files`. Call 17 then printed the `name`,
+  `description` and `disable-model-invocation` lines of each skill in both
+  snapshots. The runner classifies call 17 as a command, because a Python
+  program builds its paths. The command text shows the description inspection.
+- **Craft read.** The agent read the leaf in call 14 and the brief in call 16.
+  Call 18 then read `coding-style-bash/SKILL.md` from the `linkuistics`
+  snapshot. Call 25 wrote `stamp.sh` through `apply_patch`, which is the
+  governed action. The script has the `#!/usr/bin/env bash` shebang,
+  `set -euo pipefail`, `IFS=$'\n\t'` and the `ERR` trap that the craft skill
+  names.
+- **Native absence.** The sandbox home held no native copy. The native skill
+  listing of the session named only the four bundled skills of Codex, and none
+  of them is a craft skill.
+- **Offline resolution.** `ravel skills resolve --json` exited 0 with status
+  `resolved`. It ran under the network-denying profile, with only the 2.0
+  front on PATH. It gave the descriptor identity of the launch,
+  `8ce8701540d5…`. Both controls differed. The unguarded `nc` exited 0, and the
+  guarded `nc` exited 1. `git` was on the PATH of the driver at
+  `/opt/homebrew/bin/git`, and absent from the PATH of the resolution.
+
+The agent then retired the leaf, committed it and ran the exact continue
+command. The driver stopped at the `finish` kind, which the trial does not
+route.
+
+**Comparison with Claude Code.** Both harnesses read the mandatory files in
+the configured order before the kind skill. Both read `coding-style-bash`
+before the script, and both scripts have the strict mode of the craft skill.
+The differences are these:
+
+- Codex inspected the descriptions of every skill in call 17. Claude Code
+  listed only the directory names, and its transcript shows no inspection of
+  descriptions.
+- Codex also read `machine-environment/SKILL.md` in call 19, after the craft
+  skill and before the action. Its description says "Use when setting up
+  projects, running development commands". Claude Code did not read it.
+  The case assumes that only `coding-style-bash` matches the activity. That
+  assumption holds for the craft skills of the task, and not for this
+  personal skill with a broad description.
+- Claude Code ran `shellcheck` and `shfmt -i 2 -ci`, which the craft skill
+  names. Codex ran neither. It checked the script with `bash -n` and one run
+  of the script. After the run, `shellcheck` passed on the Codex script with
+  no finding. `shfmt -i 2 -ci -d` asked for one change: `>STAMP` instead of
+  `> STAMP`. Those two checks are this record's, not the agent's.
+- Codex read the spine's `bootstrap.md` without error. The Claude Code call
+  that read the same file returned exit status 1.
+
+**Limit.** One run is one observation, not a rate. The harness needs the
+network for its model, so the no-network check covers Ravel's resolution
+only. The fixture `a_directory_launch_needs_no_network_and_no_git` proves a
+launch without a network.
+
+Call 12 returned exit status 1 with no output. It is an `rg --files` search
+that found no file, which `rg` reports with that status.
+
+The sandbox mode is `workspace-write`, not the `danger-full-access` of Grove's
+Rhai sample. That sandbox runs in place of Ravel confinement, because a
+lifecycle launch has none.
+
+| Subject | Value |
+| --- | --- |
+| Grove build | Commit `ec2f1973f1d0`. `grove` SHA-256 `5900ff3c08f16439f2d57af2a553b209ffd77527c17e883e6b6c0ee742b2ca94`. `grove-llm` SHA-256 `56f6815a290441d2498b1af4431923d73983459619d5e7eea633f34fad1264b7`. Both equal the builds of [smoke in Codex](#smoke-in-codex) |
+| Ravel build | Build commit `23e50ce90037`, bookmark `skill-directory-delivery` at `1ca4aecbeae1`. Identity `ef5857e989e6d99da51631ae0295685c8961c1b01bac58d865e6fb789ae71deb`. `bin/ravel` SHA-256 `8e10e311c50c81ca60ac4f393d17408982d0aafcfe46cccfbc46130465290ae2` |
+| Harness | Codex `codex-cli 0.166.0`, model `gpt-6.1-sol`, effort `medium`, sandbox `workspace-write`, approval `never` |
+| Confinement | The Codex sandbox runs in place of Ravel confinement, because a lifecycle launch has none |
+| Configuration directory | The sandbox `$TRIAL/home/.codex`, as `CODEX_HOME`. The skill root of `codex debug prompt-input` was `$TRIAL/home/.codex/skills/.system` |
+| `CODEX_HOME` | Not inherited. The run set it to the sandbox `.codex` |
+| Sign-in | `codex login status`: `Logged in using ChatGPT` |
+| Sources | Checkout commit `ec2f1973f1d0`. `resourceDigest` of `grove`: `88f68c31337536efb0d4fb388543c0ca1abf9a9fed0ce0ccac3888e933df5a67`. `resourceDigest` of `linkuistics`: `820fe28234c98fe59286c3788eac561dead174770bd50560393d697788446b22`. Both equal the digests of `discovery` |
+| Descriptor identity | `8ce8701540d543053c824f6cd1154475db37ac80a7e9cc84577245f45cad13e6`, equal to the SHA-256 of `directories.json` and to the identity of the offline resolution |
+| Links | Before: `.codex/auth.json` only. After: `.codex/auth.json`, and `apply_patch` and `applypatch` under `.codex/tmp/arg0-macos/codex-arg0zQmaG3/`, which link to `/opt/homebrew/Caskroom/codex/0.166.0/bin/codex` |
+| Driver environment | `CODEX_HOME`, `HOME`, `LANG`, `LOGNAME`, `PATH`, `SHELL`, `TERM`, `TMPDIR`, `USER` |
+| Harness environment | The driver's names, `PWD`, `SHLVL`, `_`, and the trial's own `GROVE_LAUNCH_DIR`, `RAVEL_EXIT_FILE` and `RAVEL_SKILL_DIRECTORIES`. No live value |
+| Native copies | None |
+| Platform-managed residue | 35 skill files: the five bundled skills in `.codex/skills/.system`, and the 30 skills of five curated remote plugins in `.codex/plugins/cache/openai-curated-remote`. A sixth plugin, `gmail`, holds no skill |
+| Raw transcript | SHA-256 `386af2e6f9b3fc64b9a6ec10f94a7b8e9d08db7f5920b719223e84e5a65a1d57`. Stream SHA-256 `cfd64b04ce156fc690917f925d1f9a52cfa15b90306bfa4e204860fd7876754b` |
+
+Native startup text, from the session file: equal to the text of
+[smoke in Codex](#smoke-in-codex) in every field except one. The developer
+message that holds the skill listing has 4,909 characters and the SHA-256
+`36f057e1c0fa4df3609a07ba51841974cd8a4ba1cc7e3e5ffb87130aef8642b3`. The
+listing names the same four bundled skills.
+
+Ordered events. `$TRIAL` is the trial directory and `$RAVEL2` the 2.0 prefix.
+`$SNAPS` is `$TRIAL/home/.cache/ravel/skills/v1/snapshots`. `$G` is
+`$SNAPS/88f68c31…/tree`, the `grove` snapshot, and `$L` is
+`$SNAPS/820fe282…/tree`, the `linkuistics` snapshot. Each command ran in
+`$TRIAL/repo`, and a `;` stands for a line break of the script:
+
+| # | Tool | Class | Skill | Command |
+| --- | --- | --- | --- | --- |
+| 1 | text | text |  | I’ll read the mandatory Jujutsu and Grove guidance, then load `grove-impl` before inspecting the task or working tree. |
+| 2 | exec_command | mandatory | using-jujutsu | `cat $L/skills/using-jujutsu/SKILL.md` |
+| 3 | exec_command | supporting | using-jujutsu | `cat $L/skills/using-jujutsu/references/jj-commands.md` |
+| 4 | exec_command | mandatory | grove | `cat $G/skills/grove/SKILL.md` |
+| 5 | exec_command | listing |  | `rg --files $G/skills $L/skills -g SKILL.md` |
+| 6 | exec_command | kind-skill | grove-impl | `cat $G/skills/grove-impl/SKILL.md` |
+| 7 | text | text |  | I’ve loaded `grove-impl` and will use its implementation procedure for `stamp-script-k1`. |
+| 8 | exec_command | supporting | grove | `cat $G/skills/grove/references/bootstrap.md` |
+| 9 | exec_command | supporting | grove | `cat $G/skills/grove/references/execute.md` |
+| 10 | exec_command | command |  | `rg --files -g AGENTS.md -g '*stamp-script-k1*' -g '*brief*' -g '*glossary*' .grove .` |
+| 11 | exec_command | command |  | `grove-llm resolve stamp-script-k1` |
+| 12 | exec_command | command (exit 1) |  | `rg --files --hidden -g AGENTS.md -g Taskfile.yml -g Taskfile.yaml -g '*GLOSSARY*' -g '*glossary*' -g '*CONTEXT*' -g '! .git' .` |
+| 13 | exec_command | command |  | `grove-llm brief-chain .grove/01-impl--stamp-script-k1.md` |
+| 14 | exec_command | command |  | `cat .grove/01-impl--stamp-script-k1.md` |
+| 15 | exec_command | command |  | `rg --files --hidden -g '!.git/**' -g '!.jj/**' .` |
+| 16 | exec_command | command |  | `cat .grove/_BRIEF.md` |
+| 17 | exec_command | command |  | `python3 - <<'PY'; from pathlib import Path; roots = [Path('$SNAPS') / p / 'tree/skills' for p in ['88f68c31337536efb0d4fb388543c0ca1abf9a9fed0ce0ccac3888e933…` |
+| 18 | exec_command | skill | coding-style-bash | `cat $L/skills/coding-style-bash/SKILL.md` |
+| 19 | exec_command | skill | machine-environment | `cat $L/skills/machine-environment/SKILL.md` |
+| 20 | exec_command | supporting | grove | `cat $G/skills/grove/references/retire.md` |
+| 21 | exec_command | supporting | grove | `cat $G/skills/grove/references/commit.md` |
+| 22 | text | text |  | The leaf calls for an executable `stamp.sh` that writes one UTC timestamp to `STAMP` in the caller’s working directory. I’m applying the Bash style guidance … |
+| 23 | exec_command | command |  | `jj st` |
+| 24 | exec_command | supporting | grove | `cat $G/skills/grove/TASK-FORMAT.md` |
+| 25 | apply_patch | action |  | `$TRIAL/repo/stamp.sh` |
+| 26 | exec_command | command |  | `chmod +x stamp.sh` |
+| 27 | exec_command | command |  | `python3 - <<'PY'; import datetime; import hashlib; import os; from pathlib import Path; import re; import subprocess; ; script = Path('stamp.sh'); before = h…` |
+| 28 | exec_command | command |  | `jj st` |
+| 29 | text | text |  | `stamp.sh` passed syntax and execution checks. It wrote one current UTC timestamp line with the process timezone set to Melbourne, and I removed `STAMP` afte… |
+| 30 | exec_command | command |  | `grove-llm leaf-retire .grove/01-impl--stamp-script-k1.md` |
+| 31 | exec_command | command |  | `jj diff --git --no-pager` |
+| 32 | exec_command | command |  | `jj describe -m 'Add executable UTC stamp script (stamp-script-k1)'` |
+| 33 | exec_command | command |  | `jj st` |
+| 34 | exec_command | command |  | `jj new` |
+| 35 | exec_command | command |  | `jj st` |
+| 36 | text | text |  | Committed as `3d8c48d1`: executable `stamp.sh` and the retired leaf. The timestamp check passed, `STAMP` is absent, and the new working change is clean. I’m … |
+| 37 | exec_command | ending |  | `'$RAVEL2/bin/ravel' end-session grove-continue` |
+
+Ending outcome:
+
+- Ravel result: the agent ran `end-session grove-continue` once, and the
+  driver continued to the next leaf.
+- Leaf state: `01-impl--stamp-script-k1.md` became
+  `01-DONE-impl--stamp-script-k1.md`. The driver then added
+  `02-finish--finish-k2.md`, and Ravel refused that launch as
+  `config_refused`, because the trial routes only `impl`.
+- Teardown record: none.
+- Published output: the commit `3d8c48d13f74` `Add executable UTC stamp
+  script (stamp-script-k1)`, which adds `stamp.sh` and retires the leaf. The
+  working copy above it, `a0d3c69e6d26`, holds the finish leaf and has no
+  description.
+- Harness launches: 1. The driver ran 75.0 seconds and exited 0.
+- Ravel again wrote two lines `stop attempt … signal 9: Operation not
+  permitted (os error 1)`, as in the smoke runs.
+
+### discovery-confined in Codex
+
+**Case.** `discovery-confined`, run with `--harness codex`, repeats the case of
+[discovery-confined](#discovery-confined) in Codex. It runs the task of
+`discovery` through a confined `grove run`, with the same sources and
+mandatory files. The run is `discovery-confined-20261103T012720Z`, on
+2026-11-03 local time.
+
+**Route.** Directory on 2.0, through `grove run impl --prompt-file … --output
+OUT/…/out/stamp.sh --runtime-read <codex> --ui inline`. Ravel 2.0 confined the
+launch with its macOS Seatbelt backend. The `--runtime-read` grant is the
+Codex executable, `/opt/homebrew/Caskroom/codex/0.166.0/bin/codex`. The Codex
+sandbox mode is `workspace-write`, inside Ravel confinement.
+
+**Result.** **Gap.** Codex could not run under Ravel's confinement. The
+wrapper ran inside the sandbox and executed Codex. Codex then wrote two
+errors and exited 1 after 1.2 seconds, before its stream wrote any event:
+
+```text
+WARNING: proceeding, even though we could not create PATH aliases: No such file or directory (os error 2)
+Error: failed to initialize in-process app-server client: No such file or directory (os error 2)
+```
+
+Ravel then refused as `session_result_missing`, and Grove published no
+output. The agent read nothing, so this run gives no evidence of agent
+behaviour under confinement. As the brief directs, no unconfined retry
+replaced it, and this session tried no workaround inside the sandbox.
+
+The confined environment of the harness held no `CODEX_HOME`, although the
+driver environment held it. Codex therefore used its default `$HOME/.codex`.
+`HOME` was the trial's sandbox home, so that default is the same sandbox
+`.codex`, not the real one.
+
+The PATH aliases are the helper links under
+`.codex/tmp/arg0-*`, and the sandbox `.codex` gained no link in this run. The
+sandbox grants no write outside the working directory, as the probe of
+`$TRIAL/home/trial-probe-outside` shows. The probable cause is therefore that
+Codex cannot create its files in `$HOME/.codex`. That is an inference from the
+probes and the error lines, and no run verified the exact path.
+
+The probes of the same launch measure the permissions. They ran inside the
+sandbox, before the wrapper executed Codex. The runner then repeated them
+unconfined. The results equal those of the Claude Code run, row for row:
+
+| Access | Path | Inside | Unconfined |
+| --- | --- | --- | --- |
+| read | The descriptor `directories.json` | ok | ok |
+| read | Mandatory `using-jujutsu/SKILL.md` in the `linkuistics` snapshot | ok | ok |
+| read | Mandatory `grove/SKILL.md` in the `grove` snapshot | ok | ok |
+| write | `trial-probe` in the `grove` snapshot | failed | failed |
+| write | `trial-probe` in the `linkuistics` snapshot | failed | failed |
+| read | `$TRIAL/home/.config/ravel/settings.json` | failed | ok |
+| read | `$TRIAL/home/.config/ravel/config.rhai` | failed | ok |
+| read | `using-jujutsu/SKILL.md` at its source origin | failed | ok |
+| read | `grove/SKILL.md` at its source origin | failed | ok |
+| write | `$TRIAL/home/trial-probe-outside` | failed | ok |
+| write | `trial-probe-inside` in the working directory | ok | ok |
+
+The required resources outside the working directory were readable inside
+the sandbox. The protected configuration, the source origins and a write
+outside the working directory failed inside the sandbox, and each succeeded
+unconfined. A snapshot write failed in both places, because Ravel seals each
+snapshot read-only by file mode. That row is therefore no evidence about the
+sandbox.
+
+**Comparison with Claude Code.** Both harnesses failed under Ravel's
+confinement before their sessions began, and both runs ended as
+`session_result_missing`. Each harness needs to write in its own location
+outside the working directory. Claude Code needs `/tmp/claude-<uid>`, and Codex
+probably needs its configuration directory. The probes gave the same result
+in both runs. The Codex sandbox inside Ravel confinement was never reached, so
+this record does not measure whether the two sandboxes can nest.
+
+**Limit.** The probes are the wrapper's shell accesses, not the agent's tool
+calls. They prove permissions only. The case leaves the leaf's confined
+observation of agent reads unmet, and `acceptance-handoff-k106` resolves the
+gap. A grant of `$HOME/.codex` would probably only move the gap. The
+sign-in of Codex is a link to the real `auth.json`, outside every grant.
+
+| Subject | Value |
+| --- | --- |
+| Builds | As in [discovery in Codex](#discovery-in-codex): Grove `ec2f1973f1d0`, Ravel build `23e50ce90037`, `bin/ravel` SHA-256 `8e10e311…` |
+| Harness | Codex `codex-cli 0.166.0`, model `gpt-6.1-sol`, effort `medium`, sandbox `workspace-write`, approval `never`. `codex login status`, unconfined, reported `Logged in using ChatGPT` |
+| Confinement | The Codex sandbox runs inside Ravel confinement |
+| Configuration directory | Before the launch, unconfined: the sandbox `$TRIAL/home/.codex`, as `CODEX_HOME`. Inside the launch: no `CODEX_HOME`, so the default `$HOME/.codex`, which is the same directory |
+| Sources | As in `discovery in Codex`, with the same two `resourceDigest` values |
+| Descriptor identity | `83902201b22596d6e9b43a2e03d8a20addf9fe39b7f4f5f5b93915b3dbe92b5c`. It differs from `discovery in Codex`, because the snapshot paths lie in another sandbox home |
+| Links | Before and after: `.codex/auth.json` only |
+| Driver environment | `CODEX_HOME`, `HOME`, `LANG`, `LOGNAME`, `PATH`, `SHELL`, `TERM`, `TMPDIR`, `USER` |
+| Harness environment | `HOME`, `LANG`, `LOGNAME`, `PATH`, `PWD`, `SHLVL`, `TEMP`, `TMP`, `TMPDIR`, `USER`, `_`, and the trial's own `RAVEL_EXIT_FILE` and `RAVEL_SKILL_DIRECTORIES`. `TMPDIR` names Ravel's private run directory. No live value and no `CODEX_HOME` |
+| Native copies | None |
+| Platform-managed residue | The five bundled skills in `.codex/skills/.system`, which the unconfined `codex debug prompt-input` installed. No curated plugin, because Codex exited before its session |
+| Stream | Empty. SHA-256 `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` |
+
+Grove's run log, without the stream and the wrapper's lines:
+
+```text
+ravel: starting provider openai, model gpt-6.1-sol, effort medium for kind "impl"
+WARNING: proceeding, even though we could not create PATH aliases: No such file or directory (os error 2)
+Reading additional input from stdin...
+Error: failed to initialize in-process app-server client: No such file or directory (os error 2)
+ravel: stop attempt 1 target -79071 signal 9: Operation not permitted (os error 1)
+ravel: stop attempt 2 target -79071 signal 9: Operation not permitted (os error 1)
+ravel: refused (session_result_missing, stage exec): the managed process ended without a result (exit status: 1)
+remedy: have the managed process call ravel end-session RESULT before it exits
+```
+
+Ending outcome:
+
+- Ravel result: none. Ravel refused as `session_result_missing`.
+- Grove: `grove run` exited 1 after 1.2 seconds and published no output.
+- Teardown record: none. A standalone run has no tree.
+- Harness launches: 1.
+- The runner exited 1 after it wrote the record, because the launch wrote no
+  startup event.
+
 ### Explicit request rows
 
 **Cases.** Eight cases measure the request table in the "Agent discovery and

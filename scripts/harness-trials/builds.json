@@ -1,13 +1,13 @@
 {
   "schemaVersion": 1,
-  "source": "docs/common-loading-acceptance-record.md#visible-report-repair",
+  "source": "docs/common-loading-acceptance-record.md#confinement-removal-build",
   "ravel2": {
     "line": "skill-directory-delivery",
-    "buildCommit": "e9cc79993b46",
-    "outputCommit": "0d60cb531240",
-    "buildIdentity": "fd8dfdc28aec1a63f292a7f2ab2ce6c0789f74232a02b39b5b8f6693b7ba7bc9",
+    "buildCommit": "d324668b86ca",
+    "outputCommit": "71f70fcd3f92",
+    "buildIdentity": "a4f55d04b2d19a9948f2bcdcb3f305ee20ae80fae7f9011ec878f117d98e6519",
     "binRavelSha256": {
-      "Darwin-arm64": "d076dc01fe3166ddd512f9b739ba81ad598a0cc0e03f2b552681b97387abfe06"
+      "Darwin-arm64": "26b487afb957c233848e8e360e29c73539a33ba89fc3444b26ad13a2eb4bf0a3"
     }
   }
 }

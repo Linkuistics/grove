@@ -7615,3 +7615,28 @@ versions come from the Debian sources API and the Launchpad API on
 `scripts/harness-trials/descriptor-probe.py` stays. It records the
 measurement that `ravel-token-handoff-k132` made, and it describes no
 delivered feature.
+
+## Confinement removal build
+
+`ravel-confinement-removal-k145` removed `--confine`, `--runtime-read` and
+both backends from Ravel on the bookmark `skill-directory-delivery`. The
+bookmark moved, so this build replaces the visible report build in
+`scripts/harness-trials/builds.json`. A later trial checks its front against
+this build. No trial has run on it yet.
+
+| Subject | Value |
+| --- | --- |
+| Base | Ravel `main` and `main@origin` at `24a545236185`. `jj git fetch` reported no change, so the line needed no rebase |
+| Build commit | `d324668b86ca984836f790eee64aff48ffa92a00`, with the parent `dc162664101a`, the code removal |
+| Output commit | `71f70fcd3f92`, the tip of the unpushed bookmark. It adds the "Confinement removal record" section to Ravel's design evidence |
+| Build identity | `a4f55d04b2d19a9948f2bcdcb3f305ee20ae80fae7f9011ec878f117d98e6519`, twice in the executable. A script that applies the rule of Ravel's `build.rs` computed it. The same script gives the recorded `fd8dfdc2…` for `e9cc79993b46` |
+| `bin/ravel` SHA-256 | `26b487afb957c233848e8e360e29c73539a33ba89fc3444b26ad13a2eb4bf0a3`, from `task install` into a scratch prefix. The prefix has no `libexec` |
+| Version output | `ravel 1.1.0` |
+| Ravel checks | On the build commit, `task check`, `task test:cli`, `task harness:smoke:test`, the book tasks, `task test:native-linux PLATFORM=arm64` and `task install` each exit 0. The "Confinement removal record" of Ravel's design evidence gives each result |
+| Refusal | The installed executable refuses `--confine` and `--runtime-read` with `confinement_withdrawn` and status 2 |
+
+Each earlier result of this record names the build that it ran on. Those
+results stay historical, and this build does not change them. The
+[dual-Ravel stage record](grove-dual-ravel-stage-record.md) and the Linux
+floor evidence still name the build `23e50ce90037`.
+`stage-evidence-reconciliation-k125` reconciles them with this build.

@@ -225,3 +225,16 @@ confinement-withdrawal-k144 accepted all three as real issues:
 
 The "Review integration" section of `docs/confinement-withdrawal-evidence.md`
 holds the dispositions.
+
+ravel-confinement-removal-k145 removed confinement from Ravel on the bookmark.
+Ravel has no confinement code, flag or backend, and the installed executable
+refuses `--confine` and `--runtime-read` with `confinement_withdrawn`. The
+build commit is `d324668b86ca`, with the build identity `a4f55d04…` and the
+`bin/ravel` SHA-256 `26b487af…`. The bookmark is at the output commit
+`71f70fcd3f92`, unpushed.
+
+The "Confinement removal record" of Ravel's design
+evidence holds each check result. `scripts/harness-trials/builds.json` pins
+this build, and the "Confinement removal build" section of
+`docs/common-loading-acceptance-record.md` records it. The stage ran no
+archive, amd64 campaign, `release:smoke` or `smoke:pair`.

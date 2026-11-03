@@ -376,24 +376,67 @@ def output(value):
         return Path(found.group(1)).read_text()
     return "out"
 stream = []
-for n, (kind, value, cwd, code) in enumerate(behaviour.get("resumeItems", []) if resume else behaviour["codexItems"]):
-    value = value.format(**names)
-    where = cwd.format(**names) if cwd else os.getcwd()
-    if kind == "text":
-        item = {{"type": "AgentMessage", "id": f"m{{n}}", "content": [{{"type": "Text", "text": value}}]}}
-        shown = {{"id": f"item_{{n}}", "type": "agent_message", "text": value}}
-    elif kind == "patch":
-        Path(value).write_text("smoke\n")
-        item = {{"type": "FileChange", "id": f"p{{n}}", "status": "completed", "changes": {{value: {{"type": "add"}}}}}}
-        shown = {{"id": f"item_{{n}}", "type": "file_change", "status": "completed", "changes": [{{"path": value, "kind": "add"}}]}}
+def build(chosen, records, stream):
+    for n, (kind, value, cwd, code) in enumerate(chosen):
+        value = value.format(**names)
+        where = cwd.format(**names) if cwd else os.getcwd()
+        if kind == "text":
+            item = {{"type": "AgentMessage", "id": f"m{{n}}", "content": [{{"type": "Text", "text": value}}]}}
+            shown = {{"id": f"item_{{n}}", "type": "agent_message", "text": value}}
+        elif kind == "patch":
+            Path(value).write_text("smoke\n")
+            item = {{"type": "FileChange", "id": f"p{{n}}", "status": "completed", "changes": {{value: {{"type": "add"}}}}}}
+            shown = {{"id": f"item_{{n}}", "type": "file_change", "status": "completed", "changes": [{{"path": value, "kind": "add"}}]}}
+        else:
+            item = {{"type": "CommandExecution", "id": f"c{{n}}", "command": ["/bin/zsh", "-lc", value],
+                    "cwd": "file://" + quote(where), "status": "completed", "exit_code": code,
+                    "aggregated_output": output(value)}}
+            shown = {{"id": f"item_{{n}}", "type": "command_execution", "command": "/bin/zsh -lc " + shlex.quote(value),
+                     "aggregated_output": output(value), "exit_code": code, "status": "completed"}}
+        records.append({{"type": "event_msg", "payload": {{"type": "item_completed", "item": item}}}})
+        stream.append({{"type": "item.completed", "item": shown}})
+build(behaviour.get("resumeItems", []) if resume else behaviour["codexItems"], records, stream)
+delegate = behaviour.get("codexDelegate")
+if delegate and not resume:
+    # One delegate of multi-agent v2: the parent's spawn call, the start of
+    # the delegate with the call's ID, and the delegate's own session file,
+    # whose metadata names the parent thread. A direct call holds the message
+    # encrypted; a call from code mode holds it in the JavaScript of `exec`.
+    child = f"01a19ed6-5e40-7dc2-9400-{{count + 1:012d}}"
+    text = delegate["prompt"].format(**names, DESC=os.environ.get("RAVEL_SKILL_DIRECTORIES", ""))
+    if delegate.get("codeMode"):
+        call = "cell_1"
+        records.append({{"type": "response_item", "payload": {{"type": "custom_tool_call", "name": "exec",
+            "call_id": "call_exec", "input": "await tools.spawn_agent(" + json.dumps({{"task_name": "check", "message": text}}) + ")"}}}})
     else:
-        item = {{"type": "CommandExecution", "id": f"c{{n}}", "command": ["/bin/zsh", "-lc", value],
-                "cwd": "file://" + quote(where), "status": "completed", "exit_code": code,
-                "aggregated_output": output(value)}}
-        shown = {{"id": f"item_{{n}}", "type": "command_execution", "command": "/bin/zsh -lc " + shlex.quote(value),
-                 "aggregated_output": output(value), "exit_code": code, "status": "completed"}}
-    records.append({{"type": "event_msg", "payload": {{"type": "item_completed", "item": item}}}})
-    stream.append({{"type": "item.completed", "item": shown}})
+        call = "call_spawn"
+        arguments = {{"task_name": "check", "message": "gAAAAABqFake_token-0" if delegate.get("encrypted") else text}}
+        if "fork" in delegate:
+            arguments["fork_turns"] = delegate["fork"]
+        records.append({{"type": "response_item", "payload": {{"type": "function_call", "name": "spawn_agent",
+            "namespace": "collaboration", "call_id": call, "arguments": json.dumps(arguments)}}}})
+    records += [
+        {{"type": "event_msg", "payload": {{"type": "item_completed", "item": {{"type": "SubAgentActivity", "id": call,
+            "kind": "started", "agent_thread_id": child, "agent_path": "/root/check"}}}}}},
+        {{"type": "response_item", "payload": {{"type": "agent_message", "author": "/root/check", "recipient": "/root",
+            "content": [{{"type": "input_text", "text": "Check written."}}]}}}},
+        {{"type": "event_msg", "payload": {{"type": "item_completed", "item": {{"type": "SubAgentActivity",
+            "id": "subagent-completed", "kind": "completed", "agent_thread_id": child, "agent_path": "/root/check"}}}}}},
+    ]
+    own = {{"type": "session_meta", "payload": {{"id": child, "session_id": thread, "parent_thread_id": thread,
+        "cwd": os.getcwd(), "cli_version": "9.9.9", "creator_account_id": "secret-account",
+        "source": {{"subagent": {{"thread_spawn": {{"parent_thread_id": thread, "depth": 1, "agent_path": "/root/check",
+                                                 "agent_nickname": "Bohr", "agent_role": None}}}}}}}}}}
+    # A forked delegate copies the parent's history, with its metadata and
+    # the prompt, but none of the parent's completed items.
+    forked = [{{"type": "session_meta", "payload": {{"id": thread, "cwd": os.getcwd()}}}},
+              {{"type": "response_item", "payload": {{"type": "message", "role": "user",
+                  "content": [{{"type": "input_text", "text": prompt}}]}}}}] if delegate.get("fork", "all") == "all" else []
+    child_records = [own, *forked, context]
+    build(delegate["items"], child_records, [])
+    sessions.mkdir(parents=True, exist_ok=True)
+    (sessions / f"rollout-2026-11-03T00-00-9{{count}}-{{child}}.jsonl").write_text(
+        "".join(json.dumps(r) + "\n" for r in child_records))
 if not behaviour.get("noSession"):
     sessions.mkdir(parents=True, exist_ok=True)
     found = sorted(sessions.glob(f"rollout-*-{{thread}}.jsonl"))
@@ -700,6 +743,17 @@ DELEGATE = {
     ],
 }
 AUTHORITY_LOG = "first exit 0\nsecond exit 0\n"
+# A Codex delegation. The delegate reads the mandatory file, then a craft
+# skill, then writes, then tries an ending of its own.
+CODEX_DELEGATE = {
+    "prompt": DELEGATE["prompt"],
+    "items": [
+        ("command", "cat \"{SNAP}/skills/grove/SKILL.md\"", None, 0),
+        ("command", "cat \"{SNAP}/skills/craft/SKILL.md\"", None, 0),
+        ("patch", "{CWD}/check.sh", None, None),
+        ("command", "ravel end-session trial-delegate-early", None, 0),
+    ],
+}
 
 
 class Fixture:
@@ -1695,6 +1749,98 @@ class HarnessTrialTest(unittest.TestCase):
         self.broken(self.check_system_note, "CLAUDE.launch",
                     lambda case, *args, **kw: real({k: v for k, v in case.items() if k != "systemNote"}, *args, **kw))
 
+    def check_codex_delegation(self, fixture: Fixture):
+        fixture.behave(codexDelegate={**CODEX_DELEGATE, "fork": "none"})
+        status, output = fixture.run_codex("delegate")
+        self.assertEqual(status, 0, output)
+        record = fixture.record()
+        launch = record["launches"][0]
+        found = launch["delegations"]
+        self.assertEqual(len(found), 1)
+        item = found[0]
+        self.assertEqual((item["form"], item["forkTurns"], item["description"]), ("direct", "none", "check"))
+        self.assertTrue(item["givesDescriptorPath"])
+        self.assertEqual((item["obligations"], item["obligationCount"]), (["11"], 2))
+        self.assertEqual(item["endingLines"], ["Do not run end-session."])
+        self.assertFalse(item["historyHoldsDescriptor"])
+        self.assertRegex(item["transcript"], r"^\.codex/sessions/2026/11/03/rollout-.*-01a19ed6-5e40-.*\.jsonl$")
+        self.assertEqual(item["result"], "Check written.")
+        self.assertEqual(item["inherited"], ["RAVEL_EXIT_FILE", "GROVE_LAUNCH_DIR"])
+        self.assertEqual(item["meta"], {"depth": 1, "agent_path": "/root/check", "agent_role": None})
+        self.assertEqual(item["sandbox"]["sandbox_policy"]["type"], "workspace-write")
+        order = item["order"]
+        self.assertEqual(order["firstRead"], {"seq": 1, "class": "mandatory"})
+        self.assertEqual(order["firstAction"], 3)
+        self.assertTrue(order["mandatoryBeforeAction"])
+        # The parent's events show the start of the delegate as a delegation.
+        main = next(t for t in launch["transcripts"] if t["main"])
+        self.assertIn(("spawn_agent", "delegate"), [(e["tool"], e["class"]) for e in main["events"]])
+        calls = {(c["main"], c["result"]) for c in record["ending"]["endingCalls"]}
+        self.assertEqual(calls, {(True, "grove-continue"), (False, "trial-delegate-early")})
+        markdown = (Path(record["trial"]) / "record.md").read_text()
+        for needle in ("Delegation 0: `default`, \"check\"", "Call: direct. Fork: none.",
+                       "Obligations word for word: 1 of 2 (11).", "`trial-delegate-early` at call 4 of `rollout-"):
+            self.assertIn(needle, markdown)
+        # A direct call hides its message, and the default fork gives the
+        # delegate the parent's history, preamble included.
+        fixture = self.fresh()
+        fixture.behave(codexDelegate={**CODEX_DELEGATE, "encrypted": True})
+        status, output = fixture.run_codex("delegate")
+        self.assertEqual(status, 0, output)
+        item = fixture.record()["launches"][0]["delegations"][0]
+        self.assertEqual((item["form"], item["forkTurns"]), ("direct, encrypted", "all, the default"))
+        self.assertEqual((item["prompt"], item["promptSha256"], item["givesDescriptorPath"]), ("", None, None))
+        self.assertTrue(item["historyHoldsDescriptor"])
+        # The forked history holds none of the parent's calls.
+        self.assertEqual(item["order"]["firstRead"], {"seq": 1, "class": "mandatory"})
+        self.assertIn("encrypted in every transcript", (Path(fixture.record()["trial"]) / "record.md").read_text())
+        # A call from code mode is plaintext, in the JavaScript of `exec`.
+        fixture = self.fresh()
+        fixture.behave(codexDelegate={**CODEX_DELEGATE, "codeMode": True})
+        status, output = fixture.run_codex("delegate")
+        self.assertEqual(status, 0, output)
+        item = fixture.record()["launches"][0]["delegations"][0]
+        self.assertEqual(item["form"], "code mode")
+        self.assertIn("tools.spawn_agent(", item["prompt"])
+        self.assertTrue(item["givesDescriptorPath"])
+        # A run without a delegate fails a case that expects one.
+        fixture = self.fresh()
+        status, output = fixture.run_codex("delegate")
+        self.assertEqual(status, 1, output)
+        self.assertIn("expects a delegate", output)
+
+    def test_a_codex_delegation_records_the_call_the_reads_and_the_ending(self):
+        self.check_codex_delegation(self.fixture)
+        self.broken(self.check_codex_delegation, "CODEX.delegations", lambda *args: [])
+        self.broken(self.check_codex_delegation, "CODEX.delegate_files", lambda home, thread: {})
+        self.broken(self.check_codex_delegation, "ENCRYPTED", trial.re.compile(r"^$"))
+        # The last metadata of a forked delegate is the parent's copy.
+        self.broken(self.check_codex_delegation, "CODEX.meta",
+                    lambda records: next((r.get("payload") or {} for r in reversed(records)
+                                          if r.get("type") == "session_meta"), {}))
+
+    def check_codex_system_note(self, fixture: Fixture):
+        case = json.loads((trial.CASES / "delegate" / "case.json").read_text())
+        (trial.CASES / "delegate" / "case.json").write_text(json.dumps({**case, "systemNote": "Owner \"note\"."}))
+        try:
+            fixture.behave(codexDelegate=CODEX_DELEGATE)
+            status, output = fixture.run_codex("delegate")
+        finally:
+            (trial.CASES / "delegate" / "case.json").write_text(json.dumps(case))
+        self.assertEqual(status, 0, output)
+        record = fixture.record()
+        route = json.loads((Path(record["trial"]) / "route.json").read_text())
+        self.assertEqual(route["fixedArgs"][-2:], ["-c", 'developer_instructions="Owner \\"note\\"."'])
+        self.assertEqual(record["systemNote"]["text"], 'Owner "note".')
+        self.assertIn("Owner note through `-c developer_instructions`",
+                      (Path(record["trial"]) / "record.md").read_text())
+
+    def test_a_codex_system_note_reaches_developer_instructions(self):
+        self.check_codex_system_note(self.fixture)
+        real = trial.CODEX.launch
+        self.broken(self.check_codex_system_note, "CODEX.launch",
+                    lambda case, *args, **kw: real({k: v for k, v in case.items() if k != "systemNote"}, *args, **kw))
+
     def test_a_collected_file_stays_inside_the_trial(self):
         case = json.loads((trial.CASES / "delegate" / "case.json").read_text())
         for item in ("/etc/passwd", "../outside.log", 3):
@@ -1957,10 +2103,11 @@ class HarnessTrialTest(unittest.TestCase):
                     lambda records: {"init": next(r["payload"] for r in records if r["type"] == "session_meta")})
 
     def check_codex_later_fields(self, fixture: Fixture):
-        for case, field in (("delegate", "expectDelegate"), ("explicit", "claudeSettings")):
+        for case, field in (("explicit", "claudeSettings"),):
             with self.assertRaises(trial.TrialError, msg=f"{case} loaded for Codex") as caught:
                 trial.load_case(case, "codex")
             self.assertIn(f"'{field}'", str(caught.exception))
+        trial.load_case("delegate", "codex")
         trial.load_case("compaction-path", "claude")
         trial.load_case("compaction-path", "codex")
         trial.load_case("continuation", "codex")

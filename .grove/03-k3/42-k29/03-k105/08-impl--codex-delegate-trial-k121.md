@@ -19,3 +19,42 @@ its record before this leaf runs.
   process environment and sandbox.
 - The record compares each Codex result with the Claude Code result of the
   same case.
+
+## Decisions (running log)
+
+- Delegate mechanism: Codex 0.166.0 runs multi-agent v2. The tools are in
+  the `collaboration` namespace, and `spawn_agent` takes `task_name`,
+  `message`, `fork_turns`, `agent_type`, `model` and `reasoning_effort`
+  (`codex-rs/core/src/tools/handlers/multi_agents_v2/spawn.rs` at
+  `rust-v0.166.0`). The delegate is a thread of the same Codex process.
+- `fork_turns` defaults to `all`, which gives the delegate the parent's whole
+  history, preamble included. `none` gives no history. The record names the
+  fork mode of each delegation, and whether the delegate's history holds the
+  descriptor path.
+- Sandbox: `build_agent_shared_config` in `codex-rs/core/src/agent/child_config.rs`
+  copies the parent's configuration, then sets the turn's approval policy,
+  working directory and permission profile. The child also inherits
+  `developer_instructions`. A scratch probe, outside every trial, showed the
+  same `workspace-write` policy in the child's `turn_context`, and the child
+  printed a variable of the parent's process environment.
+- What the parent gave: the `message` parameter of `spawn_agent` is declared
+  `with_encrypted()` (`multi_agents_spec.rs`). In the probe, the parent's
+  `function_call` arguments and the child's `agent_message` both held the
+  message as an opaque Fernet token. A direct call therefore hides the
+  prompt from every transcript. Only a call through code mode, inside the
+  `exec` tool's JavaScript, is plaintext (`agent_message_from_tool` in
+  `multi_agents_v2.rs`). The record states which form each call took, and
+  an opaque prompt is an unmeasured part of the row, not a pass.
+- Link: the parent's `SubAgentActivity` item of kind `started` carries the
+  spawn's `call_id` as its `id` and the child's `agent_thread_id`. The child
+  rollout's `session_meta` names `parent_thread_id` and
+  `source.subagent.thread_spawn` with the depth and the agent path.
+- Owner channel: `-c developer_instructions="…"` adds a developer message
+  before the skill instructions. `codex debug prompt-input` showed the probe
+  text there. It replaces Claude Code's `--append-system-prompt` for
+  `systemNote`. The delegate inherits the note as well.
+- `delegate-early` log: Codex's `workspace-write` sandbox denies writes in
+  `$TRIAL`, so the redirection to `$TRIAL/authority.log` would stop the whole
+  command. The case now writes `$TRIAL/tmp/authority.log`, in the `TMPDIR`
+  of the trial, and collects `tmp/authority.log`. The Claude Code run at
+  `ebc7fa64f277` used the earlier path.

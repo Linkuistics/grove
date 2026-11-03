@@ -19,7 +19,7 @@ this one delegate in the system prompt of this session.
 Give the delegate this exact command, and no other work:
 
 ```sh
-{ command -v ravel; env | cut -d= -f1 | sort | tr '\n' ' '; echo; printenv RAVEL_EXIT_FILE; ravel end-session trial-delegate-early; echo "first exit $?"; ravel end-session grove-force-stop; echo "second exit $?"; } >'{{TRIAL}}/authority.log' 2>&1
+{ command -v ravel; env | cut -d= -f1 | sort | tr '\n' ' '; echo; printenv RAVEL_EXIT_FILE; ravel end-session trial-delegate-early; echo "first exit $?"; ravel end-session grove-force-stop; echo "second exit $?"; } >'{{TRIAL}}/tmp/authority.log' 2>&1
 ```
 
 The first `end-session` sends a result that Grove does not support. The

@@ -43,8 +43,10 @@ the parent gave, its comparison with the preamble, the delegate's transcript
 and the ending context that the delegate inherits. A case with
 `expectDelegate` fails without a delegate transcript. A case can `collect`
 files of its trial directory into the record. A case's `systemNote` reaches
-Claude Code through `--append-system-prompt`, the owner's channel, and the
-prepared prompt stays unchanged.
+Claude Code through `--append-system-prompt` and Codex through `-c
+developer_instructions`, the owner's channel of each harness. The prepared
+prompt stays unchanged. A Codex delegate is a `spawn_agent` thread of the same
+process, with its own session file, which names the parent thread.
 A case names its harness. `--harness` runs the same case in another harness,
 which then takes its own default model and effort. The Codex adapter runs
 `codex exec --json` with `CODEX_HOME` set to the sandbox `.codex`, which links
@@ -922,6 +924,8 @@ class HarnessAdapter:
     permission_mode = ""
     # How a continuation resumes the first session.
     resume_mechanism = ""
+    # The owner's channel of a case's `systemNote`, as the record names it.
+    note_channel = ""
     # The case fields that the adapter has no mechanism for yet, each with the
     # leaf that adds it.
     unsupported: dict[str, str] = {}
@@ -1102,6 +1106,7 @@ class ClaudeAdapter(HarnessAdapter):
     resume_mechanism = "claude -p --resume <session id>, without --fork-session, outside Ravel's managed process"
     delegate_mechanism = ("Claude Code's Agent tool, in process: the delegate's tool calls run in children of "
                           "the harness process, with its environment")
+    note_channel = "`--append-system-prompt`"
 
     @property
     def store(self) -> str:
@@ -1437,13 +1442,13 @@ CODEX_APPROVAL = "never"
 # The bundled system skills that Codex installs at startup, and the curated
 # plugins that a ChatGPT sign-in downloads. Both are platform-managed residue.
 CODEX_RESIDUE = (".codex/skills/.system", ".codex/plugins/cache")
-# The case fields whose Codex mechanism a later leaf adds.
+# The case fields that have no Codex mechanism.
 CODEX_LATER = {
-    "expectDelegate": "codex-delegate-trial-k121",
-    "systemNote": "codex-delegate-trial-k121",
     "claudeSettings": "no Codex leaf; it is a Claude Code setting",
 }
 SHELLS = ("bash", "zsh", "sh", "dash", "ksh", "fish")
+# An encrypted `message` of a direct `spawn_agent` call: a Fernet token.
+ENCRYPTED = re.compile(r"^gAAAAA[A-Za-z0-9_=-]+$")
 # How Codex 0.166.0 compacts each loss mode, as extra options of `codex
 # app-server` and a description. `thread/compact/start` takes only the thread,
 # so no summary instructions reach Codex. The OpenAI provider compacts on the
@@ -1494,6 +1499,10 @@ class CodexAdapter(HarnessAdapter):
     # sandbox and approval policy to the resumed thread
     # (https://github.com/openai/codex/blob/rust-v0.166.0/codex-rs/exec/src/lib.rs).
     resume_mechanism = "codex exec <the route's options> resume <thread id> <answer>, outside Ravel's managed process"
+    delegate_mechanism = ("Codex's multi-agent v2 `spawn_agent`, in process: the delegate is a thread of the same "
+                          "Codex process, and its commands run with the process environment and the parent's "
+                          "sandbox and approval policy")
+    note_channel = "`-c developer_instructions`, a developer message that a delegate inherits"
     unsupported = CODEX_LATER
 
     @property
@@ -1569,6 +1578,14 @@ class CodexAdapter(HarnessAdapter):
         A compaction case runs the feeder, which runs `codex app-server` with
         the same model, effort, sandbox and approval policy."""
         compaction = case.get("compaction")
+        # An owner's instruction for one case, in Codex's owner channel: the
+        # configuration key `developer_instructions` adds a developer message
+        # before the skill instructions, and a spawned delegate inherits it
+        # (`build_agent_shared_config` in
+        # https://github.com/openai/codex/blob/rust-v0.166.0/codex-rs/core/src/agent/child_config.rs).
+        # A JSON string is a TOML basic string. The prepared prompt of Ravel
+        # stays as it is.
+        note = ["-c", f"developer_instructions={json.dumps(case['systemNote'])}"] if case.get("systemNote") else []
         if compaction is not None:
             return {
                 **feeder_route(records, program),
@@ -1576,7 +1593,7 @@ class CodexAdapter(HarnessAdapter):
                 "fixedArgs": [
                     "app-server", "-c", f'model="{model}"', "-c", f'model_reasoning_effort="{effort}"',
                     "-c", f'sandbox_mode="{CODEX_SANDBOX}"', "-c", f'approval_policy="{CODEX_APPROVAL}"',
-                    *CODEX_COMPACTION[compaction["mode"]][0],
+                    *note, *CODEX_COMPACTION[compaction["mode"]][0],
                 ],
                 "provider": "openai",
             }
@@ -1587,7 +1604,7 @@ class CodexAdapter(HarnessAdapter):
             "fixedArgs": [
                 "exec", "--json", "--skip-git-repo-check", "--color", "never",
                 "--model", model, "-c", f'model_reasoning_effort="{effort}"',
-                "--sandbox", CODEX_SANDBOX, "-c", f'approval_policy="{CODEX_APPROVAL}"',
+                "--sandbox", CODEX_SANDBOX, "-c", f'approval_policy="{CODEX_APPROVAL}"', *note,
             ],
             "provider": "openai",
         }
@@ -1656,11 +1673,28 @@ class CodexAdapter(HarnessAdapter):
                 "events": extract_events(self.entries(stream), Classifier(view, home, repo, marker, turns)),
                 "startup": None,
             })
+        main_records = []
+        for path in self.session_files_of(home, session_id) if session_id else []:
+            raw = path.read_bytes()
+            main_records = read_jsonl_bytes(b"".join(jsonl_lines(raw)[window[0]:window[1]]) if window else raw)
+        children = self.delegate_files(home, session_id) if session_id else {}
+        for thread, (path, records) in children.items():
+            meta = self.meta(records)
+            classifier = Classifier(view, home, Path(meta.get("cwd") or repo), marker, turns)
+            transcripts.append({
+                "file": str(path.relative_to(home)), "sha256": sha256_file(path), "main": False,
+                "thread": thread, "events": extract_events(self.entries(records), classifier),
+                "startup": self.startup(records),
+            })
+        skills = view.get("skills") or {}
+        mandatory = [os.path.realpath(item["path"]) for item in skills.get("mandatory", [])]
+        delegated = self.delegations(main_records, children, home, prompt, skills.get("descriptorPath"), child,
+                                     transcripts, mandatory)
         return {
             **launch_facts(label, view, session_id, child, live, probes, stream_sha),
             "startup": None,
             "transcripts": transcripts,
-            "delegations": [],
+            "delegations": delegated,
             # The last turn event of the stream, absent when Ravel ended the
             # harness before it wrote one. An app-server stream names it as a
             # method.
@@ -1668,6 +1702,118 @@ class CodexAdapter(HarnessAdapter):
                                   if e.get("type") in ("turn.completed", "turn.failed", "error")
                                   or e.get("method") in ("turn/completed", "error")), None),
         }
+
+    @staticmethod
+    def meta(records: list[dict[str, Any]]) -> dict[str, Any]:
+        """The session's own metadata: the first `session_meta`. A delegate
+        that forks the parent's history copies the parent's metadata after
+        its own."""
+        return next((r.get("payload") or {} for r in records if r.get("type") == "session_meta"), {})
+
+    def delegate_files(self, home: Path, thread: str) -> dict[str, tuple[Path, list[dict[str, Any]]]]:
+        """The session file of each delegate below a thread, by its thread
+        ID, with its records. A delegate's own `session_meta` names its
+        parent thread, and a delegate of a delegate names the delegate."""
+        metas = {}
+        for path in self.session_files(home):
+            records = read_jsonl(path)
+            meta = self.meta(records)
+            if meta.get("parent_thread_id"):
+                metas[meta.get("id")] = (path, records, meta["parent_thread_id"])
+        found: dict[str, tuple[Path, list[dict[str, Any]]]] = {}
+        parents = {thread}
+        while True:
+            new = {tid: (path, records) for tid, (path, records, parent) in metas.items()
+                   if parent in parents and tid not in found}
+            if not new:
+                return found
+            found.update(new)
+            parents |= set(new)
+
+    def delegations(self, records: list[dict[str, Any]], children: dict[str, tuple[Path, list[dict[str, Any]]]],
+                    home: Path, prompt: str | None, descriptor: str | None, child: Mapping[str, str],
+                    transcripts: list[dict[str, Any]], mandatory: list[str]) -> list[dict[str, Any]]:
+        """Each delegate that the parent started. The parent's
+        `SubAgentActivity` item of kind `started` names the call ID of its
+        `spawn_agent` call and the delegate's thread. The `message` of a
+        direct call is encrypted in every transcript, because its parameter
+        is declared `with_encrypted()`
+        (https://github.com/openai/codex/blob/rust-v0.166.0/codex-rs/core/src/tools/handlers/multi_agents_spec.rs).
+        A call from code mode, inside the `exec` tool's JavaScript, is
+        plaintext (`agent_message_from_tool` in
+        https://github.com/openai/codex/blob/rust-v0.166.0/codex-rs/core/src/tools/handlers/multi_agents_v2.rs),
+        and the record then holds the JavaScript of that call."""
+        calls: dict[str, dict[str, Any]] = {}
+        cells: list[tuple[int, str]] = []
+        answers: dict[str, str] = {}
+        started = []
+        for n, record in enumerate(records):
+            payload = record.get("payload") if isinstance(record.get("payload"), dict) else {}
+            kind = payload.get("type")
+            if record.get("type") == "response_item" and kind == "function_call" \
+                    and payload.get("name") == "spawn_agent":
+                try:
+                    arguments = json.loads(payload.get("arguments") or "{}")
+                except json.JSONDecodeError:
+                    arguments = {}
+                calls[payload.get("call_id")] = arguments if isinstance(arguments, dict) else {}
+            elif record.get("type") == "response_item" and kind == "custom_tool_call" \
+                    and "spawn_agent" in str(payload.get("input")):
+                cells.append((n, str(payload.get("input"))))
+            elif record.get("type") == "response_item" and kind == "agent_message":
+                text = "".join(part.get("text", "") for part in payload.get("content") or [] if isinstance(part, dict))
+                answers.setdefault(str(payload.get("author")), text)
+            elif record.get("type") == "event_msg" and kind == "item_completed":
+                item = payload.get("item") or {}
+                if item.get("type") == "SubAgentActivity" and item.get("kind") == "started":
+                    started.append((n, item))
+        obligations = obligation_lines(prompt or "")
+        found = []
+        for n, item in started:
+            call_id = item.get("id")
+            arguments = calls.get(call_id)
+            if arguments is not None:
+                message = str(arguments.get("message") or "")
+                encrypted = bool(ENCRYPTED.match(message))
+                form, text = ("direct, encrypted" if encrypted else "direct"), "" if encrypted else message
+            else:
+                cell_text = next((text for at, text in reversed(cells) if at < n), "")
+                form, text, arguments, encrypted = "code mode", cell_text, {}, False
+            thread = item.get("agent_thread_id")
+            path, child_records = children.get(thread, (None, []))
+            transcript = next((t for t in transcripts if t.get("thread") == thread), None)
+            source = ((self.meta(child_records).get("source") or {}).get("subagent") or {}).get("thread_spawn") or {}
+            turn = next((r.get("payload") or {} for r in reversed(child_records) if r.get("type") == "turn_context"), {})
+            history = [r.get("payload") or {} for r in child_records if r.get("type") == "response_item"
+                       and (r.get("payload") or {}).get("type") == "message"
+                       and (r.get("payload") or {}).get("role") == "user"]
+            found.append({
+                "toolUseId": call_id,
+                "description": arguments.get("task_name") or item.get("agent_path"),
+                "subagentType": arguments.get("agent_type") or "default",
+                "background": None,
+                "form": form,
+                "forkTurns": arguments.get("fork_turns") or ("all, the default" if arguments is not None
+                                                            and form != "code mode" else None),
+                "prompt": text,
+                "promptSha256": sha256_bytes(text.encode()) if text else None,
+                "givesDescriptorPath": None if encrypted else bool(descriptor) and descriptor in text,
+                "namesVariable": None if encrypted else DESCRIPTOR_VARIABLE in text,
+                "obligations": [line.split(".", 1)[0] for line in obligations if line in text],
+                "obligationCount": len(obligations),
+                "endingLines": [line.strip()[:COMMAND_CHARS] for line in text.splitlines()
+                                if any(term in line for term in ENDING_TERMS)],
+                "historyHoldsDescriptor": bool(descriptor) and any(descriptor in json.dumps(m) for m in history),
+                "meta": {key: source.get(key) for key in ("depth", "agent_path", "agent_role") if key in source},
+                "sandbox": {key: turn.get(key) for key in ("sandbox_policy", "approval_policy", "cwd") if key in turn},
+                "status": "started",
+                "result": answers.get(str(item.get("agent_path")), "")[:DELEGATE_RESULT_CHARS],
+                "transcript": transcript["file"] if transcript else None,
+                "order": delegate_order(transcript["events"], mandatory) if transcript else None,
+                "mechanism": self.delegate_mechanism,
+                "inherited": [name for name in ENDING_NAMES if name in child],
+            })
+        return found
 
     @staticmethod
     def script(command: Any) -> str:
@@ -1731,10 +1877,18 @@ class CodexAdapter(HarnessAdapter):
             paths = list(changes) if isinstance(changes, dict) else [
                 change.get("path") for change in changes or [] if isinstance(change, dict) and change.get("path")]
             name, tool_input = "apply_patch", {"paths": paths}
+        elif kind == "subagentactivity" and item.get("kind") == "started":
+            # The start of a delegate. Its `id` is the call ID of the
+            # parent's `spawn_agent` call.
+            name, tool_input = "spawn_agent", {"description": item.get("agent_path") or ""}
+        elif kind == "subagentactivity":
+            name, tool_input = f"subagent:{item.get('kind')}", {"description": item.get("agent_path") or ""}
         elif kind.startswith("collab"):
+            # A collaboration call other than the start, such as `wait`. The
+            # start is the `SubAgentActivity` item, so no collaboration item
+            # counts as a delegation.
             tool = str(item.get("tool") or "")
-            name = "spawn_agent" if "spawn" in tool.lower() else f"collab:{tool}"
-            tool_input = {"description": item.get("prompt") or "", "tool": tool}
+            name, tool_input = f"collab:{tool}", {"description": item.get("prompt") or "", "tool": tool}
         else:
             name, tool_input = str(item.get("type")), {key: None for key in item if key not in ("id", "type")}
         call: dict[str, Any] = {"type": "assistant", "message": {"content": [
@@ -3350,10 +3504,15 @@ def render_delegations(found: list[dict[str, Any]]) -> list[str]:
             "",
             f"- Mechanism: {item['mechanism']}. Status `{item['status']}`, meta `{cell(json.dumps(item['meta']))}`.",
             f"- Inherited ending context: {cell(', '.join(item['inherited']) or 'none')}.",
-            f"- Prompt SHA-256 `{item['promptSha256']}`. Descriptor path: {'given' if item['givesDescriptorPath'] else 'not given'}. "
-            f"Variable named: {'yes' if item['namesVariable'] else 'no'}. Obligations word for word: "
-            f"{len(item['obligations'])} of {item['obligationCount']}"
-            + (f" ({', '.join(item['obligations'])})" if item['obligations'] else "") + ".",
+            *([f"- Call: {item['form']}. Fork: {cell(item.get('forkTurns') or 'not named')}. "
+               f"The delegate's history holds the descriptor path: {'yes' if item.get('historyHoldsDescriptor') else 'no'}. "
+               f"Delegate's turn: `{cell(json.dumps(item.get('sandbox') or {}))}`."] if "form" in item else []),
+            (f"- Prompt: encrypted in every transcript, so what the parent gave is unknown." if item["promptSha256"] is None
+             and item.get("form") == "direct, encrypted" else
+             f"- Prompt SHA-256 `{item['promptSha256']}`. Descriptor path: {'given' if item['givesDescriptorPath'] else 'not given'}. "
+             f"Variable named: {'yes' if item['namesVariable'] else 'no'}. Obligations word for word: "
+             f"{len(item['obligations'])} of {item['obligationCount']}"
+             + (f" ({', '.join(item['obligations'])})" if item['obligations'] else "") + "."),
             f"- Lines with an ending term: {cell('; '.join(item['endingLines']) or 'none')}.",
             f"- Transcript: {cell(item['transcript'] or 'none')}. Mandatory files by first read: "
             f"{len(order.get('mandatoryOrder', []))}; first guidance read: {first.get('class')} at call {first.get('seq')}; "
@@ -3555,7 +3714,7 @@ def render(record: dict[str, Any]) -> str:
         lines += render_compaction(adapter, compaction)
     note = record.get("systemNote")
     if note:
-        lines += [f"Owner note through `--append-system-prompt`, SHA-256 `{note['sha256']}`:", "",
+        lines += [f"Owner note through {adapter.note_channel}, SHA-256 `{note['sha256']}`:", "",
                   "```text", note["text"].rstrip("\n"), "```", ""]
     for item in record.get("collected") or []:
         if item["sha256"] is None:

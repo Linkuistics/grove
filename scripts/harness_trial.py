@@ -30,7 +30,8 @@ A native copy can come from an older commit of the checkout, as a stale copy.
 A case with `moveAway` and `expectRefusal` moves a clone of one source away
 before the driver, and expects Ravel's refusal before any harness launch.
 A case with `continuation` resumes the first session outside Ravel after a
-source commit and a settings change, then launches a fresh session. A case
+source commit and a settings change, then launches a fresh session. Claude
+Code resumes with `--resume`, and Codex with `codex exec resume`. A case
 with `compaction` runs three turns in one managed process: the prompt,
 `/compact` with the case's instructions, then the case's answer. The feeder
 `harness_trial.py turns` sends them, and it sends the answer only when the
@@ -121,7 +122,6 @@ CODEX_APPROVAL = "never"
 CODEX_RESIDUE = (".codex/skills/.system", ".codex/plugins/cache")
 # The case fields whose Codex mechanism a later leaf adds.
 CODEX_LATER = {
-    "continuation": "codex-continuation-trial-k119",
     "compaction": "codex-compaction-trials-k120",
     "expectDelegate": "codex-delegate-trial-k121",
     "systemNote": "codex-delegate-trial-k121",
@@ -1589,7 +1589,7 @@ def describe(label: str, view: dict[str, Any], child: dict[str, str], stream: li
     a delegation, which the prompt of the launch lets the record compare with
     the obligations of the preamble."""
     if harness == "codex":
-        return describe_codex(label, view, child, stream, stream_sha, probes, home, repo, live)
+        return describe_codex(label, view, child, stream, stream_sha, probes, home, repo, live, marker, window)
     init = next((e for e in stream if e.get("type") == "system" and e.get("subtype") == "init"), {})
     session_id = init.get("session_id")
     classifier = Classifier(view, home, Path(init.get("cwd") or repo), marker, turns)
@@ -1668,11 +1668,14 @@ def launch_facts(label: str, view: dict[str, Any], session_id: str | None, child
 
 def describe_codex(label: str, view: dict[str, Any], child: dict[str, str], stream: list[dict[str, Any]],
                    stream_sha: str | None, probes: list[dict[str, str]], home: Path, repo: Path,
-                   live: Mapping[str, str]) -> dict[str, Any]:
+                   live: Mapping[str, str], marker: str | None = None,
+                   window: tuple[int, int] | None = None) -> dict[str, Any]:
     """One Codex launch. The stream's `thread.started` names the thread, and
     the session file `rollout-<time>-<thread>.jsonl` under the sandbox
     `.codex/sessions` holds its items. When no session file exists, the
-    items come from the stream, which names no working directory."""
+    items come from the stream, which names no working directory. A resumed
+    turn appends to the session file of the first turn, so a window limits
+    that file to the lines of this launch, as for Claude Code."""
     started = next((e for e in stream if e.get("type") == "thread.started"), {})
     session_id = started.get("thread_id")
     transcripts = []
@@ -1680,17 +1683,20 @@ def describe_codex(label: str, view: dict[str, Any], child: dict[str, str], stre
         if not (session_id and path.name.startswith("rollout-") and path.stem.endswith(session_id)):
             continue
         raw = path.read_bytes()
+        if window:
+            raw = b"".join(jsonl_lines(raw)[window[0]:window[1]])
         records = read_jsonl_bytes(raw)
         startup = codex_startup(records)
-        classifier = Classifier(view, home, Path(startup["init"].get("cwd") or repo))
+        classifier = Classifier(view, home, Path(startup["init"].get("cwd") or repo), marker)
         transcripts.append({
-            "file": str(path.relative_to(home)), "sha256": sha256_bytes(raw), "main": True,
+            "file": str(path.relative_to(home)), "sha256": sha256_bytes(raw),
+            **({"lines": list(window)} if window else {}), "main": True,
             "events": extract_events(codex_entries(records), classifier), "startup": startup,
         })
     if session_id and not transcripts:
         transcripts.append({
             "file": "stream", "sha256": stream_sha, "main": True,
-            "events": extract_events(codex_entries(stream), Classifier(view, home, repo)), "startup": None,
+            "events": extract_events(codex_entries(stream), Classifier(view, home, repo, marker)), "startup": None,
         })
     return {
         **launch_facts(label, view, session_id, child, live, probes, stream_sha),
@@ -1854,16 +1860,60 @@ def commit_edits(clone: Path, edits: list[dict[str, str]]) -> dict[str, Any]:
     return {"checkout": str(clone), "commitBefore": before, "commitAfter": after, "files": files}
 
 
-def stream_init(record: Path) -> tuple[str | None, str | None]:
-    """The session ID and the working directory of one launch, from its stream."""
+def stream_init(record: Path, harness: str = "claude") -> tuple[str | None, str | None]:
+    """The session ID and the working directory of one launch, from its
+    stream. Codex names its thread in `thread.started` and no working
+    directory, so the caller takes that from the session file."""
     stream = record / "stream.jsonl"
     entries = read_jsonl(stream) if stream.exists() else []
+    if harness == "codex":
+        started = next((e for e in entries if e.get("type") == "thread.started"), {})
+        return started.get("thread_id"), None
     init = next((e for e in entries if e.get("type") == "system" and e.get("subtype") == "init"), {})
     return init.get("session_id"), init.get("cwd")
 
 
-def session_file(home: Path, session_id: str) -> Path | None:
-    return next((path for path in session_files(home) if path.stem == session_id), None)
+def session_files_of(home: Path, session_id: str, harness: str = "claude") -> list[Path]:
+    """The session files of one session: `<id>.jsonl` of Claude Code, or
+    `rollout-<time>-<thread>.jsonl` of Codex."""
+    if harness == "codex":
+        return [path for path in session_files(home)
+                if path.name.startswith("rollout-") and path.stem.endswith(session_id)]
+    return [path for path in session_files(home) if path.stem == session_id]
+
+
+def session_file(home: Path, session_id: str, harness: str = "claude") -> Path | None:
+    return next(iter(session_files_of(home, session_id, harness)), None)
+
+
+def session_cwd(transcript: Path, harness: str) -> str | None:
+    """The working directory of a Codex session, from its `session_meta`."""
+    if harness != "codex":
+        return None
+    meta = next((r.get("payload") or {} for r in read_jsonl(transcript) if r.get("type") == "session_meta"), {})
+    return meta.get("cwd")
+
+
+# The continuation of each harness. Claude Code keeps the session ID without
+# --fork-session and appends to the session file. Codex 0.166.0 opens the
+# existing rollout file for append on a resume (`open_rollout_for_append` in
+# https://github.com/openai/codex/blob/rust-v0.166.0/codex-rs/rollout/src/recorder.rs).
+# `resume` takes no --sandbox of its own: the options of `codex exec` before it
+# are shared, and `thread_resume_params_from_config` passes their sandbox and
+# approval policy to the resumed thread
+# (https://github.com/openai/codex/blob/rust-v0.166.0/codex-rs/exec/src/lib.rs).
+MECHANISMS = {
+    "claude": "claude -p --resume <session id>, without --fork-session, outside Ravel's managed process",
+    "codex": "codex exec <the route's options> resume <thread id> <answer>, outside Ravel's managed process",
+}
+
+
+def resume_args(route: dict[str, Any], session_id: str, harness: str) -> list[str]:
+    """The arguments of a resumed turn before the answer: the fixed arguments
+    of the route, then the harness's own resume."""
+    if harness == "codex":
+        return [*route["fixedArgs"], "resume", session_id]
+    return [*route["fixedArgs"], "--resume", session_id]
 
 
 def write_window(record: Path, start: int, end: int) -> None:
@@ -1871,12 +1921,13 @@ def write_window(record: Path, start: int, end: int) -> None:
 
 
 def resume_turn(records: Path, view: dict[str, Any], program: Path, route: dict[str, Any], session_id: str,
-                answer: str, cwd: Path, env: dict[str, str], out: Path, timeout_s: float) -> dict[str, Any]:
+                answer: str, cwd: Path, env: dict[str, str], out: Path, timeout_s: float,
+                harness: str = "claude") -> dict[str, Any]:
     """The resumed turn: the harness alone, outside Ravel, through the launch
     wrapper, which records its view, its prompt and its environment. The
-    arguments are the fixed arguments of the route, `--resume` and the answer,
-    without `--add-dir`, as an owner's manual resume gives them."""
-    args = [*route["fixedArgs"], "--resume", session_id]
+    arguments are the fixed arguments of the route, the harness's resume and
+    the answer, without `--add-dir`, as an owner's manual resume gives them."""
+    args = resume_args(route, session_id, harness)
     argv = [str(WRAPPER), str(records), json.dumps(view), str(program), *args, answer]
     driver = run_driver(argv, cwd, env, out, timeout_s, name="resume")
     return {"args": args, "cwd": str(cwd), "answerSha256": sha256_bytes(answer.encode()), **driver}
@@ -1940,19 +1991,18 @@ def continue_case(case: dict[str, Any], case_dir: Path, trial: Path, home: Path,
     change, then the resumed turn, then a fresh launch on a new leaf."""
     spec = case["continuation"]
     marker = spec["marker"]
-    result: dict[str, Any] = {
-        "mechanism": "claude -p --resume <session id>, without --fork-session, outside Ravel's managed process",
-        "marker": marker, "failures": [],
-    }
+    harness = case.get("harness", "claude")
+    result: dict[str, Any] = {"mechanism": MECHANISMS[harness], "marker": marker, "failures": []}
     first = launch_records(records)
     if len(first) != 1:
         result["failures"].append(f"the first driver run made {len(first)} launches, and a continuation resumes one")
         return result
-    session_id, cwd = stream_init(first[0])
-    transcript = session_file(home, session_id) if session_id else None
+    session_id, cwd = stream_init(first[0], harness)
+    transcript = session_file(home, session_id, harness) if session_id else None
     if not transcript:
         result["failures"].append("the first turn wrote no session file to resume")
         return result
+    cwd = cwd or session_cwd(transcript, harness)
     first_end = len(jsonl_lines(transcript.read_bytes()))
     write_window(first[0], 0, first_end)
     result["sessionId"] = session_id
@@ -1970,14 +2020,16 @@ def continue_case(case: dict[str, Any], case_dir: Path, trial: Path, home: Path,
     answer = (case_dir / spec.get("answer", "answer.md")).read_text()
     say(f"{case['name']}: resuming session {session_id} outside Ravel")
     result["resume"] = resume_turn(records, view, program, route, session_id, answer,
-                                   Path(cwd or repo), env, trial, timeout_s)
+                                   Path(cwd or repo), env, trial, timeout_s, harness)
     resumed = [record for record in launch_records(records) if record != first[0]]
     if len(resumed) != 1:
         result["failures"].append(f"the resumed turn left {len(resumed)} launch records, not one")
         return result
-    resumed_id, _ = stream_init(resumed[0])
+    resumed_id, _ = stream_init(resumed[0], harness)
     if resumed_id != session_id:
         result["failures"].append(f"the resumed turn reports the session {resumed_id}, not {session_id}")
+    elif session_files_of(home, session_id, harness) != [transcript]:
+        result["failures"].append("the resumed turn wrote a session file of its own, not the first one")
     else:
         write_window(resumed[0], first_end, len(jsonl_lines(transcript.read_bytes())))
     result["markerFilesAfterResume"] = marker_files(repo, marker)

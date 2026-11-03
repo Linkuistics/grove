@@ -32,6 +32,10 @@ the adapter. The other children run the trial groups and depend only on it.
 7. `codex-delegate-trial-k121` mirrors `claude-delegate-trial-k113`.
 8. `codex-missing-kind-k122` mirrors `claude-missing-kind-k114`.
 
+codex-continuation-trial-k119 inserted `trial-harness-adapter-k123` before
+k120. The human expects clear layers with small surfaces. The adapter puts
+each harness difference behind one seam before k120 and k121 add more.
+
 ## Notes
 
 The sandbox `.codex` holds only a link to the real `auth.json`. Each run sets
@@ -45,8 +49,8 @@ codex-trial-adapter-k115 delivered `task trial:codex OUT=… CASE=…`, which ru
 any case in Codex through its own tree, with `--harness codex`. "The Codex
 adapter" in `docs/common-loading-acceptance-record.md` states the route, the
 `workspace-write` sandbox and its reason, the residue and the helper links.
-The fields `continuation`, `compaction`, `expectDelegate` and `systemNote`
-refuse for Codex until k119, k120 and k121 add their mechanisms. The delegate
+The fields `compaction`, `expectDelegate` and `systemNote` refuse for Codex
+until k120 and k121 add their mechanisms. k119 added the Codex continuation. The delegate
 leaf also adds Codex delegations, which the extraction does not yet link.
 
 codex-discovery-trial-k116 recorded "discovery in Codex", which passes, and
@@ -71,3 +75,15 @@ force-stopped after two of its three reports. In the named user-invoked case,
 it stopped before the write, because `authoring-conventions` requires
 `writing-skills`, which no source holds. A `python3` heredoc read has the
 class `command`, so a section names such reads by hand.
+
+codex-continuation-trial-k119 recorded "continuation in Codex". The
+continuation is `codex exec <the route's options> resume <thread id>
+<answer>`. Codex keeps the thread, appends to the first session file and
+keeps the sandbox of the options before `resume`. The rows hold as in Claude
+Code, and the re-read is the same gap: the resumed turn read only the retire
+and commit procedures.
+
+Three observations differ from Claude Code. Codex adds
+a new skill listing at the resume. Its fresh launch read `coding-style-bash`,
+so `count.sh` carries the marker. It committed only the script, as the leaf
+says, and left the retirement in the working copy.

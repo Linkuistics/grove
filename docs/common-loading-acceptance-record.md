@@ -112,17 +112,21 @@ sees its change. After the first driver run, the runner takes these steps:
    read file.
 3. The runner writes the settings again, with the case's changed mandatory
    files.
-4. The runner resumes the first session with `claude -p --resume <session id>`.
-   The resumed turn runs outside Ravel, through the launch wrapper, from the
-   working directory of the first turn. Its environment is the allow-list of
-   the driver, and its prompt is the case's answer file only. It has no
-   `--add-dir`.
+4. The runner resumes the first session. Claude Code resumes with
+   `claude -p --resume <session id>`. Codex resumes with `codex exec <the
+   route's options> resume <thread id>`. The resumed turn runs outside Ravel,
+   through the launch wrapper, from the working directory of the first turn.
+   Its environment is the allow-list of the driver, and its prompt is the
+   case's answer file only. It has no `--add-dir`.
 5. The runner commits the case's `fresh-tree/` leaf into the trial tree, in a
    change of its own. It then runs the driver again for the fresh launch.
 
 Claude Code keeps the session ID without `--fork-session`, so the resumed turn
-appends to the first session file. Each turn's record therefore names its own
-line window of that file, and the transcript digest covers that window. Each
+appends to the first session file. Codex 0.166.0 also keeps the thread, and it
+opens the existing rollout file for append. Each turn's record therefore names
+its own line window of that file, and the transcript digest covers that window.
+The run fails when the resumed turn reports another session, or when Codex
+writes a second session file for the thread. Each
 tool call names where it holds the marker: `input` for what the agent wrote or
 ran, `result` for the bytes that it got. The record also states whether each
 launch's snapshot copy of each edited file holds the marker.
@@ -195,8 +199,8 @@ the note.
 The runner supports the routes native on 2.0 and directory on 2.0, and the
 harnesses Claude Code and Codex. A case on native 1.1 needs a `policy.ts`
 adapter, which no leaf builds. The Codex adapter has no mechanism yet for
-`continuation`, `compaction`, `expectDelegate` or `systemNote`. A case with one
-of these fields refuses for Codex and names the leaf that adds the mechanism.
+`compaction`, `expectDelegate` or `systemNote`. A case with one of these
+fields refuses for Codex and names the leaf that adds the mechanism.
 `claudeSettings` refuses for Codex too, because it is a Claude Code setting.
 
 ### What one run does
@@ -369,6 +373,14 @@ The stream event `thread.started` names the thread. The ordered events come
 from the session file
 `.codex/sessions/YYYY/MM/DD/rollout-<time>-<thread>.jsonl` of the sandbox.
 
+A resumed turn of a continuation case puts `resume <thread id>` after the
+options of the route, and the answer last. `codex exec resume` refuses
+`--sandbox` itself. The options before `resume` are shared options of `codex
+exec`, and Codex passes their sandbox and approval policy to the resumed
+thread. The working directory of the resumed turn comes from `session_meta`
+of the session file, because the stream names none. The resumed window holds
+a new `turn_context`, so the record shows the sandbox of the resumed turn.
+
 The model calls one JavaScript tool, `exec`, which runs nested tools. Each nested
 command is an `item_completed` event of type `CommandExecution`, with its
 argument vector and its working directory. The extraction gives each such
@@ -430,7 +442,8 @@ check of the configuration directory and the extraction from the session file
 and from the stream. Other tests prove the residue and the absence of account
 data. Further tests
 prove the harness's own links. They also prove the refusal of the fields that
-later leaves add.
+later leaves add. A Codex continuation test proves the resume arguments, the
+thread, the working directory, the line windows and the marker.
 
 Each check also runs once
 against a runner with one function broken, and the check must fail there. A
@@ -3589,6 +3602,287 @@ Ordered events of launch 2, the fresh launch:
 | 18 | Bash | command |  |  |  | `jj describe -m "count.sh: print the number of regular files under a directory (count-script-k2) Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>" && jj n…` |
 | 19 | Bash | ending |  |  |  | `'$RAVEL2/bin/ravel' end-session grove-continue` |
 | 20 | text | text |  |  |  | `The script is done and committed, and the session has ended.` |
+
+### continuation in Codex
+
+**Case.** `continuation` ran in Codex with `--harness codex`, for
+`codex-continuation-trial-k119`. The tree, the answer, the four edits, the
+settings change and the fresh leaf are those of [continuation](#continuation),
+without change. The case covers the same rows: item 4 of "The preamble" and
+the Lifetime row of Ravel's `docs/specs/skill-discovery.md`, and the Resource
+lifetime row of the
+[delivery specification](specs/codex-skill-provisioning.md#test-seams).
+
+The run is `continuation-20261103T033051Z`, on 2026-11-03 local time. It was
+the first and only run of the case in Codex, with no retry and no further
+prompt.
+
+**Mechanism.** The continuation is `codex exec <the route's options> resume
+<thread id> <answer>`. The resumed turn ran outside Ravel's managed process,
+from the working directory of the first turn, which `session_meta` of the
+session file names. Its arguments were the constant arguments of the route,
+then `resume`, the thread `01a19f75-b6f6-7270-94f2-111ec647af20` and the
+answer. It had no `--add-dir`.
+
+Two facts of Codex 0.166.0 come from its source at the tag `rust-v0.166.0`,
+and the run shows both:
+
+- A resume opens the existing rollout file for append
+  (`open_rollout_for_append` in `codex-rs/rollout/src/recorder.rs`). The
+  resumed stream named the same thread, and Codex wrote lines 103 to 161 into
+  the first session file. No second session file of the thread exists.
+- `codex exec resume` refuses `--sandbox` itself. The options before `resume`
+  are shared options of `codex exec`. `thread_resume_params_from_config` in
+  `codex-rs/exec/src/lib.rs` passes their sandbox and approval policy to the
+  resumed thread. The resumed `turn_context` names `workspace-write` and
+  `never`, as the first turn's does.
+
+The environment of each turn:
+
+| Launch | Environment names of the harness |
+| --- | --- |
+| First turn | The driver's names, `PWD`, `SHLVL`, `_`, and the trial's own `GROVE_LAUNCH_DIR`, `RAVEL_EXIT_FILE` and `RAVEL_SKILL_DIRECTORIES` |
+| Resumed turn | `CODEX_HOME`, `HOME`, `LANG`, `LOGNAME`, `PATH`, `PWD`, `SHELL`, `SHLVL`, `TERM`, `TMPDIR`, `USER`, `_`. No `RAVEL_SKILL_DIRECTORIES` and no result channel |
+| Fresh launch | The names of the first turn, with new values from the fresh driver run |
+
+No live value reached any of the three launches.
+
+The prompt of the resumed turn is the answer file of
+[continuation](#continuation), with the same SHA-256
+`f56b1e08f1dc19beaddce97f1fc1524ed14921bf617daf2255456b4bc68bbd50`. The
+resumed window holds no preamble line, no descriptor path and not the name
+`RAVEL_SKILL_DIRECTORIES`. The first turn's window holds the preamble. Any
+re-read in the resumed turn therefore comes from the agent alone.
+
+**Route.** Directory on 2.0. One plain Git clone of commit `e13cc55b7ab5`, at
+`$TRIAL/sources/checkout`, supplies the sources `grove` and `linkuistics`,
+each with the root `skills`. The settings name the mandatory files of
+[discovery](#discovery), in the same order: `using-jujutsu`, then the Grove
+spine.
+
+**Change between the turns.** One commit, `8bfbf82cb0d4`, changed the four
+read files of [continuation](#continuation) in the clone. Each file has the
+same SHA-256 before and after as in the Claude Code run. The settings change
+reversed the mandatory order: the Grove spine, then `using-jujutsu`. The
+runner made the commit and the settings change after the first turn ended and
+before the resumed turn began.
+
+**Result.** **Gap** for the re-read, as in Claude Code. The other
+observations of the leaf hold.
+
+| Row | Result in Codex | Result in Claude Code |
+| --- | --- | --- |
+| The first turn reads the mandatory and relevant guidance and stops before the work completes | **Holds** | Holds |
+| The continued session keeps the original descriptor and gets the original bytes | **Holds** | Holds |
+| The continued session reads the mandatory and relevant guidance again before work continues | **Gap.** Only the retire and commit procedures | Gap. Only the retire and commit procedures |
+| A fresh launch after the change receives a new descriptor with the new bytes | **Holds** | Holds |
+| The record states the mechanism and whether each re-read came unprompted | **Holds.** No re-read occurred | Holds. No re-read occurred |
+
+- **First turn.** Calls 2 and 4 read the two mandatory files in the
+  configured order. Call 3 read two supporting files of `using-jujutsu`
+  between them. Call 6 read `grove-impl`, and call 7 read the spine's
+  `execute.md` and `bootstrap.md`. Call 13 read `machine-environment`, and
+  call 17 read `coding-style-bash`. Each read came from the first snapshots,
+  `88f68c…` and `820fe2…`. Call 18 then wrote `stamp.sh`, and calls 19 to 21
+  checked it. Text 22 asked the human the label question, cited Grove's
+  procedure for required input and ended the turn. The agent ran no ending
+  command. Ravel refused as `session_result_missing`, and Grove stopped the
+  loop with the leaf live. The turn therefore stopped before the work
+  completed.
+- **Original descriptor.** The resumed turn read only from the first
+  snapshot. Call 2 read `retire.md` and `commit.md` from `88f68c…`, and the
+  result held no marker. No call read the source clone, the settings or the
+  descriptor variable. No call ran a new resolution. The turn therefore kept
+  the original descriptor and got the original bytes.
+- **Re-read: gap.** The resumed turn did not read the mandatory files, the
+  kind skill, `machine-environment` or `coding-style-bash` again before work
+  continued. Call 2, its first tool call, read the retire and commit
+  procedures, the script and the task file. Call 3 then edited the task file,
+  and call 5 added the label to `stamp.sh`. The read of call 2 was unprompted,
+  but it was a procedure step, not a re-read of guidance before work. The
+  leaf requires the re-read, so this case is a gap for
+  `acceptance-handoff-k106`. The answer named no guidance, so a re-read was
+  not prompted. The agent did not make one, so no unprompted re-read
+  occurred.
+- **Fresh launch.** The fresh driver run resolved the changed sources and the
+  changed settings. The descriptor `61f5cc5c4483…` differs from the first
+  descriptor `19463c5b1fe2…`. Both `resourceDigest` values differ too, and
+  each equals the fresh value of the Claude Code run. Each snapshot copy of
+  the four edited files holds the marker, and each copy of the first snapshots
+  does not. Calls 2 and 3 read the mandatory files in the new order, the spine
+  first, and both results hold the marker. Call 5 read `grove-impl`, and call
+  12 read `coding-style-bash`. Both results hold the marker. The fresh launch
+  therefore received a new descriptor with the new bytes.
+
+The marker detection fired in the fresh launch and in no call of the first or
+the resumed turn. That gives the instrument its positive and its negative
+control. Calls 6, 10 and 17 of the fresh launch read files that the commit
+did not change, so their results hold no marker.
+
+**Comparison with Claude Code.** The two harnesses agree on each row. They
+differ in four observations:
+
+- **Order in the resumed turn.** Codex read the retire and commit procedures
+  before it edited the script. Claude Code edited the script first. Neither
+  read guidance that governs the edit.
+- **Resume startup.** At the resume, Codex added one developer message, a
+  new skill listing. The listing has four more roots, for the curated plugins
+  that the sign-in downloaded during the first turn. It names no skill of the
+  sources.
+  Claude Code added no new skill listing. Neither harness repeated the
+  preamble.
+- **Fresh craft read.** The Codex fresh launch read `coding-style-bash` in
+  call 12, before it wrote `count.sh` in call 15. `count.sh` therefore holds
+  the comment `# k111-revision-2` on the line after its shebang, as the
+  changed rule directs. The Claude Code fresh launch did not read the craft
+  skill, and its `count.sh` lacks the marker.
+- **Fresh commit.** The leaf says "Commit only the script". Codex read that as
+  a limit on the commit. Call 20 committed `count.sh` alone. The retirement of
+  the leaf stayed in the working-copy change `4e840da0d1a3`, which has no
+  description. Claude Code committed the script and the retirement together. This is an
+  observation of the leaf's wording, not a result of this leaf.
+
+**Further observations.**
+
+- **Resumed ending.** Call 12 of the resumed turn ran the exact
+  `end-session grove-continue` command. Ravel refused with
+  `no enclosing Ravel session (RAVEL_EXIT_FILE is unset or empty)`, as in
+  Claude Code. Before the ending, calls 9 and 10 retired the leaf and sealed
+  the commit `62bb66d980fa`. Text 11 reported the commit before the ending,
+  and the agent wrote no text after the refusal. No Grove result reached a
+  driver for that leaf.
+- **Fresh ending.** Call 22 of the fresh launch ran `end-session
+  grove-continue`, and Ravel accepted it. The driver then reached the finish
+  leaf, which the configuration script refused as `config_refused`, as each
+  trial does by design.
+- **Residue.** The run holds the 35 residue files of
+  [discovery in Codex](#discovery-in-codex). No call read one.
+- **Ravel reports a failed stop.** Each driver run wrote two lines
+  `stop attempt … signal 9: Operation not permitted (os error 1)`, as the
+  [smoke](#smoke) section notes.
+
+**Limit.** One run is one observation, not a rate. The resumed session held
+the whole first turn, which includes the text of each guidance file that the
+first turn read. Nothing was compacted or summarised. The three candidate
+causes of the gap in [continuation](#continuation) apply to Codex without
+change. This record does not choose between them.
+
+The resumed turn ran outside Ravel, as an owner's manual resume does. A
+resume inside a Ravel launch would receive a new preamble, and this case does
+not measure it.
+
+| Subject | Value |
+| --- | --- |
+| Grove build | Commit `e13cc55b7ab5`. `grove` SHA-256 `5900ff3c08f16439f2d57af2a553b209ffd77527c17e883e6b6c0ee742b2ca94`. `grove-llm` SHA-256 `56f6815a290441d2498b1af4431923d73983459619d5e7eea633f34fad1264b7`. Both equal the builds of [continuation](#continuation) |
+| Ravel build | Build commit `23e50ce90037`, bookmark `skill-directory-delivery` at `1ca4aecbeae1`. Identity `ef5857e989e6d99da51631ae0295685c8961c1b01bac58d865e6fb789ae71deb`. `bin/ravel` SHA-256 `8e10e311c50c81ca60ac4f393d17408982d0aafcfe46cccfbc46130465290ae2`. The prefix is a byte copy of the prefix of [discovery problems in Codex](#discovery-problems-in-codex), and the preparation checked its digest |
+| Harness | Codex `codex-cli 0.166.0`, model `gpt-6.1-sol`, effort `medium`, sandbox `workspace-write`, approval `never` |
+| Confinement | The Codex sandbox runs in place of Ravel confinement in the first turn and the fresh launch, because a lifecycle launch has none. The resumed turn runs outside Ravel, in the same Codex sandbox |
+| Configuration directory | The sandbox `$TRIAL/home/.codex`, as `CODEX_HOME`. The skill roots of `codex debug prompt-input` named its `skills/.system` |
+| `CODEX_HOME` | Not inherited. Each launch, also the resumed turn, had it set to the sandbox `.codex` |
+| First sources | Checkout commit `e13cc55b7ab5`. `resourceDigest` of `grove`: `88f68c31337536efb0d4fb388543c0ca1abf9a9fed0ce0ccac3888e933df5a67`. `resourceDigest` of `linkuistics`: `820fe28234c98fe59286c3788eac561dead174770bd50560393d697788446b22` |
+| First descriptor | `19463c5b1fe21ad622d079d848de47e4ae75eb3fe15574acd084923a9c31be37`, equal to the SHA-256 of `directories.json`. The resumed turn's reads used this descriptor's snapshots |
+| Fresh sources | Clone commit `8bfbf82cb0d4`. `resourceDigest` of `grove`: `620396ccc873c717dd9351725ba3d60e0b81f730d788a0248836aa7088da6890`. `resourceDigest` of `linkuistics`: `6289b0700f7077cdc18c1ac4fd95660f000943189e5ea904f7ace3ad9c7b3c75` |
+| Fresh descriptor | `61f5cc5c44836aced2bc3f5cdd4009e998f83d2ad855d5ba7431eac70f550f50`, equal to the SHA-256 of `directories.json` |
+| Links | Before: `.codex/auth.json` only. After: `.codex/auth.json`, and the harness's own `apply_patch` and `applypatch` under `.codex/tmp/arg0-macos/`, which link to `/opt/homebrew/Caskroom/codex/0.166.0/bin/codex` |
+| Driver environment | `CODEX_HOME`, `HOME`, `LANG`, `LOGNAME`, `PATH`, `SHELL`, `TERM`, `TMPDIR`, `USER` |
+| Native copies | None |
+| Session file | `rollout-2026-11-03T14-30-54-01a19f75-b6f6-7270-94f2-111ec647af20.jsonl`, 161 lines, SHA-256 `71bd47b980aafed9ff207bd0a2e4e2be26ba8a8d7c5918f0ce1bf33f951b698e` |
+| First turn | Lines 1 to 102, SHA-256 `a71f7668e2702ac9460b138c9064001fe27ad01f2cb05ec57b10fac4f9e03057`. Stream SHA-256 `13075bfdb3e0a6a48d9b5edf6d2d759c1b1bc779935a4f5dfa8d6d272798a8e1` |
+| Resumed turn | Lines 103 to 161, SHA-256 `f5cdbaa933a7c170e8139aedb322a8b1428a871a17291523e36388e66d8f51eb`. Stream SHA-256 `abc431589e9176faa7d6dca4c506d432d41bdec1d0ba8af8a6e07be828d3bc68`. Exit 0 after 49.1 seconds |
+| Fresh launch | `rollout-2026-11-03T14-33-22-01a19f77-f915-7041-a580-670ae635a111.jsonl`, SHA-256 `da2ca7a0ab7f81b59adb4335213a6352768aa714f548a8afa06c6f048e29ea8a`. Stream SHA-256 `da120d699e8535e51a4fb2eefcaf205c15adf826af65469cbce7256c78039bbf` |
+| Fresh-launch leaf | `02-impl--count-script-k2.md`, which the runner committed as `818a741cee2e` |
+
+Native startup text: the text of [smoke in Codex](#smoke-in-codex) for the
+first turn and the fresh launch, with these differences.
+
+- `cwd` names the trial's repository.
+- The developer message that holds the skill listing has 4918 characters in
+  the first turn and 9089 in the fresh launch. The fresh listing adds the
+  roots of the curated plugins, which the sign-in downloaded during the first
+  turn.
+- The resumed window holds no `session_meta`. It holds one developer message,
+  a skill listing of 6337 characters with SHA-256 `6430441fb7b3…`, then a
+  `turn_context` and the answer. Its `turn_context` names the model, the
+  effort, the sandbox and the approval of the first turn.
+
+Ordered events. `$TRIAL` is the trial directory and `$RAVEL2` the 2.0 prefix.
+`$G1` and `$L1` are the first snapshots of `grove` and `linkuistics`, each up
+to its `tree`. `$G2` and `$L2` are their fresh snapshots, and `$SNAPS` is
+`$TRIAL/home/.cache/ravel/skills/v1/snapshots`.
+
+Each command ran in `$TRIAL/repo`. A `;` stands for a line break, and the record shortens each
+text row. The Marker column names where a call holds `k111-revision-2`.
+
+Ordered events of launch 0, the first turn:
+
+| # | Tool | Class | Skill | Source | Marker | Command, path or text |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 | text | text |  |  |  | `I'll read the mandatory guidance, then load 'grove-impl' before inspecting the task or working tree.` |
+| 2 | exec_command | mandatory | using-jujutsu | linkuistics |  | `cat '$L1/skills/using-jujutsu/SKILL.md'` |
+| 3 | exec_command | supporting, two files | using-jujutsu | linkuistics |  | `cat '$L1/skills/using-jujutsu/references/jj-commands.md' '$L1/skills/using-jujutsu/references/git-to-jj-mapping.md'` |
+| 4 | exec_command | mandatory | grove | grove |  | `cat '$G1/skills/grove/SKILL.md'` |
+| 5 | exec_command | listing | | grove |  | `rg --files '$G1/skills' '$L1/skills' -g SKILL.md` |
+| 6 | exec_command | kind-skill | grove-impl | grove |  | `cat '$G1/skills/grove-impl/SKILL.md'` |
+| 7 | exec_command | supporting, two files | grove | grove |  | `cat '$G1/skills/grove/references/execute.md' '$G1/skills/grove/references/bootstrap.md'` |
+| 8 | text | text |  |  |  | `'grove-impl' is loaded. I'll resolve 'stamp-script-k1' and read its brief chain…` |
+| 9 | exec_command | command |  |  |  | `grove-llm resolve stamp-script-k1` |
+| 10 | exec_command | command |  |  |  | `python3 - <<'PY'`, which prints the front matter of each `SKILL.md` in `$SNAPS` |
+| 11 | exec_command | command |  |  |  | `grove-llm brief-chain .grove/01-impl--stamp-script-k1.md` |
+| 12 | exec_command | command (error) |  |  |  | `rg --files --hidden -g AGENTS.md -g '*CONTEXT*' -g '*Taskfile*' …` |
+| 13 | exec_command | skill | machine-environment | linkuistics |  | `cat '$L1/skills/machine-environment/SKILL.md'` |
+| 14 | exec_command | command |  |  |  | `cat .grove/_BRIEF.md .grove/01-impl--stamp-script-k1.md` |
+| 15 | exec_command | command |  |  |  | `jj st; jj log --no-pager -n 5; rg --files --hidden …` |
+| 16 | text | text |  |  |  | `The task requires a baseline script and a successful check before asking for your decision about labels. I'll follow the Bash skill…` |
+| 17 | exec_command | skill, then supporting | coding-style-bash | linkuistics |  | `cat '$L1/skills/coding-style-bash/SKILL.md' '$G1/skills/grove/TASK-FORMAT.md'` |
+| 18 | apply_patch | action |  |  |  | `$TRIAL/repo/stamp.sh` |
+| 19 | exec_command | command |  |  |  | `chmod +x stamp.sh ; bash -n stamp.sh ; ./stamp.sh ; python3 - <<'PY' …` |
+| 20 | exec_command | command |  |  |  | `shellcheck stamp.sh ; shfmt -d -i 2 -ci stamp.sh ; jj st` |
+| 21 | exec_command | command |  |  |  | `shfmt -w -i 2 -ci stamp.sh ; shellcheck stamp.sh ; shfmt -d -i 2 -ci stamp.sh ; jj st` |
+| 22 | text | text |  |  |  | `'stamp.sh' is executable and passed the UTC timestamp, syntax, lint, and formatting checks.… Should it accept an optional label…` |
+
+Ordered events of launch 1, the resumed turn:
+
+| # | Tool | Class | Skill | Source | Marker | Command, path or text |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 | text | text |  |  |  | `I'll add the optional label, check both output forms, then retire and commit the task.` |
+| 2 | exec_command | supporting, two files, then commands | grove | grove |  | `cat '$G1/skills/grove/references/retire.md' '$G1/skills/grove/references/commit.md' ; cat stamp.sh .grove/01-impl--stamp-script-k1.md` |
+| 3 | apply_patch | action |  |  |  | `$TRIAL/repo/.grove/01-impl--stamp-script-k1.md` |
+| 4 | exec_command | command (error) |  |  |  | `python3 - <<'PY'`, which runs `stamp.sh` with a label in a temporary directory |
+| 5 | apply_patch | action |  |  |  | `$TRIAL/repo/stamp.sh` |
+| 6 | exec_command | command |  |  |  | `bash -n stamp.sh ; shellcheck stamp.sh ; shfmt -d -i 2 -ci stamp.sh ; python3 - <<'PY' …` |
+| 7 | exec_command | command |  |  |  | `shfmt -w -i 2 -ci stamp.sh ; shellcheck stamp.sh ; … ; jj diff --no-pager --git ; rg --files --hidden .grove` |
+| 8 | text | text |  |  |  | `Both output forms passed, including a label containing spaces.… I'll now retire the leaf and seal the commit.` |
+| 9 | exec_command | command |  |  |  | `grove-llm leaf-retire .grove/01-impl--stamp-script-k1.md` |
+| 10 | exec_command | command |  |  |  | `jj describe -m 'stamp-script-k1: write UTC stamps with an optional label' ; jj st ; jj new ; jj st` |
+| 11 | text | text |  |  |  | `Committed as '62bb66d9'. The leaf is retired and the working copy is clean.…` |
+| 12 | exec_command | ending (error) |  |  |  | `'$RAVEL2/bin/ravel' end-session grove-continue` |
+
+Ordered events of launch 2, the fresh launch:
+
+| # | Tool | Class | Skill | Source | Marker | Command, path or text |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 | text | text |  |  |  | `I'll read the mandatory Grove and Jujutsu guidance, then load 'grove-impl' before inspecting the task.` |
+| 2 | exec_command | mandatory | grove | grove | result | `cat '$G2/skills/grove/SKILL.md'` |
+| 3 | exec_command | mandatory | using-jujutsu | linkuistics | result | `cat '$L2/skills/using-jujutsu/SKILL.md'` |
+| 4 | exec_command | listing |  | grove |  | `rg --files '$G2/skills' '$L2/skills' -g SKILL.md` |
+| 5 | exec_command | kind-skill | grove-impl | grove | result | `cat '$G2/skills/grove-impl/SKILL.md'` |
+| 6 | exec_command | supporting | grove | grove |  | `cat '$G2/skills/grove/references/execute.md'` |
+| 7 | exec_command | command (error) |  |  |  | `rg --files -g AGENTS.md -g '*count-script-k2*' … .grove .agents .codex` |
+| 8 | text | text |  |  |  | `I've loaded 'grove-impl' and will use it for this session.…` |
+| 9 | exec_command | command |  |  |  | `ls -a; rg --files --hidden .grove -g '*.md'; cat .grove/02-impl--count-script-k2.md` |
+| 10 | exec_command | supporting, after commands | grove | grove |  | `cat .grove/_BRIEF.md; cat stamp.sh; cat '$G2/skills/grove/references/retire.md'; cat '$G2/skills/grove/references/commit.md'` |
+| 11 | exec_command | command |  |  |  | `python3 - <<'PY'`, which prints the front matter of each `SKILL.md` in `$SNAPS` |
+| 12 | exec_command | skill, then skill | coding-style-bash | linkuistics | result | `cat '$L2/skills/coding-style-bash/SKILL.md'; cat '$L2/skills/machine-environment/SKILL.md'` |
+| 13 | text | text |  |  |  | `The task calls for an executable 'count.sh' that recursively counts regular files and prints one integer. I'll apply the Bash style guidance…` |
+| 14 | exec_command | command |  |  |  | `jj status; command -v grove-llm; command -v shellcheck; command -v shfmt` |
+| 15 | apply_patch | action |  |  |  | `$TRIAL/repo/count.sh` |
+| 16 | exec_command | command |  |  |  | `chmod +x count.sh; bash -n count.sh; shellcheck count.sh; shfmt -d -i 2 -ci count.sh; ./count.sh .grove` |
+| 17 | exec_command | supporting | using-jujutsu | linkuistics |  | `cat '$L2/skills/using-jujutsu/references/jj-commands.md'; jj commit --help` |
+| 18 | text | text |  |  |  | `'count.sh' is executable, and './count.sh .grove' prints '3'.… I'll retire the leaf and commit only 'count.sh', as requested…` |
+| 19 | exec_command | command |  |  |  | `grove-llm leaf-retire .grove/02-impl--count-script-k2.md` |
+| 20 | exec_command | command |  |  |  | `jj commit count.sh -m 'Add recursive regular-file counter for count-script-k2'; jj status; jj show --no-pager -r @- --stat` |
+| 21 | text | text |  |  |  | `Committed 'count.sh' in 'c0c22728'.… I'll now run the required continuation command.` |
+| 22 | exec_command | ending |  |  |  | `'$RAVEL2/bin/ravel' end-session grove-continue` |
 
 ### Compaction
 

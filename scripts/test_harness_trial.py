@@ -335,25 +335,42 @@ if args[:2] == ["debug", "prompt-input"]:
     sys.exit(0)
 assert args[0] == "exec", args
 prompt = args[-1]
+# `codex exec ... resume <thread> <prompt>` keeps the thread and appends to
+# its session file. The resumed prompt has no preamble, so the resumed turn
+# reads the first turn's snapshot.
+resume = args[args.index("resume") + 1] if "resume" in args else None
+saved = home / ".fake-codex-snap"
 snap = re.search(r'- "(.+)/skills"', prompt)
-names = {{"SNAP": snap.group(1) if snap else "", "HOME": str(home), "CWD": os.getcwd(), "TRIAL": str(home.parent)}}
+if snap and not resume:
+    saved.write_text(snap.group(1))
+snap = snap.group(1) if snap else (saved.read_text() if saved.exists() else "")
+names = {{"SNAP": snap, "HOME": str(home), "CWD": os.getcwd(), "TRIAL": str(home.parent)}}
 residue()
 sessions = codex_home / "sessions/2026/11/03"
 count = len(list(sessions.glob("*.jsonl"))) if sessions.is_dir() else 0
-thread = f"01a19ed6-091b-71d1-8857-{{count + 1:012d}}"
+thread = resume or f"01a19ed6-091b-71d1-8857-{{count + 1:012d}}"
 print(json.dumps({{"type": "thread.started", "thread_id": thread}}), flush=True)
 print(json.dumps({{"type": "turn.started"}}), flush=True)
-records = [
+context = {{"type": "turn_context", "payload": {{"cwd": os.getcwd(), "model": args[args.index("--model") + 1],
+    "effort": "medium", "approval_policy": "never",
+    "sandbox_policy": {{"type": args[args.index("--sandbox") + 1], "network_access": False}}}}}}
+records = [] if resume else [
     {{"type": "session_meta", "payload": {{"id": thread, "session_id": thread, "cwd": os.getcwd(), "cli_version": "9.9.9",
         "originator": "codex_exec", "source": "exec", "model_provider": "openai", "creator_account_id": "secret-account",
-        "creator_user_id": "secret-user", "base_instructions": "You are a fake Codex."}}}},
-    {{"type": "turn_context", "payload": {{"cwd": os.getcwd(), "model": args[args.index("--model") + 1], "effort": "medium",
-        "approval_policy": "never", "sandbox_policy": {{"type": "workspace-write", "network_access": False}}}}}},
-    *[{{"type": "response_item", "payload": item}} for item in items],
+        "creator_user_id": "secret-user", "base_instructions": "You are a fake Codex."}}}}]
+records += [
+    context,
+    *([] if resume else [{{"type": "response_item", "payload": item}} for item in items]),
     {{"type": "event_msg", "payload": {{"type": "token_count", "rate_limits": {{"credits": {{"balance": "secret-balance"}}}}}}}},
 ]
+def output(value):
+    # A read returns the bytes of the file, so a marker in them reaches the result.
+    found = re.fullmatch(r'cat "([^"]+)"', value)
+    if behaviour.get("readFiles") and found and Path(found.group(1)).is_file():
+        return Path(found.group(1)).read_text()
+    return "out"
 stream = []
-for n, (kind, value, cwd, code) in enumerate(behaviour["codexItems"]):
+for n, (kind, value, cwd, code) in enumerate(behaviour.get("resumeItems", []) if resume else behaviour["codexItems"]):
     value = value.format(**names)
     where = cwd.format(**names) if cwd else os.getcwd()
     if kind == "text":
@@ -365,15 +382,18 @@ for n, (kind, value, cwd, code) in enumerate(behaviour["codexItems"]):
         shown = {{"id": f"item_{{n}}", "type": "file_change", "status": "completed", "changes": [{{"path": value, "kind": "add"}}]}}
     else:
         item = {{"type": "CommandExecution", "id": f"c{{n}}", "command": ["/bin/zsh", "-lc", value],
-                "cwd": "file://" + quote(where), "status": "completed", "exit_code": code, "aggregated_output": "out"}}
+                "cwd": "file://" + quote(where), "status": "completed", "exit_code": code,
+                "aggregated_output": output(value)}}
         shown = {{"id": f"item_{{n}}", "type": "command_execution", "command": "/bin/zsh -lc " + shlex.quote(value),
-                 "aggregated_output": "out", "exit_code": code, "status": "completed"}}
+                 "aggregated_output": output(value), "exit_code": code, "status": "completed"}}
     records.append({{"type": "event_msg", "payload": {{"type": "item_completed", "item": item}}}})
     stream.append({{"type": "item.completed", "item": shown}})
 if not behaviour.get("noSession"):
     sessions.mkdir(parents=True, exist_ok=True)
-    (sessions / f"rollout-2026-11-03T00-00-0{{count}}-{{thread}}.jsonl").write_text(
-        "".join(json.dumps(r) + "\n" for r in records))
+    found = sorted(sessions.glob(f"rollout-*-{{thread}}.jsonl"))
+    path = found[0] if resume and found else sessions / f"rollout-2026-11-03T00-00-0{{count}}-{{thread}}.jsonl"
+    with path.open("a" if resume else "w") as transcript:
+        transcript.write("".join(json.dumps(r) + "\n" for r in records))
 for event in stream:
     print(json.dumps(event))
 store = home / ".codex/auth.json"
@@ -492,6 +512,13 @@ RESUME_TOOLS = [
     ("Read", "file_path", "{TRIAL}/sources/checkout/plugins/grove/skills/craft/SKILL.md", False),
 ]
 MARKER = "k111-test-marker"
+# The resumed turn of the continuation case in Codex: the same three reads, as
+# `cat` commands of its `exec` tool.
+CODEX_RESUME_ITEMS = [
+    ("command", "cat \"{SNAP}/skills/grove/SKILL.md\"", None, 0),
+    ("command", "cat \"{SNAP}/skills/craft/SKILL.md\"", None, 0),
+    ("command", "cat \"{TRIAL}/sources/checkout/plugins/grove/skills/craft/SKILL.md\"", None, 0),
+]
 
 # The compaction cases: the first turn reads the spine and asks the human. The
 # turn after compaction reads the variable, the spine again, the transcript and
@@ -1237,6 +1264,70 @@ class HarnessTrialTest(unittest.TestCase):
         self.broken(self.check_continuation, "snapshot_markers", lambda case, launch: {})
         self.broken(self.check_continuation, "add_fresh_tree", lambda repo, tree, env: {"added": [], "commit": "x" * 12})
 
+    def check_codex_continuation(self, fixture: Fixture):
+        """The continuation in Codex: `codex exec ... resume <thread>` keeps
+        the thread and appends to the first rollout file, and each turn holds
+        only its own lines."""
+        fixture.behave(resumeItems=CODEX_RESUME_ITEMS, readFiles=True)
+        status, output = fixture.run_codex("continuation")
+        self.assertEqual(status, 0, output)
+        record = fixture.record()
+        launches = record["launches"]
+        self.assertEqual([launch.get("role") for launch in launches], ["first turn", "resumed turn", "fresh launch"])
+        first, resumed, fresh = launches
+
+        def main(launch):
+            return next(t for t in launch["transcripts"] if t["main"])
+
+        self.assertEqual(first["sessionId"], resumed["sessionId"])
+        self.assertNotEqual(fresh["sessionId"], first["sessionId"])
+        self.assertEqual(main(first)["file"], main(resumed)["file"])
+        self.assertIn("lines", main(first), "the first turn has no window")
+        self.assertIn("lines", main(resumed), "the resumed turn has no window")
+        self.assertEqual(main(first)["lines"][1], main(resumed)["lines"][0])
+        self.assertEqual([(e["tool"], e["class"], e.get("skill"), e["error"]) for e in main(first)["events"]],
+                         CODEX_EXPECTED)
+        self.assertEqual([(e["class"], e.get("skill"), e["marker"]) for e in main(resumed)["events"]],
+                         [("mandatory", "grove", []), ("skill", "craft", []), ("source-origin", "craft", ["result"])])
+        crafts = {name: [e["marker"] for e in main(launch)["events"] if e["class"] == "skill"]
+                  for name, launch in (("first", first), ("fresh", fresh))}
+        self.assertEqual(crafts, {"first": [[], []], "fresh": [["result"], []]})
+        self.assertEqual(resumed["descriptorIdentity"], first["descriptorIdentity"])
+        self.assertNotEqual(fresh["descriptorIdentity"], first["descriptorIdentity"])
+        self.assertEqual(first["snapshotMarkers"], {CRAFT: False})
+        self.assertEqual(fresh["snapshotMarkers"], {CRAFT: True})
+        # The resumed turn keeps the sandbox of the route, and its window
+        # holds a turn context but no session metadata of its own.
+        self.assertEqual(main(resumed)["startup"]["init"]["sandbox_policy"]["type"], "workspace-write")
+        self.assertNotIn("cli_version", main(resumed)["startup"]["init"])
+        self.assertIn("RAVEL_SKILL_DIRECTORIES", first["envNames"])
+        self.assertNotIn("RAVEL_SKILL_DIRECTORIES", resumed["envNames"])
+        self.assertIn("CODEX_HOME", resumed["envNames"])
+        self.assertEqual(resumed["control"], [])
+        continuation = record["continuation"]
+        self.assertEqual(continuation["failures"], [])
+        self.assertTrue(continuation["mechanism"].startswith("codex exec"), continuation["mechanism"])
+        args = continuation["resume"]["args"]
+        self.assertEqual(args[0], "exec")
+        self.assertEqual(args[-2:], ["resume", first["sessionId"]])
+        self.assertLess(args.index("--sandbox"), args.index("resume"))
+        self.assertEqual(continuation["resume"]["cwd"], str(Path(record["trial"]) / "repo"))
+        markdown = (Path(record["trial"]) / "record.md").read_text()
+        for needle in ("Continuation:", "#### Launch 1: kind `impl`, resumed turn", " Marker |"):
+            self.assertIn(needle, markdown)
+
+    def test_a_codex_continuation_resumes_its_thread_and_launches_fresh(self):
+        self.check_codex_continuation(self.fixture)
+        real = trial.resume_args
+        self.broken(self.check_codex_continuation, "resume_args",
+                    lambda route, session_id, harness: real(route, session_id, "claude"))
+        self.broken(self.check_codex_continuation, "stream_init", lambda record, harness="claude": (None, None))
+        self.broken(self.check_codex_continuation, "session_cwd", lambda transcript, harness: "/")
+        self.broken(self.check_codex_continuation, "read_window", lambda record: None)
+        real_describe = trial.describe_codex
+        self.broken(self.check_codex_continuation, "describe_codex",
+                    lambda *args, **kwargs: real_describe(*args[:9]))
+
     def test_a_continuation_case_needs_its_parts(self):
         case = json.loads((trial.CASES / "continuation" / "case.json").read_text())
         for change in ({"marker": ""}, {"edits": []}, {"edits": [{"path": CRAFT, "insert": "no marker"}]},
@@ -1717,12 +1808,13 @@ class HarnessTrialTest(unittest.TestCase):
                     lambda records: {"init": next(r["payload"] for r in records if r["type"] == "session_meta")})
 
     def check_codex_later_fields(self, fixture: Fixture):
-        for case, field in (("continuation", "continuation"), ("compaction-path", "compaction"),
-                            ("delegate", "expectDelegate"), ("explicit", "claudeSettings")):
+        for case, field in (("compaction-path", "compaction"), ("delegate", "expectDelegate"),
+                            ("explicit", "claudeSettings")):
             with self.assertRaises(trial.TrialError, msg=f"{case} loaded for Codex") as caught:
                 trial.load_case(case, "codex")
             self.assertIn(f"'{field}'", str(caught.exception))
-        trial.load_case("continuation", "claude")
+        trial.load_case("compaction-path", "claude")
+        trial.load_case("continuation", "codex")
 
     def test_codex_refuses_the_fields_of_later_leaves(self):
         self.check_codex_later_fields(self.fixture)

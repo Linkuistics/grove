@@ -40,3 +40,11 @@ real home, also an empty value, before any launch of the harness.
 
 Codex 0.166.0 has its own sandbox modes. Record the mode of each case, and
 whether it runs inside Ravel confinement or in its place.
+
+codex-trial-adapter-k115 delivered `task trial:codex OUT=… CASE=…`, which runs
+any case in Codex through its own tree, with `--harness codex`. "The Codex
+adapter" in `docs/common-loading-acceptance-record.md` states the route, the
+`workspace-write` sandbox and its reason, the residue and the helper links.
+The fields `continuation`, `compaction`, `expectDelegate` and `systemNote`
+refuse for Codex until k119, k120 and k121 add their mechanisms. The delegate
+leaf also adds Codex delegations, which the extraction does not yet link.

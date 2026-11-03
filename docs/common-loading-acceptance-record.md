@@ -27,9 +27,11 @@ These rules hold for every section of this record.
   moves, record the new build in `scripts/harness-trials/builds.json` and here
   before any result.
 - **Harness.** Each section names the harness, the model, the harness version,
-  the effort and the permission mode. It records the effective configuration
-  directory, the native startup text and the platform-managed residue, such as
-  the claude.ai skills that a sign-in synchronises.
+  the effort and the permission mode. For Codex, the permission mode is the
+  sandbox mode of Codex. The section also states whether that sandbox runs
+  inside Ravel confinement or in its place. It records the effective
+  configuration directory, the native startup text and the platform-managed
+  residue, such as the claude.ai skills that a sign-in synchronises.
 - **Sources.** Each source is a plugin directory of a plain Git checkout of
   this repository, at a recorded commit, outside every working directory of
   the trial. A section records the checkout commit, the `resourceDigest` of
@@ -39,9 +41,10 @@ These rules hold for every section of this record.
   reads of mandatory files, kind skills, craft skills and supporting files,
   and the governed actions.
 - **Authority.** The runner launches the driver from an allow-listed
-  environment. The live session's `RAVEL_EXIT_FILE`, `GROVE_LAUNCH_DIR`, `CLAUDECODE` and
-  `CLAUDE_CODE_*` names never reach a trial with their live values. Each
-  launch records a control of the environment that the harness receives.
+  environment. The live session's `RAVEL_EXIT_FILE`, `GROVE_LAUNCH_DIR`, `CLAUDECODE`,
+  `CLAUDE_CODE_*` and `CODEX_*` names never reach a trial with their live
+  values. Each launch records a control of the environment that the harness
+  receives.
 - **Credit.** A fixture, a prompted retry, a retained variable alone, a
   transcript alone or a pass total gives no credit for agent behaviour. An
   unavailable mechanism is an unmeasured gap, never a pass. A failed required
@@ -57,9 +60,15 @@ These rules hold for every section of this record.
 ## The runner
 
 `scripts/harness_trial.py` runs one named case. A case is a directory under
-`scripts/harness-trials/cases/`. Its `case.json` names the route, the mode, the
-kinds that the trial routes, the sources, the mandatory files, the model and
-the effort.
+`scripts/harness-trials/cases/`. Its `case.json` names the harness, the route,
+the mode, the kinds that the trial routes, the sources, the mandatory files,
+the model and the effort.
+
+`run --harness codex` runs a case in Codex, through the case's own tree and
+sources. The case's `model` and `effort` then do not apply, because they name
+models of the case's own harness. The run takes the defaults of the other
+harness instead. The record names both harnesses. The Codex trial leaves
+therefore reuse the Claude Code cases, case for case.
 
 A lifecycle case has a `tree/`, which becomes the `.grove/`
 directory of the disposable repository. In a tree file, `{{TRIAL}}` becomes
@@ -184,8 +193,11 @@ owner's channel. Ravel's prepared prompt stays unchanged, and the record holds
 the note.
 
 The runner supports the routes native on 2.0 and directory on 2.0, and the
-harness Claude Code. A case on native 1.1 needs a `policy.ts`
-adapter, and a Codex case needs the Codex adapter of `codex-trial-adapter-k115`.
+harnesses Claude Code and Codex. A case on native 1.1 needs a `policy.ts`
+adapter, which no leaf builds. The Codex adapter has no mechanism yet for
+`continuation`, `compaction`, `expectDelegate` or `systemNote`. A case with one
+of these fields refuses for Codex and names the leaf that adds the mechanism.
+`claudeSettings` refuses for Codex too, because it is a Claude Code setting.
 
 ### What one run does
 
@@ -211,6 +223,12 @@ adapter, and a Codex case needs the Codex adapter of `codex-trial-adapter-k115`.
    in that order.
 8. After the driver ends, the runner lists the links again and writes the
    case record. It then removes the sign-in link from the trial directory.
+
+A Codex run changes three of these steps. At step 1, the runner refuses an
+inherited `CODEX_HOME` in the real home instead of the Claude Code names. At
+step 3, the sandbox home links only `.codex/auth.json`, and the environment of
+the driver also holds `CODEX_HOME`. At step 5, the runner runs `codex login
+status` and `codex debug prompt-input` in place of `claude auth status`.
 
 A standalone case replaces steps 6 and 7. The runner runs `grove run` with
 the case's prompt file and outputs, and with `--ui inline`. Ravel confines
@@ -276,17 +294,18 @@ The extraction gives each tool call one class:
 | `listing` | A directory in a retained snapshot, such as the search directory that a `find` lists |
 | `descriptor` | The descriptor file |
 | `source-origin` | A file in a configured source directory, not in its snapshot |
-| `native` | A file in the sandbox `.claude` or `.codex` |
+| `native` | Another file in the sandbox `.claude` or `.codex` |
+| `residue` | A file in the Codex residue, `.codex/skills/.system` or `.codex/plugins/cache` |
 | `planted` | A file under the trial's `guidance/`, which a case plants for a concrete path |
-| `transcript` | A session file of the sandbox `.claude/projects`. After compaction, Claude Code names the full transcript in its summary |
-| `variable` | A Bash call that names `RAVEL_SKILL_DIRECTORIES`, or runs `env` or `printenv` |
+| `transcript` | A session file of the sandbox `.claude/projects` or `.codex/sessions`. After compaction, Claude Code names the full transcript in its summary |
+| `variable` | A shell call that names `RAVEL_SKILL_DIRECTORIES`, or runs `env` or `printenv` |
 | `prompt` | A user turn of a compaction case, or its `/compact` command with the arguments |
 | `compaction` | The compaction boundary of a compaction case |
 | `native-skill-tool` | A call of the harness's own Skill tool. The event keeps the first 300 characters of the result |
-| `action` | An edit or a write |
+| `action` | An edit, a write or a Codex `apply_patch` change |
 | `delegate` | A call of the Agent tool. The delegation in the record holds its prompt |
-| `ending` | A Bash call of `end-session`, with its result token and the first 300 characters of its output |
-| `command` | Another Bash call |
+| `ending` | A shell call of `end-session`, with its result token and the first 300 characters of its output |
+| `command` | Another shell call |
 | `other` | Any other call |
 | `text` | A text block of the agent, such as a disclosure or a report |
 
@@ -294,18 +313,93 @@ A read in a snapshot or in a source origin also names its source by the id of
 the settings. Two sources can hold skills of one name, and the source shows
 which copy a read opened.
 
-A Bash call takes the class of the first path in its command that a read class
-covers. A `cd` in the command changes the directory against which later
-relative paths resolve. A plain assignment `NAME=value` as the first word of
-a command sets a variable, and a later `$NAME` or `${NAME}` in the same command
-takes its value. A token with any other expansion names no path. The record
-shows a long command shortened.
+A shell call is a Bash call of Claude Code or an `exec_command` of Codex. It
+takes the class of the first path in its command that a read class covers. A
+newline outside quotes ends a command, as in the shell. A `cd` in the command
+changes the directory against which later relative paths resolve.
+
+A relative token counts only when it names an existing path at the time of
+extraction. A file that the session later renamed or removed therefore names
+no path. A plain assignment `NAME=value` as the first word of a command sets a
+variable, and a later `$NAME` or `${NAME}` in the same command takes its
+value. A token with any other expansion names no path. The record shows a long
+command shortened.
 
 When the harness writes no session file, as a confined harness cannot, the
 events come from its stream. The stream holds the same tool calls.
 `task trial:reextract TRIAL=<run directory>` extracts the events of an earlier
 run again, with the current classifier. It refuses when a transcript digest
 changed. On success, the record names the time of the extraction.
+
+### The Codex adapter
+
+The adapter runs `codex exec --json --skip-git-repo-check --color never`,
+with `--model`, `-c model_reasoning_effort="<effort>"`, `--sandbox
+workspace-write` and `-c approval_policy="never"`. The prompt is the last
+argument. The default model is `gpt-6.1-sol` at effort `medium`, as in
+Grove's Rhai sample. The adapter gives no `--add-dir`, because Codex reads
+every path in this sandbox mode.
+
+The sandbox mode `workspace-write` permits reads everywhere. It permits writes
+in the working directory, in `TMPDIR` and in `/tmp`, and it denies the
+network. Ravel allocates its session channel under `TMPDIR`, so the agent's
+`end-session` reaches Ravel.
+
+A lifecycle launch has no Ravel confinement, so this sandbox runs in its
+place. A standalone launch runs it inside Ravel confinement. The permission
+classifier of the session that built the adapter
+refused a Codex launch with `danger-full-access`, which Grove's Rhai sample
+uses. This record does not measure that mode.
+
+The runner treats `CODEX_HOME` as the configuration specification of Ravel
+states. An inherited value in the real home refuses before any launch. The
+test uses the physical path, so an alias of the real home refuses too. An empty
+value refuses, because it selects the default in the real home. The runner
+replaces a value outside the real home with the sandbox `.codex`, and it
+reports the replacement. Each run sets `CODEX_HOME` to the sandbox `.codex`.
+
+Two checks precede the launch. `codex login status` must report a sign-in.
+`codex debug prompt-input` renders the model-visible input without a model
+call. Its skill roots table must name the sandbox `.codex/skills/.system`,
+which shows the effective configuration directory. The run keeps that
+rendering as `prompt-input.json` in the trial directory. The record holds its
+summary as the native startup text before the launch.
+
+The stream event `thread.started` names the thread. The ordered events come
+from the session file
+`.codex/sessions/YYYY/MM/DD/rollout-<time>-<thread>.jsonl` of the sandbox.
+
+The model calls one JavaScript tool, `exec`, which runs nested tools. Each nested
+command is an `item_completed` event of type `CommandExecution`, with its
+argument vector and its working directory. The extraction gives each such
+command the tool name `exec_command`. A `FileChange` item becomes
+`apply_patch`, and an `AgentMessage` item becomes a text block. When no session
+file exists, the events come from the stream, which names no working
+directory.
+
+Each `exec_command` event names its working directory and every absolute path
+that the command names. A relative path resolves against that directory. The
+record shows each command with its directory.
+
+The native startup text of a Codex launch comes from the session file. It holds
+the session metadata, the turn context, the tool names, the skill listing and
+the environment context. It names each developer message by its first line,
+its sections, its length and its SHA-256. The session file also holds the
+account and user identifiers and the credit balance. The record keeps none of
+them.
+
+Codex makes two kinds of platform-managed residue in the sandbox `.codex`. It
+installs its bundled skills into `skills/.system`. A ChatGPT sign-in downloads
+the account's curated remote plugins into `plugins/cache`. Neither is a native
+copy, and a read in either has the class `residue`. A native copy of a case lies
+in the sandbox `.codex/skills/<name>`.
+
+While Codex runs, it links `apply_patch` and `applypatch` to its own
+executable under `.codex/tmp/arg0-*`. It removes the links when it exits.
+Ravel ends the session group before that, so the links remain. The link check
+after the launch admits only those links, and only when they point at the
+resolved Codex program. The record lists them as the harness's own links. Any
+other new link fails the run.
 
 ### The controls
 
@@ -329,10 +423,20 @@ transcript, the collected files and the owner note. A confined test on the
 native route proves that the run writes no Ravel settings and probes each
 native copy.
 
+Codex tests prove the refusal of `CODEX_HOME` in the real home, also empty or
+through an alias. They prove the replacement of a value outside the real home,
+the allow-list and the link list of `.codex/auth.json`. They also prove the
+check of the configuration directory and the extraction from the session file
+and from the stream. Other tests prove the residue and the absence of account
+data. Further tests
+prove the harness's own links. They also prove the refusal of the fields that
+later leaves add.
+
 Each check also runs once
 against a runner with one function broken, and the check must fail there. A
 planted `CLAUDE_CODE_PLANTED` name that a broken runner passes to the driver
-fails the authority control.
+fails the authority control. For Codex, the planted name is the live
+session's `CODEX_THREAD_ID`.
 
 ### Recipes
 
@@ -354,6 +458,12 @@ Run one case:
 
 ```sh
 task trial:claude OUT="$SCRATCH/trials" CASE=smoke
+```
+
+Run one case in Codex, through the same tree and sources:
+
+```sh
+task trial:codex OUT="$SCRATCH/trials" CASE=smoke
 ```
 
 The run writes `OUT/runs/<case>-<time>/record.json` and `record.md`. The
@@ -659,6 +769,221 @@ Observations:
   lines `stop attempt … signal 9: Operation not permitted (os error 1)` for
   the managed group. The session result still reached the driver. This record
   notes the lines for the Ravel line, and does not interpret them.
+
+### smoke in Codex
+
+**Case.** `smoke`, run with `--harness codex`, reaches Codex through the runner
+on the directory route, with native copies absent. It uses the same tree and
+sources as the Claude Code smoke. Its one `impl` leaf asks for one file. The
+case credits no acceptance case. The run is `smoke-20261103T005733Z`, on
+2026-11-03 local time.
+
+**Route.** Directory on 2.0. The one source `grove` is
+`OUT/grove-source/plugins/grove` with the root `skills`, and the settings name
+no mandatory file.
+
+**Result.** The runner reached Codex, and every check of the runner passed.
+The sandbox home linked only `.codex/auth.json` before the launch. After the
+launch it also held the two helper links of Codex, which point at the Codex
+executable. `codex debug prompt-input` named the sandbox
+`.codex/skills/.system` as its skill root.
+
+The sandbox home held no native copy. The authority control found no live
+control name in the environment of the harness.
+
+The agent listed the snapshot's skills and read the kind skill, the spine and
+`execute.md` from the retained snapshot. It then read the leaf, the brief,
+`retire.md` and `commit.md`. Only after those reads did it write the file
+through `apply_patch`. It then retired the leaf, committed it and ran the exact
+continue command. The driver then stopped at the `finish` kind, which the trial
+does not route. One harness launch occurred.
+
+**Limit.** This run proves the runner, not agent behaviour. It credits no
+acceptance case. The case has no mandatory file and no craft skill, and its
+prompt names the kind skill. The run before it, `smoke-20261103T005301Z`, was a
+development run, and this record credits it with nothing. The sandbox mode is
+`workspace-write`, not the `danger-full-access` of Grove's Rhai sample.
+
+| Subject | Value |
+| --- | --- |
+| Grove build | Commit `e46154df8d92`. `grove` SHA-256 `5900ff3c08f16439f2d57af2a553b209ffd77527c17e883e6b6c0ee742b2ca94`. `grove-llm` SHA-256 `56f6815a290441d2498b1af4431923d73983459619d5e7eea633f34fad1264b7` |
+| Ravel build | Build commit `23e50ce90037`, bookmark `skill-directory-delivery` at `1ca4aecbeae1`. Identity `ef5857e989e6d99da51631ae0295685c8961c1b01bac58d865e6fb789ae71deb`. `bin/ravel` SHA-256 `8e10e311c50c81ca60ac4f393d17408982d0aafcfe46cccfbc46130465290ae2` |
+| Harness | Codex `codex-cli 0.166.0`, model `gpt-6.1-sol`, effort `medium`, sandbox `workspace-write`, approval `never` |
+| Confinement | The Codex sandbox runs in place of Ravel confinement, because a lifecycle launch has none |
+| Configuration directory | The sandbox `$TRIAL/home/.codex`, as `CODEX_HOME`. The skill root of `codex debug prompt-input` was `$TRIAL/home/.codex/skills/.system` |
+| `CODEX_HOME` | Not inherited. The run set it to the sandbox `.codex` |
+| Sign-in | `codex login status`: `Logged in using ChatGPT` |
+| Source | Checkout commit `e46154df8d92`. `resourceDigest` of `grove`: `88f68c31337536efb0d4fb388543c0ca1abf9a9fed0ce0ccac3888e933df5a67` |
+| Descriptor identity | `1c9fa4750298e9b3a739af11f8cf5b9d3f18ced8cb2559570766fb0dd1b9f7e4`, equal to the SHA-256 of `directories.json` |
+| Links | Before: `.codex/auth.json` only. After: `.codex/auth.json`, and `apply_patch` and `applypatch` under `.codex/tmp/arg0-macos/codex-arg0IXH3id/`, which link to `/opt/homebrew/Caskroom/codex/0.166.0/bin/codex` |
+| Driver environment | `CODEX_HOME`, `HOME`, `LANG`, `LOGNAME`, `PATH`, `SHELL`, `TERM`, `TMPDIR`, `USER` |
+| Harness environment | The driver's names, `PWD`, `SHLVL`, `_`, and the trial's own `GROVE_LAUNCH_DIR`, `RAVEL_EXIT_FILE` and `RAVEL_SKILL_DIRECTORIES`. No live value |
+| Native copies | None |
+| Platform-managed residue | 35 skill files: the five bundled skills in `.codex/skills/.system`, and the 30 skills of five curated remote plugins in `.codex/plugins/cache/openai-curated-remote`. A sixth plugin, `gmail`, holds no skill |
+| Raw transcript | SHA-256 `a2669e0e9b35eb034fea106f7593288e2b18f18b2f3bc4882afec9ec17170ee5`. Stream SHA-256 `91020749a21b50835fb5f42a0383a6bf4c1f04034b9fc1d1aaceacc27f64bb4a` |
+
+Native startup text, from the session file. The record keeps no account or user identifier:
+
+```json
+{
+  "cli_version": "0.166.0",
+  "originator": "codex_exec",
+  "source": "exec",
+  "thread_source": "user",
+  "model_provider": "openai",
+  "cwd": "$TRIAL/repo",
+  "history_mode": "paginated",
+  "baseInstructions": {
+    "chars": 21866,
+    "sha256": "139257ea24a88f3abeed9fb59bc5125758998665bbe21f28fb482339875bb49a"
+  },
+  "model": "gpt-6.1-sol",
+  "effort": "medium",
+  "approval_policy": "never",
+  "sandbox_policy": {
+    "type": "workspace-write",
+    "network_access": false,
+    "exclude_tmpdir_env_var": false,
+    "exclude_slash_tmp": false
+  },
+  "summary": "none",
+  "tools": [
+    "functions.exec",
+    "functions.wait",
+    "functions.request_user_input",
+    "functions.request_user_input_async",
+    "clock.sleep",
+    "collaboration.followup_task",
+    "collaboration.interrupt_agent",
+    "collaboration.list_agents",
+    "collaboration.send_message",
+    "collaboration.spawn_agent",
+    "collaboration.wait_agent"
+  ],
+  "developerMessages": [
+    {
+      "firstLine": "You are Codex, an agent based on GPT-6. You and the user share one workspace, and your job is to collaborate with them until their intended goal is completely h",
+      "sections": [],
+      "chars": 21546,
+      "sha256": "2181ecc51528326182f349c9d83effa598156a4a307e9fd50bc7bd050496fa7a"
+    },
+    {
+      "firstLine": "<skills_instructions>",
+      "sections": [
+        "skills_instructions",
+        "permissions instructions",
+        "collaboration_mode",
+        "recommended_plugins"
+      ],
+      "chars": 4903,
+      "sha256": "f62b1d85aa129e1666b77931cf4dd85ccac8429a0579c918e0b4d4e91ffc6bcc"
+    },
+    {
+      "firstLine": "<multi_agent_role>You are `/root`, the primary agent in a team of agents collaborating to fulfill the user's goals.",
+      "sections": [
+        "multi_agent_role"
+      ],
+      "chars": 2400,
+      "sha256": "3edd51083129388f52e881435e93e4b981e00c5ee3d62ab5d32e22c428fd504b"
+    },
+    {
+      "firstLine": "<multi_agent_mode>Any earlier instruction enabling proactive multi-agent delegation no longer applies. Do not spawn sub-agents unless the user or applicable AGE",
+      "sections": [
+        "multi_agent_mode"
+      ],
+      "chars": 271,
+      "sha256": "6ded806e3cdbb35599ecaf8742574bc5274908472b1729090010c404c2151e8e"
+    }
+  ],
+  "skillListing": {
+    "roots": {
+      "r0": "$TRIAL/home/.codex/skills/.system"
+    },
+    "skillCount": 4,
+    "names": [
+      "imagegen",
+      "openai-docs",
+      "skill-creator",
+      "skill-installer"
+    ],
+    "files": [
+      "r0/imagegen/SKILL.md",
+      "r0/openai-docs/SKILL.md",
+      "r0/skill-creator/SKILL.md",
+      "r0/skill-installer/SKILL.md"
+    ]
+  },
+  "environmentContext": "<environment_context>\n  <cwd>$TRIAL/repo</cwd>\n  <shell>zsh</shell>\n  <current_date>2026-11-03</current_date>\n  <timezone>Australia/Melbourne</timezone>\n  <filesystem><workspace_roots><root>$TRIAL/repo</root></workspace_roots><permission_profile type=\"managed\"><file_system type=\"restricted\"><entry access=\"read\"><special>:root</special></entry><entry access=\"write\"><path>$TRIAL/repo</path></entry><entry access=\"write\"><special>:slash_tmp</special></entry><entry access=\"write\"><special>:tmpdir</special></entry><entry access=\"read\"><path>$TRIAL/repo/.git</path></entry><entry access=\"read\"><path>$TRIAL/repo/.agents</path></entry><entry access=\"read\"><path>$TRIAL/repo/.codex</path></entry><entry access=\"read\"><path>$TRIAL/repo/.aws</path></entry></file_system></permission_profile></filesystem>\n</environment_context>"
+}
+```
+
+Ordered events. `$TRIAL` is the trial directory and `$RAVEL2` the 2.0 prefix.
+Each command ran in `$TRIAL/repo`, and a `;` stands for a line break of the
+script:
+
+| # | Tool | Class | Skill | Command |
+| --- | --- | --- | --- | --- |
+| 1 | text | text |  | I’ll find and load `grove-impl` from the configured skill directory first. |
+| 2 | exec_command | listing |  | `rg --files '$TRIAL/home/.cache/ravel/skills/v1/snapshots/88f68c31337536efb0d4fb388543c0ca1abf9a9fed0ce0ccac3888e933df5a67/tree/skills' -g SKILL.md` |
+| 3 | exec_command | kind-skill | grove-impl | `cat '$TRIAL/home/.cache/ravel/skills/v1/snapshots/88f68c31337536efb0d4fb388543c0ca1abf9a9fed0ce0ccac3888e933df5a67/tree/skills/grove-impl/SKILL.md'` |
+| 4 | exec_command | skill | grove | `cat '$TRIAL/home/.cache/ravel/skills/v1/snapshots/88f68c31337536efb0d4fb388543c0ca1abf9a9fed0ce0ccac3888e933df5a67/tree/skills/grove/SKILL.md'` |
+| 5 | exec_command | supporting | grove | `cat '$TRIAL/home/.cache/ravel/skills/v1/snapshots/88f68c31337536efb0d4fb388543c0ca1abf9a9fed0ce0ccac3888e933df5a67/tree/skills/grove/references/execute.md'; rg …` |
+| 6 | text | text |  | I’ve loaded `grove-impl` and its shared `grove` guidance. I’ll now read the mandated leaf and its brief, then make and verify the requested change. |
+| 7 | exec_command | command |  | `rg --files --hidden .grove -g '*.md'; rg --files --hidden -g AGENTS.md -g Taskfile.yml -g Taskfile.yaml -g taskfile.yml -g taskfile.yaml; cat .grove/01-impl--sm…` |
+| 8 | exec_command | supporting | grove | `cat .grove/_BRIEF.md; cat '$TRIAL/home/.cache/ravel/skills/v1/snapshots/88f68c31337536efb0d4fb388543c0ca1abf9a9fed0ce0ccac3888e933df5a67/tree/skills/grove/refer…` |
+| 9 | text | text |  | The leaf asks for `smoke.txt` with the single line `smoke`. No Taskfile is present; adding a root `Taskfile.yml` would be useful if reusable workflows are intro… |
+| 10 | exec_command | command |  | `jj status; command -v grove-llm; command -v jj` |
+| 11 | apply_patch | action |  | `$TRIAL/repo/smoke.txt` |
+| 12 | exec_command | command |  | `python3 -c 'from pathlib import Path; p = Path("smoke.txt"); assert p.read_bytes() == b"smoke\n"; print("Verified smoke.txt contains exactly smoke followed by a…` |
+| 13 | exec_command | command |  | `grove-llm leaf-retire .grove/01-impl--smoke-file-k1.md` |
+| 14 | exec_command | command |  | `jj diff --summary; jj commit -m 'Create smoke.txt for smoke-file-k1'; jj status` |
+| 15 | text | text |  | Created and verified `smoke.txt` contains exactly `smoke` followed by a newline. The leaf is retired in commit `71a48626`, and the working copy is clean. I’ll n… |
+| 16 | exec_command | ending |  | `'$RAVEL2/bin/ravel' end-session grove-continue` |
+
+Ending outcome:
+
+- Ravel result: the agent ran `end-session grove-continue` once. The driver
+  continued to the next leaf, so it received that result.
+- Leaf state: `01-impl--smoke-file-k1.md` became
+  `01-DONE-impl--smoke-file-k1.md`. The driver then added
+  `02-finish--finish-k2.md`, and Ravel refused that launch as
+  `config_refused`, because the trial routes only `impl`.
+- Teardown record: none. The driver stopped with exit status 3 from the
+  refused finish launch.
+- Published output: the commit `71a486267b9d` `Create smoke.txt for
+  smoke-file-k1`, which adds `smoke.txt` and retires the leaf. The working
+  copy above it holds the finish leaf and has no description.
+- Harness launches: 1. The driver ran 49.2 seconds.
+
+Observations:
+
+- **Codex leaves its helper links.** The development run failed its link check
+  after the launch on the two links under `.codex/tmp/arg0-macos/`. A probe
+  outside the runner showed that Codex removes them when it exits normally.
+  The runner now admits them only when they point at the resolved Codex
+  program.
+- **The account adds plugins, not skills.** The ChatGPT sign-in downloaded
+  six curated plugins into the sandbox `.codex/plugins/cache`. Five of them
+  hold the 30 skills.
+  The skill listing named only four bundled skills. The developer message that
+  holds the listing named the plugins in a section `recommended_plugins`, as
+  plugins that are not installed. The bundled `review-agent` skill is on disk
+  but not in the listing.
+- **The listing message changes between renderings.** The rendering before the
+  launch joined the same sections into 7,937 characters. The session's message
+  held 4,903 characters with the same four skills. Each Codex trial must
+  therefore record the message of its own session.
+- **The agent reads through its shell.** Each read was a `cat` or an `rg` of
+  an absolute snapshot path, inside the `exec` tool. Several calls joined two
+  or three commands in one script, so call 8 reads the brief, `retire.md`
+  and `commit.md` together. A trial that measures order must read the command
+  of such a call, not only its class.
+- **A renamed file names no path.** Call 7 read the leaf file by a relative
+  path. The retirement renamed that file before the extraction, so the event
+  names no path, as "The Claude Code adapter" states.
+- **Ravel reports a failed stop.** Ravel again wrote two lines `stop attempt …
+  signal 9: Operation not permitted (os error 1)` for the managed group. The
+  session result still reached the driver.
 
 ### discovery
 

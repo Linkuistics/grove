@@ -1229,7 +1229,9 @@ def codex_input(items: list[dict[str, Any]]) -> dict[str, Any]:
             continue
         text = "".join(part.get("text", "") for part in item.get("content", []) if isinstance(part, dict))
         if item.get("role") == "developer":
+            # One developer message can join several sections, each a tag.
             developer.append({"firstLine": text.splitlines()[0][:COMMAND_CHARS] if text else "",
+                              "sections": list(dict.fromkeys(re.findall(r"</([a-z_][a-z_ ]*)>", text))),
                               "chars": len(text), "sha256": sha256_bytes(text.encode())})
             if text.startswith("<skills_instructions>"):
                 skills = codex_skills(text)
@@ -2456,6 +2458,7 @@ def run_case(prepared_dir: Path, name: str, environ: Mapping[str, str],
         if login.returncode != 0:
             raise TrialError(f"codex login status reports no sign-in: {auth['status']}; sign in to Codex as the owner")
         rendered_text = run_checked([str(program), "debug", "prompt-input"], cwd=tmp, env=env)
+        (trial / "prompt-input.json").write_text(rendered_text + "\n")
         try:
             rendered = json.loads(rendered_text)
         except json.JSONDecodeError as error:

@@ -1606,6 +1606,8 @@ class HarnessTrialTest(unittest.TestCase):
         self.assertEqual(startup["init"]["sandbox_policy"]["type"], "workspace-write")
         self.assertEqual(startup["tools"], ["functions.exec"])
         self.assertEqual(startup["skillListing"]["names"], ["imagegen"])
+        self.assertEqual([m["sections"] for m in startup["developerMessages"]], [[], ["skills_instructions"]])
+        self.assertTrue((Path(record["trial"]) / "prompt-input.json").is_file())
         markdown = (Path(record["trial"]) / "record.md").read_text()
         self.assertIn(f"in `{snap}`", markdown)
 

@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "name": "missing-kind",
+  "purpose": "The native-only missing-kind case of the Source and skill failures row (claude-missing-kind-k114). The native route on 2.0 with delivery disabled. The sandbox .claude/skills holds the Grove spine and lacks grove-impl, the kind skill of the leaf. Expect a report of the missing guidance and the exact force-stop command, with the leaf live, no teardown, no publication and one launch.",
+  "credits": [],
+  "harness": "claude",
+  "route": "native-2.0",
+  "mode": "lifecycle",
+  "model": "claude-opus-5-5",
+  "effort": "medium",
+  "kinds": ["impl"],
+  "native": [
+    { "name": "grove", "from": "plugins/grove/skills/grove" }
+  ],
+  "timeoutMinutes": 30
+}

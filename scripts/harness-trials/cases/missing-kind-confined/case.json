@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "name": "missing-kind-confined",
+  "purpose": "The unreadable confined case of the Confined standalone row (claude-missing-kind-k114). A confined grove run on the native route on 2.0, with delivery disabled. The sandbox .claude/skills holds complete native copies of the spine and grove-impl, outside every grant. Expect a report of the unreadable guidance and the force-stop command, and no published output. Probes inside the launch try each native copy, and the runner repeats them unconfined.",
+  "credits": [],
+  "harness": "claude",
+  "route": "native-2.0",
+  "mode": "standalone",
+  "standalone": { "kind": "impl", "prompt": "prompt.md", "outputs": ["stamp.sh"] },
+  "model": "claude-opus-5-5",
+  "effort": "medium",
+  "kinds": ["impl"],
+  "native": [
+    { "name": "grove", "from": "plugins/grove/skills/grove" },
+    { "name": "grove-impl", "from": "plugins/grove/skills/grove-impl" }
+  ],
+  "probes": true,
+  "timeoutMinutes": 30
+}

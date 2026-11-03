@@ -490,6 +490,16 @@ def plant_cases(root: Path) -> Path:
         "standalone": {"kind": "impl", "prompt": "prompt.md", "outputs": ["stamp.sh"]},
         "mandatory": [{"source": "grove", "path": "skills/grove/SKILL.md"}],
     }))
+    # The same confined run on the native route: no settings, and native
+    # copies in the sandbox home, outside every grant.
+    confined_native = cases / "confined-native"
+    shutil.copytree(confined, confined_native)
+    (confined_native / "case.json").write_text(json.dumps({
+        **smoke, "name": "confined-native", "route": "native-2.0", "mode": "standalone", "probes": True,
+        "standalone": {"kind": "impl", "prompt": "prompt.md", "outputs": ["stamp.sh"]},
+        "native": [{"name": "grove", "from": "plugins/grove/skills/craft"},
+                   {"name": "grove-impl", "from": "plugins/grove/skills/craft"}],
+    }))
     # A case with a native copy, a sandbox deny rule, a planted file and a task
     # that names the planted path.
     explicit = cases / "explicit"
@@ -959,6 +969,25 @@ class HarnessTrialTest(unittest.TestCase):
         self.broken(self.check_confined, "split_log", lambda text: [])
         self.broken(self.check_confined, "contrast_probes", lambda probes, cwd: [])
         self.broken(self.check_confined, "fixed_probes", lambda case, home, checkout: [])
+
+    def check_confined_native(self, fixture: Fixture):
+        status, output = fixture.run("confined-native")
+        self.assertEqual(status, 0, output)
+        record = fixture.record()
+        self.assertEqual(record["sources"]["settings"], {})
+        home = Path(record["trial"]) / "home"
+        self.assertFalse((home / ".config/ravel/settings.json").exists())
+        native = [str(home / f".claude/skills/{name}/SKILL.md") for name in ("grove", "grove-impl")]
+        probes = record["launches"][0]["probes"]
+        self.assertEqual([p["path"] for p in probes if p["path"] in native], native)
+        contrast = {p["path"]: p["status"] for p in record["contrast"]}
+        self.assertEqual([contrast[path] for path in native], ["ok", "ok"])
+
+    def test_a_confined_native_run_probes_its_native_copies(self):
+        self.check_confined_native(self.fixture)
+        real = trial.fixed_probes
+        self.broken(self.check_confined_native, "fixed_probes",
+                    lambda case, home, checkout: real({**case, "native": []}, home, checkout))
 
     def test_the_wrapper_reports_a_failed_access(self):
         directory = Path(tempfile.mkdtemp(dir=self.temp.name))

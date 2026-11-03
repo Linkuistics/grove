@@ -336,15 +336,18 @@ def check_compaction(case: dict[str, Any], directory: Path) -> None:
 
 def fixed_probes(case: dict[str, Any], home: Path, checkout: Path) -> list[list[str]]:
     """The probes that the runner knows before the launch: the protected
-    configuration, each mandatory file at its origin and a write outside the
-    working directory. The configuration script adds the probes of the
-    request's own paths, and a write inside the working directory."""
+    configuration, each mandatory file at its origin, each native copy and a
+    write outside the working directory. The configuration script adds the
+    probes of the request's own paths, and a write inside the working
+    directory. A native copy lies in the sandbox home, outside every grant of
+    a confined launch, so its probe shows whether the agent could read it."""
     if not case.get("probes"):
         return []
     config = home / ".config" / "ravel"
     probes = [["read", str(config / "settings.json")], ["read", str(config / "config.rhai")]]
     plugins = {source["id"]: source["plugin"] for source in case.get("sources", [])}
     probes += [["read", str(checkout / plugins[item["source"]] / item["path"])] for item in case.get("mandatory", [])]
+    probes += [["read", str(home / ".claude" / "skills" / item["name"] / "SKILL.md")] for item in case.get("native", [])]
     probes.append(["write", str(home / "trial-probe-outside")])
     return probes
 

@@ -7730,7 +7730,7 @@ fake agent, which proves access and not the behaviour of an LLM.
 | --- | --- | --- |
 | Native on 1.1, the keg `c52f990b…` | Fixture: `a_native_only_lifecycle_completes_with_explicitly_installed_skills` passed in the 1.1 gate of k154, on Grove `9b8b69244125`. Real harness: no case of this record ran on 1.1 | Fixture: `an_agent_reads_native_copies_under_home_and_publishes` passed on the keg in k125. Real harness: the release-notes run of k154 read a native skill under `~/.codex/skills`, on Grove `9b8b69244125` |
 | Native on 2.0, delivery disabled | Fixture: the same lifecycle test passed in the 2.0 gate of k154, on `a4f55d04…`. Real harness: [missing-kind](#missing-kind-1) and [missing-kind in Codex](#missing-kind-in-codex) passed on `23e50ce90037`, before the removal | Fixture: `an_agent_reads_native_copies_under_home_and_publishes` passed on `a4f55d04…` in k125. Real harness: none after the removal. The only earlier runs were confined, and they are historical |
-| Directory on 2.0 | Fixture: the directory cases of `task ravel:directory` passed on `23e50ce90037`. They have not run on `a4f55d04…`. `a_fake_agent_that_reads_a_native_copy_fails_the_snapshot_check` keeps a native read from passing the snapshot check | Fixture: `a_standalone_run_reads_injected_skills_from_read_only_snapshots` passed on `23e50ce90037`, and it has not run on `a4f55d04…`. The Linux directory case passed in k154 with the archive of `23e50ce90037` |
+| Directory on 2.0 | Fixture: the directory cases of `task ravel:directory` passed on `23e50ce90037`. In k126 they passed on `a4f55d04…`, as [Integrated acceptance checks](#integrated-acceptance-checks) records. `a_fake_agent_that_reads_a_native_copy_fails_the_snapshot_check` keeps a native read from passing the snapshot check | Fixture: `a_standalone_run_reads_injected_skills_from_read_only_snapshots` passed on `23e50ce90037`, and in k126 on `a4f55d04…`. The Linux directory case passed in k154 with the archive of `23e50ce90037` |
 
 After the removal, the two callers have the same access on each route. Both
 read the native roots under HOME, and both read the snapshots of the directory
@@ -7862,4 +7862,157 @@ repair work, as the Done when of k126 states.
   removal.
 - Until rollout replaces the pins, each Grove check of a 2.0 archive uses the
   archives of `23e50ce90037`.
+- The states B to D of the tap belong to `discovery-rollout-k6`.
+
+## Integrated acceptance checks
+
+`integrated-acceptance-checks-k126` ran the work list of the
+[Check decisions](#check-decisions) table on the subjects below. Each run was
+on macOS arm64 on 2026-11-04, in UTC. Each check passed on the final subject.
+One gate first failed, and this leaf repaired the cause. The repair is
+described in [The gate repair](#the-gate-repair).
+
+### Subjects
+
+At entry, `jj git fetch` reported no change in either repository. Grove `main`
+was still `238c3a839ab4`. Ravel `main` was still `24a545236185`, and the
+bookmark `skill-directory-delivery` was still `71f70fcd3f92`.
+
+| Subject | Identity |
+| --- | --- |
+| Grove | Commit `a81b1acc2d1d`, the gate repair, above `40934ef71940`, the commit of k125. The working copy above it changed only `.grove/` |
+| Ravel 1.1 | The Homebrew keg `/opt/homebrew/Cellar/ravel/1.1.0`, from tag `v1.1.0`. The `bin/ravel` SHA-256 is `c52f990b2059c8bbe8efba10a741d3a0311000ac1712d71e882638f54c3ac1ed` |
+| Ravel 2.0 | `task install` from the output commit `71f70fcd3f92` into a scratch prefix, with no `libexec`. The build commit is `d324668b86ca`. The `bin/ravel` SHA-256 is `26b487afb957c233848e8e360e29c73539a33ba89fc3444b26ad13a2eb4bf0a3` |
+| Ravel 2.0 identity | `a4f55d04b2d19a9948f2bcdcb3f305ee20ae80fae7f9011ec878f117d98e6519`, twice in the executable. The routing notice of `smoke:pair` gave the same value |
+| Grove 22.8.0 | The Homebrew keg `/opt/homebrew/Cellar/grove/22.8.0`, the old installation of `release:upgrade` |
+| Grove 22.1.0 | A scratch keg from the published `grove-v22.1.0-aarch64-apple-darwin.tar.xz`, SHA-256 `b45a030cd280d3265e7a5857342e3cfe54ca6d2569f49892addb96d82cca3add`. Its four executables match `docs/legacy-driver-inventory.json` |
+
+`task release:smoke` built these unreleased Grove archives from the subject:
+
+| Archive | SHA-256 |
+| --- | --- |
+| `grove-v22.8.0-aarch64-apple-darwin.tar.xz` | `490f14bcbcef5601e0b882385459d467efbd518810922583ec05604d943e2f61` |
+| `grove-v22.8.0-aarch64-unknown-linux-gnu.tar.xz` | `4cc0f92e0753f6550d70984c8d8fdde6c3ff264d2f6c8b659b74626313e64d65` |
+| `grove-v22.8.0-x86_64-unknown-linux-gnu.tar.xz` | `1bc773a0f2d4ad6a9147072b8142e4e8fdd81681aff2ff32e069af458654d3e0` |
+
+Ravel's `task release:smoke` built these unreleased archives from the output
+commit. That commit adds only one evidence document to the build commit. Each
+executable holds the identity `a4f55d04…` twice. The macOS executable is
+byte-identical to the installed `bin/ravel`.
+
+| Archive | Archive SHA-256 | `bin/ravel` SHA-256 |
+| --- | --- | --- |
+| `ravel-v1.1.0-aarch64-apple-darwin.tar.xz` | `625b090182d20272b0eaebcc4b06a0ac51a80eaf46c71a1f54962c9729dac0f0` | `26b487af…` |
+| `ravel-v1.1.0-aarch64-unknown-linux-gnu.tar.xz` | `d3b271410a003ec3bdae7057275be0f3ee05030505cefcbf66326d79c6448cf3` | `7dee33e03f7b9d69…` |
+| `ravel-v1.1.0-x86_64-unknown-linux-gnu.tar.xz` | `965f9b06afb76140997e1ddc9b97602b2c98e03e704e67c1c802b931829b13ca` | `a73dc76676a15878…` |
+
+### Recipe
+
+The runs follow [the HOME of each run](grove-dual-ravel-stage-record.md#the-home-of-each-run).
+Four lanes ran one after the other: the 1.1 lane, the 2.0 lane, the installed
+lane and the Ravel lane. Each lane first removed every `GROVE_*`, `RAVEL_*`,
+`HARNESS_*`, `CLAUDE*` and `CODEX*` name of the enclosing session.
+
+- The 1.1 lane and the 2.0 lane each used a scratch HOME. They set
+  `GROVE_TEST_RAVEL` to the front of their build and `GROVE_TEST_RAVEL_RUNTIME`
+  to its runtime. They did not export `RAVEL_RUNTIME`. Each task received
+  `RAVEL=<front> RAVEL_RUNTIME=<1.1|2.0>` on its command line.
+- The 2.0 lane and the installed lane put the guard `ravel` first on PATH. The
+  guard prints `host-ravel-reached` and exits 86. No log of either lane holds
+  that text.
+- The installed lane used a third scratch HOME, with
+  `DOCKER_CONFIG=/Users/antony/.docker` and a mode-600 copy of the owner's
+  Homebrew `trust.json`.
+- The Ravel lane ran in the Ravel workspace with the real HOME. The guard of
+  `smoke:pair` denies that HOME to both of its runs.
+
+A digest covered every tracked Grove file outside `.grove/` and every tracked
+file of the Ravel workspace. It also covered both `bin/ravel` files, the 1.1
+keg, the 2.0 prefix and both Grove kegs. Each digest before and after each lane was the
+same as the digest at the start.
+
+### Results
+
+| Check | Command | Time | Result |
+| --- | --- | --- | --- |
+| Gate with 1.1 | `mise exec bun@1.4.3 -- bash scripts/check.sh` | 16:18Z to 16:27Z | Passed 19 of 19 |
+| Gate with 2.0 | The same | 16:30Z to 16:39Z | Passed 19 of 19 |
+| Core conformance | `bash plugins/grove/conformance.sh`, the gate step "conformance". The step "conformance suite" runs the tests of the checker | Inside each gate | Passed with each build. Each run checked 116 single-source rules and 2,783 loaded paths, and every assertion held |
+| Resolution | `task ravel:resolution` with each build | 16:27Z, 16:39Z | Passed 10 tests with each build |
+| Commands | `task ravel:commands` with each build | 16:27Z, 16:39Z | Passed 5 tests with each build |
+| Policy | `task ravel:policy` with each build | 16:27Z, 16:39Z | 1.1: the typecheck, the compiler test and the 6 cases passed. 2.0: the 6 cases passed. The TypeScript steps do not apply |
+| Activation | `task ravel:activation` with each build | 16:28Z, 16:40Z | Passed 794 distinct tests with each build |
+| Fixtures | `task ravel:fixtures` with each build | 16:30Z, 16:41Z | Passed 18 tests with each build |
+| Directory | `task ravel:directory RAVEL=<2.0 front> OLD=<1.1 front>` | 16:41Z | Passed 7 tests: the five directory cases, the native read that fails the snapshot check and the pair case |
+| Release smoke | `task release:smoke` | 16:41Z to 16:43Z | Passed all three targets with both lanes. Each Linux target refused the glibc 2.25 probe, killed the CPU probe under QEMU and passed the directory case |
+| Formula | `task release:formula:test ARCHIVE=<macOS archive> RAVEL_1_1_PREFIX=<keg> RAVEL_2_0_PREFIX=<prefix>` | 16:43Z | Passed with both builds |
+| Installed | `task release:installed` with the same values | 16:43Z | Passed both lanes, direct and through a symlink |
+| Upgrade | `task release:upgrade OLD=/opt/homebrew/Cellar/grove/22.8.0 ARCHIVE=<macOS archive> RAVEL_1_1_PREFIX=<keg>` | 16:43Z to 16:44Z | Passed. 286 entries stayed the same, and the active 22.8 reader completed |
+| Legacy rehearsal | `task legacy:rehearsal KEG=<22.1.0 keg> RAVEL=<1.1 front> ALSO=<2.0 prefix> OUT=<scratch>` | 16:44Z | Passed. The 1.1 front stayed usable after each package step, and the 2.0 prefix stayed unused and unchanged |
+| Ravel pair smoke | `task smoke:pair OLD=<1.1 front> NEW=<2.0 prefix>` | 16:44Z | Passed. The two runs overlapped, each under its own HOME. The 1.1 release refused `skills` with status 2. The real `~/.config/ravel` kept its tree digest, and `~/.cache/ravel` stayed absent |
+| Ravel release smoke | Ravel's `task release:smoke` | 16:44Z to 16:45Z | Passed all three targets. Each Linux target ran at glibc 2.17, natively or under QEMU, with the glibc 2.25 refusal and the CPU control |
+
+Both gates passed the same set of 1,348 distinct test names. The gate total is
+1,380 passes, because some tests run in more than one step. k154 recorded
+1,379, and k125 added one test. Each pair of `ravel:*` logs also passed the same
+names. No log holds a failure line. A copy of the 2.0 set with one name removed
+made the comparison report a difference, so the comparison can fail.
+
+`a_timed_out_selection_launches_nothing_and_publishes_nothing` passed with the
+1.1 keg in the gate and in `ravel:activation`. The failure of
+[An observation for k126](#an-observation-for-k126) did not recur. The load
+average of the machine was about 3 to 5 when the lanes started.
+
+The "native case" of the stage record was the confined unreadable native case
+of `grove-directory-confinement-k99`. `grove-confinement-caller-removal-k150`
+removed it. `directory_route.rs` held seven tests at the stage and holds seven
+now. k150 renamed only its confined standalone case.
+
+The Grove archives took about two minutes and the Ravel archives about one,
+because Cargo reused its release artifacts. The builds still ran from the
+subjects, and each archive digest was the same before and after the later
+checks.
+
+### The gate repair
+
+The first 2.0 gate, on Grove `40934ef71940`, failed "Ravel caller assets and
+provenance". `check.sh` called `task ravel:review` with `RAVEL` only. The
+guards of `ravel:policy` read the template variable `RAVEL_RUNTIME`, which was
+empty. So the 2.0 front ran the 1.1 typecheck, and the typecheck found no
+`libexec/ravel/sdk/index.d.ts`.
+
+A dry run of `task ravel:policy` showed the cause. With
+`GROVE_TEST_RAVEL_RUNTIME=2.0` alone, the task planned the typecheck. With an
+exported `RAVEL_RUNTIME=2.0`, it planned only the case table. Task gives
+exported variables to its templates, so k154's shell must have exported
+`RAVEL_RUNTIME`. The recipe of the stage record sets only
+`GROVE_TEST_RAVEL_RUNTIME`, so it failed as written.
+
+Grove commit `a81b1acc2d1d` makes `check.sh` forward
+`RAVEL_RUNTIME=${GROVE_TEST_RAVEL_RUNTIME:-}` to that check. An empty value
+keeps the earlier 1.1 behaviour. The lanes then stopped, and every lane ran
+again from the start on the repaired subject. The failed run is the control:
+the same recipe failed before the repair and passed after it.
+
+### Checks that did not run again
+
+- Ravel's `task check`, `test:cli`, `harness:smoke:test`, the book tasks,
+  `test:native-linux PLATFORM=arm64` and `task install` did not run again.
+  Ravel `main` and the bookmark had not moved, so their subject was the same.
+  The `task install` of this leaf gave the recorded `bin/ravel` digest.
+- The other rows of the Check decisions table that say "Not again" keep their
+  reasons. This leaf found no change to their inputs.
+- No real harness ran.
+
+### Limits
+
+- The 2.0 lane of Grove's release smoke used the pinned archives of build
+  `23e50ce90037`. Those executables still hold `--confine`. Grove's admission
+  does not accept the new Ravel archives above. Rollout replaces the pins with
+  the published archives.
+- Nobody released the Ravel archives above. They hold the build `a4f55d04…`
+  and report `ravel 1.1.0`, as every build of the feature line does until the
+  cut.
+- No real harness ran on `a4f55d04…`, as the limits of
+  [Stage evidence reconciliation](#stage-evidence-reconciliation) state.
 - The states B to D of the tap belong to `discovery-rollout-k6`.

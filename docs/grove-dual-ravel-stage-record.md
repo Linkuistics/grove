@@ -130,6 +130,12 @@ Each run then calls
 `scripts/ravel-policy-typecheck.sh`. Run the two builds one after the other,
 because they share the Cargo target directory.
 
+From Grove `a81b1acc2d1d`, the gate forwards `GROVE_TEST_RAVEL_RUNTIME` as
+`RAVEL_RUNTIME` to its caller-asset check. Before that commit, a 2.0 gate
+also needed an exported `RAVEL_RUNTIME=2.0`.
+[The gate repair](common-loading-acceptance-record.md#the-gate-repair)
+gives the cause.
+
 The installed checks run in a third scratch HOME with the same guard. Two
 more settings apply there. `DOCKER_CONFIG=/Users/antony/.docker` keeps the
 Docker context of the floors. The formula test needs the owner's Homebrew trust

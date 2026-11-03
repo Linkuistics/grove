@@ -262,7 +262,19 @@ ran it. It compares the two callers on each route, and it reconciles native
 mutation and the archive, formula and floor evidence. Its "Check decisions"
 table is the work list of integrated-acceptance-checks-k126.
 
-The gate skips every `#[ignore]` test, so no Grove `ravel:*` task has run on
-the build `a4f55d04…`. The leaf also added
+The gate skips every `#[ignore]` test, so before k126 no Grove `ravel:*` task
+ran on the build `a4f55d04…`. The leaf also added
 `an_agent_reads_native_copies_under_home_and_publishes`. The delivery
 specification named that native read, and no test held it after the removal.
+
+integrated-acceptance-checks-k126 wrote the "Integrated acceptance checks"
+section of `docs/common-loading-acceptance-record.md`. Every check of the work
+list passed on Grove `a81b1acc2d1d`, with the 1.1 keg and the Ravel build
+`a4f55d04…`. Both gates passed 19 of 19, with the same 1,348 test names, and
+core conformance passed inside each gate. The Ravel pair smoke and Ravel's
+release smoke passed, and Ravel's own stage checks did not run again.
+
+The first 2.0 gate failed, because `check.sh` did not forward the runtime to
+its caller-asset check. Grove `a81b1acc2d1d` repairs it, and the record's "The
+gate repair" section gives the cause. The k125 timeout failure did not recur.
+The audit uses that section for the check criteria.

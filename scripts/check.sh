@@ -131,8 +131,11 @@ run_check "harness trial runner controls" task trial:controls
 run_check "release Codex helper" bash scripts/release-notes/codex-headless.test.sh
 # The ignored public caller fixtures exercise the independently installed SDK
 # and worker explicitly; the workspace runtime run does not include them.
+# The task guards read RAVEL_RUNTIME, so the gate forwards the runtime of
+# GROVE_TEST_RAVEL with it. Without this, a 2.0 front runs the 1.1 typecheck.
 run_check "Ravel caller assets and provenance" task ravel:review \
-  "RAVEL=${GROVE_TEST_RAVEL:?Set GROVE_TEST_RAVEL to an installed Ravel front}"
+  "RAVEL=${GROVE_TEST_RAVEL:?Set GROVE_TEST_RAVEL to an installed Ravel front}" \
+  "RAVEL_RUNTIME=${GROVE_TEST_RAVEL_RUNTIME:-}"
 run_check "release tasks" task release:test
 # nextest runs runtime tests; doctests remain Cargo's responsibility.
 # https://nexte.st/docs/running/#options-and-arguments

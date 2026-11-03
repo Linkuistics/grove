@@ -19,3 +19,7 @@ Run the applicable Ravel checks, Grove core conformance and Grove's full
 ## Notes
 
 Do not publish a release, install `ravel@2` or change the owner's settings.
+
+The "Check decisions" table of the record names each check, its subjects and
+the reason to run it. Its "An observation for k126" section describes a
+timeout test that failed on the 1.1 keg under load in k125.

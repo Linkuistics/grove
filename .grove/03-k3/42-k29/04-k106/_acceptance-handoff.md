@@ -254,3 +254,15 @@ The release smoke could use only the pinned 2.0 archives of build
 `23e50ce90037`, which predate Ravel's removal. The reconciliation and the
 checks must state that limit. The two stop-attempt lines of Ravel on macOS
 come from every end of a session, confined or not. They are not a fault.
+
+stage-evidence-reconciliation-k125 wrote the "Stage evidence reconciliation"
+section of `docs/common-loading-acceptance-record.md`. It marks each
+confinement result as historical, with its backend and whether a real harness
+ran it. It compares the two callers on each route, and it reconciles native
+mutation and the archive, formula and floor evidence. Its "Check decisions"
+table is the work list of integrated-acceptance-checks-k126.
+
+The gate skips every `#[ignore]` test, so no Grove `ravel:*` task has run on
+the build `a4f55d04…`. The leaf also added
+`an_agent_reads_native_copies_under_home_and_publishes`. The delivery
+specification named that native read, and no test held it after the removal.

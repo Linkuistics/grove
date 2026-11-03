@@ -1229,6 +1229,28 @@ fn an_agent_that_finds_no_native_guidance_force_stops_and_nothing_is_published()
     );
 }
 
+// Native standalone access, without a sandbox. With skill injection disabled,
+// the harness reads the native copies under HOME, as a lifecycle session does.
+// The scripted agent reads the spine of each harness root and publishes what it
+// read, so a run that cannot read a copy publishes nothing. The script decides
+// what to read, so this proves access, not the behaviour of an agent.
+#[test]
+fn an_agent_reads_native_copies_under_home_and_publishes() {
+    let fixture = Fixture::new(
+        "test -z \"${RAVEL_SKILL_DIRECTORIES+set}\" || exit 3\n\
+         cat \"$HOME/.claude/skills/grove/SKILL.md\" \"$HOME/.codex/skills/grove/SKILL.md\" > notes.md || exit 4\n\
+         acknowledge\n",
+    );
+    for (root, text) in [(".claude", "claude spine\n"), (".codex", "codex spine\n")] {
+        let skill = fixture.home.join(root).join("skills/grove");
+        fs::create_dir_all(&skill).unwrap();
+        fs::write(skill.join("SKILL.md"), text).unwrap();
+    }
+    assert!(!fixture.dispatch_file("settings.json").exists());
+    let output = fixture.run();
+    assert_published(&fixture, &output, "claude spine\ncodex spine\n");
+}
+
 // The flag stays so that existing commands keep working. Grove prints one
 // notice, does not check the file, and sends Ravel the request that it sends
 // without the flag.

@@ -1218,6 +1218,12 @@ Ending outcome:
 
 ### discovery-confined
 
+**Historical.** This section measured Ravel confinement, which the human
+withdrew on 2026-11-03. No build after the removal can repeat it, and it gives
+no credit to a later build. [Stage evidence
+reconciliation](#stage-evidence-reconciliation) states its backend and its
+status.
+
 **Case.** `discovery-confined` runs the task of `discovery` through a confined
 `grove run`, with the same sources and mandatory files. Its prompt asks for the
 same script in the invocation directory, and its one output is `stamp.sh`. The
@@ -1483,6 +1489,12 @@ Ending outcome:
   permitted (os error 1)`, as in the smoke runs.
 
 ### discovery-confined in Codex
+
+**Historical.** This section measured Ravel confinement, which the human
+withdrew on 2026-11-03. No build after the removal can repeat it, and it gives
+no credit to a later build. [Stage evidence
+reconciliation](#stage-evidence-reconciliation) states its backend and its
+status.
 
 **Case.** `discovery-confined`, run with `--harness codex`, repeats the case of
 [discovery-confined](#discovery-confined) in Codex. It runs the task of
@@ -5644,6 +5656,12 @@ Grove recorded no teardown and published nothing. One harness launch occurred.
 
 #### missing-kind-confined
 
+**Historical.** This section measured Ravel confinement, which the human
+withdrew on 2026-11-03. No build after the removal can repeat it, and it gives
+no credit to a later build. [Stage evidence
+reconciliation](#stage-evidence-reconciliation) states its backend and its
+status.
+
 **Case.** `missing-kind-confined` runs the task of
 [discovery-confined](#discovery-confined) through a confined `grove run`. The
 sandbox `.claude/skills` holds complete native copies of `grove` and
@@ -5867,6 +5885,12 @@ Grove recorded no teardown and published nothing. One harness launch occurred.
 
 #### missing-kind-confined in Codex
 
+**Historical.** This section measured Ravel confinement, which the human
+withdrew on 2026-11-03. No build after the removal can repeat it, and it gives
+no credit to a later build. [Stage evidence
+reconciliation](#stage-evidence-reconciliation) states its backend and its
+status.
+
 **Case.** [missing-kind-confined](#missing-kind-confined) ran in Codex. It
 runs the `stamp.sh` task through a confined `grove run`. The sandbox
 `.codex/skills` holds complete native copies of `grove` and `grove-impl`. No
@@ -6067,6 +6091,12 @@ repair belongs, in [Where a durable repair
 belongs](#where-a-durable-repair-belongs).
 
 ## Confined harness repair
+
+**Historical.** This section measured Ravel confinement, which the human
+withdrew on 2026-11-03. No build after the removal can repeat it, and it gives
+no credit to a later build. [Stage evidence
+reconciliation](#stage-evidence-reconciliation) states its backend and its
+status.
 
 `confined-harness-trials-k128` repaired the runner for a confined `grove run`
 and ran `discovery-confined` and `missing-kind-confined` again in each
@@ -7620,4 +7650,216 @@ Each earlier result of this record names the build that it ran on. Those
 results stay historical, and this build does not change them. The
 [dual-Ravel stage record](grove-dual-ravel-stage-record.md) and the Linux
 floor evidence still name the build `23e50ce90037`.
-`stage-evidence-reconciliation-k125` reconciles them with this build.
+[Stage evidence reconciliation](#stage-evidence-reconciliation) reconciles them
+with this build.
+
+## Stage evidence reconciliation
+
+`stage-evidence-reconciliation-k125` read the evidence of the stages before
+the removal of confinement. It compares that evidence with the builds after the
+removal. It then decides which stage checks run again in
+`integrated-acceptance-checks-k126`. This section states each decision and its
+reason.
+
+The builds after the removal are these subjects:
+
+| Subject | Identity |
+| --- | --- |
+| Grove | Commit `9b8b69244125`, the last removal commit. The commit of k125 adds one fixture test and changes documents only |
+| Ravel 1.1 | The Homebrew keg `/opt/homebrew/Cellar/ravel/1.1.0`, from tag `v1.1.0`. The `bin/ravel` SHA-256 is `c52f990b…`. Ravel 1.1 still accepts `--confine`, and Grove does not send it |
+| Ravel 2.0 | Build commit `d324668b86ca`, output commit `71f70fcd3f92`, identity `a4f55d04…`. k125 ran `task install` from the output commit into a scratch prefix. The `bin/ravel` SHA-256 was `26b487af…`, the recorded value, and the prefix had no `libexec` |
+| Ravel 2.0 archives | No archive of `a4f55d04…` exists. Grove's 2.0 lane admits only the pinned archives of build `23e50ce90037` |
+
+On 2026-11-04, `jj git fetch` reported no change in either repository. Grove
+`main` was still `238c3a839ab4`, and Ravel `main` was still `24a545236185`.
+
+### The withdrawal of confinement
+
+On 2026-11-03 the human withdrew operating-system confinement from Ravel and
+from Grove. Ravel's build `a4f55d04…` has no confinement code, flag or backend.
+It refuses `--confine` and `--runtime-read` with `confinement_withdrawn`.
+Grove sends no `--confine` from commit `46f3069ff757`, and `--runtime-read` has
+no effect. The harness's own sandbox is now the only boundary.
+[Confinement withdrawal evidence](confinement-withdrawal-evidence.md) holds the
+design and the removal checks.
+
+Each confinement result below is therefore **historical**. It measured a build
+that still had confinement, and no build after the removal can repeat it. No
+result in the table gives credit to the Ravel build `a4f55d04…` or to Grove
+from `46f3069ff757`. A result of a real harness is in the first group. The
+fixtures and the stage checks ran fake agents or no agent.
+
+| Result | Backend | Real harness | Ravel build | Outcome |
+| --- | --- | --- | --- | --- |
+| [discovery-confined](#discovery-confined), run `discovery-confined-20261102T211126Z` | Ravel 2.0's macOS Seatbelt profile | Yes: Claude Code 2.1.316 | `23e50ce90037` | Gap. Claude Code could not open `/tmp/claude-501` |
+| [missing-kind-confined](#missing-kind-confined), run `missing-kind-confined-20261103T002036Z` | Ravel 2.0's macOS Seatbelt profile | Yes: Claude Code 2.1.316 | `23e50ce90037` | Gap, for the same cause |
+| [discovery-confined in Codex](#discovery-confined-in-codex), run `discovery-confined-20261103T012720Z` | Ravel 2.0's macOS Seatbelt profile, with the Codex sandbox `workspace-write` inside it | Yes: Codex 0.166.0 | `23e50ce90037` | Gap. Codex could not use its configuration directory |
+| [missing-kind-confined in Codex](#missing-kind-confined-in-codex), run `missing-kind-confined-20261103T053135Z` | The same | Yes: Codex 0.166.0 | `23e50ce90037` | Gap, for the same cause |
+| [The Codex TLS blocker](#the-codex-tls-blocker), run `discovery-confined-20261103T062127Z` | Ravel 2.0's macOS Seatbelt profile | Yes: Codex 0.166.0 | `23e50ce90037` | Gap. Codex could not load its TLS roots |
+| [discovery-confined, repaired](#discovery-confined-repaired), run `discovery-confined-20261103T062142Z` | Ravel 2.0's macOS Seatbelt profile | Yes: Claude Code 2.1.317 | `23e50ce90037` | Gap. Claude Code could not read its claude.ai sign-in |
+| [missing-kind-confined, repaired](#missing-kind-confined-repaired), run `missing-kind-confined-20261103T062948Z` | Ravel 2.0's macOS Seatbelt profile | Yes: Claude Code 2.1.317 | `23e50ce90037` | Gap, for the same cause |
+| [discovery-confined in Codex, repaired](#discovery-confined-in-codex-repaired), run `discovery-confined-20261103T062714Z` | Ravel 2.0's macOS Seatbelt profile alone. The Codex sandbox was `danger-full-access` | Yes: Codex 0.166.0 | `23e50ce90037` | Pass of the confined observation. The only confined pass of a real harness |
+| [missing-kind-confined in Codex, repaired](#missing-kind-confined-in-codex-repaired), run `missing-kind-confined-20261103T062817Z` | The same | Yes: Codex 0.166.0 | `23e50ce90037` | Gap. The standalone prompt named no guidance |
+| [Diagnostics under a copy of the profile](#diagnostics-under-a-copy-of-the-profile) | `sandbox-exec` with a copy of the Seatbelt profile of Ravel `1ca4aecbeae1` | Harness commands such as `claude auth status`, with no session | Not a Ravel run | Diagnostics only. They gave no credit before the removal either |
+| The confined standalone tests of `crates/grove/tests/standalone.rs` in each gate of the dual-Ravel stage | The macOS Seatbelt profile of each build | No: a fake harness | The 1.1 keg and `23e50ce90037` | Passed |
+| `confined_request_grants_only_the_named_runtime_file_and_isolates_the_result` of `task ravel:commands` | The macOS Seatbelt profile of each build | No | The 1.1 keg and `23e50ce90037` | Passed |
+| The confined directory case and the unreadable native case of `task ravel:directory`, from `grove-directory-confinement-k99` | Ravel 2.0's macOS Seatbelt profile | No: fake agents | `9feb86b7…`, then `23e50ce90037` in the final runs | Passed |
+| The confined directory case of `task release:smoke`, and the native and QEMU floor tasks of `grove-linux-two-lane-k103` | Bubblewrap, in the glibc 2.17 floor container and under QEMU | No | The pinned `23e50ce90037` archives | Passed |
+| The confinement tests of Ravel's `task check` and `task test:native-linux PLATFORM=arm64`, in the Local, Local-sources, Linux floor repair, Loader report wording and Visible loader report records | Seatbelt on macOS, and bubblewrap in the Linux container | No | `6436e66fdb30`, `78332fcc367d`, `23e50ce90037`, `0fb12d5f308b` and `e9cc79993b46` | Passed. The amd64 campaign of k103 failed 94 confinement, namespace and signal tests under QEMU user mode, on the build and on its parent alike |
+| The stop-attempt probe of `grove-confinement-removal-checks-k154`, column "1.1 `--confine`" | Ravel 1.1's macOS Seatbelt profile | No: a fake `/bin/sh` harness | The 1.1 keg | Two stop-attempt lines, as without `--confine`. It diagnoses those lines only |
+
+Two kinds of evidence look similar and are not confinement results. They stay
+valid:
+
+- The guard of Ravel's `task smoke:pair` uses `sandbox-exec` to deny the real
+  home to both runs. The guard is part of the test instrument, not Ravel's
+  confinement of a session.
+- The sandbox of a harness, such as Codex in `--sandbox workspace-write`, is
+  the harness's own boundary. The withdrawal keeps it.
+
+The sections of this record that describe confined cases keep their text as a
+record of their runs. A note at the start of each such section points here.
+
+### Native-only lifecycle and native standalone access
+
+The table compares the two callers on each route. A lifecycle launch was never
+confined, so the removal changes only the standalone column. "Fixture" means a
+fake agent, which proves access and not the behaviour of an LLM.
+
+| Route | Lifecycle with native skills only | Standalone access to native skills |
+| --- | --- | --- |
+| Native on 1.1, the keg `c52f990b…` | Fixture: `a_native_only_lifecycle_completes_with_explicitly_installed_skills` passed in the 1.1 gate of k154, on Grove `9b8b69244125`. Real harness: no case of this record ran on 1.1 | Fixture: `an_agent_reads_native_copies_under_home_and_publishes` passed on the keg in k125. Real harness: the release-notes run of k154 read a native skill under `~/.codex/skills`, on Grove `9b8b69244125` |
+| Native on 2.0, delivery disabled | Fixture: the same lifecycle test passed in the 2.0 gate of k154, on `a4f55d04…`. Real harness: [missing-kind](#missing-kind-1) and [missing-kind in Codex](#missing-kind-in-codex) passed on `23e50ce90037`, before the removal | Fixture: `an_agent_reads_native_copies_under_home_and_publishes` passed on `a4f55d04…` in k125. Real harness: none after the removal. The only earlier runs were confined, and they are historical |
+| Directory on 2.0 | Fixture: the directory cases of `task ravel:directory` passed on `23e50ce90037`. They have not run on `a4f55d04…`. `a_fake_agent_that_reads_a_native_copy_fails_the_snapshot_check` keeps a native read from passing the snapshot check | Fixture: `a_standalone_run_reads_injected_skills_from_read_only_snapshots` passed on `23e50ce90037`, and it has not run on `a4f55d04…`. The Linux directory case passed in k154 with the archive of `23e50ce90037` |
+
+After the removal, the two callers have the same access on each route. Both
+read the native roots under HOME, and both read the snapshots of the directory
+route. Before the removal they differed. A confined standalone run on 2.0 could
+not read a native copy outside its grants, and Claude Code could not start in
+it.
+
+`crates/grove/tests/standalone.rs` had no fixture of a native read after
+`grove-confinement-caller-removal-k150`. That file kept only the case with no
+native copy. The Test seams section of the
+[delivery specification](specs/codex-skill-provisioning.md#test-seams) still
+named such a read. k125 added
+`an_agent_reads_native_copies_under_home_and_publishes`. Its scripted agent
+reads the spine under `.claude/skills` and under `.codex/skills`, publishes
+both texts, and fails when `RAVEL_SKILL_DIRECTORIES` is set. A control with
+one copy moved to another root made the test fail.
+
+Access is not adherence. A standalone prompt names no guidance, so a real
+agent has no reason to read it, as
+[missing-kind-confined in Codex, repaired](#missing-kind-confined-in-codex-repaired)
+showed. The row "Standalone" of the delivery specification therefore asks for
+access only.
+
+The results of a real harness stay measurements of their named builds. The
+removal build did not change the preamble: `crates/ravel/src/skills/preamble.rs`
+is the same at `e9cc79993b46` and at `d324668b86ca`. Its other changes to the
+skill code remove the confinement grants and move the check of an inherited
+result channel. The fixture runs of k126 measure the delivery of the new build.
+No trial runs again, because a trial measures an LLM, and a fixture measures
+the build.
+
+### Native mutation on fresh install and on upgrade
+
+Grove has no native writer since `grove-native-delivery-k20`. Three kinds of
+evidence show that no Grove step changes a native installation:
+
+| Evidence | What it compares | Last run | Subject |
+| --- | --- | --- | --- |
+| `startup_leaves_a_legacy_installation_and_its_readers_untouched`, `a_failed_startup_leaves_a_legacy_installation_untouched` and `fresh_codex_homes_receive_no_native_installation` | The type, mode, inode, modification time, bytes and link target of each native entry. The tests compare them before and after a startup or a failed startup | Both gates of k154 | Grove `9b8b69244125`, with the 1.1 keg and `a4f55d04…` |
+| `task release:formula:test`, the fresh install | The formula test runs a lifecycle and then requires no `.agents` and an empty `.codex` under its HOME | The dual-Ravel stage | Grove `852b7ec1a058` with its working copy, archive `35da914e…`, with the 1.1 keg and `23e50ce90037` |
+| `task release:upgrade`, the upgrade | Every native entry, link, mode, pointer and byte of a scratch Grove 22.8 installation, and an active 22.8 reader | The dual-Ravel stage | The same Grove, with the 1.1 keg. 286 entries stayed the same |
+
+The startup fixtures cover the builds after the removal. The installed checks
+do not. Since the stage, Grove changed its standalone caller, its mandate,
+its caller assets and its release scripts. So the Grove archive of the stage is
+not the archive of the integrated subject. The formula template changed only
+one comment, and the upgrade script did not change. k126 runs both installed
+checks again.
+
+The row "Installed distribution" of the delivery specification asks for fresh
+install and upgrade at each tap state A to D. The stage evidence covers the
+tooling in state A only. The states B to D
+belong to `discovery-rollout-k6`, which publishes them.
+
+### Dual-major archive, formula and floor evidence
+
+- **Archives.** The 1.1 lane pins the published `v1.1.0` archives. The 2.0 lane
+  pins the archives of `23e50ce90037`: `6fd7e44a…`, `331008d4…` and
+  `2a7e62f7…`. Those executables still hold `--confine` and the preamble before
+  `0fb12d5f308b`. Grove sends no `--confine`, so a 2.0 lane run measures
+  Grove's unconfined caller against that older executable. It does not measure
+  `a4f55d04…`. Grove keeps the pins until rollout replaces them with the
+  published archives, as the
+  [rollout handoff](ravel-target-inputs.md#rollout-handoff-replace-the-local-20-record)
+  states.
+- **Formula.** The formula test takes a Ravel prefix, not an archive. So it can
+  measure `a4f55d04…` from the scratch prefix, and k126 does so.
+- **Floor.** `grove-confinement-floor-removal-k152` removed the bubblewrap floor
+  route, so its results are historical. The glibc 2.17 link floor and the CPU
+  floor stay in the general release route. In k154, the aarch64 Linux release
+  smoke ran the floor container and QEMU. The loader refused a glibc 2.25 probe,
+  and QEMU with `-cpu cortex-a53` killed the CPU probe. Both lanes and the
+  directory case passed, with the 2.0 archive of `23e50ce90037`. The macOS and
+  the x86_64 Linux targets have not run since the stage.
+- **Ravel's link floor.** Ravel's release scripts, `Cargo.toml` and
+  `Cargo.lock` did not change after the Linux floor repair. The code of
+  `a4f55d04…` did change, and no archive of it exists. k126 runs Ravel's
+  `task release:smoke` once. That task builds unreleased archives in Ravel's
+  own target directory and changes no Grove pin.
+
+### Check decisions
+
+Each stage check below has one decision for k126. "Again" means that k126 runs
+the check on the integrated subjects and records the result. The Grove subject
+is the commit that k126 checks. The Ravel subjects are the 1.1 keg and the
+scratch prefix of `a4f55d04…`.
+
+| Check | Last run and subject | Decision | Reason |
+| --- | --- | --- | --- |
+| `bash scripts/check.sh`, with each build | k154, Grove `9b8b69244125`, the 1.1 keg and `a4f55d04…` | Again, with each build | k125 adds a test and changes documents. The gate holds the conformance and link checks of those documents |
+| Core conformance | Inside both gates of k154 | Again, inside both gates. Record its own result | The Done when of `acceptance-handoff-k106` names it |
+| `task ravel:resolution`, `ravel:commands`, `ravel:policy`, `ravel:fixtures` and `ravel:activation`, with each build | The dual-Ravel stage, on `23e50ce90037` | Again, with each build | Each task runs `#[ignore]` tests that the gate skips. None has run on `a4f55d04…`. k150 changed `session_command.rs`, the caller assets and the standalone caller |
+| `task ravel:directory` | The dual-Ravel stage, on `23e50ce90037` | Again, with `RAVEL` at `a4f55d04…` and `OLD` at the 1.1 keg | It holds the lifecycle and the standalone directory cases and the pair case. k145 changed Ravel's launch of skills, and k150 changed the cases |
+| `task ravel:targets:controls` | The dual-Ravel stage | Not again | Its inputs did not change: the admission script, its tests and the pinned archives are the same. Rollout repeats it against the published archives |
+| `task ravel:targets:smoke` | The dual-Ravel stage | Not again | The same reason. It runs the pinned Ravel layouts and no changed Grove script |
+| `task release:smoke` | aarch64 Linux in k154, on Grove `9b8b69244125`. The other targets in the dual-Ravel stage | Again, for all three targets | The Grove archive changed after the stage. The macOS and x86_64 Linux targets have not run since. The 2.0 lane still uses the archives of `23e50ce90037`, and the record states that limit |
+| `task release:formula:test` | The dual-Ravel stage | Again, with the 1.1 keg and `a4f55d04…` | It is the fresh-install check of native mutation, and the Grove archive changed |
+| `task release:installed` | The dual-Ravel stage | Again, with the 1.1 keg and `a4f55d04…` | It runs the standalone caller, which k150 changed |
+| `task release:upgrade` | The dual-Ravel stage | Again, from the Grove 22.8.0 keg | It is the upgrade check of native mutation, and the Grove archive changed. It takes the 1.1 prefix only |
+| `task legacy:rehearsal` | The dual-Ravel stage, with `ALSO` at `23e50ce90037` | Again, with `ALSO` at `a4f55d04…` | The 2.0 executable beside the old driver changed |
+| The Linux registration test, and the native and QEMU floor tasks of k103 | k103 | Not again | k152 removed the floor tasks. The release smoke runs their caller cases |
+| One real `grove run release-notes` | k154, Grove `9b8b69244125` | Not again | Its route did not change after k154 |
+| Ravel's `task check`, `test:cli`, `harness:smoke:test`, the book tasks, `test:native-linux PLATFORM=arm64` and `task install` | `ravel-confinement-stage-record-k149`, on `d324668b86ca` | Not again, if the subject did not move | The same commit gives the same bytes, so a second run measures nothing new. At entry, k126 checks that Ravel `main` is still `24a545236185` and the bookmark still `71f70fcd3f92`. If either moved, k126 runs these checks again |
+| Ravel's `task smoke:pair`, with `OLD` at the 1.1 keg and `NEW` at `a4f55d04…` | The Linux floor repair record, on `23e50ce90037` | Again | It runs the two installed majors at the same time in separate homes. k145 changed the launch path of the 2.0 build |
+| Ravel's `task release:smoke` | The Linux floor repair record, on `23e50ce90037` | Again, once | No archive of `a4f55d04…` exists, and its code changed. The run proves the link floor and the CPU floor before the cut |
+| Ravel's `task test:native-linux PLATFORM=amd64` | k103, on `23e50ce90037` and its parent | Not again | No stage required it. QEMU user mode cannot reproduce the namespace and signal rows. The x86_64 release smoke proves the link floor and the CPU floor |
+| The real harness trials | Each case on its named build | Not again | A trial measures an LLM. The preamble did not change after `e9cc79993b46`, and the fixture runs above measure the delivery of the new build |
+
+Do not publish a release, install `ravel@2` or change the owner's settings in
+these runs.
+
+### An observation for k126
+
+In k125, `a_timed_out_selection_launches_nothing_and_publishes_nothing` failed
+on the 1.1 keg in each run of the whole `standalone` test file. It passed when
+it ran alone. It failed with the k125 test excluded, and it failed under the
+recipe of [the HOME of each run](grove-dual-ravel-stage-record.md#the-home-of-each-run).
+The message was "select never ran", so the 1.1 worker did not reach
+`select` inside the timeout of 1,000 ms. The load average of the machine was
+about 6. The same test passed in each gate of k154, and it passed on
+`a4f55d04…` in k125. If the gate of k126 fails on it, that failure becomes
+repair work, as the Done when of k126 states.
+
+### Limits
+
+- No real harness ran on `a4f55d04…`. The audit of
+  `acceptance-completion-audit-k127` names this limit.
+- No real harness ran a standalone session on the native route of 2.0 after the
+  removal.
+- Until rollout replaces the pins, each Grove check of a 2.0 archive uses the
+  archives of `23e50ce90037`.
+- The states B to D of the tap belong to `discovery-rollout-k6`.

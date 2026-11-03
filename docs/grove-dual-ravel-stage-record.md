@@ -13,6 +13,15 @@ The [delivery specification](specs/codex-skill-provisioning.md#supported-routes)
 owns the three routes. The [coordinated release](specs/coordinated-release.md)
 owns the order of publication between the products.
 
+On 2026-11-03 the human withdrew operating-system confinement from Ravel and
+from Grove. The confined results of this record are therefore historical. They
+include the commit of `grove-directory-confinement-k99`, the confined directory
+case of the release smoke and the outcome row on confined native access. No
+build after the removal can repeat them. The
+[stage evidence reconciliation](common-loading-acceptance-record.md#stage-evidence-reconciliation)
+states the backend of each result and the checks that run again on the builds
+after the removal.
+
 ## Grove commits
 
 Each commit is on the line of this workstream, above Grove `main` at

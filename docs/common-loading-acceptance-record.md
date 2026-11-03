@@ -7475,12 +7475,14 @@ with the added runner comparison while missing this later interval. The same
 path-based bind is used for a confined harness run.
 
 **Smallest useful correction:** Define a Linux grant rule that binds the
-checked object, or otherwise prevents a confined process from substituting a
-protected target before the bind. Specify how the rule applies to managed
-launches and harness runs. Add a dummy-file case that changes the source
-after the runner's final comparison and before the backend consumes it.
-The payload must receive no token-file grant. Reconcile the unconditional
-token-protection claims and the launch view with the resulting guarantee.
+checked object. Or define one that otherwise prevents a confined process from
+substituting a protected target before the bind. Specify how the rule applies to
+managed launches and harness runs.
+
+Add a dummy-file case that changes the source after the runner's final
+comparison and before the backend consumes it. The payload must receive no
+token-file grant. Reconcile the unconditional token-protection claims and the
+launch view with the resulting guarantee.
 Another comparison before the backend starts leaves the same interval.
 
 ### Disposition of the other mandated doubts
@@ -7488,7 +7490,7 @@ Another comparison before the backend starts leaves the same interval.
 The review used `linkuistics:codebase-design` for the state owners, ordering
 and seams. Settings own token-file policy, the script names recipients and
 the runner owns descriptor inheritance. This remains a coherent division.
-The ADR records the independent token trade-off; the review found no need
+The ADR records the independent token trade-off. The review found no need
 for another ADR.
 
 | Doubt | Disposition and evidence |
@@ -7496,11 +7498,11 @@ for another ADR.
 | Checked grants on Seatbelt | Supported at the design level. The proposed backend uses the checked canonical literal, and Seatbelt checks the resolved access path. Retargeting a runtime path does not add a literal grant for its new target. Linux is F1 |
 | Selected-program and Ravel-executable exceptions | Accepted trade-off. `token-handoff.md:199–201` names both exceptions and the trusted script that selects the program. This is no claim of protection from that script |
 | A second hard link and its refusal | Supported. `token-handoff.md:169–178,223,258` states the restriction, the two existing per-check codes and the copy remedy. A normal mode-0600 file and replacement by rename need no hard link. Workflows that deliberately keep hard links must use a copy |
-| One resolution per launch and per harness run | Supported as a contract. `token-handoff.md:164–167,215–217` shares the launch resolution across capture, confinement and read, and gives each harness run a new one. Current `run.rs` prepares before selection; `harness::execute` calls `Confined::prepare_for` for each run. Implementation must carry the resolution through those seams |
+| One resolution per launch and per harness run | Supported as a contract. `token-handoff.md:164–167,215–217` shares the launch resolution across capture, confinement and read, and gives each harness run a new one. Current `run.rs` prepares before selection. `harness::execute` calls `Confined::prepare_for` for each run. Implementation must carry the resolution through those seams |
 | A dangling declared link | Supported as a contract. `token-handoff.md:156–162,553–558` protects the prospective target. Current `confinement::prospective` refuses a dangling link, so implementation must change or replace that resolver for token paths |
 | The nine read steps | Supported within the stated trust boundary. `token-handoff.md:214–242` checks the open descriptor, bounds the complete read and preserves replacement by rename. The remaining parent-directory race requires authority over a token-path ancestor, which the grant check excludes from confined writable roots. This is distinct from F1's replacement of a grant source elsewhere |
 | Socket ownership and descriptor isolation | Supported as a contract. `token-handoff.md:267–280,310–323` assigns both endpoints before transfer, closes the writing end, transfers the receiving ends to the runner and closes its parent copies after either spawn outcome. The child restores inheritance only for that launch's list. The unrelated-sentinel case tests the exception's boundary |
-| Claude Code, hooks and MCP servers | Explicit verification limit. Static inspection supports the early synchronous socket read in the local 2.1.317 startup path. It does not establish all startup orders or other modes. The design makes no measured-order claim, restricts recipients to programs that read first and requires the record to retain the gap. This is sufficient to implement the generic handoff; it is not evidence that the real-harness isolation gap has passed |
+| Claude Code, hooks and MCP servers | Explicit verification limit. Static inspection supports the early synchronous socket read in the local 2.1.317 startup path. It does not establish all startup orders or other modes. The design makes no measured-order claim, restricts recipients to programs that read first and requires the record to retain the gap. This is sufficient to implement the generic handoff. It is not evidence that the real-harness isolation gap has passed |
 
 ### Evidence limits and handoff
 
@@ -7527,5 +7529,5 @@ Claude Code or prove the complete order against hooks and MCP servers.
 The review read the four Mermaid sources, their manifest, the ADR and the
 changed sections of the other specifications. It did not render the viewer
 or repeat the earlier probes. No new runtime result is credited. A design
-integration follows this review before `ravel-token-handoff-k133`; it must
+integration follows this review before `ravel-token-handoff-k133`. It must
 triage F1 and leave a coherent contract for implementation.

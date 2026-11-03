@@ -1,4 +1,4 @@
-# ravel-confinement-removal-k145
+# ravel-confinement-removal-k145 — brief
 
 ## Goal
 
@@ -31,3 +31,22 @@ confinement-withdrawal-k144 states.
 
 Do not publish a release, push the bookmark or install `ravel@2`. Do not
 change the owner's settings or the 1.1.0 keg.
+
+## Decomposition
+
+ravel-confinement-removal-k145 was too big for one session, so it became this
+node. The design handoff is the "Implementation handoff" of Ravel's
+`docs/skill-discovery-design-evidence.md`, at commit `2df9dd055824`. Its
+sections divide the work. The children run in this order:
+
+1. `ravel-confinement-code-removal-k147`: the sections "Source", "Tests" and
+   "Scripts" of the handoff.
+2. `ravel-confinement-book-removal-k148`: the sections "Book" and
+   "Specifications and records that change with the code", except the stage
+   record.
+3. `ravel-confinement-stage-record-k149`: the full checks on the build
+   commit, the stage record and the build in Grove's `builds.json`.
+
+`task check` does not build the book, so the first child can pass its checks
+alone. `task docs:examples` fails until the second child removes the
+confined example of chapter 5.

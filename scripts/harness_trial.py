@@ -79,18 +79,6 @@ CASES = TRIALS / "cases"
 BUILDS = TRIALS / "builds.json"
 WRAPPER = TRIALS / "trial-launch.sh"
 
-# The five Claude Code location variables of Ravel's configuration
-# specification. Each can expose a real configuration, plugin tree or sign-in
-# that no link check sees. The runner refuses each one, also with an empty
-# value, before any launch of the harness, and it removes none of them.
-LOCATION_NAMES = (
-    "CLAUDE_CONFIG_DIR",
-    "CLAUDE_SECURESTORAGE_CONFIG_DIR",
-    "CLAUDE_CODE_PLUGIN_CACHE_DIR",
-    "CLAUDE_CODE_PLUGIN_DIRS",
-    "CLAUDE_CODE_PLUGIN_SEED_DIR",
-)
-
 # The names that the driver receives from the runner's environment. Every
 # other name is dropped: API keys, the live session's channel and launch
 # directory, CLAUDECODE and every CLAUDE_* name.
@@ -99,45 +87,19 @@ SYSTEM_PATH = ("/usr/bin", "/bin", "/usr/sbin", "/sbin")
 
 # The live session's authority. A name of this class may reach a trial child
 # only with the trial's own value. A trial sets its own RAVEL_EXIT_FILE and
-# GROVE_LAUNCH_DIR, so the name alone is no leak.
+# GROVE_LAUNCH_DIR, so the name alone is no leak. The live session can run in
+# either harness, whichever harness the trial runs, so both patterns name the
+# names of both.
 CONTROL_PATTERN = re.compile(r"^(RAVEL_|GROVE_|HARNESS_DISPATCH_|CLAUDE|CODEX_)")
 # Names that no trial child may hold at all, with any value.
 HARNESS_PATTERN = re.compile(r"^(CLAUDECODE$|CLAUDE_|ANTHROPIC_|OPENAI_|CODEX_API_KEY$)")
 
 ROUTES = ("native-2.0", "directory-2.0")
-HARNESSES = ("claude", "codex")
-# Codex keeps its configuration in CODEX_HOME, which defaults to `~/.codex`.
-CODEX_HOME = "CODEX_HOME"
-CODEX_MODEL = "gpt-6.1-sol"
-CODEX_EFFORT = "medium"
-# Codex's own sandbox. Reads are unrestricted, and writes reach the working
-# directory, TMPDIR and /tmp, with no network. Ravel allocates the session
-# channel under TMPDIR, so `end-session` reaches it. A lifecycle launch has no
-# Ravel confinement, so this sandbox runs in its place. A standalone launch
-# runs it inside Ravel confinement.
-CODEX_SANDBOX = "workspace-write"
-CODEX_APPROVAL = "never"
-# The bundled system skills that Codex installs at startup, and the curated
-# plugins that a ChatGPT sign-in downloads. Both are platform-managed residue.
-CODEX_RESIDUE = (".codex/skills/.system", ".codex/plugins/cache")
-# The case fields whose Codex mechanism a later leaf adds.
-CODEX_LATER = {
-    "compaction": "codex-compaction-trials-k120",
-    "expectDelegate": "codex-delegate-trial-k121",
-    "systemNote": "codex-delegate-trial-k121",
-    "claudeSettings": "no Codex leaf; it is a Claude Code setting",
-}
 # A lifecycle case runs the bare Grove driver in a jj repository. A standalone
 # case runs `grove run`, which Ravel confines.
 MODES = ("lifecycle", "standalone")
 # The network-denying profile of crates/grove/tests/directory_route.rs.
 NO_NETWORK = "(version 1)(allow default)(deny network*)"
-DEFAULT_MODEL = "claude-opus-5-5"
-DEFAULT_EFFORT = "medium"
-# Claude Code's own permission layer. No call prompts or is denied, so the
-# transcript shows what the agent chose to read. Ravel's confinement is an
-# operating-system sandbox outside the harness, and this mode leaves it in force.
-PERMISSION_MODE = "bypassPermissions"
 # The longest Bash command or text block a committed record holds.
 COMMAND_CHARS = 160
 # The longest Skill result a record holds. A successful load returns the
@@ -201,63 +163,9 @@ def run_checked(argv: list[str], **kwargs: Any) -> str:
 # --- Refusals and the sandbox home ------------------------------------------
 
 
-def refuse_locations(environ: Mapping[str, str]) -> None:
-    """Refuse an inherited Claude Code location variable, before any launch."""
-    for name in LOCATION_NAMES:
-        if name in environ:
-            raise TrialError(
-                f"the environment holds {name}, which can expose a real Claude Code "
-                f"configuration, plugin tree or sign-in; run the trial again without {name}"
-            )
-
-
 def physical(path: str, cwd: str) -> str:
     """The physical form of a path: links resolved, a missing tail kept."""
     return os.path.realpath(os.path.join(cwd, path))
-
-
-def refuse_codex_home(environ: Mapping[str, str], owner_home: Path, cwd: str) -> str | None:
-    """Refuse an inherited CODEX_HOME in the real home, before any launch.
-    The test uses the physical path, so an alias of the real home refuses too.
-    An empty value selects the default in the real home and refuses as well.
-    A value outside the real home is replaced by the sandbox `.codex`, and the
-    returned text reports the replacement."""
-    if CODEX_HOME not in environ:
-        return None
-    value = environ[CODEX_HOME]
-    home = os.path.realpath(owner_home)
-    inside = not value or physical(value, cwd) == home or physical(value, cwd).startswith(home.rstrip("/") + "/")
-    if inside:
-        raise TrialError(
-            f"the environment holds {CODEX_HOME}={value!r}, which is in the real home {owner_home} and exposes its "
-            f"configuration, hooks, plugins and skills; run the trial again without {CODEX_HOME}"
-        )
-    return f"the inherited {CODEX_HOME} {value} is outside the real home; this run uses the sandbox .codex"
-
-
-def refuse_inherited(harness: str, environ: Mapping[str, str], owner_home: Path) -> str | None:
-    """The refusals of the harness, before any launch of it."""
-    if harness == "codex":
-        return refuse_codex_home(environ, owner_home, os.getcwd())
-    refuse_locations(environ)
-    return None
-
-
-def sign_in_store(harness: str = "claude") -> str:
-    """The one path of the real home that the sandbox home links."""
-    if harness == "codex":
-        return ".codex/auth.json"
-    return "Library/Keychains" if platform.system() == "Darwin" else ".claude/.credentials.json"
-
-
-def harness_env(harness: str, home: Path) -> dict[str, str]:
-    """The names that the harness needs beyond the allow-list."""
-    return {CODEX_HOME: str(home / ".codex")} if harness == "codex" else {}
-
-
-def native_root(harness: str) -> str:
-    """The directory of the sandbox home that holds the harness's native skills."""
-    return ".codex/skills" if harness == "codex" else ".claude/skills"
 
 
 def list_links(home: Path) -> list[tuple[str, str]]:
@@ -280,20 +188,6 @@ def check_links(links: list[tuple[str, str]], store: str, owner_home: Path, when
             "a harness that replaced the sign-in link probably refreshed a token, so sign in "
             "again in the real home and run the trial again"
         )
-
-
-def harness_links(harness: str, links: list[tuple[str, str]], program: Path) -> tuple[list[tuple[str, str]],
-                                                                                     list[tuple[str, str]]]:
-    """(other links, the harness's own links). Codex links `apply_patch` and
-    `applypatch` to its own executable under `.codex/tmp/arg0-*` while it
-    runs, and removes them when it exits. Ravel ends the session group
-    before that, so they remain. A link there to any other target stays
-    among the other links, and the link check fails on it."""
-    if harness != "codex":
-        return links, []
-    own = [(path, target) for path, target in links
-           if path.startswith(".codex/tmp/arg0") and os.path.realpath(target) == os.path.realpath(program)]
-    return [link for link in links if link not in own], own
 
 
 def allowed_env(environ: Mapping[str, str], home: Path, tmp: Path, path_dirs: list[str]) -> dict[str, str]:
@@ -349,18 +243,13 @@ def load_case(name: str, harness: str | None = None) -> tuple[dict[str, Any], Pa
     case = json.loads(file.read_text())
     if case.get("route") not in ROUTES:
         raise TrialError(f"case {name}: the route '{case.get('route')}' is not one of {', '.join(ROUTES)}")
-    own = case.get("harness")
-    if own not in HARNESSES or (harness is not None and harness not in HARNESSES):
-        raise TrialError(f"case {name}: the harness '{harness or own}' is not one of {', '.join(HARNESSES)}")
-    if harness and harness != own:
+    adapter, own = run_adapter(name, case.get("harness"), harness)
+    if own:
         case["caseHarness"] = own
-        case["harness"] = harness
+        case["harness"] = adapter.name
         case.pop("model", None)
         case.pop("effort", None)
-    if case["harness"] == "codex":
-        for field, owner in CODEX_LATER.items():
-            if case.get(field) is not None:
-                raise TrialError(f"case {name}: the Codex adapter has no mechanism for '{field}' yet ({owner})")
+    adapter.check_case(name, case)
     mode = case.setdefault("mode", "lifecycle")
     if mode not in MODES:
         raise TrialError(f"case {name}: the mode '{mode}' is not one of {', '.join(MODES)}")
@@ -445,7 +334,7 @@ def fixed_probes(case: dict[str, Any], home: Path, checkout: Path) -> list[list[
     probes = [["read", str(config / "settings.json")], ["read", str(config / "config.rhai")]]
     plugins = {source["id"]: source["plugin"] for source in case.get("sources", [])}
     probes += [["read", str(checkout / plugins[item["source"]] / item["path"])] for item in case.get("mandatory", [])]
-    root = native_root(case.get("harness", "claude"))
+    root = adapter_of(case).native_root
     probes += [["read", str(home / root / item["name"] / "SKILL.md")] for item in case.get("native", [])]
     probes.append(["write", str(home / "trial-probe-outside")])
     return probes
@@ -473,53 +362,15 @@ def route_for(case: dict[str, Any], records: Path, program: Path, model: str, ef
               probes: list[list[str]] | None = None) -> dict[str, Any]:
     """The route as data. The configuration script and the fake driver of the
     tests both take it from here. A standalone launch is confined, so its
-    wrapper writes its record to standard output, `-`.
-
-    A compaction case selects the feeder as its program, with the harness as
-    the feeder's command. It gives no --add-dir: Claude Code writes additional
-    directories into the system prompt, which survives compaction, so the
-    snapshot paths would survive too."""
-    if case.get("harness") == "codex":
-        # Codex reads every path under its sandbox, so it needs no --add-dir.
-        return {
-            "kinds": case["kinds"],
-            "wrapper": str(WRAPPER),
-            "records": "-" if case.get("mode") == "standalone" else str(records),
-            "probes": probes or [],
-            "probeRequest": bool(case.get("probes")),
-            "program": str(program),
-            "programArgs": [],
-            "addDirs": False,
-            "fixedArgs": [
-                "exec", "--json", "--skip-git-repo-check", "--color", "never",
-                "--model", model, "-c", f'model_reasoning_effort="{effort}"',
-                "--sandbox", CODEX_SANDBOX, "-c", f'approval_policy="{CODEX_APPROVAL}"',
-            ],
-            "provider": "openai",
-            "model": model,
-            "effort": effort,
-        }
-    compaction = case.get("compaction") is not None
-    # An owner's instruction for one case, in Claude Code's owner channel. The
-    # prepared prompt of Ravel stays as it is.
-    note = ["--append-system-prompt", case["systemNote"]] if case.get("systemNote") else []
-    selected = Path(sys.executable) if compaction else program
-    program_args = ["-I", str(Path(__file__).resolve()), "turns", "--plan", str(Path(records).parent / "turns.json"),
-                    "--", str(program)] if compaction else []
+    wrapper writes its record to standard output, `-`. The adapter gives the
+    program, its arguments and the provider."""
     return {
         "kinds": case["kinds"],
         "wrapper": str(WRAPPER),
         "records": "-" if case.get("mode") == "standalone" else str(records),
         "probes": probes or [],
         "probeRequest": bool(case.get("probes")),
-        "program": str(selected),
-        "programArgs": program_args,
-        "addDirs": not compaction,
-        "fixedArgs": [
-            "-p", "--output-format", "stream-json", "--verbose",
-            "--model", model, "--effort", effort, "--permission-mode", PERMISSION_MODE, *note,
-        ],
-        "provider": "anthropic",
+        **adapter_of(case).launch(case, records, program, model, effort),
         "model": model,
         "effort": effort,
     }
@@ -626,11 +477,14 @@ class Classifier:
         self.descriptor = self._norm(skills["descriptorPath"]) if skills.get("descriptorPath") else None
         self.snapshots = [(source["id"], self._norm(source["snapshotRoot"])) for source in skills.get("sources", [])]
         self.origins = [(source["id"], self._norm(source["originPath"])) for source in skills.get("sources", [])]
-        # Claude Code's session files. After compaction the summary names the
-        # full transcript, which holds the preamble.
-        self.transcripts = [self._norm(str(home / ".claude" / "projects")), self._norm(str(home / ".codex" / "sessions"))]
-        self.residue = [self._norm(str(home / root)) for root in CODEX_RESIDUE]
-        self.native = [self._norm(str(home / ".claude")), self._norm(str(home / ".codex"))]
+        # The roots of every harness, whichever harness ran, so a read of the
+        # other harness's configuration still shows as such. The session files:
+        # after compaction the summary names the full transcript, which holds
+        # the preamble.
+        adapters = list(ADAPTERS.values())
+        self.transcripts = [self._norm(str(home / adapter.transcript_root)) for adapter in adapters]
+        self.residue = [self._norm(str(home / root)) for adapter in adapters for root in adapter.read_residue]
+        self.native = [self._norm(str(home / adapter.config_root)) for adapter in adapters]
         # The files that a case plants for a concrete-path request.
         self.planted = self._norm(str(home.parent / PLANTED))
         self.repo = self._norm(str(repo))
@@ -966,8 +820,6 @@ ENDING_TERMS = ("end-session", "grove-continue", "grove-force-stop", "record-tea
 # The ending context that a delegate inside the harness process inherits.
 ENDING_NAMES = ("RAVEL_EXIT_FILE", "GROVE_LAUNCH_DIR")
 DELEGATE_RESULT_CHARS = 600
-DELEGATE_MECHANISM = ("Claude Code's Agent tool, in process: the delegate's tool calls run in children of "
-                      "the harness process, with its environment")
 
 
 def obligation_lines(prompt: str) -> list[str]:
@@ -1005,86 +857,6 @@ def delegate_order(events: list[dict[str, Any]], mandatory: list[str]) -> dict[s
     }
 
 
-def delegations(entries: list[dict[str, Any]], session_dir: Path, home: Path, prompt: str | None,
-                descriptor: str | None, child: Mapping[str, str],
-                transcripts: list[dict[str, Any]], mandatory: list[str]) -> list[dict[str, Any]]:
-    """Each Agent call of the parent: what the parent gave the delegate, the
-    delegate's transcript and the ending context that it inherited. Claude
-    Code links a delegate's transcript to the call through the `toolUseId` of
-    `subagents/agent-<id>.meta.json` beside the transcript."""
-    metas = {}
-    for meta in sorted((session_dir / "subagents").glob("agent-*.meta.json")) if session_dir.is_dir() else []:
-        data = json.loads(meta.read_text())
-        metas[data.get("toolUseId")] = (meta, data)
-    results = {}
-    for entry in entries:
-        content = (entry.get("message") or {}).get("content")
-        for block in content if isinstance(content, list) else []:
-            if isinstance(block, dict) and block.get("type") == "tool_result":
-                results[block.get("tool_use_id")] = (result_text(block.get("content")), entry.get("toolUseResult"))
-    obligations = obligation_lines(prompt or "")
-    found = []
-    for entry in entries:
-        content = (entry.get("message") or {}).get("content")
-        for block in content if isinstance(content, list) else []:
-            if not (isinstance(block, dict) and block.get("type") == "tool_use" and block.get("name") in ("Task", "Agent")):
-                continue
-            tool_input = block.get("input") or {}
-            text = tool_input.get("prompt", "")
-            meta, data = metas.get(block.get("id"), (None, {}))
-            transcript = None
-            if meta:
-                file = str(meta.with_name(meta.name.replace(".meta.json", ".jsonl")).relative_to(home))
-                transcript = next((t for t in transcripts if t["file"] == file), None)
-            result, tool_result = results.get(block.get("id"), ("", None))
-            found.append({
-                "toolUseId": block.get("id"),
-                "description": tool_input.get("description"),
-                "subagentType": tool_input.get("subagent_type"),
-                "background": tool_input.get("run_in_background"),
-                "prompt": text,
-                "promptSha256": sha256_bytes(text.encode()),
-                "givesDescriptorPath": bool(descriptor) and descriptor in text,
-                "namesVariable": DESCRIPTOR_VARIABLE in text,
-                "obligations": [line.split(".", 1)[0] for line in obligations if line in text],
-                "obligationCount": len(obligations),
-                "endingLines": [line.strip()[:COMMAND_CHARS] for line in text.splitlines()
-                                if any(term in line for term in ENDING_TERMS)],
-                "meta": {key: data.get(key) for key in ("agentType", "requestShape", "spawnDepth", "finished")
-                         if key in data},
-                "status": (tool_result or {}).get("status") if isinstance(tool_result, dict) else None,
-                "result": result[:DELEGATE_RESULT_CHARS],
-                "transcript": transcript["file"] if transcript else None,
-                "order": delegate_order(transcript["events"], mandatory) if transcript else None,
-                "mechanism": DELEGATE_MECHANISM,
-                "inherited": [name for name in ENDING_NAMES if name in child],
-            })
-    return found
-
-
-INIT_KEYS = (
-    "claude_code_version", "model", "permissionMode", "cwd", "tools", "mcp_servers",
-    "slash_commands", "skills", "plugins", "agents", "output_style", "apiKeySource",
-)
-
-
-def native_startup(stream: list[dict[str, Any]], session: list[dict[str, Any]]) -> dict[str, Any]:
-    """What Claude Code itself offered at startup, without account data."""
-    init = next((e for e in stream if e.get("type") == "system" and e.get("subtype") == "init"), None)
-    startup: dict[str, Any] = {"init": {key: init[key] for key in INIT_KEYS if init and key in init}}
-    listing = next(
-        (e["attachment"] for e in session if e.get("type") == "attachment"
-         and (e.get("attachment") or {}).get("type") == "skill_listing"),
-        None,
-    )
-    if listing:
-        startup["skillListing"] = {"skillCount": listing.get("skillCount"), "names": listing.get("names")}
-    startup["attachmentTypes"] = sorted({
-        (e.get("attachment") or {}).get("type", "") for e in session if e.get("type") == "attachment"
-    })
-    return startup
-
-
 def skill_files(home: Path) -> tuple[list[str], list[str]]:
     """(native copies, platform-managed residue): each SKILL.md in the home
     outside Ravel's cache. claude.ai syncs an account's skills into
@@ -1093,7 +865,7 @@ def skill_files(home: Path) -> tuple[list[str], list[str]]:
     into .codex/plugins/cache. Those are residue, not native copies."""
     native, residue = [], []
     cache = home / ".cache" / "ravel"
-    managed = [home / ".claude" / "skills" / "synced", *[home / root for root in CODEX_RESIDUE]]
+    managed = [home / root for adapter in ADAPTERS.values() for root in adapter.managed_skills]
     for directory, subdirs, files in os.walk(home):
         here = Path(directory)
         if here == cache or cache in here.parents:
@@ -1106,8 +878,426 @@ def skill_files(home: Path) -> tuple[list[str], list[str]]:
     return sorted(native), sorted(residue)
 
 
-# --- The Codex session file ---------------------------------------------------
+# --- Harness adapters ----------------------------------------------------------
+#
+# One adapter for each harness owns each difference between the harnesses: the
+# refusals of the inherited environment and the sign-in store, the pre-launch
+# probes and the harness's own links, the arguments of a launch and of a
+# resume, the session-file lookup, the stream fields and the startup. The case,
+# the source clone, the settings and the record use only the adapter's
+# interface. Only the registry at the end of this section and the adapters
+# name a harness.
+#
+# Skill provision is a layer of its own: the Ravel settings, the native copies
+# and the planted files. The case and its route decide them for each
+# invocation, and a continuation changes the settings between two invocations
+# of one case. The adapter gives that layer only the facts of its harness, such
+# as the directory where the harness looks for native skills.
 
+
+class HarnessAdapter:
+    """The interface of a harness adapter. A subclass sets the facts below
+    and implements each method that has no shared behaviour."""
+
+    # The program on PATH, and the harness name of a case and of a record.
+    name = ""
+    # The harness name in a message to the owner.
+    title = ""
+    # The model and the effort of a case that names neither.
+    model = ""
+    effort = ""
+    # Directories of the sandbox home, relative to it: the configuration
+    # directory, the native skills and the session files.
+    config_root = ""
+    native_root = ""
+    transcript_root = ""
+    # Platform-managed skills, which are no native copies.
+    managed_skills: tuple[str, ...] = ()
+    # The managed roots whose reads the classifier names residue.
+    read_residue: tuple[str, ...] = ()
+    # The harness's own permission layer, as the record names it.
+    permission_mode = ""
+    # How a continuation resumes the first session, and how a compaction case
+    # compacts in one managed process.
+    resume_mechanism = ""
+    compaction_mechanism: str | None = None
+    # The case fields that the adapter has no mechanism for yet, each with the
+    # leaf that adds it.
+    unsupported: dict[str, str] = {}
+
+    def check_case(self, name: str, case: dict[str, Any]) -> None:
+        """Refuse a case field that this adapter cannot run."""
+        for field, owner in self.unsupported.items():
+            if case.get(field) is not None:
+                raise TrialError(f"case {name}: the {self.title} adapter has no mechanism for '{field}' yet ({owner})")
+
+    @property
+    def store(self) -> str:
+        """The one path of the real home that the sandbox home links."""
+        raise NotImplementedError
+
+    def refuse(self, environ: Mapping[str, str], owner_home: Path) -> str | None:
+        """The refusals of the inherited environment, before any launch of
+        the harness. A returned text reports a name that the run replaces."""
+        raise NotImplementedError
+
+    def env(self, home: Path) -> dict[str, str]:
+        """The names that the harness needs beyond the allow-list."""
+        return {}
+
+    def program(self, environ: Mapping[str, str]) -> Path:
+        named = environ.get("HARNESS_TRIAL_PROGRAM") or shutil.which(self.name, path=environ.get("PATH"))
+        if not named or not os.access(named, os.X_OK):
+            raise TrialError(f"no '{self.name}' program found on PATH; install it, or put it on PATH")
+        return Path(named).resolve()
+
+    def prelaunch(self, program: Path, env: dict[str, str], tmp: Path, trial: Path,
+                  config_dir: Path) -> tuple[dict[str, Any], str | None, dict[str, Any] | None]:
+        """The probes before the launch: (the sign-in facts, the configuration
+        directory that the harness reports, its input before the launch)."""
+        raise NotImplementedError
+
+    def own_links(self, links: list[tuple[str, str]], program: Path) -> tuple[list[tuple[str, str]],
+                                                                            list[tuple[str, str]]]:
+        """(other links, the harness's own links) of the sandbox home."""
+        return links, []
+
+    def launch(self, case: dict[str, Any], records: Path, program: Path, model: str,
+               effort: str) -> dict[str, Any]:
+        """The harness's part of the route: its program, the program's own
+        arguments, whether snapshot roots go to --add-dir, the fixed
+        arguments and the provider."""
+        raise NotImplementedError
+
+    def resume_args(self, route: dict[str, Any], session_id: str) -> list[str]:
+        """The arguments of a resumed turn before the answer: the fixed
+        arguments of the route, then the harness's own resume."""
+        raise NotImplementedError
+
+    def record_extras(self, standalone: bool, auth: dict[str, Any], replaced: str | None,
+                      prelaunch: dict[str, Any] | None) -> dict[str, Any]:
+        """The facts that only this harness adds to the record's harness."""
+        return {}
+
+    def write_settings(self, case: dict[str, Any], home: Path) -> dict[str, Any] | None:
+        """The case's settings file of the harness in the sandbox home."""
+        return None
+
+    def stream_ids(self, stream: list[dict[str, Any]]) -> tuple[str | None, str | None]:
+        """The session ID and the working directory that a stream names."""
+        raise NotImplementedError
+
+    def stream_init(self, record: Path) -> tuple[str | None, str | None]:
+        """The session ID and the working directory of one launch record."""
+        stream = record / "stream.jsonl"
+        return self.stream_ids(read_jsonl(stream) if stream.exists() else [])
+
+    def session_files(self, home: Path) -> list[Path]:
+        """Every session file of the harness in the sandbox home."""
+        raise NotImplementedError
+
+    def session_files_of(self, home: Path, session_id: str) -> list[Path]:
+        """The session files of one session."""
+        raise NotImplementedError
+
+    def session_file(self, home: Path, session_id: str) -> Path | None:
+        return next(iter(self.session_files_of(home, session_id)), None)
+
+    def session_cwd(self, transcript: Path) -> str | None:
+        """The working directory that a session file names, when its stream
+        names none."""
+        return None
+
+    def describe(self, label: str, view: dict[str, Any], child: dict[str, str], stream: list[dict[str, Any]],
+                 stream_sha: str | None, probes: list[dict[str, str]], home: Path, repo: Path,
+                 live: Mapping[str, str], marker: str | None = None, window: tuple[int, int] | None = None,
+                 turns: bool = False, prompt: str | None = None) -> dict[str, Any]:
+        """One launch: its request view, the environment of its harness, its
+        probes and its ordered events. A window limits the main session file
+        to the lines of this launch, and the digest then covers those lines
+        only."""
+        raise NotImplementedError
+
+    def render_rows(self, h: dict[str, Any]) -> list[str]:
+        """The rows of the facts table that only this harness has."""
+        raise NotImplementedError
+
+    def render_prelaunch(self, h: dict[str, Any]) -> list[str]:
+        """The record's lines on the harness's input before the launch."""
+        return []
+
+
+# The five Claude Code location variables of Ravel's configuration
+# specification. Each can expose a real configuration, plugin tree or sign-in
+# that no link check sees. The runner refuses each one, also with an empty
+# value, before any launch of the harness, and it removes none of them.
+LOCATION_NAMES = (
+    "CLAUDE_CONFIG_DIR",
+    "CLAUDE_SECURESTORAGE_CONFIG_DIR",
+    "CLAUDE_CODE_PLUGIN_CACHE_DIR",
+    "CLAUDE_CODE_PLUGIN_DIRS",
+    "CLAUDE_CODE_PLUGIN_SEED_DIR",
+)
+DEFAULT_MODEL = "claude-opus-5-5"
+DEFAULT_EFFORT = "medium"
+# Claude Code's own permission layer. No call prompts or is denied, so the
+# transcript shows what the agent chose to read. Ravel's confinement is an
+# operating-system sandbox outside the harness, and this mode leaves it in force.
+PERMISSION_MODE = "bypassPermissions"
+INIT_KEYS = (
+    "claude_code_version", "model", "permissionMode", "cwd", "tools", "mcp_servers",
+    "slash_commands", "skills", "plugins", "agents", "output_style", "apiKeySource",
+)
+
+
+class ClaudeAdapter(HarnessAdapter):
+    """Claude Code: `claude -p` with stream-json output. Its session files are
+    `<id>.jsonl` under the sandbox `.claude/projects`."""
+
+    name = "claude"
+    title = "Claude Code"
+    model = DEFAULT_MODEL
+    effort = DEFAULT_EFFORT
+    config_root = ".claude"
+    native_root = ".claude/skills"
+    transcript_root = ".claude/projects"
+    # claude.ai syncs an account's skills into the sandbox.
+    managed_skills = (".claude/skills/synced",)
+    permission_mode = PERMISSION_MODE
+    # Claude Code keeps the session ID without --fork-session and appends to
+    # the session file.
+    resume_mechanism = "claude -p --resume <session id>, without --fork-session, outside Ravel's managed process"
+    compaction_mechanism = ("claude -p --input-format stream-json in Ravel's managed process; the feeder sends the "
+                            "prompt, then /compact with the instructions, then the answer")
+    delegate_mechanism = ("Claude Code's Agent tool, in process: the delegate's tool calls run in children of "
+                          "the harness process, with its environment")
+
+    @property
+    def store(self) -> str:
+        return "Library/Keychains" if platform.system() == "Darwin" else ".claude/.credentials.json"
+
+    def refuse(self, environ: Mapping[str, str], owner_home: Path) -> str | None:
+        """Refuse an inherited Claude Code location variable."""
+        for name in LOCATION_NAMES:
+            if name in environ:
+                raise TrialError(
+                    f"the environment holds {name}, which can expose a real Claude Code "
+                    f"configuration, plugin tree or sign-in; run the trial again without {name}"
+                )
+        return None
+
+    def prelaunch(self, program: Path, env: dict[str, str], tmp: Path, trial: Path,
+                  config_dir: Path) -> tuple[dict[str, Any], str | None, dict[str, Any] | None]:
+        """`claude auth status` names the effective configuration directory."""
+        auth_text = run_checked([str(program), "auth", "status"], cwd=tmp, env=env)
+        try:
+            auth = json.loads(auth_text)
+        except json.JSONDecodeError as error:
+            raise TrialError(f"claude auth status wrote no JSON: {error}") from None
+        reported = auth.get("configDirectory")
+        if not reported or os.path.realpath(reported) != os.path.realpath(config_dir):
+            raise TrialError(f"Claude Code reports the configuration directory '{reported}', not the sandbox {config_dir}")
+        return auth, reported, None
+
+    def launch(self, case: dict[str, Any], records: Path, program: Path, model: str,
+               effort: str) -> dict[str, Any]:
+        """A compaction case selects the feeder as its program, with the
+        harness as the feeder's command. It gives no --add-dir: Claude Code
+        writes additional directories into the system prompt, which survives
+        compaction, so the snapshot paths would survive too."""
+        compaction = case.get("compaction") is not None
+        # An owner's instruction for one case, in Claude Code's owner channel.
+        # The prepared prompt of Ravel stays as it is.
+        note = ["--append-system-prompt", case["systemNote"]] if case.get("systemNote") else []
+        selected = Path(sys.executable) if compaction else program
+        program_args = ["-I", str(Path(__file__).resolve()), "turns", "--plan",
+                        str(Path(records).parent / "turns.json"), "--", str(program)] if compaction else []
+        return {
+            "program": str(selected),
+            "programArgs": program_args,
+            "addDirs": not compaction,
+            "fixedArgs": [
+                "-p", "--output-format", "stream-json", "--verbose",
+                "--model", model, "--effort", effort, "--permission-mode", PERMISSION_MODE, *note,
+            ],
+            "provider": "anthropic",
+        }
+
+    def resume_args(self, route: dict[str, Any], session_id: str) -> list[str]:
+        return [*route["fixedArgs"], "--resume", session_id]
+
+    def write_settings(self, case: dict[str, Any], home: Path) -> dict[str, Any] | None:
+        """The case's `.claude/settings.json`, such as a deny rule that makes
+        the native loader refuse a skill it holds."""
+        settings = case.get("claudeSettings")
+        if settings is None:
+            return None
+        path = home / self.config_root / "settings.json"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(settings, indent=2) + "\n")
+        return settings
+
+    def stream_ids(self, stream: list[dict[str, Any]]) -> tuple[str | None, str | None]:
+        init = next((e for e in stream if e.get("type") == "system" and e.get("subtype") == "init"), {})
+        return init.get("session_id"), init.get("cwd")
+
+    def session_files(self, home: Path) -> list[Path]:
+        projects = home / self.transcript_root
+        return sorted(projects.rglob("*.jsonl")) if projects.is_dir() else []
+
+    def session_files_of(self, home: Path, session_id: str) -> list[Path]:
+        return [path for path in self.session_files(home) if path.stem == session_id]
+
+    def startup(self, stream: list[dict[str, Any]], session: list[dict[str, Any]]) -> dict[str, Any]:
+        """What Claude Code itself offered at startup, without account data."""
+        init = next((e for e in stream if e.get("type") == "system" and e.get("subtype") == "init"), None)
+        startup: dict[str, Any] = {"init": {key: init[key] for key in INIT_KEYS if init and key in init}}
+        listing = next(
+            (e["attachment"] for e in session if e.get("type") == "attachment"
+             and (e.get("attachment") or {}).get("type") == "skill_listing"),
+            None,
+        )
+        if listing:
+            startup["skillListing"] = {"skillCount": listing.get("skillCount"), "names": listing.get("names")}
+        startup["attachmentTypes"] = sorted({
+            (e.get("attachment") or {}).get("type", "") for e in session if e.get("type") == "attachment"
+        })
+        return startup
+
+    def describe(self, label: str, view: dict[str, Any], child: dict[str, str], stream: list[dict[str, Any]],
+                 stream_sha: str | None, probes: list[dict[str, str]], home: Path, repo: Path,
+                 live: Mapping[str, str], marker: str | None = None, window: tuple[int, int] | None = None,
+                 turns: bool = False, prompt: str | None = None) -> dict[str, Any]:
+        """The events come from the session file of the launch. When the
+        harness wrote none, as a confined harness cannot, they come from its
+        stream, which holds the same tool calls. Each Agent call of the main
+        transcript adds a delegation, which the prompt of the launch lets the
+        record compare with the obligations of the preamble."""
+        session_id, cwd = self.stream_ids(stream)
+        classifier = Classifier(view, home, Path(cwd or repo), marker, turns)
+        transcripts = []
+        main_entries: list[dict[str, Any]] = []
+        session_dir = None
+        for path in self.session_files(home):
+            if session_id and session_id not in str(path):
+                continue
+            main = path.stem == session_id
+            raw = path.read_bytes()
+            if main and window:
+                raw = b"".join(jsonl_lines(raw)[window[0]:window[1]])
+            entries = read_jsonl_bytes(raw)
+            if main:
+                main_entries, session_dir = entries, path.parent / path.stem
+            transcripts.append({
+                "file": str(path.relative_to(home)),
+                "sha256": sha256_bytes(raw),
+                **({"lines": list(window)} if main and window else {}),
+                "main": main,
+                "events": extract_events(entries, classifier),
+                "startup": self.startup(stream, entries) if main else None,
+            })
+        if session_id and not any(t["main"] for t in transcripts):
+            transcripts.append({
+                "file": "stream", "sha256": stream_sha, "main": True,
+                "events": extract_events(stream, classifier), "startup": self.startup(stream, []),
+            })
+        skills = view.get("skills") or {}
+        descriptor = skills.get("descriptorPath")
+        mandatory = [os.path.realpath(item["path"]) for item in skills.get("mandatory", [])]
+        delegated = self.delegations(main_entries, session_dir, home, prompt, descriptor, child, transcripts,
+                                     mandatory) if session_dir else []
+        return {
+            **launch_facts(label, view, session_id, child, live, probes, stream_sha),
+            "startup": self.startup(stream, []) if not transcripts else None,
+            "transcripts": transcripts,
+            "delegations": delegated,
+            # The last result event of the stream, absent when Ravel ended the
+            # harness before it wrote one.
+            "streamResult": next((e.get("subtype") for e in reversed(stream) if e.get("type") == "result"), None),
+        }
+
+    def delegations(self, entries: list[dict[str, Any]], session_dir: Path, home: Path, prompt: str | None,
+                    descriptor: str | None, child: Mapping[str, str],
+                    transcripts: list[dict[str, Any]], mandatory: list[str]) -> list[dict[str, Any]]:
+        """Each Agent call of the parent: what the parent gave the delegate,
+        the delegate's transcript and the ending context that it inherited.
+        Claude Code links a delegate's transcript to the call through the
+        `toolUseId` of `subagents/agent-<id>.meta.json` beside the transcript."""
+        metas = {}
+        for meta in sorted((session_dir / "subagents").glob("agent-*.meta.json")) if session_dir.is_dir() else []:
+            data = json.loads(meta.read_text())
+            metas[data.get("toolUseId")] = (meta, data)
+        results = {}
+        for entry in entries:
+            content = (entry.get("message") or {}).get("content")
+            for block in content if isinstance(content, list) else []:
+                if isinstance(block, dict) and block.get("type") == "tool_result":
+                    results[block.get("tool_use_id")] = (result_text(block.get("content")), entry.get("toolUseResult"))
+        obligations = obligation_lines(prompt or "")
+        found = []
+        for entry in entries:
+            content = (entry.get("message") or {}).get("content")
+            for block in content if isinstance(content, list) else []:
+                if not (isinstance(block, dict) and block.get("type") == "tool_use"
+                        and block.get("name") in ("Task", "Agent")):
+                    continue
+                tool_input = block.get("input") or {}
+                text = tool_input.get("prompt", "")
+                meta, data = metas.get(block.get("id"), (None, {}))
+                transcript = None
+                if meta:
+                    file = str(meta.with_name(meta.name.replace(".meta.json", ".jsonl")).relative_to(home))
+                    transcript = next((t for t in transcripts if t["file"] == file), None)
+                result, tool_result = results.get(block.get("id"), ("", None))
+                found.append({
+                    "toolUseId": block.get("id"),
+                    "description": tool_input.get("description"),
+                    "subagentType": tool_input.get("subagent_type"),
+                    "background": tool_input.get("run_in_background"),
+                    "prompt": text,
+                    "promptSha256": sha256_bytes(text.encode()),
+                    "givesDescriptorPath": bool(descriptor) and descriptor in text,
+                    "namesVariable": DESCRIPTOR_VARIABLE in text,
+                    "obligations": [line.split(".", 1)[0] for line in obligations if line in text],
+                    "obligationCount": len(obligations),
+                    "endingLines": [line.strip()[:COMMAND_CHARS] for line in text.splitlines()
+                                    if any(term in line for term in ENDING_TERMS)],
+                    "meta": {key: data.get(key) for key in ("agentType", "requestShape", "spawnDepth", "finished")
+                             if key in data},
+                    "status": (tool_result or {}).get("status") if isinstance(tool_result, dict) else None,
+                    "result": result[:DELEGATE_RESULT_CHARS],
+                    "transcript": transcript["file"] if transcript else None,
+                    "order": delegate_order(transcript["events"], mandatory) if transcript else None,
+                    "mechanism": self.delegate_mechanism,
+                    "inherited": [name for name in ENDING_NAMES if name in child],
+                })
+        return found
+
+    def render_rows(self, h: dict[str, Any]) -> list[str]:
+        return ["| Configuration directory | sandbox `.claude`; `claude auth status` reports the same directory |"]
+
+
+# Codex keeps its configuration in CODEX_HOME, which defaults to `~/.codex`.
+CODEX_HOME = "CODEX_HOME"
+CODEX_MODEL = "gpt-6.1-sol"
+CODEX_EFFORT = "medium"
+# Codex's own sandbox. Reads are unrestricted, and writes reach the working
+# directory, TMPDIR and /tmp, with no network. Ravel allocates the session
+# channel under TMPDIR, so `end-session` reaches it. A lifecycle launch has no
+# Ravel confinement, so this sandbox runs in its place. A standalone launch
+# runs it inside Ravel confinement.
+CODEX_SANDBOX = "workspace-write"
+CODEX_APPROVAL = "never"
+# The bundled system skills that Codex installs at startup, and the curated
+# plugins that a ChatGPT sign-in downloads. Both are platform-managed residue.
+CODEX_RESIDUE = (".codex/skills/.system", ".codex/plugins/cache")
+# The case fields whose Codex mechanism a later leaf adds.
+CODEX_LATER = {
+    "compaction": "codex-compaction-trials-k120",
+    "expectDelegate": "codex-delegate-trial-k121",
+    "systemNote": "codex-delegate-trial-k121",
+    "claudeSettings": "no Codex leaf; it is a Claude Code setting",
+}
 SHELLS = ("bash", "zsh", "sh", "dash", "ksh", "fish")
 # The fields of Codex's session metadata and turn context that a record keeps.
 # The metadata also holds the account and user identifiers, which it drops.
@@ -1115,155 +1305,374 @@ CODEX_META_KEYS = ("cli_version", "originator", "source", "thread_source", "mode
 CODEX_TURN_KEYS = ("model", "effort", "approval_policy", "sandbox_policy", "summary")
 
 
-def codex_script(command: Any) -> str:
-    """The shell text of a Codex command: the script of `SHELL -lc SCRIPT`,
-    or else the argument vector as one shell line."""
-    import shlex
+class CodexAdapter(HarnessAdapter):
+    """Codex: `codex exec --json` with CODEX_HOME set to the sandbox `.codex`,
+    which links only `auth.json`. Its session files are
+    `rollout-<time>-<thread>.jsonl` under the sandbox `.codex/sessions`, and
+    the adapter reads their items as the entries of a Claude Code transcript."""
 
-    if isinstance(command, str):
+    name = "codex"
+    title = "Codex"
+    model = CODEX_MODEL
+    effort = CODEX_EFFORT
+    config_root = ".codex"
+    native_root = ".codex/skills"
+    transcript_root = ".codex/sessions"
+    managed_skills = CODEX_RESIDUE
+    read_residue = CODEX_RESIDUE
+    permission_mode = f"sandbox {CODEX_SANDBOX}, approval {CODEX_APPROVAL}"
+    # Codex 0.166.0 opens the existing rollout file for append on a resume
+    # (`open_rollout_for_append` in
+    # https://github.com/openai/codex/blob/rust-v0.166.0/codex-rs/rollout/src/recorder.rs).
+    # `resume` takes no --sandbox of its own: the options of `codex exec`
+    # before it are shared, and `thread_resume_params_from_config` passes their
+    # sandbox and approval policy to the resumed thread
+    # (https://github.com/openai/codex/blob/rust-v0.166.0/codex-rs/exec/src/lib.rs).
+    resume_mechanism = "codex exec <the route's options> resume <thread id> <answer>, outside Ravel's managed process"
+    unsupported = CODEX_LATER
+
+    @property
+    def store(self) -> str:
+        return ".codex/auth.json"
+
+    def refuse(self, environ: Mapping[str, str], owner_home: Path) -> str | None:
+        """Refuse an inherited CODEX_HOME in the real home. The test uses the
+        physical path, so an alias of the real home refuses too. An empty
+        value selects the default in the real home and refuses as well. A
+        value outside the real home is replaced by the sandbox `.codex`, and
+        the returned text reports the replacement."""
+        if CODEX_HOME not in environ:
+            return None
+        value = environ[CODEX_HOME]
+        cwd = os.getcwd()
+        home = os.path.realpath(owner_home)
+        inside = not value or physical(value, cwd) == home or physical(value, cwd).startswith(home.rstrip("/") + "/")
+        if inside:
+            raise TrialError(
+                f"the environment holds {CODEX_HOME}={value!r}, which is in the real home {owner_home} and exposes its "
+                f"configuration, hooks, plugins and skills; run the trial again without {CODEX_HOME}"
+            )
+        return f"the inherited {CODEX_HOME} {value} is outside the real home; this run uses the sandbox .codex"
+
+    def env(self, home: Path) -> dict[str, str]:
+        return {CODEX_HOME: str(home / self.config_root)}
+
+    def prelaunch(self, program: Path, env: dict[str, str], tmp: Path, trial: Path,
+                  config_dir: Path) -> tuple[dict[str, Any], str | None, dict[str, Any] | None]:
+        """`codex login status` reads the linked sign-in. `codex debug
+        prompt-input` renders the model-visible input without a model call,
+        and its skill roots name the effective configuration directory."""
+        login = subprocess.run([str(program), "login", "status"], cwd=tmp, env=env, capture_output=True, text=True,
+                               check=False)
+        auth = {"loggedIn": login.returncode == 0, "status": (login.stdout + login.stderr).strip()}
+        if login.returncode != 0:
+            raise TrialError(f"codex login status reports no sign-in: {auth['status']}; sign in to Codex as the owner")
+        rendered_text = run_checked([str(program), "debug", "prompt-input"], cwd=tmp, env=env)
+        (trial / "prompt-input.json").write_text(rendered_text + "\n")
         try:
-            command = shlex.split(command)
-        except ValueError:
-            return command
-    argv = [str(part) for part in command or []]
-    if len(argv) == 3 and Path(argv[0]).name in SHELLS and argv[1] in ("-lc", "-c"):
-        return argv[2]
-    return shlex.join(argv)
+            rendered = json.loads(rendered_text)
+        except json.JSONDecodeError as error:
+            raise TrialError(f"codex debug prompt-input wrote no JSON: {error}") from None
+        reported = self.config_check(rendered, config_dir)
+        return auth, reported, self.input(rendered)
+
+    def config_check(self, rendered: list[dict[str, Any]], config_dir: Path) -> str:
+        """The sandbox `.codex` is the effective configuration directory: the
+        skill roots of `codex debug prompt-input` name its `skills/.system`."""
+        listing = self.input(rendered)["skillListing"] or {}
+        roots = list((listing.get("roots") or {}).values())
+        expected = os.path.realpath(config_dir / "skills" / ".system")
+        if expected not in [os.path.realpath(root) for root in roots]:
+            raise TrialError(f"Codex reports the skill roots {roots}, not the sandbox {config_dir}/skills/.system; "
+                             f"its configuration directory is not the sandbox {config_dir}")
+        return expected
+
+    def own_links(self, links: list[tuple[str, str]], program: Path) -> tuple[list[tuple[str, str]],
+                                                                            list[tuple[str, str]]]:
+        """Codex links `apply_patch` and `applypatch` to its own executable
+        under `.codex/tmp/arg0-*` while it runs, and removes them when it
+        exits. Ravel ends the session group before that, so they remain. A
+        link there to any other target stays among the other links, and the
+        link check fails on it."""
+        own = [(path, target) for path, target in links
+               if path.startswith(".codex/tmp/arg0") and os.path.realpath(target) == os.path.realpath(program)]
+        return [link for link in links if link not in own], own
+
+    def launch(self, case: dict[str, Any], records: Path, program: Path, model: str,
+               effort: str) -> dict[str, Any]:
+        """Codex reads every path under its sandbox, so it needs no --add-dir."""
+        return {
+            "program": str(program),
+            "programArgs": [],
+            "addDirs": False,
+            "fixedArgs": [
+                "exec", "--json", "--skip-git-repo-check", "--color", "never",
+                "--model", model, "-c", f'model_reasoning_effort="{effort}"',
+                "--sandbox", CODEX_SANDBOX, "-c", f'approval_policy="{CODEX_APPROVAL}"',
+            ],
+            "provider": "openai",
+        }
+
+    def resume_args(self, route: dict[str, Any], session_id: str) -> list[str]:
+        return [*route["fixedArgs"], "resume", session_id]
+
+    def record_extras(self, standalone: bool, auth: dict[str, Any], replaced: str | None,
+                      prelaunch: dict[str, Any] | None) -> dict[str, Any]:
+        return {
+            "sandboxMode": CODEX_SANDBOX, "approvalPolicy": CODEX_APPROVAL,
+            "confinement": "inside Ravel confinement" if standalone
+            else "in place of Ravel confinement, which a lifecycle launch does not have",
+            "loginStatus": auth.get("status"), "codexHome": replaced or f"unset; this run sets {CODEX_HOME}",
+            "prelaunch": prelaunch,
+        }
+
+    def stream_ids(self, stream: list[dict[str, Any]]) -> tuple[str | None, str | None]:
+        """Codex names its thread in `thread.started` and no working
+        directory, so the caller takes that from the session file."""
+        started = next((e for e in stream if e.get("type") == "thread.started"), {})
+        return started.get("thread_id"), None
+
+    def session_files(self, home: Path) -> list[Path]:
+        sessions = home / self.transcript_root
+        return sorted(sessions.rglob("rollout-*.jsonl")) if sessions.is_dir() else []
+
+    def session_files_of(self, home: Path, session_id: str) -> list[Path]:
+        return [path for path in self.session_files(home) if path.stem.endswith(session_id)]
+
+    def session_cwd(self, transcript: Path) -> str | None:
+        """The working directory of a Codex session, from its `session_meta`."""
+        meta = next((r.get("payload") or {} for r in read_jsonl(transcript) if r.get("type") == "session_meta"), {})
+        return meta.get("cwd")
+
+    def describe(self, label: str, view: dict[str, Any], child: dict[str, str], stream: list[dict[str, Any]],
+                 stream_sha: str | None, probes: list[dict[str, str]], home: Path, repo: Path,
+                 live: Mapping[str, str], marker: str | None = None, window: tuple[int, int] | None = None,
+                 turns: bool = False, prompt: str | None = None) -> dict[str, Any]:
+        """The stream's `thread.started` names the thread, and its session
+        file holds its items. When no session file exists, the items come from
+        the stream, which names no working directory. A resumed turn appends
+        to the session file of the first turn, so a window limits that file to
+        the lines of this launch, as for Claude Code."""
+        session_id, _ = self.stream_ids(stream)
+        transcripts = []
+        for path in self.session_files_of(home, session_id) if session_id else []:
+            raw = path.read_bytes()
+            if window:
+                raw = b"".join(jsonl_lines(raw)[window[0]:window[1]])
+            records = read_jsonl_bytes(raw)
+            startup = self.startup(records)
+            classifier = Classifier(view, home, Path(startup["init"].get("cwd") or repo), marker)
+            transcripts.append({
+                "file": str(path.relative_to(home)), "sha256": sha256_bytes(raw),
+                **({"lines": list(window)} if window else {}), "main": True,
+                "events": extract_events(self.entries(records), classifier), "startup": startup,
+            })
+        if session_id and not transcripts:
+            transcripts.append({
+                "file": "stream", "sha256": stream_sha, "main": True,
+                "events": extract_events(self.entries(stream), Classifier(view, home, repo, marker)), "startup": None,
+            })
+        return {
+            **launch_facts(label, view, session_id, child, live, probes, stream_sha),
+            "startup": None,
+            "transcripts": transcripts,
+            "delegations": [],
+            # The last turn event of the stream, absent when Ravel ended the
+            # harness before it wrote one.
+            "streamResult": next((e.get("type") for e in reversed(stream)
+                                  if e.get("type") in ("turn.completed", "turn.failed", "error")), None),
+        }
+
+    @staticmethod
+    def script(command: Any) -> str:
+        """The shell text of a Codex command: the script of `SHELL -lc
+        SCRIPT`, or else the argument vector as one shell line."""
+        import shlex
+
+        if isinstance(command, str):
+            try:
+                command = shlex.split(command)
+            except ValueError:
+                return command
+        argv = [str(part) for part in command or []]
+        if len(argv) == 3 and Path(argv[0]).name in SHELLS and argv[1] in ("-lc", "-c"):
+            return argv[2]
+        return shlex.join(argv)
+
+    @staticmethod
+    def url_path(value: Any) -> str | None:
+        """A path from Codex's `file://` URL or plain path."""
+        from urllib.parse import unquote, urlparse
+
+        if not isinstance(value, str) or not value:
+            return None
+        return unquote(urlparse(value).path) if value.startswith("file://") else value
+
+    @staticmethod
+    def text(item: dict[str, Any]) -> str:
+        if isinstance(item.get("text"), str):
+            return item["text"]
+        content = item.get("content")
+        if isinstance(content, list):
+            return "".join(part.get("text", "") for part in content if isinstance(part, dict))
+        return content if isinstance(content, str) else ""
+
+    def item(self, item: dict[str, Any], number: int) -> list[dict[str, Any]]:
+        """One completed Codex item as the entries of a Claude Code
+        transcript: a text block, a user turn, or a tool call with its result.
+        The session file names item types in CamelCase and the stream in
+        snake_case."""
+        kind = re.sub(r"[_\s]", "", str(item.get("type", ""))).lower()
+        if kind == "reasoning":
+            return []
+        if kind == "usermessage":
+            return [{"type": "user", "message": {"role": "user", "content": self.text(item)}}]
+        if kind == "agentmessage":
+            return [{"type": "assistant", "message": {"content": [{"type": "text", "text": self.text(item)}]}}]
+        tid = f"codex_{item.get('id') or number}"
+        cwd = None
+        result = ""
+        error = item.get("status") not in ("completed", None)
+        if kind == "commandexecution":
+            name, tool_input = "exec_command", {"command": self.script(item.get("command"))}
+            cwd = self.url_path(item.get("cwd"))
+            error = error or item.get("exit_code") not in (0, None)
+            result = item.get("aggregated_output") or ""
+        elif kind == "filechange":
+            changes = item.get("changes")
+            paths = list(changes) if isinstance(changes, dict) else [
+                change.get("path") for change in changes or [] if isinstance(change, dict) and change.get("path")]
+            name, tool_input = "apply_patch", {"paths": paths}
+        elif kind.startswith("collab"):
+            tool = str(item.get("tool") or "")
+            name = "spawn_agent" if "spawn" in tool.lower() else f"collab:{tool}"
+            tool_input = {"description": item.get("prompt") or "", "tool": tool}
+        else:
+            name, tool_input = str(item.get("type")), {key: None for key in item if key not in ("id", "type")}
+        call: dict[str, Any] = {"type": "assistant", "message": {"content": [
+            {"type": "tool_use", "id": tid, "name": name, "input": tool_input}]}}
+        if cwd:
+            call["cwd"] = cwd
+        return [call, {"type": "user", "message": {"content": [
+            {"type": "tool_result", "tool_use_id": tid, "is_error": error, "content": result}]}}]
+
+    def entries(self, records: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """The completed items of a Codex session file or stream, in order,
+        as transcript entries. Each nested command of the `exec` tool is an
+        item of its own, with its argument vector and its working directory."""
+        entries: list[dict[str, Any]] = []
+        for record in records:
+            item = None
+            payload = record.get("payload") if isinstance(record.get("payload"), dict) else {}
+            if record.get("type") == "event_msg" and payload.get("type") == "item_completed":
+                item = payload.get("item")
+            elif record.get("type") == "item.completed":
+                item = record.get("item")
+            if isinstance(item, dict):
+                entries += self.item(item, len(entries))
+        return entries
+
+    @staticmethod
+    def skills(text: str) -> dict[str, Any]:
+        """The skill roots and the listed skills of Codex's skills instructions."""
+        roots = dict(re.findall(r"^- `(r\d+)` = `([^`]+)`$", text, re.MULTILINE))
+        listed = re.findall(r"^- ([^:\n]+): .*\(file: ([^)]+)\)$", text, re.MULTILINE)
+        return {"roots": roots, "skillCount": len(listed), "names": [name for name, _ in listed],
+                "files": [file for _, file in listed]}
+
+    def input(self, items: list[dict[str, Any]]) -> dict[str, Any]:
+        """What Codex itself puts before the first prompt: its tools, its
+        developer messages, its skill listing and its environment context.
+        Each developer message shows by its first line, its length and its
+        digest."""
+        tools: list[str] = []
+        developer = []
+        skills = None
+        environment = None
+        for item in items:
+            if item.get("type") == "additional_tools":
+                for space in item.get("tools", []):
+                    tools += [f"{space.get('name')}.{tool.get('name')}" for tool in space.get("tools", [])]
+            if item.get("type") != "message":
+                continue
+            text = "".join(part.get("text", "") for part in item.get("content", []) if isinstance(part, dict))
+            if item.get("role") == "developer":
+                # One developer message can join several sections, each a tag.
+                developer.append({"firstLine": text.splitlines()[0][:COMMAND_CHARS] if text else "",
+                                  "sections": list(dict.fromkeys(re.findall(r"</([a-z_][a-z_ ]*)>", text))),
+                                  "chars": len(text), "sha256": sha256_bytes(text.encode())})
+                if text.startswith("<skills_instructions>"):
+                    skills = self.skills(text)
+            elif item.get("role") == "user" and text.startswith("<environment_context>") and environment is None:
+                environment = text
+        return {"tools": tools, "developerMessages": developer, "skillListing": skills,
+                "environmentContext": environment}
+
+    def startup(self, records: list[dict[str, Any]]) -> dict[str, Any]:
+        """What Codex itself offered at startup, from its session file,
+        without the account and user identifiers of its metadata."""
+        meta = next((r.get("payload") or {} for r in records if r.get("type") == "session_meta"), {})
+        turn = next((r.get("payload") or {} for r in records if r.get("type") == "turn_context"), {})
+        init: dict[str, Any] = {key: meta[key] for key in CODEX_META_KEYS if key in meta}
+        if isinstance(meta.get("base_instructions"), (str, dict)):
+            base = meta["base_instructions"]
+            text = json.dumps(base) if isinstance(base, dict) else base
+            init["baseInstructions"] = {"chars": len(text), "sha256": sha256_bytes(text.encode())}
+        init.update({key: turn[key] for key in CODEX_TURN_KEYS if key in turn})
+        items = [r["payload"] for r in records if r.get("type") == "response_item" and isinstance(r.get("payload"), dict)]
+        return {"init": init, **self.input(items)}
+
+    def render_rows(self, h: dict[str, Any]) -> list[str]:
+        return [
+            f"| Configuration directory | sandbox `.codex`, as `{CODEX_HOME}`; the skill roots of "
+            f"`codex debug prompt-input` name its `skills/.system` |",
+            f"| Codex sandbox | `{h['sandboxMode']}`, approval `{h['approvalPolicy']}`, {h['confinement']} |",
+            f"| `{CODEX_HOME}` | {cell(h['codexHome'])} |",
+            f"| Sign-in | `codex login status`: {cell(h['loginStatus'])} |",
+        ]
+
+    def render_prelaunch(self, h: dict[str, Any]) -> list[str]:
+        prelaunch = h.get("prelaunch")
+        if not prelaunch:
+            return []
+        return ["Codex input before the launch, from `codex debug prompt-input`, which makes no model call:", "",
+                "```json", json.dumps(prelaunch, indent=2), "```", ""]
 
 
-def file_url_path(value: Any) -> str | None:
-    """A path from Codex's `file://` URL or plain path."""
-    from urllib.parse import unquote, urlparse
-
-    if not isinstance(value, str) or not value:
-        return None
-    return unquote(urlparse(value).path) if value.startswith("file://") else value
-
-
-def codex_text(item: dict[str, Any]) -> str:
-    if isinstance(item.get("text"), str):
-        return item["text"]
-    content = item.get("content")
-    if isinstance(content, list):
-        return "".join(part.get("text", "") for part in content if isinstance(part, dict))
-    return content if isinstance(content, str) else ""
+# The registry: the one place that maps a harness name to its adapter.
+CLAUDE = ClaudeAdapter()
+CODEX = CodexAdapter()
+ADAPTERS: dict[str, HarnessAdapter] = {adapter.name: adapter for adapter in (CLAUDE, CODEX)}
+HARNESSES = tuple(ADAPTERS)
+# A case or a record without a harness name is of Claude Code, the runner's
+# first harness.
+DEFAULT_HARNESS = CLAUDE.name
 
 
-def codex_item(item: dict[str, Any], number: int) -> list[dict[str, Any]]:
-    """One completed Codex item as the entries of a Claude Code transcript:
-    a text block, a user turn, or a tool call with its result. The session
-    file names item types in CamelCase and the stream in snake_case."""
-    kind = re.sub(r"[_\s]", "", str(item.get("type", ""))).lower()
-    if kind == "reasoning":
-        return []
-    if kind == "usermessage":
-        return [{"type": "user", "message": {"role": "user", "content": codex_text(item)}}]
-    if kind == "agentmessage":
-        return [{"type": "assistant", "message": {"content": [{"type": "text", "text": codex_text(item)}]}}]
-    tid = f"codex_{item.get('id') or number}"
-    cwd = None
-    result = ""
-    error = item.get("status") not in ("completed", None)
-    if kind == "commandexecution":
-        name, tool_input = "exec_command", {"command": codex_script(item.get("command"))}
-        cwd = file_url_path(item.get("cwd"))
-        error = error or item.get("exit_code") not in (0, None)
-        result = item.get("aggregated_output") or ""
-    elif kind == "filechange":
-        changes = item.get("changes")
-        paths = list(changes) if isinstance(changes, dict) else [
-            change.get("path") for change in changes or [] if isinstance(change, dict) and change.get("path")]
-        name, tool_input = "apply_patch", {"paths": paths}
-    elif kind.startswith("collab"):
-        tool = str(item.get("tool") or "")
-        name = "spawn_agent" if "spawn" in tool.lower() else f"collab:{tool}"
-        tool_input = {"description": item.get("prompt") or "", "tool": tool}
-    else:
-        name, tool_input = str(item.get("type")), {key: None for key in item if key not in ("id", "type")}
-    call: dict[str, Any] = {"type": "assistant", "message": {"content": [
-        {"type": "tool_use", "id": tid, "name": name, "input": tool_input}]}}
-    if cwd:
-        call["cwd"] = cwd
-    return [call, {"type": "user", "message": {"content": [
-        {"type": "tool_result", "tool_use_id": tid, "is_error": error, "content": result}]}}]
+def adapter_named(name: str) -> HarnessAdapter:
+    """The adapter of a harness name, such as the name of a record's harness."""
+    return ADAPTERS[name]
 
 
-def codex_entries(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """The completed items of a Codex session file or stream, in order, as
-    transcript entries. Each nested command of the `exec` tool is an item of
-    its own, with its argument vector and its working directory."""
-    entries: list[dict[str, Any]] = []
-    for record in records:
-        item = None
-        payload = record.get("payload") if isinstance(record.get("payload"), dict) else {}
-        if record.get("type") == "event_msg" and payload.get("type") == "item_completed":
-            item = payload.get("item")
-        elif record.get("type") == "item.completed":
-            item = record.get("item")
-        if isinstance(item, dict):
-            entries += codex_item(item, len(entries))
-    return entries
+def adapter_of(case: Mapping[str, Any]) -> HarnessAdapter:
+    """The adapter of a case."""
+    return adapter_named(case.get("harness", DEFAULT_HARNESS))
 
 
-def codex_skills(text: str) -> dict[str, Any]:
-    """The skill roots and the listed skills of Codex's skills instructions."""
-    roots = dict(re.findall(r"^- `(r\d+)` = `([^`]+)`$", text, re.MULTILINE))
-    listed = re.findall(r"^- ([^:\n]+): .*\(file: ([^)]+)\)$", text, re.MULTILINE)
-    return {"roots": roots, "skillCount": len(listed), "names": [name for name, _ in listed],
-            "files": [file for _, file in listed]}
+def run_adapter(case_name: str, own: Any, requested: str | None) -> tuple[HarnessAdapter, str | None]:
+    """The adapter of a run, and the case's own harness when the run uses
+    another one. A case names its own harness, and a request runs it in
+    another one."""
+    if own not in ADAPTERS or (requested is not None and requested not in ADAPTERS):
+        raise TrialError(f"case {case_name}: the harness '{requested or own}' is not one of {', '.join(ADAPTERS)}")
+    if requested and requested != own:
+        return ADAPTERS[requested], own
+    return ADAPTERS[own], None
 
 
-def codex_input(items: list[dict[str, Any]]) -> dict[str, Any]:
-    """What Codex itself puts before the first prompt: its tools, its
-    developer messages, its skill listing and its environment context. Each
-    developer message shows by its first line, its length and its digest."""
-    tools: list[str] = []
-    developer = []
-    skills = None
-    environment = None
-    for item in items:
-        if item.get("type") == "additional_tools":
-            for space in item.get("tools", []):
-                tools += [f"{space.get('name')}.{tool.get('name')}" for tool in space.get("tools", [])]
-        if item.get("type") != "message":
-            continue
-        text = "".join(part.get("text", "") for part in item.get("content", []) if isinstance(part, dict))
-        if item.get("role") == "developer":
-            # One developer message can join several sections, each a tag.
-            developer.append({"firstLine": text.splitlines()[0][:COMMAND_CHARS] if text else "",
-                              "sections": list(dict.fromkeys(re.findall(r"</([a-z_][a-z_ ]*)>", text))),
-                              "chars": len(text), "sha256": sha256_bytes(text.encode())})
-            if text.startswith("<skills_instructions>"):
-                skills = codex_skills(text)
-        elif item.get("role") == "user" and text.startswith("<environment_context>") and environment is None:
-            environment = text
-    return {"tools": tools, "developerMessages": developer, "skillListing": skills, "environmentContext": environment}
-
-
-def codex_startup(records: list[dict[str, Any]]) -> dict[str, Any]:
-    """What Codex itself offered at startup, from its session file, without
-    the account and user identifiers of its metadata."""
-    meta = next((r.get("payload") or {} for r in records if r.get("type") == "session_meta"), {})
-    turn = next((r.get("payload") or {} for r in records if r.get("type") == "turn_context"), {})
-    init: dict[str, Any] = {key: meta[key] for key in CODEX_META_KEYS if key in meta}
-    if isinstance(meta.get("base_instructions"), (str, dict)):
-        text = json.dumps(meta["base_instructions"]) if isinstance(meta["base_instructions"], dict) else meta["base_instructions"]
-        init["baseInstructions"] = {"chars": len(text), "sha256": sha256_bytes(text.encode())}
-    init.update({key: turn[key] for key in CODEX_TURN_KEYS if key in turn})
-    items = [r["payload"] for r in records if r.get("type") == "response_item" and isinstance(r.get("payload"), dict)]
-    return {"init": init, **codex_input(items)}
-
-
-def codex_config_check(rendered: list[dict[str, Any]], config_dir: Path) -> str:
-    """The sandbox `.codex` is the effective configuration directory: the
-    skill roots of `codex debug prompt-input` name its `skills/.system`."""
-    listing = codex_input(rendered)["skillListing"] or {}
-    roots = list((listing.get("roots") or {}).values())
-    expected = os.path.realpath(config_dir / "skills" / ".system")
-    if expected not in [os.path.realpath(root) for root in roots]:
-        raise TrialError(f"Codex reports the skill roots {roots}, not the sandbox {config_dir}/skills/.system; "
-                         f"its configuration directory is not the sandbox {config_dir}")
-    return expected
+def session_files(home: Path) -> list[Path]:
+    """The session files of every harness in the sandbox home."""
+    return [path for adapter in ADAPTERS.values() for path in adapter.session_files(home)]
 
 
 # --- prepare -------------------------------------------------------------------
@@ -1339,13 +1748,6 @@ def prepare(out: Path, commit: str, front: Path, environ: Mapping[str, str]) -> 
 # --- run -----------------------------------------------------------------------
 
 
-def harness_program(environ: Mapping[str, str], harness: str = "claude") -> Path:
-    named = environ.get("HARNESS_TRIAL_PROGRAM") or shutil.which(harness, path=environ.get("PATH"))
-    if not named or not os.access(named, os.X_OK):
-        raise TrialError(f"no '{harness}' program found on PATH; install it, or put it on PATH")
-    return Path(named).resolve()
-
-
 def plant_repo(repo: Path, tree: Path, env: dict[str, str]) -> str:
     """The case's tree as `.grove/` of a new jj repository. A task can name a
     concrete path of the trial, so `{{TRIAL}}` in a tree file becomes the
@@ -1397,7 +1799,7 @@ def install_native(case: dict[str, Any], home: Path, checkout: Path) -> list[dic
     copy."""
     installed = []
     for item in case.get("native", []):
-        target = home / native_root(case.get("harness", "claude")) / item["name"]
+        target = home / adapter_of(case).native_root / item["name"]
         entry = {"name": item["name"], "from": item["from"], "path": str(target.relative_to(home))}
         if item.get("commit"):
             commit = run_checked(["git", "rev-parse", "--verify", f"{item['commit']}^{{commit}}"],
@@ -1414,7 +1816,7 @@ def install_native(case: dict[str, Any], home: Path, checkout: Path) -> list[dic
 
 def expected_native(case: dict[str, Any]) -> list[str]:
     """The native copies that the case declares, as `skill_files` names them."""
-    root = native_root(case.get("harness", "claude"))
+    root = adapter_of(case).native_root
     return sorted(f"{root}/{item['name']}/SKILL.md" for item in case.get("native", []))
 
 
@@ -1422,18 +1824,6 @@ def native_failures(native: list[str], expected: list[str]) -> list[str]:
     if native == expected:
         return []
     return [f"the sandbox home holds the native copies {native}, and the case declares {expected}"]
-
-
-def write_claude_settings(case: dict[str, Any], home: Path) -> dict[str, Any] | None:
-    """The case's `.claude/settings.json` in the sandbox home, such as a deny
-    rule that makes the native loader refuse a skill it holds."""
-    settings = case.get("claudeSettings")
-    if settings is None:
-        return None
-    path = home / ".claude" / "settings.json"
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(settings, indent=2) + "\n")
-    return settings
 
 
 def plant_files(case: dict[str, Any], trial: Path, checkout: Path) -> list[dict[str, str]]:
@@ -1486,14 +1876,6 @@ def launch_records(records: Path) -> list[Path]:
     return sorted((p for p in records.iterdir() if p.is_dir()), key=lambda p: int(p.name))
 
 
-def session_files(home: Path) -> list[Path]:
-    """The session files of both harnesses in the sandbox home."""
-    projects = home / ".claude" / "projects"
-    sessions = home / ".codex" / "sessions"
-    found = sorted(projects.rglob("*.jsonl")) if projects.is_dir() else []
-    return found + (sorted(sessions.rglob("rollout-*.jsonl")) if sessions.is_dir() else [])
-
-
 def parse_probes(text: str) -> list[dict[str, str]]:
     """The `trial-probe OP STATUS PATH` lines of the wrapper, in order."""
     probes = []
@@ -1515,19 +1897,19 @@ def read_window(record: Path) -> tuple[int, int] | None:
     return start, end
 
 
-def describe_launch(record: Path, home: Path, repo: Path, live: Mapping[str, str],
-                    marker: str | None = None, turns: bool = False, harness: str = "claude") -> dict[str, Any]:
+def describe_launch(adapter: HarnessAdapter, record: Path, home: Path, repo: Path, live: Mapping[str, str],
+                    marker: str | None = None, turns: bool = False) -> dict[str, Any]:
     """One launch of a lifecycle case, from its record directory."""
     stream_file = record / "stream.jsonl"
     probes = record / "probes"
     prompt = record / "prompt"
-    return describe(
+    return adapter.describe(
         str(record), json.loads((record / "view.json").read_text()), parse_env((record / "env").read_text()),
         read_jsonl(stream_file) if stream_file.exists() else [],
         sha256_file(stream_file) if stream_file.exists() else None,
         parse_probes(probes.read_text()) if probes.exists() else [],
         home, repo, live, marker, read_window(record), turns,
-        prompt.read_text() if prompt.exists() else None, harness,
+        prompt.read_text() if prompt.exists() else None,
     )
 
 
@@ -1575,68 +1957,6 @@ def log_lines(text: str) -> list[str]:
     return lines
 
 
-def describe(label: str, view: dict[str, Any], child: dict[str, str], stream: list[dict[str, Any]],
-             stream_sha: str | None, probes: list[dict[str, str]], home: Path, repo: Path,
-             live: Mapping[str, str], marker: str | None = None,
-             window: tuple[int, int] | None = None, turns: bool = False,
-             prompt: str | None = None, harness: str = "claude") -> dict[str, Any]:
-    """One launch: its request view, the environment of its harness, its
-    probes and its ordered events. The events come from the session file of
-    the harness. When the harness wrote none, as a confined harness cannot,
-    they come from its stream, which holds the same tool calls. A window
-    limits the main session file to the lines of this launch, and the digest
-    then covers those lines only. Each Agent call of the main transcript adds
-    a delegation, which the prompt of the launch lets the record compare with
-    the obligations of the preamble."""
-    if harness == "codex":
-        return describe_codex(label, view, child, stream, stream_sha, probes, home, repo, live, marker, window)
-    init = next((e for e in stream if e.get("type") == "system" and e.get("subtype") == "init"), {})
-    session_id = init.get("session_id")
-    classifier = Classifier(view, home, Path(init.get("cwd") or repo), marker, turns)
-    transcripts = []
-    main_entries: list[dict[str, Any]] = []
-    session_dir = None
-    for path in session_files(home):
-        if path.name.startswith("rollout-"):
-            continue
-        if session_id and session_id not in str(path):
-            continue
-        main = path.stem == session_id
-        raw = path.read_bytes()
-        if main and window:
-            raw = b"".join(jsonl_lines(raw)[window[0]:window[1]])
-        entries = read_jsonl_bytes(raw)
-        if main:
-            main_entries, session_dir = entries, path.parent / path.stem
-        transcripts.append({
-            "file": str(path.relative_to(home)),
-            "sha256": sha256_bytes(raw),
-            **({"lines": list(window)} if main and window else {}),
-            "main": main,
-            "events": extract_events(entries, classifier),
-            "startup": native_startup(stream, entries) if main else None,
-        })
-    if session_id and not any(t["main"] for t in transcripts):
-        transcripts.append({
-            "file": "stream", "sha256": stream_sha, "main": True,
-            "events": extract_events(stream, classifier), "startup": native_startup(stream, []),
-        })
-    skills = view.get("skills") or {}
-    descriptor = skills.get("descriptorPath")
-    mandatory = [os.path.realpath(item["path"]) for item in skills.get("mandatory", [])]
-    delegated = delegations(main_entries, session_dir, home, prompt, descriptor, child, transcripts,
-                            mandatory) if session_dir else []
-    return {
-        **launch_facts(label, view, session_id, child, live, probes, stream_sha),
-        "startup": native_startup(stream, []) if not transcripts else None,
-        "transcripts": transcripts,
-        "delegations": delegated,
-        # The last result event of the stream, absent when Ravel ended the
-        # harness before it wrote one.
-        "streamResult": next((e.get("subtype") for e in reversed(stream) if e.get("type") == "result"), None),
-    }
-
-
 def launch_facts(label: str, view: dict[str, Any], session_id: str | None, child: dict[str, str],
                  live: Mapping[str, str], probes: list[dict[str, str]], stream_sha: str | None) -> dict[str, Any]:
     """The facts of one launch that do not depend on the harness."""
@@ -1663,50 +1983,6 @@ def launch_facts(label: str, view: dict[str, Any], session_id: str | None, child
         "control": child_control(child, live),
         "probes": probes,
         "streamSha256": stream_sha,
-    }
-
-
-def describe_codex(label: str, view: dict[str, Any], child: dict[str, str], stream: list[dict[str, Any]],
-                   stream_sha: str | None, probes: list[dict[str, str]], home: Path, repo: Path,
-                   live: Mapping[str, str], marker: str | None = None,
-                   window: tuple[int, int] | None = None) -> dict[str, Any]:
-    """One Codex launch. The stream's `thread.started` names the thread, and
-    the session file `rollout-<time>-<thread>.jsonl` under the sandbox
-    `.codex/sessions` holds its items. When no session file exists, the
-    items come from the stream, which names no working directory. A resumed
-    turn appends to the session file of the first turn, so a window limits
-    that file to the lines of this launch, as for Claude Code."""
-    started = next((e for e in stream if e.get("type") == "thread.started"), {})
-    session_id = started.get("thread_id")
-    transcripts = []
-    for path in session_files(home):
-        if not (session_id and path.name.startswith("rollout-") and path.stem.endswith(session_id)):
-            continue
-        raw = path.read_bytes()
-        if window:
-            raw = b"".join(jsonl_lines(raw)[window[0]:window[1]])
-        records = read_jsonl_bytes(raw)
-        startup = codex_startup(records)
-        classifier = Classifier(view, home, Path(startup["init"].get("cwd") or repo), marker)
-        transcripts.append({
-            "file": str(path.relative_to(home)), "sha256": sha256_bytes(raw),
-            **({"lines": list(window)} if window else {}), "main": True,
-            "events": extract_events(codex_entries(records), classifier), "startup": startup,
-        })
-    if session_id and not transcripts:
-        transcripts.append({
-            "file": "stream", "sha256": stream_sha, "main": True,
-            "events": extract_events(codex_entries(stream), Classifier(view, home, repo, marker)), "startup": None,
-        })
-    return {
-        **launch_facts(label, view, session_id, child, live, probes, stream_sha),
-        "startup": None,
-        "transcripts": transcripts,
-        "delegations": [],
-        # The last turn event of the stream, absent when Ravel ended the
-        # harness before it wrote one.
-        "streamResult": next((e.get("type") for e in reversed(stream)
-                              if e.get("type") in ("turn.completed", "turn.failed", "error")), None),
     }
 
 
@@ -1860,74 +2136,18 @@ def commit_edits(clone: Path, edits: list[dict[str, str]]) -> dict[str, Any]:
     return {"checkout": str(clone), "commitBefore": before, "commitAfter": after, "files": files}
 
 
-def stream_init(record: Path, harness: str = "claude") -> tuple[str | None, str | None]:
-    """The session ID and the working directory of one launch, from its
-    stream. Codex names its thread in `thread.started` and no working
-    directory, so the caller takes that from the session file."""
-    stream = record / "stream.jsonl"
-    entries = read_jsonl(stream) if stream.exists() else []
-    if harness == "codex":
-        started = next((e for e in entries if e.get("type") == "thread.started"), {})
-        return started.get("thread_id"), None
-    init = next((e for e in entries if e.get("type") == "system" and e.get("subtype") == "init"), {})
-    return init.get("session_id"), init.get("cwd")
-
-
-def session_files_of(home: Path, session_id: str, harness: str = "claude") -> list[Path]:
-    """The session files of one session: `<id>.jsonl` of Claude Code, or
-    `rollout-<time>-<thread>.jsonl` of Codex."""
-    if harness == "codex":
-        return [path for path in session_files(home)
-                if path.name.startswith("rollout-") and path.stem.endswith(session_id)]
-    return [path for path in session_files(home) if path.stem == session_id]
-
-
-def session_file(home: Path, session_id: str, harness: str = "claude") -> Path | None:
-    return next(iter(session_files_of(home, session_id, harness)), None)
-
-
-def session_cwd(transcript: Path, harness: str) -> str | None:
-    """The working directory of a Codex session, from its `session_meta`."""
-    if harness != "codex":
-        return None
-    meta = next((r.get("payload") or {} for r in read_jsonl(transcript) if r.get("type") == "session_meta"), {})
-    return meta.get("cwd")
-
-
-# The continuation of each harness. Claude Code keeps the session ID without
-# --fork-session and appends to the session file. Codex 0.166.0 opens the
-# existing rollout file for append on a resume (`open_rollout_for_append` in
-# https://github.com/openai/codex/blob/rust-v0.166.0/codex-rs/rollout/src/recorder.rs).
-# `resume` takes no --sandbox of its own: the options of `codex exec` before it
-# are shared, and `thread_resume_params_from_config` passes their sandbox and
-# approval policy to the resumed thread
-# (https://github.com/openai/codex/blob/rust-v0.166.0/codex-rs/exec/src/lib.rs).
-MECHANISMS = {
-    "claude": "claude -p --resume <session id>, without --fork-session, outside Ravel's managed process",
-    "codex": "codex exec <the route's options> resume <thread id> <answer>, outside Ravel's managed process",
-}
-
-
-def resume_args(route: dict[str, Any], session_id: str, harness: str) -> list[str]:
-    """The arguments of a resumed turn before the answer: the fixed arguments
-    of the route, then the harness's own resume."""
-    if harness == "codex":
-        return [*route["fixedArgs"], "resume", session_id]
-    return [*route["fixedArgs"], "--resume", session_id]
-
-
 def write_window(record: Path, start: int, end: int) -> None:
     (record / "lines").write_text(f"{start} {end}\n")
 
 
-def resume_turn(records: Path, view: dict[str, Any], program: Path, route: dict[str, Any], session_id: str,
-                answer: str, cwd: Path, env: dict[str, str], out: Path, timeout_s: float,
-                harness: str = "claude") -> dict[str, Any]:
+def resume_turn(adapter: HarnessAdapter, records: Path, view: dict[str, Any], program: Path, route: dict[str, Any],
+                session_id: str, answer: str, cwd: Path, env: dict[str, str], out: Path,
+                timeout_s: float) -> dict[str, Any]:
     """The resumed turn: the harness alone, outside Ravel, through the launch
     wrapper, which records its view, its prompt and its environment. The
     arguments are the fixed arguments of the route, the harness's resume and
     the answer, without `--add-dir`, as an owner's manual resume gives them."""
-    args = resume_args(route, session_id, harness)
+    args = adapter.resume_args(route, session_id)
     argv = [str(WRAPPER), str(records), json.dumps(view), str(program), *args, answer]
     driver = run_driver(argv, cwd, env, out, timeout_s, name="resume")
     return {"args": args, "cwd": str(cwd), "answerSha256": sha256_bytes(answer.encode()), **driver}
@@ -1991,18 +2211,18 @@ def continue_case(case: dict[str, Any], case_dir: Path, trial: Path, home: Path,
     change, then the resumed turn, then a fresh launch on a new leaf."""
     spec = case["continuation"]
     marker = spec["marker"]
-    harness = case.get("harness", "claude")
-    result: dict[str, Any] = {"mechanism": MECHANISMS[harness], "marker": marker, "failures": []}
+    adapter = adapter_of(case)
+    result: dict[str, Any] = {"mechanism": adapter.resume_mechanism, "marker": marker, "failures": []}
     first = launch_records(records)
     if len(first) != 1:
         result["failures"].append(f"the first driver run made {len(first)} launches, and a continuation resumes one")
         return result
-    session_id, cwd = stream_init(first[0], harness)
-    transcript = session_file(home, session_id, harness) if session_id else None
+    session_id, cwd = adapter.stream_init(first[0])
+    transcript = adapter.session_file(home, session_id) if session_id else None
     if not transcript:
         result["failures"].append("the first turn wrote no session file to resume")
         return result
-    cwd = cwd or session_cwd(transcript, harness)
+    cwd = cwd or adapter.session_cwd(transcript)
     first_end = len(jsonl_lines(transcript.read_bytes()))
     write_window(first[0], 0, first_end)
     result["sessionId"] = session_id
@@ -2019,16 +2239,16 @@ def continue_case(case: dict[str, Any], case_dir: Path, trial: Path, home: Path,
                             "note": "no configuration script ran; the skills fields are those of the first turn"}
     answer = (case_dir / spec.get("answer", "answer.md")).read_text()
     say(f"{case['name']}: resuming session {session_id} outside Ravel")
-    result["resume"] = resume_turn(records, view, program, route, session_id, answer,
-                                   Path(cwd or repo), env, trial, timeout_s, harness)
+    result["resume"] = resume_turn(adapter, records, view, program, route, session_id, answer,
+                                   Path(cwd or repo), env, trial, timeout_s)
     resumed = [record for record in launch_records(records) if record != first[0]]
     if len(resumed) != 1:
         result["failures"].append(f"the resumed turn left {len(resumed)} launch records, not one")
         return result
-    resumed_id, _ = stream_init(resumed[0], harness)
+    resumed_id, _ = adapter.stream_init(resumed[0])
     if resumed_id != session_id:
         result["failures"].append(f"the resumed turn reports the session {resumed_id}, not {session_id}")
-    elif session_files_of(home, session_id, harness) != [transcript]:
+    elif adapter.session_files_of(home, session_id) != [transcript]:
         result["failures"].append("the resumed turn wrote a session file of its own, not the first one")
     else:
         write_window(resumed[0], first_end, len(jsonl_lines(transcript.read_bytes())))
@@ -2177,8 +2397,10 @@ def api_context(entries: list[dict[str, Any]], marks: dict[str, Any]) -> dict[st
 
 def gate_session(home: Path, session: str | None, marks: dict[str, Any], mode: str) -> dict[str, Any]:
     """The feeder's check before the answer turn: the session lines after the
-    boundary show the case's loss."""
-    path = session_file(home, session) if session else None
+    boundary show the case's loss. The feeder knows the session ID alone, so
+    it asks each adapter for the session file."""
+    found = (adapter.session_file(home, session) for adapter in ADAPTERS.values()) if session else iter(())
+    path = next(filter(None, found), None)
     if not path:
         return {"ok": False, "problems": ["no session file to check"]}
     findings = after_boundary(read_jsonl(path), marks)
@@ -2280,14 +2502,14 @@ def compaction_report(case: dict[str, Any], record: Path, launch: dict[str, Any]
     the summary, what Claude Code added after the boundary, the context of the
     first request after it, and the variable in the harness environment."""
     spec = case["compaction"]
+    adapter = adapter_of(case)
     prompt = (record / "prompt").read_text()
     marks = preamble_marks(prompt)
     stderr = (record / "stderr").read_text(errors="replace") if (record / "stderr").exists() else ""
     env = parse_env((record / "env").read_text())
     report: dict[str, Any] = {
         "mode": spec["mode"],
-        "mechanism": "claude -p --input-format stream-json in Ravel's managed process; the feeder sends the "
-                     "prompt, then /compact with the instructions, then the answer",
+        "mechanism": adapter.compaction_mechanism,
         "instructions": spec["instructions"],
         "preamble": {"sha256": marks["sha256"], "paths": len(marks["paths"]), "digests": len(marks["digests"]),
                      "lines": len(marks["lines"])},
@@ -2297,7 +2519,7 @@ def compaction_report(case: dict[str, Any], record: Path, launch: dict[str, Any]
                      "descriptor": env.get(DESCRIPTOR_VARIABLE) == launch.get("descriptorPath")},
         "failures": [],
     }
-    path = session_file(home, launch["sessionId"]) if launch.get("sessionId") else None
+    path = adapter.session_file(home, launch["sessionId"]) if launch.get("sessionId") else None
     entries = read_jsonl(path) if path else []
     start = boundary_index(entries)
     if start is None:
@@ -2423,9 +2645,9 @@ def run_case(prepared_dir: Path, name: str, environ: Mapping[str, str],
     # Loading a case launches nothing. Nothing launches before the refusals
     # of the harness, including its version probe.
     case, case_dir = load_case(name, harness)
-    harness = case["harness"]
+    adapter = adapter_of(case)
     owner_home = Path(environ["HOME"])
-    replaced = refuse_inherited(harness, environ, owner_home)
+    replaced = adapter.refuse(environ, owner_home)
     if replaced:
         say(replaced)
     prepared_dir = prepared_dir.resolve()
@@ -2438,13 +2660,12 @@ def run_case(prepared_dir: Path, name: str, environ: Mapping[str, str],
         if sha256_file(grove_bin / binary) != digest:
             raise TrialError(f"{grove_bin / binary} changed since preparation; prepare again")
     checkout = Path(prepared["source"]["checkout"])
-    store = sign_in_store(harness)
+    store = adapter.store
     if not (owner_home / store).exists():
-        raise TrialError(f"no sign-in store at {owner_home / store}; sign in to {harness} as the owner")
-    program = harness_program(environ, harness)
-    codex = harness == "codex"
-    model = model or case.get("model", CODEX_MODEL if codex else DEFAULT_MODEL)
-    effort = effort or case.get("effort", CODEX_EFFORT if codex else DEFAULT_EFFORT)
+        raise TrialError(f"no sign-in store at {owner_home / store}; sign in to {adapter.name} as the owner")
+    program = adapter.program(environ)
+    model = model or case.get("model", adapter.model)
+    effort = effort or case.get("effort", adapter.effort)
 
     stamp = dt.datetime.now(dt.UTC).strftime("%Y%m%dT%H%M%SZ")
     trial = prepared_dir / "runs" / f"{name}-{stamp}"
@@ -2475,7 +2696,7 @@ def run_case(prepared_dir: Path, name: str, environ: Mapping[str, str],
     if settings:
         (home / ".config" / "ravel" / "settings.json").write_text(json.dumps(settings, indent=2) + "\n")
     installed = install_native(case, home, checkout)
-    claude_settings = write_claude_settings(case, home)
+    claude_settings = adapter.write_settings(case, home)
     planted = plant_files(case, trial, checkout)
     route = route_for(case, records, program, model, effort, fixed_probes(case, home, checkout))
     (trial / "route.json").write_text(json.dumps(route, indent=2) + "\n")
@@ -2487,7 +2708,7 @@ def run_case(prepared_dir: Path, name: str, environ: Mapping[str, str],
     for link, target in links_before:
         say(f"link {link} -> {target}")
     check_links(links_before, store, owner_home, "before")
-    config_dir = home / (".codex" if codex else ".claude")
+    config_dir = home / adapter.config_root
     say(f"configuration directory {config_dir}")
 
     tools = [shutil.which(tool, path=environ.get("PATH")) for tool in ("jj", "git")]
@@ -2496,36 +2717,10 @@ def run_case(prepared_dir: Path, name: str, environ: Mapping[str, str],
     path_dirs = [str(front.parent), str(grove_bin), str(program.parent)]
     path_dirs += [str(Path(tool).parent) for tool in tools if tool] + list(SYSTEM_PATH)
     path_dirs = list(dict.fromkeys(path_dirs))
-    env = {**allowed_env(environ, home, tmp, path_dirs), **harness_env(harness, home)}
+    env = {**allowed_env(environ, home, tmp, path_dirs), **adapter.env(home)}
 
     version = run_checked([str(program), "--version"], cwd=tmp, env=env).splitlines()[0]
-    prelaunch = None
-    if codex:
-        # `codex login status` reads the linked sign-in. `codex debug
-        # prompt-input` renders the model-visible input without a model call,
-        # and its skill roots name the effective configuration directory.
-        login = subprocess.run([str(program), "login", "status"], cwd=tmp, env=env, capture_output=True, text=True,
-                               check=False)
-        auth = {"loggedIn": login.returncode == 0, "status": (login.stdout + login.stderr).strip()}
-        if login.returncode != 0:
-            raise TrialError(f"codex login status reports no sign-in: {auth['status']}; sign in to Codex as the owner")
-        rendered_text = run_checked([str(program), "debug", "prompt-input"], cwd=tmp, env=env)
-        (trial / "prompt-input.json").write_text(rendered_text + "\n")
-        try:
-            rendered = json.loads(rendered_text)
-        except json.JSONDecodeError as error:
-            raise TrialError(f"codex debug prompt-input wrote no JSON: {error}") from None
-        reported = codex_config_check(rendered, config_dir)
-        prelaunch = codex_input(rendered)
-    else:
-        auth_text = run_checked([str(program), "auth", "status"], cwd=tmp, env=env)
-        try:
-            auth = json.loads(auth_text)
-        except json.JSONDecodeError as error:
-            raise TrialError(f"claude auth status wrote no JSON: {error}") from None
-        reported = auth.get("configDirectory")
-        if not reported or os.path.realpath(reported) != os.path.realpath(config_dir):
-            raise TrialError(f"Claude Code reports the configuration directory '{reported}', not the sandbox {config_dir}")
+    auth, reported, prelaunch = adapter.prelaunch(program, env, tmp, trial, config_dir)
     check_links(list_links(home), store, owner_home, "after the probes and before")
 
     standalone = case["mode"] == "standalone"
@@ -2568,7 +2763,7 @@ def run_case(prepared_dir: Path, name: str, environ: Mapping[str, str],
     links_after = list_links(home)
     for link, target in links_after:
         say(f"link after {link} -> {target}")
-    links_checked, links_own = harness_links(harness, links_after, program)
+    links_checked, links_own = adapter.own_links(links_after, program)
     link_failure = None
     try:
         check_links(links_checked, store, owner_home, "after")
@@ -2585,9 +2780,8 @@ def run_case(prepared_dir: Path, name: str, environ: Mapping[str, str],
         for log in logs:
             for n, part in enumerate(split_log(log.read_text(errors="replace"))):
                 stream_text = "".join(line + "\n" for line in part["streamLines"]).encode()
-                launch = describe(f"{log.relative_to(home)}#{n}", part["view"], part["env"], part["stream"],
-                                  sha256_bytes(stream_text), part["probes"], home, trial / "unknown", environ,
-                                  harness=harness)
+                launch = adapter.describe(f"{log.relative_to(home)}#{n}", part["view"], part["env"], part["stream"],
+                                          sha256_bytes(stream_text), part["probes"], home, trial / "unknown", environ)
                 launches.append(launch)
             run_log += log_lines(log.read_text(errors="replace"))
         probes = [probe for launch in launches for probe in launch["probes"]]
@@ -2607,7 +2801,7 @@ def run_case(prepared_dir: Path, name: str, environ: Mapping[str, str],
         turns = case.get("compaction") is not None
         launches = []
         for index, path in enumerate(launch_records(records)):
-            launch = describe_launch(path, home, repo, environ, marker, turns, harness)
+            launch = describe_launch(adapter, path, home, repo, environ, marker, turns)
             role = launch_role(case, index, launch, json.loads((path / "view.json").read_text()))
             if role:
                 launch["role"] = role
@@ -2632,17 +2826,12 @@ def run_case(prepared_dir: Path, name: str, environ: Mapping[str, str],
         "trial": str(trial),
         "builds": {"grove": prepared["grove"], "ravel": prepared["ravel"]},
         "harness": {
-            "name": harness, "program": str(program), "version": version, "model": model,
-            "effort": effort, "permissionMode": f"sandbox {CODEX_SANDBOX}, approval {CODEX_APPROVAL}" if codex
-            else PERMISSION_MODE,
+            "name": adapter.name, "program": str(program), "version": version, "model": model,
+            "effort": effort, "permissionMode": adapter.permission_mode,
             "configDirectory": str(config_dir), "authConfigDirectory": reported,
             "loggedIn": auth.get("loggedIn"),
             **({"caseHarness": case["caseHarness"]} if case.get("caseHarness") else {}),
-            **({"sandboxMode": CODEX_SANDBOX, "approvalPolicy": CODEX_APPROVAL,
-                "confinement": "inside Ravel confinement" if standalone
-                else "in place of Ravel confinement, which a lifecycle launch does not have",
-                "loginStatus": auth.get("status"), "codexHome": replaced or f"unset; this run sets {CODEX_HOME}",
-                "prelaunch": prelaunch} if codex else {}),
+            **adapter.record_extras(standalone, auth, replaced, prelaunch),
         },
         "sources": {"checkout": prepared["source"]["checkout"], "commit": prepared["source"]["commit"],
                     "settings": settings},
@@ -2714,19 +2903,19 @@ def reextract(trial: Path) -> dict[str, Any]:
     trial = trial.resolve()
     record = json.loads((trial / "record.json").read_text())
     home, repo = trial / "home", trial / "repo"
-    harness = record["harness"].get("name", "claude")
+    adapter = adapter_named(record["harness"].get("name", DEFAULT_HARNESS))
     fresh: list[dict[str, Any]] = []
     if record.get("mode", "lifecycle") == "standalone":
         for log in sorted((home / ".local" / "state" / "grove" / "runs").glob("*.log")):
             for n, part in enumerate(split_log(log.read_text(errors="replace"))):
                 stream_text = "".join(line + "\n" for line in part["streamLines"]).encode()
-                fresh.append(describe(f"{log.relative_to(home)}#{n}", part["view"], part["env"], part["stream"],
-                                      sha256_bytes(stream_text), part["probes"], home, trial / "unknown", {},
-                                      harness=harness))
+                fresh.append(adapter.describe(f"{log.relative_to(home)}#{n}", part["view"], part["env"],
+                                              part["stream"], sha256_bytes(stream_text), part["probes"], home,
+                                              trial / "unknown", {}))
     else:
         marker = (record.get("continuation") or {}).get("marker")
         turns = record.get("compaction") is not None
-        fresh = [describe_launch(path, home, repo, {}, marker, turns, harness)
+        fresh = [describe_launch(adapter, path, home, repo, {}, marker, turns)
                  for path in launch_records(trial / "records")]
     if len(fresh) != len(record["launches"]):
         raise TrialError(f"{trial} now shows {len(fresh)} launches, and its record holds {len(record['launches'])}")
@@ -2865,6 +3054,7 @@ def render(record: dict[str, Any]) -> str:
     """The Markdown facts of one case. The result and its limit are the
     reader's judgement, so the acceptance record adds them by hand."""
     h = record["harness"]
+    adapter = adapter_named(h.get("name", DEFAULT_HARNESS))
     g = record["builds"]["grove"]
     r = record["builds"]["ravel"]
     e = record["ending"]
@@ -2881,12 +3071,7 @@ def render(record: dict[str, Any]) -> str:
         f"| Grove build | commit `{g['commit'][:12]}`, `grove` SHA-256 `{g['sha256']['grove']}`, `grove-llm` SHA-256 `{g['sha256']['grove-llm']}` |",
         f"| Ravel build | commit `{r['buildCommit']}` (line `{r['line']}` at `{r['outputCommit']}`), identity `{r['buildIdentity']}`, `bin/ravel` SHA-256 `{r['binRavelSha256']}` |",
         f"| Harness | {cell(h['version'])}, model `{h['model']}`, effort `{h['effort']}`, permission mode `{h['permissionMode']}` |",
-        (f"| Configuration directory | sandbox `.codex`, as `{CODEX_HOME}`; the skill roots of `codex debug prompt-input` "
-         f"name its `skills/.system` |" if h['name'] == "codex"
-         else "| Configuration directory | sandbox `.claude`; `claude auth status` reports the same directory |"),
-        *([f"| Codex sandbox | `{h['sandboxMode']}`, approval `{h['approvalPolicy']}`, {h['confinement']} |",
-           f"| `{CODEX_HOME}` | {cell(h['codexHome'])} |",
-           f"| Sign-in | `codex login status`: {cell(h['loginStatus'])} |"] if h['name'] == "codex" else []),
+        *adapter.render_rows(h),
         *([f"| Case harness | the case names `{h['caseHarness']}`; this run uses `{h['name']}` with its own defaults |"]
           if h.get("caseHarness") else []),
         f"| Source checkout | commit `{record['sources']['commit'][:12]}` |",
@@ -2953,10 +3138,7 @@ def render(record: dict[str, Any]) -> str:
                 )
             lines.append("")
         lines += render_delegations(launch.get("delegations") or [])
-    prelaunch = h.get("prelaunch")
-    if prelaunch:
-        lines += ["Codex input before the launch, from `codex debug prompt-input`, which makes no model call:", "",
-                  "```json", json.dumps(prelaunch, indent=2), "```", ""]
+    lines += adapter.render_prelaunch(h)
     contrast = {(item["op"], item["path"]): item["status"] for item in record.get("contrast") or []}
     probes = [probe for launch in record["launches"] for probe in launch.get("probes", [])]
     if probes:
@@ -3094,7 +3276,7 @@ def main(argv: list[str] | None = None, environ: Mapping[str, str] | None = None
     x.add_argument("--trial", required=True, type=Path)
     t = commands.add_parser("turns", help="the feeder of a compaction case, which the trial configuration runs")
     t.add_argument("--plan", required=True, type=Path)
-    t.add_argument("harness", nargs=argparse.REMAINDER, help="-- PROGRAM ARG... PROMPT")
+    t.add_argument("program_argv", nargs=argparse.REMAINDER, help="-- PROGRAM ARG... PROMPT")
     args = parser.parse_args(argv)
     try:
         if args.command == "prepare":
@@ -3102,8 +3284,8 @@ def main(argv: list[str] | None = None, environ: Mapping[str, str] | None = None
         elif args.command == "reextract":
             reextract(args.trial)
         elif args.command == "turns":
-            harness = args.harness[1:] if args.harness[:1] == ["--"] else args.harness
-            return run_turns(args.plan, harness)
+            command = args.program_argv[1:] if args.program_argv[:1] == ["--"] else args.program_argv
+            return run_turns(args.plan, command)
         else:
             run_case(args.prepared, args.case, environ, args.model, args.effort, args.harness)
     except TrialError as error:

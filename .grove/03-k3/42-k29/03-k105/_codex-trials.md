@@ -87,3 +87,17 @@ Three observations differ from Claude Code. Codex adds
 a new skill listing at the resume. Its fresh launch read `coding-style-bash`,
 so `count.sh` carries the marker. It committed only the script, as the leaf
 says, and left the retirement in the working copy.
+
+trial-harness-adapter-k123 put each harness difference behind one adapter in
+`scripts/harness_trial.py`. `ClaudeAdapter` and `CodexAdapter` implement the
+interface `HarnessAdapter`, and the registry `ADAPTERS` maps a name to its
+adapter. No code outside them tests a harness name. "The harness seam" in the
+acceptance record states the layers.
+
+k120 adds the Codex compaction to `CodexAdapter`. It removes `compaction`
+from `CodexAdapter.unsupported` and sets `compaction_mechanism`. The feeder
+`harness_trial.py turns` speaks Claude Code's stream-json protocol, and the
+compaction readers read Claude Code's session format. k121 adds the Codex
+delegation link to `CodexAdapter.describe`, which now returns no
+delegations. `ClaudeAdapter.delegations` is the Claude Code form. A control of
+a harness difference breaks one adapter method, such as `CODEX.resume_args`.

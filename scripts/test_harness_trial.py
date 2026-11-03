@@ -565,7 +565,7 @@ class Fixture:
 
     def __init__(self, root: Path):
         self.root = root
-        self.store = trial.sign_in_store()
+        self.store = trial.CLAUDE.store
         self.owner = root / "owner"
         (self.owner / self.store).parent.mkdir(parents=True)
         if self.store.endswith("Keychains"):
@@ -578,7 +578,7 @@ class Fixture:
         # The owner's real Codex home: the sign-in file and a real skill.
         (self.owner / ".codex/skills/real").mkdir(parents=True)
         (self.owner / ".codex/skills/real/SKILL.md").write_text("real\n")
-        (self.owner / trial.sign_in_store("codex")).write_text("{}\n")
+        (self.owner / trial.CODEX.store).write_text("{}\n")
 
         self.prepared = root / "prepared"
         grove_bin = self.prepared / "grove/bin"
@@ -767,8 +767,14 @@ class HarnessTrialTest(unittest.TestCase):
         return Fixture(Path(tempfile.mkdtemp(dir=self.temp.name)))
 
     def broken(self, check, name, replacement):
-        """The check fails once against a runner whose `name` is broken."""
-        with mock.patch.object(trial, name, replacement):
+        """The check fails once against a runner whose `name` is broken. A
+        dotted name, such as `CODEX.resume_args`, breaks one method of one
+        harness adapter."""
+        *owners, attribute = name.split(".")
+        owner = trial
+        for part in owners:
+            owner = getattr(owner, part)
+        with mock.patch.object(owner, attribute, replacement):
             with self.assertRaises(AssertionError, msg=f"the check passed with a broken {name}"):
                 check(self.fresh())
 
@@ -784,7 +790,7 @@ class HarnessTrialTest(unittest.TestCase):
 
     def test_each_location_variable_refuses_before_any_launch(self):
         self.check_refusals(self.fixture)
-        self.broken(self.check_refusals, "refuse_locations", lambda environ: None)
+        self.broken(self.check_refusals, "CLAUDE.refuse", lambda environ, owner_home: None)
 
     def test_a_foreign_configuration_directory_refuses(self):
         self.fixture.behave(configDirectory=str(self.fixture.owner / ".claude"))
@@ -979,7 +985,7 @@ class HarnessTrialTest(unittest.TestCase):
     def test_a_case_installs_native_copies_settings_and_planted_files(self):
         self.check_explicit(self.fixture)
         self.broken(self.check_explicit, "install_native", lambda case, home, checkout: [])
-        self.broken(self.check_explicit, "write_claude_settings", lambda case, home: None)
+        self.broken(self.check_explicit, "CLAUDE.write_settings", lambda case, home: None)
         self.broken(self.check_explicit, "plant_files", lambda case, trial_dir, checkout: [])
         real_plant = trial.plant_repo
 
@@ -1318,14 +1324,12 @@ class HarnessTrialTest(unittest.TestCase):
 
     def test_a_codex_continuation_resumes_its_thread_and_launches_fresh(self):
         self.check_codex_continuation(self.fixture)
-        real = trial.resume_args
-        self.broken(self.check_codex_continuation, "resume_args",
-                    lambda route, session_id, harness: real(route, session_id, "claude"))
-        self.broken(self.check_codex_continuation, "stream_init", lambda record, harness="claude": (None, None))
-        self.broken(self.check_codex_continuation, "session_cwd", lambda transcript, harness: "/")
+        self.broken(self.check_codex_continuation, "CODEX.resume_args", trial.CLAUDE.resume_args)
+        self.broken(self.check_codex_continuation, "CODEX.stream_init", lambda record: (None, None))
+        self.broken(self.check_codex_continuation, "CODEX.session_cwd", lambda transcript: "/")
         self.broken(self.check_codex_continuation, "read_window", lambda record: None)
-        real_describe = trial.describe_codex
-        self.broken(self.check_codex_continuation, "describe_codex",
+        real_describe = trial.CODEX.describe
+        self.broken(self.check_codex_continuation, "CODEX.describe",
                     lambda *args, **kwargs: real_describe(*args[:9]))
 
     def test_a_continuation_case_needs_its_parts(self):
@@ -1513,7 +1517,7 @@ class HarnessTrialTest(unittest.TestCase):
 
     def test_a_delegation_records_the_prompt_the_reads_and_the_ending(self):
         self.check_delegation(self.fixture)
-        self.broken(self.check_delegation, "delegations", lambda *args: [])
+        self.broken(self.check_delegation, "CLAUDE.delegations", lambda *args: [])
         self.broken(self.check_delegation, "obligation_lines", lambda prompt: [])
         self.broken(self.check_delegation, "collect_files", lambda case, trial_dir: [])
         self.broken(self.check_delegation, "delegate_failures", lambda case, launches: [])
@@ -1542,8 +1546,8 @@ class HarnessTrialTest(unittest.TestCase):
 
     def test_a_system_note_reaches_the_harness_and_the_record(self):
         self.check_system_note(self.fixture)
-        real = trial.route_for
-        self.broken(self.check_system_note, "route_for",
+        real = trial.CLAUDE.launch
+        self.broken(self.check_system_note, "CLAUDE.launch",
                     lambda case, *args, **kw: real({k: v for k, v in case.items() if k != "systemNote"}, *args, **kw))
 
     def test_a_collected_file_stays_inside_the_trial(self):
@@ -1592,7 +1596,7 @@ class HarnessTrialTest(unittest.TestCase):
 
     def test_codex_home_in_the_real_home_refuses_before_any_launch(self):
         self.check_codex_home_refusals(self.fixture)
-        self.broken(self.check_codex_home_refusals, "refuse_codex_home", lambda environ, owner, cwd: None)
+        self.broken(self.check_codex_home_refusals, "CODEX.refuse", lambda environ, owner_home: None)
 
     def check_codex_home_replaced(self, fixture: Fixture):
         elsewhere = fixture.root / "elsewhere" / ".codex"
@@ -1609,7 +1613,7 @@ class HarnessTrialTest(unittest.TestCase):
 
     def test_codex_home_outside_the_real_home_is_replaced_and_reported(self):
         self.check_codex_home_replaced(self.fixture)
-        self.broken(self.check_codex_home_replaced, "harness_env", lambda harness, home: {})
+        self.broken(self.check_codex_home_replaced, "CODEX.env", lambda home: {})
 
     def check_codex_allow_list(self, fixture: Fixture):
         status, output = fixture.run_codex(CODEX_PLANTED="planted")
@@ -1649,7 +1653,7 @@ class HarnessTrialTest(unittest.TestCase):
     def check_codex_links(self, fixture: Fixture):
         status, output = fixture.run_codex()
         self.assertEqual(status, 0, output)
-        store = trial.sign_in_store("codex")
+        store = trial.CODEX.store
         links = [line for line in output.splitlines()
                  if line.startswith("harness-trial: link ") and not line.startswith("harness-trial: link after")]
         self.assertEqual(links, [f"harness-trial: link {store} -> {fixture.owner / store}"])
@@ -1704,8 +1708,8 @@ class HarnessTrialTest(unittest.TestCase):
 
     def test_codex_extraction_orders_every_command_with_absolute_paths(self):
         self.check_codex_events(self.fixture)
-        real = trial.codex_item
-        self.broken(self.check_codex_events, "codex_item",
+        real = trial.CODEX.item
+        self.broken(self.check_codex_events, "CODEX.item",
                     lambda item, n: [{k: v for k, v in e.items() if k != "cwd"} for e in real(item, n)])
         self.broken(self.check_codex_events, "separate_lines", lambda command: command)
 
@@ -1724,7 +1728,7 @@ class HarnessTrialTest(unittest.TestCase):
 
     def test_codex_helper_links_to_its_own_program_pass_and_others_fail(self):
         self.check_codex_own_links(self.fixture)
-        self.broken(self.check_codex_own_links, "harness_links", lambda harness, links, program: (links, []))
+        self.broken(self.check_codex_own_links, "CODEX.own_links", lambda links, program: (links, []))
 
     def check_codex_stream(self, fixture: Fixture):
         """Without a session file, the events come from the stream."""
@@ -1739,7 +1743,7 @@ class HarnessTrialTest(unittest.TestCase):
 
     def test_codex_extraction_falls_back_to_the_stream(self):
         self.check_codex_stream(self.fixture)
-        self.broken(self.check_codex_stream, "codex_entries", lambda records: [])
+        self.broken(self.check_codex_stream, "CODEX.entries", lambda records: [])
 
     def check_codex_config_directory(self, fixture: Fixture):
         fixture.behave(skillRoot=str(fixture.owner / ".codex/skills/.system"))
@@ -1750,7 +1754,7 @@ class HarnessTrialTest(unittest.TestCase):
 
     def test_a_codex_configuration_directory_elsewhere_refuses(self):
         self.check_codex_config_directory(self.fixture)
-        self.broken(self.check_codex_config_directory, "codex_config_check", lambda rendered, config: "unchecked")
+        self.broken(self.check_codex_config_directory, "CODEX.config_check", lambda rendered, config: "unchecked")
 
     def check_codex_residue(self, fixture: Fixture):
         status, output = fixture.run_codex()
@@ -1804,7 +1808,7 @@ class HarnessTrialTest(unittest.TestCase):
 
     def test_the_codex_record_keeps_no_account_data(self):
         self.check_codex_account_data(self.fixture)
-        self.broken(self.check_codex_account_data, "codex_startup",
+        self.broken(self.check_codex_account_data, "CODEX.startup",
                     lambda records: {"init": next(r["payload"] for r in records if r["type"] == "session_meta")})
 
     def check_codex_later_fields(self, fixture: Fixture):
@@ -1818,7 +1822,7 @@ class HarnessTrialTest(unittest.TestCase):
 
     def test_codex_refuses_the_fields_of_later_leaves(self):
         self.check_codex_later_fields(self.fixture)
-        self.broken(self.check_codex_later_fields, "CODEX_LATER", {})
+        self.broken(self.check_codex_later_fields, "CODEX.unsupported", {})
 
     def test_the_codex_configuration_selects_codex_exec(self):
         case = {"kinds": ["impl"], "name": "x", "harness": "codex"}

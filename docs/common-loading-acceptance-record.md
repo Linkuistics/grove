@@ -273,6 +273,39 @@ execs the harness. Any other kind refuses as `trial_kind_unrouted`. When the
 leaf ends with `grove-continue`, the driver therefore stops at the next kind,
 and no second harness launches.
 
+### The harness seam
+
+The runner has three layers. The configuration layer is the case and its
+route. The skill provision layer writes the Ravel settings, the native copies
+and the planted files. The harness layer launches the harness and reads what
+it wrote.
+
+The configuration decides the skill provision of each invocation. A
+continuation, for example, changes the settings between two invocations of
+one case. The provision layer is nevertheless its own code. It asks the
+harness adapter only for the facts of its harness, such as the directory of
+its native skills.
+
+Each harness has one adapter in `scripts/harness_trial.py`: `ClaudeAdapter`
+and `CodexAdapter`, with the interface `HarnessAdapter`. An adapter owns each
+difference between the harnesses:
+
+- the refusals of the inherited environment, and the sign-in store
+- the pre-launch probes, and the harness's own links
+- the arguments of a launch and of a resume
+- the session-file lookup, the stream fields and the startup text
+- the harness's rows of the record
+
+The registry `ADAPTERS` maps a harness name to its adapter. No code outside
+the registry and the adapters tests a harness name. The classifier asks every
+adapter for its directories. A read of the other harness's configuration
+therefore keeps its class, whichever harness ran. The compaction readers read
+Claude Code's session format, and they find the session file through the
+adapter.
+
+To add a mechanism for one harness, add it to that harness's adapter. If the
+mechanism is new to the interface, add it to `HarnessAdapter` first.
+
 ### The Claude Code adapter
 
 The adapter runs `claude -p --output-format stream-json --verbose`, with the
@@ -439,7 +472,9 @@ Codex tests prove the refusal of `CODEX_HOME` in the real home, also empty or
 through an alias. They prove the replacement of a value outside the real home,
 the allow-list and the link list of `.codex/auth.json`. They also prove the
 check of the configuration directory and the extraction from the session file
-and from the stream. Other tests prove the residue and the absence of account
+and from the stream.
+
+Other tests prove the residue and the absence of account
 data. Further tests
 prove the harness's own links. They also prove the refusal of the fields that
 later leaves add. A Codex continuation test proves the resume arguments, the
@@ -447,7 +482,10 @@ thread, the working directory, the line windows and the marker.
 
 Each check also runs once
 against a runner with one function broken, and the check must fail there. A
-planted `CLAUDE_CODE_PLANTED` name that a broken runner passes to the driver
+control of a harness difference breaks one method of one adapter, such as
+`CODEX.resume_args`.
+
+A planted `CLAUDE_CODE_PLANTED` name that a broken runner passes to the driver
 fails the authority control. For Codex, the planted name is the live
 session's `CODEX_THREAD_ID`.
 
@@ -3428,7 +3466,7 @@ first turn ended and before the resumed turn began.
   snapshot. Call 4 read `retire.md` and `commit.md` from `88f68c…`, and the
   result held no marker. No call read the source clone, the settings or the
   descriptor variable. No call ran a new resolution. The turn therefore kept
-  the original descriptor and got the original bytes.
+  the original descriptor and received the original bytes.
 - **Re-read: gap.** The resumed turn did not read the mandatory files, the
   kind skill or `coding-style-bash` again before work continued. Call 2, its
   first tool call, rewrote `stamp.sh` with the label argument. Call 4 then read
@@ -3673,7 +3711,7 @@ observations of the leaf hold.
 | Row | Result in Codex | Result in Claude Code |
 | --- | --- | --- |
 | The first turn reads the mandatory and relevant guidance and stops before the work completes | **Holds** | Holds |
-| The continued session keeps the original descriptor and gets the original bytes | **Holds** | Holds |
+| The continued session keeps the original descriptor and receives the original bytes | **Holds** | Holds |
 | The continued session reads the mandatory and relevant guidance again before work continues | **Gap.** Only the retire and commit procedures | Gap. Only the retire and commit procedures |
 | A fresh launch after the change receives a new descriptor with the new bytes | **Holds** | Holds |
 | The record states the mechanism and whether each re-read came unprompted | **Holds.** No re-read occurred | Holds. No re-read occurred |
@@ -3693,7 +3731,7 @@ observations of the leaf hold.
   snapshot. Call 2 read `retire.md` and `commit.md` from `88f68c…`, and the
   result held no marker. No call read the source clone, the settings or the
   descriptor variable. No call ran a new resolution. The turn therefore kept
-  the original descriptor and got the original bytes.
+  the original descriptor and received the original bytes.
 - **Re-read: gap.** The resumed turn did not read the mandatory files, the
   kind skill, `machine-environment` or `coding-style-bash` again before work
   continued. Call 2, its first tool call, read the retire and commit

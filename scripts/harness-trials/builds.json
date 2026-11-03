@@ -1,13 +1,13 @@
 {
   "schemaVersion": 1,
-  "source": "docs/common-loading-acceptance-record.md#loader-report-repair",
+  "source": "docs/common-loading-acceptance-record.md#visible-report-repair",
   "ravel2": {
     "line": "skill-directory-delivery",
-    "buildCommit": "0fb12d5f308b",
-    "outputCommit": "e0fe5631fb0e",
-    "buildIdentity": "45eea2204becf405f441f8ec2167336a0fa4cad738f6aa47e8168e9117720b37",
+    "buildCommit": "e9cc79993b46",
+    "outputCommit": "0d60cb531240",
+    "buildIdentity": "fd8dfdc28aec1a63f292a7f2ab2ce6c0789f74232a02b39b5b8f6693b7ba7bc9",
     "binRavelSha256": {
-      "Darwin-arm64": "7ab96d9ebdac1d9e4f7334464b4c0052dc2314abbf9b573d10a3fc6193d3a93f"
+      "Darwin-arm64": "d076dc01fe3166ddd512f9b739ba81ad598a0cc0e03f2b552681b97387abfe06"
     }
   }
 }

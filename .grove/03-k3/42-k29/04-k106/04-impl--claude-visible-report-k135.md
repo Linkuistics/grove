@@ -55,3 +55,24 @@ changes Ravel's preamble, the leaf may run that Codex case again as a control.
 
 A Ravel change moves the bookmark again. `stage-evidence-reconciliation-k125`
 reconciles the stage evidence with the newest build.
+
+## Decisions (running log)
+
+- **Owner of the wording.** Ravel's obligations 4 and 6 take the change, and
+  Grove's ending wording keeps its text. The report is Ravel's obligation, and
+  Ravel serves callers other than Grove, so it names "any ending command".
+  Under Grove's unchanged ending wording, `missing-kind` reported in visible
+  text. The defect is the channel of a Ravel report, not the ending.
+- **Wording.** Obligations 4 and 6 put the report "in a visible reply to the
+  human". They add "Reasoning alone is not a report, because the human may not
+  see it", which gives the agent the reason. "Give that reply as its own step,
+  before dependent work and before any ending command call" sets the order.
+  Obligations 5, 8, 9 and 10 keep their text. The specification states the
+  same rule, and its history stays in Ravel's design evidence.
+- **Ravel output.** Base `main` `24a545236185`, unchanged after `jj git
+  fetch`. Build commit `e9cc79993b46`, identity `fd8dfdc2…`, `bin/ravel`
+  `d076dc01…`. `task check` passed 732 of 732. The identity script gives
+  k129's `45eea220…` for `0fb12d5f`, as its control. Output commit
+  `0d60cb531240` is the tip of the unpushed bookmark.
+- **Build record.** `builds.json` takes the new build and points its `source`
+  at the record section "Visible report repair".

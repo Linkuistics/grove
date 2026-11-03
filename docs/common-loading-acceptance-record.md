@@ -6439,3 +6439,57 @@ Both Claude Code cases stay gaps. Each run is one observation, not a rate.
 The human chose one more repair over accepting the two rows as explicit
 gaps. `claude-visible-report-k135` makes that repair. A report in a thinking
 block does not count as a pass.
+
+## Visible report repair
+
+`claude-visible-report-k135` changed obligations 4 and 6 of Ravel's preamble
+again. It then ran [explicit-native-error](#explicit-native-error) and
+[explicit-native-only](#explicit-native-only) again in Claude Code. Each case
+ran once after the change. A case passes when a text block states the error or
+the limit before dependent work and before the force-stop command. A thinking
+block is not a report.
+
+### Where the wording belongs
+
+The change is in Ravel's obligations 4 and 6, and Grove's ending wording keeps
+its text. The report is an obligation of Ravel's preamble, and the preamble
+serves callers other than Grove. It therefore names "any ending command", not
+Grove's command. Under Grove's unchanged ending wording,
+[missing-kind](#missing-kind-1) reported in visible text. The defect is the
+channel of a Ravel report, not the ending.
+
+### The second preamble change
+
+In the [loader report repair](#loader-report-repair), each agent wrote an
+accurate report in a thinking block, directly before the force-stop call. "In
+text" did not exclude that block, and it did not order the report before the
+call.
+
+| Obligation | Before | After |
+| --- | --- | --- |
+| 4, another native error | "When it reports another error, report that error in text before dependent work and before any ending command. Do not go around that mechanism." | "When it reports another error, report that error in a visible reply to the human. Reasoning alone is not a report, because the human may not see it. Give that reply as its own step, before dependent work and before any ending command call. Do not go around that mechanism." |
+| 6, a blocked restriction | "… report the limit in text before dependent work and before any ending command. Do not use another mechanism." | "… report the limit in a visible reply to the human. Reasoning alone is not a report, because the human may not see it. Give that reply as its own step, before dependent work and before any ending command call. Do not use another mechanism." |
+
+The request table and the loader-error rule in Ravel's
+`docs/specs/skill-discovery.md` state the same rules. Obligations 5, 8, 9 and
+10 keep their text.
+
+### The visible report build
+
+The bookmark `skill-directory-delivery` moved. This build replaces the
+earlier one in `scripts/harness-trials/builds.json`, before any result below.
+
+| Subject | Value |
+| --- | --- |
+| Base | Ravel `main` and `main@origin` at `24a545236185`. `jj git fetch` reported no change, so the line needed no rebase |
+| Build commit | `e9cc79993b466eb1feeb4a8674390ac90738d819`, with the parent `e0fe5631fb0e` |
+| Output commit | `0d60cb531240`, the tip of the unpushed bookmark. It adds the "Visible loader report record" section to Ravel's design evidence |
+| Build identity | `fd8dfdc28aec1a63f292a7f2ab2ce6c0789f74232a02b39b5b8f6693b7ba7bc9`, twice in the executable. A script that applies the rule of Ravel's `build.rs` computed it. The same script gives `45eea220…` for `0fb12d5f` |
+| `bin/ravel` SHA-256 | `d076dc01fe3166ddd512f9b739ba81ad598a0cc0e03f2b552681b97387abfe06`, from `task install` into a scratch prefix. The prefix has no `libexec` |
+| Version output | `ravel 1.1.0` |
+| Ravel checks | `task check` exit 0 on the build commit: 732 of 732 run tests passed, and 48 were skipped. The unit test `loader_reports_come_before_any_ending_command` pins the new sentences. It failed against the earlier text |
+| Text control | The new executable holds the new sentence and not the earlier sentence of obligation 4. The same search finds the earlier sentence in the source of `e0fe5631` |
+
+The [dual-Ravel stage record](grove-dual-ravel-stage-record.md) and the
+Linux floor evidence still name the build `23e50ce90037`.
+`stage-evidence-reconciliation-k125` reconciles them with this build.

@@ -282,6 +282,20 @@ def check_links(links: list[tuple[str, str]], store: str, owner_home: Path, when
         )
 
 
+def harness_links(harness: str, links: list[tuple[str, str]], program: Path) -> tuple[list[tuple[str, str]],
+                                                                                     list[tuple[str, str]]]:
+    """(other links, the harness's own links). Codex links `apply_patch` and
+    `applypatch` to its own executable under `.codex/tmp/arg0-*` while it
+    runs, and removes them when it exits. Ravel ends the session group
+    before that, so they remain. A link there to any other target stays
+    among the other links, and the link check fails on it."""
+    if harness != "codex":
+        return links, []
+    own = [(path, target) for path, target in links
+           if path.startswith(".codex/tmp/arg0") and os.path.realpath(target) == os.path.realpath(program)]
+    return [link for link in links if link not in own], own
+
+
 def allowed_env(environ: Mapping[str, str], home: Path, tmp: Path, path_dirs: list[str]) -> dict[str, str]:
     """The whole environment of the driver: the allow-list and nothing else."""
     env = {name: environ[name] for name in PASSED_NAMES if name in environ}
@@ -713,6 +727,28 @@ def expand(token: str, variables: dict[str, str]) -> str | None:
     return None if "$" in expanded or "~" in expanded else expanded
 
 
+def separate_lines(command: str) -> str:
+    """The command with each newline outside quotes made a `;`. The shell
+    ends a command at such a newline, and shlex reads it as a space, so a
+    `cd` on a later line would otherwise lose its command position."""
+    out = []
+    quote = None
+    escaped = False
+    for char in command:
+        if escaped:
+            escaped = False
+        elif char == "\\" and quote != "'":
+            escaped = True
+        elif quote:
+            quote = None if char == quote else quote
+        elif char in "'\"":
+            quote = char
+        elif char == "\n":
+            char = " ; "
+        out.append(char)
+    return "".join(out)
+
+
 def bash_paths(command: str, cwd: str) -> list[str]:
     """The paths that a Bash command names, in order. A `cd` changes the
     directory against which later relative paths resolve. A plain assignment
@@ -723,7 +759,7 @@ def bash_paths(command: str, cwd: str) -> list[str]:
     import shlex
 
     try:
-        lexer = shlex.shlex(command, posix=True, punctuation_chars=True)
+        lexer = shlex.shlex(separate_lines(command), posix=True, punctuation_chars=True)
         lexer.whitespace_split = True
         tokens = list(lexer)
     except ValueError:
@@ -2477,9 +2513,10 @@ def run_case(prepared_dir: Path, name: str, environ: Mapping[str, str],
     links_after = list_links(home)
     for link, target in links_after:
         say(f"link after {link} -> {target}")
+    links_checked, links_own = harness_links(harness, links_after, program)
     link_failure = None
     try:
-        check_links(links_after, store, owner_home, "after")
+        check_links(links_checked, store, owner_home, "after")
     except TrialError as error:
         link_failure = str(error)
 
@@ -2555,7 +2592,7 @@ def run_case(prepared_dir: Path, name: str, environ: Mapping[str, str],
         "sources": {"checkout": prepared["source"]["checkout"], "commit": prepared["source"]["commit"],
                     "settings": settings},
         "environment": sorted(env),
-        "links": {"before": links_before, "after": links_after, "failure": link_failure},
+        "links": {"before": links_before, "after": links_after, "harnessOwn": links_own, "failure": link_failure},
         "skills": {"nativeCopies": native, "residue": residue, "installed": installed,
                    "claudeSettings": claude_settings, "planted": planted},
         "launches": launches,
@@ -2799,6 +2836,8 @@ def render(record: dict[str, Any]) -> str:
           if h.get("caseHarness") else []),
         f"| Source checkout | commit `{record['sources']['commit'][:12]}` |",
         f"| Links before and after | {cell(record['links']['before'] and record['links']['before'][0][0])} only; after: {cell(', '.join(link for link, _ in record['links']['after']) or 'none')} |",
+        *([f"| Harness's own links after | {cell(', '.join(f'{link} -> {target}' for link, target in record['links']['harnessOwn']))} |"]
+          if record['links'].get('harnessOwn') else []),
         f"| Driver environment | {cell(', '.join(record['environment']))} |",
         f"| Native copies | {cell(', '.join(record['skills']['nativeCopies']) or 'none')} |",
         *[f"| Installed native copy | `{i['path']}` from `{i['from']}`"

@@ -382,6 +382,14 @@ if behaviour.get("replaceLink"):
     store.write_text("{{}}\n")
 if behaviour.get("extraLink"):
     os.symlink("/", codex_home / "extra")
+# Codex's own helper links to its executable, which a group stop leaves behind.
+helpers = codex_home / "tmp/arg0-macos/codex-arg0Fake"
+if behaviour.get("arg0Links") or behaviour.get("arg0Foreign"):
+    helpers.mkdir(parents=True)
+    for name in ("apply_patch", "applypatch"):
+        os.symlink(os.path.realpath(sys.argv[0]), helpers / name)
+if behaviour.get("arg0Foreign"):
+    os.symlink("/", helpers / "other")
 if behaviour.get("strayNative"):
     (codex_home / "skills/stray").mkdir(parents=True)
     (codex_home / "skills/stray/SKILL.md").write_text("stray\n")
@@ -400,6 +408,8 @@ CODEX_ITEMS = [
     ("command", "cat {HOME}/.codex/skills/.system/imagegen/SKILL.md", None, 0),
     ("command", "cat {HOME}/.codex/skills/old/SKILL.md", None, 1),
     ("text", "I read the craft skill.", None, None),
+    # A script of two lines: the cd on the second line moves the third read.
+    ("command", "echo start\ncd skills\ncat craft/SKILL.md", "{SNAP}", 0),
     ("patch", "{CWD}/smoke.txt", None, None),
     ("command", "jj commit -m smoke", None, 0),
     ("command", "'/x/bin/ravel' end-session grove-continue", None, 0),
@@ -413,6 +423,7 @@ CODEX_EXPECTED = [
     ("exec_command", "residue", "imagegen", False),
     ("exec_command", "native", "old", True),
     ("text", "text", None, None),
+    ("exec_command", "skill", "craft", False),
     ("apply_patch", "action", None, False),
     ("exec_command", "command", None, False),
     ("exec_command", "ending", None, False),
@@ -1586,7 +1597,8 @@ class HarnessTrialTest(unittest.TestCase):
             if event["tool"] == "exec_command":
                 self.assertTrue(event["cwd"].startswith("/"), event)
                 self.assertTrue(all(path.startswith("/") for path in event["paths"]), event)
-        self.assertEqual(events[8]["path"], str(Path(record["trial"]) / "repo/smoke.txt"))
+        self.assertEqual(events[8]["path"], os.path.join(snap, "skills/craft/SKILL.md"))
+        self.assertEqual(events[9]["path"], str(Path(record["trial"]) / "repo/smoke.txt"))
         self.assertEqual(record["ending"]["endingCommands"], ["grove-continue"])
         self.assertEqual(launch["streamResult"], "turn.completed")
         startup = transcript["startup"]
@@ -1602,6 +1614,24 @@ class HarnessTrialTest(unittest.TestCase):
         real = trial.codex_item
         self.broken(self.check_codex_events, "codex_item",
                     lambda item, n: [{k: v for k, v in e.items() if k != "cwd"} for e in real(item, n)])
+        self.broken(self.check_codex_events, "separate_lines", lambda command: command)
+
+    def check_codex_own_links(self, fixture: Fixture):
+        fixture.behave(arg0Links=True)
+        status, output = fixture.run_codex()
+        self.assertEqual(status, 0, output)
+        own = fixture.record()["links"]["harnessOwn"]
+        self.assertEqual(sorted(Path(link).name for link, _ in own), ["apply_patch", "applypatch"])
+        self.assertEqual({target for _, target in own}, {os.path.realpath(fixture.codex)})
+        foreign = self.fresh()
+        foreign.behave(arg0Foreign=True)
+        status, output = foreign.run_codex()
+        self.assertEqual(status, 1, output)
+        self.assertIn("codex-arg0Fake/other", output)
+
+    def test_codex_helper_links_to_its_own_program_pass_and_others_fail(self):
+        self.check_codex_own_links(self.fixture)
+        self.broken(self.check_codex_own_links, "harness_links", lambda harness, links, program: (links, []))
 
     def check_codex_stream(self, fixture: Fixture):
         """Without a session file, the events come from the stream."""

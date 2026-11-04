@@ -10,7 +10,14 @@ ResearchSkills as the owner. This is the contraction step and the move itself.
 
 - `docs/specs/external-pack-contract.md`, especially "Rule placement", "The
   kind table", "Conformance" and "Distribution".
-- The published ResearchSkills commit from research-pack-repository-k157.
+- The published ResearchSkills commit from research-pack-repository-k157:
+  `dc3a4812db3b0dbfef42c8cd6a0aa291e43dd545` on
+  `https://github.com/Linkuistics/ResearchSkills.git`. Its `plugins/research`
+  has the tree ID `79dc2a530cd2d30cd088073423437bb18d61b401`. That leaf's
+  decision log records the aggregate before the removal and a scratch removal
+  of core. With the pack, the scratch removal passed with core's baseline
+  counts: 116 single-source checks, 2783 loaded-path checks and 72 unpinned
+  rows.
 - The consumer inventory in the commit of external-research-pack-k10. The
   consumers it names are below. Search again before you rely on the list.
 

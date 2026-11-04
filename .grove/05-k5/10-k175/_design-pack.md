@@ -45,6 +45,28 @@ craft into its craft directory: `decision-records`, `codebase-design`,
 The first child plans this node from the membership decisions and from the
 evidence of requirements-pack-k173.
 
+design-pack-plan-k176 cut six leaves. Each leaf leaves Grove's
+`bash scripts/check.sh` green.
+
+1. `craft-root-installer-k195`: the installer scans `craft/`, with the
+   craft-beside-skills and craft-only fixtures. It is Grove-only, and it comes
+   first so the pack's README gives a working command.
+2. `trial-supplier-refusal-k196`: the runner's refusal and its four controls.
+   It must land before the removal, which takes away paths that cases require.
+3. `design-pack-repository-k197`: the expand step. It publishes the first pack
+   commit. Grove still ships its copies.
+4. `design-removal-k198`: the contraction step. It removes the kinds and the
+   craft skills with every consumer, and it publishes the second pack commit.
+5. `design-craft-trials-k199`: the craft-root discovery trial in both
+   harnesses.
+6. `design-native-namespace-k200`: the native Claude Code listing under
+   `design:`.
+
+The first two leaves are Grove-only increments, and each is useful alone. The
+next two leaves follow the order of requirements-pack-k173. The two trials are
+separate leaves for the reason that node states. Each measures one route and
+needs its own setup.
+
 ## Notes
 
 `model-led-development` cites `doubt-driven-development`, which moves to

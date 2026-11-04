@@ -553,3 +553,148 @@ The hits outside this grove's working copy are of three classes.
 
 No machine setting names the path. The rollout text for paused groves needs
 no entry, because each paused Grove line reconciles the move at its rebase.
+
+## RequirementsSkills
+
+`requirements-pack-repository-k191` created the repository
+`~/Development/AgenticOrchestration/RequirementsSkills` on 2026-11-04, with
+the three requirements kinds. This is the expand step of
+`requirements-pack-k173`. Grove still ships its own copies, so the aggregate
+fails on duplicates by design. `requirements-removal-k192` removes Grove's
+copies and publishes the second pack commit.
+
+### Source
+
+| Subject | Value |
+| --- | --- |
+| Repository | `https://github.com/Linkuistics/RequirementsSkills.git`. See [Publication](#publication) |
+| First pack commit | `9f7278c2d46b3e7443355633afb8a745b37af7ac`, the jj bookmark `main` |
+| Source directory | `plugins/requirements`. It is the Claude Code plugin root and the Ravel source directory |
+| Ravel roots | `["skills"]`. The pack has no `craft/` directory |
+| Git tree of the source directory | `f3cf8128fd206c48d73b061cc5ef6b536d4f9d61` |
+| `resourceDigest` | `07b2d25e8bd20259c71f7419092329368d8ae48bec6ca973343a601a8ec515c8`, from a plain Git checkout of the commit and from the jj working copy |
+| Recorded Grove commit | `6cdab3a9883342e68fe51b3913d8c72ddb26e3bf`, the `GROVE_COMMIT` of the Taskfile. It still ships the moving files |
+| Grove remote bookmark | `gh-issue-25`. jj moved it forward from `2328c7f0d45a` to `6cdab3a98833` and pushed it before the pack's publication |
+
+The tracked files are `.gitignore`, `LICENSE`, `README.md`, `Taskfile.yml`
+and seven files under `plugins/requirements`:
+
+- `.claude-plugin/plugin.json`
+- `conformance/rules.tsv`
+- `skills/grove-requirements/SKILL.md`
+- `skills/grove-requirements/grilling.md`
+- `skills/grove-requirements/LICENSES/mattpocock-skills.LICENSE`
+- `skills/grove-review-requirements/SKILL.md`
+- `skills/grove-integrate-review-requirements/SKILL.md`
+
+The repository has no Git attribute and no symlink. The checks write only
+`.cache/`, which Git ignores. `LICENSE` and `.gitignore` equal those of
+ResearchSkills, and `LICENSE` equals Grove's. The Taskfile is the Taskfile of
+ResearchSkills with three changes: the pack's name in the first comment,
+`GROVE_COMMIT` and `PACK`. `GROVE_REPOSITORY` stays the public URL.
+
+The manifest sets `name` `requirements`, `license` `Apache-2.0` and
+`dependencies` `["grove"]`, with no `version`. Its other fields follow the
+research manifest.
+
+### Byte changes
+
+Each change below is against Grove's files at the recorded Grove commit. The
+digest is that of `docs/owner-skill-inventory.tsv`: the first 16 hexadecimal
+digits of the skill tree's SHA-256. A copy of the inventory's `digest()`
+function gave each Grove value below, which equals the inventory's value.
+
+| Skill | Baseline digest and files | Pack digest and files | Change |
+| --- | --- | --- | --- |
+| `grove-requirements` | `dc7d3f8bdfd050c5`, 2 | `9907106d2573fc3a`, 3 | The opening paragraph takes the bare-name text of core's `grove-planning`, with the kind's name changed. The new file `LICENSES/mattpocock-skills.LICENSE` equals the spine's copy byte for byte. `grilling.md` is unchanged |
+| `grove-review-requirements` | `123cd36182a0a7e7`, 1 | `a06d5f1fffb49249`, 1 | The opening paragraph equals that of core's `grove-review-planning`. It keeps the read of `references/review.md` after the load sentence |
+| `grove-integrate-review-requirements` | `637ab23f91e1d9f0`, 1 | `cb3949126191a4cd`, 1 | The opening paragraph equals that of core's `grove-integrate-review-planning`. It keeps the read of `references/integrate-review.md` after the load sentence |
+
+A `diff -r` against Grove's three directories showed only those openings and
+the new licence directory. The three Grove copies under the owner's Claude Code
+cache have the baseline digests.
+
+`grove-requirements` and `grilling.md` each point to
+`LICENSES/mattpocock-skills.LICENSE` inside an HTML comment. Before the move,
+the pointer resolved only in the spine. Inside the skill, it now resolves on
+every route without the spine. No other moving skill adapts or bundles a third
+party's passage.
+
+### Rules
+
+`plugins/requirements/conformance/rules.tsv` holds the ten rows that the
+moving files own. Each row equals a row of Grove's manifest byte for byte, in
+Grove's order. Three rows have the owner `grove-requirements/grilling.md` and
+the load `on(the grilling threshold is met) @ grove-requirements/SKILL.md`.
+Seven rows have the owner `grove-requirements/SKILL.md` and the load
+`static({requirements})`. The family members own no row.
+
+The selection was the owner column of Grove's manifest. A search of each row
+for `requirements` found the same ten rows. The row comparison reported a
+mutated row as missing, which was its control. Grove still holds the ten rows,
+and `requirements-removal-k192` removes them.
+
+### Checks
+
+The checks ran in a plain Git checkout of the first pack commit, fetched from
+the public remote. `GROVE_REPOSITORY` was the public URL, with no override.
+`grove:checkout` fetched the recorded Grove commit from Grove's public remote.
+A checkout from the local repository gave the same results before the
+publication. The checkout was clean
+after the run, apart from the ignored `.cache/`.
+
+- `check:plugin` passed with two warnings, no `version` and no icon. Claude
+  Code was 2.1.318.
+- The pack alone passed with exit status 0. It checked 1 single-source row and
+  10 loaded paths, with 9 rows that have no pinned wording.
+- The aggregate failed on 23 assertions, as the order of the move expects.
+
+The pack alone listed 3 external edges and 6 external resources:
+
+| Referring file | External edge or resource |
+| --- | --- |
+| `grove-requirements/SKILL.md` | Loads `grove`. Names `SPEC-FORMAT.md` |
+| `grove-requirements/grilling.md` | Names `CONTEXT-FORMAT.md`, `ADR-FORMAT.md` and `SPEC-FORMAT.md` |
+| `grove-review-requirements/SKILL.md` | Loads `grove`. Names `references/review.md` |
+| `grove-integrate-review-requirements/SKILL.md` | Loads `grove`. Names `references/integrate-review.md` |
+
+Each external resource resolves in `grove`, as rule 3 of the contract's
+"References between skills" states.
+
+The 23 aggregate failures have three classes:
+
+- 3 duplicate skills, one for each moving skill.
+- 10 duplicate rows, one for each moved row.
+- 10 unshipped owners, one for each moved row. The runner maps a skill name
+  that two packs ship to the first pack, which is core. A pack row whose owner
+  is in a duplicate skill therefore reads as unshipped.
+
+Each failure names a moving skill or a moved row. The duplicates cause all 23.
+Core's figures in the aggregate are 116 single-source rows, 2424 loaded paths
+and 64 unpinned rows.
+
+### Ravel resolution
+
+`ravel skills resolve --json` resolved the plain checkout from the public
+remote with the status `resolved`. The source record has the type `local` and the digest
+`07b2d25e8bd2…`. A second resolution of the jj working copy gave the same
+digest.
+
+The instrument was the Ravel 2.0 build of `scripts/harness-trials/builds.json`.
+Its `bin/ravel` SHA-256 is `26b487afb957…`, the pinned value. It came from the
+release target of the line `skill-directory-delivery`. Each resolution ran
+under a temporary `HOME` whose settings held one `local` source and an empty
+mandatory list. The build refuses settings without the `mandatory` member.
+
+### Publication
+
+- The owner created the public GitHub repository
+  `Linkuistics/RequirementsSkills` with default settings, as for
+  ResearchSkills. The permission classifier of this session refused to create
+  a public repository, so the owner ran `gh repo create` at the prompt.
+- jj added the remote `origin` and pushed the bookmark `main`. The public
+  `main` is `9f7278c2d46b3e7443355633afb8a745b37af7ac`, the default branch.
+- The recorded Grove commit `6cdab3a98833` is the head of Grove's remote
+  bookmark `gh-issue-25`. jj pushed that bookmark before the pack.
+- Grove's marketplace does not list the pack yet. `requirements-removal-k192`
+  adds the entry with the removal, and it pins this first pack commit.

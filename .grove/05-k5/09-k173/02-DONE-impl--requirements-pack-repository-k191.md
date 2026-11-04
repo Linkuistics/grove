@@ -84,3 +84,25 @@ At planning, the spine was the only Grove skill that held
 `mattpocock-skills.LICENSE`. The contract adds `LICENSES/` inside the skill
 that adapts a passage, as `grove-impl` does. Only `grove-requirements` adapts
 or bundles such passages among the moving skills. Check that again.
+
+## Decisions (running log)
+
+- The recorded Grove commit is `6cdab3a9883342e68fe51b3913d8c72ddb26e3bf`,
+  the planning commit of this node. It still ships the moving files. jj moved
+  the bookmark `gh-issue-25` forward from `2328c7f0d45a` to that commit and
+  pushed it before the pack's first publication.
+- The manifest keeps the ten moved rows in core's order and byte for byte.
+  Three rows have the owner `grilling.md` and seven have the owner `SKILL.md`.
+  No row of the two family members exists, so their manifest share is empty.
+- The aggregate fails on 23 assertions: 3 duplicate skills, 10 duplicate rows
+  and 10 unshipped owners. The runner maps a skill name that two packs ship to
+  the first pack, which is core. Each pack row whose owner is in a duplicate
+  skill therefore reads as unshipped. The duplicates cause all 23 failures, and
+  each failure names a moving skill or a moved row.
+- The licence pointer is inside an HTML comment, so the runner does not read
+  it. `LICENSES/mattpocock-skills.LICENSE` inside the skill resolves it on
+  every route without the spine.
+- The permission classifier refused `gh repo create --public`. The owner
+  chose to create the repository at the prompt, and then jj pushed `main`.
+  The evidence of the record comes from a plain checkout fetched from the
+  public remote, and it equals the earlier local reading.

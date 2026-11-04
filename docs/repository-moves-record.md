@@ -96,3 +96,73 @@ hits are of four classes.
 The rollout text for paused groves needs no entry for Stylepack. The Obsidian
 manual `AI Dev Tooling` does not name Stylepack or `AgenticWriting`, so it needs
 no change.
+
+## TestSubject
+
+`testsubject-relocation-k167` moved `~/Development/AgenticWriting/TestSubject`
+to `~/Development/AgenticOrchestration/TestSubject` on 2026-11-04. The move
+changed no file in the project, so it has no owning-repository commit.
+
+### Arrangement
+
+- TestSubject is a colocated Git and Jujutsu repository.
+- It has one jj workspace, `default`. Its working copy is empty, on `main`.
+- `main` and `main@origin` are both at `537ed10016d3`. This published commit
+  is the one that a pin can name.
+- The remote `origin` is `https://github.com/Linkuistics/TestSubject.git`.
+- Git registers one worktree, the project root.
+- `.jj/repo/store/git_target` holds the relative path `../../../.git`.
+- `.git/config` sets no `core.worktree`.
+- A search of `.jj/` and `.git/` outside the object stores found no absolute
+  path of the root.
+
+### Readings
+
+The readings before and after the move are identical.
+
+- `jj log -r 'all()'` shows the same 6 commits, including the root commit.
+- `jj st`, `jj workspace list`, `git worktree list` and `git remote -v` give
+  the same output.
+- `git status --porcelain --ignored` gives only the ignored entry `.jj/`.
+- The 5 tracked files have the same digest,
+  `55eaa5497100cce9b18f0ca0514153fa87a2b80d8398ddb10cc1157111a7ea52`.
+
+Before the move, `lsof +D` found no open file under the project. No process
+other than this session's launcher named the project.
+
+### Checks
+
+TestSubject has no checks. Its README marks it as pre-development, and it has
+no Taskfile, manifest or test.
+
+`website/` holds only `index.md` and `meta.yml`, which are content and
+metadata. The README and the TODO document no website build, so no build ran.
+
+### References
+
+The search for the parent name `AgenticWriting` used the locations and the
+controls of the Stylepack search. The positive control found this grove's root
+brief, and a mutated pattern found nothing there.
+
+The full old path occurs in the following places. Each place stays unchanged.
+
+- Claude Code and Codex session transcripts and the Codex thread history are
+  history.
+- This grove's task notes describe the move.
+- `.grove/19-requirements--rhai-book-use-k74.md` is a live requirements leaf
+  of Ravel's task tree. Each of the workspaces `Ravel.gh-issue-2`,
+  `Ravel.skill-directory-delivery` and `Ravel.coordinated-release-design`
+  tracks a copy. Its sentence "The local TestSubject repository is
+  `/Users/antony/Development/AgenticWriting/TestSubject`" names the old path.
+
+Other files name `AgenticWriting` and TestSubject separately. They are this
+grove's task notes, this record, the Codex prompt history and the cached copy
+of this grove's tree in `ResearchSkills/.cache/grove/`. None is a reference
+that needs a repair.
+
+The rollout text for paused groves needs one entry. The Ravel grove that owns
+`rhai-book-use-k74` must read TestSubject at
+`~/Development/AgenticOrchestration/TestSubject`.
+
+The Obsidian manual `AI Dev Tooling` does not name TestSubject or
+`AgenticWriting`, so it needs no change.

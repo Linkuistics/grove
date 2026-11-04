@@ -81,3 +81,68 @@ to the moves record for discovery-rollout-k6.
 
 Keep the documentation in the change that it describes. If the change is too
 large for one session, decompose it.
+
+## Decisions (running log)
+
+- The removal takes out `grove-requirements/` with `SKILL.md` and
+  `grilling.md`, `grove-review-requirements/` and
+  `grove-integrate-review-requirements/`. It removes the ten manifest rows
+  whose owner is in `grove-requirements/`. They are the ten rows of the pack's
+  manifest. The manifest's example of a trigger now names
+  `grove-finish/SKILL.md`. The prefix sets stay.
+- Core alone before the removal, at `53d092fa0e5e`: 116 single-source checks,
+  2424 loaded-path checks, 64 unpinned rows. After it: 115, 2062 and 55. The
+  ten rows held one pinned row and nine unpinned rows.
+- The aggregate with the pinned first pack commit `9f7278c2d46b`: 116 and
+  2424, the core-alone figures before the move. The pack alone: 1
+  single-source check, 10 loaded-path checks, 3 external edges and 6 external
+  resources. The research aggregate is now 115 and 2421, which is 362 fewer
+  loaded-path checks than before, the same drop as core alone.
+- Binding proof: in a scratch copy of the pinned pack, the two family members
+  stopped loading `grove`. The aggregate then failed all three
+  `static(review-*)` rows for `review-requirements` and all four
+  `static(integrate-review-*)` rows for `integrate-review-requirements`, and
+  no other kind. Removing only the member's pointer to its family file left the
+  run clean, because the spine's `SKILL.md` lists its family files. That
+  mutation therefore is not a control.
+- The `inherited-load` control now writes the fixture kind `grove-interview`
+  with the supporting file `procedure.md`, which names `ADR-FORMAT.md`. Its
+  first dirty reading came back clean, because the fixture's load sentence put
+  the full stop inside the bold and the mutation matched nothing. With the
+  moved skill's form, it reads clean and then dirty with the exact diagnostic.
+- `MOVING_KIND_OPENINGS` loses the three requirements openings. The citation
+  audit's comment keeps its history and adds that `grilling.md` moved out of
+  the corpus.
+- The `requirements` row of the kind table names `RequirementsSkills`.
+- The marketplace adds `requirements` with a `git-subdir` source that pins
+  `9f7278c2d46b3e7443355633afb8a745b37af7ac`. Its description is the pack
+  manifest's. The marketplace description counts five plugins.
+- The documents name RequirementsSkills where they state which pack ships a
+  kind: `README.md`, `plugins/README.md` (a new `requirements` section, the
+  install lists, `--pack` and the pin exception), `plugins/grove/README.md`,
+  `CONTEXT.md`, `plugins/CONTEXT.md` and `docs/ARCHITECTURE.md`.
+  `plugins/grove/README.md` also gained the missing `research` install line.
+  `docs/USAGE.md` adds a `requirements` source to the directory route. It
+  states after the start-up checks that a fresh grove's first leaf needs
+  `grove-requirements` from RequirementsSkills. Its `grilling.md` link is now
+  a public URL. The provenance comment of `CONTEXT-FORMAT.md` adds where
+  `grilling.md` ships now. The frozen measurement table, `CHANGELOG.md`, the
+  decision record, the two inventory files and the move specifications stay.
+- Stale-location sweep: an enumeration of `grove-requirements`,
+  `grove-review-requirements`, `grove-integrate-review-requirements` and
+  `grilling.md` over the whole tree with `--hidden`, excluding `.jj`, `.git`,
+  `target` and `.grove`. Each hit is new correct text, history, a move
+  specification, the record or the inventory. A planted path in a hidden
+  scratch directory was found, the specifications still held the class, and
+  a mutated pattern found nothing.
+- The controlled-English checker reported two hard findings in new text, a
+  seven-sentence paragraph and "start" beside "launch". Both are corrected,
+  and the changed documents report no hard finding.
+- Gate: `bash scripts/check.sh` passed all 21 principal checks, 1345 Rust
+  tests among them. `GROVE_TEST_RAVEL` resolved to
+  `/opt/homebrew/Cellar/ravel/1.1.0/bin/ravel`, Ravel 1.1.0, SHA-256
+  `c52f990b2059c8bbe8efba10a741d3a0311000ac1712d71e882638f54c3ac1ed`. The
+  13 changed files outside `.grove/` had the same digests before and after the
+  run.
+- `.claude/settings.json` is the owner's local permission for the earlier
+  publication. It stays in the working copy and in no commit.

@@ -293,15 +293,34 @@ expect_dirty "${root}" "bootstrap-order: grove/SKILL.md is not on grove-impl's c
 
 # -- Assertion 3: a supporting file resolves through its skill's loads -------
 #
-# `grove-requirements/grilling.md` names `ADR-FORMAT.md` and loads no skill
-# itself. It resolves in the spine because `grove-requirements/SKILL.md` loads
-# it, and a session reads the supporting file only after that `SKILL.md`.
+# `grove-interview/procedure.md` names `ADR-FORMAT.md` and loads no skill
+# itself. It resolves in the spine because `grove-interview/SKILL.md` loads it,
+# and a session reads the supporting file only after that `SKILL.md`. No core
+# kind ships a supporting file, so the kind is a fixture.
 
 root="$(new_skill_set inherited-load)"
-add_kind "${root}" requirements
+mkdir -p "${root}/grove-interview"
+cat >"${root}/grove-interview/SKILL.md" <<'EOF'
+---
+name: grove-interview
+description: A fixture kind of the conformance controls, with a supporting file.
+---
+
+# interview
+
+**Load the `grove` skill now** — it is the shared spine and holds everything
+this kind does not own. `grove` is the bare skill name.
+
+When the interview starts, read `procedure.md`.
+EOF
+cat >"${root}/grove-interview/procedure.md" <<'EOF'
+# The interview procedure
+
+When an answer settles a decision, test it against `ADR-FORMAT.md`.
+EOF
 expect_clean "${root}" "a supporting file resolves through its skill's load"
-replace_text "${root}/grove-requirements/SKILL.md" '**Load the `grove` skill now**' '**Read the spine now**'
-expect_dirty "${root}" 'missing file: grove-requirements/grilling.md names `ADR-FORMAT.md`' \
+replace_text "${root}/grove-interview/SKILL.md" '**Load the `grove` skill now**' '**Read the spine now**'
+expect_dirty "${root}" 'missing file: grove-interview/procedure.md names `ADR-FORMAT.md`' \
   "a supporting file loses the spine with its skill's load"
 
 # -- Assertion 2: two kinds stating one kind-owned rule ----------------------

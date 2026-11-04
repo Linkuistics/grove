@@ -1,6 +1,6 @@
 {
   "name": "linkuistics",
-  "description": "Grove's session methodology, coding standards, software design, project simplification, and version-control disciplines as lazily loaded agent skills, plus GUI testing in isolated VMs. Four plugins: grove, research, linkuistics and testanyware.",
+  "description": "Grove's session methodology, coding standards, software design, project simplification, and version-control disciplines as lazily loaded agent skills, plus GUI testing in isolated VMs. Five plugins: grove, requirements, research, linkuistics and testanyware.",
   "owner": {
     "name": "Antony Blakey",
     "email": "antony.blakey@gmail.com"
@@ -25,6 +25,16 @@
       "name": "grove",
       "source": "./plugins/grove",
       "description": "Grove's methodology spine: the seven constraints, the bootstrap, execution, decomposition, retirement and commit procedures, the review, integration and editorial family files, and the five format documents."
+    },
+    {
+      "name": "requirements",
+      "source": {
+        "source": "git-subdir",
+        "url": "https://github.com/Linkuistics/RequirementsSkills.git",
+        "path": "plugins/requirements",
+        "sha": "9f7278c2d46b3e7443355633afb8a745b37af7ac"
+      },
+      "description": "Grove's requirements kinds: the requirements session with its interview procedure, and its review and integration steps."
     },
     {
       "name": "research",

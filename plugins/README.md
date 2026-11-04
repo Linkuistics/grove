@@ -5,7 +5,7 @@
 Two Claude Code plugins live here — `grove` and `linkuistics` —
 published through the marketplace declared in
 [`../.claude-plugin/marketplace.json`](../.claude-plugin/marketplace.json). The
-marketplace also lists `research` and `testanyware`, which live in their own
+marketplace also lists `requirements`, `research` and `testanyware`, which live in their own
 repositories and which it pins by commit. The two plugins here
 share this repo with the Grove CLI because the two change in lockstep
 ([architecture](../docs/ARCHITECTURE.md#skills-monorepo)); they ship by their own
@@ -32,6 +32,30 @@ The `configure-grove` operator skill installs, inspects and edits the owner's
 Ravel policy, which selects the harness, model and effort for each
 session kind, with its owner settings and per-checkout choice file. It is
 available without a task tree and is not a lifecycle kind.
+
+## `requirements` — the requirements kinds, from RequirementsSkills
+
+<!-- tc: on -->
+
+The requirements kinds `requirements`, `review-requirements` and
+`integrate-review-requirements` ship in their own repository,
+[RequirementsSkills](https://github.com/Linkuistics/RequirementsSkills). The
+skill `grove-requirements` holds its interview procedure, `grilling.md`. This
+repository holds no copy of those skills. A fresh grove starts with a
+`requirements` leaf, so a user who starts a grove needs this plugin.
+
+The review and integration kinds are families across packs. Their procedures,
+`references/review.md` and `references/integrate-review.md`, stay in the
+spine. The two family members of the pack load `grove` and read those files
+there.
+
+The marketplace lists `requirements` with a `git-subdir` source. That source
+names `plugins/requirements` and pins one RequirementsSkills commit in `sha`.
+Grove's `task check:packs` checks the pinned commit alone and with this tree's
+core. The plugin declares a dependency on `grove`, so a Claude Code install
+also installs the spine.
+
+<!-- tc: pending because the conversion has not reached this part of the document -->
 
 ## `research` — the research kinds, from ResearchSkills
 
@@ -122,6 +146,7 @@ source directory and its checks. The plugin installs independently of
 ```
 /plugin marketplace add Linkuistics/grove
 /plugin install grove@linkuistics
+/plugin install requirements@linkuistics
 /plugin install research@linkuistics
 /plugin install linkuistics@linkuistics
 /plugin install testanyware@linkuistics
@@ -233,13 +258,16 @@ frontmatter.
 
 <!-- tc: on -->
 
-**An external pack needs `--pack`.** The research kinds are in ResearchSkills,
-so the plain run above does not install them. Make a checkout of ResearchSkills
-and name its plugin directory:
+**An external pack needs `--pack`.** The requirements kinds are in
+RequirementsSkills, and the research kinds are in ResearchSkills. The plain run
+above therefore installs neither. Make a checkout of each pack and name its
+plugin directory:
 
 ```
+git clone https://github.com/Linkuistics/RequirementsSkills.git
 git clone https://github.com/Linkuistics/ResearchSkills.git
-./plugins/install.sh --pack ../ResearchSkills/plugins/research
+./plugins/install.sh --pack ../RequirementsSkills/plugins/requirements \
+  --pack ../ResearchSkills/plugins/research
 ```
 
 The TestAnyware skill is also outside this repository. Name the plugin
@@ -287,7 +315,7 @@ and delivery boundary is described in
 
 <!-- tc: on -->
 
-The `research` and `testanyware` plugins are the exceptions. The marketplace
+The `requirements`, `research` and `testanyware` plugins are the exceptions. The marketplace
 entry of each pins a commit of its own repository in `sha`. Claude Code
 delivers that commit until a Grove commit moves the pin. The pin gives native
 users the commit that Grove's `task check:packs` accepted. For `testanyware`,

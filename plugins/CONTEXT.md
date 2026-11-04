@@ -24,8 +24,8 @@ _Avoid_: "command" (a Claude Code slash command is a different artifact), "promp
 Claude Code's packaging unit — `plugins/<name>/` holding `.claude-plugin/plugin.json`
 and a `skills/` directory — and a Claude Code concept only; other harnesses receive
 the same [[Skill]] directories by [[Symlink install]]. Two ship here: `grove` and
-`linkuistics`. The marketplace also lists `research` and `testanyware`, which
-their own repositories ship.
+`linkuistics`. The marketplace also lists `requirements`, `research` and
+`testanyware`, which their own repositories ship.
 
 <!-- tc: on -->
 
@@ -33,7 +33,7 @@ their own repositories ship.
 A repository whose plugin directories ship methodology skills or craft skills.
 Core is the pack in Grove's repository, and its plugin `grove` holds the spine
 and the core kind skills. An external pack is a pack in another repository,
-such as ResearchSkills. `docs/specs/external-pack-contract.md` states how an
+such as RequirementsSkills. `docs/specs/external-pack-contract.md` states how an
 external pack joins Grove's methodology.
 _Avoid_: "plugin" for a whole pack. One pack can ship more than one [[Plugin]].
 

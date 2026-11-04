@@ -132,6 +132,8 @@ struct Citation {
 /// discharged themselves when `loop-step-references-k11` and `corpus-split-k6`
 /// repointed those citations at `ADR-FORMAT.md` and `references/requirements.md`;
 /// the files no longer name the plugin at all, which is why they have no row.
+/// `grilling.md` has since moved to the RequirementsSkills pack, outside this
+/// corpus.
 ///
 /// `grove/references/grove.md` is the **hub**: it states what binds for every
 /// cited skill in one place, and the spine's `SKILL.md` routes every
@@ -476,14 +478,11 @@ const MOVING_KIND_OPENINGS: &[&str] = &[
     "grove-integrate-review-design/SKILL.md",
     "grove-integrate-review-impl/SKILL.md",
     "grove-integrate-review-prototype/SKILL.md",
-    "grove-integrate-review-requirements/SKILL.md",
     "grove-proof/SKILL.md",
     "grove-prototype/SKILL.md",
-    "grove-requirements/SKILL.md",
     "grove-review-design/SKILL.md",
     "grove-review-impl/SKILL.md",
     "grove-review-prototype/SKILL.md",
-    "grove-review-requirements/SKILL.md",
 ];
 
 /// Colon-joined tokens that name no skill: the Taskfile target in

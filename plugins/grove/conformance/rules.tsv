@@ -46,8 +46,8 @@
 #           A set binds the matching kinds of the run, in any supplied pack.
 #
 #           A trigger binds each kind whose composed loaded path holds the
-#           file. A trigger in `grove-requirements/SKILL.md` therefore binds
-#           `requirements` and nothing else.
+#           file. A trigger in `grove-finish/SKILL.md` therefore binds
+#           `finish` and nothing else.
 #   phrase  the rule's canonical wording, distinctive enough to identify it,
 #           or empty where no wording has been pinned. Only a pinned row can
 #           carry the single-source sweep; the loaded-path assertion covers
@@ -100,9 +100,6 @@ header-is-position-free	grove/TASK-FORMAT.md	B	on(writing a task body) @ grove/r
 kind-set-belongs-to-the-methodology	grove/TASK-FORMAT.md	B	on(cutting a leaf) @ grove/references/decompose.md	the next one is authored, not compiled
 leaf-name-grammar	grove/TASK-FORMAT.md	B+S	on(cutting or reading a leaf) @ grove/references/decompose.md	Five fields, all parsed
 suggested-body-shape	grove/TASK-FORMAT.md	B	on(writing a task body) @ grove/references/decompose.md	A sixth section appears when a session is keeping one
-grilling-procedure	grove-requirements/grilling.md	B	on(the grilling threshold is met) @ grove-requirements/SKILL.md	
-no-writes-before-shared-understanding	grove-requirements/grilling.md	B	on(the grilling threshold is met) @ grove-requirements/SKILL.md	
-probe-with-concrete-scenarios	grove-requirements/grilling.md	B	on(the grilling threshold is met) @ grove-requirements/SKILL.md	stress-test them with specific scenarios
 art-works-in-the-contracts-medium	grove-art/SKILL.md	B	static({art})	Do not introduce a medium the contract does not name
 figure-carries-the-relation-and-states-its-role	grove-art/SKILL.md	B	static({art})	Every figure states its role
 declined-figure-names-one-of-three-reasons	grove-art/SKILL.md	B	static({art})	a contract's medium is reopened by that record and by nothing else
@@ -215,13 +212,6 @@ proof-clears-the-hand-forward-list	grove-proof/SKILL.md	B	static({proof})	An ent
 proof-cuts-nothing-unless-it-sends-work-back	grove-proof/SKILL.md	B	static({proof})	the node closes when a `proof` retires having sent nothing back
 proof-is-the-stated-fallback	grove-proof/SKILL.md	B	static({proof})	a proof session that finds nothing has still done its job
 prototype-is-throwaway	grove-prototype/SKILL.md	B	static({prototype})	
-agree-the-seams-during-grilling	grove-requirements/SKILL.md	B	static({requirements})	
-grilling-threshold	grove-requirements/SKILL.md	B*	static({requirements})	
-pre-decided-is-not-a-grilling-question	grove-requirements/SKILL.md	B	static({requirements})	
-requirements-establishes-what	grove-requirements/SKILL.md	B	static({requirements})	
-sequence-interdependent-questions	grove-requirements/SKILL.md	B	static({requirements})	
-small-workstream-may-fuse-the-three	grove-requirements/SKILL.md	B	static({requirements})	
-when-not-to-start-a-grove	grove-requirements/SKILL.md	B	static({requirements})	
 cascade-is-silent	grove/references/retire.md	B	on(a node has no live leaf left) @ grove/SKILL.md	
 finish-is-the-drivers-to-discover	grove/references/retire.md	B	on(the last live leaf retires) @ grove/SKILL.md	You do not discover that a grove is finished
 finishing-session-names-its-evidence	grove/references/retire.md	B	on(the work is done) @ grove/SKILL.md	The session that finishes a producer names its provider evidence on that producer's reviews

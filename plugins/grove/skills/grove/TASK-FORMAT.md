@@ -61,7 +61,7 @@ tokens itself, at the two places it writes a leaf with no session to delegate to
 
 | kind(s) | its review step | its integration step | pack |
 |---|---|---|---|
-| `requirements` | `review-requirements` | `integrate-review-requirements` | `grove` |
+| `requirements` | `review-requirements` | `integrate-review-requirements` | `RequirementsSkills` |
 | `design` | `review-design` | `integrate-review-design` | `grove` |
 | `planning` | `review-planning` | `integrate-review-planning` | `grove` |
 | `prototype` | `review-prototype` | `integrate-review-prototype` | `grove` |

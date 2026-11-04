@@ -10,7 +10,8 @@
      skills/engineering/domain-modeling/SKILL.md, and reached this file from
      grove's own `grilling.md`, which bundled that skill and stated the rules a
      second time; the bullet is a paraphrase of grilling.md's sentence rather
-     than a quotation of it. -->
+     than a quotation of it. grilling.md now ships in the RequirementsSkills
+     pack. -->
 
 # CONTEXT.md Format
 

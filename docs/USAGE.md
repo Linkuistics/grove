@@ -145,6 +145,7 @@ named by an absolute path:
     "schemaVersion": 1,
     "sources": [
       { "id": "grove", "type": "local", "path": "/absolute/path/to/grove-checkout/plugins/grove", "roots": ["skills"] },
+      { "id": "requirements", "type": "local", "path": "/absolute/path/to/requirements-checkout/plugins/requirements", "roots": ["skills"] },
       { "id": "research", "type": "local", "path": "/absolute/path/to/research-checkout/plugins/research", "roots": ["skills"] }
     ],
     "mandatory": []
@@ -152,8 +153,10 @@ named by an absolute path:
 }
 ```
 
-The research kinds ship in the ResearchSkills repository, so the second source names a
-checkout of it. Leave that source out if you run no research leaf.
+The requirements kinds ship in the RequirementsSkills repository, so the second source
+names a checkout of it. The first leaf of a fresh grove is a `requirements` leaf, so keep
+that source for a new grove. The research kinds ship in the ResearchSkills repository, so
+the third source names a checkout of it. Leave that source out if you run no research leaf.
 
 A `mandatory` entry names a file that the agent reads before your task. No Grove skill
 must be mandatory, because the mandate names the kind skill. Your configuration must pass
@@ -536,6 +539,14 @@ touching the tree:
 $ grove
 Error: Ravel is missing from absolute PATH directories. Install it with `brew install linkuistics/taps/ravel` and add its bin directory to PATH.
 ```
+
+<!-- tc: on -->
+
+The first leaf of a fresh grove needs the `grove-requirements` skill. That skill ships in
+the RequirementsSkills pack, not in Grove's `grove` plugin. Install that pack on the route
+that each harness uses, as the [skill plugins guide](../plugins/README.md) states.
+
+<!-- tc: pending because the conversion has not reached this part of the document -->
 
 Grove makes one commit of its own — the teardown commit at the end. It touches
 only `.grove/`, leaving unrelated working-copy changes in the successor commit.
@@ -1632,7 +1643,8 @@ perform either on itself. The session-facing counterparts are already in the
 methodology: naming the trade-off you want input on
 ([`plugins/grove/skills/grove/references/execute.md`](../plugins/grove/skills/grove/references/execute.md))
 and giving a recommended answer per question
-([`plugins/grove/skills/grove-requirements/grilling.md`](../plugins/grove/skills/grove-requirements/grilling.md)).
+([`grove-requirements/grilling.md`](https://github.com/Linkuistics/RequirementsSkills/blob/main/plugins/requirements/skills/grove-requirements/grilling.md)
+in RequirementsSkills).
 
 **Ask the LLM "WDYT" before committing.** When a question feels close to
 settled, the easy default is to nod and move on. Don't — ask what it thinks,

@@ -86,6 +86,7 @@ For Claude Code:
 ```text
 /plugin marketplace add Linkuistics/grove
 /plugin install grove@linkuistics
+/plugin install requirements@linkuistics
 /plugin install research@linkuistics
 /plugin install linkuistics@linkuistics
 /plugin install testanyware@linkuistics
@@ -96,6 +97,12 @@ so Claude Code keeps the plugins current. `grove@linkuistics` supplies
 Grove's methodology; see [`plugins/grove/README.md`](plugins/grove/README.md).
 
 <!-- tc: on -->
+
+`requirements@linkuistics` supplies the requirements kinds from the
+[RequirementsSkills](https://github.com/Linkuistics/RequirementsSkills)
+repository. A fresh grove starts with a `requirements` leaf, so install it
+before you start a grove. The marketplace pins one RequirementsSkills commit for
+it.
 
 `research@linkuistics` supplies the research kinds from the
 [ResearchSkills](https://github.com/Linkuistics/ResearchSkills) repository. The
@@ -118,11 +125,12 @@ Claude-only `guardrail` is excluded from Codex.
 
 <!-- tc: on -->
 
-To install the research kinds too, make a checkout of ResearchSkills and name
-its plugin directory with `--pack`:
+To install the requirements kinds and the research kinds too, make a checkout
+of each pack and name its plugin directory with `--pack`:
 
 ```sh
-./plugins/install.sh --pack /path/to/ResearchSkills/plugins/research
+./plugins/install.sh --pack /path/to/RequirementsSkills/plugins/requirements \
+  --pack /path/to/ResearchSkills/plugins/research
 ```
 
 To install the TestAnyware skill, name the plugin directory of a TestAnyware

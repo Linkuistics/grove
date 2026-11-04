@@ -15,7 +15,9 @@ behaviour, as the transcripts of real sessions show it.
 The record ends with the [Completion audit](#completion-audit) of
 `common-loading-acceptance-k29` and `common-skill-loading-k3`. The
 [Research recipes](#research-recipes) after it give
-`external-research-pack-k4` a working source path.
+`external-research-pack-k4` a working source path. The
+[Research directory trials](#research-directory-trials) then run the research
+kinds from the external pack.
 
 ## Conventions
 
@@ -8309,3 +8311,270 @@ The recipes read these shared inputs. Each input has a record:
 | The Rust and mise toolchain directories | [The HOME of each run](grove-dual-ravel-stage-record.md#the-home-of-each-run) |
 | `DOCKER_CONFIG` and a copy of the Homebrew `trust.json`, for the installed checks only | The same section |
 | The Homebrew keg of Ravel 1.1.0, read only | The [dual-Ravel stage record](grove-dual-ravel-stage-record.md#ravel-builds) |
+
+## Research directory trials
+
+`research-directory-trials-k160` runs the directory proof of
+`external-research-pack-k4` in real Claude Code and Codex sessions. A
+research kind now lives in ResearchSkills, outside Grove. These trials show
+that Ravel's supplied directories deliver it with native copies absent.
+
+### Subjects
+
+Every run of this section reads the subjects below. The runs are from
+2026-11-04 local time, and each case ran once in each harness, with no retry.
+
+| Subject | Value |
+| --- | --- |
+| Runner | `scripts/harness_trial.py` at Grove commit `8a93002fe9f1`, which adds the cases and `moveRoot` |
+| Grove build | commit `57414e00cd87`, the removal commit of `grove-research-removal-k158`. `grove` SHA-256 `a7f5c988a18e…`, `grove-llm` SHA-256 `2f7895cc33f7…` |
+| Ravel build | line `skill-directory-delivery` at `71f70fcd3f92`, build commit `d324668b86ca`, identity `a4f55d04b2d1…`, `bin/ravel` SHA-256 `26b487afb957…`, the value of `builds.json`. The prefix has no `libexec` |
+| Source `grove` | `plugins/grove` of the prepared plain Git checkout at `57414e00cd87`, root `skills`. `resourceDigest` `ea34f8afb116…` |
+| Source `research` | `plugins/research` of a plain Git checkout of `1c18a90945a0b2ac4086bfe6f2ba90066fcf4bcc`, the published `main` of `https://github.com/Linkuistics/ResearchSkills.git`. Root `skills`, Git tree `79dc2a530cd2`, `resourceDigest` `7fb3d473f66f…` |
+| Mandatory file | `grove` `skills/grove/SKILL.md`, the Grove spine |
+| Claude Code | 2.1.318, model `claude-opus-5-5`, effort `medium`, permission mode `bypassPermissions` |
+| Codex | codex-cli 0.166.0, model `gpt-6.1-sol`, effort `medium`, sandbox `workspace-write`, approval `never` |
+
+The runner made each research checkout under the trial's `sources/`. The
+harness's working directory was the trial's `repo/`. That directory is
+outside the Grove working copy, the ResearchSkills working copy and every
+checkout. Each checkout had its commit as `HEAD` and was clean after the
+driver. Each launch named the same `research` digest as the restored or
+offline resolution of its run.
+
+The sandbox home linked only the sign-in store of the harness. No native copy
+of any Grove or research skill existed in it. The Claude Code listing held 19
+built-in skill names. One of them is `deep-research`, and no session called
+it. Codex installed its four bundled skills and the curated plugins of the
+sign-in, as in every earlier Codex run. No session read either.
+
+The trial configuration routes only `research-a`. After each leaf ended with
+`grove-continue`, the driver therefore refused the `finish` kind as
+`config_refused`, and no second harness launched. After each session, Ravel
+wrote two lines `stop attempt … signal 9: Operation not permitted (os error
+1)`. Earlier runs show the same lines, and this record does not interpret
+them.
+
+Recipe, from a scratch directory `$SCRATCH` outside every working copy:
+
+```sh
+task trial:prepare OUT="$SCRATCH/trials" COMMIT=57414e00cd876a9c0e1f8021786384ba7e368580 RAVEL="$SCRATCH/ravel-2.0/bin/ravel"
+task trial:claude OUT="$SCRATCH/trials" CASE=research-discovery
+task trial:codex OUT="$SCRATCH/trials" CASE=research-discovery
+task trial:claude OUT="$SCRATCH/trials" CASE=research-discovery WORKING_COPY=research=$HOME/Development/AgenticOrchestration/ResearchSkills
+```
+
+The other cases use the same commands with their own `CASE`.
+
+### research-discovery
+
+**Case.** One `research-a` leaf asks for a survey. The survey compares how the
+installed `git` and `jj` describe the working copy. The installed help text is
+the only primary source, so the session needs no network. Grove sends its
+bare-name mandate for `grove-research-a`, and the task names no skill. The
+case also runs the offline resolution.
+
+**Claude Code.** The run is `research-discovery-20261104T061105Z`. The session
+file `49267612-7c40-4318-861c-6480498cdb70.jsonl` has the SHA-256
+`61d3c0b8ed57…`. The descriptor identity is `338e03961a6d…`.
+
+| # | Class | Skill | Source | What the call did |
+| --- | --- | --- | --- | --- |
+| 1 | mandatory | grove | grove | Read the spine from its snapshot |
+| 2 | command | | | Listed every `SKILL.md` of both snapshots, with its `name` and `description` lines |
+| 3 | kind-skill | grove-research-a | research | Read the kind skill from the research snapshot |
+| 4 | skill | research-family | research | Read the family skill from the research snapshot |
+| 6, 7 | supporting | grove | grove | Read `references/execute.md` and `references/bootstrap.md` of the spine. Call 6 stopped with exit 1 at `echo =====`, and call 7 read the references again |
+| 8, 9 | command | | | Resolved the leaf, walked its brief chain and read the task |
+| 11 to 20 | command | | | Read the help texts of `git` and `jj` |
+| 24 | action | | | Wrote `docs/research/working-copy-terms-a.md` |
+| 33 | ending | | | Ran the exact continue command |
+
+**Result: pass.** The agent read the kind skill, the spine and the
+`research-family` skill before its first action. The listing in call 2
+shows the descriptions, so the agent chose by description and not only by
+directory name.
+
+The kind skill names `research-family` by its bare name. The
+agent found it in the research snapshot, beside the kind skill. The survey
+went to `-a.md`, the path that the family skill gives the **a** half. Call
+29 also ran `env`, to count one Grove variable. The classifier therefore gives
+that call the class `variable`.
+
+**Codex.** The run is `research-discovery-20261104T061105Z-2`. The session
+file `rollout-2026-11-04T17-11-07-01a1a52e-c452-73c0-a891-eb9b77934982.jsonl`
+has the SHA-256 `53219d3417ed…`. The descriptor identity is
+`261800f81bbd…`.
+
+| # | Class | Skill | Source | What the call did |
+| --- | --- | --- | --- | --- |
+| 2 | mandatory | grove | grove | Read the spine |
+| 3 | listing | | grove | Listed the files of the snapshots with `rg --files` |
+| 4 | kind-skill | grove-research-a | research | Read the kind skill |
+| 5 | skill | research-family | research | Read the family skill |
+| 7, 13 | supporting | grove | grove | Read references of the spine |
+| 8 to 12 | command | | | Found the task files, resolved the leaf and read the brief chain |
+| 15 to 27 | command | | | Read the help texts of `git` and `jj` |
+| 28 | action | | | Wrote the survey and the task file's decision log, in one `apply_patch` |
+| 38 | ending | | | Ran the exact continue command |
+
+**Result: pass.** The reads of the kind skill, the spine and the family
+skill came before the first command on the task, in call 8. Both sessions
+found that `jj help st` refuses the alias `st`, and both cited
+`jj help status` in its place.
+
+**Offline resolution.** In each run, `ravel skills resolve --json` exited 0
+with the status `resolved`, under the network-denying profile. Its PATH held
+only the 2.0 front. It gave the descriptor identity of the launch.
+
+Both controls differed in each run. The unguarded `nc` reached the local listener
+with exit 0, and the guarded `nc` failed with exit 1. `git` was on the PATH of
+the driver at `/opt/homebrew/bin/git`, and absent from the PATH of the
+resolution.
+
+### research-discovery from the working copy
+
+**Case.** The same case, with `--working-copy
+research=/Users/antony/Development/AgenticOrchestration/ResearchSkills`. The
+settings then name `plugins/research` of that jj working copy. Before the
+driver, the working-copy change was `kztolzllvkmk`, at commit `61dd0ebc9f0a`.
+That change is empty, and its parent is the published `1c18a90945a0`.
+
+**Claude Code.** The run is `research-discovery-20261104T061403Z`. The session
+file `657f36e9-42d0-4e64-bf29-ebc884cce185.jsonl` has the SHA-256
+`f874d6d32996…`. The descriptor identity is `46fb33302119…`. The research
+source's origin path is
+`/Users/antony/Development/AgenticOrchestration/ResearchSkills/plugins/research`.
+
+Calls 1, 2 and 3 read the spine, `grove-research-a` and `research-family`.
+Call 5 read `references/execute.md` and `references/bootstrap.md`. Calls 9 to 17 read the help texts, and
+call 21 wrote the survey. Call 34 ran the exact continue command.
+
+**Codex.** The run is `research-discovery-20261104T061746Z`. The session
+file `rollout-2026-11-04T17-17-48-01a1a534-e055-79f2-9c7b-2b96f47cc62c.jsonl`
+has the SHA-256 `1e2cb174f99e…`. The descriptor identity is
+`673cbf71946d…`. The research source's origin path is the same
+working-copy directory.
+
+Calls 2 to 6 read the spine, listed the snapshots, and read
+`grove-research-a` and `research-family`. Call 7 resolved the leaf, which is
+the first command on the task. Calls 14 to 24 read the help texts and two references of the spine. Call 25
+wrote the survey, and call 38 ran the exact continue command.
+
+**Result: pass.** Each run loaded the same kind from the working copy. The
+working-copy commit was the same after the driver, so jj recorded no change.
+The `research` digest was `7fb3d473f66f…`, the digest of the published
+checkout. The supplied bytes were therefore the bytes of the published
+commit.
+
+### research-delegate
+
+**Case.** One `research-a` leaf asks for a survey of how `git` and `jj`
+describe their ignored files. The leaf asks the parent to delegate the `jj`
+half through its harness's agent tool. It names no skill, no obligation and no
+ending rule.
+
+**Claude Code.** The run is `research-delegate-20261104T061358Z`. The
+parent's session file `71378cc6-5ab7-4e6d-ae72-0b4218e35dc5.jsonl` has the
+SHA-256 `d9f32de226a6…`. The delegate's transcript
+`agent-a48e8778cce02c1a2.jsonl` has the SHA-256 `f32139f7cff4…`. The
+descriptor identity is `724003939184…`.
+
+- **The parent's reads.** Call 1 read the spine. Call 2 searched both
+  snapshots for research skills. Calls 4 and 5 read `grove-research-a` and
+  `research-family`, each with a listing of its directory. Call 13 launched
+  the delegate, and call 20 wrote the `git` section.
+- **What the parent gave.** The prompt held the descriptor path, both search
+  directories, the mandatory path and all 11 obligations, in the parent's own
+  words. It named `grove-research-a` and `research-family` as relevant skills.
+  It forbade commits, tree changes and `ravel end-session`.
+- **The delegate's reads.** Call 2 read the spine. Call 3 listed every
+  `SKILL.md` of the snapshots and printed the descriptor. Call 4 read
+  `grove-research-a` from the research snapshot. Call 5 read
+  `research-family` from the same snapshot. The first help command came in
+  call 7. The delegate wrote no file, and it returned its section to the
+  parent.
+- **Call 4.** Its exit status was 1, after the read of the kind skill. The
+  command held `echo ======`, and zsh expands a leading `=` as a command
+  path. The read itself succeeded, and call 5 read the family skill again.
+  Call 6 of the Claude Code discovery run stopped in the same way.
+
+**Codex.** The run is `research-delegate-20261104T061337Z`. The parent's
+session file `rollout-2026-11-04T17-13-39-01a1a531-150f-7903-8132-3ab939ee2760.jsonl`
+has the SHA-256 `a8033a824207…`. The delegate's session file
+`rollout-2026-11-04T17-14-34-01a1a531-e96e-7a42-b60b-a872ed6f8eae.jsonl` has
+the SHA-256 `9e7430bb0d49…`. The descriptor identity is `bb5e10f92e8f…`.
+
+- **The parent's reads.** Calls 2 to 6 read the spine, listed the snapshots,
+  and read `grove-research-a` and `research-family`. Call 14 launched the
+  delegate `/root/jj_survey` through `spawn_agent`.
+- **What the parent gave.** Codex encrypted the message of the direct call,
+  so the record holds no prompt. The call forked the whole history, and the
+  delegate's history holds the descriptor path.
+- **The delegate's reads.** Call 2 read the spine, and call 3 read the
+  descriptor. Call 4 listed the snapshots. Call 5 read `grove-research-a`
+  from the research snapshot. The first help command came in call 6. The
+  delegate did not read `research-family`. It wrote no file, and it returned
+  its findings as its final answer.
+
+**Result: pass.** In each harness, a delegate read a research resource from
+the retained directories. Each delegate read the mandatory spine before any
+other file. Each delegate's sandbox and environment were those of the parent,
+with `RAVEL_EXIT_FILE` and `GROVE_LAUNCH_DIR`. Neither delegate ran an ending
+command.
+
+### research-source-missing and research-root-missing
+
+**Cases.** `research-source-missing` moves the research checkout away before
+the driver. `research-root-missing` uses `moveRoot` and moves only
+`plugins/research/skills` of that checkout. Each case expects
+`skill_source_missing` before any harness launch. Neither case makes a model
+call.
+
+| Run | Harness | Moved | Location of the refusal |
+| --- | --- | --- | --- |
+| `research-source-missing-20261104T061012Z` | Claude Code | `$TRIAL/sources/research-checkout` | `skills.sources[1].path` |
+| `research-source-missing-20261104T061048Z` | Codex | `$TRIAL/sources/research-checkout` | `skills.sources[1].path` |
+| `research-root-missing-20261104T061014Z` | Claude Code | `$TRIAL/sources/research-checkout/plugins/research/skills` | `skills.sources[1].roots[0]` |
+| `research-root-missing-20261104T061051Z` | Codex | `$TRIAL/sources/research-checkout/plugins/research/skills` | `skills.sources[1].roots[0]` |
+
+**Result: pass.** In each run, Grove asked Ravel for the `research-a` launch.
+Ravel refused it in the skills stage, and Grove stopped the loop with the
+leaf live. The records directory held no launch, and no session file exists.
+
+A direct `ravel skills resolve --json` with the move gave exit 3 and the code.
+The same resolution after the restore gave exit 0 and the status `resolved`.
+The move therefore caused each refusal. The checkout was clean after the
+restore.
+
+The driver's lines of the root case, with the trial directory shortened:
+
+```text
+grove: launching research-a through Ravel — working-copy-terms-k1
+ravel: refused (skill_source_missing, stage skills): the root "skills" of the source "research" is not a directory in the captured source at $TRIAL/sources/research-checkout/plugins/research/skills
+  remedy: restore the root directory in the source, or change the settings deliberately
+grove: session ended without a supported Grove result — status exit status: 3, elapsed 0.508s; loop stopped.
+```
+
+The moved checkout gives `the source "research" at
+$TRIAL/sources/research-checkout/plugins/research does not exist`, with the
+remedy to restore the source directory.
+
+### Limits
+
+- **One run each.** Each case ran once in each harness. One run is one
+  observation, not a rate.
+- **A named delegate read.** The Claude Code parent named both research skills
+  in its prompt. That run therefore shows that a delegate can reach the
+  retained research directories. It does not show that a delegate finds them
+  without a name. Codex encrypted its prompt, so the cause of its
+  delegate's read is unknown.
+- **The network.** The harness needs the network for its model. The
+  no-network check therefore covers Ravel's resolution only. The fixture
+  `a_directory_launch_needs_no_network_and_no_git` proves a launch without a
+  network.
+- **Working copy in one state.** The working-copy change was empty, so its
+  bytes equal the published commit. These runs do not show a working copy with
+  edits. The runner's tests prove that the record names such a change.
+
+No gap remains open for the cases of `research-directory-trials-k160`.

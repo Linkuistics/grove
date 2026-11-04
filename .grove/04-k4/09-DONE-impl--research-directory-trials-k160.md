@@ -62,3 +62,23 @@ store.
   resolution then proves the cause, as it does for a moved checkout. A
   fixture outside the runner gives no restored resolution. The runner change
   comes before every real run, so all runs measure one runner.
+- The runner commit of every run is `8a93002fe9f1`. The Grove build is
+  `57414e00cd87`, with `grove` SHA-256 `a7f5c988a18e…` and `grove-llm`
+  SHA-256 `2f7895cc33f7…`.
+- Every case passed in both harnesses, each on its first run.
+  `research-discovery` read the spine, `grove-research-a` and
+  `research-family` before the first action, from a plain checkout and from
+  the working copy. A delegate read `grove-research-a` from the research
+  snapshot in each harness. The moved checkout and the missing root each
+  refused as `skill_source_missing` before any harness, and each restored
+  resolution resolved. Each offline resolution gave its launch's descriptor
+  identity.
+- The `research` digest was `7fb3d473f66f…` in every run, the working-copy
+  runs too. The working-copy change was empty, so its bytes equal the
+  published commit.
+- Limit, not a gap: the Claude Code parent named both research skills in its
+  delegate prompt. That run proves reachability from a delegate, not
+  discovery by a delegate. Codex encrypts its delegate message.
+- The evidence is the record's section "Research directory trials". The raw
+  transcripts stay out of the repository, and the section names their
+  SHA-256 digests.

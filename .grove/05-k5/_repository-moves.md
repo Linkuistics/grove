@@ -49,6 +49,31 @@ Later migrations must not be represented merely by an aspirational cleanup
 task. The next planner must materialise each precise remaining obligation.
 Details of resource layout depend on the external research-pack proof.
 
+repository-moves-k11 cut the children in this order. Its running log records
+the inventory and the reasons.
+
+1. `writing-projects-k165`: the four project relocations. They depend on no
+   other move.
+2. `core-bare-references-k170`: core names other skills by bare names before
+   the craft skills leave the `linkuistics` plugin.
+3. `pack-membership-k171`: the open membership questions, settled before the
+   moves that need them.
+4. `testanyware-skill-move-k172`: the TestAnyware skill in its own repository.
+5. `requirements-pack-k173`: the first external member of the cross-pack
+   review families.
+6. `design-pack-k175`: the first `craft/` root.
+7. `engineering-pack-k177`: after design, because a design craft skill cites
+   an engineering one.
+8. `editorial-pack-k179`: WritingSkills and the editorial family skill.
+9. `writing-craft-pack-k181`: the writing craft and the native hooks plugin.
+10. `personal-pack-k183`: the last craft move. It removes the empty
+    `linkuistics` plugin.
+11. `skill-marketplace-k185`: the marketplace, after every pack exists.
+12. `moves-handoff-k187`: the per-source record for the owner cutover.
+
+Each pack node starts with its own planning leaf. Each move appends its
+results to `docs/repository-moves-record.md`.
+
 ## Pointers
 
 The root's destination table is authoritative. Do not maintain a second table

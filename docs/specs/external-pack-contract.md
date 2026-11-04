@@ -246,7 +246,9 @@ These rules bind the text of every pack:
    referring file's own skill first. Where that skill has no such file, the
    path resolves in a skill that the same file loads. Try the loaded skills in
    the order of the loads. The skill in which the path resolves owns the
-   resource.
+   resource. A supporting file of a skill also uses the loads of that skill's
+   `SKILL.md`, after its own. A session reads such a file only after that
+   `SKILL.md`, so those loads are in force.
 4. The path of a supporting resource stays inside the skill that it resolves
    in. It never climbs out with `../`.
 5. A directed load that crosses a pack boundary has one more sentence. It sends
@@ -442,9 +444,11 @@ two:
 | `--pack <dir>` | Adds an external pack. `<dir>` is its source directory, which holds `skills/` and `conformance/rules.tsv`. Repeat it for each pack |
 | `--alone` | Checks exactly one `--pack` without core. The runner then reads neither core's skills nor core's manifest |
 
-Without `--pack`, the runner checks core alone, as it does today. With
-`--pack` and without `--alone`, it checks the aggregate of core and each named
-pack. `--skills` and `--rules` keep their meaning for core.
+Without `--pack`, the runner checks core alone, as it does today. Core alone
+is the aggregate with no external pack, so a directed load in core that no core
+skill answers fails. With `--pack` and without `--alone`, it checks the
+aggregate of core and each named pack. `--skills` and `--rules` keep their
+meaning for core, and the runner refuses them with `--alone`.
 
 An optional `conformance/removed-paraphrases.tsv` beside a pack's manifest
 lists the retired paraphrases of that pack's rules.

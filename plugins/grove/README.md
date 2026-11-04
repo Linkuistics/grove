@@ -1,5 +1,7 @@
 # `grove` — the methodology, as skills
 
+<!-- tc: pending because the conversion has not reached this part of the document -->
+
 Grove's methodology is delivered through the Claude Code marketplace or the
 manual installer ([`../README.md`](../README.md)). The user chooses the route;
 the `grove` binary installs no skills. It is a shared
@@ -18,7 +20,7 @@ does not use the `grove-<kind>` prefix because it is not a lifecycle task kind.
 |---|---|
 | skills | `grove` — the shared spine — and one `grove-<kind>` per kind |
 | marketplace | declared in [`../../.claude-plugin/marketplace.json`](../../.claude-plugin/marketplace.json) |
-| conformance | [`conformance.sh`](conformance.sh), with its controls in [`conformance.test.sh`](conformance.test.sh) |
+| conformance | [`conformance.sh`](conformance.sh) and its engine [`conformance.awk`](conformance.awk), with the controls in [`conformance.test.sh`](conformance.test.sh) |
 | design | [`../../docs/specs/module-decomposition.md`](../../docs/specs/module-decomposition.md), decision 11 and test seam 4 |
 
 ## What the spine holds, and what it does not
@@ -181,76 +183,115 @@ also states what to do when the skill cannot be found or read, because a
 missing skill cannot state that itself. `crates/grove-loop/src/prompt.rs`
 holds the wording.
 
+<!-- tc: on -->
+
 ## Conformance
 
 `conformance.sh` is the methodology's delivery assertion
-([`behavioural-coverage-asserts-delivery`](../../docs/adr/behavioural-coverage-asserts-delivery.md)),
-moved out of the Rust suite because two of the four things that walk covered no
-longer exist once the methodology is a plugin. `plugin-kind-skills-k17` deleted
-`tests/rule_ownership.rs`, whose whole subject is assertion 2 below, and
-`delete-provisioning-k19` deleted the last two — the coverage walk in
-`tests/lifecycle_invariants.rs` and the per-kind word budgets in
-`tests/loaded_path_budgets.rs` — whose subject was the corpus the binary embedded
-and the path it composed. This runner is the only standing instrument now.
-Dependency-free bash over the shipped skill set:
+([`behavioural-coverage-asserts-delivery`](../../docs/adr/behavioural-coverage-asserts-delivery.md)).
+It is the only standing instrument for that rule. `plugin-kind-skills-k17` and
+`delete-provisioning-k19` deleted the Rust suites that measured the old embedded
+corpus. The runner has no dependencies. Its bash front end reads the arguments
+and lists the packs, the skills and the files. The awk program
+`conformance.awk` beside it does the checks.
 
 ```
-./plugins/grove/conformance.sh          # the assertions
-./plugins/grove/conformance.test.sh     # the controls over them
+./plugins/grove/conformance.sh          # core alone
+./plugins/grove/conformance.test.sh     # the controls over the runner
 ```
 
-Three assertions, and it asserts nothing about how many kinds there are:
+A pack is a source directory that holds `skills/` and `conformance/rules.tsv`.
+Core is this plugin. The
+[external pack contract](../../docs/specs/external-pack-contract.md#conformance)
+owns the inputs and the checks of each mode. The runner reads directories and
+runs no VCS command.
 
-1. **Every behavioural rule is present on the composed loaded path of every kind
-   that binds it.** The path is the closure of what the shipped files actually
-   name, read off the bytes rather than replayed from a table.
-2. **No rule has two owners.** A phrase sweep over every shipped file, with the
-   spine's `SKILL.md` swept from the other direction — a condition register
-   states situations and paths, never procedures.
-3. **Every file a skill names by path exists.** Every backticked `.md` token is
-   enumerated and then classified; a token the runner cannot classify fails,
-   because a pattern list is complete only as far as the list.
+| Run | Arguments | What it checks |
+| --- | --- | --- |
+| Core alone | none | Core's skills against core's manifest. Core alone is the aggregate with no external pack |
+| Pack alone | `--pack <dir> --alone` | One pack against its own manifest, without core |
+| Aggregate | `--pack <dir>`, once for each pack | Core and each supplied pack together |
 
-Its inventory is [`conformance/rules.tsv`](conformance/rules.tsv). It was
+Three assertions hold in each run:
+
+1. **Each behavioural rule is on the composed loaded path of each kind that
+   binds it.** The first file of the path is the kind's own `SKILL.md`. The
+   path follows each directed load, "Load the `<name>` skill", and each
+   skill-relative path. The spine is on a kind's path only because the kind
+   loads it.
+2. **No rule has two owners.** A phrase sweep covers each file of the run. It
+   sweeps the spine's `SKILL.md` from the other direction, because a condition
+   register states situations and paths, never procedures. Each row names an
+   owner that its own pack ships. No two packs ship one skill name, and no two
+   rows have one rule ID.
+3. **Each skill-relative path resolves, and each directed load names a shipped
+   skill.** The runner extracts each backticked `.md` token and then classifies
+   it. A token that it cannot classify fails, because a pattern list is
+   complete only as far as the list.
+
+A pack alone has no core. A directed load or a path that reaches a skill of
+another pack is then an external edge or an external resource. The runner
+lists each one, and the aggregate resolves it. The run does not fail on it.
+
+### The pack-facing invocation
+
+A pack runs Grove's runner from a checkout of Grove at the commit that the
+pack records. It does not copy the runner. The contract's
+[checker without a copy](../../docs/specs/external-pack-contract.md#the-checker-without-a-copy)
+names the Taskfile variables and tasks. From the root of the pack's repository,
+the two runs are:
+
+```
+"<grove checkout>/plugins/grove/conformance.sh" --pack plugins/research --alone
+"<grove checkout>/plugins/grove/conformance.sh" --pack plugins/research
+```
+
+The second run reads core's skills and manifest from the same checkout, so one
+record gives the checker and core's content at one revision. The pack's
+optional `conformance/removed-paraphrases.tsv` lists the retired paraphrases of
+its rules. Exit status 0 means that each assertion holds, 1 means that an
+assertion failed, and 2 means bad usage.
+
+### The manifests
+
+Core's inventory is [`conformance/rules.tsv`](conformance/rules.tsv). It was
 transcribed from `docs/specs/corpus-rule-ownership.md`, which went with
-`content/` at `delete-provisioning-k19`; the file is the inventory now rather
-than a copy of one, so a row changes here alone.
+`content/` at `delete-provisioning-k19`. The file is now the inventory itself,
+so a row changes here alone. The header of the file describes each column and
+each load predicate.
 
-**A row's owner is written shipped-set-relative** — `grove/references/execute.md`,
-`grove-impl/SKILL.md` — and not skill-relative. The grain matters exactly once
-there is more than one skill: every kind owns a file called `SKILL.md`, so a
-sweep reporting sites skill-relative would collapse two kinds stating one rule
-into a single site and read clean over the duplicate it exists to find. The control
-`one kind-owned rule stated by a second kind is caught` is what credits it.
+**A row names its owner skill-qualified**, such as `grove/references/execute.md`
+or `grove-impl/SKILL.md`. Each kind owns a file called `SKILL.md`. A sweep that
+reported sites skill-relative would therefore collapse two kinds that state one
+rule into one site. It would then read clean over the duplicate. The control
+`one kind-owned rule stated by a second kind is caught` credits the grain.
 
-**What it does not prove**, stated rather than papered over:
+A row whose owner file its pack does not ship fails. A row left in a manifest
+after its owner moved to another pack would otherwise pass in silence.
 
-- The single-source sweep is **phrase-scoped**. A paraphrase — a second
-  current-state statement of the same rule in other words — reads clean. The
-  three known ones are pinned in
-  [`conformance/removed-paraphrases.tsv`](conformance/removed-paraphrases.tsv);
-  nothing claims a fourth does not exist.
-- **One** row is delivered by the **driver**, not by any skill: the final
-  launch-prompt ending command, which `${prompt}` states for every kind. Its owner cell is
-  `${prompt}` and neither assertion touches it — a runner over an installed skill
-  set cannot read a prompt. It is reported as prompt-delivered rather than
-  *pending*, because pending promises a later leaf that ships the file and no
-  leaf will.
+### What it does not prove
 
-  It was two until `prompt-names-the-kind-k18`. A `finish` session's three
-  endings rode the prompt because the driver inlined a per-kind signal file; they
-  are now inline in `grove-finish/SKILL.md`, so that row came back inside this
-  runner's reach. Its completed-teardown ending now records the teardown before
-  publishing Grove's result through Ravel; the record and the result have different
-  owners and purposes. The corpus copy that briefly restated it alongside,
-  `content/SIGNAL-FINISH.md`, went with `content/` at
-  `delete-provisioning-k19`, so the pair is one statement again.
-- A row whose owner file is not shipped is **pending**, not asserted. The count
-  reached zero at `plugin-kind-skills-k17`; a run reporting a pending row again
-  is reporting a skill that did not ship.
-- Rows with no pinned wording carry the loaded-path assertion only.
+- The single-source sweep is **phrase-scoped**. A paraphrase, a second
+  statement of the same rule in other words, reads clean. Core's three known
+  paraphrases are in
+  [`conformance/removed-paraphrases.tsv`](conformance/removed-paraphrases.tsv).
+  Nothing claims that no fourth exists.
+- **One** row is delivered by the **driver**, not by a skill: the final ending
+  command of the launch prompt, which `${prompt}` states for each kind. Its
+  owner cell is `${prompt}`. A runner over an installed skill set cannot read a
+  prompt, so the runner reports that row and asserts nothing about it.
 
-The controls in `conformance.test.sh` are the reason any of that is evidence: an
-instrument that has only ever read clean is indistinguishable from a broken one,
-so each assertion is watched failing against a skill set wrong in one named way,
-and one case requires a clean reading so *always fails* is ruled out too.
+  It was two rows until `prompt-names-the-kind-k18`. A `finish` session's three
+  endings rode the prompt, because the driver inlined a signal file for each
+  kind. They are now inline in `grove-finish/SKILL.md`, so that row came back
+  inside this runner's reach. Its completed-teardown ending records the teardown
+  before it publishes Grove's result through Ravel. The record and the result
+  have different owners and purposes.
+- Rows with no pinned wording carry only the loaded-path assertion.
+- The engine keeps to POSIX awk. Its controls ran with the awk of macOS only.
+
+The controls in `conformance.test.sh` make the readings evidence. An instrument
+that has only ever read clean is indistinguishable from a broken one. Each
+control therefore reads its fixture clean, makes one mutation, and requires the
+runner to fail with the intended diagnostic and exit status 1. The pack
+controls use a fixture pack, never the real research pack.

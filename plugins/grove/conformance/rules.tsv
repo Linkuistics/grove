@@ -8,7 +8,8 @@
 #
 # Five tab-separated columns:
 #
-#   rule    the inventory's rule id, unique across the whole file
+#   rule    the inventory's rule id, unique across this file and across the
+#           manifest of each pack that a run supplies
 #   owner   the file that states it, **shipped-set-relative**: the skill
 #           directory, then the path inside it — `grove/references/execute.md`,
 #           `grove-impl/SKILL.md`. Comma-separated where the inventory's
@@ -31,26 +32,30 @@
 #           and `finish-three-endings` — the ending
 #           that differs — moved to `grove-finish/SKILL.md`, where the spine
 #           already says a kind's own ending belongs. Neither assertion below can
-#           reach a prompt, so that row is reported as prompt-delivered and
-#           asserted nowhere; calling it *pending* would promise a later leaf
-#           that ships it, and no leaf will.
+#           reach a prompt, so the runner reports that row as prompt-delivered
+#           and asserts nothing about it.
 #   class   the inventory's test column: B (behavioural), S (structural), B+S.
 #           `B*` is `B★` and `B (k5)` is the row landed by a later leaf; both
 #           are behavioural.
 #   load    the inventory's load predicate: `static(K)`, or `on(<trigger>) @
-#           <file>` with the file written at the owner column's grain — the
-#           trigger binds a kind only where that kind's composed loaded path
-#           reaches the naming file, so a trigger in `grove-requirements/SKILL.md`
-#           binds `requirements` and nothing else.
+#           <file>` with the file written at the owner column's grain.
+#
+#           K is `all` for every kind of the run, a list such as `{design}` or
+#           `{research-a,research-b}`, a prefix set `review-*` or
+#           `integrate-review-*`, or a family set `research` or `editorial`.
+#           A set binds the matching kinds of the run, in any supplied pack.
+#
+#           A trigger binds each kind whose composed loaded path holds the
+#           file. A trigger in `grove-requirements/SKILL.md` therefore binds
+#           `requirements` and nothing else.
 #   phrase  the rule's canonical wording, distinctive enough to identify it,
 #           or empty where no wording has been pinned. Only a pinned row can
 #           carry the single-source sweep; the loaded-path assertion covers
 #           every row.
 #
-# A row whose owner is not in the shipped skill set is *pending*. The runner
-# reports pending rows; it does not fail on them. The count reached zero at
-# `plugin-kind-skills-k17`, which shipped one `grove-<kind>` skill per kind, and
-# a run that reports a pending row again is reporting a skill that did not ship.
+# A row whose owner file this pack does not ship fails. A row left here after
+# its owner moved to another pack would otherwise pass in silence. Such a row
+# moves to the manifest of the pack that ships its owner.
 adr-minimal-template	grove/ADR-FORMAT.md	B	on(writing an ADR) @ grove/ADR-FORMAT.md	
 adr-placement-and-slug-identity	grove/ADR-FORMAT.md	B	on(writing an ADR) @ grove/ADR-FORMAT.md	
 adr-set-is-minimum-coherent	grove/ADR-FORMAT.md	B+S	on(changing a recorded decision) @ grove/SKILL.md	never appends a superseding record
@@ -72,15 +77,15 @@ context-map-when-multiple	grove/CONTEXT-FORMAT.md	B	on(the repo has a context ma
 glossary-is-only-a-glossary	grove/CONTEXT-FORMAT.md	B	on(writing a glossary entry) @ grove/CONTEXT-FORMAT.md	
 glossary-is-the-forcing-function	grove/CONTEXT-FORMAT.md	B+S	on(a term is resolved) @ grove/SKILL.md	Never batch a session's terms for the end
 terms-are-context-specific	grove/CONTEXT-FORMAT.md	B	on(writing a glossary entry) @ grove/CONTEXT-FORMAT.md	
-signal-is-the-last-action	${prompt}	B*	static(23)	
-bootstrap-order	grove/SKILL.md	B	static(23)	
-hitl-afk-mark-predicts	grove/SKILL.md	B	static(23)	
-kind-routing-table	grove/SKILL.md	B	static(23)	
-mandate-is-authoritative	grove/SKILL.md	B*	static(23)	
-no-second-pick	grove/SKILL.md	B*	static(23)	
-one-task-is-one-session	grove/SKILL.md	B+S	static(23)	
-spine-seven-constraints	grove/SKILL.md	B+S	static(23)	
-stated-vcs-is-definitive	grove/SKILL.md	B*	static(23)	
+signal-is-the-last-action	${prompt}	B*	static(all)	
+bootstrap-order	grove/SKILL.md	B	static(all)	
+hitl-afk-mark-predicts	grove/SKILL.md	B	static(all)	
+kind-routing-table	grove/SKILL.md	B	static(all)	
+mandate-is-authoritative	grove/SKILL.md	B*	static(all)	
+no-second-pick	grove/SKILL.md	B*	static(all)	
+one-task-is-one-session	grove/SKILL.md	B+S	static(all)	
+spine-seven-constraints	grove/SKILL.md	B+S	static(all)	
+stated-vcs-is-definitive	grove/SKILL.md	B*	static(all)	
 spec-at-an-agreement-point	grove/SPEC-FORMAT.md	B	on(the increment may be an agreement point) @ grove/SKILL.md	
 spec-grain-rule	grove/SPEC-FORMAT.md	B+S	on(writing a spec) @ grove/SPEC-FORMAT.md	
 spec-is-behavioural-not-procedural	grove/SPEC-FORMAT.md	B	on(writing a spec) @ grove/SPEC-FORMAT.md	

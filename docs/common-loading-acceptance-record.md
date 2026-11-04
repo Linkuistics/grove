@@ -8220,7 +8220,7 @@ owner.
 | The tap states B to D have no evidence | Only state A exists before publication | `discovery-rollout-k6` |
 | The plain Git checkout is not measured at the Linux floor | The floor userland has no Git. Ravel runs no VCS command, so a checkout is a plain directory to Ravel | None. The plain directory case covers it |
 | Ravel's `task test:native-linux PLATFORM=amd64` cannot run its namespace and signal rows | QEMU user mode cannot reproduce them. Ravel's own campaign lists those rows as not reproducible | Ravel's test campaign. The x86_64 release smoke proves the link floor and the CPU floor |
-| The trial runner takes each source from its Grove checkout | `settings_for` of `scripts/harness_trial.py` builds each path from that checkout or a clone of it | `external-research-pack-k4`, as [Research recipes](#research-recipes) state |
+| The trial runner takes each source from its Grove checkout | `settings_for` of `scripts/harness_trial.py` builds each path from that checkout or a clone of it | `external-research-pack-k4`. `trial-external-sources-k159` removed the limit with the `external` field of [the runner](#the-runner) |
 | The Ravel line is unpushed | Rollout publishes Ravel 2.0.0 | `discovery-rollout-k6` |
 
 ## Research recipes
@@ -8729,3 +8729,51 @@ to depth 3 also had the same SHA-256. The sandbox home linked only
   installation.
 
 No gap remains open for this case.
+
+## Research pack audit
+
+`external-pack-proof-k162` audits the Done when of
+`external-research-pack-k4`, one criterion at a time. It also runs the two
+checks that the audit needs. The
+[external pack contract](specs/external-pack-contract.md#proven-facts) holds
+the proven facts. A verdict has the values of the
+[Completion audit](#completion-audit).
+
+### Check runs
+
+Each run was on macOS arm64 on 2026-11-04.
+
+| Check | Subject | Result |
+| --- | --- | --- |
+| ResearchSkills `task check` | A fresh plain Git checkout of the public `main` at `1c18a90945a0b2ac4086bfe6f2ba90066fcf4bcc`, made with `GIT_CONFIG_GLOBAL=/dev/null` and `GIT_CONFIG_NOSYSTEM=1` in a scratch directory outside every working copy. The committed `GROVE_REPOSITORY` is `https://github.com/Linkuistics/grove.git` and the committed `GROVE_COMMIT` is `57414e00cd87`. No variable overrode either | Exit 0. `check:plugin` passed with the warnings for `version` and the icon. The pack alone checked 14 loaded paths with 3 external edges. The aggregate, with Grove fetched from GitHub, checked 116 single-source rows, 2783 loaded paths and 72 unpinned rows. The checkout was clean after the run |
+| The remote bookmark | `git ls-remote origin gh-issue-25` in Grove | `2328c7f0d45a`. `57414e00cd87` is its ancestor, so the public remote holds the recorded commit |
+| Resolution | `ravel skills resolve --json` with the 2.0 build, a scratch HOME, the fresh pack checkout and the Grove checkout of the pack's task | `resolved`. `grove` `ea34f8afb116…` and `research` `7fb3d473f66f…`, the digests of the trials |
+| Gate with 2.0 | `mise exec bun@1.4.3 -- bash scripts/check.sh` on Grove `f26e93064c73`, the head of this workstream's line. The working copy above it was empty | Passed all 21 principal checks, from 06:43Z to 06:48Z. `cargo nextest` passed 1343 tests. Core alone checked 116 single-source rows and 2424 loaded paths. `check:packs` reused the clean checkout of the pinned `dc3a4812db3b`, which passed alone with 14 loaded paths and in the aggregate with 116, 2783 and 72 |
+
+The gate followed [the HOME of each run](grove-dual-ravel-stage-record.md#the-home-of-each-run)
+for the 2.0 lane. It removed every `GROVE_*`, `RAVEL_*`, `HARNESS_*`,
+`CLAUDE*` and `CODEX*` name of the enclosing session. `GROVE_TEST_RAVEL` named
+the front of the 2.0 prefix, and `GROVE_TEST_RAVEL_RUNTIME` was `2.0`. The
+guard `ravel` was first on PATH. No line of the log holds `host-ravel-reached`.
+
+The Ravel 2.0 build is `task install` from the output commit `71f70fcd3f92`
+into a scratch prefix with no `libexec`. The `bin/ravel` SHA-256 is
+`26b487afb957…`, the value of `scripts/harness-trials/builds.json`. A digest
+of every tracked Grove file outside `.grove/` was the same before and after
+the gate.
+
+### Audit of external-research-pack-k4
+
+| Criterion | Owning commits | Evidence | Verdict |
+| --- | --- | --- | --- |
+| The research kind skills and their family procedure live in the colocated Git and Jujutsu ResearchSkills repository. It holds complete resources, provenance, licences and its own repeatable checks | ResearchSkills: `dc3a4812db3b` and `1c18a90945a0`. Grove: `f528698cd482` records the creation | The repository has `.git` and `.jj` side by side. Its tree holds the four `SKILL.md` files, the manifest, `rules.tsv`, the Apache-2.0 `LICENSE` and a README that names the source commit and paths. `task check` passed in [Check runs](#check-runs) | Met |
+| Agents find the research kind skills, core and supporting resources through Ravel's supplied directories. Conformance passes for core and the pack without research files left in Grove | Grove: `6eb881035a8e` adds the pack runner. `57414e00cd87` removes the research files. `8a93002fe9f1` adds the trial cases | [research-discovery](#research-discovery) and [research-delegate](#research-delegate) in both harnesses. Core alone at `57414e00cd87` checks 116, 2424 and 64. The pack alone and the aggregate pass in [Check runs](#check-runs), against that commit | Met |
+| ResearchSkills is on its remote. A plain Git checkout of a published commit works as a local source. A missing checkout or root refuses as `skill_source_missing` before any worker. Each test runs outside the three working copies, with the actual session and delegate read permissions | ResearchSkills: `1c18a90945a0` on the public `main`. Grove: `7803edb0fdfb` adds the external sources. `8a93002fe9f1` adds `moveRoot` | The [Subjects](#subjects-1) of the research trials and [research-source-missing and research-root-missing](#research-source-missing-and-research-root-missing). Each run used the trial's `repo/` outside every working copy, with the permission mode and sandbox of the subjects table | Met |
+| Existing research labels and routing stay compatible. Marketplace, source references and the affected packaging and build consumers change in the same increment | Grove: `57414e00cd87` | The removal changed the marketplace, the installer, the manifest, the kind table, the tests and the documents in one commit. The gate passed on that commit. The policy sample still routes `research-a`, `research-b` and `combine-research`. The trials launched `research-a` on that route | Met |
+| A native Claude Code installation loads a moved kind under its plugin namespace from Grove's bare-name mandate. Directory loading succeeds with native copies absent | Grove: the commit `f26e93064c73` adds `nativePlugins` and records the run | [Research native namespace](#research-native-namespace) loaded `research:grove-research-a`. The [research directory trials](#research-directory-trials) had no native copy in the sandbox home | Met, with the limits of each section. The delegate read had a name, and the marketplace came from a checkout |
+| Applicable checks pass. Grove's full check uses the independent compatible Ravel build. The contract records the proven layout, resource, checkout and conformance boundary, and the checkout boundary names the source directory and roots | Grove: the commit that adds this section | [Check runs](#check-runs) and the contract's [Proven facts](specs/external-pack-contract.md#proven-facts) | Met |
+
+No criterion has a gap. The limits of the trial sections are not gaps,
+because each criterion holds without the property that a limit leaves
+unmeasured. discovery-rollout-k6 owns the owner's native installation of
+`research` after finish.

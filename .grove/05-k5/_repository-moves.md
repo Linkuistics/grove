@@ -53,6 +53,12 @@ The root's destination table is authoritative; do not maintain a second table
 here. Read each owning repository's instructions before its work becomes
 concrete. Use the latest manual for machine configuration ownership.
 
+The proven contract is `docs/specs/external-pack-contract.md`.
+external-research-pack-k4 closed with its section "Proven facts". That
+section holds the commits, the builds, the proven boundaries, the reusable
+pack tooling and the differences from the decisions. Each later pack copies
+the tooling of ResearchSkills and changes its source directory.
+
 ## Notes
 
 Inspect each source repository's actual Git/Jujutsu/workspace arrangement

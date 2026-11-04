@@ -7,8 +7,8 @@ repository-moves-k5 plans its work.
 
 `external-pack-contract-k155` wrote the decisions. `external-pack-contract-k163`
 reviewed them, and `external-pack-contract-k164` applied the review's findings.
-`external-pack-proof-k162` adds the [proven facts](#proven-facts) after the
-research move. Until then, that section lists only what the proof must record.
+`external-pack-proof-k162` added the [proven facts](#proven-facts) after the
+research move.
 
 Grove owns this specification, because Grove owns core, the conformance runner
 and the rules for references between packs. The
@@ -785,21 +785,111 @@ therefore serves the checkout proof and the working-copy proof.
 
 ## Proven facts
 
-external-pack-proof-k162 fills this section. Later pack moves read it before
-the work of repository-moves-k5. It records these facts, each with its
-evidence:
+external-pack-proof-k162 recorded these facts after the research move. Later
+pack moves read them before the work of repository-moves-k5. The
+[Research pack audit](../common-loading-acceptance-record.md#research-pack-audit)
+holds the verdict of each criterion of external-research-pack-k4 and the
+check runs of this section.
+
+### Subjects
 
 | Fact | Value |
 | --- | --- |
-| The published ResearchSkills commit | Recorded by the proof |
-| The tree ID and `resourceDigest` of `plugins/research` at that commit | Recorded by the proof |
-| The Grove commit with no research files | Recorded by the proof |
-| The Grove commit in ResearchSkills' `GROVE_COMMIT`, and the remote bookmark that holds it | Recorded by the proof |
-| The Ravel 2.0 build of the trials and of the check | Recorded by the proof |
-| The native spelling observed in Claude Code | Recorded by the proof |
-| The trial records of both harnesses | Recorded by the proof |
-| The reusable tooling: the runner invocation, the Taskfile tasks, the plugin manifest and the trial-runner fields | Recorded by the proof |
-| Each difference between this contract and the proven state | Recorded by the proof |
+| The published ResearchSkills commit | `1c18a90945a0b2ac4086bfe6f2ba90066fcf4bcc`, the public `main` of `https://github.com/Linkuistics/ResearchSkills.git`. It records the removal commit. Its parent `dc3a4812db3b0dbfef42c8cd6a0aa291e43dd545` is the first pack commit, and Grove's marketplace pins it. Both commits are on the public remote |
+| The tree ID and `resourceDigest` of `plugins/research` at that commit | Tree `79dc2a530cd2d30cd088073423437bb18d61b401`, the same at both pack commits. `resourceDigest` `7fb3d473f66feafb49afd8846fd94cf3e1fb7b01c584d4ad5f0e54814a8b3fdb`, from a clean checkout and from the working copy |
+| The Grove commit with no research files | `57414e00cd876a9c0e1f8021786384ba7e368580`, the removal commit of grove-research-removal-k158. Its `plugins/grove` has the `resourceDigest` `ea34f8afb116560d853f7fdf6caf2c8becaff40a3b196c2e5d7af3843a374f91` |
+| The Grove commit in ResearchSkills' `GROVE_COMMIT`, and the remote bookmark that holds it | `57414e00cd876a9c0e1f8021786384ba7e368580`. Grove's public remote holds it under the bookmark `gh-issue-25`, which is at its descendant `2328c7f0d45a` |
+| The Ravel 2.0 build of the trials and of the check | The line `skill-directory-delivery` at the output commit `71f70fcd3f92`, build commit `d324668b86ca`. The build identity is `a4f55d04b2d19a9948f2bcdcb3f305ee20ae80fae7f9011ec878f117d98e6519`. The `bin/ravel` SHA-256 is `26b487afb957c233848e8e360e29c73539a33ba89fc3444b26ad13a2eb4bf0a3`, the value of `scripts/harness-trials/builds.json`. The build reports the version string 1.1.0, so its digest identifies it |
+| The native spelling observed in Claude Code | `research:grove-research-a` for the kind, `research:research-family` for the family skill and `grove:grove` for the spine. Claude Code 2.1.318 listed each research skill as `research:<name>` and no bare `grove-research-a` |
+| The trial records of both harnesses | [Research directory trials](../common-loading-acceptance-record.md#research-directory-trials), in Claude Code and Codex, from a plain checkout and from the working copy. [Research native namespace](../common-loading-acceptance-record.md#research-native-namespace), in Claude Code |
+| The reusable tooling | [Reusable pack tooling](#reusable-pack-tooling) |
+| Each difference between this contract and the proven state | [Differences from the decisions](#differences-from-the-decisions) |
+
+### The proven boundaries
+
+- **Layout.** The pack's tracked files are `.gitignore`, `LICENSE`,
+  `README.md`, `Taskfile.yml` and six files under `plugins/research`: the
+  manifest, `conformance/rules.tsv` and the four `SKILL.md` files of
+  [Layout](#layout). The checks wrote only `.cache/`, which Git ignores, and
+  each checkout was clean after its run.
+- **Checkout boundary.** In any checkout of ResearchSkills, the source
+  directory is `plugins/research` and the Ravel roots are `["skills"]`. The
+  plain Git checkouts of the trial runner and of external-pack-proof-k162,
+  and the jj working copy, gave the same `resourceDigest`. An edit outside `plugins/research` left the tree ID
+  unchanged: the second pack commit changed only the Taskfile and the README.
+- **Resource references.** The kinds name `grove` and `research-family` by
+  bare names. The pack alone lists 3 external edges, the loads of `grove`,
+  and 0 external resources. In both harnesses the agent read the spine, the
+  kind skill and `research-family` before it acted. A delegate read
+  `grove-research-a` from the retained research directory in each harness.
+- **Conformance boundary.** The pack alone checks 14 loaded paths, 0
+  single-source rows and 8 rows with no pinned wording. Core alone at the
+  removal commit checks 116 single-source rows, 2424 loaded paths and 64
+  unpinned rows. The aggregate checks 116, 2783 and 72, the counts of core
+  before the move.
+- **Refusals.** A moved checkout and a missing root each refused as
+  `skill_source_missing` before any harness launched, and the restored
+  resolution resolved. A launch without a network resolved the same
+  directories.
+
+### Reusable pack tooling
+
+| Tool | Where | Use |
+| --- | --- | --- |
+| The conformance runner | `plugins/grove/conformance.sh --pack <source directory> [--alone]` in a Grove checkout | `--alone` checks one pack. Without it, the run checks core with each named pack. `--pack` repeats |
+| The pack's tasks | `grove:checkout`, `check:conformance`, `check:plugin` and `check` in ResearchSkills' `Taskfile.yml`, with the variables `GROVE_REPOSITORY` and `GROVE_COMMIT` | A later pack copies these tasks and changes the source directory |
+| Grove's pack tasks | `check:packs`, which runs `scripts/check-packs.sh`, and its controls `scripts/check-packs.test.sh`. `check:skills` and `scripts/check.sh` run both | The script reads each `git-subdir` entry of the marketplace and checks it alone and in the aggregate. `--marketplace` and `--cache` let a test supply fixtures |
+| The plugin manifest | `plugins/research/.claude-plugin/plugin.json`: `name`, `description`, `author`, `repository`, `license` `Apache-2.0`, `dependencies` `["grove"]` and `keywords`, with no `version` | `claude plugin validate` passes it with two warnings, no `version` and no icon |
+| The marketplace entry | The `git-subdir` entry of [Distribution](#distribution) in `.claude-plugin/marketplace.json`, with `sha` `dc3a4812db3b` | `/plugin install research@linkuistics` also installed `grove` as a dependency |
+| The manual installer | `plugins/install.sh --pack <checkout>/plugins/research` | The source directory must have the shape `plugins/<plugin>/skills/` |
+| The trial-runner fields | In `scripts/harness_trial.py`: a source's `external` object with `repository` and `commit`, the run option `--working-copy <id>=<dir>` (`WORKING_COPY` of `trial:claude` and `trial:codex`), `moveAway`, `moveRoot` and the Claude Code field `nativePlugins` | [The runner](../common-loading-acceptance-record.md#the-runner) owns each field. The cases `research-discovery`, `research-delegate`, `research-source-missing`, `research-root-missing` and `research-native-namespace` are the models for a later pack |
+
+### Differences from the decisions
+
+Each difference below adds to a decision or limits it. None of them changes a
+decision of this contract.
+
+- **Two more runner fields.** [Proof shape](#proof-shape) names `external` and
+  `--working-copy`. The proof also needed `moveRoot`, which moves one root of
+  a source for the missing-root refusal. It also needed `nativePlugins`, which
+  installs plugins from the marketplace for the native proof. The runner
+  also refuses a commit with no directory at `plugin`, and a continuation case
+  refuses an external source.
+- **The installer refuses a shared skill name.** `install.sh --pack` refuses a
+  skill name that two scanned plugins ship, before any link changes. The
+  workspace guard covers each pack's checkout, two levels above the plugin
+  directory.
+- **The kind table feeds the label tests.** No check compares a pack's kinds
+  with its rows in the table, as [The kind table](#the-kind-table) accepts.
+  Grove's tests take the labels of the external rows for the environment
+  scrub and the label round trips. A malformed label in the research row
+  therefore fails a test.
+- **A local marketplace loads core in place.** In the native proof, the
+  marketplace came from a Grove checkout. Claude Code loaded `grove` from that
+  checkout and `research` from its cache, through the `git-subdir` source. A
+  marketplace from GitHub puts both in the cache. The owner's marketplace
+  follows `main`, which does not list `research` before finish.
+- **The marketplace pins the first pack commit.** Grove pins `dc3a4812db3b`,
+  as [The checker without a copy](#the-checker-without-a-copy) directs, and
+  the public `main` is `1c18a90945a0`. Both commits have the tree
+  `79dc2a530cd2`, so a native user and a directory user receive the same
+  bytes. The installed version string is `dc3a4812db3b-07869d54`.
+- **The delegate read had a name.** The Claude Code parent named both research
+  skills in its delegate prompt. The run proves reachability from a delegate,
+  not discovery by a delegate. Codex encrypts that prompt.
+
+### Evidence before repository-moves-k5
+
+repository-moves-k5 requires this evidence. Each item names its commit or
+build:
+
+| Evidence | Commit or build | Record |
+| --- | --- | --- |
+| A published ResearchSkills commit whose checks pass from a clean checkout, with the public `GROVE_REPOSITORY` and no override | `1c18a90945a0`, with `GROVE_COMMIT` `57414e00cd87` under the remote bookmark `gh-issue-25` | The [audit](../common-loading-acceptance-record.md#research-pack-audit) |
+| A Grove commit with no research files, on which core and aggregate conformance and `bash scripts/check.sh` pass with the Ravel 2.0 build | `57414e00cd87`, and the line head `f26e93064c73` | grove-research-removal-k158 and the [audit](../common-loading-acceptance-record.md#research-pack-audit) |
+| Directory delivery in Claude Code and Codex from a plain checkout and from the working copy, with a delegate read and both refusals | Runner `8a93002fe9f1`, Grove build `57414e00cd87`, Ravel `a4f55d04b2d1…` | [Research directory trials](../common-loading-acceptance-record.md#research-directory-trials) |
+| A native Claude Code record under the plugin's namespace | Marketplace `57414e00cd87`, `research` `dc3a4812db3b`, Ravel `a4f55d04b2d1…` | [Research native namespace](../common-loading-acceptance-record.md#research-native-namespace) |
+| This contract with its proven facts and its reusable tooling | The commit that adds this section | [Reusable pack tooling](#reusable-pack-tooling) |
 
 ## Out of scope
 

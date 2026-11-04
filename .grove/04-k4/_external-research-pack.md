@@ -100,6 +100,9 @@ proof leaf names each commit and build identity:
   tooling is the conformance invocation, the Taskfile tasks, the plugin
   manifest and the trial-runner fields.
 
+The contract's section "Evidence before repository-moves-k5" names the
+commit or build of each item.
+
 ## Pointers
 
 The root brief owns repository destination and research membership. Preserve

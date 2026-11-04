@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "name": "research-delegate",
+  "purpose": "Observe one real delegate of a research leaf on the directory route (research-directory-trials-k160). The leaf asks the parent to delegate one half of a survey through the harness's agent tool, and it names no skill. Expect a delegate read of a research resource from the retained directories.",
+  "credits": [],
+  "harness": "claude",
+  "route": "directory-2.0",
+  "mode": "lifecycle",
+  "model": "claude-opus-5-5",
+  "effort": "medium",
+  "kinds": [
+    "research-a"
+  ],
+  "sources": [
+    {
+      "id": "grove",
+      "plugin": "plugins/grove",
+      "roots": [
+        "skills"
+      ]
+    },
+    {
+      "id": "research",
+      "plugin": "plugins/research",
+      "roots": [
+        "skills"
+      ],
+      "external": {
+        "repository": "https://github.com/Linkuistics/ResearchSkills.git",
+        "commit": "1c18a90945a0b2ac4086bfe6f2ba90066fcf4bcc"
+      }
+    }
+  ],
+  "mandatory": [
+    {
+      "source": "grove",
+      "path": "skills/grove/SKILL.md"
+    }
+  ],
+  "expectDelegate": true,
+  "timeoutMinutes": 40
+}

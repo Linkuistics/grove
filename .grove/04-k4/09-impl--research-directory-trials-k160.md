@@ -42,3 +42,23 @@ the checkout. Each run uses the actual session and delegate read permissions.
 A real run spends subscription usage. Do not remove or change the owner's
 native installations. The sandbox home links only each harness's sign-in
 store.
+
+## Decisions (running log)
+
+- The trials take `grove` from the prepared checkout of the removal commit
+  `57414e00cd876a9c0e1f8021786384ba7e368580`. They take `research` from a
+  plain checkout of `1c18a90945a0b2ac4086bfe6f2ba90066fcf4bcc`, the published
+  `main` of ResearchSkills. Its `plugins/research` has the tree ID
+  `79dc2a530cd2`, the same as the pinned first pack commit.
+- The Ravel 2.0 front is the build of `skill-directory-delivery` at
+  `71f70fcd3f92`, installed into a scratch prefix with no `libexec`. Its
+  `bin/ravel` SHA-256 is `26b487afb957…`, the value of `builds.json`.
+- Three new cases: `research-discovery`, `research-delegate` and
+  `research-source-missing`. Each research leaf asks for a survey whose
+  primary sources are the installed help texts of `git` and `jj`. The survey
+  then needs no network, and the Codex sandbox denies the network.
+- The missing root uses a new runner field `moveRoot`, beside `moveAway`.
+  The runner then moves only that root of the source. The restored
+  resolution then proves the cause, as it does for a moved checkout. A
+  fixture outside the runner gives no restored resolution. The runner change
+  comes before every real run, so all runs measure one runner.

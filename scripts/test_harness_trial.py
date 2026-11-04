@@ -63,11 +63,13 @@ Path({env_file!r}).write_text(json.dumps(dict(os.environ)))
 Path({env_file!r} + ".argv").write_text(json.dumps(sys.argv))
 settings = home / ".config/ravel/settings.json"
 for source in (json.loads(settings.read_text())["skills"]["sources"] if settings.exists() else []):
-    if not Path(source["path"]).is_dir():
-        # Ravel refuses a missing source before any worker, and Grove's loop
-        # stops without a relaunch.
+    absent = [path for path in [Path(source["path"])] + [Path(source["path"]) / root for root in source["roots"]]
+              if not path.is_dir()]
+    if absent:
+        # Ravel refuses a missing source or root before any worker, and
+        # Grove's loop stops without a relaunch.
         print(f"ravel: refused (skill_source_missing, stage skills): the source {{source['id']!r}} at "
-              f"{{source['path']}} does not exist", file=sys.stderr)
+              f"{{absent[0]}} does not exist", file=sys.stderr)
         print("  remedy: restore the source directory, or change the settings deliberately", file=sys.stderr)
         print("grove: session kind `impl` for `smoke-file-k1` failed; rerun `grove` to continue", file=sys.stderr)
         sys.exit(0)
@@ -639,8 +641,10 @@ import hashlib
 settings = Path(os.environ["HOME"]) / ".config/ravel/settings.json"
 sources = json.loads(settings.read_text())["skills"]["sources"]
 for source in sources:
-    if not Path(source["path"]).is_dir():
-        print(f"ravel: refused (skill_source_missing, stage skills): {{source['path']}} does not exist", file=sys.stderr)
+    absent = [path for path in [Path(source["path"])] + [Path(source["path"]) / root for root in source["roots"]]
+              if not path.is_dir()]
+    if absent:
+        print(f"ravel: refused (skill_source_missing, stage skills): {{absent[0]}} does not exist", file=sys.stderr)
         print("  remedy: restore the source directory, or change the settings deliberately", file=sys.stderr)
         sys.exit(3)
 def fake_digest(directory):
@@ -928,6 +932,8 @@ def plant_cases(root: Path, external: dict[str, str]) -> Path:
     for name, commit, extra in (
         ("external", external["commit"], {}),
         ("external-missing", external["commit"], {"moveAway": "research", "expectRefusal": "skill_source_missing"}),
+        ("external-root-missing", external["commit"],
+         {"moveAway": "research", "moveRoot": "skills", "expectRefusal": "skill_source_missing"}),
         ("external-unknown", "0123456789abcdef0123456789abcdef01234567", {}),
         ("external-tag", external["tag"], {}),
     ):
@@ -1449,6 +1455,44 @@ class HarnessTrialTest(unittest.TestCase):
         self.assertEqual(refusal["restored"]["status"], "resolved")
         self.assertEqual(external.get("resourceDigest"), fake_digest(Path(external["checkout"]) / RESEARCH_PLUGIN))
         self.assertTrue(external["cleanAfter"])
+
+    def check_external_root_missing(self, fixture: Fixture):
+        status, output = fixture.run("external-root-missing")
+        self.assertEqual(status, 0, output)
+        record = fixture.record()
+        external = self.external_record(record)
+        refusal = record["refusal"]
+        root = Path(external["checkout"]) / RESEARCH_PLUGIN / "skills"
+        self.assertEqual(record["launches"], [])
+        self.assertEqual(refusal["clone"]["checkout"], external["checkout"])
+        self.assertEqual(refusal["clone"]["path"], str(root))
+        # The refusal names the root, so the source directory itself was present.
+        self.assertIn(f"{root} does not exist", refusal["moved"]["firstLine"])
+        self.assertEqual(refusal["restored"]["status"], "resolved")
+        self.assertTrue(root.is_dir())
+        self.assertTrue(external["cleanAfter"])
+        self.assertIn("Its root `skills` was moved from", (Path(record["trial"]) / "record.md").read_text())
+
+    def test_move_root_moves_one_root_of_a_source(self):
+        self.check_external_root_missing(self.fixture)
+        real_clone = trial.clone_source
+        self.broken(self.check_external_root_missing, "clone_source",
+                    lambda case, trial_dir, checkout, commit, externals=None:
+                        real_clone({key: value for key, value in case.items() if key != "moveRoot"},
+                                   trial_dir, checkout, commit, externals))
+        self.broken(self.check_external_root_missing, "restore", lambda moved: None)
+
+    def test_move_root_names_a_root_of_the_moved_source(self):
+        case = json.loads((trial.CASES / "missing" / "case.json").read_text())
+        for name, extra in (("no-move", {"moveAway": None, "expectRefusal": None, "moveRoot": "skills"}),
+                            ("other-root", {"moveRoot": "absent"})):
+            with self.subTest(name=name):
+                (trial.CASES / name).mkdir()
+                shutil.copytree(trial.CASES / "smoke" / "tree", trial.CASES / name / "tree")
+                (trial.CASES / name / "case.json").write_text(json.dumps({**case, **extra}))
+                with self.assertRaises(trial.TrialError) as raised:
+                    trial.load_case(name)
+                self.assertIn("moveRoot names one of the roots", str(raised.exception))
 
     def test_move_away_moves_the_checkout_of_an_external_source(self):
         self.check_external_missing(self.fixture)

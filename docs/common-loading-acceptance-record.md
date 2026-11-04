@@ -146,6 +146,12 @@ source. The runner makes no second clone for it. A continuation case refuses
 an external source, because one clone of the prepared commit supplies all its
 sources.
 
+A case with `moveAway` can also name `moveRoot`, one of the `roots` of that
+source. The runner then moves only that root of the source directory, and the
+checkout stays in place. The refusal then names the root, and the restored
+resolution shows that the missing root caused it. A `moveRoot` that is not a
+root of the moved source refuses before any launch.
+
 The run option `--working-copy <id>=<dir>` replaces the checkout of one
 external source with a jj working copy. The tasks `trial:claude` and
 `trial:codex` pass it as `WORKING_COPY`. The settings then name

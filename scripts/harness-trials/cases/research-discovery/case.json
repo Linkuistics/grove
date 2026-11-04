@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "name": "research-discovery",
+  "purpose": "Observe a moved research kind on the directory route (research-directory-trials-k160). A research-a leaf has a bare-name mandate. The grove source comes from the prepared Grove checkout, and the research source from a plain Git checkout of a published ResearchSkills commit. Expect reads of the kind skill, the spine and the research-family skill before the first action. The offline resolution then gives the descriptor identity of the launch.",
+  "credits": [],
+  "harness": "claude",
+  "route": "directory-2.0",
+  "mode": "lifecycle",
+  "model": "claude-opus-5-5",
+  "effort": "medium",
+  "kinds": [
+    "research-a"
+  ],
+  "sources": [
+    {
+      "id": "grove",
+      "plugin": "plugins/grove",
+      "roots": [
+        "skills"
+      ]
+    },
+    {
+      "id": "research",
+      "plugin": "plugins/research",
+      "roots": [
+        "skills"
+      ],
+      "external": {
+        "repository": "https://github.com/Linkuistics/ResearchSkills.git",
+        "commit": "1c18a90945a0b2ac4086bfe6f2ba90066fcf4bcc"
+      }
+    }
+  ],
+  "mandatory": [
+    {
+      "source": "grove",
+      "path": "skills/grove/SKILL.md"
+    }
+  ],
+  "resolveOffline": true,
+  "timeoutMinutes": 30
+}

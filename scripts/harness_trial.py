@@ -37,7 +37,8 @@ source directory and Ravel's `resourceDigest`. `--working-copy ID=DIR` takes
 that source from a jj working copy instead, and the record names its change.
 A case with `moveAway` and `expectRefusal` moves a clone of one source away
 before the driver, and expects Ravel's refusal before any harness launch. An
-external source moves its own checkout.
+external source moves its own checkout. With `moveRoot`, only that root of the
+source moves, and the checkout stays.
 A case with `continuation` resumes the first session outside Ravel after a
 source commit and a settings change, then launches a fresh session. Claude
 Code resumes with `--resume`, and Codex with `codex exec resume`. A case
@@ -274,6 +275,10 @@ def load_case(name: str, harness: str | None = None) -> tuple[dict[str, Any], Pa
         raise TrialError(f"case {name}: no tree/ directory")
     if bool(case.get("moveAway")) != bool(case.get("expectRefusal")) or (case.get("moveAway") and mode != "lifecycle"):
         raise TrialError(f"case {name}: a lifecycle case names moveAway and expectRefusal together")
+    if case.get("moveRoot") is not None:
+        moved = next((s for s in case.get("sources", []) if s.get("id") == case.get("moveAway")), None)
+        if moved is None or case["moveRoot"] not in moved.get("roots", []):
+            raise TrialError(f"case {name}: moveRoot names one of the roots of the source that moveAway names")
     for item in case.get("collect", []):
         if not isinstance(item, str) or Path(item).is_absolute() or ".." in Path(item).parts:
             raise TrialError(f"case {name}: a collected file is a path inside the trial directory, not {item!r}")
@@ -2736,31 +2741,42 @@ def clone_source(case: dict[str, Any], trial: Path, checkout: Path, commit: str,
     in the trial directory. The settings name it for that source, so that the
     move changes no checkout that another case reads. An external source
     already has a checkout of its own in the trial, so the move takes that
-    checkout."""
+    checkout. With `moveRoot`, the move takes only that root of the source
+    directory, and the checkout stays in place."""
     source = case.get("moveAway")
     if not source:
         return None
-    if source not in {item["id"] for item in case.get("sources", [])}:
+    record = next((item for item in case.get("sources", []) if item["id"] == source), None)
+    if record is None:
         raise TrialError(f"case {case['name']}: moveAway names '{source}', which is not one of its sources")
+    root = case.get("moveRoot")
     external = (externals or {}).get(source)
     if external:
-        return {"source": source, "checkout": external["checkout"], "commit": external["commit"],
-                "movedTo": str(trial / "sources" / f"{source}-moved"), "external": True}
-    clone = trial / "sources" / f"{source}-checkout"
-    clone.parent.mkdir(exist_ok=True)
-    fetch_checkout(checkout, commit, clone, git_env(os.environ))
-    head = run_checked(["git", "rev-parse", "HEAD"], cwd=clone, env=git_env(os.environ))
-    return {"source": source, "checkout": str(clone), "commit": head,
-            "movedTo": str(trial / "sources" / f"{source}-moved")}
+        moved = {"source": source, "checkout": external["checkout"], "commit": external["commit"],
+                 "external": True}
+    else:
+        clone = trial / "sources" / f"{source}-checkout"
+        clone.parent.mkdir(exist_ok=True)
+        fetch_checkout(checkout, commit, clone, git_env(os.environ))
+        head = run_checked(["git", "rev-parse", "HEAD"], cwd=clone, env=git_env(os.environ))
+        moved = {"source": source, "checkout": str(clone), "commit": head}
+    if root:
+        moved["root"] = root
+        moved["path"] = str(Path(moved["checkout"]) / record["plugin"] / root)
+        moved["movedTo"] = str(trial / "sources" / f"{source}-{Path(root).name}-moved")
+    else:
+        moved["path"] = moved["checkout"]
+        moved["movedTo"] = str(trial / "sources" / f"{source}-moved")
+    return moved
 
 
 def move_away(moved: dict[str, Any]) -> None:
-    os.rename(moved["checkout"], moved["movedTo"])
+    os.rename(moved["path"], moved["movedTo"])
 
 
 def restore(moved: dict[str, Any]) -> None:
     if os.path.lexists(moved["movedTo"]):
-        os.rename(moved["movedTo"], moved["checkout"])
+        os.rename(moved["movedTo"], moved["path"])
 
 
 def resolve_direct(front: Path, env: dict[str, str], cwd: Path) -> dict[str, Any]:
@@ -3789,8 +3805,9 @@ def render(record: dict[str, Any]) -> str:
             "Expected refusal:",
             "",
             f"- Expected code: `{refusal['expected']}`, before any harness launch.",
-            (f"- Source `{clone['source']}`: a plain Git checkout at commit `{clone['commit'][:12]}`, "
-             f"moved from `$TRIAL/{Path(clone['checkout']).relative_to(record['trial'])}` "
+            (f"- Source `{clone['source']}`: a plain Git checkout at commit `{clone['commit'][:12]}`. "
+             + (f"Its root `{clone['root']}` was " if clone.get("root") else "It was ")
+             + f"moved from `$TRIAL/{Path(clone.get('path', clone['checkout'])).relative_to(record['trial'])}` "
              f"to `$TRIAL/{Path(clone['movedTo']).relative_to(record['trial'])}` before the driver, "
              "and restored after it."),
             (f"- Direct `ravel skills resolve --json`, source moved away: exit {refusal['moved']['exit']}, "

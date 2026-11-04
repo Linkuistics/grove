@@ -285,7 +285,7 @@ if [[ -n "${duplicate_names}" ]]; then
   exit 1
 fi
 
-# The plugin directory names this repo ships (`linkuistics`, `testanyware`),
+# The plugin directory names this repo ships (`grove`, `linkuistics`),
 # and the name of each `--pack` directory. They are what makes a symlink target
 # recognisable as pointing into a checkout of a scanned plugin — see is_ours.
 plugin_names=()

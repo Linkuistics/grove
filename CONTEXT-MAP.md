@@ -18,7 +18,7 @@ release, installed prefix and executable documentation.
 
 - [grove](./CONTEXT.md) — the `grove` CLI, the workstream methodology shipped as
   the `grove` plugin, and the task tree that methodology drives.
-- [skills](./plugins/CONTEXT.md) — the `grove`, `linkuistics` and `testanyware`
+- [skills](./plugins/CONTEXT.md) — the `grove` and `linkuistics`
   skill plugins: how to author, package, trigger and install a skill. The
   `grove` plugin's *contents* belong to the grove context, by that glossary's own
   scope boundary. This context holds only its packaging and delivery.
@@ -374,9 +374,9 @@ to the **skills** context.
 
 A skill's *subject matter* belongs to neither glossary — jj's model lives in
 `using-jujutsu` and the architecture's
-[VCS seam](docs/ARCHITECTURE.md#symmetric-vcs-rule), Testanyware's VM vocabulary
-in `using-testanyware`. If a topic seems to need both glossaries, say so rather
-than picking one.
+[VCS seam](docs/ARCHITECTURE.md#symmetric-vcs-rule), TestAnyware's VM vocabulary
+in `using-testanyware`, which the TestAnyware repository ships. If a topic seems
+to need both glossaries, say so rather than picking one.
 
 ## Viewer ownership
 

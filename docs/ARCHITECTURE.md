@@ -101,15 +101,15 @@ title does not change the anchor.
 <a id="skills-monorepo"></a>
 ## Repository products
 
-The repository contains the CLI, its readable caller policies and three skill
+The repository contains the CLI, its readable caller policies and two skill
 plugins. Ravel is an independently delivered runtime dependency:
 
 | Product | Source | Delivery |
 |---|---|---|
 | Grove CLI | `crates/` | Homebrew and the release archives install `grove` and `grove-llm`. |
 | Grove caller assets | `assets/ravel-policy/` | One set for each admitted Ravel major: TypeScript for 1.x and Rhai for 2.x. Grove archives/formula install `libexec/ravel-policy`; the formula depends on separately versioned Ravel. [Delivery boundary](grove-delivery-contraction.md). |
-| Agent skill plugins | `plugins/grove/`, `plugins/linkuistics/`, `plugins/testanyware/` | Claude marketplace, or `plugins/install.sh` for Codex, Gemini CLI and Pi. The user chooses and maintains the route. |
-| External packs | Other repositories, such as `plugins/research/` in ResearchSkills | The marketplace pins each with a `git-subdir` source and a `sha`. `plugins/install.sh --pack <dir>` installs a checkout. [External pack contract](specs/external-pack-contract.md). |
+| Agent skill plugins | `plugins/grove/`, `plugins/linkuistics/` | Claude marketplace, or `plugins/install.sh` for Codex, Gemini CLI and Pi. The user chooses and maintains the route. |
+| External packs | Other repositories, such as `plugins/research/` in ResearchSkills and `plugins/testanyware/` in TestAnyware | The marketplace pins each with a `git-subdir` source and a `sha`. `plugins/install.sh --pack <dir>` installs a checkout. [External pack contract](specs/external-pack-contract.md). |
 
 Their documented interfaces evolve together. `plugins/` is the authoritative
 skill source. Neither binary embeds or installs it
@@ -1533,7 +1533,7 @@ the skill to force-stop with its leaf live. Whoever authors an independent kind
 supplies its skill.
 
 The user supplies that skill to every harness the policy can select. Claude
-Code receives the three plugins through its marketplace with auto-update
+Code receives the plugins through its marketplace with auto-update
 enabled. Codex, Gemini CLI and Pi users can use `plugins/install.sh`. Grove
 installs no skill and alters no harness's skill directories or plugin
 configuration. The [delivery contract](specs/codex-skill-provisioning.md) owns

@@ -12,8 +12,18 @@
 # It then runs this tree's conformance runner over the pack alone and over the
 # aggregate of core and the pack.
 #
-# An entry without `sha` fails, because Grove checks only exact revisions. The
-# first run needs the network, and later runs reuse the cache.
+# `docs/specs/pack-membership.md`, "The acceptance of each move", states one
+# exception. A source directory with no kind skill (`skills/grove-<kind>/`) and
+# no rules manifest (`conformance/rules.tsv`) ships craft skills only, and
+# Grove's conformance does not cover craft skills. For such a source, this
+# script checks only that the commit holds the source directory. It reports
+# that directory-only check by the source's name, and the source's own checks
+# are its check. A source with a kind skill and no manifest still goes to the
+# runner, which refuses it.
+#
+# An entry without `sha` fails, because Grove checks only exact revisions. A
+# commit without the entry's `path` fails. The first run needs the network, and
+# later runs reuse the cache.
 #
 # Usage: scripts/check-packs.sh [--marketplace <file>] [--cache <dir>]
 #
@@ -75,6 +85,16 @@ fi
 
 failed=()
 checked=0
+directory_only=()
+
+# has_kind_skill <dir>: whether <dir>/skills holds a `grove-<kind>` skill.
+has_kind_skill() {
+  local kind
+  for kind in "$1"/skills/grove-*/; do
+    [[ -d "${kind}" ]] && return 0
+  done
+  return 1
+}
 
 # checkout <dir> <url> <sha>: a clean plain checkout of <sha> at <dir>.
 checkout() {
@@ -118,6 +138,17 @@ while IFS=$'\t' read -r name url path sha; do
     continue
   fi
   pack="${dir}/${path}"
+  if [[ ! -d "${pack}" ]]; then
+    echo "  error: ${sha} holds no source directory ${path}" >&2
+    failed+=("${name}")
+    continue
+  fi
+  if [[ ! -f "${pack}/conformance/rules.tsv" ]] && ! has_kind_skill "${pack}"; then
+    echo "  directory-only check of ${name}: ${sha} holds ${path}, with no kind skill and no conformance/rules.tsv"
+    echo "  Grove's conformance does not cover craft skills. The checks of ${name}'s own repository are its check."
+    directory_only+=("${name}")
+    continue
+  fi
   if ! bash "${runner}" --pack "${pack}" --alone; then
     failed+=("${name} (alone)")
     continue
@@ -132,4 +163,8 @@ if ((${#failed[@]})); then
   printf 'check-packs:   ✗ %s\n' "${failed[@]}"
   exit 1
 fi
-echo "check-packs: ${checked} pinned pack(s) pass alone and in the aggregate"
+conformed=$((checked - ${#directory_only[@]}))
+echo "check-packs: ${conformed} pinned pack(s) pass alone and in the aggregate"
+if ((${#directory_only[@]})); then
+  echo "check-packs: ${#directory_only[@]} pinned source(s) pass the directory-only check, with no conformance: ${directory_only[*]}"
+fi

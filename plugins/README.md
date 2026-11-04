@@ -2,9 +2,11 @@
 
 <!-- tc: pending because the conversion has not reached this part of the document -->
 
-Three Claude Code plugins live here — `grove`, `linkuistics` and `testanyware` —
+Two Claude Code plugins live here — `grove` and `linkuistics` —
 published through the marketplace declared in
-[`../.claude-plugin/marketplace.json`](../.claude-plugin/marketplace.json). They
+[`../.claude-plugin/marketplace.json`](../.claude-plugin/marketplace.json). The
+marketplace also lists `research` and `testanyware`, which live in their own
+repositories and which it pins by commit. The two plugins here
 share this repo with the Grove CLI because the two change in lockstep
 ([architecture](../docs/ARCHITECTURE.md#skills-monorepo)); they ship by their own
 path for Claude Code and through [`install.sh`](install.sh) for Codex, Gemini CLI
@@ -102,10 +104,18 @@ the reply log are in [the user document](../docs/TECHNICAL-COMMUNICATION.md).
 
 ## `testanyware` — GUI testing in isolated VMs
 
-One skill, `using-testanyware`, that makes driving GUI apps inside isolated
-macOS/Linux/Windows VMs (via the `testanyware` CLI) standard practice — run,
-test, screenshot, or record a GUI app without it touching your host, or reach a
-Windows/Linux environment from macOS. It installs independently of `linkuistics`.
+<!-- tc: on -->
+
+The skill `using-testanyware` tells an agent to drive a GUI app inside an
+isolated macOS, Linux or Windows VM through the `testanyware` command. The app
+then does not touch the host. The plugin is not in this repository. It is
+`plugins/testanyware` in the
+[TestAnyware](https://github.com/Linkuistics/TestAnyware) repository, and the
+marketplace pins one TestAnyware commit for it. TestAnyware's README states the
+source directory and its checks. The plugin installs independently of
+`linkuistics`.
+
+<!-- tc: pending because the conversion has not reached this part of the document -->
 
 ## Install — Claude Code
 
@@ -169,7 +179,7 @@ cd grove
 ```
 
 [`install.sh`](install.sh) symlinks each **eligible** skill directory — from
-all three plugins — into `~/.codex/skills/`, `~/.gemini/skills/`, and `~/.pi/agent/skills/`
+both plugins here — into `~/.codex/skills/`, `~/.gemini/skills/`, and `~/.pi/agent/skills/`
 (only for harnesses that are installed). A skill that ships `harnesses/pi/*.ts`
 also has that Pi extension linked into `~/.pi/agent/extensions/`, under the same
 ownership and reconciliation rules; `technical-communication` is the one that does. Because the targets are symlinks,
@@ -217,7 +227,7 @@ as an error. It detects that and refuses. Pass `--force` when linking from a sid
 tree is what you actually want (testing an unmerged skill against a live
 harness), and re-run from the main checkout afterwards to repair the links.
 
-`install.sh` covers all three plugins: `grove`, `linkuistics`, and `testanyware`.
+`install.sh` covers both plugins here: `grove` and `linkuistics`.
 It selects skills eligible for each detected harness using their `harnesses:`
 frontmatter.
 
@@ -230,6 +240,13 @@ and name its plugin directory:
 ```
 git clone https://github.com/Linkuistics/ResearchSkills.git
 ./plugins/install.sh --pack ../ResearchSkills/plugins/research
+```
+
+The TestAnyware skill is also outside this repository. Name the plugin
+directory of a TestAnyware checkout in the same way:
+
+```
+./plugins/install.sh --pack ../TestAnyware/plugins/testanyware
 ```
 
 The script scans each `--pack` directory as it scans a bundled plugin, with the
@@ -252,7 +269,7 @@ by this script.
 
 **No `plugin.json` declares a `version`, and that is deliberate — do not add
 one.** Without it Claude Code versions a plugin by the commit SHA of its source,
-and the source is the repo rather than the subdirectory, so all three plugins report
+and the source is the repo rather than the subdirectory, so both plugins here report
 one shared version that moves with every commit. Every push therefore delivers: edit a
 skill, commit, done. Nothing to bump, nothing to grade, nothing to forget.
 
@@ -270,15 +287,16 @@ and delivery boundary is described in
 
 <!-- tc: on -->
 
-The `research` plugin is the exception. Its marketplace entry pins a
-ResearchSkills commit in `sha`, so Claude Code delivers that commit until a
-Grove commit moves the pin. The pin gives native users the commit that Grove's
-`task check:packs` accepted.
+The `research` and `testanyware` plugins are the exceptions. The marketplace
+entry of each pins a commit of its own repository in `sha`. Claude Code
+delivers that commit until a Grove commit moves the pin. The pin gives native
+users the commit that Grove's `task check:packs` accepted. For `testanyware`,
+that check is the directory-only check, because the plugin has no kind skill.
 
 <!-- tc: pending because the conversion has not reached this part of the document -->
 
 One trap: `claude plugin validate --strict` warns on the missing `version` and so
-fails on all three manifests. That warning is expected — silencing it by adding a
+fails on each manifest. That warning is expected — silencing it by adding a
 `version` is the change this section exists to prevent.
 
 None of this touches the symlink install above — those skills update with a

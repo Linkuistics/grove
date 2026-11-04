@@ -94,6 +94,54 @@ git -C "${orphan}" commit --quiet -am orphan
 write_marketplace "${market}" "file://${orphan}" "$(git -C "${orphan}" rev-parse HEAD)"
 check "a pack that fails alone fails" 1 'unshipped owner.*fixpack \(alone\)' "${market}" "${cache}"
 
+# make_source <repo> <file>...: a Git repository that holds each named file
+# under plugins/fixpack, with a fixture SKILL.md. Prints the commit.
+make_source() {
+  local repo="$1" file
+  shift
+  for file in "$@"; do
+    mkdir -p "${repo}/plugins/fixpack/$(dirname "${file}")"
+    printf -- '---\nname: %s\ndescription: fixture\n---\n\nbody\n' "$(basename "$(dirname "${file}")")" \
+      >"${repo}/plugins/fixpack/${file}"
+  done
+  git init --quiet "${repo}"
+  git -C "${repo}" add -A
+  git -C "${repo}" commit --quiet -m fixture
+  git -C "${repo}" rev-parse HEAD
+}
+
+# A source with craft skills only, as TestAnyware ships them under skills/,
+# passes by the directory-only check and is reported by name.
+craft="${scratch}/craft"
+write_marketplace "${market}" "file://${craft}" "$(make_source "${craft}" skills/using-fixture/SKILL.md)"
+check "a source with no kind skill and no manifest passes the directory-only check" 0 \
+  'directory-only check of fixpack.*0 pinned pack\(s\) pass.*1 pinned source\(s\) pass the directory-only check, with no conformance: fixpack' \
+  "${market}" "${cache}"
+
+# A source whose only root is craft/, as PersonalSkills ships it, takes the same branch.
+craft_root="${scratch}/craft-root"
+write_marketplace "${market}" "file://${craft_root}" "$(make_source "${craft_root}" craft/using-fixture/SKILL.md)"
+check "a source with only craft/ passes the directory-only check" 0 \
+  'directory-only check of fixpack.*with no conformance: fixpack' "${market}" "${cache}"
+
+# A kind skill without a manifest is a pack that breaks the contract, so it goes
+# to the runner, which refuses it.
+kind="${scratch}/kind"
+write_marketplace "${market}" "file://${kind}" "$(make_source "${kind}" skills/grove-fixkind/SKILL.md)"
+check "a source with a kind skill and no manifest fails" 1 \
+  'has no conformance/rules.tsv.*fixpack \(alone\)' "${market}" "${cache}"
+
+# A commit that lacks the entry's path fails, and is not a directory-only pass.
+pathless="${scratch}/pathless"
+mkdir -p "${pathless}/elsewhere"
+printf 'x\n' >"${pathless}/elsewhere/file"
+git init --quiet "${pathless}"
+git -C "${pathless}" add -A
+git -C "${pathless}" commit --quiet -m pathless
+write_marketplace "${market}" "file://${pathless}" "$(git -C "${pathless}" rev-parse HEAD)"
+check "a commit without the source directory fails" 1 'holds no source directory plugins/fixpack' \
+  "${market}" "${cache}"
+
 printf '{"name": "fixture", "plugins": [{"name": "local", "source": "./plugins/grove"}]}\n' >"${market}"
 check "a marketplace with no git-subdir entry has nothing to check" 0 'pins no git-subdir pack' \
   "${market}" "${cache}"

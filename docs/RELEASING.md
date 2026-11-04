@@ -654,9 +654,9 @@ payload. Archive and Homebrew users supply skills through their chosen route,
 as the formula caveats describe. Startup and upgrade leave existing native
 installations, including snapshots written by Grove 22.8 and earlier, unchanged.
 
-Claude Code still receives the three plugins through the marketplace, versioned
-by the repository commit SHA; its setup instructions must retain marketplace
-auto-update. Manual `plugins/install.sh` users, including Codex users, follow
+Claude Code still receives the plugins through the marketplace. It versions a
+plugin of this repository by the repository commit SHA, and an external plugin
+by its pin. Its setup instructions must retain marketplace auto-update. Manual `plugins/install.sh` users, including Codex users, follow
 their checkout. A release
 that changes an instructed verb must land the methodology and CLI together —
 `crates/grove-llm/tests/instructed_verbs.rs` checks that contract. Marketplace or

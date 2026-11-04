@@ -14,7 +14,7 @@ also contains the agent skills used by those sessions.
 |---|---|---|
 | Grove | [`crates/`](crates/) | The Rust workspace: two thin binaries over five library crates, the loop that launches one session per task among them. |
 | Grove caller policies | [`assets/ravel-policy/`](assets/ravel-policy/) | Readable owner-editable policies and adapters for independent Ravel. |
-| Skill plugins | [`plugins/`](plugins/) | Grove's own methodology, the Linkuistics coding/design skills, and the Testanyware GUI-testing skill. |
+| Skill plugins | [`plugins/`](plugins/) | Grove's own methodology and the Linkuistics coding/design skills. |
 
 Grove and its skills share a repository; [Ravel](https://github.com/Linkuistics/Ravel) is independently released.
 Grove names the skill each session must load, and you supply that skill to
@@ -99,7 +99,10 @@ Grove's methodology; see [`plugins/grove/README.md`](plugins/grove/README.md).
 
 `research@linkuistics` supplies the research kinds from the
 [ResearchSkills](https://github.com/Linkuistics/ResearchSkills) repository. The
-marketplace pins one ResearchSkills commit for it.
+marketplace pins one ResearchSkills commit for it. `testanyware@linkuistics`
+supplies the TestAnyware GUI-testing skill from the
+[TestAnyware](https://github.com/Linkuistics/TestAnyware) repository. The
+marketplace pins one TestAnyware commit for it.
 
 <!-- tc: pending because the conversion has not reached this part of the document -->
 
@@ -120,6 +123,13 @@ its plugin directory with `--pack`:
 
 ```sh
 ./plugins/install.sh --pack /path/to/ResearchSkills/plugins/research
+```
+
+To install the TestAnyware skill, name the plugin directory of a TestAnyware
+checkout in the same way:
+
+```sh
+./plugins/install.sh --pack /path/to/TestAnyware/plugins/testanyware
 ```
 
 <!-- tc: pending because the conversion has not reached this part of the document -->

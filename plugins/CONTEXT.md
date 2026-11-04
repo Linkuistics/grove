@@ -2,11 +2,11 @@
 
 <!-- tc: pending because the conversion has not reached this part of the document -->
 
-The `grove`, `linkuistics` and `testanyware` skill plugins under `plugins/` —
+The `grove` and `linkuistics` skill plugins under `plugins/` —
 the language of **authoring, packaging, triggering and installing** a skill.
 
 **Scope boundary.** A skill's own *subject matter* — jj's working-copy-as-commit,
-testanyware's VM vocabulary — belongs to that skill and its ADRs, not here. This
+for example — belongs to that skill and its ADRs, not here. This
 glossary is about the corpus, not its contents.
 
 ## Language
@@ -23,8 +23,9 @@ _Avoid_: "command" (a Claude Code slash command is a different artifact), "promp
 **Plugin**:
 Claude Code's packaging unit — `plugins/<name>/` holding `.claude-plugin/plugin.json`
 and a `skills/` directory — and a Claude Code concept only; other harnesses receive
-the same [[Skill]] directories by [[Symlink install]]. Three ship here: `grove`,
-`linkuistics` and `testanyware`.
+the same [[Skill]] directories by [[Symlink install]]. Two ship here: `grove` and
+`linkuistics`. The marketplace also lists `research` and `testanyware`, which
+their own repositories ship.
 
 <!-- tc: on -->
 
@@ -244,7 +245,7 @@ not filter the install (on the author's own machine the assumption holds), it ma
 the install **report** the skill. Only `doubt-driven-development` carries it, for
 `references/harness-spawns.md`.
 _Avoid_: overloading it onto a skill that merely needs a tool installed — a missing
-`testanyware` or `codebase-memory-mcp` binary is a dependency, not a private
+`codebase-memory-mcp` binary is a dependency, not a private
 assumption.
 
 **Link reconciliation**:

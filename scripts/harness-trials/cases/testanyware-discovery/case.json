@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "name": "testanyware-discovery",
+  "purpose": "Observe implicit discovery of a skill from a source that is not a Linkuistics pack (testanyware-skill-move-k172). A Grove impl leaf asks for a script that screenshots a GUI app in an isolated VM, and it names no skill. The grove source comes from the prepared Grove checkout, and the testanyware source from a plain Git checkout of a published TestAnyware commit. Expect a read of using-testanyware/SKILL.md from the testanyware snapshot before the script is written. No VM starts. The offline resolution then gives the descriptor identity of the launch.",
+  "credits": [],
+  "harness": "claude",
+  "route": "directory-2.0",
+  "mode": "lifecycle",
+  "model": "claude-opus-5-5",
+  "effort": "medium",
+  "kinds": ["impl"],
+  "sources": [
+    { "id": "grove", "plugin": "plugins/grove", "roots": ["skills"] },
+    {
+      "id": "testanyware",
+      "plugin": "plugins/testanyware",
+      "roots": ["skills"],
+      "external": {
+        "repository": "https://github.com/Linkuistics/TestAnyware.git",
+        "commit": "573c61edc63a659c10a84ea1b7981e80e068df0e"
+      }
+    }
+  ],
+  "mandatory": [
+    { "source": "grove", "path": "skills/grove/SKILL.md" }
+  ],
+  "resolveOffline": true,
+  "timeoutMinutes": 30
+}

@@ -343,3 +343,213 @@ text for paused groves needs no entry for Writegood.
 
 The Obsidian manual `AI Dev Tooling` does not name Writegood or
 `AgenticWriting`, so it needs no change.
+
+## TestAnyware skill
+
+`testanyware-skill-move-k172` moved the skill `using-testanyware` from Grove's
+`plugins/testanyware` into the existing repository
+`~/Development/AbstractingComputers/TestAnyware` on 2026-11-04. Grove's
+marketplace now pins the published TestAnyware commit, and Grove holds no copy
+of the skill.
+
+### Source
+
+| Subject | Value |
+| --- | --- |
+| Repository | `https://github.com/Linkuistics/TestAnyware.git`, public |
+| Commit | `573c61edc63a659c10a84ea1b7981e80e068df0e`, the public `main`. Its parent `a0d88be9a90a` was the earlier `main` |
+| Source directory | `plugins/testanyware`. It is the Claude Code plugin root and the Ravel source directory |
+| Ravel roots | `["skills"]` |
+| Git tree of the source directory | `0701492a5dae89e5b967e0122a5f1085cccec291` |
+| `resourceDigest` | `3e9d7929eddd8988a6bebd9433b7f343a19e673993b3c81e8a1ce9ba913b72c6`, from the jj working copy and from a plain Git checkout |
+| Tracked files of the source directory | `.claude-plugin/plugin.json` and `skills/using-testanyware/SKILL.md` |
+| Baseline | `SKILL.md` equals Grove's copy byte for byte. The skill directory has the digest `8ddb33fe7a999129` over one file, the value of `docs/owner-skill-inventory.tsv`. The move made no change to the skill |
+
+The manifest copies Grove's manifest. It sets `repository` to TestAnyware and
+adds `license` `Apache-2.0`, the licence of TestAnyware's `LICENSE`. It sets no
+`version`. No Git attribute applies to the source directory.
+
+The source directory must not be the repository root. The root holds
+`target/`, where TestAnyware's release build writes its candidates.
+
+### Arrangement
+
+- TestAnyware is a colocated Git and Jujutsu repository. Its remote `origin`
+  is the repository above.
+- This move made the commit in the jj workspace `default`, on `main`, and
+  pushed it through jj.
+- The second jj workspace `gh-issue-14` at `../TestAnyware.gh-issue-14` holds
+  paused work of another grove. It stayed at `4bd23490` and was not changed.
+- TestAnyware has no `CLAUDE.md` and no `AGENTS.md`. Its release notes are its
+  GitHub Releases, and v2.7.0 holds only its title. Neither constrains the
+  change.
+
+### Checks in TestAnyware
+
+The new task `plugin:check` runs `claude plugin validate` on the source
+directory. It skips with a message when Claude Code is not installed.
+TestAnyware has no aggregate `task check`, so this task is the check that the
+change touches.
+
+- From a clean plain Git checkout of the published commit, the task passed
+  with two warnings, no `version` and no icon. ResearchSkills has the same two
+  warnings. The checkout was clean after the run.
+- With `claude` removed from the PATH, the task printed its skip message and
+  exited 0.
+- For a copy of the plugin whose `name` was a number,
+  `claude plugin validate` exited 1.
+
+The README section "Agent skill" states the source directory, its root and
+both installation routes.
+
+### Static proof
+
+The boundary is "a source that is not a Linkuistics pack", as
+`docs/specs/pack-membership.md` states.
+
+- The source directory holds the skill and each resource that it names. An
+  enumeration of every path-like token in `SKILL.md` found `out.png`,
+  `out.mp4` and `start.json`. Each is a file that a command of the skill
+  writes, not a resource. The skill sends the agent to the installed command
+  for its reference, such as `testanyware llm-instructions`. The same
+  enumeration found `references/` files in the Grove spine, the positive
+  control.
+- `ravel skills resolve --json` resolved a plain Git checkout of the published
+  commit with the digest `3e9d7929eddd…`. Then `cargo build -p
+  testanyware-cli` wrote 2.7 GB into that checkout's root `target/`. Git
+  ignores `target/`. The digest after the build was the same.
+- In the mutation control, a stray file in the source directory changed the
+  digest to `3eab0c847d5a…`. Its removal restored `3e9d7929eddd…`.
+
+The instrument was the Ravel 2.0 build of `scripts/harness-trials/builds.json`:
+`task install` from the output commit `71f70fcd3f92` of the line
+`skill-directory-delivery` into a scratch prefix. Its `bin/ravel` SHA-256 is
+`26b487afb957…`, the pinned value. Each resolution ran under a temporary
+`HOME` whose settings held one `local` source.
+
+### Directory trials
+
+The case `testanyware-discovery` gives a Grove `impl` leaf that asks for a Bash
+script. The script must start an isolated macOS virtual machine, open TextEdit
+in it and save a screenshot. The task names no skill and no tool, and it forbids
+a run of the script. The sources are `grove` from the prepared Grove checkout
+and `testanyware` from a plain Git checkout of the published commit.
+
+| Subject | Value |
+| --- | --- |
+| Runner | `scripts/harness_trial.py` in this grove's working copy, with the new case |
+| Grove build | commit `1bcefecf596b`, which has the same `plugins/grove` as this move. `grove` SHA-256 `a7f5c988a18e…`, `grove-llm` SHA-256 `2f7895cc33f7…` |
+| Ravel build | the build of the static proof |
+| Source `grove` | `resourceDigest` `42e07eac1c46…` |
+| Source `testanyware` | tree `0701492a5dae…`, `resourceDigest` `3e9d7929eddd…` |
+| Mandatory file | `grove` `skills/grove/SKILL.md` |
+| Claude Code | 2.1.318, model `claude-opus-5-5`, effort `medium`, permission mode `bypassPermissions` |
+| Codex | codex-cli 0.166.0, model `gpt-6.1-sol`, effort `medium`, sandbox `workspace-write`, approval `never` |
+
+Each case ran once in each harness, with no retry. The sandbox home held no
+native copy of any skill. Each offline resolution exited 0 with the status
+`resolved` and gave the descriptor identity of the session of its run. Both network
+controls differed. After the leaf, the driver refused `finish` as
+`config_refused`, by the design of the trial configuration.
+
+**Claude Code.** The run is `testanyware-discovery-20261104T115509Z`. The
+session file `6658d506-2860-4f33-b9b3-2117d149e8c6.jsonl` has the SHA-256
+`18f56fc9c020…`. The descriptor identity is `158f19a487ca…`.
+
+| # | Class | Skill | What the call did |
+| --- | --- | --- | --- |
+| 1 | mandatory | grove | Read the spine and listed each `SKILL.md` path of both snapshots |
+| 3 | kind-skill | grove-impl | Read the kind skill |
+| 9 | listing | using-testanyware | Listed the skill directory and read its `SKILL.md` from the testanyware snapshot |
+| 11, 12 | command | | Ran `testanyware --version`, `llm-instructions` and three `--help` texts |
+| 13 | action | | Wrote `gui-screenshot.sh` |
+| 19 | ending | | Ran the exact continue command |
+
+**Result: pass.** The read of `SKILL.md` came before the first action. The
+classifier gives call 9 the class `listing`, because the call starts with
+`find`. Its output holds the whole skill body. The listing in call 1 gave paths
+only, so this agent chose by the directory name.
+
+**Codex.** The run is `testanyware-discovery-20261104T115847Z`. The session
+file `rollout-2026-11-04T22-58-51-01a1a66d-1e4a-7083-9eda-be1d2511887d.jsonl`
+has the SHA-256 `3faa3933df38…`. The descriptor identity is `7c5a9b8e2782…`.
+
+| # | Class | Skill | What the call did |
+| --- | --- | --- | --- |
+| 2 | mandatory | grove | Read the spine |
+| 4 | kind-skill | grove-impl | Read the kind skill |
+| 10 | command | | Printed the name and description of each skill of both snapshots |
+| 11 | skill | using-testanyware | Read `SKILL.md` from the testanyware snapshot |
+| 13, 15 to 17 | command | | Ran `testanyware llm-instructions`, two `--help` texts and `schema vm start` |
+| 18 | action | | Wrote the script and the decision log |
+| 24 | ending | | Ran the exact continue command |
+
+**Result: pass.** The read of `SKILL.md` came before the first action. Call
+10 shows the descriptions, so this agent chose by description.
+
+No VM started in either run. Each `testanyware` command was `--version`,
+`llm-instructions`, `schema` or `--help`, and no VM process ran after the
+trials. The staging trials own the real VM tool use.
+
+### Changes in Grove
+
+- `.claude-plugin/marketplace.json` lists `testanyware` with a `git-subdir`
+  source: the TestAnyware URL, the path `plugins/testanyware` and the `sha`
+  of the published commit.
+- This move removed `plugins/testanyware`.
+- `scripts/check-packs.sh` checks only that the pinned commit holds the source
+  directory when the source has no `skills/grove-<kind>/` directory and no
+  `conformance/rules.tsv`. It reports that check by the source's name. A
+  commit without the entry's `path` fails. Four controls in
+  `scripts/check-packs.test.sh` cover the branch. Each new control failed
+  under a mutation of the branch or of the kind test.
+- `task check:packs` then printed `1 pinned pack(s) pass alone and in the
+  aggregate` for research, and `1 pinned source(s) pass the directory-only
+  check, with no conformance: testanyware`.
+- The README, `plugins/README.md`, `plugins/CONTEXT.md`, `CONTEXT.md`,
+  `CONTEXT-MAP.md`, `docs/ARCHITECTURE.md`, `docs/RELEASING.md`, a comment of
+  `plugins/install.sh` and the source table of
+  `docs/specs/owner-skill-delivery.md` name the new location.
+- `plugins/install.sh` needs no change, because it finds bundled plugins by
+  `plugins/*/skills`. In an isolated home, `install.sh --force --pack` on the
+  plain checkout's `plugins/testanyware` linked `using-testanyware` for Codex,
+  Gemini CLI and Pi. A run without `--pack` linked nothing for it. `--force`
+  was necessary because this grove's tree is a secondary jj workspace.
+- No trial case names `plugins/testanyware`, so no case changes.
+
+### Tool requirements and preserved resources
+
+The skill needs the `testanyware` command and the TestAnyware application.
+The baseline has Homebrew `testanyware` 2.7.0 and `/Applications/TestAnyware.app`
+2.7.0, with the configuration `~/.config/testanyware/config.rhai`. Their
+installers own them, and this move did not change them. The skill reaches
+them by ordinary command execution.
+
+The move left these owner resources unchanged:
+
+- The Claude Code plugin `testanyware@linkuistics` and its cache. The owner's
+  marketplace follows Grove's `main`, which keeps the old entry until finish.
+- The Codex links `~/.codex/skills/using-testanyware` and
+  `~/.agents/skills/using-testanyware`. They point into the snapshot
+  `~/.agents/.grove/current`, which still holds the skill.
+- The Pi link `~/.pi/agent/skills/using-testanyware`. It already dangled to
+  `~/Development/grove/plugins/testanyware` before the move.
+
+### References
+
+The search for `plugins/testanyware` covered `~/Development`, `~/.config`,
+`~/.claude.json`, `~/.claude/settings.json` and `~/.codex/config.toml`. It
+skipped `target/`, `.git/`, `.jj/`, `node_modules/`, `.cache/` and session
+transcripts. It found this grove's README, the positive control.
+
+The hits outside this grove's working copy are of three classes.
+
+- TestAnyware's README and Taskfile name the new source directory.
+- Grove's default workspace `grove` holds the earlier line. Finish integrates
+  this move into it.
+- The paused groves `grove.gh-issue-14-documentation-skills-for-editorial-pipeline`
+  and `grove.improve-initial-design-decomposition-skill` hold earlier Grove
+  lines. Their rebase meets this move. This grove does not edit them.
+
+No machine setting names the path. The rollout text for paused groves needs
+no entry, because each paused Grove line reconciles the move at its rebase.

@@ -143,7 +143,7 @@ links again.
 | `research` | ResearchSkills | `skills` in `plugins/research` | The research pair, the combiner and `research-family` |
 | `writing` | WritingSkills | `skills` and `craft` in its plugin directory | The editorial kinds, `technical-communication` and `writing-code-walkthroughs` |
 | `personal` | PersonalSkills | `craft` in its plugin directory | `machine-environment`, `using-jujutsu` and `authoring-conventions` |
-| `testanyware` | TestAnyware | Its skill directory | `using-testanyware` |
+| `testanyware` | TestAnyware | `skills` in `plugins/testanyware` | `using-testanyware` |
 | `superpowers` | `obra/superpowers` | `skills` | All fifteen superpowers skills |
 | `quint` | `quint-co/quint-llm-kit` | `quint-llm-kit-plugin/skills` | `quint-lang`, `quint-modeling` and `quint-execute-spec` |
 

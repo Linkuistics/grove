@@ -13,7 +13,12 @@
     },
     {
       "name": "testanyware",
-      "source": "./plugins/testanyware",
+      "source": {
+        "source": "git-subdir",
+        "url": "https://github.com/Linkuistics/TestAnyware.git",
+        "path": "plugins/testanyware",
+        "sha": "573c61edc63a659c10a84ea1b7981e80e068df0e"
+      },
       "description": "TestAnyware GUI-testing skill: drive GUI apps in isolated macOS/Linux/Windows VMs for host-isolation, cross-platform testing, UI experiments, and documentation screenshots/recordings."
     },
     {

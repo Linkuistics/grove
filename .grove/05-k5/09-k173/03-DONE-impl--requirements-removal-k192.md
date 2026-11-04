@@ -146,3 +146,29 @@ large for one session, decompose it.
   run.
 - `.claude/settings.json` is the owner's local permission for the earlier
   publication. It stays in the working copy and in no commit.
+- The removal commit is `302f85429e4b8f8ada02be594687155109dfbf6b`. The leaf
+  is retired in a later commit, because the second pack commit records the
+  removal commit and this leaf records that pack commit.
+- `jj git push --remote origin --bookmark gh-issue-25` moved the remote
+  bookmark forward from `6cdab3a98833` to `302f85429e4b`. `git ls-remote`
+  shows it there.
+- The second pack commit is `eb945d9b13efcf11a74c78936c802108d3f022c6`, a
+  child of `9f7278c2d46b`. It sets `GROVE_COMMIT` to `302f85429e4b`. Its README
+  replaces the paragraph that said the aggregate fails, and it adds one
+  provenance sentence. The tree of `plugins/requirements` stays
+  `f3cf8128fd206c48d73b061cc5ef6b536d4f9d61`.
+- From a clean plain-Git checkout of `eb945d9b13ef`, with the committed public
+  `GROVE_REPOSITORY` and no override, `task check` passed. Grove came from
+  GitHub. `check:plugin` passed with its two warnings. The pack alone gave 1
+  and 10, and the aggregate gave 116 and 2424.
+- `jj git push --remote origin --bookmark main` in RequirementsSkills moved the
+  public `main` forward from `9f7278c2d46b` to `eb945d9b13ef`. A clone of the
+  public remote was at that commit, with the same tree ID, and its
+  `task check:conformance` gave the same figures.
+- `docs/repository-moves-record.md` records the removal in the sections
+  "Removal", "Readings of the removal" and "Checks of the removal". The native
+  install step `/plugin install requirements@linkuistics` is in its section
+  "For discovery-rollout-k6".
+- No in-session reviewer was spent. Executable controls with seen failures
+  cover the changed control and the family binding, and the moved bytes are
+  unchanged.

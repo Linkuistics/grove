@@ -559,9 +559,10 @@ no entry, because each paused Grove line reconciles the move at its rebase.
 `requirements-pack-repository-k191` created the repository
 `~/Development/AgenticOrchestration/RequirementsSkills` on 2026-11-04, with
 the three requirements kinds. This is the expand step of
-`requirements-pack-k173`. Grove still ships its own copies, so the aggregate
-fails on duplicates by design. `requirements-removal-k192` removes Grove's
-copies and publishes the second pack commit.
+`requirements-pack-k173`. At the first pack commit, Grove still shipped its
+own copies, so the aggregate failed on duplicates by design.
+`requirements-removal-k192` removed Grove's copies on 2026-11-05 and published
+the second pack commit. [Removal](#removal) records that contraction step.
 
 ### Source
 
@@ -698,3 +699,93 @@ mandatory list. The build refuses settings without the `mandatory` member.
   bookmark `gh-issue-25`. jj pushed that bookmark before the pack.
 - Grove's marketplace does not list the pack yet. `requirements-removal-k192`
   adds the entry with the removal, and it pins this first pack commit.
+
+### Removal
+
+`requirements-removal-k192` removed Grove's copies in one change with every
+Grove consumer. This is the contraction step of the move.
+
+| Subject | Value |
+| --- | --- |
+| Removal commit | `302f85429e4b8f8ada02be594687155109dfbf6b` |
+| Pushed Grove commit | `302f85429e4b`. jj moved the remote bookmark `gh-issue-25` forward from `6cdab3a98833` before the second pack commit's publication |
+| First pack commit | `9f7278c2d46b3e7443355633afb8a745b37af7ac`. Grove's marketplace pins it |
+| Second pack commit | `eb945d9b13efcf11a74c78936c802108d3f022c6`, a child of the first. The public `main` |
+| Tree of `plugins/requirements` | `f3cf8128fd206c48d73b061cc5ef6b536d4f9d61` in both pack commits |
+| `resourceDigest` | `07b2d25e8bd2…`, the value in [Source](#source). The two commits have one tree ID for the source directory, so they deliver the same bytes |
+
+The removal took out `grove-requirements/` with `SKILL.md` and `grilling.md`,
+`grove-review-requirements/` and `grove-integrate-review-requirements/`. Core's
+manifest lost the ten rows that the pack's manifest holds. The prefix sets
+`review-*` and `integrate-review-*` stay. These consumers changed:
+
+- The kind table of `TASK-FORMAT.md` names `RequirementsSkills` in the
+  `requirements` row. The label tests take the three labels from that row.
+- `conformance.test.sh`: the `inherited-load` control writes a fixture kind
+  with a supporting file, because no core kind ships one.
+- `plugin_fallback.rs`: the three requirements openings left
+  `MOVING_KIND_OPENINGS`.
+- `.claude-plugin/marketplace.json` lists `requirements` with a `git-subdir`
+  source that pins the first pack commit.
+- The install guidance names the pack for the marketplace and for
+  `install.sh --pack`. `docs/USAGE.md` adds the source to the directory
+  route. It states that a fresh grove's first leaf needs `grove-requirements`
+  from RequirementsSkills.
+
+### Readings of the removal
+
+| Reading | Single-source checks | Loaded-path checks | Unpinned rows |
+| --- | --- | --- | --- |
+| Core alone before the removal, at `53d092fa0e5e` | 116 | 2424 | 64 |
+| Core alone after the removal | 115 | 2062 | 55 |
+| The pack alone | 1 | 10 | 9 |
+| The aggregate of core and the first pack commit | 116 | 2424 | 64 |
+
+The pack alone lists 3 external edges and 6 external resources, as in
+[Checks](#checks). The aggregate passes with the figures of core alone before
+the move. The research aggregate is now 115 single-source checks and 2421
+loaded-path checks.
+
+In the aggregate, the core rows of `review-*` and `integrate-review-*` bind the
+pack's two family members. In a scratch copy of the pinned pack, the two
+members stopped loading `grove`. The aggregate then failed the three
+`static(review-*)` rows for `review-requirements` and the four
+`static(integrate-review-*)` rows for `integrate-review-requirements`. It
+failed no other kind. The spine's `SKILL.md` lists its family files, so a
+member that loses only its pointer to `references/review.md` still reaches
+that file. That mutation read clean and is not a control.
+
+The changed `inherited-load` control read clean on its fixture and dirty after
+its mutation, with the diagnostic for the supporting file. Its first dirty
+reading came back clean, because the fixture's sentence did not match the
+mutation. A repair of the fixture's sentence removed that fault.
+
+A search with `--hidden` over the whole tree found no stale location claim. It
+enumerated the three skill names and `grilling.md`. The search found a planted
+path in a hidden scratch directory, and a mutated pattern found nothing.
+
+### Checks of the removal
+
+- `bash scripts/check.sh` passed all 21 principal checks on the removal, with
+  1345 Rust tests. `GROVE_TEST_RAVEL` resolved to the installed Ravel 1.1.0,
+  `/opt/homebrew/Cellar/ravel/1.1.0/bin/ravel`, SHA-256
+  `c52f990b2059c8bbe8efba10a741d3a0311000ac1712d71e882638f54c3ac1ed`. The
+  changed files had the same digests before and after the run.
+- `task check:packs` passed for `requirements` and `research`, alone and in
+  the aggregate. `testanyware` passed the directory-only check.
+- The second pack commit's full `task check` passed from a clean plain-Git
+  checkout, with the committed public `GROVE_REPOSITORY` and no override.
+  `grove:checkout` fetched `302f85429e4b` from GitHub. `check:plugin` passed
+  with the two warnings of the first commit. The pack alone gave 1 and 10, and
+  the aggregate gave 116 and 2424. The checkout held only the ignored `.cache/`
+  after the run.
+- After the publication, a clone of the public remote was at `eb945d9b13ef`.
+  Its `task check:conformance` gave the same figures.
+
+### For discovery-rollout-k6
+
+This workstream reaches `main` only in finish, so the owner's native
+marketplace lists `requirements` only after finish. A native user then needs
+`/plugin install requirements@linkuistics`. Without it, a fresh grove's first
+leaf has no kind skill on the native route. A directory route needs a
+`requirements` source, as `docs/USAGE.md` states.

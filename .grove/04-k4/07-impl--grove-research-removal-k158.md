@@ -33,7 +33,8 @@ Consumers that change:
   `plugins/README.md`.
 - Documents: `plugins/grove/README.md` (the fatness rule) and `CONTEXT.md`
   ("Family reference file", "Spine skill / kind skill", the new **Family
-  skill** and the kind set). `plugins/CONTEXT.md` gains **Pack**, **Source
+  skill** and the kind set). Each states the branch for a family across packs,
+  as "Rule placement" states. `plugins/CONTEXT.md` gains **Pack**, **Source
   directory** and **Directed load**. Also `docs/ARCHITECTURE.md` (plugin roots,
   conformance and loaded-path budgets) and `docs/USAGE.md`. Check the
   source-exact walkthroughs that quote changed code.
@@ -55,9 +56,13 @@ Consumers that change:
 - `bash scripts/check.sh` passes with the Ravel 2.0 build of the research
   recipes. Record the Ravel build identity and the ResearchSkills commit.
 - After the removal commit exists, a new ResearchSkills commit records it as
-  `GROVE_COMMIT`. Its `plugins/research` is unchanged. Its full `task check`
-  passes from a clean checkout, with the local Grove repository as
-  `GROVE_REPOSITORY`. Publish it and record both pack commits.
+  `GROVE_COMMIT`. Its `plugins/research` is unchanged. Push the line to the
+  bookmark `gh-issue-25` on Grove's remote before you publish that pack
+  commit. The full `task check` of the new pack commit passes from a clean
+  checkout, with the committed public URL and no override. Publish it, and
+  record both pack commits and the pushed Grove commit.
+- `conformance.sh` keeps the prefix sets `review-*` and `integrate-review-*`.
+  Only the named set `research` goes.
 
 ## Notes
 

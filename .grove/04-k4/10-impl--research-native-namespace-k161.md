@@ -28,8 +28,9 @@ under the plugin's actual namespace from Grove's bare-name mandate.
   `research:grove-research-a`. The agent loads the spine and the
   `research-family` skill before it acts, under their actual namespaces.
 - The record names the marketplace commit, the installed plugin revisions,
-  the Ravel build and the observations. A gap is a named gap with a
-  disposition, never a pass.
+  the Ravel build and the observations. It also names the Grove build that
+  renders the mandate. That build must state the missing-skill rule that the
+  moved kinds cite. A gap is a named gap with a disposition, never a pass.
 - The owner's real Claude Code installation is unchanged.
 
 ## Notes

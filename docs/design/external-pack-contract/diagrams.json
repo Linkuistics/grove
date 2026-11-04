@@ -1,6 +1,6 @@
 {
   "title": "External pack contract — views",
-  "intro": "Proposed: how a skill pack outside Grove's repository joins the methodology, with ResearchSkills as the first pack. A review-design leaf reads the contract before the runner work. Graphs begin at Start here; numbered edges give the order of the steps.",
+  "intro": "How a skill pack outside Grove's repository joins the methodology, with ResearchSkills as the first pack. external-pack-contract-k163 reviewed the contract, and external-pack-contract-k164 applied its findings. Graphs begin at Start here; numbered edges give the order of the steps.",
   "groups": [
     {
       "id": "layout",
@@ -25,7 +25,7 @@
   ],
   "discussion": {
     "title": "External pack contract for ResearchSkills",
-    "status": "Proposed — awaits its review-design leaf",
+    "status": "Proposed by external-pack-contract-k155 — design review external-pack-contract-k163 integrated by external-pack-contract-k164",
     "summary": "external-pack-contract-k155 settled the layout, the family skill, the references, the conformance runs, the distribution and the checkout identity. The proof leaves record the proven facts.",
     "diagramIds": [
       "layout",
@@ -44,7 +44,7 @@
       },
       {
         "id": "conformance",
-        "summary": "Added Grove's check and the pack's check, each against a pinned revision."
+        "summary": "Added Grove's check and the pack's check, each against a pinned revision. The pack's Grove commit comes from Grove's public remote."
       },
       {
         "id": "distribution",
@@ -72,7 +72,7 @@
       "group": "conformance",
       "title": "Two checks, each against a pinned revision",
       "source": "conformance.mmd",
-      "caption": "Grove checks its working tree against the pack commit that its marketplace pins. The pack checks its working tree against a recorded Grove commit and runs that commit's runner."
+      "caption": "Grove checks its working tree against the pack commit that its marketplace pins. The pack checks its working tree against a recorded Grove commit from Grove's public remote, and runs that commit's runner."
     },
     {
       "id": "distribution",

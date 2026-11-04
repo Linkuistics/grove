@@ -1,8 +1,9 @@
 # External pack contract — views
 
 The [external pack contract](../../specs/external-pack-contract.md) owns the
-decisions. These views show the same design. The contract is proposed, and a
-`review-design` leaf reads it before the runner work.
+decisions. These views show the same design. external-pack-contract-k163
+reviewed the contract before the runner work, and external-pack-contract-k164
+applied its findings.
 
 Run `task design:external-pack-contract` from the repository root, then open
 [the viewer](http://127.0.0.1:8793/). `PORT=...` chooses another port. The

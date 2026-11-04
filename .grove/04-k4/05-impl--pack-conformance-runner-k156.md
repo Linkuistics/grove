@@ -26,14 +26,23 @@ This is the expand step: nothing moves yet.
 - Loaded paths are skill-qualified. They follow directed loads of the form
   "Load the `<name>` skill" and skill-relative paths, by rule 3 of "References
   between skills". The spine is on a kind's path only because the kind loads it.
+- The runner reads a directed load by the match rules under "References between
+  skills". These cover the letter case, emphasis, a line break, comments,
+  fences and block quotes.
 - The pack-alone checks and the aggregate checks hold as the contract lists
   them. That includes unique skill names and rule IDs across packs, and
-  resolved loads.
+  resolved loads. Alone, a path that reaches a loaded skill of another pack is
+  an external resource, not a failure.
 - A row whose owner file is absent fails. `static(23)` becomes `static(all)` in
   core's manifest. The runner drops `static(22)` and accepts `static({a,b})`.
 - `conformance.test.sh` proves each row of "Controls that must fail" with a
   fixture external pack, not the real research pack. The fixture aggregate
-  passes, and core alone keeps its result.
+  passes, and core alone keeps its result. The fixture pack holds the clean
+  cases that the contract lists under that table.
+- The fixtures follow the rules under that table. Each fixture ships every
+  owner that its manifests name. Each control reads clean before its one
+  mutation. Each reading asserts the exit status and the intended diagnostic.
+  The current cases keep their behaviour on the changed fixtures.
 - `plugins/grove/README.md`, "Conformance", documents the pack-facing
   invocation. A pack's Taskfile can call it from a checkout of Grove.
 - `task check:skills`, shellcheck and `bash scripts/check.sh` pass.

@@ -13,9 +13,9 @@ flowchart LR
     end
     subgraph pack["The pack's check · the pack changes, core is pinned"]
         P0["Start here · ResearchSkills working tree"]
-        PV["Taskfile.yml<br/>GROVE_REPOSITORY and GROVE_COMMIT"]
+        PV["Taskfile.yml<br/>public GROVE_REPOSITORY and GROVE_COMMIT"]
         PT["task check:conformance"]
-        PC[(".cache/grove/COMMIT<br/>plain checkout of Grove")]
+        PC[(".cache/grove/COMMIT<br/>plain checkout from Grove's public remote")]
         PR["that checkout's conformance.sh<br/>--pack plugins/research --alone,<br/>then the aggregate"]
         P0 -->|P1| PT
         PV -->|P2 reads| PT

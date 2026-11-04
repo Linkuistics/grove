@@ -47,22 +47,24 @@ dependencies, and each handoff leaves Grove green:
 2. `external-pack-contract-k163` (review-design) reads that contract
    adversarially. external-pack-contract-k155 cut it, because every later
    pack move inherits the contract.
-3. `pack-conformance-runner-k156` extends Grove's checker to a single pack
+3. `external-pack-contract-k164` (integrate-review-design) applies the
+   review's four findings to the contract and to the leaves below.
+4. `pack-conformance-runner-k156` extends Grove's checker to a single pack
    and to an aggregate. Core alone gives the same result. This is the expand
    step.
-4. `research-pack-repository-k157` creates and publishes ResearchSkills.
+5. `research-pack-repository-k157` creates and publishes ResearchSkills.
    Grove keeps its copies, so no consumer changes yet.
-5. `grove-research-removal-k158` removes the files from Grove. It reconciles
+6. `grove-research-removal-k158` removes the files from Grove. It reconciles
    the spine, the manifest, the tests, the marketplace, the installer and the
    documents in one change. This is the move.
-6. `trial-external-sources-k159` lets the trial runner take a source from an
+7. `trial-external-sources-k159` lets the trial runner take a source from an
    external checkout at a commit.
-7. `research-directory-trials-k160` runs the directory proof in both harnesses
+8. `research-directory-trials-k160` runs the directory proof in both harnesses
    with native copies absent.
-8. `research-native-namespace-k161` runs the native Claude Code proof under the
+9. `research-native-namespace-k161` runs the native Claude Code proof under the
    plugin's actual namespace.
-9. `external-pack-proof-k162` records the proven contract and audits this
-   node's Done when.
+10. `external-pack-proof-k162` records the proven contract and audits this
+    node's Done when.
 
 The pack creation and the removal are separate increments. The pack alone
 changes no consumer. The removal needs a published pack commit. A step that
@@ -84,7 +86,9 @@ repository-moves-k5 starts only when this node has the evidence below. The
 proof leaf names each commit and build identity:
 
 - A published ResearchSkills commit whose own checks pass from a clean
-  checkout.
+  checkout, with its committed public Grove URL and no override. The Grove
+  commit that it records is on Grove's remote under the bookmark
+  `gh-issue-25`.
 - A Grove commit on this workstream's line with no research files. Core and
   aggregate conformance pass on it, and `bash scripts/check.sh` passes with
   the Ravel 2.0 build.

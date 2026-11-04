@@ -12,9 +12,10 @@ the plugin. Every `linkuistics:` citation must therefore stay meaningful when
 its target skill is absent.
 
 **A directed load is a required dependency, not a citation.** A `grove-<kind>`
-skill directs a load of the `grove` spine. A member of a family in an external
-pack also directs a load of its family skill. The session cannot do its work
-without a skill that it must load, so no fallback can state what binds instead.
+skill directs a load of the `grove` spine. A member of a family whose kinds all
+ship in one external pack also directs a load of its family skill. The session
+cannot do its work without a skill that it must load, so no fallback can state
+what binds instead.
 
 Inside one pack, the loaded skill ships with the member. It cannot be absent
 while the member is present, so the member has nothing to state. Across packs,

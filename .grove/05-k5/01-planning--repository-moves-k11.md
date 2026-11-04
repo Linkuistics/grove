@@ -38,3 +38,10 @@ Avoid identical speculative implementation recipes for every pack. Cut current
 detail lazily, retaining each precise destination obligation as live work.
 Owner configuration changes belong with the move that needs them and follow
 the maintained machine contract.
+
+external-pack-contract-k164 gave this node two obligations from the contract.
+The review and integration families ship in several packs, so their family
+files stay in the spine. A moved member reaches its family file as an external
+resource. Core's kind openings still write `grove:grove`. Each moved kind takes
+the bare-name opening in its move, and this node also changes the openings of
+the kinds that stay in core.

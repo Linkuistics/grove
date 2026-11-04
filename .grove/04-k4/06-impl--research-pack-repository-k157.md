@@ -38,12 +38,15 @@ grove-research-removal-k158, so no consumer changes in this leaf.
   Ravel record, the install commands and the provenance.
 - The Taskfile has `GROVE_REPOSITORY`, `GROVE_COMMIT` and the tasks that the
   contract lists. `GROVE_COMMIT` names the commit of
-  pack-conformance-runner-k156. A run passes the local Grove repository as
-  `GROVE_REPOSITORY`, because that commit is not on the remote. Check that a
-  plain checkout can fetch it from there.
-- From a clean checkout, the pack-alone check and `check:plugin` pass. The
-  aggregate fails only because each moving skill and each moved row is a
-  duplicate. Record that output as the expected state before the removal.
+  pack-conformance-runner-k156. `GROVE_REPOSITORY` keeps the public URL.
+- Before the pack's first publication, push this workstream's line to the
+  bookmark `gh-issue-25` on Grove's remote through jj. "The checker without a
+  copy" states the rule. The recorded commit must be an ancestor of the
+  pushed bookmark. Record the pushed commit.
+- From a clean checkout, with the committed public URL and no override, the
+  pack-alone check and `check:plugin` pass. The aggregate fails only because
+  each moving skill and each moved row is a duplicate. Record that output as
+  the expected state before the removal.
 - `ravel skills resolve --json`, from the Ravel 2.0 build of the research
   recipes in a scratch HOME, resolves the working copy as a `local` source.
   Record the `resourceDigest`, the descriptor identity and the tree ID of
@@ -55,5 +58,7 @@ grove-research-removal-k158, so no consumer changes in this leaf.
 ## Notes
 
 The root brief and the node brief authorise the creation of this public
-remote. Do not change Grove's skills, marketplace or installer in this leaf.
+remote. Order 2 of the owner cutover contract already publishes this
+workstream's line, and this leaf publishes it earlier. Never push `main` here.
+Do not change Grove's skills, marketplace or installer in this leaf.
 Run each command outside the Grove working copy. Import no Git history.

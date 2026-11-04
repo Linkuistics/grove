@@ -3,9 +3,9 @@
 A rule in the methodology is filed by **when a session meets it**, not by what
 it is about. The register that holds the rules is the methodology's set of skill
 packs. Core's `grove` plugin has the shared **spine** skill and the kind skills
-of core. An external pack has its own `grove-<kind>` skills, and a family skill
-for each family that it ships. Until `plugin-kind-skills-k17`, the register was
-the binary's embedded `content/`.
+of core. An external pack has its own `grove-<kind>` skills. It also has a
+family skill for each family whose kinds only that pack ships. Until
+`plugin-kind-skills-k17`, the register was the binary's embedded `content/`.
 
 Neither that move nor the move of a family to an external pack changed the
 function below. Each move changed only the names of its outputs.
@@ -19,11 +19,13 @@ the first match wins:
 1. `Bound(R) = ∅` or `Occasion(R) = {none}` → the rule is not normative. It
    leaves the skill set.
 2. `Bound(R)` is one kind → that kind's own `grove-<kind>` skill. `Bound(R)` is
-   one family → the family's single file, in the pack that ships the family's
-   kinds. In core that file is in the spine's `references/`. In an external
-   pack it is the `SKILL.md` of the pack's family skill. The families are the
-   five reviews, the five integrations, the two research halves and the four
-   editorial stages. Each member's skill directs a load of that file by name.
+   one family → the family's single file. When one pack ships every kind of
+   the family, the file is in that pack. In core that file is in the spine's
+   `references/`. In an external pack it is the `SKILL.md` of the pack's family
+   skill. When the family's kinds ship in several packs, the file is in the
+   spine's `references/`. The families are the five reviews, the five
+   integrations, the two research halves and the four editorial stages. Each
+   member's skill directs a load of the skill that holds the file.
 3. `artifact:A ∈ Occasion(R)` → the format file of A.
 4. `launch ∈ Occasion(R)` → `references/driver.md`.
 5. `context ∈ Occasion(R)` → `references/grove.md`.
@@ -179,13 +181,20 @@ with a dishonest one. Nothing detects that, and nothing claims to.
 
 ## Considered options
 
-- **Keep each family file in the spine, also for a family whose kinds ship in
-  an external pack.** It is rejected because the pack's kinds would then depend
-  on core for their own family's rules. A change of the family would need a
-  release of core. The pack could not check its family's rules alone, and core's
-  inventory would describe files in another repository. Reopen it if a family's
-  kinds ever ship in several packs. The family file would then have no single
-  pack.
+- **Keep each family file in the spine, also for a family whose kinds all ship
+  in one external pack.** It is rejected because the pack's kinds would then
+  depend on core for their own family's rules. A change of the family would need
+  a release of core. The pack could not check its family's rules alone, and
+  core's inventory would describe files in another repository. Reopen it if a
+  supported delivery route cannot load a family skill by name.
+- **For a family whose kinds ship in several packs, put the file in one of
+  those packs, or a copy in each.** A copy in each pack gives the rule several
+  owners, which this record exists to prevent. One external pack would make
+  the members in the other packs depend on a sibling pack. Every member already
+  loads the spine, so the spine adds no dependency. For such a family, the
+  spine keeps the costs of the option above. A change of its procedure is a
+  change of core, and no pack checks those rows alone. Reopen it if a kind can
+  ever omit its load of the spine.
 - **Take `Bound(R)` alone, and map "every kind" to the loop-step reference for
   the step that the rule governs.** The option read *all nineteen kinds* while
   the binary held a set of nineteen to quantify over. A kind exists **if and

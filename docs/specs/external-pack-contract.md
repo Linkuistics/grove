@@ -1,0 +1,699 @@
+# External pack contract
+
+This specification settles how a skill pack outside Grove's repository joins
+Grove's methodology. ResearchSkills is the first such pack, and its move proves
+the contract. Each later pack move reads this specification before
+repository-moves-k5 plans its work.
+
+`external-pack-contract-k155` wrote the decisions. `external-pack-proof-k162`
+adds the [proven facts](#proven-facts) after the research move. Until then,
+that section lists only what the proof must record.
+
+Grove owns this specification, because Grove owns core, the conformance runner
+and the rules for references between packs. The
+[Grove delivery design](codex-skill-provisioning.md) owns how a session receives
+skills on each route. The [owner delivery design](owner-skill-delivery.md) owns
+the owner's source set, the pins and the cutover on the owner's machine.
+Ravel's skill-discovery specification owns source capture and the loading rules
+of its preamble.
+
+## Problem
+
+Grove's methodology ships as one plugin in one repository. The spine, every
+kind skill and every family file are under `plugins/grove/skills/`. Several
+mechanisms assume that one location:
+
+- The conformance runner reads one skills root. It expects the spine at
+  `<root>/grove`. It resolves a reference only in the referring skill or in
+  the spine.
+- A research kind reaches its family file as a resource of the spine.
+- `TASK-FORMAT.md` counts every kind. A test compares that count with the
+  directories of one plugin.
+- The marketplace lists plugin roots inside Grove. The manual installer links
+  skills from Grove's checkout only.
+- The trial runner builds each source path from the prepared Grove checkout.
+
+The root brief moves the research kinds, the editorial kinds and others into
+repositories of their own. Each move must keep one owner for each rule. It must
+keep each required edge reachable on each delivery route, and it must keep
+conformance checkable. Without one contract, each move would answer these
+questions again, and the answers could differ.
+
+## Solution
+
+A pack is a repository that ships methodology skills in Grove's plugin layout.
+Core is the pack in Grove's repository, and an external pack is any other. The
+contract has six parts:
+
+1. **Layout.** Each pack keeps its skills in `plugins/<plugin>/skills/`. That
+   plugin directory is the Ravel source directory and the Claude Code plugin
+   root.
+2. **Family skills.** In an external pack, a family file is the `SKILL.md` of a
+   family skill. Each member loads it by name.
+3. **References.** Pack text names another skill by its bare name, in a
+   directed load. It never writes a plugin namespace.
+4. **Conformance.** Each pack keeps the manifest of the rules that its own files
+   own. Grove's runner checks a pack alone and checks the aggregate of core with
+   the supplied packs.
+5. **Distribution.** The marketplace lists an external plugin with a pinned
+   `git-subdir` source. The manual installer takes the plugin directory of a
+   pack.
+6. **Identity.** A checkout of a pack is accepted by the `resourceDigest` of its
+   source directory.
+
+The [visual views](../design/external-pack-contract/README.md) show the layout,
+the edges between skills and the conformance runs.
+
+## Terms
+
+- **Pack**: a repository whose plugin directories ship methodology skills or
+  craft skills.
+- **Core**: the pack in Grove's repository. Its plugin `grove` holds the spine,
+  `configure-grove`, the core kind skills and the family files of core's
+  families.
+- **External pack**: a pack in another repository. ResearchSkills is the first.
+- **Source directory**: the plugin directory `plugins/<plugin>/` inside a
+  checkout of a pack. Ravel captures it as a `local` source, and Claude Code
+  installs it as the plugin root.
+- **Kind directory**: `skills/` in a source directory. It holds kind skills and
+  any family skill of the pack.
+- **Craft directory**: `craft/` in a source directory. It holds standalone craft
+  skills, such as `decision-records`.
+- **Family skill**: the skill that carries the family file of a family in an
+  external pack. Its name is `<family>-family`.
+- **Directed load**: the sentence form "Load the `<name>` skill". It names a
+  skill that the reading session must load.
+- **Aggregate**: core together with one or more external packs, each at an exact
+  revision.
+
+When grove-research-removal-k158 lands the move, the skills glossary gains
+**Pack**, **Source directory** and **Directed load**. The grove glossary gains
+**Family skill**, as [Rule placement](#rule-placement) states.
+
+## Decisions
+
+### Layout
+
+ResearchSkills keeps the layout of Grove's own plugins:
+
+```text
+ResearchSkills/                     repository root, outside the source
+├── LICENSE                         Apache-2.0
+├── README.md                       source directory, roots, kinds, provenance
+├── Taskfile.yml                    the pack's checks
+├── .gitignore                      ignores .cache/
+└── plugins/
+    └── research/                   source directory and plugin root
+        ├── .claude-plugin/
+        │   └── plugin.json         manifest name "research"
+        ├── conformance/
+        │   └── rules.tsv           the rules that this pack's files own
+        └── skills/                 kind directory, the only Ravel root
+            ├── grove-research-a/SKILL.md
+            ├── grove-research-b/SKILL.md
+            ├── grove-combine-research/SKILL.md
+            └── research-family/SKILL.md
+```
+
+These facts bind the layout:
+
+- The repository is `~/Development/AgenticOrchestration/ResearchSkills`, with
+  colocated Git and Jujutsu. Its public remote is
+  `https://github.com/Linkuistics/ResearchSkills`.
+- The source directory is `plugins/research`. It is also the Claude Code plugin
+  root.
+- The manifest is `plugins/research/.claude-plugin/plugin.json`. Its `name` is
+  `research`, so the native namespace is `research:`. A moved kind is
+  `research:grove-research-a` under a native Claude Code installation.
+- The Ravel roots are `["skills"]`. ResearchSkills has no craft skills, so it
+  has no craft directory.
+- A later pack with craft skills adds `craft/` beside `skills/`. Its manifest
+  lists `"skills": ["./craft/"]`, and its Ravel roots are `["skills", "craft"]`.
+  Claude Code scans `skills/` by default and adds each listed directory.
+- The repository root holds what the pack does not deliver: the licence text,
+  the README, the Taskfile and tool configuration.
+- Nothing writes build output or a cache inside the source directory. The
+  pack's checks write their cache to `.cache/` at the repository root, which
+  Git ignores.
+- Each relative symlink stays inside the source directory. Ravel refuses an
+  absolute or escaping link.
+- No Git attribute changes the bytes of a checkout, such as a filter or an
+  end-of-line conversion.
+
+Core already has this shape. `plugins/grove/` is its source directory and its
+plugin root, with the root `skills`. One shape gives one form of Ravel record,
+one form of marketplace entry and one form of runner input.
+
+The source directory is a subdirectory for three reasons:
+
+- Ravel captures the whole source directory except `.git` and `.jj`, whatever
+  an ignore file says. A repository-root source would put the README, the
+  Taskfile and any cache into each capture. Its `resourceDigest` would then
+  change with edits that deliver nothing.
+- The installer reconciles links by the path segment `plugins/<plugin>/skills/`.
+  The trial runner names a source by its `plugin` path. Both work for an
+  external pack without a change.
+- One repository can ship a second plugin. WritingSkills and PersonalSkills
+  each need one for their native residue, as the
+  [owner delivery design](owner-skill-delivery.md#native-residue) states.
+
+The design rejected these alternatives:
+
+- **The repository root as the source directory.** It allows the simpler
+  `github` marketplace source. It also captures tooling and caches, and an
+  edit of the README changes the identity of the pack.
+- **`kinds/` instead of `skills/`.** It needs a manifest path, and it differs
+  from core for no gain.
+- **The plugin name `grove-research`.** It reads as the name of a kind skill.
+  The name `research` equals the Ravel source ID of the owner design, so one
+  token names the pack on both routes.
+
+The plugins reference states no rule for two installed plugins with one
+manifest name. A user who also installs another plugin named `research` can
+meet that conflict.
+
+### The family procedure
+
+`references/research.md` moves from the spine to
+`plugins/research/skills/research-family/SKILL.md`. Its body stays byte for
+byte. The file gains this frontmatter and nothing else:
+
+```yaml
+---
+name: research-family
+description: The procedure that the research-a and research-b session kinds share — what a survey owes and what the pair owes each other. Use when the grove-research-a or grove-research-b skill directs you here.
+harnesses: [any]
+---
+```
+
+These rules bind every family skill:
+
+- A family skill is named `<family>-family`. It never has the `grove-` prefix.
+  A skill named `grove-<name>` is a kind by definition, so a prefixed name
+  would add a kind with no charter that a leaf could launch.
+- A family skill sets no `disable-model-invocation`. On Claude Code that key
+  stops the model from loading the skill, which would block the member's
+  directed load.
+- The family skill is the only copy of the family file. No member holds a copy
+  or a link.
+
+`research-a` and `research-b` load the family skill after the spine.
+`combine-research` does not load it, because it does not load
+`references/research.md` today. Its own `SKILL.md` carries its rules. The move
+changes no charter of any kind.
+
+The family file becomes a skill, and not a resource inside a skill, for this
+reason. A load by name works the same way under a native namespace and under
+directory delivery. It also gives the agent the directory of the loaded skill.
+A resource needs the directory of the skill that holds it. On a native route,
+the agent finds that directory only by loading that skill.
+
+The design rejected these alternatives:
+
+- **The file inside one member's skill.** The other member would have to load
+  that member's `SKILL.md` to find the directory, and that file states the
+  wrong identity.
+- **A file outside every skill, reached by `../`.** Ravel permits such a path
+  inside one source. A native plugin gives no stable path between two skills,
+  and a symlink install resolves it only by its physical path.
+- **A symlink in each member.** A checkout with `core.symlinks=false` writes a
+  link as a regular file that holds the target.
+- **A family skill whose `SKILL.md` points at `references/research.md`.** It
+  adds a read and gains nothing.
+- **The file in the spine.** The root brief moves the research family out of
+  core.
+
+### References between skills
+
+These rules bind the text of every pack:
+
+1. A pack names another skill by its bare name, in a directed load: "Load the
+   `<name>` skill". The runner reads that form as an edge.
+2. Pack text never writes a plugin-qualified alias, for core or for its own
+   pack. After the directed loads, the text states the namespace rule in the
+   words of the mandate.
+3. A skill-relative path names a supporting resource. It resolves in the
+   referring file's own skill first. Where that skill has no such file, the
+   path resolves in a skill that the same file loads. Try the loaded skills in
+   the order of the loads.
+4. The path of a supporting resource stays inside the skill that it resolves
+   in. It never climbs out with `../`.
+5. A directed load that crosses a pack boundary has one more sentence. It sends
+   the session to the launch prompt's rule for a missing kind skill.
+
+A link from a skill to a document outside its source directory is a repository
+link. No delivery route makes it readable, and the runner does not check it.
+Normative text never depends on such a link.
+
+A pack move changes the namespace of a skill, which is why the mandate removed
+its fixed alias. An alias in pack text would be wrong after a later move, a
+rename or an installation under another name. Under directory delivery a
+qualified name is still only a name request, so the alias gains nothing there.
+
+Rule 3 keeps the meaning of core's text. Each core kind loads the `grove`
+skill and then names a spine resource, such as `references/review.md`. Under
+rule 3, that path resolves in the spine, as it does today.
+
+Rule 5 follows from the reworked
+[dependency decision](../adr/a-skill-states-what-binds-without-its-dependencies.md).
+Inside one pack, the loaded skill ships with the loading skill and cannot be
+absent. Across packs, an installation can omit the other pack. The launch
+prompt already defines the outcome of missing guidance for the kind skill. The
+sentence extends that outcome to the skills that the kind loads.
+
+The moved kinds change only their opening imperative. `research-a` and
+`research-b` open as follows. Each keeps its own last paragraph, which names
+its half:
+
+```markdown
+**Load the `grove` skill now.** Then load the `research-family` skill. These
+are bare skill names. If your harness requires a plugin namespace, use the
+namespace under which each skill is actually installed. Do not assume one. If
+you cannot find or read a skill named here, follow the launch prompt's rule for
+a missing kind skill.
+
+`research-a` and `research-b` are one family with one procedure, and the
+`research-family` skill is it: the goal, what the survey owes, what the pair
+owes each other, and which output path each half writes. This skill states none
+of it a second time. Everything else — the constraints, the bootstrap, and the
+execute, decompose, retire and commit procedures — is the spine's.
+```
+
+`combine-research` opens as follows. The rest of its body stays:
+
+```markdown
+**Load the `grove` skill now.** It is the shared spine and holds everything
+this kind does not own: the constraints, the bootstrap, and the execute,
+decompose, retire and commit procedures. `grove` is the bare skill name. If your
+harness requires a plugin namespace, use the namespace under which `grove` is
+actually installed. Do not assume one. If you cannot find or read the `grove`
+skill, follow the launch prompt's rule for a missing kind skill. What follows is
+`combine-research`'s, and is stated nowhere else.
+```
+
+### Rule placement
+
+This session reworks three decision records:
+
+- [Every normative rule has one owner](../adr/corpus-rules-have-one-owner.md).
+  Rule 2 now files a family's rule in the family file of the pack that ships the
+  family's kinds. In core that file is in the spine's `references/`. In an
+  external pack it is the pack's family skill. An edge to a family skill is a
+  directed load by name.
+- [A skill states what binds when its dependencies are absent](../adr/a-skill-states-what-binds-without-its-dependencies.md).
+  A directed load is a required dependency, not a citation. Across packs, the
+  pack declares that dependency to each route, and the loading text states the
+  outcome of its absence.
+- [A behavioural rule is covered by asserting its delivery](../adr/behavioural-coverage-asserts-delivery.md).
+  The composed loaded path follows directed loads across the supplied packs.
+
+The new rule is true before the move and after it. Before the move, the
+research kinds ship in core, so their family file is in the spine.
+
+A move changes the moved files, their rows in the manifests and every reference
+to them in one change. It copies no family procedure and changes no charter.
+
+grove-research-removal-k158 makes these changes, because they describe the
+moved state:
+
+- **The spine's family-file list.** The spine's `SKILL.md` lists the family
+  files that the spine carries: `review.md`, `integrate-review.md` and
+  `editorial.md`. It drops `research.md`. It names no family skill, because a
+  rule of one family has the class `none` in the condition register. The list
+  states no count of its files, so a later move changes only the list.
+- **The fatness rule of `plugins/grove/README.md`.** A rule that one family
+  owns is one file in the family's pack. In core it is a file in the spine's
+  `references/`, and in an external pack it is the pack's family skill. Each
+  member's skill directs a load of it by name. The lists of fat and thin kinds
+  name only core's kinds, and the inventory names the family files of core's
+  families.
+- **The glossary entry "Family reference file".** The entry states that the
+  file lives in the pack that ships the family's kinds. In core it names the
+  spine's `review.md`, `integrate-review.md` and `editorial.md`. In
+  ResearchSkills it names the family skill `research-family`. The spine's
+  `SKILL.md` lists only the spine's own family files.
+- **The glossary entry "Spine skill / kind skill".** It gains the family skill
+  as a third species. A family skill is not a kind, because its name has no
+  `grove-` prefix.
+- **The `grove` plugin descriptions.** The manifest and the marketplace entry
+  of the `grove` plugin drop "research" from their list of family files.
+
+The rules that name research labels in core stay in core.
+`references/execute.md` states the review allowance of each kind, and
+`references/decompose.md` states when a design or planning session cuts a
+research pair. Neither rule binds only the research family, so the placement
+function keeps both in the spine.
+
+### The kind table
+
+`TASK-FORMAT.md` stops counting the whole set of kinds. Kinds ship in several
+packs, and a kind exists if and only if its skill is installed. A count in core
+would claim facts about other repositories that core's tests cannot read.
+
+grove-research-removal-k158 makes these changes:
+
+- The heading "The twenty-three kinds" becomes "The kinds".
+- The table keeps every row and gains a last column, "pack". Core's rows name
+  `grove`. The research row names `ResearchSkills`.
+- The sentence that adds the rows up to "twenty-three" goes. A sentence states
+  that the methodology's kinds ship in several packs, so the page keeps no
+  count.
+- A kind skill directs a load of its family's file in the family's pack, not
+  in the spine.
+
+`the_guidance_counts_the_kind_set_correctly` becomes a check in two parts. Each
+core `grove-<kind>` skill has a table row whose pack is `grove`. Each label in
+such a row has a core skill. The check also keeps its sweep for a phrase that
+counts the whole set, now for every cardinal.
+
+No mechanical check covers the external rows. A pack that adds or removes a
+kind must change core's table by hand. The research row names
+`ResearchSkills`, and the pack's README lists its kinds. The design accepts
+that gap. An assertion in the aggregate would fail for any third-party pack
+whose kinds core does not describe, and kinds are open.
+
+### Conformance
+
+#### Inputs
+
+The runner `plugins/grove/conformance.sh` keeps its current arguments and adds
+two:
+
+| Argument | Meaning |
+| --- | --- |
+| `--pack <dir>` | Adds an external pack. `<dir>` is its source directory, which holds `skills/` and `conformance/rules.tsv`. Repeat it for each pack |
+| `--alone` | Checks exactly one `--pack` without core. The runner then reads neither core's skills nor core's manifest |
+
+Without `--pack`, the runner checks core alone, as it does today. With
+`--pack` and without `--alone`, it checks the aggregate of core and each named
+pack. `--skills` and `--rules` keep their meaning for core.
+
+An optional `conformance/removed-paraphrases.tsv` beside a pack's manifest
+lists the retired paraphrases of that pack's rules.
+
+#### What a pack checks alone
+
+A run with `--alone` checks only what the pack's own files decide:
+
+- Each row of the pack's manifest names an owner inside the pack, and the owner
+  file exists.
+- Each pinned phrase of the pack's rows has its owner as its only site among
+  the pack's files.
+- Each behavioural row of the pack is on the loaded path of each pack kind that
+  it binds. The path follows directed loads inside the pack only.
+- Each skill-relative path in the pack resolves by the rules above.
+- Each directed load names a skill of the pack, or the runner lists it as an
+  external edge. An external edge is not a failure in this mode.
+
+A pack alone therefore passes without core's content. It needs core only for
+the runner.
+
+#### What the aggregate checks
+
+The aggregate is the union of the skills of core and of each supplied pack:
+
+- No two packs ship skills of the same name.
+- Each directed load names a skill of some supplied pack.
+- Each skill-relative path resolves by the rules above, across packs.
+- A loaded path holds skill-qualified files, such as `grove/SKILL.md` and
+  `research-family/SKILL.md`. Its first file is the kind's own `SKILL.md`.
+  It follows directed loads and skill-relative paths across packs. The spine is on
+  a kind's path only because the kind loads it.
+- Each row of each manifest names an owner in its own pack, and the owner file
+  exists. No two manifests hold a row with one rule ID.
+- Each pinned phrase has its owner as its only site among the files of all
+  supplied packs. The spine's `SKILL.md` states no row's phrase.
+- Each behavioural row is on the path of each kind that it binds, in any pack.
+  `static(all)` binds every kind of the aggregate.
+- The retired paraphrases of every pack are absent from every pack.
+
+The runner reads directories and runs no VCS command. The task that supplies a
+pack checks its revision, as [The checker without a copy](#the-checker-without-a-copy)
+states.
+
+#### Manifest changes
+
+pack-conformance-runner-k156 and grove-research-removal-k158 make these
+changes:
+
+- A row whose owner file is absent fails. The class "pending" was an aid for
+  the migration, and its count is zero. Without this rule, a row left in core
+  after its owner moved would pass in silence.
+- `static(23)` becomes `static(all)`. The runner drops the unused `static(22)`.
+- `static({a,b})` accepts a list of kinds, separated by commas.
+- The runner keeps no named set for the family of an external pack. The named
+  set `research` goes with its rows. `editorial` becomes an explicit list when
+  its family moves.
+- The eight rows that the moving files own move to
+  `plugins/research/conformance/rules.tsv`. The six rows of `research.md` take
+  the owner `research-family/SKILL.md` and the load `static({research-a,research-b})`.
+  The two rows of `combine-research` keep their owner and their load.
+
+#### The checker without a copy
+
+No pack copies Grove's runner. A pack's `Taskfile.yml` records two variables:
+
+| Variable | Value |
+| --- | --- |
+| `GROVE_REPOSITORY` | The Git URL of Grove. The default is `https://github.com/Linkuistics/grove.git` |
+| `GROVE_COMMIT` | The full commit ID of the Grove revision that the pack checks against |
+
+The reusable tasks of a pack are these:
+
+| Task | Effect |
+| --- | --- |
+| `grove:checkout` | Makes a plain Git checkout of `GROVE_COMMIT` under `.cache/grove/<commit>`, with Git's global and system configuration off. It reuses that checkout only when its `HEAD` is the commit and `git status --porcelain --ignored` prints nothing |
+| `check:conformance` | Runs the checkout's `plugins/grove/conformance.sh --pack plugins/research --alone`, then the same runner with `--pack plugins/research` for the aggregate |
+| `check:plugin` | Runs `claude plugin validate plugins/research`. It skips with a message when Claude Code is not installed |
+| `check` | Runs every check of the pack |
+
+One record gives both the checker and core's content at one revision. A
+change of the runner reaches the pack only when the pack changes its record.
+
+Grove checks the other direction. While Grove hosts the marketplace, its
+marketplace entry for a pack is Grove's record of that pack's revision. A Grove
+task `check:packs` reads `url`, `path` and `sha` from each `git-subdir` entry.
+It makes a plain checkout of `sha` under `target/external-packs/<plugin>/<sha>`,
+with the same isolation and reuse rule. It then runs the pack alone and the
+aggregate with Grove's working tree.
+
+`scripts/check.sh` runs `task check:packs` as a principal check. A `git-subdir`
+entry without `sha` fails that task, because Grove checks only exact revisions.
+The first run needs the network, and later runs reuse the cache.
+
+When repository-moves-k5 moves the marketplace out of Grove, Grove keeps a
+record of its own with the same fields. The marketplace repository then checks
+its own pins.
+
+A change that breaks a pack follows the expand and contract steps. The pack
+publishes a commit that works with the old core and with the new core. Each
+record then moves to the new revision.
+
+A move has the same order. The new pack's first commit records a Grove commit
+that still ships the moving files. That pack passes alone, and its aggregate
+reports each moving skill and each moved row as a duplicate. Grove then removes
+its copies and its rows, and it pins that first pack commit. A later pack commit records the removal commit, and its
+aggregate passes. The two pack commits have the same `plugins/research`, so
+both deliver the same bytes.
+
+The committed `GROVE_REPOSITORY` stays the public URL. A run that needs an
+unpublished Grove commit passes the local repository as a task variable.
+
+This workstream's Grove line is not on the remote, so each pack check of the
+research move is such a run until finish publishes `main`. Finish rebases the
+line onto `main`, which changes its commit IDs. discovery-rollout-k6 therefore
+moves ResearchSkills' record to a published Grove commit.
+
+#### Controls that must fail
+
+`conformance.test.sh` proves each control with a fixture external pack, not
+with the real research pack. Each control must be seen to fail:
+
+| Control | Mode | Expected failure |
+| --- | --- | --- |
+| A pack skill names a resource that the pack does not ship | Alone and aggregate | A missing file |
+| A family member no longer loads its family skill | Alone and aggregate | The family's rows are off that member's path |
+| A pack kind no longer loads `grove` | Aggregate | The core rows of `static(all)` are off that kind's path |
+| A directed load names a skill that no supplied pack ships | Aggregate | An unresolved load. The same pack alone lists an external edge |
+| A pack file states a pinned phrase of core | Aggregate | Two owners |
+| A core file states a pinned phrase of the pack | Aggregate | Two owners |
+| Two packs ship skills of one name | Aggregate | A duplicate skill |
+| Two manifests hold one rule ID | Aggregate | A duplicate row |
+| A manifest row names an absent owner, or an owner in another pack | Alone and aggregate | An unshipped owner |
+
+Two clean readings rule out a runner that always fails. The fixture aggregate
+passes, and core alone gives its earlier result.
+
+### Provenance and licences
+
+- **Licence.** ResearchSkills uses Apache-2.0, the licence of Grove. The moved
+  text is Grove's, and the author keeps one licence for it. The repository root
+  holds the full `LICENSE`. The plugin manifest sets `"license": "Apache-2.0"`,
+  so the delivered source directory names its licence.
+- **`LICENSES/`.** ResearchSkills has none. The moved files hold no passage
+  adapted from a third party. A later adapted passage adds `LICENSES/` inside
+  its own skill, as `grove-impl` does in core.
+- **History.** The moved files keep no Git history in the pack. Grove keeps
+  their whole history, across their earlier paths under `content/`. A filtered
+  copy would rewrite every commit ID and carry commits that describe unrelated
+  Grove work. The pack's first commit and its README name the Grove commit and
+  the four source paths.
+
+### Distribution
+
+- **The Claude Code marketplace.** Until repository-moves-k5, Grove's
+  `.claude-plugin/marketplace.json` lists the plugin with this entry:
+
+  ```json
+  {
+    "name": "research",
+    "source": {
+      "source": "git-subdir",
+      "url": "https://github.com/Linkuistics/ResearchSkills.git",
+      "path": "plugins/research",
+      "sha": "<published ResearchSkills commit>"
+    },
+    "description": "Grove's research kinds: the research-a and research-b survey pair, their shared procedure, and the combine step."
+  }
+  ```
+
+  A `git-subdir` source names one subdirectory of another repository. A
+  `github` source takes no path, so it cannot name `plugins/research`. The
+  entry name equals the manifest name, as the marketplace documentation
+  directs.
+  The `sha` gives native users the commit that Grove's aggregate check
+  accepted.
+- **The dependency on core.** The research manifest declares
+  `"dependencies": ["grove"]`. A bare name resolves in the marketplace that
+  lists the plugin, and an installation also installs a missing dependency. A
+  native user therefore receives the spine with the research kinds. A user who
+  takes core from Ravel and research natively also receives a native spine.
+- **The research manifest.** It sets `name`, `description`, `author`,
+  `repository`, `license`, `dependencies` and `keywords`. It sets no `version`.
+  Claude Code then derives the version from the commit, as the commit-SHA
+  version rule of the skills glossary states.
+- **The manual installer.** `plugins/install.sh` gains `--pack <plugin-dir>`,
+  which can repeat. It scans a named plugin directory as it scans a bundled
+  plugin, with the same eligibility and the same workspace guard. Link
+  reconciliation covers each plugin that the run scans. A run without
+  `--pack plugins/research` leaves the research links unchanged. The pack ships
+  no installer. Its README gives the command
+  `<grove checkout>/plugins/install.sh --pack <research checkout>/plugins/research`.
+- **The Codex marketplace.** It stays unchanged. It lists only the
+  technical-communication hooks plugin, and the research pack has no hooks.
+- **Ravel.** A directory route names the pack with a record beside core's:
+
+  ```json
+  { "id": "research", "type": "local", "path": "<checkout>/plugins/research", "roots": ["skills"] }
+  ```
+
+  The pack adds no mandatory file. Grove's mandate names the kind skill, and
+  the kind skill loads the rest.
+
+The marketplace that the owner's Claude Code follows tracks Grove's `main`.
+This workstream reaches `main` only in finish, so the new entry reaches the
+owner then. A native user also needs `/plugin install research@linkuistics`.
+discovery-rollout-k6 records that step.
+
+### Checkout boundary
+
+In any checkout of ResearchSkills, the source directory is `plugins/research`
+and the roots are `["skills"]`. The path does not depend on the tool that made
+the checkout.
+
+A checkout is accepted by its `resourceDigest`, as the
+[owner delivery design](owner-skill-delivery.md#pack-checkouts) states for each
+source. `ravel skills resolve --json` gives it for a clean checkout of the
+accepted commit. The digest covers `plugins/research` only. An edit of the
+README, the Taskfile or the licence text therefore leaves it unchanged, and an
+edit inside the source directory changes it.
+
+Each accepted checkout also records the Git tree ID of the source directory,
+from `git rev-parse <commit>:plugins/research`. The tree ID identifies the
+committed files. The digest identifies the captured files. An equal tree ID
+never admits a different digest.
+
+### Proof shape
+
+A source record of a trial case keeps `id`, `plugin` and `roots`. It gains an
+optional `external` object:
+
+```json
+{
+  "id": "research",
+  "plugin": "plugins/research",
+  "roots": ["skills"],
+  "external": {
+    "repository": "https://github.com/Linkuistics/ResearchSkills.git",
+    "commit": "<40 hexadecimal digits>"
+  }
+}
+```
+
+With `external`, `plugin` names the source directory inside that repository's
+checkout. The runner makes a plain Git checkout of `commit` under the trial's
+`sources/`, with the isolated Git configuration of the research recipes. It
+refuses before any launch when the commit is unknown, when `HEAD` differs or
+when the checkout is not clean. `moveAway` works on an external source.
+
+The record of each run names these facts for an external source:
+
+- The repository and the commit.
+- The checkout path.
+- The Git tree ID of the source directory.
+- The `resourceDigest` of the source.
+
+A run option `--working-copy <id>=<dir>` replaces the checkout of one source
+with a working copy. The record then names the working copy's path, its Jujutsu
+change and commit, and whether the working-copy change is empty. One case
+therefore serves the checkout proof and the working-copy proof.
+
+## Test seams
+
+- **The runner.** `conformance.test.sh` proves each
+  [control](#controls-that-must-fail) with a fixture pack, and core alone keeps
+  its result.
+- **The pack.** `task check` passes from a clean checkout of the published
+  ResearchSkills commit.
+- **Grove.** `bash scripts/check.sh` passes, with `task check:packs` over the
+  pinned ResearchSkills commit.
+- **The kind table.** The renamed test passes, and a deliberate count of the
+  whole set fails it.
+- **The installer.** `install.test.sh` installs a fixture pack with `--pack`,
+  and reconciles its links.
+- **Directory delivery.** research-directory-trials-k160 runs the research
+  cases in both harnesses, from a plain checkout and from the working copy.
+- **Native namespace.** research-native-namespace-k161 loads
+  `research:grove-research-a` in Claude Code from Grove's bare-name mandate.
+
+## Proven facts
+
+external-pack-proof-k162 fills this section. Later pack moves read it before
+the work of repository-moves-k5. It records these facts, each with its
+evidence:
+
+| Fact | Value |
+| --- | --- |
+| The published ResearchSkills commit | Recorded by the proof |
+| The tree ID and `resourceDigest` of `plugins/research` at that commit | Recorded by the proof |
+| The Grove commit with no research files | Recorded by the proof |
+| The Grove commit in ResearchSkills' `GROVE_COMMIT` | Recorded by the proof |
+| The Ravel 2.0 build of the trials and of the check | Recorded by the proof |
+| The native spelling observed in Claude Code | Recorded by the proof |
+| The trial records of both harnesses | Recorded by the proof |
+| The reusable tooling: the runner invocation, the Taskfile tasks, the plugin manifest and the trial-runner fields | Recorded by the proof |
+| Each difference between this contract and the proven state | Recorded by the proof |
+
+## Out of scope
+
+- **The other pack moves.** repository-moves-k5 plans them from this contract
+  and its proven facts.
+- **The relocation of the marketplace.** repository-moves-k5 moves it to
+  `~/Development/Delivery/skill-marketplace`.
+- **Checks of craft skills.** The methodology's conformance covers kind
+  directories. A pack's craft skills keep the checks of their own repository.
+- **The editorial family.** It stays in the spine until WritingSkills moves.
+- **A kind registry.** Neither executable reads a pack to admit a kind. The
+  conformance checks read content only.
+- **Simpler review and integration.** That work is
+  [issue #27](https://github.com/Linkuistics/grove/issues/27).

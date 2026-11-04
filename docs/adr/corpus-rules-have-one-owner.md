@@ -1,11 +1,14 @@
 # Every normative rule has one owner
 
 A rule in the methodology is filed by **when a session meets it**, not by what
-it is about. The register that holds the rules is the `grove` plugin. That
-plugin has a shared **spine** skill and one `grove-<kind>` skill for each kind.
-Until `plugin-kind-skills-k17`, the register was the binary's embedded
-`content/`. That move did not change the function below. It changed only the
-names of its outputs.
+it is about. The register that holds the rules is the methodology's set of skill
+packs. Core's `grove` plugin has the shared **spine** skill and the kind skills
+of core. An external pack has its own `grove-<kind>` skills, and a family skill
+for each family that it ships. Until `plugin-kind-skills-k17`, the register was
+the binary's embedded `content/`.
+
+Neither that move nor the move of a family to an external pack changed the
+function below. Each move changed only the names of its outputs.
 
 Each rule records two facts. `Bound(R)` is the set of session kinds that must
 obey it. `Occasion(R)` is a **non-empty set** of moments at which it applies.
@@ -16,7 +19,9 @@ the first match wins:
 1. `Bound(R) = ∅` or `Occasion(R) = {none}` → the rule is not normative. It
    leaves the skill set.
 2. `Bound(R)` is one kind → that kind's own `grove-<kind>` skill. `Bound(R)` is
-   one family → the family's single file in the spine. The families are the
+   one family → the family's single file, in the pack that ships the family's
+   kinds. In core that file is in the spine's `references/`. In an external
+   pack it is the `SKILL.md` of the pack's family skill. The families are the
    five reviews, the five integrations, the two research halves and the four
    editorial stages. Each member's skill directs a load of that file by name.
 3. `artifact:A ∈ Occasion(R)` → the format file of A.
@@ -48,9 +53,11 @@ would be a hand assignment that looks like a derivation.
 static path is now its own skill's `SKILL.md` and the spine's `SKILL.md`. The
 check reads that path off the shipped bytes, and no module of the binary fixes
 it. Every other rule records the file whose sentence triggers it. Where that
-file is **not** the owner, it must **actually name the owner's path**. A test
-that asks only whether the recorded file can load certifies the failure that it
-exists to catch.
+file is **not** the owner, it must **actually name the owner's path**.
+
+Where the owner is the `SKILL.md` of another skill, the edge is a directed load
+of that skill by name. A test that asks only whether the recorded file can load
+certifies the failure that it exists to catch.
 
 **A rule that a condition inside its own owner triggers records no edge.** A
 condition in the owner file reaches about half of the conditional rules. The
@@ -65,9 +72,13 @@ reachability neither needs nor checks.
 What the condition register may say about a rule that it does not own is a
 separate decision: [a restatement declares its
 class](restatement-declares-its-class.md).
-`plugins/grove/conformance/rules.tsv` holds the inventory of every normative
-rule, with its owner, class, load predicate and test.
-`plugins/grove/conformance.sh` enforces it.
+
+Each pack's `conformance/rules.tsv` holds the inventory of the rules that the
+pack's files own, with each rule's owner, class, load predicate and test. Core's
+inventory is `plugins/grove/conformance/rules.tsv`. `plugins/grove/conformance.sh`
+enforces a pack's inventory alone, and the inventories of core and the supplied
+packs together. The [external pack contract](../specs/external-pack-contract.md)
+states both checks.
 
 ## Why filing by topic cannot work
 
@@ -108,7 +119,7 @@ decide a home. A design that says otherwise ends up with the second input
 hidden in it, unstated.
 
 **The delivery boundary stops being a second rule.** A harness installs only
-the plugin's skills. A `docs/` path is therefore reachable from a session inside
+the skills of the packs. A `docs/` path is therefore reachable from a session inside
 this repository and from no session anywhere else. The rule *normative material
 ships in the skill set* is then the first case of the function, read backwards.
 A rule may move to `docs/` if and only if its `Bound` is empty or its
@@ -122,7 +133,8 @@ it. The **cross-file** records form a graph of edges, and each chain must end at
 a static path.
 
 That graph is the **composed loaded path**. `plugins/grove/conformance.sh`
-computes it as the closure of what the shipped files actually name. A rule whose
+computes it as the closure of what the shipped files actually name by path or
+load by name, across the supplied packs. A rule whose
 chain does not reach a static path ships, but it is deleted in effect. When this
 record was written, `content/driving.md` did that to two disciplines of `impl`:
 source citation and repository claims. They were in a file that no `impl`
@@ -167,6 +179,13 @@ with a dishonest one. Nothing detects that, and nothing claims to.
 
 ## Considered options
 
+- **Keep each family file in the spine, also for a family whose kinds ship in
+  an external pack.** It is rejected because the pack's kinds would then depend
+  on core for their own family's rules. A change of the family would need a
+  release of core. The pack could not check its family's rules alone, and core's
+  inventory would describe files in another repository. Reopen it if a family's
+  kinds ever ship in several packs. The family file would then have no single
+  pack.
 - **Take `Bound(R)` alone, and map "every kind" to the loop-step reference for
   the step that the rule governs.** The option read *all nineteen kinds* while
   the binary held a set of nineteen to quantify over. A kind exists **if and

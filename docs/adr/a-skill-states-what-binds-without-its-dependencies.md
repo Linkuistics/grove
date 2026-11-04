@@ -1,18 +1,31 @@
 # A skill states what binds when its dependencies are absent
 
 A skill that cites another skill must state what binds when that skill is
-absent. Grove's methodology is itself a skill set now. It is the `grove` plugin,
-with a shared spine and one `grove-<kind>` skill for each kind. It cites
-`linkuistics` skills from a separate plugin. Users install the two plugins
-independently, through the marketplace or by hand, and an installation can
-omit one. Every `linkuistics:` citation must therefore stay meaningful when its
-target skill is absent.
+absent. Grove's methodology is itself a set of skill packs now. Core's `grove`
+plugin has the shared spine and the kind skills of core. An external pack can
+ship other kind skills. The methodology cites `linkuistics` skills from a
+separate plugin.
 
-**A skill's dependency on its own spine is a different relation, and this
-record does not cover it.** A `grove-<kind>` skill directs a load of the `grove`
-spine, and the two ship in one plugin. The spine cannot be absent while the
-member is present, so the member has nothing to state. A skill from *another*
-plugin can be absent, and that is the case below.
+Users install the methodology's packs and the `linkuistics` plugin
+independently, through the marketplace or by hand, and an installation can omit
+the plugin. Every `linkuistics:` citation must therefore stay meaningful when
+its target skill is absent.
+
+**A directed load is a required dependency, not a citation.** A `grove-<kind>`
+skill directs a load of the `grove` spine. A member of a family in an external
+pack also directs a load of its family skill. The session cannot do its work
+without a skill that it must load, so no fallback can state what binds instead.
+
+Inside one pack, the loaded skill ships with the member. It cannot be absent
+while the member is present, so the member has nothing to state. Across packs,
+an installation can omit the pack that holds the loaded skill. The
+[external pack contract](../specs/external-pack-contract.md) then requires two
+things. The pack declares the dependency to each delivery route. The loading
+text sends the session to the launch prompt's rule for a missing kind skill.
+
+Aggregate conformance proves that each such edge resolves in the supplied
+packs. A skill that a member only *cites* can be absent on any route, and the
+rest of this record is about that case.
 
 **Every citation states what binds in its absence.** The question that decides
 it applies to each citation and has one form. *Does the absence change what a
@@ -54,6 +67,13 @@ not make the methodology's rules conditional on an installer. Marketplace
 entries stay independent, and a grove tree must stay legible with Grove
 deleted. A methodology that cannot state its own rules would violate that
 walk-away property.
+
+**Rejected: extend the mandate's rule for a missing skill to each skill that a
+kind loads.** The rule rides the launch prompt because a missing kind skill
+cannot state it. A kind skill that is present can state the outcome for the
+skills that it loads. The too-late test admits to the prompt only a sentence
+that the skill cannot repair after it loads. This sentence therefore belongs in
+the kind skill.
 
 **Rejected: defer everything, and state nothing locally.** This was the earlier
 state, and it caused a measured defect, not a hypothetical one. The ADR

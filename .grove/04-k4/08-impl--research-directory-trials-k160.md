@@ -24,10 +24,10 @@ directory outside the Grove working copy, the ResearchSkills working copy and
 the checkout. Each run uses the actual session and delegate read permissions.
 
 - A `research-a` mandate names the bare kind skill. The agent reads the kind
-  skill, the family procedure in the pack and the spine before it acts.
+  skill, the spine and the `research-family` skill before it acts.
 - A delegate reads a research resource from the retained directories.
-- A case with the ResearchSkills working copy as a `local` source loads the
-  same kind.
+- A run with `--working-copy research=<dir>` loads the same kind from the
+  ResearchSkills working copy.
 - A moved checkout refuses as `skill_source_missing` before any worker. A
   missing root refuses in the same way. A fixture run through the public
   `ravel start-session` boundary is enough for these refusals, because the

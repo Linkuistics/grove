@@ -393,25 +393,20 @@ cleaning native links cannot change a live launch's ending contract.
 
 ## Resources and conformance
 
-Packs contain their required procedures, templates, provenance and licences.
-Directory delivery preserves the resource layout. A relative supporting-resource
-reference resolves against the skill that owns it. A reference to another pack
-names its skill and resource. The agent locates that skill through the active
-delivery route and resolves the resource from that skill's directory. No sibling
-checkout, native directory or Grove cache layout is assumed.
+The [external pack contract](external-pack-contract.md) owns the layout of a
+pack, its references between skills, its family skills, its licences and its
+conformance. This section keeps what delivery adds to that contract.
+
+Directory delivery preserves the resource layout of each source. The agent
+locates another skill through the active delivery route, and it reads that
+skill's resources from that skill's directory. It assumes no sibling checkout,
+native directory or Grove cache layout.
 
 The [single-owner](../adr/corpus-rules-have-one-owner.md) and
 [restatement](../adr/restatement-declares-its-class.md) decisions still govern
-normative prose. Required dependencies must be reachable. Optional craft
-citations state what binds when absent. A move changes ownership and references
-together, without duplicating a family procedure or redesigning kinds.
-
-Each pack checks its own rules and resources. Aggregate conformance checks the
-composed loaded paths across the supplied core and external packs, required
-cross-pack edges and duplicate normative owners. These are content checks over
-actual supplied artefacts, not a registry used by either executable to admit a
-kind. Ravel delivering readable directories is not proof that prose references
-work or that an agent follows them.
+normative prose. Conformance checks content over the supplied packs. Neither
+executable reads a pack to admit a kind. Ravel delivering readable directories
+is not proof that prose references work or that an agent follows them.
 
 Native installer eligibility metadata retains its installer meaning. Directory
 injection does not imply harness filtering or installation of native hooks.
@@ -520,7 +515,7 @@ builds and the results.
 | Resource lifetime | A reader keeps its original resolved directories while sources/configuration change. Subsequent launches can receive the new source view. |
 | Standalone | Grove sends neither `--confine` nor `--runtime-read` to Ravel 1.1 or 2.0. On the directory route of 2.0, the agent reads the required resources outside cwd. A write to a snapshot file fails by its file mode. With injection disabled, the agent reads its native roots. A force-stop publishes no output. A standalone prompt names no guidance, so Grove does not require a report or a force-stop. The confined results of 2026-11-03 and earlier, such as `missing-kind-confined-20261103T062817Z`, are historical, because the human withdrew confinement on that day. |
 | Open tree behaviour | Existing custom-kind, handle, review/integration, result and epoch tests pass. No availability check enters tree verbs or launch admission. |
-| Conformance | Core, external-pack and aggregate checks use exact supplied artefacts. Removed required resources/edges and duplicate owners fail deliberate controls. |
+| Conformance | Core, external-pack and aggregate checks use exact supplied artefacts. Removed required resources/edges and duplicate owners fail deliberate controls. The [external pack contract](external-pack-contract.md#controls-that-must-fail) lists the controls. |
 | Installed distribution | Archives and formula tests check separate packages, both caller-asset sets with their runtimes, both configuration formats, both setup routes and no automatic native mutation. Exercise fresh install and upgrade at each tap state A to D of the coordinated release. At each state, Grove's dependency always resolves to an admitted Ravel major, and feature advertising follows its publication. |
 | Native names after a pack move | From the first external pack onward, native Claude Code loads a moved kind under the plugin's actual namespace from Grove's bare-name mandate. Repeat directory loading with native copies absent. The mandate asserts no predetermined plugin namespace and adds no kind registry. |
 | Actual harness behaviour | Claude Code and Codex each discover an applicable craft skill from a task that does not name it, and read it before the governed action. |
@@ -545,12 +540,12 @@ holds the trials and describes their runner.
 Implementation updates installation guidance, architecture, glossary,
 source-exact books, release checks and both caller-asset sets alongside the
 behaviour they ship. The [evidence and handoff](../grove-skill-delivery-design-evidence.md)
-identify inspected consumers. Research remains the first external-pack proof
-and settles reusable pack tooling before later moves.
+identify inspected consumers. Research remains the first external-pack proof.
+The [external pack contract](external-pack-contract.md) records the reusable pack
+tooling for later moves.
 
 Ravel's reviewed contract at `822c0ed2`, this adoption and its integrated
 focused review supply dependent planning. The TypeScript contract at `b93bb927` supplies
-intent only, and the generated-catalogue proposal is historical input. Internal test wiring,
-aggregate conformance tooling and measured harness delegate behaviour remain
-implementation questions. No kind redesign, stop command, review simplification,
+intent only, and the generated-catalogue proposal is historical input. Internal test wiring and
+measured harness delegate behaviour remain implementation questions. No kind redesign, stop command, review simplification,
 repository relocation or native cleanup occurs here.

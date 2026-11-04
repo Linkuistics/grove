@@ -244,7 +244,8 @@ of scope.
   and the specs
   [`doubt-grove-review-mechanics`](docs/specs/doubt-grove-review-mechanics.md),
   [`module-decomposition`](docs/specs/module-decomposition.md),
-  [`harness-selection-and-execution`](docs/specs/harness-selection-and-execution.md) and
+  [`harness-selection-and-execution`](docs/specs/harness-selection-and-execution.md),
+  [`external-pack-contract`](docs/specs/external-pack-contract.md) and
   [`walkthrough-books`](docs/specs/walkthrough-books.md). The walkthrough records
   describe the book system and are **grove's while its validator is**.
   That holds because `crates/book-validation/` is a member of this workspace, and

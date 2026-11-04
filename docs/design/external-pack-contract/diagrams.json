@@ -1,0 +1,85 @@
+{
+  "title": "External pack contract — views",
+  "intro": "Proposed: how a skill pack outside Grove's repository joins the methodology, with ResearchSkills as the first pack. A review-design leaf reads the contract before the runner work. Graphs begin at Start here; numbered edges give the order of the steps.",
+  "groups": [
+    {
+      "id": "layout",
+      "title": "Layout",
+      "description": "One plugin layout for every pack: the plugin directory is the Ravel source directory and the Claude Code plugin root."
+    },
+    {
+      "id": "references",
+      "title": "References between skills",
+      "description": "Directed loads by bare name, inside one pack and across packs, and the outcome of a missing loaded skill."
+    },
+    {
+      "id": "conformance",
+      "title": "Conformance",
+      "description": "Each repository checks its own working tree against a pinned revision of the other, with Grove's runner and no copy."
+    },
+    {
+      "id": "distribution",
+      "title": "Distribution",
+      "description": "The native marketplace, the Ravel directory route and the manual installer, each from the published pack."
+    }
+  ],
+  "discussion": {
+    "title": "External pack contract for ResearchSkills",
+    "status": "Proposed — awaits its review-design leaf",
+    "summary": "external-pack-contract-k155 settled the layout, the family skill, the references, the conformance runs, the distribution and the checkout identity. The proof leaves record the proven facts.",
+    "diagramIds": [
+      "layout",
+      "edges",
+      "conformance",
+      "distribution"
+    ],
+    "updatedDiagrams": [
+      {
+        "id": "layout",
+        "summary": "Added the pack layout and the three readers of its source directory."
+      },
+      {
+        "id": "edges",
+        "summary": "Added the directed loads of the research kinds and the missing-skill outcome."
+      },
+      {
+        "id": "conformance",
+        "summary": "Added Grove's check and the pack's check, each against a pinned revision."
+      },
+      {
+        "id": "distribution",
+        "summary": "Added the marketplace entry, the Ravel record and the installer route."
+      }
+    ]
+  },
+  "diagrams": [
+    {
+      "id": "layout",
+      "group": "layout",
+      "title": "One source directory, three readers",
+      "source": "layout.mmd",
+      "caption": "plugins/research is the Ravel source directory and the Claude Code plugin root. The repository root holds what the pack does not deliver."
+    },
+    {
+      "id": "edges",
+      "group": "references",
+      "title": "Directed loads of the research kinds",
+      "source": "edges.mmd",
+      "caption": "Amber nodes ship in ResearchSkills and blue nodes ship in core. Each research kind loads the spine across packs. The pair also loads its family skill inside the pack. A loaded skill that is absent sends the session to the launch prompt's rule."
+    },
+    {
+      "id": "conformance",
+      "group": "conformance",
+      "title": "Two checks, each against a pinned revision",
+      "source": "conformance.mmd",
+      "caption": "Grove checks its working tree against the pack commit that its marketplace pins. The pack checks its working tree against a recorded Grove commit and runs that commit's runner."
+    },
+    {
+      "id": "distribution",
+      "group": "distribution",
+      "title": "Three routes from one published commit",
+      "source": "distribution.mmd",
+      "caption": "The native install brings the grove plugin through the dependency. The Ravel route reads a checkout that a tool outside Ravel made. The installer takes the pack's plugin directory."
+    }
+  ]
+}

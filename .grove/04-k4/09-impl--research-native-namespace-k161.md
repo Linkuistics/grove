@@ -20,12 +20,13 @@ under the plugin's actual namespace from Grove's bare-name mandate.
 ## Done when
 
 - An isolated Claude Code HOME adds the marketplace from a plain checkout of
-  this workstream's line at the removal commit. It installs the research
-  plugin and the `grove` plugin from that marketplace. The `skills` key is
+  this workstream's line at the removal commit. It installs the `research`
+  plugin from that marketplace. Record whether the dependency installed the
+  `grove` plugin. The `skills` key is
   absent from the Ravel settings, so only the native route supplies skills.
-- A Grove `research-a` launch with the bare-name mandate loads the kind under
-  its actual plugin namespace. The agent reads the family procedure and the
-  spine before it acts.
+- A Grove `research-a` launch with the bare-name mandate loads the kind as
+  `research:grove-research-a`. The agent loads the spine and the
+  `research-family` skill before it acts, under their actual namespaces.
 - The record names the marketplace commit, the installed plugin revisions,
   the Ravel build and the observations. A gap is a named gap with a
   disposition, never a pass.

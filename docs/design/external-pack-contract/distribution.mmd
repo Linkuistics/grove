@@ -1,0 +1,26 @@
+flowchart TB
+    S["Start here · Published ResearchSkills commit"]
+    subgraph native["Claude Code, native"]
+        M["Grove marketplace entry research<br/>git-subdir plugins/research, sha pinned"]
+        CC["Plugin research<br/>dependencies: grove"]
+        G["Plugin grove<br/>from the same marketplace"]
+        M -->|2 install| CC
+        CC -->|3 also installs| G
+    end
+    subgraph ravel["Ravel directory route"]
+        CK["Plain checkout<br/>made by a tool outside Ravel"]
+        RS["Source record<br/>path CHECKOUT/plugins/research<br/>roots skills"]
+        SN["Snapshot<br/>accepted by resourceDigest"]
+        CK -->|2| RS
+        RS -->|3 capture| SN
+    end
+    subgraph manual["Manual installer"]
+        WC["Clone of ResearchSkills"]
+        LN["Links in the Codex, Gemini<br/>and Pi skill folders"]
+        WC -->|"2 GROVE/plugins/install.sh<br/>--pack CLONE/plugins/research"| LN
+    end
+    S -->|1| M
+    S -->|1| CK
+    S -->|1| WC
+    classDef start fill:#16354a,color:#fff,stroke:#16354a,font-weight:bold
+    class S start

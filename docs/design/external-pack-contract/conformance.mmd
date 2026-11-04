@@ -1,0 +1,27 @@
+flowchart LR
+    subgraph grove["Grove's check · core changes, the pack is pinned"]
+        G0["Start here · Grove working tree"]
+        GM["marketplace.json<br/>research: url, path, sha"]
+        GT["task check:packs<br/>run by scripts/check.sh"]
+        GC[("target/external-packs/research/SHA<br/>plain checkout")]
+        GR["working tree's conformance.sh<br/>--pack ... --alone, then the aggregate"]
+        G0 -->|G1| GT
+        GM -->|G2 reads| GT
+        GT -->|G3 makes| GC
+        GT -->|G4 runs| GR
+        GC -.->|pack input| GR
+    end
+    subgraph pack["The pack's check · the pack changes, core is pinned"]
+        P0["Start here · ResearchSkills working tree"]
+        PV["Taskfile.yml<br/>GROVE_REPOSITORY and GROVE_COMMIT"]
+        PT["task check:conformance"]
+        PC[(".cache/grove/COMMIT<br/>plain checkout of Grove")]
+        PR["that checkout's conformance.sh<br/>--pack plugins/research --alone,<br/>then the aggregate"]
+        P0 -->|P1| PT
+        PV -->|P2 reads| PT
+        PT -->|P3 makes| PC
+        PC -->|P4 supplies runner and core| PR
+        P0 -.->|pack input| PR
+    end
+    classDef start fill:#16354a,color:#fff,stroke:#16354a,font-weight:bold
+    class G0,P0 start

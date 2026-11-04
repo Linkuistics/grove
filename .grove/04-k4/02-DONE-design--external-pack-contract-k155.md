@@ -85,7 +85,7 @@ The specification settles each question below with a decision and its reason:
 - **Proof shape.** The case field by which the trial runner names an external
   checkout and its commit. The trial record must name that commit.
 - **Evidence for later moves.** A section that the proof leaf fills with
-  proven facts. Later pack moves read it before repository-moves-k5 starts.
+  proven facts. Later pack moves read it before the work of repository-moves-k5.
 
 Also:
 
@@ -102,3 +102,97 @@ This contract governs every later pack move, so weigh a `review-design` leaf
 under the lazy-review rule. Use the Claude Code plugin documentation, not
 memory, for the marketplace source forms and namespaces. Do not change any
 skill file or create the repository in this leaf.
+
+## Decisions (running log)
+
+**Layout.** ResearchSkills keeps Grove's plugin layout. The source directory
+in any checkout is `plugins/research`, which is also the Claude Code plugin
+root. Its kind directory `skills/` is the only Ravel root. A later pack with
+craft skills adds `craft/` beside `skills/`, lists it in the manifest's
+`skills` paths and adds it as a second root. The repository root holds the
+licence, the README, the Taskfile and tool configuration, outside the source
+directory.
+
+**Why a subdirectory source.** Ravel captures the whole source directory
+except `.git` and `.jj`, and it ignores ignore files. A subdirectory keeps
+the Taskfile, caches and README out of the `resourceDigest` and out of a
+working-copy capture. The path `plugins/<plugin>/skills/` also matches the
+installer's link reconciliation and the trial runner's `plugin` field.
+
+**Plugin name.** The manifest name is `research`, so the native namespace is
+`research:`. It equals the Ravel source ID of the owner design. The name
+`grove-research` was rejected, because it reads as the name of a kind skill.
+
+**The family procedure.** `references/research.md` becomes the `SKILL.md` of a
+family skill named `research-family`, in the kind directory. Only frontmatter
+is added. `research-a` and `research-b` load it by name after the spine.
+`combine-research` does not load it today, so it keeps that. A family skill
+never has the `grove-` prefix, because such a name would make a kind.
+
+**Why a skill and not a resource.** Loading a skill by name works the same way
+under a native namespace and under directory delivery, and it gives the agent
+the skill's directory. A resource inside a member's skill would force the
+other member to load that member's `SKILL.md`. A file outside every skill has
+no stable path under a native plugin.
+
+**References.** Pack text names another skill by its bare name in the form
+"Load the `<name>` skill". It writes no plugin-qualified alias, for core or
+for the pack. A skill-relative path resolves in its own skill first, then in
+each skill that the same file loads. A kind whose load crosses a pack boundary
+points at the launch prompt's rule for a missing kind skill.
+
+**Rule placement.** A family file lives in the pack that ships the family's
+kinds. In core it is in the spine's `references/`. In an external pack it is
+the pack's family skill. An edge to a family skill is a directed load by name. The ADRs
+`corpus-rules-have-one-owner`, `a-skill-states-what-binds-without-its-dependencies`
+and `behavioural-coverage-asserts-delivery` change in this session.
+
+**The kind count.** `TASK-FORMAT.md` stops counting the whole set. Its table
+keeps every row and gains a pack column. The test checks the core direction
+and the absence of a count. The external rows have no mechanical check, and
+the specification states that trade-off.
+
+**Conformance.** The runner takes `--pack <dir>` for each external pack and
+`--alone` for one pack without core. Each pack keeps its own
+`conformance/rules.tsv`. The eight research rows move to ResearchSkills.
+Loaded paths become skill-qualified and follow directed loads. A row whose
+owner is absent fails, and so does a duplicate skill name across packs.
+
+**The checker without a copy.** A pack's Taskfile records a Grove repository
+and commit. Its check makes a plain checkout of that commit and runs that
+checkout's runner. Grove's check reads each external pack's `url`, `path` and
+`sha` from its marketplace entry, while Grove hosts the marketplace.
+
+**Provenance.** The licence is Apache-2.0, as in Grove. The plugin manifest
+names it. No `LICENSES/` directory exists, because the moved text has no
+third-party passage. History is not imported: the first commit and the README
+name the Grove commit and the four source paths.
+
+**Distribution.** Grove's marketplace lists `research` with a `git-subdir`
+source pinned by `sha`. The research manifest declares a dependency on
+`grove`. The manual installer gains `--pack <plugin-dir>`. The Codex
+marketplace stays unchanged, because it lists only a hooks plugin.
+
+**Checkout boundary.** In any checkout, the source directory is
+`plugins/research` with the root `skills`. A checkout is accepted by its
+`resourceDigest`, which covers only that directory. The committed tree ID of
+that directory is also recorded.
+
+**Proof shape.** A trial source record gains an optional `external` object
+with `repository` and `commit`. The record names the commit, the checkout
+path, the tree ID and the `resourceDigest`. A run option replaces one source
+with a working copy and records its commit and state.
+
+**Publication limit.** This workstream's Grove line is not on the remote. Until
+finish publishes it, a pack check that needs the new runner obtains Grove from
+the local repository. discovery-rollout-k6 advances the pack's record to a
+published commit.
+
+**Review.** The contract governs every later pack move, so it earns a
+`review-design` leaf. The leaf goes before pack-conformance-runner-k156, and
+this session spends no in-session reviewer.
+
+**Duplicate rule IDs.** A moved row keeps its rule ID. The aggregate therefore
+refuses one rule ID in two manifests. That check finds a row that stayed in core
+after its move. During a move, the first pack commit's aggregate reports each
+moving skill and each moved row as a duplicate, and the removal clears both.

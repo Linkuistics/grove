@@ -44,21 +44,24 @@ dependencies, and each handoff leaves Grove green:
 
 1. `external-pack-contract-k155` (design) settles the contract that every
    migration leaf depends on. Its leaf body lists the questions.
-2. `pack-conformance-runner-k156` extends Grove's checker to a single pack
+2. `external-pack-contract-k163` (review-design) reads that contract
+   adversarially. external-pack-contract-k155 cut it, because every later
+   pack move inherits the contract.
+3. `pack-conformance-runner-k156` extends Grove's checker to a single pack
    and to an aggregate. Core alone gives the same result. This is the expand
    step.
-3. `research-pack-repository-k157` creates and publishes ResearchSkills.
+4. `research-pack-repository-k157` creates and publishes ResearchSkills.
    Grove keeps its copies, so no consumer changes yet.
-4. `grove-research-removal-k158` removes the files from Grove. It reconciles
+5. `grove-research-removal-k158` removes the files from Grove. It reconciles
    the spine, the manifest, the tests, the marketplace, the installer and the
    documents in one change. This is the move.
-5. `trial-external-sources-k159` lets the trial runner take a source from an
+6. `trial-external-sources-k159` lets the trial runner take a source from an
    external checkout at a commit.
-6. `research-directory-trials-k160` runs the directory proof in both harnesses
+7. `research-directory-trials-k160` runs the directory proof in both harnesses
    with native copies absent.
-7. `research-native-namespace-k161` runs the native Claude Code proof under the
+8. `research-native-namespace-k161` runs the native Claude Code proof under the
    plugin's actual namespace.
-8. `external-pack-proof-k162` records the proven contract and audits this
+9. `external-pack-proof-k162` records the proven contract and audits this
    node's Done when.
 
 The pack creation and the removal are separate increments. The pack alone

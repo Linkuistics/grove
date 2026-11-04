@@ -136,32 +136,36 @@ links again.
 
 | Source ID | Repository | Search roots | Delivered skills |
 | --- | --- | --- | --- |
-| `grove-core` | `Linkuistics/grove` | Core kind and spine directories | Spine, `configure-grove`, finish, and the planning chain |
-| `requirements` | RequirementsSkills | Kind directory | The requirements chain |
-| `design` | DesignSkills | Kind and craft directories | The design chain, `decision-records`, `codebase-design`, `cli-tool-design` and `model-led-development` |
-| `engineering` | EngineeringSkills | Kind and craft directories | The impl and prototype chains, the coding styles, `using-codebase-memory`, `simplify-project` and `doubt-driven-development` |
-| `research` | ResearchSkills | Kind directory | The research pair and the combiner |
-| `writing` | WritingSkills | Kind and craft directories | The editorial kinds, `technical-communication` and `writing-code-walkthroughs` |
-| `personal` | PersonalSkills | Craft directory | `machine-environment`, `using-jujutsu` and `authoring-conventions` |
+| `grove-core` | `Linkuistics/grove` | `skills` in `plugins/grove` | Spine, `configure-grove`, finish, and the planning chain |
+| `requirements` | RequirementsSkills | `skills` in its plugin directory | The requirements chain |
+| `design` | DesignSkills | `skills` and `craft` in its plugin directory | The design chain, `decision-records`, `codebase-design`, `cli-tool-design` and `model-led-development` |
+| `engineering` | EngineeringSkills | `skills` and `craft` in its plugin directory | The impl and prototype chains, the coding styles, `using-codebase-memory`, `simplify-project` and `doubt-driven-development` |
+| `research` | ResearchSkills | `skills` in `plugins/research` | The research pair, the combiner and `research-family` |
+| `writing` | WritingSkills | `skills` and `craft` in its plugin directory | The editorial kinds, `technical-communication` and `writing-code-walkthroughs` |
+| `personal` | PersonalSkills | `craft` in its plugin directory | `machine-environment`, `using-jujutsu` and `authoring-conventions` |
 | `testanyware` | TestAnyware | Its skill directory | `using-testanyware` |
 | `superpowers` | `obra/superpowers` | `skills` | All fifteen superpowers skills |
 | `quint` | `quint-co/quint-llm-kit` | `quint-llm-kit-plugin/skills` | `quint-lang`, `quint-modeling` and `quint-execute-spec` |
 
-These rules bind the layout. The research-pack proof settles the exact paths.
+The [external pack contract](external-pack-contract.md#layout) owns the layout
+of each Linkuistics pack. That covers its source directory `plugins/<plugin>`,
+its roots `skills` and `craft`, its links and its Git attributes. The proven
+facts of that contract record the paths after the research move. The plugin
+directory of each later pack follows from its move.
+
+These rules bind the owner's configuration of the sources:
 
 - Configure one source for each repository.
-- Set its source directory to the narrowest directory that holds the delivered
-  skills. That directory also holds every resource they reference by relative
-  path. Never use a repository root that holds build output. TestAnyware's root holds `target/`.
+- For a repository that is not a Linkuistics pack, set its source directory to
+  the narrowest directory that holds the delivered skills. That directory also
+  holds every resource they reference by relative path. Never use a repository
+  root that holds build output. TestAnyware's root holds `target/`.
 - Expose only Ravel-delivered skills through search roots. Keep native-only
   skills and plugin-only trees outside every root.
-- Keep each relative symlink inside its source. Ravel refuses absolute and
-  escaping links. The baseline found no link in any delivered skill.
-- Use no Git attribute that changes the bytes of a checkout, such as a filter
-  or an end-of-line conversion. Git's checkout configuration can still change
-  the written files. The tree ID of a source directory therefore does not
-  identify the files that Ravel captures, and
-  [Pack checkouts](#pack-checkouts) states the identity that does.
+- Git's checkout configuration can change the written files of any source. The
+  tree ID of a source directory therefore does not identify the files that
+  Ravel captures, and [Pack checkouts](#pack-checkouts) states the identity
+  that does.
 
 The first pins are known: superpowers
 `bb92a77741419a4ab5f06e711a283343f1ada0c3` and quint-llm-kit
@@ -187,9 +191,11 @@ mise tracks. Each entry names one checkout:
 | `url` | The HTTPS URL of the published remote |
 | `ref` | The pin, as a full commit ID |
 
-The Ravel source `path` is the checkout path or the narrowest subdirectory
-that holds the delivered skills. Ravel expands no tilde, so the settings name
-the absolute path, such as `/Users/antony/.local/share/skill-packs/grove-core`.
+The Ravel source `path` is the source directory inside the checkout. For a
+Linkuistics pack it is `plugins/<plugin>`. For another repository it is the
+narrowest subdirectory that holds the delivered skills. Ravel expands no tilde,
+so the settings name the absolute path, such as
+`/Users/antony/.local/share/skill-packs/grove-core/plugins/grove`.
 No harness discovers skills under `~/.local/share`, so a checkout adds no
 native entry.
 

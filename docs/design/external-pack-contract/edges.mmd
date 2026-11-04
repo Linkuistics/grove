@@ -1,0 +1,20 @@
+flowchart TB
+    S["Start here · Grove mandate<br/>Load the grove-research-a skill"]
+    PAIR["ResearchSkills · grove-research-a<br/>or grove-research-b"]
+    CR["ResearchSkills · grove-combine-research"]
+    RF["ResearchSkills · research-family<br/>the family file"]
+    SP["Core · grove<br/>the spine"]
+    REF["Core · references/*.md<br/>and the format files"]
+    MISS["The launch prompt's rule<br/>for a missing kind skill"]
+    S -->|1| PAIR
+    PAIR -->|"2 Load the grove skill<br/>crosses packs"| SP
+    PAIR -->|"3 Then load the<br/>research-family skill"| RF
+    SP -->|"4 skill-relative paths,<br/>on a condition"| REF
+    CR -->|"Load the grove skill<br/>crosses packs"| SP
+    PAIR -.->|"a loaded skill cannot<br/>be found or read"| MISS
+    classDef start fill:#16354a,color:#fff,stroke:#16354a,font-weight:bold
+    classDef research fill:#fdf2d0,stroke:#9a7b1c,color:#222
+    classDef core fill:#dcebf7,stroke:#2f6690,color:#222
+    class S start
+    class PAIR,CR,RF research
+    class SP,REF core

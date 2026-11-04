@@ -6,11 +6,16 @@ that the rule is **present and reachable on the composed loaded path of every
 kind that it binds**. No evaluation watches a session behave.
 
 The instrument is a normalised phrase match over the loaded path that the
-shipped skill set composes. That path is a kind's own `grove-<kind>/SKILL.md`,
-the spine's `SKILL.md`, and the transitive closure of the skill files that those
-two name by path. The instrument is `plugins/grove/conformance.sh`, a shell
-runner with no dependencies, over the files that a harness installs. Its
-controls are in `plugins/grove/conformance.test.sh`.
+shipped skills compose. That path is a kind's own `grove-<kind>/SKILL.md` and
+the transitive closure of what it reaches. The closure takes each skill that a
+file loads by name, such as the spine, and each skill file that a file names by
+path. It crosses packs, so it covers core and each supplied external pack.
+
+The instrument is `plugins/grove/conformance.sh`, a shell runner with no
+dependencies, over the files that a harness installs. It checks one pack alone,
+or core together with the supplied external packs, as the
+[external pack contract](../specs/external-pack-contract.md#conformance) states.
+Its controls are in `plugins/grove/conformance.test.sh`.
 
 **The instrument moved because two of the four things its walk covered stopped
 existing.** It used to walk what the *binary* composed. That was the guaranteed
@@ -41,16 +46,16 @@ already said that a kind's own ending belongs. So the gap became one rule
 smaller. That happened because the rule came back inside the runner's reach,
 not because the runner learnt to read a prompt.
 
-**What is still asserted in Rust, and until when.** `tests/rule_ownership.rs` was
-the single-source half, and it is deleted. Its 68 pinned wordings and its 3
-retired paraphrases are now in `plugins/grove/conformance/`, word for word.
-This runner does **not** take over the coverage walk of
-`tests/lifecycle_invariants.rs` or the per-kind word budgets of
-`tests/loaded_path_budgets.rs`. Their subject is the corpus that the binary
-still embeds and the path that it still composes.
+**What Rust no longer asserts.** `tests/rule_ownership.rs` was the
+single-source half, and it is deleted. Its 68 pinned wordings and its 3 retired
+paraphrases are now in `plugins/grove/conformance/`, word for word. The coverage
+walk of `tests/lifecycle_invariants.rs` and the per-kind word budgets of
+`tests/loaded_path_budgets.rs` did **not** move to this runner. Their subject
+was the corpus that the binary embedded and the path that it composed.
 
-Both of those go at `delete-provisioning-k19`. To delete the two tests before
-then would retire an assertion whose subject still ships.
+`delete-provisioning-k19` deleted that corpus, and the two tests went with it.
+They were kept until then, because an assertion whose subject still ships must
+not retire first.
 
 **Reachable means reached by *this rule's* condition.** The walk works at the
 grain of a file, because the owner record says that an edge reaches a file. All
@@ -137,5 +142,5 @@ assertions, not instead of them.
   required conjunction while it defers one term. An instruction can contain
   another as a substring, such as `complete` inside `complete --done`. In those
   cases a claim also names the wordings that **disqualify** a paragraph.
-  Reopen it for a rule whose wording is frozen. The two signal files are frozen
-  byte for byte for this workstream, so their phrases are pinned exactly.
+  Reopen it for a rule whose wording is frozen. Such a rule can pin its phrase
+  exactly.

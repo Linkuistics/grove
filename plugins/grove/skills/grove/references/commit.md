@@ -25,9 +25,9 @@ Nothing needs staging first. A tree verb moves files with `rename(2)` and record
 nothing of its own, and jj snapshots the whole working copy, so a `DONE` mark, a
 `leaf-insert` shift and a `leaf-decompose` are all already in `@` when you
 describe it. **The boundary above is the whole of what a grove session needs, and
-it binds on its own** — the `linkuistics:using-jujutsu` skill deepens jj rather
-than completing this rule, so a checkout without the plugin commits correctly
-from this file alone.
+it binds on its own** — the `using-jujutsu` skill deepens jj rather than
+completing this rule, so a checkout without that skill commits correctly from
+this file alone.
 
 Grove drives jj and refuses a working tree that is not jj-enabled, so there is no
 lane to determine; the driver states this working tree's version control and its

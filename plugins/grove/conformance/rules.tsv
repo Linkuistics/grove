@@ -199,7 +199,7 @@ recovery-pending-stops	grove-finish/SKILL.md	B	static({finish})
 teardown-via-finish-commit	grove-finish/SKILL.md	B	static({finish})	
 build-boundary-is-the-binary	grove/references/grove.md	B	on(the grove's subject is grove) @ grove/references/grove.md	editing the binary reaches no session until it is rebuilt and installed
 durable-artifact-set	grove/references/grove.md	B	on(deciding where a durable artifact belongs) @ grove/SKILL.md	The first three **outlive the grove**
-plugin-prerequisite	grove/references/grove.md	S	on(a rule cites the plugin) @ grove/SKILL.md	each citation states what binds in the plugin's absence
+plugin-prerequisite	grove/references/grove.md	S	on(a rule cites a craft skill) @ grove/SKILL.md	each citation therefore states what binds in the skill's absence
 cite-framework-decisions-to-source	grove-impl/SKILL.md	B+S	static({impl})	Cite at the decision site
 hard-to-reverse-pairs-with-doubt	grove-impl/SKILL.md	B+S	static({impl})	cite the source *and* have a fresh context try to break it
 impl-ships	grove-impl/SKILL.md	B	static({impl})	

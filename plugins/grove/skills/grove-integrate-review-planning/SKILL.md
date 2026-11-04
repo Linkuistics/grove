@@ -6,9 +6,11 @@ harnesses: [any]
 
 # integrate-review-planning
 
-**Load the `grove` skill now** — on Claude Code, where plugin skills are
-namespaced, that is `grove:grove` — and read `references/integrate-review.md`
-in it.
+**Load the `grove` skill now**, and read `references/integrate-review.md`
+in it. `grove` is the bare skill name. If your harness requires a plugin
+namespace, use the namespace under which `grove` is actually installed. Do not
+assume one. If you cannot find or read the `grove` skill, follow the launch
+prompt's rule for a missing kind skill.
 
 The five `integrate-review-*` kinds are one family with one procedure, and that
 file is it: the goal, the shared triage, where the findings are read from, what

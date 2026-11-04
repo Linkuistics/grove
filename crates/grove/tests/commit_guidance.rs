@@ -154,8 +154,9 @@ fn commit_step_cites_the_jj_lane_rather_than_teaching_it() {
     let step = normalized(COMMIT_REFERENCE);
 
     assert!(
-        step.contains("linkuistics:using-jujutsu"),
-        "the Commit step must cite the jj skill that owns the new/describe/new lane"
+        step.contains("the `using-jujutsu` skill"),
+        "the Commit step must cite the jj skill that owns the new/describe/new lane, \
+         by its bare name"
     );
     for tutorial_verb in [
         "jj rebase",

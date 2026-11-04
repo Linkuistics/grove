@@ -17,8 +17,8 @@ spec, an ADR set, or both. A `design` session that finds itself cutting
 *implementation* leaves has drifted into planning's job and should externalize
 a `planning` leaf instead.
 
-For software interfaces, state, or test seams, use `codebase-design`
-(`linkuistics:codebase-design` on Claude Code) when available. Fit its design
+For software interfaces, state, or test seams, use the `codebase-design` skill
+when available. Fit its design
 evidence into the spec or ADRs; Grove's artifact requirements remain binding
 when the skill is absent.
 

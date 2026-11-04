@@ -14,7 +14,6 @@ review; polish is a defect in a prototype), `review-impl` (correctness,
 security, tests, project conventions).
 
 For `review-design` findings about software interfaces, state, or test seams,
-use `codebase-design` (`linkuistics:codebase-design` on Claude Code) when
-available. Apply its criteria to the inspected artifact; this remains a
-findings-only review. Grove's procedure and artifact requirements bind when the
-skill is absent.
+use the `codebase-design` skill when available. Apply its criteria to the
+inspected artifact; this remains a findings-only review. Grove's procedure and
+artifact requirements bind when the skill is absent.

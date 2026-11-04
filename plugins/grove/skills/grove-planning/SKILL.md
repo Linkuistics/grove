@@ -11,11 +11,13 @@ harnesses: [any]
 
 # planning
 
-**Load the `grove` skill now** — on Claude Code, where plugin skills are
-namespaced, that is `grove:grove`. It is the shared spine and holds everything
+**Load the `grove` skill now.** It is the shared spine and holds everything
 this kind does not own: the constraints, the bootstrap, and the execute,
-decompose, retire and commit procedures. What follows is `planning`'s, and is
-stated nowhere else.
+decompose, retire and commit procedures. `grove` is the bare skill name. If your
+harness requires a plugin namespace, use the namespace under which `grove` is
+actually installed. Do not assume one. If you cannot find or read the `grove`
+skill, follow the launch prompt's rule for a missing kind skill. What follows is
+`planning`'s, and is stated nowhere else.
 
 **planning** (AFK) — given the design, **grow the tree**: the deliverable is
 *more tree*. The only kind with methodological force — the sole branch in the

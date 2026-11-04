@@ -2,7 +2,7 @@
 
 This note carries grove's own ADR rules: when a decision earns a record, where
 records live, and what keeps the set honest. The
-`linkuistics:decision-records` skill deepens the philosophy and the template;
+`decision-records` skill deepens the philosophy and the template;
 what binds without it is stated here.
 
 ## When a decision earns a record

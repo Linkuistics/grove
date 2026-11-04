@@ -108,11 +108,11 @@ of scope.
 ## Relationships
 
 - **grove → skills, a documentation-level prerequisite that binds without the
-  install.** grove's methodology cites `linkuistics:decision-records` for ADR
-  philosophy and `linkuistics:codebase-design` for seam judgement. Installation does
+  install.** grove's methodology cites the `decision-records` skill for ADR
+  philosophy and the `codebase-design` skill for seam judgement, by bare names. Installation does
   not enforce the dependency for marketplace or manual users, and Grove
   installs no skills. The methodological
-  prerequisite still binds without the dependency installed. Every citation states what binds in the plugin's absence.
+  prerequisite still binds without the dependency installed. Every citation states what binds in the skill's absence.
 
   Grove owns locally the part whose absence would change *what* a session
   writes. That part is the ADR when-to-write test and minimum-coherent-set discipline

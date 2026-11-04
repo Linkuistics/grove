@@ -43,8 +43,8 @@ document. Before you ask for a decision, explain what accepting the
 recommendation means and which questions stay open. What needs explaining sets
 the length of an explanation. No word budget sets it.
 
-When the `linkuistics:technical-communication` skill is on, its rules govern the
-words and sentences. This section governs what to explain and in what order. The
+When the `technical-communication` skill is on, its rules govern the words and
+sentences. This section governs what to explain and in what order. The
 human's explicit request for one output comes before both. Without the skill,
 this section binds as it stands.
 
@@ -148,7 +148,7 @@ because you chose between them.
 ## Artifacts
 
 - When deciding where a durable artifact belongs, follow `references/grove.md`.
-- When a rule cites the `linkuistics` plugin, read what binds without it in
+- When a rule cites a craft skill, read what binds without it in
   `references/grove.md`.
 - When considering an ADR, apply the test in `ADR-FORMAT.md`.
 - When changing a recorded decision, rework the set as `ADR-FORMAT.md` directs.

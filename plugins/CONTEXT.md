@@ -49,8 +49,8 @@ the README, the Taskfile and any cache in each capture.
 **Marketplace**:
 `.claude-plugin/marketplace.json`, the catalogue a user adds once to reach every
 [[Plugin]] in it. **Its identity is the `name` field, not the repo URL** — already
-`linkuistics` while the tree lived in `Linkuistics/skills` — so every
-`linkuistics:<skill>` reference is repo-independent and a repo move rewrites only
+`linkuistics` while the tree lived in `Linkuistics/skills` — so every native
+`linkuistics:<skill>` invocation is repo-independent and a repo move rewrites only
 where the marketplace is added from.
 _Avoid_: treating the repository URL or owner as the namespace.
 
@@ -67,6 +67,16 @@ block or a block quote holds no directed load.
 _Avoid_: a plugin-qualified name such as `grove:grove` in pack text. A pack move
 changes the namespace, and the qualified name then addresses nothing.
 
+**Bare skill name**:
+The name of a [[Skill]] without a plugin namespace, such as `grove` or
+`codebase-design`. Pack text writes "Load the `<name>` skill" for a directed
+load and "the `<name>` skill" for a citation of a craft skill. Where a harness
+needs a namespace, the session uses the namespace under which the skill is
+actually installed.
+_Avoid_: a plugin-qualified name in a load or a citation, because a later pack
+move changes its plugin. Until their own moves, the kinds that leave core keep
+`grove:grove` in their openings.
+
 <!-- tc: pending because the conversion has not reached this part of the document -->
 
 **Namespaced invocation** (`<plugin>:<skill>`):
@@ -78,9 +88,11 @@ name, which is why `grove:grove` coexisted with the `grove` the binary used to
 provision into `~/.claude/skills/`. Claude Code's plugins reference states the
 namespacing; it does not state a collision rule, so that consequence rested on
 the namespacing plus the observed case — and the case is gone since
-`delete-provisioning-k19`, which stopped any binary writing that path. And a prompt that names a skill for a session to load names
-**one target in two spellings** rather than branching on the harness — the
-session uses whichever its own offers.
+`delete-provisioning-k19`, which stopped any binary writing that path. And a
+prompt that names a skill for a session to load names **one bare target** rather
+than branching on the harness — the session adds the namespace its own harness
+needs. The qualified names in this entry are examples of the native spelling;
+pack text never writes one ([[Bare skill name]]).
 _Avoid_: treating the two spellings as two skills, or making the caller choose
 between them. A selection is the thing the naming exists to remove.
 

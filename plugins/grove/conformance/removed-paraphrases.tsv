@@ -10,3 +10,4 @@
 glossary-is-the-forcing-function	references/grove.md	the Ubiquitous Language — read every session, appended inline
 adr-set-is-minimum-coherent	references/grove.md	one decision and its trade-off each, slug-named, edited in place
 adr-set-is-minimum-coherent	references/integrate-review.md	merge / split / delete, never a superseding record
+plugin-prerequisite	references/grove.md	each citation states what binds in the plugin's absence

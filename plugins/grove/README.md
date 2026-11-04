@@ -140,8 +140,10 @@ Claude Code namespaces a plugin's components — *"in the UI, the agent
 `agent-creator` for the plugin with name `plugin-dev` will appear as
 `plugin-dev:agent-creator`"*
 ([plugins reference](https://code.claude.com/docs/en/plugins-reference), *plugin
-name*) — so the spine is `grove:grove` there, and a kind's skill is
-`grove:grove-<kind>`.
+name*) — so the native spelling of the spine there is `grove:grove`, and a
+kind's skill is `grove:grove-<kind>`. These are examples of that native
+spelling. The skills here never write it; see
+[the names a skill writes](#the-names-a-skill-writes).
 **Codex, Gemini CLI and Pi** use [`../install.sh`](../install.sh)'s symlink farm.
 See [Codex installation](../README.md#install--codex) for skills that earlier
 Grove releases installed automatically:
@@ -198,7 +200,28 @@ also states what to do when the skill cannot be found or read, because a
 missing skill cannot state that itself. `crates/grove-loop/src/prompt.rs`
 holds the wording.
 
+## The names a skill writes
+
 <!-- tc: on -->
+
+The skill text follows the same rule as the prompt. A skill names every other
+skill by its bare name. It writes "Load the `grove` skill" for a directed load,
+and "the `codebase-design` skill" for a citation of a craft skill. It writes no
+plugin-qualified name, as rule 2 of "References between skills" in
+[the external pack contract](../../docs/specs/external-pack-contract.md)
+requires. A later pack move changes the plugin of a skill, and a qualified name
+then addresses nothing.
+
+The kinds that stay in core open with the contract's bare-name text. After the
+load, that text tells the session to use the namespace under which `grove` is
+actually installed. The kinds that leave core in a later move keep
+`grove:grove` in their openings, and each move changes those bytes.
+
+A citation of a craft skill states what binds without that skill. The spine's
+`references/grove.md` holds that statement for each cited craft skill, and
+names no plugin or pack. `crates/grove/tests/plugin_fallback.rs` enumerates
+every `<word>:<word>` token in the shipped markdown, and fails on an
+unclassified one.
 
 ## Conformance
 

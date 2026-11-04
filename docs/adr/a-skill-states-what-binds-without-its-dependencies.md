@@ -3,13 +3,14 @@
 A skill that cites another skill must state what binds when that skill is
 absent. Grove's methodology is itself a set of skill packs now. Core's `grove`
 plugin has the shared spine and the kind skills of core. An external pack can
-ship other kind skills. The methodology cites `linkuistics` skills from a
-separate plugin.
+ship other kind skills. The methodology also cites craft skills, which other
+plugins ship. A citation names its skill bare, as the
+[external pack contract](../specs/external-pack-contract.md) requires.
 
-Users install the methodology's packs and the `linkuistics` plugin
-independently, through the marketplace or by hand, and an installation can omit
-the plugin. Every `linkuistics:` citation must therefore stay meaningful when
-its target skill is absent.
+Users install the methodology's packs and the plugins of the craft skills
+independently, through the marketplace or by hand. An installation can omit any
+craft skill. Every citation of one must therefore stay meaningful when its
+target skill is absent.
 
 **A directed load is a required dependency, not a citation.** A `grove-<kind>`
 skill directs a load of the `grove` spine. A member of a family whose kinds all
@@ -46,7 +47,7 @@ pointless and double the surface that can drift. This record is as much about
 that failure as about the silent dependency.
 
 **One statement, reached by a pointer.** The spine's `references/grove.md` holds
-what binds for all three skills in one place. The trigger sentence of the
+what binds for every cited craft skill in one place. The trigger sentence of the
 spine's `SKILL.md` sends a session that meets any citation there. A file whose
 own operative rules are complete says so in its own words. No file mirrors the
 gloss of the hub. A second statement of it is the duplication that
@@ -62,8 +63,9 @@ absence changes what a session writes. `plugins/grove/conformance/rules.tsv`
 records each mirror with its reason. That limit keeps the exception from
 becoming the rule.
 
-**Rejected: make `linkuistics` a hard installation dependency of the `grove`
-plugin.** A Codex bundle of both plugins makes them available together. It does
+**Rejected: make the plugins of the craft skills a hard installation
+dependency of the `grove` plugin.** A Codex bundle of the plugins makes them
+available together. It does
 not make the methodology's rules conditional on an installer. Marketplace
 entries stay independent, and a grove tree must stay legible with Grove
 deleted. A methodology that cannot state its own rules would violate that

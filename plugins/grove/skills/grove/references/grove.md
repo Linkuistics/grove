@@ -1,3 +1,5 @@
+<!-- tc: pending because the conversion has not reached this part of the document -->
+
 ## The four artifacts, and which of them outlive the grove
 
 A grove's output lands in four artifacts, and only one of them is grove-specific.
@@ -45,38 +47,39 @@ un-reported and is yours to notice. Verify work on either by reading the files
 and the tests, never by expecting the next session in the same loop to behave
 differently.
 
-## What the `linkuistics` plugin carries, and why it is separate
+## What the cited craft skills carry, and what binds without them
 
-The guidance that grove leans on lives in a **separately installed**
-plugin. Grove requires it and does not ship it — the `grove` binaries carry no
-skills at all, and this methodology and that plugin are installed the same way,
-each on its own, through the Claude Code marketplace or the repo's
-`plugins/install.sh`, even though both are developed in grove's repository. So
-each citation states what binds in the plugin's absence:
+<!-- tc: on -->
 
-- **`linkuistics:decision-records`** — ADR philosophy. What binds without it is
-  `ADR-FORMAT.md`: grove states its own when-to-write test, placement and
-  minimum-coherent-set discipline locally, and the citation is attribution rather
+Grove's text cites some craft skills by their bare names. A craft skill teaches
+a practice and runs no session kind. Grove does not ship these skills, and an
+installation can omit any of them. Each citation therefore states what binds in
+the skill's absence:
+
+- **The `decision-records` skill** — ADR philosophy. What binds without it is
+  `ADR-FORMAT.md`. Grove states its own when-to-write test, placement and
+  minimum-coherent-set discipline there. The citation is attribution rather
   than a dependency.
-- **`linkuistics:codebase-design`** — module depth, structural simplicity, and
-  test seams, used by software design and design review.
-  A seam is a place where behaviour can be replaced for a test without editing
-  the code under test; grove's own operative rules (prefer an existing seam,
-  propose a new one at the highest point, drive the count toward one) are in
-  `SPEC-FORMAT.md` and bind without the skill.
-- **`linkuistics:using-jujutsu`** — the working-copy-as-commit lane. What binds
-  without it is `references/commit.md`, which carries the whole boundary a grove
-  session needs on its own; the skill deepens the lane rather than completing it.
-- **`linkuistics:technical-communication`** — controlled English for everything a
-  session writes in natural language. What binds without it is the "Human-facing
-  communication" section of `SKILL.md`: it says what to explain and in what
-  order, and it stands on its own. The skill adds rules for words and sentences.
-- **`linkuistics:machine-environment`** — the personal machine's tool selection,
-  configuration ownership, and operating-manual locations. What binds without
-  it is `references/execute.md`: use the documented project and machine
-  environment and retain the project's reusable task entry point. The skill
+- **The `codebase-design` skill** — module depth, structural simplicity and
+  test seams, for software design and design review. A seam is a place where a
+  test can replace behaviour without an edit to the code under test. Grove's
+  own operative rules are in `SPEC-FORMAT.md` and bind without the skill. They
+  prefer an existing seam, put a new one at the highest point, and keep the
+  count near one.
+- **The `using-jujutsu` skill** — the working-copy-as-commit lane. What binds
+  without it is `references/commit.md`. That file holds the whole boundary that
+  a grove session needs. The skill deepens the lane and does not complete it.
+- **The `technical-communication` skill** — controlled English for all natural
+  language that a session writes. What binds without it is the "Human-facing
+  communication" section of `SKILL.md`. That section says what to explain and
+  in what order, and it stands on its own. The skill adds rules for words and
+  sentences.
+- **The `machine-environment` skill** — the personal machine's tool selection,
+  configuration ownership and operating-manual locations. What binds without
+  it is `references/execute.md`. Use the documented project and machine
+  environment, and keep the project's reusable task entry point. The skill
   supplies the personal setup details when that setup is present.
 
-The dependency is documentation-level, not install-enforced: absence changes how
-*well* a session writes these artifacts, never *what* it is obliged to write
-(constraint 6).
+The dependency is in the documentation, and no installer enforces it. Absence
+changes how *well* a session writes these artifacts. It never changes *what*
+the session must write (constraint 6).

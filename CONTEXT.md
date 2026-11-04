@@ -199,8 +199,8 @@ The other species in the spine's `references/`: a file carrying the **universal*
 procedures that one step of the loop needs, which no [[Session kind]] selects and
 which the spine's `SKILL.md` conditions reach by naming it. The seam is the loop
 itself — `bootstrap`, `execute`, `decompose`, `retire`, `commit` — with `grove`
-(what a grove is, the durable artifacts, what binds without the `linkuistics`
-plugin) and `driver` (how a session was launched and picked) either side of it.
+(what a grove is, the durable artifacts, what binds without the cited craft
+skills) and `driver` (how a session was launched and picked) either side of it.
 Seven, beside the four [[Family reference file]]s. Every file here carries
 procedure only, which is what keeps `SKILL.md` a page of conditions rather than
 an abridged methodology.
@@ -1123,7 +1123,7 @@ this?* if not it is a [[Node directory]]'s brief and dies with `.grove/`)
 and the **grain rule** (an ADR records *one decision and its trade-off*, a spec
 describes *how an area works* and **cites** the ADRs in its area rather than
 restating them). Shape and the seam-recording rule: the spine's `SPEC-FORMAT.md`;
-what a seam *is*: `linkuistics:codebase-design`.
+what a seam *is*: the `codebase-design` skill.
 _Avoid_: "PRD" — grove names no product-requirements artifact. _Avoid_ a
 `## Decomposition` section inside a spec: that is brief material, dead when the
 grove finishes.

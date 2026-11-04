@@ -274,11 +274,18 @@ its fixed alias. An alias in pack text would be wrong after a later move, a
 rename or an installation under another name. Under directory delivery a
 qualified name is still only a name request, so the alias gains nothing there.
 
-Core's kind skills still write the alias `grove:grove` in their openings,
-because they are older than this rule. Each kind that moves takes the bare-name
-opening in its own move. repository-moves-k5 also changes the openings of the
-kinds that stay in core. No check reads an alias, so the older openings break
-no conformance run in the meantime.
+The kinds that stay in core open with the bare-name text. Those openings are
+the `combine-research` opening below, changed only in the kind's name.
+`review-planning` and `integrate-review-planning` keep their family read after
+the load sentence. Core's citations of craft skills also use bare names. The
+kinds that leave core in a later move still write the alias `grove:grove` in
+their openings, because they are older than this rule. Each of them takes the
+bare-name opening in its own move.
+
+Conformance reads no alias.
+`crates/grove/tests/plugin_fallback.rs` classifies each `<word>:<word>` token
+in core's markdown. It accepts `grove:grove` only in the opening of a kind that
+has not moved yet.
 
 Rule 3 keeps the meaning of core's text. Each core kind loads the `grove`
 skill and then names a spine resource, such as `references/review.md`. Under

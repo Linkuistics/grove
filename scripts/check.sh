@@ -99,7 +99,7 @@ run_check "cargo fmt" cargo fmt --all --check
 run_check "shellcheck" shellcheck \
   plugins/install.sh plugins/install.test.sh \
   plugins/grove/conformance.sh plugins/grove/conformance.test.sh \
-  scripts/check.sh scripts/ravel-policy-typecheck.sh scripts/ravel-policy-typecheck.test.sh scripts/release-publish.sh scripts/release.test.sh \
+  scripts/check.sh scripts/check-packs.sh scripts/check-packs.test.sh scripts/ravel-policy-typecheck.sh scripts/ravel-policy-typecheck.test.sh scripts/release-publish.sh scripts/release.test.sh \
   scripts/release-prepare.sh scripts/release-prepare.test.sh \
   scripts/release-notes.sh \
   scripts/release-notes/codex-headless.sh scripts/release-notes/codex-headless.test.sh \
@@ -116,6 +116,12 @@ run_check "cargo clippy" cargo clippy --workspace --all-targets
 run_check "plugin install" bash plugins/install.test.sh
 run_check "conformance" bash plugins/grove/conformance.sh
 run_check "conformance suite" bash plugins/grove/conformance.test.sh
+# Each external pack that the marketplace pins, at its exact commit, alone and
+# in the aggregate with this tree. docs/specs/external-pack-contract.md, "The
+# checker without a copy", makes it a principal check. The first run needs the
+# network, and later runs reuse target/external-packs/.
+run_check "external packs" task check:packs
+run_check "external pack controls" bash scripts/check-packs.test.sh
 # The vendored checker ships its own self-test; `-I` keeps the interpreter
 # from importing anything out of the current directory or the user's site.
 run_check "technical-communication checker self-test" \

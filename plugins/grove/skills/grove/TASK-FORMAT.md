@@ -44,7 +44,7 @@ the first `--`. Malformed names stop tree operations, naming the path and the
 canonical form. The separator makes parsing unambiguous even when one kind
 prefixes another. Foreign non-task files in the tree stay ignored.
 
-## The twenty-three kinds
+## The kinds
 
 The set is **partly parameterised, and no longer uniform**: five producers, each
 with its own `review-` and `integrate-review-` step; a research pair unioned by
@@ -59,16 +59,16 @@ exists, and the next one is authored, not compiled. Grove spells exactly two
 tokens itself, at the two places it writes a leaf with no session to delegate to:
 `requirements` for root scaffolding and `finish` for the teardown sentinel.
 
-| kind(s) | its review step | its integration step |
-|---|---|---|
-| `requirements` | `review-requirements` | `integrate-review-requirements` |
-| `design` | `review-design` | `integrate-review-design` |
-| `planning` | `review-planning` | `integrate-review-planning` |
-| `prototype` | `review-prototype` | `integrate-review-prototype` |
-| `impl` | `review-impl` | `integrate-review-impl` |
-| `research-a` + `research-b` | — | `combine-research` |
-| `draft` → `copy-edit` → `art` → `proof` | — | — |
-| `finish` — driver-reserved | — | — |
+| kind(s) | its review step | its integration step | pack |
+|---|---|---|---|
+| `requirements` | `review-requirements` | `integrate-review-requirements` | `grove` |
+| `design` | `review-design` | `integrate-review-design` | `grove` |
+| `planning` | `review-planning` | `integrate-review-planning` | `grove` |
+| `prototype` | `review-prototype` | `integrate-review-prototype` | `grove` |
+| `impl` | `review-impl` | `integrate-review-impl` | `grove` |
+| `research-a` + `research-b` | — | `combine-research` | `ResearchSkills` |
+| `draft` → `copy-edit` → `art` → `proof` | — | — | `grove` |
+| `finish` — driver-reserved | — | — | `grove` |
 
 **A `—` says the kind takes no step of that species at all** — not that one is
 still to be authored, and not that review is skipped by convention. Reading it
@@ -76,10 +76,14 @@ the other way is what a two-column-plus-producer table invited, and it is why th
 column headings are possessive: the cell answers *what is this kind's review
 step*, and for three of these rows the answer is that it has none.
 
-Five producer rows of three, the research row's three, the editorial row's four,
-and one driver-owned step: **twenty-three**. Each kind's own `grove-<kind>` skill
-carries the discipline it runs under, inline or by directing a load of its
-family's file in the spine, and its HITL/AFK mark is on that page.
+The methodology's kinds ship in several packs, so this page keeps no count of
+them. The last column names the pack that ships each row's skills. `grove` is
+the plugin in Grove's repository, and the README of each other pack lists its
+kinds. Each kind's own `grove-<kind>` skill carries the discipline that it runs
+under, inline or by a directed load of its family's file. A family whose kinds
+all ship in one external pack keeps that file in a family skill of that pack.
+Any other family keeps it in the spine. The kind's HITL/AFK mark is on its own
+page.
 
 The research row holds **two** kinds rather than one kind run twice: `research-a`
 and `research-b` share a discipline but are separate kinds, which the owner's

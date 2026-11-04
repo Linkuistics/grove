@@ -268,7 +268,23 @@ pub fn wait_for_ready(path: &Path, producer: &mut Child, diagnostics: Option<&Pa
 /// repository, and it would be the one that went stale.
 ///
 /// The bare `grove` directory is the shared spine every kind reads, not a kind.
+///
+/// **Kinds also ship in other packs.** The research kinds moved to
+/// ResearchSkills at `grove-research-removal-k158`. Their labels and the
+/// variables named after them still apply to `grove-llm`, so this set also
+/// holds [`external_kind_labels`]: the kinds that core's kind table assigns to
+/// another pack.
 pub fn kind_labels() -> Vec<String> {
+    let mut labels = core_kind_labels();
+    labels.extend(external_kind_labels());
+    labels.sort();
+    labels.dedup();
+    labels
+}
+
+/// The labels of the kinds whose skills core ships: one `grove-<kind>`
+/// directory each under `plugins/grove/skills/`.
+pub fn core_kind_labels() -> Vec<String> {
     let skills = repo_root().join("plugins/grove/skills");
     let mut labels: Vec<String> = std::fs::read_dir(&skills)
         .unwrap_or_else(|error| panic!("reading {}: {error}", skills.display()))
@@ -290,6 +306,75 @@ pub fn kind_labels() -> Vec<String> {
         labels.len()
     );
     labels
+}
+
+/// The pack name of core in the last column of the kind table.
+pub const CORE_PACK: &str = "grove";
+
+/// One row of the kind table in the spine's `TASK-FORMAT.md`: the labels that
+/// its first three columns name in code spans, and the pack that its last
+/// column names.
+#[derive(Debug)]
+pub struct KindRow {
+    pub labels: Vec<String>,
+    pub pack: String,
+}
+
+/// The rows of the table under "## The kinds" in `text`. A row with other than
+/// four columns panics, so a changed table shape is not read as an empty one.
+pub fn kind_table(text: &str) -> Vec<KindRow> {
+    let mut lines = text
+        .lines()
+        .skip_while(|line| line.trim() != "## The kinds");
+    assert!(
+        lines.next().is_some(),
+        "the text has no `## The kinds` heading"
+    );
+    let rows: Vec<KindRow> = lines
+        .skip_while(|line| !line.starts_with('|'))
+        .take_while(|line| line.starts_with('|'))
+        .skip(2) // the heading row and the separator row
+        .map(|line| {
+            let cells: Vec<&str> = line
+                .trim()
+                .trim_matches('|')
+                .split('|')
+                .map(str::trim)
+                .collect();
+            assert_eq!(
+                cells.len(),
+                4,
+                "a kind-table row has four columns: {line:?}"
+            );
+            KindRow {
+                labels: cells[..3]
+                    .iter()
+                    .flat_map(|cell| cell.split('`').skip(1).step_by(2))
+                    .map(ToOwned::to_owned)
+                    .collect(),
+                pack: cells[3].trim_matches('`').to_owned(),
+            }
+        })
+        .collect();
+    assert!(
+        !rows.is_empty(),
+        "the kind table under `## The kinds` has no rows"
+    );
+    rows
+}
+
+/// The labels of the kinds that the kind table assigns to a pack other than
+/// core. Core cannot read another pack's skills, so the table is its only
+/// record of those kinds.
+pub fn external_kind_labels() -> Vec<String> {
+    let path = repo_root().join("plugins/grove/skills/grove/TASK-FORMAT.md");
+    let text = fs::read_to_string(&path)
+        .unwrap_or_else(|error| panic!("reading {}: {error}", path.display()));
+    kind_table(&text)
+        .into_iter()
+        .filter(|row| row.pack != CORE_PACK)
+        .flat_map(|row| row.labels)
+        .collect()
 }
 
 /// The loop driver's **control channel** (self-driving-loop), scrubbed for the

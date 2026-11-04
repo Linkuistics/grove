@@ -210,3 +210,11 @@ briefs held these facts, which rollout consumes:
   next release stays a minor release.
   `docs/confinement-withdrawal-evidence.md` holds the design and the
   disposition of each acceptance criterion, including those of the root brief.
+
+grove-research-removal-k158 hands one consequence of the research move to
+this node. Grove's marketplace lists the `research` plugin with a `git-subdir`
+source that pins a ResearchSkills commit. The owner's Claude Code follows
+Grove's `main`, so the entry reaches the owner only when finish moves `main`.
+A native installation of `grove` does not receive the research kinds. It needs
+`/plugin install research@linkuistics` once the entry is on `main`. The final
+installed set and the native probe account for that step.

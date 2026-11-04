@@ -746,9 +746,13 @@ The fatness rule:
   bind unchanged and are what make this checkable.
 
 Where a rule belongs to a *family* rather than one kind — the five reviews, the
-five integrations, the two research halves — the family's text is one file in the
-spine, and each member's skill directs a load of it by name in its opening
-imperative. A directed load is not a selection. A skill that cites a skill from
+five integrations, the two research halves — the family's text is one file, and
+each member's skill directs a load of the skill that holds it by name in its
+opening imperative. The file is in the spine, except where one external pack
+ships every kind of the family. The research halves ship in ResearchSkills, so
+their file is that pack's `research-family` skill
+([`external-pack-contract`](external-pack-contract.md#rule-placement)). A
+directed load is not a selection. A skill that cites a skill from
 another plugin states what binds in its absence
 ([`a-skill-states-what-binds-without-its-dependencies`](../adr/a-skill-states-what-binds-without-its-dependencies.md)).
 

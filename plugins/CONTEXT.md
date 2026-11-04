@@ -1,5 +1,7 @@
 # skills
 
+<!-- tc: pending because the conversion has not reached this part of the document -->
+
 The `grove`, `linkuistics` and `testanyware` skill plugins under `plugins/` —
 the language of **authoring, packaging, triggering and installing** a skill.
 
@@ -24,6 +26,26 @@ and a `skills/` directory — and a Claude Code concept only; other harnesses re
 the same [[Skill]] directories by [[Symlink install]]. Three ship here: `grove`,
 `linkuistics` and `testanyware`.
 
+<!-- tc: on -->
+
+**Pack**:
+A repository whose plugin directories ship methodology skills or craft skills.
+Core is the pack in Grove's repository, and its plugin `grove` holds the spine
+and the core kind skills. An external pack is a pack in another repository,
+such as ResearchSkills. `docs/specs/external-pack-contract.md` states how an
+external pack joins Grove's methodology.
+_Avoid_: "plugin" for a whole pack. One pack can ship more than one [[Plugin]].
+
+**Source directory**:
+The plugin directory `plugins/<plugin>/` inside a checkout of a [[Pack]]. Ravel
+captures it as a `local` source, Claude Code installs it as the plugin root and
+`install.sh --pack` scans it. Its `skills/` directory holds the kind skills and
+any family skill. A later pack can add `craft/` beside it for craft skills.
+_Avoid_: the repository root as the source directory. Ravel would then capture
+the README, the Taskfile and any cache in each capture.
+
+<!-- tc: pending because the conversion has not reached this part of the document -->
+
 **Marketplace**:
 `.claude-plugin/marketplace.json`, the catalogue a user adds once to reach every
 [[Plugin]] in it. **Its identity is the `name` field, not the repo URL** — already
@@ -33,6 +55,19 @@ where the marketplace is added from.
 _Avoid_: treating the repository URL or owner as the namespace.
 
 ### Invocation and triggering
+
+<!-- tc: on -->
+
+**Directed load**:
+The sentence form "Load the `<name>` skill", which names a [[Skill]] that the
+reading session must load. Pack text names another skill only in this form,
+by its bare name. The conformance runner reads each directed load as an edge of
+a kind's loaded path, across the supplied packs. An HTML comment, a fenced code
+block or a block quote holds no directed load.
+_Avoid_: a plugin-qualified name such as `grove:grove` in pack text. A pack move
+changes the namespace, and the qualified name then addresses nothing.
+
+<!-- tc: pending because the conversion has not reached this part of the document -->
 
 **Namespaced invocation** (`<plugin>:<skill>`):
 How Claude Code addresses a [[Skill]] that arrived inside a [[Plugin]] —
@@ -146,7 +181,10 @@ also links each Pi-eligible skill's `harnesses/pi/*.ts` extension into
 Because the targets are links, a `git pull` updates content in place — re-run only
 when skills are added, removed, or change their [[Harness eligibility]]. It scans
 **every** bundled plugin: which harnesses a skill reaches is the skill's own
-declaration, not a property of the directory it ships in. A real file or directory
+declaration, not a property of the directory it ships in. `--pack <dir>` adds
+the [[Source directory]] of an external [[Pack]], with the same eligibility and
+workspace guard. A run reconciles the links of the plugins that it scans only,
+so a run without `--pack <dir>` leaves that pack's links unchanged. A real file or directory
 already at a target path is **left untouched and refused** — the run reports it,
 still installs every other skill, and exits non-zero, because a skill silently not
 installed is indistinguishable from one installed successfully.

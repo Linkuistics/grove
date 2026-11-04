@@ -133,16 +133,28 @@ _Avoid_: reading the 4 KiB assertion as a target budget; it is a growth alarm.
 <a id="family-reference-file"></a>
 ### Family reference file
 
-The one file in the spine's `references/` carrying the discipline a **family** of
-[[Session kind]]s shares — `review.md` for the five `review-*` kinds,
-`integrate-review.md` for the five `integrate-review-*`, `research.md` for the
-two research halves, and `editorial.md` for the four publishing-pipeline stages.
+<!-- tc: on -->
+
+The one file that carries the discipline that a **family** of [[Session kind]]s
+shares. The file lives in the pack that ships every kind of the family. In core
+it is in the spine's `references/`. In an external pack it is that pack's
+[[Family skill]]. A family whose kinds ship in several packs keeps its file in
+the spine's `references/`.
+
+In core the files are `review.md` for the five `review-*` kinds,
+`integrate-review.md` for the five `integrate-review-*` kinds and `editorial.md`
+for the four stages of the publishing pipeline. In ResearchSkills the file is
+the family skill `research-family`, for `research-a` and `research-b`. The
+spine's `SKILL.md` lists only the spine's own family files.
+
 Each member's [[Kind skill]] directs a load of its family's file **by name**, in
-its opening imperative; a directed load is not a selection. The spine's `SKILL.md`
-also lists the four, so a family file is *reachable* from every kind's
-[[Composed loaded path]]; what makes it a family's is that only its members are
-told to read it.
-Four files, not fourteen. The set was recovered from the narrowed marker scopes of
+its opening imperative. A directed load is not a selection. A spine family file
+is *reachable* from every kind's [[Composed loaded path]]. Only the instruction
+to its members to read it makes it a family's file.
+
+<!-- tc: pending because the conversion has not reached this part of the document -->
+
+One file for each family, not one for each kind. The set was recovered from the narrowed marker scopes of
 the retired classification rather than invented, and
 `plugin-kind-skills-k17` moved the seven single-kind ones **inline** into their
 own [[Kind skill]]s, which is where a rule owned by one kind belongs
@@ -159,6 +171,26 @@ a rule one kind owns, not a family.
 _Avoid_: one file per kind label. The reviews, the integrations, the research
 halves and the editorial stages would each be near-duplicates of one text, and
 duplicated prose is the drift risk one level down from the one being removed.
+
+<!-- tc: on -->
+
+<a id="family-skill"></a>
+### Family skill
+
+The skill that carries the [[Family reference file]] of a family whose kinds
+all ship in one external pack. Its name is `<family>-family`, such as
+`research-family` in ResearchSkills. A family skill is not a kind, because its
+name has no `grove-` prefix. `docs/specs/external-pack-contract.md`, "The
+family procedure", states its rules.
+
+Each member's [[Kind skill]] loads it by name, after the spine. It is the only
+copy of the family file.
+_Avoid_: a `grove-` prefix on a family skill. The prefix would add a kind with
+no charter that a leaf could launch.
+_Avoid_: `disable-model-invocation` on a family skill. On Claude Code that key
+stops the model from loading the skill, so the member's directed load fails.
+
+<!-- tc: pending because the conversion has not reached this part of the document -->
 
 <a id="loop-step-reference-file"></a>
 ### Loop-step reference file
@@ -241,16 +273,18 @@ change is judged on.
 <a id="spine-skill"></a>
 ### Spine skill / kind skill
 
-The two species of the methodology's skill plugin, whose source is authoritative
+The species of the methodology's skills, whose source is authoritative
 for marketplace and manual delivery
 ([`plugins/CONTEXT.md`](./plugins/CONTEXT.md)
 owns that delivery vocabulary). The **spine** is one skill, `grove`,
 carrying every rule shared across families — the numbered constraints, the
-[[Loop-step reference file]] set, the format documents, and the four *family*
-files (the five reviews, the five integrations, the two research halves, the four
-editorial stages). A
+[[Loop-step reference file]] set, the format documents, and the spine's
+*family* files (the five reviews, the five integrations, the four editorial
+stages). A
 **kind skill** is `grove-<kind>`, carrying inline what that kind alone owns, and
-directing a load of a family file **by name** where its family owns the rule. A
+directing a load of a family file **by name** where its family owns the rule.
+The third species is the [[Family skill]] of an external pack. It is not a
+kind, because its name has no `grove-` prefix. A
 kind exists **iff** a skill of that name exists, so nothing enumerates them.
 **Nowhere twice** is the property, and it is the same one
 [[Condition]] / [[procedure]] already files: the two halves cannot both claim the
@@ -582,11 +616,12 @@ metadata, not identity: the stable [[Work-item handle]] remains `<slug>-k<key>`.
 **The set is open** (*a kind is an open token*): a kind is any well-formed token
 — non-empty, lowercase ASCII letters, digits and single dashes, no `--`, not a
 reserved marker — and grove holds no enumeration of them. Which kinds *exist* is
-which `grove-<kind>` [[Kind skill]]s are installed; the methodology's current set
-is twenty-three, five producers (`requirements`, `design`, `planning`,
-`prototype`, `impl`) each with its `review-` and `integrate-review-` kind, plus
-`research-a`, `research-b`, `combine-research`, the four editorial stages
-(`draft`, `copy-edit`, `art`, `proof`), and the driver-reserved `finish`. Grove spells
+which `grove-<kind>` [[Kind skill]]s are installed. The methodology's kinds ship
+in several packs, so no count of the whole set is kept. Core ships five
+producers (`requirements`, `design`, `planning`, `prototype`, `impl`) each with
+its `review-` and `integrate-review-` kind, the four editorial stages (`draft`,
+`copy-edit`, `art`, `proof`) and the driver-reserved `finish`. ResearchSkills
+ships `research-a`, `research-b` and `combine-research`. Grove spells
 two of those tokens and no others, at the two places it writes a leaf itself:
 `requirements` for root scaffolding and `finish` for the teardown sentinel.
 No tree verb asks whether a kind can launch: a kind the owner's Ravel policy

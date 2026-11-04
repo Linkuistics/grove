@@ -6,9 +6,9 @@ Grove's methodology is delivered through the Claude Code marketplace or the
 manual installer ([`../README.md`](../README.md)). The user chooses the route;
 the `grove` binary installs no skills. It is a shared
 **spine** skill and one `grove-<kind>` skill per session kind beside it, over
-that spine. **A kind exists iff a skill of that name exists**, so the set is
-whatever `skills/` holds: no code carries a list of kinds and no assertion counts
-them. Prose here describes the set as it stands, which is a different thing from
+that spine. **A kind exists iff a skill of that name exists**, so core's set is
+whatever `skills/` holds, and an external pack such as ResearchSkills ships
+more: no code carries a list of kinds and no assertion counts them. Prose here describes the set as it stands, which is a different thing from
 machinery holding it.
 
 The separate [`configure-grove`](skills/configure-grove/SKILL.md) operator skill
@@ -25,10 +25,24 @@ does not use the `grove-<kind>` prefix because it is not a lifecycle task kind.
 
 ## What the spine holds, and what it does not
 
-**The fatness rule.** A rule shared across families is in the spine. A rule owned
-by one kind is inline in that kind's own `grove-<kind>` skill. A rule owned by a
-*family* — the five reviews, the five integrations, the two research halves, the
-four editorial stages — is **one file in the spine**, and each member's skill directs a load of it by name.
+<!-- tc: on -->
+
+**The fatness rule.** A rule that several families share is in the spine. A
+rule that one kind owns is inline in that kind's own `grove-<kind>` skill. A
+rule that one *family* owns is **one file**, and each member's skill directs a
+load of the skill that holds it, by name. The family's packs decide where that
+file is:
+
+- When one external pack ships every kind of the family, the file is that
+  pack's family skill. The research pair's file is the `research-family` skill
+  of ResearchSkills.
+- Otherwise the file is in the spine's `references/`. That covers a family that
+  core ships alone, such as the four editorial stages. It also covers a family
+  whose kinds ship in several packs, such as the five reviews and the five
+  integrations after their later moves.
+
+<!-- tc: pending because the conversion has not reached this part of the document -->
+
 **Nowhere twice**, which is what
 [`corpus-rules-have-one-owner`](../../docs/adr/corpus-rules-have-one-owner.md)
 and
@@ -36,18 +50,19 @@ and
 make checkable.
 
 So the spine carries `SKILL.md`, the five format documents, the seven shared
-loop-step references, and the four family files. It carries no kind reference
-and no list of kinds: **a kind exists iff a skill of that name exists.**
+loop-step references, and the family files of `review`, `integrate-review` and
+`editorial`. It carries no kind reference and no list of kinds: **a kind exists
+iff a skill of that name exists.**
 
 **What "inline" means, concretely.** A single-kind rule is in the body of that
 kind's own `SKILL.md` — not in a `references/` file the skill points at. The
 distinction is the whole of the difference between the rule's two halves: what is
 inline arrives *with* the skill in one hop, and what is in the spine is reached
-by a second one. Seven kinds are fat this way (`requirements`, `design`,
-`planning`, `prototype`, `impl`, `combine-research`, `finish`) and twelve are
-thin: the five `review-*`, the five `integrate-review-*` and the two research
-halves each state their identity and direct one load, because everything else
-they obey belongs to their family and the family's text is the spine's. The four
+by a second one. In core, six kinds are fat this way (`requirements`, `design`,
+`planning`, `prototype`, `impl`, `finish`) and ten are thin: the five
+`review-*` and the five `integrate-review-*` each state their identity and
+direct one load, because everything else they obey belongs to their family and
+the family's text is the spine's. ResearchSkills' README describes its kinds. The four
 editorial stages (`draft`, `copy-edit`, `art`, `proof`) are the one hybrid: each
 directs a load of its family's file *and* carries its own charter inline, because
 what the four share is the pipeline's mechanics and what divides them is the

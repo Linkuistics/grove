@@ -33,7 +33,15 @@
 # that harness is removed rather than left dangling. The same holds for the
 # extension links in ~/.pi/agent/extensions/.
 #
-# Usage: ./plugins/install.sh [--force]
+# An external pack is another repository that ships skills in this layout, such
+# as ResearchSkills. `--pack <plugin-dir>` names one plugin directory of such a
+# checkout, for example `<research checkout>/plugins/research`. The run scans it
+# as it scans a bundled plugin, with the same eligibility and the same workspace
+# guard. Reconciliation covers each plugin that the run scans, so a run without
+# `--pack <dir>` leaves the links of that pack unchanged.
+# docs/specs/external-pack-contract.md, "Distribution", states this option.
+#
+# Usage: ./plugins/install.sh [--force] [--pack <plugin-dir>]...
 
 set -euo pipefail
 IFS=$'\n\t'
@@ -43,29 +51,51 @@ plugins_dir="${repo_root}/plugins"
 
 print_usage() {
   cat <<'EOF'
-usage: ./plugins/install.sh [--force]
+usage: ./plugins/install.sh [--force] [--pack <plugin-dir>]...
 
   --force      link from this tree even when it is not the repo's main
                checkout — every link then dangles once this tree is
                removed, so re-run from the main checkout to repair
+  --pack <plugin-dir>
+               also install the skills of an external pack, such as
+               <research checkout>/plugins/research. Repeat it for each
+               pack. The directory must be plugins/<plugin> inside its
+               checkout and must hold skills/
   -h, --help   show this help
 EOF
 }
 
 force=0
-for arg in "$@"; do
-  case "${arg}" in
+pack_dirs=()
+while (($#)); do
+  case "$1" in
     --force) force=1 ;;
+    --pack)
+      if (($# < 2)); then
+        echo "error: --pack needs a plugin directory" >&2
+        print_usage >&2
+        exit 2
+      fi
+      # is_ours recognises a link by the segment plugins/<plugin>/skills/. A
+      # directory of another shape could be linked but never reconciled.
+      if [[ ! -d "$2/skills" || "$(basename "$(cd "$2/.." 2>/dev/null && pwd -P)")" != plugins ]]; then
+        echo "error: --pack $2 is not a plugin directory plugins/<plugin> with skills/" >&2
+        exit 2
+      fi
+      pack_dirs+=("$(cd "$2" && pwd -P)")
+      shift
+      ;;
     -h | --help)
       print_usage
       exit 0
       ;;
     *)
-      echo "error: unknown argument: ${arg}" >&2
+      echo "error: unknown argument: $1" >&2
       print_usage >&2
       exit 2
       ;;
   esac
+  shift
 done
 
 if ! compgen -G "${plugins_dir}/*/skills/*/SKILL.md" >/dev/null; then
@@ -128,32 +158,45 @@ print_main_repo() {
 # warning among 48 `ok` lines is read once, weeks before the symptom. It takes
 # `--force` rather than refusing outright because linking from a side tree is
 # sometimes deliberate: testing an unmerged skill against a live harness.
-main_repo="$(print_main_repo "${repo_root}" || true)"
-if [[ -n "${main_repo}" && "$(print_real_path "${repo_root}")" != "$(print_real_path "${main_repo}")" ]]; then
+#
+# The links of a pack point into the checkout of that pack, so each pack's
+# checkout gets the same guard. That checkout's root is two levels above
+# `plugins/<plugin>`.
+guard_tree() {
+  local tree="$1" main_repo
+  main_repo="$(print_main_repo "${tree}" || true)"
+  if [[ -z "${main_repo}" || "$(print_real_path "${tree}")" == "$(print_real_path "${main_repo}")" ]]; then
+    return 0
+  fi
   if ((force)); then
-    echo "warn   linking from ${repo_root}" >&2
+    echo "warn   linking from ${tree}" >&2
     echo "warn   this is not the main checkout (${main_repo}); every link below" >&2
     echo "warn   dangles once this tree is removed — re-run there to repair" >&2
-  else
-    cat >&2 <<EOF
+    return 0
+  fi
+  cat >&2 <<EOF
 error: refusing to install from a secondary working tree.
 
-  this tree:  ${repo_root}
+  this tree:  ${tree}
   main repo:  ${main_repo}
 
-install.sh links skills from the tree it lives in, and re-links every skill
+install.sh links skills from the tree they live in, and re-links every skill
 unconditionally — so installing from here would re-point *all* of them at this
 tree. Nothing would report it: a symlink whose target later disappears reads as
 "skill not installed", not as an error.
 
-  install normally:  cd "${main_repo}" && ./plugins/install.sh
-  link here anyway:  ./plugins/install.sh --force
+  install normally:  run install.sh and name each --pack from its main checkout
+  link here anyway:  add --force
                      (deliberate — e.g. testing an unmerged skill live; re-run
                       from the main repo afterwards to repair the links)
 EOF
-    exit 1
-  fi
-fi
+  exit 1
+}
+
+guard_tree "${repo_root}"
+for pack_dir in "${pack_dirs[@]+"${pack_dirs[@]}"}"; do
+  guard_tree "$(cd "${pack_dir}/../.." && pwd)"
+done
 
 # Personal skill directories for harnesses that follow the SKILL.md open
 # standard, each tagged with the harness id a `harnesses:` key names. Encoded as
@@ -221,20 +264,37 @@ skill_records=()
 while IFS= read -r skill_md; do
   skill_path="$(dirname "${skill_md}")"
   skill_records+=("$(basename "${skill_path}")	${skill_path}")
-done < <(find "${plugins_dir}" -mindepth 4 -maxdepth 4 -name SKILL.md)
+done < <(
+  find "${plugins_dir}" -mindepth 4 -maxdepth 4 -name SKILL.md
+  for pack_dir in "${pack_dirs[@]+"${pack_dirs[@]}"}"; do
+    find "${pack_dir}" -mindepth 3 -maxdepth 3 -name SKILL.md
+  done
+)
 # Sorted by name — the leading field — so the report reads identically on every
 # run, whatever order the filesystem hands `find` its entries in.
 # shellcheck disable=SC2207  # records are newline-delimited by construction
 IFS=$'\n' skill_records=($(printf '%s\n' "${skill_records[@]}" | sort))
 IFS=$'\n\t'
 
-# The plugin directory names this repo ships (`linkuistics`, `testanyware`).
-# They are what makes a symlink target recognisable as pointing into a checkout
-# of this repo — see is_ours.
+# Two scanned plugins that ship one skill name would claim one link, and the
+# last link written would win in silence. Refuse before any link changes.
+duplicate_names="$(printf '%s\n' "${skill_records[@]}" | cut -f1 | uniq -d)"
+if [[ -n "${duplicate_names}" ]]; then
+  echo "error: more than one scanned plugin ships each of these skills; nothing was linked:" >&2
+  printf '         %s\n' "${duplicate_names}" >&2
+  exit 1
+fi
+
+# The plugin directory names this repo ships (`linkuistics`, `testanyware`),
+# and the name of each `--pack` directory. They are what makes a symlink target
+# recognisable as pointing into a checkout of a scanned plugin — see is_ours.
 plugin_names=()
 for plugin_skills in "${plugins_dir}"/*/skills; do
   [[ -d "${plugin_skills}" ]] || continue
   plugin_names+=("$(basename "$(dirname "${plugin_skills}")")")
+done
+for pack_dir in "${pack_dirs[@]+"${pack_dirs[@]}"}"; do
+  plugin_names+=("$(basename "${pack_dir}")")
 done
 
 # is_ours <link>: whether a symlink in a harness's skills directory was placed

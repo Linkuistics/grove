@@ -127,7 +127,7 @@ fn ending_commands_preserve_template_tokens_in_the_selected_path() {
 fn the_prompt_is_three_parts_in_the_sessions_own_timeline_order() {
     let root = workspace().root().display().to_string();
 
-    for kind in shipped_kinds() {
+    for kind in documented_kinds() {
         let prompt = compose(&kind);
         let skill = prompt::skill_name(&kind);
 
@@ -190,7 +190,7 @@ fn the_prompt_is_three_parts_in_the_sessions_own_timeline_order() {
 /// did not stop being a `replace` chain.
 #[test]
 fn no_placeholder_survives_composition() {
-    for kind in shipped_kinds() {
+    for kind in documented_kinds() {
         let prompt = compose(&kind);
         assert!(
             !prompt.contains('{') && !prompt.contains('}'),
@@ -210,7 +210,7 @@ fn no_placeholder_survives_composition() {
 /// a prompt that names one kind and tells the session it is another fails.
 #[test]
 fn the_load_instruction_says_the_kind_was_already_resolved() {
-    for kind in shipped_kinds() {
+    for kind in documented_kinds() {
         let prompt = compose(&kind);
         assert!(
             prompt.contains(&format!(
@@ -238,7 +238,7 @@ fn the_load_instruction_says_the_kind_was_already_resolved() {
 /// can fail before the session reads that far.
 #[test]
 fn the_load_instruction_states_the_missing_guidance_force_stop() {
-    for kind in shipped_kinds() {
+    for kind in documented_kinds() {
         let prompt = compose(&kind);
         let skill = prompt::skill_name(&kind);
         let expected = format!(
@@ -387,7 +387,7 @@ fn every_kind_gets_the_same_signalling_contract() {
     };
     let first = contract(&a_kind("requirements"));
     assert_eq!(first, signalling_contract());
-    for kind in shipped_kinds() {
+    for kind in documented_kinds() {
         assert_eq!(
             contract(&kind),
             first,
@@ -406,7 +406,7 @@ fn every_kind_gets_the_same_signalling_contract() {
 /// is not an ending for, in the one channel a session cannot skip.
 #[test]
 fn no_prompt_states_the_stop_flag() {
-    for kind in shipped_kinds() {
+    for kind in documented_kinds() {
         assert!(
             !compose(&kind).contains("--done"),
             "`{}`'s prompt names `--done`. The prompt states the mechanism; which ending a \
@@ -455,7 +455,7 @@ fn the_finish_skill_carries_the_three_endings_the_prompt_no_longer_routes() {
 /// actually used, so a reinstatement fails by name rather than by size.
 #[test]
 fn the_runtime_facts_restate_no_rule_the_skill_owns() {
-    for kind in shipped_kinds() {
+    for kind in documented_kinds() {
         let prompt = compose(&kind);
         for smuggled in [
             "do not probe",
@@ -608,7 +608,7 @@ fn the_skill_set_claim_fails_on_a_kind_the_plugin_does_not_ship() {
 /// colon-qualified one and the shipped plugin name followed by a colon.
 #[test]
 fn the_prompt_names_no_fixed_plugin_namespace() {
-    for kind in shipped_kinds() {
+    for kind in documented_kinds() {
         let prompt = compose(&kind);
         assert!(
             !names_a_qualified_alias(&prompt, &prompt::skill_name(&kind)),
@@ -697,6 +697,23 @@ fn shipped_kinds() -> Vec<Kind> {
         .collect()
 }
 
+/// Every kind that core's kind table names: [`shipped_kinds`] and the kinds of
+/// the table's external rows.
+///
+/// A prompt depends on its kind only through the label. The claims about
+/// composition therefore hold for a kind whose skill ships in another pack,
+/// and they sweep this set. Only the claim that core ships each kind's skill
+/// sweeps [`shipped_kinds`].
+fn documented_kinds() -> Vec<Kind> {
+    support::kind_labels()
+        .iter()
+        .map(|label| {
+            Kind::new(label)
+                .unwrap_or_else(|error| panic!("the kind table names `{label}`: {error}"))
+        })
+        .collect()
+}
+
 /// All skill directories the plugin ships, including the spine and operators,
 /// by the directory name a harness registers.
 fn shipped_skills() -> BTreeSet<String> {
@@ -712,7 +729,7 @@ fn shipped_skills() -> BTreeSet<String> {
 
 #[test]
 fn every_kinds_prompt_stays_under_the_size_alarm() {
-    for kind in shipped_kinds() {
+    for kind in documented_kinds() {
         let size = compose(&kind).len();
         assert!(
             size <= SIZE_ALARM,

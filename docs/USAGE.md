@@ -144,12 +144,16 @@ named by an absolute path:
   "skills": {
     "schemaVersion": 1,
     "sources": [
-      { "id": "grove", "type": "local", "path": "/absolute/path/to/grove-checkout/plugins/grove", "roots": ["skills"] }
+      { "id": "grove", "type": "local", "path": "/absolute/path/to/grove-checkout/plugins/grove", "roots": ["skills"] },
+      { "id": "research", "type": "local", "path": "/absolute/path/to/research-checkout/plugins/research", "roots": ["skills"] }
     ],
     "mandatory": []
   }
 }
 ```
+
+The research kinds ship in the ResearchSkills repository, so the second source names a
+checkout of it. Leave that source out if you run no research leaf.
 
 A `mandatory` entry names a file that the agent reads before your task. No Grove skill
 must be mandatory, because the mandate names the kind skill. Your configuration must pass
@@ -1452,6 +1456,10 @@ ordered list of kinds, so the three tokens are spelled by the methodology that
 owns them rather than held in the binary.
 
 <!-- tc: on -->
+
+The skills of these three kinds ship in the ResearchSkills pack, not in Grove's
+`grove` plugin. Install that pack on the route that each harness uses, as the
+[skill plugins guide](../plugins/README.md) states.
 
 ### Ending the session, and ending the grove
 

@@ -12,10 +12,11 @@
 //! So each claim here is generated from a source that moves when the product
 //! does:
 //!
-//! * The **set** comes from [`shipped_kinds`] — the `grove-<kind>` skills the
-//!   plugin ships — so a kind added by authoring a skill fails until
-//!   `TASK-FORMAT.md` names it, and the set's *size word* fails until the prose
-//!   is recounted. It came from a compiled `Kind::ALL` until `open-kind-k20`
+//! * The **set** comes from [`shipped_kinds`] — the `grove-<kind>` skills that
+//!   core ships — so a kind added by authoring a core skill fails until
+//!   `TASK-FORMAT.md` gives it a row whose pack is `grove`. The kinds of an
+//!   external pack are outside this test, and the table states no count of the
+//!   whole set. The set came from a compiled `Kind::ALL` until `open-kind-k20`
 //!   deleted it; the plugin is now where the set exists, which is also the only
 //!   place a *reader* can find it.
 //! * The **filename grammar** is enumerated out of the guidance itself, and each
@@ -184,36 +185,73 @@ fn shipped_markdown() -> Vec<(PathBuf, String)> {
 }
 
 // ---------------------------------------------------------------------------
-// The set, and the word that counts it
+// The set, and the table that names it
 
-/// English cardinals, only as far as a plausible kind set reaches. The size word
-/// is derived rather than typed into the assertion, so recounting the taxonomy is
-/// what changes it.
-const CARDINALS: [(usize, &str); 11] = [
-    (15, "fifteen"),
-    (16, "sixteen"),
-    (17, "seventeen"),
-    (18, "eighteen"),
-    (19, "nineteen"),
-    (20, "twenty"),
-    (21, "twenty-one"),
-    (22, "twenty-two"),
-    (23, "twenty-three"),
-    (24, "twenty-four"),
-    (25, "twenty-five"),
+/// English cardinals, as far as a plausible whole kind set reaches. The guidance
+/// counts no whole set now, so no word in this list may count one.
+const CARDINALS: [&str; 11] = [
+    "fifteen",
+    "sixteen",
+    "seventeen",
+    "eighteen",
+    "nineteen",
+    "twenty",
+    "twenty-one",
+    "twenty-two",
+    "twenty-three",
+    "twenty-four",
+    "twenty-five",
 ];
 
-fn cardinal(count: usize) -> &'static str {
+/// Each disagreement between the table's core rows and the core kinds: a core
+/// kind without a core row, and a label of a core row without a core skill.
+fn kind_table_problems(text: &str, core_kinds: &[String]) -> Vec<String> {
+    use support::CORE_PACK;
+    let rows = support::kind_table(text);
+    let core_labels: BTreeSet<&str> = rows
+        .iter()
+        .filter(|row| row.pack == CORE_PACK)
+        .flat_map(|row| row.labels.iter().map(String::as_str))
+        .collect();
+    let mut problems: Vec<String> = core_kinds
+        .iter()
+        .filter(|kind| !core_labels.contains(kind.as_str()))
+        .map(|kind| format!("the core kind `{kind}` has no row whose pack is `{CORE_PACK}`"))
+        .collect();
+    problems.extend(
+        core_labels
+            .iter()
+            .filter(|label| !core_kinds.iter().any(|kind| kind == *label))
+            .map(|label| {
+                format!("the core row label `{label}` has no `grove-{label}` skill in core")
+            }),
+    );
+    problems
+}
+
+/// Each phrase that counts a whole kind set with a cardinal. The match folds
+/// case and whitespace, so a heading such as "The twenty-three kinds" counts.
+/// "the five producers" and "all five `review-*` kinds" count subsets with
+/// words outside [`CARDINALS`], so they do not match.
+fn whole_set_counts(text: &str) -> Vec<String> {
+    let collapsed = text
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+        .to_lowercase();
     CARDINALS
         .iter()
-        .find(|(value, _)| *value == count)
-        .map(|(_, word)| *word)
-        .unwrap_or_else(|| {
-            panic!(
-                "the kind set has {count} members and CARDINALS stops short of it — \
-                 extend the table so the size word stays derived"
-            )
+        .flat_map(|word| {
+            [
+                format!("the {word} kinds"),
+                format!("one of the {word}"),
+                format!("set of **{word}**"),
+                format!("listing all {word}"),
+                format!("**{word}**"),
+            ]
         })
+        .filter(|phrasing| collapsed.contains(phrasing.as_str()))
+        .collect()
 }
 
 /// The taxonomy's home names every kind, and the guidance that summarises it
@@ -261,47 +299,80 @@ fn every_session_kind_is_named_by_the_provisioned_taxonomy() {
     }
 }
 
-/// The prose states the set's size in words, and the word is the enum's. A kind
-/// added without recounting fails, which is the half a per-label check misses.
+/// The kind table agrees with core, and no text counts the whole set.
 ///
-/// **One surface, not two.** The spine's `SKILL.md` used to state the count as
-/// well, because it carried a kind-routing table with a row per kind. It carries
-/// no such table and no list of kinds since `plugin-spine-k16` — a kind exists
-/// iff a skill of that name exists — so the taxonomy's only home is
-/// `TASK-FORMAT.md`, and asserting a count over a file that deliberately holds
-/// none would be asserting the opposite of the design.
+/// Kinds ship in several packs, and a kind exists iff its skill is installed.
+/// A count in core would state facts about other repositories that this test
+/// cannot read, so `TASK-FORMAT.md` states no count.
+/// `docs/specs/external-pack-contract.md`, "The kind table", states this check.
+/// No check covers a row of an external pack. A pack that adds or removes a
+/// kind changes core's table by hand.
+///
+/// **One surface, not two.** The spine's `SKILL.md` carries no list of kinds
+/// since `plugin-spine-k16`, so the taxonomy's only home is `TASK-FORMAT.md`.
 #[test]
-fn the_guidance_counts_the_kind_set_correctly() {
+fn the_kind_table_agrees_with_core_and_counts_no_set() {
     const SURFACE: &str = "grove/TASK-FORMAT.md";
-    let count = shipped_kinds().len();
-    let word = cardinal(count);
+    let problems = kind_table_problems(TASK_FORMAT, &shipped_kinds());
+    assert!(problems.is_empty(), "{SURFACE}: {problems:#?}");
+    let counts = whole_set_counts(TASK_FORMAT);
     assert!(
-        TASK_FORMAT.contains(word),
-        "{SURFACE} must state the set's size as {word:?} — the plugin ships {count} kinds"
+        counts.is_empty(),
+        "{SURFACE} counts the whole kind set ({counts:?}); kinds ship in several packs"
+    );
+}
+
+/// Each half of the table check fails against a table that is wrong in one
+/// named way, and the count sweep finds a deliberate count of the whole set.
+#[test]
+fn the_kind_table_check_fails_on_a_wrong_table_and_a_count() {
+    let core = vec![
+        "impl".to_owned(),
+        "review-impl".to_owned(),
+        "finish".to_owned(),
+    ];
+    let table = |rows: &str| {
+        format!(
+            "## The kinds\n\nProse.\n\n| kind(s) | its review step | its integration step | pack |\n\
+             |---|---|---|---|\n{rows}\nAfter.\n"
+        )
+    };
+    let clean = table(
+        "| `impl` | `review-impl` | — | `grove` |\n\
+         | `finish` — driver-reserved | — | — | `grove` |\n\
+         | `research-a` + `research-b` | — | `combine-research` | `ResearchSkills` |",
+    );
+    assert_eq!(kind_table_problems(&clean, &core), Vec::<String>::new());
+
+    let missing = table("| `impl` | `review-impl` | — | `grove` |");
+    assert_eq!(
+        kind_table_problems(&missing, &core),
+        ["the core kind `finish` has no row whose pack is `grove`"]
     );
 
-    // The other direction: no *other* cardinal may be used to count kinds. Stated
-    // against the two phrasings the guidance actually uses for a set size, so
-    // "the five producers" and "all five `review-*` kinds" — real counts of real
-    // subsets — do not read as stale claims about the whole set.
-    let collapsed = TASK_FORMAT.split_whitespace().collect::<Vec<_>>().join(" ");
-    for (stale_count, stale) in CARDINALS {
-        if stale_count == count {
-            continue;
-        }
-        for phrasing in [
-            format!("the {stale} kinds"),
-            format!("one of the {stale}"),
-            format!("set of **{stale}**"),
-            format!("listing all {stale}"),
-        ] {
-            assert!(
-                !collapsed.contains(&phrasing),
-                "{SURFACE} still counts the kind set as {stale:?} ({phrasing:?}); \
-                 it has {count} members"
-            );
-        }
-    }
+    let misfiled = table(
+        "| `impl` | `review-impl` | — | `grove` |\n\
+         | `finish` | — | — | `grove` |\n\
+         | `research-a` | — | — | `grove` |",
+    );
+    assert_eq!(
+        kind_table_problems(&misfiled, &core),
+        ["the core row label `research-a` has no `grove-research-a` skill in core"]
+    );
+
+    assert_eq!(whole_set_counts(&clean), Vec::<String>::new());
+    assert_eq!(
+        whole_set_counts("## The twenty-three kinds\n"),
+        ["the twenty-three kinds"]
+    );
+    assert_eq!(
+        whole_set_counts("and one driver-owned step:\n**Twenty**."),
+        ["**twenty**"]
+    );
+    assert_eq!(
+        whole_set_counts("the five producers and all five `review-*` kinds"),
+        Vec::<String>::new()
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -340,8 +411,11 @@ enum Example {
 
 /// The kind labels plus the placeholders the guidance writes in a grammar
 /// sketch, longest first so `review-design` cannot be shadowed by `design`.
+///
+/// The labels include the kinds of external packs, because the guidance can
+/// write an example leaf of any kind in the table.
 fn kind_tokens() -> Vec<String> {
-    let mut tokens: Vec<String> = shipped_kinds()
+    let mut tokens: Vec<String> = support::kind_labels()
         .into_iter()
         .chain(["<session-kind>".to_owned(), "<kind>".to_owned()])
         .collect();

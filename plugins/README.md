@@ -1,5 +1,7 @@
 # Skill plugins
 
+<!-- tc: pending because the conversion has not reached this part of the document -->
+
 Three Claude Code plugins live here — `grove`, `linkuistics` and `testanyware` —
 published through the marketplace declared in
 [`../.claude-plugin/marketplace.json`](../.claude-plugin/marketplace.json). They
@@ -28,6 +30,25 @@ The `configure-grove` operator skill installs, inspects and edits the owner's
 Ravel policy, which selects the harness, model and effort for each
 session kind, with its owner settings and per-checkout choice file. It is
 available without a task tree and is not a lifecycle kind.
+
+## `research` — the research kinds, from ResearchSkills
+
+<!-- tc: on -->
+
+The research kinds `research-a`, `research-b` and `combine-research` ship in
+their own repository,
+[ResearchSkills](https://github.com/Linkuistics/ResearchSkills). Its plugin
+`research` also holds the `research-family` skill, the procedure that the two
+survey halves share. This repository holds no copy of those skills.
+
+The marketplace lists `research` with a `git-subdir` source. That source names
+`plugins/research` and pins one ResearchSkills commit in `sha`. Grove's
+`task check:packs` checks the pinned commit alone and with this tree's core. The
+plugin declares a dependency on `grove`, so a Claude Code install also installs
+the spine. [`docs/specs/external-pack-contract.md`](../docs/specs/external-pack-contract.md)
+states the contract that the pack follows.
+
+<!-- tc: pending because the conversion has not reached this part of the document -->
 
 ## `linkuistics` — engineering-practice skills
 
@@ -91,6 +112,7 @@ Windows/Linux environment from macOS. It installs independently of `linkuistics`
 ```
 /plugin marketplace add Linkuistics/grove
 /plugin install grove@linkuistics
+/plugin install research@linkuistics
 /plugin install linkuistics@linkuistics
 /plugin install testanyware@linkuistics
 ```
@@ -199,6 +221,25 @@ harness), and re-run from the main checkout afterwards to repair the links.
 It selects skills eligible for each detected harness using their `harnesses:`
 frontmatter.
 
+<!-- tc: on -->
+
+**An external pack needs `--pack`.** The research kinds are in ResearchSkills,
+so the plain run above does not install them. Make a checkout of ResearchSkills
+and name its plugin directory:
+
+```
+git clone https://github.com/Linkuistics/ResearchSkills.git
+./plugins/install.sh --pack ../ResearchSkills/plugins/research
+```
+
+The script scans each `--pack` directory as it scans a bundled plugin, with the
+same eligibility and the same workspace guard. Repeat `--pack` for each pack.
+The script refuses a pack skill whose name a scanned plugin already uses. A run
+reconciles the links of the plugins that it scans. A run without
+`--pack <dir>` therefore leaves the links of that pack unchanged.
+
+<!-- tc: pending because the conversion has not reached this part of the document -->
+
 A real file or directory at a target path is an **error**: the installer leaves
 it untouched, installs the other skills, and exits non-zero naming what was not
 installed. If an older installation left a real directory there, preserve any
@@ -226,6 +267,15 @@ Churn is noisy and self-correcting; staleness is silent, and this repo has no CI
 no `pre-commit` hook (jj snapshots the working copy) to catch it. The repository
 and delivery boundary is described in
 [the architecture](../docs/ARCHITECTURE.md#skills-monorepo).
+
+<!-- tc: on -->
+
+The `research` plugin is the exception. Its marketplace entry pins a
+ResearchSkills commit in `sha`, so Claude Code delivers that commit until a
+Grove commit moves the pin. The pin gives native users the commit that Grove's
+`task check:packs` accepted.
+
+<!-- tc: pending because the conversion has not reached this part of the document -->
 
 One trap: `claude plugin validate --strict` warns on the missing `version` and so
 fails on all three manifests. That warning is expected — silencing it by adding a

@@ -1,5 +1,7 @@
 # grove
 
+<!-- tc: pending because the conversion has not reached this part of the document -->
+
 Grove is a hierarchical, self-extending workstream tool for AI coding agents.
 It keeps a long project in a small, version-controlled task tree and launches
 one fresh agent session at a time, with the harness, model and effort your own
@@ -84,13 +86,22 @@ For Claude Code:
 ```text
 /plugin marketplace add Linkuistics/grove
 /plugin install grove@linkuistics
+/plugin install research@linkuistics
 /plugin install linkuistics@linkuistics
 /plugin install testanyware@linkuistics
 ```
 
 Enable marketplace auto-update (`/plugin` → Marketplaces → Enable auto-update)
-so Claude Code keeps all three plugins current. `grove@linkuistics` supplies
+so Claude Code keeps the plugins current. `grove@linkuistics` supplies
 Grove's methodology; see [`plugins/grove/README.md`](plugins/grove/README.md).
+
+<!-- tc: on -->
+
+`research@linkuistics` supplies the research kinds from the
+[ResearchSkills](https://github.com/Linkuistics/ResearchSkills) repository. The
+marketplace pins one ResearchSkills commit for it.
+
+<!-- tc: pending because the conversion has not reached this part of the document -->
 
 For Codex, Gemini CLI and Pi, clone this repository and run:
 
@@ -101,6 +112,17 @@ For Codex, Gemini CLI and Pi, clone this repository and run:
 The script links each eligible skill into the personal skill directory of each
 harness that is present. It filters on each skill's `harnesses:` declaration, so
 Claude-only `guardrail` is excluded from Codex.
+
+<!-- tc: on -->
+
+To install the research kinds too, make a checkout of ResearchSkills and name
+its plugin directory with `--pack`:
+
+```sh
+./plugins/install.sh --pack /path/to/ResearchSkills/plugins/research
+```
+
+<!-- tc: pending because the conversion has not reached this part of the document -->
 
 Grove releases up to 22.8 installed Codex skills automatically in
 `~/.agents/skills` at startup. Later releases do not. They leave those links and

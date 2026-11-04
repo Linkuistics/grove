@@ -109,6 +109,7 @@ plugins. Ravel is an independently delivered runtime dependency:
 | Grove CLI | `crates/` | Homebrew and the release archives install `grove` and `grove-llm`. |
 | Grove caller assets | `assets/ravel-policy/` | One set for each admitted Ravel major: TypeScript for 1.x and Rhai for 2.x. Grove archives/formula install `libexec/ravel-policy`; the formula depends on separately versioned Ravel. [Delivery boundary](grove-delivery-contraction.md). |
 | Agent skill plugins | `plugins/grove/`, `plugins/linkuistics/`, `plugins/testanyware/` | Claude marketplace, or `plugins/install.sh` for Codex, Gemini CLI and Pi. The user chooses and maintains the route. |
+| External packs | Other repositories, such as `plugins/research/` in ResearchSkills | The marketplace pins each with a `git-subdir` source and a `sha`. `plugins/install.sh --pack <dir>` installs a checkout. [External pack contract](specs/external-pack-contract.md). |
 
 Their documented interfaces evolve together. `plugins/` is the authoritative
 skill source. Neither binary embeds or installs it
@@ -925,9 +926,10 @@ token it selects a command for. **Grove holds no set of them**
 ([`a-kind-is-an-open-token`](adr/a-kind-is-an-open-token.md)): a kind is any
 well-formed token — lowercase ASCII letters, digits and single hyphens, no `--` —
 and the kinds that *exist* are the `grove-<kind>` skills the installed
-methodology ships. The table below is the methodology's current set of twenty-three,
-not the binary's; adding another is authoring a skill and routing the kind in a
-policy, never editing this repository's Rust.
+methodology ships. The tables below list the methodology's current kinds, not
+the binary's. Core ships most of them, and the research kinds ship in the
+ResearchSkills pack. Adding another is authoring a skill and routing the kind in
+a policy, never editing this repository's Rust.
 
 **Grove spells a kind token only where it writes the leaf itself**, with no
 session to delegate to, and only for a leaf it can recognise afterwards: the
@@ -1565,7 +1567,8 @@ Grove 22.8, when skill delivery became the user's choice.
 
 **Behavioural coverage remains the plugin's own assertion.**
 `plugins/grove/conformance.sh` checks the loaded path of every kind, rule
-ownership and referenced files. Rust delivery tests separately check that
+ownership and referenced files. It checks core alone, and `task check:packs`
+runs it with each external pack that the marketplace pins. Rust delivery tests separately check that
 startup writes no native skill entry and that a native-only lifecycle completes.
 
 ### The seven constraints, argued
@@ -1644,16 +1647,20 @@ every rule with its owner, class, load predicate and test is
 which `plugins/grove/conformance.sh` reads as data — the spec it was transcribed
 from went with `content/`.
 
-One consequence belongs here rather than there: only `plugins/grove/skills/` is
-installed, so a rule moved into `docs/` is unreachable to every session outside
-this repository. *Normative material stays in the skill set* is the placement
+One consequence belongs here rather than there: only the skills of a pack's
+source directory are installed, such as `plugins/grove/skills/`, so a rule
+moved into `docs/` is unreachable to every session outside this repository. *Normative material stays in the skill set* is the placement
 function's own first case read backwards rather than a separate boundary.
 
 **What is measured, and by what.** `plugins/grove/conformance.sh` is the whole
 standing instrument: every behavioural rule present on the composed loaded path
 of every kind that binds it, no rule with two owners, and every file a skill
 names by path existing. It asserts nothing about how many kinds there are, on
-purpose — a kind exists iff a skill of that name exists.
+purpose — a kind exists iff a skill of that name exists. It reads core alone,
+an external pack alone, or the aggregate of core and the supplied packs. The
+loaded path then follows directed loads across packs. `task check:packs` runs
+each pack that the marketplace pins, alone and in the aggregate
+([`external-pack-contract`](specs/external-pack-contract.md#conformance)).
 
 **Five numeric budgets used to stand beside it and are gone.** They measured
 `SKILL.md`'s body and its `## The loop` section in words, and each kind's static
@@ -1869,7 +1876,8 @@ bash scripts/check.sh
 ```
 
 The script owns the check list: formatting, shell and Rust linting, plugin
-installation and conformance, release tooling, workspace tests and source-exact
+installation and conformance, the external packs that the marketplace pins,
+release tooling, workspace tests and source-exact
 book validation. It typechecks Grove's caller assets with the pinned compiler
 under `tools/ravel-policy` against independently installed Ravel declarations,
 and runs real-worker/fake-agent caller/provenance fixtures. The gate resolves Ravel from PATH; GROVE_TEST_RAVEL selects another installed

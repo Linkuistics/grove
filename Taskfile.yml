@@ -270,14 +270,21 @@ tasks:
       - bash scripts/check.sh
 
   check:skills:
-    desc: Check the manual installer, Grove guidance conformance and that startup writes no native skills
+    desc: Check the manual installer, Grove guidance conformance, the pinned external packs and that startup writes no native skills
     env:
       GROVE_TEST_RAVEL_RUNTIME: '{{.RAVEL_RUNTIME}}'
     cmds:
       - bash plugins/install.test.sh
       - bash plugins/grove/conformance.sh
       - bash plugins/grove/conformance.test.sh
+      - task: check:packs
+      - bash scripts/check-packs.test.sh
       - GROVE_TEST_RAVEL="${GROVE_TEST_RAVEL:-$(command -v ravel)}" cargo nextest run --locked -p grove --test plugin_fallback --test native_skill_delivery
+
+  check:packs:
+    desc: Check each external pack that the marketplace pins, alone and in the aggregate with this working tree
+    cmds:
+      - bash scripts/check-packs.sh
 
   ravel:resolution:
     desc: Check PATH/version resolution and a real independently installed Ravel pair

@@ -353,6 +353,76 @@ make_repo "${scratch}/git-main/vendored"
 check "unpacked copy inside another repo installs" 0 "${EXPECTED_LINKS}" 'linked' \
   "${scratch}/git-main/vendored"
 
+# --- external packs ----------------------------------------------------------
+
+# `--pack <plugin-dir>` adds the plugin directory of another checkout. The pack
+# fixture ships one portable skill and one Claude-only skill, so a run with the
+# pack adds 3 links: one in each harness.
+make_pack() {
+  local dir="$1"
+  make_skill "${dir}" fixpack pack-skill 'harnesses: [any]'
+  make_skill "${dir}" fixpack pack-claude 'harnesses: [claude-code]'
+}
+
+base="${scratch}/pack-base"
+make_repo "${base}"
+pack="${scratch}/pack-repo"
+make_pack "${pack}"
+
+check "--pack without a directory is rejected" 2 0 '--pack needs a plugin directory' "${base}" --pack
+check "--pack of a directory without skills/ is rejected" 2 0 'is not a plugin directory' \
+  "${base}" --pack "${pack}/plugins"
+mkdir -p "${scratch}/not-plugins/fixpack/skills"
+check "--pack outside plugins/<plugin> is rejected" 2 0 'is not a plugin directory' \
+  "${base}" --pack "${scratch}/not-plugins/fixpack"
+
+home="$(make_home)"
+output="$(run_install "${home}" "${base}" --pack "${pack}/plugins/fixpack")"
+problem=""
+[[ "$(last_status)" == 0 ]] || problem+=" exit $(last_status);"
+[[ "$(count_links "${home}")" == $((EXPECTED_LINKS + 3)) ]] ||
+  problem+=" $(count_links "${home}") link(s) (want $((EXPECTED_LINKS + 3)));"
+[[ "$(readlink "${home}/.codex/skills/pack-skill")" == "$(cd "${pack}" && pwd -P)/plugins/fixpack/skills/pack-skill" ]] ||
+  problem+=" pack-skill does not point into the pack;"
+[[ -e "${home}/.codex/skills/pack-claude" ]] && problem+=" a Claude-only pack skill reached Codex;"
+record "--pack links the eligible skills of the pack" "${problem}" "${output}"
+
+# A run that does not scan the pack does not own its links.
+output="$(run_install "${home}" "${base}")"
+problem=""
+[[ -L "${home}/.codex/skills/pack-skill" ]] || problem+=" a run without --pack removed a pack link;"
+record "a run without --pack leaves the pack's links unchanged" "${problem}" "${output}"
+
+# A run that scans the pack reconciles its links.
+rm -rf "${pack}/plugins/fixpack/skills/pack-skill"
+output="$(run_install "${home}" "${base}" --pack "${pack}/plugins/fixpack")"
+problem=""
+[[ -e "${home}/.codex/skills/pack-skill" || -L "${home}/.codex/skills/pack-skill" ]] &&
+  problem+=" a skill deleted from the pack left its link behind;"
+[[ "${output}" =~ unlink[[:space:]]+codex[[:space:]]+pack-skill ]] || problem+=" the removal was not reported;"
+record "--pack reconciles the links of the pack" "${problem}" "${output}"
+
+# One skill name in two scanned plugins would make one link with the last
+# writer winning. The run refuses before it changes any link.
+dup="${scratch}/pack-duplicate"
+make_skill "${dup}" fixpack portable-one 'harnesses: [any]'
+check "a pack skill named like a bundled skill is refused" 1 0 'more than one scanned plugin' \
+  "${base}" --pack "${dup}/plugins/fixpack"
+
+# The workspace guard covers the pack's checkout.
+pack_main="${scratch}/pack-git-main"
+make_pack "${pack_main}"
+git init -q "${pack_main}"
+git -C "${pack_main}" add -A
+git -C "${pack_main}" commit -qm init
+git -C "${pack_main}" worktree add -q -b side "${scratch}/pack-git-worktree"
+check "--pack from the pack's main checkout installs" 0 $((EXPECTED_LINKS + 3)) 'linked' \
+  "${base}" --pack "${pack_main}/plugins/fixpack"
+check "--pack from a linked worktree of the pack refuses" 1 0 'refusing to install from a secondary' \
+  "${base}" --pack "${scratch}/pack-git-worktree/plugins/fixpack"
+check "--pack from a linked worktree with --force installs, loudly" 0 $((EXPECTED_LINKS + 3)) \
+  'not the main checkout' "${base}" --force --pack "${scratch}/pack-git-worktree/plugins/fixpack"
+
 # --- Pi extensions -----------------------------------------------------------
 
 # A skill that ships `harnesses/pi/<name>.ts` and is eligible for Pi gets that

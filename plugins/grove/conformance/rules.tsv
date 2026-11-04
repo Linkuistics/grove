@@ -42,7 +42,7 @@
 #
 #           K is `all` for every kind of the run, a list such as `{design}` or
 #           `{research-a,research-b}`, a prefix set `review-*` or
-#           `integrate-review-*`, or a family set `research` or `editorial`.
+#           `integrate-review-*`, or the family set `editorial`.
 #           A set binds the matching kinds of the run, in any supplied pack.
 #
 #           A trigger binds each kind whose composed loaded path holds the
@@ -108,8 +108,6 @@ figure-carries-the-relation-and-states-its-role	grove-art/SKILL.md	B	static({art
 declined-figure-names-one-of-three-reasons	grove-art/SKILL.md	B	static({art})	a contract's medium is reopened by that record and by nothing else
 brief-chain-refuses-gaps	grove/references/bootstrap.md	B	on(reading the brief chain) @ grove/references/bootstrap.md	It refuses malformed levels
 stale-launch-stops	grove/references/bootstrap.md	B*	on(the handle does not resolve to a live leaf) @ grove/SKILL.md	is a stale or hand-edited launch — not work to redo
-agreement-without-independent-primary-sourcing-is-a-red-flag	grove-combine-research/SKILL.md	B+S	static({combine-research})	
-combine-writes-the-union	grove-combine-research/SKILL.md	B	static({combine-research})	
 jj-seal	grove/references/commit.md	B	on(the stated VCS is jj) @ grove/references/commit.md	`jj new` after describing, once the rename has landed
 name-by-handle	grove/references/commit.md	B	on(the leaf is retired) @ grove/SKILL.md	Name each node the cascade closed the same way
 no-kind-prefix-in-commit-subject	grove/references/commit.md	B	on(writing the commit subject) @ grove/references/commit.md	Do not compensate for the bare stem with a subject convention
@@ -224,12 +222,6 @@ requirements-establishes-what	grove-requirements/SKILL.md	B	static({requirements
 sequence-interdependent-questions	grove-requirements/SKILL.md	B	static({requirements})	
 small-workstream-may-fuse-the-three	grove-requirements/SKILL.md	B	static({requirements})	
 when-not-to-start-a-grove	grove-requirements/SKILL.md	B	static({requirements})	
-both-researchers-get-one-brief	grove/references/research.md	B	static(research)	
-citation-per-failure-mode-claim	grove/references/research.md	B	static(research)	
-research-output-path-per-kind	grove/references/research.md	B	static(research)	
-researchers-are-not-adversarial	grove/references/research.md	B	static(research)	
-silence-is-a-finding	grove/references/research.md	B	static(research)	
-walk-away-check-per-system	grove/references/research.md	B	static(research)	
 cascade-is-silent	grove/references/retire.md	B	on(a node has no live leaf left) @ grove/SKILL.md	
 finish-is-the-drivers-to-discover	grove/references/retire.md	B	on(the last live leaf retires) @ grove/SKILL.md	You do not discover that a grove is finished
 finishing-session-names-its-evidence	grove/references/retire.md	B	on(the work is done) @ grove/SKILL.md	The session that finishes a producer names its provider evidence on that producer's reviews

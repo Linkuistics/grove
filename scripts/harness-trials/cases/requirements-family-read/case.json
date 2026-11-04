@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "name": "requirements-family-read",
+  "purpose": "Observe an external member of a cross-pack family on the directory route (requirements-directory-trials-k193). A review-requirements leaf sits beside a retired requirements leaf and has a bare-name mandate. The grove source comes from the prepared Grove checkout at the removal commit, and the requirements source from a plain Git checkout of a published RequirementsSkills commit. Expect reads of the kind skill from the requirements snapshot, and of the spine and references/review.md from the grove snapshot, before the first action.",
+  "credits": [],
+  "harness": "claude",
+  "route": "directory-2.0",
+  "mode": "lifecycle",
+  "model": "claude-opus-5-5",
+  "effort": "medium",
+  "kinds": ["review-requirements"],
+  "sources": [
+    { "id": "grove", "plugin": "plugins/grove", "roots": ["skills"] },
+    {
+      "id": "requirements",
+      "plugin": "plugins/requirements",
+      "roots": ["skills"],
+      "external": {
+        "repository": "https://github.com/Linkuistics/RequirementsSkills.git",
+        "commit": "eb945d9b13efcf11a74c78936c802108d3f022c6"
+      }
+    }
+  ],
+  "mandatory": [
+    { "source": "grove", "path": "skills/grove/SKILL.md" }
+  ],
+  "timeoutMinutes": 30
+}

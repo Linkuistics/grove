@@ -782,6 +782,21 @@ path in a hidden scratch directory, and a mutated pattern found nothing.
 - After the publication, a clone of the public remote was at `eb945d9b13ef`.
   Its `task check:conformance` gave the same figures.
 
+### Requirements directory trials
+
+`requirements-directory-trials-k193` ran the case `requirements-family-read`
+once in Claude Code and once in Codex, on 2026-11-05. The `grove` source came
+from the prepared Grove checkout at the removal commit `302f85429e4b`. The
+`requirements` source came from a plain Git checkout of the second pack commit
+`eb945d9b13ef`. In each session, a `review-requirements` leaf read its kind
+skill from the requirements snapshot. It read the spine and
+`references/review.md` from the grove snapshot before the first command on the
+task.
+
+Both runs pass, and no gap remains open.
+[Requirements directory trials](common-loading-acceptance-record.md#requirements-directory-trials)
+in the acceptance record holds the builds, the digests and the observations.
+
 ### For discovery-rollout-k6
 
 This workstream reaches `main` only in finish, so the owner's native

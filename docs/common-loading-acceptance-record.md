@@ -17,7 +17,9 @@ The record ends with the [Completion audit](#completion-audit) of
 [Research recipes](#research-recipes) after it give
 `external-research-pack-k4` a working source path. The
 [Research directory trials](#research-directory-trials) then run the research
-kinds from the external pack.
+kinds from the external pack. The
+[Requirements directory trials](#requirements-directory-trials) run an
+external member of a cross-pack review family.
 
 ## Conventions
 
@@ -8777,3 +8779,152 @@ No criterion has a gap. The limits of the trial sections are not gaps,
 because each criterion holds without the property that a limit leaves
 unmeasured. discovery-rollout-k6 owns the owner's native installation of
 `research` after finish.
+
+## Requirements directory trials
+
+`requirements-directory-trials-k193` runs the directory proof of
+`requirements-pack-k173` in real Claude Code and Codex sessions. The
+requirements kinds now live in RequirementsSkills, outside Grove. Their family
+files stay in the spine. The
+[pack membership specification](specs/pack-membership.md#the-acceptance-of-each-move)
+asks for one read: `review-requirements` reads `references/review.md` from the
+core source before it acts. That read also stands for the format files that
+the moved text names, because they resolve by the same rule through the same
+spine.
+
+### Subjects of the requirements trials
+
+The runs are from 2026-11-05 local time. The case ran once in each harness,
+with no retry.
+
+| Subject | Value |
+| --- | --- |
+| Case | `requirements-family-read`, on the route directory-2.0 |
+| Runner | `scripts/harness_trial.py` in the commit that adds the case. The runner did not change |
+| Grove build | commit `302f85429e4b`, the removal commit of `requirements-removal-k192`. `grove` SHA-256 `a7f5c988a18e…`, `grove-llm` SHA-256 `2f7895cc33f7…` |
+| Ravel build | line `skill-directory-delivery` at `71f70fcd3f92`, build commit `d324668b86ca`, identity `a4f55d04b2d1…`, `bin/ravel` SHA-256 `26b487afb957…`, the value of `builds.json`. The prefix has no `libexec` |
+| Source `grove` | `plugins/grove` of the prepared plain Git checkout at `302f85429e4b`, root `skills`. `resourceDigest` `cc8473b1c1ef…` |
+| Source `requirements` | `plugins/requirements` of a plain Git checkout of `eb945d9b13efcf11a74c78936c802108d3f022c6`, the second pack commit and the published `main` of `https://github.com/Linkuistics/RequirementsSkills.git`. Root `skills`, Git tree `f3cf8128fd20…`, `resourceDigest` `07b2d25e8bd2…` |
+| Mandatory file | `grove` `skills/grove/SKILL.md`, the Grove spine |
+| Claude Code | 2.1.318, model `claude-opus-5-5`, effort `medium`, permission mode `bypassPermissions` |
+| Codex | codex-cli 0.166.0, model `gpt-6.1-sol`, effort `medium`, sandbox `workspace-write`, approval `never` |
+
+The second pack commit records the removal commit as its `GROVE_COMMIT`. Its
+source directory has the tree of the first pack commit, which Grove's
+marketplace pins, so the two commits deliver the same bytes. The
+`requirements` digest equals the value in the moves record's
+[Source](repository-moves-record.md#source).
+
+The runner made each requirements checkout under the trial's `sources/`. The
+harness's working directory was the trial's `repo/`. That directory is
+outside the Grove working copy, the RequirementsSkills working copy and every
+checkout. Each checkout had its commit as `HEAD` and was clean after the
+driver. Each launch named the same `requirements` digest as the checkout.
+
+The permission modes in the table are those of the route's real launches.
+Ravel confines no launch, so a delegate of either session has the same read
+permissions. The case asks for no delegate, and neither session launched one.
+
+The sandbox home linked only the sign-in store of the harness. No native copy
+of any Grove or requirements skill existed in it. The Claude Code listing held
+14 built-in skill names, and no Grove or requirements name. Codex installed
+its four bundled skills and the curated plugins of the sign-in, as in every
+earlier Codex run. No session read either.
+
+The planted tree holds the retired `requirements` leaf `plan-k1`, the live
+`review-requirements` leaf `plan-k2` and the paired
+`integrate-review-requirements` leaf `plan-k3`. The root brief is the
+requirements artifact. One of its requirements, "The tool is fast", cannot be
+tested, so that the review has a real finding. The review leaf names no skill,
+and Grove sends its bare-name mandate for `grove-review-requirements`.
+
+The trial configuration routes only `review-requirements`. After each review
+ended with `grove-continue`, the driver therefore refused
+`integrate-review-requirements` as `config_refused`, and no second harness
+launched. After each session, Ravel wrote the two lines `stop attempt …
+signal 9: Operation not permitted (os error 1)` of earlier runs.
+
+Recipe, from a scratch directory `$SCRATCH` outside every working copy:
+
+```sh
+task trial:prepare OUT="$SCRATCH/trials" COMMIT=302f85429e4b8f8ada02be594687155109dfbf6b RAVEL="$SCRATCH/ravel-2.0/bin/ravel"
+task trial:claude OUT="$SCRATCH/trials" CASE=requirements-family-read
+task trial:codex OUT="$SCRATCH/trials" CASE=requirements-family-read
+```
+
+### requirements-family-read
+
+**Claude Code.** The run is `requirements-family-read-20261104T140225Z`. The
+session file `782c856f-0bdc-4a26-8a04-5dcffd004d77.jsonl` has the SHA-256
+`c1845d8c3d92…`. The descriptor identity is `c2dc3f153e3e…`.
+
+| # | Class | Skill | Source | What the call did |
+| --- | --- | --- | --- | --- |
+| 1 | mandatory | grove | grove | Read the spine from its snapshot, and listed each `SKILL.md` path of both snapshots |
+| 2 | command | | | Printed the `name` and `description` lines of each `SKILL.md` of both snapshots |
+| 4 | kind-skill | grove-review-requirements | requirements | Read the kind skill from the requirements snapshot, and listed its directory |
+| 5 | listing | grove | grove | Listed the spine's directory and read `references/review.md` from the grove snapshot |
+| 6 | command | | | Read `references/execute.md`, `bootstrap.md`, `retire.md` and `commit.md` of the spine |
+| 7, 8 | command | | | Resolved the leaf, walked its brief chain and read the task files and the root brief |
+| 9 | supporting | grove | grove | Read `TASK-FORMAT.md` of the spine |
+| 11 | command | | | Appended eleven findings to the review leaf with a shell here-document, and retired the leaf |
+| 12 | command | | | Committed the review |
+| 13 | ending | | | Ran the exact continue command |
+
+**Result: pass.** The agent read the spine, the kind skill and
+`references/review.md` before the first command on the task, in call 7. The
+kind skill came from the requirements snapshot, and the spine and the family
+file came from the grove snapshot. Call 2 shows the descriptions, so the agent
+chose by description.
+
+The classifier gives call 5 the class `listing`, because the call starts with
+`ls`. The record's second path of that call is `references/review.md`, with
+the class `supporting`. Call 6 has the class `command`, because its paths come
+from a loop variable. The first finding is that "The tool is fast" cannot be
+falsified.
+
+**Codex.** The run is `requirements-family-read-20261104T140225Z-2`. The
+session file `rollout-2026-11-05T01-02-28-01a1a6de-4bff-74d1-8bdd-1f3bdce394df.jsonl`
+has the SHA-256 `75797672520e…`. The descriptor identity is
+`66fccbe0e47c…`.
+
+| # | Class | Skill | Source | What the call did |
+| --- | --- | --- | --- | --- |
+| 2 | mandatory | grove | grove | Read the spine |
+| 3 | listing | | grove | Listed the `SKILL.md` files of both snapshots with `rg --files` |
+| 4 | kind-skill | grove-review-requirements | requirements | Read the kind skill from the requirements snapshot |
+| 5 | supporting | grove | grove | Read `references/review.md` from the grove snapshot |
+| 7 | supporting | grove | grove | Read `references/execute.md` and `references/bootstrap.md` of the spine |
+| 8 to 13, 15 to 19 | command | | | Resolved the leaf, walked its brief chain, read the task files and the root brief, and inspected the commit |
+| 14 | supporting | grove | grove | Read `references/retire.md` and `references/commit.md` of the spine |
+| 21 | action | | | Wrote three findings into the review leaf with `apply_patch` |
+| 22, 24 | command | | | Retired the leaf and committed the review |
+| 26 | ending | | | Ran the exact continue command |
+
+**Result: pass.** The reads of the spine, the kind skill and
+`references/review.md` came before the first command on the task, in call 8.
+The kind skill came from the requirements snapshot, and the spine and the
+family file came from the grove snapshot. The listing in call 3 gave paths
+only, so this agent chose by the directory name. Its first finding is also
+that "fast" has no measure.
+
+### Limits of the requirements trials
+
+- **One run each.** The case ran once in each harness. One run is one
+  observation, not a rate.
+- **The format files.** The sessions read no `SPEC-FORMAT.md`,
+  `ADR-FORMAT.md` or `CONTEXT-FORMAT.md`, because a review of this artifact
+  does not need them. The read of `references/review.md` stands for them, as
+  the membership specification states. The aggregate conformance of
+  `requirements-removal-k192` resolves each of them in the spine.
+- **The kind skill named the family file.** `grove-review-requirements` names
+  `references/review.md` beside its load of `grove`. The trial therefore shows
+  that a session follows that name into the other source. It does not show a
+  session that finds the family file without the name. The spine's
+  `SKILL.md` also lists its family files.
+- **No delegate, working copy, refusal or offline proof.** The membership
+  specification asks for none of them for this move. The
+  [research directory trials](#research-directory-trials) prove those
+  mechanisms for an external source.
+
+No gap remains open for the case of `requirements-directory-trials-k193`.

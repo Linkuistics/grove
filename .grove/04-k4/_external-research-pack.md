@@ -26,7 +26,7 @@ cross-repository loading contract before the remaining migrations.
 - A native Claude Code installation loads a moved kind under its actual plugin
   namespace from Grove's bare-name mandate. Directory loading also succeeds
   with native copies absent, under the delivery specification's acceptance cases.
-- Applicable repository checks pass; Grove's full check uses the independent
+- Applicable repository checks pass. Grove's full check uses the independent
   compatible Ravel build. The durable external-pack contract records the proven
   layout, resource, checkout and conformance boundary for later migration
   planners. The checkout boundary names the source directory and roots inside
@@ -47,7 +47,7 @@ Keep reusable pack checks in their owning repository's Taskfile.
 
 ## Notes
 
-The research pair and combiner are the subjects being moved; this stage does
-not commission unrelated literature surveys. Update source distribution
-references as each move lands; the full marketplace relocation remains in the
-later repository-moves-k5 scope.
+This stage moves the research pair and the combiner. It does not commission
+unrelated literature surveys. Update source distribution references as each
+move lands. The full marketplace relocation remains in the later
+repository-moves-k5 scope.

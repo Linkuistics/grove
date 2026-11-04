@@ -29,3 +29,15 @@ prunable. Its directory no longer exists.
 ## Notes
 
 Read the project's own `CONTEXT.md` and README before you run its checks.
+
+## Decisions (running log)
+
+- The prunable worktree registration at `~/Development/Stylepack/.grove-meta`
+  stays unchanged. No human stated that it is obsolete. The move does not
+  touch it, because its `gitdir` names an earlier location.
+- The moved `.venv` was already broken at the old path, from an earlier
+  location. `uv sync --frozen --reinstall` recreated its scripts at the new
+  path. `--frozen` keeps the tracked `uv.lock` unchanged.
+- No reference outside the project needed a repair.
+  `docs/repository-moves-record.md` holds the readings, the checks and the
+  classes of hits.

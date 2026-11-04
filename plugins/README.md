@@ -204,7 +204,7 @@ cd grove
 ```
 
 [`install.sh`](install.sh) symlinks each **eligible** skill directory — from
-both plugins here — into `~/.codex/skills/`, `~/.gemini/skills/`, and `~/.pi/agent/skills/`
+the `skills/` and `craft/` roots of both plugins here — into `~/.codex/skills/`, `~/.gemini/skills/`, and `~/.pi/agent/skills/`
 (only for harnesses that are installed). A skill that ships `harnesses/pi/*.ts`
 also has that Pi extension linked into `~/.pi/agent/extensions/`, under the same
 ownership and reconciliation rules; `technical-communication` is the one that does. Because the targets are symlinks,
@@ -279,9 +279,14 @@ directory of a TestAnyware checkout in the same way:
 
 The script scans each `--pack` directory as it scans a bundled plugin, with the
 same eligibility and the same workspace guard. Repeat `--pack` for each pack.
-The script refuses a pack skill whose name a scanned plugin already uses. A run
-reconciles the links of the plugins that it scans. A run without
+A run reconciles the links of the plugins that it scans. A run without
 `--pack <dir>` therefore leaves the links of that pack unchanged.
+
+A plugin directory has two skill roots: `skills/` for kind skills and `craft/`
+for craft skills. It can have one root or both. The script scans both roots of
+each plugin directory and no other directory. It refuses a `--pack` directory
+that has neither root. The script refuses a skill name that two scanned roots
+ship, and it names each path that ships the name.
 
 <!-- tc: pending because the conversion has not reached this part of the document -->
 
@@ -332,7 +337,8 @@ None of this touches the symlink install above — those skills update with a
 
 ## Editing a skill
 
-Edit the `SKILL.md` under `<plugin>/skills/<name>/` and commit. Keep
+Edit the `SKILL.md` under `<plugin>/skills/<name>/` (or `<plugin>/craft/<name>/`
+for a craft skill) and commit. Keep
 `description` sharp (a capability clause plus an explicit *Use when …* trigger)
 and the body concise — an invoked skill stays in context for the rest of the
 session. The house conventions are the `authoring-conventions` skill itself

@@ -33,6 +33,14 @@
 # that harness is removed rather than left dangling. The same holds for the
 # extension links in ~/.pi/agent/extensions/.
 #
+# A plugin directory has two skill roots. `skills/` holds methodology skills,
+# and `craft/` holds craft skills. A plugin directory can have either root or
+# both. The script treats a skill in `craft/` as it treats a skill in
+# `skills/`: the same eligibility, the same links, the same ownership test and
+# the same reconciliation. It scans no other directory, because a link into
+# another directory would be one that no later run recognises as its own.
+# docs/specs/external-pack-contract.md, "Layout", states the two roots.
+#
 # An external pack is another repository that ships skills in this layout, such
 # as ResearchSkills. `--pack <plugin-dir>` names one plugin directory of such a
 # checkout, for example `<research checkout>/plugins/research`. The run scans it
@@ -49,6 +57,29 @@ IFS=$'\n\t'
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 plugins_dir="${repo_root}/plugins"
 
+# The skill roots of a plugin directory. The option check, the scan, the plugin
+# names and is_ours all read this list, so the roots have one owner here.
+skill_roots=(skills craft)
+
+# has_skill_root <plugin-dir>: whether the directory has at least one skill root.
+has_skill_root() {
+  local root
+  for root in "${skill_roots[@]}"; do
+    [[ -d "$1/${root}" ]] && return 0
+  done
+  return 1
+}
+
+# print_skill_files <plugin-dir>: the path of each SKILL.md one level inside a
+# skill root of the directory, one per line.
+print_skill_files() {
+  local root
+  for root in "${skill_roots[@]}"; do
+    [[ -d "$1/${root}" ]] || continue
+    find "$1/${root}" -mindepth 2 -maxdepth 2 -name SKILL.md
+  done
+}
+
 print_usage() {
   cat <<'EOF'
 usage: ./plugins/install.sh [--force] [--pack <plugin-dir>]...
@@ -60,7 +91,7 @@ usage: ./plugins/install.sh [--force] [--pack <plugin-dir>]...
                also install the skills of an external pack, such as
                <research checkout>/plugins/research. Repeat it for each
                pack. The directory must be plugins/<plugin> inside its
-               checkout and must hold skills/
+               checkout and must hold skills/, craft/ or both
   -h, --help   show this help
 EOF
 }
@@ -76,10 +107,10 @@ while (($#)); do
         print_usage >&2
         exit 2
       fi
-      # is_ours recognises a link by the segment plugins/<plugin>/skills/. A
+      # is_ours recognises a link by the segment plugins/<plugin>/<root>/. A
       # directory of another shape could be linked but never reconciled.
-      if [[ ! -d "$2/skills" || "$(basename "$(cd "$2/.." 2>/dev/null && pwd -P)")" != plugins ]]; then
-        echo "error: --pack $2 is not a plugin directory plugins/<plugin> with skills/" >&2
+      if ! has_skill_root "$2" || [[ "$(basename "$(cd "$2/.." 2>/dev/null && pwd -P)")" != plugins ]]; then
+        echo "error: --pack $2 is not a plugin directory plugins/<plugin> with skills/ or craft/" >&2
         exit 2
       fi
       pack_dirs+=("$(cd "$2" && pwd -P)")
@@ -98,8 +129,9 @@ while (($#)); do
   shift
 done
 
-if ! compgen -G "${plugins_dir}/*/skills/*/SKILL.md" >/dev/null; then
-  echo "error: no bundled skills found under ${plugins_dir}/*/skills/" >&2
+if ! compgen -G "${plugins_dir}/*/skills/*/SKILL.md" >/dev/null &&
+  ! compgen -G "${plugins_dir}/*/craft/*/SKILL.md" >/dev/null; then
+  echo "error: no bundled skills found under ${plugins_dir}/*/skills/ or ${plugins_dir}/*/craft/" >&2
   exit 1
 fi
 
@@ -258,16 +290,18 @@ is_eligible() {
   return 1
 }
 
-# Collect every bundled skill once: `<name>\t<absolute path>`, sorted by name so
-# the report reads the same on every run and on every filesystem.
+# Collect every scanned skill once, from both skill roots of each bundled plugin
+# and each pack: `<name>\t<absolute path>`.
 skill_records=()
 while IFS= read -r skill_md; do
   skill_path="$(dirname "${skill_md}")"
   skill_records+=("$(basename "${skill_path}")	${skill_path}")
 done < <(
-  find "${plugins_dir}" -mindepth 4 -maxdepth 4 -name SKILL.md
+  for plugin_dir in "${plugins_dir}"/*/; do
+    print_skill_files "${plugin_dir%/}"
+  done
   for pack_dir in "${pack_dirs[@]+"${pack_dirs[@]}"}"; do
-    find "${pack_dir}" -mindepth 3 -maxdepth 3 -name SKILL.md
+    print_skill_files "${pack_dir}"
   done
 )
 # Sorted by name — the leading field — so the report reads identically on every
@@ -276,12 +310,19 @@ done < <(
 IFS=$'\n' skill_records=($(printf '%s\n' "${skill_records[@]}" | sort))
 IFS=$'\n\t'
 
-# Two scanned plugins that ship one skill name would claim one link, and the
-# last link written would win in silence. Refuse before any link changes.
+# One skill name in two scanned skill roots would claim one link, and the last
+# link written would win in silence. The two roots can belong to two plugins or
+# to one plugin. Refuse before any link changes, and name each path that ships
+# the name, so the reader knows which to rename.
 duplicate_names="$(printf '%s\n' "${skill_records[@]}" | cut -f1 | uniq -d)"
 if [[ -n "${duplicate_names}" ]]; then
-  echo "error: more than one scanned plugin ships each of these skills; nothing was linked:" >&2
-  printf '         %s\n' "${duplicate_names}" >&2
+  echo "error: more than one scanned skill root ships each of these skills; nothing was linked:" >&2
+  while IFS= read -r skill_name; do
+    echo "         ${skill_name}" >&2
+    for record in "${skill_records[@]}"; do
+      [[ "${record%%	*}" == "${skill_name}" ]] && echo "           ${record#*	}" >&2
+    done
+  done <<<"${duplicate_names}"
   exit 1
 fi
 
@@ -289,9 +330,9 @@ fi
 # and the name of each `--pack` directory. They are what makes a symlink target
 # recognisable as pointing into a checkout of a scanned plugin — see is_ours.
 plugin_names=()
-for plugin_skills in "${plugins_dir}"/*/skills; do
-  [[ -d "${plugin_skills}" ]] || continue
-  plugin_names+=("$(basename "$(dirname "${plugin_skills}")")")
+for plugin_dir in "${plugins_dir}"/*/; do
+  has_skill_root "${plugin_dir%/}" || continue
+  plugin_names+=("$(basename "${plugin_dir}")")
 done
 for pack_dir in "${pack_dirs[@]+"${pack_dirs[@]}"}"; do
   plugin_names+=("$(basename "${pack_dir}")")
@@ -302,8 +343,10 @@ done
 # `--force` run from a side tree still reconciles links laid down by the main
 # checkout.
 #
-# The test is the target's shape: `…/plugins/<plugin>/skills/<anything>` where
-# <plugin> is a plugin directory this repo ships. Deliberately *not* also
+# The test is the target's shape: `…/plugins/<plugin>/<root>/<anything>`, where
+# <plugin> is a scanned plugin directory and <root> is `skills` or `craft`. A
+# craft root needs the same test, or a later run could not remove the link of a
+# removed craft skill. Deliberately *not* also
 # "<anything> is a skill we currently ship" — the links most in need of
 # reclaiming are the ones whose skill was deleted or renamed, and that extra
 # condition would disown exactly those. The plugin segment survives a skill's
@@ -312,12 +355,14 @@ done
 # A textual match on the stored target rather than a resolved one, so an
 # already-dangling link is still recognised as ours.
 is_ours() {
-  local target plugin
+  local target plugin root
   target="$(readlink "$1")"
   for plugin in "${plugin_names[@]}"; do
-    case "${target}" in
-      */plugins/"${plugin}"/skills/*) return 0 ;;
-    esac
+    for root in "${skill_roots[@]}"; do
+      case "${target}" in
+        */plugins/"${plugin}"/"${root}"/*) return 0 ;;
+      esac
+    done
   done
   return 1
 }

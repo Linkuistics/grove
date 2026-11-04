@@ -130,6 +130,7 @@ check() {
 make_repo "${scratch}/args"
 check "--help exits 0 without linking" 0 0 'usage: ./plugins/install.sh' "${scratch}/args" --help
 check "unknown argument is rejected" 2 0 'unknown argument: --nope' "${scratch}/args" --nope
+check "--help names both skill roots" 0 0 'must hold skills/, craft/ or both' "${scratch}/args" --help
 
 # --- the eligibility filter --------------------------------------------------
 
@@ -370,7 +371,8 @@ pack="${scratch}/pack-repo"
 make_pack "${pack}"
 
 check "--pack without a directory is rejected" 2 0 '--pack needs a plugin directory' "${base}" --pack
-check "--pack of a directory without skills/ is rejected" 2 0 'is not a plugin directory' \
+check "--pack of a directory with neither root is rejected" 2 0 \
+  'is not a plugin directory plugins/<plugin> with skills/ or craft/' \
   "${base}" --pack "${pack}/plugins"
 mkdir -p "${scratch}/not-plugins/fixpack/skills"
 check "--pack outside plugins/<plugin> is rejected" 2 0 'is not a plugin directory' \
@@ -406,7 +408,7 @@ record "--pack reconciles the links of the pack" "${problem}" "${output}"
 # writer winning. The run refuses before it changes any link.
 dup="${scratch}/pack-duplicate"
 make_skill "${dup}" fixpack portable-one 'harnesses: [any]'
-check "a pack skill named like a bundled skill is refused" 1 0 'more than one scanned plugin' \
+check "a pack skill named like a bundled skill is refused" 1 0 'more than one scanned skill root' \
   "${base}" --pack "${dup}/plugins/fixpack"
 
 # The workspace guard covers the pack's checkout.
@@ -422,6 +424,138 @@ check "--pack from a linked worktree of the pack refuses" 1 0 'refusing to insta
   "${base}" --pack "${scratch}/pack-git-worktree/plugins/fixpack"
 check "--pack from a linked worktree with --force installs, loudly" 0 $((EXPECTED_LINKS + 3)) \
   'not the main checkout' "${base}" --force --pack "${scratch}/pack-git-worktree/plugins/fixpack"
+
+# --- craft roots -------------------------------------------------------------
+
+# A plugin directory ships methodology skills in `skills/` and craft skills in
+# `craft/`. The installer treats the two roots alike: the same eligibility, the
+# same links, the same ownership test and the same reconciliation. A pack can
+# ship `craft/` beside `skills/`, or `craft/` alone.
+
+# make_craft_skill <repo> <plugin> <name> <extra-frontmatter-lines>
+make_craft_skill() {
+  local dir="$1" plugin="$2" name="$3" extra="$4"
+  mkdir -p "${dir}/plugins/${plugin}/craft/${name}"
+  {
+    printf -- '---\nname: %s\ndescription: fixture\n' "${name}"
+    [[ -n "${extra}" ]] && printf '%s\n' "${extra}"
+    printf -- '---\n\nbody\n'
+  } >"${dir}/plugins/${plugin}/craft/${name}/SKILL.md"
+}
+
+# make_craft_beside_pack <repo>: the plugin directory `plugins/craftbeside`, with
+# one portable skill in `skills/` and two portable craft skills in `craft/`. A
+# run with the pack adds 9 links: three in each harness.
+make_craft_beside_pack() {
+  local dir="$1"
+  make_skill "${dir}" craftbeside beside-kind 'harnesses: [any]'
+  make_craft_skill "${dir}" craftbeside beside-craft-one 'harnesses: [any]'
+  make_craft_skill "${dir}" craftbeside beside-craft-two 'harnesses: [any]'
+}
+
+# make_craft_only_pack <repo>: the plugin directory `plugins/craftonly`, with
+# two portable craft skills in `craft/` and no `skills/`. A run with the pack
+# adds 6 links: two in each harness. personal-pack-k183 names this fixture as
+# the static proof of a source whose only root is `craft`, so keep its shape
+# plain.
+make_craft_only_pack() {
+  local dir="$1"
+  make_craft_skill "${dir}" craftonly only-craft-one 'harnesses: [any]'
+  make_craft_skill "${dir}" craftonly only-craft-two 'harnesses: [any]'
+}
+
+# craft_pack_cycle <label> <pack-plugin-dir> <links-added> <kept-skill> <removed-skill>:
+# install the pack, delete one craft skill, run without the pack, then run with
+# the pack. The run without the pack leaves the stale craft link. The run with
+# the pack removes it and keeps the other craft skill's link.
+craft_pack_cycle() {
+  local label="$1" plugin_dir="$2" added="$3" kept="$4" removed="$5"
+  local home output problem=""
+  home="$(make_home)"
+  output="$(run_install "${home}" "${base}" --pack "${plugin_dir}")"
+  [[ "$(last_status)" == 0 ]] || problem+=" exit $(last_status);"
+  [[ "$(count_links "${home}")" == $((EXPECTED_LINKS + added)) ]] ||
+    problem+=" $(count_links "${home}") link(s) (want $((EXPECTED_LINKS + added)));"
+  [[ "$(readlink "${home}/.codex/skills/${removed}")" == "$(cd "${plugin_dir}" && pwd -P)/craft/${removed}" ]] ||
+    problem+=" ${removed} does not point into craft/ of the pack;"
+  record "--pack links the craft skills of ${label}" "${problem}" "${output}"
+
+  rm -rf "${plugin_dir:?}/craft/${removed}"
+  output="$(run_install "${home}" "${base}")"
+  problem=""
+  [[ -L "${home}/.codex/skills/${removed}" ]] ||
+    problem+=" a run without --pack removed a craft link of the pack;"
+  record "a run without --pack leaves the craft links of ${label} unchanged" "${problem}" "${output}"
+
+  output="$(run_install "${home}" "${base}" --pack "${plugin_dir}")"
+  problem=""
+  [[ -e "${home}/.codex/skills/${removed}" || -L "${home}/.codex/skills/${removed}" ]] &&
+    problem+=" a craft skill deleted from the pack left its link behind;"
+  [[ "${output}" =~ unlink[[:space:]]+codex[[:space:]]+${removed} ]] ||
+    problem+=" the removal was not reported;"
+  [[ -L "${home}/.codex/skills/${kept}" ]] || problem+=" the other craft link was removed;"
+  record "--pack reconciles the craft links of ${label}" "${problem}" "${output}"
+}
+
+beside="${scratch}/craft-beside-repo"
+make_craft_beside_pack "${beside}"
+craft_pack_cycle "a pack with craft/ beside skills/" "${beside}/plugins/craftbeside" 9 \
+  beside-craft-one beside-craft-two
+
+only="${scratch}/craft-only-repo"
+make_craft_only_pack "${only}"
+craft_pack_cycle "a pack with craft/ and no skills/" "${only}/plugins/craftonly" 6 \
+  only-craft-one only-craft-two
+
+# A bundled plugin directory can also ship `craft/`, with or without `skills/`.
+bundled="${scratch}/craft-bundled"
+make_repo "${bundled}"
+make_craft_skill "${bundled}" craftbundled bundled-craft 'harnesses: [any]'
+home="$(make_home)"
+run_install "${home}" "${bundled}" >/dev/null
+problem=""
+[[ -L "${home}/.codex/skills/bundled-craft" ]] || problem+=" fixture did not link bundled-craft;"
+rm -rf "${bundled}/plugins/craftbundled/craft/bundled-craft"
+output="$(run_install "${home}" "${bundled}")"
+[[ -e "${home}/.codex/skills/bundled-craft" || -L "${home}/.codex/skills/bundled-craft" ]] &&
+  problem+=" a craft skill deleted from a bundled plugin left its link behind;"
+record "a bundled craft skill's link is reconciled" "${problem}" "${output}"
+
+# Only the two roots are scanned. A link to a skill in any other directory would
+# be one that no later run recognises as the installer's own.
+stray="${scratch}/craft-stray"
+make_skill "${stray}" straypack stray-kind 'harnesses: [any]'
+mkdir -p "${stray}/plugins/straypack/notes/stray-note"
+printf -- '---\nname: stray-note\ndescription: fixture\nharnesses: [any]\n---\n' \
+  >"${stray}/plugins/straypack/notes/stray-note/SKILL.md"
+home="$(make_home)"
+output="$(run_install "${home}" "${base}" --pack "${stray}/plugins/straypack")"
+problem=""
+[[ -L "${home}/.codex/skills/stray-kind" ]] || problem+=" the skill in skills/ was not linked;"
+[[ -e "${home}/.codex/skills/stray-note" ]] && problem+=" a directory outside both roots was scanned;"
+record "only skills/ and craft/ are scanned" "${problem}" "${output}"
+
+# One name in both roots, of one plugin or of two, would claim one link. The
+# refusal names each path that ships the name, so the reader knows which to
+# rename.
+dupcraft="${scratch}/craft-duplicate"
+make_craft_skill "${dupcraft}" dupcraft portable-one 'harnesses: [any]'
+make_skill "${dupcraft}" dupcraft twice 'harnesses: [any]'
+make_craft_skill "${dupcraft}" dupcraft twice 'harnesses: [any]'
+home="$(make_home)"
+output="$(run_install "${home}" "${base}" --pack "${dupcraft}/plugins/dupcraft")"
+problem=""
+[[ "$(last_status)" == 1 ]] || problem+=" exit $(last_status) (want 1);"
+[[ "$(count_links "${home}")" == 0 ]] || problem+=" $(count_links "${home}") link(s) (want 0);"
+[[ "${output}" =~ plugins/dupcraft/craft/portable-one ]] ||
+  problem+=" the refusal does not name the craft path of portable-one;"
+[[ "${output}" =~ plugins/linkuistics/skills/portable-one ]] ||
+  problem+=" the refusal does not name the bundled path of portable-one;"
+[[ "${output}" =~ plugins/dupcraft/skills/twice ]] ||
+  problem+=" the refusal does not name the skills/ path of twice;"
+[[ "${output}" =~ plugins/dupcraft/craft/twice ]] ||
+  problem+=" the refusal does not name the craft/ path of twice;"
+record "a name shipped twice across both roots is refused before any link" "${problem}" "${output}"
 
 # --- Pi extensions -----------------------------------------------------------
 

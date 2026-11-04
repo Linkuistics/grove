@@ -154,9 +154,9 @@ The source directory is a subdirectory for three reasons:
   an ignore file says. A repository-root source would put the README, the
   Taskfile and any cache into each capture. Its `resourceDigest` would then
   change with edits that deliver nothing.
-- The installer reconciles links by the path segment `plugins/<plugin>/skills/`.
-  The trial runner names a source by its `plugin` path. Both work for an
-  external pack without a change.
+- The installer reconciles links by the path segment `plugins/<plugin>/skills/`
+  or `plugins/<plugin>/craft/`. The trial runner names a source by its `plugin`
+  path. Both work for an external pack without a change.
 - One repository can ship a second plugin. WritingSkills and PersonalSkills
   each need one for their native residue, as the
   [owner delivery design](owner-skill-delivery.md#native-residue) states.
@@ -848,7 +848,7 @@ check runs of this section.
 | Grove's pack tasks | `check:packs`, which runs `scripts/check-packs.sh`, and its controls `scripts/check-packs.test.sh`. `check:skills` and `scripts/check.sh` run both | The script reads each `git-subdir` entry of the marketplace and checks it alone and in the aggregate. `--marketplace` and `--cache` let a test supply fixtures |
 | The plugin manifest | `plugins/research/.claude-plugin/plugin.json`: `name`, `description`, `author`, `repository`, `license` `Apache-2.0`, `dependencies` `["grove"]` and `keywords`, with no `version` | `claude plugin validate` passes it with two warnings, no `version` and no icon |
 | The marketplace entry | The `git-subdir` entry of [Distribution](#distribution) in `.claude-plugin/marketplace.json`, with `sha` `dc3a4812db3b` | `/plugin install research@linkuistics` also installed `grove` as a dependency |
-| The manual installer | `plugins/install.sh --pack <checkout>/plugins/research` | The source directory must have the shape `plugins/<plugin>/skills/` |
+| The manual installer | `plugins/install.sh --pack <checkout>/plugins/research` | The source directory must have the shape `plugins/<plugin>/` with `skills/`, `craft/` or both. craft-root-installer-k195 added the `craft/` root |
 | The trial-runner fields | In `scripts/harness_trial.py`: a source's `external` object with `repository` and `commit`, the run option `--working-copy <id>=<dir>` (`WORKING_COPY` of `trial:claude` and `trial:codex`), `moveAway`, `moveRoot` and the Claude Code field `nativePlugins` | [The runner](../common-loading-acceptance-record.md#the-runner) owns each field. The cases `research-discovery`, `research-delegate`, `research-source-missing`, `research-root-missing` and `research-native-namespace` are the models for a later pack |
 
 ### Differences from the decisions

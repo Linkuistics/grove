@@ -40,8 +40,11 @@ _Avoid_: "plugin" for a whole pack. One pack can ship more than one [[Plugin]].
 **Source directory**:
 The plugin directory `plugins/<plugin>/` inside a checkout of a [[Pack]]. Ravel
 captures it as a `local` source, Claude Code installs it as the plugin root and
-`install.sh --pack` scans it. Its `skills/` directory holds the kind skills and
-any family skill. A later pack can add `craft/` beside it for craft skills.
+`install.sh --pack` scans it. It has one or both of two skill roots:
+
+- `skills/`: the kind skills and any family skill.
+- `craft/`: the craft skills.
+
 _Avoid_: the repository root as the source directory. Ravel would then capture
 the README, the Taskfile and any cache in each capture.
 
@@ -193,7 +196,8 @@ also links each Pi-eligible skill's `harnesses/pi/*.ts` extension into
 `~/.pi/agent/extensions/`, the one place it links something that is not a skill.
 Because the targets are links, a `git pull` updates content in place — re-run only
 when skills are added, removed, or change their [[Harness eligibility]]. It scans
-**every** bundled plugin: which harnesses a skill reaches is the skill's own
+the `skills/` and `craft/` roots of **every** bundled plugin, and no other
+directory: which harnesses a skill reaches is the skill's own
 declaration, not a property of the directory it ships in. `--pack <dir>` adds
 the [[Source directory]] of an external [[Pack]], with the same eligibility and
 workspace guard. A run reconciles the links of the plugins that it scans only,
@@ -252,7 +256,8 @@ assumption.
 [[Symlink install]]'s removal half: on every run it drops each symlink of its own
 that the run will not re-create, so a skill deleted, renamed, or newly ineligible
 for that harness leaves nothing behind. Ownership is decided by the link's stored
-target matching `…/plugins/<plugin>/skills/…` for a plugin this repo ships — the
+target matching `…/plugins/<plugin>/skills/…` or `…/plugins/<plugin>/craft/…`
+for a plugin that the run scans — the
 **plugin** segment, not the skill name, because a deleted skill's name is by
 definition no longer shipped and keying on it would disown exactly the links most
 in need of reclaiming.

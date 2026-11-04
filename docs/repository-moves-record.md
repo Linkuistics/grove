@@ -797,6 +797,24 @@ Both runs pass, and no gap remains open.
 [Requirements directory trials](common-loading-acceptance-record.md#requirements-directory-trials)
 in the acceptance record holds the builds, the digests and the observations.
 
+### Requirements native namespace
+
+`requirements-native-namespace-k194` ran the case
+`requirements-native-namespace` once in Claude Code, on 2026-11-05. An
+isolated Claude Code home added the marketplace from a plain Git checkout of
+Grove at the removal commit `302f85429e4b`. It installed
+`requirements@linkuistics`, which installed `grove` as a dependency. The
+installed `requirements` plugin is at the first pack commit `9f7278c2d46b`.
+The session loaded `requirements:grove-review-requirements`, then
+`grove:grove`. It read `references/review.md` from the spine's base directory
+before the first command on the task.
+
+The run passes, and no gap remains open. The owner's real Claude Code
+installation had the same digests before and after the run.
+[Requirements native namespace](common-loading-acceptance-record.md#requirements-native-namespace)
+in the acceptance record holds the builds, the plugin revisions and the
+observations.
+
 ### For discovery-rollout-k6
 
 This workstream reaches `main` only in finish, so the owner's native

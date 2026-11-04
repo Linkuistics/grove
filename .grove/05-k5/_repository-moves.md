@@ -105,3 +105,14 @@ Three of them matter to later work.
 - Some registrations and harness entries name earlier roots, and they stay
   unchanged. Stylepack has a prunable Git worktree registration. Writegood
   has Claude Code and Codex entries for `~/Development/Writegood`.
+
+`requirements-pack-k173` closed after its directory and native trials passed.
+Its results are in the RequirementsSkills section of
+`docs/repository-moves-record.md`. Two of them matter to later work.
+
+- The cases `requirements-family-read` and `requirements-native-namespace`
+  are the models for a later pack whose kinds read a family file in the
+  spine. `editorial-pack-k179` can copy them.
+- The owner's native marketplace lists `requirements` only after finish.
+  Rollout then installs `requirements@linkuistics`, as the section "For
+  discovery-rollout-k6" of that record states.

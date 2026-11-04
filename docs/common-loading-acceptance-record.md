@@ -20,6 +20,8 @@ The record ends with the [Completion audit](#completion-audit) of
 kinds from the external pack. The
 [Requirements directory trials](#requirements-directory-trials) run an
 external member of a cross-pack review family.
+[Requirements native namespace](#requirements-native-namespace) runs the same
+member from a native Claude Code installation.
 
 ## Conventions
 
@@ -8928,3 +8930,148 @@ that "fast" has no measure.
   mechanisms for an external source.
 
 No gap remains open for the case of `requirements-directory-trials-k193`.
+
+## Requirements native namespace
+
+`requirements-native-namespace-k194` runs the native proof of
+`requirements-pack-k173` in a real Claude Code session. The requirements kinds
+live in RequirementsSkills, and their family files stay in the spine. The
+[pack membership specification](specs/pack-membership.md#the-acceptance-of-each-move)
+asks for one read on the native route: `review-requirements` reads
+`references/review.md` under the plugins' namespaces. The model is
+[Research native namespace](#research-native-namespace).
+
+### Subjects of the requirements native trial
+
+The run is from 2026-11-05 local time. The case ran once, with no retry.
+
+| Subject | Value |
+| --- | --- |
+| Case | `requirements-native-namespace`, on the route native-2.0. Its planted tree is the tree of [requirements-family-read](#requirements-family-read) |
+| Runner | `scripts/harness_trial.py` with the field `nativePlugins`, in the commit that adds the case. The runner did not change |
+| Marketplace | `.claude-plugin/marketplace.json` of the prepared plain Git checkout of Grove at `302f85429e4b`, the removal commit of `requirements-removal-k192`. Its `requirements` entry is the `git-subdir` source `plugins/requirements` of `https://github.com/Linkuistics/RequirementsSkills.git` at `9f7278c2d46b`, the first pack commit |
+| Grove build | commit `302f85429e4b`. `grove` SHA-256 `a7f5c988a18e…`, `grove-llm` SHA-256 `2f7895cc33f7…`. Both equal the build of the [requirements directory trials](#requirements-directory-trials). This build renders the mandate |
+| Ravel build | line `skill-directory-delivery` at `71f70fcd3f92`, build commit `d324668b86ca`, identity `a4f55d04b2d1…`, `bin/ravel` SHA-256 `26b487afb957…`, the value of `builds.json`. The prefix has no `libexec` |
+| Ravel settings | No file. The route native-2.0 has no `skills` key, so Ravel supplies no directory and writes no preamble. The launch view names no skills |
+| Claude Code | 2.1.318, model `claude-opus-5-5`, effort `medium`, permission mode `bypassPermissions` |
+
+Recipe, from a scratch directory `$SCRATCH` outside every working copy, after
+the install of [Research recipes](#install):
+
+```sh
+task trial:prepare OUT="$SCRATCH/trials" COMMIT=302f85429e4b8f8ada02be594687155109dfbf6b RAVEL="$SCRATCH/ravel-2.0/bin/ravel"
+task trial:claude OUT="$SCRATCH/trials" CASE=requirements-native-namespace
+```
+
+### The requirements installation
+
+The runner gave the sandbox HOME these commands, before the driver:
+
+| Command | Result |
+| --- | --- |
+| `claude plugin marketplace add <checkout> --json` | `ok`. "Successfully added marketplace: linkuistics (declared in user settings)" |
+| `claude plugin install requirements@linkuistics --json` | `ok`. "Successfully installed plugin: requirements@linkuistics (scope: user) (+ 1 dependency: grove)" |
+
+**The dependency installed the `grove` plugin.** The requirements manifest
+declares `"dependencies": ["grove"]`. Claude Code's `installed_plugins.json`
+marks `grove` with `auto: true`.
+
+| Plugin | Version | Git commit | Installed | Load path at startup |
+| --- | --- | --- | --- | --- |
+| `requirements@linkuistics` | `9f7278c2d46b-94c8a22c` | `9f7278c2d46b` | By name | The cache `.claude/plugins/cache/linkuistics/requirements/9f7278c2d46b-94c8a22c` |
+| `grove@linkuistics` | `302f85429e4b` | `302f85429e4b` | As a dependency | `plugins/grove` of the checkout |
+
+The marketplace is a directory, so Claude Code loads its relative plugin
+`grove` in place. The cache also holds a copy of it. The requirements plugin
+comes from GitHub through its `git-subdir` source, so Claude Code loads it
+from the cache. The Git tree of `plugins/requirements` is `f3cf8128fd20…` at
+`9f7278c2d46b` and at the published `main` `eb945d9b13ef`, so both pack
+commits hold the same requirements files.
+
+The `SKILL.md` files of `grove-review-requirements`, `grove-requirements` and
+`grove-integrate-review-requirements` in the cache have the same SHA-256 as
+the files of `9f7278c2d46b`: `0c63ea484512…`, `3a10ec04fbe4…` and
+`11422fd6a19c…`. The spine's `SKILL.md` has the SHA-256 `4e8e38d300bf…`.
+`references/review.md` in the checkout has the SHA-256 `db8e5a6fa290…`,
+which equals the file of `302f85429e4b`. The checkout was clean after the
+installation, with `HEAD` at `302f85429e4b`.
+
+The sandbox held no native copy in `.claude/skills`. It held 13 synced
+`anthropic-skills:*` skills, as residue. No synced skill has a Grove or
+requirements name. The startup listing named each requirements skill as
+`requirements:<name>` and each core skill as `grove:<name>`. It held no bare
+`grove-review-requirements`.
+
+### The requirements native run
+
+The run is `requirements-native-namespace-20261104T141432Z`. The session file
+`314690ea-f27d-49be-bbfd-7315fc6556ef.jsonl` has the SHA-256
+`290889762048…`. The stream has the SHA-256 `2055fe4ee3e3…`.
+
+The prompt was Grove's mandate, unchanged. It has the SHA-256
+`f3b90cb93294…`, and it equals `originalPrompt` of the launch view. The
+mandate names `grove-review-requirements` as a bare name, and it tells the
+agent to use the namespace under which that skill is actually installed.
+
+| # | Tool | What the call did |
+| --- | --- | --- |
+| 1 | Skill | Loaded `requirements:grove-review-requirements`. The base directory was `skills/grove-review-requirements` in the requirements cache |
+| 2 | Skill | Loaded `grove:grove`. The base directory was `plugins/grove/skills/grove` of the checkout |
+| 3 | Bash | Read `references/review.md` from the base directory of call 2. The call then stopped with exit code 1, as the text below states |
+| 4 | Bash | Read `references/execute.md` and `references/bootstrap.md` of the spine |
+| 5 | Bash | Resolved the leaf, walked its brief chain and listed the tree |
+| 7, 8 | Bash | Read the root brief and the task files, and read `references/retire.md`, `references/commit.md` and `TASK-FORMAT.md` of the spine |
+| 10 | Bash | Appended nine findings to the review leaf with a shell here-document |
+| 11 | Bash | Retired the leaf and committed the review |
+| 13 | Bash | Ran the exact continue command |
+
+Items 6, 9, 12 and 14 are text blocks. The runner classifies calls 3, 4, 5, 7 and 8
+as `command`, because it has no class for a read under a plugin's load path. The
+table above names those reads from the commands themselves.
+
+Call 3 ran `cat` on `references/review.md`, then `echo ======`. The Bash tool
+ran zsh, and zsh expands a word that starts with `=` as the path of a command.
+The `echo` therefore failed with "===== not found", and the call stopped. The
+call's result holds the whole of `references/review.md` before that error.
+Call 4 repeated the two reads that the error skipped.
+
+**Result: pass.** The agent loaded the kind as
+`requirements:grove-review-requirements`. Then it loaded the spine as
+`grove:grove` and read `references/review.md` from the spine's base
+directory. Each name is the namespace of the plugin that actually supplies
+the skill. These three steps came before the first command on the task, in
+call 5. The first finding is that "The tool is fast" cannot be tested.
+
+The leaf retired, and the published commit is `662309ef1404` "Review the
+wordtally requirements (plan-k2)". The driver ran 60.4 seconds with one
+harness launch. The trial configuration routes only `review-requirements`, so
+the driver then refused `integrate-review-requirements` as `config_refused`.
+Ravel again wrote two lines `stop attempt … signal 9: Operation not permitted
+(os error 1)`.
+
+### The owner's installation in the requirements native trial
+
+Before and after the run, the owner's real `~/.claude` had the same SHA-256
+for `settings.json`, `plugins/installed_plugins.json` and
+`plugins/known_marketplaces.json`. A listing of `plugins/cache` and `skills`
+to depth 3 also had the same SHA-256. The sandbox home linked only
+`Library/Keychains` to the real home, before and after.
+
+### Limits of the requirements native trial
+
+- **One run.** The case ran once. One run is one observation, not a rate.
+- **Claude Code only.** The measured Codex has no native skill loader, so the
+  runner refuses `nativePlugins` for Codex.
+- **A local marketplace.** The marketplace came from a checkout, so `grove`
+  loaded from that checkout. A marketplace added from GitHub copies `grove`
+  into the cache. The requirements plugin took that path in this run, through
+  its own `git-subdir` source.
+- **The kind skill named the family file.** As in the
+  [directory trials](#limits-of-the-requirements-trials), the kind skill names
+  `references/review.md` beside its load of `grove`. The trial shows that a
+  session follows that name to the other plugin's base directory.
+- **Before main.** The owner's marketplace follows Grove's `main`, which does
+  not yet list `requirements`. discovery-rollout-k6 records the owner's
+  installation.
+
+No gap remains open for the case of `requirements-native-namespace-k194`.

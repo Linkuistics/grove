@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "name": "requirements-native-namespace",
+  "purpose": "Observe an external member of a cross-pack family on the native route (requirements-native-namespace-k194). The sandbox home adds the marketplace of the prepared Grove checkout at the removal commit and installs requirements@linkuistics from it, which declares grove as a dependency. The Ravel settings have no skills key. A review-requirements leaf sits beside a retired requirements leaf and has a bare-name mandate. Expect the Skill tool to load requirements:grove-review-requirements, then the spine under the grove namespace, and a read of references/review.md from the spine's base directory, before the first action.",
+  "credits": [],
+  "harness": "claude",
+  "route": "native-2.0",
+  "mode": "lifecycle",
+  "model": "claude-opus-5-5",
+  "effort": "medium",
+  "kinds": ["review-requirements"],
+  "nativePlugins": [
+    "requirements@linkuistics"
+  ],
+  "timeoutMinutes": 30
+}

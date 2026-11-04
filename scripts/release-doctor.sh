@@ -144,19 +144,13 @@ check_gh_auth() {
 # Bun is development-only: the pinned compiler checks Grove's readable assets.
 # Runtime execution uses independent installed Ravel, never host Bun or Node.
 check_bun() {
-  local pinned version
-  pinned="$(sed -n 's/.*"@types\/bun": "\([^"]*\)".*/\1/p' "$REPO_ROOT/tools/ravel-policy/package.json")"
-  if ! command -v bun >/dev/null 2>&1; then
-    mark_fail "bun: not on PATH"
-    remediation "install bun $pinned (https://bun.sh/docs/installation)"
-    return
-  fi
-  version="$(bun --version 2>/dev/null || echo unknown)"
-  if [[ -n "$pinned" && "$version" == "$pinned" ]]; then
-    mark_pass "bun: $version"
+  local version
+  # mise.toml holds the pin, and the helper refuses any other version.
+  if version="$(bash "$REPO_ROOT/scripts/pinned-bun.sh" --version 2>&1)"; then
+    mark_pass "bun: ${version##*$'\n'}, as mise.toml pins"
   else
-    mark_fail "bun: $version, but Grove's policy compiler pins ${pinned:-an unreadable version}"
-    remediation "install bun $pinned"
+    mark_fail "bun: ${version##*$'\n'}"
+    remediation "install mise, or put the Bun version that mise.toml pins first on PATH"
   fi
 }
 

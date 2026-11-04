@@ -34,3 +34,16 @@ later leaf and the finish session's integrated check.
 
 Do not change the owner's global mise configuration for this leaf. A
 repository pin does the job and leaves the owner's tools alone.
+
+## Decisions (running log)
+
+- The root `mise.toml` holds the one Bun pin, 1.4.3. mise's shims and hook
+  read it in the repository. A plain `[tools]` file needs no `mise trust`.
+- `scripts/pinned-bun.sh` reads that pin and runs that Bun. It uses `PATH`
+  Bun when the version agrees, and otherwise asks mise for the pinned
+  install. The compiler test runs its copy in a scratch directory outside the
+  repository. There, the shims select the global Bun, so the helper cannot
+  rely on `PATH`.
+- The typecheck script, `ravel:policy:deps` and the release doctor call the
+  helper. The doctor no longer reads the version from `@types/bun`.
+  `@types/bun` stays a lockfile package pin, separate from the runtime pin.

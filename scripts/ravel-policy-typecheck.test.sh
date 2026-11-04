@@ -16,7 +16,8 @@ main() {
   local fragment="$scratch/Grove fragment"
   mkdir -p "$fragment/scripts" "$fragment/tools/ravel-policy" "$fragment/assets"
   cp "$root/Taskfile.yml" "$fragment/"
-  cp "$root/scripts/ravel-policy-typecheck.sh" "$fragment/scripts/"
+  cp "$root/mise.toml" "$fragment/"
+  cp "$root/scripts/"{ravel-policy-typecheck.sh,pinned-bun.sh} "$fragment/scripts/"
   cp "$root/tools/ravel-policy/"{package.json,bun.lock,tsconfig.json} "$fragment/tools/ravel-policy/"
   cp -R "$root/assets/ravel-policy" "$fragment/assets/"
   # No crates directory or old generated declarations exist in this fragment.

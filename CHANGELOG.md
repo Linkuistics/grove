@@ -147,6 +147,11 @@ stood at the graft — a closed record, not part of the versioned sequence above
   tracked in place by mise history. The chezmoi source and the Brewfile are
   retired.
 
+- Development: the root `mise.toml` pins the policy compiler's Bun to 1.4.3.
+  `scripts/pinned-bun.sh` runs that version for the typecheck, its dependency
+  task and the release doctor. `bash scripts/check.sh` no longer fails when the
+  machine's global Bun is newer.
+
 <!-- tc: off because released history is not converted -->
 
 ## v22.8.0

@@ -6,13 +6,11 @@ IFS=$'\n\t'
 
 main() {
   local ravel="${1:?usage: ravel-policy-typecheck.sh /absolute/path/to/ravel}"
-  local root tooling scratch cleanup
+  local root tooling scratch cleanup bun
   root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
   tooling="$root/tools/ravel-policy"
-  [[ "$(bun --version)" == 1.4.3 ]] || {
-    echo 'policy typecheck: Bun 1.4.3 is pinned; install it and retry' >&2
-    return 1
-  }
+  # The helper runs the Bun that mise.toml pins, or refuses with the reason.
+  bun="$root/scripts/pinned-bun.sh"
   [[ -f "$tooling/node_modules/typescript/bin/tsc" ]] || {
     echo 'policy typecheck: run task ravel:policy:deps to install the pinned compiler' >&2
     return 1
@@ -22,7 +20,7 @@ main() {
   # shellcheck disable=SC2064 # freeze the safely quoted path before main returns
   trap "$cleanup" EXIT
   # shellcheck disable=SC2016 # this is JavaScript; interpolation belongs to Bun
-  bun -e '
+  bash "$bun" -e '
     const { realpathSync, existsSync, writeFileSync } = require("node:fs");
     const { dirname, join } = require("node:path");
     const [ravel, root, scratch] = process.argv.slice(1);
@@ -42,7 +40,7 @@ main() {
       include: [join(root, "assets/ravel-policy/**/*.ts")]
     }));
   ' "$ravel" "$root" "$scratch"
-  bun "$tooling/node_modules/typescript/bin/tsc" -p "$scratch/tsconfig.json"
+  bash "$bun" "$tooling/node_modules/typescript/bin/tsc" -p "$scratch/tsconfig.json"
   echo 'policy typecheck: Grove assets and import fixtures passed against the installed Ravel SDK'
 }
 

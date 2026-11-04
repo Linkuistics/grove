@@ -1,0 +1,5 @@
+# The one source of the development Bun version. Grove's policy compiler
+# (tools/ravel-policy) runs on it, and scripts/pinned-bun.sh reads this line,
+# so that a check selects the pin whatever Bun the caller's PATH offers.
+[tools]
+bun = "1.4.3"

@@ -137,7 +137,8 @@ tasks:
     desc: Install Grove's pinned development compiler for its caller-owned policy assets
     dir: tools/ravel-policy
     cmds:
-      - bun install --frozen-lockfile
+      # The helper selects the Bun that mise.toml pins.
+      - bash ../../scripts/pinned-bun.sh install --frozen-lockfile
 
   ravel:policy:compiler-test:
     desc: Prove public-SDK typechecking works without dispatch source and refuses invalid inputs

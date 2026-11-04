@@ -99,7 +99,7 @@ run_check "cargo fmt" cargo fmt --all --check
 run_check "shellcheck" shellcheck \
   plugins/install.sh plugins/install.test.sh \
   plugins/grove/conformance.sh plugins/grove/conformance.test.sh \
-  scripts/check.sh scripts/check-packs.sh scripts/check-packs.test.sh scripts/ravel-policy-typecheck.sh scripts/ravel-policy-typecheck.test.sh scripts/release-publish.sh scripts/release.test.sh \
+  scripts/check.sh scripts/check-packs.sh scripts/check-packs.test.sh scripts/pinned-bun.sh scripts/ravel-policy-typecheck.sh scripts/ravel-policy-typecheck.test.sh scripts/release-publish.sh scripts/release.test.sh \
   scripts/release-prepare.sh scripts/release-prepare.test.sh \
   scripts/release-notes.sh \
   scripts/release-notes/codex-headless.sh scripts/release-notes/codex-headless.test.sh \

@@ -6,9 +6,12 @@ release archives. The independent Ravel installation supplies the public SDK
 and static-example declarations; no Ravel checkout or private worker source is
 needed here.
 
-The pins retain Bun 1.4.3, `@types/bun` 1.4.3 and TypeScript 7.0.2 from the
-pre-extraction compiler, including its locked transitive packages and strict
-compiler flags. The helper resolves declarations from the explicitly supplied
+The repository's root `mise.toml` pins the Bun runtime.
+`scripts/pinned-bun.sh` runs that version for the dependency task and the
+typecheck, through mise when `PATH` offers another Bun. The package pins
+retain `@types/bun` 1.4.3 and TypeScript 7.0.2 from the pre-extraction
+compiler, including its locked transitive packages and strict compiler flags.
+`@types/bun` is a lockfile pin, and it does not set the runtime version. The helper resolves declarations from the explicitly supplied
 Ravel front's canonical installation prefix. Ordinary relative policy imports
 and type fixtures stay in the same compilation.
 

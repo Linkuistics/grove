@@ -194,8 +194,8 @@ git -C "${GROVE_TAP_DIR:-$HOME/Development/homebrew-taps}" status --short --bran
 ```
 
 The doctor checks the pinned Rust toolchain, all release targets, Zig,
-`cargo-zigbuild`, GitHub authentication, and development Bun pinned by
-`tools/ravel-policy/package.json`.
+`cargo-zigbuild`, GitHub authentication, and the development Bun that the
+root `mise.toml` pins.
 
 <!-- tc: on -->
 

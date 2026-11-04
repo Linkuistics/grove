@@ -175,3 +175,38 @@ and rehearsal.
   change to a recovery rule changes the model first.
 - owner-pack-checkouts-k93: each `apply` and each complete `mise bootstrap`
   is an advance, behind a process check.
+
+acceptance-completion-audit-k127 hands two findings to this node. The
+"Gap register" of `docs/common-loading-acceptance-record.md` holds both.
+
+- Document the `token_budget` limit of Codex. That development feature loses
+  the whole conversation, not only the preamble, and the agent did not
+  recover.
+- In both harnesses, `RAVEL_SKILL_DIRECTORIES` alone did not lead to recovery
+  after the loss of the whole preamble. Nothing in the remaining context names
+  the variable. Claude Code's system prompt and Codex's developer
+  instructions survive that loss, so a later design can name the variable
+  there.
+
+The "Known limits" of that record also name this node as the owner of four
+limits. No real harness ran on the build `a4f55d04…`. The Grove pins of the
+2.0 archives, the tap states B to D and the unpushed Ravel line wait for
+publication.
+
+common-skill-loading-k3 closed with acceptance-completion-audit-k127. Its
+briefs held these facts, which rollout consumes:
+
+- The Ravel line is the unpushed bookmark `skill-directory-delivery` at the
+  output commit `71f70fcd3f92`, above Ravel `main` `24a545236185`. The build
+  commit is `d324668b86ca`, with the build identity `a4f55d04…`. It reports
+  `ravel 1.1.0` until the cut.
+- The integrated Grove subject is `a81b1acc2d1d`. Both gates, core
+  conformance and every applicable Ravel and Grove check passed on it, with
+  the 1.1 keg and that build. The "Integrated acceptance checks" section of
+  `docs/common-loading-acceptance-record.md` holds the results.
+- On 2026-11-03 the human withdrew OS confinement from Ravel and Grove. Ravel
+  2.0.0 refuses `--confine` and `--runtime-read` as `confinement_withdrawn`.
+  Grove sends no `--confine`, and `--runtime-read` has no effect, so Grove's
+  next release stays a minor release.
+  `docs/confinement-withdrawal-evidence.md` holds the design and the
+  disposition of each acceptance criterion, including those of the root brief.

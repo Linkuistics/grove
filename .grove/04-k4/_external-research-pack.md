@@ -51,3 +51,9 @@ This stage moves the research pair and the combiner. It does not commission
 unrelated literature surveys. Update source distribution references as each
 move lands. The full marketplace relocation remains in the later
 repository-moves-k5 scope.
+
+acceptance-completion-audit-k127 wrote the "Research recipes" section of
+`docs/common-loading-acceptance-record.md`. It covers the install, the
+settings, the policy, the sources and the real harness runs. The trial runner
+takes each source from its prepared Grove checkout only. The proof of this
+node adds a case field that names an external checkout and its commit.

@@ -12,6 +12,11 @@ The fixtures of earlier stages prove delivery and Grove's interpretation of
 it. They do not prove the behaviour of an LLM. This record holds that
 behaviour, as the transcripts of real sessions show it.
 
+The record ends with the [Completion audit](#completion-audit) of
+`common-loading-acceptance-k29` and `common-skill-loading-k3`. The
+[Research recipes](#research-recipes) after it give
+`external-research-pack-k4` a working source path.
+
 ## Conventions
 
 These rules hold for every section of this record.
@@ -8016,3 +8021,229 @@ the same recipe failed before the repair and passed after it.
 - No real harness ran on `a4f55d04…`, as the limits of
   [Stage evidence reconciliation](#stage-evidence-reconciliation) state.
 - The states B to D of the tap belong to `discovery-rollout-k6`.
+
+## Completion audit
+
+`acceptance-completion-audit-k127` audits the Done when of
+`common-loading-acceptance-k29` and of `common-skill-loading-k3`, one
+criterion at a time. Each row names its owning commits and its evidence. A
+verdict of a row is one of three values:
+
+- **Met.** The evidence holds the criterion on the named subjects.
+- **Met with explicit gaps.** The evidence holds the criterion, apart from
+  the gaps that the row names. Each gap has a disposition in the
+  [Gap register](#gap-register).
+
+No row is open. The human answered the one scope question of this audit on
+2026-11-04.
+
+A Grove commit is on the line of this workstream, above Grove `main`
+`238c3a839ab4`. A Ravel commit is on the bookmark `skill-directory-delivery`,
+above Ravel `main` `24a545236185`. Nobody pushed either line. The commit
+message of each cited commit names its leaf.
+
+The integrated subjects are those of
+[Integrated acceptance checks](#integrated-acceptance-checks). They are
+Grove `a81b1acc2d1d`, the 1.1 keg `c52f990b…` and the Ravel build
+`a4f55d04…` from the output commit `71f70fcd3f92`. A trial result names its
+own build, and the audit credits it to that build only.
+
+### Audit of common-loading-acceptance-k29
+
+| Criterion | Owning commits | Evidence | Verdict |
+| --- | --- | --- | --- |
+| Each real harness discovers a relevant craft skill from activity alone, with native copies absent. It reads the skill before the governed action | Grove: `4eae655ca71` and `3bfb096810d` add the runner. `effe532f26a` records the Claude Code trial. `a7f572afc0a`, `e46154df8d9` and `ec2f1973f1d` add the Codex adapter. `7d9196db96e` records the Codex trial. Ravel: `d870d0fc99dc` prepares the prompt | [discovery](#discovery) and [discovery in Codex](#discovery-in-codex), on the directory route of 2.0 | Met |
+| Mandatory and supporting reads, bare and plugin-qualified names, explicit-route outcomes, ambiguity and stale-native coexistence have separate observations | Grove: `b63ca828d3e` and `0b096e7c24d` for the explicit rows. `a76bedff0a2`, `87eacc81df9` and `58a84353add` for the problems. `8bb243d733b` and `e13cc55b7ab` for Codex. The repairs are `ab3088f125a`, `41ceae1ea89`, `1f7b8013d4f` and `9012c5ec51d`. Ravel: `0fb12d5f308b` and `e9cc79993b46` change the report wording | [Explicit request rows](#explicit-request-rows), [Discovery problems](#discovery-problems), their Codex sections, [Loader report repair](#loader-report-repair), [Visible report repair](#visible-report-repair) and [Force-stop report repair](#force-stop-report-repair) | Met with explicit gaps: `explicit-native-error` in Claude Code and the three native-loader rows in Codex. Ambiguity and the stale native copy are covered rows |
+| Continuation and both compaction cases are measured. The measurement includes the loss of the whole preamble without a new recovery reminder | Grove: `c0be3518efe` and `1ba7817ab21` for continuation. `fb6df03aeb9`, `72dce7b8d72` and `658b8c88528` for compaction. `e4d990c5532`, `221d9891dc1` and `4321286d242` for Codex. `03db497a227`, `d43c400fe4a`, `f5d69a30424` and `a40a45f96cf` for the two repairs. Ravel: `0fb12d5f308b` defines a re-entry | [continuation](#continuation), [continuation in Codex](#continuation-in-codex), [Compaction](#compaction), [Compaction in Codex](#compaction-in-codex) and [Compaction: Codex and Claude Code](#compaction-codex-and-claude-code) | Met with explicit gaps: `compaction-preamble` in each harness and `compaction-path` in Codex. Each case ran, so each row is measured. The continuation re-read holds under the human's rule |
+| A real delegate reads retained resources | Grove: `f774e2f0332`, `ebc7fa64f27` and `97db4e66843` for Claude Code. `5a2d48c6e81` and `a20c09778ba` for Codex. Ravel: `4b0f54c575a7` keeps the resources for the session and its delegates | [delegate](#delegate) and [delegate in Codex](#delegate-in-codex) | Met |
+| Disposable sessions measure inherited ending authority and adapter isolation separately | The same commits as the delegate row | [delegate-early](#delegate-early), [delegate-early in Codex](#delegate-early-in-codex) and [Delegation: Codex and Claude Code](#delegation-codex-and-claude-code). The inherited authority is measured in both harnesses, and the first writer wins | Met with explicit gaps: the scrubbing adapter in both harnesses, and what the parent gave in Codex |
+| Native-only lifecycle, local directory delivery, resource lifetime and the supported installed layouts have evidence against identified independent builds | Grove: `45f37cb199a`, `10c67dc5f2f`, `cf9a8ec7b41`, `5b79f8ab65d`, `3a909fd828c`, `852b7ec1a05` and `7bff9d4bf67` from the dual-Ravel stage. `46f3069ff75` and `27a7993380e` from the removal. `40934ef7194` adds the native read fixture, and `a81b1acc2d1` repairs the gate. Ravel: `777e609f2fe3`, `d870d0fc99dc`, `cba154857d41`, `52d856978b24`, `4b0f54c575a7`, `78332fcc367d`, `23e50ce90037`, `dc162664101a` and `d324668b86ca` | [Native-only lifecycle and native standalone access](#native-only-lifecycle-and-native-standalone-access), [Native mutation on fresh install and on upgrade](#native-mutation-on-fresh-install-and-on-upgrade) and the [Results](#results) of k126. Ravel's "Confinement removal record" holds the lifetime tests of `task check` on `d324668b86ca` | Met for tap state A. The states B to D belong to `discovery-rollout-k6` |
+| Directory delivery includes a plain Git checkout at a commit, a missing checkout and a launch without a network | Grove: `cf9a8ec7b41` plants the sources. Ravel: `7a894c782037` and `78332fcc367d` narrow sources to local directories | `task ravel:directory` in the [Results](#results) of k126, on `a4f55d04…`. [problem-source-missing](#problem-source-missing) and its Codex section show the refusal to a real harness. Each `resolveOffline` case runs under the network-denying profile | Met. The Linux floor uses plain directories, as the [Known limits](#known-limits) state |
+| No fixture is credited as LLM adherence. Each case names its Ravel route | Grove: `4eae655ca71` states the conventions | [Conventions](#conventions) and the route line of each case section | Met |
+| Each real harness reports and force-stops when injection is disabled and its native roots lack the kind. The leaf stays live without teardown, publication or relaunch | Grove: `391baf5c8f2` states the force-stop. `eec04bbb04c` and `23fb23ecbf4` for Claude Code. `27c7636e2e8` for Codex | [missing-kind](#missing-kind-1) and [missing-kind in Codex](#missing-kind-in-codex-1), on the native route of 2.0 with delivery disabled | Met. The confined variants are historical |
+| Both repositories' applicable checks, core conformance and Grove's full check pass against integrated subjects | Grove: `a81b1acc2d1` and `51477de938a`. Ravel: `d324668b86ca` and `71f70fcd3f92` | The [Results](#results) of k126 and Ravel's "Confinement removal record" | Met |
+| Every common-loading parent criterion is reconciled | This section | [Audit of common-skill-loading-k3](#audit-of-common-skill-loading-k3) | Met |
+| An unresolved required case earns repair work or an explicit scope escalation, and it is never a pass | Grove: `e2526dcebab` triages. `85077b930e1`, `e83a492867c`, `6a6aa2a4d20`, `a61b29ccf6e` and `c2dd0bc3ff7` cut or withdraw the repairs | [Handoff triage](#handoff-triage) and the [Gap register](#gap-register) | Met. Each gap has repair work, a covering case or the human's scope decision |
+| Durable owning evidence gives exact commits, build identities, isolated recipes, observations and limits. Research can reproduce the path without unpublished or unrecorded shared configuration | Grove: `4eae655ca71` and `86628f7a1e9` for the runner. `1e577d31762` pins the build | Each case section, `scripts/harness-trials/builds.json` and [Research recipes](#research-recipes) | Met. The Ravel line is unpushed, so the recipes hold only on a machine with the Ravel workspace |
+
+### Audit of common-skill-loading-k3
+
+| Criterion | Owning commits | Evidence | Verdict |
+| --- | --- | --- | --- |
+| Ravel captures configured local sources, injects their skill-directory paths and prepares the prompt before owner policy constructs the command. The original task and the ending commands stay intact in their own block | Ravel: `eac3c98731d0`, `777e609f2fe3`, `d870d0fc99dc`, `cba154857d41`, `aa0e6e88a8dd` and `0cc7f8c4f336`. Grove: `cf9a8ec7b41` | The "Original mandate" case of `task ravel:directory` in the [Results](#results) of k126. Ravel's `task check` on `d324668b86ca`. Each trial record compares the caller block with the mandate | Met |
+| Ravel runs no VCS command and makes no network request for a source | Ravel: `c2e24d371db2` backs out Git acquisition. `7a894c782037` and `78332fcc367d` remove the Git code | `task ravel:directory` runs a launch without a network. Each `resolveOffline` trial has no `git` on its PATH | Met |
+| A missing source or root refuses as `skill_source_missing` before any worker, with no substitution. Another `type` refuses as `settings_invalid` with the checkout remedy | Ravel: `777e609f2fe3`, `aa0e6e88a8dd` and `78332fcc367d` | `task ravel:directory` with a missing checkout. [problem-source-missing](#problem-source-missing) and its Codex section. Ravel's `task check` runs `a_git_record_refuses_the_launch_at_its_type_and_a_checkout_launches_without_git` | Met |
+| Directories and resources stay readable for sessions and delegates | Ravel: `4b0f54c575a7` and `f1aff8e5562f` | [delegate](#delegate), [delegate in Codex](#delegate-in-codex) and the lifetime tests of Ravel's `task check`. The human withdrew the clause on confined launches | Met |
+| A checkout that a tool outside Ravel makes works as an ordinary local source. Acceptance uses a plain Git checkout at a commit, with no checkout tool | Grove: `cf9a8ec7b41` and `4eae655ca71` | `Sources::plant` of `task ravel:directory`. Each trial takes its sources from a plain Git checkout at the recorded commit | Met |
+| Grove removes automatic native provisioning. Users supply skills natively or through injection, and Grove only names the skill | Grove: `175e5c7d259` removes provisioning. `de9e634b226`, `c22acbdead7`, `be750dee4df` and `bdc351ea55b` give the cleanup procedure. `391baf5c8f2` names the bare kind skill. `03dc276e056` gives `grove run` its default kind | [Native mutation on fresh install and on upgrade](#native-mutation-on-fresh-install-and-on-upgrade). The startup fixtures, `release:formula:test` and `release:upgrade` passed in k126 | Met |
+| Any core fallback uses the common path. No pack has moved, and no kind registry or new workflow protocol exists | Grove: `175e5c7d259` | The delivery specification states that no embedded core-only fallback exists. `plugins/grove`, `plugins/linkuistics` and `plugins/testanyware` are still in Grove. The tree, handle and epoch tests pass in both gates of k126 | Met |
+| Public fixture tests cover launch and resolution, failures, launches without a network, and concurrency and lifetime. Existing Grove tree and launch behaviour stays green | Ravel: `777e609f2fe3`, `d870d0fc99dc`, `cba154857d41`, `52d856978b24`, `4b0f54c575a7`, `aa0e6e88a8dd`, `0cc7f8c4f336` and `f1aff8e5562f`. Grove: `45f37cb199a`, `cf9a8ec7b41` and `40934ef7194` | Ravel's `task check` on `d324668b86ca`, and both gates and every `ravel:*` task of k126. The human withdrew the confinement fixtures | Met |
+| Real Claude Code and Codex trials activate a relevant craft skill without the task naming it, and record the read before the action. They use isolated homes with native copies absent, and they preserve the owner's installations | The commits of the first k29 row | [discovery](#discovery), [discovery in Codex](#discovery-in-codex) and [What one run does](#what-one-run-does). The sandbox home links only the sign-in store | Met |
+| The owning specifications, architecture, glossary, walkthrough and installation documents agree with delivered behaviour | Grove: `10c67dc5f2f`, `cf9a8ec7b41`, `fab5336cde8` and `9b8b6924412`. Ravel: `7a894c782037`, `3642a5d628fd` and `d324668b86ca` | The book and conformance checks of both gates of k126. The "Removal checks" of the [confinement withdrawal evidence](confinement-withdrawal-evidence.md#removal-checks) | Met. This audit did not read the documents again. It relies on those checks and on the sweep of k153 |
+| Applicable Ravel checks and Grove's full check pass with an explicit compatible Ravel build | Grove: `a81b1acc2d1`. Ravel: `d324668b86ca` | The [Results](#results) of k126 | Met |
+
+The root brief holds whole-workstream outcomes. k3 delivers the common
+launch path, and the later nodes own the other outcomes. The pack moves
+belong to `external-research-pack-k4` and `repository-moves-k5`. The
+releases, the owner cutover and the final documents belong to
+`discovery-rollout-k6` and the finish session.
+
+### Gap register
+
+Each named gap of the trial sections has one disposition. No disposition
+credits a gap as a pass.
+
+| Gap | Harness | Cause | Disposition |
+| --- | --- | --- | --- |
+| `explicit-native-error` | Claude Code | After a native loader error, the agent wrote its report in a thinking block, directly before the force-stop call. Three repairs did not move the report into text | Explicit gap with no further repair. The human decided it on 2026-11-03, in `claude-visible-report-k135`. [Force-stop report repair](#force-stop-report-repair) holds the evidence |
+| `compaction-preamble` | Claude Code | The variant `compaction-preamble-write` produced the loss of the whole preamble. The agent found its guidance through the transcript path and a search of the home directory. It did not use `RAVEL_SKILL_DIRECTORIES`, and it did not read the mandatory files again | Explicit gap with no further repair. The human decided it on 2026-11-03, in `claude-preamble-loss-trial-k130`. [compaction-preamble-write](#compaction-preamble-write) holds the evidence |
+| `compaction-preamble` | Codex | `token_budget` lost the whole conversation, and the agent did not use the variable | Recorded gap, by the human's scope decision in [Handoff triage](#handoff-triage). `discovery-rollout-k6` documents the limit |
+| `compaction-path` | Codex | The default compaction keeps the whole prompt, so no mechanism loses the path alone | Explicit unmeasured gap, by the human's decision on rows with no mechanism |
+| `explicit-native-match`, `explicit-native-absent` and `explicit-native-error` | Codex | Codex 0.166.0 has no native skill loader | Explicit unmeasured gap, by the same decision |
+| Delegation, the scrubbing adapter | Both | No adapter scrubs a delegate inside the harness process | Explicit unmeasured gap, by the same decision |
+| Delegation, what the parent gave | Codex | Codex encrypts the `spawn_agent` message in every transcript | Explicit unmeasured gap, by the same decision |
+| `discovery-confined` and `missing-kind-confined` | Both | Ravel confinement blocked the harness. The human withdrew confinement on 2026-11-03 | Historical. No build after the removal can run them. [Token handoff withdrawal](#token-handoff-withdrawal) and [The withdrawal of confinement](#the-withdrawal-of-confinement) hold the decisions |
+| `problem-ambiguity` | Both | A pack reference chose between the two copies | Covered by `problem-ambiguity-unreferenced`, which passed in both harnesses |
+| `problem-stale-native` | Codex | Not run, because of the pack reference | Covered by `problem-stale-native-cli in Codex`, which passed |
+| `continuation`, the re-read | Both | No re-read after a resume that keeps the whole history | Resolved by the human's rule: such a resume is not a re-entry. Ravel `0fb12d5f308b` states the rule, and the row holds under it |
+| Real harness on Linux | Both | This workstream recorded no Linux sign-in, so no trial ran a real harness on Linux. The Linux fixtures and release smokes passed | Explicit gap with no repair. The human decided it on 2026-11-04, in `acceptance-completion-audit-k127`. The fixtures prove delivery on Linux, and the behaviour of the agent comes from prompt text that does not depend on the platform |
+
+Two findings go to `discovery-rollout-k6` with the gaps above. The first is
+the `token_budget` limit of Codex, for its documentation. The second is the
+recovery finding. In both harnesses the variable alone did not lead to
+recovery, because nothing in the remaining context names it. Claude Code's
+system prompt and Codex's developer instructions both survive the loss. A
+later design can name the variable in such a channel.
+
+### Known limits
+
+These limits are not gaps of a required case. Each one has a cause and an
+owner.
+
+| Limit | Cause | Owner |
+| --- | --- | --- |
+| No real harness ran on the build `a4f55d04…` | A trial measures an LLM. The preamble did not change after `e9cc79993b46`, and the fixtures of k126 measure the delivery of the new build | `discovery-rollout-k6`, whose Done when asks for real discovery evidence on the staged installed split |
+| No real harness ran a standalone session on the native route of 2.0 after the removal | A standalone prompt names no guidance. The row "Standalone" asks for access only, and a fixture holds that access | None. The row holds |
+| Each Grove check of a 2.0 archive uses the pinned archives of `23e50ce90037` | No archive of `a4f55d04…` is published | `discovery-rollout-k6`, which replaces the pins |
+| The tap states B to D have no evidence | Only state A exists before publication | `discovery-rollout-k6` |
+| The plain Git checkout is not measured at the Linux floor | The floor userland has no Git. Ravel runs no VCS command, so a checkout is a plain directory to Ravel | None. The plain directory case covers it |
+| Ravel's `task test:native-linux PLATFORM=amd64` cannot run its namespace and signal rows | QEMU user mode cannot reproduce them. Ravel's own campaign lists those rows as not reproducible | Ravel's test campaign. The x86_64 release smoke proves the link floor and the CPU floor |
+| The trial runner takes each source from its Grove checkout | `settings_for` of `scripts/harness_trial.py` builds each path from that checkout or a clone of it | `external-research-pack-k4`, as [Research recipes](#research-recipes) state |
+| The Ravel line is unpushed | Rollout publishes Ravel 2.0.0 | `discovery-rollout-k6` |
+
+## Research recipes
+
+These temporary recipes give `external-research-pack-k4` a working source
+path before publication. Each recipe uses a scratch directory outside every
+working copy. No recipe installs `ravel@2`, changes the tap or writes the
+owner's `~/.config/ravel`.
+
+### Install
+
+Install the Ravel 2.0 build into a scratch prefix, from its jj workspace:
+
+```sh
+SCRATCH="$(mktemp -d)"
+cd ~/Development/AgenticOrchestration/Ravel.skill-directory-delivery
+jj new skill-directory-delivery
+mise exec -- task install PREFIX="$SCRATCH/ravel-2.0"
+shasum -a 256 "$SCRATCH/ravel-2.0/bin/ravel"
+```
+
+The bookmark must be at `71f70fcd3f92`. The digest must be `26b487af…`, the
+value of `scripts/harness-trials/builds.json`. `$SCRATCH/ravel-2.0/libexec`
+must not exist. If the bookmark moved, record the new build in `builds.json`
+and in this record before any result.
+
+Build Grove for a real harness trial:
+
+```sh
+task trial:prepare OUT="$SCRATCH/trials" COMMIT=<grove commit> RAVEL="$SCRATCH/ravel-2.0/bin/ravel"
+```
+
+The preparation builds `grove` and `grove-llm` from a plain Git checkout at
+the commit. It refuses a front whose digest differs from `builds.json`. For
+a fixture run of the gate, follow
+[the HOME of each run](grove-dual-ravel-stage-record.md#the-home-of-each-run).
+Read the 1.1 keg, and never upgrade, unlink or change it.
+
+### Settings
+
+Each run uses its own HOME. On the directory route, that HOME holds
+`.config/ravel/settings.json` with a `skills` object of local sources:
+
+```json
+{
+  "skills": {
+    "schemaVersion": 1,
+    "sources": [
+      { "id": "grove", "type": "local", "path": "<grove checkout>/plugins/grove", "roots": ["skills"] },
+      { "id": "research", "type": "local", "path": "<research checkout>/<source directory>", "roots": ["skills"] }
+    ],
+    "mandatory": [
+      { "source": "grove", "path": "skills/grove/SKILL.md" }
+    ]
+  }
+}
+```
+
+The `path` of a source names its source directory inside the checkout. The
+`roots` name the skill directories inside that source directory. The native
+route of 2.0 uses the same HOME with no `skills` key. Use a HOME separate
+from any 1.1 reader, because Ravel 1.1 refuses settings with a `skills` key.
+
+### Policy
+
+The HOME holds `.config/ravel/config.rhai` with `SCHEMA_VERSION` 4. The
+runner writes it from the case, through `config_for` of
+`scripts/harness_trial.py`. The script routes only the case's kinds, so a
+research case lists its research kinds. Any other kind refuses as
+`trial_kind_unrouted`. For a run outside the runner, copy the Rhai
+sample under `assets/ravel-policy/sample`. The
+[usage guide](USAGE.md#launch-policy) owns the route table.
+
+### Sources
+
+Make each source a plain Git checkout at a published commit, outside every
+working directory:
+
+```sh
+export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1
+git init --quiet "$SCRATCH/research-source"
+git -C "$SCRATCH/research-source" fetch --quiet <research remote> <commit>
+git -C "$SCRATCH/research-source" checkout --quiet --detach FETCH_HEAD
+```
+
+Record the checkout commit, the `resourceDigest` of each source and the
+descriptor identity. `ravel skills resolve --json` gives the last two. For
+the missing checkout, move the checkout away and expect
+`skill_source_missing` before any worker. For a launch without a network,
+run the resolution as a `resolveOffline` case does.
+
+The runner cannot yet take a source from another repository.
+`settings_for` builds each source path from the prepared Grove checkout or
+a clone of it. The research node adds a case field that names an external
+checkout and its commit. The record of each run must then name that commit.
+
+### Real harness runs
+
+```sh
+task trial:claude OUT="$SCRATCH/trials" CASE=<case>
+task trial:codex OUT="$SCRATCH/trials" CASE=<case>
+```
+
+A run spends subscription usage, so no gate runs it.
+[What one run does](#what-one-run-does) states the sandbox home and the
+allow-listed environment.
+
+### Shared inputs
+
+The recipes read these shared inputs. Each input has a record:
+
+| Input | Record |
+| --- | --- |
+| The Ravel workspace and the bookmark `skill-directory-delivery` | [Confinement removal build](#confinement-removal-build) |
+| The sign-in store, linked into the sandbox home | Ravel's configuration specification, "Sandbox home for real harness runs", and [What one run does](#what-one-run-does) |
+| The Rust and mise toolchain directories | [The HOME of each run](grove-dual-ravel-stage-record.md#the-home-of-each-run) |
+| `DOCKER_CONFIG` and a copy of the Homebrew `trust.json`, for the installed checks only | The same section |
+| The Homebrew keg of Ravel 1.1.0, read only | The [dual-Ravel stage record](grove-dual-ravel-stage-record.md#ravel-builds) |

@@ -37,5 +37,11 @@
       "path": "skills/grove/SKILL.md"
     }
   ],
+  "requires": [
+    {
+      "source": "linkuistics",
+      "path": "skills/authoring-conventions/SKILL.md"
+    }
+  ],
   "timeoutMinutes": 30
 }

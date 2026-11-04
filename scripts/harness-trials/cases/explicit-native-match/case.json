@@ -37,6 +37,12 @@
       "path": "skills/grove/SKILL.md"
     }
   ],
+  "requires": [
+    {
+      "source": "linkuistics",
+      "path": "skills/decision-records/SKILL.md"
+    }
+  ],
   "native": [
     {
       "name": "decision-records",

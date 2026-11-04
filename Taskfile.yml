@@ -229,6 +229,13 @@ tasks:
     cmds:
       - python3 scripts/harness_trial.py prepare --out "{{.OUT}}" --commit "{{.COMMIT}}" --ravel "{{.RAVEL}}"
 
+  trial:check:
+    desc: Check that the Grove COMMIT supplies each required path of the trial CASE, or of every case without CASE, before any launch (no harness, no model, no build)
+    requires:
+      vars: [COMMIT]
+    cmds:
+      - python3 -I scripts/harness_trial.py check --commit "{{.COMMIT}}" {{if .CASE}}--case "{{.CASE}}"{{end}}
+
   trial:claude:
     desc: Run one real Claude Code trial CASE from the prepared OUT (spends subscription usage; MODEL and EFFORT override the case; WORKING_COPY=ID=DIR replaces one external source's checkout)
     requires:

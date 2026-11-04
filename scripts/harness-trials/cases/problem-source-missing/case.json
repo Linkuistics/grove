@@ -37,6 +37,12 @@
       "path": "skills/grove/SKILL.md"
     }
   ],
+  "requires": [
+    {
+      "source": "linkuistics",
+      "path": "skills/decision-records/SKILL.md"
+    }
+  ],
   "moveAway": "linkuistics",
   "expectRefusal": "skill_source_missing",
   "timeoutMinutes": 30

@@ -12,5 +12,6 @@
   "native": [
     { "name": "grove", "from": "plugins/grove/skills/grove" }
   ],
+  "absent": ["grove-impl"],
   "timeoutMinutes": 30
 }

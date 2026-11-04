@@ -21,7 +21,9 @@ kinds from the external pack. The
 [Requirements directory trials](#requirements-directory-trials) run an
 external member of a cross-pack review family.
 [Requirements native namespace](#requirements-native-namespace) runs the same
-member from a native Claude Code installation.
+member from a native Claude Code installation. The
+[Trial supplier check](#trial-supplier-check) reads each case against the Grove
+commit that its run measured.
 
 ## Conventions
 
@@ -199,6 +201,58 @@ as they are. The run fails when the commit changes during the run. The option
 refuses a source without `external`. It also refuses the source that the case
 moves away, so the runner never moves a working copy. One case therefore
 serves the checkout proof and the working-copy proof.
+
+Before any launch, the runner checks that the supplier of each required path
+holds the path at its revision.
+[The trial cases that name moving skills](specs/pack-membership.md#the-trial-cases-that-name-moving-skills)
+states the supplier of each path. The runner requires these paths:
+
+- each source directory and each of its roots, as directories
+- each mandatory file, also of a continuation, and each file that `requires`
+  names
+- each planted file and each file that a continuation edits
+- the `SKILL.md` of each native copy. A copy with a `commit` reads it at that
+  commit, and that commit must be in the history of the prepared commit
+- the kind skill `grove-<kind>` of each kind of the case, unless `absent`
+  names it
+
+A kind skill comes from the first place that holds it. The order is each
+root of each source on the directory route, then each native copy of that
+name, then each native plugin.
+
+The marketplace of the prepared commit names the directory of a native
+plugin. A relative entry is a directory of the prepared commit. A
+`git-subdir` entry is its repository at its `sha`. The runner fetches it into
+a plain Git checkout under the trial's `suppliers/`. When no place holds the
+kind skill, the refusal names each place.
+
+A case declares the skills that the check cannot find in its other fields:
+
+| Field | Effect |
+| --- | --- |
+| `requires` | A list of objects with a `source` of the case and a `path` in it, as a mandatory file has. Each names a skill that the task relies on without the case naming it, such as a craft skill of implicit discovery |
+| `absent` | A list of skill names. Each names a skill whose absence the case measures, such as `grove-impl` in `missing-kind`. The check does not require it, and the check does not prove the absence |
+
+The runner reads `requires` and `absent` only in the check, so no other
+reading of a case changes. A path that its supplier does not hold refuses the
+run with status 1. The diagnostic names the case, the path, the supplier and
+the revision. It states that the case measures a build whose supplier held the
+path.
+
+The check runs after the external checkouts and before the moved-source
+clone. It also runs before the native copies, the planted files and the
+version probe of the harness. A `moveAway` or `moveRoot` fault therefore
+comes after the check, and Ravel's resolution then observes it.
+
+`harness_trial.py check --commit <commit>` runs the same check without a
+launch and without a build. It fetches the commit into a plain Git checkout,
+as the preparation does. It fetches each external source as a run does. A run
+with `--working-copy` reads that source from the working copy, and `check`
+reads every external source from its commit.
+
+Each `--case` names one case. Without `--case`, the command checks every case.
+`--repository` names another repository that holds the commit. The task
+`trial:check` gives the command. The status is 1 when one case refuses.
 
 A lifecycle case can name `continuation`. One plain Git clone of the prepared
 commit in the trial directory then supplies every source, so no other case
@@ -582,6 +636,19 @@ an older commit and a refusal case with a moved source. A continuation test
 proves the source commit, the changed settings, the resumed turn and its
 environment, the line windows, the marker and the fresh launch.
 
+Supplier tests prove the four readings of the check, in a run and through
+`check`. A case against a commit that holds its paths passes. A commit then
+removes a planted file, a declared skill or the kind skill. The same cases
+refuse before any launch, and a case with `moveAway` refuses before the move.
+
+A case with an external source passes, although the prepared commit holds
+neither its directory nor its kind skill. A native plugin that the marketplace
+pins supplies its kind skill too. A native copy from an older commit passes
+after a commit removes the copied directory. Further tests prove that the
+check does not require an absent kind. They also prove the refusal of a
+native commit outside the history and the loader's refusals of the two
+fields.
+
 Plugin tests prove the installation from the checkout's marketplace and the
 dependency flag. They also prove that a failed installation refuses before
 the driver, and that a stray plugin copy fails the run.
@@ -656,6 +723,13 @@ Run one case:
 
 ```sh
 task trial:claude OUT="$SCRATCH/trials" CASE=smoke
+```
+
+Check that the Grove commit holds each required path of one case, without a
+launch. Omit `CASE` to check every case:
+
+```sh
+task trial:check COMMIT=<grove commit> CASE=smoke
 ```
 
 Run one case in Codex, through the same tree and sources:
@@ -9075,3 +9149,94 @@ to depth 3 also had the same SHA-256. The sandbox home linked only
   installation.
 
 No gap remains open for the case of `requirements-native-namespace-k194`.
+
+## Trial supplier check
+
+`trial-supplier-refusal-k196` added the
+[supplier check](#the-runner) to the runner, before the Grove removal of
+`design-pack-k175`. That removal is the first that takes away paths that
+existing cases require from the prepared commit: `decision-records` and
+`cli-tool-design` in `plugins/linkuistics`. This section holds the readings of
+the check against the recorded builds. No harness and no model ran.
+
+### Subjects of the supplier check
+
+| Subject | Value |
+| --- | --- |
+| Runner | `scripts/harness_trial.py` and the case files at the commit of `trial-supplier-refusal-k196`, with the declarations `requires` and `absent` |
+| Command | `python3 -I scripts/harness_trial.py check --commit <commit> --case <case>...`, once for each commit below. `task trial:check COMMIT=<commit> CASE=<case>` gives the same command for one case |
+| External sources | Fetched from GitHub at the commit of each case: ResearchSkills `1c18a90945a0`, RequirementsSkills `eb945d9b13ef`, TestAnyware `573c61edc63a`. The marketplace of `57414e00cd87` and of `302f85429e4b` pins the plugin of each native namespace case |
+
+### Readings against the recorded builds
+
+Each row names a Grove commit that a section of this record names, and the
+cases that ran on it. The check held each required path of each case at its
+commit, with one reading that the table explains.
+
+| Grove commit | Cases |
+| --- | --- |
+| `a666cde6b79a`, `e46154df8d92` | `smoke` |
+| `3bfb096810db`, `ec2f1973f1d0` | `discovery` |
+| `b63ca828d3ef` | `explicit-bare`, `explicit-plugin`, `explicit-native-match`, `explicit-native-absent`, `explicit-native-error`, `explicit-native-only`, `explicit-path`, `explicit-path-missing` |
+| `7d9196db96e9` | `explicit-bare`, `explicit-plugin`, `explicit-native-only`, `explicit-path`, `explicit-path-missing` |
+| `9753c8f4b586`, `5d5405b042fd` | `explicit-native-error`, `explicit-native-only` |
+| `1f7b8013d4f6` | `explicit-native-error`, `compaction-preamble-five`, `compaction-preamble-write` |
+| `a76bedff0a25`, `87eacc81df99` | The eight cases of [Discovery problems](#discovery-problems) |
+| `8bb243d733b4` | `problem-source-missing`, `problem-ambiguity-unreferenced`, `problem-missing`, `problem-stale-native-cli`, `problem-user-invoked`, `problem-user-invoked-named` |
+| `c0be3518efee`, `e13cc55b7ab5` | `continuation` |
+| `fb6df03aeb98`, `221d9891dc13` | `compaction-path`, `compaction-preamble` |
+| `72dce7b8d721` | `compaction-preamble` |
+| `f774e2f0332d` | `delegate`, `delegate-early` |
+| `5a2d48c6e813` | `delegate` |
+| `ebc7fa64f277` | `delegate-early` |
+| `eec04bbb04ca`, `a20c09778bae` | `missing-kind` |
+| `57414e00cd87` | `research-discovery`, `research-delegate`, `research-source-missing`, `research-root-missing`, `research-native-namespace` |
+| `302f85429e4b` | `requirements-family-read`, `requirements-native-namespace` |
+| `1bcefecf596b` | `testanyware-discovery` |
+
+The section of Discovery problems names two commits for its eight cases. The
+check read all eight at both. At `a76bedff0a25`, `problem-ambiguity-unreferenced`
+refused, because that commit holds no `scripts/harness-trials/sources/rival-style`.
+The commit `87eacc81df99` adds that case, its rival source and
+`problem-stale-native-cli`, so the case ran at `87eacc81df99`. It holds there.
+This refusal is the check's reading of a build older than the case, on a real
+Grove commit.
+
+### Readings at the removal
+
+At the parent commit `99bf8752f7bd` of this leaf, the check held each of the
+34 cases. A scratch commit `f0dda1e4f935` on that parent then removed
+`plugins/linkuistics/skills/decision-records` and
+`plugins/linkuistics/skills/cli-tool-design`, as the removal of
+`design-removal-k198` will. At that commit, 22 cases held and 12 refused before
+any launch:
+
+| Cases | Path that the prepared commit does not hold |
+| --- | --- |
+| The eight explicit request rows, `problem-ambiguity`, `problem-source-missing` and `problem-stale-native` | `plugins/linkuistics/skills/decision-records/SKILL.md`, as a declared skill, a native copy or a planted file |
+| `problem-stale-native-cli` | `plugins/linkuistics/skills/cli-tool-design/SKILL.md`, as a declared skill |
+
+The two stale-copy cases refuse for their current directory copy. Their native
+copies come from older commits, which still hold the copied directories.
+
+### The runner before the change
+
+Each refusal control first ran against the unchanged runner. In the first
+control, a commit removed the planted and native directory of the fixture case
+`explicit`. The run then stopped with an unhandled `FileNotFoundError` in
+`install_native`, after the runner built the sandbox home. Without its declared skill, the
+fixture case `declared` launched the driver and the harness with status 0.
+Without its kind skill, `smoke` did the same.
+
+### Limits of the supplier check
+
+- **Declared reliance.** `requires` holds the reading of this leaf about what
+  each task relies on. The cases of implicit discovery declare
+  `coding-style-bash`, `using-testanyware` or `decision-records`. The explicit
+  request rows declare the directory copy of `decision-records`. Some of them
+  measure that the agent does not read that copy, and that measurement needs
+  the copy present.
+- **No proof of absence.** The check skips a skill in `absent`. It does not
+  prove that no supplier holds that skill.
+- **Native plugin dependencies.** A native plugin supplies the kind skill from
+  its own directory. The check reads no dependency of the plugin.

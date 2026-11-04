@@ -37,6 +37,12 @@
       "path": "skills/grove/SKILL.md"
     }
   ],
+  "requires": [
+    {
+      "source": "linkuistics",
+      "path": "skills/cli-tool-design/SKILL.md"
+    }
+  ],
   "native": [
     {
       "name": "cli-tool-design",

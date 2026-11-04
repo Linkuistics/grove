@@ -44,5 +44,15 @@
       "path": "skills/grove/SKILL.md"
     }
   ],
+  "requires": [
+    {
+      "source": "linkuistics",
+      "path": "skills/coding-style-bash/SKILL.md"
+    },
+    {
+      "source": "style",
+      "path": "skills/coding-style-bash/SKILL.md"
+    }
+  ],
   "timeoutMinutes": 30
 }

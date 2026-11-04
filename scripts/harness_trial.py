@@ -10,6 +10,7 @@ differs. The trial conventions live in that node's brief and in
     harness_trial.py prepare --out DIR --commit COMMIT --ravel FRONT
     harness_trial.py run --prepared DIR --case NAME [--harness H] [--model M] [--effort E]
                          [--working-copy ID=DIR]...
+    harness_trial.py check --commit COMMIT [--case NAME]... [--repository REPO]
     harness_trial.py reextract --trial RUN
     harness_trial.py turns --plan PLAN -- PROGRAM ARG... PROMPT
 
@@ -61,6 +62,14 @@ Claude Code through `--append-system-prompt` and Codex through `-c
 developer_instructions`, the owner's channel of each harness. The prepared
 prompt stays unchanged. A Codex delegate is a `spawn_agent` thread of the same
 process, with its own session file, which names the parent thread.
+Before any launch, `run` checks that the supplier of each required path of
+the case holds it: the prepared commit, an older commit of a native copy, an
+external checkout or working copy, or a plugin checkout that the marketplace
+pins. A missing path refuses the run, because the case measures a build whose
+supplier held it. A case declares in `requires` the skills that its task
+relies on without the case naming them, and in `absent` the skills whose
+absence it measures. `check` runs the same check against a commit, without a
+build and without a launch.
 A case names its harness. `--harness` runs the same case in another harness,
 which then takes its own default model and effort. The Codex adapter runs
 `codex exec --json` with `CODEX_HOME` set to the sandbox `.codex`, which links
@@ -87,9 +96,10 @@ import shutil
 import signal
 import subprocess
 import sys
+import tempfile
 import threading
 import time
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any, Callable, Mapping
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -288,6 +298,7 @@ def load_case(name: str, harness: str | None = None) -> tuple[dict[str, Any], Pa
             raise TrialError(f"case {name}: a collected file is a path inside the trial directory, not {item!r}")
     for source in case.get("sources", []):
         check_external(name, source)
+    check_declarations(case)
     plugins = case.get("nativePlugins")
     if plugins is not None and (not isinstance(plugins, list) or not plugins
                                 or not all(isinstance(p, str) and PLUGIN_ID.match(p) for p in plugins)):
@@ -325,6 +336,32 @@ def check_external(name: str, source: dict[str, Any]) -> None:
     if not isinstance(external["commit"], str) or not FULL_COMMIT.match(external["commit"]):
         raise TrialError(f"case {name}: the external source '{source.get('id')}' names a commit of 40 "
                          f"lowercase hexadecimal digits, not {external['commit']!r}")
+
+
+def check_declarations(case: dict[str, Any]) -> None:
+    """`requires` names each skill that the task relies on without the case
+    naming it, as a source of the case and a path inside it. `absent` names
+    each skill that the case measures the absence of. The runner reads both
+    only in the supplier check."""
+    name = case["name"]
+    sources = {source.get("id") for source in case.get("sources", [])}
+    requires = case.get("requires", [])
+    if not isinstance(requires, list):
+        raise TrialError(f"case {name}: requires is a list of {{source, path}} objects, not {requires!r}")
+    for item in requires:
+        path = PurePosixPath(item.get("path", "")) if isinstance(item, dict) else None
+        if (path is None or set(item) != {"source", "path"} or item["source"] not in sources
+                or path.is_absolute() or ".." in path.parts or not path.parts):
+            raise TrialError(f"case {name}: each entry of requires names one of the sources {sorted(sources)} "
+                             f"and a relative path inside it, not {item!r}")
+    absent = case.get("absent", [])
+    if not isinstance(absent, list) or not all(isinstance(skill, str) and skill and "/" not in skill
+                                               for skill in absent):
+        raise TrialError(f"case {name}: absent is a list of skill names, not {absent!r}")
+    for item in requires:
+        skill = PurePosixPath(item["path"]).parent.name
+        if skill in absent:
+            raise TrialError(f"case {name}: absent names the skill {skill}, which requires also names")
 
 
 def check_continuation(case: dict[str, Any], directory: Path) -> None:
@@ -2628,6 +2665,257 @@ def plant_files(case: dict[str, Any], trial: Path, checkout: Path) -> list[dict[
     return planted
 
 
+# --- the supplier check ---------------------------------------------------------
+#
+# The acceptance record cites each case by the build that it measured, and a
+# later Grove commit can remove a path that a case requires. Before any
+# launch, the check binds each required path to its one supplier at its
+# revision, as "The trial cases that name moving skills" of
+# docs/specs/pack-membership.md states, and refuses a path that the supplier
+# does not hold.
+
+SUPPLY_NOTE = ("The case measures a build whose supplier held this path; run it against the Grove commit "
+               "that its record names")
+
+
+class Supplier:
+    """One holder of required paths: a commit of a Git repository, or the
+    files of a working copy as they are now. A refusal names `name` and
+    `revision`."""
+
+    def __init__(self, name: str, revision: str, repository: Path | None = None, directory: Path | None = None):
+        self.name, self.revision, self.repository, self.directory = name, revision, repository, directory
+
+    def holds(self, path: str, directory: bool = False) -> bool:
+        """Whether the supplier holds `path` as a directory, or as a file."""
+        if self.directory is not None:
+            target = self.directory / path
+            return target.is_dir() if directory else target.is_file()
+        found = subprocess.run(["git", "cat-file", "-t", f"{self.revision}:{path}"], cwd=self.repository,
+                               env=git_env(os.environ), capture_output=True, text=True)
+        return found.returncode == 0 and found.stdout.strip() == ("tree" if directory else "blob")
+
+
+def unsupplied(case: dict[str, Any], supplier: Supplier, path: str, role: str) -> str:
+    return f"case {case['name']}: {supplier.name} {supplier.revision} holds no {path}, {role}. {SUPPLY_NOTE}"
+
+
+def source_suppliers(case: dict[str, Any], prepared: Supplier,
+                     externals: Mapping[str, dict[str, Any]]) -> dict[str, Supplier]:
+    """The supplier of each source, by ID. An external source comes from its
+    checkout at its commit, or from the working copy of `--working-copy`.
+    Every other source comes from the prepared commit."""
+    suppliers = {}
+    for source in case.get("sources", []):
+        external = externals.get(source["id"])
+        if external is None:
+            suppliers[source["id"]] = prepared
+        elif "workingCopy" in external:
+            copy = external["workingCopy"]
+            suppliers[source["id"]] = Supplier(f"the working copy of the external source '{source['id']}' at",
+                                               copy["commitId"], directory=Path(copy["path"]))
+        else:
+            suppliers[source["id"]] = Supplier(
+                f"the external source '{source['id']}' of {external['repository']} at commit", external["commit"],
+                repository=Path(external["checkout"]))
+    return suppliers
+
+
+def native_supplier(item: dict[str, Any], prepared: Supplier) -> Supplier | str:
+    """The supplier of a native copy. A copy with a `commit` comes from that
+    commit, which must lie in the history of the prepared commit; the current
+    directory copy beside it is a path of its own source. A refusal is
+    returned as its text."""
+    if not item.get("commit"):
+        return prepared
+    env = git_env(os.environ)
+    resolved = subprocess.run(["git", "rev-parse", "--verify", "--quiet", f"{item['commit']}^{{commit}}"],
+                              cwd=prepared.repository, env=env, capture_output=True, text=True).stdout.strip()
+    inside = bool(resolved) and subprocess.run(
+        ["git", "merge-base", "--is-ancestor", resolved, prepared.revision], cwd=prepared.repository, env=env,
+        capture_output=True).returncode == 0
+    if not inside:
+        return (f"the commit {item['commit']} of the native copy '{item['name']}' is not in the history of "
+                f"the prepared Grove commit {prepared.revision}")
+    return Supplier("the prepared checkout's commit", resolved, repository=prepared.repository)
+
+
+def plugin_supplier(plugin: str, prepared: Supplier, scratch: Path) -> tuple[Supplier, str] | str:
+    """The supplier of a native plugin and the plugin's directory in it, as
+    the marketplace of the prepared commit names it. A relative entry is a
+    directory of the prepared commit. A `git-subdir` entry is its repository
+    at its `sha`, fetched under `scratch`. A refusal is returned as its
+    text."""
+    name, market = plugin.split("@")
+    manifest = ".claude-plugin/marketplace.json"
+    shown = subprocess.run(["git", "show", f"{prepared.revision}:{manifest}"], cwd=prepared.repository,
+                           env=git_env(os.environ), capture_output=True, text=True)
+    if shown.returncode != 0:
+        return f"{prepared.name} {prepared.revision} holds no {manifest}, which names the plugin {plugin}"
+    marketplace = json.loads(shown.stdout)
+    entry = next((item for item in marketplace.get("plugins", []) if item.get("name") == name), None)
+    if marketplace.get("name") != market or entry is None:
+        return (f"the marketplace '{marketplace.get('name')}' of {prepared.name} {prepared.revision} has no "
+                f"entry for the plugin {plugin}")
+    source = entry.get("source")
+    if isinstance(source, str):
+        return prepared, str(PurePosixPath(source))
+    if (isinstance(source, dict) and source.get("source") == "git-subdir"
+            and FULL_COMMIT.match(str(source.get("sha", ""))) and source.get("url") and source.get("path")):
+        target = scratch / f"plugin-{name}-checkout"
+        if not target.exists():
+            target.parent.mkdir(parents=True, exist_ok=True)
+            try:
+                fetch_checkout(source["url"], source["sha"], target, git_env(os.environ))
+            except TrialError as error:
+                return f"the marketplace entry of the plugin {plugin} pins no fetchable commit: {error}"
+        supplier = Supplier(f"the checkout of the plugin '{name}' that the marketplace pins, {source['url']} at commit",
+                            source["sha"], repository=target)
+        return supplier, str(PurePosixPath(source["path"]))
+    return f"the marketplace entry of the plugin {plugin} has a source that the check cannot read: {source!r}"
+
+
+def kind_candidates(case: dict[str, Any], skill: str, suppliers: Mapping[str, Supplier],
+                    natives: list[tuple[dict[str, Any], Supplier]], prepared: Supplier, scratch: Path):
+    """Each place that can supply the kind skill `skill`, in order: each root
+    of each source on the directory route, each native copy of that name and
+    each native plugin. Each item is a supplier and a path, or the text of a
+    plugin that names no supplier."""
+    if case["route"] == "directory-2.0":
+        for source in case.get("sources", []):
+            for root in source["roots"]:
+                yield suppliers[source["id"]], str(PurePosixPath(source["plugin"], root, skill, "SKILL.md"))
+    for item, supplier in natives:
+        if item["name"] == skill:
+            yield supplier, str(PurePosixPath(item["from"], "SKILL.md"))
+    for plugin in case.get("nativePlugins", []):
+        found = plugin_supplier(plugin, prepared, scratch)
+        if isinstance(found, str):
+            yield found
+        else:
+            yield found[0], str(PurePosixPath(found[1], "skills", skill, "SKILL.md"))
+
+
+def supply_problems(case: dict[str, Any], checkout: Path, commit: str,
+                    externals: Mapping[str, dict[str, Any]], scratch: Path) -> tuple[int, list[str]]:
+    """The supplier check: the number of required paths that their suppliers
+    hold, and a refusal for each one that its supplier does not hold. It
+    reads Git objects and files only, and launches nothing."""
+    prepared = Supplier("the prepared Grove commit", commit, repository=checkout)
+    suppliers = source_suppliers(case, prepared, externals)
+    plugins = {source["id"]: source["plugin"] for source in case.get("sources", [])}
+    required: list[tuple[Supplier, str, bool, str]] = []
+    problems = []
+
+    def in_source(item: dict[str, Any], role: str) -> None:
+        if item["source"] not in suppliers:
+            problems.append(f"case {case['name']}: {role} {item['path']} names the source '{item['source']}', "
+                            "which is not one of the case's sources")
+            return
+        required.append((suppliers[item["source"]], str(PurePosixPath(plugins[item["source"]], item["path"])),
+                         False, role))
+
+    for source in case.get("sources", []):
+        supplier = suppliers[source["id"]]
+        required.append((supplier, source["plugin"], True, f"the directory of the source '{source['id']}'"))
+        for root in source["roots"]:
+            required.append((supplier, str(PurePosixPath(source["plugin"], root)), True,
+                             f"the root '{root}' of the source '{source['id']}'"))
+    continuation = case.get("continuation") or {}
+    for item in [*case.get("mandatory", []), *continuation.get("mandatory", [])]:
+        in_source(item, "a mandatory file")
+    for item in case.get("requires", []):
+        in_source(item, "a skill that the task relies on")
+    for item in case.get("plant", []):
+        required.append((prepared, item["from"], False, "a planted file"))
+    for edit in continuation.get("edits", []):
+        required.append((prepared, edit["path"], False, "a file that the continuation edits"))
+    natives = []
+    for item in case.get("native", []):
+        supplier = native_supplier(item, prepared)
+        if isinstance(supplier, str):
+            problems.append(f"case {case['name']}: {supplier}. {SUPPLY_NOTE}")
+            continue
+        natives.append((item, supplier))
+        required.append((supplier, str(PurePosixPath(item["from"], "SKILL.md")), False,
+                         f"the native copy '{item['name']}'"))
+
+    held = 0
+    # A path that two fields name, such as a mandatory file of a continuation,
+    # is one requirement.
+    required = list({(supplier.name, supplier.revision, path, directory): (supplier, path, directory, role)
+                     for supplier, path, directory, role in required}.values())
+    for supplier, path, directory, role in required:
+        if supplier.holds(path, directory):
+            held += 1
+        else:
+            problems.append(unsupplied(case, supplier, path, role))
+    absent = set(case.get("absent", []))
+    for kind in case.get("kinds", []):
+        skill = f"grove-{kind}"
+        if skill in absent:
+            continue
+        tried = []
+        for candidate in kind_candidates(case, skill, suppliers, natives, prepared, scratch):
+            if isinstance(candidate, str):
+                tried.append(candidate)
+            elif candidate[0].holds(candidate[1]):
+                held += 1
+                break
+            else:
+                tried.append(unsupplied(case, candidate[0], candidate[1], f"the kind skill of {kind}"))
+        else:
+            if not tried:
+                tried.append(f"case {case['name']}: no source, native copy or native plugin can supply {skill}, "
+                             f"the kind skill of {kind}. {SUPPLY_NOTE}")
+            problems += [line if line.startswith("case ") else f"case {case['name']}: {line}. {SUPPLY_NOTE}"
+                         for line in tried]
+    return held, problems
+
+
+def refuse_unsupplied(case: dict[str, Any], checkout: Path, commit: str,
+                      externals: Mapping[str, dict[str, Any]], scratch: Path) -> int:
+    """Refuse the run before any launch when a supplier lacks a required
+    path. It returns the number of held paths."""
+    held, problems = supply_problems(case, checkout, commit, externals, scratch)
+    if problems:
+        raise TrialError("\n".join(problems))
+    return held
+
+
+def check_cases(names: list[str], commit: str, repository: Path | None, environ: Mapping[str, str]) -> int:
+    """The supplier check of each named case, or of every case, against a
+    commit of this repository or of `repository`. It fetches the commit into
+    a plain Git checkout, as `prepare` does, and each external source as a
+    run does. It builds nothing, and it launches no harness and no driver."""
+    origin = str(repository) if repository else run_checked(
+        ["git", "rev-parse", "--path-format=absolute", "--git-common-dir"], cwd=ROOT)
+    full = run_checked(["git", "rev-parse", "--verify", f"{commit}^{{commit}}"], cwd=origin)
+    names = names or sorted(path.name for path in CASES.iterdir() if (path / "case.json").is_file())
+    failed = 0
+    with tempfile.TemporaryDirectory(prefix="grove-trial-check-") as directory:
+        scratch = Path(directory)
+        checkout = scratch / "grove-source"
+        fetch_checkout(origin, full, checkout, git_env(environ))
+        for name in names:
+            try:
+                case, _ = load_case(name)
+                trial = scratch / "cases" / name
+                trial.mkdir(parents=True)
+                externals = external_sources(case, trial, {}, environ)
+                held, problems = supply_problems(case, checkout, full, externals, trial / "suppliers")
+            except TrialError as error:
+                held, problems = 0, [f"case {name}: {error}"]
+            if problems:
+                failed += 1
+                for problem in problems:
+                    print(f"harness-trial: {problem}", file=sys.stderr)
+            else:
+                say(f"case {name}: each required path is held ({held} paths) at Grove commit {full}")
+    say(f"checked {len(names)} cases against Grove commit {full}: {len(names) - failed} held, {failed} refused")
+    return 1 if failed else 0
+
+
 def tree_state(repo: Path) -> list[str]:
     grove = repo / ".grove"
     if not grove.is_dir():
@@ -3418,6 +3706,10 @@ def run_case(prepared_dir: Path, name: str, environ: Mapping[str, str],
     # An external source comes from its own checkout or working copy. Each
     # refusal of it comes before the harness's version probe.
     externals = external_sources(case, trial, working_copies or {}, environ)
+    # The supplier check comes before the moved-source clone, every copy and
+    # the harness's version probe, so a fault sees each source intact.
+    held = refuse_unsupplied(case, checkout, prepared["source"]["commit"], externals, trial / "suppliers")
+    say(f"{name}: each required path is held ({held} paths)")
     clones = {source_id: external_root(external) for source_id, external in externals.items()}
     clone = clone_source(case, trial, checkout, prepared["source"]["commit"], externals)
     if clone:
@@ -4044,6 +4336,11 @@ def main(argv: list[str] | None = None, environ: Mapping[str, str] | None = None
     r.add_argument("--effort")
     r.add_argument("--working-copy", action="append", default=[], metavar="ID=DIR",
                    help="take the external source ID from the working copy DIR instead of its checkout")
+    c = commands.add_parser("check", help="check the required paths of cases against a Grove commit, "
+                            "without a launch")
+    c.add_argument("--commit", required=True, help="the Grove commit that the record of the case names")
+    c.add_argument("--case", action="append", default=[], help="a case to check; every case when omitted")
+    c.add_argument("--repository", type=Path, help="the repository that holds the commit; this one by default")
     x = commands.add_parser("reextract", help="extract the events of an earlier run again, from its transcripts")
     x.add_argument("--trial", required=True, type=Path)
     t = commands.add_parser("turns", help="the feeder of a compaction case, which the trial configuration runs")
@@ -4053,6 +4350,8 @@ def main(argv: list[str] | None = None, environ: Mapping[str, str] | None = None
     try:
         if args.command == "prepare":
             prepare(args.out, args.commit, args.ravel, environ)
+        elif args.command == "check":
+            return check_cases(args.case, args.commit, args.repository, environ)
         elif args.command == "reextract":
             reextract(args.trial)
         elif args.command == "turns":

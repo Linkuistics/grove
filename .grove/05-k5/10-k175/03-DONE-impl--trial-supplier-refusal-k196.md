@@ -66,3 +66,52 @@ intact.
 
 Codex and Claude Code runs are not needed. The refusal and its controls run
 without a harness.
+
+## Decisions (running log)
+
+**The declarations.** A case declares in `requires` a skill that its task
+relies on. An entry has the shape of a mandatory file: a source ID and a path
+inside that source. A case declares a skill absent in `absent`, by skill name. The
+loader checks both fields. The runner reads them only in the check.
+
+**The required paths.** A local or external source requires its directory and
+each of its roots as directories. A mandatory file, a declared skill, a planted
+file and a continuation edit require a file. A native copy requires the
+`SKILL.md` of its directory at its own supplier. A native copy with a `commit`
+also requires that commit in the history of the prepared commit. The roots
+are part of the source directory, because Ravel refuses a source with a
+missing root as `skill_source_missing`.
+
+**The supplier of a kind skill.** The kind skill `grove-<kind>` has candidate
+suppliers in an order. The order is each root of each source on the directory
+route, then each native copy of that name, then each named native plugin. The
+first candidate that holds the skill supplies it. When no candidate holds it,
+the refusal names each candidate with its revision.
+
+A native plugin's candidate comes from the
+marketplace of the prepared commit. A relative entry is a path of the prepared
+commit. A `git-subdir` entry is its repository at its `sha`, fetched before
+any launch.
+
+**The check without a launch.** `harness_trial.py check --commit COMMIT
+[--case NAME]...` fetches COMMIT into a plain Git checkout, as `prepare` does,
+and checks each named case, or every case. It builds nothing and launches
+nothing. The task `trial:check` wraps it. In `run`, the same check runs after
+the external checkouts and before the moved-source clone and the version
+probe.
+
+**Absence is not verified.** The specification exempts an absent skill from
+the requirement. It does not ask the runner to prove the absence, so the check
+does not.
+
+**The record of the leaf.** The readings live in the section "Trial supplier
+check" of `docs/common-loading-acceptance-record.md`. That record owns the
+runner, and finish removes this task file. The section names the command, the
+commits and the cases.
+
+**The readings.** Each case passes against the Grove commit of its own run.
+The record's Discovery problems section names two commits for eight cases.
+`problem-ambiguity-unreferenced` refuses at `a76bedff0a25`, which predates
+the case and its rival source. That case ran at `87eacc81df99`, which adds
+it, and it holds there. A scratch removal of the two craft skills on the
+parent commit refuses the 12 cases that name them, and 22 cases hold.

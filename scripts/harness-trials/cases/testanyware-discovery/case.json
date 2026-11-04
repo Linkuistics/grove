@@ -24,6 +24,9 @@
   "mandatory": [
     { "source": "grove", "path": "skills/grove/SKILL.md" }
   ],
+  "requires": [
+    { "source": "testanyware", "path": "skills/using-testanyware/SKILL.md" }
+  ],
   "resolveOffline": true,
   "timeoutMinutes": 30
 }

@@ -17,6 +17,9 @@
     { "source": "linkuistics", "path": "skills/using-jujutsu/SKILL.md" },
     { "source": "grove", "path": "skills/grove/SKILL.md" }
   ],
+  "requires": [
+    { "source": "linkuistics", "path": "skills/coding-style-bash/SKILL.md" }
+  ],
   "continuation": {
     "marker": "k111-revision-2",
     "answer": "answer.md",

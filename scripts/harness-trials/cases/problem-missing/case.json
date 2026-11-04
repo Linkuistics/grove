@@ -37,5 +37,8 @@
       "path": "skills/grove/SKILL.md"
     }
   ],
+  "absent": [
+    "changelog-conventions"
+  ],
   "timeoutMinutes": 30
 }

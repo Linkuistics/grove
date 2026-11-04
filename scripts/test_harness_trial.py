@@ -824,7 +824,7 @@ CODEX_DELEGATE = {
 class Fixture:
     """A fake real home, a fake prepared directory and the fake programs."""
 
-    def __init__(self, root: Path):
+    def __init__(self, root: Path, external: dict[str, str] | None = None):
         self.root = root
         self.store = trial.CLAUDE.store
         self.owner = root / "owner"
@@ -851,9 +851,24 @@ class Fixture:
         front.parent.mkdir(parents=True)
         self._exec(front, FAKE_FRONT.format(python=sys.executable))
         # The checkout is a Git repository with two commits, so that a case can
-        # copy the older revision of a skill as a stale native copy.
+        # copy the older revision of a skill as a stale native copy. It holds
+        # the kind skill of `impl` and a marketplace, as a Grove commit does.
+        # The marketplace pins the external pack's commit for `research`.
         checkout = root / "source"
+        self.checkout = checkout
         (checkout / "plugins/grove/skills/craft").mkdir(parents=True)
+        (checkout / KIND_SKILL).parent.mkdir(parents=True)
+        (checkout / KIND_SKILL).write_text("kind\n")
+        (checkout / SPINE_SKILL).parent.mkdir(parents=True)
+        (checkout / SPINE_SKILL).write_text("spine\n")
+        marketplace = [{"name": "grove", "source": "./plugins/grove"}]
+        if external:
+            marketplace.append({"name": "research", "source": {
+                "source": "git-subdir", "url": external["repository"], "path": RESEARCH_PLUGIN,
+                "sha": external["commit"]}})
+        (checkout / ".claude-plugin").mkdir()
+        (checkout / ".claude-plugin/marketplace.json").write_text(
+            json.dumps({"name": "fake", "plugins": marketplace}, indent=2) + "\n")
         self.old_commit = self._commit(checkout, "craft old\n", init=True)
         head = self._commit(checkout, "craft\n")
         (self.prepared / "prepared.json").write_text(json.dumps({
@@ -892,6 +907,30 @@ class Fixture:
         trial.run_checked(["git", "commit", "--quiet", "-m", text.strip()], cwd=checkout, env=env)
         return trial.run_checked(["git", "rev-parse", "HEAD"], cwd=checkout, env=env)
 
+    def remove(self, *paths: str) -> str:
+        """A commit that removes `paths` from the checkout, which the prepared
+        directory then names as its commit. It returns the commit."""
+        env = {**trial.git_env(os.environ), **GIT_IDENTITY}
+        trial.run_checked(["git", "rm", "--quiet", "-r", *paths], cwd=self.checkout, env=env)
+        trial.run_checked(["git", "commit", "--quiet", "-m", f"remove {' '.join(paths)}"], cwd=self.checkout, env=env)
+        head = trial.run_checked(["git", "rev-parse", "HEAD"], cwd=self.checkout, env=env)
+        prepared = json.loads((self.prepared / "prepared.json").read_text())
+        prepared["source"]["commit"] = head
+        (self.prepared / "prepared.json").write_text(json.dumps(prepared))
+        return head
+
+    def check(self, *cases: str, commit: str | None = None) -> tuple[int, str]:
+        """Check cases against a commit of the checkout without a launch;
+        return the status and everything it printed."""
+        commit = commit or json.loads((self.prepared / "prepared.json").read_text())["source"]["commit"]
+        argv = ["check", "--repository", str(self.checkout), "--commit", commit]
+        for case in cases:
+            argv += ["--case", case]
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output), contextlib.redirect_stderr(output):
+            status = trial.main(argv, self.environ())
+        return status, output.getvalue()
+
     @staticmethod
     def _exec(path: Path, text: str) -> None:
         path.write_text(text)
@@ -929,6 +968,8 @@ class Fixture:
         return json.loads((runs[-1] / "record.json").read_text())
 
 
+KIND_SKILL = "plugins/grove/skills/grove-impl/SKILL.md"
+SPINE_SKILL = "plugins/grove/skills/grove/SKILL.md"
 RESEARCH_PLUGIN = "plugins/research"
 RESEARCH_SKILL = f"{RESEARCH_PLUGIN}/skills/grove-research-a/SKILL.md"
 GIT_IDENTITY = {"GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@example.com",
@@ -1015,6 +1056,22 @@ def plant_cases(root: Path, external: dict[str, str]) -> Path:
         **{k: v for k, v in smoke.items() if k not in ("sources", "mandatory")},
         "name": "plugins", "route": "native-2.0", "nativePlugins": ["grove@fake"],
     }))
+    # The supplier check: a declared skill, a kind declared absent, a kind of
+    # an external source and a kind of a plugin that the marketplace pins.
+    for name, extra in (
+        ("declared", {"requires": [{"source": "grove", "path": "skills/craft/SKILL.md"}]}),
+        ("kind-absent", {"absent": ["grove-impl"]}),
+        ("external-kind", {"kinds": ["research-a"], "sources": [*smoke["sources"], {
+            "id": "research", "plugin": RESEARCH_PLUGIN, "roots": ["skills"],
+            "external": {"repository": external["repository"], "commit": external["commit"]}}]}),
+    ):
+        shutil.copytree(cases / "smoke", cases / name)
+        (cases / name / "case.json").write_text(json.dumps({**smoke, "name": name, **extra}))
+    shutil.copytree(cases / "smoke", cases / "plugin-kind")
+    (cases / "plugin-kind" / "case.json").write_text(json.dumps({
+        **{k: v for k, v in smoke.items() if k not in ("sources", "mandatory")},
+        "name": "plugin-kind", "route": "native-2.0", "kinds": ["research-a"], "nativePlugins": ["research@fake"],
+    }))
     # A stale native copy: the skill as the commit before the checkout's head held it.
     stale = cases / "stale"
     shutil.copytree(cases / "smoke", stale)
@@ -1072,13 +1129,13 @@ class HarnessTrialTest(unittest.TestCase):
         patcher = mock.patch.object(trial, "CASES", plant_cases(root, self.external))
         patcher.start()
         self.addCleanup(patcher.stop)
-        self.fixture = Fixture(root / "main")
+        self.fixture = Fixture(root / "main", self.external)
 
     def tearDown(self):
         self.temp.cleanup()
 
     def fresh(self) -> Fixture:
-        return Fixture(Path(tempfile.mkdtemp(dir=self.temp.name)))
+        return Fixture(Path(tempfile.mkdtemp(dir=self.temp.name)), self.external)
 
     def broken(self, check, name, replacement):
         """The check fails once against a runner whose `name` is broken. A
@@ -1366,8 +1423,13 @@ class HarnessTrialTest(unittest.TestCase):
         self.assertTrue(installed["extra@fake"]["dependency"])
         self.assertEqual(installed["grove@fake"]["gitCommitSha"], "a" * 40)
         self.assertEqual(installed["grove@fake"]["skills"],
-                         [{"name": "craft", "sha256": trial.sha256_bytes(b"craft\n")}])
-        self.assertEqual(record["skills"]["pluginCopies"], [".claude/plugins/cache/fake/grove/v1/skills/craft/SKILL.md"])
+                         [{"name": "craft", "sha256": trial.sha256_bytes(b"craft\n")},
+                          {"name": "grove", "sha256": trial.sha256_bytes(b"spine\n")},
+                          {"name": "grove-impl", "sha256": trial.sha256_bytes(b"kind\n")}])
+        self.assertEqual(record["skills"]["pluginCopies"],
+                         [".claude/plugins/cache/fake/grove/v1/skills/craft/SKILL.md",
+                          ".claude/plugins/cache/fake/grove/v1/skills/grove-impl/SKILL.md",
+                          ".claude/plugins/cache/fake/grove/v1/skills/grove/SKILL.md"])
         self.assertEqual(record["skills"]["nativeCopies"], [])
         self.assertEqual(record["sources"]["settings"], {})
         self.assertIn("plugin", fixture.launched.read_text().split())
@@ -1480,6 +1542,144 @@ class HarnessTrialTest(unittest.TestCase):
         (trial.CASES / "half" / "case.json").write_text(json.dumps({**case, "expectRefusal": None}))
         with self.assertRaises(trial.TrialError):
             trial.load_case("half")
+
+    # --- The supplier check -----------------------------------------------------
+
+    def assert_refused(self, fixture: Fixture, output: str, case: str, path: str, supplier: str, revision: str):
+        """The refusal names the case, the path, the supplier and the
+        revision, and says that the case measures another build."""
+        self.assertIn(f"case {case}: {supplier} {revision} holds no {path}", output)
+        self.assertIn("The case measures a build whose supplier held this path", output)
+        self.assertFalse(fixture.launched_any(), f"{case}: a harness or driver launched before the refusal")
+
+    def check_supplied(self, fixture: Fixture):
+        """A case against a commit that holds its local paths passes the
+        check, in a run and without a launch."""
+        status, output = fixture.check("smoke", "explicit", "declared", "stale", "missing", "continuation")
+        self.assertEqual(status, 0, output)
+        self.assertFalse(fixture.launched_any(), "the check launched a harness or the driver")
+        for case in ("smoke", "explicit", "declared", "stale", "missing", "continuation"):
+            self.assertIn(f"case {case}: each required path is held", output)
+        status, output = fixture.run("declared")
+        self.assertEqual(status, 0, output)
+
+    def check_unsupplied(self, fixture: Fixture):
+        """The same cases against a commit without one of their paths refuse
+        before any launch, also before a moved source."""
+        head = fixture.remove("plugins/grove/skills/craft")
+        for case in ("declared", "explicit"):
+            status, output = fixture.run(case)
+            self.assertEqual(status, 1, output)
+            self.assert_refused(fixture, output, case, "plugins/grove/skills/craft/SKILL.md",
+                                "the prepared Grove commit", head)
+        status, output = fixture.check("declared")
+        self.assertEqual(status, 1, output)
+        self.assert_refused(fixture, output, "declared", "plugins/grove/skills/craft/SKILL.md",
+                            "the prepared Grove commit", head)
+        head = fixture.remove(KIND_SKILL)
+        for case in ("smoke", "missing"):
+            status, output = fixture.run(case)
+            self.assertEqual(status, 1, output)
+            self.assert_refused(fixture, output, case, KIND_SKILL, "the prepared Grove commit", head)
+            self.assertIn("the kind skill of impl", output)
+            self.assertNotIn("moved the checkout", output)
+        status, output = fixture.run("plugins")
+        self.assertEqual(status, 1, output)
+        self.assert_refused(fixture, output, "plugins", KIND_SKILL, "the prepared Grove commit", head)
+
+    def test_a_case_against_a_commit_with_its_paths_passes_the_check(self):
+        self.check_supplied(self.fixture)
+        self.broken(self.check_supplied, "Supplier.holds", lambda supplier, path, directory=False: False)
+
+    def test_a_case_against_a_commit_without_a_path_refuses_before_any_launch(self):
+        self.check_unsupplied(self.fixture)
+        self.broken(self.check_unsupplied, "supply_problems", lambda *args: (0, []))
+
+    def check_absent_kind(self, fixture: Fixture):
+        """A kind skill that the case declares absent is not required."""
+        fixture.remove(KIND_SKILL)
+        status, output = fixture.check("kind-absent")
+        self.assertEqual(status, 0, output)
+        status, output = fixture.check("smoke")
+        self.assertEqual(status, 1, output)
+
+    def test_a_kind_declared_absent_is_not_required(self):
+        self.check_absent_kind(self.fixture)
+        real = trial.supply_problems
+        self.broken(self.check_absent_kind, "supply_problems",
+                    lambda case, *args: real({**case, "absent": []}, *args))
+
+    def check_external_kind(self, fixture: Fixture):
+        """A case with an external source passes the check, although the
+        prepared commit holds neither the source directory nor its kind
+        skill. A plugin that the marketplace pins supplies its kind too."""
+        prepared = json.loads((fixture.prepared / "prepared.json").read_text())["source"]["commit"]
+        for path in (RESEARCH_PLUGIN, RESEARCH_SKILL):
+            found = trial.subprocess.run(["git", "cat-file", "-e", f"{prepared}:{path}"], cwd=fixture.checkout,
+                                         capture_output=True)
+            self.assertNotEqual(found.returncode, 0, f"the prepared commit holds {path}")
+        status, output = fixture.check("external-kind", "plugin-kind")
+        self.assertEqual(status, 0, output)
+        status, output = fixture.run("external-kind")
+        self.assertEqual(status, 0, output)
+
+    def test_an_external_source_supplies_its_own_paths(self):
+        self.check_external_kind(self.fixture)
+        self.broken(self.check_external_kind, "source_suppliers",
+                    lambda case, prepared, externals: {s["id"]: prepared for s in case.get("sources", [])})
+        self.broken(self.check_external_kind, "plugin_supplier",
+                    lambda plugin, prepared, scratch: (prepared, RESEARCH_PLUGIN))
+
+    def check_historical_native(self, fixture: Fixture):
+        """A case with a native copy from an older commit passes the check,
+        although the prepared commit no longer holds the copied directory."""
+        fixture.remove("plugins/grove/skills/craft")
+        status, output = fixture.check("stale")
+        self.assertEqual(status, 0, output)
+        status, output = fixture.run("stale")
+        self.assertEqual(status, 0, output)
+        self.assertIsNone(fixture.record()["skills"]["installed"][0]["currentSha256"])
+
+    def test_a_native_copy_from_an_older_commit_passes_the_check(self):
+        self.check_historical_native(self.fixture)
+        self.broken(self.check_historical_native, "native_supplier", lambda item, prepared: prepared)
+
+    def check_foreign_native_commit(self, fixture: Fixture):
+        """A native copy's commit outside the history of the prepared commit
+        refuses."""
+        case = json.loads((trial.CASES / "stale" / "case.json").read_text())
+        (trial.CASES / "foreign").mkdir(exist_ok=True)
+        shutil.copytree(trial.CASES / "stale" / "tree", trial.CASES / "foreign" / "tree", dirs_exist_ok=True)
+        foreign = self.external["commit"]
+        trial.run_checked(["git", "fetch", "--quiet", self.external["repository"], foreign], cwd=fixture.checkout,
+                          env=trial.git_env(os.environ))
+        (trial.CASES / "foreign" / "case.json").write_text(json.dumps({
+            **case, "name": "foreign",
+            "native": [{"name": "research", "from": "plugins/research/skills/grove-research-a", "commit": foreign}]}))
+        status, output = fixture.check("foreign")
+        self.assertEqual(status, 1, output)
+        self.assertIn(f"is not in the history of the prepared Grove commit", output)
+        self.assertIn("The case measures a build whose supplier held this path", output)
+
+    def test_a_native_commit_outside_the_prepared_history_refuses(self):
+        self.check_foreign_native_commit(self.fixture)
+        self.broken(self.check_foreign_native_commit, "native_supplier",
+                    lambda item, prepared: trial.Supplier("the commit", item["commit"], repository=prepared.repository))
+
+    def test_a_case_declares_its_skills_by_source_and_path(self):
+        case = json.loads((trial.CASES / "smoke" / "case.json").read_text())
+        for extra, needle in (
+            ({"requires": [{"source": "other", "path": "skills/craft/SKILL.md"}]}, "requires"),
+            ({"requires": [{"source": "grove", "path": "../craft/SKILL.md"}]}, "requires"),
+            ({"requires": [{"source": "grove"}]}, "requires"),
+            ({"absent": "grove-impl"}, "absent"),
+            ({"absent": ["skills/grove-impl"]}, "absent"),
+            ({"requires": [{"source": "grove", "path": "skills/craft/SKILL.md"}], "absent": ["craft"]}, "absent"),
+        ):
+            (trial.CASES / "smoke" / "case.json").write_text(json.dumps({**case, **extra}))
+            with self.assertRaises(trial.TrialError, msg=f"{extra!r} loaded") as caught:
+                trial.load_case("smoke")
+            self.assertIn(needle, str(caught.exception))
 
     # --- External sources ------------------------------------------------------
 

@@ -1,0 +1,16 @@
+flowchart TB
+    S["Start here · a session of any kind"]
+    SP["Core · grove<br/>the spine"]
+    FMT["Core · ADR-FORMAT.md<br/>and SPEC-FORMAT.md"]
+    DR["DesignSkills · decision-records"]
+    CD["DesignSkills · codebase-design"]
+    S -->|"1 Load the grove skill"| SP
+    SP -->|"2 a trigger sentence<br/>names the file"| FMT
+    DR -.->|"deepens"| FMT
+    CD -.->|"deepens"| FMT
+    classDef start fill:#16354a,color:#fff,stroke:#16354a,font-weight:bold
+    classDef core fill:#dcebf7,stroke:#2f6690,color:#222
+    classDef pack fill:#fdf2d0,stroke:#9a7b1c,color:#222
+    class S start
+    class SP,FMT core
+    class DR,CD pack

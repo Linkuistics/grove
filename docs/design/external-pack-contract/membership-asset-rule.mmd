@@ -1,0 +1,27 @@
+flowchart TB
+    S["Start here · a Grove file<br/>names a moving craft skill"]
+    T1{"1 Does it state, check or record<br/>Grove's own behaviour, design<br/>or this workstream?"}
+    T2{"2 Does it state, decide, explain<br/>or check the skill's behaviour?"}
+    T3{"3 It records a finished measurement.<br/>Does a Grove file that stays cite it?"}
+    G["Stays in Grove<br/>reads no skill bytes<br/>from Grove's checkout"]
+    P["Moves to the skill's pack<br/>in the skill's move"]
+    H["Stays in Grove as evidence<br/>moved files cite it by URL"]
+    W["Moves with its citers"]
+    R["The moves record holds<br/>each classification"]
+    S --> T1
+    T1 -->|yes| G
+    T1 -->|no| T2
+    T2 -->|yes| P
+    T2 -->|no| T3
+    T3 -->|yes| H
+    T3 -->|no| W
+    G --> R
+    P --> R
+    H --> R
+    W --> R
+    classDef start fill:#16354a,color:#fff,stroke:#16354a,font-weight:bold
+    classDef core fill:#dcebf7,stroke:#2f6690,color:#222
+    classDef pack fill:#fdf2d0,stroke:#9a7b1c,color:#222
+    class S start
+    class G,H core
+    class P,W pack

@@ -1,0 +1,20 @@
+flowchart TB
+    S["Start here · every pack move<br/>owes the base proofs"]
+    K172["1 testanyware-skill-move-k172<br/>a source that is not a Linkuistics pack"]
+    K173["2 requirements-pack-k173<br/>an external member of a cross-pack family"]
+    K175["3 design-pack-k175<br/>the first craft/ root"]
+    K177["4 engineering-pack-k177<br/>no new boundary"]
+    K179["5 editorial-pack-k179<br/>a family skill outside research"]
+    K181["6 writing-craft-pack-k181<br/>a second plugin in one repository"]
+    K183["7 personal-pack-k183<br/>repeats the second plugin"]
+    K185["8 skill-marketplace-k185<br/>native install from the new marketplace"]
+    ST["Cutover order 5<br/>staging trials of every source"]
+    S --> K172 --> K173 --> K175 --> K177 --> K179 --> K181 --> K183 --> K185 --> ST
+    classDef start fill:#16354a,color:#fff,stroke:#16354a,font-weight:bold
+    classDef trial fill:#fdf2d0,stroke:#9a7b1c,color:#222
+    classDef base fill:#eeeeee,stroke:#666,color:#222
+    classDef stage fill:#dcebf7,stroke:#2f6690,color:#222
+    class S start
+    class K172,K173,K175,K179,K181 trial
+    class K177,K183,K185 base
+    class ST stage

@@ -1,6 +1,6 @@
 {
   "title": "External pack contract — views",
-  "intro": "How a skill pack outside Grove's repository joins the methodology, with ResearchSkills as the first pack. external-pack-contract-k163 reviewed the contract, and external-pack-contract-k164 applied its findings. Graphs begin at Start here; numbered edges give the order of the steps.",
+  "intro": "How a skill pack outside Grove's repository joins the methodology, with ResearchSkills as the first pack, and where the disputed assets of the remaining moves go. Graphs begin at Start here; numbered edges give the order of the steps.",
   "groups": [
     {
       "id": "layout",
@@ -21,34 +21,41 @@
       "id": "distribution",
       "title": "Distribution",
       "description": "The native marketplace, the Ravel directory route and the manual installer, each from the published pack."
+    },
+    {
+      "id": "membership",
+      "title": "Pack membership",
+      "description": "The membership decisions of pack-membership-k171: the format files, the always-on hooks, the asset rule and the proof that each move owes."
     }
   ],
   "discussion": {
-    "title": "External pack contract for ResearchSkills",
-    "status": "Proposed by external-pack-contract-k155 — design review external-pack-contract-k163 integrated by external-pack-contract-k164",
-    "summary": "external-pack-contract-k155 settled the layout, the family skill, the references, the conformance runs, the distribution and the checkout identity. The proof leaves record the proven facts.",
+    "title": "Pack membership for the remaining moves",
+    "status": "The two root-table changes are approved by the human. The other decisions are proposed for review-design",
+    "summary": "pack-membership-k171 keeps the ADR and spec formats in the spine, gives the always-on hooks to WritingSkills, classifies Grove's assets by the claim that they serve, and names the proof that each move owes.",
     "diagramIds": [
-      "layout",
+      "membership-formats",
+      "membership-hooks",
+      "membership-asset-rule",
+      "membership-boundaries",
       "edges",
-      "conformance",
-      "distribution"
+      "conformance"
     ],
     "updatedDiagrams": [
       {
-        "id": "layout",
-        "summary": "Added the pack layout and the three readers of its source directory."
+        "id": "membership-formats",
+        "summary": "Added the format files in the spine and the craft skills that deepen them."
       },
       {
-        "id": "edges",
-        "summary": "Added the directed loads of the research kinds and the missing-skill outcome."
+        "id": "membership-hooks",
+        "summary": "Added the hooks plugins in WritingSkills and the guardrail plugin in PersonalSkills."
       },
       {
-        "id": "conformance",
-        "summary": "Added Grove's check and the pack's check, each against a pinned revision. The pack's Grove commit comes from Grove's public remote."
+        "id": "membership-asset-rule",
+        "summary": "Added the three ordered tests that decide where a Grove asset of a moving craft skill goes."
       },
       {
-        "id": "distribution",
-        "summary": "Added the marketplace entry, the Ravel record and the installer route."
+        "id": "membership-boundaries",
+        "summary": "Added the order of the moves and the boundary that each one proves first."
       }
     ]
   },
@@ -80,6 +87,34 @@
       "title": "Three routes from one published commit",
       "source": "distribution.mmd",
       "caption": "The native install brings the grove plugin through the dependency. The Ravel route reads a checkout that a tool outside Ravel made. The installer takes the pack's plugin directory."
+    },
+    {
+      "id": "membership-formats",
+      "group": "membership",
+      "title": "The format files stay in the spine",
+      "source": "membership-formats.mmd",
+      "caption": "Blue nodes stay in core and amber nodes ship in DesignSkills. Every kind reaches the two format files through the spine. The craft skills deepen the formats, and the formats bind without them."
+    },
+    {
+      "id": "membership-hooks",
+      "group": "membership",
+      "title": "WritingSkills owns the always-on hooks",
+      "source": "membership-hooks.mmd",
+      "caption": "Each hooks plugin runs the scripts and sends the texts of the skill beside it, so no path crosses repositories. The owner's settings enable the plugins. guardrail stays a native-only plugin in PersonalSkills."
+    },
+    {
+      "id": "membership-asset-rule",
+      "group": "membership",
+      "title": "The asset rule, in order",
+      "source": "membership-asset-rule.mmd",
+      "caption": "The first test that matches decides. Each move classifies every Grove file that names its skills and records the result."
+    },
+    {
+      "id": "membership-boundaries",
+      "group": "membership",
+      "title": "The boundary that each move proves first",
+      "source": "membership-boundaries.mmd",
+      "caption": "Amber moves owe a boundary trial beside the base proofs. Grey moves owe the base proofs and their own checks. The staging trials later run every source on both harnesses."
     }
   ]
 }

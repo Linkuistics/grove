@@ -22,3 +22,7 @@ not deployment containers.
 | [Directed loads of the research kinds](http://127.0.0.1:8793/#diagram-edges) | Each research kind loads the spine across packs, and the pair loads its family skill. A missing loaded skill sends the session to the launch prompt's rule. |
 | [Two checks, each against a pinned revision](http://127.0.0.1:8793/#diagram-conformance) | Grove checks against the pack commit of its marketplace entry. The pack checks against a recorded Grove commit and runs that commit's runner. |
 | [Three routes from one published commit](http://127.0.0.1:8793/#diagram-distribution) | The marketplace entry and its dependency, the Ravel source record, and the installer's `--pack` argument. |
+| [The format files stay in the spine](http://127.0.0.1:8793/#diagram-membership-formats) | The first [pack membership](../../specs/pack-membership.md) decision: every kind reaches the ADR and spec formats through the spine, and the design craft skills deepen them. |
+| [WritingSkills owns the always-on hooks](http://127.0.0.1:8793/#diagram-membership-hooks) | Each hooks plugin runs the scripts of its skill. PersonalSkills keeps the native-only `guardrail` plugin. |
+| [The asset rule, in order](http://127.0.0.1:8793/#diagram-membership-asset-rule) | The three ordered tests that decide where a Grove asset of a moving craft skill goes. |
+| [The boundary that each move proves first](http://127.0.0.1:8793/#diagram-membership-boundaries) | The order of the moves, and the boundary trial that each move owes beside the base proofs. |

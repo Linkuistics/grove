@@ -898,6 +898,16 @@ build:
 | A native Claude Code record under the plugin's namespace | Marketplace `57414e00cd87`, `research` `dc3a4812db3b`, Ravel `a4f55d04b2d1…` | [Research native namespace](../common-loading-acceptance-record.md#research-native-namespace) |
 | This contract with its proven facts and its reusable tooling | The commit that adds this section | [Reusable pack tooling](#reusable-pack-tooling) |
 
+## Pack membership
+
+The sibling specification [pack membership](pack-membership.md) settles the
+membership questions of the remaining moves. It keeps the ADR and spec formats
+in the spine. It gives the always-on hooks to WritingSkills. It states where
+Grove's assets of moving craft skills go. It also states how Grove's tests and
+trial cases treat a moving kind, and which proofs each move owes. It changes no
+decision of this contract, and each of its decisions names the move that
+applies it.
+
 ## Out of scope
 
 - **The other pack moves.** repository-moves-k5 plans them from this contract

@@ -158,19 +158,22 @@ kind skills and standalone craft skills in separate directories.
 
 | Destination | Ownership |
 | --- | --- |
-| Existing `grove` | Core spine, tree formats, finish, planning and its review/integration skills, shared review/integration procedures, and Grove configuration guidance. |
+| Existing `grove` | Core spine, the tree and artifact formats (task, brief, glossary, ADR and spec), finish, and planning with its review/integration skills. Shared review/integration procedures, and Grove configuration guidance. |
 | New `RequirementsSkills` | Requirements, its interview procedure, and its existing review/integration skills. |
-| New `DesignSkills` | Design, ADR/spec formats, existing review/integration skills, and design craft. |
+| New `DesignSkills` | Design, existing review/integration skills, and design craft. The craft skills deepen the ADR and spec formats, which stay in the spine. |
 | New `EngineeringSkills` | Impl/prototype and their existing review/integration skills, plus engineering craft. |
 | New `ResearchSkills` | Research pair, combiner, and family procedure. First external-pack proof. |
-| New `WritingSkills` | Editorial kinds and family procedure, plus writing/documentation craft. |
-| New `PersonalSkills` | Personal skills and always-on hooks in their own repository. |
+| New `WritingSkills` | Editorial kinds and family procedure, writing/documentation craft, and the technical-communication always-on hooks plugins for Claude Code and Codex. |
+| New `PersonalSkills` | Personal skills, and the native-only `guardrail` plugin with its user-invoked hook, in their own repository. |
 
 Design craft includes decision records, codebase/CLI design, and model-led
 development. Engineering craft includes coding styles, codebase-memory use,
 project simplification, and doubt-driven development. Writing craft includes
 technical communication and code walkthrough authoring. Personal includes
 machine environment, Jujutsu use, guardrail, and authoring conventions.
+pack-membership-k171 changed the core, DesignSkills, WritingSkills and
+PersonalSkills rows with the human's approval. `docs/specs/pack-membership.md`
+records the reasons.
 
 Move the TestAnyware skill to the existing
 `~/Development/AbstractingComputers/TestAnyware` repository. Create the

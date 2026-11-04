@@ -84,3 +84,28 @@ their own checks, as the contract's "Out of scope" states.
 
 The design may earn a `review-design` leaf by the rule in
 `references/decompose.md`. Place it before requirements-pack-k173.
+
+## Decisions (running log)
+
+- Question 1, settled by the human: `ADR-FORMAT.md` and `SPEC-FORMAT.md` stay
+  in the spine. Core's manifest has thirteen rows for the two files, and the
+  spine's `SKILL.md` triggers them for every kind. They are also the fallback
+  text for `decision-records` and `codebase-design`. The root table changes:
+  core holds the tree and artifact formats, and DesignSkills holds the craft
+  skills that deepen the formats.
+- Question 2, settled by the human: WritingSkills owns the always-on hooks of
+  `technical-communication`, its Claude Code hooks plugin and its Codex hooks
+  plugin. Each hook runs that skill's scripts and injects its own text.
+  PersonalSkills keeps `guardrail` and its native-only plugin, whose hook is
+  user-invoked. The root table changes to say so.
+- The root brief was not in controlled English. Its conversion landed as its
+  own change before the table edit, as the writing procedure requires.
+- Questions 3 to 6 settled in `docs/specs/pack-membership.md`, in the sections
+  of the same names. The external pack contract links to it from its section
+  "Pack membership".
+- Question 3 found one more obligation. `check:packs` runs conformance on each
+  pinned `git-subdir` entry, and TestAnyware and PersonalSkills ship no kind
+  skills. `testanyware-skill-move-k172` makes the check accept such a source.
+- The specification governs eight later moves, so it earns a design review.
+  `pack-membership-k189` reviews it before `testanyware-skill-move-k172`. The
+  review is scheduled, so this leaf spent no in-session reviewer.

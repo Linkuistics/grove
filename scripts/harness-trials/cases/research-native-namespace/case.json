@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "name": "research-native-namespace",
+  "purpose": "Observe a moved research kind on the native route (research-native-namespace-k161). The sandbox home adds the marketplace of the prepared Grove checkout at the removal commit and installs research@linkuistics from it, which installs grove as a dependency. The Ravel settings have no skills key. A research-a leaf has the bare-name mandate. Expect the Skill tool to load research:grove-research-a, then the spine and research-family under their own namespaces, before the first action.",
+  "credits": [],
+  "harness": "claude",
+  "route": "native-2.0",
+  "mode": "lifecycle",
+  "model": "claude-opus-5-5",
+  "effort": "medium",
+  "kinds": [
+    "research-a"
+  ],
+  "nativePlugins": [
+    "research@linkuistics"
+  ],
+  "timeoutMinutes": 30
+}

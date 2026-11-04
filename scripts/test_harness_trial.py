@@ -169,6 +169,45 @@ if sys.argv[1:3] == ["auth", "status"]:
     print(json.dumps({{"loggedIn": True, "authMethod": "claude.ai",
                       "configDirectory": behaviour.get("configDirectory") or str(home / ".claude")}}))
     sys.exit(0)
+# The plugin commands. A marketplace is a directory with `plugins/<name>`.
+# An installation copies the plugin's skills into the cache and installs the
+# plugin's dependencies of the behaviour file, as `auto` installations.
+if sys.argv[1:2] == ["plugin"]:
+    import shutil
+    plugins = home / ".claude/plugins"
+    plugins.mkdir(parents=True, exist_ok=True)
+    known_file, installed_file = plugins / "known_marketplaces.json", plugins / "installed_plugins.json"
+    args = sys.argv[2:]
+    if args[:2] == ["marketplace", "add"]:
+        known_file.write_text(json.dumps({{"fake": {{"installLocation": args[2]}}}}))
+        print(json.dumps({{"command": "marketplace-add", "outcome": "ok", "marketplace": "fake"}}))
+        sys.exit(0)
+    installed = json.loads(installed_file.read_text()) if installed_file.exists() else {{"version": 2, "plugins": {{}}}}
+    if args[:1] == ["install"]:
+        name, market = args[1].split("@")
+        if name in behaviour.get("pluginFails", []):
+            print(json.dumps({{"command": "install", "outcome": "error", "message": f"no plugin {{name}}"}}))
+            sys.exit(1)
+        source = Path(json.loads(known_file.read_text())[market]["installLocation"])
+        for each, auto in [(name, False)] + [(d, True) for d in behaviour.get("pluginDependencies", {{}}).get(name, [])]:
+            target = plugins / "cache" / market / each / "v1"
+            skills = source / "plugins" / each / "skills"
+            if skills.is_dir():
+                shutil.copytree(skills, target / "skills")
+            else:
+                (target / "skills").mkdir(parents=True)
+            installed["plugins"][f"{{each}}@{{market}}"] = [{{
+                "scope": "user", "installPath": str(target), "version": "v1", "gitCommitSha": "a" * 40,
+                **({{"auto": True}} if auto else {{}})}}]
+        installed_file.write_text(json.dumps(installed))
+        print(json.dumps({{"command": "install", "outcome": "ok", "plugin": args[1], "message": "installed"}}))
+        sys.exit(0)
+    if args[:1] == ["list"]:
+        print(json.dumps([{{"id": ident, "version": entries[0]["version"], "scope": "user", "enabled": True,
+                            "installPath": entries[0]["installPath"]}}
+                           for ident, entries in installed["plugins"].items()]))
+        sys.exit(0)
+    sys.exit(2)
 # A resumed turn has no --add-dir, and it reads the first turn's snapshot.
 saved = home / ".fake-claude-snap"
 if "--add-dir" in sys.argv:
@@ -292,6 +331,9 @@ if behaviour.get("extraLink"):
 if behaviour.get("strayNative"):
     (home / ".claude/skills/stray").mkdir(parents=True)
     (home / ".claude/skills/stray/SKILL.md").write_text("stray\n")
+if behaviour.get("strayPlugin"):
+    (home / ".claude/plugins/cache/other/stray/v1/skills/stray").mkdir(parents=True)
+    (home / ".claude/plugins/cache/other/stray/v1/skills/stray/SKILL.md").write_text("stray\n")
 print(json.dumps({{"type": "result", "subtype": "success"}}))
 '''
 
@@ -965,6 +1007,14 @@ def plant_cases(root: Path, external: dict[str, str]) -> Path:
         "claudeSettings": {"permissions": {"deny": ["Skill(craft)"]}},
         "plant": [{"from": "plugins/grove/skills/craft/SKILL.md", "to": "guidance/craft/SKILL.md"}],
     }))
+    # A native plugin route: the marketplace of the prepared checkout installs
+    # the plugin `grove`, and no Ravel settings exist.
+    plugins = cases / "plugins"
+    shutil.copytree(cases / "smoke", plugins)
+    (plugins / "case.json").write_text(json.dumps({
+        **{k: v for k, v in smoke.items() if k not in ("sources", "mandatory")},
+        "name": "plugins", "route": "native-2.0", "nativePlugins": ["grove@fake"],
+    }))
     # A stale native copy: the skill as the commit before the checkout's head held it.
     stale = cases / "stale"
     shutil.copytree(cases / "smoke", stale)
@@ -1214,7 +1264,8 @@ class HarnessTrialTest(unittest.TestCase):
         self.assertFalse(record["ending"]["teardownRecorded"])
         self.assertEqual(record["ending"]["treeBefore"], record["ending"]["treeAfter"])
         self.assertEqual(record["skills"], {"nativeCopies": [], "residue": [], "installed": [],
-                                            "claudeSettings": None, "planted": []})
+                                            "claudeSettings": None, "planted": [], "pluginCopies": [],
+                                        "plugins": None})
         markdown = (Path(record["trial"]) / "record.md").read_text()
         for needle in ("| Route | directory-2.0 |", "Native startup text:", "| 4 | Bash | kind-skill | grove-impl |",
                        "Harness launches: 1."):
@@ -1295,6 +1346,81 @@ class HarnessTrialTest(unittest.TestCase):
     def test_an_undeclared_native_copy_fails_the_run(self):
         self.check_stray_native(self.fixture)
         self.broken(self.check_stray_native, "native_failures", lambda native, expected: [])
+
+    def check_plugins(self, fixture: Fixture):
+        fixture.behave(pluginDependencies={"grove": ["extra"]})
+        status, output = fixture.run("plugins")
+        self.assertEqual(status, 0, output)
+        record = fixture.record()
+        plugins = record["skills"]["plugins"]
+        self.assertIsNotNone(plugins, "the record names no installed plugin")
+        source = record["sources"]["checkout"]
+        self.assertEqual(plugins["marketplace"]["path"], source)
+        self.assertEqual(plugins["marketplace"]["commit"], record["sources"]["commit"])
+        self.assertEqual(plugins["marketplace"]["name"], "fake")
+        self.assertTrue(plugins["marketplace"]["checkoutClean"])
+        self.assertEqual([i["id"] for i in plugins["installs"]], ["grove@fake"])
+        installed = {p["id"]: p for p in plugins["installed"]}
+        self.assertEqual(sorted(installed), ["extra@fake", "grove@fake"])
+        self.assertFalse(installed["grove@fake"]["dependency"])
+        self.assertTrue(installed["extra@fake"]["dependency"])
+        self.assertEqual(installed["grove@fake"]["gitCommitSha"], "a" * 40)
+        self.assertEqual(installed["grove@fake"]["skills"],
+                         [{"name": "craft", "sha256": trial.sha256_bytes(b"craft\n")}])
+        self.assertEqual(record["skills"]["pluginCopies"], [".claude/plugins/cache/fake/grove/v1/skills/craft/SKILL.md"])
+        self.assertEqual(record["skills"]["nativeCopies"], [])
+        self.assertEqual(record["sources"]["settings"], {})
+        self.assertIn("plugin", fixture.launched.read_text().split())
+        text = (Path(record["trial"]) / "record.md").read_text()
+        self.assertIn("| Installed plugin `extra@fake` | version `v1`", text)
+        self.assertIn("installed as a dependency", text)
+
+    def test_a_case_installs_native_plugins_from_the_checkout_marketplace(self):
+        self.check_plugins(self.fixture)
+        self.broken(self.check_plugins, "CLAUDE.install_plugins",
+                    lambda case, program, env, tmp, home, checkout, commit: None)
+
+        def no_dependencies(home, installs):
+            return [{**plugin, "dependency": False} for plugin in real_installed(home, installs)]
+
+        real_installed = trial.installed_plugins
+        self.broken(self.check_plugins, "installed_plugins", no_dependencies)
+
+    def check_plugin_refusal(self, fixture: Fixture):
+        fixture.behave(pluginFails=["grove"])
+        status, output = fixture.run("plugins")
+        self.assertEqual(status, 1, output)
+        self.assertIn("plugin install grove@fake", output)
+        self.assertFalse(fixture.grove_env.exists(), "the driver ran after a failed installation")
+
+    def test_a_failed_plugin_installation_refuses_before_the_driver(self):
+        self.check_plugin_refusal(self.fixture)
+
+    def test_a_native_plugin_names_its_marketplace(self):
+        case = json.loads((trial.CASES / "plugins" / "case.json").read_text())
+        for value in (["grove"], "grove@fake", [""], ["grove@fake@x"]):
+            (trial.CASES / "plugins" / "case.json").write_text(json.dumps({**case, "nativePlugins": value}))
+            with self.assertRaises(trial.TrialError, msg=f"{value!r} loaded") as caught:
+                trial.load_case("plugins")
+            self.assertIn("<plugin>@<marketplace>", str(caught.exception))
+
+    def check_stray_plugin(self, fixture: Fixture):
+        fixture.behave(strayPlugin=True)
+        status, output = fixture.run("plugins")
+        self.assertEqual(status, 1, output)
+        self.assertIn("holds the plugin copies", output)
+        self.assertIn(".claude/plugins/cache/other/stray/v1/skills/stray/SKILL.md", output)
+
+    def test_a_plugin_copy_outside_the_installed_plugins_fails_the_run(self):
+        self.check_stray_plugin(self.fixture)
+        self.check_stray_plugin_without_plugins(self.fixture)
+        self.broken(self.check_stray_plugin, "plugin_failures", lambda found, plugins: [])
+
+    def check_stray_plugin_without_plugins(self, fixture: Fixture):
+        fixture.behave(strayPlugin=True)
+        status, output = fixture.run()
+        self.assertEqual(status, 1, output)
+        self.assertIn("holds the plugin copies", output)
 
     def check_unstarted(self, fixture: Fixture):
         fixture.behave(noInit=True)
@@ -2355,7 +2481,7 @@ class HarnessTrialTest(unittest.TestCase):
                 relative = str(path.relative_to(home))
                 if ".cache/ravel" not in relative:
                     (residue if "skills/synced" in relative else native).append(relative)
-            return native, residue
+            return native, residue, []
 
         self.broken(self.check_codex_residue, "skill_files", claude_only)
 
@@ -2383,7 +2509,7 @@ class HarnessTrialTest(unittest.TestCase):
                     lambda records: {"init": next(r["payload"] for r in records if r["type"] == "session_meta")})
 
     def check_codex_later_fields(self, fixture: Fixture):
-        for case, field in (("explicit", "claudeSettings"),):
+        for case, field in (("explicit", "claudeSettings"), ("plugins", "nativePlugins")):
             with self.assertRaises(trial.TrialError, msg=f"{case} loaded for Codex") as caught:
                 trial.load_case(case, "codex")
             self.assertIn(f"'{field}'", str(caught.exception))

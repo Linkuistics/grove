@@ -96,6 +96,29 @@ trial directory, never the owner's home:
 The native copies in the sandbox home must equal the copies that the case
 declares. Any other native copy fails the run.
 
+A Claude Code case can name `nativePlugins`, a list of
+`<plugin>@<marketplace>` names. After the probes of step 5 and before the
+driver, the runner gives Claude Code's own commands, with the sandbox HOME:
+
+1. `claude plugin marketplace add <checkout> --json`, with the prepared plain
+   Git checkout of Grove.
+2. `claude plugin install <name> --json`, once for each name, at user scope.
+3. `claude plugin list --json`.
+
+A command that fails, or a result other than `ok`, refuses the run before the
+driver. The checkout must stay clean. The record names the marketplace, its
+commit and each installation in `skills.plugins`. For each installed plugin,
+it names the version, the Git commit and whether the plugin installed as a
+dependency. The last two facts come from Claude Code's
+`.claude/plugins/installed_plugins.json`. The record also names the
+`SKILL.md` files of each plugin, with their SHA-256.
+
+Skill files under the sandbox `.claude/plugins` are plugin copies, not native
+copies. The record lists them in `skills.pluginCopies`. They must equal the
+skills of the installed plugins, and any other plugin copy fails the run.
+Codex refuses `nativePlugins`, because the measured Codex has no native skill
+loader.
+
 A case can also expect a refusal before any launch. It names `moveAway` with a
 source and `expectRefusal` with Ravel's code. The runner fetches the prepared
 commit into a plain Git checkout under the trial's `sources/`. The settings
@@ -555,6 +578,10 @@ an older commit and a refusal case with a moved source. A continuation test
 proves the source commit, the changed settings, the resumed turn and its
 environment, the line windows, the marker and the fresh launch.
 
+Plugin tests prove the installation from the checkout's marketplace and the
+dependency flag. They also prove that a failed installation refuses before
+the driver, and that a stray plugin copy fails the run.
+
 Compaction tests prove the three turns in one launch without `--add-dir`, the
 gate and the check of the model context. They also prove that the loader
 refuses instructions that name the preamble.
@@ -582,7 +609,7 @@ and from the stream.
 Other tests prove the residue and the absence of account
 data. Further tests
 prove the harness's own links. They also prove the refusal of
-`claudeSettings` for Codex. A Codex continuation test proves the resume arguments, the
+`claudeSettings` and `nativePlugins` for Codex. A Codex continuation test proves the resume arguments, the
 thread, the working directory, the line windows and the marker.
 
 A fake `codex app-server` writes a `compacted` entry as the real server does.
@@ -8578,3 +8605,127 @@ remedy to restore the source directory.
   edits. The runner's tests prove that the record names such a change.
 
 No gap remains open for the cases of `research-directory-trials-k160`.
+
+## Research native namespace
+
+`research-native-namespace-k161` runs the native proof of
+`external-research-pack-k4` in a real Claude Code session. The research kinds
+now live in ResearchSkills, outside Grove. The marketplace of Grove lists that
+pack as the plugin `research`. This trial shows that a native installation
+loads a moved kind under the plugin's actual namespace, from Grove's
+bare-name mandate.
+
+### Subjects
+
+The run is from 2026-11-04 local time. The case ran once, with no retry.
+
+| Subject | Value |
+| --- | --- |
+| Case | `research-native-namespace`, on the route native-2.0 |
+| Runner | `scripts/harness_trial.py` with the field `nativePlugins`, in the commit that adds the case |
+| Marketplace | `.claude-plugin/marketplace.json` of the prepared plain Git checkout of Grove at `57414e00cd87`, the removal commit of `grove-research-removal-k158`. Its `research` entry is the `git-subdir` source `plugins/research` of `https://github.com/Linkuistics/ResearchSkills.git` at `dc3a4812db3b` |
+| Grove build | commit `57414e00cd87`. `grove` SHA-256 `a7f5c988a18e…`, `grove-llm` SHA-256 `2f7895cc33f7…`. Both equal the build of the [directory trials](#research-directory-trials). The `grove` executable holds the missing-skill rule "If you cannot find or read `{skill}`", once |
+| Ravel build | line `skill-directory-delivery` at `71f70fcd3f92`, build commit `d324668b86ca`, identity `a4f55d04b2d1…`, `bin/ravel` SHA-256 `26b487afb957…`, the value of `builds.json`. The prefix has no `libexec` |
+| Ravel settings | No file. The route native-2.0 has no `skills` key, so Ravel supplies no directory and writes no preamble |
+| Claude Code | 2.1.318, model `claude-opus-5-5`, effort `medium`, permission mode `bypassPermissions` |
+
+### The installation
+
+The runner gave the sandbox HOME these commands, before the driver:
+
+| Command | Result |
+| --- | --- |
+| `claude plugin marketplace add <checkout> --json` | `ok`. "Successfully added marketplace: linkuistics (declared in user settings)" |
+| `claude plugin install research@linkuistics --json` | `ok`. "Successfully installed plugin: research@linkuistics (scope: user) (+ 1 dependency: grove)" |
+
+**The dependency installed the `grove` plugin.** The research manifest
+declares `"dependencies": ["grove"]`. Claude Code's
+`installed_plugins.json` marks `grove` with `auto: true`.
+
+| Plugin | Version | Git commit | Installed | Load path at startup |
+| --- | --- | --- | --- | --- |
+| `research@linkuistics` | `dc3a4812db3b-07869d54` | `dc3a4812db3b` | By name | The cache `.claude/plugins/cache/linkuistics/research/dc3a4812db3b-07869d54` |
+| `grove@linkuistics` | `57414e00cd87` | `57414e00cd87` | As a dependency | `plugins/grove` of the checkout |
+
+The marketplace is a directory, so Claude Code loads its relative plugin
+`grove` in place. The cache also holds a copy of it. The research plugin comes
+from GitHub through its `git-subdir` source, so Claude Code loads it from the
+cache. The Git tree of `plugins/research` is `79dc2a530cd2` at `dc3a4812db3b`
+and at the published `1c18a90945a0`, so both commits hold the same research
+files.
+
+The `SKILL.md` files of `grove-research-a`, `research-family` and the spine
+have the same SHA-256 as the files of their commits: `4ae23458bd52…`,
+`cafc0b55a45e…` and `2ae1d0dabbd0…`. The checkout was clean after the
+installation, with `HEAD` at `57414e00cd87`.
+
+The sandbox held no native copy in `.claude/skills`. It held 13 synced
+`anthropic-skills:*` skills, as residue. No synced skill has a Grove or
+research name. The startup listing named each research skill as
+`research:<name>` and each core skill as `grove:<name>`. It held no bare
+`grove-research-a`.
+
+### The run
+
+The run is `research-native-namespace-20261104T063648Z`. The session file
+`2f7547db-d00c-4243-8174-788fea7abe46.jsonl` has the SHA-256
+`c2c31adea558…`. The stream has the SHA-256 `62748124730f…`.
+
+The prompt was Grove's mandate, unchanged. It has the SHA-256
+`6286a57c00d0…`, and it equals `originalPrompt` of the launch view. The view
+names no skills. The mandate names `grove-research-a` as a bare name, and it
+tells the agent to use the namespace under which that skill is actually
+installed.
+
+| # | Tool | What the call did |
+| --- | --- | --- |
+| 1 | Skill | Loaded `research:grove-research-a`. Claude Code answered "Launching skill: research:grove-research-a", with the base directory in the research cache |
+| 2 | Skill | Loaded `grove:grove`. The base directory was `plugins/grove/skills/grove` of the checkout |
+| 3 | Skill | Loaded `research:research-family`, from the research cache |
+| 4 | Bash | Read `references/execute.md` and `references/bootstrap.md` of the spine, from the base directory of call 2, and listed the repository |
+| 5 | Bash | Resolved the leaf, walked its brief chain, read the task, and read `references/retire.md` and `references/commit.md` of the spine |
+| 6, 8 to 13 | Bash | Read the help texts of `git` and `jj` |
+| 14 | Write | Wrote `docs/research/working-copy-terms-a.md` |
+| 15 | Bash | Retired the leaf and committed |
+| 16 | Bash | Ran the exact continue command |
+
+Item 7 is a text block. The runner classifies calls 4 and 5 as `command`,
+because it has no class for a read under a plugin's load path. The table
+above names those reads from the commands themselves.
+
+**Result: pass.** The agent loaded the kind as `research:grove-research-a`.
+Then it loaded the spine as `grove:grove` and the family skill as
+`research:research-family`. Each name is the namespace of the plugin that
+actually supplies the skill. All three loads came before any other tool call.
+The survey went to `-a.md`, the path that the family skill gives the **a**
+half.
+
+The leaf retired, and the published commits are `7121fb22b4cf` (no
+description) and `0cf0800a2980` "Survey git and jj working-copy terms
+(working-copy-terms-k1)". The driver ran 78.5 seconds with one harness
+launch. The trial configuration routes only `research-a`, so the driver then
+refused `finish` as `config_refused`. Ravel again wrote two lines
+`stop attempt … signal 9: Operation not permitted (os error 1)`.
+
+### The owner's installation
+
+Before and after the run, the owner's real `~/.claude` had the same SHA-256
+for `settings.json`, `plugins/installed_plugins.json` and
+`plugins/known_marketplaces.json`. A listing of `plugins/cache` and `skills`
+to depth 3 also had the same SHA-256. The sandbox home linked only
+`Library/Keychains` to the real home, before and after.
+
+### Limits
+
+- **One run.** The case ran once. One run is one observation, not a rate.
+- **Claude Code only.** The measured Codex has no native skill loader, so the
+  runner refuses `nativePlugins` for Codex.
+- **A local marketplace.** The marketplace came from a checkout, so `grove`
+  loaded from that checkout. A marketplace added from GitHub copies `grove`
+  into the cache. The research plugin took that path in this run, through its
+  own `git-subdir` source.
+- **Before main.** The owner's marketplace follows Grove's `main`, which does
+  not yet list `research`. discovery-rollout-k6 records the owner's
+  installation.
+
+No gap remains open for this case.

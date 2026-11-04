@@ -30,6 +30,10 @@ explicit-route request, a case can also copy native skills into the sandbox
 `.claude/skills`, write the
 sandbox `.claude/settings.json` and plant files under the trial's `guidance/`.
 A native copy can come from an older commit of the checkout, as a stale copy.
+A Claude Code case with `nativePlugins` adds the marketplace of the prepared
+checkout to the sandbox home and installs each named plugin from it, before
+the driver. The record names each installed plugin's version, Git commit,
+dependency flag and skill files.
 A source with `external` comes from another repository: the runner makes a
 plain Git checkout of its commit under the trial's `sources/`, before any
 launch, and the record names the commit, the checkout, the Git tree ID of the
@@ -284,6 +288,10 @@ def load_case(name: str, harness: str | None = None) -> tuple[dict[str, Any], Pa
             raise TrialError(f"case {name}: a collected file is a path inside the trial directory, not {item!r}")
     for source in case.get("sources", []):
         check_external(name, source)
+    plugins = case.get("nativePlugins")
+    if plugins is not None and (not isinstance(plugins, list) or not plugins
+                                or not all(isinstance(p, str) and PLUGIN_ID.match(p) for p in plugins)):
+        raise TrialError(f"case {name}: nativePlugins is a list of <plugin>@<marketplace> names, not {plugins!r}")
     if case.get("continuation") is not None:
         check_continuation(case, directory)
     if case.get("compaction") is not None:
@@ -293,6 +301,9 @@ def load_case(name: str, harness: str | None = None) -> tuple[dict[str, Any], Pa
         if not (directory / standalone.get("prompt", "prompt.md")).is_file() or not standalone.get("outputs"):
             raise TrialError(f"case {name}: a standalone case names a prompt file and its outputs")
     return case, directory
+
+
+PLUGIN_ID = re.compile(r"^[A-Za-z0-9._-]+@[A-Za-z0-9._-]+$")
 
 
 def check_external(name: str, source: dict[str, Any]) -> None:
@@ -871,15 +882,17 @@ def delegate_order(events: list[dict[str, Any]], mandatory: list[str]) -> dict[s
     }
 
 
-def skill_files(home: Path) -> tuple[list[str], list[str]]:
-    """(native copies, platform-managed residue): each SKILL.md in the home
-    outside Ravel's cache. claude.ai syncs an account's skills into
-    .claude/skills/synced. Codex installs its bundled skills into
+def skill_files(home: Path) -> tuple[list[str], list[str], list[str]]:
+    """(native copies, platform-managed residue, plugin copies): each
+    SKILL.md in the home outside Ravel's cache. claude.ai syncs an account's
+    skills into .claude/skills/synced. Codex installs its bundled skills into
     .codex/skills/.system, and a ChatGPT sign-in downloads curated plugins
-    into .codex/plugins/cache. Those are residue, not native copies."""
-    native, residue = [], []
+    into .codex/plugins/cache. Those are residue, not native copies. A plugin
+    that a case installs puts its skills under .claude/plugins."""
+    native, residue, plugins = [], [], []
     cache = home / ".cache" / "ravel"
     managed = [home / root for adapter in ADAPTERS.values() for root in adapter.managed_skills]
+    installed = [home / root for adapter in ADAPTERS.values() for root in adapter.plugin_roots]
     for directory, subdirs, files in os.walk(home):
         here = Path(directory)
         if here == cache or cache in here.parents:
@@ -887,9 +900,13 @@ def skill_files(home: Path) -> tuple[list[str], list[str]]:
             continue
         if "SKILL.md" in files:
             relative = str((here / "SKILL.md").relative_to(home))
-            inside = any(here == root or root in here.parents for root in managed)
-            (residue if inside else native).append(relative)
-    return sorted(native), sorted(residue)
+            if any(here == root or root in here.parents for root in managed):
+                residue.append(relative)
+            elif any(root in here.parents for root in installed):
+                plugins.append(relative)
+            else:
+                native.append(relative)
+    return sorted(native), sorted(residue), sorted(plugins)
 
 
 # --- Harness adapters ----------------------------------------------------------
@@ -929,6 +946,8 @@ class HarnessAdapter:
     managed_skills: tuple[str, ...] = ()
     # The managed roots whose reads the classifier names residue.
     read_residue: tuple[str, ...] = ()
+    # The directories where the harness installs plugins, with their skills.
+    plugin_roots: tuple[str, ...] = ()
     # The harness's own permission layer, as the record names it.
     permission_mode = ""
     # How a continuation resumes the first session.
@@ -995,6 +1014,13 @@ class HarnessAdapter:
 
     def write_settings(self, case: dict[str, Any], home: Path) -> dict[str, Any] | None:
         """The case's settings file of the harness in the sandbox home."""
+        return None
+
+    def install_plugins(self, case: dict[str, Any], program: Path, env: dict[str, str], tmp: Path, home: Path,
+                        checkout: Path, commit: str) -> dict[str, Any] | None:
+        """The case's native plugins, installed into the sandbox home from the
+        marketplace of the prepared checkout. `check_case` refuses the field
+        for a harness without this mechanism."""
         return None
 
     def stream_ids(self, stream: list[dict[str, Any]]) -> tuple[str | None, str | None]:
@@ -1108,6 +1134,8 @@ class ClaudeAdapter(HarnessAdapter):
     transcript_root = ".claude/projects"
     # claude.ai syncs an account's skills into the sandbox.
     managed_skills = (".claude/skills/synced",)
+    # `claude plugin install` copies a plugin into .claude/plugins/cache.
+    plugin_roots = (".claude/plugins",)
     permission_mode = PERMISSION_MODE
     # Claude Code keeps the session ID without --fork-session and appends to
     # the session file.
@@ -1165,6 +1193,29 @@ class ClaudeAdapter(HarnessAdapter):
 
     def resume_args(self, route: dict[str, Any], session_id: str) -> list[str]:
         return [*route["fixedArgs"], "--resume", session_id]
+
+    def install_plugins(self, case: dict[str, Any], program: Path, env: dict[str, str], tmp: Path, home: Path,
+                        checkout: Path, commit: str) -> dict[str, Any] | None:
+        """Claude Code's own commands, with HOME the sandbox home: `plugin
+        marketplace add` of the checkout, then `plugin install` of each plugin
+        at user scope. A dependency that the manifest declares installs with
+        its plugin. The checkout must stay clean, because every run of the
+        prepared directory reads it."""
+        if not case.get("nativePlugins"):
+            return None
+        added = plugin_command(program, ["marketplace", "add", str(checkout), "--json"], env, tmp)
+        installs = [{"id": ident, "result": plugin_command(program, ["install", ident, "--json"], env, tmp)}
+                    for ident in case["nativePlugins"]]
+        listed = json.loads(run_checked([str(program), "plugin", "list", "--json"], cwd=tmp, env=env))
+        status = run_checked(["git", "status", "--porcelain"], cwd=checkout, env=git_env(env))
+        if status:
+            raise TrialError(f"adding the marketplace changed the checkout {checkout}: {status}")
+        return {
+            "marketplace": {"path": str(checkout), "commit": commit, "name": added.get("marketplace"),
+                            "checkoutClean": True, "result": added},
+            "installs": installs,
+            "installed": installed_plugins(home, listed),
+        }
 
     def write_settings(self, case: dict[str, Any], home: Path) -> dict[str, Any] | None:
         """The case's `.claude/settings.json`, such as a deny rule that makes
@@ -1451,6 +1502,7 @@ CODEX_RESIDUE = (".codex/skills/.system", ".codex/plugins/cache")
 # The case fields that have no Codex mechanism.
 CODEX_LATER = {
     "claudeSettings": "no Codex leaf; it is a Claude Code setting",
+    "nativePlugins": "no Codex leaf; Codex has no native skill loader in the measured version",
 }
 SHELLS = ("bash", "zsh", "sh", "dash", "ksh", "fish")
 # An encrypted `message` of a direct `spawn_agent` call: a Fernet token.
@@ -2508,6 +2560,54 @@ def expected_native(case: dict[str, Any]) -> list[str]:
     return sorted(f"{root}/{item['name']}/SKILL.md" for item in case.get("native", []))
 
 
+def plugin_command(program: Path, args: list[str], env: dict[str, str], tmp: Path) -> dict[str, Any]:
+    """One `claude plugin` command with `--json`. Its last line of standard
+    output is the result, and an outcome other than "ok" refuses the run
+    before the driver."""
+    done = subprocess.run([str(program), "plugin", *args], cwd=tmp, env=env, capture_output=True, text=True)
+    lines = done.stdout.strip().splitlines()
+    try:
+        result = json.loads(lines[-1]) if lines else {}
+    except json.JSONDecodeError:
+        result = {}
+    if done.returncode != 0 or result.get("outcome") != "ok":
+        shown = " ".join(a for a in args if a != "--json")
+        raise TrialError(f"plugin {shown} failed with exit {done.returncode}: "
+                         f"{result.get('message') or done.stderr.strip() or done.stdout.strip()}")
+    return result
+
+
+def installed_plugins(home: Path, listed: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Each installed plugin, as `claude plugin list --json` lists it, with
+    the Git commit and the dependency flag of Claude Code's own
+    `installed_plugins.json`. `auto` marks a plugin that installed as a
+    dependency of another. The skills are the plugin's SKILL.md files."""
+    path = home / ".claude" / "plugins" / "installed_plugins.json"
+    own = json.loads(path.read_text()).get("plugins", {}) if path.is_file() else {}
+    found = []
+    for item in sorted(listed, key=lambda item: item["id"]):
+        entry = (own.get(item["id"]) or [{}])[0]
+        install = Path(os.path.realpath(item["installPath"]))
+        skills = sorted(install.glob("skills/*/SKILL.md"))
+        found.append({
+            "id": item["id"], "version": item.get("version"), "enabled": item.get("enabled"),
+            "gitCommitSha": entry.get("gitCommitSha"), "dependency": bool(entry.get("auto")),
+            "installPath": str(install.relative_to(os.path.realpath(home))),
+            "skills": [{"name": skill.parent.name, "sha256": sha256_file(skill)} for skill in skills],
+        })
+    return found
+
+
+def plugin_failures(found: list[str], plugins: dict[str, Any] | None) -> list[str]:
+    """The plugin copies of the home must be the skills of the installed
+    plugins. Without installed plugins, the home holds no plugin copy."""
+    expected = sorted(f"{plugin['installPath']}/skills/{skill['name']}/SKILL.md"
+                      for plugin in (plugins or {}).get("installed", []) for skill in plugin["skills"])
+    if found == expected:
+        return []
+    return [f"the sandbox home holds the plugin copies {found}, and the installed plugins hold {expected}"]
+
+
 def native_failures(native: list[str], expected: list[str]) -> list[str]:
     if native == expected:
         return []
@@ -3360,6 +3460,11 @@ def run_case(prepared_dir: Path, name: str, environ: Mapping[str, str],
     version = run_checked([str(program), "--version"], cwd=tmp, env=env).splitlines()[0]
     auth, reported, prelaunch = adapter.prelaunch(program, env, tmp, trial, config_dir)
     check_links(list_links(home), store, owner_home, "after the probes and before")
+    plugins = adapter.install_plugins(case, program, env, tmp, home, checkout, prepared["source"]["commit"])
+    if plugins:
+        for plugin in plugins["installed"]:
+            say(f"installed plugin {plugin['id']} version {plugin['version']}"
+                + (" as a dependency" if plugin["dependency"] else ""))
 
     standalone = case["mode"] == "standalone"
     compaction = None
@@ -3407,7 +3512,7 @@ def run_case(prepared_dir: Path, name: str, environ: Mapping[str, str],
         link_failure = str(error)
 
     stderr = (trial / "driver.stderr").read_text(errors="replace")
-    native, residue = skill_files(home)
+    native, residue, plugin_copies = skill_files(home)
     if standalone:
         logs = sorted((home / ".local" / "state" / "grove" / "runs").glob("*.log"))
         launches = []
@@ -3470,7 +3575,8 @@ def run_case(prepared_dir: Path, name: str, environ: Mapping[str, str],
         "environment": sorted(env),
         "links": {"before": links_before, "after": links_after, "harnessOwn": links_own, "failure": link_failure},
         "skills": {"nativeCopies": native, "residue": residue, "installed": installed,
-                   "claudeSettings": claude_settings, "planted": planted},
+                   "claudeSettings": claude_settings, "planted": planted,
+                   "pluginCopies": plugin_copies, "plugins": plugins},
         "launches": launches,
         "resolve": resolve,
         "refusal": refusal,
@@ -3518,6 +3624,7 @@ def run_case(prepared_dir: Path, name: str, environ: Mapping[str, str],
     elif case.get("compaction") is not None:
         failures.append("the case compacted no launch; read driver.stderr of the trial")
     failures += native_failures(native, expected_native(case))
+    failures += plugin_failures(plugin_copies, plugins)
     failures += delegate_failures(case, launches)
     failures += external_problems
     if resolve:
@@ -3689,6 +3796,24 @@ def external_row(external: dict[str, Any], trial: str) -> str:
             f"source directory `{external['plugin']}` with Git tree `{external['treeId']}`, {digest} |")
 
 
+def plugin_rows(plugins: dict[str, Any] | None) -> list[str]:
+    """The table rows of a native plugin route: the marketplace, then each
+    installed plugin with its skills."""
+    if not plugins:
+        return []
+    market = plugins["marketplace"]
+    rows = [f"| Plugin marketplace | `{cell(market['name'])}`, added from the checkout `{cell(market['path'])}` "
+            f"at commit `{market['commit'][:12]}`; the checkout stayed clean |",
+            "| Plugin installations | " + cell(", ".join(f"`{i['id']}`" for i in plugins["installs"])) + " |"]
+    for plugin in plugins["installed"]:
+        skills = ", ".join(f"`{s['name']}` `{s['sha256'][:12]}…`" for s in plugin["skills"]) or "none"
+        how = "installed as a dependency" if plugin["dependency"] else "installed by name"
+        commit = f"Git commit `{plugin['gitCommitSha'][:12]}`" if plugin.get("gitCommitSha") else "no Git commit"
+        rows.append(f"| Installed plugin `{cell(plugin['id'])}` | version `{cell(plugin['version'])}`, {commit}, "
+                    f"{how}, at `{cell(plugin['installPath'])}`; skills {cell(skills)} |")
+    return rows
+
+
 def render(record: dict[str, Any]) -> str:
     """The Markdown facts of one case. The result and its limit are the
     reader's judgement, so the acceptance record adds them by hand."""
@@ -3730,6 +3855,7 @@ def render(record: dict[str, Any]) -> str:
           if record['skills'].get('claudeSettings') is not None else []),
         *[f"| Planted file | `$TRIAL/{p['path']}` from `{p['from']}`, SHA-256 `{p['sha256']}` |"
           for p in record['skills'].get('planted', [])],
+        *plugin_rows(record['skills'].get('plugins')),
         f"| Platform-managed residue | {cell(', '.join(record['skills']['residue']) or 'none')} |",
         "",
     ]

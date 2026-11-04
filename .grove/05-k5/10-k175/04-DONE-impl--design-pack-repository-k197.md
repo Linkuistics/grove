@@ -125,3 +125,52 @@ The four craft skills still exist in `plugins/linkuistics` until k198. In
 the meantime, a native user meets a shared skill name. The installer also
 refuses a scan of both plugins. That state lives only on this workstream's
 line.
+
+## Decisions (running log)
+
+- The recorded Grove commit is `c800d311a541b02237f06b5a9b5ddba4c2993765`,
+  the commit of trial-supplier-refusal-k196. It still ships the moving
+  files. jj moved the bookmark `gh-issue-25` forward from `302f85429e4b` to
+  that commit and pushed it before the pack's first publication.
+- Grove's `grove-design` has the digest `7a610371ecb2c752`, not the baseline
+  `beee6cbee6524784`. core-bare-references-k170 (`5a6bdd68a7d8`) changed its
+  citation of `codebase-design` to a bare name on this line. The record names
+  that change beside the pack's own changes. The other six Grove copies have
+  their baseline digests.
+- `decision-records` adapts the template, the examples and the when-to-write
+  test of `mattpocock/skills` (MIT). It therefore gets
+  `LICENSES/mattpocock-skills.LICENSE`, a copy of the spine's file. Its
+  `SKILL.md` keeps its pointer to `PROVENANCE.md`, and the pack's provenance
+  section names the licence file. `codebase-design` cites works and keeps an
+  inherited attribution for an exercise that it no longer contains.
+  `cli-tool-design` and `model-led-development` adapt nothing. Those three get
+  no `LICENSES/`.
+- The formal-methods records take `https://github.com/Linkuistics/grove/blob/main/docs/<file>`.
+  Grove's public `main` (`238c3a839ab4`) holds both cited files, and each URL
+  returned 200. The text keeps "in `Linkuistics/grove`" and links the path.
+- `plugins/design/PROVENANCE.md` holds the three sections of Grove's file
+  that cover the craft skills. `cli-tool-design` has no section. The
+  `model-led-development` section said "this repository", which in the pack
+  names Grove by name and URL. `codebase-design` is byte for byte.
+- The pinned citation row is `design-cites-codebase-design-with-fallback`,
+  owner `grove-design/SKILL.md`, class `B`, load `static({design})`, with the
+  registry's phrase in its source case. The runner normalises case, markup and
+  line breaks. Two controls failed on that row alone: a changed phrase in the
+  owner, and a second site in `grove-review-design`.
+- The moved kinds name no format file. The pack alone therefore lists only
+  `references/review.md` and `references/integrate-review.md` as external
+  resources, with the three loads of `grove` as external edges.
+- The aggregate at the recorded commit fails on 16 assertions: 3 duplicate
+  skills, 6 duplicate rows and 7 unshipped owners. The seventh unshipped owner
+  is the pinned row, whose owner is in the duplicate `grove-design`. The
+  duplicates cause all 16.
+- `claude plugin validate` (Claude Code 2.1.318) passed with two warnings, no
+  `version` and no icon, as in the requirements record.
+- `gh repo create Linkuistics/DesignSkills --public` ran without a prompt. An
+  uncommitted `.claude/settings.json` in this workspace allows
+  `Bash(gh repo create *)`. This session did not write that file, and the
+  task commit leaves it out. jj pushed `main` as
+  `9d7c7c5368f6a22b541881e6c107da28e39627bd`.
+- Grove's `bash scripts/check.sh` passed on this leaf's Grove change, with all
+  21 principal checks. The change touches only the moves record and this task
+  file.

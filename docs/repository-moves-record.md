@@ -822,3 +822,207 @@ marketplace lists `requirements` only after finish. A native user then needs
 `/plugin install requirements@linkuistics`. Without it, a fresh grove's first
 leaf has no kind skill on the native route. A directory route needs a
 `requirements` source, as `docs/USAGE.md` states.
+
+## DesignSkills
+
+`design-pack-repository-k197` created the repository
+`~/Development/AgenticOrchestration/DesignSkills` on 2026-11-05, with the
+three design kinds and four design craft skills. This is the expand step of
+`design-pack-k175`, and DesignSkills is the first pack with a `craft/` root.
+At the first pack commit, Grove still ships its own copies of all seven
+skills, so the aggregate fails on duplicates by design.
+`design-removal-k198` removes Grove's copies and publishes the second pack
+commit.
+
+### Source of the design pack
+
+| Subject | Value |
+| --- | --- |
+| Repository | `https://github.com/Linkuistics/DesignSkills.git`. See [Publication of the design pack](#publication-of-the-design-pack) |
+| First pack commit | `9d7c7c5368f6a22b541881e6c107da28e39627bd`, the jj bookmark `main` |
+| Source directory | `plugins/design`. It is the Claude Code plugin root and the Ravel source directory |
+| Ravel roots | `["skills", "craft"]`. `skills/` holds the three kinds, and `craft/` holds the four craft skills |
+| Plugin manifest | `"skills": ["./craft/"]`, so Claude Code scans `skills/` by default and adds `craft/` |
+| Git tree of the source directory | `dd04e268aeb5eba82c527755b1f52bee3565a216` |
+| `resourceDigest` | `d8ad3a2af1b5029bc0de93747f4d7297038651180f6877fbd738d94fcbf6aa14`, from a plain Git checkout of the commit and from the jj working copy |
+| Recorded Grove commit | `c800d311a541b02237f06b5a9b5ddba4c2993765`, the `GROVE_COMMIT` of the Taskfile. It still ships the moving files |
+| Grove remote bookmark | `gh-issue-25`. jj moved it forward from `302f85429e4b` to `c800d311a541` and pushed it before the pack's publication |
+
+The tracked files are `.gitignore`, `LICENSE`, `README.md`, `Taskfile.yml`
+and eighteen files under `plugins/design`:
+
+- `.claude-plugin/plugin.json`
+- `PROVENANCE.md`
+- `conformance/rules.tsv`
+- `skills/grove-design/SKILL.md`
+- `skills/grove-design/assets/diagram-viewer.html`
+- `skills/grove-design/references/visual-design-discussion.md`
+- `skills/grove-review-design/SKILL.md`
+- `skills/grove-integrate-review-design/SKILL.md`
+- `craft/decision-records/SKILL.md`
+- `craft/decision-records/LICENSES/mattpocock-skills.LICENSE`
+- `craft/codebase-design/SKILL.md`
+- `craft/codebase-design/references/design-examples.md`
+- `craft/cli-tool-design/SKILL.md`
+- `craft/cli-tool-design/references/auditing-and-refactoring.md`
+- `craft/model-led-development/SKILL.md`
+- `craft/model-led-development/references/instruments.md`
+- `craft/model-led-development/references/keeping-a-log.md`
+- `craft/model-led-development/references/routing-table.md`
+
+The repository has no Git attribute and no symlink. The checks write only
+`.cache/`, which Git ignores. `LICENSE` and `.gitignore` equal those of
+RequirementsSkills, and `LICENSE` equals Grove's. The Taskfile is the Taskfile
+of RequirementsSkills with three changes: the pack's name in the first
+comment, `GROVE_COMMIT` and `PACK`. `GROVE_REPOSITORY` stays the public URL.
+
+The manifest sets `name` `design`, `license` `Apache-2.0`, `dependencies`
+`["grove"]` and `skills` `["./craft/"]`, with no `version`. Its other fields
+follow the requirements manifest.
+
+### Byte changes of the design pack
+
+Each change below is against Grove's files at the recorded Grove commit. The
+digest is that of `docs/owner-skill-inventory.tsv`: the first 16 hexadecimal
+digits of the skill tree's SHA-256. A copy of the inventory's `digest()`
+function gave each value below. It gave the baseline value for each copy under
+the owner's Claude Code cache.
+
+| Skill | Baseline digest and files | Grove digest at the recorded commit | Pack digest and files | Change |
+| --- | --- | --- | --- | --- |
+| `grove-design` | `beee6cbee6524784`, 3 | `7a610371ecb2c752` | `78dc6c710f2a7954`, 3 | Two changes. `core-bare-references-k170` (`5a6bdd68a7d8`) changed the citation "use `codebase-design` (`linkuistics:codebase-design` on Claude Code)" to "use the `codebase-design` skill" in Grove. The move then gave the opening paragraph the bare-name text of core's `grove-planning`, with the kind's name changed. The two resources are unchanged |
+| `grove-review-design` | `0e539af165c861a2`, 1 | The baseline | `444e03aef95b6dc6`, 1 | The opening paragraph equals that of core's `grove-review-planning`. It keeps the read of `references/review.md` after the load sentence |
+| `grove-integrate-review-design` | `9bd31d387550dae5`, 1 | The baseline | `0165d18ea4e334cf`, 1 | The opening paragraph equals that of core's `grove-integrate-review-planning`. It keeps the read of `references/integrate-review.md` after the load sentence |
+| `decision-records` | `27ef779f1e37cdff`, 1 | The baseline | `f5ad1eafafcea37b`, 2 | The new file `LICENSES/mattpocock-skills.LICENSE` equals the spine's copy byte for byte. `SKILL.md` is unchanged |
+| `codebase-design` | `9919698f17a511ec`, 2 | The baseline | `9919698f17a511ec`, 2 | None |
+| `cli-tool-design` | `9f847e8ef1af94a5`, 2 | The baseline | `9f847e8ef1af94a5`, 2 | None |
+| `model-led-development` | `f4021c1d454d3c12`, 4 | The baseline | `01ab07d3401d88ef`, 4 | Two classes of change in four files. `SKILL.md` and `references/instruments.md` name `doubt-driven-development` by its bare name, not `linkuistics:doubt-driven-development`. Each mention of `docs/formalism-findings.md` and `docs/candidate-lessons.md` becomes a link to `https://github.com/Linkuistics/grove/blob/main/docs/<file>`. The words "in `Linkuistics/grove`" stay |
+
+A `diff -r` against Grove's seven directories showed only those changes. The
+citation of `doubt-driven-development` stays a citation, "See the sibling
+skill", and is not a directed load. The pack alone lists no edge to it. Grove's
+public `main` (`238c3a839ab4`) holds both linked records, and each URL returned
+HTTP status 200. The records stay in Grove, by test 1 of "The Grove assets of
+moving craft skills" in `docs/specs/pack-membership.md`.
+
+### Provenance of the design pack
+
+`plugins/design/PROVENANCE.md` holds the sections of Grove's
+`plugins/linkuistics/PROVENANCE.md` for `codebase-design`, `decision-records`
+and `model-led-development`. `cli-tool-design` has no section in either file.
+The relative link of each moved craft skill to `PROVENANCE.md` resolves inside
+`plugins/design`, from `craft/<skill>/` and from
+`craft/codebase-design/references/`. Grove keeps its copy of those sections
+until `design-removal-k198`.
+
+The new file has its own title and a paragraph that names its source. The
+`codebase-design` section is byte for byte. Two sections change:
+
+- `decision-records` gains a sentence that names
+  `decision-records/LICENSES/mattpocock-skills.LICENSE`.
+- `model-led-development` said "this repository" for Grove. It now says
+  "Grove's repository" and "Grove's own protocols", and it links both records
+  by public URL.
+
+Of the moved craft skills, only `decision-records` adapts a passage of a third
+party: the template, the examples and the when-to-write test of
+`mattpocock/skills` (MIT). It therefore holds the licence text inside its own
+skill. `codebase-design` cites works and keeps an inherited attribution for an
+exercise that it no longer contains. `cli-tool-design` and
+`model-led-development` adapt nothing. None of the three has `LICENSES/`.
+
+The copied sections keep their findings of the technical-communication
+checker. They are quoted source text, and the new sentences have no finding.
+
+### Rules of the design pack
+
+`plugins/design/conformance/rules.tsv` holds seven rows. Six rows equal the
+rows of Grove's manifest whose owner is a moving file, byte for byte and in
+Grove's order. Three have the owner `grove-design/SKILL.md` and three have the
+owner `grove-design/references/visual-design-discussion.md`. Each has the load
+`static({design})`. The family members and the craft skills own no row in
+Grove's manifest.
+
+The seventh row is the pinned row of the citation registry:
+
+| Rule | Owner | Class | Load | Phrase |
+| --- | --- | --- | --- | --- |
+| `design-cites-codebase-design-with-fallback` | `grove-design/SKILL.md` | `B` | `static({design})` | Grove's artifact requirements remain binding when the skill is absent |
+
+The phrase is the registry's `binds` text in its source case. The runner
+removes markup and case and joins line breaks before it compares. Two controls
+in a scratch copy each failed on that row alone. The first changed the phrase
+in the owner, and the second added the phrase to `grove-review-design`. Grove
+still holds the six rows and the registry row, and `design-removal-k198`
+removes them.
+
+### Checks of the design pack
+
+The checks ran in a plain Git checkout of the first pack commit, fetched from
+the public remote. `GROVE_REPOSITORY` was the public URL, with no override.
+`grove:checkout` fetched the recorded Grove commit from Grove's public remote.
+The checkout was clean after the run, apart from the ignored `.cache/`.
+
+- `check:plugin` passed with two warnings, no `version` and no icon. Claude
+  Code was 2.1.318. The validation reads the manifest and its `craft/` entry.
+- The pack alone passed with exit status 0. It checked 5 single-source rows
+  and 7 loaded paths, with 2 rows that have no pinned wording.
+- The aggregate failed on 16 assertions, as the order of the move expects.
+  `task check` therefore exits non-zero at this commit.
+
+Conformance reads only `skills/`. No row has an owner in `craft/`. The pack
+alone listed 3 external edges and 2 external resources:
+
+| Referring file | External edge or resource |
+| --- | --- |
+| `grove-design/SKILL.md` | Loads `grove` |
+| `grove-review-design/SKILL.md` | Loads `grove`. Names `references/review.md` |
+| `grove-integrate-review-design/SKILL.md` | Loads `grove`. Names `references/integrate-review.md` |
+
+The moved kinds name no format file, so no format file is an external
+resource. Each external resource resolves in `grove`, as rule 3 of the
+contract's "References between skills" states. `grove-design` names
+`references/visual-design-discussion.md`, which resolves inside its own skill.
+That file links `../assets/diagram-viewer.html`, which stays inside the skill.
+
+The 16 aggregate failures have three classes:
+
+- 3 duplicate skills, one for each moving kind.
+- 6 duplicate rows, one for each moved row of Grove's manifest.
+- 7 unshipped owners: one for each of the six moved rows, and one for the
+  pinned row. The runner maps a skill name that two packs ship to the first
+  pack, which is core. Each pack row whose owner is in `grove-design`
+  therefore reads as unshipped.
+
+Each failure names a moving kind or a moved row, and the duplicates cause all
+16. Core's figures in the aggregate are 115 single-source rows and 2062 loaded
+paths.
+
+### Ravel resolution of the design pack
+
+`ravel skills resolve --json` resolved the plain checkout from the public
+remote with the status `resolved`. The source record has the type `local` and
+the digest `d8ad3a2af1b5…`. Its two search directories are the `skills` and
+`craft` roots of the snapshot. The snapshot holds the `SKILL.md` of each of
+the three kinds and each of the four craft skills. `diff -r` found no
+difference between the snapshot and `plugins/design` of the checkout. A second
+resolution of the jj working copy gave the same digest.
+
+The instrument was the Ravel 2.0 build of `scripts/harness-trials/builds.json`.
+Its `bin/ravel` SHA-256 is `26b487afb957…`, the pinned value, and it holds the
+build identity `a4f55d04b2d1…` twice. Each resolution ran under a temporary
+`HOME` whose settings held one `local` source with the roots
+`["skills", "craft"]` and an empty mandatory list.
+
+### Publication of the design pack
+
+- This session ran `gh repo create Linkuistics/DesignSkills --public`. An
+  uncommitted `.claude/settings.json` in the Grove workspace allowed
+  `Bash(gh repo create *)`, so no prompt came. For RequirementsSkills, the
+  owner ran the command at the prompt.
+- jj added the remote `origin` and pushed the bookmark `main`. The public
+  `main` is `9d7c7c5368f6a22b541881e6c107da28e39627bd`.
+- The recorded Grove commit `c800d311a541` is the head of Grove's remote
+  bookmark `gh-issue-25`. jj pushed that bookmark before the pack.
+- Grove's marketplace does not list the pack yet. `design-removal-k198` adds
+  the entry with the removal, and it pins this first pack commit.

@@ -30,5 +30,5 @@ the contract.
 ## Notes
 
 This step immediately precedes pack-conformance-runner-k156. Keep design
-integration within its charter; implementation and its tests belong to their
+integration within its charter. Implementation and its tests belong to their
 own leaves.

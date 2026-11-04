@@ -82,7 +82,7 @@ describes.
 
 ## Decisions (running log)
 
-- The removal deletes `grove-research-a/`, `grove-research-b/`,
+- The removal takes out `grove-research-a/`, `grove-research-b/`,
   `grove-combine-research/` and `grove/references/research.md`, the eight
   manifest rows of those files and the named set `research` in
   `conformance.awk`. The engine owns the named sets, not `conformance.sh`.
@@ -133,3 +133,41 @@ describes.
   pattern found nothing.
 - The marketplace consequence for discovery-rollout-k6 is in that node's
   brief.
+- The removal commit is `57414e00cd876a9c0e1f8021786384ba7e368580`. The leaf
+  is retired in a later commit, because the second pack commit records this
+  commit and this leaf must record that pack commit. One commit cannot name a
+  commit that names it.
+- Gate: `bash scripts/check.sh` passed all 21 principal checks on
+  `57414e00cd87`, 1343 Rust tests among them. The run used a scratch HOME,
+  `GROVE_TEST_RAVEL_RUNTIME=2.0`, `mise exec bun@1.4.3` and a guard `ravel`
+  first on PATH, which no check reached. `GROVE_TEST_RAVEL` was the Ravel 2.0
+  build of the research recipes: bookmark `skill-directory-delivery` at
+  `71f70fcd3f92`, installed into a scratch prefix with no `libexec`. Its
+  `bin/ravel` SHA-256 is `26b487afb957c233848e8e360e29c73539a33ba89fc3444b26ad13a2eb4bf0a3`,
+  the value of `scripts/harness-trials/builds.json`. The subject commit was the
+  same after the run, and the working copy was empty. `assets/` is unchanged.
+- The pushed Grove commit is `57414e00cd87`. `jj git push --remote origin
+  --bookmark gh-issue-25` moved the remote bookmark forward from
+  `6eb881035a8e`, and `git ls-remote` shows it there.
+- The second pack commit is `1c18a90945a0b2ac4086bfe6f2ba90066fcf4bcc`, a
+  child of `dc3a4812db3b`. It sets `GROVE_COMMIT` to `57414e00cd87` and adds
+  one provenance sentence to the README. The tree ID of `plugins/research`
+  stays `79dc2a530cd2d30cd088073423437bb18d61b401`.
+- From a clean plain-Git checkout of `1c18a90945a0` in a scratch directory,
+  with the committed public `GROVE_REPOSITORY` and no override, `task check`
+  passed. `check:plugin` passed with the icon warning. The pack alone gave 14
+  loaded-path checks. The aggregate, with Grove fetched from GitHub, gave 116,
+  2783 and 72.
+- The permission system of this harness refused
+  `jj git push --remote origin --bookmark main` in ResearchSkills as a change
+  to a shared resource. The human ran the publication at the prompt. The push
+  moved the public `main` forward from `dc3a4812db3b` to `1c18a90945a0`, and
+  `git ls-remote` shows it there.
+- From a plain-Git checkout of the public `main`, `task check` passed again.
+  The checkout was at `1c18a90945a0`, and `plugins/research` had the tree ID
+  `79dc2a530cd2`. The pack alone gave 14 loaded-path checks. The aggregate
+  gave 116, 2783 and 72.
+- Record: the first pack commit is `dc3a4812db3b0dbfef42c8cd6a0aa291e43dd545`,
+  and the marketplace pins it. The second pack commit is
+  `1c18a90945a0b2ac4086bfe6f2ba90066fcf4bcc`, and it is published. The pushed
+  Grove commit is `57414e00cd876a9c0e1f8021786384ba7e368580`.

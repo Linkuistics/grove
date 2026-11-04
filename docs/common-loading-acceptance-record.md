@@ -108,6 +108,63 @@ the code. It also fails when the moved resolution does not give the code or the
 restored resolution does not resolve, or when the tree changed. The restored
 resolution shows that the move caused the refusal.
 
+A source record of a case can name an `external` object with a `repository`
+and a `commit` of 40 hexadecimal digits. The
+[external pack contract](specs/external-pack-contract.md#proof-shape) owns
+this shape. The `plugin` of the source then names the source directory inside
+that repository's checkout.
+
+Before the version probe of the harness, the runner fetches the commit into a
+plain Git checkout at the trial's `sources/<id>-checkout`. The fetch uses the
+isolated Git configuration of the [research recipes](#sources). The runner
+refuses before any launch in each of these conditions:
+
+- The repository does not give the commit.
+- The `HEAD` of the checkout differs from the commit. The ID of an annotated
+  tag gives this result.
+- The checkout is not clean.
+- The commit holds no directory at `plugin`.
+
+The record names these facts for each external source, in
+`sources.external`:
+
+| Field | Fact |
+| --- | --- |
+| `repository` and `commit` | The values of the case |
+| `checkout` | The path of the checkout |
+| `treeId` | The Git tree ID of the source directory at the commit |
+| `resourceDigest` | Ravel's digest of the source |
+| `cleanAfter` | Whether the checkout has the commit as `HEAD` and is clean after the driver |
+
+The runner takes `resourceDigest` from Ravel only. The view of each launch
+names it, and so does the restored resolution of a refusal case. The run
+fails when these values differ or when Ravel names no value. The run also
+fails when `cleanAfter` is false.
+
+A case with `moveAway` on an external source moves the checkout of that
+source. The runner makes no second clone for it. A continuation case refuses
+an external source, because one clone of the prepared commit supplies all its
+sources.
+
+The run option `--working-copy <id>=<dir>` replaces the checkout of one
+external source with a jj working copy. The tasks `trial:claude` and
+`trial:codex` pass it as `WORKING_COPY`. The settings then name
+`<dir>/<plugin>`. The record names `workingCopy` in place of `checkout` and
+`treeId`:
+
+| Field | Fact |
+| --- | --- |
+| `path` | The physical path of the working copy |
+| `changeId` and `commitId` | The working-copy change and its commit, before the driver |
+| `empty` | Whether the working-copy change is empty |
+| `commitAfter` | The commit of the working-copy change after the driver |
+
+jj snapshots the working copy before each read, so the commit names the files
+as they are. The run fails when the commit changes during the run. The option
+refuses a source without `external`. It also refuses the source that the case
+moves away, so the runner never moves a working copy. One case therefore
+serves the checkout proof and the working-copy proof.
+
 A lifecycle case can name `continuation`. One plain Git clone of the prepared
 commit in the trial directory then supplies every source, so no other case
 sees its change. After the first driver run, the runner takes these steps:
@@ -8220,10 +8277,9 @@ the missing checkout, move the checkout away and expect
 `skill_source_missing` before any worker. For a launch without a network,
 run the resolution as a `resolveOffline` case does.
 
-The runner cannot yet take a source from another repository.
-`settings_for` builds each source path from the prepared Grove checkout or
-a clone of it. The research node adds a case field that names an external
-checkout and its commit. The record of each run must then name that commit.
+A case takes a source from another repository through the `external` field
+of [the runner](#the-runner). The runner then makes this checkout itself and
+records its commit, its tree ID and its `resourceDigest`.
 
 ### Real harness runs
 

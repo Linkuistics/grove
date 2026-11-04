@@ -19,6 +19,7 @@ opt-in tasks `trial:claude` and `trial:codex`.
 from __future__ import annotations
 
 import contextlib
+import hashlib
 import io
 import json
 import os
@@ -97,10 +98,19 @@ digest = hashlib.sha256(descriptor_text).hexdigest()
 descriptor = home / ".cache/ravel/descriptors" / digest / "directories.json"
 descriptor.parent.mkdir(parents=True, exist_ok=True)
 descriptor.write_bytes(descriptor_text)
+def fake_digest(directory):
+    # A stand-in for Ravel's resourceDigest: every file name and its bytes.
+    digest = hashlib.sha256()
+    for path in sorted(p for p in Path(directory).rglob("*") if p.is_file()):
+        digest.update(str(path.relative_to(directory)).encode() + b"\0" + path.read_bytes())
+    return digest.hexdigest()
+others = [{{"id": source["id"], "type": "local", "resourceDigest": fake_digest(source["path"]),
+           "snapshotRoot": str(snap) + "-" + source["id"], "originPath": source["path"]}}
+          for source in config.get("sources", [])[1:]]
 view = {{"kind": "impl", "originalPrompt": "mandate", "skills": {{
     "descriptorPath": str(descriptor),
     "sources": [{{"id": "grove", "type": "local", "resourceDigest": "ab" * 32 if unchanged else content,
-                 "snapshotRoot": str(snap), "originPath": origin}}],
+                 "snapshotRoot": str(snap), "originPath": origin}}, *others],
     "directories": [{{"source": "grove", "path": str(snap / "skills")}}],
     "mandatory": mandatory}}}}
 if sys.argv[1:2] == ["run"]:
@@ -625,15 +635,24 @@ import json, os, sys
 from pathlib import Path
 if sys.argv[1:] != ["skills", "resolve", "--json"]:
     sys.exit(0)
+import hashlib
 settings = Path(os.environ["HOME"]) / ".config/ravel/settings.json"
-for source in json.loads(settings.read_text())["skills"]["sources"]:
+sources = json.loads(settings.read_text())["skills"]["sources"]
+for source in sources:
     if not Path(source["path"]).is_dir():
         print(f"ravel: refused (skill_source_missing, stage skills): {{source['path']}} does not exist", file=sys.stderr)
         print("  remedy: restore the source directory, or change the settings deliberately", file=sys.stderr)
         sys.exit(3)
+def fake_digest(directory):
+    # The fake driver's stand-in for Ravel's resourceDigest.
+    digest = hashlib.sha256()
+    for path in sorted(p for p in Path(directory).rglob("*") if p.is_file()):
+        digest.update(str(path.relative_to(directory)).encode() + b"\0" + path.read_bytes())
+    return digest.hexdigest()
 found = sorted(Path(os.environ["HOME"]).glob(".cache/ravel/descriptors/*/directories.json"))
 print(json.dumps({{"schemaVersion": 1, "status": "resolved", "descriptorPath": str(found[0]) if found else None,
-                  "sources": [{{"id": "grove", "resourceDigest": "ab" * 32}}]}}))
+                  "sources": [{{"id": "grove", "resourceDigest": "ab" * 32}},
+                              *[{{"id": s["id"], "resourceDigest": fake_digest(s["path"])}} for s in sources[1:]]]}}))
 '''
 
 # The transcript of the fake session, in tool-call order, with the class that
@@ -839,11 +858,12 @@ class Fixture:
         return {"HOME": str(self.owner), "PATH": os.environ["PATH"], "USER": "owner",
                 "HARNESS_TRIAL_PROGRAM": str(self.claude), **LIVE, **extra}
 
-    def run(self, case: str = "smoke", **extra) -> tuple[int, str]:
+    def run(self, case: str = "smoke", args: tuple[str, ...] = (), **extra) -> tuple[int, str]:
         """Run a case; return the status and everything it printed."""
         output = io.StringIO()
         with contextlib.redirect_stdout(output), contextlib.redirect_stderr(output):
-            status = trial.main(["run", "--prepared", str(self.prepared), "--case", case], self.environ(**extra))
+            status = trial.main(["run", "--prepared", str(self.prepared), "--case", case, *args],
+                                self.environ(**extra))
         return status, output.getvalue()
 
     def run_codex(self, case: str = "smoke", **extra) -> tuple[int, str]:
@@ -863,12 +883,60 @@ class Fixture:
         return json.loads((runs[-1] / "record.json").read_text())
 
 
-def plant_cases(root: Path) -> Path:
+RESEARCH_PLUGIN = "plugins/research"
+RESEARCH_SKILL = f"{RESEARCH_PLUGIN}/skills/grove-research-a/SKILL.md"
+GIT_IDENTITY = {"GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@example.com",
+                "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@example.com"}
+
+
+def make_external(root: Path) -> dict[str, str]:
+    """An external pack repository with one commit and an annotated tag of
+    it. The tag's object ID is a full hash whose checkout has another HEAD."""
+    repo = root / "research-repo"
+    env = {**trial.git_env(os.environ), **GIT_IDENTITY}
+    trial.run_checked(["git", "init", "--quiet", str(repo)], env=env)
+    (repo / RESEARCH_SKILL).parent.mkdir(parents=True)
+    (repo / RESEARCH_SKILL).write_text("research\n")
+    (repo / "README.md").write_text("pack\n")
+    trial.run_checked(["git", "add", "--all"], cwd=repo, env=env)
+    trial.run_checked(["git", "commit", "--quiet", "-m", "pack"], cwd=repo, env=env)
+    trial.run_checked(["git", "tag", "--annotate", "-m", "release", "v1"], cwd=repo, env=env)
+    return {
+        "repository": str(repo),
+        "commit": trial.run_checked(["git", "rev-parse", "HEAD"], cwd=repo, env=env),
+        "tag": trial.run_checked(["git", "rev-parse", "v1"], cwd=repo, env=env),
+        "tree": trial.run_checked(["git", "rev-parse", f"HEAD:{RESEARCH_PLUGIN}"], cwd=repo, env=env),
+    }
+
+
+def fake_digest(directory: Path) -> str:
+    """The fake front's resourceDigest of a source directory."""
+    digest = hashlib.sha256()
+    for path in sorted(p for p in directory.rglob("*") if p.is_file()):
+        digest.update(str(path.relative_to(directory)).encode() + b"\0" + path.read_bytes())
+    return digest.hexdigest()
+
+
+def plant_cases(root: Path, external: dict[str, str]) -> Path:
     """The smoke case, and two cases of the same shape for the offline
     resolution and the standalone mode."""
     cases = root / "cases"
     shutil.copytree(trial.CASES / "smoke", cases / "smoke")
     smoke = json.loads((cases / "smoke" / "case.json").read_text())
+    # A case with an external source, and the cases that refuse it: a moved
+    # checkout, an unknown commit and a commit whose checkout has another HEAD.
+    for name, commit, extra in (
+        ("external", external["commit"], {}),
+        ("external-missing", external["commit"], {"moveAway": "research", "expectRefusal": "skill_source_missing"}),
+        ("external-unknown", "0123456789abcdef0123456789abcdef01234567", {}),
+        ("external-tag", external["tag"], {}),
+    ):
+        shutil.copytree(cases / "smoke", cases / name)
+        research = {"id": "research", "plugin": RESEARCH_PLUGIN, "roots": ["skills"],
+                    "external": {"repository": external["repository"], "commit": commit}}
+        (cases / name / "case.json").write_text(json.dumps({
+            **smoke, "name": name, "sources": [*smoke["sources"], research], **extra,
+        }))
     resolve = cases / "resolve"
     shutil.copytree(cases / "smoke", resolve)
     (resolve / "case.json").write_text(json.dumps({**smoke, "name": "resolve", "resolveOffline": True}))
@@ -944,7 +1012,8 @@ class HarnessTrialTest(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         root = Path(os.path.realpath(self.temp.name))
-        patcher = mock.patch.object(trial, "CASES", plant_cases(root))
+        self.external = make_external(root)
+        patcher = mock.patch.object(trial, "CASES", plant_cases(root, self.external))
         patcher.start()
         self.addCleanup(patcher.stop)
         self.fixture = Fixture(root / "main")
@@ -1279,6 +1348,196 @@ class HarnessTrialTest(unittest.TestCase):
         (trial.CASES / "half" / "case.json").write_text(json.dumps({**case, "expectRefusal": None}))
         with self.assertRaises(trial.TrialError):
             trial.load_case("half")
+
+    # --- External sources ------------------------------------------------------
+
+    def external_record(self, record: dict) -> dict:
+        externals = record["sources"]["external"]
+        self.assertEqual([external["id"] for external in externals], ["research"])
+        return externals[0]
+
+    def jj(self, *args: str) -> str:
+        """jj with an empty home, as the runner reads a working copy with
+        the fake owner's environment."""
+        home = Path(self.temp.name) / "jj-home"
+        home.mkdir(exist_ok=True)
+        env = {name: value for name, value in os.environ.items() if not name.startswith("JJ_")}
+        return trial.run_checked(["jj", *args], env={**env, "HOME": str(home)})
+
+    def check_external(self, fixture: Fixture):
+        status, output = fixture.run("external")
+        self.assertEqual(status, 0, output)
+        record = fixture.record()
+        external = self.external_record(record)
+        checkout = Path(record["trial"]) / "sources" / "research-checkout"
+        self.assertEqual(external["repository"], self.external["repository"])
+        self.assertEqual(external["commit"], self.external["commit"])
+        self.assertEqual(external["checkout"], str(checkout))
+        self.assertEqual(external["treeId"], self.external["tree"])
+        self.assertEqual(external.get("resourceDigest"), fake_digest(checkout / RESEARCH_PLUGIN))
+        self.assertTrue(external["cleanAfter"])
+        self.assertEqual(record["sources"]["settings"]["skills"]["sources"][1]["path"],
+                         str(checkout / RESEARCH_PLUGIN))
+        markdown = (Path(record["trial"]) / "record.md").read_text()
+        self.assertIn(f"| External source `research` | `{self.external['repository']}` at commit "
+                      f"`{self.external['commit']}`, a plain Git checkout at `$TRIAL/sources/research-checkout`",
+                      markdown)
+
+    def test_an_external_source_comes_from_a_checkout_of_its_commit(self):
+        self.check_external(self.fixture)
+        self.broken(self.check_external, "external_sources", lambda *args: {})
+        self.broken(self.check_external, "external_failures", lambda *args: [])
+        real_settings = trial.settings_for
+        self.broken(self.check_external, "settings_for",
+                    lambda case, checkout, clones=None: real_settings(case, checkout))
+
+    def lax_fetch(self, repository, commit, target, env):
+        """A broken fetch: it ignores every failure and checks nothing."""
+        for argv in (["git", "init", "--quiet", str(target)], ["git", "fetch", "--quiet", str(repository), commit],
+                     ["git", "checkout", "--quiet", "--detach", "FETCH_HEAD"]):
+            trial.subprocess.run(argv, cwd=target if argv[1] != "init" else None, env=env, capture_output=True)
+
+    def check_external_refusals(self, fixture: Fixture):
+        for case, needle in (("external-unknown", "gives no commit 0123456789abcdef"),
+                             ("external-tag", f"has HEAD {self.external['commit']}, not the commit")):
+            status, output = fixture.run(case)
+            self.assertEqual(status, 1, output)
+            self.assertIn(needle, output)
+            self.assertFalse(fixture.launched_any(), f"{case}: a harness or driver launched before the refusal")
+
+    def test_an_unknown_commit_or_another_head_refuses_before_any_launch(self):
+        self.check_external_refusals(self.fixture)
+        self.broken(self.check_external_refusals, "fetch_checkout", self.lax_fetch)
+        self.broken(self.check_external_refusals, "checkout_problems", lambda *args: [])
+
+    def test_a_checkout_that_is_not_clean_or_moved_is_a_problem(self):
+        env = trial.git_env(os.environ)
+        target = Path(self.temp.name) / "probe"
+        trial.fetch_checkout(self.external["repository"], self.external["commit"], target, env)
+        self.assertEqual(trial.checkout_problems(target, self.external["commit"], env), [])
+        (target / "stray").write_text("stray\n")
+        self.assertEqual(trial.checkout_problems(target, self.external["commit"], env),
+                         [f"the checkout {target} is not clean"])
+        other = "f" * 40
+        self.assertIn(f"has HEAD {self.external['commit']}, not the commit {other}",
+                      trial.checkout_problems(target, other, env)[0])
+        self.assertEqual(trial.checkout_problems(target / "gone", other, env),
+                         [f"the checkout {target / 'gone'} does not exist"])
+
+    def test_differing_or_absent_digests_fail_the_run(self):
+        external = {"id": "research", "checkout": "/nowhere", "commit": "f" * 40}
+        launches = [{"sources": [{"id": "research", "resourceDigest": "a" * 64}]},
+                    {"sources": [{"id": "research", "resourceDigest": "b" * 64}]}]
+        failures = trial.external_failures({"research": external}, launches, None, os.environ)
+        self.assertIn("the digests", failures[0])
+        self.assertIsNone(external["resourceDigest"])
+        self.assertIn("does not exist", failures[1])
+        failures = trial.external_failures({"research": dict(external)}, [], None, os.environ)
+        self.assertIn("named no resourceDigest", failures[0])
+
+    def check_external_missing(self, fixture: Fixture):
+        status, output = fixture.run("external-missing")
+        self.assertEqual(status, 0, output)
+        record = fixture.record()
+        external = self.external_record(record)
+        refusal = record["refusal"]
+        self.assertEqual(record["launches"], [])
+        self.assertEqual(refusal["clone"]["checkout"], external["checkout"])
+        self.assertEqual(refusal["clone"]["commit"], self.external["commit"])
+        self.assertIn("skill_source_missing", refusal["moved"]["firstLine"])
+        self.assertIn(str(Path(external["checkout"]) / RESEARCH_PLUGIN), refusal["moved"]["firstLine"])
+        self.assertEqual(refusal["restored"]["status"], "resolved")
+        self.assertEqual(external.get("resourceDigest"), fake_digest(Path(external["checkout"]) / RESEARCH_PLUGIN))
+        self.assertTrue(external["cleanAfter"])
+
+    def test_move_away_moves_the_checkout_of_an_external_source(self):
+        self.check_external_missing(self.fixture)
+        real_clone = trial.clone_source
+        self.broken(self.check_external_missing, "clone_source",
+                    lambda case, trial_dir, checkout, commit, externals=None:
+                        real_clone(case, trial_dir, checkout, commit))
+        self.broken(self.check_external_missing, "restore", lambda moved: None)
+
+    def working_copy(self) -> Path:
+        """A jj working copy of the pack, with its files in the working-copy change."""
+        directory = Path(os.path.realpath(tempfile.mkdtemp(dir=self.temp.name))) / "research-wc"
+        (directory / RESEARCH_SKILL).parent.mkdir(parents=True)
+        (directory / RESEARCH_SKILL).write_text("research in progress\n")
+        self.jj("git", "init", "--quiet", str(directory))
+        return directory
+
+    def check_working_copy(self, fixture: Fixture):
+        directory = self.working_copy()
+        for empty in (False, True):
+            if empty:
+                self.jj("commit", "--quiet", "-m", "pack", "-R", str(directory))
+            status, output = fixture.run("external", args=("--working-copy", f"research={directory}"))
+            self.assertEqual(status, 0, output)
+            record = fixture.record()
+            external = self.external_record(record)
+            self.assertIn("workingCopy", external)
+            copy = external["workingCopy"]
+            facts = self.jj("log", "--no-graph", "-R", str(directory), "-r", "@", "-T", 'change_id ++ " " ++ commit_id')
+            self.assertEqual(f"{copy['changeId']} {copy['commitId']}", facts)
+            self.assertEqual(copy["path"], str(directory))
+            self.assertIs(copy["empty"], empty)
+            self.assertEqual(copy["commitAfter"], copy["commitId"])
+            self.assertEqual(external["commit"], self.external["commit"])
+            self.assertNotIn("checkout", external)
+            self.assertFalse((Path(record["trial"]) / "sources" / "research-checkout").exists())
+            self.assertEqual(record["sources"]["settings"]["skills"]["sources"][1]["path"],
+                             str(directory / RESEARCH_PLUGIN))
+            self.assertEqual(external.get("resourceDigest"), fake_digest(directory / RESEARCH_PLUGIN))
+            self.assertIn(f"the working copy `{directory}` in place of", (Path(record["trial"]) / "record.md").read_text())
+
+    def test_a_working_copy_replaces_the_checkout_of_one_source(self):
+        self.check_working_copy(self.fixture)
+        self.broken(self.check_working_copy, "parse_working_copies", lambda values: {})
+        self.broken(self.check_working_copy, "working_copy_facts",
+                    lambda directory, environ: {"path": str(directory), "changeId": "", "commitId": "",
+                                                "empty": False})
+
+    def check_working_copy_refusals(self, fixture: Fixture):
+        directory = self.working_copy()
+        for case, value, needle in (
+            ("external", f"grove={directory}", "the external sources of the case external are ['research']"),
+            ("smoke", f"research={directory}", "the external sources of the case smoke are none"),
+            ("external-missing", f"research={directory}", "moveAway would move the working copy"),
+            ("external", "research", "--working-copy takes ID=DIR"),
+            ("external", f"research={directory / 'absent'}", "which is not a directory"),
+        ):
+            status, output = fixture.run(case, args=("--working-copy", value))
+            self.assertEqual(status, 1, output)
+            self.assertIn(needle, output)
+            self.assertFalse(fixture.launched_any(), f"{case} {value}: a launch before the refusal")
+        shutil.rmtree(directory / "plugins")
+        status, output = fixture.run("external", args=("--working-copy", f"research={directory}"))
+        self.assertEqual(status, 1, output)
+        self.assertIn(f"holds no directory {RESEARCH_PLUGIN}", output)
+        self.assertFalse(fixture.launched_any())
+
+    def test_a_working_copy_option_refuses_what_it_cannot_replace(self):
+        self.check_working_copy_refusals(self.fixture)
+        real_sources = trial.external_sources
+        self.broken(self.check_working_copy_refusals, "external_sources",
+                    lambda case, trial_dir, copies, environ: real_sources(case, trial_dir, {}, environ))
+
+    def test_an_external_source_needs_a_full_commit_and_no_continuation(self):
+        smoke = json.loads((trial.CASES / "external" / "case.json").read_text())
+        research = smoke["sources"][1]
+        continuation = json.loads((trial.CASES / "continuation" / "case.json").read_text())
+        for name, case in (
+            ("short", {**smoke, "sources": [smoke["sources"][0],
+                                            {**research, "external": {**research["external"], "commit": "abc123"}}]}),
+            ("extra", {**smoke, "sources": [smoke["sources"][0],
+                                            {**research, "external": {**research["external"], "ref": "main"}}]}),
+            ("upward", {**smoke, "sources": [smoke["sources"][0], {**research, "plugin": "../research"}]}),
+            ("resumed", {**continuation, "sources": [*continuation["sources"], research]}),
+        ):
+            shutil.copytree(trial.CASES / "continuation", trial.CASES / name)
+            (trial.CASES / name / "case.json").write_text(json.dumps({**case, "name": name}))
+            with self.assertRaises(trial.TrialError, msg=name):
+                trial.load_case(name)
 
     # --- The offline resolution ------------------------------------------------
 

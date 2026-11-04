@@ -40,3 +40,22 @@ named commit. Let it record that commit in each run.
 
 This change spends no subscription usage. The real runs are in
 research-directory-trials-k160.
+
+## Decisions (running log)
+
+- The runner makes each external checkout before the harness version probe.
+  A refusal of the checkout therefore precedes every launch.
+- `moveAway` on an external source moves that source's own checkout. The
+  runner makes no second clone for it.
+- `--working-copy` refuses a source without `external`, and it refuses the
+  source that the case moves away. The runner never moves the owner's
+  working copy.
+- A continuation case refuses an external source. Its one clone of the
+  prepared commit supplies every source, and it commits into that clone.
+- The runner takes the `resourceDigest` from Ravel only: from the view of each
+  launch and from the restored direct resolution of a refusal case. The run
+  fails when these values differ or when no value exists. The runner computes
+  no digest of its own.
+- The runner checks each external checkout again after the driver, for `HEAD`
+  and a clean status. It reads the working copy's jj commit again after the
+  driver. A changed subject fails the run.

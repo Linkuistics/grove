@@ -229,18 +229,18 @@ tasks:
       - python3 scripts/harness_trial.py prepare --out "{{.OUT}}" --commit "{{.COMMIT}}" --ravel "{{.RAVEL}}"
 
   trial:claude:
-    desc: Run one real Claude Code trial CASE from the prepared OUT (spends subscription usage; MODEL and EFFORT override the case)
+    desc: Run one real Claude Code trial CASE from the prepared OUT (spends subscription usage; MODEL and EFFORT override the case; WORKING_COPY=ID=DIR replaces one external source's checkout)
     requires:
       vars: [OUT, CASE]
     cmds:
-      - python3 scripts/harness_trial.py run --prepared "{{.OUT}}" --case "{{.CASE}}" {{if .MODEL}}--model "{{.MODEL}}"{{end}} {{if .EFFORT}}--effort "{{.EFFORT}}"{{end}}
+      - python3 scripts/harness_trial.py run --prepared "{{.OUT}}" --case "{{.CASE}}" {{if .MODEL}}--model "{{.MODEL}}"{{end}} {{if .EFFORT}}--effort "{{.EFFORT}}"{{end}} {{if .WORKING_COPY}}--working-copy "{{.WORKING_COPY}}"{{end}}
 
   trial:codex:
-    desc: Run one real Codex trial CASE from the prepared OUT, in the case's tree (spends subscription usage; MODEL and EFFORT override the Codex defaults)
+    desc: Run one real Codex trial CASE from the prepared OUT, in the case's tree (spends subscription usage; MODEL and EFFORT override the Codex defaults; WORKING_COPY=ID=DIR replaces one external source's checkout)
     requires:
       vars: [OUT, CASE]
     cmds:
-      - python3 scripts/harness_trial.py run --prepared "{{.OUT}}" --case "{{.CASE}}" --harness codex {{if .MODEL}}--model "{{.MODEL}}"{{end}} {{if .EFFORT}}--effort "{{.EFFORT}}"{{end}}
+      - python3 scripts/harness_trial.py run --prepared "{{.OUT}}" --case "{{.CASE}}" --harness codex {{if .MODEL}}--model "{{.MODEL}}"{{end}} {{if .EFFORT}}--effort "{{.EFFORT}}"{{end}} {{if .WORKING_COPY}}--working-copy "{{.WORKING_COPY}}"{{end}}
 
   trial:reextract:
     desc: Extract the events of the earlier trial run TRIAL again from its transcripts, with the current classifier

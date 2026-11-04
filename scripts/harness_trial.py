@@ -9,6 +9,7 @@ differs. The trial conventions live in that node's brief and in
 
     harness_trial.py prepare --out DIR --commit COMMIT --ravel FRONT
     harness_trial.py run --prepared DIR --case NAME [--harness H] [--model M] [--effort E]
+                         [--working-copy ID=DIR]...
     harness_trial.py reextract --trial RUN
     harness_trial.py turns --plan PLAN -- PROGRAM ARG... PROMPT
 
@@ -29,8 +30,14 @@ explicit-route request, a case can also copy native skills into the sandbox
 `.claude/skills`, write the
 sandbox `.claude/settings.json` and plant files under the trial's `guidance/`.
 A native copy can come from an older commit of the checkout, as a stale copy.
+A source with `external` comes from another repository: the runner makes a
+plain Git checkout of its commit under the trial's `sources/`, before any
+launch, and the record names the commit, the checkout, the Git tree ID of the
+source directory and Ravel's `resourceDigest`. `--working-copy ID=DIR` takes
+that source from a jj working copy instead, and the record names its change.
 A case with `moveAway` and `expectRefusal` moves a clone of one source away
-before the driver, and expects Ravel's refusal before any harness launch.
+before the driver, and expects Ravel's refusal before any harness launch. An
+external source moves its own checkout.
 A case with `continuation` resumes the first session outside Ravel after a
 source commit and a settings change, then launches a fresh session. Claude
 Code resumes with `--resume`, and Codex with `codex exec resume`. A case
@@ -138,6 +145,9 @@ SNIPPET_CHARS = 60
 # The session-file entries that reach the model. Every other entry type is
 # Claude Code's own record keeping.
 MESSAGE_TYPES = ("user", "assistant", "attachment")
+# The commit of an external source: a full Git hash, so that the checkout
+# names exactly one commit.
+FULL_COMMIT = re.compile(r"^[0-9a-f]{40}$")
 
 
 class TrialError(Exception):
@@ -267,6 +277,8 @@ def load_case(name: str, harness: str | None = None) -> tuple[dict[str, Any], Pa
     for item in case.get("collect", []):
         if not isinstance(item, str) or Path(item).is_absolute() or ".." in Path(item).parts:
             raise TrialError(f"case {name}: a collected file is a path inside the trial directory, not {item!r}")
+    for source in case.get("sources", []):
+        check_external(name, source)
     if case.get("continuation") is not None:
         check_continuation(case, directory)
     if case.get("compaction") is not None:
@@ -278,6 +290,27 @@ def load_case(name: str, harness: str | None = None) -> tuple[dict[str, Any], Pa
     return case, directory
 
 
+def check_external(name: str, source: dict[str, Any]) -> None:
+    """A source with `external` names a repository and a full commit hash.
+    Its `plugin` is then the source directory inside that repository's
+    checkout, as the external pack contract's "Proof shape" states."""
+    external = source.get("external")
+    plugin = Path(source.get("plugin", ""))
+    if plugin.is_absolute() or ".." in plugin.parts or not plugin.parts:
+        raise TrialError(f"case {name}: the plugin of the source '{source.get('id')}' is a relative path, "
+                         f"not {source.get('plugin')!r}")
+    if external is None:
+        return
+    if not isinstance(external, dict) or set(external) != {"repository", "commit"}:
+        raise TrialError(f"case {name}: the external object of the source '{source.get('id')}' names "
+                         "exactly a repository and a commit")
+    if not isinstance(external["repository"], str) or not external["repository"]:
+        raise TrialError(f"case {name}: the external source '{source.get('id')}' names its repository")
+    if not isinstance(external["commit"], str) or not FULL_COMMIT.match(external["commit"]):
+        raise TrialError(f"case {name}: the external source '{source.get('id')}' names a commit of 40 "
+                         f"lowercase hexadecimal digits, not {external['commit']!r}")
+
+
 def check_continuation(case: dict[str, Any], directory: Path) -> None:
     """A continuation case names the answer of the resumed turn, a marker,
     the edits that hold it, the changed mandatory files and the fresh tree."""
@@ -285,6 +318,10 @@ def check_continuation(case: dict[str, Any], directory: Path) -> None:
     name = case["name"]
     if case.get("mode") != "lifecycle" or case.get("moveAway"):
         raise TrialError(f"case {name}: a continuation case is a lifecycle case without moveAway")
+    if any(source.get("external") for source in case.get("sources", [])):
+        # One clone of the prepared commit supplies every source of a
+        # continuation, and the runner commits into it between the turns.
+        raise TrialError(f"case {name}: a continuation case takes every source from the prepared checkout")
     marker = spec.get("marker")
     if not marker:
         raise TrialError(f"case {name}: a continuation case names its marker")
@@ -2295,12 +2332,132 @@ def git_env(environ: Mapping[str, str]) -> dict[str, str]:
 
 
 def fetch_checkout(repository: str | Path, commit: str, target: Path, env: dict[str, str]) -> None:
-    """A plain Git checkout of `commit` at `target`, fetched by its hash."""
+    """A plain Git checkout of `commit` at `target`, fetched by its hash. It
+    refuses an unknown commit, a `HEAD` other than the commit and a checkout
+    that is not clean."""
     run_checked(["git", "init", "--quiet", str(target)], env=env)
-    run_checked(["git", "fetch", "--quiet", str(repository), commit], cwd=target, env=env)
+    fetched = subprocess.run(["git", "fetch", "--quiet", str(repository), commit], cwd=target, env=env,
+                             capture_output=True, text=True)
+    if fetched.returncode != 0:
+        raise TrialError(f"the repository {repository} gives no commit {commit}; name a published commit "
+                         f"of that repository: {fetched.stderr.strip()}")
     run_checked(["git", "checkout", "--quiet", "--detach", "FETCH_HEAD"], cwd=target, env=env)
+    problems = checkout_problems(target, commit, env)
+    if problems:
+        raise TrialError("; ".join(problems))
+
+
+def checkout_problems(target: Path, commit: str, env: dict[str, str]) -> list[str]:
+    """Each way the checkout at `target` is not a clean checkout of `commit`."""
+    if not target.is_dir():
+        return [f"the checkout {target} does not exist"]
+    problems = []
+    head = run_checked(["git", "rev-parse", "HEAD"], cwd=target, env=env)
+    if head != commit:
+        problems.append(f"the checkout {target} has HEAD {head}, not the commit {commit}")
     if run_checked(["git", "status", "--porcelain"], cwd=target, env=env):
-        raise TrialError(f"the checkout {target} is not clean")
+        problems.append(f"the checkout {target} is not clean")
+    return problems
+
+
+def external_checkout(source: dict[str, Any], trial: Path, env: dict[str, str]) -> dict[str, Any]:
+    """A plain Git checkout of an external source's commit under the trial's
+    `sources/`, with the Git tree ID of its source directory. The tree ID
+    names the committed files; Ravel's `resourceDigest` later names the
+    captured files."""
+    external = source["external"]
+    target = trial / "sources" / f"{source['id']}-checkout"
+    target.parent.mkdir(exist_ok=True)
+    fetch_checkout(external["repository"], external["commit"], target, env)
+    spec = f"{external['commit']}:{source['plugin']}"
+    found = subprocess.run(["git", "rev-parse", "--verify", "--quiet", spec], cwd=target, env=env,
+                           capture_output=True, text=True)
+    tree = found.stdout.strip()
+    if found.returncode != 0 or run_checked(["git", "cat-file", "-t", tree], cwd=target, env=env) != "tree":
+        raise TrialError(f"the commit {external['commit']} of {external['repository']} holds no directory "
+                         f"{source['plugin']}; name the source directory of the pack in `plugin`")
+    return {"id": source["id"], "repository": external["repository"], "commit": external["commit"],
+            "plugin": source["plugin"], "checkout": str(target), "treeId": tree}
+
+
+JJ_FACTS = 'change_id ++ "\\n" ++ commit_id ++ "\\n" ++ if(empty, "true", "false") ++ "\\n"'
+
+
+def working_copy_facts(directory: Path, environ: Mapping[str, str]) -> dict[str, Any]:
+    """The working-copy change of a Jujutsu workspace: its change ID, its
+    commit ID and whether it is empty. jj snapshots the working copy first,
+    so the commit names the files as they are now."""
+    text = run_checked(["jj", "log", "--no-graph", "--color", "never", "-R", str(directory), "-r", "@",
+                        "-T", JJ_FACTS], env=dict(environ))
+    change, commit, empty = text.splitlines()
+    return {"path": str(directory), "changeId": change, "commitId": commit, "empty": empty == "true"}
+
+
+def external_sources(case: dict[str, Any], trial: Path, working_copies: Mapping[str, Path],
+                     environ: Mapping[str, str]) -> dict[str, dict[str, Any]]:
+    """The external sources of the case, by ID. Each source comes from a
+    plain checkout of its commit, or from the working copy that the run
+    option `--working-copy` names for it."""
+    external_ids = [source["id"] for source in case.get("sources", []) if source.get("external")]
+    for source_id in working_copies:
+        if source_id not in external_ids:
+            raise TrialError(f"--working-copy names '{source_id}', and the external sources of the case "
+                             f"{case['name']} are {external_ids or 'none'}")
+    if case.get("moveAway") in working_copies:
+        raise TrialError(f"case {case['name']}: moveAway would move the working copy of "
+                         f"'{case['moveAway']}'; run the case on its checkout")
+    externals = {}
+    for source in case.get("sources", []):
+        if not source.get("external"):
+            continue
+        if source["id"] in working_copies:
+            directory = working_copies[source["id"]]
+            if not (directory / source["plugin"]).is_dir():
+                raise TrialError(f"the working copy {directory} holds no directory {source['plugin']}")
+            externals[source["id"]] = {
+                "id": source["id"], "repository": source["external"]["repository"],
+                "commit": source["external"]["commit"], "plugin": source["plugin"],
+                "workingCopy": working_copy_facts(directory, environ),
+            }
+        else:
+            externals[source["id"]] = external_checkout(source, trial, git_env(environ))
+    return externals
+
+
+def external_root(external: dict[str, Any]) -> Path:
+    """The directory that holds the source directory of an external source."""
+    return Path(external["workingCopy"]["path"] if "workingCopy" in external else external["checkout"])
+
+
+def external_failures(externals: dict[str, dict[str, Any]], launches: list[dict[str, Any]],
+                      refusal: dict[str, Any] | None, environ: Mapping[str, str]) -> list[str]:
+    """Add each external source's `resourceDigest` from Ravel, and check that
+    no source changed during the run. Ravel names the digest in the view of
+    each launch and in the restored resolution of a refusal case."""
+    failures = []
+    resolved = [] if not refusal else refusal["restored"].get("sources", [])
+    for source_id, external in externals.items():
+        found = {source.get("resourceDigest") for launch in launches for source in launch.get("sources", [])
+                 if source.get("id") == source_id}
+        found |= {source.get("resourceDigest") for source in resolved if source.get("id") == source_id}
+        digests = sorted(digest for digest in found if digest)
+        external["resourceDigest"] = digests[0] if len(digests) == 1 else None
+        if len(digests) > 1:
+            external["resourceDigests"] = digests
+            failures.append(f"Ravel gave the external source '{source_id}' the digests {digests} in one run")
+        elif not digests:
+            failures.append(f"Ravel named no resourceDigest of the external source '{source_id}'")
+        if "workingCopy" in external:
+            after = working_copy_facts(Path(external["workingCopy"]["path"]), environ)
+            external["workingCopy"]["commitAfter"] = after["commitId"]
+            if after["commitId"] != external["workingCopy"]["commitId"]:
+                failures.append(f"the working copy {after['path']} changed during the run, from commit "
+                                f"{external['workingCopy']['commitId']} to {after['commitId']}")
+        else:
+            problems = checkout_problems(Path(external["checkout"]), external["commit"], git_env(environ))
+            external["cleanAfter"] = not problems
+            failures += [f"after the run, {problem}" for problem in problems]
+    return failures
 
 
 def copy_from_commit(checkout: Path, commit: str, directory: str, target: Path) -> None:
@@ -2573,17 +2730,24 @@ def resolve_failures(resolve: dict[str, Any], launches: list[dict[str, Any]]) ->
     return failures
 
 
-def clone_source(case: dict[str, Any], trial: Path, checkout: Path, commit: str) -> dict[str, Any] | None:
+def clone_source(case: dict[str, Any], trial: Path, checkout: Path, commit: str,
+                 externals: Mapping[str, dict[str, Any]] | None = None) -> dict[str, Any] | None:
     """For a case with `moveAway`, a plain Git checkout of the prepared commit
     in the trial directory. The settings name it for that source, so that the
-    move changes no checkout that another case reads."""
+    move changes no checkout that another case reads. An external source
+    already has a checkout of its own in the trial, so the move takes that
+    checkout."""
     source = case.get("moveAway")
     if not source:
         return None
     if source not in {item["id"] for item in case.get("sources", [])}:
         raise TrialError(f"case {case['name']}: moveAway names '{source}', which is not one of its sources")
+    external = (externals or {}).get(source)
+    if external:
+        return {"source": source, "checkout": external["checkout"], "commit": external["commit"],
+                "movedTo": str(trial / "sources" / f"{source}-moved"), "external": True}
     clone = trial / "sources" / f"{source}-checkout"
-    clone.parent.mkdir()
+    clone.parent.mkdir(exist_ok=True)
     fetch_checkout(checkout, commit, clone, git_env(os.environ))
     head = run_checked(["git", "rev-parse", "HEAD"], cwd=clone, env=git_env(os.environ))
     return {"source": source, "checkout": str(clone), "commit": head,
@@ -2611,6 +2775,8 @@ def resolve_direct(front: Path, env: dict[str, str], cwd: Path) -> dict[str, Any
         pass
     lines = result.stderr.strip().splitlines()
     return {"exit": result.returncode, "status": document.get("status"),
+            "sources": [{key: source.get(key) for key in ("id", "resourceDigest")}
+                        for source in document.get("sources", [])],
             "firstLine": lines[0] if lines else "",
             "remedy": next((line.strip() for line in lines if line.strip().startswith("remedy:")), None)}
 
@@ -3091,7 +3257,8 @@ def delegate_failures(case: dict[str, Any], launches: list[dict[str, Any]]) -> l
 
 
 def run_case(prepared_dir: Path, name: str, environ: Mapping[str, str],
-             model: str | None = None, effort: str | None = None, harness: str | None = None) -> dict[str, Any]:
+             model: str | None = None, effort: str | None = None, harness: str | None = None,
+             working_copies: Mapping[str, Path] | None = None) -> dict[str, Any]:
     # Loading a case launches nothing. Nothing launches before the refusals
     # of the harness, including its version probe.
     case, case_dir = load_case(name, harness)
@@ -3132,14 +3299,19 @@ def run_case(prepared_dir: Path, name: str, environ: Mapping[str, str],
     (home / ".config" / "jj" / "config.toml").write_text(
         'user.name = "Grove Trial"\nuser.email = "grove-trial@example.com"\n'
     )
-    clone = clone_source(case, trial, checkout, prepared["source"]["commit"])
-    clones = {clone["source"]: Path(clone["checkout"])} if clone else {}
+    # An external source comes from its own checkout or working copy. Each
+    # refusal of it comes before the harness's version probe.
+    externals = external_sources(case, trial, working_copies or {}, environ)
+    clones = {source_id: external_root(external) for source_id, external in externals.items()}
+    clone = clone_source(case, trial, checkout, prepared["source"]["commit"], externals)
+    if clone:
+        clones[clone["source"]] = Path(clone["checkout"])
     source_clone = None
     if case.get("continuation"):
         # A continuation commits into its sources between the turns, so one
         # clone of its own supplies every source and no other case sees it.
         source_clone = trial / "sources" / "checkout"
-        source_clone.parent.mkdir()
+        source_clone.parent.mkdir(exist_ok=True)
         fetch_checkout(checkout, prepared["source"]["commit"], source_clone, git_env(os.environ))
         clones = {source["id"]: source_clone for source in case["sources"]}
     settings = settings_for(case, checkout, clones)
@@ -3259,6 +3431,7 @@ def run_case(prepared_dir: Path, name: str, environ: Mapping[str, str],
         )
         changed = run_checked(["jj", "diff", "--summary", "--from", base, "--to", "@"], cwd=repo, env=env)
     resolve = resolve_offline(front, env, trial) if case.get("resolveOffline") else None
+    external_problems = external_failures(externals, launches, refusal, environ)
     record = {
         "schemaVersion": 1,
         "case": name,
@@ -3277,7 +3450,7 @@ def run_case(prepared_dir: Path, name: str, environ: Mapping[str, str],
             **adapter.record_extras(auth, replaced, prelaunch),
         },
         "sources": {"checkout": prepared["source"]["checkout"], "commit": prepared["source"]["commit"],
-                    "settings": settings},
+                    "settings": settings, "external": list(externals.values())},
         "environment": sorted(env),
         "links": {"before": links_before, "after": links_after, "harnessOwn": links_own, "failure": link_failure},
         "skills": {"nativeCopies": native, "residue": residue, "installed": installed,
@@ -3330,6 +3503,7 @@ def run_case(prepared_dir: Path, name: str, environ: Mapping[str, str],
         failures.append("the case compacted no launch; read driver.stderr of the trial")
     failures += native_failures(native, expected_native(case))
     failures += delegate_failures(case, launches)
+    failures += external_problems
     if resolve:
         failures += resolve_failures(resolve, launches)
     say(f"record {trial}/record.md")
@@ -3483,6 +3657,22 @@ def render_delegations(found: list[dict[str, Any]]) -> list[str]:
     return lines
 
 
+def external_row(external: dict[str, Any], trial: str) -> str:
+    """The table row of one external source: its checkout, or the working
+    copy that replaced the checkout."""
+    digest = f"`resourceDigest` `{external.get('resourceDigest')}`"
+    wanted = f"`{cell(external['repository'])}` at commit `{external['commit']}`"
+    if "workingCopy" in external:
+        copy = external["workingCopy"]
+        state = "empty" if copy["empty"] else "not empty"
+        return (f"| External source `{external['id']}` | the working copy `{cell(copy['path'])}` in place of "
+                f"{wanted}: jj change `{copy['changeId'][:12]}`, commit `{copy['commitId'][:12]}`, the change "
+                f"is {state}; source directory `{external['plugin']}`, {digest} |")
+    checkout = Path(external["checkout"]).relative_to(trial)
+    return (f"| External source `{external['id']}` | {wanted}, a plain Git checkout at `$TRIAL/{checkout}`; "
+            f"source directory `{external['plugin']}` with Git tree `{external['treeId']}`, {digest} |")
+
+
 def render(record: dict[str, Any]) -> str:
     """The Markdown facts of one case. The result and its limit are the
     reader's judgement, so the acceptance record adds them by hand."""
@@ -3508,6 +3698,7 @@ def render(record: dict[str, Any]) -> str:
         *([f"| Case harness | the case names `{h['caseHarness']}`; this run uses `{h['name']}` with its own defaults |"]
           if h.get("caseHarness") else []),
         f"| Source checkout | commit `{record['sources']['commit'][:12]}` |",
+        *[external_row(external, record["trial"]) for external in record["sources"].get("external", [])],
         f"| Links before and after | {cell(record['links']['before'] and record['links']['before'][0][0])} only; after: {cell(', '.join(link for link, _ in record['links']['after']) or 'none')} |",
         *([f"| Harness's own links after | {cell(', '.join(f'{link} -> {target}' for link, target in record['links']['harnessOwn']))} |"]
           if record['links'].get('harnessOwn') else []),
@@ -3678,6 +3869,22 @@ def render(record: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
+def parse_working_copies(values: list[str]) -> dict[str, Path]:
+    """The `--working-copy ID=DIR` options, by source ID."""
+    copies: dict[str, Path] = {}
+    for value in values:
+        source_id, separator, directory = value.partition("=")
+        if not separator or not source_id or not directory:
+            raise TrialError(f"--working-copy takes ID=DIR, not {value!r}")
+        if source_id in copies:
+            raise TrialError(f"--working-copy names the source '{source_id}' twice")
+        path = Path(directory).expanduser().resolve()
+        if not path.is_dir():
+            raise TrialError(f"--working-copy names {path}, which is not a directory")
+        copies[source_id] = path
+    return copies
+
+
 def main(argv: list[str] | None = None, environ: Mapping[str, str] | None = None) -> int:
     environ = os.environ if environ is None else environ
     parser = argparse.ArgumentParser(prog="harness_trial.py", description=__doc__.split("\n\n")[0])
@@ -3692,6 +3899,8 @@ def main(argv: list[str] | None = None, environ: Mapping[str, str] | None = None
     r.add_argument("--harness", choices=HARNESSES, help="run the case in this harness, with its own defaults")
     r.add_argument("--model")
     r.add_argument("--effort")
+    r.add_argument("--working-copy", action="append", default=[], metavar="ID=DIR",
+                   help="take the external source ID from the working copy DIR instead of its checkout")
     x = commands.add_parser("reextract", help="extract the events of an earlier run again, from its transcripts")
     x.add_argument("--trial", required=True, type=Path)
     t = commands.add_parser("turns", help="the feeder of a compaction case, which the trial configuration runs")
@@ -3707,7 +3916,8 @@ def main(argv: list[str] | None = None, environ: Mapping[str, str] | None = None
             command = args.program_argv[1:] if args.program_argv[:1] == ["--"] else args.program_argv
             return run_turns(args.plan, command)
         else:
-            run_case(args.prepared, args.case, environ, args.model, args.effort, args.harness)
+            run_case(args.prepared, args.case, environ, args.model, args.effort, args.harness,
+                     parse_working_copies(args.working_copy))
     except TrialError as error:
         print(f"harness-trial: {error}", file=sys.stderr)
         return 1

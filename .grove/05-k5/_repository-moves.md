@@ -94,3 +94,14 @@ references. Use supported workspace relocation/repair procedures. The
 authorisation covers these moves and preservation. It does not cover
 overwriting unrelated destinations or discarding changes. Do not signal other
 sessions or edit their task trees.
+
+`writing-projects-k165` closed after the four projects moved. Its results
+are in the four project sections of `docs/repository-moves-record.md`.
+Three of them matter to later work.
+
+- The rollout text for paused groves needs one entry. The Ravel grove that
+  owns `rhai-book-use-k74` must read TestSubject at its new path.
+- Writegood has no remote, so it has no published commit for a pin.
+- Some registrations and harness entries name earlier roots, and they stay
+  unchanged. Stylepack has a prunable Git worktree registration. Writegood
+  has Claude Code and Codex entries for `~/Development/Writegood`.

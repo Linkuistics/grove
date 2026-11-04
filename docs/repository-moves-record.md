@@ -233,3 +233,113 @@ for paused groves needs no entry for TheGreatExplainer.
 
 The Obsidian manual `AI Dev Tooling` does not name TheGreatExplainer or
 `AgenticWriting`, so it needs no change.
+
+## Writegood
+
+`writegood-relocation-k169` moved `~/Development/AgenticWriting/Writegood` to
+`~/Development/AgenticOrchestration/Writegood` on 2026-11-04. The move changed
+no file in the project, so it has no owning-repository commit.
+
+### Arrangement
+
+- Writegood is a colocated Git and Jujutsu repository.
+- It has one jj workspace, `default`. Its working copy is empty, on
+  `9bf13a777499`. Git `HEAD` is detached at the same commit.
+- Writegood has no remote and no bookmark, so the local directory is its only
+  copy. No published commit exists for a pin to name.
+- Git registers one worktree, the project root.
+- `.jj/repo/store/git_target` holds the relative path `../../../.git`.
+- `.git/config` sets no `core.worktree`.
+- A search of the whole project, including `.jj/`, `.git/`, `.venv/` and
+  `.writegood/`, found no file that names `AgenticWriting`. The search
+  included binary files. A mutated pattern found nothing.
+
+### Readings
+
+The readings before the move, after the move and after the test runs are
+identical.
+
+- `jj log -r 'all()'` shows the same visible commits.
+- `jj st`, `jj workspace list`, `git worktree list` and `git remote -v` give
+  the same output. `git remote -v` gives no output.
+- `git status --porcelain --ignored` gives the same ignored entries and no
+  other entries.
+- The 314 tracked files have the same digest,
+  `3e19232898f307732c1027c2c26d7e36eb013ae5aa726d594a1884b63f48abeb`. They
+  include the 68 files of Writegood's own `.grove/` tree.
+- The untracked and ignored files outside `.git/`, `.jj/`, `.venv/`,
+  `.pytest_cache/`, `.ruff_cache/` and `__pycache__/` have the same digest,
+  `8dd4cda2423bf97ccc20c102d155bbcda4408b3a838882d7f52245a57fa62e47`. They are
+  exactly the 2680 files of the run data in `.writegood/`, which holds 710 MB.
+
+Before the move, `lsof +D` found no open file under the project. No process
+other than this session's launcher named the project. A `tar` archive of all
+8029 entries of the project stayed in the session scratchpad until the
+readings agreed, and the session then deleted it.
+
+### Checks
+
+The moved `.venv` was already broken before the move. Its console scripts
+named `~/Development/Writegood/.venv/bin/python`, from an earlier location.
+At the new path, `uv run --frozen pytest` stopped at `tests/conftest.py` with
+`ModuleNotFoundError: No module named 'writegood'`.
+
+`uv sync --frozen --reinstall` rewrote the script headers. Then
+`uv run --frozen pytest` gave 687 passed and 1 failed. The `--frozen` flag
+kept the tracked `uv.lock` unchanged.
+
+The failing test is `test_safe_mode_on_a_guided_argv_is_refused` in
+`tests/test_guided.py`. Its binding does not replace the version probe, so
+the test runs the installed `claude --version` and `claude auth status --json`.
+The installed Claude Code is `2.1.318`. `docs/measurements/render-measurements.json`
+holds token floors only for `2.1.233` and `2.1.234`. The harness therefore
+raises `UnmeasuredHarnessVersion` before the check that the test expects.
+
+A control isolated the cause. A stand-in `claude` first on `PATH` reported
+`2.1.234` and passed every other call to the real executable. With it, all 688
+tests passed, with exit status 0. The failure comes from the installed Claude
+Code version, not from the move. The leaf changes no product behaviour, so the
+test and the measurement record stay unchanged.
+
+The README states that `uv run pytest` makes no CLI call. This test makes two
+calls to the installed `claude`, which spend no tokens. The owner of Writegood
+decides whether to replace the probe in the test or to measure the new
+version.
+
+### References
+
+The search for the parent name `AgenticWriting` used the locations and the
+controls of the Stylepack search. The positive control found this grove's root
+brief, and a mutated pattern found nothing there.
+
+The full old path occurs only in two places. Each place stays unchanged.
+
+- Claude Code session transcripts are history.
+- This grove's task note for the move describes the move.
+
+Other files name `AgenticWriting` and Writegood separately. They are this
+grove's task notes, the Claude Code file history and the Codex history. The
+cached copy of this grove's tree in `ResearchSkills/.cache/grove/` also names
+both. None is a reference that needs a repair.
+
+Writegood's own task tree cites Stylepack by relative paths such as
+`../Stylepack`. Stylepack moved first, so these paths did not resolve between
+the two moves. Each of the six cited paths resolves at the new location.
+
+Three entries name `~/Development/Writegood`, an earlier root of the project,
+and not the path of this move.
+
+- `~/.claude.json` has a project entry for that path.
+- `~/.claude/projects/` has a transcript directory for that path.
+- `~/.codex/config.toml` has a project section for that path.
+
+They were stale before this move, and they stay unchanged. Three tracked
+files in the project also name that root. Two are recorded session captures
+in `tests/fixtures/`, and one is the measurement record
+`docs/measurements/render-token-floors.md`. They record past runs.
+
+The Ravel task leaf `rhai-book-use-k74` does not name Writegood. The rollout
+text for paused groves needs no entry for Writegood.
+
+The Obsidian manual `AI Dev Tooling` does not name Writegood or
+`AgenticWriting`, so it needs no change.

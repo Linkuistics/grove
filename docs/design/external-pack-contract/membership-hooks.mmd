@@ -1,16 +1,20 @@
 flowchart TB
     S["Start here · the owner's<br/>mise-tracked settings"]
+    N["Start here · a native user<br/>installs the writing plugin"]
+    WP["WritingSkills · ordinary writing<br/>plugin, craft skills, no hook"]
     CCP["WritingSkills · Claude Code<br/>hooks plugin, skill-free"]
     CXM["WritingSkills · Codex<br/>marketplace file"]
     CXP["WritingSkills · Codex<br/>hooks plugin"]
     TC["WritingSkills · technical-communication<br/>scripts and always-on texts"]
     GR["PersonalSkills · guardrail plugin<br/>user-invoked hook"]
-    S -->|"1 enable"| CCP
-    CCP -->|"2 runs and sends"| TC
+    S -->|"O1 enable"| CCP
+    CCP -->|"O2 runs and sends"| TC
+    N -->|"N1 install"| WP
+    WP -->|"N2 dependency installs"| CCP
     CXM -->|"lists"| CXP
     CXP -->|"runs and sends"| TC
     S -.->|"enable"| GR
     classDef start fill:#16354a,color:#fff,stroke:#16354a,font-weight:bold
     classDef pack fill:#fdf2d0,stroke:#9a7b1c,color:#222
-    class S start
-    class CCP,CXM,CXP,TC,GR pack
+    class S,N start
+    class WP,CCP,CXM,CXP,TC,GR pack

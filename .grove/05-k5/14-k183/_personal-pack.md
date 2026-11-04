@@ -11,6 +11,10 @@ Then remove the empty `linkuistics` plugin from Grove.
 
 - PersonalSkills has one source directory whose only Ravel root is `craft`,
   as the owner design's source table states. Its manifest lists that root.
+- The proofs of the craft-only row of pack-membership-k171 pass.
+  `plugins/install.sh --pack` links and reconciles the craft skills of a
+  plain checkout of the published commit. `check:packs` reports its
+  directory-only check for the source.
 - A second plugin holds only `guardrail`, with its scripts, its frontmatter
   hook and its `/guardrail` command. No Ravel root reaches it. A trial in
   Claude Code shows the command and the hook working from that plugin.
@@ -34,9 +38,9 @@ last craft move, so it also removes the `linkuistics` plugin shell.
 
 ## Notes
 
-The root brief gives PersonalSkills "always-on hooks". pack-membership-k171
-settles where the hooks of `technical-communication` live. Apply its answer
-here if it gives PersonalSkills any hook.
+pack-membership-k171 gives the always-on hooks of `technical-communication`
+to WritingSkills, and the root brief now says so. PersonalSkills keeps only
+the user-invoked hook of `guardrail`.
 
 `using-jujutsu` cites `superpowers:using-git-worktrees`, a third-party skill.
 Apply rule 2 of the reference rules to that citation.

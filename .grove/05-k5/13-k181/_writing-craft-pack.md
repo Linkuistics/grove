@@ -19,6 +19,11 @@ design requires.
   skill-free Claude Code plugin whose hooks run and that lists no native
   `technical-communication` skill. A trial in Claude Code shows both facts.
   Repair the layout if Claude Code lists the root `SKILL.md`.
+- The ordinary writing plugin declares the hooks plugin as a dependency and
+  declares no hook. Native users of that plugin therefore keep the always-on
+  layer. The static count gives one declaration for each hook to either
+  plugin alone and to both. A native installation of the ordinary plugin
+  alone, in an isolated Claude Code home, runs the hooks.
 - The Codex hooks plugin has the owner that pack-membership-k171 names. Its
   marketplace entry points at the moved skill directory.
 - The hooks of the `linkuistics` plugin leave Grove with the skill. No hook

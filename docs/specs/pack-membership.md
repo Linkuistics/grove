@@ -40,16 +40,18 @@ Two moves could then give different answers.
 
 - The two format files stay in the spine. DesignSkills receives the craft
   skills that deepen them.
-- WritingSkills owns the always-on hooks and both hooks plugins. PersonalSkills
-  owns the native-only `guardrail` plugin.
+- WritingSkills owns the always-on hooks and both hooks plugins. Its ordinary
+  writing plugin gets the hooks through a dependency on the Claude Code hooks
+  plugin. PersonalSkills owns the native-only `guardrail` plugin.
 - An asset goes with the owner of the claim that it serves. Grove keeps its own
   claims and the evidence that Grove cites.
 - A test keeps a fixture label. A test that reads a moved file reads a core kind
   or a fixture instead.
 - The trial cases stay as records of the builds that they measured. The runner
-  refuses a case that names a path which the prepared commit does not hold.
+  refuses a case when the supplier of a required path does not hold it at the
+  declared revision.
 - Each move owes the base proofs of the research move. A move that adds a new
-  boundary also owes a trial of that boundary.
+  boundary also owes the proofs of that boundary.
 
 ## Decisions
 
@@ -143,14 +145,52 @@ The root table now gives WritingSkills "the technical-communication always-on
 hooks plugins for Claude Code and Codex". It gives PersonalSkills the personal
 skills and "the native-only `guardrail` plugin with its user-invoked hook".
 
+**The ordinary writing plugin.** Native users install the ordinary WritingSkills
+plugin for its craft skills. That plugin declares the Claude Code hooks plugin
+as a dependency, and it declares no hook. Neither its manifest nor a
+`hooks/hooks.json` at its root names a hook. Each hook therefore has one
+declaration, in the hooks plugin. Three installations follow:
+
+| Installation | Hooks | Native `technical-communication` skills |
+| --- | --- | --- |
+| The ordinary writing plugin | The dependency installs the hooks plugin. One declaration for each hook | One, from `craft/` |
+| The hooks plugin alone, which a Ravel user enables | One declaration for each hook | None |
+| Both plugins | One declaration for each hook | One, from `craft/` |
+
+These facts decide it:
+
+- [The off file is the only switch](../adr/the-off-file-is-the-only-switch.md)
+  turns the layers on at installation. The `linkuistics` plugin meets that
+  through the `hooks/hooks.json` of its root, which Claude Code discovers by
+  default.
+- The hook scripts move with the skill to `craft/technical-communication/`,
+  which is the root of the hooks plugin. Nothing then gives the ordinary plugin
+  a hooks file.
+- The research plugin declares `"dependencies": ["grove"]`. Its native
+  installation also installs `grove`, as
+  [Distribution](external-pack-contract.md#distribution) records. A dependency
+  resolves by its bare name in the marketplace that lists the plugin.
+
+The design rejected these options:
+
+- **The ordinary plugin also declares the hooks.** An installation that enables
+  both plugins then runs each hook twice. The hook declarations also get two
+  owners.
+- **The ordinary plugin has no hooks and no dependency.** A native user who
+  installs only that plugin then gets the skill without the always-on layer.
+  Each plugin still passes validation, so no check reports the loss.
+
 **Applied by:**
 
 - `writing-craft-pack-k181` moves the layer, both hooks plugins and the Codex
-  marketplace file.
+  marketplace file. It gives the ordinary writing plugin its dependency on the
+  hooks plugin.
 - `personal-pack-k183` moves `guardrail` and its plugin.
-- `skill-marketplace-k185` lists both Claude Code plugins. It lists the Codex
-  plugin in the marketplace repository only if Codex resolves a plugin source
-  outside that repository. It records the result in the moves record.
+- `skill-marketplace-k185` lists both Claude Code plugins. The hooks plugin
+  must be in the marketplace that lists the ordinary writing plugin, because
+  the dependency names it by its bare name. The move lists the Codex plugin in
+  the marketplace repository only if Codex resolves a plugin source outside
+  that repository. It records the result in the moves record.
 
 ### The Grove assets of moving craft skills
 
@@ -283,7 +323,9 @@ measured. No move retargets them.
 These facts decide it:
 
 - The runner prepares a Grove checkout at a named commit. A case names its
-  sources, its mandatory files and its planted files inside that checkout.
+  local sources, its mandatory files and its planted files inside that
+  checkout. An external source comes from its own checkout at a declared
+  commit. A native copy can come from an older commit of the Grove checkout.
 - Every case except the research cases launches the `impl` kind. Most cases name
   `plugins/linkuistics` as a source.
 - The [acceptance record](../common-loading-acceptance-record.md) names the case,
@@ -294,19 +336,39 @@ These facts decide it:
 - The boundary trials of the later moves add new cases with `external` sources,
   on the model of the research cases.
 
-**The refusal.** Before any launch, the runner refuses a case when the prepared
-commit lacks a path that the case names. The paths are each source directory,
-each mandatory file, each planted or native source, and the kind skill of each
-launched kind. The refusal names the case, the path and the commit. It states
-that the case measures a build that held the path.
+**The refusal.** Before any launch, the runner refuses a case when the supplier
+of a required path does not hold it at the declared revision. Each required path
+has one supplier:
+
+| Required path | Supplier |
+| --- | --- |
+| A local source directory and its mandatory files, a planted file, a native copy without a `commit`, and a file that a continuation edits | The prepared Grove commit |
+| A native copy with a `commit` | That commit, in the history of the prepared checkout. The current directory copy beside it is a separate path of its own source |
+| An external source directory and its mandatory files | The checkout of the external source at its declared commit, or the working copy that `--working-copy` names |
+| The kind skill of each launched kind | The source that supplies the kind. That source is a local or external source, a native copy, or the plugin checkout that a marketplace entry of the prepared commit pins |
+| A skill that the task relies on without naming it | The source that supplies the skill |
 
 A case whose task relies on a skill that it does not name, such as implicit
-discovery, adds that skill's path to the case. The runner reads that path only
-for the refusal, so no earlier reading changes.
+discovery, adds that skill's path to the case. A case that measures the absence
+of a skill declares that skill absent, and the refusal does not require it.
+`missing-kind`, for example, launches `impl` and measures the absence of
+`grove-impl`. The runner reads these declarations only for the refusal, so no
+earlier reading changes.
 
-`trial:controls` proves the refusal with two readings. A case against a commit
-that holds its paths passes the check. The same case against a commit without
-one of them refuses with the diagnostic and a nonzero status.
+The check runs before a `moveAway` or `moveRoot` fault. A case that moves a
+source away therefore passes the check, and Ravel's resolution then observes
+the fault. The refusal names the case, the path, the supplier and the revision.
+It states that the case measures a build whose supplier held the path.
+
+`trial:controls` proves the refusal with these readings:
+
+- A case against a commit that holds its local paths passes the check.
+- The same case against a commit without one of them refuses with the
+  diagnostic and a nonzero status.
+- A case with an external source passes the check, although the prepared commit
+  holds neither the external source directory nor its kind skill.
+- A case with a native copy from an older commit passes the check, although the
+  prepared commit no longer holds the copied directory.
 
 The design rejected these options:
 
@@ -318,8 +380,8 @@ The design rejected these options:
   would then pass for the wrong reason.
 
 **Applied by:** `design-pack-k175`. Its Grove removal is the first that removes
-a path a case names: `decision-records` and `cli-tool-design`. The runner change
-lands before that removal.
+a path that a case requires from the prepared commit: `decision-records` and
+`cli-tool-design`. The runner change lands before that removal.
 
 ### The acceptance of each move
 
@@ -341,9 +403,15 @@ lands before that removal.
 Proofs 2 and 3 apply to a pack that ships kind skills. TestAnyware and
 PersonalSkills ship craft skills only, and Grove's conformance does not cover
 craft skills. For such a source, `check:packs` checks only that the pinned
-commit holds the source directory. The source's own `task check` is its check.
+commit holds the source directory, and it reports that directory-only check by
+source name. The source's own `task check` is its check.
 `testanyware-skill-move-k172` makes that change, because it adds the first
-pinned source without a kind directory.
+pinned source without kind skills.
+
+The branch applies only to a source that holds neither a kind skill nor a rules
+manifest. It does not depend on whether the source holds `skills/`. TestAnyware
+holds `skills/` without a kind skill, and PersonalSkills holds no `skills/`. A
+source with kind skills and no manifest therefore still fails conformance.
 
 A move owes no directory trial, native trial or refusal of its own unless it
 adds a boundary. The research move proved those mechanisms. The staging trials
@@ -353,24 +421,27 @@ A move that adds a boundary owes the proofs in its row:
 
 | Boundary | First move | Static proof | Trial |
 | --- | --- | --- | --- |
-| A source that is not a Linkuistics pack | `testanyware-skill-move-k172` | The source directory holds the skill and each resource that it names. `ravel skills resolve` gives the same `resourceDigest` before and after a build writes `target/` | A directory trial in each harness: a task activates `using-testanyware` without naming it, and the agent reads one of its resources. No VM runs |
+| A source that is not a Linkuistics pack | `testanyware-skill-move-k172` | The source directory holds the skill and each resource that it names. `ravel skills resolve` gives the same `resourceDigest` before and after a build writes `target/` | A directory trial in each harness: a task activates `using-testanyware` without naming it, and the agent reads its `SKILL.md`. The skill has no supporting file. Its command reference is output of the installed `testanyware` command, and the staging trials cover that output. No VM runs, and the trial adds no file to the skill |
 | An external member of a cross-pack family | `requirements-pack-k173` | The pack alone lists the spine's `references/review.md` and `references/integrate-review.md` as external resources. The aggregate resolves them, and the core rows of `review-*` and `integrate-review-*` bind the pack's members | A directory trial in each harness: `review-requirements` reads `references/review.md` from the core source before it acts. A native Claude Code trial reads the same file under the plugins' namespaces |
-| The first `craft/` root | `design-pack-k175` | `ravel skills resolve` lists the craft skills under the roots `["skills", "craft"]`. `claude plugin validate` accepts `"skills": ["./craft/"]`. `install.test.sh` installs a fixture pack with a craft root | A directory trial in each harness: a task activates a craft skill from the craft root without naming it. A native Claude Code trial lists that skill under the plugin's namespace |
+| The first `craft/` root | `design-pack-k175` | `ravel skills resolve` lists the craft skills under the roots `["skills", "craft"]`. `claude plugin validate` accepts `"skills": ["./craft/"]`. `install.test.sh` installs a fixture pack with `craft/` beside `skills/`, and a fixture pack with `craft/` and no `skills/`. For each fixture, a later run removes the link of a removed craft skill | A directory trial in each harness: a task activates a craft skill from the craft root without naming it. A native Claude Code trial lists that skill under the plugin's namespace |
 | A family skill outside research | `editorial-pack-k179` | The named set `editorial` becomes a list of kinds, and its rows move to the WritingSkills manifest. The control in which a member stops loading its family skill fails | A directory trial in each harness: an editorial kind reads the spine and `editorial-family` before it acts |
-| A second plugin in one repository | `writing-craft-pack-k181` | Each plugin passes `claude plugin validate`. Each hook is declared once for an installation that enables both writing plugins | The trial of the native residue: Claude Code runs the hooks from the skill-free plugin and lists no native `technical-communication` skill |
+| A second plugin in one repository | `writing-craft-pack-k181` | Each plugin passes `claude plugin validate`. The ordinary writing plugin declares the hooks plugin as a dependency and declares no hook. The count includes dependencies and each hooks file that Claude Code discovers by default. It gives one declaration for each hook to the ordinary plugin alone, to the hooks plugin alone and to both | The trial of the native residue: Claude Code runs the hooks from the skill-free plugin and lists no native `technical-communication` skill. A native installation of the ordinary writing plugin alone, in an isolated Claude Code home, installs the hooks plugin and runs the hooks |
+| A source whose only root is `craft` | `personal-pack-k183` | `ravel skills resolve` lists the craft skills under the root `["craft"]`. `install.sh --pack` links the craft skills of a plain checkout of the published commit in an isolated home, by the craft-only fixture of `design-pack-k175`. `check:packs` reports its directory-only check for the source | None. The installer and the pack check fail without a model, and the craft-root trial of `design-pack-k175` covers discovery from a craft root |
 
 The other moves owe these proofs:
 
 - `engineering-pack-k177` owes the base proofs only. Its `craft/` root and its
   family members repeat boundaries that earlier moves prove.
-- `personal-pack-k183` repeats the boundary of a second plugin. It owes
-  `claude plugin validate` for the `guardrail` plugin. It also owes a native
-  listing in an isolated home that shows `guardrail` alone. The `personal`
+- `personal-pack-k183` owes the proofs of the craft-only row. It also repeats
+  the boundary of a second plugin. For that boundary, it owes
+  `claude plugin validate` for the `guardrail` plugin and a native listing in an
+  isolated home that shows `guardrail` alone. The `personal`
   source resolves without `guardrail`. The staging trials cover `/guardrail`
   and its hook.
 - `skill-marketplace-k185` moves no pack, but it changes the route of every
   native user. It owes a native installation of each listed plugin from the
-  relocated marketplace, in an isolated Claude Code home.
+  relocated marketplace, in an isolated Claude Code home. The installation of
+  the ordinary writing plugin also installs the hooks plugin.
 - `moves-handoff-k187` owes no trial.
 
 The design rejected these options:
@@ -397,8 +468,11 @@ The human approved two changes to the destination table of the root brief:
 - **Conformance.** Each pack move runs its pack alone and in the aggregate, as
   the base proofs state. The requirements move shows the format files as
   external resources.
-- **The trial runner.** `trial:controls` shows the refusal of a case whose path
-  the prepared commit lacks, and the clean reading beside it.
+- **The trial runner.** `trial:controls` shows the refusal of a case whose
+  local path the prepared commit lacks, and the clean reading beside it. It also
+  admits a valid external case and a valid case with a historical native copy.
+- **The installer.** `install.test.sh` installs and reconciles a craft root
+  beside `skills/` and a craft root alone.
 - **The boundary trials.** Each boundary row runs its trials from a plain checkout
   of the published pack commit.
 - **Grove's suite.** Each move runs `bash scripts/check.sh` after it changes the

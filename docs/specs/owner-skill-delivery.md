@@ -722,7 +722,9 @@ Each probe must observe these results:
 - A Grove kind skill that the task names is read from the `grove-core`
   snapshot. The kind is not `finish`, and the task asks only for one quoted
   line.
-- A TestAnyware resource is read, and `testanyware doctor` runs.
+- `using-testanyware` is read, with a command reference that it names, such as
+  the output of `testanyware llm-instructions`. The skill has no supporting
+  file. `testanyware doctor` runs.
 - On Claude Code, the technical-communication hooks run.
 - Native discovery lists no superseded skill.
 - The resolution gives each source its accepted `resourceDigest`.
@@ -1160,7 +1162,7 @@ step 5 of the [coordinated release design](coordinated-release.md) states.
 
 The other trials cover implicit craft discovery and
 the mandatory read order. They cover a Grove kind skill that the task names, a
-TestAnyware resource read and real VM tool use. They also
+read of the TestAnyware command reference and real VM tool use. They also
 cover the Quint and codebase-memory MCP servers, the Claude Code hooks and
 `/guardrail`. Each harness also runs one delegate, one compaction and one
 stale-copy coexistence case.

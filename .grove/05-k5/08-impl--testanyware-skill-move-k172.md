@@ -57,5 +57,8 @@ Commit the TestAnyware change in that repository's default workspace, on its
 `main`. A tool that writes into the source directory must write nothing
 there, as the contract's "Layout" requires.
 
-The staging trials of cutover order 5 own the TestAnyware resource read and
-the real VM tool use. This leaf does not run them.
+The skill has no supporting file. Its command reference is output of the
+installed `testanyware` command. The staging trials of cutover order 5 own
+the read of that reference and the real VM tool use. This leaf does not run
+them. Its directory trial reads only `SKILL.md`, as pack-membership-k171
+states, and it adds no file to the skill.

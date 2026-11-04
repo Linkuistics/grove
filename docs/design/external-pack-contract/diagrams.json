@@ -30,7 +30,7 @@
   ],
   "discussion": {
     "title": "Pack membership for the remaining moves",
-    "status": "The two root-table changes are approved by the human. The other decisions are proposed for review-design",
+    "status": "The two root-table changes are approved by the human. pack-membership-k189 reviewed the other decisions, and pack-membership-k190 applied its four findings",
     "summary": "pack-membership-k171 keeps the ADR and spec formats in the spine, gives the always-on hooks to WritingSkills, classifies Grove's assets by the claim that they serve, and names the proof that each move owes.",
     "diagramIds": [
       "membership-formats",
@@ -47,7 +47,7 @@
       },
       {
         "id": "membership-hooks",
-        "summary": "Added the hooks plugins in WritingSkills and the guardrail plugin in PersonalSkills."
+        "summary": "Added the hooks plugins in WritingSkills, the guardrail plugin in PersonalSkills, and the dependency through which the ordinary writing plugin installs the hooks plugin."
       },
       {
         "id": "membership-asset-rule",
@@ -55,7 +55,7 @@
       },
       {
         "id": "membership-boundaries",
-        "summary": "Added the order of the moves and the boundary that each one proves first."
+        "summary": "Added the order of the moves and the boundary that each one proves first, with the craft-only source of personal-pack-k183."
       }
     ]
   },
@@ -100,7 +100,7 @@
       "group": "membership",
       "title": "WritingSkills owns the always-on hooks",
       "source": "membership-hooks.mmd",
-      "caption": "Each hooks plugin runs the scripts and sends the texts of the skill beside it, so no path crosses repositories. The owner's settings enable the plugins. guardrail stays a native-only plugin in PersonalSkills."
+      "caption": "Each hooks plugin runs the scripts and sends the texts of the skill beside it, so no path crosses repositories. The owner's settings enable the Claude Code hooks plugin. A native user installs the ordinary writing plugin, and its dependency installs the same hooks plugin, so each hook has one declaration. guardrail stays a native-only plugin in PersonalSkills."
     },
     {
       "id": "membership-asset-rule",
@@ -114,7 +114,7 @@
       "group": "membership",
       "title": "The boundary that each move proves first",
       "source": "membership-boundaries.mmd",
-      "caption": "Amber moves owe a boundary trial beside the base proofs. Grey moves owe the base proofs and their own checks. The staging trials later run every source on both harnesses."
+      "caption": "Amber moves owe the proofs of a boundary beside the base proofs. Grey moves owe the base proofs and their own checks. The staging trials later run every source on both harnesses."
     }
   ]
 }

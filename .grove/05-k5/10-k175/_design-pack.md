@@ -29,6 +29,12 @@ craft into its craft directory: `decision-records`, `codebase-design`,
 - The pack passes alone and in the aggregate. Grove's `bash scripts/check.sh`
   passes after the removal. The proofs that pack-membership-k171 assigns to
   the first `craft/` root pass.
+- The installer's craft-root change also installs and reconciles a fixture
+  pack whose only root is `craft`. personal-pack-k183 consumes that proof.
+- The trial runner's refusal lands before the Grove removal. It binds each
+  required path to its supplier and revision, as pack-membership-k171 states.
+  Its controls also admit a valid external case and a valid case with a
+  historical native copy.
 - `plugins/linkuistics` no longer holds the four craft skills, and its
   manifest and description agree with what it still holds.
 - `docs/repository-moves-record.md` records the source root, both roots, the

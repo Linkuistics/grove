@@ -15,6 +15,9 @@ and keeps its own record of the pack revisions that it checks.
   that pins a published commit. The list covers core `grove`, `research`, the
   requirements, design, engineering and writing packs, the writing hooks
   plugin, the personal pack, the guardrail plugin and `testanyware`.
+- Each listed plugin installs natively from the new marketplace in an
+  isolated Claude Code home, as pack-membership-k171 requires. The ordinary
+  writing plugin also installs the hooks plugin as its dependency.
 - Its Codex marketplace lists the hooks plugin that pack-membership-k171
   assigns to it, or the record states where that marketplace lives instead.
 - The repository checks its own pins: each pin exists on its remote, and each

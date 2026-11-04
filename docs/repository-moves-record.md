@@ -166,3 +166,70 @@ The rollout text for paused groves needs one entry. The Ravel grove that owns
 
 The Obsidian manual `AI Dev Tooling` does not name TestSubject or
 `AgenticWriting`, so it needs no change.
+
+## TheGreatExplainer
+
+`thegreatexplainer-relocation-k168` moved
+`~/Development/AgenticWriting/TheGreatExplainer` to
+`~/Development/AgenticOrchestration/TheGreatExplainer` on 2026-11-04. The move
+changed no file in the project, so it has no owning-repository commit.
+
+### Arrangement
+
+- TheGreatExplainer is a colocated Git and Jujutsu repository.
+- It has one jj workspace, `default`. Its working copy is empty, on `main`.
+- `main` and `main@origin` are both at `f52faef1e30b`. This published commit
+  is the one that a pin can name.
+- The remote `origin` is `https://github.com/Linkuistics/TheGreatExplainer.git`.
+- Git registers one worktree, the project root.
+- `.jj/repo/store/git_target` holds the relative path `../../../.git`.
+- `.git/config` sets no `core.worktree`.
+- A search of `.jj/` and `.git/` outside the object stores found no absolute
+  path of the root. The search included binary files.
+
+### Readings
+
+The readings before and after the move are identical.
+
+- `jj log -r 'all()'` shows the same 6 commits, including the root commit.
+- `jj st`, `jj workspace list`, `git worktree list` and `git remote -v` give
+  the same output.
+- `git status --porcelain --ignored` gives only the ignored entry `.jj/`.
+- The 7 tracked files have the same digest,
+  `51d3bdf2a3057fd6a32b89101f0ee4b621ea3b7b099a994a1e95bc7bdfc7a0ed`.
+
+Before the move, `lsof +D` found no open file under the project, other than
+the search commands of this session. No process other than this session's
+launcher named the project.
+
+### Checks
+
+TheGreatExplainer has no checks. Its website marks it as in the requirements
+phase, with no implementation code. It has no Taskfile, manifest or test.
+
+`website/` holds `index.md`, `meta.yml` and `docs/requirements.md`, which are
+content and metadata. The README and the TODO document no website build, so no
+build ran.
+
+### References
+
+The search for the parent name `AgenticWriting` used the locations and the
+controls of the Stylepack search. The positive control found this grove's root
+brief, and a mutated pattern found nothing there.
+
+The full old path occurs only in two places. Each place stays unchanged.
+
+- Claude Code session transcripts are history.
+- This grove's task note for the move describes the move.
+
+Other files name `AgenticWriting` and TheGreatExplainer separately. They are
+this grove's task notes, the Claude Code file history, the Codex prompt
+history and the cached copy of this grove's tree in
+`ResearchSkills/.cache/grove/`. None is a reference that needs a repair.
+
+The Ravel task leaf `rhai-book-use-k74` names `AgenticWriting` only in the
+old path of TestSubject. It does not name TheGreatExplainer. The rollout text
+for paused groves needs no entry for TheGreatExplainer.
+
+The Obsidian manual `AI Dev Tooling` does not name TheGreatExplainer or
+`AgenticWriting`, so it needs no change.

@@ -837,6 +837,12 @@ nine engineering craft skills are absent. Grove's `linkuistics` plugin no
 longer holds them. A directory route needs an `engineering` source with the
 roots `skills` and `craft`, as `docs/USAGE.md` states.
 
+The same holds for `writing`, which the marketplace lists after finish. A
+native user then needs `/plugin install writing@linkuistics`. Without it, a
+`draft`, `copy-edit`, `art` or `proof` leaf has no kind skill on the native
+route. A directory route needs a `writing` source with the root `skills`, as
+`docs/USAGE.md` states.
+
 ## DesignSkills
 
 `design-pack-repository-k197` created the repository
@@ -1817,7 +1823,7 @@ engineering-pack-repository-k203.
 four editorial kinds and the family skill `editorial-family`. This is the
 expand step of `editorial-pack-k179`. At the first pack commit, Grove still
 ships its own copies, so the aggregate fails on duplicates by design.
-`editorial-removal-k206` removes Grove's copies and publishes the second pack
+`editorial-removal-k206` removed Grove's copies and published the second pack
 commit. `writing-craft-pack-k181` later adds the `craft/` root and the hooks
 plugin.
 
@@ -1992,8 +1998,160 @@ an empty mandatory list.
 - Grove's marketplace does not list the pack yet. `editorial-removal-k206`
   adds the entry with the removal, and it pins this first pack commit.
 
+### Removal of the writing pack
+
+`editorial-removal-k206` removed Grove's copies in one change with every Grove
+consumer, on 2026-11-05. This is the contraction step of the move.
+
+| Subject | Value |
+| --- | --- |
+| Removal commit | `31ec9117c9dacfe993e80313addd432f2930d679` |
+| Pushed Grove commit | `31ec9117c9da`. jj moved the remote bookmark `gh-issue-25` forward from `f45c5a53796f` before the second pack commit's publication |
+| First pack commit | `694140a18dc736c272c5a16588253710a92844fb`. Grove's marketplace pins it |
+| Second pack commit | `ae1649d181a5aa7950404797d4735c58831d542a`, a child of the first. The public `main` |
+| Tree of `plugins/writing` | `361070804328e5b30bcfd874125ac58c04a52d0b` in both pack commits |
+| `resourceDigest` | `db96fa09905e5dca83325d759bff2b153ca9cb22144386049b3ed00ffffa7d31` for both commits, from a clone of the public remote at the second commit |
+
+The removal took out 5 tracked files: the four kind directories of
+`plugins/grove/skills/`, with one `SKILL.md` each, and
+`plugins/grove/skills/grove/references/editorial.md`. Core's manifest lost the
+23 rows whose owner is a moved file. These consumers changed:
+
+- The spine's `SKILL.md` no longer lists `references/editorial.md` among its
+  family files. Its description, the `grove` plugin manifest and the `grove`
+  marketplace entry name only the review and integration family files.
+- The kind table of `TASK-FORMAT.md` names `WritingSkills` in the editorial
+  row. Its paragraph on that row names the family skill `editorial-family`.
+  The label tests take the four labels from the external row, with no code
+  change.
+- `conformance.awk` has no named set `editorial`. The header comment of
+  `rules.tsv` names only the lists and the two prefix sets.
+- `plugin_fallback.rs` has no `MOVING_KIND_OPENINGS`. The positive control of
+  `no_skill_file_writes_a_plugin_qualified_name` pairs each token of
+  `NOT_SKILL_NAMES` with one shipped file that holds it. It asserts that the
+  enumeration finds the token in that file.
+- `.claude-plugin/marketplace.json` lists `writing` with a `git-subdir` source
+  that pins the first pack commit, and it counts eight plugins.
+- The install guidance names the pack for the marketplace and for
+  `install.sh --pack`. `plugins/README.md` has a `writing` section.
+  `docs/USAGE.md` adds a `writing` source with the root `skills` to the
+  directory route. `README.md`, `plugins/grove/README.md`, `CONTEXT.md`,
+  `plugins/CONTEXT.md` and `docs/ARCHITECTURE.md` state where the kinds and
+  their family file ship.
+- `docs/specs/pass-series.md` names the `editorial-family` skill in its two
+  present-tense claims. The "Out of scope" item of
+  `docs/specs/external-pack-contract.md` no longer says that the family stays
+  in the spine.
+
+After the removal, core ships four kinds: `finish`, `planning`,
+`review-planning` and `integrate-review-planning`. Core holds no family that
+it ships alone.
+
+### Readings of the removal of the writing pack
+
+| Reading | Single-source checks | Loaded-path checks | Unpinned rows |
+| --- | --- | --- | --- |
+| Core alone before the removal, at `7aa85669463d` | 109 | 996 | 51 |
+| Core alone after the removal | 86 | 480 | 51 |
+| The pack alone | 23 | 56 | 0 |
+| The aggregate of core and the first pack commit | 109 | 996 | 51 |
+
+The aggregate before the removal failed on the 105 duplicates of
+[Checks of the writing pack](#checks-of-the-writing-pack). The aggregate after
+it has the figures of core alone before the move. The pack alone lists 4
+external edges and 0 external resources. The other aggregates are now
+requirements 87 and 842, design 91 and 839, engineering 88 and 1188, and
+research 86 and 839.
+
+The static proof of the boundary ran in a scratch copy of the pinned pack. In
+each run, one kind wrote "Then note the `editorial-family` skill" in place of
+the directed load, and the other three kinds kept their load:
+
+| Mutated kind | Pack alone | Aggregate |
+| --- | --- | --- |
+| `draft` | Exit 1, 11 failed assertions | Exit 1, 11 failed assertions |
+| `copy-edit` | Exit 1, 11 failed assertions | Exit 1, 11 failed assertions |
+| `art` | Exit 1, 11 failed assertions | Exit 1, 11 failed assertions |
+| `proof` | Exit 1, 11 failed assertions | Exit 1, 11 failed assertions |
+
+The 11 failures of each run are the 11 rows of `editorial-family/SKILL.md`.
+Each failure states that the family file is not on the mutated kind's
+composed loaded path, and it names that kind. No failure names another kind.
+The unmutated pack passes alone and in the aggregate.
+
+`no_skill_file_writes_a_plugin_qualified_name` has no list of retained
+openings. Its new positive control read clean on the removal tree. The
+control then read dirty when `decompose.md` wrote `path line` in place of
+`path:line`. It reported "the enumeration must find `path:line` in
+grove/references/decompose.md". The file's SHA-256 was `d54a3bfd65ab…` before
+the mutation and after the restoration, and the control then read clean again.
+
+The stale-location search enumerated the four kind names, `editorial.md`,
+`editorial-family` and `static(editorial)` with `--hidden` over the whole tree.
+It then searched for each kind under `grove/skills/`, for each
+`grove-<kind>/SKILL.md` path, for `references/editorial.md` and for a
+`grove:` prefix. Each hit is in a class of the next section. A planted path in
+a hidden scratch directory was found, and a misspelt name found nothing.
+
+### Asset classification of the writing pack
+
+Each Grove file that names a moved file or a moved kind is in one class of
+"The Grove assets of moving craft skills" in `docs/specs/pack-membership.md`.
+That rule is written for craft skills. Its own text applies the same tests to
+another class. No asset moved. No Grove file states, decides or checks the
+behaviour of a moved skill apart from Grove's design of its kind set.
+
+| Files | Test | Disposition |
+| --- | --- | --- |
+| `docs/adr/the-editorial-pipeline-is-four-kinds.md`, `a-feedback-edge-is-forward-tree-growth.md`, `a-book-carries-no-asset.md` and `corpus-rules-have-one-owner.md` | 1 | Stay. Each decides Grove's kind set, its tree growth or its rule placement. `docs/ARCHITECTURE.md` and `CONTEXT.md` cite them |
+| `docs/evaluations/editorial-pipeline-pilot/` | 3 | Stays as evidence. The decision records that stay cite it |
+| The editorial chain of `docs/ARCHITECTURE.md` and `CONTEXT.md`, the kind table of `TASK-FORMAT.md`, `docs/specs/pass-series.md` and `configure-grove/references/model-selection.md` | 1 | Stay. Each names a kind by label in Grove's design. The location claims among them changed |
+| The two lists under "Rule placement" in `docs/specs/external-pack-contract.md` | History and design | Stay. They name the changes of grove-research-removal-k158 |
+| The routes of `assets/ravel-policy/` and `ravel_asset_cases.rs` | Fixture label | Stay. The policy routes are unchanged |
+| `docs/owner-skill-inventory.tsv`, `inventory.py` and `docs/ravel-caller-surface-inventory.tsv` | 3 | Stay as the baseline evidence |
+| `CHANGELOG.md`, this record, `owner-skill-delivery.md` and `pack-membership.md` | History and design | Stay |
+
+### Checks of the removal of the writing pack
+
+- `bash scripts/check.sh` passed all 21 principal checks on the removal, with
+  1344 Rust tests. `GROVE_TEST_RAVEL` resolved to the installed Ravel 1.1.0,
+  `/opt/homebrew/Cellar/ravel/1.1.0/bin/ravel`, SHA-256
+  `c52f990b2059c8bbe8efba10a741d3a0311000ac1712d71e882638f54c3ac1ed`. The
+  changed files had the same digests before and after each run. The first run
+  failed one test, `a_timed_out_selection_launches_nothing_and_publishes_nothing`,
+  with "select never ran". The test gives the policy a 1000 ms timeout and
+  then requires that `select` started. It passed in 5 runs alone, and the
+  second full run passed. No file changed between the two full runs.
+- `task check:packs` passed `requirements`, `design`, `engineering`,
+  `research` and `writing`, alone and in the aggregate. `testanyware` passed
+  the directory-only check.
+- The second pack commit's full `task check` passed from a clean plain-Git
+  clone, with the committed public `GROVE_REPOSITORY` and no override.
+  `grove:checkout` fetched `31ec9117c9da` from GitHub. `check:plugin` passed
+  with two warnings, no `version` and no icon, on Claude Code 2.1.318. The
+  pack alone gave 23 and 56, and the aggregate gave 109 and 996. The clone
+  held only the ignored `.cache/` after the run.
+- After the publication, a clone of the public remote was at `ae1649d181a5`,
+  with the tree `361070804328`. `ravel skills resolve --json` resolved it as a
+  `local` source with the status `resolved` and the digest above. The
+  snapshot's `skills` root holds the four kinds and `editorial-family`.
+  `diff -r` found no difference between the snapshot and `plugins/writing`.
+  The instrument was the Ravel 2.0 build of `scripts/harness-trials/builds.json`,
+  `bin/ravel` SHA-256 `26b487afb957…`, with its build identity twice. The
+  temporary `HOME` held one `local` source with the root `skills` and an
+  empty mandatory list.
+- An isolated home held Codex, Gemini CLI and Pi directories. In it,
+  `install.sh --force --pack <public clone>/plugins/writing` linked the four
+  kinds and `editorial-family` into each harness. The clone was at the first
+  pack commit and was clean. The run made 48 links in all and skipped
+  `guardrail` three times. `--force` was needed because the Grove workspace is
+  a secondary jj workspace. The owner's real skill links had the same digest
+  before and after.
+
 ### For the paused editorial grove
 
-The editorial kinds and their family file ship in WritingSkills from this
-commit. Grove still ships its copies until `editorial-removal-k206`. Rollout's
-brief-update text for the paused editorial grove states that move.
+The editorial kinds `draft`, `copy-edit`, `art` and `proof` and their
+family file now ship in WritingSkills, as the plugin `writing`. The family
+file is the skill `editorial-family`. Grove no longer ships them from the
+removal commit `31ec9117c9da`. Rollout's brief-update text for the paused
+editorial grove states that move.

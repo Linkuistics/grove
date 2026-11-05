@@ -840,8 +840,17 @@ roots `skills` and `craft`, as `docs/USAGE.md` states.
 The same holds for `writing`, which the marketplace lists after finish. A
 native user then needs `/plugin install writing@linkuistics`. Without it, a
 `draft`, `copy-edit`, `art` or `proof` leaf has no kind skill on the native
-route. A directory route needs a `writing` source with the root `skills`, as
-`docs/USAGE.md` states.
+route. A directory route needs a `writing` source with the roots `skills` and
+`craft`, as `docs/USAGE.md` states.
+
+The writing craft follows the same rule. After finish, an update of the
+`linkuistics` plugin removes `technical-communication`, `writing-code-walkthroughs`
+and the always-on hooks. The plugin `writing` holds both skills, and its
+dependency `technical-communication-hooks` holds the hooks. A native user of
+`writing` therefore keeps the always-on layers. A user who receives the skills
+through Ravel needs `/plugin install technical-communication-hooks@linkuistics`
+for the hooks on Claude Code. A Codex user adds the marketplace of WritingSkills
+in place of Grove's, as its user guide states.
 
 ## DesignSkills
 
@@ -1830,7 +1839,9 @@ commit.
 commit, from `writing-craft-repository-k208`, adds the `craft/` root, both
 craft skills and their Grove assets. See
 [Source of the writing craft](#source-of-the-writing-craft). The hooks
-plugins follow in a later commit.
+plugins follow in a later commit. `writing-craft-removal-k211` removed Grove's
+copies and published the last pack commit. See
+[Removal of the writing craft](#removal-of-the-writing-craft).
 
 ### Source of the writing pack
 
@@ -2707,3 +2718,181 @@ marketplaces. The probe cannot prove that writer.
 - **A scratch marketplace.** Grove's published marketplace does not yet list
   `technical-communication-hooks`. `writing-craft-removal-k211` adds it, and
   `discovery-rollout-k6` records the owner's installation.
+
+### Removal of the writing craft
+
+`writing-craft-removal-k211` removed Grove's copies of the writing craft in one
+change with every Grove consumer, on 2026-11-05. This is the contraction step
+of `writing-craft-pack-k181`.
+
+| Subject | Value |
+| --- | --- |
+| Removal commit | `4cfac62958815219ba5a71941674244a05ff9b56` |
+| Pushed Grove commit | `4cfac6295881`. jj moved the remote bookmark `gh-issue-25` forward from `31ec9117c9da` before the last pack commit's publication |
+| Pinned pack commit | `4cafb0fd8e72dacdeea9d960cbdaf9f4850aec8f`, the commit that the hooks trial accepted. Grove's marketplace pins it for `writing` and for `technical-communication-hooks` |
+| Last pack commit | `9f7d516be7d9a06611ec0f7dca8bebe033724ed4`, a child of the pinned commit. The public `main`. Its `GROVE_COMMIT` is the removal commit |
+| Source directory and roots | `plugins/writing`, with the Ravel roots `["skills", "craft"]` |
+| Tree of `plugins/writing` | `7348fd5d83f04f64a4734ada100157622ebbb550` in both pack commits |
+| `resourceDigest` | `21463d062a62ccfa744d327b62eb3afa5ede381553b5877bfaaf95a9cd9a49bd` for both commits, from a clean clone of the public remote |
+| Claude Code hooks plugin | `technical-communication-hooks`, at `plugins/writing/craft/technical-communication` of the pinned commit. It holds no skill |
+| Codex hooks plugin | `technical-communication` in the marketplace `writing-hooks`, at the pack root |
+
+The removal took out 1380 tracked files. They are the 1378 moved files of
+[Source of the writing craft](#source-of-the-writing-craft),
+`plugins/linkuistics/hooks/hooks.json` and `.agents/plugins/marketplace.json`.
+The only untracked file in those trees was an ignored `__pycache__` of
+`ste-lint.py`, which went with its directory. These consumers changed:
+
+- `plugins/linkuistics`: the manifest description and keywords drop the
+  walkthrough and writing subjects. `PROVENANCE.md` loses the two moved
+  sections and names where they went.
+- `scripts/check.sh` drops the checker self-test, the Pi load check and the
+  shell lint of `tc-hook` and of the Pi load check. `Taskfile.yml` drops the
+  two `design:technical-communication` tasks.
+- `plugins/install.test.sh` replaces its read of the real Pi extension with a
+  fixture. A pack's `craft/` skill ships `harnesses/pi/crafted.ts`, and
+  `--pack` must link it to its path in `craft/`.
+- `.claude-plugin/marketplace.json` pins `writing` at the accepted pack commit
+  and lists `technical-communication-hooks` from the same commit. The writing
+  plugin's dependency resolves only in a marketplace that lists the hooks
+  plugin. The descriptions of the marketplace, of `writing` and of
+  `linkuistics` changed, and the marketplace counts nine plugins.
+- `scripts/check-packs.sh` and the directory-only paragraph of
+  `pack-membership.md` name the hooks-only source. `task check:packs` gives it
+  the directory-only check, because it has no kind skill and no manifest.
+- `plugins/README.md` holds the craft table and the always-on paragraph in its
+  `writing` section, and it names the hooks plugin among the pinned plugins.
+  `plugins/CONTEXT.md`, `CONTEXT-MAP.md`, `README.md`, `docs/USAGE.md` and
+  `docs/ARCHITECTURE.md` state where the skills, the hooks and the moved
+  records live. The `writing` source of the directory route gains the root
+  `craft`.
+- Three files that stay linked a moved record. `pack-membership.md`,
+  `owner-skill-delivery.md` and the editorial pilot's `preregistration.md` now
+  link its public URL in WritingSkills.
+- Three files cited `linkuistics:writing-code-walkthroughs`, and they now cite
+  the bare name. The Codex marketplace item of `external-pack-contract.md` says
+  that Grove has none.
+
+The citation registry of `plugin_fallback.rs` keeps its two
+`technical-communication` rows, because they read Grove's own files. No Grove
+record states the off-file rule as its own. Each Grove mention cites the
+record in WritingSkills.
+
+The last pack commit changes no file under `plugins/writing`. It sets
+`GROVE_COMMIT` and repairs the moved documents that described the delivery
+through Grove's `linkuistics` plugin and the checks of Grove's
+`scripts/check.sh`. These are the specification, the user guide,
+`the-off-file-is-the-only-switch` and
+`technical-communication-carries-no-standard-text`. The pack README names
+these repairs. The publication review, the harness survey and the
+evaluation records keep their bytes as dated records.
+
+### Readings of the removal of the writing craft
+
+| Reading | Single-source checks | Loaded-path checks | Unpinned rows |
+| --- | --- | --- | --- |
+| Core alone before the removal, at `88be3ee7198` | 86 | 480 | 51 |
+| Core alone after the removal | 86 | 480 | 51 |
+| The pack alone | 23 | 56 | 0 |
+| The aggregate of core and the pinned pack commit | 109 | 996 | 51 |
+
+Conformance reads no file of `plugins/linkuistics` and no `craft/` root, so
+the removal leaves every figure unchanged. The other aggregates are still
+requirements 87 and 842, design 91 and 839, engineering 88 and 1188, and
+research 86 and 839.
+
+A link check read every tracked and untracked Markdown file. It found no
+relative link that the removal broke.
+
+The stale-location search ran `rg --hidden` over the whole tree, apart from
+`.jj`, `.git`, `target`, `.grove` and `.cache`. It enumerated both skill
+names, `tc-hook`, `tc_hook`, `ste-lint`, `pi-extension`, `.agents/plugins` and
+the path of each moved record. It then searched for each moved path, the two
+names with the `linkuistics:` prefix, `linkuistics-hooks` and each relative
+link into a moved record. Each hit is in a class of the next section.
+
+A planted path in a hidden scratch directory was found, and a misspelt pattern
+found nothing. The same search over WritingSkills found the moved documents.
+The hits there that name Grove's old paths are provenance or dated records.
+
+### Asset classification of the removal of the writing craft
+
+Each Grove file that still names a moved skill or a moved record is in one
+class of "The Grove assets of moving craft skills" in
+`docs/specs/pack-membership.md`.
+
+| Files | Test | Disposition |
+| --- | --- | --- |
+| The moved specification, user guide, design views, four decision records, publication review, harness survey, evaluations and Pi load check | 2 or 3 | Moved to WritingSkills, as [Asset classification of the writing craft](#asset-classification-of-the-writing-craft) states. Grove holds no copy |
+| `plugins/linkuistics/hooks/hooks.json` and `.agents/plugins/marketplace.json` | 2 | Removed. Their successors are the hooks plugins in WritingSkills |
+| The citation registry of `plugin_fallback.rs`, the spine's `SKILL.md` and `references/grove.md` | 1 | Stay. They cite `technical-communication` by bare name in Grove's own files |
+| `walkthrough-books.md`, `grove-loop-book-structure.md`, `a-book-cannot-witness-its-own-corpus.md`, `a-book-carries-no-asset.md` and `docs/research/walkthrough-method.md` | 1 | Stay. They state or research Grove's own books, and they cite the walkthrough skill by bare name |
+| `CONTEXT-MAP.md`, `pack-membership.md`, `owner-skill-delivery.md` and the editorial pilot's `preregistration.md` | 1 | Stay. They link a moved record by its public URL |
+| `README.md`, `plugins/README.md`, `plugins/CONTEXT.md`, `docs/USAGE.md`, `docs/ARCHITECTURE.md`, `.claude-plugin/marketplace.json`, `scripts/check-packs.sh` and `plugins/install.test.sh` | 1 | Stay. They state where the skills and the hooks ship, or they hold a fixture of that shape |
+| `membership-hooks.mmd`, `external-pack-contract.md`, `CHANGELOG.md` and this record | History and design | Stay |
+| `docs/owner-skill-inventory.tsv`, `inventory.py`, `docs/ravel-caller-surface-inventory.tsv` and `docs/owner-skill-delivery-evidence.md` | 3 | Stay as the baseline evidence |
+
+### Checks of the removal of the writing craft
+
+- `bash scripts/check.sh` passed all 19 principal checks on the removal, with
+  1344 Rust tests. The two fewer checks are the checker self-test and the Pi
+  load check, which the pack's `check:tc-*` tasks now run. `GROVE_TEST_RAVEL`
+  resolved to the installed Ravel 1.1.0,
+  `/opt/homebrew/Cellar/ravel/1.1.0/bin/ravel`. The changed files had the same
+  digests before and after the run.
+- `task check:packs` passed `requirements`, `design`, `engineering`,
+  `research` and `writing`, alone and in the aggregate. `testanyware` and
+  `technical-communication-hooks` passed the directory-only check.
+- `plugins/install.test.sh` gave 48 passed. A copy whose pack fixture shipped
+  `other.ts` failed the new case alone.
+- `claude plugin validate .` and `claude plugin validate plugins/linkuistics`
+  passed with the `version` warnings, on Claude Code 2.1.318.
+- The last pack commit's full `task check` passed from a clean plain-Git clone
+  of the public remote, with the committed public `GROVE_REPOSITORY` and no
+  override. `grove:checkout` fetched `4cfac6295881` from GitHub. The hook
+  count gave six declarations for each of the three installations, and the
+  eight controls failed as required. The checker printed `selftest OK`, and
+  the Pi load check passed with its controls. The pack alone gave 23 and 56,
+  and the aggregate gave 109 and 996. After the run, the clone held only the
+  ignored `.cache/` and `__pycache__/`. A plain clone of the local repository
+  passed the same `task check` before the push.
+- `ravel skills resolve --json` resolved a new clone of the public remote at
+  `9f7d516be7d9`, before any check ran in it, with the status `resolved`. Its
+  two search directories are the `skills` and `craft` roots of the snapshot.
+  The snapshot holds seven `SKILL.md` files and no `__pycache__`, and `diff -r`
+  found no difference from `plugins/writing`. The same clone at `4cafb0fd8e72`
+  gave the same digest. The instrument was the Ravel 2.0 build of
+  `scripts/harness-trials/builds.json`, `bin/ravel` SHA-256 `26b487afb957…`,
+  with its build identity. The temporary `HOME` held one `local` source with
+  the roots `["skills", "craft"]` and an empty mandatory list.
+- An isolated home held Codex, Gemini CLI and Pi directories. In it,
+  `install.sh --force --pack <public clone>/plugins/writing` linked the five
+  skills of `skills/` and the two craft skills of `craft/` into each harness.
+  It linked `technical-communication.ts` into `~/.pi/agent/extensions/`, with
+  its target in `craft/` of the clone. The run made 48 skill links and one
+  extension link, and it skipped `guardrail` three times. The owner's real
+  skill and extension links had the same digest before and after.
+- `codex plugin marketplace add Linkuistics/WritingSkills` added the
+  marketplace `writing-hooks` in a scratch `CODEX_HOME`, on Codex 0.166.0.
+  `codex plugin list` showed `technical-communication@writing-hooks`.
+
+### Tool requirements after the removal of the writing craft
+
+The tool requirements of
+[Tool requirements of the writing craft](#tool-requirements-of-the-writing-craft)
+hold unchanged. `technical-communication` and both hooks plugins need
+`python3`, version 3.9 or later, for `ste-lint.py` and `tc_hook.py`. They also
+need a POSIX `/bin/sh` for `tc-hook`, which each hook runs as
+`/bin/sh scripts/tc-hook`. Grove's own checks no longer need Pi for this skill.
+
+### For skill-marketplace-k185
+
+The Codex plugin stays listed in the pack root. Codex 0.166.0 resolves a
+`local` source only inside the root of its marketplace. In a scratch
+`CODEX_HOME`, a marketplace whose source path was
+`../WritingSkills/plugins/writing/craft/technical-communication` was added,
+and `codex plugin list` printed "No marketplace plugins found". The same
+marketplace with a copy of the plugin at `./plugins/tc` listed
+`technical-communication@inside-test`. A marketplace-only repository therefore
+cannot list the Codex hooks plugin through a `local` source. This reading
+covers `local` sources only, and no other Codex source type was tried.

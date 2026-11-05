@@ -165,3 +165,19 @@ During design-native-namespace-k200, the human inserted
 `skill-marketplace-decision-k201` before `skill-marketplace-k185`. The human
 is not sure that this workstream needs a skills marketplace. Do not start
 marketplace work before that leaf records the human's decision.
+
+`writing-craft-pack-k181` closed after its removal and its last pack commit.
+Its results are in the WritingSkills section of
+`docs/repository-moves-record.md`. Three of them matter to later work.
+
+- Codex 0.166.0 lists a `local` marketplace source only inside the
+  marketplace root. `skill-marketplace-k185` therefore cannot list the Codex
+  hooks plugin from a marketplace-only repository through a `local` source.
+  The section "For skill-marketplace-k185" of that record holds the reading.
+- Grove's marketplace lists `technical-communication-hooks`, a hooks-only
+  plugin, from the same pack commit as `writing`. `check:packs` gives it the
+  directory-only check. A later pin change moves both entries together.
+- `plugins/linkuistics` now holds `authoring-conventions`, `guardrail`,
+  `machine-environment` and `using-jujutsu`, with no hooks file.
+  `personal-pack-k183` removes those four. The installer's Pi extension case
+  now uses a pack fixture and reads no Grove skill.

@@ -167,3 +167,50 @@ eight changed files.
   scratch `CODEX_HOME`. `codex plugin marketplace add Linkuistics/WritingSkills`
   added `writing-hooks`, and `codex plugin list` showed
   `technical-communication@writing-hooks`.
+- The removal commit is `4cfac62958815219ba5a71941674244a05ff9b56`. It holds
+  no `.claude/settings.json`. The leaf is retired in a later commit, because
+  the pack commit records the removal commit and this leaf records that pack
+  commit. `jj git push --remote origin --bookmark gh-issue-25` moved the
+  remote bookmark forward from `31ec9117c9da` to `4cfac6295881`.
+- The last pack commit is `9f7d516be7d9a06611ec0f7dca8bebe033724ed4`, a child
+  of `4cafb0fd8e72`. It sets `GROVE_COMMIT` to the removal commit. It corrects
+  the present-tense claims of the moved specification, user guide and two
+  decision records, and its README names those corrections and the new pin. The
+  publication review, the harness survey and the evaluation records stay as
+  dated records. The tree of `plugins/writing` stays `7348fd5d83f0`.
+- `task check` passed in the working copy, in a plain clone of the local
+  repository and, after `jj git push`, in a clean clone of the public remote
+  at `9f7d516be7d9`. The public run used the committed public
+  `GROVE_REPOSITORY` with no override and fetched `4cfac6295881` from GitHub.
+  The hook count gave six declarations for each installation, and the eight
+  controls failed as required. The checker printed `selftest OK`, and the Pi
+  load check passed. The pack alone gave 23 and 56, and the aggregate gave
+  109 and 996.
+- The Ravel 2.0 build has `bin/ravel` `26b487afb957…`. This session copied
+  its whole prefix from an earlier session's scratchpad and checked the digest
+  and the build identity. It resolved a new public clone at `9f7d516be7d9` and
+  at `4cafb0fd8e72` to the same `resourceDigest` `21463d062a62…`. The snapshot equals `plugins/writing`.
+- Installer proof: `install.sh --force --pack <public clone>/plugins/writing`
+  in an isolated home made 48 skill links and one Pi extension link into
+  `craft/`. The owner's links had the digest `16a96100e183…` before and after.
+- Result for skill-marketplace-k185: Codex 0.166.0 lists a `local` source
+  only inside the marketplace root. A `../` source listed nothing, and the
+  same plugin at `./plugins/tc` was listed. The Codex plugin therefore stays
+  in the pack root.
+- `docs/repository-moves-record.md` records the removal in "Removal of the
+  writing craft", its readings, asset classification, checks and tool
+  requirements, and "For skill-marketplace-k185". "For discovery-rollout-k6"
+  now names the hooks plugin for Ravel users and the Codex marketplace of
+  WritingSkills.
+- No in-session reviewer was spent. Executable checks with seen failures
+  cover the installer fixture, the hook count, the pack checks and the sweep.
+  The moved bytes did not change, and the pack documents changed only in
+  delivery claims.
+- Close of `writing-craft-pack-k181`: each item of its Done when holds, so
+  the node closes. No review names this leaf or the node, and the environment
+  has no `GROVE_PROVIDER_EVIDENCE`, so no Creator line is written. Three
+  results go to the parent brief: the Codex result for skill-marketplace-k185,
+  the directory-only check of a hooks-only source, and the state of
+  `plugins/linkuistics` for personal-pack-k183. The ADR set needs no change.
+  The four moved records now live in WritingSkills, and each Grove citation
+  of them links its public URL.

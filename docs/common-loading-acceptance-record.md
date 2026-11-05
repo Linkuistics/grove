@@ -9234,6 +9234,13 @@ prepared commit holds no `plugins/linkuistics/skills/decision-records/SKILL.md`.
 At `b63ca828d3ef`, the commit that the case's record names, the check held its
 8 required paths.
 
+The removal commit `f45c5a53796f` of `engineering-removal-k204` gave the
+reading for `discovery`, an `impl` case. The check refused it with status 1.
+The prepared commit holds no
+`plugins/linkuistics/skills/coding-style-bash/SKILL.md`, which the case
+declares, and no `grove-impl` in either source. At `3bfb096810db`, the commit
+that the case's record names, the check held its 8 required paths.
+
 ### The runner before the change
 
 Each refusal control first ran against the unchanged runner. In the first

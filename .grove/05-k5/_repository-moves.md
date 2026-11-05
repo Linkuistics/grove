@@ -133,6 +133,22 @@ them matter to later work.
   acceptance record names this as a limit of the native route, not a defect
   of the pack.
 
+`engineering-pack-k177` closed after its removal and its second pack commit.
+Its results are in the EngineeringSkills section of
+`docs/repository-moves-record.md`. Three of them matter to later work.
+
+- A craft skill whose text composes with Grove's text keeps its half of each
+  Grove test in the pack. `scripts/doubt-composition.sh` of EngineeringSkills
+  is the model. It reads Grove's matching phrase from `GROVE_COMMIT`, and its
+  controls mutate each side. `writing-craft-pack-k181` can copy it for any
+  Grove test that reads a writing craft skill.
+- `machine-environment` carries `assumes-personal-setup`, and the installer
+  reports it. `plugins/README.md` and `plugins/CONTEXT.md` name it.
+  `personal-pack-k183` repairs those two claims when the skill leaves.
+- `authoring-conventions` and `guardrail` cite `doubt-driven-development` and
+  `using-codebase-memory` by bare name. Those citations stay valid when the
+  personal skills move.
+
 During design-native-namespace-k200, the human inserted
 `skill-marketplace-decision-k201` before `skill-marketplace-k185`. The human
 is not sure that this workstream needs a skills marketplace. Do not start

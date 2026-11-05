@@ -254,3 +254,48 @@ live leaf remains, by the four close steps.
   `c52f990b2059c8bbe8efba10a741d3a0311000ac1712d71e882638f54c3ac1ed`. The
   changed files outside `.grove/` had the same digests before and after the
   run.
+- The removal commit is `f45c5a53796f2a5bf634fec340cb0d7aef63e184`. The leaf
+  is retired in a later commit, because the second pack commit records the
+  removal commit and this leaf records that pack commit.
+- `jj git push --remote origin --bookmark gh-issue-25` moved the remote
+  bookmark forward from `d65914d57015` to `f45c5a53796f`. `git ls-remote`
+  shows it there.
+- The supplier check refused `discovery`, an `impl` case, at the removal
+  commit with status 1. It names `coding-style-bash` and the kind skill
+  `grove-impl` as missing. At `3bfb096810db`, the commit that its record
+  names, it held the case's 8 paths with status 0. The acceptance record's
+  section "Readings at the removal" adds this reading.
+- The second pack commit is `549607bbb2e13baedca02d8c2481d6ad65541a26`, a
+  child of `d98862f21749`. It sets `GROVE_COMMIT` to `f45c5a53796f`. Its
+  README replaces the paragraph that said the aggregate fails, and it adds one
+  provenance sentence. The install paragraph about the coming Grove release
+  stays, because it holds until finish. The tree of `plugins/engineering`
+  stays `d8a891cd5c13e9866f7937537afc7979fb3ef0f7`.
+- From a clean plain-Git checkout of `549607bbb2e1`, with the committed public
+  `GROVE_REPOSITORY` and no override, `task check` passed. Grove came from
+  GitHub. The doubt check gave 7 and 15, the pack alone 2 and 4, and the
+  aggregate 111 and 1704.
+- `jj git push --remote origin --bookmark main` in EngineeringSkills moved the
+  public `main` forward from `d98862f21749` to `549607bbb2e1`. A clone of the
+  public remote was at that commit. The Ravel 2.0 build resolved it with the
+  digest `7e70b280e7a9…` of the first commit, and the snapshot equals
+  `plugins/engineering`. That build prints `1.1.0` for `--version`, so its
+  SHA-256 and build identity are the pin.
+- `docs/repository-moves-record.md` records the removal in the sections
+  "Removal of the engineering pack", "Readings of the removal of the
+  engineering pack", "Asset classification of the engineering pack" and
+  "Checks of the removal of the engineering pack". The native step
+  `/plugin install engineering@linkuistics` is in the section "For
+  discovery-rollout-k6".
+- No in-session reviewer was spent. Executable controls with seen failures
+  cover the family binding, the supplier refusal and the sweep. The moved
+  bytes are unchanged, and the pack's doubt check owns the skill's half of
+  each removed doubt assertion.
+- Close of `engineering-pack-k177`: each item of its Done when holds, so the
+  node closes. No review names this leaf or the node, and the environment has
+  no `GROVE_PROVIDER_EVIDENCE`, so no Creator line is written. Three results
+  go to the parent brief. They are the doubt check as the model for a
+  composing craft skill, the `assumes-personal-setup` claims for the personal
+  move, and the bare-name citations in `authoring-conventions` and
+  `guardrail`. The ADR set needs no change, because no decision changed and
+  the records cite the moved skills by bare name.

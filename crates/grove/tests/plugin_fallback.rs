@@ -474,13 +474,7 @@ const MOVING_KIND_OPENINGS: &[&str] = &[
     "grove-art/SKILL.md",
     "grove-copy-edit/SKILL.md",
     "grove-draft/SKILL.md",
-    "grove-impl/SKILL.md",
-    "grove-integrate-review-impl/SKILL.md",
-    "grove-integrate-review-prototype/SKILL.md",
     "grove-proof/SKILL.md",
-    "grove-prototype/SKILL.md",
-    "grove-review-impl/SKILL.md",
-    "grove-review-prototype/SKILL.md",
 ];
 
 /// Colon-joined tokens that name no skill: the Taskfile target in

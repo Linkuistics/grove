@@ -64,8 +64,8 @@ tokens itself, at the two places it writes a leaf with no session to delegate to
 | `requirements` | `review-requirements` | `integrate-review-requirements` | `RequirementsSkills` |
 | `design` | `review-design` | `integrate-review-design` | `DesignSkills` |
 | `planning` | `review-planning` | `integrate-review-planning` | `grove` |
-| `prototype` | `review-prototype` | `integrate-review-prototype` | `grove` |
-| `impl` | `review-impl` | `integrate-review-impl` | `grove` |
+| `prototype` | `review-prototype` | `integrate-review-prototype` | `EngineeringSkills` |
+| `impl` | `review-impl` | `integrate-review-impl` | `EngineeringSkills` |
 | `research-a` + `research-b` | — | `combine-research` | `ResearchSkills` |
 | `draft` → `copy-edit` → `art` → `proof` | — | — | `grove` |
 | `finish` — driver-reserved | — | — | `grove` |

@@ -16,8 +16,6 @@ const DECOMPOSE_REFERENCE: &str =
 const RETIRE_REFERENCE: &str =
     include_str!("../../../plugins/grove/skills/grove/references/retire.md");
 const BRIEF_FORMAT: &str = include_str!("../../../plugins/grove/skills/grove/BRIEF-FORMAT.md");
-const DOUBT_SKILL: &str =
-    include_str!("../../../plugins/linkuistics/skills/doubt-driven-development/SKILL.md");
 const ARCHITECTURE: &str = include_str!("../../../docs/ARCHITECTURE.md");
 const USAGE: &str = include_str!("../../../docs/USAGE.md");
 const SPEC: &str = include_str!("../../../docs/specs/doubt-grove-review-mechanics.md");
@@ -59,6 +57,15 @@ fn grove_guidance_replaces_the_old_in_session_review_loop() {
         EXECUTE_REFERENCE,
         "substantial redesign as a new producer review chain beside the leaf it is integrating",
     );
+    // Standalone doubt is unchanged outside the picked-leaf predicate. The
+    // skill's half of this composition, and of every doubt assertion that this
+    // file used to hold, is the doubt check of the EngineeringSkills pack. That
+    // check reads these phrases from Grove's commit.
+    assert_contains(
+        OWNER,
+        EXECUTE_REFERENCE,
+        "outside that predicate, doubt keeps its standalone bounded cycles unchanged",
+    );
 
     assert_absent(
         "content/references/execute.md",
@@ -90,7 +97,8 @@ fn grove_guidance_replaces_the_old_in_session_review_loop() {
 #[test]
 fn no_provisioned_surface_instructs_a_deleted_composition_verb() {
     // Scoped to the surfaces that *drive a session* — the provisioned
-    // methodology, the human guide, and the doubt skill. `CONTEXT.md` and the
+    // methodology and the human guide. The doubt skill's half is the doubt
+    // check of the EngineeringSkills pack. `CONTEXT.md` and the
     // review-mechanics spec are deliberately out: a glossary `_Avoid_` line and
     // a spec's removed-surface test seam exist precisely to name a deleted verb
     // and say it is gone, and banning the token there would ban the record along
@@ -102,7 +110,6 @@ fn no_provisioned_surface_instructs_a_deleted_composition_verb() {
         ("content/references/retire.md", RETIRE_REFERENCE),
         ("content/TASK-FORMAT.md", TASK_FORMAT),
         ("content/BRIEF-FORMAT.md", BRIEF_FORMAT),
-        ("doubt-driven-development/SKILL.md", DOUBT_SKILL),
         ("docs/ARCHITECTURE.md", ARCHITECTURE),
         ("docs/USAGE.md", USAGE),
     ] {
@@ -312,7 +319,6 @@ fn guidance_cuts_the_integrate_step_where_pick_reaches_it_next() {
         ("content/SKILL.md", GROVE_SKILL),
         ("content/TASK-FORMAT.md", TASK_FORMAT),
         ("docs/USAGE.md", USAGE),
-        ("doubt-driven-development/SKILL.md", DOUBT_SKILL),
     ] {
         assert_absent(surface, text, "touches no file the findings cite");
     }
@@ -456,22 +462,6 @@ fn planning_guidance_prefers_dependency_ordered_working_increments() {
     }
 }
 
-#[test]
-fn doubt_guidance_yields_to_grove_without_changing_standalone_doubt() {
-    for expected in [
-        "## Composition with Grove",
-        "Bootstrap",
-        "whole picked leaf",
-        "--kind review-<producer>",
-        "Substantial redesign becomes a new producer review chain beside the leaf being integrated",
-        "Outside that predicate",
-    ] {
-        assert_contains("doubt-driven-development/SKILL.md", DOUBT_SKILL, expected);
-    }
-
-    assert_contains("doubt-driven-development/SKILL.md", DOUBT_SKILL, "3 cycles");
-}
-
 /// Normalized text between two anchors, so an ordering check sees only the
 /// passage that makes the claim and not an unrelated earlier mention.
 fn passage(surface: &str, text: &str, start: &str, end: &str) -> String {
@@ -512,12 +502,6 @@ fn every_handoff_passage_retires_before_it_commits() {
             USAGE,
             "The producer finishes only to a coherent",
             "Grove then launches",
-        ),
-        (
-            "doubt-driven-development/SKILL.md",
-            DOUBT_SKILL,
-            "After cutting that leaf",
-            "Grove owns the escalated route",
         ),
         (
             "review mechanics spec",
@@ -689,7 +673,6 @@ fn canonical_guidance_drops_receipt_and_diversity_era_review_routing() {
     for (surface, text) in [
         ("content/SKILL.md", GROVE_SKILL),
         ("content/TASK-FORMAT.md", TASK_FORMAT),
-        ("doubt-driven-development/SKILL.md", DOUBT_SKILL),
     ] {
         for rejected in [
             "Producer launch",
@@ -731,11 +714,6 @@ fn canonical_guidance_drops_receipt_and_diversity_era_review_routing() {
             TASK_FORMAT,
             "**The body carries nothing that routes its own session**",
         ),
-        (
-            "doubt-driven-development/SKILL.md",
-            DOUBT_SKILL,
-            "Grove compares no targets and raises no notice, so there is none to wait for or consume",
-        ),
     ] {
         assert_contains(surface, text, replacement);
     }
@@ -750,16 +728,15 @@ fn canonical_guidance_drops_receipt_and_diversity_era_review_routing() {
 /// `Bootstrap-and-pick` is banned because it names the *superseded* predicate:
 /// the session no longer picks, so a surface still spelling it that way tells a
 /// session to prove ownership by re-walking the tree.
+///
+/// This test holds Grove's half. The assertion `mandate_ownership_predicate`
+/// of the EngineeringSkills doubt check holds the doubt skill's half.
 #[test]
 fn grove_and_doubt_state_one_mandate_based_ownership_predicate() {
-    for (surface, text) in [
-        ("content/SKILL.md", GROVE_SKILL),
-        ("doubt-driven-development/SKILL.md", DOUBT_SKILL),
-    ] {
-        assert_contains(surface, text, "mandate");
-        assert_contains(surface, text, "Bootstrap");
-        assert_absent(surface, text, "Bootstrap-and-pick");
-    }
+    const SURFACE: &str = "content/SKILL.md";
+    assert_contains(SURFACE, GROVE_SKILL, "mandate");
+    assert_contains(SURFACE, GROVE_SKILL, "Bootstrap");
+    assert_absent(SURFACE, GROVE_SKILL, "Bootstrap-and-pick");
 }
 
 #[test]

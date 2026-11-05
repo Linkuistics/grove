@@ -191,9 +191,6 @@ teardown-via-finish-commit	grove-finish/SKILL.md	B	static({finish})
 build-boundary-is-the-binary	grove/references/grove.md	B	on(the grove's subject is grove) @ grove/references/grove.md	editing the binary reaches no session until it is rebuilt and installed
 durable-artifact-set	grove/references/grove.md	B	on(deciding where a durable artifact belongs) @ grove/SKILL.md	The first three **outlive the grove**
 plugin-prerequisite	grove/references/grove.md	S	on(a rule cites a craft skill) @ grove/SKILL.md	each citation therefore states what binds in the skill's absence
-cite-framework-decisions-to-source	grove-impl/SKILL.md	B+S	static({impl})	Cite at the decision site
-hard-to-reverse-pairs-with-doubt	grove-impl/SKILL.md	B+S	static({impl})	cite the source *and* have a fresh context try to break it
-impl-ships	grove-impl/SKILL.md	B	static({impl})	
 findings-read-from-the-reviews-commit	grove/references/integrate-review.md	B+S	static(integrate-review-*)	Read the findings from the review's commit, not from this task's body
 integration-escalates-redesign	grove/references/integrate-review.md	B	static(integrate-review-*)	
 triage-four-ways	grove/references/integrate-review.md	B	static(integrate-review-*)	
@@ -205,7 +202,6 @@ proof-reads-for-whole-document-coherence	grove-proof/SKILL.md	B	static({proof})	
 proof-clears-the-hand-forward-list	grove-proof/SKILL.md	B	static({proof})	An entry left in the list when this stage retires is a defect nobody owns
 proof-cuts-nothing-unless-it-sends-work-back	grove-proof/SKILL.md	B	static({proof})	the node closes when a `proof` retires having sent nothing back
 proof-is-the-stated-fallback	grove-proof/SKILL.md	B	static({proof})	a proof session that finds nothing has still done its job
-prototype-is-throwaway	grove-prototype/SKILL.md	B	static({prototype})	
 cascade-is-silent	grove/references/retire.md	B	on(a node has no live leaf left) @ grove/SKILL.md	
 finish-is-the-drivers-to-discover	grove/references/retire.md	B	on(the last live leaf retires) @ grove/SKILL.md	You do not discover that a grove is finished
 finishing-session-names-its-evidence	grove/references/retire.md	B	on(the work is done) @ grove/SKILL.md	The session that finishes a producer names its provider evidence on that producer's reviews

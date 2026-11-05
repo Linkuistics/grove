@@ -30,6 +30,10 @@ capability-plus-trigger shape.
 The sections of `codebase-design`, `decision-records` and
 `model-led-development` moved to `plugins/design/PROVENANCE.md` in
 [DesignSkills](https://github.com/Linkuistics/DesignSkills), with those skills.
+The section of `doubt-driven-development` moved to
+`plugins/engineering/PROVENANCE.md` in
+[EngineeringSkills](https://github.com/Linkuistics/EngineeringSkills), with
+that skill.
 
 ### `writing-code-walkthroughs`
 
@@ -54,14 +58,6 @@ conjunct is closed as unmet after no inspected hosted provider documented the
 required final-boundary attestation and controlled self-hosting was declined.
 The current decision and its reopening boundary are recorded in
 [`behavioral-acceptance-is-closed-unmet`](../../docs/adr/behavioral-acceptance-is-closed-unmet.md).
-
-### `doubt-driven-development`
-
-Adapted in independent prose from
-[`addyosmani/agent-skills`](https://github.com/addyosmani/agent-skills)'
-`doubt-driven-development` on `main`, inspected 2026-06-25 (MIT). The
-fresh-context and do-not-bias-the-reviewer rules were cross-checked against
-Superpowers, gstack, and wshobson.
 
 ### `technical-communication`
 

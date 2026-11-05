@@ -143,10 +143,12 @@ the spine's `references/`.
 
 In the spine the files are `review.md` for the five `review-*` kinds,
 `integrate-review.md` for the five `integrate-review-*` kinds and `editorial.md`
-for the four stages of the publishing pipeline. Core ships three kinds of each
-of the first two families. RequirementsSkills ships `review-requirements` and
-`integrate-review-requirements`, and DesignSkills ships `review-design` and
-`integrate-review-design`. In ResearchSkills the file is
+for the four stages of the publishing pipeline. Core ships one kind of each of
+the first two families, the steps of `planning`. RequirementsSkills ships
+`review-requirements` and `integrate-review-requirements`, and DesignSkills
+ships `review-design` and `integrate-review-design`. EngineeringSkills ships
+the `review-` and `integrate-review-` kinds of `prototype` and `impl`. In
+ResearchSkills the file is
 the family skill `research-family`, for `research-a` and `research-b`. The
 spine's `SKILL.md` lists only the spine's own family files.
 
@@ -620,12 +622,14 @@ metadata, not identity: the stable [[Work-item handle]] remains `<slug>-k<key>`.
 — non-empty, lowercase ASCII letters, digits and single dashes, no `--`, not a
 reserved marker — and grove holds no enumeration of them. Which kinds *exist* is
 which `grove-<kind>` [[Kind skill]]s are installed. The methodology's kinds ship
-in several packs, so no count of the whole set is kept. Core ships three
-producers (`planning`, `prototype`, `impl`) each with
-its `review-` and `integrate-review-` kind, the four editorial stages (`draft`,
-`copy-edit`, `art`, `proof`) and the driver-reserved `finish`. RequirementsSkills
+in several packs, so no count of the whole set is kept. Core ships the
+producer `planning` with its `review-` and `integrate-review-` kind, the four
+editorial stages (`draft`, `copy-edit`, `art`, `proof`) and the driver-reserved
+`finish`. RequirementsSkills
 ships `requirements`, `review-requirements` and `integrate-review-requirements`.
 DesignSkills ships `design`, `review-design` and `integrate-review-design`.
+EngineeringSkills ships the producers `prototype` and `impl`, each with its
+`review-` and `integrate-review-` kind.
 ResearchSkills ships `research-a`, `research-b` and `combine-research`. Grove spells
 two of those tokens and no others, at the two places it writes a leaf itself:
 `requirements` for root scaffolding and `finish` for the teardown sentinel.

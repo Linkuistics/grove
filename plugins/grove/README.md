@@ -40,7 +40,8 @@ file is:
   core ships alone, such as the four editorial stages. It also covers a family
   whose kinds ship in several packs, such as the five reviews and the five
   integrations. Their requirements members ship in RequirementsSkills, and
-  their design members ship in DesignSkills.
+  their design members ship in DesignSkills. Their impl and prototype members
+  ship in EngineeringSkills.
 
 <!-- tc: pending because the conversion has not reached this part of the document -->
 
@@ -59,21 +60,21 @@ iff a skill of that name exists.**
 kind's own `SKILL.md` — not in a `references/` file the skill points at. The
 distinction is the whole of the difference between the rule's two halves: what is
 inline arrives *with* the skill in one hop, and what is in the spine is reached
-by a second one. In core, four kinds are fat this way (`planning`,
-`prototype`, `impl`, `finish`) and six are thin: core's three `review-*` and
-three `integrate-review-*` each state their identity and
+by a second one. In core, two kinds are fat this way (`planning`, `finish`)
+and two are thin: core's `review-planning` and `integrate-review-planning` each
+state their identity and
 direct one load, because everything else they obey belongs to their family and
 the family's text is the spine's. The READMEs of RequirementsSkills,
-DesignSkills and ResearchSkills describe their kinds. The four
+DesignSkills, EngineeringSkills and ResearchSkills describe their kinds. The four
 editorial stages (`draft`, `copy-edit`, `art`, `proof`) are the one hybrid: each
 directs a load of its family's file *and* carries its own charter inline, because
 what the four share is the pipeline's mechanics and what divides them is the
 whole point of having four.
 
-One file in core rides inside a kind's skill rather than in its `SKILL.md`
-body, and it is that kind's alone:
+No kind in core carries a file beside its `SKILL.md`. The one such file was
 `grove-impl/LICENSES/addyosmani-agent-skills.LICENSE`, which only that skill's
-provenance comment cites. The interview procedure `grilling.md` moved with
+provenance comment cites, and it moved with `grove-impl` to EngineeringSkills.
+The interview procedure `grilling.md` moved with
 `grove-requirements` to RequirementsSkills. The visual design procedure and its
 diagram viewer moved with `grove-design` to DesignSkills.
 
@@ -135,6 +136,7 @@ parameter to policy; naming the session belongs to the methodology.
 /plugin install grove@linkuistics
 /plugin install requirements@linkuistics
 /plugin install design@linkuistics
+/plugin install engineering@linkuistics
 /plugin install research@linkuistics
 /plugin install linkuistics@linkuistics
 /plugin install testanyware@linkuistics

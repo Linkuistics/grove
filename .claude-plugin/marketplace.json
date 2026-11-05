@@ -1,6 +1,6 @@
 {
   "name": "linkuistics",
-  "description": "Grove's session methodology, coding standards, software design, project simplification, and version-control disciplines as lazily loaded agent skills, plus GUI testing in isolated VMs. Six plugins: grove, requirements, design, research, linkuistics and testanyware.",
+  "description": "Grove's session methodology, coding standards, software design, project simplification, and version-control disciplines as lazily loaded agent skills, plus GUI testing in isolated VMs. Seven plugins: grove, requirements, design, engineering, research, linkuistics and testanyware.",
   "owner": {
     "name": "Antony Blakey",
     "email": "antony.blakey@gmail.com"
@@ -9,7 +9,7 @@
     {
       "name": "linkuistics",
       "source": "./plugins/linkuistics",
-      "description": "Linkuistics engineering-practice skills: coding standards, contract-preserving project simplification, in-flight adversarial verification, always-on controlled-English writing rules, Jujutsu-native version control, codebase-graph queries, and a user-invoked safety guardrail."
+      "description": "Linkuistics practice skills: code walkthroughs, always-on controlled-English writing rules, Jujutsu-native version control, and a user-invoked safety guardrail."
     },
     {
       "name": "testanyware",
@@ -45,6 +45,16 @@
         "sha": "9d7c7c5368f6a22b541881e6c107da28e39627bd"
       },
       "description": "Grove's design kinds, with their review and integration steps, and the design craft skills: decision records, codebase design, CLI tool design and model-led development."
+    },
+    {
+      "name": "engineering",
+      "source": {
+        "source": "git-subdir",
+        "url": "https://github.com/Linkuistics/EngineeringSkills.git",
+        "path": "plugins/engineering",
+        "sha": "d98862f217492a44932c8fa93a006367da252a5d"
+      },
+      "description": "Grove's impl and prototype kinds, with their review and integration steps, and the engineering craft skills: six coding styles, codebase-memory queries, project simplification and doubt-driven development."
     },
     {
       "name": "research",

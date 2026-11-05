@@ -5,7 +5,7 @@
 Two Claude Code plugins live here — `grove` and `linkuistics` —
 published through the marketplace declared in
 [`../.claude-plugin/marketplace.json`](../.claude-plugin/marketplace.json). The
-marketplace also lists `requirements`, `design`, `research` and `testanyware`, which live in their own
+marketplace also lists `requirements`, `design`, `engineering`, `research` and `testanyware`, which live in their own
 repositories and which it pins by commit. The two plugins here
 share this repo with the Grove CLI because the two change in lockstep
 ([architecture](../docs/ARCHITECTURE.md#skills-monorepo)); they ship by their own
@@ -93,6 +93,54 @@ install also installs the spine.
 
 <!-- tc: pending because the conversion has not reached this part of the document -->
 
+## `engineering` — the engineering kinds and craft skills, from EngineeringSkills
+
+<!-- tc: on -->
+
+The engineering kinds `impl`, `review-impl`, `integrate-review-impl`,
+`prototype`, `review-prototype` and `integrate-review-prototype` ship in their
+own repository,
+[EngineeringSkills](https://github.com/Linkuistics/EngineeringSkills). The
+skill `grove-impl` holds its licence file in `LICENSES/`. This repository holds
+no copy of those skills.
+
+The plugin `engineering` also holds nine craft skills in its `craft/` root:
+
+| Skill | Loads when | Notes |
+|-------|-----------|-------|
+| `coding-style-rust` | `*.rs` | |
+| `coding-style-python` | `*.py` | |
+| `coding-style-elixir` | `*.ex`, `*.exs` | |
+| `coding-style-bash` | `*.sh`, `*.bash` | |
+| `coding-style-swift` | `*.swift` | |
+| `coding-style-typescript` | `*.ts`, `*.tsx` | |
+| `doubt-driven-development` | by description | in-flight adversarial verification. A fresh-context reviewer tries to disprove a non-trivial decision before it stands |
+| `simplify-project` | by description | contract-preserving repository simplification. It consolidates current-state documents, removes proven-dead artifacts and reconciles every consumer |
+| `using-codebase-memory` | by description | queries a codebase knowledge graph from any shell through the `codebase-memory-mcp` command line. The silent failure modes are in `references/` |
+
+The six language skills are the whole of the coding-standard coverage. No
+language-neutral coding skill exists. A language without a skill here, such as
+Go, Java or C, therefore triggers no coding standard, and no test-first rule.
+A new language needs a new skill. The design rules in `codebase-design` apply
+to every language, and the `design` plugin of DesignSkills ships that skill.
+
+In Claude Code, the `paths:` frontmatter loads each language skill by file
+type. Other harnesses ignore `paths:` and use the `description`.
+
+The review and integration kinds are families across packs, as for
+`requirements`. The four family members of the pack load `grove` and read
+their family files in the spine.
+
+The marketplace lists `engineering` with a `git-subdir` source. That source
+names `plugins/engineering` and pins one EngineeringSkills commit in `sha`.
+Grove's `task check:packs` checks the pinned commit alone and with this tree's
+core. Conformance reads only `skills/`. The pack's own `task check` checks the
+craft skills, and its doubt check compares `doubt-driven-development` with
+Grove's text. The plugin declares a dependency on `grove`, so a Claude Code
+install also installs the spine.
+
+<!-- tc: pending because the conversion has not reached this part of the document -->
+
 ## `research` — the research kinds, from ResearchSkills
 
 <!-- tc: on -->
@@ -112,7 +160,7 @@ states the contract that the pack follows.
 
 <!-- tc: pending because the conversion has not reached this part of the document -->
 
-## `linkuistics` — engineering-practice skills
+## `linkuistics` — practice skills
 
 A suite of agent **skills** that load lazily — only when relevant to the file or
 task at hand — across Claude Code, Codex, and other agents supporting the
@@ -121,31 +169,16 @@ task at hand — across Claude Code, Codex, and other agents supporting the
 | Skill | Loads when | Notes |
 |-------|-----------|-------|
 | `machine-environment` | project setup, development commands, toolchains, or persistent configuration on Antony's Mac | mise selects project tools, Taskfiles retain workflows, mise bootstrap owns machine setup and tracked dotfiles, and the Obsidian manual supplies current details; declares `assumes-personal-setup: true` |
-| `coding-style-rust` | `*.rs` | |
-| `coding-style-python` | `*.py` | |
-| `coding-style-elixir` | `*.ex`, `*.exs` | |
-| `coding-style-bash` | `*.sh`, `*.bash` | |
-| `coding-style-swift` | `*.swift` | |
-| `coding-style-typescript` | `*.ts`, `*.tsx` | |
-| `doubt-driven-development` | by description | in-flight adversarial verify — spawn a fresh-context reviewer to disprove a non-trivial decision before it stands |
-| `simplify-project` | by description | contract-preserving repository simplification — consolidate current-state docs, remove proven-dead artifacts, reconcile every consumer |
 | `technical-communication` | always on, and by description | the model writes replies, documents and prompts in controlled English modelled on ASD-STE100; hooks put it in front of every session on Claude Code, Codex and Pi, and one off file turns them off — see [the user document](../docs/TECHNICAL-COMMUNICATION.md) |
 | `using-jujutsu` | by description | drive version control through Jujutsu natively when the repo is jj-enabled (`.jj/` present); git, silently, everywhere else — command surface and the git→jj mapping in `references/` |
-| `using-codebase-memory` | by description | query a codebase knowledge graph from any shell via the `codebase-memory-mcp` CLI; the silent failure modes are in `references/` |
 | `authoring-conventions` | by hand (`/authoring-conventions`, user-invoked) | house `SKILL.md` conventions — a thin delta over superpowers' `writing-skills` |
 | `guardrail` | by hand (`/guardrail`, user-invoked) | session-scoped `PreToolUse` gate — pauses for confirmation before destructive shell commands or edits outside the project ("freeze"). **Claude Code only** (`harnesses: [claude-code]`) |
 
-The six language skills are the whole of the coding-standard coverage: there is
-no language-neutral coding skill, so a language without one here — Go, Java, C —
-triggers no linkuistics standard at all, test-first included. Adding a language
-means adding its skill; the cross-language rules that survive on their own are the
-design ones in `codebase-design`, which the `design` plugin of DesignSkills
-ships.
+The coding styles, `doubt-driven-development`, `simplify-project` and
+`using-codebase-memory` moved to the `engineering` plugin of EngineeringSkills.
 
 Each skill's one-line `description` is the only standing context cost; the body
-loads on demand, and a `references/` file only when the body sends you there. In Claude Code the `paths:` frontmatter makes the language
-skills auto-load deterministically by file type. Other harnesses ignore `paths:`
-and fall back to the `description`.
+loads on demand, and a `references/` file only when the body sends you there.
 
 Two skills are **user-invoked** (`disable-model-invocation: true`): they never
 auto-fire and cost no standing context, reachable only by typing `/<name>`.
@@ -181,6 +214,7 @@ source directory and its checks. The plugin installs independently of
 /plugin install grove@linkuistics
 /plugin install requirements@linkuistics
 /plugin install design@linkuistics
+/plugin install engineering@linkuistics
 /plugin install research@linkuistics
 /plugin install linkuistics@linkuistics
 /plugin install testanyware@linkuistics
@@ -264,7 +298,8 @@ without withholding the portable skills.
 A skill may also declare `assumes-personal-setup: true` — its content names the
 author's own models, subscriptions, or machine configuration, so it is correct
 here and misleading elsewhere. It still installs; the script reports it so you can
-review it before relying on it. Only `doubt-driven-development` carries it.
+review it before relying on it. Here only `machine-environment` carries it.
+In EngineeringSkills, `doubt-driven-development` carries it.
 
 **A re-run reconciles, it does not only add.** Every symlink pointing into a
 checkout of this repo is the script's to manage, so one whose skill was deleted,
@@ -294,16 +329,19 @@ frontmatter.
 
 **An external pack needs `--pack`.** The requirements kinds are in
 RequirementsSkills. The design kinds and the design craft skills are in
-DesignSkills, and the research kinds are in ResearchSkills. The plain run above
-therefore installs none of them. Make a checkout of each pack and name its
-plugin directory:
+DesignSkills. The engineering kinds and the engineering craft skills are in
+EngineeringSkills, and the research kinds are in ResearchSkills. The plain run
+above therefore installs none of them. Make a checkout of each pack and name
+its plugin directory:
 
 ```
 git clone https://github.com/Linkuistics/RequirementsSkills.git
 git clone https://github.com/Linkuistics/DesignSkills.git
+git clone https://github.com/Linkuistics/EngineeringSkills.git
 git clone https://github.com/Linkuistics/ResearchSkills.git
 ./plugins/install.sh --pack ../RequirementsSkills/plugins/requirements \
   --pack ../DesignSkills/plugins/design \
+  --pack ../EngineeringSkills/plugins/engineering \
   --pack ../ResearchSkills/plugins/research
 ```
 
@@ -357,7 +395,7 @@ and delivery boundary is described in
 
 <!-- tc: on -->
 
-The `requirements`, `design`, `research` and `testanyware` plugins are the exceptions. The marketplace
+The `requirements`, `design`, `engineering`, `research` and `testanyware` plugins are the exceptions. The marketplace
 entry of each pins a commit of its own repository in `sha`. Claude Code
 delivers that commit until a Grove commit moves the pin. The pin gives native
 users the commit that Grove's `task check:packs` accepted. For `testanyware`,

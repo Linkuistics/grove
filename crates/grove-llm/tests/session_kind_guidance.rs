@@ -97,8 +97,6 @@ const TASK_FORMAT: &str = include_str!("../../../plugins/grove/skills/grove/TASK
 /// file that condition routes to.
 const EXECUTE_REFERENCE: &str =
     include_str!("../../../plugins/grove/skills/grove/references/execute.md");
-const DOUBT_SKILL: &str =
-    include_str!("../../../plugins/linkuistics/skills/doubt-driven-development/SKILL.md");
 
 /// The repository root. It was `CARGO_MANIFEST_DIR` while every test lived in
 /// one package; `loop-crate-verbs-k21` split them across two, so the marker is
@@ -274,29 +272,18 @@ fn every_session_kind_is_named_by_the_provisioned_taxonomy() {
     // the driver-reserved one no session may create. The producers and their two
     // step families are stated generatively in prose ("each with its own
     // `review-` and `integrate-review-` step"), so requiring every kind of a
-    // summary would demand a table it deliberately does not carry.
-    for (surface, text, expected) in [
-        (
-            "grove/references/execute.md",
-            EXECUTE_REFERENCE,
-            ["research-a", "research-b", "combine-research", "finish"].as_slice(),
-        ),
-        (
-            "doubt-driven-development/SKILL.md",
-            DOUBT_SKILL,
-            ["research-a", "research-b", "combine-research"].as_slice(),
-        ),
-    ] {
-        let missing: Vec<&&str> = expected
-            .iter()
-            .filter(|label| !text.contains(**label))
-            .collect();
-        assert!(
-            missing.is_empty(),
-            "{surface} must name {missing:?} — the vendor pair's two kinds are \
-             what replaced a per-leaf harness declaration"
-        );
-    }
+    // summary would demand a table it deliberately does not carry. The doubt
+    // skill's half of this claim is the doubt check of the EngineeringSkills
+    // pack.
+    let missing: Vec<&str> = ["research-a", "research-b", "combine-research", "finish"]
+        .into_iter()
+        .filter(|label| !EXECUTE_REFERENCE.contains(label))
+        .collect();
+    assert!(
+        missing.is_empty(),
+        "grove/references/execute.md must name {missing:?} — the vendor pair's two \
+         kinds are what replaced a per-leaf harness declaration"
+    );
 }
 
 /// The kind table agrees with core, and no text counts the whole set.

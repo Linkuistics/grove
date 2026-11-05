@@ -656,7 +656,7 @@ These rules bind every fixture of `conformance.test.sh`:
   so the delivered source directory names its licence.
 - **`LICENSES/`.** ResearchSkills has none. The moved files hold no passage
   adapted from a third party. A later adapted passage adds `LICENSES/` inside
-  its own skill, as `grove-impl` does in core.
+  its own skill, as `grove-impl` does in EngineeringSkills.
 - **History.** The moved files keep no Git history in the pack. Grove keeps
   their whole history, across their earlier paths under `content/`. A filtered
   copy would rewrite every commit ID and carry commits that describe unrelated

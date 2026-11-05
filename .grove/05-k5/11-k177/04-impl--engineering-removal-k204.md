@@ -126,3 +126,131 @@ membership decision states. Its retirement closes engineering-pack-k177 if no
 live leaf remains, by the four close steps.
 
 ## Decisions (running log)
+
+- Core alone before the removal, at `55dae6392644`: 111 single-source checks,
+  1704 loaded-path checks and 53 unpinned rows. The aggregate with the first
+  pack commit before the removal fails on the 14 duplicates that
+  engineering-pack-repository-k203 recorded.
+- The removal takes out 19 tracked files and nothing else. They are the six
+  kind directories of `plugins/grove/skills/` with 7 files, and the nine craft
+  directories of `plugins/linkuistics/skills/` with 12 files. The directories
+  hold no untracked file. The only untracked file under either skill tree is
+  an ignored `__pycache__` of `technical-communication`, which stays.
+- `.claude/settings.json` is the owner's local permission. It stays in the
+  working copy and in no commit, as in design-removal-k198.
+- Core's manifest loses the four rows whose owner is `grove-impl/SKILL.md` or
+  `grove-prototype/SKILL.md`. The prefix sets stay. No other conformance file
+  names a moving owner.
+- The rows `prototype` and `impl` of the kind table name `EngineeringSkills`.
+  `MOVING_KIND_OPENINGS` loses the six engineering openings and keeps the four
+  editorial openings.
+- The doubt tests drop each read of `doubt-driven-development/SKILL.md`. Five
+  tests keep their assertions over Grove's files. The test
+  `doubt_guidance_yields_to_grove_without_changing_standalone_doubt` read only
+  the skill, so it goes. Its Grove half is in
+  `grove_guidance_replaces_the_old_in_session_review_loop`, which already held
+  two of the three Grove phrases of the pack's assertion
+  `yields_to_grove_review_allowance`. That test gains the third phrase,
+  "outside that predicate, doubt keeps its standalone bounded cycles
+  unchanged". The comments name the pack's doubt check as the owner of the
+  skill's half.
+- `plugins/linkuistics`: the manifest description drops the style guides,
+  project simplification, adversarial verification and codebase-graph queries,
+  and it calls the suite "practice skills". The keywords drop
+  `coding-standards`, `style-guide`, the six language names,
+  `project-simplification`, `repository-maintenance`, `code-review`,
+  `codebase-memory`, `knowledge-graph` and `code-search`. The marketplace
+  entry drops the same subjects. `PROVENANCE.md` loses the section of
+  `doubt-driven-development`, and the paragraph of moved sections names
+  EngineeringSkills. The `addyosmani-S*` row of the source-key table stays,
+  because `authoring-conventions` uses those keys.
+- The marketplace adds `engineering` after `design`, with a `git-subdir`
+  source that pins `d98862f217492a44932c8fa93a006367da252a5d`. Its
+  description is the pack manifest's. The marketplace description counts
+  seven plugins.
+- Documents: `README.md` adds `engineering@linkuistics` to the install list,
+  a paragraph that names the craft skills, and `--pack`. `plugins/README.md`
+  adds an `engineering` section with the craft table, the language-coverage
+  paragraph and the `paths:` sentences. Those rows and sentences leave the
+  linkuistics section, which is now "practice skills". It changes the install
+  lists, `--pack` and the pin exception. `plugins/grove/README.md` changes
+  the family members, the fatness counts (two fat, two thin) and the install
+  list. Its licence-file paragraph states that no core kind now carries a file
+  beside `SKILL.md`. `CONTEXT.md` changes the family file and session kind
+  entries. `plugins/CONTEXT.md` changes the plugin entry, the `paths:` entry
+  and the personal-setup entry. `docs/ARCHITECTURE.md` changes the external
+  packs row and the kinds paragraph, which no longer says core ships most
+  kinds. `docs/USAGE.md` adds an `engineering` source with the roots `skills`
+  and `craft`.
+- Two claims were already wrong before this leaf, and the change repairs
+  both. `plugins/README.md` and `plugins/CONTEXT.md` said that only
+  `doubt-driven-development` carries `assumes-personal-setup`, but
+  `machine-environment` also carries it. Each now names `machine-environment`
+  here and `doubt-driven-development` in EngineeringSkills. The architecture
+  pointer to the formal-methods results named "the `linkuistics` skills". It
+  now says "the craft skills", because those skills left `linkuistics`.
+- These stay. `CONTEXT-MAP.md` names the doubt skill by role, with no
+  location. `CONTEXT.md` keeps its dated account of the campaign's lessons.
+  Chapter 3 of the walkthrough derives `grove-impl` from `impl`, and chapter
+  18 shows the composed prompt. The `grove` manifest names no moved subject.
+- Core alone after the removal: 109 single-source checks, 996 loaded-path
+  checks and 51 unpinned rows. The control suite gave 98 passed.
+- `task check:packs` passed `requirements`, `design`, `engineering` and
+  `research` alone and in the aggregate, and `testanyware` passed the
+  directory-only check. The engineering pack alone: 2, 4 and 2, with 6 external
+  edges and 5 external resources. The aggregate of core and the first pack
+  commit: 111, 1704 and 53, the figures of core alone before the removal. The
+  other aggregates are now requirements 110 and 1358, design 114 and 1355, and
+  research 109 and 1355.
+- Binding proof: in a scratch copy of the pinned pack, the four family members
+  wrote "Note the `grove` skill now" in place of the directed load. The
+  aggregate then failed 50 assertions, and each names one of the four members.
+  They are the 4 family files as missing files and the 7 spine rows of
+  `grove/SKILL.md` for each member (28). The others are the 3
+  `static(review-*)` rows for each review member (6) and the 4
+  `static(integrate-review-*)` rows for each integration member (8). The two kinds that kept their load,
+  `grove-impl` and `grove-prototype`, appear in no failure.
+- Stale-location sweep. An enumeration of the fifteen names and the four
+  resource file names with `--hidden` over the whole tree excluded `.jj`,
+  `.git`, `target` and `.grove`. Searches for each name under
+  `linkuistics/skills/`, `grove/skills/`, `linkuistics:` and any
+  `skills/` or `craft/` segment followed. Two hits were stale and changed. The
+  example dialogue of `plugins/CONTEXT.md` treated
+  `linkuistics:coding-style-rust` as a valid reference, and it now uses
+  `linkuistics:using-jujutsu`. The licence rule of
+  `external-pack-contract.md` said "as `grove-impl` does in core", and it now
+  says EngineeringSkills. Every other hit is in one class. The evidence is the
+  acceptance record, the trial cases and the dual-Ravel record. The baseline
+  is the two inventory files and `inventory.py`. The other classes are fixture
+  labels in a temporary tree, history, and this workstream's record and design.
+  The bare-name citations are in `authoring-conventions`, `guardrail` and
+  `evidence-outlives-the-instrument.md`.
+  A planted path in a hidden scratch directory was found, and a misspelt name
+  found nothing. The first enumeration used `rg -E`, which is `--encoding`, and
+  printed nothing. The rerun used `-e`.
+- An earlier gate run stopped when the sweep found the two stale claims, so
+  that no file changed under a running measurement.
+- Installer proof: an isolated home held Codex, Gemini CLI and Pi
+  directories. A plain clone of the public remote, at
+  `d98862f217492a44932c8fa93a006367da252a5d`, was clean. There
+  `install.sh --force --pack <clone>/plugins/engineering` linked the six kinds
+  from `skills/` and the nine craft skills from `craft/` into each harness.
+  The run made 90 links in total and skipped `guardrail` three times.
+  The owner's real skill links had the same digest before and after,
+  `40716ee1b429…` over 165 entries.
+- `claude plugin validate plugins/linkuistics` (Claude Code 2.1.318) passed
+  with two warnings, no `version` and no icon. The marketplace validation
+  passed with the two `version` warnings of the relative plugins.
+- The first full gate failed `cargo clippy` alone, with 20 of 21 checks
+  passing. Dropping the doubt tuple left a loop over one element in
+  `grove_and_doubt_state_one_mandate_based_ownership_predicate` and in
+  `every_session_kind_is_named_by_the_provisioned_taxonomy`. Each loop is now
+  direct statements over the one Grove surface, with the same assertions.
+- Gate: `bash scripts/check.sh` passed all 21 principal checks, 1344 Rust
+  tests among them. That is one fewer than the 1345 of earlier leaves, because
+  the skill-only doubt test went. `GROVE_TEST_RAVEL` resolved to
+  `/opt/homebrew/bin/ravel`, which is
+  `/opt/homebrew/Cellar/ravel/1.1.0/bin/ravel`, Ravel 1.1.0, SHA-256
+  `c52f990b2059c8bbe8efba10a741d3a0311000ac1712d71e882638f54c3ac1ed`. The
+  changed files outside `.grove/` had the same digests before and after the
+  run.

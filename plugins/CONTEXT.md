@@ -24,8 +24,8 @@ _Avoid_: "command" (a Claude Code slash command is a different artifact), "promp
 Claude Code's packaging unit — `plugins/<name>/` holding `.claude-plugin/plugin.json`
 and a `skills/` directory — and a Claude Code concept only; other harnesses receive
 the same [[Skill]] directories by [[Symlink install]]. Two ship here: `grove` and
-`linkuistics`. The marketplace also lists `requirements`, `design`, `research`
-and `testanyware`, which their own repositories ship.
+`linkuistics`. The marketplace also lists `requirements`, `design`,
+`engineering`, `research` and `testanyware`, which their own repositories ship.
 
 <!-- tc: on -->
 
@@ -123,8 +123,8 @@ _Avoid_: "when-to-use only" (that is upstream's rule, not this one).
 **`paths:` trigger**:
 A frontmatter glob list scoping a [[Skill]] to matching files — a **Claude Code
 plugin auto-activation extension beyond the Agent Skills spec**, whose only
-activation channel is the `description`. Carried by the `coding-style*` skills and
-inert wherever they arrive by [[Symlink install]].
+activation channel is the `description`. Carried by the `coding-style*` skills of
+EngineeringSkills, and inert wherever they arrive by [[Symlink install]].
 _Avoid_: assuming a `paths:`-triggered skill fires on a spec-only harness.
 
 **Hook-carrying skill**:
@@ -246,7 +246,8 @@ The frontmatter key by which a [[Skill]] declares that its content names the
 author's own models, subscriptions, or machine configuration — so it is correct
 here and misleading for anyone else. Orthogonal to [[Harness eligibility]]: it does
 not filter the install (on the author's own machine the assumption holds), it makes
-the install **report** the skill. Only `doubt-driven-development` carries it, for
+the install **report** the skill. Here only `machine-environment` carries it. In
+EngineeringSkills, `doubt-driven-development` carries it for
 `references/harness-spawns.md`.
 _Avoid_: overloading it onto a skill that merely needs a tool installed — a missing
 `codebase-memory-mcp` binary is a dependency, not a private
@@ -288,7 +289,7 @@ the grove context's, and its packaging is this one's.
 
 ## Example dialogue
 
-> **Dev:** We moved the repo, so every `linkuistics:coding-style-rust` reference
+> **Dev:** We moved the repo, so every `linkuistics:using-jujutsu` reference
 > breaks, right?
 > **Expert:** No — the *marketplace*'s identity is its `name` field, not the repo
 > URL. It was `linkuistics` in the old repo and it is `linkuistics` here. Only

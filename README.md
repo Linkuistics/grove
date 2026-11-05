@@ -93,6 +93,7 @@ For Claude Code:
 /plugin install grove@linkuistics
 /plugin install requirements@linkuistics
 /plugin install design@linkuistics
+/plugin install engineering@linkuistics
 /plugin install research@linkuistics
 /plugin install linkuistics@linkuistics
 /plugin install testanyware@linkuistics
@@ -114,6 +115,13 @@ it.
 the [DesignSkills](https://github.com/Linkuistics/DesignSkills) repository. The
 craft skills are `decision-records`, `codebase-design`, `cli-tool-design` and
 `model-led-development`. The marketplace pins one DesignSkills commit for it.
+
+`engineering@linkuistics` supplies the impl and prototype kinds and the
+engineering craft skills from the
+[EngineeringSkills](https://github.com/Linkuistics/EngineeringSkills)
+repository. The craft skills are the six `coding-style-*` skills,
+`using-codebase-memory`, `simplify-project` and `doubt-driven-development`.
+The marketplace pins one EngineeringSkills commit for it.
 
 `research@linkuistics` supplies the research kinds from the
 [ResearchSkills](https://github.com/Linkuistics/ResearchSkills) repository. The
@@ -142,6 +150,7 @@ and name its plugin directory:
 ```sh
 ./plugins/install.sh --pack /path/to/RequirementsSkills/plugins/requirements \
   --pack /path/to/DesignSkills/plugins/design \
+  --pack /path/to/EngineeringSkills/plugins/engineering \
   --pack /path/to/ResearchSkills/plugins/research
 ```
 

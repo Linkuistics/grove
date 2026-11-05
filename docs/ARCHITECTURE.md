@@ -53,7 +53,7 @@ them.
 | Alloy 6 against Quint, compared on models this repository no longer carries | [`formalism-findings.md`](formalism-findings.md) — the models were deleted once the lessons were distilled; the log is the surviving evidence |
 | How this grove's own sessions ran, session by session | [`loop-record.md`](loop-record.md) — derived, and frozen: its generator was retired with the models |
 | What nine review chains actually found, and what survived integration | [`review-yield.md`](review-yield.md) — derived, and frozen, on the same terms |
-| What the formal-methods trial returned, and where its unlanded findings go | [`results-of-formal-methods-trial.md`](results-of-formal-methods-trial.md) — the plain-language reading, and the `linkuistics` skills that are the remaining findings' home |
+| What the formal-methods trial returned, and where its unlanded findings go | [`results-of-formal-methods-trial.md`](results-of-formal-methods-trial.md) — the plain-language reading, and the craft skills that are the remaining findings' home |
 | The observable contract measured before the modularity refactor | [`preservation-baseline.md`](preservation-baseline.md) |
 
 A `TODO.<subject>.md` is a **scoping note with an expiry**: measurements and open
@@ -109,7 +109,7 @@ plugins. Ravel is an independently delivered runtime dependency:
 | Grove CLI | `crates/` | Homebrew and the release archives install `grove` and `grove-llm`. |
 | Grove caller assets | `assets/ravel-policy/` | One set for each admitted Ravel major: TypeScript for 1.x and Rhai for 2.x. Grove archives/formula install `libexec/ravel-policy`; the formula depends on separately versioned Ravel. [Delivery boundary](grove-delivery-contraction.md). |
 | Agent skill plugins | `plugins/grove/`, `plugins/linkuistics/` | Claude marketplace, or `plugins/install.sh` for Codex, Gemini CLI and Pi. The user chooses and maintains the route. |
-| External packs | Other repositories, such as `plugins/requirements/` in RequirementsSkills, `plugins/design/` in DesignSkills, `plugins/research/` in ResearchSkills and `plugins/testanyware/` in TestAnyware | The marketplace pins each with a `git-subdir` source and a `sha`. `plugins/install.sh --pack <dir>` installs a checkout. [External pack contract](specs/external-pack-contract.md). |
+| External packs | Other repositories, such as `plugins/requirements/` in RequirementsSkills, `plugins/design/` in DesignSkills, `plugins/engineering/` in EngineeringSkills, `plugins/research/` in ResearchSkills and `plugins/testanyware/` in TestAnyware | The marketplace pins each with a `git-subdir` source and a `sha`. `plugins/install.sh --pack <dir>` installs a checkout. [External pack contract](specs/external-pack-contract.md). |
 
 Their documented interfaces evolve together. `plugins/` is the authoritative
 skill source. Neither binary embeds or installs it
@@ -927,9 +927,11 @@ token it selects a command for. **Grove holds no set of them**
 well-formed token — lowercase ASCII letters, digits and single hyphens, no `--` —
 and the kinds that *exist* are the `grove-<kind>` skills the installed
 methodology ships. The tables below list the methodology's current kinds, not
-the binary's. Core ships most of them. The requirements kinds ship in the
-RequirementsSkills pack, the design kinds ship in the DesignSkills pack, and the
-research kinds ship in the ResearchSkills pack. Adding another is authoring a skill and routing the kind in
+the binary's. Core ships `planning` with its two steps, the editorial stages
+and `finish`. The requirements kinds ship in the RequirementsSkills pack, and
+the design kinds ship in the DesignSkills pack. The impl and prototype kinds
+ship in the EngineeringSkills pack, and the research kinds ship in the
+ResearchSkills pack. Adding another is authoring a skill and routing the kind in
 a policy, never editing this repository's Rust.
 
 **Grove spells a kind token only where it writes the leaf itself**, with no

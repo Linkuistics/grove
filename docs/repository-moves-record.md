@@ -2397,3 +2397,161 @@ empty mandatory list.
 The README of the pack holds the same table. The inventory's rows for
 `technical-communication` name `python3`, `scripts/ste-lint.py` and the
 always-on hooks.
+
+### Hooks plugins of the writing pack
+
+`writing-hooks-plugins-k209` added the two hooks plugins of
+`technical-communication` to WritingSkills on 2026-11-05. This is the second
+expand commit of `writing-craft-pack-k181`. Grove keeps its own hooks until
+`writing-craft-removal-k211`.
+
+| Subject | Value |
+| --- | --- |
+| Pack commit | `4cafb0fd8e72dacdeea9d960cbdaf9f4850aec8f`, a child of `0eacee02f0f2`. The jj bookmark `main` and the public `main` |
+| Git tree of `plugins/writing` | `7348fd5d83f04f64a4734ada100157622ebbb550` |
+| Claude Code hooks plugin | `technical-communication-hooks`. Root `plugins/writing/craft/technical-communication`. Manifest `.claude-plugin/plugin.json` with `"skills": []`. Hooks file `hooks/hooks.json`, which Claude Code reads by default |
+| Codex hooks plugin | `technical-communication`, unchanged. The same root, manifest `.codex-plugin/plugin.json`, hooks file `harnesses/codex/hooks.json` |
+| Codex marketplace | `.agents/plugins/marketplace.json` at the pack root, with the name `writing-hooks`. It lists the Codex plugin with a `local` source at `./plugins/writing/craft/technical-communication` |
+| Dependency | The writing plugin's `dependencies` are `["grove", "technical-communication-hooks"]`. The writing plugin declares no hook |
+| Hook count | Six declarations for each of the three installations: the writing plugin alone, the hooks plugin alone, and both. Each of the six hooks has one declaration |
+| `GROVE_COMMIT` | Unchanged at `31ec9117c9da` |
+
+The hooks file is Grove's `plugins/linkuistics/hooks/hooks.json` with one
+change. Its script path loses `skills/technical-communication/`, because the
+plugin root is now the skill directory. The Codex marketplace file is Grove's
+`.agents/plugins/marketplace.json` with three changes. Its name is
+`writing-hooks` in place of `linkuistics-hooks`, its `displayName` is
+"Writing hooks", and its path names the skill directory in the pack.
+
+#### The name of the Claude Code hooks plugin
+
+The name is `technical-communication-hooks`, for these reasons:
+
+- A Ravel user enables the plugin by name beside the ordinary pack plugins.
+  The name states the skill whose hooks it runs and that it holds only hooks.
+- The name differs from the skill name. A listing that shows the plugin
+  `technical-communication-hooks` and the skill
+  `writing:technical-communication` therefore cannot suggest a second copy of
+  the skill.
+- A plugin name is unique in one marketplace. The writing plugin and this
+  plugin share Grove's marketplace, and the dependency names the plugin by
+  its bare name there.
+
+The Codex plugin keeps the name `technical-communication`. It lives in its own
+marketplace, and this leaf changes no Codex identity.
+
+#### The root SKILL.md
+
+The Claude Code plugin reference states: "A plugin with `SKILL.md` at its
+root, no `skills/`, and no `skills` key loads as a single skill"
+(<https://code.claude.com/docs/en/plugins-reference>, "Standard layout").
+The hooks plugin's root holds `SKILL.md`, so the layout of the owner design
+would list a native `technical-communication` skill.
+
+A listing in a scratch home gave the same result, on Claude Code 2.1.318. The home was
+a new directory in the session scratchpad, set as `HOME` and
+`CLAUDE_CONFIG_DIR`. A scratch marketplace listed two copies of the plugin
+root, and `claude plugin details` read each installed copy without a model
+request.
+
+| Manifest | Skills | Hooks |
+| --- | --- | --- |
+| No `skills` key | 1, `technical-communication` | 6 |
+| `"skills": []` | 0 | 6 |
+
+The pack therefore has `"skills": []` in the manifest. The empty list adds no
+directory to the default `skills/` scan, and the key turns off the single-skill
+rule. `writing-hooks-trial-k210` still owes the reading in a real session.
+
+#### The installation of the writing plugin alone
+
+A second scratch home installed the writing plugin alone from a scratch
+marketplace. The marketplace listed `writing`, `technical-communication-hooks`
+and Grove's `grove` plugin from the checkout of `31ec9117c9da`. The command
+`claude plugin install writing@scratch` reported "+ 2 dependencies: grove,
+technical-communication-hooks".
+
+| Plugin | Skills | Hooks |
+| --- | --- | --- |
+| `writing` | 7, among them `technical-communication` from `craft/` | 0 |
+| `grove` | 6 | 0 |
+| `technical-communication-hooks` | 0 | 6 |
+
+No command installed, updated or removed a plugin in the owner's home.
+
+#### Codex
+
+Codex 0.166.0 accepted the marketplace in a scratch `CODEX_HOME`.
+`codex plugin list` showed `technical-communication@writing-hooks` at the
+skill directory, and `codex plugin add` installed it into the scratch cache.
+
+The plugin root now also holds the Claude Code hooks file `hooks/hooks.json`.
+The Codex source shows that Codex ignores it:
+
+- `DISCOVERABLE_PLUGIN_MANIFEST_PATHS` in
+  `codex-rs/exec-server-protocol/src/protocol.rs` puts
+  `.codex-plugin/plugin.json` before `.claude-plugin/plugin.json`.
+- `load_plugin_hooks` in `codex-rs/core-plugins/src/loader.rs` reads the
+  default `hooks/hooks.json` only when the manifest has no `hooks` field.
+
+The source was the tag `rust-v0.166.0` of `openai/codex`. The Codex manifest
+names `./harnesses/codex/hooks.json`, so Codex loads only that file. The pack
+check makes that field a rule.
+
+#### Checks of the hooks plugins
+
+The pack's new task `check:hooks` runs `scripts/hook-count.py`. For each
+plugin, the script reads the default `hooks/hooks.json`, the manifest's
+`hooks` field and the dependencies. It reads the `grove` plugin from the Grove
+checkout of `GROVE_COMMIT`. Each installation must give one declaration for
+each of the six hooks. The script also checks four layout rules:
+
+- The hooks plugin has no `skills/` directory and lists `"skills": []`.
+- The writing plugin declares no hook.
+- The writing plugin's dependencies name the hooks plugin.
+- The Codex manifest names `./harnesses/codex/hooks.json`.
+
+Its controls mutate a scratch copy of `plugins/`, one mutation for each run.
+Each control names a fragment of the error that it must cause.
+
+| Mutation | Reading |
+| --- | --- |
+| The writing manifest declares an inline Stop hook | `Stop * claude-code reply: 2` for the writing plugin alone |
+| The writing plugin gains a default `hooks/hooks.json` | Each of the six hooks counts 2 |
+| The Stop hook gains a second handler | `Stop * claude-code reply: 2` |
+| The hooks file loses `SessionStart` | `SessionStart * claude-code session-start: 0` |
+| The writing plugin drops the dependency | Each of the six hooks counts 0 for the writing plugin alone |
+| `scripts/tc-hook` is absent | The declaration runs a script that does not exist |
+| The hooks manifest drops its `skills` key | The root `SKILL.md` rule |
+| The Codex manifest drops its `hooks` field | The Codex rule |
+
+The first run of the controls had two cases that failed on a layout rule
+before the count ran. The script now counts first, and the manifest control
+declares a hook whose script exists. The count itself therefore catches each
+second declaration.
+
+`check:plugin` now runs `claude plugin validate` for both plugins. Each
+passed with two warnings, no `version` and no icon.
+
+`task check` passed in a plain clone of the local repository before the push.
+It passed again in a clean clone of the public remote after the push, with
+the public `GROVE_REPOSITORY` and no override. Both runs gave the six
+declarations and the eight failed controls. They also gave the earlier
+results. These are `selftest OK`, the Pi load check, 23 and 56 checks for the
+pack alone, and 109 and 996 for the aggregate. After the public run, the clone held only the
+ignored `.cache/` and `__pycache__/`.
+
+#### For the later leaves
+
+- `writing-hooks-trial-k210` reads the hooks in real sessions from pack commit
+  `4cafb0fd8e72`. The scratch listings above show the inventory only, and no
+  hook ran.
+- `writing-craft-removal-k211` lists `technical-communication-hooks` in
+  Grove's `.claude-plugin/marketplace.json` at the pinned pack commit, with
+  the source path `plugins/writing/craft/technical-communication`. Until then,
+  the writing plugin's dependency resolves in no published marketplace. The
+  current pin `694140a18dc7` predates the dependency, so native users see no
+  failure.
+- The pack's specification, user guide and decision records still describe
+  the delivery through Grove's `linkuistics` plugin. This leaf did not change
+  them, and the removal leaf changes them.

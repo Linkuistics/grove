@@ -12,7 +12,7 @@
 #           manifest of each pack that a run supplies
 #   owner   the file that states it, **shipped-set-relative**: the skill
 #           directory, then the path inside it — `grove/references/execute.md`,
-#           `grove-impl/SKILL.md`. Comma-separated where the inventory's
+#           `grove-planning/SKILL.md`. Comma-separated where the inventory's
 #           grouping heading names two files that both state part of it.
 #
 #           The grain used to be skill-relative, which was unambiguous while the

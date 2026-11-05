@@ -305,9 +305,9 @@ so a row changes here alone. The header of the file describes each column and
 each load predicate.
 
 **A row names its owner skill-qualified**, such as `grove/references/execute.md`
-or `grove-impl/SKILL.md`. Each kind owns a file called `SKILL.md`. A sweep that
-reported sites skill-relative would therefore collapse two kinds that state one
-rule into one site. It would then read clean over the duplicate. The control
+or `grove-planning/SKILL.md`. Each kind owns a file called `SKILL.md`. A sweep
+that reported sites skill-relative would therefore collapse two kinds that state
+one rule into one site. It would then read clean over the duplicate. The control
 `one kind-owned rule stated by a second kind is caught` credits the grain.
 
 A row whose owner file its pack does not ship fails. A row left in a manifest

@@ -450,7 +450,7 @@ fn a_native_only_lifecycle_completes_with_explicitly_installed_skills() {
         String::from_utf8_lossy(&install.stderr)
     );
     let plugins = support::repo_root().join("plugins").canonicalize().unwrap();
-    for name in ["grove", "grove-impl", "grove-finish"] {
+    for name in ["grove", "grove-planning", "grove-finish"] {
         assert!(
             f.home
                 .join(".codex/skills")
@@ -464,7 +464,7 @@ fn a_native_only_lifecycle_completes_with_explicitly_installed_skills() {
 
     fs::create_dir(f.work.join(".grove")).unwrap();
     fs::write(f.work.join(".grove/_BRIEF.md"), "# native — brief\n").unwrap();
-    fs::write(f.work.join(".grove/01-impl--work-k1.md"), "# work-k1\n").unwrap();
+    fs::write(f.work.join(".grove/01-planning--work-k1.md"), "# work-k1\n").unwrap();
     let script = f.path("session.sh");
     let log = f.path("reads.log");
     let prompts = f.path("prompts");
@@ -494,7 +494,7 @@ fn a_native_only_lifecycle_completes_with_explicitly_installed_skills() {
         .collect();
     assert_eq!(
         kinds,
-        ["grove-impl/SKILL.md", "grove-finish/SKILL.md"],
+        ["grove-planning/SKILL.md", "grove-finish/SKILL.md"],
         "{reads}"
     );
     for row in &rows {
@@ -509,7 +509,7 @@ fn a_native_only_lifecycle_completes_with_explicitly_installed_skills() {
         !prompts.contains(plugins.to_str().unwrap()),
         "the prompt carried a skill location: {prompts}"
     );
-    // The finish helper removed and committed the tree after the impl leaf retired.
+    // The finish helper removed and committed the tree after the planning leaf retired.
     assert!(!f.work.join(".grove").exists());
     assert!(!f.home.join(".agents").exists());
     assert_eq!(capture(&f.home.join(".codex")), installed);

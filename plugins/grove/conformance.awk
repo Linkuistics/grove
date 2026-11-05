@@ -18,8 +18,8 @@
 #   verbose  1 prints the detail lines.
 #
 # A file is named by its skill-qualified path, such as `grove/SKILL.md` or
-# `grove-impl/SKILL.md`. Rows of a manifest name owners and triggers at the same
-# grain.
+# `grove-planning/SKILL.md`. Rows of a manifest name owners and triggers at
+# the same grain.
 
 BEGIN {
   FS = "\t"

@@ -1206,3 +1206,149 @@ installation had the same digests before and after the runs.
 [Design native namespace](common-loading-acceptance-record.md#design-native-namespace)
 in the acceptance record holds the builds, the plugin revisions and the
 observations.
+
+## EngineeringSkills
+
+The engineering move takes the six kinds of the impl and prototype chains and
+nine craft skills to `~/Development/AgenticOrchestration/EngineeringSkills`.
+The kinds are `grove-impl`, `grove-prototype`, `grove-review-impl`,
+`grove-integrate-review-impl`, `grove-review-prototype` and
+`grove-integrate-review-prototype`. The craft skills are the six
+`coding-style-*` skills, `using-codebase-memory`, `simplify-project` and
+`doubt-driven-development`. The node is `engineering-pack-k177`.
+
+### Consumer retargeting of the engineering pack
+
+`impl-consumer-retarget-k202` ended the dependence of Grove's controls on the
+moving kinds, on 2026-11-05. Grove still ships every moving file after this
+step.
+
+- The conformance controls `unreachable` and `kind-without-load` copy the
+  core kind `planning`. `two-kinds-one-rule` copies `finish` and `planning`.
+  It plants the phrase of `finish-records-teardown-before-exit` in
+  `grove-planning/SKILL.md`. That row has a pinned phrase, so the single-source
+  sweep covers it.
+- The opening of `planning` puts the full stop inside the emphasis. The
+  mutation of `kind-without-load` therefore replaces `**Load the `grove`
+  skill now.**`.
+- The example comments of `conformance.awk`, of the header of
+  `conformance/rules.tsv` and of `plugins/grove/README.md` name
+  `grove-planning/SKILL.md`.
+- The test `a_native_only_lifecycle_completes_with_explicitly_installed_skills`
+  runs the real `plugins/install.sh` for Codex. Its leaf is now a `planning`
+  leaf, and it requires `grove-planning` from the installer. The scratch run
+  below found this named read. The planning list did not hold it.
+
+The control suite gave 98 passed and 0 failed. Three mutants of the test
+script each failed only their own control, with 97 passed and 1 failed:
+
+| Control | Mutant | Reading |
+| --- | --- | --- |
+| `unreachable` | The severed pointer is a file name that `grove/SKILL.md` does not hold | Exit 0, where the control expects 1 |
+| `kind-without-load` | The needle is the old one, without the full stop | Exit 0, where the control expects 1 |
+| `two-kinds-one-rule` | The planted sentence does not hold the rule's wording | Exit 0, where the control expects 1 |
+
+### Consumer classification of the engineering pack
+
+The search enumerated the fifteen skill names with `--hidden` over the whole
+tree, without `target/`, `.jj/` and `.git/`. It found a file of `.grove/`,
+and a misspelt name found nothing. A second search looked for Markdown links
+into a moving directory. It found the planted link of a hidden scratch file
+and the `PROVENANCE.md` links of the craft skills. It found no link from a
+staying file into a moving file.
+
+Each test that names a moving skill is in one class of "The Grove tests that
+name moving kinds" in `docs/specs/pack-membership.md`.
+
+| Files | Class | Disposition |
+| --- | --- | --- |
+| `conformance.test.sh` | Named read | Retargeted in this step. No control copies a moving kind |
+| The four rows of `conformance/rules.tsv` whose owner is `grove-impl/SKILL.md` or `grove-prototype/SKILL.md` | Named read | `engineering-removal-k204` removes them |
+| `MOVING_KIND_OPENINGS` in `plugin_fallback.rs` | Named read | `engineering-removal-k204` drops the six engineering openings |
+| The `include_str!` of `doubt-driven-development/SKILL.md` in `composition_guidance.rs` and `session_kind_guidance.rs` | Named read | `engineering-removal-k204` drops it. The assertions over Grove's files stay |
+| `a_native_only_lifecycle_completes_with_explicitly_installed_skills` in `native_skill_delivery.rs` | Named read | Retargeted in this step. It runs the real installer, and it now requires and reads `grove-planning` |
+| `directory_route.rs`, the other tests of `native_skill_delivery.rs`, `lifecycle_cutover.rs` and `prompt.rs` | Fixture label | Stay. Each writes or matches a synthetic name in a temporary tree, a prompt or a log |
+| The fabricated map of `an_unregistered_citation_is_caught` in `plugin_fallback.rs` | Fixture label | Stays |
+| `grove-floor-directory-case.sh` and the fixtures of `test_harness_trial.py`, `KIND_SKILL` among them | Fixture label | Stay. Each path is in a temporary checkout that the test writes |
+| The `rival-style` trial source and its `README.md` | Fixture label | Stay. The source holds its own synthetic `coding-style-bash` |
+| `shipped_kinds` and `shipped_markdown` in `session_kind_guidance.rs`, the corpus of `plugin_fallback.rs` and the check of the kind table | Walk | No change. Each names no moving skill |
+
+Each document that names a moving skill is in one class of "The Grove assets
+of moving craft skills" in `docs/specs/pack-membership.md`. No asset moves in
+this step.
+
+| Files | Test | Disposition |
+| --- | --- | --- |
+| `plugins/linkuistics/PROVENANCE.md` | 2 | Splits by skill. `engineering-removal-k204` moves the sections of the nine craft skills |
+| `docs/adr/evidence-outlives-the-instrument.md`, `authoring-conventions` and `guardrail` | 1 | Stay. Each cites `doubt-driven-development` or `using-codebase-memory` by bare name |
+| `docs/results-of-formal-methods-trial.md` | 1 | Stays. It names `doubt-driven-development` and the leaves of its campaign by bare name |
+| The two walkthrough chapters of `docs/walkthroughs/grove-loop/` | 1 | Stay. Chapter 3 derives the name `grove-impl` from the label `impl`. Chapter 18 shows the label in a composed prompt. Neither states where a pack ships the kind |
+| `plugins/grove/README.md`, `plugins/README.md` and `plugins/CONTEXT.md` | 1 | Stay. Each states that a Grove plugin ships a moving skill. `engineering-removal-k204` corrects each location claim |
+| `docs/repository-moves-record.md`, `external-pack-contract.md`, `owner-skill-delivery.md` and `pack-membership.md` | 1 | Stay as this workstream's record and design |
+| The acceptance record, `grove-dual-ravel-stage-record.md` and the trial cases | 3 | Stay as evidence of their runs |
+| `docs/owner-skill-inventory.tsv`, `inventory.py` and `docs/ravel-caller-surface-inventory.tsv` | 3 | Stay as the baseline evidence |
+| `CHANGELOG.md` and the task notes of `.grove/` | History | Stay |
+
+### Scratch removal of the engineering pack
+
+A plain copy of the working copy, outside the jj tree, lost the fifteen
+moving directories. A fresh Git repository committed it as the tree
+`487158bcb211`. `bash scripts/check.sh` then failed 5 of 21 checks. Each
+failure is the same named read: the four rows of core's manifest whose owner
+is `grove-impl/SKILL.md` or `grove-prototype/SKILL.md`.
+
+| Check | Reading |
+| --- | --- |
+| `conformance` | 4 unshipped owners. 109 single-source checks and 996 loaded-path checks |
+| `conformance suite` | 97 passed and 1 failed. The failure is `core alone reads clean over the shipped plugin` |
+| `external packs` | `requirements`, `design` and `research` failed in the aggregate on the 4 rows. `testanyware` passed |
+| `external pack controls` | 9 passed and 3 failed, each on the 4 rows |
+| `Ravel caller assets and provenance` | Its `ravel:provenance` step runs `conformance.sh` and fails on the 4 rows |
+
+The other 16 checks passed. They include `plugin install`, the harness trial
+runner controls and `book-check`. The next paragraph voids the three Rust
+checks among them.
+
+The Rust readings of that run are void. The scratch `target/` was a
+copy-on-write clone, and Cargo's dependency records name the original
+absolute paths. Cargo reused binaries built from the real checkout, so the
+composition tests passed without their embedded file. After `cargo clean -p`
+of the seven workspace crates, clippy and nextest stopped at compile time.
+The cause is the `include_str!` of `doubt-driven-development/SKILL.md` in
+`composition_guidance.rs` and `session_kind_guidance.rs`. The doctests
+passed.
+
+Only in the scratch copy, each embed then became an empty string. The copy
+also became a jj workspace, because the tests of `prompt.rs` resolve the
+repository as one. Clippy passed. Nextest ran 1345 tests, with 1337 passed,
+8 failed and 25 skipped. Each failure is in a class of
+`engineering-removal-k204`:
+
+| Test | Class | Cause |
+| --- | --- | --- |
+| Four tests of `composition_guidance.rs` | Named read | The doubt assertions. Each names `doubt-driven-development/SKILL.md` |
+| `every_session_kind_is_named_by_the_provisioned_taxonomy` | Named read | The doubt assertion of `session_kind_guidance.rs` |
+| `no_skill_file_writes_a_plugin_qualified_name` | Named read | `MOVING_KIND_OPENINGS` lists `grove-impl/SKILL.md` |
+| `the_kind_table_agrees_with_core_and_counts_no_set` | Kind table row | The core row `impl` has no `grove-impl` skill in core |
+| `the_filename_classifier_separates_the_current_grammar_from_its_predecessor` | Kind table row | The label set is core's walk plus the external rows of the kind table. `impl` is in neither, so `02-impl-k3.md` reads as `MissingKind` |
+
+The two kind table failures end when the removal names `EngineeringSkills`
+in the rows `impl` and `prototype`. The walks of core's shipped skills kept
+their floors: `shipped_kinds` and the shared label walk found eight
+`grove-<kind>` directories.
+
+Before the copy took the changed native test, that test also failed, with
+the diagnostic `the installer did not supply grove-impl`. Before the copy was a
+jj workspace, 16 tests of `prompt.rs` also failed with `NotAWorkspace`. That
+cause is the scratch setup, not the removal.
+
+### Checks of the consumer retargeting
+
+`bash scripts/check.sh` passed all 21 principal checks on the Grove line, with
+1345 Rust tests. Core alone gave 111 single-source checks and 1704
+loaded-path checks. The control suite gave 98 passed. `GROVE_TEST_RAVEL`
+resolved to the installed Ravel 1.1.0,
+`/opt/homebrew/Cellar/ravel/1.1.0/bin/ravel`, SHA-256
+`c52f990b2059c8bbe8efba10a741d3a0311000ac1712d71e882638f54c3ac1ed`. The
+changed files had the same digests before and after the run. No check reads
+this record.

@@ -37,6 +37,20 @@ the engineering craft into its craft directory: the six coding styles,
 The first child plans this node from the membership decisions and from the
 evidence of the earlier pack moves.
 
+engineering-pack-plan-k178 cut three leaves. Each leaf leaves Grove's
+`bash scripts/check.sh` green.
+
+1. `impl-consumer-retarget-k202`: the Grove-only step for the consumers of
+   `grove-impl`. The conformance controls stop copying a moving kind. A scratch
+   removal proves that no other Grove check reads a moving file.
+2. `engineering-pack-repository-k203`: the expand step. It publishes the first
+   pack commit with the pack's doubt check. Grove still ships its copies.
+3. `engineering-removal-k204`: the contraction step. It removes the kinds and
+   the craft skills with every consumer, and it publishes the second pack
+   commit.
+
+This move owes the base proofs only, so the node has no trial leaf.
+
 ## Notes
 
 `impl` is the kind that Grove's own tests and trial cases use most. Plan the

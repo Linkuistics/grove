@@ -36,6 +36,19 @@ Then remove the empty `linkuistics` plugin from Grove.
 The first child plans this node from the membership decisions. This is the
 last craft move, so it also removes the `linkuistics` plugin shell.
 
+personal-pack-plan-k184 cut three leaves. Each leaf leaves Grove's
+`bash scripts/check.sh` green. No leaf changes the owner's native plugins.
+The owner's harness therefore keeps its personal skills until rollout.
+
+1. `personal-pack-repository-k212`: the expand commit. It creates the pack
+   with the craft root, the `guardrail` plugin and their dependency. It
+   adds the pack's checks and the installer proof.
+2. `guardrail-plugin-trial-k213`: the native trial in an isolated Claude
+   Code home. It repairs the layout before the removal if a reading fails.
+3. `personal-removal-k214`: the contraction. It removes
+   `plugins/linkuistics`, changes Grove's marketplace and reconciles each
+   consumer and the record.
+
 ## Notes
 
 pack-membership-k171 gives the always-on hooks of `technical-communication`

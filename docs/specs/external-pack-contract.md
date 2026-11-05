@@ -916,7 +916,8 @@ applies it.
   `~/Development/Delivery/skill-marketplace`.
 - **Checks of craft skills.** The methodology's conformance covers kind
   directories. A pack's craft skills keep the checks of their own repository.
-- **The editorial family.** It stays in the spine until WritingSkills moves.
+- **The editorial family.** This contract kept it in the spine. Its move to
+  WritingSkills follows `docs/specs/pack-membership.md`.
 - **A kind registry.** Neither executable reads a pack to admit a kind. The
   conformance checks read content only.
 - **Simpler review and integration.** That work is

@@ -67,7 +67,7 @@ tokens itself, at the two places it writes a leaf with no session to delegate to
 | `prototype` | `review-prototype` | `integrate-review-prototype` | `EngineeringSkills` |
 | `impl` | `review-impl` | `integrate-review-impl` | `EngineeringSkills` |
 | `research-a` + `research-b` | — | `combine-research` | `ResearchSkills` |
-| `draft` → `copy-edit` → `art` → `proof` | — | — | `grove` |
+| `draft` → `copy-edit` → `art` → `proof` | — | — | `WritingSkills` |
 | `finish` — driver-reserved | — | — | `grove` |
 
 **A `—` says the kind takes no step of that species at all** — not that one is
@@ -95,7 +95,8 @@ chain of reviews. Each stage is a producer that reads the whole document and
 *fixes* within its own charter, so the stage after it is not a review of it and
 takes no `review-`/`integrate-review-` pair; the stages are also mandatory rather
 than lazy, because which of them exist was measured. The four share one family
-file in the spine, which each of their skills directs a load of by name.
+file, the family skill `editorial-family` of WritingSkills, which each of their
+skills directs a load of by name.
 
 `finish` is the driver's own complete-finish-cycle sentinel: the grow verbs
 refuse to create one, retire, prune and decompose refuse it as an operand, and

@@ -128,3 +128,19 @@ large for one session, decompose it. Each Grove commit must still pass
 
 The paused editorial grove reads the moved kinds. Do not edit its tree or
 signal its sessions.
+
+## Decisions (running log)
+
+- The positive control of `no_skill_file_writes_a_plugin_qualified_name` now
+  pairs each `NOT_SKILL_NAMES` token with one shipped file that holds it:
+  `ravel:review` in `configure-grove/SKILL.md` and `path:line` in
+  `grove/references/decompose.md`. The control asserts that the enumeration
+  finds each token in its file.
+- The two lists under "Rule placement" in `external-pack-contract.md` stay.
+  They are the account of the changes of grove-research-removal-k158.
+  `pass-series.md` names the `editorial-family` skill in its two present-tense
+  claims. The "Out of scope" item of the contract no longer says that the
+  family stays in the spine.
+- The fatness rule of `plugins/grove/README.md` keeps the branch "a family that
+  core ships alone", without an example. No such family exists after this
+  move, but the rule still covers a future one.

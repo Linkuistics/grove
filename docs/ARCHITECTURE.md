@@ -109,7 +109,7 @@ plugins. Ravel is an independently delivered runtime dependency:
 | Grove CLI | `crates/` | Homebrew and the release archives install `grove` and `grove-llm`. |
 | Grove caller assets | `assets/ravel-policy/` | One set for each admitted Ravel major: TypeScript for 1.x and Rhai for 2.x. Grove archives/formula install `libexec/ravel-policy`; the formula depends on separately versioned Ravel. [Delivery boundary](grove-delivery-contraction.md). |
 | Agent skill plugins | `plugins/grove/`, `plugins/linkuistics/` | Claude marketplace, or `plugins/install.sh` for Codex, Gemini CLI and Pi. The user chooses and maintains the route. |
-| External packs | Other repositories, such as `plugins/requirements/` in RequirementsSkills, `plugins/design/` in DesignSkills, `plugins/engineering/` in EngineeringSkills, `plugins/research/` in ResearchSkills and `plugins/testanyware/` in TestAnyware | The marketplace pins each with a `git-subdir` source and a `sha`. `plugins/install.sh --pack <dir>` installs a checkout. [External pack contract](specs/external-pack-contract.md). |
+| External packs | Other repositories, such as `plugins/requirements/` in RequirementsSkills, `plugins/design/` in DesignSkills, `plugins/engineering/` in EngineeringSkills, `plugins/research/` in ResearchSkills, `plugins/writing/` in WritingSkills and `plugins/testanyware/` in TestAnyware | The marketplace pins each with a `git-subdir` source and a `sha`. `plugins/install.sh --pack <dir>` installs a checkout. [External pack contract](specs/external-pack-contract.md). |
 
 Their documented interfaces evolve together. `plugins/` is the authoritative
 skill source. Neither binary embeds or installs it
@@ -927,12 +927,13 @@ token it selects a command for. **Grove holds no set of them**
 well-formed token — lowercase ASCII letters, digits and single hyphens, no `--` —
 and the kinds that *exist* are the `grove-<kind>` skills the installed
 methodology ships. The tables below list the methodology's current kinds, not
-the binary's. Core ships `planning` with its two steps, the editorial stages
-and `finish`. The requirements kinds ship in the RequirementsSkills pack, and
-the design kinds ship in the DesignSkills pack. The impl and prototype kinds
-ship in the EngineeringSkills pack, and the research kinds ship in the
-ResearchSkills pack. Adding another is authoring a skill and routing the kind in
-a policy, never editing this repository's Rust.
+the binary's. Core ships `planning` with its two steps, and `finish`. The
+requirements kinds ship in the RequirementsSkills pack, and the design kinds
+ship in the DesignSkills pack. The impl and prototype kinds ship in the
+EngineeringSkills pack, and the research kinds ship in the ResearchSkills pack.
+The editorial stages ship in the WritingSkills pack. Adding another is
+authoring a skill and routing the kind in a policy, never editing this
+repository's Rust.
 
 **Grove spells a kind token only where it writes the leaf itself**, with no
 session to delegate to, and only for a leaf it can recognise afterwards: the

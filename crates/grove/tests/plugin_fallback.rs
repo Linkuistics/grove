@@ -35,7 +35,7 @@
 //! each one, so a qualified name under any plugin fails, not only a known one.
 //!
 //! Controls stand over both sweeps: a positive control that the known citations
-//! and the retained openings are found, a normalisation control that markup and
+//! and the known non-skill tokens are found, a normalisation control that markup and
 //! 80-column wrapping do not hide one, and negative controls that an
 //! unregistered citation and a qualified name in a fabricated corpus are caught.
 //!
@@ -467,19 +467,14 @@ fn an_ordinary_task_completes_without_reading_a_plugin_skill() {
     }
 }
 
-/// The kinds that leave core in a later move. Each keeps its `grove:grove`
-/// opening until its own move changes those bytes, as the external pack
-/// contract assigns. No other file may write a plugin-qualified name.
-const MOVING_KIND_OPENINGS: &[&str] = &[
-    "grove-art/SKILL.md",
-    "grove-copy-edit/SKILL.md",
-    "grove-draft/SKILL.md",
-    "grove-proof/SKILL.md",
+/// Colon-joined tokens that name no skill, each with one shipped file that
+/// holds it: the Taskfile target in `configure-grove`, and the `path:line`
+/// coordinate form of a finding. No shipped file may write a plugin-qualified
+/// name.
+const NOT_SKILL_NAMES: &[(&str, &str)] = &[
+    ("ravel:review", "configure-grove/SKILL.md"),
+    ("path:line", "grove/references/decompose.md"),
 ];
-
-/// Colon-joined tokens that name no skill: the Taskfile target in
-/// `configure-grove`, and the `path:line` coordinate form of a finding.
-const NOT_SKILL_NAMES: &[&str] = &["ravel:review", "path:line"];
 
 /// Every `<word>:<word>` token in `text`, where a word is lower-case letters,
 /// digits and hyphens. A URL scheme is followed by `/`, so it yields no token.
@@ -508,17 +503,15 @@ fn colon_tokens(text: &str) -> Vec<String> {
     tokens
 }
 
-/// The tokens of `corpus` that are neither a retained opening nor a known
-/// non-skill token, as `(file, token)` pairs.
+/// The tokens of `corpus` that are not a known non-skill token, as
+/// `(file, token)` pairs.
 fn unclassified_tokens(corpus: &BTreeMap<String, String>) -> BTreeSet<(String, String)> {
     corpus
         .iter()
         .flat_map(|(path, text)| {
             colon_tokens(text).into_iter().filter_map(move |token| {
-                let retained =
-                    token == "grove:grove" && MOVING_KIND_OPENINGS.contains(&path.as_str());
-                let not_a_skill = NOT_SKILL_NAMES.contains(&token.as_str());
-                (!retained && !not_a_skill).then(|| (path.clone(), token))
+                let not_a_skill = NOT_SKILL_NAMES.iter().any(|(known, _)| *known == token);
+                (!not_a_skill).then(|| (path.clone(), token))
             })
         })
         .collect()
@@ -538,16 +531,16 @@ fn no_skill_file_writes_a_plugin_qualified_name() {
          `<word>:<word>` token. Name the skill bare, or classify the token here."
     );
 
-    // Positive control: the enumeration finds each retained opening, so a broken
-    // scanner cannot read as a clean corpus.
-    for path in MOVING_KIND_OPENINGS {
+    // Positive control: the enumeration finds each known non-skill token in the
+    // file that holds it, so a broken scanner cannot read as a clean corpus.
+    for (token, path) in NOT_SKILL_NAMES {
         let text = corpus
             .get(*path)
             .unwrap_or_else(|| panic!("{path} must be a shipped skill file"));
         assert!(
-            colon_tokens(text).contains(&"grove:grove".to_owned()),
-            "{path} is listed as a retained opening and must still hold one; a moved \
-             kind leaves this list in the same change"
+            colon_tokens(text).contains(&(*token).to_owned()),
+            "the enumeration must find `{token}` in {path}; if the file no longer \
+             writes it, name another file that does"
         );
     }
 
@@ -576,7 +569,7 @@ fn no_skill_file_writes_a_plugin_qualified_name() {
 }
 
 /// Negative control on the enumeration: a qualified name under a plugin that no
-/// list knows is caught, and so is the spine's alias outside a retained opening.
+/// list knows is caught, and so is the spine's alias.
 #[test]
 fn a_qualified_name_is_caught() {
     let fabricated: BTreeMap<String, String> = [

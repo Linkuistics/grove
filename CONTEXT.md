@@ -141,16 +141,17 @@ it is in the spine's `references/`. In an external pack it is that pack's
 [[Family skill]]. A family whose kinds ship in several packs keeps its file in
 the spine's `references/`.
 
-In the spine the files are `review.md` for the five `review-*` kinds,
-`integrate-review.md` for the five `integrate-review-*` kinds and `editorial.md`
-for the four stages of the publishing pipeline. Core ships one kind of each of
-the first two families, the steps of `planning`. RequirementsSkills ships
+In the spine the files are `review.md` for the five `review-*` kinds and
+`integrate-review.md` for the five `integrate-review-*` kinds. Core ships one
+kind of each family, the steps of `planning`. RequirementsSkills ships
 `review-requirements` and `integrate-review-requirements`, and DesignSkills
 ships `review-design` and `integrate-review-design`. EngineeringSkills ships
-the `review-` and `integrate-review-` kinds of `prototype` and `impl`. In
-ResearchSkills the file is
-the family skill `research-family`, for `research-a` and `research-b`. The
+the `review-` and `integrate-review-` kinds of `prototype` and `impl`. The
 spine's `SKILL.md` lists only the spine's own family files.
+
+In ResearchSkills the file is the family skill `research-family`, for
+`research-a` and `research-b`. In WritingSkills it is the family skill
+`editorial-family`, for the four stages of the publishing pipeline.
 
 Each member's [[Kind skill]] directs a load of its family's file **by name**, in
 its opening imperative. A directed load is not a selection. A spine family file
@@ -184,9 +185,10 @@ duplicated prose is the drift risk one level down from the one being removed.
 
 The skill that carries the [[Family reference file]] of a family whose kinds
 all ship in one external pack. Its name is `<family>-family`, such as
-`research-family` in ResearchSkills. A family skill is not a kind, because its
-name has no `grove-` prefix. `docs/specs/external-pack-contract.md`, "The
-family procedure", states its rules.
+`research-family` in ResearchSkills and `editorial-family` in WritingSkills. A
+family skill is not a kind, because its name has no `grove-` prefix.
+`docs/specs/external-pack-contract.md`, "The family procedure", states its
+rules.
 
 Each member's [[Kind skill]] loads it by name, after the spine. It is the only
 copy of the family file.
@@ -284,8 +286,7 @@ for marketplace and manual delivery
 owns that delivery vocabulary). The **spine** is one skill, `grove`,
 carrying every rule shared across families — the numbered constraints, the
 [[Loop-step reference file]] set, the format documents, and the spine's
-*family* files (the five reviews, the five integrations, the four editorial
-stages). A
+*family* files (the five reviews and the five integrations). A
 **kind skill** is `grove-<kind>`, carrying inline what that kind alone owns, and
 directing a load of a family file **by name** where its family owns the rule.
 The third species is the [[Family skill]] of an external pack. It is not a
@@ -623,14 +624,15 @@ metadata, not identity: the stable [[Work-item handle]] remains `<slug>-k<key>`.
 reserved marker — and grove holds no enumeration of them. Which kinds *exist* is
 which `grove-<kind>` [[Kind skill]]s are installed. The methodology's kinds ship
 in several packs, so no count of the whole set is kept. Core ships the
-producer `planning` with its `review-` and `integrate-review-` kind, the four
-editorial stages (`draft`, `copy-edit`, `art`, `proof`) and the driver-reserved
-`finish`. RequirementsSkills
+producer `planning` with its `review-` and `integrate-review-` kind, and the
+driver-reserved `finish`. RequirementsSkills
 ships `requirements`, `review-requirements` and `integrate-review-requirements`.
 DesignSkills ships `design`, `review-design` and `integrate-review-design`.
 EngineeringSkills ships the producers `prototype` and `impl`, each with its
 `review-` and `integrate-review-` kind.
-ResearchSkills ships `research-a`, `research-b` and `combine-research`. Grove spells
+ResearchSkills ships `research-a`, `research-b` and `combine-research`.
+WritingSkills ships the four editorial stages (`draft`, `copy-edit`, `art`,
+`proof`). Grove spells
 two of those tokens and no others, at the two places it writes a leaf itself:
 `requirements` for root scaffolding and `finish` for the teardown sentinel.
 No tree verb asks whether a kind can launch: a kind the owner's Ravel policy

@@ -5,7 +5,7 @@
 Two Claude Code plugins live here — `grove` and `linkuistics` —
 published through the marketplace declared in
 [`../.claude-plugin/marketplace.json`](../.claude-plugin/marketplace.json). The
-marketplace also lists `requirements`, `design`, `engineering`, `research` and `testanyware`, which live in their own
+marketplace also lists `requirements`, `design`, `engineering`, `research`, `writing` and `testanyware`, which live in their own
 repositories and which it pins by commit. The two plugins here
 share this repo with the Grove CLI because the two change in lockstep
 ([architecture](../docs/ARCHITECTURE.md#skills-monorepo)); they ship by their own
@@ -158,6 +158,19 @@ plugin declares a dependency on `grove`, so a Claude Code install also installs
 the spine. [`docs/specs/external-pack-contract.md`](../docs/specs/external-pack-contract.md)
 states the contract that the pack follows.
 
+## `writing` — the editorial kinds, from WritingSkills
+
+The editorial kinds `draft`, `copy-edit`, `art` and `proof` ship in their own
+repository, [WritingSkills](https://github.com/Linkuistics/WritingSkills). Its
+plugin `writing` also holds the `editorial-family` skill, the procedure that
+the four stages share. This repository holds no copy of those skills.
+
+The marketplace lists `writing` with a `git-subdir` source. That source names
+`plugins/writing` and pins one WritingSkills commit in `sha`. Grove's
+`task check:packs` checks the pinned commit alone and with this tree's core.
+The plugin declares a dependency on `grove`, so a Claude Code install also
+installs the spine.
+
 <!-- tc: pending because the conversion has not reached this part of the document -->
 
 ## `linkuistics` — practice skills
@@ -216,6 +229,7 @@ source directory and its checks. The plugin installs independently of
 /plugin install design@linkuistics
 /plugin install engineering@linkuistics
 /plugin install research@linkuistics
+/plugin install writing@linkuistics
 /plugin install linkuistics@linkuistics
 /plugin install testanyware@linkuistics
 ```
@@ -330,19 +344,23 @@ frontmatter.
 **An external pack needs `--pack`.** The requirements kinds are in
 RequirementsSkills. The design kinds and the design craft skills are in
 DesignSkills. The engineering kinds and the engineering craft skills are in
-EngineeringSkills, and the research kinds are in ResearchSkills. The plain run
-above therefore installs none of them. Make a checkout of each pack and name
-its plugin directory:
+EngineeringSkills. The research kinds are in ResearchSkills, and the editorial
+kinds are in WritingSkills. The plain run above therefore installs none of
+them.
+
+Make a checkout of each pack and name its plugin directory:
 
 ```
 git clone https://github.com/Linkuistics/RequirementsSkills.git
 git clone https://github.com/Linkuistics/DesignSkills.git
 git clone https://github.com/Linkuistics/EngineeringSkills.git
 git clone https://github.com/Linkuistics/ResearchSkills.git
+git clone https://github.com/Linkuistics/WritingSkills.git
 ./plugins/install.sh --pack ../RequirementsSkills/plugins/requirements \
   --pack ../DesignSkills/plugins/design \
   --pack ../EngineeringSkills/plugins/engineering \
-  --pack ../ResearchSkills/plugins/research
+  --pack ../ResearchSkills/plugins/research \
+  --pack ../WritingSkills/plugins/writing
 ```
 
 The TestAnyware skill is also outside this repository. Name the plugin
@@ -395,7 +413,7 @@ and delivery boundary is described in
 
 <!-- tc: on -->
 
-The `requirements`, `design`, `engineering`, `research` and `testanyware` plugins are the exceptions. The marketplace
+The `requirements`, `design`, `engineering`, `research`, `writing` and `testanyware` plugins are the exceptions. The marketplace
 entry of each pins a commit of its own repository in `sha`. Claude Code
 delivers that commit until a Grove commit moves the pin. The pin gives native
 users the commit that Grove's `task check:packs` accepted. For `testanyware`,

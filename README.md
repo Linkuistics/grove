@@ -95,6 +95,7 @@ For Claude Code:
 /plugin install design@linkuistics
 /plugin install engineering@linkuistics
 /plugin install research@linkuistics
+/plugin install writing@linkuistics
 /plugin install linkuistics@linkuistics
 /plugin install testanyware@linkuistics
 ```
@@ -125,8 +126,12 @@ The marketplace pins one EngineeringSkills commit for it.
 
 `research@linkuistics` supplies the research kinds from the
 [ResearchSkills](https://github.com/Linkuistics/ResearchSkills) repository. The
-marketplace pins one ResearchSkills commit for it. `testanyware@linkuistics`
-supplies the TestAnyware GUI-testing skill from the
+marketplace pins one ResearchSkills commit for it.
+
+`writing@linkuistics` supplies the editorial kinds `draft`, `copy-edit`, `art`
+and `proof` from the [WritingSkills](https://github.com/Linkuistics/WritingSkills)
+repository. The marketplace pins one WritingSkills commit for it.
+`testanyware@linkuistics` supplies the TestAnyware GUI-testing skill from the
 [TestAnyware](https://github.com/Linkuistics/TestAnyware) repository. The
 marketplace pins one TestAnyware commit for it.
 
@@ -151,7 +156,8 @@ and name its plugin directory:
 ./plugins/install.sh --pack /path/to/RequirementsSkills/plugins/requirements \
   --pack /path/to/DesignSkills/plugins/design \
   --pack /path/to/EngineeringSkills/plugins/engineering \
-  --pack /path/to/ResearchSkills/plugins/research
+  --pack /path/to/ResearchSkills/plugins/research \
+  --pack /path/to/WritingSkills/plugins/writing
 ```
 
 To install the TestAnyware skill, name the plugin directory of a TestAnyware

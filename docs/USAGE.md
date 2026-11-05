@@ -148,7 +148,8 @@ named by an absolute path:
       { "id": "requirements", "type": "local", "path": "/absolute/path/to/requirements-checkout/plugins/requirements", "roots": ["skills"] },
       { "id": "design", "type": "local", "path": "/absolute/path/to/design-checkout/plugins/design", "roots": ["skills", "craft"] },
       { "id": "engineering", "type": "local", "path": "/absolute/path/to/engineering-checkout/plugins/engineering", "roots": ["skills", "craft"] },
-      { "id": "research", "type": "local", "path": "/absolute/path/to/research-checkout/plugins/research", "roots": ["skills"] }
+      { "id": "research", "type": "local", "path": "/absolute/path/to/research-checkout/plugins/research", "roots": ["skills"] },
+      { "id": "writing", "type": "local", "path": "/absolute/path/to/writing-checkout/plugins/writing", "roots": ["skills"] }
     ],
     "mandatory": []
   }
@@ -164,7 +165,9 @@ the kinds, and its root `craft` holds the craft skills.
 The impl and prototype kinds and the engineering craft skills ship in the EngineeringSkills
 repository. The fourth source names a checkout of it, with the same two roots. The research
 kinds ship in the ResearchSkills repository, so the fifth source names a checkout of it. Leave
-that source out if you run no research leaf.
+that source out if you run no research leaf. The editorial kinds ship in the WritingSkills
+repository, so the sixth source names a checkout of it. Leave that source out if you run no
+editorial leaf.
 
 A `mandatory` entry names a file that the agent reads before your task. No Grove skill
 must be mandatory, because the mandate names the kind skill. Your configuration must pass

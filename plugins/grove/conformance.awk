@@ -456,7 +456,6 @@ function sorted_join(list, n,   i, j, t, s) {
 #   static({a,b})               the listed kinds that the run ships
 #   static(review-*)            the review kinds, in any pack
 #   static(integrate-review-*)  the integration kinds, in any pack
-#   static(editorial)           draft, copy-edit, art and proof, until their move
 #   on(t) @ F                   each kind whose loaded path holds file F
 function bound_kinds(load, out,   n, set, k, kind, names, wanted, m, j, trigger, found, at) {
   n = 0
@@ -468,16 +467,14 @@ function bound_kinds(load, out,   n, set, k, kind, names, wanted, m, j, trigger,
         gsub(/^[ \t]+|[ \t]+$/, "", names[j])
         wanted[names[j]] = 1
       }
-    } else if (set != "all" && set != "review-*" && set != "integrate-review-*" \
-      && set != "editorial") {
+    } else if (set != "all" && set != "review-*" && set != "integrate-review-*") {
       return -1
     }
     for (k = 1; k <= nkinds; k++) {
       kind = kind_list[k]
       if (set == "all" || (kind in wanted) \
         || (set == "review-*" && kind ~ /^review-/) \
-        || (set == "integrate-review-*" && kind ~ /^integrate-review-/) \
-        || (set == "editorial" && (kind == "draft" || kind == "copy-edit" || kind == "art" || kind == "proof")))
+        || (set == "integrate-review-*" && kind ~ /^integrate-review-/))
         out[++n] = kind
     }
     return n

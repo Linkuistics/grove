@@ -35,13 +35,13 @@ file is:
 
 - When one external pack ships every kind of the family, the file is that
   pack's family skill. The research pair's file is the `research-family` skill
-  of ResearchSkills.
+  of ResearchSkills. The four editorial stages' file is the `editorial-family`
+  skill of WritingSkills.
 - Otherwise the file is in the spine's `references/`. That covers a family that
-  core ships alone, such as the four editorial stages. It also covers a family
-  whose kinds ship in several packs, such as the five reviews and the five
-  integrations. Their requirements members ship in RequirementsSkills, and
-  their design members ship in DesignSkills. Their impl and prototype members
-  ship in EngineeringSkills.
+  core ships alone. It also covers a family whose kinds ship in several packs,
+  such as the five reviews and the five integrations. Their requirements
+  members ship in RequirementsSkills, and their design members ship in
+  DesignSkills. Their impl and prototype members ship in EngineeringSkills.
 
 <!-- tc: pending because the conversion has not reached this part of the document -->
 
@@ -52,9 +52,9 @@ and
 make checkable.
 
 So the spine carries `SKILL.md`, the five format documents, the seven shared
-loop-step references, and the family files of `review`, `integrate-review` and
-`editorial`. It carries no kind reference and no list of kinds: **a kind exists
-iff a skill of that name exists.**
+loop-step references, and the family files of `review` and `integrate-review`.
+It carries no kind reference and no list of kinds: **a kind exists iff a skill
+of that name exists.**
 
 **What "inline" means, concretely.** A single-kind rule is in the body of that
 kind's own `SKILL.md` — not in a `references/` file the skill points at. The
@@ -65,8 +65,9 @@ and two are thin: core's `review-planning` and `integrate-review-planning` each
 state their identity and
 direct one load, because everything else they obey belongs to their family and
 the family's text is the spine's. The READMEs of RequirementsSkills,
-DesignSkills, EngineeringSkills and ResearchSkills describe their kinds. The four
-editorial stages (`draft`, `copy-edit`, `art`, `proof`) are the one hybrid: each
+DesignSkills, EngineeringSkills, ResearchSkills and WritingSkills describe their
+kinds. The four editorial stages (`draft`, `copy-edit`, `art`, `proof`) of
+WritingSkills are the one hybrid: each
 directs a load of its family's file *and* carries its own charter inline, because
 what the four share is the pipeline's mechanics and what divides them is the
 whole point of having four.
@@ -138,6 +139,7 @@ parameter to policy; naming the session belongs to the methodology.
 /plugin install design@linkuistics
 /plugin install engineering@linkuistics
 /plugin install research@linkuistics
+/plugin install writing@linkuistics
 /plugin install linkuistics@linkuistics
 /plugin install testanyware@linkuistics
 ```

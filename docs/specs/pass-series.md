@@ -121,7 +121,7 @@ narrow case the ADR's marker-token trade-off turns on, and it is named there.
 **The steps of a pass are cut lazily, one at a time.** Each step's last act cuts
 the next — unless a live later sibling under the pass node already holds it, in
 which case it cuts nothing. That condition is read off the node's live entries;
-there is no field. This is `references/editorial.md`'s rule and
+there is no field. This is the `editorial-family` skill's rule and
 `a-feedback-edge-is-forward-tree-growth`'s reasoning, reused unchanged: cutting
 late is what lets the cutting session write the next body with the case it has
 just met, and the condition is what stops a queue regrowing its own tail.
@@ -256,7 +256,7 @@ advance*. The two alternatives are rejected on the same evidence:
   and a series has no session of its own — its passes run `impl`, `draft`,
   whatever the series declares. No leaf would ever carry the kind, so nothing
   would launch it.
-- **A family reference file**, as `references/editorial.md` is for the four
+- **A family reference file**, as the `editorial-family` skill is for the four
   editorial kinds. A family file is loaded because a member's skill named it, and
   a series has no member kinds — so nothing would name it and nothing would load
   it.

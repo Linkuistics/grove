@@ -25,7 +25,8 @@ Claude Code's packaging unit — `plugins/<name>/` holding `.claude-plugin/plugi
 and a `skills/` directory — and a Claude Code concept only; other harnesses receive
 the same [[Skill]] directories by [[Symlink install]]. Two ship here: `grove` and
 `linkuistics`. The marketplace also lists `requirements`, `design`,
-`engineering`, `research` and `testanyware`, which their own repositories ship.
+`engineering`, `research`, `writing` and `testanyware`, which their own
+repositories ship.
 
 <!-- tc: on -->
 

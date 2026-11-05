@@ -1,6 +1,6 @@
 {
   "name": "linkuistics",
-  "description": "Grove's session methodology, coding standards, software design, project simplification, and version-control disciplines as lazily loaded agent skills, plus GUI testing in isolated VMs. Seven plugins: grove, requirements, design, engineering, research, linkuistics and testanyware.",
+  "description": "Grove's session methodology, coding standards, software design, project simplification, and version-control disciplines as lazily loaded agent skills, plus GUI testing in isolated VMs. Eight plugins: grove, requirements, design, engineering, research, writing, linkuistics and testanyware.",
   "owner": {
     "name": "Antony Blakey",
     "email": "antony.blakey@gmail.com"
@@ -24,7 +24,7 @@
     {
       "name": "grove",
       "source": "./plugins/grove",
-      "description": "Grove's methodology spine: the seven constraints, the bootstrap, execution, decomposition, retirement and commit procedures, the review, integration and editorial family files, and the five format documents."
+      "description": "Grove's methodology spine: the seven constraints, the bootstrap, execution, decomposition, retirement and commit procedures, the review and integration family files, and the five format documents."
     },
     {
       "name": "requirements",
@@ -65,6 +65,16 @@
         "sha": "dc3a4812db3b0dbfef42c8cd6a0aa291e43dd545"
       },
       "description": "Grove's research kinds: the research-a and research-b survey pair, their shared procedure, and the combine step."
+    },
+    {
+      "name": "writing",
+      "source": {
+        "source": "git-subdir",
+        "url": "https://github.com/Linkuistics/WritingSkills.git",
+        "path": "plugins/writing",
+        "sha": "694140a18dc736c272c5a16588253710a92844fb"
+      },
+      "description": "Grove's editorial kinds: the draft, copy-edit, art and proof stages of a document's publishing pipeline, and their shared procedure."
     }
   ]
 }

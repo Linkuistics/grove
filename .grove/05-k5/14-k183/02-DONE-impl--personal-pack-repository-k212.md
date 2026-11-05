@@ -110,3 +110,28 @@ Do not install, update or remove a plugin in the owner's home. A session
 that reads a personal skill during this move reads the owner's native copy
 until rollout's switch. The mise entry of the checkout is rollout's work, by
 order 6 of the cutover contract.
+
+## Decisions (running log)
+
+- The source Grove commit is `4cfac62958815219ba5a71941674244a05ff9b56`, the
+  head of Grove's public bookmark `gh-issue-25`. No moving file changed
+  between it and `0eacec3a47b2`, the parent of this leaf's Grove change.
+- The plugin names are `personal` and `guardrail`. `personal` equals the
+  Ravel source ID, as `research`, `design` and `writing` do. `guardrail` is
+  the name of the native residue and of its one skill.
+- The dependency stays. The expand found no reason against it. `guardrail`
+  is user-invoked, so a native user of `personal` pays no standing context.
+- `authoring-conventions` keeps its bytes. "This marketplace" names the
+  Linkuistics marketplace, which lists the pack after the removal. "This
+  repo" names the repository whose skill the author edits.
+- The pack adds `check:frontmatter`. Grove's `install.test.sh` checks that
+  each bundled skill declares `harnesses:`, and the removal ends that check
+  for these skills. The same task checks `disable-model-invocation: true` on
+  the two user-invoked skills.
+- The installer proof runs Grove's `install.sh` from a scratch export of the
+  source commit without `plugins/linkuistics`. Grove's live tree refuses the
+  pack, because both plugins ship the same skill names.
+- The pack commit is `ac98636608b013391bf4b4ca0dc6c9c1506ff9d0`. The
+  classifier refused `gh repo create` inside a compound command. The owner
+  had already allowed `Bash(gh repo create *)`, and the command alone ran.
+  The public `main` is that commit.

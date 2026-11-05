@@ -2896,3 +2896,261 @@ marketplace with a copy of the plugin at `./plugins/tc` listed
 `technical-communication@inside-test`. A marketplace-only repository therefore
 cannot list the Codex hooks plugin through a `local` source. This reading
 covers `local` sources only, and no other Codex source type was tried.
+
+## PersonalSkills
+
+`personal-pack-repository-k212` created PersonalSkills on 2026-11-05. This is
+the expand commit of `personal-pack-k183`. Grove keeps its `linkuistics`
+plugin, its copies of the four skills and its marketplace entry until
+`personal-removal-k214`. The pack holds no kind skill, so no Grove check reads
+it at this commit.
+
+### Source of the personal pack
+
+| Subject | Value |
+| --- | --- |
+| Repository | `~/Development/AgenticOrchestration/PersonalSkills`, colocated Git and Jujutsu. Remote `origin` is `https://github.com/Linkuistics/PersonalSkills.git` |
+| Pack commit | `ac98636608b013391bf4b4ca0dc6c9c1506ff9d0`, a root commit. The jj bookmark `main` and the public `main` |
+| Source directory | `plugins/personal`. It is the root of the Claude Code plugin `personal` and the Ravel source directory |
+| Ravel roots | `["craft"]`. `craft/` holds `machine-environment`, `using-jujutsu` and `authoring-conventions`. The source directory has no `skills/` |
+| Plugin manifest of `personal` | `"skills": ["./craft/"]` and `"dependencies": ["guardrail"]` |
+| `guardrail` plugin | Root `plugins/guardrail`, with `skills/guardrail/` and its two scripts. No Ravel root reaches it |
+| Git tree of `plugins/personal` | `23b39220f9ae5b974d54d71ae9e8435b7e206a64` |
+| Git tree of `plugins/guardrail` | `a5fb16931c82362a388818cd3bbb1d5f0d5bd53f` |
+| `resourceDigest` of `plugins/personal` | `4cb21f4d5b3b00917093e93da9a26ea530b3abd42f2b9e01a65a10725fd11167`, from a plain Git clone of the public remote and from the jj working copy |
+| Source Grove commit | `4cfac62958815219ba5a71941674244a05ff9b56`, the head of Grove's remote bookmark `gh-issue-25`. No moving file changed between it and `0eacec3a47b2`, the parent of this leaf's Grove change |
+| `GROVE_COMMIT` | None. The pack's checks read no Grove file |
+
+The commit holds 16 files. Eight are the tracked moving files of Grove. Each
+keeps its Grove path below the skill directory:
+
+| Grove path | Pack path |
+| --- | --- |
+| `plugins/linkuistics/skills/machine-environment/SKILL.md` | `plugins/personal/craft/machine-environment/SKILL.md` |
+| `plugins/linkuistics/skills/using-jujutsu/`, `SKILL.md` and two files in `references/` | `plugins/personal/craft/using-jujutsu/` |
+| `plugins/linkuistics/skills/authoring-conventions/SKILL.md` | `plugins/personal/craft/authoring-conventions/SKILL.md` |
+| `plugins/linkuistics/skills/guardrail/`, `SKILL.md` and two scripts | `plugins/guardrail/skills/guardrail/` |
+| The authoring table and the section of `using-jujutsu` in `plugins/linkuistics/PROVENANCE.md` | `plugins/personal/PROVENANCE.md` |
+| The section of `guardrail` in `plugins/linkuistics/PROVENANCE.md` | `plugins/guardrail/PROVENANCE.md` |
+
+The other files are the two manifests, the two provenance files, `LICENSE`,
+`README.md`, `Taskfile.yml` and `scripts/check-frontmatter.sh`. The licence is
+Apache-2.0, a copy of the DesignSkills file. The pack has no `.gitignore`,
+because no check writes a file.
+
+### Plugin names and the dependency of the personal pack
+
+- `personal` equals the Ravel source ID of `docs/specs/owner-skill-delivery.md`.
+  One name then identifies the pack on both routes, as for `research`,
+  `design` and `writing`.
+- `guardrail` is the name that the native residue of that design gives the
+  plugin. The plugin holds only the skill of that name, so the native
+  spelling is `guardrail:guardrail`.
+- The `personal` plugin declares `guardrail` in its `dependencies`. A native
+  user of `linkuistics@linkuistics` receives `guardrail` today, and the
+  dependency keeps that for a native user of `personal`. The expand found no
+  reason against it. `guardrail` is user-invoked, so it costs no standing
+  context. The README records the reason.
+- A bare dependency name resolves in the marketplace that lists the plugin.
+  Grove's marketplace lists neither plugin at this commit.
+  `personal-removal-k214` adds both entries.
+
+### Byte changes of the personal pack
+
+The digest is that of `docs/owner-skill-inventory.tsv`. A copy of the
+inventory's `digest()` function gave each value. The pack values come from the
+public clone.
+
+| Skill | Baseline digest and files | Grove at the source commit | Pack digest and files | Change |
+| --- | --- | --- | --- | --- |
+| `machine-environment` | `2316befd39ccda08`, 1 | `2316befd39ccda08`, 1 | `2316befd39ccda08`, 1 | None |
+| `using-jujutsu` | `f65e8aad7016cc9e`, 3 | `f65e8aad7016cc9e`, 3 | `6ede7529e799cba1`, 3 | Line 138 of `SKILL.md` names `using-git-worktrees`, where it named `superpowers:using-git-worktrees` |
+| `authoring-conventions` | `b0c2d7f9d8f044e2`, 1 | `b0c2d7f9d8f044e2`, 1 | `b0c2d7f9d8f044e2`, 1 | None |
+| `guardrail` | `36371cf57051b6ff`, 3 | `36371cf57051b6ff`, 3 | `36371cf57051b6ff`, 3 | None |
+
+The baseline values are those of the owner's Claude Code cache at Grove
+commit `238c3a839ab4`. The Codex rows of the inventory give
+`f1f7ecb6073f5668` for `machine-environment`. That value is the copy of the
+Grove 22.8 provisioning snapshot, which is older than Grove's file. The other
+Codex rows equal the Claude Code rows.
+
+The change in `using-jujutsu` applies rule 2 of "References between skills" in
+`docs/specs/external-pack-contract.md`. A sweep for code spans of the form
+`<word>:<word>` found only that name in the moving files. The same command
+found such a name in `plugins/grove/skills`, so the pattern works.
+
+The blob IDs of the other seven moved files equal Grove's. The Git modes
+equal Grove's: the two guardrail scripts have `100755`, and the other moved
+files have `100644`. The guardrail hook in the frontmatter names
+`${CLAUDE_PLUGIN_ROOT}/skills/guardrail/scripts/guardrail-hook.sh`, and the
+plugin root holds that path, so the hook keeps its bytes.
+`authoring-conventions` and `guardrail` keep
+`disable-model-invocation: true`.
+
+Each provenance file has its own title and opening paragraph. They name the
+source commit, and they state which sections the file holds. The moved
+sections keep their bytes, inside a `tc: off` region that states the reason.
+The paragraph of Grove's file about sections that moved to other packs stays
+in Grove. Each skill links to `../../PROVENANCE.md`, which resolves to the
+file of its own plugin.
+
+### The wording of authoring-conventions
+
+`authoring-conventions` says "this marketplace" and "this repo". In Grove
+those words named Grove's marketplace and repository. The words stay, and
+the README of the pack records the reading:
+
+- "This marketplace" names the Linkuistics marketplace, which lists the pack
+  after `personal-removal-k214`. If `skill-marketplace-decision-k201` removes
+  that marketplace, the phrase loses its referent.
+- "This repo" names the repository whose skill the author edits. The skill
+  does not apply to one repository only.
+- The claims about `install.sh` and `install.test.sh` describe Grove's
+  installer, which also installs the pack. The pack's `check:frontmatter`
+  holds the check of `harnesses:` for its own skills.
+
+The move does not repair two claims that were already stale in Grove. The
+skill counts "fourteen of our sixteen shipped skills", and it names "this
+repo's `claude-api` skill", which Grove does not ship.
+
+### Asset classification of the personal pack
+
+The enumeration searched the whole Grove tree with `rg --hidden` for the four
+skill names, `plugins/linkuistics` and `linkuistics/PROVENANCE`. It excluded
+`.git`, `.jj` and `target`, and it found 112 files. Each file is in one class
+of "The Grove assets of moving craft skills" in `docs/specs/pack-membership.md`.
+
+| Files | Test | Disposition |
+| --- | --- | --- |
+| The eight moving files and the two moved provenance sections | 2 | Copied to PersonalSkills. Grove keeps its copies until `personal-removal-k214` |
+| `plugins/linkuistics/.claude-plugin/plugin.json` and the rest of `plugins/linkuistics/PROVENANCE.md` | 1 | Stay. `personal-removal-k214` removes them |
+| The citation rows of `crates/grove/tests/plugin_fallback.rs` and the assertion of `commit_guidance.rs` | 1 | Stay. They read Grove's spine files under `plugins/grove/skills`, not a moving skill |
+| `crates/grove/tests/native_skill_delivery.rs` | 1 | Stays. It plants a dangling link named `machine-environment` in a scratch home |
+| `plugins/install.sh` and `plugins/install.test.sh` | 1 | Stay. Their comments name `guardrail`, and their fixtures use a plugin directory named `linkuistics`. The test of `harnesses:` reads Grove's bundled skills, and the pack's `check:frontmatter` covers the moved skills |
+| The spine files `references/execute.md`, `references/commit.md` and `references/grove.md` | 1 | Stay. They cite `machine-environment` and `using-jujutsu` by bare name |
+| `scripts/harness-trials/cases/discovery/case.json`, `problem-user-invoked/case.json` and the other trial cases | 1 | Stay. Two cases read `plugins/linkuistics` from a Grove commit. "The trial cases that name moving skills" of the membership design governs them in `personal-removal-k214` |
+| `.claude-plugin/marketplace.json`, `README.md`, `plugins/README.md`, `plugins/CONTEXT.md`, `CONTEXT-MAP.md` and `docs/ARCHITECTURE.md` | 1 | Stay. `personal-removal-k214` changes their entries and links |
+| `CHANGELOG.md`, the specifications, the design views and the earlier records | History and design | Stay |
+| `docs/owner-skill-inventory.tsv`, `inventory.py`, `docs/ravel-caller-surface-inventory.tsv`, `docs/owner-skill-delivery-evidence.md` and the evaluation records | 3 | Stay as the baseline evidence |
+
+No Grove test reads the bytes of a moving skill, as planning found. The pack
+therefore needs no `GROVE_COMMIT` and no Grove checkout.
+
+### Checks of the personal pack
+
+The checks ran in a plain Git clone of the pack commit from the public remote.
+After the run, the clone held no untracked or ignored file.
+
+- `check:plugin` passed for both plugins with one warning each, no `version`,
+  on Claude Code 2.1.318. The plugin-directory profile also named no icon.
+  It took the README of the repository root for each plugin folder.
+- `check:frontmatter` printed `4 skill(s) declare harnesses:, and 2
+  user-invoked skill(s) keep disable-model-invocation: true`.
+- `check:guardrail-test` printed `37 passed, 0 failed`.
+- `check:shellcheck` reported nothing for the two guardrail scripts and
+  `check-frontmatter.sh`, with ShellCheck 0.11.0.
+
+Grove's `scripts/check.sh` ran neither guardrail check. The pack's
+`check:frontmatter` replaces the test of `install.test.sh` that every bundled
+skill declares `harnesses:`. It also checks the two user-invoked skills.
+
+Each control failed once in a scratch copy of the pack, one mutation for each
+run. The unmutated copy passed `check:frontmatter`, `check:guardrail-test` and
+`check:shellcheck` first.
+
+| Mutation | Task | Reading |
+| --- | --- | --- |
+| The mutation removes the `rm -rf` entry of the `DANGER` table | `check:guardrail-test` | Three `FAIL` lines, then `34 passed, 3 failed` |
+| `guardrail-hook.sh` gains the line `echo $1` | `check:shellcheck` | SC2086 and SC2317 |
+| `guardrail-hook.test.sh` gains the line `echo $1` | `check:shellcheck` | SC2086 |
+| `check-frontmatter.sh` gains the line `echo $1` | `check:shellcheck` | SC2086 |
+| `machine-environment` loses `harnesses:` | `check:frontmatter` | "declares no harnesses:" |
+| `guardrail` loses `disable-model-invocation` | `check:frontmatter` | "guardrail lacks disable-model-invocation: true" |
+| `authoring-conventions` sets `disable-model-invocation: false` | `check:frontmatter` | "authoring-conventions lacks disable-model-invocation: true" |
+| The mutation removes both skill roots | `check:frontmatter` | "no SKILL.md" and two missing user-invoked skills |
+| The `personal` manifest has the name `Personal Skills` | `check:plugin` | "Plugin name cannot contain spaces" |
+| The `guardrail` manifest has invalid JSON | `check:plugin` | The `personal` plugin passed, then "Invalid JSON syntax" |
+| The `personal` manifest sets `"dependencies": 7` | `check:plugin` | "expected array, received number" |
+
+Each failed task exited non-zero and reported only its own failure.
+
+### Ravel resolution of the personal pack
+
+`ravel skills resolve --json` resolved the public clone with the status
+`resolved`, before the checks ran in it. The source record has the type
+`local` and the digest above. Its one search directory is the `craft` root of
+the snapshot. The snapshot holds the `SKILL.md` files of the three craft
+skills and no `guardrail`. `diff -r` found no difference between the snapshot
+and `plugins/personal` of the clone. A resolution of the jj working copy
+gave the same digest.
+
+The instrument was the Ravel 2.0 build of `scripts/harness-trials/builds.json`.
+Its `bin/ravel` SHA-256 is `26b487afb957…`, the pinned value, and it holds the
+build identity `a4f55d04b2d1…` twice. The build came from an earlier scratch
+prefix of this workstream, and the digest identified it. Each resolution ran
+under a temporary `HOME` whose settings held one `local` source with the roots
+`["craft"]` and an empty mandatory list.
+
+### Installer proof of the personal pack
+
+Grove's live tree still ships the four skills in `plugins/linkuistics`. The
+installer refuses a skill name that two scanned plugins ship, and a run with
+the live tree made no link. The proof therefore ran Grove's `install.sh` from
+a scratch export of the source commit without `plugins/linkuistics`. That
+tree is Grove after `personal-removal-k214`.
+
+- An isolated home held Codex, Gemini CLI and Pi directories. In it,
+  `install.sh --pack <public clone>/plugins/personal` linked the three craft
+  skills into each harness, with targets in `craft/` of the clone. The run
+  made 27 links in all and linked no `guardrail`. It printed the
+  `assumes-personal-setup` note for `machine-environment`.
+- A second home and a second public clone took the craft-only cycle of
+  `make_craft_only_pack`. The cycle removed `machine-environment` from the clone. A
+  run without `--pack` kept its links. A run with `--pack` printed one
+  `unlink` line for each harness and kept the other craft links.
+- No run needed `--force`, because neither the export nor the clones is a jj
+  workspace. Each run set `HOME` to a scratch home, so the owner's real links
+  were not touched.
+
+### Publication of the personal pack
+
+- The classifier refused `gh repo create` inside a compound command. The owner
+  had already allowed `Bash(gh repo create *)` in an uncommitted
+  `.claude/settings.json` of the Grove workspace. The command alone then ran
+  as `gh repo create Linkuistics/PersonalSkills --public`.
+- jj added the remote `origin` and pushed the bookmark `main`. The public
+  `main` is `ac98636608b013391bf4b4ca0dc6c9c1506ff9d0`, the default branch.
+- A plain clone of the local repository passed `task check` before the push.
+- The source Grove commit `4cfac6295881` was already the head of Grove's
+  remote bookmark `gh-issue-25`, so no push came before the pack.
+- Grove's marketplace does not list either plugin yet. The owner's native
+  plugins are unchanged, and this session read its personal skills from the
+  owner's plugin cache.
+
+### Tool requirements of the personal pack
+
+| Skill or check | Tools |
+| --- | --- |
+| `machine-environment` | mise, Task and the owner's Obsidian manual |
+| `using-jujutsu` | Jujutsu (`jj`), and Git in a colocated repository |
+| `authoring-conventions` | None |
+| `guardrail` | Claude Code, Bash and `jq` |
+| The pack's `task check` | Task, Bash, `jq` and ShellCheck. Claude Code for `check:plugin`, which skips when Claude Code is not installed |
+
+The README of the pack holds the same table. The inventory names `mise, task,
+Obsidian manual` for `machine-environment` and `jj` for `using-jujutsu`. It
+names the frontmatter hook and `/guardrail` for `guardrail`.
+
+### For guardrail-plugin-trial-k213
+
+- The `guardrail` plugin root is `plugins/guardrail` at the pack commit. Its
+  manifest names no skill directory, so Claude Code scans the default
+  `skills/`.
+- The dependency stays, so a native installation of `personal` must also
+  install `guardrail`. Grove's marketplace lists neither plugin before
+  `personal-removal-k214`. The trial therefore needs a marketplace that lists
+  both, for example a scratch marketplace with two `git-subdir` entries at
+  the pack commit.
+- The skill text tells the user to type `/guardrail`. Under the plugin the
+  skill is `guardrail:guardrail`. The trial reads which spelling starts the
+  skill.

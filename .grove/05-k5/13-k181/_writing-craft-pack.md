@@ -12,9 +12,10 @@ design requires.
 - WritingSkills gains its `craft/` root. Its manifest lists it, and its Ravel
   roots are `["skills", "craft"]`.
 - `technical-communication` keeps every resource: `always-on/`, `harnesses/`,
-  `references/`, `scripts/`, `LICENSES/` and `.codex-plugin/`. Executable bits
-  stay, because the checker runs from the skill directory. The capture holds
-  no `__pycache__`.
+  `references/`, `scripts/`, `LICENSES/` and `.codex-plugin/`. The Git modes
+  stay as Grove records them. Grove holds the three scripts with mode
+  `100644`, because the hooks run `/bin/sh` and `SKILL.md` runs `python3`.
+  The capture holds no `__pycache__`.
 - The hooks route follows pack-membership-k171. The owner design requires a
   skill-free Claude Code plugin whose hooks run and that lists no native
   `technical-communication` skill. A trial in Claude Code shows both facts.
@@ -43,6 +44,21 @@ design requires.
 ## Decomposition
 
 The first child plans this node from the membership decisions.
+
+writing-craft-pack-plan-k182 cut four leaves. Each leaf leaves Grove's
+`bash scripts/check.sh` green. No leaf changes the owner's native plugins,
+so the always-on layer keeps working in the owner's harness.
+
+1. `writing-craft-repository-k208`: the first expand commit. It adds the
+   `craft/` root, both skills, the moved assets and their checks.
+2. `writing-hooks-plugins-k209`: the second expand commit. It adds both
+   hooks plugins, the dependency, the hook count and the Codex marketplace
+   file.
+3. `writing-hooks-trial-k210`: the native trial in an isolated Claude Code
+   home. It repairs the layout before the removal if a reading fails.
+4. `writing-craft-removal-k211`: the contraction. It removes Grove's
+   copies, hooks and assets. It changes Grove's marketplace and publishes
+   the last pack commit.
 
 ## Notes
 

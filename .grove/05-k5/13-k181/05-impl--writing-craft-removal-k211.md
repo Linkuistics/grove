@@ -79,3 +79,12 @@ its other four skills and their checks unchanged.
 
 This is the node's last planned leaf. Its retirement closes
 writing-craft-pack-k181 if no live leaf remains, by the four close steps.
+
+writing-craft-repository-k208 copied the moved documents to the pack with
+their bytes, apart from links and script paths. The pack's specification,
+user guide and decision records therefore still describe the delivery through
+Grove's `linkuistics` plugin and the checks of Grove's `scripts/check.sh`. Those
+present-tense claims become false with this removal. Correct them in the pack
+commit of this leaf, unless writing-hooks-plugins-k209 already did. The
+section "Byte changes of the writing craft" of the moves record names the
+eight changed files.

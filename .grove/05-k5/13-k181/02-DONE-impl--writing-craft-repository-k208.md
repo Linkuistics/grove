@@ -98,3 +98,51 @@ always-on layer of this session comes from the owner's plugin cache.
 
 The evaluation directory holds about 8 MB of evidence. Copy it, and check
 its digest before and after.
+
+## Decisions (running log)
+
+- Source commit: Grove `31ec9117c9da`. It is public on `gh-issue-25`, it is
+  the pack's `GROVE_COMMIT`, and no moving file changed between it and
+  `76daf77cdb24`. `GROVE_COMMIT` stays, because no new check reads Grove.
+- Layout: each moved asset keeps its Grove path relative to the repository
+  root (`docs/...`, `scripts/pi-extension-load.test.sh`). The relative links
+  between moved files, and the `docs/...` names in code comments, then stay
+  true without an edit.
+- The only link from a moved file to a Grove file that stays is
+  `docs/TECHNICAL-COMMUNICATION.md` to `../README.md#install-the-skill-plugins`.
+  It becomes a public URL. Three other unresolved targets are `/private/tmp`
+  paths inside evaluation evidence, and they keep their bytes.
+- Baseline: the cache entry `b639969cc4a1256a`, 20 files, counts
+  `scripts/__pycache__/ste-lint.cpython-315.pyc`. Grove's tracked tree at the
+  source commit is 19 files, `960a0f38bdb0c2af`. Its `.codex-plugin`
+  description already differs from the cache, by commit `175e5c7d259`.
+  `writing-code-walkthroughs` equals its baseline `b1e4795388bcf3ab`.
+- `.codex-plugin/plugin.json` changes its `repository` to WritingSkills and
+  names the pack's install routes in its description. A recorded change.
+- The evaluation scripts that name the skill path: the three `harness.sh`
+  files and `refinement-regression/template-test.sh`. The template test also
+  reads the plugin manifest and asserts the name `linkuistics`. It now reads
+  `plugins/writing/.claude-plugin/plugin.json` and asserts `writing`.
+- `docs/research/walkthrough-method*.md` stay (test 1): they are the
+  research for Grove's `ordinal-fs-tree` book, and no moving file cites
+  them. `docs/evaluations/editorial-pipeline-pilot/` stays (test 3), as
+  editorial-pack-k179 classified it.
+- Two more links change because their targets move inside the pack:
+  the guide's link to the skill and the walkthrough decision record's link
+  to the provenance file. The skill's own `../../PROVENANCE.md` and the
+  provenance file's `../../docs/...` links resolve unchanged.
+- Scope: the moved documents keep their present-tense claims of Grove's
+  delivery and of `scripts/check.sh`. They stay true until k211, and a note
+  in k211 asks it to correct them.
+- The Pi check compiled `ste-lint.py` in the working copy, and jj captured
+  the bytecode. The pack's `.gitignore` gains `__pycache__/`, as Grove's has.
+- The pack's checks: `check:tc-checker`, `check:tc-hook-lint` (ShellCheck on
+  `tc-hook` and the Pi check, as Grove lints both) and `check:tc-pi`. The
+  ShellCheck task requires ShellCheck. The Pi task skips visibly without Pi,
+  as in Grove.
+- Published `0eacee02f0f2` to the public `main`. Tree `ca83ff27dceb`, digest
+  `293ed909955f…`, from the public clone and the jj working copy.
+- Grove's `bash scripts/check.sh` passed all 21 principal checks with 1344
+  Rust tests. The four changed files had the same digests before and after
+  the run. `check:packs` still reads the pinned writing commit
+  `694140a18dc7`.

@@ -1824,8 +1824,13 @@ four editorial kinds and the family skill `editorial-family`. This is the
 expand step of `editorial-pack-k179`. At the first pack commit, Grove still
 ships its own copies, so the aggregate fails on duplicates by design.
 `editorial-removal-k206` removed Grove's copies and published the second pack
-commit. `writing-craft-pack-k181` later adds the `craft/` root and the hooks
-plugin.
+commit.
+
+`writing-craft-pack-k181` adds the writing craft. Its first expand
+commit, from `writing-craft-repository-k208`, adds the `craft/` root, both
+craft skills and their Grove assets. See
+[Source of the writing craft](#source-of-the-writing-craft). The hooks
+plugins follow in a later commit.
 
 ### Source of the writing pack
 
@@ -2170,3 +2175,225 @@ family file now ship in WritingSkills, as the plugin `writing`. The family
 file is the skill `editorial-family`. Grove no longer ships them from the
 removal commit `31ec9117c9da`. Rollout's brief-update text for the paused
 editorial grove states that move.
+
+### Source of the writing craft
+
+`writing-craft-repository-k208` added the writing craft to WritingSkills on
+2026-11-05. This is the first expand commit of `writing-craft-pack-k181`.
+Grove keeps its copies of both craft skills, their hooks and their assets
+until `writing-craft-removal-k211`. Conformance reads only `skills/`, so the
+aggregate still passes at this commit.
+
+| Subject | Value |
+| --- | --- |
+| Pack commit | `0eacee02f0f2594fb51b0f7dff53b0d7130133a5`, a child of `ae1649d181a5`. The jj bookmark `main` and the public `main` |
+| Source directory | `plugins/writing`. It is the Claude Code plugin root and the Ravel source directory |
+| Ravel roots | `["skills", "craft"]`. `skills/` holds the four kinds and `editorial-family`. `craft/` holds `technical-communication` and `writing-code-walkthroughs` |
+| Plugin manifest | `"skills": ["./craft/"]`, so Claude Code scans `skills/` by default and adds `craft/` |
+| Git tree of the source directory | `ca83ff27dceb18f0671c82b5f02c4c96ece5d899` |
+| `resourceDigest` | `293ed909955fea68242c088c383701ba822b1b14d4d4f5cb7ed585efd754a375`, from a plain Git clone of the public remote and from the jj working copy |
+| Source Grove commit | `31ec9117c9dacfe993e80313addd432f2930d679`. No moving file changed between it and `76daf77cdb24`, the parent of this leaf's Grove change |
+| `GROVE_COMMIT` | Unchanged at `31ec9117c9da`. No new check reads Grove |
+| Grove remote bookmark | `gh-issue-25`, already at `31ec9117c9da`. No push came before the pack |
+
+The commit adds 1379 files and changes four. The added files are the 1378
+tracked moving files of Grove and the new `plugins/writing/PROVENANCE.md`.
+Each moved file keeps its Grove path, apart from the skill root:
+
+| Grove path | Pack path |
+| --- | --- |
+| `plugins/linkuistics/skills/technical-communication/`, every tracked file | `plugins/writing/craft/technical-communication/` |
+| `plugins/linkuistics/skills/writing-code-walkthroughs/SKILL.md` | `plugins/writing/craft/writing-code-walkthroughs/SKILL.md` |
+| `docs/specs/technical-communication.md`, `docs/TECHNICAL-COMMUNICATION.md` and `docs/technical-communication-publication-review.md` | The same paths |
+| `docs/design/technical-communication/` | The same path |
+| The four decision records `the-off-file-is-the-only-switch`, `documents-are-gated-replies-are-measured`, `technical-communication-carries-no-standard-text` and `behavioral-acceptance-is-closed-unmet` in `docs/adr/` | The same paths |
+| `docs/research/harness-hooks-a.md` | The same path |
+| `docs/evaluations/writing-code-walkthroughs/` | The same path |
+| `scripts/pi-extension-load.test.sh` | The same path |
+| The two sections of `plugins/linkuistics/PROVENANCE.md` | `plugins/writing/PROVENANCE.md` |
+
+The kept paths keep each relative link between moved files true. They also
+keep the `docs/...` names in the comments of `tc_hook.py` and the Pi
+extension true. The four changed files are `README.md`, `Taskfile.yml`,
+`.gitignore` and `plugins/writing/.claude-plugin/plugin.json`.
+
+The manifest gains `"skills": ["./craft/"]`, a description sentence for the
+craft skills and the keywords `technical-communication` and `walkthrough`.
+The Taskfile gains `check:tc-checker`, `check:tc-hook-lint`, `check:tc-pi`
+and the two `design:technical-communication` tasks. The task `check` runs
+`check:plugin`, the three `check:tc-*` tasks, then `check:conformance`. The
+`.gitignore` gains `__pycache__/`, so it no longer equals that of
+RequirementsSkills. The README names the craft skills, both roots, each moved
+document at its path, the checks, the tool requirements and the provenance.
+
+### Byte changes of the writing craft
+
+Each change below is against Grove's files at the source commit. The digest is
+that of `docs/owner-skill-inventory.tsv`. A copy of the inventory's `digest()`
+function gave each value. The pack values come from the public clone.
+
+| Skill | Baseline digest and files | Grove at the source commit | Pack digest and files | Change |
+| --- | --- | --- | --- | --- |
+| `technical-communication` | `b639969cc4a1256a`, 20 | `960a0f38bdb0c2af`, 19 | `144a0cf6fb0b705b`, 19 | The baseline counts `scripts/__pycache__/ste-lint.cpython-315.pyc` of the owner's cache, which Git does not track. Grove's commit `175e5c7d259` changed the description of `.codex-plugin/plugin.json` after the cached commit `238c3a839ab4`. The pack changes that manifest again, as the next list states. No other file differs from the cache copy |
+| `writing-code-walkthroughs` | `b1e4795388bcf3ab`, 1 | `b1e4795388bcf3ab`, 1 | `b1e4795388bcf3ab`, 1 | None |
+
+Eight moved files differ from Grove's blobs. A comparison of the blob IDs of
+all 1378 moved files found only these:
+
+- `.codex-plugin/plugin.json` of `technical-communication`: `repository` is
+  `https://github.com/Linkuistics/WritingSkills`. The description says that
+  the skill reaches Codex "through Ravel, through Grove's plugins/install.sh
+  --pack, or through another installation the user chooses".
+- `docs/TECHNICAL-COMMUNICATION.md`: the link to the skill names
+  `../plugins/writing/craft/technical-communication/SKILL.md`. The link to
+  Grove's README is
+  `https://github.com/Linkuistics/grove/blob/main/README.md#install-the-skill-plugins`.
+  That URL returned HTTP status 200, and Grove's public `main` holds the
+  heading.
+- `docs/adr/behavioral-acceptance-is-closed-unmet.md`: the link to the
+  provenance names `../../plugins/writing/PROVENANCE.md`.
+- `scripts/pi-extension-load.test.sh`: the extension path is
+  `plugins/writing/craft/technical-communication/harnesses/pi/technical-communication.ts`.
+- The three `harness.sh` files under
+  `docs/evaluations/writing-code-walkthroughs/enabled/`: the skill path is
+  `plugins/writing/craft/writing-code-walkthroughs/SKILL.md`.
+- `docs/evaluations/writing-code-walkthroughs/refinement-regression/template-test.sh`:
+  the same skill path. It reads `plugins/writing/.claude-plugin/plugin.json`
+  and asserts the name `writing`, where it asserted `linkuistics`.
+
+The finished evaluation records keep their bytes. The SHA-256 of the sorted
+digests of the other 1328 evaluation files was `a933741ae002…` in the export
+of the source commit and in the pack commit. The export of the source commit
+and the first copy also agreed on all 1332 files, `f1a2aa07514d…`. Three
+evaluation records name `/private/tmp` paths of their runs as links, and those
+bytes stay.
+
+The Git modes equal Grove's for each moved file: 1371 have `100644` and 7
+have `100755`. The three scripts of `technical-communication` keep `100644`
+and Grove's blob IDs. The commit holds no `__pycache__`.
+
+`plugins/writing/PROVENANCE.md` has its own title and two opening paragraphs.
+They name the source commit and state that "this repository" in the moved
+sections means Grove. In the section of `technical-communication`, the paths
+of the checker and of its licence start with `craft/` where they started with
+`skills/`. No other line of the two sections changed. The checker's licence
+stays in `technical-communication/LICENSES/`.
+
+No other moved text changed. The moved specification, user guide and decision
+records still describe the delivery through Grove's `linkuistics` plugin and
+the checks of Grove's `scripts/check.sh`. Those claims stay true until
+`writing-craft-removal-k211`. The pack's README states that limit.
+
+### Asset classification of the writing craft
+
+Each Grove file that names a moving skill or a moving asset is in one class of
+"The Grove assets of moving craft skills" in `docs/specs/pack-membership.md`.
+The enumeration searched the whole tree with `--hidden` for both skill names,
+`tc-hook`, `tc_hook`, `ste-lint`, `TECHNICAL-COMMUNICATION` and
+`harness-hooks-a`. A second search took the path of each moved document.
+
+| Files | Test | Disposition |
+| --- | --- | --- |
+| The specification, the user guide and the design views, with the two `design:technical-communication` tasks | 2 | Copied to WritingSkills. Grove keeps its copies until `writing-craft-removal-k211` |
+| The decision records `the-off-file-is-the-only-switch`, `documents-are-gated-replies-are-measured`, `technical-communication-carries-no-standard-text` and `behavioral-acceptance-is-closed-unmet` | 2 | Copied to WritingSkills |
+| `docs/technical-communication-publication-review.md` and `docs/evaluations/writing-code-walkthroughs/` | 2 | Copied to WritingSkills |
+| `docs/research/harness-hooks-a.md` | 3 | Copied to WritingSkills. Its citers are `tc_hook.py`, the specification, two of the moved decision records and the provenance section, which all move. The only other citer is `pack-membership.md`, which decides the move |
+| `scripts/pi-extension-load.test.sh`, the checker self-test and the `tc-hook` lint | 2 | Run by the pack's `check:tc-*` tasks. `scripts/check.sh` keeps them until the removal |
+| `docs/research/walkthrough-method.md`, `walkthrough-method-a.md` and `walkthrough-method-b.md` | 1 | Stay. They are the research for Grove's `ordinal-fs-tree` book, and no moving file cites them |
+| `docs/evaluations/editorial-pipeline-pilot/` | 3 | Stays, as the editorial move classified it |
+| The book decision records `a-book-carries-no-asset` and `a-book-cannot-witness-its-own-corpus`, `docs/specs/walkthrough-books.md`, `docs/specs/grove-loop-book-structure.md` and the books under `docs/walkthroughs/` | 1 | Stay. They state Grove's own books |
+| The citation registry of `plugin_fallback.rs`, the spine's `SKILL.md` and `references/grove.md` | 1 | Stay. They cite `technical-communication` by bare name in Grove's own files |
+| `README.md`, `plugins/README.md`, `CONTEXT-MAP.md`, `plugins/CONTEXT.md`, `plugins/install.test.sh`, `scripts/check.sh`, `Taskfile.yml`, `.agents/plugins/marketplace.json`, `plugins/linkuistics/hooks/hooks.json` and `plugins/linkuistics/PROVENANCE.md` | 1 | Stay. Their links and their named reads of moved files change in `writing-craft-removal-k211` |
+| `membership-hooks.mmd`, `owner-skill-delivery.md`, `pack-membership.md`, `external-pack-contract.md` and `CHANGELOG.md` | History and design | Stay |
+| `docs/owner-skill-inventory.tsv`, `inventory.py`, `docs/ravel-caller-surface-inventory.tsv` and `docs/owner-skill-delivery-evidence.md` | 3 | Stay as the baseline evidence |
+
+### Checks of the writing craft
+
+The checks ran in a plain Git clone of the pack commit from the public remote.
+`GROVE_REPOSITORY` was the public URL, with no override. `grove:checkout`
+fetched `31ec9117c9da` from Grove's public remote. After the run, the clone
+held only the ignored `.cache/` and
+`plugins/writing/craft/technical-communication/scripts/__pycache__/`.
+
+- `check:plugin` passed with two warnings, no `version` and no icon, on Claude
+  Code 2.1.318. The validation covers the manifest and its `craft/` entry.
+- `check:tc-checker` printed `selftest OK`, with Python 3.15.1.
+- `check:tc-hook-lint` reported nothing for `tc-hook` and the Pi load check,
+  with ShellCheck 0.11.0.
+- `check:tc-pi` loaded the extension in Pi, with its start record and its two
+  controls.
+- The pack alone gave 23 single-source checks and 56 loaded-path checks. The
+  aggregate gave 109 and 996. Both passed.
+
+Each control failed once in a scratch copy of the pack, one mutation for each
+run. The unmutated copy passed all three `check:tc-*` tasks first.
+
+| Mutation | Task | Reading |
+| --- | --- | --- |
+| `DESCRIPTION_WORDS = 25` becomes `26` in `ste-lint.py` | `check:tc-checker` | An `AssertionError` at line 1479 of the self-test |
+| `tc-hook` gains the line `echo $1` | `check:tc-hook-lint` | ShellCheck reported SC2086 and SC2317 |
+| The extension listens to `session_begin` in place of `session_start` | `check:tc-pi` | "no start record from the extension" |
+| `tc_hook.py` ignores the off file | `check:tc-pi` | "the extension wrote a record while the off file existed" |
+| The control extension of the Pi check no longer throws | `check:tc-pi` | "Pi did not report a throwing extension" |
+
+Each failed task exited non-zero and reported only its own failure.
+
+The evaluation scripts ran in the pack working copy. `template-test.sh`
+passed with the new paths and the name `writing`. The two `harness-test.sh`
+files and `freeze-harness-test.sh` passed. Each harness resolves the skill at
+its pack path. `task check` does not run these scripts, and Grove's
+`scripts/check.sh` did not run them either.
+
+`design:technical-communication` served the viewer and `layers.svg` with HTTP
+status 200. `design:technical-communication:render` exported the seven views
+with D2 0.9.0, in a scratch copy, so the committed SVG files keep their bytes.
+
+The first run of the Pi check in the working copy compiled `ste-lint.py`
+beside it, and jj recorded the bytecode file. The commit therefore adds
+`__pycache__/` to `.gitignore`, and jj stopped tracking that file before the
+description. Grove's `.gitignore` holds the same rule.
+
+### Ravel resolution of the writing craft
+
+`ravel skills resolve --json` resolved the public clone with the status
+`resolved`, before the checks ran in it. The source record has the type
+`local` and the digest above. Its two search directories are the `skills` and
+`craft` roots of the snapshot. The `skills` root holds the four kinds and
+`editorial-family`, and the `craft` root holds `technical-communication` and
+`writing-code-walkthroughs`. The snapshot holds seven `SKILL.md` files and no
+`__pycache__`.
+
+`diff -r` found no difference between the snapshot and `plugins/writing` of
+the clone. A resolution of the clean jj working copy gave
+the same digest.
+
+The instrument was the Ravel 2.0 build of `scripts/harness-trials/builds.json`.
+`task install` installed it from the line `skill-directory-delivery` at
+`71f70fcd3f92` into a scratch prefix. Its `bin/ravel` SHA-256 is
+`26b487afb957…`, the pinned value, and it holds the build identity
+`a4f55d04b2d1…` twice. Each resolution ran under a temporary `HOME` whose
+settings held one `local` source with the roots `["skills", "craft"]` and an
+empty mandatory list.
+
+### Publication of the writing craft
+
+- jj moved the bookmark `main` to the pack commit and pushed it to `origin`.
+  The public `main` is `0eacee02f0f2594fb51b0f7dff53b0d7130133a5`.
+- A plain clone of the local repository passed `task check` before the push.
+- Grove's marketplace still pins the first pack commit `694140a18dc7`. No
+  native user receives the craft skills from this commit.
+- The owner's native plugins are unchanged. The always-on layer of this
+  session comes from the owner's plugin cache at Grove commit `238c3a839ab4`.
+
+### Tool requirements of the writing craft
+
+| Skill or check | Tools |
+| --- | --- |
+| `technical-communication` | `python3`, version 3.9 or later, for `ste-lint.py` and `tc_hook.py`. A POSIX `/bin/sh` for `tc-hook`, which the hooks run as `/bin/sh tc-hook` |
+| `writing-code-walkthroughs` | None |
+| The pack's `task check` | Bash, Git, Task, Python 3 and ShellCheck. Claude Code for `check:plugin` and Pi for `check:tc-pi`. Each of those two skips when its tool is not installed |
+| `design:technical-communication:render` | D2 |
+
+The README of the pack holds the same table. The inventory's rows for
+`technical-communication` name `python3`, `scripts/ste-lint.py` and the
+always-on hooks.

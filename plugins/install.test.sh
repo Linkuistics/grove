@@ -640,17 +640,24 @@ problem=""
 [[ -e "${home}/.pi" ]] && problem+=" ~/.pi was created;"
 record "no Pi home, no extension directory" "${problem}" "${output}"
 
-# The real corpus: the technical-communication skill ships its Pi extension, and
-# the install reaches it. --force, because this tree may be a secondary workspace;
-# HOME is a scratch directory, so no real link is touched.
+# A craft skill of an external pack ships its Pi extension, and `--pack` reaches
+# it. This is the shape of `technical-communication`, which ships
+# `harnesses/pi/technical-communication.ts` from `craft/` of the writing pack.
+# The fixture stands in for that skill, because Grove no longer ships it.
+crafted="${scratch}/extension-craft-pack"
+make_craft_skill "${crafted}" craftext crafted-skill 'harnesses: [any]'
+mkdir -p "${crafted}/plugins/craftext/craft/crafted-skill/harnesses/pi"
+printf 'export default function () {}\n' \
+  >"${crafted}/plugins/craftext/craft/crafted-skill/harnesses/pi/crafted.ts"
 home="$(make_home)"
-output="$(HOME="${home}" bash "${script}" --force 2>&1 || true)"
+output="$(run_install "${home}" "${base}" --pack "${crafted}/plugins/craftext")"
 problem=""
-[[ -L "${home}/.pi/agent/extensions/technical-communication.ts" ]] ||
-  problem+=" the real extension was not linked;"
-[[ -f "${home}/.pi/agent/extensions/technical-communication.ts" ]] ||
-  problem+=" the real extension link dangles;"
-record "the real technical-communication extension is linked" "${problem}" "${output}"
+[[ "$(last_status)" == 0 ]] || problem+=" exit $(last_status);"
+[[ -L "${home}/.pi/agent/extensions/crafted.ts" ]] || problem+=" the pack's extension was not linked;"
+[[ "$(readlink "${home}/.pi/agent/extensions/crafted.ts")" == "$(cd "${crafted}" && pwd -P)/plugins/craftext/craft/crafted-skill/harnesses/pi/crafted.ts" ]] ||
+  problem+=" the link does not point into craft/ of the pack;"
+[[ -f "${home}/.pi/agent/extensions/crafted.ts" ]] || problem+=" the pack's extension link dangles;"
+record "a pack's craft skill gets its Pi extension linked" "${problem}" "${output}"
 
 # --- summary -----------------------------------------------------------------
 

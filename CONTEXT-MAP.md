@@ -262,16 +262,18 @@ of scope.
   [`plugins/grove/conformance/rules.tsv`](plugins/grove/conformance/rules.tsv),
   which is data the conformance runner reads rather than a spec.
 
-  The **skills** context owns
-  [`behavioral-acceptance-is-closed-unmet`](docs/adr/behavioral-acceptance-is-closed-unmet.md),
-  which records the acceptance boundary for the shipped
-  `writing-code-walkthroughs` skill. It also owns the spec
-  [`technical-communication`](docs/specs/technical-communication.md) and the
+  The records of the writing craft skills live in
+  [WritingSkills](https://github.com/Linkuistics/WritingSkills), which ships
+  those skills. They are
+  [`behavioral-acceptance-is-closed-unmet`](https://github.com/Linkuistics/WritingSkills/blob/main/docs/adr/behavioral-acceptance-is-closed-unmet.md)
+  for the `writing-code-walkthroughs` skill, and the spec
+  [`technical-communication`](https://github.com/Linkuistics/WritingSkills/blob/main/docs/specs/technical-communication.md) with the
   records
-  [`technical-communication-carries-no-standard-text`](docs/adr/technical-communication-carries-no-standard-text.md),
-  [`documents-are-gated-replies-are-measured`](docs/adr/documents-are-gated-replies-are-measured.md)
-  and [`the-off-file-is-the-only-switch`](docs/adr/the-off-file-is-the-only-switch.md),
-  which describe the always-on `technical-communication` skill.
+  [`technical-communication-carries-no-standard-text`](https://github.com/Linkuistics/WritingSkills/blob/main/docs/adr/technical-communication-carries-no-standard-text.md),
+  [`documents-are-gated-replies-are-measured`](https://github.com/Linkuistics/WritingSkills/blob/main/docs/adr/documents-are-gated-replies-are-measured.md)
+  and [`the-off-file-is-the-only-switch`](https://github.com/Linkuistics/WritingSkills/blob/main/docs/adr/the-off-file-is-the-only-switch.md)
+  for the always-on `technical-communication` skill. No context of this
+  repository owns them.
 
   The **ordinal-fs-tree** context owns
   [`entry-name-is-the-only-seam`](docs/adr/entry-name-is-the-only-seam.md),

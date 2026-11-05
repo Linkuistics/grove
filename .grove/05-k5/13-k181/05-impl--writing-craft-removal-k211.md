@@ -88,3 +88,82 @@ present-tense claims become false with this removal. Correct them in the pack
 commit of this leaf, unless writing-hooks-plugins-k209 already did. The
 section "Byte changes of the writing craft" of the moves record names the
 eight changed files.
+
+## Decisions (running log)
+
+- Core alone before the removal, at `88be3ee7198`: 86 single-source checks,
+  480 loaded-path checks and 51 unpinned rows. Conformance reads no file of
+  `plugins/linkuistics`, so the removal must leave these figures unchanged.
+- The removal takes out 1380 tracked files: the 1378 moved files of
+  writing-craft-repository-k208, `plugins/linkuistics/hooks/hooks.json` and
+  `.agents/plugins/marketplace.json`. The only untracked file in those trees
+  was the ignored `scripts/__pycache__/ste-lint.cpython-315.pyc`, which went
+  with its directory. The empty `.agents/` went too.
+- `.claude/settings.json` is the owner's local permission. It stays in the
+  working copy and in no commit, as in the earlier removals.
+- The pin stays at `4cafb0fd8e72`, which the trial accepted. No file under
+  `plugins/writing` claims delivery through Grove. The last pack commit
+  therefore changes only files outside the source directory, and its tree
+  equals the pinned tree.
+- Consumers changed with the removal: `plugins/linkuistics` (manifest
+  description and keywords, `PROVENANCE.md`), `scripts/check.sh` (the
+  checker self-test, the Pi load check and the two shell-lint paths),
+  `Taskfile.yml` (the two `design:technical-communication` tasks) and
+  `.claude-plugin/marketplace.json`. The marketplace pins `writing` at
+  `4cafb0fd8e72` and adds `technical-communication-hooks` from the same
+  commit, with the source path `plugins/writing/craft/technical-communication`.
+  It now counts nine plugins.
+- `plugins/install.test.sh` replaced its read of the real Pi extension with a
+  fixture. A pack's `craft/` skill ships `harnesses/pi/crafted.ts`, and
+  `--pack` must link it into the `craft/` path. The suite gave 48 passed. A
+  copy whose fixture shipped `other.ts` failed that case alone, with 47 passed.
+- `install.sh` claims an extension link only when the run scans its plugin, as
+  for skill links. A run without `--pack` therefore keeps a pack's extension
+  link. No installer change was needed.
+- `task check:packs` reports `technical-communication-hooks` as a
+  directory-only source, because it has no kind skill and no manifest. The
+  comment of `check-packs.sh` and the directory-only paragraph of
+  `pack-membership.md` now name the hooks-only case.
+- Documents: `plugins/README.md` moves the craft table and the always-on
+  paragraph to the `writing` section, and names the hooks plugin in the pin
+  exceptions. `plugins/CONTEXT.md` changes the plugin, always-on and harness
+  entry terms. `CONTEXT-MAP.md` says that WritingSkills owns the five moved
+  records and links them by public URL. `README.md`, `docs/USAGE.md` (the
+  `writing` source gains the root `craft`) and `docs/ARCHITECTURE.md` state
+  where the skills and the hooks ship. `README.md` also lost a claim that
+  was already stale: "the Linkuistics coding/design skills".
+- Three files wrote `linkuistics:writing-code-walkthroughs`, and they now
+  write the bare name: `walkthrough-books.md`, `grove-loop-book-structure.md`
+  and `a-book-cannot-witness-its-own-corpus.md`. The Codex marketplace item of
+  `external-pack-contract.md` now says that Grove has none. Three files that
+  stay linked a moved record, and they now link its public URL:
+  `pack-membership.md`, `owner-skill-delivery.md` and the editorial pilot's
+  `preregistration.md`. Each URL returned HTTP status 200.
+- Off-file ownership: every Grove mention of the rule cites the WritingSkills
+  record. No Grove record states the rule as its own.
+- A link check over every tracked and untracked Markdown file found no
+  relative link that the removal broke. The 63 broken links before the
+  removal include the moved evaluation records and the pre-existing
+  walkthrough examples.
+- The technical-communication checker gave no new hard finding in a changed
+  Grove document after four long paragraphs and two long sentences were
+  split.
+- Stale-location sweep: `rg --hidden` over the whole tree, apart from `.jj`,
+  `.git`, `target`, `.grove` and `.cache`, for the moved paths, the two
+  namespaced names, `linkuistics-hooks`, `.agents/plugins`, `pi-extension-load`
+  and relative links into the moved records. Each hit is a public URL, the
+  move decision in `pack-membership.md`, baseline evidence in the two
+  inventory files, `CHANGELOG.md` or this workstream's record. A planted path
+  in a hidden directory was found, and a misspelt pattern found nothing. The
+  same sweep over WritingSkills gave hits in the moved documents. Its hits of
+  Grove's old paths are provenance or dated records.
+- Gate: `bash scripts/check.sh` passed all 19 principal checks, 1344 Rust
+  tests among them. The two fewer checks are the checker self-test and the Pi
+  load check, which the pack now runs. `GROVE_TEST_RAVEL` resolved to
+  `/opt/homebrew/Cellar/ravel/1.1.0/bin/ravel`. The changed files outside
+  `.grove/` had the SHA-256 `775f318556f8…` over their digests before and
+  after the run.
+- The Codex command of the corrected user guide works on Codex 0.166.0 in a
+  scratch `CODEX_HOME`. `codex plugin marketplace add Linkuistics/WritingSkills`
+  added `writing-hooks`, and `codex plugin list` showed
+  `technical-communication@writing-hooks`.

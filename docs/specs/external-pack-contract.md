@@ -703,8 +703,10 @@ These rules bind every fixture of `conformance.test.sh`:
   `--pack plugins/research` leaves the research links unchanged. The pack ships
   no installer. Its README gives the command
   `<grove checkout>/plugins/install.sh --pack <research checkout>/plugins/research`.
-- **The Codex marketplace.** It stays unchanged. It lists only the
-  technical-communication hooks plugin, and the research pack has no hooks.
+- **The Codex marketplace.** The research pack needs none, because it has no
+  hooks. The only Codex marketplace of these repositories is the one of
+  WritingSkills, which lists the technical-communication hooks plugin. Grove
+  has none.
 - **Ravel.** A directory route names the pack with a record beside core's:
 
   ```json

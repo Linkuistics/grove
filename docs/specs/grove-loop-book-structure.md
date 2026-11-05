@@ -169,7 +169,7 @@ a reader who knows Rust and jj, has driven a grove, and meets grove's vocabulary
 as terms linked to [`CONTEXT.md`](../../CONTEXT.md) rather than re-taught. The
 depth is decision 1's — complete and source-exact, every byte of the corpus
 reproduced in a fragment graph. The method is
-`linkuistics:writing-code-walkthroughs`, whose eight-field intake `plan-k1`
+`writing-code-walkthroughs`, whose eight-field intake `plan-k1`
 answered.
 
 <!-- tc: on -->

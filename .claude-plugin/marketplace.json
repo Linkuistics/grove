@@ -1,6 +1,6 @@
 {
   "name": "linkuistics",
-  "description": "Grove's session methodology, coding standards, software design, project simplification, and version-control disciplines as lazily loaded agent skills, plus GUI testing in isolated VMs. Eight plugins: grove, requirements, design, engineering, research, writing, linkuistics and testanyware.",
+  "description": "Grove's session methodology, coding standards, software design, project simplification, technical writing, and version-control disciplines as lazily loaded agent skills, the always-on hooks of the writing rules, and GUI testing in isolated VMs. Nine plugins: grove, requirements, design, engineering, research, writing, technical-communication-hooks, linkuistics and testanyware.",
   "owner": {
     "name": "Antony Blakey",
     "email": "antony.blakey@gmail.com"
@@ -9,7 +9,7 @@
     {
       "name": "linkuistics",
       "source": "./plugins/linkuistics",
-      "description": "Linkuistics practice skills: code walkthroughs, always-on controlled-English writing rules, Jujutsu-native version control, and a user-invoked safety guardrail."
+      "description": "Linkuistics practice skills: Jujutsu-native version control and a user-invoked safety guardrail."
     },
     {
       "name": "testanyware",
@@ -72,9 +72,19 @@
         "source": "git-subdir",
         "url": "https://github.com/Linkuistics/WritingSkills.git",
         "path": "plugins/writing",
-        "sha": "694140a18dc736c272c5a16588253710a92844fb"
+        "sha": "4cafb0fd8e72dacdeea9d960cbdaf9f4850aec8f"
       },
-      "description": "Grove's editorial kinds: the draft, copy-edit, art and proof stages of a document's publishing pipeline, and their shared procedure."
+      "description": "Grove's editorial kinds: the draft, copy-edit, art and proof stages of a document's publishing pipeline, and their shared procedure. The writing craft skills: technical communication and code walkthrough authoring."
+    },
+    {
+      "name": "technical-communication-hooks",
+      "source": {
+        "source": "git-subdir",
+        "url": "https://github.com/Linkuistics/WritingSkills.git",
+        "path": "plugins/writing/craft/technical-communication",
+        "sha": "4cafb0fd8e72dacdeea9d960cbdaf9f4850aec8f"
+      },
+      "description": "The always-on hooks of the technical-communication skill: the instruction, the reminder, the document gate and the reply log. This plugin holds no skill. The writing plugin or Ravel supplies the skill."
     }
   ]
 }

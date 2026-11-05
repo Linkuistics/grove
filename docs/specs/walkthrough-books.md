@@ -433,7 +433,7 @@ test-support module and four inline test modules; the campaign's five
 deliverables take the bare rule with one exclusion between them. Every exclusion
 in both cases is an inline test module or a test-support module — evidence rather
 than production source, which is the classification
-`linkuistics:writing-code-walkthroughs` asks for at intake.
+`writing-code-walkthroughs` asks for at intake.
 
 ## Navigation
 

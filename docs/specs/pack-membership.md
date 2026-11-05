@@ -159,8 +159,8 @@ declaration, in the hooks plugin. Three installations follow:
 
 These facts decide it:
 
-- [The off file is the only switch](../adr/the-off-file-is-the-only-switch.md)
-  turns the layers on at installation. The `linkuistics` plugin meets that
+- [The off file is the only switch](https://github.com/Linkuistics/WritingSkills/blob/main/docs/adr/the-off-file-is-the-only-switch.md)
+  turns the layers on at installation. The `linkuistics` plugin met that
   through the `hooks/hooks.json` of its root, which Claude Code discovers by
   default.
 - The hook scripts move with the skill to `craft/technical-communication/`,
@@ -406,7 +406,8 @@ craft skills. For such a source, `check:packs` checks only that the pinned
 commit holds the source directory, and it reports that directory-only check by
 source name. The source's own `task check` is its check.
 `testanyware-skill-move-k172` makes that change, because it adds the first
-pinned source without kind skills.
+pinned source without kind skills. The hooks plugin
+`technical-communication-hooks` ships no skill, and it takes the same check.
 
 The branch applies only to a source that holds neither a kind skill nor a rules
 manifest. It does not depend on whether the source holds `skills/`. TestAnyware

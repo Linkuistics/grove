@@ -35,8 +35,8 @@ that still proves unworkable is a protocol breach to report, exactly as stated �
 not a licence for a stage or the report to substitute a better one.
 
 The precedent this follows is
-[`writing-code-walkthroughs`](../writing-code-walkthroughs/README.md) — a frozen
-[rubric](../writing-code-walkthroughs/baseline/rubric.md) with its digest
+[`writing-code-walkthroughs`](https://github.com/Linkuistics/WritingSkills/blob/main/docs/evaluations/writing-code-walkthroughs/README.md) — a frozen
+[rubric](https://github.com/Linkuistics/WritingSkills/blob/main/docs/evaluations/writing-code-walkthroughs/baseline/rubric.md) with its digest
 recorded, atomic binary scoring, explicit invalid-run rules, and a *Verdict*
 section that reads like an honest negative result. This pilot is much smaller and
 its instrument is correspondingly lighter, but the discipline is the same one.

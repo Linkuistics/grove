@@ -5,7 +5,7 @@
 Two Claude Code plugins live here — `grove` and `linkuistics` —
 published through the marketplace declared in
 [`../.claude-plugin/marketplace.json`](../.claude-plugin/marketplace.json). The
-marketplace also lists `requirements`, `design`, `engineering`, `research`, `writing` and `testanyware`, which live in their own
+marketplace also lists `requirements`, `design`, `engineering`, `research`, `writing`, `technical-communication-hooks` and `testanyware`, which live in their own
 repositories and which it pins by commit. The two plugins here
 share this repo with the Grove CLI because the two change in lockstep
 ([architecture](../docs/ARCHITECTURE.md#skills-monorepo)); they ship by their own
@@ -158,18 +158,46 @@ plugin declares a dependency on `grove`, so a Claude Code install also installs
 the spine. [`docs/specs/external-pack-contract.md`](../docs/specs/external-pack-contract.md)
 states the contract that the pack follows.
 
-## `writing` — the editorial kinds, from WritingSkills
+## `writing` — the editorial kinds and writing craft skills, from WritingSkills
 
 The editorial kinds `draft`, `copy-edit`, `art` and `proof` ship in their own
 repository, [WritingSkills](https://github.com/Linkuistics/WritingSkills). Its
 plugin `writing` also holds the `editorial-family` skill, the procedure that
 the four stages share. This repository holds no copy of those skills.
 
+The plugin `writing` also holds two craft skills in its `craft/` root:
+
+| Skill | Loads when | Notes |
+|-------|-----------|-------|
+| `technical-communication` | always on, and by description | the model writes replies, documents and prompts in controlled English modelled on ASD-STE100. Hooks put it in front of every session on Claude Code, Codex and Pi, and one off file turns them off |
+| `writing-code-walkthroughs` | by description | concept-ordered, source-exact code walkthroughs for Markdown books and subsystem guides |
+
+One skill is **always on**: `technical-communication`. A harness entry gives
+its instruction to every session, so it costs context on every turn. One off
+file therefore turns all of its layers off.
+
+On Claude Code, the hooks ship in the separate plugin
+`technical-communication-hooks`, which holds no skill. The plugin `writing`
+declares it as a dependency, so a Claude Code install of `writing` also installs
+the hooks. A Ravel user who gets the skill from a directory can install the
+hooks plugin alone.
+
+Codex needs the hooks plugin that the Codex marketplace of WritingSkills lists.
+The human adds and trusts that plugin once. Pi gets an extension through
+`install.sh --pack`, and Gemini CLI gets the skill only. The
+[user document](https://github.com/Linkuistics/WritingSkills/blob/main/docs/TECHNICAL-COMMUNICATION.md)
+in WritingSkills gives the commands, the switch and the reply log.
+
 The marketplace lists `writing` with a `git-subdir` source. That source names
 `plugins/writing` and pins one WritingSkills commit in `sha`. Grove's
 `task check:packs` checks the pinned commit alone and with this tree's core.
-The plugin declares a dependency on `grove`, so a Claude Code install also
-installs the spine.
+Conformance reads only `skills/`. The pack's own `task check` checks the craft
+skills and counts the hook declarations of each installation.
+
+The marketplace lists `technical-communication-hooks` from the same commit,
+with the source directory `plugins/writing/craft/technical-communication`. The plugin `writing`
+declares dependencies on `grove` and `technical-communication-hooks`, so a
+Claude Code install also installs the spine and the hooks.
 
 <!-- tc: pending because the conversion has not reached this part of the document -->
 
@@ -182,28 +210,21 @@ task at hand — across Claude Code, Codex, and other agents supporting the
 | Skill | Loads when | Notes |
 |-------|-----------|-------|
 | `machine-environment` | project setup, development commands, toolchains, or persistent configuration on Antony's Mac | mise selects project tools, Taskfiles retain workflows, mise bootstrap owns machine setup and tracked dotfiles, and the Obsidian manual supplies current details; declares `assumes-personal-setup: true` |
-| `technical-communication` | always on, and by description | the model writes replies, documents and prompts in controlled English modelled on ASD-STE100; hooks put it in front of every session on Claude Code, Codex and Pi, and one off file turns them off — see [the user document](../docs/TECHNICAL-COMMUNICATION.md) |
 | `using-jujutsu` | by description | drive version control through Jujutsu natively when the repo is jj-enabled (`.jj/` present); git, silently, everywhere else — command surface and the git→jj mapping in `references/` |
 | `authoring-conventions` | by hand (`/authoring-conventions`, user-invoked) | house `SKILL.md` conventions — a thin delta over superpowers' `writing-skills` |
 | `guardrail` | by hand (`/guardrail`, user-invoked) | session-scoped `PreToolUse` gate — pauses for confirmation before destructive shell commands or edits outside the project ("freeze"). **Claude Code only** (`harnesses: [claude-code]`) |
 
 The coding styles, `doubt-driven-development`, `simplify-project` and
 `using-codebase-memory` moved to the `engineering` plugin of EngineeringSkills.
+`technical-communication` and `writing-code-walkthroughs` moved to the
+`writing` plugin of WritingSkills, and the always-on hooks moved with
+`technical-communication`.
 
 Each skill's one-line `description` is the only standing context cost; the body
 loads on demand, and a `references/` file only when the body sends you there.
 
 Two skills are **user-invoked** (`disable-model-invocation: true`): they never
 auto-fire and cost no standing context, reachable only by typing `/<name>`.
-
-One skill is **always on**: `technical-communication`. Its instruction reaches
-every session through a harness entry, which costs context on every turn, so a
-single off file turns all of its layers off. Claude Code loads
-[`linkuistics/hooks/hooks.json`](linkuistics/hooks/hooks.json) with the plugin.
-Codex needs the hooks plugin that [`.agents/plugins/marketplace.json`](../.agents/plugins/marketplace.json)
-lists, which the human adds and trusts once. Pi gets an extension through
-`install.sh`, and Gemini CLI gets the skill only. The commands, the switch and
-the reply log are in [the user document](../docs/TECHNICAL-COMMUNICATION.md).
 
 ## `testanyware` — GUI testing in isolated VMs
 
@@ -289,7 +310,7 @@ cd grove
 the `skills/` and `craft/` roots of both plugins here — into `~/.codex/skills/`, `~/.gemini/skills/`, and `~/.pi/agent/skills/`
 (only for harnesses that are installed). A skill that ships `harnesses/pi/*.ts`
 also has that Pi extension linked into `~/.pi/agent/extensions/`, under the same
-ownership and reconciliation rules; `technical-communication` is the one that does. Because the targets are symlinks,
+ownership and reconciliation rules; `technical-communication`, from the `writing` pack through `--pack`, is the one that does. Because the targets are symlinks,
 `git pull` refreshes the content in place — re-run the script only when skills are
 added, removed, or change which harnesses they declare.
 
@@ -344,11 +365,10 @@ frontmatter.
 **An external pack needs `--pack`.** The requirements kinds are in
 RequirementsSkills. The design kinds and the design craft skills are in
 DesignSkills. The engineering kinds and the engineering craft skills are in
-EngineeringSkills. The research kinds are in ResearchSkills, and the editorial
-kinds are in WritingSkills. The plain run above therefore installs none of
-them.
+EngineeringSkills. The research kinds are in ResearchSkills. The editorial
+kinds and the writing craft skills are in WritingSkills.
 
-Make a checkout of each pack and name its plugin directory:
+The plain run above therefore installs none of them. Make a checkout of each pack and name its plugin directory:
 
 ```
 git clone https://github.com/Linkuistics/RequirementsSkills.git
@@ -413,11 +433,12 @@ and delivery boundary is described in
 
 <!-- tc: on -->
 
-The `requirements`, `design`, `engineering`, `research`, `writing` and `testanyware` plugins are the exceptions. The marketplace
+The `requirements`, `design`, `engineering`, `research`, `writing`, `technical-communication-hooks` and `testanyware` plugins are the exceptions. The marketplace
 entry of each pins a commit of its own repository in `sha`. Claude Code
 delivers that commit until a Grove commit moves the pin. The pin gives native
-users the commit that Grove's `task check:packs` accepted. For `testanyware`,
-that check is the directory-only check, because the plugin has no kind skill.
+users the commit that Grove's `task check:packs` accepted. For `testanyware`
+and `technical-communication-hooks`, that check is the directory-only check,
+because the plugin has no kind skill.
 
 <!-- tc: pending because the conversion has not reached this part of the document -->
 

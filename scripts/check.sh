@@ -109,9 +109,7 @@ run_check "shellcheck" shellcheck \
   scripts/floor-seccomp.test.sh scripts/grove-floor-directory-case.sh \
   scripts/ravel-target-smoke-target.sh scripts/ravel-installed-smoke.sh scripts/ravel-installed-smoke-rhai.sh \
   scripts/ravel-target-inputs.test.sh scripts/grove-installed-smoke.sh \
-  scripts/grove-installed-upgrade.sh \
-  plugins/linkuistics/skills/technical-communication/scripts/tc-hook \
-  scripts/pi-extension-load.test.sh scripts/harness-trials/trial-launch.sh
+  scripts/grove-installed-upgrade.sh scripts/harness-trials/trial-launch.sh
 run_check "cargo clippy" cargo clippy --workspace --all-targets
 run_check "plugin install" bash plugins/install.test.sh
 run_check "conformance" bash plugins/grove/conformance.sh
@@ -122,13 +120,6 @@ run_check "conformance suite" bash plugins/grove/conformance.test.sh
 # network, and later runs reuse target/external-packs/.
 run_check "external packs" task check:packs
 run_check "external pack controls" bash scripts/check-packs.test.sh
-# The vendored checker ships its own self-test; `-I` keeps the interpreter
-# from importing anything out of the current directory or the user's site.
-run_check "technical-communication checker self-test" \
-  python3 -I plugins/linkuistics/skills/technical-communication/scripts/ste-lint.py --selftest
-# Loads the Pi extension in a real Pi, with no model request; it skips visibly
-# when Pi is not installed.
-run_check "technical-communication Pi extension loads" bash scripts/pi-extension-load.test.sh
 run_check "release preparation" bash scripts/release-prepare.test.sh
 run_check "Ravel archive admission" python3 scripts/test_ravel_target_inputs.py
 run_check "QEMU floor seccomp admission" task release:floor:seccomp:controls

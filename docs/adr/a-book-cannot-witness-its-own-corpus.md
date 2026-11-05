@@ -82,7 +82,7 @@ deliverable's root and line counts exactly, with one exclusion across five crate
 book is the same rule with five exclusions and one addition outside `src/`. Every
 exclusion is an inline test module or a test-support module — evidence rather
 than production source, which is the classification
-`linkuistics:writing-code-walkthroughs` asks for at intake.
+`writing-code-walkthroughs` asks for at intake.
 
 ## The alternative that was rejected, and what changed
 

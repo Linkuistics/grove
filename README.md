@@ -14,7 +14,7 @@ also contains the agent skills used by those sessions.
 |---|---|---|
 | Grove | [`crates/`](crates/) | The Rust workspace: two thin binaries over five library crates, the loop that launches one session per task among them. |
 | Grove caller policies | [`assets/ravel-policy/`](assets/ravel-policy/) | Readable owner-editable policies and adapters for independent Ravel. |
-| Skill plugins | [`plugins/`](plugins/) | Grove's own methodology and the Linkuistics coding/design skills. |
+| Skill plugins | [`plugins/`](plugins/) | Grove's own methodology and the Linkuistics practice skills. |
 
 Grove and its skills share a repository; [Ravel](https://github.com/Linkuistics/Ravel) is independently released.
 Grove names the skill each session must load, and you supply that skill to
@@ -130,7 +130,10 @@ marketplace pins one ResearchSkills commit for it.
 
 `writing@linkuistics` supplies the editorial kinds `draft`, `copy-edit`, `art`
 and `proof` from the [WritingSkills](https://github.com/Linkuistics/WritingSkills)
-repository. The marketplace pins one WritingSkills commit for it.
+repository. It also supplies the writing craft skills `technical-communication`
+and `writing-code-walkthroughs`. The marketplace pins one WritingSkills commit
+for it. Its dependency `technical-communication-hooks` comes from the same
+commit and holds the always-on hooks of `technical-communication`.
 `testanyware@linkuistics` supplies the TestAnyware GUI-testing skill from the
 [TestAnyware](https://github.com/Linkuistics/TestAnyware) repository. The
 marketplace pins one TestAnyware commit for it.
@@ -203,6 +206,6 @@ for the catalogue, ownership rules and installation paths.
   adjacent format guides.
 - [Skill plugin documentation](plugins/README.md) and
   [provenance](plugins/linkuistics/PROVENANCE.md).
-- [Technical communication](docs/TECHNICAL-COMMUNICATION.md) — the always-on
-  controlled-English skill: what it does, how to install its hooks, how to turn it
-  off, and how to read its reply log.
+- [Technical communication](https://github.com/Linkuistics/WritingSkills/blob/main/docs/TECHNICAL-COMMUNICATION.md)
+  in WritingSkills — the always-on controlled-English skill: what it does, how
+  to install its hooks, how to turn it off, and how to read its reply log.

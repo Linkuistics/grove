@@ -25,8 +25,8 @@ Claude Code's packaging unit — `plugins/<name>/` holding `.claude-plugin/plugi
 and a `skills/` directory — and a Claude Code concept only; other harnesses receive
 the same [[Skill]] directories by [[Symlink install]]. Two ship here: `grove` and
 `linkuistics`. The marketplace also lists `requirements`, `design`,
-`engineering`, `research`, `writing` and `testanyware`, which their own
-repositories ship.
+`engineering`, `research`, `writing`, `technical-communication-hooks` and
+`testanyware`, which their own repositories ship.
 
 <!-- tc: on -->
 
@@ -139,8 +139,8 @@ frontmatter, and they run in every session.
 **Always-on skill**:
 A [[Skill]] whose instruction reaches every session through a [[Harness entry]],
 not only when its `description` matches. It costs context on every turn, so one
-switch turns all of its always-on layers off. `technical-communication` is the
-instance: its off file is the switch.
+switch turns all of its always-on layers off. `technical-communication`, in the
+`writing` plugin of WritingSkills, is the instance: its off file is the switch.
 _Avoid_: "hook-carrying skill", which names a skill whose frontmatter declares
 hooks that last only while the skill is active.
 
@@ -149,9 +149,10 @@ The thin file, one for each harness, that maps that harness's events onto an
 [[Always-on skill]]'s shared hook script. It is a plugin `hooks/hooks.json` for
 Claude Code, a hooks plugin for Codex and an extension file for Pi. It never changes
 shape, because Codex trusts a hash of each entry. Changes of behaviour go into
-the script. `technical-communication` has three: `plugins/linkuistics/hooks/hooks.json`,
-`harnesses/codex/hooks.json` and `harnesses/pi/technical-communication.ts`. Gemini CLI
-has none, so it gets the skill only.
+the script. `technical-communication` has three: `hooks/hooks.json` of the Claude
+Code plugin `technical-communication-hooks`, `harnesses/codex/hooks.json` and
+`harnesses/pi/technical-communication.ts`. All three are in the skill directory in
+WritingSkills. Gemini CLI has none, so it gets the skill only.
 _Avoid_: "adapter", which names the code for one harness's payload inside the
 shared script.
 

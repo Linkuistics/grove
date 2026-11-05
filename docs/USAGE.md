@@ -149,7 +149,7 @@ named by an absolute path:
       { "id": "design", "type": "local", "path": "/absolute/path/to/design-checkout/plugins/design", "roots": ["skills", "craft"] },
       { "id": "engineering", "type": "local", "path": "/absolute/path/to/engineering-checkout/plugins/engineering", "roots": ["skills", "craft"] },
       { "id": "research", "type": "local", "path": "/absolute/path/to/research-checkout/plugins/research", "roots": ["skills"] },
-      { "id": "writing", "type": "local", "path": "/absolute/path/to/writing-checkout/plugins/writing", "roots": ["skills"] }
+      { "id": "writing", "type": "local", "path": "/absolute/path/to/writing-checkout/plugins/writing", "roots": ["skills", "craft"] }
     ],
     "mandatory": []
   }
@@ -165,9 +165,13 @@ the kinds, and its root `craft` holds the craft skills.
 The impl and prototype kinds and the engineering craft skills ship in the EngineeringSkills
 repository. The fourth source names a checkout of it, with the same two roots. The research
 kinds ship in the ResearchSkills repository, so the fifth source names a checkout of it. Leave
-that source out if you run no research leaf. The editorial kinds ship in the WritingSkills
-repository, so the sixth source names a checkout of it. Leave that source out if you run no
-editorial leaf.
+that source out if you run no research leaf.
+
+The editorial kinds and the writing craft skills ship in the WritingSkills repository. The
+sixth source names a checkout of it, with the same two roots as the third. Its root `craft`
+holds `technical-communication` and `writing-code-walkthroughs`. The always-on hooks of `technical-communication` are not
+skills, so this source does not deliver them. On Claude Code, install the plugin
+`technical-communication-hooks` for them.
 
 A `mandatory` entry names a file that the agent reads before your task. No Grove skill
 must be mandatory, because the mandate names the kind skill. Your configuration must pass

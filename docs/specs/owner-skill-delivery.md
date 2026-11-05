@@ -366,7 +366,7 @@ The default mandatory list holds one file: superpowers
   harness references are relative reads inside the same source.
 
 The always-on instruction of `technical-communication` is not mandatory. The
-[off-file decision](../adr/the-off-file-is-the-only-switch.md) makes one file
+[off-file decision](https://github.com/Linkuistics/WritingSkills/blob/main/docs/adr/the-off-file-is-the-only-switch.md) makes one file
 the only switch for every always-on layer. Ravel reads a mandatory file
 unconditionally, so it would ignore that switch. No Grove or personal guidance
 is mandatory, because Grove's mandate names the kind skill. The explanatory

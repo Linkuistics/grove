@@ -146,6 +146,7 @@ named by an absolute path:
     "sources": [
       { "id": "grove", "type": "local", "path": "/absolute/path/to/grove-checkout/plugins/grove", "roots": ["skills"] },
       { "id": "requirements", "type": "local", "path": "/absolute/path/to/requirements-checkout/plugins/requirements", "roots": ["skills"] },
+      { "id": "design", "type": "local", "path": "/absolute/path/to/design-checkout/plugins/design", "roots": ["skills", "craft"] },
       { "id": "research", "type": "local", "path": "/absolute/path/to/research-checkout/plugins/research", "roots": ["skills"] }
     ],
     "mandatory": []
@@ -155,8 +156,11 @@ named by an absolute path:
 
 The requirements kinds ship in the RequirementsSkills repository, so the second source
 names a checkout of it. The first leaf of a fresh grove is a `requirements` leaf, so keep
-that source for a new grove. The research kinds ship in the ResearchSkills repository, so
-the third source names a checkout of it. Leave that source out if you run no research leaf.
+that source for a new grove. The design kinds and the design craft skills ship in the
+DesignSkills repository, so the third source names a checkout of it. Its root `skills` holds
+the kinds, and its root `craft` holds the craft skills. The research kinds ship in the
+ResearchSkills repository, so the fourth source names a checkout of it. Leave that source out
+if you run no research leaf.
 
 A `mandatory` entry names a file that the agent reads before your task. No Grove skill
 must be mandatory, because the mandate names the kind skill. Your configuration must pass

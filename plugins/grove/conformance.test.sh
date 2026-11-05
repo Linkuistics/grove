@@ -326,16 +326,17 @@ expect_dirty "${root}" 'missing file: grove-interview/procedure.md names `ADR-FO
 # -- Assertion 2: two kinds stating one kind-owned rule ----------------------
 #
 # The grain control. `cite-framework-decisions-to-source` is owned by
-# `grove-impl/SKILL.md`. Its wording restated in `grove-design/SKILL.md` gives
+# `grove-impl/SKILL.md`. Its wording restated in `grove-planning/SKILL.md` gives
 # it two owners. Both sites are a file called `SKILL.md`, so a sweep that
 # reported sites skill-relative would collapse them to one site and read clean.
+# The second kind is `planning`, because core keeps it after every move.
 
 root="$(new_skill_set two-kinds-one-rule)"
 add_kind "${root}" impl
-add_kind "${root}" design
+add_kind "${root}" planning
 expect_clean "${root}" "two real kind skills side by side read clean"
 printf '\nCite at the decision site, beside the non-obvious call.\n' \
-  >>"${root}/grove-design/SKILL.md"
+  >>"${root}/grove-planning/SKILL.md"
 expect_dirty "${root}" "cite-framework-decisions-to-source" \
   "one kind-owned rule stated by a second kind is caught"
 

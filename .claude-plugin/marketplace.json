@@ -1,6 +1,6 @@
 {
   "name": "linkuistics",
-  "description": "Grove's session methodology, coding standards, software design, project simplification, and version-control disciplines as lazily loaded agent skills, plus GUI testing in isolated VMs. Five plugins: grove, requirements, research, linkuistics and testanyware.",
+  "description": "Grove's session methodology, coding standards, software design, project simplification, and version-control disciplines as lazily loaded agent skills, plus GUI testing in isolated VMs. Six plugins: grove, requirements, design, research, linkuistics and testanyware.",
   "owner": {
     "name": "Antony Blakey",
     "email": "antony.blakey@gmail.com"
@@ -9,7 +9,7 @@
     {
       "name": "linkuistics",
       "source": "./plugins/linkuistics",
-      "description": "Linkuistics engineering-practice skills: coding standards, CLI design, deep modules, structural simplicity and testable seams, decision records, contract-preserving project simplification, in-flight adversarial verification, always-on controlled-English writing rules, Jujutsu-native version control, codebase-graph queries, and a user-invoked safety guardrail."
+      "description": "Linkuistics engineering-practice skills: coding standards, contract-preserving project simplification, in-flight adversarial verification, always-on controlled-English writing rules, Jujutsu-native version control, codebase-graph queries, and a user-invoked safety guardrail."
     },
     {
       "name": "testanyware",
@@ -35,6 +35,16 @@
         "sha": "9f7278c2d46b3e7443355633afb8a745b37af7ac"
       },
       "description": "Grove's requirements kinds: the requirements session with its interview procedure, and its review and integration steps."
+    },
+    {
+      "name": "design",
+      "source": {
+        "source": "git-subdir",
+        "url": "https://github.com/Linkuistics/DesignSkills.git",
+        "path": "plugins/design",
+        "sha": "9d7c7c5368f6a22b541881e6c107da28e39627bd"
+      },
+      "description": "Grove's design kinds, with their review and integration steps, and the design craft skills: decision records, codebase design, CLI tool design and model-led development."
     },
     {
       "name": "research",

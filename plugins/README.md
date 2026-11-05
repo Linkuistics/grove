@@ -5,7 +5,7 @@
 Two Claude Code plugins live here — `grove` and `linkuistics` —
 published through the marketplace declared in
 [`../.claude-plugin/marketplace.json`](../.claude-plugin/marketplace.json). The
-marketplace also lists `requirements`, `research` and `testanyware`, which live in their own
+marketplace also lists `requirements`, `design`, `research` and `testanyware`, which live in their own
 repositories and which it pins by commit. The two plugins here
 share this repo with the Grove CLI because the two change in lockstep
 ([architecture](../docs/ARCHITECTURE.md#skills-monorepo)); they ship by their own
@@ -57,6 +57,42 @@ also installs the spine.
 
 <!-- tc: pending because the conversion has not reached this part of the document -->
 
+## `design` — the design kinds and craft skills, from DesignSkills
+
+<!-- tc: on -->
+
+The design kinds `design`, `review-design` and `integrate-review-design` ship
+in their own repository,
+[DesignSkills](https://github.com/Linkuistics/DesignSkills). The skill
+`grove-design` holds its visual design procedure and its diagram viewer. This
+repository holds no copy of those skills.
+
+The plugin `design` also holds four craft skills in its `craft/` root:
+
+| Skill | Loads when | Notes |
+|-------|-----------|-------|
+| `cli-tool-design` | by description | checklist in `SKILL.md`, audit detail in `references/` |
+| `codebase-design` | by description | deep modules, structural simplicity and testable seams by Ousterhout, Hickey and Feathers. Its worked examples are in `references/` |
+| `decision-records` | by description | ADRs as a minimum coherent set that describes the design's current state, with identity by slug |
+| `model-led-development` | by description | routes a specification question to the instrument that answers it, then lets the checked model lead the implementation. The routing table and the log format are in `references/` |
+
+The ADR and spec formats stay in the spine, as `ADR-FORMAT.md` and
+`SPEC-FORMAT.md`. `decision-records` and `codebase-design` deepen those
+formats, and the formats bind without them.
+
+The review and integration kinds are families across packs, as for
+`requirements`. The two family members of the pack load `grove` and read their
+family files in the spine.
+
+The marketplace lists `design` with a `git-subdir` source. That source names
+`plugins/design` and pins one DesignSkills commit in `sha`. Grove's
+`task check:packs` checks the pinned commit alone and with this tree's core.
+Conformance reads only `skills/`, and the pack's own `task check` checks
+the craft skills. The plugin declares a dependency on `grove`, so a Claude Code
+install also installs the spine.
+
+<!-- tc: pending because the conversion has not reached this part of the document -->
+
 ## `research` — the research kinds, from ResearchSkills
 
 <!-- tc: on -->
@@ -91,11 +127,7 @@ task at hand — across Claude Code, Codex, and other agents supporting the
 | `coding-style-bash` | `*.sh`, `*.bash` | |
 | `coding-style-swift` | `*.swift` | |
 | `coding-style-typescript` | `*.ts`, `*.tsx` | |
-| `cli-tool-design` | by description | checklist in `SKILL.md`, audit detail in `references/` |
-| `codebase-design` | by description | deep modules, structural simplicity and testable seams — Ousterhout, Hickey and Feathers; worked examples in `references/`, language-neutral |
-| `decision-records` | by description | ADRs as a minimum coherent set describing the design's current state — current-state over changelog, identity by slug not number |
 | `doubt-driven-development` | by description | in-flight adversarial verify — spawn a fresh-context reviewer to disprove a non-trivial decision before it stands |
-| `model-led-development` | by description | route a specification question to the instrument that answers it — Alloy, Quint, a type system, or no model at all — then let the checked model lead the implementation; the routing table, the non-formal instruments and the log format are in `references/` |
 | `simplify-project` | by description | contract-preserving repository simplification — consolidate current-state docs, remove proven-dead artifacts, reconcile every consumer |
 | `technical-communication` | always on, and by description | the model writes replies, documents and prompts in controlled English modelled on ASD-STE100; hooks put it in front of every session on Claude Code, Codex and Pi, and one off file turns them off — see [the user document](../docs/TECHNICAL-COMMUNICATION.md) |
 | `using-jujutsu` | by description | drive version control through Jujutsu natively when the repo is jj-enabled (`.jj/` present); git, silently, everywhere else — command surface and the git→jj mapping in `references/` |
@@ -107,7 +139,8 @@ The six language skills are the whole of the coding-standard coverage: there is
 no language-neutral coding skill, so a language without one here — Go, Java, C —
 triggers no linkuistics standard at all, test-first included. Adding a language
 means adding its skill; the cross-language rules that survive on their own are the
-design ones in `codebase-design`.
+design ones in `codebase-design`, which the `design` plugin of DesignSkills
+ships.
 
 Each skill's one-line `description` is the only standing context cost; the body
 loads on demand, and a `references/` file only when the body sends you there. In Claude Code the `paths:` frontmatter makes the language
@@ -147,6 +180,7 @@ source directory and its checks. The plugin installs independently of
 /plugin marketplace add Linkuistics/grove
 /plugin install grove@linkuistics
 /plugin install requirements@linkuistics
+/plugin install design@linkuistics
 /plugin install research@linkuistics
 /plugin install linkuistics@linkuistics
 /plugin install testanyware@linkuistics
@@ -259,14 +293,17 @@ frontmatter.
 <!-- tc: on -->
 
 **An external pack needs `--pack`.** The requirements kinds are in
-RequirementsSkills, and the research kinds are in ResearchSkills. The plain run
-above therefore installs neither. Make a checkout of each pack and name its
+RequirementsSkills. The design kinds and the design craft skills are in
+DesignSkills, and the research kinds are in ResearchSkills. The plain run above
+therefore installs none of them. Make a checkout of each pack and name its
 plugin directory:
 
 ```
 git clone https://github.com/Linkuistics/RequirementsSkills.git
+git clone https://github.com/Linkuistics/DesignSkills.git
 git clone https://github.com/Linkuistics/ResearchSkills.git
 ./plugins/install.sh --pack ../RequirementsSkills/plugins/requirements \
+  --pack ../DesignSkills/plugins/design \
   --pack ../ResearchSkills/plugins/research
 ```
 
@@ -320,7 +357,7 @@ and delivery boundary is described in
 
 <!-- tc: on -->
 
-The `requirements`, `research` and `testanyware` plugins are the exceptions. The marketplace
+The `requirements`, `design`, `research` and `testanyware` plugins are the exceptions. The marketplace
 entry of each pins a commit of its own repository in `sha`. Claude Code
 delivers that commit until a Grove commit moves the pin. The pin gives native
 users the commit that Grove's `task check:packs` accepted. For `testanyware`,

@@ -7,8 +7,8 @@ manual installer ([`../README.md`](../README.md)). The user chooses the route;
 the `grove` binary installs no skills. It is a shared
 **spine** skill and one `grove-<kind>` skill per session kind beside it, over
 that spine. **A kind exists iff a skill of that name exists**, so core's set is
-whatever `skills/` holds, and external packs such as RequirementsSkills and
-ResearchSkills ship more: no code carries a list of kinds and no assertion counts them. Prose here describes the set as it stands, which is a different thing from
+whatever `skills/` holds, and external packs such as RequirementsSkills,
+DesignSkills and ResearchSkills ship more: no code carries a list of kinds and no assertion counts them. Prose here describes the set as it stands, which is a different thing from
 machinery holding it.
 
 The separate [`configure-grove`](skills/configure-grove/SKILL.md) operator skill
@@ -39,7 +39,8 @@ file is:
 - Otherwise the file is in the spine's `references/`. That covers a family that
   core ships alone, such as the four editorial stages. It also covers a family
   whose kinds ship in several packs, such as the five reviews and the five
-  integrations. Their requirements members ship in RequirementsSkills.
+  integrations. Their requirements members ship in RequirementsSkills, and
+  their design members ship in DesignSkills.
 
 <!-- tc: pending because the conversion has not reached this part of the document -->
 
@@ -58,12 +59,12 @@ iff a skill of that name exists.**
 kind's own `SKILL.md` — not in a `references/` file the skill points at. The
 distinction is the whole of the difference between the rule's two halves: what is
 inline arrives *with* the skill in one hop, and what is in the spine is reached
-by a second one. In core, five kinds are fat this way (`design`, `planning`,
-`prototype`, `impl`, `finish`) and eight are thin: core's four `review-*` and
-four `integrate-review-*` each state their identity and
+by a second one. In core, four kinds are fat this way (`planning`,
+`prototype`, `impl`, `finish`) and six are thin: core's three `review-*` and
+three `integrate-review-*` each state their identity and
 direct one load, because everything else they obey belongs to their family and
-the family's text is the spine's. The READMEs of RequirementsSkills and
-ResearchSkills describe their kinds. The four
+the family's text is the spine's. The READMEs of RequirementsSkills,
+DesignSkills and ResearchSkills describe their kinds. The four
 editorial stages (`draft`, `copy-edit`, `art`, `proof`) are the one hybrid: each
 directs a load of its family's file *and* carries its own charter inline, because
 what the four share is the pipeline's mechanics and what divides them is the
@@ -73,7 +74,8 @@ One file in core rides inside a kind's skill rather than in its `SKILL.md`
 body, and it is that kind's alone:
 `grove-impl/LICENSES/addyosmani-agent-skills.LICENSE`, which only that skill's
 provenance comment cites. The interview procedure `grilling.md` moved with
-`grove-requirements` to RequirementsSkills.
+`grove-requirements` to RequirementsSkills. The visual design procedure and its
+diagram viewer moved with `grove-design` to DesignSkills.
 
 ## The second hop is not measured, and that is the open gap
 
@@ -132,6 +134,7 @@ parameter to policy; naming the session belongs to the methodology.
 /plugin marketplace add Linkuistics/grove
 /plugin install grove@linkuistics
 /plugin install requirements@linkuistics
+/plugin install design@linkuistics
 /plugin install research@linkuistics
 /plugin install linkuistics@linkuistics
 /plugin install testanyware@linkuistics

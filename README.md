@@ -54,9 +54,14 @@ environment grants. Grove removes enclosing session authority before selection;
 never grant lifecycle control names. `.ravel-choice` chooses among options the
 policy offers. [Launch policy](docs/USAGE.md#usage-launch-policy) has the rest.
 
-Grove's methodology uses Linkuistics' `decision-records` for ADR discipline and
-`codebase-design` for module design, structural simplicity, and test seams.
-Install the Linkuistics skills with Grove's skills, using the instructions below.
+<!-- tc: on -->
+
+Grove's methodology cites the craft skill `decision-records` for ADR discipline
+and `codebase-design` for module design, structural simplicity and test seams.
+Both skills ship in the `design` plugin of DesignSkills. Install them with
+Grove's skills, as the instructions below state.
+
+<!-- tc: pending because the conversion has not reached this part of the document -->
 
 ## Browse a task tree
 
@@ -87,6 +92,7 @@ For Claude Code:
 /plugin marketplace add Linkuistics/grove
 /plugin install grove@linkuistics
 /plugin install requirements@linkuistics
+/plugin install design@linkuistics
 /plugin install research@linkuistics
 /plugin install linkuistics@linkuistics
 /plugin install testanyware@linkuistics
@@ -103,6 +109,11 @@ Grove's methodology; see [`plugins/grove/README.md`](plugins/grove/README.md).
 repository. A fresh grove starts with a `requirements` leaf, so install it
 before you start a grove. The marketplace pins one RequirementsSkills commit for
 it.
+
+`design@linkuistics` supplies the design kinds and the design craft skills from
+the [DesignSkills](https://github.com/Linkuistics/DesignSkills) repository. The
+craft skills are `decision-records`, `codebase-design`, `cli-tool-design` and
+`model-led-development`. The marketplace pins one DesignSkills commit for it.
 
 `research@linkuistics` supplies the research kinds from the
 [ResearchSkills](https://github.com/Linkuistics/ResearchSkills) repository. The
@@ -125,11 +136,12 @@ Claude-only `guardrail` is excluded from Codex.
 
 <!-- tc: on -->
 
-To install the requirements kinds and the research kinds too, make a checkout
-of each pack and name its plugin directory with `--pack`:
+The external packs need `--pack`. Make a checkout of each pack that you want,
+and name its plugin directory:
 
 ```sh
 ./plugins/install.sh --pack /path/to/RequirementsSkills/plugins/requirements \
+  --pack /path/to/DesignSkills/plugins/design \
   --pack /path/to/ResearchSkills/plugins/research
 ```
 

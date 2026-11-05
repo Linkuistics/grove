@@ -84,7 +84,14 @@ when-to-write test was only cited, so grove had no limit of its own. The corpus
 held an OR-form paraphrase of the plugin's AND test for as long as nothing local
 contradicted it. A cited test is no test.
 
-The registry of `crates/grove/tests/plugin_fallback.rs` lists the citations and
-the decision for each. It asserts both halves over the shipped skill set. Each
-citation states what binds, and the list is complete. A citation added later
-without a binding sentence therefore fails before it reaches a session.
+The registry of `crates/grove/tests/plugin_fallback.rs` lists core's citations
+and the decision for each. It asserts both halves over core's shipped skill set.
+Each citation states what binds, and the list is complete. A citation added later
+to core without a binding sentence therefore fails before it reaches a session.
+
+The registry covers core alone. Each pack pins its own citations as rows of its
+conformance manifest. The pack alone then checks that the owner states the
+binding sentence and that no other file of the pack states it. DesignSkills
+pins the citation of `codebase-design` in `grove-design/SKILL.md` this way. No
+sweep finds an unregistered citation in a pack. Reopen that gap when a pack
+adds a citation of a craft skill.

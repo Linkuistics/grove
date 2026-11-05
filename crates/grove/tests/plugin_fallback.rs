@@ -135,17 +135,18 @@ struct Citation {
 /// `grilling.md` has since moved to the RequirementsSkills pack, outside this
 /// corpus.
 ///
+/// The registry covers core alone. `grove-design/SKILL.md` moved to the
+/// DesignSkills pack with its citation of `codebase-design`, and that pack's
+/// manifest pins the citation's binding sentence as the row
+/// `design-cites-codebase-design-with-fallback`. Each pack pins its own
+/// citations, and no sweep here reads a pack.
+///
 /// `grove/references/grove.md` is the **hub**: it states what binds for every
 /// cited skill in one place, and the spine's `SKILL.md` routes every
 /// citation there ([`the_hub_is_reachable_from_the_condition_register`]). That is
 /// why no other file mirrors the seam gloss — a second statement of it would be
 /// the duplication the ownership inventory exists to remove.
 const CITATIONS: &[Citation] = &[
-    Citation {
-        file: "grove-design/SKILL.md",
-        skill: "codebase-design",
-        binds: "grove's artifact requirements remain binding when the skill is absent",
-    },
     Citation {
         file: "grove/ADR-FORMAT.md",
         skill: "decision-records",
@@ -295,8 +296,8 @@ fn the_citation_registry_is_exhaustive_over_the_corpus() {
     // broken-marker failure cannot pass as a clean audit.
     assert_eq!(
         found.len(),
-        12,
-        "the shipped skill set carries twelve audited citations across eight files: {found:?}"
+        11,
+        "the shipped skill set carries eleven audited citations across seven files: {found:?}"
     );
 }
 
@@ -472,15 +473,12 @@ fn an_ordinary_task_completes_without_reading_a_plugin_skill() {
 const MOVING_KIND_OPENINGS: &[&str] = &[
     "grove-art/SKILL.md",
     "grove-copy-edit/SKILL.md",
-    "grove-design/SKILL.md",
     "grove-draft/SKILL.md",
     "grove-impl/SKILL.md",
-    "grove-integrate-review-design/SKILL.md",
     "grove-integrate-review-impl/SKILL.md",
     "grove-integrate-review-prototype/SKILL.md",
     "grove-proof/SKILL.md",
     "grove-prototype/SKILL.md",
-    "grove-review-design/SKILL.md",
     "grove-review-impl/SKILL.md",
     "grove-review-prototype/SKILL.md",
 ];

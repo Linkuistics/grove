@@ -10385,7 +10385,7 @@ with a session handle and commit for each, and that is why the adjudication
 rather than this log is the authority for this pass.
 
 **So the instruction
-[`keeping-a-log.md`](../plugins/linkuistics/skills/model-led-development/references/keeping-a-log.md)
+[`keeping-a-log.md`](https://github.com/Linkuistics/DesignSkills/blob/main/plugins/design/craft/model-led-development/references/keeping-a-log.md)
 then carried — every session that reaches for a formalism appends an entry
 before it finishes — was kept by the sessions that *built* or *ran* models and
 not by the sessions that *checked* them.** The recovery cost was one whole leaf re-opening model

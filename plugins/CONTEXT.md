@@ -24,8 +24,8 @@ _Avoid_: "command" (a Claude Code slash command is a different artifact), "promp
 Claude Code's packaging unit — `plugins/<name>/` holding `.claude-plugin/plugin.json`
 and a `skills/` directory — and a Claude Code concept only; other harnesses receive
 the same [[Skill]] directories by [[Symlink install]]. Two ship here: `grove` and
-`linkuistics`. The marketplace also lists `requirements`, `research` and
-`testanyware`, which their own repositories ship.
+`linkuistics`. The marketplace also lists `requirements`, `design`, `research`
+and `testanyware`, which their own repositories ship.
 
 <!-- tc: on -->
 

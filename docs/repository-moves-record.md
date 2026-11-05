@@ -1809,3 +1809,191 @@ engineering-pack-repository-k203.
   The run made 90 links in all and skipped `guardrail` three times. `--force`
   was needed because the Grove workspace is a secondary jj workspace. The
   owner's real skill links had the same digest before and after.
+
+## WritingSkills
+
+`writing-pack-repository-k205` created the repository
+`~/Development/AgenticOrchestration/WritingSkills` on 2026-11-05, with the
+four editorial kinds and the family skill `editorial-family`. This is the
+expand step of `editorial-pack-k179`. At the first pack commit, Grove still
+ships its own copies, so the aggregate fails on duplicates by design.
+`editorial-removal-k206` removes Grove's copies and publishes the second pack
+commit. `writing-craft-pack-k181` later adds the `craft/` root and the hooks
+plugin.
+
+### Source of the writing pack
+
+| Subject | Value |
+| --- | --- |
+| Repository | `https://github.com/Linkuistics/WritingSkills.git`. See [Publication of the writing pack](#publication-of-the-writing-pack) |
+| First pack commit | `694140a18dc736c272c5a16588253710a92844fb`, the jj bookmark `main` |
+| Source directory | `plugins/writing`. It is the Claude Code plugin root and the Ravel source directory |
+| Ravel roots | `["skills"]`. The pack has no `craft/` directory yet |
+| Git tree of the source directory | `361070804328e5b30bcfd874125ac58c04a52d0b` |
+| `resourceDigest` | `db96fa09905e5dca83325d759bff2b153ca9cb22144386049b3ed00ffffa7d31`, from a plain Git checkout of the commit and from the jj working copy |
+| Recorded Grove commit | `f45c5a53796f2a5bf634fec340cb0d7aef63e184`, the `GROVE_COMMIT` of the Taskfile. It is the removal commit of `engineering-removal-k204`, and it still ships the moving files |
+| Grove remote bookmark | `gh-issue-25`, already at the recorded commit. The two later commits of the line change only `.grove/` and `docs/`, so no push was needed |
+
+The tracked files are `.gitignore`, `LICENSE`, `README.md`, `Taskfile.yml`
+and seven files under `plugins/writing`:
+
+- `.claude-plugin/plugin.json`
+- `conformance/rules.tsv`
+- `skills/editorial-family/SKILL.md`
+- `SKILL.md` of `grove-draft`, `grove-copy-edit`, `grove-art` and
+  `grove-proof` in `skills/`
+
+The repository has no Git attribute and no symlink. The checks write only
+`.cache/`, which Git ignores. `LICENSE` and `.gitignore` equal those of
+RequirementsSkills, and `LICENSE` equals Grove's. The Taskfile is the Taskfile
+of RequirementsSkills with three changes: the pack's name in the first
+comment, `GROVE_COMMIT` and `PACK`. `GROVE_REPOSITORY` stays the public URL.
+
+The manifest sets `name` `writing`, `license` `Apache-2.0` and
+`dependencies` `["grove"]`, with no `version`. Its other fields follow the
+requirements manifest.
+
+### Byte changes of the writing pack
+
+Each change below is against Grove's files at the recorded Grove commit. The
+digest is that of `docs/owner-skill-inventory.tsv`. A copy of the inventory's
+`digest()` function gave each value below. It gave the baseline value for each
+copy under the owner's Claude Code cache. Each of Grove's four kind
+directories at the recorded commit has its baseline digest. Each Grove file
+equals its cache copy byte for byte.
+
+| Skill | Baseline digest and files | Pack digest and files | Change |
+| --- | --- | --- | --- |
+| `grove-draft` | `7679a927af6b0094`, 1 | `fb21af42dc743366`, 1 | The first paragraph has the opening of `research-a` in the contract's "References between skills", with `editorial-family` for `research-family`. The second paragraph names the `editorial-family` skill where it said "that file", and the paragraph is wrapped again |
+| `grove-copy-edit` | `e8d292388f59c9c2`, 1 | `70786827a3634bf4`, 1 | As `grove-draft` |
+| `grove-art` | `f5fdf5319d632bad`, 1 | `98de33804c08a3bb`, 1 | As `grove-draft` |
+| `grove-proof` | `07339dc854e6a7d3`, 1 | `f2032e99a054a049`, 1 | As `grove-draft` |
+| `editorial-family` | None. The source is `references/editorial.md` of the baseline entry `grove`, `b6baf08f77704f96`, 19. That file's digest is `e4ab4b8b17b1d8e0` in the baseline and at the recorded commit | `eaae0bf8e1b3f0f6`, 1 | New frontmatter: the name `editorial-family`, a description that names the four kinds, and `harnesses: [any]`. Line 75 of the body changes "`references/execute.md`'s" to "the spine's". No other line changes |
+
+A `diff` of each kind against Grove's copy showed only its first two
+paragraphs. A `diff` of the family body against `editorial.md` showed only
+line 75.
+
+The change to line 75 follows rule 3 of "References between skills". The
+family skill loads no skill, so `references/execute.md` resolves in no skill
+that the file loads. The pack alone then reports a missing file. In a scratch
+copy of the source directory, the original phrase gave exactly that failure:
+
+```text
+FAIL   missing file: editorial-family/SKILL.md names `references/execute.md`, which is in neither editorial-family nor a skill that the file loads
+```
+
+The reader has already loaded the spine, which states the review allowance,
+so "the spine's" keeps the meaning.
+
+A scan of the moved Markdown for `<word>:<word>` tokens found `grove:grove`
+once in each kind opening. After the move, the pack holds no `grove:grove`.
+The moved files cite no other skill. Their only spine path was
+`references/editorial.md` in each opening and `references/execute.md` in the
+family file. `grove-art` links two public `typst.app` pages, and no moved
+file links a Grove record. No moved file adapts a passage of a third party,
+so the pack has no `LICENSES/`.
+
+The second paragraph of each kind keeps the "family file" wording of its
+last-act sentence. The glossary entry "Family reference file" names the family
+skill as the family file of an external pack, so the wording stays true.
+
+The moved text keeps its findings of the technical-communication checker. It
+is quoted source text. The new sentences in the openings, the frontmatter and
+the README have no finding.
+
+### Rules of the writing pack
+
+`plugins/writing/conformance/rules.tsv` holds the 23 rows that the moving
+files own, in Grove's order:
+
+- 11 rows had the owner `grove/references/editorial.md` and the load
+  `static(editorial)`. They now have the owner `editorial-family/SKILL.md` and
+  the load `static({draft,copy-edit,art,proof})`.
+- 12 rows keep their owner and their load: 3 of `grove-art/SKILL.md`, 2 of
+  `grove-copy-edit/SKILL.md`, 3 of `grove-draft/SKILL.md` and 4 of
+  `grove-proof/SKILL.md`, each with the load of its own kind.
+
+Each row keeps its identifier, class and pinned phrase. The leaf named only
+the 11 family rows. The contract's "Manifest changes" moves every row that a
+moving file owns. The two pack commits must also have the same
+`plugins/writing`, so the 12 kind rows are in the first commit. No pinned
+phrase contains the changed words of line 75.
+
+The selection was the owner column of Grove's manifest. A search of every row
+for the four kind names and `editorial` found no other row. Grove still holds
+the 23 rows, and `editorial-removal-k206` removes them.
+
+### Checks of the writing pack
+
+The checks ran in a plain Git clone of the first pack commit from the public
+remote. `GROVE_REPOSITORY` was the public URL, with no override.
+`grove:checkout` fetched the recorded Grove commit from Grove's public remote.
+The checkout was clean after the run, apart from the ignored `.cache/`.
+
+- `check:plugin` passed with two warnings, no `version` and no icon. Claude
+  Code was 2.1.318.
+- The pack alone passed with exit status 0. It checked 23 single-source rows
+  and 56 loaded paths. No row lacks a pinned phrase.
+- The aggregate failed on 105 assertions, as the order of the move expects.
+  `task check` therefore exits non-zero at this commit, after `check:plugin`
+  passes.
+
+The pack alone listed 4 external edges and 0 external resources. Each kind
+loads `grove`, which the pack does not ship. `editorial-family` loads nothing
+and names no path. The pack alone listed no missing file.
+
+The 105 aggregate failures have five classes:
+
+- 4 duplicate skills, one for each moving kind.
+- 23 duplicate rows, one for each moved row.
+- 12 unshipped owners, one for each kind row. The runner maps a skill name
+  that two packs ship to the first pack, which is core. A pack row whose
+  owner is in a moving kind therefore reads as unshipped.
+- 22 reports of a second site, two for each family row. Each such phrase is
+  in `editorial.md` and in `editorial-family/SKILL.md`, and each of the two
+  manifests checks it.
+- 44 reports of a family row off a kind's path, one for each family row and
+  kind. Core's copy of each kind answers the kind's name, and that copy loads
+  no `editorial-family`.
+
+Each failure names a moving skill or a moved row, and the duplicates cause all
+105. A development run with the local Grove repository gave the same 105
+failures. The comparison replaced each checkout root and then compared the
+sorted lines one by one.
+
+### Ravel resolution of the writing pack
+
+`ravel skills resolve --json` resolved the public clone with the status
+`resolved`. The source record has the type `local` and the digest
+`db96fa09905e…`. Its one search directory is the `skills` root of the
+snapshot, which holds the four kinds and `editorial-family`. `diff -r` found
+no difference between the snapshot and `plugins/writing` of the clone. A
+local clone before the publication and the jj working copy gave the same
+digest.
+
+The instrument was the Ravel 2.0 build of `scripts/harness-trials/builds.json`.
+`task install` installed it from the line `skill-directory-delivery` at
+`71f70fcd3f92` into a scratch prefix. Its `bin/ravel` SHA-256 is
+`26b487afb957…`, the pinned value. Each resolution ran under a temporary
+`HOME` whose settings held one `local` source with the roots `["skills"]` and
+an empty mandatory list.
+
+### Publication of the writing pack
+
+- The permission classifier first refused `gh repo create`. After the owner
+  gave permission, this session ran
+  `gh repo create Linkuistics/WritingSkills --public`.
+- jj added the remote `origin` and pushed the bookmark `main`. The public
+  `main` is `694140a18dc736c272c5a16588253710a92844fb`, the default branch.
+- The recorded Grove commit `f45c5a53796f` is the head of Grove's remote
+  bookmark `gh-issue-25`. It was already there, so no push came before the
+  pack.
+- Grove's marketplace does not list the pack yet. `editorial-removal-k206`
+  adds the entry with the removal, and it pins this first pack commit.
+
+### For the paused editorial grove
+
+The editorial kinds and their family file ship in WritingSkills from this
+commit. Grove still ships its copies until `editorial-removal-k206`. Rollout's
+brief-update text for the paused editorial grove states that move.

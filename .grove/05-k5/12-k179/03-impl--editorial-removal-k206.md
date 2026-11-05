@@ -30,9 +30,11 @@ list:
   family-file list, and its description drops "editorial" from the family
   files. The editorial row of the kind table in `TASK-FORMAT.md` names
   `WritingSkills`. The label tests take those labels from the external row.
-- `plugins/grove/conformance/rules.tsv`: remove the eleven rows whose owner is
-  `grove/references/editorial.md`. The header comment drops the family set
-  `editorial`.
+- `plugins/grove/conformance/rules.tsv`: remove the 23 rows that the moving
+  files own. Eleven have the owner `grove/references/editorial.md`, and twelve
+  have the owner of a moving kind's `SKILL.md`. The pack's manifest holds all
+  23, as writing-pack-repository-k205 records. The header comment drops the
+  family set `editorial`.
 - `plugins/grove/conformance.awk`: drop the named set `editorial` and its
   comment, as "Manifest changes" states. The pack's rows already use the
   explicit list.

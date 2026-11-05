@@ -130,3 +130,35 @@ prompt.
 Until editorial-removal-k206, a native user meets shared skill names, and the
 installer refuses a scan of both plugins. That state lives only on this
 workstream's line.
+
+## Decisions (running log)
+
+- `GROVE_COMMIT` is `f45c5a53796f2a5bf634fec340cb0d7aef63e184`. It is the head
+  of Grove's remote bookmark `gh-issue-25`, so no push is needed. The two later
+  commits of this line change only `.grove/` and `docs/`, and `git diff` shows
+  the four kind directories unchanged against the line head.
+- The pack manifest holds 23 rows, not 11. Grove's manifest has 11 rows whose
+  owner is `grove/references/editorial.md` and 12 rows whose owners are the four
+  kind skills (`grove-art` 3, `grove-copy-edit` 2, `grove-draft` 3,
+  `grove-proof` 4). The contract's "Manifest changes" moves every row that a
+  moving file owns, and the research and requirements moves moved their
+  kind-owned rows. The two pack commits must also have the same
+  `plugins/writing`, so the kind rows belong in the first commit. If the rows
+  stayed in Grove, the removal would leave 12 rows with absent owners, and the
+  runner fails such a row. The 11 family rows take the owner
+  `editorial-family/SKILL.md` and the load
+  `static({draft,copy-edit,art,proof})`. The 12 kind rows keep their owner and
+  their load, as the `combine-research` rows did. editorial-removal-k206 must
+  therefore remove 23 rows from Grove's manifest.
+- The family body has the one planned change on line 75 and no other. The
+  sweep of the moved files found no other spine path, no Grove record link,
+  no craft-skill citation and no adapted third-party passage. The kinds keep
+  "the family file's rule" in their last-act sentences, because the glossary
+  entry names the family skill as an external pack's family file.
+- The moved text keeps its technical-communication findings, as the design
+  pack's record did. The new openings, the frontmatter, the README and the
+  record section have no hard finding.
+- The first pack commit is `694140a18dc7`, tree `361070804328`, digest
+  `db96fa09905e…`. The pack alone passes with 23, 56 and 4 external edges.
+  The aggregate fails on 105 assertions, every one caused by a duplicate.
+- The permission classifier refused `gh repo create`. The owner runs it.

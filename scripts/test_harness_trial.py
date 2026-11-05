@@ -2273,6 +2273,36 @@ class HarnessTrialTest(unittest.TestCase):
             classifier = trial.Classifier({}, Path("/h"), Path("/r"))
             self.assertEqual(trial.extract_events([entry], classifier)[0]["class"], expected, command)
 
+    def check_craft_root(self):
+        # Ravel's cache lies under `.cache/ravel/skills/v1`, so a read in a
+        # `craft` root has a `skills` segment only above the snapshot.
+        temp = Path(tempfile.mkdtemp(dir=self.temp.name))
+        snap = temp / "home/.cache/ravel/skills/v1/snapshots/d8/tree"
+        for relative in ("skills/grove-design/SKILL.md", "craft/cli-tool-design/SKILL.md"):
+            (snap / relative).parent.mkdir(parents=True, exist_ok=True)
+            (snap / relative).write_text("---\nname: x\n---\n")
+        view = {"kind": "impl", "skills": {
+            "sources": [{"id": "design", "snapshotRoot": str(snap), "originPath": str(temp / "origin")}],
+            "directories": [{"source": "design", "path": str(snap / "skills")},
+                            {"source": "design", "path": str(snap / "craft")}],
+            "mandatory": []}}
+        classifier = trial.Classifier(view, temp / "home", temp / "repo")
+        self.assertEqual(classifier.classify(str(snap / "craft/cli-tool-design/SKILL.md")),
+                         ("skill", "cli-tool-design"))
+        self.assertEqual(classifier.classify(str(snap / "craft/cli-tool-design")),
+                         ("listing", "cli-tool-design"))
+        self.assertEqual(classifier.classify(str(snap / "skills/grove-design/SKILL.md")),
+                         ("skill", "grove-design"))
+        self.assertEqual(classifier.classify(str(snap / "craft")), ("listing", None))
+
+    def test_a_read_in_a_craft_root_names_its_skill(self):
+        self.check_craft_root()
+        # A runner that names a skill by the last `skills` segment alone gives
+        # the cache's `v1` for a craft read.
+        with (mock.patch.object(trial.Classifier, "_skill_name", lambda self, path: trial.Classifier._skill(path)),
+              self.assertRaises(AssertionError, msg="the check passed with a broken _skill_name")):
+            self.check_craft_root()
+
     # --- Delegation -------------------------------------------------------------
 
     def check_delegation(self, fixture: Fixture):

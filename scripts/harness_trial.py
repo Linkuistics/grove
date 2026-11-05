@@ -538,6 +538,9 @@ class Classifier:
         self.mandatory = {self._norm(item["path"]) for item in skills.get("mandatory", [])}
         self.descriptor = self._norm(skills["descriptorPath"]) if skills.get("descriptorPath") else None
         self.snapshots = [(source["id"], self._norm(source["snapshotRoot"])) for source in skills.get("sources", [])]
+        # The search directories: each root of each source, such as `skills`
+        # and `craft`, inside its snapshot.
+        self.directories = [self._norm(item["path"]) for item in skills.get("directories", [])]
         self.origins = [(source["id"], self._norm(source["originPath"])) for source in skills.get("sources", [])]
         # The roots of every harness, whichever harness ran, so a read of the
         # other harness's configuration still shows as such. The session files:
@@ -563,12 +566,12 @@ class Classifier:
         """(class, skill name) of one absolute path."""
         path = self._norm(raw)
         if path in self.mandatory:
-            return "mandatory", self._skill(path)
+            return "mandatory", self._skill_name(path)
         if self.descriptor and path == self.descriptor:
             return "descriptor", None
         for source, root in self.snapshots:
             if self._inside(path, root):
-                skill = self._skill(path)
+                skill = self._skill_name(path)
                 if os.path.isdir(path):
                     return "listing", skill
                 if path.endswith("/SKILL.md"):
@@ -601,6 +604,16 @@ class Classifier:
             if self._inside(path, root):
                 return source
         return None
+
+    def _skill_name(self, path: str) -> str | None:
+        """The skill of a path in a search directory is its first segment
+        below that directory. A root need not be named `skills`, and Ravel's
+        cache path holds a `skills` segment above every snapshot."""
+        for directory in self.directories:
+            if self._inside(path, directory):
+                rest = Path(path).relative_to(directory).parts
+                return rest[0] if rest else None
+        return self._skill(path)
 
     @staticmethod
     def _skill(path: str) -> str | None:

@@ -841,6 +841,9 @@ skills, so the aggregate fails on duplicates by design.
 `design-removal-k198` removed Grove's copies and published the second pack
 commit. See [Removal of the design pack](#removal-of-the-design-pack).
 
+`design-craft-trials-k199` ran the discovery trial from the `craft/` root. See
+[Design craft trials](#design-craft-trials).
+
 ### Source of the design pack
 
 | Subject | Value |
@@ -1167,3 +1170,18 @@ craft skill.
   harness. The run made 111 links in all. `--force` was needed because the Grove workspace
   is a secondary jj workspace. The owner's real skill links had the same digest
   before and after.
+
+### Design craft trials
+
+`design-craft-trials-k199` ran the case `design-craft-discovery` once in
+Claude Code and once in Codex, on 2026-11-05. The `grove` source came from the
+prepared Grove checkout at the removal commit `84fba18c1f98`. The `design`
+source came from a plain Git checkout of the second pack commit
+`a9288f733508`, with the roots `skills` and `craft`. In each session, an
+`impl` leaf asked for a command-line tool and named no skill. The agent read
+`craft/cli-tool-design/SKILL.md` from the `design` snapshot before it wrote
+the tool.
+
+Both runs pass, and no gap remains open.
+[Design craft trials](common-loading-acceptance-record.md#design-craft-trials)
+in the acceptance record holds the builds, the digests and the observations.

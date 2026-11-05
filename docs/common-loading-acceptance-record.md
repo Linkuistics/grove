@@ -21,9 +21,12 @@ kinds from the external pack. The
 [Requirements directory trials](#requirements-directory-trials) run an
 external member of a cross-pack review family.
 [Requirements native namespace](#requirements-native-namespace) runs the same
-member from a native Claude Code installation. The
-[Trial supplier check](#trial-supplier-check) reads each case against the Grove
-commit that its run measured.
+member from a native Claude Code installation.
+
+The [Trial supplier check](#trial-supplier-check) reads each case against
+the Grove commit that its run measured. The
+[Design craft trials](#design-craft-trials) run a craft skill of an external
+pack from its `craft` root.
 
 ## Conventions
 
@@ -9193,6 +9196,7 @@ commit, with one reading that the table explains.
 | `57414e00cd87` | `research-discovery`, `research-delegate`, `research-source-missing`, `research-root-missing`, `research-native-namespace` |
 | `302f85429e4b` | `requirements-family-read`, `requirements-native-namespace` |
 | `1bcefecf596b` | `testanyware-discovery` |
+| `84fba18c1f98` | `design-craft-discovery`, read by `design-craft-trials-k199` |
 
 The section of Discovery problems names two commits for its eight cases. The
 check read all eight at both. At `a76bedff0a25`, `problem-ambiguity-unreferenced`
@@ -9246,3 +9250,198 @@ Without its kind skill, `smoke` did the same.
   prove that no supplier holds that skill.
 - **Native plugin dependencies.** A native plugin supplies the kind skill from
   its own directory. The check reads no dependency of the plugin.
+
+## Design craft trials
+
+`design-craft-trials-k199` runs the directory proof of `design-pack-k175` in
+real Claude Code and Codex sessions. DesignSkills is the first pack with a
+`craft/` root. The
+[pack membership specification](specs/pack-membership.md#the-acceptance-of-each-move)
+asks for one activation in its row "The first `craft/` root". A task needs a
+craft skill from that root, and neither the mandate nor the task names the
+skill.
+
+### Subjects of the design craft trials
+
+The runs are from 2026-11-05 local time. The case ran once in each harness,
+with no retry.
+
+| Subject | Value |
+| --- | --- |
+| Case | `design-craft-discovery`, on the route directory-2.0 |
+| Runner | `scripts/harness_trial.py` in the commit that adds the case. The skill names of the events come from the repaired classifier of [The craft root in the classifier](#the-craft-root-in-the-classifier) |
+| Grove build | commit `84fba18c1f98`, the removal commit of `design-removal-k198`. `grove` SHA-256 `a7f5c988a18e…`, `grove-llm` SHA-256 `2f7895cc33f7…` |
+| Ravel build | line `skill-directory-delivery` at `71f70fcd3f92`, build commit `d324668b86ca`, identity `a4f55d04b2d1…`, `bin/ravel` SHA-256 `26b487afb957…`, the value of `builds.json` |
+| Source `grove` | `plugins/grove` of the prepared plain Git checkout at `84fba18c1f98`, root `skills`. `resourceDigest` `8e527974cc0f…` |
+| Source `design` | `plugins/design` of a plain Git checkout of `a9288f733508b97b6812215086372598b01b50ba`, the second pack commit and the published `main` of `https://github.com/Linkuistics/DesignSkills.git`. Roots `skills` and `craft`, Git tree `dd04e268aeb5…`, `resourceDigest` `d8ad3a2af1b5…` |
+| Mandatory file | `grove` `skills/grove/SKILL.md`, the Grove spine |
+| Declared skill | `design` `craft/cli-tool-design/SKILL.md`, in `requires` |
+| Claude Code | 2.1.318, model `claude-opus-5-5`, effort `medium`, permission mode `bypassPermissions` |
+| Codex | codex-cli 0.166.0, model `gpt-6.1-sol`, effort `medium`, sandbox `workspace-write`, approval `never` |
+
+The `design` digest equals the value in the moves record's
+[Removal of the design pack](repository-moves-record.md#removal-of-the-design-pack).
+Each launch named the same digest as the checkout. Each view had three search
+directories: the `skills` root of `grove`, and the `skills` and `craft` roots
+of `design`.
+
+The runner made each `design` checkout under the trial's `sources/`. The
+harness's working directory was the trial's `repo/`. That directory is
+outside the Grove working copy, the DesignSkills working copy and every
+checkout. Each checkout had its commit as `HEAD` and was clean after the
+driver.
+
+The permission modes in the table are those of the route's real launches.
+Ravel confines no launch, so a delegate of either session has the same read
+permissions. The case asks for no delegate, and neither session launched one.
+
+The sandbox home linked only the sign-in store of the harness. No native copy
+of any Grove or design skill existed in it. The Claude Code listing held 32
+names: 19 built-in names and the 13 synced `anthropic-skills:*` skills of
+earlier runs. One built-in name is `design`, which is also the name of the
+pack's plugin. It is not a skill of the pack, and the session did not call the
+Skill tool.
+
+Codex installed its four bundled skills and the curated plugins of
+the sign-in, as in every earlier Codex run. No session read any of them.
+
+### The subject of the design craft trials
+
+The craft skill is `cli-tool-design`. No file of core names it. Only its
+description, "Use when designing, writing, auditing, or refactoring a CLI
+tool", connects it to the task.
+
+`decision-records` was the other candidate. The spine's `ADR-FORMAT.md` names
+it and calls it a deepening of the format. A session that settles a decision
+can follow the format file alone and still act correctly. A missed read would
+then not be a defect.
+
+The planted tree holds one `impl` leaf, `notes-tool-k1`. It asks for
+`notes.py`, "a command-line tool that other agents run to keep short notes",
+in Python 3 with the standard library. The tool has the subcommands `add`,
+`list` and `remove`. The leaf names no skill, and it asks for no structured
+output, help examples or exit codes. Grove sends its bare-name mandate for
+`grove-impl`. No other supplied skill matches the activity.
+
+The supplier check held the 8 required paths of the case at `84fba18c1f98`,
+with status 0. A control in a scratch copy of the case bound the declared skill
+to the `grove` source. The check then refused with status 1, because the
+prepared commit holds no `plugins/grove/craft/cli-tool-design/SKILL.md`. The
+case file was then restored.
+
+Recipe, from a scratch directory `$SCRATCH` outside every working copy:
+
+```sh
+task trial:check COMMIT=84fba18c1f98b694bcf440181c3853a6ec343772 CASE=design-craft-discovery
+task trial:prepare OUT="$SCRATCH/trials" COMMIT=84fba18c1f98b694bcf440181c3853a6ec343772 RAVEL="$SCRATCH/ravel-2.0/bin/ravel"
+task trial:claude OUT="$SCRATCH/trials" CASE=design-craft-discovery
+task trial:codex OUT="$SCRATCH/trials" CASE=design-craft-discovery
+```
+
+### design-craft-discovery
+
+**Claude Code.** The run is `design-craft-discovery-20261105T033302Z`. The
+session file `ddf11c80-fdef-4d7f-97e2-9d88832bd17f.jsonl` has the SHA-256
+`d30213fd608d…`. The descriptor identity is `eba9c5565054…`.
+
+| # | Class | Skill | Source | What the call did |
+| --- | --- | --- | --- | --- |
+| 1 | mandatory | grove | grove | Read the spine, and listed each `SKILL.md` path of the three search directories |
+| 2 | listing | | grove | Searched the same listing for `impl` |
+| 3 | kind-skill | grove-impl | grove | Read the kind skill, and listed its directory and the spine's references |
+| 4 | supporting | grove | grove | Read `references/execute.md` and `references/bootstrap.md` |
+| 5, 7 | command | | | Resolved the leaf, walked its brief chain, and read the root brief and the task file |
+| 8 | listing | | design | Printed the `name` and `description` lines of each `SKILL.md` in the `skills` and `craft` roots of `design` |
+| 10 | skill | cli-tool-design | design | Read `craft/cli-tool-design/SKILL.md`, and listed its directory |
+| 12 | action | | | Wrote `notes.py` |
+| 13, 14 | command | | | Ran and changed the tool |
+| 16 to 18 | supporting | grove | grove | Read `references/retire.md`, `references/commit.md` and `TASK-FORMAT.md` |
+| 20, 21 | command | | | Appended a decision log to the leaf, retired it and committed the work |
+| 23 | ending | | | Ran the exact continue command |
+
+**Result: pass.** The agent read `craft/cli-tool-design/SKILL.md` from the
+`craft` root of the `design` snapshot in call 10. The governed action, the
+write of `notes.py`, came after it in call 12. Text 9 states "The
+`cli-tool-design` craft skill covers this work, so I'm reading it before I
+write the tool". Call 8 shows the descriptions, so the agent chose by
+description.
+
+The tool follows the craft skill, although the task asked for none of these
+properties. Each subcommand accepts `--json`, and in that mode an error is a
+JSON object on stderr. The help names four exit codes and ends with examples.
+An empty note fails with a message that gives an example. The decision log
+states "The interface follows the `cli-tool-design` craft skill". Call 5 has
+the error flag, because its last command reads an absent `Taskfile.yml`.
+
+**Codex.** The run is `design-craft-discovery-20261105T033315Z`. The session
+file `rollout-2026-11-05T14-33-18-01a1a9c4-a23d-7af2-a8c8-08785563f93e.jsonl`
+has the SHA-256 `22ec706f3914…`. The descriptor identity is
+`71eb7ea038a1…`.
+
+| # | Class | Skill | Source | What the call did |
+| --- | --- | --- | --- | --- |
+| 2 | mandatory | grove | grove | Read the spine |
+| 3 | listing | | grove | Printed the front matter of each `SKILL.md` in the three search directories |
+| 4 | kind-skill | grove-impl | grove | Read the kind skill |
+| 5 | supporting | grove | grove | Read `references/execute.md` of the spine |
+| 6 | command | | | Listed the tree and read the task file |
+| 8 | skill | cli-tool-design | design | Read the root brief, `craft/cli-tool-design/SKILL.md`, `references/retire.md` and `references/commit.md` |
+| 9 | supporting | grove | grove | Read `TASK-FORMAT.md` |
+| 10 | action | | | Wrote `notes.py` and the task file with `apply_patch` |
+| 11 | command | | | Ran the tool through add, list, remove and list, and the error paths |
+| 13, 14 | command | | | Retired the leaf and committed the work |
+| 16 | ending | | | Ran the exact continue command |
+
+**Result: pass.** The agent read `craft/cli-tool-design/SKILL.md` from the
+`craft` root of the `design` snapshot in call 8. The write of `notes.py` came
+after it in call 10. Text 7, after the task read, states "I'll also apply
+`cli-tool-design` for its output and error handling". Call 3 shows the
+descriptions, so this agent also chose by description.
+
+<!-- tc: depart semicolon because the quoted message is the tool's output, word for word -->
+The tool follows the craft skill in the same way. `list --json` gives an array
+of objects, and its help states the schema. A storage error in that mode is a
+JSON object on stderr. The help of each subcommand ends with examples, and the
+top-level help names four exit codes. A missing ID gives the message "Note ID
+not found; run notes.py list to see current IDs."
+
+### The craft root in the classifier
+
+The first extraction of both runs gave the skill `v1` for the craft read. The
+classifier named a skill by the segment after the last `skills` directory of
+a path. A path in a `craft` root has no such directory below the snapshot. The
+segment then came from Ravel's cache path `.cache/ravel/skills/v1/snapshots`.
+
+The repaired classifier names the skill of a path in a search directory by
+the first segment below that directory. It reads the search directories from
+the launch's request view. A path outside every search directory keeps the old
+rule. The control `test_a_read_in_a_craft_root_names_its_skill` builds a
+snapshot under such a cache path. It fails against the old rule with the skill
+`v1`, and it passes with the repair. `task trial:controls` passed its 75 tests.
+
+`task trial:reextract` then extracted the events of both runs again. Each
+transcript digest stayed the same. The change was in the skill names only.
+The craft read became `cli-tool-design`, and the listing of a whole root lost
+the name `v1`. No class, order or count of events changed. The tables above
+give the repaired names.
+
+### Limits of the design craft trials
+
+- **One run each.** The case ran once in each harness. One run is one
+  observation, not a rate.
+- **The description in the listing.** Each agent printed the descriptions
+  before it chose. The trial therefore shows a choice by description. It does
+  not show a choice from directory names alone, which the
+  [discovery](#discovery) case observed.
+- **One craft skill.** The trial activates `cli-tool-design` only. The other
+  three craft skills resolve by the same roots, as the moves record's
+  [Ravel resolution of the design pack](repository-moves-record.md#ravel-resolution-of-the-design-pack)
+  shows.
+- **No delegate, working copy, refusal or offline proof.** The membership
+  specification asks for none of them for this move. The
+  [research directory trials](#research-directory-trials) prove those
+  mechanisms for an external source.
+- **The native listing.** `design-native-namespace-k200` owns the native
+  Claude Code listing under `design:`.
+
+No gap remains open for the case of `design-craft-trials-k199`.

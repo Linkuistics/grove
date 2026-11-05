@@ -55,3 +55,23 @@ those mechanisms.
 A real run spends subscription usage. Do not remove or change the owner's
 native installations. The sandbox home links only each harness's sign-in
 store.
+
+## Decisions (running log)
+
+- The subject is `cli-tool-design`, not `decision-records`. No file of core
+  names `cli-tool-design`, so only its description can lead a session to it.
+  `ADR-FORMAT.md` names `decision-records` and calls it a deepening. A
+  session that settles a decision can therefore follow the spine without the
+  skill and still act correctly. A missed read would then not be a defect.
+- The case is `design-craft-discovery`, a lifecycle case for `impl`. Its leaf
+  asks for a small multi-command tool that agents run, in Python with the
+  standard library. The task says "command-line tool" for the activity and
+  names no skill. No other supplied skill matches that activity.
+- Both runs pass. Each agent read `craft/cli-tool-design/SKILL.md` from the
+  `design` snapshot before it wrote `notes.py`.
+- The runner's classifier gave the craft read the skill `v1`, from Ravel's
+  cache path. The classifier now names a skill by the first segment below
+  the search directory that holds the path. A new control fails against the
+  old rule. `task trial:reextract` corrected both records, and the transcript
+  digests did not change. The repair is in scope, because a later craft root
+  of EngineeringSkills and the personal pack would show the same defect.

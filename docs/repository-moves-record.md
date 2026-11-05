@@ -823,6 +823,13 @@ marketplace lists `requirements` only after finish. A native user then needs
 leaf has no kind skill on the native route. A directory route needs a
 `requirements` source, as `docs/USAGE.md` states.
 
+The same holds for `design`, which the marketplace lists after finish. A native
+user then needs `/plugin install design@linkuistics`. Without it, a `design`
+leaf has no kind skill on the native route, and the four design craft skills
+are absent. Grove's `linkuistics` plugin no longer holds them. A directory
+route needs a `design` source with the roots `skills` and `craft`, as
+`docs/USAGE.md` states.
+
 ## DesignSkills
 
 `design-pack-repository-k197` created the repository
@@ -831,8 +838,8 @@ three design kinds and four design craft skills. This is the expand step of
 `design-pack-k175`, and DesignSkills is the first pack with a `craft/` root.
 At the first pack commit, Grove still ships its own copies of all seven
 skills, so the aggregate fails on duplicates by design.
-`design-removal-k198` removes Grove's copies and publishes the second pack
-commit.
+`design-removal-k198` removed Grove's copies and published the second pack
+commit. See [Removal of the design pack](#removal-of-the-design-pack).
 
 ### Source of the design pack
 
@@ -1024,5 +1031,139 @@ build identity `a4f55d04b2d1…` twice. Each resolution ran under a temporary
   `main` is `9d7c7c5368f6a22b541881e6c107da28e39627bd`.
 - The recorded Grove commit `c800d311a541` is the head of Grove's remote
   bookmark `gh-issue-25`. jj pushed that bookmark before the pack.
-- Grove's marketplace does not list the pack yet. `design-removal-k198` adds
-  the entry with the removal, and it pins this first pack commit.
+- At this publication, Grove's marketplace did not list the pack.
+  `design-removal-k198` added the entry with the removal, and it pins this
+  first pack commit.
+
+### Removal of the design pack
+
+`design-removal-k198` removed Grove's copies in one change with every Grove
+consumer, on 2026-11-05. This is the contraction step of the move.
+
+| Subject | Value |
+| --- | --- |
+| Removal commit | `84fba18c1f98b694bcf440181c3853a6ec343772` |
+| Pushed Grove commit | `84fba18c1f98`. jj moved the remote bookmark `gh-issue-25` forward from `c800d311a541` before the second pack commit's publication |
+| First pack commit | `9d7c7c5368f6a22b541881e6c107da28e39627bd`. Grove's marketplace pins it |
+| Second pack commit | `a9288f733508b97b6812215086372598b01b50ba`, a child of the first. The public `main` |
+| Tree of `plugins/design` | `dd04e268aeb5eba82c527755b1f52bee3565a216` in both pack commits |
+| `resourceDigest` | `d8ad3a2af1b5029bc0de93747f4d7297038651180f6877fbd738d94fcbf6aa14` for both commits, from a clone of the public remote at the second commit |
+
+The removal took out 14 files. They are `grove-design/` with `SKILL.md`,
+`assets/diagram-viewer.html` and `references/visual-design-discussion.md`,
+`grove-review-design/`, `grove-integrate-review-design/`, and the four craft
+directories of `plugins/linkuistics/skills/`. Core's manifest lost the six
+rows whose owner is in `grove-design/`. The prefix sets `review-*` and
+`integrate-review-*` stay. These consumers changed:
+
+- The kind table of `TASK-FORMAT.md` names `DesignSkills` in the `design` row.
+  The label tests take the three labels from that row.
+- `conformance.test.sh`: the `two-kinds-one-rule` control takes `planning` as
+  its second kind, because core keeps `planning` after every move.
+- `plugin_fallback.rs`: the registry lost its row for
+  `grove-design/SKILL.md`, and it now covers core alone. The pack's manifest
+  pins that citation as `design-cites-codebase-design-with-fallback`. The
+  three design openings left `MOVING_KIND_OPENINGS`.
+- The dependency decision record states that the registry covers core and
+  that each pack pins its own citations.
+- `plugins/linkuistics` no longer holds the four craft skills. Its manifest
+  description and keywords, its marketplace entry and `PROVENANCE.md` name
+  only what it still holds. `PROVENANCE.md` names where the three moved
+  sections went.
+- `.claude-plugin/marketplace.json` lists `design` with a `git-subdir` source
+  that pins the first pack commit, and it counts six plugins.
+- The install guidance names the pack for the marketplace and for
+  `install.sh --pack`. `plugins/README.md` has a `design` section with the
+  craft table. `docs/USAGE.md` adds a `design` source with the roots `skills`
+  and `craft` to the directory route.
+- `docs/formalism-findings.md` linked `keeping-a-log.md` inside the moved
+  `model-led-development`. That link is now the DesignSkills public URL.
+
+### Readings of the removal of the design pack
+
+| Reading | Single-source checks | Loaded-path checks | Unpinned rows |
+| --- | --- | --- | --- |
+| Core alone before the removal, at `bbd90b1d82e4` | 115 | 2062 | 55 |
+| Core alone after the removal | 111 | 1704 | 53 |
+| The pack alone | 5 | 7 | 2 |
+| The aggregate of core and the first pack commit | 116 | 2063 | 55 |
+
+The aggregate before the removal failed on the 16 duplicates of
+[Checks of the design pack](#checks-of-the-design-pack). The aggregate after
+it has the figures of core alone before the move, plus the pinned citation
+row. That row moved from the Rust registry, which the runner does not count,
+into the pack's manifest. The pack alone lists 3 external edges and 2 external
+resources. The requirements aggregate is now 112 and 2066, and the research
+aggregate is 111 and 2063.
+
+In the aggregate, the core rows of `review-*` and `integrate-review-*` bind
+the pack's two family members. In a scratch copy of the pinned pack,
+`grove-review-design` and `grove-integrate-review-design` stopped loading
+`grove`. The aggregate then failed 25 assertions, and each names one of the
+two members. They are the three `static(review-*)` rows, the four
+`static(integrate-review-*)` rows, the rows of the spine's `SKILL.md`, and the
+two family files as missing files.
+
+The changed `two-kinds-one-rule` control read clean and then dirty. A mutant
+that planted a sentence without the rule's wording failed that control alone.
+
+The supplier check of `trial-supplier-refusal-k196` refused `explicit-bare` at
+the removal commit with status 1. The prepared commit holds no
+`plugins/linkuistics/skills/decision-records/SKILL.md`, which the case
+declares. At `b63ca828d3ef`, the commit that its record names, the check held
+the 8 required paths of the case with status 0.
+
+The stale-location search enumerated the seven skill names and the seven
+resource file names with `--hidden` over the whole tree. It then searched for
+each name under `linkuistics/skills`, `grove/skills` and `linkuistics:`. Each
+hit is in a class of the next section. A planted path in a hidden scratch
+directory was found, and a misspelt pattern found nothing.
+
+### Asset classification of the design pack
+
+Each Grove file that names a moved skill is in one class of "The Grove assets
+of moving craft skills" in `docs/specs/pack-membership.md`. No asset moved,
+because no Grove file states, decides or checks the behaviour of a moved
+craft skill.
+
+| Files | Test | Disposition |
+| --- | --- | --- |
+| `docs/ordinal-fs-tree/CLI.md`, which applies `cli-tool-design` to Grove's own CLI by bare name | 1 | Stays |
+| The spine's `ADR-FORMAT.md`, `SPEC-FORMAT.md`, `references/grove.md` and `references/review.md`, `CONTEXT.md`, `CONTEXT-MAP.md`, `simplify-project` and `authoring-conventions` | 1 | Stay. Each cites a moved skill by bare name |
+| The formal-methods records and `evidence-outlives-the-instrument.md` | 1 | Stay. The one relative link into a moved file is now a public URL. Their path mentions are dated accounts |
+| The acceptance record, the trial cases and the `rival-records` fixture | 3 | Stay as evidence of their runs |
+| `docs/owner-skill-inventory.tsv`, `inventory.py` and `docs/ravel-caller-surface-inventory.tsv` | 3 | Stay as the baseline evidence |
+| `CHANGELOG.md`, the move specifications, `membership-formats.mmd` and `owner-skill-delivery.md` | History and design | Stay |
+| `native_skill_delivery.rs`, which writes `grove-design` under a temporary home | Fixture label | Stays |
+
+### Checks of the removal of the design pack
+
+- `bash scripts/check.sh` passed all 21 principal checks on the removal, with
+  1345 Rust tests. `GROVE_TEST_RAVEL` resolved to the installed Ravel 1.1.0,
+  `/opt/homebrew/Cellar/ravel/1.1.0/bin/ravel`, SHA-256
+  `c52f990b2059c8bbe8efba10a741d3a0311000ac1712d71e882638f54c3ac1ed`. The
+  changed files had the same digests before and after the run.
+- `task check:packs` passed `requirements`, `design` and `research`, alone and
+  in the aggregate. `testanyware` passed the directory-only check.
+- `claude plugin validate plugins/linkuistics` passed with two warnings, no
+  `version` and no icon. Claude Code was 2.1.318.
+- The second pack commit's full `task check` passed from a clean plain-Git
+  checkout, with the committed public `GROVE_REPOSITORY` and no override.
+  `grove:checkout` fetched `84fba18c1f98` from GitHub. `check:plugin` passed
+  with the two warnings of the first commit. The pack alone gave 5 and 7, and
+  the aggregate gave 116 and 2063. The checkout held only the ignored `.cache/`
+  after the run.
+- After the publication, a clone of the public remote was at `a9288f733508`,
+  with the tree `dd04e268aeb5`. `ravel skills resolve --json` resolved it as
+  a `local` source with the status `resolved` and the digest above. The
+  snapshot's `skills` root holds the three kinds, and its `craft` root holds
+  the four craft skills. `diff -r` found no difference between the snapshot and
+  `plugins/design`. The instrument was the Ravel 2.0 build of
+  `scripts/harness-trials/builds.json`, `bin/ravel` SHA-256 `26b487afb957…`,
+  with its build identity twice.
+- An isolated home held Codex, Gemini CLI and Pi directories. In it,
+  `install.sh --force --pack <public clone>/plugins/design` linked the three
+  kinds from `skills/` and the four craft skills from `craft/` into each
+  harness. The run made 111 links in all. `--force` was needed because the Grove workspace
+  is a secondary jj workspace. The owner's real skill links had the same digest
+  before and after.

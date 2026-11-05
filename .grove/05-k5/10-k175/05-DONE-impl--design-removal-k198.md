@@ -136,8 +136,8 @@ records the later of the two Grove commits.
 - `native_skill_delivery.rs` writes `checkout/plugins/grove/skills/grove-design`
   under a temporary home. It is a fixture label, and it stays.
 - The dependency decision record's last paragraph states that the registry
-  covers core and that each pack pins its own citations, with the reopening
-  condition of pack-membership.
+  covers core and that each pack pins its own citations. It also states the
+  reopening condition of pack-membership.
 - The `design` row of the kind table names `DesignSkills`. The label tests
   read the external rows through `testing/support.rs`, so they take the three
   design labels from that row with no code change.
@@ -154,12 +154,13 @@ records the later of the two Grove commits.
   source that pins `9d7c7c5368f6a22b541881e6c107da28e39627bd`. Its
   description is the pack manifest's. The marketplace description counts six
   plugins.
-- Documents: `README.md` (the craft paragraph, the install list, a `design`
-  paragraph and `--pack`), `plugins/README.md` (a `design` section with the
-  craft table, the four rows leave the linkuistics table, the install lists,
-  `--pack` and the pin exception), `plugins/grove/README.md` (the fatness
-  counts and the install list), `CONTEXT.md` (the family file and session
-  kind entries), `plugins/CONTEXT.md`, `docs/ARCHITECTURE.md` and
+- Documents: `README.md` changes the craft paragraph, the install list and
+  `--pack`, and it adds a `design` paragraph. `plugins/README.md` adds a
+  `design` section with the craft table. The four rows leave its linkuistics
+  table, and it changes the install lists, `--pack` and the pin exception.
+  `plugins/grove/README.md` changes the fatness counts and the install list.
+  `CONTEXT.md` changes the family file and session kind entries. The other
+  documents are `plugins/CONTEXT.md`, `docs/ARCHITECTURE.md` and
   `docs/USAGE.md` (a `design` source with the roots `skills` and `craft`).
   `CONTEXT-MAP.md` names the two craft skills by bare name and makes no
   location claim, so it stays.
@@ -181,9 +182,9 @@ records the later of the two Grove commits.
     `membership-formats.mmd` view and the example name request in
     `owner-skill-delivery.md`.
 - Stale-location sweep: an enumeration of the seven names and the seven
-  resource file names with `--hidden` over the whole tree, excluding `.jj`,
-  `.git`, `target` and `.grove`, then a path search for each name under
-  `linkuistics/skills`, `grove/skills` and `linkuistics:`. Every hit is in a
+  resource file names with `--hidden` over the whole tree. It excluded `.jj`,
+  `.git`, `target` and `.grove`. A path search for each name under
+  `linkuistics/skills`, `grove/skills` and `linkuistics:` followed. Every hit is in a
   class above. A planted path in a hidden scratch directory was found, and a
   misspelt pattern found nothing. A Markdown-link search found only the
   formal-methods link, and its control found links to present skills.
@@ -195,13 +196,13 @@ records the later of the two Grove commits.
   112 and 2066, and the research aggregate is 111 and 2063.
 - Binding proof: in a scratch copy of the pinned pack, `grove-review-design`
   and `grove-integrate-review-design` stopped loading `grove`. The aggregate
-  then failed 25 assertions, and each names one of the two members: the three
-  `static(review-*)` rows, the four `static(integrate-review-*)` rows, the
-  spine rows and the two family files as missing files.
-- Installer proof: in an isolated home with Codex, Gemini CLI and Pi
-  directories, `install.sh --force --pack <plain checkout of 9d7c7c5368f6>/plugins/design`
+  then failed 25 assertions, and each names one of the two members. They are
+  the three `static(review-*)` rows, the four `static(integrate-review-*)`
+  rows, the spine rows and the two family files as missing files.
+- Installer proof: an isolated home held Codex, Gemini CLI and Pi
+  directories. There `install.sh --force --pack <plain checkout of 9d7c7c5368f6>/plugins/design`
   linked the three kinds from `skills/` and the four craft skills from
-  `craft/` into each harness, 111 links in total. `--force` is needed because
+  `craft/` into each harness. The run made 111 links in total. `--force` is needed because
   this workspace is a secondary jj workspace. The owner's real skill links had
   the same digest before and after.
 - `claude plugin validate plugins/linkuistics` (Claude Code 2.1.318) passed
@@ -217,3 +218,35 @@ records the later of the two Grove commits.
   run.
 - `.claude/settings.json` is the owner's local permission. It stays in the
   working copy and in no commit.
+- The removal commit is `84fba18c1f98b694bcf440181c3853a6ec343772`. The leaf
+  is retired in a later commit, because the second pack commit records the
+  removal commit and this leaf records that pack commit.
+- `jj git push --remote origin --bookmark gh-issue-25` moved the remote
+  bookmark forward from `c800d311a541` to `84fba18c1f98`. `git ls-remote`
+  shows it there.
+- The supplier check refused `explicit-bare` at the removal commit with status
+  1, for `plugins/linkuistics/skills/decision-records/SKILL.md`. At
+  `b63ca828d3ef` it held the case's 8 paths with status 0. The acceptance
+  record's section "Readings at the removal" adds this reading.
+- The second pack commit is `a9288f733508b97b6812215086372598b01b50ba`, a
+  child of `9d7c7c5368f6`. It sets `GROVE_COMMIT` to `84fba18c1f98`. Its
+  README replaces the paragraph that said the aggregate fails, and it adds one
+  provenance sentence. The install paragraph about the coming Grove release
+  stays, because it holds until finish. The tree of `plugins/design` stays
+  `dd04e268aeb5eba82c527755b1f52bee3565a216`.
+- From a clean plain-Git checkout of `a9288f733508`, with the committed public
+  `GROVE_REPOSITORY` and no override, `task check` passed. Grove came from
+  GitHub. The pack alone gave 5 and 7, and the aggregate gave 116 and 2063.
+- `jj git push --remote origin --bookmark main` in DesignSkills moved the
+  public `main` forward from `9d7c7c5368f6` to `a9288f733508`. A clone of the
+  public remote was at that commit. The Ravel 2.0 build resolved it with the
+  digest `d8ad3a2af1b5…` of the first commit, and the installer proof passed
+  again from that clone.
+- `docs/repository-moves-record.md` records the removal in the sections
+  "Removal of the design pack", "Readings of the removal of the design pack",
+  "Asset classification of the design pack" and "Checks of the removal of the
+  design pack". The native step `/plugin install design@linkuistics` is in the
+  section "For discovery-rollout-k6".
+- No in-session reviewer was spent. Executable controls with seen failures
+  cover the changed control and the family binding, and the moved bytes are
+  unchanged.

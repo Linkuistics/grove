@@ -9208,7 +9208,7 @@ At the parent commit `99bf8752f7bd` of this leaf, the check held each of the
 34 cases. A scratch commit `f0dda1e4f935` on that parent then removed
 `plugins/linkuistics/skills/decision-records` and
 `plugins/linkuistics/skills/cli-tool-design`, as the removal of
-`design-removal-k198` will. At that commit, 22 cases held and 12 refused before
+`design-removal-k198` later did. At that commit, 22 cases held and 12 refused before
 any launch:
 
 | Cases | Path that the prepared commit does not hold |
@@ -9218,6 +9218,12 @@ any launch:
 
 The two stale-copy cases refuse for their current directory copy. Their native
 copies come from older commits, which still hold the copied directories.
+
+The removal commit `84fba18c1f98` of `design-removal-k198` gave the same
+reading for `explicit-bare`. The check refused it with status 1, because the
+prepared commit holds no `plugins/linkuistics/skills/decision-records/SKILL.md`.
+At `b63ca828d3ef`, the commit that the case's record names, the check held its
+8 required paths.
 
 ### The runner before the change
 

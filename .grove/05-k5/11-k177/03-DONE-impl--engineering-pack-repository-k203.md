@@ -152,3 +152,43 @@ later leaf before engineering-removal-k204, but then a later pack commit
 before the removal holds it. Record which pack commit the marketplace pins.
 
 ## Decisions (running log)
+
+- The doubt assertions are seven tests, not eight. Six tests of
+  `composition_guidance.rs` read `DOUBT_SKILL`: `no_provisioned_surface_instructs_a_deleted_composition_verb`,
+  `guidance_cuts_the_integrate_step_where_pick_reaches_it_next`,
+  `doubt_guidance_yields_to_grove_without_changing_standalone_doubt`,
+  `every_handoff_passage_retires_before_it_commits`,
+  `canonical_guidance_drops_receipt_and_diversity_era_review_routing` and
+  `grove_and_doubt_state_one_mandate_based_ownership_predicate`. One test of
+  `session_kind_guidance.rs` reads it:
+  `every_session_kind_is_named_by_the_provisioned_taxonomy`. The pack's check
+  has one assertion for each of the seven tests.
+- The doubt check is Bash. The pack's Taskfile already needs only Bash and Git,
+  and DesignSkills has no mise file. Bash therefore adds no toolchain.
+- `GROVE_COMMIT` is `d65914d57015d88924edf5dc9d22df467ff82264`, the commit of
+  impl-consumer-retarget-k202. It still ships every moving file. jj moves
+  Grove's remote bookmark `gh-issue-25` from `84fba18c1f98` to it before the
+  pack's publication.
+- The doubt check is `scripts/doubt-composition.sh` at the pack's repository
+  root, outside the source directory, so it changes no `resourceDigest`. Each
+  assertion has the skill's half of one Grove test: the phrases that the skill
+  holds, the phrases that it does not hold, or the order of its handoff. Each
+  assertion also names the Grove phrase that the skill's half composes with,
+  and it fails when the pinned checkout does not hold that phrase. The check
+  collapses whitespace and compares case-sensitively, as the Rust tests do.
+- `scripts/doubt-composition.test.sh` holds the controls. For each assertion,
+  one mutation of a copy of the skill and one mutation of a copy of Grove's
+  file must each fail that assertion alone. `check:doubt` runs the check, then
+  the controls, so a control that stops failing breaks the pack's check.
+- `doubt-driven-development` gains `LICENSES/addyosmani-agent-skills.LICENSE`,
+  a copy of the file of `grove-impl`. Its provenance section states that it is
+  adapted from `addyosmani/agent-skills` (MIT). `simplify-project` adapts no
+  third-party passage and gets no `LICENSES/`.
+- `measured-workstream.md` names `docs/candidate-lessons.md` as a bare path.
+  The pack links it by its public URL, as it already links `docs/review-yield.md`.
+- The doubt check landed in the first pack commit, so this leaf did not use
+  the seam of the notes. The marketplace entry of engineering-removal-k204
+  can pin the first pack commit `d98862f217492a44932c8fa93a006367da252a5d`.
+- The record's two older synonym findings (`deleted` at the TestSubject
+  readings and `corrects` in the consumer classification) changed to
+  `removed` and `repairs`, so the record has no hard finding of the checker.

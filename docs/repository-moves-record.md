@@ -275,7 +275,7 @@ identical.
 Before the move, `lsof +D` found no open file under the project. No process
 other than this session's launcher named the project. A `tar` archive of all
 8029 entries of the project stayed in the session scratchpad until the
-readings agreed, and the session then deleted it.
+readings agreed, and the session then removed it.
 
 ### Checks
 
@@ -1217,6 +1217,11 @@ The kinds are `grove-impl`, `grove-prototype`, `grove-review-impl`,
 `coding-style-*` skills, `using-codebase-memory`, `simplify-project` and
 `doubt-driven-development`. The node is `engineering-pack-k177`.
 
+`engineering-pack-repository-k203` created the repository on 2026-11-05. This
+is the expand step. At the first pack commit, Grove still ships its own copies
+of all fifteen skills, so the aggregate fails on duplicates by design. See
+[Source of the engineering pack](#source-of-the-engineering-pack).
+
 ### Consumer retargeting of the engineering pack
 
 `impl-consumer-retarget-k202` ended the dependence of Grove's controls on the
@@ -1283,7 +1288,7 @@ this step.
 | `docs/adr/evidence-outlives-the-instrument.md`, `authoring-conventions` and `guardrail` | 1 | Stay. Each cites `doubt-driven-development` or `using-codebase-memory` by bare name |
 | `docs/results-of-formal-methods-trial.md` | 1 | Stays. It names `doubt-driven-development` and the leaves of its campaign by bare name |
 | The two walkthrough chapters of `docs/walkthroughs/grove-loop/` | 1 | Stay. Chapter 3 derives the name `grove-impl` from the label `impl`. Chapter 18 shows the label in a composed prompt. Neither states where a pack ships the kind |
-| `plugins/grove/README.md`, `plugins/README.md` and `plugins/CONTEXT.md` | 1 | Stay. Each states that a Grove plugin ships a moving skill. `engineering-removal-k204` corrects each location claim |
+| `plugins/grove/README.md`, `plugins/README.md` and `plugins/CONTEXT.md` | 1 | Stay. Each states that a Grove plugin ships a moving skill. `engineering-removal-k204` repairs each location claim |
 | `docs/repository-moves-record.md`, `external-pack-contract.md`, `owner-skill-delivery.md` and `pack-membership.md` | 1 | Stay as this workstream's record and design |
 | The acceptance record, `grove-dual-ravel-stage-record.md` and the trial cases | 3 | Stay as evidence of their runs |
 | `docs/owner-skill-inventory.tsv`, `inventory.py` and `docs/ravel-caller-surface-inventory.tsv` | 3 | Stay as the baseline evidence |
@@ -1352,3 +1357,286 @@ resolved to the installed Ravel 1.1.0,
 `c52f990b2059c8bbe8efba10a741d3a0311000ac1712d71e882638f54c3ac1ed`. The
 changed files had the same digests before and after the run. No check reads
 this record.
+
+### Source of the engineering pack
+
+| Subject | Value |
+| --- | --- |
+| Repository | `https://github.com/Linkuistics/EngineeringSkills.git`. See [Publication of the engineering pack](#publication-of-the-engineering-pack) |
+| First pack commit | `d98862f217492a44932c8fa93a006367da252a5d`, the jj bookmark `main` |
+| Source directory | `plugins/engineering`. It is the Claude Code plugin root and the Ravel source directory |
+| Ravel roots | `["skills", "craft"]`. `skills/` holds the six kinds, and `craft/` holds the nine craft skills |
+| Plugin manifest | `"skills": ["./craft/"]`, so Claude Code scans `skills/` by default and adds `craft/` |
+| Git tree of the source directory | `d8a891cd5c13e9866f7937537afc7979fb3ef0f7` |
+| `resourceDigest` | `7e70b280e7a932489a048d108d4dae2bc63b387cf8fc6b37298663336e0fcc66`, from a plain Git checkout of the commit and from the jj working copy |
+| Recorded Grove commit | `d65914d57015d88924edf5dc9d22df467ff82264`, the `GROVE_COMMIT` of the Taskfile. It is the commit of `impl-consumer-retarget-k202`, and it still ships the moving files |
+| Grove remote bookmark | `gh-issue-25`. jj moved it forward from `84fba18c1f98` to `d65914d57015` and pushed it before the pack's publication |
+
+The tracked files are `.gitignore`, `LICENSE`, `README.md`, `Taskfile.yml`,
+the two scripts of the doubt check in `scripts/`, and twenty-three files under
+`plugins/engineering`:
+
+- `.claude-plugin/plugin.json`
+- `PROVENANCE.md`
+- `conformance/rules.tsv`
+- `skills/grove-impl/SKILL.md`
+- `skills/grove-impl/LICENSES/addyosmani-agent-skills.LICENSE`
+- `SKILL.md` of `grove-prototype`, `grove-review-impl`,
+  `grove-integrate-review-impl`, `grove-review-prototype` and
+  `grove-integrate-review-prototype` in `skills/`
+- `SKILL.md` of the six `coding-style-*` skills and `simplify-project` in
+  `craft/`
+- `craft/using-codebase-memory/SKILL.md`
+- `craft/using-codebase-memory/references/reading-the-graph.md`
+- `craft/doubt-driven-development/SKILL.md`
+- `craft/doubt-driven-development/LICENSES/addyosmani-agent-skills.LICENSE`
+- `craft/doubt-driven-development/references/harness-spawns.md`
+- `craft/doubt-driven-development/references/measured-workstream.md`
+
+The repository has no Git attribute and no symlink. The checks write only
+`.cache/`, which Git ignores. `LICENSE` and `.gitignore` equal those of
+DesignSkills, and `LICENSE` equals Grove's. The Taskfile is the Taskfile of
+DesignSkills with four changes: the pack's name in the first comment,
+`GROVE_COMMIT`, `PACK` and the task `check:doubt`. The task `check` runs
+`check:plugin`, then `check:doubt`, then `check:conformance`.
+`GROVE_REPOSITORY` stays the public URL.
+
+The manifest sets `name` `engineering`, `license` `Apache-2.0`,
+`dependencies` `["grove"]` and `skills` `["./craft/"]`, with no `version`. Its
+other fields follow the design manifest.
+
+### Byte changes of the engineering pack
+
+Each change below is against Grove's files at the recorded Grove commit. The
+digest is that of `docs/owner-skill-inventory.tsv`: the first 16 hexadecimal
+digits of the skill tree's SHA-256. A copy of the inventory's `digest()`
+function gave each value below. It gave the baseline value for each copy under
+the owner's Claude Code cache. At the recorded commit, each of Grove's fifteen
+directories has its baseline digest.
+
+| Skill | Baseline digest and files | Pack digest and files | Change |
+| --- | --- | --- | --- |
+| `grove-impl` | `116a8f3647da6d5b`, 2 | `4588bcbbe6eef749`, 2 | The opening paragraph has the bare-name text of core's `grove-planning`, with the kind's name changed. `LICENSES/addyosmani-agent-skills.LICENSE` is unchanged |
+| `grove-prototype` | `5067909a1359fa93`, 1 | `53d34980795adc54`, 1 | The opening paragraph has the bare-name text of core's `grove-planning`, with the kind's name changed |
+| `grove-review-impl` | `889495e33758f2e4`, 1 | `ac3bbccc1243a7f8`, 1 | The opening paragraph equals that of core's `grove-review-planning`. It keeps the read of `references/review.md` after the load sentence |
+| `grove-integrate-review-impl` | `13b9ff4a4c530852`, 1 | `2d8e5a70152ee1b4`, 1 | The opening paragraph equals that of core's `grove-integrate-review-planning`. It keeps the read of `references/integrate-review.md` after the load sentence |
+| `grove-review-prototype` | `75565a7a6f38113e`, 1 | `a9c291f8c6a77d1d`, 1 | As `grove-review-impl` |
+| `grove-integrate-review-prototype` | `74654c03ef8c7430`, 1 | `73d24ee9d17cd58d`, 1 | As `grove-integrate-review-impl` |
+| `coding-style-bash` | `8ff8f1397a74a9ba`, 1 | The baseline | None |
+| `coding-style-elixir` | `bceca00f50bb8541`, 1 | The baseline | None |
+| `coding-style-python` | `38f9464cafeaec58`, 1 | The baseline | None |
+| `coding-style-rust` | `eaf7196c4c4b028a`, 1 | The baseline | None |
+| `coding-style-swift` | `f2b020a48bb453f0`, 1 | The baseline | None |
+| `coding-style-typescript` | `279d0bb61b7b90f9`, 1 | The baseline | None |
+| `simplify-project` | `cb93a1f191930034`, 1 | The baseline | None |
+| `using-codebase-memory` | `f66a94d8169a6ce2`, 2 | The baseline | None |
+| `doubt-driven-development` | `2f30c8cd6061072b`, 3 | `071407a9b20c4308`, 4 | Two changes. The new file `LICENSES/addyosmani-agent-skills.LICENSE` equals the file of `grove-impl` byte for byte. `references/measured-workstream.md` links `docs/candidate-lessons.md` to `https://github.com/Linkuistics/grove/blob/main/docs/candidate-lessons.md`, as it already linked `docs/review-yield.md`. `SKILL.md` is unchanged |
+
+A `diff -r` against Grove's fifteen directories showed only those changes. A
+diff of each moved family member against its core counterpart showed only the
+name, the description, the title and the artifact line. Grove's public `main`
+holds both linked records, and each URL returned HTTP status 200. The records
+stay in Grove, by test 1 of "The Grove assets of moving craft skills" in
+`docs/specs/pack-membership.md`.
+
+A scan of the moved Markdown for `<word>:<word>` tokens found `grove:grove`
+once in each kind opening and `select:mcp` in a ToolSearch query of
+`using-codebase-memory`. After the move, the pack holds no `grove:grove`. The
+moved files hold two relative links. `using-codebase-memory` links its own
+`references/reading-the-graph.md`. `doubt-driven-development` links
+`../../PROVENANCE.md`, which resolves to `plugins/engineering/PROVENANCE.md`.
+
+`doubt-driven-development` names Grove's `references/decompose.md` and
+`references/integrate-review.md` in its section "Composition with Grove". It
+names them as files of the `grove` skill, not by a directed load. Conformance
+does not read `craft/`, so the pack alone lists no edge for them.
+
+### Provenance of the engineering pack
+
+`plugins/engineering/PROVENANCE.md` holds the section of Grove's
+`plugins/linkuistics/PROVENANCE.md` for `doubt-driven-development`. The six
+`coding-style-*` skills, `simplify-project` and `using-codebase-memory` have no
+section in either file. The relative link of `doubt-driven-development` to
+`PROVENANCE.md` resolves inside `plugins/engineering`. Grove keeps its copy of
+the section until `engineering-removal-k204`.
+
+The new file has its own title and a paragraph that names its source. The
+section gains one sentence that names
+`doubt-driven-development/LICENSES/addyosmani-agent-skills.LICENSE`.
+
+Of the moved skills, `grove-impl` and `doubt-driven-development` adapt
+passages of `addyosmani/agent-skills` (MIT). Each therefore holds that licence
+text inside its own skill. In Grove, `doubt-driven-development` names the
+source in its provenance section and holds no `LICENSES/`. The pack adds the
+file.
+
+`simplify-project` names licence and provenance only as categories of
+files to keep. It adapts no third-party passage and has no `LICENSES/`. The
+coding styles and `using-codebase-memory` adapt nothing.
+
+### Rules of the engineering pack
+
+`plugins/engineering/conformance/rules.tsv` holds four rows. They equal the
+rows of Grove's manifest whose owner is a moving file, byte for byte and in
+Grove's order:
+
+| Rule | Owner | Class | Load |
+| --- | --- | --- | --- |
+| `cite-framework-decisions-to-source` | `grove-impl/SKILL.md` | `B+S` | `static({impl})` |
+| `hard-to-reverse-pairs-with-doubt` | `grove-impl/SKILL.md` | `B+S` | `static({impl})` |
+| `impl-ships` | `grove-impl/SKILL.md` | `B` | `static({impl})` |
+| `prototype-is-throwaway` | `grove-prototype/SKILL.md` | `B` | `static({prototype})` |
+
+The family members and the craft skills own no row. The citation registry of
+`crates/grove/tests/plugin_fallback.rs` has no row whose owner is a moving
+kind. Its only use of `grove-impl/SKILL.md` is the fabricated map of
+`an_unregistered_citation_is_caught`. Grove still holds the four rows, and
+`engineering-removal-k204` removes them.
+
+### Doubt check of the engineering pack
+
+The doubt assertions are seven Grove tests, not the eight of the planning. Six
+tests of `crates/grove-llm/tests/composition_guidance.rs` and one test of
+`crates/grove-llm/tests/session_kind_guidance.rs` read `DOUBT_SKILL`.
+`scripts/doubt-composition.sh` has one assertion for each test. It holds the
+skill's half of the test, and it names the Grove phrase that the skill's half
+composes with. Grove keeps the half that reads its own files.
+
+| Assertion | Grove test | The skill's half | Grove's phrase and file |
+| --- | --- | --- | --- |
+| `no_deleted_composition_verb` | `no_provisioned_surface_instructs_a_deleted_composition_verb` | Holds `grove-llm leaf-add <parent> <stem> --kind review-<producer>`. Holds neither `leaf-add-chain` nor `leaf-promote-chain` | The same verb, in `grove/references/decompose.md` |
+| `no_withdrawn_adjacency_exception` | `guidance_cuts_the_integrate_step_where_pick_reaches_it_next` | Does not hold "touches no file the findings cite" | "the first sibling entry after the review whose subtree still holds live work", in `grove/references/decompose.md` |
+| `yields_to_grove_review_allowance` | `doubt_guidance_yields_to_grove_without_changing_standalone_doubt` | Holds the six phrases of the test and "3 cycles" | "across the whole picked leaf", "outside that predicate, doubt keeps its standalone bounded cycles unchanged" and "substantial redesign as a new producer review chain beside the leaf it is integrating", in `grove/references/execute.md` |
+| `handoff_retires_before_commit` | `every_handoff_passage_retires_before_it_commits` | Between "After cutting that leaf" and "Grove owns the escalated route", "retir" comes before "commit" | "retire the leaf as `references/retire.md` directs, before committing", in `grove/SKILL.md` |
+| `no_receipt_routing` | `canonical_guidance_drops_receipt_and_diversity_era_review_routing` | Holds none of the five withdrawn phrases. Holds "Grove compares no targets and raises no notice, so there is none to wait for or consume" | "task-tree driver records nothing about how the producer ran, compares nothing, and warns about nothing", in `grove/references/decompose.md` |
+| `mandate_ownership_predicate` | `grove_and_doubt_state_one_mandate_based_ownership_predicate` | Holds "mandate", "Bootstrap" and "adopted that mandate by running". Does not hold "Bootstrap-and-pick" | "adopted that mandate by running Bootstrap", in `grove/references/execute.md` |
+| `names_research_kinds` | `every_session_kind_is_named_by_the_provisioned_taxonomy` | Holds `research-a`, `research-b` and `combine-research` | "`research-a`, `research-b` and `combine-research` spend **none**", in `grove/references/execute.md` |
+
+The check collapses runs of white space to one space and compares
+case-sensitively, as the Rust tests do. It reads Grove's files from the
+`GROVE_COMMIT` checkout that `grove:checkout` makes. It is Bash, because the
+pack's Taskfile already needs only Bash and Git. ShellCheck and shfmt report
+nothing for both scripts. Two ShellCheck notes on literal Markdown backticks
+carry a directive.
+
+`scripts/doubt-composition.test.sh` holds the controls. The unchanged copies
+passed. Each of the fourteen mutants failed its own assertion alone, with exit
+status 1:
+
+| Assertion | Mutant of the skill | Mutant of Grove's file |
+| --- | --- | --- |
+| `no_deleted_composition_verb` | Appends "Run leaf-add-chain." | `decompose.md`: `--kind review-<producer>` becomes `--kind review` |
+| `no_withdrawn_adjacency_exception` | Appends a sentence that holds "touches no file the findings cite" | `decompose.md`: "whose subtree still holds live work" becomes "whose subtree holds work" |
+| `yields_to_grove_review_allowance` | "Substantial redesign becomes" becomes "Substantial redesign is" | `execute.md`: "across the whole picked leaf" becomes "across each artifact" |
+| `handoff_retires_before_commit` | Removes "retire the producer, then" | `grove/SKILL.md`: "before committing" becomes "after committing" |
+| `no_receipt_routing` | Appends "Wait for the handoff receipt." | `decompose.md`: "compares nothing, and warns about nothing" becomes "compares targets, and warns about drift" |
+| `mandate_ownership_predicate` | Appends "Ownership follows Bootstrap-and-pick." | `execute.md`: "Bootstrap" after "adopted that mandate by running" becomes "pick" |
+| `names_research_kinds` | `combine-research` becomes `combine-survey` | `execute.md`: "spend **none**" becomes "spend **one**" |
+
+A mutant is the normalised text of its file. The baseline run shows that
+normalisation alone changes no reading. A mutation that changes nothing fails
+its control. In a meta-control, a scratch copy of the check lost the absence
+of "Bootstrap-and-pick". The controls then gave 14 passed and 1 failed. The
+failure was the skill-side control of `mandate_ownership_predicate`, which
+read exit status 0.
+
+`check:doubt` runs the check, then the controls. A control that stops failing
+therefore fails the pack's check.
+
+### Checks of the engineering pack
+
+The checks ran in a plain Git checkout of the first pack commit, cloned from
+the public remote. `GROVE_REPOSITORY` was the public URL, with no override.
+`grove:checkout` fetched the recorded Grove commit from Grove's public remote.
+The checkout was clean after the run, apart from the ignored `.cache/`.
+
+- `check:plugin` passed with two warnings, no `version` and no icon. Claude
+  Code was 2.1.318. The validation reads the manifest and its `craft/` entry.
+- `check:doubt` passed. The check gave 7 assertions passed, and the controls
+  gave 15 passed and 0 failed.
+- The pack alone passed with exit status 0. It checked 2 single-source rows
+  and 4 loaded paths, with 2 rows that have no pinned wording.
+- The aggregate failed on 14 assertions, as the order of the move expects.
+  `task check` therefore exits non-zero at this commit, after `check:plugin`
+  and `check:doubt` pass.
+
+Conformance reads only `skills/`. No row has an owner in `craft/`. The pack
+alone listed 6 external edges and 5 external resources:
+
+| Referring file | External edge or resource |
+| --- | --- |
+| `grove-impl/SKILL.md` | Loads `grove`. Names `references/execute.md` |
+| `grove-prototype/SKILL.md` | Loads `grove` |
+| `grove-review-impl/SKILL.md` | Loads `grove`. Names `references/review.md` |
+| `grove-integrate-review-impl/SKILL.md` | Loads `grove`. Names `references/integrate-review.md` |
+| `grove-review-prototype/SKILL.md` | Loads `grove`. Names `references/review.md` |
+| `grove-integrate-review-prototype/SKILL.md` | Loads `grove`. Names `references/integrate-review.md` |
+
+`grove-impl` names `references/execute.md` as the file that states the
+leaf-wide review allowance. The moved kinds name no format file. Each external
+resource resolves in `grove`, as rule 3 of the contract's "References between
+skills" states.
+
+The 14 aggregate failures have three classes:
+
+- 6 duplicate skills, one for each moving kind.
+- 4 duplicate rows, one for each moved row of Grove's manifest.
+- 4 unshipped owners, one for each moved row. The runner maps a skill name
+  that two packs ship to the first pack, which is core. Each pack row whose
+  owner is in a moving kind therefore reads as unshipped.
+
+Each failure names a moving kind or a moved row, and the duplicates cause all
+14. Core's figures in the aggregate are 111 single-source rows and 1704 loaded
+paths.
+
+### Ravel resolution of the engineering pack
+
+`ravel skills resolve --json` resolved the plain checkout from the public
+remote with the status `resolved`. The source record has the type `local` and
+the digest `7e70b280e7a9…`. Its two search directories are the `skills` and
+`craft` roots of the snapshot. The `skills` root holds the six kinds, and the
+`craft` root holds the nine craft skills. The snapshot holds fifteen
+`SKILL.md` files.
+
+`diff -r` found no difference between the snapshot and
+`plugins/engineering` of the checkout. A second resolution of the jj working
+copy gave the same digest.
+
+The instrument was the Ravel 2.0 build of `scripts/harness-trials/builds.json`.
+`task install` installed it from the line `skill-directory-delivery` at
+`71f70fcd3f92` into a scratch prefix. Its `bin/ravel` SHA-256 is
+`26b487afb957…`, the pinned value, and it holds the build identity
+`a4f55d04b2d1…` twice. The prefix has no `libexec`. Each resolution ran under
+a temporary `HOME` whose settings held one `local` source with the roots
+`["skills", "craft"]` and an empty mandatory list.
+
+### Publication of the engineering pack
+
+- This session ran
+  `gh repo create Linkuistics/EngineeringSkills --public`. The uncommitted
+  `.claude/settings.json` of the Grove workspace allowed it, so no prompt
+  came.
+- jj added the remote `origin` and pushed the bookmark `main`. The public
+  `main` is `d98862f217492a44932c8fa93a006367da252a5d`.
+- The recorded Grove commit `d65914d57015` is the head of Grove's remote
+  bookmark `gh-issue-25`. jj pushed that bookmark before the pack.
+- At this publication, Grove's marketplace does not list the pack.
+  `engineering-removal-k204` adds the entry with the removal. That entry pins
+  the first pack commit, because the first commit holds the doubt check.
+
+### Tool requirements of the engineering pack
+
+The skills name these tools. The README of the pack holds the same table.
+
+| Skill | Tools |
+| --- | --- |
+| `coding-style-bash` | Bash, ShellCheck, shfmt and bats-core |
+| `coding-style-elixir` | Elixir and Mix, with `mix format`, Credo and Dialyzer |
+| `coding-style-python` | Python, uv, Ruff, pyright and pytest. mypy is acceptable in an existing project |
+| `coding-style-rust` | Rust and Cargo, with rustfmt and Clippy |
+| `coding-style-swift` | Swift and SwiftPM, with swift-format and SwiftLint |
+| `coding-style-typescript` | TypeScript, Biome and vitest. Node.js, pnpm or Bun as the project configures |
+| `using-codebase-memory` | `codebase-memory-mcp`. The skill states that its notes describe version 0.8.1 |
+
+The inventory's tool rows hold `codebase-memory-mcp`. The checks of the pack
+need Bash, Git, Task and, for `check:plugin`, Claude Code.

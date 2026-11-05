@@ -3154,3 +3154,134 @@ names the frontmatter hook and `/guardrail` for `guardrail`.
 - The skill text tells the user to type `/guardrail`. Under the plugin the
   skill is `guardrail:guardrail`. The trial reads which spelling starts the
   skill.
+
+### Guardrail plugin trial
+
+`guardrail-plugin-trial-k213` read the second plugin of PersonalSkills in
+real Claude Code sessions on 2026-11-05. Every reading passed at pack commit
+`ac98636608b0`. The pack needed no repair, so `personal-removal-k214` pins
+that commit.
+
+#### Subjects of the guardrail plugin trial
+
+| Subject | Value |
+| --- | --- |
+| Claude Code | 2.1.318, model `claude-sonnet-5-5` |
+| Pack commit | `ac98636608b013391bf4b4ca0dc6c9c1506ff9d0`, the public `main` of PersonalSkills |
+| Marketplace | A scratch marketplace named `scratch`. It lists two `git-subdir` sources from GitHub at the pack commit: `personal` from `plugins/personal` and `guardrail` from `plugins/guardrail` |
+| Homes | A new directory in the session scratchpad for each run. It links only `Library/Keychains` to the owner's home |
+| Environment | `env -i` with `HOME`, `USER`, `LOGNAME`, `SHELL`, `TERM`, `LANG`, `TMPDIR` in the home, and a system `PATH`. No variable names a Claude Code location |
+| Session flags | `-p`, `--input-format stream-json`, `--output-format stream-json`, `--verbose`, `--include-hook-events`, `--permission-mode acceptEdits`, `--tools Bash,Skill`, `--allowedTools "Bash(rm -rf scratch-dir)"` |
+| Gated command | `rm -rf scratch-dir` in the home's work directory. Before each session, the script makes `scratch-dir/inner/file.txt` |
+
+The session reads its user turns as stream JSON, so one process takes two
+turns. The first turn is `/guardrail`. The second turn asks the agent to run
+the gated command once with the Bash tool. It then asks the agent to say
+whether the command ran, and to quote any hook or permission message. The
+control sends only the second turn. A resumed second process would not show
+that the hook stays active for the session.
+
+The allow rule permits the gated command. Without the hook, the command
+therefore runs, and the control can show that no hook runs before it.
+
+#### Readings of the guardrail plugin alone
+
+A home installed `guardrail@scratch` and nothing else. The installation is
+`ac98636608b0-1eebc2ed`. The cached `SKILL.md` has the SHA-256
+`aca6380f0849…`, and the cached `guardrail-hook.sh` has `d04ae72e1d84…`.
+Each equals the file of the pack commit.
+
+| Reading | Result |
+| --- | --- |
+| `claude plugin details` | Skills 1, `guardrail`. Hooks 0, because the hook is in the skill's frontmatter and not in a plugin hooks file |
+| The session's init event | The plugin `guardrail`. The only skill and the only command from it are `guardrail:guardrail` |
+| The first turn | The session file records the typed `/guardrail` as the command `/guardrail:guardrail`, then the skill body from the plugin cache |
+| The second turn | One `PreToolUse:Bash` hook start and response. The response has `permissionDecision` `ask` and the reason `guardrail: recursive forced delete (rm -rf). Confirm you intend to run: rm -rf scratch-dir` |
+| The decision | A `permission_denied` event with the reason type `hook`. The tool result carries the reason as an error |
+| `scratch-dir` after the session | Present |
+| The agent's own reply | The command did not run, and it quoted the reason |
+
+The session is `a2c9f553-a3e3-4a08-8972-3f1264317fbf`. Its stream has the
+SHA-256 `1b508d0c1720…`, and its session file `2217b34fe157…`.
+
+**Result: pass.** The plugin lists `guardrail` alone. `/guardrail` starts the
+skill, and the hook returns `ask` for the gated command. In print mode no one
+can confirm, so Claude Code refuses the command.
+
+#### Readings of the control
+
+A new home installed `guardrail@scratch` in the same way. The session took
+only the second turn.
+
+| Reading | Result |
+| --- | --- |
+| The session's init event | The same plugin, skill and command as above |
+| Hook starts in the stream | None |
+| The tool result | `(Bash completed with no output)`, with no error |
+| `scratch-dir` after the session | Absent |
+| The agent's own reply | The command ran, and it saw no hook or permission message |
+
+The session is `22b297cc-c503-46ea-8f29-046b6aca0148`. Its stream has the
+SHA-256 `0f2050deea75…`, and its session file `31c0f89104ed…`.
+
+**Result: pass.** Without `/guardrail` the hook does not run, and the allow
+rule lets the command run. The `ask` of the run before therefore comes from
+the skill that `/guardrail` started.
+
+#### Readings of the ordinary plugin alone
+
+A new home installed `personal@scratch` and nothing else. Claude Code
+reported "(+ 1 dependency: guardrail)".
+
+| Plugin | Installation | Skills | Hooks |
+| --- | --- | --- | --- |
+| `personal` | `ac98636608b0-1a86df1f` | 3: `authoring-conventions`, `machine-environment`, `using-jujutsu` | 0 |
+| `guardrail` | `ac98636608b0-1eebc2ed` | 1: `guardrail` | 0 |
+
+The cached `SKILL.md` of each craft skill and both cached guardrail files
+equal the files of the pack commit.
+
+The init event lists the plugins `personal` and `guardrail`. Its plugin
+skills are `personal:authoring-conventions`, `personal:machine-environment`,
+`personal:using-jujutsu` and `guardrail:guardrail`, and no other name holds
+`guardrail`. The session took the same two turns as the first run. The
+stream has the same hook start, the same `ask` response and the same
+`permission_denied` event, and `scratch-dir` stayed.
+
+The session is `715f7497-55a6-4d72-9adc-80b2700a32ff`. Its stream has the
+SHA-256 `c3c4b73d85b5…`, and its session file `8940a2e8a102…`.
+
+**Result: pass.** The ordinary plugin alone installs `guardrail` as its
+dependency. The session lists the three craft skills and one `guardrail`, and
+the hook works from the dependency.
+
+#### Observations of the guardrail plugin trial
+
+- **The typed command.** The skill text tells the user to type `/guardrail`.
+  Claude Code 2.1.318 resolves that name to `/guardrail:guardrail`, so both
+  spellings start the skill. The skill text needs no change.
+- **The always-on estimate.** `claude plugin details` estimates about 236
+  always-on tokens for `guardrail` and about 462 for `personal`. The skill
+  claims that it never sits in the model's context. The model-facing skill
+  listing in the session files has no `guardrail` entry and no
+  `authoring-conventions` entry. Disposition: the estimate does not take
+  account of `disable-model-invocation`. The claim of the skill holds.
+- **The owner's installation.** Before the first run and after the last run,
+  the owner's `~/.claude` had the same SHA-256 for `settings.json`,
+  `plugins/installed_plugins.json` and `plugins/known_marketplaces.json`. A
+  listing of `plugins/cache` and `skills` to depth 3 had the same SHA-256.
+
+#### Limits of the guardrail plugin trial
+
+- **Print mode only.** The readings show the hook's `ask` and the refusal in
+  print mode. They do not show the interactive confirmation prompt.
+- **The shell half only.** No run read the freeze half, which gates an edit
+  outside the boundary. `check:guardrail-test` of the pack covers both halves
+  of the hook script without Claude Code.
+- **Two turns.** The readings show that the hook stays active from the first
+  turn to the second. They do not read the span of the skill's lifecycle over
+  many turns, which the skill marks as version-dependent.
+- **One accepted run for each reading.** The hook is a script with no model
+  decision, so a repeat adds no evidence about the pack.
+- **Claude Code only.** The skill declares `harnesses: [claude-code]`, and
+  the membership decision asks for no Codex trial.

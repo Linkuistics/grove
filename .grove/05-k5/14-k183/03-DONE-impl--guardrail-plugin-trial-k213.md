@@ -60,3 +60,28 @@ auto-mode classifier refuses in `bypassPermissions` can run in `acceptEdits`
 with a narrow tool set, as k210 recorded.
 
 personal-removal-k214 pins the commit that this leaf accepts.
+
+## Decisions (running log)
+
+- The trial reuses the k210 recipe: `claude -p` 2.1.318 in an `env -i`
+  home that links only `Library/Keychains`, with stream JSON and hook events.
+  A scratch marketplace `scratch` has two `git-subdir` entries at pack
+  commit `ac98636608b0`. The scripts are in the session scratchpad.
+- One session must run `/guardrail` and then the gated command, so the
+  session reads two user messages through `--input-format stream-json`.
+  A resumed second process would not show that the hook lives for the
+  session.
+- The gated command is `rm -rf` of a scratch directory in the home's work
+  directory. The runs allow `Bash` and `Skill` and nothing else.
+- The run of the `guardrail` plugin alone passed at the first attempt. In
+  print mode Claude Code turns the hook's `ask` into a `permission_denied`
+  event with the reason type `hook`. The typed `/guardrail` resolves to
+  `/guardrail:guardrail`.
+- `claude plugin details` estimates the skill at about 236 always-on
+  tokens. The session's model-facing skill listing omits `guardrail`.
+  The record names the estimate as an observation, not a gap of the pack.
+- The control passed: no hook start, and the allowed command ran. The run
+  of `personal` alone passed: one dependency `guardrail`, the three craft
+  skills and one `guardrail`, and the same `ask` from the dependency.
+- Every reading passed at `ac98636608b0`. The pack needs no repair, and this
+  leaf accepts that commit for `personal-removal-k214`.

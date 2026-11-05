@@ -2461,7 +2461,8 @@ request.
 
 The pack therefore has `"skills": []` in the manifest. The empty list adds no
 directory to the default `skills/` scan, and the key turns off the single-skill
-rule. `writing-hooks-trial-k210` still owes the reading in a real session.
+rule. [Writing hooks trial](#writing-hooks-trial) holds the reading in a real
+session.
 
 #### The installation of the writing plugin alone
 
@@ -2543,9 +2544,9 @@ ignored `.cache/` and `__pycache__/`.
 
 #### For the later leaves
 
-- `writing-hooks-trial-k210` reads the hooks in real sessions from pack commit
-  `4cafb0fd8e72`. The scratch listings above show the inventory only, and no
-  hook ran.
+- `writing-hooks-trial-k210` read the hooks in real sessions from pack commit
+  `4cafb0fd8e72`, as [Writing hooks trial](#writing-hooks-trial) records. The
+  scratch listings above show the inventory only, and no hook ran in them.
 - `writing-craft-removal-k211` lists `technical-communication-hooks` in
   Grove's `.claude-plugin/marketplace.json` at the pinned pack commit, with
   the source path `plugins/writing/craft/technical-communication`. Until then,
@@ -2555,3 +2556,154 @@ ignored `.cache/` and `__pycache__/`.
 - The pack's specification, user guide and decision records still describe
   the delivery through Grove's `linkuistics` plugin. This leaf did not change
   them, and the removal leaf changes them.
+
+### Writing hooks trial
+
+`writing-hooks-trial-k210` read the native residue in real Claude Code
+sessions on 2026-11-05. The
+[pack membership specification](specs/pack-membership.md#the-acceptance-of-each-move)
+asks for this trial in its row "A second plugin in one repository". Every
+reading passed at pack commit `4cafb0fd8e72`. The pack needed no repair, so
+`writing-craft-removal-k211` pins that commit.
+
+#### Subjects of the writing hooks trial
+
+| Subject | Value |
+| --- | --- |
+| Claude Code | 2.1.318, model `claude-sonnet-5-5` |
+| Pack commit | `4cafb0fd8e72dacdeea9d960cbdaf9f4850aec8f`, the public `main` of WritingSkills |
+| Grove commit of the `grove` dependency | `31ec9117c9da`, the `GROVE_COMMIT` of the pack, on the public line `gh-issue-25` |
+| Marketplace | A scratch marketplace named `scratch`. It lists three `git-subdir` sources from GitHub: `writing` and `technical-communication-hooks` at the pack commit, and `grove` at the Grove commit |
+| Homes | A new directory in the session scratchpad for each installation. It links only `Library/Keychains` to the owner's home |
+| Environment | `env -i` with `HOME`, `USER`, `LOGNAME`, `SHELL`, `TERM`, `LANG`, `TMPDIR` in the home, and a system `PATH`. No variable names a Claude Code location or the state directory of the hooks |
+| Session flags | `-p`, `--output-format stream-json`, `--verbose`, `--include-hook-events`, `--permission-mode acceptEdits`, `--tools Agent,Write`, `--add-dir` of the gate directory |
+| Gate directory | `target/hooks-trial/<run>/` in this Grove workspace. The gate skips the temporary roots, and the scratchpad is under `/private/tmp` |
+
+The prompt asks for three steps. The agent runs one foreground subagent that
+uses no tool. It then writes `note.md` in the gate directory with the line
+"Restart the worker; then read the log.", which has one semicolon. Last, it
+says whether a SessionStart hook gave it context and whether the write result
+carried a check message.
+
+The auto-mode classifier of the session that ran the trial refused a nested
+session in `bypassPermissions`. The flags above are therefore narrower than
+those of the earlier native trials.
+
+#### Readings of the hooks plugin alone
+
+The home installed `technical-communication-hooks@scratch` and nothing else.
+The installation is `4cafb0fd8e72-7563b82a`. Its cached `hooks/hooks.json`
+has the SHA-256 `8d1f0b8e3469…`, which equals the file of the pack commit.
+The cache root holds `SKILL.md`.
+
+| Reading | Result |
+| --- | --- |
+| `claude plugin details` | Skills 0. Hooks 6: SessionStart, SubagentStart, UserPromptSubmit, PostToolUse, Stop and SubagentStop |
+| The session's init event | The plugin `technical-communication-hooks`. Its 32 skills hold no name with `technical-communication` |
+| Hook starts in the stream | One for each of the six events |
+| SessionStart and SubagentStart | Each gave the text of `always-on/instruction.md` as `additionalContext` |
+| UserPromptSubmit | Gave the text of `always-on/reminder.md` |
+| PostToolUse | Gave the gate message for `note.md`: 1 hard finding, `1:19 semicolon` |
+| Stop and SubagentStop | No output, as the hook core intends. The log holds the records below |
+| The reply log | A start record with the source `startup`, a start record and a reply record for the subagent, and a reply record for the main agent |
+| The agent's own reply | It quoted the instruction's first words, and it named the semicolon finding |
+
+The session is `8de967de-6ef1-4e79-b1f4-9b0d1dfc712c`. Its stream has the
+SHA-256 `01bb42a9fd85…`, and its session file `3beda538630a…`.
+
+**Result: pass.** Claude Code runs the six hooks from the skill-free plugin
+and lists no native `technical-communication` skill. The root `SKILL.md`
+stays unlisted because the manifest has `"skills": []`.
+
+#### Readings of the writing plugin alone
+
+A new home installed `writing@scratch` and nothing else. Claude Code reported
+"(+ 2 dependencies: grove, technical-communication-hooks)".
+
+| Plugin | Installation | Skills | Hooks |
+| --- | --- | --- | --- |
+| `writing` | `4cafb0fd8e72-bb90ff2c` | 7, among them `technical-communication` | 0 |
+| `grove` | `31ec9117c9da-f02c8f28` | 6 | 0 |
+| `technical-communication-hooks` | `4cafb0fd8e72-7563b82a` | 0 | 6 |
+
+The cached `writing` plugin has no `hooks/` directory. Its
+`craft/technical-communication/SKILL.md` has the SHA-256 `06f94945e3b3…`,
+which equals the file of the pack commit.
+
+The init event lists 45 skills. Exactly one name holds
+`technical-communication`: `writing:technical-communication`. The stream has
+one hook start for each of the six events, and the same four context outputs
+as the hooks plugin alone. The gate message is the same. The reply log holds
+the same four records.
+
+The session is `9e02ed6f-9e4b-4529-8e43-8ab5169f9010`. Its stream has the
+SHA-256 `14d2a0e60d0a…`, and its session file `f5b41fb816b9…`.
+
+**Result: pass.** The writing plugin alone installs the hooks plugin as its
+dependency, and each hook runs once. The only `technical-communication` skill
+comes from `craft/` of the writing plugin.
+
+#### Readings with the off file
+
+The control reused the home of the writing plugin. It added an empty file
+`.local/state/technical-communication/off` and ran the same prompt. The off
+file is therefore the only difference from the run before.
+
+| Reading | Result |
+| --- | --- |
+| Hook starts in the stream | One for each of the six events. Claude Code still runs each declaration |
+| Hook outputs | None of the six gave `additionalContext` |
+| The agent's own reply | No SessionStart context, and no check message on the write |
+| The reply log | No file for this session. The earlier session's file is unchanged |
+
+The session is `59bbcab1-6316-4e8a-a00a-6183abe8d17b`. Its stream has the
+SHA-256 `0a090b9d79b2…`, and its session file `d463eab27a6c…`.
+
+**Result: pass.** The off file turns off every hook effect. The hook effects
+of the two runs before therefore come from the hooks.
+
+#### Repairs of the trial setup
+
+The pack needed no repair. Four attempts at the run of the hooks plugin alone
+failed in the setup of the trial, before the accepted run:
+
+| Attempt | Fault | Repair |
+| --- | --- | --- |
+| 1 | The gate directory was outside the session's working directories, so Claude Code refused the write | `--add-dir` of the gate directory |
+| 2 | The `Write(...)` allow rule did not match, so Claude Code refused the write again | `acceptEdits` in place of the allow rule |
+| 3 | The subagent ran in the background. Its notice started a second turn, so the prompt and stop hooks ran twice | The prompt asks for `run_in_background false` |
+| 4 | The gate file of attempt 3 remained, and `Write` refused to replace a file it had not read | The script removes the gate file before each run |
+
+Five hooks ran in attempts 1 and 2, each once, with the expected effects. All
+six ran in attempt 3, with the expected effects. These attempts do not change
+the results above.
+
+#### The owner's installation in the writing hooks trial
+
+Before the first attempt and after the off-file run, the owner's `~/.claude`
+had the same SHA-256 for `settings.json` and `plugins/installed_plugins.json`.
+A listing of `plugins/cache` and `skills` to depth 3 had the same SHA-256.
+The state directory of the owner's hooks held no off file before or after.
+
+**Observation: the owner's `plugins/known_marketplaces.json` changed.** The
+`lastUpdated` values of `claude-plugins-official` and `linkuistics` became
+10:47:12Z and 10:47:17Z. No `scratch` entry appeared, and the `linkuistics`
+checkout was not fetched. The times fall between two trial sessions, during
+the setup of attempt 2.
+
+A probe then ran the same marketplace add, installation, listing and details
+commands in two new homes, with no model request. The owner's file was
+byte-identical before and after the probe. The later trial sessions also left
+it unchanged. Disposition: the trial did not cause the change. The likely
+writer is the owner's own running Claude Code, which refreshes its
+marketplaces. The probe cannot prove that writer.
+
+#### Limits of the writing hooks trial
+
+- **One accepted run for each reading.** The hooks run without a model
+  decision, so a repeat adds no evidence about the pack.
+- **Claude Code only.** The membership decision asks for no Codex trial. The
+  Codex hooks plugin is absent from the owner's setup.
+- **A scratch marketplace.** Grove's published marketplace does not yet list
+  `technical-communication-hooks`. `writing-craft-removal-k211` adds it, and
+  `discovery-rollout-k6` records the owner's installation.

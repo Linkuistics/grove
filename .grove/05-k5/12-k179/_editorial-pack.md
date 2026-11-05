@@ -11,10 +11,11 @@ the editorial family file out of the spine into the family skill
 
 - WritingSkills has the layout of ResearchSkills, with the root `skills`.
   writing-craft-pack-k181 adds its `craft/` root and its hooks plugin later.
-- `references/editorial.md` moves byte for byte to
-  `editorial-family/SKILL.md`. That file gains only the frontmatter that the
-  contract's "The family procedure" gives `research-family`, changed for the
-  editorial family. No copy stays in the spine.
+- `references/editorial.md` moves to `editorial-family/SKILL.md`. That file
+  gains the frontmatter that the contract's "The family procedure" gives
+  `research-family`, changed for the editorial family. Its body changes only
+  where a path cannot resolve from the family skill, and the record names each
+  change. No copy stays in the spine.
 - Each editorial kind opens with the bare-name text. It loads `grove` and
   then `editorial-family`, and it names no spine path for the family file.
 - The rows that `editorial.md` owns move to the pack's manifest with the
@@ -35,6 +36,21 @@ the editorial family file out of the spine into the family skill
 
 The first child plans this node. The research move is the model, because it
 also moved a family file into a family skill.
+
+editorial-pack-plan-k180 cut three leaves. Each leaf leaves Grove's
+`bash scripts/check.sh` green.
+
+1. `writing-pack-repository-k205`: the expand step. It publishes the first
+   pack commit. Grove still ships its copies.
+2. `editorial-removal-k206`: the contraction step. It removes the kinds and
+   the family file with every consumer, and it runs the static proof of the
+   boundary. It publishes the second pack commit.
+3. `editorial-directory-trials-k207`: the directory trial of the boundary in
+   each harness.
+
+The family file names `references/execute.md`, and the family skill loads
+nothing, so a byte-for-byte copy fails the pack-alone check.
+writing-pack-repository-k205 holds the decided change and its evidence.
 
 ## Notes
 

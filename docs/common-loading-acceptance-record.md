@@ -27,6 +27,8 @@ The [Trial supplier check](#trial-supplier-check) reads each case against
 the Grove commit that its run measured. The
 [Design craft trials](#design-craft-trials) run a craft skill of an external
 pack from its `craft` root.
+[Design native namespace](#design-native-namespace) lists that pack's craft
+skills under the plugin's namespace in a native Claude Code installation.
 
 ## Conventions
 
@@ -221,7 +223,10 @@ states the supplier of each path. The runner requires these paths:
 
 A kind skill comes from the first place that holds it. The order is each
 root of each source on the directory route, then each native copy of that
-name, then each native plugin.
+name, then each native plugin. After each native plugin come the plugins that
+its `.claude-plugin/plugin.json` declares in `dependencies`, from the same
+marketplace, because Claude Code installs them with the plugin. A core kind of
+a native case can therefore come from the dependency `grove`.
 
 The marketplace of the prepared commit names the directory of a native
 plugin. A relative entry is a directory of the prepared commit. A
@@ -233,7 +238,7 @@ A case declares the skills that the check cannot find in its other fields:
 
 | Field | Effect |
 | --- | --- |
-| `requires` | A list of objects with a `source` of the case and a `path` in it, as a mandatory file has. Each names a skill that the task relies on without the case naming it, such as a craft skill of implicit discovery |
+| `requires` | A list of objects with a `source` of the case and a `path` in it, as a mandatory file has. An object can name one of the case's `nativePlugins` in `plugin` instead of `source`, and its `path` is then inside that plugin's directory. Each names a skill that the task relies on without the case naming it, such as a craft skill of implicit discovery |
 | `absent` | A list of skill names. Each names a skill whose absence the case measures, such as `grove-impl` in `missing-kind`. The check does not require it, and the check does not prove the absence |
 
 The runner reads `requires` and `absent` only in the check, so no other
@@ -9445,3 +9450,205 @@ give the repaired names.
   Claude Code listing under `design:`.
 
 No gap remains open for the case of `design-craft-trials-k199`.
+
+## Design native namespace
+
+`design-native-namespace-k200` runs the native proof of `design-pack-k175` in
+real Claude Code sessions. The
+[pack membership specification](specs/pack-membership.md#the-acceptance-of-each-move)
+asks for one native trial in its row "The first `craft/` root". Claude Code
+must list a craft skill under the plugin's namespace. The model is
+[Requirements native namespace](#requirements-native-namespace). The task and
+the craft skill are those of [Design craft trials](#design-craft-trials).
+
+### Subjects of the design native trial
+
+The runs are from 2026-11-05 local time. The case ran twice, as the text
+below states.
+
+| Subject | Value |
+| --- | --- |
+| Case | `design-native-namespace`, on the route native-2.0, kind `impl`. Its planted tree is the tree of [design-craft-discovery](#design-craft-discovery) |
+| Runner | `scripts/harness_trial.py` in the commit that adds the case, with the changes of [The runner for a craft plugin](#the-runner-for-a-craft-plugin) |
+| Marketplace | `.claude-plugin/marketplace.json` of the prepared plain Git checkout of Grove at `84fba18c1f98`, the removal commit of `design-removal-k198`. Its `design` entry is the `git-subdir` source `plugins/design` of `https://github.com/Linkuistics/DesignSkills.git` at `9d7c7c5368f6`, the first pack commit |
+| Grove build | commit `84fba18c1f98`. `grove` SHA-256 `a7f5c988a18e…`, `grove-llm` SHA-256 `2f7895cc33f7…`. Both equal the build of the [design craft trials](#design-craft-trials). This build renders the mandate |
+| Ravel build | line `skill-directory-delivery` at `71f70fcd3f92`, build commit `d324668b86ca`, identity `a4f55d04b2d1…`, `bin/ravel` SHA-256 `26b487afb957…`, the value of `builds.json` |
+| Ravel settings | No file. The route native-2.0 has no `skills` key, so Ravel supplies no directory and writes no preamble. The launch view names no skills |
+| Declared skill | `design@linkuistics` `craft/cli-tool-design/SKILL.md`, in `requires` |
+| Claude Code | 2.1.318, model `claude-opus-5-5`, effort `medium`, permission mode `bypassPermissions` |
+
+The supplier check held the 2 required paths of the case at `84fba18c1f98`,
+with status 0. They are `craft/cli-tool-design/SKILL.md` of the pinned
+`design` plugin and `skills/grove-impl/SKILL.md` of its dependency `grove`.
+Against `c800d311a541`, the check refused with status 1, because that
+marketplace has no `design` entry.
+
+Recipe, from a scratch directory `$SCRATCH` outside every working copy:
+
+```sh
+task trial:check COMMIT=84fba18c1f98b694bcf440181c3853a6ec343772 CASE=design-native-namespace
+task trial:prepare OUT="$SCRATCH/trials" COMMIT=84fba18c1f98b694bcf440181c3853a6ec343772 RAVEL="$SCRATCH/ravel-2.0/bin/ravel"
+task trial:claude OUT="$SCRATCH/trials" CASE=design-native-namespace
+```
+
+### The design installation
+
+In each run, the runner gave the sandbox HOME these commands, before the
+driver:
+
+| Command | Result |
+| --- | --- |
+| `claude plugin marketplace add <checkout> --json` | `ok`. "Successfully added marketplace: linkuistics (declared in user settings)" |
+| `claude plugin install design@linkuistics --json` | `ok`. "Successfully installed plugin: design@linkuistics (scope: user) (+ 1 dependency: grove)" |
+
+**The dependency installed the `grove` plugin.** The design manifest declares
+`"dependencies": ["grove"]`. Claude Code's `installed_plugins.json` marks
+`grove` with `auto: true`.
+
+| Plugin | Version | Git commit | Installed | Path |
+| --- | --- | --- | --- | --- |
+| `design@linkuistics` | `9d7c7c5368f6-a146812f` | `9d7c7c5368f6` | By name | The cache `.claude/plugins/cache/linkuistics/design/9d7c7c5368f6-a146812f` |
+| `grove@linkuistics` | `84fba18c1f98` | `84fba18c1f98` | As a dependency | The cache `.claude/plugins/cache/linkuistics/grove/84fba18c1f98`. The startup event loads it from `plugins/grove` of the checkout |
+
+The Git tree of `plugins/design` is `dd04e268aeb5…` at `9d7c7c5368f6` and at
+the second pack commit `a9288f733508`. Both pack commits therefore hold the
+same design files. The cache holds the four craft skills under `craft/` and
+the three kinds under `skills/`. The cached `craft/cli-tool-design/SKILL.md`
+has the SHA-256 `816516f5322b…`, which equals the file of `9d7c7c5368f6`. The
+checkout was clean after each installation, with `HEAD` at `84fba18c1f98`.
+
+### The design listing
+
+The startup listing of each run held 50 skill names. It is the same in both
+runs.
+
+| Names | Count |
+| --- | --- |
+| `design:grove-design`, `design:grove-integrate-review-design`, `design:grove-review-design` | 3 |
+| `design:cli-tool-design`, `design:codebase-design`, `design:decision-records`, `design:model-led-development` | 4 |
+| `grove:<name>`, each skill of `plugins/grove` at the removal commit | 16 |
+| `anthropic-skills:*`, the synced residue of earlier runs | 13 |
+| Built-in skills, such as `code-review` and `simplify` | 14 |
+
+**Result: pass.** Claude Code lists the four craft skills as
+`design:<name>` and the three kinds as `design:grove-<kind>`. The listing
+holds no bare name of any design or Grove skill. The sandbox held no native
+copy in `.claude/skills`, apart from the synced residue. The startup event's
+own `skills` field also names the built-in skills `design` and `design-sync`.
+They are not skills of the pack.
+
+### The design native runs
+
+The prompt of each run was Grove's mandate, unchanged. It equals
+`originalPrompt` of its launch view. The mandate names `grove-impl` as a bare
+name. It tells the agent to use the namespace under which that skill is
+actually installed.
+
+**Run 1.** The run is `design-native-namespace-20261105T035518Z`. The session
+file `1caef7a0-bbf7-4aef-9fd8-e2915f121dae.jsonl` has the SHA-256
+`5d0f53fadb80…`. The stream has the SHA-256 `3985686d40eb…`. The prompt has
+the SHA-256 `3df77ccd9ced…`.
+
+| # | Tool | What the call did |
+| --- | --- | --- |
+| 1 | Skill | Loaded `grove:grove-impl` |
+| 2 | Skill | Loaded `grove:grove` |
+| 3 | Bash | Read the references of the spine from the checkout |
+| 4 | Bash | Resolved the leaf, walked its brief chain and read the task file. The call has the error flag, because its last command lists an absent directory |
+| 5 | Skill | Loaded `design:cli-tool-design` |
+| 7 | Write | Wrote `notes.py` |
+| 8 | Bash | Ran the tool through add, list, remove and list |
+| 10, 11 | Bash | Appended a decision log to the leaf, retired it and committed the work |
+| 12 | Bash | Ran the exact continue command |
+
+Items 6, 9 and 13 are text blocks. **The session passes.** The agent loaded
+the craft skill as `design:cli-tool-design` in call 5. The governed action,
+the write of `notes.py`, came after it in call 7. The decision log states
+"Shaped the CLI for agent callers, following the cli-tool-design
+guidelines".
+
+The runner exited with status 1 after this run. Its inventory of an installed
+plugin read only `skills/`. It therefore called the four craft copies in the
+cache unexplained. The defect was in the runner, not in the session. It
+did not change the transcript.
+
+**Run 2.** After the repair of the runner, the case ran once more. The run is
+`design-native-namespace-20261105T035804Z`, and the runner exited with
+status 0. The session file `6463074c-2a65-4def-888f-1325812e3911.jsonl` has
+the SHA-256 `a519b9fd0a9a…`. The stream has the SHA-256 `5ac6847a74dc…`. The
+prompt has the SHA-256 `57ad7f3df876…`.
+
+| # | Tool | What the call did |
+| --- | --- | --- |
+| 1 | Skill | Loaded `grove:grove-impl` |
+| 2 | Skill | Loaded `grove:grove` |
+| 3 | Bash | Read the references of the spine from the checkout |
+| 4 | Bash | Resolved the leaf, walked its brief chain and read the task file |
+| 5 | Write | Wrote `notes.py` |
+| 7 | Bash | Ran the tool through add, list, remove and list |
+| 9, 10 | Bash | Retired the leaf and committed the work |
+| 11 | Bash | Ran the exact continue command |
+
+Items 6 and 8 are text blocks. **The session misses the activation.** No call
+loaded or read `design:cli-tool-design`, and no text names it. The tool has
+`--json`, examples and exit codes, as the tool of run 1 has. The transcript
+shows no read of the craft skill, so the similarity is no evidence of
+activation.
+
+Each driver ran one harness launch. The trial configuration routes only
+`impl`, so the driver then refused `finish` as `config_refused`. Ravel again
+wrote two lines `stop attempt … signal 9: Operation not permitted (os error
+1)` in each run.
+
+### The runner for a craft plugin
+
+The case needed two changes to the supplier check, before the runs:
+
+- A native plugin's kind skill can come from a plugin that its manifest
+  declares in `dependencies`. The case installs only `design`, and `grove-impl`
+  comes from the dependency `grove`.
+- A `requires` entry can name a native plugin of the case instead of a
+  source.
+
+The repair after run 1 is the third change. The inventory of an installed
+plugin now reads `skills/` and each directory that the manifest's `skills`
+field adds. Each skill entry of the record names its root.
+
+`task trial:controls` holds a control for each change. Each control fails
+against a runner without its change. They are
+`test_a_native_plugin_dependency_supplies_its_kind` and
+`test_a_plugin_with_a_craft_root_accounts_for_its_copies`.
+
+### The owner's installation in the design native trial
+
+Before the first run and after the second run, the owner's real `~/.claude`
+had the same SHA-256 for `settings.json`, `plugins/installed_plugins.json` and
+`plugins/known_marketplaces.json`. A listing of `plugins/cache` and `skills`
+to depth 3 also had the same SHA-256. The sandbox home linked only
+`Library/Keychains` to the real home, before and after each run.
+
+### Limits of the design native trial
+
+- **Two runs, two outcomes.** The listing passes in both runs. The activation
+  passes in run 1 and fails in run 2. Two runs are two observations, not a
+  rate.
+- **Claude Code only.** The measured Codex has no native skill loader, so the
+  runner refuses `nativePlugins` for Codex.
+- **A local marketplace.** The marketplace came from a checkout. The `design`
+  plugin came from GitHub through its own `git-subdir` source, and Claude
+  Code loaded it from the cache.
+- **Before main.** The owner's marketplace follows Grove's `main`, which does
+  not yet list `design`. discovery-rollout-k6 records the owner's
+  installation.
+
+**Named gap: native activation of a craft skill.** In one of two runs, the
+agent wrote the tool without the craft skill that the task needs.
+Disposition: accepted as a limit of the native route, and not a defect of the
+pack.
+
+The pack controls the listing, the namespace and the files, and both
+runs prove them. Run 1 proves that the skill loads as `design:<name>`. Only
+the model decides whether it loads a listed skill that no instruction names.
+The directory route of the [design craft trials](#design-craft-trials)
+activated the skill in both harnesses. The owner's delivery uses that route.
+No repeated run can change this disposition, so the case did not run again.

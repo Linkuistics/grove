@@ -842,7 +842,8 @@ skills, so the aggregate fails on duplicates by design.
 commit. See [Removal of the design pack](#removal-of-the-design-pack).
 
 `design-craft-trials-k199` ran the discovery trial from the `craft/` root. See
-[Design craft trials](#design-craft-trials).
+[Design craft trials](#design-craft-trials). `design-native-namespace-k200`
+ran the native trial. See [Design native namespace](#design-native-namespace).
 
 ### Source of the design pack
 
@@ -1185,3 +1186,23 @@ the tool.
 Both runs pass, and no gap remains open.
 [Design craft trials](common-loading-acceptance-record.md#design-craft-trials)
 in the acceptance record holds the builds, the digests and the observations.
+
+### Design native namespace
+
+`design-native-namespace-k200` ran the case `design-native-namespace` twice in
+Claude Code, on 2026-11-05. An isolated Claude Code home added the
+marketplace from a plain Git checkout of Grove at the removal commit
+`84fba18c1f98`. It installed `design@linkuistics`, which installed `grove` as
+a dependency. The installed `design` plugin is at the first pack commit
+`9d7c7c5368f6`, and its `plugins/design` tree equals that of the second pack
+commit.
+
+Claude Code listed the four craft skills as `design:<name>` and the three
+kinds as `design:grove-<kind>`, with no bare copy. In run 1, the agent loaded
+`design:cli-tool-design` before it wrote the tool. In run 2, the agent wrote
+the tool without the craft skill. The acceptance record names that miss as a
+gap of the native route, with its disposition. The owner's real Claude Code
+installation had the same digests before and after the runs.
+[Design native namespace](common-loading-acceptance-record.md#design-native-namespace)
+in the acceptance record holds the builds, the plugin revisions and the
+observations.

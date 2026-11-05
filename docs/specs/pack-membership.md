@@ -345,8 +345,8 @@ has one supplier:
 | A local source directory and its mandatory files, a planted file, a native copy without a `commit`, and a file that a continuation edits | The prepared Grove commit |
 | A native copy with a `commit` | That commit, in the history of the prepared checkout. The current directory copy beside it is a separate path of its own source |
 | An external source directory and its mandatory files | The checkout of the external source at its declared commit, or the working copy that `--working-copy` names |
-| The kind skill of each launched kind | The source that supplies the kind. That source is a local or external source, a native copy, or the plugin checkout that a marketplace entry of the prepared commit pins |
-| A skill that the task relies on without naming it | The source that supplies the skill |
+| The kind skill of each launched kind | The source that supplies the kind. That source is a local or external source, a native copy, or the plugin checkout that a marketplace entry of the prepared commit pins. That plugin is a native plugin of the case or a dependency that the plugin's manifest declares |
+| A skill that the task relies on without naming it | The source or the native plugin that supplies the skill |
 
 A case whose task relies on a skill that it does not name, such as implicit
 discovery, adds that skill's path to the case. A case that measures the absence

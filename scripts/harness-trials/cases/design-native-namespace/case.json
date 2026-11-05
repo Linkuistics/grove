@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "name": "design-native-namespace",
+  "purpose": "Observe a craft root on the native route (design-native-namespace-k200). The sandbox home adds the marketplace of the prepared Grove checkout at the removal commit and installs design@linkuistics from it, which declares grove as a dependency and adds ./craft/ to its skills. The Ravel settings have no skills key. The planted tree of design-craft-discovery holds one impl leaf that asks for a small command-line tool and names no skill. Expect the startup listing to name the four craft skills and the three kinds under design:, with no bare copy, and the Skill tool to load design:cli-tool-design before the tool is written.",
+  "credits": [],
+  "harness": "claude",
+  "route": "native-2.0",
+  "mode": "lifecycle",
+  "model": "claude-opus-5-5",
+  "effort": "medium",
+  "kinds": ["impl"],
+  "nativePlugins": [
+    "design@linkuistics"
+  ],
+  "requires": [
+    { "plugin": "design@linkuistics", "path": "craft/cli-tool-design/SKILL.md" }
+  ],
+  "timeoutMinutes": 30
+}

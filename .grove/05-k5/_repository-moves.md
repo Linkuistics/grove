@@ -116,3 +116,24 @@ Its results are in the RequirementsSkills section of
 - The owner's native marketplace lists `requirements` only after finish.
   Rollout then installs `requirements@linkuistics`, as the section "For
   discovery-rollout-k6" of that record states.
+
+`design-pack-k175` closed after its directory and native trials. Its results
+are in the DesignSkills section of `docs/repository-moves-record.md`. Four of
+them matter to later work.
+
+- The installer's craft-only fixture is `make_craft_only_pack` in
+  `install.test.sh`. `personal-pack-k183` consumes it.
+- The craft trial models are `design-craft-discovery` for the directory
+  route and `design-native-namespace` for the native route. The engineering
+  and writing craft moves can copy them.
+- The trial runner now accepts a native plugin's dependency as the supplier
+  of a kind skill. A `requires` entry can name a native plugin. The runner's
+  plugin inventory reads each root of the manifest's `skills` field.
+- In one of two native runs, the agent did not load the craft skill. The
+  acceptance record names this as a limit of the native route, not a defect
+  of the pack.
+
+During design-native-namespace-k200, the human inserted
+`skill-marketplace-decision-k201` before `skill-marketplace-k185`. The human
+is not sure that this workstream needs a skills marketplace. Do not start
+marketplace work before that leaf records the human's decision.

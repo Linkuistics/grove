@@ -170,7 +170,7 @@ if sys.argv[1:3] == ["auth", "status"]:
                       "configDirectory": behaviour.get("configDirectory") or str(home / ".claude")}}))
     sys.exit(0)
 # The plugin commands. A marketplace is a directory with `plugins/<name>`.
-# An installation copies the plugin's skills into the cache and installs the
+# An installation copies the plugin's directory into the cache and installs the
 # plugin's dependencies of the behaviour file, as `auto` installations.
 if sys.argv[1:2] == ["plugin"]:
     import shutil
@@ -191,9 +191,9 @@ if sys.argv[1:2] == ["plugin"]:
         source = Path(json.loads(known_file.read_text())[market]["installLocation"])
         for each, auto in [(name, False)] + [(d, True) for d in behaviour.get("pluginDependencies", {{}}).get(name, [])]:
             target = plugins / "cache" / market / each / "v1"
-            skills = source / "plugins" / each / "skills"
-            if skills.is_dir():
-                shutil.copytree(skills, target / "skills")
+            directory = source / "plugins" / each
+            if directory.is_dir():
+                shutil.copytree(directory, target)
             else:
                 (target / "skills").mkdir(parents=True)
             installed["plugins"][f"{{each}}@{{market}}"] = [{{
@@ -919,6 +919,21 @@ class Fixture:
         (self.prepared / "prepared.json").write_text(json.dumps(prepared))
         return head
 
+    def add(self, files: dict[str, str]) -> str:
+        """A commit that adds `files` to the checkout, which the prepared
+        directory then names as its commit. It returns the commit."""
+        env = {**trial.git_env(os.environ), **GIT_IDENTITY}
+        for path, text in files.items():
+            (self.checkout / path).parent.mkdir(parents=True, exist_ok=True)
+            (self.checkout / path).write_text(text)
+        trial.run_checked(["git", "add", "--all"], cwd=self.checkout, env=env)
+        trial.run_checked(["git", "commit", "--quiet", "-m", "add files"], cwd=self.checkout, env=env)
+        head = trial.run_checked(["git", "rev-parse", "HEAD"], cwd=self.checkout, env=env)
+        prepared = json.loads((self.prepared / "prepared.json").read_text())
+        prepared["source"]["commit"] = head
+        (self.prepared / "prepared.json").write_text(json.dumps(prepared))
+        return head
+
     def check(self, *cases: str, commit: str | None = None) -> tuple[int, str]:
         """Check cases against a commit of the checkout without a launch;
         return the status and everything it printed."""
@@ -984,6 +999,11 @@ def make_external(root: Path) -> dict[str, str]:
     trial.run_checked(["git", "init", "--quiet", str(repo)], env=env)
     (repo / RESEARCH_SKILL).parent.mkdir(parents=True)
     (repo / RESEARCH_SKILL).write_text("research\n")
+    # The plugin depends on `grove`, as a pack plugin does, so that a native
+    # case can take a core kind skill from the dependency.
+    (repo / RESEARCH_PLUGIN / ".claude-plugin").mkdir()
+    (repo / RESEARCH_PLUGIN / ".claude-plugin/plugin.json").write_text(
+        json.dumps({"name": "research", "dependencies": ["grove"]}) + "\n")
     (repo / "README.md").write_text("pack\n")
     trial.run_checked(["git", "add", "--all"], cwd=repo, env=env)
     trial.run_checked(["git", "commit", "--quiet", "-m", "pack"], cwd=repo, env=env)
@@ -1072,6 +1092,16 @@ def plant_cases(root: Path, external: dict[str, str]) -> Path:
         **{k: v for k, v in smoke.items() if k not in ("sources", "mandatory")},
         "name": "plugin-kind", "route": "native-2.0", "kinds": ["research-a"], "nativePlugins": ["research@fake"],
     }))
+    # A native plugin whose dependency supplies the core kind, and a skill of
+    # that plugin that the task relies on, present or absent.
+    for name, path in (("plugin-dependency", "skills/grove-research-a/SKILL.md"),
+                       ("plugin-requires-missing", "craft/absent/SKILL.md")):
+        shutil.copytree(cases / "smoke", cases / name)
+        (cases / name / "case.json").write_text(json.dumps({
+            **{k: v for k, v in smoke.items() if k not in ("sources", "mandatory")},
+            "name": name, "route": "native-2.0", "nativePlugins": ["research@fake"],
+            "requires": [{"plugin": "research@fake", "path": path}],
+        }))
     # A stale native copy: the skill as the commit before the checkout's head held it.
     stale = cases / "stale"
     shutil.copytree(cases / "smoke", stale)
@@ -1423,9 +1453,9 @@ class HarnessTrialTest(unittest.TestCase):
         self.assertTrue(installed["extra@fake"]["dependency"])
         self.assertEqual(installed["grove@fake"]["gitCommitSha"], "a" * 40)
         self.assertEqual(installed["grove@fake"]["skills"],
-                         [{"name": "craft", "sha256": trial.sha256_bytes(b"craft\n")},
-                          {"name": "grove", "sha256": trial.sha256_bytes(b"spine\n")},
-                          {"name": "grove-impl", "sha256": trial.sha256_bytes(b"kind\n")}])
+                         [{"root": "skills", "name": "craft", "sha256": trial.sha256_bytes(b"craft\n")},
+                          {"root": "skills", "name": "grove", "sha256": trial.sha256_bytes(b"spine\n")},
+                          {"root": "skills", "name": "grove-impl", "sha256": trial.sha256_bytes(b"kind\n")}])
         self.assertEqual(record["skills"]["pluginCopies"],
                          [".claude/plugins/cache/fake/grove/v1/skills/craft/SKILL.md",
                           ".claude/plugins/cache/fake/grove/v1/skills/grove-impl/SKILL.md",
@@ -1447,6 +1477,29 @@ class HarnessTrialTest(unittest.TestCase):
 
         real_installed = trial.installed_plugins
         self.broken(self.check_plugins, "installed_plugins", no_dependencies)
+
+    def check_craft_plugin(self, fixture: Fixture):
+        """A plugin whose manifest adds `craft/` to its skills accounts for
+        each copy in `skills/` and in `craft/`."""
+        fixture.add({"plugins/crafty/.claude-plugin/plugin.json": json.dumps({"name": "crafty",
+                                                                             "skills": ["./craft/"]}),
+                     "plugins/crafty/skills/kindish/SKILL.md": "kindish\n",
+                     "plugins/crafty/craft/note/SKILL.md": "note\n"})
+        fixture.behave(pluginDependencies={"grove": ["crafty"]})
+        status, output = fixture.run("plugins")
+        self.assertEqual(status, 0, output)
+        record = fixture.record()
+        installed = {p["id"]: p for p in record["skills"]["plugins"]["installed"]}
+        self.assertEqual(installed["crafty@fake"]["skills"],
+                         [{"root": "craft", "name": "note", "sha256": trial.sha256_bytes(b"note\n")},
+                          {"root": "skills", "name": "kindish", "sha256": trial.sha256_bytes(b"kindish\n")}])
+        self.assertIn(".claude/plugins/cache/fake/crafty/v1/craft/note/SKILL.md", record["skills"]["pluginCopies"])
+        text = (Path(record["trial"]) / "record.md").read_text()
+        self.assertIn("skills `craft/note`", text)
+
+    def test_a_plugin_with_a_craft_root_accounts_for_its_copies(self):
+        self.check_craft_plugin(self.fixture)
+        self.broken(self.check_craft_plugin, "plugin_skill_roots", lambda install: ["skills"])
 
     def check_plugin_refusal(self, fixture: Fixture):
         fixture.behave(pluginFails=["grove"])
@@ -1661,6 +1714,33 @@ class HarnessTrialTest(unittest.TestCase):
         self.assertIn(f"is not in the history of the prepared Grove commit", output)
         self.assertIn("The case measures a build whose supplier held this path", output)
 
+    def check_plugin_dependency(self, fixture: Fixture):
+        """The dependency `grove` of a native plugin supplies the kind skill
+        of `impl`, and the plugin's checkout supplies a skill that the task
+        relies on. A missing path of either supplier refuses."""
+        status, output = fixture.check("plugin-dependency")
+        self.assertEqual(status, 0, output)
+        self.assertIn("case plugin-dependency: each required path is held", output)
+        status, output = fixture.check("plugin-requires-missing")
+        self.assertEqual(status, 1, output)
+        self.assert_refused(fixture, output, "plugin-requires-missing", f"{RESEARCH_PLUGIN}/craft/absent/SKILL.md",
+                            f"the checkout of the plugin 'research' that the marketplace pins, "
+                            f"{self.external['repository']} at commit", self.external["commit"])
+        self.assertIn("a skill of the native plugin research@fake that the task relies on", output)
+        head = fixture.remove(KIND_SKILL)
+        status, output = fixture.check("plugin-dependency")
+        self.assertEqual(status, 1, output)
+        self.assert_refused(fixture, output, "plugin-dependency", KIND_SKILL, "the prepared Grove commit", head)
+        self.assertIn(f"{RESEARCH_PLUGIN}/skills/grove-impl/SKILL.md", output)
+
+    def test_a_native_plugin_dependency_supplies_its_kind(self):
+        self.check_plugin_dependency(self.fixture)
+        self.broken(self.check_plugin_dependency, "native_plugins",
+                    lambda plugins, prepared, scratch: ((p, trial.plugin_supplier(p, prepared, scratch))
+                                                        for p in plugins))
+        self.broken(self.check_plugin_dependency, "plugin_supplier",
+                    lambda plugin, prepared, scratch: (prepared, RESEARCH_PLUGIN))
+
     def test_a_native_commit_outside_the_prepared_history_refuses(self):
         self.check_foreign_native_commit(self.fixture)
         self.broken(self.check_foreign_native_commit, "native_supplier",
@@ -1672,6 +1752,9 @@ class HarnessTrialTest(unittest.TestCase):
             ({"requires": [{"source": "other", "path": "skills/craft/SKILL.md"}]}, "requires"),
             ({"requires": [{"source": "grove", "path": "../craft/SKILL.md"}]}, "requires"),
             ({"requires": [{"source": "grove"}]}, "requires"),
+            ({"requires": [{"plugin": "grove@fake", "path": "skills/craft/SKILL.md"}]}, "native plugins"),
+            ({"requires": [{"plugin": "grove@fake", "source": "grove", "path": "skills/craft/SKILL.md"}]},
+             "requires"),
             ({"absent": "grove-impl"}, "absent"),
             ({"absent": ["skills/grove-impl"]}, "absent"),
             ({"requires": [{"source": "grove", "path": "skills/craft/SKILL.md"}], "absent": ["craft"]}, "absent"),

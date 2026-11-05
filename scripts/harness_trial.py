@@ -65,10 +65,12 @@ process, with its own session file, which names the parent thread.
 Before any launch, `run` checks that the supplier of each required path of
 the case holds it: the prepared commit, an older commit of a native copy, an
 external checkout or working copy, or a plugin checkout that the marketplace
-pins. A missing path refuses the run, because the case measures a build whose
-supplier held it. A case declares in `requires` the skills that its task
-relies on without the case naming them, and in `absent` the skills whose
-absence it measures. `check` runs the same check against a commit, without a
+pins. A native plugin's kind skill can also come from a plugin that its
+manifest declares as a dependency. A missing path refuses the run, because
+the case measures a build whose supplier held it. A case declares in
+`requires` the skills that its task relies on without the case naming them,
+each in a source or a native plugin, and in `absent` the skills whose absence
+it measures. `check` runs the same check against a commit, without a
 build and without a launch.
 A case names its harness. `--harness` runs the same case in another harness,
 which then takes its own default model and effort. The Codex adapter runs
@@ -340,20 +342,25 @@ def check_external(name: str, source: dict[str, Any]) -> None:
 
 def check_declarations(case: dict[str, Any]) -> None:
     """`requires` names each skill that the task relies on without the case
-    naming it, as a source of the case and a path inside it. `absent` names
-    each skill that the case measures the absence of. The runner reads both
-    only in the supplier check."""
+    naming it, as a source of the case or one of its native plugins, and a
+    path inside it. `absent` names each skill that the case measures the
+    absence of. The runner reads both only in the supplier check."""
     name = case["name"]
     sources = {source.get("id") for source in case.get("sources", [])}
+    listed = case.get("nativePlugins")
+    plugins = {p for p in listed if isinstance(p, str)} if isinstance(listed, list) else set()
     requires = case.get("requires", [])
     if not isinstance(requires, list):
-        raise TrialError(f"case {name}: requires is a list of {{source, path}} objects, not {requires!r}")
+        raise TrialError(f"case {name}: requires is a list of {{source, path}} or {{plugin, path}} objects, "
+                         f"not {requires!r}")
     for item in requires:
         path = PurePosixPath(item.get("path", "")) if isinstance(item, dict) else None
-        if (path is None or set(item) != {"source", "path"} or item["source"] not in sources
-                or path.is_absolute() or ".." in path.parts or not path.parts):
+        holder = ((set(item) == {"source", "path"} and item["source"] in sources)
+                  or (set(item) == {"plugin", "path"} and item["plugin"] in plugins)) if path else False
+        if not holder or path.is_absolute() or ".." in path.parts or not path.parts:
             raise TrialError(f"case {name}: each entry of requires names one of the sources {sorted(sources)} "
-                             f"and a relative path inside it, not {item!r}")
+                             f"or one of the native plugins {sorted(plugins)}, and a relative path inside it, "
+                             f"not {item!r}")
     absent = case.get("absent", [])
     if not isinstance(absent, list) or not all(isinstance(skill, str) and skill and "/" not in skill
                                                for skill in absent):
@@ -2631,27 +2638,45 @@ def installed_plugins(home: Path, listed: list[dict[str, Any]]) -> list[dict[str
     """Each installed plugin, as `claude plugin list --json` lists it, with
     the Git commit and the dependency flag of Claude Code's own
     `installed_plugins.json`. `auto` marks a plugin that installed as a
-    dependency of another. The skills are the plugin's SKILL.md files."""
+    dependency of another. The skills are the plugin's SKILL.md files, in
+    `skills/` and in each directory that the manifest's `skills` field
+    adds, such as `craft/`. Each skill names its root."""
     path = home / ".claude" / "plugins" / "installed_plugins.json"
     own = json.loads(path.read_text()).get("plugins", {}) if path.is_file() else {}
     found = []
     for item in sorted(listed, key=lambda item: item["id"]):
         entry = (own.get(item["id"]) or [{}])[0]
         install = Path(os.path.realpath(item["installPath"]))
-        skills = sorted(install.glob("skills/*/SKILL.md"))
+        skills = sorted({skill for root in plugin_skill_roots(install)
+                         for skill in install.glob(f"{root}/*/SKILL.md")})
         found.append({
             "id": item["id"], "version": item.get("version"), "enabled": item.get("enabled"),
             "gitCommitSha": entry.get("gitCommitSha"), "dependency": bool(entry.get("auto")),
             "installPath": str(install.relative_to(os.path.realpath(home))),
-            "skills": [{"name": skill.parent.name, "sha256": sha256_file(skill)} for skill in skills],
+            "skills": [{"root": str(skill.parent.parent.relative_to(install)), "name": skill.parent.name,
+                        "sha256": sha256_file(skill)} for skill in skills],
         })
     return found
+
+
+def plugin_skill_roots(install: Path) -> list[str]:
+    """The skill directories of an installed plugin: `skills`, then each
+    relative directory that the manifest lists in `skills`. Claude Code adds
+    a listed directory to the default scan of `skills/`."""
+    roots = ["skills"]
+    manifest = install / ".claude-plugin" / "plugin.json"
+    listed = json.loads(manifest.read_text()).get("skills", []) if manifest.is_file() else []
+    for item in [listed] if isinstance(listed, str) else listed:
+        root = PurePosixPath(item) if isinstance(item, str) else None
+        if root is not None and not root.is_absolute() and ".." not in root.parts and str(root) not in roots:
+            roots.append(str(root))
+    return roots
 
 
 def plugin_failures(found: list[str], plugins: dict[str, Any] | None) -> list[str]:
     """The plugin copies of the home must be the skills of the installed
     plugins. Without installed plugins, the home holds no plugin copy."""
-    expected = sorted(f"{plugin['installPath']}/skills/{skill['name']}/SKILL.md"
+    expected = sorted(f"{plugin['installPath']}/{skill.get('root', 'skills')}/{skill['name']}/SKILL.md"
                       for plugin in (plugins or {}).get("installed", []) for skill in plugin["skills"])
     if found == expected:
         return []
@@ -2707,6 +2732,15 @@ class Supplier:
         found = subprocess.run(["git", "cat-file", "-t", f"{self.revision}:{path}"], cwd=self.repository,
                                env=git_env(os.environ), capture_output=True, text=True)
         return found.returncode == 0 and found.stdout.strip() == ("tree" if directory else "blob")
+
+    def read(self, path: str) -> str | None:
+        """The text of the file `path`, or None when the supplier holds no
+        such file."""
+        if not self.holds(path):
+            return None
+        if self.directory is not None:
+            return (self.directory / path).read_text()
+        return run_checked(["git", "show", f"{self.revision}:{path}"], cwd=self.repository, env=git_env(os.environ))
 
 
 def unsupplied(case: dict[str, Any], supplier: Supplier, path: str, role: str) -> str:
@@ -2788,12 +2822,35 @@ def plugin_supplier(plugin: str, prepared: Supplier, scratch: Path) -> tuple[Sup
     return f"the marketplace entry of the plugin {plugin} has a source that the check cannot read: {source!r}"
 
 
+def native_plugins(plugins: list[str], prepared: Supplier, scratch: Path):
+    """Each native plugin and the plugin's supplier and directory, or the
+    text of a refusal. After each plugin come the plugins that its manifest
+    declares in `dependencies`, from the same marketplace, as Claude Code
+    installs them with it."""
+    seen: set[str] = set()
+    queue = list(plugins)
+    while queue:
+        ident = queue.pop(0)
+        if ident in seen:
+            continue
+        seen.add(ident)
+        found = plugin_supplier(ident, prepared, scratch)
+        yield ident, found
+        if isinstance(found, str):
+            continue
+        manifest = found[0].read(str(PurePosixPath(found[1], ".claude-plugin/plugin.json")))
+        market = ident.split("@")[1]
+        for dependency in (json.loads(manifest).get("dependencies", []) if manifest else []):
+            if isinstance(dependency, str):
+                queue.append(dependency if "@" in dependency else f"{dependency}@{market}")
+
+
 def kind_candidates(case: dict[str, Any], skill: str, suppliers: Mapping[str, Supplier],
                     natives: list[tuple[dict[str, Any], Supplier]], prepared: Supplier, scratch: Path):
     """Each place that can supply the kind skill `skill`, in order: each root
     of each source on the directory route, each native copy of that name and
-    each native plugin. Each item is a supplier and a path, or the text of a
-    plugin that names no supplier."""
+    each native plugin with its dependencies. Each item is a supplier and a
+    path, or the text of a plugin that names no supplier."""
     if case["route"] == "directory-2.0":
         for source in case.get("sources", []):
             for root in source["roots"]:
@@ -2801,8 +2858,7 @@ def kind_candidates(case: dict[str, Any], skill: str, suppliers: Mapping[str, Su
     for item, supplier in natives:
         if item["name"] == skill:
             yield supplier, str(PurePosixPath(item["from"], "SKILL.md"))
-    for plugin in case.get("nativePlugins", []):
-        found = plugin_supplier(plugin, prepared, scratch)
+    for _, found in native_plugins(case.get("nativePlugins", []), prepared, scratch):
         if isinstance(found, str):
             yield found
         else:
@@ -2838,7 +2894,15 @@ def supply_problems(case: dict[str, Any], checkout: Path, commit: str,
     for item in [*case.get("mandatory", []), *continuation.get("mandatory", [])]:
         in_source(item, "a mandatory file")
     for item in case.get("requires", []):
-        in_source(item, "a skill that the task relies on")
+        if "plugin" not in item:
+            in_source(item, "a skill that the task relies on")
+            continue
+        found = plugin_supplier(item["plugin"], prepared, scratch)
+        if isinstance(found, str):
+            problems.append(f"case {case['name']}: {found}. {SUPPLY_NOTE}")
+        else:
+            required.append((found[0], str(PurePosixPath(found[1], item["path"])), False,
+                             f"a skill of the native plugin {item['plugin']} that the task relies on"))
     for item in case.get("plant", []):
         required.append((prepared, item["from"], False, "a planted file"))
     for edit in continuation.get("edits", []):
@@ -2883,7 +2947,9 @@ def supply_problems(case: dict[str, Any], checkout: Path, commit: str,
                              f"the kind skill of {kind}. {SUPPLY_NOTE}")
             problems += [line if line.startswith("case ") else f"case {case['name']}: {line}. {SUPPLY_NOTE}"
                          for line in tried]
-    return held, problems
+    # A plugin that names no supplier refuses once, also when a declared
+    # skill and a kind skill both need it.
+    return held, list(dict.fromkeys(problems))
 
 
 def refuse_unsupplied(case: dict[str, Any], checkout: Path, commit: str,
@@ -4111,7 +4177,8 @@ def plugin_rows(plugins: dict[str, Any] | None) -> list[str]:
             f"at commit `{market['commit'][:12]}`; the checkout stayed clean |",
             "| Plugin installations | " + cell(", ".join(f"`{i['id']}`" for i in plugins["installs"])) + " |"]
     for plugin in plugins["installed"]:
-        skills = ", ".join(f"`{s['name']}` `{s['sha256'][:12]}…`" for s in plugin["skills"]) or "none"
+        skills = ", ".join(f"`{'' if s.get('root', 'skills') == 'skills' else s['root'] + '/'}{s['name']}` "
+                           f"`{s['sha256'][:12]}…`" for s in plugin["skills"]) or "none"
         how = "installed as a dependency" if plugin["dependency"] else "installed by name"
         commit = f"Git commit `{plugin['gitCommitSha'][:12]}`" if plugin.get("gitCommitSha") else "no Git commit"
         rows.append(f"| Installed plugin `{cell(plugin['id'])}` | version `{cell(plugin['version'])}`, {commit}, "

@@ -85,3 +85,23 @@ home. Rollout makes the native change.
 
 This is the node's last planned leaf. Its retirement closes
 personal-pack-k183 if no live leaf remains, by the four close steps.
+
+## Decisions (running log)
+
+- The README of PersonalSkills says in the present tense that Grove's
+  `linkuistics` plugin delivers `guardrail`. Two install passages state the
+  removal as a future event. A last pack commit corrects these three
+  passages, and Grove pins that commit. It changes no file under `plugins/`,
+  so the tree IDs and the `resourceDigest` stay.
+- The fixtures of `plugins/install.test.sh` keep the synthetic plugin label
+  `linkuistics`. The installer scans every plugin directory, so a fixture
+  with two plugin directories still tests that rule. A renamed label proves
+  nothing more, by the fixture-label rule of `pack-membership.md`. Only the
+  comment that calls the fixture the shape of this repository changes.
+- `scripts/harness-trials/cases/*/case.json` stay unchanged as records of
+  their builds, by "The trial cases that name moving skills".
+- `docs/USAGE.md` stays unchanged. Its directory route never listed a
+  `linkuistics` source, so it needs no `personal` entry for parity.
+- `personal-pack-k183` closes with this leaf. Its `Done when` holds, and the
+  parent brief receives four facts for later work. `repository-moves-k5`
+  keeps live leaves, so the cascade stops there.

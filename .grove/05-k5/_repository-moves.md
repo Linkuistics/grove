@@ -181,3 +181,21 @@ Its results are in the WritingSkills section of
   `machine-environment` and `using-jujutsu`, with no hooks file.
   `personal-pack-k183` removes those four. The installer's Pi extension case
   now uses a pack fixture and reads no Grove skill.
+
+`personal-pack-k183` closed after its last pack commit and its removal. Its
+results are in the PersonalSkills section of `docs/repository-moves-record.md`.
+Four of them matter to later work.
+
+- Grove now ships only the `grove` plugin. The marketplace keeps the name
+  `linkuistics` and lists ten plugins. `personal` and `guardrail` come from
+  PersonalSkills commit `1ff489d996a9`. The dependency of `personal` resolves
+  only in a marketplace that also lists `guardrail`. `skill-marketplace-k185`
+  must keep both entries together.
+- The owner's native `linkuistics@linkuistics` comes from Grove commit
+  `238c3a839ab4`. Grove's `main` lists that plugin until finish, and then it
+  does not. Rollout installs `personal@linkuistics`, which also installs
+  `guardrail`, and it removes `linkuistics@linkuistics`.
+- The section "For moves-handoff-k187" of that record gives the source root
+  and revision of the `personal` source and of the two native plugins.
+- No `craft/` skill remains in Grove. The fixtures of `install.test.sh` keep
+  the synthetic label `linkuistics`, and the record says why.

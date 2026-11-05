@@ -2148,6 +2148,21 @@ behaviour of a moved skill apart from Grove's design of its kind set.
   a secondary jj workspace. The owner's real skill links had the same digest
   before and after.
 
+### Editorial directory trials
+
+`editorial-directory-trials-k207` ran the case `editorial-family-read` once
+in Claude Code and once in Codex, on 2026-11-05. The `grove` source came from
+the prepared Grove checkout at the removal commit `31ec9117c9da`. The
+`writing` source came from a plain Git checkout of the second pack commit
+`ae1649d181a5`. In each session, a `copy-edit` leaf read its kind skill and
+`editorial-family/SKILL.md` from the writing snapshot. It read the spine from
+the grove snapshot. All three reads came before the first command on the
+task.
+
+Both runs pass, and no gap remains open.
+[Editorial directory trials](common-loading-acceptance-record.md#editorial-directory-trials)
+in the acceptance record holds the builds, the digests and the observations.
+
 ### For the paused editorial grove
 
 The editorial kinds `draft`, `copy-edit`, `art` and `proof` and their

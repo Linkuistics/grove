@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "name": "editorial-family-read",
+  "purpose": "Observe an editorial kind that loads a family skill on the directory route (editorial-directory-trials-k207). A copy-edit leaf follows a retired draft leaf under a document node whose brief holds a prose contract and the note's text, and has a bare-name mandate. The grove source comes from the prepared Grove checkout at the removal commit, and the writing source from a plain Git checkout of a published WritingSkills commit. Expect reads of the kind skill from the writing snapshot, of the spine from the grove snapshot, and of editorial-family/SKILL.md from the writing snapshot, before the first action.",
+  "credits": [],
+  "harness": "claude",
+  "route": "directory-2.0",
+  "mode": "lifecycle",
+  "model": "claude-opus-5-5",
+  "effort": "medium",
+  "kinds": ["copy-edit"],
+  "sources": [
+    { "id": "grove", "plugin": "plugins/grove", "roots": ["skills"] },
+    {
+      "id": "writing",
+      "plugin": "plugins/writing",
+      "roots": ["skills"],
+      "external": {
+        "repository": "https://github.com/Linkuistics/WritingSkills.git",
+        "commit": "ae1649d181a5aa7950404797d4735c58831d542a"
+      }
+    }
+  ],
+  "mandatory": [
+    { "source": "grove", "path": "skills/grove/SKILL.md" }
+  ],
+  "requires": [
+    { "source": "writing", "path": "skills/editorial-family/SKILL.md" }
+  ],
+  "timeoutMinutes": 30
+}

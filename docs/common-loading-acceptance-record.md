@@ -9659,3 +9659,177 @@ the model decides whether it loads a listed skill that no instruction names.
 The directory route of the [design craft trials](#design-craft-trials)
 activated the skill in both harnesses. The owner's delivery uses that route.
 No repeated run can change this disposition, so the case did not run again.
+
+## Editorial directory trials
+
+`editorial-directory-trials-k207` runs the directory proof of
+`editorial-pack-k179` in real Claude Code and Codex sessions. The editorial
+kinds and their family file now live in WritingSkills, outside Grove. The
+family file is the skill `editorial-family`, the first family skill after
+`research-family`. The
+[pack membership specification](specs/pack-membership.md#the-acceptance-of-each-move)
+asks for one read in its row "A family skill outside research": an editorial
+kind reads the spine and `editorial-family` before it acts.
+
+### Subjects of the editorial trials
+
+The runs are from 2026-11-05 local time. The case ran once in each harness,
+with no retry.
+
+| Subject | Value |
+| --- | --- |
+| Case | `editorial-family-read`, on the route directory-2.0 |
+| Runner | `scripts/harness_trial.py` in the commit that adds the case. The runner did not change |
+| Grove build | commit `31ec9117c9da`, the removal commit of `editorial-removal-k206`. `grove` SHA-256 `a7f5c988a18e…`, `grove-llm` SHA-256 `2f7895cc33f7…` |
+| Ravel build | line `skill-directory-delivery` at `71f70fcd3f92`, build commit `d324668b86ca`, identity `a4f55d04b2d1…`, `bin/ravel` SHA-256 `26b487afb957…`, the value of `builds.json`. The prefix has no `libexec` |
+| Source `grove` | `plugins/grove` of the prepared plain Git checkout at `31ec9117c9da`, root `skills`. `resourceDigest` `4ce2c04affad…` |
+| Source `writing` | `plugins/writing` of a plain Git checkout of `ae1649d181a5aa7950404797d4735c58831d542a`, the second pack commit and the published `main` of `https://github.com/Linkuistics/WritingSkills.git`. Root `skills`, Git tree `361070804328…`, `resourceDigest` `db96fa09905e…` |
+| Mandatory file | `grove` `skills/grove/SKILL.md`, the Grove spine |
+| Declared skill | `writing` `skills/editorial-family/SKILL.md`, in `requires` |
+| Claude Code | 2.1.318, model `claude-opus-5-5`, effort `medium`, permission mode `bypassPermissions` |
+| Codex | codex-cli 0.166.0, model `gpt-6.1-sol`, effort `medium`, sandbox `workspace-write`, approval `never` |
+
+The second pack commit has the tree of the first pack commit, which Grove's
+marketplace pins, so the two commits deliver the same bytes. The `writing`
+digest and tree equal the values in the moves record's
+[Removal of the writing pack](repository-moves-record.md#removal-of-the-writing-pack).
+Each launch named the same `writing` digest as the checkout.
+
+The runner made each `writing` checkout under the trial's `sources/`. The
+harness's working directory was the trial's `repo/`. That directory is
+outside the Grove working copy, the WritingSkills working copy and every
+checkout. Each checkout had its commit as `HEAD` and was clean after the
+driver.
+
+The permission modes in the table are those of the route's real launches.
+Ravel confines no launch, so a delegate of either session has the same read
+permissions. The case asks for no delegate, and neither session launched one.
+
+The sandbox home linked only the sign-in store of the harness. No native copy
+of any Grove or writing skill existed in it. The Claude Code listing held 27
+names: 14 built-in names and the 13 synced `anthropic-skills:*` skills of
+earlier runs. No name was a Grove or writing name. Codex installed its four
+bundled skills and the curated plugins of the sign-in, as in every earlier
+Codex run. No session read any of them.
+
+The planted tree holds the document node `usage-note-k1`. Its brief holds a
+prose contract and the text of a short usage note for `wordtally`. The runner
+plants only `.grove/`, so the note's text is in the node brief. Under the node
+are the retired `draft` leaf `usage-note-k2` and the live `copy-edit` leaf
+`usage-note-k3`. The text breaks the contract five ways: the US spelling
+"recognize", a semicolon, "word total", "number of words" and the figure
+"lightning fast".
+
+The leaves name no skill, and Grove sends its bare-name mandate for
+`grove-copy-edit`. `grove-llm pick` on a jj copy of the tree gave the
+`copy-edit` leaf and the kind `copy-edit`.
+
+The supplier check held the 7 required paths of the case at `31ec9117c9da`,
+with status 0. A control misspelt the declared skill's directory as
+`editorial-familyX`. The check then refused with status 1, because the
+`writing` checkout holds no such file. The case file was then restored, with
+its earlier SHA-256.
+
+The trial configuration routes only `copy-edit`. After each stage cut its
+`art` leaf and ended with `grove-continue`, the driver refused `art` as
+`config_refused`, and no second harness launched. After each session, Ravel
+wrote the two lines `stop attempt … signal 9: Operation not permitted (os
+error 1)` of earlier runs.
+
+Recipe, from a scratch directory `$SCRATCH` outside every working copy:
+
+```sh
+task trial:check COMMIT=31ec9117c9dacfe993e80313addd432f2930d679 CASE=editorial-family-read
+task trial:prepare OUT="$SCRATCH/trials" COMMIT=31ec9117c9dacfe993e80313addd432f2930d679 RAVEL="$SCRATCH/ravel-2.0/bin/ravel"
+task trial:claude OUT="$SCRATCH/trials" CASE=editorial-family-read
+task trial:codex OUT="$SCRATCH/trials" CASE=editorial-family-read
+```
+
+### editorial-family-read
+
+**Claude Code.** The run is `editorial-family-read-20261105T080814Z`. The
+session file `81dd30e2-c373-4054-9ef6-4f5e09f4fcf0.jsonl` has the SHA-256
+`6964814720b4…`. The descriptor identity is `7697f1646681…`.
+
+| # | Class | Skill | Source | What the call did |
+| --- | --- | --- | --- | --- |
+| 1 | mandatory | grove | grove | Read the spine from its snapshot, and listed each `SKILL.md` path of both snapshots |
+| 2 | command | | | Printed the `name` and `description` lines of each `SKILL.md` of both snapshots |
+| 3 | kind-skill | grove-copy-edit | writing | Read the kind skill from the writing snapshot |
+| 4 | skill | editorial-family | writing | Read `editorial-family/SKILL.md` from the writing snapshot |
+| 5 | listing | grove | grove | Listed the spine's directory and read `references/execute.md` |
+| 7 | supporting | grove | grove | Read `references/bootstrap.md` of the spine, and listed the repository's `.grove/` |
+| 8 | command | | | Resolved the leaf, walked its brief chain and read the briefs and the task files |
+| 9 | supporting | grove | grove | Read `references/retire.md`, `references/commit.md` and `TASK-FORMAT.md` of the spine |
+| 11 | command | | | Changed the note in the node brief and logged each change in the leaf |
+| 13 | command | | | Cut the `art` leaf, retired the leaf and committed the stage |
+| 15 | ending | | | Ran the exact continue command |
+
+**Result: pass.** The agent read the spine, the kind skill and
+`editorial-family/SKILL.md` before the first command on the task, in call 8.
+The kind skill and the family skill came from the writing snapshot, and the
+spine came from the grove snapshot. Call 2 shows the descriptions, so the
+agent chose by description.
+
+The runner marks call 4 with an error. Its result holds the whole family
+file, 5581 bytes, and then the zsh error `==== not found` of a later
+`echo =====`. zsh expands a word that starts with `=` as a command path. Only
+the `ls` after that echo did not run, and call 5 listed the same directory.
+
+**Codex.** The run is `editorial-family-read-20261105T080952Z`. The session
+file `rollout-2026-11-05T19-09-55-01a1aac1-e1d3-7261-9104-14c8acded7a0.jsonl`
+has the SHA-256 `aa403c671465…`. The descriptor identity is
+`6f7f524498bc…`.
+
+| # | Class | Skill | Source | What the call did |
+| --- | --- | --- | --- | --- |
+| 2 | mandatory | grove | grove | Read the spine |
+| 3 | listing | | grove | Listed the `skills` roots of both snapshots with `rg --files` |
+| 4 | kind-skill | grove-copy-edit | writing | Read the kind skill from the writing snapshot |
+| 5 | skill | editorial-family | writing | Read `editorial-family/SKILL.md` from the writing snapshot |
+| 7 | supporting | grove | grove | Read `references/execute.md` and `references/bootstrap.md` of the spine |
+| 8 to 12, 14 | command | | | Resolved the leaf, walked its brief chain, searched for a glossary and read the briefs and the task file |
+| 13 | supporting | grove | grove | Read `references/retire.md`, `references/commit.md` and `TASK-FORMAT.md` of the spine |
+| 16 | action | | | Changed the note and logged the changes with `apply_patch` |
+| 20 to 23 | command and action | | | Cut and wrote the `art` leaf, and retired the leaf |
+| 27 | command | | | Committed the stage |
+| 28 | ending | | | Ran the exact continue command |
+
+**Result: pass.** The reads of the spine, the kind skill and
+`editorial-family/SKILL.md` came before the first command on the task, in call
+8. The kind skill and the family skill came from the writing snapshot, and the
+spine came from the grove snapshot. The listing in call 3 gave paths only, so
+this agent chose by the directory name.
+
+The runner marks call 10 with an error. That call searched the repository for
+a glossary with the malformed glob `'! .git'`. Call 12 listed every file of
+the repository, and the contract states that the project has no glossary.
+
+Each session removed the five planted breaks of the contract. The Codex
+session also added the sentence "Files in subdirectories are not counted". It
+restates "directly in" of the first sentence. The trial measures the reads,
+not the edit, so this does not change the result.
+
+### Limits of the editorial trials
+
+- **One run each.** The case ran once in each harness. One run is one
+  observation, not a rate.
+- **One stage.** Only `copy-edit` ran. `draft`, `art` and `proof` open with
+  the same load of `grove` and `editorial-family`. If one of the four kinds
+  drops that load, the pack fails alone and in the aggregate. The
+  [Readings of the removal of the writing pack](repository-moves-record.md#readings-of-the-removal-of-the-writing-pack)
+  record that control.
+- **The kind skill named the family skill.** `grove-copy-edit` names
+  `editorial-family` beside its load of `grove`. The trial therefore shows
+  that a session follows that bare name to a skill in the same source. It does
+  not show a session that finds the family skill without the name.
+- **The text in the brief.** The runner plants only `.grove/`, so the
+  document is in its node brief and not in a file of the repository. The
+  observation is the order of the reads, which does not depend on where the
+  document lives.
+- **No delegate, working copy, refusal or offline proof.** The membership
+  specification asks for none of them for this move. The
+  [research directory trials](#research-directory-trials) prove those
+  mechanisms for an external source.
+
+No gap remains open for the case of `editorial-directory-trials-k207`.

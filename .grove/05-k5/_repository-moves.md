@@ -149,6 +149,18 @@ Its results are in the EngineeringSkills section of
   `using-codebase-memory` by bare name. Those citations stay valid when the
   personal skills move.
 
+`editorial-pack-k179` closed after its removal and its directory trials.
+Its results are in the WritingSkills section of
+`docs/repository-moves-record.md`. Three of them matter to later work.
+
+- WritingSkills has only the root `skills`. `writing-craft-pack-k181` adds
+  the `craft/` root and the hooks plugin in the same repository. Grove's
+  marketplace pins the first pack commit `694140a18dc7` until that move.
+- The section "For the paused editorial grove" of the moves record holds the
+  fact that rollout's brief-update text states.
+- The case `editorial-family-read` is the model for a kind that loads a
+  family skill from its own pack.
+
 During design-native-namespace-k200, the human inserted
 `skill-marketplace-decision-k201` before `skill-marketplace-k185`. The human
 is not sure that this workstream needs a skills marketplace. Do not start

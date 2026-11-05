@@ -2,42 +2,52 @@
 
 ## Goal
 
-Put each of the owner's pack checkouts in place in the real HOME at its
-accepted pin. Make `mac-check` report checkout drift. Discovery stays
-native.
+Install the owner's skill sources in the real HOME through Homebrew, at their
+accepted commits. Cover each formula that publishes before finish. Make
+`mac-check` report drift. Discovery stays native.
 
 ## Context
 
-- The contract is the section "Pack checkouts" of
-  `docs/specs/owner-skill-delivery.md`, and the real-HOME preparation of
-  cutover order 6.
-- owner-pack-checkouts-k79 settled the owner's tool: the `[bootstrap.repos]`
-  part of mise. owner-pack-checkouts-k82 integrated its first review.
-- The staging leaves of owner-ravel-skill-inventory-k38 supply the drafted
-  entries, the accepted pins and the accepted `resourceDigest` of each
-  source. Read them from the staging evidence.
-- `task owner:checkouts` measures mise's repository part in a fixture HOME.
+- skill-marketplace-decision-k201 replaced the mise checkouts with Homebrew
+  installation. mise only declares the formulae, in `[bootstrap.packages]`.
+  The root brief's "Skill installation" states the decisions.
+- homebrew-delivery-design-k216 amends `docs/specs/owner-skill-delivery.md`.
+  That document holds the contract and the real-HOME preparation of cutover
+  order 6. The amended design gives this leaf its commands and its status
+  report.
+- Grove's formula carries core and the five domain packs. The personal pack,
+  superpowers and quint-llm-kit have formulae of their own. TestAnyware's
+  formula carries `using-testanyware`.
+- The staging leaves of owner-ravel-skill-inventory-k38 supply the accepted
+  commits and the accepted `resourceDigest` of each source. Read them from the
+  staging evidence.
 
 ## Done when
 
-- `~/.config/mise/config.toml` has one `[bootstrap.repos]` entry for each
-  Ravel source. Each entry names the checkout path, the HTTPS URL and the
-  accepted pin as a full commit ID.
-- `mise -C "$HOME" bootstrap repos apply` cloned each checkout, and
-  `mise -C "$HOME" bootstrap repos status --missing` exits 0.
-  `git status --porcelain --ignored` prints nothing in each checkout.
-- `mac-check` runs the status command with `--json`. It tells drift from a
-  configuration error, and a fixture control shows each outcome.
+- `~/.config/mise/config.toml` declares each skill formula in
+  `[bootstrap.packages]`. No `[bootstrap.repos]` entry names a skill source.
+- Homebrew installed the formulae of personal, superpowers, quint-llm-kit and
+  TestAnyware at their accepted commits. Each of those sources gives its
+  accepted `resourceDigest`.
+- Claude Code registers the personal keg's marketplace file, and holds
+  `guardrail` installed and disabled.
+- `mac-check` reports each source's installed commit against its accepted
+  commit. It tells drift from a configuration error, and a fixture control
+  shows each outcome.
 - The machine contract and the `mac-bootstrap` guidance state that each
-  `apply` and each complete `mise bootstrap` is an advance, behind a process
-  check.
+  Homebrew installation or upgrade of a skill source is an advance, behind a
+  process check.
 - Native discovery is unchanged. The real HOME's Ravel settings name no skill
   source, and no harness root holds a new entry.
 
 ## Notes
 
-Before `apply`, list the live processes as "Pack checkouts" states. Run no
-Ravel command and no release task until `apply` ends.
+Grove's keg holds core and the five packs only after Grove's release, which
+happens inside finish. The amended owner design states what the switch checks
+in that keg after the release.
+
+Before an advance, list the live processes as the amended owner design
+states. Run no Ravel command and no release task until the advance ends.
 
 owner-ravel-skill-inventory-k38 puts its leaves for policy conversion, drafts
 and staging trials before this leaf with `leaf-insert`. The marketplace

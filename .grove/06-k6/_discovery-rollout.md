@@ -10,7 +10,7 @@ all-skill Ravel setup and the removal of superseded native installations.
 
 ## Done when
 
-- Cross-repository configuration, marketplace references and documentation
+- Cross-repository configuration, Homebrew formulae and documentation
   describe the final common path. Removed provisioning claims, embedded-file
   references, package inventories and affected source-exact walkthroughs are
   reconciled. Preserve valid historical records as history.
@@ -22,9 +22,9 @@ all-skill Ravel setup and the removal of superseded native installations.
   and resource/delegate access, with native copies absent in isolated test
   environments. Report any acceptance limit explicitly.
 - Ravel is integrated, released and verified through its owning procedure.
-  Each pack checkout of the owner is at its accepted pin and gives its accepted
-  `resourceDigest`. The marketplace and the pins name the same commits at the
-  switch.
+  Each of the owner's sources, as Homebrew installed it, is at its accepted
+  commit and gives its accepted `resourceDigest`. The formulae and the
+  accepted pins name the same commits at the switch.
   Grove has a concrete release-readiness handoff. It includes the required Ravel
   version and the remaining final integration, checks, minor release and
   installed verification. Those Grove operations are root outcomes owned by
@@ -62,8 +62,9 @@ skill-loading-replan-k80 cut four implementation leaves here:
 3. owner-ravel-skill-inventory-k38 then reconciles the final installed set
    with owner-ravel-skill-delivery-k37 and grows the other cutover work. It
    puts its draft and staging leaves before k93 with `leaf-insert`.
-4. `owner-pack-checkouts-k93`: the real-HOME pack checkouts at the accepted
-   pins and the checkout status of `mac-check`, in cutover order 6.
+4. `owner-pack-checkouts-k93`: in cutover order 6, Homebrew installs the
+   owner's sources in the real HOME at the accepted commits. `mac-check`
+   reports their status.
 5. discovery-rollout-k12 plans the release and finish handoff. The rollout
 planner consumes that work and coordinated-ravel-release-k36's reviewed plan.
 Plan from the delivered migration state. Grow concrete final verification,
@@ -155,6 +156,11 @@ owner-pack-checkouts-k82, k84, owner-switch-recovery-k87 and k89 assign them
 to these consumers. k87 replaced the earlier items about resumption, rollback
 and rehearsal.
 
+skill-marketplace-decision-k201 replaced the mise checkouts with Homebrew
+installation. homebrew-delivery-design-k216 amends the owner design before
+k38 and k93 run. Read each item below through that amended design. A checkout
+there becomes a source that Homebrew installed.
+
 - owner-ravel-skill-inventory-k38: the staging trials run the decoy-helper
   control, then the clones into the checkout HOME, then the isolation trial.
   The staging evidence records each accepted pin, each source's
@@ -173,8 +179,9 @@ and rehearsal.
 - owner-switch-program-k91 and owner-switch-entries-k92: the k87 handoff
   items as k89 amended them. `task model:owner-switch` stays green, and a
   change to a recovery rule changes the model first.
-- owner-pack-checkouts-k93: each `apply` and each complete `mise bootstrap`
-  is an advance, behind a process check.
+- owner-pack-checkouts-k93: each Homebrew installation or upgrade of a skill
+  source is an advance, behind a process check. Each complete `mise
+  bootstrap` is one too.
 
 acceptance-completion-audit-k127 hands two findings to this node. The
 "Gap register" of `docs/common-loading-acceptance-record.md` holds both.
@@ -218,3 +225,19 @@ Grove's `main`, so the entry reaches the owner only when finish moves `main`.
 A native installation of `grove` does not receive the research kinds. It needs
 `/plugin install research@linkuistics` once the entry is on `main`. The final
 installed set and the native probe account for that step.
+
+skill-marketplace-decision-k201 withdrew that step, because Ravel delivers
+every pack.
+
+skill-marketplace-decision-k201 hands these facts to this node. The root
+brief's "Skill installation" states the decisions.
+
+- The native skill routes retire. The native installations after finish that
+  the moves record lists no longer apply.
+- The owner's `linkuistics` registration stays frozen until purge. Finish
+  reads its own guidance from the plugins of that registration.
+- Finish installs the writing hooks plugin, disabled, after the release and
+  before the backup of the switch. The preparation step installs `guardrail`
+  from the personal keg.
+- Linkuistics/Ravel#4 and Linkuistics/grove#28 are later work outside this
+  grove.

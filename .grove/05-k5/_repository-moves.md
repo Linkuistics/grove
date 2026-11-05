@@ -2,8 +2,9 @@
 
 ## Goal
 
-Complete the remaining domain, personal, TestAnyware and marketplace moves,
-and relocate the four writing projects, using the proven external-pack contract.
+Complete the remaining domain, personal and TestAnyware moves and the Homebrew
+installation. Relocate the four writing projects. Use the proven external-pack
+contract.
 
 ## Done when
 
@@ -17,8 +18,9 @@ and relocate the four writing projects, using the proven external-pack contract.
   Do not resurrect chezmoi or put personal sources under .config. Account for
   native hook behaviour separately from ordinary Markdown guidance.
 - TestAnyware's own repository owns and checks TestAnyware's skill.
-  The marketplace-only repository points to real source repositories, and
-  installation guidance/distribution consumers agree with each completed move.
+  Homebrew formulae install every Linkuistics skill source, as the root
+  brief's "Skill installation" states. Installation guidance and distribution
+  consumers agree with each completed move.
 - Stylepack, TestSubject, TheGreatExplainer and Writegood move with their
   contents, unrelated edits, history and actual workspace registrations
   preserved. Reconcile affected references and check registrations at the new
@@ -68,7 +70,9 @@ the inventory and the reasons.
 9. `writing-craft-pack-k181`: the writing craft and the native hooks plugin.
 10. `personal-pack-k183`: the last craft move. It removes the empty
     `linkuistics` plugin.
-11. `skill-marketplace-k185`: the marketplace, after every pack exists.
+11. `skill-marketplace-k185`: pruned after `skill-marketplace-decision-k201`.
+    `homebrew-skill-delivery-k215` takes its place: the Homebrew
+    installation, after every pack exists.
 12. `moves-handoff-k187`: the per-source record for the owner cutover.
 
 Each pack node starts with its own planning leaf. Each move appends its
@@ -113,9 +117,10 @@ Its results are in the RequirementsSkills section of
 - The cases `requirements-family-read` and `requirements-native-namespace`
   are the models for a later pack whose kinds read a family file in the
   spine. `editorial-pack-k179` can copy them.
-- The owner's native marketplace lists `requirements` only after finish.
-  Rollout then installs `requirements@linkuistics`, as the section "For
-  discovery-rollout-k6" of that record states.
+- The section "For discovery-rollout-k6" of that record lists native
+  installations after finish, such as `requirements@linkuistics`.
+  `skill-marketplace-decision-k201` withdrew those steps, because Ravel
+  delivers every pack.
 
 `design-pack-k175` closed after its directory and native trials. Its results
 are in the DesignSkills section of `docs/repository-moves-record.md`. Four of
@@ -163,17 +168,20 @@ Its results are in the WritingSkills section of
 
 During design-native-namespace-k200, the human inserted
 `skill-marketplace-decision-k201` before `skill-marketplace-k185`. The human
-is not sure that this workstream needs a skills marketplace. Do not start
-marketplace work before that leaf records the human's decision.
+was not sure that this workstream needs a skills marketplace. That leaf
+recorded the human's decisions. The packs leave native marketplace
+distribution. Homebrew installs every Linkuistics skill source, and Ravel
+delivers the skills. The root brief's "Skill installation" states each
+decision.
 
 `writing-craft-pack-k181` closed after its removal and its last pack commit.
 Its results are in the WritingSkills section of
 `docs/repository-moves-record.md`. Three of them matter to later work.
 
 - Codex 0.166.0 lists a `local` marketplace source only inside the
-  marketplace root. `skill-marketplace-k185` therefore cannot list the Codex
-  hooks plugin from a marketplace-only repository through a `local` source.
-  The section "For skill-marketplace-k185" of that record holds the reading.
+  marketplace root. A keg must therefore hold the Codex marketplace file
+  above the folder of the Codex hooks plugin. The section "For
+  skill-marketplace-k185" of that record holds the reading.
 - Grove's marketplace lists `technical-communication-hooks`, a hooks-only
   plugin, from the same pack commit as `writing`. `check:packs` gives it the
   directory-only check. A later pin change moves both entries together.
@@ -189,12 +197,14 @@ Four of them matter to later work.
 - Grove now ships only the `grove` plugin. The marketplace keeps the name
   `linkuistics` and lists ten plugins. `personal` and `guardrail` come from
   PersonalSkills commit `1ff489d996a9`. The dependency of `personal` resolves
-  only in a marketplace that also lists `guardrail`. `skill-marketplace-k185`
-  must keep both entries together.
+  only in a marketplace that also lists `guardrail`. Under
+  `skill-marketplace-decision-k201`, the personal keg lists only `guardrail`
+  for Claude Code, and Ravel delivers the personal skills.
 - The owner's native `linkuistics@linkuistics` comes from Grove commit
   `238c3a839ab4`. Grove's `main` lists that plugin until finish, and then it
-  does not. Rollout installs `personal@linkuistics`, which also installs
-  `guardrail`, and it removes `linkuistics@linkuistics`.
+  does not. Rollout installs `guardrail` from the personal keg, as
+  `skill-marketplace-decision-k201` settled. It removes
+  `linkuistics@linkuistics`.
 - The section "For moves-handoff-k187" of that record gives the source root
   and revision of the `personal` source and of the two native plugins.
 - No `craft/` skill remains in Grove. The fixtures of `install.test.sh` keep

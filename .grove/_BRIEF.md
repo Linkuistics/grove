@@ -24,8 +24,8 @@ skills-only approach first. Neither is a prerequisite for this work.
   without native copies of the skills. Launched sessions and their delegates
   can read the required skill resources.
 - The domain packs, craft skills, personal plugin, and TestAnyware skill are in
-  the destinations below, and the marketplace references the source repositories.
-  Research first proves the external-pack contract.
+  the destinations below. Homebrew formulae install them, as "Skill
+  installation" states. Research first proves the external-pack contract.
 - The four named writing projects have moved with contents, working-copy changes,
   history, workspace registrations, and affected references preserved or
   reconciled.
@@ -56,9 +56,9 @@ During common-skill-loading-k32 the human additionally directed this grove to
 do Ravel's release work and coordinate both releases. The human also directed
 this grove to remove current skill installations after setting up all the
 owner's skills through Ravel, explicitly including TestAnyware. The new owner
-setup uses common delivery. Native installation remains a supported product
-choice for other users. The existing isolated test cases remain required before
-the actual owner cutover. Ravel publication, owner activation and removal are
+setup uses common delivery. skill-marketplace-decision-k201 later made Ravel
+the only route that delivers skills, for every user. The existing isolated
+test cases remain required before the actual owner cutover. Ravel publication, owner activation and removal are
 now deliverables, not handoffs left for the human to perform outside this grove.
 
 <!-- tc: depart synonym-rotation because "confirmed" reports the human's agreement, not a check or a verification -->
@@ -111,12 +111,12 @@ scope of Ravel. The process of installing skills and keeping them up to date is
 not part of Ravel. Ravel reads local directories only. A mechanism outside
 Ravel sets the revision of each pack checkout in those directories.
 
-owner-pack-checkouts-k79 settled the mechanism, and owner-pack-checkouts-k82
-integrated its review. Ravel and Grove require no checkout tool. A tool
-outside Ravel holds each of the owner's pack checkouts at a published commit.
-`docs/specs/owner-skill-delivery.md` names the owner's tool. It also states
-the commands, the missing-checkout behaviour and the behaviour without a
-network.
+owner-pack-checkouts-k79 chose mise checkouts for the owner's sources.
+skill-marketplace-decision-k201 replaced them with Homebrew. Homebrew installs
+each source at a published commit, and mise's `[bootstrap.packages]` runs
+Homebrew. Neither Ravel nor Grove fetches a source. homebrew-skill-delivery-k215
+amends `docs/specs/owner-skill-delivery.md`, which states the commands, the
+missing-source behaviour and the behaviour without a network.
 
 Account for compaction, delegates, source/resource lifetime, duplicate native
 copies, and actual launch permissions. The automatic contract covers launched
@@ -130,10 +130,10 @@ Kinds remain open labels. Grove neither declares a kind set nor resolves the
 skill locations Ravel adds to the prompt. Its ordinary mandate continues to
 name the required kind skill.
 
-The user ensures that skills are installed either within each selected harness
-or through Ravel's mechanism. Neither route is a Grove prerequisite. Grove is
-decoupled from skill delivery. Preserve kind labels, leaf filenames, handles,
-review/integration routes, and workflow behaviour.
+Homebrew installs the skills and Ravel delivers them, as "Skill installation"
+states. Grove's binary installs no skill and resolves no skill location.
+Preserve kind labels, leaf filenames, handles, review/integration routes, and
+workflow behaviour.
 
 Do not introduce declaration-based admission, a kind registry, generic review
 parameters, or the earlier proposed Grove discovery commands. Generic discovery
@@ -142,9 +142,9 @@ is Ravel's responsibility and is invisible to Grove's task loop.
 Grove's current broad Codex snapshot provisioning, packaging, embedded resources,
 and tests must be reconciled with the new delivery path and moved files. Keep
 any core-only fallback on the common path and replace obsolete automatic
-provisioning rather than maintaining a second competing mechanism. The marketplace
-and manual native installations remain supported user choices, including for
-Grove-launched harnesses.
+provisioning rather than maintaining a second competing mechanism. The native
+skill routes retire: no remote marketplace lists a pack, and the manual
+installer links no skill.
 
 Planning ships with core as the existing replaceable default skill. Retain the
 existing producer-specific review and integration entry skills for this move.
@@ -176,8 +176,9 @@ PersonalSkills rows with the human's approval. `docs/specs/pack-membership.md`
 records the reasons.
 
 Move the TestAnyware skill to the existing
-`~/Development/AbstractingComputers/TestAnyware` repository. Create the
-marketplace-only repository at `~/Development/Delivery/skill-marketplace`.
+`~/Development/AbstractingComputers/TestAnyware` repository. No
+marketplace-only repository exists. skill-marketplace-decision-k201 removed it
+from scope.
 
 Move `Stylepack`, `TestSubject`, `TheGreatExplainer`, and `Writegood` from
 `~/Development/AgenticWriting/` into `~/Development/AgenticOrchestration/`.
@@ -189,6 +190,27 @@ The personal repository owns its source. Machine settings that point to it
 remain under the current mise setup. The maintained manual records retirement
 of chezmoi. Do not recreate that source or put personal skill sources in
 `.config`.
+
+## Skill installation
+
+skill-marketplace-decision-k201 settled installation with the human:
+
+- Homebrew installs every Linkuistics skill source, the owner's machine
+  included. mise only declares the formulae, in `[bootstrap.packages]`.
+- Grove's formula carries core and the five domain packs, at the commits that
+  Grove's pack check accepted. A change to a pack reaches users through a
+  Grove patch release.
+- The personal pack, superpowers and quint-llm-kit have formulae of their
+  own. TestAnyware's formula carries `using-testanyware`.
+- Ravel is the only route that delivers skills.
+- Each harness registers the hook adapters from the kegs, once, by a
+  documented command. Claude Code and Codex use local marketplace files, and
+  Pi links its extension. `guardrail` exists only for Claude Code.
+
+homebrew-skill-delivery-k215 designs and delivers this installation. Two later
+pieces of work are outside this grove. Linkuistics/Ravel#4 makes Ravel a
+universal skills provider. Linkuistics/grove#28 moves Ravel, the packs, Grove
+and Ravel-Strategies into one repository.
 
 ## Decomposition
 
@@ -203,8 +225,8 @@ deferred issues as prerequisites or recreate the removed kind machinery.
    reachability, own/aggregate conformance and common local-source
    loading. Its durable external-pack contract informs all remaining moves.
 3. `repository-moves-k5`: plan separate working increments for the remaining
-   domains, personal source/hooks, TestAnyware skill, marketplace and four
-   writing projects. Each move owns its preservation checks, affected consumers
+   domains, personal source/hooks, TestAnyware skill, Homebrew installation and
+   four writing projects. Each move owns its preservation checks, affected consumers
    and references. Detailed layout follows the research proof.
 4. `discovery-rollout-k6`: reconcile the final installed split, documentation,
    configuration and paused-grove handoff text. Verify all repositories and
@@ -242,7 +264,25 @@ requirements, not a reason to repeat the interview.
   of native copies. Do not remove the owner's real installations.
 <!-- tc: depart synonym-rotation because "fixed" in the decomposition means unchanging, not repaired, so "corrected" is the only verb for a repair -->
 - Migration checks: skill/resource preservation, VCS/workspace state, corrected
-  references and marketplace sources, and affected repositories' existing checks.
+  references and formula sources, and affected repositories' existing checks.
+
+skill-marketplace-decision-k201 added six seams for Homebrew installation:
+
+- Grove's archive manifest, `task release:smoke` and `task release:formula:test`
+  show that the keg holds core and the five packs at the accepted commits,
+  with executable bits intact. Ravel resolves each source from the keg's paths
+  and reports its `resourceDigest`.
+- `check:packs` reads Grove's own record of pack commits. It checks each pack
+  alone and in the aggregate with core.
+- The Claude Code and Codex trials run through Ravel, with every source at a
+  keg path and no native copy.
+- The owner design's staging trials and rehearsal read the sources from kegs.
+- In isolated homes, each harness registers its hook adapter from a keg. On
+  Claude Code, the hooks run and no native skill appears. One measurement
+  covers a hook plugin across `brew upgrade`.
+- Inside finish, the new local marketplace and the installation of the writing
+  hooks plugin change no plugin that finish loaded. They write no orphan
+  marker.
 
 The previously agreed stop-command tests move with #26. Review-parameter tests
 are not required here.
@@ -251,6 +291,8 @@ are not required here.
 
 - `plan-k1`: running decisions and evidence. Later corrections supersede earlier
   proposals retained in its conversation record.
+- `skill-marketplace-decision-k201`: the decisions of "Skill installation", in
+  the human's words, and the comparison of the routes.
 - `docs/adr/corpus-rules-have-one-owner.md` and
   `docs/adr/restatement-declares-its-class.md`.
 - `docs/specs/codex-skill-provisioning.md`: current delivery to replace.

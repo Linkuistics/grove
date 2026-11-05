@@ -1,16 +1,11 @@
 {
   "name": "linkuistics",
-  "description": "Grove's session methodology, coding standards, software design, project simplification, technical writing, and version-control disciplines as lazily loaded agent skills, the always-on hooks of the writing rules, and GUI testing in isolated VMs. Nine plugins: grove, requirements, design, engineering, research, writing, technical-communication-hooks, linkuistics and testanyware.",
+  "description": "Grove's session methodology, coding standards, software design, project simplification, technical writing, personal version-control and machine disciplines as lazily loaded agent skills, the always-on hooks of the writing rules, a user-invoked safety guardrail, and GUI testing in isolated VMs. Ten plugins: grove, requirements, design, engineering, research, writing, technical-communication-hooks, personal, guardrail and testanyware.",
   "owner": {
     "name": "Antony Blakey",
     "email": "antony.blakey@gmail.com"
   },
   "plugins": [
-    {
-      "name": "linkuistics",
-      "source": "./plugins/linkuistics",
-      "description": "Linkuistics practice skills: Jujutsu-native version control and a user-invoked safety guardrail."
-    },
     {
       "name": "testanyware",
       "source": {
@@ -85,6 +80,26 @@
         "sha": "4cafb0fd8e72dacdeea9d960cbdaf9f4850aec8f"
       },
       "description": "The always-on hooks of the technical-communication skill: the instruction, the reminder, the document gate and the reply log. This plugin holds no skill. The writing plugin or Ravel supplies the skill."
+    },
+    {
+      "name": "personal",
+      "source": {
+        "source": "git-subdir",
+        "url": "https://github.com/Linkuistics/PersonalSkills.git",
+        "path": "plugins/personal",
+        "sha": "1ff489d996a9f3efa091f145ce944d69c9b351be"
+      },
+      "description": "Antony Blakey's personal craft skills from PersonalSkills: the machine environment contract, Jujutsu-native version control and the house authoring conventions. It installs the guardrail plugin as a dependency."
+    },
+    {
+      "name": "guardrail",
+      "source": {
+        "source": "git-subdir",
+        "url": "https://github.com/Linkuistics/PersonalSkills.git",
+        "path": "plugins/guardrail",
+        "sha": "1ff489d996a9f3efa091f145ce944d69c9b351be"
+      },
+      "description": "The user-invoked guardrail skill from PersonalSkills. /guardrail turns on a PreToolUse hook that asks before a destructive shell command or an edit outside the project. Claude Code only."
     }
   ]
 }

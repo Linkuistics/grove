@@ -406,12 +406,16 @@ craft skills. For such a source, `check:packs` checks only that the pinned
 commit holds the source directory, and it reports that directory-only check by
 source name. The source's own `task check` is its check.
 `testanyware-skill-move-k172` makes that change, because it adds the first
-pinned source without kind skills. The hooks plugin
-`technical-communication-hooks` ships no skill, and it takes the same check.
+pinned source without kind skills.
+
+The hooks plugin `technical-communication-hooks` ships no skill, and it takes
+the same check. The `guardrail` plugin of PersonalSkills holds
+`skills/guardrail/` and no kind skill, so it also takes that check.
 
 The branch applies only to a source that holds neither a kind skill nor a rules
 manifest. It does not depend on whether the source holds `skills/`. TestAnyware
-holds `skills/` without a kind skill, and PersonalSkills holds no `skills/`. A
+holds `skills/` without a kind skill, and the `personal` source directory of
+PersonalSkills holds no `skills/`. A
 source with kind skills and no manifest therefore still fails conformance.
 
 A move owes no directory trial, native trial or refusal of its own unless it

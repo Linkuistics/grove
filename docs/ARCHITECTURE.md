@@ -101,15 +101,15 @@ title does not change the anchor.
 <a id="skills-monorepo"></a>
 ## Repository products
 
-The repository contains the CLI, its readable caller policies and two skill
-plugins. Ravel is an independently delivered runtime dependency:
+The repository contains the CLI, its readable caller policies and the core
+skill plugin. Ravel is an independently delivered runtime dependency:
 
 | Product | Source | Delivery |
 |---|---|---|
 | Grove CLI | `crates/` | Homebrew and the release archives install `grove` and `grove-llm`. |
 | Grove caller assets | `assets/ravel-policy/` | One set for each admitted Ravel major: TypeScript for 1.x and Rhai for 2.x. Grove archives/formula install `libexec/ravel-policy`; the formula depends on separately versioned Ravel. [Delivery boundary](grove-delivery-contraction.md). |
-| Agent skill plugins | `plugins/grove/`, `plugins/linkuistics/` | Claude marketplace, or `plugins/install.sh` for Codex, Gemini CLI and Pi. The user chooses and maintains the route. |
-| External packs | Other repositories, such as `plugins/requirements/` in RequirementsSkills, `plugins/design/` in DesignSkills, `plugins/engineering/` in EngineeringSkills, `plugins/research/` in ResearchSkills, `plugins/writing/` in WritingSkills and `plugins/testanyware/` in TestAnyware. WritingSkills also holds the hooks plugin `technical-communication-hooks` | The marketplace pins each with a `git-subdir` source and a `sha`. `plugins/install.sh --pack <dir>` installs a checkout. [External pack contract](specs/external-pack-contract.md). |
+| Agent skill plugins | `plugins/grove/` | Claude marketplace, or `plugins/install.sh` for Codex, Gemini CLI and Pi. The user chooses and maintains the route. |
+| External packs | Other repositories, such as `plugins/requirements/` in RequirementsSkills, `plugins/design/` in DesignSkills, `plugins/engineering/` in EngineeringSkills, `plugins/research/` in ResearchSkills, `plugins/writing/` in WritingSkills, `plugins/personal/` in PersonalSkills and `plugins/testanyware/` in TestAnyware. WritingSkills also holds the hooks plugin `technical-communication-hooks`, and PersonalSkills holds the native plugin `guardrail` | The marketplace pins each with a `git-subdir` source and a `sha`. `plugins/install.sh --pack <dir>` installs a checkout. [External pack contract](specs/external-pack-contract.md). |
 
 Their documented interfaces evolve together. `plugins/` is the authoritative
 skill source. Neither binary embeds or installs it

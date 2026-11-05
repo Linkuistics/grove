@@ -14,7 +14,7 @@ also contains the agent skills used by those sessions.
 |---|---|---|
 | Grove | [`crates/`](crates/) | The Rust workspace: two thin binaries over five library crates, the loop that launches one session per task among them. |
 | Grove caller policies | [`assets/ravel-policy/`](assets/ravel-policy/) | Readable owner-editable policies and adapters for independent Ravel. |
-| Skill plugins | [`plugins/`](plugins/) | Grove's own methodology and the Linkuistics practice skills. |
+| Skill plugins | [`plugins/`](plugins/) | Grove's own methodology, and the marketplace that lists the external packs. |
 
 Grove and its skills share a repository; [Ravel](https://github.com/Linkuistics/Ravel) is independently released.
 Grove names the skill each session must load, and you supply that skill to
@@ -96,7 +96,7 @@ For Claude Code:
 /plugin install engineering@linkuistics
 /plugin install research@linkuistics
 /plugin install writing@linkuistics
-/plugin install linkuistics@linkuistics
+/plugin install personal@linkuistics
 /plugin install testanyware@linkuistics
 ```
 
@@ -134,6 +134,14 @@ repository. It also supplies the writing craft skills `technical-communication`
 and `writing-code-walkthroughs`. The marketplace pins one WritingSkills commit
 for it. Its dependency `technical-communication-hooks` comes from the same
 commit and holds the always-on hooks of `technical-communication`.
+
+`personal@linkuistics` supplies the owner's personal craft skills from the
+[PersonalSkills](https://github.com/Linkuistics/PersonalSkills) repository.
+The craft skills are `machine-environment`, `using-jujutsu` and
+`authoring-conventions`. Its dependency `guardrail` comes from the same commit
+and holds the user-invoked `guardrail` skill for Claude Code. The marketplace
+pins one PersonalSkills commit for both plugins.
+
 `testanyware@linkuistics` supplies the TestAnyware GUI-testing skill from the
 [TestAnyware](https://github.com/Linkuistics/TestAnyware) repository. The
 marketplace pins one TestAnyware commit for it.
@@ -148,7 +156,7 @@ For Codex, Gemini CLI and Pi, clone this repository and run:
 
 The script links each eligible skill into the personal skill directory of each
 harness that is present. It filters on each skill's `harnesses:` declaration, so
-Claude-only `guardrail` is excluded from Codex.
+a Claude-only skill is excluded from Codex.
 
 <!-- tc: on -->
 
@@ -160,7 +168,8 @@ and name its plugin directory:
   --pack /path/to/DesignSkills/plugins/design \
   --pack /path/to/EngineeringSkills/plugins/engineering \
   --pack /path/to/ResearchSkills/plugins/research \
-  --pack /path/to/WritingSkills/plugins/writing
+  --pack /path/to/WritingSkills/plugins/writing \
+  --pack /path/to/PersonalSkills/plugins/personal
 ```
 
 To install the TestAnyware skill, name the plugin directory of a TestAnyware
@@ -204,8 +213,7 @@ for the catalogue, ownership rules and installation paths.
 - [Grove vocabulary](CONTEXT.md) and the [context map](CONTEXT-MAP.md).
 - [Runtime agent methodology](plugins/grove/skills/grove/SKILL.md) and its
   adjacent format guides.
-- [Skill plugin documentation](plugins/README.md) and
-  [provenance](plugins/linkuistics/PROVENANCE.md).
+- [Skill plugin documentation](plugins/README.md).
 - [Technical communication](https://github.com/Linkuistics/WritingSkills/blob/main/docs/TECHNICAL-COMMUNICATION.md)
   in WritingSkills — the always-on controlled-English skill: what it does, how
   to install its hooks, how to turn it off, and how to read its reply log.

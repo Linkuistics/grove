@@ -6,15 +6,16 @@
 #
 # Claude Code does NOT need this script. Install there via the marketplace:
 #   /plugin marketplace add Linkuistics/grove
-#   /plugin install linkuistics@linkuistics
+#   /plugin install grove@linkuistics
 #   /plugin install testanyware@linkuistics
 #
-# Both bundled plugins are scanned. Which harnesses a skill reaches is the
+# Every bundled plugin directory is scanned. Which harnesses a skill reaches is the
 # skill's own declaration, not this script's list: every SKILL.md carries a
 # `harnesses:` frontmatter key, and this script installs a skill only where that
 # key allows it (see plugins/CONTEXT.md, "Harness eligibility"). A skill whose
-# instructions are unfollowable off Claude Code — `guardrail`, whose whole
-# mechanism is a Claude Code hook — declares `[claude-code]` and is skipped here.
+# instructions are unfollowable off Claude Code — `guardrail` of PersonalSkills,
+# whose whole mechanism is a Claude Code hook — declares `[claude-code]` and is
+# skipped here.
 #
 # For the harnesses below, the SKILL.md format is shared but there is no
 # package manager, so symlinks are the install mechanism. Because the targets
@@ -326,7 +327,7 @@ if [[ -n "${duplicate_names}" ]]; then
   exit 1
 fi
 
-# The plugin directory names this repo ships (`grove`, `linkuistics`),
+# The plugin directory names this repo ships (`grove`),
 # and the name of each `--pack` directory. They are what makes a symlink target
 # recognisable as pointing into a checkout of a scanned plugin — see is_ours.
 plugin_names=()

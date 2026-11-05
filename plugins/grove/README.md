@@ -140,7 +140,7 @@ parameter to policy; naming the session belongs to the methodology.
 /plugin install engineering@linkuistics
 /plugin install research@linkuistics
 /plugin install writing@linkuistics
-/plugin install linkuistics@linkuistics
+/plugin install personal@linkuistics
 /plugin install testanyware@linkuistics
 ```
 

@@ -2,15 +2,15 @@
 
 <!-- tc: pending because the conversion has not reached this part of the document -->
 
-Two Claude Code plugins live here — `grove` and `linkuistics` —
+One Claude Code plugin lives here — `grove` —
 published through the marketplace declared in
 [`../.claude-plugin/marketplace.json`](../.claude-plugin/marketplace.json). The
-marketplace also lists `requirements`, `design`, `engineering`, `research`, `writing`, `technical-communication-hooks` and `testanyware`, which live in their own
-repositories and which it pins by commit. The two plugins here
-share this repo with the Grove CLI because the two change in lockstep
-([architecture](../docs/ARCHITECTURE.md#skills-monorepo)); they ship by their own
+marketplace also lists `requirements`, `design`, `engineering`, `research`, `writing`, `technical-communication-hooks`, `personal`, `guardrail` and `testanyware`, which live in their own
+repositories and which it pins by commit. The plugin here
+shares this repo with the Grove CLI because the two change in lockstep
+([architecture](../docs/ARCHITECTURE.md#skills-monorepo)); it ships by its own
 path for Claude Code and through [`install.sh`](install.sh) for Codex, Gemini CLI
-and Pi. The Grove binary embeds and installs none of them.
+and Pi. The Grove binary embeds and installs no skill.
 
 The vocabulary of authoring, packaging, triggering and installing a skill is in
 [`CONTEXT.md`](CONTEXT.md).
@@ -201,30 +201,38 @@ Claude Code install also installs the spine and the hooks.
 
 <!-- tc: pending because the conversion has not reached this part of the document -->
 
-## `linkuistics` — practice skills
+## `personal` and `guardrail` — personal skills, from PersonalSkills
 
-A suite of agent **skills** that load lazily — only when relevant to the file or
-task at hand — across Claude Code, Codex, and other agents supporting the
-[`SKILL.md`](https://agentskills.io) open standard.
+<!-- tc: on -->
+
+The owner's personal skills ship in their own repository,
+[PersonalSkills](https://github.com/Linkuistics/PersonalSkills). This
+repository holds no copy of those skills.
+
+The plugin `personal` holds three craft skills in its `craft/` root, and it has
+no `skills/` root:
 
 | Skill | Loads when | Notes |
 |-------|-----------|-------|
-| `machine-environment` | project setup, development commands, toolchains, or persistent configuration on Antony's Mac | mise selects project tools, Taskfiles retain workflows, mise bootstrap owns machine setup and tracked dotfiles, and the Obsidian manual supplies current details; declares `assumes-personal-setup: true` |
-| `using-jujutsu` | by description | drive version control through Jujutsu natively when the repo is jj-enabled (`.jj/` present); git, silently, everywhere else — command surface and the git→jj mapping in `references/` |
-| `authoring-conventions` | by hand (`/authoring-conventions`, user-invoked) | house `SKILL.md` conventions — a thin delta over superpowers' `writing-skills` |
-| `guardrail` | by hand (`/guardrail`, user-invoked) | session-scoped `PreToolUse` gate — pauses for confirmation before destructive shell commands or edits outside the project ("freeze"). **Claude Code only** (`harnesses: [claude-code]`) |
+| `machine-environment` | project setup, development commands, toolchains or persistent configuration on Antony's Mac | mise selects project tools, Taskfiles keep workflows, mise bootstrap owns machine setup, and the Obsidian manual supplies current details. It declares `assumes-personal-setup: true` |
+| `using-jujutsu` | by description | drives version control through Jujutsu in a jj-enabled repository, and through Git elsewhere. The command surface and the Git-to-jj mapping are in `references/` |
+| `authoring-conventions` | by hand (`/authoring-conventions`, user-invoked) | the house `SKILL.md` conventions, a thin delta over the `writing-skills` skill of superpowers |
 
-The coding styles, `doubt-driven-development`, `simplify-project` and
-`using-codebase-memory` moved to the `engineering` plugin of EngineeringSkills.
-`technical-communication` and `writing-code-walkthroughs` moved to the
-`writing` plugin of WritingSkills, and the always-on hooks moved with
-`technical-communication`.
+The plugin `guardrail` holds only the user-invoked skill `guardrail`. The skill
+turns on a session-scoped `PreToolUse` hook, which asks for confirmation before
+a destructive shell command or an edit outside the project. It declares
+`harnesses: [claude-code]`, so it is a native plugin, and no Ravel root reaches
+it.
 
-Each skill's one-line `description` is the only standing context cost; the body
-loads on demand, and a `references/` file only when the body sends you there.
+The marketplace lists both plugins with `git-subdir` sources at one
+PersonalSkills commit. The source directories are `plugins/personal` and
+`plugins/guardrail`. The plugin `personal` declares a dependency on
+`guardrail`, so a Claude Code install of `personal` also installs the
+guardrail. Grove's `task check:packs` gives each source the directory-only
+check, because neither holds a kind skill. The pack's own `task check` checks
+the skills and the hook script.
 
-Two skills are **user-invoked** (`disable-model-invocation: true`): they never
-auto-fire and cost no standing context, reachable only by typing `/<name>`.
+<!-- tc: pending because the conversion has not reached this part of the document -->
 
 ## `testanyware` — GUI testing in isolated VMs
 
@@ -236,8 +244,8 @@ then does not touch the host. The plugin is not in this repository. It is
 `plugins/testanyware` in the
 [TestAnyware](https://github.com/Linkuistics/TestAnyware) repository, and the
 marketplace pins one TestAnyware commit for it. TestAnyware's README states the
-source directory and its checks. The plugin installs independently of
-`linkuistics`.
+source directory and its checks. The plugin installs independently of the
+other plugins.
 
 <!-- tc: pending because the conversion has not reached this part of the document -->
 
@@ -251,7 +259,7 @@ source directory and its checks. The plugin installs independently of
 /plugin install engineering@linkuistics
 /plugin install research@linkuistics
 /plugin install writing@linkuistics
-/plugin install linkuistics@linkuistics
+/plugin install personal@linkuistics
 /plugin install testanyware@linkuistics
 ```
 
@@ -261,8 +269,8 @@ version — see *Versioning* below for what "published" means here.
 
 The marketplace's identity is the `name` field in `marketplace.json`, not the
 repo URL — it was already `linkuistics` while this tree lived in
-`Linkuistics/skills`, so every `linkuistics:<skill>` reference is unaffected by
-the move. Only where you add the marketplace *from* changed.
+`Linkuistics/skills`, so every `<plugin>@linkuistics` install command is
+unaffected by the move. Only where you add the marketplace *from* changed.
 
 ## Install — Codex
 
@@ -307,7 +315,7 @@ cd grove
 ```
 
 [`install.sh`](install.sh) symlinks each **eligible** skill directory — from
-the `skills/` and `craft/` roots of both plugins here — into `~/.codex/skills/`, `~/.gemini/skills/`, and `~/.pi/agent/skills/`
+the `skills/` and `craft/` roots of the plugin here — into `~/.codex/skills/`, `~/.gemini/skills/`, and `~/.pi/agent/skills/`
 (only for harnesses that are installed). A skill that ships `harnesses/pi/*.ts`
 also has that Pi extension linked into `~/.pi/agent/extensions/`, under the same
 ownership and reconciliation rules; `technical-communication`, from the `writing` pack through `--pack`, is the one that does. Because the targets are symlinks,
@@ -317,7 +325,8 @@ added, removed, or change which harnesses they declare.
 **Which harnesses a skill reaches is the skill's own declaration.** Every
 `SKILL.md` carries a `harnesses:` frontmatter key — either `[any]`, meaning
 nothing in it depends on a particular harness's affordances, or an explicit
-allowlist such as `[claude-code]`. `guardrail` declares `[claude-code]`, because
+allowlist such as `[claude-code]`. `guardrail`, in the `guardrail` plugin of
+PersonalSkills, declares `[claude-code]`, because
 its whole mechanism is a Claude Code `PreToolUse` hook and a codex or pi session
 loading it would read instructions it cannot act on. Every skip is printed with
 the declaration that caused it:
@@ -333,8 +342,9 @@ without withholding the portable skills.
 A skill may also declare `assumes-personal-setup: true` — its content names the
 author's own models, subscriptions, or machine configuration, so it is correct
 here and misleading elsewhere. It still installs; the script reports it so you can
-review it before relying on it. Here only `machine-environment` carries it.
-In EngineeringSkills, `doubt-driven-development` carries it.
+review it before relying on it. No skill here carries it. In PersonalSkills,
+`machine-environment` carries it. In EngineeringSkills,
+`doubt-driven-development` carries it.
 
 **A re-run reconciles, it does not only add.** Every symlink pointing into a
 checkout of this repo is the script's to manage, so one whose skill was deleted,
@@ -356,7 +366,7 @@ as an error. It detects that and refuses. Pass `--force` when linking from a sid
 tree is what you actually want (testing an unmerged skill against a live
 harness), and re-run from the main checkout afterwards to repair the links.
 
-`install.sh` covers both plugins here: `grove` and `linkuistics`.
+`install.sh` covers the plugin here: `grove`.
 It selects skills eligible for each detected harness using their `harnesses:`
 frontmatter.
 
@@ -365,8 +375,10 @@ frontmatter.
 **An external pack needs `--pack`.** The requirements kinds are in
 RequirementsSkills. The design kinds and the design craft skills are in
 DesignSkills. The engineering kinds and the engineering craft skills are in
-EngineeringSkills. The research kinds are in ResearchSkills. The editorial
-kinds and the writing craft skills are in WritingSkills.
+EngineeringSkills. The research kinds are in ResearchSkills.
+
+The editorial kinds and the writing craft skills are in WritingSkills. The
+personal craft skills are in PersonalSkills.
 
 The plain run above therefore installs none of them. Make a checkout of each pack and name its plugin directory:
 
@@ -376,11 +388,13 @@ git clone https://github.com/Linkuistics/DesignSkills.git
 git clone https://github.com/Linkuistics/EngineeringSkills.git
 git clone https://github.com/Linkuistics/ResearchSkills.git
 git clone https://github.com/Linkuistics/WritingSkills.git
+git clone https://github.com/Linkuistics/PersonalSkills.git
 ./plugins/install.sh --pack ../RequirementsSkills/plugins/requirements \
   --pack ../DesignSkills/plugins/design \
   --pack ../EngineeringSkills/plugins/engineering \
   --pack ../ResearchSkills/plugins/research \
-  --pack ../WritingSkills/plugins/writing
+  --pack ../WritingSkills/plugins/writing \
+  --pack ../PersonalSkills/plugins/personal
 ```
 
 The TestAnyware skill is also outside this repository. Name the plugin
@@ -415,12 +429,12 @@ by this script.
 
 **No `plugin.json` declares a `version`, and that is deliberate — do not add
 one.** Without it Claude Code versions a plugin by the commit SHA of its source,
-and the source is the repo rather than the subdirectory, so both plugins here report
-one shared version that moves with every commit. Every push therefore delivers: edit a
+and the source is the repo rather than the subdirectory, so the plugin here reports
+a version that moves with every commit. Every push therefore delivers: edit a
 skill, commit, done. Nothing to bump, nothing to grade, nothing to forget.
 
 The cost is churn — in this repo, where most commits are grove's, each one reads as
-an update to every plugin and re-installs content that did not change. That is the
+an update to the plugin and re-installs content that did not change. That is the
 accepted side of the trade, because pinning an explicit semver fails the other way:
 the version is the cache key an update is decided on, so an unbumped change reaches
 nobody, `/plugin update` reports "already at the latest version", and nothing
@@ -433,12 +447,12 @@ and delivery boundary is described in
 
 <!-- tc: on -->
 
-The `requirements`, `design`, `engineering`, `research`, `writing`, `technical-communication-hooks` and `testanyware` plugins are the exceptions. The marketplace
+The `requirements`, `design`, `engineering`, `research`, `writing`, `technical-communication-hooks`, `personal`, `guardrail` and `testanyware` plugins are the exceptions. The marketplace
 entry of each pins a commit of its own repository in `sha`. Claude Code
 delivers that commit until a Grove commit moves the pin. The pin gives native
-users the commit that Grove's `task check:packs` accepted. For `testanyware`
-and `technical-communication-hooks`, that check is the directory-only check,
-because the plugin has no kind skill.
+users the commit that Grove's `task check:packs` accepted. For `testanyware`,
+`technical-communication-hooks`, `personal` and `guardrail`, that check is the
+directory-only check, because the plugin has no kind skill.
 
 <!-- tc: pending because the conversion has not reached this part of the document -->
 
@@ -455,8 +469,9 @@ Edit the `SKILL.md` under `<plugin>/skills/<name>/` (or `<plugin>/craft/<name>/`
 for a craft skill) and commit. Keep
 `description` sharp (a capability clause plus an explicit *Use when …* trigger)
 and the body concise — an invoked skill stays in context for the rest of the
-session. The house conventions are the `authoring-conventions` skill itself
-(`/authoring-conventions`).
+session. The house conventions are the `authoring-conventions` skill of
+PersonalSkills (`/authoring-conventions`).
 
-Source snapshots, licences, and the ideas adapted by individual skills are in
-[`linkuistics/PROVENANCE.md`](linkuistics/PROVENANCE.md).
+Each external pack keeps the provenance of its own skills in
+`plugins/<plugin>/PROVENANCE.md`. The table of authoring sources is in the
+[provenance file of `personal`](https://github.com/Linkuistics/PersonalSkills/blob/main/plugins/personal/PROVENANCE.md).

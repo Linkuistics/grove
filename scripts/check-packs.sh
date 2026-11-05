@@ -14,8 +14,9 @@
 #
 # `docs/specs/pack-membership.md`, "The acceptance of each move", states one
 # exception. A source directory with no kind skill (`skills/grove-<kind>/`) and
-# no rules manifest (`conformance/rules.tsv`) ships craft skills only, or hooks
-# only, as `technical-communication-hooks` does. Grove's conformance covers
+# no rules manifest (`conformance/rules.tsv`) ships craft skills only, a native
+# skill only, as `guardrail` does, or hooks only, as
+# `technical-communication-hooks` does. Grove's conformance covers
 # neither. For such a source, this script checks only that the commit holds
 # the source directory. It reports that directory-only check by the source's
 # name, and the source's own checks are its check. A source with a kind skill and no manifest still goes to the

@@ -1405,8 +1405,8 @@ the operator and no fairness premise is available to grant.
 1. The **CLI tool** / Rust crate published as `grove` — invoked as bare `grove`, with no subcommands or flags.
 2. The **methodology**, shipped as the `grove` plugin under `plugins/grove/`.
 3. A single **workstream** — one named task tree at `.grove/` inside the working tree the user provides, named for that working tree's basename ([[Grove name]]), no canonical path. The `grove` command operates on this sense.
-4. The **repo** `Linkuistics/grove`, which holds two products — Grove and the
-   `linkuistics` plugin under `plugins/` (see
+4. The **repo** `Linkuistics/grove`, which holds Grove and the marketplace
+   of the external skill packs (see
    [repository products](docs/ARCHITECTURE.md#skills-monorepo)). So "Grove's
    README / CHANGELOG / docs" names artifacts shared with the repo's other
    bounded contexts; this glossary covers only senses 1–3, and `CONTEXT-MAP.md`

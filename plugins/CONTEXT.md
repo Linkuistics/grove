@@ -2,8 +2,8 @@
 
 <!-- tc: pending because the conversion has not reached this part of the document -->
 
-The `grove` and `linkuistics` skill plugins under `plugins/` —
-the language of **authoring, packaging, triggering and installing** a skill.
+The `grove` skill plugin under `plugins/`, and the external packs that the
+marketplace lists — the language of **authoring, packaging, triggering and installing** a skill.
 
 **Scope boundary.** A skill's own *subject matter* — jj's working-copy-as-commit,
 for example — belongs to that skill and its ADRs, not here. This
@@ -23,9 +23,9 @@ _Avoid_: "command" (a Claude Code slash command is a different artifact), "promp
 **Plugin**:
 Claude Code's packaging unit — `plugins/<name>/` holding `.claude-plugin/plugin.json`
 and a `skills/` directory — and a Claude Code concept only; other harnesses receive
-the same [[Skill]] directories by [[Symlink install]]. Two ship here: `grove` and
-`linkuistics`. The marketplace also lists `requirements`, `design`,
-`engineering`, `research`, `writing`, `technical-communication-hooks` and
+the same [[Skill]] directories by [[Symlink install]]. One ships here: `grove`.
+The marketplace also lists `requirements`, `design`, `engineering`, `research`,
+`writing`, `technical-communication-hooks`, `personal`, `guardrail` and
 `testanyware`, which their own repositories ship.
 
 <!-- tc: on -->
@@ -54,9 +54,9 @@ the README, the Taskfile and any cache in each capture.
 **Marketplace**:
 `.claude-plugin/marketplace.json`, the catalogue a user adds once to reach every
 [[Plugin]] in it. **Its identity is the `name` field, not the repo URL** — already
-`linkuistics` while the tree lived in `Linkuistics/skills` — so every native
-`linkuistics:<skill>` invocation is repo-independent and a repo move rewrites only
-where the marketplace is added from.
+`linkuistics` while the tree lived in `Linkuistics/skills` — so every
+`<plugin>@linkuistics` install command is repo-independent and a repo move
+rewrites only where the marketplace is added from.
 _Avoid_: treating the repository URL or owner as the namespace.
 
 ### Invocation and triggering
@@ -86,7 +86,7 @@ move changes its plugin. Until their own moves, the kinds that leave core keep
 
 **Namespaced invocation** (`<plugin>:<skill>`):
 How Claude Code addresses a [[Skill]] that arrived inside a [[Plugin]] —
-`linkuistics:using-jujutsu`, `grove:grove`. A [[Symlink install]] has no
+`personal:using-jujutsu`, `grove:grove`. A [[Symlink install]] has no
 namespace, so the same skill is the bare directory name there. Two consequences.
 A plugin skill is **addressed differently** from a personal skill of the same
 name, which is why `grove:grove` coexisted with the `grove` the binary used to
@@ -110,7 +110,7 @@ in the window every turn, needed or not.
 A [[Skill]] reachable only by a human typing `/<name>` — never auto-fired, zero
 standing context cost, spending **cognitive load** instead, since the human is the
 index. The lever is for operator guidance rather than capability, which is why only
-`authoring-conventions` and `guardrail` pull it.
+`authoring-conventions` and `guardrail`, both in PersonalSkills, pull it.
 _Avoid_: "disabled skill" — it is fully functional, just hand-only.
 
 **Description shape** (the house rule):
@@ -130,7 +130,8 @@ _Avoid_: assuming a `paths:`-triggered skill fires on a spec-only harness.
 
 **Hook-carrying skill**:
 A [[Skill]] whose frontmatter declares Claude Code `hooks:`, so activating it
-installs tool-call interception for the session. Only `guardrail` does — a
+installs tool-call interception for the session. Only `guardrail`, in the
+`guardrail` plugin of PersonalSkills, does — a
 `PreToolUse` gate that asks rather than denies. Claude Code only; the block is a
 no-op elsewhere.
 _Avoid_: calling an [[Always-on skill]] hook-carrying. Its hooks are not in its
@@ -159,7 +160,7 @@ shared script.
 ### Authoring
 
 **House delta**:
-The `authoring-conventions` [[Skill]] records only where this corpus decides
+The `authoring-conventions` [[Skill]] of PersonalSkills records only where this corpus decides
 *differently* from `superpowers:writing-skills`, plus the few conventions it adopts
 by pointer. It never restates upstream craft — the upstream skill is a dependency,
 not a thing to copy.
@@ -214,8 +215,8 @@ as append-only — a re-run also **reconciles** (see [[Link reconciliation]]).
 The frontmatter key by which a [[Skill]] declares which harnesses it can be
 installed into — a YAML flow list, either the single claim `[any]` or an explicit
 allowlist of harness ids (`claude-code`, `codex`, `gemini`, `pi`). It answers one
-question: *can a session on this harness follow these instructions?* `guardrail`
-declares `[claude-code]` because its whole mechanism is a Claude Code
+question: *can a session on this harness follow these instructions?* `guardrail`,
+now in PersonalSkills, declares `[claude-code]` because its whole mechanism is a Claude Code
 [[Hook-carrying skill]] frontmatter block, and it is now the only one that does:
 the `grove` plugin's twenty skills declared it while the binary owned
 `~/.claude/skills/grove` and two siblings, and flipped to `[any]` at
@@ -248,8 +249,8 @@ The frontmatter key by which a [[Skill]] declares that its content names the
 author's own models, subscriptions, or machine configuration — so it is correct
 here and misleading for anyone else. Orthogonal to [[Harness eligibility]]: it does
 not filter the install (on the author's own machine the assumption holds), it makes
-the install **report** the skill. Here only `machine-environment` carries it. In
-EngineeringSkills, `doubt-driven-development` carries it for
+the install **report** the skill. No skill here carries it. In PersonalSkills,
+`machine-environment` carries it. In EngineeringSkills, `doubt-driven-development` carries it for
 `references/harness-spawns.md`.
 _Avoid_: overloading it onto a skill that merely needs a tool installed — a missing
 `codebase-memory-mcp` binary is a dependency, not a private
@@ -291,7 +292,7 @@ the grove context's, and its packaging is this one's.
 
 ## Example dialogue
 
-> **Dev:** We moved the repo, so every `linkuistics:using-jujutsu` reference
+> **Dev:** We moved the repo, so every `/plugin install grove@linkuistics`
 > breaks, right?
 > **Expert:** No — the *marketplace*'s identity is its `name` field, not the repo
 > URL. It was `linkuistics` in the old repo and it is `linkuistics` here. Only

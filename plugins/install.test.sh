@@ -55,11 +55,13 @@ make_skill() {
   } >"${dir}/plugins/${plugin}/skills/${name}/SKILL.md"
 }
 
-# make_repo <dir>: the install-relevant shape of this repo — plugins/install.sh
-# plus a **fixed synthetic** skill set spanning both plugin directories and every
-# eligibility case. Fixed rather than mirrored from the real corpus, because the
-# expectations below are about the filter: a corpus edit must not silently move
-# them, and the real corpus gets its own case ("every bundled skill declares").
+# make_repo <dir>: the install-relevant shape of a repo — plugins/install.sh
+# plus a **fixed synthetic** skill set spanning two plugin directories and every
+# eligibility case. The plugin names are labels: the installer scans every
+# plugin directory, and `linkuistics` names no plugin that this repo ships.
+# Fixed rather than mirrored from the real corpus, because the expectations
+# below are about the filter: a corpus edit must not silently move them, and the
+# real corpus gets its own case ("every bundled skill declares").
 # Each skill carries a SKILL.md because git and jj track no empty directories,
 # and a secondary workspace that checked out no skills would fail install.sh's
 # skills-present check before ever reaching the guard under test.

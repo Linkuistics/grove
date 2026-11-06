@@ -5,6 +5,8 @@ the Grove commits of the stage and the two Ravel builds that the stage
 measured. It gives recipes that reproduce each build, HOME, configuration and
 source. It states the final results and the order of publication that
 acceptance and rollout follow. This record reports no release.
+[Default-directory runs](#default-directory-runs) names the later build that
+the 2.0 lane now pins, and its results.
 
 Two later stages consume this record. `common-loading-acceptance-k29` measures
 actual Claude Code and Codex sessions against the unpublished 2.0 build.
@@ -95,14 +97,17 @@ mise exec -- task install PREFIX="$SCRATCH/ravel-2.0"
 shasum -a 256 "$SCRATCH/ravel-2.0/bin/ravel"
 ```
 
-The digest must be `8e10e311…`, and `$SCRATCH/ravel-2.0/libexec` must not
-exist. If the bookmark moves, the new commits and identity replace this
-record's values before any result is credited.
+The digest must be `3a9a9129…`, the build of
+[the default-directory runs](#default-directory-runs), and
+`$SCRATCH/ravel-2.0/libexec` must not exist. `task install` writes no
+installation record. If the bookmark moves, the new commits and identity
+replace this record's values before any result is credited.
 
 `task release:archives` at the build commit makes the three archives. A
 rebuild gives other archive digests, because the tar member times differ, but
 every file is byte-identical. Grove's ignored `target/ravel-archives-2.0/`
-holds the copies of the first build. Admission accepts only those pins.
+holds the copies of the build that the 2.0 lane pins. Admission accepts only
+those pins.
 
 ### The HOME of each run
 
@@ -152,8 +157,9 @@ The fixtures write each file into a temporary HOME of their own. The
 | Route | `~/.config/ravel/` holds |
 | --- | --- |
 | Native on 1.1 | `policy.ts` with schema 2. Settings, if any, hold only `timeoutMs`, `contextBytes` and `policyEnv` |
-| Native on 2.0 | `config.rhai` with `SCHEMA_VERSION` 4. Settings hold no `skills` |
+| Native on 2.0 | `config.rhai` with `SCHEMA_VERSION` 4. Settings hold no `skills`, and the prefix holds no installation record. Or the settings hold `"sources": []` |
 | Directory on 2.0 | As native on 2.0, with a `skills` object of local sources in `settings.json` |
+| Default directory on 2.0 | `config.rhai`, and settings without `skills`. The copied prefix holds an installation record that names a fixture directory of links |
 
 ### Local sources
 
@@ -218,6 +224,63 @@ The installed checks used the 2.0 prefix and the 1.1 keg explicitly:
 
 k103 ran the Linux registration test and the native and QEMU floor tasks on
 the same archives. The release smoke above repeats their caller cases.
+
+## Default-directory runs
+
+`grove-default-directory-checks-k228` moved the 2.0 lane to a build that
+reads the default skill directory. All runs below are from 2026-11-06, on
+macOS arm64. A digest of every tracked file outside `.grove/`, of both
+`bin/ravel` files and of the three 2.0 archives was the same before and after
+the runs.
+
+| Subject | The default-directory build |
+| --- | --- |
+| Source | Ravel `ff14cba826b0`, the output commit of `ravel-installation-record-k226`, at the tip of the bookmark `skill-directory-delivery`. Its parent `da736c1fc255` is the code of `ravel-default-directory-k225` |
+| Build identity | `58d479ed058f1094b8754c72eecf9f0cec5a60b3d22b76baecdb827364abd217`, from the output of Ravel's build script for each of the three targets |
+| macOS prefix | A scratch prefix from `task install`, with no `libexec` and no installation record |
+| Archives | `task release:archives` at the source commit, from an empty working copy above it |
+
+| Target | Archive SHA-256 | `bin/ravel` SHA-256 |
+| --- | --- | --- |
+| aarch64-apple-darwin | `289b4ac57ffd148255960507f02809034e8fb35fe97132813230116add804921` | `3a9a9129573e4d827a317f6b793ba990044080a31a7b667b64cc153a2f974a0b` |
+| aarch64-unknown-linux-gnu | `2160a92e280f2d6881fd4d72c8196a787abc1b8e0fe20607e5028fa6041e75f3` | `9b0086b6447834257f4f33d00cd510441043cda4af7d83d709714bb2271edf7f` |
+| x86_64-unknown-linux-gnu | `ab49d80db83bf4815342d562d8c265ac21bd97d13f4b9df0a7e18afc79dbdb6c` | `27d5df8c5060fc1c5119ec26e4d7c2f8855d0ae30f9999c70724819f86a2a0a9` |
+
+The lane names one identity for every target. So the Linux floor targets
+took the new build too, and the general floor route ran on its archives.
+Grove's ignored `target/ravel-archives-2.0-23e50ce90037/` keeps the archives
+of the earlier build.
+
+| Check | Result |
+| --- | --- |
+| `task ravel:directory` | Passed, 11 tests: the seven directory cases, the native pair case and the default-directory cases below |
+| `bash scripts/check.sh` with the 1.1 keg | 19 of 19 passed. An earlier run of the same files failed one test, `a_timed_out_selection_launches_nothing_and_publishes_nothing`. That test gives the Bun worker one second, and it then passed 20 runs of 20 alone |
+| `bash scripts/check.sh` with the 2.0 build | 19 of 19 passed, with the guard `ravel` first on PATH and not reached |
+| `task ravel:targets:controls` | Passed. The 2.0 lane refused a changed byte, the other lane's archive and an unrecorded target |
+| `task ravel:targets:smoke` | Passed both lanes on all three targets, natively and under QEMU |
+| `task release:smoke` | Passed all three targets with both lanes. On each Linux target, the floor container and QEMU passed the directory case on the 2.0 lane |
+
+The two gates passed the same set of 1,381 test names. A copy of one set with
+one name removed made the comparison fail.
+
+`crates/grove/tests/directory_route.rs` gained the default-directory cases of
+the [test seams](specs/codex-skill-provisioning.md#test-seams). Each copies the
+2.0 build into the keg `Cellar/ravel@2/2.0.0` of a private prefix and writes
+its installation record. The record names the prefix's `share/ravel/skills`.
+That directory holds relative links into the kegs of two formulae. The
+resolution runs in a HOME without `skills` settings.
+
+| Case | Row | Result |
+| --- | --- | --- |
+| `a_launch_without_skills_settings_receives_each_source_of_the_default_directory` | Directory bootstrap | The launch received the three sources in ID order, each at the keg that its link reaches. The preamble named `skills` and `craft` where each exists |
+| `empty_sources_beside_the_default_directory_deliver_nothing` | Directory bootstrap, Native route on 2.0 | The agent received the mandate unchanged, `request.skills` was `()` and no descriptor reached it |
+| `a_copied_build_without_a_record_delivers_nothing` | Native route on 2.0 | The same, beside a populated fixture directory |
+| `a_shared_home_without_skills_delivers_the_default_sources_on_2_0` | Settings isolation | A native launch on 1.1, a 2.0 launch with the default sources and a second native launch on 1.1 shared one HOME |
+
+The leaf saw two controls fail. Against the earlier build `23e50ce90037`,
+three of the four cases failed. The record-less case passed there too, as it
+should. A mutation that gave the record-less case the copy with a record
+failed it at its delivery check.
 
 ## Node outcomes
 

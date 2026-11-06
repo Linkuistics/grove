@@ -83,9 +83,9 @@ LANES = {
         runtime="2.0",
         stem="1.1.0",
         pins={
-            "aarch64-apple-darwin": "6fd7e44ac0a1d345456faef2aeeede2bb695944098dc5f42b7ade52944b0d928",
-            "aarch64-unknown-linux-gnu": "331008d4c2aa005061b6e61d505bac131d4f4473cc9520eeba765e089b1cb32d",
-            "x86_64-unknown-linux-gnu": "2a7e62f78a5a6600e6d4d2186bc2cbf11db7edae57ef4176f06623ceddad3b04",
+            "aarch64-apple-darwin": "289b4ac57ffd148255960507f02809034e8fb35fe97132813230116add804921",
+            "aarch64-unknown-linux-gnu": "2160a92e280f2d6881fd4d72c8196a787abc1b8e0fe20607e5028fa6041e75f3",
+            "x86_64-unknown-linux-gnu": "ab49d80db83bf4815342d562d8c265ac21bd97d13f4b9df0a7e18afc79dbdb6c",
         },
         unrecorded={},
         manifest=(
@@ -100,8 +100,8 @@ LANES = {
         executables=frozenset({"bin/ravel"}),
         release=None,
         default_archives="target/ravel-archives-2.0",
-        source_commit="23e50ce9003740f573e9e997a74bba180b303405",
-        build_identity="ef5857e989e6d99da51631ae0295685c8961c1b01bac58d865e6fb789ae71deb",
+        source_commit="ff14cba826b02ac492fcde0996d662c5378ef923",
+        build_identity="58d479ed058f1094b8754c72eecf9f0cec5a60b3d22b76baecdb827364abd217",
     ),
 }
 # The 1.1 lane's names, kept for callers that predate the lanes.

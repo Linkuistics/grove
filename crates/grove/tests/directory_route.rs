@@ -8,6 +8,11 @@
 // paths and the search directories from Ravel's preamble, and the skill name
 // from Grove's mandate in the caller block, as a real agent must.
 //
+// The default-directory cases instead copy the 2.0 build into the keg of a
+// Homebrew-shaped prefix and write its installation record. The record names
+// the prefix's `share/ravel/skills`, which holds relative links into source
+// kegs. Those cases resolve in a HOME without `skills` settings.
+//
 // These fixtures prove delivery and Grove's interpretation of it, not the
 // behaviour of an LLM. The real harness trials belong to acceptance.
 //
@@ -96,8 +101,10 @@ fn plant_tree(worktree: &Path, leaf: &str) {
 /// `load` makes the reads in the order the preamble sets: the first mandatory
 /// file, the resource it names relative to its own directory, and then the
 /// skill that the caller block names, found beneath the search directories.
-/// Each read appends its path to `$record/reads` and copies the bytes to
-/// `$record/<label>`. `finish` records teardown and runs the exact continue
+/// `discover` is for a launch with no mandatory file: it finds the named
+/// skill, then the spine by its name `grove`, beneath the search directories,
+/// and then the resource that the spine names. Each read appends its path to
+/// `$record/reads` and copies the bytes to `$record/<label>`. `finish` records teardown and runs the exact continue
 /// command from the caller block. `continue_` runs it without teardown.
 const AGENT: &str = r#"preamble=$(printf '%s\n' "$1" | sed '/^Caller task$/q')
 block=$(printf '%s\n' "$1" | sed -n '/^BEGIN RAVEL CALLER TASK /,/^END RAVEL CALLER TASK /p')
@@ -127,6 +134,16 @@ load() {
     [ -n "$skill" ] || exit 93
     kind=$(find_skill "$skill") || exit 92
     read_as kind "$kind"
+}
+discover() {
+    skill=$(named_skill)
+    [ -n "$skill" ] || exit 93
+    kind=$(find_skill "$skill") || exit 92
+    read_as kind "$kind"
+    spine=$(find_skill grove) || exit 91
+    read_as spine "$spine"
+    resource="$(dirname "$spine")/$(sed -n 's/^resource: //p' "$spine")"
+    read_as resource "$resource"
 }
 finish() { touch "$GROVE_LAUNCH_DIR/teardown"; eval "exec $(ending grove-continue)"; }
 continue_() { eval "exec $(ending grove-continue)"; }
@@ -1234,4 +1251,331 @@ fn a_standalone_run_reads_injected_skills_from_read_only_snapshots() {
             .collect(),
         "the probes"
     );
+}
+
+/// The installation record of a Ravel prefix, relative to that prefix.
+const RECORD: &str = "share/ravel/installation.json";
+
+/// The craft skill of the fixture engineering source.
+const CRAFT: &str = "# doubt (fixture craft)\n";
+
+/// The settings of a HOME that a 1.1 reader and a 2.0 reader share. Both
+/// runtimes accept these keys, and neither key concerns skills.
+fn shared_settings() -> serde_json::Value {
+    serde_json::json!({ "timeoutMs": 60_000, "contextBytes": 262_144 })
+}
+
+/// One source of the fixture default directory: its ID, the keg of its
+/// formula as `<formula>/<version>`, and its files with their contents.
+struct KegSource {
+    id: &'static str,
+    keg: &'static str,
+    files: &'static [(&'static str, &'static str)],
+}
+
+/// A Homebrew-shaped installation outside every HOME and working tree.
+///
+/// - `prefix/Cellar/ravel@2/2.0.0` is a private copy of the 2.0 build, and
+///   its record names `prefix/share/ravel/skills`, as Ravel's formula writes
+///   it.
+/// - Each source lies in the keg of its formula, at
+///   `Cellar/<formula>/<version>/share/ravel/skills/<id>`. The default skill
+///   directory holds a relative link to it, as `brew link` makes it.
+///
+/// The sources are `engineering` with the roots `skills` and `craft`,
+/// `grove-core` with `skills`, and the craft-only `personal`. The first two
+/// share the `grove` keg, as Grove's formula carries core and the packs.
+struct Homebrew {
+    _temp: TempDir,
+    directory: PathBuf,
+    ravel: InstalledRavel,
+    /// Each source ID with the canonical directory that its link reaches,
+    /// in the byte order of the IDs.
+    sources: Vec<(&'static str, PathBuf)>,
+}
+
+impl Homebrew {
+    fn plant() -> Self {
+        let temp = TempDir::new().unwrap();
+        let prefix = fs::canonicalize(temp.path()).unwrap().join("homebrew");
+        let directory = prefix.join("share/ravel/skills");
+        fs::create_dir_all(&directory).unwrap();
+        let ravel = InstalledRavel::copy_as(
+            &build(),
+            &prefix.join("Cellar/ravel@2/2.0.0"),
+            Runtime::V2_0,
+        );
+        let record = ravel
+            .executable()
+            .parent()
+            .unwrap()
+            .parent()
+            .unwrap()
+            .join(RECORD);
+        fs::create_dir_all(record.parent().unwrap()).unwrap();
+        fs::write(
+            &record,
+            serde_json::json!({ "schemaVersion": 1, "skillDirectory": directory }).to_string(),
+        )
+        .unwrap();
+
+        let files = [
+            KegSource {
+                id: "engineering",
+                keg: "grove/22.9.0",
+                files: &[
+                    ("skills/grove-impl/SKILL.md", KIND_V1),
+                    ("craft/doubt/SKILL.md", CRAFT),
+                ],
+            },
+            KegSource {
+                id: "grove-core",
+                keg: "grove/22.9.0",
+                files: &[
+                    ("skills/grove/SKILL.md", SPINE),
+                    ("skills/grove/references/execute.md", RESOURCE_V1),
+                ],
+            },
+            KegSource {
+                id: "personal",
+                keg: "personal/1.0.0",
+                files: &[("craft/machine/SKILL.md", "# machine\n")],
+            },
+        ];
+        let mut sources = Vec::new();
+        for KegSource { id, keg, files } in files {
+            let keg = format!("Cellar/{keg}/share/ravel/skills/{id}");
+            for (path, text) in files {
+                let file = prefix.join(&keg).join(path);
+                fs::create_dir_all(file.parent().unwrap()).unwrap();
+                fs::write(file, text).unwrap();
+            }
+            std::os::unix::fs::symlink(format!("../../../{keg}"), directory.join(id)).unwrap();
+            sources.push((id, fs::canonicalize(directory.join(id)).unwrap()));
+        }
+        assert_eq!(
+            sources[0].1,
+            prefix.join("Cellar/grove/22.9.0/share/ravel/skills/engineering")
+        );
+        Homebrew {
+            _temp: temp,
+            directory,
+            ravel,
+            sources,
+        }
+    }
+
+    /// The search directories that a launch must receive, in Ravel's order:
+    /// each source in ID order, and in each source `skills`, then `craft`,
+    /// where the root exists. `snapshot` maps a source ID to its snapshot.
+    fn expected_directories(&self, snapshot: impl Fn(&str) -> PathBuf) -> Vec<PathBuf> {
+        self.sources
+            .iter()
+            .flat_map(|(id, origin)| {
+                let snapshot = snapshot(id);
+                ["skills", "craft"]
+                    .into_iter()
+                    .filter(|root| origin.join(root).is_dir())
+                    .map(move |root| snapshot.join(root))
+            })
+            .collect()
+    }
+}
+
+/// The search directories that the preamble of `prompt` names, in order.
+fn preamble_directories(prompt: &str) -> Vec<PathBuf> {
+    let caller = prompt
+        .find("\nCaller task\nBEGIN RAVEL CALLER TASK ")
+        .unwrap_or(prompt.len());
+    prompt[..caller]
+        .lines()
+        .filter_map(|line| line.strip_prefix("- \"")?.strip_suffix('"'))
+        .map(PathBuf::from)
+        .collect()
+}
+
+/// The checks of a launch that received the sources of `homebrew`'s default
+/// skill directory and no mandatory file: the exact mandate, every source with
+/// the directory that its link reaches, the search directories in Ravel's
+/// order, and the reads of the kind, the spine and its resource from the
+/// snapshots. No native copy exists under HOME.
+fn assert_default_sources(lane: &Lane, homebrew: &Homebrew, n: usize, handle: &str) {
+    let prompt = lane.read(n, "prompt");
+    let view = lane.view(n);
+    let mandate = lane.mandate(handle, "impl");
+    assert_eq!(view["originalPrompt"].as_str(), Some(mandate.as_str()));
+    assert_eq!(caller_block(&prompt), Ok(mandate.as_str()));
+
+    let skills = &view["skills"];
+    assert!(skills.is_object(), "delivery is on: {view}");
+    assert_eq!(
+        skills["mandatory"],
+        serde_json::json!([]),
+        "no settings name a mandatory file"
+    );
+    let sources = skills["sources"].as_array().unwrap();
+    let delivered: Vec<(&str, PathBuf)> = sources
+        .iter()
+        .map(|source| {
+            (
+                source["id"].as_str().unwrap(),
+                PathBuf::from(source["originPath"].as_str().unwrap()),
+            )
+        })
+        .collect();
+    assert_eq!(
+        delivered, homebrew.sources,
+        "each source of the default skill directory, by the keg that its link reaches"
+    );
+    let snapshot = |id: &str| {
+        let source = sources.iter().find(|source| source["id"] == id).unwrap();
+        PathBuf::from(source["snapshotRoot"].as_str().unwrap())
+    };
+    assert_eq!(
+        preamble_directories(&prompt),
+        homebrew.expected_directories(snapshot),
+        "the preamble names `skills` and `craft` of each source: {prompt}"
+    );
+    assert_eq!(
+        lane.read(n, "descriptor-env"),
+        skills["descriptorPath"].as_str().unwrap()
+    );
+
+    reads_from_snapshots(&lane.read(n, "reads"), skills).unwrap();
+    assert_eq!(lane.read(n, "kind"), KIND_V1);
+    assert_eq!(lane.read(n, "spine"), SPINE);
+    assert_eq!(lane.read(n, "resource"), RESOURCE_V1);
+    no_native_copy(&lane.home).unwrap();
+}
+
+/// The checks of a launch with delivery disabled: the agent receives the
+/// mandate unchanged, `request.skills` is `()`, no descriptor reaches the
+/// agent and Ravel does no cache work in HOME.
+fn assert_delivery_disabled(lane: &Lane, n: usize, handle: &str) {
+    let mandate = lane.mandate(handle, "impl");
+    assert_eq!(
+        lane.read(n, "prompt"),
+        mandate,
+        "request.prompt is the mandate"
+    );
+    let view = lane.view(n);
+    assert_eq!(view["originalPrompt"].as_str(), Some(mandate.as_str()));
+    assert_eq!(view["skills"], serde_json::Value::Null, "{view}");
+    assert_eq!(lane.read(n, "descriptor-env"), "<unset>");
+    assert!(
+        !lane.home.join(".cache/ravel/skills").exists(),
+        "a disabled launch does no cache work"
+    );
+}
+
+// With no `skills` key and no settings file, a lifecycle launch through the
+// copied 2.0 build with an installation record receives each source of the
+// fixture default directory. The agent finds the named kind and then the
+// spine beneath the search directories, as no mandatory file is named, and
+// reads every file from the snapshots.
+#[test]
+#[ignore = "needs the Ravel 2.0 directory build: task ravel:directory"]
+fn a_launch_without_skills_settings_receives_each_source_of_the_default_directory() {
+    let homebrew = Homebrew::plant();
+    let lane = Lane::new(homebrew.ravel.executable());
+    plant_tree(&lane.worktree, "01-impl--subject-k1.md");
+    lane.directory_config();
+    lane.agent("discover\nfinish");
+    assert!(!lane.home.join(".config/ravel/settings.json").exists());
+
+    completed(&lane.run());
+    assert_eq!(lane.launch_count(), 1);
+    assert_default_sources(&lane, &homebrew, 0, "subject-k1");
+}
+
+// `"sources": []` beside the same populated default directory turns delivery
+// off. The agent receives the mandate unchanged and no descriptor.
+#[test]
+#[ignore = "needs the Ravel 2.0 directory build: task ravel:directory"]
+fn empty_sources_beside_the_default_directory_deliver_nothing() {
+    let homebrew = Homebrew::plant();
+    let lane = Lane::new(homebrew.ravel.executable());
+    plant_tree(&lane.worktree, "01-impl--subject-k1.md");
+    lane.settings(&serde_json::json!({ "skills": { "schemaVersion": 1, "sources": [] } }));
+    lane.directory_config();
+    lane.agent("finish");
+
+    completed(&lane.run());
+    assert_eq!(lane.launch_count(), 1);
+    assert_delivery_disabled(&lane, 0, "subject-k1");
+    assert!(fs::read_dir(&homebrew.directory).unwrap().count() == 3);
+}
+
+// A copied 2.0 build without an installation record has no default skill
+// directory, so it delivers nothing while the fixture directory is populated.
+// The case with a record above is the control that differs only by the
+// record.
+#[test]
+#[ignore = "needs the Ravel 2.0 directory build: task ravel:directory"]
+fn a_copied_build_without_a_record_delivers_nothing() {
+    let homebrew = Homebrew::plant();
+    let copied = build();
+    assert!(
+        !copied
+            .parent()
+            .unwrap()
+            .parent()
+            .unwrap()
+            .join(RECORD)
+            .exists(),
+        "the shared copy of the build holds no record"
+    );
+    let lane = Lane::new(&copied);
+    plant_tree(&lane.worktree, "01-impl--subject-k1.md");
+    lane.directory_config();
+    lane.agent("finish");
+
+    completed(&lane.run());
+    assert_eq!(lane.launch_count(), 1);
+    assert_delivery_disabled(&lane, 0, "subject-k1");
+    assert!(fs::read_dir(&homebrew.directory).unwrap().count() == 3);
+}
+
+// A 1.1 reader and a 2.0 reader share one HOME, whose settings hold no
+// `skills` key. The native launch on 1.1 receives the mandate unchanged. The
+// 2.0 launch through the build with a record then receives the sources of the
+// fixture default directory, and the 1.1 reader still launches natively
+// after it.
+#[test]
+#[ignore = "needs the Ravel 2.0 directory build and a 1.1 build: task ravel:directory"]
+fn a_shared_home_without_skills_delivers_the_default_sources_on_2_0() {
+    let homebrew = Homebrew::plant();
+    let native = Lane::new(old_build().executable());
+    let mut directory = Lane::new(homebrew.ravel.executable());
+    directory.home = native.home.clone();
+    native.settings(&shared_settings());
+    native.native_policy();
+    directory.directory_config();
+    assert!(native.home.join(".config/ravel/policy.ts").is_file());
+    assert!(native.home.join(".config/ravel/config.rhai").is_file());
+
+    plant_tree(&native.worktree, "01-impl--subject-k1.md");
+    native.agent("finish");
+    completed(&native.run());
+    assert_eq!(native.launch_count(), 1);
+    assert_eq!(
+        native.read(0, "prompt"),
+        native.mandate("subject-k1", "impl")
+    );
+    assert_eq!(native.read(0, "descriptor-env"), "<unset>");
+
+    plant_tree(&directory.worktree, "01-impl--subject-k1.md");
+    directory.agent("discover\nfinish");
+    completed(&directory.run());
+    assert_eq!(directory.launch_count(), 1);
+    assert_default_sources(&directory, &homebrew, 0, "subject-k1");
+
+    // The leaf stays live, because the fake agent does not retire it.
+    completed(&native.run());
+    assert_eq!(native.launch_count(), 2);
+    assert_eq!(
+        native.read(1, "prompt"),
+        native.mandate("subject-k1", "impl")
+    );
+    assert_eq!(native.read(1, "descriptor-env"), "<unset>");
 }

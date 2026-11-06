@@ -36,16 +36,16 @@ That task builds exact target archives with no version cut.
 
 | Subject | Record |
 |---|---|
-| Source commit | `23e50ce9003740f573e9e997a74bba180b303405`, the build commit of `grove-linux-two-lane-k103`. It enters the `renameat2` system call directly, so the directory build links at glibc 2.17. Its parent is `4f831feb4d0f`, the output commit of `ravel-local-sources-k90` |
-| Build identity | `ef5857e989e6d99da51631ae0295685c8961c1b01bac58d865e6fb789ae71deb` |
+| Source commit | `ff14cba826b02ac492fcde0996d662c5378ef923`, the output commit of `ravel-installation-record-k226`, at the tip of the bookmark `skill-directory-delivery`. The build reads the default skill directory of `ravel-default-directory-k225`. It keeps the direct `renameat2` call of `grove-linux-two-lane-k103`, so it links at glibc 2.17 |
+| Build identity | `58d479ed058f1094b8754c72eecf9f0cec5a60b3d22b76baecdb827364abd217` |
 | Archive name | `ravel-v1.1.0-TARGET.tar.xz`. The workspace version stays 1.1.0 until Ravel's cut, so the name does not tell the lanes apart |
 | Default directory | `target/ravel-archives-2.0`. Admission never downloads this lane |
 
 | Target | SHA-256 of the archive |
 |---|---|
-| aarch64-apple-darwin | `6fd7e44ac0a1d345456faef2aeeede2bb695944098dc5f42b7ade52944b0d928` |
-| aarch64-unknown-linux-gnu | `331008d4c2aa005061b6e61d505bac131d4f4473cc9520eeba765e089b1cb32d` |
-| x86_64-unknown-linux-gnu | `2a7e62f78a5a6600e6d4d2186bc2cbf11db7edae57ef4176f06623ceddad3b04` |
+| aarch64-apple-darwin | `289b4ac57ffd148255960507f02809034e8fb35fe97132813230116add804921` |
+| aarch64-unknown-linux-gnu | `2160a92e280f2d6881fd4d72c8196a787abc1b8e0fe20607e5028fa6041e75f3` |
+| x86_64-unknown-linux-gnu | `ab49d80db83bf4815342d562d8c265ac21bd97d13f4b9df0a7e18afc79dbdb6c` |
 
 The lane records every target, so `unrecorded` is empty. The build of
 `ravel-local-sources-k90` did not link at glibc 2.17, because
@@ -56,6 +56,10 @@ The 2.0 manifest is `LICENSE`, `README.md`, `bin/ravel` and
 `share/ravel/examples/{llm,sample,static}.rhai`, with
 `share/ravel/notices/THIRD-PARTY-NOTICES.md`. Only `bin/ravel` is executable.
 A 2.0 prefix has no `libexec/ravel`. The front is also the Rhai worker.
+
+The archives hold no installation record `share/ravel/installation.json`.
+Only Ravel's Homebrew formula writes one. So an admitted prefix has no default
+skill directory, and its launches deliver skills only from settings.
 
 Ravel's `build.rs` embeds the build identity in `bin/ravel` as ASCII text.
 Admission checks the digest of the archive first. It then reads the bytes of

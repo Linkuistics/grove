@@ -53,6 +53,35 @@ machine included. Ravel is the only route that delivers skills to a session.
    the settled design, in Grove, Ravel and the packs. Each Grove leaf leaves
    `bash scripts/check.sh` green.
 
+`homebrew-delivery-plan-k217` cut fourteen `impl` leaves in dependency order.
+Its running log holds the reasons.
+
+1. `ravel-default-directory-k225` and `ravel-installation-record-k226`:
+   Ravel's code, then its formula channels and its book.
+2. `grove-pack-record-k227`: `plugins/packs.json` and `check:packs`.
+3. `grove-default-directory-checks-k228`: Grove's 2.0 lane and its
+   default-directory cases.
+4. `grove-keg-sources-k229`: the six sources in the archive and the formula.
+5. `grove-hook-adapters-k230`: the marketplace files in the keg and their
+   commands.
+6. `pack-homebrew-commits-k231`: the six pack READMEs, the removal of
+   WritingSkills' Codex marketplace file and the wording of
+   `authoring-conventions`.
+7. `personal-formula-k232`, `third-party-skill-formulae-k233` and
+   `testanyware-skill-formula-k234`: the other formulae.
+8. `native-marketplace-retirement-k235` and `manual-installer-removal-k236`:
+   the native routes retire.
+9. `homebrew-delivery-guidance-k237`: Grove's guidance.
+10. `candidate-keg-k238`: the candidate keg, the removal of
+    `task owner:checkouts` and the harness trials from kegs.
+
+Rollout owns three parts of "Done when". The staging trials and the
+rehearsal read kegs in the staging leaves of
+`owner-ravel-skill-inventory-k38`. The hooks installation inside finish is
+step 3 of `owner-switch-program-k91`, and its staging measurement belongs to
+k38. This node closes when its own leaves retire. The rollout brief's
+"Owner-delivery handoff" names those parts.
+
 ## Questions for the design
 
 `homebrew-delivery-design-k216` answered these in the delivery specification,

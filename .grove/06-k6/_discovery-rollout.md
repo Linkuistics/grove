@@ -180,8 +180,33 @@ there becomes a source that Homebrew installed.
   items as k89 amended them. `task model:owner-switch` stays green, and a
   change to a recovery rule changes the model first.
 - owner-pack-checkouts-k93: each Homebrew installation or upgrade of a skill
-  source is an advance, behind a process check. Each complete `mise
-  bootstrap` is one too.
+  source is an advance. Each complete `mise bootstrap` is one too.
+  homebrew-delivery-design-k216 withdrew the process check before an
+  advance. The owner runs an advance while no Grove loop launches.
+
+ravel-default-skill-directory-k218, native-settings-recovery-k221,
+hooks-installation-writes-k222 and their integration
+native-settings-recovery-k224 amended the owner design again. They assign
+these items:
+
+- owner-switch-program-k91: step 3 of the switch holds a gate and two
+  preludes. "The native settings inside finish" writes the off value under a
+  settings record. "The hooks installation inside finish" registers
+  `writing-hooks` from Grove's keg and installs the plugin. Its subsection
+  "Claude Code's own writes" holds the held links and the disabling by
+  exchange. Step 6 stops unless the resolved IDs are the ten accepted IDs.
+  The rehearsal task runs each new control of "Test seams". `task
+  model:owner-switch` now runs 241 claims.
+- owner-ravel-skill-inventory-k38: the drafts hold the off value
+  `{"schemaVersion": 1, "sources": []}`, the switched value with only the
+  mandatory file, and the staging settings. The staging settings name the
+  candidate keg of `candidate-keg-k238` and the four installed kegs. The
+  staging measurement of the hooks installation runs beside a signed-in
+  Claude Code session with the owner's MCP servers. The rehearsal reruns
+  `settings-writes.sh` and covers the native settings and the hooks
+  installation.
+- discovery-rollout-k12: the finish handoff names step 3's native settings
+  and hooks installation beside the switch program.
 
 acceptance-completion-audit-k127 hands two findings to this node. The
 "Gap register" of `docs/common-loading-acceptance-record.md` holds both.

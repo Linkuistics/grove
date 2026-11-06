@@ -22,57 +22,76 @@ silently.
 
 ## Language
 
+<!-- tc: on -->
+
 <a id="skill-delivery"></a>
 ### Skill delivery / the retired sweep
 
 Delivery is separate from the named skill. Homebrew installs the skill
-sources, Ravel 2.0 injects the paths of the sources that the user's settings
-name, and the agent discovers and reads the skill Grove names. Neither
+sources. Ravel 2.0 injects the paths of the sources that the user's settings
+name. The agent discovers and reads the skill that Grove names. Neither
 executable resolves a requested skill. The [delivery specification](docs/specs/codex-skill-provisioning.md)
 owns the contract and its supported routes.
 
 How the **`grove` plugin** reaches a session: Grove's Homebrew formula carries
-core, which holds the spine and the core kind skills, beside the five domain
-packs. Ravel delivers the keg sources that the user's settings name. No
-marketplace lists a pack, and no installer links a skill. Grove's binary
-installs no skills. Grove 22.8 and earlier also provisioned Codex snapshots at
-startup. Later releases leave that output unchanged. `${prompt}` names the skill this session needs ([[Guaranteed core]]).
+core beside the five domain packs. Core holds the spine and the core kind
+skills. Ravel delivers the keg sources that the user's settings name. No
+marketplace lists a pack, and no installer links a skill.
+
+Grove's binary installs no skills. Grove 22.8 and earlier also provisioned
+Codex snapshots at startup. Later releases leave that output unchanged.
+`${prompt}` names the skill that this session needs ([[Guaranteed core]]).
 
 **What this replaces, and why the arguments are kept.** The binary used to embed
-its whole methodology as a `content/` tree and sweep it, on every invocation,
-into **every installed harness's** personal global skill directory — every one,
-because an opaque launch command could not be traced to a single harness. Four
-terms hung off that one mechanism and are retired with it: *global skill
-provisioning* (the sweep), *embedded methodology* (the `include_dir!` tree fixed
-at build time), *methodology identity* (its content hash, written as the
-directory's stamp), and *build pairing* (the report comparing that hash against
-the `grove-llm` a session's `PATH` resolved). All four existed to make one
-mechanism safe. A later Codex snapshot adapter, removed after Grove 22.8, wrote
-only Codex links and did not restore that sweep or its build-pairing probes.
+its whole methodology as a `content/` tree. On every invocation, it swept that
+tree into the personal global skill directory of **every installed harness**.
+It swept into every one, because nothing could trace an opaque launch command
+to a single harness. Four terms belonged to that one mechanism, and they
+retired with it:
+
+- *Global skill provisioning*: the sweep.
+- *Embedded methodology*: the `include_dir!` tree, fixed at build time.
+- *Methodology identity*: the content hash of that tree, written as the stamp
+  of the directory.
+- *Build pairing*: the report that compared that hash with the `grove-llm`
+  that the `PATH` of a session resolved.
+
+All four existed to make one mechanism safe. A later Codex snapshot adapter,
+removed after Grove 22.8, wrote only Codex links. It did not restore that sweep
+or its build-pairing probes.
 
 **The remaining cost.** A harness session that its user opens directly gets no
-skills, and a Ravel launch delivers only the sources that the settings name
+skills. A Ravel launch delivers only the sources that the settings name
 ([delivery decision](docs/adr/homebrew-installs-skills-and-ravel-delivers-them.md)).
 Core ships in Grove's keg beside `grove-llm`, so the spine and the helper come
-from one release. Settings that name another core source can still pair a
-session with a mismatched verb. Grove states its version and names the skill;
-the session must load it. **The reopen condition is a session that cannot reach
-the methodology through its installation/loading route** — an observation, not
-a suspicion.
+from one release.
 
-_Avoid_: reviving the sweep because a session missed its skill once. That is the
-delivery question, and it is answered by a better install route or a stronger
-trigger before it is answered by a binary writing into a global directory.
-_Avoid_: **serving the methodology over MCP.** Rejected where the registry was
-deleted: it would not remove the delivery machinery, only change what is served,
-and it puts a running server between a session and prose it can read off disk.
-_Avoid_: a harness registry, in any form. A row in one was only ever *a place to
-write files* — never a thing to run — so a new harness is answered by that
-harness's own skill-install route, not by a row grove carries.
-_Avoid_: naming `start.md`, `retire.md` or `continue.md` — those launcher prompts
-disappeared with their lifecycle verbs. There is no launcher and no launcher
-prose anywhere: `content/MANDATE.md` framed the mandate and went with it, and
-what the driver writes is the [[Guaranteed core]], in Rust, under a rule.
+Settings that name another core source can still pair a
+session with a mismatched verb. Grove states its version and names the skill,
+and the session must load it. **The reopen condition is a session that cannot
+reach the methodology through its installation or loading route**, as an
+observation and not as a suspicion.
+
+_Avoid_: reviving the sweep because a session missed its skill once. That is
+the delivery question. A better installation route or a stronger trigger
+answers it before a binary that writes into a global directory does.
+
+_Avoid_: **serving the methodology over MCP.** It was rejected where the
+registry was removed. It would not remove the delivery machinery, and it would
+change only what is served. It also puts a running server between a session
+and prose that the session can read from disk.
+
+_Avoid_: a harness registry, in any form. A row in one was only ever *a place
+to write files*, never a thing to run. A new harness is therefore
+answered by its own route for skill installation, not by a row that Grove
+carries.
+
+_Avoid_: naming `start.md`, `retire.md` or `continue.md`. Those launcher
+prompts disappeared with their lifecycle verbs. No launcher and no launcher
+prose exist anywhere. `content/MANDATE.md` framed the mandate and went with it.
+The driver writes the [[Guaranteed core]], in Rust, under a rule.
+
+<!-- tc: pending because the conversion has not reached this part of the document -->
 
 <a id="mandate-slice"></a>
 ### Mandate slice *(retired)*

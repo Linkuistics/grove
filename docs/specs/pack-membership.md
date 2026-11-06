@@ -409,21 +409,18 @@ a path that a case requires from the prepared commit: `decision-records` and
 
 Proofs 2 and 3 apply to a pack that ships kind skills. TestAnyware and
 PersonalSkills ship craft skills only, and Grove's conformance does not cover
-craft skills. For such a source, `check:packs` checks only that the pinned
-commit holds the source directory, and it reports that directory-only check by
-source name. The source's own `task check` is its check.
-`testanyware-skill-move-k172` makes that change, because it adds the first
-pinned source without kind skills.
+craft skills. Grove's pack record `plugins/packs.json` names the five domain
+packs only, so `check:packs` does not read these sources. The source's own
+`task check` is its check. The hooks plugin `technical-communication-hooks`
+ships no skill, and the `guardrail` plugin of PersonalSkills holds no kind
+skill. Neither is a member of the record.
 
-The hooks plugin `technical-communication-hooks` ships no skill, and it takes
-the same check. The `guardrail` plugin of PersonalSkills holds
-`skills/guardrail/` and no kind skill, so it also takes that check.
-
-The branch applies only to a source that holds neither a kind skill nor a rules
-manifest. It does not depend on whether the source holds `skills/`. TestAnyware
-holds `skills/` without a kind skill, and the `personal` source directory of
-PersonalSkills holds no `skills/`. A
-source with kind skills and no manifest therefore still fails conformance.
+Until `grove-pack-record-k227`, `check:packs` read the marketplace. It gave
+each source with neither a kind skill nor a rules manifest a directory-only
+check. That check left `check:packs` with the record, as
+[the checker without a copy](external-pack-contract.md#the-checker-without-a-copy)
+states. Each member of the record goes to the conformance runner, so a source
+with no rules manifest fails conformance.
 
 A move owes no directory trial, native trial or refusal of its own unless it
 adds a boundary. The research move proved those mechanisms. The staging trials
@@ -438,7 +435,7 @@ A move that adds a boundary owes the proofs in its row:
 | The first `craft/` root | `design-pack-k175` | `ravel skills resolve` lists the craft skills under the roots `["skills", "craft"]`. `claude plugin validate` accepts `"skills": ["./craft/"]`. `install.test.sh` installs a fixture pack with `craft/` beside `skills/`, and a fixture pack with `craft/` and no `skills/`. For each fixture, a later run removes the link of a removed craft skill | A directory trial in each harness: a task activates a craft skill from the craft root without naming it. A native Claude Code trial lists that skill under the plugin's namespace |
 | A family skill outside research | `editorial-pack-k179` | The named set `editorial` becomes a list of kinds, and its rows move to the WritingSkills manifest. The control in which a member stops loading its family skill fails | A directory trial in each harness: an editorial kind reads the spine and `editorial-family` before it acts |
 | A second plugin in one repository | `writing-craft-pack-k181` | Each plugin passes `claude plugin validate`. The ordinary writing plugin declares the hooks plugin as a dependency and declares no hook. The count includes dependencies and each hooks file that Claude Code discovers by default. It gives one declaration for each hook to the ordinary plugin alone, to the hooks plugin alone and to both | The trial of the native residue: Claude Code runs the hooks from the skill-free plugin and lists no native `technical-communication` skill. A native installation of the ordinary writing plugin alone, in an isolated Claude Code home, installs the hooks plugin and runs the hooks |
-| A source whose only root is `craft` | `personal-pack-k183` | `ravel skills resolve` lists the craft skills under the root `["craft"]`. `install.sh --pack` links the craft skills of a plain checkout of the published commit in an isolated home, by the craft-only fixture of `design-pack-k175`. `check:packs` reports its directory-only check for the source | None. The installer and the pack check fail without a model, and the craft-root trial of `design-pack-k175` covers discovery from a craft root |
+| A source whose only root is `craft` | `personal-pack-k183` | `ravel skills resolve` lists the craft skills under the root `["craft"]`. `install.sh --pack` links the craft skills of a plain checkout of the published commit in an isolated home, by the craft-only fixture of `design-pack-k175`. `check:packs` reported its directory-only check for the source, until the pack record replaced the marketplace | None. The installer and the pack check fail without a model, and the craft-root trial of `design-pack-k175` covers discovery from a craft root |
 
 The other moves owe these proofs:
 

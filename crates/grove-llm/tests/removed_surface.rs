@@ -112,6 +112,9 @@ const ROLES: &[(&str, Role)] = &[
     ),
     ("GROVE_TAP_DIR", Role::ReleaseTooling),
     ("GROVE_RELEASE_COMMON_SOURCED", Role::ReleaseTooling),
+    // The include guard of scripts/pack-record.sh, which check:packs and the
+    // release build source.
+    ("GROVE_PACK_RECORD_SOURCED", Role::ReleaseTooling),
     // Retired pre-watcher handles: the driver used to publish its child's PID
     // instead of watching a path. Named only by the scrub list, because a
     // stale unrelated PID leaking into a nested grove is the same class of

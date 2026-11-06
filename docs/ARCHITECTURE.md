@@ -1572,7 +1572,7 @@ Grove 22.8, when skill delivery became the user's choice.
 **Behavioural coverage remains the plugin's own assertion.**
 `plugins/grove/conformance.sh` checks the loaded path of every kind, rule
 ownership and referenced files. It checks core alone, and `task check:packs`
-runs it with each external pack that the marketplace pins. Rust delivery tests separately check that
+runs it with each pack that the pack record `plugins/packs.json` names. Rust delivery tests separately check that
 startup writes no native skill entry and that a native-only lifecycle completes.
 
 ### The seven constraints, argued
@@ -1663,7 +1663,8 @@ names by path existing. It asserts nothing about how many kinds there are, on
 purpose — a kind exists iff a skill of that name exists. It reads core alone,
 an external pack alone, or the aggregate of core and the supplied packs. The
 loaded path then follows directed loads across packs. `task check:packs` runs
-each pack that the marketplace pins, alone and in the aggregate
+each pack that the pack record `plugins/packs.json` names, alone and in the
+aggregate
 ([`external-pack-contract`](specs/external-pack-contract.md#conformance)).
 
 **Five numeric budgets used to stand beside it and are gone.** They measured

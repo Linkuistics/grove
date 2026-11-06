@@ -290,7 +290,7 @@ tasks:
       - GROVE_TEST_RAVEL="${GROVE_TEST_RAVEL:-$(command -v ravel)}" cargo nextest run --locked -p grove --test plugin_fallback --test native_skill_delivery
 
   check:packs:
-    desc: Check each external pack that the marketplace pins, alone and in the aggregate with this working tree
+    desc: Check each pack that the pack record plugins/packs.json names, alone and in the aggregate with this working tree
     cmds:
       - bash scripts/check-packs.sh
 

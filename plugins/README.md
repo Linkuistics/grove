@@ -228,9 +228,9 @@ The marketplace lists both plugins with `git-subdir` sources at one
 PersonalSkills commit. The source directories are `plugins/personal` and
 `plugins/guardrail`. The plugin `personal` declares a dependency on
 `guardrail`, so a Claude Code install of `personal` also installs the
-guardrail. Grove's `task check:packs` gives each source the directory-only
-check, because neither holds a kind skill. The pack's own `task check` checks
-the skills and the hook script.
+guardrail. Grove's `task check:packs` reads neither source, because Grove's
+pack record names the five domain packs only. The pack's own `task check`
+checks the skills and the hook script.
 
 <!-- tc: pending because the conversion has not reached this part of the document -->
 
@@ -450,9 +450,10 @@ and delivery boundary is described in
 The `requirements`, `design`, `engineering`, `research`, `writing`, `technical-communication-hooks`, `personal`, `guardrail` and `testanyware` plugins are the exceptions. The marketplace
 entry of each pins a commit of its own repository in `sha`. Claude Code
 delivers that commit until a Grove commit moves the pin. The pin gives native
-users the commit that Grove's `task check:packs` accepted. For `testanyware`,
-`technical-communication-hooks`, `personal` and `guardrail`, that check is the
-directory-only check, because the plugin has no kind skill.
+users the commit that Grove's `task check:packs` accepted. That check reads
+Grove's pack record `plugins/packs.json`, which names the five domain packs
+only. It reads no commit of `testanyware`, `technical-communication-hooks`,
+`personal` or `guardrail`.
 
 <!-- tc: pending because the conversion has not reached this part of the document -->
 

@@ -14,6 +14,12 @@ installs the writing hooks plugin before the switch, as
 [The hooks installation inside finish](#the-hooks-installation-inside-finish)
 states. The amendment adds no state, record or inverse to the switch.
 
+`ravel-default-skill-directory-k218` then settled Ravel's default skill
+directory. Ravel 2.0 delivers the keg sources when the settings name no
+`sources`, so the native state now holds `"sources": []`. Finish writes it
+after promotion, as
+[The native settings inside finish](#the-native-settings-inside-finish) states.
+
 The leaf `owner-switch-recovery-k87` then rebuilt the switch's recovery on
 cells, a run record and detection of outside writes. A Quint model supports
 that recovery, and its focused review is ahead. The design changes no
@@ -67,7 +73,7 @@ owner-selected skill. Four facts constrain the transition:
    owner-selected guidance moves to Ravel.
 2. Deliver that guidance from ten local Ravel sources, with one mandatory file.
    Homebrew installs each source at a published commit, and mise declares the
-   formulae.
+   formulae. Ravel finds the sources in its default skill directory.
 3. Keep every native capability that a read cannot supply. That covers hooks,
    commands, agent definitions, MCP and LSP servers, tools, platform skills and
    one Claude Code skill.
@@ -119,6 +125,9 @@ same design.
 - **The candidate keg** is Grove's keg before Grove's release. It is the
   production formula's install method over an unreleased archive, in a private
   prefix.
+- **The off value** is the Ravel settings value
+  `"skills": {"schemaVersion": 1, "sources": []}`. With it, Ravel 2.0 delivers
+  no source, although keg sources are installed.
 
 ### Classes and dispositions
 
@@ -159,7 +168,7 @@ links again.
 | `personal` | `personal`, from PersonalSkills | `craft` | `machine-environment`, `using-jujutsu` and `authoring-conventions` |
 | `testanyware` | `testanyware`, from TestAnyware | `skills` | `using-testanyware` |
 | `superpowers` | `superpowers`, from `obra/superpowers` | `skills` | All fifteen superpowers skills |
-| `quint` | `quint-llm-kit`, from `quint-co/quint-llm-kit` | `quint-llm-kit-plugin/skills` | `quint-lang`, `quint-modeling` and `quint-execute-spec` |
+| `quint` | `quint-llm-kit`, from `quint-co/quint-llm-kit` | `skills` | `quint-lang`, `quint-modeling` and `quint-execute-spec` |
 
 The source path of each row is
 `$(brew --prefix)/share/ravel/skills/<source-id>`, in Ravel's default skill
@@ -167,15 +176,19 @@ directory. The
 [external pack contract](external-pack-contract.md#layout) owns the layout of
 each pack's source directory. The
 [keg layout](codex-skill-provisioning.md#the-keg-layout) owns where each
-formula puts a source, and the identity of a keg source.
+formula puts a source, and the identity of a keg source. Ravel's skill
+discovery specification, in its section "Default skill directory", owns how
+Ravel reads the directory and each source's roots.
 
-These rules bind the owner's configuration of the sources:
+These rules bind the owner's sources:
 
-- Configure one source for each keg source.
-- Where the settings name a source, name its path in the default directory,
-  never its versioned keg path. Homebrew's cleanup erases an earlier keg.
-- Expose only Ravel-delivered skills through search roots. Keep native-only
-  skills and plugin-only trees outside every root.
+- The real settings name no source, so the default skill directory supplies
+  the ten. No other formula installs a source there. Step 6 of the switch
+  compares the resolved IDs with the ten.
+- Where trial settings name a source, they name a candidate keg path or a path
+  in the default directory, never a versioned keg path. Homebrew's cleanup
+  erases an earlier keg.
+- Keep native-only skills and plugin-only trees outside every source.
 
 The first commits of the two third-party formulae are known: superpowers
 `bb92a77741419a4ab5f06e711a283343f1ada0c3` and quint-llm-kit
@@ -207,7 +220,7 @@ The owner runs these commands. Each names the HOME with `-C`, as
 
 | Purpose | Command | Effect |
 | --- | --- | --- |
-| Installation on a new machine | `mise bootstrap --adopt AntonyBlakey/mise-setup` | Restores the tracked files first, the Ravel settings included. Then its packages part installs the formulae. Until that part completes, a launch refuses as `skill_source_missing` |
+| Installation on a new machine | `mise bootstrap --adopt AntonyBlakey/mise-setup` | Restores the tracked files first, the Ravel settings included. Then its packages part installs the formulae. Until that part installs `superpowers`, a launch refuses as `skill_source_missing`, because the mandatory file names that source |
 | Installation on a configured machine | `mac-bootstrap`, which runs `mise -C "$HOME" bootstrap` | Installs each missing formula among the other parts |
 | Installation of the packages only | `mise -C "$HOME" bootstrap packages apply` | Installs each missing formula, and upgrades none |
 | Advance | `brew update`, then `brew upgrade <formula>` | Installs the tap's current version in a new keg, then links it |
@@ -255,34 +268,47 @@ Nobody edits a keg or runs a tool inside it. Homebrew leaves `libexec` files
 writable, and Ravel would capture an edit. Development happens in the working
 copy of each pack under `~/Development/AgenticOrchestration`.
 
-An advance installs a new keg and links it after the keg is complete. A capture
-through the default directory therefore reads one complete keg or refuses, as
-the keg layout states. An advance needs no interval without
-captures. A launch that races it refuses visibly, and the owner reruns it. Each
-Homebrew installation or upgrade of a skill formula is an advance. That
-includes a plain `brew upgrade` of every formula.
+An advance unlinks the earlier keg, installs the new keg and links it, as
+Ravel's specification states. A capture therefore reads one complete keg, or
+it finds the source absent. Each Homebrew installation or upgrade of a skill
+formula is an advance. That includes a plain `brew upgrade` of every formula.
 
-Ravel captures a keg source at each `ravel start-session` and each
-`ravel skills resolve` whose settings name it. A Ravel 1.1 launch captures
-nothing. Settings without a `skills` key capture nothing either. A running
-session reads its retained snapshot until it runs Ravel again.
+A launch during an advance delivers no source of the advancing formula, and
+the result depends on the formula:
 
-The real HOME's settings name no skill source until the switch writes them, so
-preparation and the switch capture nothing from the real settings. That holds
-only while an absent `skills` key turns delivery off, as
-[Open question: the default directory](#open-question-the-default-directory)
-states. An
-unpublished edit reaches a launch only through trial settings in a staging
-HOME. Those settings can name a development working copy as a `local` source.
+- For `superpowers`, the launch refuses, because the mandatory file names that
+  source.
+- For `grove`, the session finds no kind skill, so it reports and force-stops.
+- For `personal`, `testanyware` and `quint-llm-kit`, the session lacks their
+  craft skills, and nothing reports it.
+
+The owner therefore runs an advance while no Grove loop launches. An advance
+needs no other interval without captures.
+
+Ravel 2.0 captures each keg source at each `ravel start-session` and each
+`ravel skills resolve` whose settings name no `sources`. It captures a named
+source when the settings name it. A Ravel 1.1 launch captures nothing, and the
+off value captures nothing either. A running session reads its retained
+snapshot until it runs Ravel again.
+
+Before promotion, only Ravel 1.1 reads the real HOME's settings, so preparation
+captures nothing from them. After promotion, finish writes the off value
+before anything else, as
+[The native settings inside finish](#the-native-settings-inside-finish) states.
+The switch therefore captures nothing from the real settings until its step 9
+writes the switched value. An unpublished edit reaches a launch only through
+trial settings in a staging HOME. Those settings can name a development
+working copy as a `local` source.
 
 A launch behaves as follows:
 
 - Ravel captures each keg source at each launch. It reuses the published
   snapshot while the files stay the same. Each keg version therefore adds at
   most one snapshot.
-- A missing keg source, or a missing configured root, refuses as
-  `skill_source_missing`, exit 3, before Ravel launches any worker. Grove's
-  loop stops without a relaunch. The owner runs
+- A formula that is not installed supplies no source, and the launch delivers
+  the others. For `superpowers`, the launch refuses as `skill_source_missing`,
+  exit 3, before Ravel launches any worker. For `grove`, the session
+  force-stops. `mac-check` reports each missing formula. The owner runs
   `mise -C "$HOME" bootstrap packages apply`, then reruns Grove. No launch
   substitutes native skills or another version.
 - Ravel reads no version, so a keg at another version delivers its files
@@ -434,12 +460,13 @@ plugins are enabled, and no superseded skill is installed. Its Claude Code
 registers `writing-hooks` from the candidate keg and `personal` from the
 installed personal keg. The staging HOME copies no credential.
 
-The staging settings name each source explicitly, because Ravel's default skill
-directory is that of the real Homebrew prefix. They name Grove's six sources in
-the candidate keg and the four other sources in their installed kegs. They differ from the drafted real
-settings only in the paths of Grove's six sources. The staging HOME and the
-candidate keg stay until the switch writes its receipt, because step 4 of the
-switch can need them.
+The staging settings name each of the ten sources in `sources`, because
+Ravel's default skill directory is that of the real Homebrew prefix. Explicit
+`sources` replace the default. They name Grove's six sources in the candidate
+keg and the four other sources in their installed kegs. They hold the mandatory
+file of the drafted real settings, which name no source. The staging HOME and
+the candidate keg stay until the switch writes its receipt, because step 4 of
+the switch can need them.
 
 Each harness reuses only its sign-in store from the real HOME. Sign-in and
 harness configuration have different owners, so no link may join them.
@@ -482,9 +509,11 @@ If a refresh replaces the link with a file, the trial stops. A replaced link
 could leave the real sign-in with a revoked token. The owner then chooses a
 separate sign-in inside the staging `CODEX_HOME` instead of the reused file.
 
-The real HOME's Ravel settings gain the skill configuration only inside the
-switch. By then, finish's own launch was this driver's last 1.1 settings read.
-The switch also requires evidence that no other 1.1 driver can launch.
+The real HOME's Ravel settings gain a `skills` key only inside finish, after
+promotion. The native settings write the off value, and the switch writes the
+switched value. By then, finish's own launch was this driver's last 1.1
+settings read. Each write requires evidence that no other 1.1 driver can
+launch.
 
 ### The final session and new launches
 
@@ -495,7 +524,11 @@ The switch also requires evidence that no other 1.1 driver can launch.
 - **Finish** launches through this driver, Ravel 1.1.0 and `policy.ts` into
   Claude Code. It loads `grove-finish` and the spine from the enabled Grove
   plugin's cache path. Its lazy reads use that absolute path.
-- **The hooks installation** runs inside finish, after promotion, as
+- **The native settings** run inside finish, right after promotion, as
+  [The native settings inside finish](#the-native-settings-inside-finish)
+  states. They write the off value, so a 2.0 launch delivers no keg source
+  before the switch.
+- **The hooks installation** runs inside finish, after the native settings, as
   [The hooks installation inside finish](#the-hooks-installation-inside-finish)
   states. It installs one disabled plugin and changes no loaded plugin.
 - **The switch** runs inside finish, after promotion. It disables the Grove
@@ -511,12 +544,58 @@ The switch also requires evidence that no other 1.1 driver can launch.
 Finish keeps its original ending command and the full 1.1.0 keg, under the
 coordinated release design.
 
+### The native settings inside finish
+
+Ravel 2.0 reads its default skill directory when the settings name no
+`sources`. Ravel's skill discovery specification states that rule, and that
+`"sources": []` turns the default off. After finish's release and promotion, a
+2.0 launch without a `skills` key would therefore deliver every keg source
+before the switch. The native state therefore holds the off value.
+
+Preparation cannot write the off value, because this driver's 1.1 launches
+refuse a 2.0 key. Finish writes it right after promotion, before the hooks
+installation:
+
+1. List the processes as switch step 1 does. If any other listed process or
+   job remains, stop and ask the owner.
+2. If the Ravel settings hold the off value as `skills`, change nothing.
+3. If the settings file is absent, create it with the off value by an
+   exclusive rename.
+4. If the file exists without `skills`, add the off value by the atomic
+   exchange of switch step 9. The exchange keeps every other key. Compare the
+   displaced content with the content that this step read. A difference is a
+   stop. The displaced content then stays beside the file, and the owner
+   merges it.
+5. In any other state, stop and ask the owner. Change nothing.
+
+The prepared plan records the off value as the earlier value of the `skills`
+cell. The switched value names only the mandatory file, so the default skill
+directory supplies the ten sources. The inverse restores the off value by the
+generic cell rule of [Rollback](#rollback). The native probe therefore still
+reads `disabled`.
+
+Each write is one atomic rename or exchange. An interruption leaves the key
+absent or the off value, and the next run goes back to item 1. A failed write
+is a stop before the switch. The steps add no state, record or inverse, so
+[the recovery model](#the-recovery-model) is unchanged. The model's cells are
+abstract, and no part of it depends on which value is earlier.
+
+A `skills` key that another program changes after these steps reads as a
+changed cell in switch step 3. A classification never accepts another earlier
+value for the `skills` cell. The owner restores the off value instead, by
+these steps or by hand.
+
+A finish that ends between promotion and these steps leaves the key absent. A
+2.0 launch in the real HOME then delivers the keg sources beside the native
+installations. The owner's continuation runs these steps first, as
+[The switch inside finish](#the-switch-inside-finish) states.
+
 ### The hooks installation inside finish
 
 Grove's keg holds the marketplace file `writing-hooks` only after Grove's
 release, which runs inside finish. Finish therefore installs
-`technical-communication-hooks` after the release and the promotion, and
-before step 1 of the switch:
+`technical-communication-hooks` after the release, the promotion and the
+native settings, and before step 1 of the switch:
 
 1. List the processes as switch step 1 does. If any other listed process or
    job remains, stop and ask the owner.
@@ -550,24 +629,6 @@ changed state and stops for the owner's classification, as
 [Resuming the switch](#resuming-the-switch) states. The installation adds no
 state, record or inverse, so [the recovery model](#the-recovery-model) is
 unchanged.
-
-### Open question: the default directory
-
-This section is open. The human chose a default skill directory for Ravel
-2.0.0, and `ravel-default-skill-directory` designs it. The default changes what
-an absent `skills` key means on Ravel 2.0. This design reads absence as
-delivery off in three places:
-
-- Preparation keeps the key absent, because this driver's 1.1 launches refuse a
-  2.0 key.
-- The inverse takes the key out of the Ravel settings.
-- The native probe expects `ravel skills resolve --json` to report `disabled`.
-
-With the default, an absent key delivers each source that Homebrew linked.
-After finish's release and promotion, a 2.0 launch would therefore deliver
-before the switch, and the inverse would leave delivery on. The Ravel design
-settles how the native state turns delivery off before the plan's rehearsal. A
-change to a recovery rule changes `docs/models/owner-switch.qnt` first.
 
 ### The switch inside finish
 
@@ -607,7 +668,10 @@ set. Its steps are:
    equals its accepted version in the staging evidence. For Grove, the
    accepted version is the release that step 4 admitted.
 6. Resolve the drafted real settings again in the disposable HOME of step 4.
-   Stop unless each source's `resourceDigest` equals its accepted digest.
+   Those settings name no source, so the promoted `ravel` reads the real
+   default skill directory. Stop unless the resolved source IDs are exactly
+   the ten of [Ravel sources](#ravel-sources). Stop unless each source's
+   `resourceDigest` equals its accepted digest.
 7. Record the reader evidence. Name each plugin cache version directory that
    finish loaded and its registration in `installed_plugins.json`. Stop if any
    of those directories holds `.orphaned_at`.
@@ -620,9 +684,9 @@ set. Its steps are:
    rename makes the backup complete, and it is the record "switch begun". No
    backup replaces an earlier one.
 9. Apply the parts of the plan in their order, in one write interval of the
-   program. The parts move each superseded file-system entry and add the
-   Ravel `skills` key. They also disable the superseded plugins and enable the
-   two skill-free plugins. The entries come first, then the Claude Code settings, then
+   program. The parts move each superseded file-system entry and change the
+   Ravel `skills` key from the off value to its switched value. They also
+   disable the superseded plugins and enable the two skill-free plugins. The entries come first, then the Claude Code settings, then
    the Ravel settings. For each part, the program does these four actions:
    1. Read the part. Each of its cells must hold its earlier value.
    2. For a file, write a stage file in the backup. It holds the live
@@ -630,8 +694,9 @@ set. Its steps are:
       extended attributes. Record the digest of what the run read and the
       digest of the stage file.
    3. Exchange the stage file with the live file. Move an entry into the
-      backup's retained tree at its original relative path. Create an absent
-      Ravel settings file by an exclusive rename.
+      backup's retained tree at its original relative path. The native
+      settings created the Ravel settings file, so the switch creates no
+      file.
    4. Compare the displaced content with its recorded digest. For an entry,
       compare the moved entry with its recorded change identity.
 
@@ -684,12 +749,14 @@ write of the receipt is a stop.
    drifted or changed state, list each cell with its value. Also list each
    changed entry outside the switch set and each flagged kept copy.
 4. Report the failure, and ask the owner to repair its cause.
-5. Run the switch again from step 1.
+5. Run the native settings, then the switch again from step 1.
 6. If the session must end before the switch succeeds, end it with the stop
    command of its launch prompt. Never send the success signal.
 
 After such an end, or after finish ends without a result, the owner runs the
-same prepared switch from step 1. The owner runs it outside any Grove session.
+native settings. The owner then runs the same prepared switch from step 1.
+Both run outside any Grove session.
+
 That run tears down and promotes nothing, and it releases nothing except a
 patch release that a repair needs. One Claude Code session runs it and takes
 finish's place in steps 1, 3 and 7. A continuation of an open backup runs the
@@ -774,8 +841,9 @@ displaced content becomes a kept copy.
   identity after the move is a conflict, and the inverse moves the entry back.
   The inverse moves an entry only to an absent original path, as
   [Rollback](#rollback) states.
-- An exclusive rename creates an absent Ravel settings file. It fails if
-  another program created the file first, and that failure is a conflict.
+- The switch creates no file. The native settings create an absent Ravel
+  settings file by an exclusive rename, before the switch. The rename fails if
+  another program created the file first, and that failure is a stop.
 
 One case stays outside detection. Another program can write a cell's earlier
 or switched value, and a run cannot tell that write from its own. The switch
@@ -938,8 +1006,8 @@ its own write interval, as [Concurrent writers](#concurrent-writers) states:
   earlier value and keeps every other key. It publishes the file by the
   atomic exchange and compares the displaced content.
 - It leaves each cell that holds a third value, and it reports that cell.
-- It takes the `skills` key out of the Ravel settings. A settings file that
-  the switch created then holds no key, and that file stays.
+- The Ravel `skills` key is a cell like the others. The inverse sets it from
+  its switched value back to the off value, so Ravel 2.0 delivers no source.
 - It moves each entry at its retained path back by an exclusive rename, if
   the original path is absent. It moves an entry of any change identity.
   That entry is the only third value that the inverse changes. A rename
@@ -962,7 +1030,8 @@ its own write interval, as [Concurrent writers](#concurrent-writers) states:
 The native probe verifies the result on both harnesses. It observes these
 results:
 
-- `ravel skills resolve --json` with the promoted `ravel` reports `disabled`.
+- `ravel skills resolve --json` with the promoted `ravel` reports `disabled`,
+  because the settings hold the off value.
 - Native discovery on each harness lists the superseded skills again.
 - One session on each harness, launched as in step 10, reads a Grove kind
   skill natively. The kind is not `finish`, and the task asks only for one
@@ -1123,6 +1192,10 @@ and 5 describe local sources, after Ravel withdrew Git sources.
    tree. It lists every linked path. The existing smoke recipe links the whole
    tree. That recipe does not satisfy this item, and k34 decides whether the
    smoke task adopts the narrower route.
+9. Read the default skill directory when the settings name no `sources`, and
+   deliver nothing with `"sources": []`. `ravel-default-skill-directory-k218`
+   settled this item in the section "Default skill directory" of Ravel's
+   specification.
 
 ## Cutover contract
 
@@ -1134,10 +1207,10 @@ with the coordinated release work.
 | 1 | This design | Baseline, classification and contract | The baseline and this design are committed and reviewed |
 | 2 | Repository moves | Move every owner-pack and selected third-party entry with its resources. Supply the three packaging changes. Publish each pack commit, record the five domain packs in Grove's record and publish this workstream's line. Publish the formulae of personal, superpowers and quint-llm-kit, and TestAnyware's release with its skill. | Each moved skill's content and resources match the baseline or a recorded change. Each source has a published commit, and each separate formula is in the tap |
 | 3 | k38 | Re-inventory, compare per entry, classify each new entry | No entry stays unassigned |
-| 4 | k38 leaves | Convert `policy.ts` to `config.rhai`. Draft the Ravel skill settings, the `[bootstrap.packages]` declarations and the residue plan. | The drafts are committed. No draft launches a session before the candidate keg of order 5 exists |
+| 4 | k38 leaves | Convert `policy.ts` to `config.rhai`. Draft the Ravel skill settings: the off value, the switched value with only the mandatory file, and the staging settings. Draft the `[bootstrap.packages]` declarations and the residue plan. | The drafts are committed. No draft launches a session before the candidate keg of order 5 exists |
 | 5 | k38 leaves | Run the staging trials on both harnesses with the accepted feature build | The drafts pass under the staging HOME. Each trial below passes or carries a recorded scope decision. The evidence names each accepted formula version, the candidate commit and each accepted `resourceDigest` |
-| 6 | k38 leaves | Prepare the real HOME without changing discovery. Declare the skill formulae in `[bootstrap.packages]` and install the four that published. Register the personal keg's marketplace and install `guardrail` disabled. Add the drift report to `mac-check`. Freeze automatic updates of the earlier marketplace. Rehearse the program on the plan in disposable layouts. The rehearsal covers the hooks installation, the switch, the probes, the inverse and the controls of the test seams. | `mac-check` reports no drift for the four formulae. After each control, each cell holds its earlier or switched value, or the run reports it. Each outside write stays in the live file or in a flagged kept copy. After each interruption, the next run finds the state and reaches the native or the complete state. The rehearsal record names the plan, the program and the result of each control |
-| 7 | Finish | Install the writing hooks plugin, then run the switch, after promotion | The probes pass and the receipt is in the manual |
+| 6 | k38 leaves | Prepare the real HOME without changing discovery. Declare the skill formulae in `[bootstrap.packages]` and install the four that published. Register the personal keg's marketplace and install `guardrail` disabled. Add the drift report to `mac-check`. Freeze automatic updates of the earlier marketplace. Rehearse the program on the plan in disposable layouts. The rehearsal covers the native settings, the hooks installation, the switch, the probes, the inverse and the controls of the test seams. | `mac-check` reports no drift for the four formulae. After each control, each cell holds its earlier or switched value, or the run reports it. Each outside write stays in the live file or in a flagged kept copy. After each interruption, the next run finds the state and reaches the native or the complete state. The rehearsal record names the plan, the program and the result of each control |
+| 7 | Finish | After promotion, write the native settings and install the writing hooks plugin. Then run the switch | The probes pass and the receipt is in the manual |
 | 8 | Owner | Purge retained bytes | The purge conditions hold |
 
 The staging trials run three steps first, in this order:
@@ -1194,6 +1267,17 @@ Obsidian `AI Dev Tooling` note. It still names the earlier
   registration, before and after the installation's commands.
 - A control stops the hooks installation between its installation and its
   disabling. The next run must find the changed state and change nothing.
+- Controls stop the native settings before and after each write, with the
+  settings file absent and with a file that holds another key. The next run
+  must find the key absent or the off value, and reach the native state. A
+  write of another key just before the exchange must stop the native
+  settings.
+- A control gives the `skills` cell a third value before the switch. Step 3
+  must find the changed state. After the owner restores the off value, the
+  next run must find the native state.
+- With the off value and installed keg sources, `ravel skills resolve --json`
+  must report `disabled`. A control copy of the default skill directory with
+  an eleventh source must stop step 6.
 - `task model:owner-switch` runs the recovery model. Each claim must
   hold, each witness must be reached, and each mutant must reach its
   violation.

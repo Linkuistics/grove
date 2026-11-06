@@ -11,10 +11,14 @@ the setup and the acceptance.
 **Homebrew installation is the whole skill setup.** Each formula links its
 sources into `$(brew --prefix)/share/ravel/skills/`, and Ravel 2.0.0 reads that
 directory when its settings name no sources. Homebrew cannot write into HOME,
-so no setting or link there could make `brew install` enough. In return, Ravel
-knows one location in the Homebrew tree, and a source installed another way
-needs explicit settings. Links in `~/.config/ravel/skills/` were rejected,
-because they need a step outside Homebrew.
+so no setting or link there could make `brew install` enough.
+
+In return, a
+source installed another way needs explicit settings. The directory belongs to
+the Ravel installation, so a separate HOME does not isolate the keg sources.
+Links in `~/.config/ravel/skills/` were rejected, because they need a step
+outside Homebrew. Ravel's decision record "Installed skill sources are the
+default" records how Ravel finds the directory.
 
 **Grove's formula couples Grove's release to the packs.** A change to a pack
 reaches users only through a Grove patch release. In return, each Grove

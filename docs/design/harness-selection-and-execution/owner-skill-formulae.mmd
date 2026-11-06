@@ -4,29 +4,31 @@ flowchart TB
         A["Start here · The tap publishes<br/>an accepted formula version"]
         B["Owner runs brew update,<br/>then brew upgrade FORMULA"]
         E{"Download succeeds?"}
+        U["Unlink the earlier keg<br/>Its entries are absent meanwhile"]
         C["New keg Cellar/FORMULA/VERSION<br/>installed, then cleaned"]
         O[("Default skill directory<br/>share/ravel/skills/ID")]
         F["Earlier keg keeps launching<br/>mac-check reports drift"]
         K["mac-check compares the installed<br/>version with the tap's version"]
         A -->|1| B
         B -->|2| E
-        E -->|"3 yes"| C
-        C -->|"4 Homebrew links the keg<br/>only after it is complete"| O
+        E -->|"3 yes"| U
+        U -->|4| C
+        C -->|"5 Homebrew links the new keg"| O
         E -->|"3 no, offline advance"| F
         K -.->|"reports missing,<br/>drift or error"| O
     end
-    subgraph ravel["Ravel reads local directories only"]
+    subgraph ravel["Ravel 2.0 reads the directory when the settings name no sources"]
         direction TB
-        G{"Keg source and<br/>roots exist?"}
+        G{"Entry present<br/>with its roots?"}
         H["Capture the files of one keg<br/>Reuse snapshot by digest"]
-        I["skill_source_missing<br/>exit 3, no worker"]
+        M["Deliver the other sources<br/>Mandatory source: skill_source_missing<br/>No grove: the session force-stops"]
         J["Session reads<br/>the retained snapshot"]
-        G -->|"6 yes"| H
-        G -->|"6 no, or the link is moving"| I
-        H -->|7| J
+        G -->|"7 yes"| H
+        G -.->|"no: not installed,<br/>or an advance installs"| M
+        H -->|8| J
     end
-    O -->|"5 at each launch"| G
+    O -->|"6 at each launch"| G
     F -.->|"earlier version<br/>keeps launching"| G
-    I -.->|"owner installs or waits,<br/>then reruns Grove"| B
+    M -.->|"owner installs or waits,<br/>then reruns Grove"| B
     classDef start fill:#16354a,color:#fff,stroke:#16354a,font-weight:bold
     class A start

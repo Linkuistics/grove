@@ -10,10 +10,12 @@ sequenceDiagram
     R1->>F: Start Claude Code with the mandate
     F->>N: Read grove-finish and the spine by absolute path
     F->>F: Release Grove and promote Ravel
+    F->>H: Native settings: write the off value, sources = []
+    Note over H,R2: A 2.0 launch now delivers no keg source before the switch
     F->>F: Install the writing hooks plugin from Grove's keg, then disable it
     Note over N: Each command names writing-hooks, so the frozen registration stays as it was
     F->>F: Admit the released keg's digests, then check the formula versions and every accepted digest
-    F->>H: Switch: skill settings, plugins, moved entries
+    F->>H: Switch: skills to its switched value, plugins, moved entries
     Note over N: Disabling writes no orphan marker, so finish's lazy reads still resolve
     F->>R2: Capture the keg sources
     R2->>P: Launch Claude Code and Codex with directories

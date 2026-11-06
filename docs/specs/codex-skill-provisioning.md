@@ -26,6 +26,9 @@ delivers a skill to a session, and native skill installation retires.
 Their implementation is ahead. The
 [evidence](../homebrew-skill-delivery-evidence.md) holds the readings.
 
+`ravel-default-skill-directory-k218` then settled Ravel's default skill
+directory in Ravel's skill discovery specification, and this design cites it.
+
 ## Ownership
 
 Grove names the skill that its session must load. **Homebrew installs the
@@ -136,10 +139,10 @@ are the whole skill setup. No harness discovers skills under the Homebrew
 prefix, so a keg adds no native entry.
 
 Ravel 2.0.0 reads the default skill directory when the settings name no
-sources. Ravel's specification owns that contract, and
-`ravel-default-skill-directory` designs it. The contract states how Ravel finds
-the directory, how it reads each source's roots and how explicit settings
-replace the default. Explicit settings can name the same paths, such as
+`sources`. The section "Default skill directory" of Ravel's skill discovery
+specification owns that contract. It states how Ravel finds the directory, how
+it reads each source and its roots, and what an upgrade does. Explicit settings
+can name the same paths, such as
 `/opt/homebrew/share/ravel/skills/grove-core`. Ravel canonicalises a path at
 capture, so `originPath` names the versioned keg.
 
@@ -149,12 +152,13 @@ capture, so `originPath` names the versioned keg.
 | `personal` | `personal` | `craft` | `libexec/plugins/guardrail` and the Claude Code marketplace file `personal` |
 | `testanyware` | `testanyware` | `skills` | TestAnyware's executables |
 | `superpowers` | `superpowers` | `skills` | None |
-| `quint-llm-kit` | `quint` | `quint-llm-kit-plugin/skills` | None |
+| `quint-llm-kit` | `quint` | `skills` | None |
 
 The directory name is the source ID of the
 [owner delivery design](owner-skill-delivery.md#ravel-sources). One token
 therefore names a source in the keg, in the default directory and in the
-settings.
+settings. Each keg source holds its skills in the roots that Ravel's
+specification reads for a default source.
 
 These facts decide the layout:
 
@@ -167,9 +171,10 @@ These facts decide the layout:
   directories and dangling links under `share/`. A Git checkout holds no empty
   directory, and Ravel refuses a dangling link, so the prune changes no
   accepted source.
-- Homebrew links a keg, and moves its `opt` link, only after the install and
-  the cleaner. A link in the default directory therefore names a complete keg,
-  or for a moment during an upgrade, nothing.
+- Homebrew unlinks the earlier keg before it installs the new one. It links a
+  keg, and moves its `opt` link, only after the install and the cleaner. A
+  link in the default directory therefore names a complete keg, or nothing
+  while an upgrade installs the new keg.
 - The marketplace files sit at the keg root, which Homebrew links nowhere. Two
   kegs therefore cannot conflict over one marketplace path.
 
@@ -182,10 +187,14 @@ digest comparison detects an edit of a keg, and the file mode does not.
 
 **Other formulae.** The formulae of `personal`, `superpowers` and
 `quint-llm-kit` each pin one commit through a GitHub source archive and its
-`sha256`. mise cannot evaluate a formula without a `sha256`. A third-party keg
-copies the narrowest subtree that holds the delivered skills and every resource
-that they name by relative path. The copy keeps its path below the repository
-root, so the owner's roots and mandatory path stay the same.
+`sha256`. mise cannot evaluate a formula without a `sha256`.
+
+A third-party keg
+copies the narrowest subtree whose top holds the roots that Ravel reads. The
+subtree also holds every resource that the skills name by relative path. For
+superpowers, the top is the repository root, so the mandatory path
+`skills/using-superpowers/SKILL.md` stays. For quint-llm-kit, the top is
+`quint-llm-kit-plugin`, so the source's root is `skills`.
 
 Each such formula raises its version with each advance. For superpowers and
 quint-llm-kit, the version is the upstream release of the pinned commit. For
@@ -195,10 +204,12 @@ TestAnyware's release archive carries its `plugins/testanyware` at
 
 **Lifetime.** Ravel copies a keg source into a retained snapshot at each
 launch, so a running session never reads a keg. A capture through the default
-directory reads one complete keg or refuses. It refuses as
-`skill_source_missing` while an upgrade relinks the keg, and as
-`skill_source_changed` while cleanup removes the earlier keg. A rerun captures
-the new keg. Each keg version adds at most one snapshot for each source.
+directory reads one complete keg, or it finds the source absent while an
+upgrade installs the new keg. Ravel's specification states what a resolution
+then delivers. A capture refuses as `skill_source_changed` while cleanup
+removes the earlier keg under it. A rerun captures the new keg.
+
+Each keg version adds at most one snapshot for each source.
 
 The design rejected these layouts:
 
@@ -273,14 +284,14 @@ shows the same decision.
 | Route | Ravel | Configuration | Settings | Caller assets | Skills |
 | --- | --- | --- | --- | --- | --- |
 | Native on 1.1 | Stable 1.x from 1.1.0. Homebrew's unversioned `ravel` until promotion | `~/.config/ravel/policy.ts` with request and policy schema 2 and `ravel/sdk` | Only `timeoutMs`, `contextBytes` and `policyEnv` | Grove's TypeScript assets | Native installations that already exist |
-| Native on 2.0 | Stable 2.x from 2.0.0. The keg-only `ravel@2` until promotion | `~/.config/ravel/config.rhai` with `SCHEMA_VERSION` 4 | The keys of 2.0.0 without `skills`, or with empty `sources` and `mandatory` | Grove's Rhai assets | Native installations that already exist |
-| Directory on 2.0 | As native on 2.0 | As native on 2.0 | The keys of 2.0.0 with a `skills` object that names sources | Grove's Rhai assets, which grant harness reads from `request.skills` | Configured Ravel sources, normally keg sources. Native copies are unnecessary |
+| Native on 2.0 | Stable 2.x from 2.0.0. The keg-only `ravel@2` until promotion | `~/.config/ravel/config.rhai` with `SCHEMA_VERSION` 4 | The keys of 2.0.0 with `"sources": []` and no mandatory file. Settings without `sources` give this route only while no keg source is installed | Grove's Rhai assets | Native installations that already exist |
+| Directory on 2.0 | As native on 2.0 | As native on 2.0 | The keys of 2.0.0 without `sources`, with installed keg sources. Or a `skills` object that names sources | Grove's Rhai assets, which grant harness reads from `request.skills` | Keg sources from the default skill directory, or configured sources. Native copies are unnecessary |
 
 Only the directory route delivers skills that Grove's guidance sets up. With
 Ravel's default skill directory, that route needs no `skills` key. The two
 native rows stay caller routes. Grove admits them and launches through them,
 and the session finds whatever native installation exists. Ravel's contract
-states how a user turns the default off on 2.0.
+decides which settings disable delivery on 2.0.
 
 ### Actual minimum and separate proofs
 
@@ -308,6 +319,11 @@ releases read it from HOME. While a 1.1 `start-session` reader remains under a
 HOME, a 2.0 route that needs a 2.0-only key runs under a separate HOME.
 `end-session` of either release reads no settings, so a settings change cannot
 break a live ending command.
+
+The default skill directory belongs to the Ravel installation, not to a HOME,
+as Ravel's specification states. A separate HOME therefore isolates the
+settings but not the keg sources. A HOME on the native route on 2.0 holds
+`"sources": []`, which Ravel 1.1 refuses.
 
 Grove sets no HOME, and it passes its own to Ravel. A separate HOME therefore
 also moves Grove's standalone run logs and the HOME-based configuration of the
@@ -678,7 +694,8 @@ The release notes of finish's Grove release tell a user of the `linkuistics`
 marketplace what to do:
 
 1. Install or upgrade Grove with Homebrew.
-2. Name the keg sources in Ravel's settings.
+2. Use Ravel 2.0, which reads the keg sources from its default skill directory
+   with no settings.
 3. Register the hook adapters by the documented commands.
 4. Remove the marketplace with `/plugin marketplace remove linkuistics`. That
    removal uninstalls each plugin of the marketplace.
@@ -701,7 +718,9 @@ resolution tests. Grove checks the observable caller behaviour.
 
 `crates/grove/tests/directory_route.rs` proves the lifecycle part of five rows
 below: Directory bootstrap, Source and skill failures, Original mandate,
-Settings isolation and Resource lifetime. `task ravel:directory` runs it, with
+Settings isolation and Resource lifetime. Its default-directory case copies the
+2.0 build with an installation record, as Ravel's specification defines it.
+The record names a fixture directory of Homebrew-shaped links. `task ravel:directory` runs it, with
 `RAVEL` as the 2.0 front and `OLD` as the 1.1 front. Its fake agents read the
 paths that the prepared prompt names, and they prove delivery rather than LLM
 behaviour. The explicit plugin-qualified name request, the missing-skill report
@@ -736,13 +755,13 @@ builds and the results.
 | Acceptance | Observation |
 | --- | --- |
 | Native-only bootstrap on 1.1 | With Ravel 1.1.0 and `policy.ts`, launch the lifecycle caller using complete native skills. Grove does not demand source configuration. The standalone caller reads the same native roots under the harness sandbox. |
-| Native route on 2.0 | With Ravel 2.0.0, `config.rhai` at schema 4 and delivery disabled, launch the lifecycle and standalone callers using complete native skills. `request.prompt` equals `request.originalPrompt` byte for byte, and both equal the mandate. The Rhai assets give the 2.0 outcome of each case in the shared table. They differ from the TypeScript outcomes only where [runtime parity](#runtime-parity) accepts it, and their receipts match byte for byte. This row proves Rhai native compatibility, not directory delivery. |
-| Directory bootstrap | Use Ravel 2.0.0 with the `skills` key, in a HOME separate from any 1.1 reader. With native copies absent, inject complete source directories outside cwd and read the spine, named kind and supporting resources. Exercise local sources, Grove's bare-name mandate and an explicit plugin-qualified name request. Neither name request requires a native loader. In the installed distribution, Ravel reads the keg sources from its default skill directory with no `skills` key. |
+| Native route on 2.0 | With Ravel 2.0.0, `config.rhai` at schema 4 and delivery disabled, launch the lifecycle and standalone callers using complete native skills. `"sources": []` disables delivery, or a copied build without an installation record does. `request.prompt` equals `request.originalPrompt` byte for byte, and both equal the mandate. The Rhai assets give the 2.0 outcome of each case in the shared table. They differ from the TypeScript outcomes only where [runtime parity](#runtime-parity) accepts it, and their receipts match byte for byte. This row proves Rhai native compatibility, not directory delivery. |
+| Directory bootstrap | Use Ravel 2.0.0 with the `skills` key, in a HOME separate from any 1.1 reader. With native copies absent, inject complete source directories outside cwd and read the spine, named kind and supporting resources. Exercise local sources, Grove's bare-name mandate and an explicit plugin-qualified name request. Neither name request requires a native loader. With no `skills` key, a launch receives each source of the fixture default directory. With `"sources": []` beside that directory, it receives none. In the installed distribution, Ravel reads the keg sources from its default skill directory with no `skills` key. |
 | Source and skill failures | A missing configured source directory refuses before launch, with Ravel's remedy. For a missing or unreadable mandated skill, the agent reports and uses the prompt's exact force-stop command. The leaf remains live, no teardown is recorded and the loop does not relaunch. Grove's kind parser does not reject it. |
 | Original mandate | The mandate qualifies "first" with "after any mandatory guidance". Observe mandatory reads before the named-kind read. Compare exact caller bytes and ending commands before/after Ravel preparation. `originalPrompt` and the caller block of the prepared prompt each equal the composed mandate byte for byte. The selected command receives the intended launch prompt. |
 | Explicit loading mechanism | Exercise a native loader with a match, absent-match directory fallback with disclosure, an express native-only restriction and a concrete path. Observe the specified route or a report before dependent work. Do not silently substitute. |
 | Compatibility | Check the admission of stable 1.x from 1.1.0 with `policy.ts` and the TypeScript assets. Check the admission of 2.x from 2.0.0 with `config.rhai` and the Rhai assets. Refuse 1.0, prereleases, 3.x and malformed output, with no fallback to another PATH entry. Before the cut, stub executables prove the admission of `ravel 2.0.0` output. |
-| Settings isolation | Ravel 1.1.0 refuses shared settings that hold a 2.0-only key, and a separate prefix cannot prevent it. A separate HOME runs a native lifecycle launch on 1.1 and a directory launch on 2.0 at the same time. A mismatched configuration reaches the user as Ravel's refusal and leaves the leaf live. Existing ending commands stay usable. |
+| Settings isolation | Ravel 1.1.0 refuses shared settings that hold a 2.0-only key, and a separate prefix cannot prevent it. With a fixture default directory, a 2.0 launch in a shared HOME without `skills` delivers its sources. A separate HOME runs a native lifecycle launch on 1.1 and a directory launch on 2.0 at the same time. A mismatched configuration reaches the user as Ravel's refusal and leaves the leaf live. Existing ending commands stay usable. |
 | Prefix selection | With unversioned 1.1.0 and the keg-only `ravel@2` installed, the default PATH selects 1.1.0. A PATH that puts the `bin` directory of `ravel@2` first selects 2.0.0, and the ending commands quote that canonical path. |
 | No native mutation | Compare owned/foreign files, links, modes, pointers and bytes before/after startup, failure and installed upgrade. Include legacy homes, aliases and an active old reader. |
 | Manual cleanup guidance | Exercise the documented procedure in disposable legacy layouts. These layouts include stopped readers/writers, owned and foreign links, aliases and uncertain provenance. They also include retained links that reach a skill entry through intermediate links or `..`. Only evidenced, unneeded owned skill-directory links are removable. The legacy root stays unchanged, and the trial leaves the owner's installation untouched. |
@@ -750,7 +769,7 @@ builds and the results.
 | Standalone | Grove sends neither `--confine` nor `--runtime-read` to Ravel 1.1 or 2.0. On the directory route of 2.0, the agent reads the required resources outside cwd. A write to a snapshot file fails by its file mode. With injection disabled, the agent reads its native roots. A force-stop publishes no output. A standalone prompt names no guidance, so Grove does not require a report or a force-stop. The confined results of 2026-11-03 and earlier, such as `missing-kind-confined-20261103T062817Z`, are historical, because the human withdrew confinement on that day. |
 | Open tree behaviour | Existing custom-kind, handle, review/integration, result and epoch tests pass. No availability check enters tree verbs or launch admission. |
 | Conformance | Core, external-pack and aggregate checks use exact supplied artefacts. `check:packs` reads Grove's record and checks each pack alone and in the aggregate with core. Removed required resources/edges and duplicate owners fail deliberate controls. The [external pack contract](external-pack-contract.md#controls-that-must-fail) lists the controls. |
-| Installed distribution | The archive manifest, `task release:smoke` and `task release:formula:test` show that the keg holds core and the five packs at the commits of Grove's record, with executable bits intact. With a Ravel 2.0 build, each test resolves every source from the installed paths and reports its `resourceDigest`. `release:formula:test` compares each digest with that of the plain checkout of the same commit. Archives and formula tests also check separate packages, both caller-asset sets with their runtimes, both configuration formats and no automatic native mutation. Exercise fresh install and upgrade at each tap state A to D of the coordinated release. At each state, Grove's dependency always resolves to an admitted Ravel major, and feature advertising follows its publication. |
+| Installed distribution | The archive manifest, `task release:smoke` and `task release:formula:test` show that the keg holds core and the five packs at the commits of Grove's record, with executable bits intact. Each test copies the Ravel 2.0 build into a private prefix, with an installation record that names the keg's `share/ravel/skills`. With no settings, `ravel skills resolve --json` reports exactly the six sources, each `originPath` inside the keg, with its `resourceDigest`. `release:formula:test` compares each digest with that of the plain checkout of the same commit. Archives and formula tests also check separate packages, both caller-asset sets with their runtimes, both configuration formats and no automatic native mutation. Exercise fresh install and upgrade at each tap state A to D of the coordinated release. At each state, Grove's dependency always resolves to an admitted Ravel major, and feature advertising follows its publication. |
 | Hook adapters | In isolated homes, each harness registers its adapter from a keg by the documented command. On Claude Code, the hooks run and no native `technical-communication` skill appears. One measurement installs a disposable formula, registers its hooks plugin by the `opt` path and runs `brew upgrade` with cleanup. A session after the upgrade runs the hooks from the new keg. The same measurement shows the Codex registration break and its repair. It also records whether a Codex session runs the cached hooks before the repair. |
 | Retired listing | Before finish, an isolated Claude Code home adds the `linkuistics` marketplace from a Git remote at a commit that lists the packs, and installs `grove@linkuistics`. A refresh against a commit with the retired listing shows whether the plugin stays installed. The release notes state the result. |
 | Actual harness behaviour | Claude Code and Codex each discover an applicable craft skill from a task that does not name it, and read it before the governed action. Ravel delivers every source from a keg path, and no native copy exists. |

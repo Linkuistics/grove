@@ -146,3 +146,38 @@ keg. Homebrew then removes that link, makes a real directory and links the
 other keg's entries into it. `share/ravel/skills` is not in `SHARE_PATHS`, so the
 first keg links it as one directory link, and the second keg's link turns it
 into a real directory.
+
+## The contract of the default directory
+
+`ravel-default-skill-directory-k218` read these facts on 2026-11-06, from
+Homebrew 7.0.12-126-g86f1f0c. The section "Default skill directory" of Ravel's skill discovery specification and
+Ravel's decision record "Installed skill sources are the default" hold the
+decisions. The [owner delivery design](specs/owner-skill-delivery.md#the-native-settings-inside-finish)
+holds their effect on the switch.
+
+**The Cellar.** `Library/Homebrew/brew.sh` sets `HOMEBREW_CELLAR` to
+`${HOMEBREW_REPOSITORY}/Cellar` when that directory exists. Otherwise it sets
+`${HOMEBREW_PREFIX}/Cellar`. A keg therefore does not always lie below the
+prefix. Ravel cannot derive the prefix from the canonical path of its own
+executable, so its formula records the directory.
+
+**The upgrade order.** `install_formula` in `Library/Homebrew/install.rb`
+unlinks each current keg of the formula. It then calls
+`formula_installer.install` and `formula_installer.finish`, and only `finish`
+links the new keg. The entries of an upgraded formula are therefore absent
+from the shared prefix for the whole installation of the new keg.
+
+**Ravel's installed layout.** The release archive of Ravel 2.0 installs
+`share/ravel/examples` and `share/ravel/notices` beside `bin/ravel`, as
+`scripts/release-common.sh` of the Ravel workspace `skill-directory-delivery`
+lists them. The installation record joins that `share/ravel` directory.
+
+**The source layouts.** No source of the owner's ten holds a `SKILL.md`
+outside its `skills` and `craft` directories. The six Grove sources and
+`personal` are the source directories of their packs. `testanyware` is
+`plugins/testanyware` of TestAnyware. `superpowers` 7.0.0 holds its skills in
+`skills/`.
+
+The skills of quint-llm-kit name no file outside
+`quint-llm-kit-plugin`. Its one parent-relative reference,
+`../../../quint-lang/guidelines/choreo.md`, stays inside `skills/`.

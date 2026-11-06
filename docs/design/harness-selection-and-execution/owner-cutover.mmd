@@ -4,7 +4,7 @@ flowchart LR
         A["Start here · Baseline and design"]
         B["Pack moves keep every entry<br/>Two skill-free plugins added<br/>Packs published"]
         C["Re-inventory per entry"]
-        D["Draft config.rhai, skill settings<br/>and formula declarations"]
+        D["Draft config.rhai, the off and<br/>switched skill settings<br/>and formula declarations"]
         E["Candidate keg of Grove's six sources<br/>then staging-HOME trials<br/>on both harnesses"]
         F["Prepare real HOME: install four formulae,<br/>guardrail disabled<br/>Rehearse the program on the plan<br/>with every control"]
         A -->|1| B
@@ -16,6 +16,7 @@ flowchart LR
     subgraph fin["Finish"]
         direction TB
         G["Release Grove<br/>Promote Ravel"]
+        NS["Native settings:<br/>write the off value<br/>sources = [] after<br/>a process listing"]
         HI["Install the writing hooks plugin<br/>from Grove's keg, disabled<br/>Name only writing-hooks"]
         H{"No listed process or job<br/>beyond the kept processes:<br/>harness, its driver chain,<br/>MCP servers, program?"}
         I["Ask the owner<br/>Signal nobody"]
@@ -27,13 +28,15 @@ flowchart LR
         Q["Pending-activation record<br/>No success signal<br/>Switch runs again"]
         J["One program, parts in order:<br/>read, stage, exchange or<br/>exclusive rename, compare"]
         K{"Both probes pass and<br/>each cell still as probed?"}
-        L["Inverse of the run's parts<br/>then native probe"]
+        L["Inverse of the run's parts<br/>skills back to the off value<br/>then native probe"]
         M["Receipt records the probed cells"]
         N{"14: entries outside the<br/>switch set match the plan?"}
         O["Copy the receipt to the manual<br/>Entry valid while<br/>mac-check reports complete"]
-        G -->|7| HI
-        HI -->|"7a installed or already present"| H
-        HI -.->|"7a any other state"| I
+        G -->|7| NS
+        NS -->|"7a off value written or present"| HI
+        NS -.->|"7a any other state"| I
+        HI -->|"7b installed or already present"| H
+        HI -.->|"7b any other state"| I
         H -->|"8 no"| I
         H -->|"8 yes"| S
         S -->|"8a native, probe passes"| P
@@ -56,7 +59,7 @@ flowchart LR
         DR -.->|"pending record"| Q
         CH -.->|"pending record"| Q
         M -.->|"receipt not written"| Q
-        Q -.->|"run again from step 1"| H
+        Q -.->|"native settings, then step 1"| NS
     end
     prep -->|"6 after acceptance"| fin
     classDef start fill:#16354a,color:#fff,stroke:#16354a,font-weight:bold

@@ -10,6 +10,8 @@ own runner. Each project keeps its own version and complete installation prefix.
 
 The skill views describe the adoption design. Homebrew installs the skill
 sources, and Ravel delivers them, as homebrew-delivery-design-k216 proposes.
+Ravel reads its default skill directory, as ravel-default-skill-directory-k218
+settled.
 Grove names each skill, and the agent finds and reads it.
 
 Ravel's reviewed directory contract is commit `822c0ed2` on its unpublished
@@ -38,7 +40,7 @@ asserts no private transport or escalation details.
 | View | Contract illustrated |
 |---|---|
 | [Where each installed entry goes](http://127.0.0.1:52710/#diagram-owner-classes) | The per-entry rule of the owner cutover: a Ravel source, a native route for hooks, or no change. |
-| [Skill formulae outside Ravel](http://127.0.0.1:52710/#diagram-owner-pack-checkouts) | Homebrew installs each source in a keg and links it into Ravel's default skill directory after the keg is complete. Ravel only reads the directory, and a missing source refuses before any worker. |
+| [Skill formulae outside Ravel](http://127.0.0.1:52710/#diagram-owner-pack-checkouts) | Homebrew installs each source in a keg and links it into Ravel's default skill directory after the keg is complete. Ravel only reads the directory. A source that is absent from it leaves the session without that source. |
 | [Ordered owner cutover](http://127.0.0.1:52710/#diagram-owner-cutover) | Preparation in ordinary leaves, then the switch inside finish with its reader gate, probes and inverse. |
 | [Finish keeps its guidance through the switch](http://127.0.0.1:52710/#diagram-owner-final-session) | Finish reads native guidance by absolute path. Later sessions move to Ravel 2.0.0. |
 | [Compatible tap states](http://127.0.0.1:52710/#diagram-release-tap) | Four tap states: keg-only `ravel@2` first, compatible Grove, then promotion of identical archives with `ravel@2` deprecated. |
@@ -73,6 +75,20 @@ the executable owns and to immutable historical experiments for Ravel. Grove's
 public integration. Neither duplicates Ravel's private runtime contract.
 
 ## Current changes
+
+ravel-default-skill-directory-k218 settled Ravel's default skill directory and
+its effect on the switch. Ravel 2.0 delivers the keg sources when the settings
+name no `sources`, so the native state holds `"sources": []`. See
+[the native settings inside finish](../../specs/owner-skill-delivery.md#the-native-settings-inside-finish)
+and [the keg layout](../../specs/codex-skill-provisioning.md#the-keg-layout).
+
+- [Ordered owner cutover](http://127.0.0.1:52710/#diagram-owner-cutover) — Added the native settings after promotion. The inverse returns `skills` to the off value, and a rerun goes back to the native settings.
+- [Finish keeps its guidance through the switch](http://127.0.0.1:52710/#diagram-owner-final-session) — Finish writes the off value before the hooks installation.
+- [Skill formulae outside Ravel](http://127.0.0.1:52710/#diagram-owner-pack-checkouts) — An advance unlinks the earlier keg first. A resolution during the installation delivers the other sources and does not refuse.
+- [Supported Ravel routes](http://127.0.0.1:52710/#diagram-routes) — The source set decides the route, and `"sources": []` gives the native route on 2.0.
+- [Homebrew installs, Ravel delivers](http://127.0.0.1:52710/#diagram-skill-delivery) — Ravel's installation record names the default skill directory.
+
+## Homebrew delivery changes
 
 This discussion applies the human's decisions of
 skill-marketplace-decision-k201. Homebrew installs every skill source, and

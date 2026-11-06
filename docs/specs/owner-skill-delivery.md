@@ -12,7 +12,7 @@ formulae, as the decision record
 states. [Skill formulae](#skill-formulae) holds the owner's setup. Finish now
 installs the writing hooks plugin before the switch changes a cell, as
 [The hooks installation inside finish](#the-hooks-installation-inside-finish)
-states. The installation adds no state, record or inverse to the switch.
+states. The installation adds no state and no inverse to the switch.
 
 `ravel-default-skill-directory-k218` then settled Ravel's default skill
 directory. Ravel 2.0 delivers the keg sources when the settings name no
@@ -24,6 +24,12 @@ after promotion, as
 of the switch. They run only while no run is open, so each run of the switch
 reaches its row of the state table. The native settings now write a settings
 record before their exchange, so detection covers that write too.
+
+`hooks-installation-writes-k222` then measured how Claude Code writes
+`settings.json`. The hooks installation now disables its plugin by the
+program's own exchange. Each of its Claude Code commands runs under a held
+link, and one accepted case remains, as
+[Claude Code's own writes](#claude-codes-own-writes) states.
 
 The leaf `owner-switch-recovery-k87` then rebuilt the switch's recovery on
 cells, a run record and detection of outside writes. A Quint model supports
@@ -116,15 +122,22 @@ same design.
   each cell, and the inverse that follows from them. Its digest identifies it.
 - **The program** is the prepared command that runs a plan: its switch, its
   inverse and the reading of its state.
-- **A kept copy** is the content that an exchange displaced. It stays under
-  the name of its stage file, in the backup or in a settings record.
+- **A kept copy** is the content that an exchange or a Claude Code command
+  displaced. After an exchange, it stays under the name of its stage file,
+  in the backup or in a settings record. After a command, it stays under a
+  held link.
 - **A prelude** is one of two steps that step 3 of the switch runs while no
   run is open. They are the native settings and the hooks installation. A
   prelude leaves each of its cells at its earlier value, or it stops.
-- **A settings record** holds the digests of one write of the native
-  settings, and the stage file of that write. After the exchange, the name of
-  the stage file holds the kept copy. A settings record holds no plan and no
-  run record, so it is not a backup.
+- **A settings record** holds the digests of one write of a prelude. For an
+  exchange, it also holds the stage file, and after the exchange the name of
+  the stage file holds the kept copy. For a Claude Code command, it holds a
+  held link. A settings record holds no plan and no run record, so it is not
+  a backup.
+- **A held link** is a hard link in a settings record. It names the inode
+  at the path of `~/.claude/settings.json` before a Claude Code command.
+  While that inode stays at the path, the link holds the live file and no
+  kept copy. After a rename displaces the inode, the link holds a kept copy.
 - **A kept process** is a process that the session which runs the switch
   cannot end without ending itself. The process listing of step 1 excludes
   only kept processes.
@@ -639,7 +652,7 @@ Grove's keg holds the marketplace file `writing-hooks` only after Grove's
 release, which runs inside finish. Step 3 of the switch therefore installs
 `technical-communication-hooks` after the native settings. The same two
 conditions apply: no run is open, and the program is rehearsed. The program
-lists the processes of step 1 again before the commands.
+lists the processes of step 1 again before the installation.
 
 The hooks installation takes these items in order:
 
@@ -648,15 +661,30 @@ The hooks installation takes these items in order:
    nothing.
 2. If the plugin is absent, register that marketplace unless it is already
    registered at that path. Then run
-   `claude plugin install technical-communication-hooks@writing-hooks` and
-   `claude plugin disable technical-communication-hooks@writing-hooks`.
-3. If the plugin is installed and enabled from that marketplace, run only the
-   disabling command.
+   `claude plugin install technical-communication-hooks@writing-hooks`.
+   Each of these two commands runs under a held link, as
+   [Claude Code's own writes](#claude-codes-own-writes) states. Then disable
+   the plugin.
+3. If the plugin is installed and enabled from that marketplace, only
+   disable the plugin.
 4. In any other state, stop and ask the owner. Change nothing.
 
-Before the disabling command, the program reads the plugin's state again.
-Another program can disable the plugin first, and the program then runs no
-command.
+The program reads these states with `claude plugin list --json` and
+`claude plugin marketplace list --json`. Neither command writes
+`settings.json`, as the
+[Homebrew evidence](../homebrew-skill-delivery-evidence.md#the-write-method)
+measured.
+
+The disabling reads the plugin's `enabledPlugins` cell again. If the cell
+holds `true`, the program writes a settings record. It then writes `false`
+by the atomic exchange of switch step 9, and compares the displaced content
+with the record. A difference is a stop.
+
+If the cell holds `false`, another program disabled the plugin first, and the
+program writes nothing. `claude plugin disable` changes only this cell, as the
+[Homebrew evidence](../homebrew-skill-delivery-evidence.md#what-plugin-disable-changes)
+measured. The exchange therefore has the same effect, and detection covers
+it.
 
 Each command names the new marketplace or its plugin. No command refreshes or
 updates `linkuistics`. No command runs `claude plugin marketplace update`
@@ -681,19 +709,109 @@ other route therefore reaches the native state. When another program enabled
 the plugin, the run lists the value that it replaced, as for any switched
 value.
 
-The installation adds no state, record or inverse.
-[The recovery model](#the-recovery-model) covers its place in step 3 and the
-resumption of item 3.
+The installation adds no state and no inverse. Its settings records follow
+the rules of the native settings' record.
+[The recovery model](#the-recovery-model) covers its place in step 3, the
+held link, the disabling and the resumption of item 3.
 
-**Open question: Claude Code's own writes.** `claude plugin marketplace add`
-and `claude plugin install` rewrite `settings.json`, as the
-[Homebrew evidence](../homebrew-skill-delivery-evidence.md#the-hook-plugins-across-a-keg-change)
-measured. `claude plugin disable` changes the plugin's `enabledPlugins` cell
-in the same file. That file holds cells of the switch set.
+#### Claude Code's own writes
 
-No exchange of the program publishes those writes, so detection does not
-cover them. Only the exclusion protects them, and it keeps the kept processes.
-`hooks-installation-writes` settles this question before planning.
+`claude plugin marketplace add` and `claude plugin install` write
+`~/.claude/settings.json`, a file of the switch set. No option keeps a
+command out of that file and keeps the meaning of the installation. The
+[Homebrew evidence](../homebrew-skill-delivery-evidence.md#claude-codes-writes-of-the-settings-file)
+measured how Claude Code 2.1.319 writes the file:
+
+- Each command writes a temporary file beside `settings.json` and renames it
+  onto the path, once. A hard link to the earlier inode keeps the earlier
+  bytes.
+- A command makes its write from a read 30 to 38 ms before its rename. A
+  write in place inside that interval lands in the earlier inode. A rename
+  by another program inside that interval is lost.
+- A command rewrites the file also when each value is already present.
+- The new file keeps the mode. It loses each ACL and each extended attribute
+  except `com.apple.provenance`.
+
+The program therefore runs each command in these steps:
+
+1. Stop if `settings.json` has an ACL or an extended attribute other than
+   `com.apple.provenance`. The command would drop it.
+2. Write a settings record under a temporary name. It holds a held link to
+   the live inode. It also holds the digest of that inode's content, mode,
+   ACL and extended attributes. Rename the record into place. No record
+   replaces an earlier one.
+3. Read the plugin's state again. Run the command only if the state still
+   needs it.
+4. Run the command.
+5. Stop unless the inode at the path differs from the held inode. A command
+   that replaced nothing makes the held link prove nothing.
+6. Compare the held copy with the digest in the record. A difference flags
+   the copy, and the program stops.
+
+Step 3 decides from the state after the held link exists. Another program
+can write a third value into the plugin's cell before the link. Step 3 then
+reads that value and stops at item 4. Otherwise the command would replace
+the value, and the held copy would equal its record.
+
+The held copy then follows each rule of a kept copy in
+[Concurrent writers](#concurrent-writers). Each later run reports it while it
+is flagged, and step 8 stops. `mac-check` reports it too, also before the
+first backup. Purge covers it.
+
+A write in place before the command's read is in the live file and in the
+held copy. It flags the copy, although no write is lost, and the owner's
+merge then adds nothing. The design accepts that report.
+
+A held link whose inode is still at the path holds no kept copy. A crash
+before the command's rename leaves such a link. Step 3 of the next run
+erases it before the preludes. Erasing the link loses no content, because
+the path still names the inode.
+
+**The accepted case.** Another program can replace `settings.json` by a
+rename after the held link and before the command's rename. The command's
+rename then replaces that program's inode, which has no other name. Each
+write that the inode holds and the command's read missed is lost, and no
+record reports it. No mechanism outside Claude Code can keep that inode, so
+the design accepts this case. Its evidence and its bound are these:
+
+- **The interval.** Each command made its write from a read 30 to 38 ms
+  before its rename, on an idle machine. The two commands run only while
+  the plugin is absent. A run therefore has at most two such intervals, and
+  a later run has none.
+- **The programs that can rename the file.** The exclusion keeps only the
+  kept processes. Grove's sources and Ravel 1.1.0's sources name no
+  `.claude` path. codebase-memory-mcp 0.10.6 wrote nothing in server mode,
+  and its help names the commands that change its configuration. A server
+  runs none of them. The finish session's own Claude Code process writes
+  the user settings by the same rename, after a settings action such as
+  `/model` or `/config`. Its agent waits on the program while the commands
+  run, so a settings action can come only from its user.
+- **The frequency.** A read-only observation found that no program changed
+  the owner's `settings.json` in the 26 days before 2026-11-06.
+
+Before the hooks installation, finish tells the owner to change no setting
+in the finish session until the switch reports. A staging seam measures the
+finish session's own process while the commands run, as the
+[test seams](#test-seams) state.
+
+The design rejected six alternatives. The evidence document holds the
+measurement behind each reason:
+
+- **The exclusion alone.** A write in place inside the interval, or a write
+  through a descriptor after the rename, would then be lost with no report.
+- **`--scope project` or `--scope local`.** The command then writes the
+  settings of one project, and the installation record holds that project's
+  path. The plugin is disabled in every other directory.
+- **A private configuration directory.** With `CLAUDE_CONFIG_DIR` at a
+  directory that links the real plugin store, the installation record names
+  an `installPath` inside the private directory.
+- **Cells that the program writes first.** A command rewrites the file also
+  when each value is already present, so the interval stays.
+- **A link at the path during each command.** Claude Code writes through the
+  link to its target. The finish session's own process would race the
+  command on that target in the same way.
+- **A directory watch for other renames.** A watch cannot see each inode at
+  the path, because two renames inside one wake read as one change.
 
 ### The switch inside finish
 
@@ -711,8 +829,10 @@ set. Its steps are:
    process.
 2. If any other listed process or job remains, stop and ask the owner. Do not
    signal another session.
-3. Read the run record of the latest complete backup. While its run is open,
-   run no prelude. Otherwise run
+3. Erase each held link whose inode is still at the path, as
+   [Claude Code's own writes](#claude-codes-own-writes) states. Read the run
+   record of the latest complete backup. While its run is open, run no
+   prelude. Otherwise run
    [the native settings](#the-native-settings-inside-finish), then
    [the hooks installation](#the-hooks-installation-inside-finish). Then rerun
    the baseline instrument. Find the state of the switch set, as
@@ -923,6 +1043,11 @@ displaced content becomes a kept copy.
   settings record holds the two digests, as
   [The native settings inside finish](#the-native-settings-inside-finish)
   states. Their kept copy follows each rule above.
+- Each Claude Code command of the hooks installation runs under a held link,
+  as [Claude Code's own writes](#claude-codes-own-writes) states. A write in
+  place inside the command's interval lands in the held copy and flags it.
+  So does a later write through a descriptor. The disabling uses the
+  exchange.
 
 One case stays outside detection. Another program can write a cell's earlier
 or switched value, and a run cannot tell that write from its own. The switch
@@ -933,9 +1058,10 @@ For a prelude cell, absence is the prelude's earlier value. A prelude can
 therefore replace an erased `skills` key or an uninstalled hooks plugin, and
 its list reports that value too.
 
-The commands of the hooks installation are an open question, as
-[The hooks installation inside finish](#the-hooks-installation-inside-finish)
-states.
+A second case stays outside detection. Another program's rename during a
+Claude Code command can lose a write, as
+[Claude Code's own writes](#claude-codes-own-writes) states. The design
+accepts that case within its evidence and its bound.
 
 [The recovery model](#the-recovery-model) finds no other lost
 write. It lets outside programs write at every step, with no exclusion.
@@ -968,7 +1094,9 @@ inside the harness process, which no process listing shows. One program
 command then runs each interval, so no agent action, harness hook or probe
 runs inside it.
 
-Detection covers the writes of each kept process. Exclusion does not protect
+Detection covers the writes of each kept process, except in the accepted
+case of [Claude Code's own writes](#claude-codes-own-writes). Exclusion does
+not protect
 a kept process that reads. The harness process reads its own guidance by the
 cache path that step 7 records. A kept MCP server that read a moved entry
 would lose that read. The design accepts this case, because the session
@@ -1162,22 +1290,28 @@ harness discovers skills in a keg.
 The Quint model [`owner-switch.qnt`](../models/owner-switch.qnt) covers the
 switch, the inverse, interruptions, outside writes, classifications and
 receipts. It also covers each run's entry through steps 1 to 3, with the gate
-and both preludes. `task model:owner-switch` runs each of its claims. Its
-worlds let outside programs set cells, add and erase other keys and write into
-kept copies at every step. They also let a program change an entry outside the
-switch set, and they let a crash end a run at every step. No world has an
+and both preludes. The hooks installation's command reads the file and later
+renames a new file onto the path, under a held link.
+
+`task model:owner-switch` runs each of its claims. Its worlds let outside
+programs set cells, add and erase other keys and write into kept copies at
+every step. A write to the Claude Code settings file lands in
+place or by a rename. The worlds also let a program change an entry outside
+the switch set, and they let a crash end a run at every step. No world has an
 exclusion.
 
-In five design worlds and four mutant worlds, the first state comes before the
+In six design worlds and five mutant worlds, the first state comes before the
 first entry's preludes, with no `skills` key and no hooks plugin. In the
 others, the first state is the layout that those preludes leave. Each entry in each world still passes the
 gate and the preludes.
 
-Six properties hold in each of the thirteen design worlds:
+Six properties hold in each of the fourteen design worlds:
 
 1. No write by another program is lost without a report. The accepted case
    is a cell write of the cell's earlier or switched value. For a prelude
-   cell, absence is also an earlier value.
+   cell, absence is also an earlier value. The second accepted case follows
+   another program's rename during a Claude Code command. The command's
+   rename can then destroy a write, and the model accepts that loss.
 2. Exactly one row of the state table holds. A run reads an interruption only
    while a run is open, and a settled state only while none is.
 3. No receipt records a cell that is not switched. Each receipt records the
@@ -1190,7 +1324,7 @@ Six properties hold in each of the thirteen design worlds:
    left. While no run is open, an interrupted prelude can leave a value in a
    prelude cell. No entry reads the table with such a value.
 
-Each of twelve mutant worlds lacks one mechanism, and it reaches the violation
+Each of thirteen mutant worlds lacks one mechanism, and it reaches the violation
 that the mechanism prevents. The same violation stays unreached in each
 design world.
 
@@ -1208,10 +1342,11 @@ design world.
 | The settings record before the exchange of the native settings | 1 |
 | The hooks installation in every entry | 6 |
 | The disabling of an enabled plugin by the hooks installation | 6 |
+| The held link before a Claude Code command | 1 |
 
 The results are sampled, not proved. Each world ran at least 4,000 samples of
 up to 60 steps. Before the preludes, a switch of two prelude cells and one
-other part is 21 steps away from its receipt. Six focused worlds
+other part is 26 steps away from its receipt. Seven focused worlds
 narrow when outside writes or crashes act:
 
 - One reaches drift after a receipt, and the owner's inverse from it.
@@ -1222,10 +1357,14 @@ narrow when outside writes or crashes act:
 - One reaches conflicts at the exchanges of the switch.
 - One reaches the native settings' exchange, its gap before the comparison
   and a late write into the kept copy of its settings record.
+- One reaches a write in place inside a command's interval and a late write
+  into the held copy. It also reaches the accepted case and a crash between
+  the held link and the rename.
 
 The model file lists what the model does not establish. Metadata, the
 program copy, the probes and readers belong to the rehearsal controls. So do
-Claude Code's own writes and the creation of an absent settings file.
+the registration command, the bound of the accepted case and the creation of
+an absent settings file.
 
 **Entry parts.** The model treats each part as a file. Two rules settle an
 entry part without a model:
@@ -1395,6 +1534,31 @@ Obsidian `AI Dev Tooling` note. It still names the earlier
 - Controls stop a run of the switch between the native settings and the hooks
   installation, and between the installation and the disabling. The next run
   from step 1 must install or disable the plugin and reach the native state.
+- A control writes another key of `settings.json` in place between a held
+  link and its command's rename. The program must stop with a flagged held
+  copy, and the live file must lack the key. Each later run must report the
+  copy, and step 8 must stop. Another control writes through a descriptor
+  that it opened before the rename, after the comparison. Each later run and
+  `mac-check` must report that copy, also before the first backup.
+- A control stops the program between a held link and its command's rename.
+  The next run from step 1 must erase the link, install the plugin and reach
+  the native state.
+- A control writes a third value into the plugin's cell before the held
+  link. The hooks installation must stop at item 4 and run no command.
+- A control gives `settings.json` an extended attribute other than
+  `com.apple.provenance`, and another gives it an ACL. Each must stop the
+  hooks installation before its first command. A stub command that writes
+  the file in place must stop the program at its comparison of inodes.
+- A staging measurement runs the hooks installation while a signed-in Claude
+  Code session with the owner's MCP servers is open in the staging HOME. It
+  watches `settings.json` during each command. Any replacement by another
+  process counts against the evidence of the accepted case, and the owner
+  decides the case again.
+- The rehearsal reruns
+  [`settings-writes.sh`](../evaluations/hooks-installation-writes/settings-writes.sh)
+  with the Claude Code version that it uses, and its record names that
+  version. One rename per command and an interval within the evidence's
+  range must hold, or the design is reviewed again.
 - Controls stop the native settings before and after each write, between the
   settings record and the exchange, and between the exchange and its
   comparison. They run with the settings file absent and with a file that
@@ -1430,8 +1594,9 @@ Obsidian `AI Dev Tooling` note. It still names the earlier
   The next run must find the interrupted, active or native state, and it must
   keep an incomplete backup aside.
 - Fault points write or erase an unrelated key just before and just after
-  each exchange, in step 9 and in the inverse. A write before an exchange must
-  leave a flagged kept copy and stop the run. A write after it must stay in
+  each exchange. They act in step 9, in the inverse and in the disabling of
+  the hooks installation. A write before an exchange must leave a flagged
+  kept copy and stop the run. A write after it must stay in
   the live file. A descriptor opened before an exchange must flag the kept
   copy when it writes.
 - A control merges a flagged copy and then changes that copy. The next run

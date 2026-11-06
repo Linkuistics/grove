@@ -28,7 +28,11 @@
 //                                  The accepted case is a cell write of the
 //                                  cell's earlier or switched value; the
 //                                  run's change list reports every value
-//                                  that it replaces.
+//                                  that it replaces.  A second accepted
+//                                  case is a write that a Claude Code
+//                                  command's rename destroys after another
+//                                  program renamed its own file onto the
+//                                  path during that command.
 //   P2 inv_exactlyOneState         Exactly one row of the state table holds.
 //      inv_stateMatchesTable       The run's decision equals that row.
 //      inv_interruptedOnlyWhenOpen An interruption is read only while a run
@@ -98,9 +102,21 @@
 //   * The native settings change ABSENT to 0 by the atomic exchange.  Before
 //     it, a SETTINGS RECORD holds the content that the kept copy must hold,
 //     so the copy takes part in detection like a copy of the switch.
-//   * The hooks installation changes ABSENT to SW (`plugin install`) and SW
-//     to 0 (`plugin disable`).  It also disables an enabled plugin that no
+//   * The hooks installation changes ABSENT to SW by a CLAUDE CODE COMMAND,
+//     `plugin install`.  The command reads the file, and later renames a
+//     new file onto the path: the cell SW over the rest that it read.
+//     Before the command, a settings record holds a HELD LINK: a hard link
+//     to the live inode, and the content that the inode holds.  While that
+//     inode stays at the path, the held copy is the live file and no kept
+//     copy.  The command's rename, or another program's, displaces it, and
+//     it becomes a kept copy like any other.  The next entry releases a
+//     held link whose inode is still at the path.
+//   * The hooks installation changes SW to 0 by the program's own exchange,
+//     after a settings record.  It also disables an enabled plugin that no
 //     open run explains.
+//   * An outside write to the file of part HOOKS lands in place or by a
+//     rename.  A write in place changes the inode at the path.  A rename
+//     puts a new inode there and displaces a held inode.
 //
 // WHAT IS NOT MODELLED — the worklist for the rehearsal
 //
@@ -125,12 +141,14 @@
 //   * Readers.  The exclusion protects readers, captures and progress, and no
 //     property here depends on it.  Which processes may stay is prose, and
 //     the reader control of the rehearsal owns it.
-//   * Claude Code's own writes.  The hooks installation's commands are
-//     modelled as atomic writes of one cell, each from the value that the
-//     installation read.  Claude Code rewrites `settings.json` itself, so
-//     neither that atomicity nor detection holds for its commands.  The
-//     specification's open question in "The hooks installation inside
-//     finish" owns that gap.
+//   * The registration.  `claude plugin marketplace add` is a second Claude
+//     Code command of the same shape, under its own held link, so the
+//     model's one command stands for both.  The number of commands and the
+//     interval between a command's read and its rename are prose, and they
+//     bound the accepted case.  So is the metadata rule: a command drops
+//     each ACL and each extended attribute except `com.apple.provenance`,
+//     so the program stops for them before a command.  So is the check that
+//     a command replaced the file: the model's command always does.
 //   * The creation of an absent Ravel settings file.  The model starts with
 //     the file present.  An exclusive rename displaces nothing and fails if
 //     another program created the file first, so creation needs no record.
@@ -183,6 +201,7 @@ module switch {
   const NS_RECORD: bool           // true: the native settings record the expected displaced content
   const HOOKS_IN_ENTRY: bool      // true: every entry runs the hooks installation
   const HOOKS_RESUME: bool        // true: the hooks installation disables an enabled plugin
+  const HI_HOLD: bool             // true: a held link precedes each Claude Code command
   // Where a world starts.  false: before the first entry's preludes, with
   // both prelude cells ABSENT.  true: where those preludes leave the layout,
   // without their kept copy.  Each entry still passes the gate and the
@@ -209,7 +228,9 @@ module switch {
     exchanged: bool,       // ghost: only a displaced inode has a descriptor
     resolved: bool,        // the owner merged the copy ...
     resolvedHolds: Content, // ... while it held this content
-    fromNs: bool           // the native settings made it, in a settings record
+    fromNs: bool,          // the native settings made it, in a settings record
+    fromHi: bool,          // a held link of a Claude Code command
+    atPath: bool           // ... whose inode is still at the path
   }
   type Backup = {
     plan: int,
@@ -230,7 +251,8 @@ module switch {
     snap: Content,         // what the run read for the current part
     changed: Set[int],     // the parts this run exchanged
     probe: int -> int,     // the cells when the probes started
-    check: int -> int      // the cells that the receipt check read
+    check: int -> int,     // the cells that the receipt check read
+    renamed: bool          // ghost: another program renamed the file during this command
   }
   type Write = { id: int, part: int, kind: str, value: int }
   type Reset = { part: int, value: int, by: int, auto: bool }
@@ -268,7 +290,10 @@ module switch {
     hooksResumed: bool,    // the hooks installation disabled its own enabled plugin
     nsCrashed: bool,       // a crash ended the native settings
     nsGapCrash: bool,      // ... between their exchange and their comparison
-    crashBeforeHooks: bool // a crash ended an entry before it installed the plugin
+    crashBeforeHooks: bool, // a crash ended an entry before it installed the plugin
+    renamedAway: Set[int], // the accepted writes that a command's rename destroyed
+    heldReleased: bool,    // an entry released a held link still at the path
+    hiCmdCrash: bool       // a crash fell between a hold and its command's rename
   }
 
   var st: World
@@ -277,7 +302,7 @@ module switch {
   pure val NO_KEPT: Kept = {
     part: 0, holds: NO_CONTENT, expect: NO_CONTENT, hasExpect: false,
     prepared: NO_CONTENT, exchanged: false, resolved: false,
-    resolvedHolds: NO_CONTENT, fromNs: false
+    resolvedHolds: NO_CONTENT, fromNs: false, fromHi: false, atPath: false
   }
   pure val NO_BACKUP: Backup = {
     plan: 0, last: "none", hasReceipt: false, receiptCells: Map(),
@@ -286,19 +311,21 @@ module switch {
   pure val IDLE: Run = {
     mode: "idle", owner: false, resumed: false, fromFwd: false, plan: 0,
     idx: 0, step: "", k: -1, snap: NO_CONTENT, changed: Set(), probe: Map(),
-    check: Map()
+    check: Map(), renamed: false
   }
 
   pure def same(a: Content, b: Content): bool =
     a.cell == b.cell and a.rest == b.rest
 
   // A check reports a copy that differs from its last recorded content.
+  // A held inode that is still at the path is the live file, so no check
+  // reports it.
   // Before a merge, that is the content that the run read or the prepared
   // one.  After a merge, the content that the merge recorded is the only
   // one: a return to an earlier content is a change, too.  The mutant
   // without merge authority keeps the earlier rule, which tests the two
   // first contents before the merge.
-  pure def flagged(c: Kept): bool = c.hasExpect and (
+  pure def flagged(c: Kept): bool = c.hasExpect and not(c.atPath) and (
     if (MERGE_AUTHORITY and c.resolved) not(same(c.holds, c.resolvedHolds))
     else and {
       not(same(c.holds, c.expect)),
@@ -415,7 +442,7 @@ module switch {
     w.with("kept", w.kept.append({
         part: part, holds: prep, expect: cur, hasExpect: RECORD_EXPECT,
         prepared: prep, exchanged: false, resolved: false,
-        resolvedHolds: NO_CONTENT, fromNs: false }))
+        resolvedHolds: NO_CONTENT, fromNs: false, fromHi: false, atPath: false }))
      .with("proc", w.proc.with("step", "exchange").with("k", w.kept.length())
                        .with("snap", cur))
 
@@ -447,11 +474,16 @@ module switch {
               Set("complete", "active", "interrupted", "native").contains(state))
       .with("blockedOwnLeftover", st.blockedOwnLeftover or selfLeft(p))
 
-  // Steps 1 and 2, then the first half of step 3: read the run record.  An
-  // open run goes straight to the table.  Otherwise the preludes run first.
+  // Steps 1 and 2, then the first half of step 3: release each held link
+  // whose inode is still at the path, and read the run record.  An open run
+  // goes straight to the table.  Otherwise the preludes run first.
   action enter = all {
     st.proc.mode == "idle",
     val w = st.with("entryCount", st.entryCount + 1)
+              .with("kept", st.kept.foldl(List(), (l, c) => l.append(
+                 if (c.atPath) c.with("atPath", false).with("hasExpect", false) else c)))
+              .with("heldReleased", st.heldReleased or
+                      st.kept.indices().exists(j => st.kept[j].atPath))
     st' = if (PRELUDE_GATE and open) toReady(w)
           else w.with("proc", IDLE.with("mode", "ns").with("idx", SETTINGS)
                                   .with("step", "read"))
@@ -469,39 +501,99 @@ module switch {
             st.with("kept", st.kept.append({
                 part: SETTINGS, holds: prep, expect: cur, hasExpect: NS_RECORD,
                 prepared: prep, exchanged: false, resolved: false,
-                resolvedHolds: NO_CONTENT, fromNs: true }))
+                resolvedHolds: NO_CONTENT, fromNs: true, fromHi: false, atPath: false }))
               .with("proc", st.proc.with("step", "exchange")
                                  .with("k", st.kept.length()).with("snap", cur))
           else refuse(SETTINGS)
   }
 
   // The hooks installation: the disabled plugin is there, or it is absent
-  // and `plugin install` enables it, or it is enabled and only `plugin
-  // disable` remains, or the run stops.
+  // and `plugin install` enables it, or it is enabled and only the disabling
+  // remains, or the run stops.  For an absent plugin, the program takes the
+  // held link first and decides from the content that the link holds.
   action hiRead = all {
     st.proc.mode == "hi",
     st.proc.step == "read",
     val cur = st.live.get(HOOKS)
+    val cmd = st.proc.with("step", "cread").with("renamed", false)
     st' = if (cur.cell == 0) toReady(st)
-          else if (cur.cell == ABSENT)
-            st.with("live", st.live.set(HOOKS, { cell: SW, by: 0, rest: cur.rest }))
-              .with("resets", noteReset(st, HOOKS, cur))
-              .with("proc", st.proc.with("step", "disable"))
+          else if (cur.cell == ABSENT and HI_HOLD)
+            st.with("kept", st.kept.append({
+                part: HOOKS, holds: cur, expect: cur, hasExpect: true,
+                prepared: cur, exchanged: false, resolved: false,
+                resolvedHolds: NO_CONTENT, fromNs: false, fromHi: true, atPath: true }))
+              .with("proc", cmd.with("k", st.kept.length()))
+          else if (cur.cell == ABSENT) st.with("proc", cmd.with("k", -1))
           else if (cur.cell == SW and HOOKS_RESUME)
             st.with("proc", st.proc.with("step", "disable"))
               .with("hooksResumed", st.hooksResumed or cur.by == 0)
           else refuse(HOOKS)
   }
 
-  // Another program can disable the plugin first; the command then has
-  // nothing to change.
+  // The Claude Code command reads the file.
+  action hiCmdRead = all {
+    st.proc.mode == "hi",
+    st.proc.step == "cread",
+    st' = st.with("proc", st.proc.with("step", "cwrite").with("snap", st.live.get(HOOKS)))
+  }
+
+  // The command renames its new file onto the path: the cell SW over the
+  // rest that it read.  The inode at the path loses its name.  The held
+  // link keeps it when it is the held inode.  Otherwise another program
+  // renamed its own file onto the path during the command, or no link was
+  // held, and each write that the new file lacks is destroyed.  Only the
+  // first of those two causes is the accepted case.
+  action hiCmdWrite = all {
+    st.proc.mode == "hi",
+    st.proc.step == "cwrite",
+    val pre = st.live.get(HOOKS)
+    val post = { cell: SW, by: 0, rest: st.proc.snap.rest }
+    val k = st.proc.k
+    val heldHere = k >= 0 and keptAt(k).atPath
+    val destroyed = pre.rest.exclude(post.rest)
+      .union(if (pre.by != 0) Set(pre.by) else Set())
+      .union(st.writes.filter(w => and {
+                 w.kind == "del", w.part == HOOKS,
+                 post.rest.contains(w.value), not(pre.rest.contains(w.value))
+               }).map(w => w.id))
+    st' = st
+      .with("live", st.live.set(HOOKS, post))
+      .with("kept", if (heldHere)
+                      st.kept.replaceAt(k, keptAt(k).with("holds", pre)
+                                          .with("atPath", false).with("exchanged", true))
+                    else st.kept)
+      .with("renamedAway", if (st.proc.renamed and not(heldHere))
+                             st.renamedAway.union(destroyed)
+                           else st.renamedAway)
+      .with("resets", noteReset(st, HOOKS, pre))
+      .with("proc", st.proc.with("step", "ccheck"))
+  }
+
+  // The program compares the held copy with its settings record.  A
+  // difference is a stop with a flagged copy that each later check reports.
+  action hiCmdCheck = all {
+    st.proc.mode == "hi",
+    st.proc.step == "ccheck",
+    val k = st.proc.k
+    st' = if (k >= 0 and flagged(keptAt(k))) st.with("proc", IDLE)
+          else st.with("proc", st.proc.with("step", "disable"))
+  }
+
+  // The disabling reads the cell again.  An enabled plugin gets a settings
+  // record and the exchange of step 9.  Another program can disable the
+  // plugin first, and then nothing remains.
   action hiDisable = all {
     st.proc.mode == "hi",
     st.proc.step == "disable",
     val cur = st.live.get(HOOKS)
+    val prep = { cell: 0, by: 0, rest: cur.rest }
     st' = if (cur.cell == SW)
-            toReady(st.with("live", st.live.set(HOOKS, { cell: 0, by: 0, rest: cur.rest }))
-                      .with("resets", noteReset(st, HOOKS, cur)))
+            st.with("kept", st.kept.append({
+                part: HOOKS, holds: prep, expect: cur, hasExpect: RECORD_EXPECT,
+                prepared: prep, exchanged: false, resolved: false,
+                resolvedHolds: NO_CONTENT, fromNs: false, fromHi: false, atPath: false }))
+              .with("proc", st.proc.with("step", "exchange")
+                                 .with("k", st.kept.length()).with("snap", cur))
           else if (cur.cell == 0) toReady(st)
           else refuse(HOOKS)
   }
@@ -598,7 +690,7 @@ module switch {
   // One atomic exchange: prepared content to the path, displaced content to
   // the stage name.
   action exchange = all {
-    Set("fwd", "inv", "ns").contains(st.proc.mode),
+    Set("fwd", "inv", "ns", "hi").contains(st.proc.mode),
     st.proc.step == "exchange",
     val i = st.proc.idx
     val c = keptAt(st.proc.k)
@@ -610,9 +702,9 @@ module switch {
                       c.with("holds", cur).with("exchanged", true)))
       .with("proc", st.proc.with("step", "compare")
                          .with("changed", st.proc.changed.union(Set(i))))
-      // The native settings apply no plan, so only the switch and the
-      // inverse can apply an unrehearsed one.
-      .with("unrehearsed", st.unrehearsed or (st.proc.mode != "ns" and
+      // The preludes apply no plan, so only the switch and the inverse can
+      // apply an unrehearsed one.
+      .with("unrehearsed", st.unrehearsed or (not(Set("ns", "hi").contains(st.proc.mode)) and
                                               not(st.rehearsed.contains(st.proc.plan))))
       .with("resets", if (replaced)
               st.resets.union(Set({ part: i, value: cur.cell, by: cur.by,
@@ -622,13 +714,15 @@ module switch {
 
   // Compare the displaced content with what the run read.  A forward
   // conflict inverts the run's own parts; an inverse conflict stops.  The
-  // native settings go on to the hooks installation, or stop with a flagged
-  // copy that each later check reports.
+  // native settings go on to the hooks installation, and the disabling goes
+  // on to the table.  A conflict in either stops with a flagged copy that
+  // each later check reports.
   action compare = all {
-    Set("fwd", "inv", "ns").contains(st.proc.mode),
+    Set("fwd", "inv", "ns", "hi").contains(st.proc.mode),
     st.proc.step == "compare",
     val ok = same(keptAt(st.proc.k).holds, st.proc.snap)
     st' = if (st.proc.mode == "ns") { if (ok) toHooks(st) else st.with("proc", IDLE) }
+          else if (st.proc.mode == "hi") { if (ok) toReady(st) else st.with("proc", IDLE) }
           else if (ok) nextPart(st)
           else if (st.proc.mode == "fwd") toInverse(st)
           else st.with("proc", IDLE)
@@ -794,7 +888,21 @@ module switch {
     }
   }
 
-  action outsideCell(p: int, v: int): bool = all {
+  // A rename by another program onto the path of part HOOKS displaces a
+  // held inode, and the link keeps what the inode held.  It also marks a
+  // command between its hold and its rename.  A write in place changes only
+  // the inode at the path, which a held link shares.
+  pure def displaceHeld(w: World, p: int, byRename: bool, pre: Content): World =
+    if (p == HOOKS and byRename)
+      w.with("kept", w.kept.foldl(List(), (l, c) => l.append(
+           if (c.atPath) c.with("holds", pre).with("atPath", false).with("exchanged", true)
+           else c)))
+       .with("proc", if (w.proc.mode == "hi" and Set("cread", "cwrite").contains(w.proc.step))
+                       w.proc.with("renamed", true)
+                     else w.proc)
+    else w
+
+  action outsideCell(p: int, v: int, byRename: bool): bool = all {
     OUTSIDE_CELLS,
     outsideMayAct,
     val id = st.nextId
@@ -802,23 +910,23 @@ module switch {
     val cur = st.live.get(p)
     all {
       value != cur.cell,
-      st' = st
+      st' = displaceHeld(st
         .with("live", st.live.set(p, { cell: value, by: id, rest: cur.rest }))
         .with("writes", st.writes.union(Set({ id: id, part: p, kind: "cell", value: value })))
         .with("superseded", if (cur.by != 0) st.superseded.union(Set(cur.by)) else st.superseded)
-        .with("nextId", id + 1).with("outside", st.outside + 1)
+        .with("nextId", id + 1).with("outside", st.outside + 1), p, byRename, cur)
     }
   }
 
-  action outsideRest(p: int): bool = all {
+  action outsideRest(p: int, byRename: bool): bool = all {
     OUTSIDE_REST,
     outsideMayAct,
     val id = st.nextId
     val cur = st.live.get(p)
-    st' = st
+    st' = displaceHeld(st
       .with("live", st.live.set(p, cur.with("rest", cur.rest.union(Set(id)))))
       .with("writes", st.writes.union(Set({ id: id, part: p, kind: "rest", value: 0 })))
-      .with("nextId", id + 1).with("outside", st.outside + 1)
+      .with("nextId", id + 1).with("outside", st.outside + 1), p, byRename, cur)
   }
 
   // A descriptor opened before an exchange writes into the displaced inode.
@@ -839,7 +947,7 @@ module switch {
 
   // A program deletes another key of a live file.  The deletion supersedes
   // the write that added the key.
-  action outsideDelete(p: int): bool = all {
+  action outsideDelete(p: int, byRename: bool): bool = all {
     OUTSIDE_DELETES,
     outsideMayAct,
     val id = st.nextId
@@ -847,11 +955,11 @@ module switch {
     all {
       cur.rest.size() > 0,
       nondet t = cur.rest.oneOf()
-      st' = st
+      st' = displaceHeld(st
         .with("live", st.live.set(p, cur.with("rest", cur.rest.exclude(Set(t)))))
         .with("writes", st.writes.union(Set({ id: id, part: p, kind: "del", value: t })))
         .with("superseded", st.superseded.union(Set(t)))
-        .with("nextId", id + 1).with("outside", st.outside + 1)
+        .with("nextId", id + 1).with("outside", st.outside + 1), p, byRename, cur)
     }
   }
 
@@ -900,6 +1008,8 @@ module switch {
               (st.proc.mode == "ns" and st.proc.step == "compare"))
       .with("crashBeforeHooks", st.crashBeforeHooks or
               (st.proc.mode == "hi" and st.proc.step == "read" and cellOf(HOOKS) == ABSENT))
+      .with("hiCmdCrash", st.hiCmdCrash or
+              (st.proc.mode == "hi" and Set("cread", "cwrite").contains(st.proc.step)))
   }
 
   action stutter = st' = st
@@ -939,20 +1049,24 @@ module switch {
     hooksResumed: false,
     nsCrashed: false,
     nsGapCrash: false,
-    crashBeforeHooks: false
+    crashBeforeHooks: false,
+    renamedAway: Set(),
+    heldReleased: false,
+    hiCmdCrash: false
   }
 
   action step = any {
-    enter, nsRead, hiRead, hiDisable, stopAtTable,
+    enter, nsRead, hiRead, hiCmdRead, hiCmdWrite, hiCmdCheck, hiDisable, stopAtTable,
     beginForward, resumeInverse, resumeActive, resumeComplete,
     fwdRead, invRead, exchange, compare, fwdVerify, invVerify,
     probeStart, nondet pass = Set(true, false).oneOf() probeEnd(pass),
     receiptCheck, receiptWrite, copyReceipt,
     ownerInverse, classify, rehearse,
     nondet j = keptPick.oneOf() ownerMerge(j),
-    nondet p = PARTS.oneOf() nondet v = Set(0, SW, FRESH, ABSENT).oneOf() outsideCell(p, v),
-    nondet p = PARTS.oneOf() outsideRest(p),
-    nondet p = PARTS.oneOf() outsideDelete(p),
+    nondet p = PARTS.oneOf() nondet v = Set(0, SW, FRESH, ABSENT).oneOf()
+      nondet r = Set(true, false).oneOf() outsideCell(p, v, r),
+    nondet p = PARTS.oneOf() nondet r = Set(true, false).oneOf() outsideRest(p, r),
+    nondet p = PARTS.oneOf() nondet r = Set(true, false).oneOf() outsideDelete(p, r),
     nondet j = keptPick.oneOf() lateWrite(j),
     nondet j = keptPick.oneOf() lateDelete(j),
     outsideEntryWrite,
@@ -986,13 +1100,15 @@ module switch {
       w.value == ABSENT and (w.part == HOOKS or w.part == SETTINGS)
     }
   // A later write of the same key supersedes a write: a cell write, or the
-  // deletion of an added key.
+  // deletion of an added key.  The second accepted case is a write that a
+  // command's rename destroyed after another program's rename during it.
   val inv_noSilentLoss: bool = st.writes.forall(w => or {
     w.kind == "rest" and st.live.get(w.part).rest.contains(w.id),
     w.kind == "del" and not(st.live.get(w.part).rest.contains(w.value)),
     w.kind == "cell" and st.live.get(w.part).by == w.id,
     st.superseded.contains(w.id),
     absorbed(w),
+    st.renamedAway.contains(w.id),
     inFlaggedCopy(w)
   })
 
@@ -1140,6 +1256,33 @@ module switch {
   val wit_nsGapCrashFlagged: bool =
     st.nsGapCrash and st.kept.indices().exists(j => st.kept[j].fromNs and flagged(st.kept[j]))
 
+  // A write in place between a hold and its command's rename sits in a
+  // flagged held copy, and the live file lacks it.
+  val wit_hiConflictFlagged: bool = st.kept.indices().exists(j => and {
+    st.kept[j].fromHi,
+    flagged(st.kept[j]),
+    st.kept[j].holds.rest.exists(id => and {
+      not(st.late.contains(id)),
+      not(st.superseded.contains(id)),
+      not(st.live.get(HOOKS).rest.contains(id))
+    })
+  })
+  // A descriptor wrote into a held copy after the rename, and a check can
+  // report it.
+  val wit_hiLateWriteFlagged: bool = st.kept.indices().exists(j => and {
+    st.kept[j].fromHi,
+    flagged(st.kept[j]),
+    st.kept[j].holds.rest.exists(id => st.late.contains(id))
+  })
+  // The accepted case: a command's rename destroyed a write after another
+  // program renamed its own file onto the path during the command.
+  val wit_renamedAway: bool = st.renamedAway.size() > 0
+  // A crash fell between a hold and its command's rename.  A later entry
+  // released the link and reached the native state at the table.
+  val wit_heldReleasedToNative: bool = and {
+    st.hiCmdCrash, st.heldReleased, st.proc.mode == "ready", state == "native"
+  }
+
   // -------------------------------------------------------------------------
   // Mutant witnesses — each reaches the violation that its mechanism
   // prevents.  The violated conjuncts are written out inline.
@@ -1151,6 +1294,7 @@ module switch {
     w.kind == "rest",
     not(st.live.get(w.part).rest.contains(w.id)),
     not(st.superseded.contains(w.id)),
+    not(st.renamedAway.contains(w.id)),
     st.kept.indices().forall(j => not(and {
       st.kept[j].hasExpect,
       st.kept[j].holds.rest.contains(w.id),
@@ -1183,6 +1327,7 @@ module switch {
     st.plans.indices().forall(pl => st.plans[pl].get(w.part) != w.value),
     not(w.value == ABSENT and (w.part == HOOKS or w.part == SETTINGS)),
     not(st.superseded.contains(w.id)),
+    not(st.renamedAway.contains(w.id)),
     st.live.get(w.part).by != w.id,
     st.kept.indices().forall(j => not(and {
       st.kept[j].holds.by == w.id,
@@ -1197,6 +1342,7 @@ module switch {
     w.kind == "del",
     st.live.get(w.part).rest.contains(w.value),
     not(st.superseded.contains(w.id)),
+    not(st.renamedAway.contains(w.id)),
     st.kept.indices().forall(j => not(and {
       st.kept[j].part == w.part,
       flagged(st.kept[j]),
@@ -1220,6 +1366,7 @@ module switch {
     w.part == SETTINGS,
     not(st.live.get(w.part).rest.contains(w.id)),
     not(st.superseded.contains(w.id)),
+    not(st.renamedAway.contains(w.id)),
     st.kept.indices().exists(j => st.kept[j].fromNs and st.kept[j].holds.rest.contains(w.id)),
     st.kept.indices().forall(j => not(and {
       st.kept[j].hasExpect,
@@ -1240,12 +1387,23 @@ module switch {
   // Without the resumption, the hooks installation refuses the plugin that
   // its own interrupted run left enabled.
   val wit_m_preludeStopsOnOwnInstall: bool = st.blockedOwnLeftover
+
+  // Without the held link, a write in place inside a command's interval is
+  // in no live file, no flagged copy and no accepted case.
+  val wit_m_hooksWriteLost: bool = st.writes.exists(w => and {
+    w.part == HOOKS,
+    w.kind == "rest",
+    not(st.live.get(HOOKS).rest.contains(w.id)),
+    not(st.superseded.contains(w.id)),
+    not(st.renamedAway.contains(w.id)),
+    not(inFlaggedCopy(w))
+  })
 }
 
 // ===========================================================================
-// Instances.  Each fixes one world.  The corrected design sets the twelve
+// Instances.  Each fixes one world.  The corrected design sets the thirteen
 // mechanisms to true, true, false, true, true, true, true, true, then true,
-// true, true, true for the four of the preludes.
+// true, true, true, true for the five of the preludes.
 // ===========================================================================
 
 /// Interruptions only, at any step, with failing probes and the owner's
@@ -1259,7 +1417,7 @@ module crashes {
     RECORD_EXPECT = true, RUN_RECORD = true, EARLY_END = false,
     RECEIPT_RECHECK = true, REHEARSAL_CHECK = true, INVERSE_SKIPS_THIRD = true,
     MERGE_AUTHORITY = true, ACCEPT_CHECK = true,
-    PRELUDE_GATE = true, NS_RECORD = true, HOOKS_IN_ENTRY = true, HOOKS_RESUME = true, START_NATIVE = true
+    PRELUDE_GATE = true, NS_RECORD = true, HOOKS_IN_ENTRY = true, HOOKS_RESUME = true, HI_HOLD = true, START_NATIVE = true
   ).*
 }
 
@@ -1274,7 +1432,7 @@ module writers {
     RECORD_EXPECT = true, RUN_RECORD = true, EARLY_END = false,
     RECEIPT_RECHECK = true, REHEARSAL_CHECK = true, INVERSE_SKIPS_THIRD = true,
     MERGE_AUTHORITY = true, ACCEPT_CHECK = true,
-    PRELUDE_GATE = true, NS_RECORD = true, HOOKS_IN_ENTRY = true, HOOKS_RESUME = true, START_NATIVE = false
+    PRELUDE_GATE = true, NS_RECORD = true, HOOKS_IN_ENTRY = true, HOOKS_RESUME = true, HI_HOLD = true, START_NATIVE = false
   ).*
 }
 
@@ -1289,7 +1447,7 @@ module both {
     RECORD_EXPECT = true, RUN_RECORD = true, EARLY_END = false,
     RECEIPT_RECHECK = true, REHEARSAL_CHECK = true, INVERSE_SKIPS_THIRD = true,
     MERGE_AUTHORITY = true, ACCEPT_CHECK = true,
-    PRELUDE_GATE = true, NS_RECORD = true, HOOKS_IN_ENTRY = true, HOOKS_RESUME = true, START_NATIVE = true
+    PRELUDE_GATE = true, NS_RECORD = true, HOOKS_IN_ENTRY = true, HOOKS_RESUME = true, HI_HOLD = true, START_NATIVE = true
   ).*
 }
 
@@ -1303,7 +1461,7 @@ module classify_world {
     RECORD_EXPECT = true, RUN_RECORD = true, EARLY_END = false,
     RECEIPT_RECHECK = true, REHEARSAL_CHECK = true, INVERSE_SKIPS_THIRD = true,
     MERGE_AUTHORITY = true, ACCEPT_CHECK = true,
-    PRELUDE_GATE = true, NS_RECORD = true, HOOKS_IN_ENTRY = true, HOOKS_RESUME = true, START_NATIVE = true
+    PRELUDE_GATE = true, NS_RECORD = true, HOOKS_IN_ENTRY = true, HOOKS_RESUME = true, HI_HOLD = true, START_NATIVE = true
   ).*
 }
 
@@ -1317,7 +1475,7 @@ module coincidence {
     RECORD_EXPECT = true, RUN_RECORD = true, EARLY_END = false,
     RECEIPT_RECHECK = true, REHEARSAL_CHECK = true, INVERSE_SKIPS_THIRD = true,
     MERGE_AUTHORITY = true, ACCEPT_CHECK = true,
-    PRELUDE_GATE = true, NS_RECORD = true, HOOKS_IN_ENTRY = true, HOOKS_RESUME = true, START_NATIVE = true
+    PRELUDE_GATE = true, NS_RECORD = true, HOOKS_IN_ENTRY = true, HOOKS_RESUME = true, HI_HOLD = true, START_NATIVE = true
   ).*
 }
 
@@ -1332,7 +1490,7 @@ module m_no_expect {
     RECORD_EXPECT = false, RUN_RECORD = true, EARLY_END = false,
     RECEIPT_RECHECK = true, REHEARSAL_CHECK = true, INVERSE_SKIPS_THIRD = true,
     MERGE_AUTHORITY = true, ACCEPT_CHECK = true,
-    PRELUDE_GATE = true, NS_RECORD = true, HOOKS_IN_ENTRY = true, HOOKS_RESUME = true, START_NATIVE = true
+    PRELUDE_GATE = true, NS_RECORD = true, HOOKS_IN_ENTRY = true, HOOKS_RESUME = true, HI_HOLD = true, START_NATIVE = true
   ).*
 }
 
@@ -1345,7 +1503,7 @@ module m_no_run_record {
     RECORD_EXPECT = true, RUN_RECORD = false, EARLY_END = false,
     RECEIPT_RECHECK = true, REHEARSAL_CHECK = true, INVERSE_SKIPS_THIRD = true,
     MERGE_AUTHORITY = true, ACCEPT_CHECK = true,
-    PRELUDE_GATE = true, NS_RECORD = true, HOOKS_IN_ENTRY = true, HOOKS_RESUME = true, START_NATIVE = true
+    PRELUDE_GATE = true, NS_RECORD = true, HOOKS_IN_ENTRY = true, HOOKS_RESUME = true, HI_HOLD = true, START_NATIVE = true
   ).*
 }
 
@@ -1358,7 +1516,7 @@ module m_early_end {
     RECORD_EXPECT = true, RUN_RECORD = true, EARLY_END = true,
     RECEIPT_RECHECK = true, REHEARSAL_CHECK = true, INVERSE_SKIPS_THIRD = true,
     MERGE_AUTHORITY = true, ACCEPT_CHECK = true,
-    PRELUDE_GATE = true, NS_RECORD = true, HOOKS_IN_ENTRY = true, HOOKS_RESUME = true, START_NATIVE = true
+    PRELUDE_GATE = true, NS_RECORD = true, HOOKS_IN_ENTRY = true, HOOKS_RESUME = true, HI_HOLD = true, START_NATIVE = true
   ).*
 }
 
@@ -1371,7 +1529,7 @@ module m_receipt_no_recheck {
     RECORD_EXPECT = true, RUN_RECORD = true, EARLY_END = false,
     RECEIPT_RECHECK = false, REHEARSAL_CHECK = true, INVERSE_SKIPS_THIRD = true,
     MERGE_AUTHORITY = true, ACCEPT_CHECK = true,
-    PRELUDE_GATE = true, NS_RECORD = true, HOOKS_IN_ENTRY = true, HOOKS_RESUME = true, START_NATIVE = true
+    PRELUDE_GATE = true, NS_RECORD = true, HOOKS_IN_ENTRY = true, HOOKS_RESUME = true, HI_HOLD = true, START_NATIVE = true
   ).*
 }
 
@@ -1384,7 +1542,7 @@ module m_no_rehearsal_check {
     RECORD_EXPECT = true, RUN_RECORD = true, EARLY_END = false,
     RECEIPT_RECHECK = true, REHEARSAL_CHECK = false, INVERSE_SKIPS_THIRD = true,
     MERGE_AUTHORITY = true, ACCEPT_CHECK = true,
-    PRELUDE_GATE = true, NS_RECORD = true, HOOKS_IN_ENTRY = true, HOOKS_RESUME = true, START_NATIVE = true
+    PRELUDE_GATE = true, NS_RECORD = true, HOOKS_IN_ENTRY = true, HOOKS_RESUME = true, HI_HOLD = true, START_NATIVE = true
   ).*
 }
 
@@ -1397,7 +1555,7 @@ module m_inverse_resets_third {
     RECORD_EXPECT = true, RUN_RECORD = true, EARLY_END = false,
     RECEIPT_RECHECK = true, REHEARSAL_CHECK = true, INVERSE_SKIPS_THIRD = false,
     MERGE_AUTHORITY = true, ACCEPT_CHECK = true,
-    PRELUDE_GATE = true, NS_RECORD = true, HOOKS_IN_ENTRY = true, HOOKS_RESUME = true, START_NATIVE = true
+    PRELUDE_GATE = true, NS_RECORD = true, HOOKS_IN_ENTRY = true, HOOKS_RESUME = true, HI_HOLD = true, START_NATIVE = true
   ).*
 }
 
@@ -1410,7 +1568,7 @@ module m_merge_no_authority {
     RECORD_EXPECT = true, RUN_RECORD = true, EARLY_END = false,
     RECEIPT_RECHECK = true, REHEARSAL_CHECK = true, INVERSE_SKIPS_THIRD = true,
     MERGE_AUTHORITY = false, ACCEPT_CHECK = true,
-    PRELUDE_GATE = true, NS_RECORD = true, HOOKS_IN_ENTRY = true, HOOKS_RESUME = true, START_NATIVE = true
+    PRELUDE_GATE = true, NS_RECORD = true, HOOKS_IN_ENTRY = true, HOOKS_RESUME = true, HI_HOLD = true, START_NATIVE = true
   ).*
 }
 
@@ -1423,7 +1581,7 @@ module m_accept_unchecked {
     RECORD_EXPECT = true, RUN_RECORD = true, EARLY_END = false,
     RECEIPT_RECHECK = true, REHEARSAL_CHECK = true, INVERSE_SKIPS_THIRD = true,
     MERGE_AUTHORITY = true, ACCEPT_CHECK = false,
-    PRELUDE_GATE = true, NS_RECORD = true, HOOKS_IN_ENTRY = true, HOOKS_RESUME = true, START_NATIVE = true
+    PRELUDE_GATE = true, NS_RECORD = true, HOOKS_IN_ENTRY = true, HOOKS_RESUME = true, HI_HOLD = true, START_NATIVE = true
   ).*
 }
 
@@ -1436,7 +1594,7 @@ module m_no_gate {
     RECORD_EXPECT = true, RUN_RECORD = true, EARLY_END = false,
     RECEIPT_RECHECK = true, REHEARSAL_CHECK = true, INVERSE_SKIPS_THIRD = true,
     MERGE_AUTHORITY = true, ACCEPT_CHECK = true,
-    PRELUDE_GATE = false, NS_RECORD = true, HOOKS_IN_ENTRY = true, HOOKS_RESUME = true, START_NATIVE = false
+    PRELUDE_GATE = false, NS_RECORD = true, HOOKS_IN_ENTRY = true, HOOKS_RESUME = true, HI_HOLD = true, START_NATIVE = false
   ).*
 }
 
@@ -1449,7 +1607,7 @@ module m_ns_no_record {
     RECORD_EXPECT = true, RUN_RECORD = true, EARLY_END = false,
     RECEIPT_RECHECK = true, REHEARSAL_CHECK = true, INVERSE_SKIPS_THIRD = true,
     MERGE_AUTHORITY = true, ACCEPT_CHECK = true,
-    PRELUDE_GATE = true, NS_RECORD = false, HOOKS_IN_ENTRY = true, HOOKS_RESUME = true, START_NATIVE = false
+    PRELUDE_GATE = true, NS_RECORD = false, HOOKS_IN_ENTRY = true, HOOKS_RESUME = true, HI_HOLD = true, START_NATIVE = false
   ).*
 }
 
@@ -1462,7 +1620,7 @@ module m_no_hooks_in_entry {
     RECORD_EXPECT = true, RUN_RECORD = true, EARLY_END = false,
     RECEIPT_RECHECK = true, REHEARSAL_CHECK = true, INVERSE_SKIPS_THIRD = true,
     MERGE_AUTHORITY = true, ACCEPT_CHECK = true,
-    PRELUDE_GATE = true, NS_RECORD = true, HOOKS_IN_ENTRY = false, HOOKS_RESUME = true, START_NATIVE = false
+    PRELUDE_GATE = true, NS_RECORD = true, HOOKS_IN_ENTRY = false, HOOKS_RESUME = true, HI_HOLD = true, START_NATIVE = false
   ).*
 }
 
@@ -1475,7 +1633,21 @@ module m_hooks_no_resume {
     RECORD_EXPECT = true, RUN_RECORD = true, EARLY_END = false,
     RECEIPT_RECHECK = true, REHEARSAL_CHECK = true, INVERSE_SKIPS_THIRD = true,
     MERGE_AUTHORITY = true, ACCEPT_CHECK = true,
-    PRELUDE_GATE = true, NS_RECORD = true, HOOKS_IN_ENTRY = true, HOOKS_RESUME = false, START_NATIVE = false
+    PRELUDE_GATE = true, NS_RECORD = true, HOOKS_IN_ENTRY = true, HOOKS_RESUME = false, HI_HOLD = true, START_NATIVE = false
+  ).*
+}
+
+module m_hi_no_hold {
+  import switch(
+    N = 2, MAX_OUTSIDE = 1, MAX_CRASH = 0, MAX_PLANS = 1,
+    OUTSIDE_CELLS = false, OUTSIDE_REST = true, LATE_WRITES = false,
+    OUTSIDE_DELETES = false, OUTSIDE_ENTRIES = false,
+    PROBES_CAN_FAIL = false, OUTSIDE_PHASE = "prelude", CRASH_PHASE = "any",
+    RECORD_EXPECT = true, RUN_RECORD = true, EARLY_END = false,
+    RECEIPT_RECHECK = true, REHEARSAL_CHECK = true, INVERSE_SKIPS_THIRD = true,
+    MERGE_AUTHORITY = true, ACCEPT_CHECK = true,
+    PRELUDE_GATE = true, NS_RECORD = true, HOOKS_IN_ENTRY = true, HOOKS_RESUME = true, HI_HOLD = false,
+    START_NATIVE = false
   ).*
 }
 
@@ -1492,7 +1664,7 @@ module after_receipt {
     RECORD_EXPECT = true, RUN_RECORD = true, EARLY_END = false,
     RECEIPT_RECHECK = true, REHEARSAL_CHECK = true, INVERSE_SKIPS_THIRD = true,
     MERGE_AUTHORITY = true, ACCEPT_CHECK = true,
-    PRELUDE_GATE = true, NS_RECORD = true, HOOKS_IN_ENTRY = true, HOOKS_RESUME = true, START_NATIVE = true
+    PRELUDE_GATE = true, NS_RECORD = true, HOOKS_IN_ENTRY = true, HOOKS_RESUME = true, HI_HOLD = true, START_NATIVE = true
   ).*
 }
 
@@ -1506,7 +1678,7 @@ module during_run {
     RECORD_EXPECT = true, RUN_RECORD = true, EARLY_END = false,
     RECEIPT_RECHECK = true, REHEARSAL_CHECK = true, INVERSE_SKIPS_THIRD = true,
     MERGE_AUTHORITY = true, ACCEPT_CHECK = true,
-    PRELUDE_GATE = true, NS_RECORD = true, HOOKS_IN_ENTRY = true, HOOKS_RESUME = true, START_NATIVE = true
+    PRELUDE_GATE = true, NS_RECORD = true, HOOKS_IN_ENTRY = true, HOOKS_RESUME = true, HI_HOLD = true, START_NATIVE = true
   ).*
 }
 
@@ -1521,7 +1693,7 @@ module merge_return {
     RECORD_EXPECT = true, RUN_RECORD = true, EARLY_END = false,
     RECEIPT_RECHECK = true, REHEARSAL_CHECK = true, INVERSE_SKIPS_THIRD = true,
     MERGE_AUTHORITY = true, ACCEPT_CHECK = true,
-    PRELUDE_GATE = true, NS_RECORD = true, HOOKS_IN_ENTRY = true, HOOKS_RESUME = true, START_NATIVE = true
+    PRELUDE_GATE = true, NS_RECORD = true, HOOKS_IN_ENTRY = true, HOOKS_RESUME = true, HI_HOLD = true, START_NATIVE = true
   ).*
 }
 
@@ -1536,7 +1708,7 @@ module entries {
     RECORD_EXPECT = true, RUN_RECORD = true, EARLY_END = false,
     RECEIPT_RECHECK = true, REHEARSAL_CHECK = true, INVERSE_SKIPS_THIRD = true,
     MERGE_AUTHORITY = true, ACCEPT_CHECK = true,
-    PRELUDE_GATE = true, NS_RECORD = true, HOOKS_IN_ENTRY = true, HOOKS_RESUME = true, START_NATIVE = true
+    PRELUDE_GATE = true, NS_RECORD = true, HOOKS_IN_ENTRY = true, HOOKS_RESUME = true, HI_HOLD = true, START_NATIVE = true
   ).*
 }
 
@@ -1552,7 +1724,7 @@ module native_settings {
     RECORD_EXPECT = true, RUN_RECORD = true, EARLY_END = false,
     RECEIPT_RECHECK = true, REHEARSAL_CHECK = true, INVERSE_SKIPS_THIRD = true,
     MERGE_AUTHORITY = true, ACCEPT_CHECK = true,
-    PRELUDE_GATE = true, NS_RECORD = true, HOOKS_IN_ENTRY = true, HOOKS_RESUME = true, START_NATIVE = false
+    PRELUDE_GATE = true, NS_RECORD = true, HOOKS_IN_ENTRY = true, HOOKS_RESUME = true, HI_HOLD = true, START_NATIVE = false
   ).*
 }
 
@@ -1567,7 +1739,7 @@ module active_entry {
     RECORD_EXPECT = true, RUN_RECORD = true, EARLY_END = false,
     RECEIPT_RECHECK = true, REHEARSAL_CHECK = true, INVERSE_SKIPS_THIRD = true,
     MERGE_AUTHORITY = true, ACCEPT_CHECK = true,
-    PRELUDE_GATE = true, NS_RECORD = true, HOOKS_IN_ENTRY = true, HOOKS_RESUME = true, START_NATIVE = false
+    PRELUDE_GATE = true, NS_RECORD = true, HOOKS_IN_ENTRY = true, HOOKS_RESUME = true, HI_HOLD = true, START_NATIVE = false
   ).*
 }
 
@@ -1582,7 +1754,7 @@ module prelude_crashes {
     RECORD_EXPECT = true, RUN_RECORD = true, EARLY_END = false,
     RECEIPT_RECHECK = true, REHEARSAL_CHECK = true, INVERSE_SKIPS_THIRD = true,
     MERGE_AUTHORITY = true, ACCEPT_CHECK = true,
-    PRELUDE_GATE = true, NS_RECORD = true, HOOKS_IN_ENTRY = true, HOOKS_RESUME = true,
+    PRELUDE_GATE = true, NS_RECORD = true, HOOKS_IN_ENTRY = true, HOOKS_RESUME = true, HI_HOLD = true,
     START_NATIVE = false
   ).*
 }
@@ -1598,7 +1770,25 @@ module both_preludes {
     RECORD_EXPECT = true, RUN_RECORD = true, EARLY_END = false,
     RECEIPT_RECHECK = true, REHEARSAL_CHECK = true, INVERSE_SKIPS_THIRD = true,
     MERGE_AUTHORITY = true, ACCEPT_CHECK = true,
-    PRELUDE_GATE = true, NS_RECORD = true, HOOKS_IN_ENTRY = true, HOOKS_RESUME = true,
+    PRELUDE_GATE = true, NS_RECORD = true, HOOKS_IN_ENTRY = true, HOOKS_RESUME = true, HI_HOLD = true,
+    START_NATIVE = false
+  ).*
+}
+
+/// Additions of other keys, in place or by a rename, also through a
+/// descriptor, only while a prelude runs, and one interruption: the held
+/// link of the hooks installation's command, its accepted case and a crash
+/// between the hold and the rename.
+module hooks_commands {
+  import switch(
+    N = 2, MAX_OUTSIDE = 2, MAX_CRASH = 1, MAX_PLANS = 1,
+    OUTSIDE_CELLS = false, OUTSIDE_REST = true, LATE_WRITES = true,
+    OUTSIDE_DELETES = false, OUTSIDE_ENTRIES = false,
+    PROBES_CAN_FAIL = false, OUTSIDE_PHASE = "prelude", CRASH_PHASE = "any",
+    RECORD_EXPECT = true, RUN_RECORD = true, EARLY_END = false,
+    RECEIPT_RECHECK = true, REHEARSAL_CHECK = true, INVERSE_SKIPS_THIRD = true,
+    MERGE_AUTHORITY = true, ACCEPT_CHECK = true,
+    PRELUDE_GATE = true, NS_RECORD = true, HOOKS_IN_ENTRY = true, HOOKS_RESUME = true, HI_HOLD = true,
     START_NATIVE = false
   ).*
 }

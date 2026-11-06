@@ -58,7 +58,7 @@
       "group": "owner",
       "title": "Ordered owner cutover",
       "source": "owner-cutover.mmd",
-      "caption": "Proposed. Ordinary leaves prepare and rehearse; only finish, or the owner after an unsuccessful finish, runs the switch against the real HOME. Each run starts at step 1. Step 3 reads the run record first: while the latest complete backup's run is open, no prelude runs. Otherwise the native settings write a settings record and then exchange in the off value, so Ravel 2.0 delivers no keg source before the switch changes skills, and each later check reports a flagged kept copy. The hooks installation then names only writing-hooks, installs the plugin disabled and disables a plugin that an interrupted run left enabled. Step 3 then reads the state from the layout, the run record of the latest backup and the plan. A native state switches after a native probe, an interrupted state resumes the inverse, and an active state completes its probes and receipt. A drifted or changed state changes nothing and stops for the owner. One program applies the parts; each exchange records what its displaced copy must hold, so an outside write is kept and reported. The inverse returns the skills cell to the off value. A receipt counts only while each cell is switched, and step 14 copies it into the manual only while each entry outside the switch set matches the plan. The owner purges retained bytes later, after this driver's reap."
+      "caption": "Proposed. Ordinary leaves prepare and rehearse; only finish, or the owner after an unsuccessful finish, runs the switch against the real HOME. Each run starts at step 1. Step 3 reads the run record first: while the latest complete backup's run is open, no prelude runs. Otherwise the native settings write a settings record and then exchange in the off value, so Ravel 2.0 delivers no keg source before the switch changes skills, and each later check reports a flagged kept copy. The hooks installation then names only writing-hooks. It runs each Claude Code command under a held link, which keeps a write in place inside the command's interval. It disables the plugin by the exchange after a settings record. It also disables a plugin that an interrupted run left enabled. A rename by another program inside a command's interval is the accepted case. Step 3 then reads the state from the layout, the run record of the latest backup and the plan. A native state switches after a native probe, an interrupted state resumes the inverse, and an active state completes its probes and receipt. A drifted or changed state changes nothing and stops for the owner. One program applies the parts; each exchange records what its displaced copy must hold, so an outside write is kept and reported. The inverse returns the skills cell to the off value. A receipt counts only while each cell is switched, and step 14 copies it into the manual only while each entry outside the switch set matches the plan. The owner purges retained bytes later, after this driver's reap."
     },
     {
       "id": "owner-switch-states",
@@ -72,7 +72,7 @@
       "group": "owner",
       "title": "Finish keeps its guidance through the switch",
       "source": "owner-final-session.mmd",
-      "caption": "Proposed. Disabling neither updates nor uninstalls a plugin, so its cache version receives no orphan marker and finish's absolute-path reads survive. The switch runs right after promotion. While no run is open, its step 3 runs the native settings, which write the off value after a settings record, and then the hooks installation, which names only writing-hooks and never refreshes linkuistics. The switched settings name only the mandatory file, so probe launches capture the keg sources from Ravel's default skill directory."
+      "caption": "Proposed. Disabling neither updates nor uninstalls a plugin, so its cache version receives no orphan marker and finish's absolute-path reads survive. The switch runs right after promotion. While no run is open, its step 3 runs the native settings, which write the off value after a settings record, and then the hooks installation, which names only writing-hooks and never refreshes linkuistics. Each of its Claude Code commands runs under a held link, and the disabling is an exchange after a settings record. The switched settings name only the mandatory file, so probe launches capture the keg sources from Ravel's default skill directory."
     },
     {
       "id": "release-tap",
@@ -174,26 +174,22 @@
     }
   ],
   "discussion": {
-    "title": "The preludes in step 3, and the settings record",
-    "status": "Proposed by native-settings-recovery-k221 on 2026-11-06. It repairs findings F1 and F2 of homebrew-delivery-design-k219. Its focused review is ahead, and the detection of Claude Code's own writes is an open question",
-    "summary": "Both preludes now run in step 3 of the switch, and only while the latest complete backup's run is not open. Finish's continuation and the owner's run therefore both run the switch from step 1, and an open run reaches its row of the table with no prelude in the way. The native settings write a settings record with the digests of the read and of the stage file before their exchange. Its kept copy is flagged and reported like any copy of the switch, also by mac-check before the first backup. The hooks installation disables a plugin that an interrupted run left enabled.",
+    "title": "Claude Code's own writes in the hooks installation",
+    "status": "Proposed by hooks-installation-writes-k222 on 2026-11-06. It settles the open question of native-settings-recovery-k221, and the focused review of both leaves is ahead",
+    "summary": "Each command of the hooks installation replaces ~/.claude/settings.json by a rename, 30 to 38 ms after the read that it writes from. Each Claude Code command therefore runs under a held link. That is a hard link to the live inode in a settings record, and the program compares it with its digest after the command. A write in place inside the interval, or a later write through a descriptor, flags that copy. The disabling is now the program's own exchange after a settings record, because plugin disable changes only that cell. A rename by another program inside a command's interval is the accepted case, with its evidence and its bound in the owner design.",
     "diagramIds": [
       "owner-cutover",
-      "owner-switch-states",
-      "owner-final-session"
+      "owner-final-session",
+      "owner-switch-states"
     ],
     "updatedDiagrams": [
       {
         "id": "owner-cutover",
-        "summary": "Moved both preludes behind the gate of step 3, routed prelude stops to the pending record, and sent each rerun back to step 1."
+        "summary": "Each Claude Code command of the hooks installation runs under a held link, and the disabling is an exchange. A flagged held copy leads to the pending record."
       },
       {
         "id": "owner-final-session",
-        "summary": "The switch starts right after promotion, and its step 3 runs the native settings with their settings record, then the hooks installation."
-      },
-      {
-        "id": "owner-switch-states",
-        "summary": "Step 3 reads the first state after the preludes, and a later run's preludes can turn a changed state native."
+        "summary": "The hooks installation writes the real HOME settings. Each command runs under a held link, and the disabling is an exchange."
       }
     ]
   }

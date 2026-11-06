@@ -13,7 +13,8 @@ sequenceDiagram
     F->>F: Switch steps 1 to 3: list the processes, read the run record
     F->>H: Prelude while no run is open: settings record, then the off value, sources = []
     Note over H,R2: A 2.0 launch now delivers no keg source before the switch changes skills
-    F->>F: Prelude: install the writing hooks plugin from Grove's keg, then disable it
+    F->>H: Prelude: install the writing hooks plugin, each command under a held link
+    F->>H: Disable it by the exchange, after a settings record
     Note over N: Each command names writing-hooks, so the frozen registration stays as it was
     F->>F: Admit the released keg's digests, then check the formula versions and every accepted digest
     F->>H: Switch: skills to its switched value, plugins, moved entries

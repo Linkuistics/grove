@@ -521,6 +521,48 @@ The rarest witness was a removal displaced into a flagged copy, in 12 of
 4,000 traces of `writers`. From a first state before the preludes, the
 shortest path to a receipt has 21 steps.
 
+#### The held link of the hooks installation
+
+`hooks-installation-writes-k222` then changed the model for Claude Code's own
+writes. The hooks installation's command now reads the file and later renames
+a new file onto the path, under a held link. The disabling is an exchange
+after a settings record. An outside write to the file of part `HOOKS` lands
+in place or by a rename.
+
+The model has a second accepted case, one more mutant and one more design
+world. That world, `hooks_commands`, runs 12,000 samples. The added steps change the sampling, so no witness count compares
+with the run above.
+
+On 2026-11-06, `task model:owner-switch` ran the changed files with Quint
+0.33.1 in 6 minutes 8 seconds. The three subjects had the same digests before
+and after the run:
+
+| Subject | SHA-256 |
+| --- | --- |
+| `docs/models/owner-switch.qnt` | `a1fea03e76cebdec7cd115e002c851a128c9efc566195e0eca250e301331cb69` |
+| `docs/models/run-owner-switch.sh` | `0fe7ef316e63ce1438b8d4a3193af35e09f6c2e9d99b699b1f9aa4ff0c71c2e1` |
+| `Taskfile.yml` | `05c3080b84d0443eabe075e83a4c01ce3d60a27e2ec4409e1e1ec93ee9d386f1` |
+
+All twelve invariants held in each of the fourteen design worlds. Each mutant
+witness stayed unreached there, the new one included. The runner printed 241
+passes and no failure. These are the counts of the new witnesses:
+
+| World | Witness | Traces |
+| --- | --- | --- |
+| `hooks_commands` | A write in place inside a command's interval, in a flagged held copy | 32 of 12,000 |
+| `hooks_commands` | A late descriptor write in a held copy, flagged | 42 of 12,000 |
+| `hooks_commands` | The accepted case: a write lost after another program's rename during a command | 34 of 12,000 |
+| `hooks_commands` | A crash between a held link and the rename, then the native state after the link's erasure | 415 of 12,000 |
+
+The mutant without the held link reached its violation in 13 of 4,000 traces.
+The sweep found that it violates only property 1. Each other mutant violated
+the same properties as in the run above.
+
+The rarest witness was that mutant's. The rarest design witness was a removal
+displaced into a flagged copy, in 21 of 4,000 traces of `writers`. From a
+first state before the preludes, the shortest path to a receipt now has 26
+steps.
+
 ## Not measured
 
 - Claude Code's treatment of a root-level `SKILL.md` inside a skill-free

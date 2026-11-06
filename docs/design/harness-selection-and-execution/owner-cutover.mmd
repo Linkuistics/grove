@@ -20,7 +20,7 @@ flowchart LR
         I["Ask the owner<br/>Signal nobody"]
         GT{"3: is the run of the<br/>latest complete backup open?"}
         NS["Prelude: native settings<br/>settings record first, then<br/>exchange in the off value<br/>and compare with the record"]
-        HI["Prelude: hooks installation<br/>from Grove's keg, disabled<br/>Name only writing-hooks<br/>Disable an enabled plugin"]
+        HI["Prelude: hooks installation<br/>from Grove's keg, disabled<br/>Each Claude Code command<br/>under a held link<br/>Disable by exchange after a record<br/>Name only writing-hooks"]
         S{"3: state from the layout,<br/>the run record of the<br/>latest backup and the plan"}
         R["Resume the inverse<br/>of the open run"]
         DR["Drifted: change nothing<br/>Report each cell"]
@@ -41,7 +41,7 @@ flowchart LR
         NS -->|"8b off value written or present"| HI
         NS -.->|"8b other value or conflict"| Q
         HI -->|"8c disabled plugin present"| S
-        HI -.->|"8c any other state"| Q
+        HI -.->|"8c other state, flagged copy or conflict"| Q
         S -->|"8d native, probe passes"| P
         S -.->|"8d interrupted"| R
         S -->|"8d active: step 6, then probes"| K

@@ -76,14 +76,29 @@ public integration. Neither duplicates Ravel's private runtime contract.
 
 ## Current changes
 
+hooks-installation-writes-k222 settles how the writes of Claude Code's own
+commands take part in detection. Each command replaces `settings.json` by a
+rename, so each runs under a held link. The disabling is now the program's
+own exchange. A rename by another program inside a command's interval is the
+accepted case. The focused review of this leaf and of
+native-settings-recovery-k221 is ahead. See
+[Claude Code's own writes](../../specs/owner-skill-delivery.md#claude-codes-own-writes)
+and the
+[evidence](../../homebrew-skill-delivery-evidence.md#claude-codes-writes-of-the-settings-file).
+
+- [Ordered owner cutover](http://127.0.0.1:52710/#diagram-owner-cutover) — Each Claude Code command of the hooks installation runs under a held link, and the disabling is an exchange. A flagged held copy leads to the pending record.
+- [Finish keeps its guidance through the switch](http://127.0.0.1:52710/#diagram-owner-final-session) — The hooks installation writes the real HOME settings. Each command runs under a held link, and the disabling is an exchange.
+
+## Settings recovery changes
+
 native-settings-recovery-k221 proposes how the native settings compose with
 the recovery of the switch. It repairs findings F1 and F2 of
 homebrew-delivery-design-k219. Both preludes run in step 3 of the switch, only
 while no run is open. The native settings write a settings record before their
 exchange.
 
-Its focused review is ahead. The detection of Claude Code's own writes is an
-open question. See
+Its focused review is ahead. hooks-installation-writes-k222 settled the
+detection of Claude Code's own writes. See
 [the native settings inside finish](../../specs/owner-skill-delivery.md#the-native-settings-inside-finish),
 [the hooks installation inside finish](../../specs/owner-skill-delivery.md#the-hooks-installation-inside-finish)
 and [resuming the switch](../../specs/owner-skill-delivery.md#resuming-the-switch).

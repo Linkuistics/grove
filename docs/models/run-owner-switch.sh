@@ -55,15 +55,16 @@ MUTANT_WITNESSES=(
   wit_m_nativeWriteLost
   wit_m_tableWithoutHooks
   wit_m_preludeStopsOnOwnInstall
+  wit_m_hooksWriteLost
 )
 
 CORRECTED=(crashes writers both classify_world coincidence after_receipt during_run
            merge_return entries native_settings active_entry prelude_crashes
-           both_preludes)
+           both_preludes hooks_commands)
 MUTANTS=(m_no_expect m_no_run_record m_early_end m_receipt_no_recheck
          m_no_rehearsal_check m_inverse_resets_third m_merge_no_authority
          m_accept_unchecked m_no_gate m_ns_no_record m_no_hooks_in_entry
-         m_hooks_no_resume)
+         m_hooks_no_resume m_hi_no_hold)
 
 witnesses() {
   case "$1" in
@@ -87,6 +88,8 @@ witnesses() {
     native_settings) echo wit_nsConflictFlagged wit_nsLateWriteFlagged \
                          wit_nsGapCrashFlagged wit_mergedAndComplete ;;
     active_entry)   echo wit_activeResumedToComplete ;;
+    hooks_commands) echo wit_hiConflictFlagged wit_hiLateWriteFlagged \
+                         wit_renamedAway wit_heldReleasedToNative ;;
     m_no_expect)            echo wit_m_writeLostSilently ;;
     m_no_run_record)        echo wit_m_interruptionWithoutRun ;;
     m_early_end)            echo wit_m_settledWhileOpen ;;
@@ -99,16 +102,19 @@ witnesses() {
     m_ns_no_record)         echo wit_m_nativeWriteLost ;;
     m_no_hooks_in_entry)    echo wit_m_tableWithoutHooks ;;
     m_hooks_no_resume)      echo wit_m_preludeStopsOnOwnInstall ;;
+    m_hi_no_hold)           echo wit_m_hooksWriteLost ;;
   esac
 }
 
 # The second plan needs a classification, a rehearsal and a whole switch.
 # The unchecked receipt needs an outside write inside the probe window.
 # The reset third value needs an outside write inside an open run, and the
-# two cells of that world are both prelude cells.
+# two cells of that world are both prelude cells.  The held link's conflict
+# and its accepted case need an outside write inside a command's interval.
 samples_for() {
   case "$1" in
     classify_world)         echo $(( samples * 3 )) ;;
+    hooks_commands)         echo $(( samples * 3 )) ;;
     m_receipt_no_recheck)   echo $(( samples * 5 )) ;;
     m_inverse_resets_third) echo $(( samples * 3 )) ;;
     *)              echo "$samples" ;;

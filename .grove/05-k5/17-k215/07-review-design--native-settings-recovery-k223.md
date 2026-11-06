@@ -51,14 +51,29 @@ taking it as established:
 - **The resumption of the hooks installation.** It disables an enabled plugin
   while no run is open. Check the claim that no other route reaches the
   native state. Check also that the program reads the plugin again before the
-  disabling command.
+  disabling. k222 made the disabling an exchange after a settings record.
 - **The model.** One `enter` stands for steps 1 and 2, and a stop at `ready`
   stands for any stop in steps 4 to 8. Both prelude cells are absent at first
   in every world. Property 6 uses the writer of a cell to tell a prelude's
   own value from another program's. Judge whether these abstractions hide a
   case, and whether each focused world and mutant isolates its mechanism.
 - **Claude Code's own writes.** Read k222's decision against its measurement
-  and against "Concurrent writers".
+  and against "Concurrent writers". k222's specific doubts:
+  - A held link keeps only the inode at the path when the program takes it.
+    A command that renamed twice would lose a write in place between its two
+    renames. The evidence measured one rename per command, and only a
+    rehearsal seam rechecks it. Judge whether the program must check it too.
+  - The accepted case leans on the finish session's own process. Its agent
+    waits on the program, and finish tells the owner to change no setting.
+    Judge whether that evidence and the bound of two intervals of 30 to 38
+    ms are enough, and whether another kept process can rename the file.
+  - In the model, one command stands for the registration and the
+    installation. The program takes the held link and decides in one step,
+    and an outside rename hits only part `HOOKS`. Judge whether these
+    abstractions hide a loss.
+  - A write in place before a command's read flags the held copy although
+    nothing is lost. Judge whether that report blocks progress more than it
+    should.
 - **One owner per rule.** The coordinated release design's recovery row says
   that the third step of the switch finds the state. Look for a sentence in
   any document that still runs the native settings outside step 3.

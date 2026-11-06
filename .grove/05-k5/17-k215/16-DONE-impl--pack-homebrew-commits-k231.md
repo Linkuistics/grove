@@ -47,3 +47,30 @@ WritingSkills and PersonalSkills first, because later leaves consume them.
 
 The personal formula pins the PersonalSkills commit of this leaf, in
 `personal-formula-k232`.
+
+## Decisions (running log)
+
+**One session (2026-11-06).** The six changes are text and one file removal,
+so they fit one session. WritingSkills and PersonalSkills come first.
+
+**No new GROVE_COMMIT (2026-11-06).** No pack commit changes a kind skill or
+the checker's inputs. Each pack keeps its recorded `GROVE_COMMIT`, which
+Grove's public remote holds. No Grove push therefore has to come before a
+pack push.
+
+**Pack documents in scope (2026-11-06).** WritingSkills' user guide, its
+specification and one decision record name the root Codex marketplace file.
+Each of those passages changes to the keg's marketplace file. Dated records,
+such as the harness survey and the evaluation records, keep their bytes. A
+provenance sentence that says that a commit removed the file is history, not
+a reference to a present file.
+
+**Codex refresh (2026-11-06).** WritingSkills' user guide said that trust
+stays after a refresh, because the entries never change shape. The delivery
+specification's evidence says that Codex trust covers the plugin's bytes, and
+that each upgrade needs both commands and the hook review again. The guide and
+the specification of WritingSkills now follow the measured evidence.
+
+**Gemini CLI (2026-11-06).** Ravel's skill-directory line names no Gemini CLI
+harness. WritingSkills' documents therefore say that Gemini CLI finds no
+skill by itself, and its user can point it to the skill directory.

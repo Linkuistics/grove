@@ -2,26 +2,26 @@
   "requirements": {
     "url": "https://github.com/Linkuistics/RequirementsSkills.git",
     "path": "plugins/requirements",
-    "sha": "9f7278c2d46b3e7443355633afb8a745b37af7ac"
+    "sha": "c51ec8bebd811c0087ad19a1d66d0aa87bd01386"
   },
   "design": {
     "url": "https://github.com/Linkuistics/DesignSkills.git",
     "path": "plugins/design",
-    "sha": "9d7c7c5368f6a22b541881e6c107da28e39627bd"
+    "sha": "aa088156d1a55e28dd9b59f0330f4ab9f1f3d330"
   },
   "engineering": {
     "url": "https://github.com/Linkuistics/EngineeringSkills.git",
     "path": "plugins/engineering",
-    "sha": "d98862f217492a44932c8fa93a006367da252a5d"
+    "sha": "8d1a2bc3e07bec4ce57e0391a6aa778dff63a017"
   },
   "research": {
     "url": "https://github.com/Linkuistics/ResearchSkills.git",
     "path": "plugins/research",
-    "sha": "dc3a4812db3b0dbfef42c8cd6a0aa291e43dd545"
+    "sha": "8f321f2e99e09a8ba5e60fa4a08871727e84df62"
   },
   "writing": {
     "url": "https://github.com/Linkuistics/WritingSkills.git",
     "path": "plugins/writing",
-    "sha": "4cafb0fd8e72dacdeea9d960cbdaf9f4850aec8f"
+    "sha": "b9240e0138df7d9f1d6926b77737668463dcfdfb"
   }
 }

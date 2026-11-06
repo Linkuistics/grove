@@ -3441,3 +3441,79 @@ no longer read any of these skills.
 | `personal`, the Ravel source | `https://github.com/Linkuistics/PersonalSkills.git` at `1ff489d996a9f3efa091f145ce944d69c9b351be`, source directory `plugins/personal`, roots `["craft"]`, `resourceDigest` `4cb21f4d5b3b00917093e93da9a26ea530b3abd42f2b9e01a65a10725fd11167` |
 | `guardrail`, the native Claude Code plugin | The same repository and commit, plugin root `plugins/guardrail`. Grove's marketplace lists it as `guardrail@linkuistics`. No Ravel root reaches it |
 | `personal`, the native Claude Code plugin | The same repository and commit, plugin root `plugins/personal`. It installs `guardrail` as its dependency |
+
+## Homebrew commits of the packs
+
+`pack-homebrew-commits-k231` published one commit in each of the six pack
+repositories. Each commit describes Homebrew installation and Ravel delivery
+in place of the marketplace and installer steps. Grove's pack record
+`plugins/packs.json` names the five domain commits.
+
+### The six commits
+
+| Pack | Commit on the public `main` | Source directory |
+| --- | --- | --- |
+| RequirementsSkills | `c51ec8bebd811c0087ad19a1d66d0aa87bd01386` | `plugins/requirements`, unchanged since `9f7278c2d46b` |
+| DesignSkills | `aa088156d1a55e28dd9b59f0330f4ab9f1f3d330` | `plugins/design`, unchanged since `9d7c7c5368f6` |
+| EngineeringSkills | `8d1a2bc3e07bec4ce57e0391a6aa778dff63a017` | `plugins/engineering`, unchanged since `d98862f21749` |
+| ResearchSkills | `8f321f2e99e09a8ba5e60fa4a08871727e84df62` | `plugins/research`, unchanged since `dc3a4812db3b` |
+| WritingSkills | `b9240e0138df7d9f1d6926b77737668463dcfdfb` | `plugins/writing`, with three changed files since `4cafb0fd8e72` |
+| PersonalSkills | `cddcfde901cdaf8069e2aac6f3b6bc5aba9fe925` | `plugins/personal`, with one changed file since `1ff489d996a9` |
+
+The "unchanged since" commit is the one that Grove's pack record named before
+this change. `git diff --stat` between the two commits, limited to the source
+directory, printed nothing for the four unchanged packs.
+
+### Changes of the commits
+
+- Each README names its formula: `grove` for the five domain packs and
+  `personal` for PersonalSkills. It states that Ravel delivers the skills from
+  Homebrew's shared skill directory. It gives no native marketplace or
+  installer step. A section "Development" names a checkout as a trial source.
+- WritingSkills' README gives the documented commands of the three
+  technical-communication hook adapters. PersonalSkills' README gives those of
+  `guardrail@personal`.
+- WritingSkills removed its root `.agents/plugins/marketplace.json`. Its user
+  guide, its specification, the harness map of the specification and the
+  decision record `technical-communication-carries-no-standard-text` now name
+  the keg routes. The descriptions of the two hooks plugin manifests and a
+  comment of the Pi extension changed. These are the three changed files of
+  `plugins/writing`.
+- PersonalSkills' `authoring-conventions` says "the Linkuistics skill packs"
+  in place of "this marketplace". It states that no installer reads the
+  `harnesses:` key. The comment of `scripts/check-frontmatter.sh` says the
+  same. This is the changed file of `plugins/personal`.
+- The dated records of WritingSkills keep their bytes: the harness survey, the
+  publication review and the evaluation records.
+
+### Checks of the commits
+
+- Each pack passed its own `task check` in its jj working copy. Each commit
+  then passed `task check` in a plain Git clone, checked out at the commit,
+  with Git's global and system configuration off.
+- `claude` is not on the PATH of Task's shell in this session, so
+  `check:plugin` skipped in the first runs. The clone runs put
+  `~/.local/bin` first on the PATH, and `claude plugin validate` passed with
+  warnings for each plugin.
+- No commit records a new `GROVE_COMMIT`, so no Grove push came before a pack
+  push. Each pack kept the Grove commit that its previous commit recorded.
+- jj pushed each `main` to `origin`. `git ls-remote origin refs/heads/main`
+  printed the commit of the table for each pack.
+- Grove's `task check:packs` fetched the five domain commits from their public
+  remotes. It reported "5 recorded pack(s) pass alone and in the aggregate".
+- A sweep of each pack searched for `install.sh`, `.agents/plugins`,
+  `@linkuistics` and "marketplace". It found four classes only:
+  - the new sentences that state that no marketplace or installer step exists
+  - history in provenance sections
+  - the dated records
+  - generic guidance of `simplify-project`
+
+  The same pattern found the routes in each README of the previous commit.
+
+### For personal-formula-k232
+
+The `personal` formula pins PersonalSkills commit
+`cddcfde901cdaf8069e2aac6f3b6bc5aba9fe925`. Its `plugins/personal` differs from
+commit `1ff489d996a9` in `authoring-conventions`. The `resourceDigest` in the
+PersonalSkills section therefore does not apply to this commit. That leaf
+measures the digest of the keg source against a clean checkout of the commit.

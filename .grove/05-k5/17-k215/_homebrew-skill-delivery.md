@@ -127,3 +127,13 @@ The pruned `skill-marketplace-k185` noted one fact that still holds. Native
 users see the marketplace only through Grove's `main`, which moves in finish.
 The intermediate states of this work therefore never reach them. Only the
 final state must be complete.
+
+`personal-formula-k232` published the `personal` formula at tap commit
+`9b3a46deb743`. Its results are in the section "The personal formula" of
+`docs/repository-moves-record.md`. It added `task tap:formula:test`, which
+`third-party-skill-formulae-k233` and `testanyware-skill-formula-k234` can
+reuse. The task runs Homebrew's install and test methods of one tap formula
+in a private prefix. It compares each keg source with its commit through the
+Ravel 2.0 build, and it registers the keg's Claude Code marketplace file. The
+2.0 build is Ravel `ff14cba826b0`, built in
+`~/Development/AgenticOrchestration/Ravel.skill-directory-delivery`.

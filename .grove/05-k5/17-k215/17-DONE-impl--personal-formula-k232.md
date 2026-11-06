@@ -40,3 +40,35 @@ file.
 Installing the formula in the owner's real prefix belongs to
 `owner-pack-checkouts-k93`. The owner design states that an installation
 changes no HOME and no discovery.
+
+## Decisions (running log)
+
+**The version (2026-11-06).** The version is `2026-11-06`, the ISO date of
+commit `cddcfde901cd`. Its author and committer dates agree. `brew audit
+--strict` accepts it.
+
+**The marketplace file (2026-11-06).** PersonalSkills holds no keg-root
+marketplace file, so the install method writes it from a Ruby constant.
+Homebrew's `Pathname#write` creates no parent directory, so the method makes
+`.claude-plugin` first.
+
+**No dependency (2026-11-06).** The formula declares no dependency. Ravel reads
+the source when it exists, and an installation without Ravel does no harm.
+
+**A reusable test in Grove (2026-11-06).** The tap has no tooling of its own.
+`third-party-skill-formulae-k233` and `testanyware-skill-formula-k234` need
+the same measurement. Grove therefore holds `scripts/tap-formula.test.sh`, its
+`brew ruby` harness and `task tap:formula:test`. Homebrew 7 loads no formula
+file outside a tap through `Formulary`, so the harness loads the file and
+constructs its class, as `release-formula.test.rb` does. The test models the
+Homebrew prefix with an `opt` link and a relative `share/ravel/skills` link.
+
+**The audit (2026-11-06).** `brew audit` accepts only a tapped name. The tap
+clone under Homebrew was fast-forwarded to the local tap commit before the
+push, so the audit read the pushed bytes.
+
+**A side effect (2026-11-06).** A first run set
+`HOMEBREW_NO_INSTALL_FROM_API=1`, and Homebrew cloned `homebrew/core` into
+the real Homebrew repository. The test no longer sets the variable. The
+removal of that tap was refused by the session's permission classifier, so
+the tap remains for the owner to remove with `brew untap homebrew/core`.

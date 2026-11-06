@@ -3517,3 +3517,76 @@ The `personal` formula pins PersonalSkills commit
 commit `1ff489d996a9` in `authoring-conventions`. The `resourceDigest` in the
 PersonalSkills section therefore does not apply to this commit. That leaf
 measures the digest of the keg source against a clean checkout of the commit.
+
+## The personal formula
+
+`personal-formula-k232` published `Formula/personal.rb` in the Linkuistics
+tap. The tap commit is `9b3a46deb7432d5430bbe467c86b431842fe3474`, and
+`git ls-remote origin refs/heads/main` printed it after the push.
+
+### Contents of the formula
+
+| Part | Value |
+| --- | --- |
+| Source | `https://github.com/Linkuistics/PersonalSkills/archive/cddcfde901cdaf8069e2aac6f3b6bc5aba9fe925.tar.gz`, `sha256` `ff55ec0adea4e8994e9b650ddaa2776d2dda4778773093015560f33967809c74` |
+| Version | `2026-11-06`, the date of the commit |
+| `share/ravel/skills/personal` | `plugins/personal`, moved into the keg |
+| `libexec/plugins/guardrail` | `plugins/guardrail`, moved into the keg |
+| `.claude-plugin/marketplace.json` | Written by the install method. Its name is `personal`, and it lists `guardrail` from `./libexec/plugins/guardrail` |
+| Dependencies | None |
+| Caveats | The default skill directory and the two documented commands of `guardrail@personal` |
+
+The install method moves each directory, so each file keeps the mode of the
+source archive. The archive gives the two guardrail scripts mode `0775` and
+the other files `0664`. Ravel's digest covers no write bit.
+
+### Checks of the formula
+
+`task tap:formula:test` runs `scripts/tap-formula.test.sh`. It downloads the
+formula's URL and compares its `sha256`. Then it runs Homebrew's install and
+test methods of the formula in a private Homebrew-shaped prefix. The keg lies
+in `Cellar/personal/2026-11-06`, an `opt` link names it, and a relative link
+in the prefix's `share/ravel/skills` names the source.
+
+- The keg source holds the files of `plugins/personal` in a plain checkout of
+  `cddcfde901cd`, each with its Git mode.
+- A private copy of the Ravel 2.0 build resolved the source with no settings.
+  Its installation record named the prefix's `share/ravel/skills`. The
+  `originPath` lay in the keg, the only root was `craft`, and the
+  `resourceDigest` was
+  `dc1f26eafe9b7db6f750c95db38a7876beb29b067d829eaf63203323b89d61b6`. Settings
+  that named the plain checkout gave the same digest and root.
+- The build was Ravel `ff14cba826b02ac492fcde0996d662c5378ef923`, the 2.0 build
+  of `grove-default-directory-checks-k228`, in the `dev` profile. It reports
+  `ravel 1.1.0` until the cut.
+- `claude plugin validate` accepted the keg with one warning: the plugin
+  manifest names no version. The packs omit that field by design.
+- In an isolated Claude Code home, `claude plugin marketplace add` with the
+  prefix's `opt/personal` path and `claude plugin install guardrail@personal`
+  succeeded. `claude plugin list --json` then showed `guardrail@personal`
+  enabled.
+- `brew style Formula/personal.rb` found no offence. `brew audit --strict
+  --online linkuistics/taps/personal` exited 0 on the tap clone at the pushed
+  commit. The same audit reported four offences in `grove`, so the audit read
+  the tap. `grove`, `ravel-lite` and `testanyware` have earlier style
+  offences, which this move did not change.
+
+Each control failed against a changed copy of the formula:
+
+- An appended line in a `SKILL.md` kept every mode. The file check passed,
+  and the digest comparison failed.
+- An executable bit on `PROVENANCE.md` failed the file check.
+- A guardrail script without its executable bit failed the formula's test.
+- A marketplace entry with a missing plugin path failed the formula's test.
+  Without that assertion, `claude plugin validate` passed, and
+  `claude plugin install` refused the missing path.
+
+### For rollout
+
+| Source | Root and revision |
+| --- | --- |
+| `personal`, the Ravel source | The `personal` formula of tap commit `9b3a46deb743`. PersonalSkills commit `cddcfde901cdaf8069e2aac6f3b6bc5aba9fe925`, source directory `plugins/personal`, roots `["craft"]`, keg and checkout `resourceDigest` `dc1f26eafe9b7db6f750c95db38a7876beb29b067d829eaf63203323b89d61b6` |
+| `guardrail`, the native Claude Code plugin | The same keg, plugin root `libexec/plugins/guardrail`, harness identity `guardrail@personal` |
+
+This leaf did not install the formula in the owner's prefix.
+`owner-pack-checkouts-k93` owns that step.

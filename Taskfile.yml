@@ -448,6 +448,21 @@ tasks:
     cmds:
       - bash scripts/release-formula.test.sh "{{.ARCHIVE}}" "{{.RAVEL_1_1_PREFIX}}" "{{.RAVEL_2_0_PREFIX}}" "{{.OLD}}"
 
+  # One skill formula of the Linkuistics tap, such as `personal`, in a private
+  # Homebrew-shaped prefix. FORMULA is its file in a tap working copy. REPO and
+  # SHA name the commit that it installs. SOURCES lists each keg source as
+  # ID=PATH, with PATH its source directory in that commit. RAVEL_2_0_PREFIX is
+  # an installation prefix. The test downloads the formula's URL. For example:
+  #   task tap:formula:test FORMULA=~/Development/Delivery/homebrew-taps/Formula/personal.rb \
+  #     RAVEL_2_0_PREFIX=/opt/ravel-2 REPO=https://github.com/Linkuistics/PersonalSkills.git \
+  #     SHA=cddcfde901cdaf8069e2aac6f3b6bc5aba9fe925 SOURCES=personal=plugins/personal
+  tap:formula:test:
+    desc: Install and test one tap skill formula in a private prefix, compare its sources with their commit and register its marketplace
+    requires:
+      vars: [FORMULA, RAVEL_2_0_PREFIX, REPO, SHA, SOURCES]
+    cmds:
+      - bash scripts/tap-formula.test.sh "{{.FORMULA}}" "{{.RAVEL_2_0_PREFIX}}" "{{.REPO}}" "{{.SHA}}" {{.SOURCES}}
+
   release:archives:
     desc: Build release archives of the working copy into target/archives, without a tag or publication
     cmds:

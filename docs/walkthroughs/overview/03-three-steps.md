@@ -150,7 +150,7 @@ fn execute(cli: Cli) -> anyhow::Result<()> {
 The lease is followed directly by Ravel resolution. No statement between them
 reads or writes a harness's skill directory. The user supplies each skill
 through a native installation or another chosen route, as the decision record
-`docs/adr/skill-delivery-is-the-users-choice.md` states.
+`docs/adr/homebrew-installs-skills-and-ravel-delivers-them.md` states.
 The prompt names the bare skill, and the session loads it. If the session
 cannot find or read that skill, the prompt tells it to report the problem and
 run the launch's exact force-stop command. The leaf stays live, and the loop

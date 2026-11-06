@@ -8,9 +8,9 @@ owns routing, the private runtime and transport, and the supervision mechanics.
 Grove keeps no runner and runs `ravel` as an ordinary child. Ravel keeps its
 own runner. Each project keeps its own version and complete installation prefix.
 
-The skill views describe the pending adoption design. The user supplies skills
-natively or through Ravel directory injection. Grove names them, and the agent
-finds and reads them.
+The skill views describe the adoption design. Homebrew installs the skill
+sources, and Ravel delivers them, as homebrew-delivery-design-k216 proposes.
+Grove names each skill, and the agent finds and reads it.
 
 Ravel's reviewed directory contract is commit `822c0ed2` on its unpublished
 `skill-directory-delivery` line. The historical `b93bb927` contract supplies
@@ -38,7 +38,7 @@ asserts no private transport or escalation details.
 | View | Contract illustrated |
 |---|---|
 | [Where each installed entry goes](http://127.0.0.1:52710/#diagram-owner-classes) | The per-entry rule of the owner cutover: a Ravel source, a native route for hooks, or no change. |
-| [Pack checkouts outside Ravel](http://127.0.0.1:52710/#diagram-owner-pack-checkouts) | The owner's tool holds each pack checkout at its pin. Ravel only reads the directory, and a missing checkout refuses before any worker. |
+| [Skill formulae outside Ravel](http://127.0.0.1:52710/#diagram-owner-pack-checkouts) | Homebrew installs each source in a keg and links it into Ravel's default skill directory after the keg is complete. Ravel only reads the directory, and a missing source refuses before any worker. |
 | [Ordered owner cutover](http://127.0.0.1:52710/#diagram-owner-cutover) | Preparation in ordinary leaves, then the switch inside finish with its reader gate, probes and inverse. |
 | [Finish keeps its guidance through the switch](http://127.0.0.1:52710/#diagram-owner-final-session) | Finish reads native guidance by absolute path. Later sessions move to Ravel 2.0.0. |
 | [Compatible tap states](http://127.0.0.1:52710/#diagram-release-tap) | Four tap states: keg-only `ravel@2` first, compatible Grove, then promotion of identical archives with `ravel@2` deprecated. |
@@ -46,7 +46,7 @@ asserts no private transport or escalation details.
 | [Independent ownership](http://127.0.0.1:52710/#diagram-packages) | Public CLI between separate releases, caller imports, Grove's shared job function and Ravel's runner. |
 | [Route and return](http://127.0.0.1:52710/#diagram-handoff) | Intact caller task, optional directory injection, refusal, supervision and opaque result after cleanup. |
 | [Supported Ravel routes](http://127.0.0.1:52710/#diagram-routes) | Native 1.1, native 2.0 and directory 2.0. The version probe decides admission only, and the configuration and settings select the route. |
-| [User-managed skill delivery](http://127.0.0.1:52710/#diagram-skill-delivery) | User choice subject to actual read access. The agent locates the named skill or reports and force-stops. |
+| [Homebrew installs, Ravel delivers](http://127.0.0.1:52710/#diagram-skill-delivery) | Homebrew installs the sources, the user names them in Ravel's settings, and only hook adapters keep a native registration. The agent locates the named skill or reports and force-stops. |
 | [Preserving readers through adoption](http://127.0.0.1:52710/#diagram-skill-transition) | Use the integrated upstream contract, verify isolated combinations and intermediate tap states, then activate separately. |
 | [Nested jobs](http://127.0.0.1:52710/#diagram-chain) | Grove's foreground job for `ravel`, signal forwarding, Ravel's managed job and terminal recovery. |
 | [Result lifecycle](http://127.0.0.1:52710/#diagram-ending) | Successful publication against an absent result, cancellation or cleanup failure. |
@@ -73,6 +73,22 @@ the executable owns and to immutable historical experiments for Ravel. Grove's
 public integration. Neither duplicates Ravel's private runtime contract.
 
 ## Current changes
+
+This discussion applies the human's decisions of
+skill-marketplace-decision-k201. Homebrew installs every skill source, and
+Ravel is the only route that delivers a skill. homebrew-delivery-design-k216
+proposes the design. See [the keg layout](../../specs/codex-skill-provisioning.md#the-keg-layout),
+[the owner's formulae](../../specs/owner-skill-delivery.md#skill-formulae),
+[the hooks installation inside finish](../../specs/owner-skill-delivery.md#the-hooks-installation-inside-finish)
+and the [evidence](../../homebrew-skill-delivery-evidence.md).
+
+- [Skill formulae outside Ravel](http://127.0.0.1:52710/#diagram-owner-pack-checkouts) — Replaced the mise checkouts with Homebrew formulae. An advance installs a new keg and links it into Ravel's default skill directory after the keg is complete.
+- [Ordered owner cutover](http://127.0.0.1:52710/#diagram-owner-cutover) — Preparation builds the candidate keg and installs four formulae. Finish installs the writing hooks plugin after promotion. The switch then admits the released keg's digests. They replace the core tree comparison and the pin advance.
+- [Finish keeps its guidance through the switch](http://127.0.0.1:52710/#diagram-owner-final-session) — Added the hooks installation, which names only `writing-hooks`. The probes capture the keg sources.
+- [Homebrew installs, Ravel delivers](http://127.0.0.1:52710/#diagram-skill-delivery) — Removed the native route. Only the hook adapters keep a native registration.
+- [Supported Ravel routes](http://127.0.0.1:52710/#diagram-routes) — The native routes find only existing native installations, and the directory route names keg sources.
+
+## Earlier confinement changes
 
 The withdrawal of confinement removes the confined standalone caller. Grove
 sends no `--confine` and no `--runtime-read`, and the harness sandbox is the
@@ -105,8 +121,9 @@ current, now that Ravel reads local directories only. The human approved the
 owner's tool and the pin policy. mise is the owner's choice, and Ravel and
 Grove name no checkout tool. Three focused reviews of this design are
 integrated. See the
-[owner delivery specification](../../specs/owner-skill-delivery.md#pack-checkouts)
-and its [evidence](../../owner-skill-delivery-evidence.md#pack-checkouts).
+[owner delivery specification](../../specs/owner-skill-delivery.md#skill-formulae),
+which homebrew-delivery-design-k216 later amended, and its
+[evidence](../../owner-skill-delivery-evidence.md#pack-checkouts).
 
 - [Pack checkouts outside Ravel](http://127.0.0.1:52710/#diagram-owner-pack-checkouts) — Added the owner's checkout tool, the pin advance, the offline fetch failure and the missing-source refusal. An advance runs only while nothing captures the checkout.
 - [Ordered owner cutover](http://127.0.0.1:52710/#diagram-owner-cutover) — Added pack publication, the drafted checkout entries, the credential control and staging clones before the trials, and the checkout clone in preparation. Inside finish, the core tree comparison precedes the `grove-core` pin advance. Each run first reads the state of the switch set. After a native probe, a native state switches. A partial state resumes the inverse. An active state goes to the probes and the receipt. A drifted item stops for the owner's classification. Every stop, inverse or missing receipt leaves a pending-activation record, and the switch runs again. Step 1 also lists scheduled jobs and finish's descendants. Step 8 needs a rehearsal that covers the plan. The switch publishes each shared file by an atomic exchange. Only a switched layout with its receipt is complete.

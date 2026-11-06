@@ -113,7 +113,7 @@ skill plugin. Ravel is an independently delivered runtime dependency:
 
 Their documented interfaces evolve together. `plugins/` is the authoritative
 skill source. Neither binary embeds or installs it
-([skill-delivery decision](adr/skill-delivery-is-the-users-choice.md)). Claude
+([skill-delivery decision](adr/homebrew-installs-skills-and-ravel-delivers-them.md)). Claude
 Code retains marketplace installation and auto-update. No harness is inferred from the command a policy
 selects, which Grove never sees.
 

@@ -35,8 +35,8 @@ accepted commits. Cover each formula that publishes before finish. Make
   commit. It tells drift from a configuration error, and a fixture control
   shows each outcome.
 - The machine contract and the `mac-bootstrap` guidance state that each
-  Homebrew installation or upgrade of a skill source is an advance, behind a
-  process check.
+  Homebrew installation or upgrade of a skill formula is an advance. The
+  amended owner design states why an advance needs no process check.
 - Native discovery is unchanged. The real HOME's Ravel settings name no skill
   source, and no harness root holds a new entry.
 
@@ -46,8 +46,9 @@ Grove's keg holds core and the five packs only after Grove's release, which
 happens inside finish. The amended owner design states what the switch checks
 in that keg after the release.
 
-Before an advance, list the live processes as the amended owner design
-states. Run no Ravel command and no release task until the advance ends.
+An advance links a complete new keg, so a capture reads one keg or refuses.
+`homebrew-delivery-design-k216` therefore withdrew the process check before an
+advance.
 
 owner-ravel-skill-inventory-k38 puts its leaves for policy conversion, drafts
 and staging trials before this leaf with `leaf-insert`. The marketplace

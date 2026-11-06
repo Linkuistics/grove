@@ -219,7 +219,7 @@ of scope.
 
   A term's definition lives in the glossary of its owning
   context, never in both. The **grove** context owns
-  [`skill-delivery-is-the-users-choice`](docs/adr/skill-delivery-is-the-users-choice.md),
+  [`homebrew-installs-skills-and-ravel-delivers-them`](docs/adr/homebrew-installs-skills-and-ravel-delivers-them.md),
   [`harness-selection-is-owned-by-policy`](docs/adr/harness-selection-is-owned-by-policy.md),
   [`a-review-carries-its-creator-reference`](docs/adr/a-review-carries-its-creator-reference.md),
   [`policy-evaluation-precedes-the-launch`](docs/adr/policy-evaluation-precedes-the-launch.md),

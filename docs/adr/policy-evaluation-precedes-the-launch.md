@@ -7,7 +7,7 @@ process. Grove relies on that public behavior; it never calls the private worker
 [Ravel's session specification](https://github.com/Linkuistics/Ravel/blob/v1.1.0/docs/specs/session-execution.md)
 owns the detailed runtime/authority controls.
 
-The [delivery decision](skill-delivery-is-the-users-choice.md) and its
+The [delivery decision](homebrew-installs-skills-and-ravel-delivers-them.md) and its
 specification own prompt preparation. That preparation does not move executable
 owner policy into the managed job.
 

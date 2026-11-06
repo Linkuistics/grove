@@ -280,7 +280,7 @@ says what the closure costs, and names the one coupling it cannot close.
 //!
 //! **One coupling remains, and it is not closeable from here.** The prompt names
 //! a `grove-<kind>` skill, and the user's chosen delivery route has to supply
-//! it (`docs/adr/skill-delivery-is-the-users-choice.md`). Nothing in this
+//! it (`docs/adr/homebrew-installs-skills-and-ravel-delivers-them.md`). Nothing in this
 //! workspace can check what a machine supplies, so the assertion available is
 //! over the shipped set, and it lives in `tests/prompt.rs`. The residue is
 //! answered in the prompt itself, because a missing skill cannot state it: the
@@ -322,7 +322,7 @@ enumeration shows which.** Counted across all 279 lines, the block carries
 10); two each to `plugins/grove/skills/grove/SKILL.md`,
 `docs/specs/codex-skill-provisioning.md`, `crates/grove-loop/tests/prompt.rs`
 and `docs/ARCHITECTURE.md` anchors; one each to
-`docs/adr/skill-delivery-is-the-users-choice.md` and
+`docs/adr/homebrew-installs-skills-and-ravel-delivers-them.md` and
 `docs/research/wording-micro-test.md`; one to
 `docs/common-loading-acceptance-record.md`; and one to a methodology rule id.
 `claude-force-stop-report-k136` added the record citation to a count of

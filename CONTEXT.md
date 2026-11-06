@@ -25,18 +25,18 @@ silently.
 <a id="skill-delivery"></a>
 ### Skill delivery / the retired sweep
 
-Delivery is separate from the named skill. The user supplies native harness
-installations, or skill-directory paths that Ravel 2.0 injects, and the agent
-discovers and reads the skill Grove names. Neither executable resolves a
-requested skill. The [delivery specification](docs/specs/codex-skill-provisioning.md)
+Delivery is separate from the named skill. Homebrew installs the skill
+sources, Ravel 2.0 injects the paths of the sources that the user's settings
+name, and the agent discovers and reads the skill Grove names. Neither
+executable resolves a requested skill. The [delivery specification](docs/specs/codex-skill-provisioning.md)
 owns the contract and its supported routes.
 
-How the **`grove` plugin** reaches a session: a spine skill and one
-`grove-<kind>` skill per kind, delivered through the route the user chose for
-each harness. Claude Code uses the marketplace; Codex, Gemini and Pi users can
-use the checkout installer. Grove installs no skills. Grove 22.8 and earlier
-also provisioned Codex snapshots at startup; later releases leave that output
-unchanged. `${prompt}` names the skill this session needs ([[Guaranteed core]]).
+How the **`grove` plugin** reaches a session: Grove's Homebrew formula carries
+core, which holds the spine and the core kind skills, beside the five domain
+packs. Ravel delivers the keg sources that the user's settings name. No
+marketplace lists a pack, and no installer links a skill. Grove's binary
+installs no skills. Grove 22.8 and earlier also provisioned Codex snapshots at
+startup. Later releases leave that output unchanged. `${prompt}` names the skill this session needs ([[Guaranteed core]]).
 
 **What this replaces, and why the arguments are kept.** The binary used to embed
 its whole methodology as a `content/` tree and sweep it, on every invocation,
@@ -50,11 +50,12 @@ the `grove-llm` a session's `PATH` resolved). All four existed to make one
 mechanism safe. A later Codex snapshot adapter, removed after Grove 22.8, wrote
 only Codex links and did not restore that sweep or its build-pairing probes.
 
-**The remaining cost.** A Grove binary alone gives no harness its skills: the
-user installs them for every harness the policy can select
-([skill-delivery decision](docs/adr/skill-delivery-is-the-users-choice.md)). A
-separately updated installation can differ from the installed helper, so a
-session can meet a mismatched verb. Grove states its version and names the skill;
+**The remaining cost.** A harness session that its user opens directly gets no
+skills, and a Ravel launch delivers only the sources that the settings name
+([delivery decision](docs/adr/homebrew-installs-skills-and-ravel-delivers-them.md)).
+Core ships in Grove's keg beside `grove-llm`, so the spine and the helper come
+from one release. Settings that name another core source can still pair a
+session with a mismatched verb. Grove states its version and names the skill;
 the session must load it. **The reopen condition is a session that cannot reach
 the methodology through its installation/loading route** — an observation, not
 a suspicion.

@@ -1,11 +1,11 @@
 flowchart TB
-    A["Start here · A checkout of ResearchSkills<br/>made by any tool, at any path"]
+    A["Start here · A checkout of ResearchSkills<br/>at the commit of Grove's record"]
     subgraph repo["Repository root · not delivered"]
         direction TB
         R1["LICENSE · README.md · Taskfile.yml · .cache/"]
-        subgraph src["plugins/research · source directory and plugin root"]
+        subgraph src["plugins/research · source directory"]
             direction TB
-            M[".claude-plugin/plugin.json<br/>name research"]
+            M[".claude-plugin/plugin.json<br/>name research, metadata only"]
             C["conformance/rules.tsv<br/>rows that the pack's files own"]
             subgraph kd["skills/ · kind directory, the only root"]
                 direction LR
@@ -15,12 +15,12 @@ flowchart TB
             end
         end
     end
+    KG[("Grove's keg<br/>share/ravel/skills/research")]
     RV["Ravel snapshot<br/>accepted by resourceDigest"]
-    CC["Claude Code plugin cache<br/>namespace research:"]
-    SL["One link for each skill<br/>Codex, Gemini and Pi"]
+    V["claude plugin validate<br/>no route installs the manifest"]
     A -->|1| repo
-    src -->|"2 Ravel: path and roots [skills]<br/>captures all but .git and .jj"| RV
-    src -->|"3 Claude Code: git-subdir<br/>path plugins/research"| CC
-    kd -->|"4 install.sh --pack<br/>plugins/research"| SL
+    src -->|"2 Grove's release copies<br/>the source directory alone"| KG
+    KG -->|"3 Ravel: path and roots [skills]<br/>captures all but .git and .jj"| RV
+    M -.->|"pack check"| V
     classDef start fill:#16354a,color:#fff,stroke:#16354a,font-weight:bold
     class A start

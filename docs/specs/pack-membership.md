@@ -186,11 +186,13 @@ The design rejected these options:
   marketplace file. It gives the ordinary writing plugin its dependency on the
   hooks plugin.
 - `personal-pack-k183` moves `guardrail` and its plugin.
-- `skill-marketplace-k185` lists both Claude Code plugins. The hooks plugin
-  must be in the marketplace that lists the ordinary writing plugin, because
-  the dependency names it by its bare name. The move lists the Codex plugin in
-  the marketplace repository only if Codex resolves a plugin source outside
-  that repository. It records the result in the moves record.
+- `homebrew-skill-delivery-k215` puts both hooks plugins in Grove's keg, with
+  their marketplace files `writing-hooks`, and `guardrail` in the personal
+  keg. Codex resolves a `local` source only inside its marketplace root, so the
+  marketplace files sit above the source in the keg. No marketplace lists the
+  ordinary writing plugin, so its dependency on the hooks plugin reaches no
+  route. [Hook adapters](codex-skill-provisioning.md#hook-adapters) states the
+  registration.
 
 ### The Grove assets of moving craft skills
 
@@ -443,10 +445,11 @@ The other moves owe these proofs:
   isolated home that shows `guardrail` alone. The `personal`
   source resolves without `guardrail`. The staging trials cover `/guardrail`
   and its hook.
-- `skill-marketplace-k185` moves no pack, but it changes the route of every
-  native user. It owes a native installation of each listed plugin from the
-  relocated marketplace, in an isolated Claude Code home. The installation of
-  the ordinary writing plugin also installs the hooks plugin.
+- `homebrew-skill-delivery-k215` moves no pack, but it retires the native
+  route of every user. It owes the seams of the
+  [delivery specification](codex-skill-provisioning.md#test-seams). They cover
+  the keg contents, the pack record, the harness trials from keg paths and the
+  registration of each hook adapter from a keg.
 - `moves-handoff-k187` owes no trial.
 
 The design rejected these options:

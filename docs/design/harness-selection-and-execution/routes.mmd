@@ -5,9 +5,9 @@ flowchart TB
   V1["Ravel 1.x from 1.1.0<br/>policy.ts, schemaVersion 2<br/>Grove's TypeScript assets"]
   V2["Ravel 2.x from 2.0.0<br/>config.rhai, SCHEMA_VERSION 4<br/>Grove's Rhai assets"]
   Skills{"Ravel reads settings:<br/>skills with<br/>configured sources?"}
-  N1["Native route on 1.1<br/>Native skills in each harness"]
+  N1["Native route on 1.1<br/>Only existing native installations"]
   N2["Native route on 2.0<br/>Delivery disabled<br/>prompt equals originalPrompt"]
-  D2["Directory route on 2.0<br/>Prepared prompt and snapshot reads<br/>Native copies unnecessary"]
+  D2["Directory route on 2.0<br/>Keg sources, prepared prompt<br/>and snapshot reads<br/>Native copies unnecessary"]
   M1["Ravel 1.1 refuses a 2.0 settings key<br/>before launch. Leaf stays live"]
   M2["Ravel 2.0 refuses a lone policy.ts,<br/>schema 3 or policyEnv before launch<br/>Leaf stays live"]
   M3["Ravel 2.0 refuses a missing source<br/>as skill_source_missing before any worker<br/>Leaf stays live"]

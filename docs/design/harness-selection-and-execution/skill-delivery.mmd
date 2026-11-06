@@ -1,18 +1,19 @@
 flowchart TB
-  Owner["Start here: user supplies skills"]:::start
-  Native["Native installation<br/>with proven read access"]
-  Sources["Configured local or<br/>pinned source directories"]
-  Ravel["Ravel injects directory<br/>paths into prompt"]
+  Brew["Start here: Homebrew installs<br/>the skill formulae"]:::start
+  Kegs["Default skill directory<br/>BREW_PREFIX/share/ravel/skills"]
+  Settings["Ravel 2.0.0 reads the directory<br/>Settings optional"]
+  Ravel["Ravel captures snapshots and<br/>injects directory paths into the prompt"]
   Grove["Grove names the skill<br/>in its mandate"]
   Agent["Agent locates and reads<br/>skill and resources"]
-  Missing["Report missing guidance<br/>Force-stop; work stays live"]
+  Missing["Report missing guidance<br/>Force-stop, work stays live"]
   Work["Agent performs the task"]
-  Owner -->|"1. Choose native route"| Native
-  Owner -->|"1. Choose directory route"| Sources
-  Sources -->|"2. Source acquisition and readable lifetime"| Ravel
-  Native -->|"The harness reads its native roots"| Agent
+  Hooks["Hook adapters, registered<br/>from the keg's marketplace files"]
+  Brew -->|"1. Install or advance"| Kegs
+  Kegs -->|"2. No further setup"| Settings
+  Settings -->|"3. At each launch"| Ravel
   Ravel --> Agent
-  Grove -->|"3. Required name, no location lookup"| Agent
-  Agent -->|"4. Available"| Work
-  Agent -->|"4. Missing or unreadable"| Missing
+  Grove -->|"4. Required name, no location lookup"| Agent
+  Agent -->|"5. Available"| Work
+  Agent -->|"5. Missing or unreadable"| Missing
+  Kegs -.->|"Native registration, hooks only"| Hooks
   classDef start fill:#163a57,color:#fff,stroke:#163a57,font-weight:bold

@@ -115,15 +115,15 @@ failure there ends without a successful finish signal.
    versioned book, then only `ravel@2`. Verify its installed prefix, formula
    behaviour and live book. A tag alone is not completion.
 5. Rollout verifies the final
-   [source-pack pins](owner-skill-delivery.md#pack-checkouts) and working Grove against the
-   published Ravel archives. The `grove-core` pin can be final only after
-   Grove's release. For that source, rollout verifies the accepted candidate.
-   It shows that the final line has the same tree ID in the source directory.
-   A committed document records that ID. Finish's owner switch compares
-   the ID at the released commit before any change. With the published
-   archives, rollout also records each source's accepted `resourceDigest`.
-   The switch compares each real checkout with its digest before any change.
-   Rollout admits
+   [skill formulae](owner-skill-delivery.md#skill-formulae) and working Grove
+   against the published Ravel archives. Grove's keg holds its six sources
+   only after Grove's release. For those sources, rollout builds the
+   candidate keg of the final line. It shows that each source keeps its
+   accepted `resourceDigest`, which a committed document records. Finish's
+   owner switch compares the digests of the released keg before any change.
+   With the published archives, rollout also resolves every source again and
+   records the same digests. The switch compares each installed keg source
+   with its digest before any change. Rollout admits
    the archives into Grove's pinned independent Ravel inputs by SHA-256,
    beside the retained 1.1.0 pins, before Grove's release. Complete owner delivery under its separate design,
    preserving this driver's readers. Supply finish with exact receipts and any
@@ -140,6 +140,10 @@ failure there ends without a successful finish signal.
    [Finish promotes after the Grove release](../adr/finish-promotes-after-the-grove-release.md)
    records this finish extension. Incomplete promotion or activation means no
    successful finish signal.
+
+The formulae of personal, superpowers and quint-llm-kit, and TestAnyware's
+release with its skill, publish before the staging trials. Each depends on no
+Grove or Ravel release, so no tap state pairs them.
 
 Rollout planning grows ordinary release-tool preparation, Ravel integration,
 publication and verification tasks. Rollout implements and rehearses the

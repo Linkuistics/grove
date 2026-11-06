@@ -49,6 +49,44 @@ captures it as a `local` source, Claude Code installs it as the plugin root and
 _Avoid_: the repository root as the source directory. Ravel would then capture
 the README, the Taskfile and any cache in each capture.
 
+**Keg source**:
+The copy of one [[Source directory]] in a Homebrew keg, at
+`share/ravel/skills/<source-id>/`. Homebrew links it into
+[[Default skill directory]]. Its `resourceDigest` equals that of a clean
+checkout of the same commit. `docs/specs/codex-skill-provisioning.md` states
+the keg layout.
+_Avoid_: the versioned path under `Cellar/`. Homebrew's cleanup erases it after
+an upgrade.
+
+**Default skill directory**:
+`$(brew --prefix)/share/ravel/skills/`, where Homebrew links each installed
+[[Keg source]] by its source ID. Ravel 2.0.0 reads it when the settings name no
+sources, so `brew install` and `brew upgrade` are the whole skill setup.
+Ravel's specification owns the contract.
+_Avoid_: `~/.config/ravel/skills/`. Ravel refuses a real source inside its
+configuration directory, and Homebrew cannot write in HOME.
+
+**Skill formula**:
+A Homebrew formula that installs one or more [[Keg source]]s. Grove's formula
+carries core and the five domain packs. The formulae `personal`,
+`superpowers`, `quint-llm-kit` and `testanyware` carry the others.
+_Avoid_: "plugin installation" for it. A formula installs files, and Ravel
+delivers them.
+
+**Pack record**:
+Grove's `plugins/packs.json`. For each domain [[Pack]] that Grove's formula
+carries, it holds the pack's `url`, its `path` and the accepted `sha`.
+`task check:packs` reads it, and the release copies each pack from it.
+_Avoid_: the marketplace as the record of a pack's revision. That role ended
+with native distribution.
+
+**Hook adapter**:
+A native plugin or extension that runs a skill's hooks, such as
+`technical-communication-hooks`. Ravel installs no hook. A keg therefore ships
+the marketplace file of each adapter, and each harness registers it from the
+keg's stable path.
+_Avoid_: "hooks skill". An adapter holds no skill.
+
 <!-- tc: pending because the conversion has not reached this part of the document -->
 
 **Marketplace**:

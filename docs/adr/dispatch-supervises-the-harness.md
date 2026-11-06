@@ -6,7 +6,7 @@ group. It restores the terminal and reaps the group. Then it returns the opaque
 argument that `ravel end-session RESULT` published.
 
 The caller supplies the task and the ending instructions. The
-[delivery decision](skill-delivery-is-the-users-choice.md) owns skill delivery.
+[delivery decision](homebrew-installs-skills-and-ravel-delivers-them.md) owns skill delivery.
 Ravel adds no caller ending instruction and gives the result no meaning.
 
 [Ravel's session contract](https://github.com/Linkuistics/Ravel/blob/v1.1.0/docs/specs/session-execution.md)
@@ -54,8 +54,8 @@ The caller retains stable Ravel 1.x from the 1.1.0 cleanup floor. It admits
 stable 2.x from 2.0.0, because the native route on 2.0 passes the same public
 session acceptance with the Rhai caller assets. Version admission follows that
 interface, independently of the
-[delivery choice](skill-delivery-is-the-users-choice.md). Admission selects no
-route. The owner selects a route through the PATH, the configuration file and
+[delivery decision](homebrew-installs-skills-and-ravel-delivers-them.md).
+Admission selects no route. The owner selects a route through the PATH, the configuration file and
 the settings. Grove 22.8 and earlier refuse 2.x.
 
 Ravel 2.0.0 reads only `config.rhai` and has no TypeScript SDK. Dual-major

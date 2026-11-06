@@ -2,7 +2,7 @@
 //!
 //! Grove names the skill a session must load; the user supplies it through a
 //! harness's native installation or through Ravel's directory delivery
-//! (`docs/adr/skill-delivery-is-the-users-choice.md`). The removed Codex
+//! (`docs/adr/homebrew-installs-skills-and-ravel-delivers-them.md`). The removed Codex
 //! provisioner wrote `~/.agents/skills` links, a `current` pointer and complete
 //! snapshots under `~/.agents/.grove`. Old drivers, lazy link readers and
 //! detached processes can still read that output, so startup must neither

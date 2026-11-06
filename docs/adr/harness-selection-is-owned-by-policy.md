@@ -19,7 +19,7 @@ why the selected process remains a managed job.
 
 Grove supplies kind, task file, stable handle and unchanged mandate as ordinary
 caller data, with no parameter. The policy forwards the launch prompt under the
-[delivery decision](skill-delivery-is-the-users-choice.md) and its specification.
+[delivery decision](homebrew-installs-skills-and-ravel-delivers-them.md) and its specification.
 Lifecycle work runs in the workspace root, and
 standalone work runs in its staged cwd. An owner policy can derive workspace
 grants from `request.cwd` and `.jj/repo`. No jj/task convention belongs to Ravel.

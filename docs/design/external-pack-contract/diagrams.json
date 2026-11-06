@@ -29,33 +29,32 @@
     }
   ],
   "discussion": {
-    "title": "Pack membership for the remaining moves",
-    "status": "The two root-table changes are approved by the human. pack-membership-k189 reviewed the other decisions, and pack-membership-k190 applied its four findings",
-    "summary": "pack-membership-k171 keeps the ADR and spec formats in the spine, gives the always-on hooks to WritingSkills, classifies Grove's assets by the claim that they serve, and names the proof that each move owes.",
+    "title": "Homebrew installs the packs",
+    "status": "Proposed by homebrew-delivery-design-k216 on 2026-11-06. It applies the human's decisions of skill-marketplace-decision-k201",
+    "summary": "Grove's record plugins/packs.json names each pack's commit, check:packs reads it, and Grove's release copies each source directory into the keg. No marketplace lists a pack, and no installer links a skill.",
     "diagramIds": [
-      "membership-formats",
-      "membership-hooks",
-      "membership-asset-rule",
+      "distribution",
+      "layout",
+      "conformance",
       "membership-boundaries",
-      "edges",
-      "conformance"
+      "membership-hooks"
     ],
     "updatedDiagrams": [
       {
-        "id": "membership-formats",
-        "summary": "Added the format files in the spine and the craft skills that deepen them."
+        "id": "distribution",
+        "summary": "Replaced the three routes with one: Grove's record, check:packs, the release archive, the keg and the Ravel source record."
       },
       {
-        "id": "membership-hooks",
-        "summary": "Added the hooks plugins in WritingSkills, the guardrail plugin in PersonalSkills, and the dependency through which the ordinary writing plugin installs the hooks plugin."
+        "id": "layout",
+        "summary": "The release copies the source directory into the keg, and Ravel reads the copy. The manifest stays as metadata, and the plugin cache and the installer links go."
       },
       {
-        "id": "membership-asset-rule",
-        "summary": "Added the three ordered tests that decide where a Grove asset of a moving craft skill goes."
+        "id": "conformance",
+        "summary": "Grove's check reads plugins/packs.json in place of the marketplace."
       },
       {
         "id": "membership-boundaries",
-        "summary": "Added the order of the moves and the boundary that each one proves first, with the craft-only source of personal-pack-k183."
+        "summary": "The pruned marketplace step became homebrew-skill-delivery-k215, which proves the keg contents and the hook registration."
       }
     ]
   },
@@ -63,9 +62,9 @@
     {
       "id": "layout",
       "group": "layout",
-      "title": "One source directory, three readers",
+      "title": "One source directory, copied into the keg",
       "source": "layout.mmd",
-      "caption": "plugins/research is the Ravel source directory and the Claude Code plugin root. The repository root holds what the pack does not deliver."
+      "caption": "Grove's release copies plugins/research alone into its keg, so the digest covers only delivered files. Ravel reads the keg copy. The manifest stays as metadata that no route installs. The repository root holds what the pack does not deliver."
     },
     {
       "id": "edges",
@@ -79,14 +78,14 @@
       "group": "conformance",
       "title": "Two checks, each against a pinned revision",
       "source": "conformance.mmd",
-      "caption": "Grove checks its working tree against the pack commit that its marketplace pins. The pack checks its working tree against a recorded Grove commit from Grove's public remote, and runs that commit's runner."
+      "caption": "Grove checks its working tree against the pack commit that its record plugins/packs.json names. The pack checks its working tree against a recorded Grove commit from Grove's public remote, and runs that commit's runner."
     },
     {
       "id": "distribution",
       "group": "distribution",
-      "title": "Three routes from one published commit",
+      "title": "From a published commit to a session",
       "source": "distribution.mmd",
-      "caption": "The native install brings the grove plugin through the dependency. The Ravel route reads a checkout that a tool outside Ravel made. The installer takes the pack's plugin directory."
+      "caption": "Proposed by homebrew-delivery-design-k216. The release copies each pack from the checkout that check:packs used, so the keg holds the commit that the check accepted. Homebrew links the keg source into Ravel's default skill directory, which Ravel 2.0.0 reads with no settings. No marketplace lists a pack, and no installer links its skills."
     },
     {
       "id": "membership-formats",

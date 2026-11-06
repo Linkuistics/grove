@@ -2,9 +2,17 @@
 
 This design moves the owner's installed skill collection from native harness
 installations to Ravel's directory delivery. Its focused design review is
-integrated. Ravel later narrowed delivery to local directories, and the section
-[Pack checkouts](#pack-checkouts) replaced the earlier policy of Git sources.
-Three focused reviews of that change are also integrated.
+integrated. Ravel later narrowed delivery to local directories, and mise
+checkouts replaced the earlier policy of Git sources. Three focused reviews of
+that change are also integrated.
+
+`homebrew-delivery-design-k216` then replaced the mise checkouts with Homebrew
+formulae, as the decision record
+[Homebrew installs skills and Ravel delivers them](../adr/homebrew-installs-skills-and-ravel-delivers-them.md)
+states. [Skill formulae](#skill-formulae) holds the owner's setup. Finish now
+installs the writing hooks plugin before the switch, as
+[The hooks installation inside finish](#the-hooks-installation-inside-finish)
+states. The amendment adds no state, record or inverse to the switch.
 
 The leaf `owner-switch-recovery-k87` then rebuilt the switch's recovery on
 cells, a run record and detection of outside writes. A Quint model supports
@@ -58,7 +66,8 @@ owner-selected skill. Four facts constrain the transition:
 1. Classify every baseline entry by its owner and by what it supplies. Only
    owner-selected guidance moves to Ravel.
 2. Deliver that guidance from ten local Ravel sources, with one mandatory file.
-   mise holds the checkout of each source at a published commit.
+   Homebrew installs each source at a published commit, and mise declares the
+   formulae.
 3. Keep every native capability that a read cannot supply. That covers hooks,
    commands, agent definitions, MCP and LSP servers, tools, platform skills and
    one Claude Code skill.
@@ -102,16 +111,21 @@ same design.
   cannot end without ending itself. The process listing of step 1 excludes
   only kept processes.
 - **Native residue** is the set of native entries that stay after the switch.
-- **A pack checkout** is the local clone of one source repository. Ravel
-  captures it as a `local` source.
-- **A pin** is the published commit at which the owner holds a pack checkout.
+- **A keg source** is the copy of one source directory in a keg, at
+  `share/ravel/skills/<source-id>`. Homebrew links it into Ravel's default
+  skill directory, and Ravel captures it there as a `local` source.
+- **An accepted version** is a formula version whose keg sources passed the
+  staging trials. Each of its sources has an accepted `resourceDigest`.
+- **The candidate keg** is Grove's keg before Grove's release. It is the
+  production formula's install method over an unreleased archive, in a private
+  prefix.
 
 ### Classes and dispositions
 
 | Class | Baseline members | Disposition |
 | --- | --- | --- |
-| Owner pack | The `grove`, `linkuistics` and `testanyware` plugins and their skills. Grove's Codex snapshot links. | Ravel source by destination repository. Deactivate the native entries in the switch. |
-| Selected third-party pack | Superpowers 7.0.0 and quint-llm-kit 1.0.0, with their Codex copies and links | Ravel source at the upstream commit. Deactivate the native entries in the switch. |
+| Owner pack | The `grove`, `linkuistics` and `testanyware` plugins and their skills. Grove's Codex snapshot links. | Ravel source from its formula's keg. Deactivate the native entries in the switch. |
+| Selected third-party pack | Superpowers 7.0.0 and quint-llm-kit 1.0.0, with their Codex copies and links | Ravel source from a Linkuistics formula at the upstream commit. Deactivate the native entries in the switch. |
 | Stale copy | The earlier `grove` copy in `~/.claude/skills`. The superpowers copies in `~/.codex/skills`. | Deactivate in the switch. |
 | Dangling entry | `terminal-browser` links in three roots. The Pi skill links and the Pi technical-communication extension link. | Deactivate in the switch. No reader can read through them. |
 | Tool-managed | codebase-memory skill copies, agent definitions and hooks. herdr and Orca hooks. The `testanyware`, `quint` and `codebase-memory-mcp` executables. | Unchanged. Their installers own them. |
@@ -134,224 +148,175 @@ links again.
 
 ### Ravel sources
 
-| Source ID | Repository | Search roots | Delivered skills |
+| Source ID | Formula and repository | Search roots | Delivered skills |
 | --- | --- | --- | --- |
-| `grove-core` | `Linkuistics/grove` | `skills` in `plugins/grove` | Spine, `configure-grove`, finish, and the planning chain |
-| `requirements` | RequirementsSkills | `skills` in its plugin directory | The requirements chain |
-| `design` | DesignSkills | `skills` and `craft` in its plugin directory | The design chain, `decision-records`, `codebase-design`, `cli-tool-design` and `model-led-development` |
-| `engineering` | EngineeringSkills | `skills` and `craft` in its plugin directory | The impl and prototype chains, the coding styles, `using-codebase-memory`, `simplify-project` and `doubt-driven-development` |
-| `research` | ResearchSkills | `skills` in `plugins/research` | The research pair, the combiner and `research-family` |
-| `writing` | WritingSkills | `skills` and `craft` in its plugin directory | The editorial kinds, `technical-communication` and `writing-code-walkthroughs` |
-| `personal` | PersonalSkills | `craft` in its plugin directory | `machine-environment`, `using-jujutsu` and `authoring-conventions` |
-| `testanyware` | TestAnyware | `skills` in `plugins/testanyware` | `using-testanyware` |
-| `superpowers` | `obra/superpowers` | `skills` | All fifteen superpowers skills |
-| `quint` | `quint-co/quint-llm-kit` | `quint-llm-kit-plugin/skills` | `quint-lang`, `quint-modeling` and `quint-execute-spec` |
+| `grove-core` | `grove`, from `Linkuistics/grove` | `skills` | Spine, `configure-grove`, finish, and the planning chain |
+| `requirements` | `grove`, from RequirementsSkills | `skills` | The requirements chain |
+| `design` | `grove`, from DesignSkills | `skills` and `craft` | The design chain, `decision-records`, `codebase-design`, `cli-tool-design` and `model-led-development` |
+| `engineering` | `grove`, from EngineeringSkills | `skills` and `craft` | The impl and prototype chains, the coding styles, `using-codebase-memory`, `simplify-project` and `doubt-driven-development` |
+| `research` | `grove`, from ResearchSkills | `skills` | The research pair, the combiner and `research-family` |
+| `writing` | `grove`, from WritingSkills | `skills` and `craft` | The editorial kinds, `technical-communication` and `writing-code-walkthroughs` |
+| `personal` | `personal`, from PersonalSkills | `craft` | `machine-environment`, `using-jujutsu` and `authoring-conventions` |
+| `testanyware` | `testanyware`, from TestAnyware | `skills` | `using-testanyware` |
+| `superpowers` | `superpowers`, from `obra/superpowers` | `skills` | All fifteen superpowers skills |
+| `quint` | `quint-llm-kit`, from `quint-co/quint-llm-kit` | `quint-llm-kit-plugin/skills` | `quint-lang`, `quint-modeling` and `quint-execute-spec` |
 
-The [external pack contract](external-pack-contract.md#layout) owns the layout
-of each Linkuistics pack. That covers its source directory `plugins/<plugin>`,
-its roots `skills` and `craft`, its links and its Git attributes. The proven
-facts of that contract record the paths after the research move. The plugin
-directory of each later pack follows from its move.
+The source path of each row is
+`$(brew --prefix)/share/ravel/skills/<source-id>`, in Ravel's default skill
+directory. The
+[external pack contract](external-pack-contract.md#layout) owns the layout of
+each pack's source directory. The
+[keg layout](codex-skill-provisioning.md#the-keg-layout) owns where each
+formula puts a source, and the identity of a keg source.
 
 These rules bind the owner's configuration of the sources:
 
-- Configure one source for each repository.
-- For a repository that is not a Linkuistics pack, set its source directory to
-  the narrowest directory that holds the delivered skills. That directory also
-  holds every resource they reference by relative path. Never use a repository
-  root that holds build output. TestAnyware's root holds `target/`.
+- Configure one source for each keg source.
+- Where the settings name a source, name its path in the default directory,
+  never its versioned keg path. Homebrew's cleanup erases an earlier keg.
 - Expose only Ravel-delivered skills through search roots. Keep native-only
   skills and plugin-only trees outside every root.
-- Git's checkout configuration can change the written files of any source. The
-  tree ID of a source directory therefore does not identify the files that
-  Ravel captures, and [Pack checkouts](#pack-checkouts) states the identity
-  that does.
 
-The first pins are known: superpowers
+The first commits of the two third-party formulae are known: superpowers
 `bb92a77741419a4ab5f06e711a283343f1ada0c3` and quint-llm-kit
 `cc75369f741af7d490936f82002c2d28e3b3d78d`. These are the commits of the
-installed plugins. Rollout reads both again before it writes the pins.
+installed plugins. The formula author reads both again before the formulae
+publish.
 
-### Pack checkouts
+### Skill formulae
 
-Ravel reads each source from a local directory and records no revision. Its
-decision record "Skill sources are local directories" states why. The section
-"Sources outside Ravel" of its specification states what a tool outside Ravel
-does for a source. Ravel and Grove require no particular tool. Other users can
-make their checkouts with any tool. This section states the owner's choice.
+Homebrew installs each source, and Ravel reads the keg. Neither Ravel nor Grove
+fetches a source. The [keg layout](codex-skill-provisioning.md#the-keg-layout)
+states where each formula puts its sources, their stable paths and their
+identity. This section states the owner's setup.
 
-On this machine, the `[bootstrap.repos]` part of mise owns every pack checkout.
-The machine contract already gives machine setup to `mise bootstrap`, so no
-other tool is necessary. The entries are in `~/.config/mise/config.toml`, which
-mise tracks. Each entry names one checkout:
+The owner's `~/.config/mise/config.toml` declares each skill formula in
+`[bootstrap.packages]`, and mise runs Homebrew. No `[bootstrap.repos]` entry
+names a skill source.
 
-| Field | Value |
+| Declaration | Sources |
 | --- | --- |
-| Checkout path | `~/.local/share/skill-packs/<source-id>`, a plain Git clone |
-| `url` | The HTTPS URL of the published remote |
-| `ref` | The pin, as a full commit ID |
+| `"brew:linkuistics/taps/grove" = "latest"` | `grove-core`, `requirements`, `design`, `engineering`, `research` and `writing` |
+| `"brew:linkuistics/taps/personal" = "latest"` | `personal`, and the `guardrail` plugin |
+| `"brew:linkuistics/taps/testanyware" = "latest"` | `testanyware` |
+| `"brew:linkuistics/taps/superpowers" = "latest"` | `superpowers` |
+| `"brew:linkuistics/taps/quint-llm-kit" = "latest"` | `quint` |
 
-The Ravel source `path` is the source directory inside the checkout. For a
-Linkuistics pack it is `plugins/<plugin>`. For another repository it is the
-narrowest subdirectory that holds the delivered skills. Ravel expands no tilde,
-so the settings name the absolute path, such as
-`/Users/antony/.local/share/skill-packs/grove-core/plugins/grove`.
-No harness discovers skills under `~/.local/share`, so a checkout adds no
-native entry.
-
-The design assumes that every pack remote is public, so a clone needs no
-credential. The four existing remotes are public, and every owner-pack skill is
-public today in `Linkuistics/grove`. A private pack needs a credential route in
-each HOME that clones it, before its staging trial.
-
-The owner runs these commands. Each names the HOME with `-C`, as `mac-bootstrap`
-does, so that a project's `mise.toml` cannot change an entry.
+The owner runs these commands. Each names the HOME with `-C`, as
+`mac-bootstrap` does, so that a project's `mise.toml` cannot change an entry.
 
 | Purpose | Command | Effect |
 | --- | --- | --- |
-| Installation on a new machine | `mise bootstrap --adopt AntonyBlakey/mise-setup` | Restores the tracked files first, the Ravel settings included. Then it installs the packages and runs the repository part. Until that part completes, a launch refuses as `skill_source_missing` |
-| Installation on a configured machine | `mac-bootstrap`, which runs `mise -C "$HOME" bootstrap` | Runs the repository part among the other parts |
-| Installation of the checkouts only | `mise -C "$HOME" bootstrap repos apply` | Clones each missing checkout, and moves each other checkout to its pin |
-| Advance of a pin | An edit of the `ref` in the tracked file, then `mise -C "$HOME" bootstrap repos apply` | Fetches, then moves the checkout to the new pin |
-| Report of drift | `mise -C "$HOME" bootstrap repos status --missing` | Exits 1 when any checkout is missing, dirty, at another commit or has another origin |
+| Installation on a new machine | `mise bootstrap --adopt AntonyBlakey/mise-setup` | Restores the tracked files first, the Ravel settings included. Then its packages part installs the formulae. Until that part completes, a launch refuses as `skill_source_missing` |
+| Installation on a configured machine | `mac-bootstrap`, which runs `mise -C "$HOME" bootstrap` | Installs each missing formula among the other parts |
+| Installation of the packages only | `mise -C "$HOME" bootstrap packages apply` | Installs each missing formula, and upgrades none |
+| Advance | `brew update`, then `brew upgrade <formula>` | Installs the tap's current version in a new keg, then links it |
+| Report of drift | `mac-check` | Reports each skill formula's installed version against the tap's current version |
 
-A dirty or conflicting checkout stops `apply` before it changes any checkout.
-It also stops a complete `mise bootstrap` run before its later parts.
-`--skip-dirty` skips a dirty checkout, but not a conflicting one.
+A formula version names a commit. For Grove and TestAnyware it is a release
+tag. For the other three it is the commit of the formula's source archive.
 
-`mise bootstrap plan`, which `mac-check` runs today, ignores repositories.
-`mac-check` therefore gains the status command. It reads the `--json` output,
-so that it can tell drift from a configuration error.
+The tap publishes only accepted versions. Grove's release task and TestAnyware's
+release publish theirs. The owner edits the other three formulae after their
+staging trials. The tap's current version is therefore the accepted version.
 
-The tracked file records the intended pin of each checkout. mise's local
-history records each edit, and `mise dot sync` publishes it. The HEAD of each
-checkout records the delivered commit, and the status command reports it as
-`current_sha`. The two agree exactly when the state is `current`. Ravel's
-descriptor records the content digest of each capture and its origin path. The
-cutover receipt joins the source ID, the checkout path, the pin and the digest.
+Homebrew installs only the tap's current version. A rebuilt machine therefore
+installs the current versions, not earlier ones.
 
-The `grove-core` pin follows Grove's releases. After each Grove release, the
-owner advances it to the released commit. Without that advance, the installed
-Grove and the delivered spine can differ.
+`mac-check` reads `mise -C "$HOME" bootstrap packages status --json` for each
+declaration and its installed version. It reads `brew info --json=v2` for the
+tap's current version. A skill formula that is not installed, or a status that
+it cannot read, is a configuration error. An installed version other than the
+tap's current version is drift.
 
-During this cutover, the staging trials accept a candidate pin for
-`grove-core`. The core layout reaches `main` only in finish, so the candidate
-is a published commit of this workstream's line. Later leaves can still change
-the core skills. The candidate is therefore the last commit of the line that
-changes the `grove-core` source directory. A later change needs a new
-candidate and a rerun of the trials that read `grove-core`.
+Grove's keg holds core. The delivered spine and the installed Grove therefore
+come from one release, and no separate core pin exists.
 
-A committed evidence document records the Git tree ID of the `grove-core`
-source directory at the candidate, from `git rev-parse <commit>:<path>`. The
-tree ID identifies the committed files, their executable bits and their links.
-Before finish, rollout shows that the final line has the same ID. The switch
-compares the ID again at the released commit, to decide whether the core
-trials run again.
+During this cutover, the staging trials read Grove's six sources from the
+candidate keg. Grove's real keg holds them only after Grove's release, inside
+finish. The candidate is the last published commit of this workstream's line
+that changes `plugins/grove` or `plugins/packs.json`. A later change needs a
+new candidate keg and a rerun of the trials that read the changed sources.
 
-The tree ID does not identify the files that a checkout holds. With
-`core.autocrlf=true`, Git writes CRLF line ends. With `core.symlinks=false`, it
-writes a link as a regular file that holds the target. Neither changes the
-tree ID, and `git status --porcelain --ignored` stays empty. The staging clones
-and the real-HOME `apply` run under different Git configuration, so their
-files can differ.
+A committed evidence document records the candidate commit and the accepted
+`resourceDigest` of each of Grove's six sources. Before finish, rollout builds
+the candidate keg of the final line and shows that each digest is unchanged.
+After the release, the switch compares the digests of the installed keg, as
+its step 4 states.
 
-Ravel captures the written files. Its `resourceDigest` covers their relative
-paths, types, executable bits, link targets and contents. The checkout path is
-not part of it. The accepted identity of each source is therefore its
-`resourceDigest`, from `ravel skills resolve --json` in the staging HOME.
-
-After the Ravel cut, rollout records each accepted digest again with the
-published archives. Before the switch changes anything, each real-HOME checkout
-must give its accepted digest. An equal tree ID never admits a different
+The staging trials read the four other formulae from their installed kegs.
+Installing a formula changes no HOME and no discovery, so those installations
+can precede the staging trials. After the Ravel cut, rollout resolves every
+source again with the published archives and records the same digests. Before
+the switch changes anything, each installed keg source must give its accepted
 digest.
 
-Nobody edits a pack checkout or runs a tool inside it. Development happens in
-the working copy of each pack under `~/Development/AgenticOrchestration`.
-`apply` refuses a checkout with local changes, and Ravel would capture those
-changes. The status command does not see a file that Git ignores, such as
-`__pycache__`, but Ravel captures it. In a clean checkout,
-`git status --porcelain --ignored` prints nothing.
+Nobody edits a keg or runs a tool inside it. Homebrew leaves `libexec` files
+writable, and Ravel would capture an edit. Development happens in the working
+copy of each pack under `~/Development/AgenticOrchestration`.
 
-An advance needs an interval in which nothing captures the checkouts that it
-changes. A capture during the change of a checkout refuses as
-`skill_source_changed`. Ravel's capture is not atomic, so it can also retain a
-mix of two commits.
+An advance installs a new keg and links it after the keg is complete. A capture
+through the default directory therefore reads one complete keg or refuses, as
+the keg layout states. An advance needs no interval without
+captures. A launch that races it refuses visibly, and the owner reruns it. Each
+Homebrew installation or upgrade of a skill formula is an advance. That
+includes a plain `brew upgrade` of every formula.
 
-Ravel captures a checkout at each `ravel start-session` and each
-`ravel skills resolve` whose settings name it. A Grove launch, `grove run` and
-the release notes of a release task reach Ravel through `start-session`. Any
-harness session can run either command, also a session that Ravel launched. A
-Ravel 1.1 launch captures nothing. Settings without a `skills` key capture
-nothing either. A running session reads its retained snapshot until it runs
-Ravel again.
+Ravel captures a keg source at each `ravel start-session` and each
+`ravel skills resolve` whose settings name it. A Ravel 1.1 launch captures
+nothing. Settings without a `skills` key capture nothing either. A running
+session reads its retained snapshot until it runs Ravel again.
 
-Every `apply` and every complete `mise bootstrap` counts as an advance. A pin
-that `mise dot sync` brought from another machine moves a checkout without a
-local edit.
-
-Before an advance, the owner lists the live Claude Code, Codex, Pi, Grove and
-Ravel processes, as switch step 1 does. The owner ends each other harness
-session and each Grove driver, or waits for it to end. Until `apply` ends, the
-owner runs no Ravel command and no release task. A session can do the advance
-and keep its own driver. That driver launches the next session only after this
-session ends. The session runs no Ravel command until `apply` ends.
-
-Preparation and the switch need no stop. The real HOME's settings name no skill
-source until the switch writes them. Switch step 1 finds no other Ravel or
-Grove process, and finish's own launch is a Ravel 1.1 launch.
-
-An unpublished edit reaches a launch only through trial settings in a staging
+The real HOME's settings name no skill source until the switch writes them, so
+preparation and the switch capture nothing from the real settings. That holds
+only while an absent `skills` key turns delivery off, as
+[Open question: the default directory](#open-question-the-default-directory)
+states. An
+unpublished edit reaches a launch only through trial settings in a staging
 HOME. Those settings can name a development working copy as a `local` source.
 
 A launch behaves as follows:
 
-- Ravel captures each checkout at each launch. It reuses the published snapshot
-  while the files stay the same. Each pin that the owner applies therefore adds
-  at most one snapshot, while the checkout holds only the files of its pin.
-- A missing checkout, or a missing configured root, refuses as
+- Ravel captures each keg source at each launch. It reuses the published
+  snapshot while the files stay the same. Each keg version therefore adds at
+  most one snapshot.
+- A missing keg source, or a missing configured root, refuses as
   `skill_source_missing`, exit 3, before Ravel launches any worker. Grove's
   loop stops without a relaunch. The owner runs
-  `mise -C "$HOME" bootstrap repos apply`, then reruns Grove. No launch substitutes native skills or another revision.
-- Ravel reads no revision, so a checkout at another commit delivers its files
-  without a report. The status command reports that state.
+  `mise -C "$HOME" bootstrap packages apply`, then reruns Grove. No launch
+  substitutes native skills or another version.
+- Ravel reads no version, so a keg at another version delivers its files
+  without a report. `mac-check` reports that state.
 
-After the first installation, the route needs no network except for an advance:
+After the first installation, the route needs no network except for an
+advance:
 
-- A launch needs no network, because Ravel reads the checkouts on disk.
-- The status command works for commit refs. `apply` succeeds without a fetch
-  when every checkout is at its pin.
-- An advance fails without a network. `apply` fetches before it changes a
-  checkout, also when the clone already holds the commit. The checkout keeps
-  its earlier commit, and launches keep delivering it. The status command
-  reports `differs` until an `apply` succeeds.
-- A missing checkout stays missing until a network is available.
+- A launch needs no network, because Ravel reads the kegs on disk.
+- An advance fails without a network, because Homebrew downloads before it
+  changes a keg. The earlier keg keeps launching, and `mac-check` reports
+  drift until an advance succeeds.
+- A missing formula stays missing until a network is available.
 
 The policy costs the automatic updates that the Claude Code marketplace gives
-today. An unpublished edit cannot reach a default launch until its pin
+today. An unpublished edit cannot reach a default launch until its formula
 advances. In return, both harnesses read identical bytes, launches need no
-network, and each pin has one snapshot. A rebuilt machine clones the same
-commits from the remotes while each remote keeps them.
-
-A third-party remote can rewrite its history. When a pin leaves its remote, a
-fresh clone cannot reach it, and the owner chooses a new pin. An existing
-checkout keeps working.
+network, and each keg version has one snapshot. A third-party remote can
+rewrite its history. When a formula's commit leaves its remote, a rebuilt
+machine cannot install that formula, and the owner chooses a new commit. An
+existing keg keeps working.
 
 The design rejected these alternatives:
 
 - **Development working copies as default sources.** Each launch would capture
   uncommitted or conflicted jj states. Ravel retains every distinct capture and
   has no collector, so storage would grow with each edit.
-- **Checkouts that follow the default branch.** An entry without a `ref` reports
-  `current` after the remote moves ahead. Nothing then records which commit a
-  checkout holds.
-- **A lock file and a synchronisation task in the marketplace repository.** It
-  would do what mise does, and it would add a second owner of machine setup.
+- **Formulae that follow a branch.** Nothing would record which commit a keg
+  holds, and mise cannot evaluate a formula without a `sha256`.
+- **mise checkouts in `[bootstrap.repos]`.** They are specific to mise, and the
+  human chose Homebrew, which mise runs. skill-marketplace-decision-k201
+  records that choice.
 - **The Claude Code marketplace clones.** Claude Code updates and erases them,
   and Codex delivery would then depend on Claude Code.
-
-The marketplace keeps its own revisions for native users. Rollout verifies that
-the marketplace and the owner's pins name the same commits at the switch. Later
-divergence is allowed when it is deliberate.
 
 ### Mandatory guidance
 
@@ -376,9 +341,9 @@ output style is a harness style rather than guidance. It stays a native hook.
 
 | Capability | Route after the switch |
 | --- | --- |
-| Always-on technical communication on Claude Code | A skill-free Claude Code plugin from WritingSkills. Its root is the skill directory, as for the existing Codex hooks plugin. |
+| Always-on technical communication on Claude Code | The skill-free plugin `technical-communication-hooks@writing-hooks` from Grove's keg. Claude Code runs it in place through the `opt` path. Its root is the skill directory, as for the Codex hooks plugin. |
 | Always-on technical communication on Codex | Absent today, and the switch keeps it absent. Installing the existing Codex hooks plugin is a separate owner choice. |
-| `guardrail` | A Claude Code plugin from PersonalSkills that holds only `guardrail` |
+| `guardrail` | `guardrail@personal` from the personal keg. It holds only `guardrail` |
 | Superpowers bootstrap text | The Ravel mandatory file. The superpowers plugin is disabled. |
 | Explanatory output style, Context7, Playwright, commit-commands, feature-dev and Swift LSP | The same enabled plugins, which hold no skills |
 | codebase-memory MCP server, hooks, agent definitions and skill copies | Unchanged. Its own updater rewrites them. |
@@ -386,22 +351,25 @@ output style is a harness style rather than guidance. It stays a native hook.
 | `quint-kb` MCP server | Unchanged. It runs from the Quint clone, which stays. |
 | TestAnyware command, application and configuration | Unchanged installations. The skill reaches them by ordinary command execution. |
 
-The repository moves must supply three packaging changes before the switch:
+The repository moves and homebrew-skill-delivery-k215 supply three packaging
+changes before the switch:
 
 - WritingSkills offers the technical-communication hooks as a Claude Code
   plugin without a `skills/` directory. A trial must show that Claude Code runs
   the hooks and lists no native `technical-communication` skill. If Claude Code
   lists the root `SKILL.md` as a skill, repair the layout before the switch.
 - PersonalSkills offers a Claude Code plugin that holds only `guardrail`.
-- The new marketplace lists both plugins beside the ordinary pack plugins.
-  Native users keep the full plugins, and Ravel users enable only these two.
+- Grove's keg carries the marketplace file `writing-hooks`, and the personal
+  keg carries the marketplace file `personal`. The delivery specification's
+  [Hook adapters](codex-skill-provisioning.md#hook-adapters) states both. No
+  marketplace lists a pack.
 
 The design rejected user hooks that point into a working copy. Such hooks run
 uncommitted code, and a layout change breaks them without a report. The Pi
-extension link shows that failure. A snapshot path changes with each pin, so a
-hook that names a snapshot breaks at each pin advance. A hook that names a pack
-checkout runs committed code. A layout change at a pin advance still breaks it
-without a report.
+extension link shows that failure. A snapshot path changes with each keg
+version, so a hook that names a snapshot breaks at each advance. A keg's marketplace file and
+its plugin come from one keg. A layout change in a later keg therefore moves
+both together.
 
 ### Name collisions and stale copies
 
@@ -424,9 +392,9 @@ supplies.
 
 ### Resource lifetime
 
-Ravel snapshots are immutable and retained. Each source pin has one snapshot.
-An advance changes a pack checkout but no snapshot. A running session keeps
-reading the snapshot of its launch.
+Ravel snapshots are immutable and retained. Each keg version has one snapshot
+for each source. An advance installs a new keg and changes no snapshot. A
+running session keeps reading the snapshot of its launch.
 
 Deactivation keeps every native byte. Claude Code's plugin caches stay where the
 platform keeps them. Grove's Codex snapshots stay under `~/.agents/.grove`. A
@@ -447,65 +415,30 @@ and current. Automatic updates of the earlier marketplace stay frozen from the
 preparation step onward. Nothing updates or uninstalls a superseded plugin
 before purge. The official marketplace updates automatically by default, so
 this rule covers every plugin that finish loaded, not only Grove's. A backup
-copy elsewhere does not protect an orphaned absolute path. A late rollback
-installs from the marketplace when a needed version directory is gone.
+copy elsewhere does not protect an orphaned absolute path.
+
+After finish, the retired listing names no plugin, so no later installation restores a version
+directory that is gone. The frozen registration is therefore the whole native
+return, as [Rollback](#rollback) states.
+
+The two skill-free plugins load in place through their `opt` paths. Claude
+Code also keeps a cache copy of each, and no session reads it. Homebrew's
+cleanup of an earlier keg therefore breaks no plugin path.
 
 ### Settings isolation and the staging HOME
 
 All trials before finish run in a staging HOME. It holds its own Ravel
 configuration and settings with the ten sources and the mandatory file. Its
 harness configuration is a prototype of the native residue: the skill-free
-plugins are enabled, and no superseded skill is installed. The staging HOME
-copies no credential.
+plugins are enabled, and no superseded skill is installed. Its Claude Code
+registers `writing-hooks` from the candidate keg and `personal` from the
+installed personal keg. The staging HOME copies no credential.
 
-The staging checkouts lie outside the staging HOME. A trial clones them with
-the drafted `[bootstrap.repos]` entries under a separate checkout HOME. mise's
-state and the symbolic links inside a pack repository therefore add no link to
-the staging HOME.
-
-The environment of the checkout run holds only these variables, as the
-environment of the `task owner:checkouts` fixture does:
-
-| Variable | Value |
-| --- | --- |
-| `PATH` | The directories of the selected `git` and `mise`, then `/usr/bin` and `/bin` |
-| `HOME` | The checkout HOME |
-| `XDG_CONFIG_HOME`, `XDG_DATA_HOME`, `XDG_STATE_HOME` and `XDG_CACHE_HOME` | Directories inside the checkout HOME |
-| `MISE_CONFIG_DIR`, `MISE_DATA_DIR`, `MISE_STATE_DIR` and `MISE_CACHE_DIR` | Directories inside the checkout HOME |
-| `GIT_CONFIG_NOSYSTEM` | `1` |
-| `GIT_CONFIG_GLOBAL` | The null device |
-| `GIT_TERMINAL_PROMPT` | `0` |
-
-No inherited Git configuration, credential program or SSH agent reaches the
-run. The system configuration of both installed Git builds names
-`osxkeychain`. The owner's global configuration is on the XDG path and names
-Git Credential Manager. Each of these inherited variables would expose a
-helper: `XDG_CONFIG_HOME`, `GIT_CONFIG_GLOBAL`, `GIT_CONFIG_COUNT`,
-`GIT_CONFIG_PARAMETERS` and, without `GIT_CONFIG_NOSYSTEM`,
-`GIT_CONFIG_SYSTEM`. `GIT_ASKPASS` and `SSH_ASKPASS` name further credential
-programs, and `GIT_TERMINAL_PROMPT` does not disable them. These seven
-variables are the credential routes.
-
-A fixture control proves the allowlist before the first clone from a real
-remote. It runs in a fixture HOME, and it never uses the real keychain:
-
-1. Serve a local remote that asks for a credential.
-2. Give a decoy helper that writes a marker file and returns no credential.
-3. Build one case for each route. Its environment is the allowlist without
-   the entry that blocks the route, with the route added.
-4. Clone in each case through `mise -C <fixture HOME> bootstrap repos apply`.
-   The marker must appear in each case.
-5. Put every route into the parent environment, and build the allowlist from
-   that environment.
-6. Clone through that allowlist with the same command. The clone must fail,
-   and no marker may appear.
-
-A remote that needs a credential then fails the trial without a read of the
-real keychain.
-
-The staging settings name the staging checkouts by absolute path. They differ
-from the drafted real settings only in those paths. The staging HOME and the
-checkout HOME stay until the switch writes its receipt, because step 4 of the
+The staging settings name each source explicitly, because Ravel's default skill
+directory is that of the real Homebrew prefix. They name Grove's six sources in
+the candidate keg and the four other sources in their installed kegs. They differ from the drafted real
+settings only in the paths of Grove's six sources. The staging HOME and the
+candidate keg stay until the switch writes its receipt, because step 4 of the
 switch can need them.
 
 Each harness reuses only its sign-in store from the real HOME. Sign-in and
@@ -556,12 +489,15 @@ The switch also requires evidence that no other 1.1 driver can launch.
 ### The final session and new launches
 
 - **Until finish launches**, the native setup does not change. Preparation may
-  install disabled plugins, add a marketplace and write `config.rhai` beside
-  `policy.ts`. It may also add the `[bootstrap.repos]` entries and clone the
-  pack checkouts. Each of those changes leaves native discovery unchanged.
+  install the skill formulae, register the personal keg's marketplace and
+  install `guardrail` disabled. It may also write `config.rhai` beside
+  `policy.ts`. Each of those changes leaves native discovery unchanged.
 - **Finish** launches through this driver, Ravel 1.1.0 and `policy.ts` into
   Claude Code. It loads `grove-finish` and the spine from the enabled Grove
   plugin's cache path. Its lazy reads use that absolute path.
+- **The hooks installation** runs inside finish, after promotion, as
+  [The hooks installation inside finish](#the-hooks-installation-inside-finish)
+  states. It installs one disabled plugin and changes no loaded plugin.
 - **The switch** runs inside finish, after promotion. It disables the Grove
   plugin but neither updates nor uninstalls it. The version directory keeps
   its registration and receives no orphan marker, so finish can still read its
@@ -570,10 +506,68 @@ The switch also requires evidence that no other 1.1 driver can launch.
   native residue.
 - **After this driver's reap**, a new driver resolves compatible Grove and the
   promoted Ravel 2.0.0. Each of its launches reads `config.rhai`, captures the
-  pack checkouts and receives the directories.
+  keg sources and receives the directories.
 
 Finish keeps its original ending command and the full 1.1.0 keg, under the
 coordinated release design.
+
+### The hooks installation inside finish
+
+Grove's keg holds the marketplace file `writing-hooks` only after Grove's
+release, which runs inside finish. Finish therefore installs
+`technical-communication-hooks` after the release and the promotion, and
+before step 1 of the switch:
+
+1. List the processes as switch step 1 does. If any other listed process or
+   job remains, stop and ask the owner.
+2. If Claude Code has the plugin installed from `writing-hooks`, registered at
+   `$(brew --prefix)/opt/grove`, change nothing.
+3. If the plugin is absent, register that marketplace unless it is already
+   registered at that path. Then run
+   `claude plugin install technical-communication-hooks@writing-hooks` and
+   `claude plugin disable technical-communication-hooks@writing-hooks`.
+4. In any other state, stop and ask the owner. Change nothing.
+
+Each command names the new marketplace or its plugin. No command refreshes or
+updates `linkuistics`. No command runs `claude plugin marketplace update`
+without a name, because that form refreshes every listing. The frozen
+registration that holds finish's own guidance therefore stays as it was.
+
+The prepared plan expects this installation. It records `false` as the earlier
+value of the plugin's `enabledPlugins` cell. It also records the plugin's row
+as an entry outside the switch set. Step 9 enables the plugin as it enables
+`guardrail`.
+
+The rehearsal installs the plugin from the candidate keg in its
+disposable layouts, so the plan and the row are known before finish. The row's
+digest covers Claude Code's cache copy of the plugin. That copy holds the bytes
+of the `writing` source at its accepted digest.
+
+A failed command is a stop before the switch. The next run goes back to
+item 1. An interruption between the installation and the disabling leaves the
+plugin enabled while no run is open. Step 3 of the switch then finds the
+changed state and stops for the owner's classification, as
+[Resuming the switch](#resuming-the-switch) states. The installation adds no
+state, record or inverse, so [the recovery model](#the-recovery-model) is
+unchanged.
+
+### Open question: the default directory
+
+This section is open. The human chose a default skill directory for Ravel
+2.0.0, and `ravel-default-skill-directory` designs it. The default changes what
+an absent `skills` key means on Ravel 2.0. This design reads absence as
+delivery off in three places:
+
+- Preparation keeps the key absent, because this driver's 1.1 launches refuse a
+  2.0 key.
+- The inverse takes the key out of the Ravel settings.
+- The native probe expects `ravel skills resolve --json` to report `disabled`.
+
+With the default, an absent key delivers each source that Homebrew linked.
+After finish's release and promotion, a 2.0 launch would therefore deliver
+before the switch, and the inverse would leave delivery on. The Ravel design
+settles how the native state turns delivery off before the plan's rehearsal. A
+change to a recovery rule changes `docs/models/owner-switch.qnt` first.
 
 ### The switch inside finish
 
@@ -598,26 +592,22 @@ set. Its steps are:
    rows, whose digest says `unverified`, with finish's own skill listing.
    Report each flagged kept copy, as
    [Concurrent writers](#concurrent-writers) states.
-4. Read the Git tree ID of the `grove-core` source directory at the commit of
-   the latest published Grove release. That is finish's release, or a later
-   patch release that a repair needed. Compare the ID with the candidate's ID
-   in the committed staging evidence. If the IDs are equal, the candidate's
-   digest is the accepted `grove-core` digest. If they differ, rerun the
-   staging trials that read `grove-core` with the released commit. They run
-   in the retained staging HOME, under the environment rule of step 10. Stop
-   if one fails. The digest of that rerun becomes the accepted `grove-core`
-   digest.
-5. Advance the `grove-core` pin to the released commit of step 4. Run
-   `mise -C "$HOME" bootstrap repos apply`. Nothing captures a checkout
-   meanwhile, as [Pack checkouts](#pack-checkouts) states.
-6. Run `mise -C "$HOME" bootstrap repos status --missing`, and stop unless it
-   exits 0. In each pack checkout, `git status --porcelain --ignored` must
-   print nothing. Each pin in the tracked file must equal its accepted pin in
-   the staging evidence. For `grove-core`, the accepted pin is the released
-   commit that step 4 admitted. Then write the drafted real Ravel settings
-   into a disposable HOME. Run `ravel skills resolve --json` there with the
-   promoted `ravel`. Stop unless each source's `resourceDigest` equals its
-   accepted digest.
+4. Stop unless the installed Grove is the latest published Grove release and
+   its `opt` link reaches it. That is finish's release, or a later patch
+   release that a repair needed. Write the drafted real Ravel settings into a
+   disposable HOME, and run `ravel skills resolve --json` there with the
+   promoted `ravel`. Compare the digest of each of Grove's six sources with its
+   accepted digest in the committed staging evidence. For each source whose
+   digest differs, rerun the staging trials that read it with the installed
+   keg. They run in the retained staging HOME, under the environment rule of
+   step 10. Stop if one fails. The digest of that rerun becomes the accepted
+   digest of that source.
+5. Run `mise -C "$HOME" bootstrap packages status --json`. Stop unless each
+   skill formula is declared and installed. Stop unless each installed version
+   equals its accepted version in the staging evidence. For Grove, the
+   accepted version is the release that step 4 admitted.
+6. Resolve the drafted real settings again in the disposable HOME of step 4.
+   Stop unless each source's `resourceDigest` equals its accepted digest.
 7. Record the reader evidence. Name each plugin cache version directory that
    finish loaded and its registration in `installed_plugins.json`. Stop if any
    of those directories holds `.orphaned_at`.
@@ -672,12 +662,8 @@ set. Its steps are:
    `mac-check` reports the switch complete.
 
 Steps 1 to 8 change no cell of the plan, except an inverse that step 3
-resumes. Step 5 changes the `grove-core` checkout and its pin in the tracked
-file. No launch captures that checkout, because the real HOME's settings name
-no skill source until step 9. A stop in steps 1 to 8 therefore leaves native
-delivery working with the published Grove and the promoted Ravel. A failed
-`apply` keeps the edited pin. The tracked file then names the released
-commit, and the status command reports `differs`.
+resumes. A stop in steps 1 to 8 therefore leaves native delivery working with
+the published Grove and the promoted Ravel.
 
 A complete inverse of step 9 or step 11 restores the native layout, and the
 native probe verifies it. An inverse can also stop part of the way. A session
@@ -691,8 +677,9 @@ write of the receipt is a stop.
 1. Find the state of the switch set again, as step 3 does.
 2. Write a pending-activation record into the maintained manual. Name the
    published Grove version and its release commit, and the promoted Ravel path
-   and version. Add the edited pin, the output of `status --json` and the
-   output of the failed step or probe.
+   and version. Add the installed formula versions, the output of
+   `mise -C "$HOME" bootstrap packages status --json` and the output of the
+   failed step or probe.
 3. In the record, name each backup and the state of the switch set. For a
    drifted or changed state, list each cell with its value. Also list each
    changed entry outside the switch set and each flagged kept copy.
@@ -737,8 +724,8 @@ machine contract.
 
 The receipt records the activated default path: the Grove version, the Ravel
 path and version, and the digests of `config.rhai` and the settings. It also
-records each source's checkout path, pin and snapshot digest. For `grove-core`,
-it records both tree IDs and each trial that step 4 ran again. It records the
+records each source's keg path, formula version and snapshot digest, and each
+trial that step 4 ran again. It records the
 digests of the plan and the program, the cell values of step 13 and the
 reader evidence. It names each backup location and each retained byte set
 with its purge condition. The
@@ -803,7 +790,6 @@ write. It lets outside programs write at every step, with no exclusion.
 - Codex and Pi sessions read through the link paths that the switch moves.
 - A session that launches inside a write interval sees neither delivery.
 - Grove 22.8 rewrites its Codex links at each Codex launch.
-- A pin advance needs an interval in which nothing captures a checkout.
 - A running writer makes a conflict likely, and a conflict stops the switch.
 
 A write interval is one run of step 9 or of one inverse. The program lists
@@ -825,8 +811,7 @@ Ravel or Grove command. Before the session runs the program, it ends each
 delegate and background task of its own. That rule includes a delegate
 inside the harness process, which no process listing shows. One program
 command then runs each interval, so no agent action, harness hook or probe
-runs inside it. The listing of step 1 also stops a descendant that could
-capture a checkout during the advance of step 5.
+runs inside it.
 
 Detection covers the writes of each kept process. Exclusion does not protect
 a kept process that reads. The harness process reads its own guidance by the
@@ -990,10 +975,16 @@ plugin caches exist. The owner runs the program copy of the latest backup,
 which lists the processes of step 1 first. The owner also adds a line to the
 maintained manual.
 
-Otherwise, the supported return to native delivery installs the current
-marketplace plugins. No rollback erases Ravel snapshots.
-Rollback keeps the pack checkouts, their mise entries and the advanced
-`grove-core` pin. No harness discovers skills in them.
+The inverse is the only return to native delivery. It needs the latest backup
+and the plugin caches of the frozen `linkuistics` registration. After finish,
+no remote marketplace lists a pack, so no later installation restores native
+skills. After purge, no native return exists. The owner then repairs the Ravel
+route: the formulae, the settings or Ravel itself. A session that its user
+opens directly can still read the folders that `ravel skills resolve` lists.
+
+No rollback erases Ravel snapshots. Rollback keeps the skill formulae, their
+mise declarations and the two skill-free plugins, installed and disabled. No
+harness discovers skills in a keg.
 
 ### The recovery model
 
@@ -1087,6 +1078,8 @@ earlier marketplace registration. Purge requires five conditions:
 - Each retained entry keeps the change identity that its move recorded.
 - The owner decides that the rollback window is closed.
 
+Purge also ends the native return, as [Rollback](#rollback) states.
+
 Purge is outside this grove's success condition, as the 1.1.0 keg cleanup is.
 The receipt lists each item with its condition. The maintained manual carries
 the procedure. The owner uninstalls platform registrations only through the
@@ -1098,8 +1091,8 @@ uninstall marks the version orphaned, and the platform erases it 14 days later.
 After the switch, a session that the owner opens directly with `claude`,
 `codex` or `pi` sees only the native residue. It can receive the same
 directories through the output of `ravel skills resolve`. It can also read the
-pack checkouts by path. A pin advance then changes the files under that
-session. The root
+keg sources by path. An advance then links the default directory to another
+keg under that session. The root
 requirements leave automatic configuration of such sessions outside scope.
 This is the main daily consequence of the owner's chosen target.
 
@@ -1139,26 +1132,27 @@ with the coordinated release work.
 | Order | Owner | Step | Done when |
 | --- | --- | --- | --- |
 | 1 | This design | Baseline, classification and contract | The baseline and this design are committed and reviewed |
-| 2 | Repository moves | Move every owner-pack and selected third-party entry with its resources. Supply the three packaging changes. Publish each pack repository on its remote. Publish this workstream's line, which holds the `grove-core` candidate. | Each moved skill's content and resources match the baseline or a recorded change. Each pack has a published commit for its pin |
+| 2 | Repository moves | Move every owner-pack and selected third-party entry with its resources. Supply the three packaging changes. Publish each pack commit, record the five domain packs in Grove's record and publish this workstream's line. Publish the formulae of personal, superpowers and quint-llm-kit, and TestAnyware's release with its skill. | Each moved skill's content and resources match the baseline or a recorded change. Each source has a published commit, and each separate formula is in the tap |
 | 3 | k38 | Re-inventory, compare per entry, classify each new entry | No entry stays unassigned |
-| 4 | k38 leaves | Convert `policy.ts` to `config.rhai`. Draft the Ravel skill settings, the `[bootstrap.repos]` entries and the residue plan. | The drafts are committed. No draft launches a session before the clones of order 5 |
-| 5 | k38 leaves | Run the staging trials on both harnesses with the accepted feature build | The drafts pass under the staging HOME. Each trial below passes or carries a recorded scope decision. The evidence names each accepted pin, each accepted `resourceDigest` and the tree ID of the `grove-core` candidate |
-| 6 | k38 leaves | Prepare the real HOME without changing discovery. Add the `[bootstrap.repos]` entries, clone the pack checkouts with `mise -C "$HOME" bootstrap repos apply` and add the status command to `mac-check`. Freeze automatic updates of the earlier marketplace. Rehearse the program on the plan in disposable layouts, with the switch, the probes, the inverse and the controls of the test seams. | The status command exits 0. After each control, each cell holds its earlier or switched value, or the run reports it. Each outside write stays in the live file or in a flagged kept copy. After each interruption, the next run finds the state and reaches the native or the complete state. The rehearsal record names the plan, the program and the result of each control |
-| 7 | Finish | Run the switch after promotion | The probes pass and the receipt is in the manual |
+| 4 | k38 leaves | Convert `policy.ts` to `config.rhai`. Draft the Ravel skill settings, the `[bootstrap.packages]` declarations and the residue plan. | The drafts are committed. No draft launches a session before the candidate keg of order 5 exists |
+| 5 | k38 leaves | Run the staging trials on both harnesses with the accepted feature build | The drafts pass under the staging HOME. Each trial below passes or carries a recorded scope decision. The evidence names each accepted formula version, the candidate commit and each accepted `resourceDigest` |
+| 6 | k38 leaves | Prepare the real HOME without changing discovery. Declare the skill formulae in `[bootstrap.packages]` and install the four that published. Register the personal keg's marketplace and install `guardrail` disabled. Add the drift report to `mac-check`. Freeze automatic updates of the earlier marketplace. Rehearse the program on the plan in disposable layouts. The rehearsal covers the hooks installation, the switch, the probes, the inverse and the controls of the test seams. | `mac-check` reports no drift for the four formulae. After each control, each cell holds its earlier or switched value, or the run reports it. Each outside write stays in the live file or in a flagged kept copy. After each interruption, the next run finds the state and reaches the native or the complete state. The rehearsal record names the plan, the program and the result of each control |
+| 7 | Finish | Install the writing hooks plugin, then run the switch, after promotion | The probes pass and the receipt is in the manual |
 | 8 | Owner | Purge retained bytes | The purge conditions hold |
 
 The staging trials run three steps first, in this order:
 
-1. Run the credential control of
+1. Build the candidate keg from an unreleased archive of the candidate commit.
+2. Write the staging settings with the paths of the candidate keg and of the
+   four installed kegs.
+3. Run the isolation trial of
    [Settings isolation and the staging HOME](#settings-isolation-and-the-staging-home).
-2. Clone the pack checkouts from the remotes into the checkout HOME, with the
-   drafted entries. Write the staging settings with those paths.
-3. Run the isolation trial of that section.
 
-The clones launch no harness, so the isolation trial is still the first trial
-that launches a session. The trials use the accepted feature build. After the
-Ravel cut, rollout verifies the pins again against the published archives, as
-step 5 of the [coordinated release design](coordinated-release.md) states.
+Neither of the first two steps launches a harness, so the isolation trial is
+still the first trial that launches a session. The trials use the accepted
+feature build. After the Ravel cut, rollout resolves the sources again with the
+published archives, as step 5 of the
+[coordinated release design](coordinated-release.md) states.
 
 The other trials cover implicit craft discovery and
 the mandatory read order. They cover a Grove kind skill that the task names, a
@@ -1167,8 +1161,8 @@ cover the Quint and codebase-memory MCP servers, the Claude Code hooks and
 `/guardrail`. Each harness also runs one delegate, one compaction and one
 stale-copy coexistence case.
 
-One trial moves a pack checkout away and observes `skill_source_missing` before
-any worker. One trial launches without a network and observes the same
+One trial moves a source of the candidate keg away and observes
+`skill_source_missing` before any worker. One trial launches without a network and observes the same
 directories. A trial fails if native discovery lists a superseded skill.
 
 One Claude Code trial disables the plugin that holds its own guidance and
@@ -1176,9 +1170,9 @@ launches a nested probe. It then reads its guidance by absolute path again.
 
 Persistent setting changes follow the machine configuration contract. mise
 tracks `~/.claude/settings.json`, `~/.codex/config.toml`, `~/.codex/hooks.json`
-and `~/.config/ravel` in place. The `[bootstrap.repos]` entries are in the
-tracked `~/.config/mise/config.toml`. The pack checkouts, the skill directories
-and the plugin registry are not tracked files. The maintained manual is the
+and `~/.config/ravel` in place. The `[bootstrap.packages]` declarations are in
+the tracked `~/.config/mise/config.toml`. The kegs, the skill directories and
+the plugin registry are not tracked files. The maintained manual is the
 Obsidian `AI Dev Tooling` note. It still names the earlier
 `~/Development/grove` checkout.
 
@@ -1188,12 +1182,18 @@ Obsidian `AI Dev Tooling` note. It still names the earlier
   identity. Its control root must show one unclassified entry and one dangling
   entry. Its fixture controls must show that each class of change changes its
   entry, and that a rotated credential does not.
-- `task owner:checkouts` measures the checkout route of mise in a fixture HOME
-  with a fixture origin. Its `--mutate` run must fail.
-- Staging trials use Ravel's public `start-session` and `skills resolve` with
-  the actual harnesses. They clone the pack checkouts from the real remotes.
-  A decoy-helper control must show a helper call through each inherited
-  route, and none through the allowlist, before the first such clone.
+- Each outcome of the drift report of `mac-check` has a fixture control. The
+  outcomes are a missing formula, an unreadable status and an installed
+  version other than the tap's current version.
+- Staging trials and rehearsals use Ravel's public `start-session` and
+  `skills resolve` with the actual harnesses. They read Grove's six sources
+  from the candidate keg and the four other sources from their installed kegs.
+- Inside finish, the hooks installation changes no plugin that finish loaded
+  and writes no orphan marker. A staging measurement shows it. It digests each
+  plugin version directory that a running session loaded, and each
+  registration, before and after the installation's commands.
+- A control stops the hooks installation between its installation and its
+  disabling. The next run must find the changed state and change nothing.
 - `task model:owner-switch` runs the recovery model. Each claim must
   hold, each witness must be reached, and each mutant must reach its
   violation.
@@ -1247,8 +1247,9 @@ Obsidian `AI Dev Tooling` note. It still names the earlier
   command from the session that runs the switch. Each reads a path that the
   plan moves, and neither writes. Each must stop the run at step 2. Each,
   launched later, must keep the next write interval closed.
-- A control clone with `core.autocrlf=true` keeps the tree ID of its pin. The
-  digest comparison of step 6 must stop on it.
+- A control keg source that differs from its accepted source by one byte must
+  stop step 6. In a control copy of Grove's keg, the same difference must make
+  step 4 rerun the trials of that source.
 - Only finish runs the switch against the real HOME, or the owner after a
   finish that ended without success.
 - After the switch, the real-HOME probes, `mac-check` and the AI tooling status
@@ -1265,6 +1266,7 @@ Obsidian `AI Dev Tooling` note. It still names the earlier
 - Harmonising the duplicate codebase-memory copies in Codex.
 - Uninstalling disabled third-party plugins.
 - Erasing platform-managed caches by hand.
-- Automatic pin advances, such as a scheduled `apply`. Reopen this item if the
-  owner wants a pack to follow its branch.
-- A checkout tool for other Ravel users. Ravel and Grove name none.
+- Automatic advances, such as a scheduled `brew upgrade`. Reopen this item if
+  the owner wants a source to follow its branch.
+- Installation routes other than Homebrew. Other users install the same
+  formulae.

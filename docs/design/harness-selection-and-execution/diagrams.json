@@ -1,6 +1,6 @@
 {
   "title": "Harness selection and execution — Grove caller views",
-  "intro": "The Rhai adoption of skill delivery is proposed and awaits its focused review. Owner skill delivery and the coordinated release are reviewed and integrated: one complete Ravel 2.0.0, first through ravel@2, followed by compatible Grove and unversioned promotion. The owner switch's recovery is rebuilt on cells, a run record and detection of outside writes, with a Quint model, and awaits its focused review. Graphs begin at Start here; sequences at their first message; states at their initial state.",
+  "intro": "Homebrew skill delivery is proposed by homebrew-delivery-design-k216: Homebrew installs every skill source, and Ravel is the only route that delivers a skill. Owner skill delivery and the coordinated release are reviewed and integrated: one complete Ravel 2.0.0, first through ravel@2, followed by compatible Grove and unversioned promotion. The owner switch's recovery rests on cells, a run record and detection of outside writes, with a Quint model. Graphs begin at Start here; sequences at their first message; states at their initial state.",
   "groups": [
     {
       "id": "release",
@@ -49,16 +49,16 @@
     {
       "id": "owner-pack-checkouts",
       "group": "owner",
-      "title": "Pack checkouts outside Ravel",
-      "source": "owner-pack-checkouts.mmd",
-      "caption": "Approved for the owner's machine. The repository part of mise holds each pack checkout at a published commit, the pin. The owner advances a pin by an edit and an apply. Ravel and Grove require no particular tool. Ravel only reads the directory at each launch. An advance runs only while nothing captures the checkout. A failed offline fetch leaves the previous pin in place. A missing checkout refuses before Ravel launches any worker."
+      "title": "Skill formulae outside Ravel",
+      "source": "owner-skill-formulae.mmd",
+      "caption": "Proposed by homebrew-delivery-design-k216. mise declares each skill formula, and Homebrew installs it. An advance installs a new keg and links it into Ravel's default skill directory only after the keg is complete, so a capture reads one keg or refuses. A failed offline download leaves the earlier keg in place, and mac-check reports drift. A missing source refuses before Ravel launches any worker."
     },
     {
       "id": "owner-cutover",
       "group": "owner",
       "title": "Ordered owner cutover",
       "source": "owner-cutover.mmd",
-      "caption": "Proposed. Ordinary leaves prepare and rehearse; only finish, or the owner after an unsuccessful finish, runs the switch against the real HOME. Each run first reads the state from the layout, the run record of the latest backup and the plan. A native state switches after a native probe, an interrupted state resumes the inverse, and an active state completes its probes and receipt. A drifted or changed state changes nothing and stops for the owner. One program applies the parts; each exchange records what its displaced copy must hold, so an outside write is kept and reported. A receipt counts only while each cell is switched, and step 14 copies it into the manual only while each entry outside the switch set matches the plan. The owner purges retained bytes later, after this driver's reap."
+      "caption": "Proposed. Ordinary leaves prepare and rehearse; only finish, or the owner after an unsuccessful finish, runs the switch against the real HOME. Inside finish, the hooks installation names only writing-hooks and installs the plugin disabled. Each run first reads the state from the layout, the run record of the latest backup and the plan. A native state switches after a native probe, an interrupted state resumes the inverse, and an active state completes its probes and receipt. A drifted or changed state changes nothing and stops for the owner. One program applies the parts; each exchange records what its displaced copy must hold, so an outside write is kept and reported. A receipt counts only while each cell is switched, and step 14 copies it into the manual only while each entry outside the switch set matches the plan. The owner purges retained bytes later, after this driver's reap."
     },
     {
       "id": "owner-switch-states",
@@ -72,7 +72,7 @@
       "group": "owner",
       "title": "Finish keeps its guidance through the switch",
       "source": "owner-final-session.mmd",
-      "caption": "Proposed. Disabling neither updates nor uninstalls a plugin, so its cache version receives no orphan marker and finish's absolute-path reads survive. Probe launches use the promoted Ravel."
+      "caption": "Proposed. Disabling neither updates nor uninstalls a plugin, so its cache version receives no orphan marker and finish's absolute-path reads survive. The hooks installation names only writing-hooks and never refreshes linkuistics. Probe launches use the promoted Ravel and capture the keg sources."
     },
     {
       "id": "release-tap",
@@ -98,9 +98,9 @@
     {
       "id": "skill-delivery",
       "group": "skills",
-      "title": "User-managed skill delivery",
+      "title": "Homebrew installs, Ravel delivers",
       "source": "skill-delivery.mmd",
-      "caption": "The user may choose either route or retain both. The harness reads native skills from its own roots under HOME, as a lifecycle session does. Directory readability proves neither skill presence nor adherence. Missing mandated guidance ends with force-stop."
+      "caption": "Proposed by homebrew-delivery-design-k216. Homebrew links each source into Ravel's default skill directory, so brew install and brew upgrade are the whole skill setup. Ravel's specification owns the default. A session that its user opens directly sees no Linkuistics skill. Missing mandated guidance ends with force-stop."
     },
     {
       "id": "skill-transition",
@@ -174,23 +174,37 @@
     }
   ],
   "discussion": {
-    "title": "How the owner switch recovers from interruptions and outside writes",
-    "status": "Proposed by owner-switch-recovery-k87 on 2026-11-02 — focused design review integrated by owner-switch-recovery-k89",
-    "summary": "The switch changes cells: one key of a shared file or one entry. Detection, not exclusion, protects each write by another program: each exchange records what its displaced copy must hold, and every later reading reports a copy that holds anything else. A run record in the backup tells an interruption from an outside write. The layout decides the state, and a receipt only records the probed layout. A plan runs only with the program that a passing rehearsal names. The Quint model in docs/models checks five properties and one mutant for each mechanism.",
+    "title": "Homebrew installs skills and Ravel delivers them",
+    "status": "Proposed by homebrew-delivery-design-k216 on 2026-11-06. It applies the human's decisions of skill-marketplace-decision-k201",
+    "summary": "Each skill formula installs its Ravel sources at share/ravel/skills/ID in its keg, and Homebrew links them into Ravel's default skill directory, which Ravel 2.0.0 reads with no settings. The staging trials read Grove's six sources from a candidate keg. Inside finish, the release upgrades Grove's keg, finish installs the writing hooks plugin disabled, and switch step 4 compares the released keg's digests. Open: the default changes what an absent skills key means for the switch's native state.",
     "diagramIds": [
-      "owner-switch-states",
+      "owner-pack-checkouts",
       "owner-cutover",
       "owner-final-session",
-      "owner-pack-checkouts"
+      "skill-delivery",
+      "routes",
+      "owner-switch-states"
     ],
     "updatedDiagrams": [
       {
-        "id": "owner-switch-states",
-        "summary": "Added the six states that step 3 reads and the events between them. Only an open run with a prefix of switched parts resumes automatically; a drifted or changed state waits for the owner. Changed by the review integration: a complete switch whose step 14 finds a changed entry outside the switch set inverts to the changed state."
+        "id": "owner-pack-checkouts",
+        "summary": "Replaced the mise checkouts with Homebrew formulae. An advance installs a new keg and links it into Ravel's default skill directory after the keg is complete, so a capture reads one keg or refuses."
       },
       {
         "id": "owner-cutover",
-        "summary": "Replaced the partial state with interrupted, drifted and changed states read from the run record. The process listing repeats before each write interval. The switch is one program that stages, exchanges and compares each part. A conflict inverts the run's own parts. The receipt records the probed cells, and the manual entry applies only while mac-check reports the switch complete. Changed by the review integration: the listing excludes only the kept processes, step 14 compares the entries outside the switch set before the manual copy, and the recovery nodes have their own identities."
+        "summary": "Preparation drafts formula declarations, builds the candidate keg and installs four formulae. Finish installs the writing hooks plugin after promotion, and the switch admits the released keg's digests in place of the core tree comparison and the pin advance."
+      },
+      {
+        "id": "owner-final-session",
+        "summary": "Added the hooks installation, which names only writing-hooks. The switch admits the released keg's digests, and the probes capture the keg sources."
+      },
+      {
+        "id": "skill-delivery",
+        "summary": "Removed the native route. Homebrew links the sources into Ravel's default skill directory, which Ravel reads with no settings. Only the hook adapters keep a native registration."
+      },
+      {
+        "id": "routes",
+        "summary": "The native routes now find only existing native installations, and the directory route names keg sources."
       }
     ]
   }

@@ -180,7 +180,7 @@ audit. It is not a claim that every downstream reference is already corrected.
 | Existing public session CLI | Check admitted majors, with TypeScript assets for 1.x and Rhai assets for 2.x | The [supervision record](adr/dispatch-supervises-the-harness.md#considered-options) owns dual-major admission, its alternative and reopen condition. |
 
 The rejected fallback and native-writer alternatives are recorded once in
-[the delivery ADR](adr/skill-delivery-is-the-users-choice.md). This design claims
+[the delivery ADR](adr/homebrew-installs-skills-and-ravel-delivers-them.md). This design claims
 no new formal model. Existing process, filesystem and conformance seams plus
 real harness trials answer the material doubts.
 

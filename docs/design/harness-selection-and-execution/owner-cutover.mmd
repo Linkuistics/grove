@@ -4,9 +4,9 @@ flowchart LR
         A["Start here · Baseline and design"]
         B["Pack moves keep every entry<br/>Two skill-free plugins added<br/>Packs published"]
         C["Re-inventory per entry"]
-        D["Draft config.rhai, skill settings<br/>and checkout entries"]
-        E["Credential control, staging clones<br/>then staging-HOME trials<br/>on both harnesses"]
-        F["Prepare real HOME, clone checkouts<br/>Rehearse the program on the plan<br/>with every control"]
+        D["Draft config.rhai, skill settings<br/>and formula declarations"]
+        E["Candidate keg of Grove's six sources<br/>then staging-HOME trials<br/>on both harnesses"]
+        F["Prepare real HOME: install four formulae,<br/>guardrail disabled<br/>Rehearse the program on the plan<br/>with every control"]
         A -->|1| B
         B -->|2| C
         C -->|3| D
@@ -16,13 +16,14 @@ flowchart LR
     subgraph fin["Finish"]
         direction TB
         G["Release Grove<br/>Promote Ravel"]
+        HI["Install the writing hooks plugin<br/>from Grove's keg, disabled<br/>Name only writing-hooks"]
         H{"No listed process or job<br/>beyond the kept processes:<br/>harness, its driver chain,<br/>MCP servers, program?"}
         I["Ask the owner<br/>Signal nobody"]
         S{"State from the layout,<br/>the run record of the<br/>latest backup and the plan"}
         R["Resume the inverse<br/>of the open run"]
         DR["Drifted: change nothing<br/>Report each cell"]
         CH["Changed: stop for<br/>classification and a<br/>new rehearsed plan"]
-        P["Compare core tree ID<br/>Advance grove-core pin<br/>Clean status, accepted digests<br/>Rehearsal names plan and program<br/>No flagged kept copy"]
+        P["Admit the released keg's digests<br/>Formula versions as accepted<br/>Every accepted digest<br/>Rehearsal names plan and program<br/>No flagged kept copy"]
         Q["Pending-activation record<br/>No success signal<br/>Switch runs again"]
         J["One program, parts in order:<br/>read, stage, exchange or<br/>exclusive rename, compare"]
         K{"Both probes pass and<br/>each cell still as probed?"}
@@ -30,7 +31,9 @@ flowchart LR
         M["Receipt records the probed cells"]
         N{"14: entries outside the<br/>switch set match the plan?"}
         O["Copy the receipt to the manual<br/>Entry valid while<br/>mac-check reports complete"]
-        G -->|7| H
+        G -->|7| HI
+        HI -->|"7a installed or already present"| H
+        HI -.->|"7a any other state"| I
         H -->|"8 no"| I
         H -->|"8 yes"| S
         S -->|"8a native, probe passes"| P

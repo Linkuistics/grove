@@ -1,7 +1,7 @@
 flowchart LR
     subgraph grove["Grove's check · core changes, the pack is pinned"]
         G0["Start here · Grove working tree"]
-        GM["marketplace.json<br/>research: url, path, sha"]
+        GM["plugins/packs.json<br/>research: url, path, sha"]
         GT["task check:packs<br/>run by scripts/check.sh"]
         GC[("target/external-packs/research/SHA<br/>plain checkout")]
         GR["working tree's conformance.sh<br/>--pack ... --alone, then the aggregate"]

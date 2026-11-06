@@ -34,7 +34,7 @@ requires Ravel 2. Directory delivery and dual-major admission come later.
 - `docs/specs/codex-skill-provisioning.md`, especially installation, old readers,
   launch wording and test seams.
 - `docs/grove-skill-delivery-design-evidence.md`, consumer and documentation maps.
-- `docs/adr/skill-delivery-is-the-users-choice.md`.
+- `docs/adr/homebrew-installs-skills-and-ravel-delivers-them.md`.
 
 ## Notes
 

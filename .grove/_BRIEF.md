@@ -207,6 +207,14 @@ skill-marketplace-decision-k201 settled installation with the human:
   documented command. Claude Code and Codex use local marketplace files, and
   Pi links its extension. `guardrail` exists only for Claude Code.
 
+During homebrew-delivery-design-k216 the human wrote: "My goal is to have
+nothing more to do beyond homebrew install/upgrade". The human chose "Ravel
+default in 2.0.0". Each skill formula installs its sources at
+`share/ravel/skills/<source-id>`, and Homebrew links them into
+`$(brew --prefix)/share/ravel/skills/`. Ravel 2.0.0 reads that directory when
+its settings name no sources. Codex repeats its hook registration after each
+Grove upgrade, because Codex stores the versioned keg path.
+
 homebrew-skill-delivery-k215 designs and delivers this installation. Two later
 pieces of work are outside this grove. Linkuistics/Ravel#4 makes Ravel a
 universal skills provider. Linkuistics/grove#28 moves Ravel, the packs, Grove

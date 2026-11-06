@@ -57,9 +57,9 @@ contract has six parts:
 4. **Conformance.** Each pack keeps the manifest of the rules that its own files
    own. Grove's runner checks a pack alone and checks the aggregate of core with
    the supplied packs.
-5. **Distribution.** The marketplace lists an external plugin with a pinned
-   `git-subdir` source. The manual installer takes the plugin directory of a
-   pack.
+5. **Distribution.** Grove's record names the commit of each pack. Grove's
+   formula carries the pack's source directory at that commit, and Ravel
+   delivers it.
 6. **Identity.** A checkout of a pack is accepted by the `resourceDigest` of its
    source directory.
 
@@ -75,8 +75,8 @@ the edges between skills and the conformance runs.
   families.
 - **External pack**: a pack in another repository. ResearchSkills is the first.
 - **Source directory**: the plugin directory `plugins/<plugin>/` inside a
-  checkout of a pack. Ravel captures it as a `local` source, and Claude Code
-  installs it as the plugin root.
+  checkout of a pack. Ravel captures it as a `local` source, and Grove's keg
+  holds a copy of it.
 - **Kind directory**: `skills/` in a source directory. It holds kind skills and
   any family skill of the pack.
 - **Craft directory**: `craft/` in a source directory. It holds standalone craft
@@ -154,9 +154,9 @@ The source directory is a subdirectory for three reasons:
   an ignore file says. A repository-root source would put the README, the
   Taskfile and any cache into each capture. Its `resourceDigest` would then
   change with edits that deliver nothing.
-- The installer reconciles links by the path segment `plugins/<plugin>/skills/`
-  or `plugins/<plugin>/craft/`. The trial runner names a source by its `plugin`
-  path. Both work for an external pack without a change.
+- The keg holds a copy of the source directory alone. The trial runner names a
+  source by its `plugin` path. Both work for an external pack without a
+  change.
 - One repository can ship a second plugin. WritingSkills and PersonalSkills
   each need one for their native residue, as the
   [owner delivery design](owner-skill-delivery.md#native-residue) states.
@@ -554,20 +554,24 @@ The reusable tasks of a pack are these:
 One record gives both the checker and core's content at one revision. A
 change of the runner reaches the pack only when the pack changes its record.
 
-Grove checks the other direction. While Grove hosts the marketplace, its
-marketplace entry for a pack is Grove's record of that pack's revision. A Grove
-task `check:packs` reads `url`, `path` and `sha` from each `git-subdir` entry.
-It makes a plain checkout of `sha` under `target/external-packs/<plugin>/<sha>`,
-with the same isolation and reuse rule. It then runs the pack alone and the
-aggregate with Grove's working tree.
+Grove checks the other direction. Grove's record `plugins/packs.json` names
+the revision of each pack that Grove's formula carries. Each member is keyed by
+the pack's source ID and holds `url`, `path` and `sha`. A Grove task
+`check:packs` reads each member. It makes a plain checkout of `sha` under
+`target/external-packs/<source-id>/<sha>`, with the same isolation and reuse
+rule. It then runs the pack alone and the aggregate with Grove's working tree.
 
-`scripts/check.sh` runs `task check:packs` as a principal check. A `git-subdir`
-entry without `sha` fails that task, because Grove checks only exact revisions.
-The first run needs the network, and later runs reuse the cache.
+`scripts/check.sh` runs `task check:packs` as a principal check. A member
+without `sha` fails that task, because Grove checks only exact revisions. The
+first run needs the network, and later runs reuse the cache. The release copies
+each source directory from the same checkouts, as
+[The pack record and the release](codex-skill-provisioning.md#the-pack-record-and-the-release)
+states.
 
-When repository-moves-k5 moves the marketplace out of Grove, Grove keeps a
-record of its own with the same fields. The marketplace repository then checks
-its own pins.
+The record names the five domain packs only. TestAnyware and PersonalSkills
+ship craft skills in formulae of their own, and their own `task check` is
+their check. The directory-only check of a source without a kind skill
+therefore leaves `check:packs`.
 
 A change that breaks a pack follows the expand and contract steps. The pack
 publishes a commit that works with the old core and with the new core. Each
@@ -665,7 +669,60 @@ These rules bind every fixture of `conformance.test.sh`:
 
 ### Distribution
 
-- **The Claude Code marketplace.** Until repository-moves-k5, Grove's
+`homebrew-delivery-design-k216` replaced native distribution with Homebrew
+installation and Ravel delivery. The
+[delivery decision](../adr/homebrew-installs-skills-and-ravel-delivers-them.md)
+states why. A pack reaches a session by this route:
+
+- **Grove's record.** `plugins/packs.json` names the pack's public URL, its
+  source directory and the commit that `check:packs` accepts. For research:
+
+  ```json
+  {
+    "research": {
+      "url": "https://github.com/Linkuistics/ResearchSkills.git",
+      "path": "plugins/research",
+      "sha": "<published ResearchSkills commit>"
+    }
+  }
+  ```
+
+- **Grove's formula.** Grove's archive holds a copy of the source directory at
+  that commit in `share/ravel/skills/research/`. Homebrew links it into
+  Ravel's default skill directory, `$(brew --prefix)/share/ravel/skills/`.
+  [The keg layout](codex-skill-provisioning.md#the-keg-layout) states the
+  layout.
+- **Ravel.** Ravel 2.0.0 reads the source from its default skill directory,
+  with no settings. An explicit record can name the same path:
+
+  ```json
+  { "id": "research", "type": "local", "path": "/opt/homebrew/share/ravel/skills/research", "roots": ["skills"] }
+  ```
+
+  The pack adds no mandatory file. Grove's mandate names the kind skill, and
+  the kind skill loads the rest.
+- **The dependency on core.** Grove's keg carries core beside each pack, so a
+  kind's directed load of `grove` resolves through the `grove-core` source
+  beside it. A pack manifest's `dependencies` no longer reaches any route.
+- **The manifest.** The research manifest keeps `name`, `description`,
+  `author`, `repository`, `license`, `dependencies` and `keywords`, with no
+  `version`. No route installs it. `claude plugin validate` still checks it,
+  and a later provider can read it.
+- **The hook adapters.** A pack with hooks ships them inside its source
+  directory. Grove's keg holds the marketplace files that name them, as
+  [Hook adapters](codex-skill-provisioning.md#hook-adapters) states. The
+  research pack has no hooks.
+
+No remote marketplace lists a pack, and no installer links a pack's skills.
+Grove's `.claude-plugin/marketplace.json` lists the packs until finish moves
+`main`, and then lists none, as
+[The retired marketplace](codex-skill-provisioning.md#the-retired-marketplace)
+states.
+
+The research move used native distribution. The rest of this section records
+that route as the move proved it. No later work uses it.
+
+- **The Claude Code marketplace.** Until homebrew-skill-delivery-k215, Grove's
   `.claude-plugin/marketplace.json` lists the plugin with this entry:
 
   ```json
@@ -692,10 +749,6 @@ These rules bind every fixture of `conformance.test.sh`:
   lists the plugin, and an installation also installs a missing dependency. A
   native user therefore receives the spine with the research kinds. A user who
   takes core from Ravel and research natively also receives a native spine.
-- **The research manifest.** It sets `name`, `description`, `author`,
-  `repository`, `license`, `dependencies` and `keywords`. It sets no `version`.
-  Claude Code then derives the version from the commit, as the commit-SHA
-  version rule of the skills glossary states.
 - **The manual installer.** `plugins/install.sh` gains `--pack <plugin-dir>`,
   which can repeat. It scans a named plugin directory as it scans a bundled
   plugin, with the same eligibility and the same workspace guard. Link
@@ -704,22 +757,11 @@ These rules bind every fixture of `conformance.test.sh`:
   no installer. Its README gives the command
   `<grove checkout>/plugins/install.sh --pack <research checkout>/plugins/research`.
 - **The Codex marketplace.** The research pack needs none, because it has no
-  hooks. The only Codex marketplace of these repositories is the one of
-  WritingSkills, which lists the technical-communication hooks plugin. Grove
-  has none.
-- **Ravel.** A directory route names the pack with a record beside core's:
-
-  ```json
-  { "id": "research", "type": "local", "path": "<checkout>/plugins/research", "roots": ["skills"] }
-  ```
-
-  The pack adds no mandatory file. Grove's mandate names the kind skill, and
-  the kind skill loads the rest.
+  hooks.
 
 The marketplace that the owner's Claude Code follows tracks Grove's `main`.
-This workstream reaches `main` only in finish, so the new entry reaches the
-owner then. A native user also needs `/plugin install research@linkuistics`.
-discovery-rollout-k6 records that step.
+The owner's registration stays frozen from cutover order 6 until purge, so no
+listing change reaches it.
 
 ### Checkout boundary
 
@@ -727,9 +769,9 @@ In any checkout of ResearchSkills, the source directory is `plugins/research`
 and the roots are `["skills"]`. The path does not depend on the tool that made
 the checkout.
 
-A checkout is accepted by its `resourceDigest`, as the
-[owner delivery design](owner-skill-delivery.md#pack-checkouts) states for each
-source. `ravel skills resolve --json` gives it for a clean checkout of the
+A checkout or a keg source is accepted by its `resourceDigest`, as
+[The keg layout](codex-skill-provisioning.md#the-keg-layout) states. A keg
+source has the digest of a clean plain checkout of the same commit. `ravel skills resolve --json` gives it for a clean checkout of the
 accepted commit. The digest covers `plugins/research` only. An edit of the
 README, the Taskfile or the licence text therefore leaves it unchanged, and an
 edit inside the source directory changes it.
@@ -781,16 +823,18 @@ therefore serves the checkout proof and the working-copy proof.
   its result.
 - **The pack.** `task check` passes from a clean checkout of the published
   ResearchSkills commit, with its committed public `GROVE_REPOSITORY`.
-- **Grove.** `bash scripts/check.sh` passes, with `task check:packs` over the
-  pinned ResearchSkills commit.
+- **Grove.** `bash scripts/check.sh` passes, with `task check:packs` over each
+  member of Grove's record. It checks each pack alone and in the aggregate
+  with core.
+- **Installation.** The archive manifest, `task release:smoke` and
+  `task release:formula:test` show each pack in the keg at its recorded
+  commit, with its executable bits. The
+  [delivery specification](codex-skill-provisioning.md#test-seams) owns these
+  seams.
 - **The kind table.** The renamed test passes, and a deliberate count of the
   whole set fails it.
-- **The installer.** `install.test.sh` installs a fixture pack with `--pack`,
-  and reconciles its links.
 - **Directory delivery.** research-directory-trials-k160 runs the research
   cases in both harnesses, from a plain checkout and from the working copy.
-- **Native namespace.** research-native-namespace-k161 loads
-  `research:grove-research-a` in Claude Code from Grove's bare-name mandate.
 
 ## Proven facts
 
@@ -914,8 +958,9 @@ applies it.
 
 - **The other pack moves.** repository-moves-k5 plans them from this contract
   and its proven facts.
-- **The relocation of the marketplace.** repository-moves-k5 moves it to
-  `~/Development/Delivery/skill-marketplace`.
+- **A marketplace for the packs.** skill-marketplace-decision-k201 removed
+  native distribution. homebrew-skill-delivery-k215 delivers Homebrew
+  installation in its place.
 - **Checks of craft skills.** The methodology's conformance covers kind
   directories. A pack's craft skills keep the checks of their own repository.
 - **The editorial family.** This contract kept it in the spine. Its move to

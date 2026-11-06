@@ -7,9 +7,10 @@ ship other kind skills. The methodology also cites craft skills, which other
 plugins ship. A citation names its skill bare, as the
 [external pack contract](../specs/external-pack-contract.md) requires.
 
-Users install the methodology's packs and the plugins of the craft skills
-independently, through the marketplace or by hand. An installation can omit any
-craft skill. Every citation of one must therefore stay meaningful when its
+Grove's formula carries core and the five domain packs. Other formulae carry
+the personal pack and the third-party craft skills. A user's Ravel settings
+name the sources that a session receives, so a session can lack any craft
+skill. Every citation of one must therefore stay meaningful when its
 target skill is absent.
 
 **A directed load is a required dependency, not a citation.** A `grove-<kind>`
@@ -66,9 +67,9 @@ becoming the rule.
 **Rejected: make the plugins of the craft skills a hard installation
 dependency of the `grove` plugin.** A Codex bundle of the plugins makes them
 available together. It does
-not make the methodology's rules conditional on an installer. Marketplace
-entries stay independent, and a grove tree must stay legible with Grove
-deleted. A methodology that cannot state its own rules would violate that
+not make the methodology's rules conditional on an installer. Each source
+stays a separate entry of Ravel's settings, and a grove tree must stay legible
+with Grove deleted. A methodology that cannot state its own rules would violate that
 walk-away property.
 
 **Rejected: extend the mandate's rule for a missing skill to each skill that a

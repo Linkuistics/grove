@@ -31,7 +31,7 @@
 //!
 //! **One coupling remains, and it is not closeable from here.** The prompt names
 //! a `grove-<kind>` skill, and the user's chosen delivery route has to supply
-//! it (`docs/adr/skill-delivery-is-the-users-choice.md`). Nothing in this
+//! it (`docs/adr/homebrew-installs-skills-and-ravel-delivers-them.md`). Nothing in this
 //! workspace can check what a machine supplies, so the assertion available is
 //! over the shipped set, and it lives in `tests/prompt.rs`. The residue is
 //! answered in the prompt itself, because a missing skill cannot state it: the

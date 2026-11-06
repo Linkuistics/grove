@@ -12,7 +12,9 @@ machine included. Ravel is the only route that delivers skills to a session.
 - Grove's formula installs core and the five domain packs: requirements,
   design, engineering, research and writing. Each pack is at the commit that
   Grove's pack check accepted.
-- Ravel resolves each of those sources from a stable Homebrew path.
+- Ravel 2.0.0 reads each of those sources from its default skill directory,
+  `$(brew --prefix)/share/ravel/skills/`, with no settings. `brew install` and
+  `brew upgrade` are the whole skill setup.
 - Grove keeps its own record of the accepted pack commits, with the fields
   `url`, `path` and `sha`. `task check:packs` reads that record. The release
   takes the formula's pack commits from it.
@@ -24,7 +26,8 @@ machine included. Ravel is the only route that delivers skills to a session.
   Claude Code marketplace file for `guardrail`.
 - Each of those marketplace files has a name other than `linkuistics`. One
   documented command for each harness registers each file by its Homebrew
-  path.
+  path. Codex repeats its command after each Grove upgrade, because it stores
+  the versioned keg path.
 - No remote marketplace lists a pack, and the manual installer links no
   skill. Grove's guidance, the six pack READMEs and TestAnyware's README
   describe Homebrew installation and Ravel delivery.
@@ -32,21 +35,29 @@ machine included. Ravel is the only route that delivers skills to a session.
   `[bootstrap.packages]` declares, in place of the `[bootstrap.repos]`
   checkouts. Finish installs the writing hooks plugin, disabled, after the
   release and before the backup of the switch.
-- The external pack contract, the delivery specification, the pack-membership
-  design and the decision record "Skill delivery is the user's choice" agree
-  with the decision of k201. So do the glossary and the moves record.
+- The external pack contract, the delivery specification and the
+  pack-membership design agree with the decision of k201. So do the decision
+  record "Homebrew installs skills and Ravel delivers them", the glossary and
+  the moves record.
 - The six seams of the root brief's "Agreed test seams" pass. Grove's
   `bash scripts/check.sh` passes.
 
 ## Decomposition
 
 1. `homebrew-delivery-design` (design): amend the specifications and the
-   decision records, and settle the questions below. If the design earns a
+   decision records, and settle the questions below.
+2. `ravel-default-skill-directory` (design): Ravel 2.0.0's default skill
+   directory and its effect on the owner switch. If the two designs earn a
    review chain, cut it with `leaf-insert` before the planning leaf.
-2. `homebrew-delivery-plan` (planning): cut the implementation leaves from
-   the settled design. Each leaf leaves `bash scripts/check.sh` green.
+3. `homebrew-delivery-plan` (planning): cut the implementation leaves from
+   the settled design, in Grove, Ravel and the packs. Each Grove leaf leaves
+   `bash scripts/check.sh` green.
 
 ## Questions for the design
+
+`homebrew-delivery-design-k216` answered these in the delivery specification,
+the owner delivery design and the decision record. Its running log holds the
+answers and the human's two later decisions.
 
 - Layout: the folder of core and of each pack in a keg, and the stable path
   that Ravel names. Linkuistics/Ravel#4 may later find installed skills by

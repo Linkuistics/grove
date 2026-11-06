@@ -837,7 +837,7 @@ never editing or rebuilding a binary.
 <a id="usage-skill-delivery"></a>
 **You supply the skills; Grove installs none.** Grove names the skill and
 leaves its availability to you
-([decision](adr/skill-delivery-is-the-users-choice.md)). Choose a route for
+([decision](adr/homebrew-installs-skills-and-ravel-delivers-them.md)). Choose a route for
 every harness your policy can select:
 
 | Route | What you do |

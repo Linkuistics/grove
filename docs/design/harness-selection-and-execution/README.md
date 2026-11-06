@@ -48,7 +48,7 @@ asserts no private transport or escalation details.
 | [Independent ownership](http://127.0.0.1:52710/#diagram-packages) | Public CLI between separate releases, caller imports, Grove's shared job function and Ravel's runner. |
 | [Route and return](http://127.0.0.1:52710/#diagram-handoff) | Intact caller task, optional directory injection, refusal, supervision and opaque result after cleanup. |
 | [Supported Ravel routes](http://127.0.0.1:52710/#diagram-routes) | Native 1.1, native 2.0 and directory 2.0. The version probe decides admission only, and the configuration and settings select the route. |
-| [Homebrew installs, Ravel delivers](http://127.0.0.1:52710/#diagram-skill-delivery) | Homebrew installs the sources, the user names them in Ravel's settings, and only hook adapters keep a native registration. The agent locates the named skill or reports and force-stops. |
+| [Homebrew installs, Ravel delivers](http://127.0.0.1:52710/#diagram-skill-delivery) | Homebrew links the sources into Ravel's default skill directory, and Ravel reads them with no settings. Only hook adapters keep a native registration. The agent locates the named skill or reports and force-stops. |
 | [Preserving readers through adoption](http://127.0.0.1:52710/#diagram-skill-transition) | Use the integrated upstream contract, verify isolated combinations and intermediate tap states, then activate separately. |
 | [Nested jobs](http://127.0.0.1:52710/#diagram-chain) | Grove's foreground job for `ravel`, signal forwarding, Ravel's managed job and terminal recovery. |
 | [Result lifecycle](http://127.0.0.1:52710/#diagram-ending) | Successful publication against an absent result, cancellation or cleanup failure. |

@@ -114,8 +114,15 @@ glossary, ADR and spec)". It gives DesignSkills design craft and states that
 - The Codex hooks plugin, whose manifest is `.codex-plugin/plugin.json` in the
   skill directory.
 - The Pi extension in the skill's `harnesses/pi/`.
-- A Codex marketplace file at the WritingSkills root. It lists the Codex plugin
-  with a `local` source.
+
+The Codex marketplace file that lists the Codex plugin is not a part of the
+layer. Grove's keg holds it at the keg root, as
+[Hook adapters](codex-skill-provisioning.md#hook-adapters) states.
+
+Before `homebrew-skill-delivery-k215`, that file sat at the WritingSkills
+root. Codex adds a plugin only from a marketplace, and the listing named the
+plugin by a path inside its own repository. `writing-craft-pack-k181` proved
+that native listing. No later route uses it.
 
 PersonalSkills owns the Claude Code plugin that holds only `guardrail`. The hook
 of `guardrail` is user-invoked, not always-on. The owner's choice to turn on the
@@ -130,9 +137,6 @@ These facts decide it:
 - The owner delivery design rejected hooks that name a checkout path. A layout
   change at a pin advance breaks such a hook without a report. A copy gives the
   scripts two owners.
-- Codex adds a plugin only from a marketplace. The current listing names the
-  plugin by a path inside its own repository. The listing therefore stays beside
-  the plugin until a remote source is proven.
 
 The design rejected these options:
 
@@ -189,9 +193,10 @@ The design rejected these options:
 - `homebrew-skill-delivery-k215` puts both hooks plugins in Grove's keg, with
   their marketplace files `writing-hooks`, and `guardrail` in the personal
   keg. Codex resolves a `local` source only inside its marketplace root, so the
-  marketplace files sit above the source in the keg. No marketplace lists the
-  ordinary writing plugin, so its dependency on the hooks plugin reaches no
-  route. [Hook adapters](codex-skill-provisioning.md#hook-adapters) states the
+  marketplace files sit above the source in the keg. WritingSkills removes its
+  root Codex marketplace file. No marketplace lists the ordinary writing
+  plugin, so its dependency on the hooks plugin reaches no route.
+  [Hook adapters](codex-skill-provisioning.md#hook-adapters) states the
   registration.
 
 ### The Grove assets of moving craft skills

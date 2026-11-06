@@ -3,7 +3,7 @@ flowchart TB
     N["Start here · a native user<br/>installs the writing plugin"]
     WP["WritingSkills · ordinary writing<br/>plugin, craft skills, no hook"]
     CCP["WritingSkills · Claude Code<br/>hooks plugin, skill-free"]
-    CXM["WritingSkills · Codex<br/>marketplace file"]
+    CXM["Grove's keg · Codex marketplace<br/>file writing-hooks"]
     CXP["WritingSkills · Codex<br/>hooks plugin"]
     TC["WritingSkills · technical-communication<br/>scripts and always-on texts"]
     GR["PersonalSkills · guardrail plugin<br/>user-invoked hook"]
@@ -16,5 +16,7 @@ flowchart TB
     S -.->|"enable"| GR
     classDef start fill:#16354a,color:#fff,stroke:#16354a,font-weight:bold
     classDef pack fill:#fdf2d0,stroke:#9a7b1c,color:#222
+    classDef keg fill:#e3eef8,stroke:#2f5f8a,color:#222
     class S,N start
-    class WP,CCP,CXM,CXP,TC,GR pack
+    class WP,CCP,CXP,TC,GR pack
+    class CXM keg

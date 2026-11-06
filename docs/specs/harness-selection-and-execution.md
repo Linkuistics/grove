@@ -24,7 +24,7 @@ own the executable behaviour. This document owns Grove's use of that interface.
 The [visual views](../design/harness-selection-and-execution/README.md) show the
 same caller boundary.
 
-When configured, Ravel adds skill-directory paths and
+When Ravel delivers skills, it adds skill-directory paths and
 loading instructions while preserving the caller's task and ending commands.
 The agent locates skills. Neither executable resolves the skill Grove names.
 Ravel interprets no result token. The

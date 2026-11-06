@@ -33,11 +33,12 @@ directory in Ravel's skill discovery specification, and this design cites it.
 
 Grove names the skill that its session must load. **Homebrew installs the
 skill sources, and Ravel delivers them.** Grove's formula carries core and the
-five domain packs, as [The keg layout](#the-keg-layout) states. The user names
-the sources in Ravel's settings. Grove's binary neither installs skills nor
-asks Ravel to resolve a named skill.
+five domain packs, as [The keg layout](#the-keg-layout) states. Ravel's skill
+discovery specification decides which sources a launch receives. Grove's binary
+neither installs skills nor asks Ravel to resolve a named skill.
 
-When configured, Ravel injects skill-directory paths into the launch prompt.
+When Ravel delivers skills, it injects skill-directory paths into the launch
+prompt.
 The agent uses those locations to discover and read applicable skills. Ravel
 is not a requested-skill lookup service. Directory delivery does not establish
 that a named skill exists, applies, or has been read.
@@ -84,8 +85,8 @@ user can read the folders that `ravel skills resolve` lists. Automatic
 configuration of such a session is outside scope.
 
 The binary embeds no core-only fallback. Planning remains part of core as the
-replaceable default. The formula installs core beside the binary, but only
-Ravel's settings deliver it. Neither the formula nor the guidance writes
+replaceable default. The formula installs core beside the binary, and only
+Ravel delivers it to a session. Neither the formula nor the guidance writes
 Ravel's settings, activates personal guidance or copies a sample policy over an
 existing one.
 
@@ -97,8 +98,8 @@ the missing skill cannot supply it.
 
 The loop stops without relaunching the leaf. The user repairs the selected
 delivery route and reruns. Grove does not turn that failure into
-declaration-based kind admission. A configured source that Ravel cannot capture
-is instead a Ravel prelaunch failure, with its source-specific remedy.
+declaration-based kind admission. A source that Ravel cannot capture is
+instead a Ravel prelaunch failure, with its source-specific remedy.
 
 For Ravel delivery, the accepted source requirements are local source
 directories, clear failure for a missing required source and readable

@@ -55,6 +55,10 @@
       {
         "id": "membership-boundaries",
         "summary": "The pruned marketplace step became homebrew-skill-delivery-k215, which proves the keg contents and the hook registration."
+      },
+      {
+        "id": "membership-hooks",
+        "summary": "Grove's keg, not WritingSkills, holds the Codex marketplace file writing-hooks."
       }
     ]
   },
@@ -99,7 +103,7 @@
       "group": "membership",
       "title": "WritingSkills owns the always-on hooks",
       "source": "membership-hooks.mmd",
-      "caption": "Each hooks plugin runs the scripts and sends the texts of the skill beside it, so no path crosses repositories. The owner's settings enable the Claude Code hooks plugin. A native user installs the ordinary writing plugin, and its dependency installs the same hooks plugin, so each hook has one declaration. guardrail stays a native-only plugin in PersonalSkills."
+      "caption": "Each hooks plugin runs the scripts and sends the texts of the skill beside it, so no path crosses repositories. The owner's settings enable the Claude Code hooks plugin. A native user installs the ordinary writing plugin, and its dependency installs the same hooks plugin, so each hook has one declaration. Grove's keg holds the Codex marketplace file, which is not a part of the layer. guardrail stays a native-only plugin in PersonalSkills."
     },
     {
       "id": "membership-asset-rule",

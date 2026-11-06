@@ -40,3 +40,4 @@ No marketplace lists a pack, and no installer links a skill. See
 - [One source directory, copied into the keg](http://127.0.0.1:8793/#diagram-layout) — The release copies the source directory into the keg, and Ravel reads the copy. The plugin cache and the installer links go.
 - [Two checks, each against a pinned revision](http://127.0.0.1:8793/#diagram-conformance) — Grove's check reads `plugins/packs.json` in place of the marketplace.
 - [The boundary that each move proves first](http://127.0.0.1:8793/#diagram-membership-boundaries) — The pruned marketplace step became homebrew-skill-delivery-k215, which proves the keg contents and the hook registration.
+- [WritingSkills owns the always-on hooks](http://127.0.0.1:8793/#diagram-membership-hooks) — Grove's keg, not WritingSkills, holds the Codex marketplace file `writing-hooks`.

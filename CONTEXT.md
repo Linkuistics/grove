@@ -28,14 +28,14 @@ silently.
 ### Skill delivery / the retired sweep
 
 Delivery is separate from the named skill. Homebrew installs the skill
-sources. Ravel 2.0 injects the paths of the sources that the user's settings
-name. The agent discovers and reads the skill that Grove names. Neither
+sources. Ravel 2.0 injects the paths of the installed sources, and it needs no
+settings. The agent discovers and reads the skill that Grove names. Neither
 executable resolves a requested skill. The [delivery specification](docs/specs/codex-skill-provisioning.md)
 owns the contract and its supported routes.
 
 How the **`grove` plugin** reaches a session: Grove's Homebrew formula carries
 core beside the five domain packs. Core holds the spine and the core kind
-skills. Ravel delivers the keg sources that the user's settings name. No
+skills. Ravel reads the keg sources from its default skill directory. No
 marketplace lists a pack, and no installer links a skill.
 
 Grove's binary installs no skills. Grove 22.8 and earlier also provisioned
@@ -61,7 +61,8 @@ removed after Grove 22.8, wrote only Codex links. It did not restore that sweep
 or its build-pairing probes.
 
 **The remaining cost.** A harness session that its user opens directly gets no
-skills. A Ravel launch delivers only the sources that the settings name
+skills. A source that Homebrew did not install reaches a Ravel launch only
+through explicit settings
 ([delivery decision](docs/adr/homebrew-installs-skills-and-ravel-delivers-them.md)).
 Core ships in Grove's keg beside `grove-llm`, so the spine and the helper come
 from one release.

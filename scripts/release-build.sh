@@ -20,9 +20,18 @@
 #
 # Every archive holds one directory, grove-v<ver>-<target>/, laid out as an
 # installation prefix: bin/ holds grove and grove-llm; libexec/ravel-policy/
-# holds Grove's readable caller assets. Ravel ships independently.
-# `archive_manifest` in release-common.sh lists every file, and each archive is
-# checked against it as soon as it is packed.
+# holds Grove's readable caller assets; share/ravel/skills/ holds core and the
+# five domain packs, one Ravel source each. Ravel ships independently.
+# `archive_manifest` in release-common.sh lists every file with its Git mode,
+# and each archive is checked against it as soon as it is packed.
+#
+# The skill sources follow "The pack record and the release" of
+# docs/specs/codex-skill-provisioning.md. Core is plugins/grove of the tree
+# being built: the tagged tree of a release, or the working copy. Each pack is
+# its source directory in the plain checkout of the sha that plugins/packs.json
+# records, under target/external-packs, which `task check:packs` uses with the
+# same reuse rule. A cut changes only CHANGELOG.md, so the core bytes of a
+# release equal those of its candidate.
 
 set -euo pipefail
 IFS=$'\n\t'
@@ -100,6 +109,7 @@ build_target() {
   done
   mkdir -p "$stage/libexec" || return 1
   cp -R "$REPO_ROOT/assets/ravel-policy" "$stage/libexec/ravel-policy" || return 1
+  copy_skill_sources "$stage/$ARCHIVE_SKILLS" >&2 || return 1
   cp "$REPO_ROOT/LICENSE" "$REPO_ROOT/README.md" "$stage/" || return 1
 
   local archive="$out_dir/$top.tar.xz"
@@ -110,6 +120,23 @@ build_target() {
   fi
   mv "$archive.partial" "$archive" || return 1
   echo "$archive"
+}
+
+# Make or reuse the plain checkout of each pack that the pack record names, as
+# check:packs does, so that copy_skill_sources and the manifest find them. On
+# a release, check.sh has already run check:packs, so each one is reused.
+prepare_pack_checkouts() {
+  local members status id url path sha
+  members="$(pack_record_members "$ARCHIVE_PACK_RECORD")" || return 1
+  while IFS=$'\t' read -r status id url path sha; do
+    if [[ "$status" != ok ]]; then
+      # A bad line holds the reason in the third column.
+      echo "release-build: pack $id: $url" >&2
+      return 1
+    fi
+    echo "release-build: pack $id at $sha"
+    pack_checkout "$(pack_checkout_dir "$ARCHIVE_PACK_CACHE" "$id" "$sha")" "$url" "$sha" || return 1
+  done <<<"$members"
 }
 
 sha256_of() {
@@ -179,6 +206,8 @@ main() {
   fi
 
   mkdir -p "$out_dir/staging"
+  # each_skill_source names a malformed record or a missing checkout itself.
+  prepare_pack_checkouts || die "the packs of $ARCHIVE_PACK_RECORD cannot be checked out; see above"
 
   local sha_args=()
   for target in "${targets[@]}"; do

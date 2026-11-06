@@ -108,7 +108,7 @@ run_check "shellcheck" shellcheck \
   scripts/release-smoke-environment.sh scripts/ravel-target-smoke.sh \
   scripts/floor-seccomp.test.sh scripts/grove-floor-directory-case.sh \
   scripts/ravel-target-smoke-target.sh scripts/ravel-installed-smoke.sh scripts/ravel-installed-smoke-rhai.sh \
-  scripts/ravel-target-inputs.test.sh scripts/grove-installed-smoke.sh \
+  scripts/ravel-target-inputs.test.sh scripts/grove-installed-smoke.sh scripts/grove-tap-states.sh \
   scripts/grove-installed-upgrade.sh scripts/harness-trials/trial-launch.sh
 run_check "cargo clippy" cargo clippy --workspace --all-targets
 run_check "plugin install" bash plugins/install.test.sh

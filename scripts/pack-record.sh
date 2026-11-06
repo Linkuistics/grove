@@ -116,15 +116,25 @@ pack_git() {
   GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 GIT_TERMINAL_PROMPT=0 git "$@"
 }
 
+# pack_checkout_is_clean <dir> <sha>: true when <dir> is a clean plain
+# checkout of <sha>, which is the reuse rule: its HEAD is <sha> and `git status
+# --porcelain --ignored` prints nothing. The release's archive manifest reads a
+# checkout only under this rule, and it never makes one.
+pack_checkout_is_clean() {
+  local dir="$1" sha="$2" changes
+  [[ -d "${dir}/.git" ]] || return 1
+  [[ "$(pack_git -C "${dir}" rev-parse HEAD 2>/dev/null)" == "${sha}" ]] || return 1
+  changes="$(pack_git -C "${dir}" status --porcelain --ignored)" || return 1
+  [[ -z "${changes}" ]]
+}
+
 # pack_checkout <dir> <url> <sha>: a clean plain checkout of <sha> at <dir>.
-# It reuses <dir> only when its HEAD is <sha> and `git status --porcelain
-# --ignored` prints nothing. Otherwise it replaces <dir> by a fresh shallow
-# fetch of <sha>. It reports what it did on stdout and returns 1 on failure.
+# It reuses <dir> only when pack_checkout_is_clean accepts it. Otherwise it
+# replaces <dir> by a fresh shallow fetch of <sha>. It reports what it did on
+# stdout and returns 1 on failure.
 pack_checkout() {
   local dir="$1" url="$2" sha="$3" head
-  if [[ -d "${dir}/.git" ]] &&
-    [[ "$(pack_git -C "${dir}" rev-parse HEAD 2>/dev/null)" == "${sha}" ]] &&
-    [[ -z "$(pack_git -C "${dir}" status --porcelain --ignored)" ]]; then
+  if pack_checkout_is_clean "${dir}" "${sha}"; then
     echo "  reusing the clean checkout of ${sha}"
     return 0
   fi

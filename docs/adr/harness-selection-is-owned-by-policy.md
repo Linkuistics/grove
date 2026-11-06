@@ -34,7 +34,7 @@ without host Bun/Node.
 
 Grove launches `ravel` as an ordinary child process and keeps its caller-owned
 policy assets.
-Grove archives contain its executables and caller assets. The Homebrew formula
+Grove archives contain its executables, caller assets and skill sources. The Homebrew formula
 depends on separate Ravel. Grove bundles no executable worker and no shared Rust
 dependency ([delivery boundary](../grove-delivery-contraction.md)).
 

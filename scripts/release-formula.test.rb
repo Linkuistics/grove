@@ -12,10 +12,16 @@ load formula_path
 formula = Grove.new("grove", Pathname(formula_path), :stable)
 formula.extend(Homebrew::Assertions)
 formula.define_singleton_method(:prefix) { |*_args| prefix_path }
-expected = (["bin", "libexec"] + Dir.glob("{bin,libexec}/**/*", base: source)).sort
+# Every entry below BASE that PATTERN matches, dot entries such as a source's
+# .claude-plugin included, without the `.` that FNM_DOTMATCH adds.
+def entries(pattern, base)
+  Dir.glob(pattern, File::FNM_DOTMATCH, base: base).reject { |entry| File.basename(entry) == "." }.sort
+end
+expected = (["bin", "libexec", "share"] + entries("{bin,libexec,share}/**/*", source)).sort
+raise "the archive holds no skill sources" unless expected.include?("share/ravel/skills/grove-core")
 Dir.chdir(source) { formula.install }
-actual = Dir.glob("**/*", base: prefix_path).sort
-raise "formula installation differs from archive: #{actual.inspect}" unless actual == expected
+actual = entries("**/*", prefix_path)
+raise "formula installation differs from archive: #{(actual - expected) + (expected - actual)}" unless actual == expected
 # The caveats show both configuration formats, both setup routes and the
 # explicit ravel@2 prefix, and each sample they copy is installed.
 # https://docs.brew.sh/rubydoc/Formula.html#caveats-instance_method

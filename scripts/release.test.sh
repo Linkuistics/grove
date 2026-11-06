@@ -51,18 +51,77 @@ fail() {
   echo "FAIL: $*" >&2
   exit 1
 }
-# Stage placeholder files in the manifest's layout under $scratch/archive/stage.
+
+# Fixture skill sources, so that these cases need no network and no checkout
+# of the recorded packs: a core repository and two pack repositories, each
+# with an executable and a link. Core has an ignored file, which no archive
+# holds, and an untracked file, which a working copy's archive holds. A pack
+# has a file outside its source directory, which no archive holds.
+fixture="$scratch/sources"
+fixture_repo() {
+  pack_git init -q "$1"
+  pack_git -C "$1" add -A
+  pack_git -C "$1" commit -qm fixture
+}
+mkdir -p "$fixture/core/plugins/grove/skills/grove" "$fixture/core/plugins/grove/__pycache__"
+printf '# grove\n' >"$fixture/core/plugins/grove/skills/grove/SKILL.md"
+printf '#!/bin/sh\n' >"$fixture/core/plugins/grove/conformance.sh"
+chmod +x "$fixture/core/plugins/grove/conformance.sh"
+ln -s SKILL.md "$fixture/core/plugins/grove/skills/grove/alias.md"
+printf '__pycache__/\n' >"$fixture/core/.gitignore"
+fixture_repo "$fixture/core"
+printf 'ignored\n' >"$fixture/core/plugins/grove/__pycache__/cache.pyc"
+printf 'untracked\n' >"$fixture/core/plugins/grove/untracked.md"
+for pack in alpha beta; do
+  mkdir -p "$fixture/$pack/plugins/$pack/skills/$pack" "$fixture/$pack/plugins/$pack/craft/craft-$pack"
+  printf '# %s\n' "$pack" >"$fixture/$pack/plugins/$pack/skills/$pack/SKILL.md"
+  printf '# craft\n' >"$fixture/$pack/plugins/$pack/craft/craft-$pack/SKILL.md"
+  printf '#!/bin/sh\n' >"$fixture/$pack/plugins/$pack/run.sh"
+  chmod +x "$fixture/$pack/plugins/$pack/run.sh"
+  ln -s "../skills/$pack/SKILL.md" "$fixture/$pack/plugins/$pack/craft/link.md"
+  printf 'outside\n' >"$fixture/$pack/README.md"
+  fixture_repo "$fixture/$pack"
+done
+alpha_sha="$(pack_git -C "$fixture/alpha" rev-parse HEAD)"
+beta_sha="$(pack_git -C "$fixture/beta" rev-parse HEAD)"
+cat >"$fixture/packs.json" <<EOF
+{"alpha": {"url": "$fixture/alpha", "path": "plugins/alpha", "sha": "$alpha_sha"},
+ "beta": {"url": "$fixture/beta", "path": "plugins/beta", "sha": "$beta_sha"}}
+EOF
+pack_checkout "$fixture/cache/alpha/$alpha_sha" "$fixture/alpha" "$alpha_sha" >/dev/null
+pack_checkout "$fixture/cache/beta/$beta_sha" "$fixture/beta" "$beta_sha" >/dev/null
+ARCHIVE_CORE_REPO="$fixture/core"
+ARCHIVE_PACK_RECORD="$fixture/packs.json"
+ARCHIVE_PACK_CACHE="$fixture/cache"
+
+# The manifest gives each source file its path and Git mode.
+manifest="$(archive_manifest)"
+for line in \
+  $'100644\tshare/ravel/skills/grove-core/skills/grove/SKILL.md' \
+  $'100755\tshare/ravel/skills/grove-core/conformance.sh' \
+  $'120000\tshare/ravel/skills/grove-core/skills/grove/alias.md' \
+  $'100644\tshare/ravel/skills/grove-core/untracked.md' \
+  $'100644\tshare/ravel/skills/alpha/craft/craft-alpha/SKILL.md' \
+  $'100755\tshare/ravel/skills/beta/run.sh' \
+  $'120000\tshare/ravel/skills/beta/craft/link.md'; do
+  grep -Fxq -- "$line" <<<"$manifest" || fail "the archive manifest lacks '$line'"
+done
+if grep -e __pycache__ -e README.md <<<"$manifest" | grep -q share/; then
+  fail 'the archive manifest holds an ignored file or a file outside a source directory'
+fi
+
+# Stage the manifest's layout under $scratch/archive/stage: placeholder files
+# with the manifest's modes for the fixed part, and a copy of each source.
 stage_archive() {
-  local top="$1" entry
+  local top="$1" mode entry
   rm -rf "$scratch/archive"
   mkdir -p "$scratch/archive/stage/$top"
-  while IFS= read -r entry; do
+  while IFS=$'\t' read -r mode entry; do
     mkdir -p "$(dirname "$scratch/archive/stage/$top/$entry")"
     printf 'fixture %s\n' "$entry" >"$scratch/archive/stage/$top/$entry"
-  done < <(archive_manifest)
-  while IFS= read -r entry; do
-    chmod +x "$scratch/archive/stage/$top/$entry"
-  done < <(archive_executables)
+    [[ "$mode" != 100755 ]] || chmod +x "$scratch/archive/stage/$top/$entry"
+  done < <(archive_fixed_manifest)
+  copy_skill_sources "$scratch/archive/stage/$top/$ARCHIVE_SKILLS" || fail 'cannot copy the skill sources'
 }
 pack_fixture() {
   pack_archive "$scratch/archive/stage" "$1" "$scratch/archive/$1.tar.xz"
@@ -70,7 +129,7 @@ pack_fixture() {
 # The check must refuse the archive, reporting exactly the line given.
 refused_archive() {
   local top="$1" expected="$scratch/archive/$1.tar.xz: $2"
-  if assert_archive "$scratch/archive/$top.tar.xz" "$top" >"$scratch/archive/output"; then
+  if assert_archive "$scratch/archive/$top.tar.xz" "$top" >"$scratch/archive/output" 2>"$scratch/archive/errors"; then
     fail "an archive with '$2' passed the manifest check"
   fi
   grep -Fxq -- "$expected" "$scratch/archive/output" ||
@@ -87,31 +146,46 @@ rhai_set=(libexec/ravel-policy/grove.rhai libexec/ravel-policy/provenance.rhai
   libexec/ravel-policy/examples/grove-review.rhai libexec/ravel-policy/examples/grove-static.rhai
   libexec/ravel-policy/examples/review.rhai libexec/ravel-policy/examples/static.rhai
   libexec/ravel-policy/sample/config.rhai)
+paths="$(cut -f2 <<<"$manifest")"
 for required in bin/grove bin/grove-llm libexec/ravel-policy/README.md "${typescript_set[@]}" "${rhai_set[@]}"; do
-  archive_manifest | grep -Fxq -- "$required" || fail "the archive manifest omits $required"
+  grep -Fxq -- "$required" <<<"$paths" || fail "the archive manifest omits $required"
 done
-archive_executables | while IFS= read -r entry; do
-  archive_manifest | grep -Fxq -- "$entry" || fail "executable $entry is not in the archive manifest"
+for executable in bin/grove bin/grove-llm; do
+  grep -Fxq -- $'100755\t'"$executable" <<<"$manifest" || fail "the archive manifest does not make $executable executable"
 done
 (cd "$repo_root/assets/ravel-policy" && find . ! -type d | sed 's|^\./||' | LC_ALL=C sort) >"$scratch/assets-source"
-archive_manifest | sed -n 's|^libexec/ravel-policy/||p' | LC_ALL=C sort >"$scratch/assets-manifest"
+sed -n 's|^libexec/ravel-policy/||p' <<<"$paths" | LC_ALL=C sort >"$scratch/assets-manifest"
 diff -u "$scratch/assets-source" "$scratch/assets-manifest" >&2 ||
   fail "the archive manifest differs from the complete caller asset tree"
 
 template="$repo_root/scripts/templates/grove.rb.tmpl"
 formula_bins="$(sed -n 's/^ *bin\.install //p' "$template" | tr -d '"' | tr ',' '\n' | tr -d ' ' | LC_ALL=C sort)"
-[[ "$formula_bins" == "$(archive_manifest | grep '^bin/' | LC_ALL=C sort)" ]] ||
+[[ "$formula_bins" == "$(grep '^bin/' <<<"$paths" | LC_ALL=C sort)" ]] ||
   fail "the formula's bin.install ($formula_bins) differs from the manifest's bin/ entries"
 grep -Fxq '    libexec.install "libexec/ravel-policy"' "$template" ||
   fail 'the formula does not install libexec/ravel-policy'
+grep -Fxq '    (share/"ravel").install "share/ravel/skills"' "$template" ||
+  fail 'the formula does not install share/ravel/skills'
 grep -Fxq '  depends_on "linkuistics/taps/ravel"' "$template" ||
   fail 'the formula does not depend on independent Ravel'
 # The dependency stays unversioned through promotion; ravel@2 is an opt-in prefix.
 [[ "$(grep -c '^ *depends_on ' "$template")" == 1 ]] ||
   fail 'the formula has a dependency other than unversioned Ravel'
-if archive_manifest | grep -v -e '^bin/' -e '^libexec/ravel-policy/' | grep -q /; then
+if grep -v -e '^bin/' -e '^libexec/ravel-policy/' -e "^$ARCHIVE_SKILLS/" <<<"$paths" | grep -q /; then
   fail 'the manifest ships a directory the formula does not install'
 fi
+# The formula's test names the same six sources as the installed smoke test.
+formula_sources="$(sed -n 's/^ *SKILL_SOURCES = %w\[\(.*\)\]\.freeze$/\1/p' "$template" | tr ' ' '\n')"
+smoke_sources="$(sed -n "/^expected_sources='/,/'\$/p" "$repo_root/scripts/grove-installed-smoke.sh" |
+  sed "s/^expected_sources='//; s/'\$//")"
+[[ -n "$formula_sources" && "$formula_sources" == "$smoke_sources" ]] ||
+  fail "the formula's sources ($formula_sources) differ from the installed smoke test's ($smoke_sources)"
+recorded_sources="$({
+  echo "$ARCHIVE_CORE_ID"
+  pack_record_members "$repo_root/plugins/packs.json" | cut -f2
+} | LC_ALL=C sort)"
+[[ "$formula_sources" == "$recorded_sources" ]] ||
+  fail "the formula's sources differ from core and the members of plugins/packs.json"
 
 for target in "${TARGETS[@]}"; do
   top="grove-v1.2.3-$target"
@@ -124,12 +198,12 @@ done
 
 # Positive controls: each file's omission is seen to fail, by name.
 top="grove-v1.2.3-${TARGETS[0]}"
-while IFS= read -r entry; do
+while IFS=$'\t' read -r _ entry; do
   stage_archive "$top"
   rm "$scratch/archive/stage/$top/$entry"
   pack_fixture "$top"
   refused_archive "$top" "missing $top/$entry"
-done < <(archive_manifest)
+done <<<"$manifest"
 
 # An archive without the Rhai set fails, naming each Rhai file.
 stage_archive "$top"
@@ -142,12 +216,15 @@ for entry in "${rhai_set[@]}"; do
 done
 
 # Runtime, SDK, probes and notices from another project must never ship, nor
-# a skill payload or a skill resolver.
+# a skill payload outside the keg sources, a source outside the record, an
+# ignored file or a skill resolver.
 for extra in bin/harness-dispatch bin/ravel libexec/ravel/ravel-policy \
   libexec/harness-dispatch/harness-dispatch-policy libexec/ravel/sdk/index.ts \
   libexec/ravel-policy/node_modules/cache libexec/ravel-policy/notices/NOTICES.md \
   plugins/grove/skills/grove/SKILL.md libexec/skills/grove/SKILL.md \
-  libexec/ravel-policy/skills/grove/SKILL.md bin/grove-skills; do
+  libexec/ravel-policy/skills/grove/SKILL.md bin/grove-skills \
+  share/ravel/skills/personal/craft/machine/SKILL.md share/ravel/skills/grove-core/__pycache__/cache.pyc \
+  share/ravel/skills/alpha/README.md share/ravel/installation.json; do
   stage_archive "$top"
   mkdir -p "$(dirname "$scratch/archive/stage/$top/$extra")"
   touch "$scratch/archive/stage/$top/$extra"
@@ -155,20 +232,65 @@ for extra in bin/harness-dispatch bin/ravel libexec/ravel/ravel-policy \
   refused_archive "$top" "unexpected $top/$extra"
 done
 
+# Each file keeps its Git mode: an executable, a link and a plain file.
 stage_archive "$top"
 chmod -x "$scratch/archive/stage/$top/bin/grove-llm"
 pack_fixture "$top"
-refused_archive "$top" "$top/bin/grove-llm is not executable"
+refused_archive "$top" "$top/bin/grove-llm has Git mode 100644, not 100755"
 
 stage_archive "$top"
 ln -sf ../grove "$scratch/archive/stage/$top/bin/grove-llm"
 pack_fixture "$top"
-refused_archive "$top" "$top/bin/grove-llm is not a regular file"
+refused_archive "$top" "$top/bin/grove-llm has Git mode 120000, not 100755"
+
+stage_archive "$top"
+chmod -x "$scratch/archive/stage/$top/share/ravel/skills/beta/run.sh"
+pack_fixture "$top"
+refused_archive "$top" "$top/share/ravel/skills/beta/run.sh has Git mode 100644, not 100755"
+
+stage_archive "$top"
+chmod +x "$scratch/archive/stage/$top/share/ravel/skills/alpha/skills/alpha/SKILL.md"
+pack_fixture "$top"
+refused_archive "$top" "$top/share/ravel/skills/alpha/skills/alpha/SKILL.md has Git mode 100755, not 100644"
+
+stage_archive "$top"
+link="$scratch/archive/stage/$top/share/ravel/skills/grove-core/skills/grove/alias.md"
+rm "$link"
+printf '# grove\n' >"$link"
+pack_fixture "$top"
+refused_archive "$top" "$top/share/ravel/skills/grove-core/skills/grove/alias.md has Git mode 100644, not 120000"
 
 stage_archive "$top"
 mkdir "$scratch/archive/stage/stray"
 COPYFILE_DISABLE=1 tar -C "$scratch/archive/stage" --no-xattrs -cJf "$scratch/archive/$top.tar.xz" "$top" stray
 refused_archive "$top" "top level is not exactly $top/:"
+
+# The manifest reads each pack only from a clean checkout of its recorded sha.
+# A missing checkout, a changed checkout and a record that names another sha
+# each fail the check of a complete archive, naming the pack, and the copy
+# refuses too.
+stage_archive "$top"
+pack_fixture "$top"
+checkout="$fixture/cache/beta/$beta_sha"
+mv "$checkout" "$scratch/held"
+refused_archive "$top" 'the archive manifest cannot be listed; see above'
+grep -Fq "pack beta has no clean checkout of $beta_sha" "$scratch/archive/errors" ||
+  fail "a missing checkout was not named: $(cat "$scratch/archive/errors")"
+if copy_skill_sources "$scratch/refused-copy" 2>/dev/null; then
+  fail 'the sources were copied without a pack checkout'
+fi
+mv "$scratch/held" "$checkout"
+printf 'local\n' >"$checkout/plugins/beta/local.md"
+refused_archive "$top" 'the archive manifest cannot be listed; see above'
+rm "$checkout/plugins/beta/local.md"
+sed "s/$beta_sha/$alpha_sha/" "$fixture/packs.json" >"$fixture/other.json"
+ARCHIVE_PACK_RECORD="$fixture/other.json"
+refused_archive "$top" 'the archive manifest cannot be listed; see above'
+grep -Fq "pack beta has no clean checkout of $alpha_sha" "$scratch/archive/errors" ||
+  fail "a record of another sha was not named: $(cat "$scratch/archive/errors")"
+ARCHIVE_PACK_RECORD="$fixture/packs.json"
+assert_archive "$scratch/archive/$top.tar.xz" "$top" >"$scratch/archive/output" ||
+  fail "the restored checkout failed the manifest check: $(cat "$scratch/archive/output")"
 
 # A file with an extended attribute, as macOS marks most staged files. Packed
 # as bsdtar does by default, the archive gains an AppleDouble member that

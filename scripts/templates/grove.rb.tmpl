@@ -1,3 +1,6 @@
+require "json"
+require "shellwords"
+
 class Grove < Formula
   desc "Hierarchical, self-extending workstream tool for AI agents"
   homepage "https://github.com/Linkuistics/grove"
@@ -24,15 +27,24 @@ class Grove < Formula
 
   depends_on "linkuistics/taps/ravel"
 
+  # The skill sources in share/ravel/skills of the keg, in byte order. Homebrew
+  # links each one into $(brew --prefix)/share/ravel/skills, Ravel's default
+  # skill directory. docs/specs/codex-skill-provisioning.md, "The keg layout".
+  SKILL_SOURCES = %w[design engineering grove-core requirements research writing].freeze
+
   def install
-    # The archive carries executables and caller assets only. Skills reach each
-    # harness through the owner's chosen route; no install or upgrade step here
-    # writes, repairs or removes a native skill installation.
+    # The archive carries executables, caller assets, core and the five domain
+    # packs. No install or upgrade step here writes, repairs or removes a
+    # native skill installation.
     #
     # Readable caller assets retain ordinary relative imports. Ravel owns its
     # own front, private worker, SDK and notices in its independently sized keg.
     bin.install "bin/grove", "bin/grove-llm"
     libexec.install "libexec/ravel-policy"
+    # Homebrew's cleaner sets modes only under bin, sbin and lib, so each
+    # source keeps the modes of its copy.
+    # https://github.com/Homebrew/brew/blob/7.0.12/Library/Homebrew/cleaner.rb
+    (share/"ravel").install "share/ravel/skills"
   end
 
   def caveats
@@ -185,6 +197,33 @@ class Grove < Formula
       assert_path_exists leaf
       refute_path_exists home/".agents"
       assert_empty (home/".codex").children
+      next unless runtime == "2.0"
+
+      # A private copy of the 2.0 build, with an installation record that
+      # names this keg's sources, reads them with no settings. Ravel finds the
+      # record beside its canonical executable, and canonicalises each source,
+      # so each originPath lies in this keg.
+      relocated = testpath/"relocated-#{index}"
+      (relocated/"bin").mkpath
+      (relocated/"share/ravel").mkpath
+      cp ravel, relocated/"bin/ravel"
+      chmod 0755, relocated/"bin/ravel"
+      skills = share/"ravel/skills"
+      (relocated/"share/ravel/installation.json").write(
+        "#{JSON.generate({ schemaVersion: 1, skillDirectory: skills.to_s })}\n",
+      )
+      resolve = ["/usr/bin/env", "-i", "PATH=/usr/bin:/bin", "HOME=#{home}", "TMPDIR=#{testpath}",
+                 (relocated/"bin/ravel").to_s, "skills", "resolve", "--json"]
+      resolved = JSON.parse(shell_output(resolve.shelljoin))
+      assert_equal "resolved", resolved["status"]
+      assert_equal SKILL_SOURCES, resolved["sources"].map { |source| source["id"] }
+      resolved["sources"].each do |source|
+        assert_equal (skills/source["id"]).realpath.to_s, source["originPath"]
+        assert_match(/\A[0-9a-f]{64}\z/, source["resourceDigest"])
+      end
+    ensure
+      # Snapshots are read-only by design. Let Homebrew remove the test path.
+      chmod_R "u+w", home/".cache" if home && (home/".cache").exist?
     end
   end
 end

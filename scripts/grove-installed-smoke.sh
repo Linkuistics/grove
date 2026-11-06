@@ -9,6 +9,13 @@
 # TypeScript set with `policy.ts`. The 2.0 lane checks the Rhai set with
 # `config.rhai` and SCHEMA_VERSION 4. Each lane runs in its own HOME. A `-` in
 # the third position skips the 1.1 lane, for a host whose only Ravel is 2.x.
+#
+# The 2.0 lane also reads the keg's skill sources. It copies the 2.0 front into
+# a private prefix whose installation record names this Grove prefix's
+# share/ravel/skills. With no settings, `ravel skills resolve --json` must
+# report exactly core and the five domain packs, each with its originPath in
+# this prefix. That is the "Installed distribution" row of the test seams in
+# docs/specs/codex-skill-provisioning.md.
 set -euo pipefail
 IFS=$'\n\t'
 fail() { echo "grove-installed-smoke: $*" >&2; exit 1; }
@@ -32,7 +39,8 @@ for retired in bin/ravel bin/harness-dispatch libexec/ravel libexec/harness-disp
   [[ ! -e "$prefix/$retired" ]] || fail "Grove bundles $retired"
 done
 scratch="$(mktemp -d)"
-trap 'rm -rf "$scratch"' EXIT
+# Ravel publishes each skill snapshot read-only.
+trap 'chmod -R u+w "$scratch" 2>/dev/null; rm -rf "$scratch"' EXIT
 scratch="$(cd "$scratch" && pwd -P)"
 # The fake agent closes the lifecycle through its own launch-directory marker;
 # it does not retire work or run a second real driver.
@@ -82,6 +90,42 @@ fn select(request, context) {
 }
 EOF
   fi
+}
+
+# The source IDs of Grove's keg, in byte order, as Ravel lists them.
+expected_sources='design
+engineering
+grove-core
+requirements
+research
+writing'
+
+# The keg's sources through a private copy of the 2.0 front RAVEL. Ravel finds
+# the installation record beside its canonical executable. It reads the
+# default skill directory only when the settings name no sources, and this
+# HOME holds no settings. The compact JSON names a source's `id` and its
+# `originPath` only in the source records, so grep reads them in order.
+check_keg_sources() {
+  local ravel="$1" copy="$scratch/keg-ravel" home="$scratch/keg-home" skills="$prefix/share/ravel/skills"
+  local json ids origins expected_origins id
+  [[ -d "$skills" ]] || fail "the prefix holds no $skills"
+  mkdir -p "$copy/bin" "$copy/share/ravel" "$home" "$scratch/keg-tmp"
+  cp "$ravel" "$copy/bin/ravel"
+  chmod 755 "$copy/bin/ravel"
+  printf '{"schemaVersion":1,"skillDirectory":"%s"}\n' "$skills" >"$copy/share/ravel/installation.json"
+  json="$(env -i HOME="$home" TMPDIR="$scratch/keg-tmp" PATH=/usr/bin:/bin "$copy/bin/ravel" skills resolve --json)" ||
+    fail "the 2.0 build cannot resolve the keg's sources: $json"
+  case "$json" in
+    *'"status":"resolved"'*) ;;
+    *) fail "the keg's sources did not resolve: $json" ;;
+  esac
+  ids="$(printf '%s\n' "$json" | grep -o '"id":"[^"]*"' | sed 's/^"id":"//; s/"$//')"
+  [[ "$ids" == "$expected_sources" ]] || fail "the keg resolves the sources '$ids', not '$expected_sources'"
+  origins="$(printf '%s\n' "$json" | grep -o '"originPath":"[^"]*"' | sed 's/^"originPath":"//; s/"$//')"
+  expected_origins="$(for id in $expected_sources; do printf '%s/%s\n' "$skills" "$id"; done)"
+  [[ "$origins" == "$expected_origins" ]] || fail "a source lies outside the keg: $origins"
+  chmod -R u+w "$home"
+  printf 'grove-installed-smoke: Ravel 2.0 resolved the six keg sources with no settings\n'
 }
 
 # Run every caller of the installed prefix through the Ravel prefix
@@ -141,6 +185,7 @@ run_lane() {
     done
     printf 'grove-installed-smoke: Ravel %s %s lifecycle, standalone, installed caller imports and separate versions passed\n' "$runtime" "$label"
   done
+  [[ "$runtime" != 2.0 ]] || check_keg_sources "$ravel"
 }
 
 [[ "$3" == - ]] || run_lane 1.1 "$3"

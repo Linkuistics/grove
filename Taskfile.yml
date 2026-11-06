@@ -435,15 +435,18 @@ tasks:
 
   # RAVEL_1_1_PREFIX and RAVEL_2_0_PREFIX are installation prefixes, not
   # fronts. The 1.1 build checks the TypeScript set and the 2.0 build the Rhai
-  # set. For example:
+  # set and the keg's skill sources. OLD is the published Grove keg of tap
+  # states A and B. The archive's packs need their checkouts from
+  # `task check:packs`, and core's working files must equal HEAD. For example:
   #   task release:formula:test ARCHIVE=target/archives/grove-v<ver>-aarch64-apple-darwin.tar.xz \
-  #     RAVEL_1_1_PREFIX=/opt/homebrew/Cellar/ravel/1.1.0 RAVEL_2_0_PREFIX=/opt/ravel-2
+  #     RAVEL_1_1_PREFIX=/opt/homebrew/Cellar/ravel/1.1.0 RAVEL_2_0_PREFIX=/opt/ravel-2 \
+  #     OLD=/opt/homebrew/Cellar/grove/22.8.0
   release:formula:test:
-    desc: Exercise the real Homebrew install/test methods with a private native archive prefix and both Ravel builds
+    desc: Exercise the real Homebrew install/test methods, the keg's skill digests and tap states A to D with both Ravel builds
     requires:
-      vars: [ARCHIVE, RAVEL_1_1_PREFIX, RAVEL_2_0_PREFIX]
+      vars: [ARCHIVE, RAVEL_1_1_PREFIX, RAVEL_2_0_PREFIX, OLD]
     cmds:
-      - bash scripts/release-formula.test.sh "{{.ARCHIVE}}" "{{.RAVEL_1_1_PREFIX}}" "{{.RAVEL_2_0_PREFIX}}"
+      - bash scripts/release-formula.test.sh "{{.ARCHIVE}}" "{{.RAVEL_1_1_PREFIX}}" "{{.RAVEL_2_0_PREFIX}}" "{{.OLD}}"
 
   release:archives:
     desc: Build release archives of the working copy into target/archives, without a tag or publication

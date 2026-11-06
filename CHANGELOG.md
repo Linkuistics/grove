@@ -56,6 +56,15 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+- `grove`: the release archives and the Homebrew formula carry core and the
+  five domain packs: requirements, design, engineering, research and writing.
+  Each source lies in `share/ravel/skills/<source-id>` of the keg, and Homebrew
+  links it into `$(brew --prefix)/share/ravel/skills`, Ravel's default skill
+  directory. Ravel 2.0 reads them there with no settings. Each pack is at the
+  commit that `plugins/packs.json` records and `task check:packs` accepted.
+  The archive manifest lists each file with its Git mode, and the build
+  refuses an archive with another mode or a pack without its checkout.
+
 - `grove`: stop installing Codex skills at startup. The binary no longer embeds
   the plugin tree. Install skills for every harness your policy selects: the
   marketplace for Claude Code, and `plugins/install.sh` for Codex, Gemini CLI

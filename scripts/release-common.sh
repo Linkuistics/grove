@@ -24,45 +24,205 @@ TARGETS=(
   x86_64-unknown-linux-gnu
 )
 
-# Exact Grove installation prefix; Ravel is a separate runtime dependency.
-# Caller assets retain their complete readable tree and relative imports.
+# shellcheck source=scripts/pack-record.sh
+source "$(dirname "${BASH_SOURCE[0]}")/pack-record.sh"
+
+# The skill sources of the archive. docs/specs/codex-skill-provisioning.md,
+# "The pack record and the release", states them. Core is plugins/grove of the
+# tree that the release builds. Each pack is the source directory of a member
+# of the pack record, in the plain checkout of its sha that check:packs uses.
+# These are shell variables that this file sets and never reads from the
+# environment. release.test.sh points them at fixtures after it sources this
+# file.
+ARCHIVE_CORE_REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ARCHIVE_PACK_RECORD="$ARCHIVE_CORE_REPO/plugins/packs.json"
+ARCHIVE_PACK_CACHE="$ARCHIVE_CORE_REPO/target/external-packs"
+readonly ARCHIVE_CORE_PATH=plugins/grove
+readonly ARCHIVE_CORE_ID=grove-core
+# The keg layout: Homebrew links each keg's share/ into the prefix, so each
+# source appears in Ravel's default skill directory.
+readonly ARCHIVE_SKILLS=share/ravel/skills
+
+# The fixed part of the archive manifest: one `<mode><TAB><path>` line for each
+# file, with its Git mode. Grove's executables and its readable caller assets.
+# Ravel is a separate runtime dependency, and the caller assets keep their
+# complete readable tree and relative imports.
+archive_fixed_manifest() {
+  tr ' ' '\t' <<'EOF'
+100644 LICENSE
+100644 README.md
+100755 bin/grove
+100755 bin/grove-llm
+100644 libexec/ravel-policy/README.md
+100644 libexec/ravel-policy/examples/grove-review.rhai
+100644 libexec/ravel-policy/examples/grove-review.ts
+100644 libexec/ravel-policy/examples/grove-static.rhai
+100644 libexec/ravel-policy/examples/grove-static.ts
+100644 libexec/ravel-policy/examples/review.rhai
+100644 libexec/ravel-policy/examples/review.ts
+100644 libexec/ravel-policy/examples/static.rhai
+100644 libexec/ravel-policy/grove.rhai
+100644 libexec/ravel-policy/grove.ts
+100644 libexec/ravel-policy/provenance.rhai
+100644 libexec/ravel-policy/provenance.ts
+100644 libexec/ravel-policy/sample/config.rhai
+100644 libexec/ravel-policy/sample/policy.ts
+100644 libexec/ravel-policy/typecheck/review.ts
+100644 libexec/ravel-policy/typecheck/static.ts
+EOF
+}
+
+# git_mode PATH: the Git mode of the file or link at PATH. 120000 is a link,
+# 100755 a regular file that its owner can execute and 100644 another regular
+# file. Anything else prints `other`.
+git_mode() {
+  if [[ -L "$1" ]]; then
+    echo 120000
+  elif [[ -f "$1" && -x "$1" ]]; then
+    echo 100755
+  elif [[ -f "$1" ]]; then
+    echo 100644
+  else
+    echo other
+  fi
+}
+
+# core_source_files: the files of plugins/grove in ARCHIVE_CORE_REPO, one path
+# per line, relative to that repository. They are the files that Git tracks
+# and the untracked files that no ignore rule matches, where each still
+# exists. In the clean tagged tree of a release, these are the files of the
+# tagged tree. In a working copy, they are the files that a commit of it would
+# hold. Git's global and system configuration are off, as for a pack checkout.
+# A name that holds a newline splits into names that the archive lacks, so the
+# manifest check then fails rather than passing.
+core_source_files() {
+  local listing file
+  listing="$(pack_git -C "$ARCHIVE_CORE_REPO" ls-files -z --cached --others --exclude-standard \
+    -- "$ARCHIVE_CORE_PATH" | tr '\0' '\n' | LC_ALL=C sort -u)" || return 1
+  while IFS= read -r file; do
+    if [[ -n "$file" ]] && [[ -e "$ARCHIVE_CORE_REPO/$file" || -L "$ARCHIVE_CORE_REPO/$file" ]]; then
+      printf '%s\n' "$file"
+    fi
+  done <<<"$listing"
+}
+
+# pack_source_files DIR PATH: the Git mode, a tab and the path of each file
+# that the checkout DIR tracks under PATH, relative to DIR, one per line.
+pack_source_files() {
+  local listing line
+  listing="$(pack_git -C "$1" ls-files -z -s -- "$2" | tr '\0' '\n')" || return 1
+  while IFS= read -r line; do
+    # `ls-files -s` gives `<mode> <object> <stage><TAB><path>`.
+    [[ -z "$line" ]] || printf '%s\t%s\n' "${line%% *}" "${line#*$'\t'}"
+  done <<<"$listing"
+}
+
+# each_skill_source: one line `<id><TAB><root><TAB><path>` for each skill
+# source of the archive. Its files are those under <root>/<path>, and the
+# archive holds them at share/ravel/skills/<id>/. Core comes first, then each
+# pack in record order. It fails, naming the cause on stderr, when the record
+# is unusable or names core's ID, or when a pack has no clean checkout of its
+# sha in ARCHIVE_PACK_CACHE. It never makes a checkout. The build makes them
+# first, so a missing one here means that the bytes have no recorded source.
+each_skill_source() {
+  local members status id url path sha dir
+  printf '%s\t%s\t%s\n' "$ARCHIVE_CORE_ID" "$ARCHIVE_CORE_REPO" "$ARCHIVE_CORE_PATH"
+  members="$(pack_record_members "$ARCHIVE_PACK_RECORD")" || return 1
+  if [[ -z "$members" ]]; then
+    echo "error: the pack record $ARCHIVE_PACK_RECORD names no pack" >&2
+    return 1
+  fi
+  while IFS=$'\t' read -r status id url path sha; do
+    if [[ "$status" != ok ]]; then
+      # A bad line holds the reason in the third column.
+      echo "error: pack $id in $ARCHIVE_PACK_RECORD: $url" >&2
+      return 1
+    fi
+    if [[ "$id" == "$ARCHIVE_CORE_ID" ]]; then
+      echo "error: the pack record $ARCHIVE_PACK_RECORD names $id, which is core's source ID" >&2
+      return 1
+    fi
+    dir="$(pack_checkout_dir "$ARCHIVE_PACK_CACHE" "$id" "$sha")"
+    if ! pack_checkout_is_clean "$dir" "$sha"; then
+      echo "error: pack $id has no clean checkout of $sha at $dir; run 'task check:packs'" >&2
+      return 1
+    fi
+    printf '%s\t%s\t%s\n' "$id" "$dir" "$path"
+  done <<<"$members"
+}
+
+# skills_manifest: the archive manifest's line for each file of each skill
+# source, with the path that the archive gives it. Core's modes come from the
+# working files, and a pack's modes come from Git. It fails as
+# each_skill_source does, and when a source holds no file.
+skills_manifest() {
+  local sources id root path listing file mode
+  sources="$(each_skill_source)" || return 1
+  while IFS=$'\t' read -r id root path; do
+    if [[ "$id" == "$ARCHIVE_CORE_ID" ]]; then
+      listing="$(core_source_files)" || return 1
+      listing="$(while IFS= read -r file; do
+        [[ -z "$file" ]] || printf '%s\t%s\n' "$(git_mode "$root/$file")" "$file"
+      done <<<"$listing")"
+    else
+      listing="$(pack_source_files "$root" "$path")" || return 1
+    fi
+    if [[ -z "$listing" ]]; then
+      echo "error: source $id holds no file under $root/$path" >&2
+      return 1
+    fi
+    while IFS=$'\t' read -r mode file; do
+      printf '%s\t%s/%s/%s\n' "$mode" "$ARCHIVE_SKILLS" "$id" "${file#"$path"/}"
+    done <<<"$listing"
+  done <<<"$sources"
+}
+
+# The archive manifest: one `<mode><TAB><path>` line for each file of the
+# archive, below its top directory. It fails as skills_manifest does.
 archive_manifest() {
-  cat <<'EOF'
-LICENSE
-README.md
-bin/grove
-bin/grove-llm
-libexec/ravel-policy/README.md
-libexec/ravel-policy/examples/grove-review.rhai
-libexec/ravel-policy/examples/grove-review.ts
-libexec/ravel-policy/examples/grove-static.rhai
-libexec/ravel-policy/examples/grove-static.ts
-libexec/ravel-policy/examples/review.rhai
-libexec/ravel-policy/examples/review.ts
-libexec/ravel-policy/examples/static.rhai
-libexec/ravel-policy/grove.rhai
-libexec/ravel-policy/grove.ts
-libexec/ravel-policy/provenance.rhai
-libexec/ravel-policy/provenance.ts
-libexec/ravel-policy/sample/config.rhai
-libexec/ravel-policy/sample/policy.ts
-libexec/ravel-policy/typecheck/review.ts
-libexec/ravel-policy/typecheck/static.ts
-EOF
+  local fixed skills
+  fixed="$(archive_fixed_manifest)" || return 1
+  skills="$(skills_manifest)" || return 1
+  printf '%s\n%s\n' "$fixed" "$skills"
 }
 
-archive_executables() {
-  cat <<'EOF'
-bin/grove
-bin/grove-llm
-EOF
+# copy_listed ROOT PREFIX DEST: copy each file that stdin names, one path per
+# line relative to ROOT and each under PREFIX/, so that DEST/<rest> holds
+# ROOT/PREFIX/<rest>. tar keeps each file's mode and each link as a link.
+copy_listed() {
+  local root="$1" prefix="$2" dest="$3" scratch status=0
+  scratch="$(mktemp -d)" || return 1
+  if ! COPYFILE_DISABLE=1 tar -C "$root" --no-xattrs -cf - -T - | tar -C "$scratch" -xpf -; then
+    status=1
+  elif ! mkdir -p "$(dirname "$dest")" || ! mv "$scratch/$prefix" "$dest"; then
+    status=1
+  fi
+  rm -rf "$scratch"
+  return "$status"
 }
 
-# The manifest's files and every directory holding them, directories with a
-# trailing slash.
+# copy_skill_sources DEST: copy each skill source of the archive to
+# DEST/<id>/. Core's files are core_source_files, and a pack's files are those
+# that its checkout tracks. It fails as each_skill_source does.
+copy_skill_sources() {
+  local dest="$1" sources id root path
+  sources="$(each_skill_source)" || return 1
+  while IFS=$'\t' read -r id root path; do
+    if [[ "$id" == "$ARCHIVE_CORE_ID" ]]; then
+      core_source_files | copy_listed "$root" "$path" "$dest/$id" || return 1
+    else
+      pack_git -C "$root" ls-files -z -- "$path" | tr '\0' '\n' | copy_listed "$root" "$path" "$dest/$id" ||
+        return 1
+    fi
+  done <<<"$sources"
+}
+
+# The manifest's paths on stdin, as `<mode><TAB><path>` lines, give every file
+# and every directory that holds one, directories with a trailing slash.
 archive_layout() {
-  local entry dir
-  archive_manifest | while IFS= read -r entry; do
+  local mode entry dir
+  while IFS=$'\t' read -r mode entry; do
+    [[ -n "$entry" ]] || continue
     echo "$entry"
     dir="$entry"
     while [[ "$dir" == */* ]]; do
@@ -95,11 +255,16 @@ extract_exactly() {
 }
 
 # Extract ARCHIVE and check it holds exactly TOP/, and within it exactly the
-# manifest's files and their directories, each file regular and the
-# executables executable. Prints what is missing, unexpected or wrong and
-# returns nonzero; prints nothing on success.
+# manifest's files and their directories, each with the Git mode that the
+# manifest gives it. Prints what is missing, unexpected or wrong and returns
+# nonzero. Prints nothing on success. A manifest that cannot be listed, such
+# as one whose pack has no checkout, fails the check.
 assert_archive() {
-  local archive="$1" top="$2" scratch status=0 entry
+  local archive="$1" top="$2" scratch status=0 manifest entry mode actual
+  if ! manifest="$(archive_manifest)"; then
+    echo "$archive: the archive manifest cannot be listed; see above"
+    return 1
+  fi
   scratch="$(mktemp -d)"
   if ! extract_exactly "$archive" "$scratch"; then
     echo "$archive: cannot be extracted"
@@ -111,9 +276,9 @@ assert_archive() {
     ls -A "$scratch"
     status=1
   fi
-  local expected actual
-  expected="$(archive_layout)"
-  actual="$(
+  local expected actual_layout
+  expected="$(archive_layout <<<"$manifest")"
+  actual_layout="$(
     cd "$scratch/$top" 2>/dev/null || exit 0
     {
       find . -mindepth 1 -type d | sed 's|$|/|'
@@ -125,26 +290,23 @@ assert_archive() {
       echo "$archive: missing $top/$entry"
       status=1
     fi
-  done < <(LC_ALL=C comm -23 <(echo "$expected") <(echo "$actual"))
+  done < <(LC_ALL=C comm -23 <(echo "$expected") <(echo "$actual_layout"))
   while IFS= read -r entry; do
     if [[ -n "$entry" ]]; then
       echo "$archive: unexpected $top/$entry"
       status=1
     fi
-  done < <(LC_ALL=C comm -13 <(echo "$expected") <(echo "$actual"))
-  while IFS= read -r entry; do
+  done < <(LC_ALL=C comm -13 <(echo "$expected") <(echo "$actual_layout"))
+  while IFS=$'\t' read -r mode entry; do
     local path="$scratch/$top/$entry"
-    if [[ -L "$path" ]] || { [[ -e "$path" ]] && [[ ! -f "$path" ]]; }; then
-      echo "$archive: $top/$entry is not a regular file"
-      status=1
+    if [[ -e "$path" || -L "$path" ]]; then
+      actual="$(git_mode "$path")"
+      if [[ "$actual" != "$mode" ]]; then
+        echo "$archive: $top/$entry has Git mode $actual, not $mode"
+        status=1
+      fi
     fi
-  done < <(archive_manifest)
-  while IFS= read -r entry; do
-    if [[ -f "$scratch/$top/$entry" && ! -x "$scratch/$top/$entry" ]]; then
-      echo "$archive: $top/$entry is not executable"
-      status=1
-    fi
-  done < <(archive_executables)
+  done <<<"$manifest"
   rm -rf "$scratch"
   return "$status"
 }

@@ -214,7 +214,14 @@ Before a release, check each set against its own explicit build:
 - Run `task release:formula:test` and `task release:installed` with
   `RAVEL_1_1_PREFIX` and `RAVEL_2_0_PREFIX`. The 1.1 build checks the
   TypeScript set with `policy.ts`, and the 2.0 build checks the Rhai set with
-  `config.rhai`.
+  `config.rhai`. The 2.0 lane also resolves the six keg sources with no
+  settings.
+- Give `task release:formula:test` the published Grove keg in `OLD`. The
+  test compares the `resourceDigest` of each installed source with that of
+  the plain checkout of the same commit. For core, that checkout is `HEAD`, so
+  commit `plugins/grove` first. The test then installs and upgrades the keg
+  in a private Homebrew-shaped prefix at each tap state A to D of the
+  coordinated release.
 - Run `task release:upgrade` with the old installation in `OLD`. It upgrades a
   scratch copy of a Grove 22.8 installation, as Homebrew does. Each native
   entry, link, mode, pointer and byte must stay the same, and an active 22.8
@@ -649,10 +656,11 @@ formula:
 scripts/release-build.sh
 ```
 
-Neither binary embeds or installs skills, and the archives carry no skill
-payload. Archive and Homebrew users supply skills through their chosen route,
-as the formula caveats describe. Startup and upgrade leave existing native
-installations, including snapshots written by Grove 22.8 and earlier, unchanged.
+Neither binary embeds or installs skills. Each archive carries core and the
+five domain packs in `share/ravel/skills/`, one Ravel source each. Homebrew
+links them into Ravel's default skill directory, and only Ravel delivers them
+to a session. Startup and upgrade leave existing native installations,
+including snapshots written by Grove 22.8 and earlier, unchanged.
 
 Claude Code still receives the plugins through the marketplace. It versions a
 plugin of this repository by the repository commit SHA, and an external plugin
@@ -677,6 +685,8 @@ libexec/ravel-policy/examples/                   readable examples of both sets
 libexec/ravel-policy/sample/policy.ts            owner-editable sample, Ravel 1.x
 libexec/ravel-policy/sample/config.rhai          owner-editable sample, Ravel 2.x
 libexec/ravel-policy/typecheck/                  strict TypeScript fixtures
+share/ravel/skills/grove-core/                   plugins/grove of the built tree
+share/ravel/skills/<pack>/                       each pack of plugins/packs.json
 LICENSE
 README.md
 ```
@@ -688,10 +698,18 @@ Grove resolves independently installed Ravel from PATH. The formula installs
 dependency stays unversioned through promotion, and `ravel@2` is an explicit
 opt-in prefix. An archive user
 must independently install Ravel and keep each project's whole prefix intact.
-`archive_manifest` in `scripts/release-common.sh` lists every file, and the
-build checks each archive against it as soon as it is packed: a missing,
-unexpected or non-executable entry, or an extra directory, stops the build
-before the formula is rendered, and the failed archive is removed. Archives are
+The build copies `plugins/grove` of the built tree to
+`share/ravel/skills/grove-core/`. It copies each pack's source directory from
+the plain checkout of its recorded `sha` under `target/external-packs`.
+`task check:packs` made that checkout, so the keg holds the bytes that the
+check accepted.
+Each copy keeps executable bits and links.
+`archive_manifest` in `scripts/release-common.sh` lists every file with its
+Git mode. The build checks each archive against it as soon as it packs the
+archive. Four faults stop the build before it renders the formula. They are a
+missing or unexpected entry, an entry with another Git mode, an extra
+directory, and a pack whose `sha` has no clean checkout. The build then
+removes the failed archive. Archives are
 packed without macOS extended attributes, so they hold none of the AppleDouble
 `._*` files that macOS's `tar` would otherwise add and then hide when it reads
 them back; the check reads them as GNU `tar` would. A change that ships another

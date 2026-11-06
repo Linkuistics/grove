@@ -3675,3 +3675,99 @@ Each control failed against a changed copy of a formula:
 
 This leaf did not install either formula in the owner's prefix.
 `owner-pack-checkouts-k93` owns that step.
+
+## The TestAnyware formula
+
+`testanyware-skill-formula-k234` released TestAnyware `v2.8.0` from commit
+`1809a49068a23d9d276913f3a90227dbefb98a82`. The annotated tag object is
+`30292bdc2cd30f62c3200a8176dc9330b164ce01`. The release procedure published
+the tag, the GitHub Release and tap commit
+`9ca2b5e3751047b1d81157d43146828e933bcceb`. After the push,
+`git ls-remote` printed the tag, TestAnyware's `main` at the release commit
+and the tap's `main` at the tap commit. TestAnyware's procedure states minor
+for a new installed path, so the release is minor.
+
+### Contents of the release
+
+| Part | Value |
+| --- | --- |
+| Release assets | `testanyware-v2.8.0-aarch64-apple-darwin.tar.xz`, the two Linux archives and `testanyware-app-v2.8.0-aarch64-apple-darwin.zip` |
+| macOS archive `sha256` | `bda57d356222e6ef7eb7bc7be7c6c815cc890b9b0743ff7c1aa5b6130c285a30` |
+| `share/ravel/skills/testanyware` in each archive | `plugins/testanyware` of the release commit, from `git archive`, so only tracked files with their Git modes |
+| Formula `install` | `(share/"ravel/skills").install "share/ravel/skills/testanyware"`, which moves the folder and keeps each mode |
+| Formula `test` | Asserts that `share/ravel/skills/testanyware/skills/using-testanyware/SKILL.md` exists |
+| README | The formula installs the skill, and Ravel delivers it. It gives no native marketplace step |
+
+TestAnyware's `release_candidate.py verify` now compares the skill folder of
+each host archive with `plugins/testanyware` of the tagged commit. It compares
+the path, the Git mode and the blob ID of each entry. The build and the publish
+step both run `verify`.
+
+This leaf changed two other parts of TestAnyware's release procedure.
+
+- macOS `tar` wrote an AppleDouble member, `._<name>`, for each file with an
+  extended attribute. The 2.7.0 macOS archive holds 35 such members among 70.
+  macOS `tar` hides them, but GNU `tar` on Linux unpacks them as files. The
+  build now packs with `--no-mac-metadata`, and `verify` refuses an extra
+  member. Each 2.8.0 archive holds no AppleDouble member.
+- `release-publish.sh` named a tap path that does not exist. Its bare
+  `git push` fails on the jj tap, and that failure comes after the GitHub
+  Release. It now defaults to `~/Development/Delivery/homebrew-taps` and publishes
+  through jj, as Grove's release script does.
+
+### Checks of the release
+
+These checks ran before publication.
+
+- `task release:test` passed, with seven new unit tests of the skill check and
+  four new scenes. The scenes cover an archive without the skill, a jj tap, a
+  jj tap behind its remote and a git tap on a detached `HEAD`.
+- `task cli:test` gave 1655 passed and 0 failed. `task scripts:check`,
+  `task plugin:check` and `task release:doctor` passed.
+- The procedure built, notarised and verified the candidate once. `task tap:formula:test`
+  ran the candidate formula from a local archive URL, with
+  `SOURCES=testanyware=plugins/testanyware`. The keg held the files of
+  `plugins/testanyware` with their Git modes. Ravel 2.0 resolved the keg
+  source with the root `skills` and the `resourceDigest` of the plain
+  checkout.
+
+Each control failed:
+
+- A formula without the install line failed its own test.
+- Archives with no skill, a changed file, a lost executable bit, a changed link
+  target, an extra `._SKILL.md` or a missing file each failed `verify`.
+
+These checks ran after publication.
+
+- `brew upgrade` installed 2.8.0 in the owner's prefix, and `brew upgrade
+  --cask` installed the 2.8.0 app. `testanyware --version` printed `2.8.0`, and
+  `brew test` passed.
+- The installed keg source held the files of `plugins/testanyware` with their
+  Git modes. A private copy of the Ravel 2.0 build resolved it through
+  `/opt/homebrew/share/ravel/skills` with no settings. Its `originPath` was
+  `/opt/homebrew/Cellar/testanyware/2.8.0/share/ravel/skills/testanyware`, its
+  only root was `skills`, and its `resourceDigest` was
+  `3e9d7929eddd8988a6bebd9433b7f343a19e673993b3c81e8a1ce9ba913b72c6`. Settings
+  that named a plain checkout of the release commit, made with Git's global and
+  system configuration off, gave the same digest and root.
+- The build was Ravel `ff14cba826b02ac492fcde0996d662c5378ef923`, in the `dev`
+  profile.
+- `brew style` and `brew audit` reported three offences in the formula: a
+  redundant `version`, `on_linux` in `install` and `Formula["python@3.12"]`.
+  The 2.7.0 formula has the same three, and the new lines add none.
+
+No other installed keg holds `share/ravel`, so Homebrew linked
+`/opt/homebrew/share/ravel` as one link to the TestAnyware keg. When another
+keg brings a source, `brew link` makes real folders with one link for each
+source.
+
+### For rollout
+
+| Source | Root and revision |
+| --- | --- |
+| `testanyware` | The `testanyware` formula of tap commit `9ca2b5e37510`. TestAnyware commit `1809a49068a23d9d276913f3a90227dbefb98a82`, source directory `plugins/testanyware`, roots `["skills"]`, keg and checkout `resourceDigest` `3e9d7929eddd8988a6bebd9433b7f343a19e673993b3c81e8a1ce9ba913b72c6` |
+
+The owner's prefix now holds this source in Ravel's default skill directory.
+The owner's Claude Code also still has the native `testanyware` plugin. A
+rollout that turns on Ravel 2.0 delivery must remove that plugin, or the
+harness sees `using-testanyware` twice.

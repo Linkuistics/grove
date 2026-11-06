@@ -145,3 +145,13 @@ Superpowers stays at 7.0.0, the owner's native version, although upstream has
 released 7.0.2. `task tap:formula:test` now accepts `.` for a repository root,
 and it compares a source that holds executable files correctly.
 `testanyware-skill-formula-k234` can use both changes.
+
+`testanyware-skill-formula-k234` released TestAnyware `v2.8.0` from commit
+`1809a49068a2`, with tap commit `9ca2b5e37510`. Its results are in the section
+"The TestAnyware formula" of `docs/repository-moves-record.md`. The owner's
+prefix now holds the `testanyware` source in Ravel's default skill directory.
+The owner's Claude Code also still has the native `testanyware` plugin, so a
+rollout that turns on Ravel 2.0 delivery must remove that plugin.
+TestAnyware's release archives now pack with `--no-mac-metadata`. Each
+earlier macOS archive held an AppleDouble member for each file, and GNU `tar`
+unpacks those members as files.

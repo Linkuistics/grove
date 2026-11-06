@@ -80,8 +80,12 @@ hooks-installation-writes-k222 settles how the writes of Claude Code's own
 commands take part in detection. Each command replaces `settings.json` by a
 rename, so each runs under a held link. The disabling is now the program's
 own exchange. A rename by another program inside a command's interval is the
-accepted case. The focused review of this leaf and of
-native-settings-recovery-k221 is ahead. See
+accepted case.
+
+native-settings-recovery-k224 integrated the focused review of this leaf and
+of native-settings-recovery-k221. The program now stops for an
+ACL or an extended attribute in the reading that the record's digest covers.
+Nothing bounds the accepted case's interval or the runs of its commands. See
 [Claude Code's own writes](../../specs/owner-skill-delivery.md#claude-codes-own-writes)
 and the
 [evidence](../../homebrew-skill-delivery-evidence.md#claude-codes-writes-of-the-settings-file).
@@ -97,8 +101,10 @@ homebrew-delivery-design-k219. Both preludes run in step 3 of the switch, only
 while no run is open. The native settings write a settings record before their
 exchange.
 
-Its focused review is ahead. hooks-installation-writes-k222 settled the
-detection of Claude Code's own writes. See
+Its focused review found no defect in these mechanisms, and
+native-settings-recovery-k224 integrated that review.
+hooks-installation-writes-k222 settled the detection of Claude Code's own
+writes. See
 [the native settings inside finish](../../specs/owner-skill-delivery.md#the-native-settings-inside-finish),
 [the hooks installation inside finish](../../specs/owner-skill-delivery.md#the-hooks-installation-inside-finish)
 and [resuming the switch](../../specs/owner-skill-delivery.md#resuming-the-switch).

@@ -175,8 +175,8 @@
   ],
   "discussion": {
     "title": "Claude Code's own writes in the hooks installation",
-    "status": "Proposed by hooks-installation-writes-k222 on 2026-11-06. It settles the open question of native-settings-recovery-k221, and the focused review of both leaves is ahead",
-    "summary": "Each command of the hooks installation replaces ~/.claude/settings.json by a rename, 30 to 38 ms after the read that it writes from. Each Claude Code command therefore runs under a held link. That is a hard link to the live inode in a settings record, and the program compares it with its digest after the command. A write in place inside the interval, or a later write through a descriptor, flags that copy. The disabling is now the program's own exchange after a settings record, because plugin disable changes only that cell. A rename by another program inside a command's interval is the accepted case, with its evidence and its bound in the owner design.",
+    "status": "Proposed by hooks-installation-writes-k222 on 2026-11-06. It settles the open question of native-settings-recovery-k221, and native-settings-recovery-k224 integrated the focused review of both leaves",
+    "summary": "Each command of the hooks installation replaces ~/.claude/settings.json by a rename. On an idle machine, the rename came 30 to 38 ms after the read that the command writes from. Each Claude Code command therefore runs under a held link. That is a hard link to the live inode in a settings record, and the program compares it with its digest after the command. The program stops for an ACL or an extended attribute in the reading that the digest covers. A write in place inside the interval, or a later write through a descriptor, flags that copy. The disabling is now the program's own exchange after a settings record, because plugin disable changes only that cell. A rename by another program inside a command's interval is the accepted case. Nothing bounds that interval or the runs of the commands, and the owner design states the evidence.",
     "diagramIds": [
       "owner-cutover",
       "owner-final-session",

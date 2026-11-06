@@ -11,9 +11,11 @@ settled design.
 - `homebrew-delivery-design-k216`, `ravel-default-skill-directory-k218` and
   any review chain that they earned settle the design.
 - `native-settings-recovery-k221` and any review chain that it earns settle
-  the native settings of the owner design. The running log of
-  `homebrew-delivery-design-k220` lists shipped guidance that changes with
-  the implementation.
+  the native settings of the owner design. `hooks-installation-writes-k222`
+  settles the writes of the hooks installation, and
+  `native-settings-recovery-k224` integrated the review of both. The running
+  log of `homebrew-delivery-design-k220` lists shipped guidance that changes
+  with the implementation.
 
 ## Done when
 

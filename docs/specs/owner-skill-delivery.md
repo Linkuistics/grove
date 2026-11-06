@@ -725,21 +725,22 @@ measured how Claude Code 2.1.319 writes the file:
 - Each command writes a temporary file beside `settings.json` and renames it
   onto the path, once. A hard link to the earlier inode keeps the earlier
   bytes.
-- A command makes its write from a read 30 to 38 ms before its rename. A
-  write in place inside that interval lands in the earlier inode. A rename
-  by another program inside that interval is lost.
+- On an idle machine, a command made its write from a read 30 to 38 ms
+  before its rename. A write in place inside that interval lands in the
+  earlier inode. A rename by another program inside that interval is lost.
 - A command rewrites the file also when each value is already present.
 - The new file keeps the mode. It loses each ACL and each extended attribute
   except `com.apple.provenance`.
 
 The program therefore runs each command in these steps:
 
-1. Stop if `settings.json` has an ACL or an extended attribute other than
+1. Write a settings record under a temporary name. It holds a held link to
+   the live inode. Read that inode once, through the held link. The record
+   holds the digest of that reading's content, mode, ACL and extended
+   attributes. Rename the record into place. No record replaces an earlier
+   one.
+2. Stop if that reading has an ACL or an extended attribute other than
    `com.apple.provenance`. The command would drop it.
-2. Write a settings record under a temporary name. It holds a held link to
-   the live inode. It also holds the digest of that inode's content, mode,
-   ACL and extended attributes. Rename the record into place. No record
-   replaces an earlier one.
 3. Read the plugin's state again. Run the command only if the state still
    needs it.
 4. Run the command.
@@ -747,6 +748,12 @@ The program therefore runs each command in these steps:
    that replaced nothing makes the held link prove nothing.
 6. Compare the held copy with the digest in the record. A difference flags
    the copy, and the program stops.
+
+Step 2 uses the same reading that the record's digest covers. Another
+program can add an ACL or an extended attribute in place after that reading.
+The attribute then lands in the held inode, and step 6 flags the held copy.
+A stop that used an earlier reading would miss an attribute added before the
+digest. The command would drop it, and the held copy would equal its record.
 
 Step 3 decides from the state after the held link exists. Another program
 can write a third value into the plugin's cell before the link. Step 3 then
@@ -762,22 +769,34 @@ A write in place before the command's read is in the live file and in the
 held copy. It flags the copy, although no write is lost, and the owner's
 merge then adds nothing. The design accepts that report.
 
-A held link whose inode is still at the path holds no kept copy. A crash
-before the command's rename leaves such a link. Step 3 of the next run
-erases it before the preludes. Erasing the link loses no content, because
-the path still names the inode.
+A held link whose inode is still at the path holds no kept copy. A stop or
+a crash before the command's rename leaves such a link. Step 3 of the next
+run erases it before the preludes. Erasing the link loses no content,
+because the path still names the inode.
 
 **The accepted case.** Another program can replace `settings.json` by a
 rename after the held link and before the command's rename. The command's
 rename then replaces that program's inode, which has no other name. Each
 write that the inode holds and the command's read missed is lost, and no
-record reports it. No mechanism outside Claude Code can keep that inode, so
-the design accepts this case. Its evidence and its bound are these:
+record reports it. Each ACL and each extended attribute of that inode,
+except `com.apple.provenance`, is lost in the same way.
 
-- **The interval.** Each command made its write from a read 30 to 38 ms
-  before its rename, on an idle machine. The two commands run only while
-  the plugin is absent. A run therefore has at most two such intervals, and
-  a later run has none.
+No mechanism outside Claude Code can keep that inode, so the design accepts
+this case. Its exposure and its evidence are these:
+
+- **The interval.** Each run of a command exposes one interval, from its
+  read to its rename. No mechanism outside Claude Code bounds that interval.
+  A command that the scheduler pauses keeps its interval open for the whole
+  pause. On an idle machine, each command made its write from a read 30 to
+  38 ms before its rename. That duration is evidence, not a bound.
+- **The repeated runs.** A run of the program runs each command at most
+  once, and only while the plugin is absent. No durable count limits the
+  runs of a command. A run that stops after the registration, or after a
+  held link and before a command's rename, leaves the plugin absent. The
+  next run then runs the installation again. It runs the registration again
+  unless the marketplace is registered at that path. An outside
+  uninstallation, which [Concurrent writers](#concurrent-writers) accepts,
+  also makes a later run install the plugin again.
 - **The programs that can rename the file.** The exclusion keeps only the
   kept processes. Grove's sources and Ravel 1.1.0's sources name no
   `.claude` path. codebase-memory-mcp 0.10.6 wrote nothing in server mode,
@@ -788,6 +807,13 @@ the design accepts this case. Its evidence and its bound are these:
   run, so a settings action can come only from its user.
 - **The frequency.** A read-only observation found that no program changed
   the owner's `settings.json` in the 26 days before 2026-11-06.
+
+The acceptance therefore rests on the programs that can rename the file. It
+does not rest on the duration of an interval or on the number of intervals.
+A timeout that ended a command before its rename would bound the interval.
+The design does not use one. A command also writes its installation record,
+so a timeout can end it between its writes, in a state that no measurement
+has read.
 
 Before the hooks installation, finish tells the owner to change no setting
 in the finish session until the switch reports. A staging seam measures the
@@ -1061,7 +1087,8 @@ its list reports that value too.
 A second case stays outside detection. Another program's rename during a
 Claude Code command can lose a write, as
 [Claude Code's own writes](#claude-codes-own-writes) states. The design
-accepts that case within its evidence and its bound.
+accepts that case on its evidence. Nothing bounds the duration of a
+command's interval or the number of its runs.
 
 [The recovery model](#the-recovery-model) finds no other lost
 write. It lets outside programs write at every step, with no exclusion.
@@ -1363,8 +1390,8 @@ narrow when outside writes or crashes act:
 
 The model file lists what the model does not establish. Metadata, the
 program copy, the probes and readers belong to the rehearsal controls. So do
-the registration command, the bound of the accepted case and the creation of
-an absent settings file.
+the registration command, the evidence of the accepted case and the creation
+of an absent settings file.
 
 **Entry parts.** The model treats each part as a file. Two rules settle an
 entry part without a model:
@@ -1549,6 +1576,11 @@ Obsidian `AI Dev Tooling` note. It still names the earlier
   `com.apple.provenance`, and another gives it an ACL. Each must stop the
   hooks installation before its first command. A stub command that writes
   the file in place must stop the program at its comparison of inodes.
+- Controls add an extended attribute, and an ACL, in place just before a
+  held link. Each must stop the program before its command. Other controls
+  add them in place after the reading that the record's digest covers and
+  before the command's rename. Each must stop the program with a flagged
+  held copy, and each later run must report that copy.
 - A staging measurement runs the hooks installation while a signed-in Claude
   Code session with the owner's MCP servers is open in the staging HOME. It
   watches `settings.json` during each command. Any replacement by another
@@ -1558,7 +1590,13 @@ Obsidian `AI Dev Tooling` note. It still names the earlier
   [`settings-writes.sh`](../evaluations/hooks-installation-writes/settings-writes.sh)
   with the Claude Code version that it uses, and its record names that
   version. One rename per command and an interval within the evidence's
-  range must hold, or the design is reviewed again.
+  range must hold, or the design is reviewed again. The rerun reads the
+  write method of that version. It bounds no interval of a later command in
+  the real HOME.
+- A control stops the program after the registration and before the
+  installation's held link. The next run from step 1 must run no
+  registration, install the plugin and reach the native state. The
+  rehearsal record counts the commands that each run ran.
 - Controls stop the native settings before and after each write, between the
   settings record and the exchange, and between the exchange and its
   comparison. They run with the settings file absent and with a file that

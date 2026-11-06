@@ -143,12 +143,13 @@
 //     the reader control of the rehearsal owns it.
 //   * The registration.  `claude plugin marketplace add` is a second Claude
 //     Code command of the same shape, under its own held link, so the
-//     model's one command stands for both.  The number of commands and the
-//     interval between a command's read and its rename are prose, and they
-//     bound the accepted case.  So is the metadata rule: a command drops
-//     each ACL and each extended attribute except `com.apple.provenance`,
-//     so the program stops for them before a command.  So is the check that
-//     a command replaced the file: the model's command always does.
+//     model's one command stands for both.  The number of commands, the
+//     interval between a command's read and its rename, and the evidence
+//     of the accepted case are prose.  So is the metadata rule: a command
+//     drops each ACL and each extended attribute except
+//     `com.apple.provenance`, so the program stops for them in the reading
+//     that the record's digest covers.  So is the check that a command
+//     replaced the file: the model's command always does.
 //   * The creation of an absent Ravel settings file.  The model starts with
 //     the file present.  An exclusive rename displaces nothing and fails if
 //     another program created the file first, so creation needs no record.

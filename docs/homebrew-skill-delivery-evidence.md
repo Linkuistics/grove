@@ -225,6 +225,7 @@ The script ran `claude plugin marketplace add`, `claude plugin install` and
   - `marketplace add` with `extraKnownMarketplaces` already present.
   - `marketplace add` with the marketplace already registered.
   - `plugin install` with the plugin's `enabledPlugins` cell already `true`.
+<!-- tc: depart synonym-rotation because "deny-delete" names a macOS ACL permission, not an action that this text describes -->
 - With a deny-delete ACL on the file, `plugin install` exits 1. The file
   keeps its inode and its content, so the command makes no fallback write.
 - `plugin install --marketplace` renames a file onto the path twice.
@@ -266,6 +267,10 @@ The table gives five facts:
 - A write after the rename stays in the live file.
 
 Two exploration runs of the same race on the same day gave the same pattern.
+
+The run of record ran on an idle machine. The table therefore gives no upper
+bound for a command that the scheduler pauses between its read and its
+rename.
 
 ### What `plugin disable` changes
 

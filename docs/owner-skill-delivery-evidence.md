@@ -563,6 +563,20 @@ displaced into a flagged copy, in 21 of 4,000 traces of `writers`. From a
 first state before the preludes, the shortest path to a receipt now has 26
 steps.
 
+#### The comment of the review's integration
+
+`native-settings-recovery-k224` changed one comment of the model, in its
+list of what the model leaves to prose. No definition changed. On
+2026-11-06, `task model:owner-switch` ran the changed file with Quint 0.33.1
+in 6 minutes 5 seconds. The runner printed 241 passes and no failure. The
+three subjects had the same digests before and after the run:
+
+| Subject | SHA-256 |
+| --- | --- |
+| `docs/models/owner-switch.qnt` | `c90bbf9ab658518753630d8cd9226cd926f0ac1eaf6e70c5f200c934e60412c4` |
+| `docs/models/run-owner-switch.sh` | `0fe7ef316e63ce1438b8d4a3193af35e09f6c2e9d99b699b1f9aa4ff0c71c2e1` |
+| `Taskfile.yml` | `05c3080b84d0443eabe075e83a4c01ce3d60a27e2ec4409e1e1ec93ee9d386f1` |
+
 ## Not measured
 
 - Claude Code's treatment of a root-level `SKILL.md` inside a skill-free

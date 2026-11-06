@@ -3,11 +3,13 @@
 // ===========================================================================
 //
 // The subject is `docs/specs/owner-skill-delivery.md`, the sections "The
-// switch inside finish", "Concurrent writers", "Resuming the switch", "The
-// rehearsed plan" and "Rollback".  The model is a design artifact: it asks
-// whether the recovery rules keep five properties when interruptions, outside
-// writers, inverses, classifications and receipts interleave.  The executable
-// rehearsal of order 6 stays with the cutover contract.
+// native settings inside finish", "The hooks installation inside finish",
+// "The switch inside finish", "Concurrent writers", "Resuming the switch",
+// "The rehearsed plan" and "Rollback".  The model is a design artifact: it
+// asks whether the recovery rules keep six properties when interruptions,
+// outside writers, preludes, inverses, classifications and receipts
+// interleave.  The executable rehearsal of order 6 stays with the cutover
+// contract.
 //
 // HOW TO READ IT
 //
@@ -40,6 +42,14 @@
 //   P5 inv_acceptedOnlyClassified  No run copies a receipt into the manual
 //                                  while an entry outside the switch set
 //                                  differs from the plan's manifest.
+//   P6 inv_preludeStopsOnlyInStoppingRow
+//                                  Each entry reaches the row of the table
+//      inv_preludesCompleteAtTable that holds.  A prelude refuses a value
+//                                  only where that row stops, and never a
+//                                  value that a prelude itself left.  No
+//                                  entry reads the table while no run is
+//                                  open and a prelude cell holds a value
+//                                  that only an interrupted prelude leaves.
 //
 // WHAT IS MODELLED
 //
@@ -69,6 +79,28 @@
 //     it.
 //   * The backup's run record is `begun`, `receipt`, `invBegun`, `invEnded`.
 //     The MANUAL holds the receipts that step 14 copied.
+//   * THE ENTRY: each run of the program from step 1.  Finish's first run,
+//     its continuation and the owner's run after finish are all entries.
+//     The switch's steps 1 and 2 are one `enter`.  Step 3 then reads the run
+//     record.  While a run is open, it goes straight to the table (mode
+//     `ready`).  Otherwise it runs the two PRELUDES first: the native
+//     settings, then the hooks installation.  Only `ready` dispatches to a
+//     row of the table, and a stop there stands for a stop in steps 4 to 8.
+//   * The last part, SETTINGS, is the `skills` key of the Ravel settings.
+//     Part HOOKS, just before it, is the `enabledPlugins` cell of the
+//     writing hooks plugin.  Both start ABSENT: no `skills` key, and no
+//     plugin.  Value 0 is the off value and the disabled plugin, and SW is
+//     the switched value.  ABSENT is each prelude's earlier value, so an
+//     outside write of ABSENT is accepted as a write of an earlier value.
+//     Each instance says where its first state lies: before the first
+//     entry's preludes, or where those preludes leave the layout.  The
+//     second choice keeps a world's budgets for the switch.
+//   * The native settings change ABSENT to 0 by the atomic exchange.  Before
+//     it, a SETTINGS RECORD holds the content that the kept copy must hold,
+//     so the copy takes part in detection like a copy of the switch.
+//   * The hooks installation changes ABSENT to SW (`plugin install`) and SW
+//     to 0 (`plugin disable`).  It also disables an enabled plugin that no
+//     open run explains.
 //
 // WHAT IS NOT MODELLED — the worklist for the rehearsal
 //
@@ -93,6 +125,17 @@
 //   * Readers.  The exclusion protects readers, captures and progress, and no
 //     property here depends on it.  Which processes may stay is prose, and
 //     the reader control of the rehearsal owns it.
+//   * Claude Code's own writes.  The hooks installation's commands are
+//     modelled as atomic writes of one cell, each from the value that the
+//     installation read.  Claude Code rewrites `settings.json` itself, so
+//     neither that atomicity nor detection holds for its commands.  The
+//     specification's open question in "The hooks installation inside
+//     finish" owns that gap.
+//   * The creation of an absent Ravel settings file.  The model starts with
+//     the file present.  An exclusive rename displaces nothing and fails if
+//     another program created the file first, so creation needs no record.
+//   * Where a settings record lies, and the rule that the program runs a
+//     prelude only under a rehearsed program.  Both are prose.
 //   * Results under `quint run` are sampled, not proved.  The runner quotes
 //     the step bound and the sample count beside each result.
 //
@@ -114,14 +157,16 @@ module switch {
   const OUTSIDE_DELETES: bool  // outside programs also delete other keys
   const OUTSIDE_ENTRIES: bool  // outside programs change an entry outside the switch set
   const PROBES_CAN_FAIL: bool
-  // When outside writes may act: "any" step, only while a "run" is live,
-  // only while no run is live ("idle"), or only after a "receipt".  The
-  // unfocused worlds use "any".  A focused world is a strict subset that
+  // When outside writes may act: "any" step, only while a switch or inverse
+  // "run" is live, only while no run is live ("idle"), only after a
+  // "receipt", or only while a "prelude" runs.  The unfocused worlds use
+  // "any".  A focused world is a strict subset that
   // still reaches its subject, and it only hunts witnesses: a green there
   // says nothing about the wide world.
   const OUTSIDE_PHASE: str
-  // When a crash may end a run: at "any" step, or only after a "receipt".
-  // Only a focused world narrows it.
+  // When a crash may end a run: at "any" step, only after a "receipt", or
+  // only while the "probe"s run, after the last exchange and before the
+  // receipt.  Only a focused world narrows it.
   const CRASH_PHASE: str
 
   // Mechanisms.  The corrected design sets each one as its comment says; a
@@ -134,10 +179,22 @@ module switch {
   const INVERSE_SKIPS_THIRD: bool // true: the inverse leaves a third value
   const MERGE_AUTHORITY: bool     // true: a merged copy is compared with its merge only
   const ACCEPT_CHECK: bool        // true: step 14 compares the outside manifest
+  const PRELUDE_GATE: bool        // true: the preludes run only while no run is open
+  const NS_RECORD: bool           // true: the native settings record the expected displaced content
+  const HOOKS_IN_ENTRY: bool      // true: every entry runs the hooks installation
+  const HOOKS_RESUME: bool        // true: the hooks installation disables an enabled plugin
+  // Where a world starts.  false: before the first entry's preludes, with
+  // both prelude cells ABSENT.  true: where those preludes leave the layout,
+  // without their kept copy.  Each entry still passes the gate and the
+  // preludes, and an outside write of ABSENT gives them work again.
+  const START_NATIVE: bool
 
   pure val PARTS: Set[int] = 0.to(N - 1)
   pure val SW: int = 1
   pure val FRESH: int = -1
+  pure val ABSENT: int = -2       // no `skills` key, or no hooks plugin
+  pure val HOOKS: int = N - 2     // the `enabledPlugins` cell of the hooks plugin
+  pure val SETTINGS: int = N - 1  // the `skills` key of the Ravel settings
 
   // -------------------------------------------------------------------------
   // State.  One record, so that every action assigns the whole world.
@@ -151,7 +208,8 @@ module switch {
     prepared: Content,
     exchanged: bool,       // ghost: only a displaced inode has a descriptor
     resolved: bool,        // the owner merged the copy ...
-    resolvedHolds: Content // ... while it held this content
+    resolvedHolds: Content, // ... while it held this content
+    fromNs: bool           // the native settings made it, in a settings record
   }
   type Backup = {
     plan: int,
@@ -161,7 +219,7 @@ module switch {
     receiptProbe: int -> int
   }
   type Run = {
-    mode: str,             // idle | fwd | inv | probe | receipt | manual
+    mode: str,             // idle | ns | hi | ready | fwd | inv | probe | receipt | manual
     owner: bool,           // the owner's inverse
     resumed: bool,         // the complete continuation of an earlier run
     fromFwd: bool,         // an inverse that a live forward run started
@@ -202,7 +260,15 @@ module switch {
     acceptedDirty: bool,   // a receipt reached the manual with an outside entry
     outsideStopped: bool,  // step 14 found an outside entry and inverted
     resumedStopped: bool,  // ... in the complete continuation of an earlier run
-    resumedCopied: bool    // the complete continuation copied a receipt
+    resumedCopied: bool,   // the complete continuation copied a receipt
+    entryCount: int,       // the entries so far
+    blockedOpenRow: bool,  // a prelude refused a value while the table's row continues
+    blockedOwnLeftover: bool, // a prelude refused a value that a prelude left
+    resumedActive: bool,   // an entry resumed the active state
+    hooksResumed: bool,    // the hooks installation disabled its own enabled plugin
+    nsCrashed: bool,       // a crash ended the native settings
+    nsGapCrash: bool,      // ... between their exchange and their comparison
+    crashBeforeHooks: bool // a crash ended an entry before it installed the plugin
   }
 
   var st: World
@@ -211,7 +277,7 @@ module switch {
   pure val NO_KEPT: Kept = {
     part: 0, holds: NO_CONTENT, expect: NO_CONTENT, hasExpect: false,
     prepared: NO_CONTENT, exchanged: false, resolved: false,
-    resolvedHolds: NO_CONTENT
+    resolvedHolds: NO_CONTENT, fromNs: false
   }
   pure val NO_BACKUP: Backup = {
     plan: 0, last: "none", hasReceipt: false, receiptCells: Map(),
@@ -268,6 +334,11 @@ module switch {
     0.to(N).exists(k => PARTS.forall(p => if (p < k) isSw(p) else isEa(pl, p)))
   def third(pl: int): bool =
     PARTS.exists(p => not(isSw(p)) and not(isEa(pl, p)))
+  // A value that only a prelude's own write leaves while no run is open: the
+  // starting ABSENT, or the hooks plugin enabled between its installation
+  // and its disabling.  Every write by another program carries its own id.
+  def selfLeft(p: int): bool =
+    st.live.get(p).by == 0 and (cellOf(p) == ABSENT or cellOf(p) == SW)
 
   // A backup's run is open until `invEnded`.  The mutant without a run record
   // keeps the earlier rule: the latest backup always governs.
@@ -344,9 +415,115 @@ module switch {
     w.with("kept", w.kept.append({
         part: part, holds: prep, expect: cur, hasExpect: RECORD_EXPECT,
         prepared: prep, exchanged: false, resolved: false,
-        resolvedHolds: NO_CONTENT }))
+        resolvedHolds: NO_CONTENT, fromNs: false }))
      .with("proc", w.proc.with("step", "exchange").with("k", w.kept.length())
                        .with("snap", cur))
+
+  pure def toReady(w: World): World = w.with("proc", IDLE.with("mode", "ready"))
+
+  // After the native settings, the hooks installation.  The mutant without
+  // it in every entry runs it only in the first entry, as finish did.
+  pure def toHooks(w: World): World =
+    if (HOOKS_IN_ENTRY or w.entryCount == 1)
+      w.with("proc", IDLE.with("mode", "hi").with("idx", HOOKS).with("step", "read"))
+    else toReady(w)
+
+  // A program write of a prelude cell that replaces another program's value.
+  // The run's change list reports it.
+  pure def noteReset(w: World, part: int, cur: Content): Set[Reset] =
+    if (cur.by != 0) w.resets.union(Set({ part: part, value: cur.cell, by: cur.by, auto: true }))
+    else w.resets
+
+  // -------------------------------------------------------------------------
+  // The entry and the preludes
+  // -------------------------------------------------------------------------
+
+  // A prelude refuses the value that it reads, and stops.  The ghosts record
+  // a refusal where the table's row would continue, and a refusal of a value
+  // that a prelude itself left.
+  def refuse(p: int): World =
+    st.with("proc", IDLE)
+      .with("blockedOpenRow", st.blockedOpenRow or
+              Set("complete", "active", "interrupted", "native").contains(state))
+      .with("blockedOwnLeftover", st.blockedOwnLeftover or selfLeft(p))
+
+  // Steps 1 and 2, then the first half of step 3: read the run record.  An
+  // open run goes straight to the table.  Otherwise the preludes run first.
+  action enter = all {
+    st.proc.mode == "idle",
+    val w = st.with("entryCount", st.entryCount + 1)
+    st' = if (PRELUDE_GATE and open) toReady(w)
+          else w.with("proc", IDLE.with("mode", "ns").with("idx", SETTINGS)
+                                  .with("step", "read"))
+  }
+
+  // The native settings: the off value is there, or the key is absent and
+  // the settings record and the exchange add it, or the run stops.
+  action nsRead = all {
+    st.proc.mode == "ns",
+    st.proc.step == "read",
+    val cur = st.live.get(SETTINGS)
+    val prep = { cell: 0, by: 0, rest: cur.rest }
+    st' = if (cur.cell == 0) toHooks(st)
+          else if (cur.cell == ABSENT)
+            st.with("kept", st.kept.append({
+                part: SETTINGS, holds: prep, expect: cur, hasExpect: NS_RECORD,
+                prepared: prep, exchanged: false, resolved: false,
+                resolvedHolds: NO_CONTENT, fromNs: true }))
+              .with("proc", st.proc.with("step", "exchange")
+                                 .with("k", st.kept.length()).with("snap", cur))
+          else refuse(SETTINGS)
+  }
+
+  // The hooks installation: the disabled plugin is there, or it is absent
+  // and `plugin install` enables it, or it is enabled and only `plugin
+  // disable` remains, or the run stops.
+  action hiRead = all {
+    st.proc.mode == "hi",
+    st.proc.step == "read",
+    val cur = st.live.get(HOOKS)
+    st' = if (cur.cell == 0) toReady(st)
+          else if (cur.cell == ABSENT)
+            st.with("live", st.live.set(HOOKS, { cell: SW, by: 0, rest: cur.rest }))
+              .with("resets", noteReset(st, HOOKS, cur))
+              .with("proc", st.proc.with("step", "disable"))
+          else if (cur.cell == SW and HOOKS_RESUME)
+            st.with("proc", st.proc.with("step", "disable"))
+              .with("hooksResumed", st.hooksResumed or cur.by == 0)
+          else refuse(HOOKS)
+  }
+
+  // Another program can disable the plugin first; the command then has
+  // nothing to change.
+  action hiDisable = all {
+    st.proc.mode == "hi",
+    st.proc.step == "disable",
+    val cur = st.live.get(HOOKS)
+    st' = if (cur.cell == SW)
+            toReady(st.with("live", st.live.set(HOOKS, { cell: 0, by: 0, rest: cur.rest }))
+                      .with("resets", noteReset(st, HOOKS, cur)))
+          else if (cur.cell == 0) toReady(st)
+          else refuse(HOOKS)
+  }
+
+  // A row of the table that continues without the owner.
+  val canDispatch: bool = or {
+    state == "native" and (not(REHEARSAL_CHECK) or st.rehearsed.contains(st.prepared))
+      and not(anyFlagged),
+    state == "interrupted",
+    state == "active",
+    state == "complete" and not(st.manual.contains(st.backups.length() - 1))
+  }
+
+  // A stop at the table, or in any of steps 4 to 8.  Only a row that does
+  // not continue stops here.  A stop of a row that could continue changes
+  // no cell: it delays the run, and outside writes can act at the table
+  // anyway, so the model omits it.
+  action stopAtTable = all {
+    st.proc.mode == "ready",
+    not(canDispatch),
+    st' = st.with("proc", IDLE)
+  }
 
   // -------------------------------------------------------------------------
   // The run
@@ -355,7 +532,7 @@ module switch {
   // Step 8: a new backup, only from a native layout, with a rehearsed plan
   // and no copy awaiting a merge.
   action beginForward = all {
-    st.proc.mode == "idle",
+    st.proc.mode == "ready",
     state == "native",
     not(REHEARSAL_CHECK) or st.rehearsed.contains(st.prepared),
     not(anyFlagged),
@@ -369,7 +546,7 @@ module switch {
 
   // Step 3 reads an interruption: resume the inverse.
   action resumeInverse = all {
-    st.proc.mode == "idle",
+    st.proc.mode == "ready",
     state == "interrupted",
     st' = setLast(st, if (EARLY_END) "invEnded" else "invBegun")
       .with("proc", IDLE.with("mode", "inv").with("plan", latestB.plan)
@@ -379,16 +556,17 @@ module switch {
 
   // Step 3 reads an active switch: run the probes and the receipt.
   action resumeActive = all {
-    st.proc.mode == "idle",
+    st.proc.mode == "ready",
     state == "active",
     st' = st.with("proc", IDLE.with("mode", "probe").with("plan", latestB.plan)
                              .with("step", "start"))
+            .with("resumedActive", true)
   }
 
   // Step 3 reads a complete switch whose receipt the manual lacks: run
   // step 14.
   action resumeComplete = all {
-    st.proc.mode == "idle",
+    st.proc.mode == "ready",
     state == "complete",
     not(st.manual.contains(st.backups.length() - 1)),
     st' = st.with("proc", IDLE.with("mode", "manual").with("plan", latestB.plan)
@@ -420,7 +598,7 @@ module switch {
   // One atomic exchange: prepared content to the path, displaced content to
   // the stage name.
   action exchange = all {
-    st.proc.mode == "fwd" or st.proc.mode == "inv",
+    Set("fwd", "inv", "ns").contains(st.proc.mode),
     st.proc.step == "exchange",
     val i = st.proc.idx
     val c = keptAt(st.proc.k)
@@ -432,7 +610,10 @@ module switch {
                       c.with("holds", cur).with("exchanged", true)))
       .with("proc", st.proc.with("step", "compare")
                          .with("changed", st.proc.changed.union(Set(i))))
-      .with("unrehearsed", st.unrehearsed or not(st.rehearsed.contains(st.proc.plan)))
+      // The native settings apply no plan, so only the switch and the
+      // inverse can apply an unrehearsed one.
+      .with("unrehearsed", st.unrehearsed or (st.proc.mode != "ns" and
+                                              not(st.rehearsed.contains(st.proc.plan))))
       .with("resets", if (replaced)
               st.resets.union(Set({ part: i, value: cur.cell, by: cur.by,
                                     auto: not(st.proc.owner) }))
@@ -440,12 +621,15 @@ module switch {
   }
 
   // Compare the displaced content with what the run read.  A forward
-  // conflict inverts the run's own parts; an inverse conflict stops.
+  // conflict inverts the run's own parts; an inverse conflict stops.  The
+  // native settings go on to the hooks installation, or stop with a flagged
+  // copy that each later check reports.
   action compare = all {
-    st.proc.mode == "fwd" or st.proc.mode == "inv",
+    Set("fwd", "inv", "ns").contains(st.proc.mode),
     st.proc.step == "compare",
     val ok = same(keptAt(st.proc.k).holds, st.proc.snap)
-    st' = if (ok) nextPart(st)
+    st' = if (st.proc.mode == "ns") { if (ok) toHooks(st) else st.with("proc", IDLE) }
+          else if (ok) nextPart(st)
           else if (st.proc.mode == "fwd") toInverse(st)
           else st.with("proc", IDLE)
   }
@@ -576,11 +760,15 @@ module switch {
 
   // A classification makes a new plan from a layout with no switched cell.
   // The new plan's manifest also records the entries outside the switch set.
+  // It never accepts another earlier value for a prelude cell: the next
+  // entry's prelude, or the owner by hand, restores that value first.
   action classify = all {
     st.proc.mode == "idle",
     state == "changed",
     st.plans.length() < MAX_PLANS,
     PARTS.forall(p => not(isSw(p))),
+    cellOf(HOOKS) == 0,
+    cellOf(SETTINGS) == 0,
     st' = st.with("plans", st.plans.append(cells))
             .with("prepared", st.plans.length())
             .with("outsideEntry", false)
@@ -599,9 +787,10 @@ module switch {
     st.outside < MAX_OUTSIDE,
     or {
       OUTSIDE_PHASE == "any",
-      OUTSIDE_PHASE == "run" and st.proc.mode != "idle",
+      OUTSIDE_PHASE == "run" and not(Set("idle", "ns", "hi", "ready").contains(st.proc.mode)),
       OUTSIDE_PHASE == "idle" and st.proc.mode == "idle",
-      OUTSIDE_PHASE == "receipt" and latestB.hasReceipt
+      OUTSIDE_PHASE == "receipt" and latestB.hasReceipt,
+      OUTSIDE_PHASE == "prelude" and (st.proc.mode == "ns" or st.proc.mode == "hi")
     }
   }
 
@@ -700,14 +889,25 @@ module switch {
   action crash = all {
     st.proc.mode != "idle",
     st.crashes < MAX_CRASH,
-    CRASH_PHASE == "any" or latestB.hasReceipt,
+    or {
+      CRASH_PHASE == "any",
+      CRASH_PHASE == "receipt" and latestB.hasReceipt,
+      CRASH_PHASE == "probe" and st.proc.mode == "probe"
+    },
     st' = st.with("proc", IDLE).with("crashes", st.crashes + 1)
+      .with("nsCrashed", st.nsCrashed or st.proc.mode == "ns")
+      .with("nsGapCrash", st.nsGapCrash or
+              (st.proc.mode == "ns" and st.proc.step == "compare"))
+      .with("crashBeforeHooks", st.crashBeforeHooks or
+              (st.proc.mode == "hi" and st.proc.step == "read" and cellOf(HOOKS) == ABSENT))
   }
 
   action stutter = st' = st
 
   action init = st' = {
-    live: PARTS.mapBy(p => NO_CONTENT),
+    live: PARTS.mapBy(p => if (not(START_NATIVE) and (p == HOOKS or p == SETTINGS))
+                             NO_CONTENT.with("cell", ABSENT)
+                           else NO_CONTENT),
     kept: List(),
     backups: List(),
     plans: List(PARTS.mapBy(p => 0)),
@@ -731,17 +931,26 @@ module switch {
     acceptedDirty: false,
     outsideStopped: false,
     resumedStopped: false,
-    resumedCopied: false
+    resumedCopied: false,
+    entryCount: 0,
+    blockedOpenRow: false,
+    blockedOwnLeftover: false,
+    resumedActive: false,
+    hooksResumed: false,
+    nsCrashed: false,
+    nsGapCrash: false,
+    crashBeforeHooks: false
   }
 
   action step = any {
+    enter, nsRead, hiRead, hiDisable, stopAtTable,
     beginForward, resumeInverse, resumeActive, resumeComplete,
     fwdRead, invRead, exchange, compare, fwdVerify, invVerify,
     probeStart, nondet pass = Set(true, false).oneOf() probeEnd(pass),
     receiptCheck, receiptWrite, copyReceipt,
     ownerInverse, classify, rehearse,
     nondet j = keptPick.oneOf() ownerMerge(j),
-    nondet p = PARTS.oneOf() nondet v = Set(0, SW, FRESH).oneOf() outsideCell(p, v),
+    nondet p = PARTS.oneOf() nondet v = Set(0, SW, FRESH, ABSENT).oneOf() outsideCell(p, v),
     nondet p = PARTS.oneOf() outsideRest(p),
     nondet p = PARTS.oneOf() outsideDelete(p),
     nondet j = keptPick.oneOf() lateWrite(j),
@@ -768,10 +977,14 @@ module switch {
       else st.kept[j].holds.by == w.id
     })
   // The accepted case: a cell write of a plan's earlier value or of the
-  // switched value.  The run's change list reports each replaced value.
+  // switched value, or of a prelude's earlier value ABSENT.  The run's
+  // change list reports each replaced value.
   def absorbed(w: Write): bool =
-    w.kind == "cell" and
-      (w.value == SW or st.plans.indices().exists(pl => st.plans[pl].get(w.part) == w.value))
+    w.kind == "cell" and or {
+      w.value == SW,
+      st.plans.indices().exists(pl => st.plans[pl].get(w.part) == w.value),
+      w.value == ABSENT and (w.part == HOOKS or w.part == SETTINGS)
+    }
   // A later write of the same key supersedes a write: a cell write, or the
   // deletion of an added key.
   val inv_noSilentLoss: bool = st.writes.forall(w => or {
@@ -823,6 +1036,15 @@ module switch {
   val inv_acceptedOnlyClassified: bool = not(st.acceptedDirty)
 
   // -------------------------------------------------------------------------
+  // P6 — each entry reaches the row of the table that holds
+  // -------------------------------------------------------------------------
+  val inv_preludeStopsOnlyInStoppingRow: bool =
+    not(st.blockedOpenRow) and not(st.blockedOwnLeftover)
+  val inv_preludesCompleteAtTable: bool =
+    (st.proc.mode == "ready" and not(open)) implies
+      not(selfLeft(HOOKS) or selfLeft(SETTINGS))
+
+  // -------------------------------------------------------------------------
   // Witnesses — each case that the specification says is live
   // -------------------------------------------------------------------------
   val wit_complete: bool = state == "complete"
@@ -854,7 +1076,9 @@ module switch {
   val wit_driftedDuringRun: bool = state == "drifted" and latestB.last != "receipt"
   val wit_coincidenceReset: bool =
     st.resets.exists(r => r.auto and r.value == SW)
-  val wit_changedNeedsPlan: bool = state == "changed"
+  // A changed state that no prelude left: an outside write caused it.
+  val wit_changedNeedsPlan: bool =
+    state == "changed" and not(selfLeft(HOOKS)) and not(selfLeft(SETTINGS))
   val wit_secondPlanComplete: bool = state == "complete" and latestB.plan > 0
   val wit_activeAfterCrash: bool = state == "active" and st.crashes > 0
   // A merged copy returned to the content that the run read, and a check
@@ -877,6 +1101,44 @@ module switch {
   // The complete continuation found an entry outside the switch set and
   // inverted, and the next state stops for classification.
   val wit_resumedStoppedChanged: bool = st.resumedStopped and state == "changed"
+  // F1's first crash point: an entry after a crash in the active state
+  // resumed its probes through the gate and completed the switch.
+  val wit_activeResumedToComplete: bool = st.resumedActive and state == "complete"
+  // A crash ended the native settings, and a later entry reached the native
+  // state at the table.
+  val wit_nsCrashToNative: bool =
+    st.nsCrashed and st.proc.mode == "ready" and state == "native"
+  // A crash ended an entry between the native settings and the hooks
+  // installation, and a later entry installed the plugin and reached the
+  // native state.
+  val wit_hooksAfterCrashToNative: bool =
+    st.crashBeforeHooks and st.proc.mode == "ready" and state == "native"
+  // The hooks installation disabled the plugin that its own interrupted run
+  // left enabled, and the entry reached the native state.
+  val wit_hooksResumedToNative: bool =
+    st.hooksResumed and st.proc.mode == "ready" and state == "native"
+  // A write between the native settings' read and their exchange sits in a
+  // flagged copy of a settings record, and the live file lacks it.
+  val wit_nsConflictFlagged: bool = st.kept.indices().exists(j => and {
+    st.kept[j].fromNs,
+    flagged(st.kept[j]),
+    st.kept[j].holds.rest.exists(id => and {
+      not(st.late.contains(id)),
+      not(st.superseded.contains(id)),
+      not(st.live.get(SETTINGS).rest.contains(id))
+    })
+  })
+  // A descriptor wrote into the kept copy of a settings record, and a check
+  // can report it.
+  val wit_nsLateWriteFlagged: bool = st.kept.indices().exists(j => and {
+    st.kept[j].fromNs,
+    flagged(st.kept[j]),
+    st.kept[j].holds.rest.exists(id => st.late.contains(id))
+  })
+  // A crash fell between the native settings' exchange and their
+  // comparison, and a copy of a settings record is flagged.
+  val wit_nsGapCrashFlagged: bool =
+    st.nsGapCrash and st.kept.indices().exists(j => st.kept[j].fromNs and flagged(st.kept[j]))
 
   // -------------------------------------------------------------------------
   // Mutant witnesses — each reaches the violation that its mechanism
@@ -919,6 +1181,7 @@ module switch {
     w.kind == "cell",
     w.value != SW,
     st.plans.indices().forall(pl => st.plans[pl].get(w.part) != w.value),
+    not(w.value == ABSENT and (w.part == HOOKS or w.part == SETTINGS)),
     not(st.superseded.contains(w.id)),
     st.live.get(w.part).by != w.id,
     st.kept.indices().forall(j => not(and {
@@ -944,11 +1207,45 @@ module switch {
   // Without the comparison of step 14, a receipt reaches the manual while an
   // entry outside the switch set differs from the plan.
   val wit_m_acceptedUnclassified: bool = st.acceptedDirty
+
+  // Without the gate, a prelude meets a switched cell of an open run and
+  // stops, so the active or complete state never reaches its row.
+  val wit_m_preludeBlocksOpenRow: bool = st.blockedOpenRow
+
+  // Without the settings record, a write that the native settings'
+  // exchange displaced sits in a copy that no check can report, and the
+  // live file lacks it.
+  val wit_m_nativeWriteLost: bool = st.writes.exists(w => and {
+    w.kind == "rest",
+    w.part == SETTINGS,
+    not(st.live.get(w.part).rest.contains(w.id)),
+    not(st.superseded.contains(w.id)),
+    st.kept.indices().exists(j => st.kept[j].fromNs and st.kept[j].holds.rest.contains(w.id)),
+    st.kept.indices().forall(j => not(and {
+      st.kept[j].hasExpect,
+      st.kept[j].holds.rest.contains(w.id),
+      not(same(st.kept[j].holds, st.kept[j].expect))
+    }))
+  })
+
+  // Without the hooks installation in every entry, an entry after a crash
+  // reads the table while the plugin is still absent.
+  val wit_m_tableWithoutHooks: bool = and {
+    st.proc.mode == "ready",
+    not(open),
+    st.live.get(HOOKS).by == 0,
+    cellOf(HOOKS) == ABSENT
+  }
+
+  // Without the resumption, the hooks installation refuses the plugin that
+  // its own interrupted run left enabled.
+  val wit_m_preludeStopsOnOwnInstall: bool = st.blockedOwnLeftover
 }
 
 // ===========================================================================
-// Instances.  Each fixes one world.  The corrected design sets the eight
-// mechanisms to true, true, false, true, true, true, true, true.
+// Instances.  Each fixes one world.  The corrected design sets the twelve
+// mechanisms to true, true, false, true, true, true, true, true, then true,
+// true, true, true for the four of the preludes.
 // ===========================================================================
 
 /// Interruptions only, at any step, with failing probes and the owner's
@@ -961,7 +1258,8 @@ module crashes {
     PROBES_CAN_FAIL = true, OUTSIDE_PHASE = "any", CRASH_PHASE = "any",
     RECORD_EXPECT = true, RUN_RECORD = true, EARLY_END = false,
     RECEIPT_RECHECK = true, REHEARSAL_CHECK = true, INVERSE_SKIPS_THIRD = true,
-    MERGE_AUTHORITY = true, ACCEPT_CHECK = true
+    MERGE_AUTHORITY = true, ACCEPT_CHECK = true,
+    PRELUDE_GATE = true, NS_RECORD = true, HOOKS_IN_ENTRY = true, HOOKS_RESUME = true, START_NATIVE = true
   ).*
 }
 
@@ -975,7 +1273,8 @@ module writers {
     PROBES_CAN_FAIL = false, OUTSIDE_PHASE = "any", CRASH_PHASE = "any",
     RECORD_EXPECT = true, RUN_RECORD = true, EARLY_END = false,
     RECEIPT_RECHECK = true, REHEARSAL_CHECK = true, INVERSE_SKIPS_THIRD = true,
-    MERGE_AUTHORITY = true, ACCEPT_CHECK = true
+    MERGE_AUTHORITY = true, ACCEPT_CHECK = true,
+    PRELUDE_GATE = true, NS_RECORD = true, HOOKS_IN_ENTRY = true, HOOKS_RESUME = true, START_NATIVE = false
   ).*
 }
 
@@ -989,7 +1288,8 @@ module both {
     PROBES_CAN_FAIL = true, OUTSIDE_PHASE = "any", CRASH_PHASE = "any",
     RECORD_EXPECT = true, RUN_RECORD = true, EARLY_END = false,
     RECEIPT_RECHECK = true, REHEARSAL_CHECK = true, INVERSE_SKIPS_THIRD = true,
-    MERGE_AUTHORITY = true, ACCEPT_CHECK = true
+    MERGE_AUTHORITY = true, ACCEPT_CHECK = true,
+    PRELUDE_GATE = true, NS_RECORD = true, HOOKS_IN_ENTRY = true, HOOKS_RESUME = true, START_NATIVE = true
   ).*
 }
 
@@ -1002,7 +1302,8 @@ module classify_world {
     PROBES_CAN_FAIL = false, OUTSIDE_PHASE = "any", CRASH_PHASE = "any",
     RECORD_EXPECT = true, RUN_RECORD = true, EARLY_END = false,
     RECEIPT_RECHECK = true, REHEARSAL_CHECK = true, INVERSE_SKIPS_THIRD = true,
-    MERGE_AUTHORITY = true, ACCEPT_CHECK = true
+    MERGE_AUTHORITY = true, ACCEPT_CHECK = true,
+    PRELUDE_GATE = true, NS_RECORD = true, HOOKS_IN_ENTRY = true, HOOKS_RESUME = true, START_NATIVE = true
   ).*
 }
 
@@ -1015,7 +1316,8 @@ module coincidence {
     PROBES_CAN_FAIL = false, OUTSIDE_PHASE = "any", CRASH_PHASE = "any",
     RECORD_EXPECT = true, RUN_RECORD = true, EARLY_END = false,
     RECEIPT_RECHECK = true, REHEARSAL_CHECK = true, INVERSE_SKIPS_THIRD = true,
-    MERGE_AUTHORITY = true, ACCEPT_CHECK = true
+    MERGE_AUTHORITY = true, ACCEPT_CHECK = true,
+    PRELUDE_GATE = true, NS_RECORD = true, HOOKS_IN_ENTRY = true, HOOKS_RESUME = true, START_NATIVE = true
   ).*
 }
 
@@ -1026,10 +1328,11 @@ module m_no_expect {
     N = 2, MAX_OUTSIDE = 1, MAX_CRASH = 1, MAX_PLANS = 1,
     OUTSIDE_CELLS = false, OUTSIDE_REST = true, LATE_WRITES = true,
     OUTSIDE_DELETES = false, OUTSIDE_ENTRIES = false,
-    PROBES_CAN_FAIL = false, OUTSIDE_PHASE = "any", CRASH_PHASE = "any",
+    PROBES_CAN_FAIL = false, OUTSIDE_PHASE = "run", CRASH_PHASE = "any",
     RECORD_EXPECT = false, RUN_RECORD = true, EARLY_END = false,
     RECEIPT_RECHECK = true, REHEARSAL_CHECK = true, INVERSE_SKIPS_THIRD = true,
-    MERGE_AUTHORITY = true, ACCEPT_CHECK = true
+    MERGE_AUTHORITY = true, ACCEPT_CHECK = true,
+    PRELUDE_GATE = true, NS_RECORD = true, HOOKS_IN_ENTRY = true, HOOKS_RESUME = true, START_NATIVE = true
   ).*
 }
 
@@ -1041,7 +1344,8 @@ module m_no_run_record {
     PROBES_CAN_FAIL = true, OUTSIDE_PHASE = "receipt", CRASH_PHASE = "any",
     RECORD_EXPECT = true, RUN_RECORD = false, EARLY_END = false,
     RECEIPT_RECHECK = true, REHEARSAL_CHECK = true, INVERSE_SKIPS_THIRD = true,
-    MERGE_AUTHORITY = true, ACCEPT_CHECK = true
+    MERGE_AUTHORITY = true, ACCEPT_CHECK = true,
+    PRELUDE_GATE = true, NS_RECORD = true, HOOKS_IN_ENTRY = true, HOOKS_RESUME = true, START_NATIVE = true
   ).*
 }
 
@@ -1053,7 +1357,8 @@ module m_early_end {
     PROBES_CAN_FAIL = true, OUTSIDE_PHASE = "any", CRASH_PHASE = "any",
     RECORD_EXPECT = true, RUN_RECORD = true, EARLY_END = true,
     RECEIPT_RECHECK = true, REHEARSAL_CHECK = true, INVERSE_SKIPS_THIRD = true,
-    MERGE_AUTHORITY = true, ACCEPT_CHECK = true
+    MERGE_AUTHORITY = true, ACCEPT_CHECK = true,
+    PRELUDE_GATE = true, NS_RECORD = true, HOOKS_IN_ENTRY = true, HOOKS_RESUME = true, START_NATIVE = true
   ).*
 }
 
@@ -1065,19 +1370,21 @@ module m_receipt_no_recheck {
     PROBES_CAN_FAIL = false, OUTSIDE_PHASE = "run", CRASH_PHASE = "any",
     RECORD_EXPECT = true, RUN_RECORD = true, EARLY_END = false,
     RECEIPT_RECHECK = false, REHEARSAL_CHECK = true, INVERSE_SKIPS_THIRD = true,
-    MERGE_AUTHORITY = true, ACCEPT_CHECK = true
+    MERGE_AUTHORITY = true, ACCEPT_CHECK = true,
+    PRELUDE_GATE = true, NS_RECORD = true, HOOKS_IN_ENTRY = true, HOOKS_RESUME = true, START_NATIVE = true
   ).*
 }
 
 module m_no_rehearsal_check {
   import switch(
-    N = 2, MAX_OUTSIDE = 1, MAX_CRASH = 0, MAX_PLANS = 2,
+    N = 3, MAX_OUTSIDE = 1, MAX_CRASH = 0, MAX_PLANS = 2,
     OUTSIDE_CELLS = true, OUTSIDE_REST = false, LATE_WRITES = false,
     OUTSIDE_DELETES = false, OUTSIDE_ENTRIES = false,
     PROBES_CAN_FAIL = false, OUTSIDE_PHASE = "any", CRASH_PHASE = "any",
     RECORD_EXPECT = true, RUN_RECORD = true, EARLY_END = false,
     RECEIPT_RECHECK = true, REHEARSAL_CHECK = false, INVERSE_SKIPS_THIRD = true,
-    MERGE_AUTHORITY = true, ACCEPT_CHECK = true
+    MERGE_AUTHORITY = true, ACCEPT_CHECK = true,
+    PRELUDE_GATE = true, NS_RECORD = true, HOOKS_IN_ENTRY = true, HOOKS_RESUME = true, START_NATIVE = true
   ).*
 }
 
@@ -1089,7 +1396,8 @@ module m_inverse_resets_third {
     PROBES_CAN_FAIL = false, OUTSIDE_PHASE = "any", CRASH_PHASE = "any",
     RECORD_EXPECT = true, RUN_RECORD = true, EARLY_END = false,
     RECEIPT_RECHECK = true, REHEARSAL_CHECK = true, INVERSE_SKIPS_THIRD = false,
-    MERGE_AUTHORITY = true, ACCEPT_CHECK = true
+    MERGE_AUTHORITY = true, ACCEPT_CHECK = true,
+    PRELUDE_GATE = true, NS_RECORD = true, HOOKS_IN_ENTRY = true, HOOKS_RESUME = true, START_NATIVE = true
   ).*
 }
 
@@ -1101,7 +1409,8 @@ module m_merge_no_authority {
     PROBES_CAN_FAIL = false, OUTSIDE_PHASE = "idle", CRASH_PHASE = "any",
     RECORD_EXPECT = true, RUN_RECORD = true, EARLY_END = false,
     RECEIPT_RECHECK = true, REHEARSAL_CHECK = true, INVERSE_SKIPS_THIRD = true,
-    MERGE_AUTHORITY = false, ACCEPT_CHECK = true
+    MERGE_AUTHORITY = false, ACCEPT_CHECK = true,
+    PRELUDE_GATE = true, NS_RECORD = true, HOOKS_IN_ENTRY = true, HOOKS_RESUME = true, START_NATIVE = true
   ).*
 }
 
@@ -1113,7 +1422,60 @@ module m_accept_unchecked {
     PROBES_CAN_FAIL = false, OUTSIDE_PHASE = "any", CRASH_PHASE = "any",
     RECORD_EXPECT = true, RUN_RECORD = true, EARLY_END = false,
     RECEIPT_RECHECK = true, REHEARSAL_CHECK = true, INVERSE_SKIPS_THIRD = true,
-    MERGE_AUTHORITY = true, ACCEPT_CHECK = false
+    MERGE_AUTHORITY = true, ACCEPT_CHECK = false,
+    PRELUDE_GATE = true, NS_RECORD = true, HOOKS_IN_ENTRY = true, HOOKS_RESUME = true, START_NATIVE = true
+  ).*
+}
+
+module m_no_gate {
+  import switch(
+    N = 2, MAX_OUTSIDE = 0, MAX_CRASH = 1, MAX_PLANS = 1,
+    OUTSIDE_CELLS = false, OUTSIDE_REST = false, LATE_WRITES = false,
+    OUTSIDE_DELETES = false, OUTSIDE_ENTRIES = false,
+    PROBES_CAN_FAIL = false, OUTSIDE_PHASE = "any", CRASH_PHASE = "any",
+    RECORD_EXPECT = true, RUN_RECORD = true, EARLY_END = false,
+    RECEIPT_RECHECK = true, REHEARSAL_CHECK = true, INVERSE_SKIPS_THIRD = true,
+    MERGE_AUTHORITY = true, ACCEPT_CHECK = true,
+    PRELUDE_GATE = false, NS_RECORD = true, HOOKS_IN_ENTRY = true, HOOKS_RESUME = true, START_NATIVE = false
+  ).*
+}
+
+module m_ns_no_record {
+  import switch(
+    N = 2, MAX_OUTSIDE = 1, MAX_CRASH = 0, MAX_PLANS = 1,
+    OUTSIDE_CELLS = false, OUTSIDE_REST = true, LATE_WRITES = true,
+    OUTSIDE_DELETES = false, OUTSIDE_ENTRIES = false,
+    PROBES_CAN_FAIL = false, OUTSIDE_PHASE = "prelude", CRASH_PHASE = "any",
+    RECORD_EXPECT = true, RUN_RECORD = true, EARLY_END = false,
+    RECEIPT_RECHECK = true, REHEARSAL_CHECK = true, INVERSE_SKIPS_THIRD = true,
+    MERGE_AUTHORITY = true, ACCEPT_CHECK = true,
+    PRELUDE_GATE = true, NS_RECORD = false, HOOKS_IN_ENTRY = true, HOOKS_RESUME = true, START_NATIVE = false
+  ).*
+}
+
+module m_no_hooks_in_entry {
+  import switch(
+    N = 2, MAX_OUTSIDE = 0, MAX_CRASH = 1, MAX_PLANS = 1,
+    OUTSIDE_CELLS = false, OUTSIDE_REST = false, LATE_WRITES = false,
+    OUTSIDE_DELETES = false, OUTSIDE_ENTRIES = false,
+    PROBES_CAN_FAIL = false, OUTSIDE_PHASE = "any", CRASH_PHASE = "any",
+    RECORD_EXPECT = true, RUN_RECORD = true, EARLY_END = false,
+    RECEIPT_RECHECK = true, REHEARSAL_CHECK = true, INVERSE_SKIPS_THIRD = true,
+    MERGE_AUTHORITY = true, ACCEPT_CHECK = true,
+    PRELUDE_GATE = true, NS_RECORD = true, HOOKS_IN_ENTRY = false, HOOKS_RESUME = true, START_NATIVE = false
+  ).*
+}
+
+module m_hooks_no_resume {
+  import switch(
+    N = 2, MAX_OUTSIDE = 0, MAX_CRASH = 1, MAX_PLANS = 1,
+    OUTSIDE_CELLS = false, OUTSIDE_REST = false, LATE_WRITES = false,
+    OUTSIDE_DELETES = false, OUTSIDE_ENTRIES = false,
+    PROBES_CAN_FAIL = false, OUTSIDE_PHASE = "any", CRASH_PHASE = "any",
+    RECORD_EXPECT = true, RUN_RECORD = true, EARLY_END = false,
+    RECEIPT_RECHECK = true, REHEARSAL_CHECK = true, INVERSE_SKIPS_THIRD = true,
+    MERGE_AUTHORITY = true, ACCEPT_CHECK = true,
+    PRELUDE_GATE = true, NS_RECORD = true, HOOKS_IN_ENTRY = true, HOOKS_RESUME = false, START_NATIVE = false
   ).*
 }
 
@@ -1129,7 +1491,8 @@ module after_receipt {
     PROBES_CAN_FAIL = false, OUTSIDE_PHASE = "receipt", CRASH_PHASE = "any",
     RECORD_EXPECT = true, RUN_RECORD = true, EARLY_END = false,
     RECEIPT_RECHECK = true, REHEARSAL_CHECK = true, INVERSE_SKIPS_THIRD = true,
-    MERGE_AUTHORITY = true, ACCEPT_CHECK = true
+    MERGE_AUTHORITY = true, ACCEPT_CHECK = true,
+    PRELUDE_GATE = true, NS_RECORD = true, HOOKS_IN_ENTRY = true, HOOKS_RESUME = true, START_NATIVE = true
   ).*
 }
 
@@ -1142,7 +1505,8 @@ module during_run {
     PROBES_CAN_FAIL = true, OUTSIDE_PHASE = "run", CRASH_PHASE = "any",
     RECORD_EXPECT = true, RUN_RECORD = true, EARLY_END = false,
     RECEIPT_RECHECK = true, REHEARSAL_CHECK = true, INVERSE_SKIPS_THIRD = true,
-    MERGE_AUTHORITY = true, ACCEPT_CHECK = true
+    MERGE_AUTHORITY = true, ACCEPT_CHECK = true,
+    PRELUDE_GATE = true, NS_RECORD = true, HOOKS_IN_ENTRY = true, HOOKS_RESUME = true, START_NATIVE = true
   ).*
 }
 
@@ -1156,7 +1520,8 @@ module merge_return {
     PROBES_CAN_FAIL = false, OUTSIDE_PHASE = "idle", CRASH_PHASE = "any",
     RECORD_EXPECT = true, RUN_RECORD = true, EARLY_END = false,
     RECEIPT_RECHECK = true, REHEARSAL_CHECK = true, INVERSE_SKIPS_THIRD = true,
-    MERGE_AUTHORITY = true, ACCEPT_CHECK = true
+    MERGE_AUTHORITY = true, ACCEPT_CHECK = true,
+    PRELUDE_GATE = true, NS_RECORD = true, HOOKS_IN_ENTRY = true, HOOKS_RESUME = true, START_NATIVE = true
   ).*
 }
 
@@ -1170,6 +1535,70 @@ module entries {
     PROBES_CAN_FAIL = false, OUTSIDE_PHASE = "any", CRASH_PHASE = "receipt",
     RECORD_EXPECT = true, RUN_RECORD = true, EARLY_END = false,
     RECEIPT_RECHECK = true, REHEARSAL_CHECK = true, INVERSE_SKIPS_THIRD = true,
-    MERGE_AUTHORITY = true, ACCEPT_CHECK = true
+    MERGE_AUTHORITY = true, ACCEPT_CHECK = true,
+    PRELUDE_GATE = true, NS_RECORD = true, HOOKS_IN_ENTRY = true, HOOKS_RESUME = true, START_NATIVE = true
+  ).*
+}
+
+/// Additions of other keys, also through a descriptor, only while a prelude
+/// runs, and one interruption: the native settings' exchange, its gap before
+/// the comparison and a late descriptor write into its kept copy.
+module native_settings {
+  import switch(
+    N = 2, MAX_OUTSIDE = 2, MAX_CRASH = 1, MAX_PLANS = 1,
+    OUTSIDE_CELLS = false, OUTSIDE_REST = true, LATE_WRITES = true,
+    OUTSIDE_DELETES = false, OUTSIDE_ENTRIES = false,
+    PROBES_CAN_FAIL = false, OUTSIDE_PHASE = "prelude", CRASH_PHASE = "any",
+    RECORD_EXPECT = true, RUN_RECORD = true, EARLY_END = false,
+    RECEIPT_RECHECK = true, REHEARSAL_CHECK = true, INVERSE_SKIPS_THIRD = true,
+    MERGE_AUTHORITY = true, ACCEPT_CHECK = true,
+    PRELUDE_GATE = true, NS_RECORD = true, HOOKS_IN_ENTRY = true, HOOKS_RESUME = true, START_NATIVE = false
+  ).*
+}
+
+/// Interruptions only while the probes run, after the last exchange and
+/// before the receipt: F1's first crash point, resumed through the gate.
+module active_entry {
+  import switch(
+    N = 2, MAX_OUTSIDE = 0, MAX_CRASH = 1, MAX_PLANS = 1,
+    OUTSIDE_CELLS = false, OUTSIDE_REST = false, LATE_WRITES = false,
+    OUTSIDE_DELETES = false, OUTSIDE_ENTRIES = false,
+    PROBES_CAN_FAIL = false, OUTSIDE_PHASE = "any", CRASH_PHASE = "probe",
+    RECORD_EXPECT = true, RUN_RECORD = true, EARLY_END = false,
+    RECEIPT_RECHECK = true, REHEARSAL_CHECK = true, INVERSE_SKIPS_THIRD = true,
+    MERGE_AUTHORITY = true, ACCEPT_CHECK = true,
+    PRELUDE_GATE = true, NS_RECORD = true, HOOKS_IN_ENTRY = true, HOOKS_RESUME = true, START_NATIVE = false
+  ).*
+}
+
+/// Interruptions only, at any step, from a start before the preludes: an
+/// interruption inside each prelude, then a later entry.
+module prelude_crashes {
+  import switch(
+    N = 3, MAX_OUTSIDE = 0, MAX_CRASH = 2, MAX_PLANS = 1,
+    OUTSIDE_CELLS = false, OUTSIDE_REST = false, LATE_WRITES = false,
+    OUTSIDE_DELETES = false, OUTSIDE_ENTRIES = false,
+    PROBES_CAN_FAIL = true, OUTSIDE_PHASE = "any", CRASH_PHASE = "any",
+    RECORD_EXPECT = true, RUN_RECORD = true, EARLY_END = false,
+    RECEIPT_RECHECK = true, REHEARSAL_CHECK = true, INVERSE_SKIPS_THIRD = true,
+    MERGE_AUTHORITY = true, ACCEPT_CHECK = true,
+    PRELUDE_GATE = true, NS_RECORD = true, HOOKS_IN_ENTRY = true, HOOKS_RESUME = true,
+    START_NATIVE = false
+  ).*
+}
+
+/// The world of `both`, from a start before the preludes: outside writes,
+/// deletions, entries and an interruption interleave with the first preludes.
+module both_preludes {
+  import switch(
+    N = 3, MAX_OUTSIDE = 2, MAX_CRASH = 1, MAX_PLANS = 2,
+    OUTSIDE_CELLS = true, OUTSIDE_REST = true, LATE_WRITES = true,
+    OUTSIDE_DELETES = true, OUTSIDE_ENTRIES = true,
+    PROBES_CAN_FAIL = true, OUTSIDE_PHASE = "any", CRASH_PHASE = "any",
+    RECORD_EXPECT = true, RUN_RECORD = true, EARLY_END = false,
+    RECEIPT_RECHECK = true, REHEARSAL_CHECK = true, INVERSE_SKIPS_THIRD = true,
+    MERGE_AUTHORITY = true, ACCEPT_CHECK = true,
+    PRELUDE_GATE = true, NS_RECORD = true, HOOKS_IN_ENTRY = true, HOOKS_RESUME = true,
+    START_NATIVE = false
   ).*
 }

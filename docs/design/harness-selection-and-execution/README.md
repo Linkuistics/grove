@@ -76,6 +76,24 @@ public integration. Neither duplicates Ravel's private runtime contract.
 
 ## Current changes
 
+native-settings-recovery-k221 proposes how the native settings compose with
+the recovery of the switch. It repairs findings F1 and F2 of
+homebrew-delivery-design-k219. Both preludes run in step 3 of the switch, only
+while no run is open. The native settings write a settings record before their
+exchange.
+
+Its focused review is ahead. The detection of Claude Code's own writes is an
+open question. See
+[the native settings inside finish](../../specs/owner-skill-delivery.md#the-native-settings-inside-finish),
+[the hooks installation inside finish](../../specs/owner-skill-delivery.md#the-hooks-installation-inside-finish)
+and [resuming the switch](../../specs/owner-skill-delivery.md#resuming-the-switch).
+
+- [Ordered owner cutover](http://127.0.0.1:52710/#diagram-owner-cutover) — Moved both preludes behind the gate of step 3. A prelude stop now leads to the pending record, and each rerun goes back to step 1.
+- [Finish keeps its guidance through the switch](http://127.0.0.1:52710/#diagram-owner-final-session) — The switch starts right after promotion. Its step 3 runs the native settings with their settings record, then the hooks installation.
+- [States of the owner switch](http://127.0.0.1:52710/#diagram-owner-switch-states) — Step 3 reads the first state after the preludes, and a later run's preludes can turn a changed state native.
+
+## Default directory changes
+
 ravel-default-skill-directory-k218 settled Ravel's default skill directory and
 its effect on the switch. Ravel 2.0 delivers the keg sources when the settings
 name no `sources`, so the native state holds `"sources": []`. See

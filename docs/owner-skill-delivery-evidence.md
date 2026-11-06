@@ -442,6 +442,85 @@ reads states by another rule.
 The results are sampled, not proved. The shortest path to a receipt has 15
 steps, and the manual copy is the 16th, inside the 60-step bound.
 
+#### The preludes in step 3
+
+`native-settings-recovery-k221` then changed the model for findings F1 and F2
+of `homebrew-delivery-design-k219`. Each run now enters through steps 1 to 3.
+The gate skips the preludes while a run is open, and the two prelude cells
+can be absent. The native settings write a settings record before their
+exchange. The model has a sixth property, four more mutants and four more
+design worlds.
+
+Four instrument changes came with it:
+
+- Each instance states where its first state lies: before the first entry's
+  preludes, or where they leave the layout.
+- The stop at the table acts only where no row continues.
+- The outside phase `run` excludes the preludes again. The outside phase
+  `prelude` and the crash phase `probe` are new.
+- `wit_driftedDuringRun` stays only in `during_run`, and `both_preludes`
+  carries the exchange conflict of `both`.
+
+The sampling therefore differs from the run of 2026-11-02, and no witness count
+compares across the two runs.
+
+On 2026-11-06, `task model:owner-switch` ran the changed files with Quint
+0.33.1. The three subjects had the same digests before and after the run:
+
+| Subject | SHA-256 |
+| --- | --- |
+| `docs/models/owner-switch.qnt` | `7df7fc51b9b81ca889e50d77f59c8aed370553c0b91f584910cf062f99c5974c` |
+| `docs/models/run-owner-switch.sh` | `ff25f882894444b2f2d93438516ab501a1aeb766b4c6d1834d65f19840d17f3e` |
+| `Taskfile.yml` | `05c3080b84d0443eabe075e83a4c01ce3d60a27e2ec4409e1e1ec93ee9d386f1` |
+
+Each world ran 4,000 samples of up to 60 steps. The classification world and
+the mutant that resets a third value ran 12,000, and the unchecked-receipt
+mutant ran 20,000. All twelve invariants held in each of the thirteen design
+worlds. Each mutant witness stayed unreached there. These are the counts of
+the new and moved witnesses:
+
+| World | Witness | Traces |
+| --- | --- | --- |
+| `native_settings` | A write before the native settings' exchange in a flagged copy of a settings record | 665 |
+| `native_settings` | A late descriptor write in that copy, flagged | 1,134 |
+| `native_settings` | A crash between that exchange and its comparison, with the copy flagged | 315 |
+| `native_settings` | A merged copy, then a complete switch | 1,258 |
+| `active_entry` | A crash while the probes ran, then an entry that resumed and completed | 1,476 |
+| `prelude_crashes` | A crash in the native settings, then the native state at the table | 3,725 |
+| `prelude_crashes` | A crash before the hooks installation, then the plugin installed and the native state | 561 |
+| `prelude_crashes` | An interrupted installation disabled by the next entry | 299 |
+| `entries` | The complete continuation through the gate copied its receipt | 534 |
+| `both_preludes` | An exchange conflict in a flagged copy | 34 |
+| `during_run` | Drift during a run | 2,681 |
+
+Each mutant reached its violation:
+
+| Mutant | Traces |
+| --- | --- |
+| No recorded digest of the displaced content | 940 of 4,000 |
+| No run record in the state | 445 of 4,000 |
+| "Inverse ended" before the inverse | 3,966 of 4,000 |
+| No cell reading before the receipt | 161 of 20,000 |
+| No rehearsal check | 503 of 4,000 |
+| An inverse that resets a third value | 28 of 12,000 |
+| No merge authority over a merged copy | 46 of 4,000 |
+| No comparison in step 14 | 69 of 4,000 |
+| No gate of the preludes | 1,996 of 4,000 |
+| No settings record | 981 of 4,000 |
+| No hooks installation after the first entry | 3,756 of 4,000 |
+| No disabling of an enabled plugin | 117 of 4,000 |
+
+The sweep of every invariant against every mutant found violations only of
+the properties that the table in the design names, with two known extras. The
+mutant without a run record also broke the state table and the settled-state
+property. The mutant that writes "inverse ended" early also broke property 6.
+It reads an open run as closed, so a prelude meets a value that its own write
+left.
+
+The rarest witness was a removal displaced into a flagged copy, in 12 of
+4,000 traces of `writers`. From a first state before the preludes, the
+shortest path to a receipt has 21 steps.
+
 ## Not measured
 
 - Claude Code's treatment of a root-level `SKILL.md` inside a skill-free

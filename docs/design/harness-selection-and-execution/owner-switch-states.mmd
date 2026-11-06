@@ -1,8 +1,9 @@
 stateDiagram-v2
     direction LR
-    [*] --> Native: no open run, layout matches the plan
+    [*] --> Native: preludes, then no open run and layout matches the plan
     Native --> Changed: outside write or new entry
     Changed --> Native: new plan, rehearsed
+    Changed --> Native: next run's preludes restore their own cells
     Native --> Interrupted: switch begun, then a crash
     Native --> Active: switch begun, each part switched
     Interrupted --> Native: resumed inverse ends

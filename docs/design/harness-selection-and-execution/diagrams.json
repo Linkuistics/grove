@@ -1,6 +1,6 @@
 {
   "title": "Harness selection and execution — Grove caller views",
-  "intro": "Homebrew skill delivery is proposed by homebrew-delivery-design-k216, and ravel-default-skill-directory-k218 settled Ravel's default skill directory: Homebrew installs every skill source, and Ravel is the only route that delivers a skill. Owner skill delivery and the coordinated release are reviewed and integrated: one complete Ravel 2.0.0, first through ravel@2, followed by compatible Grove and unversioned promotion. The owner switch's recovery rests on cells, a run record and detection of outside writes, with a Quint model. Graphs begin at Start here; sequences at their first message; states at their initial state.",
+  "intro": "Homebrew skill delivery is proposed by homebrew-delivery-design-k216, and ravel-default-skill-directory-k218 settled Ravel's default skill directory: Homebrew installs every skill source, and Ravel is the only route that delivers a skill. Owner skill delivery and the coordinated release are reviewed and integrated: one complete Ravel 2.0.0, first through ravel@2, followed by compatible Grove and unversioned promotion. The owner switch's recovery rests on cells, a run record and detection of outside writes, with a Quint model. native-settings-recovery-k221 proposes the gate of the preludes in step 3 and the settings record. Graphs begin at Start here; sequences at their first message; states at their initial state.",
   "groups": [
     {
       "id": "release",
@@ -58,21 +58,21 @@
       "group": "owner",
       "title": "Ordered owner cutover",
       "source": "owner-cutover.mmd",
-      "caption": "Proposed. Ordinary leaves prepare and rehearse; only finish, or the owner after an unsuccessful finish, runs the switch against the real HOME. Inside finish, the native settings write the off value right after promotion, so Ravel 2.0 delivers no keg source before the switch. The hooks installation then names only writing-hooks and installs the plugin disabled. Each run first reads the state from the layout, the run record of the latest backup and the plan. A native state switches after a native probe, an interrupted state resumes the inverse, and an active state completes its probes and receipt. A drifted or changed state changes nothing and stops for the owner. One program applies the parts; each exchange records what its displaced copy must hold, so an outside write is kept and reported. The inverse returns the skills cell to the off value. A receipt counts only while each cell is switched, and step 14 copies it into the manual only while each entry outside the switch set matches the plan. The owner purges retained bytes later, after this driver's reap."
+      "caption": "Proposed. Ordinary leaves prepare and rehearse; only finish, or the owner after an unsuccessful finish, runs the switch against the real HOME. Each run starts at step 1. Step 3 reads the run record first: while the latest complete backup's run is open, no prelude runs. Otherwise the native settings write a settings record and then exchange in the off value, so Ravel 2.0 delivers no keg source before the switch changes skills, and each later check reports a flagged kept copy. The hooks installation then names only writing-hooks, installs the plugin disabled and disables a plugin that an interrupted run left enabled. Step 3 then reads the state from the layout, the run record of the latest backup and the plan. A native state switches after a native probe, an interrupted state resumes the inverse, and an active state completes its probes and receipt. A drifted or changed state changes nothing and stops for the owner. One program applies the parts; each exchange records what its displaced copy must hold, so an outside write is kept and reported. The inverse returns the skills cell to the off value. A receipt counts only while each cell is switched, and step 14 copies it into the manual only while each entry outside the switch set matches the plan. The owner purges retained bytes later, after this driver's reap."
     },
     {
       "id": "owner-switch-states",
       "group": "owner",
       "title": "States of the owner switch",
       "source": "owner-switch-states.mmd",
-      "caption": "Proposed, with its focused review integrated. Step 3 reads exactly one state from the layout, the run record and the plan. Only an open run whose switched parts form a prefix of the plan's order is interrupted, and only it resumes without the owner. A drifted or changed state changes nothing. The Quint model docs/models/owner-switch.qnt checks the rows; the arrows are a reading aid, not the checked relation."
+      "caption": "Proposed, with its focused review integrated. Step 3 reads exactly one state from the layout, the run record and the plan, after the preludes when no run is open. Only an open run whose switched parts form a prefix of the plan's order is interrupted, and only it resumes without the owner. A drifted or changed state changes nothing. The Quint model docs/models/owner-switch.qnt checks the rows and the gate of the preludes; the arrows are a reading aid, not the checked relation."
     },
     {
       "id": "owner-final-session",
       "group": "owner",
       "title": "Finish keeps its guidance through the switch",
       "source": "owner-final-session.mmd",
-      "caption": "Proposed. Disabling neither updates nor uninstalls a plugin, so its cache version receives no orphan marker and finish's absolute-path reads survive. The native settings write the off value after promotion, before the hooks installation. The hooks installation names only writing-hooks and never refreshes linkuistics. The switched settings name only the mandatory file, so probe launches capture the keg sources from Ravel's default skill directory."
+      "caption": "Proposed. Disabling neither updates nor uninstalls a plugin, so its cache version receives no orphan marker and finish's absolute-path reads survive. The switch runs right after promotion. While no run is open, its step 3 runs the native settings, which write the off value after a settings record, and then the hooks installation, which names only writing-hooks and never refreshes linkuistics. The switched settings name only the mandatory file, so probe launches capture the keg sources from Ravel's default skill directory."
     },
     {
       "id": "release-tap",
@@ -174,37 +174,26 @@
     }
   ],
   "discussion": {
-    "title": "The native state on Ravel's default skill directory",
-    "status": "Proposed by ravel-default-skill-directory-k218 on 2026-11-06. It settles the open question of homebrew-delivery-design-k216",
-    "summary": "Ravel 2.0 delivers the keg sources of its default skill directory when the settings name no sources, and \"sources\": [] turns that default off. The switch's native state therefore holds that off value. Finish writes it right after promotion, before the hooks installation. The switched value names only the mandatory file, the inverse restores the off value, and the native probe still reads disabled. Step 6 also stops unless the resolved source IDs are the ten accepted IDs.",
+    "title": "The preludes in step 3, and the settings record",
+    "status": "Proposed by native-settings-recovery-k221 on 2026-11-06. It repairs findings F1 and F2 of homebrew-delivery-design-k219. Its focused review is ahead, and the detection of Claude Code's own writes is an open question",
+    "summary": "Both preludes now run in step 3 of the switch, and only while the latest complete backup's run is not open. Finish's continuation and the owner's run therefore both run the switch from step 1, and an open run reaches its row of the table with no prelude in the way. The native settings write a settings record with the digests of the read and of the stage file before their exchange. Its kept copy is flagged and reported like any copy of the switch, also by mac-check before the first backup. The hooks installation disables a plugin that an interrupted run left enabled.",
     "diagramIds": [
       "owner-cutover",
-      "owner-final-session",
-      "owner-pack-checkouts",
-      "routes",
-      "skill-delivery",
-      "owner-switch-states"
+      "owner-switch-states",
+      "owner-final-session"
     ],
     "updatedDiagrams": [
       {
         "id": "owner-cutover",
-        "summary": "Added the native settings after promotion, the off value in the inverse, and the rerun path through the native settings."
+        "summary": "Moved both preludes behind the gate of step 3, routed prelude stops to the pending record, and sent each rerun back to step 1."
       },
       {
         "id": "owner-final-session",
-        "summary": "Finish writes the off value after promotion, and the switch sets skills to its switched value."
+        "summary": "The switch starts right after promotion, and its step 3 runs the native settings with their settings record, then the hooks installation."
       },
       {
-        "id": "owner-pack-checkouts",
-        "summary": "An advance unlinks the earlier keg first, so a launch during the installation delivers the other sources instead of refusing."
-      },
-      {
-        "id": "routes",
-        "summary": "The source set decides the route: keg sources without sources in the settings, and the native route with \"sources\": []."
-      },
-      {
-        "id": "skill-delivery",
-        "summary": "The installation record of Ravel names the default skill directory."
+        "id": "owner-switch-states",
+        "summary": "Step 3 reads the first state after the preludes, and a later run's preludes can turn a changed state native."
       }
     ]
   }

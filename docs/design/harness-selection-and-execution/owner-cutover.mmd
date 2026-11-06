@@ -16,11 +16,12 @@ flowchart LR
     subgraph fin["Finish"]
         direction TB
         G["Release Grove<br/>Promote Ravel"]
-        NS["Native settings:<br/>write the off value<br/>sources = [] after<br/>a process listing"]
-        HI["Install the writing hooks plugin<br/>from Grove's keg, disabled<br/>Name only writing-hooks"]
-        H{"No listed process or job<br/>beyond the kept processes:<br/>harness, its driver chain,<br/>MCP servers, program?"}
+        H{"1-2: no listed process or job<br/>beyond the kept processes:<br/>harness, its driver chain,<br/>MCP servers, program?"}
         I["Ask the owner<br/>Signal nobody"]
-        S{"State from the layout,<br/>the run record of the<br/>latest backup and the plan"}
+        GT{"3: is the run of the<br/>latest complete backup open?"}
+        NS["Prelude: native settings<br/>settings record first, then<br/>exchange in the off value<br/>and compare with the record"]
+        HI["Prelude: hooks installation<br/>from Grove's keg, disabled<br/>Name only writing-hooks<br/>Disable an enabled plugin"]
+        S{"3: state from the layout,<br/>the run record of the<br/>latest backup and the plan"}
         R["Resume the inverse<br/>of the open run"]
         DR["Drifted: change nothing<br/>Report each cell"]
         CH["Changed: stop for<br/>classification and a<br/>new rehearsed plan"]
@@ -32,22 +33,24 @@ flowchart LR
         M["Receipt records the probed cells"]
         N{"14: entries outside the<br/>switch set match the plan?"}
         O["Copy the receipt to the manual<br/>Entry valid while<br/>mac-check reports complete"]
-        G -->|7| NS
-        NS -->|"7a off value written or present"| HI
-        NS -.->|"7a any other state"| I
-        HI -->|"7b installed or already present"| H
-        HI -.->|"7b any other state"| I
+        G -->|7| H
         H -->|"8 no"| I
-        H -->|"8 yes"| S
-        S -->|"8a native, probe passes"| P
-        S -.->|"8a interrupted"| R
-        S -->|"8a active: step 6, then probes"| K
-        S -.->|"8a drifted"| DR
-        S -.->|"8a changed"| CH
-        S -->|"8a complete, manual lacks receipt"| N
+        H -->|"8 yes"| GT
+        GT -->|"8a no: preludes"| NS
+        GT -->|"8a yes: no prelude"| S
+        NS -->|"8b off value written or present"| HI
+        NS -.->|"8b other value or conflict"| Q
+        HI -->|"8c disabled plugin present"| S
+        HI -.->|"8c any other state"| Q
+        S -->|"8d native, probe passes"| P
+        S -.->|"8d interrupted"| R
+        S -->|"8d active: step 6, then probes"| K
+        S -.->|"8d drifted"| DR
+        S -.->|"8d changed"| CH
+        S -->|"8d complete, manual lacks receipt"| N
         R -.->|"state again"| S
-        P -->|"8b"| J
-        P -.->|"8b stops"| Q
+        P -->|"8e"| J
+        P -.->|"8e stops"| Q
         J -->|9| K
         J -.->|"9 conflict"| L
         K -->|"10 no"| L
@@ -59,7 +62,7 @@ flowchart LR
         DR -.->|"pending record"| Q
         CH -.->|"pending record"| Q
         M -.->|"receipt not written"| Q
-        Q -.->|"native settings, then step 1"| NS
+        Q -.->|"switch again from step 1"| H
     end
     prep -->|"6 after acceptance"| fin
     classDef start fill:#16354a,color:#fff,stroke:#16354a,font-weight:bold

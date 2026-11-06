@@ -38,6 +38,8 @@ ALWAYS=(
   inv_completeOnlySwitched
   inv_onlyRehearsedApplied
   inv_acceptedOnlyClassified
+  inv_preludeStopsOnlyInStoppingRow
+  inv_preludesCompleteAtTable
 )
 
 MUTANT_WITNESSES=(
@@ -49,23 +51,31 @@ MUTANT_WITNESSES=(
   wit_m_thirdValueLost
   wit_m_mergedDeleteLost
   wit_m_acceptedUnclassified
+  wit_m_preludeBlocksOpenRow
+  wit_m_nativeWriteLost
+  wit_m_tableWithoutHooks
+  wit_m_preludeStopsOnOwnInstall
 )
 
 CORRECTED=(crashes writers both classify_world coincidence after_receipt during_run
-           merge_return entries)
+           merge_return entries native_settings active_entry prelude_crashes
+           both_preludes)
 MUTANTS=(m_no_expect m_no_run_record m_early_end m_receipt_no_recheck
          m_no_rehearsal_check m_inverse_resets_third m_merge_no_authority
-         m_accept_unchecked)
+         m_accept_unchecked m_no_gate m_ns_no_record m_no_hooks_in_entry
+         m_hooks_no_resume)
 
 witnesses() {
   case "$1" in
     crashes)        echo wit_complete wit_completeAfterCrash wit_resumedToNative \
                          wit_probeFailedToNative wit_ownerInverseToNative wit_activeAfterCrash ;;
+    prelude_crashes) echo wit_complete wit_nsCrashToNative wit_hooksAfterCrashToNative \
+                         wit_hooksResumedToNative ;;
+    both_preludes)  echo wit_complete wit_completeAfterCrash wit_conflictFlagged ;;
     writers)        echo wit_complete wit_conflictFlagged wit_lateWriteFlagged \
                          wit_cellConflictFlagged wit_mergedAndComplete \
-                         wit_driftedDuringRun wit_changedNeedsPlan wit_deleteFlagged ;;
-    both)           echo wit_complete wit_completeAfterCrash wit_conflictFlagged \
-                         wit_resumedToNative ;;
+                         wit_changedNeedsPlan wit_deleteFlagged ;;
+    both)           echo wit_complete wit_completeAfterCrash wit_resumedToNative ;;
     classify_world) echo wit_changedNeedsPlan wit_secondPlanComplete ;;
     coincidence)    echo wit_coincidenceReset ;;
     after_receipt)  echo wit_driftedAfterReceipt wit_ownerInverseToNative ;;
@@ -74,6 +84,9 @@ witnesses() {
     merge_return)   echo wit_mergedReturnFlagged wit_mergedAndComplete ;;
     entries)        echo wit_resumedCopied wit_resumedStoppedChanged \
                          wit_secondPlanComplete ;;
+    native_settings) echo wit_nsConflictFlagged wit_nsLateWriteFlagged \
+                         wit_nsGapCrashFlagged wit_mergedAndComplete ;;
+    active_entry)   echo wit_activeResumedToComplete ;;
     m_no_expect)            echo wit_m_writeLostSilently ;;
     m_no_run_record)        echo wit_m_interruptionWithoutRun ;;
     m_early_end)            echo wit_m_settledWhileOpen ;;
@@ -82,15 +95,22 @@ witnesses() {
     m_inverse_resets_third) echo wit_m_thirdValueLost ;;
     m_merge_no_authority)   echo wit_m_mergedDeleteLost ;;
     m_accept_unchecked)     echo wit_m_acceptedUnclassified ;;
+    m_no_gate)              echo wit_m_preludeBlocksOpenRow ;;
+    m_ns_no_record)         echo wit_m_nativeWriteLost ;;
+    m_no_hooks_in_entry)    echo wit_m_tableWithoutHooks ;;
+    m_hooks_no_resume)      echo wit_m_preludeStopsOnOwnInstall ;;
   esac
 }
 
 # The second plan needs a classification, a rehearsal and a whole switch.
 # The unchecked receipt needs an outside write inside the probe window.
+# The reset third value needs an outside write inside an open run, and the
+# two cells of that world are both prelude cells.
 samples_for() {
   case "$1" in
-    classify_world)       echo $(( samples * 3 )) ;;
-    m_receipt_no_recheck) echo $(( samples * 5 )) ;;
+    classify_world)         echo $(( samples * 3 )) ;;
+    m_receipt_no_recheck)   echo $(( samples * 5 )) ;;
+    m_inverse_resets_third) echo $(( samples * 3 )) ;;
     *)              echo "$samples" ;;
   esac
 }

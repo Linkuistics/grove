@@ -10,15 +10,20 @@ that change are also integrated.
 formulae, as the decision record
 [Homebrew installs skills and Ravel delivers them](../adr/homebrew-installs-skills-and-ravel-delivers-them.md)
 states. [Skill formulae](#skill-formulae) holds the owner's setup. Finish now
-installs the writing hooks plugin before the switch, as
+installs the writing hooks plugin before the switch changes a cell, as
 [The hooks installation inside finish](#the-hooks-installation-inside-finish)
-states. The amendment adds no state, record or inverse to the switch.
+states. The installation adds no state, record or inverse to the switch.
 
 `ravel-default-skill-directory-k218` then settled Ravel's default skill
 directory. Ravel 2.0 delivers the keg sources when the settings name no
 `sources`, so the native state now holds `"sources": []`. Finish writes it
 after promotion, as
 [The native settings inside finish](#the-native-settings-inside-finish) states.
+
+`native-settings-recovery-k221` then moved both of these preludes into step 3
+of the switch. They run only while no run is open, so each run of the switch
+reaches its row of the state table. The native settings now write a settings
+record before their exchange, so detection covers that write too.
 
 The leaf `owner-switch-recovery-k87` then rebuilt the switch's recovery on
 cells, a run record and detection of outside writes. A Quint model supports
@@ -111,8 +116,15 @@ same design.
   each cell, and the inverse that follows from them. Its digest identifies it.
 - **The program** is the prepared command that runs a plan: its switch, its
   inverse and the reading of its state.
-- **A kept copy** is the content that an exchange displaced. It stays in the
-  backup under the name of its stage file.
+- **A kept copy** is the content that an exchange displaced. It stays under
+  the name of its stage file, in the backup or in a settings record.
+- **A prelude** is one of two steps that step 3 of the switch runs while no
+  run is open. They are the native settings and the hooks installation. A
+  prelude leaves each of its cells at its earlier value, or it stops.
+- **A settings record** holds the digests of one write of the native
+  settings, and the stage file of that write. After the exchange, the name of
+  the stage file holds the kept copy. A settings record holds no plan and no
+  run record, so it is not a backup.
 - **A kept process** is a process that the session which runs the switch
   cannot end without ending itself. The process listing of step 1 excludes
   only kept processes.
@@ -292,11 +304,11 @@ off value captures nothing either. A running session reads its retained
 snapshot until it runs Ravel again.
 
 Before promotion, only Ravel 1.1 reads the real HOME's settings, so preparation
-captures nothing from them. After promotion, finish writes the off value
-before anything else, as
+captures nothing from them. After promotion, step 3 of the switch writes the
+off value, as
 [The native settings inside finish](#the-native-settings-inside-finish) states.
-The switch therefore captures nothing from the real settings until its step 9
-writes the switched value. An unpublished edit reaches a launch only through
+Steps 4 and 6 resolve in a disposable HOME. The switch therefore captures
+nothing from the real settings until its step 9 writes the switched value. An unpublished edit reaches a launch only through
 trial settings in a staging HOME. Those settings can name a development
 working copy as a `local` source.
 
@@ -524,17 +536,18 @@ launch.
 - **Finish** launches through this driver, Ravel 1.1.0 and `policy.ts` into
   Claude Code. It loads `grove-finish` and the spine from the enabled Grove
   plugin's cache path. Its lazy reads use that absolute path.
-- **The native settings** run inside finish, right after promotion, as
-  [The native settings inside finish](#the-native-settings-inside-finish)
+- **The switch** runs inside finish, right after promotion. Its steps 1 and
+  2 list the processes.
+- **The native settings** run in step 3 of the switch while no run is open,
+  as [The native settings inside finish](#the-native-settings-inside-finish)
   states. They write the off value, so a 2.0 launch delivers no keg source
-  before the switch.
-- **The hooks installation** runs inside finish, after the native settings, as
+  before the switch changes the `skills` cell.
+- **The hooks installation** runs next in step 3, as
   [The hooks installation inside finish](#the-hooks-installation-inside-finish)
   states. It installs one disabled plugin and changes no loaded plugin.
-- **The switch** runs inside finish, after promotion. It disables the Grove
-  plugin but neither updates nor uninstalls it. The version directory keeps
-  its registration and receives no orphan marker, so finish can still read its
-  own guidance.
+- **The rest of the switch** disables the Grove plugin but neither updates nor
+  uninstalls it. The version directory keeps its registration and receives no
+  orphan marker, so finish can still read its own guidance.
 - **After the switch**, a session that the owner opens directly sees only the
   native residue.
 - **After this driver's reap**, a new driver resolves compatible Grove and the
@@ -553,20 +566,59 @@ Ravel 2.0 reads its default skill directory when the settings name no
 before the switch. The native state therefore holds the off value.
 
 Preparation cannot write the off value, because this driver's 1.1 launches
-refuse a 2.0 key. Finish writes it right after promotion, before the hooks
-installation:
+refuse a 2.0 key. Step 3 of the switch writes it, after promotion. The program
+runs the native settings only while no run is open, as
+[Resuming the switch](#resuming-the-switch) states. The program must also be
+rehearsed, as [The rehearsed plan](#the-rehearsed-plan) states. Each write is a
+write interval, so the program lists the processes of step 1 again before it.
 
-1. List the processes as switch step 1 does. If any other listed process or
-   job remains, stop and ask the owner.
-2. If the Ravel settings hold the off value as `skills`, change nothing.
-3. If the settings file is absent, create it with the off value by an
-   exclusive rename.
-4. If the file exists without `skills`, add the off value by the atomic
-   exchange of switch step 9. The exchange keeps every other key. Compare the
-   displaced content with the content that this step read. A difference is a
-   stop. The displaced content then stays beside the file, and the owner
-   merges it.
-5. In any other state, stop and ask the owner. Change nothing.
+The native settings take these items in order:
+
+1. Read the Ravel settings file. If it holds the off value as `skills`,
+   change nothing.
+2. If the file is absent, create it with the off value by an exclusive rename.
+3. If the file exists without `skills`, write a new settings record. Then add
+   the off value by the atomic exchange of switch step 9. The exchange keeps
+   every other key. Compare the displaced content with the digest in the
+   record. A difference is a stop.
+4. In any other state, stop and ask the owner. Change nothing.
+
+A settings record lies beside the backups, on the volume of the real HOME and
+outside each tree that the baseline instrument sweeps. It holds the digest of
+the content that item 1 read and the digest of the stage file. Each digest
+covers the content, the mode, the ACL and the extended attributes, as in step 9.
+The program writes the record under a temporary name. It renames the record
+into place before the exchange, and no record replaces an earlier one.
+
+The stage file waits in the record, and after the exchange its name holds the
+kept copy. That copy takes part in detection like each kept copy of the
+switch, as [Concurrent writers](#concurrent-writers) states. A write between
+the read and the exchange flags it. A later write through a descriptor that
+was open before the exchange flags it too. Each later run reports a flagged
+copy in step 3, and step 8 stops while it is flagged.
+
+`mac-check` reports a flagged copy of a settings record also before the first
+backup exists. The creation of an absent file displaces nothing, so it writes
+no record.
+
+Each write is one atomic rename or exchange, and the record is complete before
+the exchange. An interruption therefore leaves the key absent or the off
+value, and the next run goes back to step 1 of the switch. An interruption
+between the exchange and its comparison leaves a kept copy. Each later run
+then compares that copy with the record. A failed write is a stop before the
+switch changes a cell.
+
+Another program can erase the `skills` key while no run is open. The native
+settings cannot tell that erasure from the absent key before finish. They add
+the off value again and list the value that they replaced. That is the
+accepted case of [Concurrent writers](#concurrent-writers), because absence is
+the earlier value of this prelude.
+
+A `skills` key that another program sets to any other value reads as a changed
+cell in step 3. A classification never accepts another earlier value for the
+`skills` cell, as [Resuming the switch](#resuming-the-switch) states. The
+owner restores the off value by hand instead, or erases the key for the next
+run.
 
 The prepared plan records the off value as the earlier value of the `skills`
 cell. The switched value names only the mandatory file, so the default skill
@@ -574,38 +626,37 @@ directory supplies the ten sources. The inverse restores the off value by the
 generic cell rule of [Rollback](#rollback). The native probe therefore still
 reads `disabled`.
 
-Each write is one atomic rename or exchange. An interruption leaves the key
-absent or the off value, and the next run goes back to item 1. A failed write
-is a stop before the switch. The steps add no state, record or inverse, so
-[the recovery model](#the-recovery-model) is unchanged. The model's cells are
-abstract, and no part of it depends on which value is earlier.
-
-A `skills` key that another program changes after these steps reads as a
-changed cell in switch step 3. A classification never accepts another earlier
-value for the `skills` cell. The owner restores the off value instead, by
-these steps or by hand.
-
-A finish that ends between promotion and these steps leaves the key absent. A
-2.0 launch in the real HOME then delivers the keg sources beside the native
-installations. The owner's continuation runs these steps first, as
-[The switch inside finish](#the-switch-inside-finish) states.
+A finish that ends between promotion and the native settings leaves the key
+absent. A 2.0 launch in the real HOME then delivers the keg sources beside the
+native installations. The next run of the switch writes the off value in its
+step 3, because no run is open yet.
+[The recovery model](#the-recovery-model) covers the gate, the exchange and
+the kept copy of the record.
 
 ### The hooks installation inside finish
 
 Grove's keg holds the marketplace file `writing-hooks` only after Grove's
-release, which runs inside finish. Finish therefore installs
-`technical-communication-hooks` after the release, the promotion and the
-native settings, and before step 1 of the switch:
+release, which runs inside finish. Step 3 of the switch therefore installs
+`technical-communication-hooks` after the native settings. The same two
+conditions apply: no run is open, and the program is rehearsed. The program
+lists the processes of step 1 again before the commands.
 
-1. List the processes as switch step 1 does. If any other listed process or
-   job remains, stop and ask the owner.
-2. If Claude Code has the plugin installed from `writing-hooks`, registered at
-   `$(brew --prefix)/opt/grove`, change nothing.
-3. If the plugin is absent, register that marketplace unless it is already
+The hooks installation takes these items in order:
+
+1. If Claude Code has the plugin installed and disabled from
+   `writing-hooks`, registered at `$(brew --prefix)/opt/grove`, change
+   nothing.
+2. If the plugin is absent, register that marketplace unless it is already
    registered at that path. Then run
    `claude plugin install technical-communication-hooks@writing-hooks` and
    `claude plugin disable technical-communication-hooks@writing-hooks`.
+3. If the plugin is installed and enabled from that marketplace, run only the
+   disabling command.
 4. In any other state, stop and ask the owner. Change nothing.
+
+Before the disabling command, the program reads the plugin's state again.
+Another program can disable the plugin first, and the program then runs no
+command.
 
 Each command names the new marketplace or its plugin. No command refreshes or
 updates `linkuistics`. No command runs `claude plugin marketplace update`
@@ -622,13 +673,27 @@ disposable layouts, so the plan and the row are known before finish. The row's
 digest covers Claude Code's cache copy of the plugin. That copy holds the bytes
 of the `writing` source at its accepted digest.
 
-A failed command is a stop before the switch. The next run goes back to
-item 1. An interruption between the installation and the disabling leaves the
-plugin enabled while no run is open. Step 3 of the switch then finds the
-changed state and stops for the owner's classification, as
-[Resuming the switch](#resuming-the-switch) states. The installation adds no
-state, record or inverse, so [the recovery model](#the-recovery-model) is
-unchanged.
+A failed command is a stop before the switch changes a cell. An interruption
+between the installation and the disabling leaves the plugin enabled while no
+run is open. Item 3 of the next run disables it. The enabled value is the
+switched value of the plugin's cell, which a classification never accepts. No
+other route therefore reaches the native state. When another program enabled
+the plugin, the run lists the value that it replaced, as for any switched
+value.
+
+The installation adds no state, record or inverse.
+[The recovery model](#the-recovery-model) covers its place in step 3 and the
+resumption of item 3.
+
+**Open question: Claude Code's own writes.** `claude plugin marketplace add`
+and `claude plugin install` rewrite `settings.json`, as the
+[Homebrew evidence](../homebrew-skill-delivery-evidence.md#the-hook-plugins-across-a-keg-change)
+measured. `claude plugin disable` changes the plugin's `enabledPlugins` cell
+in the same file. That file holds cells of the switch set.
+
+No exchange of the program publishes those writes, so detection does not
+cover them. Only the exclusion protects them, and it keeps the kept processes.
+`hooks-installation-writes` settles this question before planning.
 
 ### The switch inside finish
 
@@ -646,7 +711,11 @@ set. Its steps are:
    process.
 2. If any other listed process or job remains, stop and ask the owner. Do not
    signal another session.
-3. Rerun the baseline instrument. Find the state of the switch set, as
+3. Read the run record of the latest complete backup. While its run is open,
+   run no prelude. Otherwise run
+   [the native settings](#the-native-settings-inside-finish), then
+   [the hooks installation](#the-hooks-installation-inside-finish). Then rerun
+   the baseline instrument. Find the state of the switch set, as
    [Resuming the switch](#resuming-the-switch) states, and continue as its
    table states. The instrument's `UNCLASSIFIED`, `UNASSIGNED`, `UNCOVERED`
    and `NEEDS-REVIEW` rows count as changed entries. Compare the built-in
@@ -726,9 +795,11 @@ set. Its steps are:
    manual. The entry says that the receipt describes the layout only while
    `mac-check` reports the switch complete.
 
-Steps 1 to 8 change no cell of the plan, except an inverse that step 3
-resumes. A stop in steps 1 to 8 therefore leaves native delivery working with
-the published Grove and the promoted Ravel.
+Steps 1 to 8 change no cell of the plan, except the preludes and an inverse
+that step 3 resumes. The preludes run only while no run is open, and each
+leaves its cells at their earlier values or stops. A stop in steps 1 to 8
+therefore leaves native delivery working with the published Grove and the
+promoted Ravel.
 
 A complete inverse of step 9 or step 11 restores the native layout, and the
 native probe verifies it. An inverse can also stop part of the way. A session
@@ -749,13 +820,14 @@ write of the receipt is a stop.
    drifted or changed state, list each cell with its value. Also list each
    changed entry outside the switch set and each flagged kept copy.
 4. Report the failure, and ask the owner to repair its cause.
-5. Run the native settings, then the switch again from step 1.
+5. Run the switch again from step 1. Its step 3 runs the preludes only while
+   no run is open.
 6. If the session must end before the switch succeeds, end it with the stop
    command of its launch prompt. Never send the success signal.
 
 After such an end, or after finish ends without a result, the owner runs the
-native settings. The owner then runs the same prepared switch from step 1.
-Both run outside any Grove session.
+same prepared switch from step 1, outside any Grove session. Its step 3 runs
+the preludes while no run is open, so the owner runs no separate prelude.
 
 That run tears down and promotes nothing, and it releases nothing except a
 patch release that a repair needs. One Claude Code session runs it and takes
@@ -826,7 +898,9 @@ displaced content becomes a kept copy.
   later write lands in the kept copy and flags it then.
 - A write after the exchange reaches the live file and stays there.
 - Each run reports every flagged kept copy in step 3, at the final reading of
-  step 9 and in step 13. `mac-check` reports them too.
+  step 9 and in step 13. That covers the copies of each backup and of each
+  settings record. `mac-check` reports them too, also before the first
+  backup.
 - The owner merges a flagged copy into the live file. The merge applies the
   difference between the copy and its last recorded content. An erased key
   is part of that difference. The owner then records the merge with the
@@ -842,13 +916,26 @@ displaced content becomes a kept copy.
   The inverse moves an entry only to an absent original path, as
   [Rollback](#rollback) states.
 - The switch creates no file. The native settings create an absent Ravel
-  settings file by an exclusive rename, before the switch. The rename fails if
-  another program created the file first, and that failure is a stop.
+  settings file by an exclusive rename, while no run is open. The rename
+  fails if another program created the file first, and that failure is a
+  stop.
+- The native settings exchange an existing Ravel settings file only after a
+  settings record holds the two digests, as
+  [The native settings inside finish](#the-native-settings-inside-finish)
+  states. Their kept copy follows each rule above.
 
 One case stays outside detection. Another program can write a cell's earlier
 or switched value, and a run cannot tell that write from its own. The switch
 can then replace an earlier value, or a resumed inverse a switched value.
 The run's list reports each replaced value. The design accepts this case.
+
+For a prelude cell, absence is the prelude's earlier value. A prelude can
+therefore replace an erased `skills` key or an uninstalled hooks plugin, and
+its list reports that value too.
+
+The commands of the hooks installation are an open question, as
+[The hooks installation inside finish](#the-hooks-installation-inside-finish)
+states.
 
 [The recovery model](#the-recovery-model) finds no other lost
 write. It lets outside programs write at every step, with no exclusion.
@@ -860,8 +947,8 @@ write. It lets outside programs write at every step, with no exclusion.
 - Grove 22.8 rewrites its Codex links at each Codex launch.
 - A running writer makes a conflict likely, and a conflict stops the switch.
 
-A write interval is one run of step 9 or of one inverse. The program lists
-the processes of step 1 before each interval. A remaining process or job
+A write interval is one run of step 9, of one inverse or of one prelude. The
+program lists the processes of step 1 before each interval. A remaining process or job
 keeps the interval closed.
 
 The exclusion keeps only the processes that the session cannot end without
@@ -901,6 +988,16 @@ The design rejected three alternatives:
   settings.
 
 ### Resuming the switch
+
+Step 3 of each run reads the run record first. While the latest complete
+backup's run is open, it runs no prelude. The layout then holds each prelude
+cell at its earlier, switched or third value, and the table's row decides. A
+prelude would stop at a switched value or replace a third value, and the open
+run would never reach its row.
+
+Otherwise step 3 runs the preludes before it finds the state. With no open
+run, the table reads only the native or the changed state. A prelude stops
+only at a value that also makes the state changed, and that row stops too.
 
 Step 3 of each run finds the state from three inputs: the layout, the run
 record of the latest complete backup and a plan. It keeps an incomplete
@@ -959,7 +1056,9 @@ switched cell and leaves each third value, except for the entry case of
 
 A changed state stops for the owner's classification. The owner prepares a
 new plan, which records each accepted value as an earlier value. A cell never
-accepts its switched value. The new plan needs its own rehearsal, as
+accepts its switched value. A prelude cell never accepts another earlier
+value either: the next run's prelude, or the owner by hand, restores that
+value first. The new plan needs its own rehearsal, as
 [The rehearsed plan](#the-rehearsed-plan) states. In finish, a classification
 is a stop.
 
@@ -981,6 +1080,9 @@ A backup keeps a copy of the program that wrote it. Each later continuation
 of that backup runs that copy: the active continuation, a resumed inverse and
 the owner's inverse. A changed program therefore applies only to a new
 backup.
+
+The program runs a prelude only when a passing rehearsal record names that
+program. A prelude applies no plan, so this rule asks for no plan's record.
 
 A changed plan or a changed program needs a new rehearsal. The design keeps
 no reuse by kind of change, because a record of digests cannot decide such a
@@ -1059,16 +1161,23 @@ harness discovers skills in a keg.
 
 The Quint model [`owner-switch.qnt`](../models/owner-switch.qnt) covers the
 switch, the inverse, interruptions, outside writes, classifications and
-receipts. `task model:owner-switch` runs each of its claims. Its worlds let
-outside programs set cells, add and erase other keys and write into kept
-copies at every step. They also let a program change an entry outside the
+receipts. It also covers each run's entry through steps 1 to 3, with the gate
+and both preludes. `task model:owner-switch` runs each of its claims. Its
+worlds let outside programs set cells, add and erase other keys and write into
+kept copies at every step. They also let a program change an entry outside the
 switch set, and they let a crash end a run at every step. No world has an
 exclusion.
 
-Five properties hold in each of the nine design worlds:
+In five design worlds and four mutant worlds, the first state comes before the
+first entry's preludes, with no `skills` key and no hooks plugin. In the
+others, the first state is the layout that those preludes leave. Each entry in each world still passes the
+gate and the preludes.
+
+Six properties hold in each of the thirteen design worlds:
 
 1. No write by another program is lost without a report. The accepted case
-   is a cell write of the cell's earlier or switched value.
+   is a cell write of the cell's earlier or switched value. For a prelude
+   cell, absence is also an earlier value.
 2. Exactly one row of the state table holds. A run reads an interruption only
    while a run is open, and a settled state only while none is.
 3. No receipt records a cell that is not switched. Each receipt records the
@@ -1076,8 +1185,12 @@ Five properties hold in each of the nine design worlds:
 4. No exchange applies a plan that has no rehearsal record.
 5. No run copies a receipt into the maintained manual with a changed entry
    outside the switch set.
+6. Each entry reaches the row of the table that holds. A prelude refuses a
+   value only where that row stops, and never a value that a prelude itself
+   left. While no run is open, an interrupted prelude can leave a value in a
+   prelude cell. No entry reads the table with such a value.
 
-Each of eight mutant worlds lacks one mechanism, and it reaches the violation
+Each of twelve mutant worlds lacks one mechanism, and it reaches the violation
 that the mechanism prevents. The same violation stays unreached in each
 design world.
 
@@ -1091,15 +1204,28 @@ design world.
 | The inverse's rule that leaves a third value | 1 |
 | The merge digest as the only recorded content of a merged copy | 1 |
 | The comparison of step 14 | 5 |
+| The gate of the preludes in step 3 | 6 |
+| The settings record before the exchange of the native settings | 1 |
+| The hooks installation in every entry | 6 |
+| The disabling of an enabled plugin by the hooks installation | 6 |
 
-The results are sampled, not proved. Each world ran 4,000 samples of up to
-60 steps, and a switch of three parts reaches its receipt in 15 steps. Two
-focused worlds narrow when outside writes or crashes act. One reaches a merged
-copy that returns to older content. The other reaches the complete
-continuation.
+The results are sampled, not proved. Each world ran at least 4,000 samples of
+up to 60 steps. Before the preludes, a switch of two prelude cells and one
+other part is 21 steps away from its receipt. Six focused worlds
+narrow when outside writes or crashes act:
+
+- One reaches drift after a receipt, and the owner's inverse from it.
+- One reaches a merged copy that returns to older content.
+- One reaches the complete continuation after a crash between the receipt
+  and step 14.
+- One reaches the active continuation after a crash while the probes run.
+- One reaches conflicts at the exchanges of the switch.
+- One reaches the native settings' exchange, its gap before the comparison
+  and a late write into the kept copy of its settings record.
 
 The model file lists what the model does not establish. Metadata, the
-program copy, the probes and readers belong to the rehearsal controls.
+program copy, the probes and readers belong to the rehearsal controls. So do
+Claude Code's own writes and the creation of an absent settings file.
 
 **Entry parts.** The model treats each part as a file. Two rules settle an
 entry part without a model:
@@ -1137,9 +1263,10 @@ cause, as at any stopped step.
 
 ### Purge
 
-Purge covers each backup's retained tree and kept copies, Grove's Codex
-snapshot store, the superseded Claude Code plugin registrations and the
-earlier marketplace registration. Purge requires five conditions:
+Purge covers each backup's retained tree and kept copies, and the kept copy
+of each settings record. It also covers Grove's Codex snapshot store, the
+superseded Claude Code plugin registrations and the earlier marketplace
+registration. Purge requires five conditions:
 
 - No session that ran during the switch remains.
 - This driver's group is reaped.
@@ -1210,7 +1337,7 @@ with the coordinated release work.
 | 4 | k38 leaves | Convert `policy.ts` to `config.rhai`. Draft the Ravel skill settings: the off value, the switched value with only the mandatory file, and the staging settings. Draft the `[bootstrap.packages]` declarations and the residue plan. | The drafts are committed. No draft launches a session before the candidate keg of order 5 exists |
 | 5 | k38 leaves | Run the staging trials on both harnesses with the accepted feature build | The drafts pass under the staging HOME. Each trial below passes or carries a recorded scope decision. The evidence names each accepted formula version, the candidate commit and each accepted `resourceDigest` |
 | 6 | k38 leaves | Prepare the real HOME without changing discovery. Declare the skill formulae in `[bootstrap.packages]` and install the four that published. Register the personal keg's marketplace and install `guardrail` disabled. Add the drift report to `mac-check`. Freeze automatic updates of the earlier marketplace. Rehearse the program on the plan in disposable layouts. The rehearsal covers the native settings, the hooks installation, the switch, the probes, the inverse and the controls of the test seams. | `mac-check` reports no drift for the four formulae. After each control, each cell holds its earlier or switched value, or the run reports it. Each outside write stays in the live file or in a flagged kept copy. After each interruption, the next run finds the state and reaches the native or the complete state. The rehearsal record names the plan, the program and the result of each control |
-| 7 | Finish | After promotion, write the native settings and install the writing hooks plugin. Then run the switch | The probes pass and the receipt is in the manual |
+| 7 | Finish | After promotion, run the switch. Its step 3 writes the native settings and installs the writing hooks plugin | The probes pass and the receipt is in the manual |
 | 8 | Owner | Purge retained bytes | The purge conditions hold |
 
 The staging trials run three steps first, in this order:
@@ -1265,16 +1392,30 @@ Obsidian `AI Dev Tooling` note. It still names the earlier
   and writes no orphan marker. A staging measurement shows it. It digests each
   plugin version directory that a running session loaded, and each
   registration, before and after the installation's commands.
-- A control stops the hooks installation between its installation and its
-  disabling. The next run must find the changed state and change nothing.
-- Controls stop the native settings before and after each write, with the
-  settings file absent and with a file that holds another key. The next run
-  must find the key absent or the off value, and reach the native state. A
-  write of another key just before the exchange must stop the native
-  settings.
+- Controls stop a run of the switch between the native settings and the hooks
+  installation, and between the installation and the disabling. The next run
+  from step 1 must install or disable the plugin and reach the native state.
+- Controls stop the native settings before and after each write, between the
+  settings record and the exchange, and between the exchange and its
+  comparison. They run with the settings file absent and with a file that
+  holds another key. The next run from step 1 must find the key absent or the
+  off value, and reach the native state.
+- A write of another key between the native settings' read and their exchange
+  must stop the native settings with a flagged kept copy. Another control
+  makes the same write and stops the run inside the gap before the
+  comparison. The next run must report the flagged copy, and step 8 must stop.
+- A descriptor opened before the exchange of the native settings writes after
+  the comparison. Each later run must report the flagged copy, and step 8
+  must stop. `mac-check` must report the copy before the first backup exists.
+- Two controls stop the switch at the crash points of an open run. One stops
+  it after the last exchange of step 9 and before the receipt. The other stops
+  it after the receipt and before step 14. The next run from step 1 must run
+  no prelude, and it must reach the active or the complete continuation.
 - A control gives the `skills` cell a third value before the switch. Step 3
   must find the changed state. After the owner restores the off value, the
-  next run must find the native state.
+  next run must find the native state. Another control erases the `skills`
+  key after an inverse. The next run must add the off value, list the
+  replaced value and find the native state.
 - With the off value and installed keg sources, `ravel skills resolve --json`
   must report `disabled`. A control copy of the default skill directory with
   an eleventh source must stop step 6.

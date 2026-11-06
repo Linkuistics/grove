@@ -4,8 +4,8 @@
 #   brew ruby tap-formula.test.rb source FORMULA
 #     prints the formula's name, version, URL and sha256, tab-separated
 #   brew ruby tap-formula.test.rb install FORMULA SOURCE KEG TESTPATH
-#     runs the formula's install method in SOURCE with its prefix at KEG,
-#     then its test method in TESTPATH, then prints its caveats
+#     runs the formula's install method in SOURCE, its buildpath, with its
+#     prefix at KEG, then its test method in TESTPATH, then prints its caveats
 #
 # https://docs.brew.sh/rubydoc/Formula.html#test-instance_method
 require "formula"
@@ -36,6 +36,13 @@ when "install"
   # Every keg path of the formula, such as share and libexec, derives from
   # its prefix.
   formula.define_singleton_method(:prefix) { |*_args| keg }
+  # Homebrew's stage makes SOURCE the formula's buildpath and creates its
+  # build HOME, .brew_home, there before the install method runs. A formula
+  # that copies its whole source must leave that directory out.
+  # https://github.com/Homebrew/brew/blob/7.0.12/Library/Homebrew/formula.rb
+  formula.instance_variable_set(:@buildpath, source)
+  (source/".brew_home").mkpath
+  (source/".brew_home/.gitignore").write "*"
   Dir.chdir(source) { formula.install }
   formula.instance_variable_set(:@testpath, test_path)
   Dir.chdir(test_path) { formula.test }

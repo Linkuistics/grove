@@ -137,3 +137,11 @@ in a private prefix. It compares each keg source with its commit through the
 Ravel 2.0 build, and it registers the keg's Claude Code marketplace file. The
 2.0 build is Ravel `ff14cba826b0`, built in
 `~/Development/AgenticOrchestration/Ravel.skill-directory-delivery`.
+
+`third-party-skill-formulae-k233` published the `superpowers` and
+`quint-llm-kit` formulae at tap commit `02da210bd77d`. Its results are in the
+section "The third-party formulae" of `docs/repository-moves-record.md`.
+Superpowers stays at 7.0.0, the owner's native version, although upstream has
+released 7.0.2. `task tap:formula:test` now accepts `.` for a repository root,
+and it compares a source that holds executable files correctly.
+`testanyware-skill-formula-k234` can use both changes.

@@ -3590,3 +3590,88 @@ Each control failed against a changed copy of the formula:
 
 This leaf did not install the formula in the owner's prefix.
 `owner-pack-checkouts-k93` owns that step.
+
+## The third-party formulae
+
+`third-party-skill-formulae-k233` published `Formula/superpowers.rb` and
+`Formula/quint-llm-kit.rb` in the Linkuistics tap. The tap commit is
+`02da210bd77dd6469d29ddd0cf7a47fee5c96a24`, and
+`git ls-remote origin refs/heads/main` printed it after the push.
+
+### The pins
+
+This leaf read both upstream pins again on 2026-11-07.
+
+- Superpowers keeps `bb92a77741419a4ab5f06e711a283343f1ada0c3`, the commit of
+  tag `v7.0.0`. Upstream has since released `v7.0.1` and `v7.0.2`. The owner's
+  native plugin and the owner design's selected pack are 7.0.0, so the switch
+  changes the route of these skills and not their text.
+- quint-llm-kit keeps `cc75369f741af7d490936f82002c2d28e3b3d78d`, which is
+  still the head of `main`. The repository has no release and no tag, so the
+  version is that of its plugin manifest.
+
+### Contents of the formulae
+
+| Part | `superpowers` | `quint-llm-kit` |
+| --- | --- | --- |
+| Source | `https://github.com/obra/superpowers/archive/bb92a77741419a4ab5f06e711a283343f1ada0c3.tar.gz` | `https://github.com/quint-co/quint-llm-kit/archive/cc75369f741af7d490936f82002c2d28e3b3d78d.tar.gz` |
+| `sha256` | `496b576d4a4a62c0d72cce4a9e99ff46c57026c07fe503931cbb8afd33006cf2` | `152947a80275a1d8dd935ba6bec58e58ef92ef367cd70ca7a142b81dbbd5ca20` |
+| Version | `7.0.0` | `1.0.0` |
+| Licence | `MIT` | `Apache-2.0` |
+| Keg source | The repository root at `share/ravel/skills/superpowers` | `quint-llm-kit-plugin` at `share/ravel/skills/quint` |
+| Marketplace file, dependencies | None | None |
+
+Homebrew's stage creates `.brew_home` in the build directory before the install
+method runs. The superpowers formula copies each other entry of the repository
+root, so `skills/using-superpowers/SKILL.md` keeps its path. Neither repository
+has an `export-ignore` attribute, so each archive holds the files of its
+commit.
+
+### Checks of the formulae
+
+`task tap:formula:test` ran each formula with `SOURCES=superpowers=.` and
+`SOURCES=quint=quint-llm-kit-plugin`. This leaf changed the test in two ways.
+
+- `scripts/tap-formula.test.rb` now sets the formula's `buildpath` and creates
+  `.brew_home` there, as Homebrew's stage does.
+- `scripts/tap-formula.test.sh` accepts `.` for the repository root. It sorts
+  the keg's list and the commit's list in the same order. Before, an
+  executable file in a source failed the comparison, and the `personal`
+  source has no executable file.
+
+The results follow.
+
+- Each keg source held the files of its source directory in a plain checkout,
+  each with its Git mode.
+- A private copy of the Ravel 2.0 build resolved each source with no settings,
+  through the prefix's `share/ravel/skills`. Each `originPath` lay in the keg,
+  and the only root was `skills`. The superpowers `resourceDigest` was
+  `be1ce6e3c25064b83ba2999b37972deb7f73ce88a5f5dbbba990d88037b17230`. The
+  quint `resourceDigest` was
+  `0a8b945fbc6732d5b7b3041a966d26cdf718ca884bd5f3fb8435297d7258edef`. Settings
+  that named each plain checkout gave the same digest and root.
+- The build was Ravel `ff14cba826b02ac492fcde0996d662c5378ef923`, in the `dev`
+  profile.
+- The `personal` formula passed the changed test again.
+- `brew style` found no offence in either formula. `brew audit --strict
+  --online` exited 0 for both names on the tap clone at the pushed commit. The
+  same audit refused `grove`, so the audit read the tap.
+
+Each control failed against a changed copy of a formula:
+
+- An install without the `.brew_home` exclusion failed the formula's test.
+- The same install without that assertion failed the file check on
+  `.brew_home/.gitignore`.
+- An executable bit on the superpowers `README.md` failed the file check.
+- An appended line in a quint guideline kept every mode. The file check
+  passed, and the digest comparison failed.
+
+### For rollout
+
+| Source | Root and revision |
+| --- | --- |
+| `superpowers` | The `superpowers` formula of tap commit `02da210bd77d`. Superpowers commit `bb92a77741419a4ab5f06e711a283343f1ada0c3`, source directory the repository root, roots `["skills"]`, keg and checkout `resourceDigest` `be1ce6e3c25064b83ba2999b37972deb7f73ce88a5f5dbbba990d88037b17230` |
+| `quint` | The `quint-llm-kit` formula of the same tap commit. quint-llm-kit commit `cc75369f741af7d490936f82002c2d28e3b3d78d`, source directory `quint-llm-kit-plugin`, roots `["skills"]`, keg and checkout `resourceDigest` `0a8b945fbc6732d5b7b3041a966d26cdf718ca884bd5f3fb8435297d7258edef` |
+
+This leaf did not install either formula in the owner's prefix.
+`owner-pack-checkouts-k93` owns that step.

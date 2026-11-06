@@ -7,8 +7,8 @@
 # FORMULA is the formula file, such as Formula/personal.rb of the tap. REPO_URL
 # and SHA name the commit that the formula installs. Each ID=PATH names one
 # Ravel source of the keg, share/ravel/skills/ID, and its source directory PATH
-# in that commit. The roots of each source are those of `skills` and `craft`
-# that its directory holds.
+# in that commit. PATH . names the repository root. The roots of each source
+# are those of `skills` and `craft` that its directory holds.
 #
 # 1. The script downloads the formula's URL and compares its sha256 with the
 #    formula's. Homebrew's own install and test methods of the formula then run
@@ -112,11 +112,19 @@ keg_mode() {
 for spec in "${sources[@]}"; do
   id="${spec%%=*}" path="${spec#*=}"
   [[ -d "$scratch/checkout/$path" ]] || fail "the commit holds no directory $path"
+  # PATH . names the repository root, whose files carry no prefix.
+  prefix="$path/"
+  [[ "$path" == . ]] && prefix=''
   expected="$(pack_git -C "$scratch/checkout" ls-tree -r --full-tree "$sha" -- "$path" |
-    awk -v prefix="$path/" -F '\t' '{ split($1, f, " "); sub("^" prefix, "", $2); print f[1] "\t" $2 }' | LC_ALL=C sort)"
+    awk -v prefix="$prefix" -F '\t' '{
+      split($1, f, " ")
+      if (index($2, prefix) == 1) $2 = substr($2, length(prefix) + 1)
+      print f[1] "\t" $2
+    }' | LC_ALL=C sort)"
   [[ -n "$expected" ]] || fail "the commit holds no file under $path"
-  actual="$(cd "$keg/share/ravel/skills/$id" && find . \( -type f -o -type l \) | sed 's|^\./||' | LC_ALL=C sort |
-    while IFS= read -r entry; do printf '%s\t%s\n' "$(keg_mode "$entry")" "$entry"; done)"
+  # Both lists sort as whole lines, mode first.
+  actual="$(cd "$keg/share/ravel/skills/$id" && find . \( -type f -o -type l \) | sed 's|^\./||' |
+    while IFS= read -r entry; do printf '%s\t%s\n' "$(keg_mode "$entry")" "$entry"; done | LC_ALL=C sort)"
   if [[ "$actual" != "$expected" ]]; then
     diff -u <(echo "$expected") <(echo "$actual") >&2 || true
     fail "the keg's $id differs in its files or Git modes from $path at $sha; see the diff above"

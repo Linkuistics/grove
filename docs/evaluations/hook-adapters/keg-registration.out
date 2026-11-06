@@ -1,0 +1,128 @@
+
+## subjects
+archive: grove-v22.8.0-aarch64-apple-darwin.tar.xz sha256 5bc4c972f3f43f4fe927b8774f8e72d4e44cee66a8e08bbb90844a187b7f3f1d
+homebrew: 86f1f0c2fbb26a19bdcb6429b18763853aa73d37
+claude: 2.1.319 (Claude Code)
+codex: codex-cli 0.166.0
+pi: 0.84.2
+
+## install version 1
+🍺  S/brew/Cellar/grove/1: 140 files, 5.3MB, built in 1 second
+opt/grove -> ../Cellar/grove/1
+.agents .brew .claude-plugin bin INSTALL_RECEIPT.json libexec LICENSE README.md sbom.spdx.json share 
+
+## claude: the documented commands
+Adding marketplace…✔ Successfully added marketplace: writing-hooks (declared in user settings)
+Installing plugin "technical-communication-hooks@writing-hooks"...✔ Successfully installed plugin: technical-communication-hooks@writing-hooks (scope: user)
+stored source: {'source': 'directory', 'path': 'S/brew/opt/grove'}
+  Skills (0)
+  Hooks (6)  SessionStart, SubagentStart, UserPromptSubmit, PostToolUse, Stop, SubagentStop  (harness-only — no model context cost)
+
+## claude: session at version 1
+hook_started SessionStart []
+hook_response SessionStart ['Probe keg: one', 'Probe keg: one']
+hook_started UserPromptSubmit []
+hook_response UserPromptSubmit []
+init plugins: [('technical-communication-hooks', 'S/brew/opt/grove/share/ravel/skills/writing/craft/technical-communication')]
+init technical-communication skills: []
+result: success Not logged in · Please run /login
+
+## codex: the documented commands
+Added marketplace `writing-hooks` from S/brew/Cellar/grove/1.
+Added plugin `technical-communication` from marketplace `writing-hooks`.
+[marketplaces.writing-hooks]
+source_type = "local"
+source = "S/brew/Cellar/grove/1"
+
+## codex: session before the review
+agent reply: ready
+session-start marker in the session file: 
+reply log records: none
+
+## codex: the startup review
+  Hooks need review
+  6 hooks are new or changed.
+  Hooks can run outside the sandbox after you trust them.
+
+
+› 1. Review hooks
+  2. Trust all and continue
+  3. Continue without trusting (hooks won't run)
+
+  enter confirm · esc skip
+chose: Trust all and continue
+trusted hooks: 6
+trusted_content_hash = "sha256:535a2ffbe2c4d41bb14faffbe787bc3483e1f0ee81b25c5d37790ad8a2b04c61"
+
+## codex: session after the review
+agent reply: ready
+session-start marker in the session file: Probe keg: one 
+reply log records: ['start', 'reply']
+
+## pi: the documented command
+
+## pi: session at version 1
+link resolves to: S/brew/Cellar/grove/1/share/ravel/skills/writing/craft/technical-communication/harnesses/pi/technical-communication.ts
+pi output: No API key found for the selected model.  Use /login to log into a provider via OAuth or API key. See:   /opt/homebrew/lib/node_modules/@earendil-works/pi-codin
+reply log records: [('start', 'startup')]
+
+## upgrade to version 2, with cleanup
+🍺  S/brew/Cellar/grove/2: 140 files, 5.3MB, built in 1 second
+Removing: S/brew/Cellar/grove/1... (140 files, 5.3MB)
+Removing: S/cache/grove--1.tar.xz... (1.1MB)
+Cellar/grove: 2 
+opt/grove -> ../Cellar/grove/2
+
+## claude: after the upgrade
+  ❯ technical-communication-hooks@writing-hooks
+    Version: unknown
+    Read from: S/brew/opt/grove/share/ravel/skills/writing/craft/technical-communication
+    Scope: user
+hook_started SessionStart []
+hook_response SessionStart ['Probe keg: two', 'Probe keg: two']
+hook_started UserPromptSubmit []
+hook_response UserPromptSubmit []
+init plugins: [('technical-communication-hooks', 'S/brew/opt/grove/share/ravel/skills/writing/craft/technical-communication')]
+init technical-communication skills: []
+result: success Not logged in · Please run /login
+
+## codex: after the upgrade, before the repair
+Error: failed to load configured marketplace snapshot(s):
+- `writing-hooks` at S/brew/Cellar/grove/1: marketplace root does not contain a supported manifest
+cached marker: Probe keg: one
+agent reply: ready
+session-start marker in the session file: Probe keg: one 
+reply log records: ['start', 'reply']
+
+## codex: the repair
+Added marketplace `writing-hooks` from S/brew/Cellar/grove/2.
+Added plugin `technical-communication` from marketplace `writing-hooks`.
+cached marker: Probe keg: two
+
+## codex: session after the repair, before a review
+agent reply: ready
+session-start marker in the session file: 
+reply log records: none
+
+## codex: the startup review after the repair
+  Hooks need review
+  6 hooks are new or changed.
+  Hooks can run outside the sandbox after you trust them.
+
+
+› 1. Review hooks
+  2. Trust all and continue
+  3. Continue without trusting (hooks won't run)
+
+  enter confirm · esc skip
+chose: Trust all and continue
+
+## codex: session after the second review
+agent reply: ready
+session-start marker in the session file: Probe keg: two 
+reply log records: ['start', 'reply']
+
+## pi: after the upgrade
+link resolves to: S/brew/Cellar/grove/2/share/ravel/skills/writing/craft/technical-communication/harnesses/pi/technical-communication.ts
+pi output: No API key found for the selected model.  Use /login to log into a provider via OAuth or API key. See:   /opt/homebrew/lib/node_modules/@earendil-works/pi-codin
+reply log records: [('start', 'startup'), ('start', 'startup')]

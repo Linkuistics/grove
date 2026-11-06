@@ -222,6 +222,9 @@ Before a release, check each set against its own explicit build:
   commit `plugins/grove` first. The test then installs and upgrades the keg
   in a private Homebrew-shaped prefix at each tap state A to D of the
   coordinated release.
+- `task release:formula:test` also needs `claude` on PATH. It checks that
+  each marketplace file at the keg root names a plugin in the keg. It then
+  runs `claude plugin validate` on the installed keg in a scratch HOME.
 - Run `task release:upgrade` with the old installation in `OLD`. It upgrades a
   scratch copy of a Grove 22.8 installation, as Homebrew does. Each native
   entry, link, mode, pointer and byte must stay the same, and an active 22.8

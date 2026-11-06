@@ -90,6 +90,70 @@ that the owner registered.
 The same session also showed that `codex plugin marketplace remove` leaves
 the plugin enabled in `config.toml` and keeps its cache copy.
 
+## The hook adapters from a keg
+
+`grove-hook-adapters-k230` read each harness's registration from a Grove keg
+on 2026-11-06.
+[`evaluations/hook-adapters/keg-registration.sh`](evaluations/hook-adapters/keg-registration.sh)
+ran it, and
+[`keg-registration.out`](evaluations/hook-adapters/keg-registration.out)
+holds its output, with the scratch directory shown as `S`.
+
+| Subject | Value |
+| --- | --- |
+| Archive | `grove-v22.8.0-aarch64-apple-darwin.tar.xz` of the working copy, SHA-256 `5bc4c972f3f4…`. It holds both marketplace files at its root and the writing source at pack commit `4cafb0fd8e72` |
+| Homebrew | A `--shared` clone of the owner's repository at `86f1f0c2fbb2`, with its own prefix in the scratch directory |
+| Formula | A disposable `grove` in a scratch tap. Its `install` block is that of `scripts/templates/grove.rb.tmpl`. Versions 1 and 2 add the line "Probe keg: one" or "Probe keg: two" to `always-on/instruction.md` |
+| Harnesses | Claude Code 2.1.319, Codex 0.166.0 and Pi 0.84.2, each in its own scratch HOME |
+| Script | SHA-256 `d1cf20208320…`, with the same digests of the script, the archive, the template and both marketplace files before and after the run. The template's caveats changed after the run. Its `install` block, the only part that the script reads, is unchanged |
+| Output | SHA-256 `3ebe90f02572…` |
+
+Each harness ran the documented commands verbatim. The private Homebrew came
+first on `PATH`, so `$(brew --prefix)` named the scratch prefix. Claude Code
+ran without a sign-in, and its first two hooks run before the refusal. Pi ran
+without a provider. Codex linked only the owner's `auth.json`, as in the
+[common loading acceptance](common-loading-acceptance-record.md), and each
+session sent one short prompt.
+
+| Reading | Claude Code | Codex | Pi |
+| --- | --- | --- | --- |
+| Registration | The marketplace stores the `opt` path. `plugin details`: skills 0, hooks 6 | The marketplace stores `Cellar/grove/1`. The plugin is a copy in the Codex cache | The link names `share/ravel/skills/writing/...` in the prefix and resolves into `Cellar/grove/1` |
+| Session at version 1 | SessionStart gave the instruction with "Probe keg: one". UserPromptSubmit gave the reminder. The init event names the plugin at the `opt` path and no `technical-communication` skill | No hook ran. The session file holds no instruction, and the reply log holds nothing | The extension wrote a start record with the source `startup` |
+| Hook review | Not applicable | The interactive start showed "Hooks need review: 6 hooks are new or changed". "Trust all and continue" wrote six `trusted_hash` values and one `trusted_content_hash` | Not applicable |
+| Session after the review | Not applicable | The hooks ran. The session file holds "Probe keg: one", and the reply log holds a start and a reply | Not applicable |
+
+`brew upgrade` installed version 2, and its cleanup removed `Cellar/grove/1`.
+`brew cleanup` then left only `Cellar/grove/2`, and `opt/grove` named it.
+
+| Reading after the upgrade | Claude Code | Codex | Pi |
+| --- | --- | --- | --- |
+| Listing | `plugin list` reads the plugin from the `opt` path | `plugin list` fails: "marketplace root does not contain a supported manifest" | The link resolves into `Cellar/grove/2` |
+| Session before any repair | SessionStart gave "Probe keg: two", from the new keg | The hooks ran from the cache copy. The session file holds "Probe keg: one" | The extension wrote a second start record |
+| Repair | None needed | `marketplace add` and `plugin add` copied version 2 into the cache | None needed |
+| Session after the repair | Not applicable | No hook ran | Not applicable |
+| Second review | Not applicable | The interactive start showed the same review for six hooks. "Trust all and continue" accepted them | Not applicable |
+| Session after the second review | Not applicable | The hooks ran. The session file holds "Probe keg: two" | Not applicable |
+
+These readings agree with the source of Codex at tag `rust-v0.166.0`.
+`discover_handlers` in `codex-rs/hooks/src/engine/discovery.rs` adds a plugin
+hook only when its `hooks.state` entry holds a `trusted_hash` that matches,
+or when the session has `--dangerously-bypass-hook-trust`. The trust covers
+the hook declaration and a fingerprint of the plugin content. A copy with
+other bytes therefore makes each hook "modified". `codex exec` has no review
+and reports no skipped hook. `startup_hooks_review.rs` in `codex-rs/tui`
+gives the review at an interactive start, and its third choice says "hooks
+won't run".
+
+Two runs before the accepted run failed in the setup, not in a harness:
+
+- The first run waited for the composer of the TUI. Codex draws the composer
+  first and replaces it with the review about two seconds later, so the run
+  exited before the review. The script now waits for the review itself.
+- The second run reached the first review. A newer Codex release then made
+  the next interactive start ask to update first, and that prompt's first
+  choice runs `brew upgrade --cask codex`. The script now writes
+  `check_for_update_on_startup = false` into the scratch configuration.
+
 ## Readings without a result
 
 <!-- tc: depart synonym-rotation because SessionStart is the harness's event name, not a second verb for launch -->
@@ -98,7 +162,8 @@ the plugin enabled in `config.toml` and keeps its cache copy.
   missing. Codex sent unauthenticated requests, and the server refused each
   with status 401, so no account was used. The reading does not show whether a
   Codex session runs a cached plugin while its marketplace path is missing.
-  The delivery specification gives that question a seam.
+  [The hook adapters from a keg](#the-hook-adapters-from-a-keg) answers the
+  question. Nobody had trusted the probe's hook, and Codex runs no untrusted hook.
 - **A remote listing that drops its plugins.** Claude Code refused a
   `file://` marketplace source with "Invalid marketplace source format". The
   design cannot simulate a GitHub listing in a scratch home. The delivery

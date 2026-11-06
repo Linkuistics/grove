@@ -45,6 +45,10 @@ class Grove < Formula
     # source keeps the modes of its copy.
     # https://github.com/Homebrew/brew/blob/7.0.12/Library/Homebrew/cleaner.rb
     (share/"ravel").install "share/ravel/skills"
+    # The marketplace files of the hook adapters stay at the keg root, which
+    # Homebrew links nowhere. Each names the hooks plugin inside the writing
+    # source by a path relative to that root.
+    prefix.install ".claude-plugin", ".agents"
   end
 
   def caveats
@@ -70,6 +74,26 @@ class Grove < Formula
 
         git clone https://github.com/Linkuistics/grove
         ./grove/plugins/install.sh
+
+      Hook adapters: Ravel delivers skills and installs no hook. Register the
+      always-on technical-communication hooks of this keg in each harness:
+
+        # Claude Code, once:
+        claude plugin marketplace add "$(brew --prefix)/opt/grove"
+        claude plugin install technical-communication-hooks@writing-hooks
+        # Claude Code, guardrail from the personal formula, once:
+        claude plugin marketplace add "$(brew --prefix)/opt/personal"
+        claude plugin install guardrail@personal
+        # Codex, after each installation or upgrade of Grove:
+        codex plugin marketplace add "$(brew --prefix)/opt/grove"
+        codex plugin add technical-communication@writing-hooks
+        # Pi, once:
+        ln -s "$(brew --prefix)/share/ravel/skills/writing/craft/technical-communication/harnesses/pi/technical-communication.ts" ~/.pi/agent/extensions/
+
+      After the two Codex commands, start codex once and choose "Trust all
+      and continue" at its hook review. Codex runs no hook until you trust
+      it. It stores the versioned keg path, so after each upgrade repeat the
+      two commands and the review.
 
       Ravel directory delivery, with Ravel 2.0.0 or later: name local skill
       checkouts in the `skills` object of ~/.config/ravel/settings.json.

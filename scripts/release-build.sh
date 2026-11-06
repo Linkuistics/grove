@@ -21,7 +21,9 @@
 # Every archive holds one directory, grove-v<ver>-<target>/, laid out as an
 # installation prefix: bin/ holds grove and grove-llm; libexec/ravel-policy/
 # holds Grove's readable caller assets; share/ravel/skills/ holds core and the
-# five domain packs, one Ravel source each. Ravel ships independently.
+# five domain packs, one Ravel source each. .claude-plugin/ and
+# .agents/plugins/ hold the marketplace files of the hook adapters, copied from
+# assets/keg-root/. Ravel ships independently.
 # `archive_manifest` in release-common.sh lists every file with its Git mode,
 # and each archive is checked against it as soon as it is packed.
 #
@@ -110,6 +112,10 @@ build_target() {
   mkdir -p "$stage/libexec" || return 1
   cp -R "$REPO_ROOT/assets/ravel-policy" "$stage/libexec/ravel-policy" || return 1
   copy_skill_sources "$stage/$ARCHIVE_SKILLS" >&2 || return 1
+  # The marketplace files of the hook adapters sit at the keg root and name
+  # the hooks plugin inside the writing source. "Hook adapters" of
+  # docs/specs/codex-skill-provisioning.md.
+  cp -R "$REPO_ROOT/assets/keg-root/." "$stage/" || return 1
   cp "$REPO_ROOT/LICENSE" "$REPO_ROOT/README.md" "$stage/" || return 1
 
   local archive="$out_dir/$top.tar.xz"

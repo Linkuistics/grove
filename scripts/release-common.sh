@@ -44,11 +44,14 @@ readonly ARCHIVE_CORE_ID=grove-core
 readonly ARCHIVE_SKILLS=share/ravel/skills
 
 # The fixed part of the archive manifest: one `<mode><TAB><path>` line for each
-# file, with its Git mode. Grove's executables and its readable caller assets.
-# Ravel is a separate runtime dependency, and the caller assets keep their
-# complete readable tree and relative imports.
+# file, with its Git mode. Grove's executables, its readable caller assets and
+# the marketplace files of its hook adapters. Ravel is a separate runtime
+# dependency, and the caller assets keep their complete readable tree and
+# relative imports.
 archive_fixed_manifest() {
   tr ' ' '\t' <<'EOF'
+100644 .agents/plugins/marketplace.json
+100644 .claude-plugin/marketplace.json
 100644 LICENSE
 100644 README.md
 100755 bin/grove

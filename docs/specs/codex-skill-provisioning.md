@@ -248,7 +248,7 @@ marketplace file.
 | --- | --- | --- |
 | Claude Code | `claude plugin marketplace add "$(brew --prefix)/opt/grove"`, then `claude plugin install technical-communication-hooks@writing-hooks` | Once |
 | Claude Code, `guardrail` | `claude plugin marketplace add "$(brew --prefix)/opt/personal"`, then `claude plugin install guardrail@personal` | Once |
-| Codex | `codex plugin marketplace add "$(brew --prefix)/opt/grove"`, then `codex plugin add technical-communication@writing-hooks` | After each installation or upgrade of Grove |
+| Codex | `codex plugin marketplace add "$(brew --prefix)/opt/grove"`, then `codex plugin add technical-communication@writing-hooks`. Then run `codex` once and choose "Trust all and continue" at its hook review | After each installation or upgrade of Grove |
 | Pi | `ln -s "$(brew --prefix)/share/ravel/skills/writing/craft/technical-communication/harnesses/pi/technical-communication.ts" ~/.pi/agent/extensions/` | Once |
 
 The [evidence](../homebrew-skill-delivery-evidence.md#the-hook-plugins-across-a-keg-change)
@@ -264,13 +264,19 @@ decides the last column:
   once and breaks nothing.
 - Codex stores the canonical path, which names the versioned keg, and copies
   the plugin into its cache. Cleanup of the earlier keg then breaks the
-  registration, and the copy keeps the earlier bytes. A second
-  `marketplace add` stores the new path, and `plugin add` copies the new bytes.
+  registration, and the copy keeps the earlier bytes. A session still runs
+  the hooks of that copy. A second `marketplace add` stores the new path, and
+  `plugin add` copies the new bytes.
+- Codex runs a plugin hook only after the user trusts it, and the trust
+  covers the plugin's bytes. `codex exec` skips an untrusted or changed hook
+  and reports nothing. An interactive `codex` shows a review of such hooks, and
+  "Trust all and continue" trusts them. Each `plugin add` of new bytes
+  therefore needs the review again.
 - Pi resolves a link through the default directory each time it loads the
   extension.
 
-Grove's formula caveats print the four commands, so each upgrade shows the
-Codex step again. A Claude Code installation enables the plugin. A user who
+Grove's formula caveats print the four commands and the Codex review, so
+each upgrade shows the Codex step again. A Claude Code installation enables the plugin. A user who
 wants it installed and off runs `claude plugin disable` next, because no option
 installs a plugin disabled.
 
@@ -771,7 +777,7 @@ builds and the results.
 | Open tree behaviour | Existing custom-kind, handle, review/integration, result and epoch tests pass. No availability check enters tree verbs or launch admission. |
 | Conformance | Core, external-pack and aggregate checks use exact supplied artefacts. `check:packs` reads Grove's record and checks each pack alone and in the aggregate with core. Removed required resources/edges and duplicate owners fail deliberate controls. The [external pack contract](external-pack-contract.md#controls-that-must-fail) lists the controls. |
 | Installed distribution | The archive manifest, `task release:smoke` and `task release:formula:test` show that the keg holds core and the five packs at the commits of Grove's record, with executable bits intact. Each test copies the Ravel 2.0 build into a private prefix, with an installation record that names the keg's `share/ravel/skills`. With no settings, `ravel skills resolve --json` reports exactly the six sources, each `originPath` inside the keg, with its `resourceDigest`. `release:formula:test` compares each digest with that of the plain checkout of the same commit. Archives and formula tests also check separate packages, both caller-asset sets with their runtimes, both configuration formats and no automatic native mutation. Exercise fresh install and upgrade at each tap state A to D of the coordinated release. At each state, Grove's dependency always resolves to an admitted Ravel major, and feature advertising follows its publication. |
-| Hook adapters | In isolated homes, each harness registers its adapter from a keg by the documented command. On Claude Code, the hooks run and no native `technical-communication` skill appears. One measurement installs a disposable formula, registers its hooks plugin by the `opt` path and runs `brew upgrade` with cleanup. A session after the upgrade runs the hooks from the new keg. The same measurement shows the Codex registration break and its repair. It also records whether a Codex session runs the cached hooks before the repair. |
+| Hook adapters | In isolated homes, each harness registers its adapter from a keg by the documented command. On Claude Code, the hooks run and no native `technical-communication` skill appears. One measurement installs a disposable formula, registers its hooks plugin by the `opt` path and runs `brew upgrade` with cleanup. A session after the upgrade runs the hooks from the new keg. The same measurement shows the Codex registration break and its repair. It also records whether a Codex session runs the cached hooks before the repair, and what the Codex hook review accepts. The [evidence](../homebrew-skill-delivery-evidence.md#the-hook-adapters-from-a-keg) holds the readings. |
 | Retired listing | Before finish, an isolated Claude Code home adds the `linkuistics` marketplace from a Git remote at a commit that lists the packs, and installs `grove@linkuistics`. A refresh against a commit with the retired listing shows whether the plugin stays installed. The release notes state the result. |
 | Actual harness behaviour | Claude Code and Codex each discover an applicable craft skill from a task that does not name it, and read it before the governed action. Ravel delivers every source from a keg path, and no native copy exists. |
 

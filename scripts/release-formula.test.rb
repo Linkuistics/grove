@@ -17,8 +17,13 @@ formula.define_singleton_method(:prefix) { |*_args| prefix_path }
 def entries(pattern, base)
   Dir.glob(pattern, File::FNM_DOTMATCH, base: base).reject { |entry| File.basename(entry) == "." }.sort
 end
-expected = (["bin", "libexec", "share"] + entries("{bin,libexec,share}/**/*", source)).sort
+# The keg root also holds the marketplace files of the hook adapters.
+expected = ([".agents", ".claude-plugin", "bin", "libexec", "share"] +
+            entries("{.agents,.claude-plugin,bin,libexec,share}/**/*", source)).sort
 raise "the archive holds no skill sources" unless expected.include?("share/ravel/skills/grove-core")
+%w[.claude-plugin/marketplace.json .agents/plugins/marketplace.json].each do |file|
+  raise "the archive holds no #{file}" unless expected.include?(file)
+end
 Dir.chdir(source) { formula.install }
 actual = entries("**/*", prefix_path)
 raise "formula installation differs from archive: #{(actual - expected) + (expected - actual)}" unless actual == expected
@@ -33,6 +38,16 @@ caveats = formula.caveats.to_s
   "the native installer" => "./grove/plugins/install.sh",
   "the directory delivery route" => "`skills` object of ~/.config/ravel/settings.json",
   "the ravel@2 prefix" => 'PATH="$(brew --prefix ravel@2)/bin:$PATH" grove',
+  # The four commands of "Hook adapters" in docs/specs/codex-skill-provisioning.md.
+  "the Claude Code hooks marketplace" => 'claude plugin marketplace add "$(brew --prefix)/opt/grove"',
+  "the Claude Code hooks plugin" => "claude plugin install technical-communication-hooks@writing-hooks",
+  "the guardrail marketplace" => 'claude plugin marketplace add "$(brew --prefix)/opt/personal"',
+  "the guardrail plugin" => "claude plugin install guardrail@personal",
+  "the Codex hooks marketplace" => 'codex plugin marketplace add "$(brew --prefix)/opt/grove"',
+  "the Codex hooks plugin" => "codex plugin add technical-communication@writing-hooks",
+  "the Codex hook review" => 'choose "Trust all',
+  "the Pi extension" => 'ln -s "$(brew --prefix)/share/ravel/skills/writing/craft/technical-communication/' \
+                        'harnesses/pi/technical-communication.ts" ~/.pi/agent/extensions/',
 }.each do |subject, text|
   raise "the caveats do not show #{subject}: #{text}" unless caveats.include?(text)
 end

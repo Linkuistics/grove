@@ -171,9 +171,43 @@ grep -Fxq '  depends_on "linkuistics/taps/ravel"' "$template" ||
 # The dependency stays unversioned through promotion; ravel@2 is an opt-in prefix.
 [[ "$(grep -c '^ *depends_on ' "$template")" == 1 ]] ||
   fail 'the formula has a dependency other than unversioned Ravel'
-if grep -v -e '^bin/' -e '^libexec/ravel-policy/' -e "^$ARCHIVE_SKILLS/" <<<"$paths" | grep -q /; then
+grep -Fxq '    prefix.install ".claude-plugin", ".agents"' "$template" ||
+  fail 'the formula does not install the marketplace files at the keg root'
+if grep -v -e '^bin/' -e '^libexec/ravel-policy/' -e "^$ARCHIVE_SKILLS/" \
+  -e '^\.claude-plugin/' -e '^\.agents/' <<<"$paths" | grep -q /; then
   fail 'the manifest ships a directory the formula does not install'
 fi
+
+# The marketplace files of the hook adapters: the manifest lists exactly the
+# files of assets/keg-root, and each file names the hooks plugin of the
+# writing source in the keg. "Hook adapters" of
+# docs/specs/codex-skill-provisioning.md.
+(cd "$repo_root/assets/keg-root" && find . ! -type d | sed 's|^\./||' | LC_ALL=C sort) >"$scratch/keg-root-source"
+grep -v -e '^bin/' -e '^libexec/' -e '^share/' -e '^LICENSE$' -e '^README.md$' <<<"$paths" |
+  LC_ALL=C sort >"$scratch/keg-root-manifest"
+diff -u "$scratch/keg-root-source" "$scratch/keg-root-manifest" >&2 ||
+  fail "the archive manifest's keg-root files differ from assets/keg-root"
+pack_record_members "$repo_root/plugins/packs.json" | cut -f2 | grep -Fxq writing ||
+  fail 'the pack record has no writing source for the hook adapters'
+python3 -I - "$repo_root/assets/keg-root" "$ARCHIVE_SKILLS" <<'PY' || fail 'a marketplace file of the hook adapters is wrong; see above'
+import json, sys
+root, skills = sys.argv[1:]
+plugin_root = f"./{skills}/writing/craft/technical-communication"
+expected = {
+    ".claude-plugin/marketplace.json": ("technical-communication-hooks", lambda p: p["source"]),
+    ".agents/plugins/marketplace.json": ("technical-communication", lambda p: p["source"]["path"]),
+}
+failed = False
+for path, (plugin, source) in expected.items():
+    document = json.load(open(f"{root}/{path}"))
+    plugins = document.get("plugins", [])
+    found = [(p.get("name"), source(p)) for p in plugins]
+    if document.get("name") != "writing-hooks" or found != [(plugin, plugin_root)]:
+        print(f"{path}: name {document.get('name')!r}, plugins {found}; "
+              f"expected writing-hooks with {plugin} at {plugin_root}", file=sys.stderr)
+        failed = True
+sys.exit(failed)
+PY
 # The formula's test names the same six sources as the installed smoke test.
 formula_sources="$(sed -n 's/^ *SKILL_SOURCES = %w\[\(.*\)\]\.freeze$/\1/p' "$template" | tr ' ' '\n')"
 smoke_sources="$(sed -n "/^expected_sources='/,/'\$/p" "$repo_root/scripts/grove-installed-smoke.sh" |
@@ -217,14 +251,16 @@ done
 
 # Runtime, SDK, probes and notices from another project must never ship, nor
 # a skill payload outside the keg sources, a source outside the record, an
-# ignored file or a skill resolver.
+# ignored file or a skill resolver, nor a keg-root file other than the two
+# marketplace files.
 for extra in bin/harness-dispatch bin/ravel libexec/ravel/ravel-policy \
   libexec/harness-dispatch/harness-dispatch-policy libexec/ravel/sdk/index.ts \
   libexec/ravel-policy/node_modules/cache libexec/ravel-policy/notices/NOTICES.md \
   plugins/grove/skills/grove/SKILL.md libexec/skills/grove/SKILL.md \
   libexec/ravel-policy/skills/grove/SKILL.md bin/grove-skills \
   share/ravel/skills/personal/craft/machine/SKILL.md share/ravel/skills/grove-core/__pycache__/cache.pyc \
-  share/ravel/skills/alpha/README.md share/ravel/installation.json; do
+  share/ravel/skills/alpha/README.md share/ravel/installation.json \
+  .claude-plugin/plugin.json .agents/plugins/linkuistics.json .codex-plugin/plugin.json; do
   stage_archive "$top"
   mkdir -p "$(dirname "$scratch/archive/stage/$top/$extra")"
   touch "$scratch/archive/stage/$top/$extra"

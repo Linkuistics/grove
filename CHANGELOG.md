@@ -65,6 +65,15 @@ stood at the graft — a closed record, not part of the versioned sequence above
   The archive manifest lists each file with its Git mode, and the build
   refuses an archive with another mode or a pack without its checkout.
 
+- `grove`: the keg root holds the marketplace file `writing-hooks` for Claude
+  Code and for Codex. Each lists the always-on technical-communication hooks
+  plugin of the keg's writing source. The formula caveats print the command
+  that registers it in each harness, and the link for Pi. Claude Code
+  registers it once, by `$(brew --prefix)/opt/grove`. Codex stores the
+  versioned keg path. After each installation or upgrade, repeat its two
+  commands, then run `codex` and choose "Trust all and continue" at its
+  hook review. Codex runs no hook until you trust it.
+
 - `grove`: stop installing Codex skills at startup. The binary no longer embeds
   the plugin tree. Install skills for every harness your policy selects: the
   marketplace for Claude Code, and `plugins/install.sh` for Codex, Gemini CLI

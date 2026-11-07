@@ -838,3 +838,192 @@ entry is the design's stated trade-off: a third value waits for the owner.
 Row R2 of the table above records the whole process tree as exempt. The
 repair of the descendant readers narrows that exemption to the kept
 processes.
+
+## Owner switch implementation review
+
+`owner-switch-program-k242` inspected producer commit `7d69e659`, from base `27723524`. These findings are pending integration triage; they are not repairs or new test results.
+
+### F1 — P1: gates can read a plan other than the rehearsed plan
+
+`scripts/owner_switch.py:838-845`, `1426-1433`, `1853-1854` and `1900-1904`.
+The controller loads the prepared plan once and keeps its bytes and digest.
+It then passes the original pathname to each command. Each gate opens that
+pathname again. Step 8 checks the digest of the controller's earlier bytes,
+and the backup receives those earlier bytes, not what the gates read.
+
+For example, start with a rehearsed plan A. After its initial load, change
+the on-disk accepted digest of `superpowers` to the digest of a modified
+installed source. Step 6 reads that new value and passes. Step 8 still
+admits A's rehearsal, although A would have rejected that source. The
+receipt can therefore certify a source that the rehearsed plan did not
+accept. A file edit, or a plan command that edits its own plan, suffices.
+The rule in "The rehearsed plan" requires a changed plan to have its own
+passing record. Every gate needs the same admitted bytes, or a checked
+binding to their digest; reopening an unchecked pathname does not supply it.
+
+### F2 — P1: descendants of kept MCP servers bypass the process gate
+
+`scripts/owner_switch.py:805-819` exempts every descendant of each matching
+MCP server, as well as every descendant of the switch process. The contract
+keeps the MCP servers themselves and counts each other session descendant
+as another process. These are different sets.
+
+A kept MCP server can have a running tool child that launches Codex, Grove
+or a background reader of a link that step 9 moves. Even when the child's
+arguments match `watch`, the `pid in kept` branch skips it. Step 9 or an
+inverse can then open its write interval while that reader still runs.
+The current delegate and background controls launch children of the fixture
+harness, not children of a kept MCP server, so they do not cover this case.
+This breaks "Concurrent writers", whose exclusion protects those readers
+independently of the kept-copy mechanism.
+
+### F3 — P1: probe and trial environments can select another harness HOME
+
+`scripts/owner_switch.py:838-847`, `867-871`, `1215-1220` and `1566-1570`.
+The five Claude Code location variables are removed only by `claude_env`,
+which the installation prelude uses. Plan probes, native probes and the
+step-4 trials instead inherit them through `command_env`. They also inherit
+`CODEX_HOME` unchanged.
+
+For example, run with `CODEX_HOME=/Users/antony/.codex` and a disposable
+`--home`, or with `CLAUDE_CONFIG_DIR` naming an earlier staging directory.
+A direct harness command in `probes` can then inspect or change that
+directory instead of the switch's HOME. In the real switch it can report a
+pass from the staging configuration while the real configuration fails.
+This breaks the effective-directory and environment rules in "Settings
+isolation and the staging HOME" and the real-HOME probes of step 10.
+`Case.run` deliberately sets `CLAUDE_CONFIG_DIR`, but its fixture probe
+reads JSON through `OWNER_SWITCH_HOME` and never tests a harness's effective
+configuration directory, so the rehearsal misses this escape.
+
+### F4 — P1: plan paths can escape a disposable HOME
+
+`scripts/owner_switch.py:428-440` and `447-457`. The loader validates only
+the schema token and entry ordering. `Layout` then joins plan paths to HOME
+without validating that they are relative or remain inside it. An absolute
+path discards HOME; `..` and symlinked parent directories can escape it too.
+
+A plan entry whose path is `/Users/antony/.codex/skills/example` will name
+the real entry even under `--home /tmp/rehearsal/home`. Given the matching
+identity and an admitting record, step 9 moves that real entry into the
+disposable backup. A `manual` path can similarly append a receipt outside
+the selected HOME. The documented plan format says these paths are
+HOME-relative, and the node's contract says disposable rehearsal leaves the
+real HOME unchanged. Neither property is enforced. This concerns the
+program's data paths, separately from the explicitly executable commands
+that a plan author is already trusted to supply.
+
+### F5 — P1: an incomplete plan can report complete without required checks
+
+`scripts/owner_switch.py:1832-1837`, `1893-1904` and `1757-1787`. Missing
+gate lists and probe lists default to empty lists, a missing baseline does
+nothing, and a missing `mac_check` becomes `None`. The loader does not
+require these fields or require the gate commands to invoke the built-in
+checks. An empty command list is treated as a successful step.
+
+For example, a plan with `gates: {}`, `probes: []` and no `mac_check`, whose
+parts match the native layout and whose digest has an admitting record,
+can exchange its parts and write `result: complete`. No installed-release,
+formula, source or reader check has run, and neither harness was probed.
+A rehearsal record proves that bytes were exercised; it does not make an
+omitted obligation present. The fixed steps 4 to 7 and 10 to 13 of "The
+switch inside finish" cannot be optional fields of a plan that the program
+accepts as a complete switch. The fixture always supplies these fields,
+so its passing path does not establish rejection of this input.
+
+### F6 — P2: step 4 reruns staging trials in the switch HOME
+
+`scripts/owner_switch.py:1566-1570` runs each trial with the inherited HOME
+and `cwd=gate.home`. Under `run`, that HOME is the target of the switch;
+inside finish it is the real HOME. The gate carries no retained staging
+HOME and does not select one for these trials.
+
+When Grove's installed `design` source differs by one byte, a trial that
+launches its harness using HOME will therefore read the native real-HOME
+configuration before step 9, instead of the retained staging configuration.
+It can fail for the wrong reason or modify the real harness configuration
+as preparation for its trial. Step 4 explicitly requires these reruns in
+the retained staging HOME, under the isolation rules. A command wrapper
+could supply that HOME, but neither the command contract nor the gate
+requires or checks one. The fixture trial only appends a source and digest
+to a log and returns 0, so it cannot detect the wrong subject.
+
+### F7 — P2: reader evidence can become invalid before success
+
+`scripts/owner_switch.py:1631-1667`, `1757-1787` and `1798-1818`.
+Step 7 checks registrations and `.orphaned_at` once. The program never
+checks those paths again before the receipt, and the active continuation
+reruns only gate 6. The fixture plan's outside manifest does not include
+the Grove or official-plugin reader cache directories.
+
+For example, let gate 7 pass for the registered official-plugin directory.
+An update after that gate, or between an active interruption and its
+continuation, can orphan that directory and move its registration. The
+switched cells and the manifest can still match, so the run copies a receipt
+whose reader evidence describes the earlier registration and no marker.
+The same case applies to a named directory that finish read. "Resource
+lifetime" requires the versions that live readers use to remain registered
+and current, and freezes updates of every plugin finish loaded. Gate 7 does
+not verify that freeze or detect its violation during the remaining run.
+The existing orphan control adds its marker before the first gate only.
+
+### F8 — P2: the success receipt omits required activation and recovery evidence
+
+`scripts/owner_switch.py:1783-1787`, `1798-1818` and `1904`.
+The receipt consists of plan/program digests, probe results, `mac_check`,
+cells and gate results. Step 5's formula evidence is discarded when the
+backup is written. No code adds the digest of `config.rhai`, a digest of
+the activated settings file, the other formula versions, the backup
+locations or the retained byte sets and their purge conditions.
+
+Consequently even the ordinary successful fixture run produces a manual
+receipt without that information. Its plan digest and earlier gate output
+do not record the actual activated configuration or give the owner a
+complete cleanup inventory. The final paragraph of "The switch inside
+finish" explicitly requires these fields. The receipt control checks only
+the presence of gates 4, 6 and 7, so it accepts this incomplete evidence.
+
+### F9 — P2: a full passing rehearsal need not measure Claude Code's writes
+
+`scripts/owner_switch_rehearsal.py:1818-1837` and `Taskfile.yml:414-419`.
+The normal task leaves `--settings-writes` off. `cmd_rehearse` treats a
+missing rerun as passing and writes `passed: true` with
+`settings_writes: null`. The switch's `passing_rehearsals` accepts that
+record without any measured Claude Code version or write method.
+
+For example, upgrade Claude Code to a version whose installation writes in
+place, then run the default complete fixture rehearsal. Its stub still
+renames like 2.1.319, and the resulting record admits the program's
+preludes. The real command is rejected only after it has already written
+in place; the held inode then supplies no saved earlier bytes. "Test
+seams" requires the rehearsal to rerun `settings-writes.sh` with the
+version it uses and record that version, or revisit the accepted case.
+The producer's separately recorded measurement is useful evidence but is
+not a requirement enforced by a newly passing record.
+
+### Review evidence and limits
+
+The graph project was
+`Users-antony-Development-AgenticOrchestration-grove.gh-issue-25`, generation
+`2026-11-07T09:15:24Z`. Both pages of the bounded function search were read.
+Exact source and graph snippets support the findings; an outbound trace of
+`run_switch` supplied call candidates, with source controlling where the
+graph attached an unrelated Rust `get` method. Coverage metadata matched
+both Python files, the Taskfile and the specification, with no recorded
+gap. The model's coverage metadata was not tracked, so its source was read
+directly. This is task-directed verification, not a claim of graph
+completeness.
+
+The state classifier follows the six rows on the inspected inputs. In
+particular, an open run skips the preludes, an active continuation obtains
+admitted digests from its own backup's step-4 evidence, and a differing
+program digest causes execution of the backup's program before the state
+continuation. The model explicitly leaves readers, executable program
+identity, real probes and metadata outside its checked abstraction; its
+recorded green result does not establish those properties of Python.
+
+No unsupported tool-response finding is asserted: Homebrew's revision is
+included in the installed version comparison, mise must report `installed`,
+and a Ravel document whose status is not `resolved` is rejected. The
+findings above concern concrete unchecked inputs and transitions rather
+than an assumed later tool format.

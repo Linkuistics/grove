@@ -56,3 +56,23 @@ The doubts to test:
 - **The environment.** Each command now runs with HOME set to the switch's
   HOME, and a resolution drops every `RAVEL_*` name. Find a variable that
   still reaches a probe, a trial or a resolution and changes its subject.
+
+## Decisions (running log)
+
+**Review boundary.** This is an inspection-only review of `7d69e659`, with
+`27723524` as the base of the three producer slices. No test, build, lint or
+format command ran. The recorded checks in k239, k240 and k241 are producer
+evidence, not checks repeated by this review. The findings below need triage
+and verification in an integration session before the real-HOME switch.
+
+**Handoff.** owner-switch-program-k243 follows this review before
+owner-switch-entries-k92. It owns the triage, every accepted fix and the
+verification. The findings remain in the durable evidence document.
+
+## Findings
+
+The findings F1 to F9 and their evidence are in
+[Owner switch implementation review](../../docs/owner-skill-delivery-evidence.md#owner-switch-implementation-review).
+They cover the mutable plan, process exclusion, harness environments,
+HOME-relative paths, required checks, staging reruns, reader lifetime,
+receipt evidence and the Claude Code write-method measurement.

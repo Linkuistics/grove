@@ -844,6 +844,8 @@ Row R2 of the table above records the whole process tree as exempt. The
 repair of the descendant readers narrows that exemption to the kept
 processes.
 
+<!-- tc: off because this section preserves the completed review's findings as history -->
+
 ## Owner switch implementation review
 
 `owner-switch-program-k242` inspected producer commit `7d69e659`, from base `27723524`. These findings are pending integration triage; they are not repairs or new test results.
@@ -1105,6 +1107,8 @@ of `settings-writes.sh` passed with Claude Code 2.1.319, so the record
 passed. Each subject file was last changed before the run started. `task
 model:owner-switch` reported "all claims hold". The model, its runner and
 the Taskfile had the same digests before and after that run.
+
+<!-- tc: on -->
 
 ## Re-inventory before the cutover
 

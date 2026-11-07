@@ -1679,3 +1679,164 @@ match. Three wider mutants failed them:
 
 The dry run reads no gate, no probe and no rehearsal record. The rehearsal of
 owner-switch-rehearsal-k255 measures them on the completed plan.
+
+## Owner switch plan draft review
+
+`owner-switch-plan-draft-k258` inspected producer commit
+`9490761a9099b656630d0dd05c49c9721fa3ec8b` against the owner design. The
+findings below describe counterexamples from the source. They are not
+results of running the switch. No production or test code was changed.
+
+### D1 — P1: command paths do not identify the rehearsed programs
+
+The commands at
+[`switch_plan_draft.py:101`](evaluations/owner-skill-delivery/switch_plan_draft.py#L101)
+and line 114 execute `owner_switch_probes.py` and `inventory.py` from the
+real `<state>/prepared` directory. The plan records their paths but no
+content identities. `load_plan` hashes the JSON only, `rehearsed` compares
+the plan and main program digests, and a backup copies the main program.
+`run_command_full` still opens the two external scripts at their live
+paths. Those scripts are outside both `parts` and `outside`.
+
+Consider a prepared plan that has passed rehearsal. Before its real run,
+replace the probe script with a program that exits zero without observing
+anything. Neither admitted digest changes, so step 8 still accepts the
+record and step 10 reports successful commands. Replacing the inventory
+script with one that emits no rows also bypasses the anomaly check. The
+same substitutions affect a continuation of an existing backup: running
+its saved main program does not restore either dependency. This breaks
+the requirement that the real HOME receive the rehearsed operation and
+that a continuation execute the operation preserved by its backup
+([The rehearsed plan](specs/owner-skill-delivery.md#the-rehearsed-plan)).
+
+### D2 — P1: job labels do not enumerate the programs that jobs can launch
+
+The job command and patterns at
+[`switch_plan_draft.py:96`](evaluations/owner-skill-delivery/switch_plan_draft.py#L96)
+read only the current launchd listing and crontab text. A launchd listing
+holds labels, PIDs and exit statuses; it supplies no program arguments.
+The patterns also omit Pi. Login items are not read at all, and every
+crontab error is suppressed and converted to success.
+
+A loaded, idle job labelled `dev.personal.maintenance` can run
+`/opt/homebrew/bin/mise dot watch`. Its listing line contains none of the
+patterns. With no current writer process, the gate admits a write interval
+although that job can start its writer during the interval. A Pi job
+labelled `dev.pi.agent` is another missed case. A failure to read crontab
+also looks like no schedule. These are gaps in the observation, not
+evidence that those particular jobs are installed today. The recorded
+three matched jobs do not establish the absence of others. Step 1 requires
+every enabled job, login item and schedule that can launch a named program;
+step 2 must stop while one remains
+([The switch inside finish](specs/owner-skill-delivery.md#the-switch-inside-finish)).
+
+### D3 — P2: omitting two whole roots also omits their ordinary children
+
+The `outside` choices at
+[`switch_plan_draft.py:67`](evaluations/owner-skill-delivery/switch_plan_draft.py#L67)
+omit `.claude/skills` and `.codex/skills` because their platform containers
+are mutable. That also omits the names of every other child not already
+in `parts`. The control adds a child only to `.agents/skills`, a root that
+does have a manifest.
+
+For a concrete changed HOME, add `.codex/skills/quint-lang` as a link to
+the retained Quint clone after drafting. That path is absent from the
+draft's parts. `outside_changes` never reads it. The selected inventory's
+`codex_cls` classifies it as a known third-party entry, with disposition
+`deactivate; ravel:quint`, rather than emitting an anomaly. Step 3 can
+therefore admit the native state while step 9 leaves a superseded native
+copy active. The new copy depends on a later discovery probe to stop the
+switch, and the manifest still cannot detect it at step 14. Changes inside
+`synced` or `.system` do not justify ignoring their ordinary siblings.
+This leaves a gap in the one-active-copy rule and the comparison of entries
+outside the switch set
+([Name collisions and stale copies](specs/owner-skill-delivery.md#name-collisions-and-stale-copies),
+switch steps 3 and 14). D5 is a separate continuation failure, not a
+replacement for this missing observation.
+
+### D4 — P2: the MCP list grants a non-server a kept-process exemption
+
+The pattern at
+[`switch_plan_draft.py:86`](evaluations/owner-skill-delivery/switch_plan_draft.py#L86)
+labels `caffeinate -i -t <digits>` as an MCP server. The producer's
+committed process listing shows that this exempts the harness child
+`caffeinate -i -t 300`. The program follows matching children recursively,
+so the exemption is executable, not merely a comment about future work.
+
+The design permits only the harness, its driver chain, actual MCP servers,
+and the program and shell. It expressly counts every other descendant as
+another process. `caffeinate` is not a server, and ending it need not end
+the session. The draft therefore implements a different exclusion rule
+from [Concurrent writers](specs/owner-skill-delivery.md#concurrent-writers).
+The producer has acknowledged the difference, but a proposed design change
+in a brief does not settle it. Nor does this one exemption establish a
+rule for another helper child: an unmatched `/bin/sleep 300` child still
+closes the interval. No harmful write by `caffeinate` is alleged; the
+defect is the unresolved, load-bearing change to the exclusion contract.
+
+### D5 — P1: the chosen inventory rejects the switched guardrail plugin
+
+The plan's `baseline` at
+[`switch_plan_draft.py:114`](evaluations/owner-skill-delivery/switch_plan_draft.py#L114)
+names the unchanged inventory instrument. Its plugin-skill classification
+at [`inventory.py:164`](evaluations/owner-skill-delivery/inventory.py#L164)
+recognizes the old `linkuistics` marketplace, superpowers and Quint. For
+another enabled plugin with a `skills` directory, it emits
+`UNCLASSIFIED`. The personal plugin has `skills/guardrail/SKILL.md`.
+
+After step 9 enables `guardrail@personal`, stop the program before the
+receipt. On the next run, step 3 runs that inventory with guardrail enabled
+and collects its unclassified row. The cells still describe the active
+state, but `continue_after_switch` treats the collected row as an outside
+change and calls `failed_probe`, which applies the inverse. A correct
+activation thus fails its required active continuation solely because the
+instrument does not recognize the intended native residue. A stop after
+the receipt but before its copy likewise makes step 14 fail. The dry run
+never executes the baseline, so its passing record does not cover this
+case. This contradicts the guardrail disposition and the continuation
+contract
+([Native residue](specs/owner-skill-delivery.md#native-residue),
+[Resuming the switch](specs/owner-skill-delivery.md#resuming-the-switch)).
+
+### Other doubts and limits of this review
+
+Both new plugin keys are absent in the real HOME at review time. Their
+earlier values of `false` are nevertheless consistent: cutover order 6
+requires `guardrail` installed and disabled, and the hooks prelude installs
+and disables the other plugin before step 9. The disposable check writes
+those expected values; it does not prove that preparation has occurred.
+
+No false reversal caused by an ordinary read of the eight `outside` items
+was established. The change identity hashes content, entry names, types,
+executable bits and link targets; it omits timestamps and follows no link.
+Reading the snapshot store or acquiring its empty lock therefore supplies
+no demonstrated content change. The tool owns updates to codebase-memory
+copies, agents and Pi adapters. An actual installer write can change an
+identity, but step 14 currently requires that change to fail the probe.
+No update or probe was launched here, so this review makes no claim that
+the kept server or a normal probe necessarily rewrites one of those items.
+
+The provisional accepted values, failing trial placeholders and absent
+probe implementation are declared handoffs to later leaves. Their absence
+is not a separate finding against this draft. D1 concerns what the eventual
+commands identify, regardless of the implementation they receive.
+
+This was a task-directed Verify review using graph project
+`Users-antony-Development-AgenticOrchestration-grove.gh-issue-25`, generation
+`2026-11-07T12:56:06Z`. The bounded symbol searches returned no further
+pages. An inbound trace of `outside_changes` identified the state,
+continuation and step-14 consumers; exact source controlled each claim.
+Coverage reported no recorded gap in the cited code. TSV and text evidence
+had untracked freshness metadata and were read directly. That signal is
+not proof of completeness. The personal plugin's local layout, the selected
+real-HOME keys, directory names and relevant launch-agent definitions were
+also read without changing them.
+
+The inspected plan and part table have SHA-256
+`c40451d63c33e1cb8800a80ddce6b8b4e21e534c4711ec5b8dd24a72249f0859`
+and `ce2ad54ebdb49fe6ba82a6c1d60481cfb449587736d1e6024ff9830897377fd4`.
+They match the producer's recorded subjects. The main program and inventory
+digests also match that record. The generator digest is
+`9b13ac3122a74a5b640c418e26af4b4e0fbb482f7701ac8117109d0bd63b4b26`.
+No test, build, lint, format, check task or switch operation was run by this
+review. Integration owns fixes and executable verification of the cases.

@@ -56,3 +56,22 @@ writer, or stop a valid switch. Produce findings, not fixes.
 
 The real HOME is read only for this review. Use the check task in a scratch
 folder. Do not write into `.local/state/owner-switch`.
+
+## Decisions (running log)
+
+- The reviewed producer is commit `9490761a9099`. The review is inspection
+  only: it reads the committed check record and source, and runs no check,
+  test, build, lint or format task. The real HOME and the real switch state
+  are read only.
+- The absent plugin keys are not defects in the earlier values. Cutover
+  order 6 installs `guardrail` disabled, and step 3 installs and disables
+  the writing hooks plugin before step 9.
+- Actionable findings concern new children of the omitted discovery roots,
+  external command identity, job enumeration, the non-server exemption and
+  the inventory's classification of enabled `guardrail`. The findings are
+  recorded in the section "Owner switch plan draft review" of
+  `docs/owner-skill-delivery-evidence.md`.
+- No false reversal from ordinary reads of the eight `outside` items is
+  established. Their identities omit timestamps and do not follow links.
+  Installer writes can change them; the current design explicitly treats
+  those changes as failed probes. No update or real probe was run here.

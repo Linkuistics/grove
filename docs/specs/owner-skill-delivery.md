@@ -279,6 +279,9 @@ new candidate keg and a rerun of the trials that read the changed sources.
 A committed evidence document records the candidate commit and the accepted
 `resourceDigest` of each of Grove's six sources. Before finish, rollout builds
 the candidate keg of the final line and shows that each digest is unchanged.
+`task owner:candidate-keg` builds a candidate keg and prints each digest. Its
+`ACCEPTED` variable names an earlier digest file, and a different digest fails
+the task.
 After the release, the switch compares the digests of the installed keg, as
 its step 4 states.
 
@@ -1508,7 +1511,8 @@ with the coordinated release work.
 
 The staging trials run three steps first, in this order:
 
-1. Build the candidate keg from an unreleased archive of the candidate commit.
+1. Build the candidate keg from an unreleased archive of the candidate commit,
+   with `task owner:candidate-keg`.
 2. Write the staging settings with the paths of the candidate keg and of the
    four installed kegs.
 3. Run the isolation trial of

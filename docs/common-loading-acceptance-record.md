@@ -29,6 +29,8 @@ the Grove commit that its run measured. The
 pack from its `craft` root.
 [Design native namespace](#design-native-namespace) lists that pack's craft
 skills under the plugin's namespace in a native Claude Code installation.
+The [Keg craft trials](#keg-craft-trials) take every source from the
+candidate keg of a Grove commit, as Homebrew installs it.
 
 ## Conventions
 
@@ -206,6 +208,27 @@ as they are. The run fails when the commit changes during the run. The option
 refuses a source without `external`. It also refuses the source that the case
 moves away, so the runner never moves a working copy. One case therefore
 serves the checkout proof and the working-copy proof.
+
+A source record can name `"keg": "grove"` in place of `external`. The source
+then comes from the candidate keg that `task owner:candidate-keg` built from
+the prepared commit. `prepare --keg <candidate>` names the directory of that
+task, and the tasks `trial:prepare` and `trial:check` pass it as `KEG`. The
+preparation refuses a candidate keg of another commit. The source's `plugin`
+is its directory in the keg, `share/ravel/skills/<id>`, and the settings name
+that directory. The record names these facts for each keg source, in
+`sources.external`:
+
+| Field | Fact |
+| --- | --- |
+| `keg` | The keg directory, `Cellar/grove/<version>` of the candidate's prefix |
+| `commit` | The Grove commit of the candidate keg |
+| `acceptedDigest` | The `resourceDigest` that the candidate keg's `candidate.json` names |
+| `originPaths` | Each `originPath` that a launch named for the source |
+| `resourceDigest` | The digest that each launch named |
+
+The run fails when a launch captures the source from another path, or when
+its digest differs from the accepted digest. A continuation, and `moveAway`,
+refuse a keg source. `check` without `--keg` refuses a case with a keg source.
 
 Before any launch, the runner checks that the supplier of each required path
 holds the path at its revision.
@@ -9833,3 +9856,192 @@ not the edit, so this does not change the result.
   mechanisms for an external source.
 
 No gap remains open for the case of `editorial-directory-trials-k207`.
+
+## Keg craft trials
+
+`candidate-keg-k238` runs the row "Actual harness behaviour" of the
+[delivery specification's test seams](specs/codex-skill-provisioning.md#test-seams)
+with every source at a keg path. Before Grove's release, the staging trials
+read Grove's six sources from a candidate keg, as the
+[owner delivery design](specs/owner-skill-delivery.md#skill-formulae) states.
+`task owner:candidate-keg` builds that keg. These trials use it.
+
+### The candidate keg
+
+The candidate is Grove commit `7b113a28a96621217c16154d4f44eba667236132`, the
+commit of `homebrew-delivery-guidance-k237`. It is the last commit of this
+workstream's line that changes `plugins/grove` or `plugins/packs.json`. No
+remote-tracking branch held it on 2026-11-07, so it is not yet the published
+candidate. The staging leaves name the published candidate.
+
+`task owner:candidate-keg` made a plain Git checkout of the commit. The
+checkout's own `scripts/release-build.sh --unreleased aarch64-apple-darwin`
+built the archive. Homebrew's install method of the checkout's formula
+template filled `brew/Cellar/grove/22.8.0` in a private prefix. The task then
+made the `opt/grove` link and one link for each source in
+`brew/share/ravel/skills`, as `brew link` makes them.
+
+A private copy of the 2.0 build resolved the six sources with no settings. Its
+installation record named the prefix's `share/ravel/skills`. Each `originPath`
+lay in the keg. Settings that named the plain checkouts of the same commits
+gave the same digest and roots for each source:
+
+| Source | Roots | `resourceDigest` |
+| --- | --- | --- |
+| `grove-core` | `skills` | `8d92cd58fca8f21a87361a9d956af7e5a38e88751e25cbaff5e2384554806b51` |
+| `requirements` | `skills` | `07b2d25e8bd20259c71f7419092329368d8ae48bec6ca973343a601a8ec515c8` |
+| `design` | `craft`, `skills` | `d8ad3a2af1b5029bc0de93747f4d7297038651180f6877fbd738d94fcbf6aa14` |
+| `engineering` | `craft`, `skills` | `7e70b280e7a932489a048d108d4dae2bc63b387cf8fc6b37298663336e0fcc66` |
+| `research` | `skills` | `7fb3d473f66feafb49afd8846fd94cf3e1fb7b01c584d4ad5f0e54814a8b3fdb` |
+| `writing` | `craft`, `skills` | `2dea55cd72d0d56032c04419bfd438b62b321563573a09fffcab2f2c692ecade` |
+
+A second build of the same commit, into a new directory, gave the same six
+digests. It ran with `ACCEPTED` set to the first build's `digests.tsv`, and the
+task reported each digest equal. The two archives had the SHA-256 values
+`add4a0734465…` and `ce6781ee59bc…`, because tar records each member's time.
+The SHA-256 values of `scripts/candidate-keg.sh` and `scripts/candidate-keg.rb`
+were the same before and after the second build.
+
+A control copy of `digests.tsv` changed one hexadecimal digit of the `design`
+digest. A third build with that copy as `ACCEPTED` printed the diff and failed
+with status 201 from `task`.
+
+### Subjects of the keg craft trials
+
+The runs are from 2026-11-07 local time. The case ran once in each harness,
+with no retry. The two runs ran at the same time, each in its own trial
+directory and sandbox home.
+
+| Subject | Value |
+| --- | --- |
+| Case | `keg-craft-discovery`, on the route directory-2.0 |
+| Runner | `scripts/harness_trial.py` in the commit that adds the case, SHA-256 `13b5047a7234…` |
+| Grove build | commit `7b113a28a966`, the candidate. `grove` SHA-256 `a7f5c988a18e…`, `grove-llm` SHA-256 `2f7895cc33f7…` |
+| Ravel build | line `skill-directory-delivery` at `ff14cba826b0`, identity `58d479ed058f…`, `bin/ravel` SHA-256 `3a9a9129573e…`, the build of the [default-directory runs](grove-dual-ravel-stage-record.md#default-directory-runs). `builds.json` now pins it. A fresh `task install` gave the recorded digest. The prefix has no `libexec` |
+| Sources | The six sources of the candidate keg of the first build, each at `brew/Cellar/grove/22.8.0/share/ravel/skills/<id>`, with the roots of the table above. No source came from a checkout |
+| Mandatory file | `grove-core` `skills/grove/SKILL.md`, the Grove spine |
+| Declared skill | `design` `craft/cli-tool-design/SKILL.md`, in `requires` |
+| Claude Code | 2.1.319, model `claude-opus-5-5`, effort `medium`, permission mode `bypassPermissions` |
+| Codex | codex-cli 0.167.0, model `gpt-6.1-sol`, effort `medium`, sandbox `workspace-write`, approval `never` |
+
+The tree is the tree of `design-craft-discovery`. Its `impl` leaf asks for
+`notes.py`, a command-line tool that agents run, and it names no skill. The
+kind skill `grove-impl` lies in the `engineering` source, and the spine in
+`grove-core`.
+
+The supplier check held the 18 required paths of the case in the candidate
+keg, with status 0. Without `KEG`, the check refused the case. With the keg
+and another commit, `4cfac6295881`, it refused the candidate keg.
+
+The SHA-256 values of the runner, `builds.json`, `trial-launch.sh`, the case
+files, the candidate's `candidate.json` and the 2.0 front were the same before
+the preparation and after both runs.
+
+Each launch named the six sources. For each source, the launch captured it
+from its keg directory and named the accepted digest. The runner checks both,
+and neither run failed them.
+
+The sandbox home linked only the sign-in store of the harness. No native copy
+of any Grove or pack skill existed in it. The Claude Code listing held 27
+names: 14 built-in names and the 13 synced `anthropic-skills:*` skills of
+earlier runs. Codex listed its four bundled skills, and its plugin cache held
+the curated plugins of the sign-in, as in every earlier Codex run. No name was
+a Grove or pack name, and no session read any of them.
+
+Recipe, from a scratch directory `$SCRATCH` outside every working copy, after
+the 2.0 prefix of the stage record's recipe:
+
+```sh
+task owner:candidate-keg COMMIT=7b113a28a96621217c16154d4f44eba667236132 OUT="$SCRATCH/candidate-1" RAVEL_2_0_PREFIX="$SCRATCH/ravel-2.0"
+task owner:candidate-keg COMMIT=7b113a28a96621217c16154d4f44eba667236132 OUT="$SCRATCH/candidate-2" RAVEL_2_0_PREFIX="$SCRATCH/ravel-2.0" ACCEPTED="$SCRATCH/candidate-1/digests.tsv"
+task trial:check COMMIT=7b113a28a96621217c16154d4f44eba667236132 CASE=keg-craft-discovery KEG="$SCRATCH/candidate-1"
+task trial:prepare OUT="$SCRATCH/trials" COMMIT=7b113a28a96621217c16154d4f44eba667236132 RAVEL="$SCRATCH/ravel-2.0/bin/ravel" KEG="$SCRATCH/candidate-1"
+task trial:claude OUT="$SCRATCH/trials" CASE=keg-craft-discovery
+task trial:codex OUT="$SCRATCH/trials" CASE=keg-craft-discovery
+```
+
+### keg-craft-discovery
+
+**Claude Code.** The run is `keg-craft-discovery-20261107T055712Z`. The
+session file `705e4382-8b95-4d9e-b107-f35c6cb70c48.jsonl` has the SHA-256
+`d564fb0f3881…`. The descriptor identity is `6c69a467ac02…`.
+
+| # | Class | Skill | Source | What the call did |
+| --- | --- | --- | --- | --- |
+| 1 | mandatory | grove | grove-core | Read the spine from its snapshot |
+| 2 | command | | | Listed each `SKILL.md` path of the six snapshots |
+| 3 | kind-skill | grove-impl | engineering | Read the kind skill from the engineering snapshot, and listed the spine's directory |
+| 5 | supporting | grove | grove-core | Read `references/execute.md` and `references/bootstrap.md` of the spine |
+| 6 | command | | | Resolved the leaf, walked its brief chain and read the task file |
+| 7 | skill | cli-tool-design | design | Read the brief and the first eight lines of `cli-tool-design/SKILL.md` and `coding-style-python/SKILL.md` |
+| 9 | skill | cli-tool-design | design | Read the whole of `cli-tool-design/SKILL.md` and `coding-style-python/SKILL.md` |
+| 11 | action | | | Wrote `notes.py` |
+| 12 | command | | | Ran the check of the leaf and removed `notes.json` |
+| 14 | supporting | grove | grove-core | Read `references/retire.md` and `references/commit.md` of the spine |
+| 16, 17 | command | | | Logged the decisions, retired the leaf and committed it |
+| 18 | ending | | | Ran the exact continue command |
+
+**Result: pass.** The agent read `cli-tool-design/SKILL.md` from the design
+snapshot in call 9, before it wrote `notes.py` in call 11. It also read the
+engineering craft skill `coding-style-python`. The snapshot directory of each
+read is the source's digest, so each read came from a capture of the keg.
+
+The runner marks call 1 with an error. Its command was `cat` of the spine,
+then `echo ====`, then `ls`. zsh expands a word whose first character is `=`
+as a command path, as in the [editorial trials](#editorial-family-read). Call 3
+listed the same directory.
+
+**Codex.** The run is `keg-craft-discovery-20261107T055720Z`. The session
+file `rollout-2026-11-07T16-57-22-01a1b495-40dc-7fb1-a131-0e67354cc110.jsonl`
+has the SHA-256 `5021a4c0ffc2…`. The descriptor identity is
+`431bf0d670fc…`.
+
+| # | Class | Skill | Source | What the call did |
+| --- | --- | --- | --- | --- |
+| 2 | mandatory | grove | grove-core | Read the spine |
+| 3 | command | | | Printed the descriptor |
+| 4 | command | | | Printed the front matter of each `SKILL.md` of each directory of the descriptor |
+| 5 | kind-skill | grove-impl | engineering | Read the kind skill from the engineering snapshot |
+| 7 | command | | | Printed `references/bootstrap.md` and `references/execute.md` of the spine |
+| 8 to 12 | command | | | Resolved the leaf, walked its brief chain, searched for a glossary and read the briefs and the task file |
+| 14 | command | | | Printed `coding-style-python/SKILL.md`, `cli-tool-design/SKILL.md`, `TASK-FORMAT.md`, `references/retire.md` and `references/commit.md` |
+| 16 | command | | | Logged the decisions |
+| 17 | action | | | Wrote `notes.py` with `apply_patch` |
+| 18 to 26 | command | | | Made the tool executable, ran its checks, retired the leaf and committed it |
+| 28 | ending | | | Ran the exact continue command |
+
+**Result: pass.** Call 14 read `cli-tool-design/SKILL.md` from the design
+snapshot before the agent wrote `notes.py` in call 17. Call 4 shows each
+description, so the agent chose by description. Its text in call 15 names
+"the Python style and CLI design skills".
+
+The runner classes calls 7 and 14 as commands, because each is a Python
+program that joins a snapshot directory and a relative path. The classifier
+therefore finds no whole skill path in the command. The session file shows the read. Its call
+at line 65 names `d8ad3a2af1b5…/tree/craft/cli-tool-design/SKILL.md`. The
+output of that call, at line 68, holds the last paragraph of that 10947-byte
+file. The patch that writes `notes.py` comes later, at line 74.
+
+### Limits of the keg craft trials
+
+- **One run each.** The case ran once in each harness. One run is one
+  observation, not a rate.
+- **An unpublished candidate.** No remote held `7b113a28a966` when the trials
+  ran. The staging leaves build the keg of the published candidate. A later
+  change to `plugins/grove` or `plugins/packs.json` needs a new candidate keg.
+- **A private prefix.** The keg came from Homebrew's install method in a
+  private prefix, not from `brew install`. The task made the links of `brew
+  link` itself, and Homebrew's cleaner did not run. The
+  [keg layout](specs/codex-skill-provisioning.md#the-keg-layout) states that
+  the cleaner changes no mode under `share/`.
+- **Explicit settings.** The settings named each keg directory. The default
+  skill directory, with no settings, ran only in the task's resolution and not
+  in a harness session.
+- **The classifier.** The runner did not class the Codex read of
+  `cli-tool-design`. The result rests on the session file, as the section
+  above states.
+- **No delegate, compaction, refusal, offline or stale-copy case.** The staging
+  trials of the [cutover contract](specs/owner-skill-delivery.md#cutover-contract)
+  cover those cases with the candidate keg.
+
+No gap remains open for the case of `candidate-keg-k238`.

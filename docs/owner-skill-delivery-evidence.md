@@ -10,7 +10,9 @@ section [Review corrections](#review-corrections) records what changed.
 
 After Ravel narrowed delivery to local directories, `owner-pack-checkouts-k79`
 measured the owner's checkout tool in a fixture HOME. The section
-[Pack checkouts](#pack-checkouts) records that measurement.
+[Pack checkouts](#pack-checkouts) records that measurement as history.
+`skill-marketplace-decision-k201` replaced the checkouts with Homebrew
+formulae, and `candidate-keg-k238` removed the measurement's script and task.
 
 ## Method
 
@@ -214,7 +216,12 @@ the live Grove source.
 
 ## Pack checkouts
 
-The design gives the pack checkouts to the `[bootstrap.repos]` part of mise.
+This section is history. The owner design now installs each source through
+a Homebrew formula, as its section "Skill formulae" states.
+`candidate-keg-k238` removed the script and its task `owner:checkouts`. Grove
+commit `7b113a28a96621217c16154d4f44eba667236132` still holds both.
+
+The design gave the pack checkouts to the `[bootstrap.repos]` part of mise.
 The [mise repository reference](https://mise.jdx.dev/bootstrap/repos.html),
 read on 2026-11-02, states these facts:
 
@@ -227,19 +234,18 @@ read on 2026-11-02, states these facts:
 - mise never removes a checkout. `unapply` leaves the directories.
 - The reference does not mention jj.
 
-[`evaluations/owner-skill-delivery/checkouts.py`](evaluations/owner-skill-delivery/checkouts.py)
-measures the behaviour that the design states. It builds a fixture origin and
-a fixture HOME, and it runs the installed mise with only isolated paths in its
-environment. It moves the origin away to stand in for a machine without a
-network. Each mise call names the fixture HOME with `-C`. The fixture hides
-the owner's global and system Git configuration. `task owner:checkouts` runs
-it.
+The script `docs/evaluations/owner-skill-delivery/checkouts.py` measured the
+behaviour that the design then stated. It built a fixture origin and a
+fixture HOME, and it ran the installed mise with only isolated paths in its
+environment. It moved the origin away to stand in for a machine without a
+network. Each mise call named the fixture HOME with `-C`. The fixture hid the
+owner's global and system Git configuration. `task owner:checkouts` ran it.
 
 | Artifact | SHA-256 |
 | --- | --- |
 | `docs/evaluations/owner-skill-delivery/checkouts.py` | `349e2e233c3967f370c39174034a019cf84f2980758f4098c2827bc819cd3244` |
 
-With mise 2026.10.25 and Git 2.56.0, all 33 cases matched. The script asserts
+With mise 2026.10.25 and Git 2.56.0, all 33 cases matched. The script asserted
 each observation in this table:
 
 | Case | Observation |

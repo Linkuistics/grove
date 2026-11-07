@@ -223,18 +223,18 @@ tasks:
   # that supplies the driver and the skill sources. RAVEL is the 2.0 front from
   # the stage record's recipe, which builds.json pins.
   trial:prepare:
-    desc: Build Grove at COMMIT into OUT and check the Ravel 2.0 front RAVEL, for real harness trials
+    desc: Build Grove at COMMIT into OUT and check the Ravel 2.0 front RAVEL, for real harness trials (KEG names the candidate keg of COMMIT, from task owner:candidate-keg, for keg sources)
     requires:
       vars: [OUT, COMMIT, RAVEL]
     cmds:
-      - python3 scripts/harness_trial.py prepare --out "{{.OUT}}" --commit "{{.COMMIT}}" --ravel "{{.RAVEL}}"
+      - python3 scripts/harness_trial.py prepare --out "{{.OUT}}" --commit "{{.COMMIT}}" --ravel "{{.RAVEL}}" {{if .KEG}}--keg "{{.KEG}}"{{end}}
 
   trial:check:
-    desc: Check that the Grove COMMIT supplies each required path of the trial CASE, or of every case without CASE, before any launch (no harness, no model, no build)
+    desc: Check that the Grove COMMIT supplies each required path of the trial CASE, or of every case without CASE, before any launch (no harness, no model, no build; KEG names the candidate keg of COMMIT for keg sources)
     requires:
       vars: [COMMIT]
     cmds:
-      - python3 -I scripts/harness_trial.py check --commit "{{.COMMIT}}" {{if .CASE}}--case "{{.CASE}}"{{end}}
+      - python3 -I scripts/harness_trial.py check --commit "{{.COMMIT}}" {{if .CASE}}--case "{{.CASE}}"{{end}} {{if .KEG}}--keg "{{.KEG}}"{{end}}
 
   trial:claude:
     desc: Run one real Claude Code trial CASE from the prepared OUT (spends subscription usage; MODEL and EFFORT override the case; WORKING_COPY=ID=DIR replaces one external source's checkout)
@@ -389,10 +389,19 @@ tasks:
     cmds:
       - python3 -I docs/evaluations/owner-skill-delivery/controls.py
 
-  owner:checkouts:
-    desc: Measure mise's repository part as the owner of pack checkouts, in a fixture HOME with a fixture origin
+  # The candidate keg of the staging trials ("Skill formulae" and "Cutover
+  # contract" of docs/specs/owner-skill-delivery.md). COMMIT names the
+  # candidate, OUT a new directory outside every working copy and
+  # RAVEL_2_0_PREFIX an installation prefix of the 2.0 build. ACCEPTED names an
+  # earlier OUT/digests.tsv, and a different digest fails. For example:
+  #   task owner:candidate-keg COMMIT=<grove commit> OUT="$SCRATCH/candidate" \
+  #     RAVEL_2_0_PREFIX="$SCRATCH/ravel-2.0"
+  owner:candidate-keg:
+    desc: Build the candidate keg of the Grove COMMIT into the new directory OUT and print the resourceDigest of each of its six sources
+    requires:
+      vars: [COMMIT, OUT, RAVEL_2_0_PREFIX]
     cmds:
-      - python3 -I docs/evaluations/owner-skill-delivery/checkouts.py
+      - bash scripts/candidate-keg.sh "{{.COMMIT}}" "{{.OUT}}" "{{.RAVEL_2_0_PREFIX}}" {{if .ACCEPTED}}"{{.ACCEPTED}}"{{end}}
 
   model:owner-switch:
     desc: Run every claim of the Quint model of the owner switch's recovery (SAMPLES, STEPS and SWEEP adjust the run)

@@ -7,10 +7,10 @@ This runner owns the mechanics that every trial shares. A case only says what
 differs. The trial conventions live in that node's brief and in
 `docs/common-loading-acceptance-record.md`.
 
-    harness_trial.py prepare --out DIR --commit COMMIT --ravel FRONT
+    harness_trial.py prepare --out DIR --commit COMMIT --ravel FRONT [--keg CANDIDATE]
     harness_trial.py run --prepared DIR --case NAME [--harness H] [--model M] [--effort E]
                          [--working-copy ID=DIR]...
-    harness_trial.py check --commit COMMIT [--case NAME]... [--repository REPO]
+    harness_trial.py check --commit COMMIT [--case NAME]... [--repository REPO] [--keg CANDIDATE]
     harness_trial.py reextract --trial RUN
     harness_trial.py turns --plan PLAN -- PROGRAM ARG... PROMPT
 
@@ -42,6 +42,12 @@ plain Git checkout of its commit under the trial's `sources/`, before any
 launch, and the record names the commit, the checkout, the Git tree ID of the
 source directory and Ravel's `resourceDigest`. `--working-copy ID=DIR` takes
 that source from a jj working copy instead, and the record names its change.
+A source with `"keg": "grove"` comes from the candidate keg that `task
+owner:candidate-keg` built from the prepared commit, and `prepare --keg`
+names its directory. Its `plugin` is its directory in the keg,
+`share/ravel/skills/<id>`. The record names the keg, each path that Ravel
+captured and Ravel's `resourceDigest`. A capture from another path, or a
+digest other than the keg's accepted digest, fails the run.
 A case with `moveAway` and `expectRefusal` moves a clone of one source away
 before the driver, and expects Ravel's refusal before any harness launch. An
 external source moves its own checkout. With `moveRoot`, only that root of the
@@ -293,6 +299,8 @@ def load_case(name: str, harness: str | None = None) -> tuple[dict[str, Any], Pa
         raise TrialError(f"case {name}: no tree/ directory")
     if bool(case.get("moveAway")) != bool(case.get("expectRefusal")) or (case.get("moveAway") and mode != "lifecycle"):
         raise TrialError(f"case {name}: a lifecycle case names moveAway and expectRefusal together")
+    if any(s.get("id") == case.get("moveAway") and "keg" in s for s in case.get("sources", [])):
+        raise TrialError(f"case {name}: moveAway names a source of the candidate keg, which no case moves")
     if case.get("moveRoot") is not None:
         moved = next((s for s in case.get("sources", []) if s.get("id") == case.get("moveAway")), None)
         if moved is None or case["moveRoot"] not in moved.get("roots", []):
@@ -319,6 +327,12 @@ def load_case(name: str, harness: str | None = None) -> tuple[dict[str, Any], Pa
 
 
 PLUGIN_ID = re.compile(r"^[A-Za-z0-9._-]+@[A-Za-z0-9._-]+$")
+# A source with "keg": "grove" comes from the candidate keg that `prepare
+# --keg` names, which `task owner:candidate-keg` builds from the prepared
+# commit. Its directory in the keg is share/ravel/skills/<id>, as "The keg
+# layout" of docs/specs/codex-skill-provisioning.md states.
+KEG_FORMULA = "grove"
+KEG_SKILLS = "share/ravel/skills"
 
 
 def check_external(name: str, source: dict[str, Any]) -> None:
@@ -330,6 +344,14 @@ def check_external(name: str, source: dict[str, Any]) -> None:
     if plugin.is_absolute() or ".." in plugin.parts or not plugin.parts:
         raise TrialError(f"case {name}: the plugin of the source '{source.get('id')}' is a relative path, "
                          f"not {source.get('plugin')!r}")
+    if "keg" in source:
+        if external is not None or source["keg"] != KEG_FORMULA:
+            raise TrialError(f"case {name}: the source '{source.get('id')}' names \"keg\": \"{KEG_FORMULA}\", "
+                             "the candidate keg of the prepared commit, and no external object")
+        if source.get("plugin") != f"{KEG_SKILLS}/{source.get('id')}":
+            raise TrialError(f"case {name}: the keg source '{source.get('id')}' has the plugin "
+                             f"{KEG_SKILLS}/{source.get('id')}, its directory in the keg")
+        return
     if external is None:
         return
     if not isinstance(external, dict) or set(external) != {"repository", "commit"}:
@@ -380,7 +402,7 @@ def check_continuation(case: dict[str, Any], directory: Path) -> None:
     name = case["name"]
     if case.get("mode") != "lifecycle" or case.get("moveAway"):
         raise TrialError(f"case {name}: a continuation case is a lifecycle case without moveAway")
-    if any(source.get("external") for source in case.get("sources", [])):
+    if any(source.get("external") or "keg" in source for source in case.get("sources", [])):
         # One clone of the prepared commit supplies every source of a
         # continuation, and the runner commits into it between the turns.
         raise TrialError(f"case {name}: a continuation case takes every source from the prepared checkout")
@@ -2387,10 +2409,30 @@ def check_ravel(front: Path) -> dict[str, Any]:
     }
 
 
-def prepare(out: Path, commit: str, front: Path, environ: Mapping[str, str]) -> Path:
+def candidate_keg(candidate: Path, commit: str) -> dict[str, Any]:
+    """The candidate keg that `task owner:candidate-keg` wrote into the
+    directory `candidate`, for the prepared commit: its keg, its skill
+    directory and the accepted `resourceDigest` of each source."""
+    file = candidate.resolve() / "candidate.json"
+    if not file.is_file():
+        raise TrialError(f"no {file}; build the candidate keg with `task owner:candidate-keg`")
+    record = json.loads(file.read_text())
+    if record.get("commit") != commit:
+        raise TrialError(f"the candidate keg in {candidate} holds Grove commit {record.get('commit')}, "
+                         f"not the prepared commit {commit}; build the keg of the prepared commit")
+    keg = Path(record["keg"])
+    if not (keg / KEG_SKILLS).is_dir():
+        raise TrialError(f"the candidate keg {keg} holds no {KEG_SKILLS}")
+    return {"candidate": str(file.parent), "recordSha256": sha256_file(file), "commit": commit,
+            "keg": str(keg), "skillDirectory": record["skillDirectory"],
+            "digests": {source["id"]: source["resourceDigest"] for source in record["sources"]}}
+
+
+def prepare(out: Path, commit: str, front: Path, environ: Mapping[str, str], keg: Path | None = None) -> Path:
     out = out.resolve()
     ravel = check_ravel(front)
     full = run_checked(["git", "rev-parse", "--verify", f"{commit}^{{commit}}"], cwd=ROOT)
+    kegged = candidate_keg(keg, full) if keg else None
     common = run_checked(["git", "rev-parse", "--path-format=absolute", "--git-common-dir"], cwd=ROOT)
     checkout = out / "grove-source"
     if checkout.exists():
@@ -2418,6 +2460,7 @@ def prepare(out: Path, commit: str, front: Path, environ: Mapping[str, str]) -> 
         "grove": {"commit": full, "prefix": str(prefix.parent), "sha256": binaries},
         "source": {"checkout": str(checkout), "commit": full},
         "ravel": ravel,
+        **({"keg": kegged} if kegged else {}),
     }
     (out / "prepared.json").write_text(json.dumps(record, indent=2) + "\n")
     say(f"prepared {out}/prepared.json")
@@ -2510,10 +2553,11 @@ def working_copy_facts(directory: Path, environ: Mapping[str, str]) -> dict[str,
 
 
 def external_sources(case: dict[str, Any], trial: Path, working_copies: Mapping[str, Path],
-                     environ: Mapping[str, str]) -> dict[str, dict[str, Any]]:
+                     environ: Mapping[str, str], keg: Mapping[str, Any] | None = None) -> dict[str, dict[str, Any]]:
     """The external sources of the case, by ID. Each source comes from a
     plain checkout of its commit, or from the working copy that the run
-    option `--working-copy` names for it."""
+    option `--working-copy` names for it. A keg source comes from the
+    candidate keg of the preparation."""
     external_ids = [source["id"] for source in case.get("sources", []) if source.get("external")]
     for source_id in working_copies:
         if source_id not in external_ids:
@@ -2524,6 +2568,18 @@ def external_sources(case: dict[str, Any], trial: Path, working_copies: Mapping[
                          f"'{case['moveAway']}'; run the case on its checkout")
     externals = {}
     for source in case.get("sources", []):
+        if "keg" in source:
+            if keg is None:
+                raise TrialError(f"case {case['name']}: the source '{source['id']}' comes from the candidate "
+                                 "keg; prepare with --keg, or check with --keg")
+            if source["id"] not in keg["digests"]:
+                raise TrialError(f"case {case['name']}: the candidate keg {keg['keg']} holds no source "
+                                 f"'{source['id']}'")
+            externals[source["id"]] = {
+                "id": source["id"], "keg": keg["keg"], "commit": keg["commit"], "plugin": source["plugin"],
+                "candidate": keg["candidate"], "acceptedDigest": keg["digests"][source["id"]],
+            }
+            continue
         if not source.get("external"):
             continue
         if source["id"] in working_copies:
@@ -2542,6 +2598,8 @@ def external_sources(case: dict[str, Any], trial: Path, working_copies: Mapping[
 
 def external_root(external: dict[str, Any]) -> Path:
     """The directory that holds the source directory of an external source."""
+    if "keg" in external:
+        return Path(external["keg"])
     return Path(external["workingCopy"]["path"] if "workingCopy" in external else external["checkout"])
 
 
@@ -2563,7 +2621,19 @@ def external_failures(externals: dict[str, dict[str, Any]], launches: list[dict[
             failures.append(f"Ravel gave the external source '{source_id}' the digests {digests} in one run")
         elif not digests:
             failures.append(f"Ravel named no resourceDigest of the external source '{source_id}'")
-        if "workingCopy" in external:
+        if "keg" in external:
+            # Ravel canonicalises a source path at capture, so each launch
+            # names the keg directory itself.
+            origins = sorted({source.get("originPath") for launch in launches
+                              for source in launch.get("sources", []) if source.get("id") == source_id})
+            external["originPaths"] = origins
+            inside = str(Path(external["keg"]) / external["plugin"])
+            failures += [f"Ravel captured the keg source '{source_id}' from {origin}, not from {inside}"
+                         for origin in origins if origin != inside]
+            if digests and digests != [external["acceptedDigest"]]:
+                failures.append(f"Ravel gave the keg source '{source_id}' the digest {digests[0]}, and the "
+                                f"candidate keg accepted {external['acceptedDigest']}")
+        elif "workingCopy" in external:
             after = working_copy_facts(Path(external["workingCopy"]["path"]), environ)
             external["workingCopy"]["commitAfter"] = after["commitId"]
             if after["commitId"] != external["workingCopy"]["commitId"]:
@@ -2759,6 +2829,9 @@ def source_suppliers(case: dict[str, Any], prepared: Supplier,
         external = externals.get(source["id"])
         if external is None:
             suppliers[source["id"]] = prepared
+        elif "keg" in external:
+            suppliers[source["id"]] = Supplier(f"the candidate keg {external['keg']} of Grove commit",
+                                               external["commit"], directory=Path(external["keg"]))
         elif "workingCopy" in external:
             copy = external["workingCopy"]
             suppliers[source["id"]] = Supplier(f"the working copy of the external source '{source['id']}' at",
@@ -2964,14 +3037,17 @@ def refuse_unsupplied(case: dict[str, Any], checkout: Path, commit: str,
     return held
 
 
-def check_cases(names: list[str], commit: str, repository: Path | None, environ: Mapping[str, str]) -> int:
+def check_cases(names: list[str], commit: str, repository: Path | None, environ: Mapping[str, str],
+                candidate: Path | None = None) -> int:
     """The supplier check of each named case, or of every case, against a
     commit of this repository or of `repository`. It fetches the commit into
     a plain Git checkout, as `prepare` does, and each external source as a
-    run does. It builds nothing, and it launches no harness and no driver."""
+    run does. A keg source needs the candidate keg of the same commit. It
+    builds nothing, and it launches no harness and no driver."""
     origin = str(repository) if repository else run_checked(
         ["git", "rev-parse", "--path-format=absolute", "--git-common-dir"], cwd=ROOT)
     full = run_checked(["git", "rev-parse", "--verify", f"{commit}^{{commit}}"], cwd=origin)
+    keg = candidate_keg(candidate, full) if candidate else None
     names = names or sorted(path.name for path in CASES.iterdir() if (path / "case.json").is_file())
     failed = 0
     with tempfile.TemporaryDirectory(prefix="grove-trial-check-") as directory:
@@ -2983,7 +3059,7 @@ def check_cases(names: list[str], commit: str, repository: Path | None, environ:
                 case, _ = load_case(name)
                 trial = scratch / "cases" / name
                 trial.mkdir(parents=True)
-                externals = external_sources(case, trial, {}, environ)
+                externals = external_sources(case, trial, {}, environ, keg)
                 held, problems = supply_problems(case, checkout, full, externals, trial / "suppliers")
             except TrialError as error:
                 held, problems = 0, [f"case {name}: {error}"]
@@ -3762,6 +3838,9 @@ def run_case(prepared_dir: Path, name: str, environ: Mapping[str, str],
         if sha256_file(grove_bin / binary) != digest:
             raise TrialError(f"{grove_bin / binary} changed since preparation; prepare again")
     checkout = Path(prepared["source"]["checkout"])
+    keg = prepared.get("keg")
+    if keg and sha256_file(Path(keg["candidate"]) / "candidate.json") != keg["recordSha256"]:
+        raise TrialError(f"{keg['candidate']}/candidate.json changed since preparation; prepare again")
     store = adapter.store
     if not (owner_home / store).exists():
         raise TrialError(f"no sign-in store at {owner_home / store}; sign in to {adapter.name} as the owner")
@@ -3786,7 +3865,7 @@ def run_case(prepared_dir: Path, name: str, environ: Mapping[str, str],
     )
     # An external source comes from its own checkout or working copy. Each
     # refusal of it comes before the harness's version probe.
-    externals = external_sources(case, trial, working_copies or {}, environ)
+    externals = external_sources(case, trial, working_copies or {}, environ, keg)
     # The supplier check comes before the moved-source clone, every copy and
     # the harness's version probe, so a fault sees each source intact.
     held = refuse_unsupplied(case, checkout, prepared["source"]["commit"], externals, trial / "suppliers")
@@ -3934,7 +4013,8 @@ def run_case(prepared_dir: Path, name: str, environ: Mapping[str, str],
         "route": case["route"],
         "mode": case["mode"],
         "trial": str(trial),
-        "builds": {"grove": prepared["grove"], "ravel": prepared["ravel"]},
+        "builds": {"grove": prepared["grove"], "ravel": prepared["ravel"],
+                   **({"keg": {k: v for k, v in keg.items() if k != "digests"}} if keg else {})},
         "harness": {
             "name": adapter.name, "program": str(program), "version": version, "model": model,
             "effort": effort, "permissionMode": adapter.permission_mode,
@@ -4157,6 +4237,11 @@ def external_row(external: dict[str, Any], trial: str) -> str:
     """The table row of one external source: its checkout, or the working
     copy that replaced the checkout."""
     digest = f"`resourceDigest` `{external.get('resourceDigest')}`"
+    if "keg" in external:
+        return (f"| Keg source `{external['id']}` | the candidate keg `{cell(external['keg'])}` of Grove commit "
+                f"`{external['commit']}`; source directory `{external['plugin']}`, captured from "
+                f"{', '.join(f'`{cell(o)}`' for o in external.get('originPaths', [])) or 'no path'}; {digest}, "
+                f"accepted `{external['acceptedDigest']}` |")
     wanted = f"`{cell(external['repository'])}` at commit `{external['commit']}`"
     if "workingCopy" in external:
         copy = external["workingCopy"]
@@ -4410,6 +4495,8 @@ def main(argv: list[str] | None = None, environ: Mapping[str, str] | None = None
     p.add_argument("--out", required=True, type=Path)
     p.add_argument("--commit", required=True)
     p.add_argument("--ravel", required=True, type=Path, help="the absolute 2.0 front, PREFIX/bin/ravel")
+    p.add_argument("--keg", type=Path, help="the OUT of `task owner:candidate-keg` for the same commit, "
+                   "which supplies each keg source")
     r = commands.add_parser("run", help="run one real trial case (spends subscription usage)")
     r.add_argument("--prepared", required=True, type=Path)
     r.add_argument("--case", required=True)
@@ -4423,6 +4510,7 @@ def main(argv: list[str] | None = None, environ: Mapping[str, str] | None = None
     c.add_argument("--commit", required=True, help="the Grove commit that the record of the case names")
     c.add_argument("--case", action="append", default=[], help="a case to check; every case when omitted")
     c.add_argument("--repository", type=Path, help="the repository that holds the commit; this one by default")
+    c.add_argument("--keg", type=Path, help="the OUT of `task owner:candidate-keg` for the same commit")
     x = commands.add_parser("reextract", help="extract the events of an earlier run again, from its transcripts")
     x.add_argument("--trial", required=True, type=Path)
     t = commands.add_parser("turns", help="the feeder of a compaction case, which the trial configuration runs")
@@ -4431,9 +4519,9 @@ def main(argv: list[str] | None = None, environ: Mapping[str, str] | None = None
     args = parser.parse_args(argv)
     try:
         if args.command == "prepare":
-            prepare(args.out, args.commit, args.ravel, environ)
+            prepare(args.out, args.commit, args.ravel, environ, args.keg)
         elif args.command == "check":
-            return check_cases(args.case, args.commit, args.repository, environ)
+            return check_cases(args.case, args.commit, args.repository, environ, args.keg)
         elif args.command == "reextract":
             reextract(args.trial)
         elif args.command == "turns":

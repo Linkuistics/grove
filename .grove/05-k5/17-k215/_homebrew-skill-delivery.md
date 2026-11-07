@@ -155,3 +155,9 @@ rollout that turns on Ravel 2.0 delivery must remove that plugin.
 TestAnyware's release archives now pack with `--no-mac-metadata`. Each
 earlier macOS archive held an AppleDouble member for each file, and GNU `tar`
 unpacks those members as files.
+
+`candidate-keg-k238` added `task owner:candidate-keg` and removed
+`task owner:checkouts` with its script. Its results are in the section "The
+candidate keg" of `docs/repository-moves-record.md` and in "Keg craft
+trials" of `docs/common-loading-acceptance-record.md`. The trial front is now
+Ravel `ff14cba826b0`, which `scripts/harness-trials/builds.json` pins.

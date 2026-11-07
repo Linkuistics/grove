@@ -3950,3 +3950,37 @@ and classified. The run fails on any line without a class.
   and the settings that name checkouts.
 - The positive control found four known current lines. With an empty file
   list, it reported them as missing.
+
+## The candidate keg
+
+`candidate-keg-k238` added `task owner:candidate-keg` on 2026-11-07 and
+removed `task owner:checkouts` with its script. The task builds the candidate
+keg of a named Grove commit for the staging trials, as the
+[owner delivery design](specs/owner-skill-delivery.md#skill-formulae) states.
+The [Keg craft trials](common-loading-acceptance-record.md#keg-craft-trials)
+hold its readings and the harness trials that read the keg.
+
+### What the task does
+
+- It makes a plain Git checkout of the commit and builds an unreleased archive
+  with that checkout's own release build, for the host target.
+- It runs Homebrew's install method of that checkout's formula template in a
+  private prefix. It makes the `opt/grove` link and the links of
+  `share/ravel/skills`.
+- A private copy of the 2.0 build resolves the six sources with no settings.
+  Each digest must equal that of the plain checkout of the same commit.
+- It prints the commit and each digest, and it writes `digests.tsv` and
+  `candidate.json`. `ACCEPTED` names an earlier `digests.tsv`, and a
+  different digest fails the task.
+
+### For rollout
+
+| Subject | Value |
+| --- | --- |
+| Candidate built | Grove `7b113a28a96621217c16154d4f44eba667236132`, the commit of `homebrew-delivery-guidance-k237`. No remote held it on 2026-11-07 |
+| Digests | The six digests in the table of [The candidate keg](common-loading-acceptance-record.md#the-candidate-keg). Two builds gave the same digests |
+| Trial input | `prepare --keg` and a source with `"keg": "grove"` in `scripts/harness_trial.py`. The case `keg-craft-discovery` is the model |
+
+The staging leaves of `owner-ravel-skill-inventory-k38` build the keg of the
+published candidate and record its accepted digests. The trials here do not
+replace that evidence.

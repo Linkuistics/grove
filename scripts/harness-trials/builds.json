@@ -1,13 +1,13 @@
 {
   "schemaVersion": 1,
-  "source": "docs/common-loading-acceptance-record.md#confinement-removal-build",
+  "source": "docs/grove-dual-ravel-stage-record.md#default-directory-runs",
   "ravel2": {
     "line": "skill-directory-delivery",
-    "buildCommit": "d324668b86ca",
-    "outputCommit": "71f70fcd3f92",
-    "buildIdentity": "a4f55d04b2d19a9948f2bcdcb3f305ee20ae80fae7f9011ec878f117d98e6519",
+    "buildCommit": "ff14cba826b0",
+    "outputCommit": "ff14cba826b0",
+    "buildIdentity": "58d479ed058f1094b8754c72eecf9f0cec5a60b3d22b76baecdb827364abd217",
     "binRavelSha256": {
-      "Darwin-arm64": "26b487afb957c233848e8e360e29c73539a33ba89fc3444b26ad13a2eb4bf0a3"
+      "Darwin-arm64": "3a9a9129573e4d827a317f6b793ba990044080a31a7b667b64cc153a2f974a0b"
     }
   }
 }

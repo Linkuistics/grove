@@ -209,3 +209,20 @@ Four of them matter to later work.
   and revision of the `personal` source and of the two native plugins.
 - No `craft/` skill remains in Grove. The fixtures of `install.test.sh` keep
   the synthetic label `linkuistics`, and the record says why.
+
+`homebrew-skill-delivery-k215` closed after `candidate-keg-k238`. Its results
+are in the sections from "The personal formula" to "The candidate keg" of
+`docs/repository-moves-record.md`. Four of them matter to later work.
+
+- Grove's formula carries core and the five packs at the commits of
+  `plugins/packs.json`. Ravel 2.0 reads them from its default skill
+  directory with no settings.
+- `task owner:candidate-keg` builds the candidate keg of a named commit and
+  prints each source's `resourceDigest`. Its `ACCEPTED` variable compares the
+  digests with an earlier build. The candidate built on 2026-11-07 is
+  `7b113a28a966`, which no remote held then.
+- The trial runner reads a keg source through `prepare --keg` and the source
+  field `"keg": "grove"`. The case `keg-craft-discovery` passed once in each
+  harness, with every source at a keg path.
+- The staging trials, the rehearsal and the hooks installation inside finish
+  belong to rollout, as the node brief of k215 states.

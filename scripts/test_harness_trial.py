@@ -934,11 +934,35 @@ class Fixture:
         (self.prepared / "prepared.json").write_text(json.dumps(prepared))
         return head
 
-    def check(self, *cases: str, commit: str | None = None) -> tuple[int, str]:
+    def keg(self, accepted: str | None = None) -> Path:
+        """A candidate keg of the prepared commit, as `task owner:candidate-keg`
+        writes it, which the prepared directory then names. Its source `grove`
+        is a copy of the checkout's plugins/grove, and its accepted digest is
+        the fake front's digest of an unchanged first source. `accepted`
+        replaces that digest. It returns the candidate directory."""
+        candidate = self.root / "candidate"
+        shutil.rmtree(candidate, ignore_errors=True)
+        source = candidate / "keg" / "share/ravel/skills/grove"
+        shutil.copytree(self.checkout / "plugins/grove", source)
+        prepared = json.loads((self.prepared / "prepared.json").read_text())
+        commit = prepared["source"]["commit"]
+        (candidate / "candidate.json").write_text(json.dumps({
+            "schemaVersion": 1, "commit": commit, "keg": str(candidate / "keg"),
+            "skillDirectory": str(candidate / "brew/share/ravel/skills"),
+            "sources": [{"id": "grove", "resourceDigest": accepted or "ab" * 32,
+                         "originPath": str(source), "roots": ["skills"]}],
+        }))
+        prepared["keg"] = trial.candidate_keg(candidate, commit)
+        (self.prepared / "prepared.json").write_text(json.dumps(prepared))
+        return candidate
+
+    def check(self, *cases: str, commit: str | None = None, keg: Path | None = None) -> tuple[int, str]:
         """Check cases against a commit of the checkout without a launch;
         return the status and everything it printed."""
         commit = commit or json.loads((self.prepared / "prepared.json").read_text())["source"]["commit"]
         argv = ["check", "--repository", str(self.checkout), "--commit", commit]
+        if keg:
+            argv += ["--keg", str(keg)]
         for case in cases:
             argv += ["--case", case]
         output = io.StringIO()
@@ -1131,6 +1155,14 @@ def plant_cases(root: Path, external: dict[str, str]) -> Path:
             "mandatory": [{"source": "grove", "path": "skills/grove-impl/SKILL.md"},
                           {"source": "grove", "path": "skills/grove/SKILL.md"}],
         },
+    }))
+    # A case whose only source comes from the candidate keg of the prepared
+    # commit, at its directory in the keg.
+    keg = cases / "keg"
+    shutil.copytree(cases / "smoke", keg)
+    (keg / "case.json").write_text(json.dumps({
+        **smoke, "name": "keg",
+        "sources": [{"id": "grove", "keg": "grove", "plugin": "share/ravel/skills/grove", "roots": ["skills"]}],
     }))
     delegate = cases / "delegate"
     shutil.copytree(cases / "smoke", delegate)
@@ -1973,7 +2005,88 @@ class HarnessTrialTest(unittest.TestCase):
         self.check_working_copy_refusals(self.fixture)
         real_sources = trial.external_sources
         self.broken(self.check_working_copy_refusals, "external_sources",
-                    lambda case, trial_dir, copies, environ: real_sources(case, trial_dir, {}, environ))
+                    lambda case, trial_dir, copies, environ, keg=None: real_sources(case, trial_dir, {}, environ, keg))
+
+    # --- The candidate keg -------------------------------------------------------
+
+    def check_keg(self, fixture: Fixture):
+        """A keg source comes from the candidate keg, and Ravel captures it
+        from its directory in the keg with the accepted digest."""
+        candidate = fixture.keg()
+        status, output = fixture.check("keg", keg=candidate)
+        self.assertEqual(status, 0, output)
+        status, output = fixture.run("keg")
+        self.assertEqual(status, 0, output)
+        record = fixture.record()
+        source = candidate / "keg" / "share/ravel/skills/grove"
+        external = record["sources"]["external"][0]
+        self.assertEqual((external["id"], external["keg"]), ("grove", str(candidate / "keg")))
+        self.assertEqual(external["resourceDigest"], external["acceptedDigest"])
+        self.assertEqual(external["originPaths"], [str(source)])
+        self.assertEqual(record["sources"]["settings"]["skills"]["sources"][0]["path"], str(source))
+        self.assertEqual(record["builds"]["keg"]["commit"], record["sources"]["commit"])
+        markdown = (Path(record["trial"]) / "record.md").read_text()
+        self.assertIn(f"| Keg source `grove` | the candidate keg `{candidate / 'keg'}`", markdown)
+
+    def test_a_keg_source_comes_from_the_candidate_keg(self):
+        self.check_keg(self.fixture)
+        self.broken(self.check_keg, "external_sources", lambda *args: {})
+        self.broken(self.check_keg, "external_root", lambda external: Path(external.get("checkout", "/absent")))
+
+    def check_keg_digest(self, fixture: Fixture):
+        """A digest other than the accepted one fails the run."""
+        fixture.keg(accepted="0" * 64)
+        status, output = fixture.run("keg")
+        self.assertEqual(status, 1, output)
+        self.assertIn(f"and the candidate keg accepted {'0' * 64}", output)
+
+    def test_a_keg_source_with_another_digest_fails(self):
+        self.check_keg_digest(self.fixture)
+        self.broken(self.check_keg_digest, "external_failures", lambda *args: [])
+
+    def check_keg_refusals(self, fixture: Fixture):
+        """Without a candidate keg, or with one of another commit, a keg case
+        refuses before any launch."""
+        status, output = fixture.run("keg")
+        self.assertEqual(status, 1, output)
+        self.assertIn("comes from the candidate keg; prepare with --keg", output)
+        self.assertFalse(fixture.launched_any(), "a harness or driver launched before the refusal")
+        status, output = fixture.check("keg")
+        self.assertEqual(status, 1, output)
+        candidate = fixture.keg()
+        fixture.add({"plugins/grove/skills/extra/SKILL.md": "extra\n"})
+        status, output = fixture.check("keg", keg=candidate)
+        self.assertEqual(status, 1, output)
+        self.assertIn("not the prepared commit", output)
+
+    def test_a_keg_case_without_its_keg_refuses_before_any_launch(self):
+        self.check_keg_refusals(self.fixture)
+        real = trial.external_sources
+        self.broken(self.check_keg_refusals, "external_sources",
+                    lambda case, trial_dir, copies, environ, keg=None: real(
+                        {**case, "sources": [s for s in case["sources"] if "keg" not in s]},
+                        trial_dir, copies, environ, keg))
+
+    def test_a_keg_source_names_the_keg_and_its_directory(self):
+        keg = json.loads((trial.CASES / "keg" / "case.json").read_text())
+        source = keg["sources"][0]
+        missing = json.loads((trial.CASES / "missing" / "case.json").read_text())
+        continuation = json.loads((trial.CASES / "continuation" / "case.json").read_text())
+        for name, case in (
+            ("other-formula", {**keg, "sources": [{**source, "keg": "personal"}]}),
+            ("other-directory", {**keg, "sources": [{**source, "plugin": "plugins/grove"}]}),
+            ("keg-external", {**keg, "sources": [{**source, "external": {
+                "repository": self.external["repository"], "commit": self.external["commit"]}}]}),
+            ("keg-moved", {**missing, "sources": [source]}),
+            ("keg-resumed", {**continuation, "sources": [*continuation["sources"],
+                                                         {**source, "id": "kegged",
+                                                          "plugin": "share/ravel/skills/kegged"}]}),
+        ):
+            shutil.copytree(trial.CASES / "continuation", trial.CASES / name)
+            (trial.CASES / name / "case.json").write_text(json.dumps({**case, "name": name}))
+            with self.assertRaises(trial.TrialError, msg=name):
+                trial.load_case(name)
+        trial.load_case("keg")
 
     def test_an_external_source_needs_a_full_commit_and_no_continuation(self):
         smoke = json.loads((trial.CASES / "external" / "case.json").read_text())

@@ -892,7 +892,10 @@ set. Its steps are:
    `resourceDigest` equals its accepted digest.
 7. Record the reader evidence. Name each plugin cache version directory that
    finish loaded and its registration in `installed_plugins.json`. Stop if any
-   of those directories holds `.orphaned_at`.
+   of those directories holds `.orphaned_at`. The program cannot see which
+   directories finish loaded. Finish therefore names each cache path that it
+   read, and the program adds each registration of each enabled plugin. A
+   named path without a registration is a stop.
 8. Stop unless a passing rehearsal record names the prepared plan and the
    program, as [The rehearsed plan](#the-rehearsed-plan) states. Stop while a
    kept copy is flagged. Then write a new backup on the volume of the real
@@ -1249,6 +1252,13 @@ reuse. A rehearsal is a reproducible task in disposable layouts.
 The program is `scripts/owner_switch.py`. Its docstring states the plan's
 format and the rehearsal record that step 8 reads. `task
 owner:switch:rehearse` rehearses it on a fixture plan.
+
+The plan holds the accepted values that steps 4 to 6 compare: each source's
+`resourceDigest`, each formula's version and each source's staging trials.
+The plan's digest therefore covers them, and a passing rehearsal record
+certifies them. The gates of steps 4 to 7 are entries of the program, which
+the plan names as commands. A continuation therefore runs the gates of the
+program copy in its backup.
 
 The same rule binds finish and the owner's run after finish. Inside finish, a
 plan without a passing record ends finish without success, because the

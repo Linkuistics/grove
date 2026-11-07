@@ -47,3 +47,19 @@ real-HOME checkouts in place after it. Insert the drafts of order 4 and the
 staging trials of order 5 before k93. Put the marketplace freeze and the
 rehearsal on the real plan after k93. Consume the "Owner-delivery handoff"
 of the parent brief. Preserve the real current setup until its replacement is accepted.
+
+owner-switch-gates-k241 hands these items to the rehearsal of order 6 and
+to the staging trials:
+
+- The rehearsal of the real plan needs a disposable layout built from that
+  plan, with its real watch patterns. The core rehearses only its fixture
+  plan. The real plan's `accepted` section holds real digests. Its
+  rehearsal therefore resolves with the promoted `ravel` against a copy of
+  the real kegs, or with a stub that reports those digests.
+- The real plan names each gate as `["$python", "-I", "$program", "gate",
+  "<step>"]`. Its `baseline` names the baseline instrument. The docstring of
+  `scripts/owner_switch.py` states the form of `accepted`. Its `trials` name the
+  staging trial of each of Grove's sources.
+- The control "With the off value and installed keg sources, `ravel skills
+  resolve --json` must report `disabled`" reads Ravel, not the program. It
+  runs in staging with the promoted `ravel`.

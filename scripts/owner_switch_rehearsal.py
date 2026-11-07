@@ -33,10 +33,19 @@ interval meets the evidence's range of 30 to 38 ms. The interval of a
 command lies between the largest lead at which a race lost the outside write
 and the smallest lead at which the live file kept it.
 
-This slice covers the controls of the switch, the inverse, detection,
-interruptions, entries, step 14, the processes, the rehearsal condition and
-the preludes of step 3. The gates of steps 4 to 7, the owner's inverse and
-the merge entry add their controls in later slices.
+The fixture plan names the program's own gates of steps 4 to 7. Each run
+therefore finds a fixture Homebrew prefix in the case: five kegs with the ten
+sources, the links of `brew link`, `bin/ravel` for the promoted Ravel and
+Grove's `bin/grove`. Stub `mise` and `brew info` read that prefix, and the
+control file can change their answers. The stub `ravel` digests each source's
+files, so a one-byte change changes its resourceDigest. It refuses the
+account's HOME, the switch's HOME and every RAVEL_* name, and each run sets
+one such name, so each resolution shows the gate's environment rule.
+
+The controls cover the switch, the inverse, detection, interruptions,
+entries, step 14, the processes, the rehearsal condition, the preludes of
+step 3, its baseline rows and the gates with their source controls. The
+owner's inverse and the merge entry add their controls in a later slice.
 """
 from __future__ import annotations
 
@@ -77,6 +86,20 @@ PLUGIN_FILES = {
 }
 PLUGIN_SOURCE = "skills/writing/craft/technical-communication"
 PLUGIN_CACHE = ".claude/plugins/cache/writing-hooks/technical-communication-hooks/unknown"
+# The fixture kegs of the ten sources: formula -> (version, source IDs).
+FORMULA_OF_GROVE = "linkuistics/taps/grove"
+KEGS = {
+    "grove": ("1", ["design", "engineering", "grove-core", "requirements", "research", "writing"]),
+    "personal": ("2", ["personal"]),
+    "testanyware": ("3", ["testanyware"]),
+    "superpowers": ("4", ["superpowers"]),
+    "quint-llm-kit": ("5", ["quint"]),
+}
+# The plugins that the fixture enables, with their registered version directories.
+READERS = {
+    "grove@linkuistics": ".claude/plugins/cache/linkuistics/grove/0a1b2c3d",
+    "context7@claude-plugins-official": ".claude/plugins/cache/claude-plugins-official/context7/4e5f6a7b",
+}
 
 
 # --- the fixture layout --------------------------------------------------------
@@ -87,8 +110,18 @@ def write(path: str, text: str) -> None:
         f.write(text)
 
 
+def write_script(path: str, text: str) -> None:
+    write(path, text)
+    os.chmod(path, 0o755)
+
+
 def build_prefix(prefix: str) -> str:
-    """A Homebrew prefix whose Grove keg holds the writing-hooks marketplace."""
+    """A Homebrew prefix with the five skill formulae's kegs, linked as `brew link` links them.
+
+    Grove's keg holds the writing-hooks marketplace, `bin/grove` and six
+    sources. `bin/ravel` stands in for the promoted Ravel, and
+    `var/homebrew/linked` records each linked keg, as Homebrew does.
+    """
     keg = os.path.join(prefix, "Cellar/grove/1")
     write(os.path.join(keg, ".claude-plugin/marketplace.json"), json.dumps({
         "name": "writing-hooks", "owner": {"name": "Linkuistics"},
@@ -96,9 +129,37 @@ def build_prefix(prefix: str) -> str:
     }) + "\n")
     for rel, text in PLUGIN_FILES.items():
         write(os.path.join(keg, PLUGIN_SOURCE, rel), text)
-    os.makedirs(os.path.join(prefix, "opt"), exist_ok=True)
-    os.symlink("../Cellar/grove/1", os.path.join(prefix, "opt/grove"))
+    write_script(os.path.join(keg, "bin/grove"), "#!/bin/sh\necho 'grove 1'\n")
+    for folder in ("opt", "share/ravel/skills", "var/homebrew/linked"):
+        os.makedirs(os.path.join(prefix, folder), exist_ok=True)
+    for name, (version, ids) in KEGS.items():
+        for sid in ids:
+            rel = f"Cellar/{name}/{version}/share/ravel/skills/{sid}"
+            write(os.path.join(prefix, rel, f"skills/{sid}-skill/SKILL.md"),
+                  f"---\nname: {sid}-skill\n---\nThe fixture source {sid}.\n")
+            os.symlink(f"../../../{rel}", os.path.join(prefix, "share/ravel/skills", sid))
+        os.symlink(f"../Cellar/{name}/{version}", os.path.join(prefix, "opt", name))
+        os.symlink(f"../../../Cellar/{name}/{version}", os.path.join(prefix, "var/homebrew/linked", name))
+    write_script(os.path.join(prefix, "bin/ravel"), f"#!/bin/sh\nexec '{PY}' -I '{SELF}' stub-ravel \"$0\" \"$@\"\n")
     return os.path.join(prefix, "opt/grove")
+
+
+def source_digest(path: str) -> str:
+    """The fixture resourceDigest of a source: each relative path, link target and file content."""
+    import hashlib
+    h = hashlib.sha256()
+    root = os.path.realpath(path)
+    for folder, dirs, files in os.walk(root):
+        dirs.sort()
+        for name in sorted(dirs + files):
+            p = os.path.join(folder, name)
+            h.update(os.path.relpath(p, root).encode() + b"\0")
+            if os.path.islink(p):
+                h.update(b"link:" + os.readlink(p).encode() + b"\0")
+            elif os.path.isfile(p):
+                with open(p, "rb") as f:
+                    h.update(f.read() + b"\0")
+    return h.hexdigest()
 
 
 def build_home(home: str, marketplace: str, ravel: str = "off", hooks: str = "disabled") -> None:
@@ -112,11 +173,15 @@ def build_home(home: str, marketplace: str, ravel: str = "off", hooks: str = "di
                                                                              "path": marketplace}}}
         save_json(os.path.join(home, ".claude/plugins/known_marketplaces.json"), {"writing-hooks": {
             "source": {"source": "directory", "path": marketplace}, "installLocation": marketplace}})
-        save_json(os.path.join(home, ".claude/plugins/installed_plugins.json"), {"version": 2, "plugins": {
-            HOOKS_ID: [{"scope": "user", "version": "unknown",
-                        "installPath": os.path.join(home, PLUGIN_CACHE)}]}})
+    plugins = {pid: [{"scope": "user", "version": os.path.basename(rel), "installPath": os.path.join(home, rel)}]
+               for pid, rel in READERS.items()}
+    for rel in READERS.values():
+        write(os.path.join(home, rel, ".claude-plugin/plugin.json"), "{}\n")
+    if hooks != "absent":
+        plugins[HOOKS_ID] = [{"scope": "user", "version": "unknown", "installPath": os.path.join(home, PLUGIN_CACHE)}]
         for rel, text in PLUGIN_FILES.items():
             write(os.path.join(home, PLUGIN_CACHE, rel), text)
+    save_json(os.path.join(home, ".claude/plugins/installed_plugins.json"), {"version": 2, "plugins": plugins})
     write(os.path.join(home, ".claude/settings.json"), json.dumps(settings, indent=2) + "\n")
     write(os.path.join(home, ".config/ravel/config.rhai"), "// fixture\n")
     if ravel != "absent-file":
@@ -134,11 +199,20 @@ def fixture_command(name: str) -> list:
     return [PY, "-I", SELF, "fixture-command", name]
 
 
+def gate_command(step: str, name: str) -> dict:
+    return {"name": name, "argv": ["$python", "-I", "$program", "gate", step]}
+
+
 def build_plan(program: str, out: str) -> str:
     probe = os.path.join(out, "plan-home")
-    if os.path.exists(probe):
-        shutil.rmtree(probe)
-    build_home(probe, os.path.join(out, "plan-prefix/opt/grove"))
+    prefix = os.path.join(out, "plan-prefix")
+    for folder in (probe, prefix):
+        if os.path.exists(folder):
+            shutil.rmtree(folder)
+    build_home(probe, build_prefix(prefix))
+    sources = {sid: {"formula": f"linkuistics/taps/{name}",
+                     "resourceDigest": source_digest(os.path.join(prefix, "share/ravel/skills", sid))}
+               for name, (_, ids) in KEGS.items() for sid in ids}
 
     def ident(rel):
         return subprocess.run([PY, "-I", program, "identity", os.path.join(probe, rel)],
@@ -167,12 +241,20 @@ def build_plan(program: str, out: str) -> str:
         "session": {"harness": [HARNESS_MARK], "mcp": []},
         "watch": [WRITER_MARK],
         "jobs": {"argv": fixture_command("jobs"), "patterns": [JOB_MARK]},
-        "gates": {s: [{"name": f"gate-{s}", "argv": fixture_command(f"gate-{s}")}] for s in ("4", "5", "6", "7")},
+        "baseline": {"name": "baseline", "argv": fixture_command("baseline")},
+        "gates": {"4": [gate_command("4", "grove-release")], "5": [gate_command("5", "skill-formulae")],
+                  "6": [gate_command("6", "resolved-sources")], "7": [gate_command("7", "reader-evidence")]},
+        "accepted": {
+            "sources": sources,
+            "versions": {f"linkuistics/taps/{name}": version for name, (version, _) in KEGS.items() if name != "grove"},
+            "trials": {sid: [{"name": f"trial-{sid}", "argv": fixture_command("trial")}] for sid in KEGS["grove"][1]},
+        },
         "probes": [{"name": "probe-switched", "argv": fixture_command("probe-switched")}],
         "native_probe": [{"name": "probe-native", "argv": fixture_command("probe-native")}],
         "mac_check": {"name": "mac-check", "argv": fixture_command("mac-check")},
     }
     shutil.rmtree(probe)
+    shutil.rmtree(prefix)
     path = os.path.join(out, "plan.json")
     with open(path, "w") as f:
         json.dump(plan, f, indent=2)
@@ -224,6 +306,17 @@ def cmd_fixture(name: str) -> int:
     if take_failure(root, name):
         print(f"{name}: failed by the control")
         return 1
+    if name == "baseline":
+        # The rows of inventory.py: harness, root, name, ..., disposition.
+        print("claude\t~/.claude/skills\tgrove\tskill\tgrove\t0123456789abcdef\t1\tstale\t-\t-\tnative-move")
+        print("claude\tbuilt-in\tdebug\tbuilt-in skill\tdebug\tunverified\t0\tplatform\t-\t-\tnative-keep")
+        for row in load(os.path.join(root, "control.json"), {}).get("baseline_rows", []):
+            print(row)
+        return 0
+    if name == "trial":
+        with open(os.path.join(root, "trials.log"), "a") as f:
+            f.write(f"{os.environ['OWNER_SWITCH_SOURCE']} {os.environ['OWNER_SWITCH_DIGEST']}\n")
+        return 0
     ravel = load(os.path.join(home, ".config/ravel/settings.json"), {}).get("skills")
     link = os.path.lexists(os.path.join(home, ".codex/skills/grove"))
     if name == "probe-switched":
@@ -352,10 +445,86 @@ def cmd_holder(path: str, slot: str) -> int:
 
 
 def cmd_stub_brew(argv: list) -> int:
-    if argv != ["--prefix"]:
-        print(f"stub brew: unsupported {argv}", file=sys.stderr)
+    prefix = os.path.join(case_root(), "prefix")
+    if argv == ["--prefix"]:
+        print(prefix)
+        return 0
+    if argv == ["--cellar"]:
+        print(os.path.join(prefix, "Cellar"))
+        return 0
+    if argv == ["info", "--json=v2", FORMULA_OF_GROVE]:
+        # The fields of `brew info --json=v2` that Homebrew 7.0.12 gave on 2026-11-07.
+        control = load(os.path.join(case_root(), "control.json"), {})
+        linked = os.path.join(prefix, "var/homebrew/linked/grove")
+        cellar = os.path.join(prefix, "Cellar/grove")
+        print(json.dumps({"formulae": [{
+            "name": "grove", "full_name": FORMULA_OF_GROVE, "tap": "linkuistics/taps",
+            "versions": {"stable": control.get("tap_grove", "1"), "head": None, "bottle": False},
+            "revision": 0,
+            "linked_keg": os.path.basename(os.readlink(linked)) if os.path.islink(linked) else None,
+            "installed": [{"version": v} for v in sorted(os.listdir(cellar))],
+        }], "casks": []}))
+        return 0
+    print(f"stub brew: unsupported {argv}", file=sys.stderr)
+    return 2
+
+
+def cmd_stub_mise(argv: list) -> int:
+    """`mise -C HOME bootstrap packages status --json`, in the shape of mise 2026.11.2."""
+    home = os.environ.get("OWNER_SWITCH_HOME", "")
+    if argv != ["-C", home, "bootstrap", "packages", "status", "--json"] or os.environ.get("HOME") != home:
+        print(f"stub mise: unsupported {argv} with HOME {os.environ.get('HOME')}", file=sys.stderr)
         return 2
-    print(os.path.join(case_root(), "prefix"))
+    prefix = os.path.join(case_root(), "prefix")
+    override = load(os.path.join(case_root(), "control.json"), {}).get("mise", {})
+    rows = [{"package": "jq", "requested_version": "latest", "desired_state": "present", "state": "installed",
+             "installed_version": "1.8.1"}]
+    for name in KEGS:
+        formula = f"linkuistics/taps/{name}"
+        linked = os.path.join(prefix, "var/homebrew/linked", name)
+        row = {"package": formula, "requested_version": "latest", "desired_state": "present",
+               "state": "installed", "installed_version": os.path.basename(os.readlink(linked))}
+        if formula in override:
+            if override[formula] is None:
+                continue
+            row.update(override[formula])
+        rows.append(row)
+    print(json.dumps({"brew": {"available": True, "packages": rows},
+                      "brew-cask": {"available": True, "packages": []}}, indent=2))
+    return 0
+
+
+def cmd_stub_ravel(argv: list) -> int:
+    """The promoted `ravel skills resolve --json`, reading the default skill directory of its prefix."""
+    prefix = os.path.dirname(os.path.dirname(os.path.abspath(argv[0])))
+    args = argv[1:]
+    if args == ["--version"]:
+        print("ravel 2.0.0 (fixture)")
+        return 0
+    if args != ["skills", "resolve", "--json"]:
+        print(f"stub ravel: unsupported {args}", file=sys.stderr)
+        return 2
+    home = os.environ.get("HOME", "")
+    leaked = sorted(k for k in os.environ if k.startswith("RAVEL_"))
+    if leaked or not home or os.path.realpath(home) in (os.path.realpath(os.path.expanduser("~" + os.environ.get("USER", ""))),
+                                                        os.path.realpath(os.environ.get("OWNER_SWITCH_HOME", ""))):
+        print(f"stub ravel: refused HOME {home} with {leaked}", file=sys.stderr)
+        return 2
+    skills = load(os.path.join(home, ".config/ravel/settings.json"), {}).get("skills") or {}
+    if "sources" in skills:
+        sources = [(s["id"], s["path"]) for s in skills["sources"]]
+    else:
+        folder = os.path.join(prefix, "share/ravel/skills")
+        sources = [(n, os.path.join(folder, n)) for n in sorted(os.listdir(folder)) if not n.startswith(".")]
+    if not sources and not skills.get("mandatory"):
+        print(json.dumps({"schemaVersion": 1, "status": "disabled"}))
+        return 0
+    records = []
+    for sid, path in sources:
+        digest = source_digest(path)
+        records.append({"id": sid, "type": "local", "resourceDigest": digest, "originPath": os.path.realpath(path),
+                        "snapshotRoot": os.path.join(home, ".cache/ravel/skills/v1", digest)})
+    print(json.dumps({"schemaVersion": 1, "status": "resolved", "sources": records}, indent=2))
     return 0
 
 
@@ -531,7 +700,7 @@ class Case:
             if os.path.exists(p):
                 os.remove(p)
 
-    def run(self, program=None, plan=None, dry=False) -> tuple:
+    def run(self, program=None, plan=None, dry=False, env=None) -> tuple:
         args = [PY, "-I", program or self.r.program, "run", "--plan", plan or self.r.plan, "--home", self.home]
         if dry:
             args.append("--dry-run")
@@ -539,7 +708,9 @@ class Case:
         # command: the stub refuses it, and so does a staging launch.
         env = dict(clean_env(), OWNER_SWITCH_REHEARSAL_HOOK=self.r.hook,
                    PATH=self.r.stubs + os.pathsep + os.environ.get("PATH", ""),
-                   CLAUDE_CONFIG_DIR=os.path.join(self.root, "elsewhere"))
+                   CLAUDE_CONFIG_DIR=os.path.join(self.root, "elsewhere"),
+                   # The stub ravel refuses every RAVEL_* name, so no resolution may inherit it.
+                   RAVEL_SKILL_DIRECTORIES=os.path.join(self.root, "elsewhere"), **(env or {}))
         before = len(self.claude_calls())
         result = subprocess.run([PY, "-I", SELF, "harness", HARNESS_MARK, self.root, "--"] + args,
                                 env=env, capture_output=True, text=True, timeout=300)
@@ -640,7 +811,7 @@ class Rehearsal:
         os.chmod(self.hook, 0o755)
         self.stubs = os.path.join(self.out, "stubs")
         os.makedirs(self.stubs, exist_ok=True)
-        for name in ("claude", "brew"):
+        for name in ("claude", "brew", "mise"):
             stub = os.path.join(self.stubs, name)
             with open(stub, "w") as f:
                 f.write(f"#!/bin/sh\nexec '{PY}' -I '{SELF}' stub-{name} \"$@\"\n")
@@ -994,7 +1165,9 @@ def c_prepared_differs(case):
     case.set_control({"actions": [{"point": "switch-after-part:1", "do": "crash"}]})
     expect_exit(case.run(), 99)
     plan = load(case.r.plan, {})
-    plan["parts"] = plan["parts"][:3]
+    # The prepared plan lacks the Claude Code settings part. It keeps the Ravel
+    # settings part, because steps 4 and 6 draft the real settings from it.
+    plan["parts"] = [plan["parts"][0], plan["parts"][1], plan["parts"][3]]
     other = os.path.join(case.root, "plan-changed.json")
     save(other, plan)
     out = expect_exit(case.run(plan=other), 3, "the prepared plan differs from the open run's plan")
@@ -1273,6 +1446,242 @@ def c_prelude_other_plan(case):
     expect("replaced: .config/ravel/settings.json" in out, "the native settings did not run")
 
 
+# --- the gates of steps 4 to 7, and the baseline of step 3 ----------------------------
+
+def keg_source(case, sid: str) -> str:
+    return os.path.realpath(os.path.join(case.root, "prefix/share/ravel/skills", sid))
+
+
+def one_byte(case, sid: str) -> None:
+    """Change one byte of a keg source, so that its digest differs from the accepted one."""
+    path = os.path.join(keg_source(case, sid), f"skills/{sid}-skill/SKILL.md")
+    with open(path, "rb") as f:
+        data = bytearray(f.read())
+    data[-2] ^= 0x01
+    with open(path, "wb") as f:
+        f.write(bytes(data))
+
+
+def eleventh_source(case) -> None:
+    prefix = os.path.join(case.root, "prefix")
+    rel = "Cellar/extra/9/share/ravel/skills/eleventh"
+    write(os.path.join(prefix, rel, "skills/eleventh/SKILL.md"), "---\nname: eleventh\n---\n")
+    os.symlink(f"../../../{rel}", os.path.join(prefix, "share/ravel/skills/eleventh"))
+
+
+def trials(case) -> list:
+    try:
+        with open(os.path.join(case.root, "trials.log")) as f:
+            return f.read().split()[::2]
+    except FileNotFoundError:
+        return []
+
+
+def backup_evidence(case, step: str) -> list:
+    backup = case.state()["backup"]
+    return load(os.path.join(backup, "evidence", f"step-{step}.json"), [])
+
+
+def expect_gate_stop(case, text: str, **run) -> str:
+    out = expect_exit(case.run(**run), 3, text)
+    st = case.state()
+    expect(st["state"] == "native" and st["backup"] is None, f"a stopped gate left {st['state']}, {st['backup']}")
+    expect("before-backup-rename" not in case.points(), "a stopped gate reached step 8")
+    return out
+
+
+def c_gates_evidence(case):
+    out = expect_exit(case.run(), 0, "result: complete")
+    expect("compare with finish's own skill listing: claude | built-in | debug" in out,
+           "step 3 did not print the built-in row for finish's listing")
+    four = backup_evidence(case, "4")[0]["result"]
+    expect(four["admitted"] == {"grove_version": "1", "digests": {}} and four["reran"] == [],
+           f"step 4 admitted {four.get('admitted')}")
+    six = backup_evidence(case, "6")[0]["result"]
+    expect(sorted(six["sources"]) == sorted(load(case.r.plan, {})["accepted"]["sources"]), "step 6 kept other sources")
+    readers = {r["plugin"]: r for r in backup_evidence(case, "7")[0]["result"]["readers"]}
+    expect(sorted(readers) == sorted(READERS) and not any(r["orphaned"] for r in readers.values()),
+           f"step 7 recorded {sorted(readers)}")
+    expect(readers["grove@linkuistics"]["path"] == os.path.join(case.home, READERS["grove@linkuistics"]),
+           "step 7 did not name the registered version directory")
+    receipt = [n for n in os.listdir(os.path.join(case.state()["backup"], "run")) if n.endswith("-receipt.json")]
+    body = load(os.path.join(case.state()["backup"], "run", receipt[0]), {})
+    expect(sorted(body.get("gates", {})) == ["4", "6", "7"], f"the receipt lacks the gates: {sorted(body.get('gates', {}))}")
+    expect(trials(case) == [], f"step 4 ran trials {trials(case)} with each digest accepted")
+
+
+def c_eleventh_source(case):
+    eleventh_source(case)
+    expect_gate_stop(case, "step 6: the resolved sources are not the accepted ten: extra eleventh")
+
+
+def c_one_byte_other(case):
+    one_byte(case, "superpowers")
+    expect_gate_stop(case, "step 6: superpowers gives [0-9a-f]{64}, not its accepted")
+    expect(trials(case) == [], "a source outside Grove's keg made step 4 rerun trials")
+
+
+def c_one_byte_grove(case):
+    one_byte(case, "design")
+    digest = source_digest(keg_source(case, "design"))
+    out = expect_exit(case.run(), 0, "the staging trials of design must run again")
+    expect(trials(case) == ["design"], f"step 4 ran the trials {trials(case)}, not those of design")
+    four = backup_evidence(case, "4")[0]["result"]
+    expect(four["reran"] == ["design"] and four["admitted"]["digests"] == {"design": digest},
+           f"step 4 admitted {four['admitted']}")
+    expect("result: complete" in out and case.receipts() == 1, "the switch did not complete with the rerun digest")
+    expect_exit(case.run(), 0, "state: complete")
+    expect(trials(case) == ["design"], "a complete run ran the trials again")
+
+
+def c_one_byte_grove_resumed(case):
+    one_byte(case, "design")
+    case.set_control({"actions": [{"point": "switch-after-part:3", "do": "crash"}]})
+    expect_exit(case.run(), 99)
+    expect(case.state()["state"] == "active", "the crash did not leave the active state")
+    out = expect_exit(case.run(), 0, "result: complete")
+    expect("command resolved-sources (step 6): exit 0" in out, "the active continuation did not rerun step 6")
+    expect(trials(case) == ["design"], f"the continuation ran trials again: {trials(case)}")
+
+
+def c_trial_fails(case):
+    one_byte(case, "design")
+    case.set_control({"fail": {"trial": 1}})
+    expect_gate_stop(case, "step 4: the staging trial trial-design of design failed")
+
+
+def c_no_trial(case):
+    one_byte(case, "writing")
+    plan = load(case.r.plan, {})
+    del plan["accepted"]["trials"]["writing"]
+    other = os.path.join(case.root, "plan-no-trial.json")
+    save(other, plan)
+    expect_gate_stop(case, "step 4: the plan names no staging trial for writing", plan=other)
+
+
+def c_tap_newer(case):
+    case.set_control({"tap_grove": "2"})
+    expect_gate_stop(case, "the tap's current version 2 is not installed")
+
+
+def c_linked_older(case):
+    """The tap's current version 2 is installed, and Homebrew still links version 1."""
+    prefix = os.path.join(case.root, "prefix")
+    shutil.copytree(os.path.join(prefix, "Cellar/grove/1"), os.path.join(prefix, "Cellar/grove/2"), symlinks=True)
+    case.set_control({"tap_grove": "2"})
+    expect_gate_stop(case, "the linked keg is 1, not the tap's current version 2")
+
+
+def c_opt_elsewhere(case):
+    prefix = os.path.join(case.root, "prefix")
+    shutil.copytree(os.path.join(prefix, "Cellar/grove/1"), os.path.join(prefix, "Cellar/grove/0"), symlinks=True)
+    os.remove(os.path.join(prefix, "opt/grove"))
+    os.symlink("../Cellar/grove/0", os.path.join(prefix, "opt/grove"))
+    expect_gate_stop(case, "opt/grove reaches .*Cellar/grove/0, not the keg")
+
+
+def c_grove_version(case):
+    write_script(os.path.join(case.root, "prefix/Cellar/grove/1/bin/grove"), "#!/bin/sh\necho 'grove 0'\n")
+    expect_gate_stop(case, "printed 'grove 0', not 'grove 1'")
+
+
+def c_formula(override: dict, text: str):
+    def fn(case):
+        case.set_control({"mise": override})
+        expect_gate_stop(case, text)
+    return fn
+
+
+def c_reader_orphaned(case):
+    write(os.path.join(case.home, READERS["grove@linkuistics"], ".orphaned_at"), "1792928060164")
+    expect_gate_stop(case, "step 7: the version directory .* of grove@linkuistics holds .orphaned_at")
+
+
+def c_reader_missing(case):
+    shutil.rmtree(os.path.join(case.home, READERS["context7@claude-plugins-official"]))
+    expect_gate_stop(case, "step 7: the version directory .* of context7@claude-plugins-official is missing")
+
+
+def c_reader_unregistered(case):
+    old = os.path.join(case.home, ".claude/plugins/cache/linkuistics/grove/99999999")
+    write(os.path.join(old, "skills/grove-finish/SKILL.md"), "---\nname: grove-finish\n---\n")
+    expect_gate_stop(case, "which finish read, has no registration", env={"OWNER_SWITCH_READERS": old})
+
+
+def c_reader_named(case):
+    read = os.path.join(case.home, READERS["grove@linkuistics"], ".claude-plugin")
+    expect_exit(case.run(env={"OWNER_SWITCH_READERS": read}), 0, "result: complete")
+    named = [r for r in backup_evidence(case, "7")[0]["result"]["readers"] if r["reason"] == "read"]
+    expect(len(named) == 1 and named[0]["read"] == read and named[0]["plugin"] == "grove@linkuistics",
+           f"step 7 did not record the directory that finish read: {named}")
+
+
+def c_step6_active(case):
+    case.set_control({"actions": [{"point": "switch-after-part:3", "do": "crash"}]})
+    expect_exit(case.run(), 99)
+    eleventh_source(case)
+    expect_exit(case.run(), 3, "failed probe \\(step 6 failed: resolved-sources\\)")
+    st = case.state()
+    expect(st["state"] == "native" and st["records"][-1] == "inverse-ended", f"step 6 left {st['state']}")
+    expect(case.receipts() == 0, "a failed step 6 copied a receipt")
+
+
+BASELINE_ROW = "control\t~/scratch\tunknown\tskill\tunknown\t0123456789abcdef\t1\tunknown\t-\t-\tUNCLASSIFIED"
+
+
+def c_baseline_native(case):
+    case.set_control({"baseline_rows": [BASELINE_ROW]})
+    out = expect_gate_stop(case, "the switch set differs from the prepared plan; stop for classification")
+    expect("changed outside the switch set: baseline row: control | ~/scratch" in out,
+           "step 3 did not report the baseline row")
+
+
+def c_baseline_active(case):
+    case.set_control({"actions": [{"point": "switch-after-part:3", "do": "crash"}]})
+    expect_exit(case.run(), 99)
+    case.set_control({"baseline_rows": [BASELINE_ROW.replace("UNCLASSIFIED", "NEEDS-REVIEW")]})
+    mark = len(case.points())
+    expect_exit(case.run(), 3, "failed probe \\(changed outside the switch set: baseline row")
+    st = case.state()
+    expect(st["records"][-1] == "inverse-ended" and case.receipts() == 0, "an anomaly row did not fail the probe")
+    expect("command:probe-switched" not in case.points()[mark:], "the probes ran on a layout with an anomaly row")
+
+
+def c_baseline_fails(case):
+    case.set_control({"fail": {"baseline": 1}})
+    expect_gate_stop(case, "the baseline instrument baseline failed")
+
+
+def gate_controls() -> list:
+    return [
+        ("gates-evidence", c_gates_evidence, {}),
+        ("source-eleventh-stops-step-6", c_eleventh_source, {}),
+        ("source-one-byte-stops-step-6", c_one_byte_other, {}),
+        ("source-one-byte-grove-reruns-trials", c_one_byte_grove, {}),
+        ("source-one-byte-grove-resumed", c_one_byte_grove_resumed, {}),
+        ("source-grove-trial-fails", c_trial_fails, {}),
+        ("source-grove-no-trial", c_no_trial, {}),
+        ("grove-tap-newer", c_tap_newer, {}),
+        ("grove-linked-older", c_linked_older, {}),
+        ("grove-opt-elsewhere", c_opt_elsewhere, {}),
+        ("grove-version-differs", c_grove_version, {}),
+        ("formula-missing", c_formula({"linkuistics/taps/personal": {"state": "missing"}},
+                                      "step 5: linkuistics/taps/personal is missing, not installed"), {}),
+        ("formula-undeclared", c_formula({"linkuistics/taps/testanyware": None},
+                                         "step 5: linkuistics/taps/testanyware is not declared"), {}),
+        ("formula-version", c_formula({"linkuistics/taps/superpowers": {"installed_version": "9"}},
+                                      "step 5: linkuistics/taps/superpowers is at 9, not its accepted version 4"), {}),
+        ("reader-orphaned", c_reader_orphaned, {}),
+        ("reader-missing", c_reader_missing, {}),
+        ("reader-named-unregistered", c_reader_unregistered, {}),
+        ("reader-named", c_reader_named, {}),
+        ("step-6-active-eleventh", c_step6_active, {}),
+        ("baseline-anomaly-native", c_baseline_native, {}),
+        ("baseline-anomaly-active", c_baseline_active, {}),
+        ("baseline-fails", c_baseline_fails, {}),
+    ]
+
+
 def all_controls(r: Rehearsal) -> list:
     parts = load(r.plan, {})["parts"]
     files = [i for i, p in enumerate(parts) if p["kind"] == "file"]
@@ -1346,6 +1755,7 @@ def all_controls(r: Rehearsal) -> list:
         ("prepared-plan-differs", c_prepared_differs, {}),
     ]
     controls += prelude_controls()
+    controls += gate_controls()
     return controls
 
 
@@ -1503,6 +1913,10 @@ def main() -> int:
         return cmd_stub_claude(sys.argv[2:])
     if len(sys.argv) > 1 and sys.argv[1] == "stub-brew":
         return cmd_stub_brew(sys.argv[2:])
+    if len(sys.argv) > 1 and sys.argv[1] == "stub-mise":
+        return cmd_stub_mise(sys.argv[2:])
+    if len(sys.argv) > 1 and sys.argv[1] == "stub-ravel":
+        return cmd_stub_ravel(sys.argv[2:])
     if len(sys.argv) > 1 and sys.argv[1] == "harness":
         sep = sys.argv.index("--")
         return cmd_harness(sys.argv[3], sys.argv[sep + 1:])

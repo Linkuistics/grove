@@ -37,3 +37,13 @@ the record of a merge. Add the report of the switch state to `mac-check`.
 The `mac-check` change follows the machine configuration contract. It changes
 no discovery. The pack-checkout status of `mac-check` belongs to
 owner-pack-checkouts-k93.
+
+owner-switch-gates-k241 hands this leaf the pending-activation record.
+After a stop or an inverse, finish's continuation writes that record into
+the maintained manual. Items 2 and 3 of the continuation after "The switch
+inside finish" state its content. The receipt later replaces it.
+
+The program reports the state and stops. Its command evidence holds the
+output of each gate, such as the Grove version and keg of step 4 and the
+`mise` status of step 5. Add an entry of the program that writes the record from that
+evidence. Add its rehearsal controls beside those of `mac-check`.

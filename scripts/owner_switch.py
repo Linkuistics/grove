@@ -16,14 +16,16 @@ Usage:
     python3 -I owner_switch.py run      --plan PLAN [--home HOME] [--dry-run]
     python3 -I owner_switch.py identity PATH
     python3 -I owner_switch.py digest   PATH
+    python3 -I owner_switch.py gate     {4,5,6,7} [--plan PLAN] [--home HOME]
 
 `state` reads the state of the switch set and changes nothing. `run` runs the
 switch from step 1, or continues an open run as the state table states.
 `run --dry-run` reports the parts, the current value of each cell and the
 inverse, runs no command and changes nothing. `identity` prints the change
 identity of an entry, and `digest` prints the digest of a file, for a plan's
-author. HOME defaults to the account's home directory. Each path in the plan
-is relative to HOME.
+author. `gate` runs the check of one of steps 4 to 7, which a plan names as
+a command. HOME defaults to the account's home directory. Each path in the
+plan is relative to HOME.
 
 Exit status: 0 when the run reached the complete or the native state that it
 was asked for, 2 for a usage error, 3 for a stop. A stop prints "stop:" and
@@ -42,12 +44,53 @@ The plan (JSON, schema "owner-switch-plan/1"):
     session      {"harness": [regex], "mcp": [regex]}: the kept processes
     watch        [regex]: the programs of step 1, matched against arguments
     jobs         {"argv": [...], "patterns": [regex]}: the job listing
+    baseline     command: the baseline instrument that step 3 reruns
     gates        {"4": [command], "5": [...], "6": [...], "7": [...]}
+    accepted     the accepted values that the gates read:
+                 sources   {id: {"formula", "resourceDigest"}}, exactly the
+                           ten IDs of "Ravel sources"
+                 versions  {formula: version} for each skill formula except
+                           Grove's, whose accepted version step 4 admits
+                 trials    {id: [command]}: the staging trials of a source
     probes       [command]: the probes of step 10
     native_probe [command]: the native probe of Rollback
     mac_check    command: step 12
-A command is {"name", "argv"}. It runs in HOME, without Grove's loop control
-variables, with OWNER_SWITCH_HOME, OWNER_SWITCH_STATE and OWNER_SWITCH_STEP.
+A command is {"name", "argv"}. The argv items "$python" and "$program" become
+this program's interpreter and path, so a continuation runs the gates of the
+program copy in its backup. A command runs in HOME, with HOME set to HOME and
+without Grove's loop control variables. It receives OWNER_SWITCH_HOME,
+OWNER_SWITCH_STATE, OWNER_SWITCH_STEP and OWNER_SWITCH_PLAN, the path of the
+plan that names it. Its last line of standard output may be
+`owner-switch-result: <JSON object>`, which the evidence keeps as "result".
+
+The gates. A plan names `["$python", "-I", "$program", "gate", "<step>"]`.
+    4  Stop unless the installed Grove is the tap's current version of
+       linkuistics/taps/grove, with its keg linked and $(brew --prefix)/opt/grove
+       reaching it. Resolve the drafted real settings in a disposable HOME
+       with $(brew --prefix)/bin/ravel. For each of Grove's sources whose
+       resourceDigest differs from its accepted digest, name the source and
+       run its trials, with OWNER_SWITCH_SOURCE and OWNER_SWITCH_DIGEST. Stop
+       if a source has no trial or a trial fails. The result admits the
+       Grove version and each rerun source's digest.
+    5  Stop unless `mise -C HOME bootstrap packages status --json` shows each
+       skill formula declared, installed and at its accepted version.
+    6  Resolve the drafted real settings again. Stop unless the resolved IDs
+       are exactly the accepted ten and each resourceDigest is accepted.
+    7  Record each registration of each plugin that enabledPlugins enables in
+       .claude/settings.json, and of each directory that OWNER_SWITCH_READERS
+       names (colon-separated; finish sets it from the cache paths that it
+       read). Stop if a directory is missing, holds .orphaned_at, or was named
+       but has no registration in .claude/plugins/installed_plugins.json.
+The drafted real settings are the switched cells of the plan's part for
+.config/ravel/settings.json. They must name no "sources". The program passes
+step 4's admitted values to the later gates as OWNER_SWITCH_ADMITTED, and the
+active continuation reads them from the step-4 evidence of its backup.
+
+Step 3 runs the baseline command after the preludes. Each output row with a
+field UNCLASSIFIED, UNASSIGNED, UNCOVERED or NEEDS-REVIEW counts as a changed
+entry outside the switch set. The program prints each row whose field says
+"unverified", for finish to compare with its own skill listing. `state` does
+not run the baseline.
 
 A passing rehearsal record is a JSON file in <state>/rehearsals with
 "passed": true, "plan_digest" and "program_digest". Step 8 needs a record
@@ -95,8 +138,10 @@ import pwd
 import re
 import secrets
 import stat
+import shutil
 import subprocess
 import sys
+import tempfile
 
 PLAN_SCHEMA = "owner-switch-plan/1"
 REHEARSAL_SCHEMA = "owner-switch-rehearsal/1"
@@ -111,6 +156,20 @@ LOOP_CONTROL = (
 )
 HOOK_VAR = "OWNER_SWITCH_REHEARSAL_HOOK"
 CRASH = 99
+PLAN_VAR = "OWNER_SWITCH_PLAN"
+ADMITTED_VAR = "OWNER_SWITCH_ADMITTED"
+READERS_VAR = "OWNER_SWITCH_READERS"
+RESULT_MARK = "owner-switch-result: "
+
+# The gates: docs/specs/owner-skill-delivery.md, steps 4 to 7 of "The switch
+# inside finish", "Ravel sources" and "Skill formulae".
+FORMULA_OF_GROVE = "linkuistics/taps/grove"
+SOURCE_IDS = ("design", "engineering", "grove-core", "personal", "quint", "requirements",
+              "research", "superpowers", "testanyware", "writing")
+# docs/evaluations/owner-skill-delivery/inventory.py: a row that counts as a
+# changed entry, and the digest of a row that only finish's listing verifies.
+ANOMALIES = ("UNCLASSIFIED", "UNASSIGNED", "UNCOVERED", "NEEDS-REVIEW")
+UNVERIFIED = "unverified"
 
 # The preludes: docs/specs/owner-skill-delivery.md, "The native settings
 # inside finish" and "The hooks installation inside finish".
@@ -377,6 +436,7 @@ def load_plan(path: str) -> dict:
         raise Stop("the plan's entry parts must come before its file parts")
     plan["_digest"] = hashlib.sha256(raw).hexdigest()
     plan["_bytes"] = raw
+    plan["_path"] = os.path.abspath(path)
     return plan
 
 
@@ -468,6 +528,15 @@ class Backup:
 
     def retained_path(self, rel: str) -> str:
         return os.path.join(self.retained, rel)
+
+    def evidence(self, step: str) -> list:
+        """The command results of one step that step 8 kept in this backup."""
+        try:
+            with open(os.path.join(self.path, "evidence", f"step-{step}.json")) as f:
+                body = json.load(f)
+        except (OSError, ValueError):
+            return []
+        return body if isinstance(body, list) else []
 
 
 def complete_backups(layout: Layout) -> list:
@@ -637,14 +706,18 @@ def is_prefix(statuses: list) -> bool:
     return True
 
 
-def find_state(layout: Layout, prepared: dict) -> dict:
-    """Find the state of the switch set from the layout, the run record and a plan."""
+def find_state(layout: Layout, prepared: dict, baseline=()) -> dict:
+    """Find the state of the switch set from the layout, the run record and a plan.
+
+    baseline holds the rows of step 3's baseline instrument that count as
+    changed entries outside the switch set.
+    """
     backup = latest_backup(layout)
     is_open = bool(backup and backup.is_open())
     plan = backup.plan if is_open else prepared
     parts = [part_status(layout, p, backup if is_open else None) for p in plan["parts"]]
     statuses = [p["status"] for p in parts]
-    outside = outside_changes(layout, plan)
+    outside = outside_changes(layout, plan) + list(baseline)
     last = backup.last() if backup else None
     if is_open:
         all_switched = all(s == "switched" for s in statuses)
@@ -762,25 +835,72 @@ def process_gate(layout: Layout, plan: dict, point: str) -> None:
 
 # --- commands -----------------------------------------------------------------
 
-def command_env(layout: Layout, step: str) -> dict:
-    env = {k: v for k, v in os.environ.items() if k not in LOOP_CONTROL and k != HOOK_VAR}
-    env.update(OWNER_SWITCH_HOME=layout.home, OWNER_SWITCH_STATE=layout.state, OWNER_SWITCH_STEP=step)
+def command_env(layout: Layout, step: str, plan=None, admitted=None) -> dict:
+    env = {k: v for k, v in os.environ.items()
+           if k not in LOOP_CONTROL and k not in (HOOK_VAR, PLAN_VAR, ADMITTED_VAR)}
+    env.update(HOME=layout.home, OWNER_SWITCH_HOME=layout.home, OWNER_SWITCH_STATE=layout.state,
+               OWNER_SWITCH_STEP=step)
+    if plan is not None:
+        env[PLAN_VAR] = plan["_path"]
+    if admitted:
+        env[ADMITTED_VAR] = json.dumps(admitted, sort_keys=True)
     return env
 
 
-def run_command(layout: Layout, command: dict, step: str) -> dict:
+def command_argv(argv: list) -> list:
+    """Replace "$python" and "$program" with this program's interpreter and path."""
+    return [{"$python": sys.executable, "$program": PROGRAM_PATH}.get(a, a) for a in argv]
+
+
+def command_result(stdout: str):
+    """The object of the last `owner-switch-result:` line, if any."""
+    for line in reversed(stdout.splitlines()):
+        if line.startswith(RESULT_MARK):
+            try:
+                value = json.loads(line[len(RESULT_MARK):])
+            except ValueError:
+                return None
+            return value if isinstance(value, dict) else None
+    return None
+
+
+def run_command_full(layout: Layout, command: dict, step: str, plan=None, admitted=None):
+    """Run one command of a plan, and return its evidence and its standard output."""
     hook(layout, f"command:{command['name']}")
-    result = subprocess.run(command["argv"], cwd=layout.home, env=command_env(layout, step),
-                            capture_output=True, text=True)
+    result = subprocess.run(command_argv(command["argv"]), cwd=layout.home,
+                            env=command_env(layout, step, plan, admitted), capture_output=True, text=True)
     output = (result.stdout + result.stderr)[-20000:]
     log(f"command {command['name']} (step {step}): exit {result.returncode}")
-    return {"name": command["name"], "argv": command["argv"], "exit": result.returncode, "output": output}
+    parsed = command_result(result.stdout)
+    if result.returncode != 0 or parsed is not None:
+        # A failed command's tail, and a gate's report without its result line.
+        lines = [x for x in output.strip().splitlines() if not x.startswith(RESULT_MARK)]
+        for line in lines[-40:]:
+            log(f"  | {line}")
+    evidence = {"name": command["name"], "argv": command["argv"], "exit": result.returncode, "output": output}
+    if parsed is not None:
+        evidence["result"] = parsed
+    return evidence, result.stdout
 
 
-def run_commands(layout: Layout, commands: list, step: str):
-    results = [run_command(layout, c, step) for c in commands]
+def run_command(layout: Layout, command: dict, step: str, plan=None, admitted=None) -> dict:
+    return run_command_full(layout, command, step, plan, admitted)[0]
+
+
+def run_commands(layout: Layout, plan: dict, commands: list, step: str, admitted=None):
+    results = [run_command(layout, c, step, plan, admitted) for c in commands]
     failed = [r for r in results if r["exit"] != 0]
     return results, failed
+
+
+def admitted_of(results: list) -> dict:
+    """The values that step 4's results admit for the later gates."""
+    admitted = {}
+    for r in results:
+        value = (r.get("result") or {}).get("admitted")
+        if isinstance(value, dict):
+            admitted.update(value)
+    return admitted
 
 
 # --- parts ----------------------------------------------------------------------
@@ -925,7 +1045,7 @@ def failed_probe(layout: Layout, backup: Backup, reason: str) -> None:
     """Step 11: apply the inverse, then verify the native route."""
     log(f"failed probe: {reason}")
     run_inverse(layout, backup)
-    _, failed = run_commands(layout, backup.plan.get("native_probe", []), "11")
+    _, failed = run_commands(layout, backup.plan, backup.plan.get("native_probe", []), "11")
     if failed:
         raise Stop(f"the inverse ran after a failed probe ({reason}), and the native probe failed: "
                    + ", ".join(f["name"] for f in failed))
@@ -1268,6 +1388,291 @@ def step_3_preludes(layout: Layout, prepared: dict) -> None:
         raise
 
 
+# --- the gates of steps 4 to 7 ---------------------------------------------------
+
+def emit(result: dict) -> None:
+    print(RESULT_MARK + json.dumps(result, sort_keys=True), flush=True)
+
+
+def tool(argv: list, env=None, cwd=None):
+    try:
+        return subprocess.run(argv, cwd=cwd, env=env, capture_output=True, text=True)
+    except OSError as e:
+        raise Stop(f"{argv[0]} cannot run: {e.strerror}")
+
+
+def tool_line(argv: list) -> str:
+    result = tool(argv)
+    line = result.stdout.strip()
+    if result.returncode != 0 or not line:
+        raise Stop(f"{' '.join(argv)} failed: {(result.stdout + result.stderr).strip()[-2000:]}")
+    return line
+
+
+def tool_json(argv: list, env=None, cwd=None):
+    result = tool(argv, env, cwd)
+    if result.returncode != 0:
+        raise Stop(f"{' '.join(argv[:4])} failed with exit {result.returncode}: "
+                   f"{(result.stdout + result.stderr).strip()[-2000:]}")
+    try:
+        return json.loads(result.stdout)
+    except ValueError:
+        raise Stop(f"{' '.join(argv[:4])} printed no JSON")
+
+
+class Gate:
+    """What a gate reads: HOME, the plan that names it and step 4's admitted values."""
+
+    def __init__(self, args):
+        home = args.home or os.environ.get("OWNER_SWITCH_HOME")
+        plan_path = args.plan or os.environ.get(PLAN_VAR)
+        if not home or not plan_path:
+            raise Stop(f"a gate needs --home and --plan, or the program's OWNER_SWITCH_HOME and {PLAN_VAR}")
+        self.home = os.path.realpath(home)
+        self.plan = load_plan(plan_path)
+        accepted = self.plan.get("accepted")
+        if not isinstance(accepted, dict):
+            raise Stop("the plan has no section \"accepted\"")
+        self.sources = accepted.get("sources")
+        if not isinstance(self.sources, dict) or sorted(self.sources) != sorted(SOURCE_IDS):
+            raise Stop(f"the plan's accepted sources must be exactly {', '.join(SOURCE_IDS)}")
+        for sid, source in self.sources.items():
+            if (not isinstance(source, dict) or not isinstance(source.get("formula"), str)
+                    or not re.fullmatch(r"[0-9a-f]{64}", str(source.get("resourceDigest")))):
+                raise Stop(f"the plan's accepted source {sid} needs a formula and a resourceDigest")
+        self.versions = accepted.get("versions") or {}
+        self.trials = accepted.get("trials") or {}
+        try:
+            self.admitted = json.loads(os.environ.get(ADMITTED_VAR) or "{}")
+        except ValueError:
+            raise Stop(f"{ADMITTED_VAR} is not JSON")
+
+    def accepted_digest(self, sid: str) -> str:
+        return (self.admitted.get("digests") or {}).get(sid) or self.sources[sid]["resourceDigest"]
+
+
+def drafted_settings(plan: dict) -> dict:
+    """The drafted real Ravel settings: the switched cells of the plan's Ravel settings part."""
+    parts = [p for p in plan["parts"] if p["kind"] == "file" and p["path"] == RAVEL_SETTINGS]
+    if len(parts) != 1:
+        raise Stop(f"the plan needs one part for {RAVEL_SETTINGS}")
+    settings = {}
+    for cell in parts[0]["cells"]:
+        set_cell(settings, cell["key"], cell["switched"])
+    skills = settings.get("skills")
+    if not isinstance(skills, dict) or "sources" in skills:
+        raise Stop("the drafted settings must hold a skills value that names no sources, "
+                   "so that Ravel reads the default skill directory")
+    return settings
+
+
+def erase_tree(path: str) -> None:
+    """Erase a disposable HOME. Ravel publishes each snapshot read-only."""
+    for folder, _, _ in os.walk(path):
+        os.chmod(folder, 0o700)
+    shutil.rmtree(path, ignore_errors=True)
+
+
+def resolve(prefix: str, settings: dict) -> dict:
+    """`ravel skills resolve --json` with the promoted ravel, in a disposable HOME."""
+    ravel = os.path.join(prefix, "bin", "ravel")
+    home = tempfile.mkdtemp(prefix="owner-switch-resolve-")
+    try:
+        os.makedirs(os.path.join(home, os.path.dirname(RAVEL_SETTINGS)))
+        with open(os.path.join(home, RAVEL_SETTINGS), "wb") as f:
+            f.write(dump_json(settings))
+        # Ravel reads its settings and its cache from HOME, and no RAVEL_*
+        # variable may steer the resolution.
+        env = {k: v for k, v in os.environ.items() if not k.startswith("RAVEL_")}
+        env["HOME"] = home
+        version = tool([ravel, "--version"], env, home).stdout.strip()
+        doc = tool_json([ravel, "skills", "resolve", "--json"], env, home)
+    finally:
+        erase_tree(home)
+    if not isinstance(doc, dict) or doc.get("status") != "resolved":
+        raise Stop(f"{ravel} skills resolve --json did not resolve: {canon(doc)[:2000]}")
+    sources = {}
+    for source in doc.get("sources") or []:
+        if not isinstance(source, dict) or not all(isinstance(source.get(k), str)
+                                                   for k in ("id", "resourceDigest", "originPath")):
+            raise Stop(f"{ravel} skills resolve --json gave a source without id, resourceDigest or originPath")
+        sources[source["id"]] = source
+    log(f"resolved with {ravel} ({version}): {', '.join(sorted(sources))}")
+    return {"ravel": ravel, "version": version, "sources": sources}
+
+
+def installed_grove() -> dict:
+    """Step 4: the installed Grove is the tap's current version, and opt/grove reaches its keg."""
+    prefix = tool_line(["brew", "--prefix"])
+    cellar = tool_line(["brew", "--cellar"])
+    info = tool_json(["brew", "info", "--json=v2", FORMULA_OF_GROVE])
+    try:
+        formula = info["formulae"][0]
+        stable = formula["versions"]["stable"]
+        revision = formula.get("revision") or 0
+        installed = [i["version"] for i in formula.get("installed") or []]
+        linked = formula.get("linked_keg")
+    except (KeyError, IndexError, TypeError):
+        raise Stop(f"brew info --json=v2 {FORMULA_OF_GROVE} has no formula with a stable version")
+    version = f"{stable}_{revision}" if revision else stable
+    keg = os.path.join(cellar, "grove", version)
+    opt = os.path.join(prefix, "opt", "grove")
+    problems = []
+    if version not in installed:
+        problems.append(f"the tap's current version {version} is not installed (installed: "
+                        f"{', '.join(installed) or 'none'})")
+    if linked != version:
+        problems.append(f"the linked keg is {linked}, not the tap's current version {version}")
+    if not os.path.isdir(keg) or os.path.realpath(opt) != os.path.realpath(keg):
+        problems.append(f"{opt} reaches {os.path.realpath(opt)}, not the keg {keg}")
+    else:
+        line = tool([os.path.join(opt, "bin", "grove"), "--version"]).stdout.strip()
+        if line != f"grove {stable}":
+            problems.append(f"{opt}/bin/grove --version printed {line!r}, not 'grove {stable}'")
+    if problems:
+        raise Stop("step 4: the installed Grove is not the latest published release: " + "; ".join(problems))
+    log(f"step 4: Grove {version} is the tap's current version, and {opt} reaches its keg")
+    return {"version": version, "keg": os.path.realpath(keg), "opt": opt, "prefix": prefix}
+
+
+def gate_4(gate: Gate) -> None:
+    grove = installed_grove()
+    resolution = resolve(grove["prefix"], drafted_settings(gate.plan))
+    own = sorted(sid for sid, s in gate.sources.items() if s["formula"] == FORMULA_OF_GROVE)
+    if not own:
+        raise Stop(f"the plan accepts no source of {FORMULA_OF_GROVE}")
+    report, rerun = {}, []
+    for sid in own:
+        got = resolution["sources"].get(sid)
+        if got is None:
+            raise Stop(f"step 4: Grove's source {sid} does not resolve")
+        keg_source = os.path.join(grove["keg"], "share", "ravel", "skills", sid)
+        if os.path.realpath(got["originPath"]) != os.path.realpath(keg_source):
+            raise Stop(f"step 4: the source {sid} comes from {got['originPath']}, not from {keg_source}")
+        accepted = gate.sources[sid]["resourceDigest"]
+        report[sid] = {"accepted": accepted, "installed": got["resourceDigest"], "originPath": got["originPath"]}
+        if got["resourceDigest"] == accepted:
+            log(f"step 4: {sid} gives its accepted digest {accepted}")
+        else:
+            rerun.append(sid)
+            log(f"step 4: the staging trials of {sid} must run again: accepted {accepted}, "
+                f"installed {got['resourceDigest']}")
+    missing = [sid for sid in rerun if not gate.trials.get(sid)]
+    if missing:
+        raise Stop(f"step 4: the plan names no staging trial for {', '.join(missing)}")
+    trials, digests = [], {}
+    # The trials run outside every Grove workspace, without Grove's loop
+    # control variables: the environment rule of step 10.
+    base = {k: v for k, v in os.environ.items() if k not in LOOP_CONTROL}
+    for sid in rerun:
+        for command in gate.trials[sid]:
+            env = dict(base, OWNER_SWITCH_SOURCE=sid, OWNER_SWITCH_DIGEST=report[sid]["installed"])
+            result = tool(command_argv(command["argv"]), env, gate.home)
+            trials.append({"source": sid, "name": command["name"], "argv": command["argv"],
+                           "exit": result.returncode, "output": (result.stdout + result.stderr)[-4000:]})
+            log(f"step 4: trial {command['name']} of {sid}: exit {result.returncode}")
+            if result.returncode != 0:
+                raise Stop(f"step 4: the staging trial {command['name']} of {sid} failed")
+        digests[sid] = report[sid]["installed"]
+    emit({"step": "4", "grove": grove, "ravel": resolution["version"], "sources": report, "reran": rerun,
+          "trials": trials, "admitted": {"grove_version": grove["version"], "digests": digests}})
+
+
+def gate_5(gate: Gate) -> None:
+    grove_version = gate.admitted.get("grove_version")
+    if not grove_version:
+        raise Stop("step 5 needs the Grove version that step 4 admitted")
+    formulae = sorted({s["formula"] for s in gate.sources.values()})
+    stray = sorted(set(gate.versions) - set(formulae))
+    unknown = [f for f in formulae if f != FORMULA_OF_GROVE and not gate.versions.get(f)]
+    if stray or FORMULA_OF_GROVE in gate.versions or unknown:
+        raise Stop("the plan's accepted versions must name each skill formula except Grove's, and no other")
+    doc = tool_json(["mise", "-C", gate.home, "bootstrap", "packages", "status", "--json"], cwd=gate.home)
+    rows = {}
+    if isinstance(doc, dict) and isinstance(doc.get("brew"), dict):
+        rows = {r.get("package"): r for r in doc["brew"].get("packages") or [] if isinstance(r, dict)}
+    problems, installed = [], {}
+    for name in formulae:
+        wanted = grove_version if name == FORMULA_OF_GROVE else gate.versions[name]
+        row = rows.get(name)
+        if row is None or row.get("desired_state") != "present":
+            problems.append(f"{name} is not declared")
+        elif row.get("state") != "installed":
+            problems.append(f"{name} is {row.get('state')}, not installed")
+        elif row.get("installed_version") != wanted:
+            problems.append(f"{name} is at {row.get('installed_version')}, not its accepted version {wanted}")
+        else:
+            installed[name] = wanted
+            log(f"step 5: {name} is installed at its accepted version {wanted}")
+    if problems:
+        raise Stop("step 5: " + "; ".join(problems))
+    emit({"step": "5", "formulae": installed})
+
+
+def gate_6(gate: Gate) -> None:
+    resolution = resolve(tool_line(["brew", "--prefix"]), drafted_settings(gate.plan))
+    got, wanted = set(resolution["sources"]), set(gate.sources)
+    if got != wanted:
+        raise Stop(f"step 6: the resolved sources are not the accepted ten: extra "
+                   f"{', '.join(sorted(got - wanted)) or 'none'}, missing {', '.join(sorted(wanted - got)) or 'none'}")
+    problems, report = [], {}
+    for sid in sorted(got):
+        source = resolution["sources"][sid]
+        accepted = gate.accepted_digest(sid)
+        report[sid] = {k: source.get(k) for k in ("resourceDigest", "originPath", "snapshotRoot")}
+        if source["resourceDigest"] != accepted:
+            problems.append(f"{sid} gives {source['resourceDigest']}, not its accepted {accepted}")
+    if problems:
+        raise Stop("step 6: " + "; ".join(problems))
+    log("step 6: the ten sources resolve with their accepted digests")
+    emit({"step": "6", "ravel": resolution["version"], "sources": report})
+
+
+def gate_7(gate: Gate) -> None:
+    settings = load_json_file(os.path.join(gate.home, CLAUDE_SETTINGS))
+    registry = load_json_file(os.path.join(gate.home, ".claude/plugins/installed_plugins.json"))
+    if settings is None or registry is None or not isinstance(registry.get("plugins"), dict):
+        raise Stop("step 7 cannot read settings.json and installed_plugins.json")
+    entries = [(pid, e) for pid, es in sorted(registry["plugins"].items()) if isinstance(es, list)
+               for e in es if isinstance(e, dict) and isinstance(e.get("installPath"), str)]
+    enabled = settings.get("enabledPlugins") if isinstance(settings.get("enabledPlugins"), dict) else {}
+    readers, problems = [], []
+    for pid in sorted(p for p, v in enabled.items() if v is True):
+        mine = [e for p, e in entries if p == pid]
+        if not mine:
+            readers.append({"plugin": pid, "registration": None, "reason": "enabled"})
+        readers += [{"plugin": pid, "registration": e, "path": e["installPath"], "reason": "enabled"} for e in mine]
+    for named in [p for p in os.environ.get(READERS_VAR, "").split(os.pathsep) if p]:
+        real = os.path.realpath(named)
+        mine = [(p, e) for p, e in entries if real == os.path.realpath(e["installPath"])
+                or real.startswith(os.path.realpath(e["installPath"]) + os.sep)]
+        if not mine:
+            problems.append(f"{named}, which finish read, has no registration in installed_plugins.json")
+            continue
+        readers.append({"plugin": mine[0][0], "registration": mine[0][1], "path": mine[0][1]["installPath"],
+                        "reason": "read", "read": named})
+    for reader in readers:
+        path = reader.get("path")
+        if path is None:
+            continue
+        reader["orphaned"] = os.path.lexists(os.path.join(path, ".orphaned_at"))
+        if not os.path.isdir(path):
+            problems.append(f"the version directory {path} of {reader['plugin']} is missing")
+        elif reader["orphaned"]:
+            problems.append(f"the version directory {path} of {reader['plugin']} holds .orphaned_at")
+        else:
+            log(f"step 7: {reader['plugin']} reads {path}")
+    if problems:
+        raise Stop("step 7: " + "; ".join(problems))
+    emit({"step": "7", "readers": readers})
+
+
+def gate_command(args) -> int:
+    gate = Gate(args)
+    {"4": gate_4, "5": gate_5, "6": gate_6, "7": gate_7}[args.step](gate)
+    return 0
+
+
 # --- the switch -----------------------------------------------------------------
 
 def passing_rehearsals(layout: Layout) -> list:
@@ -1345,18 +1750,31 @@ def apply_switch(layout: Layout, backup: Backup) -> None:
         raise Stop(f"the switch met a conflict and inverted its own parts: {e}")
 
 
-def continue_after_switch(layout: Layout, backup: Backup, rerun_step6: bool) -> None:
-    """Step 6 again when resuming, then the probes and steps 12 to 14."""
+def gate_results(results: list) -> list:
+    return [r.get("result") for r in results]
+
+
+def continue_after_switch(layout: Layout, backup: Backup, resumed: bool, baseline=()) -> None:
+    """The active continuation: step 6 again, then the probes and steps 12 to 14.
+
+    A fresh run has just passed step 6, so it does not run it again.
+    """
     plan = backup.plan
-    if rerun_step6:
-        _, failed = run_commands(layout, plan.get("gates", {}).get("6", []), "6")
+    gates = {step: gate_results(backup.evidence(step)) for step in ("4", "6", "7")}
+    if resumed:
+        changed = outside_changes(layout, plan) + list(baseline)
+        if changed:
+            failed_probe(layout, backup, "changed outside the switch set: " + ", ".join(changed))
+        results, failed = run_commands(layout, plan, plan.get("gates", {}).get("6", []), "6",
+                                       admitted_of(backup.evidence("4")))
         if failed:
             failed_probe(layout, backup, "step 6 failed: " + ", ".join(f["name"] for f in failed))
+        gates["6 again"] = gate_results(results)
     before = cell_values(layout, plan, backup)
-    probes, failed = run_commands(layout, plan.get("probes", []), "10")
+    probes, failed = run_commands(layout, plan, plan.get("probes", []), "10")
     if failed:
         failed_probe(layout, backup, "probe failed: " + ", ".join(f["name"] for f in failed))
-    mac_check = run_command(layout, plan["mac_check"], "12") if plan.get("mac_check") else None
+    mac_check = run_command(layout, plan["mac_check"], "12", plan) if plan.get("mac_check") else None
     after = cell_values(layout, plan, backup)
     if not all_switched(after) or canon(before) != canon(after):
         failed_probe(layout, backup, "a cell changed while the probes ran")
@@ -1364,9 +1782,9 @@ def continue_after_switch(layout: Layout, backup: Backup, rerun_step6: bool) -> 
         raise Stop("a kept copy is flagged at step 13")
     backup.add_record(layout, "receipt", {
         "plan_digest": plan["_digest"], "program_digest": backup.program_digest,
-        "mac_check": mac_check, "probes": probes, "cells": after,
+        "mac_check": mac_check, "probes": probes, "cells": after, "gates": gates,
     })
-    step_14(layout, backup)
+    step_14(layout, backup, baseline)
 
 
 def manual_has_receipt(layout: Layout, backup: Backup) -> bool:
@@ -1377,10 +1795,10 @@ def manual_has_receipt(layout: Layout, backup: Backup) -> bool:
         return False
 
 
-def step_14(layout: Layout, backup: Backup) -> None:
+def step_14(layout: Layout, backup: Backup, baseline=()) -> None:
     """Compare the entries outside the switch set, then copy the receipt."""
     hook(layout, "step-14")
-    changed = outside_changes(layout, backup.plan)
+    changed = outside_changes(layout, backup.plan) + list(baseline)
     if changed:
         failed_probe(layout, backup, "changed outside the switch set: " + ", ".join(changed))
     receipt = backup.record_body("receipt")
@@ -1411,6 +1829,26 @@ def reexec_copy(backup: Backup, args) -> None:
     os.execv(sys.executable, argv)
 
 
+def baseline_rows(layout: Layout, plan: dict) -> list:
+    """Step 3: rerun the baseline instrument, and return the rows that count as changed entries."""
+    command = plan.get("baseline")
+    if not command:
+        return []
+    evidence, stdout = run_command_full(layout, command, "3", plan)
+    if evidence["exit"] != 0:
+        raise Stop(f"the baseline instrument {command['name']} failed: {evidence['output'][-2000:]}")
+    rows = []
+    for line in stdout.splitlines():
+        fields = line.split("\t")
+        if any(f in ANOMALIES for f in fields):
+            rows.append("baseline row: " + " | ".join(fields))
+        elif UNVERIFIED in fields:
+            log("baseline: compare with finish's own skill listing: " + " | ".join(fields))
+    for row in rows:
+        log(f"  {row}")
+    return rows
+
+
 def run_switch(args) -> int:
     prepared = load_plan(args.plan)
     layout = Layout(args.home, prepared)
@@ -1419,8 +1857,11 @@ def run_switch(args) -> int:
     hook(layout, "start")
     process_gate(layout, prepared, "step 1")
     step_3_preludes(layout, prepared)
+    applying = latest_backup(layout)
+    applying = applying.plan if applying and applying.is_open() else prepared
+    baseline = baseline_rows(layout, applying)
     while True:
-        st = find_state(layout, prepared)
+        st = find_state(layout, prepared, baseline)
         report_state(st)
         flagged = report_flagged(layout)
         backup = st["backup"]
@@ -1436,31 +1877,33 @@ def run_switch(args) -> int:
             raise Stop("the switch set differs from the prepared plan; stop for classification")
         if state == "complete":
             if not manual_has_receipt(layout, backup):
-                step_14(layout, backup)
+                step_14(layout, backup, baseline)
             log("result: complete")
             return 0
         if state == "active":
-            continue_after_switch(layout, backup, rerun_step6=True)
+            continue_after_switch(layout, backup, resumed=True, baseline=baseline)
             log("result: complete")
             return 0
         break  # native
     if latest_backup(layout):
-        _, failed = run_commands(layout, prepared.get("native_probe", []), "3")
+        _, failed = run_commands(layout, prepared, prepared.get("native_probe", []), "3")
         if failed:
             raise Stop("the native probe failed: " + ", ".join(f["name"] for f in failed))
-    evidence = {}
+    evidence, admitted = {}, {}
     for step in ("4", "5", "6", "7"):
-        results, failed = run_commands(layout, prepared.get("gates", {}).get(step, []), step)
+        results, failed = run_commands(layout, prepared, prepared.get("gates", {}).get(step, []), step, admitted)
         evidence[step] = results
         if failed:
             raise Stop(f"step {step} failed: " + ", ".join(f["name"] for f in failed))
+        if step == "4":
+            admitted = admitted_of(results)
     if not rehearsed(layout, prepared):
         raise Stop("no passing rehearsal record names the prepared plan and this program")
     if flagged:
         raise Stop("a kept copy is flagged; the owner merges it first")
     backup = write_backup(layout, prepared, {k: evidence[k] for k in ("4", "6", "7")})
     apply_switch(layout, backup)
-    continue_after_switch(layout, backup, rerun_step6=False)
+    continue_after_switch(layout, backup, resumed=False)
     log("result: complete")
     return 0
 
@@ -1481,6 +1924,10 @@ def dry_run(args) -> int:
         log(f"preludes: the hooks installation reads {key_name(HOOKS_KEY)} {show(hooks)}, installs "
             f"{HOOKS_PLUGIN} if `claude plugin list` lacks it, and writes false")
         log(f"preludes: rehearsed program: {'yes' if passing_rehearsals(layout) else 'no'}")
+        log(f"step 3: baseline {plan['baseline']['name'] if plan.get('baseline') else '(none)'}")
+        for step in ("4", "5", "6", "7"):
+            names = [c["name"] for c in plan.get("gates", {}).get(step, [])]
+            log(f"step {step}: {', '.join(names) or '(no command)'}")
     log("switch, in order:")
     for i, part in enumerate(plan["parts"]):
         if part["kind"] == "file":
@@ -1535,8 +1982,14 @@ def main(argv=None) -> int:
             p.add_argument("--dry-run", action="store_true")
     sub.add_parser("identity").add_argument("path")
     sub.add_parser("digest").add_argument("path")
+    p = sub.add_parser("gate")
+    p.add_argument("step", choices=("4", "5", "6", "7"))
+    p.add_argument("--plan")
+    p.add_argument("--home")
     args = parser.parse_args(argv)
     try:
+        if args.command == "gate":
+            return gate_command(args)
         if args.command == "identity":
             print(identity(args.path) or "absent")
             return 0

@@ -207,6 +207,10 @@ these items:
   installation.
 - discovery-rollout-k12: the finish handoff names step 3's native settings
   and hooks installation beside the switch program.
+- discovery-rollout-k12, from owner-switch-gates-k241: the finish handoff
+  says that finish sets `OWNER_SWITCH_READERS` to the cache paths that it
+  read before it runs the program. Finish also compares each built-in row
+  that step 3 prints with its own skill listing.
 
 acceptance-completion-audit-k127 hands two findings to this node. The
 "Gap register" of `docs/common-loading-acceptance-record.md` holds both.

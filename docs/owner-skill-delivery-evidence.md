@@ -1483,3 +1483,199 @@ The fixture sources hold probe skills, not the published sources. The staging
 trials resolve the published sources, as the cutover contract states. After
 the Ravel cut, rollout repeats the off-value control with the published
 `ravel@2` and the installed kegs.
+
+## Owner switch plan draft
+
+`owner-switch-plan-draft-k247` drafted the real switch plan on 2026-11-07.
+Order 4 of the [cutover contract](specs/owner-skill-delivery.md#cutover-contract)
+calls it the residue plan. The draft is not in the real HOME. The real
+`~/.config/ravel/settings.json` and `~/.local/state/owner-switch` were absent
+before and after the work.
+
+| Artifact | Content |
+| --- | --- |
+| [`switch-plan-draft.json`](owner-cutover/switch-plan-draft.json) | The plan, schema `owner-switch-plan/1`, with every field of the format |
+| [`switch-plan-parts.tsv`](owner-cutover/switch-plan-parts.tsv) | Each part and cell, with its line in [the reference inventory](owner-skill-inventory-reference.tsv), its class and its disposition |
+| [`switch-plan-dry-run.txt`](owner-cutover/switch-plan-dry-run.txt) | The output of `run --dry-run` in the disposable HOME |
+| [`switch-plan-processes.txt`](owner-cutover/switch-plan-processes.txt) | The real process tree and job listing against the plan's patterns |
+| [`switch-plan-check.json`](owner-cutover/switch-plan-check.json) | The record of the check, with the result of each control |
+
+`task owner:switch-plan:draft` runs
+[`switch_plan_draft.py`](evaluations/owner-skill-delivery/switch_plan_draft.py)
+and writes the plan and the table from the real HOME. It reads only. Two runs
+gave the same bytes. `task owner:switch-plan:check OUT=<new directory>` admits
+the draft and checks it.
+
+### The parts
+
+The script reads each child of five discovery roots and finds its row in the
+reference inventory. A row of the class `owner-pack`, `third-party-pack`,
+`stale-copy` or `dangling`, with `deactivate` as the first word of its
+disposition, makes an entry part. A child without exactly one row stops the
+script. Each entry carries the change identity that `owner_switch.py
+identity` prints.
+
+| Root | Entry parts | Children that stay |
+| --- | --- | --- |
+| `~/.claude/skills` | The stale `grove` copy and the dangling `terminal-browser` link | `codebase-memory`, and the account-synced folder `synced` |
+| `~/.codex/skills` | 44 links into Grove's snapshot store, 14 superpowers copies and `terminal-browser` | `codebase-memory`, and Codex's system folder `.system` |
+| `~/.agents/skills` | 44 links into Grove's snapshot store, 3 quint links and `terminal-browser` | `codebase-memory` |
+| `~/.pi/agent/skills` | 44 dangling links into `~/Development/grove` | `codebase-memory` |
+| `~/.pi/agent/extensions` | The dangling `technical-communication.ts` link | Five extensions of codebase-memory, herdr and Orca |
+
+The 154 entry parts come first. Then the part of `.claude/settings.json`
+changes seven cells of `enabledPlugins`:
+
+- It disables `grove`, `linkuistics` and `testanyware` of the `linkuistics`
+  marketplace, `superpowers` and `quint-llm-kit`. Each is `true` in the real
+  HOME and in the reference inventory.
+- It enables `technical-communication-hooks@writing-hooks` and
+  `guardrail@personal`. Both keys are absent in the real HOME today. The
+  draft's earlier value is `false`. The hooks prelude of step 3 writes that
+  value, and owner-pack-checkouts-k93 installs `guardrail` disabled.
+
+The last part changes the `skills` key of `.config/ravel/settings.json`. Its
+earlier value is the `skills` value of `settings-off.json`. Its switched value
+is the `skills` value of `settings-switched.json`. The program's check of the
+drafted real settings accepted it, because it names no `sources`.
+
+### The manifest outside the switch set
+
+`outside` holds three path entries and five root manifests:
+
+- Path entries: `.claude/skills/codebase-memory`,
+  `.codex/skills/codebase-memory` and Grove's snapshot store
+  `.agents/.grove`, which the moved links name.
+- Root manifests: `.agents/skills`, `.pi/agent/skills`,
+  `.pi/agent/extensions`, `.claude/agents` and `.codex/agents`. A root
+  manifest also detects a new child of its root.
+
+`.claude/skills` and `.codex/skills` have no root manifest. A platform writes
+their folders `synced` and `.system`. A probe session can rewrite either
+folder, and step 14 would then count a failed probe and run the inverse. The
+draft names no plugin version directory, because each Claude Code session
+writes `.in_use/<pid>` there. It also leaves out `~/.codex/hooks.json` and the
+`~/.quint-llm-kit` clone. Their tools rewrite them, and the switch reads
+neither.
+
+### Processes and jobs
+
+The harness pattern matches a process whose program is `claude`. The MCP
+patterns match each of the owner's stdio servers of Claude Code, and each
+launcher chain:
+
+| Server | Processes |
+| --- | --- |
+| `quint-kb` | `node .../.quint-llm-kit/repo/mcp-servers/kb/dist/server.js` |
+| `codebase-memory-mcp` | The server, and its child `codebase-memory-mcp --cbm-daemon-internal` |
+| Playwright | `npm exec @playwright/mcp@latest`, or `npx @playwright/mcp@latest`, and the `node .../playwright-mcp` that it launches |
+
+Context7 uses HTTP and launches no process. Each other child of a server
+counts as another process.
+
+<!-- tc: depart synonym-rotation because "kept" names the design's term "kept process", not a second word for a check -->
+Finding for the owner design: Claude Code runs `caffeinate -i -t 300` as a
+child of the harness process. The design's kept processes do not name it, so
+step 2 would always stop. The draft keeps it through `session.mcp`, because
+no other plan field keeps a child of the harness process. The section
+"Concurrent writers" of the design should name it.
+
+The watch patterns match the program of a command, not any substring. A path
+such as `.../grove` in another argument therefore does not match. They match
+Claude Code, Codex, Pi, Grove, Ravel, herdr, Orca, mise and
+`codebase-memory-mcp`, and the packaged Node forms of the three harnesses.
+They also match the applications Claude, ChatGPT, Herdr and Orca. ChatGPT
+holds Codex's `node_repl` MCP server. `OrcaSlicer` does not match.
+
+The job listing runs `launchctl list` and `crontab -l`. `sfltool dumpbtm`
+waited for authorisation, so the listing cannot read login items without
+privileges. That is a limit of step 1.
+
+The listing ran from this session, which Grove 22.8 launched through Ravel
+1.1.0. The program's own process gate ran from the same position and named
+the same processes and jobs. At that time, step 2 would have stopped for
+19 processes and 3 jobs:
+
+- The owner's Codex app-server daemon, which reads the Codex roots.
+- `herdr-core` and `mise dot watch`, which write files of the switch set.
+  The job `dev.mise.mise-history` runs `mise dot watch`, and two jobs
+  `dev.herdr.server.*` can launch herdr.
+- A Ravel 1.1.0 session of another task and two Grove builds in `/private/tmp`.
+- Eleven Codex daemons of earlier trials in disposable HOMEs.
+
+The owner ends these processes and unloads the jobs before the switch. The
+finish handoff of discovery-rollout-k12 names them.
+
+### Commands
+
+| Field | Value |
+| --- | --- |
+| `state` | `.local/state/owner-switch` |
+| `manual` | `Library/Mobile Documents/iCloud~md~obsidian/Documents/Brain/Configuration/AI Dev Tooling.md`. Its folder resolves inside HOME |
+| `baseline` | `$python -I .local/state/owner-switch/prepared/inventory.py` |
+| `gates` | The program's own gate of each of steps 4 to 7 |
+| `probes` | `owner_switch_probes.py resolve --expect switched`, and `session --route ravel` for Claude Code and for Codex |
+| `native_probe` | `owner_switch_probes.py resolve --expect disabled`, and `session --route native` for Claude Code and for Codex |
+| `mac_check` | `.local/bin/mac-check` |
+
+Each command runs in HOME, so a path relative to HOME reaches the prepared
+folder. owner-switch-plan-k254 copies `inventory.py` and the probe program
+beside the plan and the program. The instrument reads TOML through
+`tomllib`, so it needs Python 3.11 or later. It runs under `$python`, the
+interpreter of the switch program.
+
+No probe program exists yet. The draft names its interface, and
+`owner-switch-probes` implements it before owner-switch-plan-k254. That leaf
+can change the interface. k254 then changes the commands of the plan.
+
+### Provisional accepted values
+
+`accepted` holds provisional values, and owner-switch-plan-k254 replaces them
+with the evidence of owner-staging-acceptance-k252:
+
+- `sources`: the ten sources of the table "The ten Ravel sources" in the
+  [moves record](repository-moves-record.md#the-ten-ravel-sources). The
+  script reads that table, so each `resourceDigest` is the recorded value.
+- `versions`: `personal` 2026-11-06, `testanyware` 2.8.0, `superpowers`
+  7.0.0 and `quint-llm-kit` 1.0.0, each a formula of `linkuistics/taps`.
+- `trials`: one command for each of Grove's six sources that prints a
+  message and fails. A step 4 that must rerun a trial therefore stops.
+- `staging`: `/Users/antony/.local/state/owner-staging/home` and
+  `/Users/antony/.local/state/owner-staging/candidate`. owner-staging-setup-k248
+  records the final paths.
+
+### The check
+
+The check builds a disposable HOME. It copies each entry that a part or an
+`outside` item names from the real HOME, and each copy had the draft's change
+identity. It writes both settings files with each cell at its earlier value.
+The program's loader then admitted the draft, and `run --dry-run` reported the
+state `native`. The output listed each of the 156 parts in the switch and in
+the inverse, and it reported no passing rehearsal.
+
+Each control must fail, and each did:
+
+| Control | Result |
+| --- | --- |
+| The plan without `mac_check` | Exit 3, "the plan is incomplete" |
+| A part path that is absolute | Exit 3, "is not relative to HOME" |
+| A gate 4 list without the program's gate | Exit 3, "does not run the program's gate of step 4" |
+| One added byte in a stale superpowers copy | The state `changed` |
+| A new child of `.agents/skills` | The state `changed` |
+
+Eighteen pattern cases state what each pattern list must match or must not
+match. Three wider mutants failed them:
+
+- A watch list of plain substrings failed seven cases.
+- A job pattern without word boundaries failed two cases.
+- An MCP pattern for any `node` failed one case.
+
+| Subject | SHA-256 |
+| --- | --- |
+| `switch-plan-draft.json` | `c40451d63c33e1cb8800a80ddce6b8b4e21e534c4711ec5b8dd24a72249f0859` |
+| `switch-plan-parts.tsv` | `ce2ad54ebdb49fe6ba82a6c1d60481cfb449587736d1e6024ff9830897377fd4` |
+| `scripts/owner_switch.py`, unchanged | `885171751f02b62451090a4a41cc7b5145bb3aac29556d85b1dbcb262cc7884f` |
+| `inventory.py`, unchanged | `b933ed455dc53af5c70ef9e2a7a3bc1389e32e413bbca8c4486d0c063c749ccc` |
+
+The dry run reads no gate, no probe and no rehearsal record. The rehearsal of
+owner-switch-rehearsal-k255 measures them on the completed plan.

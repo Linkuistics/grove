@@ -69,9 +69,10 @@ skill-loading-replan-k80 cut four implementation leaves here:
 4. `owner-pack-checkouts-k93`: in cutover order 6, Homebrew installs the
    owner's sources in the real HOME at the accepted commits. `mac-check`
    reports their status.
-5. `owner-marketplace-freeze-k253`, `owner-switch-plan-k254` and
-   `owner-switch-rehearsal-k255` finish order 6. They freeze automatic
-   updates, complete the real plan and rehearse it.
+5. `owner-marketplace-freeze-k253`, `owner-switch-probes-k257`,
+   `owner-switch-plan-k254` and `owner-switch-rehearsal-k255` finish order
+   6. They freeze automatic updates, write the probe program, complete the
+   real plan and rehearse it.
 6. discovery-rollout-k12 plans the release and finish handoff. The rollout
 planner consumes that work and coordinated-ravel-release-k36's reviewed plan.
 Plan from the delivered migration state. Grow concrete final verification,
@@ -274,6 +275,19 @@ It assigns these items:
 - owner-pack-checkouts-k93: `mac-check --only <area>` runs one area. The
   drift report of the skill formulae is another area beside "Owner skill
   switch".
+
+owner-switch-plan-draft-k247 drafted the real plan. The section "Owner
+switch plan draft" of `docs/owner-skill-delivery-evidence.md` holds it. It
+assigns these items:
+
+- discovery-rollout-k12: the finish handoff names the processes and jobs
+  that stop step 2. Examples are the owner's Codex app-server daemon,
+  `herdr-core`, `mise dot watch` and its job `dev.mise.mise-history`. The
+  owner ends them and unloads the jobs before the switch. The job listing
+  cannot read login items without privileges.
+- The owner design: Claude Code runs `caffeinate -i -t 300` as a child of
+  the harness process. The draft keeps it through `session.mcp`. The
+  section "Concurrent writers" should name it as a kept process.
 
 acceptance-completion-audit-k127 hands two findings to this node. The
 "Gap register" of `docs/common-loading-acceptance-record.md` holds both.

@@ -1,0 +1,1201 @@
+{
+  "schema": "owner-switch-plan/1",
+  "state": ".local/state/owner-switch",
+  "manual": "Library/Mobile Documents/iCloud~md~obsidian/Documents/Brain/Configuration/AI Dev Tooling.md",
+  "parts": [
+    {
+      "kind": "entry",
+      "path": ".claude/skills/grove",
+      "identity": "7fa46a95d5a9a30a0ecf12c6a5f0fe5af6a00eea6bf5cd53eae6ec380932b5f4"
+    },
+    {
+      "kind": "entry",
+      "path": ".claude/skills/terminal-browser",
+      "identity": "d25a125555c52f0bc98c066c32672fb1c41c3864c4997dfd02d00f0552cb9c70"
+    },
+    {
+      "kind": "entry",
+      "path": ".codex/skills/authoring-conventions",
+      "identity": "642c05aad8092cf8058b465a7f94c05c8c93a05247c17fa7716a5ffa002ce167"
+    },
+    {
+      "kind": "entry",
+      "path": ".codex/skills/brainstorming",
+      "identity": "1d3b62f6d1bae89f18c4b9920cdd1c4909f574b919d349b0f6e220d2135fd4cb"
+    },
+    {
+      "kind": "entry",
+      "path": ".codex/skills/cli-tool-design",
+      "identity": "323b1dcbdbdcdb95db486d50dbd6bf3b0f5e748793aa0ea5b3dc44494fb7f309"
+    },
+    {
+      "kind": "entry",
+      "path": ".codex/skills/codebase-design",
+      "identity": "f6b85e317cb71ed74eb0af4fe6ca600a8b5347c3ee4deb22517d8cd26c50af90"
+    },
+    {
+      "kind": "entry",
+      "path": ".codex/skills/coding-style-bash",
+      "identity": "898597c82fc62f2e37be26394c2d22abba6a849a20e762e198bb7f4f4351f318"
+    },
+    {
+      "kind": "entry",
+      "path": ".codex/skills/coding-style-elixir",
+      "identity": "4b424006e1b990974361350f0f3c820b265fa6305578c2f78e73bc19250781b4"
+    },
+    {
+      "kind": "entry",
+      "path": ".codex/skills/coding-style-python",
+      "identity": "573b5b4c0525349baa0903630a7340fe2812b8e2d31cd721bdc7c71122223ac7"
+    },
+    {
+      "kind": "entry",
+      "path": ".codex/skills/coding-style-rust",
+      "identity": "82b39be7411debfa9507b0bba57f263539d6138cec932626bb5599fac9977023"
+    },
+    {
+      "kind": "entry",
+      "path": ".codex/skills/coding-style-swift",
+      "identity": "fe0d82ef16833336ce2a9f757e3121ef9d81fd66875827f50e27de24de341f3e"
+    },
+    {
+      "kind": "entry",
+      "path": ".codex/skills/coding-style-typescript",
+      "identity": "37a63362f6d8d1e8d732caa8f729a3c779e9f465ac784799e384dc9afd7b8732"
+    },
+    {
+      "kind": "entry",
+      "path": ".codex/skills/configure-grove",
+      "identity": "d9d8b1e654d4d74867b8472035922fb9e7d65537ec3883a0503bb5cd1c763c58"
+    },
+    {
+      "kind": "entry",
+      "path": ".codex/skills/decision-records",
+      "identity": "28e364a253690e9d8f613fe57fef2907f9fc08d8d8e89baf2b51df375aada8eb"
+    },
+    {
+      "kind": "entry",
+      "path": ".codex/skills/dispatching-parallel-agents",
+      "identity": "5dc2f6bbabb23e83b915e49cd53ff62693a058bda3338fb49f0ca81c1bded70d"
+    },
+    {
+      "kind": "entry",
+      "path": ".codex/skills/doubt-driven-development",
+      "identity": "52493885e2b5a04a2350ed114af1b5cb853738966f39fa86fda9e6ac2cf19b2d"
+    },
+    {
+      "kind": "entry",
+      "path": ".codex/skills/executing-plans",
+      "identity": "8c9bac01d84d4900437b33c3f732e400332546e29d24a3db078252aba5977bd6"
+    },
+    {
+      "kind": "entry",
+      "path": ".codex/skills/finishing-a-development-branch",
+      "identity": "21eeb456792ab68d5a3d1b15296c3b615a682740a08a03ffd580961569ffeba1"
+    },
+    {
+      "kind": "entry",
+      "path": ".codex/skills/grove",
+      "identity": "eca3c6024e1dcbb4a499d853ce4c10fcd97a1ef54eb509381aa3d00e6204330a"
+    },
+    {
+      "kind": "entry",
+      "path": ".codex/skills/grove-art",
+      "identity": "f5e830f13f33e5d6fd14505ca2abe5874f8504cef93d9ca8ac6e363dea275a5f"
+    },
+    {
+      "kind": "entry",
+      "path": ".codex/skills/grove-combine-research",
+      "identity": "7a89132b23d6e2363d521735ae67a687de25d51bcb0da99eb27abb7f057aa054"
+    },
+    {
+      "kind": "entry",
+      "path": ".codex/skills/grove-copy-edit",
+      "identity": "2e3b547c2603e351f8a079d4f55c4b96e69ab9a5394da18bf6bcaadc05cf8062"
+    },
+    {
+      "kind": "entry",
+      "path": ".codex/skills/grove-design",
+      "identity": "95681991f7612598cbfc10f6c1f48fab6b209dc94bb37ca1898d75dc98f2addc"
+    },
+    {
+      "kind": "entry",
+      "path": ".codex/skills/grove-draft",
+      "identity": "f4423fa204e6e9e4aee9f30cf0c06998f4247331898a41c57c71681eaace2a71"
+    },
+    {
+      "kind": "entry",
+      "path": ".codex/skills/grove-finish",
+      "identity": "0b0c68f0460dca44a839736e5806c7fdae17354f52917d6eb7a37ab0b485b898"
+    },
+    {
+      "kind": "entry",
+      "path": ".codex/skills/grove-impl",
+      "identity": "1b450cd59bbd338ba403001554aad9b1f36f8b7b62366a5925e0d4d33671e1f8"
+    },
+    {
+      "kind": "entry",
+      "path": ".codex/skills/grove-integrate-review-design",
+      "identity": "a659cc5ad39009040ecb3d67f920bb8bfe31c587b87c6007b20d97339e59dbce"
+    },
+    {
+      "kind": "entry",
+      "path": ".codex/skills/grove-integrate-review-impl",
+      "identity": "d7b2b0759a8d7f688ece0ed2b81b0764cc694d6d13df953131950d53140a1e07"
+    },
+    {
+      "kind": "entry",
+      "path": ".codex/skills/grove-integrate-review-planning",
+      "identity": "839d5526e5c5851f0f86f0931c66fd7ee68295a93c6d3075de8156d4ed3b190f"
+    },
+    {
+      "kind": "entry",
+      "path": ".codex/skills/grove-integrate-review-prototype",
+      "identity": "5cac702be82d9bc9dbb441a00d184eb321b7971bd64da698db86aebf7d81eb77"
+    },
+    {
+      "kind": "entry",
+      "path": ".codex/skills/grove-integrate-review-requirements",
+      "identity": "d71c8c6c37e79d7f9569bcea24541caec64920f18a78ec5b6176110550899138"
+    },
+    {
+      "kind": "entry",
+      "path": ".codex/skills/grove-planning",
+      "identity": "60aeb1abd36f426a3bb46a8a0991901ad5d97679fe8a1321cbdc940d2faa4926"
+    },
+    {
+      "kind": "entry",
+      "path": ".codex/skills/grove-proof",
+      "identity": "fc4109c934db1e5b3056bfc304acf69412d33cc05cee016deac12da174a2c622"
+    },
+    {
+      "kind": "entry",
+      "path": ".codex/skills/grove-prototype",
+      "identity": "43a23b8b9cddf4e05258b83a53fab334ba661d25cc789a335f1bfc7d81208f7a"
+    },
+    {
+      "kind": "entry",
+      "path": ".codex/skills/grove-requirements",
+      "identity": "8bebf5c5a6fed9d1cfa2295edfa75ddcc341514894992ce58ae7e17034b617ff"
+    },
+    {
+      "kind": "entry",
+      "path": ".codex/skills/grove-research-a",
+      "identity": "7b506715083b391842f4231a9f9fdda5e10ae13778f87577133d9a0e7ab080e8"
+    },
+    {
+      "kind": "entry",
+      "path": ".codex/skills/grove-research-b",
+      "identity": "a9a67c475c540beff5df0187ecd5a7472a97c78c15067c804a39f09857d92db2"
+    },
+    {
+      "kind": "entry",
+      "path": ".codex/skills/grove-review-design",
+      "identity": "6f91d1d08cb55d3371537f741e06780ca9f8010f6a9baf69a618a793fa3e8127"
+    },
+    {
+      "kind": "entry",
+      "path": ".codex/skills/grove-review-impl",
+      "identity": "ab355e7de5b54a68b6756693e0cb4b90420602e665d644f77cf6699607ca7a8a"
+    },
+    {
+      "kind": "entry",
+      "path": ".codex/skills/grove-review-planning",
+      "identity": "fd7619e6db48df92c6abba47fcb60e41e090baa12fe25054eeb60c232d4433cd"
+    },
+    {
+      "kind": "entry",
+      "path": ".codex/skills/grove-review-prototype",
+      "identity": "94d219076b93a2fe47fa342207708ebcb284f28704165fd441dcdb2244648cc1"
+    },
+    {
+      "kind": "entry",
+      "path": ".codex/skills/grove-review-requirements",
+      "identity": "6192005f9bf1b38e110cf4b8a7b378c0cea4ce6521d95aefbf8a9062583ac1e0"
+    },
+    {
+      "kind": "entry",
+      "path": ".codex/skills/machine-environment",
+      "identity": "8fcbf43f8ab4e31f09d8b96bcb1ad55bd566fc3fcf1801659bdac223e6ca3592"
+    },
+    {
+      "kind": "entry",
+      "path": ".codex/skills/model-led-development",
+      "identity": "b26a197fa716849fe57a1a30e56ae3687aef782bfd778ffd7ca5a7a022d8f129"
+    },
+    {
+      "kind": "entry",
+      "path": ".codex/skills/receiving-code-review",
+      "identity": "04b8da89477cf996dde1d564ee18922080eea26739e2dcdad38491c893c2d4ae"
+    },
+    {
+      "kind": "entry",
+      "path": ".codex/skills/requesting-code-review",
+      "identity": "cf71de2e0ee80f6ecfe0d5a9a44187043a1923a1a9ca1e43e904bf309b4be180"
+    },
+    {
+      "kind": "entry",
+      "path": ".codex/skills/simplify-project",
+      "identity": "d81db89b83ee99b7300899ceed8d0777d698c0de9f618eaea15bbf095d19722d"
+    },
+    {
+      "kind": "entry",
+      "path": ".codex/skills/subagent-driven-development",
+      "identity": "c1a43c55dfbf7c5e668d67c26493b7351372310aaa7175522c1e54c314155f5a"
+    },
+    {
+      "kind": "entry",
+      "path": ".codex/skills/systematic-debugging",
+      "identity": "aa9c94644179315cc0ca18a765e60cb82b1a140aeb2b468ac73512052b3cb54b"
+    },
+    {
+      "kind": "entry",
+      "path": ".codex/skills/technical-communication",
+      "identity": "84615df7640faa3b494c512dbec15efc9adf2102b77a55b46c423d5cc46b9de0"
+    },
+    {
+      "kind": "entry",
+      "path": ".codex/skills/terminal-browser",
+      "identity": "c9809488cddf40f5ace6d64bdbe784a652b0e74a3ccf80dc4b1a4161ac31a327"
+    },
+    {
+      "kind": "entry",
+      "path": ".codex/skills/test-driven-development",
+      "identity": "87d43791f37b5e8c748c449cfa6bc8992c925bd8d4a512cee6444f96d093b821"
+    },
+    {
+      "kind": "entry",
+      "path": ".codex/skills/using-codebase-memory",
+      "identity": "3a0176448354030ed08586a2e7479b7fee1c30e3b525cef816653c096ee1ac70"
+    },
+    {
+      "kind": "entry",
+      "path": ".codex/skills/using-git-worktrees",
+      "identity": "8826bd48bb7ecdd168e14c035829942d687d74fc7f6940f00efc5c0c3467d5a1"
+    },
+    {
+      "kind": "entry",
+      "path": ".codex/skills/using-jujutsu",
+      "identity": "50cef7d616e12c305fc45483a5a332f5c88dfeb0c51f3500bd66fbc7d38b0067"
+    },
+    {
+      "kind": "entry",
+      "path": ".codex/skills/using-superpowers",
+      "identity": "8be6cf04b8a3948329f606dd4bcb6b31e4b6f241ab1bf75b852c374731629994"
+    },
+    {
+      "kind": "entry",
+      "path": ".codex/skills/using-testanyware",
+      "identity": "449a9ce0e2f3908fcf28425f19ede4794824441383a8b6aab5bf5967e1a5cb54"
+    },
+    {
+      "kind": "entry",
+      "path": ".codex/skills/verification-before-completion",
+      "identity": "81eaf4a600e09e24f9dec6be6cad8a2f94116fb107130a5aec63db452294cac0"
+    },
+    {
+      "kind": "entry",
+      "path": ".codex/skills/writing-code-walkthroughs",
+      "identity": "96e89b17a259012d5ecf431d3b1b5e9e95dadd3d57cc00332eceeb5feae0a3ee"
+    },
+    {
+      "kind": "entry",
+      "path": ".codex/skills/writing-plans",
+      "identity": "42b2fc13a741db4169a459169cb86bb80aa59ffa9c2d2ad3e774c2eb0637bf95"
+    },
+    {
+      "kind": "entry",
+      "path": ".codex/skills/writing-skills",
+      "identity": "271f04678a77411938c4dbc826734b5e64b69fc10c73965b51925c1ef8976fd6"
+    },
+    {
+      "kind": "entry",
+      "path": ".agents/skills/authoring-conventions",
+      "identity": "642c05aad8092cf8058b465a7f94c05c8c93a05247c17fa7716a5ffa002ce167"
+    },
+    {
+      "kind": "entry",
+      "path": ".agents/skills/cli-tool-design",
+      "identity": "323b1dcbdbdcdb95db486d50dbd6bf3b0f5e748793aa0ea5b3dc44494fb7f309"
+    },
+    {
+      "kind": "entry",
+      "path": ".agents/skills/codebase-design",
+      "identity": "f6b85e317cb71ed74eb0af4fe6ca600a8b5347c3ee4deb22517d8cd26c50af90"
+    },
+    {
+      "kind": "entry",
+      "path": ".agents/skills/coding-style-bash",
+      "identity": "898597c82fc62f2e37be26394c2d22abba6a849a20e762e198bb7f4f4351f318"
+    },
+    {
+      "kind": "entry",
+      "path": ".agents/skills/coding-style-elixir",
+      "identity": "4b424006e1b990974361350f0f3c820b265fa6305578c2f78e73bc19250781b4"
+    },
+    {
+      "kind": "entry",
+      "path": ".agents/skills/coding-style-python",
+      "identity": "573b5b4c0525349baa0903630a7340fe2812b8e2d31cd721bdc7c71122223ac7"
+    },
+    {
+      "kind": "entry",
+      "path": ".agents/skills/coding-style-rust",
+      "identity": "82b39be7411debfa9507b0bba57f263539d6138cec932626bb5599fac9977023"
+    },
+    {
+      "kind": "entry",
+      "path": ".agents/skills/coding-style-swift",
+      "identity": "fe0d82ef16833336ce2a9f757e3121ef9d81fd66875827f50e27de24de341f3e"
+    },
+    {
+      "kind": "entry",
+      "path": ".agents/skills/coding-style-typescript",
+      "identity": "37a63362f6d8d1e8d732caa8f729a3c779e9f465ac784799e384dc9afd7b8732"
+    },
+    {
+      "kind": "entry",
+      "path": ".agents/skills/configure-grove",
+      "identity": "d9d8b1e654d4d74867b8472035922fb9e7d65537ec3883a0503bb5cd1c763c58"
+    },
+    {
+      "kind": "entry",
+      "path": ".agents/skills/decision-records",
+      "identity": "28e364a253690e9d8f613fe57fef2907f9fc08d8d8e89baf2b51df375aada8eb"
+    },
+    {
+      "kind": "entry",
+      "path": ".agents/skills/doubt-driven-development",
+      "identity": "52493885e2b5a04a2350ed114af1b5cb853738966f39fa86fda9e6ac2cf19b2d"
+    },
+    {
+      "kind": "entry",
+      "path": ".agents/skills/grove",
+      "identity": "eca3c6024e1dcbb4a499d853ce4c10fcd97a1ef54eb509381aa3d00e6204330a"
+    },
+    {
+      "kind": "entry",
+      "path": ".agents/skills/grove-art",
+      "identity": "f5e830f13f33e5d6fd14505ca2abe5874f8504cef93d9ca8ac6e363dea275a5f"
+    },
+    {
+      "kind": "entry",
+      "path": ".agents/skills/grove-combine-research",
+      "identity": "7a89132b23d6e2363d521735ae67a687de25d51bcb0da99eb27abb7f057aa054"
+    },
+    {
+      "kind": "entry",
+      "path": ".agents/skills/grove-copy-edit",
+      "identity": "2e3b547c2603e351f8a079d4f55c4b96e69ab9a5394da18bf6bcaadc05cf8062"
+    },
+    {
+      "kind": "entry",
+      "path": ".agents/skills/grove-design",
+      "identity": "95681991f7612598cbfc10f6c1f48fab6b209dc94bb37ca1898d75dc98f2addc"
+    },
+    {
+      "kind": "entry",
+      "path": ".agents/skills/grove-draft",
+      "identity": "f4423fa204e6e9e4aee9f30cf0c06998f4247331898a41c57c71681eaace2a71"
+    },
+    {
+      "kind": "entry",
+      "path": ".agents/skills/grove-finish",
+      "identity": "0b0c68f0460dca44a839736e5806c7fdae17354f52917d6eb7a37ab0b485b898"
+    },
+    {
+      "kind": "entry",
+      "path": ".agents/skills/grove-impl",
+      "identity": "1b450cd59bbd338ba403001554aad9b1f36f8b7b62366a5925e0d4d33671e1f8"
+    },
+    {
+      "kind": "entry",
+      "path": ".agents/skills/grove-integrate-review-design",
+      "identity": "a659cc5ad39009040ecb3d67f920bb8bfe31c587b87c6007b20d97339e59dbce"
+    },
+    {
+      "kind": "entry",
+      "path": ".agents/skills/grove-integrate-review-impl",
+      "identity": "d7b2b0759a8d7f688ece0ed2b81b0764cc694d6d13df953131950d53140a1e07"
+    },
+    {
+      "kind": "entry",
+      "path": ".agents/skills/grove-integrate-review-planning",
+      "identity": "839d5526e5c5851f0f86f0931c66fd7ee68295a93c6d3075de8156d4ed3b190f"
+    },
+    {
+      "kind": "entry",
+      "path": ".agents/skills/grove-integrate-review-prototype",
+      "identity": "5cac702be82d9bc9dbb441a00d184eb321b7971bd64da698db86aebf7d81eb77"
+    },
+    {
+      "kind": "entry",
+      "path": ".agents/skills/grove-integrate-review-requirements",
+      "identity": "d71c8c6c37e79d7f9569bcea24541caec64920f18a78ec5b6176110550899138"
+    },
+    {
+      "kind": "entry",
+      "path": ".agents/skills/grove-planning",
+      "identity": "60aeb1abd36f426a3bb46a8a0991901ad5d97679fe8a1321cbdc940d2faa4926"
+    },
+    {
+      "kind": "entry",
+      "path": ".agents/skills/grove-proof",
+      "identity": "fc4109c934db1e5b3056bfc304acf69412d33cc05cee016deac12da174a2c622"
+    },
+    {
+      "kind": "entry",
+      "path": ".agents/skills/grove-prototype",
+      "identity": "43a23b8b9cddf4e05258b83a53fab334ba661d25cc789a335f1bfc7d81208f7a"
+    },
+    {
+      "kind": "entry",
+      "path": ".agents/skills/grove-requirements",
+      "identity": "8bebf5c5a6fed9d1cfa2295edfa75ddcc341514894992ce58ae7e17034b617ff"
+    },
+    {
+      "kind": "entry",
+      "path": ".agents/skills/grove-research-a",
+      "identity": "7b506715083b391842f4231a9f9fdda5e10ae13778f87577133d9a0e7ab080e8"
+    },
+    {
+      "kind": "entry",
+      "path": ".agents/skills/grove-research-b",
+      "identity": "a9a67c475c540beff5df0187ecd5a7472a97c78c15067c804a39f09857d92db2"
+    },
+    {
+      "kind": "entry",
+      "path": ".agents/skills/grove-review-design",
+      "identity": "6f91d1d08cb55d3371537f741e06780ca9f8010f6a9baf69a618a793fa3e8127"
+    },
+    {
+      "kind": "entry",
+      "path": ".agents/skills/grove-review-impl",
+      "identity": "ab355e7de5b54a68b6756693e0cb4b90420602e665d644f77cf6699607ca7a8a"
+    },
+    {
+      "kind": "entry",
+      "path": ".agents/skills/grove-review-planning",
+      "identity": "fd7619e6db48df92c6abba47fcb60e41e090baa12fe25054eeb60c232d4433cd"
+    },
+    {
+      "kind": "entry",
+      "path": ".agents/skills/grove-review-prototype",
+      "identity": "94d219076b93a2fe47fa342207708ebcb284f28704165fd441dcdb2244648cc1"
+    },
+    {
+      "kind": "entry",
+      "path": ".agents/skills/grove-review-requirements",
+      "identity": "6192005f9bf1b38e110cf4b8a7b378c0cea4ce6521d95aefbf8a9062583ac1e0"
+    },
+    {
+      "kind": "entry",
+      "path": ".agents/skills/machine-environment",
+      "identity": "8fcbf43f8ab4e31f09d8b96bcb1ad55bd566fc3fcf1801659bdac223e6ca3592"
+    },
+    {
+      "kind": "entry",
+      "path": ".agents/skills/model-led-development",
+      "identity": "b26a197fa716849fe57a1a30e56ae3687aef782bfd778ffd7ca5a7a022d8f129"
+    },
+    {
+      "kind": "entry",
+      "path": ".agents/skills/quint-execute-spec",
+      "identity": "8e70e2c0d08af834fc0693cfe0702423827e02cd37826bb56ad1d3abf03b0042"
+    },
+    {
+      "kind": "entry",
+      "path": ".agents/skills/quint-lang",
+      "identity": "853423d753e1078d8d75816e65c543a154a3f929b0d0118ce37b0262d6f74ba9"
+    },
+    {
+      "kind": "entry",
+      "path": ".agents/skills/quint-modeling",
+      "identity": "5fb84864ab258e5dcb91afa8ddaa3e5d75a8f29424e230446d96abbdebc586fc"
+    },
+    {
+      "kind": "entry",
+      "path": ".agents/skills/simplify-project",
+      "identity": "d81db89b83ee99b7300899ceed8d0777d698c0de9f618eaea15bbf095d19722d"
+    },
+    {
+      "kind": "entry",
+      "path": ".agents/skills/technical-communication",
+      "identity": "84615df7640faa3b494c512dbec15efc9adf2102b77a55b46c423d5cc46b9de0"
+    },
+    {
+      "kind": "entry",
+      "path": ".agents/skills/terminal-browser",
+      "identity": "d25a125555c52f0bc98c066c32672fb1c41c3864c4997dfd02d00f0552cb9c70"
+    },
+    {
+      "kind": "entry",
+      "path": ".agents/skills/using-codebase-memory",
+      "identity": "3a0176448354030ed08586a2e7479b7fee1c30e3b525cef816653c096ee1ac70"
+    },
+    {
+      "kind": "entry",
+      "path": ".agents/skills/using-jujutsu",
+      "identity": "50cef7d616e12c305fc45483a5a332f5c88dfeb0c51f3500bd66fbc7d38b0067"
+    },
+    {
+      "kind": "entry",
+      "path": ".agents/skills/using-testanyware",
+      "identity": "449a9ce0e2f3908fcf28425f19ede4794824441383a8b6aab5bf5967e1a5cb54"
+    },
+    {
+      "kind": "entry",
+      "path": ".agents/skills/writing-code-walkthroughs",
+      "identity": "96e89b17a259012d5ecf431d3b1b5e9e95dadd3d57cc00332eceeb5feae0a3ee"
+    },
+    {
+      "kind": "entry",
+      "path": ".pi/agent/skills/authoring-conventions",
+      "identity": "d8b4b2b51a731145e9c837bf821920c2d0a0981657aa06de2b948be881891fd7"
+    },
+    {
+      "kind": "entry",
+      "path": ".pi/agent/skills/cli-tool-design",
+      "identity": "3cacf5adac35b0cd752c405384a5d14c1991bdebe0c1d05ba899a4a65a4b1c8a"
+    },
+    {
+      "kind": "entry",
+      "path": ".pi/agent/skills/codebase-design",
+      "identity": "9c26acdc9edb062b4aeb3a9095299fbdbffae14a91886723e9c6f9b3c42ad70d"
+    },
+    {
+      "kind": "entry",
+      "path": ".pi/agent/skills/coding-style-bash",
+      "identity": "fffc5df2c44c0e73f4fdcdfd876771a21a6bb3e702aac5c9b27b4b9b01c3db2c"
+    },
+    {
+      "kind": "entry",
+      "path": ".pi/agent/skills/coding-style-elixir",
+      "identity": "acc70c733e5d6ac9e75d136254fc5e20c00e455a2cb22ac821b1bfdc3e785e58"
+    },
+    {
+      "kind": "entry",
+      "path": ".pi/agent/skills/coding-style-python",
+      "identity": "f472ff15c17f252091bdf55e33ffd20fa43ef67f782f742985e13ca37f2e33f1"
+    },
+    {
+      "kind": "entry",
+      "path": ".pi/agent/skills/coding-style-rust",
+      "identity": "83f6dcc01cb3b4a3b3c2d4fdf5bb077462399375700ad619d8b3696afaaefb7e"
+    },
+    {
+      "kind": "entry",
+      "path": ".pi/agent/skills/coding-style-swift",
+      "identity": "cd8733921a424fb7774821004917beb26fea5eb1da25e36726c1832b63bc7360"
+    },
+    {
+      "kind": "entry",
+      "path": ".pi/agent/skills/coding-style-typescript",
+      "identity": "4eae5b072c7313ccb073ce42a0b91b4aec2bad707e37fd21d8cc7c93536ee08b"
+    },
+    {
+      "kind": "entry",
+      "path": ".pi/agent/skills/configure-grove",
+      "identity": "1f371bc8f1ff46632c50e6278564cf857485d5445355c5e597ab31569aa33e5b"
+    },
+    {
+      "kind": "entry",
+      "path": ".pi/agent/skills/decision-records",
+      "identity": "8ba4617ecf8e2aff6279afd8201096e5fc35295fef7c0a2e1fce4277a531a587"
+    },
+    {
+      "kind": "entry",
+      "path": ".pi/agent/skills/doubt-driven-development",
+      "identity": "b3474878e72b90621a272dbe377a2e4e9d3e3a3baf63daf63264efd37d4aa81c"
+    },
+    {
+      "kind": "entry",
+      "path": ".pi/agent/skills/grove",
+      "identity": "8fc3571ac45b9d97e5bc552de7eb3ab4c229d035f295e979d21c292cf8226c1a"
+    },
+    {
+      "kind": "entry",
+      "path": ".pi/agent/skills/grove-art",
+      "identity": "039b3395a656bf9fd42f72bc2e06d8247175782deaaa54c220a777fcb6caa557"
+    },
+    {
+      "kind": "entry",
+      "path": ".pi/agent/skills/grove-combine-research",
+      "identity": "f9c5f50a1a26794a774bb88c3f65900adbc1b619b1cd66cb3c9c892211134e4c"
+    },
+    {
+      "kind": "entry",
+      "path": ".pi/agent/skills/grove-copy-edit",
+      "identity": "51e44c31b1b1c543093901eaee43fdc64600112b819b8b3a3f6509f29db8c156"
+    },
+    {
+      "kind": "entry",
+      "path": ".pi/agent/skills/grove-design",
+      "identity": "9e239c05d1c8fe1210ba4d1b1ec139bef92621e6e2db6f2b606748e5a22d2d4d"
+    },
+    {
+      "kind": "entry",
+      "path": ".pi/agent/skills/grove-draft",
+      "identity": "6cec8c6d3d5d03601979d5195d2eee16dcd6a350393d4686513be8574aaf24bf"
+    },
+    {
+      "kind": "entry",
+      "path": ".pi/agent/skills/grove-finish",
+      "identity": "1ccb8fe7ad32a515a9b0ca6b700363aba0f2c1cc1cf37b0e881ffb186e8b89f8"
+    },
+    {
+      "kind": "entry",
+      "path": ".pi/agent/skills/grove-impl",
+      "identity": "c998ad708461b0305e628ac34f85dc2a5d441dc993df42706937feb7508209b8"
+    },
+    {
+      "kind": "entry",
+      "path": ".pi/agent/skills/grove-integrate-review-design",
+      "identity": "6b08efe6c197684c289f1d247032c217b1d88203d327ad57135f3cbe4298afb6"
+    },
+    {
+      "kind": "entry",
+      "path": ".pi/agent/skills/grove-integrate-review-impl",
+      "identity": "6ab26f37f57a358af466d78eaa952302c4b47942ffc8d5fb8d438bab93fe7c20"
+    },
+    {
+      "kind": "entry",
+      "path": ".pi/agent/skills/grove-integrate-review-planning",
+      "identity": "2fc9578c2cf2ce24f0013e78d7e689da139f0d93103b8c3b5568b8400733cf66"
+    },
+    {
+      "kind": "entry",
+      "path": ".pi/agent/skills/grove-integrate-review-prototype",
+      "identity": "2216223c002694fb1087cec987d6b00177c5b154c0c9d4ed2037a75fd3c7cce8"
+    },
+    {
+      "kind": "entry",
+      "path": ".pi/agent/skills/grove-integrate-review-requirements",
+      "identity": "8f2bba3f82e17573803f60ce598207c874624af317973fd356125b209e9a0335"
+    },
+    {
+      "kind": "entry",
+      "path": ".pi/agent/skills/grove-planning",
+      "identity": "1c936d27675e0dfeb59ea42d056252a6c8a8d56f785aa1a1dcc1f014301f056a"
+    },
+    {
+      "kind": "entry",
+      "path": ".pi/agent/skills/grove-proof",
+      "identity": "74b38d821ed204a37d50d6883e1d9d5dcf9724a3d56f83918d6f92cb5ef14ea1"
+    },
+    {
+      "kind": "entry",
+      "path": ".pi/agent/skills/grove-prototype",
+      "identity": "6dc61d0bd35aee6cbcf8caeb9643c071e1f8abcc7033d84271ca0158360cf73b"
+    },
+    {
+      "kind": "entry",
+      "path": ".pi/agent/skills/grove-requirements",
+      "identity": "ba4e5dfa38c4d070a8411851f23af5be1a2103f20192d6bc3a014a3eba5bc320"
+    },
+    {
+      "kind": "entry",
+      "path": ".pi/agent/skills/grove-research-a",
+      "identity": "ed8e6357c7b8e5af770522e68428dce73713f12b707017cf0396a2d7fd5a5ae7"
+    },
+    {
+      "kind": "entry",
+      "path": ".pi/agent/skills/grove-research-b",
+      "identity": "23f5fcb9375c83ef8537870187441adb68537a69dbd54ae340ed3ef5da0e3ee8"
+    },
+    {
+      "kind": "entry",
+      "path": ".pi/agent/skills/grove-review-design",
+      "identity": "62dd9022db86cf6a8c65565632b1ce42b34afa1d00ea45e28a41ae22adcff17e"
+    },
+    {
+      "kind": "entry",
+      "path": ".pi/agent/skills/grove-review-impl",
+      "identity": "60660c4c2ae708ff7b5e68e781b96effa50eebbf0713689d4f6432f136cf94bc"
+    },
+    {
+      "kind": "entry",
+      "path": ".pi/agent/skills/grove-review-planning",
+      "identity": "4e7a2a140a0c5920f858f601ac9e2c0b770cb55e6b31526282aff3ca9479e191"
+    },
+    {
+      "kind": "entry",
+      "path": ".pi/agent/skills/grove-review-prototype",
+      "identity": "d5e5e40f5fae9d5d020355afead55122c0ebac0d4c9c2f87f3de667a5265a2c5"
+    },
+    {
+      "kind": "entry",
+      "path": ".pi/agent/skills/grove-review-requirements",
+      "identity": "19c6ca2552468f05763a1ac7a65c6f328ac40d3b19a6dfbbe3fb8ef23385d6f3"
+    },
+    {
+      "kind": "entry",
+      "path": ".pi/agent/skills/machine-environment",
+      "identity": "12b89319a173592a86e45473fa4dbc9e48ddda3c4fcfb2fb0b6fd83b0e484c32"
+    },
+    {
+      "kind": "entry",
+      "path": ".pi/agent/skills/model-led-development",
+      "identity": "74c271160d3b79f2d3d6fe4144abb190d9b41cd790ac711502601fe4fc017e5d"
+    },
+    {
+      "kind": "entry",
+      "path": ".pi/agent/skills/simplify-project",
+      "identity": "ed38c1431b46ab553699e666317f7b23bc4b488dd95dfdc3cb1bca46d2507225"
+    },
+    {
+      "kind": "entry",
+      "path": ".pi/agent/skills/technical-communication",
+      "identity": "1cd7ff26bddb60b54e81c546301f9cacc95b5b2084124bd93baf6e09b438edf4"
+    },
+    {
+      "kind": "entry",
+      "path": ".pi/agent/skills/using-codebase-memory",
+      "identity": "2644d2611683b170a7b61493529372e3fb56d00cb0e0f1aaa6ae52e4c3cadd54"
+    },
+    {
+      "kind": "entry",
+      "path": ".pi/agent/skills/using-jujutsu",
+      "identity": "648fbecf2eafbecd4b9707e7aa8895314154cd2fe4df41b92448bf9670a109dc"
+    },
+    {
+      "kind": "entry",
+      "path": ".pi/agent/skills/using-testanyware",
+      "identity": "a195e8569b8b9d2a74caf4cd3cf5568b386ae555ebb97d8cc6f070ab387a56fa"
+    },
+    {
+      "kind": "entry",
+      "path": ".pi/agent/skills/writing-code-walkthroughs",
+      "identity": "5c38243184da3b8e39881ff0d0c17dd4fc3d44124ab4265039c80218d350edaf"
+    },
+    {
+      "kind": "entry",
+      "path": ".pi/agent/extensions/technical-communication.ts",
+      "identity": "12b5af9ae08445978c778299da6590d5c2d9c9adb1328c7bd2e873c7bdb1e8c7"
+    },
+    {
+      "kind": "file",
+      "path": ".claude/settings.json",
+      "cells": [
+        {
+          "key": [
+            "enabledPlugins",
+            "grove@linkuistics"
+          ],
+          "earlier": true,
+          "switched": false
+        },
+        {
+          "key": [
+            "enabledPlugins",
+            "linkuistics@linkuistics"
+          ],
+          "earlier": true,
+          "switched": false
+        },
+        {
+          "key": [
+            "enabledPlugins",
+            "testanyware@linkuistics"
+          ],
+          "earlier": true,
+          "switched": false
+        },
+        {
+          "key": [
+            "enabledPlugins",
+            "superpowers@claude-plugins-official"
+          ],
+          "earlier": true,
+          "switched": false
+        },
+        {
+          "key": [
+            "enabledPlugins",
+            "quint-llm-kit@quint-llm-kit"
+          ],
+          "earlier": true,
+          "switched": false
+        },
+        {
+          "key": [
+            "enabledPlugins",
+            "technical-communication-hooks@writing-hooks"
+          ],
+          "earlier": false,
+          "switched": true
+        },
+        {
+          "key": [
+            "enabledPlugins",
+            "guardrail@personal"
+          ],
+          "earlier": false,
+          "switched": true
+        }
+      ]
+    },
+    {
+      "kind": "file",
+      "path": ".config/ravel/settings.json",
+      "cells": [
+        {
+          "key": [
+            "skills"
+          ],
+          "earlier": {
+            "schemaVersion": 1,
+            "sources": []
+          },
+          "switched": {
+            "schemaVersion": 1,
+            "mandatory": [
+              {
+                "source": "superpowers",
+                "path": "skills/using-superpowers/SKILL.md"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "outside": [
+    {
+      "path": ".claude/skills/codebase-memory",
+      "identity": "7aa0989b3953c67cec981cdb5429b5b095933f6e7fbc4a5017e6117b2e52059a"
+    },
+    {
+      "path": ".codex/skills/codebase-memory",
+      "identity": "4beae554b59503b150897fe8ecab88dc2d70b089c95c2bbabf1829f1d81a16f1"
+    },
+    {
+      "path": ".agents/.grove",
+      "identity": "b14c7debee5d62b8446a505993f23cc23d140394e3f0f8ab60445f5f4b581781"
+    },
+    {
+      "root": ".agents/skills",
+      "entries": {
+        "codebase-memory": "4beae554b59503b150897fe8ecab88dc2d70b089c95c2bbabf1829f1d81a16f1"
+      }
+    },
+    {
+      "root": ".pi/agent/skills",
+      "entries": {
+        "codebase-memory": "4beae554b59503b150897fe8ecab88dc2d70b089c95c2bbabf1829f1d81a16f1"
+      }
+    },
+    {
+      "root": ".pi/agent/extensions",
+      "entries": {
+        "cbmem.ts": "9a128294a3cfae25331be984acb998f6da15ac02a2e97ceb2db9db0b55ebaab1",
+        "herdr-agent-state.ts": "a58da19d7f14800715d202611c7aebaa844c02a78c212d31ade33331a9690bfa",
+        "orca-agent-status.ts": "d741bb1f7c2795b8c990a13abafda6b33f8affd1955d73c4d0979346452c4982",
+        "orca-prefill.ts": "c6adc7a6bd056df60ec9869080fcc0aaff61ffcfdd6888d93bca12810ebd0fc6",
+        "orca-titlebar-spinner.ts": "19f762cbd5ab6a7c00e729747e0e5df22ad905976ce0c1533df71d33ca2303ea"
+      }
+    },
+    {
+      "root": ".claude/agents",
+      "entries": {
+        "codebase-memory-auditor.md": "952aa55a22d55d56fc927da6f791909cd72fe9aaadb7b2a15e0975bf294cbc4d",
+        "codebase-memory-scout.md": "46887fa1b6843bc72bea70e694010e3f637225c2b3b771d05e98f15a2af00a4d",
+        "codebase-memory.md": "036eb1aa664bdaba247bf6a2e4c6d097f08a8d1b95a1f764581384019fca8745"
+      }
+    },
+    {
+      "root": ".codex/agents",
+      "entries": {
+        "codebase-memory-auditor.toml": "03d7d9685f52720cba414781ac8e42a202dbaa905005a6c938d8bc367021f902",
+        "codebase-memory-scout.toml": "43fbda97c8c33e895bf6444f58e02317094ba92cf1f6b3cf4d7cc5d06003e6d5",
+        "codebase-memory.toml": "7102c07260d21fcbc4840b841a35340bb5cba05c2acea646a09c37a9dbbe0451"
+      }
+    }
+  ],
+  "session": {
+    "harness": [
+      "^(\\S*/)?claude(\\s|$)"
+    ],
+    "mcp": [
+      "^(\\S*/)?node \\S*/\\.quint-llm-kit/repo/mcp-servers/kb/dist/server\\.js$",
+      "^(\\S*/)?codebase-memory-mcp(\\s|$)",
+      "^npm exec @playwright/mcp@latest\\s*$",
+      "^(\\S*/)?npx (-y )?@playwright/mcp@latest\\s*$",
+      "^(\\S*/)?node \\S*/node_modules/\\.bin/playwright-mcp(\\s|$)",
+      "^caffeinate -i -t \\d+$"
+    ]
+  },
+  "watch": [
+    "^(\\S*/)?(claude|codex|pi|grove|grove-llm|ravel|herdr|herdr-core|orca|mise|codebase-memory-mcp)(\\s|$)",
+    "(^|\\s)\\S*/(@anthropic-ai/claude-code|@openai/codex|@mariozechner/pi-coding-agent)/",
+    "^/Applications/(Claude|ChatGPT|Herdr|Orca)\\.app/"
+  ],
+  "jobs": {
+    "argv": [
+      "/bin/sh",
+      "-c",
+      "/bin/launchctl list && { /usr/bin/crontab -l 2>/dev/null || true; }"
+    ],
+    "patterns": [
+      "(?i)(anthropic|claude|codex|openai|chatgpt|herdr|\\borca\\b|\\bmise\\b|jdx|codebase-memory|grove|ravel)"
+    ]
+  },
+  "baseline": {
+    "name": "inventory",
+    "argv": [
+      "$python",
+      "-I",
+      ".local/state/owner-switch/prepared/inventory.py"
+    ]
+  },
+  "gates": {
+    "4": [
+      {
+        "name": "grove-release",
+        "argv": [
+          "$python",
+          "-I",
+          "$program",
+          "gate",
+          "4"
+        ]
+      }
+    ],
+    "5": [
+      {
+        "name": "skill-formulae",
+        "argv": [
+          "$python",
+          "-I",
+          "$program",
+          "gate",
+          "5"
+        ]
+      }
+    ],
+    "6": [
+      {
+        "name": "resolved-sources",
+        "argv": [
+          "$python",
+          "-I",
+          "$program",
+          "gate",
+          "6"
+        ]
+      }
+    ],
+    "7": [
+      {
+        "name": "reader-evidence",
+        "argv": [
+          "$python",
+          "-I",
+          "$program",
+          "gate",
+          "7"
+        ]
+      }
+    ]
+  },
+  "accepted": {
+    "sources": {
+      "grove-core": {
+        "formula": "linkuistics/taps/grove",
+        "resourceDigest": "8d92cd58fca8f21a87361a9d956af7e5a38e88751e25cbaff5e2384554806b51"
+      },
+      "requirements": {
+        "formula": "linkuistics/taps/grove",
+        "resourceDigest": "07b2d25e8bd20259c71f7419092329368d8ae48bec6ca973343a601a8ec515c8"
+      },
+      "design": {
+        "formula": "linkuistics/taps/grove",
+        "resourceDigest": "d8ad3a2af1b5029bc0de93747f4d7297038651180f6877fbd738d94fcbf6aa14"
+      },
+      "engineering": {
+        "formula": "linkuistics/taps/grove",
+        "resourceDigest": "7e70b280e7a932489a048d108d4dae2bc63b387cf8fc6b37298663336e0fcc66"
+      },
+      "research": {
+        "formula": "linkuistics/taps/grove",
+        "resourceDigest": "7fb3d473f66feafb49afd8846fd94cf3e1fb7b01c584d4ad5f0e54814a8b3fdb"
+      },
+      "writing": {
+        "formula": "linkuistics/taps/grove",
+        "resourceDigest": "2dea55cd72d0d56032c04419bfd438b62b321563573a09fffcab2f2c692ecade"
+      },
+      "personal": {
+        "formula": "linkuistics/taps/personal",
+        "resourceDigest": "dc1f26eafe9b7db6f750c95db38a7876beb29b067d829eaf63203323b89d61b6"
+      },
+      "testanyware": {
+        "formula": "linkuistics/taps/testanyware",
+        "resourceDigest": "3e9d7929eddd8988a6bebd9433b7f343a19e673993b3c81e8a1ce9ba913b72c6"
+      },
+      "superpowers": {
+        "formula": "linkuistics/taps/superpowers",
+        "resourceDigest": "be1ce6e3c25064b83ba2999b37972deb7f73ce88a5f5dbbba990d88037b17230"
+      },
+      "quint": {
+        "formula": "linkuistics/taps/quint-llm-kit",
+        "resourceDigest": "0a8b945fbc6732d5b7b3041a966d26cdf718ca884bd5f3fb8435297d7258edef"
+      }
+    },
+    "versions": {
+      "linkuistics/taps/personal": "2026-11-06",
+      "linkuistics/taps/testanyware": "2.8.0",
+      "linkuistics/taps/superpowers": "7.0.0",
+      "linkuistics/taps/quint-llm-kit": "1.0.0"
+    },
+    "trials": {
+      "design": [
+        {
+          "name": "provisional-design",
+          "argv": [
+            "/bin/sh",
+            "-c",
+            "echo 'provisional staging trial of design: owner-switch-plan-k254 replaces it' >&2; exit 1"
+          ]
+        }
+      ],
+      "engineering": [
+        {
+          "name": "provisional-engineering",
+          "argv": [
+            "/bin/sh",
+            "-c",
+            "echo 'provisional staging trial of engineering: owner-switch-plan-k254 replaces it' >&2; exit 1"
+          ]
+        }
+      ],
+      "grove-core": [
+        {
+          "name": "provisional-grove-core",
+          "argv": [
+            "/bin/sh",
+            "-c",
+            "echo 'provisional staging trial of grove-core: owner-switch-plan-k254 replaces it' >&2; exit 1"
+          ]
+        }
+      ],
+      "requirements": [
+        {
+          "name": "provisional-requirements",
+          "argv": [
+            "/bin/sh",
+            "-c",
+            "echo 'provisional staging trial of requirements: owner-switch-plan-k254 replaces it' >&2; exit 1"
+          ]
+        }
+      ],
+      "research": [
+        {
+          "name": "provisional-research",
+          "argv": [
+            "/bin/sh",
+            "-c",
+            "echo 'provisional staging trial of research: owner-switch-plan-k254 replaces it' >&2; exit 1"
+          ]
+        }
+      ],
+      "writing": [
+        {
+          "name": "provisional-writing",
+          "argv": [
+            "/bin/sh",
+            "-c",
+            "echo 'provisional staging trial of writing: owner-switch-plan-k254 replaces it' >&2; exit 1"
+          ]
+        }
+      ]
+    },
+    "staging": {
+      "home": "/Users/antony/.local/state/owner-staging/home",
+      "candidate_keg": "/Users/antony/.local/state/owner-staging/candidate"
+    }
+  },
+  "probes": [
+    {
+      "name": "resolve-switched",
+      "argv": [
+        "$python",
+        "-I",
+        ".local/state/owner-switch/prepared/owner_switch_probes.py",
+        "resolve",
+        "--expect",
+        "switched"
+      ]
+    },
+    {
+      "name": "claude-switched",
+      "argv": [
+        "$python",
+        "-I",
+        ".local/state/owner-switch/prepared/owner_switch_probes.py",
+        "session",
+        "--harness",
+        "claude",
+        "--route",
+        "ravel"
+      ]
+    },
+    {
+      "name": "codex-switched",
+      "argv": [
+        "$python",
+        "-I",
+        ".local/state/owner-switch/prepared/owner_switch_probes.py",
+        "session",
+        "--harness",
+        "codex",
+        "--route",
+        "ravel"
+      ]
+    }
+  ],
+  "native_probe": [
+    {
+      "name": "resolve-disabled",
+      "argv": [
+        "$python",
+        "-I",
+        ".local/state/owner-switch/prepared/owner_switch_probes.py",
+        "resolve",
+        "--expect",
+        "disabled"
+      ]
+    },
+    {
+      "name": "claude-native",
+      "argv": [
+        "$python",
+        "-I",
+        ".local/state/owner-switch/prepared/owner_switch_probes.py",
+        "session",
+        "--harness",
+        "claude",
+        "--route",
+        "native"
+      ]
+    },
+    {
+      "name": "codex-native",
+      "argv": [
+        "$python",
+        "-I",
+        ".local/state/owner-switch/prepared/owner_switch_probes.py",
+        "session",
+        "--harness",
+        "codex",
+        "--route",
+        "native"
+      ]
+    }
+  ],
+  "mac_check": {
+    "name": "mac-check",
+    "argv": [
+      ".local/bin/mac-check"
+    ]
+  }
+}

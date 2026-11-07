@@ -417,6 +417,26 @@ tasks:
     cmds:
       - python3 -I docs/evaluations/owner-skill-delivery/settings_drafts.py --out "{{.OUT}}"
 
+  # The owner's real switch plan draft in docs/owner-cutover ("Owner switch
+  # plan draft" of docs/owner-skill-delivery-evidence.md). The draft task
+  # reads the real HOME and the reference inventory, and writes the plan and
+  # its part table. The check task builds a disposable HOME from the draft in
+  # the new directory OUT, runs the program's loader, `run --dry-run` and
+  # five controls, and lists the real process tree against the plan's
+  # patterns. Neither changes the real HOME. For example:
+  #   task owner:switch-plan:check OUT="$SCRATCH/switch-plan"
+  owner:switch-plan:draft:
+    desc: Write docs/owner-cutover/switch-plan-draft.json and its part table from the real HOME, reading only
+    cmds:
+      - python3 -I docs/evaluations/owner-skill-delivery/switch_plan_draft.py draft
+
+  owner:switch-plan:check:
+    desc: Admit the switch plan draft and dry-run it in a disposable HOME in OUT, with its controls and the process listing, and write OUT/record.json
+    requires:
+      vars: [OUT]
+    cmds:
+      - python3 -I docs/evaluations/owner-skill-delivery/switch_plan_draft.py check --out "{{.OUT}}"
+
   # The candidate keg of the staging trials ("Skill formulae" and "Cutover
   # contract" of docs/specs/owner-skill-delivery.md). COMMIT names the
   # candidate, OUT a new directory outside every working copy and

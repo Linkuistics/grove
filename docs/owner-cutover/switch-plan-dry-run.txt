@@ -1,0 +1,498 @@
+state: native
+  part 0 .claude/skills/grove: earlier
+  part 1 .claude/skills/terminal-browser: earlier
+  part 2 .codex/skills/authoring-conventions: earlier
+  part 3 .codex/skills/brainstorming: earlier
+  part 4 .codex/skills/cli-tool-design: earlier
+  part 5 .codex/skills/codebase-design: earlier
+  part 6 .codex/skills/coding-style-bash: earlier
+  part 7 .codex/skills/coding-style-elixir: earlier
+  part 8 .codex/skills/coding-style-python: earlier
+  part 9 .codex/skills/coding-style-rust: earlier
+  part 10 .codex/skills/coding-style-swift: earlier
+  part 11 .codex/skills/coding-style-typescript: earlier
+  part 12 .codex/skills/configure-grove: earlier
+  part 13 .codex/skills/decision-records: earlier
+  part 14 .codex/skills/dispatching-parallel-agents: earlier
+  part 15 .codex/skills/doubt-driven-development: earlier
+  part 16 .codex/skills/executing-plans: earlier
+  part 17 .codex/skills/finishing-a-development-branch: earlier
+  part 18 .codex/skills/grove: earlier
+  part 19 .codex/skills/grove-art: earlier
+  part 20 .codex/skills/grove-combine-research: earlier
+  part 21 .codex/skills/grove-copy-edit: earlier
+  part 22 .codex/skills/grove-design: earlier
+  part 23 .codex/skills/grove-draft: earlier
+  part 24 .codex/skills/grove-finish: earlier
+  part 25 .codex/skills/grove-impl: earlier
+  part 26 .codex/skills/grove-integrate-review-design: earlier
+  part 27 .codex/skills/grove-integrate-review-impl: earlier
+  part 28 .codex/skills/grove-integrate-review-planning: earlier
+  part 29 .codex/skills/grove-integrate-review-prototype: earlier
+  part 30 .codex/skills/grove-integrate-review-requirements: earlier
+  part 31 .codex/skills/grove-planning: earlier
+  part 32 .codex/skills/grove-proof: earlier
+  part 33 .codex/skills/grove-prototype: earlier
+  part 34 .codex/skills/grove-requirements: earlier
+  part 35 .codex/skills/grove-research-a: earlier
+  part 36 .codex/skills/grove-research-b: earlier
+  part 37 .codex/skills/grove-review-design: earlier
+  part 38 .codex/skills/grove-review-impl: earlier
+  part 39 .codex/skills/grove-review-planning: earlier
+  part 40 .codex/skills/grove-review-prototype: earlier
+  part 41 .codex/skills/grove-review-requirements: earlier
+  part 42 .codex/skills/machine-environment: earlier
+  part 43 .codex/skills/model-led-development: earlier
+  part 44 .codex/skills/receiving-code-review: earlier
+  part 45 .codex/skills/requesting-code-review: earlier
+  part 46 .codex/skills/simplify-project: earlier
+  part 47 .codex/skills/subagent-driven-development: earlier
+  part 48 .codex/skills/systematic-debugging: earlier
+  part 49 .codex/skills/technical-communication: earlier
+  part 50 .codex/skills/terminal-browser: earlier
+  part 51 .codex/skills/test-driven-development: earlier
+  part 52 .codex/skills/using-codebase-memory: earlier
+  part 53 .codex/skills/using-git-worktrees: earlier
+  part 54 .codex/skills/using-jujutsu: earlier
+  part 55 .codex/skills/using-superpowers: earlier
+  part 56 .codex/skills/using-testanyware: earlier
+  part 57 .codex/skills/verification-before-completion: earlier
+  part 58 .codex/skills/writing-code-walkthroughs: earlier
+  part 59 .codex/skills/writing-plans: earlier
+  part 60 .codex/skills/writing-skills: earlier
+  part 61 .agents/skills/authoring-conventions: earlier
+  part 62 .agents/skills/cli-tool-design: earlier
+  part 63 .agents/skills/codebase-design: earlier
+  part 64 .agents/skills/coding-style-bash: earlier
+  part 65 .agents/skills/coding-style-elixir: earlier
+  part 66 .agents/skills/coding-style-python: earlier
+  part 67 .agents/skills/coding-style-rust: earlier
+  part 68 .agents/skills/coding-style-swift: earlier
+  part 69 .agents/skills/coding-style-typescript: earlier
+  part 70 .agents/skills/configure-grove: earlier
+  part 71 .agents/skills/decision-records: earlier
+  part 72 .agents/skills/doubt-driven-development: earlier
+  part 73 .agents/skills/grove: earlier
+  part 74 .agents/skills/grove-art: earlier
+  part 75 .agents/skills/grove-combine-research: earlier
+  part 76 .agents/skills/grove-copy-edit: earlier
+  part 77 .agents/skills/grove-design: earlier
+  part 78 .agents/skills/grove-draft: earlier
+  part 79 .agents/skills/grove-finish: earlier
+  part 80 .agents/skills/grove-impl: earlier
+  part 81 .agents/skills/grove-integrate-review-design: earlier
+  part 82 .agents/skills/grove-integrate-review-impl: earlier
+  part 83 .agents/skills/grove-integrate-review-planning: earlier
+  part 84 .agents/skills/grove-integrate-review-prototype: earlier
+  part 85 .agents/skills/grove-integrate-review-requirements: earlier
+  part 86 .agents/skills/grove-planning: earlier
+  part 87 .agents/skills/grove-proof: earlier
+  part 88 .agents/skills/grove-prototype: earlier
+  part 89 .agents/skills/grove-requirements: earlier
+  part 90 .agents/skills/grove-research-a: earlier
+  part 91 .agents/skills/grove-research-b: earlier
+  part 92 .agents/skills/grove-review-design: earlier
+  part 93 .agents/skills/grove-review-impl: earlier
+  part 94 .agents/skills/grove-review-planning: earlier
+  part 95 .agents/skills/grove-review-prototype: earlier
+  part 96 .agents/skills/grove-review-requirements: earlier
+  part 97 .agents/skills/machine-environment: earlier
+  part 98 .agents/skills/model-led-development: earlier
+  part 99 .agents/skills/quint-execute-spec: earlier
+  part 100 .agents/skills/quint-lang: earlier
+  part 101 .agents/skills/quint-modeling: earlier
+  part 102 .agents/skills/simplify-project: earlier
+  part 103 .agents/skills/technical-communication: earlier
+  part 104 .agents/skills/terminal-browser: earlier
+  part 105 .agents/skills/using-codebase-memory: earlier
+  part 106 .agents/skills/using-jujutsu: earlier
+  part 107 .agents/skills/using-testanyware: earlier
+  part 108 .agents/skills/writing-code-walkthroughs: earlier
+  part 109 .pi/agent/skills/authoring-conventions: earlier
+  part 110 .pi/agent/skills/cli-tool-design: earlier
+  part 111 .pi/agent/skills/codebase-design: earlier
+  part 112 .pi/agent/skills/coding-style-bash: earlier
+  part 113 .pi/agent/skills/coding-style-elixir: earlier
+  part 114 .pi/agent/skills/coding-style-python: earlier
+  part 115 .pi/agent/skills/coding-style-rust: earlier
+  part 116 .pi/agent/skills/coding-style-swift: earlier
+  part 117 .pi/agent/skills/coding-style-typescript: earlier
+  part 118 .pi/agent/skills/configure-grove: earlier
+  part 119 .pi/agent/skills/decision-records: earlier
+  part 120 .pi/agent/skills/doubt-driven-development: earlier
+  part 121 .pi/agent/skills/grove: earlier
+  part 122 .pi/agent/skills/grove-art: earlier
+  part 123 .pi/agent/skills/grove-combine-research: earlier
+  part 124 .pi/agent/skills/grove-copy-edit: earlier
+  part 125 .pi/agent/skills/grove-design: earlier
+  part 126 .pi/agent/skills/grove-draft: earlier
+  part 127 .pi/agent/skills/grove-finish: earlier
+  part 128 .pi/agent/skills/grove-impl: earlier
+  part 129 .pi/agent/skills/grove-integrate-review-design: earlier
+  part 130 .pi/agent/skills/grove-integrate-review-impl: earlier
+  part 131 .pi/agent/skills/grove-integrate-review-planning: earlier
+  part 132 .pi/agent/skills/grove-integrate-review-prototype: earlier
+  part 133 .pi/agent/skills/grove-integrate-review-requirements: earlier
+  part 134 .pi/agent/skills/grove-planning: earlier
+  part 135 .pi/agent/skills/grove-proof: earlier
+  part 136 .pi/agent/skills/grove-prototype: earlier
+  part 137 .pi/agent/skills/grove-requirements: earlier
+  part 138 .pi/agent/skills/grove-research-a: earlier
+  part 139 .pi/agent/skills/grove-research-b: earlier
+  part 140 .pi/agent/skills/grove-review-design: earlier
+  part 141 .pi/agent/skills/grove-review-impl: earlier
+  part 142 .pi/agent/skills/grove-review-planning: earlier
+  part 143 .pi/agent/skills/grove-review-prototype: earlier
+  part 144 .pi/agent/skills/grove-review-requirements: earlier
+  part 145 .pi/agent/skills/machine-environment: earlier
+  part 146 .pi/agent/skills/model-led-development: earlier
+  part 147 .pi/agent/skills/simplify-project: earlier
+  part 148 .pi/agent/skills/technical-communication: earlier
+  part 149 .pi/agent/skills/using-codebase-memory: earlier
+  part 150 .pi/agent/skills/using-jujutsu: earlier
+  part 151 .pi/agent/skills/using-testanyware: earlier
+  part 152 .pi/agent/skills/writing-code-walkthroughs: earlier
+  part 153 .pi/agent/extensions/technical-communication.ts: earlier
+  part 154 .claude/settings.json enabledPlugins.grove@linkuistics: true (earlier)
+  part 154 .claude/settings.json enabledPlugins.linkuistics@linkuistics: true (earlier)
+  part 154 .claude/settings.json enabledPlugins.testanyware@linkuistics: true (earlier)
+  part 154 .claude/settings.json enabledPlugins.superpowers@claude-plugins-official: true (earlier)
+  part 154 .claude/settings.json enabledPlugins.quint-llm-kit@quint-llm-kit: true (earlier)
+  part 154 .claude/settings.json enabledPlugins.technical-communication-hooks@writing-hooks: false (earlier)
+  part 154 .claude/settings.json enabledPlugins.guardrail@personal: false (earlier)
+  part 155 .config/ravel/settings.json skills: {"schemaVersion":1,"sources":[]} (earlier)
+preludes: the native settings read skills {"schemaVersion":1,"sources":[]} and write {"schemaVersion":1,"sources":[]} if it is absent
+preludes: the hooks installation reads enabledPlugins.technical-communication-hooks@writing-hooks false, installs technical-communication-hooks@writing-hooks if `claude plugin list` lacks it, and writes false
+preludes: rehearsed program: no
+step 3: baseline inventory
+step 4: grove-release
+step 5: skill-formulae
+step 6: resolved-sources
+step 7: reader-evidence
+switch, in order:
+  part 0 .claude/skills/grove: move into the backup's retained tree
+  part 1 .claude/skills/terminal-browser: move into the backup's retained tree
+  part 2 .codex/skills/authoring-conventions: move into the backup's retained tree
+  part 3 .codex/skills/brainstorming: move into the backup's retained tree
+  part 4 .codex/skills/cli-tool-design: move into the backup's retained tree
+  part 5 .codex/skills/codebase-design: move into the backup's retained tree
+  part 6 .codex/skills/coding-style-bash: move into the backup's retained tree
+  part 7 .codex/skills/coding-style-elixir: move into the backup's retained tree
+  part 8 .codex/skills/coding-style-python: move into the backup's retained tree
+  part 9 .codex/skills/coding-style-rust: move into the backup's retained tree
+  part 10 .codex/skills/coding-style-swift: move into the backup's retained tree
+  part 11 .codex/skills/coding-style-typescript: move into the backup's retained tree
+  part 12 .codex/skills/configure-grove: move into the backup's retained tree
+  part 13 .codex/skills/decision-records: move into the backup's retained tree
+  part 14 .codex/skills/dispatching-parallel-agents: move into the backup's retained tree
+  part 15 .codex/skills/doubt-driven-development: move into the backup's retained tree
+  part 16 .codex/skills/executing-plans: move into the backup's retained tree
+  part 17 .codex/skills/finishing-a-development-branch: move into the backup's retained tree
+  part 18 .codex/skills/grove: move into the backup's retained tree
+  part 19 .codex/skills/grove-art: move into the backup's retained tree
+  part 20 .codex/skills/grove-combine-research: move into the backup's retained tree
+  part 21 .codex/skills/grove-copy-edit: move into the backup's retained tree
+  part 22 .codex/skills/grove-design: move into the backup's retained tree
+  part 23 .codex/skills/grove-draft: move into the backup's retained tree
+  part 24 .codex/skills/grove-finish: move into the backup's retained tree
+  part 25 .codex/skills/grove-impl: move into the backup's retained tree
+  part 26 .codex/skills/grove-integrate-review-design: move into the backup's retained tree
+  part 27 .codex/skills/grove-integrate-review-impl: move into the backup's retained tree
+  part 28 .codex/skills/grove-integrate-review-planning: move into the backup's retained tree
+  part 29 .codex/skills/grove-integrate-review-prototype: move into the backup's retained tree
+  part 30 .codex/skills/grove-integrate-review-requirements: move into the backup's retained tree
+  part 31 .codex/skills/grove-planning: move into the backup's retained tree
+  part 32 .codex/skills/grove-proof: move into the backup's retained tree
+  part 33 .codex/skills/grove-prototype: move into the backup's retained tree
+  part 34 .codex/skills/grove-requirements: move into the backup's retained tree
+  part 35 .codex/skills/grove-research-a: move into the backup's retained tree
+  part 36 .codex/skills/grove-research-b: move into the backup's retained tree
+  part 37 .codex/skills/grove-review-design: move into the backup's retained tree
+  part 38 .codex/skills/grove-review-impl: move into the backup's retained tree
+  part 39 .codex/skills/grove-review-planning: move into the backup's retained tree
+  part 40 .codex/skills/grove-review-prototype: move into the backup's retained tree
+  part 41 .codex/skills/grove-review-requirements: move into the backup's retained tree
+  part 42 .codex/skills/machine-environment: move into the backup's retained tree
+  part 43 .codex/skills/model-led-development: move into the backup's retained tree
+  part 44 .codex/skills/receiving-code-review: move into the backup's retained tree
+  part 45 .codex/skills/requesting-code-review: move into the backup's retained tree
+  part 46 .codex/skills/simplify-project: move into the backup's retained tree
+  part 47 .codex/skills/subagent-driven-development: move into the backup's retained tree
+  part 48 .codex/skills/systematic-debugging: move into the backup's retained tree
+  part 49 .codex/skills/technical-communication: move into the backup's retained tree
+  part 50 .codex/skills/terminal-browser: move into the backup's retained tree
+  part 51 .codex/skills/test-driven-development: move into the backup's retained tree
+  part 52 .codex/skills/using-codebase-memory: move into the backup's retained tree
+  part 53 .codex/skills/using-git-worktrees: move into the backup's retained tree
+  part 54 .codex/skills/using-jujutsu: move into the backup's retained tree
+  part 55 .codex/skills/using-superpowers: move into the backup's retained tree
+  part 56 .codex/skills/using-testanyware: move into the backup's retained tree
+  part 57 .codex/skills/verification-before-completion: move into the backup's retained tree
+  part 58 .codex/skills/writing-code-walkthroughs: move into the backup's retained tree
+  part 59 .codex/skills/writing-plans: move into the backup's retained tree
+  part 60 .codex/skills/writing-skills: move into the backup's retained tree
+  part 61 .agents/skills/authoring-conventions: move into the backup's retained tree
+  part 62 .agents/skills/cli-tool-design: move into the backup's retained tree
+  part 63 .agents/skills/codebase-design: move into the backup's retained tree
+  part 64 .agents/skills/coding-style-bash: move into the backup's retained tree
+  part 65 .agents/skills/coding-style-elixir: move into the backup's retained tree
+  part 66 .agents/skills/coding-style-python: move into the backup's retained tree
+  part 67 .agents/skills/coding-style-rust: move into the backup's retained tree
+  part 68 .agents/skills/coding-style-swift: move into the backup's retained tree
+  part 69 .agents/skills/coding-style-typescript: move into the backup's retained tree
+  part 70 .agents/skills/configure-grove: move into the backup's retained tree
+  part 71 .agents/skills/decision-records: move into the backup's retained tree
+  part 72 .agents/skills/doubt-driven-development: move into the backup's retained tree
+  part 73 .agents/skills/grove: move into the backup's retained tree
+  part 74 .agents/skills/grove-art: move into the backup's retained tree
+  part 75 .agents/skills/grove-combine-research: move into the backup's retained tree
+  part 76 .agents/skills/grove-copy-edit: move into the backup's retained tree
+  part 77 .agents/skills/grove-design: move into the backup's retained tree
+  part 78 .agents/skills/grove-draft: move into the backup's retained tree
+  part 79 .agents/skills/grove-finish: move into the backup's retained tree
+  part 80 .agents/skills/grove-impl: move into the backup's retained tree
+  part 81 .agents/skills/grove-integrate-review-design: move into the backup's retained tree
+  part 82 .agents/skills/grove-integrate-review-impl: move into the backup's retained tree
+  part 83 .agents/skills/grove-integrate-review-planning: move into the backup's retained tree
+  part 84 .agents/skills/grove-integrate-review-prototype: move into the backup's retained tree
+  part 85 .agents/skills/grove-integrate-review-requirements: move into the backup's retained tree
+  part 86 .agents/skills/grove-planning: move into the backup's retained tree
+  part 87 .agents/skills/grove-proof: move into the backup's retained tree
+  part 88 .agents/skills/grove-prototype: move into the backup's retained tree
+  part 89 .agents/skills/grove-requirements: move into the backup's retained tree
+  part 90 .agents/skills/grove-research-a: move into the backup's retained tree
+  part 91 .agents/skills/grove-research-b: move into the backup's retained tree
+  part 92 .agents/skills/grove-review-design: move into the backup's retained tree
+  part 93 .agents/skills/grove-review-impl: move into the backup's retained tree
+  part 94 .agents/skills/grove-review-planning: move into the backup's retained tree
+  part 95 .agents/skills/grove-review-prototype: move into the backup's retained tree
+  part 96 .agents/skills/grove-review-requirements: move into the backup's retained tree
+  part 97 .agents/skills/machine-environment: move into the backup's retained tree
+  part 98 .agents/skills/model-led-development: move into the backup's retained tree
+  part 99 .agents/skills/quint-execute-spec: move into the backup's retained tree
+  part 100 .agents/skills/quint-lang: move into the backup's retained tree
+  part 101 .agents/skills/quint-modeling: move into the backup's retained tree
+  part 102 .agents/skills/simplify-project: move into the backup's retained tree
+  part 103 .agents/skills/technical-communication: move into the backup's retained tree
+  part 104 .agents/skills/terminal-browser: move into the backup's retained tree
+  part 105 .agents/skills/using-codebase-memory: move into the backup's retained tree
+  part 106 .agents/skills/using-jujutsu: move into the backup's retained tree
+  part 107 .agents/skills/using-testanyware: move into the backup's retained tree
+  part 108 .agents/skills/writing-code-walkthroughs: move into the backup's retained tree
+  part 109 .pi/agent/skills/authoring-conventions: move into the backup's retained tree
+  part 110 .pi/agent/skills/cli-tool-design: move into the backup's retained tree
+  part 111 .pi/agent/skills/codebase-design: move into the backup's retained tree
+  part 112 .pi/agent/skills/coding-style-bash: move into the backup's retained tree
+  part 113 .pi/agent/skills/coding-style-elixir: move into the backup's retained tree
+  part 114 .pi/agent/skills/coding-style-python: move into the backup's retained tree
+  part 115 .pi/agent/skills/coding-style-rust: move into the backup's retained tree
+  part 116 .pi/agent/skills/coding-style-swift: move into the backup's retained tree
+  part 117 .pi/agent/skills/coding-style-typescript: move into the backup's retained tree
+  part 118 .pi/agent/skills/configure-grove: move into the backup's retained tree
+  part 119 .pi/agent/skills/decision-records: move into the backup's retained tree
+  part 120 .pi/agent/skills/doubt-driven-development: move into the backup's retained tree
+  part 121 .pi/agent/skills/grove: move into the backup's retained tree
+  part 122 .pi/agent/skills/grove-art: move into the backup's retained tree
+  part 123 .pi/agent/skills/grove-combine-research: move into the backup's retained tree
+  part 124 .pi/agent/skills/grove-copy-edit: move into the backup's retained tree
+  part 125 .pi/agent/skills/grove-design: move into the backup's retained tree
+  part 126 .pi/agent/skills/grove-draft: move into the backup's retained tree
+  part 127 .pi/agent/skills/grove-finish: move into the backup's retained tree
+  part 128 .pi/agent/skills/grove-impl: move into the backup's retained tree
+  part 129 .pi/agent/skills/grove-integrate-review-design: move into the backup's retained tree
+  part 130 .pi/agent/skills/grove-integrate-review-impl: move into the backup's retained tree
+  part 131 .pi/agent/skills/grove-integrate-review-planning: move into the backup's retained tree
+  part 132 .pi/agent/skills/grove-integrate-review-prototype: move into the backup's retained tree
+  part 133 .pi/agent/skills/grove-integrate-review-requirements: move into the backup's retained tree
+  part 134 .pi/agent/skills/grove-planning: move into the backup's retained tree
+  part 135 .pi/agent/skills/grove-proof: move into the backup's retained tree
+  part 136 .pi/agent/skills/grove-prototype: move into the backup's retained tree
+  part 137 .pi/agent/skills/grove-requirements: move into the backup's retained tree
+  part 138 .pi/agent/skills/grove-research-a: move into the backup's retained tree
+  part 139 .pi/agent/skills/grove-research-b: move into the backup's retained tree
+  part 140 .pi/agent/skills/grove-review-design: move into the backup's retained tree
+  part 141 .pi/agent/skills/grove-review-impl: move into the backup's retained tree
+  part 142 .pi/agent/skills/grove-review-planning: move into the backup's retained tree
+  part 143 .pi/agent/skills/grove-review-prototype: move into the backup's retained tree
+  part 144 .pi/agent/skills/grove-review-requirements: move into the backup's retained tree
+  part 145 .pi/agent/skills/machine-environment: move into the backup's retained tree
+  part 146 .pi/agent/skills/model-led-development: move into the backup's retained tree
+  part 147 .pi/agent/skills/simplify-project: move into the backup's retained tree
+  part 148 .pi/agent/skills/technical-communication: move into the backup's retained tree
+  part 149 .pi/agent/skills/using-codebase-memory: move into the backup's retained tree
+  part 150 .pi/agent/skills/using-jujutsu: move into the backup's retained tree
+  part 151 .pi/agent/skills/using-testanyware: move into the backup's retained tree
+  part 152 .pi/agent/skills/writing-code-walkthroughs: move into the backup's retained tree
+  part 153 .pi/agent/extensions/technical-communication.ts: move into the backup's retained tree
+  part 154 .claude/settings.json enabledPlugins.grove@linkuistics: true -> false
+  part 154 .claude/settings.json enabledPlugins.linkuistics@linkuistics: true -> false
+  part 154 .claude/settings.json enabledPlugins.testanyware@linkuistics: true -> false
+  part 154 .claude/settings.json enabledPlugins.superpowers@claude-plugins-official: true -> false
+  part 154 .claude/settings.json enabledPlugins.quint-llm-kit@quint-llm-kit: true -> false
+  part 154 .claude/settings.json enabledPlugins.technical-communication-hooks@writing-hooks: false -> true
+  part 154 .claude/settings.json enabledPlugins.guardrail@personal: false -> true
+  part 155 .config/ravel/settings.json skills: {"schemaVersion":1,"sources":[]} -> {"mandatory":[{"path":"skills/using-superpowers/SKILL.md","source":"superpowers"}],"schemaVersion":1}
+inverse, in order:
+  part 155 .config/ravel/settings.json skills: {"mandatory":[{"path":"skills/using-superpowers/SKILL.md","source":"superpowers"}],"schemaVersion":1} -> {"schemaVersion":1,"sources":[]}
+  part 154 .claude/settings.json enabledPlugins.grove@linkuistics: false -> true
+  part 154 .claude/settings.json enabledPlugins.linkuistics@linkuistics: false -> true
+  part 154 .claude/settings.json enabledPlugins.testanyware@linkuistics: false -> true
+  part 154 .claude/settings.json enabledPlugins.superpowers@claude-plugins-official: false -> true
+  part 154 .claude/settings.json enabledPlugins.quint-llm-kit@quint-llm-kit: false -> true
+  part 154 .claude/settings.json enabledPlugins.technical-communication-hooks@writing-hooks: true -> false
+  part 154 .claude/settings.json enabledPlugins.guardrail@personal: true -> false
+  part 153 .pi/agent/extensions/technical-communication.ts: move back, if the original path is absent
+  part 152 .pi/agent/skills/writing-code-walkthroughs: move back, if the original path is absent
+  part 151 .pi/agent/skills/using-testanyware: move back, if the original path is absent
+  part 150 .pi/agent/skills/using-jujutsu: move back, if the original path is absent
+  part 149 .pi/agent/skills/using-codebase-memory: move back, if the original path is absent
+  part 148 .pi/agent/skills/technical-communication: move back, if the original path is absent
+  part 147 .pi/agent/skills/simplify-project: move back, if the original path is absent
+  part 146 .pi/agent/skills/model-led-development: move back, if the original path is absent
+  part 145 .pi/agent/skills/machine-environment: move back, if the original path is absent
+  part 144 .pi/agent/skills/grove-review-requirements: move back, if the original path is absent
+  part 143 .pi/agent/skills/grove-review-prototype: move back, if the original path is absent
+  part 142 .pi/agent/skills/grove-review-planning: move back, if the original path is absent
+  part 141 .pi/agent/skills/grove-review-impl: move back, if the original path is absent
+  part 140 .pi/agent/skills/grove-review-design: move back, if the original path is absent
+  part 139 .pi/agent/skills/grove-research-b: move back, if the original path is absent
+  part 138 .pi/agent/skills/grove-research-a: move back, if the original path is absent
+  part 137 .pi/agent/skills/grove-requirements: move back, if the original path is absent
+  part 136 .pi/agent/skills/grove-prototype: move back, if the original path is absent
+  part 135 .pi/agent/skills/grove-proof: move back, if the original path is absent
+  part 134 .pi/agent/skills/grove-planning: move back, if the original path is absent
+  part 133 .pi/agent/skills/grove-integrate-review-requirements: move back, if the original path is absent
+  part 132 .pi/agent/skills/grove-integrate-review-prototype: move back, if the original path is absent
+  part 131 .pi/agent/skills/grove-integrate-review-planning: move back, if the original path is absent
+  part 130 .pi/agent/skills/grove-integrate-review-impl: move back, if the original path is absent
+  part 129 .pi/agent/skills/grove-integrate-review-design: move back, if the original path is absent
+  part 128 .pi/agent/skills/grove-impl: move back, if the original path is absent
+  part 127 .pi/agent/skills/grove-finish: move back, if the original path is absent
+  part 126 .pi/agent/skills/grove-draft: move back, if the original path is absent
+  part 125 .pi/agent/skills/grove-design: move back, if the original path is absent
+  part 124 .pi/agent/skills/grove-copy-edit: move back, if the original path is absent
+  part 123 .pi/agent/skills/grove-combine-research: move back, if the original path is absent
+  part 122 .pi/agent/skills/grove-art: move back, if the original path is absent
+  part 121 .pi/agent/skills/grove: move back, if the original path is absent
+  part 120 .pi/agent/skills/doubt-driven-development: move back, if the original path is absent
+  part 119 .pi/agent/skills/decision-records: move back, if the original path is absent
+  part 118 .pi/agent/skills/configure-grove: move back, if the original path is absent
+  part 117 .pi/agent/skills/coding-style-typescript: move back, if the original path is absent
+  part 116 .pi/agent/skills/coding-style-swift: move back, if the original path is absent
+  part 115 .pi/agent/skills/coding-style-rust: move back, if the original path is absent
+  part 114 .pi/agent/skills/coding-style-python: move back, if the original path is absent
+  part 113 .pi/agent/skills/coding-style-elixir: move back, if the original path is absent
+  part 112 .pi/agent/skills/coding-style-bash: move back, if the original path is absent
+  part 111 .pi/agent/skills/codebase-design: move back, if the original path is absent
+  part 110 .pi/agent/skills/cli-tool-design: move back, if the original path is absent
+  part 109 .pi/agent/skills/authoring-conventions: move back, if the original path is absent
+  part 108 .agents/skills/writing-code-walkthroughs: move back, if the original path is absent
+  part 107 .agents/skills/using-testanyware: move back, if the original path is absent
+  part 106 .agents/skills/using-jujutsu: move back, if the original path is absent
+  part 105 .agents/skills/using-codebase-memory: move back, if the original path is absent
+  part 104 .agents/skills/terminal-browser: move back, if the original path is absent
+  part 103 .agents/skills/technical-communication: move back, if the original path is absent
+  part 102 .agents/skills/simplify-project: move back, if the original path is absent
+  part 101 .agents/skills/quint-modeling: move back, if the original path is absent
+  part 100 .agents/skills/quint-lang: move back, if the original path is absent
+  part 99 .agents/skills/quint-execute-spec: move back, if the original path is absent
+  part 98 .agents/skills/model-led-development: move back, if the original path is absent
+  part 97 .agents/skills/machine-environment: move back, if the original path is absent
+  part 96 .agents/skills/grove-review-requirements: move back, if the original path is absent
+  part 95 .agents/skills/grove-review-prototype: move back, if the original path is absent
+  part 94 .agents/skills/grove-review-planning: move back, if the original path is absent
+  part 93 .agents/skills/grove-review-impl: move back, if the original path is absent
+  part 92 .agents/skills/grove-review-design: move back, if the original path is absent
+  part 91 .agents/skills/grove-research-b: move back, if the original path is absent
+  part 90 .agents/skills/grove-research-a: move back, if the original path is absent
+  part 89 .agents/skills/grove-requirements: move back, if the original path is absent
+  part 88 .agents/skills/grove-prototype: move back, if the original path is absent
+  part 87 .agents/skills/grove-proof: move back, if the original path is absent
+  part 86 .agents/skills/grove-planning: move back, if the original path is absent
+  part 85 .agents/skills/grove-integrate-review-requirements: move back, if the original path is absent
+  part 84 .agents/skills/grove-integrate-review-prototype: move back, if the original path is absent
+  part 83 .agents/skills/grove-integrate-review-planning: move back, if the original path is absent
+  part 82 .agents/skills/grove-integrate-review-impl: move back, if the original path is absent
+  part 81 .agents/skills/grove-integrate-review-design: move back, if the original path is absent
+  part 80 .agents/skills/grove-impl: move back, if the original path is absent
+  part 79 .agents/skills/grove-finish: move back, if the original path is absent
+  part 78 .agents/skills/grove-draft: move back, if the original path is absent
+  part 77 .agents/skills/grove-design: move back, if the original path is absent
+  part 76 .agents/skills/grove-copy-edit: move back, if the original path is absent
+  part 75 .agents/skills/grove-combine-research: move back, if the original path is absent
+  part 74 .agents/skills/grove-art: move back, if the original path is absent
+  part 73 .agents/skills/grove: move back, if the original path is absent
+  part 72 .agents/skills/doubt-driven-development: move back, if the original path is absent
+  part 71 .agents/skills/decision-records: move back, if the original path is absent
+  part 70 .agents/skills/configure-grove: move back, if the original path is absent
+  part 69 .agents/skills/coding-style-typescript: move back, if the original path is absent
+  part 68 .agents/skills/coding-style-swift: move back, if the original path is absent
+  part 67 .agents/skills/coding-style-rust: move back, if the original path is absent
+  part 66 .agents/skills/coding-style-python: move back, if the original path is absent
+  part 65 .agents/skills/coding-style-elixir: move back, if the original path is absent
+  part 64 .agents/skills/coding-style-bash: move back, if the original path is absent
+  part 63 .agents/skills/codebase-design: move back, if the original path is absent
+  part 62 .agents/skills/cli-tool-design: move back, if the original path is absent
+  part 61 .agents/skills/authoring-conventions: move back, if the original path is absent
+  part 60 .codex/skills/writing-skills: move back, if the original path is absent
+  part 59 .codex/skills/writing-plans: move back, if the original path is absent
+  part 58 .codex/skills/writing-code-walkthroughs: move back, if the original path is absent
+  part 57 .codex/skills/verification-before-completion: move back, if the original path is absent
+  part 56 .codex/skills/using-testanyware: move back, if the original path is absent
+  part 55 .codex/skills/using-superpowers: move back, if the original path is absent
+  part 54 .codex/skills/using-jujutsu: move back, if the original path is absent
+  part 53 .codex/skills/using-git-worktrees: move back, if the original path is absent
+  part 52 .codex/skills/using-codebase-memory: move back, if the original path is absent
+  part 51 .codex/skills/test-driven-development: move back, if the original path is absent
+  part 50 .codex/skills/terminal-browser: move back, if the original path is absent
+  part 49 .codex/skills/technical-communication: move back, if the original path is absent
+  part 48 .codex/skills/systematic-debugging: move back, if the original path is absent
+  part 47 .codex/skills/subagent-driven-development: move back, if the original path is absent
+  part 46 .codex/skills/simplify-project: move back, if the original path is absent
+  part 45 .codex/skills/requesting-code-review: move back, if the original path is absent
+  part 44 .codex/skills/receiving-code-review: move back, if the original path is absent
+  part 43 .codex/skills/model-led-development: move back, if the original path is absent
+  part 42 .codex/skills/machine-environment: move back, if the original path is absent
+  part 41 .codex/skills/grove-review-requirements: move back, if the original path is absent
+  part 40 .codex/skills/grove-review-prototype: move back, if the original path is absent
+  part 39 .codex/skills/grove-review-planning: move back, if the original path is absent
+  part 38 .codex/skills/grove-review-impl: move back, if the original path is absent
+  part 37 .codex/skills/grove-review-design: move back, if the original path is absent
+  part 36 .codex/skills/grove-research-b: move back, if the original path is absent
+  part 35 .codex/skills/grove-research-a: move back, if the original path is absent
+  part 34 .codex/skills/grove-requirements: move back, if the original path is absent
+  part 33 .codex/skills/grove-prototype: move back, if the original path is absent
+  part 32 .codex/skills/grove-proof: move back, if the original path is absent
+  part 31 .codex/skills/grove-planning: move back, if the original path is absent
+  part 30 .codex/skills/grove-integrate-review-requirements: move back, if the original path is absent
+  part 29 .codex/skills/grove-integrate-review-prototype: move back, if the original path is absent
+  part 28 .codex/skills/grove-integrate-review-planning: move back, if the original path is absent
+  part 27 .codex/skills/grove-integrate-review-impl: move back, if the original path is absent
+  part 26 .codex/skills/grove-integrate-review-design: move back, if the original path is absent
+  part 25 .codex/skills/grove-impl: move back, if the original path is absent
+  part 24 .codex/skills/grove-finish: move back, if the original path is absent
+  part 23 .codex/skills/grove-draft: move back, if the original path is absent
+  part 22 .codex/skills/grove-design: move back, if the original path is absent
+  part 21 .codex/skills/grove-copy-edit: move back, if the original path is absent
+  part 20 .codex/skills/grove-combine-research: move back, if the original path is absent
+  part 19 .codex/skills/grove-art: move back, if the original path is absent
+  part 18 .codex/skills/grove: move back, if the original path is absent
+  part 17 .codex/skills/finishing-a-development-branch: move back, if the original path is absent
+  part 16 .codex/skills/executing-plans: move back, if the original path is absent
+  part 15 .codex/skills/doubt-driven-development: move back, if the original path is absent
+  part 14 .codex/skills/dispatching-parallel-agents: move back, if the original path is absent
+  part 13 .codex/skills/decision-records: move back, if the original path is absent
+  part 12 .codex/skills/configure-grove: move back, if the original path is absent
+  part 11 .codex/skills/coding-style-typescript: move back, if the original path is absent
+  part 10 .codex/skills/coding-style-swift: move back, if the original path is absent
+  part 9 .codex/skills/coding-style-rust: move back, if the original path is absent
+  part 8 .codex/skills/coding-style-python: move back, if the original path is absent
+  part 7 .codex/skills/coding-style-elixir: move back, if the original path is absent
+  part 6 .codex/skills/coding-style-bash: move back, if the original path is absent
+  part 5 .codex/skills/codebase-design: move back, if the original path is absent
+  part 4 .codex/skills/cli-tool-design: move back, if the original path is absent
+  part 3 .codex/skills/brainstorming: move back, if the original path is absent
+  part 2 .codex/skills/authoring-conventions: move back, if the original path is absent
+  part 1 .claude/skills/terminal-browser: move back, if the original path is absent
+  part 0 .claude/skills/grove: move back, if the original path is absent
+rehearsed: no

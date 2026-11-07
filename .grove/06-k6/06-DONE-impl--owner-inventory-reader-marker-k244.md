@@ -46,3 +46,29 @@ Find whether Claude Code's cleanup reads `.in_use`. The design's section
 "Resource lifetime" says that the cleanup ignores readers. If a source
 shows otherwise, record it as a finding for the owner design. Do not change
 the design in this leaf.
+
+## Decisions (running log)
+
+- Scope of the exclusion: only the Claude Code plugin row leaves out
+  `.in_use`. Codex's cache holds no `.in_use` and Codex does not write one,
+  so the Codex installed-plugin row stays as it was. The exclusion applies
+  only at the top level of the version directory, whatever the entry's type.
+  `.orphaned_at` stays in the digest, because it records a real update or
+  uninstall.
+- Precedent: Claude Code 2.1.319 has its own folder digest for managed
+  plugin releases. That digest leaves out `.git`, `.in_use`, `.orphaned_at`,
+  `.claude-plugin-link` and `.links_materialized` at the root. Source: the
+  settings-schema text in `~/.local/share/claude/versions/2.1.319`.
+- Finding for the owner design: Claude Code 2.1.319's orphan cleanup reads
+  `.in_use`. After the 14-day age, it calls a liveness check on the version
+  directory. That check parses each `.in_use/<pid>` marker (`pid`,
+  `procStart`) and skips the removal for a live session ("Skipping orphan
+  cleanup, in use by live session"). Each session erases its own marker at
+  exit, so an empty `.in_use` directory remains. The official plugin loading
+  reference does not mention the check. The design's "Resource lifetime"
+  says that the cleanup ignores readers. This leaf records the finding in
+  the evidence document and leaves the design unchanged.
+- Reference inventory: commit `docs/owner-skill-inventory-reference.tsv`
+  beside the baseline. The baseline's Claude Code plugin digests include an
+  earlier session's marker, and nobody can reconstruct its bytes. The
+  reference is the only comparable record of those version directories.

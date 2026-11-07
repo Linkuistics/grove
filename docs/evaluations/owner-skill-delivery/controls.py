@@ -3,8 +3,12 @@
 The script builds a fixture HOME in a temporary directory and runs
 inventory.py against it. It then builds a fresh fixture for each case, applies
 one change and compares the output entry by entry with the unchanged run. Each
-case must change, add or mark the entry that it names. Two null cases
-must leave the output unchanged: a repeated run and a rotated MCP credential.
+case must change, add or mark the entry that it names. Five null cases
+must leave the output unchanged: a repeated run, a rotated MCP credential, and
+an added, changed or erased .in_use marker of a running Claude Code session.
+The fixture's plugin version directory holds one marker of an earlier session,
+as the owner's baseline did. Two cases change that directory in other places,
+including a nested .in_use, and must change the plugin row.
 
 The fixture stands in for the owner's HOME, so the script writes only inside
 its temporary directory. The instrument still reads the absolute tool paths
@@ -36,12 +40,17 @@ def edit_json(home, rel, fn):
 
 PLUGIN = ".claude/plugins/cache/linkuistics/demo/1"
 SKILL = PLUGIN + "/skills/grove"
+PLUGIN_ROW = ("claude", "~/.claude/plugins/cache/linkuistics", "demo@linkuistics")
+MARKER = PLUGIN + "/.in_use/1001"
+MARKER_V1 = '{"pid":1001,"procStart":"Sat Nov  7 09:00:00 2026"}'
 HOOK = {"matcher": "startup", "hooks": [{"type": "command", "command": "\"$HOME/.claude/hooks/herdr-agent-state.sh\" start", "timeout": 5}]}
 CODEX_TOML = '[mcp_servers.quint-kb]\ncommand = "node"\nargs = ["kb.js"]\n\n[plugins."visualize@openai-bundled"]\nenabled = false\n'
 
 def build(home):
     jwrite(home, ".claude/plugins/installed_plugins.json", {"version": 2, "plugins": {"demo@linkuistics": [
         {"scope": "user", "installPath": os.path.join(home, PLUGIN), "version": "1", "gitCommitSha": "0" * 40}]}})
+    write(home, PLUGIN + "/.claude-plugin/plugin.json", '{"name": "demo"}\n')
+    write(home, MARKER, MARKER_V1)
     write(home, SKILL + "/SKILL.md", "---\nname: grove\n---\nFixture skill.\n")
     write(home, SKILL + "/scripts/run.sh", "#!/bin/sh\nexit 0\n", 0o755)
     write(home, SKILL + "/assets/note.txt", "asset\n")
@@ -67,6 +76,13 @@ def relink(home):
 CASES = [
     ("repeated run", lambda h: None, ("same",)),
     ("rotated MCP credential", lambda h: edit_json(h, ".claude.json", lambda o: o["mcpServers"]["quint-kb"]["env"].update(KB_TOKEN="credential-2")), ("same",)),
+    ("added in-use marker", lambda h: write(h, PLUGIN + "/.in_use/2002", '{"pid":2002,"procStart":"Sat Nov  7 10:00:00 2026"}'), ("same",)),
+    ("changed in-use marker", lambda h: write(h, MARKER, MARKER_V1.replace("09:00:00", "09:30:00")), ("same",)),
+    ("erased in-use marker", lambda h: os.remove(os.path.join(h, MARKER)), ("same",)),
+    ("changed plugin manifest", lambda h: write(h, PLUGIN + "/.claude-plugin/plugin.json", '{"name": "demo", "version": "2"}\n'),
+     ("changed", PLUGIN_ROW)),
+    ("nested in-use entry in a plugin version directory", lambda h: write(h, PLUGIN + "/.claude-plugin/.in_use/2002", "{}"),
+     ("changed", PLUGIN_ROW)),
     ("changed hook command", lambda h: edit_json(h, ".claude/settings.json", lambda o: o["hooks"]["SessionStart"][0]["hooks"][0].update(command="\"$HOME/.claude/hooks/herdr-agent-state.sh\" begin")),
      ("changed", ("claude", "~/.claude/settings.json hooks", "SessionStart:herdr:1"))),
     ("second hook with the same event and owner", lambda h: edit_json(h, ".claude/settings.json", second_hook),

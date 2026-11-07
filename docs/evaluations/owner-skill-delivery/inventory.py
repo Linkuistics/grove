@@ -14,6 +14,13 @@ a SHA-256 over the state that defines the entry:
 - A skill tree: each sorted relative path, the executable bit and content of
   each file, and the target of each file or directory link.
 - A Claude Code plugin or Codex installed plugin: its whole version directory.
+  The Claude Code plugin row leaves out the entry .in_use at the top level of
+  that directory. Claude Code writes .in_use/<pid> there for each running
+  session that loaded the version, and the session erases its marker when it
+  ends. The marker holds the PID and the start time of that session, so it
+  identifies a reader, not the plugin. Without the exclusion, the row would
+  change with each session that runs the script. The file count leaves it out
+  too. A nested .in_use and .orphaned_at stay in the digest.
 - A user hook: its matcher, its definition and each file under HOME that its
   command names. One row exists for each hook.
 - An MCP server: its definition. The script replaces values under env and
@@ -59,9 +66,11 @@ def fm(path):
             for k in ("name", "harnesses", "disable-model-invocation"):
                 if line.startswith(k + ":"): out[k] = line.split(":", 1)[1].strip().strip('"\'')
     return out
-def digest(d):
+def digest(d, skip=()):
     h = hashlib.sha256(); n = 0
     for root, dirs, files in os.walk(d):
+        if root == d and skip:
+            dirs[:] = [x for x in dirs if x not in skip]; files = [x for x in files if x not in skip]
         dirs.sort()
         links = [x for x in dirs if os.path.islink(os.path.join(root, x))]
         for f in sorted(files + links):
@@ -71,6 +80,10 @@ def digest(d):
                 with open(p, "rb") as fh: h.update(b"F" + xbit(p) + rel + b"\0" + hashlib.sha256(fh.read()).digest())
             n += 1
     return h.hexdigest()[:16], n
+# Claude Code writes .in_use/<pid> into each plugin version directory that a
+# running session loaded, and erases it when that session ends. The marker
+# names a reader, not the plugin, so the plugin row leaves it out.
+READER_MARKERS = (".in_use",)
 def filedigest(p):
     with open(p, "rb") as fh: return h16(xbit(p) + fh.read())
 
@@ -140,7 +153,7 @@ for key, entries in sorted(inst.get("plugins", {}).items()):
         elif not en: dispo = "outside (unchanged)"
         else: dispo = "native-keep"
         orphan = "yes" if os.path.exists(os.path.join(p, ".orphaned_at")) else "no"
-        if os.path.isdir(p): pdg, pn = digest(p)
+        if os.path.isdir(p): pdg, pn = digest(p, READER_MARKERS)
         else: pdg, pn, dispo = "-", 0, "NEEDS-REVIEW"
         row("claude", os.path.dirname(os.path.dirname(p)), key, f"plugin v{e['version']} sha {(e.get('gitCommitSha') or '-')[:12]} enabled={en} orphan={orphan}", plugin, pdg, pn, cls, owner, "+".join(comps), dispo)
         sk = os.path.join(p, "skills")

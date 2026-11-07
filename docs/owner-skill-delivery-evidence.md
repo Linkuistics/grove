@@ -62,6 +62,11 @@ controls script and both Claude Code settings and registry files before and
 after the runs. It also digested both Codex configuration files and the
 `mcpServers` object of `~/.claude.json`. No digest changed.
 
+The instrument and the controls script of this table produced the baseline.
+`owner-inventory-reader-marker-k244` later changed both of them. The section
+"Reader markers in the plugin cache" records their current values and how a
+comparison reads the baseline's Claude Code plugin rows.
+
 ### Controls
 
 A clean read from a broken instrument looks the same as a clean read from a
@@ -1157,3 +1162,118 @@ Ravel's default skill directory. The real HOME's `~/.config/ravel` holds only
 - Claude Code moved from 2.1.316 to 2.1.319 in the same five days. The
   rehearsal record names one Claude Code version, so that version must hold
   from the rehearsal to the switch.
+
+## Reader markers in the plugin cache
+
+`owner-inventory-reader-marker-k244` repaired the instrument on 2026-11-07.
+Its controls and its rerun used Claude Code 2.1.319.
+
+### The marker
+
+Claude Code writes `.in_use/<pid>` into each plugin version directory that a
+running session loaded. The marker holds the session's `pid` and
+`procStart`. The session removes its own marker when it ends, and the empty
+`.in_use` directory stays. The marker therefore identifies a reader, not the
+plugin.
+
+The Claude Code plugin row now leaves out the entry `.in_use` at the top of
+the version directory, whatever its type. The file count leaves it out too.
+A nested `.in_use` and `.orphaned_at` stay in the digest. The Codex
+installed-plugin row does not change, because Codex writes no such marker.
+Each other entry class keeps its digest.
+
+Claude Code 2.1.319 uses the same rule for its own folder digest of managed
+plugin releases. The settings schema in the executable states that this
+digest leaves out `.git`, `.in_use`, `.orphaned_at`, `.claude-plugin-link`
+and `.links_materialized` at the root.
+
+### Controls of the repair
+
+`task owner:inventory:controls` passed 19 of 19 controls. The fixture's
+plugin version directory holds one marker of an earlier session, as the
+baseline did. Five cases are new:
+
+| Case | Expectation |
+| --- | --- |
+| Added marker | The whole output stays the same |
+| Changed marker | The whole output stays the same |
+| Removed marker, with the empty `.in_use` directory kept | The whole output stays the same |
+| Changed plugin manifest | The plugin row changes |
+| Nested `.in_use` entry under `.claude-plugin` | The plugin row changes |
+
+Each new control failed against an instrument that it guards against:
+
+| Instrument | Result | Failed cases |
+| --- | --- | --- |
+| The earlier instrument, SHA-256 `f3c2a86e…3726` of "Method" | 16 of 19 | The three marker cases. The plugin row changed in each |
+| A mutant that leaves out `.in_use` at every depth | 18 of 19 | The nested entry. The whole output stayed the same |
+| A mutant that leaves out each dot entry at the top | 17 of 19 | The changed manifest and the nested entry. The whole output stayed the same |
+
+The two mutants existed only in a scratch directory. They are not part of the
+repository.
+
+| Artifact | SHA-256 |
+| --- | --- |
+| `docs/evaluations/owner-skill-delivery/inventory.py` | `b933ed455dc53af5c70ef9e2a7a3bc1389e32e413bbca8c4486d0c063c749ccc` |
+| `docs/evaluations/owner-skill-delivery/controls.py` | `812fe247edead7c20570bd4a79840e99879d02feb90abc0f76665c836ee80a0b` |
+| `docs/owner-skill-inventory-reference.tsv` | `7a16008e3213848f7e96ca2b0b00f7e2b9db43f2769334b79bccb4e5f4885f02` |
+| `docs/owner-skill-inventory.tsv` | `cbfac5b83548a3f434f34d2ac4e15afcc4004ea6b212a0beabff58b3de58a0d0`, unchanged |
+
+### Rerun in the real HOME
+
+The repaired instrument ran twice in the real HOME, and the earlier
+instrument ran once between the same subject digests. The subjects were both
+instruments, the controls script, both Claude Code settings and registry
+files, both Codex configuration files and the `mcpServers` object of
+`~/.claude.json`. No digest changed.
+
+- The two runs of the repaired instrument gave byte-identical output of 447
+  lines: a header and 446 rows. No row said `UNCLASSIFIED`, `UNASSIGNED`, `UNCOVERED` or
+  `NEEDS-REVIEW`.
+- With `CONTROL_ROOT` set to a scratch root, the output held one
+  `UNCLASSIFIED` row and one dangling row for that root.
+- The output of the earlier instrument had the same keys. It differed in 11
+  rows. Each was a Claude Code plugin row, and only its digest and file count
+  differed. Each count was one more. These 11 version directories held one
+  marker file each. The other 15 Claude Code plugin rows were the same. Their
+  directories held an empty `.in_use` directory or none.
+
+The repaired output is [the reference inventory](owner-skill-inventory-reference.tsv).
+Each difference between the reference and the baseline is in a class of
+"Differences and their reasons" above, or is the repair itself.
+
+### How a comparison reads the baseline
+
+The baseline stays unchanged, because the moves record and the design cite
+its line numbers. Its Claude Code plugin rows include one marker of an
+earlier session in the digest and in the file count. Nobody can reconstruct
+the bytes of that marker. A later comparison therefore reads the rows in
+this way:
+
+- For a Claude Code plugin row, compare with the reference, not the
+  baseline. The key, the version, the commit and the repaired digest must be
+  equal, unless a recorded update explains the difference.
+- For a Claude Code plugin row of the baseline, compare the version, the
+  commit, the class and the disposition. Its digest16 is not comparable. Its
+  file count is one more than the repaired count when a marker was present.
+- For every other row, compare with the baseline as before. The reference
+  shows that the repair did not change these rows.
+
+### Finding for the owner design
+
+Claude Code 2.1.319's orphan cleanup reads `.in_use`. The executable's
+cleanup first finds an `.orphaned_at` older than 14 days. It then runs a
+liveness check on the version directory before it removes it. That check
+parses each `.in_use/<pid>` marker and treats a marker that it cannot read as
+live. For a live session, the cleanup logs "Skipping orphan cleanup, in use
+by live session" and keeps the directory. The
+[plugin loading reference](https://code.claude.com/docs/en/plugins/loading#cleanup-of-previous-versions),
+read on 2026-11-07, does not mention this check.
+
+"Resource lifetime" in [the design](specs/owner-skill-delivery.md#resource-lifetime)
+states that the cleanup is time-based and ignores readers. That statement is
+false for 2.1.319. The design's rule still holds: the cutover keeps each
+version that a live reader uses registered and current. The executable is
+the only source for the check, and a later version can change it. This
+section does not change the design. `owner-cleanup-reader-check-k256`
+reconciles it.

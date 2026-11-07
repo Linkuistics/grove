@@ -8,6 +8,10 @@ accepted commits. Cover each formula that publishes before finish. Make
 
 ## Context
 
+- owner-settings-drafts-k246 drafted the five declarations in
+  `docs/owner-cutover/bootstrap-packages.toml`. The real
+  `~/.config/mise/config.toml` already declares `grove` and `testanyware`,
+  so add the other three to its `[bootstrap.packages]` table.
 - skill-marketplace-decision-k201 replaced the mise checkouts with Homebrew
   installation. mise only declares the formulae, in `[bootstrap.packages]`.
   The root brief's "Skill installation" states the decisions.

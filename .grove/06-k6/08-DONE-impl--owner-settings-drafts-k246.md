@@ -49,3 +49,20 @@ outside the real `~/.config/ravel` until finish.
 
 The real switch plan takes its settings cells from the off value and the
 switched value. owner-switch-plan-draft-k247 consumes these drafts.
+
+## Decisions (running log)
+
+- The drafts folder is `docs/owner-cutover/`. Each settings draft is a
+  complete settings file that holds only the `skills` key, so the accepted
+  build parses it unchanged. The plan's cells take the value of that key.
+- The candidate keg's intended `OUT` is
+  `/Users/antony/.local/state/owner-staging/candidate`. The staging settings
+  name each Grove source through the link
+  `<OUT>/brew/share/ravel/skills/<id>`, which holds no version.
+- The four other sources are named at `/opt/homebrew/share/ravel/skills/<id>`,
+  the default skill directory, never at a versioned keg.
+- The staging settings list the ten sources in byte order of their IDs, the
+  order of a default resolution. Each lists `skills` before `craft`.
+- The check is `task owner:settings-drafts`. It resolves fixture sources at
+  the moved staging paths, because the candidate keg and three kegs do not
+  exist yet. The staging trials resolve the published sources.

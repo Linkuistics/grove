@@ -1,0 +1,11 @@
+{
+  "skills": {
+    "schemaVersion": 1,
+    "mandatory": [
+      {
+        "source": "superpowers",
+        "path": "skills/using-superpowers/SKILL.md"
+      }
+    ]
+  }
+}

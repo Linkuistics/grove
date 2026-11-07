@@ -1,0 +1,96 @@
+{
+  "skills": {
+    "schemaVersion": 1,
+    "sources": [
+      {
+        "id": "design",
+        "type": "local",
+        "path": "/Users/antony/.local/state/owner-staging/candidate/brew/share/ravel/skills/design",
+        "roots": [
+          "skills",
+          "craft"
+        ]
+      },
+      {
+        "id": "engineering",
+        "type": "local",
+        "path": "/Users/antony/.local/state/owner-staging/candidate/brew/share/ravel/skills/engineering",
+        "roots": [
+          "skills",
+          "craft"
+        ]
+      },
+      {
+        "id": "grove-core",
+        "type": "local",
+        "path": "/Users/antony/.local/state/owner-staging/candidate/brew/share/ravel/skills/grove-core",
+        "roots": [
+          "skills"
+        ]
+      },
+      {
+        "id": "personal",
+        "type": "local",
+        "path": "/opt/homebrew/share/ravel/skills/personal",
+        "roots": [
+          "craft"
+        ]
+      },
+      {
+        "id": "quint",
+        "type": "local",
+        "path": "/opt/homebrew/share/ravel/skills/quint",
+        "roots": [
+          "skills"
+        ]
+      },
+      {
+        "id": "requirements",
+        "type": "local",
+        "path": "/Users/antony/.local/state/owner-staging/candidate/brew/share/ravel/skills/requirements",
+        "roots": [
+          "skills"
+        ]
+      },
+      {
+        "id": "research",
+        "type": "local",
+        "path": "/Users/antony/.local/state/owner-staging/candidate/brew/share/ravel/skills/research",
+        "roots": [
+          "skills"
+        ]
+      },
+      {
+        "id": "superpowers",
+        "type": "local",
+        "path": "/opt/homebrew/share/ravel/skills/superpowers",
+        "roots": [
+          "skills"
+        ]
+      },
+      {
+        "id": "testanyware",
+        "type": "local",
+        "path": "/opt/homebrew/share/ravel/skills/testanyware",
+        "roots": [
+          "skills"
+        ]
+      },
+      {
+        "id": "writing",
+        "type": "local",
+        "path": "/Users/antony/.local/state/owner-staging/candidate/brew/share/ravel/skills/writing",
+        "roots": [
+          "skills",
+          "craft"
+        ]
+      }
+    ],
+    "mandatory": [
+      {
+        "source": "superpowers",
+        "path": "skills/using-superpowers/SKILL.md"
+      }
+    ]
+  }
+}

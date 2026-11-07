@@ -1364,3 +1364,102 @@ After this driver's reap, the owner does these steps:
   `settings_invalid`. These can be the `harnesses` entries for Claude Code and
   Codex. The owner sets no `policyEnv`, so no `configEnv` conversion is
   necessary.
+
+## Owner settings drafts
+
+`owner-settings-drafts-k246` drafted the owner's Ravel skill settings and the
+declarations of the skill formulae on 2026-11-07. This is order 4 of the
+[cutover contract](specs/owner-skill-delivery.md#cutover-contract). The drafts
+are in [`owner-cutover/`](owner-cutover). No draft is in the real HOME. The
+real `~/.config/ravel/settings.json` was absent before and after the work.
+
+| Draft | Content | Consumer |
+| --- | --- | --- |
+| [`settings-off.json`](owner-cutover/settings-off.json) | The off value. `sources` is empty, and `mandatory` is absent | Step 3 of the switch, the earlier value of the `skills` cell and the inverse |
+| [`settings-switched.json`](owner-cutover/settings-switched.json) | The switched value. It names no `sources` and holds only the mandatory file, superpowers `skills/using-superpowers/SKILL.md` | Step 9 of the switch |
+| [`settings-staging.json`](owner-cutover/settings-staging.json) | The staging settings. They name the ten sources in byte order of their IDs, with the roots of each source and the same mandatory file | The staging HOME |
+| [`bootstrap-packages.toml`](owner-cutover/bootstrap-packages.toml) | The five `[bootstrap.packages]` declarations of "Skill formulae" | `owner-pack-checkouts-k93` |
+
+Each settings draft is a complete settings file that holds only the `skills`
+key. The cells of the switch plan take the value of that key.
+`owner-switch-plan-draft-k247` and `owner-switch-plan-k254` consume the off
+value and the switched value.
+
+### Paths of the staging settings
+
+Grove's six sources are in the candidate keg. The staging settings name each
+of them through the link of the candidate's skill directory:
+
+`/Users/antony/.local/state/owner-staging/candidate/brew/share/ravel/skills/<source-id>`
+
+`task owner:candidate-keg` makes that link for each source when its `OUT` is
+`/Users/antony/.local/state/owner-staging/candidate`.
+`owner-staging-setup-k248` builds the keg with that `OUT`. The path is outside
+every working copy and the scratchpad, and it holds no version.
+
+The four other sources are in Ravel's default skill directory of the real
+Homebrew prefix, at `/opt/homebrew/share/ravel/skills/<source-id>`. Homebrew
+links each of them to its installed keg. No path of the staging settings names
+a versioned keg.
+
+The staging HOME does not contain a source, and no source contains it.
+Otherwise Ravel refuses the source as `skill_access_unavailable`.
+
+### The declarations
+
+The owner's `~/.config/mise/config.toml` already declares
+`brew:linkuistics/taps/grove` and `brew:linkuistics/taps/testanyware`.
+`owner-pack-checkouts-k93` adds the three other declarations to that table.
+The local tap holds each of the five formulae: `grove` 22.8.0, `personal`
+2026-11-06, `testanyware` 2.8.0, `superpowers` 7.0.0 and `quint-llm-kit`
+1.0.0. Of these, only `grove` and `testanyware` are installed.
+
+### The check
+
+`task owner:settings-drafts OUT=<new directory>` runs
+[`settings_drafts.py`](evaluations/owner-skill-delivery/settings_drafts.py).
+The script copies the accepted 2.0 build into the keg `Cellar/ravel@2/2.0.0`
+of a fixture Homebrew prefix. The installation record of that keg names the
+prefix's default skill directory. That directory links ten fixture sources,
+one at each path of the staging settings, moved under `OUT`. Each case runs
+`ravel skills resolve --json` under `env -i`, with a new HOME. The command
+launches no harness, and the case PATH holds only `/usr/bin` and `/bin`.
+
+| Case | Settings | Result |
+| --- | --- | --- |
+| `no-settings` | None | Exit 0, `resolved`, the ten sources in byte order |
+| `off` | The off value | Exit 0, `disabled`. The HOME held no cache after the run |
+| `switched` | The switched value | Exit 0, `resolved`, the ten default sources. The mandatory path lay in the superpowers snapshot and held the bytes of the fixture file |
+| `staging` | The staging settings, with each path moved under `OUT` | Exit 0, `resolved`, the ten sources and the mandatory file |
+| `staging-as-is` | The unchanged staging settings | Exit 3, `skill_source_missing` at `skills.sources[0].path`, the absent candidate path of `design`. The settings checks passed |
+| Control | The off value with the mandatory reference | Exit 2, `settings_invalid` at `skills.mandatory` |
+| Control | The switched value with an absent mandatory file | Exit 3, `skill_mandatory_invalid` at `skills.mandatory[0]` |
+| Control | The staging settings with a repeated source | Exit 2, `settings_invalid` at `skills.sources[10].id` |
+
+The script also requires the five declarations at `latest` and reads each
+formula from the local tap with `brew info`, without an update.
+
+The accepted build was `bin/ravel` with SHA-256 `3a9a9129573e…`, which
+`scripts/harness-trials/builds.json` names. The drafts had these digests, which
+were the same after the run:
+
+| Draft | SHA-256 |
+| --- | --- |
+| `settings-off.json` | `6cdd20fd11675506d53584624ff8d8333c4f3c1f3d0c93b36c275865a7f306fa` |
+| `settings-switched.json` | `944f2a245b8d60e6d61886015a15284657651788cbf4e232e85542ce6baa8743` |
+| `settings-staging.json` | `d8a49f066310b0976cb4e13674c524d96d31b6aa0ba5bfc6923fc0b097623145` |
+| `bootstrap-packages.toml` | `09dff6442b119698aa4ad6696f10b369dd9a61b9e3963046fd9ee324a1a308ee` |
+
+Each check failed against a wrong draft in a scratch copy:
+
+| Mutation | Cases that failed |
+| --- | --- |
+| The off value without `sources` | `off`, which resolved the ten sources and wrote a cache, and the first control |
+| The switched value with another file as mandatory | `switched` |
+| The staging settings with nine sources | `no-settings`, `switched` and `staging` |
+| A misspelt formula name | The declarations, with Homebrew's refusal of that name only |
+
+The fixture sources hold probe skills, not the published sources. The staging
+trials resolve the published sources, as the cutover contract states. After
+the Ravel cut, rollout repeats the off-value control with the published
+`ravel@2` and the installed kegs.

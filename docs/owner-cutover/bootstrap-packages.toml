@@ -1,0 +1,10 @@
+# The skill formulae of the owner's ~/.config/mise/config.toml, from "Skill
+# formulae" of docs/specs/owner-skill-delivery.md. owner-pack-checkouts-k93
+# adds these entries to the existing [bootstrap.packages] table. That table
+# already holds the grove and testanyware entries.
+[bootstrap.packages]
+"brew:linkuistics/taps/grove" = "latest"
+"brew:linkuistics/taps/personal" = "latest"
+"brew:linkuistics/taps/testanyware" = "latest"
+"brew:linkuistics/taps/superpowers" = "latest"
+"brew:linkuistics/taps/quint-llm-kit" = "latest"

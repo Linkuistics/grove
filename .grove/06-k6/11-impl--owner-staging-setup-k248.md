@@ -21,7 +21,17 @@ before any other staging trial launches a session.
   and quint-llm-kit are in the tap and not yet installed. An installation
   changes no HOME and no discovery, so this leaf installs them.
 - owner-policy-conversion-k245 supplies `config.rhai`.
-  owner-settings-drafts-k246 supplies the staging settings.
+  owner-settings-drafts-k246 supplies the staging settings in
+  `docs/owner-cutover/settings-staging.json`.
+- The staging settings name Grove's six sources at
+  `/Users/antony/.local/state/owner-staging/candidate/brew/share/ravel/skills/<id>`.
+  Build the candidate keg with that `OUT`:
+  `task owner:candidate-keg COMMIT=7b113a28a966
+  OUT=/Users/antony/.local/state/owner-staging/candidate RAVEL_2_0_PREFIX=…`.
+  Another `OUT` needs a new staging draft and a new run of
+  `task owner:settings-drafts`. The staging HOME must not contain a source,
+  and no source may contain it. A sibling such as
+  `/Users/antony/.local/state/owner-staging/home` meets that rule.
 - The parent brief withdrew the decoy-helper control and the checkout HOME.
   They served the mise clones.
 

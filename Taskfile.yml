@@ -403,6 +403,20 @@ tasks:
     cmds:
       - python3 -I docs/evaluations/owner-skill-delivery/policy_equivalence.py --out "{{.OUT}}" {{if .TS}}--ts "{{.TS}}"{{end}} {{if .RHAI}}--rhai "{{.RHAI}}"{{end}}
 
+  # The owner's drafted Ravel skill settings and skill formulae in
+  # docs/owner-cutover ("Owner settings drafts" of
+  # docs/owner-skill-delivery-evidence.md). OUT is a new directory. The task
+  # needs the accepted 2.0 archive in target/ravel-archives-2.0. It runs only
+  # `ravel skills resolve` in private HOMEs and launches no harness. Remove OUT
+  # with `chmod -R u+w OUT && rm -rf OUT`. For example:
+  #   task owner:settings-drafts OUT="$SCRATCH/settings-drafts"
+  owner:settings-drafts:
+    desc: Resolve each drafted Ravel skill settings value with the accepted 2.0 build over a fixture default skill directory, check the skill formula declarations, and write OUT/record.json
+    requires:
+      vars: [OUT]
+    cmds:
+      - python3 -I docs/evaluations/owner-skill-delivery/settings_drafts.py --out "{{.OUT}}"
+
   # The candidate keg of the staging trials ("Skill formulae" and "Cutover
   # contract" of docs/specs/owner-skill-delivery.md). COMMIT names the
   # candidate, OUT a new directory outside every working copy and

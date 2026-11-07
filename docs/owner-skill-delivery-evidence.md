@@ -1056,3 +1056,47 @@ Each repair has a mutant of the repaired program that lacks only that
 repair. Each mutant failed its guarding control, and the positive control
 `mcp-server-kept` passed against the F2 mutant. The F1 mutant completed the
 switch with the changed source, which is the case that F1 states.
+
+## Owner switch entries
+
+`owner-switch-entries-k92` added four entries to the program, a switch row
+to the owner's `mac-check` and their rehearsal controls. The entries are the
+owner's inverse, the merge of a flagged copy, the purge check and the
+pending-activation record. The specification's sections "Concurrent
+writers", "Rollback", "Purge" and "Test seams" state each rule.
+
+No recovery rule changed, so the model stayed unchanged. The merge follows
+`ownerMerge` of the model: it applies the copy's difference from its last
+recorded content, and a cell takes only a third value. The owner's inverse
+is the inverse of "Rollback". The purge check, the run log and the
+pending-activation record are outside the model, because no state finding
+reads them.
+
+Each record now keeps the bytes that its reading read. A merge needs those
+bytes, because a digest cannot give a difference.
+
+| Mechanism | Guarding control | Mutant that lacks it |
+| --- | --- | --- |
+| A merge removes a key that the copy lost | `merge-difference`, `merge-return-through-descriptor` | Failed both |
+| A merge digest is the only recorded content of the copy | `merge-return-through-descriptor` | Failed |
+| A cell takes only a value that no run writes there | `merge-third-cell` | Failed |
+| The inverse leaves an occupied original path | `owner-inverse-occupied-path` | Failed |
+| The owner's inverse runs the program copy of the latest backup | `owner-inverse-runs-backup-copy` | Failed |
+| The record holds the mise status | `pending-after-step` | Failed |
+| A receipt names each record that it replaces | `pending-after-inverse` | Failed |
+| The purge check compares each retained entry's identity | `purge-check-retained-changed` | Failed |
+| A stopped run keeps its command evidence | `pending-after-step` | Failed |
+| `mac-check` reports a flagged copy | The three `mac-check-flagged-*` controls | Failed all three. Passed `mac-check-native` and `mac-check-complete` |
+
+The `mac-check` controls run the owner's real command with HOME set to a
+disposable HOME. That HOME links the checker's folder and holds copies of
+the plan and the program in `<state>/prepared`. The checker's own tests in
+`~/.local/lib/machine-config/tests` cover each state's fixed message, a path
+that is not safe to print and a failing program.
+
+On 2026-11-07, `task owner:switch:rehearse` passed 216 of 216 controls with
+Python 3.15.1, on program `885171751f02` and plan `a1d5f409abbf`. Its rerun
+of `settings-writes.sh` passed with Claude Code 2.1.319, so the record
+passed. Each subject file was last changed before the run started. `task
+model:owner-switch` reported "all claims hold". The model, its runner and
+the Taskfile had the same digests before and after that run.

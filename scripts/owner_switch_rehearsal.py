@@ -6,8 +6,9 @@ owns the controls. Each control builds a new disposable HOME under OUT, runs
 scripts/owner_switch.py under a fixture harness process, and checks the
 layout, the run record and the program's output. A hook acts at the
 program's named points: it crashes the program, writes as another program,
-holds a descriptor or launches a process. The real HOME is never read or
-changed.
+holds a descriptor or launches a process. The real HOME is never changed,
+and the rehearsal reads only its `mac-check` command and that command's
+folder.
 
 Usage:
     python3 -I owner_switch_rehearsal.py rehearse --out OUT [--program PATH] [--only REGEX]
@@ -50,8 +51,13 @@ unless HOME is the plan's staging HOME and CODEX_HOME is its .codex tree.
 
 The controls cover the switch, the inverse, detection, interruptions,
 entries, step 14, the processes, the rehearsal condition, the preludes of
-step 3, its baseline rows and the gates with their source controls. The
-owner's inverse and the merge entry add their controls in a later slice.
+step 3, its baseline rows and the gates with their source controls. They
+also cover the owner's inverse, the merge entry, the purge check, the
+pending-activation record and the switch's area of the owner's `mac-check`.
+Each `mac-check` control runs the real command with HOME set to the case's
+HOME, which links the checker's folder and holds copies of the plan and the
+program in <state>/prepared. That command file is the only file of the
+account's HOME that the rehearsal reads.
 """
 from __future__ import annotations
 
@@ -59,6 +65,7 @@ import argparse
 import json
 import os
 import platform
+import pwd
 import re
 import shutil
 import signal
@@ -76,6 +83,9 @@ JOB_MARK = "owner-switch-fixture-job"
 MCP_MARK = "owner-switch-fixture-mcp-server"
 # The version that the stub claude prints, and that a fixture record measured.
 FIXTURE_CLAUDE = "2.1.319 (Claude Code)"
+# The owner's `mac-check`. The machine contract owns it, and the rehearsal runs
+# it against each disposable HOME, never against the account's HOME.
+MAC_CHECK = os.path.join(os.path.realpath(pwd.getpwuid(os.getuid()).pw_dir), ".local/bin/mac-check")
 # No command of a plan may inherit these: they select another configuration than HOME's.
 CLAUDE_LOCATION_VARS = (
     "CLAUDE_CONFIG_DIR", "CLAUDE_SECURESTORAGE_CONFIG_DIR", "CLAUDE_CODE_PLUGIN_CACHE_DIR",
@@ -776,6 +786,50 @@ class Case:
             f.write(f"$ run (exit {result.returncode})\n{out}\n")
         return result.returncode, out
 
+    def entry(self, command: str, *extra: str, program=None) -> tuple:
+        """Run one of the owner's entries under the fixture harness process."""
+        args = [PY, "-I", program or self.r.program, command, "--plan", self.r.plan, "--home", self.home,
+                *extra]
+        env = dict(clean_env(), PATH=self.r.stubs + os.pathsep + os.environ.get("PATH", ""),
+                   CLAUDE_CONFIG_DIR=os.path.join(self.root, "elsewhere"),
+                   CODEX_HOME=os.path.join(self.root, "elsewhere", ".codex"),
+                   RAVEL_SKILL_DIRECTORIES=os.path.join(self.root, "elsewhere"))
+        result = subprocess.run([PY, "-I", SELF, "harness", HARNESS_MARK, self.root, "--"] + args,
+                                env=env, capture_output=True, text=True, timeout=300)
+        out = result.stdout + result.stderr
+        self.outputs.append(out)
+        with open(os.path.join(self.root, "runs.log"), "a") as f:
+            f.write(f"$ {command} {' '.join(extra)} (exit {result.returncode})\n{out}\n")
+        return result.returncode, out
+
+    def mac_check(self, prepared: bool = True) -> tuple:
+        """The real `mac-check`, for the switch's area only, with HOME set to this case's HOME.
+
+        The case's HOME links the checker's folder, and `prepared/` holds
+        copies of the plan and the program, as in the owner's layout.
+        """
+        lib = os.path.join(self.home, ".local/lib/machine-config")
+        if not os.path.lexists(lib):
+            os.makedirs(os.path.dirname(lib), exist_ok=True)
+            os.symlink(self.r.machine_config, lib)
+        folder = os.path.join(self.home, STATE, "prepared")
+        if prepared and not os.path.isdir(folder):
+            os.makedirs(folder)
+            shutil.copyfile(self.r.plan, os.path.join(folder, "plan.json"))
+            shutil.copyfile(self.r.program, os.path.join(folder, "owner_switch.py"))
+        env = dict(clean_env(), HOME=self.home)
+        result = subprocess.run([self.r.mac_check, "--only", "Owner skill switch"], env=env,
+                                capture_output=True, text=True, timeout=120)
+        with open(os.path.join(self.root, "runs.log"), "a") as f:
+            f.write(f"$ mac-check (exit {result.returncode})\n{result.stdout}{result.stderr}\n")
+        row = re.search(r"^\| Owner skill switch \| ([^|]+) \| ([^|]+) \|$", result.stdout, re.M)
+        expect(row is not None, f"mac-check printed no row for the switch: {result.stdout}{result.stderr}")
+        return result.returncode, row.group(1).strip(), row.group(2).strip()
+
+    def manual(self) -> str:
+        with open(os.path.join(self.home, MANUAL)) as f:
+            return f.read()
+
     def state(self) -> dict:
         result = subprocess.run([PY, "-I", self.r.program, "state", "--json", "--plan", self.r.plan,
                                  "--home", self.home], capture_output=True, text=True, env=clean_env())
@@ -791,11 +845,22 @@ class Case:
             return f.read().count("<!-- owner-switch-receipt ")
 
     def snapshot(self) -> dict:
+        """Every entry of the HOME, except the run logs and the owner's prepared copies.
+
+        A stopped run writes its run log, and `mac-check` reads the prepared
+        copies. Neither is part of the layout that a stop leaves unchanged.
+        """
         out = {}
+        skip = (os.path.join(STATE, "runs"), os.path.join(STATE, "prepared"), ".local/lib")
         for folder, dirs, files in os.walk(self.home):
             for name in sorted(dirs + files):
                 p = os.path.join(folder, name)
                 rel = os.path.relpath(p, self.home)
+                if any(rel == s or rel.startswith(s + "/") for s in skip):
+                    continue
+                if os.path.isdir(p) and not os.path.islink(p) and any(s.startswith(rel + "/") for s in skip):
+                    # A folder above a skipped path, which a run log can create.
+                    continue
                 if os.path.islink(p):
                     out[rel] = "link:" + os.readlink(p)
                 elif os.path.isfile(p):
@@ -848,7 +913,9 @@ def run_to_complete(case: Case) -> None:
 
 
 class Rehearsal:
-    def __init__(self, out: str, program: str):
+    def __init__(self, out: str, program: str, mac_check: str = ""):
+        self.mac_check = os.path.realpath(mac_check or MAC_CHECK)
+        self.machine_config = os.path.join(os.path.dirname(os.path.dirname(self.mac_check)), "lib/machine-config")
         self.out = os.path.realpath(out)
         os.makedirs(self.out, exist_ok=True)
         self.program = os.path.realpath(program)
@@ -2015,6 +2082,7 @@ def all_controls(r: Rehearsal) -> list:
     controls += prelude_controls()
     controls += gate_controls()
     controls += review_controls()
+    controls += entry_controls()
     return controls
 
 
@@ -2074,8 +2142,415 @@ def prelude_controls() -> list:
     return controls
 
 
+# --- the controls of owner-switch-entries-k92 -------------------------------------
+# The owner's inverse, the merge entry, the purge check, the report of
+# `mac-check` and the pending-activation record. Each builds on the complete
+# fixture plan.
+
+CLAUDE_SKILL_ENTRY, CODEX_SKILL_LINK = ".claude/skills/grove", ".codex/skills/grove"
+
+
+def expect_reset(case, skip=()) -> None:
+    """Each cell outside `skip` holds its earlier value after the owner's inverse."""
+    settings = case.json(SETTINGS)["enabledPlugins"]
+    if "superseded" not in skip:
+        expect(settings["grove@linkuistics"] is True, "the owner's inverse left the superseded plugin disabled")
+    if "hooks" not in skip:
+        expect(settings[HOOKS_ID] is False, "the owner's inverse left the hooks plugin enabled")
+    if "skills" not in skip:
+        expect(case.json(RAVEL)["skills"] == OFF, "the owner's inverse left the switched skills value")
+    for rel, name in ((CLAUDE_SKILL_ENTRY, "grove"), (CODEX_SKILL_LINK, "codex")):
+        if name not in skip:
+            expect(os.path.lexists(os.path.join(case.home, rel)), f"the owner's inverse did not move {rel} back")
+
+
+def owner_inverse_to_changed(case, skip=()) -> str:
+    """The owner's inverse leaves a third value and ends in the changed state; the next run stops there."""
+    out = expect_exit(case.entry("inverse"), 3, "ended in the changed state")
+    st = case.state()
+    expect(not st["open"] and st["records"][-1] == "inverse-ended", f"the inverse did not end: {st['records']}")
+    expect_reset(case, skip)
+    expect("<!-- owner-switch-inverse " in case.manual(), "the owner's inverse added no line to the manual")
+    expect_exit(case.run(), 3, "classification")
+    expect(case.state()["state"] == "changed", "the next run did not find the changed state")
+    return out
+
+
+def c_owner_inverse_complete(case):
+    run_to_complete(case)
+    out = expect_exit(case.entry("inverse"), 0, "result: native")
+    expect("command probe-native (step inverse): exit 0" in out, "the owner's inverse ran no native probe")
+    expect("gate: no other process before the inverse" in out, "the owner's inverse listed no process")
+    expect_reset(case)
+    st = case.state()
+    expect(st["state"] == "native" and st["records"][-1] == "inverse-ended", f"unexpected {st['state']}")
+    expect(case.manual().count("<!-- owner-switch-inverse ") == 1, "the manual lacks the inverse's line")
+
+
+def c_owner_inverse_third_cell(when: str):
+    def fn(case):
+        if when == "after":
+            run_to_complete(case)
+        else:
+            case.set_control({"actions": [{"point": "before-record:receipt", "do": "crash"}]})
+            expect_exit(case.run(), 99)
+        write_in_place(os.path.join(case.home, RAVEL), ["skills"], {"other": True})
+        expect_exit(case.run(), 3, "drifted")
+        out = owner_inverse_to_changed(case, skip=("skills",))
+        expect('third value: part 3 .config/ravel/settings.json skills: {"other":true}; left' in out,
+               "the owner's inverse did not report the third value that it left")
+        expect(case.json(RAVEL)["skills"] == {"other": True}, "the owner's inverse changed the third value")
+    return fn
+
+
+def c_owner_inverse_entry(do: str, rel: str):
+    def fn(case):
+        run_to_complete(case)
+        target = os.path.join(case.state()["backup"], "retained", rel)
+        if do == "modify-entry":
+            with open(os.path.join(target, "SKILL.md"), "a") as f:
+                f.write("changed\n")
+        else:
+            os.remove(target)
+            os.symlink("/elsewhere", target)
+        expect_exit(case.run(), 3, "drifted")
+        out = owner_inverse_to_changed(case)
+        expect(f"third value: part {0 if rel == CLAUDE_SKILL_ENTRY else 1} {rel} moved back with a changed identity" in out,
+               "the owner's inverse did not move the changed entry back and report it")
+        expect(not os.path.lexists(target), "the changed entry stayed in the backup")
+    return fn
+
+
+def c_owner_inverse_occupied(case):
+    run_to_complete(case)
+    backup = case.state()["backup"]
+    os.makedirs(os.path.join(case.home, CODEX_SKILL_LINK))
+    expect_exit(case.run(), 3, "drifted")
+    out = owner_inverse_to_changed(case, skip=())
+    expect(f"third value: part 1 {CODEX_SKILL_LINK} is occupied while its retained entry exists; both are left" in out,
+           "the owner's inverse did not report the occupied cell")
+    expect(os.path.isdir(os.path.join(case.home, CODEX_SKILL_LINK)) and not os.path.islink(os.path.join(case.home, CODEX_SKILL_LINK)),
+           "the owner's inverse changed the occupying entry")
+    expect(os.path.islink(os.path.join(backup, "retained", CODEX_SKILL_LINK)), "the retained entry left the backup")
+
+
+def c_owner_inverse_copy(case):
+    case.set_control({"actions": [{"point": "switch-after-part:1", "do": "crash"}]})
+    expect_exit(case.run(), 99)
+    other = os.path.join(case.root, "program-changed.py")
+    with open(case.r.program) as f, open(other, "w") as g:
+        g.write(f.read() + "\n# changed\n")
+    out = case.entry("inverse", program=other)[1]
+    expect("continuation: running the program copy" in out and f"program: {case.r.program_digest}" in out,
+           "the owner's inverse did not run the program copy of the latest backup")
+    expect(case.state()["records"][-1] == "inverse-ended", "the copy did not end the inverse")
+
+
+def c_owner_inverse_refusals(case):
+    expect_exit(case.entry("inverse"), 3, "no complete backup exists")
+    case.set_control({"fail": {"probe-switched": 1}})
+    expect_exit(case.run(), 3, "the native probe passed")
+    expect_exit(case.entry("inverse"), 3, "is not open")
+
+
+def c_owner_inverse_writer(case):
+    run_to_complete(case)
+    p = subprocess.Popen(["/bin/bash", "-c", f"exec -a {WRITER_MARK} /bin/sleep 120"], start_new_session=True)
+    record_pid(case.root, p.pid)
+    time.sleep(0.2)
+    before = case.snapshot()
+    expect_exit(case.entry("inverse"), 3, "other processes or jobs remain before the inverse")
+    expect(case.snapshot() == before and case.state()["state"] == "complete", "a closed interval changed the layout")
+
+
+def flagged_switch_copy(case, actions: list) -> str:
+    """Run the switch with outside writes before the exchange of the Claude Code settings; return the flagged copy."""
+    case.set_control({"actions": actions})
+    expect_exit(case.run(), 3, "the switch met a conflict")
+    flagged = case.state()["flagged"]
+    expect(len(flagged) == 1 and flagged[0]["of"] == SETTINGS, f"expected one flagged copy of {SETTINGS}: {flagged}")
+    return flagged[0]["copy"]
+
+
+BEFORE_EXCHANGE = "switch-before-exchange:2"
+
+
+def c_merge_difference(case):
+    copy = flagged_switch_copy(case, [
+        {"point": BEFORE_EXCHANGE, "do": "write-key", "path": SETTINGS, "key": ["fault"], "value": 1},
+        {"point": BEFORE_EXCHANGE, "do": "erase-key", "path": SETTINGS, "key": ["theme"]}])
+    live = case.json(SETTINGS)
+    expect("fault" not in live and live.get("theme") == "dark", "the outside write reached the live file")
+    out = expect_exit(case.entry("merge", copy), 0, "record: merge 1")
+    live = case.json(SETTINGS)
+    expect(live.get("fault") == 1, "the merge did not add the key that the copy gained")
+    expect("theme" not in live, "the merge did not erase the key that the copy lost")
+    expect(live["enabledPlugins"]["grove@linkuistics"] is True, "the merge changed a cell")
+    expect("replaced: .claude/settings.json theme: \"dark\" -> (absent)" in out, "the merge listed no erased key")
+    expect(not case.state()["flagged"], "the merged copy is still flagged")
+    run_to_complete(case)
+    expect(case.json(SETTINGS).get("fault") == 1, "the switch lost the merged key")
+
+
+def c_merge_then_change(case):
+    copy = flagged_switch_copy(case, [
+        {"point": BEFORE_EXCHANGE, "do": "write-key", "path": SETTINGS, "key": ["fault"], "value": 1}])
+    expect_exit(case.entry("merge", copy), 0, "record: merge 1")
+    write_in_place(copy, ["late"], 2)
+    expect([f["copy"] for f in case.state()["flagged"]] == [copy], "a changed merged copy is not flagged")
+    expect_exit(case.run(), 3, "a kept copy is flagged; the owner merges it first")
+    out = expect_exit(case.entry("merge", copy), 0, "record: merge 2")
+    expect(case.json(SETTINGS).get("late") == 2 and "replaced: .claude/settings.json late" in out,
+           "the second merge did not take its difference from the first merge")
+    run_to_complete(case)
+
+
+def c_merge_return(case):
+    copy = flagged_switch_copy(case, [
+        {"point": BEFORE_EXCHANGE, "do": "write-key", "path": SETTINGS, "key": ["fault"], "value": 1}])
+    with open(copy + ".read", "rb") as f:
+        read = f.read()
+    expect_exit(case.entry("merge", copy), 0, "record: merge 1")
+    # A descriptor returns the merged copy to the content that the run read, in place.
+    fd = os.open(copy, os.O_WRONLY | os.O_TRUNC)
+    try:
+        os.write(fd, read)
+    finally:
+        os.close(fd)
+    expect(case.state()["flagged"], "a merged copy that returned to the content that the run read is not flagged")
+    expect_exit(case.run(), 3, "a kept copy is flagged; the owner merges it first")
+    out = expect_exit(case.entry("merge", copy), 0, "record: merge 2")
+    expect("fault" not in case.json(SETTINGS) and "fault: 1 -> (absent)" in out,
+           "the merge of the return did not erase the key")
+
+
+def c_merge_settings_copy(case):
+    case.set_control({"actions": [{"point": "native-read", "do": "write-key", "path": RAVEL,
+                                   "key": ["fault"], "value": 1}]})
+    expect_exit(case.run(), 3, "flagged")
+    flagged = case.state()["flagged"]
+    expect(len(flagged) == 1 and flagged[0]["backup"] is None, f"expected a flagged copy of a settings record: {flagged}")
+    expect_exit(case.entry("merge", flagged[0]["copy"]), 0, "record: merge 1")
+    expect(case.json(RAVEL).get("fault") == 1, "the merge did not reach the Ravel settings")
+    expect(len([r for r in settings_records(case) if r["label"] == "merge"]) == 1, "the merge wrote no settings record")
+    case.set_control({})
+    run_to_complete(case)
+
+
+def c_merge_held_copy(case):
+    case.set_control({"actions": [{"point": "stub:install:read", "do": "write-key", "path": SETTINGS,
+                                   "key": ["fault"], "value": 1}]})
+    expect_exit(case.run(), 3, "flagged")
+    flagged = case.state()["flagged"]
+    expect(len(flagged) == 1 and flagged[0]["kind"] == "held", f"expected a flagged held copy: {flagged}")
+    expect_exit(case.entry("merge", flagged[0]["copy"]), 0, "record: merge 1")
+    expect(case.json(SETTINGS).get("fault") == 1, "the merge of the held copy did not reach the live file")
+    case.set_control({})
+    run_to_complete(case)
+
+
+def c_merge_third_cell(case):
+    copy = flagged_switch_copy(case, [
+        {"point": BEFORE_EXCHANGE, "do": "write-key", "path": SETTINGS, "key": SUPERSEDED_PLUGIN, "value": "other"},
+        {"point": BEFORE_EXCHANGE, "do": "write-key", "path": SETTINGS, "key": HOOKS_PLUGIN, "value": True}])
+    expect_exit(case.entry("merge", copy), 0, "record: merge 1")
+    plugins = case.json(SETTINGS)["enabledPlugins"]
+    expect(plugins["grove@linkuistics"] == "other", "the merge did not take the copy's third value of a cell")
+    expect(plugins[HOOKS_ID] is False, "the merge took a value that a run writes into a cell")
+    expect_exit(case.run(), 3, "classification")
+
+
+def c_merge_record_only(case):
+    copy = flagged_switch_copy(case, [
+        {"point": BEFORE_EXCHANGE, "do": "write-key", "path": SETTINGS, "key": ["fault"], "value": 1}])
+    before = case.json(SETTINGS)
+    expect_exit(case.entry("merge", copy, "--record-only"), 0, "without applying a difference")
+    expect(case.json(SETTINGS) == before and not case.state()["flagged"], "--record-only changed the live file")
+    expect_exit(case.entry("merge", copy), 3, "not flagged")
+    expect_exit(case.entry("merge", os.path.join(case.home, SETTINGS)), 3, "is no kept copy")
+
+
+def c_purge(do: str):
+    def fn(case):
+        if do == "open":
+            case.set_control({"actions": [{"point": "switch-after-part:1", "do": "crash"}]})
+            expect_exit(case.run(), 99)
+            expect_exit(case.entry("purge-check"), 3, "is open")
+            return
+        run_to_complete(case)
+        if do == "clean":
+            out = expect_exit(case.entry("purge-check"), 0, "the conditions that the program reads hold")
+            expect(f"retained entry {CLAUDE_SKILL_ENTRY}: keeps its recorded change identity" in out,
+                   "the purge check did not read the receipt's retained entries")
+            expect("the owner confirms: the owner decides that the rollback window is closed" in out,
+                   "the purge check listed no condition of the owner")
+            return
+        with open(os.path.join(case.state()["backup"], "retained", CLAUDE_SKILL_ENTRY, "SKILL.md"), "a") as f:
+            f.write("changed\n")
+        expect_exit(case.entry("purge-check"), 3, "changed its identity since its move")
+    return fn
+
+
+def expect_mac_check(case, code: int, status: str, text: str, prepared: bool = True) -> str:
+    got = case.mac_check(prepared)
+    expect(got[0] == code and got[1] == status and text in got[2], f"mac-check reported {got}, not {code} {status} {text}")
+    return got[2]
+
+
+def c_mac_check_native(case):
+    expect_mac_check(case, 0, "OK", "no switch is prepared", prepared=False)
+    expect_mac_check(case, 0, "OK", "State native:")
+
+
+def c_mac_check_complete(case):
+    run_to_complete(case)
+    expect_mac_check(case, 0, "OK", "State complete:")
+
+
+def c_mac_check_open(point: str, state: str):
+    def fn(case):
+        case.set_control({"actions": [{"point": point, "do": "crash"}]})
+        expect_exit(case.run(), 99)
+        expect_mac_check(case, 10, "Needs attention", f"State {state}:")
+    return fn
+
+
+def c_mac_check_drifted(case):
+    case.set_control({"actions": [{"point": "step-14", "do": "crash"}]})
+    expect_exit(case.run(), 99)
+    write_in_place(os.path.join(case.home, SETTINGS), SUPERSEDED_PLUGIN, True)
+    expect_mac_check(case, 10, "Needs attention", "State drifted:")
+    expect_exit(case.run(), 3, "drifted")
+    expect(case.receipts() == 0, "a run copied a receipt for a drifted layout")
+
+
+def c_mac_check_changed(case):
+    write_in_place(os.path.join(case.home, SETTINGS), SUPERSEDED_PLUGIN, "other")
+    expect_mac_check(case, 10, "Needs attention", "State changed:")
+
+
+def c_mac_check_flagged(where: str):
+    def fn(case):
+        if where == "settings":
+            c_native_descriptor(case)
+            of = RAVEL
+        elif where == "held":
+            c_hooks_descriptor(case)
+            of = SETTINGS
+        else:
+            flagged_switch_copy(case, [
+                {"point": BEFORE_EXCHANGE, "do": "write-key", "path": SETTINGS, "key": ["fault"], "value": 1}])
+            of = SETTINGS
+        expect(where == "backup" or case.state()["backup"] is None, "a backup exists before mac-check reads the copy")
+        expect_mac_check(case, 10, "Needs attention", f"Flagged kept copies of: {of}")
+    return fn
+
+
+def pending_body(case) -> dict:
+    blocks = re.findall(r"<!-- owner-switch-pending (\S+) -->\n.*?```json\n(.*?)\n```", case.manual(), re.S)
+    expect(blocks, "the manual holds no pending-activation record")
+    return json.loads(blocks[-1][1])
+
+
+def c_pending_after_step(case):
+    case.set_control({"mise": {"linkuistics/taps/personal": {"installed_version": "0.9"}}})
+    expect_exit(case.run(), 3, "step 5")
+    expect_exit(case.entry("pending", "--grove-commit", "0123abcd"), 0, "pending-activation record")
+    body = pending_body(case)
+    expect(body["grove"]["version"] == "1" and body["grove"]["release_commit"] == "0123abcd"
+           and body["grove"]["read"] == "from step 4 of the run", f"the record names the wrong Grove: {body['grove']}")
+    expect(body["ravel"]["version"] == "ravel 2.0.0 (fixture)" and body["ravel"]["path"].endswith("/prefix/bin/ravel"),
+           f"the record names the wrong Ravel: {body['ravel']}")
+    expect(body["formula_versions"]["linkuistics/taps/personal"] == "0.9", "the record lacks a formula version")
+    expect('"linkuistics/taps/personal"' in body["mise_status"]["output"], "the record lacks the mise status")
+    expect([f["name"] for f in body["failed"]] == ["skill-formulae"] and "step 5" in body["failed"][0]["output"],
+           f"the record lacks the failed step's output: {body['failed']}")
+    expect(body["state"] == "native" and body["backups"] == [] and body["run"]["result"] == "stop",
+           f"the record names the wrong state: {body['state']} {body['backups']}")
+
+
+def c_pending_before_step_4(case):
+    p = subprocess.Popen(["/bin/bash", "-c", f"exec -a {WRITER_MARK} /bin/sleep 120"], start_new_session=True)
+    record_pid(case.root, p.pid)
+    time.sleep(0.2)
+    expect_exit(case.run(), 3, "before step 1")
+    expect_exit(case.entry("pending"), 0, "pending-activation record")
+    body = pending_body(case)
+    expect(body["grove"].get("version") == "1" and body["grove"]["read"].startswith("by this record"),
+           f"the record did not read the Grove version itself: {body['grove']}")
+    expect(body["grove"]["release_commit"] == "not supplied", "the record invented a release commit")
+    expect("other processes" in body["run"]["reason"], "the record lacks the stop's reason")
+
+
+def c_pending_after_inverse(case):
+    case.set_control({"fail": {"probe-switched": 1}})
+    expect_exit(case.run(), 3, "the native probe passed")
+    expect_exit(case.entry("pending"), 0, "pending-activation record")
+    body = pending_body(case)
+    expect(len(body["backups"]) == 1 and body["state"] == "native", f"unexpected {body['backups']} {body['state']}")
+    expect([f["name"] for f in body["failed"]] == ["probe-switched"], f"the record lacks the failed probe: {body['failed']}")
+    case.set_control({})
+    expect_exit(case.run(), 0, "result: complete")
+    pending = re.findall(r"<!-- owner-switch-pending (\S+) -->", case.manual())
+    expect(f"It replaces the pending-activation records {pending[0]}." in case.manual(),
+           "the receipt does not name the pending-activation record that it replaces")
+
+
+def c_pending_drifted(case):
+    case.set_control({"actions": [{"point": "step-14", "do": "crash"}]})
+    expect_exit(case.run(), 99)
+    write_in_place(os.path.join(case.home, RAVEL), ["skills"], {"other": True})
+    os.makedirs(os.path.join(case.home, ".claude/skills/new-entry"))
+    expect_exit(case.run(), 3, "drifted")
+    expect_exit(case.entry("pending"), 0, "pending-activation record")
+    body = pending_body(case)
+    cells = {(c["path"], c.get("key")): c for c in body["cells"]}
+    expect(body["state"] == "drifted", f"unexpected {body['state']}")
+    expect(cells[(RAVEL, "skills")]["value"] == {"other": True} and cells[(RAVEL, "skills")]["status"] == "third",
+           f"the record lacks the drifted cell's value: {body['cells']}")
+    expect(cells[(SETTINGS, "enabledPlugins.grove@linkuistics")]["status"] == "switched", "the record lacks a switched cell")
+    expect(".claude/skills/new-entry" in body["outside_changed"], "the record lacks the changed outside entry")
+
+
+def entry_controls() -> list:
+    return [
+        ("owner-inverse-complete", c_owner_inverse_complete, {}),
+        ("owner-inverse-third-cell-after-receipt", c_owner_inverse_third_cell("after"), {}),
+        ("owner-inverse-third-cell-before-receipt", c_owner_inverse_third_cell("before"), {}),
+        ("owner-inverse-entry-content", c_owner_inverse_entry("modify-entry", CLAUDE_SKILL_ENTRY), {}),
+        ("owner-inverse-entry-retarget", c_owner_inverse_entry("retarget", CODEX_SKILL_LINK), {}),
+        ("owner-inverse-occupied-path", c_owner_inverse_occupied, {}),
+        ("owner-inverse-runs-backup-copy", c_owner_inverse_copy, {}),
+        ("owner-inverse-refusals", c_owner_inverse_refusals, {}),
+        ("owner-inverse-writer", c_owner_inverse_writer, {}),
+        ("merge-difference", c_merge_difference, {}),
+        ("merge-then-change", c_merge_then_change, {}),
+        ("merge-return-through-descriptor", c_merge_return, {}),
+        ("merge-settings-record-copy", c_merge_settings_copy, {"ravel": "absent-key"}),
+        ("merge-held-copy", c_merge_held_copy, {"hooks": "absent"}),
+        ("merge-third-cell", c_merge_third_cell, {}),
+        ("merge-record-only", c_merge_record_only, {}),
+        ("purge-check-clean", c_purge("clean"), {}),
+        ("purge-check-retained-changed", c_purge("changed"), {}),
+        ("purge-check-open-run", c_purge("open"), {}),
+        ("mac-check-native", c_mac_check_native, {}),
+        ("mac-check-complete", c_mac_check_complete, {}),
+        ("mac-check-active", c_mac_check_open("before-record:receipt", "active"), {}),
+        ("mac-check-interrupted", c_mac_check_open("switch-after-part:1", "interrupted"), {}),
+        ("mac-check-drifted-after-receipt", c_mac_check_drifted, {}),
+        ("mac-check-changed", c_mac_check_changed, {}),
+        ("mac-check-flagged-settings-before-backup", c_mac_check_flagged("settings"), {"ravel": "absent-key"}),
+        ("mac-check-flagged-held-before-backup", c_mac_check_flagged("held"), {"hooks": "absent"}),
+        ("mac-check-flagged-backup-copy", c_mac_check_flagged("backup"), {}),
+        ("pending-after-step", c_pending_after_step, {}),
+        ("pending-before-step-4", c_pending_before_step_4, {}),
+        ("pending-after-inverse", c_pending_after_inverse, {}),
+        ("pending-drifted", c_pending_drifted, {}),
+    ]
+
+
 def cmd_rehearse(args) -> int:
-    r = Rehearsal(args.out, args.program)
+    r = Rehearsal(args.out, args.program, args.mac_check)
     for name, fn, kw in all_controls(r):
         if args.only and not re.search(args.only, name):
             continue
@@ -2189,6 +2664,7 @@ def main() -> int:
     p.add_argument("--out", required=True)
     p.add_argument("--program", default=os.path.join(HERE, "owner_switch.py"))
     p.add_argument("--only", help="run only the controls whose name matches; the record is then partial")
+    p.add_argument("--mac-check", default="", help=f"the owner's mac-check command (default {MAC_CHECK})")
     p.add_argument("--skip-settings-writes", action="store_true",
                    help="do not rerun settings-writes.sh with the real claude; the record is then partial")
     args = parser.parse_args()

@@ -12,13 +12,18 @@ renamex_np, the ACL calls and the extended-attribute calls through ctypes,
 so it runs only on macOS.
 
 Usage:
-    python3 -I owner_switch.py state    --plan PLAN [--home HOME] [--json]
-    python3 -I owner_switch.py run      --plan PLAN [--home HOME] [--dry-run]
-    python3 -I owner_switch.py identity PATH
-    python3 -I owner_switch.py digest   PATH
-    python3 -I owner_switch.py gate     {4,5,6,7} [--plan PLAN] [--home HOME]
+    python3 -I owner_switch.py state       --plan PLAN [--home HOME] [--json]
+    python3 -I owner_switch.py run         --plan PLAN [--home HOME] [--dry-run]
+    python3 -I owner_switch.py inverse     --plan PLAN [--home HOME]
+    python3 -I owner_switch.py merge       --plan PLAN [--home HOME] COPY [--record-only]
+    python3 -I owner_switch.py purge-check --plan PLAN [--home HOME]
+    python3 -I owner_switch.py pending     --plan PLAN [--home HOME] [--grove-commit SHA]
+    python3 -I owner_switch.py identity    PATH
+    python3 -I owner_switch.py digest      PATH
+    python3 -I owner_switch.py gate        {4,5,6,7} [--plan PLAN] [--home HOME]
 
-`state` reads the state of the switch set and changes nothing. `run` runs the
+`state` reads the state of the switch set and changes nothing. While a run
+is open, the program copy of its backup reads it. `run` runs the
 switch from step 1, or continues an open run as the state table states.
 `run --dry-run` reports the parts, the current value of each cell and the
 inverse, runs no command and changes nothing. `identity` prints the change
@@ -30,7 +35,48 @@ program stops unless each path's parent folder resolves inside HOME.
 
 Exit status: 0 when the run reached the complete or the native state that it
 was asked for, 2 for a usage error, 3 for a stop. A stop prints "stop:" and
-the reason, and it changes nothing more.
+the reason, and it changes nothing more than its run log.
+
+The owner's entries ("Rollback", "Concurrent writers" and "Purge"):
+    inverse      The owner's inverse. The program copy of the latest backup
+                 runs it, while that backup's run is open. It lists the
+                 processes of step 1, resets each switched cell and leaves
+                 each third value. It moves an entry back only onto an
+                 absent original path, whatever the entry's change identity.
+                 An occupied path is a third value: both entries stay, and
+                 the program reports the cell. It then runs the native probe
+                 and appends one line to the manual. It ends with 0 only in
+                 the native state.
+    merge        Merge the flagged kept copy COPY into its live file. The
+                 difference between the copy and its last recorded content,
+                 an erased key included, reaches the live file by a settings
+                 record and the exchange. A cell takes the copy's value only
+                 when no run writes that value there. The record
+                 COPY.merge-<n>.json holds the copy's digest and bytes, and
+                 that digest is from then on the only recorded content.
+                 --record-only records a merge that the owner applied by
+                 hand.
+    purge-check  Read the `retained` list of each receipt, or the entry
+                 parts of a backup without a receipt. Stop unless each
+                 retained entry keeps its recorded change identity, no copy
+                 is flagged and no run is open outside the complete state.
+                 List the conditions that only the owner confirms. Change
+                 nothing.
+    pending      Append the pending-activation record to the manual, from
+                 the latest run log. A `run` or `inverse` writes its run log
+                 into <state>/runs when it ends or stops. The record names
+                 the Grove version and keg, the Ravel path and version, each
+                 installed formula version, the output of `mise -C HOME
+                 bootstrap packages status --json`, the failed commands, each
+                 backup, the state, each cell of a drifted or changed state,
+                 each changed entry outside the switch set and each flagged
+                 copy. Finish supplies the release commit. A later receipt
+                 names each pending-activation record that it replaces.
+
+The owner's layout: the real plan names .local/state/owner-switch as its
+state. The prepared plan and program are <state>/prepared/plan.json and
+<state>/prepared/owner_switch.py. `mac-check` runs that program's `state
+--json` with that plan.
 
 The plan (JSON, schema "owner-switch-plan/1"):
     state        directory of backups and rehearsal records, relative to HOME
@@ -137,14 +183,16 @@ The program finds `claude` and `brew` on PATH. Each runs in HOME, with the
 environment of a plan's command.
 
 A settings record is a directory in <state>/settings, named under a
-temporary name until it is complete. It holds record.json and the file
-`copy`. For an exchange, `copy` is the stage file and, after the exchange,
-the kept copy. Its record.json holds the digests "read" and "stage".
+temporary name until it is complete. It holds record.json, the file `copy`
+and the file `read`, the bytes that its reading read. For an exchange, `copy`
+is the stage file and, after the exchange, the kept copy. Its record.json
+holds the digests "read" and "stage". In a backup, the bytes that an exchange
+read are <copy>.read beside the kept copy.
 
 For a Claude Code command, `copy` is the held link and record.json holds
 "read", the digest of the one reading through it. A held link whose inode is still
 at the path holds no kept copy. The owner's merge of a flagged copy is
-`copy.merge-<n>.json` with its "digest", as in a backup.
+`copy.merge-<n>.json` with its "digest" and "content", as in a backup.
 
 Rehearsal hook: OWNER_SWITCH_REHEARSAL_HOOK names a command that the program
 runs at each named point with the point as its argument. Exit 99 ends the
@@ -154,6 +202,7 @@ account's home directory, so a real run never honours it.
 from __future__ import annotations
 
 import argparse
+import base64
 import ctypes
 import datetime
 import errno
@@ -187,6 +236,8 @@ PLAN_DIGEST_VAR = "OWNER_SWITCH_PLAN_DIGEST"
 ADMITTED_VAR = "OWNER_SWITCH_ADMITTED"
 READERS_VAR = "OWNER_SWITCH_READERS"
 RESULT_MARK = "owner-switch-result: "
+# The bytes that an exchange in a backup read, beside its kept copy.
+READ_SUFFIX = ".read"
 
 # The gates: docs/specs/owner-skill-delivery.md, steps 4 to 7 of "The switch
 # inside finish", "Ravel sources" and "Skill formulae".
@@ -781,13 +832,7 @@ def settings_records(layout: Layout) -> list:
 
 def merge_digests(copy: str) -> list:
     """The digests that the owner's merges recorded, oldest first."""
-    folder, base = os.path.split(copy)
-    names = sorted(n for n in os.listdir(folder) if n.startswith(base + ".merge-") and n.endswith(".json"))
-    out = []
-    for n in names:
-        with open(os.path.join(folder, n)) as f:
-            out.append(json.load(f)["digest"])
-    return out
+    return [m["digest"] for m in merge_records(copy)]
 
 
 def is_flagged(record: dict) -> bool:
@@ -819,6 +864,165 @@ def report_flagged(layout: Layout) -> list:
         what = "held copy" if r.get("kind") == "held" else "kept copy"
         log(f"flagged: {what} {r['_copy']} of {r['path']} holds no recorded content")
     return flagged
+
+
+def flagged_summary(record: dict) -> dict:
+    return {"copy": record["_copy"], "of": record["path"], "backup": record["_backup"],
+            "kind": "held" if record.get("kind") == "held" else "kept"}
+
+
+# --- the merge entry ----------------------------------------------------------------
+
+def merge_records(copy: str) -> list:
+    """The merge records of a kept copy, oldest first, with their file names."""
+    folder, base = os.path.split(copy)
+    names = sorted(n for n in os.listdir(folder) if n.startswith(base + ".merge-") and n.endswith(".json"))
+    out = []
+    for n in names:
+        with open(os.path.join(folder, n)) as f:
+            out.append(dict(json.load(f), _name=n))
+    return out
+
+
+def recorded_base(record: dict) -> bytes:
+    """The last recorded content of a kept copy, as bytes.
+
+    Before a merge, that is the content that the run read. After a merge,
+    it is the content that the last merge recorded.
+    """
+    merges = merge_records(record["_copy"])
+    if merges:
+        if "content" not in merges[-1]:
+            raise Stop(f"the last merge of {record['_copy']} recorded no content; merge by hand, "
+                       "then record the merge with --record-only")
+        return base64.b64decode(merges[-1]["content"])
+    if record["_backup"] is not None:
+        read = record["_copy"] + READ_SUFFIX
+    else:
+        read = os.path.join(os.path.dirname(record["_copy"]), "read")
+    try:
+        with open(read, "rb") as f:
+            return f.read()
+    except FileNotFoundError:
+        raise Stop(f"{record['_copy']} keeps no bytes of what its run read; merge by hand, "
+                   "then record the merge with --record-only")
+
+
+def known_cells(layout: Layout, record: dict, prepared: dict) -> dict:
+    """Each cell key of the copy's file, with the values that a run writes there.
+
+    A cell takes the copy's value only when it is none of these values, as
+    the owner's merge in the recovery model takes it.
+    """
+    plan = prepared
+    if record["_backup"] is not None:
+        plan = Backup(os.path.join(layout.backups, record["_backup"])).plan
+    known = {}
+    for p in (plan, prepared):
+        for part in p["parts"]:
+            if part["kind"] == "file" and part["path"] == record["path"]:
+                for cell in part["cells"]:
+                    known.setdefault(tuple(cell["key"]), []).extend([cell["earlier"], cell["switched"]])
+    if record["path"] == RAVEL_SETTINGS:
+        known.setdefault(("skills",), []).extend([ABSENT, OFF])
+    if record["path"] == CLAUDE_SETTINGS:
+        known.setdefault(tuple(HOOKS_KEY), []).extend([ABSENT, True, False])
+    return known
+
+
+def merge_difference(base: dict, copy: dict, known: dict) -> list:
+    """The copy's difference from its base, as (key, value) pairs; ABSENT erases a key.
+
+    Each other key that the copy gained, changed or lost is in the
+    difference. A cell is in it only when the copy holds a value that no run
+    writes there.
+    """
+    ops = []
+    for key, values in sorted(known.items()):
+        value = get_cell(copy, list(key))
+        if not same(value, get_cell(base, list(key))) and not any(same(value, v) for v in values):
+            ops.append((list(key), value))
+
+    def walk(b: dict, c: dict, path: tuple) -> None:
+        for k in sorted(set(b) | set(c)):
+            p = path + (k,)
+            if p in known:
+                continue
+            bv, cv = b.get(k, ABSENT), c.get(k, ABSENT)
+            if same(bv, cv):
+                continue
+            holds_cell = any(len(key) > len(p) and key[:len(p)] == p for key in known)
+            if isinstance(bv, dict) and isinstance(cv, dict):
+                walk(bv, cv, p)
+            elif holds_cell and isinstance(bv, dict) and same(cv, ABSENT):
+                walk(bv, {}, p)
+            elif holds_cell and same(bv, ABSENT) and isinstance(cv, dict):
+                walk({}, cv, p)
+            elif holds_cell:
+                raise Stop(f"the copy replaces {key_name(list(p))}, which holds a cell; merge by hand, "
+                           "then record the merge with --record-only")
+            else:
+                ops.append((list(p), cv))
+    walk(base, copy, ())
+    return ops
+
+
+def apply_difference(obj: dict, ops: list) -> list:
+    replaced = []
+    for key, value in ops:
+        old = get_cell(obj, key)
+        if same(value, ABSENT):
+            parent = get_cell(obj, key[:-1]) if len(key) > 1 else obj
+            if isinstance(parent, dict) and key[-1] in parent:
+                del parent[key[-1]]
+                replaced.append((key_name(key), old, value))
+        elif not same(old, value):
+            set_cell(obj, key, value)
+            replaced.append((key_name(key), old, value))
+    return replaced
+
+
+def merge_command(args) -> int:
+    """Merge a flagged kept copy into its live file, and record the merge.
+
+    "Concurrent writers": the merge applies the difference between the copy
+    and its last recorded content, an erased key included. Its record holds
+    the digest of the copy, which is from then on the only recorded content.
+    """
+    prepared = load_plan(args.plan)
+    layout = Layout(args.home, prepared)
+    wanted = os.path.realpath(args.copy)
+    found = [r for r in kept_copy_records(layout) if os.path.realpath(r["_copy"]) == wanted]
+    if not found:
+        raise Stop(f"{args.copy} is no kept copy of a complete backup or settings record")
+    record = found[0]
+    if not is_flagged(record):
+        raise Stop(f"{args.copy} holds its recorded content, so it is not flagged and needs no merge")
+    fd = os.open(record["_copy"], os.O_RDONLY | os.O_NOFOLLOW)
+    try:
+        digest, content = fd_reading(fd)
+    finally:
+        os.close(fd)
+    applied = []
+    if args.record_only:
+        log(f"merge: recording {args.copy} without applying a difference, as the owner asked")
+    else:
+        base, copy = parse_json(recorded_base(record)), parse_json(content)
+        if same(base, UNREADABLE) or same(copy, UNREADABLE):
+            raise Stop(f"{args.copy} or its recorded content is not a JSON object; merge by hand, "
+                       "then record the merge with --record-only")
+        ops = merge_difference(base, copy, known_cells(layout, record, prepared))
+        if ops:
+            applied = record_exchange(layout, record["path"], lambda obj: apply_difference(obj, ops), "merge")
+        if not applied:
+            log(f"merge: the difference of {args.copy} changes no key of {record['path']}")
+    number = len(merge_records(record["_copy"])) + 1
+    body = {"digest": digest, "content": base64.b64encode(content).decode(), "at": now(),
+            "record_only": bool(args.record_only),
+            "applied": [{"key": k, "from": old, "to": new} for k, old, new in applied]}
+    write_exclusive(f"{record['_copy']}.merge-{number:03d}.json", dump_json(body))
+    log(f"record: merge {number} of {args.copy}, with the digest {digest}")
+    return 0
 
 
 # --- part readings --------------------------------------------------------------
@@ -1093,6 +1297,7 @@ def run_command_full(layout: Layout, command: dict, step: str, plan=None, admitt
     evidence = {"name": command["name"], "argv": command["argv"], "exit": result.returncode, "output": output}
     if parsed is not None:
         evidence["result"] = parsed
+    RUN_LOG["commands"].append(dict(evidence, step=step))
     return evidence, result.stdout
 
 
@@ -1159,6 +1364,8 @@ def exchange_file(layout: Layout, backup: Backup, index: int, part: dict, phase:
         os.close(fd)
     record = {"path": part["path"], "part": index, "phase": phase, "copy": copy,
               "read": read_digest, "stage": stage_digest}
+    # The merge entry takes the difference from the bytes that the run read.
+    write_exclusive(os.path.join(backup.stage, copy + READ_SUFFIX), content)
     write_exclusive(os.path.join(backup.stage, copy + ".record.json"), dump_json(record))
     hook(layout, f"{phase}-before-exchange:{index}")
     try:
@@ -1295,10 +1502,11 @@ def erase_held_links(layout: Layout) -> None:
             if inode_of(copy) != inode_of(live):
                 continue
             os.unlink(copy)
-        elif body is None and os.listdir(folder):
+        elif body is None and set(os.listdir(folder)) - {"read"}:
             continue
-        if os.path.exists(record):
-            os.unlink(record)
+        for leftover in (os.path.join(folder, "read"), record):
+            if os.path.exists(leftover):
+                os.unlink(leftover)
         try:
             os.rmdir(folder)
         except OSError:
@@ -1322,10 +1530,23 @@ def refuse(layout: Layout, prepared: dict, reason: str) -> None:
 
 
 def prelude_exchange(layout: Layout, rel: str, key: list, earlier, new, label: str) -> None:
-    """Change one cell by a settings record, the atomic exchange and the comparison.
+    """Change one cell by a settings record, the atomic exchange and the comparison."""
+    def mutate(obj: dict) -> list:
+        old = get_cell(obj, key)
+        if not same(old, earlier):
+            raise Stop(f"{rel} {key_name(key)} holds {show(old)}, not {show(earlier)}")
+        set_cell(obj, key, new)
+        return [(key_name(key), old, new)]
+    record_exchange(layout, rel, mutate, label, {"key": key})
 
-    The record holds the digest of what this reading read and of the stage
-    file. It is complete under its own name before the exchange. After the
+
+def record_exchange(layout: Layout, rel: str, mutate, label: str, extra=None) -> list:
+    """Change a JSON file by a settings record, the atomic exchange and the comparison.
+
+    `mutate` changes the object that one reading read, and returns the
+    replaced values. The record holds the digest of what this reading read
+    and of the stage file, and the file `read` holds the bytes that it read.
+    It is complete under its own name before the exchange. After the
     exchange, the stage name holds the kept copy. A difference at the
     comparison flags that copy, and it is a stop.
     """
@@ -1342,12 +1563,13 @@ def prelude_exchange(layout: Layout, rel: str, key: list, earlier, new, label: s
         obj = parse_json(content)
         if same(obj, UNREADABLE):
             raise Stop(f"{rel} is not a JSON object")
-        old = get_cell(obj, key)
-        if not same(old, earlier):
-            raise Stop(f"{rel} {key_name(key)} holds {show(old)}, not {show(earlier)}")
-        set_cell(obj, key, new)
+        replaced = mutate(obj)
+        if not replaced:
+            return []
         hook(layout, f"{label}-read")
         os.mkdir(tmp, 0o700)
+        with open(os.path.join(tmp, "read"), "wb") as f:
+            f.write(content)
         stage = os.path.join(tmp, "copy")
         sfd = os.open(stage, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
         try:
@@ -1358,8 +1580,8 @@ def prelude_exchange(layout: Layout, rel: str, key: list, earlier, new, label: s
             os.close(sfd)
     finally:
         os.close(fd)
-    record = {"kind": "exchange", "path": rel, "label": label, "key": key,
-              "read": read_digest, "stage": path_digest(stage), "at": now()}
+    record = dict(extra or {}, kind="exchange", path=rel, label=label,
+                  read=read_digest, stage=path_digest(stage), at=now())
     with open(os.path.join(tmp, "record.json"), "wb") as f:
         f.write(dump_json(record))
         f.flush()
@@ -1376,8 +1598,10 @@ def prelude_exchange(layout: Layout, rel: str, key: list, earlier, new, label: s
     hook(layout, f"{label}-exchanged")
     if path_digest(copy) != read_digest:
         raise Stop(f"the kept copy {copy} of {rel} differs from what the run read; it is flagged")
-    log(f"replaced: {rel} {key_name(key)}: {show(old)} -> {show(new)}")
+    for key, old, new in replaced:
+        log(f"replaced: {rel} {key}: {show(old)} -> {show(new)}")
     hook(layout, f"{label}-compared")
+    return replaced
 
 
 def native_settings(layout: Layout, prepared: dict) -> None:
@@ -1511,6 +1735,8 @@ def write_held_record(layout: Layout, label: str):
         reading = fd_reading_full(fd)
     finally:
         os.close(fd)
+    with open(os.path.join(tmp, "read"), "wb") as f:
+        f.write(reading["content"])
     record = {"kind": "held", "path": CLAUDE_SETTINGS, "label": label, "read": reading["digest"],
               "inode": list(reading["inode"]), "at": now()}
     with open(os.path.join(tmp, "record.json"), "wb") as f:
@@ -2171,28 +2397,26 @@ def step_14(layout: Layout, backup: Backup, baseline=()) -> None:
     if changed:
         failed_probe(layout, backup, "changed outside the switch set: " + ", ".join(changed))
     receipt = backup.record_body("receipt")
+    # The manual stays append-only, so the receipt names each pending-activation record that it replaces.
+    pending = pending_records(layout)
+    replaces = ("It replaces the pending-activation records " + ", ".join(pending) + ".\n\n") if pending else ""
     text = (f"\n<!-- owner-switch-receipt {backup.id} -->\n"
             f"## Owner skill switch receipt {backup.id}\n\n"
             "This receipt describes the layout only while `mac-check` reports the switch complete.\n\n"
+            + replaces +
+            "Before purge, run the program copy of this backup with `purge-check`.\n\n"
             "```json\n" + json.dumps(receipt, indent=2, sort_keys=True) + "\n```\n")
-    try:
-        fd = os.open(layout.manual, os.O_WRONLY | os.O_APPEND)
-    except OSError as e:
-        raise Stop(f"the receipt could not be written into the manual: {e.strerror}")
-    try:
-        os.write(fd, text.encode())
-        os.fsync(fd)
-    finally:
-        os.close(fd)
+    append_manual(layout, text, "receipt")
     log(f"receipt: copied into {layout.manual}")
 
 
-def reexec_copy(backup: Backup, args) -> None:
+def reexec_copy(backup: Backup, args, command=("run",)) -> None:
     """A continuation of an open backup runs the program copy in that backup."""
     if backup.program_digest == PROGRAM_DIGEST:
         return
-    log(f"continuation: running the program copy of {backup.id}")
-    argv = [sys.executable, "-I", backup.program, "run", "--plan", os.path.abspath(args.plan),
+    if command[0] != "state":
+        log(f"continuation: running the program copy of {backup.id}")
+    argv = [sys.executable, "-I", backup.program, *command, "--plan", os.path.abspath(args.plan),
             "--home", os.path.abspath(args.home)]
     sys.stdout.flush()
     os.execv(sys.executable, argv)
@@ -2219,6 +2443,7 @@ def baseline_rows(layout: Layout, plan: dict) -> list:
 def run_switch(args) -> int:
     prepared = load_plan(args.plan)
     layout = Layout(args.home, prepared)
+    RUN_LOG.update(layout=layout, command="run", plan=prepared)
     log(f"program: {PROGRAM_DIGEST}")
     log(f"plan: {prepared['_digest']}")
     hook(layout, "start")
@@ -2319,6 +2544,9 @@ def state_command(args) -> int:
     prepared = load_plan(args.plan)
     layout = Layout(args.home, prepared)
     st = find_state(layout, prepared)
+    if st["open"]:
+        # The copy in the open backup reads the state that its continuation acts on.
+        reexec_copy(st["backup"], args, ("state", "--json") if args.json else ("state",))
     flagged = flagged_copies(layout)
     if args.json:
         out = {
@@ -2326,7 +2554,7 @@ def state_command(args) -> int:
             "backup": st["backup"].path if st["backup"] else None,
             "plan_digest": st["plan"]["_digest"], "prepared_differs": st["prepared_differs"],
             "parts": st["parts"], "outside_changed": st["outside_changed"],
-            "flagged": [r["_copy"] for r in flagged],
+            "flagged": [flagged_summary(r) for r in flagged],
             "incomplete_backups": sorted(n for n in os.listdir(layout.backups) if n.startswith(".incomplete-"))
             if os.path.isdir(layout.backups) else [],
         }
@@ -2337,17 +2565,232 @@ def state_command(args) -> int:
     return 0
 
 
+def all_cells(st: dict) -> list:
+    """Each cell and entry of a state, with its value and its status."""
+    out = []
+    for part, status in zip(st["plan"]["parts"], st["parts"]):
+        if part["kind"] == "file":
+            out += [{"path": part["path"], "key": c["key"], "value": c["value"], "status": c["status"]}
+                    for c in status["cells"]]
+        else:
+            out.append({"path": part["path"], "original": status["original"], "retained": status["retained"],
+                        "status": status["status"]})
+    return out
+
+
+def third_cells(st: dict) -> list:
+    """Each cell and entry of a state that holds neither its earlier nor its switched value."""
+    return [c for c in all_cells(st) if c["status"] == "third"]
+
+
+def append_manual(layout: Layout, text: str, what: str) -> None:
+    """Append to the maintained manual. The manual stays append-only."""
+    try:
+        fd = os.open(layout.manual, os.O_WRONLY | os.O_APPEND)
+    except OSError as e:
+        raise Stop(f"the {what} could not be written into the manual: {e.strerror}")
+    try:
+        os.write(fd, text.encode())
+        os.fsync(fd)
+    finally:
+        os.close(fd)
+
+
+def inverse_command(args) -> int:
+    """The owner's inverse: "Rollback", run by the program copy of the latest backup.
+
+    It lists the processes of step 1, resets each switched cell and leaves
+    each third value. It moves an entry back only onto an absent original
+    path, whatever the entry's change identity. Then it runs the native
+    probe and appends one line to the maintained manual.
+    """
+    prepared = load_plan(args.plan)
+    layout = Layout(args.home, prepared)
+    RUN_LOG.update(layout=layout, command="inverse", plan=prepared)
+    backup = latest_backup(layout)
+    if backup is None:
+        raise Stop("no complete backup exists, so no inverse can return to native delivery")
+    reexec_copy(backup, args, ("inverse",))
+    log(f"program: {PROGRAM_DIGEST}")
+    st = find_state(layout, prepared)
+    report_state(st)
+    report_flagged(layout)
+    if not st["open"]:
+        raise Stop(f"the run of {backup.id} is not open, so the inverse has no switched cell to reset")
+    run_inverse(layout, backup)
+    _, failed = run_commands(layout, backup.plan, backup.plan["native_probe"], "inverse")
+    after = find_state(layout, prepared)
+    report_state(after)
+    left = third_cells(after)
+    for cell in left:
+        log(f"third value left: {canon(cell)}")
+    line = {"backup": backup.id, "at": now(), "state": after["state"],
+            "native_probe": "failed: " + ", ".join(f["name"] for f in failed) if failed else "passed",
+            "third_values_left": left}
+    append_manual(layout, f"\n<!-- owner-switch-inverse {backup.id} --> The owner's inverse ran: "
+                          f"`{canon(line)}`\n", "line of the owner's inverse")
+    log(f"manual: the owner's inverse is recorded in {layout.manual}")
+    probe = ("; the native probe failed: " + ", ".join(f["name"] for f in failed)) if failed else ""
+    if after["state"] != "native":
+        raise Stop(f"the inverse ended in the {after['state']} state; stop for classification{probe}")
+    if failed:
+        raise Stop("the inverse ended in the native state" + probe)
+    log("result: native")
+    return 0
+
+
+def purge_command(args) -> int:
+    """Check the purge conditions that the program can read ("Purge").
+
+    It reads the `retained` list of each receipt, or the entry parts of a
+    backup that holds no receipt. It changes nothing.
+    """
+    prepared = load_plan(args.plan)
+    layout = Layout(args.home, prepared)
+    problems = []
+    st = find_state(layout, prepared)
+    if st["open"] and st["state"] != "complete":
+        # A complete switch keeps its run open. Any other open run still needs its backup for the inverse.
+        problems.append(f"the run of {st['backup'].id} is open in the {st['state']} state; the inverse "
+                        "still needs its backup")
+    for name in complete_backups(layout):
+        backup = Backup(os.path.join(layout.backups, name))
+        if "receipt" in backup.records():
+            items = backup.record_body("receipt").get("retained") or []
+        else:
+            items = [{"item": "retained entry", "path": backup.retained_path(p["path"]), "original": p["path"],
+                      "identity": p["identity"]} for p in backup.plan["parts"] if p["kind"] == "entry"]
+        for item in items:
+            if item.get("item") != "retained entry":
+                log(f"{name}: {item.get('item')} {item.get('path') or item.get('plugin') or item.get('marketplace')}")
+                continue
+            now_id = identity(item["path"])
+            if now_id is None:
+                log(f"{name}: retained entry {item['original']}: absent from the backup")
+            elif now_id != item["identity"]:
+                problems.append(f"the retained entry {item['path']} changed its identity since its move")
+            else:
+                log(f"{name}: retained entry {item['original']}: keeps its recorded change identity")
+    for r in flagged_copies(layout):
+        problems.append(f"the {'held' if r.get('kind') == 'held' else 'kept'} copy {r['_copy']} is flagged")
+    for condition in (PURGE_CONDITIONS[0], PURGE_CONDITIONS[1], PURGE_CONDITIONS[4]):
+        log(f"the owner confirms: {condition}")
+    for p in problems:
+        log(f"  purge condition fails: {p}")
+    if problems:
+        raise Stop("the purge conditions do not hold")
+    log("result: the conditions that the program reads hold")
+    return 0
+
+
+# --- the run log and the pending-activation record ----------------------------------
+
+RUN_LOG = {"layout": None, "command": None, "plan": None, "commands": []}
+
+
+def write_run_log(result: str, reason: str) -> None:
+    """Keep the evidence of a stopped or ended run for the pending-activation record."""
+    layout = RUN_LOG["layout"]
+    if layout is None:
+        return
+    folder = os.path.join(layout.state, "runs")
+    os.makedirs(folder, exist_ok=True)
+    body = {"command": RUN_LOG["command"], "result": result, "reason": reason, "at": now(),
+            "program_digest": PROGRAM_DIGEST, "plan_digest": (RUN_LOG["plan"] or {}).get("_digest"),
+            "commands": RUN_LOG["commands"]}
+    write_exclusive(os.path.join(folder, new_record_name(result) + ".json"), dump_json(body))
+
+
+def latest_run_log(layout: Layout):
+    folder = os.path.join(layout.state, "runs")
+    names = sorted(n for n in os.listdir(folder) if n.endswith(".json")) if os.path.isdir(folder) else []
+    return load_json_file(os.path.join(folder, names[-1])) if names else None
+
+
+def pending_records(layout: Layout) -> list:
+    try:
+        with open(layout.manual, encoding="utf-8") as f:
+            return re.findall(r"<!-- owner-switch-pending (\S+) -->", f.read())
+    except FileNotFoundError:
+        return []
+
+
+def pending_command(args) -> int:
+    """Items 2 and 3 after "The switch inside finish": the pending-activation record."""
+    prepared = load_plan(args.plan)
+    layout = Layout(args.home, prepared)
+    # The record's own readings run in HOME, with the environment of a plan's command.
+    env = command_env(layout, "pending")
+    os.environ.clear()
+    os.environ.update(env)
+    run = latest_run_log(layout) or {}
+    results = {c.get("name"): c.get("result") for c in run.get("commands") or [] if c.get("result")}
+    step4 = next((r for r in results.values() if r.get("step") == "4"), None)
+    if step4:
+        grove = dict(step4.get("grove") or {}, read="from step 4 of the run")
+        ravel = {"path": step4.get("ravel_path"), "version": step4.get("ravel"), "read": "from step 4 of the run"}
+    else:
+        try:
+            grove = dict(installed_grove(), read="by this record, because the run did not pass step 4")
+        except Stop as e:
+            grove = {"error": str(e), "read": "by this record, because the run did not pass step 4"}
+        prefix = tool(["brew", "--prefix"]).stdout.strip()
+        path = os.path.join(prefix, "bin", "ravel")
+        version = tool([path, "--version"]).stdout.strip() if os.path.exists(path) else None
+        ravel = {"path": path, "version": version, "read": "by this record, because the run did not pass step 4"}
+    status = tool(["mise", "-C", layout.home, "bootstrap", "packages", "status", "--json"], cwd=layout.home)
+    try:
+        doc = json.loads(status.stdout)
+    except ValueError:
+        doc = None
+    rows = {}
+    if isinstance(doc, dict) and isinstance(doc.get("brew"), dict):
+        rows = {r.get("package"): r for r in doc["brew"].get("packages") or [] if isinstance(r, dict)}
+    formulae = sorted({s.get("formula") for s in (prepared["accepted"].get("sources") or {}).values()
+                       if isinstance(s, dict)} - {None})
+    failed = [c for c in run.get("commands") or [] if c.get("exit") != 0]
+    st = find_state(layout, prepared)
+    body = {
+        "grove": dict(grove, release_commit=args.grove_commit or "not supplied"),
+        "ravel": ravel,
+        "formula_versions": {f: (rows.get(f) or {}).get("installed_version") for f in formulae},
+        "mise_status": {"exit": status.returncode, "output": (status.stdout + status.stderr)[-20000:]},
+        "run": {k: run.get(k) for k in ("command", "result", "reason", "at", "program_digest", "plan_digest")}
+        if run else "no run log exists",
+        "failed": [{k: c.get(k) for k in ("name", "exit", "output")} for c in failed],
+        "backups": [os.path.join(layout.backups, n) for n in complete_backups(layout)],
+        "state": st["state"],
+        "cells": all_cells(st) if st["state"] in ("drifted", "changed") else [],
+        "outside_changed": st["outside_changed"],
+        "flagged": [flagged_summary(r) for r in flagged_copies(layout)],
+    }
+    stamp = new_record_name("pending")
+    append_manual(layout, f"\n<!-- owner-switch-pending {stamp} -->\n"
+                          f"## Owner skill switch pending activation {stamp}\n\n"
+                          "The switch stopped or was inverted. The receipt of a later switch replaces this record.\n\n"
+                          "```json\n" + json.dumps(body, indent=2, sort_keys=True) + "\n```\n",
+                  "pending-activation record")
+    log(f"pending-activation record: {stamp} in {layout.manual}")
+    return 0
+
+
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n", 1)[0])
     sub = parser.add_subparsers(dest="command", required=True)
-    for name in ("state", "run"):
+    for name in ("state", "run", "inverse", "merge", "purge-check", "pending"):
         p = sub.add_parser(name)
         p.add_argument("--plan", required=True)
         p.add_argument("--home", default=account_home())
         if name == "state":
             p.add_argument("--json", action="store_true")
-        else:
+        elif name == "run":
             p.add_argument("--dry-run", action="store_true")
+        elif name == "merge":
+            p.add_argument("copy", help="the flagged kept copy, as `state` or a run reports it")
+            p.add_argument("--record-only", action="store_true",
+                           help="record a merge that the owner applied by hand")
+        elif name == "pending":
+            p.add_argument("--grove-commit", help="the release commit of the published Grove")
     sub.add_parser("identity").add_argument("path")
     sub.add_parser("digest").add_argument("path")
     p = sub.add_parser("gate")
@@ -2366,9 +2809,23 @@ def main(argv=None) -> int:
             return 0
         if args.command == "state":
             return state_command(args)
-        return dry_run(args) if args.dry_run else run_switch(args)
+        if args.command == "merge":
+            return merge_command(args)
+        if args.command == "purge-check":
+            return purge_command(args)
+        if args.command == "pending":
+            return pending_command(args)
+        if args.command == "inverse":
+            code = inverse_command(args)
+        else:
+            if args.dry_run:
+                return dry_run(args)
+            code = run_switch(args)
+        write_run_log("ended", "")
+        return code
     except Stop as e:
         log(f"stop: {e}")
+        write_run_log("stop", str(e))
         return 3
 
 

@@ -239,6 +239,30 @@ repairs assign these items:
   condition above. It also states that the receipt lists the staging HOME
   and the candidate keg as removable after the receipt.
 
+owner-switch-entries-k92 added the owner's entries `inverse`, `merge`,
+`purge-check` and `pending` to the program, and a switch row to `mac-check`.
+It assigns these items:
+
+- owner-ravel-skill-inventory-k38: the real plan names
+  `.local/state/owner-switch` as its `state`. The owner keeps the prepared
+  plan and the rehearsed program at `<state>/prepared/plan.json` and
+  `<state>/prepared/owner_switch.py`. `mac-check` reads the switch state
+  through them. Without them it reports native delivery.
+- owner-ravel-skill-inventory-k38: the rehearsal runs the real `mac-check`
+  with HOME set to each disposable HOME. It reads `~/.local/bin/mac-check`
+  and its folder, and `--mac-check` names another command.
+- discovery-rollout-k12: after a stop or an inverse, finish's continuation
+  runs `pending --grove-commit <release commit>` with the prepared plan. The
+  entry reads the run log of the stopped run. A later receipt names each
+  pending-activation record that it replaces, and the manual stays
+  append-only.
+- discovery-rollout-k12: the finish handoff names the owner's inverse and
+  the merge entry for the owner's run after finish. The receipt tells the
+  owner to run `purge-check` before purge.
+- owner-pack-checkouts-k93: `mac-check --only <area>` runs one area. The
+  drift report of the skill formulae is another area beside "Owner skill
+  switch".
+
 acceptance-completion-audit-k127 hands two findings to this node. The
 "Gap register" of `docs/common-loading-acceptance-record.md` holds both.
 

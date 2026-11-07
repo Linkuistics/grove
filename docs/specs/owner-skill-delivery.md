@@ -972,7 +972,9 @@ write of the receipt is a stop.
    published Grove version and its release commit, and the promoted Ravel path
    and version. Add the installed formula versions, the output of
    `mise -C "$HOME" bootstrap packages status --json` and the output of the
-   failed step or probe.
+   failed step or probe. The program's entry `pending` writes the record
+   from the run log that the stopped run wrote. Finish supplies the release
+   commit, because no local file holds it.
 3. In the record, name each backup and the state of the switch set. For a
    drifted or changed state, list each cell with its value. Also list each
    changed entry outside the switch set and each flagged kept copy.
@@ -990,7 +992,8 @@ That run tears down and promotes nothing, and it releases nothing except a
 patch release that a repair needs. One Claude Code session runs it and takes
 finish's place in steps 1, 3 and 7. A continuation of an open backup runs the
 program copy in that backup. The receipt replaces the pending-activation
-record.
+record. The manual stays append-only, so the receipt's entry names each
+pending-activation record that it replaces.
 
 A failed trial in step 4, or a failed probe of a Grove kind skill, can need a
 change to the released core skills. The owner then publishes a Grove patch
@@ -1070,6 +1073,12 @@ displaced content becomes a kept copy.
   digest that the copy holds. From then on, that digest is the only recorded
   content of the copy. Any other content flags the copy again, also a return
   to the content that the run read or to the stage content.
+- The program's entry `merge` applies the difference and records the merge.
+  Each record keeps the bytes that its reading read. Each merge record
+  keeps the bytes of the copy. The entry takes the difference from them. The
+  entry writes the live file by a settings record and the exchange, so
+  detection covers its own write. A cell takes the copy's value only when
+  that value is a third value, as in the recovery model.
 - No run erases a kept copy before purge. A copy that holds its stage
   content was never exchanged, and it holds no outside write.
 - The exchange gives the path the stage file's metadata. The stage file
@@ -1270,8 +1279,14 @@ no reuse by kind of change, because a record of digests cannot decide such a
 reuse. A rehearsal is a reproducible task in disposable layouts.
 
 The program is `scripts/owner_switch.py`. Its docstring states the plan's
-format and the rehearsal record that step 8 reads. `task
+format and the rehearsal record that step 8 reads. It also states the
+owner's entries: `inverse`, `merge`, `purge-check` and `pending`. `task
 owner:switch:rehearse` rehearses it on a fixture plan.
+
+The real plan names `.local/state/owner-switch` as its state. The owner keeps
+the prepared plan and program in its folder `prepared`. `mac-check` reads the
+state of the switch set through them, and it reports native delivery while
+no plan is prepared.
 
 The plan holds the accepted values that steps 4 to 6 compare: each source's
 `resourceDigest`, each formula's version and each source's staging trials.
@@ -1343,7 +1358,8 @@ results:
 After finish, the owner can apply the same inverse while the backup and the
 plugin caches exist. The owner runs the program copy of the latest backup,
 which lists the processes of step 1 first. The owner also adds a line to the
-maintained manual.
+maintained manual. The program's entry `inverse` does these actions while
+the latest backup's run is open. It then runs the native probe.
 
 The inverse is the only return to native delivery. It needs the latest backup
 and the plugin caches of the frozen `linkuistics` registration. After finish,
@@ -1488,7 +1504,15 @@ Purge also ends the native return, as [Rollback](#rollback) states.
 
 Purge is outside this grove's success condition, as the 1.1.0 keg cleanup is.
 The receipt lists each item with its condition. The maintained manual carries
-the procedure. The owner uninstalls platform registrations only through the
+the procedure.
+
+The first step of that procedure runs the entry `purge-check` of the latest
+backup's program copy. That entry reads the `retained` list of each receipt.
+It compares each retained entry with its recorded change identity. It
+reports each flagged copy and each open run outside the complete state. It
+lists the conditions that only the owner can establish.
+
+The owner uninstalls platform registrations only through the
 platform's own commands. Nobody erases a cache directory by hand. A Claude Code
 uninstall marks the version orphaned, and the platform erases it 14 days later.
 
@@ -1741,6 +1765,24 @@ Obsidian `AI Dev Tooling` note. It still names the earlier
 - A control keg source that differs from its accepted source by one byte must
   stop step 6. In a control copy of Grove's keg, the same difference must make
   step 4 rerun the trials of that source.
+- The owner's inverse runs the program copy of the latest backup. From a
+  complete or a drifted state, it resets each switched cell and leaves each
+  third value. It moves a changed entry back and leaves an occupied original
+  path with both entries. It refuses without a backup, without an open run
+  and with another process.
+- A merge of a copy that gained one key and lost another must add the one
+  and erase the other in the live file. A copy that holds a third value of
+  a cell gives the cell that value, and a value that a run writes there does
+  not. The merge of a copy in a settings record and of a held copy must
+  reach the live file. Then the next run reaches the complete state.
+- `purge-check` must pass after a receipt. It must stop when a retained entry
+  changed after its move, and while an interrupted run is open.
+- `mac-check` must report each of the six states and native delivery
+  without a prepared plan. It must report a flagged copy of a backup, of a
+  settings record and of a held link.
+- `pending` must write the record after a stop before step 4, after a stop at
+  step 5, after an inverse and in a drifted state. The receipt of the next
+  complete switch must name it.
 - Only finish runs the switch against the real HOME, or the owner after a
   finish that ended without success.
 - After the switch, the real-HOME probes, `mac-check` and the AI tooling status

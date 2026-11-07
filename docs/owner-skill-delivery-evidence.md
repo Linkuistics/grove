@@ -114,7 +114,7 @@ runs the change controls.
 | Ravel settings | `~/.config/ravel` holds only `policy.ts`. No `settings.json` exists. |
 | Ravel contracts | The local-source contract `docs/specs/skill-discovery.md` at `7a894c78`, on the unpushed bookmark `skill-directory-delivery`. The historical directory contract at `b93bb927`. Ravel main's `docs/specs/configuration-evaluation.md` at `24a54523`. The sandbox-home recipe in `docs/specs/configuration-evaluation.md` and `scripts/harness-smoke.sh` at `2a77ffbda3b2510f0997c740c0642b18afaeece7` in `Ravel.coordinated-release-design`. |
 | Codex home | The Codex 0.166.0 executable reads `CODEX_HOME` and canonicalises it. It names `.codex/config.toml`, `.codex/agents`, `.codex/hooks` and `.agents/skills` as user paths, and `auth.json` as its file sign-in store. The owner policy passes `-c` overrides only and sets no `CODEX_HOME`. |
-| Claude Code plugin cache | The [plugin loading reference](https://code.claude.com/docs/en/plugins/loading#cleanup-of-previous-versions), read on 2026-11-02. An update or uninstall writes `.orphaned_at` into the earlier version directory, and a background cleanup removes it 14 days later. A running session keeps the plugin set that it loaded until `/reload-plugins` or a new session. |
+| Claude Code plugin cache | The [plugin loading reference](https://code.claude.com/docs/en/plugins/loading#cleanup-of-previous-versions), read on 2026-11-02. An update or uninstall writes `.orphaned_at` into the earlier version directory. Cleanup can remove it after 14 days. The [executable evidence](#finding-for-the-owner-design) adds the live-reader check for 2.1.319. A running session keeps the plugin set that it loaded until `/reload-plugins` or a new session. |
 | Claude Code configuration directory | The [environment reference](https://code.claude.com/docs/en/env-vars) and the [credential management section](https://code.claude.com/docs/en/authentication#credential-management), read on 2026-11-02 by `ravel-rhai-skill-delivery-k50`. `CLAUDE_CONFIG_DIR` replaces `~/.claude` for settings, history and plugins. It also moves the sign-in file and keys the macOS Keychain entry to that directory. Three `CLAUDE_CODE_PLUGIN_*` variables add plugin locations. No trial measured these statements. Ravel's sandbox recipe at `7a894c78` also names `CLAUDE_SECURESTORAGE_CONFIG_DIR`, which moves only the sign-in store. |
 
 Ravel main keeps settings at `$HOME/.config/ravel/settings.json` for 2.0.0.
@@ -1274,13 +1274,29 @@ by live session" and keeps the directory. The
 [plugin loading reference](https://code.claude.com/docs/en/plugins/loading#cleanup-of-previous-versions),
 read on 2026-11-07, does not mention this check.
 
-"Resource lifetime" in [the design](specs/owner-skill-delivery.md#resource-lifetime)
-states that the cleanup is time-based and ignores readers. That statement is
-false for 2.1.319. The design's rule still holds: the cutover keeps each
-version that a live reader uses registered and current. The executable is
-the only source for the check, and a later version can change it. This
-section does not change the design. `owner-cleanup-reader-check-k256`
-reconciles it.
+`owner-cleanup-reader-check-k256` inspected the installed executable again on
+2026-11-07. `claude --version` reported `2.1.319 (Claude Code)`.
+The resolved executable was
+`~/.local/share/claude/versions/2.1.319`, with SHA-256
+`1f53587e92dee8e089fa349188a4cda64fa34ace6e7b0ca2ee278ddaa3cc2ebd`.
+
+The inspection found the age constant `P9n=1209600000`, which is 14 days
+in milliseconds. The cleanup calls `Fw` before deletion. A live result
+or an error returns without deletion. `Fw` reaches `JWt`, which reads the
+markers, and `m1t`, which checks process liveness. An unreadable marker
+counts as live. These minified names identify this executable only.
+
+This was a static inspection. It invoked no cleanup and changed no cache.
+It establishes the branch in this executable, without measuring a cleanup
+run or promising the behaviour of another version.
+
+The earlier design stated that cleanup ignored readers.
+[Resource lifetime](specs/owner-skill-delivery.md#resource-lifetime) now states
+the age and reader checks for 2.1.319. The freeze, versions registered and
+current, reader evidence and purge conditions all stay. That section records
+each rule's reason independently of the undocumented check. Codex and Pi
+write no marker, and a later Claude Code version can change the check.
+The existing switch and its recovery model therefore need no change.
 
 ## Policy conversion
 

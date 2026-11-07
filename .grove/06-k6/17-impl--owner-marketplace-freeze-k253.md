@@ -9,10 +9,11 @@ hold Claude Code's version from the rehearsal to the switch.
 
 - The section "Resource lifetime" of `docs/specs/owner-skill-delivery.md`
   keeps each version that a live reader uses registered and current. An
-  update or an uninstall writes `.orphaned_at`, and a cleanup erases that
-  directory 14 days later. Automatic updates stay frozen from the
-  preparation step onward. The rule covers every plugin that finish
-  loaded, not only Grove's.
+  update or an uninstall writes `.orphaned_at`. After 14 days, Claude Code
+  2.1.319 checks live reader markers before deletion. The design keeps the
+  freeze independently of that undocumented check. Automatic updates stay
+  frozen from the preparation step onward. The rule covers every plugin that
+  finish loaded, not only Grove's.
 - The `linkuistics` marketplace follows Grove's `main`. Finish moves `main`
   before the switch, so an automatic update could orphan finish's own
   guidance.

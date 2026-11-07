@@ -76,6 +76,21 @@ public integration. Neither duplicates Ravel's private runtime contract.
 
 ## Current changes
 
+<!-- tc: depart synonym-rotation because "check" names Claude Code's liveness operation and "verify" names a cutover action -->
+The executable evidence repairs the cleanup claim for Claude Code
+2.1.319. After the orphan-age threshold, cleanup reads markers to identify
+live readers before deletion. The cutover keeps its freeze, versions registered
+and current, reader evidence and purge conditions. Each rule has a reason independent of
+that undocumented check. See
+[Resource lifetime](../../specs/owner-skill-delivery.md#resource-lifetime) and
+[the executable evidence](../../owner-skill-delivery-evidence.md#finding-for-the-owner-design).
+
+- [Finish keeps its guidance through the switch](http://127.0.0.1:52710/#diagram-owner-final-session) — Added the version-specific reader check beside the retained freeze and registration rule.
+- [Resource lifetime](../../specs/owner-skill-delivery.md#resource-lifetime) — Repaired the cleanup rule and explained why all four cutover safeguards stay.
+- [Purge](../../specs/owner-skill-delivery.md#purge) — Replaced guaranteed deletion after 14 days with eligibility subject to the reader check.
+
+## Hooks installation changes
+
 hooks-installation-writes-k222 settles how the writes of Claude Code's own
 commands take part in detection. Each command replaces `settings.json` by a
 rename, so each runs under a held link. The disabling is now the program's
@@ -204,7 +219,7 @@ and [evidence](../../owner-skill-delivery-evidence.md).
 
 - [Where each installed entry goes](http://127.0.0.1:52710/#diagram-owner-classes) — Added the per-entry rule that routes each baseline entry to a Ravel source, a native route or no change.
 - [Ordered owner cutover](http://127.0.0.1:52710/#diagram-owner-cutover) — Added the ordered cutover and the switch inside finish, with its probes and inverse.
-- [Finish keeps its guidance through the switch](http://127.0.0.1:52710/#diagram-owner-final-session) — Added how finish keeps its native guidance through the switch. Later sessions move to Ravel 2.0.0. Changed by the review integration: the cache version survives because disabling writes no orphan marker, not because a reader protects it.
+- [Finish keeps its guidance through the switch](http://127.0.0.1:52710/#diagram-owner-final-session) — Added how finish keeps its native guidance through the switch. Later sessions move to Ravel 2.0.0. The review integration based retention on disabling without an orphan marker. The design keeps that basis independently of Claude Code's reader check.
 
 ## Earlier release changes
 

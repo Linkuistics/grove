@@ -72,7 +72,7 @@
       "group": "owner",
       "title": "Finish keeps its guidance through the switch",
       "source": "owner-final-session.mmd",
-      "caption": "Proposed. Disabling neither updates nor uninstalls a plugin, so its cache version receives no orphan marker and finish's absolute-path reads survive. The switch runs right after promotion. While no run is open, its step 3 runs the native settings, which write the off value after a settings record, and then the hooks installation, which names only writing-hooks and never refreshes linkuistics. Each of its Claude Code commands runs under a held link, and the disabling is an exchange after a settings record. The switched settings name only the mandatory file, so probe launches capture the keg sources from Ravel's default skill directory."
+      "caption": "Proposed cutover, with the cleanup claim corrected by owner-cleanup-reader-check-k256. Frozen versions stay registered and current. Disabling writes no orphan marker. Claude Code 2.1.319 also checks live reader markers before orphan deletion, but the cutover does not depend on that undocumented check. Codex and Pi write no such marker. The freeze, reader evidence and purge conditions stay. The switch runs right after promotion. While no run is open, step 3 writes the off value and installs writing-hooks under the existing settings records and held links. The switched settings name only the mandatory file, so probe launches capture the keg sources from Ravel's default skill directory."
     },
     {
       "id": "release-tap",
@@ -174,22 +174,17 @@
     }
   ],
   "discussion": {
-    "title": "Claude Code's own writes in the hooks installation",
-    "status": "Proposed by hooks-installation-writes-k222 on 2026-11-06. It settles the open question of native-settings-recovery-k221, and native-settings-recovery-k224 integrated the focused review of both leaves",
-    "summary": "Each command of the hooks installation replaces ~/.claude/settings.json by a rename. On an idle machine, the rename came 30 to 38 ms after the read that the command writes from. Each Claude Code command therefore runs under a held link. That is a hard link to the live inode in a settings record, and the program compares it with its digest after the command. The program stops for an ACL or an extended attribute in the reading that the digest covers. A write in place inside the interval, or a later write through a descriptor, flags that copy. The disabling is now the program's own exchange after a settings record, because plugin disable changes only that cell. A rename by another program inside a command's interval is the accepted case. Nothing bounds that interval or the runs of the commands, and the owner design states the evidence.",
+    "title": "Reader checks during plugin-cache cleanup",
+    "status": "Cleanup evidence corrected for Claude Code 2.1.319 by owner-cleanup-reader-check-k256. Existing cutover rules retained",
+    "summary": "After the 14-day orphan-age threshold, Claude Code 2.1.319 checks live reader markers before deletion. An unreadable marker or an error during the liveness check keeps the directory. This undocumented behaviour protects only marked readers. Codex and Pi write no marker, and another version can change the check. The cutover keeps its freeze, versions registered and current, reader evidence and purge conditions. Resource lifetime records each rule's independent reason. The switch program and recovery model do not change.",
     "diagramIds": [
       "owner-cutover",
-      "owner-final-session",
-      "owner-switch-states"
+      "owner-final-session"
     ],
     "updatedDiagrams": [
       {
-        "id": "owner-cutover",
-        "summary": "Each Claude Code command of the hooks installation runs under a held link, and the disabling is an exchange. A flagged held copy leads to the pending record."
-      },
-      {
         "id": "owner-final-session",
-        "summary": "The hooks installation writes the real HOME settings. Each command runs under a held link, and the disabling is an exchange."
+        "summary": "Added the version-specific live-reader check beside the retained freeze and registration rule."
       }
     ]
   }

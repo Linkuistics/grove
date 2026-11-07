@@ -458,18 +458,37 @@ A Claude Code session reads absolute plugin-cache paths, so disabling a plugin
 leaves its reads intact. A Codex or Pi session reads through link paths, and
 the switch moves those links. Each such session must end before the switch.
 
-Claude Code's cleanup rule is time-based, not reader-based. An update or an
-uninstall writes `.orphaned_at` into the earlier version directory. A background
-cleanup erases that directory 14 days later and ignores readers. Disabling a
-plugin is neither an update nor an uninstall, so it writes no marker. A running
-session also keeps the plugin set that it loaded until a reload.
+Claude Code 2.1.319 uses both age and reader evidence for orphan cleanup.
+An update or an uninstall writes `.orphaned_at` into the earlier version
+directory. Cleanup considers that directory after the marker is older than
+14 days. Before deletion, it reads `.in_use/<pid>` to identify live sessions.
+It keeps a directory with a live reader marker. It also keeps the directory
+when reading a marker or querying liveness reports an error.
 
-The cutover therefore keeps each version that a live reader uses registered
-and current. Automatic updates of the earlier marketplace stay frozen from the
-preparation step onward. Nothing updates or uninstalls a superseded plugin
-before purge. The official marketplace updates automatically by default, so
-this rule covers every plugin that finish loaded, not only Grove's. A backup
-copy elsewhere does not protect an orphaned absolute path.
+<!-- tc: depart synonym-rotation because "check" names Claude Code's liveness operation and "verify" names a cutover action -->
+The [executable evidence](../owner-skill-delivery-evidence.md#finding-for-the-owner-design)
+establishes this behaviour for 2.1.319 only. The official loading reference
+does not document the reader check.
+
+Disabling a plugin is neither an update nor an uninstall, so it writes no
+orphan marker. A running session also keeps the plugin set that it loaded
+until a reload.
+
+The reader check changes no cutover rule. Codex and Pi write no such marker,
+and another Claude Code version can change the check. A missing marker
+therefore proves nothing about those readers. The design keeps these four
+rules for reasons independent of that check:
+
+| Rule retained | Reason |
+| --- | --- |
+| Freeze automatic marketplace updates from preparation until purge | The freeze preserves the accepted plugin bytes and registrations through the switch and the native rollback window. |
+| Keep each version that a live reader uses registered and current | This avoids orphaning the absolute read path and preserves the native return. A backup elsewhere cannot preserve that path. |
+| Record and recheck the reader evidence | Named paths, registrations and the absence of orphan markers establish the retained resources. Reader markers cannot establish all three. |
+| Keep the purge conditions | Ended sessions, the driver's reap, unchanged retained entries, unflagged copies and the owner's closed rollback window govern every retained resource. |
+
+Nothing updates or uninstalls a superseded plugin before purge. The official
+marketplace updates automatically by default, so the freeze covers every
+plugin that finish loaded, not only Grove's.
 
 After finish, the retired listing names no plugin, so no later installation restores a version
 directory that is gone. The frozen registration is therefore the whole native
@@ -1514,7 +1533,9 @@ lists the conditions that only the owner can establish.
 
 The owner uninstalls platform registrations only through the
 platform's own commands. Nobody erases a cache directory by hand. A Claude Code
-uninstall marks the version orphaned, and the platform erases it 14 days later.
+uninstall marks the version orphaned. It becomes eligible for cleanup after
+14 days, subject to the version's reader check described in
+[Resource lifetime](#resource-lifetime).
 
 ### Independent sessions
 

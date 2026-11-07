@@ -18,7 +18,8 @@ sequenceDiagram
     Note over N: Each command names writing-hooks, so the frozen registration stays as it was
     F->>F: Admit the released keg's digests, then check the formula versions and every accepted digest
     F->>H: Switch: skills to its switched value, plugins, moved entries
-    Note over N: Disabling writes no orphan marker, so finish's lazy reads still resolve
+    Note over N: Frozen current versions stay registered; disabling writes no orphan marker
+    Note over F,N: Claude Code 2.1.319 checks live markers before orphan deletion<br/>The cutover does not rely on this check
     F->>R2: Capture the keg sources
     R2->>P: Launch Claude Code and Codex with directories
     P-->>F: Observed reads and hook runs

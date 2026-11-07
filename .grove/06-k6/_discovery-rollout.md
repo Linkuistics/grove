@@ -159,6 +159,15 @@ not yet follow the writing rules, so convert it first as its own change.
 
 ## Owner-delivery handoff
 
+owner-switch-plan-draft-k259 recorded the human's facts of 2026-11-08. This
+grove is the only grove that runs, and the human is the only user of Grove
+and Ravel. owner-switch-simplification-k260 redesigns the switch on that
+basis. It simplifies the process and job exclusion, the concurrent-writer
+detection, the recovery state machine and the rehearsal admission.
+owner-switch-simplification-k262 then rewrites each item below that
+concerns one of those mechanisms. Until then, read such an item as
+provisional.
+
 `docs/specs/owner-skill-delivery.md` owns each rule below. The handoffs of
 owner-pack-checkouts-k82, k84, owner-switch-recovery-k87 and k89 assign them
 to these consumers. k87 replaced the earlier items about resumption, rollback

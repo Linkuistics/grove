@@ -1840,3 +1840,40 @@ digests also match that record. The generator digest is
 `9b13ac3122a74a5b640c418e26af4b4e0fbb482f7701ac8117109d0bd63b4b26`.
 No test, build, lint, format, check task or switch operation was run by this
 review. Integration owns fixes and executable verification of the cases.
+
+## Owner switch plan draft integration
+
+`owner-switch-plan-draft-k259` triaged the five findings of the review above
+on 2026-11-08. It verified each finding against the source, and each was
+real against the current design. It then prototyped a repair for each
+finding in disposable layouts. The repairs passed their checks. The real
+HOME stayed read only.
+
+The human then stated two facts: this grove is the only grove that runs,
+and the human is the only user of Grove and Ravel. The human asked for a
+simpler switch on that basis, and chose to drop the repairs. The human chose
+four simplifications: the process and job exclusion, the concurrent-writer
+detection, the recovery state machine and the rehearsal admission.
+`owner-switch-simplification-k260` redesigns the switch. Its review and a
+planning leaf follow it, before the staging leaves.
+
+| Finding | Disposition |
+| --- | --- |
+| D1, unbound command files | Real. Superseded by the redesign, which must still identify each file that a certified plan runs |
+| D2, job labels only | Real. Superseded by the redesign, because an owner checklist replaces the automatic job listing |
+| D3, two omitted roots | Real. Superseded by the redesign, which must still see a new sibling of a platform folder |
+| D4, a helper as an MCP server | Real. Superseded by the redesign, because the automatic process listing goes |
+| D5, the switched guardrail plugin | Real. Superseded by the redesign, which must still let the instrument accept an enabled `guardrail@personal` |
+
+The section "Other doubts and limits of this review" raised no further
+finding.
+
+The prototypes measured three facts, which k260 carries in its task file:
+
+- During a turn, Claude Code runs `caffeinate -i -t 300` as a child of its
+  harness process. That child writes no file.
+- launchd reads the account's own home, whatever HOME names. A job listing
+  that reads `~/Library/LaunchAgents` through HOME misses the owner's jobs
+  in a disposable layout.
+- `launchctl print gui/<uid>/<label>` shows the program arguments of each
+  loaded job. All 577 jobs took about 2 seconds.

@@ -34,8 +34,6 @@ caveats = formula.caveats.to_s
 {
   "the policy.ts sample" => "ravel-policy/sample/policy.ts ~/.config/ravel/policy.ts",
   "the config.rhai sample" => "ravel-policy/sample/config.rhai ~/.config/ravel/config.rhai",
-  "the native installation route" => "/plugin install grove@linkuistics",
-  "the native installer" => "./grove/plugins/install.sh",
   "the directory delivery route" => "`skills` object of ~/.config/ravel/settings.json",
   "the ravel@2 prefix" => 'PATH="$(brew --prefix ravel@2)/bin:$PATH" grove',
   # The four commands of "Hook adapters" in docs/specs/codex-skill-provisioning.md.

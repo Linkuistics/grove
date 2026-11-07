@@ -665,14 +665,11 @@ links them into Ravel's default skill directory, and only Ravel delivers them
 to a session. Startup and upgrade leave existing native installations,
 including snapshots written by Grove 22.8 and earlier, unchanged.
 
-Claude Code still receives the plugins through the marketplace. It versions a
-plugin of this repository by the repository commit SHA, and an external plugin
-by its pin. Its setup instructions must retain marketplace auto-update. Manual `plugins/install.sh` users, including Codex users, follow
-their checkout. A release
-that changes an instructed verb must land the methodology and CLI together —
-`crates/grove-llm/tests/instructed_verbs.rs` checks that contract. Marketplace or
-manually installed skills can still differ from the installed CLI; describe
-verb-surface changes in the changelog.
+Grove ships no manual installer. A release that changes an instructed verb
+must land the methodology and CLI together —
+`crates/grove-llm/tests/instructed_verbs.rs` checks that contract. A native
+skill installation that already exists can still differ from the installed CLI;
+describe verb-surface changes in the changelog.
 
 Each archive unpacks to one directory, `grove-v<version>-<target>/`, laid out
 as an installation prefix, and the formula installs the same shape into its

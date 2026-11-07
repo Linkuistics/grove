@@ -128,10 +128,10 @@ of scope.
   Decision: `docs/adr/a-skill-states-what-binds-without-its-dependencies.md`.
   Enforcement: `crates/grove/tests/plugin_fallback.rs`.
 
-- **Shared target: personal skill directories.** The user installs skills.
-  Claude Code uses its marketplace. `plugins/install.sh` supports Codex, Gemini
-  and Pi links. These are separate delivery routes for the same plugin source
-  ([delivery contract](docs/specs/codex-skill-provisioning.md)). Grove writes
+- **Shared target: personal skill directories.** Homebrew installs the skill
+  sources, and Ravel delivers them to each session
+  ([delivery contract](docs/specs/codex-skill-provisioning.md)). Grove ships no
+  manual installer. Grove writes
   into no personal skill directory. The old multi-harness `content/` sweep and
   the later Codex snapshot provisioning are both retired. Grove 22.8 and earlier
   left links in `~/.agents/skills` and snapshots in `~/.agents/.grove`. Later
@@ -212,8 +212,7 @@ of scope.
 - **A durable record has one owner.** Every record under `docs/adr/` and
   `docs/specs/` has a repo-wide unique slug and a maintaining context recorded
   here. A record added later joins this list. Ownership names who keeps the
-  record current, not every component it binds. For example, the Grove binary
-  and the plugin installer share the jj-first VCS rule.
+  record current, not every component it binds.
   `plugins/grove/skills/grove/ADR-FORMAT.md` defines when a flat
   root set is appropriate.
 

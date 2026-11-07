@@ -45,9 +45,8 @@ delivery.
 `plugins/<name>/.claude-plugin/plugin.json` declares a `version`: both are
 versioned by commit SHA, so every push delivers and there is no bump to record
 (*skills-monorepo* has the trade, and adding a `version` would quietly undo it).
-Manual `plugins/install.sh` users follow their checkout through symlinks.
-Codex auto-provisioning instead follows the snapshot in the installed Grove
-binary, so bundled skill changes also reach it through a Grove release.
+Homebrew installs the skills in Grove's keg, so a skill change reaches users
+through a Grove release.
 
 The section at the foot of this file is the `Linkuistics/skills` changelog as it
 stood at the graft — a closed record, not part of the versioned sequence above.
@@ -55,6 +54,15 @@ stood at the graft — a closed record, not part of the versioned sequence above
 <!-- tc: on -->
 
 ## Unreleased
+
+- `grove`: this release removes the manual installer `plugins/install.sh`,
+  with its `--pack` option and its tests. Homebrew installs the skill
+  sources, and Ravel delivers them to each session in every harness. Links
+  that the installer made in `~/.codex/skills`, `~/.gemini/skills`,
+  `~/.pi/agent/skills` and `~/.pi/agent/extensions` stay until you remove
+  them. Ravel's native routes still read a skill installation that already
+  exists. The `harnesses:` key of each skill stays as metadata, and no
+  installer reads it.
 
 - `linkuistics` marketplace: the marketplace is retired. Grove's
   `.claude-plugin/marketplace.json` keeps the name `linkuistics` and lists no

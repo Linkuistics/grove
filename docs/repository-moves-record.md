@@ -3832,3 +3832,69 @@ automatic updates from the preparation step onward. If the freeze is absent
 when finish moves `main`, the next signed-in start refreshes the retired
 listing. Each plugin of `linkuistics` then stops loading, `grove` among them.
 This leaf read the owner's file and changed nothing.
+
+## The removed installer
+
+`manual-installer-removal-k236` removed `plugins/install.sh` and
+`plugins/install.test.sh` on 2026-11-07, with the `--pack` option. No task,
+script or test runs them. `scripts/check.sh` lost its "plugin install" step,
+and `task check:skills` lost its installer step. The `harnesses:` key stays
+as metadata, and no installer reads it.
+
+### Consumers
+
+- The test `a_native_only_lifecycle_completes_with_explicitly_installed_skills`
+  ran the installer for Codex. It now links each core skill into
+  `~/.codex/skills` itself. Its seam, "Native-only bootstrap on 1.1", stays,
+  because Grove still admits the native routes.
+- The formula caveats lost the installer commands. The formula test lost
+  their expectation, and also the expectation of
+  `/plugin install grove@linkuistics`, which `native-marketplace-retirement-k235`
+  had already removed from the caveats.
+- `plugins/README.md`, `plugins/CONTEXT.md`, `docs/USAGE.md`, `README.md`,
+  `plugins/grove/README.md`, `docs/ARCHITECTURE.md`, `CONTEXT-MAP.md` and
+  `docs/RELEASING.md` keep no installer instruction. `plugins/CONTEXT.md`
+  replaces the four installer terms with one entry, "Manual installer".
+  `homebrew-delivery-guidance-k237` still writes the final installation
+  guidance, the caveats' "Skills" text among it.
+
+### The sweep of comments and books
+
+The sweep enumerated each line of the walkthrough books and of every file
+outside `docs/`, `.grove/` and the Markdown files that matches `install`,
+`marketplace`, `provision`, `native` or `--pack`. It then classified each
+line. Rules classified the tool installations, the Ravel builds, jj's native
+workspaces and the platform-native targets. Each line that ties one of
+those words to a skill, a plugin or the methodology was read and classified
+as current or history. The run fails on any line without a class.
+
+- Each passage now names Homebrew installation and Ravel delivery, the
+  supported native routes, or the hook adapters of the kegs. Otherwise it is
+  history and says so.
+- The comment of `run` in `crates/grove-loop/src/loop_driver.rs` named a
+  plugin that a human installs. It now names Homebrew and Ravel, and the
+  `grove-loop` book changed its fragment with it. Comments in four test
+  files and in `plugins/grove/conformance.test.sh` changed in the same way.
+- The `overview` book's product table and the skill section of its
+  `03-three-steps.md` now name Homebrew and Ravel.
+- Two lines of the caveats stay for `homebrew-delivery-guidance-k237`, whose
+  task names them.
+- The positive control was a scratch comment and a scratch book line that
+  named the installer as a route. The sweep failed on both, and it passed
+  after their removal. The cross-tree control found installer lines in this
+  record, in `CHANGELOG.md` and in the external pack contract. A mutated
+  pattern found none there.
+
+All five books pass `book-check --final`. With the old comment restored in
+the `grove-loop` book alone, the check failed with `F008` at the changed
+byte.
+
+### For rollout
+
+A read-only look at the owner's homes on 2026-11-07 found no live link that
+the installer made. The 44 links in `~/.codex/skills` point into
+`~/.agents/.grove/current`, so the 22.8 provisioner made them. The 44 links
+in `~/.pi/agent/skills` and the one link in `~/.pi/agent/extensions` point
+into the moved checkout `~/Development/grove` and dangle.
+`docs/owner-skill-inventory.tsv` already lists them for deactivation.
+`~/.gemini/skills` is absent. This leaf changed nothing in those homes.

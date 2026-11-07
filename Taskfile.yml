@@ -278,11 +278,10 @@ tasks:
       - bash scripts/check.sh
 
   check:skills:
-    desc: Check the manual installer, Grove guidance conformance, the pinned external packs and that startup writes no native skills
+    desc: Check Grove guidance conformance, the pinned external packs and that startup writes no native skills
     env:
       GROVE_TEST_RAVEL_RUNTIME: '{{.RAVEL_RUNTIME}}'
     cmds:
-      - bash plugins/install.test.sh
       - bash plugins/grove/conformance.sh
       - bash plugins/grove/conformance.test.sh
       - task: check:packs

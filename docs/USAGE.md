@@ -842,7 +842,7 @@ every harness your policy can select:
 
 | Route | What you do |
 |---|---|
-| Native harness installation | Claude Code: the marketplace with auto-update enabled. Codex, Gemini CLI and Pi: the checkout's manual installer. See [Install the skill plugins](../README.md#install-the-skill-plugins). Repeat for each harness. |
+| Native harness installation | Keep a skill installation that already exists in each harness. Grove ships no installer for this route. |
 | Ravel skill-directory delivery | Configure local skill sources for Ravel 2.0.0 under a HOME of their own. Ravel adds their locations to each launch prompt, so native copies are unnecessary. See [the directory route](#usage-directory-route). |
 
 Native-only installation is a complete setup, not a fallback. Grove checks no
@@ -896,8 +896,8 @@ this procedure for each.
 | `~/.agents/.grove/install.lock` | An empty lock file. |
 | `~/.agents/.grove/snapshots/bundle-XXXXXX` | A copy of every regular file in the `plugins` tree of that Grove build. A refresh added a snapshot and kept the earlier ones. |
 | `~/.agents/.grove/current` | A link to one snapshot, by absolute path. |
-| `~/.agents/skills/NAME` | A link to `~/.agents/.grove/current/plugins/PLUGIN/skills/NAME`, by absolute path. The provisioner replaced an earlier entry at NAME only when it was a link to a path below `current/plugins` or `snapshots`. It also replaced a link to a skill of a Grove plugin. For each other entry, startup stopped with an error. Thus you or the manual installer can have made the original link. |
-| Codex skill directory, `NAME` | A link of the same form, only where a link already was. The provisioner replaced only a link that pointed below `current/plugins` or `snapshots`, or to a skill of a Grove plugin. It made no new links there. Thus you, the manual installer or another tool made each original link. |
+| `~/.agents/skills/NAME` | A link to `~/.agents/.grove/current/plugins/PLUGIN/skills/NAME`, by absolute path. The provisioner replaced an earlier entry at NAME only when it was a link to a path below `current/plugins` or `snapshots`. It also replaced a link to a skill of a Grove plugin. For each other entry, startup stopped with an error. Thus you or the removed manual installer can have made the original link. |
+| Codex skill directory, `NAME` | A link of the same form, only where a link already was. The provisioner replaced only a link that pointed below `current/plugins` or `snapshots`, or to a skill of a Grove plugin. It made no new links there. Thus you, the removed manual installer or another tool made each original link. |
 | A `link-XXXXXX` directory | A directory with one link named `link`. A startup that was killed before it published that link left it. It can be in each skill directory and in the Grove root. |
 
 A skill of a Grove plugin is a path of the form `.../plugins/PLUGIN/skills/SKILL`
@@ -905,8 +905,8 @@ for a plugin of the Grove repository. The provisioner also removed links of
 these forms at the names that it did not ship.
 
 The provisioner kept no record of what it wrote. Thus the layout alone is not
-evidence of ownership. The manual installer, another tool or you can make an
-entry of the same form.
+evidence of ownership. The removed manual installer, another tool or you can
+have made an entry of the same form.
 
 #### 1. Stop every writer and reader
 
@@ -1165,10 +1165,10 @@ that was the agents skill directory under an earlier `HOME` looks the same.
 If you need a skill, keep its link. Alternatively, replace the link yourself
 with a link to a copy that you choose.
 
-The manual installer writes only `~/.codex/skills`, `~/.gemini/skills`,
-`~/.pi/agent/skills` and `~/.pi/agent/extensions`. It ignores `CODEX_HOME`. In each directory, it replaces every link at the name of a skill
-that it ships. It also removes links to skills of Grove plugins that it does not
-ship there, also links that you made. Run it only if you accept these changes.
+Grove's manual installer, removed in the release after 22.8, wrote only
+`~/.codex/skills`, `~/.gemini/skills`, `~/.pi/agent/skills` and
+`~/.pi/agent/extensions`. It ignored `CODEX_HOME`. A link in one of those
+directories to a checkout of Grove can therefore be its.
 
 These entries are always foreign or uncertain. Keep them:
 

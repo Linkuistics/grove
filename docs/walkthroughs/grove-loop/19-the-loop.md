@@ -235,8 +235,8 @@ signal on the crate's `Error`, and the CLI reads it with `Error::interrupted`.
 /// binary and nothing reads a configuration: the owner's ravel policy is the
 /// whole of launch policy (`docs/specs/harness-selection-and-execution.md`,
 /// *Grove integration*). Nothing here
-/// delivers the methodology either — since `delete-provisioning-k19` the
-/// methodology is a plugin a human installs, so the loop's first act is a
+/// delivers the methodology either — since `delete-provisioning-k19` it is
+/// Homebrew's to install and Ravel's to deliver, so the loop's first act is a
 /// transition rather than a sweep over three personal skill directories.
 ///
 /// **The lease is taken by value.** It is dropped when the loop returns, which

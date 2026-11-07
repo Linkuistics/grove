@@ -37,12 +37,12 @@ names both products so that the phrase has a referent.
 | Product | Source | What installs it |
 |---|---|---|
 | The Grove command-line tool: `grove` and `grove-llm` | `crates/` | Homebrew, or `cargo install` from the workspace |
-| The agent skill plugins, `grove` among them | `plugins/` | Claude marketplace, or `plugins/install.sh` for Codex, Gemini CLI and Pi |
+| The agent skill plugins, `grove` among them | `plugins/` | Homebrew, with the Grove formula, and Ravel delivers them to each session |
 
 The binary names the `grove-<kind>` skill a session must load. It installs no
-skill: the user supplies skills through each harness's own route, and Claude
-Code uses marketplace delivery and auto-update. The plugin files stay the
-authoritative source, and no binary embeds them. This book does not reconstruct
+skill. Homebrew installs the skill sources in Grove's keg, and Ravel delivers
+them to each session. The plugin files stay the authoritative source, and no
+binary embeds them. This book does not reconstruct
 the plugin content.
 
 <a id="package-identity"></a>

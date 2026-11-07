@@ -212,9 +212,9 @@ directory delivery. It also gives the agent the directory of the loaded skill.
 
 A resource needs a directory that the agent can find on every route. Claude
 Code substitutes `${CLAUDE_PLUGIN_ROOT}` in the text of a plugin skill, so a
-native plugin can name a file that its skills share. Directory delivery and the
-manual installer substitute nothing. On those routes, the agent finds a skill's
-directory only by loading that skill.
+native plugin can name a file that its skills share. Directory delivery
+substitutes nothing, and neither did the removed manual installer. On those
+routes, the agent finds a skill's directory only by loading that skill.
 
 The design rejected these alternatives:
 
@@ -223,7 +223,8 @@ The design rejected these alternatives:
   wrong identity.
 - **A file outside every skill, reached by `../` or by
   `${CLAUDE_PLUGIN_ROOT}`.** Ravel permits a `../` path inside one source, but
-  a symlink install resolves it only by its physical path. Only a native plugin
+  the symlink install of the removed manual installer resolved it only by its
+  physical path. Only a native plugin
   substitutes the variable. Each form would need a second rule for the other
   routes.
 - **A symlink in each member.** A checkout with `core.symlinks=false` writes a
@@ -754,8 +755,10 @@ that route as the move proved it. No later work uses it.
   plugin, with the same eligibility and the same workspace guard. Link
   reconciliation covers each plugin that the run scans. A run without
   `--pack plugins/research` leaves the research links unchanged. The pack ships
-  no installer. Its README gives the command
+  no installer. Its README gave the command
   `<grove checkout>/plugins/install.sh --pack <research checkout>/plugins/research`.
+  `manual-installer-removal-k236` removed the installer and its `--pack`
+  option.
 - **The Codex marketplace.** The research pack needs none, because it has no
   hooks.
 
@@ -894,7 +897,6 @@ check runs of this section.
 | Grove's pack tasks | `check:packs`, which runs `scripts/check-packs.sh`, and its controls `scripts/check-packs.test.sh`. `check:skills` and `scripts/check.sh` run both | The script reads each `git-subdir` entry of the marketplace and checks it alone and in the aggregate. `--marketplace` and `--cache` let a test supply fixtures |
 | The plugin manifest | `plugins/research/.claude-plugin/plugin.json`: `name`, `description`, `author`, `repository`, `license` `Apache-2.0`, `dependencies` `["grove"]` and `keywords`, with no `version` | `claude plugin validate` passes it with two warnings, no `version` and no icon |
 | The marketplace entry | The `git-subdir` entry of [Distribution](#distribution) in `.claude-plugin/marketplace.json`, with `sha` `dc3a4812db3b` | `/plugin install research@linkuistics` also installed `grove` as a dependency |
-| The manual installer | `plugins/install.sh --pack <checkout>/plugins/research` | The source directory must have the shape `plugins/<plugin>/` with `skills/`, `craft/` or both. craft-root-installer-k195 added the `craft/` root |
 | The trial-runner fields | In `scripts/harness_trial.py`: a source's `external` object with `repository` and `commit`, the run option `--working-copy <id>=<dir>` (`WORKING_COPY` of `trial:claude` and `trial:codex`), `moveAway`, `moveRoot`, the Claude Code field `nativePlugins`, and the check fields `requires` and `absent` | [The runner](../common-loading-acceptance-record.md#the-runner) owns each field. The cases `research-discovery`, `research-delegate`, `research-source-missing`, `research-root-missing` and `research-native-namespace` are the models for a later pack |
 
 ### Differences from the decisions
@@ -908,10 +910,10 @@ decision of this contract.
   installs plugins from the marketplace for the native proof. The runner
   also refuses a commit with no directory at `plugin`, and a continuation case
   refuses an external source.
-- **The installer refuses a shared skill name.** `install.sh --pack` refuses a
-  skill name that two scanned plugins ship, before any link changes. The
-  workspace guard covers each pack's checkout, two levels above the plugin
-  directory.
+- **The installer refused a shared skill name.** `install.sh --pack` refused a
+  skill name that two scanned plugins shipped, before any link changed. The
+  workspace guard covered each pack's checkout, two levels above the plugin
+  directory. `manual-installer-removal-k236` removed the installer.
 - **The kind table feeds the label tests.** No check compares a pack's kinds
   with its rows in the table, as [The kind table](#the-kind-table) accepts.
   Grove's tests take the labels of the external rows for the environment

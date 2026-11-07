@@ -22,11 +22,11 @@ _Avoid_: "command" (a Claude Code slash command is a different artifact), "promp
 
 **Plugin**:
 Claude Code's packaging unit — `plugins/<name>/` holding `.claude-plugin/plugin.json`
-and a `skills/` directory — and a Claude Code concept only; other harnesses receive
-the same [[Skill]] directories by [[Symlink install]]. One ships here: `grove`.
-The marketplace also lists `requirements`, `design`, `engineering`, `research`,
+and a `skills/` directory — and a Claude Code concept only; Ravel delivers
+the same [[Skill]] directories to every harness. One ships here: `grove`.
+Their own repositories ship `requirements`, `design`, `engineering`, `research`,
 `writing`, `technical-communication-hooks`, `personal`, `guardrail` and
-`testanyware`, which their own repositories ship.
+`testanyware`.
 
 <!-- tc: on -->
 
@@ -40,8 +40,7 @@ _Avoid_: "plugin" for a whole pack. One pack can ship more than one [[Plugin]].
 
 **Source directory**:
 The plugin directory `plugins/<plugin>/` inside a checkout of a [[Pack]]. Ravel
-captures it as a `local` source, Claude Code installs it as the plugin root and
-`install.sh --pack` scans it. It has one or both of two skill roots:
+captures it as a source, and a skill formula copies it into its keg. It has one or both of two skill roots:
 
 - `skills/`: the kind skills and any family skill.
 - `craft/`: the craft skills.
@@ -124,7 +123,7 @@ move changes its plugin. Until their own moves, the kinds that leave core keep
 
 **Namespaced invocation** (`<plugin>:<skill>`):
 How Claude Code addresses a [[Skill]] that arrived inside a [[Plugin]] —
-`personal:using-jujutsu`, `grove:grove`. A [[Symlink install]] has no
+`personal:using-jujutsu`, `grove:grove`. A skill directory that Ravel delivers has no
 namespace, so the same skill is the bare directory name there. Two consequences.
 A plugin skill is **addressed differently** from a personal skill of the same
 name, which is why `grove:grove` coexisted with the `grove` the binary used to
@@ -163,7 +162,7 @@ _Avoid_: "when-to-use only" (that is upstream's rule, not this one).
 A frontmatter glob list scoping a [[Skill]] to matching files — a **Claude Code
 plugin auto-activation extension beyond the Agent Skills spec**, whose only
 activation channel is the `description`. Carried by the `coding-style*` skills of
-EngineeringSkills, and inert wherever they arrive by [[Symlink install]].
+EngineeringSkills, and inert wherever they arrive as a Ravel skill directory.
 _Avoid_: assuming a `paths:`-triggered skill fires on a spec-only harness.
 
 **Hook-carrying skill**:
@@ -229,29 +228,20 @@ _Avoid_: adding a `version` to silence `claude plugin validate --strict`, which 
 delivery on a bump nothing in this repo can check; reading the SHA as identifying a
 plugin's own content, when it identifies the repo's.
 
-**Symlink install** (`plugins/install.sh`):
-The delivery path for harnesses that read `SKILL.md` but have no [[Plugin]]
-mechanism: symlink each **eligible** skill directory into that harness's personal
-skills folder (`~/.codex/skills`, `~/.gemini/skills`, `~/.pi/agent/skills`). It
-also links each Pi-eligible skill's `harnesses/pi/*.ts` extension into
-`~/.pi/agent/extensions/`, the one place it links something that is not a skill.
-Because the targets are links, a `git pull` updates content in place — re-run only
-when skills are added, removed, or change their [[Harness eligibility]]. It scans
-the `skills/` and `craft/` roots of **every** bundled plugin, and no other
-directory: which harnesses a skill reaches is the skill's own
-declaration, not a property of the directory it ships in. `--pack <dir>` adds
-the [[Source directory]] of an external [[Pack]], with the same eligibility and
-workspace guard. A run reconciles the links of the plugins that it scans only,
-so a run without `--pack <dir>` leaves that pack's links unchanged. A real file or directory
-already at a target path is **left untouched and refused** — the run reports it,
-still installs every other skill, and exits non-zero, because a skill silently not
-installed is indistinguishable from one installed successfully.
-_Avoid_: running it for Claude Code, which installs by [[Marketplace]]; reading it
-as append-only — a re-run also **reconciles** (see [[Link reconciliation]]).
+**Manual installer** (retired):
+`plugins/install.sh`, which linked eligible skill directories into the
+personal skill folders of Codex, Gemini CLI and Pi, and Pi extensions into
+`~/.pi/agent/extensions/`. Its `--pack <dir>` option added an external
+[[Pack]]. `manual-installer-removal-k236` removed it, with its link
+reconciliation, its workspace guard and its tests. Homebrew installs the skill
+sources, and Ravel delivers them.
+_Avoid_: naming the installer as a route. Links that it made earlier stay until
+their owner removes them.
 
 **Harness eligibility** (`harnesses:`):
-The frontmatter key by which a [[Skill]] declares which harnesses it can be
-installed into — a YAML flow list, either the single claim `[any]` or an explicit
+The frontmatter key by which a [[Skill]] declares which harnesses can follow it.
+No installer reads it now, and Ravel reads no frontmatter, so it stays as
+metadata. It is a YAML flow list, either the single claim `[any]` or an explicit
 allowlist of harness ids (`claude-code`, `codex`, `gemini`, `pi`). It answers one
 question: *can a session on this harness follow these instructions?* `guardrail`,
 now in PersonalSkills, declares `[claude-code]` because its whole mechanism is a Claude Code
@@ -268,59 +258,22 @@ _Avoid_: reading `any` as an enumeration of today's harnesses — it is a claim
 about the *skill*, that nothing in it depends on a particular harness's
 affordances, so a harness added later inherits it correctly.
 
-**Skip-loudly default**:
-What [[Symlink install]] does with a [[Skill]] carrying no `harnesses:` key: install
-it nowhere, and print a note naming it. Chosen from a measurement rather than by
-instinct — 15 of the 16 bundled skills are portable and 1 is Claude-only, so a
-silent *install everywhere* would mis-install exactly the skill that cannot work,
-while a silent *Claude Code only* would withhold the other 15. Skipping never
-mis-installs and the note removes the silence; since every bundled skill declares a
-key, it fires only on a newly authored one. The install still exits 0 — one
-under-annotated skill must not block the rest — and the hard assertion that every
-bundled skill declares a key lives in `install.test.sh`.
-_Avoid_: calling it a conservative *default*; it is a conservative default plus the
-report that makes the default observable, and the report is the half that was
-missing.
-
 **Personal-setup assumption** (`assumes-personal-setup: true`):
 The frontmatter key by which a [[Skill]] declares that its content names the
 author's own models, subscriptions, or machine configuration — so it is correct
-here and misleading for anyone else. Orthogonal to [[Harness eligibility]]: it does
-not filter the install (on the author's own machine the assumption holds), it makes
-the install **report** the skill. No skill here carries it. In PersonalSkills,
+here and misleading for anyone else. Orthogonal to [[Harness eligibility]]. No
+installer reads it now, so it stays as metadata for the reader. No skill here carries it. In PersonalSkills,
 `machine-environment` carries it. In EngineeringSkills, `doubt-driven-development` carries it for
 `references/harness-spawns.md`.
 _Avoid_: overloading it onto a skill that merely needs a tool installed — a missing
 `codebase-memory-mcp` binary is a dependency, not a private
 assumption.
 
-**Link reconciliation**:
-[[Symlink install]]'s removal half: on every run it drops each symlink of its own
-that the run will not re-create, so a skill deleted, renamed, or newly ineligible
-for that harness leaves nothing behind. Ownership is decided by the link's stored
-target matching `…/plugins/<plugin>/skills/…` or `…/plugins/<plugin>/craft/…`
-for a plugin that the run scans — the
-**plugin** segment, not the skill name, because a deleted skill's name is by
-definition no longer shipped and keying on it would disown exactly the links most
-in need of reclaiming.
-_Avoid_: expecting it to touch a symlink this script did not place; and the older
-advice to delete dangling links by hand, which this replaces.
-
-**Workspace guard**:
-`plugins/install.sh`'s refusal to run from anywhere but the repo's **main checkout**,
-since it links from the tree it lives in and re-links *every* skill
-unconditionally — so a linked git worktree or secondary jj workspace would
-capture the whole install and dangle it on teardown. The failure is otherwise
-unobservable: a symlink to a vanished target reads as "skill not installed", not
-as an error. `--force` opts in deliberately. The probe is jj-first, sharing the
-[VCS seam](../docs/ARCHITECTURE.md#symmetric-vcs-rule) with the `grove` binary.
-_Avoid_: reading it as a jj feature — a linked `git worktree` trips it identically.
-
 ## Flagged ambiguities
 
 **"skill"** used to mean two different things in this repo, and now means one.
 In this context it is a member of the corpus under `plugins/*/skills/`, shipped
-by [[Marketplace]] or [[Symlink install]]. Grove's methodology used to *also* be
+by Homebrew and delivered by Ravel. Grove's methodology used to *also* be
 provisioned as a skill (`~/.claude/skills/grove/`, written by the `grove` binary
 from an embedded `content/`) while being no part of this corpus;
 `delete-provisioning-k19` deleted that path and moved the methodology into

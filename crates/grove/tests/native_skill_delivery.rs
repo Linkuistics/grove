@@ -1,10 +1,12 @@
 //! **Native skill delivery belongs to the owner, and startup leaves it alone.**
 //!
-//! Grove names the skill a session must load; the user supplies it through a
-//! harness's native installation or through Ravel's directory delivery
-//! (`docs/adr/homebrew-installs-skills-and-ravel-delivers-them.md`). The removed Codex
-//! provisioner wrote `~/.agents/skills` links, a `current` pointer and complete
-//! snapshots under `~/.agents/.grove`. Old drivers, lazy link readers and
+//! Grove names the skill a session must load. Homebrew installs the skill
+//! sources, and Ravel delivers them to the session
+//! (`docs/adr/homebrew-installs-skills-and-ravel-delivers-them.md`). Ravel's
+//! native routes still serve a native installation that already exists, and
+//! Grove neither makes nor changes one. The removed Codex provisioner wrote
+//! `~/.agents/skills` links, a `current` pointer and complete snapshots under
+//! `~/.agents/.grove`. Old drivers, lazy link readers and
 //! detached processes can still read that output, so startup must neither
 //! adopt, repair, repoint nor delete it
 //! (`docs/specs/codex-skill-provisioning.md`, *Existing installations and active
@@ -19,7 +21,7 @@
 //! old binary fails these assertions.
 //!
 //! The native-only lifecycle test proves the caller and lifecycle behaviour with
-//! explicitly installed skills and actual Ravel 1.1, which has no directory
+//! a native installation that already exists and actual Ravel 1.1, which has no directory
 //! injection. A managed fixture stands in for the agent. It proves that the
 //! complete native installation is readable to each session, not that an LLM
 //! follows the mandate.
@@ -436,28 +438,19 @@ exec "$ravel" end-session grove-continue
 #[test]
 fn a_native_only_lifecycle_completes_with_explicitly_installed_skills() {
     let f = Fixture::new();
-    // The owner's explicit native route: the manual installer, run for Codex.
-    let install = Command::new("bash")
-        .arg(support::repo_root().join("plugins/install.sh"))
-        .arg("--force")
-        .env("HOME", &f.home)
-        .env_remove("CODEX_HOME")
-        .output()
-        .unwrap();
-    assert!(
-        install.status.success(),
-        "{}",
-        String::from_utf8_lossy(&install.stderr)
-    );
+    // A complete native installation that already exists: one Codex link for
+    // each core skill. Grove ships no installer, so the owner makes the links.
     let plugins = support::repo_root().join("plugins").canonicalize().unwrap();
+    let codex_skills = f.home.join(".codex/skills");
+    fs::create_dir_all(&codex_skills).unwrap();
+    for skill in fs::read_dir(plugins.join("grove/skills")).unwrap() {
+        let skill = skill.unwrap().path();
+        symlink(&skill, codex_skills.join(skill.file_name().unwrap())).unwrap();
+    }
     for name in ["grove", "grove-planning", "grove-finish"] {
         assert!(
-            f.home
-                .join(".codex/skills")
-                .join(name)
-                .join("SKILL.md")
-                .is_file(),
-            "the installer did not supply {name}"
+            codex_skills.join(name).join("SKILL.md").is_file(),
+            "the fixture did not supply {name}"
         );
     }
     let installed = capture(&f.home.join(".codex"));

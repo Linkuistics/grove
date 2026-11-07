@@ -8,9 +8,9 @@ published through the marketplace declared in
 marketplace also lists `requirements`, `design`, `engineering`, `research`, `writing`, `technical-communication-hooks`, `personal`, `guardrail` and `testanyware`, which live in their own
 repositories and which it pins by commit. The plugin here
 shares this repo with the Grove CLI because the two change in lockstep
-([architecture](../docs/ARCHITECTURE.md#skills-monorepo)); it ships by its own
-path for Claude Code and through [`install.sh`](install.sh) for Codex, Gemini CLI
-and Pi. The Grove binary embeds and installs no skill.
+([architecture](../docs/ARCHITECTURE.md#skills-monorepo)). Homebrew installs it
+with Grove, and Ravel delivers it to each session. The Grove binary embeds and
+installs no skill.
 
 The vocabulary of authoring, packaging, triggering and installing a skill is in
 [`CONTEXT.md`](CONTEXT.md).
@@ -19,14 +19,13 @@ The vocabulary of authoring, packaging, triggering and installing a skill is in
 
 Grove's own methodology: one shared `grove` spine skill, with one
 `grove-<kind>` skill per session kind beside it. The plugin tree is the
-authoritative copy: Claude Code loads it through the marketplace, and the manual
-installer links it for the other harnesses. Its own
+authoritative copy, and Grove's release copies it into the keg. Its own
 [`grove/README.md`](grove/README.md) carries the fatness rule, the migration
 ledger, and the dependency-free conformance runner that asserts delivery over the
 shipped skill set.
 
-Grove skills declare `harnesses: [any]`. The manual installer selects skills
-through this metadata.
+Grove skills declare `harnesses: [any]`. The key stays as metadata, and no
+installer reads it.
 
 The `configure-grove` operator skill installs, inspects and edits the owner's
 Ravel policy, which selects the harness, model and effort for each
@@ -183,8 +182,8 @@ the hooks. A Ravel user who gets the skill from a directory can install the
 hooks plugin alone.
 
 Codex needs the hooks plugin that the Codex marketplace of WritingSkills lists.
-The human adds and trusts that plugin once. Pi gets an extension through
-`install.sh --pack`, and Gemini CLI gets the skill only. The
+The human adds and trusts that plugin once. Pi gets an extension by one
+documented link command, and Gemini CLI gets the skill only. The
 [user document](https://github.com/Linkuistics/WritingSkills/blob/main/docs/TECHNICAL-COMMUNICATION.md)
 in WritingSkills gives the commands, the switch and the reply log.
 
@@ -274,10 +273,10 @@ unaffected by the move. Only where you add the marketplace *from* changed.
 
 ## Install — Codex
 
-Grove names the skill each session must load. It does not install skills. Run
-the manual installer below for Codex. It links each eligible skill into
-`~/.codex/skills`, one of the user skill roots that Codex reads. Codex 0.166.0
-also reads `~/.agents/skills`.
+Grove names the skill each session must load. It does not install skills.
+Homebrew installs the skill sources, and Ravel delivers them to each session.
+Grove ships no manual installer. Codex reads the user skill roots
+`~/.codex/skills` and, from Codex 0.166.0, `~/.agents/skills`.
 
 Grove releases up to 22.8 installed every bundled Codex-compatible skill in
 `~/.agents/skills` at bare startup. Those links point through
@@ -306,124 +305,13 @@ directory of that checkout, with the root `skills`. Ravel 1.1.0 refuses those
 settings, so use a separate HOME while a 1.1 launch remains. The
 [directory route](../docs/USAGE.md#usage-directory-route) gives the settings.
 
-## Manual install — Codex, Gemini CLI and Pi
+## Skill metadata
 
-```
-git clone https://github.com/Linkuistics/grove.git
-cd grove
-./plugins/install.sh
-```
-
-[`install.sh`](install.sh) symlinks each **eligible** skill directory — from
-the `skills/` and `craft/` roots of the plugin here — into `~/.codex/skills/`, `~/.gemini/skills/`, and `~/.pi/agent/skills/`
-(only for harnesses that are installed). A skill that ships `harnesses/pi/*.ts`
-also has that Pi extension linked into `~/.pi/agent/extensions/`, under the same
-ownership and reconciliation rules; `technical-communication`, from the `writing` pack through `--pack`, is the one that does. Because the targets are symlinks,
-`git pull` refreshes the content in place — re-run the script only when skills are
-added, removed, or change which harnesses they declare.
-
-**Which harnesses a skill reaches is the skill's own declaration.** Every
-`SKILL.md` carries a `harnesses:` frontmatter key — either `[any]`, meaning
-nothing in it depends on a particular harness's affordances, or an explicit
-allowlist such as `[claude-code]`. `guardrail`, in the `guardrail` plugin of
-PersonalSkills, declares `[claude-code]`, because
-its whole mechanism is a Claude Code `PreToolUse` hook and a codex or pi session
-loading it would read instructions it cannot act on. Every skip is printed with
-the declaration that caused it:
-
-```
-skip   codex  guardrail  (harnesses: claude-code)
-```
-
-A skill with **no** `harnesses:` key is installed nowhere and named in a note.
-The allowlist keeps harness-specific instructions out of incompatible sessions
-without withholding the portable skills.
-
-A skill may also declare `assumes-personal-setup: true` — its content names the
-author's own models, subscriptions, or machine configuration, so it is correct
-here and misleading elsewhere. It still installs; the script reports it so you can
-review it before relying on it. No skill here carries it. In PersonalSkills,
-`machine-environment` carries it. In EngineeringSkills,
-`doubt-driven-development` carries it.
-
-**A re-run reconciles, it does not only add.** Every symlink pointing into a
-checkout of this repo is the script's to manage, so one whose skill was deleted,
-renamed, or made ineligible for that harness is removed and reported:
-
-```
-unlink codex  old-skill  (no longer eligible here)
-```
-
-Symlinks the script did not place are never touched. (This replaces the old
-advice to hunt dangling links by hand.)
-
-**Run it from the repo's main checkout.** The script links from whichever tree it
-lives in and re-links every skill unconditionally, so running it from a linked
-`git worktree` or a secondary `jj workspace` would re-point *all* your installed
-skills at a tree that is usually temporary — and nothing would report it, since a
-symlink whose target later disappears reads as "skill not installed" rather than
-as an error. It detects that and refuses. Pass `--force` when linking from a side
-tree is what you actually want (testing an unmerged skill against a live
-harness), and re-run from the main checkout afterwards to repair the links.
-
-`install.sh` covers the plugin here: `grove`.
-It selects skills eligible for each detected harness using their `harnesses:`
-frontmatter.
-
-<!-- tc: on -->
-
-**An external pack needs `--pack`.** The requirements kinds are in
-RequirementsSkills. The design kinds and the design craft skills are in
-DesignSkills. The engineering kinds and the engineering craft skills are in
-EngineeringSkills. The research kinds are in ResearchSkills.
-
-The editorial kinds and the writing craft skills are in WritingSkills. The
-personal craft skills are in PersonalSkills.
-
-The plain run above therefore installs none of them. Make a checkout of each pack and name its plugin directory:
-
-```
-git clone https://github.com/Linkuistics/RequirementsSkills.git
-git clone https://github.com/Linkuistics/DesignSkills.git
-git clone https://github.com/Linkuistics/EngineeringSkills.git
-git clone https://github.com/Linkuistics/ResearchSkills.git
-git clone https://github.com/Linkuistics/WritingSkills.git
-git clone https://github.com/Linkuistics/PersonalSkills.git
-./plugins/install.sh --pack ../RequirementsSkills/plugins/requirements \
-  --pack ../DesignSkills/plugins/design \
-  --pack ../EngineeringSkills/plugins/engineering \
-  --pack ../ResearchSkills/plugins/research \
-  --pack ../WritingSkills/plugins/writing \
-  --pack ../PersonalSkills/plugins/personal
-```
-
-The TestAnyware skill is also outside this repository. Name the plugin
-directory of a TestAnyware checkout in the same way:
-
-```
-./plugins/install.sh --pack ../TestAnyware/plugins/testanyware
-```
-
-The script scans each `--pack` directory as it scans a bundled plugin, with the
-same eligibility and the same workspace guard. Repeat `--pack` for each pack.
-A run reconciles the links of the plugins that it scans. A run without
-`--pack <dir>` therefore leaves the links of that pack unchanged.
-
-A plugin directory has two skill roots: `skills/` for kind skills and `craft/`
-for craft skills. It can have one root or both. The script scans both roots of
-each plugin directory and no other directory. It refuses a `--pack` directory
-that has neither root. The script refuses a skill name that two scanned roots
-ship, and it names each path that ships the name.
-
-<!-- tc: pending because the conversion has not reached this part of the document -->
-
-A real file or directory at a target path is an **error**: the installer leaves
-it untouched, installs the other skills, and exits non-zero naming what was not
-installed. If an older installation left a real directory there, preserve any
-files you need, then move it aside or remove it and rerun the installer.
-
-Grove itself never adopts, repairs or removes these links. They remain managed
-by this script.
+Each `SKILL.md` carries a `harnesses:` frontmatter key. The value is `[any]`,
+or an allowlist such as `[claude-code]`. A skill can also declare
+`assumes-personal-setup: true`. Both keys stay as metadata. No installer reads
+them, and Ravel reads no frontmatter. [`CONTEXT.md`](CONTEXT.md) defines both
+keys.
 
 ## Versioning
 

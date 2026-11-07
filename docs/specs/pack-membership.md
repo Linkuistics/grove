@@ -481,8 +481,10 @@ The human approved two changes to the destination table of the root brief:
 - **The trial runner.** `trial:controls` shows the refusal of a case whose
   local path the prepared commit lacks, and the clean reading beside it. It also
   admits a valid external case and a valid case with a historical native copy.
-- **The installer.** `install.test.sh` installs and reconciles a craft root
-  beside `skills/` and a craft root alone.
+- **The installer.** `install.test.sh` installed and reconciled a craft root
+  beside `skills/` and a craft root alone. The installer proofs of the boundary
+  rows held until `manual-installer-removal-k236` removed the installer and
+  its tests.
 - **The boundary trials.** Each boundary row runs its trials from a plain checkout
   of the published pack commit.
 - **Grove's suite.** Each move runs `bash scripts/check.sh` after it changes the

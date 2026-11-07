@@ -1,4 +1,4 @@
-//! The provisioned methodology's **session-kind** surface, asserted against the
+//! The shipped methodology's **session-kind** surface, asserted against the
 //! two things that cannot drift from the shipped behaviour: the plugin's own
 //! `grove-<kind>` skill set and the real `grove-llm` command model.
 //!

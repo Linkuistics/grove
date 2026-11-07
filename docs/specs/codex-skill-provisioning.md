@@ -599,8 +599,8 @@ normative prose. Conformance checks content over the supplied packs. Neither
 executable reads a pack to admit a kind. Ravel delivering readable directories
 is not proof that prose references work or that an agent follows them.
 
-The `harnesses:` key of a skill's metadata has no reader once the installer
-goes. It stays as metadata, and Ravel reads no frontmatter. Directory
+The `harnesses:` key of a skill's metadata has no reader, because the manual
+installer is gone. It stays as metadata, and Ravel reads no frontmatter. Directory
 injection implies neither harness filtering nor installation of native hooks.
 Pack descriptions and guidance must make harness-specific requirements clear.
 Acceptance cannot treat a readable native-only integration as working elsewhere.
@@ -809,7 +809,8 @@ tooling for later moves.
 
 `homebrew-skill-delivery-k215` plans the implementation of the Homebrew
 installation, the hook adapters, the pack record and the retired marketplace.
-The removal of the manual installer goes with it.
+`manual-installer-removal-k236` removed the manual installer, with its
+`--pack` option and its tests.
 
 Ravel's reviewed contract at `822c0ed2`, this adoption and its integrated
 focused review supply dependent planning. The TypeScript contract at `b93bb927` supplies

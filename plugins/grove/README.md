@@ -2,9 +2,8 @@
 
 <!-- tc: pending because the conversion has not reached this part of the document -->
 
-Grove's methodology is delivered through the Claude Code marketplace or the
-manual installer ([`../README.md`](../README.md)). The user chooses the route;
-the `grove` binary installs no skills. It is a shared
+Homebrew installs Grove's methodology with Grove, and Ravel delivers it to each
+session ([`../README.md`](../README.md)). The `grove` binary installs no skills. It is a shared
 **spine** skill and one `grove-<kind>` skill per session kind beside it, over
 that spine. **A kind exists iff a skill of that name exists**, so core's set is
 whatever `skills/` holds, and external packs such as RequirementsSkills,
@@ -130,21 +129,10 @@ parameter to policy; naming the session belongs to the methodology.
 
 ## Installing
 
-**Claude Code**, through the marketplace:
-
-```
-/plugin marketplace add Linkuistics/grove
-/plugin install grove@linkuistics
-/plugin install requirements@linkuistics
-/plugin install design@linkuistics
-/plugin install engineering@linkuistics
-/plugin install research@linkuistics
-/plugin install writing@linkuistics
-/plugin install personal@linkuistics
-/plugin install testanyware@linkuistics
-```
-
-Enable marketplace auto-update (`/plugin` → Marketplaces → Enable auto-update).
+Homebrew installs this plugin directory with Grove, at
+`share/ravel/skills/grove-core/` of the keg. Ravel 2.0 reads it from its
+default skill directory and delivers it to each session. Grove ships no
+manual installer, and no marketplace lists this plugin.
 
 Claude Code namespaces a plugin's components — *"in the UI, the agent
 `agent-creator` for the plugin with name `plugin-dev` will appear as
@@ -154,17 +142,11 @@ name*) — so the native spelling of the spine there is `grove:grove`, and a
 kind's skill is `grove:grove-<kind>`. These are examples of that native
 spelling. The skills here never write it; see
 [the names a skill writes](#the-names-a-skill-writes).
-**Codex, Gemini CLI and Pi** use [`../install.sh`](../install.sh)'s symlink farm.
 See [Codex installation](../README.md#install--codex) for skills that earlier
-Grove releases installed automatically:
+Grove releases installed automatically.
 
-```sh
-./plugins/install.sh
-```
-
-Every skill here declares `harnesses: [any]`, so the script links every one of
-them into `~/.codex/skills/`, `~/.gemini/skills/` and `~/.pi/agent/skills/` — one
-directory per skill, named exactly as the skill is.
+Every skill here declares `harnesses: [any]`. No installer reads the key now,
+so it stays as metadata.
 
 **That declaration was `[claude-code]` for three leaves, and the reason it was
 is worth keeping.** The `grove` binary owned `~/.claude/skills/grove`,
@@ -178,16 +160,16 @@ binary writing those paths, and the declarations flipped with it.
 
 **One consequence of that history is a debt, not a state.** The three
 binary-written directories are ordinary directories, not symlinks, and
-`install.sh` refuses to install over one at a path it does not own. They must be
-removed by hand once, on any machine that ran a pre-`delete-provisioning-k19`
-build.
+the removed manual installer refused to install over one at a path it did not
+own. They must be removed by hand once, on any machine that ran a
+pre-`delete-provisioning-k19` build.
 
 ## The token a prompt names
 
 **The prompt names the bare `grove-<kind>` skill and no plugin namespace.** On
 Claude Code a plugin skill is invoked as `<plugin>:<skill>`
 ([plugins reference](https://code.claude.com/docs/en/plugins-reference), *plugin
-name*). Through the symlink farm or a supplied directory it is the bare
+name*). Through a native skill folder or a directory that Ravel supplies, it is the bare
 directory name. The plugin that actually supplies a skill decides its
 namespace. A pack move can change that plugin without changing the kind. The
 prompt therefore names one bare target in one imperative:

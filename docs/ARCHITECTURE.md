@@ -108,8 +108,8 @@ skill plugin. Ravel is an independently delivered runtime dependency:
 |---|---|---|
 | Grove CLI | `crates/` | Homebrew and the release archives install `grove` and `grove-llm`. |
 | Grove caller assets | `assets/ravel-policy/` | One set for each admitted Ravel major: TypeScript for 1.x and Rhai for 2.x. Grove archives/formula install `libexec/ravel-policy`; the formula depends on separately versioned Ravel. [Delivery boundary](grove-delivery-contraction.md). |
-| Agent skill plugins | `plugins/grove/` | Claude marketplace, or `plugins/install.sh` for Codex, Gemini CLI and Pi. The user chooses and maintains the route. |
-| External packs | Other repositories, such as `plugins/requirements/` in RequirementsSkills, `plugins/design/` in DesignSkills, `plugins/engineering/` in EngineeringSkills, `plugins/research/` in ResearchSkills, `plugins/writing/` in WritingSkills, `plugins/personal/` in PersonalSkills and `plugins/testanyware/` in TestAnyware. WritingSkills also holds the hooks plugin `technical-communication-hooks`, and PersonalSkills holds the native plugin `guardrail` | The marketplace pins each with a `git-subdir` source and a `sha`. `plugins/install.sh --pack <dir>` installs a checkout. [External pack contract](specs/external-pack-contract.md). |
+| Agent skill plugins | `plugins/grove/` | Grove's formula installs it at `share/ravel/skills/grove-core/` of the keg, and Ravel delivers it. |
+| External packs | Other repositories, such as `plugins/requirements/` in RequirementsSkills, `plugins/design/` in DesignSkills, `plugins/engineering/` in EngineeringSkills, `plugins/research/` in ResearchSkills, `plugins/writing/` in WritingSkills, `plugins/personal/` in PersonalSkills and `plugins/testanyware/` in TestAnyware. WritingSkills also holds the hooks plugin `technical-communication-hooks`, and PersonalSkills holds the native plugin `guardrail` | Grove's record `plugins/packs.json` pins each domain pack by commit, and Grove's formula installs it. The `personal` and `testanyware` formulae install the other two. [External pack contract](specs/external-pack-contract.md). |
 
 Their documented interfaces evolve together. `plugins/` is the authoritative
 skill source. Neither binary embeds or installs it
@@ -1536,9 +1536,8 @@ any native namespace. The prompt also tells a session that cannot find or read
 the skill to force-stop with its leaf live. Whoever authors an independent kind
 supplies its skill.
 
-The user supplies that skill to every harness the policy can select. Claude
-Code receives the plugins through its marketplace with auto-update
-enabled. Codex, Gemini CLI and Pi users can use `plugins/install.sh`. Grove
+Homebrew installs the skill sources, and Ravel delivers them to a session in
+every harness the policy can select. Grove ships no manual installer. Grove
 installs no skill and alters no harness's skill directories or plugin
 configuration. The [delivery contract](specs/codex-skill-provisioning.md) owns
 the routes, the Ravel directory route on 2.0 and the missing-skill outcome.
@@ -1554,8 +1553,8 @@ every such entry before and after startup.
 
 A running driver is the binary already in memory. Changes to the loop, verbs or
 prompt require rebuilding and installing before a new driver can use them.
-Skills reach users through their own update route: the marketplace or the
-checkout behind the manual installer. A rebuild does not change them.
+Skills reach users through a Grove release, whose keg holds them. A rebuild
+does not change them.
 
 Nothing pins skills and binaries together for the lifetime of a running
 session: an installation can change after startup, and the `grove-llm` a

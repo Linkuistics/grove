@@ -97,7 +97,6 @@ echo "check: rustfmt  $(command -v rustfmt || echo '(not found)') — $(rustfmt 
 
 run_check "cargo fmt" cargo fmt --all --check
 run_check "shellcheck" shellcheck \
-  plugins/install.sh plugins/install.test.sh \
   plugins/grove/conformance.sh plugins/grove/conformance.test.sh \
   scripts/check.sh scripts/check-packs.sh scripts/check-packs.test.sh scripts/pack-record.sh scripts/pinned-bun.sh scripts/ravel-policy-typecheck.sh scripts/ravel-policy-typecheck.test.sh scripts/release-publish.sh scripts/release.test.sh \
   scripts/release-prepare.sh scripts/release-prepare.test.sh \
@@ -111,7 +110,6 @@ run_check "shellcheck" shellcheck \
   scripts/ravel-target-inputs.test.sh scripts/grove-installed-smoke.sh scripts/grove-tap-states.sh \
   scripts/grove-installed-upgrade.sh scripts/harness-trials/trial-launch.sh scripts/tap-formula.test.sh
 run_check "cargo clippy" cargo clippy --workspace --all-targets
-run_check "plugin install" bash plugins/install.test.sh
 run_check "conformance" bash plugins/grove/conformance.sh
 run_check "conformance suite" bash plugins/grove/conformance.test.sh
 # Each external pack that plugins/packs.json records, at its exact commit, alone

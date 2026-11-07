@@ -12,7 +12,7 @@
 //! The other half of the old file's subject — that every kind's reference file
 //! exists and that each skill's frontmatter is well formed — is
 //! `plugins/grove/conformance.sh`'s, which asserts it over the same files a
-//! harness installs.
+//! session reads.
 
 mod support;
 
@@ -72,15 +72,15 @@ fn collect_markdown(root: &Path, dir: &PathBuf, out: &mut Vec<(String, String)>)
 /// **The two used to ship as one artifact, and no longer do.** `content/` was
 /// embedded in the binary with `include_dir!`, which made this claim a property
 /// of a single build and drove the drift to zero by construction.
-/// `delete-provisioning-k19` deleted the embed: the methodology installs as a
-/// plugin, the binary installs through Homebrew, and the two now have separate
-/// lifetimes. So the guarantee weakened from *a shipped binary cannot hand a
-/// session a verb it lacks* to *this checkout's skill set and this checkout's
-/// CLI agree*, which is what a working tree can actually assert. What pays for
-/// the difference is that both are versioned in this one repository and land in
-/// one commit; what does not is a user who upgrades one and not the other, and
-/// that residue is `plugins/grove/README.md`'s to state rather than this file's
-/// to pretend away.
+/// `delete-provisioning-k19` deleted the embed. Grove's keg now carries both,
+/// but a session can read its skills from another source or from a native
+/// installation, so the two can have separate lifetimes. So the guarantee
+/// weakened from *a shipped binary cannot hand a session a verb it lacks* to
+/// *this checkout's skill set and this checkout's CLI agree*, which is what a
+/// working tree can actually assert. What pays for the difference is that both
+/// are versioned in this one repository and land in one commit; what does not
+/// is a user who upgrades one and not the other, and that residue is
+/// `plugins/grove/README.md`'s to state rather than this file's to pretend away.
 ///
 /// No test can see a future build, so "the installed skill is current" is not
 /// the statable claim. **This one is**: every `grove-llm` verb the shipped

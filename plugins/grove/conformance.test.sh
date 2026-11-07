@@ -18,9 +18,8 @@
 # pack is a fixture too, never the real research pack. "Controls that must
 # fail" in `docs/specs/external-pack-contract.md` lists the pack controls.
 #
-# Dependency-free bash, as `plugins/install.test.sh` is: a scratch directory
-# per case, no network, no package manager, nothing written outside the
-# temporary tree.
+# Dependency-free bash: a scratch directory per case, no network, no package
+# manager, nothing written outside the temporary tree.
 #
 # Usage: ./plugins/grove/conformance.test.sh
 

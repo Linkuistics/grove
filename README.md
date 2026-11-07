@@ -146,38 +146,8 @@ pins one PersonalSkills commit for both plugins.
 [TestAnyware](https://github.com/Linkuistics/TestAnyware) repository. The
 marketplace pins one TestAnyware commit for it.
 
-<!-- tc: pending because the conversion has not reached this part of the document -->
-
-For Codex, Gemini CLI and Pi, clone this repository and run:
-
-```sh
-./plugins/install.sh
-```
-
-The script links each eligible skill into the personal skill directory of each
-harness that is present. It filters on each skill's `harnesses:` declaration, so
-a Claude-only skill is excluded from Codex.
-
-<!-- tc: on -->
-
-The external packs need `--pack`. Make a checkout of each pack that you want,
-and name its plugin directory:
-
-```sh
-./plugins/install.sh --pack /path/to/RequirementsSkills/plugins/requirements \
-  --pack /path/to/DesignSkills/plugins/design \
-  --pack /path/to/EngineeringSkills/plugins/engineering \
-  --pack /path/to/ResearchSkills/plugins/research \
-  --pack /path/to/WritingSkills/plugins/writing \
-  --pack /path/to/PersonalSkills/plugins/personal
-```
-
-To install the TestAnyware skill, name the plugin directory of a TestAnyware
-checkout in the same way:
-
-```sh
-./plugins/install.sh --pack /path/to/TestAnyware/plugins/testanyware
-```
+Grove ships no manual installer. Homebrew installs the skill sources with
+Grove, and Ravel delivers them to each session in every harness.
 
 <!-- tc: pending because the conversion has not reached this part of the document -->
 

@@ -261,8 +261,8 @@ as the table. Every one of the three values is correct today, and each
 is held by a test. What the assembly shows is the shape of the crate's
 answer to its own third cost: it prefers one definition, says so, and pays for a
 second statement three times where a second reader lives somewhere the first
-definition cannot reach — another crate, a marketplace
-manifest, another binary. That is not an accident of implementation. It is what
+definition cannot reach — another crate, the shipped skill
+directories, another binary. That is not an accident of implementation. It is what
 happens to *a chosen value must be stated where a reader can find it* when the
 readers are in three different places.
 

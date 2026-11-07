@@ -84,7 +84,7 @@ fn grove_guidance_replaces_the_old_in_session_review_loop() {
     );
 }
 
-/// The two eager constructors are gone, so no provisioned surface may still
+/// The two eager constructors are gone, so no shipped surface may still
 /// instruct one. This is the meta-grove hazard stated as a test: whatever
 /// `content/` says at this commit is what drives the *next* session, and a
 /// surface naming a verb the binary refuses sends that session to a dead end it
@@ -96,7 +96,7 @@ fn grove_guidance_replaces_the_old_in_session_review_loop() {
 /// wholesale fails rather than passing vacuously.
 #[test]
 fn no_provisioned_surface_instructs_a_deleted_composition_verb() {
-    // Scoped to the surfaces that *drive a session* — the provisioned
+    // Scoped to the surfaces that *drive a session* — the shipped
     // methodology and the human guide. The doubt skill's half is the doubt
     // check of the EngineeringSkills pack. `CONTEXT.md` and the
     // review-mechanics spec are deliberately out: a glossary `_Avoid_` line and

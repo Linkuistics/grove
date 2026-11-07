@@ -8,7 +8,7 @@ mod support;
 ///
 /// The guides are enumerated rather than globbed, because the claim is about a
 /// *surface* a person navigates, not about every Markdown file in the tree.
-/// Architecture, decision records, specs, and the provisioned methodology are
+/// Architecture, decision records, specs, and the shipped methodology are
 /// separately owned; a repo-wide sweep belongs to whoever owns all of them at
 /// once, and is [`every_repository_markdown_reference_resolves`] below.
 ///

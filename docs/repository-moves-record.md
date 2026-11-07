@@ -3206,7 +3206,7 @@ SHA-256 `1b508d0c1720…`, and its session file `2217b34fe157…`.
 
 **Result: pass.** The plugin lists `guardrail` alone. `/guardrail` starts the
 skill, and the hook returns `ask` for the gated command. In print mode no one
-can confirm, so Claude Code refuses the command.
+can answer that question, so Claude Code refuses the command.
 
 #### Readings of the control
 
@@ -3898,3 +3898,55 @@ in `~/.pi/agent/skills` and the one link in `~/.pi/agent/extensions` point
 into the moved checkout `~/Development/grove` and dangle.
 `docs/owner-skill-inventory.tsv` already lists them for deactivation.
 `~/.gemini/skills` is absent. This leaf changed nothing in those homes.
+
+## The delivery guidance
+
+`homebrew-delivery-guidance-k237` rewrote Grove's shipped guidance on
+2026-11-07 for the final route. Homebrew installs Grove, core and the five
+domain packs. Ravel 2.0 reads them from its default skill directory with no
+settings. Guidance sets up no native installation. The two native routes stay
+in the route tables as caller routes that Grove admits.
+
+### Changes
+
+- `README.md` has one install section for Grove and its skills. Its section
+  "Skills" names the six sources, the other formulae and the hook adapters.
+  It also gives the steps for a user of the retired `linkuistics` marketplace.
+- `docs/USAGE.md` rewrites the directory route. The settings are optional, and
+  a `sources` example names keg paths. A new passage, "The hook adapters",
+  holds the table of commands of the delivery design.
+- `plugins/README.md` replaces each marketplace paragraph with the pack record
+  and the formula, and its install sections with one Homebrew section.
+  "Versioning" keeps the rule of no `version`, for the reason that holds now: a
+  cut must leave the `grove-core` bytes equal to those of the candidate keg.
+- `configure-grove` and its `policy.md` state that the directory route needs
+  no settings key. Ravel 1.1 and Ravel 2.0 can therefore share one HOME.
+- `docs/RELEASING.md` has the section "A pack change", with the four steps.
+- The caveats' "Skills" text names the default skill directory. The formula
+  test expects that text, and it refuses the retired routes.
+- `plugins/CONTEXT.md`, `CONTEXT.md`, `CONTEXT-MAP.md`, `docs/ARCHITECTURE.md`
+  and the spine's `references/grove.md` lose their marketplace, symlink and
+  checkout routes. The example dialogue of `plugins/CONTEXT.md` no longer
+  describes the symlink installer as current.
+
+### The sweep
+
+The sweep enumerated each line of each tracked file that matches
+`skills.sources`, a `skills` key or object, `checkout`, `marketplace`,
+`installer`, `install.sh`, a plugin install or add command, `@linkuistics`,
+`symlink install` or `git-subdir`. Each file outside the guidance takes the
+class of its file: design and measurement records, dated records, the
+changelog, books, code and build configuration. Each guidance line was read
+and classified. The run fails on any line without a class.
+
+- Each guidance line now names the default route, a working tree, a build or
+  check input, or a hook adapter of a keg. Some lines name the optional settings or
+  define a glossary term. Each other line states a retired route as retired,
+  or it is history.
+- The mutation control added three retired-route lines to a copy of
+  `README.md`. The sweep failed on each of them.
+- The cross-tree control read five guidance files at the parent revision. The
+  sweep failed on 79 of their lines, such as `/plugin install grove@linkuistics`
+  and the settings that name checkouts.
+- The positive control found four known current lines. With an empty file
+  list, it reported them as missing.

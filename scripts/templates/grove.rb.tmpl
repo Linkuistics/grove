@@ -53,13 +53,19 @@ class Grove < Formula
 
   def caveats
     <<~EOS
-      Skills: Grove names the skill each session loads, and you supply it
-      through one of two routes. Grove does not install skills. Startup and
-      upgrades leave any existing skill installation, including one written by
-      an earlier Grove, unchanged.
+      Skills: this keg holds Grove's skills, core and the five domain packs,
+      at share/ravel/skills. Homebrew links each one into Ravel's default
+      skill directory, $(brew --prefix)/share/ravel/skills. Ravel 2.0.0 and
+      later read that directory when ~/.config/ravel/settings.json names no
+      "sources", also when that file is absent. Ravel then delivers the
+      skills to each session. brew install and brew upgrade are the whole
+      skill setup, and no setting is necessary.
 
-      Native installation, with any Ravel: install the skills in every harness
-      your Ravel configuration selects.
+      Ravel 1.x delivers no skill. Run `ravel skills resolve` to see the
+      sources that a launch receives.
+
+      Grove leaves any native skill installation unchanged, including one that
+      an earlier Grove wrote.
 
       Hook adapters: Ravel delivers skills and installs no hook. Register the
       always-on technical-communication hooks of this keg in each harness:
@@ -76,15 +82,10 @@ class Grove < Formula
         # Pi, once:
         ln -s "$(brew --prefix)/share/ravel/skills/writing/craft/technical-communication/harnesses/pi/technical-communication.ts" ~/.pi/agent/extensions/
 
-      After the two Codex commands, start codex once and choose "Trust all
+      After the two Codex commands, run codex once and choose "Trust all
       and continue" at its hook review. Codex runs no hook until you trust
       it. It stores the versioned keg path, so after each upgrade repeat the
       two commands and the review.
-
-      Ravel directory delivery, with Ravel 2.0.0 or later: name local skill
-      checkouts in the `skills` object of ~/.config/ravel/settings.json.
-      Native copies are then unnecessary. Ravel 1.x refuses that key, so
-      run a 2.0 route under a separate HOME while a 1.x session still runs.
 
       Grove launches sessions through the independent Ravel dependency. Each
       Ravel major reads its own configuration file. Copy the readable sample
@@ -97,7 +98,7 @@ class Grove < Formula
         cp #{libexec}/ravel-policy/sample/config.rhai ~/.config/ravel/config.rhai
 
       The samples launch codex with approvals off and full access. Copy only
-      into an absent file; preserve an existing configuration and its helpers.
+      into an absent file. Preserve an existing configuration and its helpers.
       Creator-aware examples live in #{libexec}/ravel-policy/examples:
       the *.ts files for Ravel 1.x and the *.rhai files for Ravel 2.x.
       Keep the whole caller asset tree together when you import them.

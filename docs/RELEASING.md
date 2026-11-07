@@ -65,6 +65,27 @@ require the concrete cutover preparation described below before running a task.
 
 <!-- tc: on -->
 
+### A pack change
+
+Grove's formula installs core and the five domain packs. Each pack is at the
+commit that Grove's pack record, `plugins/packs.json`, names. A change to a pack
+therefore reaches users in four steps:
+
+1. Publish the change as a commit of the pack's repository.
+2. Record that commit in the `sha` of the pack in `plugins/packs.json`, as a
+   Grove change.
+3. Run `task check:packs`. It checks the pack alone and with core, and the
+   change must pass.
+4. Run `task release:patch` to publish Grove.
+
+The release then copies the source directory of the recorded commit into each
+archive, at `share/ravel/skills/<source-id>/`. `brew upgrade` installs the new
+keg, and Ravel delivers the new skills to each later session. A pack change that
+breaks core follows the expand and contract steps of the
+[external pack contract](specs/external-pack-contract.md#the-checker-without-a-copy). The
+[delivery design](specs/codex-skill-provisioning.md#the-pack-record-and-the-release)
+owns this procedure.
+
 ### Release notes
 
 `task release:notes` refreshes `## Unreleased` and publishes nothing. Run it
@@ -826,8 +847,8 @@ lifecycle, commit/push the same-version tap correction through jj, refresh the
 tap, then run `brew test grove` and the installed-smoke command above. Preserve
 the existing tag and tested archives; resume verification without another cut.
 
-The formula's caveats show both configuration formats, both setup routes and
-the explicit `ravel@2` prefix. They copy the `policy.ts` sample for Ravel 1.x
+The formula's caveats show both configuration formats, Ravel's default skill
+directory, the commands of the hook adapters and the explicit `ravel@2` prefix. They copy the `policy.ts` sample for Ravel 1.x
 and the `config.rhai` sample for Ravel 2.x from the installed caller assets.
 Preserve an existing configuration, read/edit a new one before running, and keep
 relative helpers together. Installation and upgrade never write an owner

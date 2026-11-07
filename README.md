@@ -14,12 +14,14 @@ also contains the agent skills used by those sessions.
 |---|---|---|
 | Grove | [`crates/`](crates/) | The Rust workspace: two thin binaries over five library crates, the loop that launches one session per task among them. |
 | Grove caller policies | [`assets/ravel-policy/`](assets/ravel-policy/) | Readable owner-editable policies and adapters for independent Ravel. |
-| Skill plugins | [`plugins/`](plugins/) | Grove's own methodology, and the marketplace that lists the external packs. |
+| Skill plugins | [`plugins/`](plugins/) | Grove's own methodology, and the record of the external packs that Grove's release installs. |
 
-Grove and its skills share a repository; [Ravel](https://github.com/Linkuistics/Ravel) is independently released.
-Grove names the skill each session must load, and you supply that skill to
-every harness your policy selects. Grove does not install skills.
-Claude Code uses the plugin marketplace with auto-update enabled.
+<!-- tc: on -->
+
+Grove and its skills share a repository. [Ravel](https://github.com/Linkuistics/Ravel)
+has releases of its own. Grove names the skill that each session must load. Homebrew
+installs Grove's skills with Grove, and Ravel delivers them to each session. The
+`grove` binary installs no skill.
 
 ## Install Grove
 
@@ -28,20 +30,33 @@ brew tap Linkuistics/taps
 brew install grove
 ```
 
-There is no per-project installation step. `grove --version` reports the
-installed binary version. Homebrew installs independently versioned Ravel as a
-runtime dependency. Grove archives ship only Grove executables and its readable
-caller assets at `libexec/ravel-policy`; archive users install Ravel separately.
-Install the skills separately, as [the skill plugins](#install-the-skill-plugins)
-describe, for each harness your policy can select.
+That command is the whole setup of Grove and its skills, and `brew upgrade` keeps
+both current. No project needs an installation step. Homebrew installs these parts:
+
+- The executables `grove` and `grove-llm`. `grove --version` reports the installed
+  version.
+- Grove's readable caller assets, at `libexec/ravel-policy`.
+- Ravel, as a dependency with its own version.
+- Core and the five domain packs, as [the skills](#skills) state.
+
+A release archive holds the same files except Ravel. An archive user installs Ravel
+separately.
+Only a Homebrew installation links the skill sources into Ravel's default skill
+directory, so an archive user names them in Ravel's settings.
+
+<!-- tc: pending because the conversion has not reached this part of the document -->
 
 Grove has no launch configuration of its own. Independent Ravel reads your
-owner policy at `~/.config/ravel/policy.ts` and returns the selected command.
-Copy the sample into an absent owner policy, read it and edit it:
+owner configuration and returns the selected command. Ravel 1.x reads
+`~/.config/ravel/policy.ts`, and Ravel 2.x reads `~/.config/ravel/config.rhai`.
+Copy the sample for your Ravel into an absent file, read it and edit it:
 
 ```sh
 mkdir -p ~/.config/ravel
+# Ravel 1.x:
 cp "$(brew --prefix grove)/libexec/ravel-policy/sample/policy.ts" ~/.config/ravel/policy.ts
+# Ravel 2.x, with SCHEMA_VERSION 4:
+cp "$(brew --prefix grove)/libexec/ravel-policy/sample/config.rhai" ~/.config/ravel/config.rhai
 ```
 
 Preserve an existing policy. The sample launches codex with approvals off and
@@ -58,8 +73,8 @@ policy offers. [Launch policy](docs/USAGE.md#usage-launch-policy) has the rest.
 
 Grove's methodology cites the craft skill `decision-records` for ADR discipline
 and `codebase-design` for module design, structural simplicity and test seams.
-Both skills ship in the `design` plugin of DesignSkills. Install them with
-Grove's skills, as the instructions below state.
+Both skills ship in the `design` source of DesignSkills, which Grove's formula
+installs.
 
 <!-- tc: pending because the conversion has not reached this part of the document -->
 
@@ -84,70 +99,68 @@ Quit, handled termination signals and errors restore the terminal; unwinding
 panics restore it before printing their diagnostic.
 See [Viewing a tree](docs/USAGE.md#usage-viewing-tree) for details and recovery.
 
-## Install the skill plugins
-
-For Claude Code:
-
-```text
-/plugin marketplace add Linkuistics/grove
-/plugin install grove@linkuistics
-/plugin install requirements@linkuistics
-/plugin install design@linkuistics
-/plugin install engineering@linkuistics
-/plugin install research@linkuistics
-/plugin install writing@linkuistics
-/plugin install personal@linkuistics
-/plugin install testanyware@linkuistics
-```
-
-Enable marketplace auto-update (`/plugin` → Marketplaces → Enable auto-update)
-so Claude Code keeps the plugins current. `grove@linkuistics` supplies
-Grove's methodology; see [`plugins/grove/README.md`](plugins/grove/README.md).
+## Skills
 
 <!-- tc: on -->
 
-`requirements@linkuistics` supplies the requirements kinds from the
-[RequirementsSkills](https://github.com/Linkuistics/RequirementsSkills)
-repository. A fresh grove starts with a `requirements` leaf, so install it
-before you start a grove. The marketplace pins one RequirementsSkills commit for
-it.
+Grove's formula installs six skill sources. Each is one Ravel source:
 
-`design@linkuistics` supplies the design kinds and the design craft skills from
-the [DesignSkills](https://github.com/Linkuistics/DesignSkills) repository. The
-craft skills are `decision-records`, `codebase-design`, `cli-tool-design` and
-`model-led-development`. The marketplace pins one DesignSkills commit for it.
+| Source | Repository | Content |
+| --- | --- | --- |
+| `grove-core` | This repository, [`plugins/grove`](plugins/grove/README.md) | Grove's methodology: the spine, the kinds of core and `configure-grove` |
+| `requirements` | [RequirementsSkills](https://github.com/Linkuistics/RequirementsSkills) | The requirements kinds. The first leaf of a fresh grove is a `requirements` leaf |
+| `design` | [DesignSkills](https://github.com/Linkuistics/DesignSkills) | The design kinds, and the craft skills `decision-records`, `codebase-design`, `cli-tool-design` and `model-led-development` |
+| `engineering` | [EngineeringSkills](https://github.com/Linkuistics/EngineeringSkills) | The impl and prototype kinds, and the craft skills: six `coding-style-*` skills, `using-codebase-memory`, `simplify-project` and `doubt-driven-development` |
+| `research` | [ResearchSkills](https://github.com/Linkuistics/ResearchSkills) | The research kinds |
+| `writing` | [WritingSkills](https://github.com/Linkuistics/WritingSkills) | The editorial kinds `draft`, `copy-edit`, `art` and `proof`, and the craft skills `technical-communication` and `writing-code-walkthroughs` |
 
-`engineering@linkuistics` supplies the impl and prototype kinds and the
-engineering craft skills from the
-[EngineeringSkills](https://github.com/Linkuistics/EngineeringSkills)
-repository. The craft skills are the six `coding-style-*` skills,
-`using-codebase-memory`, `simplify-project` and `doubt-driven-development`.
-The marketplace pins one EngineeringSkills commit for it.
+Grove's release takes each pack at the commit that Grove's pack check accepted. A
+change to a pack therefore reaches users through a Grove release.
 
-`research@linkuistics` supplies the research kinds from the
-[ResearchSkills](https://github.com/Linkuistics/ResearchSkills) repository. The
-marketplace pins one ResearchSkills commit for it.
+Homebrew links each source into Ravel's default skill directory,
+`$(brew --prefix)/share/ravel/skills/`. Ravel 2.0.0 reads that directory when its
+settings name no `sources`. It adds the location of each source to each launch
+prompt, and the agent finds and reads its skills there. No harness needs a native
+copy, and no setting is necessary.
+[The directory route](docs/USAGE.md#usage-directory-route) gives the details.
 
-`writing@linkuistics` supplies the editorial kinds `draft`, `copy-edit`, `art`
-and `proof` from the [WritingSkills](https://github.com/Linkuistics/WritingSkills)
-repository. It also supplies the writing craft skills `technical-communication`
-and `writing-code-walkthroughs`. The marketplace pins one WritingSkills commit
-for it. Its dependency `technical-communication-hooks` comes from the same
-commit and holds the always-on hooks of `technical-communication`.
+Ravel 1.x delivers no skill. While the unversioned `ravel` formula is Ravel 1.x,
+install Ravel 2 as the keg-only `ravel@2`. Put it first on the PATH of each Grove
+invocation:
 
-`personal@linkuistics` supplies the owner's personal craft skills from the
-[PersonalSkills](https://github.com/Linkuistics/PersonalSkills) repository.
-The craft skills are `machine-environment`, `using-jujutsu` and
-`authoring-conventions`. Its dependency `guardrail` comes from the same commit
-and holds the user-invoked `guardrail` skill for Claude Code. The marketplace
-pins one PersonalSkills commit for both plugins.
+```sh
+brew install linkuistics/taps/ravel@2
+PATH="$(brew --prefix ravel@2)/bin:$PATH" grove
+```
 
-`testanyware@linkuistics` supplies the TestAnyware GUI-testing skill from the
-[TestAnyware](https://github.com/Linkuistics/TestAnyware) repository. The
-marketplace pins one TestAnyware commit for it.
+Other formulae of the tap install more skill sources in the same way:
 
-Grove ships no manual installer. Homebrew installs the skill sources with
-Grove, and Ravel delivers them to each session in every harness.
+| Formula | Skills |
+| --- | --- |
+| `personal` | The owner's craft skills `machine-environment`, `using-jujutsu` and `authoring-conventions`, from [PersonalSkills](https://github.com/Linkuistics/PersonalSkills). The formula also holds the `guardrail` plugin for Claude Code |
+| `testanyware` | The skill `using-testanyware`, with TestAnyware's executables |
+| `superpowers` | The development workflow skills of [superpowers](https://github.com/obra/superpowers) |
+| `quint-llm-kit` | The Quint specification skills of [quint-llm-kit](https://github.com/quint-co/quint-llm-kit) |
+
+The always-on hooks of `technical-communication` and the `guardrail` hook are not
+skills, so Ravel does not deliver them. Register them in each harness by the
+commands of [the hook adapters](docs/USAGE.md#usage-hook-adapters). The caveats of
+`brew info grove` print the same commands. On Codex, repeat the registration after
+each upgrade of Grove.
+
+No remote marketplace lists a pack, and Grove ships no manual installer. Grove's
+Claude Code marketplace `linkuistics` is retired and lists no plugin. A user of that
+marketplace does these steps in this order:
+
+1. Install or upgrade Grove with Homebrew.
+2. Use Ravel 2.0, which reads the skill sources with no settings.
+3. Register the hook adapters.
+4. Remove the marketplace with `/plugin marketplace remove linkuistics`. The removal
+   uninstalls each plugin of the marketplace.
+
+A refresh of the retired marketplace keeps each of its plugins installed and enabled,
+but the plugin no longer loads, and no notice appears. Do the first three steps
+before any refresh.
 
 <!-- tc: pending because the conversion has not reached this part of the document -->
 
@@ -158,11 +171,8 @@ while their targets exist. To remove the links, follow the
 [optional cleanup procedure](docs/USAGE.md#usage-codex-cleanup). It keeps
 `~/.agents/.grove`.
 
-Ravel skill-directory delivery is the alternative route. Ravel 2.0.0 reads the
-skills from local checkouts that its settings name, under a HOME separate from
-any 1.1 launch. The [directory route](docs/USAGE.md#usage-directory-route)
-gives the settings. See [`plugins/README.md`](plugins/README.md)
-for the catalogue, ownership rules and installation paths.
+See [`plugins/README.md`](plugins/README.md) for the catalogue, the ownership
+rules and the layout of each source.
 
 ## Documentation
 

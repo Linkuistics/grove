@@ -302,7 +302,7 @@ change is judged on.
 ### Spine skill / kind skill
 
 The species of the methodology's skills, whose source is authoritative
-for marketplace and manual delivery
+for Homebrew installation and Ravel delivery
 ([`plugins/CONTEXT.md`](./plugins/CONTEXT.md)
 owns that delivery vocabulary). The **spine** is one skill, `grove`,
 carrying every rule shared across families — the numbered constraints, the
@@ -450,8 +450,8 @@ an install boundary: a meta-grove session runs against the *installed* `grove`
 and reads the *installed* skills, so the `grove-llm` verbs and driver behaviour
 it commits reach no session in the same loop. The methodology's half of that
 boundary is softer since [[Skill delivery]] made the skills files rather than an
-embed — a symlinked install resolves to the checkout — but the binary's half is
-unchanged.
+embed — a Ravel source that names the working copy captures each edit at the
+next launch — but the binary's half is unchanged.
 _Avoid_: "nested grove" — that is `grove` launched from inside another grove's session (two drivers, two trees). A meta-grove is one grove whose *code under test* happens to be grove.
 During a live v22 cutover, cargo and test-helper guards retain both
 `GROVE_SIGNAL_FILE` and standalone's `GROVE_RUN_SIGNAL_FILE` beside the new
@@ -1426,8 +1426,8 @@ the operator and no fairness premise is available to grant.
 1. The **CLI tool** / Rust crate published as `grove` — invoked as bare `grove`, with no subcommands or flags.
 2. The **methodology**, shipped as the `grove` plugin under `plugins/grove/`.
 3. A single **workstream** — one named task tree at `.grove/` inside the working tree the user provides, named for that working tree's basename ([[Grove name]]), no canonical path. The `grove` command operates on this sense.
-4. The **repo** `Linkuistics/grove`, which holds Grove and the marketplace
-   of the external skill packs (see
+4. The **repo** `Linkuistics/grove`, which holds Grove, its methodology and
+   the record of the external skill packs (see
    [repository products](docs/ARCHITECTURE.md#skills-monorepo)). So "Grove's
    README / CHANGELOG / docs" names artifacts shared with the repo's other
    bounded contexts; this glossary covers only senses 1–3, and `CONTEXT-MAP.md`

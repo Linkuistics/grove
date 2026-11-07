@@ -2,15 +2,28 @@
 
 <!-- tc: pending because the conversion has not reached this part of the document -->
 
-One Claude Code plugin lives here — `grove` —
-published through the marketplace declared in
-[`../.claude-plugin/marketplace.json`](../.claude-plugin/marketplace.json). The
-marketplace also lists `requirements`, `design`, `engineering`, `research`, `writing`, `technical-communication-hooks`, `personal`, `guardrail` and `testanyware`, which live in their own
-repositories and which it pins by commit. The plugin here
-shares this repo with the Grove CLI because the two change in lockstep
+<!-- tc: on -->
+
+One plugin lives here: `grove`. It shares this repository with the Grove CLI,
+because the two change together
 ([architecture](../docs/ARCHITECTURE.md#skills-monorepo)). Homebrew installs it
-with Grove, and Ravel delivers it to each session. The Grove binary embeds and
-installs no skill.
+with Grove as the Ravel source `grove-core`, and Ravel delivers it to each
+session. The Grove binary embeds and installs no skill.
+
+The five domain packs `requirements`, `design`, `engineering`, `research` and
+`writing` live in their own repositories. Grove's pack record,
+[`packs.json`](packs.json), names the commit of each pack that Grove's
+`task check:packs` accepted. Grove's formula installs each pack at that commit,
+beside `grove-core`. The `personal`, `testanyware`, `superpowers` and
+`quint-llm-kit` formulae install the other sources. Each source is a
+directory in Ravel's default skill directory,
+`$(brew --prefix)/share/ravel/skills/<source-id>`.
+
+No remote marketplace lists a plugin. The Claude Code marketplace
+[`../.claude-plugin/marketplace.json`](../.claude-plugin/marketplace.json) is
+retired, and it lists none.
+
+<!-- tc: pending because the conversion has not reached this part of the document -->
 
 The vocabulary of authoring, packaging, triggering and installing a skill is in
 [`CONTEXT.md`](CONTEXT.md).
@@ -48,11 +61,10 @@ The review and integration kinds are families across packs. Their procedures,
 spine. The two family members of the pack load `grove` and read those files
 there.
 
-The marketplace lists `requirements` with a `git-subdir` source. That source
-names `plugins/requirements` and pins one RequirementsSkills commit in `sha`.
-Grove's `task check:packs` checks the pinned commit alone and with this tree's
-core. The plugin declares a dependency on `grove`, so a Claude Code install
-also installs the spine.
+Grove's pack record names the source directory `plugins/requirements` and one
+RequirementsSkills commit. Grove's `task check:packs` checks that commit alone
+and with this tree's core. Grove's formula installs the source directory as
+`requirements`.
 
 <!-- tc: pending because the conversion has not reached this part of the document -->
 
@@ -83,12 +95,11 @@ The review and integration kinds are families across packs, as for
 `requirements`. The two family members of the pack load `grove` and read their
 family files in the spine.
 
-The marketplace lists `design` with a `git-subdir` source. That source names
-`plugins/design` and pins one DesignSkills commit in `sha`. Grove's
-`task check:packs` checks the pinned commit alone and with this tree's core.
-Conformance reads only `skills/`, and the pack's own `task check` checks
-the craft skills. The plugin declares a dependency on `grove`, so a Claude Code
-install also installs the spine.
+Grove's pack record names the source directory `plugins/design` and one
+DesignSkills commit. Grove's `task check:packs` checks that commit alone and
+with this tree's core. Conformance reads only `skills/`, and the pack's own
+`task check` checks the craft skills. Grove's formula installs the source
+directory as `design`.
 
 <!-- tc: pending because the conversion has not reached this part of the document -->
 
@@ -130,13 +141,12 @@ The review and integration kinds are families across packs, as for
 `requirements`. The four family members of the pack load `grove` and read
 their family files in the spine.
 
-The marketplace lists `engineering` with a `git-subdir` source. That source
-names `plugins/engineering` and pins one EngineeringSkills commit in `sha`.
-Grove's `task check:packs` checks the pinned commit alone and with this tree's
-core. Conformance reads only `skills/`. The pack's own `task check` checks the
-craft skills, and its doubt check compares `doubt-driven-development` with
-Grove's text. The plugin declares a dependency on `grove`, so a Claude Code
-install also installs the spine.
+Grove's pack record names the source directory `plugins/engineering` and one
+EngineeringSkills commit. Grove's `task check:packs` checks that commit alone
+and with this tree's core. Conformance reads only `skills/`. The pack's own
+`task check` checks the craft skills, and its doubt check compares
+`doubt-driven-development` with Grove's text. Grove's formula installs the
+source directory as `engineering`.
 
 <!-- tc: pending because the conversion has not reached this part of the document -->
 
@@ -150,11 +160,10 @@ their own repository,
 `research` also holds the `research-family` skill, the procedure that the two
 survey halves share. This repository holds no copy of those skills.
 
-The marketplace lists `research` with a `git-subdir` source. That source names
-`plugins/research` and pins one ResearchSkills commit in `sha`. Grove's
-`task check:packs` checks the pinned commit alone and with this tree's core. The
-plugin declares a dependency on `grove`, so a Claude Code install also installs
-the spine. [`docs/specs/external-pack-contract.md`](../docs/specs/external-pack-contract.md)
+Grove's pack record names the source directory `plugins/research` and one
+ResearchSkills commit. Grove's `task check:packs` checks that commit alone and
+with this tree's core. Grove's formula installs the source directory as
+`research`. [`docs/specs/external-pack-contract.md`](../docs/specs/external-pack-contract.md)
 states the contract that the pack follows.
 
 ## `writing` — the editorial kinds and writing craft skills, from WritingSkills
@@ -175,28 +184,25 @@ One skill is **always on**: `technical-communication`. A harness entry gives
 its instruction to every session, so it costs context on every turn. One off
 file therefore turns all of its layers off.
 
-On Claude Code, the hooks ship in the separate plugin
-`technical-communication-hooks`, which holds no skill. The plugin `writing`
-declares it as a dependency, so a Claude Code install of `writing` also installs
-the hooks. A Ravel user who gets the skill from a directory can install the
-hooks plugin alone.
+Ravel delivers the skill, but it installs no hook. Grove's keg therefore holds
+the marketplace file `writing-hooks` for Claude Code and for Codex. Each file
+names the skill directory `craft/technical-communication` of the keg's
+`writing` source as its plugin root. On Claude Code, the plugin is
+`technical-communication-hooks@writing-hooks`. On Codex, it is
+`technical-communication@writing-hooks`, and the human trusts its hooks after
+each installation or upgrade of Grove.
 
-Codex needs the hooks plugin that the Codex marketplace of WritingSkills lists.
-The human adds and trusts that plugin once. Pi gets an extension by one
-documented link command, and Gemini CLI gets the skill only. The
+Pi gets an extension by one link command, and Gemini CLI gets the skill only.
+[The hook adapters](../docs/USAGE.md#usage-hook-adapters) of the usage guide
+give each command. The
 [user document](https://github.com/Linkuistics/WritingSkills/blob/main/docs/TECHNICAL-COMMUNICATION.md)
-in WritingSkills gives the commands, the switch and the reply log.
+in WritingSkills gives the switch and the reply log.
 
-The marketplace lists `writing` with a `git-subdir` source. That source names
-`plugins/writing` and pins one WritingSkills commit in `sha`. Grove's
-`task check:packs` checks the pinned commit alone and with this tree's core.
-Conformance reads only `skills/`. The pack's own `task check` checks the craft
-skills and counts the hook declarations of each installation.
-
-The marketplace lists `technical-communication-hooks` from the same commit,
-with the source directory `plugins/writing/craft/technical-communication`. The plugin `writing`
-declares dependencies on `grove` and `technical-communication-hooks`, so a
-Claude Code install also installs the spine and the hooks.
+Grove's pack record names the source directory `plugins/writing` and one
+WritingSkills commit. Grove's `task check:packs` checks that commit alone and
+with this tree's core. Conformance reads only `skills/`. The pack's own
+`task check` checks the craft skills and counts the hook declarations of each
+installation. Grove's formula installs the source directory as `writing`.
 
 <!-- tc: pending because the conversion has not reached this part of the document -->
 
@@ -223,13 +229,13 @@ a destructive shell command or an edit outside the project. It declares
 `harnesses: [claude-code]`, so it is a native plugin, and no Ravel root reaches
 it.
 
-The marketplace lists both plugins with `git-subdir` sources at one
-PersonalSkills commit. The source directories are `plugins/personal` and
-`plugins/guardrail`. The plugin `personal` declares a dependency on
-`guardrail`, so a Claude Code install of `personal` also installs the
-guardrail. Grove's `task check:packs` reads neither source, because Grove's
-pack record names the five domain packs only. The pack's own `task check`
-checks the skills and the hook script.
+The `personal` formula pins one PersonalSkills commit. It installs
+`plugins/personal` as the Ravel source `personal`, and `plugins/guardrail` as
+the native plugin `libexec/plugins/guardrail`. Its keg holds the Claude Code
+marketplace file `personal`, so the human registers `guardrail@personal` once
+from the keg. Grove's `task check:packs` reads neither directory, because
+Grove's pack record names the five domain packs only. The pack's own
+`task check` checks the skills and the hook script.
 
 <!-- tc: pending because the conversion has not reached this part of the document -->
 
@@ -241,42 +247,36 @@ The skill `using-testanyware` tells an agent to drive a GUI app inside an
 isolated macOS, Linux or Windows VM through the `testanyware` command. The app
 then does not touch the host. The plugin is not in this repository. It is
 `plugins/testanyware` in the
-[TestAnyware](https://github.com/Linkuistics/TestAnyware) repository, and the
-marketplace pins one TestAnyware commit for it. TestAnyware's README states the
-source directory and its checks. The plugin installs independently of the
-other plugins.
+[TestAnyware](https://github.com/Linkuistics/TestAnyware) repository. The
+`testanyware` formula installs it with TestAnyware's executables, as the Ravel
+source `testanyware`. TestAnyware's README states the source directory and its
+checks.
 
 <!-- tc: pending because the conversion has not reached this part of the document -->
 
-## Install — Claude Code
+## Install
 
-```
-/plugin marketplace add Linkuistics/grove
-/plugin install grove@linkuistics
-/plugin install requirements@linkuistics
-/plugin install design@linkuistics
-/plugin install engineering@linkuistics
-/plugin install research@linkuistics
-/plugin install writing@linkuistics
-/plugin install personal@linkuistics
-/plugin install testanyware@linkuistics
+<!-- tc: on -->
+
+```sh
+brew install linkuistics/taps/grove
 ```
 
-Enable auto-update for the marketplace (`/plugin` → Marketplaces → Enable
-auto-update) so every Claude Code startup picks up each plugin's latest published
-version — see *Versioning* below for what "published" means here.
+Grove's formula installs `grove-core` and the five domain packs. Homebrew links
+each one into Ravel's default skill directory, and Ravel 2.0.0 reads that
+directory with no settings. `brew install` and `brew upgrade` are therefore the
+whole skill setup. The [root README](../README.md#skills) names the other
+formulae, and [the directory route](../docs/USAGE.md#usage-directory-route)
+states the details. Grove ships no manual installer.
 
-The marketplace's identity is the `name` field in `marketplace.json`, not the
-repo URL — it was already `linkuistics` while this tree lived in
-`Linkuistics/skills`, so every `<plugin>@linkuistics` install command is
-unaffected by the move. Only where you add the marketplace *from* changed.
+The hook adapters need one registration in each harness, because Homebrew cannot
+write the configuration of a harness.
+[The hook adapters](../docs/USAGE.md#usage-hook-adapters) give the commands.
 
-## Install — Codex
+<a id="install--codex"></a>
+### Codex skills that earlier Grove releases installed
 
-Grove names the skill each session must load. It does not install skills.
-Homebrew installs the skill sources, and Ravel delivers them to each session.
-Grove ships no manual installer. Codex reads the user skill roots
-`~/.codex/skills` and, from Codex 0.166.0, `~/.agents/skills`.
+<!-- tc: pending because the conversion has not reached this part of the document -->
 
 Grove releases up to 22.8 installed every bundled Codex-compatible skill in
 `~/.agents/skills` at bare startup. Those links point through
@@ -289,21 +289,13 @@ or remove it, and no upgrade does either. The
 links keep working while their snapshots remain, but they no longer follow a
 Grove upgrade. Readers that already resolved an old snapshot keep their files.
 
-When both a provisioned link and a manually installed link supply one skill,
-the harness can see both copies. Keep the old installation, or remove its links
+When both a provisioned link and a Ravel delivery supply one skill, the agent
+can see both copies. Keep the old installation, or remove its links
 by hand under the
 [optional cleanup procedure](../docs/USAGE.md#usage-codex-cleanup). That
 procedure first stops every process that can read the entries. It keeps the
 snapshots.
 Path shape alone does not show that Grove wrote an entry.
-
-Ravel skill-directory delivery is the alternative route, and it needs no native
-copy. Ravel 2.0.0 reads skill sources from local directories that its settings
-name. Make each checkout of this repository with a tool outside Ravel, because
-Ravel downloads and updates nothing. Point a source at the `plugins/grove`
-directory of that checkout, with the root `skills`. Ravel 1.1.0 refuses those
-settings, so use a separate HOME while a 1.1 launch remains. The
-[directory route](../docs/USAGE.md#usage-directory-route) gives the settings.
 
 ## Skill metadata
 
@@ -315,42 +307,29 @@ keys.
 
 ## Versioning
 
-**No `plugin.json` declares a `version`, and that is deliberate — do not add
-one.** Without it Claude Code versions a plugin by the commit SHA of its source,
-and the source is the repo rather than the subdirectory, so the plugin here reports
-a version that moves with every commit. Every push therefore delivers: edit a
-skill, commit, done. Nothing to bump, nothing to grade, nothing to forget.
-
-The cost is churn — in this repo, where most commits are grove's, each one reads as
-an update to the plugin and re-installs content that did not change. That is the
-accepted side of the trade, because pinning an explicit semver fails the other way:
-the version is the cache key an update is decided on, so an unbumped change reaches
-nobody, `/plugin update` reports "already at the latest version", and nothing
-reports the omission
-([Version management](https://code.claude.com/docs/en/plugins-reference#version-management)).
-Churn is noisy and self-correcting; staleness is silent, and this repo has no CI and
-no `pre-commit` hook (jj snapshots the working copy) to catch it. The repository
-and delivery boundary is described in
-[the architecture](../docs/ARCHITECTURE.md#skills-monorepo).
-
 <!-- tc: on -->
 
-The `requirements`, `design`, `engineering`, `research`, `writing`, `technical-communication-hooks`, `personal`, `guardrail` and `testanyware` plugins are the exceptions. The marketplace
-entry of each pins a commit of its own repository in `sha`. Claude Code
-delivers that commit until a Grove commit moves the pin. The pin gives native
-users the commit that Grove's `task check:packs` accepted. That check reads
-Grove's pack record `plugins/packs.json`, which names the five domain packs
-only. It reads no commit of `testanyware`, `technical-communication-hooks`,
-`personal` or `guardrail`.
+**No `plugin.json` declares a `version`, and that is deliberate. Do not add
+one.** A Homebrew formula carries the version of each source. Grove's version
+covers `grove-core` and the five domain packs. A version cut changes only
+`CHANGELOG.md`, so the `grove-core` bytes of a release equal those of its
+candidate keg. A `version` that followed Grove's version would change those
+bytes at each cut and break that equality.
+
+The plugin manifests stay in their source directories as layout metadata. No
+route installs core or a pack through them. The hook adapters need theirs.
+
+Grove's pack record `plugins/packs.json` names the commit of each domain pack.
+A pack change reaches users only when a Grove release records its new commit,
+as [Releasing](../docs/RELEASING.md#a-pack-change) states. The record names the
+five domain packs only. The `personal`, `testanyware`, `superpowers` and
+`quint-llm-kit` formulae each pin their own commit.
 
 <!-- tc: pending because the conversion has not reached this part of the document -->
 
 One trap: `claude plugin validate --strict` warns on the missing `version` and so
 fails on each manifest. That warning is expected — silencing it by adding a
 `version` is the change this section exists to prevent.
-
-None of this touches the symlink install above — those skills update with a
-`git pull`, no version involved.
 
 ## Editing a skill
 

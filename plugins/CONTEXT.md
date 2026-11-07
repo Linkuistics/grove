@@ -2,8 +2,8 @@
 
 <!-- tc: pending because the conversion has not reached this part of the document -->
 
-The `grove` skill plugin under `plugins/`, and the external packs that the
-marketplace lists — the language of **authoring, packaging, triggering and installing** a skill.
+The `grove` skill plugin under `plugins/`, and the external packs that Grove's
+pack record names — the language of **authoring, packaging, triggering and installing** a skill.
 
 **Scope boundary.** A skill's own *subject matter* — jj's working-copy-as-commit,
 for example — belongs to that skill and its ADRs, not here. This
@@ -89,12 +89,14 @@ _Avoid_: "hooks skill". An adapter holds no skill.
 <!-- tc: pending because the conversion has not reached this part of the document -->
 
 **Marketplace**:
-`.claude-plugin/marketplace.json`, the catalogue a user adds once to reach every
-[[Plugin]] in it. **Its identity is the `name` field, not the repo URL** — already
-`linkuistics` while the tree lived in `Linkuistics/skills` — so every
-`<plugin>@linkuistics` install command is repo-independent and a repo move
-rewrites only where the marketplace is added from.
-_Avoid_: treating the repository URL or owner as the namespace.
+A catalogue file that a harness registers to reach each [[Plugin]] in it. **Its
+identity is the `name` field, not its location.** Two kinds exist. A keg's
+marketplace files, such as `writing-hooks` and `personal`, list the
+[[Hook adapter]]s of that keg, and each harness registers them from the keg's
+path. Grove's `.claude-plugin/marketplace.json` keeps the name `linkuistics`,
+is retired and lists no plugin.
+_Avoid_: treating the repository URL or owner as the namespace. Also avoid
+naming a marketplace as the route of a skill.
 
 ### Invocation and triggering
 
@@ -218,15 +220,13 @@ the literal marker `UNVERIFIED` rather than let the prose imply confidence.
 
 **Commit-SHA version** (no `version` in `plugin.json`):
 The version Claude Code derives for a [[Plugin]] when neither its manifest nor its
-[[Marketplace]] entry declares one: the commit SHA of the plugin's *source*, which is
-the **repo** and not the subdirectory — so every plugin here reports one shared version
-string. It is the **cache key** an update is decided on, and it moves with every commit,
-so every push delivers. Every plugin here uses it deliberately
-([architecture](../docs/ARCHITECTURE.md#skills-monorepo)); the alternative, an explicit semver, *pins* — a skill
-change shipped without a bump reaches no consumer and raises no error.
-_Avoid_: adding a `version` to silence `claude plugin validate --strict`, which pins
-delivery on a bump nothing in this repo can check; reading the SHA as identifying a
-plugin's own content, when it identifies the repo's.
+[[Marketplace]] entry declares one: the commit SHA of the plugin's *source*. Native
+distribution through the `linkuistics` marketplace used it as the cache key of each
+update. That route has ended. The manifests still declare no `version`, because
+a Homebrew formula carries the version, and a cut must leave the `grove-core` bytes
+of a release equal to those of its candidate
+([Versioning](README.md#versioning)).
+_Avoid_: adding a `version` to silence `claude plugin validate --strict`.
 
 **Manual installer** (retired):
 `plugins/install.sh`, which linked eligible skill directories into the
@@ -283,11 +283,10 @@ the grove context's, and its packaging is this one's.
 
 ## Example dialogue
 
-> **Dev:** We moved the repo, so every `/plugin install grove@linkuistics`
-> breaks, right?
-> **Expert:** No — the *marketplace*'s identity is its `name` field, not the repo
-> URL. It was `linkuistics` in the old repo and it is `linkuistics` here. Only
-> where you add the marketplace from changed.
+> **Dev:** Homebrew installed the packs, so do I list them in Ravel's settings?
+> **Expert:** No — Ravel 2.0 reads its *default skill directory* when the settings
+> name no `sources`, and Homebrew links each keg's sources into it. `brew upgrade`
+> moves them. A `sources` array would *replace* that default, not add to it.
 > **Dev:** Then why didn't `guardrail` fire before that `rm -rf`?
 > **Expert:** It's *user-invoked*. `disable-model-invocation: true` keeps its
 > description out of context entirely, so nothing but you typing `/guardrail`
@@ -296,15 +295,10 @@ the grove context's, and its packaging is this one's.
 > **Dev:** And `coding-style-rust` is model-invoked *and* carries `paths:`?
 > **Expert:** On Claude Code, yes — belt and braces. But `paths:` is a plugin
 > auto-activation extension the Agent Skills spec doesn't define, so on codex,
-> where it arrives by *symlink install*, the description is the only trigger.
+> where Ravel delivers it from a directory, the description is the only trigger.
 > That's why the *description shape* rule keeps the capability clause.
-> **Dev:** So `guardrail` was symlinked into codex all along, doing nothing?
-> **Expert:** Worse than nothing — a codex session that loaded it read
-> instructions about `${CLAUDE_PLUGIN_ROOT}` and `/guardrail` it had no way to
-> act on. It now declares *harness eligibility* `[claude-code]` and the symlink
-> install skips it, out loud.
-> **Dev:** And a new skill I write without the key just goes everywhere?
-> **Expert:** Nowhere, and you get told — the *skip-loudly default*. Silent
-> either way would have been wrong: 16 of our 17 are portable, so
-> install-everywhere would have mis-installed the one that matters and
-> Claude-only would have withheld the sixteen that don't.
+> **Dev:** So could Ravel hand `guardrail` to codex, where it does nothing?
+> **Expert:** No — `guardrail` lies in no Ravel source. The `personal` formula
+> installs it as a native plugin, and only Claude Code registers it. Its
+> *harness eligibility* `[claude-code]` stays as metadata, because no installer
+> reads the key now.

@@ -109,15 +109,20 @@ adds grants. Flags override bounds. Grove supplies none.
 Each major refuses a key of the other as `settings_invalid`, exit 2. A
 file that both accept holds only `timeoutMs` and `contextBytes`. While a 1.1 launch
 still reads the settings under a HOME, run a 2.0 route that needs another key under a
-separate HOME. The `skills` key of the directory route is such a key.
+separate HOME. The directory route needs no key, because Ravel 2.0 reads its default
+skill directory when the settings name no `sources`.
 
-`skills` names local source directories, each with `type` `local`, an absolute
-`path` and its search `roots`, and an ordered `mandatory` list of files. Ravel
-captures each source at launch, with uncommitted changes and without `.git` and
-`.jj`. It runs no `git` command and makes no network request. A missing source
-refuses as `skill_source_missing`. Restore the checkout or change the settings
-deliberately. Do not remove the source from the settings only to make a launch
-pass.
+Homebrew links each installed skill source into that directory,
+`$(brew --prefix)/share/ravel/skills/`. The optional `skills` object adds an ordered
+`mandatory` list of files. Its `sources` array replaces the default sources with
+local directories, each with `type` `local`, an absolute `path` and its search
+`roots`. `"sources": []` turns delivery off.
+
+Ravel captures each source at launch,
+without `.git` and `.jj`. It runs no `git` command and makes no network request. A
+missing source refuses as `skill_source_missing`. Reinstall the formula that
+supplies it, restore the directory or change the settings deliberately. Do not
+remove the source from the settings only to make a launch pass.
 
 `stateDir` is an obsolete unknown key, not a Ravel store location. Raise the 30-second
 default only when selection needs it.

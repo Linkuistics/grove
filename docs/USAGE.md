@@ -42,15 +42,16 @@ the path once and checks the CLI version of that Ravel. Grove admits stable Rave
 1.1.0 and stable 2.x from 2.0.0. The version decides admission only. The PATH of the Grove
 invocation selects the Ravel, and its configuration file and settings select the route.
 
-Grove supports three routes. On the two native routes, each harness supplies its skills
-through its own native installation. On the [directory route](#usage-directory-route),
-Ravel 2.0 supplies them from local source directories that you configure.
+Grove supports three routes. On the [directory route](#usage-directory-route), Ravel 2.0
+supplies the skills that Homebrew installs with Grove. On the two native routes, each harness
+supplies its skills from a native installation that already exists. Grove's guidance sets up
+no native installation.
 
 | Route | Ravel | Configuration | Settings | Grove caller assets |
 | --- | --- | --- | --- | --- |
 | Native on 1.1 | 1.x from 1.1.0, Homebrew's `ravel` | `~/.config/ravel/policy.ts`, schema 2 | `~/.config/ravel/settings.json` with only `timeoutMs`, `contextBytes` and `policyEnv` | The TypeScript set |
-| Native on 2.0 | 2.x from 2.0.0, Homebrew's keg-only `ravel@2` | `~/.config/ravel/config.rhai`, `SCHEMA_VERSION` 4 | `~/.config/ravel/settings.json` with the keys of 2.0.0 and no `skills` | The Rhai set |
-| Directory on 2.0 | As native on 2.0 | As native on 2.0 | `~/.config/ravel/settings.json` with a `skills` object that names local sources | The Rhai set |
+| Native on 2.0 | 2.x from 2.0.0, Homebrew's keg-only `ravel@2` until promotion | `~/.config/ravel/config.rhai`, `SCHEMA_VERSION` 4 | `~/.config/ravel/settings.json` with the keys of 2.0.0, and `"sources": []` while keg sources are installed | The Rhai set |
+| Directory on 2.0 | As native on 2.0 | As native on 2.0 | No settings file, or one with the keys of 2.0.0 and no `sources` | The Rhai set |
 
 Install Ravel independently with `brew install linkuistics/taps/ravel`. Grove and Ravel can
 have different prefixes and different versions. A missing `ravel` names that install remedy.
@@ -133,75 +134,115 @@ launch. The leaf stays live, and Grove resumes it after you correct the owner's 
 
 On the directory route, Ravel 2.0.0 adds the locations of your skill sources to each
 launch prompt. The agent finds and reads its skills there, so no harness needs a native
-copy. Grove sends the same mandate on every route, and it reads none of these settings.
+copy. Grove sends the same mandate on every route, and it reads none of the settings.
 The bare `grove` lifecycle and `grove run` both support the route.
 
-Add a `skills` object to the settings of the 2.0 HOME. Each source is a local directory,
-named by an absolute path:
+**Homebrew installs the skills.** Grove's formula installs core and the five domain packs
+beside the executables, one Ravel source each:
+
+| Source | Content | Roots |
+| --- | --- | --- |
+| `grove-core` | Grove's methodology: the spine, the kinds of core and `configure-grove` | `skills` |
+| `requirements` | The requirements kinds, from RequirementsSkills | `skills` |
+| `design` | The design kinds and the design craft skills, from DesignSkills | `skills` and `craft` |
+| `engineering` | The impl and prototype kinds and the engineering craft skills, from EngineeringSkills | `skills` and `craft` |
+| `research` | The research kinds, from ResearchSkills | `skills` |
+| `writing` | The editorial kinds and the writing craft skills, from WritingSkills | `skills` and `craft` |
+
+Homebrew links each source into Ravel's default skill directory,
+`$(brew --prefix)/share/ravel/skills/`. Ravel 2.0.0 reads that directory when your settings
+name no `sources`, also when no settings file exists. `brew install` and `brew upgrade` are
+therefore the whole skill setup. Grove's release takes each pack at the commit that Grove's
+pack check accepted.
+
+Other formulae of the `linkuistics/taps` tap install more sources in the same way. The
+`personal` formula installs the owner's personal craft skills. The `superpowers`,
+`quint-llm-kit` and `testanyware` formulae install their skills. Install a formula, and
+Ravel delivers its source from the next launch. Uninstall it, and the next launch does not
+receive it.
+
+Run `ravel skills resolve` with the Ravel of the Grove invocation. It prints the preamble
+that a launch adds, which lists each source and its directories. Empty output means that
+delivery is off.
+
+The always-on hooks of `technical-communication` and the `guardrail` hook are not skills,
+so Ravel does not deliver them. Register them in each harness, as
+[the hook adapters](#usage-hook-adapters) state.
+
+<a id="usage-hook-adapters"></a>
+**The hook adapters.** Ravel installs no hook, and Homebrew cannot write the configuration of
+a harness. Grove's keg therefore holds a marketplace file for the hooks of each harness, and
+one command registers it from the keg. No remote marketplace lists a hook adapter.
+
+| Harness | Command | When |
+| --- | --- | --- |
+| Claude Code | `claude plugin marketplace add "$(brew --prefix)/opt/grove"`, then `claude plugin install technical-communication-hooks@writing-hooks` | Once |
+| Claude Code, `guardrail` | `claude plugin marketplace add "$(brew --prefix)/opt/personal"`, then `claude plugin install guardrail@personal` | Once, after `brew install linkuistics/taps/personal` |
+| Codex | `codex plugin marketplace add "$(brew --prefix)/opt/grove"`, then `codex plugin add technical-communication@writing-hooks`. Then run `codex` once and choose "Trust all and continue" at its hook review | After each installation or upgrade of Grove |
+| Pi | `ln -s "$(brew --prefix)/share/ravel/skills/writing/craft/technical-communication/harnesses/pi/technical-communication.ts" ~/.pi/agent/extensions/` | Once |
+
+Claude Code runs the plugin through the stable `opt` path, so an upgrade needs no new
+registration. Codex stores the path of the versioned keg and copies the plugin. After an
+upgrade and its cleanup, its registration names a removed keg, and its copy keeps the
+earlier hooks. Codex
+runs a hook only after you trust its bytes, so each new copy needs the review again.
+
+A Claude Code installation enables the plugin. To keep it installed and off, run
+`claude plugin disable technical-communication-hooks@writing-hooks` next. The caveats of
+`brew info grove` print the same commands.
+
+**The settings are optional.** The optional `skills` object of the settings changes the
+default:
+
+- A `mandatory` entry names a file that the agent reads before your task. No Grove skill
+  must be mandatory, because the mandate names the kind skill.
+- A `sources` array replaces the default sources. Ravel then reads only the local
+  directories that it names, and no default skill directory.
+- `"sources": []` turns delivery off. A native route on 2.0 uses it while keg sources are
+  installed.
 
 ```json
 {
   "skills": {
     "schemaVersion": 1,
     "sources": [
-      { "id": "grove", "type": "local", "path": "/absolute/path/to/grove-checkout/plugins/grove", "roots": ["skills"] },
-      { "id": "requirements", "type": "local", "path": "/absolute/path/to/requirements-checkout/plugins/requirements", "roots": ["skills"] },
-      { "id": "design", "type": "local", "path": "/absolute/path/to/design-checkout/plugins/design", "roots": ["skills", "craft"] },
-      { "id": "engineering", "type": "local", "path": "/absolute/path/to/engineering-checkout/plugins/engineering", "roots": ["skills", "craft"] },
-      { "id": "research", "type": "local", "path": "/absolute/path/to/research-checkout/plugins/research", "roots": ["skills"] },
-      { "id": "writing", "type": "local", "path": "/absolute/path/to/writing-checkout/plugins/writing", "roots": ["skills", "craft"] }
+      { "id": "grove-core", "type": "local", "path": "/opt/homebrew/share/ravel/skills/grove-core", "roots": ["skills"] },
+      { "id": "requirements", "type": "local", "path": "/opt/homebrew/share/ravel/skills/requirements", "roots": ["skills"] }
     ],
     "mandatory": []
   }
 }
 ```
 
-The requirements kinds ship in the RequirementsSkills repository, so the second source
-names a checkout of it. The first leaf of a fresh grove is a `requirements` leaf, so keep
-that source for a new grove. The design kinds and the design craft skills ship in the
-DesignSkills repository, so the third source names a checkout of it. Its root `skills` holds
-the kinds, and its root `craft` holds the craft skills.
-
-The impl and prototype kinds and the engineering craft skills ship in the EngineeringSkills
-repository. The fourth source names a checkout of it, with the same two roots. The research
-kinds ship in the ResearchSkills repository, so the fifth source names a checkout of it. Leave
-that source out if you run no research leaf.
-
-The editorial kinds and the writing craft skills ship in the WritingSkills repository. The
-sixth source names a checkout of it, with the same two roots as the third. Its root `craft`
-holds `technical-communication` and `writing-code-walkthroughs`. The always-on hooks of `technical-communication` are not
-skills, so this source does not deliver them. On Claude Code, install the plugin
-`technical-communication-hooks` for them.
-
-A `mandatory` entry names a file that the agent reads before your task. No Grove skill
-must be mandatory, because the mandate names the kind skill. Your configuration must pass
-`request.prompt` to the harness, as the example above does. `request.prompt` holds Ravel's
-preamble and then your mandate in a delimited block. `request.originalPrompt` holds the
-mandate alone.
+That example delivers core and the requirements kinds only. Each source needs its `type`,
+an absolute `path` and its `roots`. A source `type` other than `local` refuses as
+`settings_invalid`. Your configuration must pass `request.prompt` to the harness, as
+Grove's samples do. `request.prompt` holds Ravel's preamble and then your mandate in a
+delimited block. `request.originalPrompt` holds the mandate alone.
 
 **Ravel reads local directories only.** It runs no `git` command and makes no network
-request for a source. It does not fetch, install or update a source. Make each checkout of
-a skill repository with a tool outside Ravel. A source `type` other than `local` refuses as
-`settings_invalid`.
+request for a source. It does not fetch, install or update a source. Ravel captures the
+files of each source and leaves out `.git` and `.jj`.
 
-Ravel captures the files of the checkout, with uncommitted changes, and it leaves out `.git`
-and `.jj`. A dedicated checkout at a recorded commit therefore suits delivery better than a
-development working copy.
+**One HOME serves both majors on this route.** Ravel 1.1.0 refuses a settings file that
+holds `skills`. The default route needs no `skills` key, so a native launch on 1.1 and a
+directory launch on 2.0 can share your usual HOME. A 2.0 route can need a 2.0-only key,
+such as `sources`. While a 1.1 launch still reads the settings of your usual HOME, run that
+route under its own HOME.
 
-**Use a separate HOME while a 1.1 launch remains.** Ravel 1.1.0 refuses a settings file
-that holds `skills`, and a separate installation prefix cannot prevent that. Run the
-directory route under its own HOME while a 1.1 launch still reads the settings of your
-usual HOME. A separate HOME also moves Ravel's skill cache, the run logs of `grove run` and
-the HOME-based configuration of your harnesses and VCS. A native launch on 1.1 and a
-directory launch on 2.0 can then run at the same time.
+A separate HOME also moves Ravel's skill cache, the run logs of
+`grove run` and the HOME-based configuration of your harnesses and VCS. It does not move
+the default skill directory, which belongs to the Ravel installation.
 
-If a configured source or root is missing, Ravel refuses as `skill_source_missing` before
-any configuration code runs. Grove reports Ravel's statement and remedy and stops. The leaf
-stays live. Restore the checkout, or change the settings deliberately, then rerun `grove`.
+If a named source or root is missing, Ravel refuses as `skill_source_missing` before any
+configuration code runs. Grove reports Ravel's statement and remedy and stops. The leaf
+stays live. Reinstall the formula, restore the directory or change the settings
+deliberately, then rerun `grove`.
 
 Each launch captures the current contents of its sources. A running session keeps the
-snapshot it received, also when you change a source or the settings. The next launch
-receives the new contents.
+snapshot it received, also when `brew upgrade` changes a source. The next launch receives
+the new contents. A launch during an upgrade can miss the sources of the formula that
+Homebrew is installing. Rerun it after the upgrade.
 
 <a id="usage-standalone"></a>
 ## Running a standalone task
@@ -558,8 +599,8 @@ Error: Ravel is missing from absolute PATH directories. Install it with `brew in
 <!-- tc: on -->
 
 The first leaf of a fresh grove needs the `grove-requirements` skill. That skill ships in
-the RequirementsSkills pack, not in Grove's `grove` plugin. Install that pack on the route
-that each harness uses, as the [skill plugins guide](../plugins/README.md) states.
+the RequirementsSkills pack, not in Grove's `grove` plugin. Grove's formula installs that
+pack, and Ravel delivers it on the [directory route](#usage-directory-route).
 
 <!-- tc: pending because the conversion has not reached this part of the document -->
 
@@ -835,22 +876,20 @@ exists** — adding one is authoring a skill and routing the kind in your policy
 never editing or rebuilding a binary.
 
 <a id="usage-skill-delivery"></a>
-**You supply the skills; Grove installs none.** Grove names the skill and
-leaves its availability to you
-([decision](adr/homebrew-installs-skills-and-ravel-delivers-them.md)). Choose a route for
-every harness your policy can select:
+**Homebrew installs the skills, and Ravel delivers them.** Grove names the skill, and the
+`grove` binary installs none
+([decision](adr/homebrew-installs-skills-and-ravel-delivers-them.md)). Grove's formula
+installs core and the five domain packs. Ravel 2.0 delivers them to every harness that your
+policy can select, as [the directory route](#usage-directory-route) states. `brew install`
+and `brew upgrade` are the whole skill setup.
 
-| Route | What you do |
-|---|---|
-| Native harness installation | Keep a skill installation that already exists in each harness. Grove ships no installer for this route. |
-| Ravel skill-directory delivery | Configure local skill sources for Ravel 2.0.0 under a HOME of their own. Ravel adds their locations to each launch prompt, so native copies are unnecessary. See [the directory route](#usage-directory-route). |
+On a native route, each harness reads a native installation that already exists. Grove's
+guidance sets up none, and Grove ships no installer.
 
-Native-only installation is a complete setup, not a fallback. Grove checks no
-skill before launch. A session that cannot find its named skill reports that;
-repair the route you chose and rerun. A checkout edit reaches your
-installations through their own update route, not through a Grove rebuild.
-Independently authored session-kind skills remain their author's
-responsibility.
+Grove checks no skill before launch. A session that cannot find its named skill reports
+that. Repair the route that you chose and rerun. A change to a pack reaches you through a Grove release, as
+[Releasing](RELEASING.md#a-pack-change) states. Independently authored session-kind skills
+remain their author's responsibility.
 
 <a id="usage-earlier-codex-installations"></a>
 **Codex skills installed by earlier Grove releases.** Grove 21.11 to 22.8
@@ -1484,8 +1523,8 @@ owns them rather than held in the binary.
 <!-- tc: on -->
 
 The skills of these three kinds ship in the ResearchSkills pack, not in Grove's
-`grove` plugin. Install that pack on the route that each harness uses, as the
-[skill plugins guide](../plugins/README.md) states.
+`grove` plugin. Grove's formula installs that pack, and Ravel delivers it on the
+[directory route](#usage-directory-route).
 
 ### Ending the session, and ending the grove
 

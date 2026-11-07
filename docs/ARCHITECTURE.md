@@ -113,8 +113,8 @@ skill plugin. Ravel is an independently delivered runtime dependency:
 
 Their documented interfaces evolve together. `plugins/` is the authoritative
 skill source. Neither binary embeds or installs it
-([skill-delivery decision](adr/homebrew-installs-skills-and-ravel-delivers-them.md)). Claude
-Code retains marketplace installation and auto-update. No harness is inferred from the command a policy
+([skill-delivery decision](adr/homebrew-installs-skills-and-ravel-delivers-them.md)).
+Homebrew installs the skill sources, and Ravel delivers them. No harness is inferred from the command a policy
 selects, which Grove never sees.
 
 ## Runtime flow
@@ -1792,10 +1792,10 @@ requires a rebuild and install before the next driver can use it. In a
 [meta-grove](../CONTEXT.md), that is why a cutover leaf publishes a release and
 stops the loop rather than signalling another iteration.
 
-Codex's automatically installed skills also come from the binary's build.
-Marketplace and manual-checkout skills have independent update boundaries.
-Either delivery route can still meet a mismatched `grove-llm` on `PATH`, and a
-second driver can update the shared Codex skill links after the first started.
+Grove's formula installs the skills and the binaries of one release, so
+`brew upgrade` changes both together. A native skill installation has its own
+update boundary. A running driver, or a session's retained skill snapshot, can
+still meet a mismatched `grove-llm` on `PATH` after an upgrade.
 
 | Skew | What breaks |
 |---|---|
@@ -1805,8 +1805,8 @@ second driver can update the shared Codex skill links after the first started.
 `crates/grove-llm/tests/instructed_verbs.rs` checks the source pair this
 repository publishes. It does not prove that installed skills, executables and
 already running sessions use one build. Diagnose binary versions with
-`grove --version` and `grove-llm --version`; update marketplace or manually
-installed skills through their own installation route.
+`grove --version` and `grove-llm --version`. Upgrade Grove with Homebrew to
+align the keg's skills, and update a native installation through its own route.
 
 <!-- tc: on -->
 
@@ -1880,7 +1880,7 @@ bash scripts/check.sh
 ```
 
 The script owns the check list: formatting, shell and Rust linting, plugin
-installation and conformance, the external packs that the marketplace pins,
+conformance, the external packs that Grove's pack record names,
 release tooling, workspace tests and source-exact
 book validation. It typechecks Grove's caller assets with the pinned compiler
 under `tools/ravel-policy` against independently installed Ravel declarations,

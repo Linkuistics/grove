@@ -34,11 +34,11 @@ writing at all, and the membership and grain tests that keep the set honest.
 
 This methodology and the `grove` binaries are **separate artifacts with separate
 lifetimes**. The skills you are reading are installed files; the binaries are
-installed separately. Editing a skill in a checkout reaches a session as soon as
-the install route resolves to that checkout — immediately through a symlink,
-at the next update through a marketplace — while editing the binary reaches no
-session until it is rebuilt *and installed*, because the running loop is the
-build already in memory.
+installed separately. Editing a skill in a checkout reaches a session at its
+next launch only when the owner's Ravel settings name that checkout as a
+source. Otherwise it reaches sessions through a Grove release and
+`brew upgrade`. Editing the binary reaches no session until it is rebuilt *and
+installed*, because the running loop is the build already in memory.
 
 Nothing checks that the two agree. Grove used to carry the methodology inside
 the binary and report the pairing on every iteration; it carries no corpus now,

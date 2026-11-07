@@ -18,7 +18,7 @@ does not use the `grove-<kind>` prefix because it is not a lifecycle task kind.
 | | |
 |---|---|
 | skills | `grove` — the shared spine — and one `grove-<kind>` per kind |
-| marketplace | declared in [`../../.claude-plugin/marketplace.json`](../../.claude-plugin/marketplace.json) |
+| installation | Grove's formula, as the source `share/ravel/skills/grove-core/` of the keg |
 | conformance | [`conformance.sh`](conformance.sh) and its engine [`conformance.awk`](conformance.awk), with the controls in [`conformance.test.sh`](conformance.test.sh) |
 | design | [`../../docs/specs/module-decomposition.md`](../../docs/specs/module-decomposition.md), decision 11 and test seam 4 |
 
@@ -130,9 +130,11 @@ parameter to policy; naming the session belongs to the methodology.
 ## Installing
 
 Homebrew installs this plugin directory with Grove, at
-`share/ravel/skills/grove-core/` of the keg. Ravel 2.0 reads it from its
-default skill directory and delivers it to each session. Grove ships no
-manual installer, and no marketplace lists this plugin.
+`share/ravel/skills/grove-core/` of the keg. Homebrew links it into Ravel's
+default skill directory, `$(brew --prefix)/share/ravel/skills/`. Ravel 2.0
+reads it there with no settings and delivers it to each session. `brew install`
+and `brew upgrade` are the whole setup. Grove ships no manual installer, and no
+marketplace lists this plugin.
 
 Claude Code namespaces a plugin's components — *"in the UI, the agent
 `agent-creator` for the plugin with name `plugin-dev` will appear as
@@ -142,8 +144,8 @@ name*) — so the native spelling of the spine there is `grove:grove`, and a
 kind's skill is `grove:grove-<kind>`. These are examples of that native
 spelling. The skills here never write it; see
 [the names a skill writes](#the-names-a-skill-writes).
-See [Codex installation](../README.md#install--codex) for skills that earlier
-Grove releases installed automatically.
+See [Codex skills that earlier Grove releases installed](../README.md#install--codex)
+for the links that Grove 22.8 and earlier wrote.
 
 Every skill here declares `harnesses: [any]`. No installer reads the key now,
 so it stays as metadata.

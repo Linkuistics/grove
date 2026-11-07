@@ -109,9 +109,9 @@ of scope.
 
 - **grove → skills, a documentation-level prerequisite that binds without the
   install.** grove's methodology cites the `decision-records` skill for ADR
-  philosophy and the `codebase-design` skill for seam judgement, by bare names. Installation does
-  not enforce the dependency for marketplace or manual users, and Grove
-  installs no skills. The methodological
+  philosophy and the `codebase-design` skill for seam judgement, by bare names. Grove's
+  formula installs the `design` source that holds both, but nothing enforces the
+  dependency, and the `grove` binary installs no skills. The methodological
   prerequisite still binds without the dependency installed. Every citation states what binds in the skill's absence.
 
   Grove owns locally the part whose absence would change *what* a session

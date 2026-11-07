@@ -27,14 +27,15 @@ end
 Dir.chdir(source) { formula.install }
 actual = entries("**/*", prefix_path)
 raise "formula installation differs from archive: #{(actual - expected) + (expected - actual)}" unless actual == expected
-# The caveats show both configuration formats, both setup routes and the
-# explicit ravel@2 prefix, and each sample they copy is installed.
+# The caveats show both configuration formats, the default skill directory and
+# the explicit ravel@2 prefix, and each sample they copy is installed.
 # https://docs.brew.sh/rubydoc/Formula.html#caveats-instance_method
 caveats = formula.caveats.to_s
 {
   "the policy.ts sample" => "ravel-policy/sample/policy.ts ~/.config/ravel/policy.ts",
   "the config.rhai sample" => "ravel-policy/sample/config.rhai ~/.config/ravel/config.rhai",
-  "the directory delivery route" => "`skills` object of ~/.config/ravel/settings.json",
+  "the default skill directory" => "skill directory, $(brew --prefix)/share/ravel/skills.",
+  "the settings without sources" => "names no\n\"sources\", also when that file is absent",
   "the ravel@2 prefix" => 'PATH="$(brew --prefix ravel@2)/bin:$PATH" grove',
   # The four commands of "Hook adapters" in docs/specs/codex-skill-provisioning.md.
   "the Claude Code hooks marketplace" => 'claude plugin marketplace add "$(brew --prefix)/opt/grove"',
@@ -48,6 +49,10 @@ caveats = formula.caveats.to_s
                         'harnesses/pi/technical-communication.ts" ~/.pi/agent/extensions/',
 }.each do |subject, text|
   raise "the caveats do not show #{subject}: #{text}" unless caveats.include?(text)
+end
+# The retired routes: settings that name checkouts, and the manual installer.
+["`skills` object", "checkout", "install.sh", "@linkuistics"].each do |text|
+  raise "the caveats still show a retired route: #{text}" if caveats.include?(text)
 end
 copied = caveats.scan(%r{^\s*cp (\S+) }).flatten
 raise "the caveats copy #{copied.inspect}, not both samples" unless copied.length == 2

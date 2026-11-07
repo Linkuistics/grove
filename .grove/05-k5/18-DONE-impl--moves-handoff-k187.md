@@ -49,3 +49,18 @@ leaf, and the root brief's "Skill installation" states the decisions.
 
 If a check finds missing move work, add a leaf for it in the move's node.
 Do not absorb a move into this leaf.
+
+## Decisions (running log)
+
+- The `grove-core` candidate stays `7b113a28a966`. It is the last commit of
+  the line that changes `plugins/grove` or `plugins/packs.json`. jj moved the
+  bookmark `gh-issue-25` from `4cfac6295881` to `dbfd80c44f94` and pushed it.
+  The commit of this leaf moves the bookmark again and changes neither path.
+- The handoff is one new section of `docs/repository-moves-record.md`. It adds
+  no committed instrument. The scratch scripts measured the ten sources from
+  public clones and mapped each baseline entry. The section states their
+  method, as the earlier moves did.
+- The owner-pack table enumerates the baseline by skill. Each row names the
+  baseline lines of that skill in all three routes. The change identity of the
+  baseline instrument decides "unchanged", "changed with a recorded digest" or
+  "changed with a recorded change".

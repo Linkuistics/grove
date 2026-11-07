@@ -246,6 +246,25 @@ deferred issues as prerequisites or recreate the removed kind machinery.
    Grove/Ravel pair at every step. Account for the current driver's fixed Ravel
    1.1.0 executable before changing native discovery or shared settings.
 
+`repository-moves-k5` closed with `moves-handoff-k187`. The section "The
+handoff to the owner cutover" of `docs/repository-moves-record.md` holds its
+results for rollout. Five of them matter to later work.
+
+- The `grove-core` candidate is `7b113a28a966`, and the tree ID of its
+  `plugins/grove` is `885051a94edd`. The bookmark `gh-issue-25` holds it on
+  the public remote. A change to `plugins/grove` or `plugins/packs.json`
+  needs a new candidate keg.
+- The section names the published commit, the tree ID and the
+  `resourceDigest` of each of the ten sources. It also names each formula and
+  each difference from the earlier sections.
+- It maps each owner-pack line of the baseline to its source and root, or to
+  its route. It states the route of each other class.
+- It names the references in paused task trees that rollout's brief-update
+  text must state, such as the TestSubject path in `rhai-book-use-k74`.
+- Some registrations stay at earlier roots. Stylepack has a prunable Git
+  worktree registration. Writegood has Claude Code and Codex entries for
+  `~/Development/Writegood`, and it has no remote.
+
 These are subtrees within this one coordinated workstream. Later planners grow
 their current implementation detail from delivered evidence. A node's design
 and planning leaves do not satisfy its behavioural Done when. The node's

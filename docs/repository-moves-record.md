@@ -3984,3 +3984,313 @@ hold its readings and the harness trials that read the keg.
 The staging leaves of `owner-ravel-skill-inventory-k38` build the keg of the
 published candidate and record its accepted digests. The trials here do not
 replace that evidence.
+
+## The handoff to the owner cutover
+
+`moves-handoff-k187` checked the Done when of `repository-moves-k5` against
+the delivered state on 2026-11-07. This section gives
+`owner-ravel-skill-inventory-k38` and `discovery-rollout-k12` the result of
+every move. Where it names a commit or a digest, that value replaces the value
+of an earlier section. The earlier sections describe the state after each move.
+
+### The Grove candidate
+
+| Subject | Value |
+| --- | --- |
+| Candidate commit | `7b113a28a96621217c16154d4f44eba667236132`, the commit of `homebrew-delivery-guidance-k237` |
+| Tree ID of `plugins/grove` | `885051a94eddaa81fa7a1a9900c3ac4db775aa84` |
+| Blob ID of `plugins/packs.json` | `e00c67b74939542db0b7af2428d918a3458d73a4` |
+| Published line | The bookmark `gh-issue-25` of `https://github.com/Linkuistics/grove.git` |
+
+The candidate is the last commit of this line that changes `plugins/grove` or
+`plugins/packs.json`. The jj revset `files("plugins/grove") |
+files("plugins/packs.json")`, over the commits after the earlier bookmark,
+selected five commits. `7b113a28a966` was the last of them.
+
+jj moved the bookmark `gh-issue-25` from `4cfac6295881` to `dbfd80c44f94` and
+pushed it. `git ls-remote origin refs/heads/gh-issue-25` then printed
+`dbfd80c44f94c9c4c73b60ad792dfeb437b14c04`. That commit descends from the
+candidate. Its `plugins/grove` has the tree ID of the candidate, and its
+`plugins/packs.json` has the blob ID of the candidate. The commit of this leaf
+moves the bookmark again, and it changes neither path.
+
+A plain clone of the public repository found the candidate in
+`origin/gh-issue-25` only. The public `main` stays at `238c3a839ab4` until
+finish.
+
+### The ten Ravel sources
+
+| Source ID | Formula | Repository | Published commit | Source directory | Roots | Tree ID of the source directory | `resourceDigest` |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `grove-core` | `grove` | `https://github.com/Linkuistics/grove.git` | `7b113a28a96621217c16154d4f44eba667236132` | `plugins/grove` | `skills` | `885051a94eddaa81fa7a1a9900c3ac4db775aa84` | `8d92cd58fca8f21a87361a9d956af7e5a38e88751e25cbaff5e2384554806b51` |
+| `requirements` | `grove` | `https://github.com/Linkuistics/RequirementsSkills.git` | `c51ec8bebd811c0087ad19a1d66d0aa87bd01386` | `plugins/requirements` | `skills` | `f3cf8128fd206c48d73b061cc5ef6b536d4f9d61` | `07b2d25e8bd20259c71f7419092329368d8ae48bec6ca973343a601a8ec515c8` |
+| `design` | `grove` | `https://github.com/Linkuistics/DesignSkills.git` | `aa088156d1a55e28dd9b59f0330f4ab9f1f3d330` | `plugins/design` | `craft`, `skills` | `dd04e268aeb5eba82c527755b1f52bee3565a216` | `d8ad3a2af1b5029bc0de93747f4d7297038651180f6877fbd738d94fcbf6aa14` |
+| `engineering` | `grove` | `https://github.com/Linkuistics/EngineeringSkills.git` | `8d1a2bc3e07bec4ce57e0391a6aa778dff63a017` | `plugins/engineering` | `craft`, `skills` | `d8a891cd5c13e9866f7937537afc7979fb3ef0f7` | `7e70b280e7a932489a048d108d4dae2bc63b387cf8fc6b37298663336e0fcc66` |
+| `research` | `grove` | `https://github.com/Linkuistics/ResearchSkills.git` | `8f321f2e99e09a8ba5e60fa4a08871727e84df62` | `plugins/research` | `skills` | `79dc2a530cd2d30cd088073423437bb18d61b401` | `7fb3d473f66feafb49afd8846fd94cf3e1fb7b01c584d4ad5f0e54814a8b3fdb` |
+| `writing` | `grove` | `https://github.com/Linkuistics/WritingSkills.git` | `b9240e0138df7d9f1d6926b77737668463dcfdfb` | `plugins/writing` | `craft`, `skills` | `8c476d7b082ee4af6b621eb6d94bfda0e79e8b01` | `2dea55cd72d0d56032c04419bfd438b62b321563573a09fffcab2f2c692ecade` |
+| `personal` | `personal` | `https://github.com/Linkuistics/PersonalSkills.git` | `cddcfde901cdaf8069e2aac6f3b6bc5aba9fe925` | `plugins/personal` | `craft` | `f66e0792b9507194842e5b7d44457cf12d70dd98` | `dc1f26eafe9b7db6f750c95db38a7876beb29b067d829eaf63203323b89d61b6` |
+| `testanyware` | `testanyware` | `https://github.com/Linkuistics/TestAnyware.git` | `1809a49068a23d9d276913f3a90227dbefb98a82`, tag `v2.8.0` | `plugins/testanyware` | `skills` | `0701492a5dae89e5b967e0122a5f1085cccec291` | `3e9d7929eddd8988a6bebd9433b7f343a19e673993b3c81e8a1ce9ba913b72c6` |
+| `superpowers` | `superpowers` | `https://github.com/obra/superpowers.git` | `bb92a77741419a4ab5f06e711a283343f1ada0c3`, tag `v7.0.0` | The repository root | `skills` | `4ac675daa3415bc836f707c7e60237ac7b66c7d5`, the root tree | `be1ce6e3c25064b83ba2999b37972deb7f73ce88a5f5dbbba990d88037b17230` |
+| `quint` | `quint-llm-kit` | `https://github.com/quint-co/quint-llm-kit.git` | `cc75369f741af7d490936f82002c2d28e3b3d78d` | `quint-llm-kit-plugin` | `skills` | `4600ff66782fa87ea4ee8791b37d6fcc86bed5a6` | `0a8b945fbc6732d5b7b3041a966d26cdf718ca884bd5f3fb8435297d7258edef` |
+
+The measurement followed these steps:
+
+1. Clone each repository from the URL of the table, with Git's global and
+   system configuration off.
+2. Check out the published commit. `git status --porcelain --ignored` printed
+   nothing in each clone.
+3. Read the tree ID with `git rev-parse <commit>:<source directory>`.
+4. Write one settings file that names the ten source directories as `local`
+   sources. Each source names the roots that exist in it.
+5. Resolve the ten sources with `ravel skills resolve --json` under
+   `env -i`, with a new HOME.
+
+The Ravel build was line `skill-directory-delivery` at `ff14cba826b0`, made
+again with `task install` into a private prefix. Its `bin/ravel` had the
+SHA-256 `3a9a9129573e…` that `scripts/harness-trials/builds.json` pins.
+
+Each published commit lay in a remote branch or tag of its clone. The commit
+of `grove-core` lay in `origin/gh-issue-25`. Each other Linkuistics commit lay
+in `origin/main`, and the TestAnyware commit also lay in the tag `v2.8.0`. The
+superpowers commit lay in the tags `v7.0.0`, `v7.0.1` and `v7.0.2` and in
+`origin/main`. The quint-llm-kit commit lay in `origin/main`.
+
+Each digest equals the digest that an earlier leaf recorded. For the six
+sources of Grove's keg, that is the candidate keg of
+`candidate-keg-k238`. For the four other sources, it is the formula sections
+of this record. `git clean -xdff` emptied the clones again after the pack
+checks. A second resolution of the same settings then gave the same ten
+digests.
+
+This leaf read the two upstream pins again at 06:19 UTC on 2026-11-07:
+
+- In superpowers, the tag `v7.0.0` still peels to
+  `bb92a77741419a4ab5f06e711a283343f1ada0c3`. `v7.0.1` peels to
+  `2ce8aa15d05b`, and `v7.0.2` peels to `22f0b463e7a5`, which is also the
+  head of `main`. The `superpowers` formula pins `bb92a7774141`, version
+  `7.0.0`, which is the commit of the owner design.
+- In quint-llm-kit, `main` and `HEAD` are still
+  `cc75369f741af7d490936f82002c2d28e3b3d78d`, and the repository has no tag.
+  The `quint-llm-kit` formula pins that commit, version `1.0.0`.
+
+### The commits of the pack record, the formulae and this record
+
+The tap's `main` is `9ca2b5e3751047b1d81157d43146828e933bcceb`. `jj git fetch`
+of the tap found no change, and `git ls-remote origin refs/heads/main` printed
+that commit.
+
+| Source | `plugins/packs.json` at the candidate | Formula at tap commit `9ca2b5e37510` | Earlier sections of this record | Difference and reason |
+| --- | --- | --- | --- | --- |
+| `grove-core` | No entry. Core is the candidate itself | `grove` `22.8.0`, which carries no Ravel source | Grove `238c3a839ab4` as the owner's native plugin | The tap's `grove` formula names the release `22.8.0`, and its archive holds no `share/ravel/skills`. Grove's release inside finish publishes the formula whose keg holds the core of the candidate and the five commits of the pack record. Until then, the candidate keg stands in for that formula |
+| `requirements` | `c51ec8bebd81` | Through Grove's release, as above | `9f7278c2d46b` in "RequirementsSkills" | `pack-homebrew-commits-k231` added a commit with a new README. `plugins/requirements` has the tree `f3cf8128fd20` at both commits |
+| `design` | `aa088156d1a5` | Through Grove's release | `9d7c7c5368f6` in "DesignSkills" | The same reason. `plugins/design` has the tree `dd04e268aeb5` at both commits |
+| `engineering` | `8d1a2bc3e07b` | Through Grove's release | `d98862f21749` in "EngineeringSkills" | The same reason. `plugins/engineering` has the tree `d8a891cd5c13` at both commits |
+| `research` | `8f321f2e99e0` | Through Grove's release | `dc3a4812db3b`, the commit of `external-research-pack-k4` | The same reason. `plugins/research` has the tree `79dc2a530cd2` at both commits |
+| `writing` | `b9240e0138df` | Through Grove's release | `694140a18dc7`, then `0eacee02f0f2` and `4cafb0fd8e72` in "WritingSkills" | The writing craft and the hooks plugins came after the first commit. `b9240e0138df` changed three files of `plugins/writing`, as "Changes of the commits" states |
+| `personal` | No entry. The source has its own formula | `personal` `2026-11-06`, PersonalSkills `cddcfde901cd` | `1ff489d996a9` in "For moves-handoff-k187" of "PersonalSkills" | `cddcfde901cd` changed `authoring-conventions`, as "Changes of the commits" states. The digest `4cb21f4d5b3b…` of the earlier section does not apply to the formula's commit |
+| `testanyware` | No entry | `testanyware` `2.8.0`, release commit `1809a49068a2` | `573c61edc63a` in "TestAnyware skill" | The release commit came after the move. `plugins/testanyware` has the tree `0701492a5dae` at both commits |
+| `superpowers` | No entry | `superpowers` `7.0.0`, `bb92a7774141` | "The third-party formulae" | None |
+| `quint` | No entry | `quint-llm-kit` `1.0.0`, `cc75369f741a` | "The third-party formulae" | None |
+
+The pack record, the formulae and this section therefore name the same
+commits. The earlier sections name earlier commits, for the reasons of the
+last column.
+
+### Owner-pack entries of the baseline
+
+The enumeration read each line of `docs/owner-skill-inventory.tsv` whose
+class is `owner-pack`. Each disposition that names a Ravel source must find
+exactly one `<root>/<skill>/SKILL.md` in the clone of that source, or the run
+fails. No line failed. Each other line has its own row below the table.
+
+The table names each baseline line by its line number in the TSV file. `C`
+is the Claude Code plugin skill, `X` is the link in `~/.codex/skills`, and
+`A` is the link in `~/.agents/skills`. The change identity is the skill-tree
+digest of `docs/evaluations/owner-skill-delivery/inventory.py`, computed on
+the clean clone with the same function:
+
+- **Unchanged** means that each baseline line has the same change identity.
+- **Recorded digest** means that an earlier section of this record names the
+  new change identity, with its reason.
+- Otherwise the last column names the recorded change.
+
+| Skill | Baseline lines | Source and root | Change identity, files | Change |
+| --- | --- | --- | --- | --- |
+| `configure-grove` | C 17, X 135, A 194 | `grove-core`, `skills` | `180526f7741d02cd`, 3 | Grove's own commits, below the table |
+| `grove` | C 18, X 141, A 197 | `grove-core`, `skills` | `2254c63edf784625`, 17 | Grove's own commits. `references/research.md` became the skill `research-family` of `research`. `references/editorial.md` became the skill `editorial-family` of `writing` |
+| `grove-finish` | C 24, X 147, A 203 | `grove-core`, `skills` | `b26244ac46849d0e`, 1 | Grove's own commits |
+| `grove-integrate-review-planning` | C 28, X 151, A 207 | `grove-core`, `skills` | `2bb2def6a58e039f`, 1 | Grove's own commits |
+| `grove-planning` | C 31, X 154, A 210 | `grove-core`, `skills` | `6b2e31a8bf2fbaff`, 1 | Grove's own commits |
+| `grove-review-planning` | C 39, X 162, A 218 | `grove-core`, `skills` | `9b478a551ab631aa`, 1 | Grove's own commits |
+| `grove-integrate-review-requirements` | C 30, X 153, A 209 | `requirements`, `skills` | `cb3949126191a4cd`, 1 | Recorded digest |
+| `grove-requirements` | C 34, X 157, A 213 | `requirements`, `skills` | `9907106d2573fc3a`, 3 | Recorded digest. The new file is `LICENSES/mattpocock-skills.LICENSE` |
+| `grove-review-requirements` | C 41, X 164, A 220 | `requirements`, `skills` | `a06d5f1fffb49249`, 1 | Recorded digest |
+| `grove-design` | C 22, X 145, A 201 | `design`, `skills` | `78dc6c710f2a7954`, 3 | Recorded digest |
+| `grove-integrate-review-design` | C 26, X 149, A 205 | `design`, `skills` | `0165d18ea4e334cf`, 1 | Recorded digest |
+| `grove-review-design` | C 37, X 160, A 216 | `design`, `skills` | `444e03aef95b6dc6`, 1 | Recorded digest |
+| `cli-tool-design` | C 45, X 126, A 185 | `design`, `craft` | `9f847e8ef1af94a5`, 2 | Unchanged |
+| `codebase-design` | C 46, X 127, A 186 | `design`, `craft` | `9919698f17a511ec`, 2 | Unchanged |
+| `decision-records` | C 53, X 136, A 195 | `design`, `craft` | `f5ad1eafafcea37b`, 2 | Recorded digest. The new file is `LICENSES/mattpocock-skills.LICENSE` |
+| `model-led-development` | C 57, X 166, A 222 | `design`, `craft` | `01ab07d3401d88ef`, 4 | Recorded digest |
+| `grove-impl` | C 25, X 148, A 204 | `engineering`, `skills` | `4588bcbbe6eef749`, 2 | Recorded digest |
+| `grove-integrate-review-impl` | C 27, X 150, A 206 | `engineering`, `skills` | `2d8e5a70152ee1b4`, 1 | Recorded digest |
+| `grove-integrate-review-prototype` | C 29, X 152, A 208 | `engineering`, `skills` | `73d24ee9d17cd58d`, 1 | Recorded digest |
+| `grove-prototype` | C 33, X 156, A 212 | `engineering`, `skills` | `53d34980795adc54`, 1 | Recorded digest |
+| `grove-review-impl` | C 38, X 161, A 217 | `engineering`, `skills` | `ac3bbccc1243a7f8`, 1 | Recorded digest |
+| `grove-review-prototype` | C 40, X 163, A 219 | `engineering`, `skills` | `a9c291f8c6a77d1d`, 1 | Recorded digest |
+| `coding-style-bash` | C 47, X 129, A 188 | `engineering`, `craft` | `8ff8f1397a74a9ba`, 1 | Unchanged |
+| `coding-style-elixir` | C 48, X 130, A 189 | `engineering`, `craft` | `bceca00f50bb8541`, 1 | Unchanged |
+| `coding-style-python` | C 49, X 131, A 190 | `engineering`, `craft` | `38f9464cafeaec58`, 1 | Unchanged |
+| `coding-style-rust` | C 50, X 132, A 191 | `engineering`, `craft` | `eaf7196c4c4b028a`, 1 | Unchanged |
+| `coding-style-swift` | C 51, X 133, A 192 | `engineering`, `craft` | `f2b020a48bb453f0`, 1 | Unchanged |
+| `coding-style-typescript` | C 52, X 134, A 193 | `engineering`, `craft` | `279d0bb61b7b90f9`, 1 | Unchanged |
+| `doubt-driven-development` | C 54, X 138, A 196 | `engineering`, `craft` | `071407a9b20c4308`, 4 | Recorded digest. The new file is `LICENSES/addyosmani-agent-skills.LICENSE` |
+| `simplify-project` | C 58, X 169, A 226 | `engineering`, `craft` | `cb93a1f191930034`, 1 | Unchanged |
+| `using-codebase-memory` | C 60, X 175, A 229 | `engineering`, `craft` | `f66a94d8169a6ce2`, 2 | Unchanged |
+| `grove-combine-research` | C 20, X 143, A 199 | `research`, `skills` | `51880f87886d6fba`, 1 | The opening names `grove` by its bare name, as `core-bare-references-k170` settled |
+| `grove-research-a` | C 35, X 158, A 214 | `research`, `skills` | `f9afeb30114e9967`, 1 | The opening loads the skill `research-family` in place of `references/research.md`. The external pack contract's section "References between skills" states that opening |
+| `grove-research-b` | C 36, X 159, A 215 | `research`, `skills` | `cbd593591fa64a13`, 1 | The same change as `grove-research-a` |
+| `grove-art` | C 19, X 142, A 198 | `writing`, `skills` | `98de33804c08a3bb`, 1 | Recorded digest |
+| `grove-copy-edit` | C 21, X 144, A 200 | `writing`, `skills` | `70786827a3634bf4`, 1 | Recorded digest |
+| `grove-draft` | C 23, X 146, A 202 | `writing`, `skills` | `fb21af42dc743366`, 1 | Recorded digest |
+| `grove-proof` | C 32, X 155, A 211 | `writing`, `skills` | `f2032e99a054a049`, 1 | Recorded digest |
+| `technical-communication` | C 59, X 172, A 227 | `writing`, `craft` | `b8744e2bfb27219d`, 21 | "Byte changes of the writing craft" and "Hooks plugins of the writing pack" add `.claude-plugin/plugin.json` and `hooks/hooks.json`. They change `.codex-plugin/plugin.json`. "Changes of the commits" changes both manifests' descriptions and a comment of the Pi extension. The baseline's `__pycache__` file was never tracked |
+| `writing-code-walkthroughs` | C 62, X 181, A 232 | `writing`, `craft` | `b1e4795388bcf3ab`, 1 | Unchanged |
+| `authoring-conventions` | C 44, X 124, A 184 | `personal`, `craft` | `e682db2cb0aefc13`, 1 | "The wording of authoring-conventions" and "Changes of the commits". The description and the opening say "the Linkuistics skill packs", and no installer reads `harnesses:` |
+| `machine-environment` | C 56, X 165, A 221 | `personal`, `craft` | `2316befd39ccda08`, 1 | Recorded digest against line 56. Lines 165 and 221 have the new change identity, because the Codex snapshot already held the newer text |
+| `using-jujutsu` | C 61, X 177, A 230 | `personal`, `craft` | `6ede7529e799cba1`, 3 | Recorded digest |
+| `using-testanyware` | C 100, X 179, A 231 | `testanyware`, `skills` | `8ddb33fe7a999129`, 1 | Unchanged |
+
+Twelve Grove commits between the baseline commit `238c3a839ab4` and the
+candidate changed the six core skills. Git's history records each of them.
+The moves among them are `57414e00cd8`, `5a6bdd68a7d`, `302f85429e4`,
+`84fba18c1f9`, `f45c5a53796` and `31ec9117c9d`. The others are Grove's own
+changes, which the core keg delivers:
+
+- `10c67dc5f2f`, `cf9a8ec7b41` and `b9296447aef`: the Ravel 2.0 admission
+  and the directory route.
+- `fab5336cde8` and `9b8b6924412`: the removal of confinement.
+- `7b113a28a96`: the delivery guidance.
+
+Each change of a file count has a recorded reason:
+
+- `grove-requirements`, `decision-records` and `doubt-driven-development` each
+  gained one licence file.
+- `grove` lost its two family files.
+- `technical-communication` gained the two hooks manifests and lost the
+  untracked cache file.
+
+The sources also hold two skills with no baseline line, `research-family` and
+`editorial-family`. Each was a family file of the baseline `grove` skill.
+
+These owner-pack lines have no Ravel disposition:
+
+| Baseline line | Entry | Route |
+| --- | --- | --- |
+| 16 | `grove@linkuistics` | The switch disables the plugin. Its skills come from `grove-core` and the five domain sources |
+| 43 | `linkuistics@linkuistics` | The switch disables the plugin. Its skills come from `design`, `engineering`, `writing` and `personal`. Its hooks move to `technical-communication-hooks@writing-hooks`, and `guardrail` moves to `guardrail@personal` |
+| 55 | `linkuistics:guardrail` | Native only. `guardrail@personal` from the personal keg, as the next section states. No Ravel root holds it |
+| 99 | `testanyware@linkuistics` | The switch disables the plugin. Its skill comes from `testanyware`. While it stays enabled beside Ravel 2.0 delivery, the harness sees `using-testanyware` twice |
+| 411 | `~/.agents/.grove/snapshots` | Kept until its readers and its writer stop. The current Codex links read it |
+
+### Baseline entries outside the owner packs
+
+Each other line of the baseline has one of the classes below. The class
+column of the TSV file holds no other value. Each third-party and stale-copy
+line that names a Ravel source found its skill in the clone of that source.
+
+| Class | Baseline locations | Route |
+| --- | --- | --- |
+| `third-party-pack` | The Claude Code plugins `superpowers@claude-plugins-official` 7.0.0 and `quint-llm-kit@quint-llm-kit` 1.0.0 with their skills. The quint links in `~/.agents/skills`. The tool line `~/.quint-llm-kit` | Each skill comes from `superpowers` or `quint`, and each change identity equals the baseline. The switch disables both plugins and deactivates the three quint links. The superpowers `SessionStart` text becomes the mandatory file `skills/using-superpowers/SKILL.md`. The `~/.quint-llm-kit` clone holds no skill and stays for the `quint-kb` MCP server |
+| `stale-copy` | `~/.claude/skills/grove`, and the fourteen superpowers copies in `~/.codex/skills` | The switch deactivates each copy. `grove-core` and `superpowers` supply the current skills. Eleven copies differ from the current skill, as a stale copy can |
+| `dangling` | The `terminal-browser` links in `~/.claude/skills`, `~/.codex/skills` and `~/.agents/skills`. The Pi skill links and the Pi extension link into `~/Development/grove` | The switch deactivates each link. No reader can read through it. Pi receives no replacement |
+| `tool-managed` | codebase-memory skill copies, agent definitions and hooks in both harnesses. herdr and Orca hooks. `skillOverrides`. Pi extensions of other tools. The `testanyware`, `quint` and `codebase-memory-mcp` executables and the TestAnyware application | Unchanged. Their installers own them |
+| `capability-only` | Six enabled Claude Code plugins with no skills, and the MCP entries of both harnesses | Unchanged |
+| `platform-managed` | Claude Code built-in and account-synced skills. Codex system skills and the skills of bundled, runtime and remote-installed plugins | Unchanged. No Ravel source holds them |
+| `disabled-third-party` | Claude Code plugins that the owner disabled, with their skills | Unchanged, and outside the active collection |
+| `not-a-discovery-root` | Plugin caches, marketplace clones, staging folders and the Grove snapshot store | Outside discovery. The caches of the `linkuistics` plugins stay as lazy-read targets until the switch removes those plugins |
+
+### Resources and requirements of each source
+
+Each keg source holds the files of its source directory at the published
+commit. The digest covers each file's content, its executable bit and each
+link target. The resources that the skills read by relative path are these:
+
+| Source | Resources besides `SKILL.md` | Tool and hook requirements |
+| --- | --- | --- |
+| `grove-core` | The spine's formats, its `references/` and `LICENSES/`. `configure-grove/references/` | Grove's `grove` and `grove-llm` from the same `grove` formula, Ravel, and jj or Git |
+| `requirements` | `grove-requirements/grilling.md` and its `LICENSES/` | The `grove-core` source in the same resolution, because each kind loads the spine |
+| `design` | `grove-design/assets/diagram-viewer.html` and `references/`. The `references/` of `cli-tool-design`, `codebase-design` and `model-led-development`. `decision-records/LICENSES/` | The `grove-core` source. `model-led-development` names Alloy and Quint as instruments that a project can choose |
+| `engineering` | `grove-impl/LICENSES/`. `doubt-driven-development/LICENSES/` and `references/`. `using-codebase-memory/references/` | The `grove-core` source. The tools of "Tool requirements of the engineering pack". `using-codebase-memory` needs `codebase-memory-mcp` |
+| `research` | None | The `grove-core` source |
+| `writing` | `technical-communication` holds its always-on text, hooks manifests, harness adapters, `references/`, `scripts/` and `LICENSES/` | The `grove-core` source. `python3` 3.9 or later and a POSIX `/bin/sh`, as "Tool requirements after the removal of the writing craft" states. The always-on hooks need the hooks plugin of the next section |
+| `personal` | `using-jujutsu/references/` | mise, Task and the Obsidian manual for `machine-environment`. `jj`, and Git in a colocated repository, for `using-jujutsu` |
+| `testanyware` | None | The `testanyware` command and application 2.8.0 and `~/.config/testanyware/config.rhai`. Homebrew installed both on 2026-11-07 |
+| `superpowers` | The scripts, prompts, references and examples of nine skills. Nine files have the executable bit, such as `brainstorming/scripts/start-server.sh` and `systematic-debugging/find-polluter.sh` | Git for `using-git-worktrees`. Node.js for `writing-skills/render-graphs.js` and the brainstorming server. The mandatory file replaces the plugin's `SessionStart` hook |
+| `quint` | The `guidelines/` of `quint-lang`, and the `examples/` and `guidelines/` of `quint-modeling` | The `quint` command, and the `quint-kb` MCP server from `~/.quint-llm-kit/repo` |
+
+These owner resources stay unchanged until the switch:
+
+- The Claude Code plugins `grove`, `linkuistics` and `testanyware` from
+  Grove's `238c3a839ab4`, with their caches. The finish session itself loads
+  `grove-finish` and the spine from the enabled `grove` plugin.
+- The snapshot store `~/.agents/.grove` and the Codex links into it.
+- The superpowers and quint-llm-kit plugins and their Codex copies.
+- The tool installations and the MCP entries of the classes above.
+
+### Native residue plugins
+
+| Plugin | Harness identity | Keg and path in the keg | Local marketplace file | Registration |
+| --- | --- | --- | --- | --- |
+| Technical-communication hooks for Claude Code | `technical-communication-hooks@writing-hooks` | `grove`, `share/ravel/skills/writing/craft/technical-communication` | `.claude-plugin/marketplace.json` at the root of Grove's keg, name `writing-hooks` | Step 3 of the switch, as "The hooks installation inside finish" of the owner design states. `claude plugin marketplace add "$(brew --prefix)/opt/grove"` unless Claude Code already has that path, then `claude plugin install technical-communication-hooks@writing-hooks`, each under a held link. Then the program disables the plugin. Step 9 enables it |
+| `guardrail` for Claude Code | `guardrail@personal` | `personal`, `libexec/plugins/guardrail` | `.claude-plugin/marketplace.json` at the root of the personal keg, name `personal` | Order 6 of the cutover contract. `claude plugin marketplace add "$(brew --prefix)/opt/personal"`, then `claude plugin install guardrail@personal`, then `claude plugin disable guardrail@personal`. Step 9 of the switch enables it |
+| Technical-communication hooks for Codex | `technical-communication@writing-hooks` | `grove`, the same path | `.agents/plugins/marketplace.json` at the root of Grove's keg, name `writing-hooks` | None in the switch. The owner design keeps Codex's always-on layer absent. Its installation is a separate owner choice, with the commands of the delivery specification's "Hook adapters" |
+| Technical-communication extension for Pi | `~/.pi/agent/extensions/technical-communication.ts` | `grove`, in the `writing` source at `craft/technical-communication/harnesses/pi/` | None | None in the switch. Pi is outside the automatic contract |
+
+The skill-free plugins that hold no Linkuistics skill stay enabled: the
+explanatory output style, Context7, Playwright, commit-commands, feature-dev
+and Swift LSP.
+
+### References that this grove cannot edit
+
+The sweep searched each `.grove` tree under `~/Development` other than this
+grove's own. It used `rg --hidden --no-ignore` with one pattern for the moved
+paths: `plugins/linkuistics`, `plugins/testanyware`, `plugins/research`, the
+moved `grove-<kind>` skill paths, `references/research.md`,
+`references/editorial.md`, the installer, the earlier `AgenticWriting`
+project paths, `~/Development/grove/` and `@linkuistics`. The same command
+found 185 matches in this grove's own tree, the positive control. Retired
+leaves keep their history, so the list below holds only live leaves and node
+briefs.
+
+| Tree | File and line | Reference | Current target |
+| --- | --- | --- | --- |
+| The paused Rhai grove in `Ravel.gh-issue-2`, also checked out in `Ravel.coordinated-release-design` and `Ravel.skill-directory-delivery` | `19-requirements--rhai-book-use-k74.md`, line 467 | `/Users/antony/Development/AgenticWriting/TestSubject` | `/Users/antony/Development/AgenticOrchestration/TestSubject` |
+| `grove.gh-issue-14-documentation-skills-for-editorial-pipeline` | `_BRIEF.md`, line 240 | `plugins/grove/skills/grove/references/editorial.md` | The skill `editorial-family` of WritingSkills, `plugins/writing/skills/editorial-family/SKILL.md` |
+| The same | `_BRIEF.md`, line 242 | `plugins/grove/skills/grove-design/references/visual-design-discussion.md` | DesignSkills, `plugins/design/skills/grove-design/references/visual-design-discussion.md` |
+| The same | `16-k8/09-k13/03-k32/_codex-adapter.md`, line 20 | `plugins/install.sh` | Removed. "The removed installer" of this record states the change |
+| The same | `16-k8/09-k13/_evaluation-harness.md`, line 198 | `plugins/install.sh` and `plugins/install.test.sh` | Removed |
+| `grove.improve-initial-design-decomposition-skill` | `_BRIEF.md`, lines 253, 255, 258 and 260 | `plugins/linkuistics/skills/codebase-design`, `model-led-development`, `simplify-project` and `plugins/linkuistics/PROVENANCE.md` | `codebase-design` and `model-led-development` in DesignSkills `plugins/design/craft/`. `simplify-project` in EngineeringSkills `plugins/engineering/craft/`. Each pack has its own `PROVENANCE.md` |
+| The same | `_BRIEF.md`, line 261 | `plugins/grove/skills/grove-design/SKILL.md` | DesignSkills, `plugins/design/skills/grove-design/SKILL.md`. `grove-planning` stays in core |
+| The same | `20-k18/_decomposition-guidance.md`, line 106 | `plugins/linkuistics/skills/authoring-conventions/SKILL.md` | PersonalSkills, `plugins/personal/craft/authoring-conventions/SKILL.md` |
+| The same | `20-k18/82-k29/_strategy-catalogue.md`, line 100. `21-k20/12-k42/_catalogue-solutions.md`, line 86. `21-k20/08-k38/_catalogue-coordination.md`, lines 1280, 1364, 1366, 1367, 1407 to 1411, 1447 to 1451 and 2389 | `plugins/linkuistics/skills/decomposition-design/…`, a skill that only that grove's line holds | No destination yet. A design craft skill belongs in DesignSkills `plugins/design/craft/`, as the root brief's destination table states. That grove's rebase decides its place |
+
+Rollout's brief-update text for each paused grove names these references.
+The retired leaves of `grove.improve-initial-design-decomposition-skill` hold
+the rest of its matches as history. The other paused trees had no match.
+
+### Checks of the handoff
+
+- Each of the six pack commits passed its own `task check` in its clean clone,
+  with Git's global and system configuration off. `~/.local/bin` came first
+  on the PATH, so `check:plugin` ran `claude plugin validate`. Each plugin
+  passed with warnings for the missing `version` and icon.
+- `task check:packs` fetched the five domain commits of
+  `plugins/packs.json`. It reported "5 recorded pack(s) pass alone and in the
+  aggregate".
+- The pack checks wrote `.cache/` and a `__pycache__` folder into the clones.
+  The enumeration of change identities ran again after `git clean -xdff`, and
+  the Ravel digests came from the run before the checks.
+- `bash scripts/check.sh` reported "all 18 principal checks pass" on the
+  working copy of this leaf. Its `plugins/grove` and `plugins/packs.json`
+  equal those of the candidate.

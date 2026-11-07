@@ -114,8 +114,8 @@ run_check "cargo clippy" cargo clippy --workspace --all-targets
 run_check "plugin install" bash plugins/install.test.sh
 run_check "conformance" bash plugins/grove/conformance.sh
 run_check "conformance suite" bash plugins/grove/conformance.test.sh
-# Each external pack that the marketplace pins, at its exact commit, alone and
-# in the aggregate with this tree. docs/specs/external-pack-contract.md, "The
+# Each external pack that plugins/packs.json records, at its exact commit, alone
+# and in the aggregate with this tree. docs/specs/external-pack-contract.md, "The
 # checker without a copy", makes it a principal check. The first run needs the
 # network, and later runs reuse target/external-packs/.
 run_check "external packs" task check:packs

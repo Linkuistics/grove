@@ -168,12 +168,78 @@ Two runs before the accepted run failed in the setup, not in a harness:
   `file://` marketplace source with "Invalid marketplace source format". The
   design cannot simulate a GitHub listing in a scratch home. The delivery
   specification gives the question a seam on the published bookmark.
+  [A refresh of the retired listing](#a-refresh-of-the-retired-listing)
+  answers the question through a Git `insteadOf` rule.
 
 ## The retired listing
 
 A marketplace file with the name `linkuistics`, a description and an empty
 `plugins` array passed `claude plugin validate` with one warning: "Marketplace
 has no plugins defined". `claude plugin marketplace add` accepted it.
+
+`native-marketplace-retirement-k235` wrote Grove's retired file. `claude
+plugin validate` accepted it with the same single warning.
+
+### A refresh of the retired listing
+
+`native-marketplace-retirement-k235` measured the seam "Retired listing" on
+2026-11-07.
+[`evaluations/retired-listing/refresh.sh`](evaluations/retired-listing/refresh.sh)
+ran it, and
+[`refresh.out`](evaluations/retired-listing/refresh.out) holds its output,
+with the scratch directory shown as `S`.
+
+| Subject | Value |
+| --- | --- |
+| Claude Code | 2.1.319, in two scratch homes under `env -i`, without a sign-in |
+| Listed commit | Grove `3cf8dfc702fb`. Its marketplace lists ten plugins, `grove` among them |
+| Retired file | `.claude-plugin/marketplace.json` of this leaf, SHA-256 `a2d45eb52a61…` |
+| Remote | A local bare repository. Its first commit has the tree of the listed commit. Its second commit changes only the marketplace file, to the retired file |
+| Route to the remote | Each home's `.gitconfig` sends `https://github.com/Linkuistics/grove.git` and `git@github.com:Linkuistics/grove.git` to the bare repository. `claude plugin marketplace add Linkuistics/grove` cloned it, and the registration records the source `github` with the repository `Linkuistics/grove` |
+| Script | SHA-256 `1a8e30ceb459…`, the same before and after the run. The retired file has the same digest before and after the run |
+| Output | SHA-256 `2442c7fb557f…` |
+
+Both homes added the marketplace at the first commit and installed
+`grove@linkuistics`. Each session then listed the plugin and six `grove:`
+skills in its init event. The bare repository then moved to the second
+commit.
+
+| Reading | Result |
+| --- | --- |
+| `claude plugin marketplace update linkuistics` | Exit 0, "Successfully updated marketplace". The clone is at the second commit. A second refresh also exits 0 |
+| Installation records after the refresh | `installed_plugins.json` and `enabledPlugins` still hold `grove@linkuistics`. The plugin cache keeps its version directory |
+| `claude plugin list` | `grove@linkuistics`, "✘ failed to load", with "Plugin grove not found in marketplace linkuistics". The command exits 0 |
+| `claude plugin details grove@linkuistics` | Exit 1, "Plugin "grove@linkuistics" not found" |
+| Session after the refresh | The init event lists no plugin of the marketplace and no `grove:` skill |
+| `claude plugin update grove@linkuistics` | Exit 1, "Plugin "grove" not found". The records stay as they were |
+| Interactive start after the refresh | The screen after 30 seconds shows no notice of the plugin |
+| `claude plugin marketplace remove linkuistics` | Exit 0. It also uninstalled `grove@linkuistics`. `installed_plugins.json` and `enabledPlugins` are then empty. The plugin cache keeps its version directory |
+
+A refresh therefore keeps the plugin installed and enabled, but the plugin no
+longer loads. A session loses its skills, and only `claude plugin list` shows
+the failure. The release notes tell a user to complete the first three steps
+before the marketplace refreshes.
+
+The second home, "auto", had `autoUpdate: true` for the marketplace. Claude
+Code describes that field as "Whether to automatically update this
+marketplace and its installed plugins on startup".
+
+In this home, the clone stayed at the first commit after two headless
+sessions. It also stayed there after an interactive start of 30 seconds, with
+`lastUpdated` a week back. That start reached the prompt and added the
+official marketplace. The plugin stayed enabled and loaded. The measurement
+therefore shows no automatic refresh without a sign-in. It does not show what
+a signed-in start does.
+
+A read of the owner's own registration shows that a
+signed-in start refreshes it. The section "For rollout" of
+[The retired marketplace](repository-moves-record.md#the-retired-marketplace)
+gives that reading.
+
+Two parts of the run read no Grove behaviour. The interactive start adds
+`claude-plugins-official` to each home, so `known_marketplaces.json` lists it
+afterwards. An earlier version of the script ran the same readings without
+the interactive starts, with the same results.
 
 ## Release cut
 

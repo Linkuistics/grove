@@ -56,6 +56,37 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+- `linkuistics` marketplace: the marketplace is retired. Grove's
+  `.claude-plugin/marketplace.json` keeps the name `linkuistics` and lists no
+  plugin, and its description points to Homebrew and Ravel. Homebrew formulae
+  now install every skill source, and Ravel 2.0 delivers the skills to each
+  session. The `grove` formula carries core and the five domain packs. The
+  `personal` and `testanyware` formulae carry those sources.
+  `technical-communication-hooks` and `guardrail` become hook adapters in the
+  `grove` and `personal` kegs. A user of the marketplace moves in four steps:
+
+  1. Install or upgrade Grove with Homebrew: `brew install
+     linkuistics/taps/grove`. Install `linkuistics/taps/personal` and
+     `linkuistics/taps/testanyware` if you used those plugins.
+  2. Use Ravel 2.0. It reads the sources of the kegs from its default skill
+     directory, `$(brew --prefix)/share/ravel/skills`, with no settings.
+  3. Register the hook adapters by the commands that the formula caveats
+     print.
+  4. Remove the marketplace with `/plugin marketplace remove linkuistics`.
+     The removal uninstalls each plugin of the marketplace.
+
+  Complete steps 1 to 3 before you refresh the marketplace yourself. If
+  auto-update is on for the marketplace, Claude Code refreshes it when it
+  launches. The plugins can therefore stop loading before you read this.
+  Steps 1 to 3 then give you the skills again through Ravel.
+
+  A refresh of the retired listing succeeds, and each installed plugin of the
+  marketplace then stops loading. The plugin stays installed and enabled, but
+  `claude plugin list` reports "failed to load" with "Plugin grove not found
+  in marketplace linkuistics". A session then receives none of its skills,
+  and `claude plugin update` fails. An interactive launch shows no notice.
+  `docs/homebrew-skill-delivery-evidence.md` gives the measurement.
+
 - `grove`: the release archives and the Homebrew formula carry core and the
   five domain packs: requirements, design, engineering, research and writing.
   Each source lies in `share/ravel/skills/<source-id>` of the keg, and Homebrew
@@ -75,11 +106,11 @@ stood at the graft — a closed record, not part of the versioned sequence above
   hook review. Codex runs no hook until you trust it.
 
 - `grove`: stop installing Codex skills at startup. The binary no longer embeds
-  the plugin tree. Install skills for every harness your policy selects: the
-  marketplace for Claude Code, and `plugins/install.sh` for Codex, Gemini CLI
-  and Pi. Startup and upgrades leave the links in `~/.agents/skills` and the
-  snapshots in `~/.agents/.grove` that earlier releases wrote unchanged, and a
-  same-name entry no longer prevents launch. `docs/USAGE.md` describes an
+  the plugin tree. Homebrew installs the skills and Ravel delivers them, as
+  the entry on the retired `linkuistics` marketplace states. Startup and
+  upgrades leave the links in `~/.agents/skills` and the snapshots in
+  `~/.agents/.grove` that earlier releases wrote unchanged, and a same-name
+  entry no longer prevents launch. `docs/USAGE.md` describes an
   optional manual procedure that removes those entries only on evidence of
   ownership.
 

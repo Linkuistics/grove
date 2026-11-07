@@ -34,7 +34,9 @@ A native copy can come from an older commit of the checkout, as a stale copy.
 A Claude Code case with `nativePlugins` adds the marketplace of the prepared
 checkout to the sandbox home and installs each named plugin from it, before
 the driver. The record names each installed plugin's version, Git commit,
-dependency flag and skill files.
+dependency flag and skill files. Grove's marketplace lists no plugin after
+`native-marketplace-retirement-k235`, so such a case needs a prepared commit
+from before that change. At a later commit, `check` and `run` refuse it.
 A source with `external` comes from another repository: the runner makes a
 plain Git checkout of its commit under the trial's `sources/`, before any
 launch, and the record names the commit, the checkout, the Git tree ID of the

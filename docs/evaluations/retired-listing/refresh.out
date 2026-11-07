@@ -1,0 +1,235 @@
+claude: 2.1.319 (Claude Code)
+git: git version 2.56.0
+script: 1a8e30ceb4594a97b692357f4b600f95294e18f6f3613e82d1cdd5a85f2c4535
+listed commit: 3cf8dfc702fbe1620520b12a2193ad2fbd556c9e
+retired file: a2d45eb52a6136dcd5a0d1c390501fdad17cf3c9589b7e97e6b870a5b92b9500
+
+## remote
+the first commit has the tree of the listed commit
+files changed by the second commit: .claude-plugin/marketplace.json 
+plugins at the first commit: ['testanyware', 'grove', 'requirements', 'design', 'engineering', 'research', 'writing', 'technical-communication-hooks', 'personal', 'guardrail']
+plugins at the second commit: []
+
+## manual: add the marketplace at the first commit
+✔ Successfully added marketplace: linkuistics (declared in user settings)
+exit: 0
+
+## manual: install grove@linkuistics
+Installing plugin "grove@linkuistics"...✔ Successfully installed plugin: grove@linkuistics (scope: user)
+exit: 0
+
+## auto: add the marketplace at the first commit
+✔ Successfully added marketplace: linkuistics (declared in user settings)
+exit: 0
+
+## auto: install grove@linkuistics
+Installing plugin "grove@linkuistics"...✔ Successfully installed plugin: grove@linkuistics (scope: user)
+exit: 0
+
+## manual: state at the first commit
+marketplace clone: the first commit
+known_marketplaces.json: ['linkuistics']
+installed_plugins.json: {'grove@linkuistics': [('user', '5e3529bac7a6', '5e3529bac7a6')]}
+enabledPlugins: {'grove@linkuistics': True}
+cache: cache/linkuistics/grove/5e3529bac7a6 
+plugin list:
+  Installed plugins:
+  
+    ❯ grove@linkuistics
+      Version: 5e3529bac7a6
+      Scope: user
+      Status: ✔ enabled
+  exit: 0
+
+## manual: session at the first commit
+init plugins: [('grove', 'S/manual/.claude/plugins/cache/linkuistics/grove/5e3529bac7a6')]
+init grove skills: 6 ['grove:configure-grove', 'grove:grove', 'grove:grove-finish']
+result: success Not logged in · Please run /login
+
+## auto: state at the first commit
+marketplace clone: the first commit
+known_marketplaces.json: ['linkuistics']
+installed_plugins.json: {'grove@linkuistics': [('user', '5e3529bac7a6', '5e3529bac7a6')]}
+enabledPlugins: {'grove@linkuistics': True}
+cache: cache/linkuistics/grove/5e3529bac7a6 
+plugin list:
+  Installed plugins:
+  
+    ❯ grove@linkuistics
+      Version: 5e3529bac7a6
+      Scope: user
+      Status: ✔ enabled
+  exit: 0
+
+## auto: session at the first commit
+init plugins: [('grove', 'S/auto/.claude/plugins/cache/linkuistics/grove/5e3529bac7a6')]
+init grove skills: 6 ['grove:configure-grove', 'grove:grove', 'grove:grove-finish']
+result: success Not logged in · Please run /login
+
+## remote moved to the second commit
+
+## manual: claude plugin marketplace update linkuistics
+Updating marketplace: linkuistics...Refreshing marketplace cache (timeout: 120s)…
+Cloning repository (timeout: 120s): git@github.com:Linkuistics/grove.git
+Replacing the existing marketplace clone…
+Clone complete, validating marketplace…
+✔ Successfully updated marketplace: linkuistics
+exit: 0
+
+## manual: state after the refresh
+marketplace clone: the second commit
+known_marketplaces.json: ['linkuistics']
+installed_plugins.json: {'grove@linkuistics': [('user', '5e3529bac7a6', '5e3529bac7a6')]}
+enabledPlugins: {'grove@linkuistics': True}
+cache: cache/linkuistics/grove/5e3529bac7a6 
+plugin list:
+  Installed plugins:
+  
+    ❯ grove@linkuistics
+      Version: 5e3529bac7a6
+      Scope: user
+      Status: ✘ failed to load
+      Error: Plugin grove not found in marketplace linkuistics
+  exit: 0
+
+## manual: plugin details after the refresh
+Plugin "grove@linkuistics" not found. Run `claude plugin list` to see installed plugins, or pass --plugin-dir <path> to load one from disk.
+exit: 1
+
+## manual: session after the refresh
+init plugins: []
+init grove skills: 0 []
+result: success Not logged in · Please run /login
+
+## manual: a second refresh
+✔ Successfully updated marketplace: linkuistics
+exit: 0
+
+## manual: claude plugin update grove@linkuistics
+Checking for updates for plugin "grove@linkuistics"…
+✘ Failed to update plugin "grove@linkuistics": Plugin "grove" not found
+exit: 1
+
+## manual: state after the plugin update
+marketplace clone: the second commit
+known_marketplaces.json: ['linkuistics']
+installed_plugins.json: {'grove@linkuistics': [('user', '5e3529bac7a6', '5e3529bac7a6')]}
+enabledPlugins: {'grove@linkuistics': True}
+cache: cache/linkuistics/grove/5e3529bac7a6 
+plugin list:
+  Installed plugins:
+  
+    ❯ grove@linkuistics
+      Version: 5e3529bac7a6
+      Scope: user
+      Status: ✘ failed to load
+      Error: Plugin grove not found in marketplace linkuistics
+  exit: 0
+
+## manual: session after the plugin update
+init plugins: []
+init grove skills: 0 []
+result: success Not logged in · Please run /login
+
+## manual: interactive start after the refresh
+marketplace clone: the second commit
+screen:
+   ▐▛███▛█   Claude Code v2.1.319
+  ▝▜██████▀  Opus 5.5 · API Usage Billing
+   ▝▝   ▝▝   ~/work
+  ▎ Auto mode is now Claude Code's default permission mode.
+  ▎ Auto mode lets Claude handle permission prompts automatically. Claude checks each tool call for risky actions and prompt injection before executing, runs the ones it assesses as lower-risk, and
+  ▎ blocks the rest.
+  ▎ https://code.claude.com/docs/en/permission-modes
+  ❯
+    ⏵⏵ auto mode on (shift+tab to cycle)                                                                                                                                      Not logged in · Run /login
+
+## auto: first session after the remote moved
+init plugins: [('grove', 'S/auto/.claude/plugins/cache/linkuistics/grove/5e3529bac7a6')]
+init grove skills: 6 ['grove:configure-grove', 'grove:grove', 'grove:grove-finish']
+result: success Not logged in · Please run /login
+
+## auto: state after the first session
+marketplace clone: the first commit
+known_marketplaces.json: ['linkuistics']
+installed_plugins.json: {'grove@linkuistics': [('user', '5e3529bac7a6', '5e3529bac7a6')]}
+enabledPlugins: {'grove@linkuistics': True}
+cache: cache/linkuistics/grove/5e3529bac7a6 
+plugin list:
+  Installed plugins:
+  
+    ❯ grove@linkuistics
+      Version: 5e3529bac7a6
+      Scope: user
+      Status: ✔ enabled
+  exit: 0
+
+## auto: second session after the remote moved
+init plugins: [('grove', 'S/auto/.claude/plugins/cache/linkuistics/grove/5e3529bac7a6')]
+init grove skills: 6 ['grove:configure-grove', 'grove:grove', 'grove:grove-finish']
+result: success Not logged in · Please run /login
+
+## auto: state after the second session
+marketplace clone: the first commit
+known_marketplaces.json: ['linkuistics']
+installed_plugins.json: {'grove@linkuistics': [('user', '5e3529bac7a6', '5e3529bac7a6')]}
+enabledPlugins: {'grove@linkuistics': True}
+cache: cache/linkuistics/grove/5e3529bac7a6 
+plugin list:
+  Installed plugins:
+  
+    ❯ grove@linkuistics
+      Version: 5e3529bac7a6
+      Scope: user
+      Status: ✔ enabled
+  exit: 0
+
+## auto: interactive start with lastUpdated a week back
+marketplace clone: the first commit
+screen:
+   ▐▛███▛█   Claude Code v2.1.319
+  ▝▜██████▀  Opus 5.5 · API Usage Billing
+   ▝▝   ▝▝   ~/work
+  ▎ Auto mode is now Claude Code's default permission mode.
+  ▎ Auto mode lets Claude handle permission prompts automatically. Claude checks each tool call for risky actions and prompt injection before executing, runs the ones it assesses as lower-risk, and
+  ▎ blocks the rest.
+  ▎ https://code.claude.com/docs/en/permission-modes
+  ❯
+    ⏵⏵ auto mode on (shift+tab to cycle)                                                                                                                                      Not logged in · Run /login
+
+## auto: state after the interactive start
+marketplace clone: the first commit
+known_marketplaces.json: ['claude-plugins-official', 'linkuistics']
+installed_plugins.json: {'grove@linkuistics': [('user', '5e3529bac7a6', '5e3529bac7a6')]}
+enabledPlugins: {'grove@linkuistics': True}
+cache: cache/linkuistics/grove/5e3529bac7a6 
+plugin list:
+  Installed plugins:
+  
+    ❯ grove@linkuistics
+      Version: 5e3529bac7a6
+      Scope: user
+      Status: ✔ enabled
+  exit: 0
+
+## manual: claude plugin marketplace remove linkuistics
+✔ Successfully removed marketplace: linkuistics
+Also uninstalled 1 plugin from this marketplace:
+  grove@linkuistics
+The removal also deletes their saved options, secrets and data where it can.
+To use a plugin again, add the marketplace back and reinstall the plugin.
+exit: 0
+
+## manual: state after the removal
+marketplace clone: none
+known_marketplaces.json: ['claude-plugins-official']
+installed_plugins.json: {}
+enabledPlugins: {}
+cache: cache/linkuistics/grove/5e3529bac7a6 
+plugin list:
+  No plugins installed. Use `claude plugin install` to install a plugin.
+  exit: 0
+
+## digests after the run
+script: 1a8e30ceb4594a97b692357f4b600f95294e18f6f3613e82d1cdd5a85f2c4535
+retired file: a2d45eb52a6136dcd5a0d1c390501fdad17cf3c9589b7e97e6b870a5b92b9500

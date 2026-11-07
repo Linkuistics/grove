@@ -18,6 +18,11 @@ delivery, as the release will ship them.
 - "Installation and bootstrap", "Hook adapters" and "Supported routes" of
   `docs/specs/codex-skill-provisioning.md`.
 - "The pack record and the release" states how a pack change reaches users.
+- The "Skills" text of `caveats` in `scripts/templates/grove.rb.tmpl` is
+  shipped guidance too. `native-marketplace-retirement-k235` removed only its
+  Claude Code marketplace commands. The rest still describes a native route
+  and a `skills` object in Ravel's settings. Rewrite it for the final route,
+  after `manual-installer-removal-k236` removes the installer.
 
 ## Done when
 

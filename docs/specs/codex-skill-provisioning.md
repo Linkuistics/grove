@@ -708,7 +708,9 @@ marketplace what to do:
    removal uninstalls each plugin of the marketplace.
 
 The notes also state what a refresh of the retired listing does to an
-installed plugin, from the reading of the seam "Retired listing".
+installed plugin, from the reading of the seam "Retired listing". The
+plugin stays installed and enabled, but it no longer loads, and no notice
+appears. The notes therefore put the first three steps before any refresh.
 
 Two sentences of PersonalSkills' `authoring-conventions` lose their referent.
 "This marketplace" becomes "the Linkuistics skill packs". The claim that
@@ -778,7 +780,7 @@ builds and the results.
 | Conformance | Core, external-pack and aggregate checks use exact supplied artefacts. `check:packs` reads Grove's record and checks each pack alone and in the aggregate with core. Removed required resources/edges and duplicate owners fail deliberate controls. The [external pack contract](external-pack-contract.md#controls-that-must-fail) lists the controls. |
 | Installed distribution | The archive manifest, `task release:smoke` and `task release:formula:test` show that the keg holds core and the five packs at the commits of Grove's record, with executable bits intact. Each test copies the Ravel 2.0 build into a private prefix, with an installation record that names the keg's `share/ravel/skills`. With no settings, `ravel skills resolve --json` reports exactly the six sources, each `originPath` inside the keg, with its `resourceDigest`. `release:formula:test` compares each digest with that of the plain checkout of the same commit. `task tap:formula:test` applies the same file, mode, root and digest checks to one formula of the tap, such as `personal`. It also registers each plugin of the keg's Claude Code marketplace file in an isolated Claude Code home. Archives and formula tests also check separate packages, both caller-asset sets with their runtimes, both configuration formats and no automatic native mutation. Exercise fresh install and upgrade at each tap state A to D of the coordinated release. At each state, Grove's dependency always resolves to an admitted Ravel major, and feature advertising follows its publication. |
 | Hook adapters | In isolated homes, each harness registers its adapter from a keg by the documented command. On Claude Code, the hooks run and no native `technical-communication` skill appears. One measurement installs a disposable formula, registers its hooks plugin by the `opt` path and runs `brew upgrade` with cleanup. A session after the upgrade runs the hooks from the new keg. The same measurement shows the Codex registration break and its repair. It also records whether a Codex session runs the cached hooks before the repair, and what the Codex hook review accepts. The [evidence](../homebrew-skill-delivery-evidence.md#the-hook-adapters-from-a-keg) holds the readings. |
-| Retired listing | Before finish, an isolated Claude Code home adds the `linkuistics` marketplace from a Git remote at a commit that lists the packs, and installs `grove@linkuistics`. A refresh against a commit with the retired listing shows whether the plugin stays installed. The release notes state the result. |
+| Retired listing | Before finish, an isolated Claude Code home adds the `linkuistics` marketplace from a Git remote at a commit that lists the packs, and installs `grove@linkuistics`. A refresh against a commit with the retired listing shows whether the plugin stays installed. The release notes state the result. The [evidence](../homebrew-skill-delivery-evidence.md#a-refresh-of-the-retired-listing) holds the reading. |
 | Actual harness behaviour | Claude Code and Codex each discover an applicable craft skill from a task that does not name it, and read it before the governed action. Ravel delivers every source from a keg path, and no native copy exists. |
 
 Directory-route harness trials include supporting reads, continuation/compaction,

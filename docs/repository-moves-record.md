@@ -3771,3 +3771,64 @@ The owner's prefix now holds this source in Ravel's default skill directory.
 The owner's Claude Code also still has the native `testanyware` plugin. A
 rollout that turns on Ravel 2.0 delivery must remove that plugin, or the
 harness sees `using-testanyware` twice.
+
+## The retired marketplace
+
+`native-marketplace-retirement-k235` retired Grove's `linkuistics` listing on
+2026-11-07. `.claude-plugin/marketplace.json` keeps the name `linkuistics`
+and lists no plugin. Its description says that the marketplace is retired
+and points to Homebrew and Ravel 2.0. `claude plugin validate` accepts it
+with one warning, "Marketplace has no plugins defined". The CHANGELOG's
+Unreleased section gives a user of the marketplace the four steps and the
+reading below.
+
+### Remote listings
+
+After `git fetch`, only Grove's `origin/main`, at `238c3a839ab4`, held
+marketplace files. They are the root Claude Code file, with ten plugins, and
+the root Codex file `linkuistics-hooks`. The `origin/main` of each of the six
+pack repositories and of TestAnyware held no marketplace file. The same
+listing of Grove's tree was the positive control.
+
+This line removed the root
+Codex file in `grove-hook-adapters-k230`, and this leaf empties the root
+Claude Code file. When finish moves `main`, no remote marketplace that Grove
+owns lists a pack. This leaf pushed nothing.
+
+### A refresh of the retired listing
+
+The [evidence](homebrew-skill-delivery-evidence.md#a-refresh-of-the-retired-listing)
+holds the measurement. A refresh of the retired listing succeeds. Each
+installed plugin of the marketplace stays installed and enabled, but it no
+longer loads.
+
+`claude plugin list` reports "Plugin grove not found in
+marketplace linkuistics", and a session receives none of the plugin's
+skills. `claude plugin update` fails. An interactive start shows no notice.
+`/plugin marketplace remove linkuistics` uninstalls the plugin.
+
+### Consumers
+
+- No test reads the current listing. `task check:packs` reads
+  `plugins/packs.json`. The release tests read the keg marketplace files of
+  `assets/keg-root`. `scripts/test_harness_trial.py` writes its own listing.
+- The cases `requirements-native-namespace`, `design-native-namespace` and
+  `research-native-namespace` stay. The trial runner reads the listing of each
+  trial's prepared commit, and the acceptance record names those commits. At
+  a commit after this leaf, the runner refuses each of them.
+- The formula caveats no longer tell a user to add `Linkuistics/grove`. The
+  rest of their "Skills" text belongs to `homebrew-delivery-guidance-k237`.
+
+### For rollout
+
+The owner's `~/.claude/plugins/known_marketplaces.json` holds
+`autoUpdate: true` for `linkuistics`. On 2026-11-07 its `lastUpdated` was
+04:33:28Z. That time is 47 seconds after a signed-in Claude Code session
+started, and the marketplace clone was at Grove `238c3a839ab4`. A signed-in
+start therefore refreshes the registration.
+
+The owner design freezes these
+automatic updates from the preparation step onward. If the freeze is absent
+when finish moves `main`, the next signed-in start refreshes the retired
+listing. Each plugin of `linkuistics` then stops loading, `grove` among them.
+This leaf read the owner's file and changed nothing.

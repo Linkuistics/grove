@@ -879,8 +879,10 @@ set. Its steps are:
    accepted digest in the committed staging evidence. For each source whose
    digest differs, rerun the staging trials that read it with the installed
    keg. They run in the retained staging HOME, under the environment rule of
-   step 10. Stop if one fails. The digest of that rerun becomes the accepted
-   digest of that source.
+   step 10. Each trial has `HOME` set to the staging HOME and `CODEX_HOME` set
+   to its own `.codex` tree. The plan names the staging HOME and the
+   candidate keg. Stop if one fails or if either is missing. The digest of
+   that rerun becomes the accepted digest of that source.
 5. Run `mise -C "$HOME" bootstrap packages status --json`. Stop unless each
    skill formula is declared and installed. Stop unless each installed version
    equals its accepted version in the staging evidence. For Grove, the
@@ -900,7 +902,7 @@ set. Its steps are:
    program, as [The rehearsed plan](#the-rehearsed-plan) states. Stop while a
    kept copy is flagged. Then write a new backup on the volume of the real
    HOME, outside each tree that the baseline instrument sweeps. It holds the
-   plan, a copy of the program and the evidence of steps 4, 6 and 7. Write it
+   plan, a copy of the program and the evidence of steps 4 to 7. Write it
    under a temporary name, and rename it into place as the last action. That
    rename makes the backup complete, and it is the record "switch begun". No
    backup replaces an earlier one.
@@ -932,7 +934,10 @@ set. Its steps are:
    outside every Grove workspace. Its environment holds none of Grove's loop
    control variables, which the
    [harness specification](harness-selection-and-execution.md#environment)
-   lists.
+   lists. It also holds none of Claude Code's five location variables,
+   `CODEX_HOME` or a `RAVEL_*` name. Each of them can select another
+   configuration than the real HOME's. The same rule binds each command of
+   the plan.
 11. On any failed probe, apply the inverse operation. Then verify the native
    route with the native probe of [Rollback](#rollback).
 12. Run `mac-check`.
@@ -1008,8 +1013,14 @@ Each probe must observe these results:
 - The resolution gives each source its accepted `resourceDigest`.
 
 After the probes launch, finish reads one of its own guidance files again by
-its recorded cache path. A failed read counts as a failed probe. The receipt
-records the result of `mac-check`. A failure there does not reverse a switch
+its recorded cache path. A failed read counts as a failed probe.
+
+The program then reads each version directory of step 7's evidence in the
+backup again. A missing directory, an `.orphaned_at` marker or a lost
+registration counts as a failed probe. An update during the run therefore
+stops the receipt, as [Resource lifetime](#resource-lifetime) requires.
+
+The receipt records the result of `mac-check`. A failure there does not reverse a switch
 whose probes passed. Finish reports it, and the owner repairs it under the
 machine contract.
 
@@ -1116,7 +1127,11 @@ ending itself. These are the **kept processes**:
 - The harness process of the session that runs the switch.
 - The driver chain that launched that session. Inside finish, that chain is
   this driver and its Ravel 1.1.0 process.
-- The MCP servers of that harness process.
+- The MCP servers of that harness process. A server is a child of the
+  harness process that matches the plan's MCP patterns. A process that such
+  a server launched is a server too when it matches them, such as the server
+  that a launcher launches. Each other descendant of a server counts as another
+  process.
 - The program and its shell.
 
 Each other descendant of the session counts as another process. Examples are
@@ -1245,6 +1260,11 @@ backup.
 The program runs a prelude only when a passing rehearsal record names that
 program. A prelude applies no plan, so this rule asks for no plan's record.
 
+A passing record also names the Claude Code version whose writes its rerun of
+`settings-writes.sh` measured. A record without that passing rerun admits
+nothing. The hooks installation runs a Claude Code command only when `claude
+--version` prints a version that a passing record names.
+
 A changed plan or a changed program needs a new rehearsal. The design keeps
 no reuse by kind of change, because a record of digests cannot decide such a
 reuse. A rehearsal is a reproducible task in disposable layouts.
@@ -1259,6 +1279,13 @@ The plan's digest therefore covers them, and a passing rehearsal record
 certifies them. The gates of steps 4 to 7 are entries of the program, which
 the plan names as commands. A continuation therefore runs the gates of the
 program copy in its backup.
+
+The program refuses a plan without a field of its format. A plan cannot
+change the steps of the switch, so no plan can omit the commands of steps 3
+to 7 and 10 to 12. The list of each of steps 4 to 7 must name the program's own gate. Each
+path of the plan is relative to HOME, and its parent folder must resolve
+inside HOME. Each gate reads the plan again by its path. It stops unless
+those bytes have the digest that the program admitted.
 
 The same rule binds finish and the owner's run after finish. Inside finish, a
 plan without a passing record ends finish without success, because the
@@ -1684,6 +1711,24 @@ Obsidian `AI Dev Tooling` note. It still names the earlier
   entry as a failed probe and apply the inverse. It must not copy the
   receipt. Another changes a cell after the receipt. `mac-check` must
   report the drifted state, and no run may copy the receipt into the manual.
+- A control changes the accepted digest of a changed source in the plan
+  file after the program admits the plan. Step 4 must stop. Other controls
+  give the plan an absolute path, a path with `..` and a path through a
+  linked folder. Each rehearsed plan that lacks the commands of one step
+  also stops. Each must stop before any step.
+- A kept MCP server with a child that does not match the MCP patterns must
+  stop step 2. A server alone must not stop it.
+- A control erases the retained staging HOME before step 4 reruns a trial.
+  Step 4 must stop. Each staging trial must see the staging HOME and its
+  `.codex` tree. No command of the plan may see `CODEX_HOME`, a Claude Code
+  location variable or a `RAVEL_*` name.
+- A control writes `.orphaned_at` into a reader directory inside the probes.
+  Another moves a registration between an active interruption and its
+  continuation. Each must count as a failed probe and copy no receipt. A
+  receipt control verifies each field of the receipt that this section names.
+- A record without a passing rerun of `settings-writes.sh` must admit no
+  prelude. A Claude Code version that no record measured must stop the hooks
+  installation before its first command.
 - A changed plan or a changed program without a passing rehearsal record must
   stop step 8. A continuation must run the program copy of its backup.
 - A writer that is not a kept process, or a job that can launch one, must

@@ -1027,3 +1027,32 @@ included in the installed version comparison, mise must report `installed`,
 and a Ravel document whose status is not `resolved` is rejected. The
 findings above concern concrete unchecked inputs and transitions rather
 than an assumed later tool format.
+
+## Owner switch review integration
+
+`owner-switch-program-k243` triaged the findings F1 to F9 above against the
+program at `7d69e659`. A reading of the source reproduced each finding. Each
+one is a real issue, and each repair stays inside the program, its rehearsal
+and the existing rules of the specification. No repair changes a recovery
+transition, so the model stays unchanged.
+
+| Finding | Disposition | Repair | Guarding control |
+| --- | --- | --- | --- |
+| F1 | Real | A gate that the program launches stops unless the plan at `OWNER_SWITCH_PLAN` has the digest `OWNER_SWITCH_PLAN_DIGEST` | `plan-changed-after-load` |
+| F2 | Real | The process gate keeps only a chain of processes that match the MCP patterns. Each other descendant of a server counts | `mcp-server-child`, `mcp-server-kept` |
+| F3 | Real | Each command of a plan drops Claude Code's five location variables, `CODEX_HOME` and each `RAVEL_*` name | Each fixture command refuses them |
+| F4 | Real | Each plan path is relative, normalised and free of `..`. Its parent folder must resolve inside HOME | `plan-paths-escape` |
+| F5 | Real | The loader requires every field. Each step that runs commands needs one, and each gate list names the program's gate | `plan-incomplete` |
+| F6 | Real | Each trial runs with `HOME` set to the plan's staging HOME and `CODEX_HOME` set to its `.codex` tree | `staging-home-missing`, the trial's own refusal |
+| F7 | Real | Inside the probes, the run reads step 7's reader evidence again. A change counts as a failed probe | `reader-orphaned-in-probes`, `reader-moved-before-continuation` |
+| F8 | Real | The receipt holds the activated configuration, each source, the trials, the readers, the backup and each retained byte set | `receipt-evidence` |
+| F9 | Real | A passing record needs a passing rerun of `settings-writes.sh` and its version. The hooks installation runs a Claude Code command only with that version | `rehearsal-without-settings-writes`, `claude-version-differs` |
+
+The model abstracts each probe as a pass or a failure. The reader rule of F7
+therefore adds a cause of failure and no transition. Exclusion, the
+environment and the receipt's fields are outside the model, as before.
+
+Each repair has a mutant of the repaired program that lacks only that
+repair. Each mutant failed its guarding control, and the positive control
+`mcp-server-kept` passed against the F2 mutant. The F1 mutant completed the
+switch with the changed source, which is the case that F1 states.

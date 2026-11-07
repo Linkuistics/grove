@@ -47,3 +47,7 @@ The program reports the state and stops. Its command evidence holds the
 output of each gate, such as the Grove version and keg of step 4 and the
 `mise` status of step 5. Add an entry of the program that writes the record from that
 evidence. Add its rehearsal controls beside those of `mac-check`.
+
+owner-switch-program-k243 changed the plan loader, the rehearsal record and
+the receipt. The parent brief's "Owner-delivery handoff" states the items
+for this leaf.

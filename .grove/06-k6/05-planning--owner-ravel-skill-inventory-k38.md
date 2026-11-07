@@ -63,3 +63,7 @@ to the staging trials:
 - The control "With the off value and installed keg sources, `ravel skills
   resolve --json` must report `disabled`" reads Ravel, not the program. It
   runs in staging with the promoted `ravel`.
+
+owner-switch-program-k243 added required fields to the real plan, a rule
+for MCP launcher chains and a Claude Code version condition. The parent
+brief's "Owner-delivery handoff" states the items for this leaf.

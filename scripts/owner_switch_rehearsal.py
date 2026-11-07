@@ -11,12 +11,13 @@ changed.
 
 Usage:
     python3 -I owner_switch_rehearsal.py rehearse --out OUT [--program PATH] [--only REGEX]
-                                                  [--settings-writes]
+                                                  [--skip-settings-writes]
 
 The record OUT/record.json names the digests of the plan and the program and
 the result of each control. For each run of a control, it counts the Claude
 Code commands that the run ran. It is a passing rehearsal record of the
-program only when every control passed. OUT/plan.json is the fixture plan.
+program only when every control passed and the rerun of settings-writes.sh
+passed. OUT/plan.json is the fixture plan.
 
 Each run finds stub `claude` and `brew` commands first on PATH. The stub
 `claude` keeps its plugin state in the disposable HOME, and it writes
@@ -24,10 +25,12 @@ settings.json as Claude Code 2.1.319 does: one read, then a new file renamed
 onto the path. The point "stub:<command>:read" lies between that read and
 the rename.
 
---settings-writes also reruns
+Each rehearsal also reruns
 docs/evaluations/hooks-installation-writes/settings-writes.sh with the real
-`claude` on PATH, in OUT/settings-writes. The record then names that Claude
-Code version. The rerun passes when `marketplace add` and `plugin install`
+`claude` on PATH, in OUT/settings-writes. The record names that Claude Code
+version, and the program's hooks installation runs a Claude Code command only
+with a version that a passing record names. --skip-settings-writes leaves the
+rerun out, and the record is then partial. The rerun passes when `marketplace add` and `plugin install`
 each rename one file onto the path, and when each command's measured
 interval meets the evidence's range of 30 to 38 ms. The interval of a
 command lies between the largest lead at which a race lost the outside write
@@ -40,7 +43,10 @@ Grove's `bin/grove`. Stub `mise` and `brew info` read that prefix, and the
 control file can change their answers. The stub `ravel` digests each source's
 files, so a one-byte change changes its resourceDigest. It refuses the
 account's HOME, the switch's HOME and every RAVEL_* name, and each run sets
-one such name, so each resolution shows the gate's environment rule.
+one such name, so each resolution shows the gate's environment rule. Each run
+also sets CLAUDE_CONFIG_DIR and CODEX_HOME. Each fixture command fails when
+its environment selects another subject than its HOME. A staging trial fails
+unless HOME is the plan's staging HOME and CODEX_HOME is its .codex tree.
 
 The controls cover the switch, the inverse, detection, interruptions,
 entries, step 14, the processes, the rehearsal condition, the preludes of
@@ -67,6 +73,14 @@ PY = sys.executable
 HARNESS_MARK = "owner-switch-fixture-harness"
 WRITER_MARK = "owner-switch-fixture-writer"
 JOB_MARK = "owner-switch-fixture-job"
+MCP_MARK = "owner-switch-fixture-mcp-server"
+# The version that the stub claude prints, and that a fixture record measured.
+FIXTURE_CLAUDE = "2.1.319 (Claude Code)"
+# No command of a plan may inherit these: they select another configuration than HOME's.
+CLAUDE_LOCATION_VARS = (
+    "CLAUDE_CONFIG_DIR", "CLAUDE_SECURESTORAGE_CONFIG_DIR", "CLAUDE_CODE_PLUGIN_CACHE_DIR",
+    "CLAUDE_CODE_PLUGIN_DIRS", "CLAUDE_CODE_PLUGIN_SEED_DIR",
+)
 LOOP_CONTROL = (
     "GROVE_SIGNAL_FILE", "GROVE_RUN_SIGNAL_FILE", "GROVE_LAUNCH_DIR",
     "HARNESS_DISPATCH_EXIT_FILE", "HARNESS_DISPATCH_RUN_ID",
@@ -204,6 +218,9 @@ def gate_command(step: str, name: str) -> dict:
 
 
 def build_plan(program: str, out: str) -> str:
+    # The retained staging HOME, with its own .codex tree, and the candidate keg.
+    os.makedirs(os.path.join(out, "staging-home", ".codex"), exist_ok=True)
+    os.makedirs(os.path.join(out, "candidate-keg"), exist_ok=True)
     probe = os.path.join(out, "plan-home")
     prefix = os.path.join(out, "plan-prefix")
     for folder in (probe, prefix):
@@ -238,7 +255,7 @@ def build_plan(program: str, out: str) -> str:
             {"root": ".claude/skills", "entries": {}},
             {"path": ".claude/plugins/cache/writing-hooks", "identity": ident(".claude/plugins/cache/writing-hooks")},
         ],
-        "session": {"harness": [HARNESS_MARK], "mcp": []},
+        "session": {"harness": [HARNESS_MARK], "mcp": [MCP_MARK]},
         "watch": [WRITER_MARK],
         "jobs": {"argv": fixture_command("jobs"), "patterns": [JOB_MARK]},
         "baseline": {"name": "baseline", "argv": fixture_command("baseline")},
@@ -248,6 +265,7 @@ def build_plan(program: str, out: str) -> str:
             "sources": sources,
             "versions": {f"linkuistics/taps/{name}": version for name, (version, _) in KEGS.items() if name != "grove"},
             "trials": {sid: [{"name": f"trial-{sid}", "argv": fixture_command("trial")}] for sid in KEGS["grove"][1]},
+            "staging": {"home": os.path.join(out, "staging-home"), "candidate_keg": os.path.join(out, "candidate-keg")},
         },
         "probes": [{"name": "probe-switched", "argv": fixture_command("probe-switched")}],
         "native_probe": [{"name": "probe-native", "argv": fixture_command("probe-native")}],
@@ -295,9 +313,33 @@ def take_failure(root: str, name: str) -> bool:
     return False
 
 
+def environment_problems(name: str) -> list:
+    """Each variable that would point a fixture command at another subject than its own."""
+    problems = [k for k in os.environ if k in CLAUDE_LOCATION_VARS or k.startswith("RAVEL_")]
+    if name != "trial":
+        if "CODEX_HOME" in os.environ:
+            problems.append("CODEX_HOME")
+        if os.environ.get("HOME") != os.environ["OWNER_SWITCH_HOME"]:
+            problems.append("HOME " + os.environ.get("HOME", ""))
+        return problems
+    # A staging trial runs in the retained staging HOME, with its own .codex tree.
+    staging = load(os.environ["OWNER_SWITCH_PLAN"], {})["accepted"]["staging"]["home"]
+    if os.environ.get("HOME") != staging:
+        problems.append("HOME " + os.environ.get("HOME", ""))
+    if os.environ.get("CODEX_HOME") != os.path.join(staging, ".codex"):
+        problems.append("CODEX_HOME " + os.environ.get("CODEX_HOME", ""))
+    if os.path.realpath(os.getcwd()) != os.path.realpath(staging):
+        problems.append("the working directory " + os.getcwd())
+    return problems
+
+
 def cmd_fixture(name: str) -> int:
     root = case_root()
     home = os.environ["OWNER_SWITCH_HOME"]
+    leaked = environment_problems(name)
+    if leaked:
+        print(f"{name}: the environment selects another subject: {', '.join(sorted(leaked))}")
+        return 1
     if name == "jobs":
         for label in load(os.path.join(root, "control.json"), {}).get("jobs", []):
             print(f"-\t0\t{label}")
@@ -390,6 +432,8 @@ def cmd_hook(point: str) -> int:
             subprocess.run(["/bin/chmod", "+a", "everyone allow read", path], check=True)
         elif do == "create":
             os.makedirs(path, exist_ok=True)
+        elif do == "touch":
+            write(path, action.get("text", ""))
         elif do == "modify-entry":
             with open(os.path.join(path, "SKILL.md"), "a") as f:
                 f.write("changed\n")
@@ -558,10 +602,13 @@ def cmd_stub_claude(argv: list) -> int:
     if os.path.realpath(home) != os.path.realpath(os.environ.get("OWNER_SWITCH_HOME", "")):
         print("stub claude: HOME is not the switch's HOME", file=sys.stderr)
         return 2
-    if any(v in os.environ for v in ("CLAUDE_CONFIG_DIR", "CLAUDE_CODE_PLUGIN_DIRS")):
-        print("stub claude: a Claude Code location variable is set", file=sys.stderr)
+    if any(v in os.environ for v in CLAUDE_LOCATION_VARS + ("CODEX_HOME",)):
+        print("stub claude: a Claude Code location variable or CODEX_HOME is set", file=sys.stderr)
         return 2
     root = case_root()
+    if argv == ["--version"]:
+        print(load(os.path.join(root, "control.json"), {}).get("claude_version", FIXTURE_CLAUDE))
+        return 0
     with open(os.path.join(root, "claude-calls"), "a") as f:
         f.write(" ".join(argv) + "\n")
     known_path = os.path.join(home, ".claude/plugins/known_marketplaces.json")
@@ -685,13 +732,14 @@ class Case:
         """The Claude Code commands of one run, counted by kind."""
         return self.runs[run]["claude"]
 
-    def rehearse_record(self, plan_digest: str, program_digest: str) -> None:
+    def rehearse_record(self, plan_digest: str, program_digest: str, settings_writes: bool = True) -> None:
         folder = os.path.join(self.home, STATE, "rehearsals")
         os.makedirs(folder, exist_ok=True)
-        save(os.path.join(folder, f"fixture-{plan_digest[:8]}-{program_digest[:8]}.json"), {
-            "schema": "owner-switch-rehearsal/1", "passed": True,
-            "plan_digest": plan_digest, "program_digest": program_digest,
-        })
+        record = {"schema": "owner-switch-rehearsal/1", "passed": True,
+                  "plan_digest": plan_digest, "program_digest": program_digest}
+        if settings_writes:
+            record["settings_writes"] = {"passed": True, "claude_version": FIXTURE_CLAUDE}
+        save(os.path.join(folder, f"fixture-{plan_digest[:8]}-{program_digest[:8]}.json"), record)
 
     def set_control(self, control: dict) -> None:
         save(os.path.join(self.root, "control.json"), control)
@@ -704,11 +752,13 @@ class Case:
         args = [PY, "-I", program or self.r.program, "run", "--plan", plan or self.r.plan, "--home", self.home]
         if dry:
             args.append("--dry-run")
-        # A Claude Code location variable in the environment must not reach a
-        # command: the stub refuses it, and so does a staging launch.
+        # A Claude Code location variable or CODEX_HOME in the environment
+        # must not reach a command: each fixture command and the stub refuse
+        # it, and so does a staging launch.
         env = dict(clean_env(), OWNER_SWITCH_REHEARSAL_HOOK=self.r.hook,
                    PATH=self.r.stubs + os.pathsep + os.environ.get("PATH", ""),
                    CLAUDE_CONFIG_DIR=os.path.join(self.root, "elsewhere"),
+                   CODEX_HOME=os.path.join(self.root, "elsewhere", ".codex"),
                    # The stub ravel refuses every RAVEL_* name, so no resolution may inherit it.
                    RAVEL_SKILL_DIRECTORIES=os.path.join(self.root, "elsewhere"), **(env or {}))
         before = len(self.claude_calls())
@@ -1506,7 +1556,8 @@ def c_gates_evidence(case):
            "step 7 did not name the registered version directory")
     receipt = [n for n in os.listdir(os.path.join(case.state()["backup"], "run")) if n.endswith("-receipt.json")]
     body = load(os.path.join(case.state()["backup"], "run", receipt[0]), {})
-    expect(sorted(body.get("gates", {})) == ["4", "6", "7"], f"the receipt lacks the gates: {sorted(body.get('gates', {}))}")
+    expect(sorted(body.get("gates", {})) == ["4", "5", "6", "7"],
+           f"the receipt lacks the gates: {sorted(body.get('gates', {}))}")
     expect(trials(case) == [], f"step 4 ran trials {trials(case)} with each digest accepted")
 
 
@@ -1652,6 +1703,213 @@ def c_baseline_fails(case):
     expect_gate_stop(case, "the baseline instrument baseline failed")
 
 
+# --- the controls of owner-switch-program-k243 ------------------------------------
+
+def plan_copy(case, name: str, mutate=None, record: bool = True) -> str:
+    """A copy of the fixture plan, changed by mutate, with a passing record when record is set."""
+    plan = load(case.r.plan, {})
+    if mutate:
+        mutate(plan)
+    other = os.path.join(case.root, name)
+    save(other, plan)
+    if record:
+        case.rehearse_record(digest_file(other), case.r.program_digest)
+    return other
+
+
+def receipt_of(case) -> dict:
+    run = os.path.join(case.state()["backup"], "run")
+    return load(os.path.join(run, next(n for n in os.listdir(run) if n.endswith("-receipt.json"))), {})
+
+
+def c_plan_changed_after_load(case):
+    """F1: a gate reads the plan again by its path, after the program admitted its bytes."""
+    copy = os.path.join(case.root, "plan.json")
+    shutil.copyfile(case.r.plan, copy)
+    one_byte(case, "superpowers")
+    changed = source_digest(keg_source(case, "superpowers"))
+    case.set_control({"actions": [{"point": "command:grove-release", "do": "write-key", "path": copy,
+                                   "key": ["accepted", "sources", "superpowers", "resourceDigest"],
+                                   "value": changed}]})
+    expect_gate_stop(case, "is not the plan that the program admitted", plan=copy)
+
+
+def c_mcp_server_kept(case):
+    """F2: a kept MCP server, and the server that its launcher starts, keep the interval open."""
+    case.set_control({"session": [["/bin/bash", "-c", f"exec -a {MCP_MARK} /bin/sleep 120"]]})
+    time.sleep(0.1)
+    run_to_complete(case)
+
+
+def c_mcp_child(case):
+    """F2: another descendant of a kept MCP server counts as another process."""
+    child = f"exec -a {MCP_MARK} /bin/bash -c '/bin/sleep 30; true'"
+    case.set_control({"session": [["/bin/bash", "-c", child]]})
+    time.sleep(0.1)
+    out = expect_exit(case.run(), 3, "process \\d+ of the session: /bin/sleep 30")
+    expect(case.state()["backup"] is None, "a descendant of an MCP server did not stop step 2")
+    expect(f"of the session: {MCP_MARK}" not in out, "the kept MCP server counted as another process")
+
+
+def c_plan_paths_escape(case):
+    """F4: a plan path that is absolute, holds .. or crosses a linked folder stops before any step."""
+    outside = os.path.join(case.root, "outside")
+    write(os.path.join(outside, "grove/SKILL.md"), "---\nname: grove\n---\nOutside HOME.\n")
+    os.symlink(outside, os.path.join(case.home, ".claude/linked"))
+    ident = subprocess.run([PY, "-I", case.r.program, "identity", os.path.join(outside, "grove")],
+                           capture_output=True, text=True, check=True).stdout.strip()
+    variants = {"absolute": os.path.join(outside, "grove"), "dotdot": "../outside/grove",
+                "linked": ".claude/linked/grove"}
+    for label, rel in variants.items():
+        def mutate(plan, rel=rel):
+            plan["parts"][0] = {"kind": "entry", "path": rel, "identity": ident}
+        other = plan_copy(case, f"plan-{label}.json", mutate)
+        expect_exit(case.run(plan=other), 3, "is not relative to HOME|without \\.\\.|leads outside HOME")
+        expect(os.path.isfile(os.path.join(outside, "grove/SKILL.md")), f"the {label} path moved an entry outside HOME")
+        expect(case.state()["backup"] is None, f"the {label} path wrote a backup")
+    return ", ".join(variants)
+
+
+def c_plan_incomplete(case):
+    """F5: a rehearsed plan without a check that a step needs stops before any step."""
+    def gate_4_other(plan):
+        plan["gates"]["4"] = [{"name": "grove-release", "argv": fixture_command("probe-native")}]
+    mutations = {
+        "gates-empty": lambda p: p.__setitem__("gates", {}),
+        "gate-4-other": gate_4_other,
+        "gate-7-empty": lambda p: p["gates"].__setitem__("7", []),
+        "probes-empty": lambda p: p.__setitem__("probes", []),
+        "native-probe-missing": lambda p: p.pop("native_probe"),
+        "mac-check-missing": lambda p: p.pop("mac_check"),
+        "baseline-missing": lambda p: p.pop("baseline"),
+        "jobs-missing": lambda p: p.pop("jobs"),
+        "watch-empty": lambda p: p.__setitem__("watch", []),
+        "outside-empty": lambda p: p.__setitem__("outside", []),
+        "staging-missing": lambda p: p["accepted"].pop("staging"),
+    }
+    plans = {label: plan_copy(case, f"plan-{label}.json", mutate) for label, mutate in mutations.items()}
+    before = case.snapshot()
+    for label, other in plans.items():
+        expect_exit(case.run(plan=other), 3, "the plan is incomplete")
+    expect(case.snapshot() == before, "an incomplete plan changed the layout")
+    expect(case.points() == [], f"an incomplete plan reached a hook point: {case.points()[:5]}")
+    return ", ".join(mutations)
+
+
+def c_staging_missing(case):
+    """F6: step 4 stops when the retained staging HOME is missing."""
+    one_byte(case, "design")
+
+    def mutate(plan):
+        plan["accepted"]["staging"]["home"] = os.path.join(case.root, "no-staging-home")
+    other = plan_copy(case, "plan-no-staging.json", mutate, record=False)
+    expect_gate_stop(case, "the retained staging HOME .* is missing", plan=other)
+    expect(trials(case) == [], f"step 4 ran trials {trials(case)} without the staging HOME")
+
+
+def c_reader_orphaned_in_probes(case):
+    """F7: an orphan marker after step 7 counts as a failed probe."""
+    marker = os.path.join(READERS["grove@linkuistics"], ".orphaned_at")
+    case.set_control({"actions": [{"point": "command:probe-switched", "do": "touch", "path": marker,
+                                   "text": "1792928060164"}]})
+    expect_exit(case.run(), 3, "failed probe \\(the reader evidence of step 7 changed: .* holds .orphaned_at")
+    st = case.state()
+    expect(st["state"] == "native" and st["records"][-1] == "inverse-ended", f"a changed reader left {st['state']}")
+    expect(case.receipts() == 0, "a changed reader copied a receipt")
+
+
+def c_reader_moved_before_continuation(case):
+    """F7: an update between an active interruption and its continuation counts as a failed probe."""
+    case.set_control({"actions": [{"point": "switch-after-part:3", "do": "crash"}]})
+    expect_exit(case.run(), 99)
+    registry = os.path.join(case.home, ".claude/plugins/installed_plugins.json")
+    body = load(registry, {})
+    newer = os.path.join(case.home, ".claude/plugins/cache/linkuistics/grove/ffffffff")
+    write(os.path.join(newer, ".claude-plugin/plugin.json"), "{}\n")
+    body["plugins"]["grove@linkuistics"][0]["installPath"] = newer
+    save_json(registry, body)
+    expect_exit(case.run(), 3, "failed probe \\(the reader evidence of step 7 changed: .* lost its registration")
+    st = case.state()
+    expect(st["state"] == "native" and case.receipts() == 0, f"a moved registration left {st['state']}")
+
+
+def c_receipt_evidence(case):
+    """F8: the receipt holds the activated configuration and each retained byte set."""
+    expect_exit(case.run(), 0, "result: complete")
+    body = receipt_of(case)
+    act = body.get("activated", {})
+
+    def digest(rel):
+        return subprocess.run([PY, "-I", case.r.program, "digest", os.path.join(case.home, rel)],
+                              capture_output=True, text=True, check=True).stdout.strip()
+    expect(act.get("config_rhai_digest") == digest(".config/ravel/config.rhai"), f"config.rhai: {act}")
+    expect(act.get("ravel_settings_digest") == digest(RAVEL), "the receipt lacks the Ravel settings digest")
+    expect(act.get("ravel") == {"path": os.path.join(case.root, "prefix/bin/ravel"),
+                                "version": "ravel 2.0.0 (fixture)"}, f"the receipt names Ravel {act.get('ravel')}")
+    expect((act.get("grove") or {}).get("version") == "1", f"the receipt names Grove {act.get('grove')}")
+    sources = body.get("sources", {})
+    expect(len(sources) == 10, f"the receipt names {len(sources)} sources")
+    for name, (version, ids) in KEGS.items():
+        for sid in ids:
+            got = sources.get(sid, {})
+            expect(got.get("version") == version and got.get("keg_path") == keg_source(case, sid)
+                   and got.get("resourceDigest") == source_digest(keg_source(case, sid)) and got.get("snapshotRoot"),
+                   f"the receipt's source {sid} is {got}")
+    expect(body.get("trials") == {"reran": [], "results": []}, f"the receipt's trials are {body.get('trials')}")
+    expect(body.get("backup") == case.state()["backup"], "the receipt does not name its backup")
+    items = body.get("retained", [])
+    kinds = sorted({i["item"] for i in items})
+    expect(kinds == sorted(["retained entry", "kept copy", "Grove's Codex snapshot store",
+                            "superseded plugin registration", "earlier marketplace registration",
+                            "staging HOME", "candidate keg"]), f"the receipt retains {kinds}")
+    expect(len([i for i in items if i["item"] == "retained entry"]) == 2, "the receipt lacks a retained entry")
+    expect(len([i for i in items if i["item"] == "kept copy"]) == 2, "the receipt lacks a kept copy")
+    expect(all(len(i["condition"]) == 5 for i in items if i["item"] not in ("staging HOME", "candidate keg")),
+           "a purge item lacks its five conditions")
+    expect([i.get("plugin") for i in items if i["item"] == "superseded plugin registration"] == ["grove@linkuistics"],
+           "the receipt names another superseded plugin")
+    again = body.get("readers", {}).get("again", [])
+    expect(len(again) == 2 and all(r["present"] and r["registered"] and not r["orphaned"] for r in again),
+           f"the receipt's second reading of the readers is {again}")
+    with open(os.path.join(case.home, MANUAL)) as f:
+        expect('"config_rhai_digest"' in f.read(), "the manual's receipt lacks the activated configuration")
+
+
+def c_rehearsal_without_rerun(case):
+    """F9: a record without a passing rerun of settings-writes.sh admits no prelude."""
+    case.rehearse_record(case.r.plan_digest, case.r.program_digest, settings_writes=False)
+    before = case.snapshot()
+    expect_exit(case.run(), 3, "so no prelude runs")
+    expect(case.snapshot() == before, "a record without the rerun admitted a prelude")
+    expect(case.commands(0) == {}, f"a record without the rerun ran {case.commands(0)}")
+
+
+def c_claude_version_differs(case):
+    """F9: the hooks installation runs no Claude Code command with an unmeasured version."""
+    case.set_control({"claude_version": "2.2.0 (Claude Code)"})
+    expect_exit(case.run(), 3, "no passing rehearsal record measured the writes of that version")
+    calls = case.commands(0)
+    expect(not any(k.startswith("plugin install") or k.startswith("plugin marketplace add") for k in calls),
+           f"an unmeasured version ran {calls}")
+
+
+def review_controls() -> list:
+    no_hooks, no_key = {"hooks": "absent"}, {"ravel": "absent-key"}
+    return [
+        ("plan-changed-after-load", c_plan_changed_after_load, {}),
+        ("mcp-server-kept", c_mcp_server_kept, {}),
+        ("mcp-server-child", c_mcp_child, {}),
+        ("plan-paths-escape", c_plan_paths_escape, {}),
+        ("plan-incomplete", c_plan_incomplete, {}),
+        ("staging-home-missing", c_staging_missing, {}),
+        ("reader-orphaned-in-probes", c_reader_orphaned_in_probes, {}),
+        ("reader-moved-before-continuation", c_reader_moved_before_continuation, {}),
+        ("receipt-evidence", c_receipt_evidence, {}),
+        ("rehearsal-without-settings-writes", c_rehearsal_without_rerun, dict(no_key, rehearsed=False, **no_hooks)),
+        ("claude-version-differs", c_claude_version_differs, no_hooks),
+    ]
+
+
 def gate_controls() -> list:
     return [
         ("gates-evidence", c_gates_evidence, {}),
@@ -1756,6 +2014,7 @@ def all_controls(r: Rehearsal) -> list:
     ]
     controls += prelude_controls()
     controls += gate_controls()
+    controls += review_controls()
     return controls
 
 
@@ -1821,10 +2080,12 @@ def cmd_rehearse(args) -> int:
         if args.only and not re.search(args.only, name):
             continue
         r.control(name, fn, **kw)
-    rerun = settings_writes(r.out) if args.settings_writes else None
+    # "Test seams": a passing record names the Claude Code version whose
+    # writes its rerun measured, so a record without the rerun is partial.
+    rerun = None if args.skip_settings_writes else settings_writes(r.out)
     controls_passed = all(x["passed"] for x in r.results)
     rerun_passed = rerun is None or rerun["passed"]
-    passed = controls_passed and rerun_passed and not args.only
+    passed = controls_passed and rerun is not None and rerun["passed"] and not args.only
     record = {
         "schema": "owner-switch-rehearsal/1",
         "passed": passed,
@@ -1834,13 +2095,15 @@ def cmd_rehearse(args) -> int:
         "controls": len(r.results), "failed": [x["control"] for x in r.results if not x["passed"]],
         "results": r.results,
         "settings_writes": rerun,
-        "partial": bool(args.only),
+        "partial": bool(args.only) or rerun is None,
     }
     save(os.path.join(r.out, "record.json"), record)
     print(f"{len(r.results) - len(record['failed'])}/{len(r.results)} controls passed; record {r.out}/record.json")
     if rerun is not None:
         print(f"settings-writes.sh rerun with claude {rerun['claude_version']}: "
               f"{'passed' if rerun['passed'] else 'FAILED: ' + rerun['detail']}")
+    else:
+        print("settings-writes.sh did not run, so the record is partial and admits nothing")
     return 0 if controls_passed and rerun_passed else 1
 
 
@@ -1926,8 +2189,8 @@ def main() -> int:
     p.add_argument("--out", required=True)
     p.add_argument("--program", default=os.path.join(HERE, "owner_switch.py"))
     p.add_argument("--only", help="run only the controls whose name matches; the record is then partial")
-    p.add_argument("--settings-writes", action="store_true",
-                   help="also rerun settings-writes.sh with the real claude, and name its version in the record")
+    p.add_argument("--skip-settings-writes", action="store_true",
+                   help="do not rerun settings-writes.sh with the real claude; the record is then partial")
     args = parser.parse_args()
     return cmd_rehearse(args)
 

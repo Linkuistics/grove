@@ -212,6 +212,33 @@ these items:
   read before it runs the program. Finish also compares each built-in row
   that step 3 prints with its own skill listing.
 
+owner-switch-program-k243 integrated the review of the switch program. Its
+repairs assign these items:
+
+- owner-ravel-skill-inventory-k38: the real plan needs every field of the
+  plan format. Each of its paths is relative to HOME, and its parent folder
+  resolves inside HOME. Its `accepted.staging` names the absolute paths of
+  the retained staging HOME and the candidate keg. The staging HOME holds its
+  own `.codex` tree.
+- owner-ravel-skill-inventory-k38: the real plan's MCP patterns match each
+  of the owner's MCP server processes and each launcher chain. An example is
+  `npx` and the `node` server that it launches. Another child of a server
+  counts as another process, and the owner ends it before the switch.
+- owner-ravel-skill-inventory-k38: each rehearsal now reruns
+  `settings-writes.sh`, and its record names the Claude Code version. The
+  hooks installation stops before its first command with another version.
+  Claude Code updates itself, so keep its version from the rehearsal to the
+  switch, or rehearse again.
+- owner-switch-entries-k92: the loader refuses an incomplete plan, so each
+  new control builds on the complete fixture plan. A fixture rehearsal
+  record names a passing rerun with `FIXTURE_CLAUDE`. The backup keeps the
+  evidence of steps 4 to 7, and the pending-activation record can read the
+  formula versions there. The receipt's `retained` list names each byte set
+  with its purge condition, and the purge procedure reads it.
+- discovery-rollout-k12: the finish handoff states the Claude Code version
+  condition above. It also states that the receipt lists the staging HOME
+  and the candidate keg as removable after the receipt.
+
 acceptance-completion-audit-k127 hands two findings to this node. The
 "Gap register" of `docs/common-loading-acceptance-record.md` holds both.
 

@@ -1100,3 +1100,60 @@ of `settings-writes.sh` passed with Claude Code 2.1.319, so the record
 passed. Each subject file was last changed before the run started. `task
 model:owner-switch` reported "all claims hold". The model, its runner and
 the Taskfile had the same digests before and after that run.
+
+## Re-inventory before the cutover
+
+`owner-ravel-skill-inventory-k38` performed order 3 of the cutover contract
+on 2026-11-07. It reran the baseline instrument in the real HOME and
+compared each entry with [the baseline](owner-skill-inventory.tsv). The
+instrument, the controls script and the baseline had the SHA-256 values of
+"Method". Claude Code was 2.1.319 and Codex was 0.167.0.
+
+### Controls of the rerun
+
+- Two runs gave byte-identical output of 447 rows, with the SHA-256
+  `b4f7d65ced0c…`. No row said `UNCLASSIFIED`, `UNASSIGNED`, `UNCOVERED` or
+  `NEEDS-REVIEW`.
+- A scratch root held an unknown skill and a dangling link. With
+  `CONTROL_ROOT` set to it, the output held one `UNCLASSIFIED` row and one
+  dangling row for that root.
+- `task owner:inventory:controls` passed 14 of 14 controls.
+
+The comparison keyed each row by its harness, location and entry. It
+compared every field of the rows with the same key, and it listed each key
+that only one side held.
+
+### Differences and their reasons
+
+No owner-pack, third-party-pack, stale-copy or dangling skill row changed.
+Each one keeps the change identity that the section "Owner-pack entries of
+the baseline" of the [moves record](repository-moves-record.md) maps to its
+source and root. No new row has an owner-controlled class. The rows that
+differ are these:
+
+| Rows | Class | Difference | Reason |
+| --- | --- | --- | --- |
+| `grove`, `linkuistics` and `testanyware` of the `linkuistics` marketplace. `superpowers` and `quint-llm-kit`. `commit-commands`, `explanatory-output-style`, `feature-dev` and `swift-lsp` | Owner pack, third-party pack and capability-only | The digest only. The version and the file count stay the same | Each version directory holds `.in_use/<pid>`, and the PID is that of the running Claude Code session. The baseline held the marker of an earlier session. Without that folder, each count is one less, as in the baseline |
+| `context7` and `playwright` | Capability-only | Version `a7ba5b93db0c` became `0412be76f50a` | The official marketplace updated them automatically |
+| `github`, `serena`, `skill-creator` and `greptile` | Disabled third-party | New versions. `greptile` 1.3.1 adds the skills `login` and `review` | The same automatic updates. Each plugin stays disabled, so its skills stay outside the active collection |
+| Five account-synced skills, `openai-docs` and the Codex bundled and remote plugins | Platform-managed | New digests or versions | Platform updates. No Ravel source holds these names |
+| `testanyware` and `TestAnyware.app` | Tool-managed | 2.7.0 became 2.8.0 | Homebrew installed the release whose formula carries the `testanyware` source |
+| The coverage rows of inactive cached versions | Not a discovery root | Fewer versions | Claude Code's 14-day cleanup of orphaned versions |
+| The coverage row of the marketplace clones | Not a discovery root | 89 `SKILL.md` files in place of 82 | The official marketplace clone gained skills when it updated |
+
+TestAnyware's keg already links `share/ravel/skills/testanyware` into
+Ravel's default skill directory. The real HOME's `~/.config/ravel` holds only
+`policy.ts`, so Ravel 1.1 delivers nothing from that directory.
+
+### Consequences for the cutover
+
+- The instrument's digest of a plugin version directory depends on the
+  session that runs it. A later comparison would report each loaded plugin
+  as changed. `owner-inventory-reader-marker-k244` repairs the digest.
+- A probe session writes the same marker. The real plan's `outside`
+  manifest therefore names no plugin version directory.
+- The official marketplace updated enabled plugins in five days. The freeze
+  of order 6 covers it as well as the `linkuistics` marketplace.
+- Claude Code moved from 2.1.316 to 2.1.319 in the same five days. The
+  rehearsal record names one Claude Code version, so that version must hold
+  from the rehearsal to the switch.

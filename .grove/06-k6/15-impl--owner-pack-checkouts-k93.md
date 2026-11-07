@@ -18,9 +18,12 @@ accepted commits. Cover each formula that publishes before finish. Make
 - Grove's formula carries core and the five domain packs. The personal pack,
   superpowers and quint-llm-kit have formulae of their own. TestAnyware's
   formula carries `using-testanyware`.
-- The staging leaves of owner-ravel-skill-inventory-k38 supply the accepted
-  commits and the accepted `resourceDigest` of each source. Read them from the
-  staging evidence.
+- owner-staging-acceptance-k252 records the accepted commits and the
+  accepted `resourceDigest` of each source. Read them from the staging
+  evidence.
+- owner-staging-setup-k248 installed `personal`, `superpowers` and
+  `quint-llm-kit` for the staging trials. This leaf declares them and
+  verifies them at the accepted commits.
 
 ## Done when
 
@@ -50,6 +53,7 @@ An advance links a complete new keg, so a capture reads one keg or refuses.
 `homebrew-delivery-design-k216` therefore withdrew the process check before an
 advance.
 
-owner-ravel-skill-inventory-k38 puts its leaves for policy conversion, drafts
-and staging trials before this leaf with `leaf-insert`. The marketplace
-freeze and the rehearsal on the real plan follow this leaf, also in order 6.
+owner-ravel-skill-inventory-k38 put the policy conversion, the drafts and
+the staging trials before this leaf. owner-marketplace-freeze-k253,
+owner-switch-plan-k254 and owner-switch-rehearsal-k255 follow it, also in
+order 6.

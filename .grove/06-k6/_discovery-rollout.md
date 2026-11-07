@@ -59,13 +59,20 @@ skill-loading-replan-k80 cut four implementation leaves here:
    its rehearsal task in disposable layouts. It needs no pack move.
 2. `owner-switch-entries-k92`: the owner's inverse, the merge entry and the
    switch-state report of `mac-check`.
-3. owner-ravel-skill-inventory-k38 then reconciles the final installed set
-   with owner-ravel-skill-delivery-k37 and grows the other cutover work. It
-   puts its draft and staging leaves before k93 with `leaf-insert`.
+3. owner-ravel-skill-inventory-k38 reran the inventory, which is order 3 of
+   the cutover contract. It cut the leaves of orders 4 and 5 before k93:
+   `owner-inventory-reader-marker-k244`, `owner-policy-conversion-k245`,
+   `owner-settings-drafts-k246`, `owner-switch-plan-draft-k247`,
+   `owner-staging-setup-k248`, `owner-staging-discovery-k249`,
+   `owner-staging-hooks-k251`, `owner-staging-capabilities-k250` and
+   `owner-staging-acceptance-k252`.
 4. `owner-pack-checkouts-k93`: in cutover order 6, Homebrew installs the
    owner's sources in the real HOME at the accepted commits. `mac-check`
    reports their status.
-5. discovery-rollout-k12 plans the release and finish handoff. The rollout
+5. `owner-marketplace-freeze-k253`, `owner-switch-plan-k254` and
+   `owner-switch-rehearsal-k255` finish order 6. They freeze automatic
+   updates, complete the real plan and rehearse it.
+6. discovery-rollout-k12 plans the release and finish handoff. The rollout
 planner consumes that work and coordinated-ravel-release-k36's reviewed plan.
 Plan from the delivered migration state. Grow concrete final verification,
 documentation/handoff and independent Ravel integration/release work before
@@ -161,12 +168,13 @@ installation. homebrew-delivery-design-k216 amends the owner design before
 k38 and k93 run. Read each item below through that amended design. A checkout
 there becomes a source that Homebrew installed.
 
-- owner-ravel-skill-inventory-k38: the staging trials run the decoy-helper
-  control, then the clones into the checkout HOME, then the isolation trial.
-  The staging evidence records each accepted pin, each source's
-  `resourceDigest` and the tree ID of the `grove-core` candidate. The staging
-  HOME and the checkout HOME stay until the switch receipt.
-- owner-ravel-skill-inventory-k38: the rehearsal of order 6 runs the program
+- owner-staging-setup-k248 and owner-staging-acceptance-k252: the candidate
+  keg, the staging settings and the isolation trial come first. The Homebrew
+  change withdrew the decoy-helper control and the checkout HOME. The
+  staging evidence records each accepted pin, each source's
+  `resourceDigest` and the tree ID of the `grove-core` candidate. The
+  staging HOME and the candidate keg stay until the switch receipt.
+- owner-switch-rehearsal-k255: the rehearsal of order 6 runs the program
   on the real plan with each switch control of "Test seams". A changed plan
   or program needs a new rehearsal.
 - discovery-rollout-k12: after the Ravel cut, record each accepted digest
@@ -197,7 +205,8 @@ these items:
   exchange. Step 6 stops unless the resolved IDs are the ten accepted IDs.
   The rehearsal task runs each new control of "Test seams". `task
   model:owner-switch` now runs 241 claims.
-- owner-ravel-skill-inventory-k38: the drafts hold the off value
+- owner-settings-drafts-k246, owner-staging-hooks-k251 and
+  owner-switch-rehearsal-k255: the drafts hold the off value
   `{"schemaVersion": 1, "sources": []}`, the switched value with only the
   mandatory file, and the staging settings. The staging settings name the
   candidate keg of `candidate-keg-k238` and the four installed kegs. The
@@ -215,16 +224,19 @@ these items:
 owner-switch-program-k243 integrated the review of the switch program. Its
 repairs assign these items:
 
-- owner-ravel-skill-inventory-k38: the real plan needs every field of the
+- owner-switch-plan-draft-k247 and owner-switch-plan-k254: the real plan
+  needs every field of the
   plan format. Each of its paths is relative to HOME, and its parent folder
   resolves inside HOME. Its `accepted.staging` names the absolute paths of
   the retained staging HOME and the candidate keg. The staging HOME holds its
   own `.codex` tree.
-- owner-ravel-skill-inventory-k38: the real plan's MCP patterns match each
+- owner-switch-plan-draft-k247 and owner-switch-plan-k254: the real plan's
+  MCP patterns match each
   of the owner's MCP server processes and each launcher chain. An example is
   `npx` and the `node` server that it launches. Another child of a server
   counts as another process, and the owner ends it before the switch.
-- owner-ravel-skill-inventory-k38: each rehearsal now reruns
+- owner-switch-rehearsal-k255 and owner-marketplace-freeze-k253: each
+  rehearsal now reruns
   `settings-writes.sh`, and its record names the Claude Code version. The
   hooks installation stops before its first command with another version.
   Claude Code updates itself, so keep its version from the rehearsal to the
@@ -243,12 +255,12 @@ owner-switch-entries-k92 added the owner's entries `inverse`, `merge`,
 `purge-check` and `pending` to the program, and a switch row to `mac-check`.
 It assigns these items:
 
-- owner-ravel-skill-inventory-k38: the real plan names
+- owner-switch-plan-k254: the real plan names
   `.local/state/owner-switch` as its `state`. The owner keeps the prepared
   plan and the rehearsed program at `<state>/prepared/plan.json` and
   `<state>/prepared/owner_switch.py`. `mac-check` reads the switch state
   through them. Without them it reports native delivery.
-- owner-ravel-skill-inventory-k38: the rehearsal runs the real `mac-check`
+- owner-switch-rehearsal-k255: the rehearsal runs the real `mac-check`
   with HOME set to each disposable HOME. It reads `~/.local/bin/mac-check`
   and its folder, and `--mac-check` names another command.
 - discovery-rollout-k12: after a stop or an inverse, finish's continuation
@@ -321,3 +333,18 @@ brief's "Skill installation" states the decisions.
   from the personal keg.
 - Linkuistics/Ravel#4 and Linkuistics/grove#28 are later work outside this
   grove.
+
+owner-ravel-skill-inventory-k38 reran the inventory on 2026-11-07. The
+section "Re-inventory before the cutover" of
+`docs/owner-skill-delivery-evidence.md` holds the result. No owner-controlled
+skill changed. It assigns these items to discovery-rollout-k12:
+
+- After the Ravel cut, repeat the control "With the off value and installed
+  keg sources, `ravel skills resolve --json` must report `disabled`" with
+  the published `ravel@2`. The staging trials ran it with the accepted
+  build.
+- The finish handoff names the Claude Code version that
+  owner-marketplace-freeze-k253 held, and how the owner releases the hold
+  after the switch. It also names the frozen marketplaces.
+- The final inventory compares entries with the instrument that
+  owner-inventory-reader-marker-k244 repaired.

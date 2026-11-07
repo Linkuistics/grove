@@ -67,3 +67,31 @@ to the staging trials:
 owner-switch-program-k243 added required fields to the real plan, a rule
 for MCP launcher chains and a Claude Code version condition. The parent
 brief's "Owner-delivery handoff" states the items for this leaf.
+
+## Decisions (running log)
+
+- 2026-11-07: This leaf performs order 3 itself. The rerun is read-only, and
+  its result decides the plan. The section "Re-inventory before the cutover"
+  of `docs/owner-skill-delivery-evidence.md` records it.
+- 2026-11-07: No owner-controlled skill entered or left since the baseline.
+  Each owner-pack and third-party skill row keeps its change identity. The
+  section "The handoff to the owner cutover" of
+  `docs/repository-moves-record.md` already assigns each such skill to its
+  source, root and resources, so this leaf cites that table.
+- 2026-11-07: Claude Code writes `.in_use/<pid>` into each plugin version
+  directory that a running session loaded. The instrument digests that
+  marker, so each plugin row changes with the session that runs the
+  instrument. A small leaf repairs the instrument before the drafts.
+- 2026-11-07: The real plan's `outside` manifest names no plugin version
+  directory, because a probe session writes the marker there.
+- 2026-11-07: The decoy-helper control and the checkout HOME of the parent's
+  handoff are withdrawn. They served the mise clones, and the amended design
+  starts the staging trials with the candidate keg, the staging settings and
+  the isolation trial.
+- 2026-11-07: The staging setup installs the formulae of personal,
+  superpowers and quint-llm-kit, because the staging trials read their kegs.
+  An installation changes no HOME and no discovery. owner-pack-checkouts-k93
+  then declares the formulae and verifies them.
+- 2026-11-07: The control "off value reports `disabled`" runs in staging with
+  the accepted build. discovery-rollout-k12 repeats it with the published
+  `ravel@2`, because the promoted `ravel` exists only inside finish.

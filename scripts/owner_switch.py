@@ -50,7 +50,32 @@ A command is {"name", "argv"}. It runs in HOME, without Grove's loop control
 variables, with OWNER_SWITCH_HOME, OWNER_SWITCH_STATE and OWNER_SWITCH_STEP.
 
 A passing rehearsal record is a JSON file in <state>/rehearsals with
-"passed": true, "plan_digest" and "program_digest".
+"passed": true, "plan_digest" and "program_digest". Step 8 needs a record
+that names the plan and the program. The preludes need a record that names
+the program only, because a prelude applies no plan.
+
+Step 3 erases each held link whose inode is still at the path. While the
+latest complete backup's run is open, it runs no prelude. Otherwise it runs
+the native settings and then the hooks installation. Their paths and values
+are constants of this program, not of the plan:
+    native settings     .config/ravel/settings.json, "skills" set to
+                        {"schemaVersion": 1, "sources": []}
+    hooks installation  technical-communication-hooks@writing-hooks from the
+                        marketplace registered at $(brew --prefix)/opt/grove,
+                        read and installed with `claude`, then disabled in
+                        .claude/settings.json by an exchange
+The program finds `claude` and `brew` on PATH. Each runs in HOME, with HOME
+set to HOME and without Claude Code's five location variables.
+
+A settings record is a directory in <state>/settings, named under a
+temporary name until it is complete. It holds record.json and the file
+`copy`. For an exchange, `copy` is the stage file and, after the exchange,
+the kept copy. Its record.json holds the digests "read" and "stage".
+
+For a Claude Code command, `copy` is the held link and record.json holds
+"read", the digest of the one reading through it. A held link whose inode is still
+at the path holds no kept copy. The owner's merge of a flagged copy is
+`copy.merge-<n>.json` with its "digest", as in a backup.
 
 Rehearsal hook: OWNER_SWITCH_REHEARSAL_HOOK names a command that the program
 runs at each named point with the point as its argument. Exit 99 ends the
@@ -86,6 +111,24 @@ LOOP_CONTROL = (
 )
 HOOK_VAR = "OWNER_SWITCH_REHEARSAL_HOOK"
 CRASH = 99
+
+# The preludes: docs/specs/owner-skill-delivery.md, "The native settings
+# inside finish" and "The hooks installation inside finish".
+RAVEL_SETTINGS = ".config/ravel/settings.json"
+OFF = {"schemaVersion": 1, "sources": []}
+CLAUDE_SETTINGS = ".claude/settings.json"
+HOOKS_MARKETPLACE = "writing-hooks"
+HOOKS_PLUGIN = "technical-communication-hooks@writing-hooks"
+HOOKS_KEY = ["enabledPlugins", HOOKS_PLUGIN]
+# Claude Code drops each ACL and each extended attribute except this one
+# when it rewrites settings.json ("Claude Code's own writes").
+PROVENANCE = b"com.apple.provenance"
+# "Settings isolation and the staging HOME": these five move Claude Code's
+# configuration, sign-in store or plugin locations away from HOME.
+CLAUDE_LOCATION_VARS = (
+    "CLAUDE_CONFIG_DIR", "CLAUDE_SECURESTORAGE_CONFIG_DIR", "CLAUDE_CODE_PLUGIN_CACHE_DIR",
+    "CLAUDE_CODE_PLUGIN_DIRS", "CLAUDE_CODE_PLUGIN_SEED_DIR",
+)
 
 PROGRAM_PATH = os.path.realpath(__file__)
 with open(PROGRAM_PATH, "rb") as _f:
@@ -190,21 +233,39 @@ def read_fd(fd: int) -> bytes:
         offset += len(chunk)
 
 
-def fd_reading(fd: int):
-    """One reading of an open file: its digest and its content.
+def fd_reading_full(fd: int) -> dict:
+    """One reading of an open file: its digest, content, ACL and attribute names.
 
     The digest covers the content, the mode, the ACL and the extended
     attributes, all read through one descriptor and therefore one inode.
     """
     st = os.fstat(fd)
     content = read_fd(fd)
+    acl = _acl_text(fd)
+    xattrs = _xattrs(fd)
     h = hashlib.sha256()
     _frame(h, b"mode", b"%o" % (st.st_mode & 0o7777))
-    _frame(h, b"acl", _acl_text(fd))
-    for name, value in _xattrs(fd):
+    _frame(h, b"acl", acl)
+    for name, value in xattrs:
         _frame(h, b"xattr " + name, value)
     _frame(h, b"content", content)
-    return h.hexdigest(), content
+    return {"digest": h.hexdigest(), "content": content, "acl": acl,
+            "xattrs": [name for name, _ in xattrs], "inode": (st.st_dev, st.st_ino)}
+
+
+def fd_reading(fd: int):
+    """One reading of an open file: its digest and its content."""
+    reading = fd_reading_full(fd)
+    return reading["digest"], reading["content"]
+
+
+def inode_of(path: str):
+    """The device and inode at a path, without following a link, or None."""
+    try:
+        st = os.lstat(path)
+    except FileNotFoundError:
+        return None
+    return (st.st_dev, st.st_ino)
 
 
 def path_digest(path: str):
@@ -329,6 +390,7 @@ class Layout:
         self.state = os.path.join(self.home, plan["state"])
         self.backups = os.path.join(self.state, "backups")
         self.rehearsals = os.path.join(self.state, "rehearsals")
+        self.settings = os.path.join(self.state, "settings")
         self.manual = os.path.join(self.home, plan["manual"])
 
     def path(self, rel: str) -> str:
@@ -426,7 +488,7 @@ def now() -> str:
 # --- kept copies ----------------------------------------------------------------
 
 def kept_copy_records(layout: Layout) -> list:
-    """Each kept copy of each complete backup, with its record."""
+    """Each kept copy of each complete backup and settings record, with its record."""
     out = []
     for name in complete_backups(layout):
         stage = os.path.join(layout.backups, name, "stage")
@@ -438,7 +500,23 @@ def kept_copy_records(layout: Layout) -> list:
             body["_copy"] = os.path.join(stage, body["copy"])
             body["_backup"] = name
             out.append(body)
+    for name in settings_records(layout):
+        folder = os.path.join(layout.settings, name)
+        with open(os.path.join(folder, "record.json")) as f:
+            body = json.load(f)
+        body["_copy"] = os.path.join(folder, "copy")
+        body["_backup"] = None
+        body["_live"] = layout.path(body["path"])
+        out.append(body)
     return out
+
+
+def settings_records(layout: Layout) -> list:
+    """The complete settings records, oldest first."""
+    if not os.path.isdir(layout.settings):
+        return []
+    return sorted(n for n in os.listdir(layout.settings) if not n.startswith(".")
+                  and os.path.isfile(os.path.join(layout.settings, n, "record.json")))
 
 
 def merge_digests(copy: str) -> list:
@@ -455,13 +533,20 @@ def merge_digests(copy: str) -> list:
 def is_flagged(record: dict) -> bool:
     """A kept copy is flagged when it holds no recorded content.
 
-    After a merge, the merge's digest is the only recorded content.
+    After a merge, the merge's digest is the only recorded content. A held
+    link holds a kept copy only once another inode replaced it at the path:
+    before that, a write through the link is a write to the live file.
     """
+    if record.get("kind") == "held":
+        if not os.path.lexists(record["_copy"]):
+            return False
+        if inode_of(record["_copy"]) == inode_of(record["_live"]):
+            return False
     digest = path_digest(record["_copy"])
     merges = merge_digests(record["_copy"])
     if merges:
         return digest != merges[-1]
-    return digest not in (record["read"], record["stage"])
+    return digest not in [record[k] for k in ("read", "stage") if k in record]
 
 
 def flagged_copies(layout: Layout) -> list:
@@ -471,7 +556,8 @@ def flagged_copies(layout: Layout) -> list:
 def report_flagged(layout: Layout) -> list:
     flagged = flagged_copies(layout)
     for r in flagged:
-        log(f"flagged: kept copy {r['_copy']} of {r['path']} holds no recorded content")
+        what = "held copy" if r.get("kind") == "held" else "kept copy"
+        log(f"flagged: {what} {r['_copy']} of {r['path']} holds no recorded content")
     return flagged
 
 
@@ -846,12 +932,350 @@ def failed_probe(layout: Layout, backup: Backup, reason: str) -> None:
     raise Stop(f"the inverse ran after a failed probe ({reason}); the native probe passed")
 
 
+# --- the preludes of step 3 -------------------------------------------------------
+
+def new_record_name(label: str) -> str:
+    stamp = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
+    return f"{stamp}-{label}-{secrets.token_hex(3)}"
+
+
+def erase_held_links(layout: Layout) -> None:
+    """Erase each held link whose inode is still at the path.
+
+    Such a link holds no kept copy, because the path still names its inode.
+    A stop or a crash before a command's rename leaves one. A record whose
+    link is gone, or a temporary record with no file, holds nothing either.
+    """
+    if not os.path.isdir(layout.settings):
+        return
+    live = layout.path(CLAUDE_SETTINGS)
+    for name in sorted(os.listdir(layout.settings)):
+        folder = os.path.join(layout.settings, name)
+        if not os.path.isdir(folder) or os.path.islink(folder):
+            continue
+        record = os.path.join(folder, "record.json")
+        body = load_json_file(record)
+        if body is not None and body.get("kind") != "held":
+            continue
+        copy = os.path.join(folder, "copy")
+        if os.path.lexists(copy):
+            if inode_of(copy) != inode_of(live):
+                continue
+            os.unlink(copy)
+        elif body is None and os.listdir(folder):
+            continue
+        if os.path.exists(record):
+            os.unlink(record)
+        try:
+            os.rmdir(folder)
+        except OSError:
+            continue
+        log(f"erased: held link {folder}")
+
+
+def load_json_file(path: str):
+    try:
+        with open(path) as f:
+            body = json.load(f)
+    except (OSError, ValueError):
+        return None
+    return body if isinstance(body, dict) else None
+
+
+def refuse(layout: Layout, prepared: dict, reason: str) -> None:
+    """Item 4 of a prelude: change nothing, and ask the owner."""
+    report_state(find_state(layout, prepared))
+    raise Stop(f"{reason}; stop for classification, and ask the owner")
+
+
+def prelude_exchange(layout: Layout, rel: str, key: list, earlier, new, label: str) -> None:
+    """Change one cell by a settings record, the atomic exchange and the comparison.
+
+    The record holds the digest of what this reading read and of the stage
+    file. It is complete under its own name before the exchange. After the
+    exchange, the stage name holds the kept copy. A difference at the
+    comparison flags that copy, and it is a stop.
+    """
+    path = layout.path(rel)
+    try:
+        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
+    except OSError as e:
+        raise Stop(f"{rel} could not be read: {e.strerror}")
+    os.makedirs(layout.settings, exist_ok=True)
+    name = new_record_name(label)
+    tmp = os.path.join(layout.settings, f".tmp-{name}")
+    try:
+        read_digest, content = fd_reading(fd)
+        obj = parse_json(content)
+        if same(obj, UNREADABLE):
+            raise Stop(f"{rel} is not a JSON object")
+        old = get_cell(obj, key)
+        if not same(old, earlier):
+            raise Stop(f"{rel} {key_name(key)} holds {show(old)}, not {show(earlier)}")
+        set_cell(obj, key, new)
+        hook(layout, f"{label}-read")
+        os.mkdir(tmp, 0o700)
+        stage = os.path.join(tmp, "copy")
+        sfd = os.open(stage, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        try:
+            os.write(sfd, dump_json(obj))
+            os.fsync(sfd)
+            copy_metadata(fd, sfd)
+        finally:
+            os.close(sfd)
+    finally:
+        os.close(fd)
+    record = {"kind": "exchange", "path": rel, "label": label, "key": key,
+              "read": read_digest, "stage": path_digest(stage), "at": now()}
+    with open(os.path.join(tmp, "record.json"), "wb") as f:
+        f.write(dump_json(record))
+        f.flush()
+        os.fsync(f.fileno())
+    folder = os.path.join(layout.settings, name)
+    renamex(tmp, folder, RENAME_EXCL)
+    log(f"record: settings record {folder}")
+    hook(layout, f"{label}-recorded")
+    copy = os.path.join(folder, "copy")
+    try:
+        renamex(copy, path, RENAME_SWAP)
+    except OSError as e:
+        raise Stop(f"{rel}: the exchange failed: {e.strerror}")
+    hook(layout, f"{label}-exchanged")
+    if path_digest(copy) != read_digest:
+        raise Stop(f"the kept copy {copy} of {rel} differs from what the run read; it is flagged")
+    log(f"replaced: {rel} {key_name(key)}: {show(old)} -> {show(new)}")
+    hook(layout, f"{label}-compared")
+
+
+def native_settings(layout: Layout, prepared: dict) -> None:
+    """The native settings: give the Ravel settings the off value as `skills`."""
+    hook(layout, "prelude:native-settings")
+    path = layout.path(RAVEL_SETTINGS)
+    try:
+        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
+    except FileNotFoundError:
+        fd = None
+    except OSError as e:
+        refuse(layout, prepared, f"the native settings could not read {RAVEL_SETTINGS}: {e.strerror}")
+    if fd is None:
+        process_gate(layout, prepared, "the native settings")
+        os.makedirs(layout.settings, exist_ok=True)
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        stage = os.path.join(layout.settings, f".create-{new_record_name('native')}")
+        sfd = os.open(stage, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o644)
+        try:
+            os.write(sfd, dump_json({"skills": OFF}))
+            os.fsync(sfd)
+        finally:
+            os.close(sfd)
+        hook(layout, "native-before-create")
+        try:
+            renamex(stage, path, RENAME_EXCL)
+        except OSError as e:
+            raise Stop(f"the native settings could not create {RAVEL_SETTINGS}: {e.strerror}")
+        log(f"replaced: {RAVEL_SETTINGS} skills: (absent file) -> {show(OFF)}")
+        hook(layout, "native-created")
+        return
+    try:
+        obj = parse_json(fd_reading(fd)[1])
+    finally:
+        os.close(fd)
+    if same(obj, UNREADABLE):
+        refuse(layout, prepared, f"the native settings found {RAVEL_SETTINGS} not a JSON object")
+    value = get_cell(obj, ["skills"])
+    if same(value, OFF):
+        log(f"native settings: {RAVEL_SETTINGS} holds the off value")
+        return
+    if not same(value, ABSENT):
+        refuse(layout, prepared, f"the native settings found skills {show(value)} in {RAVEL_SETTINGS}")
+    process_gate(layout, prepared, "the native settings")
+    prelude_exchange(layout, RAVEL_SETTINGS, ["skills"], ABSENT, OFF, "native")
+
+
+def claude_env(layout: Layout) -> dict:
+    env = command_env(layout, "3")
+    for name in CLAUDE_LOCATION_VARS:
+        env.pop(name, None)
+    env["HOME"] = layout.home
+    return env
+
+
+def run_tool(layout: Layout, argv: list):
+    result = subprocess.run(argv, cwd=layout.home, env=claude_env(layout), capture_output=True, text=True)
+    log(f"command {' '.join(argv)}: exit {result.returncode}")
+    return result
+
+
+def claude_list(layout: Layout, args: list) -> list:
+    result = run_tool(layout, ["claude"] + args)
+    if result.returncode != 0:
+        raise Stop(f"claude {' '.join(args)} failed: {(result.stdout + result.stderr).strip()[-2000:]}")
+    try:
+        rows = json.loads(result.stdout)
+    except ValueError:
+        rows = None
+    if not isinstance(rows, list) or not all(isinstance(r, dict) for r in rows):
+        raise Stop(f"claude {' '.join(args)} printed no JSON list")
+    return rows
+
+
+def marketplace_path(layout: Layout) -> str:
+    result = run_tool(layout, ["brew", "--prefix"])
+    prefix = result.stdout.strip()
+    if result.returncode != 0 or not prefix:
+        raise Stop("brew --prefix failed")
+    return os.path.join(prefix, "opt", "grove")
+
+
+def hooks_state(layout: Layout, expected: str) -> dict:
+    """The hooks plugin: absent, enabled, disabled or other.
+
+    Measured with Claude Code 2.1.319 on 2026-11-07: each row of `claude
+    plugin list --json` holds "id", "scope" and "enabled", and each row of
+    `claude plugin marketplace list --json` holds "name", "source" and the
+    "path" as it was registered. The plugin's cell in settings.json decides
+    whether it is enabled, so a third value there is the other state.
+    """
+    plugins = [r for r in claude_list(layout, ["plugin", "list", "--json"]) if r.get("id") == HOOKS_PLUGIN]
+    markets = [r for r in claude_list(layout, ["plugin", "marketplace", "list", "--json"])
+               if r.get("name") == HOOKS_MARKETPLACE]
+    cell = read_file_cells(layout, {"path": CLAUDE_SETTINGS, "cells": [{"key": HOOKS_KEY}]})[0]
+    registered = (len(markets) == 1 and markets[0].get("source") == "directory"
+                  and markets[0].get("path") == expected)
+    out = {"registered": registered, "cell": cell}
+    if markets and not registered:
+        return dict(out, kind="other", reason=f"{HOOKS_MARKETPLACE} is registered other than at {expected}")
+    if same(cell, UNREADABLE):
+        return dict(out, kind="other", reason=f"{CLAUDE_SETTINGS} is not a readable JSON object")
+    if not plugins:
+        if same(cell, ABSENT) or same(cell, False):
+            return dict(out, kind="absent", reason="the plugin is absent")
+        return dict(out, kind="other", reason=f"the plugin is absent and its cell holds {show(cell)}")
+    row = plugins[0]
+    if len(plugins) > 1 or row.get("scope") != "user" or not registered:
+        return dict(out, kind="other", reason=f"the plugin is installed other than from {expected} for the user")
+    if same(cell, True) and row.get("enabled") is True:
+        return dict(out, kind="enabled", reason="the plugin is installed and enabled")
+    if same(cell, False) and row.get("enabled") is False:
+        return dict(out, kind="disabled", reason="the plugin is installed and disabled")
+    return dict(out, kind="other", reason=f"the plugin's cell holds {show(cell)}")
+
+
+def write_held_record(layout: Layout, label: str):
+    """Step 1 of a command: a settings record with a held link and one reading through it."""
+    path = layout.path(CLAUDE_SETTINGS)
+    try:
+        st = os.lstat(path)
+    except FileNotFoundError:
+        raise Stop(f"{CLAUDE_SETTINGS} is absent, so no held link can keep it")
+    if not stat.S_ISREG(st.st_mode):
+        raise Stop(f"{CLAUDE_SETTINGS} is not a regular file")
+    os.makedirs(layout.settings, exist_ok=True)
+    name = new_record_name(label)
+    tmp = os.path.join(layout.settings, f".tmp-{name}")
+    os.mkdir(tmp, 0o700)
+    held = os.path.join(tmp, "copy")
+    os.link(path, held, follow_symlinks=False)
+    fd = os.open(held, os.O_RDONLY | os.O_NOFOLLOW)
+    try:
+        reading = fd_reading_full(fd)
+    finally:
+        os.close(fd)
+    record = {"kind": "held", "path": CLAUDE_SETTINGS, "label": label, "read": reading["digest"],
+              "inode": list(reading["inode"]), "at": now()}
+    with open(os.path.join(tmp, "record.json"), "wb") as f:
+        f.write(dump_json(record))
+        f.flush()
+        os.fsync(f.fileno())
+    folder = os.path.join(layout.settings, name)
+    renamex(tmp, folder, RENAME_EXCL)
+    log(f"record: held link {folder}")
+    return folder, reading
+
+
+def held_command(layout: Layout, prepared: dict, expected: str, args: list, label: str, needed) -> None:
+    """Run one Claude Code command in the six steps of "Claude Code's own writes"."""
+    hook(layout, f"hooks-before-held:{label}")
+    folder, reading = write_held_record(layout, label)
+    hook(layout, f"hooks-held:{label}")
+    others = [n.decode(errors="replace") for n in reading["xattrs"] if n != PROVENANCE]
+    if reading["acl"] or others:
+        what = "an ACL" if reading["acl"] else "the extended attribute " + ", ".join(others)
+        raise Stop(f"{CLAUDE_SETTINGS} holds {what}, which `claude {' '.join(args)}` would drop")
+    state = hooks_state(layout, expected)
+    if state["kind"] == "other":
+        refuse(layout, prepared, f"the hooks installation found that {state['reason']}")
+    if not needed(state):
+        log(f"hooks installation: `claude {' '.join(args)}` is no longer needed")
+        erase_held_links(layout)
+        return
+    hook(layout, f"hooks-command:{label}")
+    result = run_tool(layout, ["claude"] + args)
+    if result.returncode != 0:
+        raise Stop(f"`claude {' '.join(args)}` failed: {(result.stdout + result.stderr).strip()[-2000:]}")
+    path = layout.path(CLAUDE_SETTINGS)
+    held = os.path.join(folder, "copy")
+    if inode_of(path) == inode_of(held):
+        raise Stop(f"`claude {' '.join(args)}` replaced no inode at {CLAUDE_SETTINGS}, so the held link "
+                   "proves nothing")
+    hook(layout, f"hooks-renamed:{label}")
+    if path_digest(held) != reading["digest"]:
+        raise Stop(f"the held copy {held} of {CLAUDE_SETTINGS} differs from its record; it is flagged")
+    hook(layout, f"hooks-compared:{label}")
+
+
+def hooks_installation(layout: Layout, prepared: dict) -> None:
+    """The hooks installation: install the hooks plugin disabled."""
+    hook(layout, "prelude:hooks-installation")
+    expected = marketplace_path(layout)
+    state = hooks_state(layout, expected)
+    if state["kind"] == "disabled":
+        log(f"hooks installation: {state['reason']}")
+        return
+    if state["kind"] == "other":
+        refuse(layout, prepared, f"the hooks installation found that {state['reason']}")
+    process_gate(layout, prepared, "the hooks installation")
+    if state["kind"] == "absent":
+        if not state["registered"]:
+            held_command(layout, prepared, expected, ["plugin", "marketplace", "add", expected],
+                         "marketplace-add", lambda s: s["kind"] == "absent" and not s["registered"])
+        held_command(layout, prepared, expected, ["plugin", "install", HOOKS_PLUGIN],
+                     "install", lambda s: s["kind"] == "absent" and s["registered"])
+    hook(layout, "hooks-before-disable")
+    cell = read_file_cells(layout, {"path": CLAUDE_SETTINGS, "cells": [{"key": HOOKS_KEY}]})[0]
+    if same(cell, False):
+        log("hooks installation: the plugin's cell already holds false; nothing written")
+        return
+    if not same(cell, True):
+        refuse(layout, prepared, f"the hooks installation found the plugin's cell {show(cell)}")
+    prelude_exchange(layout, CLAUDE_SETTINGS, HOOKS_KEY, True, False, "hooks-disable")
+
+
+def step_3_preludes(layout: Layout, prepared: dict) -> None:
+    """Step 3 up to the state: held links, the run record and the preludes."""
+    erase_held_links(layout)
+    backup = latest_backup(layout)
+    if backup and backup.is_open():
+        log(f"preludes: the run of {backup.id} is open, so no prelude runs")
+        return
+    if not passing_rehearsals(layout):
+        raise Stop("no passing rehearsal record names this program, so no prelude runs")
+    try:
+        native_settings(layout, prepared)
+        hooks_installation(layout, prepared)
+    except Stop:
+        report_flagged(layout)
+        raise
+
+
 # --- the switch -----------------------------------------------------------------
 
-def rehearsed(layout: Layout, plan: dict) -> bool:
+def passing_rehearsals(layout: Layout) -> list:
+    """Each passing rehearsal record that names this program."""
     if not os.path.isdir(layout.rehearsals):
-        return False
-    for name in os.listdir(layout.rehearsals):
+        return []
+    out = []
+    for name in sorted(os.listdir(layout.rehearsals)):
         if not name.endswith(".json"):
             continue
         try:
@@ -859,11 +1283,15 @@ def rehearsed(layout: Layout, plan: dict) -> bool:
                 rec = json.load(f)
         except (OSError, ValueError):
             continue
-        if (rec.get("schema") == REHEARSAL_SCHEMA and rec.get("passed") is True
-                and rec.get("plan_digest") == plan["_digest"]
+        if (isinstance(rec, dict) and rec.get("schema") == REHEARSAL_SCHEMA and rec.get("passed") is True
                 and rec.get("program_digest") == PROGRAM_DIGEST):
-            return True
-    return False
+            out.append(rec)
+    return out
+
+
+def rehearsed(layout: Layout, plan: dict) -> bool:
+    """Step 8: a passing record names the plan and this program."""
+    return any(rec.get("plan_digest") == plan["_digest"] for rec in passing_rehearsals(layout))
 
 
 def write_backup(layout: Layout, plan: dict, evidence: dict) -> Backup:
@@ -990,6 +1418,7 @@ def run_switch(args) -> int:
     log(f"plan: {prepared['_digest']}")
     hook(layout, "start")
     process_gate(layout, prepared, "step 1")
+    step_3_preludes(layout, prepared)
     while True:
         st = find_state(layout, prepared)
         report_state(st)
@@ -1043,6 +1472,15 @@ def dry_run(args) -> int:
     report_state(st)
     report_flagged(layout)
     plan = st["plan"]
+    if st["open"]:
+        log("preludes: none, because a run is open")
+    else:
+        ravel = read_file_cells(layout, {"path": RAVEL_SETTINGS, "cells": [{"key": ["skills"]}]})[0]
+        hooks = read_file_cells(layout, {"path": CLAUDE_SETTINGS, "cells": [{"key": HOOKS_KEY}]})[0]
+        log(f"preludes: the native settings read skills {show(ravel)} and write {show(OFF)} if it is absent")
+        log(f"preludes: the hooks installation reads {key_name(HOOKS_KEY)} {show(hooks)}, installs "
+            f"{HOOKS_PLUGIN} if `claude plugin list` lacks it, and writes false")
+        log(f"preludes: rehearsed program: {'yes' if passing_rehearsals(layout) else 'no'}")
     log("switch, in order:")
     for i, part in enumerate(plan["parts"]):
         if part["kind"] == "file":

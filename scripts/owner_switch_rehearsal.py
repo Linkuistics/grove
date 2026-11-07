@@ -11,15 +11,32 @@ changed.
 
 Usage:
     python3 -I owner_switch_rehearsal.py rehearse --out OUT [--program PATH] [--only REGEX]
+                                                  [--settings-writes]
 
 The record OUT/record.json names the digests of the plan and the program and
-the result of each control. It is a passing rehearsal record of the program
-only when every control passed. OUT/plan.json is the fixture plan.
+the result of each control. For each run of a control, it counts the Claude
+Code commands that the run ran. It is a passing rehearsal record of the
+program only when every control passed. OUT/plan.json is the fixture plan.
+
+Each run finds stub `claude` and `brew` commands first on PATH. The stub
+`claude` keeps its plugin state in the disposable HOME, and it writes
+settings.json as Claude Code 2.1.319 does: one read, then a new file renamed
+onto the path. The point "stub:<command>:read" lies between that read and
+the rename.
+
+--settings-writes also reruns
+docs/evaluations/hooks-installation-writes/settings-writes.sh with the real
+`claude` on PATH, in OUT/settings-writes. The record then names that Claude
+Code version. The rerun passes when `marketplace add` and `plugin install`
+each rename one file onto the path, and when each command's measured
+interval meets the evidence's range of 30 to 38 ms. The interval of a
+command lies between the largest lead at which a race lost the outside write
+and the smallest lead at which the live file kept it.
 
 This slice covers the controls of the switch, the inverse, detection,
-interruptions, entries, step 14, the processes and the rehearsal condition.
-The preludes, the gates of steps 4 to 7, the owner's inverse and the merge
-entry add their controls in later slices.
+interruptions, entries, step 14, the processes, the rehearsal condition and
+the preludes of step 3. The gates of steps 4 to 7, the owner's inverse and
+the merge entry add their controls in later slices.
 """
 from __future__ import annotations
 
@@ -51,8 +68,15 @@ STATE = ".local/state/owner-switch"
 MANUAL = "notes/manual.md"
 OFF = {"schemaVersion": 1, "sources": []}
 SWITCHED = {"schemaVersion": 1, "mandatory": ["superpowers/skills/using-superpowers/SKILL.md"]}
-GROVE_PLUGIN = ["enabledPlugins", "grove@linkuistics"]
-HOOKS_PLUGIN = ["enabledPlugins", "technical-communication-hooks@writing-hooks"]
+SUPERSEDED_PLUGIN = ["enabledPlugins", "grove@linkuistics"]
+HOOKS_ID = "technical-communication-hooks@writing-hooks"
+HOOKS_PLUGIN = ["enabledPlugins", HOOKS_ID]
+PLUGIN_FILES = {
+    ".claude-plugin/plugin.json": '{"name": "technical-communication-hooks"}\n',
+    "hooks/hooks.json": '{"hooks": {}}\n',
+}
+PLUGIN_SOURCE = "skills/writing/craft/technical-communication"
+PLUGIN_CACHE = ".claude/plugins/cache/writing-hooks/technical-communication-hooks/unknown"
 
 
 # --- the fixture layout --------------------------------------------------------
@@ -63,15 +87,41 @@ def write(path: str, text: str) -> None:
         f.write(text)
 
 
-def build_home(home: str) -> None:
-    write(os.path.join(home, ".claude/settings.json"), json.dumps({
-        "enabledPlugins": {"grove@linkuistics": True,
-                           "technical-communication-hooks@writing-hooks": False,
-                           "context7@claude-plugins-official": True},
-        "theme": "dark",
-    }, indent=2) + "\n")
-    write(os.path.join(home, ".config/ravel/settings.json"),
-          json.dumps({"skills": OFF, "policy": "config.rhai"}, indent=2) + "\n")
+def build_prefix(prefix: str) -> str:
+    """A Homebrew prefix whose Grove keg holds the writing-hooks marketplace."""
+    keg = os.path.join(prefix, "Cellar/grove/1")
+    write(os.path.join(keg, ".claude-plugin/marketplace.json"), json.dumps({
+        "name": "writing-hooks", "owner": {"name": "Linkuistics"},
+        "plugins": [{"name": "technical-communication-hooks", "source": "./" + PLUGIN_SOURCE}],
+    }) + "\n")
+    for rel, text in PLUGIN_FILES.items():
+        write(os.path.join(keg, PLUGIN_SOURCE, rel), text)
+    os.makedirs(os.path.join(prefix, "opt"), exist_ok=True)
+    os.symlink("../Cellar/grove/1", os.path.join(prefix, "opt/grove"))
+    return os.path.join(prefix, "opt/grove")
+
+
+def build_home(home: str, marketplace: str, ravel: str = "off", hooks: str = "disabled") -> None:
+    """The fixture HOME. ravel is off, absent-key or absent-file; hooks is
+    disabled, enabled or absent. The defaults are the layout after the preludes."""
+    settings = {"enabledPlugins": {"grove@linkuistics": True, "context7@claude-plugins-official": True},
+                "theme": "dark"}
+    if hooks != "absent":
+        settings["enabledPlugins"][HOOKS_ID] = hooks == "enabled"
+        settings["extraKnownMarketplaces"] = {"writing-hooks": {"source": {"source": "directory",
+                                                                             "path": marketplace}}}
+        save_json(os.path.join(home, ".claude/plugins/known_marketplaces.json"), {"writing-hooks": {
+            "source": {"source": "directory", "path": marketplace}, "installLocation": marketplace}})
+        save_json(os.path.join(home, ".claude/plugins/installed_plugins.json"), {"version": 2, "plugins": {
+            HOOKS_ID: [{"scope": "user", "version": "unknown",
+                        "installPath": os.path.join(home, PLUGIN_CACHE)}]}})
+        for rel, text in PLUGIN_FILES.items():
+            write(os.path.join(home, PLUGIN_CACHE, rel), text)
+    write(os.path.join(home, ".claude/settings.json"), json.dumps(settings, indent=2) + "\n")
+    write(os.path.join(home, ".config/ravel/config.rhai"), "// fixture\n")
+    if ravel != "absent-file":
+        body = {"skills": OFF, "policy": "config.rhai"} if ravel == "off" else {"policy": "config.rhai"}
+        write(os.path.join(home, ".config/ravel/settings.json"), json.dumps(body, indent=2) + "\n")
     write(os.path.join(home, ".claude/skills/grove/SKILL.md"), "---\nname: grove\n---\nThe earlier copy.\n")
     os.makedirs(os.path.join(home, ".codex/skills"), exist_ok=True)
     os.symlink("../../.grove-snapshot/skills/grove", os.path.join(home, ".codex/skills/grove"))
@@ -88,7 +138,7 @@ def build_plan(program: str, out: str) -> str:
     probe = os.path.join(out, "plan-home")
     if os.path.exists(probe):
         shutil.rmtree(probe)
-    build_home(probe)
+    build_home(probe, os.path.join(out, "plan-prefix/opt/grove"))
 
     def ident(rel):
         return subprocess.run([PY, "-I", program, "identity", os.path.join(probe, rel)],
@@ -102,7 +152,7 @@ def build_plan(program: str, out: str) -> str:
             {"kind": "entry", "path": ".claude/skills/grove", "identity": ident(".claude/skills/grove")},
             {"kind": "entry", "path": ".codex/skills/grove", "identity": ident(".codex/skills/grove")},
             {"kind": "file", "path": ".claude/settings.json", "cells": [
-                {"key": GROVE_PLUGIN, "earlier": True, "switched": False},
+                {"key": SUPERSEDED_PLUGIN, "earlier": True, "switched": False},
                 {"key": HOOKS_PLUGIN, "earlier": False, "switched": True},
             ]},
             {"kind": "file", "path": ".config/ravel/settings.json", "cells": [
@@ -112,6 +162,7 @@ def build_plan(program: str, out: str) -> str:
         "outside": [
             {"root": ".codex/skills", "entries": {"codebase-memory": ident(".codex/skills/codebase-memory")}},
             {"root": ".claude/skills", "entries": {}},
+            {"path": ".claude/plugins/cache/writing-hooks", "identity": ident(".claude/plugins/cache/writing-hooks")},
         ],
         "session": {"harness": [HARNESS_MARK], "mcp": []},
         "watch": [WRITER_MARK],
@@ -146,6 +197,10 @@ def load(path: str, default):
 def save(path: str, value) -> None:
     with open(path, "w") as f:
         json.dump(value, f)
+
+
+def save_json(path: str, value) -> None:
+    write(path, json.dumps(value, indent=2) + "\n")
 
 
 def take_failure(root: str, name: str) -> bool:
@@ -296,6 +351,105 @@ def cmd_holder(path: str, slot: str) -> int:
     return 0
 
 
+def cmd_stub_brew(argv: list) -> int:
+    if argv != ["--prefix"]:
+        print(f"stub brew: unsupported {argv}", file=sys.stderr)
+        return 2
+    print(os.path.join(case_root(), "prefix"))
+    return 0
+
+
+def stub_rewrite(home: str, root: str, label: str, mutate) -> int:
+    """Write settings.json as Claude Code does: one read, then a rename onto the path."""
+    path = os.path.join(home, ".claude/settings.json")
+    with open(path, "rb") as f:
+        data = f.read()
+    mode = os.stat(path).st_mode & 0o7777
+    if cmd_hook(f"stub:{label}:read") == 99:
+        return 99
+    obj = json.loads(data.decode())
+    mutate(obj)
+    text = json.dumps(obj, indent=2) + "\n"
+    if label in load(os.path.join(root, "control.json"), {}).get("stub_in_place", []):
+        with open(path, "r+") as f:
+            f.truncate()
+            f.write(text)
+        return 0
+    tmp = f"{path}.tmp.{os.getpid()}.{os.urandom(4).hex()}"
+    with open(tmp, "w") as f:
+        f.write(text)
+    os.chmod(tmp, mode)
+    os.rename(tmp, path)
+    return 0
+
+
+def cmd_stub_claude(argv: list) -> int:
+    """Stand in for the `claude plugin` commands that the hooks installation runs."""
+    home = os.environ["HOME"]
+    if os.path.realpath(home) != os.path.realpath(os.environ.get("OWNER_SWITCH_HOME", "")):
+        print("stub claude: HOME is not the switch's HOME", file=sys.stderr)
+        return 2
+    if any(v in os.environ for v in ("CLAUDE_CONFIG_DIR", "CLAUDE_CODE_PLUGIN_DIRS")):
+        print("stub claude: a Claude Code location variable is set", file=sys.stderr)
+        return 2
+    root = case_root()
+    with open(os.path.join(root, "claude-calls"), "a") as f:
+        f.write(" ".join(argv) + "\n")
+    known_path = os.path.join(home, ".claude/plugins/known_marketplaces.json")
+    installed_path = os.path.join(home, ".claude/plugins/installed_plugins.json")
+    known = load(known_path, {})
+    installed = load(installed_path, {"version": 2, "plugins": {}})
+    settings = load(os.path.join(home, ".claude/settings.json"), {})
+    if argv == ["plugin", "list", "--json"]:
+        rows = [{"id": pid, "version": e["version"], "scope": e["scope"],
+                 "enabled": settings.get("enabledPlugins", {}).get(pid) is True, "installPath": e["installPath"]}
+                for pid, entries in sorted(installed["plugins"].items()) for e in entries]
+        print(json.dumps(rows, indent=2))
+        return 0
+    if argv == ["plugin", "marketplace", "list", "--json"]:
+        rows = [{"name": n, "source": m["source"]["source"], "path": m["source"]["path"],
+                 "installLocation": m["installLocation"]} for n, m in sorted(known.items())]
+        print(json.dumps(rows, indent=2))
+        return 0
+    if argv[:3] == ["plugin", "marketplace", "add"] and len(argv) == 4:
+        if take_failure(root, "claude-marketplace-add"):
+            return 1
+        path = argv[3]
+        name = load(os.path.join(path, ".claude-plugin/marketplace.json"), {})["name"]
+
+        def add(obj):
+            obj.setdefault("extraKnownMarketplaces", {})[name] = {"source": {"source": "directory", "path": path}}
+        code = stub_rewrite(home, root, "marketplace-add", add)
+        if code == 0:
+            known[name] = {"source": {"source": "directory", "path": path}, "installLocation": path}
+            save_json(known_path, known)
+            print(f"Successfully added marketplace: {name}")
+        return code
+    if argv[:2] == ["plugin", "install"] and len(argv) == 3:
+        if take_failure(root, "claude-install"):
+            return 1
+        pid = argv[2]
+        name, market = pid.split("@", 1)
+        if market not in known:
+            print(f"marketplace {market} is not registered", file=sys.stderr)
+            return 1
+        mpath = known[market]["source"]["path"]
+        entry = next(p for p in load(os.path.join(mpath, ".claude-plugin/marketplace.json"), {})["plugins"]
+                     if p["name"] == name)
+        cache = os.path.join(home, f".claude/plugins/cache/{market}/{name}/unknown")
+        if os.path.exists(cache):
+            shutil.rmtree(cache)
+        shutil.copytree(os.path.join(mpath, entry["source"]), cache)
+        installed["plugins"][pid] = [{"scope": "user", "version": "unknown", "installPath": cache}]
+        save_json(installed_path, installed)
+        code = stub_rewrite(home, root, "install", lambda obj: obj.setdefault("enabledPlugins", {}).__setitem__(pid, True))
+        if code == 0:
+            print(f"Successfully installed plugin: {pid}")
+        return code
+    print(f"stub claude: unsupported {argv}", file=sys.stderr)
+    return 2
+
+
 def cmd_harness(root: str, argv: list) -> int:
     """Stand in for the harness process of the session that runs the switch."""
     children = []
@@ -336,18 +490,31 @@ def clean_env() -> dict:
 
 
 class Case:
-    def __init__(self, rehearsal, name: str, control=None, rehearsed=True):
+    def __init__(self, rehearsal, name: str, control=None, rehearsed=True, ravel="off", hooks="disabled"):
         self.r = rehearsal
         self.name = name
         self.root = os.path.join(rehearsal.out, "cases", name)
         if os.path.exists(self.root):
             shutil.rmtree(self.root)
         self.home = os.path.join(self.root, "home")
-        build_home(self.home)
+        self.marketplace = build_prefix(os.path.join(self.root, "prefix"))
+        build_home(self.home, self.marketplace, ravel, hooks)
         self.set_control(control or {})
         if rehearsed:
             self.rehearse_record(rehearsal.plan_digest, rehearsal.program_digest)
         self.outputs = []
+        self.runs = []
+
+    def claude_calls(self) -> list:
+        try:
+            with open(os.path.join(self.root, "claude-calls")) as f:
+                return f.read().splitlines()
+        except FileNotFoundError:
+            return []
+
+    def commands(self, run: int = -1) -> dict:
+        """The Claude Code commands of one run, counted by kind."""
+        return self.runs[run]["claude"]
 
     def rehearse_record(self, plan_digest: str, program_digest: str) -> None:
         folder = os.path.join(self.home, STATE, "rehearsals")
@@ -368,11 +535,22 @@ class Case:
         args = [PY, "-I", program or self.r.program, "run", "--plan", plan or self.r.plan, "--home", self.home]
         if dry:
             args.append("--dry-run")
-        env = dict(clean_env(), OWNER_SWITCH_REHEARSAL_HOOK=self.r.hook)
+        # A Claude Code location variable in the environment must not reach a
+        # command: the stub refuses it, and so does a staging launch.
+        env = dict(clean_env(), OWNER_SWITCH_REHEARSAL_HOOK=self.r.hook,
+                   PATH=self.r.stubs + os.pathsep + os.environ.get("PATH", ""),
+                   CLAUDE_CONFIG_DIR=os.path.join(self.root, "elsewhere"))
+        before = len(self.claude_calls())
         result = subprocess.run([PY, "-I", SELF, "harness", HARNESS_MARK, self.root, "--"] + args,
                                 env=env, capture_output=True, text=True, timeout=300)
         out = result.stdout + result.stderr
         self.outputs.append(out)
+        counts = {}
+        for call in self.claude_calls()[before:]:
+            words = call.split()
+            kind = " ".join(words[:3] if words[1:2] == ["marketplace"] else words[:2])
+            counts[kind] = counts.get(kind, 0) + 1
+        self.runs.append({"exit": result.returncode, "claude": counts})
         with open(os.path.join(self.root, "runs.log"), "a") as f:
             f.write(f"$ run (exit {result.returncode})\n{out}\n")
         return result.returncode, out
@@ -460,6 +638,13 @@ class Rehearsal:
         with open(self.hook, "w") as f:
             f.write(f"#!/bin/sh\nexec '{PY}' -I '{SELF}' hook \"$@\"\n")
         os.chmod(self.hook, 0o755)
+        self.stubs = os.path.join(self.out, "stubs")
+        os.makedirs(self.stubs, exist_ok=True)
+        for name in ("claude", "brew"):
+            stub = os.path.join(self.stubs, name)
+            with open(stub, "w") as f:
+                f.write(f"#!/bin/sh\nexec '{PY}' -I '{SELF}' stub-{name} \"$@\"\n")
+            os.chmod(stub, 0o755)
         self.results = []
 
     def control(self, name: str, fn, **case_args) -> None:
@@ -475,7 +660,7 @@ class Rehearsal:
         finally:
             case.kill()
         self.results.append({"control": name, "passed": ok, "detail": detail,
-                             "seconds": round(time.time() - started, 2)})
+                             "seconds": round(time.time() - started, 2), "runs": case.runs})
         print(f"{'PASS' if ok else 'FAIL'} {name}" + ("" if ok else f": {detail}"), flush=True)
 
 
@@ -664,7 +849,7 @@ def c_acl_denies_exchange(case):
 
 
 def c_third_before(case):
-    write_in_place(os.path.join(case.home, SETTINGS), GROVE_PLUGIN, "other")
+    write_in_place(os.path.join(case.home, SETTINGS), SUPERSEDED_PLUGIN, "other")
     expect_exit(case.run(), 3, "classification")
     expect(case.state()["state"] == "changed", "a third value did not read as changed")
 
@@ -688,7 +873,7 @@ def c_switched_while_open(case):
     case.set_control({"actions": [{"point": "switch-after-part:1", "do": "crash"}]})
     expect_exit(case.run(), 99)
     path = os.path.join(case.home, SETTINGS)
-    write_in_place(path, GROVE_PLUGIN, False)
+    write_in_place(path, SUPERSEDED_PLUGIN, False)
     write_in_place(path, HOOKS_PLUGIN, True)
     out = expect_exit(case.run(), 0, "result: complete")
     first = out.split("record: inverse-ended")[0]
@@ -762,7 +947,7 @@ def c_outside_after_stop(case):
 def c_cell_after_receipt_no_copy(case):
     case.set_control({"actions": [{"point": "step-14", "do": "crash"}]})
     expect_exit(case.run(), 99)
-    write_in_place(os.path.join(case.home, SETTINGS), GROVE_PLUGIN, True)
+    write_in_place(os.path.join(case.home, SETTINGS), SUPERSEDED_PLUGIN, True)
     expect_exit(case.run(), 3, "drifted")
     expect(case.receipts() == 0, "a run copied a receipt for a layout that is not switched")
 
@@ -815,6 +1000,277 @@ def c_prepared_differs(case):
     out = expect_exit(case.run(plan=other), 3, "the prepared plan differs from the open run's plan")
     expect("record: inverse-ended" in out, "the open run's plan did not apply to its inverse")
     expect("no passing rehearsal record" in out, "the unrehearsed prepared plan passed step 8")
+
+
+# --- the preludes of step 3 -------------------------------------------------------
+
+def settings_folder(case) -> str:
+    return os.path.join(case.home, STATE, "settings")
+
+
+def settings_records(case) -> list:
+    folder = settings_folder(case)
+    if not os.path.isdir(folder):
+        return []
+    out = []
+    for name in sorted(os.listdir(folder)):
+        body = load(os.path.join(folder, name, "record.json"), None) if not name.startswith(".") else None
+        if body is not None:
+            body["_copy"] = os.path.join(folder, name, "copy")
+            out.append(body)
+    return out
+
+
+def skills_cell(case):
+    body = case.json(RAVEL)
+    if body is None:
+        return "absent-file"
+    return body.get("skills", "absent-key")
+
+
+def expect_installs(case, run: int, add: int, install: int) -> None:
+    got = case.commands(run)
+    expect(got.get("plugin marketplace add", 0) == add and got.get("plugin install", 0) == install,
+           f"run {run} ran {got}, not {add} registration and {install} installation")
+
+
+def expect_flag_holds(case, text: str = "flagged: ") -> None:
+    """The copy stays flagged: the state reports it, and the next run reports it and stops at step 8."""
+    st = case.state()
+    expect(st["flagged"], "no copy is flagged")
+    expect(st["backup"] is None, "a backup exists before the flagged copy was checked")
+    out = expect_exit(case.run(), 3, "a kept copy is flagged")
+    expect(text in out, f"the next run did not report the flagged copy: {out[-800:]}")
+    expect(case.state()["backup"] is None, "step 8 wrote a backup while a copy is flagged")
+
+
+def c_native_full(case):
+    before = skills_cell(case)
+    out = expect_exit(case.run(), 0, "result: complete")
+    expect("replaced: .config/ravel/settings.json skills: (absent" in out, "the native settings listed no replaced value")
+    records = [r for r in settings_records(case) if r["label"] == "native"]
+    if before == "absent-file":
+        expect(not records, "the creation of an absent file wrote a settings record")
+    else:
+        expect(len(records) == 1, f"expected one settings record, got {len(records)}")
+        expect(case.json(RAVEL)["policy"] == "config.rhai", "the native settings lost another key")
+    st = case.state()
+    expect(st["state"] == "complete" and not st["flagged"], f"unexpected {st['state']} {st['flagged']}")
+    return f"from {before}"
+
+
+def prelude_crash(point: str):
+    def fn(case):
+        case.set_control({"actions": [{"point": point, "do": "crash"}]})
+        expect_exit(case.run(), 99)
+        middle = skills_cell(case)
+        expect(middle in ("absent-file", "absent-key", OFF), f"the crash left skills {middle}")
+        out = expect_exit(case.run(), 0, "result: complete")
+        expect("state: native" in out, "the next run did not reach the native state")
+        expect(not case.state()["flagged"], "a crash flagged a copy")
+        return f"after the crash: skills {middle}, hooks {case.json(SETTINGS)['enabledPlugins'].get(HOOKS_ID, 'absent')}"
+    return fn
+
+
+def c_native_write_before_exchange(case):
+    case.set_control({"actions": [{"point": "native-read", "do": "write-key", "path": RAVEL,
+                                   "key": ["fault"], "value": 1}]})
+    expect_exit(case.run(), 3, "it is flagged")
+    expect("fault" not in case.json(RAVEL), "the outside write before the exchange is in the live file")
+    expect_flag_holds(case, "flagged: kept copy")
+
+
+def c_native_write_then_crash(case):
+    case.set_control({"actions": [{"point": "native-read", "do": "write-key", "path": RAVEL,
+                                   "key": ["fault"], "value": 1},
+                                  {"point": "native-exchanged", "do": "crash"}]})
+    expect_exit(case.run(), 99)
+    expect_flag_holds(case, "flagged: kept copy")
+
+
+def c_native_descriptor(case):
+    case.set_control({"actions": [{"point": "native-read", "do": "open-fd", "path": RAVEL, "slot": "a"},
+                                  {"point": "native-compared", "do": "fd-write", "slot": "a",
+                                   "key": ["fault"], "value": 1}]})
+    expect_exit(case.run(), 3, "a kept copy is flagged")
+    expect("fault" not in case.json(RAVEL), "the descriptor write reached the live file")
+    expect_flag_holds(case, "flagged: kept copy")
+
+
+def c_native_third(case):
+    write_in_place(os.path.join(case.home, RAVEL), ["skills"], {"other": True})
+    before = case.snapshot()
+    out = expect_exit(case.run(), 3, "classification")
+    expect("state: changed" in out and case.state()["state"] == "changed", "a third skills value did not read as changed")
+    expect(case.snapshot() == before, "the native settings changed a third value")
+    write_in_place(os.path.join(case.home, RAVEL), ["skills"], OFF)
+    out = expect_exit(case.run(), 0, "result: complete")
+    expect("state: native" in out, "the restored off value did not read as native")
+
+
+def c_native_erased_after_inverse(case):
+    case.set_control({"fail": {"probe-switched": 1}})
+    expect_exit(case.run(), 3, "the native probe passed")
+    write_in_place(os.path.join(case.home, RAVEL), ["skills"], None)
+    out = expect_exit(case.run(), 0, "result: complete")
+    expect("replaced: .config/ravel/settings.json skills: (absent) -> " in out, "the replaced value was not listed")
+    expect("state: native" in out, "the next run did not find the native state")
+
+
+def prelude_writer(point: str, interval: str):
+    def fn(case):
+        case.set_control({"actions": [{"point": point, "do": "spawn-writer"}]})
+        before = case.snapshot()
+        expect_exit(case.run(), 3, f"before {interval}")
+        expect(case.snapshot() == before, f"a write ran inside the closed interval of {interval}")
+        case.kill()
+        run_to_complete(case)
+    return fn
+
+
+def c_hooks_full(case):
+    run_to_complete(case)
+    expect_installs(case, 0, 1, 1)
+    held = [r for r in settings_records(case) if r["kind"] == "held"]
+    expect(sorted(r["label"] for r in held) == ["install", "marketplace-add"], f"held records {held}")
+    expect(all(os.path.exists(r["_copy"]) for r in held), "a held copy of a command is gone")
+    expect(len([r for r in settings_records(case) if r["label"] == "hooks-disable"]) == 1,
+           "the disabling wrote no settings record")
+    return f"commands {case.commands(0)}"
+
+
+def c_hooks_after_registration(case):
+    case.set_control({"actions": [{"point": "hooks-before-held:install", "do": "crash"}]})
+    expect_exit(case.run(), 99)
+    expect_installs(case, 0, 1, 0)
+    out = expect_exit(case.run(), 0, "result: complete")
+    expect("state: native" in out, "the next run did not reach the native state")
+    expect_installs(case, 1, 0, 1)
+
+
+def c_hooks_held_crash(label: str):
+    def fn(case):
+        case.set_control({"actions": [{"point": f"hooks-held:{label}", "do": "crash"}]})
+        expect_exit(case.run(), 99)
+        expect_installs(case, 0, 1 if label == "install" else 0, 0)
+        out = expect_exit(case.run(), 0, "result: complete")
+        expect("erased: held link" in out, "the next run did not erase the held link")
+        expect("state: native" in out, "the next run did not reach the native state")
+        expect_installs(case, 1, 0 if label == "install" else 1, 1)
+        expect(not case.state()["flagged"], "an erased held link left a flagged copy")
+    return fn
+
+
+def c_hooks_write_in_interval(case):
+    case.set_control({"actions": [{"point": "stub:install:read", "do": "write-key", "path": SETTINGS,
+                                   "key": ["fault"], "value": 1}]})
+    expect_exit(case.run(), 3, "differs from its record; it is flagged")
+    expect("fault" not in case.json(SETTINGS), "the write inside the interval is in the live file")
+    expect_flag_holds(case, "flagged: held copy")
+
+
+def c_hooks_descriptor(case):
+    case.set_control({"actions": [{"point": "hooks-held:install", "do": "open-fd", "path": SETTINGS, "slot": "a"},
+                                  {"point": "hooks-compared:install", "do": "fd-write", "slot": "a",
+                                   "key": ["fault"], "value": 1}]})
+    expect_exit(case.run(), 3, "a kept copy is flagged")
+    expect("fault" not in case.json(SETTINGS), "the descriptor write reached the live file")
+    expect_flag_holds(case, "flagged: held copy")
+
+
+def c_hooks_third_before_held(case):
+    case.set_control({"actions": [{"point": "hooks-before-held:marketplace-add", "do": "write-key",
+                                   "path": SETTINGS, "key": HOOKS_PLUGIN, "value": "other"}]})
+    expect_exit(case.run(), 3, "classification")
+    expect_installs(case, 0, 0, 0)
+
+
+def hooks_metadata(do: str, when: str):
+    def fn(case):
+        path = os.path.join(case.home, SETTINGS)
+        if when == "initial":
+            if do == "xattr":
+                subprocess.run(["/usr/bin/xattr", "-w", "user.fault", "1", path], check=True)
+            else:
+                subprocess.run(["/bin/chmod", "+a", "everyone allow read", path], check=True)
+        else:
+            point = "hooks-before-held:marketplace-add" if when == "before-held" else "hooks-held:install"
+            case.set_control({"actions": [{"point": point, "do": do, "path": SETTINGS}]})
+        if when == "after-reading":
+            expect_exit(case.run(), 3, "differs from its record; it is flagged")
+            expect_flag_holds(case, "flagged: held copy")
+            return
+        expect_exit(case.run(), 3, "would drop")
+        expect_installs(case, 0, 0, 0)
+    return fn
+
+
+def c_hooks_in_place(case):
+    case.set_control({"stub_in_place": ["install"]})
+    expect_exit(case.run(), 3, "replaced no inode")
+    case.set_control({})
+    out = expect_exit(case.run(), 0, "result: complete")
+    expect("erased: held link" in out, "the next run did not erase the held link")
+    expect_installs(case, 1, 0, 0)
+
+
+def c_hooks_command_fails(case):
+    case.set_control({"fail": {"claude-install": 1}})
+    expect_exit(case.run(), 3, "failed")
+    expect(case.json(SETTINGS)["enabledPlugins"].get(HOOKS_ID) is None, "a failed command changed the cell")
+    run_to_complete(case)
+    expect_installs(case, 1, 0, 1)
+
+
+def hooks_disable_fault(do: str, when: str):
+    def fn(case):
+        if do == "descriptor":
+            actions = [{"point": "hooks-disable-read", "do": "open-fd", "path": SETTINGS, "slot": "a"},
+                       {"point": "hooks-disable-compared", "do": "fd-write", "slot": "a",
+                        "key": ["fault"], "value": 1}]
+        else:
+            point = "hooks-disable-read" if when == "before" else "hooks-disable-compared"
+            actions = [{"point": point, "do": do, "path": SETTINGS,
+                        "key": ["theme"] if do == "erase-key" else ["fault"], "value": 1}]
+        case.set_control({"actions": actions})
+        got = case.run()
+        if when == "after":
+            expect(got[0] == 0, f"the switch did not complete: {got[1][-800:]}")
+            expect(case.json(SETTINGS).get("fault") == 1, "the write after the exchange is not in the live file")
+            expect(not case.state()["flagged"], "a write after the exchange flagged a copy")
+            return
+        expect(got[0] == 3, f"expected a stop: {got[1][-800:]}")
+        live = case.json(SETTINGS)
+        expect("fault" not in live and "theme" in live, "the outside write reached the live file")
+        expect_flag_holds(case, "flagged: kept copy")
+    return fn
+
+
+def open_run_no_prelude(point: str, state: str):
+    def fn(case):
+        case.set_control({"actions": [{"point": point, "do": "crash"}]})
+        expect_exit(case.run(), 99)
+        expect(case.state()["state"] == state, f"the crash did not leave the {state} state")
+        mark = len(case.points())
+        out = expect_exit(case.run(), 0, "result: complete")
+        expect("no prelude runs" in out, "the next run did not say that no prelude runs")
+        expect(not [p for p in case.points()[mark:] if p.startswith("prelude:")], "a prelude ran while a run was open")
+        expect(case.commands(1) == {}, f"the next run ran Claude Code commands {case.commands(1)}")
+    return fn
+
+
+def c_prelude_unrehearsed(case):
+    before = case.snapshot()
+    expect_exit(case.run(), 3, "so no prelude runs")
+    expect(case.snapshot() == before, "an unrehearsed program changed the layout")
+    expect(case.commands(0) == {}, f"an unrehearsed program ran {case.commands(0)}")
+
+
+def c_prelude_other_plan(case):
+    case.rehearse_record("0" * 64, case.r.program_digest)
+    out = expect_exit(case.run(), 3, "no passing rehearsal record names the prepared plan")
+    expect(skills_cell(case) == OFF, "a record that names the program did not admit the preludes")
+    expect("replaced: .config/ravel/settings.json" in out, "the native settings did not run")
 
 
 def all_controls(r: Rehearsal) -> list:
@@ -889,6 +1345,63 @@ def all_controls(r: Rehearsal) -> list:
         ("job-before-run", c_job, {}),
         ("prepared-plan-differs", c_prepared_differs, {}),
     ]
+    controls += prelude_controls()
+    return controls
+
+
+def prelude_controls() -> list:
+    no_file, no_key, no_hooks = {"ravel": "absent-file"}, {"ravel": "absent-key"}, {"hooks": "absent"}
+    controls = [
+        ("native-absent-file", c_native_full, no_file),
+        ("native-absent-key", c_native_full, no_key),
+        ("native-and-hooks", c_native_full, dict(no_key, **no_hooks)),
+    ]
+    for pt in ("prelude:native-settings", "gate:the native settings", "native-before-create", "native-created"):
+        controls.append((f"native-absent-file-crash-{pt}", prelude_crash(pt), no_file))
+    for pt in ("prelude:native-settings", "gate:the native settings", "native-read", "native-recorded",
+               "native-exchanged", "native-compared"):
+        controls.append((f"native-absent-key-crash-{pt}", prelude_crash(pt), no_key))
+    controls += [
+        ("native-write-before-exchange", c_native_write_before_exchange, no_key),
+        ("native-write-then-crash-before-comparison", c_native_write_then_crash, no_key),
+        ("native-descriptor-after-comparison", c_native_descriptor, no_key),
+        ("native-third-value", c_native_third, {}),
+        ("native-erased-after-inverse", c_native_erased_after_inverse, {}),
+        ("native-writer-later", prelude_writer("prelude:native-settings", "the native settings"), no_key),
+        ("hooks-absent", c_hooks_full, no_hooks),
+        ("hooks-crash-between-preludes", prelude_crash("prelude:hooks-installation"), dict(no_key, **no_hooks)),
+    ]
+    for label in ("marketplace-add", "install"):
+        for pt in ("command", "renamed", "compared"):
+            controls.append((f"hooks-crash-hooks-{pt}:{label}", prelude_crash(f"hooks-{pt}:{label}"), no_hooks))
+        controls.append((f"hooks-crash-held-link:{label}", c_hooks_held_crash(label), no_hooks))
+    for pt in ("gate:the hooks installation", "hooks-before-held:marketplace-add", "hooks-before-disable",
+               "hooks-disable-read", "hooks-disable-recorded", "hooks-disable-exchanged", "hooks-disable-compared"):
+        controls.append((f"hooks-crash-{pt}", prelude_crash(pt), no_hooks))
+    controls += [
+        ("hooks-crash-after-registration", c_hooks_after_registration, no_hooks),
+        ("hooks-write-inside-interval", c_hooks_write_in_interval, no_hooks),
+        ("hooks-descriptor-after-comparison", c_hooks_descriptor, no_hooks),
+        ("hooks-third-value-before-held-link", c_hooks_third_before_held, no_hooks),
+        ("hooks-command-in-place", c_hooks_in_place, no_hooks),
+        ("hooks-command-fails", c_hooks_command_fails, no_hooks),
+        ("hooks-writer-later", prelude_writer("prelude:hooks-installation", "the hooks installation"), no_hooks),
+    ]
+    for do in ("xattr", "acl"):
+        for when in ("initial", "before-held", "after-reading"):
+            controls.append((f"hooks-{do}-{when}", hooks_metadata(do, when), no_hooks))
+    enabled = {"hooks": "enabled"}
+    controls += [
+        ("hooks-enabled", run_to_complete, enabled),
+        ("hooks-disable-write-before-exchange", hooks_disable_fault("write-key", "before"), enabled),
+        ("hooks-disable-erase-before-exchange", hooks_disable_fault("erase-key", "before"), enabled),
+        ("hooks-disable-write-after-exchange", hooks_disable_fault("write-key", "after"), enabled),
+        ("hooks-disable-descriptor", hooks_disable_fault("descriptor", "before"), enabled),
+        ("open-run-no-prelude-active", open_run_no_prelude("switch-after-part:3", "active"), {}),
+        ("open-run-no-prelude-complete", open_run_no_prelude("step-14", "complete"), {}),
+        ("prelude-rehearsal-missing", c_prelude_unrehearsed, dict(no_key, rehearsed=False, **no_hooks)),
+        ("prelude-rehearsal-other-plan", c_prelude_other_plan, dict(no_key, rehearsed=False)),
+    ]
     return controls
 
 
@@ -898,7 +1411,10 @@ def cmd_rehearse(args) -> int:
         if args.only and not re.search(args.only, name):
             continue
         r.control(name, fn, **kw)
-    passed = all(x["passed"] for x in r.results) and not args.only
+    rerun = settings_writes(r.out) if args.settings_writes else None
+    controls_passed = all(x["passed"] for x in r.results)
+    rerun_passed = rerun is None or rerun["passed"]
+    passed = controls_passed and rerun_passed and not args.only
     record = {
         "schema": "owner-switch-rehearsal/1",
         "passed": passed,
@@ -907,11 +1423,73 @@ def cmd_rehearse(args) -> int:
         "python": platform.python_version(), "macos": platform.mac_ver()[0],
         "controls": len(r.results), "failed": [x["control"] for x in r.results if not x["passed"]],
         "results": r.results,
+        "settings_writes": rerun,
         "partial": bool(args.only),
     }
     save(os.path.join(r.out, "record.json"), record)
     print(f"{len(r.results) - len(record['failed'])}/{len(r.results)} controls passed; record {r.out}/record.json")
-    return 0 if all(x["passed"] for x in r.results) else 1
+    if rerun is not None:
+        print(f"settings-writes.sh rerun with claude {rerun['claude_version']}: "
+              f"{'passed' if rerun['passed'] else 'FAILED: ' + rerun['detail']}")
+    return 0 if controls_passed and rerun_passed else 1
+
+
+SETTINGS_WRITES = os.path.join(HERE, "..", "docs/evaluations/hooks-installation-writes/settings-writes.sh")
+# docs/homebrew-skill-delivery-evidence.md, "The interval between the read and
+# the rename": each command made its write from a read 30 to 38 ms before
+# its rename.
+EVIDENCE_RANGE_MS = (30.0, 38.0)
+
+
+def settings_writes(out: str) -> dict:
+    """Rerun settings-writes.sh with the real claude, and check its write method."""
+    work = os.path.join(out, "settings-writes")
+    if os.path.exists(work):
+        shutil.rmtree(work)
+    scratch = os.path.join(work, "scratch")
+    os.makedirs(scratch)
+    script = os.path.realpath(SETTINGS_WRITES)
+    # The script's shebang finds bash on PATH. The system's bash 3.2 expands
+    # braces inside a quoted command substitution, which breaks its jq filters.
+    result = subprocess.run([script, scratch], capture_output=True, text=True, env=clean_env(), timeout=7200)
+    text = result.stdout + result.stderr
+    with open(os.path.join(work, "output.md"), "w") as f:
+        f.write(text)
+    version = re.search(r"^claude (.+?) sha256 (\w+)$", text, re.M)
+    renames = {m.group(1): int(m.group(2)) for m in
+               re.finditer(r"^### (marketplace add|plugin install|plugin disable):.*?\n.*?"
+                           r"^renames onto the path: (\d+)$", text, re.M | re.S)}
+    races = {}
+    for m in re.finditer(r"^(add|install|disable)\.(inplace|rename)\s+runs \d+ .*? missing from live at leads "
+                         r"([\d.]+)\.\.([\d.]+) ms, in live at leads from ([\d.]+) ms$", text, re.M):
+        races.setdefault(m.group(1), []).append((float(m.group(4)), float(m.group(5))))
+    intervals = {cmd: {"from_ms": max(lost for lost, _ in rows), "to_ms": min(kept for _, kept in rows)}
+                 for cmd, rows in races.items()}
+    # The criterion reads the measured sections, not the exit status. The
+    # script's last section starts codebase-memory-mcp in the scratch HOME,
+    # and that server refuses to start while an account daemon serves another
+    # cache directory. A section that did not run leaves its result absent.
+    problems = []
+    if not version:
+        problems.append("the output names no Claude Code version")
+    for label in ("marketplace add", "plugin install"):
+        if renames.get(label) != 1:
+            problems.append(f"{label} renamed {renames.get(label)} files onto the path, not 1")
+    low, high = EVIDENCE_RANGE_MS
+    for cmd in ("add", "install"):
+        iv = intervals.get(cmd)
+        if iv is None:
+            problems.append(f"no race result for {cmd}")
+        elif iv["from_ms"] > high or iv["to_ms"] < low:
+            problems.append(f"the interval of {cmd}, {iv['from_ms']} to {iv['to_ms']} ms, misses {low} to {high} ms")
+    return {
+        "passed": not problems, "detail": "; ".join(problems) or "passed",
+        "claude_version": version.group(1) if version else None,
+        "claude_sha256_prefix": version.group(2) if version else None,
+        "script_digest": digest_file(script), "script_exit": result.returncode,
+        "renames": renames, "intervals_ms": intervals,
+        "output": os.path.join(work, "output.md"),
+    }
 
 
 def main() -> int:
@@ -921,6 +1499,10 @@ def main() -> int:
         return cmd_hook(sys.argv[2])
     if len(sys.argv) > 1 and sys.argv[1] == "holder":
         return cmd_holder(sys.argv[2], sys.argv[3])
+    if len(sys.argv) > 1 and sys.argv[1] == "stub-claude":
+        return cmd_stub_claude(sys.argv[2:])
+    if len(sys.argv) > 1 and sys.argv[1] == "stub-brew":
+        return cmd_stub_brew(sys.argv[2:])
     if len(sys.argv) > 1 and sys.argv[1] == "harness":
         sep = sys.argv.index("--")
         return cmd_harness(sys.argv[3], sys.argv[sep + 1:])
@@ -930,6 +1512,8 @@ def main() -> int:
     p.add_argument("--out", required=True)
     p.add_argument("--program", default=os.path.join(HERE, "owner_switch.py"))
     p.add_argument("--only", help="run only the controls whose name matches; the record is then partial")
+    p.add_argument("--settings-writes", action="store_true",
+                   help="also rerun settings-writes.sh with the real claude, and name its version in the record")
     args = parser.parse_args()
     return cmd_rehearse(args)
 

@@ -389,6 +389,20 @@ tasks:
     cmds:
       - python3 -I docs/evaluations/owner-skill-delivery/controls.py
 
+  # The owner's Rhai configuration against the policy.ts that it converts
+  # ("Policy conversion" of docs/owner-skill-delivery-evidence.md). OUT is a
+  # new directory. TS and RHAI replace the default inputs, the owner's
+  # policy.ts and the committed candidate. The task needs the accepted 2.0
+  # archive in target/ravel-archives-2.0 and the Ravel 1.1.0 keg. Each case
+  # launches only fake agents. For example:
+  #   task owner:policy-equivalence OUT="$SCRATCH/equivalence"
+  owner:policy-equivalence:
+    desc: Compare the owner's config.rhai under the accepted Ravel 2.0 build with policy.ts under the 1.1.0 keg, per kind and directory, with fake agents, and write OUT/record.json
+    requires:
+      vars: [OUT]
+    cmds:
+      - python3 -I docs/evaluations/owner-skill-delivery/policy_equivalence.py --out "{{.OUT}}" {{if .TS}}--ts "{{.TS}}"{{end}} {{if .RHAI}}--rhai "{{.RHAI}}"{{end}}
+
   # The candidate keg of the staging trials ("Skill formulae" and "Cutover
   # contract" of docs/specs/owner-skill-delivery.md). COMMIT names the
   # candidate, OUT a new directory outside every working copy and

@@ -1277,3 +1277,90 @@ version that a live reader uses registered and current. The executable is
 the only source for the check, and a later version can change it. This
 section does not change the design. `owner-cleanup-reader-check-k256`
 reconciles it.
+
+## Policy conversion
+
+`owner-policy-conversion-k245` converted the owner's Ravel policy to Rhai on
+2026-11-07. This is order 4 of the
+[cutover contract](specs/owner-skill-delivery.md). The owner approved the
+candidate. The leaf then copied it to `~/.config/ravel/config.rhai`, beside
+the unchanged `policy.ts`. No `settings.json` existed before or after the
+copy, and the leaf wrote none.
+
+| File | SHA-256 |
+| --- | --- |
+| `~/.config/ravel/policy.ts`, modified 2026-11-07 19:34 | `30a0e5fca7c1446999bd19289566fc078053a503c75f03ca7056e641f836f131` |
+| `~/.config/ravel/config.rhai`, and the committed candidate [`owner-config.rhai`](evaluations/owner-skill-delivery/owner-config.rhai) | `bbde65efccbfd09e8ac84ab41e1322d35fa31b9726b8451466ce873dd22f88d8` |
+| Ravel 1.1.0 keg, `bin/ravel` | `c52f990b2059c8bbe8efba10a741d3a0311000ac1712d71e882638f54c3ac1ed` |
+| Accepted 2.0 build, `bin/ravel` from `target/ravel-archives-2.0` | `3a9a9129573e4d827a317f6b793ba990044080a31a7b667b64cc153a2f974a0b` |
+
+The 2.0 notice reports build identity `58d479ed…`, which
+`scripts/harness-trials/builds.json` names.
+
+### The translation
+
+The Rhai file keeps the routing table, both argument shapes and the
+jj-workspace grant. `VERSION` is `harness-dispatch 3`. The conversion needs
+no host capability that the accepted build lacks.
+
+`ravel::read_text` replaces `statSync` and `readFileSync`. A missing `.jj/repo` gives `source_missing`, and a directory
+gives `source_not_regular`. Both give no grant, as in `policy.ts`.
+`ravel::path_resolve` and `ravel::path_parent` replace Node's `resolve` and
+`dirname`.
+
+The conversion adds no read grant for skill snapshots. Such a grant changes
+the argument vectors when skill delivery is on.
+`owner-staging-discovery-k249` measures whether Claude Code needs one.
+
+Two edge cases differ by design. A `.jj/repo` that is not UTF-8 refuses under
+Rhai, and Node decoded it with replacement characters. The refusal of an
+unreadable `.jj/repo` carries the host's own error text.
+
+### The equivalence run
+
+`task owner:policy-equivalence OUT=<new directory>` runs
+[`policy_equivalence.py`](evaluations/owner-skill-delivery/policy_equivalence.py).
+Each build has its own private HOME, which holds only its own file. The PATH
+holds fake `claude` and `codex` programs that record their arguments. No real
+harness runs. The prompt holds quotes, a leading `--help`, a dollar sign and
+non-ASCII characters.
+
+The cases are each of the 24 kinds of `policy.ts` in five directories, and
+three refusals. The directories are a plain directory, a primary jj workspace,
+a secondary workspace that jj created, and two hand-written secondary
+workspaces. One of these names its store by an absolute path. The other uses
+a relative path with surrounding whitespace. The refusals are a kind that the
+policy does not list, a whitespace-only `.jj/repo` and an unreadable one.
+
+| Run | Rhai input | Result |
+| --- | --- | --- |
+| Candidate | `owner-config.rhai` | 123 passed, 0 failed |
+| Installed copy | `~/.config/ravel/config.rhai` | 123 passed, 0 failed |
+| Control: `copy-edit` at `medium` | Mutated copy | Only the five `copy-edit` rows failed |
+| Control: grant one level too deep | Mutated copy | Only the 72 secondary-workspace rows failed |
+
+In each routed case, both builds launched the same program with the same
+argument vector. They reported the same provider, model, effort and reason.
+In each refusal case, both refused with exit status 3, the same code and the
+same remedy. Each refusal message was equal, except for the unreadable store.
+
+A further check copied the real `~/.config/ravel` with both files into a
+private HOME. There the 1.1.0 keg evaluated `policy.ts`, and the 2.0 build
+evaluated `config.rhai`.
+
+### Obligations that remain
+
+A later change to `policy.ts` needs a new conversion and a new equivalence
+run before the switch. The digest of `policy.ts` in the table above
+identifies the converted version. Compare it with the live file before the
+switch.
+
+After this driver's reap, the owner does these steps:
+
+- Remove `~/.config/ravel/policy.ts` when no 1.1 launch remains.
+- Remove the inactive 1.1.0 keg with `brew cleanup ravel`, outside the
+  finish session of its last driver.
+- Write any new settings keys, which Ravel 1.1.0 refuses as
+  `settings_invalid`. These can be the `harnesses` entries for Claude Code and
+  Codex. The owner sets no `policyEnv`, so no `configEnv` conversion is
+  necessary.

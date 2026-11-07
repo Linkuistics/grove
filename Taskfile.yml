@@ -403,6 +403,18 @@ tasks:
     cmds:
       - bash scripts/candidate-keg.sh "{{.COMMIT}}" "{{.OUT}}" "{{.RAVEL_2_0_PREFIX}}" {{if .ACCEPTED}}"{{.ACCEPTED}}"{{end}}
 
+  # The owner switch program ("The switch inside finish" and "The rehearsed
+  # plan" of docs/specs/owner-skill-delivery.md). OUT is a new directory
+  # outside every working copy. ONLY limits the controls to the names that
+  # match a regular expression, and the record is then partial. For example:
+  #   task owner:switch:rehearse OUT="$SCRATCH/rehearsal"
+  owner:switch:rehearse:
+    desc: Rehearse scripts/owner_switch.py on a fixture plan in disposable layouts, and write OUT/record.json with the plan, the program and each control's result
+    requires:
+      vars: [OUT]
+    cmds:
+      - python3 -I scripts/owner_switch_rehearsal.py rehearse --out "{{.OUT}}" {{if .ONLY}}--only "{{.ONLY}}"{{end}}
+
   model:owner-switch:
     desc: Run every claim of the Quint model of the owner switch's recovery (SAMPLES, STEPS and SWEEP adjust the run)
     cmds:

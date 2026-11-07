@@ -1,4 +1,4 @@
-# owner-switch-program-k91
+# owner-switch-program-k91 — brief
 
 ## Goal
 
@@ -61,3 +61,34 @@ merge entry and the `mac-check` report belong to owner-switch-entries-k92.
 This leaf can decompose if the program and its controls do not fit one
 session. The recovery mechanism has no executable test yet, so earn a
 `review-impl` at this leaf's boundary.
+
+## Decisions (running log)
+
+**Base.** On 2026-11-07 this checkout was at `27723524f90`, the commit of
+moves-handoff-k187.
+
+**Language and location.** The program is one Python file,
+`scripts/owner_switch.py`, which uses only the standard library. The
+repository's other transition tools have the same form, such as
+`scripts/legacy_driver_transition.py`. One file makes the copy in each backup
+exact. Python reaches `renamex_np`, `acl_get_fd_np`, `fcopyfile` and the
+extended-attribute calls through `ctypes`.
+
+The code runs on Python
+3.9 and later, so the system interpreter of the Command Line Tools can run it
+outside every Grove workspace. The owner's run uses a copy of the file whose
+digest a passing rehearsal record names.
+
+**Decomposition.** The program, both preludes and every control do not fit
+one session. Three vertical slices follow, each with its own rehearsal
+controls:
+
+1. owner-switch-core: the plan, the six states, the parts and kept copies.
+   It also holds the backups, the run record, the inverse and the process
+   gate. Step 14, the dry run and the rehearsal task belong to it too. Steps 4 to 7, 10
+   and 11 run the commands that the plan names.
+2. owner-switch-preludes: the gate of step 3, the native settings, the hooks
+   installation with its held links, and their controls.
+3. owner-switch-gates: the concrete checks of steps 4 to 7, which the plan
+   then names, and their source controls. The last slice cuts the
+   `review-impl` of the whole program.

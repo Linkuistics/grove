@@ -1246,6 +1246,10 @@ A changed plan or a changed program needs a new rehearsal. The design keeps
 no reuse by kind of change, because a record of digests cannot decide such a
 reuse. A rehearsal is a reproducible task in disposable layouts.
 
+The program is `scripts/owner_switch.py`. Its docstring states the plan's
+format and the rehearsal record that step 8 reads. `task
+owner:switch:rehearse` rehearses it on a fixture plan.
+
 The same rule binds finish and the owner's run after finish. Inside finish, a
 plan without a passing record ends finish without success, because the
 [finish decision](../adr/finish-promotes-after-the-grove-release.md) lets

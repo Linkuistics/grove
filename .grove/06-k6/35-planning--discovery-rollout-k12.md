@@ -57,6 +57,15 @@ the finish sentinel.
 Consume the "Owner-delivery handoff" of the parent brief for the digest,
 tree-ID and recovery-table obligations.
 
+The simplified switch design governs the finish handoff. The handoff names
+the owner's checklist with its pause and resume instructions, the input
+comparison, the plan, the tools and the recovery commands. It names
+`native-off` right after promotion, which needs no switch backup. It also
+names the explicit attempt instructions, owner operation after finish, the
+drift refusal and the append-only manual. Keep the coordinated publication
+order and the original ending command. No old instruction about an inverse,
+a merge, a pending record or a resumed run may reach finish.
+
 A request to plan is not the finish confirmation. The finish session proposes
 the concrete whole sequence and obtains its one explicit confirmation under
 the repository rules. Do not ask again for already authorised individual moves.

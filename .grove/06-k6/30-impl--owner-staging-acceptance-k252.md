@@ -33,6 +33,12 @@ owner-pack-checkouts-k93 read, and close order 5 of the cutover contract.
   withdrew it.
 - The staging HOME and the candidate keg still exist, and each source still
   gives its accepted digest.
+- The record holds the staging inventory from the corrected instrument and
+  the quiet-session result of owner-staging-hooks-k251. A failed
+  quiet-session result blocks acceptance until the owner resolves the
+  writer.
+- The record requires no rehearsal record or other admission token. The
+  dry run of owner-switch-rehearsal-k255 reads these accepted values.
 
 ## Notes
 

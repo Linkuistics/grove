@@ -3,7 +3,8 @@
 ## Goal
 
 Freeze automatic plugin updates for every plugin that finish can load, and
-hold Claude Code's version from the rehearsal to the switch.
+hold Claude Code's version from the dry run to the switch. Write the pause
+and resume instructions of the owner's checklist.
 
 ## Context
 
@@ -20,9 +21,13 @@ hold Claude Code's version from the rehearsal to the switch.
 - The re-inventory of 2026-11-07 saw the official marketplace update
   `context7` and `playwright` within five days. Claude Code itself moved
   from 2.1.316 to 2.1.319 in the same days.
-- The hooks installation runs a Claude Code command only with a version
-  that a passing rehearsal record names. The design's section "The
-  rehearsed plan" states that rule.
+- The switch reads no rehearsal record. The dry run of
+  owner-switch-rehearsal-k255 tests Claude Code's commands with the held
+  version. The comparison command compares tool versions before each real
+  attempt. A different version needs another dry run.
+- The section "The owner's checklist" lists the writers to pause. The
+  narrow process inspection refuses only other Claude Code, Codex, Grove and
+  Ravel processes.
 
 ## Done when
 
@@ -35,6 +40,13 @@ hold Claude Code's version from the rehearsal to the switch.
 - A check after one day shows no new version directory and no
   `.orphaned_at` marker for an enabled plugin. It shows the same
   `claude --version`.
+- A committed checklist names the current writers, with pause and resume
+  instructions for each. It covers the owner's tools, such as
+  `mise dot watch`, herdr, Orca configuration writers and codebase-memory
+  updaters. It also covers the Claude and ChatGPT applications, loaded jobs
+  and login items, and Obsidian with its synchronisation.
+- The checklist records each inspection limit, such as Login Items that
+  need authorisation. It requires no launchd scanner.
 - Each changed file follows the machine configuration contract. mise
   tracks `~/.claude/settings.json` in place.
 - Native discovery is unchanged.
@@ -44,6 +56,9 @@ hold Claude Code's version from the rehearsal to the switch.
 Changing these settings changes the owner's live configuration. Show the
 owner each change and ask before you write.
 
-A setting that this leaf writes into `~/.claude/settings.json` becomes an
-earlier value of the real plan. owner-switch-plan-k254 reads the file after
-this leaf.
+A setting that this leaf writes into `~/.claude/settings.json` becomes part
+of the real plan's backed-up native state. owner-switch-plan-k254 reads the
+file after this leaf.
+
+The checklist is owner instruction, not a program exemption. Do not pause
+or stop any real tool in this leaf. Inspect read only.

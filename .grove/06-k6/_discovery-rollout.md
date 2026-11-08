@@ -69,10 +69,20 @@ skill-loading-replan-k80 cut four implementation leaves here:
 4. `owner-pack-checkouts-k93`: in cutover order 6, Homebrew installs the
    owner's sources in the real HOME at the accepted commits. `mac-check`
    reports their status.
-5. `owner-marketplace-freeze-k253`, `owner-switch-probes-k257`,
-   `owner-switch-plan-k254` and `owner-switch-rehearsal-k255` finish order
-   6. They freeze automatic updates, write the probe program, complete the
-   real plan and rehearse it.
+5. owner-switch-simplification-k262 reshaped order 6 for the simplified
+   switch. It inserted eight leaves ahead of the staging trials:
+   `owner-inventory-exceptions-k264`, `owner-switch-model-removal-k265`,
+   `owner-switch-native-off-k266`, `owner-switch-process-inspection-k267`,
+   `owner-switch-restore-k268`, `owner-switch-status-k269`,
+   `owner-switch-contraction-k270` and `owner-switch-dry-run-k271`. The
+   switch core follows expand, migrate and contract, so each leaf leaves the
+   fixture suite green. The contraction removes the inverse, merge and other
+   entries that items 1 and 2 delivered. `owner-switch-probes-k257` moved ahead of
+   `owner-staging-hooks-k251`, because that measurement covers both probes.
+   `owner-marketplace-freeze-k253`, `owner-switch-plan-k254` and
+   `owner-switch-rehearsal-k255` then finish order 6. They freeze automatic
+   updates, write the owner's checklist, complete the real plan and dry-run
+   it.
 6. discovery-rollout-k12 plans the release and finish handoff. The rollout
 planner consumes that work and coordinated-ravel-release-k36's reviewed plan.
 Plan from the delivered migration state. Grow concrete final verification,
@@ -151,26 +161,24 @@ may claim that the actual cutover happened merely because it supplied
 instructions.
 
 The owner-delivery design assigns the owner skill switch to finish, after
-promotion. Rollout names the switch program, its probes, the native probe and
-the section "Resuming the switch" in the finish handoff and the root charter
-before that session. That section states the states of the switch set and the
-owner's run after finish. The root brief does
+promotion. Rollout names `native-off`, the switch program, its probes, the
+native probe and the section "Resuming the switch" in the finish handoff and
+the root charter before that session. That section states the attempt
+instructions, explicit restore and the owner's operation after finish. The root brief does
 not yet follow the writing rules, so convert it first as its own change.
 
-## Simplified-switch input for k262
+## Simplified switch
 
-owner-switch-simplification-k260 changes the owner specification in place.
-k263 integrates k261 before k262 plans implementation. No switch code,
-machine setting or live leaf below has been changed to implement it yet.
-The four removed mechanisms in the older handoff below are historical inputs.
-The reviewed specification and this consequence table govern their replacement.
-k262 rewrites the older handoff after review, without preserving its obsolete
-step numbers or creating a second normative switch contract here.
+owner-switch-simplification-k260 changed the owner specification in place.
+owner-switch-simplification-k261 reviewed it, and k263 integrated the review.
+The specification owns each current rule. The
+[integration record](../../docs/owner-skill-delivery-evidence.md#owner-switch-simplification-integration)
+records S1 to S9 and their dispositions.
 
-The [integration record](../../docs/owner-skill-delivery-evidence.md#owner-switch-simplification-integration)
-records S1 to S9 and their dispositions. The specification owns each current rule.
-No implementation or machine configuration changes in k263. k262 must include
-these obligations when rewriting the provisional older handoff below.
+owner-switch-simplification-k262 cut the implementation leaves and rewrote
+each queued leaf from the design's consequences. The table below states what
+each artifact must become. The leaves own the work, and no row is a second
+switch contract.
 
 ### Artifact consequences
 
@@ -185,169 +193,115 @@ these obligations when rewriting the provisional older handoff below.
 | `docs/owner-skill-delivery-evidence.md` and old model/command measurements | Preserve historical observations and mark their scope. k260 records the new design's limits and dispositions of D1/D3/D5. Implementation and dry run add their own actual results. Do not claim a historical rehearsal proves the new program. |
 | Prepared tools, manual, receipt and purge report | Keep `native-off`, one restore entry, exact attempt instructions and backup data readable after `.grove/` teardown. Remove backup program copies and pending/merge entries from instructions. The successful receipt retains activation and reader evidence. The manual remains append-only. No receipt alone certifies current delivery or authorises later whole-file restore. |
 
-### Consequence for each queued leaf
-
-| Live leaf | Input to its rewrite by k262 |
-| --- | --- |
-| owner-staging-setup-k248 | Keep candidate keg, accepted sources and configuration isolation. Prepare the retained staging HOME and credentials only by the existing narrow sign-in contract. No rehearsal-admission store is needed. |
-| owner-staging-discovery-k249 | Keep discovery, mandatory and implicit reads, resources, delegate, compaction, stale-copy, offline and missing-source trials. Supply rerunnable trials for changed released sources. Distinguish them from the one switch dry run. |
-| owner-staging-hooks-k251 | Replace held-link/exchange measurements with serial installation under one backup. Measure an idle signed-in parent and MCP servers through installation, deactivation, probes and receipt writes. Observe intermediate writes, metadata and loaded-cache preservation. The no-writer assumption needs evidence even with one owner. |
-| owner-staging-capabilities-k250 | Keep TestAnyware VM/tool, Quint/MCP, hooks and user-invoked-skill cases. Inventory must accept only the intended enabled `guardrail@personal` exception. |
-| owner-staging-acceptance-k252 | Keep accepted versions, commits, source digests, trial commands and retained staging paths. Add the inventory and quiet-session results. Remove admission-record requirements. |
-| owner-pack-checkouts-k93 | Keep formula declarations/installations, disabled personal guardrail and separate formula-drift report. No source advance may remove a running driver's binaries. It does not execute the switch. |
-| owner-marketplace-freeze-k253 | Keep loaded-version retention and the tested Claude Code version. Replace rehearsal-record version admission with the dry-run version and checklist. Supply pause/resume instructions for owner tools, Claude, ChatGPT, loaded jobs, login items, Obsidian and manual synchronisation. Record inspection limits without requiring a launchd scanner. |
-| owner-switch-probes-k257 | Keep real Ravel and native probes, clean environments and source/read observations. Compare ordinary children of both skill roots while excluding only the exact platform subtrees. Measure persistent Codex services after probe exit, exact ownership, supported cleanup and failure. Do not omit incidental writes through a root-wide exclusion. |
-| owner-switch-plan-k254 | Produce the simpler real plan and retained prepared restore entry after the program change. Record every file a command runs by content, the full command write set and expected native/switched inventory. Record the off-value restoration exception, logical prefix mappings, delivery assertions, whole-file restore identities and explicit attempt instructions. Remove `session.mcp` and cell/part recovery fields. |
-| owner-switch-rehearsal-k255 | Execute the real plan once in a disposable copy, including full restore. Keep a readable content-identified result. Remove passing-record installation and state-machine admission. Retain the reproducible comparison command and its per-input result. Re-run after changed acceptance or tool content. Test declared equal-content prefix substitutions. |
-| discovery-rollout-k12 | Hand off the checklist, pause/resume instructions, input comparison, plan, tools and recovery commands. Name backup-independent `native-off`, explicit attempt instructions, owner operation after finish, drift refusal and append-only manual evidence. Keep the coordinated publication order and original ending. Replace all old inverse/merge/pending/resumption instructions before finish. |
-
-k262 may insert implementation ahead of the staging consumers. k260 does not
-cut implementation leaves. No queued leaf is pruned by this design. Each keeps
-useful work after its contract is rewritten. Any later proposal to abandon one
-still requires the human's confirmation under the retirement procedure.
-
 ## Owner-delivery handoff
 
-owner-switch-plan-draft-k259 recorded the human's facts of 2026-11-08. This
-grove is the only grove that runs, and the human is the only user of Grove
-and Ravel. owner-switch-simplification-k260 redesigns the switch on that
-basis. It simplifies the process and job exclusion, the concurrent-writer
-detection, the recovery state machine and the rehearsal admission.
-
-owner-switch-simplification-k262 then rewrites each item below that concerns
-one of those mechanisms after review. Until then, use the specification and
-the consequence table above. Such an older item is provisional process
-history, not an instruction to retain the removed mechanism.
-
-`docs/specs/owner-skill-delivery.md` owns each rule below. The handoffs of
-owner-pack-checkouts-k82, k84, owner-switch-recovery-k87 and k89 assign them
-to these consumers. k87 replaced the earlier items about resumption, rollback
-and rehearsal.
+`docs/specs/owner-skill-delivery.md` owns each rule below. This list
+assigns each obligation to the leaf that consumes it.
+owner-switch-simplification-k262 rewrote the list for the simplified
+switch. The human's facts of 2026-11-08 govern it. This grove is the only
+grove that runs, and the human is the only user of Grove and Ravel.
 
 skill-marketplace-decision-k201 replaced the mise checkouts with Homebrew
-installation. homebrew-delivery-design-k216 amends the owner design before
-k38 and k93 run. Read each item below through that amended design. A checkout
+installation. Read each item below through the amended design. A checkout
 there becomes a source that Homebrew installed.
 
+owner-ravel-skill-inventory-k38 reran the inventory on 2026-11-07. The
+section "Re-inventory before the cutover" of
+`docs/owner-skill-delivery-evidence.md` holds the result. No
+owner-controlled skill changed.
+
+### Staging and acceptance
+
 - owner-staging-setup-k248 and owner-staging-acceptance-k252: the candidate
-  keg, the staging settings and the isolation trial come first. The Homebrew
-  change withdrew the decoy-helper control and the checkout HOME. The
-  staging evidence records each accepted pin, each source's
+  keg, the staging settings and the isolation trial come first. The
+  Homebrew change withdrew the decoy-helper control and the checkout HOME.
+  The staging evidence records each accepted pin, each source's
   `resourceDigest` and the tree ID of the `grove-core` candidate. The
   staging HOME and the candidate keg stay until the switch receipt.
-- owner-switch-rehearsal-k255: the rehearsal of order 6 runs the program
-  on the real plan with each switch control of "Test seams". A changed plan
-  or program needs a new rehearsal.
-- discovery-rollout-k12: after the Ravel cut, record each accepted digest
-  again with the published archives. Show before finish that the final line
-  gives the `grove-core` candidate's tree ID. Step 5 of the coordinated
-  release design records that ID and the accepted digests for finish.
-- discovery-rollout-k12: the coordinated recovery table keeps its rows for a
-  stopped or reversed switch and for a failed core trial after the release.
-  A Grove patch release follows a correction on `main`.
-- owner-switch-program-k91 and owner-switch-entries-k92: the k87 handoff
-  items as k89 amended them. `task model:owner-switch` stays green, and a
-  change to a recovery rule changes the model first.
-- owner-pack-checkouts-k93: each Homebrew installation or upgrade of a skill
-  source is an advance. Each complete `mise bootstrap` is one too.
-  homebrew-delivery-design-k216 withdrew the process check before an
-  advance. The owner runs an advance while no Grove loop launches.
-
-ravel-default-skill-directory-k218, native-settings-recovery-k221,
-hooks-installation-writes-k222 and their integration
-native-settings-recovery-k224 amended the owner design again. They assign
-these items:
-
-- owner-switch-program-k91: step 3 of the switch holds a gate and two
-  preludes. "The native settings inside finish" writes the off value under a
-  settings record. "The hooks installation inside finish" registers
-  `writing-hooks` from Grove's keg and installs the plugin. Its subsection
-  "Claude Code's own writes" holds the held links and the disabling by
-  exchange. Step 6 stops unless the resolved IDs are the ten accepted IDs.
-  The rehearsal task runs each new control of "Test seams". `task
-  model:owner-switch` now runs 241 claims.
-- owner-settings-drafts-k246, owner-staging-hooks-k251 and
-  owner-switch-rehearsal-k255: the drafts hold the off value
+- owner-settings-drafts-k246 delivered the drafts. They hold the off value
   `{"schemaVersion": 1, "sources": []}`, the switched value with only the
   mandatory file, and the staging settings. The staging settings name the
-  candidate keg of `candidate-keg-k238` and the four installed kegs. The
-  staging measurement of the hooks installation runs beside a signed-in
-  Claude Code session with the owner's MCP servers. The rehearsal reruns
-  `settings-writes.sh` and covers the native settings and the hooks
-  installation.
-- discovery-rollout-k12: the finish handoff names step 3's native settings
-  and hooks installation beside the switch program.
-- discovery-rollout-k12, from owner-switch-gates-k241: the finish handoff
-  says that finish sets `OWNER_SWITCH_READERS` to the cache paths that it
-  read before it runs the program. Finish also compares each built-in row
-  that step 3 prints with its own skill listing.
+  candidate keg of `candidate-keg-k238` and the four installed kegs.
+- owner-staging-hooks-k251: measure the complete switch beside an idle,
+  signed-in Claude Code session with the owner's MCP servers. An unsolicited
+  write falsifies the quiet interval. The owner then resolves that writer
+  before the cutover.
+- owner-inventory-exceptions-k264 corrects the instrument of
+  owner-inventory-reader-marker-k244 for D3 and D5. The staging trials, the
+  switch comparison and the final inventory use the corrected instrument.
 
-owner-switch-program-k243 integrated the review of the switch program. Its
-corrections assign these items:
+### Program, plan and dry run
 
-- owner-switch-plan-draft-k247 and owner-switch-plan-k254: the real plan
-  needs every field of the
+- owner-switch-plan-k254: the real plan needs every field of the simplified
   plan format. Each of its paths is relative to HOME, and its parent folder
   resolves inside HOME. Its `accepted.staging` names the absolute paths of
-  the retained staging HOME and the candidate keg. The staging HOME holds its
-  own `.codex` tree.
-- owner-switch-plan-draft-k247 and owner-switch-plan-k254: the real plan's
-  MCP patterns match each
-  of the owner's MCP server processes and each launcher chain. An example is
-  `npx` and the `node` server that it launches. Another child of a server
-  counts as another process, and the owner ends it before the switch.
-- owner-switch-rehearsal-k255 and owner-marketplace-freeze-k253: each
-  rehearsal now reruns
-  `settings-writes.sh`, and its record names the Claude Code version. The
-  hooks installation stops before its first command with another version.
-  Claude Code updates itself, so keep its version from the rehearsal to the
-  switch, or rehearse again.
-- owner-switch-entries-k92: the loader refuses an incomplete plan, so each
-  new control builds on the complete fixture plan. A fixture rehearsal
-  record names a passing rerun with `FIXTURE_CLAUDE`. The backup keeps the
-  evidence of steps 4 to 7, and the pending-activation record can read the
-  formula versions there. The receipt's `retained` list names each byte set
-  with its purge condition, and the purge procedure reads it.
-- discovery-rollout-k12: the finish handoff states the Claude Code version
-  condition above. It also states that the receipt lists the staging HOME
-  and the candidate keg as removable after the receipt.
-
-owner-switch-entries-k92 added the owner's entries `inverse`, `merge`,
-`purge-check` and `pending` to the program, and a switch row to `mac-check`.
-It assigns these items:
-
-- owner-switch-plan-k254: the real plan names
-  `.local/state/owner-switch` as its `state`. The owner keeps the prepared
-  plan and the rehearsed program at `<state>/prepared/plan.json` and
-  `<state>/prepared/owner_switch.py`. `mac-check` reads the switch state
-  through them. Without them it reports native delivery.
-- owner-switch-rehearsal-k255: the rehearsal runs the real `mac-check`
-  with HOME set to each disposable HOME. It reads `~/.local/bin/mac-check`
-  and its folder, and `--mac-check` names another command.
-- discovery-rollout-k12: after a stop or an inverse, finish's continuation
-  runs `pending --grove-commit <release commit>` with the prepared plan. The
-  entry reads the run log of the stopped run. A later receipt names each
-  pending-activation record that it replaces, and the manual stays
-  append-only.
-- discovery-rollout-k12: the finish handoff names the owner's inverse and
-  the merge entry for the owner's run after finish. The receipt tells the
-  owner to run `purge-check` before purge.
+  the retained staging HOME and the candidate keg. The staging HOME holds
+  its own `.codex` tree.
+- owner-switch-plan-k254: the real plan names `.local/state/owner-switch`
+  as its `state`. The owner keeps the plan and the program at
+  `<state>/prepared/plan.json` and `<state>/prepared/owner_switch.py`.
+  `mac-check` reads the switch status through them. Without them, it
+  reports that the switch is not prepared.
+- owner-switch-plan-k254: the plan holds no MCP or process pattern. An MCP
+  server stays through the switch only when staging shows that it leaves the
+  switch set unchanged.
+- owner-switch-rehearsal-k255: the dry run executes the real plan once in a
+  disposable copy of HOME, including full restore. It runs the real
+  `mac-check` with HOME set to the disposable HOME. It reads
+  `~/.local/bin/mac-check` and its folder. A changed plan, source digest,
+  program, helper, command input or tool version needs another dry run.
+- owner-marketplace-freeze-k253 and owner-switch-rehearsal-k255: the dry
+  run tests Claude Code's commands with the held version. Claude Code
+  updates itself, so keep that version until the switch, or run the dry run
+  again. The comparison command compares tool versions before each attempt.
+- owner-pack-checkouts-k93: each Homebrew installation or upgrade of a
+  skill source is an advance. Each complete `mise bootstrap` is one too.
+  homebrew-delivery-design-k216 withdrew the process check before an
+  advance. The owner runs an advance while no Grove loop launches. No
+  advance may remove a running driver's binaries.
 - owner-pack-checkouts-k93: `mac-check --only <area>` runs one area. The
   drift report of the skill formulae is another area beside "Owner skill
   switch".
 
-owner-switch-plan-draft-k247 drafted the real plan. The section "Owner
-switch plan draft" of `docs/owner-skill-delivery-evidence.md` holds it. It
-assigns these items:
+### The finish handoff
 
-- discovery-rollout-k12: the finish handoff names the processes and jobs
-  that stop step 2. Examples are the owner's Codex app-server daemon,
-  `herdr-core`, `mise dot watch` and its job `dev.mise.mise-history`. The
-  owner ends them and unloads the jobs before the switch. The job listing
-  cannot read login items without privileges.
-- The owner design: Claude Code runs `caffeinate -i -t 300` as a child of
-  the harness process. The draft keeps it through `session.mcp`. The
-  section "Concurrent writers" should name it as a kept process.
+These items go to discovery-rollout-k12, which writes the finish handoff and
+the root charter's extension.
+
+- After the Ravel cut, record each accepted digest again with the published
+  archives. Show before finish that the final line gives the `grove-core`
+  candidate's tree ID. Step 5 of the coordinated release design records that
+  ID and the accepted digests for finish. A differing digest needs that
+  source's staging trials, revised acceptance and another dry run.
+- After the Ravel cut, repeat the control "With the off value and installed
+  keg sources, `ravel skills resolve --json` must report `disabled`" with the
+  published `ravel@2`. The staging trials ran it with the accepted build.
+- The coordinated recovery table keeps its rows for a switch without a
+  backup, a failed or interrupted switch, and passed probes. It also keeps
+  the row for a failed core trial after the release. A Grove patch release
+  follows a correction on `main`.
+- The handoff names `native-off` immediately after promotion. It needs no
+  switch backup, and it precedes source acceptance and any default launch.
+- The handoff names the owner's checklist with the pause and resume
+  instructions of owner-marketplace-freeze-k253. These are owner actions.
+  The narrow process inspection refuses only other Claude Code, Codex, Grove
+  and Ravel processes.
+- The handoff names the switch program, its probes, the native probe, the
+  hooks installation inside the switch, the comparison command and the dry
+  run result.
+- Before mutation, finish records its loaded cache paths, registrations and
+  current guidance reads. It compares each unverified built-in inventory row
+  with its own skill listing.
+- The handoff names the attempt note and `restore --backup` for the owner's
+  operation after finish. It states the drift refusal of a later restore.
+  The maintained manual stays append-only. The receipt tells the owner to
+  run the purge report before purge.
+- The handoff names the Claude Code version that owner-marketplace-freeze-k253
+  held, and how the owner releases the hold after the switch. It also names
+  the frozen marketplaces. The receipt lists the staging HOME and the
+  candidate keg as removable after the receipt.
+
+### Other facts for rollout
 
 acceptance-completion-audit-k127 hands two findings to this node. The
 "Gap register" of `docs/common-loading-acceptance-record.md` holds both.
@@ -402,23 +356,9 @@ brief's "Skill installation" states the decisions.
   the moves record lists no longer apply.
 - The owner's `linkuistics` registration stays frozen until purge. Finish
   reads its own guidance from the plugins of that registration.
-- Finish installs the writing hooks plugin, disabled, after the release and
-  before the backup of the switch. The preparation step installs `guardrail`
-  from the personal keg.
+- Finish installs the writing hooks plugin, disabled, after the release.
+  The simplified switch backs up its whole write set before that
+  installation. The preparation step installs `guardrail` from the personal
+  keg.
 - Linkuistics/Ravel#4 and Linkuistics/grove#28 are later work outside this
   grove.
-
-owner-ravel-skill-inventory-k38 reran the inventory on 2026-11-07. The
-section "Re-inventory before the cutover" of
-`docs/owner-skill-delivery-evidence.md` holds the result. No owner-controlled
-skill changed. It assigns these items to discovery-rollout-k12:
-
-- After the Ravel cut, repeat the control "With the off value and installed
-  keg sources, `ravel skills resolve --json` must report `disabled`" with
-  the published `ravel@2`. The staging trials ran it with the accepted
-  build.
-- The finish handoff names the Claude Code version that
-  owner-marketplace-freeze-k253 held, and how the owner releases the hold
-  after the switch. It also names the frozen marketplaces.
-- The final inventory compares entries with the instrument that
-  owner-inventory-reader-marker-k244 corrected.

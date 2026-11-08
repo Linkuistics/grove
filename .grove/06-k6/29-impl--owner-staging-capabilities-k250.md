@@ -33,6 +33,9 @@ hooks still work through Ravel delivery.
   `SKILL.md` as a skill, the trial fails, and the layout needs repair.
 - On Claude Code, `/guardrail` runs from `guardrail@personal`, and no Ravel
   root holds `guardrail`.
+- The inventory after owner-inventory-exceptions-k264 accepts the
+  enabled `guardrail@personal` exception and nothing wider. Its staging
+  rows show no other unclassified entry.
 - A user-invoked skill, `authoring-conventions`, is not loaded unless the
   task names it.
 - The evidence document records each trial, its versions and its result.

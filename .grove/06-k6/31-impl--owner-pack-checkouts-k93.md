@@ -57,6 +57,11 @@ An advance links a complete new keg, so a capture reads one keg or refuses.
 `homebrew-delivery-design-k216` therefore withdrew the process check before an
 advance.
 
+No advance may remove a running driver's binaries. Keep the original Ravel
+1.1.0 keg and its cleanup protection. This leaf does not execute the switch.
+Discovery stays native, and the simplified switch design changes nothing
+else here.
+
 owner-ravel-skill-inventory-k38 put the policy conversion, the drafts and
 the staging trials before this leaf. owner-marketplace-freeze-k253,
 owner-switch-plan-k254 and owner-switch-rehearsal-k255 follow it, also in

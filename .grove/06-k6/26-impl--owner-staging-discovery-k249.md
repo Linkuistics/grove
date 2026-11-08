@@ -17,11 +17,15 @@ there.
   `scripts/harness-trials/builds.json`.
 - `scripts/harness-trials/` and `docs/common-loading-acceptance-record.md`
   hold the earlier trial tooling and cases. Reuse them where they fit.
-- The plan's `accepted.trials` names, for each source, the staging trials
-  that step 4 of the switch reruns. Step 4 reruns a trial of each of Grove's
-  sources whose digest changed. It sets `OWNER_SWITCH_SOURCE` and
-  `OWNER_SWITCH_DIGEST`, with HOME set to the staging HOME and `CODEX_HOME`
-  set to its `.codex` tree.
+- The plan's `accepted.trials` names the staging trials of each source.
+  The switch program no longer reruns them. When a released source differs
+  from its accepted digest, the switch stops in native delivery. The
+  operator then reruns that source's trials, revises acceptance and repeats
+  the dry run before a fresh attempt. "The switch inside finish" of the
+  owner design states that rule.
+- These trials prove the sources in staging. The one switch dry run of
+  owner-switch-rehearsal-k255 proves the plan in a disposable copy of HOME.
+  Keep the two apart.
 
 ## Done when
 
@@ -44,8 +48,9 @@ there.
   launches a nested probe, and reads its guidance again by absolute path.
 - Native discovery on each harness lists no superseded skill, or the trial
   fails.
-- Each of Grove's six sources has one scripted trial that step 4 can rerun
-  under the conditions above. The evidence names each command.
+- Each source has scripted trials that the operator can rerun after a
+  released source changes. Each trial runs with HOME set to the staging HOME
+  and `CODEX_HOME` set to its `.codex` tree. The evidence names each command.
 - The evidence document records each trial, its versions and its result.
   It reconciles each item of "Not measured" that a discovery trial
   measures.

@@ -34,6 +34,10 @@ before any other staging trial launches a session.
   `/Users/antony/.local/state/owner-staging/home` meets that rule.
 - The parent brief withdrew the decoy-helper control and the checkout HOME.
   They served the mise clones.
+- The simplified switch has no rehearsal admission. The staging HOME needs
+  no store of rehearsal records. The idle-parent measurement of
+  owner-staging-hooks-k251 and the switch dry run reuse this staging HOME
+  and its sign-in contract.
 
 ## Done when
 
@@ -52,7 +56,8 @@ before any other staging trial launches a session.
 - The isolation trial's five steps pass. The only links in the staging HOME
   are `Library/Keychains` and `.codex/auth.json`. A token refresh keeps the
   real `auth.json` a link, and `codex login status` still passes in the
-  real HOME.
+  real HOME. The staging HOME receives credentials by that narrow sign-in
+  contract only.
 - The evidence document records each path, digest and result, with the
   Claude Code and Codex versions.
 

@@ -3003,3 +3003,138 @@ with the digest above. Each of the 24 mutants made its control fail. Two failed 
 - The settings-write measurement, the idle signed-in parent harness and
   the real probes remain acceptance work on real harnesses. No fixture
   establishes them.
+
+## Owner switch status
+
+`owner-switch-status-k269` moved the switch area of the owner's `mac-check`
+and the purge report to the serial switch on 2026-11-08. The specification's
+section [Current health and restore eligibility](specs/owner-skill-delivery.md#current-health-and-restore-eligibility)
+owns the rules. The old `state` and `purge-check` entries remain until
+owner-switch-contraction-k270 removes them.
+
+### The entries
+
+- `status --plan PLAN [--json]` reads the serial records and the layout, and
+  writes nothing. Delivery health is `native`, `switched`, `restore` or
+  `review`. Restore eligibility is a separate report: `eligible`,
+  `ineligible` with the differing restore destinations, `unavailable`,
+  `required` with each restore command, `in-progress` or `none`. A restored
+  attempt whose manual lacks its entries is a pending manual entry.
+- Switched health needs a valid receipt of the prepared plan. The plan's
+  assertions, `switch.inventory.after`, the receipt's reader evidence and
+  the sources must also hold. The status resolves the current Ravel
+  `skills` value in a disposable HOME, as gate 6 does, and compares each
+  source's ID and `resourceDigest` with the receipt's.
+- Native health needs the new plan field `switch.native_assertions` and
+  `switch.inventory.before`. An assertion can give `values`, a list of
+  accepted values.
+- Step 8 of the switch runs `mac-check` before the receipt exists. The
+  status looks for the switch of the governing attempt's note among its
+  ancestor processes. When it finds that switch, it evaluates the attempt as
+  switched from the plan and the backup's evidence. A crashed attempt is no
+  ancestor and needs restore.
+- The receipt's retained resources now hold an `identity`. A path's identity
+  is its change identity without the top-level `.in_use` reader markers. A
+  registration's identity is the digest of its JSON entry.
+- `purge-report --plan PLAN` blocks with exit 3 unless the health is
+  `switched` and each retained identity is unchanged. It lists each
+  condition that only the owner establishes, and writes nothing.
+- `mac-check` runs `status --json` and maps it to fixed messages. A switched
+  layout with ineligible restore stays `OK` and names the differing files.
+  A pending manual entry or an unavailable backup needs attention. Without a
+  prepared plan, the row reports that the switch is not prepared and
+  verifies no delivery state. Formula drift has no part in this row.
+
+### Controls
+
+`task owner:switch:rehearse` passed all 315 controls on Python 3.15.1 and
+macOS 27.0.1. The controls took 19.1 minutes. The suite holds 17 new
+controls, and the nine old `mac-check-*` controls are gone, because
+`mac-check` no longer reads the old states. These subjects had the same
+SHA-256 digests before and after the run:
+
+| Subject | SHA-256 |
+| --- | --- |
+| `scripts/owner_switch.py` | `ccfe957584387dcdec1e77062e62f47fadded8546d0fe7ffb4917af35c1a9ffa` |
+| `scripts/owner_switch_rehearsal.py` | `6cfb4d3df04f54606fb09ad74ec6d3ca1b567ee7e2450e1fca3ae1932e9bcb27` |
+| `~/.local/lib/machine-config/check.py` | `5c7a3bd43c08e43e02859c6c0c22edcb59e0bf0b38dcbe7b040784be247e9201` |
+| `~/.local/bin/mac-check` | `b6738bfa2b04b21742a4693e9d4d5e86c9f69d56ccd8c73d36a484d6ade0a5e8` |
+| `docs/evaluations/hooks-installation-writes/settings-writes.sh` | `b4cd60b9620518838bfdcc43eaead35879ea2304ad3ca1e1aba2a1900b87b9e3` |
+
+In that run, the rerun of `settings-writes.sh` with Claude Code 2.1.319
+failed its range. The interval of `marketplace add` was 38.2 to 39.2 ms,
+and the range is 30 to 38 ms. The intervals of `install` and `disable` were
+inside the range. Each command renamed one file onto the path. The same
+rerun then ran alone on an otherwise idle machine and passed. That time,
+`add` gave 37.8 to 38.8 ms.
+
+The miss is therefore a margin of 1 ms under load, not a changed write
+method. The record of the full run is not a passing rehearsal record. Only
+the old path reads such a record, and the serial switch reads none.
+
+Each status control reads the real `mac-check` with HOME set to its case:
+
+| Control | Result |
+| --- | --- |
+| `status-not-prepared` | Without a plan, the row reported that the switch is not prepared and verifies no delivery state. A record folder without a plan, and a plan without the program, each needed attention. |
+| `status-native` | The prepared plan reported verified native delivery. A removed `skills` key needed review. A plan whose native assertion gives both the off value and absence reported native delivery again. |
+| `status-partial-native` | A removed native entry without an attempt needed review, and the status named the entry. |
+| `status-switched-unrelated-edits` | After success, a model key, a hook and a manual note changed. Health stayed switched, restore became ineligible, and the row named only `.claude/settings.json`. A later restore then refused with no write. |
+| `status-switched-setting-changed` | A superseded plugin enabled again needed review while the receipt stayed valid. |
+| `status-switched-entry-added` | A new native skill needed review while the receipt stayed valid. |
+| `status-switched-source-changed` | A one-byte change of a keg source needed review while the receipt stayed valid. |
+| `status-switched-reader-orphaned` | An orphan marker in a recorded cache version needed review while the receipt stayed valid. |
+| `status-stale-receipt` | A prepared plan other than the receipt's plan needed review as stale evidence. |
+| `status-crash-before-receipt` | A crash at the probes left a complete switched layout. The row reported that the attempt needs its restore, with the note's command. After the literal restore, it reported native delivery. |
+| `status-step-8-in-progress` | A plan whose `mac_check` is the real `mac-check --only "Owner skill switch"` switched. Step 8 read a verified switched layout of a running attempt, and afterwards the row reported eligible restore. |
+| `status-pending-manual` | A read-only manual left the restore's entry pending. The row reported native delivery and the pending entry. After a repeated restore, it reported native delivery alone. |
+| `status-later-restore-interrupted` | A crash during a later restore needed restore, and the status named the retry command with `--recovery`. After the retry, the row reported native delivery. |
+| `purge-report-clean` | After success and a new reader marker, each retained identity held. The report listed the owner's conditions, without the condition that it reads itself. |
+| `purge-report-cache-changed` | A changed file in a frozen cache version blocked purge while health stayed switched. |
+| `purge-report-registration-changed` | A changed registration of the superseded plugin blocked purge while health stayed switched. |
+| `purge-report-unverified` | Without a receipt, the report blocked purge. After success and a changed switched setting, it blocked purge for the unverified switch. |
+
+The checker's tests passed 56 of 56. Ruff and strict pyright 1.1.414
+reported nothing.
+
+### Mutation controls
+
+A scratch copy of the program or of the checker received one mutation at a
+time, and each mutant ran only the control named below. The mutants changed
+the files with the digests above. Each of the 17 mutants made its control
+fail, each by the behaviour that the control guards.
+
+| Mutation | Control that failed, and why |
+| --- | --- |
+| The checker reports native delivery without a plan | `status-not-prepared` read the old claim of native delivery. |
+| Native health ignores the native assertions | `status-native` reported native delivery without `skills`. |
+| Native health ignores the native inventory | `status-partial-native` reported native delivery without the Codex entry. |
+| Switched health also needs whole-file identities | `status-switched-unrelated-edits` needed review after the unrelated edits. |
+| Switched health ignores the assertions | `status-switched-setting-changed` reported a verified layout. |
+| Switched health ignores the inventory | `status-switched-entry-added` reported a verified layout. |
+| Switched health ignores the sources | `status-switched-source-changed` reported a verified layout. |
+| Switched health ignores the reader evidence | `status-switched-reader-orphaned` reported a verified layout. |
+| No stale-evidence check | `status-stale-receipt` reported a verified layout. |
+| Each attempt counts as a running switch | `status-crash-before-receipt` reported a verified layout of a running attempt. |
+| No attempt counts as a running switch | `status-step-8-in-progress` failed step 8 and exited 5 after restore. |
+| No pending manual entry | `status-pending-manual` reported native delivery alone. |
+| No recovery retry | `status-later-restore-interrupted` needed review, not restore. |
+| Reader markers count in an identity | `purge-report-clean` blocked purge after the new marker. |
+| A path's identity is its presence | `purge-report-cache-changed` allowed purge. |
+| A registration's identity is its name | `purge-report-registration-changed` allowed purge. |
+| The purge report ignores health | `purge-report-unverified` allowed purge after the changed setting. |
+
+### Limits
+
+- The sources check runs `$(brew --prefix)/bin/ravel` in a disposable HOME.
+  The fixture's stub Ravel stands for the promoted Ravel, so no fixture
+  establishes the real resolution's time or its cache writes.
+- The fixture plan's retained "original driver's Ravel keg" is the case's
+  own fixture Ravel. The purge report therefore reads no file outside the
+  case.
+- Step 8 needs exit 0 from the plan's `mac_check` command. The full
+  `mac-check` exits 10 for CCC's manual review alone, so the real plan must
+  name `mac-check --only "Owner skill switch"`. owner-switch-plan-k254 holds
+  that note.
+- The real `mac-check` reports that the switch is not prepared, because the
+  real HOME has no prepared plan.

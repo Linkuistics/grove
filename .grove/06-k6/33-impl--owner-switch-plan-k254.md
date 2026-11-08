@@ -54,3 +54,14 @@ in the owner's prepared folder.
 A change to the plan, the program, a helper, a command input or a tool
 version after this leaf needs another dry run. Keep them unchanged from here
 to the switch unless owner-switch-rehearsal-k255 runs again.
+
+owner-switch-status-k269 found two needs of the real plan:
+
+- Step 8 requires exit 0 from the plan's `mac_check` command. The full
+  `mac-check` exits 10 for CCC's manual review alone. Name
+  `mac-check --only "Owner skill switch"`, and record the other areas
+  under the machine contract, as step 8 states.
+- `status` evaluates native health with `switch.native_assertions`.
+  Before promotion, the real Ravel settings may lack `skills`. Give that
+  assertion `"values"` with the off value and `{"$absent": true}`, so
+  that `mac-check` reports native delivery before finish.

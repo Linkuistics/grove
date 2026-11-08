@@ -52,8 +52,8 @@ unless HOME is the plan's staging HOME and CODEX_HOME is its .codex tree.
 The controls cover the switch, the inverse, detection, interruptions,
 entries, step 14, the processes, the rehearsal condition, the preludes of
 step 3, its baseline rows and the gates with their source controls. They
-also cover the owner's inverse, the merge entry, the purge check, the
-pending-activation record and the switch's area of the owner's `mac-check`.
+also cover the owner's inverse, the merge entry, the purge check and the
+pending-activation record.
 The native-off controls run `native-off` without a plan or a switch backup.
 They cover an absent file, an absent key with its metadata, an existing off
 value and each refused form. They cover another Ravel process, a process
@@ -98,10 +98,18 @@ hook action "append-glob" changes each file that a pattern names. The
 fixture flag "probe_owned" makes the switched probe leave a service
 running. The off-value controls make their backup through the program's
 own `create_backup`, because the switch refuses without the off value.
-Each `mac-check` control runs the real command with HOME set to the case's
-HOME, which links the checker's folder and holds copies of the plan and the
-program in <state>/prepared. That command file is the only file of the
-account's HOME that the rehearsal reads.
+The status controls run the real `mac-check` command for the switch's
+area, with HOME set to the case's HOME. That HOME links the checker's folder
+and holds copies of the case's serial plan and the program in
+<state>/prepared, and the stub `brew` comes first on PATH. That command file
+is the only file of the account's HOME that the rehearsal reads. They cover
+an unprepared switch, native and partial layouts, and unrelated edits after
+success that make restore ineligible. They also cover a changed setting,
+entry, source or reader after success, a stale receipt, a crash before the
+receipt, step 8's `mac-check` during the switch, a pending manual entry and
+an interrupted later restore. The purge controls cover a clean report with
+a reader marker, a changed cache version and registration, and an
+unverified switch.
 """
 from __future__ import annotations
 
@@ -324,8 +332,17 @@ def switch_fields(program: str, home: str) -> dict:
                        {"path": ".claude/settings.json", "key": HOOKS_PLUGIN, "value": True},
                        {"path": ".claude/skills/grove", "absent": True},
                        {"path": ".codex/skills/grove", "absent": True}],
+        # Native delivery: the off value, the superseded plugin enabled and the hooks plugin not enabled.
+        # The native inventory holds the two earlier entries.
+        "native_assertions": [{"path": ".config/ravel/settings.json", "key": ["skills"], "value": OFF},
+                              {"path": ".claude/settings.json", "key": SUPERSEDED_PLUGIN, "value": True},
+                              {"path": ".claude/settings.json", "key": HOOKS_PLUGIN,
+                               "values": [False, {"$absent": True}]}],
         "tools": {"claude": FIXTURE_CLAUDE},
-        "retained": [{"item": "the original driver's Ravel keg", "path": "/opt/homebrew/Cellar/ravel/1.1.0",
+        # The case's own fixture Ravel stands for the original driver's keg, so the purge
+        # report reads no file outside the case.
+        "retained": [{"item": "the original driver's Ravel keg",
+                      "path": os.path.join(os.path.dirname(home), "prefix/bin/ravel"),
                       "condition": ["its last driver ends"]}],
     }
 
@@ -1009,22 +1026,30 @@ class Case:
             f.write(f"$ {command} {' '.join(extra)} (exit {result.returncode})\n{out}\n")
         return result.returncode, out
 
-    def mac_check(self, prepared: bool = True) -> tuple:
-        """The real `mac-check`, for the switch's area only, with HOME set to this case's HOME.
-
-        The case's HOME links the checker's folder, and `prepared/` holds
-        copies of the plan and the program, as in the owner's layout.
-        """
+    def link_checker(self) -> None:
         lib = os.path.join(self.home, ".local/lib/machine-config")
         if not os.path.lexists(lib):
             os.makedirs(os.path.dirname(lib), exist_ok=True)
             os.symlink(self.r.machine_config, lib)
+
+    def prepare(self, plan=None, program: bool = True) -> None:
+        """Copy PLAN, the case's serial plan by default, and the program into <state>/prepared."""
         folder = os.path.join(self.home, STATE, "prepared")
-        if prepared and not os.path.isdir(folder):
-            os.makedirs(folder)
-            shutil.copyfile(self.r.plan, os.path.join(folder, "plan.json"))
+        os.makedirs(folder, exist_ok=True)
+        shutil.copyfile(plan or self.serial, os.path.join(folder, "plan.json"))
+        if program:
             shutil.copyfile(self.r.program, os.path.join(folder, "owner_switch.py"))
-        env = dict(clean_env(), HOME=self.home)
+
+    def mac_check(self) -> tuple:
+        """The real `mac-check`, for the switch's area only, with HOME set to this case's HOME.
+
+        The case's HOME links the checker's folder, and `prepare` copies the
+        plan and the program into `prepared/`, as in the owner's layout. The
+        stub `brew` comes first on PATH, so the status resolves the case's
+        fixture sources.
+        """
+        self.link_checker()
+        env = dict(clean_env(), HOME=self.home, PATH=self.r.stubs + os.pathsep + os.environ.get("PATH", ""))
         result = subprocess.run([self.r.mac_check, "--only", "Owner skill switch"], env=env,
                                 capture_output=True, text=True, timeout=120)
         with open(os.path.join(self.root, "runs.log"), "a") as f:
@@ -2767,6 +2792,7 @@ def all_controls(r: Rehearsal) -> list:
     controls += entry_controls()
     controls += native_off_controls()
     controls += serial_controls()
+    controls += status_controls()
     return controls
 
 
@@ -3074,59 +3100,11 @@ def c_purge(do: str):
     return fn
 
 
-def expect_mac_check(case, code: int, status: str, text: str, prepared: bool = True) -> str:
-    got = case.mac_check(prepared)
-    expect(got[0] == code and got[1] == status and text in got[2], f"mac-check reported {got}, not {code} {status} {text}")
+def expect_mac_check(case, code: int, status: str, *texts: str) -> str:
+    got = case.mac_check()
+    expect(got[0] == code and got[1] == status and all(t in got[2] for t in texts),
+           f"mac-check reported {got}, not {code} {status} {texts}")
     return got[2]
-
-
-def c_mac_check_native(case):
-    expect_mac_check(case, 0, "OK", "no switch is prepared", prepared=False)
-    expect_mac_check(case, 0, "OK", "State native:")
-
-
-def c_mac_check_complete(case):
-    run_to_complete(case)
-    expect_mac_check(case, 0, "OK", "State complete:")
-
-
-def c_mac_check_open(point: str, state: str):
-    def fn(case):
-        case.set_control({"actions": [{"point": point, "do": "crash"}]})
-        expect_exit(case.run(), 99)
-        expect_mac_check(case, 10, "Needs attention", f"State {state}:")
-    return fn
-
-
-def c_mac_check_drifted(case):
-    case.set_control({"actions": [{"point": "step-14", "do": "crash"}]})
-    expect_exit(case.run(), 99)
-    write_in_place(os.path.join(case.home, SETTINGS), SUPERSEDED_PLUGIN, True)
-    expect_mac_check(case, 10, "Needs attention", "State drifted:")
-    expect_exit(case.run(), 3, "drifted")
-    expect(case.receipts() == 0, "a run copied a receipt for a drifted layout")
-
-
-def c_mac_check_changed(case):
-    write_in_place(os.path.join(case.home, SETTINGS), SUPERSEDED_PLUGIN, "other")
-    expect_mac_check(case, 10, "Needs attention", "State changed:")
-
-
-def c_mac_check_flagged(where: str):
-    def fn(case):
-        if where == "settings":
-            c_native_descriptor(case)
-            of = RAVEL
-        elif where == "held":
-            c_hooks_descriptor(case)
-            of = SETTINGS
-        else:
-            flagged_switch_copy(case, [
-                {"point": BEFORE_EXCHANGE, "do": "write-key", "path": SETTINGS, "key": ["fault"], "value": 1}])
-            of = SETTINGS
-        expect(where == "backup" or case.state()["backup"] is None, "a backup exists before mac-check reads the copy")
-        expect_mac_check(case, 10, "Needs attention", f"Flagged kept copies of: {of}")
-    return fn
 
 
 def pending_body(case) -> dict:
@@ -3214,15 +3192,6 @@ def entry_controls() -> list:
         ("purge-check-clean", c_purge("clean"), {}),
         ("purge-check-retained-changed", c_purge("changed"), {}),
         ("purge-check-open-run", c_purge("open"), {}),
-        ("mac-check-native", c_mac_check_native, {}),
-        ("mac-check-complete", c_mac_check_complete, {}),
-        ("mac-check-active", c_mac_check_open("before-record:receipt", "active"), {}),
-        ("mac-check-interrupted", c_mac_check_open("switch-after-part:1", "interrupted"), {}),
-        ("mac-check-drifted-after-receipt", c_mac_check_drifted, {}),
-        ("mac-check-changed", c_mac_check_changed, {}),
-        ("mac-check-flagged-settings-before-backup", c_mac_check_flagged("settings"), {"ravel": "absent-key"}),
-        ("mac-check-flagged-held-before-backup", c_mac_check_flagged("held"), {"hooks": "absent"}),
-        ("mac-check-flagged-backup-copy", c_mac_check_flagged("backup"), {}),
         ("pending-after-step", c_pending_after_step, {}),
         ("pending-before-step-4", c_pending_before_step_4, {}),
         ("pending-after-inverse", c_pending_after_inverse, {}),
@@ -3804,6 +3773,267 @@ def c_serial_backup_changed(case):
     expect_exit(case.literal(note["restore"]), 0, "result: restored")
     expect_view(case, before, "after the restore")
     return "each changed copy, manifest or plan refuses before any write"
+
+
+# --- status and the purge report ---------------------------------------------------
+# docs/specs/owner-skill-delivery.md, "Current health and restore eligibility",
+# "Purge" and "Test seams". Each status control reads the real `mac-check`.
+
+NATIVE = "Native skill delivery is verified"
+SWITCHED_OK = "the switched layout is verified"
+NEEDS_RESTORE = "needs its restore"
+REVIEW = "needs review"
+
+
+def status_json(case, plan=None) -> dict:
+    """The program's `status --json` for the case, with the stubs on PATH."""
+    out = expect_exit(case.invoke([PY, "-I", case.r.program, "status", "--json", "--plan", plan or case.serial,
+                                   "--home", case.home]), 0)
+    return json.loads(out[:out.rindex("}") + 1][out.index("{"):])
+
+
+def purge_report(case) -> tuple:
+    return case.invoke([PY, "-I", case.r.program, "purge-report", "--plan", case.serial, "--home", case.home])
+
+
+def switched_case(case) -> dict:
+    """Prepare the case's plan, switch, and return the attempt note."""
+    case.serial_plan()
+    case.prepare()
+    note = case.attempt()
+    expect_exit(case.switch(note), 0, "result: switched")
+    return note
+
+
+def c_status_not_prepared(case):
+    expect_mac_check(case, 0, "OK", "not prepared", "no delivery state is verified")
+    os.makedirs(os.path.join(case.home, STATE, "attempts"))
+    expect_mac_check(case, 10, "Needs attention", "plan is missing")
+    case.serial_plan()
+    case.prepare(program=False)
+    expect_mac_check(case, 10, "Needs attention", "program is missing")
+    case.prepare()
+    expect_mac_check(case, 0, "OK", NATIVE)
+    return "no prepared plan reports an unprepared switch, never a verified native state"
+
+
+def c_status_native(case):
+    case.serial_plan()
+    case.prepare()
+    expect_mac_check(case, 0, "OK", NATIVE)
+    body = case.json(RAVEL)
+    del body["skills"]
+    save_json(os.path.join(case.home, RAVEL), body)
+    expect_mac_check(case, 10, "Needs attention", REVIEW)
+    # A plan whose native assertion accepts the absent key, as before promotion.
+    def either(plan):
+        plan["switch"]["native_assertions"][0] = {"path": RAVEL, "key": ["skills"],
+                                                  "values": [OFF, {"$absent": True}]}
+    case.serial_plan(either)
+    case.prepare()
+    expect_mac_check(case, 0, "OK", NATIVE)
+    return "the native assertions govern native health, and a list of values accepts each of them"
+
+
+def c_status_partial_native(case):
+    case.serial_plan()
+    case.prepare()
+    os.unlink(os.path.join(case.home, ".codex/skills/grove"))
+    expect_mac_check(case, 10, "Needs attention", REVIEW)
+    st = status_json(case)
+    expect(st["health"] == "review" and any(".codex/skills/grove" in p for p in st["problems"]),
+           f"the status of a partial layout is {st}")
+    return "a partial layout without an attempt requires review"
+
+
+def c_status_switched_edits(case):
+    note = switched_case(case)
+    expect_mac_check(case, 0, "OK", SWITCHED_OK, "restore is eligible")
+    write_in_place(os.path.join(case.home, SETTINGS), ["model"], "opus")
+    write_in_place(os.path.join(case.home, SETTINGS), ["hooks"], {"Stop": [{"hooks": [
+        {"type": "command", "command": "true"}]}]})
+    with open(os.path.join(case.home, MANUAL), "a") as f:
+        f.write("An unrelated note.\n")
+    expect_mac_check(case, 0, "OK", SWITCHED_OK, "ineligible", "differ from the receipt: .claude/settings.json.")
+    st = status_json(case)
+    expect(st["health"] == "switched" and st["restore"]["differing"] == [SETTINGS],
+           f"the status after unrelated edits is {st}")
+    middle = serial_view(case)
+    expect_exit(case.literal(note["restore"]), 3, "differ from the receipt")
+    expect_view(case, middle, "after the refused later restore")
+    return "unrelated edits keep delivery health and make whole-file restore ineligible"
+
+
+def status_delivery_change(change):
+    """A changed delivery assertion, entry, source or reader after success: the receipt stays, health needs review."""
+    def fn(case):
+        note = switched_case(case)
+        expect_mac_check(case, 0, "OK", SWITCHED_OK)
+        change(case)
+        expect(os.path.exists(receipt_file(case, note)), "the change invalidated the receipt")
+        expect_mac_check(case, 10, "Needs attention", REVIEW)
+        return "a valid receipt alone never shows current success"
+    return fn
+
+
+def change_setting(case):
+    write_in_place(os.path.join(case.home, SETTINGS), SUPERSEDED_PLUGIN, True)
+
+
+def change_entry(case):
+    write(os.path.join(case.home, ".claude/skills/extra/SKILL.md"), "---\nname: extra\n---\n")
+
+
+def change_source(case):
+    path = os.path.join(case.root, "prefix/Cellar/grove/1/share/ravel/skills/design/skills/design-skill/SKILL.md")
+    with open(path, "a") as f:
+        f.write("x")
+
+
+def change_reader(case):
+    write(os.path.join(case.home, READERS["grove@linkuistics"], ".orphaned_at"), "1792928060164")
+
+
+def c_status_stale(case):
+    switched_case(case)
+    stale = os.path.join(case.root, "stale-plan.json")
+    plan = load(case.serial, {})
+    plan["switch"]["tools"]["note"] = "a later preparation"
+    save_json(stale, plan)
+    case.prepare(stale)
+    expect_mac_check(case, 10, "Needs attention", REVIEW)
+    st = status_json(case, stale)
+    expect(any("stale" in p for p in st["problems"]), f"the status of a stale receipt is {st}")
+    return "a receipt of another plan than the prepared plan is stale evidence"
+
+
+def c_status_crash(case):
+    case.serial_plan()
+    case.prepare()
+    note = case.attempt()
+    case.set_control({"actions": [{"point": "probes", "do": "crash"}]})
+    expect_exit(case.switch(note), 99)
+    case.set_control({})
+    expect_switched(case)
+    expect_mac_check(case, 10, "Needs attention", NEEDS_RESTORE)
+    st = status_json(case)
+    expect(st["restore"] == {"status": "required", "differing": [], "commands": [note["restore"]]},
+           f"the status of a crashed attempt is {st}")
+    expect_exit(case.literal(note["restore"]), 0, "result: restored")
+    expect_mac_check(case, 0, "OK", NATIVE)
+    return "a complete switched layout without its receipt needs restore, not success"
+
+
+def c_status_in_progress(case):
+    case.serial_plan(lambda plan: plan.update(mac_check={
+        "name": "mac-check", "argv": [case.r.mac_check, "--only", "Owner skill switch"]}))
+    case.prepare()
+    case.link_checker()
+    note = case.attempt()
+    expect_exit(case.switch(note), 0, "result: switched")
+    receipt = load(receipt_file(case, note), {})
+    output = receipt["mac_check"]["output"]
+    expect(SWITCHED_OK in output and "still running" in output,
+           f"step 8 read this switch area: {output}")
+    expect_mac_check(case, 0, "OK", SWITCHED_OK, "restore is eligible")
+    return "step 8's mac-check verifies the running attempt's switched layout"
+
+
+def c_status_pending_manual(case):
+    case.serial_plan()
+    case.prepare()
+    note = case.attempt()
+    case.set_control({"actions": [{"point": "receipt:written", "do": "chmod", "path": MANUAL, "mode": "444"}]})
+    expect_exit(case.switch(note), 4, "the manual entry is pending")
+    case.set_control({})
+    expect_mac_check(case, 10, "Needs attention", NATIVE, "manual entry is pending")
+    os.chmod(os.path.join(case.home, MANUAL), 0o644)
+    expect_exit(case.literal(note["restore"]), 0, "restored already")
+    expect_mac_check(case, 0, "OK", NATIVE)
+    return "a restore's pending manual entry is reported beside native delivery"
+
+
+def c_status_later_restore_interrupted(case):
+    note = switched_case(case)
+    case.set_control({"actions": [{"point": "restore:.claude/settings.json", "do": "crash"}]})
+    out = expect_exit(case.literal(note["restore"]), 99)
+    case.set_control({})
+    retry = re.search(r"^if this restore is interrupted, repeat under the same quiet interval: (.+)$", out, re.M)
+    expect(retry is not None, f"the later restore gave no retry command: {out[-1500:]}")
+    expect_mac_check(case, 10, "Needs attention", NEEDS_RESTORE)
+    st = status_json(case)
+    expect(st["restore"]["commands"] == [retry.group(1)], f"the status names {st['restore']}")
+    expect_exit(case.literal(retry.group(1)), 0, "restore: retry")
+    expect_mac_check(case, 0, "OK", NATIVE)
+    return "an interrupted later restore needs its retry command"
+
+
+def c_purge_report_clean(case):
+    switched_case(case)
+    write(os.path.join(case.home, READERS["grove@linkuistics"], ".in_use", "12345"), "")
+    out = expect_exit(purge_report(case), 0, "the conditions that the program reads hold")
+    for text in ("retained frozen cache version grove@linkuistics", "keeps its recorded identity",
+                 "retained superseded plugin registration grove@linkuistics",
+                 "the owner establishes: the owner decides that the rollback window is closed",
+                 "the owner establishes: its last driver ends", "removable, because this receipt is written"):
+        expect(text in out, f"the purge report lacks {text!r}: {out[-2000:]}")
+    expect("the owner establishes: each retained resource keeps" not in out,
+           "the purge report hands the owner a condition that the program reads")
+    return "a reader marker keeps each retained identity, and the owner's conditions are listed"
+
+
+def purge_changed(change, what: str):
+    def fn(case):
+        switched_case(case)
+        change(case)
+        expect_mac_check(case, 0, "OK", SWITCHED_OK)
+        expect_exit(purge_report(case), 3, f"purge blocked: the retained {what} .* changed since the receipt")
+        return f"a changed {what} blocks purge"
+    return fn
+
+
+def change_cache(case):
+    write(os.path.join(case.home, READERS["grove@linkuistics"], ".claude-plugin/plugin.json"), '{"changed": 1}\n')
+
+
+def change_registration(case):
+    path = os.path.join(case.home, INSTALLED_PLUGINS)
+    body = case.json(INSTALLED_PLUGINS)
+    body["plugins"]["grove@linkuistics"][0]["version"] = "changed"
+    save_json(path, body)
+
+
+def c_purge_report_unverified(case):
+    case.serial_plan()
+    expect_exit(purge_report(case), 3, "no valid receipt")
+    note = switched_case(case)
+    change_setting(case)
+    out = expect_exit(purge_report(case), 3, "the switch is not verified: its health is review")
+    expect(os.path.exists(receipt_file(case, note)), "the purge report changed the receipt")
+    return "an unverified switch blocks purge"
+
+
+def status_controls() -> list:
+    return [
+        ("status-not-prepared", c_status_not_prepared, SERIAL_ARGS),
+        ("status-native", c_status_native, SERIAL_ARGS),
+        ("status-partial-native", c_status_partial_native, SERIAL_ARGS),
+        ("status-switched-unrelated-edits", c_status_switched_edits, SERIAL_ARGS),
+        ("status-switched-setting-changed", status_delivery_change(change_setting), SERIAL_ARGS),
+        ("status-switched-entry-added", status_delivery_change(change_entry), SERIAL_ARGS),
+        ("status-switched-source-changed", status_delivery_change(change_source), SERIAL_ARGS),
+        ("status-switched-reader-orphaned", status_delivery_change(change_reader), SERIAL_ARGS),
+        ("status-stale-receipt", c_status_stale, SERIAL_ARGS),
+        ("status-crash-before-receipt", c_status_crash, SERIAL_ARGS),
+        ("status-step-8-in-progress", c_status_in_progress, SERIAL_ARGS),
+        ("status-pending-manual", c_status_pending_manual, SERIAL_ARGS),
+        ("status-later-restore-interrupted", c_status_later_restore_interrupted, SERIAL_ARGS),
+        ("purge-report-clean", c_purge_report_clean, SERIAL_ARGS),
+        ("purge-report-cache-changed", purge_changed(change_cache, "frozen cache version"), SERIAL_ARGS),
+        ("purge-report-registration-changed",
+         purge_changed(change_registration, "superseded plugin registration"), SERIAL_ARGS),
+        ("purge-report-unverified", c_purge_report_unverified, SERIAL_ARGS),
+    ]
 
 
 def serial_controls() -> list:

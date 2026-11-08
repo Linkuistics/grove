@@ -27,11 +27,14 @@ Usage:
     python3 -I owner_switch.py switch      --plan PLAN --attempt NOTE [--home HOME] [--guidance PATH]...
     python3 -I owner_switch.py restore     --backup DIR --attempt NOTE [--home HOME] [--recovery NOTE]
     python3 -I owner_switch.py restore-identity PATH
+    python3 -I owner_switch.py status      --plan PLAN [--home HOME] [--json]
+    python3 -I owner_switch.py purge-report --plan PLAN [--home HOME]
 
 The serial switch ("The switch inside finish") is `attempt`, `switch` and
-`restore`. It stands beside the old `run`, `inverse`, `merge`, `pending` and
-`state`, which owner-switch-contraction-k270 removes. The section "The serial
-switch" at the end of this text states it.
+`restore`, with the read-only `status` and `purge-report`. It stands beside
+the old `run`, `inverse`, `merge`, `pending`, `state` and `purge-check`,
+which owner-switch-contraction-k270 removes. The sections "The serial switch"
+and "Status and the purge report" at the end of this text state it.
 
 `state` reads the state of the switch set and changes nothing. While a run
 is open, the program copy of its backup reads it. `run` runs the
@@ -155,7 +158,7 @@ account's home directory.
 
 The owner's layout: the real plan names .local/state/owner-switch as its
 state. The prepared plan and program are <state>/prepared/plan.json and
-<state>/prepared/owner_switch.py. `mac-check` runs that program's `state
+<state>/prepared/owner_switch.py. `mac-check` runs that program's `status
 --json` with that plan.
 
 The plan (JSON, schema "owner-switch-plan/1"):
@@ -372,8 +375,12 @@ The plan's "switch" section, which the old entries ignore:
     inputs      [{"role", "path", "digest"}]: each command input by content;
                 "$program" names this program
     assertions  [{"path", "key", "value"} | {"path", "absent": true}]: the
-                delivery assertions, which the receipt keeps apart from
-                the restore identities
+                delivery assertions of the switched layout, which the
+                receipt keeps apart from the restore identities. In place
+                of "value", "values" lists each accepted value.
+    native_assertions
+                the delivery assertions of native delivery, in the same
+                form. `status` reads them
     tools       {"claude": the held `claude --version` line}
     retained    optional [{"item", "path", "condition": [...]}]: further
                 retained resources for the receipt, such as old binaries
@@ -384,11 +391,51 @@ hooks:after:<label>, write:<path>:before, write:<path>:replace,
 deactivate:<path>, probes, receipt:written, manual:<what>, switch:final,
 restore:start, restore:<path> and restore:native-probes, besides gate:<point>
 and command:<name>.
+
+Status and the purge report ("Current health and restore eligibility" and
+"Purge"). Both read the serial records in <state> and the layout, and write
+nothing. Exit status: 0 for a report, 3 when the plan is unusable or, for
+`purge-report`, when purge is blocked.
+    status    The latest switch attempt with a published backup governs.
+              Delivery health is one of:
+                native    no attempt, or a restored one: the native
+                          assertions and switch.inventory.before hold
+                switched  the attempt has a valid receipt of the prepared
+                          plan, and the assertions, switch.inventory.after,
+                          the receipt's reader evidence and the sources hold
+                restore   a published backup has no receipt and no restored
+                          record, or a recovery backup waits for its retry
+                review    anything else: a partial layout, a failed
+                          assertion, stale evidence or a record without its
+                          attempt note
+              The sources: `$(brew --prefix)/bin/ravel skills resolve` of the
+              current Ravel skills value in a disposable HOME, compared by
+              ID and resourceDigest with the receipt's. Restore eligibility
+              is separate: eligible, ineligible with each restore
+              destination that differs from the receipt's post-switch
+              identity, unavailable when the backup does not verify,
+              required with each restore command, or none. A restored
+              attempt whose manual lacks its entries is a pending manual
+              entry. The switch runs `mac-check` at its step 8, before its
+              receipt: when the switch of the governing attempt's note is an
+              ancestor of this process, its layout is evaluated as switched
+              from the plan and the backup's evidence, and its restore is
+              "in-progress". A crashed switch is no ancestor. --json prints
+              {"health", "attempt", "receipt", "plan_digest", "problems",
+              "restore": {"status", "differing", "commands"},
+              "pending_manual": [{"attempt", "command"}]}.
+    purge-report
+              Block unless the health is switched. Compare each retained
+              resource of the valid receipt with its recorded identity: a
+              path by its change identity without the top-level .in_use
+              reader markers, a registration by the digest of its entry.
+              List each condition that only the owner establishes.
 """
 from __future__ import annotations
 
 import argparse
 import base64
+import contextlib
 import ctypes
 import datetime
 import errno
@@ -619,11 +666,12 @@ def path_digest(path: str):
         os.close(fd)
 
 
-def identity(path: str):
+def identity(path: str, skip=()):
     """The change identity of an entry, or None when nothing is at the path.
 
     It covers each relative path, the type, the executable bit and content of
-    each file, and the target of each link, without following a link.
+    each file, and the target of each link, without following a link. SKIP
+    names direct children of the entry that the identity leaves out.
     """
     if not os.path.lexists(path):
         return None
@@ -636,6 +684,8 @@ def identity(path: str):
         elif stat.S_ISDIR(st.st_mode):
             _frame(h, b"dir", rel.encode())
             for name in sorted(os.listdir(p)):
+                if rel == "." and name in skip:
+                    continue
                 walk(os.path.join(p, name), f"{rel}/{name}")
         elif stat.S_ISREG(st.st_mode):
             x = b"x" if st.st_mode & 0o111 else b"-"
@@ -2749,8 +2799,11 @@ def erase_tree(path: str) -> None:
     shutil.rmtree(path, ignore_errors=True)
 
 
-def resolve(prefix: str, settings: dict) -> dict:
-    """`ravel skills resolve --json` with the promoted ravel, in a disposable HOME."""
+def resolve(prefix: str, settings: dict, base=None) -> dict:
+    """`ravel skills resolve --json` with the promoted ravel, in a disposable HOME.
+
+    BASE is the environment to start from, the program's own by default.
+    """
     ravel = os.path.join(prefix, "bin", "ravel")
     home = tempfile.mkdtemp(prefix="owner-switch-resolve-")
     try:
@@ -2759,7 +2812,7 @@ def resolve(prefix: str, settings: dict) -> dict:
             f.write(dump_json(settings))
         # Ravel reads its settings and its cache from HOME, and no RAVEL_*
         # variable may steer the resolution.
-        env = {k: v for k, v in os.environ.items() if not k.startswith("RAVEL_")}
+        env = {k: v for k, v in (os.environ if base is None else base).items() if not k.startswith("RAVEL_")}
         env["HOME"] = home
         version = tool([ravel, "--version"], env, home).stdout.strip()
         doc = tool_json([ravel, "skills", "resolve", "--json"], env, home)
@@ -3679,17 +3732,20 @@ def switch_section(plan: dict) -> dict:
                                                           and os.path.isabs(row["path"])))
                 or not re.fullmatch(r"[0-9a-f]{64}", str(row.get("digest")))):
             problems.append(f"switch.inputs[{i}] needs a role, an absolute path or \"$program\", and a digest")
-    assertions = sw.get("assertions")
-    if not isinstance(assertions, list) or not assertions:
-        problems.append("switch.assertions names no delivery assertion")
-        assertions = []
-    for i, a in enumerate(assertions):
-        keyed = (isinstance(a, dict) and isinstance(a.get("key"), list) and a["key"]
-                 and all(isinstance(k, str) for k in a["key"]) and "value" in a)
-        absent = isinstance(a, dict) and a.get("absent") is True and "key" not in a
-        if not (keyed or absent) or a.get("path") not in types:
-            problems.append(f"switch.assertions[{i}] needs a path of switch.writes, and a key with a value "
-                            "or \"absent\": true")
+    for name in ("assertions", "native_assertions"):
+        assertions = sw.get(name)
+        if not isinstance(assertions, list) or not assertions:
+            problems.append(f"switch.{name} names no delivery assertion")
+            assertions = []
+        for i, a in enumerate(assertions):
+            keyed = (isinstance(a, dict) and isinstance(a.get("key"), list) and a["key"]
+                     and all(isinstance(k, str) for k in a["key"])
+                     and ("value" in a) != ("values" in a)
+                     and (isinstance(a.get("values"), list) and a["values"] if "values" in a else True))
+            absent = isinstance(a, dict) and a.get("absent") is True and "key" not in a
+            if not (keyed or absent) or a.get("path") not in types:
+                problems.append(f"switch.{name}[{i}] needs a path of switch.writes, and a key with a value, "
+                                "a non-empty list of values, or \"absent\": true")
     tools = sw.get("tools")
     if not isinstance(tools, dict) or not isinstance(tools.get("claude"), str):
         problems.append("switch.tools must name the held Claude Code version as \"claude\"")
@@ -4222,9 +4278,10 @@ def original_changes(layout: Layout, sw: dict) -> list:
     return out
 
 
-def assertion_results(layout: Layout, sw: dict) -> list:
+def assertion_results(layout: Layout, assertions: list) -> list:
+    """Evaluate delivery assertions. An assertion with "values" holds when any of them is observed."""
     out = []
-    for a in sw["assertions"]:
+    for a in assertions:
         if a.get("absent"):
             observed = "absent" if not os.path.lexists(layout.path(a["path"])) else "present"
             holds = observed == "absent"
@@ -4233,9 +4290,14 @@ def assertion_results(layout: Layout, sw: dict) -> list:
                 observed = get_cell(strict_file(layout.path(a["path"])), a["key"])
             except Stop as e:
                 observed = f"unreadable: {e}"
-            holds = same(observed, a["value"])
+            holds = any(same(observed, v) for v in (a["values"] if "values" in a else [a["value"]]))
         out.append(dict(a, observed=observed, holds=holds))
     return out
+
+
+def assertion_problems(results: list) -> list:
+    return [f"the assertion {a['path']} {key_name(a['key']) if 'key' in a else 'absent'} observed "
+            f"{show(a['observed'])}" for a in results if not a["holds"]]
 
 
 def probe_owned(results: list) -> list:
@@ -4410,12 +4472,11 @@ def switched_cells(plan: dict) -> list:
 
 
 def final_comparison(layout: Layout, sw: dict, ctx: dict) -> dict:
-    assertions = assertion_results(layout, sw)
+    assertions = assertion_results(layout, sw["assertions"])
     inventory = inventory_changes(layout, sw["inventory"]["after"])
     readers = recheck_reader_list(layout, gate_result(ctx["evidence"]["7"]).get("readers") or [])
     guidance = [g["path"] for g in ctx["guidance"] if file_digest(g["path"]) != g["digest"]]
-    problems = [f"the assertion {a['path']} {key_name(a['key']) if 'key' in a else 'absent'} observed "
-                f"{show(a['observed'])}" for a in assertions if not a["holds"]]
+    problems = assertion_problems(assertions)
     problems += [f"the inventory changed at {rel}" for rel in inventory]
     problems += readers["problems"]
     problems += [f"the operator's guidance {p} changed or cannot be read" for p in guidance]
@@ -4447,6 +4508,11 @@ def retained_resources(layout: Layout, plan: dict, sw: dict, note: dict, ctx: di
     items.append({"item": "staging HOME", "path": staging["home"], "condition": after})
     items.append({"item": "candidate keg", "path": staging["candidate_keg"], "condition": after})
     items += [dict(row) for row in sw.get("retained", [])]
+    # The purge report compares these identities ("Purge"). A resource that
+    # may go once this receipt is written needs none.
+    for item in items:
+        if item["condition"] != after:
+            item["identity"] = retained_item_identity(layout, item)
     return items
 
 
@@ -4863,6 +4929,304 @@ def args_command(args) -> str:
         argv += ["--guidance", p]
     return shlex.join(program_argv(*argv))
 
+# --- status and the purge report ----------------------------------------------------
+# docs/specs/owner-skill-delivery.md, "Current health and restore eligibility" and
+# "Purge". Both entries read the serial records and the layout, and write nothing.
+
+# Claude Code's documented reader markers in a cache version directory ("Resource lifetime").
+READER_MARKERS = ".in_use"
+# The purge conditions that the program itself establishes; the owner establishes the others.
+PROGRAM_CONDITIONS = ("each retained resource keeps its recorded identity", "this receipt is written")
+
+
+def registration_identity(layout: Layout, rel: str, key: str) -> str:
+    """The digest of one registration's JSON entry in a Claude Code registry file."""
+    doc = load_json_file(layout.path(rel))
+    if doc is not None and rel == INSTALLED_PLUGINS:
+        doc = doc.get("plugins") if isinstance(doc.get("plugins"), dict) else None
+    value = UNREADABLE if doc is None else doc.get(key, ABSENT)
+    return hashlib.sha256(canon(value).encode()).hexdigest()
+
+
+def retained_item_identity(layout: Layout, item: dict):
+    """The identity of one retained resource, or None for a resource without a path or registration.
+
+    A path's identity is its change identity without the top-level reader
+    markers, which a live reader adds and removes ("Inventory controls").
+    """
+    if item["item"] == "superseded plugin registration":
+        return registration_identity(layout, INSTALLED_PLUGINS, item["plugin"])
+    if item["item"] == "earlier marketplace registration":
+        return registration_identity(layout, KNOWN_MARKETPLACES, item["marketplace"])
+    if isinstance(item.get("path"), str):
+        try:
+            return identity(item["path"], skip=(READER_MARKERS,)) or "absent"
+        except OSError as e:
+            # An unreadable resource cannot keep its identity, so the comparison fails.
+            return f"unreadable: {e.strerror}"
+    return None
+
+
+def json_names(folder: str, suffix: str = ".json") -> list:
+    try:
+        return sorted(n for n in os.listdir(folder) if n.endswith(suffix) and not n.startswith("."))
+    except FileNotFoundError:
+        return []
+
+
+def serial_records(layout: Layout) -> dict:
+    """Every record of the serial switch in the state folder, and each record without its attempt note."""
+    notes, recoveries, problems = {}, [], []
+    for name in json_names(os.path.join(layout.state, "attempts")):
+        try:
+            note = load_note(os.path.join(layout.state, "attempts", name))
+        except Stop as e:
+            problems.append(str(e))
+            continue
+        if note["kind"] == "recovery":
+            recoveries.append(note)
+        else:
+            notes[note["attempt"]] = note
+    receipts = {n[:-len(".json")] for n in json_names(os.path.join(layout.state, "receipts"))
+                if not n.endswith(".invalid.json")}
+    restored = {n[:-len(".json")] for n in json_names(os.path.join(layout.state, "restored"))}
+    for attempt in sorted((receipts | restored) - set(notes)):
+        problems.append(f"the receipt or restored record of attempt {attempt} has no attempt note")
+    known = {os.path.realpath(n["backup"]) for n in list(notes.values()) + recoveries}
+    for name in sorted(os.listdir(layout.backups)) if os.path.isdir(layout.backups) else []:
+        path = os.path.join(layout.backups, name)
+        manifest = load_json_file(os.path.join(path, "manifest.json"))
+        if (not name.startswith(".") and manifest is not None and manifest.get("schema") == BACKUP_SCHEMA
+                and os.path.realpath(path) not in known):
+            problems.append(f"the backup {path} has no attempt note")
+    attempts = []
+    for attempt, note in sorted(notes.items()):
+        if attempt in restored:
+            st = "restored"
+        elif attempt in receipts:
+            st = "switched"
+        elif os.path.isdir(note["backup"]):
+            st = "open"
+        else:
+            st = "unused"
+        attempts.append({"attempt": attempt, "note": note, "state": st})
+    return {"attempts": attempts, "recoveries": recoveries, "restored": restored, "problems": problems}
+
+
+def running_switch(note: dict) -> bool:
+    """Whether an ancestor of this process is the switch of NOTE, as at its step 8.
+
+    A crashed switch is no ancestor, so its layout never counts as a switch
+    in progress.
+    """
+    try:
+        procs = process_table()
+    except Stop:
+        return False
+    for pid in ancestors_of(procs, os.getpid()):
+        _, argv, _ = process_arguments(pid)
+        if not argv or "switch" not in argv or "--attempt" not in argv[:-1]:
+            continue
+        given = argv[argv.index("--attempt") + 1]
+        if os.path.realpath(os.path.join(process_folder(pid) or "/", given)) == note["_path"]:
+            return True
+    return False
+
+
+def source_problems(layout: Layout, expected: dict) -> list:
+    """Resolve the current Ravel skills value in a disposable HOME and compare each source with EXPECTED."""
+    try:
+        skills = ravel_skills(layout)
+        env = command_env(layout, "status")
+        result = tool(["brew", "--prefix"], env)
+        prefix = result.stdout.strip()
+        if result.returncode != 0 or not prefix:
+            raise Stop(f"brew --prefix failed: {(result.stdout + result.stderr).strip()[-500:]}")
+        got = resolve(prefix, {} if same(skills, ABSENT) else {"skills": skills}, env)["sources"]
+    except Stop as e:
+        return [f"the sources cannot be resolved: {e}"]
+    problems = []
+    for sid in sorted(set(got) | set(expected)):
+        if sid not in got:
+            problems.append(f"the source {sid} no longer resolves")
+        elif sid not in expected:
+            problems.append(f"the source {sid} resolves, and the switch accepted no such source")
+        elif got[sid]["resourceDigest"] != (expected[sid] or {}).get("resourceDigest"):
+            problems.append(f"the source {sid} gives {got[sid]['resourceDigest']}, not its switched "
+                            f"{(expected[sid] or {}).get('resourceDigest')}")
+    return problems
+
+
+def switched_problems(layout: Layout, sw: dict, readers: list, sources: dict) -> list:
+    """Delivery health of a switched layout: assertions, inventory, reader evidence and sources."""
+    problems = assertion_problems(assertion_results(layout, sw["assertions"]))
+    problems += [f"the inventory differs from the switched inventory at {rel}"
+                 for rel in inventory_changes(layout, sw["inventory"]["after"])]
+    problems += recheck_reader_list(layout, readers)["problems"]
+    return problems + source_problems(layout, sources)
+
+
+def native_problems(layout: Layout, sw: dict) -> list:
+    problems = assertion_problems(assertion_results(layout, sw["native_assertions"]))
+    return problems + [f"the inventory differs from the native inventory at {rel}"
+                       for rel in inventory_changes(layout, sw["inventory"]["before"])]
+
+
+def pending_manual(layout: Layout, attempt: str) -> bool:
+    """Whether the manual lacks an entry of a completed restore of ATTEMPT."""
+    text = manual_text(layout)
+    return (manual_marker(attempt, "restored") not in text
+            or (manual_marker(attempt, "switched") in text and manual_marker(attempt, "correction") not in text))
+
+
+def status_report(layout: Layout, plan: dict, sw: dict) -> dict:
+    """Delivery health, restore eligibility and pending manual entries ("Current health and restore eligibility").
+
+    Health is native, switched, restore or review. A receipt names what to
+    verify, and never stands for the current layout.
+    """
+    records = serial_records(layout)
+    problems = list(records["problems"])
+    restore = {"status": "none", "differing": [], "commands": []}
+    pending = [{"attempt": a["attempt"], "command": a["note"]["restore"]} for a in records["attempts"]
+               if a["state"] == "restored" and pending_manual(layout, a["attempt"])]
+    live = [a for a in records["attempts"] if a["state"] != "unused"]
+    governing = live[-1] if live else None
+    report = {"health": "review", "attempt": governing["attempt"] if governing else None, "receipt": None,
+              "plan_digest": plan["_digest"], "problems": problems, "restore": restore, "pending_manual": pending}
+    for a in live[:-1]:
+        if a["state"] == "switched":
+            problems.append(f"the receipt of the earlier attempt {a['attempt']} is still valid")
+    waiting = [a for a in live if a["state"] == "open"]
+    retries = [r for r in records["recoveries"]
+               if r.get("of") not in records["restored"] and os.path.isdir(r["backup"])]
+    if governing and governing["state"] == "open" and running_switch(governing["note"]) and not retries:
+        # The switch runs `mac-check` at step 8, before its receipt exists.
+        waiting = waiting[:-1]
+        restore["status"] = "in-progress"
+        try:
+            backup = load_backup(governing["note"]["backup"])
+        except Stop as e:
+            problems.append(str(e))
+            backup = None
+        if backup is not None:
+            if backup["plan"]["digest"] != plan["_digest"]:
+                problems.append("the running attempt's plan is not the prepared plan")
+            else:
+                problems += switched_problems(layout, sw, gate_result(backup["evidence"]["7"]).get("readers") or [],
+                                              gate_result(backup["evidence"]["6"]).get("sources") or {})
+        if not problems and not waiting:
+            report["health"] = "switched"
+        return report
+    if waiting or retries:
+        report["health"] = "restore"
+        restore["status"] = "required"
+        restore["commands"] = [a["note"]["restore"] for a in waiting] + [r["restore"] for r in retries]
+        return report
+    if problems:
+        return report
+    if governing and governing["state"] == "switched":
+        note = governing["note"]
+        receipt = load_json_file(receipt_path(layout, note["attempt"]))
+        if receipt is None or receipt.get("schema") != RECEIPT_SCHEMA:
+            problems.append(f"the receipt of attempt {note['attempt']} cannot be read")
+            return report
+        report["receipt"] = receipt
+        if (receipt.get("plan") or {}).get("digest") != plan["_digest"]:
+            problems.append("the prepared plan is not the plan of the receipt, so its evidence is stale")
+            return report
+        problems += switched_problems(layout, sw, (receipt.get("readers") or {}).get("recorded") or [],
+                                      receipt.get("sources") or {})
+        if not problems:
+            report["health"] = "switched"
+        wanted = receipt.get("restore_identities") or {}
+        for rel in sw["restore"]:
+            try:
+                if restore_identity(layout.path(rel)) != wanted.get(rel):
+                    restore["differing"].append(rel)
+            except Stop:
+                restore["differing"].append(rel)
+        try:
+            check_backup_note(load_backup(note["backup"]), note, layout.home)
+            restore["status"] = "ineligible" if restore["differing"] else "eligible"
+        except Stop as e:
+            restore["status"] = "unavailable"
+            restore["reason"] = str(e)
+        restore["commands"] = [note["restore"]]
+        return report
+    problems += native_problems(layout, sw)
+    if not problems:
+        report["health"] = "native"
+    return report
+
+
+def status_command(args) -> int:
+    plan = load_plan(args.plan)
+    sw = switch_section(plan)
+    layout = Layout(args.home, plan)
+    contain_switch(layout, sw)
+    if args.json:
+        # Only the JSON object reaches standard output; each log line of a resolution goes to standard error.
+        with contextlib.redirect_stdout(sys.stderr):
+            report = status_report(layout, plan, sw)
+        out = dict(report, receipt=receipt_path(layout, report["attempt"]) if report["receipt"] else None)
+        print(json.dumps(out, indent=2, sort_keys=True))
+        return 0
+    report = status_report(layout, plan, sw)
+    log(f"health: {report['health']}" + (f" (attempt {report['attempt']})" if report["attempt"] else ""))
+    for p in report["problems"]:
+        log(f"  {p}")
+    restore = report["restore"]
+    log(f"restore: {restore['status']}")
+    for rel in restore["differing"]:
+        log(f"  differs from the receipt's post-switch identity: {rel}")
+    if restore.get("reason"):
+        log(f"  {restore['reason']}")
+    for command in restore["commands"]:
+        log(f"  command: {command}")
+    for entry in report["pending_manual"]:
+        log(f"pending manual entry of attempt {entry['attempt']}; repeat: {entry['command']}")
+    return 0
+
+
+def purge_report_command(args) -> int:
+    """Compare the retained identities of the valid receipt, and list the owner's conditions ("Purge")."""
+    plan = load_plan(args.plan)
+    sw = switch_section(plan)
+    layout = Layout(args.home, plan)
+    contain_switch(layout, sw)
+    report = status_report(layout, plan, sw)
+    blocks = []
+    if report["health"] != "switched":
+        blocks.append(f"the switch is not verified: its health is {report['health']}")
+    for p in report["problems"]:
+        log(f"  status: {p}")
+    receipt = report["receipt"]
+    if receipt is None:
+        blocks.append("no valid receipt names the retained resources")
+    owner = []
+    for item in (receipt or {}).get("retained") or []:
+        what = " ".join(str(item[k]) for k in ("item", "plugin", "marketplace", "source", "path") if item.get(k))
+        conditions = [c for c in item.get("condition") or [] if c not in PROGRAM_CONDITIONS]
+        owner += [c for c in conditions if c not in owner]
+        if item.get("condition") == ["this receipt is written"]:
+            log(f"retained {what}: removable, because this receipt is written")
+        elif item.get("identity") is None:
+            log(f"retained {what}: no recorded identity to compare")
+        elif retained_item_identity(layout, item) != item["identity"]:
+            blocks.append(f"the retained {what} changed since the receipt")
+        else:
+            log(f"retained {what}: keeps its recorded identity")
+    for condition in owner:
+        log(f"the owner establishes: {condition}")
+    for b in blocks:
+        log(f"  purge blocked: {b}")
+    if blocks:
+        log("result: purge is blocked")
+        return EXIT_REFUSED
+    log("result: the conditions that the program reads hold; the owner establishes the others")
+    return 0
+
 
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n", 1)[0])
@@ -4906,6 +5270,13 @@ def main(argv=None) -> int:
     p.add_argument("--home", default=account_home())
     p.add_argument("--recovery", help="the recovery note of an interrupted later restore")
     p.add_argument("--guidance", action="append", help="a guidance file that the operator read; repeatable")
+    p = sub.add_parser("status")
+    p.add_argument("--plan", required=True)
+    p.add_argument("--home", default=account_home())
+    p.add_argument("--json", action="store_true")
+    p = sub.add_parser("purge-report")
+    p.add_argument("--plan", required=True)
+    p.add_argument("--home", default=account_home())
     p = sub.add_parser("gate")
     p.add_argument("step", choices=("4", "5", "6", "7"))
     p.add_argument("--plan")
@@ -4927,11 +5298,11 @@ def main(argv=None) -> int:
         if args.command == "restore-identity":
             print(restore_identity(args.path))
             return 0
-        if args.command in ("attempt", "switch", "restore"):
+        if args.command in ("attempt", "switch", "restore", "status", "purge-report"):
             # These entries write no run log: an attempt note holds instructions, not progress.
             try:
-                return {"attempt": attempt_command, "switch": switch_command,
-                        "restore": restore_command}[args.command](args)
+                return {"attempt": attempt_command, "switch": switch_command, "restore": restore_command,
+                        "status": status_command, "purge-report": purge_report_command}[args.command](args)
             except Stop as e:
                 log(f"stop: {e}")
                 log("result: refused; nothing written")

@@ -980,6 +980,15 @@ Missing evidence means not prepared or review needed, never inferred success.
 Purge applies the current delivery assertions and retained-resource identities,
 not equality of every unrelated key with a day-zero file.
 
+The program's read-only `status` entry supplies this report to `mac-check`.
+The plan names native assertions beside the switched ones, and an assertion
+can accept a list of values. The real plan before promotion can then accept
+both an absent `skills` key and the off value.
+Step 8 runs `mac-check` before the receipt exists. The status then evaluates
+the running attempt as switched, but only while that switch is an ancestor
+process of the status. A crashed attempt is no ancestor, so its layout needs
+restore, even when every write completed.
+
 After purge, the retained native return is unavailable. Repair the Ravel route
 instead. Frozen native registrations and retained cache paths remain prerequisites
 for any eligible native return before purge.

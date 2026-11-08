@@ -1,11 +1,11 @@
 # Owner skill delivery through Ravel
 
 This design moves the owner's installed skill collection from native harness
-installations to Ravel's directory delivery. Homebrew installs the ten sources;
-native registrations retain capabilities that a skill read cannot supply.
+installations to Ravel's directory delivery. Homebrew installs the ten sources.
+Native registrations retain capabilities that a skill read cannot supply.
 
 The owner is the only user of Grove and Ravel, and this is the only running
-grove. The switch therefore uses an owner checklist, a narrow process check,
+grove. The switch therefore uses an owner checklist, a narrow process inspection,
 one backup, ordinary writes and one restore command. It requires an interval
 without other writers. It does not preserve concurrent edits or resume a
 partly applied switch. [Concurrent writers](#concurrent-writers) states that
@@ -68,8 +68,7 @@ owner-selected skill. Four facts constrain the transition:
    one Claude Code skill.
 4. Prove the replacement on both harnesses in a staging HOME before finish.
 5. Inside finish, after Grove's release and Ravel's promotion, switch the real
-   HOME in one reversible operation. Verify both harnesses, and roll back on
-   failure.
+   HOME in one reversible operation. Observe both harnesses. On failure, restore native delivery.
 6. Purge retained bytes only after this driver's reap, on reader evidence.
 
 The classification view (`#diagram-owner-classes`), the cutover view
@@ -84,17 +83,17 @@ same design.
 
 | Concern | Retained contract and removal | Why the owner's facts permit the change |
 | --- | --- | --- |
-| Processes and jobs | [The owner checklist](#the-owners-checklist) replaces broad program, job and login-item enumeration; the narrow harness/driver check remains. | One owner controls the accounts and launches involved. That owner can pause their tools and relaunch mechanisms; sole ownership alone does not establish that they are paused. |
+| Processes and jobs | [The owner checklist](#the-owners-checklist) replaces broad program, job and login-item enumeration. The narrow harness/driver inspection remains. | One owner controls the accounts and launches involved. That owner can pause their tools and relaunch mechanisms. Sole ownership alone does not establish that they are paused. |
 | Writes | [Serial writes](#concurrent-writers), one backup and final comparison replace exchange, kept-copy detection, held links and merge. | No other writer is required during this operation. Finish waits and the owner makes no settings action. Overwritten concurrent edits are deliberately outside the guarantee. |
-| Recovery | [Full restore](#rollback) replaces partial inverses, state classification, backup program copies and pending activation. | The only executor can restore the whole native layout before retrying; there is no concurrent actor's change to merge. Crashes still require retained data and explicit restore. |
-| Dry run | [One disposable execution](#the-rehearsed-plan) and content-identified inputs replace digest-bound admission records. | The same executor controls the prepared tools and reviews their identities before the real attempt. Changed inputs need another dry run; a stored token adds no observation. |
+| Recovery | [Full restore](#rollback) replaces partial inverses, state classification, backup program copies and pending activation. | The only executor can restore the whole native layout before retrying. There is no concurrent actor's change to merge. Crashes still require retained data and explicit restore. |
+| Dry run | [One disposable execution](#the-rehearsed-plan) and content-identified inputs replace digest-bound admission records. | The same executor controls the prepared tools and reviews their identities before the real attempt. Changed inputs need another dry run. A stored token adds no observation. |
 
 ### Terms
 
 - **Deactivation** takes an entry out of native discovery and keeps its bytes
   in the backup. For a plugin, it disables the plugin without updating or
   uninstalling it. Its registered cache directory stays in place.
-- **Purge** erases retained bytes after their readers end and the owner closes
+- **Purge** removes retained bytes after their readers end and the owner closes
   the rollback window. Deactivation precedes purge.
 - **The switch** activates directory delivery in the real HOME and deactivates
   every superseded native entry.
@@ -177,7 +176,7 @@ These rules bind the owner's sources:
   compares the resolved IDs with the ten.
 - Where trial settings name a source, they name a candidate keg path or a path
   in the default directory, never a versioned keg path. Homebrew's cleanup
-  erases an earlier keg.
+  removes an earlier keg.
 - Keep native-only skills and plugin-only trees outside every source.
 
 The first commits of the two third-party formulae are known: superpowers
@@ -334,7 +333,7 @@ The design rejected these alternatives:
 - **mise checkouts in `[bootstrap.repos]`.** They are specific to mise, and the
   human chose Homebrew, which mise runs. skill-marketplace-decision-k201
   records that choice.
-- **The Claude Code marketplace clones.** Claude Code updates and erases them,
+- **The Claude Code marketplace clones.** Claude Code updates and removes them,
   and Codex delivery would then depend on Claude Code.
 
 ### Mandatory guidance
@@ -393,7 +392,7 @@ both together.
 ### Name collisions and stale copies
 
 After the switch, each owner-selected name has one active copy. Ravel supplies
-the guidance; native-only `guardrail` keeps its sole capability plugin.
+the guidance. Native-only `guardrail` keeps its sole capability plugin.
 
 - The switch deactivates both Codex user roots' copies of the Grove snapshot
   entries together.
@@ -430,19 +429,19 @@ directory. Cleanup considers that directory after the marker is older than
 It keeps a directory with a live reader marker. It also keeps the directory
 when reading a marker or querying liveness reports an error.
 
-<!-- tc: depart synonym-rotation because "check" names Claude Code's liveness operation and "verify" names a cutover action -->
+<!-- tc: depart synonym-rotation because "inspection" names Claude Code's liveness operation and "verify" names a cutover action -->
 The [executable evidence](../owner-skill-delivery-evidence.md#finding-for-the-owner-design)
 establishes this behaviour for 2.1.319 only. The official loading reference
-does not document the reader check.
+does not document the reader inspection.
 
 Disabling a plugin is neither an update nor an uninstall, so it writes no
 orphan marker. A running session also keeps the plugin set that it loaded
 until a reload.
 
-The reader check changes no cutover rule. Codex and Pi write no such marker,
-and another Claude Code version can change the check. A missing marker
+The reader inspection changes no cutover rule. Codex and Pi write no such marker,
+and another Claude Code version can change the inspection. A missing marker
 therefore proves nothing about those readers. The design keeps these four
-rules for reasons independent of that check:
+rules for reasons independent of that inspection:
 
 | Rule retained | Reason |
 | --- | --- |
@@ -554,17 +553,17 @@ as the coordinated release design requires.
 
 The owner establishes a quiet interval before the program runs and keeps it
 through its probes, receipt or restore. Sole ownership makes this an owner
-operation; it does not prove the machine is already quiet.
+operation. It does not prove the machine is already quiet.
 
 The checklist names these obligations:
 
-1. End other Claude Code, Codex and Pi sessions, their desktop applications and
-   background servers, and any other Grove or Ravel invocation. End finish's
+1. End other Claude Code, Codex and Pi sessions, their desktop applications and background servers.
+   End any other Grove or Ravel invocation. End finish's
    delegates and background work, including delegates hosted inside the same
-   harness process. No new session starts except a probe owned by the program.
+   harness process. No new session launches except a probe owned by the program.
 2. Pause `mise dot watch`, herdr, Orca configuration writers,
-   codebase-memory installers and updaters, and each other tool that can
-   rewrite the plan's files or regenerate native skills. Do not run
+   codebase-memory installers and updaters.
+   Pause each other tool that can rewrite the plan's files or regenerate native skills. Do not run
    `mac-bootstrap`, `mise bootstrap`, plugin installation or update,
    Homebrew upgrades, or configuration synchronisation during the interval.
 3. Prevent relaunch by the owner's login items, launch agents and schedules.
@@ -572,7 +571,7 @@ The checklist names these obligations:
    `dev.mise.mise-history` where installed. Inspect the account's Login
    Items, its LaunchAgents and scheduler configuration. A read-only
    `launchctl print gui/<uid>/<label>` can identify a loaded user job's
-   arguments. Do this in the real account; changing HOME does not isolate
+   arguments. Do this in the real account. Changing HOME does not isolate
    launchd. The program enumerates no jobs and grants no privilege.
 4. Leave finish's own Claude Code settings unchanged: no `/model`,
    `/config`, plugin action or other user settings action until the program
@@ -581,10 +580,10 @@ The checklist names these obligations:
    not write the switch set. Staging measures that assumption. Stop or
    reconfigure a server that does write it before proceeding.
 5. Keep automatic marketplace updates frozen for every plugin finish loaded.
-   Keep the tested Claude Code version until the switch. Confirm its version
+   Keep the tested Claude Code version until the switch. Compare its version
    before the dry run and real attempt. Keep the old driver keg protected.
 6. Review the prepared plan, accepted staging results and dry-run result.
-   Confirm that the machine still has the planned native layout and that the
+   Verify that the machine still has the planned native layout and that the
    background tools remain paused.
 
 The finish handoff gives the owner the current app, job and schedule names and
@@ -595,13 +594,14 @@ unknown writer appears, the checklist is incomplete and the switch waits.
 No automatic review of job labels or login items substitutes for that fact.
 
 A harmless child such as Claude Code's `caffeinate` needs no exception. The
-program checks only other Claude Code, Codex, Grove and Ravel processes.
+program inspections only other Claude Code, Codex, Grove and Ravel processes.
 It identifies finish's exact harness and driver ancestors by their live
 ancestry, together with its own process. It excludes no other matching
 descendant. A delegate harness or app-server therefore stops the attempt.
-It repeats this check before the first write and before restore. During
-probes, only the program's recorded probe processes may appear; the program
-waits for their exit before its final check. Pi and non-harness writers remain
+
+It repeats this inspection before the first write and before restore. During
+probes, only the program's recorded probe processes may appear. The program
+waits for their exit before its final inspection. Pi and non-harness writers remain
 checklist responsibilities. The program signals none of them.
 
 ### The native settings inside finish
@@ -619,7 +619,7 @@ setting returns to its recorded value. Both the dry run and the real backup
 make the exception visible. Restoring the absent key after promotion would
 enable Ravel sources beside the restored native skills.
 
-A stop after promotion but before the program starts can also leave default
+A stop after promotion but before the program launches can also leave default
 delivery enabled beside native skills. Until the native return or successful
 switch is verified, launch no new default session. Run the prepared operation
 through the still-running finish session, or the owner's recovery entry.
@@ -654,8 +654,8 @@ Restore and stop on a failed command or unexpected configuration change.
 
 The existing measurement found that Claude Code's install commands replace
 `settings.json` and can drop ACLs and extended attributes. Sole ownership
-does not remove that behaviour. The simplified design removes held links and
-inode checks because the checklist excludes other settings writers.
+does not prevent that behaviour. The simplified design omits held links and
+inode inspections because the checklist excludes other settings writers.
 
 Before a command, refuse metadata that the tested command would lose: an ACL
 or an extended attribute other than `com.apple.provenance`. The backup still
@@ -663,9 +663,8 @@ preserves all original metadata. Ordinary program writes preserve that
 metadata. The dry run tests the command's resulting files, plugin origin,
 settings and metadata using the version held for the real attempt.
 
-A signed-in staging session with the owner's MCP servers must remain idle
-through the installation without an unsolicited settings write or change
-to a loaded registration. If that experiment fails, this design's quiet
+A signed-in staging session with the owner's MCP servers must remain idle through the installation.
+It must make no unsolicited settings write or change to a loaded registration. If that experiment fails, this design's quiet
 interval assumption is false: resolve the writer before cutover. An unchanged
 final file alone does not prove that no intermediate write occurred.
 
@@ -677,55 +676,52 @@ No operation selects a continuation from a run-state table.
 
 The switch takes these steps in order:
 
-1. Review the completed checklist. Validate the complete plan and command
+1. Review the completed checklist. Inspect the complete plan and command
    inputs. Refuse unexpected native entries, ambiguous classifications,
    incomplete accepted results, or paths that escape the intended HOME.
-   Run the narrow process check. No write to the switch set has occurred.
+   Run the narrow process inspection. No write to the switch set has occurred.
 2. Verify the installed compatible Grove release, promoted Ravel, formula
    declarations and accepted versions. Resolve the drafted switched settings
    in a disposable HOME. Require exactly the ten accepted source IDs and
    their `resourceDigest` values. If a released Grove source differs,
-   rerun its affected staging trials in the retained staging HOME and accept
-   the new result before proceeding. Its HOME and `CODEX_HOME` are its own.
+   rerun its affected staging trials in the retained staging HOME.
+   Accept the new result before proceeding. Its HOME and `CODEX_HOME` are its own.
    An absent staging HOME or candidate keg stops the attempt.
 3. Record finish's loaded cache paths, registrations and current guidance
    reads. Finish supplies paths that a program cannot infer from a process.
    Compare unverified built-in inventory rows with finish's own skill list.
 4. Create and verify one complete backup, outside all discovery and inventory
-   roots and on the volume of HOME. Include every planned settings and
-   registration file, each native entry to deactivate, original absences,
-   mode, ACL and extended attributes, the plan and command-input identities,
-   accepted source evidence and reader evidence. Copy entries without following
+   roots and on the volume of HOME. Include every planned settings and registration file and each native entry to deactivate.
+   Include original absences, mode, ACL and extended attributes.
+   Include the plan and command-input identities, accepted source evidence and reader evidence. Copy entries without following
    their links into external targets. Verify the copy against the originals
-   before publishing the backup directory. An incomplete backup authorizes
-   no mutation. Recheck the narrow process check and the planned originals.
+   before publishing the backup directory. An incomplete backup authorises
+   no mutation. Recheck the narrow process inspection and the planned originals.
 5. Write the native off value, then install the disabled writing hooks plugin.
    The preceding sections specify both actions. On any failure after the
    backup, run restore and stop.
 6. Deactivate superseded file-system entries using the verified backup to
    retain their bytes. Disable superseded plugins and enable the two native
-   capability plugins. Write the switched Ravel settings last: they name the
-   mandatory file and omit `sources`, so the default directory supplies the
-   ten sources. Use ordinary writes and reread each result. Keep unrelated
+   capability plugins. Write the switched Ravel settings last. They name the mandatory file and omit `sources`.
+   The default directory therefore supplies the ten sources. Use ordinary writes and reread each result. Keep unrelated
    keys from the latest serial reading. No atomic exchange, held link or
    displaced-copy protocol is used.
 7. Run the real-HOME source and harness probes. Resolve through promoted
-   Ravel; launch one Claude Code session and one Codex session outside every
-   Grove workspace. Remove Grove loop-control variables, Claude Code location
+   Ravel. Launch one Claude Code session and one Codex session outside every
+   Grove workspace. Clear Grove loop-control variables, Claude Code location
    variables, `CODEX_HOME` and every `RAVEL_*` name from their environment.
-   The same environment rule applies to plan commands; staging trials use
+   The same environment rule applies to plan commands. Staging trials use
    their explicitly separate HOME and Codex configuration. Wait for all
    probes to end. On failure or interruption, stop and reap only children
    the program launched before restore can write. Never signal another
    session. If an owned writer cannot be reaped, retain the backup and
    report recovery incomplete until it ends.
-8. Run `mac-check`. Compare the complete expected switched configuration,
-   registrations, native-entry inventory, source digests and reader evidence
-   with the plan and the probes' results. Reread finish's guidance by its
+8. Run `mac-check`. Compare the complete expected switched configuration and registrations with the plan and the probes' results.
+   Compare the native-entry inventory, source digests and reader evidence with those inputs. Reread finish's guidance by its
    recorded path. An unexpected switch result, outside entry or metadata
    change is failure and restores the native return. An unrelated
-   `mac-check` area is recorded and reported under the machine contract;
-   a failure of its switch area prevents success. For example, an unrelated
+   `mac-check` area is recorded and reported under the machine contract.
+   A failure of its switch area prevents success. For example, an unrelated
    backup-disk review does not invalidate the measured skill delivery.
 9. Write the successful receipt and copy it into the maintained manual.
    Verify both copies and make one final comparison before returning success.
@@ -734,18 +730,16 @@ The switch takes these steps in order:
    restores the native return and withdraws any success entry created by this
    attempt. Include that manual destination in the backup's write set.
 
-The probes must observe the mandatory read before the first action, an unnamed
-craft skill before its relevant action, and a named Grove kind skill from the
-core snapshot. Use a kind other than finish and ask for one quoted line.
+The probes must observe the mandatory read before the first action and an unnamed craft skill before its relevant action.
+They must observe a named Grove kind skill from the core snapshot. Use a kind other than finish and ask for one quoted line.
 They read `using-testanyware`, run its command reference and doctor, observe
 Claude Code's hooks, and list no superseded native skill. Resolution must give
 all accepted source digests. The probes also establish that finish's loaded
 paths remain registered, readable and without orphan markers.
 
-The receipt names the activated Grove and Ravel versions and paths, the
-configuration digests, each source's keg path, formula version and snapshot
-digest, accepted reruns, command-input identities, probe results, final
-comparison and `mac-check` output. It lists the backup, staging HOME,
+The receipt names the activated Grove and Ravel versions and paths and the configuration digests.
+It names each source's keg path, formula version and snapshot digest.
+It names accepted reruns, command-input identities, probe results, final comparison and `mac-check` output. It lists the backup, staging HOME,
 candidate keg, frozen cache versions and old binaries with their purge
 conditions. No pending-activation record or copy of the program in each
 backup is required.
@@ -755,16 +749,15 @@ backup is required.
 The program assumes the owner has stopped other writers for the entire
 operation, including restore. Ordinary writes and whole-file restore may
 overwrite an intervening edit. A final comparison detects a different final
-layout; it cannot detect an edit that was overwritten or later returned to
-the same bytes. This is an accepted loss of the earlier concurrent-write
-guarantee, justified by the owner's chosen quiet interval, not by a claim that
-one user has no background processes.
+layout. It cannot detect an edit that was overwritten or later returned to
+the same bytes. The owner's chosen quiet interval justifies this accepted loss of the earlier concurrent-write guarantee.
+It does not establish that one user has no background processes.
 
 The checklist owns non-harness writers, jobs, login items, Pi, settings actions
-inside finish and in-process delegates. The narrow process check owns other
+inside finish and in-process delegates. The narrow process inspection owns other
 Claude Code, Codex, Grove and Ravel processes. The serial program owns its
 commands, probes and final comparisons. A detected violation restores the
-program's changes and stops; it does not attempt a merge.
+program's changes and stops. It does not attempt a merge.
 
 Two inventory rules remain independent of concurrency:
 
@@ -782,7 +775,7 @@ Two inventory rules remain independent of concurrency:
 
 Credential refreshes and known platform reader markers follow the baseline
 instrument's existing exclusions. Every exclusion names its exact subtree or
-field; none suppresses ordinary siblings. No new blanket exclusion is allowed
+field. None suppresses ordinary siblings. No new blanket exclusion is allowed
 because a probe writes an incidental file.
 
 The design compared three arrangements. Keeping the old exchange and merge
@@ -799,10 +792,10 @@ There is no automatic resumption. A caught failure after the first write runs
 restore, verifies native delivery and exits unsuccessfully. An interruption
 before the backup is complete changed no switch item. An interruption after
 the backup is complete requires the same restore command before another
-attempt; never continue the partly switched layout or infer success from a
+attempt. Never continue the partly switched layout or infer success from a
 prefix of completed writes.
 
-A killed program, power loss or terminated finish cannot run cleanup while it
+A killed program, power loss or stopped finish cannot run cleanup while it
 is dead. The owner retains the backup location and the prepared restore command
 before mutation. After restart, the owner first re-establishes the checklist,
 runs restore, and verifies the native return. If restore itself was interrupted,
@@ -817,8 +810,10 @@ partial settings writes and native-entry deactivation.
 Finish reports an unsuccessful attempt and its backup path. It never sends a
 success signal for incomplete activation. It may retry after the cause is
 repaired and the native return is verified. If it must end, use its original
-force-stop command. After an unsuccessful finish, the owner runs only the
-prepared restore or a fresh switch; teardown, releases and promotion are not
+force-stop command.
+
+After an unsuccessful finish, the owner runs only the
+prepared restore or a fresh switch. Teardown, releases and promotion are not
 repeated. A failed released-core trial can require a Grove patch through its
 owning release procedure. Ravel is neither cut nor promoted again.
 
@@ -827,8 +822,8 @@ owning release procedure. Ravel is neither cut nor promoted again.
 Preparation runs the real plan once against a disposable copy of the relevant
 HOME layout. This is an execution of the ordinary writes, hook commands,
 probes, final comparison and restore, with isolated configuration and explicit
-trial tools. A read-only listing is not the dry run. Copy no credentials;
-reuse sign-in only through the staging contract. The dry run must not contact
+trial tools. A read-only listing is not the dry run. Copy no credentials.
+Reuse sign-in only through the staging contract. The dry run must not contact
 the real account's launchd, stop its jobs or change its configuration.
 
 Keep a readable result with the expected changes, probe results, restore
@@ -840,13 +835,15 @@ environment. A fixture or stub result is marked as such and supplies no
 real-harness acceptance.
 
 This resolves unbound command files without recreating rehearsal admission.
-There is no rehearsal registry, durable admission token, program check for a
-matching rehearsal digest, or program archive in every backup. The owner
+There is no rehearsal registry, durable admission token, program inspection for a
+matching rehearsal digest, or program archive in every backup.
+
+The owner
 reviews the readable result and keeps its prepared inputs unchanged. A changed
 plan, program, helper, command input or tool version needs another dry run.
 Record the identities before and after the dry run so its input did not change
 during measurement. Finish compares these inputs with the real attempt's
-prepared inputs; a mismatch requires a new dry run. This is a review of actual
+prepared inputs. A mismatch requires a new dry run. This is a review of actual
 inputs, not a program lookup of a passing record.
 
 The prepared restore program stays available with the plan until the rollback
@@ -858,7 +855,7 @@ document, plan and prepared tools across finish's task-tree teardown.
 ### Rollback
 
 One `restore --backup <directory>` command serves caught failure, crash recovery
-and the owner's later return to native delivery. It validates the complete
+and the owner's later return to native delivery. It verifies the complete
 backup, its content identities and confined destination paths before writing.
 It restores whole backed-up
 files, metadata and entries, including original absence, rather than inferring
@@ -866,17 +863,20 @@ which parts completed. It removes only files and success entries that this
 attempt created and that the plan names. Unrelated entries outside the write
 set are reported and left alone.
 
-Restore first writes directory delivery's off value using the backed-up
-settings, then restores native registrations, settings and entries, and
-finishes by enforcing the native return's Ravel settings. It never needs to
+Restore first writes directory delivery's off value using the backed-up settings.
+It then restores native registrations, settings and entries.
+It finishes by enforcing the native return's Ravel settings. It never needs to
 parse a partly written live settings file. It does not run a plugin uninstall
-or delete a cache. Newly installed cache bytes may stay unregistered until
-purge; every configuration mutation still returns to the native layout.
+or remove a cache.
+
+Newly installed cache bytes may stay unregistered until
+purge. Every configuration mutation still returns to the native layout.
+
 It verifies each restored item against the backup and runs the native probe.
-That probe requires promoted Ravel to report `disabled`, native discovery
-and a native Grove kind-skill read on both harnesses, and finish's recorded
-guidance to remain readable when finish still runs. Any unexpected outside
-entry is reported; failed verification keeps recovery incomplete.
+That probe requires promoted Ravel to report `disabled`.
+It requires native discovery and a native Grove kind-skill read on both harnesses.
+When finish still runs, its recorded guidance must remain readable. Any unexpected outside
+entry is reported. Failed verification keeps recovery incomplete.
 
 The original settings file may have been absent. Even then, restore leaves a
 Ravel settings file holding the off value. This is the only restoration
@@ -892,12 +892,11 @@ return is unavailable. Repair the Ravel delivery route instead.
 The old Quint model describes cells, exchanges, outside writes and partial
 continuations that this design removes. Its success is not evidence for the
 simplified switch. Remove it and its task and claim-specific controls with the
-implementation change; preserve the earlier measurements as historical evidence.
+implementation change. Preserve the earlier measurements as historical evidence.
 
-The current contract is checked at the program's existing disposable-HOME seam:
-backup completeness before mutation, the full switch, failures and hard
-interruptions at write boundaries, repeatable restore, native probes and final
-layout comparisons. These are filesystem and command effects which the earlier
+The program's existing disposable-HOME seam tests the current contract.
+It covers backup completeness before mutation, the full switch, failures and hard interruptions at write boundaries.
+It also covers repeatable restore, native probes and final layout comparisons. These are filesystem and command effects which the earlier
 abstract model did not establish. The design claims no lossless concurrent
 writes and no automatic crash recovery, so it needs no replacement recovery
 state machine or model.
@@ -915,7 +914,7 @@ A small read-only purge report can compare those retained identities and list
 the conditions that only the owner can establish. It needs no kept-copy flags,
 merge state or open-run classification.
 
-Use the platform's commands to remove its registrations. Never erase plugin
+Use the platform's commands to remove its registrations. Never remove plugin
 caches by hand. The version-specific orphan-cleanup observation in
 [Resource lifetime](#resource-lifetime) changes none of these conditions.
 
@@ -973,8 +972,8 @@ with the coordinated release work.
 | 3 | k38 | Re-inventory, compare per entry, classify each new entry | No entry stays unassigned |
 | 4 | k38 leaves | Convert `policy.ts` to `config.rhai`. Draft the Ravel skill settings: the off value, the switched value with only the mandatory file, and the staging settings. Draft the `[bootstrap.packages]` declarations and the residue plan. | The drafts are committed. No draft launches a session before the candidate keg of order 5 exists |
 | 5 | k38 leaves | Run the staging trials on both harnesses with the accepted feature build | The drafts pass under the staging HOME. Each trial below passes or carries a recorded scope decision. The evidence names each accepted formula version, the candidate commit and each accepted `resourceDigest` |
-| 6 | Preparation | Prepare installed sources and native residue, freeze updates, complete the owner checklist and dry-run the real plan in a disposable copy of HOME | Accepted inputs are identified by content; switch and full restore pass without changing the real HOME |
-| 7 | Finish | After promotion, back up before any write, switch, probe and compare; restore on failure | Both harnesses pass, finish keeps its guidance and the receipt is in the manual |
+| 6 | Preparation | Prepare installed sources and native residue, freeze updates, complete the owner checklist and dry-run the real plan in a disposable copy of HOME | Accepted inputs are identified by content. Switch and full restore pass without changing the real HOME |
+| 7 | Finish | After promotion, back up before any write, switch, probe and compare. Restore on failure | Both harnesses pass, finish keeps its guidance and the receipt is in the manual |
 | 8 | Owner | Purge retained bytes | The purge conditions hold |
 
 The staging trials run three steps first, in this order:
@@ -1021,30 +1020,30 @@ seam. Real staging and cutover probes remain the acceptance seam for harness
 behaviour. No fixture proves a real installation or activation.
 
 - Inventory controls introduce an unclassified entry, a dangling entry and a
-  changed resource; each must be reported. Credential rotation and documented
+  changed resource. Each must be reported. Credential rotation and documented
   reader markers must not change a skill's identity.
 - Add a superseded skill beside each excluded platform subtree, at both native
   roots, and through a link. Each must fail the before and after comparison.
   A change confined to `synced` or `.system` must pass. Native guardrail
-  from its sole-skill personal plugin must pass; an extra skill or wrong
+  from its sole-skill personal plugin must pass. An extra skill or wrong
   origin must fail.
 - A fixture of another Claude Code, Codex, Grove or Ravel process must stop
-  the attempt. Exact finish ancestors are allowed; another descendant
+  the attempt. Exact finish ancestors are allowed. Another descendant
   harness and a background app-server are not. A harmless `caffeinate`
   child needs no exemption. Record which checklist obligations a fixture
   cannot establish.
 - Run the full real plan once in the disposable copy, including hook
   commands, probes and restore. Change one invoked helper without changing
-  its path; the recorded content identity must differ. Check the complete
+  its path. The recorded content identity must differ. Inspect the complete
   command-input list, input stability, substitutions and tool versions.
   No rehearsal registry may be required by the real program.
 - Stop backup creation before publication. No switch item may have changed.
   Verify content, link text, absence, mode, ACL and extended attributes in
-  the complete backup; fail a copy or metadata read and require no mutation.
+  the complete backup. Fail a copy or metadata read and require no mutation.
 - Inject caught failures before and after each real write, during hook
   registration and installation, during deactivation, probes, comparisons,
   receipt and manual writes. Each must restore the native return and exit
-  unsuccessfully. Kill the program at those boundaries too; the next action
+  unsuccessfully. Kill the program at those boundaries too. The next action
   must be explicit restore, not forward continuation.
 - Interrupt restore and repeat the same command. Its final layout must equal
   the backed-up native layout with only the Ravel off-value exception. Test
@@ -1056,29 +1055,29 @@ behaviour. No fixture proves a real installation or activation.
   restore preserve backed-up metadata. No held-link or inode-change
   condition is required.
 - Measure hook installation beside an idle signed-in Claude Code session
-  with the owner's MCP servers. Observe settings writes during the commands;
-  compare loaded plugin versions and registrations before and after, ignoring
+  with the owner's MCP servers. Observe settings writes during the commands.
+  Compare loaded plugin versions and registrations before and after, ignoring
   only documented reader markers. An unsolicited settings write, changed
   loaded registration or orphan marker fails the quiet-interval assumption.
   Record the tested and held Claude Code version.
-- Source controls require off settings to resolve as `disabled`, the
-  switched settings to resolve exactly ten sources, and an eleventh source
-  or one-byte digest change to stop acceptance. A changed released Grove
-  source requires its staging reruns; a missing retained staging HOME stops
+- Source controls require off settings to resolve as `disabled`.
+  The switched settings must resolve exactly ten sources.
+  An eleventh source or one-byte digest change must stop acceptance. A changed released Grove
+  source requires its staging reruns. A missing retained staging HOME stops
   them. Trial commands must see its isolated HOME and Codex tree.
-- Real staging proves configuration isolation before discovery trials,
-  mandatory and implicit reads, relative resources, delegates, compaction,
-  stale-copy coexistence, missing-source refusal, offline resolution, hooks,
-  native guardrail, TestAnyware VM use, Quint and codebase-memory MCP use.
+- Real staging proves configuration isolation before discovery trials.
+  It proves mandatory and implicit reads, relative resources, delegates, compaction and stale-copy coexistence.
+  It proves missing-source refusal, offline resolution, hooks and native guardrail.
+  It proves TestAnyware VM use, Quint and codebase-memory MCP use.
   A failed case requires repair or an explicit owner scope decision.
 - Both real-HOME probes use the promoted pair outside Grove workspaces with
   location and loop-control variables removed. Wrong configuration selection,
   missing native exclusion, wrong source digests, unreadable finish guidance,
   or a lost loaded registration must fail and restore native delivery.
-- Change a switched setting, add an outside native entry or alter a
+- Change a switched setting, add an outside native entry or change a
   registration during probes. The final comparison must fail and no success
   receipt may remain. A final comparison cannot detect overwritten
-  concurrent edits; the design makes no such claim.
+  concurrent edits. The design makes no such claim.
 - `mac-check` reports native delivery, a currently verified switched layout,
   or a layout needing restore/review. No receipt alone establishes current
   success. A partial layout or stale receipt must require review. Without

@@ -22,12 +22,13 @@ its steps, probes and rollback. The switch follows the promotion.
 
 The trade-off is a longer finish session against operations with no owner.
 Finish grows by two prepared operations. Promotion follows its release
-recovery rows. The owner's serial switch follows an owner checklist and a
-disposable execution of the real plan, backs up before any write, and restores
-native delivery on failure. It requires a quiet interval instead of preserving
-concurrent edits. Both operations run after `finish-commit` removes `.grove/`,
+recovery rows. The owner's serial switch follows an owner checklist and a disposable execution of the real plan.
+It backs up before any write and restores native delivery on failure. It requires a quiet interval instead of preserving
+concurrent edits.
+
+Both operations run after `finish-commit` removes `.grove/`,
 so no leaf can carry a repair. An interrupted switch requires the same restore
-command before a fresh attempt; it never resumes partly applied changes.
+command before a fresh attempt. It never resumes partly applied changes.
 A failure ends without a successful signal.
 
 The design rejected four alternatives. An ordinary leaf cannot follow Grove's

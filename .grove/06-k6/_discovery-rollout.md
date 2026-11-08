@@ -123,7 +123,7 @@ keg-only `ravel@2`. The unversioned dependency stays 1.1.0 until finish
 promotes the same archives.
 
 Coordinate the tap and Ravel release instructions
-before publication. A separate executable prefix alone does not fix the tap.
+before publication. A separate executable prefix alone does not correct the tap.
 The reviewed plan of that design owns the final order.
 
 Grove's dual-Ravel stage identifies each build before the cut by its commit,
@@ -143,7 +143,7 @@ Do not upgrade away any running driver's required binaries. Do not replace its
 ending command, signal paused groves, edit their trees or delete this workspace.
 The owner-delivery design must make the final session's own guidance readable.
 It must stay readable through native removal and the switch away from the
-current fixed 1.1.0 driver.
+current unchanging 1.1.0 driver.
 
 A final cutover step may have to occur inside finish. If so, name it explicitly
 in the finish handoff and root charter before that session. No ordinary leaf
@@ -162,8 +162,8 @@ not yet follow the writing rules, so convert it first as its own change.
 owner-switch-simplification-k260 changes the owner specification in place.
 k261 reviews that design before k262 plans implementation. No switch code,
 machine setting or live leaf below has been changed to implement it yet.
-The four removed mechanisms in the older handoff below are historical inputs;
-the reviewed specification and this consequence table govern their replacement.
+The four removed mechanisms in the older handoff below are historical inputs.
+The reviewed specification and this consequence table govern their replacement.
 k262 rewrites the older handoff after review, without preserving its obsolete
 step numbers or creating a second normative switch contract here.
 
@@ -172,31 +172,31 @@ step numbers or creating a second normative switch contract here.
 | Artifact | Work that the reviewed design requires |
 | --- | --- |
 | `scripts/owner_switch.py` | Shrink to plan report, serial switch and full restore. Back up before native settings or hook commands. Delete exchange/held-link detection, cell merge/inverse, process-pattern and job machinery, partial continuations, rehearsal admission and pending records. Keep the narrow harness/driver process check, complete-plan validation, source/readers/probes and final comparisons. |
-| `scripts/owner_switch_rehearsal.py` and its fixture controls | Replace the state-machine campaign with one disposable execution of the real plan and explicit restore. Retain focused failure and hard-interruption controls at the existing seam. Remove held-copy, merge and six-state controls; measure actual command side effects and input identities. |
+| `scripts/owner_switch_rehearsal.py` and its fixture controls | Replace the state-machine campaign with one disposable execution of the real plan and explicit restore. Retain focused failure and hard-interruption controls at the existing seam. Remove held-copy, merge and six-state controls. Measure actual command side effects and input identities. |
 | `docs/models/owner-switch.qnt`, `task model:owner-switch` and its check-suite consumers | Remove together. The old model's concurrent-write and partial-resume claims are no current acceptance evidence. Add no replacement model. Reconcile check scripts and explanatory references when removing it. |
 | The switch area of the owner's `mac-check` | Replace six-state and flagged-copy reporting with native, verified switched, or restore/review needed. With no prepared evidence, report not prepared. Keep formula drift as its own area. The machine contract owns this later configuration change. |
 | `switch_plan_draft.py`, `switch-plan-draft.json` and their tasks | Regenerate a smaller plan: whole write set and metadata/absence, expected inventories, source acceptance, reader evidence, commands, probes and restore. Drop cell/part recovery, MCP regexes, job patterns and rehearsal tokens. Identify command scripts, local helpers and inputs by content. Resolve D3 and D5 in the inventory consumer rather than omit roots. |
-| Owner cutover, recovery and final-session diagrams | Updated by k260, with stable viewer anchors. The recovery view now shows explicit full restore; it claims no model checking. Reconcile captions and overview prose together. |
-| `docs/owner-skill-delivery-evidence.md` and old model/command measurements | Preserve historical observations and mark their scope. k260 records the new design's limits and dispositions of D1/D3/D5; implementation and dry run add their own actual results. Do not claim a historical rehearsal proves the new program. |
-| Prepared tools, manual, receipt and purge report | Keep one restore entry and backup data readable after `.grove/` teardown. Remove backup program copies and pending/merge entries from instructions. The successful receipt retains activation and reader evidence; no receipt certifies a changed layout. |
+| Owner cutover, recovery and final-session diagrams | Updated by k260, with stable viewer anchors. The recovery view now shows explicit full restore. It claims no model checking. Reconcile captions and overview prose together. |
+| `docs/owner-skill-delivery-evidence.md` and old model/command measurements | Preserve historical observations and mark their scope. k260 records the new design's limits and dispositions of D1/D3/D5. Implementation and dry run add their own actual results. Do not claim a historical rehearsal proves the new program. |
+| Prepared tools, manual, receipt and purge report | Keep one restore entry and backup data readable after `.grove/` teardown. Remove backup program copies and pending/merge entries from instructions. The successful receipt retains activation and reader evidence. No receipt certifies a changed layout. |
 
 ### Consequence for each queued leaf
 
 | Live leaf | Input to its rewrite by k262 |
 | --- | --- |
 | owner-staging-setup-k248 | Keep candidate keg, accepted sources and configuration isolation. Prepare the retained staging HOME and credentials only by the existing narrow sign-in contract. No rehearsal-admission store is needed. |
-| owner-staging-discovery-k249 | Keep discovery, mandatory and implicit reads, resources, delegate, compaction, stale-copy, offline and missing-source trials. Supply rerunnable trials for changed released sources; distinguish them from the one switch dry run. |
+| owner-staging-discovery-k249 | Keep discovery, mandatory and implicit reads, resources, delegate, compaction, stale-copy, offline and missing-source trials. Supply rerunnable trials for changed released sources. Distinguish them from the one switch dry run. |
 | owner-staging-hooks-k251 | Replace held-link/exchange measurements with serial installation under one backup. Measure an idle signed-in finish-like harness and MCP servers, metadata handling, command side effects and loaded-cache preservation. The no-writer assumption needs evidence even with one owner. |
 | owner-staging-capabilities-k250 | Keep TestAnyware VM/tool, Quint/MCP, hooks and user-invoked-skill cases. Inventory must accept only the intended enabled `guardrail@personal` exception. |
-| owner-staging-acceptance-k252 | Keep accepted versions, commits, source digests, trial commands and retained staging paths. Add the inventory and quiet-session results; remove admission-record requirements. |
+| owner-staging-acceptance-k252 | Keep accepted versions, commits, source digests, trial commands and retained staging paths. Add the inventory and quiet-session results. Remove admission-record requirements. |
 | owner-pack-checkouts-k93 | Keep formula declarations/installations, disabled personal guardrail and separate formula-drift report. No source advance may remove a running driver's binaries. It does not execute the switch. |
 | owner-marketplace-freeze-k253 | Keep loaded-version retention and the tested Claude Code version. Replace rehearsal-record version admission with the dry-run version and checklist. Supply current pause/resume instructions for owner tools, login items and schedules without requiring a launchd scanner. |
-| owner-switch-probes-k257 | Keep real Ravel and native probes, clean environments and source/read observations. Compare ordinary children of both skill roots while excluding only the exact platform subtrees. Record incidental MCP writes; do not erase them through a root-wide exclusion. |
-| owner-switch-plan-k254 | Produce the simpler real plan and retained prepared restore entry after the program change. Record every file a command runs by content, the full command write set, expected native/switched inventory, off-value restoration exception and one new backup location. Remove `session.mcp` and cell/part recovery fields. |
-| owner-switch-rehearsal-k255 | Execute the real plan once in a disposable copy, including full restore; keep a readable content-identified result. Remove passing-record installation and state-machine admission. Re-run if prepared inputs or tested versions change. |
+| owner-switch-probes-k257 | Keep real Ravel and native probes, clean environments and source/read observations. Compare ordinary children of both skill roots while excluding only the exact platform subtrees. Record incidental MCP writes. Do not omit them through a root-wide exclusion. |
+| owner-switch-plan-k254 | Produce the simpler real plan and retained prepared restore entry after the program change. Record every file a command runs by content, the full command write set and expected native/switched inventory. Record the off-value restoration exception and one new backup location. Remove `session.mcp` and cell/part recovery fields. |
+| owner-switch-rehearsal-k255 | Execute the real plan once in a disposable copy, including full restore. Keep a readable content-identified result. Remove passing-record installation and state-machine admission. Re-run if prepared inputs or tested versions change. |
 | discovery-rollout-k12 | Handoff the reviewed checklist, pause/resume instructions, plan and tools, dry-run evidence, restore command, native-return exception and receipt/purge conditions. Keep the coordinated publication order and original ending. Replace all old inverse/merge/pending/resumption instructions before finish. |
 
-k262 may insert implementation ahead of the staging consumers; k260 does not
+k262 may insert implementation ahead of the staging consumers. k260 does not
 cut implementation leaves. No queued leaf is pruned by this design. Each keeps
 useful work after its contract is rewritten. Any later proposal to abandon one
 still requires the human's confirmation under the retirement procedure.
@@ -208,9 +208,10 @@ grove is the only grove that runs, and the human is the only user of Grove
 and Ravel. owner-switch-simplification-k260 redesigns the switch on that
 basis. It simplifies the process and job exclusion, the concurrent-writer
 detection, the recovery state machine and the rehearsal admission.
+
 owner-switch-simplification-k262 then rewrites each item below that concerns
 one of those mechanisms after review. Until then, use the specification and
-the consequence table above; such an older item is provisional process
+the consequence table above. Such an older item is provisional process
 history, not an instruction to retain the removed mechanism.
 
 `docs/specs/owner-skill-delivery.md` owns each rule below. The handoffs of
@@ -238,7 +239,7 @@ there becomes a source that Homebrew installed.
   release design records that ID and the accepted digests for finish.
 - discovery-rollout-k12: the coordinated recovery table keeps its rows for a
   stopped or reversed switch and for a failed core trial after the release.
-  A Grove patch release follows a fix on `main`.
+  A Grove patch release follows a correction on `main`.
 - owner-switch-program-k91 and owner-switch-entries-k92: the k87 handoff
   items as k89 amended them. `task model:owner-switch` stays green, and a
   change to a recovery rule changes the model first.
@@ -277,7 +278,7 @@ these items:
   that step 3 prints with its own skill listing.
 
 owner-switch-program-k243 integrated the review of the switch program. Its
-repairs assign these items:
+corrections assign these items:
 
 - owner-switch-plan-draft-k247 and owner-switch-plan-k254: the real plan
   needs every field of the
@@ -415,4 +416,4 @@ skill changed. It assigns these items to discovery-rollout-k12:
   owner-marketplace-freeze-k253 held, and how the owner releases the hold
   after the switch. It also names the frozen marketplaces.
 - The final inventory compares entries with the instrument that
-  owner-inventory-reader-marker-k244 repaired.
+  owner-inventory-reader-marker-k244 corrected.

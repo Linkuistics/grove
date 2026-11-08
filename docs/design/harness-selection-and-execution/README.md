@@ -78,14 +78,14 @@ public integration. Neither duplicates Ravel's private runtime contract.
 ## Current changes
 
 The owner accepted four simplification directions. The detailed design now
-uses a quiet interval, a serial program and full restore; k261 reviews it
+uses a quiet interval, a serial program and full restore. K261 reviews it
 before implementation. Source identity, one active copy, native capabilities,
 readable finish guidance and original binaries remain required. The real HOME
 has not been switched.
 
 - [Ordered owner cutover](http://127.0.0.1:52710/#diagram-owner-cutover) — Replaced exchange and partial-resume branches with one backup before all writes, serial changes, both harness probes and full restore.
 - [Switch failure and explicit restore](http://127.0.0.1:52710/#diagram-owner-switch-states) — Replaced six-state classification with an explicit restore procedure after failure or crash.
-- [Finish keeps its guidance through the switch](http://127.0.0.1:52710/#diagram-owner-final-session) — Placed the backup before settings and hooks while retaining loaded cache registrations and the original Ravel keg.
+- [Finish keeps its guidance through the switch](http://127.0.0.1:52710/#diagram-owner-final-session) — Placed the backup before settings and hooks. Retained loaded cache registrations and the original Ravel keg.
 - [Owner checklist](../../specs/owner-skill-delivery.md#the-owners-checklist) — Assigned tools, login items, schedules and finish's own settings actions to the owner's quiet interval.
 - [Concurrent writers](../../specs/owner-skill-delivery.md#concurrent-writers) — Documented the loss of concurrent-edit preservation and retained exact native-root comparisons.
 - [Rollback](../../specs/owner-skill-delivery.md#rollback) — Defined whole-backup restoration with the deliberate Ravel off-value exception.

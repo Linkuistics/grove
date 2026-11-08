@@ -32,7 +32,8 @@ are editable source artifacts. The viewer uses pinned Mermaid 12.0.0 from
 jsDelivr and needs network access. Nobody maintains generated image exports.
 
 Graph views start at a dark **Start here** node with numbered main steps.
-Sequences start at their first message, and the state view at its initial state.
+Sequences start at their first message, and state views at their initial state.
+The owner recovery view is a flowchart of explicit restore, not a state classifier.
 These are views of the caller and its processes, not deployment containers or
 verified models. The result state view illustrates the public behaviour. It
 asserts no private transport or escalation details.
@@ -41,7 +42,7 @@ asserts no private transport or escalation details.
 |---|---|
 | [Where each installed entry goes](http://127.0.0.1:52710/#diagram-owner-classes) | The per-entry rule of the owner cutover: a Ravel source, a native route for hooks, or no change. |
 | [Skill formulae outside Ravel](http://127.0.0.1:52710/#diagram-owner-pack-checkouts) | Homebrew installs each source in a keg and links it into Ravel's default skill directory after the keg is complete. Ravel only reads the directory. A source that is absent from it leaves the session without that source. |
-| [Ordered owner cutover](http://127.0.0.1:52710/#diagram-owner-cutover) | Preparation in ordinary leaves, then the switch inside finish with its reader gate, probes and inverse. |
+| [Ordered owner cutover](http://127.0.0.1:52710/#diagram-owner-cutover) | Preparation in ordinary leaves, then the switch inside finish with its checklist, backup, probes and full restore. |
 | [Finish keeps its guidance through the switch](http://127.0.0.1:52710/#diagram-owner-final-session) | Finish reads native guidance by absolute path. Later sessions move to Ravel 2.0.0. |
 | [Compatible tap states](http://127.0.0.1:52710/#diagram-release-tap) | Four tap states: keg-only `ravel@2` first, compatible Grove, then promotion of identical archives with `ravel@2` deprecated. |
 | [Publication and finish ownership](http://127.0.0.1:52710/#diagram-release-order) | Release prerequisites, Ravel publication, finish's Grove release and promotion, and the original ending. |
@@ -76,87 +77,25 @@ public integration. Neither duplicates Ravel's private runtime contract.
 
 ## Current changes
 
-<!-- tc: depart synonym-rotation because "check" names Claude Code's liveness operation and "verify" names a cutover action -->
-The executable evidence repairs the cleanup claim for Claude Code
-2.1.319. After the orphan-age threshold, cleanup reads markers to identify
-live readers before deletion. The cutover keeps its freeze, versions registered
-and current, reader evidence and purge conditions. Each rule has a reason independent of
-that undocumented check. See
-[Resource lifetime](../../specs/owner-skill-delivery.md#resource-lifetime) and
-[the executable evidence](../../owner-skill-delivery-evidence.md#finding-for-the-owner-design).
+The owner accepted four simplification directions. The detailed design now
+uses a quiet interval, a serial program and full restore; k261 reviews it
+before implementation. Source identity, one active copy, native capabilities,
+readable finish guidance and original binaries remain required. The real HOME
+has not been switched.
 
-- [Finish keeps its guidance through the switch](http://127.0.0.1:52710/#diagram-owner-final-session) — Added the version-specific reader check beside the retained freeze and registration rule.
-- [Resource lifetime](../../specs/owner-skill-delivery.md#resource-lifetime) — Repaired the cleanup rule and explained why all four cutover safeguards stay.
-- [Purge](../../specs/owner-skill-delivery.md#purge) — Replaced guaranteed deletion after 14 days with eligibility subject to the reader check.
+- [Ordered owner cutover](http://127.0.0.1:52710/#diagram-owner-cutover) — Replaced exchange and partial-resume branches with one backup before all writes, serial changes, both harness probes and full restore.
+- [Switch failure and explicit restore](http://127.0.0.1:52710/#diagram-owner-switch-states) — Replaced six-state classification with an explicit restore procedure after failure or crash.
+- [Finish keeps its guidance through the switch](http://127.0.0.1:52710/#diagram-owner-final-session) — Placed the backup before settings and hooks while retaining loaded cache registrations and the original Ravel keg.
+- [Owner checklist](../../specs/owner-skill-delivery.md#the-owners-checklist) — Assigned tools, login items, schedules and finish's own settings actions to the owner's quiet interval.
+- [Concurrent writers](../../specs/owner-skill-delivery.md#concurrent-writers) — Documented the loss of concurrent-edit preservation and retained exact native-root comparisons.
+- [Rollback](../../specs/owner-skill-delivery.md#rollback) — Defined whole-backup restoration with the deliberate Ravel off-value exception.
+- [The rehearsed plan](../../specs/owner-skill-delivery.md#the-rehearsed-plan) — Replaced runtime admission records with one disposable execution and content-identified inputs.
+- [Coordinated recovery](../../specs/coordinated-release.md#recovery-boundaries) — Replaced switch-state continuations with restore before a fresh attempt.
 
-## Hooks installation changes
-
-hooks-installation-writes-k222 settles how the writes of Claude Code's own
-commands take part in detection. Each command replaces `settings.json` by a
-rename, so each runs under a held link. The disabling is now the program's
-own exchange. A rename by another program inside a command's interval is the
-accepted case.
-
-native-settings-recovery-k224 integrated the focused review of this leaf and
-of native-settings-recovery-k221. The program now stops for an
-ACL or an extended attribute in the reading that the record's digest covers.
-Nothing bounds the accepted case's interval or the runs of its commands. See
-[Claude Code's own writes](../../specs/owner-skill-delivery.md#claude-codes-own-writes)
-and the
-[evidence](../../homebrew-skill-delivery-evidence.md#claude-codes-writes-of-the-settings-file).
-
-- [Ordered owner cutover](http://127.0.0.1:52710/#diagram-owner-cutover) — Each Claude Code command of the hooks installation runs under a held link, and the disabling is an exchange. A flagged held copy leads to the pending record.
-- [Finish keeps its guidance through the switch](http://127.0.0.1:52710/#diagram-owner-final-session) — The hooks installation writes the real HOME settings. Each command runs under a held link, and the disabling is an exchange.
-
-## Settings recovery changes
-
-native-settings-recovery-k221 proposes how the native settings compose with
-the recovery of the switch. It repairs findings F1 and F2 of
-homebrew-delivery-design-k219. Both preludes run in step 3 of the switch, only
-while no run is open. The native settings write a settings record before their
-exchange.
-
-Its focused review found no defect in these mechanisms, and
-native-settings-recovery-k224 integrated that review.
-hooks-installation-writes-k222 settled the detection of Claude Code's own
-writes. See
-[the native settings inside finish](../../specs/owner-skill-delivery.md#the-native-settings-inside-finish),
-[the hooks installation inside finish](../../specs/owner-skill-delivery.md#the-hooks-installation-inside-finish)
-and [resuming the switch](../../specs/owner-skill-delivery.md#resuming-the-switch).
-
-- [Ordered owner cutover](http://127.0.0.1:52710/#diagram-owner-cutover) — Moved both preludes behind the gate of step 3. A prelude stop now leads to the pending record, and each rerun goes back to step 1.
-- [Finish keeps its guidance through the switch](http://127.0.0.1:52710/#diagram-owner-final-session) — The switch starts right after promotion. Its step 3 runs the native settings with their settings record, then the hooks installation.
-- [States of the owner switch](http://127.0.0.1:52710/#diagram-owner-switch-states) — Step 3 reads the first state after the preludes, and a later run's preludes can turn a changed state native.
-
-## Default directory changes
-
-ravel-default-skill-directory-k218 settled Ravel's default skill directory and
-its effect on the switch. Ravel 2.0 delivers the keg sources when the settings
-name no `sources`, so the native state holds `"sources": []`. See
-[the native settings inside finish](../../specs/owner-skill-delivery.md#the-native-settings-inside-finish)
-and [the keg layout](../../specs/codex-skill-provisioning.md#the-keg-layout).
-
-- [Ordered owner cutover](http://127.0.0.1:52710/#diagram-owner-cutover) — Added the native settings after promotion. The inverse returns `skills` to the off value, and a rerun goes back to the native settings.
-- [Finish keeps its guidance through the switch](http://127.0.0.1:52710/#diagram-owner-final-session) — Finish writes the off value before the hooks installation.
-- [Skill formulae outside Ravel](http://127.0.0.1:52710/#diagram-owner-pack-checkouts) — An advance unlinks the earlier keg first. A resolution during the installation delivers the other sources and does not refuse.
-- [Supported Ravel routes](http://127.0.0.1:52710/#diagram-routes) — The source set decides the route, and `"sources": []` gives the native route on 2.0.
-- [Homebrew installs, Ravel delivers](http://127.0.0.1:52710/#diagram-skill-delivery) — Ravel's installation record names the default skill directory.
-
-## Homebrew delivery changes
-
-This discussion applies the human's decisions of
-skill-marketplace-decision-k201. Homebrew installs every skill source, and
-Ravel is the only route that delivers a skill. homebrew-delivery-design-k216
-proposes the design. See [the keg layout](../../specs/codex-skill-provisioning.md#the-keg-layout),
-[the owner's formulae](../../specs/owner-skill-delivery.md#skill-formulae),
-[the hooks installation inside finish](../../specs/owner-skill-delivery.md#the-hooks-installation-inside-finish)
-and the [evidence](../../homebrew-skill-delivery-evidence.md).
-
-- [Skill formulae outside Ravel](http://127.0.0.1:52710/#diagram-owner-pack-checkouts) — Replaced the mise checkouts with Homebrew formulae. An advance installs a new keg and links it into Ravel's default skill directory after the keg is complete.
-- [Ordered owner cutover](http://127.0.0.1:52710/#diagram-owner-cutover) — Preparation builds the candidate keg and installs four formulae. Finish installs the writing hooks plugin after promotion. The switch then admits the released keg's digests. They replace the core tree comparison and the pin advance.
-- [Finish keeps its guidance through the switch](http://127.0.0.1:52710/#diagram-owner-final-session) — Added the hooks installation, which names only `writing-hooks`. The probes capture the keg sources.
-- [Homebrew installs, Ravel delivers](http://127.0.0.1:52710/#diagram-skill-delivery) — Removed the native route. Only the hook adapters keep a native registration.
-- [Supported Ravel routes](http://127.0.0.1:52710/#diagram-routes) — The native routes find only existing native installations, and the directory route names keg sources.
+Earlier exchange, held-link and recovery-model measurements remain in the
+[evidence](../../owner-skill-delivery-evidence.md#single-owner-switch-design).
+They certify the earlier mechanism only. The stable recovery-view anchor is
+retained so existing links reach the replacement procedure.
 
 ## Earlier confinement changes
 
@@ -170,35 +109,6 @@ only boundary of a standalone run. See the
 - [User-managed skill delivery](http://127.0.0.1:52710/#diagram-skill-delivery) — A native route reads the native roots of the harness. No sandbox of Ravel hides them.
 - [Supported Ravel routes](http://127.0.0.1:52710/#diagram-routes) — The caption names the standalone caller without confinement.
 
-## Earlier recovery changes
-
-The discussion before it rebuilt how the owner switch recovers from
-interruptions and outside writes. The switch changes cells, and detection of
-outside writes replaces the earlier exemptions. A run record tells an
-interruption from an outside write, and the layout decides the state. Its
-focused review is integrated. See the
-[recovery sections](../../specs/owner-skill-delivery.md#the-switch-inside-finish),
-the [recovery model](../../specs/owner-skill-delivery.md#the-recovery-model)
-and its [evidence](../../owner-skill-delivery-evidence.md#the-recovery-model).
-
-- [States of the owner switch](http://127.0.0.1:52710/#diagram-owner-switch-states) — Added the six states that step 3 reads and the events between them. Only an open run with a prefix of switched parts resumes without the owner. Changed by the review integration: a complete switch whose step 14 finds a changed entry outside the switch set inverts to the changed state.
-- [Ordered owner cutover](http://127.0.0.1:52710/#diagram-owner-cutover) — Replaced the partial state with interrupted, drifted and changed states. The process listing repeats before each write interval. One program stages, exchanges and compares each part, and a conflict inverts the run's own parts. The receipt records the probed cells. Changed by the review integration: the listing excludes only the kept processes. Step 14 compares the entries outside the switch set before the manual copy, also in the complete continuation. The recovery nodes no longer share identities with preparation nodes.
-
-## Earlier checkout changes
-
-This discussion settled who installs the pack checkouts and keeps them
-current, now that Ravel reads local directories only. The human approved the
-owner's tool and the pin policy. mise is the owner's choice, and Ravel and
-Grove name no checkout tool. Three focused reviews of this design are
-integrated. See the
-[owner delivery specification](../../specs/owner-skill-delivery.md#skill-formulae),
-which homebrew-delivery-design-k216 later amended, and its
-[evidence](../../owner-skill-delivery-evidence.md#pack-checkouts).
-
-- [Pack checkouts outside Ravel](http://127.0.0.1:52710/#diagram-owner-pack-checkouts) — Added the owner's checkout tool, the pin advance, the offline fetch failure and the missing-source refusal. An advance runs only while nothing captures the checkout.
-- [Ordered owner cutover](http://127.0.0.1:52710/#diagram-owner-cutover) — Added pack publication, the drafted checkout entries, the credential control and staging clones before the trials, and the checkout clone in preparation. Inside finish, the core tree comparison precedes the `grove-core` pin advance. Each run first reads the state of the switch set. After a native probe, a native state switches. A partial state resumes the inverse. An active state goes to the probes and the receipt. A drifted item stops for the owner's classification. Every stop, inverse or missing receipt leaves a pending-activation record, and the switch runs again. Step 1 also lists scheduled jobs and finish's descendants. Step 8 needs a rehearsal that covers the plan. The switch publishes each shared file by an atomic exchange. Only a switched layout with its receipt is complete.
-- [Finish keeps its guidance through the switch](http://127.0.0.1:52710/#diagram-owner-final-session) — Added the core tree comparison and the `grove-core` pin advance before the probes. A comparison of accepted digests follows the advance. The probes capture the pack checkouts.
-
 ## Earlier delivery changes
 
 This discussion mapped Ravel's reviewed Rhai directory contract into Grove's
@@ -210,16 +120,6 @@ and the [contract mapping](../../grove-skill-delivery-design-evidence.md#rhai-ma
 - [Preserving readers through adoption](http://127.0.0.1:52710/#diagram-skill-transition) — Replaced the historical `b93bb927` contract and the open tap choice with the reviewed `822c0ed2` contract and the route that publishes `ravel@2` first.
 - [Independent ownership](http://127.0.0.1:52710/#diagram-packages) — Named the configuration file and the caller-asset runtime of each major instead of an SDK.
 - [Route and return](http://127.0.0.1:52710/#diagram-handoff) — Showed that 2.0.0 wraps the intact mandate after its preamble and keeps its bytes in `originalPrompt`. Renamed the owner policy to the owner configuration.
-
-## Earlier owner changes
-
-The owner skill cutover is a proposal, and the integration of its focused
-review is complete. See the [owner delivery specification](../../specs/owner-skill-delivery.md)
-and [evidence](../../owner-skill-delivery-evidence.md).
-
-- [Where each installed entry goes](http://127.0.0.1:52710/#diagram-owner-classes) — Added the per-entry rule that routes each baseline entry to a Ravel source, a native route or no change.
-- [Ordered owner cutover](http://127.0.0.1:52710/#diagram-owner-cutover) — Added the ordered cutover and the switch inside finish, with its probes and inverse.
-- [Finish keeps its guidance through the switch](http://127.0.0.1:52710/#diagram-owner-final-session) — Added how finish keeps its native guidance through the switch. Later sessions move to Ravel 2.0.0. The review integration based retention on disabling without an orphan marker. The design keeps that basis independently of Claude Code's reader check.
 
 ## Earlier release changes
 

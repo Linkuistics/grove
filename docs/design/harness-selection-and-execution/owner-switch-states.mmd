@@ -1,19 +1,21 @@
-stateDiagram-v2
-    direction LR
-    [*] --> Native: preludes, then no open run and layout matches the plan
-    Native --> Changed: outside write or new entry
-    Changed --> Native: new plan, rehearsed
-    Changed --> Native: next run's preludes restore their own cells
-    Native --> Interrupted: switch begun, then a crash
-    Native --> Active: switch begun, each part switched
-    Interrupted --> Native: resumed inverse ends
-    Interrupted --> Drifted: outside write breaks the prefix
-    Active --> Complete: probes pass, receipt
-    Active --> Interrupted: failed probe, crash in the inverse
-    Active --> Native: failed probe, inverse ends
-    Complete --> Drifted: outside write to a cell
-    Complete --> Changed: step 14 finds an outside entry, inverse ends
-    Drifted --> Complete: the cell is switched again
-    Drifted --> Native: owner's inverse ends
-    Drifted --> Changed: owner's inverse leaves a third value
-    Complete --> Native: owner's inverse ends
+flowchart TB
+    A["Start here · Inspect the attempt"]
+    B{"Any switch write occurred?"}
+    C["No changed layout<br/>Repair preparation"]
+    D{"Verified receipt and<br/>current switched layout?"}
+    E["Keep successful activation<br/>Retain backup until purge"]
+    F["Re-establish quiet interval<br/>Run restore with the backup"]
+    G{"Native return verified?<br/>Ravel sources off?"}
+    H["Stop unsuccessfully<br/>Repair cause before a fresh attempt"]
+    I["Keep backup and failed paths<br/>Repair I/O or permissions<br/>Repeat the same restore"]
+    A -->|"1"| B
+    B -->|"2 no"| C
+    B -->|"2 yes or uncertain"| D
+    D -->|"3 yes"| E
+    D -->|"3 no, including crash"| F
+    F -->|"4"| G
+    G -->|"5 yes"| H
+    G -->|"5 no or restore interrupted"| I
+    I -->|"6 explicit retry"| F
+    classDef start fill:#16354a,color:#fff,stroke:#16354a,font-weight:bold
+    class A start

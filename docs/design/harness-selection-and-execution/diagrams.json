@@ -1,6 +1,6 @@
 {
   "title": "Harness selection and execution — Grove caller views",
-  "intro": "Homebrew skill delivery is proposed by homebrew-delivery-design-k216, and ravel-default-skill-directory-k218 settled Ravel's default skill directory: Homebrew installs every skill source, and Ravel is the only route that delivers a skill. Owner skill delivery and the coordinated release are reviewed and integrated: one complete Ravel 2.0.0, first through ravel@2, followed by compatible Grove and unversioned promotion. The owner switch's recovery rests on cells, a run record and detection of outside writes, with a Quint model. native-settings-recovery-k221 proposes the gate of the preludes in step 3 and the settings record. Graphs begin at Start here; sequences at their first message; states at their initial state.",
+  "intro": "Homebrew installs the owner's sources and Ravel delivers them. The owner is the sole user and this is the sole running grove. The simplified switch uses a checklist, narrow process check, one backup, serial writes and full restore. Proposed implementation; the k261 design review follows. The release order and reader protections stay. Graphs begin at Start here; sequences at their first message.",
   "groups": [
     {
       "id": "release",
@@ -10,7 +10,7 @@
     {
       "id": "owner",
       "title": "Owner skill cutover",
-      "description": "Proposed: move the owner's installed skills to Ravel sources, keep native capabilities, switch inside finish."
+      "description": "Single-owner switch design awaiting its scheduled review; implementation and actual activation remain ahead."
     },
     {
       "id": "skills",
@@ -58,21 +58,21 @@
       "group": "owner",
       "title": "Ordered owner cutover",
       "source": "owner-cutover.mmd",
-      "caption": "Proposed. Ordinary leaves prepare and rehearse; only finish, or the owner after an unsuccessful finish, runs the switch against the real HOME. Each run starts at step 1. Step 3 reads the run record first: while the latest complete backup's run is open, no prelude runs. Otherwise the native settings write a settings record and then exchange in the off value, so Ravel 2.0 delivers no keg source before the switch changes skills, and each later check reports a flagged kept copy. The hooks installation then names only writing-hooks. It runs each Claude Code command under a held link, which keeps a write in place inside the command's interval. It disables the plugin by the exchange after a settings record. It also disables a plugin that an interrupted run left enabled. A rename by another program inside a command's interval is the accepted case. Step 3 then reads the state from the layout, the run record of the latest backup and the plan. A native state switches after a native probe, an interrupted state resumes the inverse, and an active state completes its probes and receipt. A drifted or changed state changes nothing and stops for the owner. One program applies the parts; each exchange records what its displaced copy must hold, so an outside write is kept and reported. The inverse returns the skills cell to the off value. A receipt counts only while each cell is switched, and step 14 copies it into the manual only while each entry outside the switch set matches the plan. The owner purges retained bytes later, after this driver's reap."
+      "caption": "Design from the owner's accepted four simplification directions; k261 review follows. A quiet interval replaces concurrent-write preservation. One backup precedes native settings, hook commands and deactivation. Both harness probes and the final comparison precede success. A failed attempt restores native delivery with Ravel sources off. No partial continuation or rehearsal token applies."
     },
     {
       "id": "owner-switch-states",
       "group": "owner",
-      "title": "States of the owner switch",
+      "title": "Switch failure and explicit restore",
       "source": "owner-switch-states.mmd",
-      "caption": "Proposed, with its focused review integrated. Step 3 reads exactly one state from the layout, the run record and the plan, after the preludes when no run is open. Only an open run whose switched parts form a prefix of the plan's order is interrupted, and only it resumes without the owner. A drifted or changed state changes nothing. The Quint model docs/models/owner-switch.qnt checks the rows and the gate of the preludes; the arrows are a reading aid, not the checked relation."
+      "caption": "Recovery procedure, not a six-state classifier or checked model. A crash requires explicit full restore before a fresh attempt. Repeated restore targets the same backed-up native layout with Ravel's off-value exception. A restore failure keeps the backup and prevents success."
     },
     {
       "id": "owner-final-session",
       "group": "owner",
       "title": "Finish keeps its guidance through the switch",
       "source": "owner-final-session.mmd",
-      "caption": "Proposed cutover, with the cleanup claim corrected by owner-cleanup-reader-check-k256. Frozen versions stay registered and current. Disabling writes no orphan marker. Claude Code 2.1.319 also checks live reader markers before orphan deletion, but the cutover does not depend on that undocumented check. Codex and Pi write no such marker. The freeze, reader evidence and purge conditions stay. The switch runs right after promotion. While no run is open, step 3 writes the off value and installs writing-hooks under the existing settings records and held links. The switched settings name only the mandatory file, so probe launches capture the keg sources from Ravel's default skill directory."
+      "caption": "Finish retains its absolute guidance paths, frozen current registrations and full original Ravel keg. Hook commands and program writes run serially while finish waits. Success needs reader checks, probes and a final comparison. Crash recovery uses the retained restore entry; no automatic cleanup can run while the program is dead."
     },
     {
       "id": "release-tap",
@@ -174,17 +174,27 @@
     }
   ],
   "discussion": {
-    "title": "Reader checks during plugin-cache cleanup",
-    "status": "Cleanup evidence corrected for Claude Code 2.1.319 by owner-cleanup-reader-check-k256. Existing cutover rules retained",
-    "summary": "After the 14-day orphan-age threshold, Claude Code 2.1.319 checks live reader markers before deletion. An unreadable marker or an error during the liveness check keeps the directory. This undocumented behaviour protects only marked readers. Codex and Pi write no marker, and another version can change the check. The cutover keeps its freeze, versions registered and current, reader evidence and purge conditions. Resource lifetime records each rule's independent reason. The switch program and recovery model do not change.",
+    "title": "Simplify the switch for one owner",
+    "status": "Four directions accepted by the owner; detailed design awaits k261 review",
+    "summary": "The checklist owns background writers and jobs. The program checks other harness and driver processes, backs up before every change, writes serially, probes both harnesses and compares the final layout. Any failure restores native delivery; a crash needs explicit restore after restart. The design gives up concurrent-edit preservation and removes partial resumption and runtime rehearsal admission. Source identity, one active copy, native guardrail, readable finish guidance and old binaries remain protected.",
     "diagramIds": [
       "owner-cutover",
-      "owner-final-session"
+      "owner-switch-states",
+      "owner-final-session",
+      "owner-classes"
     ],
     "updatedDiagrams": [
       {
+        "id": "owner-cutover",
+        "summary": "Replaced exchange and resume branches with one backup, serial writes, probes and full restore."
+      },
+      {
+        "id": "owner-switch-states",
+        "summary": "Replaced the six-state diagram with explicit recovery after failure or crash."
+      },
+      {
         "id": "owner-final-session",
-        "summary": "Added the version-specific live-reader check beside the retained freeze and registration rule."
+        "summary": "Placed the backup before settings and hook installation while retaining guidance and original binaries."
       }
     ]
   }

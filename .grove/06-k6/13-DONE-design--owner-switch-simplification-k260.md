@@ -112,3 +112,52 @@ that owner-switch-simplification-k262 plans.
 
 The real HOME is read only. The cutover's ordering inside finish stays,
 unless the design changes it on its merits and states why.
+
+## Decisions (running log)
+
+- The owner's accepted four directions govern the redesign. Keep the switch
+  after Grove publication and Ravel promotion inside finish. No real-HOME
+  configuration change belongs to this design leaf.
+- Replace automatic writer/job enumeration with an owner checklist. Keep a
+  narrow process check for other Claude Code, Codex, Grove and Ravel
+  processes. The checklist covers Pi, desktop servers, updaters, schedules,
+  delegates and settings actions in finish itself; sole ownership does not
+  establish that these programs are idle.
+- One complete backup precedes every switch write, including the native
+  settings and hooks installation. Restore whole owned files and entries;
+  remove the cell-wise inverse, merge protocol, held links and resume table.
+  After promotion, native restoration deliberately writes the Ravel off
+  value even when the initial settings lacked the key. Restoring the absent
+  key would activate default sources beside native skills.
+- Treat a crash as a requirement to run the same restore command, not as a
+  continuation of a partly switched run. A restore failure preserves the
+  backup and blocks success; no program can guarantee a write through an I/O
+  failure or restore while it is dead.
+- Keep one disposable execution of the real plan and a human-readable result.
+  Identify command scripts, local helpers and inputs by content (D1), without
+  runtime admission by rehearsal digest. Re-run after a material change.
+- Compare the children of both native skill roots, excluding only the exact
+  platform-owned subtrees `synced` and `.system` (D3). Classify the native
+  `guardrail@personal` exception by its sole skill and keg origin (D5).
+- The existing review-design leaf k261 owns adversarial review; no in-session
+  reviewer is used. The k262 planner owns implementation leaves and the final
+  rewrite of the provisional parent handoff.
+- Preserve the native return's settings even when a live file is partly
+  written: restore computes from the backup. Own command/probe children must
+  end before restore writes; inability to reap them is incomplete recovery.
+- The spec and coordinated recovery rows are rewritten in place. The finish
+  ADR keeps the ordering decision and now names full restore. The parent
+  brief records artifact and per-leaf consequences without cutting code work.
+
+## Validation
+
+The changed specification, coordinated recovery, ADR, evidence and visual
+document passed local path/anchor checks, with deliberately missing path and
+anchor controls. The viewer manifest's identifiers, groups, discussion links
+and changed markers are consistent. The served manifest and three changed
+diagram sources match the files. Content digests of those subjects stayed
+unchanged through the check.
+
+Browser access was unavailable, so rendered layout was not inspected. No
+switch implementation was changed or executed; the code suite and actual
+dry run belong to the implementation and acceptance work after k261 and k262.

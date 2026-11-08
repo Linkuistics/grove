@@ -1,5 +1,11 @@
 # Owner skill delivery evidence
 
+The [owner specification](specs/owner-skill-delivery.md) describes the current
+design. The exchange, held-copy, recovery-model and rehearsal-admission
+measurements below are historical evidence for the earlier design. They do
+not certify the simplified serial switch. [Single-owner switch design](#single-owner-switch-design)
+states the present evidence boundary.
+
 This document records the inputs to the
 [owner skill delivery design](specs/owner-skill-delivery.md). The design
 session only read the machine. It changed no installation, setting, plugin
@@ -1877,3 +1883,55 @@ The prototypes measured three facts, which k260 carries in its task file:
   in a disposable layout.
 - `launchctl print gui/<uid>/<label>` shows the program arguments of each
   loaded job. All 577 jobs took about 2 seconds.
+
+## Single-owner switch design
+
+owner-switch-simplification-k260 uses the human's sole-user and sole-grove
+facts to replace four mechanisms. The specification now requires a quiet
+interval, one complete backup before all writes, ordinary serial writes,
+full restore on failure and one disposable execution of the real plan.
+This is a design change only. No new switch or actual owner cutover is
+measured by this section.
+
+| Finding | Design disposition |
+| --- | --- |
+| D1 | Keep content identities for the plan, program, invoked scripts, local helpers and command inputs, with tool paths/versions and dry-run substitutions. A path alone certifies nothing. Remove runtime rehearsal admission; the owner reviews the result and keeps the prepared inputs unchanged. |
+| D2 | Remove automatic job classification. The owner checklist names current writers and relaunch mechanisms, including mise, herdr, Orca and the codebase-memory updater. The narrow harness/driver process check does not establish their absence. |
+| D3 | Compare ordinary children of both native skill roots. Exclude only `.claude/skills/synced` and `.codex/skills/.system`, not their parents or siblings. Probe changes inside those exact subtrees are expected. New superseded siblings still fail. |
+| D4 | Remove MCP regex exemptions. The narrow process check excludes exact finish ancestors, not arbitrary matching descendants. Non-harness `caffeinate` needs no exemption. |
+| D5 | Classify enabled `guardrail@personal` as the deliberate native exception only at the personal keg origin and with only the guardrail skill. Another skill or origin fails. |
+
+The design keeps one active route per owner-selected name, finish's absolute
+guidance paths, frozen current plugin registrations and the original Ravel
+1.1.0 keg. Native restore explicitly turns Ravel sources off after promotion;
+restoring an absent `skills` key would enable the default sources beside
+native skills.
+
+The source inspection used Verify-tier graph evidence for
+`scripts/owner_switch.py`: `run_switch` calls the process check, preludes,
+state lookup, rehearsal admission and backup, with partial continuation and
+program re-execution. `held_command` implements the held-link, metadata and
+inode checks. Both call directions for `run_switch` were read at depth one,
+with tests included and no remaining page. Coverage at generation
+`2026-11-08T03:42:48Z` reported no recorded issue for the program, rehearsal,
+draft generator and inventory paths. This is best-effort coverage, not a
+completeness proof. The relevant spec, live leaves and earlier review findings
+were read directly.
+
+The simplified program is not implemented yet. Its dry run must measure the
+complete command write set, metadata and quiet-session assumption. A final
+comparison can detect a different resulting layout; it cannot detect an edit
+that an ordinary write already overwrote. A killed program cannot restore
+while dead. The retained restore entry must work after restart, and a failed
+restore must preserve its backup and prevent success. The new design makes
+these limits explicit instead of applying the old model's claims to it.
+
+The existing owner-switch-simplification-k261 review challenges the design.
+The parent rollout brief gives k262 artifact and leaf consequences; no
+implementation leaf or machine configuration was changed in this session.
+
+The visual document's manifest and three changed diagram sources were served
+at the existing localhost viewer and matched the working files. Browser
+access was unavailable, so this session did not inspect their rendered
+layout. The editable sources and stable discussion links remain available
+for the scheduled review.

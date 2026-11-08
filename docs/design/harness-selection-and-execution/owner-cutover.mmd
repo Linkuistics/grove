@@ -1,69 +1,31 @@
-flowchart LR
-    subgraph prep["Ordinary leaves"]
-        direction TB
-        A["Start here · Baseline and design"]
-        B["Pack moves keep every entry<br/>Two skill-free plugins added<br/>Packs published"]
-        C["Re-inventory per entry"]
-        D["Draft config.rhai, the off and<br/>switched skill settings<br/>and formula declarations"]
-        E["Candidate keg of Grove's six sources<br/>then staging-HOME trials<br/>on both harnesses"]
-        F["Prepare real HOME: install four formulae,<br/>guardrail disabled<br/>Rehearse the program on the plan<br/>with every control"]
-        A -->|1| B
-        B -->|2| C
-        C -->|3| D
-        D -->|4| E
-        E -->|5| F
-    end
-    subgraph fin["Finish"]
-        direction TB
-        G["Release Grove<br/>Promote Ravel"]
-        H{"1-2: no listed process or job<br/>beyond the kept processes:<br/>harness, its driver chain,<br/>MCP servers, program?"}
-        I["Ask the owner<br/>Signal nobody"]
-        GT{"3: is the run of the<br/>latest complete backup open?"}
-        NS["Prelude: native settings<br/>settings record first, then<br/>exchange in the off value<br/>and compare with the record"]
-        HI["Prelude: hooks installation<br/>from Grove's keg, disabled<br/>Each Claude Code command<br/>under a held link<br/>Disable by exchange after a record<br/>Name only writing-hooks"]
-        S{"3: state from the layout,<br/>the run record of the<br/>latest backup and the plan"}
-        R["Resume the inverse<br/>of the open run"]
-        DR["Drifted: change nothing<br/>Report each cell"]
-        CH["Changed: stop for<br/>classification and a<br/>new rehearsed plan"]
-        P["Admit the released keg's digests<br/>Formula versions as accepted<br/>Every accepted digest<br/>Rehearsal names plan and program<br/>No flagged kept copy"]
-        Q["Pending-activation record<br/>No success signal<br/>Switch runs again"]
-        J["One program, parts in order:<br/>read, stage, exchange or<br/>exclusive rename, compare"]
-        K{"Both probes pass and<br/>each cell still as probed?"}
-        L["Inverse of the run's parts<br/>skills back to the off value<br/>then native probe"]
-        M["Receipt records the probed cells"]
-        N{"14: entries outside the<br/>switch set match the plan?"}
-        O["Copy the receipt to the manual<br/>Entry valid while<br/>mac-check reports complete"]
-        G -->|7| H
-        H -->|"8 no"| I
-        H -->|"8 yes"| GT
-        GT -->|"8a no: preludes"| NS
-        GT -->|"8a yes: no prelude"| S
-        NS -->|"8b off value written or present"| HI
-        NS -.->|"8b other value or conflict"| Q
-        HI -->|"8c disabled plugin present"| S
-        HI -.->|"8c other state, flagged copy or conflict"| Q
-        S -->|"8d native, probe passes"| P
-        S -.->|"8d interrupted"| R
-        S -->|"8d active: step 6, then probes"| K
-        S -.->|"8d drifted"| DR
-        S -.->|"8d changed"| CH
-        S -->|"8d complete, manual lacks receipt"| N
-        R -.->|"state again"| S
-        P -->|"8e"| J
-        P -.->|"8e stops"| Q
-        J -->|9| K
-        J -.->|"9 conflict"| L
-        K -->|"10 no"| L
-        L -.->|"pending record"| Q
-        K -->|"10 yes"| M
-        M -->|13| N
-        N -->|"14 yes"| O
-        N -.->|"14 no: failed probe"| L
-        DR -.->|"pending record"| Q
-        CH -.->|"pending record"| Q
-        M -.->|"receipt not written"| Q
-        Q -.->|"switch again from step 1"| H
-    end
-    prep -->|"6 after acceptance"| fin
+flowchart TB
+    A["Start here · Prepare accepted sources<br/>and isolated staging evidence"]
+    B["Prepare serial program and real plan<br/>Dry-run switch and full restore<br/>Identify command inputs by content"]
+    C["Finish releases Grove<br/>and promotes Ravel"]
+    D{"Owner checklist complete?<br/>No other harness or driver?"}
+    E["Verify sources, layout<br/>and finish's reader paths"]
+    F["One complete backup<br/>before every switch write"]
+    G["Write Ravel off value<br/>Install disabled writing hooks"]
+    H["Deactivate native copies<br/>Enable native capabilities<br/>Write switched Ravel settings last"]
+    I{"Both real-HOME probes pass?<br/>Final layout and readers agree?"}
+    J["Receipt and manual verified<br/>Original finish ending"]
+    R["Full restore from the backup<br/>Ravel sources explicitly off<br/>Verify native delivery, then stop"]
+    S["Stop before mutation<br/>Resolve checklist or preparation"]
+    A -->|"1"| B
+    B -->|"2"| C
+    C -->|"3"| D
+    D -->|"4 yes"| E
+    D -->|"4 no"| S
+    E -->|"5 verified"| F
+    E -->|"5 failed"| S
+    F -->|"6 complete"| G
+    F -->|"6 incomplete: no write"| S
+    G -->|"7"| H
+    H -->|"8"| I
+    I -->|"9 yes"| J
+    G -.->|"failure"| R
+    H -.->|"failure"| R
+    I -->|"9 no"| R
+    J -.->|"receipt or final comparison fails"| R
     classDef start fill:#16354a,color:#fff,stroke:#16354a,font-weight:bold
     class A start

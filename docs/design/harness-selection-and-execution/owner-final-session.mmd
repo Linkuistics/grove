@@ -1,27 +1,29 @@
 sequenceDiagram
-    participant D as Grove 22.8 driver
-    participant R1 as Ravel 1.1.0 keg
+    participant D as Original Grove driver
+    participant R1 as Full Ravel 1.1.0 keg
     participant F as Finish in Claude Code
-    participant N as Native plugin cache
-    participant H as Real HOME settings
+    participant N as Frozen native plugin cache
+    participant B as One backup
+    participant H as Real HOME
     participant R2 as Promoted Ravel 2.0.0
-    participant P as Probe sessions
     D->>R1: Launch finish through policy.ts
-    R1->>F: Start Claude Code with the mandate
-    F->>N: Read grove-finish and the spine by absolute path
-    F->>F: Release Grove and promote Ravel
-    F->>F: Switch steps 1 to 3: list the processes, read the run record
-    F->>H: Prelude while no run is open: settings record, then the off value, sources = []
-    Note over H,R2: A 2.0 launch now delivers no keg source before the switch changes skills
-    F->>H: Prelude: install the writing hooks plugin, each command under a held link
-    F->>H: Disable it by the exchange, after a settings record
-    Note over N: Each command names writing-hooks, so the frozen registration stays as it was
-    F->>F: Admit the released keg's digests, then check the formula versions and every accepted digest
-    F->>H: Switch: skills to its switched value, plugins, moved entries
-    Note over N: Frozen current versions stay registered; disabling writes no orphan marker
-    Note over F,N: Claude Code 2.1.319 checks live markers before orphan deletion<br/>The cutover does not rely on this check
-    F->>R2: Capture the keg sources
-    R2->>P: Launch Claude Code and Codex with directories
-    P-->>F: Observed reads and hook runs
-    F->>R1: Original end-session command
-    Note over D,R2: After the reap, new drivers use compatible Grove and Ravel 2.0.0
+    R1->>F: Original mandate and ending
+    F->>N: Read finish guidance by absolute path
+    F->>F: Release Grove, verify pair, promote Ravel
+    F->>F: Owner checklist and narrow process check
+    F->>B: Copy and verify all planned original items
+    Note over F,H: Finish waits; no settings action or other writer
+    F->>H: Off value, then disabled hook installation
+    F->>H: Deactivate native copies; activate Ravel last
+    F->>R2: Resolve and run both harness probes
+    R2-->>F: Observed reads and hooks
+    F->>N: Reread guidance and compare registrations
+    alt Probes and final comparisons pass
+        F->>H: Verified receipt and manual entry
+        F->>R1: Exact original ending command
+    else Any failure after backup
+        B->>H: Full native restore, Ravel sources off
+        F->>F: Verify native return and stop without success
+    end
+    Note over D,R1: No cleanup until the original driver's reap
+    Note over B,H: A crash needs explicit restore after restart

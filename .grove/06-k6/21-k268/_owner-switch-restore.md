@@ -1,4 +1,4 @@
-# owner-switch-restore-k268
+# owner-switch-restore-k268 — brief
 
 ## Goal
 
@@ -63,3 +63,11 @@ because neither is useful alone.
 
 Probe-owned service cleanup is owner-switch-probes-k257's work. Give the
 switch a seam that receives ownership evidence from a probe result.
+
+## Decomposition
+
+The controls proved slow to write, so this leaf became a node on
+2026-11-08. owner-switch-serial-restore-k272 delivers the switch, its
+restore and the core controls. owner-switch-restore-controls-k273
+delivers the remaining controls of "Test seams". k272's running log lists
+them.

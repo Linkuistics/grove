@@ -2793,3 +2793,100 @@ They cannot establish these duties of
   The real process table supplied the measured forms.
 - The inspection after probe cleanup, and the ownership records of real
   probes, belong to owner-switch-probes-k257.
+
+## Owner switch serial restore
+
+`owner-switch-serial-restore-k272` added the serial switch to
+`scripts/owner_switch.py` on 2026-11-08. The entries are `attempt`,
+`switch`, `restore` and `restore-identity`. The sections
+[The switch inside finish](specs/owner-skill-delivery.md#the-switch-inside-finish),
+[Resuming the switch](specs/owner-skill-delivery.md#resuming-the-switch) and
+[Rollback](specs/owner-skill-delivery.md#rollback) own the rules. The module
+docstring, section "The serial switch", states each step, exit status,
+hook point and plan field. The old run, inverse, merge, pending and state
+entries stay until `owner-switch-contraction-k270` removes them.
+
+### The entries
+
+- `attempt` writes the attempt note `<state>/attempts/<id>.json` with mode
+  0444. The note names HOME, the plan, the program and the command inputs.
+  It also names the observed tool versions, the backup path and the
+  literal switch, restore and native-off commands. It records no progress.
+- `switch` refuses with exit 3 before any switch-set write. A note that does
+  not fit refuses, and so does a changed command input or tool version. An
+  unclear process inspection, a changed planned original or a changed
+  inventory refuses too. So do a missing off value, a baseline anomaly and
+  a failed gate of steps 4 to 7.
+- The backup copies each planned file and entry with `fcopyfile` metadata
+  and records each absence. The switch verifies the originals against the
+  copies before one publication rename. The backup holds no program.
+- After the publication, a caught failure restores and exits with 5. A
+  failed restore or a remaining probe-owned service exits with 4, and the
+  backup stays.
+- `restore` verifies the backup against its manifest, the attempt note and
+  HOME. With a valid receipt, a destination that differs from its
+  post-switch identity refuses before the first write. An eligible later
+  restore first writes a recovery note and backup.
+
+The restore identity leaves out `com.apple.provenance`. A measurement on
+2026-11-08 showed that macOS gives that attribute to each new file of the
+process. The same measurement showed that `fcopyfile` copies the ACL, the
+extended attributes and the mode of a folder.
+
+### Controls
+
+The run `task owner:switch:rehearse` with `SKIP_SETTINGS_WRITES=1` passed
+all 288 controls on Python 3.15.1 and macOS 27.0.1. It took 15 minutes 16 seconds. The
+record is partial, because the rerun of `settings-writes.sh` did not run.
+The serial switch runs no held-link command that the rerun measures. These
+subjects had the same SHA-256 digests before and after the run:
+
+| Subject | SHA-256 |
+| --- | --- |
+| `scripts/owner_switch.py` | `6508af236b18f22a4cbc62e75c2e0ac63bef0c93117936fc027df22d918ed22f` |
+| `scripts/owner_switch_rehearsal.py` | `f3cdbda6e5bf05928b338a7d49f772271e6316bb5b3733404759cfdd66df34da` |
+| `scripts/harness-trials/builds.json` | `29569fef4fc8e64b1ecf8b8f74d1eb85e10c8bfe0c136a4560763f69c3b5cfdf` |
+
+The 23 serial controls had these results:
+
+| Controls | Result |
+| --- | --- |
+| `serial-switch-and-later-restore` | The switch ran `marketplace add` and `install` once each and ended switched. The Ravel settings kept mode 0o640 and `user.owner`. The backup recorded the absent `known_marketplaces.json` and held no program. The receipt kept six restore identities apart from five delivery assertions. The note's literal restore command wrote a recovery backup and returned the layout. The receipt became invalid, and the manual received a correction and a native return. A repeated restore wrote nothing. |
+| `serial-backup-stopped` | A failure before the publication and a crash during the copy each left the layout unchanged and published no backup. The same note then completed the switch. |
+| `serial-attempt-mismatch` | After a crash, restore refused another attempt's note and another HOME, and a fresh attempt refused the changed originals. None of them wrote. The right note then restored the layout. |
+| `serial-later-drift` | After the switch, a changed `model` key refused the later restore before any write. The refusal named `settings.json`, and the receipt stayed valid. An appended manual note did not count as drift. |
+| `serial-preflight-refusals` | A changed command input, an extra native skill and an absent off value each refused with exit 3 and published no backup. |
+| Eleven `serial-fail-*` controls | A failed probe and a caught failure at ten named points each exited 5, with the native layout restored and no valid receipt. The points ran from `backup:published` to `switch:final`. After `switch:final`, the manual received a correction. A repeated switch with the same note refused. |
+| Seven `serial-crash-*` controls | A crash at seven named points ended the program. The note's own switch then refused, and its literal restore command returned the layout. After `receipt:written` and `switch:final`, restore ran as a later restore. |
+
+### Mutation controls
+
+Each deliberate mutation of a scratch copy of the program made its control
+fail, except the two that the table names:
+
+| Mutation | Control that failed, and why |
+| --- | --- |
+| Skip the copy of a file's metadata | `serial-switch-and-later-restore` refused with exit 3, because the backup check found the copies different. |
+| Skip the drift comparison of a later restore | `serial-later-drift` restored over the changed `model` key. |
+| Skip the comparison of the backup with its note and HOME | `serial-attempt-mismatch` restored with another attempt's note. |
+| Skip the restore after a caught failure | `serial-fail-probes` and `serial-fail-switch:final` left the switched layout. |
+| Skip the removal of an original absence | `serial-fail-hooks:after:marketplace-add` exited 4 with `known_marketplaces.json` left. |
+| Skip the refusal of an existing backup in the note check | The first run survived, because the changed originals refused the repeated switch later. The controls now require the note's refusal, and `serial-crash-probes` and `serial-fail-probes` then failed. |
+| Skip the comparison of originals with their copies before publication | It survived. No control yet makes a copy differ. `owner-switch-restore-controls-k273` owns the failed copy and metadata read. |
+
+The other mutations ran before that change of the refusal text. The change
+only narrows what two controls accept.
+
+### Limits
+
+- The controls run the stub `claude`, `brew`, `mise` and `ravel`. No
+  control ran a real harness or wrote the real HOME.
+- The probe-owned service seam only verifies that no recorded service
+  still runs. `owner-switch-probes-k257` adds the measured shutdown route.
+- `owner-switch-restore-controls-k273` owns the remaining cases of
+  "Test seams". The running log of `owner-switch-serial-restore-k272`
+  lists them.
+- A first full run gave a false failure count, because the program changed
+  while the run read it. That run measured nothing. A later run failed one
+  control, because its pattern refused the space in that case's folder
+  name. The run above began after the correction.

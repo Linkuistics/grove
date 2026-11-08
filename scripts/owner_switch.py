@@ -23,6 +23,15 @@ Usage:
     python3 -I owner_switch.py identity    PATH
     python3 -I owner_switch.py digest      PATH
     python3 -I owner_switch.py gate        {4,5,6,7} [--plan PLAN] [--home HOME]
+    python3 -I owner_switch.py attempt     --plan PLAN [--home HOME]
+    python3 -I owner_switch.py switch      --plan PLAN --attempt NOTE [--home HOME] [--guidance PATH]...
+    python3 -I owner_switch.py restore     --backup DIR --attempt NOTE [--home HOME] [--recovery NOTE]
+    python3 -I owner_switch.py restore-identity PATH
+
+The serial switch ("The switch inside finish") is `attempt`, `switch` and
+`restore`. It stands beside the old `run`, `inverse`, `merge`, `pending` and
+`state`, which owner-switch-contraction-k270 removes. The section "The serial
+switch" at the end of this text states it.
 
 `state` reads the state of the switch set and changes nothing. While a run
 is open, the program copy of its backup reads it. `run` runs the
@@ -266,6 +275,104 @@ Rehearsal hook: OWNER_SWITCH_REHEARSAL_HOOK names a command that the program
 runs at each named point with the point as its argument. Exit 99 ends the
 program at once, as a crash. The program refuses the hook when HOME is the
 account's home directory, so a real run never honours it.
+
+The serial switch. These entries use no exchange, held link, kept copy, cell
+inverse, run record or rehearsal record. Exit status: 0 for success, 2 for a
+usage error, 3 for a refusal before any switch-set write, 4 when recovery is
+incomplete and the backup stays, and 5 when the switch failed and restore
+verified native delivery.
+    attempt   Preparation. Write the immutable attempt note
+              <state>/attempts/<id>.json, mode 0444. It names the attempt
+              ID, canonical HOME, the plan's path and digest, the program's
+              path and digest, the planned command inputs, the observed
+              tool versions, the backup <state>/backups/<id>, and the
+              literal switch, restore and native-off commands. It records
+              no progress. The operator verifies the note before `switch`.
+    switch    Steps 1 to 9 of "The switch inside finish", with the note:
+              1-3  Refuse unless the note fits HOME, the plan and the
+                   program and its backup is absent. Refuse unless each
+                   command input has its planned digest, `claude --version`
+                   prints the plan's and the note's version, the narrow
+                   process inspection is clear, each planned original has
+                   its planned identity, the inventory is the expected one,
+                   the Ravel settings hold the off value, the baseline
+                   instrument reports no changed entry, and the gates of
+                   steps 4 to 7 pass. A Claude Code command that must run
+                   refuses an ACL or another attribute than
+                   com.apple.provenance on settings.json. Each --guidance
+                   file is recorded by digest.
+              4    Copy each planned file and entry into the backup with
+                   its content, mode, ACL, extended attributes and link
+                   text, or record its absence. Verify the originals
+                   against the copies, then publish the backup by one
+                   rename. The backup holds the plan, the evidence of
+                   steps 4 to 7 and the note's digest, and no program.
+                   Inspect the processes and compare the originals again.
+              5    Run `claude plugin marketplace add` and `claude plugin
+                   install` serially, only when needed. After each command,
+                   reread settings.json and refuse a change of another key.
+                   Then write the plugin's disabled value.
+              6    Move each entry part into <state>/discard/<id> and erase
+                   it. Write the switched cells of each file part, the
+                   Ravel settings last. Each write keeps the file's other
+                   keys and metadata, and the program rereads it.
+              7    Run the probes. A probe result {"owned": [{"pid",
+                   "start", "executable", "home"}]} names its services.
+                   One that still runs stops the switch with 4, and the
+                   backup stays. Inspect the processes again.
+              8    Run mac_check and the gate of step 6 again. Evaluate the
+                   delivery assertions, the expected inventory after the
+                   switch, the reader evidence and the guidance digests.
+                   Record the restore identity of each restore destination.
+              9    Write <state>/receipts/<id>.json and append the success
+                   observation to the manual, then compare the layout again.
+              A caught failure after step 4 invalidates the receipt,
+              restores and exits with 5, or with 4 when restore fails. A
+              crash leaves the backup: the next action is the note's
+              restore command, and a repeated switch with that note refuses.
+    restore   Verify each copy of the backup against its manifest, and the
+              backup against the note's digest, attempt ID, backup path and
+              HOME. Refuse a mismatch with no write. With a valid receipt,
+              this is a later restore: any restore destination whose
+              identity differs from the receipt's refuses before the first
+              write. An eligible later restore first writes a recovery note
+              and a recovery backup of the current layout. Its retry
+              command adds --recovery, which accepts each path at either
+              the recovery backup's identity or the restored identity. A
+              backup that was restored already passes with no write while
+              the layout is unchanged since. Restore writes each
+              destination whole, or removes it for an original absence, in
+              the order of switch.restore, the Ravel settings first. It
+              then runs native-off, verifies each destination against the
+              backup, runs the native probes, invalidates the receipt,
+              writes <state>/restored/<id>.json and appends to the manual.
+              A success observation without a correction receives one.
+    restore-identity
+              Print the restore identity of a path for a plan's author.
+The plan's "switch" section, which the old entries ignore:
+    writes      [{"path", "type": "file"|"entry", "original":
+                {"absent": true} | {"identity": restore identity}}]: the
+                whole write set. It names each part, settings.json,
+                known_marketplaces.json, installed_plugins.json and the
+                Ravel settings.
+    restore     the paths of writes in restore order, the Ravel settings first
+    inventory   {"before": [...], "after": [...]}: the expected inventories,
+                each item as an `outside` item, with the parts included
+    inputs      [{"role", "path", "digest"}]: each command input by content;
+                "$program" names this program
+    assertions  [{"path", "key", "value"} | {"path", "absent": true}]: the
+                delivery assertions, which the receipt keeps apart from
+                the restore identities
+    tools       {"claude": the held `claude --version` line}
+    retained    optional [{"item", "path", "condition": [...]}]: further
+                retained resources for the receipt, such as old binaries
+The serial switch ignores each cell's "earlier" value and each entry part's
+identity. Hook points: switch:start, backup:copy:<n>, backup:verify,
+backup:before-publish, backup:published, hooks:before:<label>,
+hooks:after:<label>, write:<path>:before, write:<path>:replace,
+deactivate:<path>, probes, receipt:written, manual:<what>, switch:final,
+restore:start, restore:<path> and restore:native-probes, besides gate:<point>
+and command:<name>.
 """
 from __future__ import annotations
 
@@ -1604,6 +1711,7 @@ def process_gate(layout: Layout, point: str, owned=()) -> None:
         raise Stop(f"another Claude Code, Codex, Grove or Ravel process, or a process that needs review, "
                    f"remains before {point}; end it through its owning interface, and the program signals none")
     log(f"gate: no other Claude Code, Codex, Grove or Ravel process before {point}")
+    return report
 
 
 def processes_command(args) -> int:
@@ -3457,6 +3565,1216 @@ def pending_command(args) -> int:
     return 0
 
 
+# --- the serial switch and its restore ----------------------------------------
+# docs/specs/owner-skill-delivery.md: "The switch inside finish", "The hooks
+# installation inside finish", "Claude Code's own writes", "Concurrent
+# writers", "Resuming the switch" and "Rollback". These entries use no
+# exchange, held link, kept copy, cell inverse or run record.
+
+ATTEMPT_SCHEMA = "owner-switch-attempt/1"
+BACKUP_SCHEMA = "owner-switch-backup/1"
+RECEIPT_SCHEMA = "owner-switch-receipt/1"
+KNOWN_MARKETPLACES = ".claude/plugins/known_marketplaces.json"
+INSTALLED_PLUGINS = ".claude/plugins/installed_plugins.json"
+# The files that the tested Claude Code commands change ("The hooks installation inside finish").
+HOOK_FILES = (CLAUDE_SETTINGS, KNOWN_MARKETPLACES, INSTALLED_PLUGINS)
+# Discovery roots: no attempt note or backup may lie inside one, or inside an inventory root.
+DISCOVERY_ROOTS = (".claude/skills", ".codex/skills", ".agents/skills")
+# Exit statuses of attempt, switch and restore.
+EXIT_REFUSED = 3      # refused before any switch-set write
+EXIT_INCOMPLETE = 4   # recovery incomplete: the backup stays, and the named paths need the owner
+EXIT_RESTORED = 5     # the switch failed, and restore verified native delivery
+WRITE_TEMP = ".owner-switch-"
+SERIAL_PURGE = (
+    "no session that ran during the switch remains",
+    "the driver's group is reaped",
+    "each retained resource keeps its recorded identity",
+    "the owner decides that the rollback window is closed",
+)
+
+
+class Unresolved(Exception):
+    """Recovery is incomplete: the backup stays, and the owner resolves the named cause first."""
+
+
+def switch_section(plan: dict) -> dict:
+    """The serial switch's fields of a plan. Stop with each problem when a field is missing or wrong.
+
+    The serial switch reads `parts` for its deactivations and switched cells,
+    and ignores the recovery-only `earlier` values and entry identities.
+    """
+    sw = plan.get("switch")
+    if not isinstance(sw, dict):
+        raise Stop("the plan has no switch section, so the serial switch cannot run it")
+    problems = []
+
+    def path(where: str, rel) -> None:
+        why = plan_path_problem(rel)
+        if why:
+            problems.append(f"{where} {rel!r} {why}")
+
+    writes = sw.get("writes")
+    if not isinstance(writes, list) or not writes:
+        problems.append("switch.writes names no write")
+        writes = []
+    types = {}
+    for i, w in enumerate(writes):
+        if not isinstance(w, dict) or w.get("type") not in ("file", "entry"):
+            problems.append(f"switch.writes[{i}] is neither a file nor an entry")
+            continue
+        path(f"switch.writes[{i}]", w.get("path"))
+        if w.get("path") in types:
+            problems.append(f"switch.writes names {w.get('path')!r} twice")
+        types[w.get("path")] = w["type"]
+        original = w.get("original")
+        if not (same(original, {"absent": True}) or (isinstance(original, dict) and list(original) == ["identity"]
+                                                       and re.fullmatch(r"[0-9a-f]{64}", str(original["identity"])))):
+            problems.append(f"switch.writes[{i}] has no original: {{\"absent\": true}} or {{\"identity\": <digest>}}")
+    for part in plan.get("parts", []):
+        if types.get(part.get("path")) != part.get("kind"):
+            problems.append(f"switch.writes does not name the {part.get('kind')} {part.get('path')!r} of parts")
+    for rel in HOOK_FILES + (RAVEL_SETTINGS,):
+        if types.get(rel) != "file":
+            problems.append(f"switch.writes does not name the file {rel}")
+    restore = sw.get("restore")
+    if not isinstance(restore, list) or sorted(map(str, restore)) != sorted(map(str, types)):
+        problems.append("switch.restore must name each path of switch.writes once")
+    elif restore[0] != RAVEL_SETTINGS:
+        problems.append(f"switch.restore must restore {RAVEL_SETTINGS} first")
+    inventory = sw.get("inventory")
+    if not isinstance(inventory, dict) or sorted(inventory) != ["after", "before"]:
+        problems.append("switch.inventory must name the expected inventories before and after")
+    else:
+        for when in ("before", "after"):
+            items = inventory[when]
+            if not isinstance(items, list) or not items:
+                problems.append(f"switch.inventory.{when} names no entry")
+                continue
+            for i, item in enumerate(items):
+                if isinstance(item, dict) and isinstance(item.get("entries"), dict) and "root" in item:
+                    path(f"switch.inventory.{when}[{i}]", item["root"])
+                elif isinstance(item, dict) and "path" in item and "identity" in item:
+                    path(f"switch.inventory.{when}[{i}]", item["path"])
+                else:
+                    problems.append(f"switch.inventory.{when}[{i}] is neither a path with an identity "
+                                    "nor a root with entries")
+    inputs = sw.get("inputs")
+    if not isinstance(inputs, list) or not any(isinstance(r, dict) and r.get("path") == "$program" for r in inputs):
+        problems.append("switch.inputs must name the program as \"$program\"")
+        inputs = []
+    for i, row in enumerate(inputs):
+        if (not isinstance(row, dict) or not isinstance(row.get("role"), str)
+                or not (row.get("path") == "$program" or (isinstance(row.get("path"), str)
+                                                          and os.path.isabs(row["path"])))
+                or not re.fullmatch(r"[0-9a-f]{64}", str(row.get("digest")))):
+            problems.append(f"switch.inputs[{i}] needs a role, an absolute path or \"$program\", and a digest")
+    assertions = sw.get("assertions")
+    if not isinstance(assertions, list) or not assertions:
+        problems.append("switch.assertions names no delivery assertion")
+        assertions = []
+    for i, a in enumerate(assertions):
+        keyed = (isinstance(a, dict) and isinstance(a.get("key"), list) and a["key"]
+                 and all(isinstance(k, str) for k in a["key"]) and "value" in a)
+        absent = isinstance(a, dict) and a.get("absent") is True and "key" not in a
+        if not (keyed or absent) or a.get("path") not in types:
+            problems.append(f"switch.assertions[{i}] needs a path of switch.writes, and a key with a value "
+                            "or \"absent\": true")
+    tools = sw.get("tools")
+    if not isinstance(tools, dict) or not isinstance(tools.get("claude"), str):
+        problems.append("switch.tools must name the held Claude Code version as \"claude\"")
+    for i, row in enumerate(sw.get("retained", [])):
+        if not isinstance(row, dict) or not isinstance(row.get("item"), str) or not isinstance(row.get("condition"),
+                                                                                                list):
+            problems.append(f"switch.retained[{i}] needs an item and a condition list")
+    if problems:
+        raise Stop("the plan's switch section is incomplete: " + "; ".join(problems))
+    return sw
+
+
+def contain_switch(layout: Layout, sw: dict) -> None:
+    """Stop unless each path of the switch section has its parent folder inside HOME."""
+    rels = [w["path"] for w in sw["writes"]]
+    for when in ("before", "after"):
+        rels += [i["root"] + "/child" if "root" in i else i["path"] for i in sw["inventory"][when]]
+    for rel in rels:
+        parent = os.path.realpath(os.path.dirname(layout.path(rel)))
+        if parent != layout.home and not parent.startswith(layout.home + os.sep):
+            raise Stop(f"the plan path {rel} leads outside HOME through {parent}")
+
+
+# --- identities of whole files and entries ------------------------------------------
+
+def meta_digest(fd: int, content: bytes) -> str:
+    """The digest of a node's mode, ACL, extended attributes and content.
+
+    It leaves out com.apple.provenance, which macOS gives each new file of
+    this process ("Claude Code's own writes").
+    """
+    st = os.fstat(fd)
+    h = hashlib.sha256()
+    _frame(h, b"mode", b"%o" % (st.st_mode & 0o7777))
+    _frame(h, b"acl", _acl_text(fd))
+    for name, value in _xattrs(fd):
+        if name != PROVENANCE:
+            _frame(h, b"xattr " + name, value)
+    _frame(h, b"content", content)
+    return h.hexdigest()
+
+
+def nodes_of(path: str):
+    """Each node of the file or entry at PATH, without following a link, or None when nothing is there."""
+    if not os.path.lexists(path):
+        return None
+    out = []
+
+    def walk(p: str, rel: str) -> None:
+        st = os.lstat(p)
+        if stat.S_ISLNK(st.st_mode):
+            out.append({"rel": rel, "type": "link", "link": os.readlink(p)})
+        elif stat.S_ISDIR(st.st_mode):
+            fd = os.open(p, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+            try:
+                out.append({"rel": rel, "type": "dir", "digest": meta_digest(fd, b"")})
+            finally:
+                os.close(fd)
+            for name in sorted(os.listdir(p)):
+                walk(os.path.join(p, name), f"{rel}/{name}")
+        elif stat.S_ISREG(st.st_mode):
+            fd = os.open(p, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+            try:
+                out.append({"rel": rel, "type": "file", "digest": meta_digest(fd, read_fd(fd))})
+            finally:
+                os.close(fd)
+        else:
+            raise Stop(f"{p} is neither a file, a folder nor a link, so no backup can hold it")
+
+    walk(path, ".")
+    return out
+
+
+def nodes_identity(nodes) -> str:
+    return "absent" if nodes is None else hashlib.sha256(canon(nodes).encode()).hexdigest()
+
+
+def restore_identity(path: str) -> str:
+    """The whole-file identity of a restore destination: "absent", or the digest of its nodes."""
+    return nodes_identity(nodes_of(path))
+
+
+def copy_tree(src: str, dst: str) -> None:
+    """Copy the entry SRC to the new path DST: each node's content, mode, ACL and attributes, and each link's text."""
+    st = os.lstat(src)
+    if stat.S_ISLNK(st.st_mode):
+        os.symlink(os.readlink(src), dst)
+    elif stat.S_ISDIR(st.st_mode):
+        os.mkdir(dst, 0o700)
+        for name in sorted(os.listdir(src)):
+            copy_tree(os.path.join(src, name), os.path.join(dst, name))
+        # The folder's own metadata comes last, because its mode can forbid new children.
+        sfd = os.open(src, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+        dfd = os.open(dst, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+        try:
+            copy_metadata(sfd, dfd)
+        finally:
+            os.close(sfd)
+            os.close(dfd)
+    elif stat.S_ISREG(st.st_mode):
+        sfd = os.open(src, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+        try:
+            dfd = os.open(dst, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+            try:
+                write_all(dfd, read_fd(sfd))
+                copy_metadata(sfd, dfd)
+                os.fsync(dfd)
+            finally:
+                os.close(dfd)
+        finally:
+            os.close(sfd)
+    else:
+        raise Stop(f"{src} is neither a file, a folder nor a link, so no backup can hold it")
+
+
+def discard_entry(path: str, discard: str) -> None:
+    """Move the entry at PATH out of its folder at once, then erase it inside the discard folder."""
+    os.makedirs(discard, 0o700, exist_ok=True)
+    gone = os.path.join(discard, f"gone-{secrets.token_hex(6)}")
+    os.rename(path, gone)
+    if os.path.isdir(gone) and not os.path.islink(gone):
+        erase_tree(gone)
+    else:
+        os.unlink(gone)
+
+
+def strict_file(path: str):
+    """The JSON object of a settings file, {} when it is absent, or a stop for any other content."""
+    try:
+        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+    except FileNotFoundError:
+        return {}
+    except OSError as e:
+        raise Stop(f"{path} could not be read: {e.strerror}")
+    try:
+        if not stat.S_ISREG(os.fstat(fd).st_mode):
+            raise Stop(f"{path} is not a regular file")
+        content = read_fd(fd)
+    finally:
+        os.close(fd)
+    obj, problem = strict_object(content)
+    if obj is None:
+        raise Stop(f"{path} is malformed: {problem}")
+    return obj
+
+
+def ravel_skills(layout: Layout):
+    return strict_file(layout.path(RAVEL_SETTINGS)).get("skills", ABSENT)
+
+
+# --- the attempt note ---------------------------------------------------------------
+
+def file_digest(path: str):
+    try:
+        with open(path, "rb") as f:
+            return hashlib.sha256(f.read()).hexdigest()
+    except OSError:
+        return None
+
+
+def input_rows(sw: dict) -> list:
+    """Each command input of the plan, with its planned and its current content digest."""
+    rows = []
+    for row in sw["inputs"]:
+        path = PROGRAM_PATH if row["path"] == "$program" else row["path"]
+        rows.append({"role": row["role"], "path": path, "planned": row["digest"], "digest": file_digest(path)})
+    return rows
+
+
+def observed_tools(layout: Layout) -> dict:
+    result = run_tool(layout, ["claude", "--version"])
+    return {"claude": result.stdout.strip() if result.returncode == 0 else None,
+            "python": sys.version.split()[0], "interpreter": sys.executable}
+
+
+def under(path: str, roots: list) -> str:
+    """The first root that holds PATH, or ""."""
+    real = os.path.realpath(path)
+    for root in roots:
+        r = os.path.realpath(root)
+        if real == r or real.startswith(r + os.sep):
+            return root
+    return ""
+
+
+def placement_problem(layout: Layout, sw: dict, path: str) -> str:
+    """Why PATH may not hold an attempt note or a backup, or ""."""
+    if ".grove" in os.path.realpath(path).split(os.sep):
+        return "it lies inside a .grove folder"
+    roots = [layout.path(r) for r in DISCOVERY_ROOTS]
+    for when in ("before", "after"):
+        roots += [layout.path(i.get("root") or i["path"]) for i in sw["inventory"][when]]
+    roots += [layout.path(w["path"]) for w in sw["writes"]]
+    root = under(path, roots)
+    if root:
+        return f"it lies inside the discovery, inventory or write path {root}"
+    real = os.path.realpath(path)
+    if not real.startswith(layout.home + os.sep):
+        return "it lies outside HOME"
+    return ""
+
+
+def new_attempt_id() -> str:
+    return datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%dT%H%M%S%fZ") + "-" + secrets.token_hex(3)
+
+
+def program_argv(*args: str) -> list:
+    return [sys.executable, "-I", PROGRAM_PATH, *args]
+
+
+def write_note(layout: Layout, sw: dict, note: dict) -> str:
+    folder = os.path.join(layout.state, "attempts")
+    path = os.path.join(folder, note["attempt"] + ".json")
+    for p in (path, note["backup"]):
+        why = placement_problem(layout, sw, p)
+        if why:
+            raise Stop(f"{p} cannot hold the attempt's records: {why}")
+    os.makedirs(folder, 0o700, exist_ok=True)
+    write_exclusive(path, dump_json(note))
+    os.chmod(path, 0o444)
+    return path
+
+
+def attempt_command(args) -> int:
+    """Preparation: write the immutable attempt note that names the switch and its restore."""
+    plan = load_plan(args.plan)
+    sw = switch_section(plan)
+    layout = Layout(args.home, plan)
+    contain_switch(layout, sw)
+    attempt = new_attempt_id()
+    backup = os.path.join(layout.state, "backups", attempt)
+    note_path = os.path.join(layout.state, "attempts", attempt + ".json")
+    note = {
+        "schema": ATTEMPT_SCHEMA, "kind": "switch", "attempt": attempt, "home": layout.home,
+        "plan": {"path": plan["_path"], "digest": plan["_digest"]},
+        "program": {"path": PROGRAM_PATH, "digest": PROGRAM_DIGEST},
+        "inputs": [{"role": r["role"], "path": r["path"], "digest": r["planned"]} for r in input_rows(sw)],
+        "tools": observed_tools(layout),
+        "backup": backup,
+        "switch": shlex.join(program_argv("switch", "--plan", plan["_path"], "--home", layout.home,
+                                          "--attempt", note_path)),
+        "restore": shlex.join(program_argv("restore", "--backup", backup, "--attempt", note_path,
+                                           "--home", layout.home)),
+        "native_off": shlex.join(native_off_argv(layout.home)),
+        "created": now(),
+    }
+    path = write_note(layout, sw, note)
+    log(f"attempt note: {path}")
+    log(f"switch: {note['switch']}")
+    log(f"restore: {note['restore']}")
+    log(f"native-off: {note['native_off']}")
+    return 0
+
+
+def load_note(path: str) -> dict:
+    try:
+        with open(path, "rb") as f:
+            raw = f.read()
+        note = json.loads(raw)
+    except (OSError, ValueError) as e:
+        raise Stop(f"the attempt note {path} cannot be read: {e}")
+    if not isinstance(note, dict) or note.get("schema") != ATTEMPT_SCHEMA:
+        raise Stop(f"{path} is not an attempt note of schema {ATTEMPT_SCHEMA}")
+    for key in ("kind", "attempt", "home", "backup", "restore"):
+        if not isinstance(note.get(key), str):
+            raise Stop(f"the attempt note {path} has no {key}")
+    note["_path"] = os.path.realpath(path)
+    note["_digest"] = hashlib.sha256(raw).hexdigest()
+    return note
+
+
+# --- the backup ---------------------------------------------------------------------
+
+def create_backup(layout: Layout, plan: dict, sw: dict, note: dict, evidence: dict) -> dict:
+    """Step 4: one complete backup of the whole write set, verified before its publication.
+
+    The backup holds data, never a program: each planned file and entry with
+    its content, mode, ACL, extended attributes and link text, or its
+    absence. It also holds the plan and the evidence of the attempt.
+    """
+    dest = note["backup"]
+    if os.path.lexists(dest):
+        raise Stop(f"the backup destination {dest} exists; a new attempt needs a new attempt note")
+    parent = os.path.dirname(dest)
+    os.makedirs(parent, 0o700, exist_ok=True)
+    if os.stat(parent).st_dev != os.stat(layout.home).st_dev:
+        raise Stop(f"the backup folder {parent} is not on HOME's volume")
+    tmp = os.path.join(parent, f".incomplete-{os.path.basename(dest)}")
+    if os.path.lexists(tmp):
+        erase_tree(tmp)
+    os.mkdir(tmp, 0o700)
+    os.mkdir(os.path.join(tmp, "data"))
+    items = []
+    try:
+        for i, w in enumerate(sw["writes"]):
+            hook(layout, f"backup:copy:{i}")
+            src = layout.path(w["path"])
+            nodes = nodes_of(src)
+            if nodes is not None:
+                copy_tree(src, os.path.join(tmp, "data", str(i)))
+            items.append({"path": w["path"], "type": w["type"], "data": f"data/{i}" if nodes is not None else None,
+                          "nodes": nodes, "identity": nodes_identity(nodes)})
+        manifest = {
+            "schema": BACKUP_SCHEMA, "attempt": note["attempt"], "kind": note["kind"], "home": layout.home,
+            "note": {"path": note["_path"], "digest": note["_digest"]},
+            "plan": {"path": plan["_path"], "digest": plan["_digest"]}, "program_digest": PROGRAM_DIGEST,
+            "evidence": evidence, "items": items, "created": now(),
+        }
+        with open(os.path.join(tmp, "plan.json"), "wb") as f:
+            f.write(plan["_bytes"])
+        with open(os.path.join(tmp, "manifest.json"), "wb") as f:
+            f.write(dump_json(manifest))
+            f.flush()
+            full_sync(f.fileno())
+        hook(layout, "backup:verify")
+        for item in items:
+            copy = nodes_of(os.path.join(tmp, item["data"])) if item["data"] else None
+            original = nodes_of(layout.path(item["path"]))
+            if canon(copy) != canon(item["nodes"]) or canon(original) != canon(item["nodes"]):
+                raise Stop(f"the backup copy of {item['path']} differs from the original")
+        hook(layout, "backup:before-publish")
+        renamex(tmp, dest, RENAME_EXCL)
+    except OSError as e:
+        raise Stop(f"the backup could not be completed: {e}")
+    # Nothing after the publication may stop here: each later failure belongs
+    # to the caller, which restores ("Resuming the switch").
+    log(f"backup: {dest}")
+    return dict(manifest, path=os.path.realpath(dest), plan_doc=plan)
+
+
+def backup_published(layout: Layout, backup: dict) -> None:
+    """Flush the backup's folder after its publication."""
+    dfd = os.open(os.path.dirname(backup["path"]), os.O_RDONLY)
+    try:
+        full_sync(dfd)
+    finally:
+        os.close(dfd)
+    hook(layout, "backup:published")
+
+
+def load_backup(path: str) -> dict:
+    """A published backup, with each copy verified against its manifest."""
+    path = os.path.realpath(path)
+    try:
+        with open(os.path.join(path, "manifest.json"), "rb") as f:
+            manifest = json.loads(f.read())
+    except (OSError, ValueError) as e:
+        raise Stop(f"{path} holds no readable backup manifest: {e}")
+    if not isinstance(manifest, dict) or manifest.get("schema") != BACKUP_SCHEMA:
+        raise Stop(f"{path} is not a backup of schema {BACKUP_SCHEMA}")
+    plan = load_plan(os.path.join(path, "plan.json"))
+    if plan["_digest"] != manifest["plan"]["digest"]:
+        raise Stop(f"the plan in {path} is not the plan that its manifest names")
+    for item in manifest["items"]:
+        copy = nodes_of(os.path.join(path, item["data"])) if item["data"] else None
+        if canon(copy) != canon(item["nodes"]) or nodes_identity(copy) != item["identity"]:
+            raise Stop(f"the backup copy of {item['path']} in {path} differs from its manifest")
+    return dict(manifest, path=path, plan_doc=plan)
+
+
+# --- ordinary writes and the serial hooks commands ----------------------------------
+
+def write_cells(layout: Layout, rel: str, cells: list) -> None:
+    """One ordinary write: set CELLS in the current file, keep its other keys and its metadata, and reread it."""
+    path = layout.path(rel)
+    hook(layout, f"write:{rel}:before")
+    try:
+        sfd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+    except FileNotFoundError:
+        sfd = None
+    try:
+        content = read_fd(sfd) if sfd is not None else None
+        obj = strict_file(path) if sfd is not None else {}
+        for key, value in cells:
+            set_cell(obj, key, value)
+        data = dump_json(obj)
+        folder = os.path.dirname(path)
+        os.makedirs(folder, exist_ok=True)
+        tmp = os.path.join(folder, f".{os.path.basename(path)}{WRITE_TEMP}{secrets.token_hex(6)}")
+        tfd = os.open(tmp, os.O_RDWR | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+        published = False
+        try:
+            write_all(tfd, data)
+            if sfd is not None:
+                copy_metadata(sfd, tfd)
+                os.utime(tfd, None)
+            else:
+                os.fchmod(tfd, 0o644)
+            full_sync(tfd)
+            if sfd is not None and strict_file(path) != strict_object(content)[0]:
+                raise Stop(f"{rel} changed while the switch wrote it; its writer must be paused")
+            hook(layout, f"write:{rel}:replace")
+            os.rename(tmp, path)
+            published = True
+        finally:
+            os.close(tfd)
+            if not published and os.path.lexists(tmp):
+                os.unlink(tmp)
+    finally:
+        if sfd is not None:
+            os.close(sfd)
+    now_obj = strict_file(path)
+    wrong = [key_name(k) for k, v in cells if not same(get_cell(now_obj, k), v)]
+    if wrong:
+        raise Stop(f"{rel} does not hold the written values of {', '.join(wrong)}")
+    log(f"write: {rel}: {', '.join(f'{key_name(k)} = {show(v)}' for k, v in cells)}")
+
+
+def without(obj: dict, keys: list) -> dict:
+    out = json.loads(canon(obj))
+    for key in keys:
+        set_cell(out, key, ABSENT)
+    return out
+
+
+def lost_metadata(layout: Layout) -> str:
+    """What a Claude Code command would drop from settings.json: an ACL or another attribute than provenance."""
+    try:
+        fd = os.open(layout.path(CLAUDE_SETTINGS), os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+    except FileNotFoundError:
+        return ""
+    try:
+        acl = _acl_text(fd)
+        others = [n.decode(errors="replace") for n, _ in _xattrs(fd) if n != PROVENANCE]
+    finally:
+        os.close(fd)
+    if acl:
+        return "an ACL"
+    return ("the extended attribute " + ", ".join(others)) if others else ""
+
+
+def claude_serial(layout: Layout, args: list, label: str, allowed: list) -> None:
+    """Run one Claude Code command while the switch waits, then read the settings again."""
+    hook(layout, f"hooks:before:{label}")
+    lost = lost_metadata(layout)
+    if lost:
+        raise Stop(f"{CLAUDE_SETTINGS} holds {lost}, which `claude {' '.join(args)}` would drop")
+    before = strict_file(layout.path(CLAUDE_SETTINGS))
+    result = run_tool(layout, ["claude"] + args)
+    if result.returncode != 0:
+        raise Stop(f"`claude {' '.join(args)}` failed: {(result.stdout + result.stderr).strip()[-2000:]}")
+    hook(layout, f"hooks:after:{label}")
+    after = strict_file(layout.path(CLAUDE_SETTINGS))
+    if not same(without(after, allowed), without(before, allowed)):
+        raise Stop(f"`claude {' '.join(args)}` changed other keys of {CLAUDE_SETTINGS} than "
+                   f"{', '.join(key_name(k) for k in allowed)}")
+
+
+def serial_hooks(layout: Layout, expected: str) -> None:
+    """Step 5: register writing-hooks, install its plugin if absent, and disable it, with no held link."""
+    state = hooks_state(layout, expected)
+    if state["kind"] == "other":
+        raise Stop(f"the hooks installation found that {state['reason']}")
+    if state["kind"] == "absent":
+        if not state["registered"]:
+            claude_serial(layout, ["plugin", "marketplace", "add", expected], "marketplace-add",
+                          [["extraKnownMarketplaces", HOOKS_MARKETPLACE]])
+            state = hooks_state(layout, expected)
+            if state["kind"] != "absent" or not state["registered"]:
+                raise Stop(f"after `claude plugin marketplace add`, {state['reason']}")
+        claude_serial(layout, ["plugin", "install", HOOKS_PLUGIN], "install", [HOOKS_KEY])
+        state = hooks_state(layout, expected)
+    if state["kind"] == "enabled":
+        write_cells(layout, CLAUDE_SETTINGS, [(HOOKS_KEY, False)])
+        state = hooks_state(layout, expected)
+    if state["kind"] != "disabled":
+        raise Stop(f"the hooks installation ended with {state['reason']}")
+    log(f"hooks installation: {state['reason']}")
+
+
+# --- comparisons and probe services -------------------------------------------------
+
+def inventory_changes(layout: Layout, items: list) -> list:
+    """Each entry that differs from an expected inventory. Only the platform subtrees are skipped."""
+    changed = []
+    for item in items:
+        if "root" in item:
+            root = layout.path(item["root"])
+            names = set(os.listdir(root)) if os.path.isdir(root) else set()
+            for name in sorted(names | set(item["entries"])):
+                rel = os.path.join(item["root"], name)
+                if platform_subtree(layout, rel):
+                    continue
+                if identity(layout.path(rel)) != item["entries"].get(name):
+                    changed.append(rel)
+        elif identity(layout.path(item["path"])) != item["identity"]:
+            changed.append(item["path"])
+    return changed
+
+
+def original_changes(layout: Layout, sw: dict) -> list:
+    """Each planned original that differs from the plan: content, metadata, link text or absence."""
+    out = []
+    for w in sw["writes"]:
+        wanted = "absent" if w["original"].get("absent") else w["original"]["identity"]
+        if restore_identity(layout.path(w["path"])) != wanted:
+            out.append(w["path"])
+    return out
+
+
+def assertion_results(layout: Layout, sw: dict) -> list:
+    out = []
+    for a in sw["assertions"]:
+        if a.get("absent"):
+            observed = "absent" if not os.path.lexists(layout.path(a["path"])) else "present"
+            holds = observed == "absent"
+        else:
+            try:
+                observed = get_cell(strict_file(layout.path(a["path"])), a["key"])
+            except Stop as e:
+                observed = f"unreadable: {e}"
+            holds = same(observed, a["value"])
+        out.append(dict(a, observed=observed, holds=holds))
+    return out
+
+
+def probe_owned(results: list) -> list:
+    """The probe-owned service records that the probes' results report as {"owned": [...]}."""
+    owned = []
+    for r in results:
+        for rec in (r.get("result") or {}).get("owned") or []:
+            if isinstance(rec, dict) and all(k in rec for k in ("pid", "start", "executable", "home")):
+                owned.append(rec)
+    return owned
+
+
+def end_probe_services(layout: Layout, owned: list) -> None:
+    """The seam of "Probe process lifetime": no probe-owned service may outlive the probes.
+
+    A probe reports each service that it proves it created. The measured
+    shutdown route of each launcher belongs to owner-switch-probes-k257.
+    Here, each record whose PID still has the recorded creation time is a
+    remaining service. PID reuse never authorises a signal, so the program
+    signals nothing.
+    """
+    remaining = [r for r in owned if process_start(int(r["pid"])) == r["start"]]
+    for r in remaining:
+        log(f"  remaining probe-owned service {r['pid']} ({r['executable']}, HOME {r['home']})")
+    if remaining:
+        raise Unresolved("a probe-owned service still runs after the probes; the owner ends it through its "
+                         "owning interface before restore")
+
+
+def recheck_reader_list(layout: Layout, readers: list) -> dict:
+    """Read each version directory of the reader evidence again: present, without orphan marker, registered."""
+    registry = load_json_file(layout.path(INSTALLED_PLUGINS)) or {}
+    plugins = registry.get("plugins") if isinstance(registry.get("plugins"), dict) else {}
+    out, problems = [], []
+    for reader in readers:
+        path = reader.get("path")
+        if not isinstance(path, str):
+            continue
+        registered = any(isinstance(e, dict) and e.get("installPath") == path
+                         for e in plugins.get(reader.get("plugin")) or [])
+        orphaned = os.path.lexists(os.path.join(path, ".orphaned_at"))
+        present = os.path.isdir(path)
+        out.append({"plugin": reader.get("plugin"), "path": path, "present": present, "orphaned": orphaned,
+                    "registered": registered})
+        if not present:
+            problems.append(f"the version directory {path} of {reader.get('plugin')} is missing")
+        elif orphaned:
+            problems.append(f"the version directory {path} of {reader.get('plugin')} holds .orphaned_at")
+        elif not registered:
+            problems.append(f"the version directory {path} of {reader.get('plugin')} lost its registration")
+    return {"readers": out, "problems": problems}
+
+
+def gate_result(results: list) -> dict:
+    found = [r.get("result") for r in results if isinstance(r.get("result"), dict)]
+    return found[0] if found else {}
+
+
+# --- the switch ---------------------------------------------------------------------
+
+def receipt_path(layout: Layout, attempt: str, suffix: str = "") -> str:
+    return os.path.join(layout.state, "receipts", f"{attempt}{suffix}.json")
+
+
+def restored_path(layout: Layout, attempt: str) -> str:
+    return os.path.join(layout.state, "restored", f"{attempt}.json")
+
+
+def append_verified(layout: Layout, text: str, what: str) -> None:
+    """Append TEXT to the maintained manual, then read it back. The manual is never rewritten."""
+    hook(layout, f"manual:{what}")
+    append_manual(layout, text, what)
+    try:
+        with open(layout.manual, encoding="utf-8") as f:
+            ok = f.read().endswith(text)
+    except OSError as e:
+        raise Stop(f"the manual could not be read back after the {what}: {e.strerror}")
+    if not ok:
+        raise Stop(f"the manual does not end with the {what} after the append")
+    log(f"manual: appended the {what}")
+
+
+def manual_marker(attempt: str, what: str) -> str:
+    return f"<!-- owner-switch-attempt {attempt} {what} -->"
+
+
+def manual_text(layout: Layout) -> str:
+    try:
+        with open(layout.manual, encoding="utf-8") as f:
+            return f.read()
+    except OSError:
+        return ""
+
+
+def preflight(layout: Layout, plan: dict, sw: dict, note: dict, args) -> dict:
+    """Steps 1 to 3: no switch-set write happens here."""
+    problems = []
+    if note["kind"] != "switch":
+        problems.append(f"the attempt note is a {note['kind']} note, not a switch note")
+    if note["home"] != layout.home:
+        problems.append(f"the attempt note names HOME {note['home']}, not {layout.home}")
+    if (note.get("plan") or {}).get("digest") != plan["_digest"]:
+        problems.append("the attempt note names another plan")
+    if (note.get("program") or {}).get("digest") != PROGRAM_DIGEST:
+        problems.append("the attempt note names another program")
+    if note["backup"] != os.path.join(layout.state, "backups", note["attempt"]):
+        problems.append(f"the attempt note names the backup {note['backup']}, outside the plan's state")
+    if os.path.lexists(note["backup"]):
+        problems.append(f"the backup {note['backup']} of this attempt exists: a new attempt needs a new note, "
+                        f"and an earlier interrupted attempt needs its restore first")
+    for p in (note["_path"], note["backup"]):
+        why = placement_problem(layout, sw, p)
+        if why:
+            problems.append(f"{p}: {why}")
+    if problems:
+        raise Stop("the attempt note does not fit this switch: " + "; ".join(problems))
+    rows = input_rows(sw)
+    differ = [f"{r['role']} {r['path']}" for r in rows if r["digest"] != r["planned"]]
+    if differ:
+        raise Stop("command inputs differ from the plan: " + ", ".join(differ))
+    tools = observed_tools(layout)
+    if tools["claude"] != sw["tools"]["claude"] or tools["claude"] != (note.get("tools") or {}).get("claude"):
+        raise Stop(f"claude --version printed {tools['claude']!r}; the plan holds {sw['tools']['claude']!r} and "
+                   f"the attempt note {(note.get('tools') or {}).get('claude')!r}")
+    operator = process_gate(layout, "the switch")
+    changed = original_changes(layout, sw)
+    if changed:
+        raise Stop("planned originals differ from the plan: " + ", ".join(changed))
+    changed = inventory_changes(layout, sw["inventory"]["before"])
+    if changed:
+        raise Stop("the inventory differs from the plan's expected inventory: " + ", ".join(changed))
+    if not same(ravel_skills(layout), OFF):
+        raise Stop(f"{RAVEL_SETTINGS} does not hold the off value; run native-off first: {note.get('native_off')}")
+    expected = marketplace_path(layout)
+    hooks = hooks_state(layout, expected)
+    if hooks["kind"] == "other":
+        raise Stop(f"the hooks installation found that {hooks['reason']}")
+    if hooks["kind"] == "absent":
+        lost = lost_metadata(layout)
+        if lost:
+            raise Stop(f"{CLAUDE_SETTINGS} holds {lost}, which Claude Code's commands would drop")
+    rows_changed = baseline_rows(layout, plan)
+    if rows_changed:
+        raise Stop("the baseline instrument reports changed entries: " + "; ".join(rows_changed))
+    evidence, admitted = {}, {}
+    for step in ("4", "5", "6", "7"):
+        results, failed = run_commands(layout, plan, plan["gates"][step], step, admitted)
+        evidence[step] = results
+        if failed:
+            raise Stop(f"step {step} failed: " + ", ".join(f["name"] for f in failed))
+        if step == "4":
+            admitted = admitted_of(results)
+    guidance = []
+    for p in args.guidance or []:
+        digest = file_digest(p)
+        if digest is None:
+            raise Stop(f"the operator's guidance {p} cannot be read")
+        guidance.append({"path": os.path.abspath(p), "digest": digest})
+    return {"evidence": evidence, "admitted": admitted, "inputs": rows, "tools": tools, "marketplace": expected,
+            "guidance": guidance, "operator": [describe(i) for i in operator["admitted"]]}
+
+
+def deactivations(plan: dict) -> list:
+    return [p["path"] for p in plan["parts"] if p["kind"] == "entry"]
+
+
+def switched_cells(plan: dict) -> list:
+    """The file parts' switched cells, in plan order, with the Ravel settings last."""
+    files = [p for p in plan["parts"] if p["kind"] == "file"]
+    files.sort(key=lambda p: p["path"] == RAVEL_SETTINGS)
+    return [(p["path"], [(c["key"], c["switched"]) for c in p["cells"]]) for p in files]
+
+
+def final_comparison(layout: Layout, sw: dict, ctx: dict) -> dict:
+    assertions = assertion_results(layout, sw)
+    inventory = inventory_changes(layout, sw["inventory"]["after"])
+    readers = recheck_reader_list(layout, gate_result(ctx["evidence"]["7"]).get("readers") or [])
+    guidance = [g["path"] for g in ctx["guidance"] if file_digest(g["path"]) != g["digest"]]
+    problems = [f"the assertion {a['path']} {key_name(a['key']) if 'key' in a else 'absent'} observed "
+                f"{show(a['observed'])}" for a in assertions if not a["holds"]]
+    problems += [f"the inventory changed at {rel}" for rel in inventory]
+    problems += readers["problems"]
+    problems += [f"the operator's guidance {p} changed or cannot be read" for p in guidance]
+    return {"assertions": assertions, "inventory": inventory, "readers": readers, "problems": problems}
+
+
+def retained_resources(layout: Layout, plan: dict, sw: dict, note: dict, ctx: dict) -> list:
+    purge = list(SERIAL_PURGE)
+    items = [{"item": "backup", "path": note["backup"], "condition": purge},
+             {"item": "attempt note", "path": note["_path"], "condition": purge}]
+    for reader in gate_result(ctx["evidence"]["7"]).get("readers") or []:
+        if isinstance(reader.get("path"), str):
+            items.append({"item": "frozen cache version", "plugin": reader.get("plugin"), "path": reader["path"],
+                          "condition": purge})
+    superseded = sorted({c["key"][1] for p in plan["parts"] if p["kind"] == "file" and p["path"] == CLAUDE_SETTINGS
+                         for c in p["cells"] if len(c["key"]) == 2 and c["key"][0] == "enabledPlugins"
+                         and c["switched"] is False})
+    for pid in superseded:
+        items.append({"item": "superseded plugin registration", "plugin": pid, "condition": purge})
+    for market in sorted({pid.split("@", 1)[1] for pid in superseded if "@" in pid}):
+        items.append({"item": "earlier marketplace registration", "marketplace": market, "condition": purge})
+    for sid, source in sorted((gate_result(ctx["evidence"]["6"]).get("sources") or {}).items()):
+        items.append({"item": "retained source", "source": sid, "path": source.get("originPath"),
+                      "resourceDigest": source.get("resourceDigest"), "condition": purge})
+    items.append({"item": "Grove's Codex snapshot store", "path": layout.path(CODEX_SNAPSHOT_STORE),
+                  "condition": purge})
+    staging = staging_of(plan)
+    after = ["this receipt is written"]
+    items.append({"item": "staging HOME", "path": staging["home"], "condition": after})
+    items.append({"item": "candidate keg", "path": staging["candidate_keg"], "condition": after})
+    items += [dict(row) for row in sw.get("retained", [])]
+    return items
+
+
+def switch_receipt(layout: Layout, plan: dict, sw: dict, note: dict, ctx: dict, probes: list, mac: dict,
+                   comparison: dict, identities: dict) -> dict:
+    step4, step5, step6 = (gate_result(ctx["evidence"][s]) for s in ("4", "5", "6"))
+    return {
+        "schema": RECEIPT_SCHEMA, "attempt": note["attempt"], "home": layout.home, "at": now(),
+        "operator": ctx["operator"],
+        "activated": {"grove": step4.get("grove"),
+                      "ravel": {"path": step6.get("ravel_path"), "version": step6.get("ravel")},
+                      "formula_versions": step5.get("formulae") or {}},
+        "sources": step6.get("sources") or {},
+        "plan": {"path": plan["_path"], "digest": plan["_digest"]},
+        "program_digest": PROGRAM_DIGEST, "inputs": ctx["inputs"], "tools": ctx["tools"],
+        "probes": probes, "mac_check": mac,
+        "readers": {"recorded": gate_result(ctx["evidence"]["7"]).get("readers") or [],
+                    "again": comparison["readers"]["readers"]},
+        "guidance": ctx["guidance"],
+        # Delivery assertions govern current health; restore identities govern
+        # later whole-file restore eligibility ("Current health and restore eligibility").
+        "delivery_assertions": comparison["assertions"],
+        "restore_identities": identities,
+        "attempt_note": note["_path"], "backup": note["backup"], "restore_command": note["restore"],
+        "retained": retained_resources(layout, plan, sw, note, ctx),
+    }
+
+
+def apply_switch_serial(layout: Layout, plan: dict, sw: dict, note: dict, backup: dict, ctx: dict) -> dict:
+    """Steps 4 (its end) to 9, after the backup's publication."""
+    backup_published(layout, backup)
+    process_gate(layout, "the first switch write")
+    changed = original_changes(layout, sw)
+    if changed:
+        raise Stop("planned originals changed after the backup: " + ", ".join(changed))
+    if not same(ravel_skills(layout), OFF):
+        raise Stop(f"{RAVEL_SETTINGS} lost the off value before the hooks installation")
+    serial_hooks(layout, ctx["marketplace"])
+    discard = os.path.join(layout.state, "discard", note["attempt"])
+    for rel in deactivations(plan):
+        hook(layout, f"deactivate:{rel}")
+        if os.path.lexists(layout.path(rel)):
+            discard_entry(layout.path(rel), discard)
+        log(f"deactivated: {rel}")
+    for rel, cells in switched_cells(plan):
+        write_cells(layout, rel, cells)
+    hook(layout, "probes")
+    probes, failed = run_commands(layout, plan, plan["probes"], "7")
+    end_probe_services(layout, probe_owned(probes))
+    if failed:
+        raise Stop("probe failed: " + ", ".join(f["name"] for f in failed))
+    process_gate(layout, "the final comparison")
+    mac = run_command(layout, plan["mac_check"], "8", plan)
+    if mac["exit"] != 0:
+        raise Stop(f"the switch area of {plan['mac_check']['name']} did not pass")
+    again, failed = run_commands(layout, plan, plan["gates"]["6"], "8", ctx["admitted"])
+    if failed:
+        raise Stop("the sources no longer resolve with their accepted digests")
+    comparison = final_comparison(layout, sw, ctx)
+    if comparison["problems"]:
+        raise Stop("the final comparison failed: " + "; ".join(comparison["problems"]))
+    identities = {rel: restore_identity(layout.path(rel)) for rel in sw["restore"]}
+    receipt = switch_receipt(layout, plan, sw, note, ctx, probes, mac, comparison, identities)
+    path = receipt_path(layout, note["attempt"])
+    os.makedirs(os.path.dirname(path), 0o700, exist_ok=True)
+    data = dump_json(receipt)
+    write_exclusive(path, data)
+    hook(layout, "receipt:written")
+    if file_digest(path) != hashlib.sha256(data).hexdigest():
+        raise Stop(f"the receipt {path} does not hold the written bytes")
+    log(f"receipt: {path}")
+    append_verified(layout, (
+        f"\n{manual_marker(note['attempt'], 'switched')}\n"
+        f"## Owner skill switch {note['attempt']}\n\n"
+        f"Ravel delivers the skills since {receipt['at']}. The receipt is `{path}`, and the backup is "
+        f"`{note['backup']}`. This observation holds only while `mac-check` verifies the switched layout. "
+        f"Before purge, run the purge report.\n\n"
+        f"Restore, which refuses when any restore destination has changed since this switch:\n\n"
+        f"```sh\n{note['restore']}\n```\n"), "success observation")
+    hook(layout, "switch:final")
+    final = final_comparison(layout, sw, ctx)
+    drift = [rel for rel in sw["restore"] if restore_identity(layout.path(rel)) != identities[rel]]
+    if final["problems"] or drift:
+        raise Stop("the final layout changed after the receipt: " + "; ".join(final["problems"] + drift))
+    return receipt
+
+
+def switch_command(args) -> int:
+    plan = load_plan(args.plan)
+    sw = switch_section(plan)
+    layout = Layout(args.home, plan)
+    contain_switch(layout, sw)
+    note = load_note(args.attempt)
+    log(f"program: {PROGRAM_DIGEST}")
+    log(f"plan: {plan['_digest']}")
+    log(f"attempt: {note['attempt']} ({note['_path']})")
+    hook(layout, "switch:start")
+    try:
+        ctx = preflight(layout, plan, sw, note, args)
+        backup = create_backup(layout, plan, sw, note, {s: ctx["evidence"][s] for s in ("4", "5", "6", "7")})
+    except Stop as e:
+        log(f"stop: {e}")
+        log("result: refused; no switch-set write happened, and native delivery stays")
+        return EXIT_REFUSED
+    try:
+        apply_switch_serial(layout, plan, sw, note, backup, ctx)
+    except Unresolved as e:
+        log(f"recovery incomplete: {e}")
+        log(f"the backup {note['backup']} stays. After the owner resolves it, run: {note['restore']}")
+        return EXIT_INCOMPLETE
+    except (Stop, Conflict, Incomplete, OSError) as e:
+        log(f"failure: {e}")
+        invalidate_receipt(layout, note["attempt"], f"the switch failed: {e}")
+        code = restore_from(layout, backup, note, f"the switch failed: {e}")
+        if code == 0:
+            log("result: failed; restore verified native delivery")
+            return EXIT_RESTORED
+        log(f"result: failed; recovery incomplete. Repeat: {note['restore']}")
+        return EXIT_INCOMPLETE
+    log("result: switched")
+    return 0
+
+
+# --- restore ------------------------------------------------------------------------
+
+def invalidate_receipt(layout: Layout, attempt: str, reason: str) -> None:
+    path = receipt_path(layout, attempt)
+    if os.path.lexists(path):
+        os.rename(path, receipt_path(layout, attempt, ".invalid"))
+        log(f"receipt: invalidated {path}: {reason}")
+
+
+def check_backup_note(backup: dict, note: dict, home: str) -> None:
+    problems = []
+    if backup["attempt"] != note["attempt"]:
+        problems.append(f"the backup belongs to attempt {backup['attempt']}, the note to {note['attempt']}")
+    if backup["note"]["digest"] != note["_digest"]:
+        problems.append("the backup records another attempt note")
+    if backup["home"] != home or note["home"] != home:
+        problems.append(f"the backup names HOME {backup['home']} and the note {note['home']}, not {home}")
+    if os.path.realpath(note["backup"]) != backup["path"]:
+        problems.append(f"the note names the backup {note['backup']}, not {backup['path']}")
+    if problems:
+        raise Stop("the backup does not match its attempt note and HOME: " + "; ".join(problems))
+
+
+def ravel_restored(layout: Layout, backup: dict, item: dict) -> bool:
+    """The Ravel settings equal the backed-up file, except for the enforced off value."""
+    if restore_identity(layout.path(item["path"])) == item["identity"]:
+        return True
+    try:
+        current = strict_file(layout.path(item["path"]))
+    except Stop:
+        return False
+    wanted = strict_file(os.path.join(backup["path"], item["data"])) if item["data"] else {}
+    return same(current, dict(wanted, skills=OFF))
+
+
+def restore_item(layout: Layout, backup: dict, item: dict, discard: str) -> None:
+    """Restore one whole file or entry, or its absence."""
+    path = layout.path(item["path"])
+    hook(layout, f"restore:{item['path']}")
+    os.makedirs(discard, 0o700, exist_ok=True)
+    if item["data"] is None:
+        if os.path.lexists(path):
+            discard_entry(path, discard)
+        return
+    build = os.path.join(discard, f"build-{secrets.token_hex(6)}")
+    copy_tree(os.path.join(backup["path"], item["data"]), build)
+    if canon(nodes_of(build)) != canon(item["nodes"]):
+        raise Incomplete(f"the restored copy of {item['path']} differs from the backup")
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    if os.path.lexists(path) and (item["type"] == "entry" or (os.path.isdir(path) and not os.path.islink(path))):
+        discard_entry(path, discard)
+    os.rename(build, path)
+    dfd = os.open(os.path.dirname(path), os.O_RDONLY)
+    try:
+        full_sync(dfd)
+    finally:
+        os.close(dfd)
+
+
+def remove_write_temps(layout: Layout, rels: list) -> None:
+    """Remove each temporary sibling that an interrupted ordinary write left."""
+    for folder in sorted({os.path.dirname(layout.path(r)) for r in rels}):
+        try:
+            names = os.listdir(folder)
+        except OSError:
+            continue
+        for name in names:
+            if WRITE_TEMP in name and name.startswith("."):
+                os.unlink(os.path.join(folder, name))
+                log(f"restore: removed the interrupted temporary file {os.path.join(folder, name)}")
+
+
+def restore_from(layout: Layout, backup: dict, note: dict, reason: str) -> int:
+    """Restore each destination whole, enforce the off value, verify, run the native probes and append."""
+    plan = backup["plan_doc"]
+    sw = switch_section(plan)
+    items = {item["path"]: item for item in backup["items"]}
+    discard = os.path.join(layout.state, "discard", backup["attempt"])
+    remove_write_temps(layout, sw["restore"])
+    if os.path.isdir(discard):
+        erase_tree(discard)
+    failed = []
+    for rel in sw["restore"]:
+        try:
+            restore_item(layout, backup, items[rel], discard)
+            if rel == RAVEL_SETTINGS:
+                native_off(layout.home)
+            log(f"restored: {rel}")
+        except (Stop, Incomplete, OSError) as e:
+            failed.append(f"{rel}: {e}")
+    for rel in sw["restore"]:
+        item = items[rel]
+        ok = ravel_restored(layout, backup, item) if rel == RAVEL_SETTINGS else \
+            restore_identity(layout.path(rel)) == item["identity"]
+        if not ok and not any(f.startswith(rel + ":") for f in failed):
+            failed.append(f"{rel}: differs from the backup after restore")
+    try:
+        if not same(ravel_skills(layout), OFF):
+            failed.append(f"{RAVEL_SETTINGS}: does not hold the off value")
+    except Stop as e:
+        failed.append(f"{RAVEL_SETTINGS}: {e}")
+    if failed:
+        for line in failed:
+            log(f"  failed path {line}")
+        log(f"restore: incomplete; the backup {backup['path']} stays")
+        return EXIT_INCOMPLETE
+    try:
+        hook(layout, "restore:native-probes")
+        probes, probe_failed = run_commands(layout, plan, plan["native_probe"], "restore")
+        end_probe_services(layout, probe_owned(probes))
+        process_gate(layout, "the end of restore")
+    except (Stop, Unresolved) as e:
+        log(f"restore: the native probes are incomplete: {e}")
+        return EXIT_INCOMPLETE
+    if probe_failed:
+        log("restore: native probe failed: " + ", ".join(f["name"] for f in probe_failed))
+        return EXIT_INCOMPLETE
+    invalidate_receipt(layout, backup["attempt"], reason)
+    marker = restored_path(layout, backup["attempt"])
+    os.makedirs(os.path.dirname(marker), 0o700, exist_ok=True)
+    if not os.path.lexists(marker):
+        write_exclusive(marker, dump_json({"attempt": backup["attempt"], "backup": backup["path"], "at": now(),
+                                           "reason": reason}))
+    entries = []
+    if manual_marker(backup["attempt"], "switched") in manual_text(layout) and \
+            manual_marker(backup["attempt"], "correction") not in manual_text(layout):
+        entries.append(("correction", f"\n{manual_marker(backup['attempt'], 'correction')}\n"
+                                      f"The success observation of owner skill switch {backup['attempt']} no "
+                                      f"longer holds: {reason}.\n"))
+    entries.append(("native return", f"\n{manual_marker(backup['attempt'], 'restored')}\n"
+                                     f"## Native skill delivery restored from {backup['attempt']}\n\n"
+                                     f"Restore from `{backup['path']}` verified native delivery at {now()}: "
+                                     f"{reason}.\n"))
+    try:
+        for what, text in entries:
+            append_verified(layout, text, what)
+    except Stop as e:
+        log(f"restore: the configuration is restored and verified, but the manual entry is pending: {e}")
+        return EXIT_INCOMPLETE
+    log("restore: native delivery verified")
+    return 0
+
+
+def restore_eligibility(layout: Layout, sw: dict, backup: dict, recovery) -> str:
+    """Decide which restore runs: immediate, later, retry or done. A refusal writes nothing."""
+    items = {item["path"]: item for item in backup["items"]}
+    if recovery is not None:
+        rbackup = recovery["backup_doc"]
+        ritems = {item["path"]: item for item in rbackup["items"]}
+        differ = []
+        for rel in sw["restore"]:
+            current = restore_identity(layout.path(rel))
+            if current in (ritems[rel]["identity"], items[rel]["identity"]):
+                continue
+            if rel == RAVEL_SETTINGS and ravel_restored(layout, backup, items[rel]):
+                continue
+            differ.append(rel)
+        if differ:
+            raise Stop("the interrupted restore cannot be retried: these paths match neither its recovery backup "
+                       "nor the restored layout: " + ", ".join(differ))
+        return "retry"
+    receipt = load_json_file(receipt_path(layout, backup["attempt"]))
+    if receipt is not None:
+        wanted = receipt.get("restore_identities") or {}
+        differ = [rel for rel in sw["restore"] if restore_identity(layout.path(rel)) != wanted.get(rel)]
+        if differ:
+            raise Stop("these restore destinations differ from the receipt's post-switch identity, so a whole-file "
+                       "restore would discard their changes; review them and prepare a revised native return: "
+                       + ", ".join(differ))
+        return "later"
+    if os.path.lexists(restored_path(layout, backup["attempt"])):
+        differ = [rel for rel in sw["restore"]
+                  if not (ravel_restored(layout, backup, items[rel]) if rel == RAVEL_SETTINGS
+                          else restore_identity(layout.path(rel)) == items[rel]["identity"])]
+        if differ:
+            raise Stop("this backup was restored already, and these paths changed since: " + ", ".join(differ))
+        return "done"
+    return "immediate"
+
+
+def recovery_backup(layout: Layout, sw: dict, backup: dict, note: dict) -> dict:
+    """Before an eligible later restore writes: keep the compared layout in a new recovery backup and its note."""
+    plan = backup["plan_doc"]
+    attempt = new_attempt_id()
+    rbackup = os.path.join(layout.state, "backups", attempt)
+    rnote_path = os.path.join(layout.state, "attempts", attempt + ".json")
+    rnote = {
+        "schema": ATTEMPT_SCHEMA, "kind": "recovery", "attempt": attempt, "of": backup["attempt"],
+        "home": layout.home, "plan": {"path": plan["_path"], "digest": plan["_digest"]},
+        "program": {"path": PROGRAM_PATH, "digest": PROGRAM_DIGEST}, "backup": rbackup,
+        "restore": shlex.join(program_argv("restore", "--backup", backup["path"], "--attempt", note["_path"],
+                                           "--home", layout.home, "--recovery", rnote_path)),
+        "created": now(),
+    }
+    write_note(layout, sw, rnote)
+    rnote = load_note(rnote_path)
+    log(f"recovery note: {rnote_path}")
+    log(f"if this restore is interrupted, repeat under the same quiet interval: {rnote['restore']}")
+    backup_published(layout, create_backup(layout, plan, sw, rnote, {}))
+    return rnote
+
+
+def restore_command(args) -> int:
+    home = os.path.realpath(args.home)
+    try:
+        backup = load_backup(args.backup)
+        note = load_note(args.attempt)
+        check_backup_note(backup, note, home)
+        plan = backup["plan_doc"]
+        sw = switch_section(plan)
+        layout = Layout(home, plan)
+        contain_switch(layout, sw)
+        recovery = None
+        if args.recovery:
+            recovery = load_note(args.recovery)
+            if recovery["kind"] != "recovery" or recovery.get("of") != backup["attempt"] or recovery["home"] != home:
+                raise Stop(f"{args.recovery} is not the recovery note of attempt {backup['attempt']} in {home}")
+            recovery["backup_doc"] = load_backup(recovery["backup"])
+            check_backup_note(recovery["backup_doc"], recovery, home)
+        log(f"restore: attempt {backup['attempt']} from {backup['path']}")
+        hook(layout, "restore:start")
+        process_gate(layout, "restore")
+        mode = restore_eligibility(layout, sw, backup, recovery)
+        log(f"restore: {mode}")
+        if mode == "done":
+            log("result: restored already; nothing written")
+            return 0
+        if mode == "later":
+            recovery_backup(layout, sw, backup, note)
+    except Stop as e:
+        log(f"stop: {e}")
+        log("result: refused; restore wrote nothing")
+        return EXIT_REFUSED
+    reason = {"immediate": "the owner restored after a failed or interrupted switch",
+              "later": "the owner returned to native delivery",
+              "retry": "the owner repeated an interrupted restore"}[mode]
+    code = restore_from(layout, backup, note, reason)
+    log("result: restored" if code == 0 else f"result: recovery incomplete. Repeat: {args_command(args)}")
+    return code
+
+
+def args_command(args) -> str:
+    argv = ["restore", "--backup", args.backup, "--attempt", args.attempt, "--home", os.path.realpath(args.home)]
+    if args.recovery:
+        argv += ["--recovery", args.recovery]
+    return shlex.join(program_argv(*argv))
+
+
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n", 1)[0])
     sub = parser.add_subparsers(dest="command", required=True)
@@ -3484,6 +4802,20 @@ def main(argv=None) -> int:
     p.add_argument("--json", action="store_true")
     sub.add_parser("identity").add_argument("path")
     sub.add_parser("digest").add_argument("path")
+    sub.add_parser("restore-identity").add_argument("path")
+    p = sub.add_parser("attempt")
+    p.add_argument("--plan", required=True)
+    p.add_argument("--home", default=account_home())
+    p = sub.add_parser("switch")
+    p.add_argument("--plan", required=True)
+    p.add_argument("--home", default=account_home())
+    p.add_argument("--attempt", required=True, help="the attempt note that `attempt` wrote")
+    p.add_argument("--guidance", action="append", help="a guidance file that the operator read; repeatable")
+    p = sub.add_parser("restore")
+    p.add_argument("--backup", required=True)
+    p.add_argument("--attempt", required=True, help="the attempt note of the backup's attempt")
+    p.add_argument("--home", default=account_home())
+    p.add_argument("--recovery", help="the recovery note of an interrupted later restore")
     p = sub.add_parser("gate")
     p.add_argument("step", choices=("4", "5", "6", "7"))
     p.add_argument("--plan")
@@ -3502,6 +4834,18 @@ def main(argv=None) -> int:
         if args.command == "digest":
             print(path_digest(args.path) or "absent")
             return 0
+        if args.command == "restore-identity":
+            print(restore_identity(args.path))
+            return 0
+        if args.command in ("attempt", "switch", "restore"):
+            # These entries write no run log: an attempt note holds instructions, not progress.
+            try:
+                return {"attempt": attempt_command, "switch": switch_command,
+                        "restore": restore_command}[args.command](args)
+            except Stop as e:
+                log(f"stop: {e}")
+                log("result: refused; nothing written")
+                return EXIT_REFUSED
         if args.command == "state":
             return state_command(args)
         if args.command == "merge":

@@ -79,6 +79,15 @@ persistence control fails unless OUT is on the volume of
 the account's HOME. The control of the accepted 2.0 build needs its darwin
 archive in target/ravel-archives-2.0, and the digest of
 scripts/harness-trials/builds.json.
+The serial controls run `attempt`, `switch` and `restore` on a HOME before
+the hooks installation. Each case computes the plan's "switch" section for
+its own HOME, because installed_plugins.json names absolute paths. They
+cover the full switch with a later restore through the note's literal
+command and its recovery backup, and a stop before the backup's
+publication. They also cover an attempt mismatch, a later restore that
+drift refuses, and refusals before any write. A caught failure or a crash
+at each named point completes them. The hook action "fail" makes the hook
+exit 1, so the program meets a caught failure at that point.
 Each `mac-check` control runs the real command with HOME set to the case's
 HOME, which links the checker's folder and holds copies of the plan and the
 program in <state>/prepared. That command file is the only file of the
@@ -92,6 +101,7 @@ import os
 import platform
 import pwd
 import re
+import shlex
 import shutil
 import signal
 import subprocess
@@ -258,6 +268,53 @@ def gate_command(step: str, name: str) -> dict:
     return {"name": name, "argv": ["$python", "-I", "$program", "gate", step]}
 
 
+KNOWN_MARKETPLACES = ".claude/plugins/known_marketplaces.json"
+INSTALLED_PLUGINS = ".claude/plugins/installed_plugins.json"
+# The serial switch's write set and its restore order: the Ravel settings first.
+SERIAL_WRITES = ((".claude/skills/grove", "entry"), (".codex/skills/grove", "entry"),
+                 (".claude/settings.json", "file"), (KNOWN_MARKETPLACES, "file"), (INSTALLED_PLUGINS, "file"),
+                 (".config/ravel/settings.json", "file"))
+SERIAL_RESTORE = (".config/ravel/settings.json", KNOWN_MARKETPLACES, INSTALLED_PLUGINS, ".claude/settings.json",
+                  ".claude/skills/grove", ".codex/skills/grove")
+
+
+def switch_fields(program: str, home: str) -> dict:
+    """The plan's switch section for HOME: the whole write set with its originals, the expected
+    inventories, the command inputs by content, the delivery assertions and the restore order.
+
+    The originals and the inventories depend on HOME, because installed_plugins.json names
+    absolute paths, so each case of the serial switch computes its own section.
+    """
+    def program_line(command: str, rel: str) -> str:
+        return subprocess.run([PY, "-I", program, command, os.path.join(home, rel)],
+                              capture_output=True, text=True, check=True).stdout.strip()
+
+    def original(rel: str) -> dict:
+        found = program_line("restore-identity", rel)
+        return {"absent": True} if found == "absent" else {"identity": found}
+
+    def root(rel: str, drop=()) -> dict:
+        names = sorted(n for n in os.listdir(os.path.join(home, rel)) if n not in drop)
+        return {"root": rel, "entries": {n: program_line("identity", f"{rel}/{n}") for n in names}}
+
+    return {
+        "writes": [{"path": rel, "type": kind, "original": original(rel)} for rel, kind in SERIAL_WRITES],
+        "restore": list(SERIAL_RESTORE),
+        "inventory": {"before": [root(".claude/skills"), root(".codex/skills")],
+                      "after": [root(".claude/skills", ["grove"]), root(".codex/skills", ["grove"])]},
+        "inputs": [{"role": "program", "path": "$program", "digest": digest_file(program)},
+                   {"role": "fixture commands", "path": SELF, "digest": digest_file(SELF)}],
+        "assertions": [{"path": ".config/ravel/settings.json", "key": ["skills"], "value": SWITCHED},
+                       {"path": ".claude/settings.json", "key": SUPERSEDED_PLUGIN, "value": False},
+                       {"path": ".claude/settings.json", "key": HOOKS_PLUGIN, "value": True},
+                       {"path": ".claude/skills/grove", "absent": True},
+                       {"path": ".codex/skills/grove", "absent": True}],
+        "tools": {"claude": FIXTURE_CLAUDE},
+        "retained": [{"item": "the original driver's Ravel keg", "path": "/opt/homebrew/Cellar/ravel/1.1.0",
+                      "condition": ["its last driver ends"]}],
+    }
+
+
 def build_plan(program: str, out: str) -> str:
     # The retained staging HOME, with its own .codex tree, and the candidate keg.
     os.makedirs(os.path.join(out, "staging-home", ".codex"), exist_ok=True)
@@ -309,6 +366,13 @@ def build_plan(program: str, out: str) -> str:
         "native_probe": [{"name": "probe-native", "argv": fixture_command("probe-native")}],
         "mac_check": {"name": "mac-check", "argv": fixture_command("mac-check")},
     }
+    # The serial switch starts before the hooks installation, so its fixture HOME lacks the plugin.
+    serial = os.path.join(out, "plan-home-serial")
+    if os.path.exists(serial):
+        shutil.rmtree(serial)
+    build_home(serial, os.path.join(prefix, "opt/grove"), hooks="absent")
+    plan["switch"] = switch_fields(program, serial)
+    shutil.rmtree(serial)
     shutil.rmtree(probe)
     shutil.rmtree(prefix)
     path = os.path.join(out, "plan.json")
@@ -443,7 +507,7 @@ def cmd_hook(point: str) -> int:
     fired = load(os.path.join(root, "fired.json"), [])
     with open(os.path.join(root, "points"), "a") as f:
         f.write(point + "\n")
-    crash = False
+    crash = failing = False
     for i, action in enumerate(control.get("actions", [])):
         if action["point"] != point or i in fired:
             continue
@@ -453,6 +517,9 @@ def cmd_hook(point: str) -> int:
         path = os.path.join(home, action.get("path", ""))
         if do == "crash":
             crash = True
+        elif do == "fail":
+            # A caught failure: the program stops at this point as after a failed read or write.
+            failing = True
         elif do == "write-key":
             write_in_place(path, action["key"], action["value"])
         elif do == "erase-key":
@@ -496,7 +563,7 @@ def cmd_hook(point: str) -> int:
             fd_write(os.path.join(root, f"slot-{action['slot']}"), action["key"], action.get("value"))
         else:
             raise SystemExit(f"unknown action {do}")
-    return 99 if crash else 0
+    return 99 if crash else (1 if failing else 0)
 
 
 def fd_write(slot: str, key: list, value) -> None:
@@ -813,6 +880,58 @@ class Case:
         with open(os.path.join(self.root, "runs.log"), "a") as f:
             f.write(f"$ run (exit {result.returncode})\n{out}\n")
         return result.returncode, out
+
+    def serial_plan(self, mutate=None) -> str:
+        """The fixture plan with the switch section of this case's HOME, as `self.serial`."""
+        plan = load(self.r.plan, {})
+        plan["switch"] = switch_fields(self.r.program, self.home)
+        if mutate:
+            mutate(plan)
+        self.serial = os.path.join(self.root, "serial-plan.json")
+        save_json(self.serial, plan)
+        return self.serial
+
+    def invoke(self, argv: list, via=None) -> tuple:
+        """Run ARGV under the fixture harness process, with the hook, the stubs and the fixture scope."""
+        env = dict(clean_env(), OWNER_SWITCH_REHEARSAL_HOOK=self.r.hook,
+                   PATH=self.r.stubs + os.pathsep + os.environ.get("PATH", ""),
+                   CLAUDE_CONFIG_DIR=os.path.join(self.root, "elsewhere"),
+                   CODEX_HOME=os.path.join(self.root, "elsewhere", ".codex"),
+                   RAVEL_SKILL_DIRECTORIES=os.path.join(self.root, "elsewhere"),
+                   OWNER_SWITCH_REHEARSAL_SCOPE=self.r.fixture_bin, PYTHONHOME=sys.base_prefix)
+        before = len(self.claude_calls())
+        result = subprocess.run([PY, "-I", SELF, "harness", HARNESS_MARK, self.root, "--"] + (via or []) + argv,
+                                env=env, capture_output=True, text=True, timeout=300)
+        out = result.stdout + result.stderr
+        self.outputs.append(out)
+        counts = {}
+        for call in self.claude_calls()[before:]:
+            words = call.split()
+            kind = " ".join(words[:3] if words[1:2] == ["marketplace"] else words[:2])
+            counts[kind] = counts.get(kind, 0) + 1
+        self.runs.append({"exit": result.returncode, "claude": counts})
+        with open(os.path.join(self.root, "runs.log"), "a") as f:
+            f.write(f"$ {' '.join(argv[3:6])} (exit {result.returncode})\n{out}\n")
+        return result.returncode, out
+
+    def attempt(self) -> dict:
+        """Write an attempt note for `self.serial`, and return it with its path."""
+        out = expect_exit(self.invoke([PY, "-I", self.r.program, "attempt", "--plan", self.serial,
+                                       "--home", self.home]), 0, "attempt note: ")
+        path = re.search(r"^attempt note: (.+)$", out, re.M).group(1)
+        return dict(load(path, {}), _path=path)
+
+    def switch(self, note: dict) -> tuple:
+        return self.invoke([PY, "-I", self.r.program, "switch", "--plan", self.serial, "--home", self.home,
+                            "--attempt", note["_path"]])
+
+    def restore(self, backup: str, note: dict, home=None) -> tuple:
+        return self.invoke([PY, "-I", self.r.program, "restore", "--backup", backup, "--attempt", note["_path"],
+                            "--home", home or self.home])
+
+    def literal(self, command: str) -> tuple:
+        """Run a literal command of an attempt note, as the owner pastes it."""
+        return self.invoke(shlex.split(command))
 
     def native_off(self, *extra: str, argv=None, via=None) -> tuple:
         """Run native-off under the fixture harness process, with the hook and the fixture scope.
@@ -2604,6 +2723,7 @@ def all_controls(r: Rehearsal) -> list:
     controls += review_controls()
     controls += entry_controls()
     controls += native_off_controls()
+    controls += serial_controls()
     return controls
 
 
@@ -3068,6 +3188,213 @@ def entry_controls() -> list:
 
 
 # --- native-off ("The native settings inside finish" and "Test seams") --------------
+
+# --- the serial switch and its restore -------------------------------------------
+# docs/specs/owner-skill-delivery.md, "Test seams": backup, caught failures,
+# hard interruption, explicit restore, attempt identity and later drift.
+
+# What restore leaves alone: the program's own state, the append-only manual
+# and the plugin cache that `claude plugin install` wrote ("Rollback").
+SERIAL_SKIP = (STATE, MANUAL, ".claude/plugins/cache/writing-hooks")
+SERIAL_ARGS = {"hooks": "absent", "rehearsed": False}
+
+
+def serial_view(case) -> dict:
+    return {k: v for k, v in case.snapshot().items()
+            if not any(k == p or k.startswith(p + "/") for p in SERIAL_SKIP)}
+
+
+def expect_view(case, wanted: dict, what: str) -> None:
+    got = serial_view(case)
+    differ = sorted(k for k in set(got) | set(wanted) if got.get(k) != wanted.get(k))
+    expect(not differ, f"{what}: these paths differ: {differ}")
+
+
+def receipt_file(case, note: dict, suffix: str = "") -> str:
+    return os.path.join(case.home, STATE, "receipts", f"{note['attempt']}{suffix}.json")
+
+
+def expect_switched(case) -> None:
+    expect(case.json(RAVEL)["skills"] == SWITCHED and case.json(RAVEL)["policy"] == "config.rhai",
+           f"the Ravel settings hold {case.json(RAVEL)}")
+    settings = case.json(SETTINGS)
+    expect(settings["enabledPlugins"]["grove@linkuistics"] is False
+           and settings["enabledPlugins"][HOOKS_ID] is True and settings["theme"] == "dark",
+           f"settings.json holds {settings}")
+    for rel in (".claude/skills/grove", ".codex/skills/grove"):
+        expect(not os.path.lexists(os.path.join(case.home, rel)), f"{rel} is still active")
+
+
+def c_serial_switch(case):
+    path = os.path.join(case.home, RAVEL)
+    os.chmod(path, 0o640)
+    subprocess.run(["/usr/bin/xattr", "-w", "user.owner", "kept", path], check=True)
+    case.serial_plan()
+    before = serial_view(case)
+    manual = case.manual()
+    note = case.attempt()
+    expect(os.stat(note["_path"]).st_mode & 0o777 == 0o444, "the attempt note is not read-only")
+    expect(not os.path.lexists(note["backup"]) and "restore --backup" in note["restore"]
+           and "progress" not in json.dumps(note), f"the attempt note holds {note}")
+    expect_exit(case.switch(note), 0, "result: switched")
+    expect_switched(case)
+    calls = case.commands()
+    expect(calls.get("plugin marketplace add") == 1 and calls.get("plugin install") == 1,
+           f"the switch ran these Claude Code commands: {calls}")
+    meta = subprocess.run(["/usr/bin/xattr", "-p", "user.owner", path], capture_output=True, text=True)
+    expect(meta.stdout.strip() == "kept" and os.stat(path).st_mode & 0o777 == 0o640,
+           "the ordinary write lost the Ravel settings' mode or attribute")
+    manifest = load(os.path.join(note["backup"], "manifest.json"), {})
+    items = {i["path"]: i for i in manifest.get("items", [])}
+    expect(items[KNOWN_MARKETPLACES]["data"] is None and items[RAVEL]["data"],
+           "the backup does not record the original absence and content")
+    expect(sorted(manifest["evidence"]) == ["4", "5", "6", "7"], "the backup lacks the evidence of steps 4 to 7")
+    programs = [n for _, _, names in os.walk(note["backup"]) for n in names if n.endswith(".py")]
+    expect(not programs, f"the backup holds a program copy: {programs}")
+    receipt = load(receipt_file(case, note), {})
+    expect(sorted(receipt["restore_identities"]) == sorted(SERIAL_RESTORE)
+           and all(a["holds"] for a in receipt["delivery_assertions"]),
+           "the receipt does not keep restore identities and delivery assertions apart")
+    retained = {r["item"] for r in receipt["retained"]}
+    expect({"backup", "staging HOME", "candidate keg", "the original driver's Ravel keg"} <= retained,
+           f"the receipt retains only {sorted(retained)}")
+    expect(case.manual().startswith(manual) and f"owner-switch-attempt {note['attempt']} switched" in case.manual(),
+           "the manual did not receive an appended success observation")
+    out = expect_exit(case.literal(note["restore"]), 0, "restore: later")
+    expect("recovery note: " in out, "an eligible later restore wrote no recovery backup")
+    expect_view(case, before, "after the later restore")
+    expect(os.stat(path).st_mode & 0o777 == 0o640, "restore lost the Ravel settings' mode")
+    expect(not os.path.lexists(receipt_file(case, note)) and os.path.exists(receipt_file(case, note, ".invalid")),
+           "restore left a valid receipt")
+    text = case.manual()
+    expect(text.startswith(manual) and f"{note['attempt']} correction" in text
+           and f"{note['attempt']} restored" in text, "the manual lacks the correction and the native return")
+    expect_exit(case.literal(note["restore"]), 0, "restored already")
+    expect_view(case, before, "after a repeated restore")
+
+
+def serial_failure(point: str, fail=None):
+    def fn(case):
+        case.serial_plan()
+        before = serial_view(case)
+        manual = case.manual()
+        note = case.attempt()
+        control = {"fail": fail} if fail else {"actions": [{"point": point, "do": "fail"}]}
+        case.set_control(control)
+        expect_exit(case.switch(note), 5, "restore: native delivery verified")
+        expect_view(case, before, "after the caught failure")
+        expect(not os.path.lexists(receipt_file(case, note)), "a success receipt remains")
+        text = case.manual()
+        expect(text.startswith(manual) and f"{note['attempt']} restored" in text,
+               "the manual lacks the native return")
+        if point == "switch:final":
+            expect(f"{note['attempt']} correction" in text, "the success observation received no correction")
+        expect_exit(case.switch(note), 3, "the backup .+ of this attempt exists")
+    return fn
+
+
+def serial_crash(point: str):
+    def fn(case):
+        case.serial_plan()
+        before = serial_view(case)
+        note = case.attempt()
+        case.set_control({"actions": [{"point": point, "do": "crash"}]})
+        expect_exit(case.switch(note), 99)
+        # No forward continuation: the note's own switch refuses, and its restore is the next action.
+        expect_exit(case.switch(note), 3, "the backup .+ of this attempt exists")
+        out = expect_exit(case.literal(note["restore"]), 0, "result: restored")
+        expect_view(case, before, "after the explicit restore")
+        return re.search(r"^restore: (immediate|later)$", out, re.M).group(1)
+    return fn
+
+
+def c_serial_backup_stopped(case):
+    case.serial_plan()
+    before = serial_view(case)
+    note = case.attempt()
+    case.set_control({"actions": [{"point": "backup:before-publish", "do": "fail"}]})
+    expect_exit(case.switch(note), 3, "no switch-set write happened")
+    expect_view(case, before, "after a failure before the backup's publication")
+    expect(not os.path.lexists(note["backup"]), "an incomplete backup was published")
+    case.set_control({"actions": [{"point": "backup:copy:3", "do": "crash"}]})
+    expect_exit(case.switch(note), 99)
+    expect_view(case, before, "after a crash inside the backup")
+    expect(not os.path.lexists(note["backup"]), "an incomplete backup was published")
+    # No backup was published, so the same note admits the switch.
+    expect_exit(case.switch(note), 0, "result: switched")
+
+
+def c_serial_attempt_mismatch(case):
+    case.serial_plan()
+    before = serial_view(case)
+    first, second = case.attempt(), case.attempt()
+    case.set_control({"actions": [{"point": "deactivate:.codex/skills/grove", "do": "crash"}]})
+    expect_exit(case.switch(first), 99)
+    middle = serial_view(case)
+    expect_exit(case.restore(first["backup"], second), 3, "does not match its attempt note")
+    other = os.path.join(case.root, "other-home")
+    os.makedirs(other)
+    expect_exit(case.restore(first["backup"], first, home=other), 3, "does not match its attempt note")
+    expect_exit(case.switch(second), 3, "planned originals differ")
+    expect_view(case, middle, "after the refusals")
+    expect_exit(case.restore(first["backup"], first), 0, "result: restored")
+    expect_view(case, before, "after the restore")
+
+
+def c_serial_drift(case):
+    case.serial_plan()
+    note = case.attempt()
+    expect_exit(case.switch(note), 0, "result: switched")
+    with open(os.path.join(case.home, MANUAL), "a") as f:
+        f.write("An unrelated note.\n")
+    write_in_place(os.path.join(case.home, SETTINGS), ["model"], "opus")
+    middle = serial_view(case)
+    out = expect_exit(case.literal(note["restore"]), 3, "differ from the receipt")
+    expect(".claude/settings.json" in out.split("receipt's post-switch identity", 1)[-1],
+           "the refusal does not name the changed file")
+    expect_view(case, middle, "after the refused later restore")
+    expect(os.path.exists(receipt_file(case, note)), "a refused restore invalidated the receipt")
+
+
+def c_serial_preflight(case):
+    case.serial_plan(lambda plan: plan["switch"]["inputs"][1].update(digest="0" * 64))
+    before = serial_view(case)
+    note = case.attempt()
+    expect_exit(case.switch(note), 3, "command inputs differ")
+    case.serial_plan()
+    note = case.attempt()
+    write(os.path.join(case.home, ".claude/skills/extra/SKILL.md"), "---\nname: extra\n---\n")
+    expect_exit(case.switch(note), 3, "inventory differs")
+    shutil.rmtree(os.path.join(case.home, ".claude/skills/extra"))
+    write_in_place(os.path.join(case.home, RAVEL), ["skills"], None)
+    case.serial_plan()
+    off = serial_view(case)
+    note = case.attempt()
+    expect_exit(case.switch(note), 3, "does not hold the off value")
+    expect_view(case, off, "after the refusals")
+    expect(not os.path.lexists(note["backup"]), "a refusal published a backup")
+    return f"{len(before)} paths unchanged"
+
+
+def serial_controls() -> list:
+    controls = [
+        ("serial-switch-and-later-restore", c_serial_switch, SERIAL_ARGS),
+        ("serial-backup-stopped", c_serial_backup_stopped, SERIAL_ARGS),
+        ("serial-attempt-mismatch", c_serial_attempt_mismatch, SERIAL_ARGS),
+        ("serial-later-drift", c_serial_drift, SERIAL_ARGS),
+        ("serial-preflight-refusals", c_serial_preflight, SERIAL_ARGS),
+        ("serial-fail-probe", serial_failure("probe", {"probe-switched": 1}), SERIAL_ARGS),
+    ]
+    failures = ["backup:published", "hooks:after:marketplace-add", "hooks:after:install",
+                "write:.claude/settings.json:replace", "deactivate:.codex/skills/grove",
+                "write:.config/ravel/settings.json:replace", "probes", "receipt:written",
+                "manual:success observation", "switch:final"]
+    controls += [(f"serial-fail-{pt}", serial_failure(pt), SERIAL_ARGS) for pt in failures]
+    crashes = ["backup:published", "hooks:after:install", "write:.claude/settings.json:replace",
+               "deactivate:.codex/skills/grove", "probes", "receipt:written", "switch:final"]
+    controls += [(f"serial-crash-{pt}", serial_crash(pt), SERIAL_ARGS) for pt in crashes]
+    return controls
+
 
 NATIVE_OFF_POINTS = ("native-off:begin", "native-off:read", "native-off:temp-partial",
                      "native-off:temp-synced", "native-off:replaced", "native-off:published")
